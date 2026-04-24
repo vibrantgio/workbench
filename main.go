@@ -6,7 +6,7 @@ import (
 
 	"gioui.org/app"
 
-	"github.com/reactivego/mvu"
+	"github.com/vibrantgio/mvu"
 )
 
 func main() {

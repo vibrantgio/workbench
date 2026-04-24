@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/reactivego/mvu"
+	"github.com/vibrantgio/mvu"
 
 	openai "github.com/sashabaranov/go-openai"
 )

@@ -17,13 +17,14 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
-	"github.com/reactivego/gio"
-	"github.com/reactivego/gio/style"
 	"github.com/vibrantgio/ivg"
 	"github.com/vibrantgio/ivg/encode"
 	"github.com/vibrantgio/ivg/generate"
 	raster "github.com/vibrantgio/ivg/raster/gio"
-	"github.com/reactivego/mvu"
+	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/place"
+	"github.com/vibrantgio/style"
+	"github.com/vibrantgio/textdraw"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -120,7 +121,7 @@ func ChatHistWidget(shaper *text.Shaper) func(hist []openai.ChatCompletionMessag
 	}
 }
 
-func EditWidget(shaper *text.Shaper, style gio.TextStyle, hint string, cb func(layout.Context, *widget.Editor)) layout.Widget {
+func EditWidget(shaper *text.Shaper, style textdraw.TextStyle, hint string, cb func(layout.Context, *widget.Editor)) layout.Widget {
 	label := widget.Label{Alignment: text.Start, MaxLines: style.MaxLines, Truncator: style.Truncator}
 	edit := widget.Editor{Alignment: text.Start, SingleLine: style.MaxLines == 1, Submit: true, InputHint: key.HintText}
 	edit.Focus()
@@ -149,7 +150,7 @@ func EditWidget(shaper *text.Shaper, style gio.TextStyle, hint string, cb func(l
 		rect = rect.Inset(border)
 		FillRect(gtx, rect, radius, cEdit)
 		rect = rect.Inset(border)
-		offset := gio.Place(rect, dims.Size, 0.0, 0.5).Min
+		offset := place.Place(rect, dims.Size, 0.0, 0.5).Min
 		cs := op.Offset(offset).Push(gtx.Ops)
 		if edit.Text() == "" {
 			layout.UniformInset(12+2+2).Layout(gtx, func(gtx layout.Context) layout.Dimensions {

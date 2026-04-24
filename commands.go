@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/reactivego/mvu"
 	"github.com/reactivego/rx"
+	"github.com/vibrantgio/mvu"
 
 	openai "github.com/sashabaranov/go-openai"
 )

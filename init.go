@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/reactivego/mvu"
+	"github.com/vibrantgio/mvu"
 
 	_ "github.com/joho/godotenv/autoload"
 )
