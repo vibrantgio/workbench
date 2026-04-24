@@ -24,7 +24,7 @@ require (
 	github.com/go-text/typesetting v0.0.0-20230717141307-09c70c30a055 // indirect
 	github.com/reactivego/scheduler v0.1.2 // indirect
 	github.com/vibrantgio/font v0.0.2 // indirect
-	github.com/vibrantgio/ivg/raster/gio v0.1.3
+	github.com/vibrantgio/ivg/raster/gio v0.1.4
 	golang.org/x/image v0.9.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
