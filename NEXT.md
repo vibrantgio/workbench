@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G−1.1` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration).
+**Active goal:** `G−1.2` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration).
 
 ---
 
@@ -85,6 +85,7 @@ When the Measurable criterion is met:
 ## Completed
 
 <!-- Append one line per finished goal, newest at the bottom. -->
+- G−1.1 — Pin and audit current Gio usage — produced MIGRATION.md with 53 call sites across 4 deprecated API patterns (window.Events, InputOp, InvalidateOp{}, ops.Internal) — 2026-05-05
 
 ## Followups
 
