@@ -1,1 +1,25 @@
-.DS_Store
+# Track only Markdown files in this outer repo.
+*
+!*/
+!*.md
+!.gitignore
+
+# Embedded per-module repos — each has its own remote.
+/appviz/
+/backdrop/
+/circle/
+/coinviz/
+/csg/
+/font/
+/gradient/
+/ivg/
+/kiwi/
+/mindchat/
+/mvu/
+/place/
+/seen/
+/style/
+/svg/
+/textdraw/
+/todos/
+/traer/
