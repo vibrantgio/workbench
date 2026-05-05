@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G−1.3` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration).
+**Active goal:** `G−1.4` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration).
 
 ---
 
@@ -88,6 +88,8 @@ When the Measurable criterion is met:
 - G−1.1 — Pin and audit current Gio usage — produced MIGRATION.md with 53 call sites across 4 deprecated API patterns (window.Events, InputOp, InvalidateOp{}, ops.Internal) — 2026-05-05
 
 - G−1.2 — Migrate `mvu/window.go` event loop — rewrote against `app.Window.Event()` goroutine adapter; fixed `message.go` (`event.Op`); corrected `unsafeOps` struct (`version uint32`); stripped removed `font.Font.Variant` field — 2026-05-05
+
+- G−1.3 — Replace `unsafe.Pointer` MessageOp extraction — replaced unsafe ops-cast with package-level `*op.Ops`-keyed collector map; `Add` writes to collector, frame observer drains it; zero unsafe in `mvu/` — 2026-05-05
 
 ## Followups
 
