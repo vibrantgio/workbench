@@ -66,21 +66,17 @@ Discharges DESIGN §"Phase −1 — Gio Migration" and §"Known Fragilities".
 - **Budget:** audit + write ~400 lines of Markdown. Single session.
 
 ### G−1.2 — Migrate `mvu/window.go` event loop
-
-- **Specific:** rewrite `mvu/window.go` against `app.Window.Event()` and `gtx.Source.Event(filter)`. Preserve the `WithLatestFrom2` join exactly.
-- **Measurable:** `go test ./mvu/...` passes; `todos` and `mindchat` compile and launch (manual smoke).
-- **Achievable:** one file (~150 lines) plus its tests.
+- **Specific:** rewrite `mvu/window.go` against `app.Window.Event()` (goroutine→channel→`rx.Recv`); fix `mvu/message.go` to use `event.Op` instead of the removed `pointer.InputOp`; fix `font/` `Variant` field (removed in v0.9). Preserve the `WithLatestFrom2` join exactly. The `unsafeOps` cast is corrected (`version uint32`) but not yet eliminated — that is G−1.3.
+- **Measurable:** `go build ./mvu/...` is error-free; `go test ./mvu/...` passes.
+- **Achievable:** `mvu/window.go` (~100 lines), `mvu/message.go` (~17 lines), `font/` leaf files (mechanical zero-value removal).
 - **Relevant:** DESIGN §"Phase −1" deliverable 2.
 - **Budget:** ~70 K tokens including reading current `mvu/window.go`, `traer/gio/...` example, and test rewrite.
-
 ### G−1.3 — Replace `unsafe.Pointer` MessageOp extraction
-
-- **Specific:** delete the `unsafeOps` cast in `mvu/window.go:69-78`; route `MessageOp` through a Gio router event tag with `gtx.Source.Event(filter)`.
-- **Measurable:** `grep -n "unsafe" mvu/` returns zero results; existing `MessageOp` consumers in `todos` continue to pass tests.
-- **Achievable:** single-file refactor against the API stabilised in G−1.2.
+- **Specific:** delete the `unsafeOps` cast in `mvu/window.go` (struct layout was corrected to `version uint32` in G−1.2, but the unsafe block must be removed entirely); route `MessageOp` through a mechanism that does not require `unsafe` — e.g. a per-frame accumulator slice threaded through the layout context, or another safe alternative.
+- **Measurable:** `grep -rn "unsafe" mvu/` returns zero results; `go build ./mvu/...` still clean; existing `MessageOp` consumers in `todos` compile (once G−1.5 is done).
+- **Achievable:** single-file refactor against the API stabilised in G−1.2; may require small changes to `mvu/message.go`.
 - **Relevant:** DESIGN §"MessageOp extraction via `unsafe.Pointer`" repayment plan.
 - **Budget:** ~50 K. Depends on G−1.2.
-
 ### G−1.4 ‖ — Migrate `coinviz`
 
 - **Specific:** update `coinviz/go.mod` to current Gio; fix every API breakage call site.
