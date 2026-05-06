@@ -30,7 +30,7 @@ import (
 )
 
 func View() func(Model) layout.Widget {
-	shaper := text.NewShaper(style.FontFaces())
+	shaper := text.NewShaper(text.WithCollection(style.FontFaces()))
 	chathist := ChatHistWidget(shaper)
 	chatlist := ChatListWidget(shaper)
 	return func(model Model) layout.Widget {
@@ -124,7 +124,7 @@ func ChatHistWidget(shaper *text.Shaper) func(hist []openai.ChatCompletionMessag
 func EditWidget(shaper *text.Shaper, style textdraw.TextStyle, hint string, cb func(layout.Context, *widget.Editor)) layout.Widget {
 	label := widget.Label{Alignment: text.Start, MaxLines: style.MaxLines, Truncator: style.Truncator}
 	edit := widget.Editor{Alignment: text.Start, SingleLine: style.MaxLines == 1, Submit: true, InputHint: key.HintText}
-	edit.Focus()
+	focusRequested := false
 
 	cActive := colornames.BlueGrey400
 	cEdit := colornames.BlueGrey600
@@ -132,11 +132,26 @@ func EditWidget(shaper *text.Shaper, style textdraw.TextStyle, hint string, cb f
 	cText := colornames.Grey200
 
 	return func(gtx layout.Context) layout.Dimensions {
+		if !focusRequested {
+			gtx.Execute(key.FocusCmd{Tag: &edit})
+			focusRequested = true
+		}
+
 		textMaterial := Material(gtx.Ops, cText)
 		selectMaterial := Material(gtx.Ops, cSelect)
 
 		radius := gtx.Dp(8)
 		border := gtx.Dp(2)
+
+		for {
+			ev, ok := edit.Update(gtx)
+			if !ok {
+				break
+			}
+			if _, ok := ev.(widget.SubmitEvent); ok {
+				cb(gtx, &edit)
+			}
+		}
 
 		m := op.Record(gtx.Ops)
 		dims := layout.UniformInset(12+2+2).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -154,20 +169,11 @@ func EditWidget(shaper *text.Shaper, style textdraw.TextStyle, hint string, cb f
 		cs := op.Offset(offset).Push(gtx.Ops)
 		if edit.Text() == "" {
 			layout.UniformInset(12+2+2).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				// return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return label.Layout(gtx, shaper, style.Font, style.Size, hint, selectMaterial)
-				// })
 			})
 		}
 		textOp.Add(gtx.Ops)
 		cs.Pop()
-
-		for _, event := range edit.Events() {
-			switch event.(type) {
-			case widget.SubmitEvent:
-				cb(gtx, &edit)
-			}
-		}
 
 		return layout.Dimensions{Size: outline.Size()}
 	}
@@ -276,7 +282,7 @@ func ChatRowWidget(gtx layout.Context, shaper *text.Shaper, name string, selecte
 		return dims
 	})
 
-	if clickable.Clicked() {
+	if clickable.Clicked(gtx) {
 		mvu.MessageOp{Message: SelectChat{Name: name}}.Add(gtx.Ops)
 	}
 	return dims
