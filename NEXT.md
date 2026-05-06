@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G−1.5e` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration; sub-goal of `G−1.5`, target: `seen/gio/*`).
+**Active goal:** `G−1.6` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration; Capture performance baseline).
 
 ---
 
@@ -100,6 +100,8 @@ When the Measurable criterion is met:
 - G−1.5c — Migrate `mindchat` — bumped go.mod to Gio v0.9.0; replaced `text.NewShaper` with `text.WithCollection`, `edit.Focus()` with focusRequested+`key.FocusCmd`, `edit.Events()` with `edit.Update(gtx)` loop before Layout, `clickable.Clicked()` with `Clicked(gtx)`; app launches and renders first frame — 2026-05-06
 
 - G−1.5d — Migrate `traer/gio/*` — bumped go.mod to Gio v0.9.0; replaced window.Events()/system.FrameEvent with w.Event()/app.FrameEvent type-switch; replaced pointer.InputOp/frame.Queue.Events with event.Op/gtx.Source.Event+pointer.Filter; replaced op.InvalidateOp with gtx.Execute(op.InvalidateCmd{}); text.NewShaper wrapped with text.WithCollection; fixed pointer.Event.Kind in field.go and scroller.go; go build ./... clean — 2026-05-06
+
+- G−1.5e — Migrate `seen/context/gio` — bumped go.mod to Gio v0.9.0; removed `font.Font.Variant`, wrapped `text.NewShaper` with `text.WithCollection`; replaced `window.Events()`/`system.FrameEvent` with `w.Event()`/`app.FrameEvent` type-switch and `app.NewContext`; replaced `app.NewWindow` with `new(app.Window)`+`Option`; replaced `pointer.InputOp`/`pointer.PassOp`/`q.Events` with `event.Op`/`gtx.Source.Event`+`pointer.Filter`; `op.InvalidateOp` → `gtx.Execute(op.InvalidateCmd{})`; `gtx.Queue` → `layout.Context`; go build ./... clean — 2026-05-06
 
 ## Followups
 
