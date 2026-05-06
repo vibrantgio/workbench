@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G−1.5c` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration; sub-goal of `G−1.5`, target: `mindchat`).
+**Active goal:** `G−1.5d` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration; sub-goal of `G−1.5`, target: `traer/gio/*`).
 
 ---
 
@@ -96,6 +96,8 @@ When the Measurable criterion is met:
 - G−1.5a — Migrate `appviz` — bumped go.mod to Gio v0.9.0; replaced `gesture.Click.Events(gtx.Queue)` and `gesture.Hover.Hovered(gtx.Queue)` with `Update(gtx.Source)`; wrapped `style.FontFaces()` in `text.WithCollection` for new `text.NewShaper` signature; app launches, fetches sales reports, and renders without panic — 2026-05-06
 
 - G−1.5b — Migrate `todos` — bumped go.mod to Gio v0.9.0; replaced `clickable.Clicked()` with `Clicked(gtx)`, `gtx.Queue` with `gtx.Source` pattern, `check.Changed()` with `check.Update(gtx)`, `edit.Events()` with `edit.Update(gtx)` loop before Layout, `key.InputOp` with `event.Op`+`key.Filter`; `text.NewShaper` wrapped with `text.WithCollection`; app builds and launches — 2026-05-06
+
+- G−1.5c — Migrate `mindchat` — bumped go.mod to Gio v0.9.0; replaced `text.NewShaper` with `text.WithCollection`, `edit.Focus()` with focusRequested+`key.FocusCmd`, `edit.Events()` with `edit.Update(gtx)` loop before Layout, `clickable.Clicked()` with `Clicked(gtx)`; app launches and renders first frame — 2026-05-06
 
 ## Followups
 
