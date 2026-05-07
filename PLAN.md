@@ -198,7 +198,7 @@ Discharges DESIGN §"Phase 0 — Token & Theme Contract". Gated by G00.A–D.
 
 ### G0.2 ‖ — `prism/tokens/{spacing,radius,elevation,motion}.go`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** four files of typed scales. Spacing on 4-pt grid (Tailwind-aligned).
 - **Measurable:** monotonicity tests per scale; `go test ./prism/tokens/...` passes.
 - **Achievable:** one goal per file (G0.2a..G0.2d) if any goes long.
