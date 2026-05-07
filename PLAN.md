@@ -121,6 +121,15 @@ Discharges DESIGN §"Phase −1 — Gio Migration" and §"Known Fragilities".
 
 ---
 
+### G−1.8 — Migrate `ivg/raster/gio` examples
+
+- [ ] **Done**
+- **Specific:** port the 8 programs in `ivg/raster/gio/example/` (`arrow`, `blend`, `cowbell`, `favicon`, `gradients`, `icons`, `info`, `logo`) from the old Gio event loop (`app.NewWindow`, `window.Events()`, `system.FrameEvent`) to the current API (`app.Window.Event()`); bump `ivg/raster/gio/go.mod` to current Gio.
+- **Measurable:** `go build ./ivg/raster/gio/...` succeeds; each example launches to its first rendered frame without panic.
+- **Achievable:** 8 small files each using the same 3-call migration pattern established in G−1.2 and G−1.5. The raster library itself already uses no deprecated APIs — only the examples need updating. Non-blocking: does not gate Phase 0 or Phase 00.
+- **Relevant:** DESIGN §"Phase −1" deliverable 4 (all Gio-dependent programs migrated).
+- **Budget:** ~40 K.
+
 ## Phase 00 — Validation Experiments
 
 Discharges DESIGN §"Phase 00 — Validation Experiments" and §"Architectural Limits". Gated by G−1.7.
