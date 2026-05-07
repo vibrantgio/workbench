@@ -99,7 +99,7 @@ to highlight itself.
 
 ### (b) Do async Subject emissions integrate cleanly with Gio's synchronous frame model?
 
-**Answer: Yes, with one structural caveat and two implementation constraints.**
+**Answer: Yes, with one structural caveat and three implementation constraints.**
 
 #### Structural caveat — one-frame highlight lag
 
@@ -126,6 +126,25 @@ within Gio's strict "one synchronous render pass per frame" model, **same-frame
 cross-widget communication via Subject is impossible**. Subject is inherently
 a next-frame primitive.
 
+**Empirically confirmed.** Instrumentation embedded in `DragState` records
+`EmitFrame` (the frame counter when the Subject observer was called) and
+`SeqN` (the emission sequence number). On every render, `board.layout` logs
+`lag = renderFrame − EmitFrame`. Across 37 emissions in two full drags:
+
+```
+[frame    3] emit #  1  press   pos=(255,71)
+[frame    3] emit #  2  drag    pos=(255,72)   ← buffer pressure (see below)
+[frame    4] render emission #  2  lag=1 frame(s)
+[frame    5] emit #  3  drag    pos=(258,72)
+[frame    6] render emission #  3  lag=1 frame(s)
+...
+[frame   23] emit # 20  drag    pos=(498,227)
+[frame   23] emit # 21  drop    pos=(0,0)      ← buffer pressure
+[frame   24] render emission # 21  lag=1 frame(s)
+```
+
+`lag=1` on every emission without exception.
+
 #### Implementation constraint 1 — buffer prevents frame-goroutine blocking
 
 `rx.Subject` blocks the observer if the subscriber has not consumed the previous
@@ -135,7 +154,27 @@ buffer (`cap=32`) ensures fast rendering never blocks even under burst pointer
 events. In production, `cap` should be sized to the maximum burst expected
 between subscriber wakeups (~2 × target FPS).
 
-#### Implementation constraint 2 — mutable widget state must be hoisted outside the FRP closure
+#### Implementation constraint 2 — intermediate emissions are silently dropped under burst
+
+Gio coalesces certain event pairs into a single frame delivery: press+first-drag
+and last-drag+release both arrive in the same frame. When two emissions happen
+in one frame, the `mvu.Window` atomic snapshot is overwritten before the next
+frame fires, so the earlier emission is never rendered:
+
+```
+[frame   23] emit # 20  drag    ← emitted, never rendered
+[frame   23] emit # 21  drop    ← overwrites snapshot
+[frame   24] render emission # 21  lag=1 frame(s)
+```
+
+This is not a Subject bug — the Subject delivered both values to the subscriber.
+The drop happens in `mvu.Window.Render`'s atomic snapshot: only the most recent
+widget closure survives to the next frame. **For drag-drop this is correct
+behaviour** (the intermediate position doesn't matter once the pointer is
+released), but for use cases where every emission is load-bearing (e.g. an
+event log or an undo stack), a Subject-driven layer is not the right tool.
+
+#### Implementation constraint 3 — mutable widget state must be hoisted outside the FRP closure
 
 `gesture.Drag` accumulates state between frames (pressed/dragging flags, pointer
 ID). If the `gesture.Drag` instances lived inside the `rx.Map` closure, they
@@ -153,7 +192,6 @@ subscription-scoped state) or in a struct owned outside the Observable pipeline
 (for board-global state).
 
 ---
-
 ### (c) Candidate coordination primitive shape
 
 Based on C1, the `prism.Coordination` package should expose:
