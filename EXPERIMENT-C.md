@@ -333,6 +333,24 @@ applied to `tooltipObservable`, not in the hover detection loop.
 
 ---
 
+#### Implementation constraint — `Clicked` must precede `Layout` for the same `widget.Clickable`
+
+`widget.Clickable.Layout` drains the gesture event queue internally (it loops
+over `b.click.Update(gtx.Source)` until exhausted). Calling `btn.Clicked(gtx)`
+*after* `btn.Layout(gtx, ...)` returns false because all click events were
+already consumed. The correct order:
+
+```go
+clicked := btn.Clicked(gtx)   // 1. read events — must come first
+btn.Layout(gtx, renderFn)      // 2. register handler for next frame
+if clicked { ... }             // 3. react
+```
+
+This is standard Gio (confirmed by `todos/button.go`), but easy to invert when
+a button is embedded inside a modal overlay where layout and event-handling are
+written close together. Violated in the first C2 prototype — fixed by reordering
+before the experiment run.
+
 ### (d) Pointer event isolation — an unsolved coordination concern
 
 The modal backdrop (semi-transparent overlay) does NOT automatically block
