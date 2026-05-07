@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G00.C1` in [PLAN.md](./PLAN.md) (Phase 00 — Validation Experiments; Experiment C1: Drag-drop with shared Subject).
+**Active goal:** `G00.C2` in [PLAN.md](./PLAN.md) (Phase 00 — Validation Experiments; Experiment C2: Modal stacking + tooltip arbitration).
 
 ---
 

@@ -147,7 +147,7 @@ Discharges DESIGN §"Phase 00 — Validation Experiments" and §"Architectural L
 
 ### G00.C1 — Experiment C1: Drag-drop with shared Subject
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `experiments/coordination/` Gio module with a kanban board (≥2 columns) where cards are draggable between columns. An `rx.Subject[DragState]` is created at board level and passed explicitly to the drag source and all drop targets. Drop targets highlight in real time when an active drag hovers over them.
 - **Measurable:** `go run ./experiments/coordination/` opens a window with working drag-and-drop. `EXPERIMENT-C.md` §C1 documents: (a) Subject creation and propagation pattern, (b) whether async Subject emissions integrate cleanly with Gio's synchronous frame model (the load-bearing question), (c) the candidate coordination primitive shape.
 - **Achievable:** one Gio app; drag-drop only; no modal or tooltip yet.
