@@ -156,7 +156,7 @@ Discharges DESIGN §"Phase 00 — Validation Experiments" and §"Architectural L
 
 ### G00.C2 — Experiment C2: Modal stacking + tooltip arbitration
 
-- [ ] **Done**
+- [x] **Done**
 - **Depends on:** G00.C1.
 - **Specific:** Extend `experiments/coordination/` with modal stacking (button opens a modal; a button inside opens a nested modal; Escape pops the stack) and tooltip arbitration (hovering any card shows exactly one tooltip while suppressing others). Both concerns use the coordination primitive established in C1.
 - **Measurable:** `go run ./experiments/coordination/` demonstrates all three concerns (drag-drop, modal stack, tooltip arbitration) in a single running prototype. `EXPERIMENT-C.md` §C2 records findings; §Decision commits to the Phase 1 `prism.Coordination` package shape (type, fields, injection pattern).

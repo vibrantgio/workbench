@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G00.C2` in [PLAN.md](./PLAN.md) (Phase 00 — Validation Experiments; Experiment C2: Modal stacking + tooltip arbitration).
+**Active goal:** `G00.D` in [PLAN.md](./PLAN.md) (Phase 00 — Validation Experiments; Pre-Phase 0 decisions: undo/redo strategy and plugin-system stance).
 
 ---
 

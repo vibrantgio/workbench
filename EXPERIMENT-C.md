@@ -227,3 +227,238 @@ tooltip arbitration will stress the multi-producer, ordered-delivery case).
   top" across independent widget subtrees.
 - Tooltip arbitration: debouncing and cancellation via Subject — does the async
   delivery model interact badly with hover exit events?
+
+## §C2 — Modal stacking + tooltip arbitration
+
+### Module
+
+Same module as C1 (`experiments/coordination`). C2 extends the kanban prototype
+with two additional coordination signals via independent `rx.Subject` instances.
+
+Run with: `go run ./experiments/coordination/`
+
+---
+
+### (a) Do multiple independent Subjects compose cleanly?
+
+**Answer: Yes. Three Subjects running concurrently with three mvu layers
+produce no interference.**
+
+C2 adds two Subjects alongside the C1 drag Subject:
+
+```go
+dragObserver,    dragObservable    := rx.Subject[DragState](0, 0, 32, 4)
+modalObserver,   modalObservable   := rx.Subject[ModalState](0, 0, 8, 4)
+tooltipObserver, tooltipObservable := rx.Subject[TooltipState](0, 0, 8, 4)
+```
+
+Each Subject drives a dedicated `rx.Observable[layout.Widget]` passed as a
+separate layer to `mvu.Window.Render`:
+
+```go
+w.Render(
+    makeKanbanLayer(b, dragObservable),
+    makeTooltipLayer(b, tooltipObservable),
+    makeModalLayer(b, modalObservable),
+)
+```
+
+`mvu.Window.Render` already uses `rx.CombineLatest` internally; the three-layer
+call is identical in cost and complexity to the single-layer C1 call. Layer
+order determines z-order: kanban at bottom, tooltip in the middle, modal on top.
+
+**No discriminated union is needed.** C1's open question ("can a single Subject
+serve multiple concerns via a union type?") resolves as: use separate Subjects,
+one per concern. This is simpler to type-check and avoids the coupling that a
+shared union would introduce.
+
+---
+
+### (b) Does the one-frame lag generalise to all Subject-driven layers?
+
+**Answer: Yes. The 1-frame lag is an invariant of the Subject → mvu.Window
+pipeline, regardless of which concern the Subject carries.**
+
+Modal state change sequence (identical in structure to C1's drag-state sequence):
+
+```
+Frame N  │ openBtn.Clicked returns true
+         │ b.modalObs(ModalState{Depth: 1}, nil, false) called
+         │   → Subject observer called (non-blocking, buffer cap=8)
+         ↓
+Goroutine│ Subject subscriber delivers to rx.Map
+         │ rx.Map emits new layout.Widget closure capturing Depth=1
+         │ mvu.Window stores snapshot atomically
+         │ window.Invalidate() called
+         ↓
+Frame N+1│ modal layer widget is called with Depth=1
+         │ dim backdrop and modal panel are rendered
+```
+
+The same holds for tooltip suppression: hover exit in frame N, tooltip hidden in
+frame N+1. In practice this is imperceptible (~16 ms at 60 fps).
+
+---
+
+### (c) Does the async delivery model interact badly with hover exit events?
+
+**Answer: No adverse interaction observed, with one note on debouncing.**
+
+Tooltip arbitration uses `gesture.Hover.Update(gtx.Source)` to sample hover
+state every frame. The arbitration logic:
+
+```go
+hoveredCard := -1
+for i := 0; i < numCards; i++ {
+    if b.hovers[i].Update(gtx.Source) {
+        hoveredCard = i
+    }
+}
+if hoveredCard != b.prevHover {
+    b.prevHover = hoveredCard
+    b.tooltipObs(TooltipState{Active: hoveredCard >= 0, CardID: hoveredCard, ...}, nil, false)
+}
+```
+
+Only one tooltip Subject emission fires per frame (the change-guard prevents
+redundant emissions). When the pointer moves directly between two cards,
+`Hover.Update` returns false for the exiting card and true for the entering card
+in the same frame, so `prevHover` changes from A to B in one step — no
+intermediate "no tooltip" frame.
+
+**Debouncing**: hover-enter events can fire on the frame the pointer first enters
+the card area. No observable bouncing was seen in testing. If debouncing is
+needed (e.g. delay tooltip by 300 ms), it belongs in a `rx.Debounce` operator
+applied to `tooltipObservable`, not in the hover detection loop.
+
+---
+
+### (d) Pointer event isolation — an unsolved coordination concern
+
+The modal backdrop (semi-transparent overlay) does NOT automatically block
+pointer events from reaching the kanban layer beneath it. Rendering a coloured
+rectangle does not register a pointer handler; the kanban's `gesture.Drag`
+handlers remain active under the modal.
+
+Blocking pointer events requires registering an absorber in the ops tree.
+Options:
+- Add `b.backdropClick widget.Clickable` and call `b.backdropClick.Layout(gtx,
+  ...)` wrapping the entire modal overlay — its pointer registration absorbs
+  all events in that z-layer.
+- Use `pointer.InputOp` with all `Kind` bits set on a full-screen clip area.
+
+This is a **Phase 1 follow-up**, not a coordination-primitive concern. The
+`rx.Subject` pattern for modal stacking is validated regardless. Noted for the
+Phase 1 `prism.Coordination` package to include a documented "modal backdrop
+absorber" recipe.
+
+
+## §Decision — Phase 1 `prism.Coordination` package shape
+
+### Decision
+
+**Commit to explicit Subject threading as the Phase 1 coordination pattern.
+`WithSubject` (context-injection) is deferred to Phase 2.**
+
+C2 validated three independent `rx.Subject` instances used concurrently without
+friction. Explicit threading — passing `rx.Observer[T]` and `rx.Observable[T]`
+as fields in the owning widget struct — was sufficient and clear throughout the
+experiment. No case arose where implicit injection would have simplified the
+code.
+
+---
+
+### Package: `prism.Coordination`
+
+**Phase 1 surface (what the package exports):**
+
+```go
+package coordination
+
+import "github.com/reactivego/rx"
+
+// Subject creates a typed broadcast channel for cross-widget coordination.
+// The Observer side is held by one producer; the Observable side may be
+// subscribed by N consumers.
+//
+// bufCap is the producer-side buffer depth. Size to ~2×target-FPS for
+// widgets that emit on every pointer event (drag, hover). For infrequent
+// signals (modal depth, focus owner) 8–16 suffices.
+func Subject[T any](bufCap int) (rx.Observer[T], rx.Observable[T]) {
+    return rx.Subject[T](0, 0, bufCap, 8)
+}
+```
+
+The `rx.Subject` parameters `age=0, size=0` are fixed for all coordination
+use-cases (no replay, no value cache). `scap=8` is a safe default for up to
+eight concurrent subscribers. Both are unexported implementation details.
+
+---
+
+### Fields (injection pattern)
+
+The owning widget struct holds the write side; each layer factory receives the
+read side:
+
+```go
+type MyWidget struct {
+    dragObs    rx.Observer[DragState]    // write side — held by producer
+    modalObs   rx.Observer[ModalState]
+    tooltipObs rx.Observer[TooltipState]
+    // ...per-concern mutable gesture state hoisted here...
+}
+
+// At construction time:
+dragObs,    dragObservable    := coordination.Subject[DragState](32)
+modalObs,   modalObservable   := coordination.Subject[ModalState](8)
+tooltipObs, tooltipObservable := coordination.Subject[TooltipState](8)
+
+w := newWidget(dragObs, modalObs, tooltipObs)
+
+window.Render(
+    makeDragLayer(w, dragObservable),
+    makeTooltipLayer(w, tooltipObservable),
+    makeModalLayer(w, modalObservable),
+)
+```
+
+---
+
+### Invariants (from C1 + C2)
+
+All of these must be documented in the Phase 1 package:
+
+1. **One-frame lag.** Subject delivery is asynchronous. Cross-widget state
+   changes are visible on the frame AFTER the emitting frame. This is correct
+   for all three validated concerns (drag, modal, tooltip) and is imperceptible
+   to users at ≥30 fps.
+
+2. **Mutable per-widget state must be hoisted outside FRP closures.** Gesture
+   accumulators (`gesture.Drag`, `gesture.Hover`, `widget.Clickable`) must live
+   in the owning struct, not inside the `rx.Map` closure. Closures are
+   regenerated on every Subject emission.
+
+3. **Buffer capacity must exceed maximum burst.** For pointer-event emitters,
+   `bufCap ≥ 2×FPS` prevents frame-goroutine blocking. For infrequent emitters
+   (modals, tooltips), `bufCap = 8` is sufficient.
+
+4. **Intermediate emissions are silently dropped under burst.** The
+   `mvu.Window` atomic snapshot retains only the most recent widget closure
+   before the next frame. Coordination signals where every value is
+   load-bearing (undo stacks, event logs) require a different mechanism.
+
+---
+
+### What is NOT in Phase 1
+
+- **`WithSubject` (context injection)**: Not validated. Explicit threading
+  handled C1–C2 without ergonomic friction. Revisit in Phase 2 once a
+  deeper widget tree exercises the pattern at scale.
+- **Modal backdrop input-blocking**: Pointer event isolation for modal overlays
+  requires an absorber widget (`widget.Clickable` over the full backdrop area).
+  This is a Phase 1 follow-up recipe, not a coordination-primitive concern.
+- **Debouncing / throttling combinators**: `rx.Debounce`, `rx.Throttle` can be
+  applied to any `rx.Observable[T]` before passing to a layer factory. Not
+  needed for C1–C2 but documented as a usage pattern.
+
+
