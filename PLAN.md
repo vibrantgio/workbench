@@ -138,7 +138,7 @@ Discharges DESIGN §"Phase 00 — Validation Experiments" and §"Architectural L
 
 ### G00.B — Experiment B: Many-entity animation
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** force-directed graph in `experiments/manyentity/`, 200+ nodes via `traer`, sustained 60 FPS. Measure layout-pass cost and allocation rate per frame.
 - **Measurable:** `EXPERIMENT-B.md` reports frame-time histogram and per-frame allocation count. Decision: op-cache pattern viable / dedicated scene primitive needed.
 - **Achievable:** one prototype + benchmark.
