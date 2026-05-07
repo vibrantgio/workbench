@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G0.1` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; typed colour token structs in `prism/tokens/colors.go` with WCAG AA contrast tests).
+**Active goal:** `G0.2` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; typed scale files for spacing, radius, elevation, and motion in `prism/tokens/` with monotonicity tests).
 
 ---
 

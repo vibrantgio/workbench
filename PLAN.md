@@ -180,7 +180,7 @@ Discharges DESIGN §"Phase 0 — Token & Theme Contract". Gated by G00.A–D.
 
 ### G0.1 ‖ — `prism/tokens/colors.go`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** typed colour token structs (Background/OnBackground, Surface/OnSurface, etc.); align with Tailwind 50–950 shade scale per DESIGN §"Phase 4 — Token alignment".
 - **Measurable:** `go test ./prism/tokens/...` includes contrast-ratio tests asserting WCAG AA compliance for every paired token.
 - **Achievable:** one file + one test file.
