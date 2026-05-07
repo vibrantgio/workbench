@@ -127,7 +127,7 @@ Discharges DESIGN §"Phase 00 — Validation Experiments" and §"Architectural L
 
 ### G00.A — Experiment A: Keyed identity
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** prototype `rx.KeyedDefer[K, V]` in a throwaway `experiments/keyed/` module. Build a reorderable todo list with per-row `Defer` state; verify state survives reorder.
 - **Measurable:** `EXPERIMENT-A.md` records (a) the API tried, (b) whether it felt natural, (c) decision: adopt / reject / revise. `go test ./experiments/keyed/...` exercises reorder + insertion + deletion with state preservation assertions.
 - **Achievable:** one module, ~300 lines code + 200 lines test.

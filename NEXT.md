@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G00.A` in [PLAN.md](./PLAN.md) (Phase 00 — Validation Experiments; Experiment A: Keyed identity).
+**Active goal:** `G00.B` in [PLAN.md](./PLAN.md) (Phase 00 — Validation Experiments; Experiment B: Many-entity animation).
 
 ---
 
