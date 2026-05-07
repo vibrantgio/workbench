@@ -103,7 +103,7 @@ Discharges DESIGN §"Phase −1 — Gio Migration" and §"Known Fragilities".
 
 ### G−1.6 — Capture performance baseline
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** add `coinviz/bench/baseline_test.go` measuring per-pane `widget(gtx)` cost and allocation rate under "BTC-USD, 1h candles, all 16 panes, 1000 frames" load. Commit results to `BASELINE.md`.
 - **Measurable:** benchmark runs to completion; numbers recorded with platform metadata (Apple Silicon model, Gio version, Go version).
 - **Achievable:** one new file plus a Markdown report.

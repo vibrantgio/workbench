@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G−1.6` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration; Capture performance baseline).
+**Active goal:** `G−1.7` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration; Risk-gate review).
 
 ---
 
