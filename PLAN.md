@@ -112,7 +112,7 @@ Discharges DESIGN §"Phase −1 — Gio Migration" and §"Known Fragilities".
 
 ### G−1.7 — Risk-gate review
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** verify each of the five DESIGN architectural patterns (FRP shape, MVU shape, `WithLatestFrom2`, `rx.Defer`, frame-driven physics) still holds on migrated Gio. Record findings in `MIGRATION.md`.
 - **Measurable:** five sections in `MIGRATION.md`, each marked ✅ or ⚠ with a one-paragraph justification.
 - **Achievable:** review-only; no new code.

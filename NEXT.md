@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G−1.7` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration; Risk-gate review).
+**Active goal:** `G00.A` in [PLAN.md](./PLAN.md) (Phase 00 — Validation Experiments; Experiment A: Keyed identity).
 
 ---
 

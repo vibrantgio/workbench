@@ -211,3 +211,27 @@ No surprises during the audit. The five architectural patterns documented in DES
 4. **`ops.Internal` unsafe cast** — 1 site (§E, `mvu/window.go:74`). Load-bearing prerequisite for stable MVU runtime. Must be eliminated before any Gio version bump.
 
 5. **`event.Queue` interface** — 4 sites in `seen/context/gio/context.go` (§C3). Requires redesign of the `Context` handler signature.
+
+## Risk-Gate: Architectural Pattern Review
+
+*G−1.7 deliverable. Each of the five DESIGN.md architectural patterns assessed against the v0.9.x API audit above. All findings are prospective — the workspace is still at v0.1.0; the verdict reflects whether the pattern survives once the call sites in the audit are rewritten.*
+
+### 1. FRP Application Structure ✅
+
+The one-directional dataflow pipeline (`Data source → rx.Observable → rx.CombineLatest → rx.Map → Window.Render`) operates entirely within the `reactivego/rx` layer and does not call any deprecated Gio API directly. The only Gio-facing boundary in the FRP path is the events source observable that feeds `WithLatestFrom2`; that source changes from `rx.Recv(w.window.Events())` to a goroutine wrapping `window.Event()`, a mechanical one-line substitution in `mvu/window.go`. Theme switching via `theme.AutoLightDark()` and reactive re-renders on upstream changes are unaffected — neither `CombineLatest` nor `rx.Map` nor `Window.Render` touch deprecated surfaces. The pattern holds on v0.9.x.
+
+### 2. MVU Application Structure ✅
+
+The `Init → (Model, Command) → Update(Model, Message) → (Model, Command) → View(Model) → layout.Widget` state machine is implemented at the application layer (`todos`, `mindchat`); its shape is independent of the Gio event API version. The two MED-risk `widget.Editor.Events()` sites (`mindchat/view.go:165`, `todos/upsertdialog.go:93`) are leaf widget interactions that route through the new `Update(gtx, …)` pattern without altering the command-loop contract. The HIGH-risk `mvu/window.go:35` and CRITICAL `mvu/window.go:74` sites affect the runtime's *wiring* — how events are sourced and how MessageOps are dispatched — but not the MVU *shape*. After the wiring is rebuilt on the new API the pattern is preserved; no structural change to the Init/Update/View contract is required.
+
+### 3. `WithLatestFrom2` Frame Synchronisation Model ✅
+
+The audit confirms that `WithLatestFrom2` itself is untouched by the migration: `events` remains the leading observable, the trailing `CombineLatest` of layers still runs on `rx.Goroutine`, and the observer still gates all Gio code to the events drumbeat. The only change is the source: `rx.Recv(w.window.Events())` is replaced by a producer goroutine that calls `window.Event()` in a loop and emits into a subject (or equivalent `rx.Func` producer). The synchronisation guarantee — that heavy upstream work parallelises freely while everything touching Gio code runs sequentially on the events thread — is structurally identical under either source. The MIGRATION.md audit note in §Architectural Surprises ("the architectural claim survives once the channel source is replaced") is confirmed by the audit.
+
+### 4. `rx.Defer` Subscription-State Pattern ✅
+
+`rx.Defer` is a `reactivego/rx` primitive with no Gio API dependency. The subscription-state pattern (`Defer` factory allocates state once, `Map` closure captures it by reference, widget closure reads and mutates it during the frame) is unaffected by the v0.1.0 → v0.9.x bump. The two sites in `coinviz/content.go` that register pointer input inside `Defer`-scoped widgets (lines 130 and 153) change their registration call (`pointer.InputOp` → `event.Op`) and event read (`gtx.Events(tag)` → `gtx.Source.Event(filter)`), but the `Defer` closure structure and state lifetime are identical. The "why this works without locks" invariant — that both the `Map` closure and the widget closure serialise through `WithLatestFrom2` — is preserved because Pattern 3 holds.
+
+### 5. Frame-Driven Physics Loop ✅
+
+The self-scheduling mechanism (`op.InvalidateOp{}.Add(gtx.Ops)`) migrates verbatim to `gtx.Execute(op.InvalidateCmd{})` — a one-to-one substitution that appears at all four `traer/gio` sites (§D in the audit). The semantics are identical: the widget requests its next frame, the window stays idle when no `InvalidateCmd` is issued, and multiple animated widgets each contribute independently. The "idle at rest" and "composable" properties depend only on Gio posting a frame only when invalidation is requested — a scheduler invariant unchanged across the migration range. The three timed-invalidate sites (`op.InvalidateOp{At: t}` → `gtx.Execute(op.InvalidateCmd{At: t})`, §A2) are equally mechanical. The pattern holds intact on v0.9.x.
