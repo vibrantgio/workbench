@@ -145,17 +145,24 @@ Discharges DESIGN §"Phase 00 — Validation Experiments" and §"Architectural L
 - **Relevant:** DESIGN §"Architectural Limits" concern #2.
 - **Budget:** ~80 K.
 
-### G00.C — Experiment C: Coordination context
+### G00.C1 — Experiment C1: Drag-drop with shared Subject
 
 - [ ] **Done**
-- **Specific:** kanban-style board in `experiments/coordination/` with drag-drop + modal stacking + tooltip arbitration. Drag must communicate hover state to drop targets in real time.
-- **Measurable:** `EXPERIMENT-C.md` documents the coordination primitive shape (`rx.Subject` injected via layer or context). All three coordination concerns demonstrated in one running prototype.
-- **Achievable:** one prototype.
+- **Specific:** `experiments/coordination/` Gio module with a kanban board (≥2 columns) where cards are draggable between columns. An `rx.Subject[DragState]` is created at board level and passed explicitly to the drag source and all drop targets. Drop targets highlight in real time when an active drag hovers over them.
+- **Measurable:** `go run ./experiments/coordination/` opens a window with working drag-and-drop. `EXPERIMENT-C.md` §C1 documents: (a) Subject creation and propagation pattern, (b) whether async Subject emissions integrate cleanly with Gio's synchronous frame model (the load-bearing question), (c) the candidate coordination primitive shape.
+- **Achievable:** one Gio app; drag-drop only; no modal or tooltip yet.
 - **Relevant:** DESIGN §"Architectural Limits" concern #3.
-- **Budget:** ~90 K. **Split** likely:
-  - **G00.C1** drag-drop with shared subject
-  - **G00.C2** modal stacking + tooltip arbitration on top of C1's primitive
+- **Budget:** ~60 K.
 
+### G00.C2 — Experiment C2: Modal stacking + tooltip arbitration
+
+- [ ] **Done**
+- **Depends on:** G00.C1.
+- **Specific:** Extend `experiments/coordination/` with modal stacking (button opens a modal; a button inside opens a nested modal; Escape pops the stack) and tooltip arbitration (hovering any card shows exactly one tooltip while suppressing others). Both concerns use the coordination primitive established in C1.
+- **Measurable:** `go run ./experiments/coordination/` demonstrates all three concerns (drag-drop, modal stack, tooltip arbitration) in a single running prototype. `EXPERIMENT-C.md` §C2 records findings; §Decision commits to the Phase 1 `prism.Coordination` package shape (type, fields, injection pattern).
+- **Achievable:** extends C1 in the same module; no new module.
+- **Relevant:** DESIGN §"Architectural Limits" concern #3.
+- **Budget:** ~50 K.
 ### G00.D — Pre-Phase 0 decisions (concerns #4 and #5)
 
 - [ ] **Done**
