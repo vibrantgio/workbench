@@ -165,7 +165,7 @@ Discharges DESIGN §"Phase 00 — Validation Experiments" and §"Architectural L
 - **Budget:** ~50 K.
 ### G00.D — Pre-Phase 0 decisions (concerns #4 and #5)
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** write `DECISIONS.md` recording the undo/redo decision (FRP-no-undo vs MessageOp replay buffer) and the plugin-system decision (no extensibility vs scripting layer).
 - **Measurable:** two sections in `DECISIONS.md`, each with chosen path, rejected alternative, and rationale citing DESIGN §"Architectural Limits" concerns #4 and #5.
 - **Achievable:** documentation only.

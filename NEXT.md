@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G00.D` in [PLAN.md](./PLAN.md) (Phase 00 — Validation Experiments; Pre-Phase 0 decisions: undo/redo strategy and plugin-system stance).
+**Active goal:** `G0.1` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; typed colour token structs in `prism/tokens/colors.go` with WCAG AA contrast tests).
 
 ---
 
