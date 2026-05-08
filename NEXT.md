@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G−1.8` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration; migrate 8 `ivg/raster/gio/example/` programs to the current `app.Window.Event()` API).
+**Active goal:** `G0.7` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; conditional `prism/cache/` FrameCache contract for animation-heavy widgets).
 
 ---
 
