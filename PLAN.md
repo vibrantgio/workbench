@@ -361,7 +361,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.6 ‖ — `prism/layout/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** spacing helpers, `FocusGroup`, basic flex/grid wrappers atop Gio's `layout`.
 - **Measurable:** golden tests for each helper; `FocusGroup` keyboard traversal test.
 - **Achievable:** modest module.

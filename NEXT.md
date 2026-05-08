@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.6` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/layout/` — spacing helpers, FocusGroup, flex/grid wrappers; golden tests + keyboard traversal test).
+**Active goal:** `G1.7` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/coordination/` — implement scoped subjects, drop-zone registry, modal stack, tooltip arbitration, gesture disambiguation; rewrite experiments/coordination on top of it).
 
 ---
 
