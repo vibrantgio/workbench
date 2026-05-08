@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G0.7` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; conditional `prism/cache/` FrameCache contract for animation-heavy widgets).
+**Active goal:** `G0.8` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; conditional `prism/coordination/` observable shape for the coordination primitive from G00.C).
 
 ---
 

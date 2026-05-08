@@ -246,7 +246,7 @@ Discharges DESIGN §"Phase 0 — Token & Theme Contract". Gated by G00.A–D.
 
 ### G0.7 — Conditional: `prism/cache/` (only if G00.B yields op-cache pattern)
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** documented `FrameCache` contract for animation-heavy widgets per `EXPERIMENT-B.md`.
 - **Measurable:** contract documented; one reference implementation passes a regression test against G−1.6 baseline minus 30 % allocation rate.
 - **Achievable:** API design constrained by experiment.
