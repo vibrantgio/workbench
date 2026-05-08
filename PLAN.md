@@ -352,7 +352,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.5 ‖ — `prism/icon/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** unified registry over existing `svg/` and `ivg/` packages; `Icon(name)` resolves either.
 - **Measurable:** test asserts resolution for one SVG + one IVG icon; `gallery/` icon page renders both.
 - **Achievable:** thin wrapper over existing modules.

@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.5` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/icon/` — unified SVG + IVG icon registry; resolution test + gallery icon page).
+**Active goal:** `G1.6` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/layout/` — spacing helpers, FocusGroup, flex/grid wrappers; golden tests + keyboard traversal test).
 
 ---
 
