@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G0.6` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; `prism/keyed/` — `KeyedDefer[K, V]` per the API validated in G00.A / EXPERIMENT-A.md).
+**Active goal:** `G−1.8` in [PLAN.md](./PLAN.md) (Phase −1 — Gio Migration; migrate 8 `ivg/raster/gio/example/` programs to the current `app.Window.Event()` API).
 
 ---
 

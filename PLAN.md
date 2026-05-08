@@ -237,7 +237,7 @@ Discharges DESIGN §"Phase 0 — Token & Theme Contract". Gated by G00.A–D.
 
 ### G0.6 — Conditional: `prism/keyed/` (only if G00.A adopted)
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** ship `KeyedDefer[K, V]` per the API decided in G00.A.
 - **Measurable:** API matches `EXPERIMENT-A.md`; tests cover reorder/insert/delete state preservation.
 - **Achievable:** API is already validated in G00.A.
