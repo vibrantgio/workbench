@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.3` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/input/` with TextField, Checkbox, Radio, Dropdown — one component per session, same golden/a11y/benchmark template as G1.2).
+**Active goal:** `G1.3b` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/input/checkbox.go` — Checkbox with checked/unchecked states, same golden/a11y/benchmark template as G1.2).
 
 ---
 

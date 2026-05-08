@@ -297,13 +297,48 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.3 ‖ — `prism/input/{textfield,checkbox,radio,dropdown}.go`
 
-- [ ] **Done**
-- **Specific:** four input components, each its own goal: G1.3a..G1.3d.
-- **Measurable:** per-component golden + a11y + benchmark, same template as G1.2.
-- **Achievable:** one component per session.
+- [ ] **Done** *(done when G1.3a–G1.3d all checked)*
+- **Specific:** four input components split into G1.3a–G1.3d; one session each.
+- **Measurable:** all four sub-goals checked.
+- **Achievable:** parent tracking goal; implementation across G1.3a–G1.3d.
 - **Relevant:** DESIGN §"Phase 1".
-- **Budget:** ~80 K each.
+- **Budget:** ~80 K per sub-goal.
 
+#### G1.3a — `prism/input/textfield.go`
+
+- [x] **Done**
+- **Specific:** `TextField(theme, TextFieldProps{...})` with focus, editing, placeholder text; `Defer`-scoped `widget.Editor` state; full a11y (focus ring, keyboard entry, 44 dp hit target, contrast, screen-reader description); both `OnChange` callback and `MessageOp` paths per DESIGN §"Bridging FRP and MVU".
+- **Measurable:** golden-image test (`light-normal`, `dark-normal`, `light-focused`, `light-disabled`); a11y tests (44 dp min height, focus ring visually distinct, disabled visually distinct); `BenchmarkTextFieldRender` in `textfield_bench_test.go`. `go test ./...` green inside `prism/input/`.
+- **Achievable:** one component, well-scoped.
+- **Relevant:** DESIGN §"Phase 1" deliverable.
+- **Budget:** ~80 K. Depends on G1.2.
+
+#### G1.3b — `prism/input/checkbox.go`
+
+- [ ] **Done**
+- **Specific:** `Checkbox(theme, CheckboxProps{...})` with checked/unchecked states; `Defer`-scoped `widget.Bool` state; full a11y; both `OnChange` callback and `MessageOp` paths.
+- **Measurable:** golden-image test (`light-unchecked`, `dark-unchecked`, `light-checked`, `light-focused`); a11y tests (44 dp hit target, focus ring distinct, checked visually distinct); `BenchmarkCheckboxRender` in `checkbox_bench_test.go`. `go test ./...` green inside `prism/input/`.
+- **Achievable:** one component, well-scoped.
+- **Relevant:** DESIGN §"Phase 1" deliverable.
+- **Budget:** ~80 K. Depends on G1.3a.
+
+#### G1.3c — `prism/input/radio.go`
+
+- [ ] **Done**
+- **Specific:** `Radio(theme, RadioProps{...})` with selected/unselected states; `Defer`-scoped `widget.Bool` state; full a11y; both `OnChange` callback and `MessageOp` paths.
+- **Measurable:** golden-image test (`light-unselected`, `dark-unselected`, `light-selected`, `light-focused`); a11y tests (44 dp hit target, focus ring distinct, selected visually distinct); `BenchmarkRadioRender` in `radio_bench_test.go`. `go test ./...` green inside `prism/input/`.
+- **Achievable:** one component, well-scoped.
+- **Relevant:** DESIGN §"Phase 1" deliverable.
+- **Budget:** ~80 K. Depends on G1.3a.
+
+#### G1.3d — `prism/input/dropdown.go`
+
+- [ ] **Done**
+- **Specific:** `Dropdown(theme, DropdownProps{...})` with open/closed states and option selection; `Defer`-scoped state; full a11y; both `OnSelect` callback and `MessageOp` paths.
+- **Measurable:** golden-image test (`light-closed`, `dark-closed`, `light-focused`, `light-open`); a11y tests (44 dp hit target, focus ring distinct, open state visually distinct); `BenchmarkDropdownRender` in `dropdown_bench_test.go`. `go test ./...` green inside `prism/input/`.
+- **Achievable:** one component, well-scoped.
+- **Relevant:** DESIGN §"Phase 1" deliverable.
+- **Budget:** ~80 K. Depends on G1.3a.
 ### G1.4 — `prism/list/`
 
 - [ ] **Done**
