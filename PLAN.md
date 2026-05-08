@@ -279,7 +279,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.0 — Golden-image test harness
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `prism/internal/golden/` with `Render(t, widget) -> diff(stored.png)`; CI gate.
 - **Measurable:** harness produces a stable PNG for a fixed widget across two consecutive runs; a deliberate one-pixel change is detected.
 - **Achievable:** Gio headless backend wrapper.

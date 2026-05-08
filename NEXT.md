@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.0` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; golden-image test harness for `prism/internal/golden/`).
+**Active goal:** `G1.2` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/button/` with hover/focus/press, a11y, and MessageOp callback).
 
 ---
 
