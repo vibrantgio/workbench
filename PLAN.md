@@ -270,7 +270,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.1 — `prism/initial/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `Initial[T]` helper replacing ad-hoc first-frame sentinels (e.g., `offset.X = -1`).
 - **Measurable:** unit tests cover first-frame and subsequent-frame paths; coinviz pane that currently uses the `-1` sentinel migrates to `Initial[T]` in the same session.
 - **Achievable:** small generic helper.

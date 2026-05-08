@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.1` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `Initial[T]` helper replacing ad-hoc first-frame sentinels).
+**Active goal:** `G1.0` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; golden-image test harness for `prism/internal/golden/`).
 
 ---
 
