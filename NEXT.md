@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.2` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/button/` with hover/focus/press, a11y, and MessageOp callback).
+**Active goal:** `G1.3` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/input/` with TextField, Checkbox, Radio, Dropdown — one component per session, same golden/a11y/benchmark template as G1.2).
 
 ---
 

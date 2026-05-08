@@ -288,7 +288,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.2 — `prism/button/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `Button(theme, ButtonProps{...})` with hover, focus, press; `Defer`-scoped state; full a11y (focus, keyboard, reduced motion, contrast); both `OnClick` callback and `MessageOp` paths per DESIGN §"Bridging FRP and MVU".
 - **Measurable:** golden-image test (light + dark + focused + pressed); a11y tests; `gallery/` page demonstrates every variant; benchmark in `button_bench_test.go` per DESIGN §"Performance".
 - **Achievable:** one component, well-scoped.
