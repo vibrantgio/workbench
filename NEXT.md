@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.4` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/list/` — virtual scrolling list generalised from `todos/list.go`; golden tests + O(visible) benchmark).
+**Active goal:** `G1.5` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/icon/` — unified SVG + IVG icon registry; resolution test + gallery icon page).
 
 ---
 

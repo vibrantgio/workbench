@@ -341,7 +341,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 - **Budget:** ~80 K. Depends on G1.3a.
 ### G1.4 — `prism/list/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** virtual scrolling list generalised from `todos/list.go`; respects `KeyedDefer` if G00.A adopted.
 - **Measurable:** golden tests for short / long / scrolled-mid lists; benchmark proves O(visible) layout cost not O(total).
 - **Achievable:** one well-scoped module.
