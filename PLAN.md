@@ -324,7 +324,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 #### G1.3c — `prism/input/radio.go`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `Radio(theme, RadioProps{...})` with selected/unselected states; `Defer`-scoped `widget.Bool` state; full a11y; both `OnChange` callback and `MessageOp` paths.
 - **Measurable:** golden-image test (`light-unselected`, `dark-unselected`, `light-selected`, `light-focused`); a11y tests (44 dp hit target, focus ring distinct, selected visually distinct); `BenchmarkRadioRender` in `radio_bench_test.go`. `go test ./...` green inside `prism/input/`.
 - **Achievable:** one component, well-scoped.
