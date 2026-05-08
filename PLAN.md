@@ -255,7 +255,7 @@ Discharges DESIGN §"Phase 0 — Token & Theme Contract". Gated by G00.A–D.
 
 ### G0.8 — Conditional: `prism/coordination/` shape (only if G00.C produced primitive)
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** lock the observable shape of the coordination primitive (types only — implementation lands in Phase 1).
 - **Measurable:** `prism/coordination/types.go` compiles; downstream Phase 1 modal/popover/toast can import it.
 - **Achievable:** types-only module.

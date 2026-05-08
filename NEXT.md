@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G0.8` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; conditional `prism/coordination/` observable shape for the coordination primitive from G00.C).
+**Active goal:** `G1.1` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `Initial[T]` helper replacing ad-hoc first-frame sentinels).
 
 ---
 
