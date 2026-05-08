@@ -297,7 +297,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.3 ‖ — `prism/input/{textfield,checkbox,radio,dropdown}.go`
 
-- [ ] **Done** *(done when G1.3a–G1.3d all checked)*
+- [x] **Done** *(done when G1.3a–G1.3d all checked)*
 - **Specific:** four input components split into G1.3a–G1.3d; one session each.
 - **Measurable:** all four sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G1.3a–G1.3d.
@@ -333,7 +333,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 #### G1.3d — `prism/input/dropdown.go`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `Dropdown(theme, DropdownProps{...})` with open/closed states and option selection; `Defer`-scoped state; full a11y; both `OnSelect` callback and `MessageOp` paths.
 - **Measurable:** golden-image test (`light-closed`, `dark-closed`, `light-focused`, `light-open`); a11y tests (44 dp hit target, focus ring distinct, open state visually distinct); `BenchmarkDropdownRender` in `dropdown_bench_test.go`. `go test ./...` green inside `prism/input/`.
 - **Achievable:** one component, well-scoped.

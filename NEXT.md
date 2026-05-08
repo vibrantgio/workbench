@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.3d` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/input/dropdown.go` — Dropdown with open/closed states and option selection, same golden/a11y/benchmark template as G1.3b–c).
+**Active goal:** `G1.4` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/list/` — virtual scrolling list generalised from `todos/list.go`; golden tests + O(visible) benchmark).
 
 ---
 
