@@ -207,7 +207,7 @@ Discharges DESIGN §"Phase 0 — Token & Theme Contract". Gated by G00.A–D.
 
 ### G0.3 — `prism/theme/theme.go`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `type Theme struct { Color rx.Observable[ColorTokens]; Type rx.Observable[TypeScale]; Motion rx.Observable[MotionTokens]; … }`.
 - **Measurable:** `go test ./prism/theme/...` verifies emission shape via `rx.TestScheduler` per DESIGN §"Testing".
 - **Achievable:** one file + tests.

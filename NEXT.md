@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G0.3` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; `prism/theme/theme.go` with `Theme` struct holding `rx.Observable` fields for Color, Type, Motion, etc.).
+**Active goal:** `G0.4` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; lift `AutoLightDark` from `coinviz/theme/` into `prism/theme/auto.go` as `rx.Observable[Theme]`).
 
 ---
 
