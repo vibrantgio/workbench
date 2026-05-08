@@ -216,7 +216,7 @@ Discharges DESIGN §"Phase 0 — Token & Theme Contract". Gated by G00.A–D.
 
 ### G0.4 — `prism/theme/auto.go` (extract `AutoLightDark` from coinviz)
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** lift `AutoLightDark` out of `coinviz/theme/`; rewrite as `rx.Observable[Theme]`.
 - **Measurable:** coinviz now imports `prism/theme` for this; `coinviz/theme/auto*` is deleted; tests in both packages still pass.
 - **Achievable:** one mechanical lift.
