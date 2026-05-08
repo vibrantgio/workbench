@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G0.5` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; `prism/a11y/preferences.go` — `rx.Observable[A11yPrefs]` backed by OS accessibility APIs).
+**Active goal:** `G0.6` in [PLAN.md](./PLAN.md) (Phase 0 — Token & Theme Contract; `prism/keyed/` — `KeyedDefer[K, V]` per the API validated in G00.A / EXPERIMENT-A.md).
 
 ---
 

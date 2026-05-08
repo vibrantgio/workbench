@@ -225,7 +225,7 @@ Discharges DESIGN §"Phase 0 — Token & Theme Contract". Gated by G00.A–D.
 
 ### G0.5 — `prism/a11y/preferences.go`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `rx.Observable[A11yPrefs]` exposing reduced motion, high contrast, increased text size; backed by macOS `NSWorkspace` / Windows `SystemParametersInfo` / Linux best-effort.
 - **Measurable:** unit tests against a fake OS source verify emissions; manual test on macOS confirms reduced-motion toggle propagates.
 - **Achievable:** one file + cgo or platform shim files (one per OS).
