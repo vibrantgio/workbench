@@ -315,7 +315,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 #### G1.3b — `prism/input/checkbox.go`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `Checkbox(theme, CheckboxProps{...})` with checked/unchecked states; `Defer`-scoped `widget.Bool` state; full a11y; both `OnChange` callback and `MessageOp` paths.
 - **Measurable:** golden-image test (`light-unchecked`, `dark-unchecked`, `light-checked`, `light-focused`); a11y tests (44 dp hit target, focus ring distinct, checked visually distinct); `BenchmarkCheckboxRender` in `checkbox_bench_test.go`. `go test ./...` green inside `prism/input/`.
 - **Achievable:** one component, well-scoped.
