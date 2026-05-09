@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G2.1` in [PLAN.md](./PLAN.md) (Phase 2 — Spectrum: persist chosen theme + a11y prefs to an OS-appropriate config dir and emit on launch, verified by an integration test that prefs survive an app restart).
+**Active goal:** `G2.2` in [PLAN.md](./PLAN.md) (Phase 2 — Spectrum: subscribe to OS dark-mode and accent-colour change events and bridge them to the `Theme` observable, verified by a macOS test that asserts `defaults write -g AppleInterfaceStyle Dark` triggers an emission within 1 s).
 
 ---
 

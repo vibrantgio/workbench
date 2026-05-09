@@ -458,7 +458,7 @@ Discharges DESIGN §"Phase 2". Gated by G1 stability.
 
 ### G2.1 — User-preference persistence
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** persist chosen theme + a11y prefs to OS-appropriate config dir; emit on launch.
 - **Measurable:** prefs survive app restart; verified by integration test.
 - **Achievable:** one module.
