@@ -433,14 +433,14 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ---
 
-## Phase 2 — Reactive theme runtime *(name TBD: Cadence)*
+## Phase 2 — Spectrum (reactive theme runtime)
 
 Discharges DESIGN §"Phase 2". Gated by G1 stability.
 
 ### G2.0 — Naming decision
 
-- [ ] **Done**
-- **Specific:** decide between Pulse / Cadence / Resonance per DESIGN §"Naming Considerations". Update DESIGN.md and this PLAN.md.
+- [x] **Done**
+- **Specific:** decided **Spectrum** (rejected original candidates Pulse / Cadence / Resonance). DESIGN.md §"Naming Considerations" and this PLAN.md heading updated to match. Module path: `vibrantgio/spectrum`.
 - **Measurable:** final name committed; module path reserved.
 - **Achievable:** decision-only.
 - **Relevant:** DESIGN §"Naming Considerations" — "Decide before implementation begins."
@@ -484,44 +484,44 @@ Discharges DESIGN §"Phase 2". Gated by G1 stability.
 
 ---
 
-## Phase 3 — Visual effects layer *(name TBD: Vivace)*
+## Phase 3 — Pulse (visual effects layer)
 
 Discharges DESIGN §"Phase 3". Parallelisable with Phase 2 once Phase 1 lands.
 
 ### G3.0 — Naming decision
 
-- [ ] **Done**
-Same template as G2.0. Pick Verve / Vivace / Kinesis. Budget ~20 K.
+- [x] **Done**
+Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / Vivace / Kinesis); repurposed from a Phase 2 candidate because rhythm fits motion more naturally than emissions. Module path: `vibrantgio/pulse`. Budget ~20 K.
 
-### G3.1 ‖ — `<phase3>/tween/`
+### G3.1 ‖ — `pulse/tween/`
 
 - [ ] **Done**
 - **Specific:** generic `Tween[T]` for fades, slides, colour interpolations.
 - **Measurable:** deterministic settling-time tests per DESIGN §"Testing — Physics convergence tests".
 - **Budget:** ~60 K.
 
-### G3.2 ‖ — `<phase3>/spring/`
+### G3.2 ‖ — `pulse/spring/`
 
 - [ ] **Done**
 - **Specific:** physics-based motion via `traer`; `Defer`-scoped `ParticleSystem`.
 - **Measurable:** spring settles within tolerance under fixed seed.
 - **Budget:** ~70 K.
 
-### G3.3 ‖ — `<phase3>/glow/` and `<phase3>/depth/`
+### G3.3 ‖ — `pulse/glow/` and `pulse/depth/`
 
 - [ ] **Done**
 - **Specific:** one goal each (G3.3a glow, G3.3b depth). Glow = luminance halo via gradient composition; depth = elevation-driven shadow layers.
 - **Measurable:** golden tests at multiple elevations.
 - **Budget:** ~60 K each.
 
-### G3.4 — `<phase3>/motion/`
+### G3.4 — `pulse/motion/`
 
 - [ ] **Done**
 - **Specific:** enter/exit/transition primitives composing tween + spring.
 - **Measurable:** golden tests of enter, exit, swap on a `prism.Button` variant.
 - **Budget:** ~80 K.
 
-### G3.5 — `<phase3>/conductor/`
+### G3.5 — `pulse/conductor/`
 
 - [ ] **Done**
 - **Specific:** shared clock for coordinated animation across widgets.
@@ -532,20 +532,20 @@ Same template as G2.0. Pick Verve / Vivace / Kinesis. Budget ~20 K.
 ### G3.6 — Spring-variant components in Prism
 
 - [ ] **Done**
-- **Specific:** for each Phase 1 interactive component, ship a `<phase3>.SpringX` variant per the composition mechanism in DESIGN §"Phase 3 — Composition mechanism".
-- **Measurable:** `<phase3>.SpringButton` documented; `gallery/` shows side-by-side static vs spring.
+- **Specific:** for each Phase 1 interactive component, ship a `pulse.SpringX` variant per the composition mechanism in DESIGN §"Phase 3 — Composition mechanism".
+- **Measurable:** `pulse.SpringButton` documented; `gallery/` shows side-by-side static vs spring.
 - **Budget:** ~80 K per variant family. One goal per Phase 1 component (G3.6a..G3.6n).
 
 ---
 
-## Phase 4 — Pattern library *(name TBD: Folio)*
+## Phase 4 — Cadence (pattern library)
 
 Discharges DESIGN §"Phase 4".
 
 ### G4.0 — Naming decision
 
-- [ ] **Done**
-Pick Folio / Atelier / Suite. Budget ~20 K.
+- [x] **Done**
+Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reassigned from a Phase 2 candidate because "rhythm of composition" fits patterns more naturally than theme emission. Module path: `vibrantgio/cadence`. Budget ~20 K.
 
 ### G4.1 ‖ — Static patterns: card, alert, breadcrumb, pagination
 

@@ -1,6 +1,6 @@
 # VibrantGIO Design System — Architecture & Strategy
 
-> **Status:** Working design. Phase names beyond Prism (Cadence, Vivace, Folio — proposed; Aura, Nimbus rejected) are provisional — see *Naming Considerations* at the end. Currently pinned to `gioui.org v0.1.0` (2023); migration to a current Gio release is tracked separately as Phase −1 below.
+> **Status:** Working design. Phase names committed: **Prism** (foundation), **Spectrum** (theme), **Pulse** (effects), **Cadence** (patterns) — see *Naming Considerations*. Currently pinned to `gioui.org v0.1.0` (2023); migration to a current Gio release is tracked separately as Phase −1 below.
 
 ## Vision
 
@@ -154,13 +154,13 @@ Properties:
 - **Idle at rest:** when `activity` settles, no `InvalidateOp` is emitted, and Gio goes idle
 - **Composable:** multiple animated widgets each contribute `InvalidateOp` independently; one is enough to keep the window animating
 
-**Caveats for multi-widget Nimbus use:**
+**Caveats for multi-widget Pulse use:**
 
 - **`InvalidateOp` is window-global.** A single animated widget triggers a full layout pass — every other widget on the window re-runs its layout function. Components with expensive layouts must internally cache results when their inputs are unchanged. Document this on every Prism component.
-- **Independent simulations are not synchronised.** Two widgets ticking their own `ParticleSystem` will not produce a coordinated wave. For coordinated motion (e.g., staggered list reveal), introduce a shared clock / animation conductor at the Nimbus layer.
-- **Variable dt is hostile to Verlet stability.** `max(1, fps.Value/30)` floors the step size, sacrificing real-time accuracy for stability under load. This is a deliberate trade — document it explicitly. Nimbus should optionally support a fixed-timestep mode with an accumulator for cases where real-time sync matters.
-- **Reduced motion must short-circuit physics entirely.** macOS exposes `NSWorkspace.shared.accessibilityDisplayShouldReduceMotion`; Windows exposes `SystemParametersInfo SPI_GETCLIENTAREAANIMATION`. Prism reads this preference once and exposes it as `rx.Observable[bool]`. Nimbus components subscribe and skip the physics tick when reduced motion is on, snapping directly to the target state.
-- **Spring physics is overkill for everything.** Nimbus needs a tier below `traer`: a simple `Tween[T]` for fades, slides, and colour interpolations. Reach for the particle system only when the motion needs to feel *physical*.
+- **Independent simulations are not synchronised.** Two widgets ticking their own `ParticleSystem` will not produce a coordinated wave. For coordinated motion (e.g., staggered list reveal), introduce a shared clock / animation conductor at the Pulse layer.
+- **Variable dt is hostile to Verlet stability.** `max(1, fps.Value/30)` floors the step size, sacrificing real-time accuracy for stability under load. This is a deliberate trade — document it explicitly. Pulse should optionally support a fixed-timestep mode with an accumulator for cases where real-time sync matters.
+- **Reduced motion must short-circuit physics entirely.** macOS exposes `NSWorkspace.shared.accessibilityDisplayShouldReduceMotion`; Windows exposes `SystemParametersInfo SPI_GETCLIENTAREAANIMATION`. Prism reads this preference once and exposes it as `rx.Observable[bool]`. Pulse components subscribe and skip the physics tick when reduced motion is on, snapping directly to the target state.
+- **Spring physics is overkill for everything.** Pulse needs a tier below `traer`: a simple `Tween[T]` for fades, slides, and colour interpolations. Reach for the particle system only when the motion needs to feel *physical*.
 
 ---
 
@@ -190,7 +190,7 @@ Accessibility is a first-class Phase 1 concern, not a future add-on. Components 
 |---|---|
 | Focus management | Every interactive component owns a `widget.Clickable`-equivalent and participates in tab order via Gio's focus system; a `prism.FocusGroup` orchestrates groups. |
 | Keyboard activation | Space/Enter on any focusable component fires the same callback as click. |
-| Reduced motion | OS preference exposed as `rx.Observable[ReduceMotion]` in the theme; Nimbus consults it before any animation. |
+| Reduced motion | OS preference exposed as `rx.Observable[ReduceMotion]` in the theme; Pulse consults it before any animation. |
 | Contrast | Colour tokens are paired (Background/OnBackground, Surface/OnSurface, etc.) to guarantee minimum WCAG AA contrast in both light and dark themes. |
 | Hit targets | Spacing scale enforces minimum 44 dp interactive targets; documented as a hard rule. |
 | Screen reader | Every interactive component takes a `Description string` (passed to `app.Description`); decorative-only components take none. |
@@ -394,20 +394,20 @@ The `gallery/` app is the canonical *forward-looking* reference: every primitive
 
 ---
 
-### Phase 2 — *(reactive theme runtime, name TBD: Pulse / Cadence / Resonance)*
+### Phase 2 — Spectrum (reactive theme runtime)
 
 **Goal:** make the theme stream a deeply integrated runtime concept, not just a contract. Includes user-preference persistence, system-event bridging (dark mode, reduce motion, accent colour), animated theme transitions, and per-window theme overrides.
 
-This phase is where the *runtime* of reactive theming lives. Phase 0 defined the contract; Phase 2 implements the behaviours that contract enables. Renaming required because "Aura" is too crowded a term — see *Naming Considerations*.
+This phase is where the *runtime* of reactive theming lives. Phase 0 defined the contract; Phase 2 (Spectrum) implements the behaviours that contract enables. The name reflects the prism→spectrum metaphor: Prism refracts into a Spectrum of theme tokens.
 
 ---
 
-### Phase 3 — *(visual effects layer, name TBD: Verve / Vivace / Kinesis)*
+### Phase 3 — Pulse (visual effects layer)
 
 **Goal:** the vibrancy. Spring physics, glow, depth, motion — layered on top of Prism components.
 
 ```
-<phase3>/
+pulse/
   tween/        — simple `Tween[T]` for non-physical motion (fades, slides, colour)
   spring/       — physics-based motion via traer; Defer-scoped ParticleSystem
   glow/         — luminance halos via gradient composition
@@ -419,28 +419,28 @@ This phase is where the *runtime* of reactive theming lives. Phase 0 defined the
 **Composition mechanism (concrete):** Phase 3 widgets are *variants* exported alongside their Prism counterparts, not magic decorators.
 
 ```go
-// Without Phase 3:
+// Without Pulse:
 prism.Button(theme, ButtonProps{Label: "Save", OnClick: save})
 
-// With Phase 3:
-verve.SpringButton(theme, ButtonProps{Label: "Save", OnClick: save},
-    verve.SpringOptions{Stiffness: 0.4, Damping: 0.7})
+// With Pulse:
+pulse.SpringButton(theme, ButtonProps{Label: "Save", OnClick: save},
+    pulse.SpringOptions{Stiffness: 0.4, Damping: 0.7})
 ```
 
 `SpringButton` internally embeds a `prism.Button` and wraps it with physics-driven press/release. This keeps the API explicit, the implementation reusable, and the dependency direction clean (Phase 3 → Phase 1, never the reverse).
 
 ---
 
-### Phase 4 — *(pattern library, name TBD: Folio / Atelier / Suite)*
+### Phase 4 — Cadence (pattern library)
 
 **Goal:** the VibrantGIO equivalent of TailwindPlus or Bootstrap — a curated library of prebuilt application patterns composed from Prism primitives. Reduces time-to-build for common desktop UI shapes.
 
 **Why this exists:** Bootstrap and Tailwind succeeded because they reduced time-to-build for common patterns. Material Web, Fluent, and similar exist for web/Microsoft platforms; no equivalent exists for native cross-platform desktop on Go. This phase fills that gap.
 
-**Module:** `vibrantgio/<phase4>`
+**Module:** `vibrantgio/cadence`
 
 ```
-<phase4>/
+cadence/
   card/         — content cards with header/body/footer slots
   alert/        — info / success / warning / error banners
   modal/        — dialog with backdrop, focus trap, escape handling
@@ -566,14 +566,14 @@ These app types should be the focus of demonstration projects in Phase 1. Apps f
 
 ## Naming Considerations
 
-| Working name | Concern | Candidate replacements |
-|---|---|---|
-| **Prism** | None — refraction (one source → many components) is on-thesis, memorable, not crowded. | Keep. |
-| **Aura** | Crowded namespace (AuraJS, Project Aura, Aura UI, wellness/spiritual associations). Doesn't suggest "reactive observable theme stream". | **Pulse**, **Cadence**, **Resonance** — all musical/rhythmic, fit the "events drumbeat" architecture. *Cadence* is the strongest: it implies periodic emission and is unused in the Go ecosystem. |
-| **Nimbus** | A nimbus is a *static* halo/cloud — opposite of motion. Crowded namespace (NimbusJS, Nimbus Note, Nimbus Sans). | **Verve**, **Vivace**, **Kinesis**. *Vivace* (Italian musical term, "lively, brisk") pairs naturally with Cadence and reinforces the vibrancy theme. *Verve* is shorter and more evocative; *Kinesis* leans technical. |
-| **(Phase 4 pattern library)** | No working name yet. Should evoke "curated collection of prebuilt patterns" without colliding with Phase 1 (primitives) terminology. | **Folio** (collection of works, short, distinctive), **Atelier** (workshop / studio, evokes craft), **Suite** (overloaded but clear). *Folio* preferred — it is concise, unused in the Go ecosystem, and pairs cleanly with Prism (a folio refracts a prism's light into a portfolio of patterns). |
+**Decided.** All four phase names are committed: **Prism** (foundation), **Spectrum** (theme), **Pulse** (effects), **Cadence** (patterns). The progression is thematically tight — Prism refracts into a Spectrum, which Pulses with motion, composed in Cadence. Module rename cost was zero today, infinite once published; names locked before Phase 2 implementation begins.
 
-Decide before implementation begins. Module rename cost is zero today, infinite once published.
+| Phase | Name | Rejected working name + original candidates | Why this name |
+|---|---|---|---|
+| 1 | **Prism** | — | Refraction (one source → many components) is on-thesis, memorable, not crowded. |
+| 2 | **Spectrum** | Working name "Aura" rejected: crowded namespace (AuraJS, Project Aura, wellness/spiritual associations); doesn't suggest "reactive observable theme stream". Original candidates: Pulse, Cadence, Resonance. | Outside the original set: makes the prism→spectrum metaphor literal — Prism refracts into a Spectrum of theme tokens. Tradeoff: Adobe Spectrum is a known web design system, accepted because it sits in a different ecosystem (web vs native Go/Gio). |
+| 3 | **Pulse** | Working name "Nimbus" rejected: a nimbus is a *static* halo/cloud — opposite of motion; crowded namespace (NimbusJS, Nimbus Note, Nimbus Sans). Original candidates: Verve, Vivace, Kinesis. | Repurposed from a Phase 2 candidate: the rhythm/oscillation metaphor fits motion (animations, springs, glows pulse) more naturally than theme emissions. |
+| 4 | **Cadence** | No working name. Original candidates: Folio, Atelier, Suite. | Reassigned from a Phase 2 candidate: "rhythm of composition" reads more naturally for a pattern library than for theme emission. Patterns are how components flow together; cadence in music is the compositional building block. |
 
 ---
 
