@@ -339,6 +339,16 @@ Discharges DESIGN §"Phase 1 — Prism".
 - **Achievable:** one component, well-scoped.
 - **Relevant:** DESIGN §"Phase 1" deliverable.
 - **Budget:** ~80 K. Depends on G1.3a.
+
+#### G1.3e — `prism/input/textfield.go` submit affordance
+
+- [ ] **Done**
+- **Specific:** add `Submit bool`, `SubmitMessage func(text string) any`, and `OnSubmit func(text string)` fields to `TextFieldProps` in `prism/input/textfield.go`. When `Submit` is true, configure the inner `widget.Editor` with `Submit: true`. On `widget.SubmitEvent`: emit `mvu.MessageOp{Message: SubmitMessage(text)}` if `SubmitMessage` is non-nil; call `OnSubmit(text)` if non-nil; clear the editor (`editor.SetText("")`).
+- **Measurable:** new golden-image test `light-focused-with-text` in `textfield_test.go`; behavioral test confirms (a) `widget.SubmitEvent` triggers `SubmitMessage`/`OnSubmit` with the editor's current text, (b) editor is cleared after submit, (c) callers without `Submit: true` still see ChangeEvent-driven `Message` (no behavioural regression); `BenchmarkTextFieldRender` updated to cover the submit-enabled state; `go test ./prism/input/...` green.
+- **Achievable:** additive change to one file (`prism/input/textfield.go`) plus its tests; existing `TextField` callers unaffected; one session.
+- **Relevant:** DESIGN §"Bridging FRP and MVU" — submit-style chat inputs need this affordance; unblocks G1.9d.
+- **Budget:** ~70 K. Depends on G1.3a.
+
 ### G1.4 — `prism/list/`
 
 - [x] **Done**

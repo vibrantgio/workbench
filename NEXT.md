@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.9d` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; migrate mindchat to use prism/input.TextField; no bespoke editor-widget function remains in mindchat/).
+**Active goal:** `G1.3e` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; add `Submit`/`SubmitMessage`/`OnSubmit` to `prism/input/textfield.go` so chat-style inputs submit on Enter and clear; unblocks G1.9d).
 
 ---
 
