@@ -53,7 +53,7 @@ func RequestChatCompletion(ctx context.Context, authToken string, hist []openai.
 	return mvu.Command{Observable: rx.Defer(func() rx.Observable[any] {
 		client := openai.NewClient(authToken)
 		request := openai.ChatCompletionRequest{
-			Model:    openai.GPT4,
+			Model:    "gpt-5.5",
 			Messages: messages,
 			// MaxTokens:        20,
 			// Temperature:      1.0,

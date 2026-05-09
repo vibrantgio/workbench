@@ -6,7 +6,7 @@ require (
 	gioui.org v0.9.0
 	github.com/joho/godotenv v1.5.1
 	github.com/reactivego/rx v0.2.2
-	github.com/sashabaranov/go-openai v1.37.0
+	github.com/sashabaranov/go-openai v1.41.2
 	github.com/vibrantgio/gradient v0.0.2
 	github.com/vibrantgio/ivg v0.1.3
 	github.com/vibrantgio/mvu v0.1.9
