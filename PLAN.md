@@ -395,6 +395,42 @@ Discharges DESIGN §"Phase 1 — Prism".
 - **Relevant:** DESIGN §"Phase 1 — Migration path".
 - **Budget:** ~70 K each (G1.9a coinviz, G1.9b appviz, G1.9c todos, G1.9d mindchat).
 
+#### G1.9a ‖ — Migrate coinviz to Prism
+
+- [x] **Done**
+- **Specific:** coinviz already uses `prism/initial` and `prism/theme`; no bespoke button/input/list widget functions exist in the package.
+- **Measurable:** `go build ./coinviz/...` passes; `grep -rn '^func.*Button\|^func.*Checkbox\|^func.*List' coinviz/` finds nothing.
+- **Achievable:** verification only — already compliant.
+- **Relevant:** DESIGN §"Phase 1 — Migration path".
+- **Budget:** ~70 K.
+
+#### G1.9b ‖ — Migrate appviz to Prism
+
+- [x] **Done**
+- **Specific:** appviz has no bespoke button/input/list widget functions.
+- **Measurable:** `go build ./appviz/...` passes; `grep -rn '^func.*Button\|^func.*Checkbox\|^func.*List' appviz/` finds nothing.
+- **Achievable:** verification only — already compliant.
+- **Relevant:** DESIGN §"Phase 1 — Migration path".
+- **Budget:** ~70 K.
+
+#### G1.9c — Migrate todos to Prism
+
+- [ ] **Done**
+- **Specific:** delete `todos/button.go`; replace bespoke `Button`, `IconBtn`, `Checkbox`, `Edit`, `List` in `todos/list.go` with `prism/button`, `prism/input`, `prism/list` via the MVU MessageOp callback path; remove `todos/theme.go` if no longer needed.
+- **Measurable:** `todos/button.go` absent; no bespoke button/input/list function remains in `todos/`; `go build ./todos/...` passes.
+- **Achievable:** mechanical replacement; one session.
+- **Relevant:** DESIGN §"Phase 1 — Migration path".
+- **Budget:** ~70 K.
+
+#### G1.9d — Migrate mindchat to Prism
+
+- [ ] **Done**
+- **Specific:** replace `EditWidget()` in `mindchat/view.go` with `prism/input.TextField` via MVU MessageOp callback path.
+- **Measurable:** no bespoke editor-widget function remains in `mindchat/`; `go build ./mindchat/...` passes.
+- **Achievable:** mechanical replacement; one session.
+- **Relevant:** DESIGN §"Phase 1 — Migration path".
+- **Budget:** ~70 K.
+
 ---
 
 ## Phase 2 — Reactive theme runtime *(name TBD: Cadence)*

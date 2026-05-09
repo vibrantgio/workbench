@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.9` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; migrate four reference apps — coinviz, appviz, todos, mindchat — to use Prism widgets; no in-repo button/input/list duplication remains).
+**Active goal:** `G1.9c` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; migrate todos app to use prism/button, prism/input, prism/list; no bespoke button/input/list duplication remains in todos/).
 
 ---
 
