@@ -370,7 +370,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.7 — `prism/coordination/` implementation (if G0.8 landed)
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** implement the types from G0.8: scoped subjects, drop-zone registry, modal stack, tooltip arbitration, gesture disambiguation.
 - **Measurable:** `experiments/coordination/` G00.C prototype is rewritten on top of `prism/coordination/` and still passes its acceptance test.
 - **Achievable:** types are pinned; only implementation work.

@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.7` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/coordination/` — implement scoped subjects, drop-zone registry, modal stack, tooltip arbitration, gesture disambiguation; rewrite experiments/coordination on top of it).
+**Active goal:** `G1.8` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/gallery/` — canonical reference app, one page per component, every variant and a11y mode visible).
 
 ---
 
