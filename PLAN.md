@@ -467,7 +467,7 @@ Discharges DESIGN §"Phase 2". Gated by G1 stability.
 
 ### G2.2 — System-event bridging
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** subscribe to OS dark-mode and accent-colour change events; bridge to `Theme` observable.
 - **Measurable:** macOS test asserts `defaults write -g AppleInterfaceStyle Dark` triggers an emission within 1 s.
 - **Achievable:** per-OS shim files.

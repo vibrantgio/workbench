@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G2.2` in [PLAN.md](./PLAN.md) (Phase 2 — Spectrum: subscribe to OS dark-mode and accent-colour change events and bridge them to the `Theme` observable, verified by a macOS test that asserts `defaults write -g AppleInterfaceStyle Dark` triggers an emission within 1 s).
+**Active goal:** `G2.3` in [PLAN.md](./PLAN.md) (Phase 2 — Spectrum: animated theme transitions via colour interpolation across theme switches, verified by a golden test of a transitioning theme at frame 0/15/30 with the tween settling to its target).
 
 ---
 
