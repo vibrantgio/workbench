@@ -184,6 +184,12 @@ func SidebarHeader(gtx layout.Context, shaper *text.Shaper) layout.Dimensions {
 
 // ChatRowWidget renders a single chat entry in the sidebar with hover and selection states.
 func ChatRowWidget(gtx layout.Context, shaper *text.Shaper, name string, selected bool, clickable *widget.Clickable) layout.Dimensions {
+	// Drain pending clicks before Layout — Layout's internal update loop
+	// consumes click events and discards them, so Clicked must run first.
+	for clickable.Clicked(gtx) {
+		mvu.MessageOp{Message: SelectChat{Name: name}}.Add(gtx.Ops)
+	}
+
 	displayName := strings.TrimSuffix(name, filepath.Ext(name))
 	// Title-case the first letter for a cleaner look.
 	if len(displayName) > 0 {
@@ -206,7 +212,7 @@ func ChatRowWidget(gtx layout.Context, shaper *text.Shaper, name string, selecte
 
 	label := widget.Label{Alignment: text.Start, MaxLines: 1, Truncator: "…"}
 
-	dims := clickable.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return clickable.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		textMaterial := Material(gtx.Ops, textColor)
 
 		m := op.Record(gtx.Ops)
@@ -225,11 +231,6 @@ func ChatRowWidget(gtx layout.Context, shaper *text.Shaper, name string, selecte
 		foreground.Add(gtx.Ops)
 		return dims
 	})
-
-	if clickable.Clicked(gtx) {
-		mvu.MessageOp{Message: SelectChat{Name: name}}.Add(gtx.Ops)
-	}
-	return dims
 }
 
 var ChatGPT = func() []byte {
