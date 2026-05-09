@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G3.1` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/tween/` — generic `Tween[T]` for fades, slides, colour interpolations, with deterministic settling-time tests per DESIGN §"Testing — Physics convergence tests").
+**Active goal:** `G3.2` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/spring/` — physics-based motion via `traer`, `Defer`-scoped `ParticleSystem`, with spring settling within tolerance under a fixed seed).
 
 ---
 

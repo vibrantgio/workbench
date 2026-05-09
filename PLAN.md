@@ -505,7 +505,7 @@ Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / V
 
 ### G3.1 ‖ — `pulse/tween/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** generic `Tween[T]` for fades, slides, colour interpolations.
 - **Measurable:** deterministic settling-time tests per DESIGN §"Testing — Physics convergence tests".
 - **Budget:** ~60 K.
