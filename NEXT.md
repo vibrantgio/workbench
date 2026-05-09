@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G2.4` in [PLAN.md](./PLAN.md) (Phase 2 — Spectrum: per-window theme override allowing each `Window.Render` call to receive an independent `rx.Observable[Theme]`, verified by a test that launches two windows with different themes and asserts isolation).
+**Active goal:** `G3.1` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/tween/` — generic `Tween[T]` for fades, slides, colour interpolations, with deterministic settling-time tests per DESIGN §"Testing — Physics convergence tests").
 
 ---
 

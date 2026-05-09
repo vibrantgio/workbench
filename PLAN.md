@@ -485,7 +485,7 @@ Discharges DESIGN §"Phase 2". Gated by G1 stability.
 
 ### G2.4 — Per-window theme override
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** allow each `Window.Render` call to receive an independent `rx.Observable[Theme]`.
 - **Measurable:** test launches two windows with different themes and verifies isolation.
 - **Achievable:** mostly contract-level; small runtime change.
