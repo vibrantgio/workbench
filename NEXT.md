@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.8` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; `prism/gallery/` — canonical reference app, one page per component, every variant and a11y mode visible).
+**Active goal:** `G1.9` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; migrate four reference apps — coinviz, appviz, todos, mindchat — to use Prism widgets; no in-repo button/input/list duplication remains).
 
 ---
 

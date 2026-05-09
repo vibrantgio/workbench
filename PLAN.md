@@ -379,7 +379,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.8 — `prism/gallery/` (canonical reference app)
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** one page per Phase 1 component; every variant, every a11y mode visible.
 - **Measurable:** every Phase 1 component appears in gallery; manual launch shows working interactions.
 - **Achievable:** assembly only.
