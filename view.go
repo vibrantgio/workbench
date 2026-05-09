@@ -8,7 +8,6 @@ import (
 
 	"golang.org/x/exp/shiny/materialdesign/colornames"
 
-	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -17,17 +16,20 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/reactivego/rx"
 	"github.com/vibrantgio/ivg"
 	"github.com/vibrantgio/ivg/encode"
 	"github.com/vibrantgio/ivg/generate"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/place"
+	"github.com/vibrantgio/prism/input"
+	prismtheme "github.com/vibrantgio/prism/theme"
 	"github.com/vibrantgio/style"
-	"github.com/vibrantgio/textdraw"
 
 	openai "github.com/sashabaranov/go-openai"
 )
+
+var prismTh = rx.Of(prismtheme.Default())
 
 func View() func(Model) layout.Widget {
 	shaper := text.NewShaper(text.WithCollection(style.FontFaces()))
@@ -48,12 +50,12 @@ func View() func(Model) layout.Widget {
 func ChatHistWidget(shaper *text.Shaper) func(hist []openai.ChatCompletionMessage) layout.Widget {
 
 	list := layout.List{Axis: layout.Vertical, ScrollToEnd: true, Alignment: layout.Start}
-	edit := EditWidget(shaper, style.BodyText1, "Send a message", func(gtx layout.Context, edit *widget.Editor) {
-
-		mvu.MessageOp{Message: Prompt{Content: edit.Text()}}.Add(gtx.Ops)
-
-		edit.SetText("")
-	})
+	edit, _ := input.TextField(prismTh, input.TextFieldProps{
+		Placeholder:   "Send a message",
+		Submit:        true,
+		SubmitMessage: func(text string) any { return Prompt{Content: text} },
+		Shaper:        shaper,
+	}).First()
 
 	return func(chat []openai.ChatCompletionMessage) layout.Widget {
 
@@ -118,64 +120,6 @@ func ChatHistWidget(shaper *text.Shaper) func(hist []openai.ChatCompletionMessag
 
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		}
-	}
-}
-
-func EditWidget(shaper *text.Shaper, style textdraw.TextStyle, hint string, cb func(layout.Context, *widget.Editor)) layout.Widget {
-	label := widget.Label{Alignment: text.Start, MaxLines: style.MaxLines, Truncator: style.Truncator}
-	edit := widget.Editor{Alignment: text.Start, SingleLine: style.MaxLines == 1, Submit: true, InputHint: key.HintText}
-	focusRequested := false
-
-	cActive := colornames.BlueGrey400
-	cEdit := colornames.BlueGrey600
-	cSelect := colornames.BlueGrey300
-	cText := colornames.Grey200
-
-	return func(gtx layout.Context) layout.Dimensions {
-		if !focusRequested {
-			gtx.Execute(key.FocusCmd{Tag: &edit})
-			focusRequested = true
-		}
-
-		textMaterial := Material(gtx.Ops, cText)
-		selectMaterial := Material(gtx.Ops, cSelect)
-
-		radius := gtx.Dp(8)
-		border := gtx.Dp(2)
-
-		for {
-			ev, ok := edit.Update(gtx)
-			if !ok {
-				break
-			}
-			if _, ok := ev.(widget.SubmitEvent); ok {
-				cb(gtx, &edit)
-			}
-		}
-
-		m := op.Record(gtx.Ops)
-		dims := layout.UniformInset(12+2+2).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return edit.Layout(gtx, shaper, style.Font, style.Size, textMaterial, selectMaterial)
-		})
-		textOp := m.Stop()
-
-		outline := image.Rectangle{Max: dims.Size}
-		rect := outline
-		FillRect(gtx, rect, radius, cActive)
-		rect = rect.Inset(border)
-		FillRect(gtx, rect, radius, cEdit)
-		rect = rect.Inset(border)
-		offset := place.Place(rect, dims.Size, 0.0, 0.5).Min
-		cs := op.Offset(offset).Push(gtx.Ops)
-		if edit.Text() == "" {
-			layout.UniformInset(12+2+2).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return label.Layout(gtx, shaper, style.Font, style.Size, hint, selectMaterial)
-			})
-		}
-		textOp.Add(gtx.Ops)
-		cs.Pop()
-
-		return layout.Dimensions{Size: outline.Size()}
 	}
 }
 
