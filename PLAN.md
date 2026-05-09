@@ -415,7 +415,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 #### G1.9c — Migrate todos to Prism
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** delete `todos/button.go`; replace bespoke `Button`, `IconBtn`, `Checkbox`, `Edit`, `List` in `todos/list.go` with `prism/button`, `prism/input`, `prism/list` via the MVU MessageOp callback path; remove `todos/theme.go` if no longer needed.
 - **Measurable:** `todos/button.go` absent; no bespoke button/input/list function remains in `todos/`; `go build ./todos/...` passes.
 - **Achievable:** mechanical replacement; one session.

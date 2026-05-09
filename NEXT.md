@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.9c` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; migrate todos app to use prism/button, prism/input, prism/list; no bespoke button/input/list duplication remains in todos/).
+**Active goal:** `G1.9d` in [PLAN.md](./PLAN.md) (Phase 1 — Prism component foundation; migrate mindchat to use prism/input.TextField; no bespoke editor-widget function remains in mindchat/).
 
 ---
 
