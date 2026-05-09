@@ -476,7 +476,7 @@ Discharges DESIGN §"Phase 2". Gated by G1 stability.
 
 ### G2.3 — Animated theme transitions
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** colour interpolation across theme switches via `Tween[Color]` (lands in Phase 3 or pre-Phase 3 stub here).
 - **Measurable:** golden test of transitioning theme at frame 0/15/30; tween settles to target.
 - **Achievable:** one tween implementation + integration.
