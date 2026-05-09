@@ -398,7 +398,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.9 ‖ — Migrate reference apps to Prism
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** four sub-goals — one per app — each replacing bespoke widgets with Prism equivalents.
 - **Measurable:** per app, no in-repo button/input/list duplication remains; all existing tests still pass.
 - **Achievable:** mechanical replacement after Prism stabilises.
@@ -434,7 +434,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 #### G1.9d — Migrate mindchat to Prism
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** replace `EditWidget()` in `mindchat/view.go` with `prism/input.TextField` via MVU MessageOp callback path.
 - **Measurable:** no bespoke editor-widget function remains in `mindchat/`; `go build ./mindchat/...` passes.
 - **Achievable:** mechanical replacement; one session.

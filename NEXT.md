@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G1.9d` in [PLAN.md](./PLAN.md) (Phase 1 — Migrate reference apps to Prism; replace `EditWidget()` in `mindchat/view.go` with `prism/input.TextField` via the MVU MessageOp callback path so no bespoke editor-widget function remains in `mindchat/`).
+**Active goal:** `G2.1` in [PLAN.md](./PLAN.md) (Phase 2 — Spectrum: persist chosen theme + a11y prefs to an OS-appropriate config dir and emit on launch, verified by an integration test that prefs survive an app restart).
 
 ---
 
