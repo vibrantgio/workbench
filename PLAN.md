@@ -537,7 +537,7 @@ Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / V
 
 #### G3.3b — `pulse/depth/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `pulse/depth/` package exposing a `Shadow(gtx, bounds, level tokens.ElevationLevel)` primitive that draws a Material-style cast shadow under a rectangular region by composing linear gradients whose offset and extent are derived from the elevation level (`prism/tokens.Elevation` Level0–Level5: 0/1/3/6/8/12 dp).
 - **Measurable:** golden-image tests at all six elevation levels (`level-0` through `level-5`); pixel-diff test asserts adjacent levels differ; `go test ./pulse/depth/...` green.
 - **Achievable:** one package, one entry point; reuses the gradient-composition technique established by G3.3a, parameterised by elevation rather than intensity.

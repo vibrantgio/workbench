@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G3.3b` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/depth/` — `Shadow(gtx, bounds, level)` primitive composing linear gradients into Material-style cast shadows at `prism/tokens.Elevation` Level0–Level5; golden tests at all six elevation levels).
+**Active goal:** `G3.4` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/motion/` — enter/exit/transition primitives composing tween + spring; golden tests of enter, exit, swap on a `prism.Button` variant).
 
 ---
 
