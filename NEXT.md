@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G3.2` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/spring/` — physics-based motion via `traer`, `Defer`-scoped `ParticleSystem`, with spring settling within tolerance under a fixed seed).
+**Active goal:** `G3.3` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/glow/` and `pulse/depth/` — luminance halo via gradient composition and elevation-driven shadow layers, with golden tests at multiple elevations; split into G3.3a glow and G3.3b depth).
 
 ---
 

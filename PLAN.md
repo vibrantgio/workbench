@@ -512,7 +512,7 @@ Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / V
 
 ### G3.2 ‖ — `pulse/spring/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** physics-based motion via `traer`; `Defer`-scoped `ParticleSystem`.
 - **Measurable:** spring settles within tolerance under fixed seed.
 - **Budget:** ~70 K.
