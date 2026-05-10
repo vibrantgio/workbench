@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G3.4` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/motion/` — enter/exit/transition primitives composing tween + spring; golden tests of enter, exit, swap on a `prism.Button` variant).
+**Active goal:** `G3.5` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/conductor/` — shared clock for coordinated animation across widgets; test demonstrates staggered list reveal across N rows phase-locked).
 
 ---
 

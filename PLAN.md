@@ -546,7 +546,7 @@ Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / V
 
 ### G3.4 — `pulse/motion/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** enter/exit/transition primitives composing tween + spring.
 - **Measurable:** golden tests of enter, exit, swap on a `prism.Button` variant.
 - **Budget:** ~80 K.
