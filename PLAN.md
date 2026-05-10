@@ -553,7 +553,7 @@ Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / V
 
 ### G3.5 — `pulse/conductor/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** shared clock for coordinated animation across widgets.
 - **Measurable:** test demonstrates staggered list reveal across N rows phase-locked.
 - **Relevant:** DESIGN §"5. Frame-Driven Physics — Caveats — Independent simulations are not synchronised".
