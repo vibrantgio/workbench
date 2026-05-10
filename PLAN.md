@@ -519,10 +519,30 @@ Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / V
 
 ### G3.3 ‖ — `pulse/glow/` and `pulse/depth/`
 
+- [ ] **Done** *(done when G3.3a–G3.3b all checked)*
+- **Specific:** two visual-effect packages split into G3.3a (glow) and G3.3b (depth); one session each. Glow = luminance halo via gradient composition; depth = elevation-driven shadow layers.
+- **Measurable:** both sub-goals checked.
+- **Achievable:** parent tracking goal; implementation across G3.3a–G3.3b.
+- **Relevant:** DESIGN §"Phase 3 — Pulse".
+- **Budget:** ~60 K per sub-goal.
+
+#### G3.3a — `pulse/glow/`
+
+- [x] **Done**
+- **Specific:** `pulse/glow/` package exposing a `Halo(gtx, bounds, opts)` primitive that renders a luminance halo around a rectangular region by composing 4 edge-band linear gradients (top/right/bottom/left) and 4 corner-triangle linear gradients, each clipped to its own region so corners do not double-paint. `Options` fields: `Color color.NRGBA`, `Radius int` (px halo extent beyond bounds), `Intensity float64` (peak alpha multiplier in [0,1]).
+- **Measurable:** golden-image tests at four intensities (`intensity-zero`, `intensity-low`, `intensity-mid`, `intensity-high`); pixel-diff sanity tests assert successive intensities differ; `go test ./pulse/glow/...` green.
+- **Achievable:** one package, one entry point, one Options struct; uses `gioui.org/op/paint.LinearGradientOp` directly — no new shader, no new gradient package.
+- **Relevant:** DESIGN §"Phase 3 — Pulse" (`glow/ — luminance halos via gradient composition`).
+- **Budget:** ~60 K. No code dependency on G3.1 / G3.2.
+
+#### G3.3b — `pulse/depth/`
+
 - [ ] **Done**
-- **Specific:** one goal each (G3.3a glow, G3.3b depth). Glow = luminance halo via gradient composition; depth = elevation-driven shadow layers.
-- **Measurable:** golden tests at multiple elevations.
-- **Budget:** ~60 K each.
+- **Specific:** `pulse/depth/` package exposing a `Shadow(gtx, bounds, level tokens.ElevationLevel)` primitive that draws a Material-style cast shadow under a rectangular region by composing linear gradients whose offset and extent are derived from the elevation level (`prism/tokens.Elevation` Level0–Level5: 0/1/3/6/8/12 dp).
+- **Measurable:** golden-image tests at all six elevation levels (`level-0` through `level-5`); pixel-diff test asserts adjacent levels differ; `go test ./pulse/depth/...` green.
+- **Achievable:** one package, one entry point; reuses the gradient-composition technique established by G3.3a, parameterised by elevation rather than intensity.
+- **Relevant:** DESIGN §"Phase 3 — Pulse" (`depth/ — elevation-driven shadow layers`); `prism/tokens/elevation.go` Level0–Level5.
+- **Budget:** ~60 K. Depends on G3.3a (shared gradient-composition pattern); soft dependency only — no import.
 
 ### G3.4 — `pulse/motion/`
 

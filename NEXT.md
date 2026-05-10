@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G3.3` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/glow/` and `pulse/depth/` — luminance halo via gradient composition and elevation-driven shadow layers, with golden tests at multiple elevations; split into G3.3a glow and G3.3b depth).
+**Active goal:** `G3.3b` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: `pulse/depth/` — `Shadow(gtx, bounds, level)` primitive composing linear gradients into Material-style cast shadows at `prism/tokens.Elevation` Level0–Level5; golden tests at all six elevation levels).
 
 ---
 
