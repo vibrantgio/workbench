@@ -597,7 +597,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.1b — `cadence/alert/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/alert/` package exposing `Alert(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Variant` (`Info`, `Success`, `Warning`, `Error`), a `Title string`, and a `Body layout.Widget`. Visual is a tinted-`Surface` rounded rectangle with a leading icon slot (variant-dependent) and `OnSurface` typography.
 - **Measurable:** golden-image tests for each variant × {light, dark} producing at least `info-light`, `info-dark`, `warning-light`, `error-light`; `go test ./cadence/alert/...` green.
 - **Achievable:** one package, one Props struct; uses `prism/tokens` `Error` and `Primary` colour roles, plus locally-defined tint helpers. No icon dependency for the baseline goldens — start with a chevron rendered from `clip.Path`; richer icons can come from `prism/icon` once available.

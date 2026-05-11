@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.1b` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/alert/` — info/success/warning/error banner pattern. A function consuming `rx.Observable[Theme]` returning `rx.Observable[layout.Widget]`, plus a static `Render`. Golden tests across variants × {light, dark}).
+**Active goal:** `G4.1c` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/breadcrumb/` — horizontal row of labels separated by chevron glyphs. A function consuming `rx.Observable[Theme]` returning `rx.Observable[layout.Widget]`, plus a static `Render`. Last item in `OnSurface`, others in `OnSurfaceVariant`. Golden tests for three- and single-segment cases across light/dark).
 
 ---
 
