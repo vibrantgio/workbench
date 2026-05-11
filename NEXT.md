@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G3.6` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: spring-variant components in Prism — for each Phase 1 interactive component, ship a `pulse.SpringX` variant per the composition mechanism in DESIGN §"Phase 3 — Composition mechanism"; `pulse.SpringButton` documented and `gallery/` shows side-by-side static vs spring).
+**Active goal:** `G3.3` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: parent tracking goal for `pulse/glow/` + `pulse/depth/`. Its Measurable is "both sub-goals checked"; G3.3a and G3.3b are already `[x]`. Discharge it by toggling the parent `- [ ] **Done**` to `[x]`, then advance the cursor).
 
 ---
 

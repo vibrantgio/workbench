@@ -561,7 +561,7 @@ Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / V
 
 ### G3.6 — Spring-variant components in Prism
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** for each Phase 1 interactive component, ship a `pulse.SpringX` variant per the composition mechanism in DESIGN §"Phase 3 — Composition mechanism".
 - **Measurable:** `pulse.SpringButton` documented; `gallery/` shows side-by-side static vs spring.
 - **Budget:** ~80 K per variant family. One goal per Phase 1 component (G3.6a..G3.6n).
