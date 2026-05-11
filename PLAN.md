@@ -519,7 +519,7 @@ Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / V
 
 ### G3.3 ‖ — `pulse/glow/` and `pulse/depth/`
 
-- [ ] **Done** *(done when G3.3a–G3.3b all checked)*
+- [x] **Done** *(done when G3.3a–G3.3b all checked)*
 - **Specific:** two visual-effect packages split into G3.3a (glow) and G3.3b (depth); one session each. Glow = luminance halo via gradient composition; depth = elevation-driven shadow layers.
 - **Measurable:** both sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G3.3a–G3.3b.

@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G3.3` in [PLAN.md](./PLAN.md) (Phase 3 — Pulse: parent tracking goal for `pulse/glow/` + `pulse/depth/`. Its Measurable is "both sub-goals checked"; G3.3a and G3.3b are already `[x]`. Discharge it by toggling the parent `- [ ] **Done**` to `[x]`, then advance the cursor).
+**Active goal:** `G4.1` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: parallel parent for static patterns `card`, `alert`, `breadcrumb`, `pagination`. Each pattern is one goal G4.1a..G4.1d — a function consuming `rx.Observable[Theme]` and returning `layout.Widget`, with light + dark golden tests).
 
 ---
 
@@ -54,6 +54,12 @@ Once **Measurable** is green:
 
    ```bash
    mdedit toggle -s "<G>" PLAN.md
+   ```
+
+   For a parent tracking goal whose sub-goals are already `[x]`, use `--scope flat` so you toggle only the parent's own checkbox, not the children's:
+
+   ```bash
+   mdedit toggle -s "<G>" --scope flat PLAN.md
    ```
 
 2. **Rewrite this file (`NEXT.md`)** so it points to the next milestone:
