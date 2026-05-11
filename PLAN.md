@@ -579,10 +579,48 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.1 ‖ — Static patterns: card, alert, breadcrumb, pagination
 
+- [ ] **Done** *(done when G4.1a–G4.1d all checked)*
+- **Specific:** four static-content pattern packages split into G4.1a (card), G4.1b (alert), G4.1c (breadcrumb), G4.1d (pagination); one session each. "Static" = no coordination primitive (no popover/modal/toast); content layout only, composed from Prism primitives.
+- **Measurable:** all four sub-goals checked.
+- **Achievable:** parent tracking goal; implementation across G4.1a–G4.1d.
+- **Relevant:** DESIGN §"Phase 4 — Cadence (pattern library)" — Composition contract.
+- **Budget:** ~50 K per sub-goal.
+
+#### G4.1a — `cadence/card/`
+
+- [x] **Done**
+- **Specific:** `cadence/card/` package exposing `Card(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props` carries `Header`, `Body`, `Footer layout.Widget` slots (any may be nil) and an optional `Elevated bool` flag selecting between flat outlined and shadowed surface variants. The visual is a rounded `Surface` rectangle with `Outline` border (or shadow, when elevated), padded `S4`, with the three slots stacked vertically separated by `S3`.
+- **Measurable:** golden-image tests for `light-normal`, `dark-normal`, `light-header-only`, `light-elevated`; `go test ./cadence/card/...` green; copy-paste-friendly source per DESIGN §"Phase 4 — Composition contract".
+- **Achievable:** one package, one entry point, one Props struct; pure layout composition — no event handling, no rx.Defer state, no coordination primitive.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`card/ — content cards with header/body/footer slots`).
+- **Budget:** ~50 K. No dependency on G4.1b–d.
+
+#### G4.1b — `cadence/alert/`
+
 - [ ] **Done**
-- **Specific:** one goal per pattern (G4.1a..G4.1d). Each is a function consuming `rx.Observable[Theme]` and returning `layout.Widget`.
-- **Measurable:** golden tests in light + dark; copy-paste-friendly source documented per DESIGN §"Phase 4 — Composition contract".
-- **Budget:** ~50 K each.
+- **Specific:** `cadence/alert/` package exposing `Alert(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Variant` (`Info`, `Success`, `Warning`, `Error`), a `Title string`, and a `Body layout.Widget`. Visual is a tinted-`Surface` rounded rectangle with a leading icon slot (variant-dependent) and `OnSurface` typography.
+- **Measurable:** golden-image tests for each variant × {light, dark} producing at least `info-light`, `info-dark`, `warning-light`, `error-light`; `go test ./cadence/alert/...` green.
+- **Achievable:** one package, one Props struct; uses `prism/tokens` `Error` and `Primary` colour roles, plus locally-defined tint helpers. No icon dependency for the baseline goldens — start with a chevron rendered from `clip.Path`; richer icons can come from `prism/icon` once available.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`alert/ — info / success / warning / error banners`).
+- **Budget:** ~50 K. No dependency on sibling sub-goals.
+
+#### G4.1c — `cadence/breadcrumb/`
+
+- [ ] **Done**
+- **Specific:** `cadence/breadcrumb/` package exposing `Breadcrumb(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props.Items []Item` where `Item` has `Label string` and `OnClick func()` (nil → non-interactive current segment). Visual is a horizontal row of labels separated by a chevron glyph; the last item rendered in `OnSurface` and remaining items in `OnSurfaceVariant`.
+- **Measurable:** golden-image tests `light-three-segments`, `dark-three-segments`, `light-single-segment`; `go test ./cadence/breadcrumb/...` green.
+- **Achievable:** one package; reuses `prism/button` interaction model for clickable segments. Chevron rendered from `clip.Path`.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`breadcrumb/ — hierarchical location indicators`).
+- **Budget:** ~50 K. No dependency on sibling sub-goals.
+
+#### G4.1d — `cadence/pagination/`
+
+- [ ] **Done**
+- **Specific:** `cadence/pagination/` package exposing `Pagination(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Page int`, `PageCount int`, `OnSelect func(page int)`. Visual is a horizontal row of numbered page buttons with prev/next chevrons; current page highlighted via `Primary`/`OnPrimary` tokens.
+- **Measurable:** golden-image tests `light-page-1-of-5`, `light-page-3-of-5`, `dark-page-3-of-5`; `go test ./cadence/pagination/...` green.
+- **Achievable:** one package; reuses `prism/button` for the page buttons. No virtualisation, no ellipsis collapse — that is deferred to G4.4 (table + pagination at scale).
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`pagination/ — page navigation controls`).
+- **Budget:** ~50 K. No dependency on sibling sub-goals.
 
 ### G4.2 ‖ — Patterns depending on coordination primitive: modal, popover, tooltip, toast
 

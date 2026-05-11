@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.1` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: parallel parent for static patterns `card`, `alert`, `breadcrumb`, `pagination`. Each pattern is one goal G4.1a..G4.1d — a function consuming `rx.Observable[Theme]` and returning `layout.Widget`, with light + dark golden tests).
+**Active goal:** `G4.1b` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/alert/` — info/success/warning/error banner pattern. A function consuming `rx.Observable[Theme]` returning `rx.Observable[layout.Widget]`, plus a static `Render`. Golden tests across variants × {light, dark}).
 
 ---
 
