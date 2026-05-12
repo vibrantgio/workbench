@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.5c` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/feature/` — `Columns × N` feature grid with icon/title/body cells; golden tests per layout state).
+**Active goal:** `G4.5d` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/testimonial/` — Single/Grid testimonial cards with quote glyph, body, and author block; golden tests per layout state).
 
 ---
 

@@ -758,7 +758,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.5c — `cadence/feature/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/feature/` package exposing `Feature(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props` carries `Columns int` (default 3 when zero) and `Items []Item` where `Item struct { Icon layout.Widget; Title string; Body string }` (`Icon` may be nil). Visual: a grid laying `Items` out in rows of `Columns` items each with `S5` cell gap and `S6` outer padding; each cell stacks icon (top, sized to `S8` square when present), title in title-medium typography (`OnSurface`), and body in body typography (`OnSurfaceVariant`).
 - **Measurable:** golden-image tests `light-3-up`, `dark-3-up`, `light-2-up`, `light-6-items-3-up`; `go test ./cadence/feature/...` green; copy-paste-friendly source per DESIGN §"Phase 4 — Composition contract".
 - **Achievable:** one package; pure layout composition — no interaction, no rx.Defer state. The `Icon` slot is opaque — caller supplies any `layout.Widget`. No responsive collapse from `Columns` to a smaller column count on narrow viewports — that responsive behaviour is deferred.
