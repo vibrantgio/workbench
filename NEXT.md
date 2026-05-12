@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.2a` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/modal/`: dialog with backdrop, focus trap, escape handling. First of the four coordination-dependent patterns; modal is sequenced first because focus trap + escape handling is the hardest interaction proof and de-risks G4.2b–d. Budget ~80 K).
+**Active goal:** `G4.2b` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/popover/`: anchored floating content with placement-aware positioning and outside-click dismissal coordinated via `prism/coordination`. Second of the four coordination-dependent patterns; G4.2a established the focus-trap precedent so popover can focus on positioning and arbitration. Budget ~80 K).
 
 ---
 

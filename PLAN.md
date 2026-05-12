@@ -633,7 +633,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.2a — `cadence/modal/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/modal/` package exposing `Modal(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props` carries `Open rx.Observable[bool]`, `Title string`, `Body layout.Widget`, `OnClose func()`, and optional `Actions []layout.Widget` (footer button row, any may be nil). Visual: full-window scrim backdrop, centered elevated `Surface` with rounded corners, header row (title + close affordance), padded body, and footer action row. Uses `prism/coordination` `Subject` for modal-stack depth so nested modals layer correctly and only the topmost receives keyboard focus.
 - **Measurable:** golden-image tests `light-open`, `dark-open`, `light-closed` (renders nothing), `light-with-actions`; interaction tests that prove (a) escape key invokes `OnClose`, (b) tab cycles focus within the modal and does not escape to background content, (c) backdrop click invokes `OnClose`; `go test ./cadence/modal/...` green.
 - **Achievable:** one package; reuses `prism/button` for header close + footer actions, `prism/coordination` for stack depth. No animation in this goal — open/close is instantaneous; entrance/exit transitions are deferred to a later Pulse-integration goal.
