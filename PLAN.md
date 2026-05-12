@@ -712,6 +712,24 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - **Relevant:** DESIGN §"`reactivego/rx` semantic coupling".
 - **Budget:** ~30 K.
 
+### GX.4 ‖ — Touch-up: `cadence/modal` close affordance uses `prism/button`
+
+- [ ] **Done**
+- **Specific:** Replace the `widget.Clickable` + custom `drawCross` glyph + modal-owned focus ring used for the close affordance in `cadence/modal/modal.go` with a `prism/button.Button` instance (icon-only or compact variant). Preserve the existing `Props` API and all interaction semantics (Escape, Tab focus trap, backdrop click). Refresh the four golden images.
+- **Measurable:** `go test ./cadence/modal/...` green; `grep -n 'button.Button(' cadence/modal/modal.go` returns at least one match and `grep -n 'drawCross' cadence/modal/modal.go` returns no matches.
+- **Achievable:** scoped to the close affordance and its golden refresh; do not touch focus-trap, stack, footer, or scrim logic.
+- **Relevant:** PLAN.md G4.2a Achievable contract ("reuses `prism/button` for header close + footer actions") — recorded as a known deviation in the G4.2a session reply.
+- **Budget:** ~30 K.
+
+### GX.5 ‖ — Touch-up: `cadence/modal` footer actions own their own focus tags
+
+- [ ] **Done**
+- **Specific:** Remove the modal-owned focus tag and focus ring drawn around each `Props.Actions` entry in `cadence/modal/modal.go`. Action widgets register their own focus tags (e.g., `prism/button.Button` does); the modal must include those tags in its Tab cycle without wrapping them. Choose the smaller of two routes: (a) add `Props.ActionFocusTags []event.Tag` so callers declare their own tags, or (b) introspect a registered tag set after each action lays out. Document the choice in the package doc comment.
+- **Measurable:** `go test ./cadence/modal/...` green, including a new interaction test confirming a focused `prism/button` action renders only the button's own focus ring (no doubled outer ring); existing `TestTabTrapsFocusWithinModal`, `TestShiftTabTrapsFocusWithinModal`, and `TestTabCyclesFocusAmongModalTags` still pass.
+- **Achievable:** `Props` addition or small introspection helper plus one new test; do not touch scrim, stack depth, or close-button logic.
+- **Relevant:** PLAN.md G4.2a follow-up — focus-ring composition between modal and `prism/button`-typed actions. Pair with GX.4 if the close-button swap surfaces the same doubled-ring issue at the header.
+- **Budget:** ~40 K.
+
 ---
 
 ## Glossary
