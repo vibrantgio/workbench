@@ -749,7 +749,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.5b — `cadence/pricing/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/pricing/` package exposing `Pricing(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props.Tiers []Tier` where `Tier struct { Name string; Price string; Cadence string; Features []string; CTA *CTA; Highlighted bool }` (`Cadence` e.g. `"/mo"`; `Highlighted` selects the emphasised tier). `CTA struct { Label string; OnClick func() }` is defined in this package. Visual: horizontal row of tier cards (rounded `Surface` with `Outline` border, `S5` padding, `S4` inter-card gap), each containing — top to bottom — tier name in title typography (`OnSurface`), price + cadence in display typography (price prominent, cadence muted `OnSurfaceVariant`), a vertical feature list with a leading checkmark glyph rendered from `clip.Path`, and a footer CTA button. The `Highlighted` tier renders with a `Primary` border (2 px) and a small `Primary` chip above the tier name reading "Popular".
 - **Measurable:** golden-image tests `light-three-tier`, `dark-three-tier`, `light-three-tier-highlighted`, `light-single-tier`; `go test ./cadence/pricing/...` green; copy-paste-friendly source per DESIGN §"Phase 4 — Composition contract".
 - **Achievable:** one package; CTA buttons reuse `prism/button`. Checkmark glyph is a local `clip.Path` (no `prism/icon` dependency). No responsive breakpoint to stack tiers vertically — that responsive behaviour is deferred (would require viewport observation outside scope).

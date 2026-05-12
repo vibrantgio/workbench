@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.5b` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/pricing/` — three-tier card row with optional highlighted variant; golden tests per state).
+**Active goal:** `G4.5c` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/feature/` — `Columns × N` feature grid with icon/title/body cells; golden tests per layout state).
 
 ---
 
