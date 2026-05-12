@@ -740,7 +740,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.5a — `cadence/hero/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/hero/` package exposing `Hero(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props` carries `Eyebrow string` (small tag above the title, empty = omitted), `Title string`, `Subtitle string`, `PrimaryCTA, SecondaryCTA *CTA` (any may be nil), and `Visual layout.Widget` (optional illustration slot, nil = text-only centered layout). `CTA struct { Label string; OnClick func() }` is defined in this package — interactivity is rendered via `prism/button` internally but the cadence API does not leak the primitive type. Visual: when `Visual` is nil, content is centered in a single column with `S6` padding — eyebrow in `Primary` micro-cap typography, title in display typography (`OnSurface`), subtitle in body-large (`OnSurfaceVariant`), CTAs in a horizontal row with `S3` gap (primary filled, secondary outlined); when `Visual` is non-nil, layout splits into two equal columns (text leading, visual trailing) with `S6` gutter.
 - **Measurable:** golden-image tests `light-text-only`, `dark-text-only`, `light-with-visual`, `light-eyebrow-and-dual-cta`; `go test ./cadence/hero/...` green; copy-paste-friendly source per DESIGN §"Phase 4 — Composition contract".
 - **Achievable:** one package, one entry point, one Props struct; pure layout composition — no rx.Defer state, no coordination primitive. CTA buttons reuse `prism/button` for hit-testing and visual variants. The `Visual` slot is opaque — caller supplies any `layout.Widget` (image, illustration, video frame, etc.).

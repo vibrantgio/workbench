@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.5a` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/hero/` — title + subtitle + optional visual + dual CTA; golden tests per state).
+**Active goal:** `G4.5b` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/pricing/` — three-tier card row with optional highlighted variant; golden tests per state).
 
 ---
 
