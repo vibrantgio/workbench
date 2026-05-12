@@ -669,7 +669,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.3 ‖ — Navigation: navbar, sidebar, tabs, accordion, shell
 
-- [ ] **Done** *(done when G4.3a–G4.3e all checked)*
+- [x] **Done** *(done when G4.3a–G4.3e all checked)*
 - **Specific:** five navigation pattern packages split into G4.3a (navbar), G4.3b (sidebar), G4.3c (tabs), G4.3d (accordion), G4.3e (shell); one session each. G4.3e (shell) sequenced last because it composes G4.3a (navbar) and G4.3b (sidebar).
 - **Measurable:** all five sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G4.3a–G4.3e.

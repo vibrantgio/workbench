@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.3` in [PLAN.md](./PLAN.md) (Phase 4 — Navigation tracking goal: close the parent `‖` checkbox now that all five sub-goals G4.3a–G4.3e are ticked. Use `mdedit toggle -s "G4.3" --scope flat PLAN.md` to toggle the parent's own checkbox only).
+**Active goal:** `G4.5` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: Marketing sections — hero, pricing, feature, testimonial; one sub-goal each, golden tests per section).
 
 ---
 
