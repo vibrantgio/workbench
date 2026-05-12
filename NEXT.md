@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G5.1d` in [PLAN.md](./PLAN.md) (Phase 5 — Feedback writeup: rewrite `FEEDBACK-G5.1.md` from running notes into a structured doc with **Bugs**, **Missing API affordances**, **Awkward compositions / boilerplate**, **Ergonomics wins worth preserving**, severity-tagged with remediation sketches for blockers/majors).
+**Active goal:** `G5.2a` in [PLAN.md](./PLAN.md) (Phase 5 — App skeleton + feeds sidebar for `vibrantgio/feeds/`: window via `prism/initial` + `spectrum` theme, `cadence/shell.Shell(SidebarHeaderMain)` with navbar + `cadence/accordion` feed groups, hard-coded fixtures, `selectedFeed rx.Subject[FeedID]` driving a placeholder Main).
 
 ---
 

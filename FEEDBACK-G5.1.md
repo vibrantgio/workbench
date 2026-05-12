@@ -1,212 +1,239 @@
 # FEEDBACK-G5.1 — Dogfooding notes from the sitedocs build-out
 
-This file collects observations made while building the `sitedocs/`
-documentation app (Phase 5 sub-goal G5.1) against the Cadence + Spectrum +
-Prism stack. Each entry names the milestone slice it surfaced under, the
-package it touches, and the recommended follow-up.
+Findings from building the `sitedocs/` documentation app (Phase 5 sub-goal
+G5.1) against the Cadence + Spectrum + Prism stack. The app exercised the
+shell, marketing patterns (hero / feature / pricing / testimonial),
+accordion-grouped sidebar, and card-stacked content pages — i.e., the
+canonical "compose pre-built pieces into a real product" path the framework
+is meant to serve.
 
-## G5.1a — App skeleton + shell
+Entries below are classified into four buckets and severity-tagged
+**blocker / major / minor**. Blockers and majors each carry a one-line
+remediation sketch. Each entry cites the milestone slice (G5.1a / b / c)
+and package it surfaced under, so reviewers can pivot back to the running
+context if needed.
 
-### Sidebar API has no `Section` concept (cadence/sidebar)
+---
 
-`sidebar.Props.Items` is a flat slice of `Item`. The G5.1a milestone called
-for "two collapsible placeholder sections"; the skeleton realises them as
-non-interactive header items (OnClick nil → no focus, no Primary tint) with
-leaf items underneath. This works but is brittle: visually grouping by
-non-interactivity overloads what is otherwise a focus-traversal signal.
+## Bugs
 
-**Suggested follow-up:** add a `sidebar.Section{Header string, Items []Item}`
-type and let `Props.Items` accept either a `Section` or a bare `Item` (via
-a small interface). Per-section collapse state would belong to the section
-struct, not the package-wide `Collapsed` observable.
+### Framework
 
-### Spec referenced `prism/initial` for window bootstrap, but `initial` is `Value[T]`
+#### [Major] Marketing patterns disagree on outer inset — `cadence/{hero,feature,pricing,testimonial}` (G5.1b)
 
-The G5.1a Specific line in `PLAN.md` says the app "bootstraps a window via
-`prism/initial`". `prism/initial` is the first-frame `Value[T]` sentinel
-helper, not a window bootstrap. The actual bootstrap path is
-`mvu.NewWindow` + `spectrum/window.New` + `spectrum/system.LiveTheme`,
-which is what the skeleton uses.
+`hero` and `feature` wrap their content in an `S6` `UniformInset`;
+`pricing` and `testimonial` flex straight to the canvas edges. Stacking
+the four vertically (as the landing page does) produces a staggered
+indentation visible in the golden: hero/feature sit `S6` in from the
+edges, pricing/testimonial bleed flush. This is a real layout defect
+when the patterns are composed, not just a stylistic difference.
 
-**Suggested follow-up:** rewrite the G5.1a Specific line to name the
-packages it actually depends on (`mvu`, `spectrum/window`, `spectrum/system`).
-Leave the `prism/initial` reference for a future sub-goal that surfaces
-genuine first-frame state.
+**Remediation:** standardise on always-inset across the four marketing
+patterns. Callers that need flush-mount can wrap in a negative inset; the
+inverse (every caller pads) is strictly worse.
 
-### `rx.Subject[T]` is a function, not a type
+### PLAN.md milestone-spec (no framework defect)
 
-The Specific line also refers to "a `currentPage rx.Subject[string]`". In
-the rx library `Subject[T]` is a factory function returning
-`(Observer[T], Observable[T])`. The skeleton uses
-`send, obs := rx.Subject[string](0, 1)`; the buffered Subject (size 1)
-lets the Main slot's late subscriber see the seed value on its first
-frame. The plan's notation is descriptive, not the actual signature.
+These are bugs in `PLAN.md` Specific/Measurable lines, surfaced while
+implementing against them. The framework behaves correctly; the spec
+referred to it inaccurately.
 
-**Suggested follow-up:** in PLAN.md, replace `rx.Subject[string]` with
-something like "an `rx.Subject` of `string` (buffered size 1)" so a reader
-does not look for a type that does not exist.
+- **[Minor] G5.1a Specific cites `prism/initial` as "window bootstrap"** but
+  `prism/initial` is the first-frame `Value[T]` sentinel helper. The
+  actual bootstrap is `mvu.NewWindow` + `spectrum/window.New` +
+  `spectrum/system.LiveTheme`.
+- **[Minor] G5.1a Specific writes `rx.Subject[string]` as a type** —
+  `rx.Subject[T]` is a factory function returning
+  `(Observer[T], Observable[T])`. The skeleton uses
+  `send, obs := rx.Subject[string](0, 1)`.
+- **[Minor] G5.1b Measurable says "golden of the rendered Home page"** but
+  the upstream pattern-goldens convention requires structural-only copy
+  (blank labels, sharp corners) so the diff does not depend on GPU font
+  rasterisation. The sitedocs golden follows that convention; real copy is
+  exercised only by `TestLandingMainConstructs`.
+- **[Minor] G5.1c Measurable "running app: clicking any sidebar entry
+  navigates…"** is not reachable from `go test`. The implementation
+  stands in with unit tests (`TestRoutedMainSelectsByPage`,
+  `TestPageControllerSetAdvancesAtomic`, per-page smoke construct).
 
-### Workspace `use` does not resolve `github.com/vibrantgio/*` modules without per-module `replace`
+These four collectively suggest a tightening pass on phase-5 spec
+language — name packages that exist, types as types and factories as
+factories, and CI-checkable acceptance for any "running app" clause.
 
-`go.work` lists every sub-package as a workspace member, yet building a
-new top-level consumer (sitedocs) fails with `git ls-remote ... Repository
-not found` unless each `vibrantgio/*` dependency carries an explicit
-`replace ... => ../<path>` directive in `sitedocs/go.mod`. The pattern is
-already established in `cadence/*` and `coinviz/go.mod`, but the rationale
-is invisible from `DESIGN.md`.
+---
 
-**Suggested follow-up:** document the per-module-`replace` pattern in
-`DESIGN.md` (or in a `MIGRATION.md` follow-up), or collapse the per-module
-`go.mod`s into one per-phase `go.mod` as already foreshadowed by GX.6.
+## Missing API affordances
 
-## G5.1b — Landing page content (marketing patterns)
+#### [Blocker] `shell.Props.Sidebar` is typed as `sidebar.Props`, not `layout.Widget` — `cadence/shell` (G5.1c)
 
-### `shell.Props.Main` is a single `layout.Widget`, so scroll is on the caller
+`shell.Shell` internally wraps the sidebar via `sidebar.Sidebar(th, props)`,
+so callers can only supply a flat `sidebar.Props`. G5.1c needs an
+accordion-grouped sidebar (phase sections with nested links), which
+`sidebar.Props.Items` (a flat slice) cannot express. The implementation
+therefore **bypasses `shell.Shell` entirely** and re-implements
+`composeSidebarHeaderMain` locally to substitute a custom accordion
+widget into the slot. The framework's top-level shell composition was
+unusable for a non-trivial sidebar.
 
-`cadence/shell.Props.Main` accepts only a static `layout.Widget`. The
-landing page is taller than the window's main slot at 1200 × 800, so
-sitedocs has to wrap the four sections in its own `layout.List` to provide
-scroll. This means every page that overflows reinvents the same list
-glue — there is no shared "scroll-aware page slot" pattern.
+**Remediation:** generalise `shell.Props.Sidebar` to `layout.Widget`
+(with a thin helper to wrap a `sidebar.Props` for callers using the
+default), or expose `shell.ComposeSidebarHeaderMain(sb, nb, main)` so a
+caller doing custom sidebars does not have to reimplement the
+horizontal-flex composition.
 
-**Suggested follow-up:** either add a `Scrollable bool` flag to
-`shell.Props` (or a new `Page` slot type that internally uses
-`layout.List`) so callers do not each maintain their own list state, or
-document the expectation that pages own their scroll container.
+#### [Major] `sidebar.Props.Items` has no `Section` concept — `cadence/sidebar` (G5.1a)
 
-### Marketing patterns disagree on outer inset
+`Props.Items` is a flat `[]Item`. G5.1a called for "two collapsible
+placeholder sections"; the skeleton fakes them as non-interactive
+header items (`OnClick nil` → no focus, no Primary tint) with leaf
+items underneath. This overloads non-interactivity — normally a
+focus-traversal signal — as a visual-grouping signal.
 
-`cadence/hero` and `cadence/feature` wrap their content in `S6`
-`UniformInset` so a flush-mounted parent still gets visible left/right
-margins. `cadence/pricing` and `cadence/testimonial` skip the outer
-inset — `drawPricing` and `drawGrid` flex straight to the canvas edges.
-Stacking the four vertically (the G5.1b layout) produces a staggered
-indentation: hero and feature sit S6 in from the edges, while pricing and
-testimonial bleed to them. The golden image makes this visible.
+**Remediation:** add `sidebar.Section{Header string, Items []Item}` and
+let `Props.Items` accept either a `Section` or a bare `Item` (small
+interface). Per-section collapse state lives on the section struct, not
+on a package-wide observable.
 
-**Suggested follow-up:** standardise on either always-or-never adding an
-outer inset across the four marketing patterns. The "always inset"
-variant is the more useful default because callers that need flush-mount
-can wrap the pattern in a negative inset, while the inverse requires
-caller-side padding for every adoption.
+#### [Major] `shell.Props.Main` is a single `layout.Widget` — no built-in scroll — `cadence/shell` (G5.1b)
 
-### `Render` signatures vary across patterns
+Landing page content is taller than the main slot at 1200 × 800, so
+sitedocs wraps its four sections in its own `layout.List` to provide
+scroll. Every page that overflows reinvents the same list glue; there
+is no shared "scroll-aware page slot" pattern.
 
-`hero.Render`, `pricing.Render`, and `testimonial.Render` all take five
-parameters: `(shaper, props, colors, spacing, radius, type)`. But
-`feature.Render` takes only four: `(shaper, props, colors, spacing, type)`,
-omitting `radius` (because the feature grid has no rounded chrome). When
-composing the four into `renderLanding`, the asymmetry forces a
-per-pattern argument list rather than a single tuple that fans out.
+**Remediation:** add `Scrollable bool` to `shell.Props` (or a new
+`Page` slot type that wraps an internal `layout.List`) so callers do
+not maintain per-page list state. If shell deliberately stays
+scroll-agnostic, document the "pages own their scroll container"
+expectation.
 
-**Suggested follow-up:** either keep all `Render` signatures uniform (let
-feature take and ignore `radius`) so a caller can spread the same token
-tuple across all four, or expose a single `Compose` helper per pattern
-that bundles the tokens.
+#### [Major] `cadence/accordion` body height is hard-coded at 96 dp — `cadence/accordion` (G5.1c)
 
-### Each pattern subscribes the theme stream independently
+`bodyHDp = 96` is a package-level constant; every open Section's Body
+renders with `Constraints.Exact(image.Pt(W, 96))`. The docs sidebar
+fits the Prism section (3 × ~28 dp links → 84 dp) but leaves ~40 dp of
+empty Surface beneath the last link in 2-link sections, and rules out
+heterogeneous section bodies entirely.
+
+**Remediation:** make `accordion.Props.SectionBodyHeight` an optional
+override (default 96 dp). Longer-term, measure body natural height
+during a recording pass and lay the next header at the resulting
+offset — Gio's standard idiom for variable-height content.
+
+#### [Major] `card.Card` consumes the full vertical canvas constraint — `cadence/card` (G5.1c)
+
+`card.drawCard` paints its rounded surface across `Constraints.Max`
+top-to-bottom — no shrink-to-fit pass. Stacking N cards in a docs
+page requires each one to be wrapped in `fixedHeight(docsCardHeightDp, ...)`
+sized for the longest expected sample, leaving Surface padding under
+shorter cards.
+
+**Remediation:** add `card.Props.HeightDp` for the fixed-height case;
+or measure inner-stack height during a recording pass and constrain
+the surface to it. The marketing patterns fit the full vertical canvas
+by design, so the recording-and-resize idiom is specific to `card`.
+
+---
+
+## Awkward compositions / boilerplate
+
+#### [Major] `accordion.OnToggle` + `Open rx.Observable` reinvents the Subject pattern per caller — `cadence/accordion` (G5.1c)
+
+`accordion.Props` separates current open state (`Open` observable)
+from the intent to change (`OnToggle` callback). Wiring this in
+sitedocs takes ~25 lines: an `openController` struct holds the live
+map, a mutex protects it against the rx-goroutine subscriber, and the
+toggle handler mutates + republishes via `rx.Subject(0, 1)` so the
+subscriber sees the new map. SingleOpen amplifies the cost — the
+handler fires once per peer closure plus once for the activation.
+
+**Remediation:** ship `accordion.NewController(initiallyOpen int) Controller`
+returning the open observable and the toggle function pre-wired
+(including SingleOpen flipping). Eliminates the per-caller plumbing.
+
+#### [Major] Each marketing pattern subscribes the theme stream independently — `cadence/{hero,feature,pricing,testimonial}` (G5.1b)
 
 `landingMain` calls `hero.Hero(th, ...)`, `feature.Feature(th, ...)`,
-`pricing.Pricing(th, ...)`, and `testimonial.Testimonial(th, ...)`, each
-of which immediately re-derives `(Color, Spacing, Radius, Type)` from the
-shared theme observable via its own `SwitchMap`. Four near-identical
-pipelines run for one page. Cheap, but redundant — the per-pattern
-`Defer`-scoped `widget.Clickable` allocations also happen four times.
+`pricing.Pricing(th, ...)`, `testimonial.Testimonial(th, ...)`, each
+of which re-derives `(Color, Spacing, Radius, Type)` from the shared
+theme observable via its own `SwitchMap`. Four near-identical pipelines
+fire for one page; per-pattern `Defer`-scoped `widget.Clickable`
+allocations also happen four times.
 
-**Suggested follow-up:** publish a `theme.Resolved` observable from the
-prism/theme package (or from each pattern's parent caller) that fans out
-the resolved tuple once per theme change, and accept it as an optional
-input to each pattern's constructor.
+**Remediation:** publish a `theme.Resolved` observable from
+`prism/theme` that fans out the resolved tuple once per theme change,
+and accept it as an optional input to each pattern's constructor —
+callers that already have it share one subscription.
 
-### Golden of "the rendered Home page" must use structural-only copy
+#### [Major] Workspace `use` requires per-module `replace` for `github.com/vibrantgio/*` — repo infra (G5.1a)
 
-The G5.1b Measurable line calls for "a golden of the rendered Home page
-in light + dark". Following the convention established by the upstream
-pattern goldens (hero/feature/pricing/testimonial), the sitedocs golden
-uses blank/single-space text labels and sharp corner radii so the diff
-does not depend on GPU font rasterisation or anti-aliased AA. The real
-copy from `landing_content.go` is exercised only by the runtime
-composition test (`TestLandingMainConstructs`).
+`go.work` lists every sub-package as a workspace member, yet a new
+top-level consumer (sitedocs) still fails with
+`git ls-remote ... Repository not found` unless each `vibrantgio/*`
+dependency carries an explicit `replace ... => ../<path>` directive
+in `sitedocs/go.mod`. The pattern is established in `cadence/*` and
+`coinviz/go.mod`, but the rationale is invisible from `DESIGN.md`,
+so every new module bootstraps with copy-paste boilerplate.
 
-**Suggested follow-up:** rewrite the G5.1b Measurable line to say "a
-structural golden of the home-page composition", making the distinction
-between layout-regression goldens and copy-review tools explicit.
+**Remediation:** either document the per-module-`replace` pattern in
+`DESIGN.md` (or `MIGRATION.md`), or — better — collapse the
+per-module `go.mod`s into one per-phase `go.mod` as already
+foreshadowed by GX.6.
 
-## G5.1c — Multi-page docs
+#### [Minor] `Render` signatures vary across marketing patterns — `cadence/{hero,feature,pricing,testimonial}` (G5.1b)
 
-### `shell.Props.Sidebar` is typed as `sidebar.Props`, not `layout.Widget`
+`hero.Render`, `pricing.Render`, `testimonial.Render` take
+`(shaper, props, colors, spacing, radius, type)`; `feature.Render`
+takes only `(shaper, props, colors, spacing, type)` because the
+feature grid has no rounded chrome. The asymmetry forces a
+per-pattern argument list rather than a single tuple that fans out
+in `renderLanding`.
 
-`cadence/shell.Props.Sidebar` accepts only a `sidebar.Props`, so the
-shell internally wraps it via `sidebar.Sidebar(th, props)`. G5.1c needs
-an accordion-grouped sidebar (phase sections with nested links), which
-`sidebar.Props.Items` (a flat slice) cannot express. The G5.1c
-implementation therefore bypasses `shell.Shell` entirely and replicates
-`composeSidebarHeaderMain` locally so it can substitute a custom
-accordion-based sidebar widget for the slot.
+---
 
-**Suggested follow-up:** either generalise `shell.Props.Sidebar` to
-`layout.Widget` (with a helper to wrap `sidebar.Props` into the same
-shape), or expose a `shell.ComposeSidebarHeaderMain(sb, nb, main)` Render
-helper so a caller doing custom sidebars does not have to reimplement
-the horizontal-flex composition.
+## Ergonomics wins worth preserving
 
-### `cadence/accordion` body height is hard-coded at 96 dp
+These are inferred from the running notes by absence: each of the
+following patterns was used repeatedly during the build-out without
+generating a single complaint, despite being load-bearing. They are
+candidates to keep stable when adjacent APIs churn.
 
-`cadence/accordion.bodyHDp = 96` is a package-level constant; every open
-Section's Body is rendered with `Constraints.Exact(image.Pt(W, 96))`. The
-G5.1c docs sidebar wants 2-3 nested links per phase, each ~28 dp tall,
-so the Prism section (3 links -> 84 dp) just fits, the Cadence /
-Spectrum / Pulse sections (2 links -> 56 dp) leave ~40 dp of empty
-Surface beneath the last link. The constraint also rules out per-section
-content of different heights without per-caller padding tricks.
+Entries here are tagged `[Preserve]` rather than blocker/major/minor —
+the severity scheme used elsewhere ranks problems, which does not fit
+wins. The tag exists so every non-empty entry in the file carries a
+classification.
 
-**Suggested follow-up:** make `accordion.Props.SectionBodyHeight` an
-optional override (defaulting to 96 dp), or measure the body's natural
-height during a recording pass and lay the next header at the resulting
-offset. The recording approach matches Gio's standard idiom for
-variable-height content.
+#### [Preserve] Buffered `rx.Subject[T]` for seeded late-subscriber semantics
 
-### `accordion.OnToggle` plus `Open rx.Observable` reinvent the Subject pattern per caller
+`rx.Subject[string](0, 1)` (buffer size 1) lets the Main slot's late
+subscriber see the seed value on its first frame. Used to drive
+`currentPage` in the skeleton (G5.1a) and re-used for the
+accordion open-map republish (G5.1c). The only complaint about
+`rx.Subject` in the notes was a notational issue in PLAN.md — the
+semantics worked first-try.
 
-`accordion.Props` separates the *current* open state (`Open` observable)
-from the *intent to change* (`OnToggle` callback). Wiring this in
-sitedocs takes ~25 lines: an `openController` struct holds the live map,
-a mutex protects it against the rx-goroutine subscriber, and the
-OnToggle handler mutates + republishes via an `rx.Subject(0, 1)` so the
-subscriber sees the new map. SingleOpen amplifies the wiring cost
-because the toggle handler is called once per peer closure plus once for
-the activation.
+#### [Preserve] `theme.Observable` → `SwitchMap` → `(Color, Spacing, Radius, Type)` tuple
 
-**Suggested follow-up:** ship a thin `accordion.NewController(initially
-int) Controller` helper that returns the open observable and the toggle
-function pre-wired (including SingleOpen flipping), so callers do not
-each reinvent the same controller plumbing.
+Every marketing and content pattern derives its design tokens via the
+same `SwitchMap` pattern off the theme observable. The G5.1b complaint
+is that this fires four times for one page — but that complaint
+*presupposes* the per-pattern shape is correct; nobody questioned the
+pattern itself, only its redundancy. Keep the tuple shape stable when
+factoring out `theme.Resolved`.
 
-### `card.Card` consumes the full vertical canvas constraint
+#### [Preserve] Structural-only goldens (blank text + sharp radii)
 
-`card.drawCard` paints its rounded surface across `gtx.Constraints.Max`
-top-to-bottom — there is no shrink-to-fit pass. Stacking N cards in a
-docs page therefore requires each card to be wrapped in a fixed-height
-container (`fixedHeight(docsCardHeightDp, ...)` in `docs.go`), with the
-height chosen to fit the longest expected sample. Cards with shorter
-content leave Surface padding beneath the inner stack.
+Established upstream for the per-pattern goldens and adopted unchanged
+by the sitedocs landing-page golden (G5.1b). Diffs do not depend on
+GPU font rasterisation or AA, so goldens stay deterministic across
+machines. The convention scaled cleanly from single-pattern goldens
+to a composed-page golden.
 
-**Suggested follow-up:** add a `card.Props.HeightDp float32` field for
-the fixed-height case, or measure the inner stack height during a
-recording pass and constrain the card's surface to it. The marketing
-patterns (hero, feature, pricing) all fit the full vertical canvas by
-design, so the recording-and-resize idiom would be specific to card.
+#### [Preserve] `Defer`-scoped widget allocation (e.g., `widget.Clickable`)
 
-### "Running app" measurable is not checkable in CI
-
-The G5.1c Measurable line includes "running app: clicking any sidebar
-entry navigates…". Interactive verification is not reachable from
-`go test ./sitedocs/...`; the implementation relies on a smoke test
-plus a routedMain unit test plus the page-controller subject test to
-cover the wiring. The interactive criterion is essentially "no
-regressions, judged by eye" — useful for the human, untestable in CI.
-
-**Suggested follow-up:** rewrite the running-app clause to name the unit
-tests that stand in for it (e.g., "TestRoutedMainSelectsByPage plus
-TestPageControllerSetAdvancesAtomic plus a smoke construct of each
-page"), so the contract is fully discharged by `go test`.
+Mentioned across multiple patterns (hero, feature, pricing,
+testimonial, accordion) as the standard place to allocate per-frame
+state. Surfaced only as "this allocation happens N times" in the
+theme-redundancy complaint — never as a misuse risk or lifecycle bug.
+Keep the idiom stable; it is the load-bearing pattern for every
+interactive pattern in the kit.

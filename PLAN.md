@@ -788,7 +788,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G5.1 ‖ — Docs site for VibrantGIO itself
 
-- [ ] **Done** *(done when G5.1a–G5.1d all checked)*
+- [x] **Done** *(done when G5.1a–G5.1d all checked)*
 - **Specific:** native desktop app rendering the VibrantGIO landing page and docs using VibrantGIO itself, in a new top-level Go module `vibrantgio/sitedocs/`. Split into G5.1a (skeleton + shell), G5.1b (landing-page content wiring), G5.1c (multi-page docs), G5.1d (feedback writeup). Dogfoods the marketing sub-goals in the use case for which they were created.
 - **Measurable:** all four sub-goals checked; `FEEDBACK-G5.1.md` exists in repo root in the structured form defined in G5.1d.
 - **Achievable:** parent tracking goal; implementation across G5.1a–G5.1d.
@@ -824,7 +824,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G5.1d — Feedback writeup
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** rewrite `FEEDBACK-G5.1.md` from the running notes left by G5.1a–c into its final structured form. Four sections: **Bugs**, **Missing API affordances**, **Awkward compositions / boilerplate**, **Ergonomics wins worth preserving**. Within each non-empty section, entries are ranked **blocker / major / minor**; each blocker and major carries a one-line remediation sketch. If a section is empty, it is explicitly noted as such with a half-sentence on whether that signals a coverage gap or real polish.
 - **Measurable:** `FEEDBACK-G5.1.md` exists in repo root with all four section headings present; every non-empty entry severity-tagged; every blocker and major has a remediation sketch; the file is a coherent summary, not a stream of session-end hot takes.
 - **Achievable:** pure documentation goal. No code changes. Sources are the running notes already in `FEEDBACK-G5.1.md` from G5.1a–c. If the running notes are missing, this goal stops and surfaces that as a process failure rather than fabricating findings.
