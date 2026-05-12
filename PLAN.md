@@ -730,10 +730,48 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.5 ‖ — Marketing sections
 
+- [ ] **Done** *(done when G4.5a–G4.5d all checked)*
+- **Specific:** four marketing-section pattern packages split into G4.5a (hero), G4.5b (pricing), G4.5c (feature), G4.5d (testimonial); one session each. Pure layout composition — no coordination primitive, no focus arbitration, no per-row state — for app landing and onboarding pages. No inter-sub-goal dependencies; ordered alphabetically.
+- **Measurable:** all four sub-goals checked.
+- **Achievable:** parent tracking goal; implementation across G4.5a–G4.5d.
+- **Relevant:** DESIGN §"Phase 4 — Cadence (pattern library)" — Composition contract; (`marketing/ — hero, pricing, feature, testimonial sections (for app landing/onboarding)`).
+- **Budget:** ~50 K per sub-goal.
+
+#### G4.5a — `cadence/hero/`
+
 - [ ] **Done**
-- **Specific:** hero, pricing, feature, testimonial — one goal each.
-- **Measurable:** golden tests per section.
-- **Budget:** ~50 K each.
+- **Specific:** `cadence/hero/` package exposing `Hero(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props` carries `Eyebrow string` (small tag above the title, empty = omitted), `Title string`, `Subtitle string`, `PrimaryCTA, SecondaryCTA *CTA` (any may be nil), and `Visual layout.Widget` (optional illustration slot, nil = text-only centered layout). `CTA struct { Label string; OnClick func() }` is defined in this package — interactivity is rendered via `prism/button` internally but the cadence API does not leak the primitive type. Visual: when `Visual` is nil, content is centered in a single column with `S6` padding — eyebrow in `Primary` micro-cap typography, title in display typography (`OnSurface`), subtitle in body-large (`OnSurfaceVariant`), CTAs in a horizontal row with `S3` gap (primary filled, secondary outlined); when `Visual` is non-nil, layout splits into two equal columns (text leading, visual trailing) with `S6` gutter.
+- **Measurable:** golden-image tests `light-text-only`, `dark-text-only`, `light-with-visual`, `light-eyebrow-and-dual-cta`; `go test ./cadence/hero/...` green; copy-paste-friendly source per DESIGN §"Phase 4 — Composition contract".
+- **Achievable:** one package, one entry point, one Props struct; pure layout composition — no rx.Defer state, no coordination primitive. CTA buttons reuse `prism/button` for hit-testing and visual variants. The `Visual` slot is opaque — caller supplies any `layout.Widget` (image, illustration, video frame, etc.).
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`marketing/ — hero, pricing, feature, testimonial sections (for app landing/onboarding)`).
+- **Budget:** ~50 K. No dependency on sibling sub-goals.
+
+#### G4.5b — `cadence/pricing/`
+
+- [ ] **Done**
+- **Specific:** `cadence/pricing/` package exposing `Pricing(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props.Tiers []Tier` where `Tier struct { Name string; Price string; Cadence string; Features []string; CTA *CTA; Highlighted bool }` (`Cadence` e.g. `"/mo"`; `Highlighted` selects the emphasised tier). `CTA struct { Label string; OnClick func() }` is defined in this package. Visual: horizontal row of tier cards (rounded `Surface` with `Outline` border, `S5` padding, `S4` inter-card gap), each containing — top to bottom — tier name in title typography (`OnSurface`), price + cadence in display typography (price prominent, cadence muted `OnSurfaceVariant`), a vertical feature list with a leading checkmark glyph rendered from `clip.Path`, and a footer CTA button. The `Highlighted` tier renders with a `Primary` border (2 px) and a small `Primary` chip above the tier name reading "Popular".
+- **Measurable:** golden-image tests `light-three-tier`, `dark-three-tier`, `light-three-tier-highlighted`, `light-single-tier`; `go test ./cadence/pricing/...` green; copy-paste-friendly source per DESIGN §"Phase 4 — Composition contract".
+- **Achievable:** one package; CTA buttons reuse `prism/button`. Checkmark glyph is a local `clip.Path` (no `prism/icon` dependency). No responsive breakpoint to stack tiers vertically — that responsive behaviour is deferred (would require viewport observation outside scope).
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`marketing/ — hero, pricing, feature, testimonial sections (for app landing/onboarding)`).
+- **Budget:** ~50 K. **Split** core tier layout / highlighted-variant rendering if needed. No dependency on sibling sub-goals.
+
+#### G4.5c — `cadence/feature/`
+
+- [ ] **Done**
+- **Specific:** `cadence/feature/` package exposing `Feature(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props` carries `Columns int` (default 3 when zero) and `Items []Item` where `Item struct { Icon layout.Widget; Title string; Body string }` (`Icon` may be nil). Visual: a grid laying `Items` out in rows of `Columns` items each with `S5` cell gap and `S6` outer padding; each cell stacks icon (top, sized to `S8` square when present), title in title-medium typography (`OnSurface`), and body in body typography (`OnSurfaceVariant`).
+- **Measurable:** golden-image tests `light-3-up`, `dark-3-up`, `light-2-up`, `light-6-items-3-up`; `go test ./cadence/feature/...` green; copy-paste-friendly source per DESIGN §"Phase 4 — Composition contract".
+- **Achievable:** one package; pure layout composition — no interaction, no rx.Defer state. The `Icon` slot is opaque — caller supplies any `layout.Widget`. No responsive collapse from `Columns` to a smaller column count on narrow viewports — that responsive behaviour is deferred.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`marketing/ — hero, pricing, feature, testimonial sections (for app landing/onboarding)`).
+- **Budget:** ~50 K. No dependency on sibling sub-goals.
+
+#### G4.5d — `cadence/testimonial/`
+
+- [ ] **Done**
+- **Specific:** `cadence/testimonial/` package exposing `Testimonial(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props.Variant` (`Single` or `Grid`) selects between a single-card centered layout and a horizontal row of cards; `Props.Items []Item` where `Item struct { Quote string; AuthorName string; AuthorRole string; AuthorAvatar layout.Widget }` (`AuthorAvatar` may be nil — when nil, an `Outline`-bordered circular placeholder with the first letter of `AuthorName` is rendered). Visual: each card is a rounded `Surface` with `Outline` border, `S5` padding — opening quotation glyph (rendered from `clip.Path`) in `Primary` at the top-leading edge, the quote body in body-large typography (`OnSurface`), then a horizontal author block (avatar, then name in `OnSurface` and role in `OnSurfaceVariant` stacked). `Single` variant uses one card centered with `S6` margin; `Grid` lays cards in a horizontal row with `S4` gap.
+- **Measurable:** golden-image tests `light-single`, `dark-single`, `light-grid-three`, `dark-grid-three`; `go test ./cadence/testimonial/...` green; copy-paste-friendly source per DESIGN §"Phase 4 — Composition contract".
+- **Achievable:** one package; pure layout composition — no interaction, no rx.Defer state. Quote glyph rendered from `clip.Path` (no `prism/icon` dependency). No responsive collapse from grid to vertical stack — that responsive behaviour is deferred.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`marketing/ — hero, pricing, feature, testimonial sections (for app landing/onboarding)`).
+- **Budget:** ~50 K. No dependency on sibling sub-goals.
 
 ---
 
