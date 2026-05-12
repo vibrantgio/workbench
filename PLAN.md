@@ -815,7 +815,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G5.1c — Multi-page docs
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `sitedocs/docs.go` adds three docs pages reachable via the sidebar: "Getting started", "Phases overview", "Component reference". Each page composes `cadence/breadcrumb` at top, a scrollable prose section, and `cadence/card`-wrapped code samples (plain monospace text, no syntax highlight). The sidebar is reshaped via `cadence/accordion` to group entries per phase (Prism / Cadence / Spectrum / Pulse), each containing nested links. The `currentPage` subject from G5.1a is extended to include the docs-page identifiers and drives Main panel switching.
 - **Measurable:** `go test ./sitedocs/...` green (smoke + light/dark golden of each docs page); running app: clicking any sidebar entry navigates to that page; breadcrumb reflects the path; navbar "Docs" link routes to the first docs page; any new friction appended to `FEEDBACK-G5.1.md`.
 - **Achievable:** prose is brief — copying a sentence or two verbatim from DESIGN.md headings is acceptable. Code samples are plain text inside cards. No in-page anchors, no search, no narrow-viewport layout.

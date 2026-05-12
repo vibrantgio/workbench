@@ -131,3 +131,82 @@ composition test (`TestLandingMainConstructs`).
 **Suggested follow-up:** rewrite the G5.1b Measurable line to say "a
 structural golden of the home-page composition", making the distinction
 between layout-regression goldens and copy-review tools explicit.
+
+## G5.1c — Multi-page docs
+
+### `shell.Props.Sidebar` is typed as `sidebar.Props`, not `layout.Widget`
+
+`cadence/shell.Props.Sidebar` accepts only a `sidebar.Props`, so the
+shell internally wraps it via `sidebar.Sidebar(th, props)`. G5.1c needs
+an accordion-grouped sidebar (phase sections with nested links), which
+`sidebar.Props.Items` (a flat slice) cannot express. The G5.1c
+implementation therefore bypasses `shell.Shell` entirely and replicates
+`composeSidebarHeaderMain` locally so it can substitute a custom
+accordion-based sidebar widget for the slot.
+
+**Suggested follow-up:** either generalise `shell.Props.Sidebar` to
+`layout.Widget` (with a helper to wrap `sidebar.Props` into the same
+shape), or expose a `shell.ComposeSidebarHeaderMain(sb, nb, main)` Render
+helper so a caller doing custom sidebars does not have to reimplement
+the horizontal-flex composition.
+
+### `cadence/accordion` body height is hard-coded at 96 dp
+
+`cadence/accordion.bodyHDp = 96` is a package-level constant; every open
+Section's Body is rendered with `Constraints.Exact(image.Pt(W, 96))`. The
+G5.1c docs sidebar wants 2-3 nested links per phase, each ~28 dp tall,
+so the Prism section (3 links -> 84 dp) just fits, the Cadence /
+Spectrum / Pulse sections (2 links -> 56 dp) leave ~40 dp of empty
+Surface beneath the last link. The constraint also rules out per-section
+content of different heights without per-caller padding tricks.
+
+**Suggested follow-up:** make `accordion.Props.SectionBodyHeight` an
+optional override (defaulting to 96 dp), or measure the body's natural
+height during a recording pass and lay the next header at the resulting
+offset. The recording approach matches Gio's standard idiom for
+variable-height content.
+
+### `accordion.OnToggle` plus `Open rx.Observable` reinvent the Subject pattern per caller
+
+`accordion.Props` separates the *current* open state (`Open` observable)
+from the *intent to change* (`OnToggle` callback). Wiring this in
+sitedocs takes ~25 lines: an `openController` struct holds the live map,
+a mutex protects it against the rx-goroutine subscriber, and the
+OnToggle handler mutates + republishes via an `rx.Subject(0, 1)` so the
+subscriber sees the new map. SingleOpen amplifies the wiring cost
+because the toggle handler is called once per peer closure plus once for
+the activation.
+
+**Suggested follow-up:** ship a thin `accordion.NewController(initially
+int) Controller` helper that returns the open observable and the toggle
+function pre-wired (including SingleOpen flipping), so callers do not
+each reinvent the same controller plumbing.
+
+### `card.Card` consumes the full vertical canvas constraint
+
+`card.drawCard` paints its rounded surface across `gtx.Constraints.Max`
+top-to-bottom — there is no shrink-to-fit pass. Stacking N cards in a
+docs page therefore requires each card to be wrapped in a fixed-height
+container (`fixedHeight(docsCardHeightDp, ...)` in `docs.go`), with the
+height chosen to fit the longest expected sample. Cards with shorter
+content leave Surface padding beneath the inner stack.
+
+**Suggested follow-up:** add a `card.Props.HeightDp float32` field for
+the fixed-height case, or measure the inner stack height during a
+recording pass and constrain the card's surface to it. The marketing
+patterns (hero, feature, pricing) all fit the full vertical canvas by
+design, so the recording-and-resize idiom would be specific to card.
+
+### "Running app" measurable is not checkable in CI
+
+The G5.1c Measurable line includes "running app: clicking any sidebar
+entry navigates…". Interactive verification is not reachable from
+`go test ./sitedocs/...`; the implementation relies on a smoke test
+plus a routedMain unit test plus the page-controller subject test to
+cover the wiring. The interactive criterion is essentially "no
+regressions, judged by eye" — useful for the human, untestable in CI.
+
+**Suggested follow-up:** rewrite the running-app clause to name the unit
+tests that stand in for it (e.g., "TestRoutedMainSelectsByPage plus
+TestPageControllerSetAdvancesAtomic plus a smoke construct of each
+page"), so the contract is fully discharged by `go test`.
