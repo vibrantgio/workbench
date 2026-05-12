@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.3b` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/sidebar/`: collapsible vertical Surface column with `Items` of `Icon`/`Label`/`OnClick`/`Active`, an `rx.Observable[bool]` `Collapsed` driving an instantaneous expanded↔collapsed width swap, and `OnToggleCollapse`. Active item rendered with a `Primary` background tint. Goldens for `light-expanded`, `light-collapsed`, `dark-expanded-active-second`; interaction test for Arrow-Up/Down focus traversal, Enter activation, and toggle dispatch. Second of five `G4.3a–e` navigation packages; siblings independent except `G4.3e` (shell) which composes navbar+sidebar. Budget ~80 K).
+**Active goal:** `G4.3c` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/tabs/`: horizontal tab strip with `Tabs []Tab` (`Label`, `Content`), `rx.Observable[int]` `Selected`, and `OnSelect`. Selected tab underlined in `Primary`; selected `Content` rendered below the strip. Goldens for `light-three-tabs-first-selected`, `dark-three-tabs-second-selected`, `light-single-tab`; interaction test for Arrow-Left/Right wrapping selection and Home/End jumps, with focus following selection per WAI-ARIA tab pattern. Third of five `G4.3a–e` navigation packages; siblings independent except `G4.3e` (shell) which composes navbar+sidebar. Budget ~80 K).
 
 ---
 

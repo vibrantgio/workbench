@@ -687,7 +687,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.3b — `cadence/sidebar/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/sidebar/` package exposing `Sidebar(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Items []Item` (each with `Icon layout.Widget`, `Label string`, `OnClick func()`, `Active bool`), `Collapsed rx.Observable[bool]` for the expanded/collapsed state, and `OnToggleCollapse func()`. Visual is a vertical `Surface` column whose width swaps between expanded (~`S48`) and collapsed (~`S12`); when collapsed, labels are hidden and only icons remain. The active item is rendered with a `Primary` background tint.
 - **Measurable:** golden-image tests `light-expanded`, `light-collapsed`, `dark-expanded-active-second`; interaction test that proves Arrow-Up/Arrow-Down move focus between items, Enter activates the focused item via `OnClick`, and triggering the toggle affordance dispatches `OnToggleCollapse`; `go test ./cadence/sidebar/...` green.
 - **Achievable:** one package; reuses `prism/button` for items and toggle affordance; icons sourced from `prism/icon` if available, else `clip.Path` glyphs. Width transition is an instantaneous swap — Pulse-driven width tween is deferred.
