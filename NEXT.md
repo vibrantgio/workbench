@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G5.1b` in [PLAN.md](./PLAN.md) (Phase 5 — Example apps: `sitedocs/landing.go` renders the Home page composed of `cadence/hero`, `cadence/feature`, `cadence/pricing`, and `cadence/testimonial` wired with real content; copy lives in `sitedocs/landing_content.go`).
+**Active goal:** `G5.1c` in [PLAN.md](./PLAN.md) (Phase 5 — Example apps: `sitedocs/docs.go` adds three docs pages reachable via an accordion-grouped sidebar — "Getting started", "Phases overview", "Component reference" — each composing `cadence/breadcrumb`, prose, and `cadence/card`-wrapped code samples).
 
 ---
 

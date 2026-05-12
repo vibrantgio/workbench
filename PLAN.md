@@ -806,7 +806,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G5.1b — Landing page content (marketing patterns)
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `sitedocs/landing.go` renders the Home page composed of the four marketing patterns wired with real content: `cadence/hero` (eyebrow "Native desktop · Go", title "VibrantGIO", subtitle naming the four phases Prism / Cadence / Spectrum / Pulse, primary CTA "Get started" routing to docs, secondary CTA "GitHub" no-op); `cadence/feature` (3-up grid: "Prism — component foundation", "Cadence — pattern library", "Pulse — motion + effects"); `cadence/pricing` (synthetic 3-tier: Free / Pro / Enterprise — realistic-enough copy distinguishing tiers); `cadence/testimonial` (3-card grid, synthetic-but-plausible quotes). Copy lives in `sitedocs/landing_content.go` for one-place editing.
 - **Measurable:** `go test ./sitedocs/...` green (includes a golden of the rendered Home page in light + dark); running app: navbar "Home" route shows all four sections stacked vertically with scroll; primary CTA in hero advances `currentPage` to "docs" and the placeholder Docs panel from G5.1a appears; any rough edges from composing G4.5a–d together are appended to `FEEDBACK-G5.1.md`.
 - **Achievable:** content-only sub-goal. Layout depends entirely on G4.5a–d shipping correctly — if any pattern doesn't compose well at this scale, log the finding and either work around or replace that section with placeholder text. No responsive layout, no anchor links.
