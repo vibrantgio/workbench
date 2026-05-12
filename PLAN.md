@@ -961,6 +961,51 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - **Relevant:** PLAN.md G4.2a follow-up — focus-ring composition between modal and `prism/button`-typed actions. Pair with GX.4 if the close-button swap surfaces the same doubled-ring issue at the header.
 - **Budget:** ~40 K.
 
+### GX.6 ‖ — Consolidate per-sub-package go.mod into per-repo go.mod
+
+- [ ] **Done** *(done when GX.6a–GX.6d all checked)*
+- **Specific:** parent tracking goal — collapse the embedded per-sub-package Go modules in each of the four design-system repos (`cadence/`, `prism/`, `pulse/`, `spectrum/`) into a single go.mod per repo. Each repo currently carries 4–16 sub-package go.mod files with `replace ../../...` directives stitching them back into a workspace; the consolidated layout has one root go.mod listing the union of dependencies and the sub-packages become normal Go packages within that module. Sibling design-system repos remain separately versioned at the repo boundary.
+- **Measurable:** GX.6a, GX.6b, GX.6c, GX.6d all checked.
+- **Achievable:** parent tracking goal; the work lives in the sub-goals. No source-code changes to the patterns themselves; mechanical migration plus `go mod tidy`.
+- **Relevant:** the per-sub-package layout was carried over from an "each pattern is an island" intuition that Go's package model already provides for free — a consumer importing only `cadence/pricing` never compiles `cadence/hero` or pulls its transitive deps into the consumer's `go.sum`. The current layout produces visible drift (uncommitted `go mod tidy` edits across sibling sub-packages, missing `go.sum` files breaking `GOWORK=off` builds for `cadence/hero` and `cadence/pricing`) and grows linearly with each new sub-package added in Phase 4 and 5.
+- **Budget:** parent — no direct work.
+
+#### GX.6a — Consolidate `cadence/` to one go.mod
+
+- [ ] **Done**
+- **Specific:** in the embedded `cadence/` repo (16 sub-packages today), replace the 16 per-sub-package `go.mod` / `go.sum` files with a single root `cadence/go.mod` declaring `module github.com/vibrantgio/cadence` and a single `cadence/go.sum`. Each sub-package becomes a normal Go package — `cadence/pricing/pricing.go` keeps `package pricing` and continues to import siblings via `github.com/vibrantgio/cadence/<other>` paths, but those imports now resolve within the same module without `replace` plumbing. Intra-repo `replace` lines (e.g., `cadence/sidebar => ../sidebar`) are deleted; sibling-repo `replace` lines (`github.com/vibrantgio/prism/... => ../../prism/<x>`, `github.com/vibrantgio/pulse/depth => ../../pulse/depth`) consolidate at the root go.mod. The `go.work` `use (...)` block shrinks from 16 cadence entries to one (`./cadence`). The pre-existing uncommitted `go mod tidy` drift in `cadence/{alert,breadcrumb,navbar,toast}/go.mod` and the untracked `cadence/popover/` sub-package are absorbed by the consolidation: their `go.mod` / `go.sum` files are deleted, their Go source is committed as part of the consolidated module.
+- **Measurable:** `find cadence -name go.mod | wc -l` returns `1`; `go test ./cadence/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `cadence/` (proves the consolidated layout builds standalone, which is currently broken for `cadence/hero` and `cadence/pricing`).
+- **Achievable:** mechanical migration: walk each sub-package, delete `go.mod`/`go.sum`, fix import paths only where they reference siblings (most don't — sub-packages already import via `github.com/vibrantgio/cadence/<x>`, just registered as separate modules). Refresh `go.work` and run `go mod tidy` once at the new root. No source-code changes to the patterns; no test changes.
+- **Relevant:** parent GX.6. Cadence is the largest repo (16 sub-packages) and the one actively growing during Phase 4 — consolidating before G4.5c–d and Phase 5 lands marketing/example patterns directly in the new structure instead of requiring later migration.
+- **Budget:** ~75 K. Largest of the four: 16 sub-packages to walk, two full test runs (workspace + `GOWORK=off`) across ~30 test files, plus absorbing two pre-existing drift situations (tidy edits in four sibling sub-packages and the fully untracked `popover/`).
+
+#### GX.6b — Consolidate `prism/` to one go.mod
+
+- [ ] **Done**
+- **Specific:** in the embedded `prism/` repo (14 sub-packages today: `a11y`, `button`, `cache`, `coordination`, `gallery`, `icon`, `initial`, `input`, `internal/golden`, `keyed`, `layout`, `list`, `theme`, `tokens`), collapse the 14 sub-package `go.mod` files into a single `prism/go.mod` declaring `module github.com/vibrantgio/prism`. Sub-packages become normal Go packages; cross-package imports (e.g., `button` → `tokens`, `button` → `theme`) become same-module imports with no `replace` plumbing. The single `prism/go.mod` retains `replace` lines for downstream design-system repos it references at all (currently `mvu`). Update `go.work` to one prism entry.
+- **Measurable:** `find prism -name go.mod | wc -l` returns `1`; `go test ./prism/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `prism/`.
+- **Achievable:** mechanical; same shape as GX.6a. Prism has more intra-module deps than cadence (button→tokens, button→theme, list→a11y, etc.) so the `replace` cleanup is the bulk of the diff. The `prism/internal/golden` package keeps its `internal/` path inside the consolidated module — it remains importable from `prism/<sub>` siblings and unreachable from outside the repo, the same access pattern it has today.
+- **Relevant:** parent GX.6.
+- **Budget:** ~65 K. 14 sub-packages and the deepest intra-repo dep graph of the four; the `internal/golden` path warrants an extra verification pass to confirm it still resolves from sibling test files after consolidation.
+
+#### GX.6c — Consolidate `pulse/` to one go.mod
+
+- [ ] **Done**
+- **Specific:** in the embedded `pulse/` repo (7 sub-packages today: `conductor`, `depth`, `glow`, `motion`, `spring`, `springbutton`, `tween`), collapse the 7 sub-package `go.mod` files into a single `pulse/go.mod` declaring `module github.com/vibrantgio/pulse`. Sub-packages become normal Go packages within that module. Update `go.work` to one pulse entry.
+- **Measurable:** `find pulse -name go.mod | wc -l` returns `1`; `go test ./pulse/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `pulse/`.
+- **Achievable:** mechanical; same shape as GX.6a. `springbutton` depends on `spring` and `tween`, so the `replace` cleanup pays off there.
+- **Relevant:** parent GX.6.
+- **Budget:** ~45 K. 7 sub-packages; mid-sized intra-repo dep graph (springbutton → spring + tween) and modest test surface.
+
+#### GX.6d — Consolidate `spectrum/` to one go.mod
+
+- [ ] **Done**
+- **Specific:** in the embedded `spectrum/` repo (4 sub-packages today: `preferences`, `system`, `transition`, `window`), collapse the 4 sub-package `go.mod` files into a single `spectrum/go.mod` declaring `module github.com/vibrantgio/spectrum`. Update `go.work` to one spectrum entry.
+- **Measurable:** `find spectrum -name go.mod | wc -l` returns `1`; `go test ./spectrum/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `spectrum/`.
+- **Achievable:** mechanical; same shape as GX.6a. Smallest of the four — natural starter sub-goal to validate the migration recipe before tackling the larger repos.
+- **Relevant:** parent GX.6. Recommended to run first as a low-risk dress rehearsal.
+- **Budget:** ~35 K. 4 sub-packages, no intra-repo `replace` chains, modest test surface — the cheapest validation pass for the consolidation recipe.
+
 ---
 
 ## Glossary
