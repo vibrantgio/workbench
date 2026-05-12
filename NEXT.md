@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.2d` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/toast/`: position-anchored stack of queued notifications fed by a package-scoped `prism/coordination` `Subject[Toast]`; per-toast `Lifetime` auto-dismiss with `pulse/tween` fade near end of lifetime. Last of the four coordination-dependent patterns; G4.2a–c established focus-trap, placement+outside-click arbitration, and hover-delay arbitration respectively. Budget ~80 K).
+**Active goal:** `G4.3` in [PLAN.md](./PLAN.md) (Phase 4 — Navigation pattern cluster: `cadence/{navbar,sidebar,shell,tabs,accordion}/`, one package per pattern with keyboard-traversal tests; `shell` composes sidebar+header+main with split-pane. The milestone is a parent — its body says "one goal per pattern" but lists no `G4.3a–e` sub-headings, so the first session here should either split it explicitly or pick a single pattern and constrain scope. Budget ~80 K per pattern).
 
 ---
 

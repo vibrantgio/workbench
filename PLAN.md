@@ -624,7 +624,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.2 ‖ — Patterns depending on coordination primitive: modal, popover, tooltip, toast
 
-- [ ] **Done** *(done when G4.2a–G4.2d all checked)*
+- [x] **Done** *(done when G4.2a–G4.2d all checked)*
 - **Specific:** four coordination-dependent pattern packages split into G4.2a (modal), G4.2b (popover), G4.2c (tooltip), G4.2d (toast); one session each. All depend on `prism/coordination/` (G1.7) for cross-widget arbitration (focus, dismissal, single-active). Modal is sequenced first because its acceptance criterion (focus trap + escape handling) is the hardest interaction proof and de-risks the remaining three.
 - **Measurable:** all four sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G4.2a–G4.2d.
@@ -660,7 +660,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.2d — `cadence/toast/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/toast/` package exposing `Stack(th, props) rx.Observable[layout.Widget]` rendering a positioned column of queued toasts, plus a `Notify(level, text)` entry point that emits a `Toast` value onto a package-scoped `prism/coordination` `Subject[Toast]`. `Props` carries `Position` (one of `TopRight`, `BottomRight`, `TopLeft`, `BottomLeft`), `Lifetime time.Duration` (default 4 s before auto-dismiss). Each toast renders as a tinted `Surface` (variant per level: info/success/warning/error) with text and an optional dismiss affordance.
 - **Measurable:** golden-image tests `light-empty`, `light-three-stacked`, `dark-warning-toast`; interaction test that `Notify` adds a toast to the stack and the stack length returns to its prior value after `Lifetime` elapses; `go test ./cadence/toast/...` green.
 - **Achievable:** one package; reuses `prism/coordination.Subject` for the queue and `pulse/tween` for fade-out near end of lifetime. Stack ordering is FIFO with newest nearest the position-anchored edge; no overflow collapse.
