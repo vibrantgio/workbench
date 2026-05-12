@@ -606,7 +606,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.1c — `cadence/breadcrumb/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/breadcrumb/` package exposing `Breadcrumb(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props.Items []Item` where `Item` has `Label string` and `OnClick func()` (nil → non-interactive current segment). Visual is a horizontal row of labels separated by a chevron glyph; the last item rendered in `OnSurface` and remaining items in `OnSurfaceVariant`.
 - **Measurable:** golden-image tests `light-three-segments`, `dark-three-segments`, `light-single-segment`; `go test ./cadence/breadcrumb/...` green.
 - **Achievable:** one package; reuses `prism/button` interaction model for clickable segments. Chevron rendered from `clip.Path`.

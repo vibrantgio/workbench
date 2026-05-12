@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.1c` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/breadcrumb/` — horizontal row of labels separated by chevron glyphs. A function consuming `rx.Observable[Theme]` returning `rx.Observable[layout.Widget]`, plus a static `Render`. Last item in `OnSurface`, others in `OnSurfaceVariant`. Golden tests for three- and single-segment cases across light/dark).
+**Active goal:** `G4.1d` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/pagination/` — horizontal row of numbered page buttons with prev/next chevrons; `Pagination(th, props) rx.Observable[layout.Widget]` plus static `Render`. `Props{Page, PageCount, OnSelect}`. Current page highlighted via `Primary`/`OnPrimary`. Goldens `light-page-1-of-5`, `light-page-3-of-5`, `dark-page-3-of-5`).
 
 ---
 
