@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.3a` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/navbar/`: top navigation bar with `Brand`/`Links`/`Actions` slots, active-link `Primary` underline, golden tests in light/dark + active variant, and a Tab-traversal interaction test. First of five `G4.3a–e` navigation packages; siblings independent except `G4.3e` (shell) which composes navbar+sidebar. Budget ~80 K).
+**Active goal:** `G4.3b` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/sidebar/`: collapsible vertical Surface column with `Items` of `Icon`/`Label`/`OnClick`/`Active`, an `rx.Observable[bool]` `Collapsed` driving an instantaneous expanded↔collapsed width swap, and `OnToggleCollapse`. Active item rendered with a `Primary` background tint. Goldens for `light-expanded`, `light-collapsed`, `dark-expanded-active-second`; interaction test for Arrow-Up/Down focus traversal, Enter activation, and toggle dispatch. Second of five `G4.3a–e` navigation packages; siblings independent except `G4.3e` (shell) which composes navbar+sidebar. Budget ~80 K).
 
 ---
 

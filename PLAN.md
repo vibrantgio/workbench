@@ -678,7 +678,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.3a — `cadence/navbar/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/navbar/` package exposing `Navbar(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props` carries `Brand layout.Widget` (logo/title slot, may be nil), `Links []Link` (each with `Label string`, `OnClick func()`, `Active bool`), and `Actions []layout.Widget` (trailing action buttons, any may be nil). Visual is a horizontal `Surface` bar with `S4` padding: brand on the leading edge, link row centered, action buttons on the trailing edge. The active link is rendered with a `Primary` underline.
 - **Measurable:** golden-image tests `light-default`, `dark-default`, `light-active-second-link`; interaction test that proves Tab cycles focus through brand → links → actions in document order and Shift-Tab reverses, and clicking a link invokes its `OnClick`; `go test ./cadence/navbar/...` green.
 - **Achievable:** one package; reuses `prism/button` for links and actions. No mobile collapse to hamburger menu; that responsive behaviour is deferred (would require viewport observation outside scope).
