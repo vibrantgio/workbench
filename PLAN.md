@@ -714,7 +714,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.3e — `cadence/shell/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/shell/` package exposing `Shell(th, props) rx.Observable[layout.Widget]` plus a static `Render`. Two layout variants are selected via `Props.Layout` (`SidebarHeaderMain` or `SplitPane`): `SidebarHeaderMain` composes a `cadence/sidebar` on the leading edge, a `cadence/navbar` across the top of the remaining area, and a `Main layout.Widget` content slot below the navbar; `SplitPane` composes two slots (`Left`, `Right layout.Widget`) separated by a draggable vertical divider with configurable initial ratio. `Props` also carries `Sidebar sidebar.Props`, `Navbar navbar.Props`, `Main layout.Widget`, plus `Left`, `Right layout.Widget`, and `SplitRatio rx.Observable[float32]`, `OnSplitChange func(ratio float32)`.
 - **Measurable:** golden-image tests `light-sidebar-header-main`, `dark-sidebar-header-main`, `light-split-pane-50-50`, `light-split-pane-30-70`; interaction test that proves the split-pane divider can be dragged with the pointer and emits ratio updates via `OnSplitChange`, and that Tab traversal flows sidebar → navbar → main in `SidebarHeaderMain` mode; `go test ./cadence/shell/...` green.
 - **Achievable:** one package; composes `cadence/sidebar` (G4.3b) and `cadence/navbar` (G4.3a); split-pane divider uses pointer drag from `prism/button`'s gesture primitives. No keyboard-driven divider resize, no horizontal split orientation — both deferred.

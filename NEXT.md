@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.3e` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/shell/`: two layout variants selected via `Props.Layout`. `SidebarHeaderMain` composes a `cadence/sidebar` on the leading edge, a `cadence/navbar` across the top of the remaining area, and a `Main layout.Widget` content slot below. `SplitPane` composes two slots (`Left`, `Right`) separated by a draggable vertical divider with configurable initial ratio via `SplitRatio rx.Observable[float32]` and `OnSplitChange`. Goldens for `light-sidebar-header-main`, `dark-sidebar-header-main`, `light-split-pane-50-50`, `light-split-pane-30-70`; interaction test for divider drag emitting ratio updates and Tab traversal sidebar → navbar → main. Last of the five `G4.3a–e` navigation packages; composes navbar (G4.3a) and sidebar (G4.3b). Budget ~80 K).
+**Active goal:** `G4.4` in [PLAN.md](./PLAN.md) (Phase 4 — Table and pagination: sortable, filterable, virtualised table consuming `prism/list` + `KeyedDefer` (if adopted) for per-row state. Measurable is a benchmark proving O(visible-rows) cost on a 10 000-row dataset. Budget ~95 K — **Split** core / virtualisation / sort+filter if needed).
 
 ---
 
