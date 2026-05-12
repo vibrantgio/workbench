@@ -667,12 +667,59 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - **Relevant:** DESIGN §"Phase 4 — Cadence" (`toast/ — transient notification stack`); §"Coordination ceiling".
 - **Budget:** ~80 K. No dependency on sibling sub-goals.
 
-### G4.3 ‖ — Navigation: navbar, sidebar, shell, tabs, accordion
+### G4.3 ‖ — Navigation: navbar, sidebar, tabs, accordion, shell
+
+- [ ] **Done** *(done when G4.3a–G4.3e all checked)*
+- **Specific:** five navigation pattern packages split into G4.3a (navbar), G4.3b (sidebar), G4.3c (tabs), G4.3d (accordion), G4.3e (shell); one session each. G4.3e (shell) sequenced last because it composes G4.3a (navbar) and G4.3b (sidebar).
+- **Measurable:** all five sub-goals checked.
+- **Achievable:** parent tracking goal; implementation across G4.3a–G4.3e.
+- **Relevant:** DESIGN §"Phase 4 — Cadence (pattern library)" — Composition contract.
+- **Budget:** ~80 K per sub-goal.
+
+#### G4.3a — `cadence/navbar/`
 
 - [ ] **Done**
-- **Specific:** one goal per pattern.
-- **Measurable:** keyboard traversal test for each; `shell` demonstrates sidebar+header+main and split-pane.
-- **Budget:** ~80 K each.
+- **Specific:** `cadence/navbar/` package exposing `Navbar(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props` carries `Brand layout.Widget` (logo/title slot, may be nil), `Links []Link` (each with `Label string`, `OnClick func()`, `Active bool`), and `Actions []layout.Widget` (trailing action buttons, any may be nil). Visual is a horizontal `Surface` bar with `S4` padding: brand on the leading edge, link row centered, action buttons on the trailing edge. The active link is rendered with a `Primary` underline.
+- **Measurable:** golden-image tests `light-default`, `dark-default`, `light-active-second-link`; interaction test that proves Tab cycles focus through brand → links → actions in document order and Shift-Tab reverses, and clicking a link invokes its `OnClick`; `go test ./cadence/navbar/...` green.
+- **Achievable:** one package; reuses `prism/button` for links and actions. No mobile collapse to hamburger menu; that responsive behaviour is deferred (would require viewport observation outside scope).
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`navbar/ — top navigation with branding, links, actions`).
+- **Budget:** ~80 K. No dependency on sibling sub-goals.
+
+#### G4.3b — `cadence/sidebar/`
+
+- [ ] **Done**
+- **Specific:** `cadence/sidebar/` package exposing `Sidebar(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Items []Item` (each with `Icon layout.Widget`, `Label string`, `OnClick func()`, `Active bool`), `Collapsed rx.Observable[bool]` for the expanded/collapsed state, and `OnToggleCollapse func()`. Visual is a vertical `Surface` column whose width swaps between expanded (~`S48`) and collapsed (~`S12`); when collapsed, labels are hidden and only icons remain. The active item is rendered with a `Primary` background tint.
+- **Measurable:** golden-image tests `light-expanded`, `light-collapsed`, `dark-expanded-active-second`; interaction test that proves Arrow-Up/Arrow-Down move focus between items, Enter activates the focused item via `OnClick`, and triggering the toggle affordance dispatches `OnToggleCollapse`; `go test ./cadence/sidebar/...` green.
+- **Achievable:** one package; reuses `prism/button` for items and toggle affordance; icons sourced from `prism/icon` if available, else `clip.Path` glyphs. Width transition is an instantaneous swap — Pulse-driven width tween is deferred.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`sidebar/ — collapsible side navigation`).
+- **Budget:** ~80 K. No dependency on sibling sub-goals.
+
+#### G4.3c — `cadence/tabs/`
+
+- [ ] **Done**
+- **Specific:** `cadence/tabs/` package exposing `Tabs(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Tabs []Tab` (each with `Label string`, `Content layout.Widget`), `Selected rx.Observable[int]`, and `OnSelect func(idx int)`. Visual is a horizontal tab strip with the selected tab underlined in `Primary`, followed by the selected tab's `Content` rendered below.
+- **Measurable:** golden-image tests `light-three-tabs-first-selected`, `dark-three-tabs-second-selected`, `light-single-tab`; interaction test that proves Arrow-Left/Arrow-Right move selection between tabs (wrapping at the ends) and Home/End jump to first/last, with focus following selection per the WAI-ARIA tab pattern; `go test ./cadence/tabs/...` green.
+- **Achievable:** one package; reuses `prism/button` for tab labels. No vertical tab orientation, no scrollable overflow when tab count exceeds available width — both deferred.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`tabs/ — tab strip + content panel`).
+- **Budget:** ~80 K. No dependency on sibling sub-goals.
+
+#### G4.3d — `cadence/accordion/`
+
+- [ ] **Done**
+- **Specific:** `cadence/accordion/` package exposing `Accordion(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Sections []Section` (each with `Title string`, `Body layout.Widget`), `Open rx.Observable[map[int]bool]`, `OnToggle func(idx int)`, and `SingleOpen bool` (when true, opening one section closes the others). Each section renders as a header row with a chevron rotated per open state, followed by the body when open.
+- **Measurable:** golden-image tests `light-three-sections-first-open`, `dark-three-sections-all-closed`, `light-single-open-mode`; interaction test that proves Arrow-Up/Arrow-Down move focus between section headers, Enter/Space toggles the focused section, and `SingleOpen=true` collapses prior sections when a new one opens; `go test ./cadence/accordion/...` green.
+- **Achievable:** one package; reuses `prism/button` for header rows. Open/close is instantaneous; height-animated expand is deferred to a Pulse-integration goal.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`accordion/ — collapsible section groups`).
+- **Budget:** ~80 K. No dependency on sibling sub-goals.
+
+#### G4.3e — `cadence/shell/`
+
+- [ ] **Done**
+- **Specific:** `cadence/shell/` package exposing `Shell(th, props) rx.Observable[layout.Widget]` plus a static `Render`. Two layout variants are selected via `Props.Layout` (`SidebarHeaderMain` or `SplitPane`): `SidebarHeaderMain` composes a `cadence/sidebar` on the leading edge, a `cadence/navbar` across the top of the remaining area, and a `Main layout.Widget` content slot below the navbar; `SplitPane` composes two slots (`Left`, `Right layout.Widget`) separated by a draggable vertical divider with configurable initial ratio. `Props` also carries `Sidebar sidebar.Props`, `Navbar navbar.Props`, `Main layout.Widget`, plus `Left`, `Right layout.Widget`, and `SplitRatio rx.Observable[float32]`, `OnSplitChange func(ratio float32)`.
+- **Measurable:** golden-image tests `light-sidebar-header-main`, `dark-sidebar-header-main`, `light-split-pane-50-50`, `light-split-pane-30-70`; interaction test that proves the split-pane divider can be dragged with the pointer and emits ratio updates via `OnSplitChange`, and that Tab traversal flows sidebar → navbar → main in `SidebarHeaderMain` mode; `go test ./cadence/shell/...` green.
+- **Achievable:** one package; composes `cadence/sidebar` (G4.3b) and `cadence/navbar` (G4.3a); split-pane divider uses pointer drag from `prism/button`'s gesture primitives. No keyboard-driven divider resize, no horizontal split orientation — both deferred.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`shell/ — application shells (sidebar+header+main, split-pane, etc.)`).
+- **Budget:** ~80 K. Depends on G4.3a (navbar) and G4.3b (sidebar) — sequence last.
 
 ### G4.4 — Table and pagination
 

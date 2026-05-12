@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.3` in [PLAN.md](./PLAN.md) (Phase 4 — Navigation pattern cluster: `cadence/{navbar,sidebar,shell,tabs,accordion}/`, one package per pattern with keyboard-traversal tests; `shell` composes sidebar+header+main with split-pane. The milestone is a parent — its body says "one goal per pattern" but lists no `G4.3a–e` sub-headings, so the first session here should either split it explicitly or pick a single pattern and constrain scope. Budget ~80 K per pattern).
+**Active goal:** `G4.3a` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/navbar/`: top navigation bar with `Brand`/`Links`/`Actions` slots, active-link `Primary` underline, golden tests in light/dark + active variant, and a Tab-traversal interaction test. First of five `G4.3a–e` navigation packages; siblings independent except `G4.3e` (shell) which composes navbar+sidebar. Budget ~80 K).
 
 ---
 
