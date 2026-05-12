@@ -47,6 +47,7 @@ Phase −1 (Gio migration)
                     ├── Phase 2 (theme runtime)         ┐
                     ├── Phase 3 (visual effects)        ├── parallelisable
                     └── Phase 4 (pattern library)       ┘
+                          └── Phase 5 (example apps — pressure-test)
 ```
 
 Goals are listed in topological order. Within a phase, goals marked **‖** are parallelisable.
@@ -772,6 +773,162 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - **Achievable:** one package; pure layout composition — no interaction, no rx.Defer state. Quote glyph rendered from `clip.Path` (no `prism/icon` dependency). No responsive collapse from grid to vertical stack — that responsive behaviour is deferred.
 - **Relevant:** DESIGN §"Phase 4 — Cadence" (`marketing/ — hero, pricing, feature, testimonial sections (for app landing/onboarding)`).
 - **Budget:** ~50 K. No dependency on sibling sub-goals.
+
+---
+
+## Phase 5 — Example apps (pressure-test)
+
+**Goal:** validate VibrantGIO end-to-end by building non-trivial apps in real composition. Each app's primary deliverable is a `FEEDBACK-G5.x.md` listing API friction, missing pieces, awkward compositions, and ergonomics wins discovered during the build — the apps themselves are the vehicle.
+
+**No new framework code in this phase.** If a sub-goal needs missing functionality from Prism / Cadence / Spectrum / Pulse, append the finding to the relevant running `FEEDBACK-G5.x.md` and either work around or skip. Re-plan work is queued to a future phase once feedback is aggregated.
+
+**Sequencing.** G5.1 depends on G4.5a–d (marketing patterns). G5.2 and G5.3 depend only on Phase 4 sub-goals already shipped (G4.1–G4.4 and the modal/popover/toast/tooltip + navigation packs) — they can start any time, including in parallel with G4.5a–d, if the developer prefers to start pressure-testing sooner.
+
+**Per-session feedback discipline.** Every implementation sub-goal's `Measurable` requires appending discovered friction to the relevant `FEEDBACK-G5.x.md` before the session closes — even a single line is acceptable, including the explicit line "no findings yet". The dedicated feedback sub-goal at the end of each app ranks and rewrites those running notes; it does not invent them. If the running file does not exist when the feedback sub-goal starts, that is itself a process failure to surface.
+
+### G5.1 ‖ — Docs site for VibrantGIO itself
+
+- [ ] **Done** *(done when G5.1a–G5.1d all checked)*
+- **Specific:** native desktop app rendering the VibrantGIO landing page and docs using VibrantGIO itself, in a new top-level Go module `vibrantgio/sitedocs/`. Split into G5.1a (skeleton + shell), G5.1b (landing-page content wiring), G5.1c (multi-page docs), G5.1d (feedback writeup). Dogfoods the marketing sub-goals in the use case for which they were created.
+- **Measurable:** all four sub-goals checked; `FEEDBACK-G5.1.md` exists in repo root in the structured form defined in G5.1d.
+- **Achievable:** parent tracking goal; implementation across G5.1a–G5.1d.
+- **Relevant:** DESIGN §"Phase 4 — Cadence (pattern library)" — Composition contract; pressure-tests G4.5a–d in real composition.
+- **Budget:** ~50–70 K per sub-goal.
+
+#### G5.1a — App skeleton + shell
+
+- [ ] **Done**
+- **Specific:** new top-level Go module `vibrantgio/sitedocs/` (joined to `go.work`). `sitedocs/main.go` bootstraps a window via `prism/initial`, wires `spectrum` theme (light/dark auto), and renders `cadence/shell.Shell(SidebarHeaderMain)` with: navbar carrying brand "VibrantGIO" and three placeholder navigation links ("Home", "Docs", "About"); sidebar with two collapsible placeholder sections; Main showing placeholder text. A `currentPage rx.Subject[string]` (values `"home" | "docs"`) is wired through; only the placeholder text consumes it.
+- **Measurable:** `go build ./sitedocs/...` green; `go test ./sitedocs/...` green (smoke test that constructs the root widget without panic); running `go run ./sitedocs/` opens a 1200×800 window with sidebar + navbar + placeholder Main visible in both light and dark themes; `FEEDBACK-G5.1.md` is created with first entries or the explicit line "no findings yet".
+- **Achievable:** skeleton only. No content beyond placeholder text. Routing is the absolute minimum (one subject, two values). No persistence, no IPC, no networking. CTAs may be `func(){}` no-ops.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" — first real composition of `cadence/shell` + `cadence/sidebar` + `cadence/navbar` outside golden tests.
+- **Budget:** ~60 K. Depends on G4.5a (only because `landing.go` in G5.1b consumes it; technically G5.1a could ship earlier, but no incentive to split).
+
+#### G5.1b — Landing page content (marketing patterns)
+
+- [ ] **Done**
+- **Specific:** `sitedocs/landing.go` renders the Home page composed of the four marketing patterns wired with real content: `cadence/hero` (eyebrow "Native desktop · Go", title "VibrantGIO", subtitle naming the four phases Prism / Cadence / Spectrum / Pulse, primary CTA "Get started" routing to docs, secondary CTA "GitHub" no-op); `cadence/feature` (3-up grid: "Prism — component foundation", "Cadence — pattern library", "Pulse — motion + effects"); `cadence/pricing` (synthetic 3-tier: Free / Pro / Enterprise — realistic-enough copy distinguishing tiers); `cadence/testimonial` (3-card grid, synthetic-but-plausible quotes). Copy lives in `sitedocs/landing_content.go` for one-place editing.
+- **Measurable:** `go test ./sitedocs/...` green (includes a golden of the rendered Home page in light + dark); running app: navbar "Home" route shows all four sections stacked vertically with scroll; primary CTA in hero advances `currentPage` to "docs" and the placeholder Docs panel from G5.1a appears; any rough edges from composing G4.5a–d together are appended to `FEEDBACK-G5.1.md`.
+- **Achievable:** content-only sub-goal. Layout depends entirely on G4.5a–d shipping correctly — if any pattern doesn't compose well at this scale, log the finding and either work around or replace that section with placeholder text. No responsive layout, no anchor links.
+- **Relevant:** highest-fidelity pressure test for G4.5a–d.
+- **Budget:** ~50 K. Hard dependency on G4.5a, G4.5b, G4.5c, G4.5d.
+
+#### G5.1c — Multi-page docs
+
+- [ ] **Done**
+- **Specific:** `sitedocs/docs.go` adds three docs pages reachable via the sidebar: "Getting started", "Phases overview", "Component reference". Each page composes `cadence/breadcrumb` at top, a scrollable prose section, and `cadence/card`-wrapped code samples (plain monospace text, no syntax highlight). The sidebar is reshaped via `cadence/accordion` to group entries per phase (Prism / Cadence / Spectrum / Pulse), each containing nested links. The `currentPage` subject from G5.1a is extended to include the docs-page identifiers and drives Main panel switching.
+- **Measurable:** `go test ./sitedocs/...` green (smoke + light/dark golden of each docs page); running app: clicking any sidebar entry navigates to that page; breadcrumb reflects the path; navbar "Docs" link routes to the first docs page; any new friction appended to `FEEDBACK-G5.1.md`.
+- **Achievable:** prose is brief — copying a sentence or two verbatim from DESIGN.md headings is acceptable. Code samples are plain text inside cards. No in-page anchors, no search, no narrow-viewport layout.
+- **Relevant:** pressure-tests `cadence/breadcrumb` + `cadence/accordion` + `cadence/card` + multi-route shell composition in one place.
+- **Budget:** ~70 K. Depends on G5.1a and (loosely) G5.1b.
+
+#### G5.1d — Feedback writeup
+
+- [ ] **Done**
+- **Specific:** rewrite `FEEDBACK-G5.1.md` from the running notes left by G5.1a–c into its final structured form. Four sections: **Bugs**, **Missing API affordances**, **Awkward compositions / boilerplate**, **Ergonomics wins worth preserving**. Within each non-empty section, entries are ranked **blocker / major / minor**; each blocker and major carries a one-line remediation sketch. If a section is empty, it is explicitly noted as such with a half-sentence on whether that signals a coverage gap or real polish.
+- **Measurable:** `FEEDBACK-G5.1.md` exists in repo root with all four section headings present; every non-empty entry severity-tagged; every blocker and major has a remediation sketch; the file is a coherent summary, not a stream of session-end hot takes.
+- **Achievable:** pure documentation goal. No code changes. Sources are the running notes already in `FEEDBACK-G5.1.md` from G5.1a–c. If the running notes are missing, this goal stops and surfaces that as a process failure rather than fabricating findings.
+- **Relevant:** primary Phase 5 deliverable for G5.1; feeds any follow-on framework-polish phase.
+- **Budget:** ~20 K.
+
+### G5.2 ‖ — RSS / reading-list app
+
+- [ ] **Done** *(done when G5.2a–G5.2e all checked)*
+- **Specific:** native desktop RSS / reading-list app in a new top-level Go module `vibrantgio/feeds/`. Pressure-tests the content-shaped slice of Cadence (sidebar groups, articles table, detail tabs, action modals). Split into G5.2a (skeleton + feeds sidebar), G5.2b (articles table), G5.2c (article detail view), G5.2d (CRUD actions), G5.2e (feedback writeup). Domain is RSS because it is content-rich, has natural tabs/accordion shape, and is self-contained — no networking, no parsing, fixtures only.
+- **Measurable:** all five sub-goals checked; `FEEDBACK-G5.2.md` exists in repo root in the structured form from G5.2e.
+- **Achievable:** parent tracking goal. No real RSS fetching in this phase.
+- **Relevant:** pressure-tests the navigation + interaction patterns from G4.2 (modal/popover/toast) and G4.3 (sidebar/tabs/accordion/shell) in a non-trivial composition.
+- **Budget:** ~50–70 K per sub-goal.
+
+#### G5.2a — App skeleton + feeds sidebar
+
+- [ ] **Done**
+- **Specific:** new top-level Go module `vibrantgio/feeds/` (joined to `go.work`). `feeds/main.go` opens a window via `prism/initial` + `spectrum` theme. Layout is `cadence/shell.Shell(SidebarHeaderMain)`: navbar with brand "Feeds" and trailing "Add feed" action button (no-op for now); sidebar renders a `cadence/accordion` of feed groups (Tech / News / Personal — hard-coded) with feed names beneath each group. Main slot is placeholder text reading the currently-selected feed name. A `selectedFeed rx.Subject[FeedID]` drives selection.
+- **Measurable:** `go build ./feeds/...` green; `go test ./feeds/...` green (smoke test); running `go run ./feeds/` opens a window with sidebar populated from hard-coded data in `feeds/fixtures.go`; clicking a feed updates the placeholder Main; `FEEDBACK-G5.2.md` is created with first entries or the explicit line "no findings yet".
+- **Achievable:** no fetching, no parsing, no persistence. Hard-coded data in `feeds/fixtures.go`. Selection is wired but no consumer beyond the placeholder.
+- **Relevant:** first composition of `cadence/shell` + `cadence/sidebar` + `cadence/accordion` + `cadence/navbar` outside the docs site.
+- **Budget:** ~60 K.
+
+#### G5.2b — Articles table
+
+- [ ] **Done**
+- **Specific:** `feeds/articles.go` adds a `cadence/table` to the Main slot showing the selected feed's article rows (columns: Title, Author, Published, Unread). Above the table sits a `prism/input/textfield` filter input. The table supports sort by Published or Title (header click), free-text filter on the input value, and `cadence/pagination` below the table (10 rows per page). Hard-coded fixtures contain ≥80 article rows distributed across feeds. Clicking a row emits `selectedArticle rx.Subject[ArticleID]` (consumed by G5.2c).
+- **Measurable:** `go test ./feeds/...` green (includes a golden of one feed's table state in light + dark); running app: selecting a feed filters the table to that feed; sort, filter, pagination behaviours visibly correct; `FEEDBACK-G5.2.md` gets any new findings.
+- **Achievable:** data in-memory; no persistence of read state across runs.
+- **Relevant:** `cadence/table` + `cadence/pagination` + Prism input composition under realistic data volume.
+- **Budget:** ~70 K. Depends on G5.2a.
+
+#### G5.2c — Article detail view
+
+- [ ] **Done**
+- **Specific:** `feeds/detail.go` renders the selected article in a right-hand pane (use `cadence/shell.Shell(SplitPane)` mode, or stack below the table — pick whichever composes cleaner and log the choice + rationale to `FEEDBACK-G5.2.md`). Detail uses `cadence/tabs` with three tabs: "Reader" (formatted body, paragraph wrapping), "Raw" (same body in monospace), "Comments" (static placeholder list). A `cadence/popover` on a navbar "Share" button lists three share destinations (no-op). Hover tooltips (`cadence/tooltip`) on the table's icon-only column headers.
+- **Measurable:** `go test ./feeds/...` green; running app: clicking an article populates detail pane; switching tabs swaps content; Share popover opens and dismisses correctly; tooltips appear on hover; any composition friction appended to `FEEDBACK-G5.2.md`.
+- **Achievable:** no real formatting — Reader and Raw both render the same hard-coded body text, differing only in font. Comments tab is a static placeholder list.
+- **Relevant:** `cadence/tabs` + `cadence/popover` + `cadence/tooltip` + split-pane composition.
+- **Budget:** ~70 K. Depends on G5.2b.
+
+#### G5.2d — CRUD actions
+
+- [ ] **Done**
+- **Specific:** wire the "Add feed" navbar action to open a `cadence/modal` containing a small form (a `cadence/card` wrapping a `prism/input/textfield` for URL + a `prism/button` submit). On submit: synthesise a feed entry, append to the in-memory list, fire a `cadence/toast` "Feed added". Delete-feed: hover-revealed trash icon on each sidebar entry → `cadence/popover` confirm ("Delete this feed?") → on confirm, remove + toast. Empty-URL submit displays a `cadence/alert` at the top of the modal.
+- **Measurable:** `go test ./feeds/...` green (golden of the modal in light + dark, plus a small interaction test confirming submit flow); running app: full add-feed flow works end-to-end; delete-feed confirm works; alert fires on empty submit; toasts visible for both actions; findings appended to `FEEDBACK-G5.2.md`.
+- **Achievable:** no persistence; additions/deletions live until app restart. No undo. No URL validation beyond non-empty.
+- **Relevant:** `cadence/modal` + `cadence/popover` + `cadence/toast` + `cadence/alert` composed in a realistic CRUD flow.
+- **Budget:** ~50 K. Depends on G5.2a (sidebar must exist for delete).
+
+#### G5.2e — Feedback writeup
+
+- [ ] **Done**
+- **Specific:** rewrite `FEEDBACK-G5.2.md` from the running notes left by G5.2a–d into the same four-section structured form defined in G5.1d (Bugs / Missing API / Awkward compositions / Ergonomics wins), with severity tags and remediation sketches.
+- **Measurable:** `FEEDBACK-G5.2.md` exists in repo root with all four section headings; every non-empty entry severity-tagged; every blocker and major carries a one-line remediation; empty sections are explicitly annotated.
+- **Achievable:** pure documentation goal; reads existing running notes; halts and surfaces process failure if notes absent.
+- **Relevant:** primary Phase 5 deliverable for G5.2.
+- **Budget:** ~20 K.
+
+### G5.3 ‖ — Coinviz watchlist editor (speculative)
+
+- [ ] **Done** *(done when G5.3a–G5.3d all checked)*
+- **Specific:** native desktop watchlist editor in a new top-level Go module `vibrantgio/watchlist/`. Coinviz today takes a single `-symbol` CLI flag and has no on-disk persistence — so this app is **speculative**: it designs a JSON watchlist format and produces watchlist files that a future coinviz multi-symbol feature would consume. The coinviz adoption is **out of scope for Phase 5** and is queued as a separate follow-on goal in a later phase. Split into G5.3a (format design + skeleton + watchlists sidebar), G5.3b (symbols table + edit modal), G5.3c (delete + bulk + tooltips + pagination), G5.3d (feedback writeup).
+- **Measurable:** all four sub-goals checked; `FEEDBACK-G5.3.md` exists in repo root; `WATCHLIST-FORMAT.md` exists in repo root capturing the file-format schema produced.
+- **Achievable:** parent tracking goal. No coinviz code changes in Phase 5. The app produces files on disk in a format we control; coinviz integration is a future-phase decision.
+- **Relevant:** pressure-tests the same data-heavy interaction patterns as G5.2d while exercising a real on-disk-format design loop. Plants the seed for a future coinviz multi-symbol enhancement.
+- **Budget:** ~50–70 K per sub-goal.
+
+#### G5.3a — Format design + app skeleton + watchlists sidebar
+
+- [ ] **Done**
+- **Specific:** new top-level Go module `vibrantgio/watchlist/` (joined to `go.work`). Before any UI: write `WATCHLIST-FORMAT.md` at repo root specifying the JSON file format — fields per symbol (Symbol, Exchange, Timeframe, Notes), file path convention (`~/Library/Application Support/vibrantgio/watchlists.json` on macOS, XDG path on Linux), top-level shape (named watchlists each containing an ordered symbol list), versioning field. Then `watchlist/main.go` opens a window via `prism/initial` + `spectrum` theme. Layout is `cadence/shell.Shell(SidebarHeaderMain)`: navbar with brand "Watchlist editor" + "New watchlist" action button (no-op for now); sidebar lists the watchlist names loaded from the on-disk file (or shows an empty-state message if the file is absent). Selecting a watchlist exposes its name in Main as placeholder. On first run, if no file exists, write a starter watchlist (`"default"` containing 3 example symbols — e.g., BTC/USD, ETH/USD, SOL/USD) so the app has data to display.
+- **Measurable:** `go build ./watchlist/...` green; `go test ./watchlist/...` green; running `go run ./watchlist/` opens a window with sidebar populated from the on-disk JSON; `WATCHLIST-FORMAT.md` exists and documents the schema completely enough that a coinviz adoption could implement against it; `FEEDBACK-G5.3.md` is created with first entries or the explicit line "no findings yet".
+- **Achievable:** read+display only — no editing yet. Persistence is read-on-startup; the starter file is written once if absent. Format design is small and pragmatic: a flat JSON document, not a database, not a binary blob.
+- **Relevant:** real file format + real persistence + first composition of `cadence/shell` + `cadence/sidebar` + `cadence/navbar` for this app.
+- **Budget:** ~60 K.
+
+#### G5.3b — Symbols table + edit modal
+
+- [ ] **Done**
+- **Specific:** Main slot renders a `cadence/table` of the selected watchlist's symbols (columns: Symbol, Exchange, Timeframe, Notes). Above the table, an "Add symbol" button opens a `cadence/modal` containing a form (`prism/input/textfield` per field + `prism/button` submit). Editing: row click or pencil icon → reopens the same modal pre-populated with the row's values. Save: mutates the in-memory watchlist and writes the full file back to disk atomically (write to temp + rename). Save success → `cadence/toast` "Saved". Empty-Symbol submit → `cadence/alert` at top of modal.
+- **Measurable:** `go test ./watchlist/...` green (golden of the modal in light + dark; small interaction test of save round-trip via a temp directory); running app: add-symbol flow persists across restart; edit-symbol flow persists across restart; alert fires on empty Symbol; toast confirms saves; findings appended to `FEEDBACK-G5.3.md`.
+- **Achievable:** persistence is full-file rewrite (no merge, no concurrency). One watchlist edited at a time. Form validation is non-empty Symbol only.
+- **Relevant:** `cadence/table` + `cadence/modal` + `cadence/alert` + `cadence/toast` + real disk write.
+- **Budget:** ~70 K. Depends on G5.3a.
+
+#### G5.3c — Delete + bulk + tooltips + pagination
+
+- [ ] **Done**
+- **Specific:** row-level delete via trash icon → `cadence/popover` confirm. Bulk: a checkbox column allows multi-select; a "Delete N" action in the navbar opens `cadence/popover` confirm with the selection count. Column header tooltips (`cadence/tooltip`) explain each column. Right-clicking a watchlist in the sidebar opens a `cadence/popover` with "Rename" / "Delete" entries (rename uses a small modal; delete confirms). `cadence/pagination` is added below the table if a watchlist has more than 25 symbols.
+- **Measurable:** `go test ./watchlist/...` green; running app: row delete confirms and persists; bulk delete confirms with count and persists; rename and delete watchlist flows persist; pagination renders only when needed; tooltips appear on hover; findings appended to `FEEDBACK-G5.3.md`.
+- **Achievable:** scoped to interaction surfaces. No undo/redo. No drag-reorder.
+- **Relevant:** `cadence/popover` + `cadence/tooltip` + `cadence/pagination` composed with persistence.
+- **Budget:** ~70 K. Depends on G5.3b.
+
+#### G5.3d — Feedback writeup
+
+- [ ] **Done**
+- **Specific:** rewrite `FEEDBACK-G5.3.md` from the running notes left by G5.3a–c into the same structured form defined in G5.1d (Bugs / Missing API / Awkward compositions / Ergonomics wins) with severity tags and remediation sketches. Add a final subsection **"Format-design notes for coinviz adoption"** capturing any format-design lessons relevant to a future coinviz multi-symbol feature (e.g., field naming, version migration considerations).
+- **Measurable:** `FEEDBACK-G5.3.md` exists in repo root with all four standard section headings plus the "Format-design notes for coinviz adoption" subsection; severity-tagged entries; blocker/major remediations; the format-design subsection is at least a paragraph (even if it just says "no surprises — straight read of `WATCHLIST-FORMAT.md` is sufficient").
+- **Achievable:** pure documentation.
+- **Relevant:** primary Phase 5 deliverable for G5.3; seeds the future coinviz multi-symbol feature.
+- **Budget:** ~20 K.
 
 ---
 
