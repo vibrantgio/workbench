@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.2c` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/tooltip/`: small hover/focus annotation with delay-driven show, hide on exit, and arbitration coordinated via `prism/coordination` so only one tooltip is visible at a time. Third of the four coordination-dependent patterns; G4.2a established focus-trap, G4.2b established placement and outside-click arbitration. Budget ~80 K).
+**Active goal:** `G4.2d` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/toast/`: position-anchored stack of queued notifications fed by a package-scoped `prism/coordination` `Subject[Toast]`; per-toast `Lifetime` auto-dismiss with `pulse/tween` fade near end of lifetime. Last of the four coordination-dependent patterns; G4.2a–c established focus-trap, placement+outside-click arbitration, and hover-delay arbitration respectively. Budget ~80 K).
 
 ---
 

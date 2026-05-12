@@ -651,7 +651,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.2c — `cadence/tooltip/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/tooltip/` package exposing `Tooltip(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Text string`, `Trigger layout.Widget`, an optional `Delay time.Duration` (default 500 ms before show after hover/focus entry), and `Placement` (`Top`, `Bottom`, `Left`, `Right`). Uses `prism/coordination` `Subject` for arbitration so only one tooltip is visible across the window at a time — showing a new tooltip cancels the previous.
 - **Measurable:** golden-image tests `light-shown-top`, `dark-shown-bottom`; interaction tests that prove (a) hover entry after `Delay` shows the tooltip, (b) hover exit hides it, (c) a second tooltip becoming active hides the first; `go test ./cadence/tooltip/...` green.
 - **Achievable:** one package; reuses gesture hover/focus primitives already used by `prism/button`; coordination subject for arbitration. Keyboard-focus-driven show is in scope; touch long-press is not.
