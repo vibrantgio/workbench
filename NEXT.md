@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.3c` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/tabs/`: horizontal tab strip with `Tabs []Tab` (`Label`, `Content`), `rx.Observable[int]` `Selected`, and `OnSelect`. Selected tab underlined in `Primary`; selected `Content` rendered below the strip. Goldens for `light-three-tabs-first-selected`, `dark-three-tabs-second-selected`, `light-single-tab`; interaction test for Arrow-Left/Right wrapping selection and Home/End jumps, with focus following selection per WAI-ARIA tab pattern. Third of five `G4.3a–e` navigation packages; siblings independent except `G4.3e` (shell) which composes navbar+sidebar. Budget ~80 K).
+**Active goal:** `G4.3d` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/accordion/`: collapsible section groups with `Sections []Section` (`Title`, `Body`), `rx.Observable[map[int]bool]` `Open`, `OnToggle`, and `SingleOpen bool`. Each section renders as a header row with a chevron rotated per open state, followed by the body when open. Goldens for `light-three-sections-first-open`, `dark-three-sections-all-closed`, `light-single-open-mode`; interaction test for Arrow-Up/Down focus traversal, Enter/Space toggling, and `SingleOpen=true` collapsing prior sections. Fourth of five `G4.3a–e` navigation packages; siblings independent except `G4.3e` (shell) which composes navbar+sidebar. Budget ~80 K).
 
 ---
 

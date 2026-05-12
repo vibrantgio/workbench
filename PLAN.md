@@ -696,7 +696,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.3c — `cadence/tabs/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/tabs/` package exposing `Tabs(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Tabs []Tab` (each with `Label string`, `Content layout.Widget`), `Selected rx.Observable[int]`, and `OnSelect func(idx int)`. Visual is a horizontal tab strip with the selected tab underlined in `Primary`, followed by the selected tab's `Content` rendered below.
 - **Measurable:** golden-image tests `light-three-tabs-first-selected`, `dark-three-tabs-second-selected`, `light-single-tab`; interaction test that proves Arrow-Left/Arrow-Right move selection between tabs (wrapping at the ends) and Home/End jump to first/last, with focus following selection per the WAI-ARIA tab pattern; `go test ./cadence/tabs/...` green.
 - **Achievable:** one package; reuses `prism/button` for tab labels. No vertical tab orientation, no scrollable overflow when tab count exceeds available width — both deferred.
