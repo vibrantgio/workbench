@@ -245,14 +245,14 @@ The numbers below are **aspirational targets pending baseline measurement.** A P
 - **Frame budget:** 16.6 ms target (60 FPS), 8.3 ms ceiling for layout work alone (leaving headroom for paint and present).
 - **Allocation policy in the hot path:** zero allocations per frame inside widget closures, except where Gio's API requires them. Pre-allocate paths, slices, ops buffers in `Defer` scope.
 - **Layer recomputation cost:** a layer's `Map` closure runs on every emission of its inputs. Expensive transformations (e.g., re-laying-out 16 panes) should be memoised inside the `Defer` scope and re-run only when meaningful inputs change.
-- **Profiling:** every Prism component ships with a benchmark in `*_bench_test.go` that exercises `widget(gtx)` for 1000 frames; CI rejects regressions > 5%.
+- **Profiling:** every Prism component ships with a benchmark in `*_bench_test.go` that exercises `widget(gtx)` for 1000 frames; regression checks are run locally via `go test -bench` against the numbers stored in `BASELINE.md` (no CI gate — this is a solo-dev project).
 
 ### Methodology
 
 - **Reference platform:** define one (likely current Apple Silicon macOS — coinviz's primary host) as the baseline. Cross-platform regression numbers are reported relative to it.
 - **Baseline measurement:** before Prism work begins, capture per-pane `widget(gtx)` cost and allocation counts in coinviz under representative load (one symbol, 1h candles, all 16 panes visible, mouse moving). Numbers anchor every later comparison.
 - **Benchmark harness:** a shared `prism/bench/` package providing a `BenchFrame(b, widget)` helper that drives `widget(gtx)` with synthesized constraints, captures `b.ReportAllocs()`, and standardises measurement across components.
-- **CI gates:** the >5% regression rule applies per-component to wall-clock and to `B/op`; the harness is responsible for both.
+- **Regression checks:** the >5% rule applies per-component to wall-clock and to `B/op`; the harness is responsible for measuring both. Run locally via `go test -bench` and compared by hand against `BASELINE.md`. No CI gate.
 
 ---
 

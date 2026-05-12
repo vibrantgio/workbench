@@ -780,22 +780,11 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 ### GX.1 ‖ — Per-component benchmark in `prism/bench/`
 
 - [ ] **Done**
-- **Specific:** `BenchFrame(b, widget)` helper per DESIGN §"Performance — Methodology — Benchmark harness".
-- **Measurable:** at least three Phase 1 components plug into it; CI rejects >5 % regression.
+- **Specific:** `prism/bench/` package exposing `BenchFrame(b *testing.B, widget layout.Widget)` per DESIGN §"Performance — Methodology — Benchmark harness". The helper drives `widget(gtx)` with synthesized constraints, calls `b.ReportAllocs()`, and standardises measurement across components. Three Phase 1 components plug into the harness via their own `*_bench_test.go` files: `prism/button` (idle render), `prism/input/textfield` (cursor-blinking frame), `prism/list` (1000-row render). Current numbers (ns/op, B/op) for each are captured in `BASELINE.md` under a new "Phase 1 component baseline" heading.
+- **Measurable:** `go test -bench=. ./prism/bench/... ./prism/button/... ./prism/input/textfield/... ./prism/list/...` green; `BASELINE.md` contains a "Phase 1 component baseline" section with one ns/op + B/op row per named component.
+- **Achievable:** the harness + three component benchmarks + baseline doc. No CI gate, no PR automation — regression detection is a manual `go test -bench` re-run by the developer when the relevant code changes. Solo-dev project.
+- **Relevant:** DESIGN §"Performance — Methodology".
 - **Budget:** ~70 K.
-
-### GX.2 ‖ — Documentation: `MIGRATION.md`, `BASELINE.md`, `DECISIONS.md`, `EXPERIMENT-{A,B,C}.md`
-
-- [ ] **Done**
-- These are produced as artefacts of the goals above; this entry exists to make sure no goal closes without writing the relevant doc.
-
-### GX.3 — Pin and review `reactivego/rx` version on every upgrade
-
-- [ ] **Done**
-- **Specific:** add a CI check that fails if `go.mod`'s `reactivego/rx` version changes without a corresponding diff in DESIGN §"3. The `WithLatestFrom2` Frame Synchronisation Model".
-- **Measurable:** CI script exists and triggers on the synthetic test PR.
-- **Relevant:** DESIGN §"`reactivego/rx` semantic coupling".
-- **Budget:** ~30 K.
 
 ### GX.4 ‖ — Touch-up: `cadence/modal` close affordance uses `prism/button`
 
