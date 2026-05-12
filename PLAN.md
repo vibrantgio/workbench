@@ -705,7 +705,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.3d — `cadence/accordion/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/accordion/` package exposing `Accordion(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Sections []Section` (each with `Title string`, `Body layout.Widget`), `Open rx.Observable[map[int]bool]`, `OnToggle func(idx int)`, and `SingleOpen bool` (when true, opening one section closes the others). Each section renders as a header row with a chevron rotated per open state, followed by the body when open.
 - **Measurable:** golden-image tests `light-three-sections-first-open`, `dark-three-sections-all-closed`, `light-single-open-mode`; interaction test that proves Arrow-Up/Arrow-Down move focus between section headers, Enter/Space toggles the focused section, and `SingleOpen=true` collapses prior sections when a new one opens; `go test ./cadence/accordion/...` green.
 - **Achievable:** one package; reuses `prism/button` for header rows. Open/close is instantaneous; height-animated expand is deferred to a Pulse-integration goal.
