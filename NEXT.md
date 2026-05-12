@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.5d` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/testimonial/` — Single/Grid testimonial cards with quote glyph, body, and author block; golden tests per layout state).
+**Active goal:** `G5.1a` in [PLAN.md](./PLAN.md) (Phase 5 — Example apps: new top-level Go module `vibrantgio/sitedocs/` bootstrapping a window via `prism/initial`, wiring `spectrum` theme, and rendering `cadence/shell.Shell` with placeholder navbar, sidebar, and Main).
 
 ---
 

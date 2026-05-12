@@ -731,7 +731,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.5 ‖ — Marketing sections
 
-- [ ] **Done** *(done when G4.5a–G4.5d all checked)*
+- [x] **Done** *(done when G4.5a–G4.5d all checked)*
 - **Specific:** four marketing-section pattern packages split into G4.5a (hero), G4.5b (pricing), G4.5c (feature), G4.5d (testimonial); one session each. Pure layout composition — no coordination primitive, no focus arbitration, no per-row state — for app landing and onboarding pages. No inter-sub-goal dependencies; ordered alphabetically.
 - **Measurable:** all four sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G4.5a–G4.5d.
@@ -767,7 +767,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.5d — `cadence/testimonial/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/testimonial/` package exposing `Testimonial(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props.Variant` (`Single` or `Grid`) selects between a single-card centered layout and a horizontal row of cards; `Props.Items []Item` where `Item struct { Quote string; AuthorName string; AuthorRole string; AuthorAvatar layout.Widget }` (`AuthorAvatar` may be nil — when nil, an `Outline`-bordered circular placeholder with the first letter of `AuthorName` is rendered). Visual: each card is a rounded `Surface` with `Outline` border, `S5` padding — opening quotation glyph (rendered from `clip.Path`) in `Primary` at the top-leading edge, the quote body in body-large typography (`OnSurface`), then a horizontal author block (avatar, then name in `OnSurface` and role in `OnSurfaceVariant` stacked). `Single` variant uses one card centered with `S6` margin; `Grid` lays cards in a horizontal row with `S4` gap.
 - **Measurable:** golden-image tests `light-single`, `dark-single`, `light-grid-three`, `dark-grid-three`; `go test ./cadence/testimonial/...` green; copy-paste-friendly source per DESIGN §"Phase 4 — Composition contract".
 - **Achievable:** one package; pure layout composition — no interaction, no rx.Defer state. Quote glyph rendered from `clip.Path` (no `prism/icon` dependency). No responsive collapse from grid to vertical stack — that responsive behaviour is deferred.
