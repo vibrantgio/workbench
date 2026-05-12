@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.4` in [PLAN.md](./PLAN.md) (Phase 4 — Table and pagination: sortable, filterable, virtualised table consuming `prism/list` + `KeyedDefer` (if adopted) for per-row state. Measurable is a benchmark proving O(visible-rows) cost on a 10 000-row dataset. Budget ~95 K — **Split** core / virtualisation / sort+filter if needed).
+**Active goal:** `G4.3` in [PLAN.md](./PLAN.md) (Phase 4 — Navigation tracking goal: close the parent `‖` checkbox now that all five sub-goals G4.3a–G4.3e are ticked. Use `mdedit toggle -s "G4.3" --scope flat PLAN.md` to toggle the parent's own checkbox only).
 
 ---
 

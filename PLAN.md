@@ -723,7 +723,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.4 — Table and pagination
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** sortable, filterable, virtualised table consuming `prism/list` + `KeyedDefer` (if adopted) for per-row state.
 - **Measurable:** benchmark proves O(visible-rows) cost on 10 000-row dataset.
 - **Budget:** ~95 K. **Split** core / virtualisation / sort+filter if needed.
