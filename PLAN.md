@@ -579,7 +579,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.1 ‖ — Static patterns: card, alert, breadcrumb, pagination
 
-- [ ] **Done** *(done when G4.1a–G4.1d all checked)*
+- [x] **Done** *(done when G4.1a–G4.1d all checked)*
 - **Specific:** four static-content pattern packages split into G4.1a (card), G4.1b (alert), G4.1c (breadcrumb), G4.1d (pagination); one session each. "Static" = no coordination primitive (no popover/modal/toast); content layout only, composed from Prism primitives.
 - **Measurable:** all four sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G4.1a–G4.1d.

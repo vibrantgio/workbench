@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.1` in [PLAN.md](./PLAN.md) (Phase 4 — parent tracking goal for the four static patterns: card, alert, breadcrumb, pagination. Measurable is that all four sub-goals are `[x]`. With G4.1d now ticked, this milestone's only deliverable is to toggle the parent checkbox via `mdedit toggle -s "G4.1" --scope flat` and advance the cursor to G4.2).
+**Active goal:** `G4.2` in [PLAN.md](./PLAN.md) (Phase 4 — Patterns depending on coordination primitive: modal, popover, tooltip, toast. Gated by G1.7 (done). One goal per pattern; modal must prove focus trap + escape handling. Budget ~80 K each, so this is itself a tracking parent — split into G4.2a–d before implementation, or pick the first sub-pattern and propose a split).
 
 ---
 
