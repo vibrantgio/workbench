@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.2b` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/popover/`: anchored floating content with placement-aware positioning and outside-click dismissal coordinated via `prism/coordination`. Second of the four coordination-dependent patterns; G4.2a established the focus-trap precedent so popover can focus on positioning and arbitration. Budget ~80 K).
+**Active goal:** `G4.2c` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/tooltip/`: small hover/focus annotation with delay-driven show, hide on exit, and arbitration coordinated via `prism/coordination` so only one tooltip is visible at a time. Third of the four coordination-dependent patterns; G4.2a established focus-trap, G4.2b established placement and outside-click arbitration. Budget ~80 K).
 
 ---
 

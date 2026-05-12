@@ -642,7 +642,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.2b — `cadence/popover/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/popover/` package exposing `Popover(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Open rx.Observable[bool]`, `Anchor layout.Widget`, `Content layout.Widget`, `Placement` (`Top`, `Bottom`, `Left`, `Right`), and `OnDismiss func()`. Visual: anchored elevated `Surface` with rounded corners positioned adjacent to the anchor per `Placement`, with a small triangular tail glyph pointing at the anchor. Uses `prism/coordination` `Subject` to coordinate outside-click dismissal so opening a second popover dismisses the first.
 - **Measurable:** golden-image tests for each placement × {light, dark} producing at least `top-light`, `bottom-light`, `left-dark`, `right-dark`; interaction test that a pointer click outside the popover bounds invokes `OnDismiss`; `go test ./cadence/popover/...` green.
 - **Achievable:** one package; positioning math relative to the anchor's last-recorded layout rect; coordination subject scoped to a popover-arbitration channel. No collision-aware reflow (i.e., no automatic flip when the placement would clip the viewport) — that is deferred.
