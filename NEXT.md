@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.1d` in [PLAN.md](./PLAN.md) (Phase 4 — Cadence: `cadence/pagination/` — horizontal row of numbered page buttons with prev/next chevrons; `Pagination(th, props) rx.Observable[layout.Widget]` plus static `Render`. `Props{Page, PageCount, OnSelect}`. Current page highlighted via `Primary`/`OnPrimary`. Goldens `light-page-1-of-5`, `light-page-3-of-5`, `dark-page-3-of-5`).
+**Active goal:** `G4.1` in [PLAN.md](./PLAN.md) (Phase 4 — parent tracking goal for the four static patterns: card, alert, breadcrumb, pagination. Measurable is that all four sub-goals are `[x]`. With G4.1d now ticked, this milestone's only deliverable is to toggle the parent checkbox via `mdedit toggle -s "G4.1" --scope flat` and advance the cursor to G4.2).
 
 ---
 

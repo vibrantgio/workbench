@@ -615,7 +615,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G4.1d — `cadence/pagination/`
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `cadence/pagination/` package exposing `Pagination(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Page int`, `PageCount int`, `OnSelect func(page int)`. Visual is a horizontal row of numbered page buttons with prev/next chevrons; current page highlighted via `Primary`/`OnPrimary` tokens.
 - **Measurable:** golden-image tests `light-page-1-of-5`, `light-page-3-of-5`, `dark-page-3-of-5`; `go test ./cadence/pagination/...` green.
 - **Achievable:** one package; reuses `prism/button` for the page buttons. No virtualisation, no ellipsis collapse — that is deferred to G4.4 (table + pagination at scale).
