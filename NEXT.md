@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G4.2` in [PLAN.md](./PLAN.md) (Phase 4 — Patterns depending on coordination primitive: modal, popover, tooltip, toast. Gated by G1.7 (done). One goal per pattern; modal must prove focus trap + escape handling. Budget ~80 K each, so this is itself a tracking parent — split into G4.2a–d before implementation, or pick the first sub-pattern and propose a split).
+**Active goal:** `G4.2a` in [PLAN.md](./PLAN.md) (Phase 4 — `cadence/modal/`: dialog with backdrop, focus trap, escape handling. First of the four coordination-dependent patterns; modal is sequenced first because focus trap + escape handling is the hardest interaction proof and de-risks G4.2b–d. Budget ~80 K).
 
 ---
 

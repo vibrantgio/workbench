@@ -624,10 +624,48 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.2 ‖ — Patterns depending on coordination primitive: modal, popover, tooltip, toast
 
+- [ ] **Done** *(done when G4.2a–G4.2d all checked)*
+- **Specific:** four coordination-dependent pattern packages split into G4.2a (modal), G4.2b (popover), G4.2c (tooltip), G4.2d (toast); one session each. All depend on `prism/coordination/` (G1.7) for cross-widget arbitration (focus, dismissal, single-active). Modal is sequenced first because its acceptance criterion (focus trap + escape handling) is the hardest interaction proof and de-risks the remaining three.
+- **Measurable:** all four sub-goals checked.
+- **Achievable:** parent tracking goal; implementation across G4.2a–G4.2d.
+- **Relevant:** DESIGN §"Phase 4 — Cadence (pattern library)" — Composition contract; §"Coordination ceiling".
+- **Budget:** ~80 K per sub-goal.
+
+#### G4.2a — `cadence/modal/`
+
 - [ ] **Done**
-- **Specific:** one goal per pattern. Gated by G1.7.
-- **Measurable:** golden + interaction tests; modal proves focus trap + escape handling.
-- **Budget:** ~80 K each.
+- **Specific:** `cadence/modal/` package exposing `Modal(th rx.Observable[theme.Theme], props Props) rx.Observable[layout.Widget]` plus a static `Render(...) layout.Widget` for golden testing. `Props` carries `Open rx.Observable[bool]`, `Title string`, `Body layout.Widget`, `OnClose func()`, and optional `Actions []layout.Widget` (footer button row, any may be nil). Visual: full-window scrim backdrop, centered elevated `Surface` with rounded corners, header row (title + close affordance), padded body, and footer action row. Uses `prism/coordination` `Subject` for modal-stack depth so nested modals layer correctly and only the topmost receives keyboard focus.
+- **Measurable:** golden-image tests `light-open`, `dark-open`, `light-closed` (renders nothing), `light-with-actions`; interaction tests that prove (a) escape key invokes `OnClose`, (b) tab cycles focus within the modal and does not escape to background content, (c) backdrop click invokes `OnClose`; `go test ./cadence/modal/...` green.
+- **Achievable:** one package; reuses `prism/button` for header close + footer actions, `prism/coordination` for stack depth. No animation in this goal — open/close is instantaneous; entrance/exit transitions are deferred to a later Pulse-integration goal.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`modal/ — dialog with backdrop, focus trap, escape handling`); §"Coordination ceiling".
+- **Budget:** ~80 K. No dependency on G4.2b–d.
+
+#### G4.2b — `cadence/popover/`
+
+- [ ] **Done**
+- **Specific:** `cadence/popover/` package exposing `Popover(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Open rx.Observable[bool]`, `Anchor layout.Widget`, `Content layout.Widget`, `Placement` (`Top`, `Bottom`, `Left`, `Right`), and `OnDismiss func()`. Visual: anchored elevated `Surface` with rounded corners positioned adjacent to the anchor per `Placement`, with a small triangular tail glyph pointing at the anchor. Uses `prism/coordination` `Subject` to coordinate outside-click dismissal so opening a second popover dismisses the first.
+- **Measurable:** golden-image tests for each placement × {light, dark} producing at least `top-light`, `bottom-light`, `left-dark`, `right-dark`; interaction test that a pointer click outside the popover bounds invokes `OnDismiss`; `go test ./cadence/popover/...` green.
+- **Achievable:** one package; positioning math relative to the anchor's last-recorded layout rect; coordination subject scoped to a popover-arbitration channel. No collision-aware reflow (i.e., no automatic flip when the placement would clip the viewport) — that is deferred.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`popover/ — anchored floating content`); §"Coordination ceiling".
+- **Budget:** ~80 K. No dependency on sibling sub-goals.
+
+#### G4.2c — `cadence/tooltip/`
+
+- [ ] **Done**
+- **Specific:** `cadence/tooltip/` package exposing `Tooltip(th, props) rx.Observable[layout.Widget]` plus a static `Render`. `Props` carries `Text string`, `Trigger layout.Widget`, an optional `Delay time.Duration` (default 500 ms before show after hover/focus entry), and `Placement` (`Top`, `Bottom`, `Left`, `Right`). Uses `prism/coordination` `Subject` for arbitration so only one tooltip is visible across the window at a time — showing a new tooltip cancels the previous.
+- **Measurable:** golden-image tests `light-shown-top`, `dark-shown-bottom`; interaction tests that prove (a) hover entry after `Delay` shows the tooltip, (b) hover exit hides it, (c) a second tooltip becoming active hides the first; `go test ./cadence/tooltip/...` green.
+- **Achievable:** one package; reuses gesture hover/focus primitives already used by `prism/button`; coordination subject for arbitration. Keyboard-focus-driven show is in scope; touch long-press is not.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`tooltip/ — small hover/focus annotations`); §"Coordination ceiling".
+- **Budget:** ~80 K. No dependency on sibling sub-goals.
+
+#### G4.2d — `cadence/toast/`
+
+- [ ] **Done**
+- **Specific:** `cadence/toast/` package exposing `Stack(th, props) rx.Observable[layout.Widget]` rendering a positioned column of queued toasts, plus a `Notify(level, text)` entry point that emits a `Toast` value onto a package-scoped `prism/coordination` `Subject[Toast]`. `Props` carries `Position` (one of `TopRight`, `BottomRight`, `TopLeft`, `BottomLeft`), `Lifetime time.Duration` (default 4 s before auto-dismiss). Each toast renders as a tinted `Surface` (variant per level: info/success/warning/error) with text and an optional dismiss affordance.
+- **Measurable:** golden-image tests `light-empty`, `light-three-stacked`, `dark-warning-toast`; interaction test that `Notify` adds a toast to the stack and the stack length returns to its prior value after `Lifetime` elapses; `go test ./cadence/toast/...` green.
+- **Achievable:** one package; reuses `prism/coordination.Subject` for the queue and `pulse/tween` for fade-out near end of lifetime. Stack ordering is FIFO with newest nearest the position-anchored edge; no overflow collapse.
+- **Relevant:** DESIGN §"Phase 4 — Cadence" (`toast/ — transient notification stack`); §"Coordination ceiling".
+- **Budget:** ~80 K. No dependency on sibling sub-goals.
 
 ### G4.3 ‖ — Navigation: navbar, sidebar, shell, tabs, accordion
 
