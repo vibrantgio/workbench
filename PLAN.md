@@ -797,7 +797,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G5.1a — App skeleton + shell
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** new top-level Go module `vibrantgio/sitedocs/` (joined to `go.work`). `sitedocs/main.go` bootstraps a window via `prism/initial`, wires `spectrum` theme (light/dark auto), and renders `cadence/shell.Shell(SidebarHeaderMain)` with: navbar carrying brand "VibrantGIO" and three placeholder navigation links ("Home", "Docs", "About"); sidebar with two collapsible placeholder sections; Main showing placeholder text. A `currentPage rx.Subject[string]` (values `"home" | "docs"`) is wired through; only the placeholder text consumes it.
 - **Measurable:** `go build ./sitedocs/...` green; `go test ./sitedocs/...` green (smoke test that constructs the root widget without panic); running `go run ./sitedocs/` opens a 1200×800 window with sidebar + navbar + placeholder Main visible in both light and dark themes; `FEEDBACK-G5.1.md` is created with first entries or the explicit line "no findings yet".
 - **Achievable:** skeleton only. No content beyond placeholder text. Routing is the absolute minimum (one subject, two values). No persistence, no IPC, no networking. CTAs may be `func(){}` no-ops.

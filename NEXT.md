@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G5.1a` in [PLAN.md](./PLAN.md) (Phase 5 — Example apps: new top-level Go module `vibrantgio/sitedocs/` bootstrapping a window via `prism/initial`, wiring `spectrum` theme, and rendering `cadence/shell.Shell` with placeholder navbar, sidebar, and Main).
+**Active goal:** `G5.1b` in [PLAN.md](./PLAN.md) (Phase 5 — Example apps: `sitedocs/landing.go` renders the Home page composed of `cadence/hero`, `cadence/feature`, `cadence/pricing`, and `cadence/testimonial` wired with real content; copy lives in `sitedocs/landing_content.go`).
 
 ---
 
