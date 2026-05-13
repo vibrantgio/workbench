@@ -842,7 +842,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G5.2a — App skeleton + feeds sidebar
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** new top-level Go module `vibrantgio/feeds/` (joined to `go.work`). `feeds/main.go` opens a window via `prism/initial` + `spectrum` theme. Layout is `cadence/shell.Shell(SidebarHeaderMain)`: navbar with brand "Feeds" and trailing "Add feed" action button (no-op for now); sidebar renders a `cadence/accordion` of feed groups (Tech / News / Personal — hard-coded) with feed names beneath each group. Main slot is placeholder text reading the currently-selected feed name. A `selectedFeed rx.Subject[FeedID]` drives selection.
 - **Measurable:** `go build ./feeds/...` green; `go test ./feeds/...` green (smoke test); running `go run ./feeds/` opens a window with sidebar populated from hard-coded data in `feeds/fixtures.go`; clicking a feed updates the placeholder Main; `FEEDBACK-G5.2.md` is created with first entries or the explicit line "no findings yet".
 - **Achievable:** no fetching, no parsing, no persistence. Hard-coded data in `feeds/fixtures.go`. Selection is wired but no consumer beyond the placeholder.

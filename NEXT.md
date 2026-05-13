@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G5.2a` in [PLAN.md](./PLAN.md) (Phase 5 — RSS app skeleton: new `vibrantgio/feeds/` module; `cadence/shell.Shell(SidebarHeaderMain)` with navbar + accordion-grouped feeds sidebar + placeholder main; `selectedFeed` rx.Subject drives selection; `FEEDBACK-G5.2.md` created).
+**Active goal:** `G5.2b` in [PLAN.md](./PLAN.md) (Phase 5 — Articles table: `feeds/articles.go` adds `cadence/table` + `prism/input` filter + `cadence/pagination` to the Main slot; hard-coded ≥80 article fixtures; sort/filter/pagination wired; `selectedArticle rx.Subject[ArticleID]` emitted on row click).
 
 ---
 
