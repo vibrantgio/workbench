@@ -847,7 +847,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - **Measurable:** `go build ./feeds/...` green; `go test ./feeds/...` green (smoke test); running `go run ./feeds/` opens a window with sidebar populated from hard-coded data in `feeds/fixtures.go`; clicking a feed updates the placeholder Main; `FEEDBACK-G5.2.md` is created with first entries or the explicit line "no findings yet".
 - **Achievable:** no fetching, no parsing, no persistence. Hard-coded data in `feeds/fixtures.go`. Selection is wired but no consumer beyond the placeholder.
 - **Relevant:** first composition of `cadence/shell` + `cadence/sidebar` + `cadence/accordion` + `cadence/navbar` outside the docs site.
-- **Budget:** ~60 K.
+- **Budget:** ~60 K. Depends on GX.7 (so the accordion-grouped sidebar can be slotted into `cadence/shell.Shell` directly rather than re-implementing `composeSidebarHeaderMain` locally as G5.1c had to).
 
 #### G5.2b — Articles table
 
@@ -1005,6 +1005,15 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - **Achievable:** mechanical; same shape as GX.6a. Smallest of the four — natural starter sub-goal to validate the migration recipe before tackling the larger repos.
 - **Relevant:** parent GX.6. Recommended to run first as a low-risk dress rehearsal.
 - **Budget:** ~35 K. 4 sub-packages, no intra-repo `replace` chains, modest test surface — the cheapest validation pass for the consolidation recipe.
+
+### GX.7 ‖ — Touch-up: `cadence/shell.Props.Sidebar` accepts a caller-built sidebar widget
+
+- [ ] **Done**
+- **Specific:** Generalise `cadence/shell.Props.Sidebar` so callers can pass a pre-built sidebar widget (e.g., a `cadence/accordion`-grouped sidebar) into `shell.Shell` without bypassing it and re-implementing `composeSidebarHeaderMain` locally — the workaround used by `sitedocs/main.go` (`docsShellLayer` + local `composeSidebarHeaderMain` copy) and the latent blocker for G5.2a. Concretely: change the `Shell()` observable path so `Props.Sidebar` accepts an `rx.Observable[layout.Widget]` rather than `sidebar.Props`, and refactor the static `Render()` path to take a pre-built `layout.Widget` for the sidebar slot (extra parameter, or a sibling `RenderStatic` helper — pick whichever keeps the static call sites smallest). Callers using the default sidebar do the wrapping themselves with one line: `sb := sidebar.Sidebar(th, sidebarProps)`. Migrate `sitedocs/main.go` off its local `composeSidebarHeaderMain` to consume `shell.Shell` directly. Update the package doc to reflect the new slot shape.
+- **Measurable:** `go test ./cadence/shell/... ./sitedocs/...` green; `grep -n 'composeSidebarHeaderMain' sitedocs/` returns no matches; `grep -n 'shell.Shell(' sitedocs/main.go` returns at least one match; a new test in `cadence/shell/` confirms a custom (non-default) sidebar widget stream is rendered by `Shell()` and its op-stream order matches the default-sidebar path (sidebar → navbar → main, so Tab focus traversal is preserved).
+- **Achievable:** scoped to (1) widening `shell.Props.Sidebar` + adjusting `Render()`, (2) one new shell test for the custom-sidebar path, (3) migrating `sitedocs/main.go` off its local helper. Out of scope: widening `Props.Navbar` analogously (defer until a caller actually needs a custom navbar), touching `SplitPane` (its `Left`/`Right` slots are already `layout.Widget`), refactoring focus-traversal ordering, refreshing sitedocs goldens unless the migration changes pixel output.
+- **Relevant:** `FEEDBACK-G5.1.md` "[Blocker] `shell.Props.Sidebar` is typed as `sidebar.Props`, not `layout.Widget`" — surfaced by G5.1c, persisted as the local workaround at `sitedocs/main.go:160–183`. Unblocks G5.2a (and any later `cadence/shell` consumer needing a non-default sidebar — G5.3a is the next likely caller).
+- **Budget:** ~35 K. Depends on nothing; unblocks G5.2a.
 
 ---
 

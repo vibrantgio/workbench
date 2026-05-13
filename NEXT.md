@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G5.2a` in [PLAN.md](./PLAN.md) (Phase 5 — App skeleton + feeds sidebar for `vibrantgio/feeds/`: window via `prism/initial` + `spectrum` theme, `cadence/shell.Shell(SidebarHeaderMain)` with navbar + `cadence/accordion` feed groups, hard-coded fixtures, `selectedFeed rx.Subject[FeedID]` driving a placeholder Main).
+**Active goal:** `GX.7` in [PLAN.md](./PLAN.md) (Cross-cutting touch-up — widen `cadence/shell.Props.Sidebar` so callers can pass a pre-built sidebar widget into `shell.Shell` without bypassing it; migrate `sitedocs/main.go` off its local `composeSidebarHeaderMain` copy. Unblocks G5.2a, which would otherwise hit the same wall G5.1c worked around).
 
 ---
 
