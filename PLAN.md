@@ -851,7 +851,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 #### G5.2b — Articles table
 
-- [ ] **Done**
+- [x] **Done**
 - **Specific:** `feeds/articles.go` adds a `cadence/table` to the Main slot showing the selected feed's article rows (columns: Title, Author, Published, Unread). Above the table sits a `prism/input/textfield` filter input. The table supports sort by Published or Title (header click), free-text filter on the input value, and `cadence/pagination` below the table (10 rows per page). Hard-coded fixtures contain ≥80 article rows distributed across feeds. Clicking a row emits `selectedArticle rx.Subject[ArticleID]` (consumed by G5.2c).
 - **Measurable:** `go test ./feeds/...` green (includes a golden of one feed's table state in light + dark); running app: selecting a feed filters the table to that feed; sort, filter, pagination behaviours visibly correct; `FEEDBACK-G5.2.md` gets any new findings.
 - **Achievable:** data in-memory; no persistence of read state across runs.

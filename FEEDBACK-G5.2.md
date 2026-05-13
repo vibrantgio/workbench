@@ -53,6 +53,117 @@ copy-pasted unchanged. This is the same issue logged as a major in G5.1
 caller"). Extracting `accordion.NewController` would eliminate the copy for
 both callers.
 
+#### [Major] `pagination.Props.Page` / `PageCount` are static ints, not observables — every page change re-subscribes (G5.2b)
+
+`cadence/pagination.Props` declares `Page int` and `PageCount int`. Both are
+captured by value inside the `rx.Defer` body and the `rx.Map` projector, so
+the emitted widget closures permanently bind whatever values were passed at
+construction time. There is no in-band way to advance the page after that.
+
+The feeds composition works around this by re-constructing the entire
+Pagination observable on every page or pageCount change:
+
+```go
+paginationWidgetObs := rx.SwitchMap(
+    rx.CombineLatest2(pageObs, pageCountObs),
+    func(t rx.Tuple2[int, int]) rx.Observable[layout.Widget] {
+        return pagination.Pagination(th, pagination.Props{
+            Page: t.First, PageCount: t.Second,
+            OnSelect: func(p int) { pageSend.Next(p) },
+            Shaper:   shaper,
+        })
+    },
+)
+```
+
+Each click forces a fresh subscription, a fresh `widget.Clickable` slice, and
+a fresh shaper-defaulting branch in the `rx.Defer` body. The user just clicked
+something so no pending events are lost in practice, but the cost-per-click is
+real, the API is inconsistent with `cadence/table.Props.Sort`
+(`rx.Observable[Sort]`), and the workaround pattern is non-obvious.
+
+**Remediation:** make `pagination.Props.Page` and `PageCount` accept
+`rx.Observable[int]` (or accept a single `rx.Observable[pagination.State]`).
+Combine them with the theme observable inside `Pagination` so the inner
+closures observe their latest values without re-subscription.
+
+#### [Major] `cadence/table` has no row-click affordance; click must be smuggled into one cell (G5.2b)
+
+`table.Column[T].Cell` produces a `layout.Widget` per cell — there is no
+per-row hook, no `OnRowClick`, and no `Selected` highlight state. The feeds
+articles table satisfies "clicking a row emits `selectedArticle`" by wiring
+a `widget.Clickable` only inside the Title column's Cell closure and keying it
+by `ArticleID` via `keyed.Defer`:
+
+```go
+titleCell := func(a article) layout.Widget {
+    click := rowClicks.For(a.ID)
+    body := table.RenderTextCell(shaper, *colorPtr.Load(), *typePtr.Load(), a.Title)
+    return func(gtx layout.Context) layout.Dimensions {
+        if click.Clicked(gtx) { selectArticle.Next(a.ID) }
+        return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+            // …
+            return body(gtx)
+        })
+    }
+}
+```
+
+This means only the Title column is actually clickable — clicks in Author /
+Published / Unread cells are inert. A real "select-row" UX needs the click on
+the whole row (and visual feedback). Replicating that today requires either
+duplicating the same `widget.Clickable` across every column's Cell (which Gio
+forbids — one `Clickable.Layout` per frame) or building a parallel row-level
+pointer-event layer outside the table.
+
+**Remediation:** extend `table.Props[T]` with `OnRowClick func(item T)` and
+optionally `Selected rx.Observable[K]` for highlight state. The table can
+register a per-row hit area inside its `drawRow` once it knows the row exists,
+which is information the consumer cannot reconstruct from the Cell-level API.
+
+#### [Major] `table.RenderTextCell` requires colour/type tokens at construction, forcing atomic-pointer mirrors in the consumer (G5.2b)
+
+`table.RenderTextCell(shaper, colors, typeScale, s)` takes tokens by value.
+Inside a reactive composition the Cell closures (built once, called on every
+emission) live outside any `rx.Defer` scope and outside the table's own
+`rx.Defer`. To honour theme switching they have to read current colours and
+typography on every frame — which means the consumer keeps two
+`atomic.Pointer` mirrors and subscribes `theme.Color` / `theme.Type` on
+`rx.Goroutine`:
+
+```go
+var colorPtr atomic.Pointer[tokens.ColorTokens]
+var typePtr atomic.Pointer[tokens.TypeScale]
+_ = rx.SwitchMap(th, …t.Color).Subscribe(…)
+_ = rx.SwitchMap(th, …t.Type).Subscribe(…)
+cell := func(a article) layout.Widget {
+    return table.RenderTextCell(shaper, *colorPtr.Load(), *typePtr.Load(), s)
+}
+```
+
+That is a lot of plumbing for the most common cell — plain text. It also
+duplicates work the table is already doing internally (the table subscribes
+to the same tokens for its header and divider).
+
+**Remediation:** either (a) expose a `table.TextCell(s)` helper that resolves
+tokens against an ambient context the table has already injected, or (b)
+pass a `Cell` API that receives a `(item, tok)` pair instead of just `item`,
+so the table hands current tokens to the cell every emission.
+
+#### [Minor] `table.OnSort` delegates the full Asc → Desc → None state machine to every consumer (G5.2b)
+
+`table.Sort` carries `(Column, Asc)`; `OnSort` is fired with a column index
+and nothing else. The package doc suggests cycling
+`None → Asc → Desc → None`, but the consumer has to implement that cycle
+itself, including reading the current sort state to decide what comes next.
+The feeds composition does the simpler Asc/Desc toggle on the same column,
+which is a different state machine from the documented suggestion. Two
+consumers will almost certainly diverge.
+
+**Remediation:** either ship a stock `table.CycleSort(cur, col) Sort` helper
+that returns the next state, or have the table own the cycle internally and
+emit `OnSort func(sk Sort)` with the resolved next state.
+
 ---
 
 ## Ergonomics wins worth preserving

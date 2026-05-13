@@ -1,6 +1,6 @@
 # NEXT — Cursor for the active milestone
 
-**Active goal:** `G5.2b` in [PLAN.md](./PLAN.md) (Phase 5 — Articles table: `feeds/articles.go` adds `cadence/table` + `prism/input` filter + `cadence/pagination` to the Main slot; hard-coded ≥80 article fixtures; sort/filter/pagination wired; `selectedArticle rx.Subject[ArticleID]` emitted on row click).
+**Active goal:** `G5.2c` in [PLAN.md](./PLAN.md) (Phase 5 — Article detail view: `feeds/detail.go` adds `cadence/tabs` (Reader/Raw/Comments) + `cadence/popover` Share button + `cadence/tooltip` on icon-only headers; rendered in a split pane or stacked below the table; populated by the `selectedArticle rx.Subject[ArticleID]` emitted by G5.2b).
 
 ---
 
