@@ -61,6 +61,41 @@ when the patterns are composed, not just a stylistic difference.
 patterns. Callers that need flush-mount can wrap in a negative inset; the
 inverse (every caller pads) is strictly worse.
 
+#### [Blocker] Cadence interactive-pattern callbacks lack `gtx` → consumers cannot route through mvu `MessageOp` → invalidation contract broken — `cadence/{accordion,button,navbar,pricing,...}` (G5.1c)
+
+**Surfaced as:** clicking the accordion header (or any other cadence-pattern interactive control in sitedocs) updates state but does **not** repaint until the next input event arrives — typically the user moving the mouse. The visual lag is the gap between `click` and `mouse-move`; functionally the state has already changed.
+
+**Root cause.** Every cadence interactive pattern declares its event callback as a plain function with no `layout.Context`:
+
+```
+accordion.Props.OnToggle   func(idx int)
+button.Props.OnClick       func()
+navbar.Link.OnClick        func()
+pricing.CTA.OnClick        func()
+pagination.Props.OnSelect  func(p int)
+table.Props.OnSort         func(col int)
+```
+
+`mvu.Window`'s entire invalidation path (`mvu/window.go:59-66`) fires `window.Invalidate()` from exactly one place: the rx subscription that watches the top-level layer observables. The framework's intended way for a click to land a state change is to add a `mvu.MessageOp{Message: ...}` to `gtx.Ops` (collected per-frame at `mvu/window.go:92-102`, drained to `Messages()`, dispatched into Model/Update, producing a new view emission, which triggers Invalidate). All four pre-Phase-5 mvu apps (`todos/`, `appviz/`, `mindchat/`, `coinviz/`) do exactly this — see `todos/list.go:64-65`, `mindchat/view.go:190`, `appviz/periodpanel.go:63`.
+
+But the cadence callbacks don't carry `gtx`, so the consumer's handler cannot construct or add a `MessageOp`. Sitedocs (and now feeds) work around the API gap by mutating `rx.Subject`s directly inside the callback closure (`openController.toggle`, `pageController.set`), with the value re-published on `rx.Goroutine`. That subject network lives parallel to the mvu loop — emissions never enter `frameMessages` (`mvu/window.go:92`), so the only Invalidate hook the framework owns is never tripped. The atomic-pointer mirrors (`mirrorWidget`, `pageController.cur`) hold the new widget, but Gio doesn't know it needs to paint, and so it doesn't.
+
+**Why the previous accordion entry was off-target.** I previously logged this as "accordion.OnToggle + Open rx.Observable produces user-visible click-to-paint lag in SingleOpen mode" and attributed the lag to N+1 emissions per cross-section click hopping the rx.Goroutine scheduler. That entry was treating a symptom: the SingleOpen amplification produces N+1 *missed Invalidates*, which makes the lag more obvious, but a single-toggle click has the same bug — the user simply may not click again before moving the mouse. Sitedocs's `SingleOpen: false` workaround (commit `598336e`) reduces the wasted work but doesn't fix the lag; it only makes the worst case match the best case.
+
+**Why this is in scope as a Cadence bug, not a sitedocs bug.** Sitedocs *correctly* chose mvu + cadence + spectrum as its substrate. The framework provides a Model/Update/Messages loop with a single, automatic invalidation hook. The framework also provides interactive patterns whose callback signatures *prevent* consumers from emitting into that loop. Picking either piece alone is fine; picking both, as sitedocs and feeds did, is a trap. Every Phase-5 app built on cadence will hit this and reach for the same workaround, because the cadence callback shape leaves no other choice.
+
+**Remediation:** thread `layout.Context` through every interactive callback in cadence. The smallest change is to widen each `OnX func(...)` to `OnX func(gtx layout.Context, ...)`. Callers then write the canonical:
+
+```go
+OnToggle: func(gtx layout.Context, idx int) {
+    mvu.MessageOp{Message: ToggleAccordion{idx}}.Add(gtx.Ops)
+}
+```
+
+The `mirrorWidget`, `openController`, `pageController`, and (in feeds) `selectionController` plumbing collapses into a Model + Update function — no mutexes, no atomic.Pointers, no parallel Subject network, automatic invalidation.
+
+This is the gating remediation for Phase 5 dogfooding: until it lands, every example app pays the "rebuild MVU state plumbing badly" tax that produced this entire FEEDBACK file's Awkward Compositions section. See related entries in this file ("accordion.OnToggle + Open rx.Observable", "theme stream re-subscribed per pattern") and FEEDBACK-G5.2 ("openController re-implemented verbatim", "pagination.Props.Page is static int").
+
 #### [Major] `spectrum/system` polls system appearance via fork+exec — `~10%` CPU floor per 1 s tick — `spectrum/system` (G5.1c)
 
 `spectrum/system.LiveTheme(interval)` is implemented as
@@ -195,24 +230,15 @@ by design, so the recording-and-resize idiom is specific to `card`.
 
 ## Awkward compositions / boilerplate
 
-#### [Major] `accordion.OnToggle` + `Open rx.Observable` produces user-visible click-to-paint lag in `SingleOpen` mode — `cadence/accordion` (G5.1c)
+#### [Major] `accordion` `SingleOpen` mode amplifies emission cost — N+1 callbacks per cross-section click — `cadence/accordion` (G5.1c)
 
-**Surfaced as:** clicking any cross-section header on the docs sidebar feels visibly sluggish — perceptible delay between click and the open/close animation completing. With four sections this manifests as ~one-frame lag per click; with more sections it would compound.
+`processInput.activate` (accordion.go:160–169) closes every currently-open peer by issuing a separate `OnToggle(j)` call for each one, then issues `OnToggle(i)` for the activation. With N peers open before the click, one user click triggers N+1 `OnToggle` invocations. Each invocation in the current sitedocs/feeds wiring round-trips through `openController.toggle` → `Subject.Next(copyOfMap)` → `CombineLatest2(resolved, open)` → `Map` → `atomic.Pointer.Store`, hopping the `rx.Goroutine` scheduler each time. The work is wasted: the accordion already knows the full target open-map at activation time and could push it in a single shot.
 
-`accordion.Props` separates current open state (`Open` observable) from the intent to change (`OnToggle` callback). To make this work, sitedocs takes ~25 lines: an `openController` struct holds the live map, a mutex protects it against the rx-goroutine subscriber, and the toggle handler mutates + republishes via `rx.Subject(0, 1)` so the subscriber sees the new map.
+This is wasted work, not the lag root cause (see the [Blocker] above for the invalidation bug that produces user-visible lag). Once invalidation is fixed via the MessageOp route, the N+1 amplification is a perf and allocation cost on the click hot path, but no longer a UX defect.
 
-In `SingleOpen` mode the cost amplifies into a perf bug: `processInput.activate` (accordion.go:160–169) closes every currently-open peer by **issuing a separate `OnToggle(j)` for each one**, then issues `OnToggle(i)` for the activation. Each `OnToggle` round-trips through `openController.toggle` → `Subject.Next(copyOfMap)` → `CombineLatest2(resolved, open)` → `Map` → `atomic.Pointer.Store`, hopping the `rx.Goroutine` scheduler each time. With N peers open before the click, one user click costs N+1 Subject emissions, N+1 map allocations, N+1 scheduler hops, and (at minimum) one extra Gio frame before paint can settle.
+**Workaround applied in sitedocs:** `docs_sidebar.go` sets `SingleOpen: false` (commit `598336e`) — every section openable independently. This collapses the worst case (N+1 calls per cross-section click) to the same one-call cost as a same-section toggle. The user-visible lag remains until the [Blocker] above is addressed.
 
-A `sample(1)` against the live process during accordion clicking shows multiple `rx.Subject[map[int]bool].func7.2` frames per click and the expected `gioui.org/app.gio_onDraw` redraw chain — no CPU blowup, just unnecessary serialised work on the critical path.
-
-**Workaround applied in sitedocs:** `docs_sidebar.go` sets `SingleOpen: false` (4 sections all openable at once). The click-to-paint lag goes away — each click is one toggle, one emission. The UX trade-off (no auto-collapse of peers) is acceptable for a docs sidebar.
-
-**Remediation:** two changes, neither alone is sufficient:
-
-1. **Single-shot `SetOpen(map[int]bool)` callback on the accordion**, replacing `OnToggle(idx int)` for the SingleOpen path. The accordion already knows the full target map (peers-closed + activated-open); pushing that as one map-replace eliminates the N+1 amplification at the source. `OnToggle(idx)` can stay for the non-SingleOpen path.
-2. **Ship `accordion.NewController(initiallyOpen int) Controller`** returning the open observable, the toggle function, and (if (1) lands) the SetOpen function pre-wired. Eliminates the per-caller plumbing entry in this entry's "~25 lines" preamble.
-
-Without (1), shipping just (2) hides the perf bug inside the controller and any caller flipping `SingleOpen: true` still pays the N+1 cost. Without (2), every accordion caller still re-implements the controller + mutex + republish pattern. Both belong in the same GX milestone.
+**Remediation:** add a single-shot `SetOpen func(gtx layout.Context, m map[int]bool)` callback on the accordion, dispatched once per click in SingleOpen mode with the full target map. The existing `OnToggle` stays for the non-SingleOpen path. Couples naturally with `accordion.NewController(initiallyOpen int)` that returns the `(Open observable, SetOpen, toggle)` triple pre-wired so callers don't reimplement the controller plumbing — but neither half is useful without the [Blocker]'s gtx-carrying callback widening first.
 
 #### [Major] Each marketing pattern subscribes the theme stream independently — `cadence/{hero,feature,pricing,testimonial}` (G5.1b)
 

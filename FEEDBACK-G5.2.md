@@ -9,7 +9,19 @@ placeholder main from hard-coded fixture data driven by an `rx.Subject[FeedID]`.
 
 ## Bugs
 
-no findings yet
+### Framework
+
+#### [Blocker] Same as FEEDBACK-G5.1 [Blocker] "Cadence interactive-pattern callbacks lack `gtx` → consumers cannot route through mvu `MessageOp` → invalidation contract broken" — `cadence/{accordion,table,pagination,sidebar}` (G5.2a–b)
+
+The `feeds/` app exhibits the same bug surfaced in sitedocs and traced in FEEDBACK-G5.1's [Blocker] entry. Reproduction in feeds:
+
+- Clicking a sidebar feed entry: the table contents update, but **not until the user moves the mouse**. The `selectionController` Subject emits and stores into an `atomic.Pointer` on `rx.Goroutine`; the outer view observable doesn't re-emit because its inputs (theme + shape) haven't changed; mvu's invalidation hook never fires.
+- Clicking a pagination button: same chain. `pageSend.Next(p)` runs on the click goroutine, the table re-derives on rx.Goroutine, but no Gio frame is requested.
+- Clicking a sortable column header: same chain via `OnSort`.
+
+Every interactive control in feeds reaches for the same `rx.Subject + atomic.Pointer + rx.Goroutine` workaround pattern because cadence's callback signatures (`OnSelect func(p int)`, `OnSort func(col int)`, `OnRowClick` — not yet exposed) don't carry `gtx.Ops`, so consumers cannot emit `mvu.MessageOp`. Three more entries in this file (`pagination.Props.Page is static int`, `table has no row-click affordance`, `table.OnSort delegates full state machine`) describe the cadence-side gaps that *compound* the same root issue: callback APIs decoupled from `layout.Context` force consumers to bypass mvu and rebuild the framework's plumbing, badly.
+
+**Remediation:** see FEEDBACK-G5.1 [Blocker]. The Phase-5 dogfooding lesson is the same in both apps and gets stronger with each example — fix the cadence callback shape, fix every Phase-5 app's perceived-lag bug at once.
 
 ---
 
