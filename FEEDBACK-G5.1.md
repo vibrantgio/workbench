@@ -19,6 +19,35 @@ context if needed.
 
 ### Framework
 
+#### [Blocker] Pill widgets pass unclamped `Radius.Full` (9999 dp) into `clip.RRect`, flooding the canvas — `cadence/{hero,pricing}` (G5.1b)
+
+`hero.eyebrowWidget` and `pricing.popularChipWidget` build their pill via
+`rad := gtx.Dp(unit.Dp(tok.radius.Full))` (= 9999 px at PxPerDp=1) and
+hand `rad` directly to `clip.RRect{SE:rad, SW:rad, NE:rad, NW:rad}`.
+`clip.RRect` does **not** clamp corner radii to the rect — a radius
+larger than `min(w,h)/2` produces a clip path that sprays paint over a
+region far beyond the pill bounds.
+
+In the Pro pricing tier (Highlighted = `true`), the chip is filled with
+pure `tok.color.Primary`, so the flood is immediately visible: the live
+sitedocs landing renders the entire Pro column and large adjacent areas
+in bright blue, hiding the Free tier card, the feature row above, and
+the hero text. The structural goldens use a zero-valued `RadiusScale`
+(Full = 0), so the bug is invisible to them.
+
+The hero eyebrow has the same defect, but its pill is filled with
+`tintColor(Primary, Surface)` (≈12%/88% blend) which is visually almost
+identical to Surface, so the flood is masked — still a latent bug, now
+caught by `sitedocs/landing_radius_regression_test.go`.
+
+**Remediation:** clamp `rad` to `min(w, h) / 2` before constructing the
+`clip.RRect`. Applied at both call sites
+(`cadence/{hero/hero.go,pricing/pricing.go}`) plus a regression test in
+`sitedocs/landing_radius_regression_test.go` that renders each pattern
+with the real radius scale and asserts no flood. Longer-term, a small
+`prism/layout.Pill(w, h, rad) clip.Op` helper would centralise the
+clamp so future pill callers cannot reintroduce the bug.
+
 #### [Major] Marketing patterns disagree on outer inset — `cadence/{hero,feature,pricing,testimonial}` (G5.1b)
 
 `hero` and `feature` wrap their content in an `S6` `UniformInset`;
@@ -179,6 +208,28 @@ so every new module bootstraps with copy-paste boilerplate.
 `DESIGN.md` (or `MIGRATION.md`), or — better — collapse the
 per-module `go.mod`s into one per-phase `go.mod` as already
 foreshadowed by GX.6.
+
+#### [Minor] Docs sidebar labels mismatch the page titles they route to — `sitedocs/docs_sidebar.go` (G5.1c)
+
+The accordion sidebar lists per-phase entries — Prism → "Tokens &
+theme", Cadence → "Patterns overview" / "Pattern reference", Spectrum
+→ "System glue" / "Live theme", Pulse → "Motion overview" / "Effects
+reference" — but every non-"Getting started" entry routes to one of
+only three underlying pages (`pageDocsPhasesOverview` or
+`pageDocsComponentRef`). Clicking "Patterns overview" lands on a page
+whose breadcrumb + `<h1>` read "Phases overview", which reads as a
+broken link rather than a deliberate design choice.
+
+The implementation is consistent with G5.1c's "three docs pages
+reachable via the sidebar" spec; the friction is that the spec asked
+for three pages but the sidebar invites N labels, so the per-label
+specificity sets an expectation the page content cannot satisfy.
+
+**Remediation:** either collapse the per-phase entries down to the
+three canonical labels (Getting started / Phases overview / Component
+reference) so the sidebar mirrors the page set; or expand to N real
+pages so each label has a matching destination. Don't keep the current
+1:N hybrid.
 
 #### [Minor] `Render` signatures vary across marketing patterns — `cadence/{hero,feature,pricing,testimonial}` (G5.1b)
 
