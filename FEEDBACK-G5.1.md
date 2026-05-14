@@ -61,6 +61,35 @@ when the patterns are composed, not just a stylistic difference.
 patterns. Callers that need flush-mount can wrap in a negative inset; the
 inverse (every caller pads) is strictly worse.
 
+#### [Major] `spectrum/system` polls system appearance via fork+exec — `~10%` CPU floor per 1 s tick — `spectrum/system` (G5.1c)
+
+`spectrum/system.LiveTheme(interval)` is implemented as
+`rx.Ticker(interval) → darwinSource.Read()`, where each `Read` spawns
+**two** `defaults` subprocesses (`AppleInterfaceStyle` and
+`AppleAccentColor`). The package's own comment puts the cost at "~50 ms
+per call" — so the recommended 1 s interval imposes a baseline of
+~100 ms CPU per second (~10% of a core) before the app does any
+rendering. `sample 67518` against the live sitedocs process caught a
+95.9% CPU first-second burst and a 21% steady-state floor with no user
+interaction. The fork+exec also wakes `cfprefsd`, `launchd`, and the
+pipe-allocation/teardown path on every tick, which is what surfaces as
+cursor sluggishness over the window (WindowServer competes for the
+same CPU these spawned processes are using).
+
+The strategy is reasonable for correctness — `cfprefsd` always returns
+fresh state, unlike NSUserDefaults' in-process cache (see
+`system_darwin.go:11–17`) — but is the wrong mechanism for a UI poll
+loop. Worked around in sitedocs by raising the interval to 5 s
+(`sitedocs/main.go:65–71`), a 5× CPU reduction at the cost of slower
+Light/Dark toggle response.
+
+**Remediation:** replace the poll with a push subscription to
+`NSDistributedNotificationCenter` for
+`AppleInterfaceThemeChangedNotification`; fall back to a slow (≥10 s)
+poll only for the accent colour (which doesn't have an equivalent
+notification). Eliminates the idle CPU floor entirely and removes the
+user-visible cursor lag without sacrificing freshness.
+
 ### PLAN.md milestone-spec (no framework defect)
 
 These are bugs in `PLAN.md` Specific/Measurable lines, surfaced while
