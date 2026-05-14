@@ -195,19 +195,24 @@ by design, so the recording-and-resize idiom is specific to `card`.
 
 ## Awkward compositions / boilerplate
 
-#### [Major] `accordion.OnToggle` + `Open rx.Observable` reinvents the Subject pattern per caller — `cadence/accordion` (G5.1c)
+#### [Major] `accordion.OnToggle` + `Open rx.Observable` produces user-visible click-to-paint lag in `SingleOpen` mode — `cadence/accordion` (G5.1c)
 
-`accordion.Props` separates current open state (`Open` observable)
-from the intent to change (`OnToggle` callback). Wiring this in
-sitedocs takes ~25 lines: an `openController` struct holds the live
-map, a mutex protects it against the rx-goroutine subscriber, and the
-toggle handler mutates + republishes via `rx.Subject(0, 1)` so the
-subscriber sees the new map. SingleOpen amplifies the cost — the
-handler fires once per peer closure plus once for the activation.
+**Surfaced as:** clicking any cross-section header on the docs sidebar feels visibly sluggish — perceptible delay between click and the open/close animation completing. With four sections this manifests as ~one-frame lag per click; with more sections it would compound.
 
-**Remediation:** ship `accordion.NewController(initiallyOpen int) Controller`
-returning the open observable and the toggle function pre-wired
-(including SingleOpen flipping). Eliminates the per-caller plumbing.
+`accordion.Props` separates current open state (`Open` observable) from the intent to change (`OnToggle` callback). To make this work, sitedocs takes ~25 lines: an `openController` struct holds the live map, a mutex protects it against the rx-goroutine subscriber, and the toggle handler mutates + republishes via `rx.Subject(0, 1)` so the subscriber sees the new map.
+
+In `SingleOpen` mode the cost amplifies into a perf bug: `processInput.activate` (accordion.go:160–169) closes every currently-open peer by **issuing a separate `OnToggle(j)` for each one**, then issues `OnToggle(i)` for the activation. Each `OnToggle` round-trips through `openController.toggle` → `Subject.Next(copyOfMap)` → `CombineLatest2(resolved, open)` → `Map` → `atomic.Pointer.Store`, hopping the `rx.Goroutine` scheduler each time. With N peers open before the click, one user click costs N+1 Subject emissions, N+1 map allocations, N+1 scheduler hops, and (at minimum) one extra Gio frame before paint can settle.
+
+A `sample(1)` against the live process during accordion clicking shows multiple `rx.Subject[map[int]bool].func7.2` frames per click and the expected `gioui.org/app.gio_onDraw` redraw chain — no CPU blowup, just unnecessary serialised work on the critical path.
+
+**Workaround applied in sitedocs:** `docs_sidebar.go` sets `SingleOpen: false` (4 sections all openable at once). The click-to-paint lag goes away — each click is one toggle, one emission. The UX trade-off (no auto-collapse of peers) is acceptable for a docs sidebar.
+
+**Remediation:** two changes, neither alone is sufficient:
+
+1. **Single-shot `SetOpen(map[int]bool)` callback on the accordion**, replacing `OnToggle(idx int)` for the SingleOpen path. The accordion already knows the full target map (peers-closed + activated-open); pushing that as one map-replace eliminates the N+1 amplification at the source. `OnToggle(idx)` can stay for the non-SingleOpen path.
+2. **Ship `accordion.NewController(initiallyOpen int) Controller`** returning the open observable, the toggle function, and (if (1) lands) the SetOpen function pre-wired. Eliminates the per-caller plumbing entry in this entry's "~25 lines" preamble.
+
+Without (1), shipping just (2) hides the perf bug inside the controller and any caller flipping `SingleOpen: true` still pays the N+1 cost. Without (2), every accordion caller still re-implements the controller + mutex + republish pattern. Both belong in the same GX milestone.
 
 #### [Major] Each marketing pattern subscribes the theme stream independently — `cadence/{hero,feature,pricing,testimonial}` (G5.1b)
 
