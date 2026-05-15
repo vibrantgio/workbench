@@ -2,7 +2,26 @@
 
 > **Source of truth:** [DESIGN.md](./DESIGN.md). This plan does not redefine architecture — it shards DESIGN.md into goals an LLM agent can execute one at a time.
 
-## SMART contract for every goal
+## Instructions
+
+The session contract for working any milestone in PLAN.md. The expected reading flow per session:
+
+1. `mdedit read -s "Instructions" PLAN.md` — this section, the rules.
+2. Identify the active milestone from `NEXT.md` (it carries the link).
+3. `mdedit read -s "<G>" PLAN.md` — that milestone's SMART block. That, plus this Instructions section, is your full context. Do **not** read PLAN.md whole.
+
+### Session procedure
+
+1. Read NEXT.md — it links the active milestone. Open it.
+2. `mdedit read -s "<G>" PLAN.md` — load the milestone's SMART block.
+3. Discharge the milestone to its `Measurable` criterion. Use the SMART contract below to interpret each field. If the milestone's `Specific:` cites files in `DESIGN.md`, read those sections too (`mdedit read -s "<heading>" DESIGN.md`).
+4. When `Measurable` is verifiably green: `mdedit toggle -s "<G>" PLAN.md` to tick the checkbox. For a parent tracking goal whose sub-goals are already `[x]`, use `--scope flat` to toggle only the parent's own checkbox.
+5. Rewrite `NEXT.md` so its link points to the next unchecked `### G…` heading in PLAN.md's "Active execution sequence" section.
+6. Commit: one commit per milestone, including any source / test / doc artefacts the milestone produced. Commit the `NEXT.md` cursor update and the `PLAN.md` checkbox toggle in the same commit.
+
+Do **not** start the next milestone in the same session — a fresh session preserves the token budget.
+
+### SMART contract for every goal
 
 Each goal in this plan satisfies all five letters:
 
@@ -12,7 +31,7 @@ Each goal in this plan satisfies all five letters:
 - **Relevant** — every goal cites the DESIGN.md section it discharges, in the form `(DESIGN §<heading>)`. A goal with no citation does not belong here.
 - **Timeboxed** — fits in one Claude Sonnet 4.6 session of **≤100 000 input + output tokens**. The token budget *is* the timebox.
 
-### Token-budget arithmetic (the "T" in SMART)
+#### Token-budget arithmetic (the "T" in SMART)
 
 A 100 K-token Sonnet 4.6 session typically allocates roughly:
 
@@ -28,14 +47,26 @@ A 100 K-token Sonnet 4.6 session typically allocates roughly:
 
 This implies the practical code-output budget per goal is **~30 K tokens ≈ 600–900 lines of Go including tests**. Goals that cannot fit are split. Splits are listed inline as `Split:` sub-goals.
 
-### Anti-goals (rules every goal inherits)
+#### Anti-goals (rules every goal inherits)
 
 - **No goal spans more than one phase.** Phase boundaries in DESIGN.md exist for sequencing reasons.
 - **No goal both designs and implements.** Decision goals output a doc; implementation goals consume that doc.
 - **No goal depends on a later goal.** If you need something from a later goal, the dependency graph is wrong — fix this plan first.
 - **No goal ships without tests** in the same session, except documentation goals.
 
----
+### Glossary
+
+- **Goal** — one unit of work scoped to ≤100 K Sonnet 4.6 tokens.
+- **Split** — break a goal into sub-goals when scope exceeds the budget.
+- **‖** — parallelisable with siblings in the same phase.
+- **Conditional** — runs only if a named experiment outcome triggers it.
+- **Phase gate** — a goal whose completion unblocks an entire phase.
+
+### Out of scope for this plan
+
+- Web, mobile, embedded targets (DESIGN §"Non-goals").
+- Anything not traceable to DESIGN.md.
+- Open-ended exploration; experiments are explicit Phase 00 goals with defined exits.
 
 ## Dependency graph (top-down)
 
@@ -1089,17 +1120,3 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - **Relevant:** `FEEDBACK-G5.1.md` [Blocker] "Cadence interactive-pattern callbacks lack gtx → consumers cannot route through mvu MessageOp"; `FEEDBACK-G5.2.md` [Blocker] cross-reference. Unblocks GX.9 and GX.10.
 - **Budget:** parent — no direct work.
 
-
-## Glossary
-
-- **Goal** — one unit of work scoped to ≤100 K Sonnet 4.6 tokens.
-- **Split** — break a goal into sub-goals when scope exceeds the budget.
-- **‖** — parallelisable with siblings in the same phase.
-- **Conditional** — runs only if a named experiment outcome triggers it.
-- **Phase gate** — a goal whose completion unblocks an entire phase.
-
-## Out of scope for this plan
-
-- Web, mobile, embedded targets (DESIGN §"Non-goals").
-- Anything not traceable to DESIGN.md.
-- Open-ended exploration; experiments are explicit Phase 00 goals with defined exits.

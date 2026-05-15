@@ -1,3 +1,5 @@
 # NEXT — Cursor for the active milestone
 
-The active goal is the **first unchecked** `### G…` heading in [PLAN.md](./PLAN.md)'s **Active execution sequence** section. Discharge it to its `Measurable` criterion (per PLAN.md's "SMART contract for every goal" section). When green, run `mdedit toggle -s "<G>" PLAN.md` to tick its checkbox — the next session's cursor advances automatically because it reads the new first-unchecked heading.
+Active: [**GX.12** — `prism/layout.Pill` rrect helper with built-in radius clamp](./PLAN.md#active-execution-sequence)
+
+Load: `mdedit read -s "Instructions" PLAN.md`, then `mdedit read -s "GX.12" PLAN.md`. That is the full context for the session.
