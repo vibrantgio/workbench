@@ -864,10 +864,10 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Widen all 13 cadence Props callbacks to take `gtx layout.Context` first: `accordion.OnToggle`, `tabs.OnSelect`, `navbar.Link.OnClick`, `sidebar.Item.OnClick`, `sidebar.OnToggleCollapse`, `pagination.OnSelect`, `table.OnSort`, `shell.OnSplitChange`, `breadcrumb.Item.OnClick`, `hero.CTA.OnClick`, `pricing.CTA.OnClick`, `modal.OnClose`, `popover.OnDismiss`.
-- [ ] Thread `gtx` through each pattern's internal `processInput` to the callback.
-- [ ] Refresh every test that exercises a widened callback.
-- [ ] Verify `grep -rnE 'On[A-Z][a-zA-Z]+ +func\([^g)]' cadence/ | grep -v _test.go` returns no matches and `go test ./cadence/...` is green with goldens unchanged.
+- [x] Widen all 13 cadence Props callbacks to take `gtx layout.Context` first: `accordion.OnToggle`, `tabs.OnSelect`, `navbar.Link.OnClick`, `sidebar.Item.OnClick`, `sidebar.OnToggleCollapse`, `pagination.OnSelect`, `table.OnSort`, `shell.OnSplitChange`, `breadcrumb.Item.OnClick`, `hero.CTA.OnClick`, `pricing.CTA.OnClick`, `modal.OnClose`, `popover.OnDismiss`.
+- [x] Thread `gtx` through each pattern's internal `processInput` to the callback.
+- [x] Refresh every test that exercises a widened callback.
+- [x] Verify `grep -rnE 'On[A-Z][a-zA-Z]+ +func\([^g)]' cadence/ | grep -v _test.go` returns no matches and `go test ./cadence/...` is green with goldens unchanged.
 
 ### GX.9 — Sitedocs: migrate to mvu Model + Update + MessageOp
 
