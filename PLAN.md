@@ -824,11 +824,11 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Add `Pill(rect image.Rectangle, rad int) clip.Op` to `prism/layout`, clamping `rad` to `min(w, h) / 2`; document the clamp in its godoc.
-- [ ] Add a unit test of the clamp boundary (`rad = 9999` on a 40×20 rect yields a clip op identical to `rad = 10`).
-- [ ] Migrate `cadence/hero.eyebrowWidget` to call `prismlayout.Pill`, removing its local `if maxRad := min(w,h)/2; …` clamp block.
-- [ ] Migrate `cadence/pricing.popularChipWidget` the same way.
-- [ ] Verify `go test ./prism/layout/... ./cadence/hero/... ./cadence/pricing/... ./sitedocs/...` green, `grep -rnE 'clip\.RRect\{[^}]*SE: *rad' cadence/hero cadence/pricing` returns no matches, and `sitedocs/landing_radius_regression_test.go` still passes unmodified.
+- [x] Add `Pill(rect image.Rectangle, rad int) clip.Op` to `prism/layout`, clamping `rad` to `min(w, h) / 2`; document the clamp in its godoc.
+- [x] Add a unit test of the clamp boundary (`rad = 9999` on a 40×20 rect yields a clip op identical to `rad = 10`).
+- [x] Migrate `cadence/hero.eyebrowWidget` to call `prismlayout.Pill`, removing its local `if maxRad := min(w,h)/2; …` clamp block.
+- [x] Migrate `cadence/pricing.popularChipWidget` the same way.
+- [x] Verify `go test ./prism/layout/... ./cadence/hero/... ./cadence/pricing/... ./sitedocs/...` green, `grep -rnE 'clip\.RRect\{[^}]*SE: *rad' cadence/hero cadence/pricing` returns no matches, and `sitedocs/landing_radius_regression_test.go` still passes unmodified.
 
 ### GX.8 ‖ — Prism + Cadence: thread `layout.Context` through every interactive callback
 
