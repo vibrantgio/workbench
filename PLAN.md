@@ -848,11 +848,11 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Widen the prism callback signatures to take `gtx layout.Context` first: `button.Props.OnClick`, `input/checkbox.Props.OnChange`, `input/radio.Props.OnChange`, `input/dropdown.Props.OnSelect`, `input/textfield.Props.{OnChange,OnSubmit}`.
-- [ ] Thread `gtx` through each widget's internal `processInput` (or equivalent click/key drain) to the callback.
-- [ ] Update the cadence patterns that embed prism widgets internally (modal footer actions, hero/pricing CTAs, navbar brand button, …) to pass the new signature; leave their own public Props unchanged.
-- [ ] Refresh every test that exercises a widened callback.
-- [ ] Verify `grep -rnE 'On[A-Z][a-zA-Z]+ +func\([^g)]' prism/ | grep -v _test.go` returns no matches and `go test ./prism/... ./cadence/...` is green with goldens unchanged.
+- [x] Widen the prism callback signatures to take `gtx layout.Context` first: `button.Props.OnClick`, `input/checkbox.Props.OnChange`, `input/radio.Props.OnChange`, `input/dropdown.Props.OnSelect`, `input/textfield.Props.{OnChange,OnSubmit}`.
+- [x] Thread `gtx` through each widget's internal `processInput` (or equivalent click/key drain) to the callback.
+- [x] Update the cadence patterns that embed prism widgets internally (modal footer actions, hero/pricing CTAs, navbar brand button, …) to pass the new signature; leave their own public Props unchanged.
+- [x] Refresh every test that exercises a widened callback.
+- [x] Verify `grep -rnE 'On[A-Z][a-zA-Z]+ +func\([^g)]' prism/ | grep -v _test.go` returns no matches and `go test ./prism/... ./cadence/...` is green with goldens unchanged.
 
 #### GX.8b — `cadence` pattern callbacks carry `gtx`
 
