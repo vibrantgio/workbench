@@ -4,22 +4,20 @@
 
 ## Instructions
 
-The session contract for working any milestone in PLAN.md. The expected reading flow per session:
+The session contract for working any milestone in PLAN.md. Execution is driven by **`mdplan`** — run `mdplan grammar` for the underlying plan model. The expected flow per session:
 
-1. `mdedit read -s "Instructions" PLAN.md` — this section, the rules.
-2. Identify the active milestone from `NEXT.md` (it carries the link).
-3. `mdedit read -s "<G>" PLAN.md` — that milestone's SMART block. That, plus this Instructions section, is your full context. Do **not** read PLAN.md whole.
+1. Read this **Instructions** section — the rules. It is *not* part of an `mdplan next` packet (which spans title → phase → goal → task only), so read it explicitly at the start of every session.
+2. `mdplan next PLAN.md` — prints the next unchecked task: its enclosing phase/goal context plus the task's full body and its `- [ ]` step checklist. That packet, plus this Instructions section, is your full context. Do **not** read PLAN.md whole.
 
 ### Session procedure
 
-1. Read NEXT.md — it links the active milestone. Open it.
-2. `mdedit read -s "<G>" PLAN.md` — load the milestone's SMART block.
-3. Discharge the milestone to its `Measurable` criterion. Use the SMART contract below to interpret each field. If the milestone's `Specific:` cites files in `DESIGN.md`, read those sections too (`mdedit read -s "<heading>" DESIGN.md`).
-4. When `Measurable` is verifiably green: `mdedit toggle -s "<G>" PLAN.md` to tick the checkbox. For a parent tracking goal whose sub-goals are already `[x]`, use `--scope flat` to toggle only the parent's own checkbox.
-5. Rewrite `NEXT.md` so its link points to the next unchecked `### G…` heading in PLAN.md's "Active execution sequence" section.
-6. Commit: one commit per milestone, including any source / test / doc artefacts the milestone produced. Commit the `NEXT.md` cursor update and the `PLAN.md` checkbox toggle in the same commit.
+1. Read this **Instructions** section (the rules + the SMART contract below).
+2. `mdplan next PLAN.md` — load the next task's packet. Its `- [ ]` steps are the concrete work. If it prints `DONE`, the plan is complete — stop.
+3. Discharge the task to its `Measurable` criterion, working the `- [ ]` steps top to bottom. Use the SMART contract below to interpret each field. If the task's `Specific:` cites files in `DESIGN.md`, read those sections too (`mdedit read -s "<heading>" DESIGN.md`).
+4. Tick each finished step as you go: `mdplan toggle -s "<task heading>" --item "<step text>" PLAN.md`. When the task's last step is ticked it is done, and `mdplan next` advances to the next task.
+5. Commit: one commit per task, with the task heading in the message, including any source / test / doc artefacts the task produced.
 
-Do **not** start the next milestone in the same session — a fresh session preserves the token budget.
+Check overall state any time with `mdplan progress`. Do **not** start the next task in the same session — a fresh session preserves the token budget. Do **not** add a master checklist section to PLAN.md; `mdplan progress` derives the overview on demand from the task checkboxes.
 
 ### SMART contract for every goal
 
@@ -68,7 +66,7 @@ This implies the practical code-output budget per goal is **~30 K tokens ≈ 600
 - Anything not traceable to DESIGN.md.
 - Open-ended exploration; experiments are explicit Phase 00 goals with defined exits.
 
-## Dependency graph (top-down)
+### Dependency graph (top-down)
 
 ```
 Phase −1 (Gio migration)
@@ -82,197 +80,6 @@ Phase −1 (Gio migration)
 ```
 
 Goals are listed in topological order. Within a phase, goals marked **‖** are parallelisable.
-
----
-
-## Active execution sequence
-
-Linear order for outstanding work. Discharge top-to-bottom: each `###`
-heading here is one milestone whose **Measurable** criterion must be met,
-followed by `mdedit toggle -s "<G>" PLAN.md` to tick the box, followed by
-pointing `NEXT.md` at the next unchecked entry below. Parent tracking goals
-(`G5.2`, `G5.3`, `GX.6`, `GX.8`) live in their respective phase sections
-further down and auto-complete when all their sub-goals are ticked here.
-
-### GX.12 — `prism/layout.Pill` rrect helper with built-in radius clamp
-
-- [ ] **Done**
-- **Specific:** Add `prism/layout.Pill(rect image.Rectangle, rad int) clip.Op` returning a rounded-rect clip op with `rad` clamped to `min(w, h) / 2` so callers cannot pass a sentinel radius (e.g., `tokens.Radius.Full = 9999 dp`) that overflows `clip.RRect` and floods the canvas. The helper documents the clamp in its godoc. Migrate the two known unsafe call sites — `cadence/hero.eyebrowWidget` and `cadence/pricing.popularChipWidget` — to use it, replacing each site's local `if maxRad := min(w,h)/2; rad > maxRad { rad = maxRad }` block with one `clip.Op := prismlayout.Pill(rect, rad)` call.
-- **Measurable:** `go test ./prism/layout/... ./cadence/hero/... ./cadence/pricing/... ./sitedocs/...` green; `grep -rnE 'clip\.RRect\{[^}]*SE: *rad' cadence/hero cadence/pricing` returns no matches (forces use of the helper at the migrated sites); the existing regression test `sitedocs/landing_radius_regression_test.go` continues to pass without modification.
-- **Achievable:** mechanical helper + two call-site migrations + one godoc example + small unit test of the clamp boundary (rad = 9999 on a 40×20 rect produces a clip op identical to rad = 10). Out of scope: a sweeping audit of every `clip.RRect` use across cadence — only the two FEEDBACK-G5.1 cited sites are in scope.
-- **Relevant:** `FEEDBACK-G5.1.md` [Blocker] "Pill widgets pass unclamped Radius.Full (9999 dp) into clip.RRect, flooding the canvas" — the local clamps in `cadence/{hero,pricing}` already shipped (commits `cfb41da`, `a137410`, `1b3e720`); this milestone centralises the clamp so future pill callers cannot reintroduce the bug.
-- **Budget:** ~25 K. Smallest item in the active sequence; first slot because it's mechanical and low-risk.
-
-### GX.8a — `prism` widget callbacks carry `gtx`
-
-- [ ] **Done**
-- **Specific:** Widen every interactive `prism/` widget's event callback to accept `gtx layout.Context` as the first argument so consumers can emit `mvu.MessageOp{Message: ...}.Add(gtx.Ops)` inside the callback. Targets: `prism/button.Props.OnClick`, `prism/input/checkbox.Props.OnChange`, `prism/input/radio.Props.OnChange`, `prism/input/dropdown.Props.OnSelect`, `prism/input/textfield.Props.{OnChange,OnSubmit}`. Each `func(...)` becomes `func(gtx layout.Context, ...)`. Update each widget's internal `processInput` (or equivalent click/key drain) to pass `gtx` through. Refresh every test that exercises a callback. Cadence patterns that consume prism widgets internally (`cadence/modal` footer actions, `cadence/hero` CTAs, `cadence/pricing` CTAs, `cadence/navbar` brand button, etc.) update their internal callsites to pass the new signature; their own public Props stay unchanged in this milestone (the cadence pass is GX.8b).
-- **Measurable:** `grep -rnE 'On[A-Z][a-zA-Z]+ +func\([^g)]' prism/ | grep -v _test.go` returns no matches (every interactive callback now starts with `gtx layout.Context`). `go test ./prism/... ./cadence/...` green. Goldens unchanged (no rendering change — only signature change).
-- **Achievable:** mechanical signature widening + per-test callback shape updates. No new tests, no behavioural changes — purely additive parameter on each callback. Internal `processInput` plumbing already has `gtx` in scope at every call site.
-- **Relevant:** sub-goal of `GX.8`. Foundation for GX.8b (cadence cannot be widened cleanly until prism is widened, because cadence patterns embed prism widgets).
-- **Budget:** ~50 K. 6 callbacks across 5 prism widgets, plus consumer-side internal updates in ~6 cadence patterns.
-
-### GX.8b — `cadence` pattern callbacks carry `gtx`
-
-- [ ] **Done**
-- **Specific:** Widen every interactive `cadence/` pattern's Props callback to accept `gtx layout.Context` as the first argument. Targets: `cadence/accordion.Props.OnToggle`, `cadence/tabs.Props.OnSelect`, `cadence/navbar.Link.OnClick`, `cadence/sidebar.Item.OnClick`, `cadence/sidebar.Props.OnToggleCollapse`, `cadence/pagination.Props.OnSelect`, `cadence/table.Props.OnSort`, `cadence/shell.Props.OnSplitChange`, `cadence/breadcrumb.Item.OnClick`, `cadence/hero.CTA.OnClick`, `cadence/pricing.CTA.OnClick`, `cadence/modal.Props.OnClose`, `cadence/popover.Props.OnDismiss`. Each callback's existing signature gains `gtx layout.Context` as the first parameter. Update each pattern's internal `processInput` to pass `gtx` through. Refresh every test that exercises a callback.
-- **Measurable:** `grep -rnE 'On[A-Z][a-zA-Z]+ +func\([^g)]' cadence/ | grep -v _test.go` returns no matches. `go test ./cadence/...` green. Cadence goldens unchanged (no rendering change).
-- **Achievable:** depends on GX.8a so prism callbacks used internally already have the new shape. Otherwise mechanical signature widening + per-test callback shape updates.
-- **Relevant:** sub-goal of `GX.8`. Required for GX.9 + GX.10 (the sitedocs and feeds MVU refactors that depend on cadence callbacks carrying `gtx`).
-- **Budget:** ~60 K. 13 callbacks across 12 patterns; the test surface is the long pole.
-
-### GX.9 — Sitedocs: migrate to mvu Model + Update + MessageOp
-
-- [ ] **Done**
-- **Specific:** Refactor `sitedocs/` to use the canonical mvu Model/Update/Messages loop (the pattern in `todos/`, `appviz/`, `mindchat/`, `coinviz/`) in place of the current `rx.Subject + atomic.Pointer + rx.Goroutine` workaround. Introduce `sitedocs.Model` capturing at minimum `{currentPage string, openSections map[int]bool}`, `sitedocs.Update(model, msg) (Model, mvu.Command)` handling `SetRoute`, `ToggleAccordion`, and `OpenAccordion(map[int]bool)` messages. Replace every cadence-pattern callback closure that currently mutates an `rx.Subject` with `mvu.MessageOp{Message: ...}.Add(gtx.Ops)`. Delete `mirrorWidget` (sitedocs/landing.go), `pageController` (sitedocs/main.go), `openController` (sitedocs/docs_sidebar.go), and the four `atomic.Pointer[layout.Widget]` mirror sites in `landing.go` / `docs.go`. The view observable derives from the model via `rx.Map(modelObs, viewFor)`. Revert the `SingleOpen: false` workaround in `docs_sidebar.go` to `SingleOpen: true` if the new MVU path delivers the toggle via a single SetOpen-style message rather than N+1 OnToggle calls.
-- **Measurable:** `grep -rnE 'atomic\.Pointer\[layout\.Widget\]|openController|pageController|mirrorWidget' sitedocs/` returns no matches. `go test ./sitedocs/...` green. A new smoke test (`TestSitedocsClickUpdatesOnSameFrame` or equivalent) drives a `ToggleAccordion` MessageOp and asserts the model observable emits within one frame of the originating click — no waiting for a subsequent input event. Live verification: running the app, clicking any accordion header repaints on the same frame (no "click does nothing until mouse moves" behaviour).
-- **Achievable:** depends on GX.8b — without `gtx`-carrying callbacks, sitedocs cannot emit MessageOps from cadence callbacks. With GX.8b done, the refactor is a substitution at every callsite plus deleting the controller plumbing. No new framework code.
-- **Relevant:** `FEEDBACK-G5.1.md` [Blocker] "Cadence interactive-pattern callbacks lack gtx → consumers cannot route through mvu MessageOp". GX.9 is the validation that GX.8 actually fixes the original bug. Also reverts the workaround commits (`aaf6131` 5s poll bump and `598336e` SingleOpen=false) where no longer needed.
-- **Budget:** ~60 K.
-
-### GX.10 — Feeds: migrate to mvu Model + Update + MessageOp
-
-- [ ] **Done**
-- **Specific:** Refactor `feeds/` identically to GX.9. Introduce `feeds.Model` capturing at minimum `{selectedFeed FeedID, selectedArticle ArticleID, currentPage int, sort table.Sort, openSections map[int]bool}`. `Update` handles `SelectFeed`, `SelectArticle`, `SetPage`, `SetSort`, `ToggleSection`. Replace every cadence-pattern callback in `feeds/sidebar.go`, `feeds/articles.go`, and the pagination/sort callsites with `mvu.MessageOp{Message: ...}.Add(gtx.Ops)`. Delete `selectionController`, the copy-pasted `openController`, the pagination re-subscription `SwitchMap`, and the two cell-token `atomic.Pointer` mirrors. The pagination "Props.Page/PageCount static int" friction in FEEDBACK-G5.2 also dissolves: those values come from the Model and the closure reads them on every emission instead of being captured at construction.
-- **Measurable:** `grep -rnE 'atomic\.Pointer|openController|selectionController' feeds/` returns no matches. `go test ./feeds/...` green. New smoke test confirms click-emits-message-emits-render in one frame. Live: clicking a sidebar feed entry / pagination button / sort header repaints on the same frame.
-- **Achievable:** depends on GX.8b. Same shape as GX.9, larger surface because `feeds/` has more interactive controls (sidebar + table + sort + pagination + select). No new framework code.
-- **Relevant:** `FEEDBACK-G5.2.md` [Blocker] cross-reference to G5.1; `FEEDBACK-G5.2.md` [Major] entries on pagination, table row-click, and cell token plumbing all collapse once MessageOp + mvu is wired in. GX.10 runs after GX.9 so the migration recipe is validated on the simpler app first.
-- **Budget:** ~65 K.
-
-### GX.11 — Spectrum: push-based system appearance source via `NSDistributedNotificationCenter`
-
-- [ ] **Done**
-- **Specific:** Replace the `defaults read -g` exec-poll implementation in `spectrum/system/system_darwin.go` with a push subscription to macOS theme-change notifications. Add a thin CGO bridge (`spectrum/system/system_darwin.m`) that observes `AppleInterfaceThemeChangedNotification` on `NSDistributedNotificationCenter` and forwards events to Go via a channel. The darwin source's dark-mode signal becomes event-driven; `AccentIndex` stays polled but on a much longer interval (≥10 s) since no equivalent notification is publicly documented. `spectrum/system.LiveTheme` becomes effectively zero-CPU at idle. Sitedocs reverts the `5 * time.Second` workaround applied in commit `aaf6131` back to the package's recommended default (or the parameter goes away if the new API is push-only).
-- **Measurable:** `go test ./spectrum/system/...` green including a new `TestSystemDarwinPushEmitsOnThemeChange` that drives a synthetic notification (via an exported test hook) and asserts a single emission. Running sitedocs at idle for ≥30 s shows < 0.5% CPU. Theme-change response time from a real external `defaults write` is < 100 ms (vs. up to 1 s at the original 1 s polling or 5 s at the workaround interval).
-- **Achievable:** the CGO + Objective-C bridge is the long pole. Existing tests in `spectrum/system_test.go` continue to work because they exercise `FromSource` with synthetic `Source` values (no CGO path). The new test uses an exported test hook to inject a synthetic notification trigger.
-- **Relevant:** `FEEDBACK-G5.1.md` [Major] "spectrum/system polls system appearance via fork+exec — ~10% CPU floor per 1 s tick". The push-based source eliminates the idle CPU floor in every Phase-5 example app and removes the per-app DDoS on `cfprefsd`.
-- **Budget:** ~60 K.
-
-### G5.2c — Article detail view
-
-- [ ] **Done**
-- **Specific:** `feeds/detail.go` renders the selected article in a right-hand pane (use `cadence/shell.Shell(SplitPane)` mode, or stack below the table — pick whichever composes cleaner and log the choice + rationale to `FEEDBACK-G5.2.md`). Detail uses `cadence/tabs` with three tabs: "Reader" (formatted body, paragraph wrapping), "Raw" (same body in monospace), "Comments" (static placeholder list). A `cadence/popover` on a navbar "Share" button lists three share destinations (no-op). Hover tooltips (`cadence/tooltip`) on the table's icon-only column headers.
-- **Measurable:** `go test ./feeds/...` green; running app: clicking an article populates detail pane; switching tabs swaps content; Share popover opens and dismisses correctly; tooltips appear on hover; any composition friction appended to `FEEDBACK-G5.2.md`.
-- **Achievable:** no real formatting — Reader and Raw both render the same hard-coded body text, differing only in font. Comments tab is a static placeholder list. Depends on GX.10 — clicks must land via MessageOp through the mvu loop rather than the legacy `selectionController` pattern.
-- **Relevant:** `cadence/tabs` + `cadence/popover` + `cadence/tooltip` + split-pane composition. Phase 5 Cursor target — first new G5.2 sub-goal built on the post-GX.8/10 architecture.
-- **Budget:** ~70 K. Depends on G5.2b (done) and GX.10.
-
-### G5.2d — CRUD actions
-
-- [ ] **Done**
-- **Specific:** wire the "Add feed" navbar action to open a `cadence/modal` containing a small form (a `cadence/card` wrapping a `prism/input/textfield` for URL + a `prism/button` submit). On submit: synthesise a feed entry, append to the in-memory list, fire a `cadence/toast` "Feed added". Delete-feed: hover-revealed trash icon on each sidebar entry → `cadence/popover` confirm ("Delete this feed?") → on confirm, remove + toast. Empty-URL submit displays a `cadence/alert` at the top of the modal.
-- **Measurable:** `go test ./feeds/...` green (golden of the modal in light + dark, plus a small interaction test confirming submit flow); running app: full add-feed flow works end-to-end; delete-feed confirm works; alert fires on empty submit; toasts visible for both actions; findings appended to `FEEDBACK-G5.2.md`.
-- **Achievable:** no persistence; additions/deletions live until app restart. No undo. No URL validation beyond non-empty.
-- **Relevant:** `cadence/modal` + `cadence/popover` + `cadence/toast` + `cadence/alert` composed in a realistic CRUD flow.
-- **Budget:** ~50 K. Depends on G5.2a (sidebar must exist for delete).
-
-### G5.2e — Feedback writeup
-
-- [ ] **Done**
-- **Specific:** rewrite `FEEDBACK-G5.2.md` from the running notes left by G5.2a–d into the same four-section structured form defined in G5.1d (Bugs / Missing API / Awkward compositions / Ergonomics wins), with severity tags and remediation sketches.
-- **Measurable:** `FEEDBACK-G5.2.md` exists in repo root with all four section headings; every non-empty entry severity-tagged; every blocker and major carries a one-line remediation; empty sections are explicitly annotated.
-- **Achievable:** pure documentation goal; reads existing running notes; halts and surfaces process failure if notes absent.
-- **Relevant:** primary Phase 5 deliverable for G5.2.
-- **Budget:** ~20 K.
-
-### G5.3a — Format design + app skeleton + watchlists sidebar
-
-- [ ] **Done**
-- **Specific:** new top-level Go module `vibrantgio/watchlist/` (joined to `go.work`). Before any UI: write `WATCHLIST-FORMAT.md` at repo root specifying the JSON file format — fields per symbol (Symbol, Exchange, Timeframe, Notes), file path convention (`~/Library/Application Support/vibrantgio/watchlists.json` on macOS, XDG path on Linux), top-level shape (named watchlists each containing an ordered symbol list), versioning field. Then `watchlist/main.go` opens a window via `prism/initial` + `spectrum` theme. Layout is `cadence/shell.Shell(SidebarHeaderMain)`: navbar with brand "Watchlist editor" + "New watchlist" action button (no-op for now); sidebar lists the watchlist names loaded from the on-disk file (or shows an empty-state message if the file is absent). Selecting a watchlist exposes its name in Main as placeholder. On first run, if no file exists, write a starter watchlist (`"default"` containing 3 example symbols — e.g., BTC/USD, ETH/USD, SOL/USD) so the app has data to display.
-- **Measurable:** `go build ./watchlist/...` green; `go test ./watchlist/...` green; running `go run ./watchlist/` opens a window with sidebar populated from the on-disk JSON; `WATCHLIST-FORMAT.md` exists and documents the schema completely enough that a coinviz adoption could implement against it; `FEEDBACK-G5.3.md` is created with first entries or the explicit line "no findings yet".
-- **Achievable:** read+display only — no editing yet. Persistence is read-on-startup; the starter file is written once if absent. Format design is small and pragmatic: a flat JSON document, not a database, not a binary blob. Built on the post-GX.8 architecture from the start — no `mirrorWidget` / `Controller` plumbing.
-- **Relevant:** real file format + real persistence + first composition of `cadence/shell` + `cadence/sidebar` + `cadence/navbar` for this app.
-- **Budget:** ~60 K.
-
-### G5.3b — Symbols table + edit modal
-
-- [ ] **Done**
-- **Specific:** Main slot renders a `cadence/table` of the selected watchlist's symbols (columns: Symbol, Exchange, Timeframe, Notes). Above the table, an "Add symbol" button opens a `cadence/modal` containing a form (`prism/input/textfield` per field + `prism/button` submit). Editing: row click or pencil icon → reopens the same modal pre-populated with the row's values. Save: mutates the in-memory watchlist and writes the full file back to disk atomically (write to temp + rename). Save success → `cadence/toast` "Saved". Empty-Symbol submit → `cadence/alert` at top of modal.
-- **Measurable:** `go test ./watchlist/...` green (golden of the modal in light + dark; small interaction test of save round-trip via a temp directory); running app: add-symbol flow persists across restart; edit-symbol flow persists across restart; alert fires on empty Symbol; toast confirms saves; findings appended to `FEEDBACK-G5.3.md`.
-- **Achievable:** persistence is full-file rewrite (no merge, no concurrency). One watchlist edited at a time. Form validation is non-empty Symbol only.
-- **Relevant:** `cadence/table` + `cadence/modal` + `cadence/alert` + `cadence/toast` + real disk write.
-- **Budget:** ~70 K. Depends on G5.3a.
-
-### G5.3c — Delete + bulk + tooltips + pagination
-
-- [ ] **Done**
-- **Specific:** row-level delete via trash icon → `cadence/popover` confirm. Bulk: a checkbox column allows multi-select; a "Delete N" action in the navbar opens `cadence/popover` confirm with the selection count. Column header tooltips (`cadence/tooltip`) explain each column. Right-clicking a watchlist in the sidebar opens a `cadence/popover` with "Rename" / "Delete" entries (rename uses a small modal; delete confirms). `cadence/pagination` is added below the table if a watchlist has more than 25 symbols.
-- **Measurable:** `go test ./watchlist/...` green; running app: row delete confirms and persists; bulk delete confirms with count and persists; rename and delete watchlist flows persist; pagination renders only when needed; tooltips appear on hover; findings appended to `FEEDBACK-G5.3.md`.
-- **Achievable:** scoped to interaction surfaces. No undo/redo. No drag-reorder.
-- **Relevant:** `cadence/popover` + `cadence/tooltip` + `cadence/pagination` composed with persistence.
-- **Budget:** ~70 K. Depends on G5.3b.
-
-### G5.3d — Feedback writeup
-
-- [ ] **Done**
-- **Specific:** rewrite `FEEDBACK-G5.3.md` from the running notes left by G5.3a–c into the same structured form defined in G5.1d (Bugs / Missing API / Awkward compositions / Ergonomics wins) with severity tags and remediation sketches. Add a final subsection **"Format-design notes for coinviz adoption"** capturing any format-design lessons relevant to a future coinviz multi-symbol feature (e.g., field naming, version migration considerations).
-- **Measurable:** `FEEDBACK-G5.3.md` exists in repo root with all four standard section headings plus the "Format-design notes for coinviz adoption" subsection; severity-tagged entries; blocker/major remediations; the format-design subsection is at least a paragraph (even if it just says "no surprises — straight read of `WATCHLIST-FORMAT.md` is sufficient").
-- **Achievable:** pure documentation.
-- **Relevant:** primary Phase 5 deliverable for G5.3; seeds the future coinviz multi-symbol feature.
-- **Budget:** ~20 K.
-
-### GX.6d — Consolidate `spectrum/` to one go.mod
-
-- [ ] **Done**
-- **Specific:** in the embedded `spectrum/` repo (4 sub-packages today: `preferences`, `system`, `transition`, `window`), collapse the 4 sub-package `go.mod` files into a single `spectrum/go.mod` declaring `module github.com/vibrantgio/spectrum`. Update `go.work` to one spectrum entry.
-- **Measurable:** `find spectrum -name go.mod | wc -l` returns `1`; `go test ./spectrum/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `spectrum/`.
-- **Achievable:** mechanical; same shape as GX.6a. Smallest of the four — natural starter sub-goal to validate the migration recipe before tackling the larger repos.
-- **Relevant:** parent GX.6. Recommended to run first as a low-risk dress rehearsal.
-- **Budget:** ~35 K. 4 sub-packages, no intra-repo `replace` chains, modest test surface — the cheapest validation pass for the consolidation recipe.
-
-### GX.6c — Consolidate `pulse/` to one go.mod
-
-- [ ] **Done**
-- **Specific:** in the embedded `pulse/` repo (7 sub-packages today: `conductor`, `depth`, `glow`, `motion`, `spring`, `springbutton`, `tween`), collapse the 7 sub-package `go.mod` files into a single `pulse/go.mod` declaring `module github.com/vibrantgio/pulse`. Sub-packages become normal Go packages within that module. Update `go.work` to one pulse entry.
-- **Measurable:** `find pulse -name go.mod | wc -l` returns `1`; `go test ./pulse/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `pulse/`.
-- **Achievable:** mechanical; same shape as GX.6a. `springbutton` depends on `spring` and `tween`, so the `replace` cleanup pays off there.
-- **Relevant:** parent GX.6.
-- **Budget:** ~45 K. 7 sub-packages; mid-sized intra-repo dep graph (springbutton → spring + tween) and modest test surface.
-
-### GX.6b — Consolidate `prism/` to one go.mod
-
-- [ ] **Done**
-- **Specific:** in the embedded `prism/` repo (14 sub-packages today: `a11y`, `button`, `cache`, `coordination`, `gallery`, `icon`, `initial`, `input`, `internal/golden`, `keyed`, `layout`, `list`, `theme`, `tokens`), collapse the 14 sub-package `go.mod` files into a single `prism/go.mod` declaring `module github.com/vibrantgio/prism`. Sub-packages become normal Go packages; cross-package imports (e.g., `button` → `tokens`, `button` → `theme`) become same-module imports with no `replace` plumbing. The single `prism/go.mod` retains `replace` lines for downstream design-system repos it references at all (currently `mvu`). Update `go.work` to one prism entry.
-- **Measurable:** `find prism -name go.mod | wc -l` returns `1`; `go test ./prism/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `prism/`.
-- **Achievable:** mechanical; same shape as GX.6a. Prism has more intra-module deps than cadence (button→tokens, button→theme, list→a11y, etc.) so the `replace` cleanup is the bulk of the diff. The `prism/internal/golden` package keeps its `internal/` path inside the consolidated module — it remains importable from `prism/<sub>` siblings and unreachable from outside the repo, the same access pattern it has today.
-- **Relevant:** parent GX.6.
-- **Budget:** ~65 K. 14 sub-packages and the deepest intra-repo dep graph of the four; the `internal/golden` path warrants an extra verification pass to confirm it still resolves from sibling test files after consolidation.
-
-### GX.6a — Consolidate `cadence/` to one go.mod
-
-- [ ] **Done**
-- **Specific:** in the embedded `cadence/` repo (16 sub-packages today), replace the 16 per-sub-package `go.mod` / `go.sum` files with a single root `cadence/go.mod` declaring `module github.com/vibrantgio/cadence` and a single `cadence/go.sum`. Each sub-package becomes a normal Go package — `cadence/pricing/pricing.go` keeps `package pricing` and continues to import siblings via `github.com/vibrantgio/cadence/<other>` paths, but those imports now resolve within the same module without `replace` plumbing. Intra-repo `replace` lines (e.g., `cadence/sidebar => ../sidebar`) are deleted; sibling-repo `replace` lines (`github.com/vibrantgio/prism/... => ../../prism/<x>`, `github.com/vibrantgio/pulse/depth => ../../pulse/depth`) consolidate at the root go.mod. The `go.work` `use (...)` block shrinks from 16 cadence entries to one (`./cadence`). The pre-existing uncommitted `go mod tidy` drift in `cadence/{alert,breadcrumb,navbar,toast}/go.mod` and the untracked `cadence/popover/` sub-package are absorbed by the consolidation: their `go.mod` / `go.sum` files are deleted, their Go source is committed as part of the consolidated module.
-- **Measurable:** `find cadence -name go.mod | wc -l` returns `1`; `go test ./cadence/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `cadence/` (proves the consolidated layout builds standalone, which is currently broken for `cadence/hero` and `cadence/pricing`).
-- **Achievable:** mechanical migration: walk each sub-package, delete `go.mod`/`go.sum`, fix import paths only where they reference siblings (most don't — sub-packages already import via `github.com/vibrantgio/cadence/<x>`, just registered as separate modules). Refresh `go.work` and run `go mod tidy` once at the new root. No source-code changes to the patterns; no test changes.
-- **Relevant:** parent GX.6. Cadence is the largest repo (16 sub-packages) and the one actively growing during Phase 4 — consolidating before G4.5c–d and Phase 5 lands marketing/example patterns directly in the new structure instead of requiring later migration.
-- **Budget:** ~75 K. Largest of the four: 16 sub-packages to walk, two full test runs (workspace + `GOWORK=off`) across ~30 test files, plus absorbing two pre-existing drift situations (tidy edits in four sibling sub-packages and the fully untracked `popover/`).
-
-### GX.4 — Touch-up: `cadence/modal` close affordance uses `prism/button`
-
-- [ ] **Done**
-- **Specific:** Replace the `widget.Clickable` + custom `drawCross` glyph + modal-owned focus ring used for the close affordance in `cadence/modal/modal.go` with a `prism/button.Button` instance (icon-only or compact variant). Preserve the existing `Props` API and all interaction semantics (Escape, Tab focus trap, backdrop click). Refresh the four golden images.
-- **Measurable:** `go test ./cadence/modal/...` green; `grep -n 'button.Button(' cadence/modal/modal.go` returns at least one match and `grep -n 'drawCross' cadence/modal/modal.go` returns no matches.
-- **Achievable:** scoped to the close affordance and its golden refresh; do not touch focus-trap, stack, footer, or scrim logic.
-- **Relevant:** PLAN.md G4.2a Achievable contract ("reuses `prism/button` for header close + footer actions") — recorded as a known deviation in the G4.2a session reply.
-- **Budget:** ~30 K.
-
-### GX.5 — Touch-up: `cadence/modal` footer actions own their own focus tags
-
-- [ ] **Done**
-- **Specific:** Remove the modal-owned focus tag and focus ring drawn around each `Props.Actions` entry in `cadence/modal/modal.go`. Action widgets register their own focus tags (e.g., `prism/button.Button` does); the modal must include those tags in its Tab cycle without wrapping them. Choose the smaller of two routes: (a) add `Props.ActionFocusTags []event.Tag` so callers declare their own tags, or (b) introspect a registered tag set after each action lays out. Document the choice in the package doc comment.
-- **Measurable:** `go test ./cadence/modal/...` green, including a new interaction test confirming a focused `prism/button` action renders only the button's own focus ring (no doubled outer ring); existing `TestTabTrapsFocusWithinModal`, `TestShiftTabTrapsFocusWithinModal`, and `TestTabCyclesFocusAmongModalTags` still pass.
-- **Achievable:** `Props` addition or small introspection helper plus one new test; do not touch scrim, stack depth, or close-button logic.
-- **Relevant:** PLAN.md G4.2a follow-up — focus-ring composition between modal and `prism/button`-typed actions. Pair with GX.4 if the close-button swap surfaces the same doubled-ring issue at the header.
-- **Budget:** ~40 K.
-
-### GX.1 — Per-component benchmark in `prism/bench/`
-
-- [ ] **Done**
-- **Specific:** `prism/bench/` package exposing `BenchFrame(b *testing.B, widget layout.Widget)` per DESIGN §"Performance — Methodology — Benchmark harness". The helper drives `widget(gtx)` with synthesized constraints, calls `b.ReportAllocs()`, and standardises measurement across components. Three Phase 1 components plug into the harness via their own `*_bench_test.go` files: `prism/button` (idle render), `prism/input/textfield` (cursor-blinking frame), `prism/list` (1000-row render). Current numbers (ns/op, B/op) for each are captured in `BASELINE.md` under a new "Phase 1 component baseline" heading.
-- **Measurable:** `go test -bench=. ./prism/bench/... ./prism/button/... ./prism/input/textfield/... ./prism/list/...` green; `BASELINE.md` contains a "Phase 1 component baseline" section with one ns/op + B/op row per named component.
-- **Achievable:** the harness + three component benchmarks + baseline doc. No CI gate, no PR automation — regression detection is a manual `go test -bench` re-run by the developer when the relevant code changes. Solo-dev project.
-- **Relevant:** DESIGN §"Performance — Methodology".
-- **Budget:** ~70 K.
 
 ---
 
@@ -290,20 +97,24 @@ Discharges DESIGN §"Phase −1 — Gio Migration" and §"Known Fragilities".
 - **Budget:** audit + write ~400 lines of Markdown. Single session.
 
 ### G−1.2 — Migrate `mvu/window.go` event loop
+
 - [x] **Done**
 - **Specific:** rewrite `mvu/window.go` against `app.Window.Event()` (goroutine→channel→`rx.Recv`); fix `mvu/message.go` to use `event.Op` instead of the removed `pointer.InputOp`; fix `font/` `Variant` field (removed in v0.9). Preserve the `WithLatestFrom2` join exactly. The `unsafeOps` cast is corrected (`version uint32`) but not yet eliminated — that is G−1.3.
 - **Measurable:** `go build ./mvu/...` is error-free; `go test ./mvu/...` passes.
 - **Achievable:** `mvu/window.go` (~100 lines), `mvu/message.go` (~17 lines), `font/` leaf files (mechanical zero-value removal).
 - **Relevant:** DESIGN §"Phase −1" deliverable 2.
 - **Budget:** ~70 K tokens including reading current `mvu/window.go`, `traer/gio/...` example, and test rewrite.
+
 ### G−1.3 — Replace `unsafe.Pointer` MessageOp extraction
+
 - [x] **Done**
 - **Specific:** delete the `unsafeOps` cast in `mvu/window.go` (struct layout was corrected to `version uint32` in G−1.2, but the unsafe block must be removed entirely); route `MessageOp` through a mechanism that does not require `unsafe` — e.g. a per-frame accumulator slice threaded through the layout context, or another safe alternative.
 - **Measurable:** `grep -rn "unsafe" mvu/` returns zero results; `go build ./mvu/...` still clean; existing `MessageOp` consumers in `todos` compile (once G−1.5 is done).
 - **Achievable:** single-file refactor against the API stabilised in G−1.2; may require small changes to `mvu/message.go`.
 - **Relevant:** DESIGN §"MessageOp extraction via `unsafe.Pointer`" repayment plan.
 - **Budget:** ~50 K. Depends on G−1.2.
-### G−1.4 ‖ — Migrate `coinviz`
+- 
+### G−1.4 — Migrate `coinviz`
 
 - [x] **Done**
 - **Specific:** update `coinviz/go.mod` to current Gio; fix every API breakage call site.
@@ -315,7 +126,7 @@ Discharges DESIGN §"Phase −1 — Gio Migration" and §"Known Fragilities".
   - **G−1.4b** chart panes (`coinviz/pane`)
   - **G−1.4c** app shell + main
 
-### G−1.5 ‖ — Migrate `appviz`, `todos`, `mindchat`, `traer/gio/*`, `seen/gio/*`
+### G−1.5 — Migrate `appviz`, `todos`, `mindchat`, `traer/gio/*`, `seen/gio/*`
 
 - [x] **Done**
 - **Specific:** one goal per app. Each goal updates `go.mod`, fixes API call sites, verifies the app launches.
@@ -342,8 +153,6 @@ Discharges DESIGN §"Phase −1 — Gio Migration" and §"Known Fragilities".
 - **Relevant:** DESIGN §"Phase −1" risk gate. Phase 00 cannot start until this is ✅ or downgraded patterns are documented.
 - **Budget:** ~40 K.
 
----
-
 ### G−1.8 — Migrate `ivg/raster/gio` examples
 
 - [x] **Done**
@@ -352,6 +161,8 @@ Discharges DESIGN §"Phase −1 — Gio Migration" and §"Known Fragilities".
 - **Achievable:** 8 small files each using the same 3-call migration pattern established in G−1.2 and G−1.5. The raster library itself already uses no deprecated APIs — only the examples need updating. Non-blocking: does not gate Phase 0 or Phase 00.
 - **Relevant:** DESIGN §"Phase −1" deliverable 4 (all Gio-dependent programs migrated).
 - **Budget:** ~40 K.
+
+---
 
 ## Phase 00 — Validation Experiments
 
@@ -395,6 +206,7 @@ Discharges DESIGN §"Phase 00 — Validation Experiments" and §"Architectural L
 - **Achievable:** extends C1 in the same module; no new module.
 - **Relevant:** DESIGN §"Architectural Limits" concern #3.
 - **Budget:** ~50 K.
+
 ### G00.D — Pre-Phase 0 decisions (concerns #4 and #5)
 
 - [x] **Done**
@@ -410,7 +222,7 @@ Discharges DESIGN §"Phase 00 — Validation Experiments" and §"Architectural L
 
 Discharges DESIGN §"Phase 0 — Token & Theme Contract". Gated by G00.A–D.
 
-### G0.1 ‖ — `prism/tokens/colors.go`
+### G0.1 — `prism/tokens/colors.go`
 
 - [x] **Done**
 - **Specific:** typed colour token structs (Background/OnBackground, Surface/OnSurface, etc.); align with Tailwind 50–950 shade scale per DESIGN §"Phase 4 — Token alignment".
@@ -419,7 +231,7 @@ Discharges DESIGN §"Phase 0 — Token & Theme Contract". Gated by G00.A–D.
 - **Relevant:** DESIGN §"Phase 0" deliverable 1.
 - **Budget:** ~60 K.
 
-### G0.2 ‖ — `prism/tokens/{spacing,radius,elevation,motion}.go`
+### G0.2 — `prism/tokens/{spacing,radius,elevation,motion}.go`
 
 - [x] **Done**
 - **Specific:** four files of typed scales. Spacing on 4-pt grid (Tailwind-aligned).
@@ -520,7 +332,6 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.3 ‖ — `prism/input/{textfield,checkbox,radio,dropdown}.go`
 
-- [x] **Done** *(done when G1.3a–G1.3d all checked)*
 - **Specific:** four input components split into G1.3a–G1.3d; one session each.
 - **Measurable:** all four sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G1.3a–G1.3d.
@@ -583,7 +394,7 @@ Discharges DESIGN §"Phase 1 — Prism".
   - **G1.4a** core list mechanic
   - **G1.4b** virtualisation + benchmark
 
-### G1.5 ‖ — `prism/icon/`
+### G1.5 — `prism/icon/`
 
 - [x] **Done**
 - **Specific:** unified registry over existing `svg/` and `ivg/` packages; `Icon(name)` resolves either.
@@ -592,7 +403,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 - **Relevant:** DESIGN §"Phase 1" deliverable.
 - **Budget:** ~50 K.
 
-### G1.6 ‖ — `prism/layout/`
+### G1.6 — `prism/layout/`
 
 - [x] **Done**
 - **Specific:** spacing helpers, `FocusGroup`, basic flex/grid wrappers atop Gio's `layout`.
@@ -621,14 +432,13 @@ Discharges DESIGN §"Phase 1 — Prism".
 
 ### G1.9 ‖ — Migrate reference apps to Prism
 
-- [x] **Done**
 - **Specific:** four sub-goals — one per app — each replacing bespoke widgets with Prism equivalents.
 - **Measurable:** per app, no in-repo button/input/list duplication remains; all existing tests still pass.
 - **Achievable:** mechanical replacement after Prism stabilises.
 - **Relevant:** DESIGN §"Phase 1 — Migration path".
 - **Budget:** ~70 K each (G1.9a coinviz, G1.9b appviz, G1.9c todos, G1.9d mindchat).
 
-#### G1.9a ‖ — Migrate coinviz to Prism
+#### G1.9a — Migrate coinviz to Prism
 
 - [x] **Done**
 - **Specific:** coinviz already uses `prism/initial` and `prism/theme`; no bespoke button/input/list widget functions exist in the package.
@@ -637,7 +447,7 @@ Discharges DESIGN §"Phase 1 — Prism".
 - **Relevant:** DESIGN §"Phase 1 — Migration path".
 - **Budget:** ~70 K.
 
-#### G1.9b ‖ — Migrate appviz to Prism
+#### G1.9b — Migrate appviz to Prism
 
 - [x] **Done**
 - **Specific:** appviz has no bespoke button/input/list widget functions.
@@ -726,14 +536,14 @@ Discharges DESIGN §"Phase 3". Parallelisable with Phase 2 once Phase 1 lands.
 - [x] **Done**
 Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / Vivace / Kinesis); repurposed from a Phase 2 candidate because rhythm fits motion more naturally than emissions. Module path: `vibrantgio/pulse`. Budget ~20 K.
 
-### G3.1 ‖ — `pulse/tween/`
+### G3.1 — `pulse/tween/`
 
 - [x] **Done**
 - **Specific:** generic `Tween[T]` for fades, slides, colour interpolations.
 - **Measurable:** deterministic settling-time tests per DESIGN §"Testing — Physics convergence tests".
 - **Budget:** ~60 K.
 
-### G3.2 ‖ — `pulse/spring/`
+### G3.2 — `pulse/spring/`
 
 - [x] **Done**
 - **Specific:** physics-based motion via `traer`; `Defer`-scoped `ParticleSystem`.
@@ -742,7 +552,6 @@ Same template as G2.0. Decided **Pulse** (rejected original candidates Verve / V
 
 ### G3.3 ‖ — `pulse/glow/` and `pulse/depth/`
 
-- [x] **Done** *(done when G3.3a–G3.3b all checked)*
 - **Specific:** two visual-effect packages split into G3.3a (glow) and G3.3b (depth); one session each. Glow = luminance halo via gradient composition; depth = elevation-driven shadow layers.
 - **Measurable:** both sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G3.3a–G3.3b.
@@ -802,7 +611,6 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.1 ‖ — Static patterns: card, alert, breadcrumb, pagination
 
-- [x] **Done** *(done when G4.1a–G4.1d all checked)*
 - **Specific:** four static-content pattern packages split into G4.1a (card), G4.1b (alert), G4.1c (breadcrumb), G4.1d (pagination); one session each. "Static" = no coordination primitive (no popover/modal/toast); content layout only, composed from Prism primitives.
 - **Measurable:** all four sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G4.1a–G4.1d.
@@ -847,7 +655,6 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.2 ‖ — Patterns depending on coordination primitive: modal, popover, tooltip, toast
 
-- [x] **Done** *(done when G4.2a–G4.2d all checked)*
 - **Specific:** four coordination-dependent pattern packages split into G4.2a (modal), G4.2b (popover), G4.2c (tooltip), G4.2d (toast); one session each. All depend on `prism/coordination/` (G1.7) for cross-widget arbitration (focus, dismissal, single-active). Modal is sequenced first because its acceptance criterion (focus trap + escape handling) is the hardest interaction proof and de-risks the remaining three.
 - **Measurable:** all four sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G4.2a–G4.2d.
@@ -892,7 +699,6 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.3 ‖ — Navigation: navbar, sidebar, tabs, accordion, shell
 
-- [x] **Done** *(done when G4.3a–G4.3e all checked)*
 - **Specific:** five navigation pattern packages split into G4.3a (navbar), G4.3b (sidebar), G4.3c (tabs), G4.3d (accordion), G4.3e (shell); one session each. G4.3e (shell) sequenced last because it composes G4.3a (navbar) and G4.3b (sidebar).
 - **Measurable:** all five sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G4.3a–G4.3e.
@@ -953,7 +759,6 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G4.5 ‖ — Marketing sections
 
-- [x] **Done** *(done when G4.5a–G4.5d all checked)*
 - **Specific:** four marketing-section pattern packages split into G4.5a (hero), G4.5b (pricing), G4.5c (feature), G4.5d (testimonial); one session each. Pure layout composition — no coordination primitive, no focus arbitration, no per-row state — for app landing and onboarding pages. No inter-sub-goal dependencies; ordered alphabetically.
 - **Measurable:** all four sub-goals checked.
 - **Achievable:** parent tracking goal; implementation across G4.5a–G4.5d.
@@ -998,6 +803,236 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ---
 
+## Phase GX — Cross-cutting goals
+
+### GX.1 — Touch-up: `cadence/shell.Props.Sidebar` accepts a caller-built sidebar widget
+
+- [x] **Done**
+- **Specific:** Generalise `cadence/shell.Props.Sidebar` so callers can pass a pre-built sidebar widget (e.g., a `cadence/accordion`-grouped sidebar) into `shell.Shell` without bypassing it and re-implementing `composeSidebarHeaderMain` locally — the workaround used by `sitedocs/main.go` (`docsShellLayer` + local `composeSidebarHeaderMain` copy) and the latent blocker for G5.2a. Concretely: change the `Shell()` observable path so `Props.Sidebar` accepts an `rx.Observable[layout.Widget]` rather than `sidebar.Props`, and refactor the static `Render()` path to take a pre-built `layout.Widget` for the sidebar slot (extra parameter, or a sibling `RenderStatic` helper — pick whichever keeps the static call sites smallest). Callers using the default sidebar do the wrapping themselves with one line: `sb := sidebar.Sidebar(th, sidebarProps)`. Migrate `sitedocs/main.go` off its local `composeSidebarHeaderMain` to consume `shell.Shell` directly. Update the package doc to reflect the new slot shape.
+- **Measurable:** `go test ./cadence/shell/... ./sitedocs/...` green; `grep -n 'composeSidebarHeaderMain' sitedocs/` returns no matches; `grep -n 'shell.Shell(' sitedocs/main.go` returns at least one match; a new test in `cadence/shell/` confirms a custom (non-default) sidebar widget stream is rendered by `Shell()` and its op-stream order matches the default-sidebar path (sidebar → navbar → main, so Tab focus traversal is preserved).
+- **Achievable:** scoped to (1) widening `shell.Props.Sidebar` + adjusting `Render()`, (2) one new shell test for the custom-sidebar path, (3) migrating `sitedocs/main.go` off its local helper. Out of scope: widening `Props.Navbar` analogously (defer until a caller actually needs a custom navbar), touching `SplitPane` (its `Left`/`Right` slots are already `layout.Widget`), refactoring focus-traversal ordering, refreshing sitedocs goldens unless the migration changes pixel output.
+- **Relevant:** `FEEDBACK-G5.1.md` "[Blocker] `shell.Props.Sidebar` is typed as `sidebar.Props`, not `layout.Widget`" — surfaced by G5.1c, persisted as the local workaround at `sitedocs/main.go:160–183`. Unblocks G5.2a (and any later `cadence/shell` consumer needing a non-default sidebar — G5.3a is the next likely caller).
+- **Budget:** ~35 K. Depends on nothing; unblocks G5.2a.
+
+### GX.12 — `prism/layout.Pill` rrect helper with built-in radius clamp
+
+- **Specific:** Add `prism/layout.Pill(rect image.Rectangle, rad int) clip.Op` returning a rounded-rect clip op with `rad` clamped to `min(w, h) / 2` so callers cannot pass a sentinel radius (e.g., `tokens.Radius.Full = 9999 dp`) that overflows `clip.RRect` and floods the canvas. The helper documents the clamp in its godoc. Migrate the two known unsafe call sites — `cadence/hero.eyebrowWidget` and `cadence/pricing.popularChipWidget` — to use it, replacing each site's local `if maxRad := min(w,h)/2; rad > maxRad { rad = maxRad }` block with one `clip.Op := prismlayout.Pill(rect, rad)` call.
+- **Measurable:** `go test ./prism/layout/... ./cadence/hero/... ./cadence/pricing/... ./sitedocs/...` green; `grep -rnE 'clip\.RRect\{[^}]*SE: *rad' cadence/hero cadence/pricing` returns no matches (forces use of the helper at the migrated sites); the existing regression test `sitedocs/landing_radius_regression_test.go` continues to pass without modification.
+- **Achievable:** mechanical helper + two call-site migrations + one godoc example + small unit test of the clamp boundary (rad = 9999 on a 40×20 rect produces a clip op identical to rad = 10). Out of scope: a sweeping audit of every `clip.RRect` use across cadence — only the two FEEDBACK-G5.1 cited sites are in scope.
+- **Relevant:** `FEEDBACK-G5.1.md` [Blocker] "Pill widgets pass unclamped Radius.Full (9999 dp) into clip.RRect, flooding the canvas" — the local clamps in `cadence/{hero,pricing}` already shipped (commits `cfb41da`, `a137410`, `1b3e720`); this milestone centralises the clamp so future pill callers cannot reintroduce the bug.
+- **Budget:** ~25 K. Smallest, mechanical, low-risk.
+
+**Steps:**
+
+- [ ] Add `Pill(rect image.Rectangle, rad int) clip.Op` to `prism/layout`, clamping `rad` to `min(w, h) / 2`; document the clamp in its godoc.
+- [ ] Add a unit test of the clamp boundary (`rad = 9999` on a 40×20 rect yields a clip op identical to `rad = 10`).
+- [ ] Migrate `cadence/hero.eyebrowWidget` to call `prismlayout.Pill`, removing its local `if maxRad := min(w,h)/2; …` clamp block.
+- [ ] Migrate `cadence/pricing.popularChipWidget` the same way.
+- [ ] Verify `go test ./prism/layout/... ./cadence/hero/... ./cadence/pricing/... ./sitedocs/...` green, `grep -rnE 'clip\.RRect\{[^}]*SE: *rad' cadence/hero cadence/pricing` returns no matches, and `sitedocs/landing_radius_regression_test.go` still passes unmodified.
+
+### GX.8 ‖ — Prism + Cadence: thread `layout.Context` through every interactive callback
+
+- **Specific:** parent tracking goal — widen every interactive widget's event callback from `func(...)` to `func(gtx layout.Context, ...)` across `prism/` and `cadence/`, so consumers can emit `mvu.MessageOp{Message: ...}.Add(gtx.Ops)` inside the callback and land state changes through the canonical mvu pipeline (Messages channel → Update → new view emission → outer-observable Subscribe → `window.Invalidate()`). Until this lands, every `cadence`-consuming app is forced to bypass mvu and rebuild state plumbing on `rx.Subject` + `atomic.Pointer` + `rx.Goroutine`, which produces a user-visible "click does not repaint until the next mouse event" defect (see FEEDBACK-G5.1 / G5.2 [Blocker]). The actual work lives in `GX.8a` (prism) and `GX.8b` (cadence).
+- **Measurable:** GX.8a and GX.8b both checked.
+- **Achievable:** parent tracking goal; no direct work.
+- **Relevant:** `FEEDBACK-G5.1.md` [Blocker] "Cadence interactive-pattern callbacks lack gtx → consumers cannot route through mvu MessageOp"; `FEEDBACK-G5.2.md` [Blocker] cross-reference. Unblocks GX.9 and GX.10.
+- **Budget:** parent — no direct work.
+
+#### GX.8a — `prism` widget callbacks carry `gtx`
+
+- **Specific:** Widen every interactive `prism/` widget's event callback to accept `gtx layout.Context` as the first argument so consumers can emit `mvu.MessageOp{Message: ...}.Add(gtx.Ops)` inside the callback. Targets: `prism/button.Props.OnClick`, `prism/input/checkbox.Props.OnChange`, `prism/input/radio.Props.OnChange`, `prism/input/dropdown.Props.OnSelect`, `prism/input/textfield.Props.{OnChange,OnSubmit}`. Each `func(...)` becomes `func(gtx layout.Context, ...)`. Update each widget's internal `processInput` (or equivalent click/key drain) to pass `gtx` through. Refresh every test that exercises a callback. Cadence patterns that consume prism widgets internally (`cadence/modal` footer actions, `cadence/hero` CTAs, `cadence/pricing` CTAs, `cadence/navbar` brand button, etc.) update their internal callsites to pass the new signature; their own public Props stay unchanged in this milestone (the cadence pass is GX.8b).
+- **Measurable:** `grep -rnE 'On[A-Z][a-zA-Z]+ +func\([^g)]' prism/ | grep -v _test.go` returns no matches (every interactive callback now starts with `gtx layout.Context`). `go test ./prism/... ./cadence/...` green. Goldens unchanged (no rendering change — only signature change).
+- **Achievable:** mechanical signature widening + per-test callback shape updates. No new tests, no behavioural changes — purely additive parameter on each callback. Internal `processInput` plumbing already has `gtx` in scope at every call site.
+- **Relevant:** sub-goal of `GX.8`. Foundation for GX.8b (cadence cannot be widened cleanly until prism is widened, because cadence patterns embed prism widgets).
+- **Budget:** ~50 K. 6 callbacks across 5 prism widgets, plus consumer-side internal updates in ~6 cadence patterns.
+
+**Steps:**
+
+- [ ] Widen the prism callback signatures to take `gtx layout.Context` first: `button.Props.OnClick`, `input/checkbox.Props.OnChange`, `input/radio.Props.OnChange`, `input/dropdown.Props.OnSelect`, `input/textfield.Props.{OnChange,OnSubmit}`.
+- [ ] Thread `gtx` through each widget's internal `processInput` (or equivalent click/key drain) to the callback.
+- [ ] Update the cadence patterns that embed prism widgets internally (modal footer actions, hero/pricing CTAs, navbar brand button, …) to pass the new signature; leave their own public Props unchanged.
+- [ ] Refresh every test that exercises a widened callback.
+- [ ] Verify `grep -rnE 'On[A-Z][a-zA-Z]+ +func\([^g)]' prism/ | grep -v _test.go` returns no matches and `go test ./prism/... ./cadence/...` is green with goldens unchanged.
+
+#### GX.8b — `cadence` pattern callbacks carry `gtx`
+
+- **Specific:** Widen every interactive `cadence/` pattern's Props callback to accept `gtx layout.Context` as the first argument. Targets: `cadence/accordion.Props.OnToggle`, `cadence/tabs.Props.OnSelect`, `cadence/navbar.Link.OnClick`, `cadence/sidebar.Item.OnClick`, `cadence/sidebar.Props.OnToggleCollapse`, `cadence/pagination.Props.OnSelect`, `cadence/table.Props.OnSort`, `cadence/shell.Props.OnSplitChange`, `cadence/breadcrumb.Item.OnClick`, `cadence/hero.CTA.OnClick`, `cadence/pricing.CTA.OnClick`, `cadence/modal.Props.OnClose`, `cadence/popover.Props.OnDismiss`. Each callback's existing signature gains `gtx layout.Context` as the first parameter. Update each pattern's internal `processInput` to pass `gtx` through. Refresh every test that exercises a callback.
+- **Measurable:** `grep -rnE 'On[A-Z][a-zA-Z]+ +func\([^g)]' cadence/ | grep -v _test.go` returns no matches. `go test ./cadence/...` green. Cadence goldens unchanged (no rendering change).
+- **Achievable:** depends on GX.8a so prism callbacks used internally already have the new shape. Otherwise mechanical signature widening + per-test callback shape updates.
+- **Relevant:** sub-goal of `GX.8`. Required for GX.9 + GX.10 (the sitedocs and feeds MVU refactors that depend on cadence callbacks carrying `gtx`).
+- **Budget:** ~60 K. 13 callbacks across 12 patterns; the test surface is the long pole.
+
+**Steps:**
+
+- [ ] Widen all 13 cadence Props callbacks to take `gtx layout.Context` first: `accordion.OnToggle`, `tabs.OnSelect`, `navbar.Link.OnClick`, `sidebar.Item.OnClick`, `sidebar.OnToggleCollapse`, `pagination.OnSelect`, `table.OnSort`, `shell.OnSplitChange`, `breadcrumb.Item.OnClick`, `hero.CTA.OnClick`, `pricing.CTA.OnClick`, `modal.OnClose`, `popover.OnDismiss`.
+- [ ] Thread `gtx` through each pattern's internal `processInput` to the callback.
+- [ ] Refresh every test that exercises a widened callback.
+- [ ] Verify `grep -rnE 'On[A-Z][a-zA-Z]+ +func\([^g)]' cadence/ | grep -v _test.go` returns no matches and `go test ./cadence/...` is green with goldens unchanged.
+
+### GX.9 — Sitedocs: migrate to mvu Model + Update + MessageOp
+
+- **Specific:** Refactor `sitedocs/` to use the canonical mvu Model/Update/Messages loop (the pattern in `todos/`, `appviz/`, `mindchat/`, `coinviz/`) in place of the current `rx.Subject + atomic.Pointer + rx.Goroutine` workaround. Introduce `sitedocs.Model` capturing at minimum `{currentPage string, openSections map[int]bool}`, `sitedocs.Update(model, msg) (Model, mvu.Command)` handling `SetRoute`, `ToggleAccordion`, and `OpenAccordion(map[int]bool)` messages. Replace every cadence-pattern callback closure that currently mutates an `rx.Subject` with `mvu.MessageOp{Message: ...}.Add(gtx.Ops)`. Delete `mirrorWidget` (sitedocs/landing.go), `pageController` (sitedocs/main.go), `openController` (sitedocs/docs_sidebar.go), and the four `atomic.Pointer[layout.Widget]` mirror sites in `landing.go` / `docs.go`. The view observable derives from the model via `rx.Map(modelObs, viewFor)`. Revert the `SingleOpen: false` workaround in `docs_sidebar.go` to `SingleOpen: true` if the new MVU path delivers the toggle via a single SetOpen-style message rather than N+1 OnToggle calls.
+- **Measurable:** `grep -rnE 'atomic\.Pointer\[layout\.Widget\]|openController|pageController|mirrorWidget' sitedocs/` returns no matches. `go test ./sitedocs/...` green. A new smoke test (`TestSitedocsClickUpdatesOnSameFrame` or equivalent) drives a `ToggleAccordion` MessageOp and asserts the model observable emits within one frame of the originating click — no waiting for a subsequent input event. Live verification: running the app, clicking any accordion header repaints on the same frame (no "click does nothing until mouse moves" behaviour).
+- **Achievable:** depends on GX.8b — without `gtx`-carrying callbacks, sitedocs cannot emit MessageOps from cadence callbacks. With GX.8b done, the refactor is a substitution at every callsite plus deleting the controller plumbing. No new framework code.
+- **Relevant:** `FEEDBACK-G5.1.md` [Blocker] "Cadence interactive-pattern callbacks lack gtx → consumers cannot route through mvu MessageOp". GX.9 is the validation that GX.8 actually fixes the original bug. Also reverts the workaround commits (`aaf6131` 5s poll bump and `598336e` SingleOpen=false) where no longer needed.
+- **Budget:** ~60 K.
+
+**Steps:**
+
+- [ ] Introduce `sitedocs.Model` (`{currentPage string, openSections map[int]bool}`) and `sitedocs.Update(model, msg) (Model, mvu.Command)` handling `SetRoute`, `ToggleAccordion`, `OpenAccordion(map[int]bool)`.
+- [ ] Derive the view observable from the model via `rx.Map(modelObs, viewFor)`.
+- [ ] Replace every cadence callback closure that mutates an `rx.Subject` with `mvu.MessageOp{Message: ...}.Add(gtx.Ops)`.
+- [ ] Delete `mirrorWidget` (landing.go), `pageController` (main.go), `openController` (docs_sidebar.go), and the four `atomic.Pointer[layout.Widget]` mirror sites.
+- [ ] Revert the `SingleOpen: false` workaround in `docs_sidebar.go` to `true` if the MVU path delivers the toggle via a single message.
+- [ ] Add a smoke test (`TestSitedocsClickUpdatesOnSameFrame` or equivalent) asserting the model observable emits within one frame of the click.
+- [ ] Verify `grep -rnE 'atomic\.Pointer\[layout\.Widget\]|openController|pageController|mirrorWidget' sitedocs/` returns no matches, `go test ./sitedocs/...` green, and clicking an accordion header repaints on the same frame.
+
+### GX.10 — Feeds: migrate to mvu Model + Update + MessageOp
+
+- **Specific:** Refactor `feeds/` identically to GX.9. Introduce `feeds.Model` capturing at minimum `{selectedFeed FeedID, selectedArticle ArticleID, currentPage int, sort table.Sort, openSections map[int]bool}`. `Update` handles `SelectFeed`, `SelectArticle`, `SetPage`, `SetSort`, `ToggleSection`. Replace every cadence-pattern callback in `feeds/sidebar.go`, `feeds/articles.go`, and the pagination/sort callsites with `mvu.MessageOp{Message: ...}.Add(gtx.Ops)`. Delete `selectionController`, the copy-pasted `openController`, the pagination re-subscription `SwitchMap`, and the two cell-token `atomic.Pointer` mirrors. The pagination "Props.Page/PageCount static int" friction in FEEDBACK-G5.2 also dissolves: those values come from the Model and the closure reads them on every emission instead of being captured at construction.
+- **Measurable:** `grep -rnE 'atomic\.Pointer|openController|selectionController' feeds/` returns no matches. `go test ./feeds/...` green. New smoke test confirms click-emits-message-emits-render in one frame. Live: clicking a sidebar feed entry / pagination button / sort header repaints on the same frame.
+- **Achievable:** depends on GX.8b. Same shape as GX.9, larger surface because `feeds/` has more interactive controls (sidebar + table + sort + pagination + select). No new framework code.
+- **Relevant:** `FEEDBACK-G5.2.md` [Blocker] cross-reference to G5.1; `FEEDBACK-G5.2.md` [Major] entries on pagination, table row-click, and cell token plumbing all collapse once MessageOp + mvu is wired in. GX.10 runs after GX.9 so the migration recipe is validated on the simpler app first.
+- **Budget:** ~65 K.
+
+**Steps:**
+
+- [ ] Introduce `feeds.Model` (`{selectedFeed, selectedArticle, currentPage int, sort table.Sort, openSections map[int]bool}`) and `feeds.Update` handling `SelectFeed`, `SelectArticle`, `SetPage`, `SetSort`, `ToggleSection`.
+- [ ] Replace every cadence callback in `feeds/sidebar.go`, `feeds/articles.go`, and the pagination/sort callsites with `mvu.MessageOp{Message: ...}.Add(gtx.Ops)`, reading `Page`/`PageCount` from the model on each emission.
+- [ ] Delete `selectionController`, the copy-pasted `openController`, the pagination re-subscription `SwitchMap`, and the two cell-token `atomic.Pointer` mirrors.
+- [ ] Add a smoke test confirming click → message → render within one frame.
+- [ ] Verify `grep -rnE 'atomic\.Pointer|openController|selectionController' feeds/` returns no matches, `go test ./feeds/...` green, and clicking a sidebar entry / pagination button / sort header repaints on the same frame.
+
+### GX.11 — Spectrum: push-based system appearance source via `NSDistributedNotificationCenter`
+
+- **Specific:** Replace the `defaults read -g` exec-poll implementation in `spectrum/system/system_darwin.go` with a push subscription to macOS theme-change notifications. Add a thin CGO bridge (`spectrum/system/system_darwin.m`) that observes `AppleInterfaceThemeChangedNotification` on `NSDistributedNotificationCenter` and forwards events to Go via a channel. The darwin source's dark-mode signal becomes event-driven; `AccentIndex` stays polled but on a much longer interval (≥10 s) since no equivalent notification is publicly documented. `spectrum/system.LiveTheme` becomes effectively zero-CPU at idle. Sitedocs reverts the `5 * time.Second` workaround applied in commit `aaf6131` back to the package's recommended default (or the parameter goes away if the new API is push-only).
+- **Measurable:** `go test ./spectrum/system/...` green including a new `TestSystemDarwinPushEmitsOnThemeChange` that drives a synthetic notification (via an exported test hook) and asserts a single emission. Running sitedocs at idle for ≥30 s shows < 0.5% CPU. Theme-change response time from a real external `defaults write` is < 100 ms (vs. up to 1 s at the original 1 s polling or 5 s at the workaround interval).
+- **Achievable:** the CGO + Objective-C bridge is the long pole. Existing tests in `spectrum/system_test.go` continue to work because they exercise `FromSource` with synthetic `Source` values (no CGO path). The new test uses an exported test hook to inject a synthetic notification trigger.
+- **Relevant:** `FEEDBACK-G5.1.md` [Major] "spectrum/system polls system appearance via fork+exec — ~10% CPU floor per 1 s tick". The push-based source eliminates the idle CPU floor in every Phase-5 example app and removes the per-app DDoS on `cfprefsd`.
+- **Budget:** ~60 K.
+
+**Steps:**
+
+- [ ] Add a CGO/Objective-C bridge `spectrum/system/system_darwin.m` observing `AppleInterfaceThemeChangedNotification` on `NSDistributedNotificationCenter` and forwarding events to Go via a channel.
+- [ ] Rewrite `spectrum/system/system_darwin.go` to consume the push notification for dark-mode; keep `AccentIndex` polled on a ≥10 s interval.
+- [ ] Add an exported test hook and `TestSystemDarwinPushEmitsOnThemeChange` driving a synthetic notification and asserting a single emission.
+- [ ] Revert sitedocs' `5 * time.Second` workaround (commit `aaf6131`) to the package default, or drop the parameter if the new API is push-only.
+- [ ] Verify `go test ./spectrum/system/...` green, sitedocs idles < 0.5% CPU over ≥30 s, and theme-change response is < 100 ms.
+
+### GX.2 — Per-component benchmark in `prism/bench/`
+
+- **Specific:** `prism/bench/` package exposing `BenchFrame(b *testing.B, widget layout.Widget)` per DESIGN §"Performance — Methodology — Benchmark harness". The helper drives `widget(gtx)` with synthesized constraints, calls `b.ReportAllocs()`, and standardises measurement across components. Three Phase 1 components plug into the harness via their own `*_bench_test.go` files: `prism/button` (idle render), `prism/input/textfield` (cursor-blinking frame), `prism/list` (1000-row render). Current numbers (ns/op, B/op) for each are captured in `BASELINE.md` under a new "Phase 1 component baseline" heading.
+- **Measurable:** `go test -bench=. ./prism/bench/... ./prism/button/... ./prism/input/textfield/... ./prism/list/...` green; `BASELINE.md` contains a "Phase 1 component baseline" section with one ns/op + B/op row per named component.
+- **Achievable:** the harness + three component benchmarks + baseline doc. No CI gate, no PR automation — regression detection is a manual `go test -bench` re-run by the developer when the relevant code changes. Solo-dev project.
+- **Relevant:** DESIGN §"Performance — Methodology".
+- **Budget:** ~70 K.
+
+**Steps:**
+
+- [ ] Add `prism/bench/` exposing `BenchFrame(b *testing.B, widget layout.Widget)` — drive `widget(gtx)` with synthesized constraints and call `b.ReportAllocs()`.
+- [ ] Add `*_bench_test.go` plugging `prism/button` (idle render), `prism/input/textfield` (cursor-blinking frame), and `prism/list` (1000-row render) into the harness.
+- [ ] Record current ns/op + B/op for each in `BASELINE.md` under a new "Phase 1 component baseline" heading.
+- [ ] Verify `go test -bench=. ./prism/bench/... ./prism/button/... ./prism/input/textfield/... ./prism/list/...` green and the BASELINE.md section has one row per named component.
+
+### GX.4 — Touch-up: `cadence/modal` close affordance uses `prism/button`
+
+- **Specific:** Replace the `widget.Clickable` + custom `drawCross` glyph + modal-owned focus ring used for the close affordance in `cadence/modal/modal.go` with a `prism/button.Button` instance (icon-only or compact variant). Preserve the existing `Props` API and all interaction semantics (Escape, Tab focus trap, backdrop click). Refresh the four golden images.
+- **Measurable:** `go test ./cadence/modal/...` green; `grep -n 'button.Button(' cadence/modal/modal.go` returns at least one match and `grep -n 'drawCross' cadence/modal/modal.go` returns no matches.
+- **Achievable:** scoped to the close affordance and its golden refresh; do not touch focus-trap, stack, footer, or scrim logic.
+- **Relevant:** PLAN.md G4.2a Achievable contract ("reuses `prism/button` for header close + footer actions") — recorded as a known deviation in the G4.2a session reply.
+- **Budget:** ~30 K.
+
+**Steps:**
+
+- [ ] Replace the close affordance in `cadence/modal/modal.go` (`widget.Clickable` + `drawCross` glyph + modal-owned focus ring) with a `prism/button.Button` (icon-only / compact variant).
+- [ ] Preserve the `Props` API and every interaction semantic — Escape, Tab focus trap, backdrop click.
+- [ ] Refresh the four modal golden images.
+- [ ] Verify `go test ./cadence/modal/...` green, `grep -n 'button.Button(' cadence/modal/modal.go` returns ≥1 match, and `grep -n 'drawCross' cadence/modal/modal.go` returns none.
+
+### GX.5 — Touch-up: `cadence/modal` footer actions own their own focus tags
+
+- **Specific:** Remove the modal-owned focus tag and focus ring drawn around each `Props.Actions` entry in `cadence/modal/modal.go`. Action widgets register their own focus tags (e.g., `prism/button.Button` does); the modal must include those tags in its Tab cycle without wrapping them. Choose the smaller of two routes: (a) add `Props.ActionFocusTags []event.Tag` so callers declare their own tags, or (b) introspect a registered tag set after each action lays out. Document the choice in the package doc comment.
+- **Measurable:** `go test ./cadence/modal/...` green, including a new interaction test confirming a focused `prism/button` action renders only the button's own focus ring (no doubled outer ring); existing `TestTabTrapsFocusWithinModal`, `TestShiftTabTrapsFocusWithinModal`, and `TestTabCyclesFocusAmongModalTags` still pass.
+- **Achievable:** `Props` addition or small introspection helper plus one new test; do not touch scrim, stack depth, or close-button logic.
+- **Relevant:** PLAN.md G4.2a follow-up — focus-ring composition between modal and `prism/button`-typed actions. Pair with GX.4 if the close-button swap surfaces the same doubled-ring issue at the header.
+- **Budget:** ~40 K.
+
+**Steps:**
+
+- [ ] Remove the modal-owned focus tag and focus ring drawn around each `Props.Actions` entry in `cadence/modal/modal.go`.
+- [ ] Include each action widget's own focus tag in the modal's Tab cycle without wrapping it — choose the smaller of (a) `Props.ActionFocusTags []event.Tag` or (b) introspecting the registered tag set after each action lays out; document the choice in the package doc.
+- [ ] Add an interaction test confirming a focused `prism/button` action renders only the button's own focus ring (no doubled outer ring).
+- [ ] Verify `go test ./cadence/modal/...` green, including the new test and the existing `TestTabTrapsFocusWithinModal` / `TestShiftTabTrapsFocusWithinModal` / `TestTabCyclesFocusAmongModalTags`.
+
+### GX.6 ‖ — Consolidate per-sub-package go.mod into per-repo go.mod
+
+- **Specific:** parent tracking goal — collapse the embedded per-sub-package Go modules in each of the four design-system repos (`cadence/`, `prism/`, `pulse/`, `spectrum/`) into a single go.mod per repo. Each repo currently carries 4–16 sub-package go.mod files with `replace ../../...` directives stitching them back into a workspace; the consolidated layout has one root go.mod listing the union of dependencies and the sub-packages become normal Go packages within that module. Sibling design-system repos remain separately versioned at the repo boundary.
+- **Measurable:** GX.6a, GX.6b, GX.6c, GX.6d all checked.
+- **Achievable:** parent tracking goal; the work lives in the sub-goals. No source-code changes to the patterns themselves; mechanical migration plus `go mod tidy`.
+- **Relevant:** the per-sub-package layout was carried over from an "each pattern is an island" intuition that Go's package model already provides for free — a consumer importing only `cadence/pricing` never compiles `cadence/hero` or pulls its transitive deps into the consumer's `go.sum`. The current layout produces visible drift (uncommitted `go mod tidy` edits across sibling sub-packages, missing `go.sum` files breaking `GOWORK=off` builds for `cadence/hero` and `cadence/pricing`) and grows linearly with each new sub-package added in Phase 4 and 5.
+- **Budget:** parent — no direct work.
+
+#### GX.6b — Consolidate `spectrum/` to one go.mod
+
+- **Specific:** in the embedded `spectrum/` repo (4 sub-packages today: `preferences`, `system`, `transition`, `window`), collapse the 4 sub-package `go.mod` files into a single `spectrum/go.mod` declaring `module github.com/vibrantgio/spectrum`. Update `go.work` to one spectrum entry.
+- **Measurable:** `find spectrum -name go.mod | wc -l` returns `1`; `go test ./spectrum/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `spectrum/`.
+- **Achievable:** mechanical; same shape as GX.6a. Smallest of the four — natural starter sub-goal to validate the migration recipe before tackling the larger repos.
+- **Relevant:** parent GX.6. Recommended to run first as a low-risk dress rehearsal.
+- **Budget:** ~35 K. 4 sub-packages, no intra-repo `replace` chains, modest test surface — the cheapest validation pass for the consolidation recipe.
+
+**Steps:**
+
+- [ ] Delete the 4 per-sub-package `go.mod`/`go.sum` files in `spectrum/` (`preferences`, `system`, `transition`, `window`) and add a single root `spectrum/go.mod` declaring `module github.com/vibrantgio/spectrum`.
+- [ ] Shrink the `go.work` `use (...)` block to a single `./spectrum` entry and run `go mod tidy` once at the new root.
+- [ ] Verify `find spectrum -name go.mod | wc -l` returns `1`, `go test ./spectrum/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `spectrum/`.
+
+#### GX.6a — Consolidate `cadence/` to one go.mod
+
+- **Specific:** in the embedded `cadence/` repo (16 sub-packages today), replace the 16 per-sub-package `go.mod` / `go.sum` files with a single root `cadence/go.mod` declaring `module github.com/vibrantgio/cadence` and a single `cadence/go.sum`. Each sub-package becomes a normal Go package — `cadence/pricing/pricing.go` keeps `package pricing` and continues to import siblings via `github.com/vibrantgio/cadence/<other>` paths, but those imports now resolve within the same module without `replace` plumbing. Intra-repo `replace` lines (e.g., `cadence/sidebar => ../sidebar`) are deleted; sibling-repo `replace` lines (`github.com/vibrantgio/prism/... => ../../prism/<x>`, `github.com/vibrantgio/pulse/depth => ../../pulse/depth`) consolidate at the root go.mod. The `go.work` `use (...)` block shrinks from 16 cadence entries to one (`./cadence`). The pre-existing uncommitted `go mod tidy` drift in `cadence/{alert,breadcrumb,navbar,toast}/go.mod` and the untracked `cadence/popover/` sub-package are absorbed by the consolidation: their `go.mod` / `go.sum` files are deleted, their Go source is committed as part of the consolidated module.
+- **Measurable:** `find cadence -name go.mod | wc -l` returns `1`; `go test ./cadence/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `cadence/` (proves the consolidated layout builds standalone, which is currently broken for `cadence/hero` and `cadence/pricing`).
+- **Achievable:** mechanical migration: walk each sub-package, delete `go.mod`/`go.sum`, fix import paths only where they reference siblings (most don't — sub-packages already import via `github.com/vibrantgio/cadence/<x>`, just registered as separate modules). Refresh `go.work` and run `go mod tidy` once at the new root. No source-code changes to the patterns; no test changes.
+- **Relevant:** parent GX.6. Cadence is the largest repo (16 sub-packages) and the one actively growing during Phase 4 — consolidating before G4.5c–d and Phase 5 lands marketing/example patterns directly in the new structure instead of requiring later migration.
+- **Budget:** ~75 K. Largest of the four: 16 sub-packages to walk, two full test runs (workspace + `GOWORK=off`) across ~30 test files, plus absorbing two pre-existing drift situations (tidy edits in four sibling sub-packages and the fully untracked `popover/`).
+
+**Steps:**
+
+- [ ] Delete the 16 per-sub-package `go.mod`/`go.sum` files in `cadence/` and add a single root `cadence/go.mod` (`module github.com/vibrantgio/cadence`) + `cadence/go.sum`.
+- [ ] Delete the intra-repo `replace` lines; consolidate sibling-repo `replace` lines (`prism/...`, `pulse/depth`) at the root go.mod.
+- [ ] Absorb the pre-existing drift: commit the untracked `cadence/popover/` source and the uncommitted tidy edits in `cadence/{alert,breadcrumb,navbar,toast}` into the consolidated module.
+- [ ] Shrink the `go.work` `use (...)` block from 16 cadence entries to one (`./cadence`) and run `go mod tidy` once at the new root.
+- [ ] Verify `find cadence -name go.mod | wc -l` returns `1`, `go test ./cadence/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `cadence/`.
+
+#### GX.6c — Consolidate `pulse/` to one go.mod
+
+- **Specific:** in the embedded `pulse/` repo (7 sub-packages today: `conductor`, `depth`, `glow`, `motion`, `spring`, `springbutton`, `tween`), collapse the 7 sub-package `go.mod` files into a single `pulse/go.mod` declaring `module github.com/vibrantgio/pulse`. Sub-packages become normal Go packages within that module. Update `go.work` to one pulse entry.
+- **Measurable:** `find pulse -name go.mod | wc -l` returns `1`; `go test ./pulse/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `pulse/`.
+- **Achievable:** mechanical; same shape as GX.6a. `springbutton` depends on `spring` and `tween`, so the `replace` cleanup pays off there.
+- **Relevant:** parent GX.6.
+- **Budget:** ~45 K. 7 sub-packages; mid-sized intra-repo dep graph (springbutton → spring + tween) and modest test surface.
+
+**Steps:**
+
+- [ ] Delete the 7 per-sub-package `go.mod`/`go.sum` files in `pulse/` and add a single root `pulse/go.mod` (`module github.com/vibrantgio/pulse`).
+- [ ] Delete the intra-repo `replace` plumbing (notably `springbutton` → `spring`/`tween`), shrink `go.work` to one `./pulse` entry, and run `go mod tidy` once at the root.
+- [ ] Verify `find pulse -name go.mod | wc -l` returns `1`, `go test ./pulse/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `pulse/`.
+
+#### GX.6d — Consolidate `prism/` to one go.mod
+
+- **Specific:** in the embedded `prism/` repo (14 sub-packages today: `a11y`, `button`, `cache`, `coordination`, `gallery`, `icon`, `initial`, `input`, `internal/golden`, `keyed`, `layout`, `list`, `theme`, `tokens`), collapse the 14 sub-package `go.mod` files into a single `prism/go.mod` declaring `module github.com/vibrantgio/prism`. Sub-packages become normal Go packages; cross-package imports (e.g., `button` → `tokens`, `button` → `theme`) become same-module imports with no `replace` plumbing. The single `prism/go.mod` retains `replace` lines for downstream design-system repos it references at all (currently `mvu`). Update `go.work` to one prism entry.
+- **Measurable:** `find prism -name go.mod | wc -l` returns `1`; `go test ./prism/...` green from the workspace root; `GOWORK=off go test ./...` green from inside `prism/`.
+- **Achievable:** mechanical; same shape as GX.6a. Prism has more intra-module deps than cadence (button→tokens, button→theme, list→a11y, etc.) so the `replace` cleanup is the bulk of the diff. The `prism/internal/golden` package keeps its `internal/` path inside the consolidated module — it remains importable from `prism/<sub>` siblings and unreachable from outside the repo, the same access pattern it has today.
+- **Relevant:** parent GX.6.
+- **Budget:** ~65 K. 14 sub-packages and the deepest intra-repo dep graph of the four; the `internal/golden` path warrants an extra verification pass to confirm it still resolves from sibling test files after consolidation.
+
+**Steps:**
+
+- [ ] Delete the 14 per-sub-package `go.mod`/`go.sum` files in `prism/` and add a single root `prism/go.mod` (`module github.com/vibrantgio/prism`).
+- [ ] Delete intra-module `replace` plumbing (button→tokens, button→theme, list→a11y, …); retain `replace` lines for downstream repos referenced (currently `mvu`).
+- [ ] Confirm `prism/internal/golden` still resolves from sibling test files after consolidation.
+- [ ] Shrink `go.work` to one `./prism` entry and run `go mod tidy` once at the root.
+- [ ] Verify `find prism -name go.mod | wc -l` returns `1`, `go test ./prism/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `prism/`.
+
+---
 ## Phase 5 — Example apps (pressure-test)
 
 **Goal:** validate VibrantGIO end-to-end by building non-trivial apps in real composition. Each app's primary deliverable is a `FEEDBACK-G5.x.md` listing API friction, missing pieces, awkward compositions, and ergonomics wins discovered during the build — the apps themselves are the vehicle.
@@ -1010,7 +1045,6 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G5.1 ‖ — Docs site for VibrantGIO itself
 
-- [x] **Done** *(done when G5.1a–G5.1d all checked)*
 - **Specific:** native desktop app rendering the VibrantGIO landing page and docs using VibrantGIO itself, in a new top-level Go module `vibrantgio/sitedocs/`. Split into G5.1a (skeleton + shell), G5.1b (landing-page content wiring), G5.1c (multi-page docs), G5.1d (feedback writeup). Dogfoods the marketing sub-goals in the use case for which they were created.
 - **Measurable:** all four sub-goals checked; `FEEDBACK-G5.1.md` exists in repo root in the structured form defined in G5.1d.
 - **Achievable:** parent tracking goal; implementation across G5.1a–G5.1d.
@@ -1055,7 +1089,6 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 ### G5.2 ‖ — RSS / reading-list app
 
-- [ ] **Done** *(done when G5.2a–G5.2e all checked)*
 - **Specific:** native desktop RSS / reading-list app in a new top-level Go module `vibrantgio/feeds/`. Pressure-tests the content-shaped slice of Cadence (sidebar groups, articles table, detail tabs, action modals). Split into G5.2a (skeleton + feeds sidebar), G5.2b (articles table), G5.2c (article detail view), G5.2d (CRUD actions), G5.2e (feedback writeup). Domain is RSS because it is content-rich, has natural tabs/accordion shape, and is self-contained — no networking, no parsing, fixtures only.
 - **Measurable:** all five sub-goals checked; `FEEDBACK-G5.2.md` exists in repo root in the structured form from G5.2e.
 - **Achievable:** parent tracking goal. No real RSS fetching in this phase.
@@ -1069,7 +1102,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - **Measurable:** `go build ./feeds/...` green; `go test ./feeds/...` green (smoke test); running `go run ./feeds/` opens a window with sidebar populated from hard-coded data in `feeds/fixtures.go`; clicking a feed updates the placeholder Main; `FEEDBACK-G5.2.md` is created with first entries or the explicit line "no findings yet".
 - **Achievable:** no fetching, no parsing, no persistence. Hard-coded data in `feeds/fixtures.go`. Selection is wired but no consumer beyond the placeholder.
 - **Relevant:** first composition of `cadence/shell` + `cadence/sidebar` + `cadence/accordion` + `cadence/navbar` outside the docs site.
-- **Budget:** ~60 K. Depends on GX.7 (so the accordion-grouped sidebar can be slotted into `cadence/shell.Shell` directly rather than re-implementing `composeSidebarHeaderMain` locally as G5.1c had to).
+- **Budget:** ~60 K. Depends on GX.1 (so the accordion-grouped sidebar can be slotted into `cadence/shell.Shell` directly rather than re-implementing `composeSidebarHeaderMain` locally as G5.1c had to).
 
 #### G5.2b — Articles table
 
@@ -1080,43 +1113,124 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - **Relevant:** `cadence/table` + `cadence/pagination` + Prism input composition under realistic data volume.
 - **Budget:** ~70 K. Depends on G5.2a.
 
+#### G5.2c — Article detail view
+
+- **Specific:** `feeds/detail.go` renders the selected article in a right-hand pane (use `cadence/shell.Shell(SplitPane)` mode, or stack below the table — pick whichever composes cleaner and log the choice + rationale to `FEEDBACK-G5.2.md`). Detail uses `cadence/tabs` with three tabs: "Reader" (formatted body, paragraph wrapping), "Raw" (same body in monospace), "Comments" (static placeholder list). A `cadence/popover` on a navbar "Share" button lists three share destinations (no-op). Hover tooltips (`cadence/tooltip`) on the table's icon-only column headers.
+- **Measurable:** `go test ./feeds/...` green; running app: clicking an article populates detail pane; switching tabs swaps content; Share popover opens and dismisses correctly; tooltips appear on hover; any composition friction appended to `FEEDBACK-G5.2.md`.
+- **Achievable:** no real formatting — Reader and Raw both render the same hard-coded body text, differing only in font. Comments tab is a static placeholder list. Depends on GX.10 — clicks must land via MessageOp through the mvu loop rather than the legacy `selectionController` pattern.
+- **Relevant:** `cadence/tabs` + `cadence/popover` + `cadence/tooltip` + split-pane composition. First new G5.2 sub-goal built on the post-GX.8/10 architecture.
+- **Budget:** ~70 K. Depends on G5.2b (done) and GX.10.
+
+**Steps:**
+
+- [ ] Choose the detail-pane layout — `cadence/shell.Shell(SplitPane)` vs stacked below the table — and log the choice + rationale to `FEEDBACK-G5.2.md`.
+- [ ] Build `feeds/detail.go` with `cadence/tabs`: "Reader" (paragraph-wrapped body), "Raw" (same body, monospace), "Comments" (static placeholder list).
+- [ ] Add a `cadence/popover` on a navbar "Share" button listing three (no-op) destinations.
+- [ ] Add `cadence/tooltip` hover tooltips on the table's icon-only column headers.
+- [ ] Route article-selection clicks via `mvu.MessageOp` through the mvu loop (post-GX.10), not the legacy `selectionController`.
+- [ ] Verify `go test ./feeds/...` green; clicking an article populates the detail pane, tabs swap content, the Share popover opens/dismisses, and tooltips appear on hover; append any composition friction to `FEEDBACK-G5.2.md`.
+
+#### G5.2d — CRUD actions
+
+- **Specific:** wire the "Add feed" navbar action to open a `cadence/modal` containing a small form (a `cadence/card` wrapping a `prism/input/textfield` for URL + a `prism/button` submit). On submit: synthesise a feed entry, append to the in-memory list, fire a `cadence/toast` "Feed added". Delete-feed: hover-revealed trash icon on each sidebar entry → `cadence/popover` confirm ("Delete this feed?") → on confirm, remove + toast. Empty-URL submit displays a `cadence/alert` at the top of the modal.
+- **Measurable:** `go test ./feeds/...` green (golden of the modal in light + dark, plus a small interaction test confirming submit flow); running app: full add-feed flow works end-to-end; delete-feed confirm works; alert fires on empty submit; toasts visible for both actions; findings appended to `FEEDBACK-G5.2.md`.
+- **Achievable:** no persistence; additions/deletions live until app restart. No undo. No URL validation beyond non-empty.
+- **Relevant:** `cadence/modal` + `cadence/popover` + `cadence/toast` + `cadence/alert` composed in a realistic CRUD flow.
+- **Budget:** ~50 K. Depends on G5.2a (sidebar must exist for delete).
+
+**Steps:**
+
+- [ ] Wire the navbar "Add feed" action to open a `cadence/modal` holding a `cadence/card` form (`prism/input/textfield` for URL + `prism/button` submit).
+- [ ] On submit, synthesise a feed entry, append it to the in-memory list, and fire a `cadence/toast` "Feed added".
+- [ ] Add a hover-revealed trash icon per sidebar entry → `cadence/popover` "Delete this feed?" confirm → on confirm, remove the feed and toast.
+- [ ] Show a `cadence/alert` at the top of the modal on empty-URL submit.
+- [ ] Verify `go test ./feeds/...` green (modal golden light + dark + a submit-flow interaction test); add-feed and delete-feed flows work end-to-end, the alert fires on empty submit, and toasts appear; append findings to `FEEDBACK-G5.2.md`.
+
+#### G5.2e — Feedback writeup
+
+- **Specific:** rewrite `FEEDBACK-G5.2.md` from the running notes left by G5.2a–d into the same four-section structured form defined in G5.1d (Bugs / Missing API / Awkward compositions / Ergonomics wins), with severity tags and remediation sketches.
+- **Measurable:** `FEEDBACK-G5.2.md` exists in repo root with all four section headings; every non-empty entry severity-tagged; every blocker and major carries a one-line remediation; empty sections are explicitly annotated.
+- **Achievable:** pure documentation goal; reads existing running notes; halts and surfaces process failure if notes absent.
+- **Relevant:** primary Phase 5 deliverable for G5.2.
+- **Budget:** ~20 K.
+
+**Steps:**
+
+- [ ] Read the running notes already in `FEEDBACK-G5.2.md` from G5.2a–d; if the file or notes are absent, halt and surface the process failure rather than fabricating findings.
+- [ ] Rewrite the notes into the four sections: **Bugs**, **Missing API affordances**, **Awkward compositions / boilerplate**, **Ergonomics wins worth preserving**.
+- [ ] Severity-tag every non-empty entry **blocker** / **major** / **minor**.
+- [ ] Add a one-line remediation sketch to each **blocker** and **major** entry.
+- [ ] Explicitly annotate every empty section (note whether it signals a coverage gap or real polish).
+- [ ] Verify all four section headings are present and the file reads as a coherent summary, then `git`-stage `FEEDBACK-G5.2.md`.
+
 ### G5.3 ‖ — Coinviz watchlist editor (speculative)
 
-- [ ] **Done** *(done when G5.3a–G5.3d all checked)*
 - **Specific:** native desktop watchlist editor in a new top-level Go module `vibrantgio/watchlist/`. Coinviz today takes a single `-symbol` CLI flag and has no on-disk persistence — so this app is **speculative**: it designs a JSON watchlist format and produces watchlist files that a future coinviz multi-symbol feature would consume. The coinviz adoption is **out of scope for Phase 5** and is queued as a separate follow-on goal in a later phase. Split into G5.3a (format design + skeleton + watchlists sidebar), G5.3b (symbols table + edit modal), G5.3c (delete + bulk + tooltips + pagination), G5.3d (feedback writeup).
 - **Measurable:** all four sub-goals checked; `FEEDBACK-G5.3.md` exists in repo root; `WATCHLIST-FORMAT.md` exists in repo root capturing the file-format schema produced.
 - **Achievable:** parent tracking goal. No coinviz code changes in Phase 5. The app produces files on disk in a format we control; coinviz integration is a future-phase decision.
 - **Relevant:** pressure-tests the same data-heavy interaction patterns as G5.2d while exercising a real on-disk-format design loop. Plants the seed for a future coinviz multi-symbol enhancement.
 - **Budget:** ~50–70 K per sub-goal.
 
-## Cross-cutting goals (run anytime they unblock work)
+#### G5.3a — Format design + app skeleton + watchlists sidebar
 
-### GX.6 ‖ — Consolidate per-sub-package go.mod into per-repo go.mod
+- **Specific:** new top-level Go module `vibrantgio/watchlist/` (joined to `go.work`). Before any UI: write `WATCHLIST-FORMAT.md` at repo root specifying the JSON file format — fields per symbol (Symbol, Exchange, Timeframe, Notes), file path convention (`~/Library/Application Support/vibrantgio/watchlists.json` on macOS, XDG path on Linux), top-level shape (named watchlists each containing an ordered symbol list), versioning field. Then `watchlist/main.go` opens a window via `prism/initial` + `spectrum` theme. Layout is `cadence/shell.Shell(SidebarHeaderMain)`: navbar with brand "Watchlist editor" + "New watchlist" action button (no-op for now); sidebar lists the watchlist names loaded from the on-disk file (or shows an empty-state message if the file is absent). Selecting a watchlist exposes its name in Main as placeholder. On first run, if no file exists, write a starter watchlist (`"default"` containing 3 example symbols — e.g., BTC/USD, ETH/USD, SOL/USD) so the app has data to display.
+- **Measurable:** `go build ./watchlist/...` green; `go test ./watchlist/...` green; running `go run ./watchlist/` opens a window with sidebar populated from the on-disk JSON; `WATCHLIST-FORMAT.md` exists and documents the schema completely enough that a coinviz adoption could implement against it; `FEEDBACK-G5.3.md` is created with first entries or the explicit line "no findings yet".
+- **Achievable:** read+display only — no editing yet. Persistence is read-on-startup; the starter file is written once if absent. Format design is small and pragmatic: a flat JSON document, not a database, not a binary blob. Built on the post-GX.8 architecture from the start — no `mirrorWidget` / `Controller` plumbing.
+- **Relevant:** real file format + real persistence + first composition of `cadence/shell` + `cadence/sidebar` + `cadence/navbar` for this app.
+- **Budget:** ~60 K.
 
-- [ ] **Done** *(done when GX.6a–GX.6d all checked)*
-- **Specific:** parent tracking goal — collapse the embedded per-sub-package Go modules in each of the four design-system repos (`cadence/`, `prism/`, `pulse/`, `spectrum/`) into a single go.mod per repo. Each repo currently carries 4–16 sub-package go.mod files with `replace ../../...` directives stitching them back into a workspace; the consolidated layout has one root go.mod listing the union of dependencies and the sub-packages become normal Go packages within that module. Sibling design-system repos remain separately versioned at the repo boundary.
-- **Measurable:** GX.6a, GX.6b, GX.6c, GX.6d all checked.
-- **Achievable:** parent tracking goal; the work lives in the sub-goals. No source-code changes to the patterns themselves; mechanical migration plus `go mod tidy`.
-- **Relevant:** the per-sub-package layout was carried over from an "each pattern is an island" intuition that Go's package model already provides for free — a consumer importing only `cadence/pricing` never compiles `cadence/hero` or pulls its transitive deps into the consumer's `go.sum`. The current layout produces visible drift (uncommitted `go mod tidy` edits across sibling sub-packages, missing `go.sum` files breaking `GOWORK=off` builds for `cadence/hero` and `cadence/pricing`) and grows linearly with each new sub-package added in Phase 4 and 5.
-- **Budget:** parent — no direct work.
+**Steps:**
 
-### GX.7 ‖ — Touch-up: `cadence/shell.Props.Sidebar` accepts a caller-built sidebar widget
+- [ ] Write `WATCHLIST-FORMAT.md` at repo root: per-symbol fields (Symbol, Exchange, Timeframe, Notes), file-path convention (macOS Application Support / Linux XDG), the named-watchlists top-level shape, and a version field.
+- [ ] Create the `vibrantgio/watchlist/` module (joined to `go.work`); `watchlist/main.go` opens a window via `prism/initial` + `spectrum` theme.
+- [ ] Render `cadence/shell.Shell(SidebarHeaderMain)`: navbar brand "Watchlist editor" + no-op "New watchlist" action; sidebar listing watchlist names from the on-disk file (empty-state message if absent); Main shows the selected name as placeholder.
+- [ ] On first run with no file, write a starter `"default"` watchlist (3 example symbols, e.g. BTC/USD, ETH/USD, SOL/USD).
+- [ ] Verify `go build ./watchlist/...` and `go test ./watchlist/...` green, the app opens with the sidebar populated from disk, and `WATCHLIST-FORMAT.md` documents the schema; create `FEEDBACK-G5.3.md` with first entries or "no findings yet".
 
-- [x] **Done**
-- **Specific:** Generalise `cadence/shell.Props.Sidebar` so callers can pass a pre-built sidebar widget (e.g., a `cadence/accordion`-grouped sidebar) into `shell.Shell` without bypassing it and re-implementing `composeSidebarHeaderMain` locally — the workaround used by `sitedocs/main.go` (`docsShellLayer` + local `composeSidebarHeaderMain` copy) and the latent blocker for G5.2a. Concretely: change the `Shell()` observable path so `Props.Sidebar` accepts an `rx.Observable[layout.Widget]` rather than `sidebar.Props`, and refactor the static `Render()` path to take a pre-built `layout.Widget` for the sidebar slot (extra parameter, or a sibling `RenderStatic` helper — pick whichever keeps the static call sites smallest). Callers using the default sidebar do the wrapping themselves with one line: `sb := sidebar.Sidebar(th, sidebarProps)`. Migrate `sitedocs/main.go` off its local `composeSidebarHeaderMain` to consume `shell.Shell` directly. Update the package doc to reflect the new slot shape.
-- **Measurable:** `go test ./cadence/shell/... ./sitedocs/...` green; `grep -n 'composeSidebarHeaderMain' sitedocs/` returns no matches; `grep -n 'shell.Shell(' sitedocs/main.go` returns at least one match; a new test in `cadence/shell/` confirms a custom (non-default) sidebar widget stream is rendered by `Shell()` and its op-stream order matches the default-sidebar path (sidebar → navbar → main, so Tab focus traversal is preserved).
-- **Achievable:** scoped to (1) widening `shell.Props.Sidebar` + adjusting `Render()`, (2) one new shell test for the custom-sidebar path, (3) migrating `sitedocs/main.go` off its local helper. Out of scope: widening `Props.Navbar` analogously (defer until a caller actually needs a custom navbar), touching `SplitPane` (its `Left`/`Right` slots are already `layout.Widget`), refactoring focus-traversal ordering, refreshing sitedocs goldens unless the migration changes pixel output.
-- **Relevant:** `FEEDBACK-G5.1.md` "[Blocker] `shell.Props.Sidebar` is typed as `sidebar.Props`, not `layout.Widget`" — surfaced by G5.1c, persisted as the local workaround at `sitedocs/main.go:160–183`. Unblocks G5.2a (and any later `cadence/shell` consumer needing a non-default sidebar — G5.3a is the next likely caller).
-- **Budget:** ~35 K. Depends on nothing; unblocks G5.2a.
+#### G5.3b — Symbols table + edit modal
 
----
+- **Specific:** Main slot renders a `cadence/table` of the selected watchlist's symbols (columns: Symbol, Exchange, Timeframe, Notes). Above the table, an "Add symbol" button opens a `cadence/modal` containing a form (`prism/input/textfield` per field + `prism/button` submit). Editing: row click or pencil icon → reopens the same modal pre-populated with the row's values. Save: mutates the in-memory watchlist and writes the full file back to disk atomically (write to temp + rename). Save success → `cadence/toast` "Saved". Empty-Symbol submit → `cadence/alert` at top of modal.
+- **Measurable:** `go test ./watchlist/...` green (golden of the modal in light + dark; small interaction test of save round-trip via a temp directory); running app: add-symbol flow persists across restart; edit-symbol flow persists across restart; alert fires on empty Symbol; toast confirms saves; findings appended to `FEEDBACK-G5.3.md`.
+- **Achievable:** persistence is full-file rewrite (no merge, no concurrency). One watchlist edited at a time. Form validation is non-empty Symbol only.
+- **Relevant:** `cadence/table` + `cadence/modal` + `cadence/alert` + `cadence/toast` + real disk write.
+- **Budget:** ~70 K. Depends on G5.3a.
 
-### GX.8 ‖ — Prism + Cadence: thread `layout.Context` through every interactive callback
+**Steps:**
 
-- [ ] **Done** *(done when GX.8a and GX.8b both checked)*
-- **Specific:** parent tracking goal — widen every interactive widget's event callback from `func(...)` to `func(gtx layout.Context, ...)` across `prism/` and `cadence/`, so consumers can emit `mvu.MessageOp{Message: ...}.Add(gtx.Ops)` inside the callback and land state changes through the canonical mvu pipeline (Messages channel → Update → new view emission → outer-observable Subscribe → `window.Invalidate()`). Until this lands, every `cadence`-consuming app is forced to bypass mvu and rebuild state plumbing on `rx.Subject` + `atomic.Pointer` + `rx.Goroutine`, which produces a user-visible "click does not repaint until the next mouse event" defect (see FEEDBACK-G5.1 / G5.2 [Blocker]). The actual work lives in `GX.8a` (prism) and `GX.8b` (cadence) in the Active execution sequence.
-- **Measurable:** GX.8a and GX.8b both checked.
-- **Achievable:** parent tracking goal; no direct work.
-- **Relevant:** `FEEDBACK-G5.1.md` [Blocker] "Cadence interactive-pattern callbacks lack gtx → consumers cannot route through mvu MessageOp"; `FEEDBACK-G5.2.md` [Blocker] cross-reference. Unblocks GX.9 and GX.10.
-- **Budget:** parent — no direct work.
+- [ ] Render a `cadence/table` of the selected watchlist's symbols (columns: Symbol, Exchange, Timeframe, Notes).
+- [ ] Add an "Add symbol" button opening a `cadence/modal` form (`prism/input/textfield` per field + `prism/button` submit).
+- [ ] Support editing: a row click or pencil icon reopens the same modal pre-populated with the row's values.
+- [ ] On save, mutate the in-memory watchlist and write the full file back atomically (temp + rename); confirm with a `cadence/toast` "Saved" and show a `cadence/alert` on empty-Symbol submit.
+- [ ] Verify `go test ./watchlist/...` green (modal golden light + dark + a save round-trip test via a temp dir); add/edit persist across restart, the alert fires on empty Symbol, and the toast confirms saves; append findings to `FEEDBACK-G5.3.md`.
 
+#### G5.3c — Delete + bulk + tooltips + pagination
+
+- **Specific:** row-level delete via trash icon → `cadence/popover` confirm. Bulk: a checkbox column allows multi-select; a "Delete N" action in the navbar opens `cadence/popover` confirm with the selection count. Column header tooltips (`cadence/tooltip`) explain each column. Right-clicking a watchlist in the sidebar opens a `cadence/popover` with "Rename" / "Delete" entries (rename uses a small modal; delete confirms). `cadence/pagination` is added below the table if a watchlist has more than 25 symbols.
+- **Measurable:** `go test ./watchlist/...` green; running app: row delete confirms and persists; bulk delete confirms with count and persists; rename and delete watchlist flows persist; pagination renders only when needed; tooltips appear on hover; findings appended to `FEEDBACK-G5.3.md`.
+- **Achievable:** scoped to interaction surfaces. No undo/redo. No drag-reorder.
+- **Relevant:** `cadence/popover` + `cadence/tooltip` + `cadence/pagination` composed with persistence.
+- **Budget:** ~70 K. Depends on G5.3b.
+
+**Steps:**
+
+- [ ] Add row-level delete via a trash icon → `cadence/popover` confirm.
+- [ ] Add a checkbox column for multi-select plus a navbar "Delete N" action → `cadence/popover` confirm showing the selection count.
+- [ ] Add `cadence/tooltip` column-header tooltips explaining each column.
+- [ ] Add a sidebar right-click `cadence/popover` with "Rename" (small modal) / "Delete" (confirm) entries.
+- [ ] Add `cadence/pagination` below the table, rendered only when a watchlist has more than 25 symbols.
+- [ ] Verify `go test ./watchlist/...` green; row and bulk delete confirm and persist, rename/delete-watchlist persist, pagination renders only when needed, and tooltips appear on hover; append findings to `FEEDBACK-G5.3.md`.
+
+#### G5.3d — Feedback writeup
+
+- **Specific:** rewrite `FEEDBACK-G5.3.md` from the running notes left by G5.3a–c into the same structured form defined in G5.1d (Bugs / Missing API / Awkward compositions / Ergonomics wins) with severity tags and remediation sketches. Add a final subsection **"Format-design notes for coinviz adoption"** capturing any format-design lessons relevant to a future coinviz multi-symbol feature (e.g., field naming, version migration considerations).
+- **Measurable:** `FEEDBACK-G5.3.md` exists in repo root with all four standard section headings plus the "Format-design notes for coinviz adoption" subsection; severity-tagged entries; blocker/major remediations; the format-design subsection is at least a paragraph (even if it just says "no surprises — straight read of `WATCHLIST-FORMAT.md` is sufficient").
+- **Achievable:** pure documentation.
+- **Relevant:** primary Phase 5 deliverable for G5.3; seeds the future coinviz multi-symbol feature.
+- **Budget:** ~20 K.
+
+**Steps:**
+
+- [ ] Read the running notes in `FEEDBACK-G5.3.md` from G5.3a–c; if absent, halt and surface the process failure rather than fabricating findings.
+- [ ] Rewrite into the four sections (Bugs / Missing API affordances / Awkward compositions / Ergonomics wins) with severity tags and one-line remediations for every blocker and major.
+- [ ] Add a final **"Format-design notes for coinviz adoption"** subsection (≥ 1 paragraph) capturing field-naming / version-migration lessons for a future coinviz multi-symbol feature.
+- [ ] Verify `FEEDBACK-G5.3.md` has all four section headings plus the format-design subsection, severity-tagged entries, and blocker/major remediations.
