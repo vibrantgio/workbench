@@ -879,13 +879,13 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Introduce `sitedocs.Model` (`{currentPage string, openSections map[int]bool}`) and `sitedocs.Update(model, msg) (Model, mvu.Command)` handling `SetRoute`, `ToggleAccordion`, `OpenAccordion(map[int]bool)`.
-- [ ] Derive the view observable from the model via `rx.Map(modelObs, viewFor)`.
-- [ ] Replace every cadence callback closure that mutates an `rx.Subject` with `mvu.MessageOp{Message: ...}.Add(gtx.Ops)`.
-- [ ] Delete `mirrorWidget` (landing.go), `pageController` (main.go), `openController` (docs_sidebar.go), and the four `atomic.Pointer[layout.Widget]` mirror sites.
-- [ ] Revert the `SingleOpen: false` workaround in `docs_sidebar.go` to `true` if the MVU path delivers the toggle via a single message.
-- [ ] Add a smoke test (`TestSitedocsClickUpdatesOnSameFrame` or equivalent) asserting the model observable emits within one frame of the click.
-- [ ] Verify `grep -rnE 'atomic\.Pointer\[layout\.Widget\]|openController|pageController|mirrorWidget' sitedocs/` returns no matches, `go test ./sitedocs/...` green, and clicking an accordion header repaints on the same frame.
+- [x] Introduce `sitedocs.Model` (`{currentPage string, openSections map[int]bool}`) and `sitedocs.Update(model, msg) (Model, mvu.Command)` handling `SetRoute`, `ToggleAccordion`, `OpenAccordion(map[int]bool)`.
+- [x] Derive the view observable from the model via `rx.Map(modelObs, viewFor)`.
+- [x] Replace every cadence callback closure that mutates an `rx.Subject` with `mvu.MessageOp{Message: ...}.Add(gtx.Ops)`.
+- [x] Delete `mirrorWidget` (landing.go), `pageController` (main.go), `openController` (docs_sidebar.go), and the four `atomic.Pointer[layout.Widget]` mirror sites.
+- [x] Revert the `SingleOpen: false` workaround in `docs_sidebar.go` to `true` if the MVU path delivers the toggle via a single message.
+- [x] Add a smoke test (`TestSitedocsClickUpdatesOnSameFrame` or equivalent) asserting the model observable emits within one frame of the click.
+- [x] Verify `grep -rnE 'atomic\.Pointer\[layout\.Widget\]|openController|pageController|mirrorWidget' sitedocs/` returns no matches, `go test ./sitedocs/...` green, and clicking an accordion header repaints on the same frame.
 
 ### GX.10 — Feeds: migrate to mvu Model + Update + MessageOp
 
