@@ -897,11 +897,11 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Introduce `feeds.Model` (`{selectedFeed, selectedArticle, currentPage int, sort table.Sort, openSections map[int]bool}`) and `feeds.Update` handling `SelectFeed`, `SelectArticle`, `SetPage`, `SetSort`, `ToggleSection`.
-- [ ] Replace every cadence callback in `feeds/sidebar.go`, `feeds/articles.go`, and the pagination/sort callsites with `mvu.MessageOp{Message: ...}.Add(gtx.Ops)`, reading `Page`/`PageCount` from the model on each emission.
-- [ ] Delete `selectionController`, the copy-pasted `openController`, the pagination re-subscription `SwitchMap`, and the two cell-token `atomic.Pointer` mirrors.
-- [ ] Add a smoke test confirming click → message → render within one frame.
-- [ ] Verify `grep -rnE 'atomic\.Pointer|openController|selectionController' feeds/` returns no matches, `go test ./feeds/...` green, and clicking a sidebar entry / pagination button / sort header repaints on the same frame.
+- [x] Introduce `feeds.Model` (`{selectedFeed, selectedArticle, currentPage int, sort table.Sort, openSections map[int]bool}`) and `feeds.Update` handling `SelectFeed`, `SelectArticle`, `SetPage`, `SetSort`, `ToggleSection`.
+- [x] Replace every cadence callback in `feeds/sidebar.go`, `feeds/articles.go`, and the pagination/sort callsites with `mvu.MessageOp{Message: ...}.Add(gtx.Ops)`, reading `Page`/`PageCount` from the model on each emission.
+- [x] Delete `selectionController`, the copy-pasted `openController`, the pagination re-subscription `SwitchMap`, and the two cell-token `atomic.Pointer` mirrors.
+- [x] Add a smoke test confirming click → message → render within one frame.
+- [x] Verify `grep -rnE 'atomic\.Pointer|openController|selectionController' feeds/` returns no matches, `go test ./feeds/...` green, and clicking a sidebar entry / pagination button / sort header repaints on the same frame.
 
 ### GX.11 — Spectrum: push-based system appearance source via `NSDistributedNotificationCenter`
 
