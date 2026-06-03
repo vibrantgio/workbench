@@ -93,3 +93,55 @@ BenchmarkAllPanes-8              3123   1205146 ns/op    98204 B/op   115 allocs
 PASS
 ok      github.com/xpt-nl/coinviz/bench    59.432s
 ```
+
+---
+
+# Phase 1 component baseline — Prism
+
+Captured as part of milestone **GX.2** (DESIGN §"Performance — Methodology —
+Benchmark harness"). Each Phase 1 component plugs its `*_bench_test.go` into the
+shared `prism/bench` harness (`BenchFrame(b, widget)`), which drives
+`widget(gtx)` under synthesized constraints, resets the op buffer per frame, and
+enables `b.ReportAllocs()`. These numbers anchor the per-component >5% regression
+rule on **both** ns/op and B/op.
+
+## Platform
+
+| Field | Value |
+|---|---|
+| CPU | Apple M1 |
+| OS | macOS 15.7.7 (24G720) |
+| Go | go1.25.5 darwin/arm64 |
+| Gio | v0.9.0 |
+| Date | 2026-06-04 |
+
+Run command (from workspace root):
+
+```
+go test -bench=. -benchmem -benchtime=3s ./prism/button/... ./prism/input/... ./prism/list/...
+```
+
+(The DESIGN/PLAN measurable lists `./prism/input/textfield/...`, but textfield
+ships in the `prism/input` module — there is no `textfield` subpackage — so the
+input module is addressed as `./prism/input/...`.)
+
+## Per-component results
+
+| Component | Benchmark | Scenario | ns/op | B/op | allocs/op |
+|---|---|---|---:|---:|---:|
+| button | `BenchmarkButtonRender` | idle render, static unfocused | 1 165 | 0 | 0 |
+| input/textfield | `BenchmarkTextFieldCaretBlink` | focused live editor, caret drawn (typing hot path) | 5 547 | 328 | 7 |
+| list | `BenchmarkListLayout/N=1000` | 1000-item virtual list, ~5 rows visible | 675 | 0 | 0 |
+
+## Notes
+
+- **button** and **list** are zero-allocation per frame. The list row is taken
+  from the `N=1000` sub-case; ns/op stays flat (~675 ns) from `N=10` to
+  `N=10000`, confirming O(visible) layout cost rather than O(total).
+- **textfield/caret-blink is intentionally not apples-to-apples** with the
+  static rows. It measures the live `widget.Editor` path — editor layout, caret
+  geometry, and the `input.Router` frame — with the editor focused and holding
+  text, which is the realistic typing/cursor-blink frame. The static
+  `BenchmarkTextFieldRender` (unfocused placeholder) measures 0 B/op for
+  contrast. The bench fails loudly via an `OnChange` guard if focus ever fails
+  to take, so the row can never silently regress to the cheaper unfocused frame.

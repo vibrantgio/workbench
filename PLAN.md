@@ -929,10 +929,10 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Add `prism/bench/` exposing `BenchFrame(b *testing.B, widget layout.Widget)` — drive `widget(gtx)` with synthesized constraints and call `b.ReportAllocs()`.
-- [ ] Add `*_bench_test.go` plugging `prism/button` (idle render), `prism/input/textfield` (cursor-blinking frame), and `prism/list` (1000-row render) into the harness.
-- [ ] Record current ns/op + B/op for each in `BASELINE.md` under a new "Phase 1 component baseline" heading.
-- [ ] Verify `go test -bench=. ./prism/bench/... ./prism/button/... ./prism/input/textfield/... ./prism/list/...` green and the BASELINE.md section has one row per named component.
+- [x] Add `prism/bench/` exposing `BenchFrame(b *testing.B, widget layout.Widget)` — drive `widget(gtx)` with synthesized constraints and call `b.ReportAllocs()`.
+- [x] Add `*_bench_test.go` plugging `prism/button` (idle render), `prism/input/textfield` (cursor-blinking frame), and `prism/list` (1000-row render) into the harness.
+- [x] Record current ns/op + B/op for each in `BASELINE.md` under a new "Phase 1 component baseline" heading.
+- [x] Verify `go test -bench=. ./prism/bench/... ./prism/button/... ./prism/input/textfield/... ./prism/list/...` green and the BASELINE.md section has one row per named component.
 
 ### GX.4 — Touch-up: `cadence/modal` close affordance uses `prism/button`
 
