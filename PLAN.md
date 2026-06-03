@@ -903,7 +903,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - [x] Add a smoke test confirming click → message → render within one frame.
 - [x] Verify `grep -rnE 'atomic\.Pointer|openController|selectionController' feeds/` returns no matches, `go test ./feeds/...` green, and clicking a sidebar entry / pagination button / sort header repaints on the same frame.
 
-### GX.11 — Spectrum: cut darwin appearance-poll cost (single-exec hot path), no CGO
+### GX.11 — Spectrum: cut darwin appearance-poll cost with a single-exec hot path (no CGO)
 
 - **Specific:** The darwin source is already timer-driven (`FromSource` over `rx.Ticker`), not a busy goroutine; the cost is per-tick work. Measured on this machine, one `Read()` is ~11 ms because it does **two** `defaults` fork+execs (`AppleInterfaceStyle` + `AppleAccentColor`) — so wall-clock CPU is ~4.4% at 250 ms, ~1.1% at 1 s, ~0.22% at 5 s (the original "10% at 1 s" in FEEDBACK-G5.1 was an unmeasured worst-case and is ~9× high). **No CGO.** The original `NSDistributedNotificationCenter` Objective-C bridge is rejected: it buys "instant *and* ~0% idle" at the price of owning a native bridge, and the measured cost does not justify it. Instead: (1) split the darwin source so the **dark-mode** signal (`AppleInterfaceStyle`) polls on the fast interval while **`AccentIndex`** (`AppleAccentColor`) polls on a much slower cadence (≥10 s) — roughly halving the per-tick exec cost — and (2) pick a sensible default poll interval (1 s) so latency = interval at ~1.1% CPU, or document 5 s (~0.22%) for idle-sensitive apps. Sitedocs keeps the `aaf6131` 5 s interval, now reframed from "workaround" to the intended low-CPU default.
 - **Measurable:** `go test ./spectrum/system/...` green, including a test that asserts `AccentIndex` is polled less often than `Dark` (e.g. via a counting fake `Source` split, or two distinct tick streams). The existing `TestDarkModeFlipEmitsWithinOneSecond` acceptance test still passes. A short benchmark/measurement in the package (or recorded in `BASELINE.md`) documents per-`Read()` cost and the CPU fraction at 1 s and 5 s, replacing the unmeasured "10%" claim.
@@ -913,11 +913,11 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Split the darwin source so dark-mode (`AppleInterfaceStyle`) and accent (`AppleAccentColor`) poll on independent cadences: dark on the fast interval, accent on a ≥10 s interval. Keep the `Source` interface unchanged for linux/windows.
-- [ ] Set a sensible default poll interval for the dark-mode hot path (1 s ≈ 1.1% CPU); document the 5 s option (≈ 0.22%) for idle-sensitive consumers.
-- [ ] Add a test asserting accent is polled less frequently than dark (counting fake `Source` or split tick streams); keep `TestDarkModeFlipEmitsWithinOneSecond` green.
-- [ ] Record measured per-`Read()` cost and CPU fraction at 1 s / 5 s in `BASELINE.md` (or a package benchmark), replacing the unmeasured "10%" figure.
-- [ ] Confirm sitedocs' 5 s interval stands as the intended low-CPU default (update the `aaf6131` comment from "workaround" to "default"); verify `go test ./spectrum/system/...` green.
+- [x] Split the darwin source so dark-mode (`AppleInterfaceStyle`) and accent (`AppleAccentColor`) poll on independent cadences: dark on the fast interval, accent on a ≥10 s interval. Keep the `Source` interface unchanged for linux/windows.
+- [x] Set a sensible default poll interval for the dark-mode hot path (1 s ≈ 1.1% CPU); document the 5 s option (≈ 0.22%) for idle-sensitive consumers.
+- [x] Add a test asserting accent is polled less frequently than dark (counting fake `Source` or split tick streams); keep `TestDarkModeFlipEmitsWithinOneSecond` green.
+- [x] Record measured per-`Read()` cost and CPU fraction at 1 s / 5 s in `BASELINE.md` (or a package benchmark), replacing the unmeasured "10%" figure.
+- [x] Confirm sitedocs' 5 s interval stands as the intended low-CPU default (update the `aaf6131` comment from "workaround" to "default"); verify `go test ./spectrum/system/...` green.
 
 ### GX.2 — Per-component benchmark in `prism/bench/`
 
