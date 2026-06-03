@@ -903,21 +903,21 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - [x] Add a smoke test confirming click → message → render within one frame.
 - [x] Verify `grep -rnE 'atomic\.Pointer|openController|selectionController' feeds/` returns no matches, `go test ./feeds/...` green, and clicking a sidebar entry / pagination button / sort header repaints on the same frame.
 
-### GX.11 — Spectrum: push-based system appearance source via `NSDistributedNotificationCenter`
+### GX.11 — Spectrum: cut darwin appearance-poll cost (single-exec hot path), no CGO
 
-- **Specific:** Replace the `defaults read -g` exec-poll implementation in `spectrum/system/system_darwin.go` with a push subscription to macOS theme-change notifications. Add a thin CGO bridge (`spectrum/system/system_darwin.m`) that observes `AppleInterfaceThemeChangedNotification` on `NSDistributedNotificationCenter` and forwards events to Go via a channel. The darwin source's dark-mode signal becomes event-driven; `AccentIndex` stays polled but on a much longer interval (≥10 s) since no equivalent notification is publicly documented. `spectrum/system.LiveTheme` becomes effectively zero-CPU at idle. Sitedocs reverts the `5 * time.Second` workaround applied in commit `aaf6131` back to the package's recommended default (or the parameter goes away if the new API is push-only).
-- **Measurable:** `go test ./spectrum/system/...` green including a new `TestSystemDarwinPushEmitsOnThemeChange` that drives a synthetic notification (via an exported test hook) and asserts a single emission. Running sitedocs at idle for ≥30 s shows < 0.5% CPU. Theme-change response time from a real external `defaults write` is < 100 ms (vs. up to 1 s at the original 1 s polling or 5 s at the workaround interval).
-- **Achievable:** the CGO + Objective-C bridge is the long pole. Existing tests in `spectrum/system_test.go` continue to work because they exercise `FromSource` with synthetic `Source` values (no CGO path). The new test uses an exported test hook to inject a synthetic notification trigger.
-- **Relevant:** `FEEDBACK-G5.1.md` [Major] "spectrum/system polls system appearance via fork+exec — ~10% CPU floor per 1 s tick". The push-based source eliminates the idle CPU floor in every Phase-5 example app and removes the per-app DDoS on `cfprefsd`.
-- **Budget:** ~60 K.
+- **Specific:** The darwin source is already timer-driven (`FromSource` over `rx.Ticker`), not a busy goroutine; the cost is per-tick work. Measured on this machine, one `Read()` is ~11 ms because it does **two** `defaults` fork+execs (`AppleInterfaceStyle` + `AppleAccentColor`) — so wall-clock CPU is ~4.4% at 250 ms, ~1.1% at 1 s, ~0.22% at 5 s (the original "10% at 1 s" in FEEDBACK-G5.1 was an unmeasured worst-case and is ~9× high). **No CGO.** The original `NSDistributedNotificationCenter` Objective-C bridge is rejected: it buys "instant *and* ~0% idle" at the price of owning a native bridge, and the measured cost does not justify it. Instead: (1) split the darwin source so the **dark-mode** signal (`AppleInterfaceStyle`) polls on the fast interval while **`AccentIndex`** (`AppleAccentColor`) polls on a much slower cadence (≥10 s) — roughly halving the per-tick exec cost — and (2) pick a sensible default poll interval (1 s) so latency = interval at ~1.1% CPU, or document 5 s (~0.22%) for idle-sensitive apps. Sitedocs keeps the `aaf6131` 5 s interval, now reframed from "workaround" to the intended low-CPU default.
+- **Measurable:** `go test ./spectrum/system/...` green, including a test that asserts `AccentIndex` is polled less often than `Dark` (e.g. via a counting fake `Source` split, or two distinct tick streams). The existing `TestDarkModeFlipEmitsWithinOneSecond` acceptance test still passes. A short benchmark/measurement in the package (or recorded in `BASELINE.md`) documents per-`Read()` cost and the CPU fraction at 1 s and 5 s, replacing the unmeasured "10%" claim.
+- **Achievable:** pure Go restructuring of `system_darwin.go` plus the `FromSource`/`Live` interval wiring — no new files, no CGO, no Objective-C. The cross-platform `Source` interface is unchanged; linux/windows sources are untouched. The dark/accent cadence split is the only real design choice.
+- **Relevant:** `FEEDBACK-G5.1.md` [Major] "spectrum/system polls system appearance via fork+exec". Halving the per-tick exec count and right-sizing the interval removes the meaningful idle cost without a native bridge; the per-app `cfprefsd` load drops proportionally.
+- **Budget:** ~35 K (down from ~60 K — the CGO long pole is gone).
 
 **Steps:**
 
-- [ ] Add a CGO/Objective-C bridge `spectrum/system/system_darwin.m` observing `AppleInterfaceThemeChangedNotification` on `NSDistributedNotificationCenter` and forwarding events to Go via a channel.
-- [ ] Rewrite `spectrum/system/system_darwin.go` to consume the push notification for dark-mode; keep `AccentIndex` polled on a ≥10 s interval.
-- [ ] Add an exported test hook and `TestSystemDarwinPushEmitsOnThemeChange` driving a synthetic notification and asserting a single emission.
-- [ ] Revert sitedocs' `5 * time.Second` workaround (commit `aaf6131`) to the package default, or drop the parameter if the new API is push-only.
-- [ ] Verify `go test ./spectrum/system/...` green, sitedocs idles < 0.5% CPU over ≥30 s, and theme-change response is < 100 ms.
+- [ ] Split the darwin source so dark-mode (`AppleInterfaceStyle`) and accent (`AppleAccentColor`) poll on independent cadences: dark on the fast interval, accent on a ≥10 s interval. Keep the `Source` interface unchanged for linux/windows.
+- [ ] Set a sensible default poll interval for the dark-mode hot path (1 s ≈ 1.1% CPU); document the 5 s option (≈ 0.22%) for idle-sensitive consumers.
+- [ ] Add a test asserting accent is polled less frequently than dark (counting fake `Source` or split tick streams); keep `TestDarkModeFlipEmitsWithinOneSecond` green.
+- [ ] Record measured per-`Read()` cost and CPU fraction at 1 s / 5 s in `BASELINE.md` (or a package benchmark), replacing the unmeasured "10%" figure.
+- [ ] Confirm sitedocs' 5 s interval stands as the intended low-CPU default (update the `aaf6131` comment from "workaround" to "default"); verify `go test ./spectrum/system/...` green.
 
 ### GX.2 — Per-component benchmark in `prism/bench/`
 
