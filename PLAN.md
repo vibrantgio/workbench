@@ -999,9 +999,9 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Delete the 4 per-sub-package `go.mod`/`go.sum` files in `spectrum/` (`preferences`, `system`, `transition`, `window`) and add a single root `spectrum/go.mod` declaring `module github.com/vibrantgio/spectrum`.
-- [ ] Shrink the `go.work` `use (...)` block to a single `./spectrum` entry and run `go mod tidy` once at the new root.
-- [ ] Verify `find spectrum -name go.mod | wc -l` returns `1`, `go test ./spectrum/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `spectrum/`.
+- [x] Delete the 4 per-sub-package `go.mod`/`go.sum` files in `spectrum/` (`preferences`, `system`, `transition`, `window`) and add a single root `spectrum/go.mod` declaring `module github.com/vibrantgio/spectrum`.
+- [x] Shrink the `go.work` `use (...)` block to a single `./spectrum` entry and run `go mod tidy` once at the new root.
+- [x] Verify `find spectrum -name go.mod | wc -l` returns `1`, `go test ./spectrum/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `spectrum/`.
 
 #### GX.6a — Consolidate `cadence/` to one go.mod
 
