@@ -1029,9 +1029,9 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Delete the 7 per-sub-package `go.mod`/`go.sum` files in `pulse/` and add a single root `pulse/go.mod` (`module github.com/vibrantgio/pulse`).
-- [ ] Delete the intra-repo `replace` plumbing (notably `springbutton` → `spring`/`tween`), shrink `go.work` to one `./pulse` entry, and run `go mod tidy` once at the root.
-- [ ] Verify `find pulse -name go.mod | wc -l` returns `1`, `go test ./pulse/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `pulse/`.
+- [x] Delete the 7 per-sub-package `go.mod`/`go.sum` files in `pulse/` and add a single root `pulse/go.mod` (`module github.com/vibrantgio/pulse`).
+- [x] Delete the intra-repo `replace` plumbing (notably `springbutton` → `spring`/`tween`), shrink `go.work` to one `./pulse` entry, and run `go mod tidy` once at the root.
+- [x] Verify `find pulse -name go.mod | wc -l` returns `1`, `go test ./pulse/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `pulse/`.
 
 #### GX.6d — Consolidate `prism/` to one go.mod
 
