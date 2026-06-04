@@ -130,7 +130,7 @@ input module is addressed as `./prism/input/...`.)
 | Component | Benchmark | Scenario | ns/op | B/op | allocs/op |
 |---|---|---|---:|---:|---:|
 | button | `BenchmarkButtonRender` | idle render, static unfocused | 1 165 | 0 | 0 |
-| input/textfield | `BenchmarkTextFieldCaretBlink` | focused live editor, caret drawn (typing hot path) | 5 547 | 328 | 7 |
+| input/textfield | `BenchmarkTextFieldCaretBlink` | focused live editor, caret laid out (typing hot path) | 5 547 | 328 | 7 |
 | list | `BenchmarkListLayout/N=1000` | 1000-item virtual list, ~5 rows visible | 675 | 0 | 0 |
 
 ## Notes
@@ -141,7 +141,10 @@ input module is addressed as `./prism/input/...`.)
 - **textfield/caret-blink is intentionally not apples-to-apples** with the
   static rows. It measures the live `widget.Editor` path — editor layout, caret
   geometry, and the `input.Router` frame — with the editor focused and holding
-  text, which is the realistic typing/cursor-blink frame. The static
+  text: the focused-editor frame a blinking cursor is rendered into. `gtx.Now`
+  is the zero time on every iteration, so this is one frozen focused frame
+  repeated — a stable, reproducible anchor; the exact caret blink phase within
+  it is not asserted, only that the focused path runs. The static
   `BenchmarkTextFieldRender` (unfocused placeholder) measures 0 B/op for
   contrast. The bench fails loudly via an `OnChange` guard if focus ever fails
   to take, so the row can never silently regress to the cheaper unfocused frame.
