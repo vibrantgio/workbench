@@ -976,10 +976,10 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Remove the modal-owned focus tag and focus ring drawn around each `Props.Actions` entry in `cadence/modal/modal.go`.
-- [ ] Include each action widget's own focus tag in the modal's Tab cycle without wrapping it — choose the smaller of (a) `Props.ActionFocusTags []event.Tag` or (b) introspecting the registered tag set after each action lays out; document the choice in the package doc.
-- [ ] Add an interaction test confirming a focused `prism/button` action renders only the button's own focus ring (no doubled outer ring).
-- [ ] Verify `go test ./cadence/modal/...` green, including the new test and the existing `TestTabTrapsFocusWithinModal` / `TestShiftTabTrapsFocusWithinModal` / `TestTabCyclesFocusAmongModalTags`.
+- [x] Remove the modal-owned focus tag and focus ring drawn around each `Props.Actions` entry in `cadence/modal/modal.go`.
+- [x] Include each action widget's own focus tag in the modal's Tab cycle without wrapping it — choose the smaller of (a) `Props.ActionFocusTags []event.Tag` or (b) introspecting the registered tag set after each action lays out; document the choice in the package doc.
+- [x] Add an interaction test confirming a focused `prism/button` action renders only the button's own focus ring (no doubled outer ring).
+- [x] Verify `go test ./cadence/modal/...` green, including the new test and the existing `TestTabTrapsFocusWithinModal` / `TestShiftTabTrapsFocusWithinModal` / `TestTabCyclesFocusAmongModalTags`.
 
 ### GX.6 ‖ — Consolidate per-sub-package go.mod into per-repo go.mod
 
