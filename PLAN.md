@@ -959,12 +959,12 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Build a `button.Button(th, …)` (GX.3 icon variant) once in the modal's `rx.Defer` scope with the × `clip.Path` painter and `Props.Clickable: &st.closeClick`, fold its widget emissions into the modal's input pipeline (`CombineLatest`), and thread the resolved close widget into `drawModal`; the static `Render` path threads a `button.RenderIcon(...)` widget through the same parameter. Do not subscribe per-frame.
-- [ ] Route `OnClose` through the button's `Props.OnClick` and **delete** the modal's own `if st.closeClick.Clicked(gtx)` check (modal.go) — the button drains `Clicked` internally, so that check would always be false and the close button would silently do nothing.
-- [ ] Remove the `drawCross` symbol (preserve its × geometry as the icon painter) plus the separate `st.closeTag` focus target and the manually-drawn focus ring; re-key the focus trap (initial focus, Tab cycle, Escape) to `&st.closeClick`.
-- [ ] Preserve the `Props` API and every interaction semantic — Escape, Tab focus trap, backdrop click.
-- [ ] Refresh the four modal golden images.
-- [ ] Verify `go test ./cadence/modal/...` green, `grep -n 'button.Button(' cadence/modal/modal.go` returns ≥1 match, and `grep -n 'drawCross' cadence/modal/modal.go` returns none.
+- [x] Build a `button.Button(th, …)` (GX.3 icon variant) once in the modal's `rx.Defer` scope with the × `clip.Path` painter and `Props.Clickable: &st.closeClick`, fold its widget emissions into the modal's input pipeline (`CombineLatest`), and thread the resolved close widget into `drawModal`; the static `Render` path threads a `button.RenderIcon(...)` widget through the same parameter. Do not subscribe per-frame.
+- [x] Route `OnClose` through the button's `Props.OnClick` and **delete** the modal's own `if st.closeClick.Clicked(gtx)` check (modal.go) — the button drains `Clicked` internally, so that check would always be false and the close button would silently do nothing.
+- [x] Remove the `drawCross` symbol (preserve its × geometry as the icon painter) plus the separate `st.closeTag` focus target and the manually-drawn focus ring; re-key the focus trap (initial focus, Tab cycle, Escape) to `&st.closeClick`.
+- [x] Preserve the `Props` API and every interaction semantic — Escape, Tab focus trap, backdrop click.
+- [x] Refresh the four modal golden images.
+- [x] Verify `go test ./cadence/modal/...` green, `grep -n 'button.Button(' cadence/modal/modal.go` returns ≥1 match, and `grep -n 'drawCross' cadence/modal/modal.go` returns none.
 
 ### GX.5 — Touch-up: `cadence/modal` footer actions own their own focus tags
 
