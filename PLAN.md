@@ -1043,11 +1043,11 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Delete the 14 per-sub-package `go.mod`/`go.sum` files in `prism/` and add a single root `prism/go.mod` (`module github.com/vibrantgio/prism`).
-- [ ] Delete intra-module `replace` plumbing (button→tokens, button→theme, list→a11y, …); retain `replace` lines for downstream repos referenced (currently `mvu`).
-- [ ] Confirm `prism/internal/golden` still resolves from sibling test files after consolidation.
-- [ ] Shrink `go.work` to one `./prism` entry and run `go mod tidy` once at the root.
-- [ ] Verify `find prism -name go.mod | wc -l` returns `1`, `go test ./prism/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `prism/`.
+- [x] Delete the 14 per-sub-package `go.mod`/`go.sum` files in `prism/` and add a single root `prism/go.mod` (`module github.com/vibrantgio/prism`).
+- [x] Delete intra-module `replace` plumbing (button→tokens, button→theme, list→a11y, …); retain `replace` lines for downstream repos referenced (currently `mvu`).
+- [x] Confirm `prism/internal/golden` still resolves from sibling test files after consolidation.
+- [x] Shrink `go.work` to one `./prism` entry and run `go mod tidy` once at the root.
+- [x] Verify `find prism -name go.mod | wc -l` returns `1`, `go test ./prism/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `prism/`.
 
 ---
 ## Phase 5 — Example apps (pressure-test)
