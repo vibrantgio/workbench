@@ -934,17 +934,33 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - [x] Record current ns/op + B/op for each in `BASELINE.md` under a new "Phase 1 component baseline" heading.
 - [x] Verify `go test -bench=. ./prism/bench/... ./prism/button/... ./prism/input/... ./prism/list/...` green and the BASELINE.md section has one row per named component.
 
-### GX.4 — Touch-up: `cadence/modal` close affordance uses `prism/button`
+### GX.3 — `prism/button` icon-only/compact variant + caller-owned clickable (focus-tag injection)
 
-- **Specific:** Replace the `widget.Clickable` + custom `drawCross` glyph + modal-owned focus ring used for the close affordance in `cadence/modal/modal.go` with a `prism/button.Button` instance (icon-only or compact variant). Preserve the existing `Props` API and all interaction semantics (Escape, Tab focus trap, backdrop click). Refresh the four golden images.
-- **Measurable:** `go test ./cadence/modal/...` green; `grep -n 'button.Button(' cadence/modal/modal.go` returns at least one match and `grep -n 'drawCross' cadence/modal/modal.go` returns no matches.
-- **Achievable:** scoped to the close affordance and its golden refresh; do not touch focus-trap, stack, footer, or scrim logic.
-- **Relevant:** PLAN.md G4.2a Achievable contract ("reuses `prism/button` for header close + footer actions") — recorded as a known deviation in the G4.2a session reply.
-- **Budget:** ~30 K.
+- **Specific:** Add to `prism/button` the two capabilities GX.4 (header close) and GX.5 (footer action tags) both depend on, additively and without changing existing text-button behaviour. (1) **Icon-only / compact rendering:** when an icon painter is supplied and `Label` is empty, `drawButton` lays out a compact square sized to the glyph + padding (still honouring the 44 dp min hit-target, DESIGN §Accessibility) instead of a fill-width text CTA — glyph centred, existing focus-ring / hover / press states preserved — reachable through both `Render` (static) and `Button` (rx). The icon is a **vector painter** — `func(gtx layout.Context, sizePx int, col color.NRGBA)` drawing via `clip.Path` / `clip.Stroke` — so consumers' golden images stay cross-GPU deterministic. `prism/icon` is the registry where *named* glyphs live, but rendering an `icon.Icon` (SVG/IVG) is out of scope here: its rasterised output is not golden-deterministic, so determinism-sensitive callers (e.g. `cadence/modal`) pass a `clip.Path` painter. (2) **Caller-owned clickable:** add `Props.Clickable *widget.Clickable` to `Button`; when non-nil the component uses the caller's clickable instead of allocating its own (idiomatic Gio, cf. `material.ButtonStyle`). The caller then owns `&clickable` as the focus tag — usable with `key.FocusCmd`, `key.Filter{Focus: …}`, and an external Tab cycle — detects activation via `clickable.Clicked(gtx)`, and the button draws its focus ring from `gtx.Focused(&clickable)`. A container can thus drive focus with no doubled ring.
+- **Measurable:** `go test ./prism/button/...` green, adding (a) a golden for the icon-only variant (idle + focused) drawn with a `clip.Path` glyph so it is deterministic, and (b) a test that supplies `Props.Clickable`, focuses it via the router (`key.FocusCmd`), and asserts the button renders its focus ring and that Space/Enter activation is observable through `clickable.Clicked`. Existing text-button goldens unchanged; `go test -bench=. ./prism/button/...` still green.
+- **Achievable:** additive `prism/button` change — one `Props` field plus an icon branch in `drawButton` reachable from `Render`/`Button` — with tests and one new golden. No change to the text-button path and no consumer migration in this task. Unblocks GX.4 and GX.5.
+- **Relevant:** GX.4 and GX.5 both need a `prism/button` that is compact/icon-shaped *and* container-focusable without a doubled ring; the original GX.4 swap was infeasible because today's `prism/button` is a fill-width text CTA owning its focus tag internally. DESIGN §"Bridging FRP and MVU" (component contract), §Accessibility (44 dp), §Performance (golden determinism + bench).
+- **Budget:** ~80 K.
 
 **Steps:**
 
-- [ ] Replace the close affordance in `cadence/modal/modal.go` (`widget.Clickable` + `drawCross` glyph + modal-owned focus ring) with a `prism/button.Button` (icon-only / compact variant).
+- [ ] Add an icon-only/compact branch to `drawButton` reachable from both `Render` and `Button`: when a `clip.Path` icon painter is set and `Label` is empty, lay out a compact square (glyph + padding, ≥ 44 dp hit target) with the glyph centred and focus-ring / hover / press states preserved.
+- [ ] Add `Props.Clickable *widget.Clickable` to `Button`; when non-nil use it instead of the internally-allocated clickable so the caller owns the focus tag and activation, drawing the focus ring from `gtx.Focused(&clickable)`.
+- [ ] Add a golden for the icon-only variant (idle + focused, `clip.Path` glyph) and a test proving caller-owned-clickable focus (`key.FocusCmd` → ring) and Space/Enter activation (`clickable.Clicked`).
+- [ ] Verify `go test ./prism/button/...` green (new golden + test; existing goldens unchanged) and `go test -bench=. ./prism/button/...` still green.
+
+### GX.4 — Touch-up: `cadence/modal` close affordance uses `prism/button`
+
+- **Specific:** Replace the modal-owned close affordance — the `drawCross` glyph, the separate `st.closeTag` focus target, and the manually-drawn focus ring — with `prism/button`'s icon-only variant (GX.3). The live `Modal` path calls `button.Button(...)` with the × `clip.Path` painter and `Props.Clickable: &st.closeClick`, so the existing focus trap keeps working keyed to `&st.closeClick` (initial focus, Tab cycle, Escape) with no doubled ring; the static `Render` path (golden tests) uses `button.Render(...)` with the same painter so the goldens stay text-free and deterministic. The × geometry now in `drawCross` is preserved as the icon painter (renamed; the `drawCross` symbol is removed). Preserve the `Props` API and every interaction semantic (Escape, Tab focus trap, backdrop click). Refresh the four golden images.
+- **Measurable:** `go test ./cadence/modal/...` green (including the existing Escape / Tab-trap / backdrop tests); `grep -n 'button.Button(' cadence/modal/modal.go` returns at least one match and `grep -n 'drawCross' cadence/modal/modal.go` returns no matches.
+- **Achievable:** depends on GX.3 (icon variant + clickable injection). Scoped to the close affordance and its golden refresh; the focus-trap logic is preserved but re-keyed from the removed `st.closeTag` to the caller-owned `st.closeClick`; do not touch stack, footer, or scrim logic.
+- **Relevant:** PLAN.md G4.2a Achievable contract ("reuses `prism/button` for header close + footer actions") — recorded as a known deviation in the G4.2a session reply. Pairs with GX.5 (footer action tags) on the shared GX.3 mechanism.
+- **Budget:** ~50 K.
+
+**Steps:**
+
+- [ ] In the live `Modal` path render the close affordance with `button.Button(...)` (GX.3 icon variant) passing the × `clip.Path` painter and `Props.Clickable: &st.closeClick`; in the static `Render` path use `button.Render(...)` with the same painter for deterministic goldens.
+- [ ] Remove the `drawCross` symbol (preserve its × geometry as the icon painter) plus the separate `st.closeTag` focus target and the manually-drawn focus ring; re-key the focus trap (initial focus, Tab cycle, Escape) to `&st.closeClick`.
 - [ ] Preserve the `Props` API and every interaction semantic — Escape, Tab focus trap, backdrop click.
 - [ ] Refresh the four modal golden images.
 - [ ] Verify `go test ./cadence/modal/...` green, `grep -n 'button.Button(' cadence/modal/modal.go` returns ≥1 match, and `grep -n 'drawCross' cadence/modal/modal.go` returns none.
@@ -954,7 +970,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - **Specific:** Remove the modal-owned focus tag and focus ring drawn around each `Props.Actions` entry in `cadence/modal/modal.go`. Action widgets register their own focus tags (e.g., `prism/button.Button` does); the modal must include those tags in its Tab cycle without wrapping them. Choose the smaller of two routes: (a) add `Props.ActionFocusTags []event.Tag` so callers declare their own tags, or (b) introspect a registered tag set after each action lays out. Document the choice in the package doc comment.
 - **Measurable:** `go test ./cadence/modal/...` green, including a new interaction test confirming a focused `prism/button` action renders only the button's own focus ring (no doubled outer ring); existing `TestTabTrapsFocusWithinModal`, `TestShiftTabTrapsFocusWithinModal`, and `TestTabCyclesFocusAmongModalTags` still pass.
 - **Achievable:** `Props` addition or small introspection helper plus one new test; do not touch scrim, stack depth, or close-button logic.
-- **Relevant:** PLAN.md G4.2a follow-up — focus-ring composition between modal and `prism/button`-typed actions. Pair with GX.4 if the close-button swap surfaces the same doubled-ring issue at the header.
+- **Relevant:** PLAN.md G4.2a follow-up — focus-ring composition between modal and `prism/button`-typed actions. Builds on GX.3's caller-owned clickable: footer actions that are `prism/button`s pass their own `*widget.Clickable`, whose `&clickable` the modal includes in the Tab cycle (route (a) `Props.ActionFocusTags`). Pairs with GX.4 — the same doubled-ring fix at the header.
 - **Budget:** ~40 K.
 
 **Steps:**
