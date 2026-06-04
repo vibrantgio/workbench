@@ -1013,11 +1013,11 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Delete the 16 per-sub-package `go.mod`/`go.sum` files in `cadence/` and add a single root `cadence/go.mod` (`module github.com/vibrantgio/cadence`) + `cadence/go.sum`.
-- [ ] Delete the intra-repo `replace` lines; consolidate sibling-repo `replace` lines (`prism/...`, `pulse/depth`) at the root go.mod.
-- [ ] Absorb the pre-existing drift: commit the untracked `cadence/popover/` source and the uncommitted tidy edits in `cadence/{alert,breadcrumb,navbar,toast}` into the consolidated module.
-- [ ] Shrink the `go.work` `use (...)` block from 16 cadence entries to one (`./cadence`) and run `go mod tidy` once at the new root.
-- [ ] Verify `find cadence -name go.mod | wc -l` returns `1`, `go test ./cadence/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `cadence/`.
+- [x] Delete the 16 per-sub-package `go.mod`/`go.sum` files in `cadence/` and add a single root `cadence/go.mod` (`module github.com/vibrantgio/cadence`) + `cadence/go.sum`.
+- [x] Delete the intra-repo `replace` lines; consolidate sibling-repo `replace` lines (`prism/...`, `pulse/depth`) at the root go.mod.
+- [x] Absorb the pre-existing drift: commit the untracked `cadence/popover/` source and the uncommitted tidy edits in `cadence/{alert,breadcrumb,navbar,toast}` into the consolidated module.
+- [x] Shrink the `go.work` `use (...)` block from 16 cadence entries to one (`./cadence`) and run `go mod tidy` once at the new root.
+- [x] Verify `find cadence -name go.mod | wc -l` returns `1`, `go test ./cadence/...` green from the workspace root, and `GOWORK=off go test ./...` green from inside `cadence/`.
 
 #### GX.6c — Consolidate `pulse/` to one go.mod
 
