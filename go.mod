@@ -10,8 +10,7 @@ require (
 	github.com/vibrantgio/gradient v0.0.2
 	github.com/vibrantgio/ivg v0.1.3
 	github.com/vibrantgio/mvu v0.1.9
-	github.com/vibrantgio/prism/input v0.0.0
-	github.com/vibrantgio/prism/theme v0.0.0
+	github.com/vibrantgio/prism v0.0.0
 	github.com/vibrantgio/style v0.0.2
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
 	golang.org/x/exp/shiny v0.0.0-20250408133849-7e4ce0ab07d0
