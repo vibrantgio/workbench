@@ -363,3 +363,141 @@ All four new cells (detail article, splitCell, shareCell, articles/detail
 pane cells) follow the identical store-in-projector / read-at-frame shape
 with no surprises. Boilerplate, but *predictable* boilerplate — a good sign
 the eventual framework affordance can be a single helper.
+
+---
+
+# G5.2d — CRUD actions (modal + toast + alert + delete-confirm)
+
+Findings from wiring the Add-feed modal (cadence/modal + cadence/card +
+prism/input/textfield + prism/button + cadence/alert), the toast stack, and
+the hover-revealed per-row delete-confirm popover. The feed tree moved from
+a static fixture into the Model (`Model.feeds`), with SubmitFeed /
+ConfirmDelete reducer policies (empty-URL alert, selection fallback on
+deleting the selected feed).
+
+## Bugs
+
+### Infrastructure
+
+#### [Blocker] reactivego/rx delivery is unreliable under load — stalls, deadlocks, and dropped emissions (G5.2d)
+
+Three distinct failure signatures surfaced while stabilising the feeds
+suite, all inside reactivego/rx / reactivego/scheduler, none in app wiring:
+
+1. **Delivery stall on a cold chain.** A freshly subscribed, fully cold
+   chain (`backdropLayer` over `rx.Of` token observables — no Subjects, no
+   multicast) intermittently delivers nothing for seconds. One full-suite
+   `go test` run hung indefinitely (killed at 3.5 min; the identical suite
+   then passed in 0.4 s); under `-race` the suite flaked ~1-in-3 at its
+   FIRST `collectOne` ("layer 0 produced no widget"); 10/10 isolated runs
+   of the same test pass.
+2. **Subject send deadlock.** With the shell graph's 16 consumers on a
+   buffer-1 `rx.Subject[Model]`, `send.Next(m)` blocked FOREVER
+   (subject.go:163) while a delivery goroutine sat in `sync.Cond.Wait`
+   (subject.go:242) — the suite died on the 3-minute test timeout, in two
+   different tests on consecutive runs. The cursor that never advances is
+   plausibly the documented unsubscribe-path race (multicast.go:68/100 vs
+   :28, see feeds/wiring_test.go) triggered by pagination's SwitchMap
+   re-subscribing — and therefore unsubscribing — on every emission.
+3. **Completion without emission.** Once, the same cold token chain
+   delivered `done` (nil error) having emitted NO value at all — the
+   emission was simply lost.
+
+**Workarounds (shipped, test-side):** model Subjects in shell-graph tests
+get a deep buffer (`rx.Subject[Model](0, 1, 256)`) so `Next` cannot block
+on a wedged reader — this eliminated the hangs; `collectOne` retries the
+subscription (3 × 2 s) on both timeout AND spurious completion — a fresh
+Subscribe sidesteps a wedged one. 0/8 `-race` full-suite failures after
+both. The production app shares the exposure (mvuWin.Messages drains a
+channel rather than a Subject, so signature 2 does not apply, but 1 and 3
+do: a stalled/dropped launch emission = a blank layer until an unrelated
+re-emission).
+
+**Remediation:** this is now the third-and-strongest reliability finding
+against the rx substrate (unsubscribe race, AutoConnect count fragility,
+and this delivery cluster). Queue a consolidated re-plan item: diagnose or
+vendor reactivego/rx, or front the layer graph with a delivery-guaranteed
+adapter owned by spectrum.
+
+## Missing API affordances
+
+#### [Major] `toast.Notify` is a package-global side-channel — toast policy cannot live in the reducer (G5.2d)
+
+`cadence/toast` exposes `Notify(level, text)` writing to a package-scoped
+Subject. Toasts are therefore fired from view callbacks, not from `Update`:
+the success toast for Add-feed fires in the button's OnClick, which must
+duplicate the reducer's "non-empty URL" validity check to decide whether a
+toast is warranted — two sources of truth for the same policy, and they can
+drift. An mvu app wants toast emission to be a reducer-owned effect (e.g. a
+`mvu.Command`), or at minimum an instance-scoped sink, not a global.
+
+**Remediation:** either toast support for `mvu.Command` (reducer returns
+`toast.Show(...)` as the command), or `toast.NewStack()` returning a
+`(Notify, Stack)` pair so apps can scope and route notification emission.
+The global Subject also leaks across windows in any future multi-window
+app.
+
+#### [Major] `prism/input.TextField` is uncontrolled — the app can never clear or set the field (G5.2d)
+
+The textfield's `widget.Editor` lives in the component's rx.Defer scope and
+is not reachable from outside; the only output is `OnChange(gtx, string)`.
+feeds mirrors the latest text into an atomic urlCell for the submit
+callback to read — and after a successful submit the field CANNOT be
+cleared: reopening the Add-feed modal shows the previously submitted URL.
+There is no value-in prop (`Value rx.Observable[string]`) and no reset
+affordance. A controlled-input option is table stakes for form CRUD.
+
+**Remediation:** accept an optional `Value rx.Observable[string]` that
+overwrites editor content on emission (with the usual caret-preservation
+caveats), or expose a `Clear()`/handle in the props.
+
+## Awkward compositions / boilerplate
+
+#### [Minor] `modal.Props.Body` / `card.Props.Body` are static slots over observable children — four more cell bridges (G5.2d)
+
+modal Body and card Body are `layout.Widget`, while the children that fill
+them (card, textfield, button, alert) are `rx.Observable[layout.Widget]`.
+The Add-feed modal needed cardCell + fieldCell + submitCell + alertCell plus
+an errorCell bool mirror, all folded through a CombineLatest5 — the same
+layer-boundary-cell pattern for the sixth, seventh, eighth time in this app
+(Main, Left/Right, tabs Content, navbar Actions, now modal/card Bodies).
+The pattern is mechanical and reliable, but its volume is now the app's
+single biggest boilerplate source. (Same remediation as G5.2c: observable
+slots, or a framework helper that folds-and-bridges in one call.)
+
+#### [Minor] Per-row delete-confirm popovers re-hit the popover canvas coupling, ×N rows (G5.2d)
+
+Each sidebar row wraps its own `cadence/popover` in an Exact trash-gutter
+canvas (the G5.2c Share-popover workaround, now multiplied across rows and
+keyed by FeedID via prism/keyed). Outside-press dismissal is again limited
+to the tiny canvas; dismissal relies on trash-toggle + confirm-click.
+Also a state-ownership wrinkle: the confirm-open flag is EPHEMERAL per-row
+interaction state held in a per-row rx.Subject, while the Add-feed modal's
+open flag is Model state — two idioms for "is this overlay open" in one
+app. Defensible (N rows × open-flag messages would bloat the reducer), but
+the framework should pick and document one idiom.
+
+## Ergonomics wins worth preserving
+
+#### [Preserve] `gesture.Hover` composes hover-reveal cleanly under clickable rows
+
+The trash icon reveals on row hover with `gesture.Hover` (Enter/Leave only,
+never Press), so the row's select-click and the trash click coexist without
+event-claim conflicts — verified by a router-driven regression test
+(TestHoverGutterDoesNotSwallowSelectPress). No framework affordance needed;
+this is a good recipe to document.
+
+#### [Preserve] Reducer-owned CRUD policy stayed pure and testable
+
+SubmitFeed (empty → alert, non-empty → append+close) and ConfirmDelete
+(remove + selection fallback to first remaining feed + page reset) are pure
+reducer cases with table-driven tests; moving the feed tree into the Model
+was mechanical. The MVU shape held up well under real mutation — the first
+sub-goal where the Model is not just view state.
+
+#### [Preserve] Overlay layers fold onto the shell stream without new buildLayers entries
+
+The modal scrim and toast stack draw over the whole window by folding onto
+the shell observable and painting after the shell widget (reporting the
+shell's dims) — no third buildLayers layer, no z-order machinery. Cheap and
+predictable; candidate for the documented overlay recipe.

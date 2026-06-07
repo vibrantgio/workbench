@@ -1157,11 +1157,11 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Wire the navbar "Add feed" action to open a `cadence/modal` holding a `cadence/card` form (`prism/input/textfield` for URL + `prism/button` submit).
-- [ ] On submit, synthesise a feed entry, append it to the in-memory list, and fire a `cadence/toast` "Feed added".
-- [ ] Add a hover-revealed trash icon per sidebar entry → `cadence/popover` "Delete this feed?" confirm → on confirm, remove the feed and toast.
-- [ ] Show a `cadence/alert` at the top of the modal on empty-URL submit.
-- [ ] Verify `go test ./feeds/...` green (modal golden light + dark + a submit-flow interaction test); add-feed and delete-feed flows work end-to-end, the alert fires on empty submit, and toasts appear; append findings to `FEEDBACK-G5.2.md`.
+- [x] Wire the navbar "Add feed" action to open a `cadence/modal` holding a `cadence/card` form (`prism/input/textfield` for URL + `prism/button` submit).
+- [x] On submit, synthesise a feed entry, append it to the in-memory list, and fire a `cadence/toast` "Feed added".
+- [x] Add a hover-revealed trash icon per sidebar entry → `cadence/popover` "Delete this feed?" confirm → on confirm, remove the feed and toast.
+- [x] Show a `cadence/alert` at the top of the modal on empty-URL submit.
+- [x] Verify `go test ./feeds/...` green (modal golden light + dark + a submit-flow interaction test); add-feed and delete-feed flows work end-to-end, the alert fires on empty submit, and toasts appear; append findings to `FEEDBACK-G5.2.md`.
 
 #### G5.2e — Feedback writeup
 
