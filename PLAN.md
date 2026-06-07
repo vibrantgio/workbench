@@ -1198,11 +1198,11 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Write `WATCHLIST-FORMAT.md` at repo root: per-symbol fields (Symbol, Exchange, Timeframe, Notes), file-path convention (macOS Application Support / Linux XDG), the named-watchlists top-level shape, and a version field.
-- [ ] Create the `vibrantgio/watchlist/` module (joined to `go.work`); `watchlist/main.go` opens a window via `prism/initial` + `spectrum` theme.
-- [ ] Render `cadence/shell.Shell(SidebarHeaderMain)`: navbar brand "Watchlist editor" + no-op "New watchlist" action; sidebar listing watchlist names from the on-disk file (empty-state message if absent); Main shows the selected name as placeholder.
-- [ ] On first run with no file, write a starter `"default"` watchlist (3 example symbols, e.g. BTC/USD, ETH/USD, SOL/USD).
-- [ ] Verify `go build ./watchlist/...` and `go test ./watchlist/...` green, the app opens with the sidebar populated from disk, and `WATCHLIST-FORMAT.md` documents the schema; create `FEEDBACK-G5.3.md` with first entries or "no findings yet".
+- [x] Write `WATCHLIST-FORMAT.md` at repo root: per-symbol fields (Symbol, Exchange, Timeframe, Notes), file-path convention (macOS Application Support / Linux XDG), the named-watchlists top-level shape, and a version field.
+- [x] Create the `vibrantgio/watchlist/` module (joined to `go.work`); `watchlist/main.go` opens a window via `prism/initial` + `spectrum` theme.
+- [x] Render `cadence/shell.Shell(SidebarHeaderMain)`: navbar brand "Watchlist editor" + no-op "New watchlist" action; sidebar listing watchlist names from the on-disk file (empty-state message if absent); Main shows the selected name as placeholder.
+- [x] On first run with no file, write a starter `"default"` watchlist (3 example symbols, e.g. BTC/USD, ETH/USD, SOL/USD).
+- [x] Verify `go build ./watchlist/...` and `go test ./watchlist/...` green, the app opens with the sidebar populated from disk, and `WATCHLIST-FORMAT.md` documents the schema; create `FEEDBACK-G5.3.md` with first entries or "no findings yet".
 
 #### G5.3b — Symbols table + edit modal
 
