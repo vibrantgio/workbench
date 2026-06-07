@@ -1247,7 +1247,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Read the running notes in `FEEDBACK-G5.3.md` from G5.3a–c; if absent, halt and surface the process failure rather than fabricating findings.
-- [ ] Rewrite into the four sections (Bugs / Missing API affordances / Awkward compositions / Ergonomics wins) with severity tags and one-line remediations for every blocker and major.
-- [ ] Add a final **"Format-design notes for coinviz adoption"** subsection (≥ 1 paragraph) capturing field-naming / version-migration lessons for a future coinviz multi-symbol feature.
-- [ ] Verify `FEEDBACK-G5.3.md` has all four section headings plus the format-design subsection, severity-tagged entries, and blocker/major remediations.
+- [x] Read the running notes in `FEEDBACK-G5.3.md` from G5.3a–c; if absent, halt and surface the process failure rather than fabricating findings.
+- [x] Rewrite into the four sections (Bugs / Missing API affordances / Awkward compositions / Ergonomics wins) with severity tags and one-line remediations for every blocker and major.
+- [x] Add a final **"Format-design notes for coinviz adoption"** subsection (≥ 1 paragraph) capturing field-naming / version-migration lessons for a future coinviz multi-symbol feature.
+- [x] Verify `FEEDBACK-G5.3.md` has all four section headings plus the format-design subsection, severity-tagged entries, and blocker/major remediations.
