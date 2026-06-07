@@ -192,3 +192,174 @@ the composition worked first-try with zero local reimplementation.
 `pageController` in sitedocs. The buffer-1 replay and goroutine subscriber
 worked correctly; `TestSelectionControllerAdvancesAtomic` validated the
 full chain (set → Subject → rx.Goroutine → atomic.Pointer) in < 100 ms.
+
+---
+
+# G5.2c — article detail view (tabs + popover + tooltip + split)
+
+Findings from building `feeds/detail.go`, the Share popover, the Unread
+header tooltip, and the articles/detail split — the first G5.2 sub-goal
+composed entirely on the post-GX.8/10 architecture (model-derived
+observables + `mvu.MessageOp` callbacks + layer-boundary cells).
+
+## Layout choice (required log)
+
+**Chose: right-hand detail pane via a split pane; planned
+`cadence/shell.Shell(SplitPane)`, shipped a feeds-local replacement
+(`feeds/split.go`) after `-race` flagged the component.** Rationale for the
+right-hand pane over stack-below: the detail view is tall (header + tab
+strip + wrapped body), and stacking it under a 10-row table pushes it below
+the fold at 800 px window height; side-by-side keeps both halves usable and
+pressure-tests SplitPane, which no Phase-5 app had touched yet. That
+pressure-test immediately found the blocker below, which is the point of
+Phase 5.
+
+## Bugs
+
+### Framework
+
+#### [Blocker] `shell.Shell(SplitPane)` dragState races between the emission projector and frame layout — `cadence/shell` (G5.2c)
+
+`splitPaneObservable` allocates a per-subscription `dragState` and writes
+`ds.current = clampRatio(r)` inside the `rx.Map` projector (shell.go:219),
+which runs on the rx scheduler goroutine each time a colour token or
+SplitRatio value emits. The emitted widget reads `ds.current` during layout
+on the frame goroutine (shell.go:226). `go test -race` fails on the first
+model-driven SplitRatio emission that overlaps a frame:
+
+```
+WARNING: DATA RACE
+Write at 0x… by goroutine 102: cadence/shell.splitPaneObservable.func2.1()  shell.go:219
+Previous read at 0x… by goroutine 8:  cadence/shell.splitPaneObservable.func2.1.1()  shell.go:226
+```
+
+Feeding `SplitRatio` from the MVU model — the composition the framework
+itself steers consumers toward — makes every model emission a write. The
+race is not theoretical: it reproduced on every run of the feeds re-emission
+test once SplitRatio was model-derived.
+
+**Workaround (shipped):** `feeds/split.go` re-implements the two-pane
+divider MVU-pure: the emitted widget closes over the ratio *value* carried
+by the emission, divider drags land `SetSplitRatio` messages through the mvu
+loop, and the transient drag tracker is touched only during layout. ~150
+lines, mostly a copy of the component — exactly the duplication cadence
+exists to prevent.
+
+**Remediation:** apply the same shape inside `cadence/shell`: close over the
+ratio per emission instead of mutating `ds.current` from the projector, and
+keep `ds.active`/grab state frame-side only. The mid-drag "external update
+wins" branch then becomes unnecessary (drags emit through OnSplitChange and
+flow back in-band). Audit the other rx.Defer-scoped state structs for
+projector-side writes; popover's `st.opened` transitions also run in the
+projector but are read nowhere frame-side, so it escapes by luck, not by
+design.
+
+## Missing API affordances
+
+#### [Major] `cadence/popover` couples anchor placement, dismissal area, and content sizing to one canvas — (G5.2c)
+
+Three couplings, all to `gtx.Constraints.Max` of wherever the popover widget
+happens to be laid out:
+
+1. the anchor is **centred** in the canvas (`anchorPos = (canvas − anchor)/2`);
+2. the outside-press dismissal absorber covers exactly the canvas;
+3. `Content` is measured against `canvas/2 × canvas/2`.
+
+A popover anchored to a navbar action button therefore cannot be composed
+correctly at any canvas size. Button-sized canvas: anchor lands right, but
+the dismissal absorber shrinks to the button (outside-clicks elsewhere in
+the window do NOT dismiss) and Content gets *half a button* to lay out in.
+Window-sized canvas: dismissal works, but the anchor renders in the middle
+of the window. feeds ships the button-sized canvas (an `Exact` 160×28 dp
+wrapper in the navbar action slot) with both degradations papered over:
+the Content widget **ignores its incoming constraints** and sizes itself
+(returning its own dims, which popover pads into the surface rect), and
+dismissal relies on anchor-toggle plus destination-click instead of
+outside-press. The 160 dp wrapper width is itself a hand-tuned collision
+workaround — Placement: Bottom centres the surface under the anchor, and a
+right-edge button would push half the surface off-screen.
+
+**Remediation:** decouple the three concerns: accept the anchor's laid-out
+position (popover as a wrapper around the anchor, not a canvas that centres
+it), register the outside-press absorber against the window extents (the
+modal scrim already solves this), and measure Content against an explicit
+`MaxSize` prop or the window, not `canvas/2`.
+
+#### [Major] `cadence/table` headers are string-only — no widget slot, so header tooltips need coordinate arithmetic — (G5.2c)
+
+`table.Column[T].Header` is a `string` and the header row is drawn
+internally by `drawTable`; there is no per-header widget hook (the
+row-click finding from G5.2b, one level up). The G5.2c "tooltips on
+icon-only column headers" requirement was met by overlaying the tooltip's
+trigger canvas on top of the table widget at hand-computed coordinates:
+trailing pinned column ⇒ `x ∈ [tableW − 96dp, tableW]`, header ⇒
+`y ∈ [0, 44dp]`, with 96 mirroring the column's `Width` and 44 mirroring the
+table's **private** `headerHDp`. Any future change to the table's header
+height silently misaligns the hit area — there is no compile-time tether.
+
+Also: the articles table has exactly **one** plausibly icon-only header
+(Unread, now "•"); the plan's plural "headers" overestimates how many
+icon-only columns a content table naturally has.
+
+**Remediation:** either `Column.HeaderWidget layout.Widget` (string Header
+as the simple case) or an exported `table.HeaderHeight` constant plus a
+documented overlay recipe. The former also unlocks header-level affordances
+the plan keeps asking for (tooltips here, filter chips later).
+
+## Awkward compositions / boilerplate
+
+#### [Major] `tabs.Tab.Content` is a static `layout.Widget` captured at construction — model-dependent content needs cell bridges — (G5.2c)
+
+`tabs.Props.Tabs` is a plain slice read once; `Selected` is an
+`rx.Observable[int]` but each `Tab.Content` is a static widget. Detail-pane
+content depends on the selected article (model state), so the three Content
+closures read an `atomic.Value` article cell that the detail layer's
+combine-map stores synchronously before each emission — the mainCell
+pattern again, now one component deeper. The alternative (rebuilding the
+whole Tabs instance per article via SwitchMap) re-subscribes `Selected` on
+every article click against a non-replaying published model observable,
+which would miss the in-flight emission — subtle enough that the cell
+bridge is the *safer* of two workarounds for what should be a directly
+expressible composition ("tab content renders current model state").
+
+**Remediation:** same one-prop fix as pagination in G5.2b: accept
+`Content rx.Observable[layout.Widget]` (or give Cell-style closures an
+in-band value), so consumers fold model-derived content without a cell.
+
+#### [Minor] `navbar.Props.Actions` are static widgets — live action widgets (the Share popover) need the same cell bridge
+
+`Actions []layout.Widget` is captured once. The Share popover is an
+observable widget stream, so it reaches its action slot via the shareCell
+layer-boundary adapter + an `Exact`-canvas wrapper. Fourth instance of the
+static-slot-needs-a-cell pattern in this app (Main, SplitPane Left/Right,
+tabs Content, navbar Actions). The pattern is now well-understood
+boilerplate, which is precisely the argument for the framework absorbing
+it.
+
+## Ergonomics wins worth preserving
+
+#### [Preserve] `(gtx, value)` callback signatures + `mvu.MessageOp` — every G5.2c interaction wired first-try
+
+`tabs.OnSelect(gtx, idx)`, `popover.OnDismiss(gtx)`, and plain
+`widget.Clickable` anchors all routed through `mvu.MessageOp` with zero
+controller code and same-frame repaint. The G5.1/G5.2 [Blocker] callback
+remediation has fully paid off: five new message types (SelectTab,
+ToggleShare, CloseShare, SetSplitRatio, plus the now-consumed
+SelectArticle) and not one atomic mirror in the interaction path.
+
+#### [Preserve] `tooltip.Tooltip` self-contained hover machinery composes cleanly as an overlay
+
+The tooltip needed no model wiring at all: hover detection, show-delay
+(`gtx.Now` + `InvalidateCmd`), and arbitration are all internal, so the
+overlay composition (position a trigger-sized canvas, done) worked
+first-try — including headless router-driven verification. This is the
+right amount of encapsulation; the popover's split of Open-state ownership
+(consumer) vs dismissal detection (component) is the same idea and also
+worked, modulo the canvas coupling above.
+
+#### [Preserve] Layer-boundary cells stay mechanical
+
+All four new cells (detail article, splitCell, shareCell, articles/detail
+pane cells) follow the identical store-in-projector / read-at-frame shape
+with no surprises. Boilerplate, but *predictable* boilerplate — a good sign
+the eventual framework affordance can be a single helper.

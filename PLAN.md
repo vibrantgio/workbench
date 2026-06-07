@@ -1140,12 +1140,12 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Choose the detail-pane layout — `cadence/shell.Shell(SplitPane)` vs stacked below the table — and log the choice + rationale to `FEEDBACK-G5.2.md`.
-- [ ] Build `feeds/detail.go` with `cadence/tabs`: "Reader" (paragraph-wrapped body), "Raw" (same body, monospace), "Comments" (static placeholder list).
-- [ ] Add a `cadence/popover` on a navbar "Share" button listing three (no-op) destinations.
-- [ ] Add `cadence/tooltip` hover tooltips on the table's icon-only column headers.
-- [ ] Route article-selection clicks via `mvu.MessageOp` through the mvu loop (post-GX.10), not the legacy `selectionController`.
-- [ ] Verify `go test ./feeds/...` green; clicking an article populates the detail pane, tabs swap content, the Share popover opens/dismisses, and tooltips appear on hover; append any composition friction to `FEEDBACK-G5.2.md`.
+- [x] Choose the detail-pane layout — `cadence/shell.Shell(SplitPane)` vs stacked below the table — and log the choice + rationale to `FEEDBACK-G5.2.md`.
+- [x] Build `feeds/detail.go` with `cadence/tabs`: "Reader" (paragraph-wrapped body), "Raw" (same body, monospace), "Comments" (static placeholder list).
+- [x] Add a `cadence/popover` on a navbar "Share" button listing three (no-op) destinations.
+- [x] Add `cadence/tooltip` hover tooltips on the table's icon-only column headers.
+- [x] Route article-selection clicks via `mvu.MessageOp` through the mvu loop (post-GX.10), not the legacy `selectionController`.
+- [x] Verify `go test ./feeds/...` green; clicking an article populates the detail pane, tabs swap content, the Share popover opens/dismisses, and tooltips appear on hover; append any composition friction to `FEEDBACK-G5.2.md`.
 
 #### G5.2d — CRUD actions
 
