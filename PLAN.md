@@ -1214,11 +1214,11 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Render a `cadence/table` of the selected watchlist's symbols (columns: Symbol, Exchange, Timeframe, Notes).
-- [ ] Add an "Add symbol" button opening a `cadence/modal` form (`prism/input/textfield` per field + `prism/button` submit).
-- [ ] Support editing: a row click or pencil icon reopens the same modal pre-populated with the row's values.
-- [ ] On save, mutate the in-memory watchlist and write the full file back atomically (temp + rename); confirm with a `cadence/toast` "Saved" and show a `cadence/alert` on empty-Symbol submit.
-- [ ] Verify `go test ./watchlist/...` green (modal golden light + dark + a save round-trip test via a temp dir); add/edit persist across restart, the alert fires on empty Symbol, and the toast confirms saves; append findings to `FEEDBACK-G5.3.md`.
+- [x] Render a `cadence/table` of the selected watchlist's symbols (columns: Symbol, Exchange, Timeframe, Notes).
+- [x] Add an "Add symbol" button opening a `cadence/modal` form (`prism/input/textfield` per field + `prism/button` submit).
+- [x] Support editing: a row click or pencil icon reopens the same modal pre-populated with the row's values.
+- [x] On save, mutate the in-memory watchlist and write the full file back atomically (temp + rename); confirm with a `cadence/toast` "Saved" and show a `cadence/alert` on empty-Symbol submit.
+- [x] Verify `go test ./watchlist/...` green (modal golden light + dark + a save round-trip test via a temp dir); add/edit persist across restart, the alert fires on empty Symbol, and the toast confirms saves; append findings to `FEEDBACK-G5.3.md`.
 
 #### G5.3c — Delete + bulk + tooltips + pagination
 
