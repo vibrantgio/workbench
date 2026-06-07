@@ -1173,12 +1173,12 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Read the running notes already in `FEEDBACK-G5.2.md` from G5.2a–d; if the file or notes are absent, halt and surface the process failure rather than fabricating findings.
-- [ ] Rewrite the notes into the four sections: **Bugs**, **Missing API affordances**, **Awkward compositions / boilerplate**, **Ergonomics wins worth preserving**.
-- [ ] Severity-tag every non-empty entry **blocker** / **major** / **minor**.
-- [ ] Add a one-line remediation sketch to each **blocker** and **major** entry.
-- [ ] Explicitly annotate every empty section (note whether it signals a coverage gap or real polish).
-- [ ] Verify all four section headings are present and the file reads as a coherent summary, then `git`-stage `FEEDBACK-G5.2.md`.
+- [x] Read the running notes already in `FEEDBACK-G5.2.md` from G5.2a–d; if the file or notes are absent, halt and surface the process failure rather than fabricating findings.
+- [x] Rewrite the notes into the four sections: **Bugs**, **Missing API affordances**, **Awkward compositions / boilerplate**, **Ergonomics wins worth preserving**.
+- [x] Severity-tag every non-empty entry **blocker** / **major** / **minor**.
+- [x] Add a one-line remediation sketch to each **blocker** and **major** entry.
+- [x] Explicitly annotate every empty section (note whether it signals a coverage gap or real polish).
+- [x] Verify all four section headings are present and the file reads as a coherent summary, then `git`-stage `FEEDBACK-G5.2.md`.
 
 ### G5.3 ‖ — Coinviz watchlist editor (speculative)
 

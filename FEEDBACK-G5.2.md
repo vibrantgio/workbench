@@ -1,218 +1,27 @@
-# FEEDBACK-G5.2 — Dogfooding notes from the feeds app skeleton
+# FEEDBACK-G5.2 — Dogfooding findings from the feeds app (RSS / reading-list)
 
-Findings from building `feeds/` — the first non-docs app to exercise
-`cadence/shell` with the fixed `rx.Observable[layout.Widget]` sidebar slot
-(GX.7 remediation). The app composes accordion-grouped sidebar + navbar +
-placeholder main from hard-coded fixture data driven by an `rx.Subject[FeedID]`.
+Findings from building `feeds/` (Phase 5 sub-goals G5.2a–d) against the
+Cadence + Spectrum + Prism + mvu stack. The app exercised the
+content-shaped slice of the framework end-to-end: accordion-grouped
+sidebar, sortable/filterable/paginated articles table, tabbed article
+detail in a draggable split pane, navbar popover, header tooltip, and a
+full CRUD flow (modal form + alert + toasts + hover-revealed
+delete-confirm popovers), all driven by a single MVU model.
 
----
+Entries are classified into four buckets and severity-tagged
+**blocker / major / minor**. Blockers and majors each carry a one-line
+remediation sketch. Each entry cites the milestone slice (G5.2a / b / c /
+d) and package it surfaced under. Findings that were already discharged
+mid-milestone (by GX.6, GX.8, GX.10) are kept with an explicit
+*Resolved* note so the re-plan does not double-queue them; the milestone
+shipped against their fixes.
 
-## Bugs
-
-### Framework
-
-#### [Blocker] Same as FEEDBACK-G5.1 [Blocker] "Cadence interactive-pattern callbacks lack `gtx` → consumers cannot route through mvu `MessageOp` → invalidation contract broken" — `cadence/{accordion,table,pagination,sidebar}` (G5.2a–b)
-
-The `feeds/` app exhibits the same bug surfaced in sitedocs and traced in FEEDBACK-G5.1's [Blocker] entry. Reproduction in feeds:
-
-- Clicking a sidebar feed entry: the table contents update, but **not until the user moves the mouse**. The `selectionController` Subject emits and stores into an `atomic.Pointer` on `rx.Goroutine`; the outer view observable doesn't re-emit because its inputs (theme + shape) haven't changed; mvu's invalidation hook never fires.
-- Clicking a pagination button: same chain. `pageSend.Next(p)` runs on the click goroutine, the table re-derives on rx.Goroutine, but no Gio frame is requested.
-- Clicking a sortable column header: same chain via `OnSort`.
-
-Every interactive control in feeds reaches for the same `rx.Subject + atomic.Pointer + rx.Goroutine` workaround pattern because cadence's callback signatures (`OnSelect func(p int)`, `OnSort func(col int)`, `OnRowClick` — not yet exposed) don't carry `gtx.Ops`, so consumers cannot emit `mvu.MessageOp`. Three more entries in this file (`pagination.Props.Page is static int`, `table has no row-click affordance`, `table.OnSort delegates full state machine`) describe the cadence-side gaps that *compound* the same root issue: callback APIs decoupled from `layout.Context` force consumers to bypass mvu and rebuild the framework's plumbing, badly.
-
-**Remediation:** see FEEDBACK-G5.1 [Blocker]. The Phase-5 dogfooding lesson is the same in both apps and gets stronger with each example — fix the cadence callback shape, fix every Phase-5 app's perceived-lag bug at once.
+A process note worth keeping: the deepest defects (the SplitPane data
+race, the rx delivery cluster) were found not by writing new framework
+code but by composing existing components in the configuration the
+framework itself recommends — which is exactly what Phase 5 is for.
 
 ---
-
-## PLAN.md milestone-spec (no framework defect)
-
-- **[Minor] G5.2a Specific cites `prism/initial` as part of "opens a window via
-  `prism/initial + spectrum` theme"** — also noted in G5.1 feedback. The actual
-  bootstrap is `mvu.NewWindow` + `spectrum/window.New` + `spectrum/system.LiveTheme`.
-  `prism/initial` is the first-frame `Value[T]` sentinel helper, not a window API.
-- **[Minor] G5.2a Budget "Depends on GX.7"** — GX.7 was already discharged before
-  this milestone (shell.Props.Sidebar is now `rx.Observable[layout.Widget]`).
-  The dependency note is stale but harmless; the composition worked first-try.
-
----
-
-## Missing API affordances
-
-#### [Major] `go mod tidy` in a new workspace module requires multi-pass replace discovery — repo infra (G5.2a)
-
-Adding a new module (`feeds/`) to the workspace required discovering transitive
-indirect deps (`cadence/sidebar`, `prism/layout`, `prism/internal/golden`) that
-fail `go mod tidy` with git-remote errors before `replace` directives exist.
-Each missing dep requires an extra tidy pass. This repeats the finding from
-G5.1 feedback ("Workspace `use` requires per-module `replace`"). Three manual
-iterations were needed before tidy succeeded.
-
-**Remediation:** the FEEDBACK-G5.1 suggestion stands — document the
-multi-pass bootstrap in `MIGRATION.md` (or a CONTRIBUTING.md), or collapse
-per-module go.mods into per-phase modules (GX.6) so new apps inherit the
-full replace graph from a single parent.
-
----
-
-## Awkward compositions / boilerplate
-
-#### [Minor] `openController` is re-implemented in feeds/sidebar.go verbatim from sitedocs/docs_sidebar.go
-
-The 30-line `openController` struct (mutex, open-map, Subject, toggle) is
-copy-pasted unchanged. This is the same issue logged as a major in G5.1
-("accordion.OnToggle + Open rx.Observable reinvents the Subject pattern per
-caller"). Extracting `accordion.NewController` would eliminate the copy for
-both callers.
-
-#### [Major] `pagination.Props.Page` / `PageCount` are static ints, not observables — every page change re-subscribes (G5.2b)
-
-`cadence/pagination.Props` declares `Page int` and `PageCount int`. Both are
-captured by value inside the `rx.Defer` body and the `rx.Map` projector, so
-the emitted widget closures permanently bind whatever values were passed at
-construction time. There is no in-band way to advance the page after that.
-
-The feeds composition works around this by re-constructing the entire
-Pagination observable on every page or pageCount change:
-
-```go
-paginationWidgetObs := rx.SwitchMap(
-    rx.CombineLatest2(pageObs, pageCountObs),
-    func(t rx.Tuple2[int, int]) rx.Observable[layout.Widget] {
-        return pagination.Pagination(th, pagination.Props{
-            Page: t.First, PageCount: t.Second,
-            OnSelect: func(p int) { pageSend.Next(p) },
-            Shaper:   shaper,
-        })
-    },
-)
-```
-
-Each click forces a fresh subscription, a fresh `widget.Clickable` slice, and
-a fresh shaper-defaulting branch in the `rx.Defer` body. The user just clicked
-something so no pending events are lost in practice, but the cost-per-click is
-real, the API is inconsistent with `cadence/table.Props.Sort`
-(`rx.Observable[Sort]`), and the workaround pattern is non-obvious.
-
-**Remediation:** make `pagination.Props.Page` and `PageCount` accept
-`rx.Observable[int]` (or accept a single `rx.Observable[pagination.State]`).
-Combine them with the theme observable inside `Pagination` so the inner
-closures observe their latest values without re-subscription.
-
-#### [Major] `cadence/table` has no row-click affordance; click must be smuggled into one cell (G5.2b)
-
-`table.Column[T].Cell` produces a `layout.Widget` per cell — there is no
-per-row hook, no `OnRowClick`, and no `Selected` highlight state. The feeds
-articles table satisfies "clicking a row emits `selectedArticle`" by wiring
-a `widget.Clickable` only inside the Title column's Cell closure and keying it
-by `ArticleID` via `keyed.Defer`:
-
-```go
-titleCell := func(a article) layout.Widget {
-    click := rowClicks.For(a.ID)
-    body := table.RenderTextCell(shaper, *colorPtr.Load(), *typePtr.Load(), a.Title)
-    return func(gtx layout.Context) layout.Dimensions {
-        if click.Clicked(gtx) { selectArticle.Next(a.ID) }
-        return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-            // …
-            return body(gtx)
-        })
-    }
-}
-```
-
-This means only the Title column is actually clickable — clicks in Author /
-Published / Unread cells are inert. A real "select-row" UX needs the click on
-the whole row (and visual feedback). Replicating that today requires either
-duplicating the same `widget.Clickable` across every column's Cell (which Gio
-forbids — one `Clickable.Layout` per frame) or building a parallel row-level
-pointer-event layer outside the table.
-
-**Remediation:** extend `table.Props[T]` with `OnRowClick func(item T)` and
-optionally `Selected rx.Observable[K]` for highlight state. The table can
-register a per-row hit area inside its `drawRow` once it knows the row exists,
-which is information the consumer cannot reconstruct from the Cell-level API.
-
-#### [Major] `table.RenderTextCell` requires colour/type tokens at construction, forcing atomic-pointer mirrors in the consumer (G5.2b)
-
-`table.RenderTextCell(shaper, colors, typeScale, s)` takes tokens by value.
-Inside a reactive composition the Cell closures (built once, called on every
-emission) live outside any `rx.Defer` scope and outside the table's own
-`rx.Defer`. To honour theme switching they have to read current colours and
-typography on every frame — which means the consumer keeps two
-`atomic.Pointer` mirrors and subscribes `theme.Color` / `theme.Type` on
-`rx.Goroutine`:
-
-```go
-var colorPtr atomic.Pointer[tokens.ColorTokens]
-var typePtr atomic.Pointer[tokens.TypeScale]
-_ = rx.SwitchMap(th, …t.Color).Subscribe(…)
-_ = rx.SwitchMap(th, …t.Type).Subscribe(…)
-cell := func(a article) layout.Widget {
-    return table.RenderTextCell(shaper, *colorPtr.Load(), *typePtr.Load(), s)
-}
-```
-
-That is a lot of plumbing for the most common cell — plain text. It also
-duplicates work the table is already doing internally (the table subscribes
-to the same tokens for its header and divider).
-
-**Remediation:** either (a) expose a `table.TextCell(s)` helper that resolves
-tokens against an ambient context the table has already injected, or (b)
-pass a `Cell` API that receives a `(item, tok)` pair instead of just `item`,
-so the table hands current tokens to the cell every emission.
-
-#### [Minor] `table.OnSort` delegates the full Asc → Desc → None state machine to every consumer (G5.2b)
-
-`table.Sort` carries `(Column, Asc)`; `OnSort` is fired with a column index
-and nothing else. The package doc suggests cycling
-`None → Asc → Desc → None`, but the consumer has to implement that cycle
-itself, including reading the current sort state to decide what comes next.
-The feeds composition does the simpler Asc/Desc toggle on the same column,
-which is a different state machine from the documented suggestion. Two
-consumers will almost certainly diverge.
-
-**Remediation:** either ship a stock `table.CycleSort(cur, col) Sort` helper
-that returns the next state, or have the table own the cycle internally and
-emit `OnSort func(sk Sort)` with the resolved next state.
-
----
-
-## Ergonomics wins worth preserving
-
-#### [Preserve] `shell.Props.Sidebar` as `rx.Observable[layout.Widget]` (GX.7)
-
-The accordion-grouped sidebar wired directly into `shell.Shell` without a
-`composeSidebarHeaderMain` workaround. The G5.1 blocker is fully resolved —
-the composition worked first-try with zero local reimplementation.
-
-#### [Preserve] `rx.Subject[T](0, 1)` for selection state
-
-`selectionController` follows the same Subject + atomic.Pointer pattern as
-`pageController` in sitedocs. The buffer-1 replay and goroutine subscriber
-worked correctly; `TestSelectionControllerAdvancesAtomic` validated the
-full chain (set → Subject → rx.Goroutine → atomic.Pointer) in < 100 ms.
-
----
-
-# G5.2c — article detail view (tabs + popover + tooltip + split)
-
-Findings from building `feeds/detail.go`, the Share popover, the Unread
-header tooltip, and the articles/detail split — the first G5.2 sub-goal
-composed entirely on the post-GX.8/10 architecture (model-derived
-observables + `mvu.MessageOp` callbacks + layer-boundary cells).
-
-## Layout choice (required log)
-
-**Chose: right-hand detail pane via a split pane; planned
-`cadence/shell.Shell(SplitPane)`, shipped a feeds-local replacement
-(`feeds/split.go`) after `-race` flagged the component.** Rationale for the
-right-hand pane over stack-below: the detail view is tall (header + tab
-strip + wrapped body), and stacking it under a 10-row table pushes it below
-the fold at 800 px window height; side-by-side keeps both halves usable and
-pressure-tests SplitPane, which no Phase-5 app had touched yet. That
-pressure-test immediately found the blocker below, which is the point of
-Phase 5.
 
 ## Bugs
 
@@ -220,284 +29,308 @@ Phase 5.
 
 #### [Blocker] `shell.Shell(SplitPane)` dragState races between the emission projector and frame layout — `cadence/shell` (G5.2c)
 
-`splitPaneObservable` allocates a per-subscription `dragState` and writes
-`ds.current = clampRatio(r)` inside the `rx.Map` projector (shell.go:219),
-which runs on the rx scheduler goroutine each time a colour token or
-SplitRatio value emits. The emitted widget reads `ds.current` during layout
-on the frame goroutine (shell.go:226). `go test -race` fails on the first
-model-driven SplitRatio emission that overlaps a frame:
+`splitPaneObservable` writes `ds.current = clampRatio(r)` inside its
+`rx.Map` projector (shell.go:219, rx scheduler goroutine) while the emitted
+widget reads `ds.current` during layout (shell.go:226, frame goroutine).
+Feeding `Props.SplitRatio` from the MVU model — the composition the
+framework steers consumers toward — makes every model emission a write;
+`go test -race` failed on every run of the feeds re-emission test once
+SplitRatio was model-derived.
 
-```
-WARNING: DATA RACE
-Write at 0x… by goroutine 102: cadence/shell.splitPaneObservable.func2.1()  shell.go:219
-Previous read at 0x… by goroutine 8:  cadence/shell.splitPaneObservable.func2.1.1()  shell.go:226
-```
+Context: feeds chose the right-hand detail pane (over stack-below) because
+the detail view is tall and 800 px windows put a stacked pane below the
+fold — making feeds the first app to pressure-test SplitPane, which
+surfaced this immediately.
 
-Feeding `SplitRatio` from the MVU model — the composition the framework
-itself steers consumers toward — makes every model emission a write. The
-race is not theoretical: it reproduced on every run of the feeds re-emission
-test once SplitRatio was model-derived.
+**Workaround (shipped):** `feeds/split.go` re-implements the divider
+MVU-pure — the widget closes over the ratio value carried by the emission,
+drags land `SetSplitRatio` messages, drag-grab state stays frame-side.
+~150 lines, mostly a copy of the component: exactly the duplication
+cadence exists to prevent.
 
-**Workaround (shipped):** `feeds/split.go` re-implements the two-pane
-divider MVU-pure: the emitted widget closes over the ratio *value* carried
-by the emission, divider drags land `SetSplitRatio` messages through the mvu
-loop, and the transient drag tracker is touched only during layout. ~150
-lines, mostly a copy of the component — exactly the duplication cadence
-exists to prevent.
+**Remediation:** restructure `splitPaneObservable` the same way (close
+over the per-emission ratio; keep grab state frame-side; drop the mid-drag
+"external update wins" branch — drags flow back in-band via
+OnSplitChange). Then audit every rx.Defer-scoped state struct in cadence
+for projector-side writes; popover's `st.opened` transitions also run in
+the projector and escape only because nothing frame-side reads them.
 
-**Remediation:** apply the same shape inside `cadence/shell`: close over the
-ratio per emission instead of mutating `ds.current` from the projector, and
-keep `ds.active`/grab state frame-side only. The mid-drag "external update
-wins" branch then becomes unnecessary (drags emit through OnSplitChange and
-flow back in-band). Audit the other rx.Defer-scoped state structs for
-projector-side writes; popover's `st.opened` transitions also run in the
-projector but are read nowhere frame-side, so it escapes by luck, not by
-design.
+#### [Blocker] *(Resolved mid-milestone by GX.8/GX.10)* Cadence interactive-pattern callbacks lacked `gtx` — consumers could not route through mvu `MessageOp`; invalidation contract broken — `cadence/{accordion,table,pagination,sidebar}` (G5.2a–b)
 
-## Missing API affordances
-
-#### [Major] `cadence/popover` couples anchor placement, dismissal area, and content sizing to one canvas — (G5.2c)
-
-Three couplings, all to `gtx.Constraints.Max` of wherever the popover widget
-happens to be laid out:
-
-1. the anchor is **centred** in the canvas (`anchorPos = (canvas − anchor)/2`);
-2. the outside-press dismissal absorber covers exactly the canvas;
-3. `Content` is measured against `canvas/2 × canvas/2`.
-
-A popover anchored to a navbar action button therefore cannot be composed
-correctly at any canvas size. Button-sized canvas: anchor lands right, but
-the dismissal absorber shrinks to the button (outside-clicks elsewhere in
-the window do NOT dismiss) and Content gets *half a button* to lay out in.
-Window-sized canvas: dismissal works, but the anchor renders in the middle
-of the window. feeds ships the button-sized canvas (an `Exact` 160×28 dp
-wrapper in the navbar action slot) with both degradations papered over:
-the Content widget **ignores its incoming constraints** and sizes itself
-(returning its own dims, which popover pads into the surface rect), and
-dismissal relies on anchor-toggle plus destination-click instead of
-outside-press. The 160 dp wrapper width is itself a hand-tuned collision
-workaround — Placement: Bottom centres the surface under the anchor, and a
-right-edge button would push half the surface off-screen.
-
-**Remediation:** decouple the three concerns: accept the anchor's laid-out
-position (popover as a wrapper around the anchor, not a canvas that centres
-it), register the outside-press absorber against the window extents (the
-modal scrim already solves this), and measure Content against an explicit
-`MaxSize` prop or the window, not `canvas/2`.
-
-#### [Major] `cadence/table` headers are string-only — no widget slot, so header tooltips need coordinate arithmetic — (G5.2c)
-
-`table.Column[T].Header` is a `string` and the header row is drawn
-internally by `drawTable`; there is no per-header widget hook (the
-row-click finding from G5.2b, one level up). The G5.2c "tooltips on
-icon-only column headers" requirement was met by overlaying the tooltip's
-trigger canvas on top of the table widget at hand-computed coordinates:
-trailing pinned column ⇒ `x ∈ [tableW − 96dp, tableW]`, header ⇒
-`y ∈ [0, 44dp]`, with 96 mirroring the column's `Width` and 44 mirroring the
-table's **private** `headerHDp`. Any future change to the table's header
-height silently misaligns the hit area — there is no compile-time tether.
-
-Also: the articles table has exactly **one** plausibly icon-only header
-(Unread, now "•"); the plan's plural "headers" overestimates how many
-icon-only columns a content table naturally has.
-
-**Remediation:** either `Column.HeaderWidget layout.Widget` (string Header
-as the simple case) or an exported `table.HeaderHeight` constant plus a
-documented overlay recipe. The former also unlocks header-level affordances
-the plan keeps asking for (tooltips here, filter chips later).
-
-## Awkward compositions / boilerplate
-
-#### [Major] `tabs.Tab.Content` is a static `layout.Widget` captured at construction — model-dependent content needs cell bridges — (G5.2c)
-
-`tabs.Props.Tabs` is a plain slice read once; `Selected` is an
-`rx.Observable[int]` but each `Tab.Content` is a static widget. Detail-pane
-content depends on the selected article (model state), so the three Content
-closures read an `atomic.Value` article cell that the detail layer's
-combine-map stores synchronously before each emission — the mainCell
-pattern again, now one component deeper. The alternative (rebuilding the
-whole Tabs instance per article via SwitchMap) re-subscribes `Selected` on
-every article click against a non-replaying published model observable,
-which would miss the in-flight emission — subtle enough that the cell
-bridge is the *safer* of two workarounds for what should be a directly
-expressible composition ("tab content renders current model state").
-
-**Remediation:** same one-prop fix as pagination in G5.2b: accept
-`Content rx.Observable[layout.Widget]` (or give Cell-style closures an
-in-band value), so consumers fold model-derived content without a cell.
-
-#### [Minor] `navbar.Props.Actions` are static widgets — live action widgets (the Share popover) need the same cell bridge
-
-`Actions []layout.Widget` is captured once. The Share popover is an
-observable widget stream, so it reaches its action slot via the shareCell
-layer-boundary adapter + an `Exact`-canvas wrapper. Fourth instance of the
-static-slot-needs-a-cell pattern in this app (Main, SplitPane Left/Right,
-tabs Content, navbar Actions). The pattern is now well-understood
-boilerplate, which is precisely the argument for the framework absorbing
-it.
-
-## Ergonomics wins worth preserving
-
-#### [Preserve] `(gtx, value)` callback signatures + `mvu.MessageOp` — every G5.2c interaction wired first-try
-
-`tabs.OnSelect(gtx, idx)`, `popover.OnDismiss(gtx)`, and plain
-`widget.Clickable` anchors all routed through `mvu.MessageOp` with zero
-controller code and same-frame repaint. The G5.1/G5.2 [Blocker] callback
-remediation has fully paid off: five new message types (SelectTab,
-ToggleShare, CloseShare, SetSplitRatio, plus the now-consumed
-SelectArticle) and not one atomic mirror in the interaction path.
-
-#### [Preserve] `tooltip.Tooltip` self-contained hover machinery composes cleanly as an overlay
-
-The tooltip needed no model wiring at all: hover detection, show-delay
-(`gtx.Now` + `InvalidateCmd`), and arbitration are all internal, so the
-overlay composition (position a trigger-sized canvas, done) worked
-first-try — including headless router-driven verification. This is the
-right amount of encapsulation; the popover's split of Open-state ownership
-(consumer) vs dismissal detection (component) is the same idea and also
-worked, modulo the canvas coupling above.
-
-#### [Preserve] Layer-boundary cells stay mechanical
-
-All four new cells (detail article, splitCell, shareCell, articles/detail
-pane cells) follow the identical store-in-projector / read-at-frame shape
-with no surprises. Boilerplate, but *predictable* boilerplate — a good sign
-the eventual framework affordance can be a single helper.
-
----
-
-# G5.2d — CRUD actions (modal + toast + alert + delete-confirm)
-
-Findings from wiring the Add-feed modal (cadence/modal + cadence/card +
-prism/input/textfield + prism/button + cadence/alert), the toast stack, and
-the hover-revealed per-row delete-confirm popover. The feed tree moved from
-a static fixture into the Model (`Model.feeds`), with SubmitFeed /
-ConfirmDelete reducer policies (empty-URL alert, selection fallback on
-deleting the selected feed).
-
-## Bugs
+The defect FEEDBACK-G5.1 traced reproduced identically in feeds: sidebar
+selection, pagination, and sort clicks updated state on `rx.Goroutine`
+through Subject + atomic-pointer controllers, no Gio frame was requested,
+and the UI repainted only on the next unrelated input ("click does nothing
+until the mouse moves"). GX.8 gave cadence callbacks `(gtx, value)`
+signatures and GX.10 migrated feeds onto Model/Update/MessageOp; G5.2c–d
+were then built on the fixed architecture with zero recurrence (see the
+first Ergonomics win below). Kept for the record; nothing left to queue.
 
 ### Infrastructure
 
-#### [Blocker] reactivego/rx delivery is unreliable under load — stalls, deadlocks, and dropped emissions (G5.2d)
+#### [Blocker] reactivego/rx delivery is unreliable under load — stalls, deadlocks, and dropped emissions — `reactivego/{rx,scheduler}` (G5.2d)
 
-Three distinct failure signatures surfaced while stabilising the feeds
-suite, all inside reactivego/rx / reactivego/scheduler, none in app wiring:
+Three distinct failure signatures while stabilising the feeds suite, none
+attributable to app wiring:
 
 1. **Delivery stall on a cold chain.** A freshly subscribed, fully cold
    chain (`backdropLayer` over `rx.Of` token observables — no Subjects, no
-   multicast) intermittently delivers nothing for seconds. One full-suite
+   multicast) intermittently delivers nothing for seconds: one full-suite
    `go test` run hung indefinitely (killed at 3.5 min; the identical suite
    then passed in 0.4 s); under `-race` the suite flaked ~1-in-3 at its
-   FIRST `collectOne` ("layer 0 produced no widget"); 10/10 isolated runs
-   of the same test pass.
+   first `collectOne`; 10/10 isolated runs of the same test pass.
 2. **Subject send deadlock.** With the shell graph's 16 consumers on a
-   buffer-1 `rx.Subject[Model]`, `send.Next(m)` blocked FOREVER
-   (subject.go:163) while a delivery goroutine sat in `sync.Cond.Wait`
-   (subject.go:242) — the suite died on the 3-minute test timeout, in two
-   different tests on consecutive runs. The cursor that never advances is
-   plausibly the documented unsubscribe-path race (multicast.go:68/100 vs
-   :28, see feeds/wiring_test.go) triggered by pagination's SwitchMap
-   re-subscribing — and therefore unsubscribing — on every emission.
+   buffer-1 `rx.Subject[Model]`, `send.Next(m)` blocked forever
+   (subject.go:163) against a delivery goroutine parked in
+   `sync.Cond.Wait` (subject.go:242); the suite died on the 3-minute test
+   timeout in two different tests on consecutive runs. The never-advancing
+   cursor is plausibly the documented unsubscribe-path race
+   (multicast.go:68/100 vs :28; see feeds/wiring_test.go) triggered by
+   pagination's SwitchMap unsubscribing on every emission.
 3. **Completion without emission.** Once, the same cold token chain
-   delivered `done` (nil error) having emitted NO value at all — the
-   emission was simply lost.
+   delivered `done` (nil error) having emitted no value at all.
 
-**Workarounds (shipped, test-side):** model Subjects in shell-graph tests
-get a deep buffer (`rx.Subject[Model](0, 1, 256)`) so `Next` cannot block
-on a wedged reader — this eliminated the hangs; `collectOne` retries the
-subscription (3 × 2 s) on both timeout AND spurious completion — a fresh
-Subscribe sidesteps a wedged one. 0/8 `-race` full-suite failures after
-both. The production app shares the exposure (mvuWin.Messages drains a
-channel rather than a Subject, so signature 2 does not apply, but 1 and 3
-do: a stalled/dropped launch emission = a blank layer until an unrelated
-re-emission).
+**Workarounds (shipped, test-side):** deep-buffered model Subjects
+(`rx.Subject[Model](0, 1, 256)`) so `Next` cannot block on a wedged
+reader, plus `collectOne` retrying (3 × 2 s) on timeout AND on spurious
+completion. 0/8 full-suite `-race` failures after both. Production shares
+the exposure for signatures 1 and 3 (a stalled or dropped launch emission
+= a blank layer until an unrelated re-emission); signature 2 does not
+apply because mvuWin.Messages drains a channel, not a Subject.
 
-**Remediation:** this is now the third-and-strongest reliability finding
-against the rx substrate (unsubscribe race, AutoConnect count fragility,
-and this delivery cluster). Queue a consolidated re-plan item: diagnose or
-vendor reactivego/rx, or front the layer graph with a delivery-guaranteed
-adapter owned by spectrum.
+**Remediation:** queue a consolidated re-plan item — diagnose or vendor
+reactivego/rx, or front the layer graph with a delivery-guaranteed adapter
+owned by spectrum. With the unsubscribe race and AutoConnect-count
+fragility (below) this is the third-and-strongest reliability finding
+against the rx substrate.
+
+#### [Major] `Publish().AutoConnect(N)` makes the app's launch correctness hostage to a hand-measured subscription count — `feeds/app.go` + reactivego/rx (G5.2b–d)
+
+`modelObsConsumers` must equal the EXACT number of cold subscriptions the
+shell graph makes (9 → 13 → 16 across G5.2b/c/d): too low and late
+consumers miss the seed (blank launch panes), too high and Connect never
+fires (frozen app). The count is not derivable from the source by
+inspection — it includes per-derivation fan-out — so feeds carries a
+measuring test (`TestModelObsConsumerCountMatchesConst`) whose failure
+message is the only reliable way to learn the new value after any
+topology edit.
+
+**Remediation:** replace the non-replaying Publish/AutoConnect seam with a
+replay-1 multicast for the model observable (late subscribers receive the
+current model; the count stops being load-bearing), or have spectrum own a
+model-distribution adapter that hides the counting.
+
+### PLAN.md milestone-spec (no framework defect)
+
+- **[Minor] G5.2a Specific cites `prism/initial` as part of the window
+  bootstrap** — the actual bootstrap is `mvu.NewWindow` +
+  `spectrum/window.New` + `spectrum/system.LiveTheme`; `prism/initial` is
+  the first-frame `Value[T]` helper. Same stale citation as G5.1.
+- **[Minor] G5.2a Budget says "Depends on GX.7"** — GX.7 was discharged
+  before the milestone started; the sidebar slot composed first-try.
+- **[Minor] G5.2c Specific says "tooltips on the table's icon-only column
+  headers" (plural)** — a content table naturally has about one icon-only
+  column (Unread "•"); the plural overestimates. One tooltip shipped.
+
+---
 
 ## Missing API affordances
 
-#### [Major] `toast.Notify` is a package-global side-channel — toast policy cannot live in the reducer (G5.2d)
+#### [Major] `cadence/popover` couples anchor placement, dismissal area, and content sizing to one canvas — `cadence/popover` (G5.2c, ×N rows in G5.2d)
 
-`cadence/toast` exposes `Notify(level, text)` writing to a package-scoped
-Subject. Toasts are therefore fired from view callbacks, not from `Update`:
-the success toast for Add-feed fires in the button's OnClick, which must
-duplicate the reducer's "non-empty URL" validity check to decide whether a
-toast is warranted — two sources of truth for the same policy, and they can
-drift. An mvu app wants toast emission to be a reducer-owned effect (e.g. a
-`mvu.Command`), or at minimum an instance-scoped sink, not a global.
+Three couplings, all to `gtx.Constraints.Max` of wherever the popover is
+laid out: (1) the anchor is centred in the canvas; (2) the outside-press
+dismissal absorber covers exactly the canvas; (3) `Content` is measured
+against `canvas/2 × canvas/2`. A popover anchored to a navbar button (or a
+sidebar trash icon) therefore composes correctly at NO canvas size:
+button-sized canvases break dismissal and content measurement,
+window-sized canvases re-centre the anchor mid-window. feeds ships
+button-sized `Exact` wrapper canvases with the degradations papered over —
+Content ignores its incoming constraints and self-sizes; dismissal falls
+back to anchor-toggle + item-click; the Share wrapper's 160 dp width is a
+hand-tuned guard against the Bottom-placed surface clipping the window
+edge. G5.2d multiplied the workaround across every sidebar row's
+delete-confirm popover (keyed by FeedID via prism/keyed).
 
-**Remediation:** either toast support for `mvu.Command` (reducer returns
-`toast.Show(...)` as the command), or `toast.NewStack()` returning a
-`(Notify, Stack)` pair so apps can scope and route notification emission.
-The global Subject also leaks across windows in any future multi-window
-app.
+**Remediation:** decouple the three concerns — wrap the anchor in place
+instead of centring it, register the dismissal absorber against window
+extents (the modal scrim already does), and measure Content against an
+explicit `MaxSize` prop.
 
-#### [Major] `prism/input.TextField` is uncontrolled — the app can never clear or set the field (G5.2d)
+#### [Major] `cadence/table` has no row-click affordance; click must be smuggled into one cell — `cadence/table` (G5.2b)
 
-The textfield's `widget.Editor` lives in the component's rx.Defer scope and
-is not reachable from outside; the only output is `OnChange(gtx, string)`.
-feeds mirrors the latest text into an atomic urlCell for the submit
-callback to read — and after a successful submit the field CANNOT be
-cleared: reopening the Add-feed modal shows the previously submitted URL.
-There is no value-in prop (`Value rx.Observable[string]`) and no reset
-affordance. A controlled-input option is table stakes for form CRUD.
+`Column[T].Cell` is the only per-row hook — no `OnRowClick`, no `Selected`
+highlight state. feeds wires a `widget.Clickable` inside the Title
+column's Cell (keyed by ArticleID via `keyed.Defer`), so only Title-column
+clicks select an article; Author/Published/Unread cells are inert. Doing
+better requires either reusing one Clickable across cells (Gio forbids
+two `Clickable.Layout` calls per frame) or a parallel row-level pointer
+layer outside the table.
+
+**Remediation:** extend `table.Props[T]` with
+`OnRowClick func(gtx, item T)` and optionally `Selected rx.Observable[K]`;
+the table's `drawRow` is the only place with the per-row geometry needed
+to register the hit area.
+
+#### [Major] `cadence/table` headers are string-only — header tooltips need coordinate arithmetic against private constants — `cadence/table` (G5.2c)
+
+`Column.Header` is a `string` and the header row is drawn internally, so
+the Unread ("•") header tooltip is an overlay positioned by hand: trailing
+pinned column ⇒ `x ∈ [tableW − 96dp, tableW]`, header ⇒ `y ∈ [0, 44dp]`,
+where 96 mirrors the column `Width` and 44 mirrors the table's **private**
+`headerHDp`. A future change to the header height silently misaligns the
+hit area — no compile-time tether exists.
+
+**Remediation:** `Column.HeaderWidget layout.Widget` (string stays the
+simple case), or at minimum export `table.HeaderHeight` and document the
+overlay recipe.
+
+#### [Major] `table.RenderTextCell` takes tokens by value, forcing atomic token mirrors in every consumer — `cadence/table` (G5.2b)
+
+Cell closures are built once and run on every frame, outside any rx.Defer
+scope — honouring theme switches means each consumer subscribes
+`theme.Color`/`theme.Type` on `rx.Goroutine` into atomic mirrors and reads
+them per cell render. That is heavy plumbing for the most common cell
+(plain text) and duplicates subscriptions the table already holds for its
+header and dividers.
+
+**Remediation:** a `table.TextCell(s)` helper resolved against tokens the
+table already injects, or a Cell API receiving `(item, tok)` per
+emission.
+
+#### [Major] `toast.Notify` is a package-global side-channel — toast policy cannot live in the reducer — `cadence/toast` (G5.2d)
+
+Toasts fire from view callbacks, not from `Update`: the Add-feed success
+toast fires in the submit button's OnClick, which must duplicate the
+reducer's "non-empty URL" validity check — two sources of truth for one
+policy. The global Subject would also leak across windows in a
+multi-window app.
+
+**Remediation:** toast support for `mvu.Command` (reducer returns
+`toast.Show(...)`) or `toast.NewStack()` returning an instance-scoped
+`(Notify, Stack)` pair.
+
+#### [Major] `prism/input.TextField` is uncontrolled — the app can never clear or set the field — `prism/input` (G5.2d)
+
+The `widget.Editor` lives unexported in the component's rx.Defer scope;
+the only output is `OnChange`. feeds mirrors the latest text into an
+atomic cell for the submit callback — and after a successful submit the
+field cannot be cleared, so reopening the Add-feed modal shows the stale
+URL. A controlled-input option is table stakes for form CRUD.
 
 **Remediation:** accept an optional `Value rx.Observable[string]` that
-overwrites editor content on emission (with the usual caret-preservation
-caveats), or expose a `Clear()`/handle in the props.
+overwrites editor content on emission, or expose a reset handle in the
+props.
+
+#### [Major] *(Resolved mid-milestone by GX.6)* `go mod tidy` in a new workspace module required multi-pass replace discovery — repo infra (G5.2a)
+
+Bootstrapping `feeds/` required three manual tidy passes to discover
+transitive `replace` directives. GX.6a–d consolidated the per-package
+go.mods into one module per top-level project, after which new apps
+inherit the full replace graph from four parents. Nothing left to queue.
+
+#### [Minor] `table.OnSort` delegates the full sort-cycle state machine to every consumer — `cadence/table` (G5.2b)
+
+`OnSort` delivers only a column index; the documented None→Asc→Desc cycle
+must be reimplemented per consumer (feeds ships a simpler Asc/Desc toggle
+— two consumers will diverge). Ship `table.CycleSort(cur, col) Sort` or
+emit the resolved next state.
+
+---
 
 ## Awkward compositions / boilerplate
 
-#### [Minor] `modal.Props.Body` / `card.Props.Body` are static slots over observable children — four more cell bridges (G5.2d)
+#### [Major] Static `layout.Widget` slots over observable children — the layer-boundary-cell pattern is the app's single biggest boilerplate source — `cadence/{shell,tabs,navbar,modal,card,pagination}` (G5.2b–d)
 
-modal Body and card Body are `layout.Widget`, while the children that fill
-them (card, textfield, button, alert) are `rx.Observable[layout.Widget]`.
-The Add-feed modal needed cardCell + fieldCell + submitCell + alertCell plus
-an errorCell bool mirror, all folded through a CombineLatest5 — the same
-layer-boundary-cell pattern for the sixth, seventh, eighth time in this app
-(Main, Left/Right, tabs Content, navbar Actions, now modal/card Bodies).
-The pattern is mechanical and reliable, but its volume is now the app's
-single biggest boilerplate source. (Same remediation as G5.2c: observable
-slots, or a framework helper that folds-and-bridges in one call.)
+The recurring shape: a component exposes a static `layout.Widget` slot,
+but the thing that belongs in the slot is model-derived and therefore an
+`rx.Observable[layout.Widget]`. The consumer folds the child stream into a
+CombineLatest that drives some live slot (the shell's Sidebar), stores the
+latest child widget into an `atomic.Value` cell in the projector, and
+reads the cell from the static slot at frame time. Instances in feeds:
+shell `Main`; SplitPane `Left`/`Right`; tabs `Tab.Content` (selected
+article's body — the SwitchMap alternative re-subscribes `Selected`
+against a non-replaying published model and would miss in-flight
+emissions, so the cell is the *safer* workaround); navbar `Actions` (the
+Share popover); modal `Body` + card `Body` (cardCell + fieldCell +
+submitCell + alertCell + an errorCell mirror). `pagination.Props.Page` /
+`PageCount` are the same defect in scalar form — static ints captured at
+construction, worked around by SwitchMap-rebuilding the whole component
+per page change (fresh subscription and Clickable slice per click, and
+inconsistent with `table.Props.Sort`, which IS an observable).
 
-#### [Minor] Per-row delete-confirm popovers re-hit the popover canvas coupling, ×N rows (G5.2d)
+**Remediation:** one policy decision, applied across cadence: slots accept
+`rx.Observable[layout.Widget]` (and scalar props accept observables) the
+way shell.Sidebar and table.Sort already do — or prism ships a single
+`slot.Bridge` helper that packages the fold-and-cell dance. Either ends
+eight-plus hand-rolled instances in one app.
 
-Each sidebar row wraps its own `cadence/popover` in an Exact trash-gutter
-canvas (the G5.2c Share-popover workaround, now multiplied across rows and
-keyed by FeedID via prism/keyed). Outside-press dismissal is again limited
-to the tiny canvas; dismissal relies on trash-toggle + confirm-click.
-Also a state-ownership wrinkle: the confirm-open flag is EPHEMERAL per-row
-interaction state held in a per-row rx.Subject, while the Add-feed modal's
-open flag is Model state — two idioms for "is this overlay open" in one
-app. Defensible (N rows × open-flag messages would bloat the reducer), but
-the framework should pick and document one idiom.
+#### [Minor] *(Resolved mid-milestone by GX.10)* `openController` was copy-pasted verbatim from sitedocs — `feeds/sidebar.go` (G5.2a)
+
+The 30-line Subject-based accordion controller duplicated sitedocs'. GX.10
+replaced it with the `ToggleSection` reducer case (which also owns the
+single-open invariant in one message instead of N+1 OnToggle calls).
+Nothing left to queue.
+
+#### [Minor] Two idioms for "is this overlay open" in one app — model state vs ephemeral per-row Subjects (G5.2d)
+
+The Add-feed modal's open flag is Model state (`addFeedOpen` + messages);
+the per-row delete-confirm flags are ephemeral interaction state in
+per-row rx.Subjects (N rows of open-flag messages would bloat the
+reducer). Both are defensible; the framework should pick and document one
+idiom before every app invents its own split.
+
+---
 
 ## Ergonomics wins worth preserving
 
-#### [Preserve] `gesture.Hover` composes hover-reveal cleanly under clickable rows
+#### [Preserve] `(gtx, value)` callbacks + `mvu.MessageOp` — every post-GX.10 interaction wired first-try
 
-The trash icon reveals on row hover with `gesture.Hover` (Enter/Leave only,
-never Press), so the row's select-click and the trash click coexist without
-event-claim conflicts — verified by a router-driven regression test
-(TestHoverGutterDoesNotSwallowSelectPress). No framework affordance needed;
-this is a good recipe to document.
+Across G5.2c–d: tabs.OnSelect, popover.OnDismiss, shell-replacement drag,
+modal OnClose, button OnClick, and plain Clickable anchors all routed
+through `mvu.MessageOp` with zero controller code and same-frame repaint —
+ten new message types and not one atomic mirror in any interaction path.
+The G5.1/G5.2 blocker remediation has fully paid off.
 
-#### [Preserve] Reducer-owned CRUD policy stayed pure and testable
+#### [Preserve] Reducer-owned policy stayed pure and testable as the Model grew real
 
-SubmitFeed (empty → alert, non-empty → append+close) and ConfirmDelete
-(remove + selection fallback to first remaining feed + page reset) are pure
-reducer cases with table-driven tests; moving the feed tree into the Model
-was mechanical. The MVU shape held up well under real mutation — the first
-sub-goal where the Model is not just view state.
+SubmitFeed (empty → alert, non-empty → append + close), ConfirmDelete
+(remove + selection fallback + page reset), ToggleSection (single-open
+invariant), SelectFeed (page reset) are all pure reducer cases with
+table-driven tests. Moving the feed tree from fixture into `Model.feeds`
+was mechanical — the MVU shape held up under real mutation.
 
-#### [Preserve] Overlay layers fold onto the shell stream without new buildLayers entries
+#### [Preserve] `tooltip.Tooltip`'s self-contained hover machinery composes as an overlay with zero model wiring
 
-The modal scrim and toast stack draw over the whole window by folding onto
-the shell observable and painting after the shell widget (reporting the
-shell's dims) — no third buildLayers layer, no z-order machinery. Cheap and
-predictable; candidate for the documented overlay recipe.
+Hover detection, show-delay (`gtx.Now` + `InvalidateCmd`), and arbitration
+are all internal, so positioning a trigger-sized canvas over the header
+cell was the whole job — verified headlessly through a real input.Router.
+This is the right amount of encapsulation for hover affordances.
+
+#### [Preserve] `gesture.Hover` (Enter/Leave only) under clickable rows — hover-reveal without press conflicts
+
+The sidebar trash gutter reveals on row hover without ever claiming the
+row's select press; a router-driven regression test
+(TestHoverGutterDoesNotSwallowSelectPress) pins the behaviour. A recipe to
+document, not an API gap.
+
+#### [Preserve] Overlays fold onto the shell stream — no extra window layers
+
+The modal scrim and toast stack draw over the whole window by combining
+onto the shell observable and painting after the shell widget (returning
+the shell's dims) — no third buildLayers layer, no z-order machinery, and
+every model change still re-emits the stream for same-frame repaint.
+
+#### [Preserve] Headless pixel + input.Router verification against the real composed shell
+
+The G5.2c/d sim tests render the actual shell at successive model states
+and assert pixel deltas (detail pane populates, tabs swap, popover
+opens/dismisses-exactly, modal/alert/toast/delete flows), and drive
+hover/press through `gioui.org/io/input.Router` where timing matters.
+This caught real geometry bugs that reducer tests cannot see, runs in CI
+without a window server, and is the verification pattern Phase 5 apps
+should standardise on.
+
+*No section is empty; all four buckets accumulated findings — consistent
+with an app slice that exercised eleven cadence/prism components in
+earnest.*
