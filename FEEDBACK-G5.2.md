@@ -284,6 +284,17 @@ idiom before every app invents its own split.
 
 ## Ergonomics wins worth preserving
 
+#### [Preserve] `shell.Props.Sidebar` as `rx.Observable[layout.Widget]` — the GX.7 remediation held up across the whole milestone
+
+The accordion-grouped sidebar wired into `shell.Shell` first-try in G5.2a
+and absorbed every later change (model-derived open state, mutable feed
+list, hover trash gutters) with no shell-side friction. This slot is the
+proof-of-shape for the static-slots remediation above: make the other
+slots look like this one. (G5.2a's other early win — `rx.Subject[T](0, 1)`
+selection controllers — was retired by GX.10's model loop and is further
+deprecated by the rx delivery findings; it is intentionally not carried
+forward.)
+
 #### [Preserve] `(gtx, value)` callbacks + `mvu.MessageOp` — every post-GX.10 interaction wired first-try
 
 Across G5.2c–d: tabs.OnSelect, popover.OnDismiss, shell-replacement drag,
