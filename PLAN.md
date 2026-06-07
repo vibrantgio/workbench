@@ -1230,12 +1230,12 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Steps:**
 
-- [ ] Add row-level delete via a trash icon → `cadence/popover` confirm.
-- [ ] Add a checkbox column for multi-select plus a navbar "Delete N" action → `cadence/popover` confirm showing the selection count.
-- [ ] Add `cadence/tooltip` column-header tooltips explaining each column.
-- [ ] Add a sidebar right-click `cadence/popover` with "Rename" (small modal) / "Delete" (confirm) entries.
-- [ ] Add `cadence/pagination` below the table, rendered only when a watchlist has more than 25 symbols.
-- [ ] Verify `go test ./watchlist/...` green; row and bulk delete confirm and persist, rename/delete-watchlist persist, pagination renders only when needed, and tooltips appear on hover; append findings to `FEEDBACK-G5.3.md`.
+- [x] Add row-level delete via a trash icon → `cadence/popover` confirm.
+- [x] Add a checkbox column for multi-select plus a navbar "Delete N" action → `cadence/popover` confirm showing the selection count.
+- [x] Add `cadence/tooltip` column-header tooltips explaining each column.
+- [x] Add a sidebar right-click `cadence/popover` with "Rename" (small modal) / "Delete" (confirm) entries.
+- [x] Add `cadence/pagination` below the table, rendered only when a watchlist has more than 25 symbols.
+- [x] Verify `go test ./watchlist/...` green; row and bulk delete confirm and persist, rename/delete-watchlist persist, pagination renders only when needed, and tooltips appear on hover; append findings to `FEEDBACK-G5.3.md`.
 
 #### G5.3d — Feedback writeup
 

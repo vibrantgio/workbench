@@ -229,3 +229,179 @@ constituent pure piece IS tested (`applyEdit` aliasing + round-trip,
 states); only their in-callback composition is unverified. A pointer-driven
 modal-submit test was judged not worth the cost (the Save button is buried deep
 in the layer-boundary-cell composition, with no stable hit rect).
+
+## G5.3c
+
+G5.3c adds the interaction surfaces over the G5.3b symbols editor: row-level
+delete (trash → `cadence/popover` confirm), bulk multi-select (a checkbox
+column + a navbar "Delete N" `cadence/popover` confirm), per-header
+`cadence/tooltip` overlays, a sidebar right-click context menu (Rename modal /
+Delete confirm), and conditional `cadence/pagination` (only above `pageSize`
+symbols).
+
+#### [Major] First right-click composition in the codebase — a front-most hit area swallows the PRIMARY press unless wrapped in `pointer.PassOp`
+
+The sidebar context menu needs a right-click to open the menu WITHOUT breaking
+left-click-to-select. `widget.Clickable` does not expose the pressed button, so
+a raw `pointer.Filter{Kinds: pointer.Press}` tag is registered over the row and
+the drain checks `pe.Buttons.Contain(pointer.ButtonSecondary)`. The hit area
+must be registered AFTER the select clickable (later = front-most) so it sees
+the secondary press — but a plain front-most registration ABSORBS the primary
+press too, and click-to-select silently breaks. A throwaway router probe proved
+this immediately: secondary opened the menu, primary never reached the
+clickable. The fix is `pointer.PassOp{}.Push(...)` around the tag registration:
+pass-through delivers the press to BOTH the front tag (for the secondary filter)
+AND the clickable behind it (for the primary). This is now guarded by
+`TestRightClickPassesPrimaryReachesContextSecondary` (a real `input.Router`
+queueing a secondary press then a primary press+release, asserting both land).
+The friction is real: there is no `widget`/`gesture` helper for "right-click
+this area", so every app needs the PassOp + manual-button-check recipe, and the
+gotcha (front-most plain registration eats the primary press) is a footgun a
+`gesture.Click`-with-button-filter would erase.
+
+#### [Major] `cadence/popover` cannot open at the cursor — context menu opens centred on the row, not where the user right-clicked
+
+`popover.Popover` centres its Anchor in the canvas and places the surface
+adjacent per `Placement`; it has no "open at point" API. A right-click context
+menu conventionally opens at the cursor, but here the menu can only anchor to
+the row. The sidebar context popover therefore uses an INVISIBLE 1×1 anchor and
+`Placement: Right`, so the menu floats off the row's centre regardless of where
+inside the row the click landed. Acceptable for a watchlist sidebar (rows are
+short), but it is the wrong affordance for a true context menu, and a third app
+will hit it. A `popover.Props.AnchorPoint image.Point` (open the surface
+relative to an explicit point, not the centred anchor) would fix both this and
+the next entry.
+
+#### [Major] popover-canvas coupling recurs ×3 — row trash, navbar Delete-N, sidebar context — each needs the Content-constraint override
+
+Exactly as FEEDBACK-G5.2c logged for the Share popover: `popover.Popover`
+centres the anchor in WHATEVER canvas it is handed and measures `Content` at
+`canvas/2`. So each of the three new popovers wraps its anchor in the small cell
+it lives in (the trash gutter, the navbar action slot, the sidebar row) and the
+`Content` closure OVERRIDES its incoming `canvas/2` constraints with
+`layout.Exact(self-sized)` because half of a 48 dp gutter cannot hold a confirm
+prompt. The recipe ported cleanly from `feeds/sidebar.go`'s `deleteConfirm`
+(copied verbatim for the row trash, adapted for the navbar action and the
+context menu), but it is now pasted three more times in one task — the strongest
+signal yet that `popover` should self-size its Content from the Content's OWN
+measured size against the WINDOW, not against a caller canvas it has no business
+constraining.
+
+#### [Major] modelObs mirror MUST be subscribed eagerly per-layer — a lazy subscription inside `keyed.Defer` is invisible to the count test AND never seeded (silent data-loss path)
+
+The first cut gave each per-row delete-confirm and each per-name context menu
+its OWN `modelObs.Subscribe` (mirroring `addSymbolModal`'s mirror). That is a
+TRAP. `keyed.Defer` constructors run LAZILY on the first `.For(key)` during a
+LAYOUT frame — which is AFTER `Publish().AutoConnect(N)` has already fired
+`StartWith(seed)`. `Publish()` does not replay, so the lazy mirror joins the hot
+stream and receives NOTHING until the next message: its `modelCell` holds the
+zero `Model{}` (watchlists=nil, selected="") until then. A user who right-clicks
+a watchlist → Delete → Confirm BEFORE any other interaction would call
+`deleteWatchlistNamed(nil, …)` → `saveStore` an EMPTY document over their file.
+Data loss, and no model-driven sim catches it (they drive `Update` directly,
+never the mirror seed path — the same untested-glue gap G5.3b flagged).
+
+Worse, the lazy subscription is invisible to `TestModelObsConsumerCountMatches
+Const` (whose subscribe callback never lays out, so `.For()` never runs), so the
+count would silently UNDERCOUNT and grow unbounded as rows are interacted with —
+the AutoConnect(N) seed-delivery invariant the whole app depends on.
+
+Resolution: subscribe ONE eager mirror in each layer's function body
+(`watchlistMain`, `watchlistSidebar`) and pass it down as a `func() Model`; the
+per-row/per-name surfaces read through it and NEVER subscribe `modelObs`
+themselves. This makes the consumer count STATIC (independent of watchlist/
+symbol count) and seed-correct. **New invariant (now in app.go's
+`modelObsConsumers` comment): never subscribe modelObs inside a keyed.Defer —
+the count test can't see it and AutoConnect can't seed it.** Measured
+`modelObsConsumers` rose 11 → **22**; the count test caught the const drift
+immediately at both the broken (lazy, 20-and-climbing) and fixed (eager, static
+22) topologies.
+
+#### [Minor] Per-header tooltips at 4 columns = manual x-offset arithmetic over the SAME widths passed as `Column.Width`, mirroring the table's private `headerHDp`
+
+`cadence/table` headers are string-only with no per-header widget slot (logged
+in FEEDBACK-G5.2c for the single Unread tooltip), so each of the four labelled
+columns gets a `tooltip.Tooltip` whose constraint-filling Trigger is overlaid on
+its header cell by `overlayHeaderTooltips`. The x offsets are accumulated in
+column order from the SAME dp widths fed to `Column.Width` (checkbox gutter →
+flexing Symbol = tableWidth − pinned-sum → Exchange → Timeframe → Notes), and
+the header height is the magic `tableHeaderHDp = 44` that mirrors the table's
+PRIVATE `headerHDp` — doubly fragile now: a table internal-padding change breaks
+the y, and a `Column.Width` edit that isn't mirrored into the overlay constants
+breaks the x. Tooltip arbitration is global (one visible at a time) by design,
+which is correct for headers. The fix is the same as G5.2c asked: a
+`table.Column.HeaderTooltip string` (or a header-cell widget slot) would delete
+all of this arithmetic and the fragility.
+
+#### [Minor] Pagination conditional via `rx.Of[layout.Widget](nil)` in the SwitchMap; the rx `CombineLatest5` ceiling bites again (variadic `CombineLatest` rescued it)
+
+"Rendered only when > pageSize symbols" is a `pageCountObs` derived from the
+symbol slice; the `SwitchMap` over `(page, pageCount)` emits
+`rx.Of[layout.Widget](nil)` when `pageCount <= 1` and the layout slot skips a
+nil widget — clean. The Page/PageCount static-int workaround from G5.2b ported
+verbatim. Separately, the Main pane folds selected + table + pagination + FOUR
+header tooltips = 7 streams, past `CombineLatest5`; this time the VARIADIC
+`rx.CombineLatest(obs...) Observable[[]T]` collapsed the four same-typed tooltip
+streams into one `[]layout.Widget` (cleaner than G5.3b's manual `[4]` shim,
+which is only needed for heterogeneous arities). Worth noting the variadic form
+EXISTS and solves the homogeneous-fan-in case the G5.3b note worried about.
+
+#### [Minor] Selection-set policy: absolute indices, cleared on EVERY mutation; page-relative checkbox maps via `pageOffset + row`
+
+Selection is `map[int]bool` of ABSOLUTE indices into the full Symbols slice (not
+page-relative, not Symbol-string identity — duplicate symbols are legal, so a
+string key is ambiguous). Because indices shift under deletion, the reducer
+clears the selection on EVERY symbol mutation (add/edit/delete/bulk) AND on
+`SelectWatchlist` (different slice), and clamps `currentPage` to the new
+`pageCount`. The paginated checkbox cell carries the absolute `idx`
+(`pageOffset + page-relative row`) so a row selected on page 2 deletes the right
+symbol. The trickiest edge — `SelectWatchlist` must reset selection AND page or
+indices chosen in list A delete rows in list B — is a silent bug with no
+per-surface pixel test; it's covered by reducer unit tests
+(`TestSelectWatchlistClearsSelectionAndPage`, `TestPageClampsAfterShrink`,
+`TestBulkDeleteRemovesSelectedRows`). The cost of index keys is the mandatory
+clear-on-mutation; a stable per-row id (like feeds' FeedID) would let selection
+survive deletion, but symbols have no id in WATCHLIST-FORMAT.md.
+
+#### [Note] Model-state vs ephemeral-Subject choice (consistent, logged): modal/rename/selection/page in the Model; per-row & per-instance popover OPEN flags as ephemeral rx.Subjects
+
+Following the feeds idiom and the G5.2 two-idioms note: the rename modal
+(open/error/epoch/seed/target), the bulk selection set, and the current page
+live in the MODEL (replayable, drive the count). The per-row delete-confirm,
+the navbar Delete-N, and the per-name sidebar context popovers hold their OPEN
+flag as ephemeral per-instance `rx.Subject[bool]` interaction state (NOT model
+state) — they are transient, exclusive, and would otherwise bloat the model and
+the consumer count. The navbar "Delete N" decides HIDE (not disable) at N=0: a
+"Delete 0" affordance is meaningless, so the whole action renders to zero size
+when nothing is selected (and auto-closes its confirm if the selection empties
+out from under it).
+
+#### [Note] Rename modal inherits the uncontrolled-field pre-population workaround AND its clear-to-empty limitation verbatim
+
+The rename modal is the symbol modal scaled to one field, and it reuses the
+identical `prism/input.TextField` workaround (epoch rebuild on open + current
+name as placeholder + "empty keeps the seed" so an untouched field submits the
+old name). The same honest limitation applies: you cannot rename a watchlist to
+"" (correct here — empty names are rejected anyway), but the un-discoverable
+focus+backspace-does-nothing behaviour is present. `TextFieldProps.InitialText`
+would fix both modals at once.
+
+#### [Note] Verification was HEADLESS
+
+No GUI driving (no window-server session). The novel right-click composition and
+one column-header tooltip are driven through a real `gioui.org/io/input.Router`
+(`TestRightClickPassesPrimaryReachesContextSecondary`,
+`TestColumnTooltipHoverHeadless`). The CRUD flows are pixel-diffed against the
+REAL composed shell at each model state (`TestG53cShellStatesHeadless`: delete
+removes a row, two-row select reveals the navbar Delete-N, pagination renders for
+a 30-symbol fixture and NOT for a 2-symbol one, the rename modal scrim paints).
+Persistence "across restart" is proven at the store level
+(`TestG53cPersistenceRoundTrips`: each pure helper — `deleteSymbolAt`,
+`bulkDeleteRows`, `renameWatchlistTo`, `deleteWatchlistNamed` — through
+`saveStore` then a fresh `loadStore` + field asserts), the same durable proof
+G5.3b used for edits, since the confirm/submit callbacks route through those SAME
+helpers. The reducer edge cases (selection clearing, page clamping, rename
+validation, delete-watchlist fallback) are unit-tested in `model_g53c_test.go`.
+What no test drives end-to-end is the in-callback glue (read mirror → pure helper
+→ `saveStore` → `toast.Notify`); every constituent piece is tested, only the
+~5-line composition is not — the same judged-acceptable gap as G5.3b.
