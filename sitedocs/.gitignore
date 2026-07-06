@@ -1,0 +1,3 @@
+.DS_Store
+/sitedocs
+testdata/golden/*.actual.png

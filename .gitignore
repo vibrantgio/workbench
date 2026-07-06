@@ -1,32 +1,22 @@
-# Track only Markdown files in this outer repo.
+# Track Markdown at the root, plus the example apps in full.
 *
 !*/
 !*.md
 !.gitignore
 
-# Embedded per-module repos — each has its own remote.
+# Example apps — fully tracked.
+!/feeds/**
+!/sitedocs/**
+!/watchlist/**
+
+# ...except their compiled binaries.
+/feeds/feeds
+/sitedocs/sitedocs
+/watchlist/watchlist
+
+# Standalone apps/repos living alongside the examples (own remotes).
 /appviz/
-/backdrop/
-/cadence/
-/circle/
 /coinviz/
-/csg/
-/feeds/
-/font/
-/gradient/
-/ivg/
-/kiwi/
-/mindchat/
-/mvu/
-/place/
-/prism/
-/pulse/
 /seen/
-/sitedocs/
-/spectrum/
-/style/
-/svg/
-/textdraw/
-/todos/
-/traer/
-/watchlist/
+/seenbgdemo/
+/experiments/
