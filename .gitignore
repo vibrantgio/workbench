@@ -8,10 +8,8 @@
 !/feeds/**
 !/sitedocs/**
 !/watchlist/**
-!/experiments/**
 
 # ...except their compiled binaries.
 /feeds/feeds
 /sitedocs/sitedocs
 /watchlist/watchlist
-/experiments/coordination/coordination
