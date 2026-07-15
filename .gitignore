@@ -3,6 +3,8 @@
 !*/
 !*.md
 !.gitignore
+!LICENSE
+!llm.txt
 
 # Example apps — fully tracked.
 !/feeds/**

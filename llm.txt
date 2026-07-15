@@ -1,0 +1,217 @@
+# VibrantGIO — guide for AI assistants writing applications
+
+VibrantGIO is a design system for native desktop apps (macOS/Windows/Linux)
+built on gioui.org, with a Functional Reactive Programming application model
+using github.com/reactivego/rx generics-based observables. This file tells a
+coding assistant everything needed to scaffold and build a correct VibrantGIO
+application. The full architecture rationale is in DESIGN.md next to this
+file; the three apps in this repo (sitedocs/, feeds/, watchlist/) are the
+canonical usage references — read them before inventing a pattern.
+
+## Modules and versions
+
+All modules live under github.com/vibrantgio/<name>. Current tags:
+
+  mvu       v0.2.0   MVU runtime: NewWindow, Message/Command, MessageOp
+  prism     v0.0.3   components: button, input, list, icon, layout, theme,
+                     tokens, a11y, initial, keyed, coordination, cache, bench
+  spectrum  v0.0.3   theme runtime: system (LiveTheme), window, preferences,
+                     transition
+  pulse     v0.0.3   effects: tween, spring, springbutton, glow, depth,
+                     motion, conductor
+  cadence   v0.0.3   patterns: shell, navbar, sidebar, table, pagination,
+                     tabs, modal, alert, popover, tooltip, toast, card,
+                     accordion, breadcrumb, hero, feature, pricing,
+                     testimonial
+  seen      v0.0.4   3D scene graph rendered to SVG or Gio
+                     (nested module: seen/context/gio v0.0.4)
+  traer     v0.0.7   particle physics (springs, attractions, Verlet)
+  svg       v0.0.4   SVG parse + render (driver/gio v0.0.5)
+  ivg       v0.1.4   IconVG icons, Material icons bundled (raster/gio v0.1.5)
+  backdrop  v0.0.2   solid colour fill widget
+  noise     v0.0.2   noise functions
+  style     v0.0.3   typography scale (H1-H6, Body, Button, Caption)
+  textdraw  v0.0.3   low-level glyph text drawing
+  font      v0.0.3   Roboto typeface, five weights
+  circle    v0.0.3   precise circle via Bezier
+  kiwi      —        Cassowary constraint solver
+  csg       —        constructive solid geometry on meshes
+
+External pins: gioui.org v0.9.0, github.com/reactivego/rx v0.2.2, Go 1.25.
+
+## Application bootstrap (the canonical skeleton)
+
+Every VibrantGIO app follows this shape (see watchlist/main.go):
+
+  package main
+
+  import (
+      "time"
+
+      "gioui.org/app"
+      "gioui.org/unit"
+      "github.com/reactivego/rx"
+
+      "github.com/vibrantgio/mvu"
+      specsystem "github.com/vibrantgio/spectrum/system"
+      specwin "github.com/vibrantgio/spectrum/window"
+  )
+
+  func main() {
+      go run()
+      app.Main() // must be the last call on the main goroutine
+  }
+
+  func run() {
+      mvuWin := mvu.NewWindow(
+          app.Title("My app"),
+          app.Size(unit.Dp(1100), unit.Dp(760)),
+      )
+      // spectrum/window wraps the mvu window with a live OS theme
+      // (dark mode + accent colour tracked at the given poll interval).
+      w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
+
+      // Model observable: Scan over the runtime's message stream.
+      seed := initialModel()
+      modelObs := rx.Scan(mvuWin.Messages(), seed,
+          func(m Model, msg mvu.Message) Model {
+              next, _ := Update(m, msg)
+              return next
+          }).StartWith(seed).Publish().AutoConnect(nConsumers)
+
+      if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+          // handle
+      }
+  }
+
+MVU pieces you write: a Model struct, message types, and
+Update(Model, mvu.Message) (Model, mvu.Command). Async side effects are
+mvu.Command values: mvu.Do(func() (mvu.Message, error)), mvu.DoNothing(),
+mvu.DoConcurrent(...), mvu.DoSequence(...).
+
+## The five load-bearing architecture rules
+
+1. THE EVENTS THREAD IS THE HEARTBEAT. mvu's window joins frame events with
+   the CombineLatest of all layers via rx.WithLatestFrom2: heavy work runs on
+   rx goroutines, but values only reach rendering when a frame event arrives.
+   Everything touching Gio ops runs single-threaded. Never call Gio from your
+   own goroutine.
+
+2. INTERACTION STATE LIVES IN rx.Defer CLOSURES. State allocated inside an
+   rx.Defer factory runs once per subscription and is captured by reference
+   in the Map and widget closures below it:
+
+     rx.Defer(func() rx.Observable[layout.Widget] {
+         click := widget.Clickable{}          // allocated once
+         return rx.Map(inputs, func(v T) layout.Widget {
+             return func(gtx layout.Context) layout.Dimensions {
+                 // read/mutate click here — events thread only
+             }
+         })
+     })
+
+   Never put interaction state in rx.Subject. Never pass Defer-scoped state
+   to a goroutine. For per-row state in dynamic lists use prism/keyed
+   (KeyedDefer) so state survives reorder/insert/delete.
+
+3. WIDGETS EMIT MESSAGES VIA MessageOp. Inside any widget callback with a
+   gtx, route events into the MVU loop with:
+
+     mvu.MessageOp{Message: SelectItem{ID: id}}.Add(gtx.Ops)
+
+   The runtime extracts these from the ops buffer and delivers them to
+   Update. Cadence/prism component callbacks receive gtx for exactly this
+   purpose. This is the bridge between components and MVU; FRP-style apps
+   may instead pass plain OnClick callbacks and wrap them in subjects.
+
+4. Publish().AutoConnect(N) COUNTS ARE LOAD-BEARING. The model observable is
+   multicast WITHOUT replay; AutoConnect(N) connects the upstream Scan only
+   when the N-th subscriber attaches, which is what lets StartWith(seed)
+   reach everyone. N must equal the exact number of cold subscriptions your
+   layer topology makes — too low and late consumers miss the seed (blank
+   UI), too high and the app freezes. Keep N static: never subscribe the
+   model observable inside a keyed/per-row Defer (it attaches after the seed
+   fired — the row sees a zero Model). Instead let the parent layer
+   subscribe one eager mirror and share it as a `func() Model`. Write a test
+   that measures the subscription count (see watchlist/wiring_test.go).
+
+5. ANIMATION SELF-SCHEDULES AND IDLES. Animated widgets tick their
+   simulation inside the frame and request the next frame only while active:
+
+     activity := ps.Tick(step)
+     if activity > 0.01 { op.InvalidateOp{}.Add(gtx.Ops) }
+
+   Invalidation is window-global (every widget re-lays-out), so expensive
+   widgets should cache ops when inputs are unchanged (prism/cache). Respect
+   reduced motion: prism/a11y exposes OS preferences as observables; pulse
+   components consult them and snap to the target state.
+
+## Layers and composition
+
+w.Render(layers...) takes one or more rx.Observable[layout.Widget] values;
+they stack back-to-front (background first). A typical app has a backdrop
+layer and a content layer built from a cadence/shell:
+
+  - cadence/shell: application shells — SidebarHeaderMain, split-pane, etc.
+  - cadence/navbar + cadence/sidebar fill the shell's slots.
+  - Content composes cadence/table (sortable/filterable/virtualised),
+    cadence/tabs, cadence/card, cadence/pagination, ...
+  - Overlays: cadence/modal (focus trap, escape), cadence/popover (anchored),
+    cadence/tooltip (hover/focus), cadence/toast (transient stack),
+    cadence/alert (inline banners).
+
+Every component takes the theme observable for visual configuration and
+props structs for content. Prism theme/tokens supply the typed design values
+(Tailwind-aligned: 4-pt spacing scale, 50-950 colour shades); never use
+string-keyed style maps.
+
+Pulse components are explicit VARIANTS of prism components, e.g.
+pulse/springbutton wraps prism/button with physics-driven press/release —
+opt in per call site, never a global decorator.
+
+## Pitfalls (each of these caused a real bug in the example apps)
+
+- A Defer factory reruns per subscription: sharing an observable that owns
+  state across two subscribers duplicates the state. Share/Publish upstream.
+- The first emission fires before the first frame; layout-derived values are
+  unknown. Use prism/initial (Initial[T]) instead of ad-hoc sentinels.
+- Re-subscription is not supported by Render: build new layers for a new
+  Render call; do not revive a completed subscription.
+- Component prop values are captured at construction unless they come from
+  the model observable — pagination Page/PageCount, table sort state, etc.
+  must flow from the Model, not be captured as static ints.
+- Radius tokens: pass tokens.Radius values; pill shapes use the provided
+  clamped helpers (an unclamped huge radius floods the canvas in Gio clips).
+- spectrum/system.LiveTheme polls the OS; 1s is the intended default. Do not
+  poll faster than needed.
+- seen is a multi-module repo: require both github.com/vibrantgio/seen and
+  github.com/vibrantgio/seen/context/gio at the same tag when using the Gio
+  context.
+
+## Minimal go.mod for a new app
+
+  module example.com/myapp
+
+  go 1.25
+
+  require (
+      gioui.org v0.9.0
+      github.com/reactivego/rx v0.2.2
+      github.com/vibrantgio/cadence v0.0.3
+      github.com/vibrantgio/mvu v0.2.0
+      github.com/vibrantgio/prism v0.0.3
+      github.com/vibrantgio/spectrum v0.0.3
+  )
+
+Add pulse/backdrop/seen/traer as needed. All repos are public on GitHub.
+
+## Where to look for working code
+
+  watchlist/  full CRUD + persistence + context menus + popover confirms;
+              wiring_test.go shows how to test the AutoConnect count
+  feeds/      table-heavy app: sort/filter/pagination, tabs, split pane,
+              modal forms, toasts
+  sitedocs/   marketing + docs shell: hero/feature/pricing/testimonial,
+              accordion sidebar, breadcrumbs
+  DESIGN.md   the architecture document — read §Key Architectural Patterns
+              and §Threading & Lifecycle before writing new components
