@@ -1,4 +1,4 @@
-# VibrantGIO Implementation Plan
+# VibrantGio Implementation Plan
 
 > **Source of truth:** [DESIGN.md](./DESIGN.md). This plan does not redefine architecture — it shards DESIGN.md into goals an LLM agent can execute one at a time.
 
@@ -1052,7 +1052,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 ---
 ## Phase 5 — Example apps (pressure-test)
 
-**Goal:** validate VibrantGIO end-to-end by building non-trivial apps in real composition. Each app's primary deliverable is a `FEEDBACK-G5.x.md` listing API friction, missing pieces, awkward compositions, and ergonomics wins discovered during the build — the apps themselves are the vehicle.
+**Goal:** validate VibrantGio end-to-end by building non-trivial apps in real composition. Each app's primary deliverable is a `FEEDBACK-G5.x.md` listing API friction, missing pieces, awkward compositions, and ergonomics wins discovered during the build — the apps themselves are the vehicle.
 
 **No new framework code in this phase.** If a sub-goal needs missing functionality from Prism / Cadence / Spectrum / Pulse, append the finding to the relevant running `FEEDBACK-G5.x.md` and either work around or skip. Re-plan work is queued to a future phase once feedback is aggregated.
 
@@ -1060,9 +1060,9 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 
 **Per-session feedback discipline.** Every implementation sub-goal's `Measurable` requires appending discovered friction to the relevant `FEEDBACK-G5.x.md` before the session closes — even a single line is acceptable, including the explicit line "no findings yet". The dedicated feedback sub-goal at the end of each app ranks and rewrites those running notes; it does not invent them. If the running file does not exist when the feedback sub-goal starts, that is itself a process failure to surface.
 
-### G5.1 ‖ — Docs site for VibrantGIO itself
+### G5.1 ‖ — Docs site for VibrantGio itself
 
-- **Specific:** native desktop app rendering the VibrantGIO landing page and docs using VibrantGIO itself, in a new top-level Go module `vibrantgio/sitedocs/`. Split into G5.1a (skeleton + shell), G5.1b (landing-page content wiring), G5.1c (multi-page docs), G5.1d (feedback writeup). Dogfoods the marketing sub-goals in the use case for which they were created.
+- **Specific:** native desktop app rendering the VibrantGio landing page and docs using VibrantGio itself, in a new top-level Go module `vibrantgio/sitedocs/`. Split into G5.1a (skeleton + shell), G5.1b (landing-page content wiring), G5.1c (multi-page docs), G5.1d (feedback writeup). Dogfoods the marketing sub-goals in the use case for which they were created.
 - **Measurable:** all four sub-goals checked; `FEEDBACK-G5.1.md` exists in repo root in the structured form defined in G5.1d.
 - **Achievable:** parent tracking goal; implementation across G5.1a–G5.1d.
 - **Relevant:** DESIGN §"Phase 4 — Cadence (pattern library)" — Composition contract; pressure-tests G4.5a–d in real composition.
@@ -1071,7 +1071,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 #### G5.1a — App skeleton + shell
 
 - [x] **Done**
-- **Specific:** new top-level Go module `vibrantgio/sitedocs/` (joined to `go.work`). `sitedocs/main.go` bootstraps a window via `prism/initial`, wires `spectrum` theme (light/dark auto), and renders `cadence/shell.Shell(SidebarHeaderMain)` with: navbar carrying brand "VibrantGIO" and three placeholder navigation links ("Home", "Docs", "About"); sidebar with two collapsible placeholder sections; Main showing placeholder text. A `currentPage rx.Subject[string]` (values `"home" | "docs"`) is wired through; only the placeholder text consumes it.
+- **Specific:** new top-level Go module `vibrantgio/sitedocs/` (joined to `go.work`). `sitedocs/main.go` bootstraps a window via `prism/initial`, wires `spectrum` theme (light/dark auto), and renders `cadence/shell.Shell(SidebarHeaderMain)` with: navbar carrying brand "VibrantGio" and three placeholder navigation links ("Home", "Docs", "About"); sidebar with two collapsible placeholder sections; Main showing placeholder text. A `currentPage rx.Subject[string]` (values `"home" | "docs"`) is wired through; only the placeholder text consumes it.
 - **Measurable:** `go build ./sitedocs/...` green; `go test ./sitedocs/...` green (smoke test that constructs the root widget without panic); running `go run ./sitedocs/` opens a 1200×800 window with sidebar + navbar + placeholder Main visible in both light and dark themes; `FEEDBACK-G5.1.md` is created with first entries or the explicit line "no findings yet".
 - **Achievable:** skeleton only. No content beyond placeholder text. Routing is the absolute minimum (one subject, two values). No persistence, no IPC, no networking. CTAs may be `func(){}` no-ops.
 - **Relevant:** DESIGN §"Phase 4 — Cadence" — first real composition of `cadence/shell` + `cadence/sidebar` + `cadence/navbar` outside golden tests.
@@ -1080,7 +1080,7 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 #### G5.1b — Landing page content (marketing patterns)
 
 - [x] **Done**
-- **Specific:** `sitedocs/landing.go` renders the Home page composed of the four marketing patterns wired with real content: `cadence/hero` (eyebrow "Native desktop · Go", title "VibrantGIO", subtitle naming the four phases Prism / Cadence / Spectrum / Pulse, primary CTA "Get started" routing to docs, secondary CTA "GitHub" no-op); `cadence/feature` (3-up grid: "Prism — component foundation", "Cadence — pattern library", "Pulse — motion + effects"); `cadence/pricing` (synthetic 3-tier: Free / Pro / Enterprise — realistic-enough copy distinguishing tiers); `cadence/testimonial` (3-card grid, synthetic-but-plausible quotes). Copy lives in `sitedocs/landing_content.go` for one-place editing.
+- **Specific:** `sitedocs/landing.go` renders the Home page composed of the four marketing patterns wired with real content: `cadence/hero` (eyebrow "Native desktop · Go", title "VibrantGio", subtitle naming the four phases Prism / Cadence / Spectrum / Pulse, primary CTA "Get started" routing to docs, secondary CTA "GitHub" no-op); `cadence/feature` (3-up grid: "Prism — component foundation", "Cadence — pattern library", "Pulse — motion + effects"); `cadence/pricing` (synthetic 3-tier: Free / Pro / Enterprise — realistic-enough copy distinguishing tiers); `cadence/testimonial` (3-card grid, synthetic-but-plausible quotes). Copy lives in `sitedocs/landing_content.go` for one-place editing.
 - **Measurable:** `go test ./sitedocs/...` green (includes a golden of the rendered Home page in light + dark); running app: navbar "Home" route shows all four sections stacked vertically with scroll; primary CTA in hero advances `currentPage` to "docs" and the placeholder Docs panel from G5.1a appears; any rough edges from composing G4.5a–d together are appended to `FEEDBACK-G5.1.md`.
 - **Achievable:** content-only sub-goal. Layout depends entirely on G4.5a–d shipping correctly — if any pattern doesn't compose well at this scale, log the finding and either work around or replace that section with placeholder text. No responsive layout, no anchor links.
 - **Relevant:** highest-fidelity pressure test for G4.5a–d.

@@ -1,6 +1,6 @@
-# VibrantGIO Workbench
+# VibrantGio Workbench
 
-VibrantGIO is a design system for building beautiful, native desktop
+VibrantGio is a design system for building beautiful, native desktop
 applications on macOS, Windows, and Linux with [Gio](https://gioui.org) —
 analogous to what Material Design is for Google, but built for a Functional
 Reactive Programming application model on top of
@@ -34,7 +34,7 @@ physics), [`svg`](https://github.com/vibrantgio/svg) and
 
 ## The example apps
 
-Each app is a full, runnable product built the way a real VibrantGIO app is
+Each app is a full, runnable product built the way a real VibrantGio app is
 meant to be built — MVU state, spectrum theming, cadence patterns:
 
 - **[`sitedocs/`](./sitedocs)** — a documentation & marketing site app:
@@ -62,7 +62,7 @@ go run ./watchlist/
   accessibility, performance methodology, and the phase plan that produced
   Prism, Spectrum, Pulse, and Cadence.
 - **[llm.txt](./llm.txt)** — a condensed guide for AI coding assistants
-  (Claude, etc.) to write applications against the VibrantGIO packages.
+  (Claude, etc.) to write applications against the VibrantGio packages.
 - **[PLAN.md](./PLAN.md)** — the executed implementation plan, kept as the
   historical record of how the system was built and validated.
 - **[BASELINE.md](./BASELINE.md)** — measured performance baselines the
