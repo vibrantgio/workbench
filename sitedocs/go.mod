@@ -7,7 +7,7 @@ require (
 	github.com/reactivego/rx v0.2.2
 	github.com/vibrantgio/cadence v0.0.3
 	github.com/vibrantgio/mvu v0.2.0
-	github.com/vibrantgio/prism v0.0.3
+	github.com/vibrantgio/prism v0.0.4
 	github.com/vibrantgio/spectrum v0.0.3
 )
 

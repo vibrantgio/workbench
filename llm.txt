@@ -5,15 +5,16 @@ built on gioui.org, with a Functional Reactive Programming application model
 using github.com/reactivego/rx generics-based observables. This file tells a
 coding assistant everything needed to scaffold and build a correct VibrantGio
 application. The full architecture rationale is in DESIGN.md next to this
-file; the three apps in this repo (sitedocs/, feeds/, watchlist/) are the
-canonical usage references — read them before inventing a pattern.
+file; the four apps in this repo (todos/, sitedocs/, feeds/, watchlist/) are
+the canonical usage references — todos/ is the minimal complete app; read it
+first, and read the larger three before inventing a pattern.
 
 ## Modules and versions
 
 All modules live under github.com/vibrantgio/<name>. Current tags:
 
   mvu       v0.2.0   MVU runtime: NewWindow, Message/Command, MessageOp
-  prism     v0.0.3   components: button, input, list, icon, layout, theme,
+  prism     v0.0.4   components: button, input, list, icon, layout, theme,
                      tokens, a11y, initial, keyed, coordination, cache, bench
   spectrum  v0.0.3   theme runtime: system (LiveTheme), window, preferences,
                      transition
@@ -41,7 +42,8 @@ External pins: gioui.org v0.9.0, github.com/reactivego/rx v0.2.2, Go 1.25.
 
 ## Application bootstrap (the canonical skeleton)
 
-Every VibrantGio app follows this shape (see watchlist/main.go):
+Every VibrantGio app follows this shape (todos/main.go is the minimal live
+version; watchlist/main.go the production-sized one):
 
   package main
 
@@ -207,6 +209,9 @@ Add pulse/backdrop/seen/traer as needed. All repos are public on GitHub.
 
 ## Where to look for working code
 
+  todos/      START HERE: the minimal complete app (~700 lines) — the
+              canonical bootstrap, pure testable reducers (redux_test.go),
+              prism button/checkbox/list, a modal dialog, live light/dark
   watchlist/  full CRUD + persistence + context menus + popover confirms;
               wiring_test.go shows how to test the AutoConnect count
   feeds/      table-heavy app: sort/filter/pagination, tabs, split pane,

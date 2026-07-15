@@ -9,9 +9,11 @@
 # Example apps — fully tracked.
 !/feeds/**
 !/sitedocs/**
+!/todos/**
 !/watchlist/**
 
 # ...except their compiled binaries.
 /feeds/feeds
 /sitedocs/sitedocs
+/todos/todos
 /watchlist/watchlist

@@ -37,6 +37,10 @@ physics), [`svg`](https://github.com/vibrantgio/svg) and
 Each app is a full, runnable product built the way a real VibrantGio app is
 meant to be built — MVU state, spectrum theming, cadence patterns:
 
+- **[`todos/`](./todos)** — **start here**: the minimal canonical MVU app
+  (~700 lines). One window, one Model, pure reducers, prism components,
+  live OS light/dark theming — the smallest complete demonstration of the
+  bootstrap every other app follows.
 - **[`sitedocs/`](./sitedocs)** — a documentation & marketing site app:
   application shell, hero/feature/pricing/testimonial sections,
   accordion-grouped sidebar navigation, breadcrumbs, light/dark theming.
@@ -51,7 +55,7 @@ meant to be built — MVU state, spectrum theming, cadence patterns:
 Run one:
 
 ```sh
-go run ./watchlist/
+go run ./todos/
 ```
 
 ## Documentation
