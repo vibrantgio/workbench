@@ -8,15 +8,10 @@
 !/feeds/**
 !/sitedocs/**
 !/watchlist/**
+!/experiments/**
 
 # ...except their compiled binaries.
 /feeds/feeds
 /sitedocs/sitedocs
 /watchlist/watchlist
-
-# Standalone apps/repos living alongside the examples (own remotes).
-/appviz/
-/coinviz/
-/seen/
-/seenbgdemo/
-/experiments/
+/experiments/coordination/coordination
