@@ -8,6 +8,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/paint"
 	"gioui.org/text"
+	"gioui.org/unit"
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
@@ -39,6 +40,16 @@ func UpsertDialog(shaper *text.Shaper, th rx.Observable[theme.Theme], p Palette,
 			mvu.MessageOp{Message: UpdateTodo{Id: item.Id, Text: entered}}.Add(gtx.Ops)
 		}
 		mvu.MessageOp{Message: SetRoute{}}.Add(gtx.Ops)
+	}
+
+	// Prism buttons fill the width they are given and are at least 44 dp
+	// tall, so each one is laid out inside a fixed-width box.
+	sized := func(w unit.Dp, widget layout.Widget) layout.Widget {
+		return func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = 0
+			gtx.Constraints.Max.X = gtx.Dp(w)
+			return widget(gtx)
+		}
 	}
 
 	// th is a static snapshot (rx.Of), so First() resolves synchronously.
@@ -131,14 +142,15 @@ func UpsertDialog(shaper *text.Shaper, th rx.Observable[theme.Theme], p Palette,
 					edit.Layout(gtx, shaper, H5.Font, H5.Size, textMaterial, selectMaterial)
 				}(gtx)
 
-				// Cancel / submit row along the dialog's bottom edge.
-				rect = image.Rect(0, max.Y-gtx.Dp(30), max.X, max.Y)
+				// Cancel / submit row along the dialog's bottom edge, tall
+				// enough for the 44 dp button height.
+				rect = image.Rect(0, max.Y-gtx.Dp(48), max.X, max.Y)
 				cs := op.Offset(rect.Min).Push(gtx.Ops)
 				gtx.Constraints = layout.Exact(rect.Size())
-				layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceStart, Alignment: layout.Baseline}.Layout(gtx,
-					layout.Rigid(cancelBtn),
+				layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceStart, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(sized(100, cancelBtn)),
 					layout.Rigid(layout.Spacer{Width: Padding}.Layout),
-					layout.Rigid(submitBtn))
+					layout.Rigid(sized(100, submitBtn)))
 				cs.Pop()
 
 				return layout.Dimensions{Size: max}

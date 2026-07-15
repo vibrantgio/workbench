@@ -18,6 +18,7 @@ github.com/vibrantgio/cadence v0.0.3/go.mod h1:9tTOG2P379+VqAL+8knUHccs6VKLE8WEV
 github.com/vibrantgio/mvu v0.2.0 h1:t+oj7JYfw+hmp+khefX2zq1F7/9b5RYfU+aA1Lol8zc=
 github.com/vibrantgio/mvu v0.2.0/go.mod h1:nLlxOgAjwE6voEBAAzmqZWZqn76ZTLY+0znhR0hjSDk=
 github.com/vibrantgio/prism v0.0.4 h1:x2LYBgz5eA6u+VMzbENfQRspsdIL+/4qfOh1KMdSsBY=
+github.com/vibrantgio/prism v0.0.4/go.mod h1:u3cMaOjfTPV8vWuuhRYE/iU6sozQoIzOOCpfgo5c+ZI=
 github.com/vibrantgio/pulse v0.0.3 h1:QAAmolC8P7Y6k27NbHCIJ/L/F8rVyzBUJcxmmM8s8gs=
 github.com/vibrantgio/pulse v0.0.3/go.mod h1:5zVOxttCmWUfugVxjjfBcAEehopJ9AUL7zPI7oiAbFM=
 github.com/vibrantgio/spectrum v0.0.3 h1:vfD5n3tdcsRvti5yRXdunt55KOeX6U3gQdO8ztq4rtg=

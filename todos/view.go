@@ -64,31 +64,36 @@ func View(shaper *text.Shaper, th themed, model Model) layout.Widget {
 	fab := Fab(add, 1.0, 1.0, 48, 48, true, func(gtx layout.Context) {
 		mvu.MessageOp{Message: SetRoute{Route: "add.todo"}}.Add(gtx.Ops)
 	})
-	list := List(thObs, p, model)
+	list := List(shaper, thObs, p, model)
 
-	return func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
-
-		route := model.Route
-		selected, ok := model.List.Find(model.Selected)
-		if route == "edit.todo" && !ok {
+	// The dialogs are constructed HERE, once per emission, and reused across
+	// frames: the editor's text and caret live inside the dialog closure, so
+	// constructing it per frame would discard every keystroke.
+	route := model.Route
+	var dialog layout.Widget
+	switch route {
+	case "add.todo":
+		dialog = UpsertDialog(shaper, thObs, p, Todo{Id: -1})
+	case "edit.todo":
+		if selected, ok := model.List.Find(model.Selected); ok {
+			dialog = UpsertDialog(shaper, thObs, p, selected)
+		} else {
 			// The edit target was deleted out from under the route;
 			// fall back to the list rather than editing a zero Todo.
 			route = ""
 		}
+	}
 
-		switch route {
-		case "":
+	return func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+
+		if route == "" {
 			layout.UniformInset(Padding).Layout(gtx, list)
 			layout.UniformInset(Padding).Layout(gtx, fab)
-		case "add.todo":
+		} else {
 			layout.UniformInset(Padding).Layout(gtx.Disabled(), list)
 			layout.UniformInset(Padding).Layout(gtx.Disabled(), fab)
-			UpsertDialog(shaper, thObs, p, Todo{Id: -1})(gtx)
-		case "edit.todo":
-			layout.UniformInset(Padding).Layout(gtx.Disabled(), list)
-			layout.UniformInset(Padding).Layout(gtx.Disabled(), fab)
-			UpsertDialog(shaper, thObs, p, selected)(gtx)
+			dialog(gtx)
 		}
 
 		return layout.Dimensions{Size: size}
