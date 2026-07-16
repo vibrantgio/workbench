@@ -60,4 +60,7 @@ const (
 	SettingsIconSize unit.Dp = 22
 	UndoBarRadius    unit.Dp = 6
 	UndoBarMargin    unit.Dp = 24
+
+	RenameFieldHeight  unit.Dp = 48
+	RenameButtonHeight unit.Dp = 48
 )

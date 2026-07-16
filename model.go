@@ -20,6 +20,19 @@ type Model struct {
 	// ConfirmDelete timer from an undone delete can never finalise a later
 	// one that reused its slot.
 	DeleteGen int
+
+	// Rename is the chat whose rename modal is open; the zero value means
+	// closed.
+	Rename RenameState
+}
+
+// RenameState drives the rename modal: Target is the chat filename being
+// renamed ("" = modal closed); Epoch is bumped on every open and keys the
+// rebuild of the modal's uncontrolled text field, so reopening — even for
+// the same chat — reseeds it.
+type RenameState struct {
+	Target string
+	Epoch  int
 }
 
 // PendingDelete remembers everything needed to undo a chat delete: the name,

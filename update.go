@@ -2,6 +2,7 @@ package main
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/vibrantgio/mvu"
 
@@ -143,6 +144,64 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			SaveHist(model.ChatFile(name), []openai.ChatCompletionMessage{}).Trace("Create Chat"),
 			SaveConfig(model.ConfigFile(), Config{LastChat: name}).Trace("Save Config"),
 		)
+
+	case OpenRename:
+		if !slices.Contains(model.ChatList, message.Name) {
+			return model, mvu.DoNothing()
+		}
+		model.Rename = RenameState{Target: message.Name, Epoch: model.Rename.Epoch + 1}
+		return model, mvu.DoNothing()
+
+	case CloseRename:
+		model.Rename.Target = ""
+		return model, mvu.DoNothing()
+
+	case RenameChat:
+		target := model.Rename.Target
+		if target == "" {
+			return model, mvu.DoNothing()
+		}
+		to := strings.TrimSpace(message.To)
+		if to == "" {
+			// Empty submit keeps the old name and just closes the modal.
+			model.Rename.Target = ""
+			return model, mvu.DoNothing()
+		}
+		if strings.ContainsAny(to, `/\`) {
+			// Names are filenames; path separators are invalid. The modal
+			// stays open for another attempt.
+			return model, mvu.DoNothing()
+		}
+		newName := to
+		if !strings.HasSuffix(strings.ToLower(newName), ".json") {
+			newName += ".json"
+		}
+		if newName == target {
+			model.Rename.Target = ""
+			return model, mvu.DoNothing()
+		}
+		index := slices.Index(model.ChatList, target)
+		if index < 0 {
+			// The target was deleted while the modal was open.
+			model.Rename.Target = ""
+			return model, mvu.DoNothing()
+		}
+		if slices.Contains(model.ChatList, newName) || model.Pending.Name == newName {
+			// Name taken; the modal stays open for another attempt.
+			return model, mvu.DoNothing()
+		}
+		list := slices.Clone(model.ChatList)
+		list[index] = newName
+		model.ChatList = list
+		model.Rename.Target = ""
+		commands := []mvu.Command{RenameHist(model.ChatFile(target), model.ChatFile(newName)).Trace("Rename History")}
+		if model.CurrentChat.Name == target {
+			model.CurrentChat.Name = newName
+			commands = append(commands,
+				SaveConfig(model.ConfigFile(), Config{LastChat: newName}).Trace("Save Config"),
+			)
+		}
+		return model, mvu.DoConcurrent(commands...)
 
 	case OpenSettings:
 		// Settings surface (OPENAI_API_KEY configuration) not built yet.

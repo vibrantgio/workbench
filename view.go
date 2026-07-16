@@ -18,6 +18,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
+	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/navbar"
 	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/ivg"
@@ -25,6 +26,7 @@ import (
 	"github.com/vibrantgio/ivg/generate"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/prism/theme"
 	"github.com/vibrantgio/prism/tokens"
@@ -51,6 +53,7 @@ type themed struct {
 	palette Palette
 	avatar  layout.Widget
 	remove  layout.Widget
+	edit    layout.Widget
 	add     layout.Widget
 	gear    layout.Widget
 }
@@ -69,6 +72,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	chatList := &layout.List{Axis: layout.Vertical, Alignment: layout.Start}
 	rowClicks := map[string]*widget.Clickable{}
 	deleteClicks := map[string]*widget.Clickable{}
+	renameClicks := map[string]*widget.Clickable{}
 
 	prompt := input.TextField(th, input.TextFieldProps{
 		Placeholder:   "Send a message",
@@ -89,6 +93,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if err != nil {
 				panic(err)
 			}
+			edit, err := raster.Widget(icons.EditorModeEdit, DeleteIconSize, DeleteIconSize, raster.WithColors(p.Row))
+			if err != nil {
+				panic(err)
+			}
 			add, err := raster.Widget(icons.ContentAdd, AddIconSize, AddIconSize, raster.WithColors(p.Heading))
 			if err != nil {
 				panic(err)
@@ -97,7 +105,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if err != nil {
 				panic(err)
 			}
-			return themed{palette: p, avatar: avatar, remove: remove, add: add, gear: gear}
+			return themed{palette: p, avatar: avatar, remove: remove, edit: edit, add: add, gear: gear}
 		})
 	})
 
@@ -119,7 +127,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			t, promptW, model := next.First, next.Second, next.Third
 			themedCell.Store(t)
 			return parts{
-				sidebar: Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, chatList, rowClicks, deleteClicks, &newChatClick),
+				sidebar: Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick),
 				main:    ChatPane(shaper, t, model.CurrentChat.History, histList, promptW),
 				undo:    UndoBar(shaper, t, model.Pending, &undoClick),
 			}
@@ -153,16 +161,128 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		Main:    mainSlot,
 	})
 
-	// The undo bar overlays the whole shell (bottom centre).
-	return rx.Map(shellObs, func(shellW layout.Widget) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			dims := shellW(gtx)
-			if w, ok := undoCell.Load().(layout.Widget); ok && w != nil {
-				w(gtx)
+	renameObs := RenameModal(th, shaper, modelObs)
+
+	// Overlays: the undo bar and the rename modal draw over the shell (the
+	// modal last — its scrim covers everything, undo bar included).
+	return rx.Map(rx.CombineLatest2(shellObs, renameObs),
+		func(next rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
+			shellW, modalW := next.First, next.Second
+			return func(gtx layout.Context) layout.Dimensions {
+				dims := shellW(gtx)
+				if w, ok := undoCell.Load().(layout.Widget); ok && w != nil {
+					w(gtx)
+				}
+				if modalW != nil {
+					modalW(gtx)
+				}
+				return dims
 			}
-			return dims
+		})
+}
+
+// renameTarget keys the rebuild of the rename modal's uncontrolled text
+// field: a new epoch means a fresh field seeded with the target's name.
+type renameTarget struct {
+	epoch int
+	seed  string // current name without extension
+}
+
+// RenameModal builds the rename-chat modal stream: a cadence/modal whose
+// body is an epoch-rebuilt prism TextField plus a Rename button (the
+// watchlist rename-modal recipe). Validation is the reducer's job — an
+// invalid RenameChat is rejected and the modal stays open; a valid one (or
+// an empty submit, or Escape/scrim via OnClose) closes it. Both model
+// derivations are DistinctUntilChanged so completion-stream deltas cannot
+// rebuild the field mid-typing.
+func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+	openObs := rx.Map(modelObs, func(m Model) bool { return m.Rename.Target != "" }).
+		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
+	editObs := rx.Map(modelObs, func(m Model) renameTarget {
+		return renameTarget{
+			epoch: m.Rename.Epoch,
+			seed:  strings.TrimSuffix(m.Rename.Target, filepath.Ext(m.Rename.Target)),
 		}
+	}).Pipe(rx.DistinctUntilChanged(func(a, b renameTarget) bool { return a == b }))
+
+	// nameCell mirrors the field text (the field is uncontrolled), reseeded
+	// on each open so an untouched field submits the unchanged name.
+	var nameCell atomic.Value
+	nameCell.Store("")
+
+	fieldObs := rx.SwitchMap(editObs, func(e renameTarget) rx.Observable[layout.Widget] {
+		nameCell.Store(e.seed)
+		placeholder := e.seed
+		if placeholder == "" {
+			placeholder = "Chat name"
+		}
+		return input.TextField(th, input.TextFieldProps{
+			Placeholder:   placeholder,
+			Description:   "chat name",
+			Shaper:        shaper,
+			Submit:        true,
+			SubmitMessage: func(text string) any { return RenameChat{To: text} },
+			OnChange:      func(_ layout.Context, text string) { nameCell.Store(text) },
+		})
 	})
+
+	var submitClick widget.Clickable
+	submitObs := button.Button(th, button.Props{
+		Label:     "Rename",
+		Clickable: &submitClick,
+		Shaper:    shaper,
+		OnClick: func(gtx layout.Context) {
+			if name, ok := nameCell.Load().(string); ok {
+				mvu.MessageOp{Message: RenameChat{To: name}}.Add(gtx.Ops)
+			}
+		},
+	})
+
+	// The modal body is a static slot; the live field/button widgets reach
+	// it through cells (the observable-over-static-slot hand-off).
+	var fieldCell, submitCell atomic.Value
+	slot := func(cell *atomic.Value) layout.Widget {
+		return func(gtx layout.Context) layout.Dimensions {
+			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
+				return w(gtx)
+			}
+			return layout.Dimensions{Size: gtx.Constraints.Max}
+		}
+	}
+	body := func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Constraints.Max.X
+		gap := gtx.Dp(12)
+		fieldH := gtx.Dp(RenameFieldHeight)
+		btnH := gtx.Dp(RenameButtonHeight)
+		place := func(cell *atomic.Value, y, h int) {
+			defer op.Offset(image.Pt(0, y)).Push(gtx.Ops).Pop()
+			cg := gtx
+			cg.Constraints = layout.Exact(image.Pt(w, h))
+			slot(cell)(cg)
+		}
+		place(&fieldCell, 0, fieldH)
+		place(&submitCell, fieldH+gap, btnH)
+		return layout.Dimensions{Size: image.Pt(w, fieldH+gap+btnH)}
+	}
+
+	modalObs := modal.Modal(th, modal.Props{
+		Open:   openObs,
+		Title:  "Rename chat",
+		Body:   body,
+		Shaper: shaper,
+		OnClose: func(gtx layout.Context) {
+			mvu.MessageOp{Message: CloseRename{}}.Add(gtx.Ops)
+		},
+	})
+
+	// Fold the live field/button streams onto the modal stream so their
+	// emissions repaint it.
+	return rx.Map(rx.CombineLatest3(modalObs, fieldObs, submitObs),
+		func(next rx.Tuple3[layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
+			fieldCell.Store(next.Second)
+			submitCell.Store(next.Third)
+			return next.First
+		})
 }
 
 // Brand fills the navbar's leading slot: the settings button (the future
@@ -249,7 +369,7 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg openai.Ch
 
 // Sidebar renders the conversation list as the shell's full-height leading
 // column: surface fill, a header with the new-chat button, and the rows.
-func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list *layout.List, rowClicks, deleteClicks map[string]*widget.Clickable, newChat *widget.Clickable) layout.Widget {
+func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list *layout.List, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat *widget.Clickable) layout.Widget {
 	// Ensure every chat has persistent Clickables for hover/click state.
 	for _, name := range chats {
 		if _, ok := rowClicks[name]; !ok {
@@ -257,6 +377,9 @@ func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list
 		}
 		if _, ok := deleteClicks[name]; !ok {
 			deleteClicks[name] = new(widget.Clickable)
+		}
+		if _, ok := renameClicks[name]; !ok {
+			renameClicks[name] = new(widget.Clickable)
 		}
 	}
 
@@ -271,7 +394,7 @@ func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return list.Layout(gtx, len(chats), func(gtx layout.Context, index int) layout.Dimensions {
 					name := chats[index]
-					return ChatRow(gtx, shaper, t, name, name == current, rowClicks[name], deleteClicks[name])
+					return ChatRow(gtx, shaper, t, name, name == current, rowClicks[name], renameClicks[name], deleteClicks[name])
 				})
 			}),
 		)
@@ -369,21 +492,26 @@ func UndoBar(shaper *text.Shaper, t themed, pending PendingDelete, undo *widget.
 }
 
 // ChatRow renders a single chat entry in the sidebar with hover and
-// selection states, and a delete icon revealed while the row is active.
-func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, selected bool, row, del *widget.Clickable) layout.Dimensions {
+// selection states, and rename/delete icons revealed while the row is
+// active.
+func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, selected bool, row, ren, del *widget.Clickable) layout.Dimensions {
 	p := t.palette
 
 	// Drain pending clicks before Layout — Layout's internal update loop
 	// consumes click events and discards them, so Clicked must run first.
-	// The delete icon sits on top of the row, so a delete click suppresses
-	// any row-select click registered on the same press.
-	deleted := false
+	// The icons sit on top of the row, so an icon click suppresses any
+	// row-select click registered on the same press.
+	iconClicked := false
 	for del.Clicked(gtx) {
-		deleted = true
+		iconClicked = true
 		mvu.MessageOp{Message: DeleteChat{Name: name}}.Add(gtx.Ops)
 	}
+	for ren.Clicked(gtx) {
+		iconClicked = true
+		mvu.MessageOp{Message: OpenRename{Name: name}}.Add(gtx.Ops)
+	}
 	for row.Clicked(gtx) {
-		if !deleted {
+		if !iconClicked {
 			mvu.MessageOp{Message: SelectChat{Name: name}}.Add(gtx.Ops)
 		}
 	}
@@ -394,9 +522,9 @@ func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, sel
 		displayName = strings.ToUpper(displayName[:1]) + displayName[1:]
 	}
 
-	// The icon's input area occludes the row's, so hovering the icon must
-	// still count as hovering the row (else the icon would flicker away).
-	hovered := row.Hovered() || del.Hovered()
+	// The icons' input areas occlude the row's, so hovering an icon must
+	// still count as hovering the row (else the icons would flicker away).
+	hovered := row.Hovered() || del.Hovered() || ren.Hovered()
 	var bgColor color.NRGBA
 	var textColor color.NRGBA
 	switch {
@@ -428,15 +556,22 @@ func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, sel
 						return dims
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						// The slot is always reserved so revealing the
-						// icon never shifts the layout; the glyph and its
-						// click area exist only while the row is active.
+						// The slots are always reserved so revealing the
+						// icons never shifts the layout; the glyphs and
+						// their click areas exist only while the row is
+						// active.
 						iconSize := gtx.Dp(DeleteIconSize)
-						gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
+						gap := gtx.Dp(6)
+						size := image.Pt(2*iconSize+gap, iconSize)
+						gtx.Constraints = layout.Exact(size)
 						if selected || hovered {
-							return del.Layout(gtx, t.remove)
+							icon := gtx
+							icon.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
+							ren.Layout(icon, t.edit)
+							defer op.Offset(image.Pt(iconSize+gap, 0)).Push(gtx.Ops).Pop()
+							del.Layout(icon, t.remove)
 						}
-						return layout.Dimensions{Size: gtx.Constraints.Max}
+						return layout.Dimensions{Size: size}
 					}),
 				)
 			},

@@ -201,6 +201,62 @@ func TestUpdateNewChatSelectsFreshName(t *testing.T) {
 	}
 }
 
+func TestUpdateOpenRenameTargetsChatAndBumpsEpoch(t *testing.T) {
+	next, _ := Update(testModel(), OpenRename{Name: "beta.json"})
+	if next.Rename.Target != "beta.json" || next.Rename.Epoch != 1 {
+		t.Fatalf("Rename = %+v, want beta.json at epoch 1", next.Rename)
+	}
+	reopened, _ := Update(next, OpenRename{Name: "beta.json"})
+	if reopened.Rename.Epoch != 2 {
+		t.Fatalf("Epoch = %d, want 2 (bumped on every open)", reopened.Rename.Epoch)
+	}
+	unknown, _ := Update(testModel(), OpenRename{Name: "nope.json"})
+	if unknown.Rename.Target != "" {
+		t.Fatalf("Rename = %+v, want closed for unknown chat", unknown.Rename)
+	}
+}
+
+func TestUpdateRenameChatRenamesCurrentInPlace(t *testing.T) {
+	opened, _ := Update(testModel(), OpenRename{Name: "alpha.json"})
+	next, _ := Update(opened, RenameChat{To: "ideas"}) // extension added
+	if next.ChatList[0] != "ideas.json" || next.ChatList[1] != "beta.json" {
+		t.Fatalf("ChatList = %v, want [ideas.json beta.json] (index kept)", next.ChatList)
+	}
+	if next.CurrentChat.Name != "ideas.json" {
+		t.Fatalf("CurrentChat.Name = %q, want ideas.json", next.CurrentChat.Name)
+	}
+	if len(next.CurrentChat.History) != 1 {
+		t.Fatalf("rename must not touch the loaded history")
+	}
+	if next.Rename.Target != "" {
+		t.Fatalf("modal still open: %+v", next.Rename)
+	}
+}
+
+func TestUpdateRenameChatRejectsInvalidNames(t *testing.T) {
+	opened, _ := Update(testModel(), OpenRename{Name: "alpha.json"})
+
+	dup, _ := Update(opened, RenameChat{To: "beta"})
+	if dup.ChatList[0] != "alpha.json" || dup.Rename.Target == "" {
+		t.Fatalf("duplicate name must be rejected with the modal kept open: %+v", dup.Rename)
+	}
+
+	sep, _ := Update(opened, RenameChat{To: "a/b"})
+	if sep.ChatList[0] != "alpha.json" || sep.Rename.Target == "" {
+		t.Fatalf("path separators must be rejected with the modal kept open: %+v", sep.Rename)
+	}
+
+	empty, _ := Update(opened, RenameChat{To: "  "})
+	if empty.ChatList[0] != "alpha.json" || empty.Rename.Target != "" {
+		t.Fatalf("empty submit must close without renaming: %+v", empty.Rename)
+	}
+
+	same, _ := Update(opened, RenameChat{To: "alpha"})
+	if same.ChatList[0] != "alpha.json" || same.Rename.Target != "" {
+		t.Fatalf("unchanged name must close without renaming: %+v", same.Rename)
+	}
+}
+
 func TestUpdateChatListReplacesList(t *testing.T) {
 	next, _ := Update(testModel(), ChatList{"gamma.json"})
 	if len(next.ChatList) != 1 || next.ChatList[0] != "gamma.json" {

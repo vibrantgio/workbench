@@ -27,10 +27,11 @@ func main() {
 // modelObsConsumers is the number of cold subscriptions that reach modelObs
 // when the layers are subscribed once. Publish() multicasts WITHOUT replay,
 // so AutoConnect must fire — letting the seed emitted by mvu.Loop flow —
-// only when every consumer is attached. The content layer is the single
-// consumer; the backdrop layer is theme-only. Measured by
+// only when every consumer is attached. The consumers: the content layer's
+// CombineLatest (1) plus the rename modal's open and edit derivations (2);
+// the backdrop layer is theme-only. Measured by
 // TestModelObsConsumerCountMatchesConst.
-const modelObsConsumers = 1
+const modelObsConsumers = 3
 
 // MindChat drives the MindChat window; one function per window, so further
 // windows get sibling functions with their own theme and loop.

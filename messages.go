@@ -34,6 +34,20 @@ type ConfirmDelete struct {
 // NewChat starts a fresh, empty chat and selects it.
 type NewChat struct{}
 
+// OpenRename opens the rename modal for the named chat.
+type OpenRename struct {
+	Name string
+}
+
+// CloseRename dismisses the rename modal without renaming.
+type CloseRename struct{}
+
+// RenameChat renames the modal's target chat to the given name (extension
+// optional). The reducer validates; an invalid name leaves the modal open.
+type RenameChat struct {
+	To string
+}
+
 // OpenSettings will open the settings surface (OPENAI_API_KEY
 // configuration); it reduces to a no-op until that surface exists.
 type OpenSettings struct{}

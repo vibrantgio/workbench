@@ -131,6 +131,14 @@ func DeleteHist(filename string) mvu.Command {
 	})
 }
 
+// RenameHist moves a chat's history file to its new name. It emits no
+// message; the model was already reduced when the command was issued.
+func RenameHist(oldname, newname string) mvu.Command {
+	return mvu.Do(func() (mvu.Message, error) {
+		return nil, os.Rename(oldname, newname)
+	})
+}
+
 // UndoWindow is how long a deleted chat can be brought back before its
 // history file is removed from disk.
 const UndoWindow = 5 * time.Second
