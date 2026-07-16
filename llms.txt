@@ -267,6 +267,11 @@ Add pulse/backdrop/seen/traer as needed. All repos are public on GitHub.
               and editor state, ivg icon rendering at scale
   watchlist/  full CRUD + persistence + context menus + popover confirms;
               wiring_test.go shows how to test the AutoConnect count
+  launcher/   the workbench front door — a seen 3D triangle field composited
+              as an mvu background layer (palette re-keyed per theme emission
+              via an atomic handoff to the animation tick), hero + cadence
+              cards over it, and one streaming mvu.Command per launched app
+              (Started, then Exited when the process ends)
   feeds/      table-heavy app: sort/filter/pagination, tabs, split pane,
               modal forms, toasts
   sitedocs/   marketing + docs shell: hero/feature/pricing/testimonial,

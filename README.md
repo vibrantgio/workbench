@@ -37,6 +37,12 @@ physics), [`svg`](https://github.com/vibrantgio/svg) and
 Each app is a full, runnable product built the way a real VibrantGio app is
 meant to be built — MVU state, spectrum theming, cadence patterns:
 
+- **[`launcher/`](./launcher)** — the workbench front door: the example apps
+  as cards floating on a live [`seen`](https://github.com/vibrantgio/seen)
+  3D triangle field (noise-animated, colour-keyed to the live theme), each
+  with a Launch button that runs the app and tracks its process. Also the
+  reference for compositing a seen scene as an mvu background layer and for
+  a single streaming `mvu.Command` (Started → Exited).
 - **[`todos/`](./todos)** — **start here**: the minimal canonical MVU app
   (~700 lines). One window, one Model, pure reducers, prism components,
   live OS light/dark theming — the smallest complete demonstration of the
@@ -60,6 +66,12 @@ Run one:
 
 ```sh
 go run ./todos/
+```
+
+Or run the launcher and start them from there:
+
+```sh
+go run ./launcher/
 ```
 
 ## Documentation

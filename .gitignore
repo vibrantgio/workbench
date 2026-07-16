@@ -9,6 +9,7 @@
 # Example apps — fully tracked.
 !/feeds/**
 !/iconbrowser/**
+!/launcher/**
 !/sitedocs/**
 !/todos/**
 !/watchlist/**
@@ -16,6 +17,7 @@
 # ...except their compiled binaries.
 /feeds/feeds
 /iconbrowser/iconbrowser
+/launcher/launcher
 /sitedocs/sitedocs
 /todos/todos
 /watchlist/watchlist
