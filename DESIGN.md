@@ -23,7 +23,7 @@ The application model is **Functional Reactive Programming** using `reactivego/r
 
 | Module | Role |
 |---|---|
-| `mvu` | MVU runtime: `Runtime[Model]`, `Window.Render(layers...)`, `MessageOp` widget protocol |
+| `mvu` | MVU runtime: generic `Loop`/`Run`, `Window.Render(layers...)`, `MessageOp` widget protocol |
 | `textdraw` | Low-level text: glyph-level control, alignment, label backgrounds |
 | `style` | Typography scale (H1–H6, Body, Button, Caption) wired to Roboto |
 | `font/roboto` | Roboto typeface, five weights |
