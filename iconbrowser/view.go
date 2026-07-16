@@ -43,7 +43,7 @@ type themed struct {
 // ContentLayer renders the page: search field over the filtered icon grid.
 //
 // The two stateful widgets deliberately live at subscription scope, OUTSIDE
-// the per-emission Map (llm.txt rule 2): the grid's scroll position, and the
+// the per-emission Map (llms.txt rule 2): the grid's scroll position, and the
 // search field — a prism TextField whose editor state is Defer-scoped inside
 // the component, subscribed exactly once by the CombineLatest3 below.
 // Constructing either per emission would reset scroll or typing on every

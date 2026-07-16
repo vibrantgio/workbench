@@ -1,6 +1,6 @@
 // Command iconbrowser is a browsable catalogue of the Material Design icons
 // the VibrantGio apps draw from (golang.org/x/exp/shiny/materialdesign/icons,
-// rendered through ivg/raster/gio — see llm.txt §Icons). A search field
+// rendered through ivg/raster/gio — see llms.txt §Icons). A search field
 // filters the scrolling grid live; every glyph is captioned with the exported
 // name to import.
 //
@@ -31,7 +31,7 @@ func main() {
 }
 
 // modelObsConsumers: the content layer is the single modelObs consumer; the
-// backdrop layer is theme-only. See llm.txt rule 4 — Publish() multicasts
+// backdrop layer is theme-only. See llms.txt rule 4 — Publish() multicasts
 // without replay, so this count gates when StartWith(seed) flows.
 const modelObsConsumers = 1
 

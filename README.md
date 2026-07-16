@@ -69,7 +69,7 @@ go run ./todos/
   and the `rx.Defer` subscription-state pattern), threading rules,
   accessibility, performance methodology, and the phase plan that produced
   Prism, Spectrum, Pulse, and Cadence.
-- **[llm.txt](./llm.txt)** — a condensed guide for AI coding assistants
+- **[llms.txt](./llms.txt)** — a condensed guide for AI coding assistants
   (Claude, etc.) to write applications against the VibrantGio packages.
 - **[PLAN.md](./PLAN.md)** — the executed implementation plan, kept as the
   historical record of how the system was built and validated.
