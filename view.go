@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/exp/shiny/materialdesign/colornames"
-
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -23,145 +21,179 @@ import (
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/input"
-	prismtheme "github.com/vibrantgio/prism/theme"
+	"github.com/vibrantgio/prism/theme"
+	"github.com/vibrantgio/prism/tokens"
 	"github.com/vibrantgio/style"
 
 	openai "github.com/sashabaranov/go-openai"
 )
 
-var prismTh = rx.Of(prismtheme.Default())
-
-func View() func(Model) layout.Widget {
-	shaper := text.NewShaper(text.WithCollection(style.FontFaces()))
-	chathist := ChatHistWidget(shaper)
-	chatlist := ChatListWidget(shaper)
-	return func(model Model) layout.Widget {
-		hist := chathist(model.CurrentChat.History)
-		list := chatlist(model.ChatList, model.CurrentChat.Name)
-		return func(gtx layout.Context) layout.Dimensions {
-			size := gtx.Constraints.Max
-			layout.N.Layout(gtx, hist)
-			layout.NW.Layout(gtx, list)
-			return layout.Dimensions{Size: size}
+// buildLayers returns the layer-builder the spectrum window renders: a
+// backdrop layer and a content layer, both reacting to the live theme.
+func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+		return []rx.Observable[layout.Widget]{
+			BackdropLayer(th),
+			ContentLayer(th, modelObs),
 		}
 	}
 }
 
-func ChatHistWidget(shaper *text.Shaper) func(hist []openai.ChatCompletionMessage) layout.Widget {
+// themed pairs one theme emission's palette with the assistant avatar
+// prebuilt in that theme's glyph colour.
+type themed struct {
+	palette Palette
+	avatar  layout.Widget
+}
 
-	list := layout.List{Axis: layout.Vertical, ScrollToEnd: true, Alignment: layout.Start}
-	edit, _ := input.TextField(prismTh, input.TextFieldProps{
+// ContentLayer renders the page: the chat pane with the prompt field, and
+// the conversation sidebar. The stateful widgets live at subscription scope,
+// OUTSIDE the per-emission Map (llm.txt rule 2): the two scroll positions,
+// the sidebar clickables, and the prompt TextField, whose editor state is
+// Defer-scoped inside the component and subscribed exactly once by the
+// CombineLatest3 below. Constructing any of them per emission would reset
+// scroll or typing on every completion-stream delta.
+func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+	shaper := text.NewShaper(text.WithCollection(style.FontFaces()))
+
+	histList := &layout.List{Axis: layout.Vertical, ScrollToEnd: true, Alignment: layout.Start}
+	chatList := &layout.List{Axis: layout.Vertical, Alignment: layout.Start}
+	clickables := map[string]*widget.Clickable{}
+
+	prompt := input.TextField(th, input.TextFieldProps{
 		Placeholder:   "Send a message",
+		Description:   "chat prompt",
 		Submit:        true,
 		SubmitMessage: func(text string) any { return Prompt{Content: text} },
 		Shaper:        shaper,
-	}).First()
+	})
 
-	return func(chat []openai.ChatCompletionMessage) layout.Widget {
+	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
+		return rx.Map(t.Color, func(c tokens.ColorTokens) themed {
+			p := PaletteFrom(c)
+			avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
+			if err != nil {
+				panic(err)
+			}
+			return themed{palette: p, avatar: avatar}
+		})
+	})
 
-		return func(gtx layout.Context) layout.Dimensions {
-			gtx.Constraints = ClampWidth(gtx, 0, 794)
+	return rx.Map(rx.CombineLatest3(themes, prompt, modelObs),
+		func(next rx.Tuple3[themed, layout.Widget, Model]) layout.Widget {
+			return Page(shaper, next.First, next.Second, next.Third, histList, chatList, clickables)
+		})
+}
 
-			layout.Flex{Axis: layout.Vertical, Spacing: layout.SpaceBetween, Alignment: layout.Middle}.Layout(gtx,
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					return list.Layout(gtx, len(chat), func(gtx layout.Context, index int) layout.Dimensions {
-						content := chat[index].Content
-
-						style := style.BodyText1
-
-						textMaterial := Material(gtx.Ops, colornames.Grey200)
-
-						label := widget.Label{Alignment: text.Start, MaxLines: style.MaxLines, Truncator: style.Truncator}
-
-						m := op.Record(gtx.Ops)
-						dims := layout.UniformInset(12).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							margin := gtx.Dp(50)
-							defer op.Offset(image.Pt(margin, 0)).Push(gtx.Ops).Pop()
-							gtx.Constraints.Max.X -= margin
-							gtx.Constraints.Min.X = gtx.Constraints.Max.X
-							dims := label.Layout(gtx, shaper, style.Font, style.Size, content, textMaterial)
-							dims.Size.X += margin
-							return dims
-						})
-						foreground := m.Stop()
-
-						cs := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
-						var bg color.Color
-						var widget layout.Widget
-						if chat[index].Role == openai.ChatMessageRoleUser {
-							bg = colornames.BlueGrey600
-							widget = func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Max} }
-						} else {
-							bg = colornames.BlueGrey700
-							var err error
-							if widget, err = raster.Widget(ChatGPT, 40, 40, raster.WithColors(colornames.White)); err != nil {
-								panic(err)
-							}
-						}
-						paint.ColorOp{Color: NRGBA(bg)}.Add(gtx.Ops)
-						paint.PaintOp{}.Add(gtx.Ops)
-						cs.Pop()
-
-						constraints := gtx.Constraints
-						iconSize := gtx.Dp(40)
-						gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
-						widget(gtx)
-						gtx.Constraints = constraints
-
-						foreground.Add(gtx.Ops)
-
-						return dims
-					})
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return layout.UniformInset(8).Layout(gtx, edit)
-				}),
-			)
-
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		}
+// Page overlays the conversation sidebar on the chat pane for one
+// (theme, model) pair.
+func Page(shaper *text.Shaper, t themed, prompt layout.Widget, model Model, histList, chatList *layout.List, clickables map[string]*widget.Clickable) layout.Widget {
+	hist := ChatPane(shaper, t, model.CurrentChat.History, histList, prompt)
+	sidebar := Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, chatList, clickables)
+	return func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		layout.N.Layout(gtx, hist)
+		layout.NW.Layout(gtx, sidebar)
+		return layout.Dimensions{Size: size}
 	}
 }
 
-func ChatListWidget(shaper *text.Shaper) func(chats ChatList, current string) layout.Widget {
-	clickables := map[string]*widget.Clickable{}
-	listState := layout.List{Axis: layout.Vertical, ScrollToEnd: false, Alignment: layout.Start}
+// ChatPane stacks the scrolling message history above the prompt field.
+func ChatPane(shaper *text.Shaper, t themed, chat []openai.ChatCompletionMessage, list *layout.List, prompt layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints = ClampWidth(gtx, 0, ChatPaneWidth)
 
-	return func(chats ChatList, current string) layout.Widget {
-		// Ensure every chat has a persistent Clickable for hover/click state.
-		for _, name := range chats {
-			if _, ok := clickables[name]; !ok {
-				clickables[name] = new(widget.Clickable)
-			}
+		layout.Flex{Axis: layout.Vertical, Spacing: layout.SpaceBetween, Alignment: layout.Middle}.Layout(gtx,
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return list.Layout(gtx, len(chat), func(gtx layout.Context, index int) layout.Dimensions {
+					return MessageRow(gtx, shaper, t, chat[index])
+				})
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.UniformInset(8).Layout(gtx, prompt)
+			}),
+		)
+
+		return layout.Dimensions{Size: gtx.Constraints.Max}
+	}
+}
+
+// MessageRow renders one history entry: a full-width bubble with the text
+// indented past the avatar column, and the assistant avatar on its rows.
+func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg openai.ChatCompletionMessage) layout.Dimensions {
+	p := t.palette
+	st := style.BodyText1
+
+	isUser := msg.Role == openai.ChatMessageRoleUser
+	fill, textColor := p.BotBubble, p.BotText
+	if isUser {
+		fill, textColor = p.UserBubble, p.UserText
+	}
+
+	textMaterial := Material(gtx.Ops, textColor)
+	label := widget.Label{Alignment: text.Start, MaxLines: st.MaxLines, Truncator: st.Truncator}
+
+	m := op.Record(gtx.Ops)
+	dims := layout.UniformInset(12).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		margin := gtx.Dp(50)
+		defer op.Offset(image.Pt(margin, 0)).Push(gtx.Ops).Pop()
+		gtx.Constraints.Max.X -= margin
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		dims := label.Layout(gtx, shaper, st.Font, st.Size, msg.Content, textMaterial)
+		dims.Size.X += margin
+		return dims
+	})
+	foreground := m.Stop()
+
+	FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, fill)
+
+	if !isUser {
+		constraints := gtx.Constraints
+		iconSize := gtx.Dp(AvatarSize)
+		gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
+		t.avatar(gtx)
+		gtx.Constraints = constraints
+	}
+
+	foreground.Add(gtx.Ops)
+	return dims
+}
+
+// Sidebar renders the conversation list over its surface fill.
+func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list *layout.List, clickables map[string]*widget.Clickable) layout.Widget {
+	// Ensure every chat has a persistent Clickable for hover/click state.
+	for _, name := range chats {
+		if _, ok := clickables[name]; !ok {
+			clickables[name] = new(widget.Clickable)
 		}
+	}
 
-		return func(gtx layout.Context) layout.Dimensions {
-			gtx.Constraints = ClampWidth(gtx, 0, 260)
+	return func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints = ClampWidth(gtx, 0, SidebarWidth)
 
-			m := op.Record(gtx.Ops)
-			dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return SidebarHeader(gtx, shaper)
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return listState.Layout(gtx, len(chats), func(gtx layout.Context, index int) layout.Dimensions {
-						name := chats[index]
-						return ChatRowWidget(gtx, shaper, name, name == current, clickables[name])
-					})
-				}),
-			)
-			foreground := m.Stop()
-			FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, colornames.BlueGrey900)
-			foreground.Add(gtx.Ops)
-			return dims
-		}
+		m := op.Record(gtx.Ops)
+		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return SidebarHeader(gtx, shaper, t.palette)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return list.Layout(gtx, len(chats), func(gtx layout.Context, index int) layout.Dimensions {
+					name := chats[index]
+					return ChatRow(gtx, shaper, t.palette, name, name == current, clickables[name])
+				})
+			}),
+		)
+		foreground := m.Stop()
+		FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, t.palette.Sidebar)
+		foreground.Add(gtx.Ops)
+		return dims
 	}
 }
 
 // SidebarHeader renders the "CONVERSATIONS" heading at the top of the sidebar.
-func SidebarHeader(gtx layout.Context, shaper *text.Shaper) layout.Dimensions {
+func SidebarHeader(gtx layout.Context, shaper *text.Shaper, p Palette) layout.Dimensions {
 	label := widget.Label{Alignment: text.Start, MaxLines: 1, Truncator: "…"}
-	textMaterial := Material(gtx.Ops, colornames.BlueGrey300)
+	textMaterial := Material(gtx.Ops, p.Heading)
 
 	m := op.Record(gtx.Ops)
 	dims := layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(10), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx,
@@ -171,19 +203,19 @@ func SidebarHeader(gtx layout.Context, shaper *text.Shaper) layout.Dimensions {
 	)
 	foreground := m.Stop()
 
-	FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, colornames.BlueGrey900)
 	// Bottom separator line
 	sepRect := image.Rectangle{
 		Min: image.Pt(gtx.Dp(12), dims.Size.Y-gtx.Dp(1)),
 		Max: image.Pt(dims.Size.X-gtx.Dp(12), dims.Size.Y),
 	}
-	FillRect(gtx, sepRect, 0, colornames.BlueGrey700)
+	FillRect(gtx, sepRect, 0, p.Separator)
 	foreground.Add(gtx.Ops)
 	return dims
 }
 
-// ChatRowWidget renders a single chat entry in the sidebar with hover and selection states.
-func ChatRowWidget(gtx layout.Context, shaper *text.Shaper, name string, selected bool, clickable *widget.Clickable) layout.Dimensions {
+// ChatRow renders a single chat entry in the sidebar with hover and
+// selection states.
+func ChatRow(gtx layout.Context, shaper *text.Shaper, p Palette, name string, selected bool, clickable *widget.Clickable) layout.Dimensions {
 	// Drain pending clicks before Layout — Layout's internal update loop
 	// consumes click events and discards them, so Clicked must run first.
 	for clickable.Clicked(gtx) {
@@ -196,18 +228,18 @@ func ChatRowWidget(gtx layout.Context, shaper *text.Shaper, name string, selecte
 		displayName = strings.ToUpper(displayName[:1]) + displayName[1:]
 	}
 
-	var bgColor color.Color
-	var textColor color.Color
+	var bgColor color.NRGBA
+	var textColor color.NRGBA
 	switch {
 	case selected:
-		bgColor = colornames.BlueGrey700
-		textColor = colornames.Grey100
+		bgColor = p.RowSelected
+		textColor = p.RowActive
 	case clickable.Hovered():
-		bgColor = colornames.BlueGrey800
-		textColor = colornames.Grey300
+		bgColor = p.RowHovered
+		textColor = p.RowActive
 	default:
-		bgColor = colornames.BlueGrey900
-		textColor = colornames.Grey500
+		bgColor = p.Sidebar
+		textColor = p.Row
 	}
 
 	label := widget.Label{Alignment: text.Start, MaxLines: 1, Truncator: "…"}
@@ -226,7 +258,7 @@ func ChatRowWidget(gtx layout.Context, shaper *text.Shaper, name string, selecte
 		FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, bgColor)
 		// Left accent bar for the selected item.
 		if selected {
-			FillRect(gtx, image.Rectangle{Max: image.Pt(gtx.Dp(3), dims.Size.Y)}, 0, colornames.BlueGrey400)
+			FillRect(gtx, image.Rectangle{Max: image.Pt(gtx.Dp(3), dims.Size.Y)}, 0, p.Accent)
 		}
 		foreground.Add(gtx.Ops)
 		return dims
@@ -241,8 +273,8 @@ var ChatGPT = func() []byte {
 	gen := &generate.Generator{Destination: dlog}
 	// Palette that can be referenced from CReg array, gets overidden with colors from by externally set palette.
 	pal := ivg.DefaultPalette
-	pal[0] = colornames.White
-	pal[1] = colornames.Black
+	pal[0] = color.RGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff} // white
+	pal[1] = color.RGBA{A: 0xff}                            // black
 	gen.Reset(ivg.ViewBox{MinX: 0, MinY: 0, MaxX: 2406, MaxY: 2406}, pal)
 	gen.SetCReg(0, true, ivg.PaletteIndexColor(0)) // CReg[0] => palette[0] (white) selected via adj 2
 	gen.SetCReg(0, true, ivg.PaletteIndexColor(1)) // CReg[1] => palette[1] (black) selected via adj 1
@@ -275,20 +307,16 @@ func ClampWidth(gtx layout.Context, low, high unit.Dp) layout.Constraints {
 	return gtx.Constraints
 }
 
-func FillRect(gtx layout.Context, r image.Rectangle, radius int, c color.Color) {
+func FillRect(gtx layout.Context, r image.Rectangle, radius int, c color.NRGBA) {
 	if radius == 0 {
-		paint.FillShape(gtx.Ops, NRGBA(c), clip.Rect(r).Op())
+		paint.FillShape(gtx.Ops, c, clip.Rect(r).Op())
 	} else {
-		paint.FillShape(gtx.Ops, NRGBA(c), clip.UniformRRect(r, radius).Op(gtx.Ops))
+		paint.FillShape(gtx.Ops, c, clip.UniformRRect(r, radius).Op(gtx.Ops))
 	}
 }
 
-func Material(ops *op.Ops, c color.Color) op.CallOp {
+func Material(ops *op.Ops, c color.NRGBA) op.CallOp {
 	m := op.Record(ops)
-	paint.ColorOp{Color: NRGBA(c)}.Add(ops)
+	paint.ColorOp{Color: c}.Add(ops)
 	return m.Stop()
-}
-
-func NRGBA(c color.Color) color.NRGBA {
-	return color.NRGBAModel.Convert(c).(color.NRGBA)
 }

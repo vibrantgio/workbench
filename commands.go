@@ -7,8 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
-
-	"golang.org/x/exp/slices"
+	"slices"
 
 	"github.com/reactivego/rx"
 	"github.com/vibrantgio/mvu"
@@ -48,9 +47,10 @@ func SaveConfig(filename string, config Config) mvu.Command {
 	})}
 }
 
-func RequestChatCompletion(ctx context.Context, authToken string, hist []openai.ChatCompletionMessage) mvu.Command {
+func RequestChatCompletion(authToken string, hist []openai.ChatCompletionMessage) mvu.Command {
 	messages := slices.Clone(hist)
 	return mvu.Command{Observable: rx.Defer(func() rx.Observable[any] {
+		ctx := context.Background()
 		client := openai.NewClient(authToken)
 		request := openai.ChatCompletionRequest{
 			Model:    "gpt-5.5",
