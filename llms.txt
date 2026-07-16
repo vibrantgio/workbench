@@ -15,14 +15,14 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
 
   mvu       v0.3.0   MVU runtime: NewWindow, Loop/Run, Message/Command,
                      MessageOp
-  prism     v0.0.5   components: button, input, list, scrollbar, icon, layout,
+  prism     v0.0.6   components: button, input, list, scrollbar, icon, layout,
                      theme, tokens, a11y, initial, keyed, coordination, cache,
                      bench
   spectrum  v0.0.3   theme runtime: system (LiveTheme), window, preferences,
                      transition
   pulse     v0.0.3   effects: tween, spring, springbutton, glow, depth,
                      motion, conductor
-  cadence   v0.0.3   patterns: shell, navbar, sidebar, table, pagination,
+  cadence   v0.0.5   patterns: shell, navbar, sidebar, table, pagination,
                      tabs, modal, alert, popover, tooltip, toast, card,
                      accordion, breadcrumb, hero, feature, pricing,
                      testimonial
@@ -136,6 +136,11 @@ mvu.Loop.
    Update. Cadence/prism component callbacks receive gtx for exactly this
    purpose. This is the bridge between components and MVU; FRP-style apps
    may instead pass plain OnClick callbacks and wrap them in subjects.
+   Modal forms: prism input.TextFieldProps.Seed pre-fills an uncontrolled
+   field so an existing value can be EDITED (rebuild the field keyed on an
+   epoch to reseed); cadence/modal sizes its surface to the content, and
+   Props.HideClose drops the corner close button when footer Actions carry
+   an explicit Cancel (see mindchat's rename modal for the full recipe).
 
 4. Publish().AutoConnect(N) COUNTS ARE LOAD-BEARING. The model observable is
    multicast WITHOUT replay; AutoConnect(N) connects the upstream scan only
@@ -241,9 +246,9 @@ coded clip paths on purpose (golden determinism); leave those alone.
   require (
       gioui.org v0.9.0
       github.com/reactivego/rx v0.2.2
-      github.com/vibrantgio/cadence v0.0.3
+      github.com/vibrantgio/cadence v0.0.5
       github.com/vibrantgio/mvu v0.3.0
-      github.com/vibrantgio/prism v0.0.5
+      github.com/vibrantgio/prism v0.0.6
       github.com/vibrantgio/spectrum v0.0.3
   )
 
