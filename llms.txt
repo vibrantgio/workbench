@@ -95,10 +95,11 @@ mvu.DoConcurrent(...), mvu.DoSequence(...). mvu.Loop runs them and feeds
 the messages they emit back into Update — one command may stream many
 messages (see github.com/vibrantgio/mindchat, whose OpenAI completion
 streams dozens of deltas from a single command). Effect-free apps return
-mvu.DoNothing() everywhere and never notice the runner. NOTE: the four
-apps in this repo predate mvu.Loop and hand-roll the scan, discarding
-commands and doing quick disk writes in widget callbacks; new apps should
-use mvu.Loop as above.
+mvu.DoNothing() everywhere and never notice the runner. Commands are not
+the only valid effect seam: watchlist keeps its disk writes in submit
+CALLBACKS by design (the write stays synchronous with the confirming
+click) while its reducers return DoNothing — both placements compose with
+mvu.Loop.
 
 ## The five load-bearing architecture rules
 

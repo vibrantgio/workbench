@@ -6,7 +6,8 @@ import (
 )
 
 func TestSetQueryReduces(t *testing.T) {
-	m := ReduceModel(Init(), SetQuery{Text: "play"})
+	seed, _ := Init()
+	m := ReduceModel(seed, SetQuery{Text: "play"})
 	if m.Query != "play" {
 		t.Fatalf("Query = %q, want play", m.Query)
 	}

@@ -7,8 +7,9 @@
 // modal.go's header and FEEDBACK-G5.3.md). Rename is the same pre-population
 // problem, so it inherits the same limitation.
 //
-// The disk write lives in the submit CALLBACK (the reducer is pure and run()'s
-// Scan discards Commands): it reads a model mirror, validates (non-empty,
+// The disk write lives in the submit CALLBACK (the reducer is pure and
+// returns no Commands; saves stay in callbacks by design — see modal.go): it
+// reads a model mirror, validates (non-empty,
 // non-duplicate), applies the SAME pure renameWatchlistTo the reducer uses,
 // writes the full Document atomically (with the renamed selection), and toasts.
 

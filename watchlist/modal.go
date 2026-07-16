@@ -25,9 +25,10 @@
 // CLEAR a previously-set optional field (e.g. Notes "foo" → ""). And the
 // placeholder hides on focus, so the original is not visible while typing.
 //
-// Save side-effect placement (logged): the run() Scan discards Commands (it
-// does `next, _ := Update(...)`), so a reducer-returned mvu.Command is a dead
-// path. The disk write therefore lives in the submit CALLBACK, which reads a
+// Save side-effect placement (logged): the disk write lives in the submit
+// CALLBACK by design, not in a reducer-returned mvu.Command (mvu.Loop in
+// run() does execute those; saves stay in the callback so the write is
+// synchronous with the confirming click). The callback reads a
 // model mirror (fed by modelObs), applies the SAME pure applyEdit the reducer
 // uses to build the full Document, writes it atomically, and fires the toast.
 // The reducer stays pure; the callback and reducer never diverge because both

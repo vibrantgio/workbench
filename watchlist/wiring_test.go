@@ -75,7 +75,7 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 }
 
 // TestRealAutoConnectPathDeliversSeedAndReEmits exercises the production seam
-// run() builds — Scan(messages) → StartWith(seed) → Publish().AutoConnect(
+// run() builds — mvu.Loop(messages) → Publish().AutoConnect(
 // modelObsConsumers) → watchlistShellLayer — proving the seed reaches every
 // consumer (N not too low, no blank launch; not too high, no freeze) and that a
 // message through the real channel re-emits the layer (same-frame repaint).
@@ -85,11 +85,11 @@ func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
 	msgCh := make(chan mvu.Message, 16)
 	messages := rx.Recv(msgCh)
 
-	seed := initialModel(testDoc())
-	modelObs := rx.Scan(messages, seed, func(model Model, msg mvu.Message) Model {
-		next, _ := Update(model, msg)
-		return next
-	}).StartWith(seed).Publish().AutoConnect(modelObsConsumers)
+	init := func() (Model, mvu.Command) { return initialModel(testDoc()), mvu.DoNothing() }
+	// The command runner is deliberately leaked along with the layer
+	// subscription below (see the teardown note).
+	models, _ := mvu.Loop(messages, init, Update)
+	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
 	layer := watchlistShellLayer(rx.Of(theme.Default()), shaper, modelObs, filepath.Join(t.TempDir(), "watchlists.json"))
 

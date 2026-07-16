@@ -73,7 +73,7 @@ func TestReducersAreImmutable(t *testing.T) {
 }
 
 func TestReduceModelRoutesAndSelection(t *testing.T) {
-	m := Init()
+	m, _ := Init()
 	m = ReduceModel(m, SelectTodo{Id: 1})
 	m = ReduceModel(m, SetRoute{Route: "edit.todo"})
 	if m.Route != "edit.todo" || m.Selected != 1 {
@@ -104,8 +104,9 @@ func TestFindByIdNotIndex(t *testing.T) {
 }
 
 func TestUnknownMessageIsIdentity(t *testing.T) {
-	m := ReduceModel(Init(), struct{ Unrelated string }{"noop"})
-	if !reflect.DeepEqual(m, Init()) {
+	seed, _ := Init()
+	m := ReduceModel(seed, struct{ Unrelated string }{"noop"})
+	if !reflect.DeepEqual(m, seed) {
 		t.Fatalf("unknown message changed the model: %+v", m)
 	}
 }

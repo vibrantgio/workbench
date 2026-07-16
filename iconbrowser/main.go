@@ -18,8 +18,6 @@ import (
 	"gioui.org/app"
 	"gioui.org/unit"
 
-	"github.com/reactivego/rx"
-
 	"github.com/vibrantgio/mvu"
 	specsystem "github.com/vibrantgio/spectrum/system"
 	specwin "github.com/vibrantgio/spectrum/window"
@@ -32,7 +30,8 @@ func main() {
 
 // modelObsConsumers: the content layer is the single modelObs consumer; the
 // backdrop layer is theme-only. See llms.txt rule 4 — Publish() multicasts
-// without replay, so this count gates when StartWith(seed) flows.
+// without replay, so this count gates when the seed emitted by mvu.Loop
+// flows.
 const modelObsConsumers = 1
 
 func run() {
@@ -42,11 +41,9 @@ func run() {
 	)
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
 
-	seed := Init()
-	modelObs := rx.Scan(mvuWin.Messages(), seed, func(model Model, msg mvu.Message) Model {
-		next, _ := Update(model, msg)
-		return next
-	}).StartWith(seed).Publish().AutoConnect(modelObsConsumers)
+	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
+	defer func() { runner.Unsubscribe(); runner.Wait() }()
+	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
 	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "iconbrowser:", err)

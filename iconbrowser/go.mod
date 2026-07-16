@@ -7,7 +7,7 @@ require (
 	github.com/reactivego/rx v0.2.2
 	github.com/vibrantgio/backdrop v0.0.2
 	github.com/vibrantgio/ivg/raster/gio v0.1.5
-	github.com/vibrantgio/mvu v0.2.0
+	github.com/vibrantgio/mvu v0.3.0
 	github.com/vibrantgio/prism v0.0.4
 	github.com/vibrantgio/spectrum v0.0.3
 	github.com/vibrantgio/style v0.0.3

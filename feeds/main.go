@@ -8,8 +8,6 @@ import (
 	"gioui.org/app"
 	"gioui.org/unit"
 
-	"github.com/reactivego/rx"
-
 	"github.com/vibrantgio/mvu"
 	specsystem "github.com/vibrantgio/spectrum/system"
 	specwin "github.com/vibrantgio/spectrum/window"
@@ -27,9 +25,11 @@ func run() {
 	)
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
 
-	// Build the model observable by scanning over mvu messages. The window's
-	// collector registers on each FrameEvent so MessageOp.Add(gtx.Ops) calls
-	// made during layout are collected and delivered here on the same frame.
+	// Build the model observable with mvu.Loop over mvu messages. The
+	// window's collector registers on each FrameEvent so MessageOp.Add(gtx.Ops)
+	// calls made during layout are collected and delivered here on the same
+	// frame; Loop also runs the commands Update returns (this app returns
+	// DoNothing everywhere) and emits the seed model first.
 	//
 	// mvuWin.Messages() drains a channel via rx.Recv, so each emitted message
 	// reaches exactly one subscriber. feedsShellLayer derives several cold
@@ -38,11 +38,10 @@ func run() {
 	// Publish().AutoConnect(N) shares one upstream subscription across exactly
 	// those N consumers. See the consumer count documented on feedsShellLayer
 	// — the N here is load-bearing and must match it.
-	seed := initialModel()
-	modelObs := rx.Scan(mvuWin.Messages(), seed, func(model Model, msg mvu.Message) Model {
-		next, _ := Update(model, msg)
-		return next
-	}).StartWith(seed).Publish().AutoConnect(modelObsConsumers)
+	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
+	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
+	defer func() { runner.Unsubscribe(); runner.Wait() }()
+	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
 	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

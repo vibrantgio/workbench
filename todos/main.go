@@ -2,8 +2,8 @@
 // in-memory todo list with add, edit, toggle, and delete. It demonstrates the
 // full bootstrap in its smallest honest form — mvu.NewWindow, a spectrum
 // window with a live OS theme (dark mode follows the system), a Model
-// observable built by scanning the message stream, and widgets that route
-// every event through mvu.MessageOp. Start here before reading the larger
+// observable driven by mvu.Loop, and widgets that route every event
+// through mvu.MessageOp. Start here before reading the larger
 // apps (sitedocs, feeds, watchlist).
 package main
 
@@ -14,8 +14,6 @@ import (
 
 	"gioui.org/app"
 	"gioui.org/unit"
-
-	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/mvu"
 	specsystem "github.com/vibrantgio/spectrum/system"
@@ -29,7 +27,8 @@ func main() {
 
 // modelObsConsumers is the number of cold subscriptions that reach modelObs
 // when the layers are subscribed once. Publish() multicasts WITHOUT replay,
-// so AutoConnect must fire — letting StartWith(seed) flow — only when every
+// so AutoConnect must fire — letting the seed emitted by mvu.Loop flow —
+// only when every
 // consumer is attached. Here the content layer is the single consumer; the
 // backdrop layer is theme-only.
 const modelObsConsumers = 1
@@ -41,11 +40,9 @@ func run() {
 	)
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
 
-	seed := Init()
-	modelObs := rx.Scan(mvuWin.Messages(), seed, func(model Model, msg mvu.Message) Model {
-		next, _ := Update(model, msg)
-		return next
-	}).StartWith(seed).Publish().AutoConnect(modelObsConsumers)
+	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
+	defer func() { runner.Unsubscribe(); runner.Wait() }()
+	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
 	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "todos:", err)

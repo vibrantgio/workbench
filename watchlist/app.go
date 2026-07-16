@@ -31,8 +31,8 @@ import (
 // does). It is LOAD-BEARING and must be MEASURED, not hand-counted:
 // mvuWin.Messages() drains a channel and rx.Publish() multicasts WITHOUT
 // replay, so Publish().AutoConnect(modelObsConsumers) in run() connects the
-// upstream Scan — and lets StartWith(seed) flow — only once the count-th
-// subscription attaches. Too low and late consumers miss the seed (blank
+// loop's upstream scan — and lets the seed emitted by mvu.Loop flow — only
+// once the count-th subscription attaches. Too low and late consumers miss the seed (blank
 // launch); too high and Connect never fires (frozen app).
 //
 // The count is MEASURED by TestModelObsConsumerCountMatchesConst (which fails
@@ -41,7 +41,7 @@ import (
 //
 // CRITICAL INVARIANT (logged in FEEDBACK-G5.3.md): NEVER subscribe modelObs
 // inside a keyed.Defer (per-row/per-name). A lazy subscription attaches during
-// the first LAYOUT frame — AFTER AutoConnect's StartWith(seed) has already
+// the first LAYOUT frame — AFTER the seed emission has already
 // fired — so it (a) is invisible to the count test, which never lays out, and
 // (b) never receives the seed, leaving its mirror at the zero Model; a
 // pre-interaction delete then writes an EMPTY document over the user's file.

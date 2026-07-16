@@ -39,9 +39,9 @@ import (
 // modelObs when feedsShellLayer is subscribed once (as spectrum/window does).
 // It is LOAD-BEARING and must be measured, not hand-counted: mvuWin.Messages()
 // drains a channel and rx.Publish() multicasts WITHOUT replay, so
-// Publish().AutoConnect(modelObsConsumers) in run() connects the upstream Scan
-// — and lets the StartWith(seed) flow — only once the count-th subscription
-// attaches. Too low and the consumers that attach after Connect miss the seed
+// Publish().AutoConnect(modelObsConsumers) in run() connects the loop's
+// upstream scan — and lets the seed emitted by mvu.Loop flow — only once the
+// count-th subscription attaches. Too low and the consumers that attach after Connect miss the seed
 // (the launch table/pagination render blank until the first real message); too
 // high and Connect never fires (the app is frozen).
 //

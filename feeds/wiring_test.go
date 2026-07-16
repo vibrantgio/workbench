@@ -57,7 +57,7 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 }
 
 // TestRealAutoConnectPathDeliversSeedAndReEmits exercises the PRODUCTION seam
-// that run() builds — Scan(messages) → StartWith(seed) → Publish().AutoConnect(
+// that run() builds — mvu.Loop(messages) → Publish().AutoConnect(
 // modelObsConsumers) → feedsShellLayer — rather than the rx.Subject shortcut the
 // re-emission test uses. It proves two things the recipe calls out:
 //  1. the layer emits a (seed-derived) widget once all consumers have attached
@@ -73,11 +73,11 @@ func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
 	msgCh := make(chan mvu.Message, 16)
 	messages := rx.Recv(msgCh)
 
-	seed := initialModel()
-	modelObs := rx.Scan(messages, seed, func(model Model, msg mvu.Message) Model {
-		next, _ := Update(model, msg)
-		return next
-	}).StartWith(seed).Publish().AutoConnect(modelObsConsumers)
+	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
+	// The command runner is deliberately leaked along with the layer
+	// subscription below (see the teardown note).
+	models, _ := mvu.Loop(messages, init, Update)
+	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
 	layer := feedsShellLayer(rx.Of(theme.Default()), shaper, modelObs)
 

@@ -30,7 +30,8 @@
 // checkbox maps a page-relative row to its absolute index via pageOffset+row.
 //
 // The DISK WRITE on save lives in the submit/confirm CALLBACK, not the reducer:
-// the reducer stays pure (and the run() Scan discards Commands — see main.go),
+// the reducer stays pure and returns no Commands (mvu.Loop in run() would run
+// them; the callback keeps the write synchronous with the confirming click),
 // so the callback reads a model mirror, applies the SAME pure helper the reducer
 // uses, and writes the resulting Document atomically. (Rationale logged in
 // FEEDBACK-G5.3.md.) Per-mutation helpers — applyEdit, deleteSymbolAt,
@@ -210,7 +211,8 @@ type DeleteWatchlist struct{ Name string }
 
 // Update reduces a message into the next Model. Pure; always returns
 // mvu.DoNothing() — the disk write on save is performed in the submit callback
-// (the Scan in run() discards Commands — see main.go), not here.
+// by design, not here (mvu.Loop in run() would run a returned Command; the
+// callback keeps the write synchronous with the confirming click).
 func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 	switch m := msg.(type) {
 	case SelectWatchlist:

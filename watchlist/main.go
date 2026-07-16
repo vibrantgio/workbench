@@ -21,8 +21,6 @@ import (
 	"gioui.org/app"
 	"gioui.org/unit"
 
-	"github.com/reactivego/rx"
-
 	"github.com/vibrantgio/mvu"
 	specsystem "github.com/vibrantgio/spectrum/system"
 	specwin "github.com/vibrantgio/spectrum/window"
@@ -54,15 +52,14 @@ func run() {
 	)
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
 
-	// Build the model observable by scanning over mvu messages. See feeds:
-	// Publish().AutoConnect(modelObsConsumers) shares one upstream Scan across
-	// exactly the consumers watchlistShellLayer derives; N is load-bearing and
-	// measured by TestModelObsConsumerCountMatchesConst.
-	seed := initialModel(doc)
-	modelObs := rx.Scan(mvuWin.Messages(), seed, func(model Model, msg mvu.Message) Model {
-		next, _ := Update(model, msg)
-		return next
-	}).StartWith(seed).Publish().AutoConnect(modelObsConsumers)
+	// Build the model observable with mvu.Loop over mvu messages. See feeds:
+	// Publish().AutoConnect(modelObsConsumers) shares the loop's upstream scan
+	// across exactly the consumers watchlistShellLayer derives; N is
+	// load-bearing and measured by TestModelObsConsumerCountMatchesConst.
+	init := func() (Model, mvu.Command) { return initialModel(doc), mvu.DoNothing() }
+	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
+	defer func() { runner.Unsubscribe(); runner.Wait() }()
+	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
 	if err := w.Render(buildLayers(modelObs, path)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

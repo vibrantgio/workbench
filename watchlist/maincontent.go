@@ -105,7 +105,7 @@ func watchlistMain(
 
 	// ONE eager model mirror for the whole pane, subscribed in the function body
 	// (NOT inside a keyed.Defer). A per-row mirror would subscribe LAZILY during
-	// the first layout frame — after AutoConnect's StartWith(seed) already
+	// the first layout frame — after the seed emission already
 	// fired — so it would never be seeded and would write an empty Document on a
 	// pre-interaction delete (data loss). Sharing one eager mirror keeps the
 	// modelObs consumer count STATIC (independent of row count) and seed-correct.
