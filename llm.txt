@@ -171,6 +171,34 @@ Pulse components are explicit VARIANTS of prism components, e.g.
 pulse/springbutton wraps prism/button with physics-driven press/release —
 opt in per call site, never a global decorator.
 
+## Icons
+
+There is no VibrantGio iconset yet. When an app needs a glyph (a settings
+button, play/record controls, a close X), use the Material Design icons
+published as IconVG data in golang.org/x/exp/shiny/materialdesign/icons
+(961 icons, frozen 2016 Material set) and render them with ivg/raster/gio:
+
+  import (
+      "golang.org/x/exp/shiny/materialdesign/icons"
+      raster "github.com/vibrantgio/ivg/raster/gio"
+  )
+
+  w, err := raster.Widget(icons.ActionSettings, 40, 40, raster.WithColors(p.Icon))
+  // w is a layout.Widget; wrap it in a widget.Clickable to make a button.
+  // See todos/view.go (the FAB) and todos/list.go (the delete icon).
+
+Names are Category+Name: ActionSettings, AVPlayArrow, AVStop, AVPause,
+AVFiberManualRecord, ContentAddCircle, ContentClear, NavigationClose, ...
+Colour the glyph from the palette (theme tokens), never a hard-coded colour.
+
+An icon that may be replaced later beats no icon: use these freely; a future
+vibrantgio-owned set would register into prism/icon (an empty name→icon
+Registry today) and swap in behind the same widgets. Do not plumb shiny
+icons into prism/button Props.Icon — that field wants a clip.Path painter
+func(gtx, sizePx, col), not a widget; keep IVG icons in your own clickable
+until an adapter exists. Cadence draws its built-in chevrons/X with hand-
+coded clip paths on purpose (golden determinism); leave those alone.
+
 ## Pitfalls (each of these caused a real bug in the example apps)
 
 - A Defer factory reruns per subscription: sharing an observable that owns
