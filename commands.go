@@ -140,8 +140,9 @@ func RenameHist(oldname, newname string) mvu.Command {
 }
 
 // UndoWindow is how long a deleted chat can be brought back before its
-// history file is removed from disk.
-const UndoWindow = 5 * time.Second
+// history file is removed from disk. Generous on purpose: the undo bar is
+// easy to miss, and Cmd/Ctrl-Z works for the whole window.
+const UndoWindow = 15 * time.Second
 
 // ExpireDelete closes a delete's undo window: after the delay it asks the
 // reducer to finalise the pending delete. The generation guards against the

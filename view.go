@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 
@@ -167,6 +168,13 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 
 	renameObs := RenameModal(th, shaper, modelObs)
 
+	// Global Cmd/Ctrl-Z undoes a pending chat delete (the reducer ignores
+	// it when nothing is pending). A focused text editor claims the chord
+	// first for its own text undo — correct layering, not a conflict.
+	undoShortcut := OnShortcutKey("Z", func(gtx layout.Context) {
+		mvu.MessageOp{Message: UndoDelete{}}.Add(gtx.Ops)
+	})
+
 	// Overlays: the undo bar and the rename modal draw over the shell (the
 	// modal last — its scrim covers everything, undo bar included).
 	return rx.Map(rx.CombineLatest2(shellObs, renameObs),
@@ -174,6 +182,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			shellW, modalW := next.First, next.Second
 			return func(gtx layout.Context) layout.Dimensions {
 				dims := shellW(gtx)
+				undoShortcut(gtx)
 				if w, ok := undoCell.Load().(layout.Widget); ok && w != nil {
 					w(gtx)
 				}
@@ -474,6 +483,10 @@ func UndoBar(shaper *text.Shaper, t themed, pending PendingDelete, undo *widget.
 		display = strings.ToUpper(display[:1]) + display[1:]
 	}
 	msg := "Deleted “" + display + "”"
+	hint := "(Ctrl+Z)"
+	if runtime.GOOS == "darwin" {
+		hint = "(⌘Z)"
+	}
 
 	return func(gtx layout.Context) layout.Dimensions {
 		for undo.Clicked(gtx) {
@@ -495,6 +508,10 @@ func UndoBar(shaper *text.Shaper, t themed, pending PendingDelete, undo *widget.
 					return undo.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return label.Layout(gtx, shaper, style.Subtitle2.Font, style.Subtitle2.Size, "Undo", Material(gtx.Ops, p.Accent))
 					})
+				}),
+				layout.Rigid(layout.Spacer{Width: 8}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return label.Layout(gtx, shaper, style.Caption.Font, style.Caption.Size, hint, Material(gtx.Ops, p.Row))
 				}),
 			)
 		})
