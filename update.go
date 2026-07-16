@@ -29,10 +29,8 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			// Prompting with no chat selected (every chat was deleted)
 			// starts a fresh one, so the completion has a file to persist to.
 			if model.CurrentChat.Name == "" {
-				model.CurrentChat.Name = "new.json"
-				if !slices.Contains(model.ChatList, model.CurrentChat.Name) {
-					model.ChatList = append(model.ChatList, model.CurrentChat.Name)
-				}
+				model.CurrentChat.Name = FreshChatName(append(slices.Clone(model.ChatList), model.Pending.Name))
+				model.ChatList = append(slices.Clone(model.ChatList), model.CurrentChat.Name)
 			}
 			model.CurrentChat.History = append(model.CurrentChat.History, openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleUser,
@@ -74,22 +72,32 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		return model, mvu.DoNothing()
 
 	case DeleteChat:
-		remaining := make(ChatList, 0, len(model.ChatList))
-		for _, name := range model.ChatList {
-			if name != message.Name {
-				remaining = append(remaining, name)
-			}
+		var commands []mvu.Command
+		// Only one undo window at a time: a second delete finalises the
+		// first immediately.
+		if model.Pending.Name != "" {
+			commands = append(commands, DeleteHist(model.ChatFile(model.Pending.Name)).Trace("Delete History"))
+			model.Pending = PendingDelete{}
 		}
-		model.ChatList = remaining
-		commands := []mvu.Command{DeleteHist(model.ChatFile(message.Name)).Trace("Delete History")}
-		if model.CurrentChat.Name == message.Name {
+		index := slices.Index(model.ChatList, message.Name)
+		if index < 0 {
+			return model, mvu.DoConcurrent(commands...)
+		}
+		model.ChatList = slices.Delete(slices.Clone(model.ChatList), index, index+1)
+		wasCurrent := model.CurrentChat.Name == message.Name
+		// The delete is SOFT: the history file stays on disk until the
+		// undo window closes (ConfirmDelete), so UndoDelete can restore it.
+		model.DeleteGen++
+		model.Pending = PendingDelete{Name: message.Name, Index: index, WasCurrent: wasCurrent, Gen: model.DeleteGen}
+		commands = append(commands, ExpireDelete(model.DeleteGen, UndoWindow).Trace("Undo Window"))
+		if wasCurrent {
 			// The current chat was deleted: fall back to the first
 			// remaining chat, or to the empty state when none are left.
 			model.CurrentChat.History = nil
-			if len(remaining) > 0 {
-				model.CurrentChat.Name = remaining[0]
+			if len(model.ChatList) > 0 {
+				model.CurrentChat.Name = model.ChatList[0]
 				commands = append(commands,
-					LoadHist(model.ChatFile(remaining[0])).Trace("Load Selected History"),
+					LoadHist(model.ChatFile(model.CurrentChat.Name)).Trace("Load Selected History"),
 				)
 			} else {
 				model.CurrentChat.Name = ""
@@ -99,6 +107,46 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			)
 		}
 		return model, mvu.DoConcurrent(commands...)
+
+	case UndoDelete:
+		if model.Pending.Name == "" {
+			return model, mvu.DoNothing()
+		}
+		pending := model.Pending
+		model.Pending = PendingDelete{}
+		index := min(pending.Index, len(model.ChatList))
+		model.ChatList = slices.Insert(slices.Clone(model.ChatList), index, pending.Name)
+		if pending.WasCurrent {
+			model.CurrentChat.Name = pending.Name
+			model.CurrentChat.History = nil
+			return model, mvu.DoConcurrent(
+				LoadHist(model.ChatFile(pending.Name)).Trace("Load Restored History"),
+				SaveConfig(model.ConfigFile(), Config{LastChat: pending.Name}).Trace("Save Config"),
+			)
+		}
+		return model, mvu.DoNothing()
+
+	case ConfirmDelete:
+		// Ignore stale timers: the pending delete was undone or superseded.
+		if model.Pending.Name == "" || model.Pending.Gen != message.Gen {
+			return model, mvu.DoNothing()
+		}
+		name := model.Pending.Name
+		model.Pending = PendingDelete{}
+		return model, DeleteHist(model.ChatFile(name)).Trace("Delete History")
+
+	case NewChat:
+		name := FreshChatName(append(slices.Clone(model.ChatList), model.Pending.Name))
+		model.ChatList = append(slices.Clone(model.ChatList), name)
+		model.CurrentChat = Chat{Name: name}
+		return model, mvu.DoConcurrent(
+			SaveHist(model.ChatFile(name), []openai.ChatCompletionMessage{}).Trace("Create Chat"),
+			SaveConfig(model.ConfigFile(), Config{LastChat: name}).Trace("Save Config"),
+		)
+
+	case OpenSettings:
+		// Settings surface (OPENAI_API_KEY configuration) not built yet.
+		return model, mvu.DoNothing()
 
 	case SelectChat:
 		if model.CurrentChat.Name == message.Name {

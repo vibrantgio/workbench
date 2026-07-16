@@ -139,6 +139,68 @@ func TestUpdatePromptWithNoChatStartsFreshOne(t *testing.T) {
 	}
 }
 
+func TestUpdateDeleteChatOpensUndoWindow(t *testing.T) {
+	next, _ := Update(testModel(), DeleteChat{Name: "alpha.json"})
+	want := PendingDelete{Name: "alpha.json", Index: 0, WasCurrent: true, Gen: 1}
+	if next.Pending != want {
+		t.Fatalf("Pending = %+v, want %+v", next.Pending, want)
+	}
+}
+
+func TestUpdateUndoRestoresChatAtItsIndex(t *testing.T) {
+	deleted, _ := Update(testModel(), DeleteChat{Name: "alpha.json"})
+	restored, _ := Update(deleted, UndoDelete{})
+	if restored.Pending.Name != "" {
+		t.Fatalf("Pending = %+v, want cleared", restored.Pending)
+	}
+	if len(restored.ChatList) != 2 || restored.ChatList[0] != "alpha.json" || restored.ChatList[1] != "beta.json" {
+		t.Fatalf("ChatList = %v, want [alpha.json beta.json]", restored.ChatList)
+	}
+	if restored.CurrentChat.Name != "alpha.json" {
+		t.Fatalf("CurrentChat.Name = %q, want the restored chat re-selected", restored.CurrentChat.Name)
+	}
+}
+
+func TestUpdateStaleConfirmIsIgnored(t *testing.T) {
+	deleted, _ := Update(testModel(), DeleteChat{Name: "alpha.json"}) // gen 1
+	restored, _ := Update(deleted, UndoDelete{})
+	redeleted, _ := Update(restored, DeleteChat{Name: "beta.json"}) // gen 2
+
+	// Generation 1's timer fires late: it must not finalise generation 2.
+	next, _ := Update(redeleted, ConfirmDelete{Gen: 1})
+	if next.Pending.Name != "beta.json" {
+		t.Fatalf("stale ConfirmDelete finalised the wrong delete: Pending = %+v", next.Pending)
+	}
+	// Generation 2's own timer does close it.
+	next, _ = Update(next, ConfirmDelete{Gen: 2})
+	if next.Pending.Name != "" {
+		t.Fatalf("Pending = %+v, want cleared", next.Pending)
+	}
+}
+
+func TestUpdateSecondDeleteSupersedesPending(t *testing.T) {
+	first, _ := Update(testModel(), DeleteChat{Name: "beta.json"})
+	second, _ := Update(first, DeleteChat{Name: "alpha.json"})
+	if second.Pending.Name != "alpha.json" || second.Pending.Gen != 2 {
+		t.Fatalf("Pending = %+v, want alpha.json at gen 2", second.Pending)
+	}
+	if len(second.ChatList) != 0 {
+		t.Fatalf("ChatList = %v, want empty", second.ChatList)
+	}
+}
+
+func TestUpdateNewChatSelectsFreshName(t *testing.T) {
+	model := testModel()
+	model.ChatList = ChatList{"new.json"}
+	next, _ := Update(model, NewChat{})
+	if next.CurrentChat.Name != "new-2.json" || next.CurrentChat.History != nil {
+		t.Fatalf("CurrentChat = %+v, want empty new-2.json", next.CurrentChat)
+	}
+	if len(next.ChatList) != 2 || next.ChatList[1] != "new-2.json" {
+		t.Fatalf("ChatList = %v, want [new.json new-2.json]", next.ChatList)
+	}
+}
+
 func TestUpdateChatListReplacesList(t *testing.T) {
 	next, _ := Update(testModel(), ChatList{"gamma.json"})
 	if len(next.ChatList) != 1 || next.ChatList[0] != "gamma.json" {

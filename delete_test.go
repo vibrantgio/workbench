@@ -11,9 +11,10 @@ import (
 	"github.com/vibrantgio/mvu"
 )
 
-// TestDeleteChatRemovesFileThroughLoop drives the real mvu.Loop: the
-// DeleteChat message reduces the model AND its DeleteHist command must run
-// and remove the chat's history file from disk.
+// TestDeleteChatRemovesFileThroughLoop drives the real mvu.Loop: DeleteChat
+// opens the undo window (the file survives), and ConfirmDelete's DeleteHist
+// command must run and remove the chat's history file from disk. The
+// ConfirmDelete is sent explicitly rather than waiting out the 5s timer.
 func TestDeleteChatRemovesFileThroughLoop(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "chats"), 0o755); err != nil {
@@ -37,6 +38,9 @@ func TestDeleteChatRemovesFileThroughLoop(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	in <- DeleteChat{Name: "alpha.json"}
+	// The delete is soft while the undo window is open; the seed's
+	// DeleteGen is 0, so this delete is generation 1.
+	in <- ConfirmDelete{Gen: 1}
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {

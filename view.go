@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
@@ -17,6 +18,8 @@ import (
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
+	"github.com/vibrantgio/cadence/navbar"
+	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/ivg"
 	"github.com/vibrantgio/ivg/encode"
 	"github.com/vibrantgio/ivg/generate"
@@ -48,6 +51,8 @@ type themed struct {
 	palette Palette
 	avatar  layout.Widget
 	remove  layout.Widget
+	add     layout.Widget
+	gear    layout.Widget
 }
 
 // ContentLayer renders the page: the chat pane with the prompt field, and
@@ -84,27 +89,101 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if err != nil {
 				panic(err)
 			}
-			return themed{palette: p, avatar: avatar, remove: remove}
+			add, err := raster.Widget(icons.ContentAdd, AddIconSize, AddIconSize, raster.WithColors(p.Heading))
+			if err != nil {
+				panic(err)
+			}
+			gear, err := raster.Widget(icons.ActionSettings, SettingsIconSize, SettingsIconSize, raster.WithColors(p.Heading))
+			if err != nil {
+				panic(err)
+			}
+			return themed{palette: p, avatar: avatar, remove: remove, add: add, gear: gear}
 		})
 	})
 
-	return rx.Map(rx.CombineLatest3(themes, prompt, modelObs),
-		func(next rx.Tuple3[themed, layout.Widget, Model]) layout.Widget {
-			return Page(shaper, next.First, next.Second, next.Third, histList, chatList, rowClicks, deleteClicks)
+	var newChatClick, settingsClick, undoClick widget.Clickable
+
+	// The shell's Main and Navbar Brand are STATIC slots while the model and
+	// theme are live streams, so the latest widgets are bridged through
+	// atomic cells read at frame time (the observable-over-static-slot
+	// hand-off from watchlist/app.go). Folding main and undo onto the
+	// sidebar stream means every model change re-emits the sidebar, which
+	// re-emits the Shell — a same-frame repaint.
+	var themedCell, mainCell, undoCell atomic.Value
+
+	type parts struct {
+		sidebar, main, undo layout.Widget
+	}
+	combined := rx.Map(rx.CombineLatest3(themes, prompt, modelObs),
+		func(next rx.Tuple3[themed, layout.Widget, Model]) parts {
+			t, promptW, model := next.First, next.Second, next.Third
+			themedCell.Store(t)
+			return parts{
+				sidebar: Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, chatList, rowClicks, deleteClicks, &newChatClick),
+				main:    ChatPane(shaper, t, model.CurrentChat.History, histList, promptW),
+				undo:    UndoBar(shaper, t, model.Pending, &undoClick),
+			}
 		})
+
+	sidebarDriven := rx.Map(combined, func(p parts) layout.Widget {
+		mainCell.Store(p.main)
+		undoCell.Store(p.undo)
+		return p.sidebar
+	})
+
+	mainSlot := func(gtx layout.Context) layout.Dimensions {
+		if w, ok := mainCell.Load().(layout.Widget); ok && w != nil {
+			return w(gtx)
+		}
+		return layout.Dimensions{Size: gtx.Constraints.Max}
+	}
+
+	brand := func(gtx layout.Context) layout.Dimensions {
+		t, ok := themedCell.Load().(themed)
+		if !ok {
+			return layout.Dimensions{}
+		}
+		return Brand(gtx, shaper, t, &settingsClick)
+	}
+
+	shellObs := shell.Shell(th, shell.Props{
+		Layout:  shell.SidebarHeaderMain,
+		Sidebar: sidebarDriven,
+		Navbar:  navbar.Props{Brand: brand, Shaper: shaper},
+		Main:    mainSlot,
+	})
+
+	// The undo bar overlays the whole shell (bottom centre).
+	return rx.Map(shellObs, func(shellW layout.Widget) layout.Widget {
+		return func(gtx layout.Context) layout.Dimensions {
+			dims := shellW(gtx)
+			if w, ok := undoCell.Load().(layout.Widget); ok && w != nil {
+				w(gtx)
+			}
+			return dims
+		}
+	})
 }
 
-// Page overlays the conversation sidebar on the chat pane for one
-// (theme, model) pair.
-func Page(shaper *text.Shaper, t themed, prompt layout.Widget, model Model, histList, chatList *layout.List, rowClicks, deleteClicks map[string]*widget.Clickable) layout.Widget {
-	hist := ChatPane(shaper, t, model.CurrentChat.History, histList, prompt)
-	sidebar := Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, chatList, rowClicks, deleteClicks)
-	return func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
-		layout.N.Layout(gtx, hist)
-		layout.NW.Layout(gtx, sidebar)
-		return layout.Dimensions{Size: size}
+// Brand fills the navbar's leading slot: the settings button (the future
+// OPENAI_API_KEY configuration surface) and the app title.
+func Brand(gtx layout.Context, shaper *text.Shaper, t themed, settings *widget.Clickable) layout.Dimensions {
+	for settings.Clicked(gtx) {
+		mvu.MessageOp{Message: OpenSettings{}}.Add(gtx.Ops)
 	}
+	p := t.palette
+	label := widget.Label{MaxLines: 1}
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			iconSize := gtx.Dp(SettingsIconSize)
+			gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
+			return settings.Layout(gtx, t.gear)
+		}),
+		layout.Rigid(layout.Spacer{Width: 12}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return label.Layout(gtx, shaper, style.H6.Font, style.H6.Size, "MindChat", Material(gtx.Ops, p.RowActive))
+		}),
+	)
 }
 
 // ChatPane stacks the scrolling message history above the prompt field.
@@ -168,8 +247,9 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg openai.Ch
 	return dims
 }
 
-// Sidebar renders the conversation list over its surface fill.
-func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list *layout.List, rowClicks, deleteClicks map[string]*widget.Clickable) layout.Widget {
+// Sidebar renders the conversation list as the shell's full-height leading
+// column: surface fill, a header with the new-chat button, and the rows.
+func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list *layout.List, rowClicks, deleteClicks map[string]*widget.Clickable, newChat *widget.Clickable) layout.Widget {
 	// Ensure every chat has persistent Clickables for hover/click state.
 	for _, name := range chats {
 		if _, ok := rowClicks[name]; !ok {
@@ -181,36 +261,51 @@ func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list
 	}
 
 	return func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints = ClampWidth(gtx, 0, SidebarWidth)
-
-		m := op.Record(gtx.Ops)
-		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		size := image.Pt(min(gtx.Dp(SidebarWidth), gtx.Constraints.Max.X), gtx.Constraints.Max.Y)
+		gtx.Constraints = layout.Exact(size)
+		FillRect(gtx, image.Rectangle{Max: size}, 0, t.palette.Sidebar)
+		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return SidebarHeader(gtx, shaper, t.palette)
+				return SidebarHeader(gtx, shaper, t, newChat)
 			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return list.Layout(gtx, len(chats), func(gtx layout.Context, index int) layout.Dimensions {
 					name := chats[index]
 					return ChatRow(gtx, shaper, t, name, name == current, rowClicks[name], deleteClicks[name])
 				})
 			}),
 		)
-		foreground := m.Stop()
-		FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, t.palette.Sidebar)
-		foreground.Add(gtx.Ops)
-		return dims
+		return layout.Dimensions{Size: size}
 	}
 }
 
-// SidebarHeader renders the "CONVERSATIONS" heading at the top of the sidebar.
-func SidebarHeader(gtx layout.Context, shaper *text.Shaper, p Palette) layout.Dimensions {
+// SidebarHeader renders the "CONVERSATIONS" heading with the new-chat
+// button at the top of the sidebar.
+func SidebarHeader(gtx layout.Context, shaper *text.Shaper, t themed, newChat *widget.Clickable) layout.Dimensions {
+	// Drain before Layout, like the rows.
+	for newChat.Clicked(gtx) {
+		mvu.MessageOp{Message: NewChat{}}.Add(gtx.Ops)
+	}
+
+	p := t.palette
 	label := widget.Label{Alignment: text.Start, MaxLines: 1, Truncator: "…"}
 	textMaterial := Material(gtx.Ops, p.Heading)
 
 	m := op.Record(gtx.Ops)
-	dims := layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(10), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx,
+	dims := layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(10), Left: unit.Dp(16), Right: unit.Dp(12)}.Layout(gtx,
 		func(gtx layout.Context) layout.Dimensions {
-			return label.Layout(gtx, shaper, style.Caption.Font, style.Caption.Size, "CONVERSATIONS", textMaterial)
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					dims := label.Layout(gtx, shaper, style.Caption.Font, style.Caption.Size, "CONVERSATIONS", textMaterial)
+					dims.Size.X = gtx.Constraints.Max.X
+					return dims
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					iconSize := gtx.Dp(AddIconSize)
+					gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
+					return newChat.Layout(gtx, t.add)
+				}),
+			)
 		},
 	)
 	foreground := m.Stop()
@@ -223,6 +318,54 @@ func SidebarHeader(gtx layout.Context, shaper *text.Shaper, p Palette) layout.Di
 	FillRect(gtx, sepRect, 0, p.Separator)
 	foreground.Add(gtx.Ops)
 	return dims
+}
+
+// UndoBar renders the transient bottom-centre undo affordance while a
+// delete's undo window is open. It is fully model-driven: the bar exists
+// exactly while model.Pending names a chat, and the reducer closes the
+// window (UndoDelete or the ConfirmDelete timer).
+func UndoBar(shaper *text.Shaper, t themed, pending PendingDelete, undo *widget.Clickable) layout.Widget {
+	if pending.Name == "" {
+		return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
+	}
+	p := t.palette
+	display := strings.TrimSuffix(pending.Name, filepath.Ext(pending.Name))
+	if len(display) > 0 {
+		display = strings.ToUpper(display[:1]) + display[1:]
+	}
+	msg := "Deleted “" + display + "”"
+
+	return func(gtx layout.Context) layout.Dimensions {
+		for undo.Clicked(gtx) {
+			mvu.MessageOp{Message: UndoDelete{}}.Add(gtx.Ops)
+		}
+		max := gtx.Constraints.Max
+		label := widget.Label{MaxLines: 1}
+
+		inner := gtx
+		inner.Constraints = layout.Constraints{Max: max}
+		m := op.Record(gtx.Ops)
+		dims := layout.UniformInset(12).Layout(inner, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return label.Layout(gtx, shaper, style.Subtitle2.Font, style.Subtitle2.Size, msg, Material(gtx.Ops, p.BotText))
+				}),
+				layout.Rigid(layout.Spacer{Width: 16}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return undo.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return label.Layout(gtx, shaper, style.Subtitle2.Font, style.Subtitle2.Size, "Undo", Material(gtx.Ops, p.Accent))
+					})
+				}),
+			)
+		})
+		content := m.Stop()
+
+		pos := image.Pt((max.X-dims.Size.X)/2, max.Y-dims.Size.Y-gtx.Dp(UndoBarMargin))
+		defer op.Offset(pos).Push(gtx.Ops).Pop()
+		FillRect(gtx, image.Rectangle{Max: dims.Size}, gtx.Dp(UndoBarRadius), p.RowSelected)
+		content.Add(gtx.Ops)
+		return layout.Dimensions{}
+	}
 }
 
 // ChatRow renders a single chat entry in the sidebar with hover and

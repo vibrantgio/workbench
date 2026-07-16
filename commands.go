@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"slices"
+	"time"
 
 	"github.com/reactivego/rx"
 	"github.com/vibrantgio/mvu"
@@ -128,6 +129,21 @@ func DeleteHist(filename string) mvu.Command {
 	return mvu.Do(func() (mvu.Message, error) {
 		return nil, os.Remove(filename)
 	})
+}
+
+// UndoWindow is how long a deleted chat can be brought back before its
+// history file is removed from disk.
+const UndoWindow = 5 * time.Second
+
+// ExpireDelete closes a delete's undo window: after the delay it asks the
+// reducer to finalise the pending delete. The generation guards against the
+// timer of a delete that was undone (or superseded) in the meantime.
+// rx.Timer (not time.Sleep) keeps the command cancellable, so quitting the
+// app mid-window does not block the runner's teardown.
+func ExpireDelete(gen int, after time.Duration) mvu.Command {
+	return mvu.Command{Observable: rx.Map(rx.Timer[int](after), func(int) any {
+		return ConfirmDelete{Gen: gen}
+	})}
 }
 
 func LoadChatList(directory string) mvu.Command {

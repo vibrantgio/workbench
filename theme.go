@@ -52,8 +52,12 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 
 // Static layout dimensions; these do not vary with the colour scheme.
 const (
-	ChatPaneWidth  unit.Dp = 794
-	SidebarWidth   unit.Dp = 260
-	AvatarSize     unit.Dp = 40
-	DeleteIconSize unit.Dp = 16
+	ChatPaneWidth    unit.Dp = 794
+	SidebarWidth     unit.Dp = 260
+	AvatarSize       unit.Dp = 40
+	DeleteIconSize   unit.Dp = 16
+	AddIconSize      unit.Dp = 18
+	SettingsIconSize unit.Dp = 22
+	UndoBarRadius    unit.Dp = 6
+	UndoBarMargin    unit.Dp = 24
 )
