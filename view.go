@@ -220,7 +220,9 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 
 	// nameCell mirrors the field text (the field is uncontrolled), reseeded
 	// on each open so an untouched field submits the unchanged name.
-	var nameCell atomic.Value
+	// fieldTagCell carries the current field instance's focus tag (new per
+	// epoch) into the modal's Tab cycle.
+	var nameCell, fieldTagCell atomic.Value
 	nameCell.Store("")
 
 	fieldObs := rx.SwitchMap(editObs, func(e renameTarget) rx.Observable[layout.Widget] {
@@ -229,6 +231,7 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 			Placeholder:   "Chat name",
 			Description:   "chat name",
 			Seed:          e.seed,
+			FocusTag:      func(tag event.Tag) { fieldTagCell.Store(tag) },
 			Shaper:        shaper,
 			Submit:        true,
 			SubmitMessage: func(text string) any { return RenameChat{To: text} },
@@ -287,10 +290,19 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 	}
 
 	modalObs := modal.Modal(th, modal.Props{
-		Open:            openObs,
-		Title:           "Rename chat",
-		Body:            body,
-		Actions:         []layout.Widget{action(&cancelCell), action(&submitCell)},
+		Open:    openObs,
+		Title:   "Rename chat",
+		Body:    body,
+		Actions: []layout.Widget{action(&cancelCell), action(&submitCell)},
+		// The field leads the Tab cycle — and, being first, receives focus
+		// when the modal opens, so typing starts immediately. Its tag is
+		// dynamic: each open rebuilds the field (new editor, new tag).
+		DynamicFocusTags: func() []event.Tag {
+			if tag, ok := fieldTagCell.Load().(event.Tag); ok && tag != nil {
+				return []event.Tag{tag}
+			}
+			return nil
+		},
 		ActionFocusTags: []event.Tag{&cancelClick, &submitClick},
 		HideClose:       true,
 		Shaper:          shaper,
@@ -338,7 +350,7 @@ func ChatPane(shaper *text.Shaper, t themed, chat []openai.ChatCompletionMessage
 
 		layout.Flex{Axis: layout.Vertical, Spacing: layout.SpaceBetween, Alignment: layout.Middle}.Layout(gtx,
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return list.LayoutScrollbar(gtx, hist, t.bar, list.Overlay, chat,
+				return list.LayoutScrollbar(gtx, hist, t.bar, list.Occupy, chat,
 					func(gtx layout.Context, msg openai.ChatCompletionMessage) layout.Dimensions {
 						return MessageRow(gtx, shaper, t, msg)
 					})

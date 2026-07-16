@@ -145,6 +145,48 @@ func TestUpdateDeleteChatOpensUndoWindow(t *testing.T) {
 	if next.Pending != want {
 		t.Fatalf("Pending = %+v, want %+v", next.Pending, want)
 	}
+	if len(next.Trash) != 1 || next.Trash[0] != want {
+		t.Fatalf("Trash = %+v, want the delete pushed onto the stack", next.Trash)
+	}
+}
+
+func TestUpdateUndoAfterBarHiddenStillRestores(t *testing.T) {
+	deleted, _ := Update(testModel(), DeleteChat{Name: "alpha.json"})
+	hidden, _ := Update(deleted, ConfirmDelete{Gen: 1}) // bar timer fired
+	if hidden.Pending.Name != "" {
+		t.Fatalf("Pending = %+v, want bar hidden", hidden.Pending)
+	}
+	if len(hidden.Trash) != 1 {
+		t.Fatalf("Trash = %+v, want delete still undoable after the bar hides", hidden.Trash)
+	}
+	restored, _ := Update(hidden, UndoDelete{})
+	if len(restored.ChatList) != 2 || restored.ChatList[0] != "alpha.json" {
+		t.Fatalf("ChatList = %v, want alpha.json restored", restored.ChatList)
+	}
+	if len(restored.Trash) != 0 {
+		t.Fatalf("Trash = %+v, want emptied", restored.Trash)
+	}
+}
+
+func TestUpdateUndoPopsStackMostRecentFirst(t *testing.T) {
+	m := testModel()
+	m, _ = Update(m, DeleteChat{Name: "beta.json"})
+	m, _ = Update(m, DeleteChat{Name: "alpha.json"})
+	if len(m.Trash) != 2 || len(m.ChatList) != 0 {
+		t.Fatalf("after two deletes: Trash=%+v ChatList=%v", m.Trash, m.ChatList)
+	}
+	m, _ = Update(m, UndoDelete{})
+	if len(m.ChatList) != 1 || m.ChatList[0] != "alpha.json" {
+		t.Fatalf("first undo restored %v, want the most recent (alpha.json)", m.ChatList)
+	}
+	m, _ = Update(m, UndoDelete{})
+	if len(m.ChatList) != 2 {
+		t.Fatalf("second undo: ChatList = %v, want both back", m.ChatList)
+	}
+	m, _ = Update(m, UndoDelete{})
+	if len(m.ChatList) != 2 {
+		t.Fatalf("undo on an empty stack must be a no-op")
+	}
 }
 
 func TestUpdateUndoRestoresChatAtItsIndex(t *testing.T) {
@@ -178,14 +220,17 @@ func TestUpdateStaleConfirmIsIgnored(t *testing.T) {
 	}
 }
 
-func TestUpdateSecondDeleteSupersedesPending(t *testing.T) {
+func TestUpdateSecondDeleteReplacesBarKeepsBothUndoable(t *testing.T) {
 	first, _ := Update(testModel(), DeleteChat{Name: "beta.json"})
 	second, _ := Update(first, DeleteChat{Name: "alpha.json"})
 	if second.Pending.Name != "alpha.json" || second.Pending.Gen != 2 {
-		t.Fatalf("Pending = %+v, want alpha.json at gen 2", second.Pending)
+		t.Fatalf("Pending = %+v, want the bar showing alpha.json at gen 2", second.Pending)
 	}
 	if len(second.ChatList) != 0 {
 		t.Fatalf("ChatList = %v, want empty", second.ChatList)
+	}
+	if len(second.Trash) != 2 {
+		t.Fatalf("Trash = %+v, want both deletes undoable", second.Trash)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"time"
 
@@ -123,11 +124,44 @@ func SaveHist(filename string, hist []openai.ChatCompletionMessage) mvu.Command 
 	})}
 }
 
-// DeleteHist removes a chat's history file from disk. It emits no message;
-// the model was already reduced when the command was issued.
-func DeleteHist(filename string) mvu.Command {
+// TrashHist moves a chat's history file into the trash directory, where it
+// stays undoable. It emits no message; the model was already reduced.
+func TrashHist(filename, trashname string) mvu.Command {
 	return mvu.Do(func() (mvu.Message, error) {
-		return nil, os.Remove(filename)
+		if err := os.MkdirAll(filepath.Dir(trashname), 0o755); err != nil {
+			return nil, err
+		}
+		return nil, os.Rename(filename, trashname)
+	})
+}
+
+// RestoreTrash moves every file left in the trash back into the chats
+// directory — deletes not undone before the previous quit reappear rather
+// than silently vanishing. Runs before LoadConfig at startup. A name that
+// meanwhile exists again keeps the live file; the trash copy is dropped.
+func RestoreTrash(trashdir, chatdir string) mvu.Command {
+	return mvu.Do(func() (mvu.Message, error) {
+		entries, err := os.ReadDir(trashdir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil, nil
+			}
+			return nil, err
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			target := filepath.Join(chatdir, entry.Name())
+			if _, err := os.Stat(target); err == nil {
+				_ = os.Remove(filepath.Join(trashdir, entry.Name()))
+				continue
+			}
+			if err := os.Rename(filepath.Join(trashdir, entry.Name()), target); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
 	})
 }
 
@@ -139,16 +173,15 @@ func RenameHist(oldname, newname string) mvu.Command {
 	})
 }
 
-// UndoWindow is how long a deleted chat can be brought back before its
-// history file is removed from disk. Generous on purpose: the undo bar is
-// easy to miss, and Cmd/Ctrl-Z works for the whole window.
+// UndoWindow is how long the undo bar stays visible. It is display-only:
+// Cmd/Ctrl-Z keeps working for the whole session (the file sits in the
+// trash), the bar just stops advertising it.
 const UndoWindow = 15 * time.Second
 
-// ExpireDelete closes a delete's undo window: after the delay it asks the
-// reducer to finalise the pending delete. The generation guards against the
-// timer of a delete that was undone (or superseded) in the meantime.
-// rx.Timer (not time.Sleep) keeps the command cancellable, so quitting the
-// app mid-window does not block the runner's teardown.
+// ExpireDelete hides a delete's undo bar after the delay. The generation
+// guards against the timer of a delete whose bar was replaced or dismissed
+// in the meantime. rx.Timer (not time.Sleep) keeps the command cancellable,
+// so quitting the app mid-window does not block the runner's teardown.
 func ExpireDelete(gen int, after time.Duration) mvu.Command {
 	return mvu.Command{Observable: rx.Map(rx.Timer[int](after), func(int) any {
 		return ConfirmDelete{Gen: gen}
@@ -162,6 +195,11 @@ func LoadChatList(directory string) mvu.Command {
 	return mvu.Command{Observable: rx.Map(chats, func(entries []fs.DirEntry) any {
 		var names ChatList
 		for _, entry := range entries {
+			// Skip directories — notably .trash, which holds undoable
+			// deletes, not live chats.
+			if entry.IsDir() {
+				continue
+			}
 			names = append(names, entry.Name())
 		}
 		return names

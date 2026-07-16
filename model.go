@@ -12,13 +12,17 @@ type Model struct {
 	CurrentChat Chat
 	ChatList    ChatList
 
-	// Pending is the chat whose delete is awaiting its undo window; the
-	// zero value means none. The history file stays on disk until
-	// ConfirmDelete finalises it.
+	// Pending is the delete currently advertised by the undo bar; the zero
+	// value means the bar is hidden. Its ConfirmDelete timer only HIDES the
+	// bar — the chat stays undoable via Trash for the whole session.
 	Pending PendingDelete
+	// Trash is the session's undo stack, most recent last. Deleted chats'
+	// history files live in ChatDir()/.trash until undone; leftovers are
+	// restored into the chat list on next startup.
+	Trash []PendingDelete
 	// DeleteGen counts deletes monotonically and never resets, so a stale
-	// ConfirmDelete timer from an undone delete can never finalise a later
-	// one that reused its slot.
+	// ConfirmDelete timer from an undone delete can never hide the bar of a
+	// later one that reused its slot.
 	DeleteGen int
 
 	// Rename is the chat whose rename modal is open; the zero value means
@@ -54,6 +58,26 @@ func (model Model) ChatDir() string {
 
 func (model Model) ChatFile(name string) string {
 	return filepath.Join(model.DataDir, "chats", name)
+}
+
+// TrashDir holds deleted chats' history files while they are undoable.
+func (model Model) TrashDir() string {
+	return filepath.Join(model.DataDir, "chats", ".trash")
+}
+
+func (model Model) TrashFile(name string) string {
+	return filepath.Join(model.DataDir, "chats", ".trash", name)
+}
+
+// TakenNames returns every chat name that must not be reused: listed chats
+// plus everything still undoable in the trash (restoring must never
+// collide).
+func (model Model) TakenNames() ChatList {
+	names := slices.Clone(model.ChatList)
+	for _, pending := range model.Trash {
+		names = append(names, pending.Name)
+	}
+	return names
 }
 
 // FreshChatName returns the first of new.json, new-2.json, new-3.json, …

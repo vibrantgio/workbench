@@ -30,7 +30,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			// Prompting with no chat selected (every chat was deleted)
 			// starts a fresh one, so the completion has a file to persist to.
 			if model.CurrentChat.Name == "" {
-				model.CurrentChat.Name = FreshChatName(append(slices.Clone(model.ChatList), model.Pending.Name))
+				model.CurrentChat.Name = FreshChatName(model.TakenNames())
 				model.ChatList = append(slices.Clone(model.ChatList), model.CurrentChat.Name)
 			}
 			model.CurrentChat.History = append(model.CurrentChat.History, openai.ChatCompletionMessage{
@@ -73,24 +73,23 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		return model, mvu.DoNothing()
 
 	case DeleteChat:
-		var commands []mvu.Command
-		// Only one undo window at a time: a second delete finalises the
-		// first immediately.
-		if model.Pending.Name != "" {
-			commands = append(commands, DeleteHist(model.ChatFile(model.Pending.Name)).Trace("Delete History"))
-			model.Pending = PendingDelete{}
-		}
 		index := slices.Index(model.ChatList, message.Name)
 		if index < 0 {
-			return model, mvu.DoConcurrent(commands...)
+			return model, mvu.DoNothing()
 		}
 		model.ChatList = slices.Delete(slices.Clone(model.ChatList), index, index+1)
 		wasCurrent := model.CurrentChat.Name == message.Name
-		// The delete is SOFT: the history file stays on disk until the
-		// undo window closes (ConfirmDelete), so UndoDelete can restore it.
+		// The history file moves to the trash, where it stays undoable for
+		// the whole session (Cmd/Ctrl-Z or the bar's Undo); the ExpireDelete
+		// timer only hides the bar.
 		model.DeleteGen++
-		model.Pending = PendingDelete{Name: message.Name, Index: index, WasCurrent: wasCurrent, Gen: model.DeleteGen}
-		commands = append(commands, ExpireDelete(model.DeleteGen, UndoWindow).Trace("Undo Window"))
+		pending := PendingDelete{Name: message.Name, Index: index, WasCurrent: wasCurrent, Gen: model.DeleteGen}
+		model.Pending = pending
+		model.Trash = append(slices.Clone(model.Trash), pending)
+		commands := []mvu.Command{
+			TrashHist(model.ChatFile(message.Name), model.TrashFile(message.Name)).Trace("Trash History"),
+			ExpireDelete(model.DeleteGen, UndoWindow).Trace("Undo Bar Timer"),
+		}
 		if wasCurrent {
 			// The current chat was deleted: fall back to the first
 			// remaining chat, or to the empty state when none are left.
@@ -110,34 +109,44 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		return model, mvu.DoConcurrent(commands...)
 
 	case UndoDelete:
-		if model.Pending.Name == "" {
+		// Pop the most recent delete off the session's trash stack — this
+		// works whether or not the undo bar is still showing it.
+		if len(model.Trash) == 0 {
 			return model, mvu.DoNothing()
 		}
-		pending := model.Pending
-		model.Pending = PendingDelete{}
+		trash := slices.Clone(model.Trash)
+		pending := trash[len(trash)-1]
+		model.Trash = trash[:len(trash)-1]
+		if model.Pending.Gen == pending.Gen {
+			model.Pending = PendingDelete{} // hide the bar for this delete
+		}
 		index := min(pending.Index, len(model.ChatList))
 		model.ChatList = slices.Insert(slices.Clone(model.ChatList), index, pending.Name)
+		restore := RenameHist(model.TrashFile(pending.Name), model.ChatFile(pending.Name)).Trace("Restore History")
 		if pending.WasCurrent {
 			model.CurrentChat.Name = pending.Name
 			model.CurrentChat.History = nil
-			return model, mvu.DoConcurrent(
-				LoadHist(model.ChatFile(pending.Name)).Trace("Load Restored History"),
-				SaveConfig(model.ConfigFile(), Config{LastChat: pending.Name}).Trace("Save Config"),
+			// Sequence: the history can only load AFTER the file is back.
+			return model, mvu.DoSequence(
+				restore,
+				mvu.DoConcurrent(
+					LoadHist(model.ChatFile(pending.Name)).Trace("Load Restored History"),
+					SaveConfig(model.ConfigFile(), Config{LastChat: pending.Name}).Trace("Save Config"),
+				),
 			)
+		}
+		return model, restore
+
+	case ConfirmDelete:
+		// The timer only hides the bar; the delete stays undoable. Ignore
+		// stale generations (the bar was replaced or already dismissed).
+		if model.Pending.Gen == message.Gen {
+			model.Pending = PendingDelete{}
 		}
 		return model, mvu.DoNothing()
 
-	case ConfirmDelete:
-		// Ignore stale timers: the pending delete was undone or superseded.
-		if model.Pending.Name == "" || model.Pending.Gen != message.Gen {
-			return model, mvu.DoNothing()
-		}
-		name := model.Pending.Name
-		model.Pending = PendingDelete{}
-		return model, DeleteHist(model.ChatFile(name)).Trace("Delete History")
-
 	case NewChat:
-		name := FreshChatName(append(slices.Clone(model.ChatList), model.Pending.Name))
+		name := FreshChatName(model.TakenNames())
 		model.ChatList = append(slices.Clone(model.ChatList), name)
 		model.CurrentChat = Chat{Name: name}
 		return model, mvu.DoConcurrent(
@@ -186,8 +195,9 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			model.Rename.Target = ""
 			return model, mvu.DoNothing()
 		}
-		if slices.Contains(model.ChatList, newName) || model.Pending.Name == newName {
-			// Name taken; the modal stays open for another attempt.
+		if slices.Contains(model.TakenNames(), newName) {
+			// Name taken (listed or still undoable in the trash); the modal
+			// stays open for another attempt.
 			return model, mvu.DoNothing()
 		}
 		list := slices.Clone(model.ChatList)

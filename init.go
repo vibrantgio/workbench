@@ -23,5 +23,10 @@ func Init() (Model, mvu.Command) {
 		os.Exit(1)
 	}
 	model := Model{DataDir: datadir, AuthToken: authtoken}
-	return model, LoadConfig(model.ConfigFile(), Config{LastChat: "monoid.json"}).Trace("Load Config")
+	return model, mvu.DoSequence(
+		// Deletes not undone before the previous quit come back first, so
+		// the chat list load sees them.
+		RestoreTrash(model.TrashDir(), model.ChatDir()).Trace("Restore Trash"),
+		LoadConfig(model.ConfigFile(), Config{LastChat: "monoid.json"}).Trace("Load Config"),
+	)
 }

@@ -19,8 +19,8 @@ github.com/sashabaranov/go-openai v1.41.2 h1:vfPRBZNMpnqu8ELsclWcAvF19lDNgh1t6TV
 github.com/sashabaranov/go-openai v1.41.2/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
 github.com/vibrantgio/backdrop v0.0.2 h1:kLFiP1vado4XXekzlMWU68EYspsfr/I6gB3qg9rf9fc=
 github.com/vibrantgio/backdrop v0.0.2/go.mod h1:vppNsSYdv1+VbFilK4pUz/m2ntMgy7y+Bpzyt7I6TIU=
-github.com/vibrantgio/cadence v0.0.5 h1:cjQghT7Zi2iTewAGb7OULxupkI/gfPrWq9/MgxNS8Mo=
-github.com/vibrantgio/cadence v0.0.5/go.mod h1:9tTOG2P379+VqAL+8knUHccs6VKLE8WEVo6EvJBBEp0=
+github.com/vibrantgio/cadence v0.0.6 h1:KZYfLH9Wwksi+S+Gx3Ic9T2YvyK3ECfchwiGFjMvJYM=
+github.com/vibrantgio/cadence v0.0.6/go.mod h1:9tTOG2P379+VqAL+8knUHccs6VKLE8WEVo6EvJBBEp0=
 github.com/vibrantgio/font v0.0.3 h1:r4ZA9ztyix+Bt5/hEMws5Z1T2G5DYWOSqFBLxd9cD0M=
 github.com/vibrantgio/font v0.0.3/go.mod h1:iEdTTht8akBBAiO8VeIbegbvNImcWSigy/JuL2SobBA=
 github.com/vibrantgio/ivg v0.1.4 h1:61IX9sPxIiDxlXaGWGlE1g/9rcUbMvpAwaDegPlO8KI=
@@ -29,8 +29,8 @@ github.com/vibrantgio/ivg/raster/gio v0.1.5 h1:DWbPRYzPtYlItcQw7B4noqUepgvcyUIIs
 github.com/vibrantgio/ivg/raster/gio v0.1.5/go.mod h1:YdIdqkd2IcXzGaDFWHiCGS3pPmj0d6OHYgKeK4BZJM0=
 github.com/vibrantgio/mvu v0.3.0 h1:/1wWT9CpeFfuOd1OBPGbxOMnDJU6CWwu5kuTxo0Y1z8=
 github.com/vibrantgio/mvu v0.3.0/go.mod h1:nLlxOgAjwE6voEBAAzmqZWZqn76ZTLY+0znhR0hjSDk=
-github.com/vibrantgio/prism v0.0.6 h1:a1YIw/WXMfdO2YXrlJ/O44VqZL/3R4M9+HFaE08mQIY=
-github.com/vibrantgio/prism v0.0.6/go.mod h1:u3cMaOjfTPV8vWuuhRYE/iU6sozQoIzOOCpfgo5c+ZI=
+github.com/vibrantgio/prism v0.0.7 h1:bKd8xlcr8d9T1VREKxi+fuhbv3I3dE0EO43Qw9TiM0M=
+github.com/vibrantgio/prism v0.0.7/go.mod h1:u3cMaOjfTPV8vWuuhRYE/iU6sozQoIzOOCpfgo5c+ZI=
 github.com/vibrantgio/spectrum v0.0.3 h1:vfD5n3tdcsRvti5yRXdunt55KOeX6U3gQdO8ztq4rtg=
 github.com/vibrantgio/spectrum v0.0.3/go.mod h1:9ol++v4QAO0e57Qr8x1260rytf2e5rRuZ7depY50vCg=
 github.com/vibrantgio/style v0.0.3 h1:s0J5Ce5wCWKEIXdoP0/C3rialOnzLw0oucl8OpQIz2A=

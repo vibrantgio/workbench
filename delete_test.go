@@ -12,9 +12,8 @@ import (
 )
 
 // TestDeleteChatRemovesFileThroughLoop drives the real mvu.Loop: DeleteChat
-// opens the undo window (the file survives), and ConfirmDelete's DeleteHist
-// command must run and remove the chat's history file from disk. The
-// ConfirmDelete is sent explicitly rather than waiting out the 5s timer.
+// must move the chat's history file into the trash directory (undoable for
+// the whole session), and UndoDelete must move it back.
 func TestDeleteChatRemovesFileThroughLoop(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "chats"), 0o755); err != nil {
@@ -38,18 +37,34 @@ func TestDeleteChatRemovesFileThroughLoop(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	in <- DeleteChat{Name: "alpha.json"}
-	// The delete is soft while the undo window is open; the seed's
-	// DeleteGen is 0, so this delete is generation 1.
-	in <- ConfirmDelete{Gen: 1}
 
+	trashed := filepath.Join(dir, "chats", ".trash", "alpha.json")
 	deadline := time.Now().Add(2 * time.Second)
+	moved := false
 	for time.Now().Before(deadline) {
-		if _, err := os.Stat(file); os.IsNotExist(err) {
+		_, liveErr := os.Stat(file)
+		_, trashErr := os.Stat(trashed)
+		if os.IsNotExist(liveErr) && trashErr == nil {
+			moved = true
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !moved {
+		t.Fatalf("chat file was not moved to the trash after DeleteChat")
+	}
+
+	// Undo brings it back.
+	in <- UndoDelete{}
+	for time.Now().Before(deadline.Add(2 * time.Second)) {
+		_, liveErr := os.Stat(file)
+		_, trashErr := os.Stat(trashed)
+		if liveErr == nil && os.IsNotExist(trashErr) {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("chat file %s still exists after DeleteChat", file)
+	t.Fatalf("chat file was not restored from the trash after UndoDelete")
 }
 
 // TestRenameChatMovesFileThroughLoop drives the real mvu.Loop: OpenRename +
