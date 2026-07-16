@@ -28,6 +28,8 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
+	"github.com/vibrantgio/prism/list"
+	"github.com/vibrantgio/prism/scrollbar"
 	"github.com/vibrantgio/prism/theme"
 	"github.com/vibrantgio/prism/tokens"
 	"github.com/vibrantgio/style"
@@ -51,6 +53,7 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 // discard their rasterisation cache).
 type themed struct {
 	palette Palette
+	bar     scrollbar.Style
 	avatar  layout.Widget
 	remove  layout.Widget
 	edit    layout.Widget
@@ -68,8 +71,8 @@ type themed struct {
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	shaper := text.NewShaper(text.WithCollection(style.FontFaces()))
 
-	histList := &layout.List{Axis: layout.Vertical, ScrollToEnd: true, Alignment: layout.Start}
-	chatList := &layout.List{Axis: layout.Vertical, Alignment: layout.Start}
+	histList := list.NewState()
+	chatList := list.NewState()
 	rowClicks := map[string]*widget.Clickable{}
 	deleteClicks := map[string]*widget.Clickable{}
 	renameClicks := map[string]*widget.Clickable{}
@@ -105,7 +108,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if err != nil {
 				panic(err)
 			}
-			return themed{palette: p, avatar: avatar, remove: remove, edit: edit, add: add, gear: gear}
+			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear}
 		})
 	})
 
@@ -307,15 +310,16 @@ func Brand(gtx layout.Context, shaper *text.Shaper, t themed, settings *widget.C
 }
 
 // ChatPane stacks the scrolling message history above the prompt field.
-func ChatPane(shaper *text.Shaper, t themed, chat []openai.ChatCompletionMessage, list *layout.List, prompt layout.Widget) layout.Widget {
+func ChatPane(shaper *text.Shaper, t themed, chat []openai.ChatCompletionMessage, hist *list.State, prompt layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = ClampWidth(gtx, 0, ChatPaneWidth)
 
 		layout.Flex{Axis: layout.Vertical, Spacing: layout.SpaceBetween, Alignment: layout.Middle}.Layout(gtx,
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return list.Layout(gtx, len(chat), func(gtx layout.Context, index int) layout.Dimensions {
-					return MessageRow(gtx, shaper, t, chat[index])
-				})
+				return list.LayoutScrollbar(gtx, hist, t.bar, list.Overlay, chat,
+					func(gtx layout.Context, msg openai.ChatCompletionMessage) layout.Dimensions {
+						return MessageRow(gtx, shaper, t, msg)
+					})
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.UniformInset(8).Layout(gtx, prompt)
@@ -369,7 +373,7 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg openai.Ch
 
 // Sidebar renders the conversation list as the shell's full-height leading
 // column: surface fill, a header with the new-chat button, and the rows.
-func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list *layout.List, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat *widget.Clickable) layout.Widget {
+func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat *widget.Clickable) layout.Widget {
 	// Ensure every chat has persistent Clickables for hover/click state.
 	for _, name := range chats {
 		if _, ok := rowClicks[name]; !ok {
@@ -392,10 +396,10 @@ func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list
 				return SidebarHeader(gtx, shaper, t, newChat)
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return list.Layout(gtx, len(chats), func(gtx layout.Context, index int) layout.Dimensions {
-					name := chats[index]
-					return ChatRow(gtx, shaper, t, name, name == current, rowClicks[name], renameClicks[name], deleteClicks[name])
-				})
+				return list.LayoutScrollbar(gtx, rows, t.bar, list.Overlay, chats,
+					func(gtx layout.Context, name string) layout.Dimensions {
+						return ChatRow(gtx, shaper, t, name, name == current, rowClicks[name], renameClicks[name], deleteClicks[name])
+					})
 			}),
 		)
 		return layout.Dimensions{Size: size}
