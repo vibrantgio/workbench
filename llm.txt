@@ -190,6 +190,7 @@ published as IconVG data in golang.org/x/exp/shiny/materialdesign/icons
 Names are Category+Name: ActionSettings, AVPlayArrow, AVStop, AVPause,
 AVFiberManualRecord, ContentAddCircle, ContentClear, NavigationClose, ...
 Colour the glyph from the palette (theme tokens), never a hard-coded colour.
+Run `go run ./iconbrowser/` (in this repo) to search the full set visually.
 
 An icon that may be replaced later beats no icon: use these freely; a future
 vibrantgio-owned set would register into prism/icon (an empty name→icon
@@ -240,6 +241,9 @@ Add pulse/backdrop/seen/traer as needed. All repos are public on GitHub.
   todos/      START HERE: the minimal complete app (~700 lines) — the
               canonical bootstrap, pure testable reducers (redux_test.go),
               prism button/checkbox/list, a modal dialog, live light/dark
+  iconbrowser/ searchable Material-icon grid — prism TextField with
+              per-keystroke MessageOp updates, subscription-scoped scroll
+              and editor state, ivg icon rendering at scale
   watchlist/  full CRUD + persistence + context menus + popover confirms;
               wiring_test.go shows how to test the AutoConnect count
   feeds/      table-heavy app: sort/filter/pagination, tabs, split pane,

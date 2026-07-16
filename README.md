@@ -41,6 +41,10 @@ meant to be built — MVU state, spectrum theming, cadence patterns:
   (~700 lines). One window, one Model, pure reducers, prism components,
   live OS light/dark theming — the smallest complete demonstration of the
   bootstrap every other app follows.
+- **[`iconbrowser/`](./iconbrowser)** — a searchable catalogue of the 961
+  Material Design icons the apps draw from: type to filter the scrolling
+  grid live, every glyph captioned with the name to import. Also the
+  reference for prism `TextField` + per-keystroke MVU updates.
 - **[`sitedocs/`](./sitedocs)** — a documentation & marketing site app:
   application shell, hero/feature/pricing/testimonial sections,
   accordion-grouped sidebar navigation, breadcrumbs, light/dark theming.
