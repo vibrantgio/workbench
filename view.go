@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
+	"gioui.org/io/event"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -215,13 +216,10 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 
 	fieldObs := rx.SwitchMap(editObs, func(e renameTarget) rx.Observable[layout.Widget] {
 		nameCell.Store(e.seed)
-		placeholder := e.seed
-		if placeholder == "" {
-			placeholder = "Chat name"
-		}
 		return input.TextField(th, input.TextFieldProps{
-			Placeholder:   placeholder,
+			Placeholder:   "Chat name",
 			Description:   "chat name",
+			Seed:          e.seed,
 			Shaper:        shaper,
 			Submit:        true,
 			SubmitMessage: func(text string) any { return RenameChat{To: text} },
@@ -229,7 +227,18 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 		})
 	})
 
-	var submitClick widget.Clickable
+	// Footer actions: an explicit Cancel (which is why the modal's close
+	// button is hidden) and Rename. Their clickables join the Tab cycle via
+	// ActionFocusTags.
+	var cancelClick, submitClick widget.Clickable
+	cancelObs := button.Button(th, button.Props{
+		Label:     "Cancel",
+		Clickable: &cancelClick,
+		Shaper:    shaper,
+		OnClick: func(gtx layout.Context) {
+			mvu.MessageOp{Message: CloseRename{}}.Add(gtx.Ops)
+		},
+	})
 	submitObs := button.Button(th, button.Props{
 		Label:     "Rename",
 		Clickable: &submitClick,
@@ -241,9 +250,10 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 		},
 	})
 
-	// The modal body is a static slot; the live field/button widgets reach
-	// it through cells (the observable-over-static-slot hand-off).
-	var fieldCell, submitCell atomic.Value
+	// The modal body and actions are static slots; the live field/button
+	// widgets reach them through cells (the observable-over-static-slot
+	// hand-off).
+	var fieldCell, cancelCell, submitCell atomic.Value
 	slot := func(cell *atomic.Value) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
 			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
@@ -253,26 +263,28 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 		}
 	}
 	body := func(gtx layout.Context) layout.Dimensions {
-		w := gtx.Constraints.Max.X
-		gap := gtx.Dp(12)
-		fieldH := gtx.Dp(RenameFieldHeight)
-		btnH := gtx.Dp(RenameButtonHeight)
-		place := func(cell *atomic.Value, y, h int) {
-			defer op.Offset(image.Pt(0, y)).Push(gtx.Ops).Pop()
-			cg := gtx
-			cg.Constraints = layout.Exact(image.Pt(w, h))
-			slot(cell)(cg)
+		cg := gtx
+		cg.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, gtx.Dp(RenameFieldHeight)))
+		slot(&fieldCell)(cg)
+		return layout.Dimensions{Size: cg.Constraints.Max}
+	}
+	// prism text buttons fill their available width, so each footer action
+	// gets a fixed-size box.
+	action := func(cell *atomic.Value) layout.Widget {
+		return func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(RenameButtonWidth), gtx.Dp(RenameButtonHeight)))
+			return slot(cell)(gtx)
 		}
-		place(&fieldCell, 0, fieldH)
-		place(&submitCell, fieldH+gap, btnH)
-		return layout.Dimensions{Size: image.Pt(w, fieldH+gap+btnH)}
 	}
 
 	modalObs := modal.Modal(th, modal.Props{
-		Open:   openObs,
-		Title:  "Rename chat",
-		Body:   body,
-		Shaper: shaper,
+		Open:            openObs,
+		Title:           "Rename chat",
+		Body:            body,
+		Actions:         []layout.Widget{action(&cancelCell), action(&submitCell)},
+		ActionFocusTags: []event.Tag{&cancelClick, &submitClick},
+		HideClose:       true,
+		Shaper:          shaper,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseRename{}}.Add(gtx.Ops)
 		},
@@ -280,10 +292,11 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 
 	// Fold the live field/button streams onto the modal stream so their
 	// emissions repaint it.
-	return rx.Map(rx.CombineLatest3(modalObs, fieldObs, submitObs),
-		func(next rx.Tuple3[layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
+	return rx.Map(rx.CombineLatest4(modalObs, fieldObs, cancelObs, submitObs),
+		func(next rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 			fieldCell.Store(next.Second)
-			submitCell.Store(next.Third)
+			cancelCell.Store(next.Third)
+			submitCell.Store(next.Fourth)
 			return next.First
 		})
 }

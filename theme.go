@@ -62,5 +62,6 @@ const (
 	UndoBarMargin    unit.Dp = 24
 
 	RenameFieldHeight  unit.Dp = 48
-	RenameButtonHeight unit.Dp = 48
+	RenameButtonHeight unit.Dp = 44
+	RenameButtonWidth  unit.Dp = 100
 )
