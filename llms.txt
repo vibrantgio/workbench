@@ -15,8 +15,9 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
 
   mvu       v0.3.0   MVU runtime: NewWindow, Loop/Run, Message/Command,
                      MessageOp
-  prism     v0.0.4   components: button, input, list, icon, layout, theme,
-                     tokens, a11y, initial, keyed, coordination, cache, bench
+  prism     v0.0.5   components: button, input, list, scrollbar, icon, layout,
+                     theme, tokens, a11y, initial, keyed, coordination, cache,
+                     bench
   spectrum  v0.0.3   theme runtime: system (LiveTheme), window, preferences,
                      transition
   pulse     v0.0.3   effects: tween, spring, springbutton, glow, depth,
@@ -175,7 +176,9 @@ layer and a content layer built from a cadence/shell:
 Every component takes the theme observable for visual configuration and
 props structs for content. Prism theme/tokens supply the typed design values
 (Tailwind-aligned: 4-pt spacing scale, 50-950 colour shades); never use
-string-keyed style maps.
+string-keyed style maps. prism/list can render a visible scrollbar via
+list.LayoutScrollbar (anchor Occupy reserves a right gutter, Overlay floats
+the bar over the trailing edge; default style from scrollbar.FromTokens).
 
 Pulse components are explicit VARIANTS of prism components, e.g.
 pulse/springbutton wraps prism/button with physics-driven press/release —
@@ -240,7 +243,7 @@ coded clip paths on purpose (golden determinism); leave those alone.
       github.com/reactivego/rx v0.2.2
       github.com/vibrantgio/cadence v0.0.3
       github.com/vibrantgio/mvu v0.3.0
-      github.com/vibrantgio/prism v0.0.4
+      github.com/vibrantgio/prism v0.0.5
       github.com/vibrantgio/spectrum v0.0.3
   )
 
