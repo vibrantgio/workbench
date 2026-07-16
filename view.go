@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/exp/shiny/materialdesign/icons"
+
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -39,11 +41,13 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 	}
 }
 
-// themed pairs one theme emission's palette with the assistant avatar
-// prebuilt in that theme's glyph colour.
+// themed pairs one theme emission's palette with the icon widgets prebuilt
+// in that theme's glyph colours (rebuilding raster widgets per frame would
+// discard their rasterisation cache).
 type themed struct {
 	palette Palette
 	avatar  layout.Widget
+	remove  layout.Widget
 }
 
 // ContentLayer renders the page: the chat pane with the prompt field, and
@@ -58,7 +62,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 
 	histList := &layout.List{Axis: layout.Vertical, ScrollToEnd: true, Alignment: layout.Start}
 	chatList := &layout.List{Axis: layout.Vertical, Alignment: layout.Start}
-	clickables := map[string]*widget.Clickable{}
+	rowClicks := map[string]*widget.Clickable{}
+	deleteClicks := map[string]*widget.Clickable{}
 
 	prompt := input.TextField(th, input.TextFieldProps{
 		Placeholder:   "Send a message",
@@ -75,21 +80,25 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if err != nil {
 				panic(err)
 			}
-			return themed{palette: p, avatar: avatar}
+			remove, err := raster.Widget(icons.ContentClear, DeleteIconSize, DeleteIconSize, raster.WithColors(p.Row))
+			if err != nil {
+				panic(err)
+			}
+			return themed{palette: p, avatar: avatar, remove: remove}
 		})
 	})
 
 	return rx.Map(rx.CombineLatest3(themes, prompt, modelObs),
 		func(next rx.Tuple3[themed, layout.Widget, Model]) layout.Widget {
-			return Page(shaper, next.First, next.Second, next.Third, histList, chatList, clickables)
+			return Page(shaper, next.First, next.Second, next.Third, histList, chatList, rowClicks, deleteClicks)
 		})
 }
 
 // Page overlays the conversation sidebar on the chat pane for one
 // (theme, model) pair.
-func Page(shaper *text.Shaper, t themed, prompt layout.Widget, model Model, histList, chatList *layout.List, clickables map[string]*widget.Clickable) layout.Widget {
+func Page(shaper *text.Shaper, t themed, prompt layout.Widget, model Model, histList, chatList *layout.List, rowClicks, deleteClicks map[string]*widget.Clickable) layout.Widget {
 	hist := ChatPane(shaper, t, model.CurrentChat.History, histList, prompt)
-	sidebar := Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, chatList, clickables)
+	sidebar := Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, chatList, rowClicks, deleteClicks)
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		layout.N.Layout(gtx, hist)
@@ -160,11 +169,14 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg openai.Ch
 }
 
 // Sidebar renders the conversation list over its surface fill.
-func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list *layout.List, clickables map[string]*widget.Clickable) layout.Widget {
-	// Ensure every chat has a persistent Clickable for hover/click state.
+func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list *layout.List, rowClicks, deleteClicks map[string]*widget.Clickable) layout.Widget {
+	// Ensure every chat has persistent Clickables for hover/click state.
 	for _, name := range chats {
-		if _, ok := clickables[name]; !ok {
-			clickables[name] = new(widget.Clickable)
+		if _, ok := rowClicks[name]; !ok {
+			rowClicks[name] = new(widget.Clickable)
+		}
+		if _, ok := deleteClicks[name]; !ok {
+			deleteClicks[name] = new(widget.Clickable)
 		}
 	}
 
@@ -179,7 +191,7 @@ func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, list
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return list.Layout(gtx, len(chats), func(gtx layout.Context, index int) layout.Dimensions {
 					name := chats[index]
-					return ChatRow(gtx, shaper, t.palette, name, name == current, clickables[name])
+					return ChatRow(gtx, shaper, t, name, name == current, rowClicks[name], deleteClicks[name])
 				})
 			}),
 		)
@@ -214,12 +226,23 @@ func SidebarHeader(gtx layout.Context, shaper *text.Shaper, p Palette) layout.Di
 }
 
 // ChatRow renders a single chat entry in the sidebar with hover and
-// selection states.
-func ChatRow(gtx layout.Context, shaper *text.Shaper, p Palette, name string, selected bool, clickable *widget.Clickable) layout.Dimensions {
+// selection states, and a delete icon revealed while the row is active.
+func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, selected bool, row, del *widget.Clickable) layout.Dimensions {
+	p := t.palette
+
 	// Drain pending clicks before Layout — Layout's internal update loop
 	// consumes click events and discards them, so Clicked must run first.
-	for clickable.Clicked(gtx) {
-		mvu.MessageOp{Message: SelectChat{Name: name}}.Add(gtx.Ops)
+	// The delete icon sits on top of the row, so a delete click suppresses
+	// any row-select click registered on the same press.
+	deleted := false
+	for del.Clicked(gtx) {
+		deleted = true
+		mvu.MessageOp{Message: DeleteChat{Name: name}}.Add(gtx.Ops)
+	}
+	for row.Clicked(gtx) {
+		if !deleted {
+			mvu.MessageOp{Message: SelectChat{Name: name}}.Add(gtx.Ops)
+		}
 	}
 
 	displayName := strings.TrimSuffix(name, filepath.Ext(name))
@@ -228,13 +251,16 @@ func ChatRow(gtx layout.Context, shaper *text.Shaper, p Palette, name string, se
 		displayName = strings.ToUpper(displayName[:1]) + displayName[1:]
 	}
 
+	// The icon's input area occludes the row's, so hovering the icon must
+	// still count as hovering the row (else the icon would flicker away).
+	hovered := row.Hovered() || del.Hovered()
 	var bgColor color.NRGBA
 	var textColor color.NRGBA
 	switch {
 	case selected:
 		bgColor = p.RowSelected
 		textColor = p.RowActive
-	case clickable.Hovered():
+	case hovered:
 		bgColor = p.RowHovered
 		textColor = p.RowActive
 	default:
@@ -244,13 +270,32 @@ func ChatRow(gtx layout.Context, shaper *text.Shaper, p Palette, name string, se
 
 	label := widget.Label{Alignment: text.Start, MaxLines: 1, Truncator: "…"}
 
-	return clickable.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return row.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		textMaterial := Material(gtx.Ops, textColor)
 
 		m := op.Record(gtx.Ops)
 		dims := layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(20), Right: unit.Dp(12)}.Layout(gtx,
 			func(gtx layout.Context) layout.Dimensions {
-				return label.Layout(gtx, shaper, style.Subtitle2.Font, style.Subtitle2.Size, displayName, textMaterial)
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						dims := label.Layout(gtx, shaper, style.Subtitle2.Font, style.Subtitle2.Size, displayName, textMaterial)
+						// Claim the full flex share so the icon sits at
+						// the row's right edge, not after the text.
+						dims.Size.X = gtx.Constraints.Max.X
+						return dims
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						// The slot is always reserved so revealing the
+						// icon never shifts the layout; the glyph and its
+						// click area exist only while the row is active.
+						iconSize := gtx.Dp(DeleteIconSize)
+						gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
+						if selected || hovered {
+							return del.Layout(gtx, t.remove)
+						}
+						return layout.Dimensions{Size: gtx.Constraints.Max}
+					}),
+				)
 			},
 		)
 		foreground := m.Stop()

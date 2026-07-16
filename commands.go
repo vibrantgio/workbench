@@ -122,6 +122,14 @@ func SaveHist(filename string, hist []openai.ChatCompletionMessage) mvu.Command 
 	})}
 }
 
+// DeleteHist removes a chat's history file from disk. It emits no message;
+// the model was already reduced when the command was issued.
+func DeleteHist(filename string) mvu.Command {
+	return mvu.Do(func() (mvu.Message, error) {
+		return nil, os.Remove(filename)
+	})
+}
+
 func LoadChatList(directory string) mvu.Command {
 	chats := rx.Scan(Directory(directory), []fs.DirEntry(nil), func(acc []fs.DirEntry, entry fs.DirEntry) []fs.DirEntry {
 		return append(acc, entry)

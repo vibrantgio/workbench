@@ -88,6 +88,57 @@ func TestUpdateStreamDeltasOpenThenAppend(t *testing.T) {
 	}
 }
 
+func TestUpdateDeleteChatKeepsCurrentWhenOtherDeleted(t *testing.T) {
+	next, _ := Update(testModel(), DeleteChat{Name: "beta.json"})
+	if len(next.ChatList) != 1 || next.ChatList[0] != "alpha.json" {
+		t.Fatalf("ChatList = %v, want [alpha.json]", next.ChatList)
+	}
+	if next.CurrentChat.Name != "alpha.json" || len(next.CurrentChat.History) != 1 {
+		t.Fatalf("current chat changed: %+v", next.CurrentChat)
+	}
+}
+
+func TestUpdateDeleteCurrentChatSelectsFirstRemaining(t *testing.T) {
+	next, _ := Update(testModel(), DeleteChat{Name: "alpha.json"})
+	if next.CurrentChat.Name != "beta.json" {
+		t.Fatalf("CurrentChat.Name = %q, want %q", next.CurrentChat.Name, "beta.json")
+	}
+	if next.CurrentChat.History != nil {
+		t.Fatalf("History = %v, want nil (cleared while the fallback chat loads)", next.CurrentChat.History)
+	}
+	if len(next.ChatList) != 1 || next.ChatList[0] != "beta.json" {
+		t.Fatalf("ChatList = %v, want [beta.json]", next.ChatList)
+	}
+}
+
+func TestUpdateDeleteLastChatClearsCurrent(t *testing.T) {
+	model := testModel()
+	model.ChatList = ChatList{"alpha.json"}
+	next, _ := Update(model, DeleteChat{Name: "alpha.json"})
+	if next.CurrentChat.Name != "" || next.CurrentChat.History != nil {
+		t.Fatalf("current chat not cleared: %+v", next.CurrentChat)
+	}
+	if len(next.ChatList) != 0 {
+		t.Fatalf("ChatList = %v, want empty", next.ChatList)
+	}
+}
+
+func TestUpdatePromptWithNoChatStartsFreshOne(t *testing.T) {
+	model := testModel()
+	model.CurrentChat = Chat{}
+	model.ChatList = nil
+	next, _ := Update(model, Prompt{Content: "hello"})
+	if next.CurrentChat.Name != "new.json" {
+		t.Fatalf("CurrentChat.Name = %q, want %q", next.CurrentChat.Name, "new.json")
+	}
+	if len(next.ChatList) != 1 || next.ChatList[0] != "new.json" {
+		t.Fatalf("ChatList = %v, want [new.json]", next.ChatList)
+	}
+	if len(next.CurrentChat.History) != 1 {
+		t.Fatalf("History = %v, want the prompt appended", next.CurrentChat.History)
+	}
+}
+
 func TestUpdateChatListReplacesList(t *testing.T) {
 	next, _ := Update(testModel(), ChatList{"gamma.json"})
 	if len(next.ChatList) != 1 || next.ChatList[0] != "gamma.json" {

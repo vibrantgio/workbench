@@ -18,6 +18,10 @@ type SelectChat struct {
 	Name string
 }
 
+type DeleteChat struct {
+	Name string
+}
+
 type Chat struct {
 	Name    string
 	History []openai.ChatCompletionMessage
