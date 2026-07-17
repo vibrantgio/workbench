@@ -236,6 +236,11 @@ coded clip paths on purpose (golden determinism); leave those alone.
   clamped helpers (an unclamped huge radius floods the canvas in Gio clips).
 - spectrum/system.LiveTheme polls the OS; 1s is the intended default. Do not
   poll faster than needed.
+- gio input areas OCCLUDE pointer events by default. A window-wide
+  event.Op area registered only for KEY events (a global shortcut) must be
+  wrapped in pointer.PassOp and laid out first, under the content —
+  otherwise every click in the app dies and the UI looks frozen (this
+  locked up mindchat at startup).
 - seen is a multi-module repo: require both github.com/vibrantgio/seen and
   github.com/vibrantgio/seen/context/gio at the same tag when using the Gio
   context.
