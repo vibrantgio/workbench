@@ -18,7 +18,7 @@ import (
 	seencolor "github.com/vibrantgio/seen/color"
 	seengio "github.com/vibrantgio/seen/context/gio"
 	"github.com/vibrantgio/seen/face"
-	"github.com/vibrantgio/seen/layer/bsort"
+	"github.com/vibrantgio/seen/layer/nsort"
 	"github.com/vibrantgio/seen/quaternion"
 	"github.com/vibrantgio/seen/shape"
 	"github.com/vibrantgio/seen/viewport"
@@ -189,11 +189,12 @@ func (f *Field) fit(w, h float64) {
 	f.recolor()
 
 	f.scene.Group.Children = []seen.Node{p}
-	// Fresh layer so the previous patch's cached fragments don't linger. The
-	// no-split BSP mode: a height field cannot occlude cyclically, and the
-	// splitting mode cuts nearly every noise-displaced face (the cut edges
-	// render as crawling antialiasing seams across the fills).
-	f.ctx.SetLayers(bsort.NewNoSplitLayerForScene(f.scene))
+	// Fresh layer so the previous patch's cached fragments don't linger.
+	// nsort: view-dependent painter's order, exact for the current eye, and
+	// it never cuts a polygon unless an occlusion cycle is actually on
+	// screen — a height field has none, so the field renders seam-free at
+	// plain depth-sort cost every frame.
+	f.ctx.SetLayers(nsort.NewLayerForScene(f.scene))
 }
 
 // recolor fills every face from the fixed hue field evaluated at the face's
