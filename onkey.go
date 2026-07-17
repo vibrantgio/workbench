@@ -5,6 +5,7 @@ import (
 
 	"gioui.org/io/event"
 	"gioui.org/io/key"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 )
@@ -19,6 +20,11 @@ func OnShortcutKey(name key.Name, cb func(gtx layout.Context)) layout.Widget {
 	tag := new(int)
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
+		// The window-wide area exists only to receive KEY events; PassOp
+		// keeps it transparent to pointer input. Without it, gio input
+		// areas OCCLUDE pointer events by default — laid out over the
+		// content, this area would swallow every click in the app.
+		defer pointer.PassOp{}.Push(gtx.Ops).Pop()
 		defer clip.Rect(image.Rectangle{Max: size}).Push(gtx.Ops).Pop()
 		event.Op(gtx.Ops, tag)
 		for {

@@ -181,8 +181,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		func(next rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
 			shellW, modalW := next.First, next.Second
 			return func(gtx layout.Context) layout.Dimensions {
-				dims := shellW(gtx)
+				// Key area first, at the BOTTOM of the hit stack (the
+				// todos convention) — it must never sit over the content.
 				undoShortcut(gtx)
+				dims := shellW(gtx)
 				if w, ok := undoCell.Load().(layout.Widget); ok && w != nil {
 					w(gtx)
 				}
