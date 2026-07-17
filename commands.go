@@ -49,7 +49,10 @@ func SaveConfig(filename string, config Config) mvu.Command {
 	})}
 }
 
-func RequestChatCompletion(authToken string, hist []openai.ChatCompletionMessage) mvu.Command {
+// RequestChatCompletion streams a completion for the given history. Every
+// chunk is tagged with the stream id so the reducer can route it to the
+// chat that asked, whatever is current when it arrives.
+func RequestChatCompletion(id int, authToken string, hist []openai.ChatCompletionMessage) mvu.Command {
 	messages := slices.Clone(hist)
 	return mvu.Command{Observable: rx.Defer(func() rx.Observable[any] {
 		ctx := context.Background()
@@ -75,19 +78,21 @@ func RequestChatCompletion(authToken string, hist []openai.ChatCompletionMessage
 			return rx.Throw[any](err)
 		}
 		return rx.Create(func(index int) (Next any, Err error, Done bool) {
-			Next, Err = stream.Recv()
-			if Err != nil {
-				if errors.Is(Err, io.EOF) {
-					Err = nil
+			response, err := stream.Recv()
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					err = nil
 				}
-				Done = true
+				return nil, err, true
 			}
-			return
+			return CompletionDelta{Stream: id, Response: response}, nil, false
 		})
 	})}
 }
 
-func LoadHist(filename string) mvu.Command {
+// LoadHist reads a chat's history; the result is tagged with the chat name
+// so a slow read can never be applied to a different conversation.
+func LoadHist(chat, filename string) mvu.Command {
 	return mvu.Command{Observable: rx.Create(func(index int) (Next any, Err error, Done bool) {
 		if index == 0 {
 			file, err := os.Open(filename)
@@ -101,7 +106,7 @@ func LoadHist(filename string) mvu.Command {
 			if err != nil {
 				return nil, err, true
 			}
-			return hist, nil, false
+			return HistLoaded{Chat: chat, History: hist}, nil, false
 		}
 		return nil, nil, true
 	})}

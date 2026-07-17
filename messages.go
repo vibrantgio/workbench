@@ -56,3 +56,18 @@ type Chat struct {
 	Name    string
 	History []openai.ChatCompletionMessage
 }
+
+// CompletionDelta tags a streaming completion chunk with the stream that
+// produced it, so the reducer can route it to the chat that asked — even
+// after the user switches away, renames the chat, or deletes it.
+type CompletionDelta struct {
+	Stream   int
+	Response openai.ChatCompletionStreamResponse
+}
+
+// HistLoaded tags a history read with the chat it belongs to, so a slow
+// load can never overwrite a different (or streaming) conversation.
+type HistLoaded struct {
+	Chat    string
+	History []openai.ChatCompletionMessage
+}

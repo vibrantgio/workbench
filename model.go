@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 type Model struct {
@@ -28,6 +31,23 @@ type Model struct {
 	// Rename is the chat whose rename modal is open; the zero value means
 	// closed.
 	Rename RenameState
+
+	// Streams tracks in-flight completions by stream id. While a stream's
+	// chat is current its deltas apply to CurrentChat.History and the entry
+	// holds no buffer; when the user switches away the visible history is
+	// stashed into the entry and deltas accumulate there until the stream
+	// finishes and saves to ITS chat's file.
+	Streams map[int]StreamState
+	// NextStream issues stream ids; monotonic, never reused.
+	NextStream int
+}
+
+// StreamState is one in-flight completion: the chat it belongs to (kept
+// up to date across renames) and, while that chat is not current, the
+// accumulated history it will save.
+type StreamState struct {
+	Chat    string
+	History []openai.ChatCompletionMessage
 }
 
 // RenameState drives the rename modal: Target is the chat filename being
@@ -78,6 +98,24 @@ func (model Model) TakenNames() ChatList {
 		names = append(names, pending.Name)
 	}
 	return names
+}
+
+// StreamFor returns the id of the in-flight completion for the named chat.
+func (model Model) StreamFor(name string) (int, bool) {
+	for id, s := range model.Streams {
+		if s.Chat == name {
+			return id, true
+		}
+	}
+	return 0, false
+}
+
+// cloneStreams returns a copy of streams for reducer-safe mutation (models
+// are values, but maps are shared references).
+func cloneStreams(streams map[int]StreamState) map[int]StreamState {
+	next := make(map[int]StreamState, len(streams)+1)
+	maps.Copy(next, streams)
+	return next
 }
 
 // FreshChatName returns the first of new.json, new-2.json, new-3.json, …

@@ -62,29 +62,130 @@ func TestUpdateEmptyPromptIsNoOp(t *testing.T) {
 	}
 }
 
+// delta builds a tagged stream chunk; role "" means a continuation chunk.
+func delta(stream int, role, content string, finish bool) CompletionDelta {
+	choice := openai.ChatCompletionStreamChoice{
+		Delta: openai.ChatCompletionStreamChoiceDelta{Role: role, Content: content},
+	}
+	if finish {
+		choice.FinishReason = openai.FinishReasonStop
+	}
+	return CompletionDelta{Stream: stream, Response: openai.ChatCompletionStreamResponse{
+		Choices: []openai.ChatCompletionStreamChoice{choice},
+	}}
+}
+
 func TestUpdateStreamDeltasOpenThenAppend(t *testing.T) {
-	model := testModel()
+	model, _ := Update(testModel(), Prompt{Content: "hi again"}) // stream 1
 
 	// A delta carrying a role opens a new history entry...
-	opened, _ := Update(model, openai.ChatCompletionStreamResponse{
-		Choices: []openai.ChatCompletionStreamChoice{{
-			Delta: openai.ChatCompletionStreamChoiceDelta{Role: openai.ChatMessageRoleAssistant, Content: "Hel"},
-		}},
-	})
+	opened, _ := Update(model, delta(1, openai.ChatMessageRoleAssistant, "Hel", false))
 	hist := opened.CurrentChat.History
-	if len(hist) != 2 || hist[1].Role != openai.ChatMessageRoleAssistant || hist[1].Content != "Hel" {
+	if len(hist) != 3 || hist[2].Role != openai.ChatMessageRoleAssistant || hist[2].Content != "Hel" {
 		t.Fatalf("after role delta: history = %+v", hist)
 	}
 
 	// ...and role-less deltas extend it.
-	extended, _ := Update(opened, openai.ChatCompletionStreamResponse{
-		Choices: []openai.ChatCompletionStreamChoice{{
-			Delta: openai.ChatCompletionStreamChoiceDelta{Content: "lo"},
-		}},
-	})
+	extended, _ := Update(opened, delta(1, "", "lo", false))
 	hist = extended.CurrentChat.History
-	if hist[1].Content != "Hello" {
-		t.Fatalf("assistant content = %q, want %q", hist[1].Content, "Hello")
+	if hist[2].Content != "Hello" {
+		t.Fatalf("assistant content = %q, want %q", hist[2].Content, "Hello")
+	}
+
+	// Finishing unregisters the stream.
+	done, _ := Update(extended, delta(1, "", "", true))
+	if len(done.Streams) != 0 {
+		t.Fatalf("Streams = %+v, want empty after finish", done.Streams)
+	}
+}
+
+func TestUpdateStreamAfterSwitchBuffersToOwningChat(t *testing.T) {
+	m, _ := Update(testModel(), Prompt{Content: "tell me a story"}) // alpha, stream 1
+	m, _ = Update(m, SelectChat{Name: "beta.json"})
+	m, _ = Update(m, HistLoaded{Chat: "beta.json", History: []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "beta's own question"},
+	}})
+
+	// alpha's deltas keep arriving; they must not touch beta's view.
+	m, _ = Update(m, delta(1, openai.ChatMessageRoleAssistant, "Once upon", false))
+	m, _ = Update(m, delta(1, "", " a time", false))
+
+	if len(m.CurrentChat.History) != 1 || m.CurrentChat.History[0].Content != "beta's own question" {
+		t.Fatalf("beta's history was touched by alpha's stream: %+v", m.CurrentChat.History)
+	}
+	s := m.Streams[1]
+	if s.Chat != "alpha.json" || len(s.History) != 3 || s.History[2].Content != "Once upon a time" {
+		t.Fatalf("alpha's buffer = %+v, want its prompt history plus the reply", s)
+	}
+}
+
+func TestUpdateSwitchBackAdoptsLiveStream(t *testing.T) {
+	m, _ := Update(testModel(), Prompt{Content: "story?"}) // alpha, stream 1
+	m, _ = Update(m, SelectChat{Name: "beta.json"})
+	m, _ = Update(m, delta(1, openai.ChatMessageRoleAssistant, "Once", false))
+
+	// Switching back must show the live buffer, not start a disk load.
+	m, cmd := Update(m, SelectChat{Name: "alpha.json"})
+	_ = cmd
+	hist := m.CurrentChat.History
+	if len(hist) != 3 || hist[2].Content != "Once" {
+		t.Fatalf("adopted history = %+v, want the streaming buffer", hist)
+	}
+	// ...and later deltas apply to the visible history again.
+	m, _ = Update(m, delta(1, "", " upon", false))
+	if m.CurrentChat.History[2].Content != "Once upon" {
+		t.Fatalf("delta after switch-back = %q", m.CurrentChat.History[2].Content)
+	}
+	// A stale disk load for alpha must not clobber the live stream.
+	m, _ = Update(m, HistLoaded{Chat: "alpha.json", History: nil})
+	if m.CurrentChat.History[2].Content != "Once upon" {
+		t.Fatalf("stale HistLoaded clobbered a streaming chat")
+	}
+}
+
+func TestUpdateStreamDeltaAfterDeleteIsDropped(t *testing.T) {
+	m, _ := Update(testModel(), Prompt{Content: "story?"}) // alpha, stream 1
+	m, _ = Update(m, DeleteChat{Name: "alpha.json"})
+	if len(m.Streams) != 0 {
+		t.Fatalf("Streams = %+v, want dropped on delete", m.Streams)
+	}
+	next, _ := Update(m, delta(1, openai.ChatMessageRoleAssistant, "Once", false))
+	if len(next.CurrentChat.History) != 0 && next.CurrentChat.History[len(next.CurrentChat.History)-1].Content == "Once" {
+		t.Fatalf("untracked delta landed in %q", next.CurrentChat.Name)
+	}
+}
+
+func TestUpdateRenameRetargetsStream(t *testing.T) {
+	m, _ := Update(testModel(), Prompt{Content: "story?"}) // alpha, stream 1
+	m, _ = Update(m, OpenRename{Name: "alpha.json"})
+	m, _ = Update(m, RenameChat{To: "ideas"})
+	if s := m.Streams[1]; s.Chat != "ideas.json" {
+		t.Fatalf("stream chat = %q, want ideas.json after rename", s.Chat)
+	}
+	// Deltas keep applying to the (renamed, still current) chat.
+	m, _ = Update(m, delta(1, openai.ChatMessageRoleAssistant, "Once", false))
+	hist := m.CurrentChat.History
+	if len(hist) != 3 || hist[2].Content != "Once" {
+		t.Fatalf("history after rename mid-stream = %+v", hist)
+	}
+}
+
+func TestUpdateStaleHistLoadIsIgnored(t *testing.T) {
+	m := testModel() // current: alpha
+	next, _ := Update(m, HistLoaded{Chat: "beta.json", History: []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "beta content"},
+	}})
+	if len(next.CurrentChat.History) != 1 || next.CurrentChat.History[0].Content != "hi" {
+		t.Fatalf("a load tagged for beta was applied to alpha: %+v", next.CurrentChat.History)
+	}
+}
+
+func TestUpdateRolelessDeltaOnEmptyHistoryIsSafe(t *testing.T) {
+	m, _ := Update(testModel(), Prompt{Content: "hi"}) // stream 1
+	m.CurrentChat.History = nil                        // simulate the cleared-view window
+	next, _ := Update(m, delta(1, "", "orphan", false))
+	if len(next.CurrentChat.History) != 0 {
+		t.Fatalf("content delta with no open message must be dropped, got %+v", next.CurrentChat.History)
 	}
 }
 
