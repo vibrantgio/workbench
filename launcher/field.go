@@ -26,27 +26,41 @@ import (
 
 // The animated triangle field: a seen 3D triangular patch, tilted back,
 // displaced per-vertex by time-evolving simplex noise, and coloured from a
-// fixed spatial hue field keyed to the live prism theme. Ported from the
-// seenbgdemo vertical slice (its centred variant, whose symmetric overfill
-// margins cover every window edge — the top-left variant left the top edge
-// bare under noise displacement).
+// fixed spatial hue field keyed to the live prism theme. Originally proven
+// as the seenbgdemo vertical slice; this is its centred variant, whose
+// symmetric overfill margins cover every window edge — a top-left-anchored
+// variant was tried and rejected because noise displacement bared the top
+// edge.
 
-// Field geometry and motion, tuned by eye in seenbgdemo — see that repo's
-// patch.go for the full derivation of every constant.
+// Field geometry and motion, tuned by eye at every window size from
+// 1000×680 up to a 3008×1692 (6K) display.
 const (
-	triangleSizePx = 70.0   // world size of one triangle; on-screen size is constant at every window size
-	cameraDist     = 2200.0 // fixed perspective distance, decoupled from window height
-	pushback       = -700.0 // world Z of the patch centre; past the tilted patch's half-depth (no near-plane clipping)
+	triangleSizePx = 70.0 // world size of one triangle; on-screen size is constant at every window size
 
-	// Over-fill margins: the tilted patch must extend past every screen edge,
-	// including under the ±noiseAmplitude vertex drift. Verified in seenbgdemo
-	// from 1000×680 up to a 3008×1692 (6K) display.
+	// cameraDist and pushback decouple the field's scale from the window.
+	// The perspective distance is fixed (larger = flatter perspective)
+	// instead of following the window height, and the patch centre is
+	// pinned at a constant depth sized past the tilted patch's half-depth,
+	// so the near edge never crosses the near plane and regrowing the field
+	// never rescales it.
+	cameraDist = 2200.0
+	pushback   = -700.0
+
+	// Over-fill margins: perspective foreshortens the tilted patch's far
+	// (top) edge, so the world must extend past the screen for that
+	// narrowed edge to still span the top corners — including under the
+	// ±noiseAmplitude vertex drift.
 	coverMarginX = 1.4
 	coverMarginY = 1.5
 	growStep     = 256.0 // dp of slack per regrow, so a resize drag rebuilds in chunks
 
-	noiseSpeed     = 5e-4 // time scale of the vertex drift
-	noiseAmplitude = 0.15 // Z displacement scale
+	// The screen-space travel per frame — which is what visible shimmer
+	// scales with — is dominated by amplitude, not speed: a low amplitude
+	// keeps each vertex's projected motion sub-pixel, so even a brisk time
+	// scale reads smooth (1e-3 was too fast; pixel-snapping was rejected
+	// because whole-pixel jitter is worse than the shimmer it removes).
+	noiseSpeed     = 5e-4
+	noiseAmplitude = 0.15
 )
 
 // fieldPalette is the resolved colour recipe for the triangle fills: a smooth
