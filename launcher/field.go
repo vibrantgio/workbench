@@ -189,8 +189,11 @@ func (f *Field) fit(w, h float64) {
 	f.recolor()
 
 	f.scene.Group.Children = []seen.Node{p}
-	// Fresh layer so the previous patch's cached fragments don't linger.
-	f.ctx.SetLayers(bsort.NewLayerForScene(f.scene))
+	// Fresh layer so the previous patch's cached fragments don't linger. The
+	// no-split BSP mode: a height field cannot occlude cyclically, and the
+	// splitting mode cuts nearly every noise-displaced face (the cut edges
+	// render as crawling antialiasing seams across the fills).
+	f.ctx.SetLayers(bsort.NewNoSplitLayerForScene(f.scene))
 }
 
 // recolor fills every face from the fixed hue field evaluated at the face's
