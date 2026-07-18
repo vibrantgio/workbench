@@ -160,7 +160,7 @@ mvu.Loop.
    simulation inside the frame and request the next frame only while active:
 
      activity := ps.Tick(step)
-     if activity > 0.01 { op.InvalidateOp{}.Add(gtx.Ops) }
+     if activity > 0.01 { gtx.Execute(op.InvalidateCmd{}) }
 
    Invalidation is window-global (every widget re-lays-out), so expensive
    widgets should cache ops when inputs are unchanged (prism/cache). Respect
