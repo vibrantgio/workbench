@@ -1,4 +1,4 @@
-module github.com/vibrantgio/sitedocs
+module github.com/vibrantgio/workbench/sitedocs
 
 go 1.25.1
 

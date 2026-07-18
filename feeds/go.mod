@@ -1,4 +1,4 @@
-module github.com/vibrantgio/feeds
+module github.com/vibrantgio/workbench/feeds
 
 go 1.25.1
 

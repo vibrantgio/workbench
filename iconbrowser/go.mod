@@ -1,4 +1,4 @@
-module github.com/vibrantgio/iconbrowser
+module github.com/vibrantgio/workbench/iconbrowser
 
 go 1.25.1
 

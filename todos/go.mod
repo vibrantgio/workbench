@@ -1,4 +1,4 @@
-module github.com/vibrantgio/todos
+module github.com/vibrantgio/workbench/todos
 
 go 1.25.1
 

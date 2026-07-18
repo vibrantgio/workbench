@@ -1,4 +1,4 @@
-module github.com/vibrantgio/launcher
+module github.com/vibrantgio/workbench/launcher
 
 go 1.25.1
 

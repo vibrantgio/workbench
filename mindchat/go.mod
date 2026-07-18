@@ -1,4 +1,4 @@
-module github.com/vibrantgio/mindchat
+module github.com/vibrantgio/workbench/mindchat
 
 go 1.25.1
 
