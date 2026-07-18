@@ -45,4 +45,10 @@ var Apps = []App{
 		Blurb: "Persistent watchlist editor: JSON storage, context menus, bulk delete with confirms.",
 		Icon:  icons.ActionVisibility,
 	},
+	{
+		Name:  "MindChat",
+		Dir:   "mindchat",
+		Blurb: "OpenAI chat client: streaming completions through the MVU loop, split-pane shell, undo.",
+		Icon:  icons.CommunicationChat,
+	},
 }

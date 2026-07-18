@@ -119,7 +119,7 @@ func View(shaper *text.Shaper, tok themed, clicks []widget.Clickable, model Mode
 	heroW := hero.Render(shaper, hero.Props{
 		Eyebrow:  "VIBRANTGIO",
 		Title:    "Workbench",
-		Subtitle: "Five complete example apps built on mvu, prism, spectrum and cadence — floating on a live seen 3D field.",
+		Subtitle: "Six complete example apps built on mvu, prism, spectrum and cadence — floating on a live seen 3D field.",
 		Shaper:   shaper,
 	}, tok.color, tok.spacing, tok.radius, tok.typ)
 
