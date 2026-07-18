@@ -94,6 +94,23 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		}
 		return model, command
 
+	case StreamDone:
+		// The stream ended without a FinishReasonStop delta having cleaned
+		// up (error, dropped connection, or failed request): unregister it
+		// and persist what its chat has — at minimum the user's prompt.
+		s, tracked := model.Streams[message.Stream]
+		if !tracked {
+			return model, mvu.DoNothing()
+		}
+		hist := s.History
+		if s.Chat == model.CurrentChat.Name {
+			hist = model.CurrentChat.History
+		}
+		streams := cloneStreams(model.Streams)
+		delete(streams, message.Stream)
+		model.Streams = streams
+		return model, SaveHist(model.ChatFile(s.Chat), hist).Trace("Save History")
+
 	case HistLoaded:
 		// Stale guard: apply only to the chat that asked, and never over a
 		// live stream's history (the stream owns the view then).

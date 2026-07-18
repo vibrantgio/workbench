@@ -61,6 +61,8 @@ const (
 	UndoBarRadius    unit.Dp = 6
 	UndoBarMargin    unit.Dp = 24
 
+	StreamDotSize      unit.Dp = 7
+	StreamDotSlot      unit.Dp = 15
 	RenameFieldHeight  unit.Dp = 48
 	RenameButtonHeight unit.Dp = 44
 	RenameButtonWidth  unit.Dp = 100

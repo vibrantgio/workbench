@@ -3,10 +3,12 @@ package main
 import (
 	"image"
 	"image/color"
+	"math"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
@@ -28,6 +30,7 @@ import (
 	"github.com/vibrantgio/ivg/generate"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/prism/a11y"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/prism/list"
@@ -61,6 +64,9 @@ type themed struct {
 	edit    layout.Widget
 	add     layout.Widget
 	gear    layout.Widget
+	// reduceMotion mirrors the OS accessibility preference; the streaming
+	// dot renders static when it is set (llms.txt rule 5).
+	reduceMotion bool
 }
 
 // ContentLayer renders the page: the chat pane with the prompt field, and
@@ -87,7 +93,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		Shaper:        shaper,
 	})
 
-	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
+	colorThemes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(t.Color, func(c tokens.ColorTokens) themed {
 			p := PaletteFrom(c)
 			avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
@@ -113,6 +119,12 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear}
 		})
 	})
+	themes := rx.Map(rx.CombineLatest2(colorThemes, a11y.Live(time.Second)),
+		func(next rx.Tuple2[themed, a11y.A11yPrefs]) themed {
+			t := next.First
+			t.reduceMotion = next.Second.ReduceMotion
+			return t
+		})
 
 	var newChatClick, settingsClick, undoClick widget.Clickable
 
@@ -131,8 +143,12 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		func(next rx.Tuple3[themed, layout.Widget, Model]) parts {
 			t, promptW, model := next.First, next.Second, next.Third
 			themedCell.Store(t)
+			streaming := make(map[string]bool, len(model.Streams))
+			for _, s := range model.Streams {
+				streaming[s.Chat] = true
+			}
 			return parts{
-				sidebar: Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick),
+				sidebar: Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick),
 				main:    ChatPane(shaper, t, model.CurrentChat.History, histList, promptW),
 				undo:    UndoBar(shaper, t, model.Pending, &undoClick),
 			}
@@ -409,7 +425,7 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg openai.Ch
 
 // Sidebar renders the conversation list as the shell's full-height leading
 // column: surface fill, a header with the new-chat button, and the rows.
-func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat *widget.Clickable) layout.Widget {
+func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, streaming map[string]bool, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat *widget.Clickable) layout.Widget {
 	// Ensure every chat has persistent Clickables for hover/click state.
 	for _, name := range chats {
 		if _, ok := rowClicks[name]; !ok {
@@ -434,7 +450,7 @@ func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, rows
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return list.LayoutScrollbar(gtx, rows, t.bar, list.Overlay, chats,
 					func(gtx layout.Context, name string) layout.Dimensions {
-						return ChatRow(gtx, shaper, t, name, name == current, rowClicks[name], renameClicks[name], deleteClicks[name])
+						return ChatRow(gtx, shaper, t, name, name == current, streaming[name], rowClicks[name], renameClicks[name], deleteClicks[name])
 					})
 			}),
 		)
@@ -542,7 +558,7 @@ func UndoBar(shaper *text.Shaper, t themed, pending PendingDelete, undo *widget.
 // ChatRow renders a single chat entry in the sidebar with hover and
 // selection states, and rename/delete icons revealed while the row is
 // active.
-func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, selected bool, row, ren, del *widget.Clickable) layout.Dimensions {
+func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, selected, streaming bool, row, ren, del *widget.Clickable) layout.Dimensions {
 	p := t.palette
 
 	// Drain pending clicks before Layout — Layout's internal update loop
@@ -604,6 +620,16 @@ func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, sel
 						return dims
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						// The dot slot is always reserved (no layout
+						// shift); the dot itself shows only while this
+						// chat has an in-flight completion.
+						slot := image.Pt(gtx.Dp(StreamDotSlot), gtx.Dp(DeleteIconSize))
+						if streaming {
+							StreamDot(gtx, t, slot)
+						}
+						return layout.Dimensions{Size: slot}
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						// The slots are always reserved so revealing the
 						// icons never shifts the layout; the glyphs and
 						// their click areas exist only while the row is
@@ -634,6 +660,24 @@ func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, sel
 		foreground.Add(gtx.Ops)
 		return dims
 	})
+}
+
+// StreamDot draws the in-flight-completion indicator: an accent dot,
+// centred in its slot, gently pulsing. Animation follows llms.txt rule 5 —
+// it self-schedules the next frame only while visible, and renders static
+// when the OS asks for reduced motion.
+func StreamDot(gtx layout.Context, t themed, slot image.Point) {
+	c := t.palette.Accent
+	if !t.reduceMotion {
+		const period = 1200
+		phase := float64(gtx.Now.UnixMilli()%period) / period
+		pulse := 0.45 + 0.55*(0.5+0.5*math.Sin(2*math.Pi*phase))
+		c.A = uint8(float64(c.A) * pulse)
+		gtx.Execute(op.InvalidateCmd{})
+	}
+	d := gtx.Dp(StreamDotSize)
+	defer op.Offset(image.Pt((slot.X-d)/2, (slot.Y-d)/2)).Push(gtx.Ops).Pop()
+	paint.FillShape(gtx.Ops, c, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
 }
 
 var ChatGPT = func() []byte {

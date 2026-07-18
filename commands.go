@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -75,15 +76,26 @@ func RequestChatCompletion(id int, authToken string, hist []openai.ChatCompletio
 		}
 		stream, err := client.CreateChatCompletionStream(ctx, request)
 		if err != nil {
-			return rx.Throw[any](err)
+			// The request never started; StreamDone lets the reducer
+			// unregister the stream (and persist the prompt).
+			fmt.Println("Chat Completion Error:", err)
+			return rx.From[any](StreamDone{Stream: id})
 		}
+		ended := false
 		return rx.Create(func(index int) (Next any, Err error, Done bool) {
+			if ended {
+				return nil, nil, true
+			}
 			response, err := stream.Recv()
 			if err != nil {
-				if errors.Is(err, io.EOF) {
-					err = nil
+				// EOF or a mid-stream error: either way the stream is
+				// over — tell the reducer so cleanup never depends on a
+				// FinishReasonStop delta having arrived.
+				if !errors.Is(err, io.EOF) {
+					fmt.Println("Chat Completion Error:", err)
 				}
-				return nil, err, true
+				ended = true
+				return StreamDone{Stream: id}, nil, false
 			}
 			return CompletionDelta{Stream: id, Response: response}, nil, false
 		})

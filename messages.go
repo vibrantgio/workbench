@@ -65,6 +65,13 @@ type CompletionDelta struct {
 	Response openai.ChatCompletionStreamResponse
 }
 
+// StreamDone marks a completion stream as terminated for ANY reason —
+// normal end-of-stream, a network error, or a failed request. It lets the
+// reducer clean up streams that never reach a FinishReasonStop delta.
+type StreamDone struct {
+	Stream int
+}
+
 // HistLoaded tags a history read with the chat it belongs to, so a slow
 // load can never overwrite a different (or streaming) conversation.
 type HistLoaded struct {

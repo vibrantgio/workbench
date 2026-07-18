@@ -170,6 +170,28 @@ func TestUpdateRenameRetargetsStream(t *testing.T) {
 	}
 }
 
+func TestUpdateStreamDoneCleansUpFailedStream(t *testing.T) {
+	m, _ := Update(testModel(), Prompt{Content: "hi there"}) // stream 1
+	if len(m.Streams) != 1 {
+		t.Fatalf("Streams = %+v, want the prompt's stream registered", m.Streams)
+	}
+	// The request fails (bad key, network): StreamDone must unregister the
+	// stream — otherwise the chat would show a streaming dot forever and
+	// never load from disk again.
+	done, _ := Update(m, StreamDone{Stream: 1})
+	if len(done.Streams) != 0 {
+		t.Fatalf("Streams = %+v, want cleaned up after StreamDone", done.Streams)
+	}
+	if len(done.CurrentChat.History) != 2 {
+		t.Fatalf("History = %+v, want the prompt kept", done.CurrentChat.History)
+	}
+	// A StreamDone after normal FinishReasonStop cleanup is a no-op.
+	again, _ := Update(done, StreamDone{Stream: 1})
+	if len(again.Streams) != 0 {
+		t.Fatalf("repeat StreamDone must be a no-op")
+	}
+}
+
 func TestUpdateStaleHistLoadIsIgnored(t *testing.T) {
 	m := testModel() // current: alpha
 	next, _ := Update(m, HistLoaded{Chat: "beta.json", History: []openai.ChatCompletionMessage{
