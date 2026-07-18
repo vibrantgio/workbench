@@ -21,7 +21,6 @@ import (
 	"github.com/vibrantgio/seen/layer/nsort"
 	"github.com/vibrantgio/seen/quaternion"
 	"github.com/vibrantgio/seen/shape"
-	"github.com/vibrantgio/seen/viewport"
 )
 
 // The animated triangle field: a seen 3D triangular patch, tilted back,
@@ -137,7 +136,7 @@ func NewField(window *app.Window, width, height unit.Dp) *Field {
 	}).Start()
 
 	view := seengio.Widget(f.ctx, func(w, h unit.Dp) {
-		f.scene.Viewport = viewport.Center(0, 0, float64(w), float64(h), cameraDist)
+		f.scene.FitCenter(0, 0, float64(w), float64(h), cameraDist)
 		// Grow the field when the viewport outgrows what the patch covers.
 		if float64(w)*coverMarginX > f.coveredW || float64(h)*coverMarginY > f.coveredH {
 			f.fit(float64(w), float64(h))
