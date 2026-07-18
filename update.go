@@ -16,6 +16,8 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 
 	case Config:
 		model.CurrentChat.Name = message.LastChat
+		model.SidebarRatio = message.SidebarRatio
+		model.SidebarCollapsed = message.SidebarCollapsed
 		commands := []mvu.Command{LoadChatList(model.ChatDir()).Trace("Load Chat List")}
 		// LastChat is empty when the last chat was deleted; there is no
 		// history to load then.
@@ -45,7 +47,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			model.Streams = streams
 			command = mvu.DoSequence(
 				RequestChatCompletion(model.NextStream, model.AuthToken, model.CurrentChat.History).Trace("Request Chat Completion"),
-				SaveConfig(model.ConfigFile(), Config{LastChat: model.CurrentChat.Name}).Trace("Save Config"),
+				SaveConfig(model.ConfigFile(), model.Config()).Trace("Save Config"),
 			)
 		}
 		return model, command
@@ -165,7 +167,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 				model.CurrentChat.Name = ""
 			}
 			commands = append(commands,
-				SaveConfig(model.ConfigFile(), Config{LastChat: model.CurrentChat.Name}).Trace("Save Config"),
+				SaveConfig(model.ConfigFile(), model.Config()).Trace("Save Config"),
 			)
 		}
 		return model, mvu.DoConcurrent(commands...)
@@ -196,7 +198,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 				restore,
 				mvu.DoConcurrent(
 					LoadHist(pending.Name, model.ChatFile(pending.Name)).Trace("Load Restored History"),
-					SaveConfig(model.ConfigFile(), Config{LastChat: pending.Name}).Trace("Save Config"),
+					SaveConfig(model.ConfigFile(), model.Config()).Trace("Save Config"),
 				),
 			)
 		}
@@ -216,7 +218,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		model.CurrentChat = Chat{Name: name}
 		return model, mvu.DoConcurrent(
 			SaveHist(model.ChatFile(name), []openai.ChatCompletionMessage{}).Trace("Create Chat"),
-			SaveConfig(model.ConfigFile(), Config{LastChat: name}).Trace("Save Config"),
+			SaveConfig(model.ConfigFile(), model.Config()).Trace("Save Config"),
 		)
 
 	case OpenRename:
@@ -282,10 +284,26 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		if model.CurrentChat.Name == target {
 			model.CurrentChat.Name = newName
 			commands = append(commands,
-				SaveConfig(model.ConfigFile(), Config{LastChat: newName}).Trace("Save Config"),
+				SaveConfig(model.ConfigFile(), model.Config()).Trace("Save Config"),
 			)
 		}
 		return model, mvu.DoConcurrent(commands...)
+
+	case ToggleSidebar:
+		model.SidebarCollapsed = !model.SidebarCollapsed
+		return model, SaveConfig(model.ConfigFile(), model.Config()).Trace("Save Config")
+
+	case SetSidebarRatio:
+		// Dragging below the rail threshold collapses; dragging wider both
+		// restores and remembers the new width. The stored ratio survives a
+		// collapse so the toggle restores the previous width.
+		if message.Ratio > RailThresholdRatio {
+			model.SidebarRatio = message.Ratio
+			model.SidebarCollapsed = false
+		} else {
+			model.SidebarCollapsed = true
+		}
+		return model, mvu.DoNothing()
 
 	case OpenSettings:
 		// Settings surface (OPENAI_API_KEY configuration) not built yet.
@@ -299,7 +317,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		model, load := adoptStreamOrLoad(model, message.Name)
 		command := mvu.DoConcurrent(
 			load,
-			SaveConfig(model.ConfigFile(), Config{LastChat: message.Name}).Trace("Save Config"),
+			SaveConfig(model.ConfigFile(), model.Config()).Trace("Save Config"),
 		)
 		return model, command
 	}

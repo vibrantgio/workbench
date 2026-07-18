@@ -40,6 +40,40 @@ type Model struct {
 	Streams map[int]StreamState
 	// NextStream issues stream ids; monotonic, never reused.
 	NextStream int
+
+	// SidebarRatio is the split-pane position (0 = use the default);
+	// SidebarCollapsed shrinks the sidebar to an icon rail.
+	SidebarRatio     float32
+	SidebarCollapsed bool
+}
+
+// Sidebar geometry: the default split position, the ratio the collapsed
+// rail sits at (the split pane's minimum), and the width below which the
+// sidebar renders as a rail.
+const (
+	DefaultSidebarRatio = 0.22
+	CollapsedRatio      = 0.05
+	RailThresholdRatio  = 0.08
+)
+
+// EffectiveRatio is the split-pane position the view renders.
+func (model Model) EffectiveRatio() float32 {
+	if model.SidebarCollapsed {
+		return CollapsedRatio
+	}
+	if model.SidebarRatio == 0 {
+		return DefaultSidebarRatio
+	}
+	return model.SidebarRatio
+}
+
+// Config snapshots everything config.json persists.
+func (model Model) Config() Config {
+	return Config{
+		LastChat:         model.CurrentChat.Name,
+		SidebarRatio:     model.SidebarRatio,
+		SidebarCollapsed: model.SidebarCollapsed,
+	}
 }
 
 // StreamState is one in-flight completion: the chat it belongs to (kept

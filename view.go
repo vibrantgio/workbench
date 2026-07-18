@@ -23,7 +23,6 @@ import (
 
 	"github.com/reactivego/rx"
 	"github.com/vibrantgio/cadence/modal"
-	"github.com/vibrantgio/cadence/navbar"
 	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/ivg"
 	"github.com/vibrantgio/ivg/encode"
@@ -38,6 +37,7 @@ import (
 	"github.com/vibrantgio/prism/theme"
 	"github.com/vibrantgio/prism/tokens"
 	"github.com/vibrantgio/style"
+	"github.com/vibrantgio/textdraw"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -126,7 +126,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			return t
 		})
 
-	var newChatClick, settingsClick, undoClick widget.Clickable
+	var newChatClick, settingsClick, toggleClick, undoClick widget.Clickable
 
 	// The shell's Main and Navbar Brand are STATIC slots while the model and
 	// theme are live streams, so the latest widgets are bridged through
@@ -134,7 +134,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	// hand-off from watchlist/app.go). Folding main and undo onto the
 	// sidebar stream means every model change re-emits the sidebar, which
 	// re-emits the Shell — a same-frame repaint.
-	var themedCell, mainCell, undoCell atomic.Value
+	var mainCell, undoCell atomic.Value
 
 	type parts struct {
 		sidebar, main, undo layout.Widget
@@ -142,44 +142,48 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	combined := rx.Map(rx.CombineLatest3(themes, prompt, modelObs),
 		func(next rx.Tuple3[themed, layout.Widget, Model]) parts {
 			t, promptW, model := next.First, next.Second, next.Third
-			themedCell.Store(t)
 			streaming := make(map[string]bool, len(model.Streams))
 			for _, s := range model.Streams {
 				streaming[s.Chat] = true
 			}
 			return parts{
-				sidebar: Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick),
+				sidebar: Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick, &toggleClick, &settingsClick),
 				main:    ChatPane(shaper, t, model.CurrentChat.History, histList, promptW),
 				undo:    UndoBar(shaper, t, model.Pending, &undoClick),
 			}
 		})
 
-	sidebarDriven := rx.Map(combined, func(p parts) layout.Widget {
+	var sidebarCell atomic.Value
+	partsObs := rx.Map(combined, func(p parts) int {
+		sidebarCell.Store(p.sidebar)
 		mainCell.Store(p.main)
 		undoCell.Store(p.undo)
-		return p.sidebar
+		return 0
 	})
 
-	mainSlot := func(gtx layout.Context) layout.Dimensions {
-		if w, ok := mainCell.Load().(layout.Widget); ok && w != nil {
-			return w(gtx)
+	slot := func(cell *atomic.Value) layout.Widget {
+		return func(gtx layout.Context) layout.Dimensions {
+			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
+				return w(gtx)
+			}
+			return layout.Dimensions{Size: gtx.Constraints.Max}
 		}
-		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
 
-	brand := func(gtx layout.Context) layout.Dimensions {
-		t, ok := themedCell.Load().(themed)
-		if !ok {
-			return layout.Dimensions{}
-		}
-		return Brand(gtx, shaper, t, &settingsClick)
-	}
+	// The split position follows the model: the [|] toggle and divider
+	// drags reduce into SidebarRatio/SidebarCollapsed, and the pane's
+	// minimum ratio doubles as the collapsed icon rail.
+	ratioObs := rx.Map(modelObs, func(m Model) float32 { return m.EffectiveRatio() }).
+		Pipe(rx.DistinctUntilChanged(func(a, b float32) bool { return a == b }))
 
 	shellObs := shell.Shell(th, shell.Props{
-		Layout:  shell.SidebarHeaderMain,
-		Sidebar: sidebarDriven,
-		Navbar:  navbar.Props{Brand: brand, Shaper: shaper},
-		Main:    mainSlot,
+		Layout:     shell.SplitPane,
+		Left:       slot(&sidebarCell),
+		Right:      slot(&mainCell),
+		SplitRatio: ratioObs,
+		OnSplitChange: func(gtx layout.Context, ratio float32) {
+			mvu.MessageOp{Message: SetSidebarRatio{Ratio: ratio}}.Add(gtx.Ops)
+		},
 	})
 
 	renameObs := RenameModal(th, shaper, modelObs)
@@ -193,8 +197,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 
 	// Overlays: the undo bar and the rename modal draw over the shell (the
 	// modal last — its scrim covers everything, undo bar included).
-	return rx.Map(rx.CombineLatest2(shellObs, renameObs),
-		func(next rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
+	// partsObs joins the combine so every model emission re-emits the top
+	// widget — the same-frame repaint the sidebar stream used to provide.
+	return rx.Map(rx.CombineLatest3(shellObs, renameObs, partsObs),
+		func(next rx.Tuple3[layout.Widget, layout.Widget, int]) layout.Widget {
 			shellW, modalW := next.First, next.Second
 			return func(gtx layout.Context) layout.Dimensions {
 				// Key area first, at the BOTTOM of the hit stack (the
@@ -340,27 +346,6 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 		})
 }
 
-// Brand fills the navbar's leading slot: the settings button (the future
-// OPENAI_API_KEY configuration surface) and the app title.
-func Brand(gtx layout.Context, shaper *text.Shaper, t themed, settings *widget.Clickable) layout.Dimensions {
-	for settings.Clicked(gtx) {
-		mvu.MessageOp{Message: OpenSettings{}}.Add(gtx.Ops)
-	}
-	p := t.palette
-	label := widget.Label{MaxLines: 1}
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			iconSize := gtx.Dp(SettingsIconSize)
-			gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
-			return settings.Layout(gtx, t.gear)
-		}),
-		layout.Rigid(layout.Spacer{Width: 12}.Layout),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return label.Layout(gtx, shaper, style.H6.Font, style.H6.Size, "MindChat", Material(gtx.Ops, p.RowActive))
-		}),
-	)
-}
-
 // ChatPane stacks the scrolling message history above the prompt field.
 func ChatPane(shaper *text.Shaper, t themed, chat []openai.ChatCompletionMessage, hist *list.State, prompt layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
@@ -423,9 +408,11 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg openai.Ch
 	return dims
 }
 
-// Sidebar renders the conversation list as the shell's full-height leading
-// column: surface fill, a header with the new-chat button, and the rows.
-func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, streaming map[string]bool, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat *widget.Clickable) layout.Widget {
+// Sidebar renders the shell's left pane: the brand row with the collapse
+// toggle, the conversation list, and the settings row anchored at the
+// bottom. Below RailThreshold width it renders as an icon rail (toggle,
+// new chat, settings) — the collapsed state the [|] toggle drives.
+func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, streaming map[string]bool, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat, toggle, settings *widget.Clickable) layout.Widget {
 	// Ensure every chat has persistent Clickables for hover/click state.
 	for _, name := range chats {
 		if _, ok := rowClicks[name]; !ok {
@@ -440,10 +427,19 @@ func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, stre
 	}
 
 	return func(gtx layout.Context) layout.Dimensions {
-		size := image.Pt(min(gtx.Dp(SidebarWidth), gtx.Constraints.Max.X), gtx.Constraints.Max.Y)
+		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
 		FillRect(gtx, image.Rectangle{Max: size}, 0, t.palette.Sidebar)
+
+		if size.X < gtx.Dp(RailThresholdWidth) {
+			SidebarRail(gtx, t, toggle, newChat, settings)
+			return layout.Dimensions{Size: size}
+		}
+
 		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return SidebarBrand(gtx, shaper, t, toggle)
+			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return SidebarHeader(gtx, shaper, t, newChat)
 			}),
@@ -453,9 +449,143 @@ func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, stre
 						return ChatRow(gtx, shaper, t, name, name == current, streaming[name], rowClicks[name], renameClicks[name], deleteClicks[name])
 					})
 			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return SidebarFooter(gtx, shaper, t, settings)
+			}),
 		)
 		return layout.Dimensions{Size: size}
 	}
+}
+
+// SidebarBrand is the sidebar's top row: the app title and the [|]
+// collapse toggle sharing one vertical centre on the 16dp gutter.
+func SidebarBrand(gtx layout.Context, shaper *text.Shaper, t themed, toggle *widget.Clickable) layout.Dimensions {
+	for toggle.Clicked(gtx) {
+		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
+	}
+	p := t.palette
+	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(BrandRowHeight))
+	left, right := gtx.Dp(16), gtx.Dp(12)
+	iconSz := gtx.Dp(ToggleIconSize)
+
+	titleRect := image.Rect(left, 0, size.X-right-iconSz-gtx.Dp(8), size.Y)
+	textdraw.FillText(gtx, shaper, style.Subtitle1, titleRect, 0, 0.5, p.RowActive, "MindChat")
+
+	defer op.Offset(image.Pt(size.X-right-iconSz, (size.Y-iconSz)/2)).Push(gtx.Ops).Pop()
+	icon := gtx
+	icon.Constraints = layout.Exact(image.Pt(iconSz, iconSz))
+	IconButton(icon, toggle, ToggleIconSize, func(gtx layout.Context, sz int) {
+		PanelGlyph(gtx, sz, p.Heading)
+	})
+	return layout.Dimensions{Size: size}
+}
+
+// SidebarFooter anchors the settings affordance bottom-left: a hairline
+// separator over a full-width hoverable row, gear and label sharing one
+// vertical centre on the 16dp gutter.
+func SidebarFooter(gtx layout.Context, shaper *text.Shaper, t themed, settings *widget.Clickable) layout.Dimensions {
+	for settings.Clicked(gtx) {
+		mvu.MessageOp{Message: OpenSettings{}}.Add(gtx.Ops)
+	}
+	p := t.palette
+	width := gtx.Constraints.Max.X
+	sep := gtx.Dp(1)
+	rowH := gtx.Dp(FooterRowHeight)
+
+	FillRect(gtx, image.Rectangle{Min: image.Pt(gtx.Dp(12), 0), Max: image.Pt(width-gtx.Dp(12), sep)}, 0, p.Separator)
+
+	defer op.Offset(image.Pt(0, sep)).Push(gtx.Ops).Pop()
+	gtx.Constraints = layout.Exact(image.Pt(width, rowH))
+	settings.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		textColor := p.Row
+		if settings.Hovered() {
+			textColor = p.RowActive
+			FillRect(gtx, image.Rectangle{Max: gtx.Constraints.Max}, 0, p.RowHovered)
+		}
+		left := gtx.Dp(16)
+		iconSz := gtx.Dp(FooterIconSize)
+		off := op.Offset(image.Pt(left, (rowH-iconSz)/2)).Push(gtx.Ops)
+		icon := gtx
+		icon.Constraints = layout.Exact(image.Pt(iconSz, iconSz))
+		t.gear(icon)
+		off.Pop()
+
+		labelRect := image.Rect(left+iconSz+gtx.Dp(10), 0, gtx.Constraints.Max.X-gtx.Dp(12), rowH)
+		textdraw.FillText(gtx, shaper, style.Subtitle2, labelRect, 0, 0.5, textColor, "Settings")
+		return layout.Dimensions{Size: gtx.Constraints.Max}
+	})
+	return layout.Dimensions{Size: image.Pt(width, rowH+sep)}
+}
+
+// SidebarRail is the collapsed sidebar: the toggle on top, new chat below
+// it, settings pinned at the bottom — icons only, centred in the rail.
+func SidebarRail(gtx layout.Context, t themed, toggle, newChat, settings *widget.Clickable) layout.Dimensions {
+	for toggle.Clicked(gtx) {
+		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
+	}
+	for newChat.Clicked(gtx) {
+		mvu.MessageOp{Message: NewChat{}}.Add(gtx.Ops)
+	}
+	for settings.Clicked(gtx) {
+		mvu.MessageOp{Message: OpenSettings{}}.Add(gtx.Ops)
+	}
+	p := t.palette
+	size := gtx.Constraints.Max
+	rail := func(gtx layout.Context, click *widget.Clickable, draw func(layout.Context, int)) layout.Dimensions {
+		return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10)}.Layout(gtx,
+			func(gtx layout.Context) layout.Dimensions {
+				return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return IconButton(gtx, click, ToggleIconSize, draw)
+				})
+			})
+	}
+	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return rail(gtx, toggle, func(gtx layout.Context, sz int) { PanelGlyph(gtx, sz, p.Heading) })
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return rail(gtx, newChat, func(gtx layout.Context, sz int) {
+				icon := gtx
+				icon.Constraints = layout.Exact(image.Pt(sz, sz))
+				t.add(icon)
+			})
+		}),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Max.Y)}
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return rail(gtx, settings, func(gtx layout.Context, sz int) {
+				icon := gtx
+				icon.Constraints = layout.Exact(image.Pt(sz, sz))
+				t.gear(icon)
+			})
+		}),
+	)
+	return layout.Dimensions{Size: size}
+}
+
+// IconButton lays a square icon inside a clickable with a pointer cursor.
+func IconButton(gtx layout.Context, click *widget.Clickable, size unit.Dp, draw func(gtx layout.Context, sizePx int)) layout.Dimensions {
+	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		sz := gtx.Dp(size)
+		gtx.Constraints = layout.Exact(image.Pt(sz, sz))
+		draw(gtx, sz)
+		return layout.Dimensions{Size: gtx.Constraints.Max}
+	})
+}
+
+// PanelGlyph draws the [|] sidebar-toggle icon with clip paths (the
+// cadence convention for chrome glyphs): a rounded outline with a divider
+// line a third of the way in.
+func PanelGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
+	stroke := float32(gtx.Dp(unit.Dp(1.5)))
+	inset := gtx.Dp(unit.Dp(1))
+	r := image.Rect(inset, inset+sizePx/8, sizePx-inset, sizePx-inset-sizePx/8)
+	rr := clip.RRect{Rect: r, NW: sizePx / 6, NE: sizePx / 6, SW: sizePx / 6, SE: sizePx / 6}
+	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: rr.Path(gtx.Ops), Width: stroke}.Op())
+	x := r.Min.X + r.Dx()/3
+	bar := image.Rect(x, r.Min.Y, x+int(stroke), r.Max.Y)
+	paint.FillShape(gtx.Ops, col, clip.Rect(bar).Op())
 }
 
 // SidebarHeader renders the "CONVERSATIONS" heading with the new-chat

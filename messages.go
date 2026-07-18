@@ -6,6 +6,19 @@ type LoadState struct{}
 
 type Config struct {
 	LastChat string
+	// SidebarRatio is the split-pane position (0 = default); Collapsed
+	// remembers the [|] toggle across launches.
+	SidebarRatio     float32
+	SidebarCollapsed bool
+}
+
+// ToggleSidebar collapses the sidebar to an icon rail or restores it.
+type ToggleSidebar struct{}
+
+// SetSidebarRatio follows the split-pane divider drag; dragging below the
+// rail threshold collapses, dragging out restores.
+type SetSidebarRatio struct {
+	Ratio float32
 }
 
 type Prompt struct {

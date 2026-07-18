@@ -425,6 +425,47 @@ func TestUpdateRenameChatRejectsInvalidNames(t *testing.T) {
 	}
 }
 
+func TestUpdateToggleSidebarFlipsAndPersists(t *testing.T) {
+	collapsed, _ := Update(testModel(), ToggleSidebar{})
+	if !collapsed.SidebarCollapsed {
+		t.Fatalf("SidebarCollapsed = false, want true after toggle")
+	}
+	if collapsed.EffectiveRatio() != CollapsedRatio {
+		t.Fatalf("EffectiveRatio = %v, want the rail ratio", collapsed.EffectiveRatio())
+	}
+	restored, _ := Update(collapsed, ToggleSidebar{})
+	if restored.SidebarCollapsed {
+		t.Fatalf("second toggle must restore")
+	}
+	if restored.EffectiveRatio() != DefaultSidebarRatio {
+		t.Fatalf("EffectiveRatio = %v, want the default", restored.EffectiveRatio())
+	}
+}
+
+func TestUpdateSetSidebarRatioDragAndCollapse(t *testing.T) {
+	widened, _ := Update(testModel(), SetSidebarRatio{Ratio: 0.35})
+	if widened.SidebarRatio != 0.35 || widened.SidebarCollapsed {
+		t.Fatalf("drag to 0.35: ratio=%v collapsed=%v", widened.SidebarRatio, widened.SidebarCollapsed)
+	}
+	// Dragging under the rail threshold collapses but keeps the stored
+	// width, so the toggle restores it.
+	collapsed, _ := Update(widened, SetSidebarRatio{Ratio: 0.05})
+	if !collapsed.SidebarCollapsed || collapsed.SidebarRatio != 0.35 {
+		t.Fatalf("drag to rail: ratio=%v collapsed=%v", collapsed.SidebarRatio, collapsed.SidebarCollapsed)
+	}
+	restored, _ := Update(collapsed, ToggleSidebar{})
+	if restored.EffectiveRatio() != 0.35 {
+		t.Fatalf("restore = %v, want the pre-collapse 0.35", restored.EffectiveRatio())
+	}
+}
+
+func TestUpdateConfigAdoptsSidebarState(t *testing.T) {
+	next, _ := Update(testModel(), Config{LastChat: "alpha.json", SidebarRatio: 0.3, SidebarCollapsed: true})
+	if next.SidebarRatio != 0.3 || !next.SidebarCollapsed {
+		t.Fatalf("sidebar state not adopted from config: %+v", next)
+	}
+}
+
 func TestUpdateChatListReplacesList(t *testing.T) {
 	next, _ := Update(testModel(), ChatList{"gamma.json"})
 	if len(next.ChatList) != 1 || next.ChatList[0] != "gamma.json" {

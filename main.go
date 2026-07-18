@@ -28,10 +28,10 @@ func main() {
 // when the layers are subscribed once. Publish() multicasts WITHOUT replay,
 // so AutoConnect must fire — letting the seed emitted by mvu.Loop flow —
 // only when every consumer is attached. The consumers: the content layer's
-// CombineLatest (1) plus the rename modal's open and edit derivations (2);
-// the backdrop layer is theme-only. Measured by
-// TestModelObsConsumerCountMatchesConst.
-const modelObsConsumers = 3
+// CombineLatest (1), the rename modal's open and edit derivations (2), and
+// the split-pane ratio derivation (1); the backdrop layer is theme-only.
+// Measured by TestModelObsConsumerCountMatchesConst.
+const modelObsConsumers = 4
 
 // MindChat drives the MindChat window; one function per window, so further
 // windows get sibling functions with their own theme and loop.
