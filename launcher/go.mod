@@ -11,8 +11,8 @@ require (
 	github.com/vibrantgio/mvu v0.3.0
 	github.com/vibrantgio/noise v0.0.2
 	github.com/vibrantgio/prism v0.0.4
-	github.com/vibrantgio/seen v0.0.4
-	github.com/vibrantgio/seen/context/gio v0.0.4
+	github.com/vibrantgio/seen v0.0.5
+	github.com/vibrantgio/seen/context/gio v0.0.5
 	github.com/vibrantgio/spectrum v0.0.3
 	github.com/vibrantgio/style v0.0.3
 	golang.org/x/exp/shiny v0.0.0-20250408133849-7e4ce0ab07d0
@@ -23,7 +23,7 @@ require (
 	gioui.org/shader v1.0.8 // indirect
 	github.com/go-text/typesetting v0.3.0 // indirect
 	github.com/reactivego/scheduler v0.1.2 // indirect
-	github.com/vibrantgio/font v0.0.2 // indirect
+	github.com/vibrantgio/font v0.0.3 // indirect
 	github.com/vibrantgio/ivg v0.1.4 // indirect
 	github.com/vibrantgio/pulse v0.0.3 // indirect
 	github.com/vibrantgio/textdraw v0.0.2 // indirect
