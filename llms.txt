@@ -5,9 +5,10 @@ built on gioui.org, with a Functional Reactive Programming application model
 using github.com/reactivego/rx generics-based observables. This file tells a
 coding assistant everything needed to scaffold and build a correct VibrantGio
 application. The full architecture rationale is in DESIGN.md next to this
-file; the four apps in this repo (todos/, sitedocs/, feeds/, watchlist/) are
-the canonical usage references — todos/ is the minimal complete app; read it
-first, and read the larger three before inventing a pattern.
+file; the apps in this repo (todos/, sitedocs/, feeds/, watchlist/,
+mindchat/) are the canonical usage references — todos/ is the minimal
+complete app; read it first, and read the larger ones before inventing a
+pattern.
 
 ## Modules and versions
 
@@ -94,8 +95,8 @@ Update(Model, mvu.Message) (Model, mvu.Command). Async side effects are
 mvu.Command values: mvu.Do(func() (mvu.Message, error)), mvu.DoNothing(),
 mvu.DoConcurrent(...), mvu.DoSequence(...). mvu.Loop runs them and feeds
 the messages they emit back into Update — one command may stream many
-messages (see github.com/vibrantgio/mindchat, whose OpenAI completion
-streams dozens of deltas from a single command). Effect-free apps return
+messages (see mindchat/, whose OpenAI completion streams dozens of
+deltas from a single command). Effect-free apps return
 mvu.DoNothing() everywhere and never notice the runner. Commands are not
 the only valid effect seam: watchlist keeps its disk writes in submit
 CALLBACKS by design (the write stays synchronous with the confirming
@@ -272,6 +273,15 @@ Add pulse/backdrop/seen/traer as needed. All repos are public on GitHub.
               and editor state, ivg icon rendering at scale
   watchlist/  full CRUD + persistence + context menus + popover confirms;
               wiring_test.go shows how to test the AutoConnect count
+  mindchat/   the most feature-complete app: an OpenAI chat client whose
+              side effects all run as mvu commands — a completion STREAMS
+              dozens of messages back through the loop, routed by stream id
+              so switching/renaming/deleting chats mid-stream stays safe.
+              Also: SplitPane shell with a collapsible, resizable sidebar,
+              trash-backed session-wide undo (Cmd/Ctrl-Z), the modal-form
+              recipe (Seed/FocusTag/DynamicFocusTags/HideClose), list
+              scrollbars, and a global-shortcut key area done right.
+              Chatting needs OPENAI_API_KEY in the environment (or .env)
   launcher/   the workbench front door — a seen 3D triangle field composited
               as an mvu background layer (palette re-keyed per theme emission
               via an atomic handoff to the animation tick), hero + cadence

@@ -61,6 +61,11 @@ meant to be built — MVU state, spectrum theming, cadence patterns:
   storage, sidebar with right-click context menu, add/edit modals, bulk
   delete with confirmation popovers, conditional pagination.
   Its on-disk format is specified in [WATCHLIST-FORMAT.md](./WATCHLIST-FORMAT.md).
+- **[`mindchat/`](./mindchat)** — an OpenAI chat client and the most
+  feature-complete app: streaming completions routed through the MVU
+  command loop, a resizable/collapsible split-pane shell, trash-backed
+  undo with Cmd/Ctrl-Z, chat rename/delete/create, and per-chat streaming
+  indicators. Set `OPENAI_API_KEY` to chat.
 
 Run one:
 
