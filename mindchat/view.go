@@ -36,6 +36,7 @@ import (
 	"github.com/vibrantgio/prism/scrollbar"
 	"github.com/vibrantgio/prism/theme"
 	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/pulse/depth"
 	"github.com/vibrantgio/style"
 	"github.com/vibrantgio/textdraw"
 
@@ -752,7 +753,16 @@ func UndoBar(shaper *text.Shaper, t themed, pending PendingDelete, undo *widget.
 
 		pos := image.Pt((max.X-dims.Size.X)/2, max.Y-dims.Size.Y-gtx.Dp(UndoBarMargin))
 		defer op.Offset(pos).Push(gtx.Ops).Pop()
-		FillRect(gtx, image.Rectangle{Max: dims.Size}, gtx.Dp(UndoBarRadius), p.RowSelected)
+		// The cadence toast treatment: a cast shadow under an accent-tinted
+		// fill ringed in the accent, so the bar separates from the chat
+		// surfaces it floats over (RowSelected alone sat at ~1.2:1 against
+		// them, and ~1:1 against bot bubbles in dark mode).
+		bounds := image.Rectangle{Max: dims.Size}
+		depth.Shadow(gtx, bounds, tokens.Level3)
+		radius := gtx.Dp(UndoBarRadius)
+		FillRect(gtx, bounds, radius, Blend(p.RowSelected, p.Accent, 0x33))
+		ring := clip.RRect{Rect: bounds, SE: radius, SW: radius, NE: radius, NW: radius}
+		paint.FillShape(gtx.Ops, p.Accent, clip.Stroke{Path: ring.Path(gtx.Ops), Width: float32(gtx.Dp(1))}.Op())
 		content.Add(gtx.Ops)
 		return layout.Dimensions{}
 	}

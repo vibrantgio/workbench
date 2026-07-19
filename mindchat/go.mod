@@ -29,6 +29,7 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/vibrantgio/font v0.0.3 // indirect
+	github.com/vibrantgio/pulse v0.0.3 // indirect
 	golang.org/x/image v0.26.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.24.0 // indirect

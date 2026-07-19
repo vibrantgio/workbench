@@ -56,6 +56,18 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	}
 }
 
+// Blend mixes over into base at the given alpha (0–255) — the cadence
+// toast tint recipe, reused by the undo bar.
+func Blend(base, over color.NRGBA, alpha uint8) color.NRGBA {
+	a := float32(alpha) / 255
+	return color.NRGBA{
+		R: uint8(float32(over.R)*a + float32(base.R)*(1-a)),
+		G: uint8(float32(over.G)*a + float32(base.G)*(1-a)),
+		B: uint8(float32(over.B)*a + float32(base.B)*(1-a)),
+		A: 0xff,
+	}
+}
+
 // Static layout dimensions; these do not vary with the colour scheme.
 const (
 	ChatPaneWidth    unit.Dp = 794
