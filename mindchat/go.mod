@@ -8,7 +8,7 @@ require (
 	github.com/reactivego/rx v0.2.2
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/vibrantgio/backdrop v0.0.2
-	github.com/vibrantgio/cadence v0.0.6
+	github.com/vibrantgio/cadence v0.0.9
 	github.com/vibrantgio/ivg v0.1.4
 	github.com/vibrantgio/ivg/raster/gio v0.1.5
 	github.com/vibrantgio/mvu v0.3.0
