@@ -6,10 +6,14 @@
 !LICENSE
 !llms.txt
 
+# Agent skills — tracked, drivers included.
+!/.claude/skills/**
+
 # Example apps — fully tracked.
 !/feeds/**
 !/iconbrowser/**
 !/launcher/**
+!/mindchat/**
 !/sitedocs/**
 !/todos/**
 !/watchlist/**
@@ -18,6 +22,7 @@
 /feeds/feeds
 /iconbrowser/iconbrowser
 /launcher/launcher
+/mindchat/mindchat
 /sitedocs/sitedocs
 /todos/todos
 /watchlist/watchlist
