@@ -43,12 +43,15 @@ const (
 
 // docsPageContent is the raw material for a single docs page.
 type docsPageContent struct {
+	// Layer names the ecosystem layer the page documents (Prism,
+	// Cadence, Spectrum, Pulse, MVU); it becomes the middle breadcrumb.
+	Layer      string
 	Title      string
 	Paragraphs []string
 	Codes      []docsCodeSample
 
 	// BreadcrumbLabels, when set to exactly three entries, overrides the
-	// default Home / Docs / Title labels used by the renderDocsPage path.
+	// default Home / Layer / Title labels used by the renderDocsPage path.
 	BreadcrumbLabels []string
 }
 
@@ -66,7 +69,7 @@ func docsPage(
 	shaper *text.Shaper,
 	content docsPageContent,
 ) rx.Observable[layout.Widget] {
-	bcItems := docsBreadcrumb(content.Title)
+	bcItems := docsBreadcrumb(content)
 	bcObs := breadcrumb.Breadcrumb(th, breadcrumb.Props{
 		Items:  bcItems,
 		Shaper: shaper,
@@ -164,17 +167,20 @@ func renderDocsPage(
 	}
 }
 
-// docsBreadcrumb returns the breadcrumb trail for a docs page. Callbacks emit
-// mvu.MessageOp so navigation fires on the same frame as the click.
-func docsBreadcrumb(title string) []breadcrumb.Item {
+// docsBreadcrumb returns the breadcrumb trail for a docs page: Home
+// (clickable) / layer / title. Callbacks emit mvu.MessageOp so
+// navigation fires on the same frame as the click.
+func docsBreadcrumb(content docsPageContent) []breadcrumb.Item {
+	layer := content.Layer
+	if layer == "" {
+		layer = "Docs"
+	}
 	return []breadcrumb.Item{
 		{Label: "Home", OnClick: func(gtx layout.Context) {
 			mvu.MessageOp{Message: SetRoute{Page: pageHome}}.Add(gtx.Ops)
 		}},
-		{Label: "Docs", OnClick: func(gtx layout.Context) {
-			mvu.MessageOp{Message: SetRoute{Page: pageDocsGettingStarted}}.Add(gtx.Ops)
-		}},
-		{Label: title},
+		{Label: layer},
+		{Label: content.Title},
 	}
 }
 
@@ -187,9 +193,13 @@ func renderBreadcrumbItems(content docsPageContent) []breadcrumb.Item {
 			{Label: labels[2]},
 		}
 	}
+	layer := content.Layer
+	if layer == "" {
+		layer = "Docs"
+	}
 	return []breadcrumb.Item{
 		{Label: "Home"},
-		{Label: "Docs"},
+		{Label: layer},
 		{Label: content.Title},
 	}
 }

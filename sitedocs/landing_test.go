@@ -49,7 +49,7 @@ var (
 // and dark themes. Text labels in the patterns are intentionally blank /
 // single-space; structural variations (hero CTA pair, feature row, pricing
 // "Popular" border, testimonial card chrome) drive the visual difference.
-// The runtime path in landingMain uses landing_content.go for real copy.
+// The runtime path in homeShellLayer uses landing_content.go for real copy.
 func TestLandingGolden(t *testing.T) {
 	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	lightBG := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
@@ -99,33 +99,27 @@ func TestLandingLightDarkDiffer(t *testing.T) {
 	}
 }
 
-// TestLandingMainConstructs verifies that the runtime composition wires
-// the four pattern observables and emits a usable widget. The
+// TestHomeShellLayerConstructs verifies that the runtime composition —
+// the StackedPage shell whose Sections are the four pattern observables
+// plus the footer — wires up and emits a usable widget. The
 // rx.Of(theme.Default()) source delivers values synchronously, so the
-// CombineLatest4 emission arrives before the test collects.
-func TestLandingMainConstructs(t *testing.T) {
+// combined emission arrives before the test collects.
+func TestHomeShellLayerConstructs(t *testing.T) {
 	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
-	calls := 0
-	gotoDocs := func(_ layout.Context) { calls++ }
-	obs := landingMain(rx.Of(theme.Default()), shaper, gotoDocs)
+	obs := homeShellLayer(rx.Of(theme.Default()), shaper)
 	w, err := collectOne(obs)
 	if err != nil {
-		t.Fatalf("landingMain subscribe: %v", err)
+		t.Fatalf("homeShellLayer subscribe: %v", err)
 	}
 	if w == nil {
-		t.Fatal("landingMain produced no widget")
+		t.Fatal("homeShellLayer produced no widget")
 	}
 	// Drive one frame at the runtime canvas size so the widget executes
 	// its layout path; failure to compose returns either a panic or zero
 	// dims.
 	dims := drawOnce(t, landingCanvasSize, w)
 	if dims.Size.X == 0 || dims.Size.Y == 0 {
-		t.Errorf("landingMain widget produced zero dimensions: %v", dims)
-	}
-	// gotoDocs is only invoked on hero CTA click; no input is driven here
-	// so it must remain at zero.
-	if calls != 0 {
-		t.Errorf("gotoDocs fired during static layout: %d times", calls)
+		t.Errorf("homeShellLayer widget produced zero dimensions: %v", dims)
 	}
 }
 

@@ -27,21 +27,16 @@ const (
 
 var docsCanvasSize = image.Pt(docsCanvasW, docsCanvasH)
 
-// TestDocsPageConstructs is the G5.1c smoke test: each docs page observable
-// must build and emit a widget that lays out one frame without panicking.
+// TestDocsPageConstructs is the smoke test: every docs page in the
+// docsPages registry must build and emit a widget that lays out one
+// frame without panicking, so the sidebar can never route to a page
+// that fails to render.
 func TestDocsPageConstructs(t *testing.T) {
 	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
-	cases := []struct {
-		name    string
-		content docsPageContent
-	}{
-		{"getting-started", gettingStartedContent()},
-		{"phases-overview", phasesOverviewContent()},
-		{"component-reference", componentReferenceContent()},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			obs := docsPage(rx.Of(theme.Default()), shaper, tc.content)
+	for _, def := range docsPages() {
+		tc := def
+		t.Run(tc.ID, func(t *testing.T) {
+			obs := docsPage(rx.Of(theme.Default()), shaper, tc.Content)
 			w, err := collectOne(obs)
 			if err != nil {
 				t.Fatalf("docsPage subscribe: %v", err)

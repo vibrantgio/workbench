@@ -80,7 +80,7 @@ func TestHeroEyebrowDoesNotFloodCanvas(t *testing.T) {
 	colors := tokens.DefaultDark
 	bg := colors.Surface
 
-	hp := heroContent(shaper, func(_ layout.Context) {})
+	hp := heroContent(shaper, func(_ layout.Context) {}, func(_ layout.Context) {})
 	w := hero.Render(shaper, hp, colors, tokens.Spacing, tokens.Radius, tokens.DefaultTypeScale)
 
 	img := renderToImage(t, size, func(gtx layout.Context) layout.Dimensions {

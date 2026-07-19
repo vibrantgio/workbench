@@ -51,36 +51,45 @@ type docsSidebarSection struct {
 	Links []docsSidebarLink
 }
 
-// docsSidebarSections returns the static sidebar shape.
+// docsSidebarSections returns the static sidebar shape. Every link
+// routes to a distinct page; docsPages (docs_content.go) is the
+// authority on which pages exist.
 func docsSidebarSections() []docsSidebarSection {
 	return []docsSidebarSection{
 		{
 			Title: "Prism",
 			Links: []docsSidebarLink{
-				{Label: "Getting started", Page: pageDocsGettingStarted},
-				{Label: "Tokens & theme", Page: pageDocsPhasesOverview},
-				{Label: "Components", Page: pageDocsComponentRef},
+				{Label: "Getting started", Page: pagePrismGettingStarted},
+				{Label: "Tokens & theme", Page: pagePrismTokens},
+				{Label: "Primitives", Page: pagePrismPrimitives},
 			},
 		},
 		{
 			Title: "Cadence",
 			Links: []docsSidebarLink{
-				{Label: "Patterns overview", Page: pageDocsPhasesOverview},
-				{Label: "Pattern reference", Page: pageDocsComponentRef},
+				{Label: "Patterns", Page: pageCadencePatterns},
+				{Label: "Shells", Page: pageCadenceShells},
 			},
 		},
 		{
 			Title: "Spectrum",
 			Links: []docsSidebarLink{
-				{Label: "System glue", Page: pageDocsPhasesOverview},
-				{Label: "Live theme", Page: pageDocsComponentRef},
+				{Label: "Window & system", Page: pageSpectrumWindow},
+				{Label: "Live theme", Page: pageSpectrumTheme},
 			},
 		},
 		{
 			Title: "Pulse",
 			Links: []docsSidebarLink{
-				{Label: "Motion overview", Page: pageDocsPhasesOverview},
-				{Label: "Effects reference", Page: pageDocsComponentRef},
+				{Label: "Motion", Page: pagePulseMotion},
+				{Label: "Effects", Page: pagePulseEffects},
+			},
+		},
+		{
+			Title: "MVU",
+			Links: []docsSidebarLink{
+				{Label: "The loop", Page: pageMVULoop},
+				{Label: "Reactive window", Page: pageMVUWindow},
 			},
 		},
 	}

@@ -16,39 +16,37 @@ import (
 )
 
 // heroContent returns Hero props for the landing page. The primary CTA
-// fires gotoDocs so the navbar's docs route is reachable from the hero;
-// the secondary CTA is wired to a no-op because G5.1b does not depend on
-// outbound links.
-func heroContent(shaper *text.Shaper, gotoDocs func(gtx layout.Context)) hero.Props {
+// fires gotoDocs; the secondary CTA routes to the About page so no CTA
+// is dead UI.
+func heroContent(shaper *text.Shaper, gotoDocs, gotoAbout func(gtx layout.Context)) hero.Props {
 	return hero.Props{
 		Eyebrow:      "Native desktop · Go",
-		Title:        "VibrantGIO",
-		Subtitle:     "Prism foundation, Cadence patterns, Spectrum platform glue, Pulse motion — a four-phase Gio toolkit.",
+		Title:        "Vibrant Gio",
+		Subtitle:     "Prism tokens and primitives, Cadence patterns, Spectrum platform glue, Pulse motion, and an MVU runtime — a design system for building native desktop apps with Gio.",
 		PrimaryCTA:   &hero.CTA{Label: "Get started", OnClick: gotoDocs},
-		SecondaryCTA: &hero.CTA{Label: "GitHub", OnClick: func(_ layout.Context) {}},
+		SecondaryCTA: &hero.CTA{Label: "About", OnClick: gotoAbout},
 		Shaper:       shaper,
 	}
 }
 
-// featureContent returns the 3-up feature grid naming the three foundational
-// phases. The fourth phase (Spectrum) is intentionally omitted from this
-// grid because the hero subtitle already enumerates all four; surfacing it
-// again here would make the row feel padded.
+// featureContent returns the 3-up feature grid naming the marquee
+// layers. Spectrum and MVU are enumerated in the hero subtitle rather
+// than repeated here — a five-up row would feel padded.
 func featureContent() feature.Props {
 	return feature.Props{
 		Columns: 3,
 		Items: []feature.Item{
 			{
-				Title: "Prism — component foundation",
-				Body:  "Theme tokens, primitives, and accessible widgets every layer above builds on.",
+				Title: "Prism — tokens & primitives",
+				Body:  "Semantic token scales, themable widgets, and a11y helpers every layer above builds on.",
 			},
 			{
-				Title: "Cadence — pattern library",
-				Body:  "Marketing and product patterns composed from Prism primitives, copy-paste into your own apps.",
+				Title: "Cadence — application patterns",
+				Body:  "Shells, tables, modals, navigation and marketing sections — short source, copy into your app and modify.",
 			},
 			{
 				Title: "Pulse — motion + effects",
-				Body:  "Frame-driven physics and visual effects sharing the same theme stream as every widget.",
+				Body:  "Springs, tweens, glow and depth sharing the same theme stream as every widget.",
 			},
 		},
 	}
