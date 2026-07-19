@@ -5,15 +5,30 @@ import (
 	"maps"
 	"path/filepath"
 	"slices"
-
-	openai "github.com/sashabaranov/go-openai"
 )
 
 type Model struct {
-	DataDir     string
+	DataDir string
+	// AuthToken is the OPENAI_API_KEY environment value; it only seeds the
+	// first provider when the loaded config has none (first run, or a
+	// config predating provider support).
 	AuthToken   string
 	CurrentChat Chat
 	ChatList    ChatList
+
+	// Providers is the live API endpoint catalogue; DefaultProvider and
+	// DefaultModel name the model prompts use unless the chat overrides
+	// them. The settings modal edits a DRAFT copy (Settings.Draft) that
+	// only replaces these on SaveSettings.
+	Providers       []Provider
+	DefaultProvider string
+	DefaultModel    string
+
+	// Settings drives the settings modal; the zero value means closed.
+	Settings SettingsState
+
+	// ModelMenu is whether the chat header's model picker is open.
+	ModelMenu bool
 
 	// Pending is the delete currently advertised by the undo bar; the zero
 	// value means the bar is hidden. Its ConfirmDelete timer only HIDES the
@@ -73,15 +88,124 @@ func (model Model) Config() Config {
 		LastChat:         model.CurrentChat.Name,
 		SidebarRatio:     model.SidebarRatio,
 		SidebarCollapsed: model.SidebarCollapsed,
+		Providers:        model.Providers,
+		DefaultProvider:  model.DefaultProvider,
+		DefaultModel:     model.DefaultModel,
 	}
 }
 
-// StreamState is one in-flight completion: the chat it belongs to (kept
-// up to date across renames) and, while that chat is not current, the
-// accumulated history it will save.
+// SettingsState drives the settings modal. Draft is the provider catalogue
+// being edited (applied to the live config only on SaveSettings); Selected
+// indexes the provider the text fields show. Epoch keys the rebuild of the
+// uncontrolled fields — bumped on open and on provider add/remove/select/
+// template, NOT on keystrokes, so typing never reseeds the field under the
+// cursor. Dropdown is whether the global default-model picker is open.
+// EditGen counts key/URL keystrokes; only the settle timer carrying the
+// latest generation may check the key with a /models fetch. Errors holds
+// the last fetch outcome per provider name — no entry means no result yet,
+// "" means the key checked out, anything else is the fetch error.
+type SettingsState struct {
+	Open            bool
+	Epoch           int
+	Draft           []Provider
+	Selected        int
+	DefaultProvider string
+	DefaultModel    string
+	Dropdown        bool
+	EditGen         int
+	Errors          map[string]string
+}
+
+// KeyStatus is the settings pane's verdict on one provider's API key,
+// derived from the Errors map's tri-state entries.
+type KeyStatus int
+
+const (
+	KeyMissing  KeyStatus = iota // no key entered
+	KeyChecking                  // no /models result yet
+	KeyOK                        // the last fetch succeeded
+	KeyBad                       // the last fetch failed
+)
+
+// KeyStatus classifies the provider's API key by the last /models outcome.
+// Keys are trimmed on entry, so an all-blank key never reaches the draft.
+func (s SettingsState) KeyStatus(p Provider) KeyStatus {
+	err, checked := s.Errors[p.Name]
+	switch {
+	case p.APIKey == "":
+		return KeyMissing
+	case !checked:
+		return KeyChecking
+	case err != "":
+		return KeyBad
+	}
+	return KeyOK
+}
+
+// ProviderTemplates is the settings template bar: OpenAI-v1-compatible
+// endpoints whose Name and BaseURL prefill the selected provider. OpenAI
+// leads (an empty BaseURL is the OpenAI default).
+var ProviderTemplates = []Provider{
+	{Name: "OpenAI"},
+	{Name: "xAI", BaseURL: "https://api.x.ai/v1"},
+	{Name: "OpenRouter", BaseURL: "https://openrouter.ai/api/v1"},
+	{Name: "Groq", BaseURL: "https://api.groq.com/openai/v1"},
+}
+
+// SelectedProvider returns the draft provider the fields edit.
+func (s SettingsState) SelectedProvider() (Provider, bool) {
+	if s.Selected < 0 || s.Selected >= len(s.Draft) {
+		return Provider{}, false
+	}
+	return s.Draft[s.Selected], true
+}
+
+// ProviderNamed resolves a provider by name in the live catalogue.
+func (model Model) ProviderNamed(name string) (Provider, bool) {
+	for _, p := range model.Providers {
+		if p.Name == name {
+			return p, true
+		}
+	}
+	return Provider{}, false
+}
+
+// EffectiveModel resolves the provider and model id prompts in the current
+// chat use: the chat's override while it still names a live provider, else
+// the global default, else the first configured provider with its first
+// cached model. The bool is false when no provider is configured at all.
+func (model Model) EffectiveModel() (Provider, string, bool) {
+	if model.CurrentChat.Provider != "" {
+		if p, ok := model.ProviderNamed(model.CurrentChat.Provider); ok {
+			return p, model.CurrentChat.Model, true
+		}
+	}
+	if p, ok := model.ProviderNamed(model.DefaultProvider); ok {
+		return p, model.DefaultModel, true
+	}
+	if len(model.Providers) > 0 {
+		p := model.Providers[0]
+		id := ""
+		if len(p.Models) > 0 {
+			id = p.Models[0]
+		}
+		return p, id, true
+	}
+	return Provider{}, "", false
+}
+
+// StreamState is one in-flight exchange: the chat it belongs to (kept up
+// to date across renames) and, while that chat is not current, the
+// accumulated history it will persist. Provider/Model mirror the chat's
+// override so the stream's saves preserve it in the history file. Status
+// is the transient server-side tool indicator the view shows under the
+// current chat ("Searching the web…").
 type StreamState struct {
-	Chat    string
-	History []openai.ChatCompletionMessage
+	Chat     string
+	Provider string
+	Model    string
+	Status   string
+	History  []Message
 }
 
 // RenameState drives the rename modal: Target is the chat filename being
@@ -112,6 +236,12 @@ func (model Model) ChatDir() string {
 
 func (model Model) ChatFile(name string) string {
 	return filepath.Join(model.DataDir, "chats", name)
+}
+
+// LogDir holds the wire logs: one JSONL file per launch day recording
+// every raw Responses API event, for post-mortems of a bad exchange.
+func (model Model) LogDir() string {
+	return filepath.Join(model.DataDir, "logs")
 }
 
 // TrashDir holds deleted chats' history files while they are undoable.
@@ -152,12 +282,25 @@ func cloneStreams(streams map[int]StreamState) map[int]StreamState {
 	return next
 }
 
-// FreshChatName returns the first of new.json, new-2.json, new-3.json, …
-// not taken by existing.
+// FreshProviderName returns the first of Provider, Provider 2, Provider 3,
+// … not taken in the draft.
+func FreshProviderName(draft []Provider) string {
+	taken := func(name string) bool {
+		return slices.ContainsFunc(draft, func(p Provider) bool { return p.Name == name })
+	}
+	name := "Provider"
+	for i := 2; taken(name); i++ {
+		name = fmt.Sprintf("Provider %d", i)
+	}
+	return name
+}
+
+// FreshChatName returns the first of new.jsonl, new-2.jsonl, new-3.jsonl,
+// … not taken by existing.
 func FreshChatName(existing ChatList) string {
-	name := "new.json"
+	name := "new.jsonl"
 	for i := 2; slices.Contains(existing, name); i++ {
-		name = fmt.Sprintf("new-%d.json", i)
+		name = fmt.Sprintf("new-%d.jsonl", i)
 	}
 	return name
 }

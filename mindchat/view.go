@@ -39,7 +39,7 @@ import (
 	"github.com/vibrantgio/style"
 	"github.com/vibrantgio/textdraw"
 
-	openai "github.com/sashabaranov/go-openai"
+	"slices"
 )
 
 // buildLayers returns the layer-builder the spectrum window renders: a
@@ -139,6 +139,17 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	type parts struct {
 		sidebar, main, undo layout.Widget
 	}
+	// The model-menu popover widget (the header chip + its surface) reaches
+	// ChatPane's header slot through a cell; its stream joins the final
+	// combine below so menu updates repaint.
+	var menuCell atomic.Value
+	menuSlot := func(gtx layout.Context) layout.Dimensions {
+		if w, ok := menuCell.Load().(layout.Widget); ok && w != nil {
+			return w(gtx)
+		}
+		return layout.Dimensions{Size: gtx.Constraints.Max}
+	}
+
 	combined := rx.Map(rx.CombineLatest3(themes, prompt, modelObs),
 		func(next rx.Tuple3[themed, layout.Widget, Model]) parts {
 			t, promptW, model := next.First, next.Second, next.Third
@@ -146,9 +157,17 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			for _, s := range model.Streams {
 				streaming[s.Chat] = true
 			}
+			// While the current chat's exchange runs a server-side tool,
+			// its status shows as a transient row under the history.
+			history := model.CurrentChat.History
+			if id, ok := model.StreamFor(model.CurrentChat.Name); ok {
+				if status := model.Streams[id].Status; status != "" {
+					history = append(slices.Clone(history), Message{Role: RoleStatus, Content: status})
+				}
+			}
 			return parts{
 				sidebar: Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick, &toggleClick, &settingsClick),
-				main:    ChatPane(shaper, t, model.CurrentChat.History, histList, promptW),
+				main:    ChatPane(shaper, t, history, histList, promptW, menuSlot),
 				undo:    UndoBar(shaper, t, model.Pending, &undoClick),
 			}
 		})
@@ -187,6 +206,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	})
 
 	renameObs := RenameModal(th, shaper, modelObs)
+	settingsObs := SettingsModal(th, shaper, modelObs)
+	menuObs := ModelMenu(th, shaper, modelObs)
 
 	// Global Cmd/Ctrl-Z undoes a pending chat delete (the reducer ignores
 	// it when nothing is pending). A focused text editor claims the chord
@@ -195,13 +216,15 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		mvu.MessageOp{Message: UndoDelete{}}.Add(gtx.Ops)
 	})
 
-	// Overlays: the undo bar and the rename modal draw over the shell (the
-	// modal last — its scrim covers everything, undo bar included).
-	// partsObs joins the combine so every model emission re-emits the top
-	// widget — the same-frame repaint the sidebar stream used to provide.
-	return rx.Map(rx.CombineLatest3(shellObs, renameObs, partsObs),
-		func(next rx.Tuple3[layout.Widget, layout.Widget, int]) layout.Widget {
-			shellW, modalW := next.First, next.Second
+	// Overlays: the undo bar and the modals draw over the shell (the
+	// settings modal last — its scrim covers everything). partsObs joins
+	// the combine so every model emission re-emits the top widget — the
+	// same-frame repaint the sidebar stream used to provide; menuObs joins
+	// so the header picker's chip and surface stay current.
+	return rx.Map(rx.CombineLatest5(shellObs, renameObs, settingsObs, menuObs, partsObs),
+		func(next rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, int]) layout.Widget {
+			shellW, renameW, settingsW := next.First, next.Second, next.Third
+			menuCell.Store(next.Fourth)
 			return func(gtx layout.Context) layout.Dimensions {
 				// Key area first, at the BOTTOM of the hit stack (the
 				// todos convention) — it must never sit over the content.
@@ -210,8 +233,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				if w, ok := undoCell.Load().(layout.Widget); ok && w != nil {
 					w(gtx)
 				}
-				if modalW != nil {
-					modalW(gtx)
+				if renameW != nil {
+					renameW(gtx)
+				}
+				if settingsW != nil {
+					settingsW(gtx)
 				}
 				return dims
 			}
@@ -346,15 +372,31 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 		})
 }
 
-// ChatPane stacks the scrolling message history above the prompt field.
-func ChatPane(shaper *text.Shaper, t themed, chat []openai.ChatCompletionMessage, hist *list.State, prompt layout.Widget) layout.Widget {
+// ChatPane stacks the header (with the model-picker chip), the scrolling
+// message history, and the prompt field. The menu widget (the popover:
+// chip anchor + model list surface) is drawn LAST, over the history, so
+// the open surface wins the paint and hit-test order against the rows
+// below the header.
+func ChatPane(shaper *text.Shaper, t themed, chat []Message, hist *list.State, prompt, menu layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = ClampWidth(gtx, 0, ChatPaneWidth)
+		size := gtx.Constraints.Max
+		headerH := gtx.Dp(HeaderRowHeight)
 
 		layout.Flex{Axis: layout.Vertical, Spacing: layout.SpaceBetween, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				// The chip itself is overlaid below; the header row only
+				// reserves the space and draws its separator.
+				sep := image.Rectangle{
+					Min: image.Pt(gtx.Dp(12), headerH-gtx.Dp(1)),
+					Max: image.Pt(gtx.Constraints.Max.X-gtx.Dp(12), headerH),
+				}
+				FillRect(gtx, sep, 0, t.palette.Separator)
+				return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, headerH)}
+			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return list.LayoutScrollbar(gtx, hist, t.bar, list.Occupy, chat,
-					func(gtx layout.Context, msg openai.ChatCompletionMessage) layout.Dimensions {
+					func(gtx layout.Context, msg Message) layout.Dimensions {
 						return MessageRow(gtx, shaper, t, msg)
 					})
 			}),
@@ -363,20 +405,51 @@ func ChatPane(shaper *text.Shaper, t themed, chat []openai.ChatCompletionMessage
 			}),
 		)
 
-		return layout.Dimensions{Size: gtx.Constraints.Max}
+		// The popover gets an Exact chip-sized box in the header's right
+		// corner; it centres its anchor (the chip) in that box and hangs
+		// the surface below it.
+		chipW, chipH := gtx.Dp(ChipWidth), gtx.Dp(ChipHeight)
+		defer op.Offset(image.Pt(size.X-chipW-gtx.Dp(24), (headerH-chipH)/2)).Push(gtx.Ops).Pop()
+		mg := gtx
+		mg.Constraints = layout.Exact(image.Pt(chipW, chipH))
+		menu(mg)
+
+		return layout.Dimensions{Size: size}
 	}
 }
 
 // MessageRow renders one history entry: a full-width bubble with the text
-// indented past the avatar column, and the assistant avatar on its rows.
-func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg openai.ChatCompletionMessage) layout.Dimensions {
+// indented past the avatar column, and the assistant avatar on its (and
+// error notices') rows. Error rows read in the error colour, transient
+// status rows ("Searching the web…") in the heading colour, and an
+// answer's citations render as a Sources list under its text.
+func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg Message) layout.Dimensions {
 	p := t.palette
 	st := style.BodyText1
 
-	isUser := msg.Role == openai.ChatMessageRoleUser
+	isUser := msg.Role == RoleUser
 	fill, textColor := p.BotBubble, p.BotText
-	if isUser {
+	switch msg.Role {
+	case RoleUser:
 		fill, textColor = p.UserBubble, p.UserText
+	case RoleError:
+		textColor = p.Error
+	case RoleStatus:
+		textColor = p.Heading
+	}
+
+	content := msg.Content
+	if len(msg.Citations) > 0 {
+		content += "\n\nSources:"
+		for _, c := range msg.Citations {
+			line := c.URL
+			// xAI titles inline citations with their bare marker number;
+			// a title that adds nothing over the URL is dropped.
+			if c.Title != "" && strings.Trim(c.Title, "0123456789") != "" {
+				line = c.Title + " — " + c.URL
+			}
+			content += "\n• " + line
+		}
 	}
 
 	textMaterial := Material(gtx.Ops, textColor)
@@ -388,7 +461,7 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg openai.Ch
 		defer op.Offset(image.Pt(margin, 0)).Push(gtx.Ops).Pop()
 		gtx.Constraints.Max.X -= margin
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
-		dims := label.Layout(gtx, shaper, st.Font, st.Size, msg.Content, textMaterial)
+		dims := label.Layout(gtx, shaper, st.Font, st.Size, content, textMaterial)
 		dims.Size.X += margin
 		return dims
 	})
@@ -396,7 +469,7 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg openai.Ch
 
 	FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, fill)
 
-	if !isUser {
+	if !isUser && msg.Role != RoleStatus {
 		constraints := gtx.Constraints
 		iconSize := gtx.Dp(AvatarSize)
 		gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))

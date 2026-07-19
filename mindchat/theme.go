@@ -26,6 +26,8 @@ type Palette struct {
 	BotBubble   color.NRGBA // assistant message fill
 	BotText     color.NRGBA // assistant message text
 	Icon        color.NRGBA // assistant avatar glyph
+	Error       color.NRGBA // settings fetch-error text
+	Ok          color.NRGBA // settings key-check success icon
 }
 
 func PaletteFrom(c tokens.ColorTokens) Palette {
@@ -47,6 +49,10 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		BotBubble:   c.SurfaceVariant,
 		BotText:     c.OnSurface,
 		Icon:        c.Primary,
+		Error:       c.Error,
+		// The token set has no green family; Tailwind green 600 is legible
+		// on both schemes' surfaces.
+		Ok: color.NRGBA{0x16, 0xa3, 0x4a, 0xff},
 	}
 }
 
@@ -70,4 +76,27 @@ const (
 	RenameFieldHeight  unit.Dp = 48
 	RenameButtonHeight unit.Dp = 44
 	RenameButtonWidth  unit.Dp = 100
+
+	// Settings modal geometry.
+	SettingsBodyHeight  unit.Dp = 300
+	SettingsListWidth   unit.Dp = 150
+	SettingsRowHeight   unit.Dp = 28
+	SettingsFieldHeight unit.Dp = 42
+	SettingsCaptionRow  unit.Dp = 22
+	SettingsIconBtn     unit.Dp = 18
+	SettingsPanelInset  unit.Dp = 6
+	TemplateRowHeight   unit.Dp = 26
+	SelectRowHeight     unit.Dp = 32
+	DropChipWidth       unit.Dp = 260
+	ModelRowHeight      unit.Dp = 26
+	ModelDotSlot        unit.Dp = 16
+	ModelDotSize        unit.Dp = 6
+
+	// Chat header (model picker chip) geometry.
+	HeaderRowHeight unit.Dp = 44
+	ChipHeight      unit.Dp = 28
+	ChipWidth       unit.Dp = 230
+	ChipRadius      unit.Dp = 14
+	MenuWidth       unit.Dp = 260
+	MenuMaxHeight   unit.Dp = 320
 )

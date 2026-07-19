@@ -1,13 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
-
-	openai "github.com/sashabaranov/go-openai"
 
 	"github.com/reactivego/rx"
 
@@ -22,15 +19,15 @@ func TestDeleteChatRemovesFileThroughLoop(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "chats"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	file := filepath.Join(dir, "chats", "alpha.json")
-	if err := os.WriteFile(file, []byte("[]"), 0o644); err != nil {
+	file := filepath.Join(dir, "chats", "alpha.jsonl")
+	if err := os.WriteFile(file, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	seed := Model{
 		DataDir:     dir,
-		CurrentChat: Chat{Name: "beta.json"},
-		ChatList:    ChatList{"alpha.json", "beta.json"},
+		CurrentChat: Chat{Name: "beta.jsonl"},
+		ChatList:    ChatList{"alpha.jsonl", "beta.jsonl"},
 	}
 	in := make(chan mvu.Message, 4)
 	init := func() (Model, mvu.Command) { return seed, mvu.DoNothing() }
@@ -39,9 +36,9 @@ func TestDeleteChatRemovesFileThroughLoop(t *testing.T) {
 	sub := models.Subscribe(func(Model, error, bool) {}, rx.Goroutine)
 	defer sub.Unsubscribe()
 
-	in <- DeleteChat{Name: "alpha.json"}
+	in <- DeleteChat{Name: "alpha.jsonl"}
 
-	trashed := filepath.Join(dir, "chats", ".trash", "alpha.json")
+	trashed := filepath.Join(dir, "chats", ".trash", "alpha.jsonl")
 	deadline := time.Now().Add(2 * time.Second)
 	moved := false
 	for time.Now().Before(deadline) {
@@ -77,16 +74,16 @@ func TestRenameChatMovesFileThroughLoop(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "chats"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	oldFile := filepath.Join(dir, "chats", "alpha.json")
-	newFile := filepath.Join(dir, "chats", "ideas.json")
-	if err := os.WriteFile(oldFile, []byte("[]"), 0o644); err != nil {
+	oldFile := filepath.Join(dir, "chats", "alpha.jsonl")
+	newFile := filepath.Join(dir, "chats", "ideas.jsonl")
+	if err := os.WriteFile(oldFile, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	seed := Model{
 		DataDir:     dir,
-		CurrentChat: Chat{Name: "alpha.json"},
-		ChatList:    ChatList{"alpha.json"},
+		CurrentChat: Chat{Name: "alpha.jsonl"},
+		ChatList:    ChatList{"alpha.jsonl"},
 	}
 	in := make(chan mvu.Message, 4)
 	init := func() (Model, mvu.Command) { return seed, mvu.DoNothing() }
@@ -95,7 +92,7 @@ func TestRenameChatMovesFileThroughLoop(t *testing.T) {
 	sub := models.Subscribe(func(Model, error, bool) {}, rx.Goroutine)
 	defer sub.Unsubscribe()
 
-	in <- OpenRename{Name: "alpha.json"}
+	in <- OpenRename{Name: "alpha.jsonl"}
 	in <- RenameChat{To: "ideas"}
 
 	deadline := time.Now().Add(2 * time.Second)
@@ -110,9 +107,10 @@ func TestRenameChatMovesFileThroughLoop(t *testing.T) {
 	t.Fatalf("history file was not moved: old=%v new=%v", oldFile, newFile)
 }
 
-// TestBackgroundStreamSavesToOwningChatFile drives the real mvu.Loop: a
-// completion still streaming for alpha while beta is current must save to
-// ALPHA's file when it finishes — never to the currently selected chat's.
+// TestBackgroundStreamSavesToOwningChatFile drives the real mvu.Loop: an
+// exchange still streaming for alpha while beta is current must append its
+// final answer to ALPHA's file when it completes — never to the currently
+// selected chat's.
 func TestBackgroundStreamSavesToOwningChatFile(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "chats"), 0o755); err != nil {
@@ -121,12 +119,12 @@ func TestBackgroundStreamSavesToOwningChatFile(t *testing.T) {
 
 	seed := Model{
 		DataDir:     dir,
-		CurrentChat: Chat{Name: "beta.json"},
-		ChatList:    ChatList{"alpha.json", "beta.json"},
+		CurrentChat: Chat{Name: "beta.jsonl"},
+		ChatList:    ChatList{"alpha.jsonl", "beta.jsonl"},
 		NextStream:  1,
 		Streams: map[int]StreamState{
-			1: {Chat: "alpha.json", History: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleUser, Content: "tell me a story"},
+			1: {Chat: "alpha.jsonl", History: []Message{
+				{Role: RoleUser, Content: "tell me a story"},
 			}},
 		},
 	}
@@ -137,27 +135,27 @@ func TestBackgroundStreamSavesToOwningChatFile(t *testing.T) {
 	sub := models.Subscribe(func(Model, error, bool) {}, rx.Goroutine)
 	defer sub.Unsubscribe()
 
-	in <- delta(1, openai.ChatMessageRoleAssistant, "Once upon a time", false)
-	in <- delta(1, "", "", true) // finish → SaveHist to alpha's file
+	in <- AssistantDelta{Stream: 1, Text: "Once upon a time"}
+	in <- StreamCompleted{Stream: 1} // → append the answer to alpha's file
 
-	alphaFile := filepath.Join(dir, "chats", "alpha.json")
-	betaFile := filepath.Join(dir, "chats", "beta.json")
+	alphaFile := filepath.Join(dir, "chats", "alpha.jsonl")
+	betaFile := filepath.Join(dir, "chats", "beta.jsonl")
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		if data, err := os.ReadFile(alphaFile); err == nil {
 			if _, betaErr := os.Stat(betaFile); !os.IsNotExist(betaErr) {
 				t.Fatalf("beta's file was written by alpha's stream")
 			}
-			var hist []openai.ChatCompletionMessage
-			if err := json.Unmarshal(data, &hist); err != nil {
+			cf, err := ParseChatFile(data)
+			if err != nil {
 				t.Fatal(err)
 			}
-			if len(hist) != 2 || hist[1].Content != "Once upon a time" {
-				t.Fatalf("alpha.json = %+v, want prompt + streamed reply", hist)
+			if len(cf.History) != 1 || cf.History[0].Content != "Once upon a time" {
+				t.Fatalf("alpha.jsonl = %+v, want the streamed reply appended", cf.History)
 			}
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("alpha.json was never written by the background stream")
+	t.Fatalf("alpha.jsonl was never written by the background stream")
 }

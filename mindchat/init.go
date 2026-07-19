@@ -17,16 +17,17 @@ func Init() (Model, mvu.Command) {
 		fmt.Fprintln(os.Stderr, "mindchat: data dir:", err)
 		os.Exit(1)
 	}
-	authtoken, ok := os.LookupEnv("OPENAI_API_KEY")
-	if !ok {
-		fmt.Fprintln(os.Stderr, "mindchat: no OPENAI_API_KEY in environment")
-		os.Exit(1)
-	}
+	// OPENAI_API_KEY is optional now that providers are configured in the
+	// settings modal; when present it seeds the first provider (see the
+	// Config reduction).
+	authtoken := os.Getenv("OPENAI_API_KEY")
 	model := Model{DataDir: datadir, AuthToken: authtoken}
 	return model, mvu.DoSequence(
 		// Deletes not undone before the previous quit come back first, so
-		// the chat list load sees them.
+		// the migration sweep and the chat list load see them.
 		RestoreTrash(model.TrashDir(), model.ChatDir()).Trace("Restore Trash"),
-		LoadConfig(model.ConfigFile(), Config{LastChat: "monoid.json"}).Trace("Load Config"),
+		// Pre-JSONL chat files convert once, before anything reads them.
+		MigrateChats(model.ChatDir()).Trace("Migrate Chats"),
+		LoadConfig(model.ConfigFile(), Config{LastChat: "monoid.jsonl"}).Trace("Load Config"),
 	)
 }
