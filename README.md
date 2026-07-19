@@ -67,16 +67,16 @@ meant to be built — MVU state, spectrum theming, cadence patterns:
   undo with Cmd/Ctrl-Z, chat rename/delete/create, and per-chat streaming
   indicators. Set `OPENAI_API_KEY` to chat.
 
-Run one:
+Each app is its own Go module, so run it from inside its directory:
 
 ```sh
-go run ./todos/
+cd todos && go run .
 ```
 
 Or run the launcher and start them from there:
 
 ```sh
-go run ./launcher/
+cd launcher && go run .
 ```
 
 ## Documentation

@@ -4,7 +4,7 @@ import "golang.org/x/exp/shiny/materialdesign/icons"
 
 // App is one launchable workbench example. Name doubles as the status key in
 // the Model; Dir is the app's directory under the workbench root, which is
-// also what `go run ./<Dir>/` takes.
+// where the launcher runs `go run .`.
 type App struct {
 	Name  string
 	Dir   string

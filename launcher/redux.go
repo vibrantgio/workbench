@@ -51,10 +51,14 @@ func findApp(name string) (App, bool) {
 	return App{}, false
 }
 
-// launchCommand runs `go run ./<dir>/` at the workbench root and streams two
+// launchCommand runs `go run .` inside the app's directory and streams two
 // messages through the MVU loop: Started once the process spawns, then Exited
 // when it ends (one command, many messages — the mindchat streaming pattern).
-// A start failure collapses to a single Exited carrying the error.
+// A start failure collapses to a single Exited carrying the error. Running
+// inside the app directory (rather than `go run ./<dir>/` at the workbench
+// root) matters on a fresh checkout: the root has no Go module, so the app's
+// own go.mod must anchor the build. In the umbrella dev workspace the
+// go.work above the checkout is found either way.
 func launchCommand(app App) mvu.Command {
 	var cmd *exec.Cmd
 	var stderr bytes.Buffer
@@ -64,8 +68,8 @@ func launchCommand(app App) mvu.Command {
 		case 0:
 			root, err := workbenchRoot()
 			if err == nil {
-				cmd = exec.Command("go", "run", "./"+app.Dir+"/")
-				cmd.Dir = root
+				cmd = exec.Command("go", "run", ".")
+				cmd.Dir = filepath.Join(root, app.Dir)
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = &stderr
 				err = cmd.Start()
