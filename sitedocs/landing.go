@@ -28,6 +28,11 @@ import (
 // sectionGapDp is the vertical gap inserted between adjacent sections.
 const sectionGapDp float32 = 24
 
+// contentMaxWidthDp clamps the landing sections to a centered reading
+// column; on wider windows the shell fills the side margins with the
+// page background instead of stretching the sections edge to edge.
+const contentMaxWidthDp = 1100
+
 // homeShellLayer returns the Home page as a StackedPage shell: pinned
 // full-width navbar, the marketing patterns as scrolling sections, and a
 // theme-aware footer as the final section so it scrolls with the content.
@@ -40,8 +45,9 @@ func homeShellLayer(th rx.Observable[theme.Theme], shaper *text.Shaper) rx.Obser
 	}
 	gap := rx.Of[layout.Widget](pllayout.VSpacer(sectionGapDp))
 	return shell.Shell(th, shell.Props{
-		Layout: shell.StackedPage,
-		Navbar: navbarProps(th, shaper, pageHome),
+		Layout:          shell.StackedPage,
+		ContentMaxWidth: contentMaxWidthDp,
+		Navbar:          navbarProps(th, shaper, pageHome),
 		Sections: []rx.Observable[layout.Widget]{
 			hero.Hero(th, heroContent(shaper, gotoDocs, gotoAbout)),
 			gap,
