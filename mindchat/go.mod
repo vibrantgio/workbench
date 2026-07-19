@@ -8,11 +8,12 @@ require (
 	github.com/openai/openai-go/v3 v3.44.0
 	github.com/reactivego/rx v0.2.2
 	github.com/vibrantgio/backdrop v0.0.2
-	github.com/vibrantgio/cadence v0.0.10
+	github.com/vibrantgio/cadence v0.1.1
 	github.com/vibrantgio/ivg v0.1.4
 	github.com/vibrantgio/ivg/raster/gio v0.1.5
 	github.com/vibrantgio/mvu v0.3.0
 	github.com/vibrantgio/prism v0.0.7
+	github.com/vibrantgio/pulse v0.0.3
 	github.com/vibrantgio/spectrum v0.0.3
 	github.com/vibrantgio/style v0.0.3
 	github.com/vibrantgio/textdraw v0.0.3
@@ -29,7 +30,6 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/vibrantgio/font v0.0.3 // indirect
-	github.com/vibrantgio/pulse v0.0.3 // indirect
 	golang.org/x/image v0.26.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
