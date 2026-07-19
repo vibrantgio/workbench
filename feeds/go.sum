@@ -15,6 +15,8 @@ github.com/reactivego/scheduler v0.1.2 h1:SFnTs9OE9b/QQXbetqu9TGTbk1mhGjble5+kVv
 github.com/reactivego/scheduler v0.1.2/go.mod h1:Kw99rMXR1WJr/FgeqQfGAWClsWWlVKXZCUwJ+iCXUtQ=
 github.com/vibrantgio/cadence v0.0.3 h1:JOa7x+H/yor25iiZrcl1VwrlmY64t3h/1e/Sb7aTOpI=
 github.com/vibrantgio/cadence v0.0.3/go.mod h1:9tTOG2P379+VqAL+8knUHccs6VKLE8WEVo6EvJBBEp0=
+github.com/vibrantgio/cadence v0.0.10 h1:fnsc2FyEHofS9ZwQLgFW1qq3Ms/gHKdK0oDT+0e1y9U=
+github.com/vibrantgio/cadence v0.0.10/go.mod h1:9tTOG2P379+VqAL+8knUHccs6VKLE8WEVo6EvJBBEp0=
 github.com/vibrantgio/mvu v0.3.0 h1:/1wWT9CpeFfuOd1OBPGbxOMnDJU6CWwu5kuTxo0Y1z8=
 github.com/vibrantgio/mvu v0.3.0/go.mod h1:nLlxOgAjwE6voEBAAzmqZWZqn76ZTLY+0znhR0hjSDk=
 github.com/vibrantgio/prism v0.0.4 h1:x2LYBgz5eA6u+VMzbENfQRspsdIL+/4qfOh1KMdSsBY=

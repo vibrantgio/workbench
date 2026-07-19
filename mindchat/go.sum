@@ -33,6 +33,8 @@ github.com/vibrantgio/cadence v0.0.6 h1:KZYfLH9Wwksi+S+Gx3Ic9T2YvyK3ECfchwiGFjMv
 github.com/vibrantgio/cadence v0.0.6/go.mod h1:9tTOG2P379+VqAL+8knUHccs6VKLE8WEVo6EvJBBEp0=
 github.com/vibrantgio/cadence v0.0.9 h1:Ye1Vpr+vCKoJJ1+3SEU7EYYM6R8bCusiFwKPyreSRo8=
 github.com/vibrantgio/cadence v0.0.9/go.mod h1:9tTOG2P379+VqAL+8knUHccs6VKLE8WEVo6EvJBBEp0=
+github.com/vibrantgio/cadence v0.0.10 h1:fnsc2FyEHofS9ZwQLgFW1qq3Ms/gHKdK0oDT+0e1y9U=
+github.com/vibrantgio/cadence v0.0.10/go.mod h1:9tTOG2P379+VqAL+8knUHccs6VKLE8WEVo6EvJBBEp0=
 github.com/vibrantgio/font v0.0.3 h1:r4ZA9ztyix+Bt5/hEMws5Z1T2G5DYWOSqFBLxd9cD0M=
 github.com/vibrantgio/font v0.0.3/go.mod h1:iEdTTht8akBBAiO8VeIbegbvNImcWSigy/JuL2SobBA=
 github.com/vibrantgio/ivg v0.1.4 h1:61IX9sPxIiDxlXaGWGlE1g/9rcUbMvpAwaDegPlO8KI=

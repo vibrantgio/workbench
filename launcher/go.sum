@@ -17,6 +17,8 @@ github.com/vibrantgio/backdrop v0.0.2 h1:kLFiP1vado4XXekzlMWU68EYspsfr/I6gB3qg9r
 github.com/vibrantgio/backdrop v0.0.2/go.mod h1:vppNsSYdv1+VbFilK4pUz/m2ntMgy7y+Bpzyt7I6TIU=
 github.com/vibrantgio/cadence v0.0.5 h1:cjQghT7Zi2iTewAGb7OULxupkI/gfPrWq9/MgxNS8Mo=
 github.com/vibrantgio/cadence v0.0.5/go.mod h1:9tTOG2P379+VqAL+8knUHccs6VKLE8WEVo6EvJBBEp0=
+github.com/vibrantgio/cadence v0.0.10 h1:fnsc2FyEHofS9ZwQLgFW1qq3Ms/gHKdK0oDT+0e1y9U=
+github.com/vibrantgio/cadence v0.0.10/go.mod h1:9tTOG2P379+VqAL+8knUHccs6VKLE8WEVo6EvJBBEp0=
 github.com/vibrantgio/font v0.0.3 h1:r4ZA9ztyix+Bt5/hEMws5Z1T2G5DYWOSqFBLxd9cD0M=
 github.com/vibrantgio/font v0.0.3/go.mod h1:iEdTTht8akBBAiO8VeIbegbvNImcWSigy/JuL2SobBA=
 github.com/vibrantgio/ivg v0.1.4 h1:61IX9sPxIiDxlXaGWGlE1g/9rcUbMvpAwaDegPlO8KI=
