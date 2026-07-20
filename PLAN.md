@@ -1356,5 +1356,5 @@ Dependency order: G6.0 → G6.1 → G6.2 → G6.3 → G6.4 → G6.6, with G6.5 �
 
 **Steps:**
 
-- [ ] Push + tag prism (with `richtext`) and `markdown v0.0.1`.
-- [ ] Bump sitedocs/mindchat to the tags; verify `GOWORK=off go build ./...` green in workbench.
+- [x] Push + tag prism (with `richtext`) and `markdown v0.0.1`.
+- [x] Bump sitedocs/mindchat to the tags; verify `GOWORK=off go build ./...` green in workbench.
