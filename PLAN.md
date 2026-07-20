@@ -1297,11 +1297,11 @@ Dependency order: G6.0 → G6.1 → G6.2 → G6.3 → G6.4 → G6.6, with G6.5 �
 
 **Steps:**
 
-- [ ] Scaffold the module at `markdown/` (go.work entry, LICENSE, README recording why not `gioui.org/x/markdown`), requiring goldmark + GFM and prism.
-- [ ] AST → block model: headings, paragraphs, nested lists, blockquote, code block, rule, GFM strikethrough/task-list; inline runs map to `prism/richtext` spans.
-- [ ] Block widgets: type-scale headings, richtext paragraphs, indented lists, quote bar, rule, code block with surface background + tab expansion + horizontal scroll.
-- [ ] Document widget: blocks laid via `prism/list` for O(visible) cost.
-- [ ] Corpus test: the representative document renders with every construct asserted (block tree + goldens); `go test ./...` green.
+- [x] Scaffold the module at `markdown/` (go.work entry, LICENSE, README recording why not `gioui.org/x/markdown`), requiring goldmark + GFM and prism.
+- [x] AST → block model: headings, paragraphs, nested lists, blockquote, code block, rule, GFM strikethrough/task-list; inline runs map to `prism/richtext` spans.
+- [x] Block widgets: type-scale headings, richtext paragraphs, indented lists, quote bar, rule, code block with surface background + tab expansion + horizontal scroll.
+- [x] Document widget: blocks laid via `prism/list` for O(visible) cost.
+- [x] Corpus test: the representative document renders with every construct asserted (block tree + goldens); `go test ./...` green.
 
 ### G6.3 — `vibrantgio/markdown` — tables, highlighting, images
 
