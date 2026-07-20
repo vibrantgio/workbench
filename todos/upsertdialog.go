@@ -14,7 +14,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/place"
+	"github.com/vibrantgio/workbench/todos/internal/place"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/theme"
 	"github.com/vibrantgio/textdraw"

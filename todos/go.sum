@@ -23,8 +23,6 @@ github.com/vibrantgio/ivg/raster/gio v0.1.5 h1:DWbPRYzPtYlItcQw7B4noqUepgvcyUIIs
 github.com/vibrantgio/ivg/raster/gio v0.1.5/go.mod h1:YdIdqkd2IcXzGaDFWHiCGS3pPmj0d6OHYgKeK4BZJM0=
 github.com/vibrantgio/mvu v0.4.0 h1:00WxsVgwMNtjutfKCcGtijOFmC6loOGT2hAPF4FuJ5s=
 github.com/vibrantgio/mvu v0.4.0/go.mod h1:bWDpceYrVW1thyPcfjfQhmuDGbuJDEid4hO9qf0Z6kI=
-github.com/vibrantgio/place v0.0.1 h1:T35MrxagIfgGUrnB62hROi6jDpgI8TY+fCDN+OgHY0s=
-github.com/vibrantgio/place v0.0.1/go.mod h1:3jz/y3eNxcDtTmQABqufCN/P/mbcxH61rGuLq5hcXTo=
 github.com/vibrantgio/prism v0.0.8 h1:zyCvcsdpobvOvz/yDHFdjVmbt8jjyhzwLvgr96n1zYo=
 github.com/vibrantgio/prism v0.0.8/go.mod h1:XXCFH/53EBfCKhFjfFZJlzFODk8GYFq3BbINdlEOQYA=
 github.com/vibrantgio/spectrum v0.0.3 h1:vfD5n3tdcsRvti5yRXdunt55KOeX6U3gQdO8ztq4rtg=

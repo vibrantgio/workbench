@@ -9,7 +9,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
-	"github.com/vibrantgio/place"
+	"github.com/vibrantgio/workbench/todos/internal/place"
 )
 
 func Fab(icon layout.Widget, ax, ay float32, dx, dy unit.Dp, focus bool, cb func(gtx layout.Context)) layout.Widget {
