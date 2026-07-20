@@ -1313,9 +1313,9 @@ Dependency order: G6.0 → G6.1 → G6.2 → G6.3 → G6.4 → G6.6, with G6.5 �
 
 **Steps:**
 
-- [ ] Table block: grid with emphasised header + token borders; goldens.
-- [ ] `markdown/highlight` subpackage: chroma-backed highlighter hook; verify core stays chroma-free via `go list -deps`; golden for a Go snippet.
-- [ ] `ImageProvider` interface + `widget.Image` rendering with alt-text fallback; test with an in-memory provider.
+- [x] Table block: grid with emphasised header + token borders; goldens.
+- [x] `markdown/highlight` subpackage: chroma-backed highlighter hook; verify core stays chroma-free via `go list -deps`; golden for a Go snippet.
+- [x] `ImageProvider` interface + `widget.Image` rendering with alt-text fallback; test with an in-memory provider.
 
 ### G6.4 — Sitedocs: docs pages from `.md` sources
 
