@@ -144,6 +144,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				md.Highlight = mdHighlightLight
 			}
 			md.Text.OnLinkClick = func(_ layout.Context, url string) { openURL(url) }
+			md.Images = mdImages
 			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md}
 		})
 	})

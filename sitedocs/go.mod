@@ -6,7 +6,7 @@ require (
 	gioui.org v0.10.0
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/cadence v0.2.0
-	github.com/vibrantgio/markdown v0.0.2
+	github.com/vibrantgio/markdown v0.0.3
 	github.com/vibrantgio/mvu v0.4.0
 	github.com/vibrantgio/prism v0.0.9
 	github.com/vibrantgio/spectrum v0.0.3

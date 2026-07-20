@@ -11,7 +11,7 @@ require (
 	github.com/vibrantgio/cadence v0.2.0
 	github.com/vibrantgio/ivg v0.1.4
 	github.com/vibrantgio/ivg/raster/gio v0.1.5
-	github.com/vibrantgio/markdown v0.0.2
+	github.com/vibrantgio/markdown v0.0.3
 	github.com/vibrantgio/mvu v0.4.0
 	github.com/vibrantgio/prism v0.0.9
 	github.com/vibrantgio/pulse v0.0.3
@@ -33,6 +33,8 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/vibrantgio/font v0.0.3 // indirect
+	github.com/vibrantgio/svg v0.0.6 // indirect
+	github.com/vibrantgio/svg/driver/gio v0.0.6 // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
 	golang.org/x/image v0.26.0 // indirect
 	golang.org/x/net v0.48.0 // indirect

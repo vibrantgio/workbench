@@ -94,16 +94,18 @@ func messageSource(msg Message) []byte {
 	return []byte(b.String())
 }
 
-// degrade maps a parsed block tree onto the chat subset: paragraphs and
-// code blocks pass through, everything else flattens to plain paragraphs
-// preserving its inline runs — headings lose their scale, blockquotes their
-// bar, list items keep a textual marker, table rows join their cells, images
-// fall back to their alt text, and rules (no inline content) drop.
+// degrade maps a parsed block tree onto the chat subset: paragraphs, code
+// blocks, and images pass through (the document renders an image via the
+// style's provider — bundled SVG icons — and falls back to alt text
+// itself), everything else flattens to plain paragraphs preserving its
+// inline runs — headings lose their scale, blockquotes their bar, list
+// items keep a textual marker, table rows join their cells, and rules (no
+// inline content) drop.
 func degrade(blocks []markdown.Block) []markdown.Block {
 	var out []markdown.Block
 	for _, b := range blocks {
 		switch b := b.(type) {
-		case *markdown.Paragraph, *markdown.CodeBlock:
+		case *markdown.Paragraph, *markdown.CodeBlock, *markdown.Image:
 			out = append(out, b)
 		case *markdown.Heading:
 			out = append(out, &markdown.Paragraph{Spans: b.Spans})
@@ -113,12 +115,6 @@ func degrade(blocks []markdown.Block) []markdown.Block {
 			out = append(out, degradeList(b)...)
 		case *markdown.Table:
 			out = append(out, degradeTable(b)...)
-		case *markdown.Image:
-			alt := b.Alt
-			if alt == "" {
-				alt = b.URL
-			}
-			out = append(out, &markdown.Paragraph{Spans: []markdown.Span{{Text: alt}}})
 		case *markdown.Rule:
 			// A rule carries no inline runs; nothing to degrade to.
 		}

@@ -110,7 +110,6 @@ func TestBlocksDegradeToParagraphs(t *testing.T) {
 		{"bullet list", "- alpha\n- beta\n", "• ", 2},
 		{"ordered list", "3. alpha\n4. beta\n", "3. ", 2},
 		{"table", "| a | b |\n|---|---|\n| c | d |\n", "a", 2},
-		{"image", "![alt text](pic.png)\n", "alt text", 1},
 		{"rule", "---\n", "", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -131,6 +130,35 @@ func TestBlocksDegradeToParagraphs(t *testing.T) {
 				t.Errorf("first span = %#v, want text %q", spans, tc.wantFirst)
 			}
 		})
+	}
+}
+
+// TestImagePassesThrough verifies an image block survives degrade — the
+// document renders it via the style's provider (bundled SVG icons) and
+// falls back to alt text itself for unknown destinations.
+func TestImagePassesThrough(t *testing.T) {
+	blocks := parseBody("![OpenAI](openai.svg)\n")
+	if len(blocks) != 1 {
+		t.Fatalf("got %d blocks, want 1", len(blocks))
+	}
+	img, ok := blocks[0].(*markdown.Image)
+	if !ok {
+		t.Fatalf("degraded block is %T, want *markdown.Image", blocks[0])
+	}
+	if img.URL != "openai.svg" || img.Alt != "OpenAI" {
+		t.Errorf("image = %q/%q, want openai.svg/OpenAI", img.URL, img.Alt)
+	}
+}
+
+// TestBundledIconServes verifies the embedded asset tree serves the OpenAI
+// icon as a vector widget — proving the bundled SVG parses.
+func TestBundledIconServes(t *testing.T) {
+	w, err := mdImages.ImageWidget("openai.svg")
+	if err != nil || w == nil {
+		t.Fatalf("ImageWidget(openai.svg) = (%v, %v); want a widget", w, err)
+	}
+	if _, err := mdImages.ImageWidget("https://example.com/photo.png"); err == nil {
+		t.Error("remote destination served; want an error so it falls back to alt text")
 	}
 }
 
