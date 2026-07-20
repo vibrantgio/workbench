@@ -33,7 +33,7 @@ func TestDeleteChatRemovesFileThroughLoop(t *testing.T) {
 	init := func() (Model, mvu.Command) { return seed, mvu.DoNothing() }
 	models, runner := mvu.Loop(rx.Recv(in), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	sub := models.Subscribe(func(Model, error, bool) {}, rx.Goroutine)
+	sub := models.Subscribe(rx.GoroutineContext(), func(Model, error, bool) {})
 	defer sub.Unsubscribe()
 
 	in <- DeleteChat{Name: "alpha.jsonl"}
@@ -89,7 +89,7 @@ func TestRenameChatMovesFileThroughLoop(t *testing.T) {
 	init := func() (Model, mvu.Command) { return seed, mvu.DoNothing() }
 	models, runner := mvu.Loop(rx.Recv(in), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	sub := models.Subscribe(func(Model, error, bool) {}, rx.Goroutine)
+	sub := models.Subscribe(rx.GoroutineContext(), func(Model, error, bool) {})
 	defer sub.Unsubscribe()
 
 	in <- OpenRename{Name: "alpha.jsonl"}
@@ -132,7 +132,7 @@ func TestBackgroundStreamSavesToOwningChatFile(t *testing.T) {
 	init := func() (Model, mvu.Command) { return seed, mvu.DoNothing() }
 	models, runner := mvu.Loop(rx.Recv(in), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	sub := models.Subscribe(func(Model, error, bool) {}, rx.Goroutine)
+	sub := models.Subscribe(rx.GoroutineContext(), func(Model, error, bool) {})
 	defer sub.Unsubscribe()
 
 	in <- AssistantDelta{Stream: 1, Text: "Once upon a time"}

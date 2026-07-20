@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"image"
 	"testing"
 	"time"
@@ -105,14 +106,14 @@ func TestDocsShellLayerReEmitsOnModelChange(t *testing.T) {
 	shell := docsShellLayer(rx.Of(theme.Default()), shaper, modelObs)
 
 	emissions := make(chan layout.Widget, 16)
-	sub := shell.Subscribe(func(w layout.Widget, _ error, done bool) {
+	sub := shell.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
 			case emissions <- w:
 			default:
 			}
 		}
-	}, rx.Goroutine)
+	})
 	defer sub.Unsubscribe()
 
 	await := func(what string) layout.Widget {
@@ -164,11 +165,10 @@ func drainEmissions(ch chan layout.Widget) {
 // and the subscription's terminal error.
 func collectOne(obs rx.Observable[layout.Widget]) (layout.Widget, error) {
 	var got layout.Widget
-	sched := rx.NewScheduler()
-	err := obs.Subscribe(func(v layout.Widget, _ error, done bool) {
+	err := obs.Subscribe(context.Background(), func(v layout.Widget, _ error, done bool) {
 		if !done && got == nil {
 			got = v
 		}
-	}, sched).Wait()
+	}).Wait()
 	return got, err
 }

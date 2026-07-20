@@ -76,11 +76,11 @@ func detailPane(
 	tokenCell.Store(detailTokens{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
 	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typeObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colorObs, typeObs).Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = rx.CombineLatest2(colorObs, typeObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			tokenCell.Store(detailTokens{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 	loadTokens := func() detailTokens { return tokenCell.Load().(detailTokens) }
 
 	// Selected-article cell. cadence/tabs captures Tab.Content widgets at

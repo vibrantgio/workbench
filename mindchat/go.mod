@@ -6,13 +6,13 @@ require (
 	gioui.org v0.10.0
 	github.com/joho/godotenv v1.5.1
 	github.com/openai/openai-go/v3 v3.44.0
-	github.com/reactivego/rx v0.2.2
+	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.2
-	github.com/vibrantgio/cadence v0.1.2
+	github.com/vibrantgio/cadence v0.2.0
 	github.com/vibrantgio/ivg v0.1.4
 	github.com/vibrantgio/ivg/raster/gio v0.1.5
-	github.com/vibrantgio/mvu v0.3.0
-	github.com/vibrantgio/prism v0.0.7
+	github.com/vibrantgio/mvu v0.4.0
+	github.com/vibrantgio/prism v0.0.8
 	github.com/vibrantgio/pulse v0.0.3
 	github.com/vibrantgio/spectrum v0.0.3
 	github.com/vibrantgio/style v0.0.3
@@ -24,7 +24,7 @@ require (
 	eliasnaur.com/font v0.0.0-20230308162249-dd43949cb42d // indirect
 	gioui.org/shader v1.0.8 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
-	github.com/reactivego/scheduler v0.1.2 // indirect
+	github.com/reactivego/scheduler v0.2.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect

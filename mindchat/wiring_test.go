@@ -30,7 +30,7 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 	layers := buildLayers(counting)(rx.Of(theme.Default()))
 	subs := make([]rx.Subscription, 0, len(layers))
 	for _, layer := range layers {
-		subs = append(subs, layer.Subscribe(func(layout.Widget, error, bool) {}, rx.Goroutine))
+		subs = append(subs, layer.Subscribe(rx.GoroutineContext(), func(layout.Widget, error, bool) {}))
 	}
 	defer func() {
 		for _, sub := range subs {

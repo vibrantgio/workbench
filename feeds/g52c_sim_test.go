@@ -98,14 +98,14 @@ func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
 	layer := feedsShellLayer(rx.Of(theme.Default()), shaper, modelObs)
 
 	emissions := make(chan layout.Widget, 64)
-	sub := layer.Subscribe(func(w layout.Widget, _ error, done bool) {
+	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
 			case emissions <- w:
 			default:
 			}
 		}
-	}, rx.Goroutine)
+	})
 	defer sub.Unsubscribe()
 
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}

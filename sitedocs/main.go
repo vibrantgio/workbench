@@ -309,11 +309,11 @@ func brandWidget(th rx.Observable[theme.Theme], shaper *text.Shaper) layout.Widg
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	var cell atomic.Value
 	cell.Store(tokens.DefaultLight)
-	_ = colObs.Subscribe(func(c tokens.ColorTokens, _ error, done bool) {
+	_ = colObs.Subscribe(rx.GoroutineContext(), func(c tokens.ColorTokens, _ error, done bool) {
 		if !done {
 			cell.Store(c)
 		}
-	}, rx.Goroutine)
+	})
 	return func(gtx layout.Context) layout.Dimensions {
 		c := cell.Load().(tokens.ColorTokens)
 		return drawLabel(gtx, shaper, "Vibrant Gio", unit.Sp(18), c.OnSurface)

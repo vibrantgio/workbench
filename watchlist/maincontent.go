@@ -92,11 +92,11 @@ func watchlistMain(
 	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 	loadColor := func() tokens.ColorTokens { return tokenCell.Load().(tokenState).col }
 	loadType := func() tokens.TypeScale { return tokenCell.Load().(tokenState).typ }
 
@@ -112,11 +112,11 @@ func watchlistMain(
 	// (Invariant logged in FEEDBACK-G5.3.md.)
 	var modelCell atomic.Value
 	modelCell.Store(Model{editIndex: -1})
-	_ = modelMirrorObs.Subscribe(func(m Model, _ error, done bool) {
+	_ = modelMirrorObs.Subscribe(rx.GoroutineContext(), func(m Model, _ error, done bool) {
 		if !done {
 			modelCell.Store(m)
 		}
-	}, rx.Goroutine)
+	})
 	loadModel := func() Model { m, _ := modelCell.Load().(Model); return m }
 
 	// Per-index widget state, stable across list mutation.

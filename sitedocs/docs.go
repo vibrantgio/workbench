@@ -357,11 +357,11 @@ func codeCaptionWidget(
 
 	var state atomic.Value
 	state.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	_ = combined.Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = combined.Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			state.Store(tokenState{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 	return func(gtx layout.Context) layout.Dimensions {
 		s := state.Load().(tokenState)
 		return renderCodeCaption(shaper, caption, s.col, s.typ)(gtx)
@@ -402,11 +402,11 @@ func codeBodyWidget(
 
 	var state atomic.Value
 	state.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	_ = combined.Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = combined.Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			state.Store(tokenState{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 	return func(gtx layout.Context) layout.Dimensions {
 		s := state.Load().(tokenState)
 		return renderCodeBody(shaper, lines, s.col, s.typ)(gtx)

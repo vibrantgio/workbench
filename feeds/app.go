@@ -57,6 +57,7 @@ import (
 //  7. shareOpenObs       → popover Open prop                              (1)
 //  8. splitRatioObs      → shell SplitPane SplitRatio prop                (1)
 //  9. feedsObs           → sidebar CombineLatest (G5.2d)                  (1)
+//
 // 10. addFeedOpenObs     → modal Open prop (G5.2d)                        (1)
 // 11. addFeedErrorObs    → modal errorCell mirror (G5.2d)                 (1)
 // Total = 16, confirmed empirically by TestModelObsConsumerCountMatchesConst,
@@ -289,11 +290,11 @@ func sharePopover(
 	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
 	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typeObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colorObs, typeObs).Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = rx.CombineLatest2(colorObs, typeObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 
 	var anchorClick widget.Clickable
 	anchor := func(gtx layout.Context) layout.Dimensions {
@@ -427,11 +428,11 @@ func addFeedModal(
 	// errorCell mirrors addFeedError so the static card body decides whether
 	// to draw the alert band at frame time.
 	var errorCell atomic.Bool
-	_ = addFeedErrorObs.Subscribe(func(v bool, _ error, done bool) {
+	_ = addFeedErrorObs.Subscribe(rx.GoroutineContext(), func(v bool, _ error, done bool) {
 		if !done {
 			errorCell.Store(v)
 		}
-	}, rx.Goroutine)
+	})
 
 	// The card body: optional alert band, then the URL field, then the submit
 	// button. Static widget assembled from the bridged cells.

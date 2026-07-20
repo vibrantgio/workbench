@@ -66,11 +66,11 @@ func renameWatchlistModal(
 ) rx.Observable[layout.Widget] {
 	var modelCell atomic.Value
 	modelCell.Store(Model{editIndex: -1})
-	_ = modelMirrorObs.Subscribe(func(m Model, _ error, done bool) {
+	_ = modelMirrorObs.Subscribe(rx.GoroutineContext(), func(m Model, _ error, done bool) {
 		if !done {
 			modelCell.Store(m)
 		}
-	}, rx.Goroutine)
+	})
 
 	// nameCell holds the latest field text (the textfield is uncontrolled),
 	// re-seeded on each open so an untouched field submits the current name.
@@ -139,11 +139,11 @@ func renameWatchlistModal(
 	}
 
 	var errorCell atomic.Bool
-	_ = errorObs.Subscribe(func(v bool, _ error, done bool) {
+	_ = errorObs.Subscribe(rx.GoroutineContext(), func(v bool, _ error, done bool) {
 		if !done {
 			errorCell.Store(v)
 		}
-	}, rx.Goroutine)
+	})
 
 	cardBody := func(gtx layout.Context) layout.Dimensions {
 		w := gtx.Constraints.Max.X

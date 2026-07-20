@@ -571,7 +571,7 @@ func TestArticlesPipelineFiltersByFeed(t *testing.T) {
 		},
 	)
 	gotChan := make(chan []article, 4)
-	_ = pipeline.Subscribe(func(arts []article, _ error, done bool) {
+	_ = pipeline.Subscribe(rx.GoroutineContext(), func(arts []article, _ error, done bool) {
 		if done {
 			return
 		}
@@ -580,7 +580,7 @@ func TestArticlesPipelineFiltersByFeed(t *testing.T) {
 		case gotChan <- cp:
 		default:
 		}
-	}, rx.Goroutine)
+	})
 
 	selectSend.Next("hn")
 	awaitFeed := func(want FeedID) []article {
@@ -667,14 +667,14 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	shellLayer := feedsShellLayer(rx.Of(theme.Default()), shaper, modelObs)
 
 	emissions := make(chan layout.Widget, 16)
-	sub := shellLayer.Subscribe(func(w layout.Widget, _ error, done bool) {
+	sub := shellLayer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
 			case emissions <- w:
 			default:
 			}
 		}
-	}, rx.Goroutine)
+	})
 	defer sub.Unsubscribe()
 
 	await := func(what string) layout.Widget {
@@ -870,7 +870,7 @@ func collectOne(obs rx.Observable[layout.Widget]) (layout.Widget, error) {
 	for i := 0; ; i++ {
 		gotChan := make(chan layout.Widget, 1)
 		errChan := make(chan error, 1)
-		sub := obs.Subscribe(func(v layout.Widget, err error, done bool) {
+		sub := obs.Subscribe(rx.GoroutineContext(), func(v layout.Widget, err error, done bool) {
 			if done {
 				select {
 				case errChan <- err:
@@ -884,7 +884,7 @@ func collectOne(obs rx.Observable[layout.Widget]) (layout.Widget, error) {
 				default:
 				}
 			}
-		}, rx.Goroutine)
+		})
 		select {
 		case w := <-gotChan:
 			sub.Unsubscribe()

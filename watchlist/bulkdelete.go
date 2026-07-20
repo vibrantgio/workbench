@@ -71,17 +71,17 @@ func bulkDeletePopover(
 	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 
 	// Model mirror: the live selection count + the watchlists/selection the
 	// confirm callback writes from. Read at frame time (count) and at confirm.
 	var modelCell atomic.Value
 	modelCell.Store(Model{editIndex: -1})
-	_ = modelMirrorObs.Subscribe(func(m Model, _ error, done bool) {
+	_ = modelMirrorObs.Subscribe(rx.GoroutineContext(), func(m Model, _ error, done bool) {
 		if !done {
 			modelCell.Store(m)
 			// Auto-close the confirm if the selection emptied out from under it
@@ -90,7 +90,7 @@ func bulkDeletePopover(
 				closePop()
 			}
 		}
-	}, rx.Goroutine)
+	})
 	selCount := func() int {
 		m, _ := modelCell.Load().(Model)
 		return len(m.selection)

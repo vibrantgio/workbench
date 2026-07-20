@@ -93,11 +93,11 @@ func addSymbolModal(
 	// carry). Fed by modelMirrorObs.
 	var modelCell atomic.Value
 	modelCell.Store(Model{editIndex: -1})
-	_ = modelMirrorObs.Subscribe(func(m Model, _ error, done bool) {
+	_ = modelMirrorObs.Subscribe(rx.GoroutineContext(), func(m Model, _ error, done bool) {
 		if !done {
 			modelCell.Store(m)
 		}
-	}, rx.Goroutine)
+	})
 
 	// Per-field text cells (latest editor text; the textfield is uncontrolled).
 	// Seeded from the row on each open so an untouched field keeps its value.
@@ -185,11 +185,11 @@ func addSymbolModal(
 	// errorCell mirrors modalError so the static card body decides whether to
 	// draw the alert band at frame time.
 	var errorCell atomic.Bool
-	_ = modalErrorObs.Subscribe(func(v bool, _ error, done bool) {
+	_ = modalErrorObs.Subscribe(rx.GoroutineContext(), func(v bool, _ error, done bool) {
 		if !done {
 			errorCell.Store(v)
 		}
-	}, rx.Goroutine)
+	})
 
 	// The card body: optional alert band, the four fields, then Save.
 	cardBody := func(gtx layout.Context) layout.Dimensions {

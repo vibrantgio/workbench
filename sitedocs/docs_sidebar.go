@@ -191,11 +191,11 @@ func linkListBody(
 
 	var state atomic.Value
 	state.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			state.Store(tokenState{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 
 	clicks := make([]widget.Clickable, len(links))
 	return func(gtx layout.Context) layout.Dimensions {

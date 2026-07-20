@@ -70,11 +70,11 @@ func newSidebarContext(
 	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 
 	// The anchor is invisible (zero-painted) but must report a small size so the
 	// popover has an anchor rect to place the surface against.
@@ -159,11 +159,11 @@ func newSidebarContext(
 		OnDismiss: func(layout.Context) { sc.close() },
 	})
 	sc.cell.Store(layout.Widget(nil))
-	_ = popObs.Subscribe(func(w layout.Widget, _ error, done bool) {
+	_ = popObs.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			sc.cell.Store(w)
 		}
-	}, rx.Goroutine)
+	})
 	return sc
 }
 

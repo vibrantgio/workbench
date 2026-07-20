@@ -158,11 +158,11 @@ func feedEntryListBody(
 
 	var state atomic.Value
 	state.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			state.Store(tokenState{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 
 	// Per-FeedID widget state, stable across list mutation.
 	rowClicks := keyed.Defer(func(FeedID) *widget.Clickable { return &widget.Clickable{} })
@@ -329,11 +329,11 @@ func newDeleteConfirm(
 	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 
 	anchor := func(gtx layout.Context) layout.Dimensions {
 		if trashClick.Clicked(gtx) {
@@ -386,11 +386,11 @@ func newDeleteConfirm(
 		OnDismiss: func(layout.Context) { dc.close() },
 	})
 	dc.cell.Store(layout.Widget(nil))
-	_ = dc.popObs.Subscribe(func(w layout.Widget, _ error, done bool) {
+	_ = dc.popObs.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			dc.cell.Store(w)
 		}
-	}, rx.Goroutine)
+	})
 	return dc
 }
 

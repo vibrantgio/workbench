@@ -39,12 +39,12 @@ func runExchange(t *testing.T, provider Provider, model, prompt string) []mvu.Me
 	var got []mvu.Message
 	cmd := RequestResponse(1, provider, model,
 		[]Message{{Role: RoleUser, Content: prompt}}, logdir, "live.jsonl")
-	sub := cmd.Observable.Subscribe(func(next mvu.Message, err error, done bool) {
+	sub := cmd.Observable.Subscribe(rx.GoroutineContext(), func(next mvu.Message, err error, done bool) {
 		if !done && next != nil {
 			got = append(got, next)
 			t.Logf("message: %#v", next)
 		}
-	}, rx.Goroutine)
+	})
 	sub.Wait()
 	entries, _ := os.ReadDir(logdir)
 	for _, e := range entries {

@@ -144,11 +144,11 @@ func articlesMain(
 	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
 	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typeObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colorObs, typeObs).Subscribe(func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
+	_ = rx.CombineLatest2(colorObs, typeObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
 		if !done {
 			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
 		}
-	}, rx.Goroutine)
+	})
 	loadColor := func() tokens.ColorTokens { return tokenCell.Load().(tokenState).col }
 	loadType := func() tokens.TypeScale { return tokenCell.Load().(tokenState).typ }
 
@@ -159,11 +159,11 @@ func articlesMain(
 	// re-emits this layer.
 	var sortCell atomic.Value
 	sortCell.Store(table.Sort{Column: colPublished, Asc: false})
-	_ = sortObs.Subscribe(func(s table.Sort, _ error, done bool) {
+	_ = sortObs.Subscribe(rx.GoroutineContext(), func(s table.Sort, _ error, done bool) {
 		if !done {
 			sortCell.Store(s)
 		}
-	}, rx.Goroutine)
+	})
 
 	// Per-article widget.Clickable registry. The Deferred lives for the
 	// program lifetime — feeds is a single-window app and articlesMain is

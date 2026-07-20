@@ -220,14 +220,14 @@ func TestG53cShellStatesHeadless(t *testing.T) {
 	layer := watchlistShellLayer(rx.Of(theme.Default()), shaper, modelObs, storePath)
 
 	emissions := make(chan layout.Widget, 64)
-	sub := layer.Subscribe(func(w layout.Widget, _ error, done bool) {
+	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
 			case emissions <- w:
 			default:
 			}
 		}
-	}, rx.Goroutine)
+	})
 	defer sub.Unsubscribe()
 
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
@@ -348,14 +348,14 @@ func TestG53cPersistenceRoundTrips(t *testing.T) {
 func collectOneWidget(t *testing.T, obs rx.Observable[layout.Widget]) layout.Widget {
 	t.Helper()
 	ch := make(chan layout.Widget, 4)
-	sub := obs.Subscribe(func(w layout.Widget, _ error, done bool) {
+	sub := obs.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
 			case ch <- w:
 			default:
 			}
 		}
-	}, rx.Goroutine)
+	})
 	defer sub.Unsubscribe()
 	select {
 	case w := <-ch:

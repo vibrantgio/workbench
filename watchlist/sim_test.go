@@ -47,14 +47,14 @@ func TestWatchlistShellHeadless(t *testing.T) {
 	layer := watchlistShellLayer(rx.Of(theme.Default()), shaper, modelObs, filepath.Join(t.TempDir(), "watchlists.json"))
 
 	emissions := make(chan layout.Widget, 64)
-	sub := layer.Subscribe(func(w layout.Widget, _ error, done bool) {
+	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
 			case emissions <- w:
 			default:
 			}
 		}
-	}, rx.Goroutine)
+	})
 	defer sub.Unsubscribe()
 
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}

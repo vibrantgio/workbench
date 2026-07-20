@@ -35,7 +35,7 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 	})
 
 	layer := feedsShellLayer(rx.Of(theme.Default()), shaper, counting)
-	sub := layer.Subscribe(func(layout.Widget, error, bool) {}, rx.Goroutine)
+	sub := layer.Subscribe(rx.GoroutineContext(), func(layout.Widget, error, bool) {})
 	defer sub.Unsubscribe()
 
 	// Poll until the count stabilises (the graph attaches asynchronously on
@@ -90,14 +90,14 @@ func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
 	// before any teardown; letting the chain leak (it parks on a local channel,
 	// touches no shared state) keeps the test -race-clean. Steady-state message
 	// delivery is race-free; production only unsubscribes at DestroyEvent.
-	_ = layer.Subscribe(func(w layout.Widget, _ error, done bool) {
+	_ = layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
 			case emissions <- w:
 			default:
 			}
 		}
-	}, rx.Goroutine)
+	})
 
 	await := func(what string) layout.Widget {
 		deadline := time.Now().Add(2 * time.Second)

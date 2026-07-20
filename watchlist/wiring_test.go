@@ -55,7 +55,7 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 	})
 
 	layer := watchlistShellLayer(rx.Of(theme.Default()), shaper, counting, filepath.Join(t.TempDir(), "watchlists.json"))
-	sub := layer.Subscribe(func(layout.Widget, error, bool) {}, rx.Goroutine)
+	sub := layer.Subscribe(rx.GoroutineContext(), func(layout.Widget, error, bool) {})
 	defer sub.Unsubscribe()
 
 	deadline := time.Now().Add(time.Second)
@@ -98,14 +98,14 @@ func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
 	// reactivego/rx multicast unsubscribe-path race; seed-delivery + re-emit
 	// both happen before any teardown, so letting the chain leak keeps the test
 	// -race-clean (same rationale as feeds/wiring_test.go).
-	_ = layer.Subscribe(func(w layout.Widget, _ error, done bool) {
+	_ = layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
 			case emissions <- w:
 			default:
 			}
 		}
-	}, rx.Goroutine)
+	})
 
 	await := func(what string) layout.Widget {
 		deadline := time.Now().Add(2 * time.Second)
