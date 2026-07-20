@@ -148,3 +148,61 @@ input module is addressed as `./prism/input/...`.)
   `BenchmarkTextFieldRender` (unfocused placeholder) measures 0 B/op for
   contrast. The bench fails loudly via an `OnChange` guard if focus ever fails
   to take, so the row can never silently regress to the cheaper unfocused frame.
+
+---
+
+# Phase 6 — richtext baseline — Prism
+
+Captured as part of milestone **G6.1** (`prism/richtext`, the inline
+styled-text primitive). Benchmarks plug into the shared `prism/bench` harness
+(`BenchFrame(b, widget, WithSize(400×120))`); the >5% regression rule applies
+per-benchmark to both ns/op and B/op.
+
+## Platform
+
+| Field | Value |
+|---|---|
+| CPU | Apple M1 |
+| OS | macOS 15.7.7 (24G720) |
+| Go | go1.25.5 darwin/arm64 |
+| Gio | v0.10.0 |
+| Date | 2026-07-20 |
+
+Run command (from workspace root):
+
+```
+go test -bench=. -benchmem -benchtime=3s -run '^$' ./prism/richtext/
+```
+
+## Results
+
+| Component | Benchmark | Scenario | ns/op | B/op | allocs/op |
+|---|---|---|---:|---:|---:|
+| richtext | `BenchmarkRichtextRender` | mixed paragraph (regular/bold/italic/mono + link), wrapped over 2 lines in 400 px, idle | 6 971 | 2 944 | 6 |
+| richtext | `BenchmarkRichtextRenderFocused` | same paragraph with the link focused: adds the focus-ring stroke path | 7 362 | 2 944 | 6 |
+
+## Notes
+
+- Per-span shaping is served from the shaper's layout cache after the first
+  frame; the measured cost is span resolution, line assembly
+  (baseline-aligned), glyph outline painting, and the link underline.
+- The 6 allocs/op are the per-frame span-resolution and line-assembly slices
+  (`resolve`'s output, the working span queue, and segment growth). They scale
+  with span count, not text length. Static `Render` has no `State` scope to
+  pre-allocate in; if paragraph counts ever make this measurable, the slices
+  can move into `richtext.State` for the live path.
+- The focus ring costs ~390 ns: one `clip.Stroke` path around the focused
+  link's segment.
+
+## Raw output
+
+```
+goos: darwin
+goarch: arm64
+pkg: github.com/vibrantgio/prism/richtext
+cpu: Apple M1
+BenchmarkRichtextRender-8          	  517048	      6971 ns/op	    2944 B/op	       6 allocs/op
+BenchmarkRichtextRenderFocused-8   	  483351	      7362 ns/op	    2944 B/op	       6 allocs/op
+PASS
+ok  	github.com/vibrantgio/prism/richtext	10.338s
+```
