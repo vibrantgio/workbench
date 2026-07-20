@@ -39,8 +39,8 @@ github.com/vibrantgio/spectrum v0.0.3 h1:vfD5n3tdcsRvti5yRXdunt55KOeX6U3gQdO8ztq
 github.com/vibrantgio/spectrum v0.0.3/go.mod h1:9ol++v4QAO0e57Qr8x1260rytf2e5rRuZ7depY50vCg=
 github.com/vibrantgio/style v0.0.3 h1:s0J5Ce5wCWKEIXdoP0/C3rialOnzLw0oucl8OpQIz2A=
 github.com/vibrantgio/style v0.0.3/go.mod h1:ruWySP+WFGsj+xI4ojmML2yG453ZVFVkYhBsefxsK00=
-github.com/vibrantgio/textdraw v0.0.2 h1:hfW1wYOo94o0jnumSeiC//X06sVfG9g9F6C3Ao0BaUU=
-github.com/vibrantgio/textdraw v0.0.2/go.mod h1:WZ8hXqhYBjLRnFsV3lnbO7sbK6dPTCQwGm5o4QcZ1FI=
+github.com/vibrantgio/textdraw v0.0.3 h1:oUUlPOE1mKmZQUGy7GWGPBCipGa4ghzNpsyycio3ous=
+github.com/vibrantgio/textdraw v0.0.3/go.mod h1:UHAm1RY0rX/oatzKgYDjuPhmXv+IJWrDYadoHDEknDg=
 golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 h1:R84qjqJb5nVJMxqWYb3np9L5ZsaDtB+a39EqjV0JSUM=
 golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0/go.mod h1:S9Xr4PYopiDyqSyp5NjCrhFrqg6A5zA2E/iPHPhqnS8=
 golang.org/x/exp/shiny v0.0.0-20250408133849-7e4ce0ab07d0 h1:tMSqXTK+AQdW3LpCbfatHSRPHeW6+2WuxaVQuHftn80=

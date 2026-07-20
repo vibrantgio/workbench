@@ -26,7 +26,7 @@ require (
 	github.com/vibrantgio/font v0.0.3 // indirect
 	github.com/vibrantgio/ivg v0.1.4 // indirect
 	github.com/vibrantgio/pulse v0.0.3 // indirect
-	github.com/vibrantgio/textdraw v0.0.2 // indirect
+	github.com/vibrantgio/textdraw v0.0.3 // indirect
 	golang.org/x/image v0.26.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
