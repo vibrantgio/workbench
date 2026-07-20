@@ -11,7 +11,7 @@ require (
 	github.com/vibrantgio/cadence v0.2.0
 	github.com/vibrantgio/ivg v0.1.4
 	github.com/vibrantgio/ivg/raster/gio v0.1.5
-	github.com/vibrantgio/markdown v0.0.1
+	github.com/vibrantgio/markdown v0.0.2
 	github.com/vibrantgio/mvu v0.4.0
 	github.com/vibrantgio/prism v0.0.9
 	github.com/vibrantgio/pulse v0.0.3
