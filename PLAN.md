@@ -1268,8 +1268,8 @@ Dependency order: G6.0 → G6.1 → G6.2 → G6.3 → G6.4 → G6.6, with G6.5 �
 
 **Steps:**
 
-- [ ] Write DESIGN.md §"Markdown": the two-package split, the no-cadence-wrapper non-goal, rationale, and consumers.
-- [ ] Record the x/markdown evaluation findings (single flattened richtext flow; blockquote/rule/image/table/nesting/GFM dropped; headings size-only; tabs render as tofu; no selection) as the evidence.
+- [x] Write DESIGN.md §"Markdown": the two-package split, the no-cadence-wrapper non-goal, rationale, and consumers.
+- [x] Record the x/markdown evaluation findings (single flattened richtext flow; blockquote/rule/image/table/nesting/GFM dropped; headings size-only; tabs render as tofu; no selection) as the evidence.
 
 ### G6.1 — `prism/richtext/` — inline styled-text primitive
 

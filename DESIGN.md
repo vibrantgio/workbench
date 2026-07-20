@@ -285,6 +285,26 @@ FRP consumers who want messages-as-stream wrap the callback themselves with `rx.
 
 ---
 
+## Markdown
+
+Document-grade markdown rendering (decision recorded 2026-07-20). The renderer is split across the layers the phase model already defines, rather than landing as one package:
+
+1. **`prism/richtext`** — the inline styled-text primitive: a span model (font, weight, style, size, colour, link URL metadata) with wrapped paragraph layout and interactive link spans. Zero third-party dependencies, themed via `tokens`, full a11y (keyboard focus traversal, visible focus ring, hover pointer cursor).
+2. **`github.com/vibrantgio/markdown`** — a standalone module that carries the goldmark dependency (chroma syntax highlighting lives in a `markdown/highlight` subpackage so the core package never imports chroma). It walks the goldmark AST into a block model and maps it onto prism block widgets: type-scale headings, richtext paragraphs, nested lists, blockquotes, rules, code blocks, GFM tables / strikethrough / task lists.
+3. **No cadence wrapper** — a deliberate non-goal for now. Cadence patterns are dependency-free compositions of prism primitives; a docs-page wrapper only earns its place once sitedocs proves the shape.
+
+**Rationale:**
+
+- **Dependency hygiene.** Prism's require list stays first-party + rx + Gio. The parser (goldmark) and highlighter (chroma) are quarantined in their own module, and the highlighter is further quarantined in a subpackage.
+- **Layer fit.** A document renderer is a composite of prism primitives — the shape the phase model assigns to a downstream module, not to the component foundation.
+- **Tag churn.** Early iteration on the renderer bumps only its consumers (sitedocs, mindchat), not every prism consumer.
+
+**Consumers:** sitedocs docs pages (full documents from embedded `.md` sources) and mindchat message bodies (the inline subset plus fenced code blocks).
+
+**Evidence — `gioui.org/x/markdown` evaluation (2026-07-20):** the existing community renderer was evaluated and rejected as a dependency. It flattens the whole document into a single richtext flow and drops blockquotes, thematic rules, images, tables, list nesting, and all of GFM; headings are distinguished by size only; tabs render as tofu; there is no text selection. It remains usable as a span-model reference only — which is what motivates both the prism-owned span primitive and the standalone renderer module.
+
+---
+
 ## Implementation Plan
 
 ### Phase −1 — Gio Migration *(gates Phase 00)*
