@@ -1251,3 +1251,110 @@ Decided **Cadence** (rejected original candidates Folio / Atelier / Suite); reas
 - [x] Rewrite into the four sections (Bugs / Missing API affordances / Awkward compositions / Ergonomics wins) with severity tags and one-line remediations for every blocker and major.
 - [x] Add a final **"Format-design notes for coinviz adoption"** subsection (≥ 1 paragraph) capturing field-naming / version-migration lessons for a future coinviz multi-symbol feature.
 - [x] Verify `FEEDBACK-G5.3.md` has all four section headings plus the format-design subsection, severity-tagged entries, and blocker/major remediations.
+
+## Phase 6 — Markdown (document rendering)
+
+**Goal:** document-grade markdown rendering, split across the layers the phase model already defines: an inline styled-text primitive in Prism, a standalone `github.com/vibrantgio/markdown` module that carries the goldmark dependency, and adoption in sitedocs and mindchat. An evaluation of `gioui.org/x/markdown` (2026-07-20) showed it flattens the whole document into one richtext flow and drops blockquotes, rules, images, tables, list nesting, and all of GFM — usable as a span-model reference only, not as a dependency.
+
+Dependency order: G6.0 → G6.1 → G6.2 → G6.3 → G6.4 → G6.6, with G6.5 ‖ parallelisable from G6.2 onward. A cadence docs-page wrapper is deliberately **not** in this phase: cadence patterns are dependency-free compositions of prism primitives, and a wrapper only earns its place once sitedocs (G6.4) proves the shape.
+
+### G6.0 — Decision doc: DESIGN.md §"Markdown"
+
+- **Specific:** Add a §"Markdown" section to `DESIGN.md` recording the layering decision: (1) `prism/richtext` — inline styled-text primitive, zero third-party deps, themed via tokens, full a11y; (2) `github.com/vibrantgio/markdown` — standalone module carrying goldmark (+chroma in a subpackage), mapping the AST onto prism block widgets; (3) no cadence wrapper until sitedocs proves the shape. Record the rationale (dependency hygiene — prism's require list stays first-party + rx + gio; layer fit — a document renderer is a composite of prism primitives; tag churn — early iteration bumps only sitedocs/mindchat) and the consumers (sitedocs docs pages, mindchat message bodies).
+- **Measurable:** `mdedit read -s "Markdown" DESIGN.md` returns the section; it cites the `gioui.org/x/markdown` evaluation findings as motivating evidence.
+- **Achievable:** documentation only; the decision was made 2026-07-20, this goal records it.
+- **Relevant:** SMART contract — decision goals precede implementation goals; gives G6.1–G6.6 their `(DESIGN §Markdown)` citation.
+- **Budget:** ~15 K.
+
+**Steps:**
+
+- [ ] Write DESIGN.md §"Markdown": the two-package split, the no-cadence-wrapper non-goal, rationale, and consumers.
+- [ ] Record the x/markdown evaluation findings (single flattened richtext flow; blockquote/rule/image/table/nesting/GFM dropped; headings size-only; tabs render as tofu; no selection) as the evidence.
+
+### G6.1 — `prism/richtext/` — inline styled-text primitive
+
+- **Specific:** Span model `{Font, Weight, Style, Size, Color, link URL metadata}`; wrapped paragraph layout over `text.Shaper`; interactive link spans with hover pointer cursor, `OnLinkClick func(gtx layout.Context, url string)` (callbacks carry `gtx` per GX.8), and keyboard focus traversal across links with a visible focus ring. Link colour and type sizes come from `tokens`. Immediate-mode API matching `prism/list` conventions. Zero third-party deps — `gioui.org/x/richtext` is reference material, not a dependency.
+- **Measurable:** golden tests (mixed bold/italic/mono/link paragraph; link hovered; link focused); `go test ./richtext/...` green; gallery section exercising spans and links; benchmark recorded in `BASELINE.md` per prism convention.
+- **Achievable:** one package; shaping and wrapping reuse Gio's shaper, prism owns span styling and interaction.
+- **Relevant:** (DESIGN §Markdown, via G6.0); a11y per DESIGN §"Accessibility".
+- **Budget:** ~90 K. **Split** if needed: **G6.1a** span layout + goldens; **G6.1b** link interaction + a11y + gallery.
+
+**Steps:**
+
+- [ ] Scaffold `prism/richtext`: `SpanStyle`, interaction state type, `FromTokens` defaults (link colour, body size).
+- [ ] Paragraph layout: shape and wrap spans into lines; goldens for a mixed-style paragraph.
+- [ ] Link interaction: hover cursor, `OnLinkClick(gtx, url)`, keyboard focus traversal + focus ring; goldens for hover and focused states.
+- [ ] Benchmark per prism convention; record in `BASELINE.md`.
+- [ ] Gallery section demonstrating spans and links; `go test ./richtext/...` green.
+
+### G6.2 — `vibrantgio/markdown` — block renderer core
+
+- **Specific:** New module at workspace root `markdown/` (go.work entry; pushed as `github.com/vibrantgio/markdown` per the library flow), requiring goldmark + `extension.GFM` and prism. Walk the goldmark AST into a block model, then render: heading levels → `tokens/typography` scale; paragraphs → `prism/richtext` spans (bold/italic/code/links); ordered/unordered lists with real nesting and indentation; blockquote as inset column with a leading token-coloured bar; thematic break as a rule; fenced/indented code blocks as monospace on a surface background with tab expansion and horizontal overflow scroll; GFM strikethrough and task-list checkboxes. The document widget lays blocks via `prism/list` so long documents stay O(visible).
+- **Measurable:** corpus test — a representative document exercising every construct (the 2026-07-20 evaluation document) renders with each construct asserted structurally (block tree) plus goldens; `go test ./...` green in the module.
+- **Achievable:** goldmark owns parsing; scope is the AST→block mapping and the block widgets.
+- **Relevant:** (DESIGN §Markdown).
+- **Budget:** ~95 K. **Split**: **G6.2a** AST → block model + structural tests; **G6.2b** block widgets + goldens.
+
+**Steps:**
+
+- [ ] Scaffold the module at `markdown/` (go.work entry, LICENSE, README recording why not `gioui.org/x/markdown`), requiring goldmark + GFM and prism.
+- [ ] AST → block model: headings, paragraphs, nested lists, blockquote, code block, rule, GFM strikethrough/task-list; inline runs map to `prism/richtext` spans.
+- [ ] Block widgets: type-scale headings, richtext paragraphs, indented lists, quote bar, rule, code block with surface background + tab expansion + horizontal scroll.
+- [ ] Document widget: blocks laid via `prism/list` for O(visible) cost.
+- [ ] Corpus test: the representative document renders with every construct asserted (block tree + goldens); `go test ./...` green.
+
+### G6.3 — `vibrantgio/markdown` — tables, highlighting, images
+
+- **Specific:** GFM table block as a grid (emphasised header row, token borders). Syntax highlighting via chroma in a separate `markdown/highlight` subpackage registered as an optional hook, so the core package never imports chroma. Images via a caller-supplied `ImageProvider` interface (no network inside the library), rendered with `widget.Image`, alt text as fallback.
+- **Measurable:** goldens for a table and a highlighted Go snippet; image test with an in-memory provider; `go list -deps` of the core package shows no chroma.
+- **Achievable:** three additive features on the G6.2 block model.
+- **Relevant:** (DESIGN §Markdown).
+- **Budget:** ~70 K.
+
+**Steps:**
+
+- [ ] Table block: grid with emphasised header + token borders; goldens.
+- [ ] `markdown/highlight` subpackage: chroma-backed highlighter hook; verify core stays chroma-free via `go list -deps`; golden for a Go snippet.
+- [ ] `ImageProvider` interface + `widget.Image` rendering with alt-text fallback; test with an in-memory provider.
+
+### G6.4 — Sitedocs: docs pages from `.md` sources
+
+- **Specific:** Move sitedocs docs content from hand-coded Go (`docs_content.go`) to `.md` sources embedded via `go:embed` and rendered with `vibrantgio/markdown`. Sidebar, navigation, and the MVU model (GX.9) stay unchanged; `docs_content.go` reduces to embed + glue.
+- **Measurable:** docs pages render from markdown; `go test ./sitedocs/...` green including the existing smoke tests; live verification — run the app and inspect the docs pages.
+- **Achievable:** content transcription + one rendering call site; the pressure-test in the Phase 5 spirit.
+- **Relevant:** (DESIGN §Markdown); first real-document consumer of the module.
+- **Budget:** ~60 K.
+
+**Steps:**
+
+- [ ] Author the docs content as `.md` files; embed via `go:embed`.
+- [ ] Replace the hand-coded docs widgets with markdown rendering; keep sidebar and MVU intact.
+- [ ] `go test ./sitedocs/...` green; run the app and verify the pages visually.
+- [ ] Feedback writeup `FEEDBACK-G6.4.md` capturing gaps found in the markdown module.
+
+### G6.5 ‖ — Mindchat: message bodies as inline markdown
+
+- **Specific:** Render mindchat message bodies through the markdown module's inline subset (bold/italic/code/links/strikethrough) on `prism/richtext`, plus fenced code blocks; all other block constructs degrade to plain paragraphs. Link clicks surface through `OnLinkClick` to an app-layer OS-open handler.
+- **Measurable:** unit tests for representative message bodies (inline styles, a code fence, a degraded blockquote); app runs with styled messages.
+- **Achievable:** consumes G6.2 as-is; parallelisable with G6.3/G6.4.
+- **Relevant:** (DESIGN §Markdown); the chat-grade consumer.
+- **Budget:** ~40 K.
+
+**Steps:**
+
+- [ ] Render message bodies via the inline subset + fenced code blocks; other blocks fall back to plain paragraphs.
+- [ ] Wire `OnLinkClick` to an OS-open handler at the app layer.
+- [ ] Tests for representative messages; run the app to verify.
+
+### G6.6 — Release: tags and consumer bumps
+
+- **Specific:** Push + tag prism (next patch/minor per its release history) including `prism/richtext`; push + tag `markdown v0.0.1`; bump sitedocs and mindchat go.mods to the tags so the workbench builds without the workspace.
+- **Measurable:** `GOWORK=off go build ./...` green in workbench.
+- **Achievable:** mechanical release flow per the library workflow (push + tag + consumer bumps).
+- **Relevant:** libraries are consumed as tagged GitHub modules; unreleased work is invisible outside go.work.
+- **Budget:** ~20 K.
+
+**Steps:**
+
+- [ ] Push + tag prism (with `richtext`) and `markdown v0.0.1`.
+- [ ] Bump sitedocs/mindchat to the tags; verify `GOWORK=off go build ./...` green in workbench.
