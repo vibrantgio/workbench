@@ -1,17 +1,17 @@
-# VibrantGio Design System — Architecture & Strategy
+# Vibrant Gio Design System — Architecture & Strategy
 
 > **Status:** Working design. Phase names committed: **Prism** (foundation), **Spectrum** (theme), **Pulse** (effects), **Cadence** (patterns) — see *Naming Considerations*. Currently pinned to `gioui.org v0.1.0` (2023); migration to a current Gio release is tracked separately as Phase −1 below.
 
 ## Vision
 
-VibrantGio is a platform for building beautiful, native desktop applications on macOS, Windows, and Linux, built on [gioui.org](https://gioui.org). The goal is a first-class design system — analogous to Material Design for Google — but unique to VibrantGio. The "vibrancy" in the name is both literal (rich colour, depth, motion) and philosophical (alive, reactive, responsive).
+Vibrant Gio is a platform for building beautiful, native desktop applications on macOS, Windows, and Linux, built on [gioui.org](https://gioui.org). The goal is a first-class design system — analogous to Material Design for Google — but unique to Vibrant Gio. The "vibrancy" in the name is both literal (rich colour, depth, motion) and philosophical (alive, reactive, responsive).
 
 The application model is **Functional Reactive Programming** using `reactivego/rx` and `vibrantgio/mvu`. The design system must feel native to this model — not bolted on top of it.
 
 ### Non-goals
 
 - **No web target.** This is a desktop-native system; we do not aim for browser deployment.
-- **No mobile target initially.** Gio supports Android/iOS but VibrantGio is optimised for desktop input modalities, window chrome, and platform integration.
+- **No mobile target initially.** Gio supports Android/iOS but Vibrant Gio is optimised for desktop input modalities, window chrome, and platform integration.
 - **No embedded / kiosk target.** No memory- or binary-size budgets shaped around constrained devices.
 - **No CSS-like dynamic styling.** Tokens are typed Go values, not stringly-typed maps.
 
@@ -77,7 +77,7 @@ MVU uses RX internally for async command execution. Both patterns co-exist in th
 
 ### 3. The `WithLatestFrom2` Frame Synchronisation Model
 
-**The single most important architectural fact about VibrantGio.** It resolves what would otherwise be a thicket of race conditions.
+**The single most important architectural fact about Vibrant Gio.** It resolves what would otherwise be a thicket of race conditions.
 
 In `mvu/window.go:56`:
 
@@ -433,7 +433,7 @@ pulse.SpringButton(theme, ButtonProps{Label: "Save", OnClick: save},
 
 ### Phase 4 — Cadence (pattern library)
 
-**Goal:** the VibrantGio equivalent of TailwindPlus or Bootstrap — a curated library of prebuilt application patterns composed from Prism primitives. Reduces time-to-build for common desktop UI shapes.
+**Goal:** the Vibrant Gio equivalent of TailwindPlus or Bootstrap — a curated library of prebuilt application patterns composed from Prism primitives. Reduces time-to-build for common desktop UI shapes.
 
 **Why this exists:** Bootstrap and Tailwind succeeded because they reduced time-to-build for common patterns. Material Web, Fluent, and similar exist for web/Microsoft platforms; no equivalent exists for native cross-platform desktop on Go. This phase fills that gap.
 
@@ -543,7 +543,7 @@ Cross-field rules, async validation against a server, multi-step wizards, dirty 
 #### 10. Streaming media
 Video playback, audio editing, real-time camera. Gio renders frames, platform APIs decode/capture. Not impossible, not addressed. Acknowledge as a future module or non-goal.
 
-### Inherited Gio limits *(out of VibrantGio's hands)*
+### Inherited Gio limits *(out of Vibrant Gio's hands)*
 
 - **Custom-drawn chrome looks "almost native" but never quite.** macOS users notice. Apps requiring full Cocoa fidelity need a different substrate.
 - **Accessibility on macOS lags VoiceOver expectations.** Compliance-sensitive apps (government, education, enterprise procurement) may not pass.

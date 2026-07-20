@@ -1,4 +1,4 @@
-// Command mindchat is a ChatGPT-style chat client on the VibrantGio stack:
+// Command mindchat is a ChatGPT-style chat client on the Vibrant Gio stack:
 // mvu.NewWindow wrapped in a spectrum window with a live OS theme, a Model
 // observable driven by mvu.Loop — whose command runner feeds side-effect
 // messages (config/history I/O, the streaming OpenAI completion) back into

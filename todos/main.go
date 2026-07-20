@@ -1,4 +1,4 @@
-// Command todos is the minimal canonical VibrantGio MVU application: an
+// Command todos is the minimal canonical Vibrant Gio MVU application: an
 // in-memory todo list with add, edit, toggle, and delete. It demonstrates the
 // full bootstrap in its smallest honest form — mvu.NewWindow, a spectrum
 // window with a live OS theme (dark mode follows the system), a Model

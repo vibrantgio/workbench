@@ -1,5 +1,5 @@
 // Command iconbrowser is a browsable catalogue of the Material Design icons
-// the VibrantGio apps draw from (golang.org/x/exp/shiny/materialdesign/icons,
+// the Vibrant Gio apps draw from (golang.org/x/exp/shiny/materialdesign/icons,
 // rendered through ivg/raster/gio — see llms.txt §Icons). A search field
 // filters the scrolling grid live; every glyph is captioned with the exported
 // name to import.

@@ -1,9 +1,9 @@
-# VibrantGio — guide for AI assistants writing applications
+# Vibrant Gio — guide for AI assistants writing applications
 
-VibrantGio is a design system for native desktop apps (macOS/Windows/Linux)
+Vibrant Gio is a design system for native desktop apps (macOS/Windows/Linux)
 built on gioui.org, with a Functional Reactive Programming application model
 using github.com/reactivego/rx generics-based observables. This file tells a
-coding assistant everything needed to scaffold and build a correct VibrantGio
+coding assistant everything needed to scaffold and build a correct Vibrant Gio
 application. The full architecture rationale is in DESIGN.md next to this
 file; the apps in this repo (todos/, sitedocs/, feeds/, watchlist/,
 mindchat/) are the canonical usage references — todos/ is the minimal
@@ -45,7 +45,7 @@ External pins: gioui.org v0.9.0, github.com/reactivego/rx v0.2.2, Go 1.25.
 
 ## Application bootstrap (the canonical skeleton)
 
-Every VibrantGio app follows this shape (todos/main.go is the minimal live
+Every Vibrant Gio app follows this shape (todos/main.go is the minimal live
 version; watchlist/main.go the production-sized one):
 
   package main
@@ -195,7 +195,7 @@ opt in per call site, never a global decorator.
 
 ## Icons
 
-There is no VibrantGio iconset yet. When an app needs a glyph (a settings
+There is no Vibrant Gio iconset yet. When an app needs a glyph (a settings
 button, play/record controls, a close X), use the Material Design icons
 published as IconVG data in golang.org/x/exp/shiny/materialdesign/icons
 (961 icons, frozen 2016 Material set) and render them with ivg/raster/gio:

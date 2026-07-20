@@ -38,7 +38,7 @@ const modelObsConsumers = 1
 
 func run() {
 	mvuWin := mvu.NewWindow(
-		app.Title("VibrantGio Workbench"),
+		app.Title("Vibrant Gio Workbench"),
 		app.Size(winW, winH),
 	)
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
