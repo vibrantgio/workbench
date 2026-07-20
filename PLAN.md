@@ -1342,9 +1342,9 @@ Dependency order: G6.0 → G6.1 → G6.2 → G6.3 → G6.4 → G6.6, with G6.5 �
 
 **Steps:**
 
-- [ ] Render message bodies via the inline subset + fenced code blocks; other blocks fall back to plain paragraphs.
-- [ ] Wire `OnLinkClick` to an OS-open handler at the app layer.
-- [ ] Tests for representative messages; run the app to verify.
+- [x] Render message bodies via the inline subset + fenced code blocks; other blocks fall back to plain paragraphs.
+- [x] Wire `OnLinkClick` to an OS-open handler at the app layer.
+- [x] Tests for representative messages; run the app to verify.
 
 ### G6.6 — Release: tags and consumer bumps
 
