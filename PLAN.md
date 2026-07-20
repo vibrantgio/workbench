@@ -1327,10 +1327,10 @@ Dependency order: G6.0 → G6.1 → G6.2 → G6.3 → G6.4 → G6.6, with G6.5 �
 
 **Steps:**
 
-- [ ] Author the docs content as `.md` files; embed via `go:embed`.
-- [ ] Replace the hand-coded docs widgets with markdown rendering; keep sidebar and MVU intact.
-- [ ] `go test ./sitedocs/...` green; run the app and verify the pages visually.
-- [ ] Feedback writeup `FEEDBACK-G6.4.md` capturing gaps found in the markdown module.
+- [x] Author the docs content as `.md` files; embed via `go:embed`.
+- [x] Replace the hand-coded docs widgets with markdown rendering; keep sidebar and MVU intact.
+- [x] `go test ./sitedocs/...` green; run the app and verify the pages visually.
+- [x] Feedback writeup `FEEDBACK-G6.4.md` capturing gaps found in the markdown module.
 
 ### G6.5 ‖ — Mindchat: message bodies as inline markdown
 

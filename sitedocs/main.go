@@ -185,7 +185,7 @@ func docsShellLayer(
 	pageObs := make([]rx.Observable[layout.Widget], len(defs))
 	for i, def := range defs {
 		pageIdx[def.ID] = i
-		pageObs[i] = docsPage(th, shaper, def.Content)
+		pageObs[i] = docsPage(th, shaper, def)
 	}
 
 	// mainObs re-emits whenever the current page changes or any page

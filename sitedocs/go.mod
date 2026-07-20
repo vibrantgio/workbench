@@ -13,9 +13,12 @@ require (
 
 require (
 	gioui.org/shader v1.0.8 // indirect
+	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
+	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/reactivego/scheduler v0.2.0 // indirect
 	github.com/vibrantgio/pulse v0.0.3 // indirect
+	github.com/yuin/goldmark v1.8.2 // indirect
 	golang.org/x/exp/shiny v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/image v0.26.0 // indirect
 	golang.org/x/net v0.48.0 // indirect

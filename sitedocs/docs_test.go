@@ -10,6 +10,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/prism/theme"
 	"github.com/vibrantgio/prism/tokens"
 )
@@ -19,9 +20,9 @@ const (
 	// window − 192 dp sidebar = 1008 dp, rounded down to 1000 for a
 	// deterministic golden size.
 	docsCanvasW = 1000
-	// docsCanvasH is large enough to fit the breadcrumb + prose + two
-	// or three cards comfortably without scroll, so the goldens capture
-	// the full page composition rather than only the visible viewport.
+	// docsCanvasH is the golden viewport height. The markdown document
+	// scrolls, so the goldens capture the top-of-page viewport — heading
+	// scale, prose, list markers, and the first code block.
 	docsCanvasH = 700
 )
 
@@ -36,7 +37,7 @@ func TestDocsPageConstructs(t *testing.T) {
 	for _, def := range docsPages() {
 		tc := def
 		t.Run(tc.ID, func(t *testing.T) {
-			obs := docsPage(rx.Of(theme.Default()), shaper, tc.Content)
+			obs := docsPage(rx.Of(theme.Default()), shaper, tc)
 			w, err := collectOne(obs)
 			if err != nil {
 				t.Fatalf("docsPage subscribe: %v", err)
@@ -47,6 +48,32 @@ func TestDocsPageConstructs(t *testing.T) {
 			dims := drawOnce(t, docsCanvasSize, w)
 			if dims.Size.X == 0 || dims.Size.Y == 0 {
 				t.Errorf("docsPage produced zero dimensions: %v", dims)
+			}
+		})
+	}
+}
+
+// TestDocsSourcesParse pins the embedded markdown sources' shape: every
+// page parses to a document that opens with a level-1 heading (the page
+// title) followed by more content, so a truncated or mis-named .md file
+// fails loudly rather than rendering an empty page.
+func TestDocsSourcesParse(t *testing.T) {
+	for _, def := range docsPages() {
+		tc := def
+		t.Run(tc.ID, func(t *testing.T) {
+			if len(tc.Source) == 0 {
+				t.Fatal("embedded source is empty")
+			}
+			blocks := markdown.Parse(tc.Source)
+			if len(blocks) < 2 {
+				t.Fatalf("parsed %d blocks, want at least a heading and a body", len(blocks))
+			}
+			h, ok := blocks[0].(*markdown.Heading)
+			if !ok {
+				t.Fatalf("first block is %T, want *markdown.Heading", blocks[0])
+			}
+			if h.Level != 1 {
+				t.Errorf("first heading level = %d, want 1", h.Level)
 			}
 		})
 	}
@@ -73,26 +100,19 @@ func TestDocsSidebarConstructs(t *testing.T) {
 	}
 }
 
-// TestDocsPageGolden records or diffs each docs page in light and dark
-// themes. Following the G5.1b structural-golden pattern, text labels are
-// replaced with single-space stand-ins so the diff captures structural
-// regressions (breadcrumb chevron count, card outlines, paragraph stack
-// heights) rather than font rasterisation noise. The runtime path in
-// docsPage uses docs_content.go for real copy.
+// TestDocsPageGolden records or diffs representative docs pages in light
+// and dark themes, rendered from their embedded markdown sources exactly
+// as the runtime path does (breadcrumb + markdown document with chroma
+// highlighting). Three pages cover the block variety: getting-started
+// (list + links + two code fences), cadence-shells (table), and mvu-loop
+// (multi-line Go fences). Rendering uses gofont with system fonts
+// disabled, so the rasterisation is deterministic on a given text stack.
 func TestDocsPageGolden(t *testing.T) {
 	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	lightBG := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 	darkBG := color.NRGBA{R: 20, G: 20, B: 20, A: 255}
 
-	pageCases := []struct {
-		id    string
-		title string
-		codes int
-	}{
-		{"getting-started", "getting-started", 2},
-		{"phases-overview", "phases-overview", 2},
-		{"component-reference", "component-reference", 3},
-	}
+	pageCases := []string{pagePrismGettingStarted, pageCadenceShells, pageMVULoop}
 	themeCases := []struct {
 		name   string
 		colors tokens.ColorTokens
@@ -101,12 +121,12 @@ func TestDocsPageGolden(t *testing.T) {
 		{"light", tokens.DefaultLight, lightBG},
 		{"dark", tokens.DefaultDark, darkBG},
 	}
-	for _, pc := range pageCases {
+	for _, id := range pageCases {
+		def := docsPageByID(t, id)
 		for _, tc := range themeCases {
-			name := tc.name + "-" + pc.id
+			name := tc.name + "-" + id
 			t.Run(name, func(t *testing.T) {
-				content := structuralDocsContent(pc.title, 2, pc.codes)
-				w := renderDocsPage(shaper, content, tc.colors, tokens.Spacing, sharpRadius, tokens.DefaultTypeScale)
+				w := renderDocsPage(shaper, def, tc.colors, tokens.Spacing, tokens.DefaultTypeScale)
 				renderGolden(t, "docs-"+name, docsCanvasSize, scene(w, tc.bg))
 			})
 		}
@@ -119,38 +139,28 @@ func TestDocsPageGolden(t *testing.T) {
 func TestDocsPageLightDarkDiffer(t *testing.T) {
 	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
-	content := structuralDocsContent("getting-started", 2, 2)
+	def := docsPageByID(t, pagePrismGettingStarted)
 
-	light := renderDocsPage(shaper, content, tokens.DefaultLight, tokens.Spacing, sharpRadius, tokens.DefaultTypeScale)
-	dark := renderDocsPage(shaper, content, tokens.DefaultDark, tokens.Spacing, sharpRadius, tokens.DefaultTypeScale)
+	light := renderDocsPage(shaper, def, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypeScale)
+	dark := renderDocsPage(shaper, def, tokens.DefaultDark, tokens.Spacing, tokens.DefaultTypeScale)
 	a := capture(t, docsCanvasSize, scene(light, bg))
 	b := capture(t, docsCanvasSize, scene(dark, bg))
 	if a == nil || b == nil {
 		return
 	}
 	if n := pixelDiff(a, b); n == 0 {
-		t.Error("light and dark docs page render identically; expected colour differences across breadcrumb / prose / cards")
+		t.Error("light and dark docs page render identically; expected colour differences across breadcrumb / prose / code")
 	}
 }
 
-// structuralDocsContent returns a docsPageContent populated with
-// blank/single-space labels. The structural goldens depend on
-// composition shape (breadcrumb segments, paragraph rows, card outlines)
-// rather than font rasterisation. BreadcrumbLabels is set so the
-// breadcrumb's Home/Docs/Title segments render as spaces too.
-func structuralDocsContent(title string, paragraphs, codes int) docsPageContent {
-	c := docsPageContent{
-		Title:            title,
-		BreadcrumbLabels: []string{" ", " ", " "},
+// docsPageByID returns the registry entry for a route identifier.
+func docsPageByID(t *testing.T, id string) docsPageDef {
+	t.Helper()
+	for _, def := range docsPages() {
+		if def.ID == id {
+			return def
+		}
 	}
-	for range paragraphs {
-		c.Paragraphs = append(c.Paragraphs, " ")
-	}
-	for range codes {
-		c.Codes = append(c.Codes, docsCodeSample{
-			Caption: " ",
-			Lines:   []string{" ", " "},
-		})
-	}
-	return c
+	t.Fatalf("no docs page with ID %q", id)
+	return docsPageDef{}
 }

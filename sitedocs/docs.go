@@ -1,15 +1,17 @@
-// docs.go composes the three docs pages — Getting started, Phases
-// overview, Component reference. Each page stacks: a cadence/breadcrumb
-// row at the top, a vertically scrollable prose section in the middle,
-// and a sequence of cadence/card-wrapped code samples beneath. The
-// runtime entry point is docsPage; the static counterpart renderDocsPage
-// is used by goldens.
+// docs.go composes the docs pages. Each page stacks a cadence/breadcrumb
+// row over a vibrantgio/markdown Document rendered from the page's
+// embedded .md source (docs_content.go): type-scale headings, richtext
+// prose with links, chroma-highlighted code blocks, lists, blockquotes,
+// and tables. The runtime entry point is docsPage; the static counterpart
+// renderDocsPage is used by goldens.
 
 package main
 
 import (
 	"image/color"
-	"sync/atomic"
+	"os/exec"
+	"runtime"
+	"strings"
 
 	"gioui.org/font"
 	"gioui.org/layout"
@@ -22,7 +24,8 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/breadcrumb"
-	"github.com/vibrantgio/cadence/card"
+	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/markdown/highlight"
 	pllayout "github.com/vibrantgio/prism/layout"
 	"github.com/vibrantgio/prism/theme"
 	"github.com/vibrantgio/prism/tokens"
@@ -37,141 +40,109 @@ const (
 	docsOuterInsetDp = 24
 	docsProseGapDp   = 12
 	docsCardGapDp    = 16
-	docsCodeRowHDp   = 18
-	docsCardHeightDp = 120
 )
 
-// docsPageContent is the raw material for a single docs page.
-type docsPageContent struct {
-	// Layer names the ecosystem layer the page documents (Prism,
-	// Cadence, Spectrum, Pulse, MVU); it becomes the middle breadcrumb.
-	Layer      string
-	Title      string
-	Paragraphs []string
-	Codes      []docsCodeSample
+// Chroma styles for the two appearance modes; built once, shared by every
+// page. FromTokens leaves Highlight nil, so assigning these is the app's
+// opt-in to syntax highlighting.
+var (
+	docsHighlightLight = highlight.New("github")
+	docsHighlightDark  = highlight.New("github-dark")
+)
 
-	// BreadcrumbLabels, when set to exactly three entries, overrides the
-	// default Home / Layer / Title labels used by the renderDocsPage path.
-	BreadcrumbLabels []string
+// docsMarkdownStyle derives the markdown document style for the current
+// colour and type tokens: the token-themed defaults plus the app's two
+// opt-ins — chroma highlighting matched to the appearance, and links
+// opening in the system browser.
+func docsMarkdownStyle(c tokens.ColorTokens, ts tokens.TypeScale) markdown.Style {
+	st := markdown.FromTokens(c, ts)
+	if isDarkColor(c.Background) {
+		st.Highlight = docsHighlightDark
+	} else {
+		st.Highlight = docsHighlightLight
+	}
+	st.Text.OnLinkClick = func(_ layout.Context, url string) { openURL(url) }
+	return st
 }
 
-type docsCodeSample struct {
-	Caption string
-	Lines   []string
+// isDarkColor reports whether c reads as a dark ground (Rec. 601 luma
+// below mid-grey), selecting the dark chroma style.
+func isDarkColor(c color.NRGBA) bool {
+	luma := 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)
+	return luma < 128
 }
 
-// docsPage returns the runtime observable for the named page. All child
-// observables (breadcrumb, cards) are combined via CombineLatest so the
-// page re-emits on any theme change. The returned observable stays alive
-// for the program's lifetime so scroll position is preserved.
+// openURL opens an absolute web URL in the system browser. Non-http(s)
+// destinations are ignored — the docs sources only carry web links.
+func openURL(url string) {
+	if !strings.HasPrefix(url, "https://") && !strings.HasPrefix(url, "http://") {
+		return
+	}
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+	_ = cmd.Start()
+}
+
+// docsPage returns the runtime observable for the named page. The markdown
+// Document is allocated once per page and closed over by every emission,
+// so scroll position and link interaction state survive theme changes and
+// navigation. The breadcrumb and token observables are combined so the
+// page re-emits on any theme change.
 func docsPage(
 	th rx.Observable[theme.Theme],
 	shaper *text.Shaper,
-	content docsPageContent,
+	def docsPageDef,
 ) rx.Observable[layout.Widget] {
-	bcItems := docsBreadcrumb(content)
 	bcObs := breadcrumb.Breadcrumb(th, breadcrumb.Props{
-		Items:  bcItems,
+		Items:  docsBreadcrumb(def),
 		Shaper: shaper,
 	})
 
-	// Build card observables. Each card is a separate observable that re-emits
-	// on theme change.
-	cardObss := make([]rx.Observable[layout.Widget], len(content.Codes))
-	for i, code := range content.Codes {
-		cs := code
-		cardObss[i] = card.Card(th, card.Props{
-			Header: codeCaptionWidget(th, shaper, cs.Caption),
-			Body:   codeBodyWidget(th, shaper, cs.Lines),
-		})
-	}
+	doc := markdown.NewDocument(markdown.Parse(def.Source))
 
-	// Resolve color and type tokens for prose rendering.
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
+	tokensObs := rx.CombineLatest2(colObs, typObs)
 
-	list := &layout.List{Axis: layout.Vertical}
-
-	// Combine all child observables: breadcrumb + cards + color tokens + type tokens.
-	// CombineLatest re-emits whenever any input changes (e.g. theme change).
-	allObs := make([]rx.Observable[layout.Widget], 0, 1+len(cardObss))
-	allObs = append(allObs, bcObs)
-	allObs = append(allObs, cardObss...)
-
-	combined := rx.CombineLatest(allObs...)
-	combined2 := rx.CombineLatest2(colObs, typObs)
-
-	// Merge both combined streams. When either changes, rebuild the widget.
-	// We need all four: bcWidget, cardWidgets, colors, typeScale.
-	// Use a two-level approach: combine layout widgets first, then combine with tokens.
-	type widgetState struct {
-		bc    layout.Widget
-		cards []layout.Widget
-	}
-	widgetObs := rx.Map(combined, func(ws []layout.Widget) widgetState {
-		return widgetState{
-			bc:    ws[0],
-			cards: ws[1:],
-		}
-	})
-
-	type fullState struct {
-		ws  widgetState
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	type tokenPair struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	tokenObs := rx.Map(combined2, func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale]) tokenPair {
-		return tokenPair{col: t.First, typ: t.Second}
-	})
-
-	// CombineLatest2 over widget state and token pair.
-	full := rx.CombineLatest2(widgetObs, tokenObs)
-	return rx.Map(full, func(t rx.Tuple2[widgetState, tokenPair]) layout.Widget {
-		ws := t.First
-		tok := t.Second
-		bcW := ws.bc
-		cardWs := ws.cards
-		c := tok.col
-		ts := tok.typ
+	full := rx.CombineLatest2(bcObs, tokensObs)
+	return rx.Map(full, func(t rx.Tuple2[layout.Widget, rx.Tuple2[tokens.ColorTokens, tokens.TypeScale]]) layout.Widget {
+		bcW := t.First
+		style := docsMarkdownStyle(t.Second.First, t.Second.Second)
 		return func(gtx layout.Context) layout.Dimensions {
-			return drawDocsPage(gtx, list, bcW, cardWs, content, shaper, c, ts)
+			return drawDocsPage(gtx, bcW, doc, shaper, style)
 		}
 	})
 }
 
-// renderDocsPage is the static counterpart of docsPage used by goldens.
+// renderDocsPage is the static counterpart of docsPage used by goldens: a
+// fresh top-scrolled Document laid out once with the given token sets.
 func renderDocsPage(
 	shaper *text.Shaper,
-	content docsPageContent,
+	def docsPageDef,
 	colors tokens.ColorTokens,
 	sp tokens.SpacingScale,
-	rad tokens.RadiusScale,
 	ts tokens.TypeScale,
 ) layout.Widget {
-	bcItems := renderBreadcrumbItems(content)
-	bcW := breadcrumb.Render(shaper, breadcrumb.Props{Items: bcItems, Shaper: shaper}, colors, sp, ts)
-
-	cardWs := make([]layout.Widget, len(content.Codes))
-	for i, cs := range content.Codes {
-		cardWs[i] = card.Render(card.Props{
-			Header: renderCodeCaption(shaper, cs.Caption, colors, ts),
-			Body:   renderCodeBody(shaper, cs.Lines, colors, ts),
-		}, colors, sp, rad)
-	}
+	bcW := breadcrumb.Render(shaper, breadcrumb.Props{Items: docsBreadcrumb(def), Shaper: shaper}, colors, sp, ts)
+	doc := markdown.NewDocument(markdown.Parse(def.Source))
+	style := docsMarkdownStyle(colors, ts)
 	return func(gtx layout.Context) layout.Dimensions {
-		return drawDocsPageStatic(gtx, bcW, cardWs, content, shaper, colors, ts)
+		return drawDocsPage(gtx, bcW, doc, shaper, style)
 	}
 }
 
 // docsBreadcrumb returns the breadcrumb trail for a docs page: Home
 // (clickable) / layer / title. Callbacks emit mvu.MessageOp so
 // navigation fires on the same frame as the click.
-func docsBreadcrumb(content docsPageContent) []breadcrumb.Item {
-	layer := content.Layer
+func docsBreadcrumb(def docsPageDef) []breadcrumb.Item {
+	layer := def.Layer
 	if layer == "" {
 		layer = "Docs"
 	}
@@ -180,39 +151,19 @@ func docsBreadcrumb(content docsPageContent) []breadcrumb.Item {
 			mvu.MessageOp{Message: SetRoute{Page: pageHome}}.Add(gtx.Ops)
 		}},
 		{Label: layer},
-		{Label: content.Title},
+		{Label: def.Title},
 	}
 }
 
-// renderBreadcrumbItems is the golden-safe counterpart of docsBreadcrumb.
-func renderBreadcrumbItems(content docsPageContent) []breadcrumb.Item {
-	if labels := content.BreadcrumbLabels; len(labels) == 3 {
-		return []breadcrumb.Item{
-			{Label: labels[0]},
-			{Label: labels[1]},
-			{Label: labels[2]},
-		}
-	}
-	layer := content.Layer
-	if layer == "" {
-		layer = "Docs"
-	}
-	return []breadcrumb.Item{
-		{Label: "Home"},
-		{Label: layer},
-		{Label: content.Title},
-	}
-}
-
+// drawDocsPage lays out one docs page frame: the breadcrumb row pinned at
+// the top, then the markdown document filling the rest as its own
+// scrolling viewport.
 func drawDocsPage(
 	gtx layout.Context,
-	list *layout.List,
 	bcW layout.Widget,
-	cardWs []layout.Widget,
-	content docsPageContent,
+	doc *markdown.Document,
 	shaper *text.Shaper,
-	colors tokens.ColorTokens,
-	ts tokens.TypeScale,
+	style markdown.Style,
 ) layout.Dimensions {
 	inset := pllayout.Inset(docsOuterInsetDp)
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -225,104 +176,14 @@ func drawDocsPage(
 			}),
 			layout.Rigid(pllayout.VSpacer(docsCardGapDp)),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return docsScrollBody(gtx, list, cardWs, content, shaper, colors, ts)
+				return doc.Layout(gtx, shaper, style)
 			}),
 		)
 	})
 }
 
-func drawDocsPageStatic(
-	gtx layout.Context,
-	bcW layout.Widget,
-	cardWs []layout.Widget,
-	content docsPageContent,
-	shaper *text.Shaper,
-	colors tokens.ColorTokens,
-	ts tokens.TypeScale,
-) layout.Dimensions {
-	inset := pllayout.Inset(docsOuterInsetDp)
-	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		children := []layout.FlexChild{
-			layout.Rigid(bcW),
-			layout.Rigid(pllayout.VSpacer(docsCardGapDp)),
-		}
-		for _, p := range content.Paragraphs {
-			children = append(children,
-				layout.Rigid(paragraphWidget(shaper, p, colors.OnSurface, ts)),
-				layout.Rigid(pllayout.VSpacer(docsProseGapDp)),
-			)
-		}
-		for _, cardW := range cardWs {
-			children = append(children,
-				layout.Rigid(fixedHeight(docsCardHeightDp, cardW)),
-				layout.Rigid(pllayout.VSpacer(docsCardGapDp)),
-			)
-		}
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
-	})
-}
-
-// docsScrollBody renders the prose + cards as a scrollable layout.List.
-func docsScrollBody(
-	gtx layout.Context,
-	list *layout.List,
-	cardWs []layout.Widget,
-	content docsPageContent,
-	shaper *text.Shaper,
-	colors tokens.ColorTokens,
-	ts tokens.TypeScale,
-) layout.Dimensions {
-	type itemKind int
-	const (
-		kindParagraph itemKind = iota
-		kindCard
-	)
-	type item struct {
-		kind itemKind
-		text string
-		card layout.Widget
-	}
-	items := make([]item, 0, len(content.Paragraphs)+len(content.Codes))
-	for _, p := range content.Paragraphs {
-		items = append(items, item{kind: kindParagraph, text: p})
-	}
-	for _, cw := range cardWs {
-		items = append(items, item{kind: kindCard, card: cw})
-	}
-
-	return list.Layout(gtx, len(items), func(gtx layout.Context, i int) layout.Dimensions {
-		it := items[i]
-		switch it.kind {
-		case kindParagraph:
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-				layout.Rigid(paragraphWidget(shaper, it.text, colors.OnSurface, ts)),
-				layout.Rigid(pllayout.VSpacer(docsProseGapDp)),
-			)
-		default:
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if it.card == nil {
-						return layout.Dimensions{Size: gtx.Constraints.Max}
-					}
-					return fixedHeight(docsCardHeightDp, it.card)(gtx)
-				}),
-				layout.Rigid(pllayout.VSpacer(docsCardGapDp)),
-			)
-		}
-	})
-}
-
-// fixedHeight wraps a widget so its layout is forced to a fixed dp height.
-func fixedHeight(dp float32, w layout.Widget) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		h := gtx.Dp(unit.Dp(dp))
-		gtx.Constraints.Min.Y = h
-		gtx.Constraints.Max.Y = h
-		return w(gtx)
-	}
-}
-
 // paragraphWidget renders one body-text paragraph at BodyMedium font size.
+// (Used by the About page, whose short prose stays hand-composed.)
 func paragraphWidget(
 	shaper *text.Shaper,
 	textBody string,
@@ -336,112 +197,4 @@ func paragraphWidget(
 		wl := widget.Label{Alignment: text.Start}
 		return wl.Layout(gtx, shaper, font.Font{}, unit.Sp(ts.BodyMedium), textBody, material)
 	}
-}
-
-// codeCaptionWidget returns the rx-driven Header for a code card.
-func codeCaptionWidget(
-	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
-	caption string,
-) layout.Widget {
-	if caption == "" {
-		return nil
-	}
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	combined := rx.CombineLatest2(colObs, typObs)
-
-	var state atomic.Value
-	state.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	_ = combined.Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			state.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
-	return func(gtx layout.Context) layout.Dimensions {
-		s := state.Load().(tokenState)
-		return renderCodeCaption(shaper, caption, s.col, s.typ)(gtx)
-	}
-}
-
-func renderCodeCaption(
-	shaper *text.Shaper,
-	caption string,
-	colors tokens.ColorTokens,
-	ts tokens.TypeScale,
-) layout.Widget {
-	if caption == "" {
-		return func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }
-	}
-	return func(gtx layout.Context) layout.Dimensions {
-		mColor := op.Record(gtx.Ops)
-		paint.ColorOp{Color: colors.OnSurfaceVariant}.Add(gtx.Ops)
-		material := mColor.Stop()
-		wl := widget.Label{MaxLines: 1}
-		return wl.Layout(gtx, shaper, font.Font{}, unit.Sp(ts.LabelLarge), caption, material)
-	}
-}
-
-// codeBodyWidget returns the rx-driven Body for a code card.
-func codeBodyWidget(
-	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
-	lines []string,
-) layout.Widget {
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	combined := rx.CombineLatest2(colObs, typObs)
-
-	var state atomic.Value
-	state.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	_ = combined.Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			state.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
-	return func(gtx layout.Context) layout.Dimensions {
-		s := state.Load().(tokenState)
-		return renderCodeBody(shaper, lines, s.col, s.typ)(gtx)
-	}
-}
-
-func renderCodeBody(
-	shaper *text.Shaper,
-	lines []string,
-	colors tokens.ColorTokens,
-	ts tokens.TypeScale,
-) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		children := make([]layout.FlexChild, 0, len(lines))
-		for _, line := range lines {
-			l := line
-			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return codeLineWidget(gtx, shaper, l, colors.OnSurface, ts)
-			}))
-		}
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
-	}
-}
-
-func codeLineWidget(
-	gtx layout.Context,
-	shaper *text.Shaper,
-	line string,
-	fg color.NRGBA,
-	ts tokens.TypeScale,
-) layout.Dimensions {
-	mColor := op.Record(gtx.Ops)
-	paint.ColorOp{Color: fg}.Add(gtx.Ops)
-	material := mColor.Stop()
-	wl := widget.Label{MaxLines: 1}
-	monoFont := font.Font{Typeface: "Go Mono"}
-	return wl.Layout(gtx, shaper, monoFont, unit.Sp(ts.BodySmall), line, material)
 }
