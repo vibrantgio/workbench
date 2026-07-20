@@ -56,6 +56,13 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	}
 }
 
+// isDarkColor reports whether c reads as a dark ground (Rec. 601 luma below
+// mid-grey), selecting the dark chroma style for code highlighting.
+func isDarkColor(c color.NRGBA) bool {
+	luma := 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)
+	return luma < 128
+}
+
 // Blend mixes over into base at the given alpha (0–255) — the cadence
 // toast tint recipe, reused by the undo bar.
 func Blend(base, over color.NRGBA, alpha uint8) color.NRGBA {

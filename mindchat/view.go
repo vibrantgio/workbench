@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
+	"gioui.org/font/gofont"
 	"gioui.org/io/event"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -28,6 +29,8 @@ import (
 	"github.com/vibrantgio/ivg/encode"
 	"github.com/vibrantgio/ivg/generate"
 	raster "github.com/vibrantgio/ivg/raster/gio"
+	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/a11y"
 	"github.com/vibrantgio/prism/button"
@@ -65,10 +68,23 @@ type themed struct {
 	edit    layout.Widget
 	add     layout.Widget
 	gear    layout.Widget
+	// md is the message-body markdown style: token defaults plus the app's
+	// opt-ins — chroma highlighting matched to the appearance, and links
+	// opening in the system browser. MessageRow adapts its text colours per
+	// bubble role.
+	md markdown.Style
 	// reduceMotion mirrors the OS accessibility preference; the streaming
 	// dot renders static when it is set (llms.txt rule 5).
 	reduceMotion bool
 }
+
+// Chroma styles for the two appearance modes; built once, shared by every
+// message. FromTokens leaves Highlight nil, so assigning these is the app's
+// opt-in to syntax highlighting (the sitedocs recipe).
+var (
+	mdHighlightLight = highlight.New("github")
+	mdHighlightDark  = highlight.New("github-dark")
+)
 
 // ContentLayer renders the page: the chat pane with the prompt field, and
 // the conversation sidebar. The stateful widgets live at subscription scope,
@@ -78,10 +94,13 @@ type themed struct {
 // CombineLatest3 below. Constructing any of them per emission would reset
 // scroll or typing on every completion-stream delta.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
-	shaper := text.NewShaper(text.WithCollection(style.FontFaces()))
+	// The Roboto faces lead (the shaper's default), followed by the Go
+	// collection so markdown code spans resolve their "Go Mono" typeface.
+	shaper := text.NewShaper(text.WithCollection(append(style.FontFaces(), gofont.Collection()...)))
 
 	histList := list.NewState()
 	chatList := list.NewState()
+	msgDocs := newDocCache()
 	rowClicks := map[string]*widget.Clickable{}
 	deleteClicks := map[string]*widget.Clickable{}
 	renameClicks := map[string]*widget.Clickable{}
@@ -95,7 +114,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	})
 
 	colorThemes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(t.Color, func(c tokens.ColorTokens) themed {
+		return rx.Map(rx.CombineLatest2(t.Color, t.Type), func(ct rx.Tuple2[tokens.ColorTokens, tokens.TypeScale]) themed {
+			c, ts := ct.First, ct.Second
 			p := PaletteFrom(c)
 			avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
 			if err != nil {
@@ -117,7 +137,14 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if err != nil {
 				panic(err)
 			}
-			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear}
+			md := markdown.FromTokens(c, ts)
+			if isDarkColor(c.Background) {
+				md.Highlight = mdHighlightDark
+			} else {
+				md.Highlight = mdHighlightLight
+			}
+			md.Text.OnLinkClick = func(_ layout.Context, url string) { openURL(url) }
+			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md}
 		})
 	})
 	themes := rx.Map(rx.CombineLatest2(colorThemes, a11y.Live(time.Second)),
@@ -168,7 +195,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			}
 			return parts{
 				sidebar: Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick, &toggleClick, &settingsClick),
-				main:    ChatPane(shaper, t, history, histList, promptW, menuSlot),
+				main:    ChatPane(shaper, t, msgDocs.Rows(history), histList, promptW, menuSlot),
 				undo:    UndoBar(shaper, t, model.Pending, &undoClick),
 			}
 		})
@@ -378,7 +405,7 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 // chip anchor + model list surface) is drawn LAST, over the history, so
 // the open surface wins the paint and hit-test order against the rows
 // below the header.
-func ChatPane(shaper *text.Shaper, t themed, chat []Message, hist *list.State, prompt, menu layout.Widget) layout.Widget {
+func ChatPane(shaper *text.Shaper, t themed, chat []msgRow, hist *list.State, prompt, menu layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = ClampWidth(gtx, 0, ChatPaneWidth)
 		size := gtx.Constraints.Max
@@ -397,8 +424,8 @@ func ChatPane(shaper *text.Shaper, t themed, chat []Message, hist *list.State, p
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return list.LayoutScrollbar(gtx, hist, t.bar, list.Occupy, chat,
-					func(gtx layout.Context, msg Message) layout.Dimensions {
-						return MessageRow(gtx, shaper, t, msg)
+					func(gtx layout.Context, row msgRow) layout.Dimensions {
+						return MessageRow(gtx, shaper, t, row)
 					})
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -419,12 +446,15 @@ func ChatPane(shaper *text.Shaper, t themed, chat []Message, hist *list.State, p
 	}
 }
 
-// MessageRow renders one history entry: a full-width bubble with the text
+// MessageRow renders one history entry: a full-width bubble with the body
 // indented past the avatar column, and the assistant avatar on its (and
-// error notices') rows. Error rows read in the error colour, transient
-// status rows ("Searching the web…") in the heading colour, and an
-// answer's citations render as a Sources list under its text.
-func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg Message) layout.Dimensions {
+// error notices') rows. User and assistant bodies lay out their markdown
+// Document — inline styles and code fences, links live — in the bubble's
+// text colours; error rows read as plain labels in the error colour,
+// transient status rows ("Searching the web…") in the heading colour. An
+// answer's citations arrive inside the Document (messageSource).
+func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, row msgRow) layout.Dimensions {
+	msg := row.Msg
 	p := t.palette
 	st := style.BodyText1
 
@@ -439,30 +469,31 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, msg Message) 
 		textColor = p.Heading
 	}
 
-	content := msg.Content
-	if len(msg.Citations) > 0 {
-		content += "\n\nSources:"
-		for _, c := range msg.Citations {
-			line := c.URL
-			// xAI titles inline citations with their bare marker number;
-			// a title that adds nothing over the URL is dropped.
-			if c.Title != "" && strings.Trim(c.Title, "0123456789") != "" {
-				line = c.Title + " — " + c.URL
-			}
-			content += "\n• " + line
-		}
-	}
-
-	textMaterial := Material(gtx.Ops, textColor)
-	label := widget.Label{Alignment: text.Start, MaxLines: st.MaxLines, Truncator: st.Truncator}
-
 	m := op.Record(gtx.Ops)
 	dims := layout.UniformInset(12).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		margin := gtx.Dp(50)
 		defer op.Offset(image.Pt(margin, 0)).Push(gtx.Ops).Pop()
 		gtx.Constraints.Max.X -= margin
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
-		dims := label.Layout(gtx, shaper, st.Font, st.Size, content, textMaterial)
+		var dims layout.Dimensions
+		if row.Doc != nil {
+			md := t.md
+			md.Text.Color = textColor
+			if isUser {
+				// The token link colour (Primary) would vanish on the
+				// Primary user bubble; the underline still marks links.
+				md.Text.LinkColor = textColor
+			}
+			gtx.Constraints.Min = image.Point{}
+			dims = row.Doc.LayoutColumn(gtx, shaper, md)
+			// The bubble spans the full row width regardless of the
+			// column's natural content width.
+			dims.Size.X = gtx.Constraints.Max.X
+		} else {
+			textMaterial := Material(gtx.Ops, textColor)
+			label := widget.Label{Alignment: text.Start, MaxLines: st.MaxLines, Truncator: st.Truncator}
+			dims = label.Layout(gtx, shaper, st.Font, st.Size, msg.Content, textMaterial)
+		}
 		dims.Size.X += margin
 		return dims
 	})
