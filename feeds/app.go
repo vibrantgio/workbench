@@ -150,16 +150,22 @@ func feedsShellLayer(
 		}
 	}
 
-	// The articles/detail split. The plan suggested shell.Shell(SplitPane),
-	// but its per-subscription dragState races: the emission projector
-	// writes ds.current (shell.go:219) on the rx scheduler goroutine while
-	// the emitted widget reads it at frame time (shell.go:226) — go test
-	// -race fails on every model-driven SplitRatio emission. feedsSplitPane
-	// below is the MVU-pure local workaround: the widget closes over the
-	// ratio from the model emission, divider drags land SetSplitRatio
-	// messages, and all drag state lives on the frame goroutine. (Friction
-	// logged in FEEDBACK-G5.2.md.)
-	splitObs := feedsSplitPane(th, splitRatioObs, slot(&articlesCell), slot(&detailCell))
+	// The articles/detail split. Divider drags land SetSplitRatio messages
+	// through OnSplitChange, and the committed position flows back in via
+	// SplitRatio — the divider survives theme re-emissions and is
+	// replayable like every other piece of model state. (A feeds-local
+	// split.go replaced this component while its dragState raced under
+	// model-driven emissions — see FEEDBACK-G5.2.md; cadence v0.1.1 moved
+	// all drag state onto the frame goroutine, so the workaround is gone.)
+	splitObs := shell.Shell(th, shell.Props{
+		Layout:     shell.SplitPane,
+		Left:       slot(&articlesCell),
+		Right:      slot(&detailCell),
+		SplitRatio: splitRatioObs,
+		OnSplitChange: func(gtx layout.Context, ratio float32) {
+			mvu.MessageOp{Message: SetSplitRatio{Ratio: ratio}}.Add(gtx.Ops)
+		},
+	})
 
 	sidebarObs := feedsSidebar(th, shaper, openSectionsObs, feedsObs)
 	sidebarDriven := rx.Map(
