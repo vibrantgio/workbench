@@ -6,31 +6,35 @@ using github.com/reactivego/rx generics-based observables. This file tells a
 coding assistant everything needed to scaffold and build a correct Vibrant Gio
 application. The full architecture rationale is in DESIGN.md next to this
 file; the apps in this repo (todos/, sitedocs/, feeds/, watchlist/,
-mindchat/) are the canonical usage references — todos/ is the minimal
-complete app; read it first, and read the larger ones before inventing a
-pattern.
+mindchat/, iconbrowser/, launcher/) are the canonical usage references —
+todos/ is the minimal complete app; read it first, and read the larger ones
+before inventing a pattern.
 
 ## Modules and versions
 
 All modules live under github.com/vibrantgio/<name>. Current tags:
 
-  mvu       v0.3.0   MVU runtime: NewWindow, Loop/Run, Message/Command,
+  mvu       v0.4.0   MVU runtime: NewWindow, Loop/Run, Message/Command,
                      MessageOp
-  prism     v0.0.7   components: button, input, list, scrollbar, icon, layout,
-                     theme, tokens, a11y, initial, keyed, coordination, cache,
-                     bench
+  prism     v0.0.9   components: button, input, list, richtext, scrollbar,
+                     icon, layout, theme, tokens, a11y, initial, keyed,
+                     coordination, cache, bench
   spectrum  v0.0.3   theme runtime: system (LiveTheme), window, preferences,
                      transition
   pulse     v0.0.3   effects: tween, spring, springbutton, glow, depth,
                      motion, conductor
-  cadence   v0.0.6   patterns: shell, navbar, sidebar, table, pagination,
+  cadence   v0.2.0   patterns: shell, navbar, sidebar, table, pagination,
                      tabs, modal, alert, popover, tooltip, toast, card,
                      accordion, breadcrumb, hero, feature, pricing,
                      testimonial
-  seen      v0.0.4   3D scene graph rendered to SVG or Gio
-                     (nested module: seen/context/gio v0.0.4)
+  markdown  v0.0.3   GFM document rendering on prism widgets (subpackages:
+                     highlight — chroma syntax colours; svgimage — SVG
+                     images via vibrantgio/svg)
+  seen      v0.0.5   3D scene graph rendered to SVG or Gio
+                     (nested module: seen/context/gio v0.0.5)
   traer     v0.0.7   particle physics (springs, attractions, Verlet)
-  svg       v0.0.4   SVG parse + render (driver/gio v0.0.5)
+  svg       v0.0.6   SVG parse + render (driver/gio v0.0.6; also raster,
+                     pdf, seen drivers at v0.0.5)
   ivg       v0.1.4   IconVG icons, Material icons bundled (raster/gio v0.1.5)
   backdrop  v0.0.2   solid colour fill widget
   noise     v0.0.2   noise functions
@@ -38,10 +42,10 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
   textdraw  v0.0.3   low-level glyph text drawing
   font      v0.0.3   Roboto typeface, five weights
   circle    v0.0.3   precise circle via Bezier
-  kiwi      —        Cassowary constraint solver
+  kiwi      v0.0.5   Cassowary constraint solver
   csg       —        constructive solid geometry on meshes
 
-External pins: gioui.org v0.9.0, github.com/reactivego/rx v0.2.2, Go 1.25.
+External pins: gioui.org v0.10.1, github.com/reactivego/rx v0.3.0, Go 1.25.
 
 ## Application bootstrap (the canonical skeleton)
 
@@ -174,7 +178,11 @@ w.Render(layers...) takes one or more rx.Observable[layout.Widget] values;
 they stack back-to-front (background first). A typical app has a backdrop
 layer and a content layer built from a cadence/shell:
 
-  - cadence/shell: application shells — SidebarHeaderMain, split-pane, etc.
+  - cadence/shell: application shells in four variants — SidebarHeaderMain,
+    SplitPane (draggable divider, either axis), ThreeColumn (resizable
+    aside), StackedPage (pinned navbar over a shell-owned section scroll,
+    for marketing pages; sections are widget streams, ContentMaxWidth caps
+    the column).
   - cadence/navbar + cadence/sidebar fill the shell's slots.
   - Content composes cadence/table (sortable/filterable/virtualised),
     cadence/tabs, cadence/card, cadence/pagination, ...
@@ -192,6 +200,48 @@ the bar over the trailing edge; default style from scrollbar.FromTokens).
 Pulse components are explicit VARIANTS of prism components, e.g.
 pulse/springbutton wraps prism/button with physics-driven press/release —
 opt in per call site, never a global decorator.
+
+## Markdown documents
+
+github.com/vibrantgio/markdown renders GitHub-flavoured markdown as prism
+widgets — use it for docs pages, help screens, and chat message bodies
+instead of hand-coding text layouts:
+
+  blocks := markdown.Parse(src)          // goldmark+GFM AST → block model
+  doc    := markdown.NewDocument(blocks) // allocate ONCE; holds scroll,
+                                         // link, and image state across frames
+  style  := markdown.FromTokens(colors, typescale)
+  style.Text.OnLinkClick = func(gtx layout.Context, url string) { ... }
+  doc.Layout(gtx, shaper, style)         // scrolling viewport, O(visible)
+
+doc.LayoutColumn(...) lays out at natural height with no internal scroll —
+use it inside an outer scrolling context (a chat row, a card); Layout's own
+viewport would fight the outer one.
+
+  - Constructs: type-scale headings, richtext paragraphs, nested lists,
+    task-list checkboxes, strikethrough, blockquote bars, rules, and GFM
+    tables (columns shrink within their slack, floored at the widest word;
+    a table that cannot fit scrolls horizontally).
+  - Code fences render monospace on a surface with horizontal overflow
+    scroll. Syntax colours are opt-in: style.Highlight =
+    highlight.New("github") / "github-dark" (markdown/highlight, chroma) —
+    pick by background luma so themes match.
+  - Images: paragraph-sole ![alt](url) blocks only; the library performs NO
+    I/O. Set style.Images to an ImageProvider (raster pixels) and/or a
+    WidgetImageProvider (vector widgets); markdown/svgimage serves .svg
+    destinations from a caller fs.FS (go:embed assets) as crisp vector
+    widgets via vibrantgio/svg. Unknown destinations fall back to italic
+    alt text — mindchat uses exactly this to bundle provider icons
+    (assets/openai.svg) while remote URLs stay network-free.
+  - Working consumers: sitedocs (docs pages are embedded .md files —
+    docs_content.go is just go:embed + a route table), mindchat (message
+    bodies degrade() to the chat subset: inline styles, fences, images
+    pass through; other blocks flatten to paragraphs).
+
+prism/richtext is the underlying inline primitive — styled spans with
+interactive links (hover cursor, keyboard traversal, focus ring,
+OnLinkClick(gtx, url)) — usable directly when you need styled text without
+a goldmark document around it.
 
 ## Icons
 
@@ -213,6 +263,12 @@ Names are Category+Name: ActionSettings, AVPlayArrow, AVStop, AVPause,
 AVFiberManualRecord, ContentAddCircle, ContentClear, NavigationClose, ...
 Colour the glyph from the palette (theme tokens), never a hard-coded colour.
 Run `go run ./iconbrowser/` (in this repo) to search the full set visually.
+
+Arbitrary SVG assets (brand marks, logos) render via vibrantgio/svg:
+svg/driver/gio's IconWidget(icon, w, h, opacity) returns a vector
+layout.Widget from a parsed *svg.Icon (parser.NewParser(...).ParseStream);
+inside markdown documents use markdown/svgimage instead (see above, and
+mindchat/assets.go for the embedded-asset pattern).
 
 An icon that may be replaced later beats no icon: use these freely; a future
 vibrantgio-owned set would register into prism/icon (an empty name→icon
@@ -253,15 +309,16 @@ coded clip paths on purpose (golden determinism); leave those alone.
   go 1.25
 
   require (
-      gioui.org v0.9.0
-      github.com/reactivego/rx v0.2.2
-      github.com/vibrantgio/cadence v0.0.6
-      github.com/vibrantgio/mvu v0.3.0
-      github.com/vibrantgio/prism v0.0.7
+      gioui.org v0.10.1
+      github.com/reactivego/rx v0.3.0
+      github.com/vibrantgio/cadence v0.2.0
+      github.com/vibrantgio/mvu v0.4.0
+      github.com/vibrantgio/prism v0.0.9
       github.com/vibrantgio/spectrum v0.0.3
   )
 
-Add pulse/backdrop/seen/traer as needed. All repos are public on GitHub.
+Add markdown/pulse/backdrop/seen/traer as needed. All repos are public on
+GitHub.
 
 ## Where to look for working code
 
@@ -273,15 +330,21 @@ Add pulse/backdrop/seen/traer as needed. All repos are public on GitHub.
               and editor state, ivg icon rendering at scale
   watchlist/  full CRUD + persistence + context menus + popover confirms;
               wiring_test.go shows how to test the AutoConnect count
-  mindchat/   the most feature-complete app: an OpenAI chat client whose
-              side effects all run as mvu commands — a completion STREAMS
-              dozens of messages back through the loop, routed by stream id
-              so switching/renaming/deleting chats mid-stream stays safe.
-              Also: SplitPane shell with a collapsible, resizable sidebar,
+  mindchat/   the most feature-complete app: a multi-provider LLM chat
+              client (any OpenAI-compatible Responses endpoint; providers
+              configured with their own BaseURL/key) whose side effects all
+              run as mvu commands — a completion STREAMS dozens of messages
+              back through the loop, routed by stream id so switching/
+              renaming/deleting chats mid-stream stays safe. Message bodies
+              render as markdown (chroma-highlighted fences, links opening
+              the OS browser, bundled SVG provider icons; markdown.go's
+              degrade() + docCache are the chat-consumer recipe). Also:
+              SplitPane shell with a collapsible, resizable sidebar,
               trash-backed session-wide undo (Cmd/Ctrl-Z), the modal-form
               recipe (Seed/FocusTag/DynamicFocusTags/HideClose), list
               scrollbars, and a global-shortcut key area done right.
               Chatting needs OPENAI_API_KEY in the environment (or .env)
+              on first run to seed the config
   launcher/   the workbench front door — a seen 3D triangle field composited
               as an mvu background layer (palette re-keyed per theme emission
               via an atomic handoff to the animation tick), hero + cadence
@@ -290,6 +353,8 @@ Add pulse/backdrop/seen/traer as needed. All repos are public on GitHub.
   feeds/      table-heavy app: sort/filter/pagination, tabs, split pane,
               modal forms, toasts
   sitedocs/   marketing + docs shell: hero/feature/pricing/testimonial,
-              accordion sidebar, breadcrumbs
+              accordion sidebar, breadcrumbs; the docs pages are embedded
+              .md sources rendered with vibrantgio/markdown (content/*.md +
+              docs_content.go route table — the docs-app recipe)
   DESIGN.md   the architecture document — read §Key Architectural Patterns
               and §Threading & Lifecycle before writing new components
