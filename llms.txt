@@ -14,7 +14,7 @@ before inventing a pattern.
 
 All modules live under github.com/vibrantgio/<name>. Current tags:
 
-  mvu       v0.4.0   MVU runtime: NewWindow, Loop/Run, Message/Command,
+  mvu       v0.4.1   MVU runtime: NewWindow, Loop/Run, Message/Command,
                      MessageOp
   prism     v0.0.9   components: button, input, list, richtext, scrollbar,
                      icon, layout, theme, tokens, a11y, initial, keyed,
@@ -31,7 +31,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      highlight — chroma syntax colours; svgimage — SVG
                      images via vibrantgio/svg)
   seen      v0.0.5   3D scene graph rendered to SVG or Gio
-                     (nested module: seen/context/gio v0.0.5)
+                     (nested module: seen/context/gio v0.0.6)
   traer     v0.0.7   particle physics (springs, attractions, Verlet)
   svg       v0.0.6   SVG parse + render (driver/gio v0.0.6; also raster,
                      pdf, seen drivers at v0.0.5)
@@ -312,7 +312,7 @@ coded clip paths on purpose (golden determinism); leave those alone.
       gioui.org v0.10.1
       github.com/reactivego/rx v0.3.0
       github.com/vibrantgio/cadence v0.2.0
-      github.com/vibrantgio/mvu v0.4.0
+      github.com/vibrantgio/mvu v0.4.1
       github.com/vibrantgio/prism v0.0.9
       github.com/vibrantgio/spectrum v0.0.3
   )
