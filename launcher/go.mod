@@ -8,14 +8,14 @@ require (
 	github.com/vibrantgio/backdrop v0.0.2
 	github.com/vibrantgio/cadence v0.2.0
 	github.com/vibrantgio/ivg/raster/gio v0.1.5
-	github.com/vibrantgio/mvu v0.4.0
+	github.com/vibrantgio/mvu v0.4.1
 	github.com/vibrantgio/noise v0.0.2
-	github.com/vibrantgio/prism v0.0.8
+	github.com/vibrantgio/prism v0.0.9
 	github.com/vibrantgio/seen v0.0.5
-	github.com/vibrantgio/seen/context/gio v0.0.5
+	github.com/vibrantgio/seen/context/gio v0.0.6
 	github.com/vibrantgio/spectrum v0.0.3
 	github.com/vibrantgio/style v0.0.3
-	golang.org/x/exp/shiny v0.0.0-20250408133849-7e4ce0ab07d0
+	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743
 )
 
 require (
@@ -27,8 +27,9 @@ require (
 	github.com/vibrantgio/ivg v0.1.4 // indirect
 	github.com/vibrantgio/pulse v0.0.3 // indirect
 	github.com/vibrantgio/textdraw v0.0.3 // indirect
-	golang.org/x/image v0.26.0 // indirect
-	golang.org/x/net v0.48.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 // indirect
+	golang.org/x/image v0.44.0 // indirect
+	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 )
