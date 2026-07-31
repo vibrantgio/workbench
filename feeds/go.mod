@@ -3,7 +3,7 @@ module github.com/vibrantgio/workbench/feeds
 go 1.25.1
 
 require (
-	gioui.org v0.10.0
+	gioui.org v0.10.1
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/cadence v0.2.0
 	github.com/vibrantgio/mvu v0.4.0

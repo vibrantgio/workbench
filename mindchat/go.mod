@@ -3,7 +3,7 @@ module github.com/vibrantgio/workbench/mindchat
 go 1.25.1
 
 require (
-	gioui.org v0.10.0
+	gioui.org v0.10.1
 	github.com/joho/godotenv v1.5.1
 	github.com/openai/openai-go/v3 v3.44.0
 	github.com/reactivego/rx v0.3.0
