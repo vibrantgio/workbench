@@ -8,14 +8,14 @@ require (
 	github.com/openai/openai-go/v3 v3.48.0
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.3
-	github.com/vibrantgio/cadence v0.2.2
-	github.com/vibrantgio/ivg v0.1.5
-	github.com/vibrantgio/ivg/raster/gio v0.1.7
-	github.com/vibrantgio/markdown v0.0.5
-	github.com/vibrantgio/mvu v0.4.2
-	github.com/vibrantgio/prism v0.1.1
-	github.com/vibrantgio/pulse v0.0.5
-	github.com/vibrantgio/spectrum v0.0.5
+	github.com/vibrantgio/cadence v0.2.3
+	github.com/vibrantgio/ivg v0.1.6
+	github.com/vibrantgio/ivg/raster/gio v0.1.6
+	github.com/vibrantgio/markdown v0.0.6
+	github.com/vibrantgio/mvu v0.4.3
+	github.com/vibrantgio/prism v0.1.2
+	github.com/vibrantgio/pulse v0.0.6
+	github.com/vibrantgio/spectrum v0.0.6
 	github.com/vibrantgio/style v0.0.5
 	github.com/vibrantgio/textdraw v0.0.4
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743
@@ -33,8 +33,8 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/vibrantgio/font v0.0.4 // indirect
-	github.com/vibrantgio/svg v0.0.7 // indirect
-	github.com/vibrantgio/svg/driver/gio v0.0.8 // indirect
+	github.com/vibrantgio/svg v0.0.8 // indirect
+	github.com/vibrantgio/svg/driver/gio v0.0.7 // indirect
 	github.com/yuin/goldmark v1.8.5 // indirect
 	golang.org/x/image v0.44.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
