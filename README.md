@@ -86,8 +86,11 @@ cd launcher && go run .
   and the `rx.Defer` subscription-state pattern), threading rules,
   accessibility, performance methodology, and the phase plan that produced
   Prism, Spectrum, Pulse, and Cadence.
-- **[llms.txt](./llms.txt)** — a condensed guide for AI coding assistants
-  (Claude, etc.) to write applications against the Vibrant Gio packages.
+- **[llms.txt](https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt)**
+  — a condensed guide for AI coding assistants (Claude, etc.) to write
+  applications against the Vibrant Gio packages. It is maintained once, at the
+  root of [vibrantgio/.github](https://github.com/vibrantgio/.github); the
+  `llms.txt` in this repo is only a pointer to it.
 - **[PLAN.md](./PLAN.md)** — the executed implementation plan, kept as the
   historical record of how the system was built and validated.
 - **[BASELINE.md](./BASELINE.md)** — measured performance baselines the
