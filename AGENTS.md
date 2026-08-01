@@ -1,6 +1,6 @@
 # AGENTS.md — workbench
 
-The seven reference applications of the VibrantGio design system, each a
+The seven reference applications of the Vibrant Gio design system, each a
 complete product built the way a real one is meant to be built — MVU state,
 spectrum theming, prism components, cadence patterns: `todos` (the smallest
 complete bootstrap, and the place to start), `iconbrowser`, `sitedocs`,
