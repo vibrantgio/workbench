@@ -26,7 +26,6 @@ import (
 
 	"gioui.org/app"
 	"gioui.org/font"
-	"gioui.org/font/gofont"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -41,9 +40,9 @@ import (
 	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/mvu"
 	pllayout "github.com/vibrantgio/prism/layout"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
 	specsystem "github.com/vibrantgio/spectrum/system"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 	specwin "github.com/vibrantgio/spectrum/window"
 )
 
@@ -101,15 +100,48 @@ func themeObservable() rx.Observable[theme.Theme] {
 	return specsystem.LiveTheme(5 * time.Second)
 }
 
+// themeTokens is the colour/typography snapshot the app's own drawing code
+// reads at frame time. The shaper is the theme's cached Typography shaper
+// (F1.4): the app builds none of its own, so the typefaces — Roboto, plus
+// the Roboto Mono face the docs pages' code style names — come from the
+// theme.
+type themeTokens struct {
+	col    tokens.ColorTokens
+	typ    tokens.Typography
+	shaper *text.Shaper
+}
+
+// mirrorTokens subscribes the theme's Color and Typography streams into an
+// atomic cell and returns a frame-time loader. It is the layer-boundary
+// adapter for closures that run outside any rx scope (static component
+// slots, navbar widgets) — the same hand-off pattern feeds and watchlist
+// use (F1.2/F1.3).
+func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
+	var cell atomic.Value
+	cell.Store(themeTokens{
+		col:    tokens.DefaultLight,
+		typ:    tokens.DefaultTypography,
+		shaper: tokens.DefaultTypography.Shaper(),
+	})
+	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
+	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
+	_ = rx.CombineLatest2(colorObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography], _ error, done bool) {
+		if !done {
+			typ := t.Second
+			cell.Store(themeTokens{col: t.First, typ: typ, shaper: typ.Shaper()})
+		}
+	})
+	return func() themeTokens { return cell.Load().(themeTokens) }
+}
+
 // buildLayers returns a function that spectrum/window.Render passes the
 // per-window theme to. It returns the two rendering layers: a backdrop and
 // the routed shell. The model observable drives routing and accordion state.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
-		shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			routedShellLayer(th, shaper, modelObs),
+			routedShellLayer(th, modelObs),
 		}
 	}
 }
@@ -135,13 +167,12 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // and accordion state survive navigation in both directions.
 func routedShellLayer(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	modelObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
 	currentPageObs := rx.Map(modelObs, func(m Model) string { return m.currentPage })
-	home := homeShellLayer(th, shaper)
-	docs := docsShellLayer(th, shaper, modelObs)
-	about := aboutShellLayer(th, shaper)
+	home := homeShellLayer(th)
+	docs := docsShellLayer(th, modelObs)
+	about := aboutShellLayer(th)
 	combined := rx.CombineLatest4(currentPageObs, home, docs, about)
 	return rx.Map(combined, func(n rx.Tuple4[string, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 		switch n.First {
@@ -170,7 +201,6 @@ func routedShellLayer(
 // frame.
 func docsShellLayer(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	modelObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
 	openSectionsObs := rx.Map(modelObs, func(m Model) map[int]bool { return m.openSections })
@@ -185,7 +215,7 @@ func docsShellLayer(
 	pageObs := make([]rx.Observable[layout.Widget], len(defs))
 	for i, def := range defs {
 		pageIdx[def.ID] = i
-		pageObs[i] = docsPage(th, shaper, def)
+		pageObs[i] = docsPage(th, def)
 	}
 
 	// mainObs re-emits whenever the current page changes or any page
@@ -208,7 +238,7 @@ func docsShellLayer(
 	// reads it at frame time — the same atomic hand-off mvu/window.go uses
 	// for its layer snapshot.
 	var mainCell atomic.Value
-	sidebarObs := docsSidebar(th, shaper, openSectionsObs)
+	sidebarObs := docsSidebar(th, openSectionsObs)
 	sidebarDriven := rx.Map(rx.CombineLatest2(sidebarObs, mainObs), func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
 		mainCell.Store(n.Second)
 		return n.First
@@ -224,53 +254,52 @@ func docsShellLayer(
 	return shell.Shell(th, shell.Props{
 		Layout:  shell.ThreeColumn,
 		Sidebar: sidebarDriven,
-		Navbar:  navbarProps(th, shaper, pageDocsDefault),
+		Navbar:  navbarProps(mirrorTokens(th), pageDocsDefault),
 		Main:    mainSlot,
 	})
 }
 
 // aboutShellLayer renders the About page: a StackedPage with a single
 // prose section and the shared footer.
-func aboutShellLayer(th rx.Observable[theme.Theme], shaper *text.Shaper) rx.Observable[layout.Widget] {
+func aboutShellLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	return shell.Shell(th, shell.Props{
 		Layout: shell.StackedPage,
-		Navbar: navbarProps(th, shaper, pageAbout),
+		Navbar: navbarProps(mirrorTokens(th), pageAbout),
 		Sections: []rx.Observable[layout.Widget]{
-			aboutSection(th, shaper),
-			footerSection(th, shaper),
+			aboutSection(th),
+			footerSection(th),
 		},
 	})
 }
 
 // aboutSection is the About page prose: headline plus paragraphs, theme-aware.
-func aboutSection(th rx.Observable[theme.Theme], shaper *text.Shaper) rx.Observable[layout.Widget] {
+// The heading sits in HeadlineSmall on the Text pin; the paragraphs in
+// BodyMedium on the body-text ramp step. Both shape with the theme's shaper.
+func aboutSection(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	paragraphs := []string{
 		"Site Docs is the documentation and marketing example for Vibrant Gio — a design system for building native desktop applications in Go with Gio.",
 		"It is one of the workbench apps that exercise the system end to end, alongside the launcher, feeds, todos, watchlist, iconbrowser and mindchat.",
 		"Every layer — prism, cadence, spectrum, pulse, mvu — is MIT licensed and developed in the open at github.com/vibrantgio.",
 	}
-	type pair struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	combined := rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale]) pair {
-		return pair{col: t.First, typ: t.Second}
+	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
+	combined := rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themeTokens {
+		typ := t.Second
+		return themeTokens{col: t.First, typ: typ, shaper: typ.Shaper()}
 	})
-	return rx.Map(combined, func(p pair) layout.Widget {
+	return rx.Map(combined, func(p themeTokens) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
 			inset := pllayout.Inset(docsOuterInsetDp)
 			return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				children := []layout.FlexChild{
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return drawLabel(gtx, shaper, "About Vibrant Gio", unit.Sp(p.typ.HeadlineSmall), p.col.OnSurface)
+						return drawLabel(gtx, p.shaper, "About Vibrant Gio", p.typ.HeadlineSmall, p.col.Text)
 					}),
 					layout.Rigid(pllayout.VSpacer(docsCardGapDp)),
 				}
 				for _, para := range paragraphs {
 					children = append(children,
-						layout.Rigid(paragraphWidget(shaper, para, p.col.OnSurface, p.typ)),
+						layout.Rigid(paragraphWidget(p.shaper, para, p.col.Ramps.Neutral.Step(900), p.typ.BodyMedium)),
 						layout.Rigid(pllayout.VSpacer(docsProseGapDp)),
 					)
 				}
@@ -282,13 +311,18 @@ func aboutSection(th rx.Observable[theme.Theme], shaper *text.Shaper) rx.Observa
 
 // navbarProps builds the shared navbar for a shell. active names the route
 // family whose link renders in the Active state, so each shell's navbar is
-// correct by construction. The brand label tracks the theme through the
-// same atomic token adapter the code cards use.
-func navbarProps(th rx.Observable[theme.Theme], shaper *text.Shaper, active string) navbar.Props {
+// correct by construction. The brand label is the app's own text, so it
+// reads the theme snapshot from loadTok at frame time: TitleMedium on the
+// Text pin, shaped with the theme's shaper. No Shaper prop is passed — the
+// navbar shapes its links with the theme's Typography.Shaper().
+func navbarProps(loadTok func() themeTokens, active string) navbar.Props {
 	isDocs := active != pageHome && active != pageAbout
+	brand := func(gtx layout.Context) layout.Dimensions {
+		s := loadTok()
+		return drawLabel(gtx, s.shaper, "Vibrant Gio", s.typ.TitleMedium, s.col.Text)
+	}
 	return navbar.Props{
-		Brand:  brandWidget(th, shaper),
-		Shaper: shaper,
+		Brand: brand,
 		Links: []navbar.Link{
 			{Label: "Home", Active: active == pageHome, OnClick: func(gtx layout.Context) {
 				mvu.MessageOp{Message: SetRoute{Page: pageHome}}.Add(gtx.Ops)
@@ -303,30 +337,23 @@ func navbarProps(th rx.Observable[theme.Theme], shaper *text.Shaper, active stri
 	}
 }
 
-// brandWidget renders the "Vibrant Gio" wordmark in the theme's OnSurface
-// colour (the previous hardcoded black was invisible on the dark scheme).
-func brandWidget(th rx.Observable[theme.Theme], shaper *text.Shaper) layout.Widget {
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	var cell atomic.Value
-	cell.Store(tokens.DefaultLight)
-	_ = colObs.Subscribe(rx.GoroutineContext(), func(c tokens.ColorTokens, _ error, done bool) {
-		if !done {
-			cell.Store(c)
-		}
-	})
-	return func(gtx layout.Context) layout.Dimensions {
-		c := cell.Load().(tokens.ColorTokens)
-		return drawLabel(gtx, shaper, "Vibrant Gio", unit.Sp(18), c.OnSurface)
+// drawLabel paints a single-line text label at the current offset in the
+// given Typography role: typeface, weight, size and line height all come
+// from the theme's TextStyle.
+func drawLabel(gtx layout.Context, shaper *text.Shaper, msg string, style tokens.TextStyle, c color.NRGBA) layout.Dimensions {
+	f := font.Font{Typeface: font.Typeface(style.Typeface)}
+	if style.Weight != 0 {
+		f.Weight = tokens.FontWeight(style.Weight)
 	}
-}
-
-// drawLabel paints a single-line text label at the current offset.
-func drawLabel(gtx layout.Context, shaper *text.Shaper, msg string, size unit.Sp, c color.NRGBA) layout.Dimensions {
 	mat := op.Record(gtx.Ops)
 	paint.ColorOp{Color: c}.Add(gtx.Ops)
 	material := mat.Stop()
 	wl := widget.Label{MaxLines: 1}
-	return wl.Layout(gtx, shaper, font.Font{}, size, msg, material)
+	if style.LineHeight != 0 {
+		wl.LineHeight = unit.Sp(style.LineHeight)
+		wl.LineHeightScale = 1
+	}
+	return wl.Layout(gtx, shaper, f, unit.Sp(style.Size), msg, material)
 }
 
 // Compile-time anchor.

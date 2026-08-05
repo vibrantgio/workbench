@@ -6,13 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"gioui.org/font/gofont"
 	"gioui.org/layout"
-	"gioui.org/text"
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/prism/theme"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 // TestBuildLayersConstructsWithoutPanic verifies that buildLayers returns two
@@ -100,10 +98,8 @@ func TestUpdateToggleAccordionSingleOpen(t *testing.T) {
 // layer re-emits. (Live same-frame repaint is confirmed by running the app —
 // the unit test proves the necessary re-emission, not the OS frame timing.)
 func TestDocsShellLayerReEmitsOnModelChange(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
-
 	send, modelObs := rx.Subject[Model](0, 1)
-	shell := docsShellLayer(rx.Of(theme.Default()), shaper, modelObs)
+	shell := docsShellLayer(rx.Of(theme.Default()), modelObs)
 
 	emissions := make(chan layout.Widget, 16)
 	sub := shell.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

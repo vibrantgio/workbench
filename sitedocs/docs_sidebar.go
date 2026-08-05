@@ -11,7 +11,6 @@ package main
 import (
 	"image"
 	"image/color"
-	"sync/atomic"
 
 	"gioui.org/font"
 	"gioui.org/io/pointer"
@@ -28,8 +27,8 @@ import (
 
 	"github.com/vibrantgio/cadence/accordion"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 // Sidebar layout constants.
@@ -106,10 +105,11 @@ func copyOpenMap(m map[int]bool) map[int]bool {
 
 // docsSidebar returns the route-ready docs sidebar observable. openSectionsObs
 // streams the current open-section map from the MVU model; OnToggle emits a
-// ToggleAccordion mvu.MessageOp so the model updates on the same frame.
+// ToggleAccordion mvu.MessageOp so the model updates on the same frame. No
+// Shaper prop is passed — the accordion titles and the link rows shape with
+// the theme's Typography.Shaper().
 func docsSidebar(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	openSectionsObs rx.Observable[map[int]bool],
 ) rx.Observable[layout.Widget] {
 	sections := docsSidebarSections()
@@ -118,7 +118,7 @@ func docsSidebar(
 	for i, sec := range sections {
 		accSections[i] = accordion.Section{
 			Title: sec.Title,
-			Body:  linkListBody(th, shaper, sec.Links),
+			Body:  linkListBody(th, sec.Links),
 		}
 	}
 
@@ -134,7 +134,6 @@ func docsSidebar(
 			mvu.MessageOp{Message: ToggleAccordion{Idx: idx}}.Add(gtx.Ops)
 		},
 		SingleOpen: false,
-		Shaper:     shaper,
 	})
 
 	// Fold the accordion widget stream into the returned layer observable via
@@ -176,46 +175,32 @@ func drawDocsSidebar(
 
 // linkListBody returns the body widget for a single accordion section.
 // Clicks emit mvu.MessageOp{SetRoute{...}} so navigation fires on the same
-// frame as the click.
+// frame as the click. The rows read the theme snapshot through the shared
+// mirrorTokens adapter: BodySmall on the body-text ramp step, shaped with
+// the theme's shaper.
 func linkListBody(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	links []docsSidebarLink,
 ) layout.Widget {
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-
-	var state atomic.Value
-	state.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			state.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
+	loadTok := mirrorTokens(th)
 
 	clicks := make([]widget.Clickable, len(links))
 	return func(gtx layout.Context) layout.Dimensions {
-		s := state.Load().(tokenState)
+		s := loadTok()
 		for i := range links {
 			if clicks[i].Clicked(gtx) {
 				mvu.MessageOp{Message: SetRoute{Page: links[i].Page}}.Add(gtx.Ops)
 			}
 		}
-		return drawLinkList(gtx, shaper, links, clicks, s.col, s.typ)
+		return drawLinkList(gtx, s, links, clicks)
 	}
 }
 
 func drawLinkList(
 	gtx layout.Context,
-	shaper *text.Shaper,
+	tok themeTokens,
 	links []docsSidebarLink,
 	clicks []widget.Clickable,
-	colors tokens.ColorTokens,
-	ts tokens.TypeScale,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	rowH := gtx.Dp(unit.Dp(docsLinkRowHDp))
@@ -226,7 +211,7 @@ func drawLinkList(
 		stk := op.Offset(off).Push(gtx.Ops)
 		rowGtx := gtx
 		rowGtx.Constraints = layout.Exact(image.Pt(size.X-indent, rowH))
-		drawSidebarLink(rowGtx, shaper, l.Label, clickForLink(clicks, i), colors.OnSurface, ts)
+		drawSidebarLink(rowGtx, tok.shaper, l.Label, clickForLink(clicks, i), tok.col.Ramps.Neutral.Step(900), tok.typ.BodySmall)
 		stk.Pop()
 	}
 	return layout.Dimensions{Size: size}
@@ -245,10 +230,14 @@ func drawSidebarLink(
 	label string,
 	click *widget.Clickable,
 	fg color.NRGBA,
-	ts tokens.TypeScale,
+	style tokens.TextStyle,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	inner := func(gtx layout.Context) layout.Dimensions {
+		f := font.Font{Typeface: font.Typeface(style.Typeface)}
+		if style.Weight != 0 {
+			f.Weight = tokens.FontWeight(style.Weight)
+		}
 		mColor := op.Record(gtx.Ops)
 		paint.ColorOp{Color: fg}.Add(gtx.Ops)
 		material := mColor.Stop()
@@ -259,7 +248,11 @@ func drawSidebarLink(
 
 		mLabel := op.Record(gtx.Ops)
 		wl := widget.Label{MaxLines: 1}
-		labelDims := wl.Layout(labelGtx, shaper, font.Font{}, unit.Sp(ts.BodySmall), label, material)
+		if style.LineHeight != 0 {
+			wl.LineHeight = unit.Sp(style.LineHeight)
+			wl.LineHeightScale = 1
+		}
+		labelDims := wl.Layout(labelGtx, shaper, f, unit.Sp(style.Size), label, material)
 		labelCall := mLabel.Stop()
 
 		offY := (size.Y - labelDims.Size.Y) / 2

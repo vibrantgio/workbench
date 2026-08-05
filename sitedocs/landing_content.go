@@ -7,7 +7,6 @@ package main
 
 import (
 	"gioui.org/layout"
-	"gioui.org/text"
 
 	"github.com/vibrantgio/cadence/feature"
 	"github.com/vibrantgio/cadence/hero"
@@ -17,15 +16,15 @@ import (
 
 // heroContent returns Hero props for the landing page. The primary CTA
 // fires gotoDocs; the secondary CTA routes to the About page so no CTA
-// is dead UI.
-func heroContent(shaper *text.Shaper, gotoDocs, gotoAbout func(gtx layout.Context)) hero.Props {
+// is dead UI. No Shaper prop: the pattern shapes with the theme's
+// Typography.Shaper().
+func heroContent(gotoDocs, gotoAbout func(gtx layout.Context)) hero.Props {
 	return hero.Props{
 		Eyebrow:      "Native desktop · Go",
 		Title:        "Vibrant Gio",
 		Subtitle:     "Prism tokens and primitives, Cadence patterns, Spectrum platform glue, Pulse motion, and an MVU runtime — a design system for building native desktop apps with Gio.",
 		PrimaryCTA:   &hero.CTA{Label: "Get started", OnClick: gotoDocs},
 		SecondaryCTA: &hero.CTA{Label: "About", OnClick: gotoAbout},
-		Shaper:       shaper,
 	}
 }
 
@@ -56,9 +55,8 @@ func featureContent() feature.Props {
 // distinguished by feature lists rather than the price column so the
 // rendering proves the pattern handles uneven bullet counts. The middle
 // tier is the Highlighted "Popular" one.
-func pricingContent(shaper *text.Shaper) pricing.Props {
+func pricingContent() pricing.Props {
 	return pricing.Props{
-		Shaper: shaper,
 		Tiers: []pricing.Tier{
 			{
 				Name:    "Free",
@@ -102,10 +100,9 @@ func pricingContent(shaper *text.Shaper) pricing.Props {
 
 // testimonialContent returns the 3-card testimonial grid. Quotes are
 // synthetic but plausible; author names and roles are illustrative.
-func testimonialContent(shaper *text.Shaper) testimonial.Props {
+func testimonialContent() testimonial.Props {
 	return testimonial.Props{
 		Variant: testimonial.Grid,
-		Shaper:  shaper,
 		Items: []testimonial.Item{
 			{
 				Quote:      "Cadence dropped into our docs app on a Friday. By Monday the Hero alone had saved us a week.",

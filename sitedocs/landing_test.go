@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"gioui.org/font/gofont"
 	"gioui.org/gpu/headless"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -25,8 +24,8 @@ import (
 	"github.com/vibrantgio/cadence/hero"
 	"github.com/vibrantgio/cadence/pricing"
 	"github.com/vibrantgio/cadence/testimonial"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 var goldenUpdate = flag.Bool("golden.update", false, "overwrite golden images with current output")
@@ -51,7 +50,7 @@ var (
 // "Popular" border, testimonial card chrome) drive the visual difference.
 // The runtime path in homeShellLayer uses landing_content.go for real copy.
 func TestLandingGolden(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
+	shaper := tokens.DefaultTypography.Shaper()
 	lightBG := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 	darkBG := color.NRGBA{R: 20, G: 20, B: 20, A: 255}
 
@@ -79,7 +78,7 @@ func TestLandingGolden(t *testing.T) {
 // TestLandingLightDarkDiffer confirms swapping the colour token set
 // changes the rendered output of the home page composition.
 func TestLandingLightDarkDiffer(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
+	shaper := tokens.DefaultTypography.Shaper()
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 
 	hp := structuralHeroProps(shaper)
@@ -105,8 +104,7 @@ func TestLandingLightDarkDiffer(t *testing.T) {
 // rx.Of(theme.Default()) source delivers values synchronously, so the
 // combined emission arrives before the test collects.
 func TestHomeShellLayerConstructs(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
-	obs := homeShellLayer(rx.Of(theme.Default()), shaper)
+	obs := homeShellLayer(rx.Of(theme.Default()))
 	w, err := collectOne(obs)
 	if err != nil {
 		t.Fatalf("homeShellLayer subscribe: %v", err)

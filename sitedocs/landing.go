@@ -21,8 +21,8 @@ import (
 	"github.com/vibrantgio/cadence/testimonial"
 	"github.com/vibrantgio/mvu"
 	pllayout "github.com/vibrantgio/prism/layout"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 // sectionGapDp is the vertical gap inserted between adjacent sections.
@@ -36,7 +36,7 @@ const contentMaxWidthDp = 1100
 // homeShellLayer returns the Home page as a StackedPage shell: pinned
 // full-width navbar, the marketing patterns as scrolling sections, and a
 // theme-aware footer as the final section so it scrolls with the content.
-func homeShellLayer(th rx.Observable[theme.Theme], shaper *text.Shaper) rx.Observable[layout.Widget] {
+func homeShellLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	gotoDocs := func(gtx layout.Context) {
 		mvu.MessageOp{Message: SetRoute{Page: pageDocsDefault}}.Add(gtx.Ops)
 	}
@@ -47,17 +47,17 @@ func homeShellLayer(th rx.Observable[theme.Theme], shaper *text.Shaper) rx.Obser
 	return shell.Shell(th, shell.Props{
 		Layout:          shell.StackedPage,
 		ContentMaxWidth: contentMaxWidthDp,
-		Navbar:          navbarProps(th, shaper, pageHome),
+		Navbar:          navbarProps(mirrorTokens(th), pageHome),
 		Sections: []rx.Observable[layout.Widget]{
-			hero.Hero(th, heroContent(shaper, gotoDocs, gotoAbout)),
+			hero.Hero(th, heroContent(gotoDocs, gotoAbout)),
 			gap,
 			feature.Feature(th, featureContent()),
 			gap,
-			pricing.Pricing(th, pricingContent(shaper)),
+			pricing.Pricing(th, pricingContent()),
 			gap,
-			testimonial.Testimonial(th, testimonialContent(shaper)),
+			testimonial.Testimonial(th, testimonialContent()),
 			gap,
-			footerSection(th, shaper),
+			footerSection(th),
 		},
 	})
 }
@@ -65,24 +65,23 @@ func homeShellLayer(th rx.Observable[theme.Theme], shaper *text.Shaper) rx.Obser
 // footerSection is the landing page's end-cap: a single muted line that
 // scrolls with the content (StackedPage appends sections; it does not
 // pin them to the viewport). Built as a section stream so it re-renders
-// on theme change like every other section.
-func footerSection(th rx.Observable[theme.Theme], shaper *text.Shaper) rx.Observable[layout.Widget] {
-	type pair struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
+// on theme change like every other section. The muted line sits in
+// BodyMedium on the low-contrast Neutral 700 text step (replacing the
+// deprecated OnSurfaceVariant alias), shaped with the theme's shaper.
+func footerSection(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	combined := rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale]) pair {
-		return pair{col: t.First, typ: t.Second}
+	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
+	combined := rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themeTokens {
+		typ := t.Second
+		return themeTokens{col: t.First, typ: typ, shaper: typ.Shaper()}
 	})
-	return rx.Map(combined, func(p pair) layout.Widget {
+	return rx.Map(combined, func(p themeTokens) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
 			inset := pllayout.Inset(sectionGapDp)
 			return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return paragraphWidget(shaper,
+				return paragraphWidget(p.shaper,
 					"Vibrant Gio — built with Gio. MIT licensed.",
-					p.col.OnSurfaceVariant, p.typ)(gtx)
+					p.col.Ramps.Neutral.Step(700), p.typ.BodyMedium)(gtx)
 			})
 		}
 	})

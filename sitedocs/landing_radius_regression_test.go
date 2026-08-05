@@ -5,18 +5,16 @@ import (
 	"image/color"
 	"testing"
 
-	"gioui.org/font/gofont"
 	"gioui.org/gpu/headless"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/cadence/hero"
 	"github.com/vibrantgio/cadence/pricing"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 // TestPricingHighlightedTierDoesNotFloodCanvas exercises the Pro (Highlighted)
@@ -31,12 +29,12 @@ import (
 // pixel must be the canvas background (Surface). Without the clamp it
 // renders Primary.
 func TestPricingHighlightedTierDoesNotFloodCanvas(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
+	shaper := tokens.DefaultTypography.Shaper()
 	size := image.Pt(400, 500)
 	colors := tokens.DefaultDark
 	bg := colors.Surface
 
-	full := pricingContent(shaper)
+	full := pricingContent()
 	var pro pricing.Tier
 	for _, tt := range full.Tiers {
 		if tt.Highlighted {
@@ -75,12 +73,12 @@ func TestPricingHighlightedTierDoesNotFloodCanvas(t *testing.T) {
 // Pre-fix: a pixel well below the eyebrow band paints as
 // tintColor(Primary, Surface) instead of Surface. Post-fix: Surface.
 func TestHeroEyebrowDoesNotFloodCanvas(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
+	shaper := tokens.DefaultTypography.Shaper()
 	size := image.Pt(400, 600)
 	colors := tokens.DefaultDark
 	bg := colors.Surface
 
-	hp := heroContent(shaper, func(_ layout.Context) {}, func(_ layout.Context) {})
+	hp := heroContent(func(_ layout.Context) {}, func(_ layout.Context) {})
 	w := hero.Render(shaper, hp, colors, tokens.Spacing, tokens.Radius, tokens.DefaultTypeScale)
 
 	img := renderToImage(t, size, func(gtx layout.Context) layout.Dimensions {

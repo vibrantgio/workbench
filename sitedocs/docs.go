@@ -27,8 +27,8 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	pllayout "github.com/vibrantgio/prism/layout"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 
 	"github.com/vibrantgio/mvu"
 )
@@ -51,11 +51,19 @@ var (
 )
 
 // docsMarkdownStyle derives the markdown document style for the current
-// colour and type tokens: the token-themed defaults plus the app's two
-// opt-ins — chroma highlighting matched to the appearance, and links
-// opening in the system browser.
-func docsMarkdownStyle(c tokens.ColorTokens, ts tokens.TypeScale) markdown.Style {
+// colour, type and typography tokens: the token-themed defaults plus the
+// app's two opt-ins — chroma highlighting matched to the appearance, and
+// links opening in the system browser.
+//
+// Mono and CodeSize are re-resolved from the THEME's Code role (F1.4):
+// FromTokens defaults them from tokens.DefaultTypography.Code (F0.2's
+// wiring), and per its documentation a caller holding the theme's own
+// Typography sets them from its Code role afterwards, so a non-default
+// theme typography carries its own code face and size here.
+func docsMarkdownStyle(c tokens.ColorTokens, ts tokens.TypeScale, typ tokens.Typography) markdown.Style {
 	st := markdown.FromTokens(c, ts)
+	st.Mono = font.Typeface(typ.Code.Typeface)
+	st.CodeSize = unit.Sp(typ.Code.Size)
 	if isDarkColor(c.Background) {
 		st.Highlight = docsHighlightDark
 	} else {
@@ -94,27 +102,30 @@ func openURL(url string) {
 // Document is allocated once per page and closed over by every emission,
 // so scroll position and link interaction state survive theme changes and
 // navigation. The breadcrumb and token observables are combined so the
-// page re-emits on any theme change.
+// page re-emits on any theme change. The shaper is the theme's cached
+// Typography shaper, so prose shapes in Roboto and the code blocks'
+// Style.Mono face resolves to the theme-carried Roboto Mono (F0.2).
 func docsPage(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	def docsPageDef,
 ) rx.Observable[layout.Widget] {
 	bcObs := breadcrumb.Breadcrumb(th, breadcrumb.Props{
-		Items:  docsBreadcrumb(def),
-		Shaper: shaper,
+		Items: docsBreadcrumb(def),
 	})
 
 	doc := markdown.NewDocument(markdown.Parse(def.Source))
 
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	tokensObs := rx.CombineLatest2(colObs, typObs)
+	tsObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
+	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
+	tokensObs := rx.CombineLatest3(colObs, tsObs, typObs)
 
 	full := rx.CombineLatest2(bcObs, tokensObs)
-	return rx.Map(full, func(t rx.Tuple2[layout.Widget, rx.Tuple2[tokens.ColorTokens, tokens.TypeScale]]) layout.Widget {
+	return rx.Map(full, func(t rx.Tuple2[layout.Widget, rx.Tuple3[tokens.ColorTokens, tokens.TypeScale, tokens.Typography]]) layout.Widget {
 		bcW := t.First
-		style := docsMarkdownStyle(t.Second.First, t.Second.Second)
+		typ := t.Second.Third
+		style := docsMarkdownStyle(t.Second.First, t.Second.Second, typ)
+		shaper := typ.Shaper()
 		return func(gtx layout.Context) layout.Dimensions {
 			return drawDocsPage(gtx, bcW, doc, shaper, style)
 		}
@@ -122,7 +133,9 @@ func docsPage(
 }
 
 // renderDocsPage is the static counterpart of docsPage used by goldens: a
-// fresh top-scrolled Document laid out once with the given token sets.
+// fresh top-scrolled Document laid out once with the given token sets. The
+// code role comes from tokens.DefaultTypography, matching the default theme
+// the runtime path renders under.
 func renderDocsPage(
 	shaper *text.Shaper,
 	def docsPageDef,
@@ -132,7 +145,7 @@ func renderDocsPage(
 ) layout.Widget {
 	bcW := breadcrumb.Render(shaper, breadcrumb.Props{Items: docsBreadcrumb(def), Shaper: shaper}, colors, sp, ts)
 	doc := markdown.NewDocument(markdown.Parse(def.Source))
-	style := docsMarkdownStyle(colors, ts)
+	style := docsMarkdownStyle(colors, ts, tokens.DefaultTypography)
 	return func(gtx layout.Context) layout.Dimensions {
 		return drawDocsPage(gtx, bcW, doc, shaper, style)
 	}
@@ -182,19 +195,28 @@ func drawDocsPage(
 	})
 }
 
-// paragraphWidget renders one body-text paragraph at BodyMedium font size.
-// (Used by the About page, whose short prose stays hand-composed.)
+// paragraphWidget renders one body-text paragraph in the given Typography
+// role (BodyMedium at both call sites). (Used by the About page and the
+// footer, whose short prose stays hand-composed.)
 func paragraphWidget(
 	shaper *text.Shaper,
 	textBody string,
 	fg color.NRGBA,
-	ts tokens.TypeScale,
+	style tokens.TextStyle,
 ) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
+		f := font.Font{Typeface: font.Typeface(style.Typeface)}
+		if style.Weight != 0 {
+			f.Weight = tokens.FontWeight(style.Weight)
+		}
 		mColor := op.Record(gtx.Ops)
 		paint.ColorOp{Color: fg}.Add(gtx.Ops)
 		material := mColor.Stop()
 		wl := widget.Label{Alignment: text.Start}
-		return wl.Layout(gtx, shaper, font.Font{}, unit.Sp(ts.BodyMedium), textBody, material)
+		if style.LineHeight != 0 {
+			wl.LineHeight = unit.Sp(style.LineHeight)
+			wl.LineHeightScale = 1
+		}
+		return wl.Layout(gtx, shaper, f, unit.Sp(style.Size), textBody, material)
 	}
 }
