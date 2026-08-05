@@ -3,9 +3,11 @@ package main
 import (
 	"image/color"
 
+	"gioui.org/font"
 	"gioui.org/unit"
 
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/textdraw"
 )
 
 // Palette is the app's view of the prism colour tokens: named roles derived
@@ -33,26 +35,51 @@ type Palette struct {
 func PaletteFrom(c tokens.ColorTokens) Palette {
 	// The hover fill is the selected fill at half opacity, painted over the
 	// sidebar surface, so it sits between rest and selected in both schemes.
-	hover := c.SurfaceVariant
+	hover := c.Ramps.Neutral.Step(300)
 	hover.A = 128
 	return Palette{
 		Sidebar:     c.Surface,
-		Separator:   c.Outline,
-		Heading:     c.OnSurfaceVariant,
-		Row:         c.OnSurfaceVariant,
-		RowActive:   c.OnSurface,
-		RowSelected: c.SurfaceVariant,
+		Separator:   c.Divider,
+		Heading:     c.Ramps.Neutral.Step(700),
+		Row:         c.Ramps.Neutral.Step(700),
+		RowActive:   c.Ramps.Neutral.Step(900),
+		RowSelected: c.Ramps.Neutral.Step(300),
 		RowHovered:  hover,
 		Accent:      c.Primary,
 		UserBubble:  c.Primary,
 		UserText:    c.OnPrimary,
-		BotBubble:   c.SurfaceVariant,
-		BotText:     c.OnSurface,
+		BotBubble:   c.Ramps.Neutral.Step(300),
+		BotText:     c.Ramps.Neutral.Step(900),
 		Icon:        c.Primary,
 		Error:       c.Error,
 		// The token set has no green family; Tailwind green 600 is legible
 		// on both schemes' surfaces.
 		Ok: color.NRGBA{0x16, 0xa3, 0x4a, 0xff},
+	}
+}
+
+// roleFont converts a theme Typography role into the gio font it shapes
+// with: typeface and weight come from the theme (a zero weight means
+// unset, per tokens.FontWeight's convention).
+func roleFont(role tokens.TextStyle) font.Font {
+	f := font.Font{Typeface: font.Typeface(role.Typeface)}
+	if role.Weight != 0 {
+		f.Weight = tokens.FontWeight(role.Weight)
+	}
+	return f
+}
+
+// roleText converts a theme Typography role into the textdraw TextStyle the
+// app's FillText calls shape with — typeface, weight and size all come from
+// the theme; the single-line ellipsis truncation is the app's own
+// convention for chrome text.
+func roleText(role tokens.TextStyle) textdraw.TextStyle {
+	return textdraw.TextStyle{
+		Font:      roleFont(role),
+		Alignment: textdraw.Start,
+		Size:      unit.Sp(role.Size),
+		MaxLines:  1,
+		Truncator: "…",
 	}
 }
 

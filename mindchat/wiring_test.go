@@ -9,7 +9,7 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/prism/theme"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 // TestModelObsConsumerCountMatchesConst measures the EXACT number of cold

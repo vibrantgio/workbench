@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
-	"gioui.org/font/gofont"
+	"gioui.org/font"
 	"gioui.org/io/event"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -32,15 +32,14 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/a11y"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/prism/list"
 	"github.com/vibrantgio/prism/scrollbar"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
 	"github.com/vibrantgio/pulse/depth"
-	"github.com/vibrantgio/style"
+	"github.com/vibrantgio/spectrum/a11y"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 	"github.com/vibrantgio/textdraw"
 
 	"slices"
@@ -73,6 +72,11 @@ type themed struct {
 	// opening in the system browser. MessageRow adapts its text colours per
 	// bubble role.
 	md markdown.Style
+	// typ and shaper carry the theme's Typography and its cached shaper —
+	// the app builds no shaper of its own, so the typefaces (Roboto, and
+	// Roboto Mono for code) come from the theme (G-F1).
+	typ    tokens.Typography
+	shaper *text.Shaper
 	// reduceMotion mirrors the OS accessibility preference; the streaming
 	// dot renders static when it is set (llms.txt rule 5).
 	reduceMotion bool
@@ -86,6 +90,30 @@ var (
 	mdHighlightDark  = highlight.New("github-dark")
 )
 
+// messageMarkdownStyle derives the chat-body markdown style for the current
+// colour, type and typography tokens: the token-themed defaults plus the
+// app's opt-ins — chroma highlighting matched to the appearance, links
+// opening in the system browser, and the bundled image provider.
+//
+// Mono and CodeSize are re-resolved from the THEME's Code role (the F1.4
+// caller-side wiring): FromTokens defaults them from
+// tokens.DefaultTypography.Code, and a caller holding the theme's own
+// Typography sets them from its Code role afterwards, so code spans and
+// fences in chat bodies render in the theme's mono face at its size.
+func messageMarkdownStyle(c tokens.ColorTokens, ts tokens.TypeScale, typ tokens.Typography) markdown.Style {
+	md := markdown.FromTokens(c, ts)
+	md.Mono = font.Typeface(typ.Code.Typeface)
+	md.CodeSize = unit.Sp(typ.Code.Size)
+	if isDarkColor(c.Background) {
+		md.Highlight = mdHighlightDark
+	} else {
+		md.Highlight = mdHighlightLight
+	}
+	md.Text.OnLinkClick = func(_ layout.Context, url string) { openURL(url) }
+	md.Images = mdImages
+	return md
+}
+
 // ContentLayer renders the page: the chat pane with the prompt field, and
 // the conversation sidebar. The stateful widgets live at subscription scope,
 // OUTSIDE the per-emission Map (llm.txt rule 2): the two scroll positions,
@@ -94,10 +122,6 @@ var (
 // CombineLatest3 below. Constructing any of them per emission would reset
 // scroll or typing on every completion-stream delta.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
-	// The Roboto faces lead (the shaper's default), followed by the Go
-	// collection so markdown code spans resolve their "Go Mono" typeface.
-	shaper := text.NewShaper(text.WithCollection(append(style.FontFaces(), gofont.Collection()...)))
-
 	histList := list.NewState()
 	chatList := list.NewState()
 	msgDocs := newDocCache()
@@ -110,12 +134,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		Description:   "chat prompt",
 		Submit:        true,
 		SubmitMessage: func(text string) any { return Prompt{Content: text} },
-		Shaper:        shaper,
 	})
 
 	colorThemes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest2(t.Color, t.Type), func(ct rx.Tuple2[tokens.ColorTokens, tokens.TypeScale]) themed {
-			c, ts := ct.First, ct.Second
+		return rx.Map(rx.CombineLatest3(t.Color, t.Type, t.Typography), func(ct rx.Tuple3[tokens.ColorTokens, tokens.TypeScale, tokens.Typography]) themed {
+			c, ts, typ := ct.First, ct.Second, ct.Third
 			p := PaletteFrom(c)
 			avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
 			if err != nil {
@@ -137,15 +160,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if err != nil {
 				panic(err)
 			}
-			md := markdown.FromTokens(c, ts)
-			if isDarkColor(c.Background) {
-				md.Highlight = mdHighlightDark
-			} else {
-				md.Highlight = mdHighlightLight
-			}
-			md.Text.OnLinkClick = func(_ layout.Context, url string) { openURL(url) }
-			md.Images = mdImages
-			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md}
+			md := messageMarkdownStyle(c, ts, typ)
+			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper()}
 		})
 	})
 	themes := rx.Map(rx.CombineLatest2(colorThemes, a11y.Live(time.Second)),
@@ -195,9 +211,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				}
 			}
 			return parts{
-				sidebar: Sidebar(shaper, t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick, &toggleClick, &settingsClick),
-				main:    ChatPane(shaper, t, msgDocs.Rows(history), histList, promptW, menuSlot),
-				undo:    UndoBar(shaper, t, model.Pending, &undoClick),
+				sidebar: Sidebar(t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick, &toggleClick, &settingsClick),
+				main:    ChatPane(t, msgDocs.Rows(history), histList, promptW, menuSlot),
+				undo:    UndoBar(t, model.Pending, &undoClick),
 			}
 		})
 
@@ -234,9 +250,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		},
 	})
 
-	renameObs := RenameModal(th, shaper, modelObs)
-	settingsObs := SettingsModal(th, shaper, modelObs)
-	menuObs := ModelMenu(th, shaper, modelObs)
+	renameObs := RenameModal(th, modelObs)
+	settingsObs := SettingsModal(th, modelObs)
+	menuObs := ModelMenu(th, modelObs)
 
 	// Global Cmd/Ctrl-Z undoes a pending chat delete (the reducer ignores
 	// it when nothing is pending). A focused text editor claims the chord
@@ -287,7 +303,7 @@ type renameTarget struct {
 // an empty submit, or Escape/scrim via OnClose) closes it. Both model
 // derivations are DistinctUntilChanged so completion-stream deltas cannot
 // rebuild the field mid-typing.
-func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.Rename.Target != "" }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 	editObs := rx.Map(modelObs, func(m Model) renameTarget {
@@ -311,7 +327,6 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 			Description:   "chat name",
 			Seed:          e.seed,
 			FocusTag:      func(tag event.Tag) { fieldTagCell.Store(tag) },
-			Shaper:        shaper,
 			Submit:        true,
 			SubmitMessage: func(text string) any { return RenameChat{To: text} },
 			OnChange:      func(_ layout.Context, text string) { nameCell.Store(text) },
@@ -325,7 +340,6 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
 		Clickable: &cancelClick,
-		Shaper:    shaper,
 		OnClick: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseRename{}}.Add(gtx.Ops)
 		},
@@ -333,7 +347,6 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 	submitObs := button.Button(th, button.Props{
 		Label:     "Rename",
 		Clickable: &submitClick,
-		Shaper:    shaper,
 		OnClick: func(gtx layout.Context) {
 			if name, ok := nameCell.Load().(string); ok {
 				mvu.MessageOp{Message: RenameChat{To: name}}.Add(gtx.Ops)
@@ -384,7 +397,6 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 		},
 		ActionFocusTags: []event.Tag{&cancelClick, &submitClick},
 		HideClose:       true,
-		Shaper:          shaper,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseRename{}}.Add(gtx.Ops)
 		},
@@ -406,7 +418,7 @@ func RenameModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx
 // chip anchor + model list surface) is drawn LAST, over the history, so
 // the open surface wins the paint and hit-test order against the rows
 // below the header.
-func ChatPane(shaper *text.Shaper, t themed, chat []msgRow, hist *list.State, prompt, menu layout.Widget) layout.Widget {
+func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = ClampWidth(gtx, 0, ChatPaneWidth)
 		size := gtx.Constraints.Max
@@ -426,7 +438,7 @@ func ChatPane(shaper *text.Shaper, t themed, chat []msgRow, hist *list.State, pr
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return list.LayoutScrollbar(gtx, hist, t.bar, list.Occupy, chat,
 					func(gtx layout.Context, row msgRow) layout.Dimensions {
-						return MessageRow(gtx, shaper, t, row)
+						return MessageRow(gtx, t, row)
 					})
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -454,10 +466,10 @@ func ChatPane(shaper *text.Shaper, t themed, chat []msgRow, hist *list.State, pr
 // text colours; error rows read as plain labels in the error colour,
 // transient status rows ("Searching the web…") in the heading colour. An
 // answer's citations arrive inside the Document (messageSource).
-func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, row msgRow) layout.Dimensions {
+func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 	msg := row.Msg
 	p := t.palette
-	st := style.BodyText1
+	st := t.typ.BodyLarge
 
 	isUser := msg.Role == RoleUser
 	fill, textColor := p.BotBubble, p.BotText
@@ -486,14 +498,14 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, row msgRow) l
 				md.Text.LinkColor = textColor
 			}
 			gtx.Constraints.Min = image.Point{}
-			dims = row.Doc.LayoutColumn(gtx, shaper, md)
+			dims = row.Doc.LayoutColumn(gtx, t.shaper, md)
 			// The bubble spans the full row width regardless of the
 			// column's natural content width.
 			dims.Size.X = gtx.Constraints.Max.X
 		} else {
 			textMaterial := Material(gtx.Ops, textColor)
-			label := widget.Label{Alignment: text.Start, MaxLines: st.MaxLines, Truncator: st.Truncator}
-			dims = label.Layout(gtx, shaper, st.Font, st.Size, msg.Content, textMaterial)
+			label := widget.Label{Alignment: text.Start, Truncator: "…"}
+			dims = label.Layout(gtx, t.shaper, roleFont(st), unit.Sp(st.Size), msg.Content, textMaterial)
 		}
 		dims.Size.X += margin
 		return dims
@@ -518,7 +530,7 @@ func MessageRow(gtx layout.Context, shaper *text.Shaper, t themed, row msgRow) l
 // toggle, the conversation list, and the settings row anchored at the
 // bottom. Below RailThreshold width it renders as an icon rail (toggle,
 // new chat, settings) — the collapsed state the [|] toggle drives.
-func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, streaming map[string]bool, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat, toggle, settings *widget.Clickable) layout.Widget {
+func Sidebar(t themed, chats ChatList, current string, streaming map[string]bool, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat, toggle, settings *widget.Clickable) layout.Widget {
 	// Ensure every chat has persistent Clickables for hover/click state.
 	for _, name := range chats {
 		if _, ok := rowClicks[name]; !ok {
@@ -544,19 +556,19 @@ func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, stre
 
 		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return SidebarBrand(gtx, shaper, t, toggle)
+				return SidebarBrand(gtx, t, toggle)
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return SidebarHeader(gtx, shaper, t, newChat)
+				return SidebarHeader(gtx, t, newChat)
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return list.LayoutScrollbar(gtx, rows, t.bar, list.Overlay, chats,
 					func(gtx layout.Context, name string) layout.Dimensions {
-						return ChatRow(gtx, shaper, t, name, name == current, streaming[name], rowClicks[name], renameClicks[name], deleteClicks[name])
+						return ChatRow(gtx, t, name, name == current, streaming[name], rowClicks[name], renameClicks[name], deleteClicks[name])
 					})
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return SidebarFooter(gtx, shaper, t, settings)
+				return SidebarFooter(gtx, t, settings)
 			}),
 		)
 		return layout.Dimensions{Size: size}
@@ -565,7 +577,7 @@ func Sidebar(shaper *text.Shaper, t themed, chats ChatList, current string, stre
 
 // SidebarBrand is the sidebar's top row: the app title and the [|]
 // collapse toggle sharing one vertical centre on the 16dp gutter.
-func SidebarBrand(gtx layout.Context, shaper *text.Shaper, t themed, toggle *widget.Clickable) layout.Dimensions {
+func SidebarBrand(gtx layout.Context, t themed, toggle *widget.Clickable) layout.Dimensions {
 	for toggle.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
 	}
@@ -575,7 +587,7 @@ func SidebarBrand(gtx layout.Context, shaper *text.Shaper, t themed, toggle *wid
 	iconSz := gtx.Dp(ToggleIconSize)
 
 	titleRect := image.Rect(left, 0, size.X-right-iconSz-gtx.Dp(8), size.Y)
-	textdraw.FillText(gtx, shaper, style.Subtitle1, titleRect, 0, 0.5, p.RowActive, "MindChat")
+	textdraw.FillText(gtx, t.shaper, roleText(t.typ.TitleMedium), titleRect, 0, 0.5, p.RowActive, "MindChat")
 
 	defer op.Offset(image.Pt(size.X-right-iconSz, (size.Y-iconSz)/2)).Push(gtx.Ops).Pop()
 	icon := gtx
@@ -589,7 +601,7 @@ func SidebarBrand(gtx layout.Context, shaper *text.Shaper, t themed, toggle *wid
 // SidebarFooter anchors the settings affordance bottom-left: a hairline
 // separator over a full-width hoverable row, gear and label sharing one
 // vertical centre on the 16dp gutter.
-func SidebarFooter(gtx layout.Context, shaper *text.Shaper, t themed, settings *widget.Clickable) layout.Dimensions {
+func SidebarFooter(gtx layout.Context, t themed, settings *widget.Clickable) layout.Dimensions {
 	for settings.Clicked(gtx) {
 		mvu.MessageOp{Message: OpenSettings{}}.Add(gtx.Ops)
 	}
@@ -617,7 +629,7 @@ func SidebarFooter(gtx layout.Context, shaper *text.Shaper, t themed, settings *
 		off.Pop()
 
 		labelRect := image.Rect(left+iconSz+gtx.Dp(10), 0, gtx.Constraints.Max.X-gtx.Dp(12), rowH)
-		textdraw.FillText(gtx, shaper, style.Subtitle2, labelRect, 0, 0.5, textColor, "Settings")
+		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium), labelRect, 0, 0.5, textColor, "Settings")
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	})
 	return layout.Dimensions{Size: image.Pt(width, rowH+sep)}
@@ -696,7 +708,7 @@ func PanelGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
 
 // SidebarHeader renders the "CONVERSATIONS" heading with the new-chat
 // button at the top of the sidebar.
-func SidebarHeader(gtx layout.Context, shaper *text.Shaper, t themed, newChat *widget.Clickable) layout.Dimensions {
+func SidebarHeader(gtx layout.Context, t themed, newChat *widget.Clickable) layout.Dimensions {
 	// Drain before Layout, like the rows.
 	for newChat.Clicked(gtx) {
 		mvu.MessageOp{Message: NewChat{}}.Add(gtx.Ops)
@@ -711,7 +723,8 @@ func SidebarHeader(gtx layout.Context, shaper *text.Shaper, t themed, newChat *w
 		func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					dims := label.Layout(gtx, shaper, style.Caption.Font, style.Caption.Size, "CONVERSATIONS", textMaterial)
+					cap := t.typ.LabelSmall
+					dims := label.Layout(gtx, t.shaper, roleFont(cap), unit.Sp(cap.Size), "CONVERSATIONS", textMaterial)
 					dims.Size.X = gtx.Constraints.Max.X
 					return dims
 				}),
@@ -739,7 +752,7 @@ func SidebarHeader(gtx layout.Context, shaper *text.Shaper, t themed, newChat *w
 // delete's undo window is open. It is fully model-driven: the bar exists
 // exactly while model.Pending names a chat, and the reducer closes the
 // window (UndoDelete or the ConfirmDelete timer).
-func UndoBar(shaper *text.Shaper, t themed, pending PendingDelete, undo *widget.Clickable) layout.Widget {
+func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Widget {
 	if pending.Name == "" {
 		return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
 	}
@@ -765,19 +778,20 @@ func UndoBar(shaper *text.Shaper, t themed, pending PendingDelete, undo *widget.
 		inner.Constraints = layout.Constraints{Max: max}
 		m := op.Record(gtx.Ops)
 		dims := layout.UniformInset(12).Layout(inner, func(gtx layout.Context) layout.Dimensions {
+			body, action, caption := t.typ.BodyMedium, t.typ.LabelLarge, t.typ.BodySmall
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return label.Layout(gtx, shaper, style.Subtitle2.Font, style.Subtitle2.Size, msg, Material(gtx.Ops, p.BotText))
+					return label.Layout(gtx, t.shaper, roleFont(body), unit.Sp(body.Size), msg, Material(gtx.Ops, p.BotText))
 				}),
 				layout.Rigid(layout.Spacer{Width: 16}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return undo.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return label.Layout(gtx, shaper, style.Subtitle2.Font, style.Subtitle2.Size, "Undo", Material(gtx.Ops, p.Accent))
+						return label.Layout(gtx, t.shaper, roleFont(action), unit.Sp(action.Size), "Undo", Material(gtx.Ops, p.Accent))
 					})
 				}),
 				layout.Rigid(layout.Spacer{Width: 8}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return label.Layout(gtx, shaper, style.Caption.Font, style.Caption.Size, hint, Material(gtx.Ops, p.Row))
+					return label.Layout(gtx, t.shaper, roleFont(caption), unit.Sp(caption.Size), hint, Material(gtx.Ops, p.Row))
 				}),
 			)
 		})
@@ -803,7 +817,7 @@ func UndoBar(shaper *text.Shaper, t themed, pending PendingDelete, undo *widget.
 // ChatRow renders a single chat entry in the sidebar with hover and
 // selection states, and rename/delete icons revealed while the row is
 // active.
-func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, selected, streaming bool, row, ren, del *widget.Clickable) layout.Dimensions {
+func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool, row, ren, del *widget.Clickable) layout.Dimensions {
 	p := t.palette
 
 	// Drain pending clicks before Layout — Layout's internal update loop
@@ -858,7 +872,8 @@ func ChatRow(gtx layout.Context, shaper *text.Shaper, t themed, name string, sel
 			func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						dims := label.Layout(gtx, shaper, style.Subtitle2.Font, style.Subtitle2.Size, displayName, textMaterial)
+						rowStyle := t.typ.BodyMedium
+						dims := label.Layout(gtx, t.shaper, roleFont(rowStyle), unit.Sp(rowStyle.Size), displayName, textMaterial)
 						// Claim the full flex share so the icon sits at
 						// the row's right edge, not after the text.
 						dims.Size.X = gtx.Constraints.Max.X

@@ -34,18 +34,20 @@ import (
 	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/prism/list"
 	"github.com/vibrantgio/prism/scrollbar"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
-	"github.com/vibrantgio/style"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 	"github.com/vibrantgio/textdraw"
 	"sync/atomic"
 )
 
 // settingsThemed pairs one theme emission's palette with the icon widgets
-// the modal body draws (prebuilt per emission, like view.go's themed).
+// the modal body draws (prebuilt per emission, like view.go's themed), plus
+// the theme's Typography and its cached shaper for the body's own text.
 type settingsThemed struct {
 	palette Palette
 	bar     scrollbar.Style
+	typ     tokens.Typography
+	shaper  *text.Shaper
 	add     layout.Widget
 	remove  layout.Widget
 	refresh layout.Widget
@@ -74,7 +76,7 @@ type settingsFields struct {
 // SettingsModal builds the settings modal stream. Open state, the draft
 // being edited, and fetch errors all live in Model.Settings; the modal is
 // pure view over them.
-func SettingsModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.Settings.Open }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 
@@ -97,7 +99,6 @@ func SettingsModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs 
 				Seed:        seed,
 				Mask:        mask,
 				FocusTag:    func(t event.Tag) { tag.Store(t) },
-				Shaper:      shaper,
 				OnChange: func(gtx layout.Context, text string) {
 					mvu.MessageOp{Message: EditProvider{Field: f, Text: text}}.Add(gtx.Ops)
 				},
@@ -113,7 +114,8 @@ func SettingsModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs 
 	})
 
 	themedObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[settingsThemed] {
-		return rx.Map(t.Color, func(c tokens.ColorTokens) settingsThemed {
+		return rx.Map(rx.CombineLatest2(t.Color, t.Typography), func(ct rx.Tuple2[tokens.ColorTokens, tokens.Typography]) settingsThemed {
+			c, typ := ct.First, ct.Second
 			p := PaletteFrom(c)
 			mk := func(data []byte, col color.NRGBA) layout.Widget {
 				w, err := raster.Widget(data, SettingsIconBtn, SettingsIconBtn, raster.WithColors(col))
@@ -125,6 +127,8 @@ func SettingsModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs 
 			return settingsThemed{
 				palette: p,
 				bar:     scrollbar.FromTokens(c),
+				typ:     typ,
+				shaper:  typ.Shaper(),
 				add:     mk(icons.ContentAdd, p.Heading),
 				remove:  mk(icons.ContentRemove, p.Heading),
 				refresh: mk(icons.NavigationRefresh, p.Heading),
@@ -179,9 +183,9 @@ func SettingsModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs 
 	var fieldCells struct{ name, url, key atomic.Value }
 	bodyObs := rx.Map(rx.CombineLatest3(themedObs, modelObs, dropObs), func(next rx.Tuple3[settingsThemed, Model, layout.Widget]) layout.Widget {
 		t, s, drop := next.First, next.Second.Settings, next.Third
-		dropChipCell.Store(dropChip(shaper, t, s, &dropClick))
-		dropContentCell.Store(dropContent(shaper, t, s, modelClicks, modelList))
-		return settingsBody(shaper, t, s, drop,
+		dropChipCell.Store(dropChip(t, s, &dropClick))
+		dropContentCell.Store(dropContent(t, s, modelClicks, modelList))
+		return settingsBody(t, s, drop,
 			provClicks, tplClicks, &addClick, &removeClick, &refreshClick, &webClick,
 			provList, &fieldCells.name, &fieldCells.url, &fieldCells.key)
 	})
@@ -189,7 +193,6 @@ func SettingsModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs 
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
 		Clickable: &cancelClick,
-		Shaper:    shaper,
 		OnClick: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseSettings{}}.Add(gtx.Ops)
 		},
@@ -197,7 +200,6 @@ func SettingsModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs 
 	saveObs := button.Button(th, button.Props{
 		Label:     "Save",
 		Clickable: &saveClick,
-		Shaper:    shaper,
 		OnClick: func(gtx layout.Context) {
 			mvu.MessageOp{Message: SaveSettings{}}.Add(gtx.Ops)
 		},
@@ -245,7 +247,6 @@ func SettingsModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs 
 		},
 		ActionFocusTags: []event.Tag{&cancelClick, &saveClick},
 		HideClose:       true,
-		Shaper:          shaper,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseSettings{}}.Add(gtx.Ops)
 		},
@@ -272,7 +273,7 @@ func SettingsModal(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs 
 // spelling the check out — with the GLOBAL default-model row spanning the
 // bottom under both. The dropdown popover widget (chip anchor + upward
 // surface) is drawn LAST, over the body, at the chip's rect in that row.
-func settingsBody(shaper *text.Shaper, t settingsThemed, s SettingsState, drop layout.Widget,
+func settingsBody(t settingsThemed, s SettingsState, drop layout.Widget,
 	provClicks map[int]*widget.Clickable, tplClicks []*widget.Clickable,
 	addClick, removeClick, refreshClick, webClick *widget.Clickable,
 	provList *list.State,
@@ -305,19 +306,19 @@ func settingsBody(shaper *text.Shaper, t settingsThemed, s SettingsState, drop l
 				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(SettingsListWidth), gtx.Constraints.Max.Y))
-						return providerColumn(gtx, shaper, t, s, provClicks, addClick, removeClick, provList)
+						return providerColumn(gtx, t, s, provClicks, addClick, removeClick, provList)
 					}),
 					layout.Rigid(layout.Spacer{Width: 12}.Layout),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						if !hasProvider {
-							textdraw.FillText(gtx, shaper, style.Subtitle2,
+							textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium),
 								image.Rectangle{Max: gtx.Constraints.Max}, 0.5, 0.5, p.Row,
 								"No providers — add one with +")
 							return layout.Dimensions{Size: gtx.Constraints.Max}
 						}
 						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return templateBar(gtx, shaper, t, tplClicks)
+								return templateBar(gtx, t, tplClicks)
 							}),
 							layout.Rigid(layout.Spacer{Height: 8}.Layout),
 							layout.Rigid(fieldSlot(nameCell)),
@@ -329,13 +330,13 @@ func settingsBody(shaper *text.Shaper, t settingsThemed, s SettingsState, drop l
 							}),
 							layout.Rigid(layout.Spacer{Height: 4}.Layout),
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return webSearchRow(gtx, shaper, t, selected.WebSearch, webClick)
+								return webSearchRow(gtx, t, selected.WebSearch, webClick)
 							}),
 							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 								return layout.Dimensions{Size: gtx.Constraints.Max}
 							}),
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return statusLine(gtx, shaper, t, s, selected)
+								return statusLine(gtx, t, s, selected)
 							}),
 						)
 					}),
@@ -343,7 +344,7 @@ func settingsBody(shaper *text.Shaper, t settingsThemed, s SettingsState, drop l
 			}),
 			layout.Rigid(layout.Spacer{Height: 8}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return defaultModelRow(gtx, shaper, t)
+				return defaultModelRow(gtx, t)
 			}),
 		)
 
@@ -367,7 +368,7 @@ func settingsBody(shaper *text.Shaper, t settingsThemed, s SettingsState, drop l
 
 // templateBar renders one chip per ProviderTemplates entry; clicking a
 // chip prefills the selected provider's Name and BaseURL.
-func templateBar(gtx layout.Context, shaper *text.Shaper, t settingsThemed, tplClicks []*widget.Clickable) layout.Dimensions {
+func templateBar(gtx layout.Context, t settingsThemed, tplClicks []*widget.Clickable) layout.Dimensions {
 	p := t.palette
 	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(TemplateRowHeight))
 	gtx.Constraints = layout.Exact(size)
@@ -390,7 +391,7 @@ func templateBar(gtx layout.Context, shaper *text.Shaper, t settingsThemed, tplC
 					fill = p.RowHovered
 				}
 				FillRect(gtx, image.Rectangle{Max: sz}, sz.Y/2, fill)
-				textdraw.FillText(gtx, shaper, style.Caption, image.Rectangle{Max: sz}, 0.5, 0.5, p.BotText, ProviderTemplates[index].Name)
+				textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), image.Rectangle{Max: sz}, 0.5, 0.5, p.BotText, ProviderTemplates[index].Name)
 				return layout.Dimensions{Size: sz}
 			})
 		}))
@@ -441,7 +442,7 @@ func keyRow(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider
 // checked every request attaches the web_search tool, which xAI and
 // OpenAI execute on their servers (citations come back as annotations);
 // providers that reject unknown tools should leave it off.
-func webSearchRow(gtx layout.Context, shaper *text.Shaper, t settingsThemed, on bool, click *widget.Clickable) layout.Dimensions {
+func webSearchRow(gtx layout.Context, t settingsThemed, on bool, click *widget.Clickable) layout.Dimensions {
 	for click.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleWebSearch{}}.Add(gtx.Ops)
 	}
@@ -461,7 +462,7 @@ func webSearchRow(gtx layout.Context, shaper *text.Shaper, t settingsThemed, on 
 			}
 		}()
 		r := image.Rect(sz+gtx.Dp(8), 0, size.X, size.Y)
-		textdraw.FillText(gtx, shaper, style.Caption, r, 0, 0.5, t.palette.Row, "Web search tool (server-side; xAI and OpenAI)")
+		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodySmall), r, 0, 0.5, t.palette.Row, "Web search tool (server-side; xAI and OpenAI)")
 		return layout.Dimensions{Size: size}
 	})
 }
@@ -469,16 +470,16 @@ func webSearchRow(gtx layout.Context, shaper *text.Shaper, t settingsThemed, on 
 // defaultModelRow is the modal-wide DEFAULT MODEL row under both panes:
 // the caption of the GLOBAL default picker whose dropdown chip settingsBody
 // overlays at the row's right edge.
-func defaultModelRow(gtx layout.Context, shaper *text.Shaper, t settingsThemed) layout.Dimensions {
+func defaultModelRow(gtx layout.Context, t settingsThemed) layout.Dimensions {
 	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SelectRowHeight))
-	textdraw.FillText(gtx, shaper, style.Caption, image.Rectangle{Max: size}, 0, 0.5, t.palette.Heading, "DEFAULT MODEL")
+	textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), image.Rectangle{Max: size}, 0, 0.5, t.palette.Heading, "DEFAULT MODEL")
 	return layout.Dimensions{Size: size}
 }
 
 // dropChip is the dropdown's anchor: the global default pair, or a
 // placeholder while none is picked. Clicking toggles the menu; with no
 // models cached anywhere there is nothing to list and the chip stays inert.
-func dropChip(shaper *text.Shaper, t settingsThemed, s SettingsState, click *widget.Clickable) layout.Widget {
+func dropChip(t settingsThemed, s SettingsState, click *widget.Clickable) layout.Widget {
 	p := t.palette
 	canOpen := slices.ContainsFunc(s.Draft, func(p Provider) bool { return len(p.Models) > 0 })
 	label := "No models"
@@ -507,7 +508,7 @@ func dropChip(shaper *text.Shaper, t settingsThemed, s SettingsState, click *wid
 			FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(6), fill)
 			chevW := gtx.Dp(12)
 			r := image.Rect(gtx.Dp(10), 0, size.X-chevW-gtx.Dp(10), size.Y)
-			textdraw.FillText(gtx, shaper, style.Caption, r, 0, 0.5, p.BotText, label)
+			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), r, 0, 0.5, p.BotText, label)
 			ChevronDown(gtx, image.Rect(size.X-chevW-gtx.Dp(6), (size.Y-chevW/2)/2, size.X-gtx.Dp(6), (size.Y+chevW/2)/2), p.BotText)
 			return layout.Dimensions{Size: size}
 		})
@@ -518,7 +519,7 @@ func dropChip(shaper *text.Shaper, t settingsThemed, s SettingsState, click *wid
 // models under a provider caption (the chat header picker's grouping),
 // scroll-capped; clicking one sets the draft's global default pair. It
 // overrides the incoming canvas/2 constraints (popover-canvas coupling).
-func dropContent(shaper *text.Shaper, t settingsThemed, s SettingsState, modelClicks map[string]*widget.Clickable, rows *list.State) layout.Widget {
+func dropContent(t settingsThemed, s SettingsState, modelClicks map[string]*widget.Clickable, rows *list.State) layout.Widget {
 	p := t.palette
 	var entries []menuRow
 	for _, prov := range s.Draft {
@@ -553,7 +554,7 @@ func dropContent(shaper *text.Shaper, t settingsThemed, s SettingsState, modelCl
 				size := image.Pt(gtx.Constraints.Max.X, rowH)
 				if e.caption {
 					r := image.Rect(gtx.Dp(8), 0, size.X, size.Y)
-					textdraw.FillText(gtx, shaper, style.Caption, r, 0, 0.5, p.Heading, e.label)
+					textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), r, 0, 0.5, p.Heading, e.label)
 					return layout.Dimensions{Size: size}
 				}
 				click := modelClicks[e.provider+"\x00"+e.model]
@@ -574,7 +575,7 @@ func dropContent(shaper *text.Shaper, t settingsThemed, s SettingsState, modelCl
 						FillRect(gtx, dot, d/2, p.Accent)
 					}
 					r := image.Rect(gtx.Dp(ModelDotSlot), 0, size.X-gtx.Dp(4), size.Y)
-					textdraw.FillText(gtx, shaper, style.Subtitle2, r, 0, 0.5, textColor, e.label)
+					textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium), r, 0, 0.5, textColor, e.label)
 					return layout.Dimensions{Size: size}
 				})
 			})
@@ -586,7 +587,7 @@ func dropContent(shaper *text.Shaper, t settingsThemed, s SettingsState, modelCl
 // provider rows, and the add/remove buttons underneath — on its own
 // shaded panel so the catalogue reads as a distinct surface from the
 // editing pane beside it.
-func providerColumn(gtx layout.Context, shaper *text.Shaper, t settingsThemed, s SettingsState,
+func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 	provClicks map[int]*widget.Clickable, addClick, removeClick *widget.Clickable, rows *list.State,
 ) layout.Dimensions {
 	p := t.palette
@@ -607,13 +608,13 @@ func providerColumn(gtx layout.Context, shaper *text.Shaper, t settingsThemed, s
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			r := image.Rect(0, 0, gtx.Constraints.Max.X, gtx.Dp(SettingsCaptionRow))
-			textdraw.FillText(gtx, shaper, style.Caption, r, 0, 0.5, p.Heading, "PROVIDERS")
+			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), r, 0, 0.5, p.Heading, "PROVIDERS")
 			return layout.Dimensions{Size: r.Max}
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return list.LayoutScrollbar(gtx, rows, t.bar, list.Overlay, indices,
 				func(gtx layout.Context, i int) layout.Dimensions {
-					return providerRow(gtx, shaper, t, s.Draft[i], i == s.Selected, i, provClicks[i])
+					return providerRow(gtx, t, s.Draft[i], i == s.Selected, i, provClicks[i])
 				})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -641,7 +642,7 @@ func providerColumn(gtx layout.Context, shaper *text.Shaper, t settingsThemed, s
 
 // providerRow is one selectable provider entry, in the sidebar row idiom
 // (hover fill, selected fill + accent bar).
-func providerRow(gtx layout.Context, shaper *text.Shaper, t settingsThemed, prov Provider, selected bool, index int, click *widget.Clickable) layout.Dimensions {
+func providerRow(gtx layout.Context, t settingsThemed, prov Provider, selected bool, index int, click *widget.Clickable) layout.Dimensions {
 	p := t.palette
 	for click.Clicked(gtx) {
 		mvu.MessageOp{Message: SelectProvider{Index: index}}.Add(gtx.Ops)
@@ -663,7 +664,7 @@ func providerRow(gtx layout.Context, shaper *text.Shaper, t settingsThemed, prov
 			textColor = p.RowActive
 		}
 		r := image.Rect(gtx.Dp(10), 0, size.X-gtx.Dp(4), size.Y)
-		textdraw.FillText(gtx, shaper, style.Subtitle2, r, 0, 0.5, textColor, name)
+		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium), r, 0, 0.5, textColor, name)
 		return layout.Dimensions{Size: size}
 	})
 }
@@ -671,7 +672,7 @@ func providerRow(gtx layout.Context, shaper *text.Shaper, t settingsThemed, prov
 // statusLine spells out the selected provider's key check: the fetch
 // error, a hint while the key is missing or being checked, or the size of
 // the listed catalogue.
-func statusLine(gtx layout.Context, shaper *text.Shaper, t settingsThemed, s SettingsState, prov Provider) layout.Dimensions {
+func statusLine(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider) layout.Dimensions {
 	p := t.palette
 	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SettingsCaptionRow))
 	text, col := "", p.Row
@@ -688,6 +689,6 @@ func statusLine(gtx layout.Context, shaper *text.Shaper, t settingsThemed, s Set
 			text = "Key OK — no chat models listed"
 		}
 	}
-	textdraw.FillText(gtx, shaper, style.Caption, image.Rectangle{Max: size}, 0, 0.5, col, text)
+	textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodySmall), image.Rectangle{Max: size}, 0, 0.5, col, text)
 	return layout.Dimensions{Size: size}
 }

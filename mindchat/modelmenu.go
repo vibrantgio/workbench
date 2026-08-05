@@ -29,9 +29,8 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/list"
 	"github.com/vibrantgio/prism/scrollbar"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
-	"github.com/vibrantgio/style"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 	"github.com/vibrantgio/textdraw"
 )
 
@@ -44,22 +43,26 @@ type menuRow struct {
 	active   bool
 }
 
-// menuThemed is the picker's slice of the theme.
+// menuThemed is the picker's slice of the theme: the palette plus the
+// theme's Typography and its cached shaper for the chip and row text.
 type menuThemed struct {
 	palette Palette
 	bar     scrollbar.Style
+	typ     tokens.Typography
+	shaper  *text.Shaper
 }
 
 // ModelMenu builds the chat header picker stream: the widget it emits is
 // laid out by ChatPane in the header's chip box and draws the chip (the
 // popover anchor) plus, while open, the model list surface.
-func ModelMenu(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.ModelMenu }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 
 	palObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[menuThemed] {
-		return rx.Map(t.Color, func(c tokens.ColorTokens) menuThemed {
-			return menuThemed{palette: PaletteFrom(c), bar: scrollbar.FromTokens(c)}
+		return rx.Map(rx.CombineLatest2(t.Color, t.Typography), func(ct rx.Tuple2[tokens.ColorTokens, tokens.Typography]) menuThemed {
+			c, typ := ct.First, ct.Second
+			return menuThemed{palette: PaletteFrom(c), bar: scrollbar.FromTokens(c), typ: typ, shaper: typ.Shaper()}
 		})
 	})
 
@@ -83,8 +86,8 @@ func ModelMenu(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx.O
 
 	dataObs := rx.Map(rx.CombineLatest2(palObs, modelObs), func(next rx.Tuple2[menuThemed, Model]) int {
 		t, m := next.First, next.Second
-		chipCell.Store(menuChip(shaper, t, m, &chipClick))
-		contentCell.Store(menuContent(shaper, t, menuRows(m), rowClicks, rows))
+		chipCell.Store(menuChip(t, m, &chipClick))
+		contentCell.Store(menuContent(t, menuRows(m), rowClicks, rows))
 		return 0
 	})
 
@@ -107,7 +110,7 @@ func ModelMenu(th rx.Observable[theme.Theme], shaper *text.Shaper, modelObs rx.O
 
 // menuChip is the header chip: the effective model label plus a chevron.
 // Clicking toggles the menu.
-func menuChip(shaper *text.Shaper, t menuThemed, m Model, click *widget.Clickable) layout.Widget {
+func menuChip(t menuThemed, m Model, click *widget.Clickable) layout.Widget {
 	p := t.palette
 	label := "No model configured"
 	if provider, id, ok := m.EffectiveModel(); ok {
@@ -135,7 +138,7 @@ func menuChip(shaper *text.Shaper, t menuThemed, m Model, click *widget.Clickabl
 			FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(ChipRadius), fill)
 			chevW := gtx.Dp(12)
 			r := image.Rect(gtx.Dp(12), 0, size.X-chevW-gtx.Dp(12), size.Y)
-			textdraw.FillText(gtx, shaper, style.Caption, r, 0.5, 0.5, p.BotText, label)
+			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), r, 0.5, 0.5, p.BotText, label)
 			ChevronDown(gtx, image.Rect(size.X-chevW-gtx.Dp(8), (size.Y-chevW/2)/2, size.X-gtx.Dp(8), (size.Y+chevW/2)/2), p.BotText)
 			return layout.Dimensions{Size: size}
 		})
@@ -170,7 +173,7 @@ func menuRows(m Model) []menuRow {
 
 // menuContent lays the popover surface: a scroll-capped list of menuRows.
 // It overrides the incoming canvas/2 constraints (see the file comment).
-func menuContent(shaper *text.Shaper, t menuThemed, entries []menuRow, rowClicks map[string]*widget.Clickable, rows *list.State) layout.Widget {
+func menuContent(t menuThemed, entries []menuRow, rowClicks map[string]*widget.Clickable, rows *list.State) layout.Widget {
 	p := t.palette
 	for _, e := range entries {
 		if e.caption {
@@ -191,7 +194,7 @@ func menuContent(shaper *text.Shaper, t menuThemed, entries []menuRow, rowClicks
 				size := image.Pt(gtx.Constraints.Max.X, rowH)
 				if e.caption {
 					r := image.Rect(gtx.Dp(8), 0, size.X, size.Y)
-					textdraw.FillText(gtx, shaper, style.Caption, r, 0, 0.5, p.Heading, e.label)
+					textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), r, 0, 0.5, p.Heading, e.label)
 					return layout.Dimensions{Size: size}
 				}
 				click := rowClicks[e.provider+"\x00"+e.model]
@@ -212,7 +215,7 @@ func menuContent(shaper *text.Shaper, t menuThemed, entries []menuRow, rowClicks
 						FillRect(gtx, dot, d/2, p.Accent)
 					}
 					r := image.Rect(gtx.Dp(ModelDotSlot+4), 0, size.X-gtx.Dp(4), size.Y)
-					textdraw.FillText(gtx, shaper, style.Subtitle2, r, 0, 0.5, textColor, e.label)
+					textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium), r, 0, 0.5, textColor, e.label)
 					return layout.Dimensions{Size: size}
 				})
 			})
