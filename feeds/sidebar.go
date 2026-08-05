@@ -5,7 +5,6 @@ import (
 	"image/color"
 	"sync/atomic"
 
-	"gioui.org/font"
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
@@ -13,7 +12,6 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -24,8 +22,8 @@ import (
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/keyed"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 const (
@@ -52,7 +50,6 @@ const (
 // wrong row.
 func feedsSidebar(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	openSectionsObs rx.Observable[map[int]bool],
 	feedsObs rx.Observable[[]feedGroup],
 ) rx.Observable[layout.Widget] {
@@ -69,7 +66,7 @@ func feedsSidebar(
 		cell := &sectionCells[i]
 		accSections[i] = accordion.Section{
 			Title: g.Title,
-			Body: feedEntryListBody(th, shaper, func() []feedEntry {
+			Body: feedEntryListBody(th, func() []feedEntry {
 				if e, ok := cell.Load().([]feedEntry); ok {
 					return e
 				}
@@ -90,7 +87,6 @@ func feedsSidebar(
 			mvu.MessageOp{Message: ToggleSection{Idx: idx}}.Add(gtx.Ops)
 		},
 		SingleOpen: false,
-		Shaper:     shaper,
 	})
 
 	// Fold the accordion, the live feed tree, and a theme token together. The
@@ -146,23 +142,9 @@ func drawFeedsSidebar(
 // never re-binds state to the wrong row.
 func feedEntryListBody(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	entriesFn func() []feedEntry,
 ) layout.Widget {
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-
-	var state atomic.Value
-	state.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			state.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
+	loadTok := mirrorTokens(th)
 
 	// Per-FeedID widget state, stable across list mutation.
 	rowClicks := keyed.Defer(func(FeedID) *widget.Clickable { return &widget.Clickable{} })
@@ -177,11 +159,11 @@ func feedEntryListBody(
 	// ephemeral interaction state (not model state), keyed by FeedID, and
 	// driven through a per-row rx.Subject feeding a per-row popover instance.
 	popovers := keyed.Defer(func(id FeedID) *deleteConfirm {
-		return newDeleteConfirm(th, shaper, id, trashClicks.For(id), confirmClicks.For(id))
+		return newDeleteConfirm(th, id, trashClicks.For(id), confirmClicks.For(id))
 	})
 
 	return func(gtx layout.Context) layout.Dimensions {
-		s := state.Load().(tokenState)
+		s := loadTok()
 		entries := entriesFn()
 		size := gtx.Constraints.Max
 		rowH := gtx.Dp(unit.Dp(feedsEntryRowHDp))
@@ -200,8 +182,8 @@ func feedEntryListBody(
 			stk := op.Offset(off).Push(gtx.Ops)
 			rowGtx := gtx
 			rowGtx.Constraints = layout.Exact(image.Pt(size.X-indent, rowH))
-			drawFeedEntryRow(rowGtx, shaper, e, rowClicks.For(e.ID),
-				hovers.For(e.ID), popovers.For(e.ID), trashW, s.col, s.typ)
+			drawFeedEntryRow(rowGtx, s, e, rowClicks.For(e.ID),
+				hovers.For(e.ID), popovers.For(e.ID), trashW)
 			stk.Pop()
 		}
 		return layout.Dimensions{Size: size}
@@ -214,14 +196,12 @@ func feedEntryListBody(
 // popover is open, so the popover never floats over an un-hovered row).
 func drawFeedEntryRow(
 	gtx layout.Context,
-	shaper *text.Shaper,
+	tok themeTokens,
 	e feedEntry,
 	click *widget.Clickable,
 	hover *gesture.Hover,
 	dc *deleteConfirm,
 	trashW int,
-	col tokens.ColorTokens,
-	ts tokens.TypeScale,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 
@@ -234,20 +214,21 @@ func drawFeedEntryRow(
 	hoverClip.Pop()
 
 	// Label fills the row minus the trash gutter; the label area is the
-	// SelectFeed click target.
+	// SelectFeed click target. Body text sits on the Neutral ramp's 900
+	// step (ADR-007), in the theme's BodySmall role.
 	labelW := size.X - trashW
 	if labelW < 0 {
 		labelW = 0
 	}
 	labelGtx := gtx
 	labelGtx.Constraints = layout.Exact(image.Pt(labelW, size.Y))
-	drawFeedEntry(labelGtx, shaper, e.Label, click, col.OnSurface, ts)
+	drawFeedEntry(labelGtx, tok, e.Label, click)
 
 	// Trash gutter + confirm popover, right-aligned.
 	trStk := op.Offset(image.Pt(size.X-trashW, 0)).Push(gtx.Ops)
 	trGtx := gtx
 	trGtx.Constraints = layout.Exact(image.Pt(trashW, size.Y))
-	dc.layout(trGtx, hovered, col)
+	dc.layout(trGtx, hovered)
 	trStk.Pop()
 
 	return layout.Dimensions{Size: size}
@@ -255,23 +236,17 @@ func drawFeedEntryRow(
 
 func drawFeedEntry(
 	gtx layout.Context,
-	shaper *text.Shaper,
+	tok themeTokens,
 	label string,
 	click *widget.Clickable,
-	fg color.NRGBA,
-	ts tokens.TypeScale,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	inner := func(gtx layout.Context) layout.Dimensions {
-		mColor := op.Record(gtx.Ops)
-		paint.ColorOp{Color: fg}.Add(gtx.Ops)
-		material := mColor.Stop()
 		labelGtx := gtx
 		labelGtx.Constraints.Min = image.Point{}
 		labelGtx.Constraints.Max = size
 		mLabel := op.Record(gtx.Ops)
-		wl := widget.Label{MaxLines: 1}
-		labelDims := wl.Layout(labelGtx, shaper, font.Font{}, unit.Sp(ts.BodySmall), label, material)
+		labelDims := drawLabel(labelGtx, tok.shaper, label, tok.typ.BodySmall, tok.col.Ramps.Neutral.Step(900))
 		labelCall := mLabel.Stop()
 		offY := (size.Y - labelDims.Size.Y) / 2
 		if offY < 0 {
@@ -311,7 +286,6 @@ type deleteConfirm struct {
 
 func newDeleteConfirm(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	id FeedID,
 	trashClick *widget.Clickable,
 	confirmClick *widget.Clickable,
@@ -321,37 +295,25 @@ func newDeleteConfirm(
 	send.Next(false)
 	dc.openCh = send
 
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	var tokenCell atomic.Value
-	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
+	loadTok := mirrorTokens(th)
 
 	anchor := func(gtx layout.Context) layout.Dimensions {
 		if trashClick.Clicked(gtx) {
 			dc.toggle()
 		}
 		return trashClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			s := tokenCell.Load().(tokenState)
+			s := loadTok()
 			semantic.LabelOp("Delete feed").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
 			sz := gtx.Constraints.Max
-			drawTrashIcon(gtx, sz, s.col.OnSurface)
+			drawTrashIcon(gtx, sz, s.col.Ramps.Neutral.Step(900))
 			return layout.Dimensions{Size: sz}
 		})
 	}
 
 	content := func(gtx layout.Context) layout.Dimensions {
-		s := tokenCell.Load().(tokenState)
+		s := loadTok()
 		if confirmClick.Clicked(gtx) {
 			toast.Notify(toast.Success, "Feed deleted")
 			mvu.MessageOp{Message: ConfirmDelete{Feed: dc.id}}.Add(gtx.Ops)
@@ -363,7 +325,7 @@ func newDeleteConfirm(
 		w := gtx.Dp(unit.Dp(deleteConfirmWDp))
 		promptH := gtx.Dp(unit.Dp(deleteConfirmRowHDp))
 		btnH := gtx.Dp(unit.Dp(deleteConfirmRowHDp))
-		drawLabel(gtx, shaper, "Delete this feed?", unit.Sp(s.typ.BodyMedium), s.col.OnSurface)
+		drawLabel(gtx, s.shaper, "Delete this feed?", s.typ.BodyMedium, s.col.Ramps.Neutral.Step(900))
 		btnStk := op.Offset(image.Pt(0, promptH)).Push(gtx.Ops)
 		btnGtx := gtx
 		btnGtx.Constraints = layout.Exact(image.Pt(w, btnH))
@@ -371,7 +333,7 @@ func newDeleteConfirm(
 			semantic.LabelOp("Confirm delete").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			drawLabel(gtx, shaper, "Delete", unit.Sp(s.typ.LabelLarge), s.col.Error)
+			drawLabel(gtx, s.shaper, "Delete", s.typ.LabelLarge, s.col.Error)
 			return layout.Dimensions{Size: image.Pt(w, btnH)}
 		})
 		btnStk.Pop()
@@ -412,7 +374,7 @@ func (dc *deleteConfirm) close() {
 // the confirm popover is closed), nothing is painted and the gutter is inert.
 // When hovered/open the popover widget renders the trash anchor (and, while
 // open, the confirm surface) inside the gutter's Exact canvas.
-func (dc *deleteConfirm) layout(gtx layout.Context, visible bool, _ tokens.ColorTokens) layout.Dimensions {
+func (dc *deleteConfirm) layout(gtx layout.Context, visible bool) layout.Dimensions {
 	size := gtx.Constraints.Max
 	if !visible {
 		return layout.Dimensions{Size: size}

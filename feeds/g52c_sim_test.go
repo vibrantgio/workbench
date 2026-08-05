@@ -20,21 +20,19 @@ import (
 	"time"
 
 	"gioui.org/f32"
-	"gioui.org/font/gofont"
 	gioinput "gioui.org/io/input"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/tooltip"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 // awaitStableWidget drains the emission channel until it has been silent for
@@ -93,9 +91,8 @@ var rightPaneRegion = image.Rect(810, 80, shellCanvasW-10, shellCanvasH-20)
 // TestG52cDetailPopoverStatesHeadless renders the real shell at six model
 // states and asserts the pixel-level deltas the G5.2c Measurable describes.
 func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), shaper, modelObs)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
@@ -176,11 +173,9 @@ const (
 // below the header. This is the same overlay composition articlesMain
 // builds (overlayUnreadTooltip + tooltip.Tooltip).
 func TestUnreadTooltipHoverHeadless(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	tipObs := tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
 		Text:      "Unread",
 		Placement: tooltip.Bottom,
-		Shaper:    shaper,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		},
@@ -239,7 +234,6 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	freshTip, err := collectOne(tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
 		Text:      "Unread",
 		Placement: tooltip.Bottom,
-		Shaper:    shaper,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		},

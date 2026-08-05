@@ -10,7 +10,6 @@ import (
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -22,8 +21,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/prism/keyed"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 // articlesPageSize is the fixed row count per pagination page.
@@ -38,14 +36,20 @@ const (
 )
 
 // Geometry shared by the Unread tooltip overlay. unreadColWDp matches the
-// Unread column's pinned Width; tableHeaderHDp mirrors cadence/table's
-// private headerHDp — the table draws its header internally and exposes no
-// per-header widget hook, so the tooltip hit area is positioned by
-// arithmetic over these constants (friction logged in FEEDBACK-G5.2.md).
+// Unread column's pinned Width; tableHeaderHDp mirrors the header band's
+// height at Comfortable density (Density.ControlHeight, the E1.4 row rule) —
+// the table draws its header internally and exposes no per-header widget
+// hook, so the tooltip hit area is positioned by arithmetic over these
+// constants (friction logged in FEEDBACK-G5.2.md).
 const (
 	unreadColWDp   = 96
-	tableHeaderHDp = 44
+	tableHeaderHDp = 36
 )
+
+// cellPadDp is the horizontal cell padding themedTextCell applies — 12 dp,
+// mirroring cadence/table's own cell padding so app-built cells sit flush
+// with the table's stock geometry.
+const cellPadDp = 12
 
 // filterAndSortArticles is the pure transform composed inside the table's
 // Items pipeline. Filtering matches the lower-cased query against Title and
@@ -124,7 +128,6 @@ func pageCountFor(arts []article, size int) int {
 // (it never needed to be model-derived) and is held in a small rx.Subject.
 func articlesMain(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	selectedFeedObs rx.Observable[FeedID],
 	currentPageObs rx.Observable[int],
 	sortObs rx.Observable[table.Sort],
@@ -132,25 +135,9 @@ func articlesMain(
 	all := hardCodedArticles()
 
 	// Token mirror so the table column Cell closures (which run outside any
-	// rx.Defer scope) can read current colours/typography on each frame
-	// without crossing scheduler boundaries. An atomic.Value, not the typed
-	// atomic mirror the GX.10 cleanup removed — this mirror feeds cell
-	// rendering and is not a substitute for a layer re-emission.
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	var tokenCell atomic.Value
-	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typeObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colorObs, typeObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
-	loadColor := func() tokens.ColorTokens { return tokenCell.Load().(tokenState).col }
-	loadType := func() tokens.TypeScale { return tokenCell.Load().(tokenState).typ }
+	// rx.Defer scope) can read current colours/typography — and the theme's
+	// shaper — on each frame without crossing scheduler boundaries.
+	loadTok := mirrorTokens(th)
 
 	// Sort mirror so onSort can read the current sort (from the model) to
 	// decide whether to flip the Asc bit or start a fresh Asc on a different
@@ -177,7 +164,7 @@ func articlesMain(
 	filterSend, filterObs := rx.Subject[string](0, 1)
 	filterSend.Next("")
 
-	columns := articleColumns(shaper, loadColor, loadType, rowClicks)
+	columns := articleColumns(loadTok, rowClicks)
 
 	onSort := func(gtx layout.Context, col int) {
 		cur, _ := sortCell.Load().(table.Sort)
@@ -211,7 +198,6 @@ func articlesMain(
 	unreadTipObs := tooltip.Tooltip(th, tooltip.Props{
 		Text:      "Unread",
 		Placement: tooltip.Bottom,
-		Shaper:    shaper,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		},
@@ -227,14 +213,12 @@ func articlesMain(
 			// idempotent when already on page 1.
 			mvu.MessageOp{Message: SetPage{Page: 1}}.Add(gtx.Ops)
 		},
-		Shaper: shaper,
 	})
 	tableWidgetObs := table.Table(th, table.Props[article]{
 		Columns: columns,
 		Items:   paged,
 		Sort:    sortObs,
 		OnSort:  onSort,
-		Shaper:  shaper,
 	})
 	// pagination.Props takes Page/PageCount as static ints; CombineLatest holds
 	// the latest page + page count from the model-derived streams and rebuilds
@@ -247,7 +231,6 @@ func articlesMain(
 			return pagination.Pagination(th, pagination.Props{
 				Page:      t.First,
 				PageCount: t.Second,
-				Shaper:    shaper,
 				OnSelect:  func(gtx layout.Context, p int) { mvu.MessageOp{Message: SetPage{Page: p}}.Add(gtx.Ops) },
 			})
 		},
@@ -261,21 +244,54 @@ func articlesMain(
 	)
 }
 
+// themedTextCell renders a single line of Text-coloured cell text in the
+// theme's BodyMedium role — typeface, weight, size and line height from the
+// Typography, the shaper the theme's own — within the cell's allocated
+// rectangle, with the table's stock 12 dp horizontal padding. It is the
+// theme-driven successor to the frozen table.RenderTextCell(TypeScale) form
+// (F1.2); the golden tests keep the static form, which is its documented
+// remit.
+func themedTextCell(tok themeTokens, s string) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		padH := gtx.Dp(unit.Dp(cellPadDp))
+		labelMaxW := size.X - 2*padH
+		if labelMaxW <= 0 {
+			return layout.Dimensions{Size: size}
+		}
+		labelGtx := gtx
+		labelGtx.Constraints.Min = image.Point{}
+		labelGtx.Constraints.Max.X = labelMaxW
+		labelGtx.Constraints.Max.Y = size.Y
+
+		mLabel := op.Record(gtx.Ops)
+		labelDims := drawLabel(labelGtx, tok.shaper, s, tok.typ.BodyMedium, tok.col.Text)
+		labelCall := mLabel.Stop()
+
+		offY := (size.Y - labelDims.Size.Y) / 2
+		if offY < 0 {
+			offY = 0
+		}
+		st := op.Offset(image.Pt(padH, offY)).Push(gtx.Ops)
+		labelCall.Add(gtx.Ops)
+		st.Pop()
+		return layout.Dimensions{Size: size}
+	}
+}
+
 // articleColumns builds the four table columns. Title is sortable and hosts
 // the per-row click registration (cadence/table has no whole-row click
 // affordance; see FEEDBACK-G5.2.md). A row click lands a SelectArticle
 // message. Published is sortable. Author and Unread are static.
 func articleColumns(
-	shaper *text.Shaper,
-	loadColor func() tokens.ColorTokens,
-	loadType func() tokens.TypeScale,
+	loadTok func() themeTokens,
 	rowClicks *keyed.Deferred[ArticleID, *widget.Clickable],
 ) []table.Column[article] {
 	cellText := func(get func(a article) string) func(article) layout.Widget {
 		return func(a article) layout.Widget {
 			s := get(a)
 			return func(gtx layout.Context) layout.Dimensions {
-				return table.RenderTextCell(shaper, loadColor(), loadType(), s)(gtx)
+				return themedTextCell(loadTok(), s)(gtx)
 			}
 		}
 	}
@@ -285,7 +301,7 @@ func articleColumns(
 			if click.Clicked(gtx) {
 				mvu.MessageOp{Message: SelectArticle{Article: a.ID}}.Add(gtx.Ops)
 			}
-			body := table.RenderTextCell(shaper, loadColor(), loadType(), a.Title)
+			body := themedTextCell(loadTok(), a.Title)
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.LabelOp(a.Title).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
@@ -354,28 +370,5 @@ func overlayUnreadTooltip(table, tip layout.Widget) layout.Widget {
 		tip(tipGtx)
 		st.Pop()
 		return dims
-	}
-}
-
-// staticArticleColumns mirrors articleColumns for the golden-render path.
-// Tokens are passed in directly; rows are not clickable.
-func staticArticleColumns(shaper *text.Shaper, colors tokens.ColorTokens, ts tokens.TypeScale) []table.Column[article] {
-	cellText := func(get func(a article) string) func(article) layout.Widget {
-		return func(a article) layout.Widget {
-			return table.RenderTextCell(shaper, colors, ts, get(a))
-		}
-	}
-	return []table.Column[article]{
-		{Header: "Title", Sortable: true, Cell: cellText(func(a article) string { return a.Title })},
-		{Header: "Author", Width: unit.Dp(160), Cell: cellText(func(a article) string { return a.Author })},
-		{Header: "Published", Width: unit.Dp(140), Sortable: true, Cell: cellText(func(a article) string {
-			return a.Published.Format("Jan 2 2006")
-		})},
-		{Header: "•", Width: unit.Dp(unreadColWDp), Cell: cellText(func(a article) string {
-			if a.Unread {
-				return "•"
-			}
-			return ""
-		})},
 	}
 }

@@ -2,8 +2,8 @@
 // articles/detail SplitPane (see feedsShellLayer for the layout choice and
 // FEEDBACK-G5.2.md for the rationale). The pane is a header (title + meta)
 // above a cadence/tabs strip with three tabs: Reader (paragraph-wrapped
-// body), Raw (the same body in the Go Mono face), and Comments (a static
-// placeholder list).
+// body), Raw (the same body in the theme's Code style — the mono face), and
+// Comments (a static placeholder list).
 //
 // The tabs instance is constructed ONCE; its Tab.Content closures are static
 // per cadence/tabs' contract, so they read the selected article and theme
@@ -31,8 +31,8 @@ import (
 
 	"github.com/vibrantgio/cadence/tabs"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 // Detail pane tab indices, in tab-strip order.
@@ -43,13 +43,6 @@ const (
 )
 
 const detailPadDp = 16
-
-// detailTokens is the colour/typography snapshot the static tab Content
-// closures read at frame time.
-type detailTokens struct {
-	col tokens.ColorTokens
-	typ tokens.TypeScale
-}
 
 // detailArticle is the selected-article snapshot stored in the article cell.
 // ok=false renders the "select an article" placeholder.
@@ -65,23 +58,13 @@ type detailArticle struct {
 // the model — and this layer — advance on the same frame.
 func detailPane(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	selectedArticleObs rx.Observable[ArticleID],
 	selectedTabObs rx.Observable[int],
 ) rx.Observable[layout.Widget] {
 	// Token mirror for the static tab Content closures and the header,
-	// which run outside any rx.Defer scope (see articlesMain's tokenCell
+	// which run outside any rx.Defer scope (see articlesMain's mirror
 	// for the pattern rationale).
-	var tokenCell atomic.Value
-	tokenCell.Store(detailTokens{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typeObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colorObs, typeObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			tokenCell.Store(detailTokens{col: t.First, typ: t.Second})
-		}
-	})
-	loadTokens := func() detailTokens { return tokenCell.Load().(detailTokens) }
+	loadTokens := mirrorTokens(th)
 
 	// Selected-article cell. cadence/tabs captures Tab.Content widgets at
 	// construction (a static slice, not an observable), so the closures
@@ -95,15 +78,14 @@ func detailPane(
 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
-			{Label: "Reader", Content: readerTab(shaper, loadTokens, loadArticle)},
-			{Label: "Raw", Content: rawTab(shaper, loadTokens, loadArticle)},
-			{Label: "Comments", Content: commentsTab(shaper, loadTokens)},
+			{Label: "Reader", Content: readerTab(loadTokens, loadArticle)},
+			{Label: "Raw", Content: rawTab(loadTokens, loadArticle)},
+			{Label: "Comments", Content: commentsTab(loadTokens)},
 		},
 		Selected: selectedTabObs,
 		OnSelect: func(gtx layout.Context, idx int) {
 			mvu.MessageOp{Message: SelectTab{Idx: idx}}.Add(gtx.Ops)
 		},
-		Shaper: shaper,
 	})
 
 	return rx.Map(
@@ -113,7 +95,7 @@ func detailPane(
 			articleCell.Store(detailArticle{a: a, ok: ok})
 			tabsW := t.First
 			return func(gtx layout.Context) layout.Dimensions {
-				return drawDetail(gtx, shaper, loadTokens(), loadArticle(), tabsW)
+				return drawDetail(gtx, loadTokens(), loadArticle(), tabsW)
 			}
 		},
 	)
@@ -121,29 +103,29 @@ func detailPane(
 
 // drawDetail lays the pane: placeholder when nothing is selected, otherwise
 // title + meta header above the tab strip, which flexes to the remaining
-// height.
+// height. Primary text sits on the Neutral ramp's 900 step, the meta line
+// and the placeholder on the low-contrast 700 step (ADR-007).
 func drawDetail(
 	gtx layout.Context,
-	shaper *text.Shaper,
-	tok detailTokens,
+	tok themeTokens,
 	sel detailArticle,
 	tabsW layout.Widget,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	if !sel.ok {
 		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return drawLabel(gtx, shaper, "Select an article", unit.Sp(tok.typ.BodyLarge), mutedColor(tok.col.OnSurface))
+			return drawLabel(gtx, tok.shaper, "Select an article", tok.typ.BodyLarge, tok.col.Ramps.Neutral.Step(700))
 		})
 	}
 	layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, shaper, sel.a.Title, unit.Sp(tok.typ.TitleLarge), tok.col.OnSurface)
+				return drawLabel(gtx, tok.shaper, sel.a.Title, tok.typ.TitleLarge, tok.col.Ramps.Neutral.Step(900))
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				meta := sel.a.Author + " · " + sel.a.Published.Format("Jan 2 2006")
-				return drawLabel(gtx, shaper, meta, unit.Sp(tok.typ.BodySmall), mutedColor(tok.col.OnSurface))
+				return drawLabel(gtx, tok.shaper, meta, tok.typ.BodySmall, tok.col.Ramps.Neutral.Step(700))
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
 			layout.Flexed(1, tabsW),
@@ -152,20 +134,25 @@ func drawDetail(
 	return layout.Dimensions{Size: size}
 }
 
-// readerTab renders the article body paragraph-wrapped in the proportional
-// Go face. The closure is static (tabs captures it once) and reads the
-// selected article + tokens from the cells at frame time.
-func readerTab(shaper *text.Shaper, loadTokens func() detailTokens, loadArticle func() detailArticle) layout.Widget {
-	return bodyTab(shaper, loadTokens, loadArticle, font.Font{})
+// readerTab renders the article body paragraph-wrapped in the theme's
+// BodyMedium role. The closure is static (tabs captures it once) and reads
+// the selected article + tokens from the cells at frame time.
+func readerTab(loadTokens func() themeTokens, loadArticle func() detailArticle) layout.Widget {
+	return bodyTab(loadTokens, loadArticle, func(typ tokens.Typography) tokens.TextStyle {
+		return typ.BodyMedium
+	})
 }
 
-// rawTab renders the SAME body bytes as readerTab in the Go Mono face —
-// per the G5.2c spec the two tabs differ only in font.
-func rawTab(shaper *text.Shaper, loadTokens func() detailTokens, loadArticle func() detailArticle) layout.Widget {
-	return bodyTab(shaper, loadTokens, loadArticle, font.Font{Typeface: "Go Mono"})
+// rawTab renders the SAME body bytes as readerTab in the theme's Code style
+// — BodyMedium's metrics on the mono face (Roboto Mono, G-F0). Per the
+// G5.2c spec the two tabs differ only in font.
+func rawTab(loadTokens func() themeTokens, loadArticle func() detailArticle) layout.Widget {
+	return bodyTab(loadTokens, loadArticle, func(typ tokens.Typography) tokens.TextStyle {
+		return typ.Code
+	})
 }
 
-func bodyTab(shaper *text.Shaper, loadTokens func() detailTokens, loadArticle func() detailArticle, f font.Font) layout.Widget {
+func bodyTab(loadTokens func() themeTokens, loadArticle func() detailArticle, pick func(tokens.Typography) tokens.TextStyle) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		sel := loadArticle()
@@ -174,7 +161,7 @@ func bodyTab(shaper *text.Shaper, loadTokens func() detailTokens, loadArticle fu
 		}
 		tok := loadTokens()
 		layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return drawWrappedText(gtx, shaper, hardCodedBody(sel.a), f, unit.Sp(tok.typ.BodyMedium), tok.col.OnSurface)
+			return drawWrappedText(gtx, tok.shaper, hardCodedBody(sel.a), pick(tok.typ), tok.col.Ramps.Neutral.Step(900))
 		})
 		return layout.Dimensions{Size: size}
 	}
@@ -182,7 +169,7 @@ func bodyTab(shaper *text.Shaper, loadTokens func() detailTokens, loadArticle fu
 
 // commentsTab renders the static placeholder comment list. The rows are
 // fixture data shared across all articles (per the G5.2c spec).
-func commentsTab(shaper *text.Shaper, loadTokens func() detailTokens) layout.Widget {
+func commentsTab(loadTokens func() themeTokens) layout.Widget {
 	comments := hardCodedComments()
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
@@ -193,10 +180,10 @@ func commentsTab(shaper *text.Shaper, loadTokens func() detailTokens) layout.Wid
 				c := c
 				children = append(children,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return drawLabel(gtx, shaper, c.Author, unit.Sp(tok.typ.LabelLarge), tok.col.Primary)
+						return drawLabel(gtx, tok.shaper, c.Author, tok.typ.LabelLarge, tok.col.Primary)
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return drawWrappedText(gtx, shaper, c.Text, font.Font{}, unit.Sp(tok.typ.BodyMedium), tok.col.OnSurface)
+						return drawWrappedText(gtx, tok.shaper, c.Text, tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(900))
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
 				)
@@ -207,28 +194,29 @@ func commentsTab(shaper *text.Shaper, loadTokens func() detailTokens) layout.Wid
 	}
 }
 
-// drawWrappedText lays a multi-line label (MaxLines 0 = unlimited) wrapped
-// at the current Max.X. The single-line drawLabel in app.go truncates; body
-// text needs wrapping, which is the Reader tab's one formatting promise.
+// drawWrappedText lays a multi-line label (MaxLines 0 = unlimited) in one
+// Typography role, wrapped at the current Max.X. The single-line drawLabel
+// in app.go truncates; body text needs wrapping, which is the Reader tab's
+// one formatting promise.
 func drawWrappedText(
 	gtx layout.Context,
 	shaper *text.Shaper,
 	msg string,
-	f font.Font,
-	size unit.Sp,
+	style tokens.TextStyle,
 	c color.NRGBA,
 ) layout.Dimensions {
+	f := font.Font{Typeface: font.Typeface(style.Typeface)}
+	if style.Weight != 0 {
+		f.Weight = tokens.FontWeight(style.Weight)
+	}
 	mat := op.Record(gtx.Ops)
 	paint.ColorOp{Color: c}.Add(gtx.Ops)
 	material := mat.Stop()
 	gtx.Constraints.Min = image.Point{}
 	wl := widget.Label{}
-	return wl.Layout(gtx, shaper, f, size, msg, material)
-}
-
-// mutedColor halves the alpha of c for secondary text (meta lines, the
-// empty-pane placeholder).
-func mutedColor(c color.NRGBA) color.NRGBA {
-	c.A /= 2
-	return c
+	if style.LineHeight != 0 {
+		wl.LineHeight = unit.Sp(style.LineHeight)
+		wl.LineHeightScale = 1
+	}
+	return wl.Layout(gtx, shaper, f, unit.Sp(style.Size), msg, material)
 }

@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"gioui.org/font/gofont"
 	"gioui.org/gpu/headless"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -23,8 +22,8 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/table"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 var goldenUpdate = flag.Bool("golden.update", false, "overwrite golden images with current output")
@@ -661,10 +660,8 @@ const (
 // same-frame repaint is confirmed by running the app — the unit test proves
 // the necessary re-emission, not the OS frame timing.)
 func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
-
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	shellLayer := feedsShellLayer(rx.Of(theme.Default()), shaper, modelObs)
+	shellLayer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
 
 	emissions := make(chan layout.Widget, 16)
 	sub := shellLayer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
@@ -792,12 +789,37 @@ const (
 
 var canvasSize = image.Pt(canvasW, canvasH)
 
+// staticArticleColumns mirrors articleColumns for the golden-render path
+// (table.Render's documented remit). Tokens are passed in directly; rows are
+// not clickable.
+func staticArticleColumns(shaper *text.Shaper, colors tokens.ColorTokens, ts tokens.TypeScale) []table.Column[article] {
+	cellText := func(get func(a article) string) func(article) layout.Widget {
+		return func(a article) layout.Widget {
+			return table.RenderTextCell(shaper, colors, ts, get(a))
+		}
+	}
+	return []table.Column[article]{
+		{Header: "Title", Sortable: true, Cell: cellText(func(a article) string { return a.Title })},
+		{Header: "Author", Width: unit.Dp(160), Cell: cellText(func(a article) string { return a.Author })},
+		{Header: "Published", Width: unit.Dp(140), Sortable: true, Cell: cellText(func(a article) string {
+			return a.Published.Format("Jan 2 2006")
+		})},
+		{Header: "•", Width: unit.Dp(unreadColWDp), Cell: cellText(func(a article) string {
+			if a.Unread {
+				return "•"
+			}
+			return ""
+		})},
+	}
+}
+
 // TestArticlesTableGolden renders the first page of the hn feed with
 // Published-desc sort in both light and dark token sets. Sharp radii and
 // the static Render path keep the output deterministic — only colour
-// pairs distinguish the two goldens.
+// pairs distinguish the two goldens. The shaper is the theme's
+// (tokens.DefaultTypography.Shaper() — Roboto), not an app-built one (F1.2).
 func TestArticlesTableGolden(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
+	shaper := tokens.DefaultTypography.Shaper()
 	all := hardCodedArticles()
 	rows := filterAndSortArticles(all, "hn", "", table.Sort{Column: colPublished, Asc: false})
 	rows = pageSlice(rows, 1, articlesPageSize)
@@ -824,7 +846,7 @@ func TestArticlesTableGolden(t *testing.T) {
 // produces a pixel-distinguishable render. Guards against a regression
 // in which the table ignores its colour inputs.
 func TestArticlesTableLightDarkDiffer(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
+	shaper := tokens.DefaultTypography.Shaper()
 	all := hardCodedArticles()
 	rows := filterAndSortArticles(all, "hn", "", table.Sort{Column: colPublished, Asc: false})
 	rows = pageSlice(rows, 1, articlesPageSize)

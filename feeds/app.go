@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"gioui.org/font"
-	"gioui.org/font/gofont"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
@@ -31,8 +30,8 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 // modelObsConsumers is the EXACT number of cold subscriptions that reach
@@ -64,15 +63,47 @@ import (
 // which fails if a future edit changes the topology without updating this.
 const modelObsConsumers = 16
 
+// themeTokens is the colour/typography snapshot the app's own drawing code
+// reads at frame time. The shaper is the theme's cached Typography shaper
+// (F1.2): the app builds none of its own, so the typeface — Roboto, plus the
+// Roboto Mono face the Raw tab's Code style names — comes from the theme.
+type themeTokens struct {
+	col    tokens.ColorTokens
+	typ    tokens.Typography
+	shaper *text.Shaper
+}
+
+// mirrorTokens subscribes the theme's Color and Typography streams into an
+// atomic cell and returns a frame-time loader. It is the layer-boundary
+// adapter for closures that run outside any rx scope (static component
+// slots, table cell closures, navbar widgets) — the same hand-off pattern
+// the widget cells in feedsShellLayer use.
+func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
+	var cell atomic.Value
+	cell.Store(themeTokens{
+		col:    tokens.DefaultLight,
+		typ:    tokens.DefaultTypography,
+		shaper: tokens.DefaultTypography.Shaper(),
+	})
+	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
+	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
+	_ = rx.CombineLatest2(colorObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography], _ error, done bool) {
+		if !done {
+			typ := t.Second
+			cell.Store(themeTokens{col: t.First, typ: typ, shaper: typ.Shaper()})
+		}
+	})
+	return func() themeTokens { return cell.Load().(themeTokens) }
+}
+
 // buildLayers returns the spectrum/window build function. The model
 // observable drives selection, paging, sort, and accordion open state; the
 // theme observable flows in independently per window.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
-		shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			feedsShellLayer(th, shaper, modelObs),
+			feedsShellLayer(th, modelObs),
 		}
 	}
 }
@@ -114,7 +145,6 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // nothing until the mouse moves" defect.)
 func feedsShellLayer(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	modelObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
 	// The cold derivations of modelObs. Their count is mirrored by
@@ -131,11 +161,11 @@ func feedsShellLayer(
 	addFeedOpenObs := rx.Map(modelObs, func(m Model) bool { return m.addFeedOpen })
 	addFeedErrorObs := rx.Map(modelObs, func(m Model) bool { return m.addFeedError })
 
-	articlesObs := articlesMain(th, shaper, selectedFeedObs, currentPageObs, sortObs)
-	detailObs := detailPane(th, shaper, selectedArticleObs, selectedTabObs)
-	shareObs := sharePopover(th, shaper, shareOpenObs)
-	modalObs := addFeedModal(th, shaper, addFeedOpenObs, addFeedErrorObs)
-	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight, Shaper: shaper})
+	articlesObs := articlesMain(th, selectedFeedObs, currentPageObs, sortObs)
+	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
+	shareObs := sharePopover(th, shareOpenObs)
+	modalObs := addFeedModal(th, addFeedOpenObs, addFeedErrorObs)
+	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight})
 
 	// Layer-boundary cells (see the function comment). articlesCell and
 	// detailCell feed the SplitPane's static Left/Right slots; splitCell
@@ -168,7 +198,7 @@ func feedsShellLayer(
 		},
 	})
 
-	sidebarObs := feedsSidebar(th, shaper, openSectionsObs, feedsObs)
+	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs)
 	sidebarDriven := rx.Map(
 		rx.CombineLatest5(sidebarObs, articlesObs, detailObs, splitObs, shareObs),
 		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
@@ -183,7 +213,7 @@ func feedsShellLayer(
 	shellObs := shell.Shell(th, shell.Props{
 		Layout:  shell.SidebarHeaderMain,
 		Sidebar: sidebarDriven,
-		Navbar:  feedsNavbarProps(shaper, slot(&shareCell)),
+		Navbar:  feedsNavbarProps(mirrorTokens(th), slot(&shareCell)),
 		Main:    slot(&splitCell),
 	})
 
@@ -225,17 +255,23 @@ const (
 )
 
 // feedsNavbarProps builds the navbar with the brand, the (decorative) Add
-// feed action, and the Share popover slot. shareSlot reads the latest
-// popover widget from its layer-boundary cell; the wrapper pins the
-// popover's canvas to an Exact size so the anchor centres where the button
-// should sit and the returned dims do not blow up the navbar's Flex row
-// (popover returns Dimensions{Size: canvas}).
-func feedsNavbarProps(shaper *text.Shaper, shareSlot layout.Widget) navbar.Props {
+// feed action, and the Share popover slot. Brand and action labels are the
+// app's own text, so they read the theme snapshot from loadTok at frame
+// time: the brand in TitleMedium on the Text pin, the Add feed action in
+// LabelLarge on the Primary pin (the accent role the hardcoded link-blue
+// approximated). shareSlot reads the latest popover widget from its
+// layer-boundary cell; the wrapper pins the popover's canvas to an Exact
+// size so the anchor centres where the button should sit and the returned
+// dims do not blow up the navbar's Flex row (popover returns
+// Dimensions{Size: canvas}).
+func feedsNavbarProps(loadTok func() themeTokens, shareSlot layout.Widget) navbar.Props {
 	brand := func(gtx layout.Context) layout.Dimensions {
-		return drawLabel(gtx, shaper, "Feeds", unit.Sp(18), color.NRGBA{A: 0xff})
+		s := loadTok()
+		return drawLabel(gtx, s.shaper, "Feeds", s.typ.TitleMedium, s.col.Text)
 	}
 	var addClick widget.Clickable
 	addFeed := func(gtx layout.Context) layout.Dimensions {
+		s := loadTok()
 		if addClick.Clicked(gtx) {
 			mvu.MessageOp{Message: OpenAddFeed{}}.Add(gtx.Ops)
 		}
@@ -243,7 +279,7 @@ func feedsNavbarProps(shaper *text.Shaper, shareSlot layout.Widget) navbar.Props
 			semantic.LabelOp("Add feed").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, shaper, "Add feed", unit.Sp(14), color.NRGBA{R: 0x60, G: 0x80, B: 0xff, A: 0xff})
+			return drawLabel(gtx, s.shaper, "Add feed", s.typ.LabelLarge, s.col.Primary)
 		})
 	}
 	share := func(gtx layout.Context) layout.Dimensions {
@@ -253,7 +289,6 @@ func feedsNavbarProps(shaper *text.Shaper, shareSlot layout.Widget) navbar.Props
 	}
 	return navbar.Props{
 		Brand:   brand,
-		Shaper:  shaper,
 		Actions: []layout.Widget{addFeed, share},
 	}
 }
@@ -279,26 +314,13 @@ const (
 // FEEDBACK-G5.2.md.)
 func sharePopover(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	shareOpenObs rx.Observable[bool],
 ) rx.Observable[layout.Widget] {
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	var tokenCell atomic.Value
-	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typeObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colorObs, typeObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
+	loadTok := mirrorTokens(th)
 
 	var anchorClick widget.Clickable
 	anchor := func(gtx layout.Context) layout.Dimensions {
-		s := tokenCell.Load().(tokenState)
+		s := loadTok()
 		if anchorClick.Clicked(gtx) {
 			mvu.MessageOp{Message: ToggleShare{}}.Add(gtx.Ops)
 		}
@@ -306,13 +328,13 @@ func sharePopover(
 			semantic.LabelOp("Share").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, shaper, "Share", unit.Sp(s.typ.LabelLarge), color.NRGBA{R: 0x60, G: 0x80, B: 0xff, A: 0xff})
+			return drawLabel(gtx, s.shaper, "Share", s.typ.LabelLarge, s.col.Primary)
 		})
 	}
 
 	destClicks := make([]widget.Clickable, len(shareDestinations))
 	content := func(gtx layout.Context) layout.Dimensions {
-		s := tokenCell.Load().(tokenState)
+		s := loadTok()
 		rowH := gtx.Dp(unit.Dp(shareRowHDp))
 		listW := gtx.Dp(unit.Dp(shareListWDp))
 		for i, dest := range shareDestinations {
@@ -329,7 +351,7 @@ func sharePopover(
 				semantic.LabelOp(dest).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				return drawLabel(gtx, shaper, dest, unit.Sp(s.typ.BodyMedium), s.col.OnSurface)
+				return drawLabel(gtx, s.shaper, dest, s.typ.BodyMedium, s.col.Ramps.Neutral.Step(900))
 			})
 			off.Pop()
 		}
@@ -374,7 +396,6 @@ const (
 //     the button's OnClick; the reducer cannot clear the visible field.
 func addFeedModal(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	addFeedOpenObs rx.Observable[bool],
 	addFeedErrorObs rx.Observable[bool],
 ) rx.Observable[layout.Widget] {
@@ -385,7 +406,6 @@ func addFeedModal(
 	field := input.TextField(th, input.TextFieldProps{
 		Placeholder: "https://example.com/feed.xml",
 		Description: "Feed URL",
-		Shaper:      shaper,
 		OnChange: func(_ layout.Context, txt string) {
 			urlCell.Store(txt)
 		},
@@ -395,7 +415,6 @@ func addFeedModal(
 	submit := button.Button(th, button.Props{
 		Label:     "Add",
 		Clickable: &submitClick,
-		Shaper:    shaper,
 		OnClick: func(gtx layout.Context) {
 			url, _ := urlCell.Load().(string)
 			if strings.TrimSpace(url) != "" {
@@ -411,7 +430,6 @@ func addFeedModal(
 	alertObs := alert.Alert(th, alert.Props{
 		Variant: alert.Error,
 		Title:   "Feed URL required",
-		Shaper:  shaper,
 	})
 
 	// Layer-boundary cells for the static modal/card slots.
@@ -477,10 +495,9 @@ func addFeedModal(
 	}
 
 	modalObs := modal.Modal(th, modal.Props{
-		Open:   addFeedOpenObs,
-		Title:  "Add feed",
-		Body:   modalBody,
-		Shaper: shaper,
+		Open:  addFeedOpenObs,
+		Title: "Add feed",
+		Body:  modalBody,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseAddFeed{}}.Add(gtx.Ops)
 		},
@@ -501,16 +518,26 @@ func addFeedModal(
 	)
 }
 
+// drawLabel renders a single-line label in one Typography role — typeface,
+// weight, size and line height all come from the theme's TextStyle.
 func drawLabel(
 	gtx layout.Context,
 	shaper *text.Shaper,
 	msg string,
-	size unit.Sp,
+	style tokens.TextStyle,
 	c color.NRGBA,
 ) layout.Dimensions {
+	f := font.Font{Typeface: font.Typeface(style.Typeface)}
+	if style.Weight != 0 {
+		f.Weight = tokens.FontWeight(style.Weight)
+	}
 	mat := op.Record(gtx.Ops)
 	paint.ColorOp{Color: c}.Add(gtx.Ops)
 	material := mat.Stop()
 	wl := widget.Label{MaxLines: 1}
-	return wl.Layout(gtx, shaper, font.Font{}, size, msg, material)
+	if style.LineHeight != 0 {
+		wl.LineHeight = unit.Sp(style.LineHeight)
+		wl.LineHeightScale = 1
+	}
+	return wl.Layout(gtx, shaper, f, unit.Sp(style.Size), msg, material)
 }

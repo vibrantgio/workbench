@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"gioui.org/f32"
-	"gioui.org/font/gofont"
 	"gioui.org/gesture"
 	gioinput "gioui.org/io/input"
 	"gioui.org/io/pointer"
@@ -34,8 +33,8 @@ import (
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 // modalCanvas is the canvas the Add-feed modal golden draws into.
@@ -97,7 +96,7 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layo
 // TestAddFeedModalGolden renders the Add-feed modal (open, with the alert
 // banner) in light and dark token sets.
 func TestAddFeedModalGolden(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
+	shaper := tokens.DefaultTypography.Shaper()
 	cases := []struct {
 		name   string
 		colors tokens.ColorTokens
@@ -129,9 +128,8 @@ var scrimRegion = image.Rect(shellCanvasW/2-200, shellCanvasH/2-150, shellCanvas
 // OpenAddFeed paints the modal scrim; an empty SubmitFeed paints the alert;
 // a non-empty SubmitFeed adds a sidebar entry; ConfirmDelete removes one.
 func TestG52dCrudStatesHeadless(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), shaper, modelObs)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
@@ -270,9 +268,8 @@ func TestHoverGutterDoesNotSwallowSelectPress(t *testing.T) {
 // widget for each G5.2d message — the same-frame-repaint guarantee that the
 // G5.2c regression test checks for the earlier message set.
 func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), shaper, modelObs)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
@@ -320,10 +317,8 @@ func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
 // renders no pixels, Notify("Feed added") re-emits the stack widget, and
 // the rendered frame differs in the toast region.
 func TestToastNotifyRendersInStack(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	stackObs := toast.Stack(rx.Of(theme.Default()), toast.Props{
 		Position: toast.TopRight,
-		Shaper:   shaper,
 	})
 
 	emissions := make(chan layout.Widget, 16)

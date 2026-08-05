@@ -6,14 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"gioui.org/font/gofont"
 	"gioui.org/layout"
-	"gioui.org/text"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/theme"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 // TestModelObsConsumerCountMatchesConst measures the EXACT number of cold
@@ -25,8 +23,6 @@ import (
 // on launch (too low) or the app freezes (too high). A reducer-only test cannot
 // catch that. This guards the load-bearing N against future topology edits.
 func TestModelObsConsumerCountMatchesConst(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
-
 	base := rx.Of(initialModel()) // cold; replays the seed to each subscription
 	var n int32
 	counting := rx.Observable[Model](func(observe rx.Observer[Model], sched rx.Scheduler, sub rx.Subscriber) {
@@ -34,7 +30,7 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 		base(observe, sched, sub)
 	})
 
-	layer := feedsShellLayer(rx.Of(theme.Default()), shaper, counting)
+	layer := feedsShellLayer(rx.Of(theme.Default()), counting)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(layout.Widget, error, bool) {})
 	defer sub.Unsubscribe()
 
@@ -66,8 +62,6 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 //  2. a message pushed through the real message channel re-emits the layer with
 //     the updated model — the same-frame repaint driver.
 func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
-
 	// Mirror mvuWin.Messages(): a buffered channel drained by rx.Recv. This is
 	// exactly the source run() scans over.
 	msgCh := make(chan mvu.Message, 16)
@@ -79,7 +73,7 @@ func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
 	models, _ := mvu.Loop(messages, init, Update)
 	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
-	layer := feedsShellLayer(rx.Of(theme.Default()), shaper, modelObs)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
 
 	emissions := make(chan layout.Widget, 32)
 	// No defer sub.Unsubscribe()/close(msgCh): unsubscribing the AutoConnect
