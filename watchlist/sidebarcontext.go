@@ -22,7 +22,6 @@ import (
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -31,8 +30,7 @@ import (
 	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 const (
@@ -51,7 +49,6 @@ type sidebarContext struct {
 
 func newSidebarContext(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	name string,
 	storePath string,
 	renameClick, deleteClick, confirmClick *widget.Clickable,
@@ -62,19 +59,7 @@ func newSidebarContext(
 	send.Next(false)
 	sc.openCh = send
 
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	var tokenCell atomic.Value
-	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
+	loadTok := mirrorTokens(th)
 
 	// The anchor is invisible (zero-painted) but must report a small size so the
 	// popover has an anchor rect to place the surface against.
@@ -84,7 +69,7 @@ func newSidebarContext(
 	}
 
 	content := func(gtx layout.Context) layout.Dimensions {
-		s := tokenCell.Load().(tokenState)
+		s := loadTok()
 		if renameClick.Clicked(gtx) {
 			mvu.MessageOp{Message: OpenRenameWatchlist{Name: sc.name}}.Add(gtx.Ops)
 			sc.close()
@@ -120,7 +105,7 @@ func newSidebarContext(
 			semantic.LabelOp("Rename watchlist").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			drawLabel(gtx, shaper, "Rename", unit.Sp(s.typ.BodyMedium), s.col.OnSurface)
+			drawLabel(gtx, s.shaper, "Rename", s.typ.BodyMedium, s.col.Ramps.Neutral.Step(900))
 			return layout.Dimensions{Size: image.Pt(w, rowH)}
 		})
 		rStk.Pop()
@@ -134,7 +119,7 @@ func newSidebarContext(
 				semantic.LabelOp("Delete watchlist").Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				drawLabel(gtx, shaper, "Delete", unit.Sp(s.typ.BodyMedium), s.col.Error)
+				drawLabel(gtx, s.shaper, "Delete", s.typ.BodyMedium, s.col.Error)
 				return layout.Dimensions{Size: image.Pt(w, rowH)}
 			})
 		} else {
@@ -142,7 +127,7 @@ func newSidebarContext(
 				semantic.LabelOp("Confirm delete watchlist").Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				drawLabel(gtx, shaper, "Confirm delete", unit.Sp(s.typ.LabelLarge), s.col.Error)
+				drawLabel(gtx, s.shaper, "Confirm delete", s.typ.LabelLarge, s.col.Error)
 				return layout.Dimensions{Size: image.Pt(w, rowH)}
 			})
 		}

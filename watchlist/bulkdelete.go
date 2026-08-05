@@ -22,7 +22,6 @@ import (
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -31,8 +30,7 @@ import (
 	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 const (
@@ -45,7 +43,6 @@ const (
 // frame so the count + visibility track the model without re-subscription.
 func bulkDeletePopover(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	storePath string,
 	modelMirrorObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
@@ -63,19 +60,7 @@ func bulkDeletePopover(
 		}
 	}
 
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	var tokenCell atomic.Value
-	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
+	loadTok := mirrorTokens(th)
 
 	// Model mirror: the live selection count + the watchlists/selection the
 	// confirm callback writes from. Read at frame time (count) and at confirm.
@@ -102,18 +87,18 @@ func bulkDeletePopover(
 		if anchorClick.Clicked(gtx) {
 			toggle()
 		}
-		s := tokenCell.Load().(tokenState)
+		s := loadTok()
 		label := "Delete " + strconv.Itoa(selCount())
 		return anchorClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp(label).Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, shaper, label, unit.Sp(14), s.col.Error)
+			return drawLabel(gtx, s.shaper, label, s.typ.LabelLarge, s.col.Error)
 		})
 	}
 
 	content := func(gtx layout.Context) layout.Dimensions {
-		s := tokenCell.Load().(tokenState)
+		s := loadTok()
 		if confirmClick.Clicked(gtx) {
 			m, _ := modelCell.Load().(Model)
 			next := bulkDeleteRows(m.watchlists, m.selected, selectedRows(m.selection))
@@ -129,7 +114,7 @@ func bulkDeletePopover(
 		promptH := gtx.Dp(unit.Dp(bulkConfirmRowDp))
 		btnH := gtx.Dp(unit.Dp(bulkConfirmRowDp))
 		prompt := "Delete " + strconv.Itoa(selCount()) + " symbols?"
-		drawLabel(gtx, shaper, prompt, unit.Sp(s.typ.BodyMedium), s.col.OnSurface)
+		drawLabel(gtx, s.shaper, prompt, s.typ.BodyMedium, s.col.Ramps.Neutral.Step(900))
 		btnStk := op.Offset(image.Pt(0, promptH)).Push(gtx.Ops)
 		btnGtx := gtx
 		btnGtx.Constraints = layout.Exact(image.Pt(w, btnH))
@@ -137,7 +122,7 @@ func bulkDeletePopover(
 			semantic.LabelOp("Confirm bulk delete").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			drawLabel(gtx, shaper, "Delete", unit.Sp(s.typ.LabelLarge), s.col.Error)
+			drawLabel(gtx, s.shaper, "Delete", s.typ.LabelLarge, s.col.Error)
 			return layout.Dimensions{Size: image.Pt(w, btnH)}
 		})
 		btnStk.Pop()

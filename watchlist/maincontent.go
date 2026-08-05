@@ -10,7 +10,7 @@
 // G5.3c additions over G5.3b:
 //   - bulk-select checkbox column (ToggleSelect{absolute row}),
 //   - per-row trash → delete-confirm popover (DeleteSymbol{absolute row}),
-//   - per-header tooltip overlays (column-width arithmetic, header 44dp),
+//   - per-header tooltip overlays (column-width arithmetic, header 36dp),
 //   - conditional pagination (rendered only when pageCount > 1).
 //
 // Selection + paging come from the model (selectionObs, pageObs); the visible
@@ -21,7 +21,6 @@ package main
 
 import (
 	"image"
-	"image/color"
 	"sync/atomic"
 
 	"gioui.org/io/pointer"
@@ -30,7 +29,6 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -41,24 +39,31 @@ import (
 	"github.com/vibrantgio/cadence/tooltip"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/keyed"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 const wlMainPadDp = 24
 
+// cellPadDp is the horizontal cell padding themedTextCell applies — 12 dp,
+// mirroring cadence/table's own cell padding so app-built cells sit flush
+// with the table's stock geometry (the feeds F1.2 idiom).
+const cellPadDp = 12
+
 // Column geometry. Symbol flexes; the rest are pinned. The checkbox + trash
 // gutters are fixed leading/trailing columns. tableHeaderHDp mirrors
-// cadence/table's private headerHDp — the table draws headers internally with
-// no per-header widget slot, so the tooltip overlays are positioned by
-// arithmetic over these widths (friction logged in FEEDBACK-G5.3.md).
+// cadence/table's private header height — Density.ControlHeight at
+// Comfortable (36 dp, the E1.4 row rule) — because the table draws headers
+// internally with no per-header widget slot, so the tooltip overlays are
+// positioned by arithmetic over these widths (friction logged in
+// FEEDBACK-G5.3.md).
 const (
 	selColWDp      = 48
 	exchColWDp     = 140
 	tfColWDp       = 120
 	notesColWDp    = 220
 	trashColWDp    = 48
-	tableHeaderHDp = 44
+	tableHeaderHDp = 36
 )
 
 // symbolRow pairs a symbol with its ABSOLUTE 0-based index in the watchlist so
@@ -76,7 +81,6 @@ type symbolRow struct {
 // stream and the folded shell repaints.
 func watchlistMain(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	selectedObs rx.Observable[string],
 	symbolsObs rx.Observable[[]Symbol],
 	selectionObs rx.Observable[map[int]bool],
@@ -84,21 +88,7 @@ func watchlistMain(
 	storePath string,
 	modelMirrorObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	var tokenCell atomic.Value
-	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
-	loadColor := func() tokens.ColorTokens { return tokenCell.Load().(tokenState).col }
-	loadType := func() tokens.TypeScale { return tokenCell.Load().(tokenState).typ }
+	loadTok := mirrorTokens(th)
 
 	var selCell atomic.Value
 	selCell.Store("")
@@ -130,11 +120,11 @@ func watchlistMain(
 	trashClicks := keyed.Defer(func(int) *widget.Clickable { return &widget.Clickable{} })
 	confirmClicks := keyed.Defer(func(int) *widget.Clickable { return &widget.Clickable{} })
 	rowPopovers := keyed.Defer(func(idx int) *rowDeleteConfirm {
-		return newRowDeleteConfirm(th, shaper, idx, storePath,
+		return newRowDeleteConfirm(th, idx, storePath,
 			trashClicks.For(idx), confirmClicks.For(idx), loadModel)
 	})
 
-	columns := symbolColumns(shaper, loadColor, loadType, rowClicks, checkClicks, rowPopovers)
+	columns := symbolColumns(loadTok, rowClicks, checkClicks, rowPopovers)
 
 	// rowsObs maps (symbols, selection, page) into the PAGE slice as indexed
 	// rows. The idx field is the ABSOLUTE index so messages survive pagination.
@@ -164,7 +154,6 @@ func watchlistMain(
 	tableObs := table.Table(th, table.Props[symbolRow]{
 		Columns: columns,
 		Items:   rowsObs,
-		Shaper:  shaper,
 	})
 
 	// pageCountObs derives the page count from the symbol slice. When it is 1
@@ -190,14 +179,13 @@ func watchlistMain(
 			return pagination.Pagination(th, pagination.Props{
 				Page:      page,
 				PageCount: count,
-				Shaper:    shaper,
 				OnSelect:  func(gtx layout.Context, p int) { mvu.MessageOp{Message: SetPage{Page: p}}.Add(gtx.Ops) },
 			})
 		},
 	)
 
 	// One tooltip per column header, overlaid by column-width arithmetic.
-	colTips := columnTooltips(th, shaper)
+	colTips := columnTooltips(th)
 
 	// "Add symbol" button (a plain clickable, no extra layer-boundary cell).
 	var addClick widget.Clickable
@@ -205,12 +193,12 @@ func watchlistMain(
 		if addClick.Clicked(gtx) {
 			mvu.MessageOp{Message: OpenAddSymbol{}}.Add(gtx.Ops)
 		}
+		s := loadTok()
 		return addClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp("Add symbol").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, shaper, "+ Add symbol", unit.Sp(14),
-				color.NRGBA{R: 0x60, G: 0x80, B: 0xff, A: 0xff})
+			return drawLabel(gtx, s.shaper, "+ Add symbol", s.typ.LabelLarge, s.col.Primary)
 		})
 	}
 
@@ -218,22 +206,22 @@ func watchlistMain(
 	// overlay), and the conditional pagination row.
 	mainW := func(tableW, pagW layout.Widget, tips []layout.Widget) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
-			s := tokenCell.Load().(tokenState)
+			s := loadTok()
 			selected, _ := selCell.Load().(string)
 			size := gtx.Constraints.Max
 			paint.FillShape(gtx.Ops, s.col.Background, clip.Rect{Max: size}.Op())
 
 			if selected == "" {
 				pad := gtx.Dp(unit.Dp(wlMainPadDp))
-				drawLabelAt(gtx, shaper, "Select a watchlist",
-					unit.Sp(s.typ.BodyLarge), s.col.OnSurfaceVariant, image.Pt(pad, pad))
+				drawLabelAt(gtx, s.shaper, "Select a watchlist",
+					s.typ.BodyLarge, s.col.Ramps.Neutral.Step(700), image.Pt(pad, pad))
 				return layout.Dimensions{Size: size}
 			}
 
 			return layout.UniformInset(unit.Dp(wlMainPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				children := []layout.FlexChild{
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return drawLabel(gtx, shaper, selected, unit.Sp(s.typ.HeadlineSmall), s.col.OnBackground)
+						return drawLabel(gtx, s.shaper, selected, s.typ.HeadlineSmall, s.col.Text)
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
 					layout.Rigid(addButton),
@@ -265,12 +253,45 @@ func watchlistMain(
 	)
 }
 
+// themedTextCell renders a single line of Text-coloured cell text in the
+// theme's BodyMedium role — typeface, weight, size and line height from the
+// Typography, the shaper the theme's own — within the cell's allocated
+// rectangle, with the table's stock 12 dp horizontal padding. It is the
+// theme-driven successor to the frozen table.RenderTextCell(TypeScale) form
+// (F1.2/F1.3); the golden tests keep the static form, which is its documented
+// remit.
+func themedTextCell(tok themeTokens, s string) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		padH := gtx.Dp(unit.Dp(cellPadDp))
+		labelMaxW := size.X - 2*padH
+		if labelMaxW <= 0 {
+			return layout.Dimensions{Size: size}
+		}
+		labelGtx := gtx
+		labelGtx.Constraints.Min = image.Point{}
+		labelGtx.Constraints.Max.X = labelMaxW
+		labelGtx.Constraints.Max.Y = size.Y
+
+		mLabel := op.Record(gtx.Ops)
+		labelDims := drawLabel(labelGtx, tok.shaper, s, tok.typ.BodyMedium, tok.col.Text)
+		labelCall := mLabel.Stop()
+
+		offY := (size.Y - labelDims.Size.Y) / 2
+		if offY < 0 {
+			offY = 0
+		}
+		st := op.Offset(image.Pt(padH, offY)).Push(gtx.Ops)
+		labelCall.Add(gtx.Ops)
+		st.Pop()
+		return layout.Dimensions{Size: size}
+	}
+}
+
 // symbolColumns builds the six table columns: a leading checkbox, the four text
 // columns (Symbol hosts the row-click edit), and a trailing trash gutter.
 func symbolColumns(
-	shaper *text.Shaper,
-	loadColor func() tokens.ColorTokens,
-	loadType func() tokens.TypeScale,
+	loadTok func() themeTokens,
 	rowClicks *keyed.Deferred[int, *widget.Clickable],
 	checkClicks *keyed.Deferred[int, *widget.Clickable],
 	rowPopovers *keyed.Deferred[int, *rowDeleteConfirm],
@@ -279,7 +300,7 @@ func symbolColumns(
 		return func(r symbolRow) layout.Widget {
 			s := get(r)
 			return func(gtx layout.Context) layout.Dimensions {
-				return table.RenderTextCell(shaper, loadColor(), loadType(), s)(gtx)
+				return themedTextCell(loadTok(), s)(gtx)
 			}
 		}
 	}
@@ -293,7 +314,7 @@ func symbolColumns(
 				semantic.LabelOp("Select row").Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				drawCheckbox(gtx, r.selected, loadColor())
+				drawCheckbox(gtx, r.selected, loadTok().col)
 				return layout.Dimensions{Size: gtx.Constraints.Max}
 			})
 		}
@@ -304,7 +325,7 @@ func symbolColumns(
 			if click.Clicked(gtx) {
 				mvu.MessageOp{Message: OpenEditSymbol{Row: r.idx}}.Add(gtx.Ops)
 			}
-			body := table.RenderTextCell(shaper, loadColor(), loadType(), r.sym.Symbol)
+			body := themedTextCell(loadTok(), r.sym.Symbol)
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.LabelOp(r.sym.Symbol).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
@@ -316,7 +337,7 @@ func symbolColumns(
 	trashCell := func(r symbolRow) layout.Widget {
 		dc := rowPopovers.For(r.idx)
 		return func(gtx layout.Context) layout.Dimensions {
-			return dc.layout(gtx, loadColor())
+			return dc.layout(gtx)
 		}
 	}
 	return []table.Column[symbolRow]{
@@ -330,7 +351,8 @@ func symbolColumns(
 }
 
 // drawCheckbox paints a small square, filled when selected. clip/paint only so
-// it stays golden-deterministic.
+// it stays golden-deterministic. The unchecked outline is the strong-border
+// ramp step (Neutral 500 — the Outline alias's resolution).
 func drawCheckbox(gtx layout.Context, checked bool, col tokens.ColorTokens) {
 	box := gtx.Constraints.Max
 	side := gtx.Dp(unit.Dp(16))
@@ -341,26 +363,26 @@ func drawCheckbox(gtx layout.Context, checked bool, col tokens.ColorTokens) {
 		paint.FillShape(gtx.Ops, col.Primary, clip.Rect(r).Op())
 	} else {
 		// Outline (four thin rects).
+		border := col.Ramps.Neutral.Step(500)
 		s := gtx.Dp(unit.Dp(1))
 		if s < 1 {
 			s = 1
 		}
-		paint.FillShape(gtx.Ops, col.Outline, clip.Rect(image.Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+s)).Op())
-		paint.FillShape(gtx.Ops, col.Outline, clip.Rect(image.Rect(r.Min.X, r.Max.Y-s, r.Max.X, r.Max.Y)).Op())
-		paint.FillShape(gtx.Ops, col.Outline, clip.Rect(image.Rect(r.Min.X, r.Min.Y, r.Min.X+s, r.Max.Y)).Op())
-		paint.FillShape(gtx.Ops, col.Outline, clip.Rect(image.Rect(r.Max.X-s, r.Min.Y, r.Max.X, r.Max.Y)).Op())
+		paint.FillShape(gtx.Ops, border, clip.Rect(image.Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+s)).Op())
+		paint.FillShape(gtx.Ops, border, clip.Rect(image.Rect(r.Min.X, r.Max.Y-s, r.Max.X, r.Max.Y)).Op())
+		paint.FillShape(gtx.Ops, border, clip.Rect(image.Rect(r.Min.X, r.Min.Y, r.Min.X+s, r.Max.Y)).Op())
+		paint.FillShape(gtx.Ops, border, clip.Rect(image.Rect(r.Max.X-s, r.Min.Y, r.Max.X, r.Max.Y)).Op())
 	}
 }
 
 // columnTooltips builds one tooltip per labelled header column (skipping the
 // icon-only checkbox/trash gutters). Each Trigger fills its incoming canvas;
 // overlayHeaderTooltips positions that canvas over the matching header cell.
-func columnTooltips(th rx.Observable[theme.Theme], shaper *text.Shaper) []rx.Observable[layout.Widget] {
+func columnTooltips(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	mk := func(textStr string) rx.Observable[layout.Widget] {
 		return tooltip.Tooltip(th, tooltip.Props{
 			Text:      textStr,
 			Placement: tooltip.Bottom,
-			Shaper:    shaper,
 			Trigger: func(gtx layout.Context) layout.Dimensions {
 				return layout.Dimensions{Size: gtx.Constraints.Max}
 			},

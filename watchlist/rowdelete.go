@@ -24,7 +24,6 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -33,8 +32,7 @@ import (
 	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 const (
@@ -52,7 +50,6 @@ type rowDeleteConfirm struct {
 
 func newRowDeleteConfirm(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	idx int,
 	storePath string,
 	trashClick *widget.Clickable,
@@ -64,37 +61,27 @@ func newRowDeleteConfirm(
 	send.Next(false)
 	dc.openCh = send
 
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	var tokenCell atomic.Value
-	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
+	loadTok := mirrorTokens(th)
 
 	anchor := func(gtx layout.Context) layout.Dimensions {
 		if trashClick.Clicked(gtx) {
 			dc.toggle()
 		}
 		return trashClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			s := tokenCell.Load().(tokenState)
+			s := loadTok()
 			semantic.LabelOp("Delete symbol").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
 			sz := gtx.Constraints.Max
-			drawTrashIcon(gtx, sz, s.col.OnSurfaceVariant)
+			// Low-contrast icon step: Neutral 700, the OnSurfaceVariant
+			// alias's resolution.
+			drawTrashIcon(gtx, sz, s.col.Ramps.Neutral.Step(700))
 			return layout.Dimensions{Size: sz}
 		})
 	}
 
 	content := func(gtx layout.Context) layout.Dimensions {
-		s := tokenCell.Load().(tokenState)
+		s := loadTok()
 		if confirmClick.Clicked(gtx) {
 			m := loadModel()
 			next := deleteSymbolAt(m.watchlists, m.selected, dc.idx)
@@ -112,7 +99,7 @@ func newRowDeleteConfirm(
 		w := gtx.Dp(unit.Dp(rowConfirmWDp))
 		promptH := gtx.Dp(unit.Dp(rowConfirmRowDp))
 		btnH := gtx.Dp(unit.Dp(rowConfirmRowDp))
-		drawLabel(gtx, shaper, "Delete this symbol?", unit.Sp(s.typ.BodyMedium), s.col.OnSurface)
+		drawLabel(gtx, s.shaper, "Delete this symbol?", s.typ.BodyMedium, s.col.Ramps.Neutral.Step(900))
 		btnStk := op.Offset(image.Pt(0, promptH)).Push(gtx.Ops)
 		btnGtx := gtx
 		btnGtx.Constraints = layout.Exact(image.Pt(w, btnH))
@@ -120,7 +107,7 @@ func newRowDeleteConfirm(
 			semantic.LabelOp("Confirm delete").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			drawLabel(gtx, shaper, "Delete", unit.Sp(s.typ.LabelLarge), s.col.Error)
+			drawLabel(gtx, s.shaper, "Delete", s.typ.LabelLarge, s.col.Error)
 			return layout.Dimensions{Size: image.Pt(w, btnH)}
 		})
 		btnStk.Pop()
@@ -157,7 +144,7 @@ func (dc *rowDeleteConfirm) close() {
 
 // layout draws the trash gutter for one row via the per-row popover widget (the
 // trash anchor always, plus the confirm surface while open).
-func (dc *rowDeleteConfirm) layout(gtx layout.Context, _ tokens.ColorTokens) layout.Dimensions {
+func (dc *rowDeleteConfirm) layout(gtx layout.Context) layout.Dimensions {
 	size := gtx.Constraints.Max
 	if w, ok := dc.cell.Load().(layout.Widget); ok && w != nil {
 		w(gtx)

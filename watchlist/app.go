@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 
 	"gioui.org/font"
-	"gioui.org/font/gofont"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
@@ -22,8 +21,8 @@ import (
 	"github.com/vibrantgio/cadence/navbar"
 	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/cadence/toast"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 // modelObsConsumers is the EXACT number of cold subscriptions that reach
@@ -37,7 +36,8 @@ import (
 //
 // The count is MEASURED by TestModelObsConsumerCountMatchesConst (which fails
 // if a topology edit changes it without updating this), not hand-counted — the
-// measured G5.3c total is 22 (was 11 at G5.3b).
+// measured G5.3c total is 22 (was 11 at G5.3b). The F1.3 theme migration left
+// it untouched: mirrorTokens subscribes only the THEME streams, never modelObs.
 //
 // CRITICAL INVARIANT (logged in FEEDBACK-G5.3.md): NEVER subscribe modelObs
 // inside a keyed.Defer (per-row/per-name). A lazy subscription attaches during
@@ -52,31 +52,64 @@ import (
 //
 // The contributing fan-out (modelObs is passed BOTH directly as eager mirrors
 // AND projected into the derived streams below):
-//  - modelObs directly   → addSymbolModal + watchlistMain + watchlistSidebar
-//                          + bulkDeletePopover eager mirrors              (4)
-//  - watchlistsObs       → sidebar CombineLatest                         (1)
-//  - selectedObs         → sidebar + Main                                (2)
-//  - symbolsObs          → Main rowsObs + Main pageCountObs              (2)
-//  - modalOpenObs        → symbol modal Open prop                        (1)
-//  - modalErrorObs       → symbol modal errorCell mirror                 (1)
-//  - editObs             → symbol modal per-field epoch SwitchMaps ×4    (4)
-//  - selectionObs        → Main rowsObs                                  (1)
-//  - pageObs             → Main rowsObs + Main paginationObs             (2)
-//  - renameOpenObs       → rename modal Open prop                        (1)
-//  - renameErrorObs      → rename modal errorCell mirror                 (1)
-//  - renameEditObs       → rename modal name-field epoch SwitchMap       (1)
+//   - modelObs directly   → addSymbolModal + watchlistMain + watchlistSidebar
+//   - bulkDeletePopover eager mirrors              (4)
+//   - watchlistsObs       → sidebar CombineLatest                         (1)
+//   - selectedObs         → sidebar + Main                                (2)
+//   - symbolsObs          → Main rowsObs + Main pageCountObs              (2)
+//   - modalOpenObs        → symbol modal Open prop                        (1)
+//   - modalErrorObs       → symbol modal errorCell mirror                 (1)
+//   - editObs             → symbol modal per-field epoch SwitchMaps ×4    (4)
+//   - selectionObs        → Main rowsObs                                  (1)
+//   - pageObs             → Main rowsObs + Main paginationObs             (2)
+//   - renameOpenObs       → rename modal Open prop                        (1)
+//   - renameErrorObs      → rename modal errorCell mirror                 (1)
+//   - renameEditObs       → rename modal name-field epoch SwitchMap       (1)
+//
 // (Trust the measured 22 over this breakdown if they ever disagree.)
 const modelObsConsumers = 22
+
+// themeTokens is the colour/typography snapshot the app's own drawing code
+// reads at frame time. The shaper is the theme's cached Typography shaper
+// (F1.3): the app builds none of its own, so the typeface — Roboto — comes
+// from the theme.
+type themeTokens struct {
+	col    tokens.ColorTokens
+	typ    tokens.Typography
+	shaper *text.Shaper
+}
+
+// mirrorTokens subscribes the theme's Color and Typography streams into an
+// atomic cell and returns a frame-time loader. It is the layer-boundary
+// adapter for closures that run outside any rx scope (static component
+// slots, table cell closures, navbar widgets) — the same hand-off pattern
+// feeds uses (F1.2).
+func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
+	var cell atomic.Value
+	cell.Store(themeTokens{
+		col:    tokens.DefaultLight,
+		typ:    tokens.DefaultTypography,
+		shaper: tokens.DefaultTypography.Shaper(),
+	})
+	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
+	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
+	_ = rx.CombineLatest2(colorObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography], _ error, done bool) {
+		if !done {
+			typ := t.Second
+			cell.Store(themeTokens{col: t.First, typ: typ, shaper: typ.Shaper()})
+		}
+	})
+	return func() themeTokens { return cell.Load().(themeTokens) }
+}
 
 // buildLayers returns the spectrum/window build function: a Surface backdrop
 // under the watchlist shell. storePath is the on-disk file the save callback
 // writes back to atomically; tests inject a t.TempDir() path.
 func buildLayers(modelObs rx.Observable[Model], storePath string) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
-		shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			watchlistShellLayer(th, shaper, modelObs, storePath),
+			watchlistShellLayer(th, modelObs, storePath),
 		}
 	}
 }
@@ -112,7 +145,6 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // stream, which makes Shell re-emit and the window repaint on the same frame.
 func watchlistShellLayer(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	modelObs rx.Observable[Model],
 	storePath string,
 ) rx.Observable[layout.Widget] {
@@ -147,12 +179,12 @@ func watchlistShellLayer(
 		return renameTarget{epoch: m.renameEpoch, target: m.renameTarget, seed: m.renameSeed}
 	})
 
-	sidebarObs := watchlistSidebar(th, shaper, watchlistsObs, selectedObs, storePath, modelObs)
-	mainObs := watchlistMain(th, shaper, selectedObs, symbolsObs, selectionObs, pageObs, storePath, modelObs)
-	modalObs := addSymbolModal(th, shaper, storePath, modelObs, modalOpenObs, modalErrorObs, editObs)
-	renameModalObs := renameWatchlistModal(th, shaper, storePath, modelObs, renameOpenObs, renameErrorObs, renameEditObs)
-	bulkDeleteObs := bulkDeletePopover(th, shaper, storePath, modelObs)
-	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight, Shaper: shaper})
+	sidebarObs := watchlistSidebar(th, watchlistsObs, selectedObs, storePath, modelObs)
+	mainObs := watchlistMain(th, selectedObs, symbolsObs, selectionObs, pageObs, storePath, modelObs)
+	modalObs := addSymbolModal(th, storePath, modelObs, modalOpenObs, modalErrorObs, editObs)
+	renameModalObs := renameWatchlistModal(th, storePath, modelObs, renameOpenObs, renameErrorObs, renameEditObs)
+	bulkDeleteObs := bulkDeletePopover(th, storePath, modelObs)
+	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight})
 
 	// mainCell bridges the live Main widget stream into shell's static Main slot.
 	var mainCell atomic.Value
@@ -191,7 +223,7 @@ func watchlistShellLayer(
 	shellObs := shell.Shell(th, shell.Props{
 		Layout:  shell.SidebarHeaderMain,
 		Sidebar: sidebarDriven,
-		Navbar:  watchlistNavbarProps(shaper, bulkSlot),
+		Navbar:  watchlistNavbarProps(mirrorTokens(th), bulkSlot),
 		Main:    mainSlot,
 	})
 
@@ -222,53 +254,68 @@ func watchlistShellLayer(
 
 // watchlistNavbarProps builds the navbar: the "Watchlist editor" brand, the
 // live "Delete N" bulk-delete action (bridged through bulkSlot), and a no-op
-// "New watchlist" action (creation arrives in a later G5.3 task).
-func watchlistNavbarProps(shaper *text.Shaper, bulkSlot layout.Widget) navbar.Props {
+// "New watchlist" action (creation arrives in a later G5.3 task). Brand and
+// action labels are the app's own text, so they read the theme snapshot from
+// loadTok at frame time: the brand in TitleMedium on the Text pin, the action
+// in LabelLarge on the Primary pin (the accent role the hardcoded link-blue
+// approximated).
+func watchlistNavbarProps(loadTok func() themeTokens, bulkSlot layout.Widget) navbar.Props {
 	brand := func(gtx layout.Context) layout.Dimensions {
-		return drawLabel(gtx, shaper, "Watchlist editor", unit.Sp(18), color.NRGBA{A: 0xff})
+		s := loadTok()
+		return drawLabel(gtx, s.shaper, "Watchlist editor", s.typ.TitleMedium, s.col.Text)
 	}
 	var newClick widget.Clickable
 	newWatchlist := func(gtx layout.Context) layout.Dimensions {
 		// No-op for now: consuming the click keeps the affordance live without
 		// landing a message (creation is out of scope for G5.3a).
 		newClick.Clicked(gtx)
+		s := loadTok()
 		return newClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp("New watchlist").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, shaper, "New watchlist", unit.Sp(14), color.NRGBA{R: 0x60, G: 0x80, B: 0xff, A: 0xff})
+			return drawLabel(gtx, s.shaper, "New watchlist", s.typ.LabelLarge, s.col.Primary)
 		})
 	}
 	return navbar.Props{
 		Brand:   brand,
-		Shaper:  shaper,
 		Actions: []layout.Widget{bulkSlot, newWatchlist},
 	}
 }
 
+// drawLabel renders a single-line label in one Typography role — typeface,
+// weight, size and line height all come from the theme's TextStyle.
 func drawLabel(
 	gtx layout.Context,
 	shaper *text.Shaper,
 	msg string,
-	size unit.Sp,
+	style tokens.TextStyle,
 	c color.NRGBA,
 ) layout.Dimensions {
+	f := font.Font{Typeface: font.Typeface(style.Typeface)}
+	if style.Weight != 0 {
+		f.Weight = tokens.FontWeight(style.Weight)
+	}
 	mat := op.Record(gtx.Ops)
 	paint.ColorOp{Color: c}.Add(gtx.Ops)
 	material := mat.Stop()
 	wl := widget.Label{MaxLines: 1}
-	return wl.Layout(gtx, shaper, font.Font{}, size, msg, material)
+	if style.LineHeight != 0 {
+		wl.LineHeight = unit.Sp(style.LineHeight)
+		wl.LineHeightScale = 1
+	}
+	return wl.Layout(gtx, shaper, f, unit.Sp(style.Size), msg, material)
 }
 
 func drawLabelAt(
 	gtx layout.Context,
 	shaper *text.Shaper,
 	msg string,
-	size unit.Sp,
+	style tokens.TextStyle,
 	c color.NRGBA,
 	at image.Point,
 ) {
 	stk := op.Offset(at).Push(gtx.Ops)
-	drawLabel(gtx, shaper, msg, size, c)
+	drawLabel(gtx, shaper, msg, style, c)
 	stk.Pop()
 }

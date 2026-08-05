@@ -29,7 +29,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gioui.org/font/gofont"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/text"
@@ -43,8 +42,8 @@ import (
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 var goldenUpdate = flag.Bool("golden.update", false, "overwrite golden images with current output")
@@ -100,7 +99,7 @@ func staticSymbolModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layou
 // TestSymbolModalGolden renders the add/edit modal (open, with the alert banner
 // and all four fields) in light and dark token sets.
 func TestSymbolModalGolden(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
+	shaper := tokens.DefaultTypography.Shaper()
 	cases := []struct {
 		name   string
 		colors tokens.ColorTokens
@@ -126,10 +125,9 @@ var scrimRegion = image.Rect(shellCanvasW/2-200, shellCanvasH/2-180, shellCanvas
 // TestG53bSymbolEditorStatesHeadless renders the real shell at the CRUD model
 // states and asserts the pixel-level deltas the G5.3b Measurable describes.
 func TestG53bSymbolEditorStatesHeadless(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	storePath := filepath.Join(t.TempDir(), "watchlists.json")
-	layer := watchlistShellLayer(rx.Of(theme.Default()), shaper, modelObs, storePath)
+	layer := watchlistShellLayer(rx.Of(theme.Default()), modelObs, storePath)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
@@ -214,10 +212,8 @@ func TestG53bSymbolEditorStatesHeadless(t *testing.T) {
 // so this closes that verification gap (copied from feeds/g52d_sim_test.go): an
 // empty stack renders no pixels; Notify re-emits the stack widget with a diff.
 func TestToastNotifyRendersInStack(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	stackObs := toast.Stack(rx.Of(theme.Default()), toast.Props{
 		Position: toast.TopRight,
-		Shaper:   shaper,
 	})
 
 	emissions := make(chan layout.Widget, 16)

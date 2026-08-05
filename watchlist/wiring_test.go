@@ -7,16 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"gioui.org/font/gofont"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/text"
 	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/theme"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 // testDoc is a richer-than-starter document (two watchlists) so selection can
@@ -45,8 +43,6 @@ const (
 // only when the N-th subscriber attaches; if the count drifts from the wiring,
 // late consumers miss the seed (too low) or the app freezes (too high).
 func TestModelObsConsumerCountMatchesConst(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
-
 	base := rx.Of(initialModel(testDoc())) // cold; replays the seed to each subscription
 	var n int32
 	counting := rx.Observable[Model](func(observe rx.Observer[Model], sched rx.Scheduler, sub rx.Subscriber) {
@@ -54,7 +50,7 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 		base(observe, sched, sub)
 	})
 
-	layer := watchlistShellLayer(rx.Of(theme.Default()), shaper, counting, filepath.Join(t.TempDir(), "watchlists.json"))
+	layer := watchlistShellLayer(rx.Of(theme.Default()), counting, filepath.Join(t.TempDir(), "watchlists.json"))
 	sub := layer.Subscribe(rx.GoroutineContext(), func(layout.Widget, error, bool) {})
 	defer sub.Unsubscribe()
 
@@ -80,8 +76,6 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 // consumer (N not too low, no blank launch; not too high, no freeze) and that a
 // message through the real channel re-emits the layer (same-frame repaint).
 func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
-
 	msgCh := make(chan mvu.Message, 16)
 	messages := rx.Recv(msgCh)
 
@@ -91,7 +85,7 @@ func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
 	models, _ := mvu.Loop(messages, init, Update)
 	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
-	layer := watchlistShellLayer(rx.Of(theme.Default()), shaper, modelObs, filepath.Join(t.TempDir(), "watchlists.json"))
+	layer := watchlistShellLayer(rx.Of(theme.Default()), modelObs, filepath.Join(t.TempDir(), "watchlists.json"))
 
 	emissions := make(chan layout.Widget, 32)
 	// No teardown: unsubscribing the AutoConnect chain trips a known

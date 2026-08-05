@@ -33,7 +33,6 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -41,8 +40,8 @@ import (
 
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/keyed"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 const (
@@ -62,25 +61,12 @@ const (
 // shell re-emission and same-frame repaint.
 func watchlistSidebar(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	watchlistsObs rx.Observable[[]Watchlist],
 	selectedObs rx.Observable[string],
 	storePath string,
 	modelMirrorObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
-	type tokenState struct {
-		col tokens.ColorTokens
-		typ tokens.TypeScale
-	}
-	var tokenCell atomic.Value
-	tokenCell.Store(tokenState{col: tokens.DefaultLight, typ: tokens.DefaultTypeScale})
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
-	_ = rx.CombineLatest2(colObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.TypeScale], _ error, done bool) {
-		if !done {
-			tokenCell.Store(tokenState{col: t.First, typ: t.Second})
-		}
-	})
+	loadTok := mirrorTokens(th)
 
 	// Live model cells, read at frame time.
 	var listCell atomic.Value
@@ -111,12 +97,12 @@ func watchlistSidebar(
 	confirmClicks := keyed.Defer(func(string) *widget.Clickable { return &widget.Clickable{} })
 	ctxTags := keyed.Defer(func(string) *ctxPressTag { return &ctxPressTag{} })
 	contexts := keyed.Defer(func(name string) *sidebarContext {
-		return newSidebarContext(th, shaper, name, storePath,
+		return newSidebarContext(th, name, storePath,
 			renameClicks.For(name), deleteClicks.For(name), confirmClicks.For(name), loadModel)
 	})
 
 	sidebarW := func(gtx layout.Context) layout.Dimensions {
-		s := tokenCell.Load().(tokenState)
+		s := loadTok()
 		lists, _ := listCell.Load().([]Watchlist)
 		selected, _ := selCell.Load().(string)
 
@@ -128,10 +114,11 @@ func watchlistSidebar(
 		top := gtx.Dp(unit.Dp(wlSidebarTopDp))
 		padX := gtx.Dp(unit.Dp(wlRowPadXDp))
 
-		// Empty state: no watchlists loaded (absent or empty file).
+		// Empty state: no watchlists loaded (absent or empty file). Low-contrast
+		// text step: Neutral 700 (the OnSurfaceVariant alias's resolution).
 		if len(lists) == 0 {
-			drawLabelAt(gtx, shaper, "No watchlists yet",
-				unit.Sp(s.typ.BodySmall), s.col.OnSurfaceVariant,
+			drawLabelAt(gtx, s.shaper, "No watchlists yet",
+				s.typ.BodySmall, s.col.Ramps.Neutral.Step(700),
 				image.Pt(padX, top))
 			return layout.Dimensions{Size: size}
 		}
@@ -165,9 +152,9 @@ func watchlistSidebar(
 			off := op.Offset(image.Pt(0, top+i*rowH)).Push(gtx.Ops)
 			rowGtx := gtx
 			rowGtx.Constraints = layout.Exact(image.Pt(w, rowH))
-			drawWatchlistRow(rowGtx, shaper, wl.Name, wl.Name == selected,
+			drawWatchlistRow(rowGtx, s, wl.Name, wl.Name == selected,
 				rowClicks.For(wl.Name), ctxTags.For(wl.Name), contexts.For(wl.Name),
-				padX, s.col, s.typ)
+				padX)
 			off.Pop()
 		}
 		return layout.Dimensions{Size: size}
@@ -196,25 +183,27 @@ type ctxPressTag struct{ _ byte }
 // target; a right-click (secondary press) opens the context menu, registered in
 // front of the select clickable inside a PassOp so the primary press still
 // reaches it. The context popover is drawn over the row while open.
+//
+// Colours: the selected row keeps the Primary pin under its OnPrimary label;
+// an unselected label sits on the body-text ramp step (Neutral 900 — the
+// OnSurface alias's resolution). The label renders in the BodyMedium role.
 func drawWatchlistRow(
 	gtx layout.Context,
-	shaper *text.Shaper,
+	tok themeTokens,
 	name string,
 	selected bool,
 	click *widget.Clickable,
 	ctxTag *ctxPressTag,
 	ctx *sidebarContext,
 	padX int,
-	col tokens.ColorTokens,
-	ts tokens.TypeScale,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	if selected {
-		paint.FillShape(gtx.Ops, col.Primary, clip.Rect{Max: size}.Op())
+		paint.FillShape(gtx.Ops, tok.col.Primary, clip.Rect{Max: size}.Op())
 	}
-	fg := col.OnSurface
+	fg := tok.col.Ramps.Neutral.Step(900)
 	if selected {
-		fg = col.OnPrimary
+		fg = tok.col.OnPrimary
 	}
 	gtx.Constraints = layout.Exact(size)
 	click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -222,8 +211,8 @@ func drawWatchlistRow(
 		semantic.EnabledOp(true).Add(gtx.Ops)
 		pointer.CursorPointer.Add(gtx.Ops)
 		// Vertically centre the label within the row.
-		off := op.Offset(image.Pt(padX, (size.Y-gtx.Sp(unit.Sp(ts.BodyMedium)))/2)).Push(gtx.Ops)
-		drawLabel(gtx, shaper, name, unit.Sp(ts.BodyMedium), fg)
+		off := op.Offset(image.Pt(padX, (size.Y-gtx.Sp(unit.Sp(tok.typ.BodyMedium.Size)))/2)).Push(gtx.Ops)
+		drawLabel(gtx, tok.shaper, name, tok.typ.BodyMedium, fg)
 		off.Pop()
 		return layout.Dimensions{Size: size}
 	})

@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"gioui.org/f32"
-	"gioui.org/font/gofont"
 	"gioui.org/io/event"
 	gioinput "gioui.org/io/input"
 	"gioui.org/io/pointer"
@@ -36,15 +35,14 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/tooltip"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 // TestRightClickPassesPrimaryReachesContextSecondary is the regression guard for
@@ -126,11 +124,9 @@ func TestRightClickPassesPrimaryReachesContextSecondary(t *testing.T) {
 // delay elapsing via gtx.Now, then a pixel assertion that the surface painted
 // below the header. This is the overlayHeaderTooltips composition.
 func TestColumnTooltipHoverHeadless(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	tipObs := tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
 		Text:      "Instrument symbol, e.g. BTC/USD",
 		Placement: tooltip.Bottom,
-		Shaper:    shaper,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		},
@@ -178,7 +174,6 @@ func TestColumnTooltipHoverHeadless(t *testing.T) {
 	freshTip := collectOneWidget(t, tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
 		Text:      "Instrument symbol, e.g. BTC/USD",
 		Placement: tooltip.Bottom,
-		Shaper:    shaper,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		},
@@ -214,10 +209,9 @@ func g53cDoc() Document {
 // TestG53cShellStatesHeadless renders the real shell at the G5.3c model states
 // and asserts the pixel deltas the Measurable describes.
 func TestG53cShellStatesHeadless(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	storePath := filepath.Join(t.TempDir(), "watchlists.json")
-	layer := watchlistShellLayer(rx.Of(theme.Default()), shaper, modelObs, storePath)
+	layer := watchlistShellLayer(rx.Of(theme.Default()), modelObs, storePath)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

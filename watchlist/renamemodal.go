@@ -22,7 +22,6 @@ import (
 
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -35,7 +34,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/prism/theme"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 // renameTarget is the per-open rename-modal seed: epoch drives the field
@@ -57,7 +56,6 @@ const (
 // renameWatchlistModal builds the rename-watchlist modal stream.
 func renameWatchlistModal(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	storePath string,
 	modelMirrorObs rx.Observable[Model],
 	openObs rx.Observable[bool],
@@ -90,7 +88,6 @@ func renameWatchlistModal(
 		return input.TextField(th, input.TextFieldProps{
 			Placeholder: placeholder,
 			Description: "Watchlist name",
-			Shaper:      shaper,
 			OnChange:    func(_ layout.Context, txt string) { nameCell.Store(txt) },
 		})
 	})
@@ -99,7 +96,6 @@ func renameWatchlistModal(
 	submit := button.Button(th, button.Props{
 		Label:     "Rename",
 		Clickable: &submitClick,
-		Shaper:    shaper,
 		OnClick: func(gtx layout.Context) {
 			name := strings.TrimSpace(loadStr(&nameCell))
 			target, _ := targetCell.Load().(string)
@@ -125,7 +121,6 @@ func renameWatchlistModal(
 	alertObs := alert.Alert(th, alert.Props{
 		Variant: alert.Error,
 		Title:   "Name must be unique and non-empty",
-		Shaper:  shaper,
 	})
 
 	var nameFC, submitFC, alertFC atomic.Value
@@ -179,10 +174,9 @@ func renameWatchlistModal(
 	}
 
 	modalObs := modal.Modal(th, modal.Props{
-		Open:   openObs,
-		Title:  "Rename watchlist",
-		Body:   modalBody,
-		Shaper: shaper,
+		Open:  openObs,
+		Title: "Rename watchlist",
+		Body:  modalBody,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseRenameWatchlist{}}.Add(gtx.Ops)
 		},

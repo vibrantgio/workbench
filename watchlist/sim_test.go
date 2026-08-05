@@ -18,18 +18,16 @@ import (
 	"testing"
 	"time"
 
-	"gioui.org/font/gofont"
 	"gioui.org/gpu/headless"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/prism/theme"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 // Region windows. The sidebar is the leading 192 dp column; Main starts after
@@ -42,9 +40,8 @@ var (
 // TestWatchlistShellHeadless renders the real shell at three model states and
 // asserts the pixel-level deltas G5.3a's Measurable describes.
 func TestWatchlistShellHeadless(t *testing.T) {
-	shaper := text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := watchlistShellLayer(rx.Of(theme.Default()), shaper, modelObs, filepath.Join(t.TempDir(), "watchlists.json"))
+	layer := watchlistShellLayer(rx.Of(theme.Default()), modelObs, filepath.Join(t.TempDir(), "watchlists.json"))
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

@@ -43,7 +43,6 @@ import (
 
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -56,7 +55,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/prism/theme"
+	"github.com/vibrantgio/spectrum/theme"
 )
 
 // editTarget is the per-open modal seed: epoch drives the field rebuild, seed
@@ -81,7 +80,6 @@ const (
 // per-field epoch rebuild + placeholder seeding.
 func addSymbolModal(
 	th rx.Observable[theme.Theme],
-	shaper *text.Shaper,
 	storePath string,
 	modelMirrorObs rx.Observable[Model],
 	modalOpenObs rx.Observable[bool],
@@ -121,7 +119,6 @@ func addSymbolModal(
 			return input.TextField(th, input.TextFieldProps{
 				Placeholder: placeholder,
 				Description: label,
-				Shaper:      shaper,
 				OnChange: func(_ layout.Context, txt string) {
 					cell.Store(txt)
 				},
@@ -138,7 +135,6 @@ func addSymbolModal(
 	submit := button.Button(th, button.Props{
 		Label:     "Save",
 		Clickable: &submitClick,
-		Shaper:    shaper,
 		OnClick: func(gtx layout.Context) {
 			sym := strings.TrimSpace(loadStr(&symCell))
 			exch := strings.TrimSpace(loadStr(&exchCell))
@@ -168,7 +164,6 @@ func addSymbolModal(
 	alertObs := alert.Alert(th, alert.Props{
 		Variant: alert.Error,
 		Title:   "Symbol is required",
-		Shaper:  shaper,
 	})
 
 	// Layer-boundary cells for the static modal/card slots.
@@ -229,10 +224,9 @@ func addSymbolModal(
 	}
 
 	modalObs := modal.Modal(th, modal.Props{
-		Open:   modalOpenObs,
-		Title:  "Symbol",
-		Body:   modalBody,
-		Shaper: shaper,
+		Open:  modalOpenObs,
+		Title: "Symbol",
+		Body:  modalBody,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseModal{}}.Add(gtx.Ops)
 		},
