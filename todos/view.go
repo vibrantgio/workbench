@@ -4,15 +4,13 @@ import (
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
 	"gioui.org/layout"
-	"gioui.org/text"
 
 	"github.com/reactivego/rx"
 
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/theme"
-	"github.com/vibrantgio/prism/tokens"
-	"github.com/vibrantgio/style"
+	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/spectrum/tokens"
 )
 
 // buildLayers returns the layer-builder the spectrum window renders: a
@@ -26,34 +24,35 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 	}
 }
 
-// themed pairs one theme emission with the palette derived from it. Each
-// LiveTheme emission is a static snapshot (every field is an rx.Of), so the
-// palette derives synchronously.
+// themed pairs one theme emission with the palette and typography derived
+// from it. Each LiveTheme emission is a static snapshot (every field is an
+// rx.Of), so both derive synchronously.
 type themed struct {
 	prism   theme.Theme
 	palette Palette
+	typ     Type
 }
 
 // ContentLayer renders the page: the latest theme snapshot combined with the
 // latest Model, mapped to a widget. This is the single modelObs consumer
 // counted by modelObsConsumers in main.go.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
-	shaper := text.NewShaper(text.WithCollection(style.FontFaces()))
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(t.Color, func(c tokens.ColorTokens) themed {
-			return themed{prism: t, palette: PaletteFrom(c)}
-		})
+		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
+			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
+				return themed{prism: t, palette: PaletteFrom(n.First), typ: TypeFrom(n.Second)}
+			})
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
 		func(next rx.Tuple2[themed, Model]) layout.Widget {
-			return View(shaper, next.First, next.Second)
+			return View(next.First, next.Second)
 		})
 }
 
 // View builds the page widget for one (theme, model) pair. Everything here
 // is reconstructed per emission; per-interaction state (the editor, the
 // clickables) lives inside the widgets for exactly one route's lifetime.
-func View(shaper *text.Shaper, th themed, model Model) layout.Widget {
+func View(th themed, model Model) layout.Widget {
 	thObs := rx.Of(th.prism)
 	p := th.palette
 
@@ -64,7 +63,7 @@ func View(shaper *text.Shaper, th themed, model Model) layout.Widget {
 	fab := Fab(add, 1.0, 1.0, 48, 48, true, func(gtx layout.Context) {
 		mvu.MessageOp{Message: SetRoute{Route: "add.todo"}}.Add(gtx.Ops)
 	})
-	list := List(shaper, thObs, p, model)
+	list := List(th.typ, thObs, p, model)
 
 	// The dialogs are constructed HERE, once per emission, and reused across
 	// frames: the editor's text and caret live inside the dialog closure, so
@@ -73,10 +72,10 @@ func View(shaper *text.Shaper, th themed, model Model) layout.Widget {
 	var dialog layout.Widget
 	switch route {
 	case "add.todo":
-		dialog = UpsertDialog(shaper, thObs, p, Todo{Id: -1})
+		dialog = UpsertDialog(th.typ, thObs, p, Todo{Id: -1})
 	case "edit.todo":
 		if selected, ok := model.List.Find(model.Selected); ok {
-			dialog = UpsertDialog(shaper, thObs, p, selected)
+			dialog = UpsertDialog(th.typ, thObs, p, selected)
 		} else {
 			// The edit target was deleted out from under the route;
 			// fall back to the list rather than editing a zero Todo.

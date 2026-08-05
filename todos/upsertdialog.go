@@ -7,24 +7,23 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/workbench/todos/internal/place"
 	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/prism/theme"
+	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/textdraw"
+	"github.com/vibrantgio/workbench/todos/internal/place"
 )
 
 // UpsertDialog is the modal used for both adding (item.Id == -1) and editing
 // a todo. It shows a single-line editor over a scrim; Escape cancels, Enter
 // or the Add/Save button submits. Submission emits AddTodo or UpdateTodo —
 // the reducer assigns new Ids — followed by SetRoute home.
-func UpsertDialog(shaper *text.Shaper, th rx.Observable[theme.Theme], p Palette, item Todo) layout.Widget {
+func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.Widget {
 	edit := widget.Editor{SingleLine: true, Submit: true, InputHint: key.HintText}
 	edit.SetText(item.Text)
 	edit.SetCaret(len(edit.Text()), len(edit.Text()))
@@ -42,8 +41,9 @@ func UpsertDialog(shaper *text.Shaper, th rx.Observable[theme.Theme], p Palette,
 		mvu.MessageOp{Message: SetRoute{}}.Add(gtx.Ops)
 	}
 
-	// Prism buttons fill the width they are given and are at least 44 dp
-	// tall, so each one is laid out inside a fixed-width box.
+	// Prism buttons fill the width they are given and stand at the theme
+	// density's control height (36 dp Comfortable), so each one is laid out
+	// inside a fixed-width box.
 	sized := func(w unit.Dp, widget layout.Widget) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = 0
@@ -113,7 +113,7 @@ func UpsertDialog(shaper *text.Shaper, th rx.Observable[theme.Theme], p Palette,
 
 				b := gtx.Dp(BorderWidth)
 				pad := gtx.Dp(Padding) / 2
-				t := textdraw.MeasureText(gtx, shaper, H5, "W").Y
+				t := textdraw.MeasureText(gtx, typ.Shaper, typ.Headline, "W").Y
 				r := gtx.Dp(BorderRadius)
 
 				// Bordered text-entry field: accent border, field fill.
@@ -134,16 +134,17 @@ func UpsertDialog(shaper *text.Shaper, th rx.Observable[theme.Theme], p Palette,
 				}
 
 				if edit.Text() == "" {
-					textdraw.FillText(gtx, shaper, H6, rect, 0.0, 0.5, p.Select, "What needs to be done?")
+					textdraw.FillText(gtx, typ.Shaper, typ.Title, rect, 0.0, 0.5, p.Select, "What needs to be done?")
 				}
 				func(gtx layout.Context) {
 					defer op.Offset(rect.Min).Push(gtx.Ops).Pop()
 					gtx.Constraints = layout.Exact(rect.Size())
-					edit.Layout(gtx, shaper, H5.Font, H5.Size, textMaterial, selectMaterial)
+					edit.Layout(gtx, typ.Shaper, typ.Headline.Font, typ.Headline.Size, textMaterial, selectMaterial)
 				}(gtx)
 
 				// Cancel / submit row along the dialog's bottom edge, tall
-				// enough for the 44 dp button height.
+				// enough for the buttons' 44 dp pointer target around the
+				// 36 dp Comfortable control height.
 				rect = image.Rect(0, max.Y-gtx.Dp(48), max.X, max.Y)
 				cs := op.Offset(rect.Min).Push(gtx.Ops)
 				gtx.Constraints = layout.Exact(rect.Size())

@@ -12,7 +12,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/noise"
-	"github.com/vibrantgio/prism/tokens"
+	"github.com/vibrantgio/spectrum/tokens"
 
 	"github.com/vibrantgio/seen"
 	seencolor "github.com/vibrantgio/seen/color"
