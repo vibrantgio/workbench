@@ -14,6 +14,7 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"testing"
@@ -61,10 +62,13 @@ func awaitStableWidget(t *testing.T, emissions <-chan layout.Widget, what string
 	}
 }
 
-// regionDiff counts differing pixels between a and b inside r.
+// regionDiff counts differing pixels between a and b inside r. a and b must
+// have equal bounds; it panics if they do not, for the reason given on
+// pixelDiff.
 func regionDiff(a, b *image.RGBA, r image.Rectangle) int {
 	if a.Bounds() != b.Bounds() {
-		return -1
+		panic(fmt.Sprintf("regionDiff: images must have equal bounds, got %v and %v",
+			a.Bounds(), b.Bounds()))
 	}
 	r = r.Intersect(a.Bounds())
 	n := 0

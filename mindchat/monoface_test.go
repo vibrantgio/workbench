@@ -6,6 +6,7 @@ package main
 // MD3 aliases or stale literals.
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"testing"
@@ -202,9 +203,19 @@ func captureRGBA(t *testing.T, size image.Point, draw layout.Widget) *image.RGBA
 	return img
 }
 
+// pixelDiff counts the pixels that differ between a and b, which must have equal
+// bounds. It panics if they do not.
+//
+// The panic replaces a returned -1. There is no pixel count to report for two
+// images of different shapes, and -1 read as "no difference" to every `n > 0`
+// test — which is how a golden whose size had moved compared as a pass, here
+// and across the whole organization. A caller for which a size change is a
+// real outcome rather than a defect — the stored-golden comparison, and only
+// it — must compare Bounds itself before calling.
 func pixelDiff(a, b *image.RGBA) int {
 	if a.Bounds() != b.Bounds() {
-		return -1
+		panic(fmt.Sprintf("pixelDiff: images must have equal bounds, got %v and %v",
+			a.Bounds(), b.Bounds()))
 	}
 	bounds := a.Bounds()
 	n := 0

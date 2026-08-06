@@ -21,6 +21,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -270,17 +271,31 @@ func renderGolden(t *testing.T, name string, size image.Point, draw layout.Widge
 		t.Skipf("%s not found; run go test -golden.update to create (err=%v)", path, err)
 		return
 	}
-	// n != 0 (not n > 0): pixelDiff returns -1 on a bounds mismatch, which a
-	// >0 check would pass silently — a size change must fail too.
+	// A size change is a failure in its own right, and it has to be caught
+	// here: once the bounds differ there is no pixel count to compare, and
+	// pixelDiff refuses to invent one.
+	if sb, ib := stored.Bounds(), img.Bounds(); sb != ib {
+		t.Fatalf("golden %s: size changed: golden is %dx%d, render is %dx%d; run go test -golden.update to refresh",
+			name, sb.Dx(), sb.Dy(), ib.Dx(), ib.Dy())
+	}
 	if n := pixelDiff(stored, img); n != 0 {
 		t.Errorf("golden %s differs in %d pixels; run go test -golden.update to refresh", name, n)
 	}
 }
 
-// pixelDiff counts differing pixels across the whole image (0 when identical).
+// pixelDiff counts the pixels that differ between a and b, which must have equal
+// bounds. It panics if they do not.
+//
+// The panic replaces a returned -1. There is no pixel count to report for two
+// images of different shapes, and -1 read as "no difference" to every `n > 0`
+// test — which is how a golden whose size had moved compared as a pass, here
+// and across the whole organization. A caller for which a size change is a
+// real outcome rather than a defect — the stored-golden comparison, and only
+// it — must compare Bounds itself before calling.
 func pixelDiff(a, b *image.RGBA) int {
 	if a.Bounds() != b.Bounds() {
-		return -1
+		panic(fmt.Sprintf("pixelDiff: images must have equal bounds, got %v and %v",
+			a.Bounds(), b.Bounds()))
 	}
 	n := 0
 	for i := 0; i < len(a.Pix); i += 4 {
