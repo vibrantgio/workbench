@@ -100,7 +100,7 @@ func staticSymbolModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layou
 // TestSymbolModalGolden renders the add/edit modal (open, with the alert banner
 // and all four fields) in light and dark token sets.
 func TestSymbolModalGolden(t *testing.T) {
-	shaper := tokens.DefaultTypography.Shaper()
+	shaper := tokens.DefaultTypography.DeterministicShaper()
 	cases := []struct {
 		name   string
 		colors tokens.ColorTokens

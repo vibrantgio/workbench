@@ -46,7 +46,7 @@ import (
 func TestChatCodeShapesInMonoFace(t *testing.T) {
 	typ := tokens.DefaultTypography
 	style := messageMarkdownStyle(tokens.DefaultLight, typ)
-	shaper := typ.Shaper()
+	shaper := typ.DeterministicShaper()
 
 	// 1. The style resolves the theme's Code role.
 	if got, want := string(style.Mono), typ.Code.Typeface; got != want {
@@ -162,7 +162,7 @@ func testThemed(t *testing.T, md markdown.Style) themed {
 	if err != nil {
 		t.Fatalf("avatar widget: %v", err)
 	}
-	return themed{palette: p, avatar: avatar, md: md, typ: typ, shaper: typ.Shaper()}
+	return themed{palette: p, avatar: avatar, md: md, typ: typ, shaper: typ.DeterministicShaper()}
 }
 
 // chatScene renders one assistant message row — parsed through the app's

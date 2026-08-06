@@ -51,7 +51,7 @@ var (
 // "Popular" border, testimonial card chrome) drive the visual difference.
 // The runtime path in homeShellLayer uses landing_content.go for real copy.
 func TestLandingGolden(t *testing.T) {
-	shaper := tokens.DefaultTypography.Shaper()
+	shaper := tokens.DefaultTypography.DeterministicShaper()
 	lightBG := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 	darkBG := color.NRGBA{R: 20, G: 20, B: 20, A: 255}
 
@@ -79,7 +79,7 @@ func TestLandingGolden(t *testing.T) {
 // TestLandingLightDarkDiffer confirms swapping the colour token set
 // changes the rendered output of the home page composition.
 func TestLandingLightDarkDiffer(t *testing.T) {
-	shaper := tokens.DefaultTypography.Shaper()
+	shaper := tokens.DefaultTypography.DeterministicShaper()
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 
 	hp := structuralHeroProps(shaper)

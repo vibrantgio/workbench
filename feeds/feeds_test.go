@@ -818,10 +818,11 @@ func staticArticleColumns(shaper *text.Shaper, colors tokens.ColorTokens, body t
 // TestArticlesTableGolden renders the first page of the hn feed with
 // Published-desc sort in both light and dark token sets. Sharp radii and
 // the static Render path keep the output deterministic — only colour
-// pairs distinguish the two goldens. The shaper is the theme's
-// (tokens.DefaultTypography.Shaper() — Roboto), not an app-built one (F1.2).
+// pairs distinguish the two goldens. The shaper is the theme's, pinned —
+// tokens.DefaultTypography.DeterministicShaper(), Roboto and nothing else —
+// not an app-built one (F1.2) and not the system-fallback default (F4.3).
 func TestArticlesTableGolden(t *testing.T) {
-	shaper := tokens.DefaultTypography.Shaper()
+	shaper := tokens.DefaultTypography.DeterministicShaper()
 	all := hardCodedArticles()
 	rows := filterAndSortArticles(all, "hn", "", table.Sort{Column: colPublished, Asc: false})
 	rows = pageSlice(rows, 1, articlesPageSize)
@@ -848,7 +849,7 @@ func TestArticlesTableGolden(t *testing.T) {
 // produces a pixel-distinguishable render. Guards against a regression
 // in which the table ignores its colour inputs.
 func TestArticlesTableLightDarkDiffer(t *testing.T) {
-	shaper := tokens.DefaultTypography.Shaper()
+	shaper := tokens.DefaultTypography.DeterministicShaper()
 	all := hardCodedArticles()
 	rows := filterAndSortArticles(all, "hn", "", table.Sort{Column: colPublished, Asc: false})
 	rows = pageSlice(rows, 1, articlesPageSize)

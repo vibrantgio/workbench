@@ -38,16 +38,33 @@ root module to run it from:
 
     go build ./... && go test ./...
 
-**Golden images.** Tests in two module directories — `feeds/` and
-`sitedocs/` — compare rendered output against PNGs committed under
-`testdata/golden/`. When a change legitimately moves pixels, regenerate
-them within the same change, look at what came out, and say so in the
-commit. From inside the directory concerned:
+**Golden images.** Tests in three module directories compare rendered output
+against committed PNGs: `feeds/` and `sitedocs/` under `testdata/golden/`,
+and `watchlist/` under `testdata/` directly — it is the one module that does
+not follow the convention, so a sweep keyed on the `golden/` path silently
+misses it. `mindchat/` has pixel tests too, but they diff two renders in
+memory rather than storing an image. When a change legitimately moves pixels,
+regenerate them within the same change, look at what came out, and say so in
+the commit. From inside the directory concerned:
 
     go test . -golden.update
 
 The flag comes last on purpose: `go test` cannot tell that an unfamiliar
 flag is boolean, so anything after it stops being a package argument.
+
+**A golden test pins its faces; application code does not.** Every golden and
+pixel test here builds its shaper with
+`tokens.DefaultTypography.DeterministicShaper()` — the default typography's
+faces and nothing else, system fonts off, so the stored PNGs are the same on
+every machine. Applications call `Shaper()` instead, which falls back to the
+platform's own fonts so that text outside Roboto and Roboto Mono still
+resolves. The two are not interchangeable: a golden written against
+`Shaper()` passes on the machine that wrote it and fails on one with a
+different font set, which is the failure the split constructor exists to make
+impossible. When a test genuinely needs a glyph the default faces lack, widen
+the collection rather than reach for the system —
+`tokens.DefaultTypography.WithFaces(notosansmono.FontFace()).DeterministicShaper()`
+— and assert the shaper resolved the rune rather than storing it as pixels.
 
 **The `.gitignore` denies everything by default.** Its first line is `*`, and
 what follows re-admits exactly: Markdown at any level, `LICENSE`, `llms.txt`,

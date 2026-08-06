@@ -97,7 +97,7 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layo
 // TestAddFeedModalGolden renders the Add-feed modal (open, with the alert
 // banner) in light and dark token sets.
 func TestAddFeedModalGolden(t *testing.T) {
-	shaper := tokens.DefaultTypography.Shaper()
+	shaper := tokens.DefaultTypography.DeterministicShaper()
 	cases := []struct {
 		name   string
 		colors tokens.ColorTokens

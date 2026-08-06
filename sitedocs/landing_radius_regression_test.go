@@ -29,7 +29,7 @@ import (
 // pixel must be the canvas background (Surface). Without the clamp it
 // renders Primary.
 func TestPricingHighlightedTierDoesNotFloodCanvas(t *testing.T) {
-	shaper := tokens.DefaultTypography.Shaper()
+	shaper := tokens.DefaultTypography.DeterministicShaper()
 	size := image.Pt(400, 500)
 	colors := tokens.DefaultDark
 	bg := colors.Surface
@@ -73,7 +73,7 @@ func TestPricingHighlightedTierDoesNotFloodCanvas(t *testing.T) {
 // Pre-fix: a pixel well below the eyebrow band paints as
 // tintColor(Primary, Surface) instead of Surface. Post-fix: Surface.
 func TestHeroEyebrowDoesNotFloodCanvas(t *testing.T) {
-	shaper := tokens.DefaultTypography.Shaper()
+	shaper := tokens.DefaultTypography.DeterministicShaper()
 	size := image.Pt(400, 600)
 	colors := tokens.DefaultDark
 	bg := colors.Surface

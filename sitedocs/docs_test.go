@@ -111,7 +111,7 @@ func TestDocsSidebarConstructs(t *testing.T) {
 // deterministic on a given text stack and the code blocks capture the
 // mono face (F0.2).
 func TestDocsPageGolden(t *testing.T) {
-	shaper := tokens.DefaultTypography.Shaper()
+	shaper := tokens.DefaultTypography.DeterministicShaper()
 	lightBG := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 	darkBG := color.NRGBA{R: 20, G: 20, B: 20, A: 255}
 
@@ -140,7 +140,7 @@ func TestDocsPageGolden(t *testing.T) {
 // changes the rendered output of a docs page. The Getting-started page
 // is used as the representative case.
 func TestDocsPageLightDarkDiffer(t *testing.T) {
-	shaper := tokens.DefaultTypography.Shaper()
+	shaper := tokens.DefaultTypography.DeterministicShaper()
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 	def := docsPageByID(t, pagePrismGettingStarted)
 
@@ -179,7 +179,7 @@ func TestDocsPageLightDarkDiffer(t *testing.T) {
 func TestDocsCodeShapesInMonoFace(t *testing.T) {
 	typ := tokens.DefaultTypography
 	style := docsMarkdownStyle(tokens.DefaultLight, typ)
-	shaper := typ.Shaper()
+	shaper := typ.DeterministicShaper()
 
 	// 1. The style resolves the theme's Code role.
 	if got, want := string(style.Mono), typ.Code.Typeface; got != want {
