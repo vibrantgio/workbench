@@ -125,6 +125,8 @@ const (
 	RailThresholdWidth unit.Dp = 110
 	StreamDotSize      unit.Dp = 7
 	StreamDotSlot      unit.Dp = 15
+	WaitingDotGap      unit.Dp = 6
+	WaitingDotCount            = 3
 	RenameFieldHeight  unit.Dp = 48
 	RenameButtonHeight unit.Dp = 44
 	RenameButtonWidth  unit.Dp = 100

@@ -20,14 +20,30 @@ func Init() (Model, mvu.Command) {
 	// OPENAI_API_KEY is optional now that providers are configured in the
 	// settings modal; when present it seeds the first provider (see the
 	// Config reduction).
-	authtoken := os.Getenv("OPENAI_API_KEY")
+	return InitIn(datadir, os.Getenv("OPENAI_API_KEY"))
+}
+
+// InitIn is Init's whole body once the data directory is resolved: the seed
+// Model and the startup command sequence, for an arbitrary directory. Init
+// takes the OS one; a test takes an empty one, which is what a fresh install
+// actually is — no chats/, no config.json, nothing.
+func InitIn(datadir, authtoken string) (Model, mvu.Command) {
 	model := Model{DataDir: datadir, AuthToken: authtoken}
 	return model, mvu.DoSequence(
+		// Nothing else creates chats/, and everything below reads or writes
+		// through it, so it is made before the first of them runs.
+		EnsureChatDir(model.ChatDir()).Trace("Ensure Chat Dir"),
 		// Deletes not undone before the previous quit come back first, so
 		// the migration sweep and the chat list load see them.
 		RestoreTrash(model.TrashDir(), model.ChatDir()).Trace("Restore Trash"),
 		// Pre-JSONL chat files convert once, before anything reads them.
 		MigrateChats(model.ChatDir()).Trace("Migrate Chats"),
-		LoadConfig(model.ConfigFile(), Config{LastChat: "monoid.jsonl"}).Trace("Load Config"),
+		// The fallback config is what a fresh install gets, so it names no
+		// last chat: there are none. It used to name "monoid.jsonl", a file
+		// that exists on one developer's machine, and Load History then
+		// failed on every genuinely first run — the same directory defect
+		// one level up, and the reason the Config reduction's empty-LastChat
+		// branch was unreachable on the path that most needs it.
+		LoadConfig(model.ConfigFile(), Config{}).Trace("Load Config"),
 	)
 }

@@ -463,6 +463,21 @@ func MigrateChats(chatdir string) mvu.Command {
 	})
 }
 
+// EnsureChatDir creates the chat directory (and the data directory above it,
+// on a machine where even that is new). It runs first in the startup
+// sequence, because nothing else in the application creates it and every
+// other command goes through it: Load Chat List reads it, Load History reads
+// a file inside it, and Append Prompt — the command that stands between the
+// composer accepting a first-time user's message and that message existing
+// anywhere — writes one. Before this existed, all three failed with
+// "no such file or directory" on a fresh install and the first message was
+// lost silently. An existing directory is left exactly as it is.
+func EnsureChatDir(chatdir string) mvu.Command {
+	return mvu.Do(func() (mvu.Message, error) {
+		return nil, os.MkdirAll(chatdir, 0o755)
+	})
+}
+
 // TrashHist moves a chat's history file into the trash directory, where it
 // stays undoable. It emits no message; the model was already reduced.
 func TrashHist(filename, trashname string) mvu.Command {

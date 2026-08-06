@@ -6,13 +6,16 @@ type LoadState struct{}
 
 // Message roles. User and assistant rows round-trip through the history
 // file and the wire; error rows are persisted notices of a failed exchange;
-// status rows are transient (the "Searching the web…" indicator the view
-// appends while a stream's server-side tool runs) and never persisted.
+// status and pending rows are transient (the "Searching the web…" indicator
+// the view appends while a stream's server-side tool runs, and the waiting
+// indicator it appends between the request going out and the first token
+// coming back) and never persisted.
 const (
 	RoleUser      = "user"
 	RoleAssistant = "assistant"
 	RoleError     = "error"
 	RoleStatus    = "status"
+	RolePending   = "pending"
 )
 
 // Citation is one source an assistant answer referenced — a url_citation

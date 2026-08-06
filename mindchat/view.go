@@ -37,7 +37,6 @@ import (
 	"github.com/vibrantgio/prism/list"
 	"github.com/vibrantgio/prism/scrollbar"
 	"github.com/vibrantgio/pulse/depth"
-	"github.com/vibrantgio/spectrum/a11y"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
 	"github.com/vibrantgio/spectrum/typeset"
@@ -78,9 +77,15 @@ type themed struct {
 	// Roboto Mono for code) come from the theme (G-F1).
 	typ    tokens.Typography
 	shaper *text.Shaper
-	// reduceMotion mirrors the OS accessibility preference; the streaming
-	// dot renders static when it is set (llms.txt rule 5).
-	reduceMotion bool
+	// motion is the theme's duration scale, and it is the app's ONLY
+	// reduce-motion signal. The theme already composes the OS preference
+	// (E3.2): while Reduce Motion is on, LiveTheme emits
+	// tokens.Motion.Reduced(), whose every stop is zero — so a zero stop
+	// means "do not animate", exactly as tokens/motion.go documents, and the
+	// waiting indicator and the streaming dot both render static. Reading
+	// spectrum/a11y here as well would be a second path to the same
+	// preference, and a second poller.
+	motion tokens.MotionScale
 }
 
 // Chroma styles for the two appearance modes; built once, shared by every
@@ -137,9 +142,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		SubmitMessage: func(text string) any { return Prompt{Content: text} },
 	})
 
-	colorThemes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest2(t.Color, t.Typography), func(ct rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
-			c, typ := ct.First, ct.Second
+	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
+		return rx.Map(rx.CombineLatest3(t.Color, t.Typography, t.Motion), func(ct rx.Tuple3[tokens.ColorTokens, tokens.Typography, tokens.MotionScale]) themed {
+			c, typ, motion := ct.First, ct.Second, ct.Third
 			p := PaletteFrom(c)
 			avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
 			if err != nil {
@@ -162,15 +167,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				panic(err)
 			}
 			md := messageMarkdownStyle(c, typ)
-			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper()}
+			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper(), motion: motion}
 		})
 	})
-	themes := rx.Map(rx.CombineLatest2(colorThemes, a11y.Live(time.Second)),
-		func(next rx.Tuple2[themed, a11y.A11yPrefs]) themed {
-			t := next.First
-			t.reduceMotion = next.Second.ReduceMotion
-			return t
-		})
 
 	var newChatClick, settingsClick, toggleClick, undoClick widget.Clickable
 
@@ -203,17 +202,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			for _, s := range model.Streams {
 				streaming[s.Chat] = true
 			}
-			// While the current chat's exchange runs a server-side tool,
-			// its status shows as a transient row under the history.
-			history := model.CurrentChat.History
-			if id, ok := model.StreamFor(model.CurrentChat.Name); ok {
-				if status := model.Streams[id].Status; status != "" {
-					history = append(slices.Clone(history), Message{Role: RoleStatus, Content: status})
-				}
-			}
 			return parts{
 				sidebar: Sidebar(t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick, &toggleClick, &settingsClick),
-				main:    ChatPane(t, msgDocs.Rows(history), histList, promptW, menuSlot),
+				main:    ChatPane(t, msgDocs.Rows(visibleHistory(model)), histList, promptW, menuSlot),
 				undo:    UndoBar(t, model.Pending, &undoClick),
 			}
 		})
@@ -288,6 +279,38 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				return dims
 			}
 		})
+}
+
+// visibleHistory is what the chat pane draws: the current chat's own history
+// plus the two transient rows its in-flight exchange adds under it. Neither
+// is persisted, and neither exists for a chat whose stream is not the current
+// one — model.StreamFor is the whole test.
+//
+// The status row reports a server-side tool ("Searching the web…") while one
+// runs. The pending row covers the gap between the request going out and the
+// first token coming back: it appears as soon as the stream is registered and
+// stands down the instant the first AssistantDelta opens the assistant row —
+// which is the one condition below, since a delta is the only thing that puts
+// an assistant row last. Before it existed that gap drew nothing at all, over
+// four seconds of it against a reasoning model, and an inert pane reads as a
+// hung application rather than a working one.
+func visibleHistory(model Model) []Message {
+	id, streaming := model.StreamFor(model.CurrentChat.Name)
+	if !streaming {
+		return model.CurrentChat.History
+	}
+	own := model.CurrentChat.History
+	history := slices.Clone(own)
+	if status := model.Streams[id].Status; status != "" {
+		history = append(history, Message{Role: RoleStatus, Content: status})
+	}
+	// Tested against the chat's OWN last row, not the appended status row:
+	// a tool running after the answer has started must not resurrect the
+	// waiting indicator.
+	if n := len(own); n == 0 || own[n-1].Role != RoleAssistant {
+		history = append(history, Message{Role: RolePending})
+	}
+	return history
 }
 
 // renameTarget keys the rebuild of the rename modal's uncontrolled text
@@ -490,7 +513,10 @@ func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 		gtx.Constraints.Max.X -= margin
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		var dims layout.Dimensions
-		if row.Doc != nil {
+		if msg.Role == RolePending {
+			dims = WaitingDots(gtx, t)
+			dims.Size.X = gtx.Constraints.Max.X
+		} else if row.Doc != nil {
 			md := t.md
 			md.Text.Color = textColor
 			if isUser {
@@ -925,22 +951,80 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 	})
 }
 
-// StreamDot draws the in-flight-completion indicator: an accent dot,
-// centred in its slot, gently pulsing. Animation follows llms.txt rule 5 —
-// it self-schedules the next frame only while visible, and renders static
-// when the OS asks for reduced motion.
+// motionPhase returns where the frame's instant sits in a cycle of the given
+// length, as a fraction in [0,1), with lead shifting this caller ahead of the
+// others sharing the cycle.
+//
+// A cycle of zero reports ok=false, and that is how both indicators honour
+// reduce-motion: the theme emits tokens.Motion.Reduced() while the preference
+// is on, every stop zero, so a cycle derived from a stop is zero too — no
+// phase, nothing to animate, and no frame to schedule (llms.txt rule 5).
+func motionPhase(now time.Time, cycle, lead time.Duration) (float64, bool) {
+	if cycle <= 0 {
+		return 0, false
+	}
+	off := (now.UnixNano() - int64(lead)) % int64(cycle)
+	if off < 0 {
+		off += int64(cycle)
+	}
+	return float64(off) / float64(cycle), true
+}
+
+// dotPulse is the alpha curve both in-flight indicators pulse on: a sine over
+// the phase, floored at 45% of the colour's own alpha so a dot fades but
+// never vanishes.
+func dotPulse(alpha uint8, phase float64) uint8 {
+	return uint8(float64(alpha) * (0.45 + 0.55*(0.5+0.5*math.Sin(2*math.Pi*phase))))
+}
+
+// StreamDot draws the sidebar's in-flight-completion indicator: an accent
+// dot, centred in its slot, gently pulsing over two of the theme's slowest
+// duration stops. Animation follows llms.txt rule 5 — it self-schedules the
+// next frame only while visible, and renders static (a plain accent dot) when
+// the theme's motion scale is the reduced one.
 func StreamDot(gtx layout.Context, t themed, slot image.Point) {
 	c := t.palette.Accent
-	if !t.reduceMotion {
-		const period = 1200
-		phase := float64(gtx.Now.UnixMilli()%period) / period
-		pulse := 0.45 + 0.55*(0.5+0.5*math.Sin(2*math.Pi*phase))
-		c.A = uint8(float64(c.A) * pulse)
+	if phase, animate := motionPhase(gtx.Now, 2*t.motion.DurXSlow, 0); animate {
+		c.A = dotPulse(c.A, phase)
 		gtx.Execute(op.InvalidateCmd{})
 	}
 	d := gtx.Dp(StreamDotSize)
 	defer op.Offset(image.Pt((slot.X-d)/2, (slot.Y-d)/2)).Push(gtx.Ops).Pop()
 	paint.FillShape(gtx.Ops, c, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+}
+
+// WaitingDots draws the chat pane's waiting indicator: three accent dots in
+// the assistant bubble, pulsing in a wave that travels across them — the
+// cycle is one DurXSlow stop per dot and each dot leads the next by one stop.
+// It occupies exactly the body line box, so the row does not change height
+// when the first delta replaces it with the answer.
+//
+// Under reduce-motion the theme's stops are zero, so the three dots draw once,
+// solid and still, and no further frame is requested. The user still learns
+// that the request is in flight; nothing moves.
+func WaitingDots(gtx layout.Context, t themed) layout.Dimensions {
+	st := t.typ.BodyLarge
+	height := gtx.Sp(unit.Sp(st.LineHeight))
+	if height <= 0 {
+		height = gtx.Sp(unit.Sp(st.Size))
+	}
+	d, gap := gtx.Dp(StreamDotSize), gtx.Dp(WaitingDotGap)
+	cycle := WaitingDotCount * t.motion.DurXSlow
+	animate := false
+	for i := range WaitingDotCount {
+		c := t.palette.Accent
+		if phase, ok := motionPhase(gtx.Now, cycle, time.Duration(i)*t.motion.DurXSlow); ok {
+			c.A = dotPulse(c.A, phase)
+			animate = true
+		}
+		stack := op.Offset(image.Pt(i*(d+gap), (height-d)/2)).Push(gtx.Ops)
+		paint.FillShape(gtx.Ops, c, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+		stack.Pop()
+	}
+	if animate {
+		gtx.Execute(op.InvalidateCmd{})
+	}
+	return layout.Dimensions{Size: image.Pt(WaitingDotCount*d+(WaitingDotCount-1)*gap, height)}
 }
 
 var ChatGPT = func() []byte {
