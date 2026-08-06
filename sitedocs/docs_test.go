@@ -129,7 +129,7 @@ func TestDocsPageGolden(t *testing.T) {
 		for _, tc := range themeCases {
 			name := tc.name + "-" + id
 			t.Run(name, func(t *testing.T) {
-				w := renderDocsPage(shaper, def, tc.colors, tokens.Spacing, tokens.DefaultTypeScale)
+				w := renderDocsPage(shaper, def, tc.colors, tokens.Spacing, tokens.DefaultTypography)
 				renderGolden(t, "docs-"+name, docsCanvasSize, scene(w, tc.bg))
 			})
 		}
@@ -144,8 +144,8 @@ func TestDocsPageLightDarkDiffer(t *testing.T) {
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 	def := docsPageByID(t, pagePrismGettingStarted)
 
-	light := renderDocsPage(shaper, def, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypeScale)
-	dark := renderDocsPage(shaper, def, tokens.DefaultDark, tokens.Spacing, tokens.DefaultTypeScale)
+	light := renderDocsPage(shaper, def, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography)
+	dark := renderDocsPage(shaper, def, tokens.DefaultDark, tokens.Spacing, tokens.DefaultTypography)
 	a := capture(t, docsCanvasSize, scene(light, bg))
 	b := capture(t, docsCanvasSize, scene(dark, bg))
 	if a == nil || b == nil {
@@ -178,7 +178,7 @@ func TestDocsPageLightDarkDiffer(t *testing.T) {
 //     the mono face visibly reaches the composed page.
 func TestDocsCodeShapesInMonoFace(t *testing.T) {
 	typ := tokens.DefaultTypography
-	style := docsMarkdownStyle(tokens.DefaultLight, tokens.DefaultTypeScale, typ)
+	style := docsMarkdownStyle(tokens.DefaultLight, typ)
 	shaper := typ.Shaper()
 
 	// 1. The style resolves the theme's Code role.

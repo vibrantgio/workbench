@@ -60,7 +60,7 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layo
 		y := 0
 
 		al := alert.Render(shaper, alert.Props{Variant: alert.Error, Title: "Feed URL required"},
-			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypeScale)
+			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.TitleMedium)
 		s := op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		ag := gtx
 		ag.Constraints = layout.Exact(image.Pt(w, alertH))
@@ -69,7 +69,8 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layo
 		y += alertH + gap
 
 		fld := input.Render(shaper, "https://example.com/feed.xml",
-			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypeScale, input.RenderState{})
+			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.BodyLarge,
+			tokens.Comfortable, input.RenderState{})
 		s = op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		fg := gtx
 		fg.Constraints = layout.Exact(image.Pt(w, fieldH))
@@ -78,7 +79,7 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layo
 		y += fieldH + gap
 
 		btn := button.Render(shaper, "Add", colors, tokens.Spacing, modalSharpRadius,
-			tokens.DefaultTypeScale, button.RenderState{})
+			tokens.DefaultTypography.LabelLarge, tokens.Comfortable, button.RenderState{})
 		s = op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		bg := gtx
 		bg.Constraints = layout.Exact(image.Pt(w, btnH))
@@ -109,7 +110,8 @@ func TestAddFeedModalGolden(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			body := staticAddFeedModalBody(shaper, tc.colors)
 			m := modal.Render(shaper, modal.Props{Title: "Add feed", Body: body, Shaper: shaper},
-				true, tc.colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypeScale)
+				true, tc.colors, tokens.Spacing, modalSharpRadius,
+				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
 			renderGolden(t, tc.name, image.Pt(modalCanvasW, modalCanvasH), scene(m, tc.bg))
 		})
 	}

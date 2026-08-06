@@ -44,7 +44,7 @@ import (
 //     Roboto — the mono face visibly reaches the composed row.
 func TestChatCodeShapesInMonoFace(t *testing.T) {
 	typ := tokens.DefaultTypography
-	style := messageMarkdownStyle(tokens.DefaultLight, tokens.DefaultTypeScale, typ)
+	style := messageMarkdownStyle(tokens.DefaultLight, typ)
 	shaper := typ.Shaper()
 
 	// 1. The style resolves the theme's Code role.
@@ -142,7 +142,7 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 			if got := isDarkColor(c.Background); got != tc.dark {
 				t.Errorf("isDarkColor(Background) = %v, want %v — the chroma style would follow the wrong appearance", got, tc.dark)
 			}
-			md := messageMarkdownStyle(c, tokens.DefaultTypeScale, tokens.DefaultTypography)
+			md := messageMarkdownStyle(c, tokens.DefaultTypography)
 			if md.Highlight == nil {
 				t.Error("messageMarkdownStyle left Highlight nil; chroma highlighting is the app's opt-in")
 			}

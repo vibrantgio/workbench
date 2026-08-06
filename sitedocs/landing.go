@@ -90,6 +90,11 @@ func footerSection(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // renderLanding composes the four patterns' Render() forms vertically with
 // sectionGapDp gaps. No scroll, no event handling — intended for the
 // golden test and static demonstrations. The runtime path is homeShellLayer.
+//
+// All four sections spend several type roles apiece, so each takes the whole
+// Typography rather than a single style; hero and pricing size controls, so
+// they also take the Density. Pass tokens.DefaultTypography and
+// tokens.Comfortable for the default desktop look.
 func renderLanding(
 	shaper *text.Shaper,
 	hp hero.Props,
@@ -99,13 +104,14 @@ func renderLanding(
 	colors tokens.ColorTokens,
 	sp tokens.SpacingScale,
 	rad tokens.RadiusScale,
-	ts tokens.TypeScale,
+	typo tokens.Typography,
+	d tokens.Density,
 ) layout.Widget {
 	sections := []layout.Widget{
-		hero.Render(shaper, hp, colors, sp, rad, ts),
-		feature.Render(shaper, fp, colors, sp, ts),
-		pricing.Render(shaper, pp, colors, sp, rad, ts),
-		testimonial.Render(shaper, tp, colors, sp, rad, ts),
+		hero.Render(shaper, hp, colors, sp, rad, typo, d),
+		feature.Render(shaper, fp, colors, sp, typo),
+		pricing.Render(shaper, pp, colors, sp, rad, typo, d),
+		testimonial.Render(shaper, tp, colors, sp, rad, typo),
 	}
 	gap := pllayout.VSpacer(sectionGapDp)
 	return func(gtx layout.Context) layout.Dimensions {

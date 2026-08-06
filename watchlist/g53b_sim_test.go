@@ -80,13 +80,13 @@ func staticSymbolModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layou
 		}
 
 		place(alert.Render(shaper, alert.Props{Variant: alert.Error, Title: "Symbol is required"},
-			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypeScale), alertH)
+			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.TitleMedium), alertH)
 		for _, ph := range []string{"BTC/USD", "Coinbase", "1h", "Notes"} {
 			place(input.Render(shaper, ph, colors, tokens.Spacing, modalSharpRadius,
-				tokens.DefaultTypeScale, input.RenderState{}), fieldH)
+				tokens.DefaultTypography.BodyLarge, tokens.Comfortable, input.RenderState{}), fieldH)
 		}
 		place(button.Render(shaper, "Save", colors, tokens.Spacing, modalSharpRadius,
-			tokens.DefaultTypeScale, button.RenderState{}), btnH)
+			tokens.DefaultTypography.LabelLarge, tokens.Comfortable, button.RenderState{}), btnH)
 		y -= gap
 		return layout.Dimensions{Size: image.Pt(w, y)}
 	}
@@ -112,7 +112,8 @@ func TestSymbolModalGolden(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			body := staticSymbolModalBody(shaper, tc.colors)
 			m := modal.Render(shaper, modal.Props{Title: "Symbol", Body: body, Shaper: shaper},
-				true, tc.colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypeScale)
+				true, tc.colors, tokens.Spacing, modalSharpRadius,
+				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
 			renderGolden(t, tc.name, image.Pt(modalCanvasW, modalCanvasH), scene(m, tc.bg))
 		})
 	}

@@ -69,7 +69,7 @@ func TestLandingGolden(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			w := renderLanding(shaper, hp, fp, pp, tp, tc.colors, tokens.Spacing, sharpRadius, tokens.DefaultTypeScale)
+			w := renderLanding(shaper, hp, fp, pp, tp, tc.colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
 			renderGolden(t, tc.name, landingCanvasSize, scene(w, tc.bg))
 		})
 	}
@@ -86,8 +86,8 @@ func TestLandingLightDarkDiffer(t *testing.T) {
 	pp := structuralPricingProps(shaper)
 	tp := structuralTestimonialProps(shaper)
 
-	light := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultLight, tokens.Spacing, sharpRadius, tokens.DefaultTypeScale)
-	dark := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultDark, tokens.Spacing, sharpRadius, tokens.DefaultTypeScale)
+	light := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultLight, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
+	dark := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultDark, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
 	a := capture(t, landingCanvasSize, scene(light, bg))
 	b := capture(t, landingCanvasSize, scene(dark, bg))
 	if a == nil || b == nil {

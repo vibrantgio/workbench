@@ -47,7 +47,7 @@ func TestPricingHighlightedTierDoesNotFloodCanvas(t *testing.T) {
 	}
 
 	single := pricing.Props{Shaper: shaper, Tiers: []pricing.Tier{pro}}
-	w := pricing.Render(shaper, single, colors, tokens.Spacing, tokens.Radius, tokens.DefaultTypeScale)
+	w := pricing.Render(shaper, single, colors, tokens.Spacing, tokens.Radius, tokens.DefaultTypography, tokens.Comfortable)
 
 	img := renderToImage(t, size, func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
@@ -79,7 +79,7 @@ func TestHeroEyebrowDoesNotFloodCanvas(t *testing.T) {
 	bg := colors.Surface
 
 	hp := heroContent(func(_ layout.Context) {}, func(_ layout.Context) {})
-	w := hero.Render(shaper, hp, colors, tokens.Spacing, tokens.Radius, tokens.DefaultTypeScale)
+	w := hero.Render(shaper, hp, colors, tokens.Spacing, tokens.Radius, tokens.DefaultTypography, tokens.Comfortable)
 
 	img := renderToImage(t, size, func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, bg, clip.Rect{Max: gtx.Constraints.Max}.Op())

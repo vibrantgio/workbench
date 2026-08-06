@@ -248,7 +248,7 @@ func articlesMain(
 // theme's BodyMedium role — typeface, weight, size and line height from the
 // Typography, the shaper the theme's own — within the cell's allocated
 // rectangle, with the table's stock 12 dp horizontal padding. It is the
-// theme-driven successor to the frozen table.RenderTextCell(TypeScale) form
+// theme-driven successor to the static table.RenderTextCell form
 // (F1.2); the golden tests keep the static form, which is its documented
 // remit.
 func themedTextCell(tok themeTokens, s string) layout.Widget {

@@ -91,17 +91,17 @@ var (
 )
 
 // messageMarkdownStyle derives the chat-body markdown style for the current
-// colour, type and typography tokens: the token-themed defaults plus the
-// app's opt-ins — chroma highlighting matched to the appearance, links
-// opening in the system browser, and the bundled image provider.
+// colour and typography tokens: the token-themed defaults plus the app's
+// opt-ins — chroma highlighting matched to the appearance, links opening
+// in the system browser, and the bundled image provider.
 //
-// Mono and CodeSize are re-resolved from the THEME's Code role (the F1.4
-// caller-side wiring): FromTokens defaults them from
-// tokens.DefaultTypography.Code, and a caller holding the theme's own
-// Typography sets them from its Code role afterwards, so code spans and
-// fences in chat bodies render in the theme's mono face at its size.
-func messageMarkdownStyle(c tokens.ColorTokens, ts tokens.TypeScale, typ tokens.Typography) markdown.Style {
-	md := markdown.FromTokens(c, ts)
+// FromTokens now takes the whole Typography (it spends several roles), so
+// the separate type argument the deleted TypeScale carried is gone. Mono
+// and CodeSize are still re-resolved from the theme's Code role (the F1.4
+// caller-side wiring), which keeps code spans and fences in chat bodies
+// explicit about rendering in the theme's mono face at its size.
+func messageMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
+	md := markdown.FromTokens(c, typ)
 	md.Mono = font.Typeface(typ.Code.Typeface)
 	md.CodeSize = unit.Sp(typ.Code.Size)
 	if isDarkColor(c.Background) {
@@ -137,8 +137,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	})
 
 	colorThemes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest3(t.Color, t.Type, t.Typography), func(ct rx.Tuple3[tokens.ColorTokens, tokens.TypeScale, tokens.Typography]) themed {
-			c, ts, typ := ct.First, ct.Second, ct.Third
+		return rx.Map(rx.CombineLatest2(t.Color, t.Typography), func(ct rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
+			c, typ := ct.First, ct.Second
 			p := PaletteFrom(c)
 			avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
 			if err != nil {
@@ -160,7 +160,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if err != nil {
 				panic(err)
 			}
-			md := messageMarkdownStyle(c, ts, typ)
+			md := messageMarkdownStyle(c, typ)
 			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper()}
 		})
 	})

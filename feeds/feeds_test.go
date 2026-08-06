@@ -791,11 +791,12 @@ var canvasSize = image.Pt(canvasW, canvasH)
 
 // staticArticleColumns mirrors articleColumns for the golden-render path
 // (table.Render's documented remit). Tokens are passed in directly; rows are
-// not clickable.
-func staticArticleColumns(shaper *text.Shaper, colors tokens.ColorTokens, ts tokens.TypeScale) []table.Column[article] {
+// not clickable. The cell role is BodyMedium, the same role themedTextCell
+// draws with on the runtime path.
+func staticArticleColumns(shaper *text.Shaper, colors tokens.ColorTokens, body tokens.TextStyle) []table.Column[article] {
 	cellText := func(get func(a article) string) func(article) layout.Widget {
 		return func(a article) layout.Widget {
-			return table.RenderTextCell(shaper, colors, ts, get(a))
+			return table.RenderTextCell(shaper, colors, body, get(a))
 		}
 	}
 	return []table.Column[article]{
@@ -834,9 +835,9 @@ func TestArticlesTableGolden(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			cols := staticArticleColumns(shaper, tc.colors, tokens.DefaultTypeScale)
+			cols := staticArticleColumns(shaper, tc.colors, tokens.DefaultTypography.BodyMedium)
 			tbl := table.Render(shaper, cols, rows, table.Sort{Column: colPublished, Asc: false},
-				tc.colors, tokens.Spacing, tokens.DefaultTypeScale)
+				tc.colors, tokens.Spacing, tokens.DefaultTypography.LabelLarge, tokens.Comfortable)
 			renderGolden(t, tc.name, canvasSize, scene(tbl, tc.bg))
 		})
 	}
@@ -853,9 +854,9 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 
 	render := func(colors tokens.ColorTokens) *image.RGBA {
-		cols := staticArticleColumns(shaper, colors, tokens.DefaultTypeScale)
+		cols := staticArticleColumns(shaper, colors, tokens.DefaultTypography.BodyMedium)
 		tbl := table.Render(shaper, cols, rows, table.Sort{Column: colPublished, Asc: false},
-			colors, tokens.Spacing, tokens.DefaultTypeScale)
+			colors, tokens.Spacing, tokens.DefaultTypography.LabelLarge, tokens.Comfortable)
 		return capture(t, canvasSize, scene(tbl, bg))
 	}
 	light := render(tokens.DefaultLight)

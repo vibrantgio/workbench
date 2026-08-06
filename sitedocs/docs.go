@@ -51,17 +51,17 @@ var (
 )
 
 // docsMarkdownStyle derives the markdown document style for the current
-// colour, type and typography tokens: the token-themed defaults plus the
-// app's two opt-ins — chroma highlighting matched to the appearance, and
-// links opening in the system browser.
+// colour and typography tokens: the token-themed defaults plus the app's
+// two opt-ins — chroma highlighting matched to the appearance, and links
+// opening in the system browser.
 //
-// Mono and CodeSize are re-resolved from the THEME's Code role (F1.4):
-// FromTokens defaults them from tokens.DefaultTypography.Code (F0.2's
-// wiring), and per its documentation a caller holding the theme's own
-// Typography sets them from its Code role afterwards, so a non-default
-// theme typography carries its own code face and size here.
-func docsMarkdownStyle(c tokens.ColorTokens, ts tokens.TypeScale, typ tokens.Typography) markdown.Style {
-	st := markdown.FromTokens(c, ts)
+// FromTokens now takes the whole Typography (it spends several roles), so
+// the type argument the deleted TypeScale used to carry is gone. Mono and
+// CodeSize are still re-resolved from the theme's Code role (F1.4):
+// FromTokens defaults them from the Typography it is handed, and setting
+// them here keeps that explicit at the call site.
+func docsMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
+	st := markdown.FromTokens(c, typ)
 	st.Mono = font.Typeface(typ.Code.Typeface)
 	st.CodeSize = unit.Sp(typ.Code.Size)
 	if isDarkColor(c.Background) {
@@ -116,15 +116,14 @@ func docsPage(
 	doc := markdown.NewDocument(markdown.Parse(def.Source))
 
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	tsObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.TypeScale] { return t.Type })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
-	tokensObs := rx.CombineLatest3(colObs, tsObs, typObs)
+	tokensObs := rx.CombineLatest2(colObs, typObs)
 
 	full := rx.CombineLatest2(bcObs, tokensObs)
-	return rx.Map(full, func(t rx.Tuple2[layout.Widget, rx.Tuple3[tokens.ColorTokens, tokens.TypeScale, tokens.Typography]]) layout.Widget {
+	return rx.Map(full, func(t rx.Tuple2[layout.Widget, rx.Tuple2[tokens.ColorTokens, tokens.Typography]]) layout.Widget {
 		bcW := t.First
-		typ := t.Second.Third
-		style := docsMarkdownStyle(t.Second.First, t.Second.Second, typ)
+		typ := t.Second.Second
+		style := docsMarkdownStyle(t.Second.First, typ)
 		shaper := typ.Shaper()
 		return func(gtx layout.Context) layout.Dimensions {
 			return drawDocsPage(gtx, bcW, doc, shaper, style)
@@ -134,18 +133,18 @@ func docsPage(
 
 // renderDocsPage is the static counterpart of docsPage used by goldens: a
 // fresh top-scrolled Document laid out once with the given token sets. The
-// code role comes from tokens.DefaultTypography, matching the default theme
-// the runtime path renders under.
+// breadcrumb takes the TitleSmall role its live path uses; the code role
+// comes from the same Typography, matching what the runtime path renders.
 func renderDocsPage(
 	shaper *text.Shaper,
 	def docsPageDef,
 	colors tokens.ColorTokens,
 	sp tokens.SpacingScale,
-	ts tokens.TypeScale,
+	typo tokens.Typography,
 ) layout.Widget {
-	bcW := breadcrumb.Render(shaper, breadcrumb.Props{Items: docsBreadcrumb(def), Shaper: shaper}, colors, sp, ts)
+	bcW := breadcrumb.Render(shaper, breadcrumb.Props{Items: docsBreadcrumb(def), Shaper: shaper}, colors, sp, typo.TitleSmall)
 	doc := markdown.NewDocument(markdown.Parse(def.Source))
-	style := docsMarkdownStyle(colors, ts, tokens.DefaultTypography)
+	style := docsMarkdownStyle(colors, typo)
 	return func(gtx layout.Context) layout.Dimensions {
 		return drawDocsPage(gtx, bcW, doc, shaper, style)
 	}
