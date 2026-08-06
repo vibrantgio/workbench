@@ -5,11 +5,11 @@ go 1.25.1
 require (
 	gioui.org v0.10.1
 	github.com/reactivego/rx v0.3.0
-	github.com/vibrantgio/cadence v0.3.0
-	github.com/vibrantgio/markdown v0.1.0
+	github.com/vibrantgio/cadence v0.3.1
+	github.com/vibrantgio/markdown v0.1.1
 	github.com/vibrantgio/mvu v0.4.4
-	github.com/vibrantgio/prism v0.2.0
-	github.com/vibrantgio/spectrum v0.3.0
+	github.com/vibrantgio/prism v0.3.0
+	github.com/vibrantgio/spectrum v0.4.0
 	golang.org/x/image v0.44.0
 )
 
@@ -20,7 +20,7 @@ require (
 	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/reactivego/scheduler v0.2.0 // indirect
-	github.com/vibrantgio/font v0.0.5 // indirect
+	github.com/vibrantgio/font v0.1.0 // indirect
 	github.com/yuin/goldmark v1.8.5 // indirect
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743 // indirect
 	golang.org/x/net v0.57.0 // indirect
