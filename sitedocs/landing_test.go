@@ -56,7 +56,7 @@ func TestLandingGolden(t *testing.T) {
 	darkBG := color.NRGBA{R: 20, G: 20, B: 20, A: 255}
 
 	hp := structuralHeroProps(shaper)
-	fp := structuralFeatureProps()
+	fp := structuralFeatureProps(shaper)
 	pp := structuralPricingProps(shaper)
 	tp := structuralTestimonialProps(shaper)
 
@@ -83,7 +83,7 @@ func TestLandingLightDarkDiffer(t *testing.T) {
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 
 	hp := structuralHeroProps(shaper)
-	fp := structuralFeatureProps()
+	fp := structuralFeatureProps(shaper)
 	pp := structuralPricingProps(shaper)
 	tp := structuralTestimonialProps(shaper)
 
@@ -140,7 +140,7 @@ func structuralHeroProps(shaper *text.Shaper) hero.Props {
 	}
 }
 
-func structuralFeatureProps() feature.Props {
+func structuralFeatureProps(shaper *text.Shaper) feature.Props {
 	// iconFill is the same structural stand-in feature_test.go uses: a
 	// solid-coloured rectangle filling its cell so the grid has visible
 	// mass in the goldens without depending on a vector asset.
@@ -152,6 +152,7 @@ func structuralFeatureProps() feature.Props {
 	item := feature.Item{Icon: iconFill}
 	return feature.Props{
 		Columns: 3,
+		Shaper:  shaper,
 		Items:   []feature.Item{item, item, item},
 	}
 }

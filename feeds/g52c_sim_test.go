@@ -179,6 +179,7 @@ const (
 func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	tipObs := tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
 		Text:      "Unread",
+		Shaper:    tokens.DefaultTypography.DeterministicShaper(),
 		Placement: tooltip.Bottom,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
@@ -237,6 +238,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 
 	freshTip, err := collectOne(tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
 		Text:      "Unread",
+		Shaper:    tokens.DefaultTypography.DeterministicShaper(),
 		Placement: tooltip.Bottom,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}

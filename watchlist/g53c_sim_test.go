@@ -126,6 +126,7 @@ func TestRightClickPassesPrimaryReachesContextSecondary(t *testing.T) {
 func TestColumnTooltipHoverHeadless(t *testing.T) {
 	tipObs := tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
 		Text:      "Instrument symbol, e.g. BTC/USD",
+		Shaper:    tokens.DefaultTypography.DeterministicShaper(),
 		Placement: tooltip.Bottom,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
@@ -173,6 +174,7 @@ func TestColumnTooltipHoverHeadless(t *testing.T) {
 
 	freshTip := collectOneWidget(t, tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
 		Text:      "Instrument symbol, e.g. BTC/USD",
+		Shaper:    tokens.DefaultTypography.DeterministicShaper(),
 		Placement: tooltip.Bottom,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}

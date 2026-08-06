@@ -25,7 +25,6 @@ import (
 	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
-	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
@@ -33,6 +32,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/spectrum/typeset"
 )
 
 // Detail pane tab indices, in tab-strip order.
@@ -205,18 +205,10 @@ func drawWrappedText(
 	style tokens.TextStyle,
 	c color.NRGBA,
 ) layout.Dimensions {
-	f := font.Font{Typeface: font.Typeface(style.Typeface)}
-	if style.Weight != 0 {
-		f.Weight = tokens.FontWeight(style.Weight)
-	}
 	mat := op.Record(gtx.Ops)
 	paint.ColorOp{Color: c}.Add(gtx.Ops)
 	material := mat.Stop()
 	gtx.Constraints.Min = image.Point{}
-	wl := widget.Label{}
-	if style.LineHeight != 0 {
-		wl.LineHeight = unit.Sp(style.LineHeight)
-		wl.LineHeightScale = 1
-	}
-	return wl.Layout(gtx, shaper, f, unit.Sp(style.Size), msg, material)
+	return typeset.Layout(gtx, shaper, typeset.Label(style, 0),
+		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
 }

@@ -5,8 +5,10 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/unit"
+	"gioui.org/widget"
 
 	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/spectrum/typeset"
 	"github.com/vibrantgio/textdraw"
 )
 
@@ -62,11 +64,15 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 // with: typeface and weight come from the theme (a zero weight means
 // unset, per tokens.FontWeight's convention).
 func roleFont(role tokens.TextStyle) font.Font {
-	f := font.Font{Typeface: font.Typeface(role.Typeface)}
-	if role.Weight != 0 {
-		f.Weight = tokens.FontWeight(role.Weight)
-	}
-	return f
+	return typeset.Font(role, font.Normal)
+}
+
+// roleLabel builds the widget.Label for a role with the role's line box
+// installed, capped at maxLines. Set Alignment or Truncator on the result,
+// then draw it with typeset.Layout — never with widget.Label.Layout, which
+// spends the line height on a gap a capped label does not have.
+func roleLabel(role tokens.TextStyle, maxLines int) widget.Label {
+	return typeset.Label(role, maxLines)
 }
 
 // roleText converts a theme Typography role into the textdraw TextStyle the

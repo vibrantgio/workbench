@@ -106,10 +106,11 @@ func TestDocsSidebarConstructs(t *testing.T) {
 // as the runtime path does (breadcrumb + markdown document with chroma
 // highlighting). Three pages cover the block variety: getting-started
 // (list + links + two code fences), cadence-shells (table), and mvu-loop
-// (multi-line Go fences). Rendering uses the theme's shaper — Roboto and
-// Roboto Mono, system fonts disabled — so the rasterisation is
-// deterministic on a given text stack and the code blocks capture the
-// mono face (F0.2).
+// (multi-line Go fences). Rendering pins DeterministicShaper — Roboto and
+// Roboto Mono, system fonts off — so the rasterisation cannot depend on
+// which faces the host carries, and the code blocks still capture the mono
+// face (F0.2). The theme's own Shaper() is the application default and
+// resolves system fallbacks (F4.2); a golden must never take it.
 func TestDocsPageGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	lightBG := color.NRGBA{R: 240, G: 240, B: 240, A: 255}

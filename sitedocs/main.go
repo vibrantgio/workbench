@@ -43,6 +43,7 @@ import (
 	specsystem "github.com/vibrantgio/spectrum/system"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/spectrum/typeset"
 	specwin "github.com/vibrantgio/spectrum/window"
 )
 
@@ -341,19 +342,11 @@ func navbarProps(loadTok func() themeTokens, active string) navbar.Props {
 // given Typography role: typeface, weight, size and line height all come
 // from the theme's TextStyle.
 func drawLabel(gtx layout.Context, shaper *text.Shaper, msg string, style tokens.TextStyle, c color.NRGBA) layout.Dimensions {
-	f := font.Font{Typeface: font.Typeface(style.Typeface)}
-	if style.Weight != 0 {
-		f.Weight = tokens.FontWeight(style.Weight)
-	}
 	mat := op.Record(gtx.Ops)
 	paint.ColorOp{Color: c}.Add(gtx.Ops)
 	material := mat.Stop()
-	wl := widget.Label{MaxLines: 1}
-	if style.LineHeight != 0 {
-		wl.LineHeight = unit.Sp(style.LineHeight)
-		wl.LineHeightScale = 1
-	}
-	return wl.Layout(gtx, shaper, f, unit.Sp(style.Size), msg, material)
+	return typeset.Layout(gtx, shaper, typeset.Label(style, 1),
+		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
 }
 
 // Compile-time anchor.

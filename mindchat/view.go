@@ -40,6 +40,7 @@ import (
 	"github.com/vibrantgio/spectrum/a11y"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/spectrum/typeset"
 	"github.com/vibrantgio/textdraw"
 
 	"slices"
@@ -504,8 +505,9 @@ func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 			dims.Size.X = gtx.Constraints.Max.X
 		} else {
 			textMaterial := Material(gtx.Ops, textColor)
-			label := widget.Label{Alignment: text.Start, Truncator: "…"}
-			dims = label.Layout(gtx, t.shaper, roleFont(st), unit.Sp(st.Size), msg.Content, textMaterial)
+			label := roleLabel(st, 0)
+			label.Alignment, label.Truncator = text.Start, "…"
+			dims = typeset.Layout(gtx, t.shaper, label, roleFont(st), unit.Sp(st.Size), msg.Content, textMaterial)
 		}
 		dims.Size.X += margin
 		return dims
@@ -715,7 +717,8 @@ func SidebarHeader(gtx layout.Context, t themed, newChat *widget.Clickable) layo
 	}
 
 	p := t.palette
-	label := widget.Label{Alignment: text.Start, MaxLines: 1, Truncator: "…"}
+	label := roleLabel(t.typ.LabelSmall, 1)
+	label.Alignment, label.Truncator = text.Start, "…"
 	textMaterial := Material(gtx.Ops, p.Heading)
 
 	m := op.Record(gtx.Ops)
@@ -724,7 +727,7 @@ func SidebarHeader(gtx layout.Context, t themed, newChat *widget.Clickable) layo
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					cap := t.typ.LabelSmall
-					dims := label.Layout(gtx, t.shaper, roleFont(cap), unit.Sp(cap.Size), "CONVERSATIONS", textMaterial)
+					dims := typeset.Layout(gtx, t.shaper, label, roleFont(cap), unit.Sp(cap.Size), "CONVERSATIONS", textMaterial)
 					dims.Size.X = gtx.Constraints.Max.X
 					return dims
 				}),
@@ -772,7 +775,6 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 			mvu.MessageOp{Message: UndoDelete{}}.Add(gtx.Ops)
 		}
 		max := gtx.Constraints.Max
-		label := widget.Label{MaxLines: 1}
 
 		inner := gtx
 		inner.Constraints = layout.Constraints{Max: max}
@@ -781,17 +783,17 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 			body, action, caption := t.typ.BodyMedium, t.typ.LabelLarge, t.typ.BodySmall
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return label.Layout(gtx, t.shaper, roleFont(body), unit.Sp(body.Size), msg, Material(gtx.Ops, p.BotText))
+					return typeset.Layout(gtx, t.shaper, roleLabel(body, 1), roleFont(body), unit.Sp(body.Size), msg, Material(gtx.Ops, p.BotText))
 				}),
 				layout.Rigid(layout.Spacer{Width: 16}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return undo.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return label.Layout(gtx, t.shaper, roleFont(action), unit.Sp(action.Size), "Undo", Material(gtx.Ops, p.Accent))
+						return typeset.Layout(gtx, t.shaper, roleLabel(action, 1), roleFont(action), unit.Sp(action.Size), "Undo", Material(gtx.Ops, p.Accent))
 					})
 				}),
 				layout.Rigid(layout.Spacer{Width: 8}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return label.Layout(gtx, t.shaper, roleFont(caption), unit.Sp(caption.Size), hint, Material(gtx.Ops, p.Row))
+					return typeset.Layout(gtx, t.shaper, roleLabel(caption, 1), roleFont(caption), unit.Sp(caption.Size), hint, Material(gtx.Ops, p.Row))
 				}),
 			)
 		})
@@ -862,7 +864,8 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 		textColor = p.Row
 	}
 
-	label := widget.Label{Alignment: text.Start, MaxLines: 1, Truncator: "…"}
+	label := roleLabel(t.typ.BodyMedium, 1)
+	label.Alignment, label.Truncator = text.Start, "…"
 
 	return row.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		textMaterial := Material(gtx.Ops, textColor)
@@ -873,7 +876,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						rowStyle := t.typ.BodyMedium
-						dims := label.Layout(gtx, t.shaper, roleFont(rowStyle), unit.Sp(rowStyle.Size), displayName, textMaterial)
+						dims := typeset.Layout(gtx, t.shaper, label, roleFont(rowStyle), unit.Sp(rowStyle.Size), displayName, textMaterial)
 						// Claim the full flex share so the icon sits at
 						// the row's right edge, not after the text.
 						dims.Size.X = gtx.Constraints.Max.X

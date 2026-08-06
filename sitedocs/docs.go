@@ -19,7 +19,6 @@ import (
 	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
-	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
@@ -29,6 +28,7 @@ import (
 	pllayout "github.com/vibrantgio/prism/layout"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/spectrum/typeset"
 
 	"github.com/vibrantgio/mvu"
 )
@@ -204,18 +204,12 @@ func paragraphWidget(
 	style tokens.TextStyle,
 ) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		f := font.Font{Typeface: font.Typeface(style.Typeface)}
-		if style.Weight != 0 {
-			f.Weight = tokens.FontWeight(style.Weight)
-		}
 		mColor := op.Record(gtx.Ops)
 		paint.ColorOp{Color: fg}.Add(gtx.Ops)
 		material := mColor.Stop()
-		wl := widget.Label{Alignment: text.Start}
-		if style.LineHeight != 0 {
-			wl.LineHeight = unit.Sp(style.LineHeight)
-			wl.LineHeightScale = 1
-		}
-		return wl.Layout(gtx, shaper, f, unit.Sp(style.Size), textBody, material)
+		wl := typeset.Label(style, 0)
+		wl.Alignment = text.Start
+		return typeset.Layout(gtx, shaper, wl, typeset.Font(style, font.Normal),
+			unit.Sp(style.Size), textBody, material)
 	}
 }

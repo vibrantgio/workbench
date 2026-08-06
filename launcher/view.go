@@ -23,6 +23,7 @@ import (
 	pllayout "github.com/vibrantgio/prism/layout"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/spectrum/typeset"
 )
 
 // Static layout dimensions; these do not vary with the colour scheme.
@@ -246,24 +247,19 @@ func statusLine(tok themed, status Status) layout.Widget {
 	return label(tok.shaper, txt, tok.typ.LabelMedium, col, 2)
 }
 
-// label renders a colour-materialised widget.Label in one Typography role —
+// label renders a colour-materialised label in one Typography role —
 // typeface, weight, size and line height all come from the theme — capped at
-// maxLines.
+// maxLines. It draws through spectrum/typeset so the role's LineHeight is the
+// height of the line box, which widget.Label alone does not give a capped
+// label.
 func label(shaper *text.Shaper, txt string, style tokens.TextStyle, col color.NRGBA, maxLines int) layout.Widget {
-	f := font.Font{Typeface: font.Typeface(style.Typeface)}
-	if style.Weight != 0 {
-		f.Weight = tokens.FontWeight(style.Weight)
-	}
-	wl := widget.Label{MaxLines: maxLines}
-	if style.LineHeight != 0 {
-		wl.LineHeight = unit.Sp(style.LineHeight)
-		wl.LineHeightScale = 1
-	}
+	f := typeset.Font(style, font.Normal)
+	wl := typeset.Label(style, maxLines)
 	return func(gtx layout.Context) layout.Dimensions {
 		m := op.Record(gtx.Ops)
 		paint.ColorOp{Color: col}.Add(gtx.Ops)
 		material := m.Stop()
 		gtx.Constraints.Min = image.Point{}
-		return wl.Layout(gtx, shaper, f, unit.Sp(style.Size), txt, material)
+		return typeset.Layout(gtx, shaper, wl, f, unit.Sp(style.Size), txt, material)
 	}
 }

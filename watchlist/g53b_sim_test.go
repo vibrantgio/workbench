@@ -216,6 +216,7 @@ func TestG53bSymbolEditorStatesHeadless(t *testing.T) {
 func TestToastNotifyRendersInStack(t *testing.T) {
 	stackObs := toast.Stack(rx.Of(theme.Default()), toast.Props{
 		Position: toast.TopRight,
+		Shaper:   tokens.DefaultTypography.DeterministicShaper(),
 	})
 
 	emissions := make(chan layout.Widget, 16)

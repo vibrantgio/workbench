@@ -29,6 +29,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/spectrum/typeset"
 )
 
 // Sidebar layout constants.
@@ -234,10 +235,6 @@ func drawSidebarLink(
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	inner := func(gtx layout.Context) layout.Dimensions {
-		f := font.Font{Typeface: font.Typeface(style.Typeface)}
-		if style.Weight != 0 {
-			f.Weight = tokens.FontWeight(style.Weight)
-		}
 		mColor := op.Record(gtx.Ops)
 		paint.ColorOp{Color: fg}.Add(gtx.Ops)
 		material := mColor.Stop()
@@ -247,12 +244,8 @@ func drawSidebarLink(
 		labelGtx.Constraints.Max = size
 
 		mLabel := op.Record(gtx.Ops)
-		wl := widget.Label{MaxLines: 1}
-		if style.LineHeight != 0 {
-			wl.LineHeight = unit.Sp(style.LineHeight)
-			wl.LineHeightScale = 1
-		}
-		labelDims := wl.Layout(labelGtx, shaper, f, unit.Sp(style.Size), label, material)
+		labelDims := typeset.Layout(labelGtx, shaper, typeset.Label(style, 1),
+			typeset.Font(style, font.Normal), unit.Sp(style.Size), label, material)
 		labelCall := mLabel.Stop()
 
 		offY := (size.Y - labelDims.Size.Y) / 2

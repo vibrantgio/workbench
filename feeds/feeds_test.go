@@ -881,12 +881,22 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 // goroutine subscription that is then unsubscribed, with a timeout guarding
 // against a layer that never emits at all.
 //
-// The subscription is RETRIED on timeout: a freshly subscribed, fully cold
-// chain (backdropLayer over rx.Of tokens) intermittently fails to deliver
-// within seconds on rx.Goroutine — observed as a full-suite hang once and as
-// a ~1-in-3 full-suite -race flake, while 10/10 isolated runs pass. The
-// wedge is per-subscription somewhere in reactivego/rx scheduling, so a
-// fresh Subscribe sidesteps it. (Logged in FEEDBACK-G5.2.md under G5.2d.)
+// The completion case must DRAIN the value channel before it believes the
+// completion. A cold chain — backdropLayer over rx.Of tokens — delivers its
+// value and its completion back to back on the subscription goroutine, so by
+// the time this goroutine reaches the select both channels are ready, and Go
+// picks a ready case uniformly at random. Taking errChan there discards a
+// value that arrived normally.
+//
+// That, not rx, is the "delivery dropout" G5.2d recorded and tried to ride out
+// with retries: a bare rx.Of mapped to a widget, with no spectrum, prism or
+// cadence code in the chain at all, took errChan with the value already
+// buffered in 95 of 200 iterations — a coin flip, so three retries left a
+// ~1-in-8 failure that surfaced as "layer 0 produced no widget" whenever the
+// suite's scheduling let the chain finish first.
+//
+// The retry loop is kept, but only for the case it genuinely covers: a
+// subscription that delivers nothing at all inside the window.
 func collectOne(obs rx.Observable[layout.Widget]) (layout.Widget, error) {
 	const (
 		attempts = 3
@@ -916,15 +926,18 @@ func collectOne(obs rx.Observable[layout.Widget]) (layout.Widget, error) {
 			return w, nil
 		case err := <-errChan:
 			sub.Unsubscribe()
+			// Both channels can be ready at once; prefer the value.
+			select {
+			case w := <-gotChan:
+				return w, nil
+			default:
+			}
 			if err != nil {
 				return nil, err
 			}
-			// Completed WITHOUT any emission: a cold token chain always
-			// emits before completing, so this is the rx delivery dropout
-			// (value lost, completion delivered) — retry like a timeout.
-			if i == attempts-1 {
-				return nil, nil
-			}
+			// Completed with no value at all: nothing a retry can recover,
+			// since the chain is cold and has already run to completion.
+			return nil, nil
 		case <-time.After(window):
 			sub.Unsubscribe()
 			if i == attempts-1 {
