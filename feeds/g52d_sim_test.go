@@ -32,6 +32,7 @@ import (
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/prism/button"
+	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
@@ -112,7 +113,7 @@ func TestAddFeedModalGolden(t *testing.T) {
 			m := modal.Render(shaper, modal.Props{Title: "Add feed", Body: body, Shaper: shaper},
 				true, tc.colors, tokens.Spacing, modalSharpRadius,
 				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
-			renderGolden(t, tc.name, image.Pt(modalCanvasW, modalCanvasH), scene(m, tc.bg))
+			golden.Render(t, tc.name, image.Pt(modalCanvasW, modalCanvasH), scene(m, tc.bg))
 		})
 	}
 }
@@ -148,10 +149,7 @@ func TestG52dCrudStatesHeadless(t *testing.T) {
 	size := image.Pt(shellCanvasW, shellCanvasH)
 	snap := func(what string) *image.RGBA {
 		w := awaitStableWidget(t, emissions, what)
-		img := capture(t, size, scene(w, bg))
-		if img == nil {
-			t.Skip("headless rendering unavailable")
-		}
+		img := golden.Capture(t, size, scene(w, bg))
 		return img
 	}
 
@@ -337,18 +335,12 @@ func TestToastNotifyRendersInStack(t *testing.T) {
 
 	size := image.Pt(600, 300)
 	empty := awaitStableWidget(t, emissions, "seeded empty stack")
-	before := capture(t, size, scene(empty, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
-	if before == nil {
-		t.Skip("headless rendering unavailable")
-	}
+	before := golden.Capture(t, size, scene(empty, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
 
 	toast.Notify(toast.Success, "Feed added")
 	after := awaitStableWidget(t, emissions, "Notify ping")
-	got := capture(t, size, scene(after, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
-	if got == nil {
-		t.Skip("headless rendering unavailable")
-	}
-	if n := pixelDiff(before, got); n <= 0 {
+	got := golden.Capture(t, size, scene(after, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
+	if n := golden.PixelDiff(before, got); n <= 0 {
 		t.Errorf("stack frame unchanged after toast.Notify (diff=%d); toast did not render", n)
 	}
 }

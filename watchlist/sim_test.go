@@ -19,15 +19,13 @@ import (
 	"testing"
 	"time"
 
-	"gioui.org/gpu/headless"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/spectrum/theme"
 )
 
@@ -59,10 +57,7 @@ func TestWatchlistShellHeadless(t *testing.T) {
 	size := image.Pt(shellCanvasW, shellCanvasH)
 	snap := func(what string) *image.RGBA {
 		w := awaitStableWidget(t, emissions, what)
-		img := capture(t, size, scene(w, bg))
-		if img == nil {
-			t.Skip("headless rendering unavailable")
-		}
+		img := golden.Capture(t, size, scene(w, bg))
 		return img
 	}
 
@@ -89,7 +84,7 @@ func TestWatchlistShellHeadless(t *testing.T) {
 	}
 }
 
-// ----- inlined headless harness (mirrors feeds/feeds_test.go) -----
+// ----- headless test helpers -----
 
 // awaitStableWidget drains the emission channel until it has been silent for
 // quiet, returning the LAST widget seen. Model changes fan out through
@@ -121,32 +116,6 @@ func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 		paint.FillShape(gtx.Ops, bgColor, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		return w(gtx)
 	}
-}
-
-func capture(t *testing.T, size image.Point, draw layout.Widget) *image.RGBA {
-	t.Helper()
-	w, err := headless.NewWindow(size.X, size.Y)
-	if err != nil {
-		t.Skipf("headless rendering not supported: %v", err)
-		return nil
-	}
-	defer w.Release()
-
-	var ops op.Ops
-	gtx := layout.Context{
-		Constraints: layout.Exact(size),
-		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
-		Ops:         &ops,
-	}
-	draw(gtx)
-	if err := w.Frame(&ops); err != nil {
-		t.Fatalf("Frame: %v", err)
-	}
-	img := image.NewRGBA(image.Rectangle{Max: size})
-	if err := w.Screenshot(img); err != nil {
-		t.Fatalf("Screenshot: %v", err)
-	}
-	return img
 }
 
 // regionDiff counts differing pixels between a and b inside r. a and b must

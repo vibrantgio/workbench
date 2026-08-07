@@ -39,13 +39,23 @@ root module to run it from:
     go build ./... && go test ./...
 
 **Golden images.** Tests in three module directories compare rendered output
-against committed PNGs: `feeds/` and `sitedocs/` under `testdata/golden/`,
-and `watchlist/` under `testdata/` directly — it is the one module that does
-not follow the convention, so a sweep keyed on the `golden/` path silently
-misses it. `mindchat/` has pixel tests too, but they diff two renders in
-memory rather than storing an image. When a change legitimately moves pixels,
-regenerate them within the same change, look at what came out, and say so in
-the commit. From inside the directory concerned:
+against committed PNGs under `testdata/golden/`: `feeds/`, `sitedocs/` and
+`watchlist/`. `watchlist/` kept its two images in `testdata/` directly until
+F5.5, where a sweep keyed on the `golden/` path silently missed them; moving
+onto the shared harness moved them into line, since the harness resolves that
+path itself and no longer takes the caller's word for it. `mindchat/` has
+pixel tests too, but they diff two renders in memory rather than storing an
+image.
+
+All four render through `github.com/vibrantgio/prism/golden`, which declares
+`-golden.update`. F5.5 deleted the five inlined copies these apps carried
+between them — `sitedocs/` alone had two, in adjacent files. Do not add
+another, and do not declare a second `-golden.update`: two registrations of
+one flag name in a test binary panic at init.
+
+When a change legitimately moves pixels, regenerate them within the same
+change, look at what came out, and say so in the commit. From inside the
+directory concerned:
 
     go test . -golden.update
 

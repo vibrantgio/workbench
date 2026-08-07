@@ -20,13 +20,8 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
-	"image/png"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -42,12 +37,11 @@ import (
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/prism/button"
+	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
 )
-
-var goldenUpdate = flag.Bool("golden.update", false, "overwrite golden images with current output")
 
 // modalCanvas is the canvas the modal golden draws into.
 const (
@@ -115,7 +109,7 @@ func TestSymbolModalGolden(t *testing.T) {
 			m := modal.Render(shaper, modal.Props{Title: "Symbol", Body: body, Shaper: shaper},
 				true, tc.colors, tokens.Spacing, modalSharpRadius,
 				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
-			renderGolden(t, tc.name, image.Pt(modalCanvasW, modalCanvasH), scene(m, tc.bg))
+			golden.Render(t, tc.name, image.Pt(modalCanvasW, modalCanvasH), scene(m, tc.bg))
 		})
 	}
 }
@@ -146,10 +140,7 @@ func TestG53bSymbolEditorStatesHeadless(t *testing.T) {
 	size := image.Pt(shellCanvasW, shellCanvasH)
 	snap := func(what string) *image.RGBA {
 		w := awaitStableWidget(t, emissions, what)
-		img := capture(t, size, scene(w, bg))
-		if img == nil {
-			t.Skip("headless rendering unavailable")
-		}
+		img := golden.Capture(t, size, scene(w, bg))
 		return img
 	}
 
@@ -232,103 +223,12 @@ func TestToastNotifyRendersInStack(t *testing.T) {
 
 	size := image.Pt(600, 300)
 	empty := awaitStableWidget(t, emissions, "seeded empty stack")
-	before := capture(t, size, scene(empty, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
-	if before == nil {
-		t.Skip("headless rendering unavailable")
-	}
+	before := golden.Capture(t, size, scene(empty, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
 
 	toast.Notify(toast.Success, "Saved")
 	after := awaitStableWidget(t, emissions, "Notify ping")
-	got := capture(t, size, scene(after, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
-	if got == nil {
-		t.Skip("headless rendering unavailable")
-	}
-	if n := pixelDiff(before, got); n <= 0 {
+	got := golden.Capture(t, size, scene(after, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
+	if n := golden.PixelDiff(before, got); n <= 0 {
 		t.Errorf("stack frame unchanged after toast.Notify (diff=%d); toast did not render", n)
 	}
-}
-
-// ----- inlined golden harness (mirrors feeds/feeds_test.go) -----
-
-func renderGolden(t *testing.T, name string, size image.Point, draw layout.Widget) {
-	t.Helper()
-	img := capture(t, size, draw)
-	if img == nil {
-		t.Skip("headless rendering unavailable")
-		return
-	}
-	path := filepath.Join("testdata", name+".png")
-	if *goldenUpdate {
-		if err := os.MkdirAll("testdata", 0o755); err != nil {
-			t.Fatalf("mkdir testdata: %v", err)
-		}
-		if err := writePNG(path, img); err != nil {
-			t.Fatalf("write golden: %v", err)
-		}
-		return
-	}
-	stored, err := readPNG(path)
-	if err != nil {
-		t.Skipf("%s not found; run go test -golden.update to create (err=%v)", path, err)
-		return
-	}
-	// A size change is a failure in its own right, and it has to be caught
-	// here: once the bounds differ there is no pixel count to compare, and
-	// pixelDiff refuses to invent one.
-	if sb, ib := stored.Bounds(), img.Bounds(); sb != ib {
-		t.Fatalf("golden %s: size changed: golden is %dx%d, render is %dx%d; run go test -golden.update to refresh",
-			name, sb.Dx(), sb.Dy(), ib.Dx(), ib.Dy())
-	}
-	if n := pixelDiff(stored, img); n != 0 {
-		t.Errorf("golden %s differs in %d pixels; run go test -golden.update to refresh", name, n)
-	}
-}
-
-// pixelDiff counts the pixels that differ between a and b, which must have equal
-// bounds. It panics if they do not.
-//
-// The panic replaces a returned -1. There is no pixel count to report for two
-// images of different shapes, and -1 read as "no difference" to every `n > 0`
-// test — which is how a golden whose size had moved compared as a pass, here
-// and across the whole organization. A caller for which a size change is a
-// real outcome rather than a defect — the stored-golden comparison, and only
-// it — must compare Bounds itself before calling.
-func pixelDiff(a, b *image.RGBA) int {
-	if a.Bounds() != b.Bounds() {
-		panic(fmt.Sprintf("pixelDiff: images must have equal bounds, got %v and %v",
-			a.Bounds(), b.Bounds()))
-	}
-	n := 0
-	for i := 0; i < len(a.Pix); i += 4 {
-		if a.Pix[i] != b.Pix[i] || a.Pix[i+1] != b.Pix[i+1] ||
-			a.Pix[i+2] != b.Pix[i+2] || a.Pix[i+3] != b.Pix[i+3] {
-			n++
-		}
-	}
-	return n
-}
-
-func writePNG(path string, img *image.RGBA) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return png.Encode(f, img)
-}
-
-func readPNG(path string) (*image.RGBA, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	src, err := png.Decode(f)
-	if err != nil {
-		return nil, err
-	}
-	b := src.Bounds()
-	rgba := image.NewRGBA(b)
-	draw.Draw(rgba, b, src, b.Min, draw.Src)
-	return rgba, nil
 }

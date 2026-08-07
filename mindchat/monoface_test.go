@@ -6,15 +6,12 @@ package main
 // MD3 aliases or stale literals.
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"testing"
 
 	"gioui.org/font"
-	"gioui.org/gpu/headless"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
@@ -23,6 +20,7 @@ import (
 
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/spectrum/tokens"
 )
 
@@ -89,12 +87,9 @@ func TestChatCodeShapesInMonoFace(t *testing.T) {
 	propStyle.Mono = "Roboto"
 	size := image.Pt(640, 360)
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	a := captureRGBA(t, size, chatScene(testThemed(t, style), body, bg))
-	b := captureRGBA(t, size, chatScene(testThemed(t, propStyle), body, bg))
-	if a == nil || b == nil {
-		return
-	}
-	if n := pixelDiff(a, b); n <= 0 {
+	a := golden.Capture(t, size, chatScene(testThemed(t, style), body, bg))
+	b := golden.Capture(t, size, chatScene(testThemed(t, propStyle), body, bg))
+	if n := golden.PixelDiff(a, b); n <= 0 {
 		t.Errorf("chat bubble renders identically with Mono forced to Roboto (%d pixels differ); code is not shaping in the mono face", n)
 	}
 }
@@ -173,64 +168,6 @@ func chatScene(th themed, body string, bg color.NRGBA) layout.Widget {
 		paint.FillShape(gtx.Ops, bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		return MessageRow(gtx, th, rows[0])
 	}
-}
-
-// ---- headless capture harness (the sitedocs/F1.4 inlined helpers) ----
-
-func captureRGBA(t *testing.T, size image.Point, draw layout.Widget) *image.RGBA {
-	t.Helper()
-	hw, err := headless.NewWindow(size.X, size.Y)
-	if err != nil {
-		t.Skipf("headless rendering not supported: %v", err)
-		return nil
-	}
-	defer hw.Release()
-
-	var ops op.Ops
-	gtx := layout.Context{
-		Constraints: layout.Exact(size),
-		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
-		Ops:         &ops,
-	}
-	draw(gtx)
-	if err := hw.Frame(&ops); err != nil {
-		t.Fatalf("Frame: %v", err)
-	}
-	img := image.NewRGBA(image.Rectangle{Max: size})
-	if err := hw.Screenshot(img); err != nil {
-		t.Fatalf("Screenshot: %v", err)
-	}
-	return img
-}
-
-// pixelDiff counts the pixels that differ between a and b, which must have equal
-// bounds. It panics if they do not.
-//
-// The panic replaces a returned -1. There is no pixel count to report for two
-// images of different shapes, and -1 read as "no difference" to every `n > 0`
-// test — which is how a golden whose size had moved compared as a pass, here
-// and across the whole organization. A caller for which a size change is a
-// real outcome rather than a defect — the stored-golden comparison, and only
-// it — must compare Bounds itself before calling.
-func pixelDiff(a, b *image.RGBA) int {
-	if a.Bounds() != b.Bounds() {
-		panic(fmt.Sprintf("pixelDiff: images must have equal bounds, got %v and %v",
-			a.Bounds(), b.Bounds()))
-	}
-	bounds := a.Bounds()
-	n := 0
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			off := (y-bounds.Min.Y)*a.Stride + (x-bounds.Min.X)*4
-			if a.Pix[off] != b.Pix[off] ||
-				a.Pix[off+1] != b.Pix[off+1] ||
-				a.Pix[off+2] != b.Pix[off+2] ||
-				a.Pix[off+3] != b.Pix[off+3] {
-				n++
-			}
-		}
-	}
-	return n
 }
 
 func glyphIDsEqual(a, b []text.GlyphID) bool {

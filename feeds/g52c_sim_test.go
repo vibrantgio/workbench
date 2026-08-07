@@ -32,6 +32,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/tooltip"
+	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
 )
@@ -113,10 +114,7 @@ func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
 	size := image.Pt(shellCanvasW, shellCanvasH)
 	snap := func(what string) *image.RGBA {
 		w := awaitStableWidget(t, emissions, what)
-		img := capture(t, size, scene(w, bg))
-		if img == nil {
-			t.Skip("headless rendering unavailable")
-		}
+		img := golden.Capture(t, size, scene(w, bg))
 		return img
 	}
 
@@ -153,14 +151,14 @@ func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
 	m, _ = Update(m, ToggleShare{})
 	send.Next(m)
 	shareOpen := snap("ToggleShare")
-	if n := pixelDiff(comments, shareOpen); n <= 0 {
+	if n := golden.PixelDiff(comments, shareOpen); n <= 0 {
 		t.Errorf("frame unchanged after ToggleShare (diff=%d); popover did not open", n)
 	}
 
 	m, _ = Update(m, CloseShare{})
 	send.Next(m)
 	shareClosed := snap("CloseShare")
-	if n := pixelDiff(comments, shareClosed); n != 0 {
+	if n := golden.PixelDiff(comments, shareClosed); n != 0 {
 		t.Errorf("frame after CloseShare differs from pre-open frame by %d pixel(s); popover did not dismiss cleanly", n)
 	}
 }
@@ -229,9 +227,6 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	// must appear below the header, around the trigger's centre line.
 	renderAt := func(now time.Time, src gioinput.Source, w layout.Widget) *image.RGBA {
 		img := captureAt(t, size, w, now, src)
-		if img == nil {
-			t.Skip("headless rendering unavailable")
-		}
 		return img
 	}
 	hovered := renderAt(tShown.Add(time.Millisecond), r.Source(), overlay)
@@ -255,7 +250,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	}
 }
 
-// captureAt mirrors capture() but threads Now and an input Source into the
+// captureAt mirrors golden.Capture() but threads Now and an input Source into the
 // layout context, which the live tooltip path needs.
 func captureAt(t *testing.T, size image.Point, draw layout.Widget, now time.Time, src gioinput.Source) *image.RGBA {
 	t.Helper()
@@ -269,5 +264,5 @@ func captureAt(t *testing.T, size image.Point, draw layout.Widget, now time.Time
 
 func captureCtx(t *testing.T, size image.Point, draw layout.Widget) *image.RGBA {
 	t.Helper()
-	return capture(t, size, draw)
+	return golden.Capture(t, size, draw)
 }

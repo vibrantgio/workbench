@@ -25,6 +25,8 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"sync/atomic"
+
 	"github.com/reactivego/rx"
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/popover"
@@ -37,7 +39,6 @@ import (
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
 	"github.com/vibrantgio/textdraw"
-	"sync/atomic"
 )
 
 // settingsThemed pairs one theme emission's palette with the icon widgets

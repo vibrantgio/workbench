@@ -5,15 +5,13 @@ import (
 	"image/color"
 	"testing"
 
-	"gioui.org/gpu/headless"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/unit"
 
 	"github.com/vibrantgio/cadence/hero"
 	"github.com/vibrantgio/cadence/pricing"
+	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/spectrum/tokens"
 )
 
@@ -49,7 +47,7 @@ func TestPricingHighlightedTierDoesNotFloodCanvas(t *testing.T) {
 	single := pricing.Props{Shaper: shaper, Tiers: []pricing.Tier{pro}}
 	w := pricing.Render(shaper, single, colors, tokens.Spacing, tokens.Radius, tokens.DefaultTypography, tokens.Comfortable)
 
-	img := renderToImage(t, size, func(gtx layout.Context) layout.Dimensions {
+	img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		return w(gtx)
 	})
@@ -81,7 +79,7 @@ func TestHeroEyebrowDoesNotFloodCanvas(t *testing.T) {
 	hp := heroContent(func(_ layout.Context) {}, func(_ layout.Context) {})
 	w := hero.Render(shaper, hp, colors, tokens.Spacing, tokens.Radius, tokens.DefaultTypography, tokens.Comfortable)
 
-	img := renderToImage(t, size, func(gtx layout.Context) layout.Dimensions {
+	img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		return w(gtx)
 	})
@@ -93,30 +91,4 @@ func TestHeroEyebrowDoesNotFloodCanvas(t *testing.T) {
 	if got != bg {
 		t.Fatalf("background pixel at (%d,%d) = %#v, want Surface %#v — the hero eyebrow pill flooded outside its bounds (likely an unclamped corner radius)", sx, sy, got, bg)
 	}
-}
-
-func renderToImage(t *testing.T, size image.Point, w layout.Widget) *image.RGBA {
-	t.Helper()
-	hw, err := headless.NewWindow(size.X, size.Y)
-	if err != nil {
-		t.Skipf("headless: %v", err)
-		return nil
-	}
-	defer hw.Release()
-
-	var ops op.Ops
-	gtx := layout.Context{
-		Constraints: layout.Exact(size),
-		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
-		Ops:         &ops,
-	}
-	w(gtx)
-	if err := hw.Frame(&ops); err != nil {
-		t.Fatalf("Frame: %v", err)
-	}
-	img := image.NewRGBA(image.Rectangle{Max: size})
-	if err := hw.Screenshot(img); err != nil {
-		t.Fatalf("Screenshot: %v", err)
-	}
-	return img
 }

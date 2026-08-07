@@ -14,6 +14,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
 )
@@ -131,7 +132,7 @@ func TestDocsPageGolden(t *testing.T) {
 			name := tc.name + "-" + id
 			t.Run(name, func(t *testing.T) {
 				w := renderDocsPage(shaper, def, tc.colors, tokens.Spacing, tokens.DefaultTypography)
-				renderGolden(t, "docs-"+name, docsCanvasSize, scene(w, tc.bg))
+				golden.Render(t, "docs-"+name, docsCanvasSize, scene(w, tc.bg))
 			})
 		}
 	}
@@ -147,12 +148,9 @@ func TestDocsPageLightDarkDiffer(t *testing.T) {
 
 	light := renderDocsPage(shaper, def, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography)
 	dark := renderDocsPage(shaper, def, tokens.DefaultDark, tokens.Spacing, tokens.DefaultTypography)
-	a := capture(t, docsCanvasSize, scene(light, bg))
-	b := capture(t, docsCanvasSize, scene(dark, bg))
-	if a == nil || b == nil {
-		return
-	}
-	if n := pixelDiff(a, b); n == 0 {
+	a := golden.Capture(t, docsCanvasSize, scene(light, bg))
+	b := golden.Capture(t, docsCanvasSize, scene(dark, bg))
+	if n := golden.PixelDiff(a, b); n == 0 {
 		t.Error("light and dark docs page render identically; expected colour differences across breadcrumb / prose / code")
 	}
 }
@@ -224,16 +222,13 @@ func TestDocsCodeShapesInMonoFace(t *testing.T) {
 	monoDoc := markdown.NewDocument(markdown.Parse(def.Source))
 	propDoc := markdown.NewDocument(markdown.Parse(def.Source))
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	a := capture(t, docsCanvasSize, scene(func(gtx layout.Context) layout.Dimensions {
+	a := golden.Capture(t, docsCanvasSize, scene(func(gtx layout.Context) layout.Dimensions {
 		return drawDocsPage(gtx, nil, monoDoc, shaper, style)
 	}, bg))
-	b := capture(t, docsCanvasSize, scene(func(gtx layout.Context) layout.Dimensions {
+	b := golden.Capture(t, docsCanvasSize, scene(func(gtx layout.Context) layout.Dimensions {
 		return drawDocsPage(gtx, nil, propDoc, shaper, propStyle)
 	}, bg))
-	if a == nil || b == nil {
-		return
-	}
-	if n := pixelDiff(a, b); n <= 0 {
+	if n := golden.PixelDiff(a, b); n <= 0 {
 		t.Errorf("docs page renders identically with Mono forced to Roboto (%d pixels differ); code is not shaping in the mono face", n)
 	}
 }

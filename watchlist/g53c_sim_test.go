@@ -41,6 +41,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/tooltip"
+	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
 )
@@ -168,9 +169,6 @@ func TestColumnTooltipHoverHeadless(t *testing.T) {
 	frame(tShown)
 
 	hovered := captureAtCtx(t, size, overlay, tShown.Add(time.Millisecond), r.Source())
-	if hovered == nil {
-		t.Skip("headless rendering unavailable")
-	}
 
 	freshTip := collectOneWidget(t, tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
 		Text:      "Instrument symbol, e.g. BTC/USD",
@@ -181,9 +179,6 @@ func TestColumnTooltipHoverHeadless(t *testing.T) {
 		},
 	}))
 	baseline := captureAtCtx(t, size, overlayHeaderTooltips(stubTable, []layout.Widget{freshTip, nil, nil, nil}), t0, gioinput.Source{})
-	if baseline == nil {
-		t.Skip("headless rendering unavailable")
-	}
 
 	surfaceRegion := image.Rect(selColWDp, tableHeaderHDp, selColWDp+260, tableHeaderHDp+60)
 	if n := regionDiff(baseline, hovered, surfaceRegion); n <= 0 {
@@ -230,10 +225,7 @@ func TestG53cShellStatesHeadless(t *testing.T) {
 	size := image.Pt(shellCanvasW, shellCanvasH)
 	snap := func(what string) *image.RGBA {
 		w := awaitStableWidget(t, emissions, what)
-		img := capture(t, size, scene(w, bg))
-		if img == nil {
-			t.Skip("headless rendering unavailable")
-		}
+		img := golden.Capture(t, size, scene(w, bg))
 		return img
 	}
 
@@ -362,11 +354,11 @@ func collectOneWidget(t *testing.T, obs rx.Observable[layout.Widget]) layout.Wid
 	}
 }
 
-// captureAtCtx mirrors capture() but threads Now and an input Source into the
+// captureAtCtx mirrors golden.Capture() but threads Now and an input Source into the
 // layout context, which the live tooltip path needs.
 func captureAtCtx(t *testing.T, size image.Point, draw layout.Widget, now time.Time, src gioinput.Source) *image.RGBA {
 	t.Helper()
-	return capture(t, size, func(gtx layout.Context) layout.Dimensions {
+	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		gtx.Now = now
 		gtx.Source = src
 		paint.FillShape(gtx.Ops, color.NRGBA{R: 240, G: 240, B: 240, A: 255}, clip.Rect{Max: gtx.Constraints.Max}.Op())
