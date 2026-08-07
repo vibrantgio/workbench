@@ -52,6 +52,15 @@ the commit. From inside the directory concerned:
 The flag comes last on purpose: `go test` cannot tell that an unfamiliar
 flag is boolean, so anything after it stops being a package argument.
 
+**Nothing but a developer's machine has ever compared these images.** This
+repository has no CI workflow, so the stored PNGs are checked only where
+they are regenerated. That is a weaker guarantee than it looks even
+elsewhere in the organization: a golden test whose `headless.NewWindow`
+fails answers with `t.Skipf`, and a skipped test passes, so F5.4 made the
+four repositories that do have CI publish — as a public workflow annotation
+— whether their images were compared or merely skipped. Here there is no
+run to ask.
+
 **A golden test pins its faces; application code does not.** Every golden and
 pixel test here builds its shaper with
 `tokens.DefaultTypography.DeterministicShaper()` — the default typography's
