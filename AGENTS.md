@@ -38,24 +38,16 @@ root module to run it from:
 
     go build ./... && go test ./...
 
-**Golden images.** Tests in three module directories compare rendered output
-against committed PNGs under `testdata/golden/`: `feeds/`, `sitedocs/` and
-`watchlist/`. `watchlist/` kept its two images in `testdata/` directly until
-F5.5, where a sweep keyed on the `golden/` path silently missed them; moving
-onto the shared harness moved them into line, since the harness resolves that
-path itself and no longer takes the caller's word for it. `mindchat/` has
-pixel tests too, but they diff two renders in memory rather than storing an
-image.
-
-All four render through `github.com/vibrantgio/prism/golden`, which declares
-`-golden.update`. F5.5 deleted the five inlined copies these apps carried
-between them — `sitedocs/` alone had two, in adjacent files. Do not add
-another, and do not declare a second `-golden.update`: two registrations of
-one flag name in a test binary panic at init.
-
-When a change legitimately moves pixels, regenerate them within the same
-change, look at what came out, and say so in the commit. From inside the
-directory concerned:
+**Golden images.** Tests in three module directories — `feeds/`,
+`sitedocs/` and `watchlist/` — compare rendered output against PNGs
+committed under `testdata/golden/`. They render through
+`github.com/vibrantgio/prism/golden`, which declares `-golden.update` and
+is shared with `cadence`, `markdown` and `pulse`. Do not inline a copy of
+it, and do not declare a second `-golden.update`: two registrations of one
+flag name in a single test binary panic in `flag.Bool` at init, before any
+test runs. When a change legitimately moves pixels, regenerate them within
+the same change, look at what came out, and say so in the commit. From
+inside the directory concerned:
 
     go test . -golden.update
 
@@ -64,26 +56,44 @@ flag is boolean, so anything after it stops being a package argument.
 
 **Nothing but a developer's machine has ever compared these images.** This
 repository has no CI workflow, so the stored PNGs are checked only where
-they are regenerated. That is a weaker guarantee than it looks even
-elsewhere in the organization: a golden test whose `headless.NewWindow`
-fails answers with `t.Skipf`, and a skipped test passes, so F5.4 made the
-four repositories that do have CI publish — as a public workflow annotation
-— whether their images were compared or merely skipped. Here there is no
-run to ask.
+they are regenerated. That is not the weaker half of an arrangement — it is
+the same guarantee the four repositories with CI have, for the reason F5.7
+measured: a golden test whose `headless.NewWindow` fails answers with
+`t.Skipf` and passes, and installing the drivers that would make it render
+instead turns nine of pulse's twenty-one images red, because the
+organization's goldens were recorded on macOS and Linux mesa does not
+reproduce them exactly. CI there gates the build and the tests and not the
+pixels, by decision. Here there is simply no run to ask.
 
-**A golden test pins its faces; application code does not.** Every golden and
-pixel test here builds its shaper with
+**A golden test pins its faces; application code does not.** Every golden
+and pixel test here builds its shaper with
 `tokens.DefaultTypography.DeterministicShaper()` — the default typography's
-faces and nothing else, system fonts off, so the stored PNGs are the same on
-every machine. Applications call `Shaper()` instead, which falls back to the
-platform's own fonts so that text outside Roboto and Roboto Mono still
+faces and nothing else, system fonts off, so the stored PNGs are the same
+on every machine. Applications call `Shaper()` instead, which falls back to
+the platform's own fonts so that text outside Roboto and Roboto Mono still
 resolves. The two are not interchangeable: a golden written against
 `Shaper()` passes on the machine that wrote it and fails on one with a
-different font set, which is the failure the split constructor exists to make
-impossible. When a test genuinely needs a glyph the default faces lack, widen
-the collection rather than reach for the system —
-`tokens.DefaultTypography.WithFaces(notosansmono.FontFace()).DeterministicShaper()`
-— and assert the shaper resolved the rune rather than storing it as pixels.
+different font set, which is the failure the split constructor exists to
+make impossible.
+
+When a test genuinely needs a glyph the default faces lack, widen the
+collection rather than reach for the system:
+
+    tokens.DefaultTypography.WithFaces(notosansmono.FontFace()).DeterministicShaper()
+
+Then assert that the shaper resolved the rune, rather than storing the
+result as pixels. A stored image proves the glyph came out somewhere; only
+the assertion says which face drew it.
+
+**`watchlist/` and `mindchat/` are the two exceptions to the sentence above.**
+`watchlist/` kept its two images in `testdata/` directly until F5.5, where a
+sweep keyed on the `golden/` path silently missed them; moving onto the shared
+harness moved them into line, since the harness resolves that path itself and
+no longer takes the caller's word for it. `mindchat/` has pixel tests too, but
+they diff two renders in memory rather than storing an image, so it links the
+harness without appearing in the list. F5.5 deleted the five inlined copies
+these apps carried between them — `sitedocs/` alone had two, in adjacent
+files.
 
 **The `.gitignore` denies everything by default.** Its first line is `*`, and
 what follows re-admits exactly: Markdown at any level, `LICENSE`, `llms.txt`,
