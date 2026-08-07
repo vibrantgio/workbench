@@ -8,8 +8,8 @@ require (
 	github.com/vibrantgio/backdrop v0.0.3
 	github.com/vibrantgio/ivg/raster/gio v0.1.6
 	github.com/vibrantgio/mvu v0.4.4
-	github.com/vibrantgio/prism v0.3.1
-	github.com/vibrantgio/spectrum v0.4.0
+	github.com/vibrantgio/prism v0.4.0
+	github.com/vibrantgio/spectrum v0.4.1
 	github.com/vibrantgio/textdraw v0.0.4
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743
 )
