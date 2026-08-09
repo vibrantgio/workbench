@@ -278,16 +278,18 @@ var prefsScrimRegion = image.Rect(prefsCanvasW/2-260, prefsCanvasH/2-120, prefsC
 // It composes preferencesPanel over articlesMain rather than subscribing
 // feedsShellLayer, which keeps the canvas tight enough for the two regions
 // above to mean what they say. When it was written that was not a choice:
-// cadence/toast's Notify Subject is process-global, prism/coordination.Subject
+// cadence/toast's Notify Subject was process-global, prism/coordination.Subject
 // then capped it at eight concurrent subscribers, every feedsShellLayer
-// subscription takes one via toast.Stack — and rx never returned a slot on
+// subscription took one via toast.Stack — and rx never returned a slot on
 // Unsubscribe, so the eight were spent for the life of the binary. This
 // package stood at exactly eight, and a ninth shell subscription anywhere in
 // it made the LAST such test in the binary fail with "out of subject
 // subscriptions", which looks for all the world like a wrong AutoConnect
 // count. G0B.1 made Unsubscribe release the slot, so the shell-level half of
-// this pattern now has its own test below,
-// TestPreferencesPanelInShellLive — the ninth.
+// this pattern got its own test below, TestPreferencesPanelInShellLive — the
+// ninth. G0C.3 removed the ceiling's cause entirely: the toast queue is model
+// state now, toast.Stack subscribes no Subject at all, and a tenth shell
+// subscription costs nothing but time.
 func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	th := rx.Of(theme.Default())

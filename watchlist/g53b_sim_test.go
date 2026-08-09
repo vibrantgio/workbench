@@ -10,9 +10,10 @@
 //   - OpenAddSymbol paints the modal scrim over the window,
 //   - an empty SubmitSymbol raises the alert band,
 //   - a non-empty SubmitSymbol updates the symbols table (a new row appears),
-//   - the toast.Notify → toast.Stack render path (the package-global side-channel
-//     the model-driven tests cannot reach, since the write+toast fire from the
-//     submit callback, not the reducer).
+//   - the toast path, twice over since G0C.3: a toast.Requested reduced through
+//     Update renders in toast.Stack and a toast.Expired takes it back off, and
+//     a toast raised by a COMMAND — off the frame goroutine entirely — arrives
+//     the same way.
 //
 // Verification is HEADLESS throughout: there is no GUI driving; clicks are
 // modelled by applying messages to the model directly and asserting rendered
@@ -24,6 +25,7 @@ import (
 	"image/color"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -36,6 +38,7 @@ import (
 	"github.com/vibrantgio/cadence/card"
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/prism/input"
@@ -199,18 +202,22 @@ func TestG53bSymbolEditorStatesHeadless(t *testing.T) {
 	}
 }
 
-// TestToastNotifyRendersInStack exercises the toast.Notify → package Subject →
-// Stack render path — the package-global side-channel the addSymbolModal submit
-// callback fires on a successful save. Driving Update directly never invokes it,
-// so this closes that verification gap (copied from feeds/g52d_sim_test.go): an
-// empty stack renders no pixels; Notify re-emits the stack widget with a diff.
-func TestToastNotifyRendersInStack(t *testing.T) {
+// toastCanvas is the canvas the two toast tests below capture.
+var toastCanvas = image.Pt(600, 300)
+
+// toastBG is a flat pane the toast surface has to separate from.
+var toastBG = color.NRGBA{R: 240, G: 240, B: 240, A: 255}
+
+// toastStackOf subscribes a live toast.Stack whose queue comes from modelObs,
+// exactly as watchlistShellLayer composes it, and hands back its emissions.
+func toastStackOf(t *testing.T, modelObs rx.Observable[Model]) (<-chan layout.Widget, func()) {
+	t.Helper()
 	stackObs := toast.Stack(rx.Of(theme.Default()), toast.Props{
 		Position: toast.TopRight,
+		Toasts:   rx.Map(modelObs, func(m Model) []toast.Toast { return m.toasts.Items() }),
 		Shaper:   tokens.DefaultTypography.DeterministicShaper(),
 	})
-
-	emissions := make(chan layout.Widget, 16)
+	emissions := make(chan layout.Widget, 32)
 	sub := stackObs.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
@@ -219,16 +226,173 @@ func TestToastNotifyRendersInStack(t *testing.T) {
 			}
 		}
 	})
-	defer sub.Unsubscribe()
+	return emissions, sub.Unsubscribe
+}
 
-	size := image.Pt(600, 300)
-	empty := awaitStableWidget(t, emissions, "seeded empty stack")
-	before := golden.Capture(t, size, scene(empty, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
+// emptyToastFrame is what the stack paints for a model with no toasts: the
+// baseline both tests below diff against. It is captured from its own
+// subscription so it cannot race with whatever the test under way is doing.
+func emptyToastFrame(t *testing.T) *image.RGBA {
+	t.Helper()
+	send, modelObs := rx.Subject[Model](0, 1, 4)
+	emissions, stop := toastStackOf(t, modelObs)
+	defer stop()
+	send.Next(initialModel(testDoc()))
+	return golden.Capture(t, toastCanvas, scene(awaitStableWidget(t, emissions, "empty queue"), toastBG))
+}
 
-	toast.Notify(toast.Success, "Saved")
-	after := awaitStableWidget(t, emissions, "Notify ping")
-	got := golden.Capture(t, size, scene(after, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
-	if n := golden.PixelDiff(before, got); n <= 0 {
-		t.Errorf("stack frame unchanged after toast.Notify (diff=%d); toast did not render", n)
+// waitForToastFrame drains the stack's emissions until one paints something
+// an empty queue does not. Written as a poll rather than "settle, then
+// capture" because the toast in the command test arrives on a command
+// goroutine at a moment no test controls.
+func waitForToastFrame(t *testing.T, emissions <-chan layout.Widget, empty *image.RGBA) *image.RGBA {
+	t.Helper()
+	deadline := time.After(5 * time.Second)
+	for {
+		select {
+		case w := <-emissions:
+			if w == nil {
+				continue
+			}
+			if img := golden.Capture(t, toastCanvas, scene(w, toastBG)); golden.PixelDiff(empty, img) > 0 {
+				return img
+			}
+		case <-deadline:
+			t.Fatal("the toast stack never painted anything an empty queue would not")
+			return nil
+		}
+	}
+}
+
+// TestToastRequestRendersInStack drives the toast through Update, which is the
+// whole of G0C.3. Before it, toast.Notify published to a process-global
+// rx.Subject fired from the addSymbolModal submit callback: the toast was on
+// screen and in no model, so a test that applied messages could not produce
+// one and this test had to reach for the side channel instead. Now the request
+// is a message, the queue is model state, and the expiry is a message back —
+// so the canvas returns to empty through Update as well.
+func TestToastRequestRendersInStack(t *testing.T) {
+	send, modelObs := rx.Subject[Model](0, 1, 16)
+	emissions, stop := toastStackOf(t, modelObs)
+	defer stop()
+	snap := func(what string) *image.RGBA {
+		t.Helper()
+		return golden.Capture(t, toastCanvas, scene(awaitStableWidget(t, emissions, what), toastBG))
+	}
+
+	m := initialModel(testDoc())
+	send.Next(m)
+	before := snap("seeded empty stack")
+
+	// The exact message the five confirm/submit callbacks land via toast.Notify.
+	m, _ = Update(m, toast.Requested{Level: toast.Success, Text: "Saved", At: time.Now()})
+	if m.toasts.Len() != 1 {
+		t.Fatalf("model queue length = %d after toast.Requested; want 1", m.toasts.Len())
+	}
+	send.Next(m)
+	if n := golden.PixelDiff(before, snap("toast.Requested")); n <= 0 {
+		t.Errorf("stack frame unchanged after toast.Requested (diff=%d); toast did not render", n)
+	}
+
+	m, _ = Update(m, toast.Expired{ID: m.toasts.Items()[0].ID})
+	if m.toasts.Len() != 0 {
+		t.Fatalf("model queue length = %d after toast.Expired; want 0", m.toasts.Len())
+	}
+	send.Next(m)
+	if n := golden.PixelDiff(before, snap("toast.Expired")); n != 0 {
+		t.Errorf("stack frame differs from empty after toast.Expired (diff=%d); toast did not leave", n)
+	}
+}
+
+// TestToastFromACommandGoroutineArrives is the point of the conversion: a
+// toast raised off the frame goroutine, by a command, arrives on screen — and
+// the caller never thinks about goroutines, because command → message →
+// Update is the loop's own path.
+//
+// The command is the row delete done asynchronously, built out of this app's
+// own deleteSymbolAt/documentOf/saveStore. The production delete still writes
+// synchronously in the confirm callback by the decision logged in
+// FEEDBACK-G5.3.md and in model.go's header; what this proves is that the
+// decision is now the only thing holding it there. Under the Subject that was
+// not true: a command goroutine calling the old Notify published into
+// cadence's process-global bus, which is precisely the cross-goroutine hazard
+// a single-goroutine renderer cannot otherwise express (ADR-008).
+//
+// Everything below is real: mvu.Loop, this app's Update, a real disk write on
+// a command goroutine, a real toast.Stack rendering the model's queue.
+func TestToastFromACommandGoroutineArrives(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "watchlists.json")
+	doc := testDoc()
+	if err := saveStore(path, doc); err != nil {
+		t.Fatalf("seeding the store: %v", err)
+	}
+
+	// The delete, as a command. It runs on the runner's goroutine, has no gtx
+	// and no callback, and says what happened by returning a message.
+	deleteRow := func(m Model, row int) mvu.Command {
+		return mvu.Do(func() (mvu.Message, error) {
+			next := deleteSymbolAt(m.watchlists, m.selected, row)
+			if err := saveStore(path, documentOf(next, m.selected)); err != nil {
+				return toast.Request(toast.Error, "Delete failed"), nil
+			}
+			return toast.Request(toast.Success, "Symbol deleted"), nil
+		})
+	}
+
+	// The baseline comes from its own subscription: the command below fires
+	// the moment the loop starts, so there is no "before" to capture from the
+	// loop's own stack.
+	empty := emptyToastFrame(t)
+
+	seed := initialModel(doc)
+	msgCh := make(chan mvu.Message, 16)
+	init := func() (Model, mvu.Command) { return seed, deleteRow(seed, 0) }
+	// The runner is deliberately leaked, as in wiring_test.go: unsubscribing
+	// the rx chain races inside reactivego/rx itself, and everything asserted
+	// here happens before any teardown.
+	models, _ := mvu.Loop(rx.Recv(msgCh), init, Update)
+	modelObs := models.Publish().AutoConnect(2)
+
+	queues := make(chan toast.Queue, 32)
+	_ = rx.Map(modelObs, func(m Model) toast.Queue { return m.toasts }).
+		Subscribe(rx.GoroutineContext(), func(q toast.Queue, _ error, done bool) {
+			if !done {
+				select {
+				case queues <- q:
+				default:
+				}
+			}
+		})
+	emissions, stop := toastStackOf(t, modelObs)
+	defer stop()
+
+	deadline := time.After(5 * time.Second)
+	var queued toast.Toast
+	for queued.ID == 0 {
+		select {
+		case q := <-queues:
+			if q.Len() > 0 {
+				queued = q.Items()[0]
+			}
+		case <-deadline:
+			t.Fatal("no toast reached the model within 5s; the command → message → Update path is broken")
+		}
+	}
+	if queued.Text != "Symbol deleted" {
+		t.Errorf("queued toast text = %q; want the command's success message", queued.Text)
+	}
+	if queued.At.IsZero() {
+		t.Error("toast.Request left At zero; a command-raised toast would never fade")
+	}
+	waitForToastFrame(t, emissions, empty)
+
+	// The write really happened, on that same goroutine, before the message.
+	saved, err := loadStore(path)
+	if err != nil {
+		t.Fatalf("reading back the store: %v", err)
+	}
+	if got := len(saved.Watchlists[0].Symbols); got != len(doc.Watchlists[0].Symbols)-1 {
+		t.Errorf("saved symbol count = %d; want %d — the command's delete did not land",
+			got, len(doc.Watchlists[0].Symbols)-1)
 	}
 }

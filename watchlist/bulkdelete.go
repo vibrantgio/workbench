@@ -103,9 +103,9 @@ func bulkDeletePopover(
 			m, _ := modelCell.Load().(Model)
 			next := bulkDeleteRows(m.watchlists, m.selected, selectedRows(m.selection))
 			if err := saveStore(storePath, documentOf(next, m.selected)); err == nil {
-				toast.Notify(toast.Success, "Symbols deleted")
+				toast.Notify(gtx, toast.Success, "Symbols deleted")
 			} else {
-				toast.Notify(toast.Error, "Delete failed")
+				toast.Notify(gtx, toast.Error, "Delete failed")
 			}
 			mvu.MessageOp{Message: BulkDelete{}}.Add(gtx.Ops)
 			closePop()

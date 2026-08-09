@@ -109,9 +109,9 @@ func renameWatchlistModal(
 					selected = name
 				}
 				if err := saveStore(storePath, documentOf(next, selected)); err == nil {
-					toast.Notify(toast.Success, "Watchlist renamed")
+					toast.Notify(gtx, toast.Success, "Watchlist renamed")
 				} else {
-					toast.Notify(toast.Error, "Rename failed")
+					toast.Notify(gtx, toast.Error, "Rename failed")
 				}
 			}
 			mvu.MessageOp{Message: SubmitRenameWatchlist{Name: name}}.Add(gtx.Ops)

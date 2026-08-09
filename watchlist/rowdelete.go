@@ -86,9 +86,9 @@ func newRowDeleteConfirm(
 			m := loadModel()
 			next := deleteSymbolAt(m.watchlists, m.selected, dc.idx)
 			if err := saveStore(storePath, documentOf(next, m.selected)); err == nil {
-				toast.Notify(toast.Success, "Symbol deleted")
+				toast.Notify(gtx, toast.Success, "Symbol deleted")
 			} else {
-				toast.Notify(toast.Error, "Delete failed")
+				toast.Notify(gtx, toast.Error, "Delete failed")
 			}
 			mvu.MessageOp{Message: DeleteSymbol{Row: dc.idx}}.Add(gtx.Ops)
 			dc.close()

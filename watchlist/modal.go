@@ -150,9 +150,9 @@ func addSymbolModal(
 					Symbol: sym, Exchange: exch, Timeframe: tf, Notes: notes,
 				})
 				if err := saveStore(storePath, documentOf(next, m.selected)); err == nil {
-					toast.Notify(toast.Success, "Saved")
+					toast.Notify(gtx, toast.Success, "Saved")
 				} else {
-					toast.Notify(toast.Error, "Save failed")
+					toast.Notify(gtx, toast.Error, "Save failed")
 				}
 			}
 			mvu.MessageOp{Message: SubmitSymbol{

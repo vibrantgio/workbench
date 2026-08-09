@@ -309,16 +309,19 @@ func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
 	}
 }
 
-// TestToastNotifyRendersInStack closes the verification gap the model-driven
-// CRUD tests cannot reach: toast.Notify fires from the submit/confirm view
-// callbacks (the package-global side-channel logged in FEEDBACK-G5.2.md),
-// so driving Update directly never invokes it. This test exercises the
-// actual Notify → package Subject → Stack render path: an empty stack
-// renders no pixels, Notify("Feed added") re-emits the stack widget, and
-// the rendered frame differs in the toast region.
-func TestToastNotifyRendersInStack(t *testing.T) {
+// TestToastRequestRendersInStack drives the toast the way every other feature
+// in this app is driven — through Update — and asserts the pixels at the end
+// of it. Before G0C.3 this test could not be written: toast.Notify published
+// to a process-global rx.Subject, so the toast existed on screen and nowhere
+// in the model, and driving Update never produced one. Now toast.Requested is
+// a message like any other, the queue is model state, and toast.Stack renders
+// what the model holds; toast.Expired takes it back off and the canvas
+// returns to empty.
+func TestToastRequestRendersInStack(t *testing.T) {
+	send, modelObs := rx.Subject[Model](0, 1, 16)
 	stackObs := toast.Stack(rx.Of(theme.Default()), toast.Props{
 		Position: toast.TopRight,
+		Toasts:   rx.Map(modelObs, func(m Model) []toast.Toast { return m.toasts.Items() }),
 		Shaper:   tokens.DefaultTypography.DeterministicShaper(),
 	})
 
@@ -334,13 +337,35 @@ func TestToastNotifyRendersInStack(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	size := image.Pt(600, 300)
-	empty := awaitStableWidget(t, emissions, "seeded empty stack")
-	before := golden.Capture(t, size, scene(empty, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
+	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
+	snap := func(what string) *image.RGBA {
+		t.Helper()
+		return golden.Capture(t, size, scene(awaitStableWidget(t, emissions, what), bg))
+	}
 
-	toast.Notify(toast.Success, "Feed added")
-	after := awaitStableWidget(t, emissions, "Notify ping")
-	got := golden.Capture(t, size, scene(after, color.NRGBA{R: 240, G: 240, B: 240, A: 255}))
+	m := initialModel()
+	send.Next(m)
+	before := snap("seeded empty stack")
+
+	// The exact message the Add-feed submit callback lands via toast.Notify.
+	m, _ = Update(m, toast.Requested{Level: toast.Success, Text: "Feed added", At: time.Now()})
+	if m.toasts.Len() != 1 {
+		t.Fatalf("model queue length = %d after toast.Requested; want 1", m.toasts.Len())
+	}
+	send.Next(m)
+	got := snap("toast.Requested")
 	if n := golden.PixelDiff(before, got); n <= 0 {
-		t.Errorf("stack frame unchanged after toast.Notify (diff=%d); toast did not render", n)
+		t.Errorf("stack frame unchanged after toast.Requested (diff=%d); toast did not render", n)
+	}
+
+	// And the expiry is a message too, so the toast leaves through Update.
+	m, _ = Update(m, toast.Expired{ID: m.toasts.Items()[0].ID})
+	if m.toasts.Len() != 0 {
+		t.Fatalf("model queue length = %d after toast.Expired; want 0", m.toasts.Len())
+	}
+	send.Next(m)
+	after := snap("toast.Expired")
+	if n := golden.PixelDiff(before, after); n != 0 {
+		t.Errorf("stack frame differs from empty after toast.Expired (diff=%d); toast did not leave", n)
 	}
 }

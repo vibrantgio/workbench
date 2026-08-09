@@ -37,8 +37,12 @@ import (
 //
 // The count is MEASURED by TestModelObsConsumerCountMatchesConst (which fails
 // if a topology edit changes it without updating this), not hand-counted — the
-// measured G5.3c total is 22 (was 11 at G5.3b). The F1.3 theme migration left
-// it untouched: mirrorTokens subscribes only the THEME streams, never modelObs.
+// measured total is 23 (22 at G5.3c, 11 at G5.3b). The F1.3 theme migration
+// left it untouched: mirrorTokens subscribes only the THEME streams, never
+// modelObs. G0C.3 added the twenty-third and it is the first entry ADR-008 put
+// ON the ledger rather than took off it: the toast queue moved out of a
+// process-global rx.Subject and into the model, so toast.Stack reads modelObs
+// like every other component.
 //
 // CRITICAL INVARIANT (logged in FEEDBACK-G5.3.md): NEVER subscribe modelObs
 // inside a keyed.Defer (per-row/per-name). A lazy subscription attaches during
@@ -66,9 +70,10 @@ import (
 //   - renameOpenObs       → rename modal Open prop                        (1)
 //   - renameErrorObs      → rename modal errorCell mirror                 (1)
 //   - renameEditObs       → rename modal name-field epoch SwitchMap       (1)
+//   - toastsObs           → toast.Stack Toasts prop (G0C.3)               (1)
 //
-// (Trust the measured 22 over this breakdown if they ever disagree.)
-const modelObsConsumers = 22
+// (Trust the measured 23 over this breakdown if they ever disagree.)
+const modelObsConsumers = 23
 
 // themeTokens is the colour/typography snapshot the app's own drawing code
 // reads at frame time. The shaper is the theme's cached Typography shaper
@@ -179,13 +184,14 @@ func watchlistShellLayer(
 	renameEditObs := rx.Map(modelObs, func(m Model) renameTarget {
 		return renameTarget{epoch: m.renameEpoch, target: m.renameTarget, seed: m.renameSeed}
 	})
+	toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.toasts.Items() })
 
 	sidebarObs := watchlistSidebar(th, watchlistsObs, selectedObs, storePath, modelObs)
 	mainObs := watchlistMain(th, selectedObs, symbolsObs, selectionObs, pageObs, storePath, modelObs)
 	modalObs := addSymbolModal(th, storePath, modelObs, modalOpenObs, modalErrorObs, editObs)
 	renameModalObs := renameWatchlistModal(th, storePath, modelObs, renameOpenObs, renameErrorObs, renameEditObs)
 	bulkDeleteObs := bulkDeletePopover(th, storePath, modelObs)
-	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight})
+	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})
 
 	// mainCell bridges the live Main widget stream into shell's static Main slot.
 	var mainCell atomic.Value

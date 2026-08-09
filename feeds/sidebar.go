@@ -315,7 +315,7 @@ func newDeleteConfirm(
 	content := func(gtx layout.Context) layout.Dimensions {
 		s := loadTok()
 		if confirmClick.Clicked(gtx) {
-			toast.Notify(toast.Success, "Feed deleted")
+			toast.Notify(gtx, toast.Success, "Feed deleted")
 			mvu.MessageOp{Message: ConfirmDelete{Feed: dc.id}}.Add(gtx.Ops)
 			dc.close()
 		}

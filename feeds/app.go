@@ -63,14 +63,22 @@ import (
 // 12. prefsOpenObs       → Preferences panel Open prop (G0A.3)            (1)
 // 13. rowsPerPageObs     → paged + pageCountObs + the panel's buttons     (3)
 // 14. unreadOnlyObs      → filtered×2 + the panel's buttons               (3)
+// 15. toastsObs          → toast.Stack Toasts prop (G0C.3)                (1)
 //
-// Total = 23, confirmed empirically by TestModelObsConsumerCountMatchesConst,
+// Total = 24, confirmed empirically by TestModelObsConsumerCountMatchesConst,
 // which fails if a future edit changes the topology without updating this.
 // G0A.3 added seven: a preference read by both the pipeline that applies it
 // and the panel that displays it is subscribed on both sides, and `filtered`
 // is itself subscribed twice (by paged and by pageCountObs), so a stream
 // feeding it counts double.
-const modelObsConsumers = 23
+//
+// G0C.3 added the last one, and it is the first entry here that ADR-008 put
+// on the ledger rather than took off it: the toast queue moved OUT of a
+// process-global rx.Subject and INTO the model, so the stack now reads the
+// model like every other component. Destination 2's conversions (popover,
+// tooltip, modal) could not move this number in either direction — they never
+// touched modelObs.
+const modelObsConsumers = 24
 
 // themeTokens is the colour/typography snapshot the app's own drawing code
 // reads at frame time. The shaper is the theme's cached Typography shaper
@@ -172,13 +180,14 @@ func feedsShellLayer(
 	prefsOpenObs := rx.Map(modelObs, func(m Model) bool { return m.prefsOpen })
 	rowsPerPageObs := rx.Map(modelObs, func(m Model) int { return m.rowsPerPage })
 	unreadOnlyObs := rx.Map(modelObs, func(m Model) bool { return m.unreadOnly })
+	toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.toasts.Items() })
 
 	articlesObs := articlesMain(th, selectedFeedObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs)
 	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
 	shareObs := sharePopover(th, shareOpenObs)
 	modalObs := addFeedModal(th, addFeedOpenObs, addFeedErrorObs)
 	prefsObs := preferencesPanel(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs)
-	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight})
+	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})
 
 	// The settings accelerator — ⌘, on macOS, Ctrl-, elsewhere. It is app
 	// chrome, laid out under everything else (see shortcut.go): the modal
@@ -449,10 +458,11 @@ func addFeedModal(
 		OnClick: func(gtx layout.Context) {
 			url, _ := urlCell.Load().(string)
 			if strings.TrimSpace(url) != "" {
-				// Success toast fires from the callback (the reducer is pure);
-				// the reducer owns the append/close. Empty submit fires no
-				// toast — the reducer raises the modal alert instead.
-				toast.Notify(toast.Success, "Feed added")
+				// The toast is a second message off the same click, landed on
+				// the same ops queue as SubmitFeed below: the reducer queues
+				// it and owns the append/close. Empty submit raises no toast —
+				// the reducer raises the modal alert instead.
+				toast.Notify(gtx, toast.Success, "Feed added")
 			}
 			mvu.MessageOp{Message: SubmitFeed{URL: url}}.Add(gtx.Ops)
 		},

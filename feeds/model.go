@@ -16,9 +16,18 @@
 //   - CloseShare{}                   — close the Share popover (destination click, outside press)
 //   - SetSplitRatio{Ratio float32}   — record the articles/detail split-divider position
 //
+// Two of the messages are cadence's, not this app's: toast.Requested and
+// toast.Expired. G0C.3 retired cadence/toast's process-global Notify Subject,
+// so a toast request is now an ordinary event that becomes an ordinary
+// message — landed by toast.Notify(gtx, …) from the same callbacks that
+// already land this app's own messages — and the toast queue is model state
+// like everything else here (ADR-008 destination 1).
+//
 // Update is pure: it takes the current Model and a message and returns the
-// next Model. The Command is always DoNothing() — feeds has no async
-// side-effects yet.
+// next Model. The Command is DoNothing() everywhere except toast.Requested,
+// which returns toast.Expire — the timer that brings the toast's removal back
+// through Update as toast.Expired. That is the app's only Command; feeds has
+// no async side-effects of its own yet.
 
 package main
 
@@ -26,6 +35,7 @@ import (
 	"strings"
 
 	"github.com/vibrantgio/cadence/table"
+	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/mvu"
 )
 
@@ -50,6 +60,13 @@ type Model struct {
 	prefsOpen   bool // "Preferences" panel visibility
 	rowsPerPage int  // articles table page size
 	unreadOnly  bool // restrict the table to unread articles
+
+	// toasts is the transient-notification queue, oldest first. It is model
+	// state so a toast is reproducible from a message log and assertable
+	// through Update without a frame; before G0C.3 it lived in a
+	// process-global rx.Subject inside cadence/toast and no test that drove
+	// this app through messages could see it at all.
+	toasts toast.Queue
 }
 
 // initialSplitRatio gives the articles table ~3/5 of the main area so the
@@ -157,10 +174,22 @@ type SetRowsPerPage struct{ Rows int }
 // shrinks the result set.
 type ToggleUnreadOnly struct{}
 
-// Update reduces a message into the next Model. It always returns
-// mvu.DoNothing() — feeds has no async side-effects yet.
+// Update reduces a message into the next Model. It returns mvu.DoNothing()
+// for everything except a toast request, whose expiry timer is the app's one
+// Command.
 func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 	switch m := msg.(type) {
+	case toast.Requested:
+		// The toast joins the model now and leaves it later, by message: the
+		// command is a cancellable timer that emits toast.Expired when the
+		// toast's own Lifetime has run. Read the lifetime off the queued
+		// toast rather than re-deriving it, so the timer and the fade the
+		// stack paints cannot disagree.
+		queue, t := model.toasts.Add(m)
+		model.toasts = queue
+		return model, toast.Expire(t.ID, t.Lifetime)
+	case toast.Expired:
+		model.toasts = model.toasts.Remove(m.ID)
 	case SelectFeed:
 		model.selectedFeed = m.Feed
 		model.currentPage = 1 // new feed: reset to the first page.

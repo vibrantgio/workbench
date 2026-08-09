@@ -86,9 +86,9 @@ func newSidebarContext(
 				selected = firstWatchlistName(next)
 			}
 			if err := saveStore(storePath, documentOf(next, selected)); err == nil {
-				toast.Notify(toast.Success, "Watchlist deleted")
+				toast.Notify(gtx, toast.Success, "Watchlist deleted")
 			} else {
-				toast.Notify(toast.Error, "Delete failed")
+				toast.Notify(gtx, toast.Error, "Delete failed")
 			}
 			mvu.MessageOp{Message: DeleteWatchlist{Name: sc.name}}.Add(gtx.Ops)
 			sc.close()

@@ -30,20 +30,34 @@
 // checkbox maps a page-relative row to its absolute index via pageOffset+row.
 //
 // The DISK WRITE on save lives in the submit/confirm CALLBACK, not the reducer:
-// the reducer stays pure and returns no Commands (mvu.Loop in run() would run
-// them; the callback keeps the write synchronous with the confirming click),
-// so the callback reads a model mirror, applies the SAME pure helper the reducer
-// uses, and writes the resulting Document atomically. (Rationale logged in
-// FEEDBACK-G5.3.md.) Per-mutation helpers — applyEdit, deleteSymbolAt,
+// the reducer stays pure and returns no Commands of its own (mvu.Loop in run()
+// would run them; the callback keeps the write synchronous with the confirming
+// click), so the callback reads a model mirror, applies the SAME pure helper the
+// reducer uses, and writes the resulting Document atomically. (Rationale logged
+// in FEEDBACK-G5.3.md.) Per-mutation helpers — applyEdit, deleteSymbolAt,
 // bulkDeleteRows, renameWatchlistTo, deleteWatchlistNamed — are each called by
 // BOTH the reducer (in-memory) and the callback (to build the saved Document),
 // keeping the two in lockstep.
+//
+// G0C.3 adds two messages that are cadence's rather than this app's:
+//   - toast.Requested{Level, Text, At} — a toast was asked for. Landed by
+//     toast.Notify(gtx, …) from the same five confirm/submit callbacks that
+//     already land this app's own messages, or returned by any command.
+//   - toast.Expired{ID}               — its lifetime ran out.
+//
+// The toast queue is model state (ADR-008 destination 1), which is what makes
+// the confirm-callback saves above *able* to move into commands later: a
+// command has no frame and no callback, and toast.Request is the message it
+// returns to say so. Nothing in this app does that yet — the saves are still
+// synchronous with the click by the decision above — but the path is exercised
+// by TestToastFromACommandGoroutineArrives in g53b_sim_test.go.
 
 package main
 
 import (
 	"strings"
 
+	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/mvu"
 )
 
@@ -82,6 +96,13 @@ type Model struct {
 	renameSeed   string
 	renameError  bool
 	renameEpoch  int
+
+	// toasts is the transient-notification queue, oldest first. Model state
+	// since G0C.3: before that the five confirm/submit callbacks published
+	// into a process-global rx.Subject inside cadence/toast, so a toast was
+	// on screen and in no model — invisible to every test that drives this
+	// app through Update, and to any model dump.
+	toasts toast.Queue
 }
 
 // pageSize is the row count per table page. A watchlist with more than pageSize
@@ -209,12 +230,24 @@ type SubmitRenameWatchlist struct{ Name string }
 // remaining watchlist (page resets, selection clears).
 type DeleteWatchlist struct{ Name string }
 
-// Update reduces a message into the next Model. Pure; always returns
-// mvu.DoNothing() — the disk write on save is performed in the submit callback
-// by design, not here (mvu.Loop in run() would run a returned Command; the
-// callback keeps the write synchronous with the confirming click).
+// Update reduces a message into the next Model. Pure; returns mvu.DoNothing()
+// for everything except a toast request — the disk write on save is performed
+// in the submit callback by design, not here (mvu.Loop in run() would run a
+// returned Command; the callback keeps the write synchronous with the
+// confirming click).
 func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 	switch m := msg.(type) {
+	case toast.Requested:
+		// The toast joins the model now and leaves it later, by message: the
+		// command is a cancellable timer that emits toast.Expired when the
+		// toast's own Lifetime has run. Read the lifetime off the queued
+		// toast rather than re-deriving it, so the timer and the fade the
+		// stack paints cannot disagree.
+		queue, t := model.toasts.Add(m)
+		model.toasts = queue
+		return model, toast.Expire(t.ID, t.Lifetime)
+	case toast.Expired:
+		model.toasts = model.toasts.Remove(m.ID)
 	case SelectWatchlist:
 		// Switching watchlists invalidates the index-based selection and the
 		// page (the new watchlist has a different symbol slice).
