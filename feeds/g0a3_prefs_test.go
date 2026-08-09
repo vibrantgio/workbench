@@ -7,9 +7,9 @@
 // The reducer half is asserted directly; the accelerator is driven through a
 // real gioui input.Router so the modifier requirement is proven rather than
 // read; the panel is pinned as a golden and driven live over the articles
-// table it edits. Its presence in the composed shell is asserted separately,
-// in TestFeedsShellLayerReEmitsOnModelChange — see the note on
-// TestPreferencesPanelOverArticlesLive for why that half lives there.
+// table it edits, and driven again through the real composed shell in
+// TestPreferencesPanelInShellLive — the test that was impossible until G0B.1
+// lifted the eight-subscriber ceiling on cadence/toast's Subject.
 package main
 
 import (
@@ -276,16 +276,18 @@ var prefsScrimRegion = image.Rect(prefsCanvasW/2-260, prefsCanvasH/2-120, prefsC
 // puts the canvas back.
 //
 // It composes preferencesPanel over articlesMain rather than subscribing
-// feedsShellLayer, and that is deliberate rather than convenient.
-// cadence/toast's Notify Subject is process-global with a hard cap of eight
-// concurrent subscribers (prism/coordination.Subject passes scap=8), every
-// feedsShellLayer subscription takes one via toast.Stack, and rx does not
-// return a slot on Unsubscribe. This package already stands at exactly eight;
-// a ninth shell subscription anywhere in it makes the LAST such test in the
-// binary fail with "out of subject subscriptions" — which looks for all the
-// world like a wrong AutoConnect count. The shell-level wiring is asserted
-// instead inside TestFeedsShellLayerReEmitsOnModelChange, which already holds
-// one of the eight.
+// feedsShellLayer, which keeps the canvas tight enough for the two regions
+// above to mean what they say. When it was written that was not a choice:
+// cadence/toast's Notify Subject is process-global, prism/coordination.Subject
+// then capped it at eight concurrent subscribers, every feedsShellLayer
+// subscription takes one via toast.Stack — and rx never returned a slot on
+// Unsubscribe, so the eight were spent for the life of the binary. This
+// package stood at exactly eight, and a ninth shell subscription anywhere in
+// it made the LAST such test in the binary fail with "out of subject
+// subscriptions", which looks for all the world like a wrong AutoConnect
+// count. G0B.1 made Unsubscribe release the slot, so the shell-level half of
+// this pattern now has its own test below,
+// TestPreferencesPanelInShellLive — the ninth.
 func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	th := rx.Of(theme.Default())
@@ -362,5 +364,72 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 	dismissed := snap("ClosePreferences")
 	if n := regionDiff(open, dismissed, prefsScrimRegion); n <= 0 {
 		t.Errorf("scrim still painted after ClosePreferences (diff=%d); the panel did not dismiss", n)
+	}
+}
+
+// shellPrefsScrimRegion samples the middle of the FULL shell canvas, where an
+// open preferences panel paints its scrim and surface over the split pane.
+// The shell's sidebar is 192 dp and its navbar 64 px, so a centred sample of
+// the 1200×800 canvas lies wholly inside the region the panel covers.
+var shellPrefsScrimRegion = image.Rect(shellCanvasW/2-260, shellCanvasH/2-120, shellCanvasW/2+260, shellCanvasH/2+120)
+
+// TestPreferencesPanelInShellLive is the ninth feedsShellLayer subscription in
+// this binary, and until G0B.1 it could not exist: the eight-subscriber
+// ceiling on cadence/toast's process-global Subject was already spent, so
+// adding this test broke a different, later test with an error that named
+// neither this test nor the Subject. It is kept as much for that as for what
+// it asserts — if the ceiling ever comes back, this is what says so, in the
+// package that paid for it the first time.
+//
+// What it asserts is the half TestPreferencesPanelOverArticlesLive cannot:
+// that the panel reaches the canvas through the REAL composed shell — navbar,
+// sidebar, split pane, toast stack and all — rather than through a two-widget
+// composition built for the test. Opening it must change the middle of the
+// shell; closing it must put the shell back exactly, because every widget
+// here is a pure function of model and theme.
+func TestPreferencesPanelInShellLive(t *testing.T) {
+	send, modelObs := rx.Subject[Model](0, 1, 256)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
+
+	emissions := make(chan layout.Widget, 64)
+	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, err error, done bool) {
+		if err != nil {
+			t.Errorf("shell layer errored: %v", err)
+			return
+		}
+		if !done && w != nil {
+			select {
+			case emissions <- w:
+			default:
+			}
+		}
+	})
+	defer sub.Unsubscribe()
+
+	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
+	size := image.Pt(shellCanvasW, shellCanvasH)
+	snap := func(what string) *image.RGBA {
+		return golden.Capture(t, size, scene(awaitStableWidget(t, emissions, what), bg))
+	}
+
+	m := initialModel()
+	send.Next(m)
+	closed := snap("initial model")
+
+	m, _ = Update(m, OpenPreferences{})
+	send.Next(m)
+	if !m.prefsOpen {
+		t.Fatal("OpenPreferences did not open the panel in the model")
+	}
+	open := snap("OpenPreferences")
+	if n := regionDiff(closed, open, shellPrefsScrimRegion); n <= 0 {
+		t.Errorf("shell canvas unchanged after OpenPreferences (diff=%d in the scrim region); the panel never reached the composed shell", n)
+	}
+
+	m, _ = Update(m, ClosePreferences{})
+	send.Next(m)
+	dismissed := snap("ClosePreferences")
+	if n := golden.PixelDiff(closed, dismissed); n != 0 {
+		t.Errorf("shell after ClosePreferences differs from the pre-open shell by %d pixel(s); the panel did not dismiss cleanly", n)
 	}
 }
