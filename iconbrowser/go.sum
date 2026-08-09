@@ -23,14 +23,8 @@ github.com/vibrantgio/ivg/raster/gio v0.1.6 h1:ovAC6JC+2nDFKSy/wuhduZPMDdpbXFuy2
 github.com/vibrantgio/ivg/raster/gio v0.1.6/go.mod h1:swjaWU+DO0cDZfqpCsKLLGPbEn9VDn/CE6MZ/9L39/Q=
 github.com/vibrantgio/mvu v0.4.4 h1:CmbCYqCGz+Y2zTWDfF1OLON2DL2bUJceQlfhi6pMhaQ=
 github.com/vibrantgio/mvu v0.4.4/go.mod h1:jFP2zPvLge60zDSlCqTOcbMLHJaQgv1b8/VsmFD1ejo=
-github.com/vibrantgio/prism v0.3.1 h1:MMtG6xva1CW3Yq69Z77LXNWYHjM26xHkeyePzxTP0EM=
-github.com/vibrantgio/prism v0.3.1/go.mod h1:H6pyf1/CcvuR8qfvEzHg3zZI3KU0V4FNmYzCuZgQxuQ=
-github.com/vibrantgio/prism v0.4.0 h1:6NTvTKu8KfiEhD/rY4yi8dNAmVbKIYzpyWbnp09ENlI=
-github.com/vibrantgio/prism v0.4.0/go.mod h1:w+KUlehslvmiypyGntmuHkoRNiCY1891jvFz9dUdaU4=
-github.com/vibrantgio/prism v0.5.0 h1:ZuYtjCHI2X1Noa1uQlozlO1AAuX/Wh3WOQiFZhPqCSg=
-github.com/vibrantgio/prism v0.5.0/go.mod h1:w+KUlehslvmiypyGntmuHkoRNiCY1891jvFz9dUdaU4=
-github.com/vibrantgio/spectrum v0.4.0 h1:e1fBZuYkOq8blZRa4wH8JAl5BOvEIgmj8kyGhUfMwls=
-github.com/vibrantgio/spectrum v0.4.0/go.mod h1:yU6JfS8pETMwAUBlTKGqr6ffzOYR7qCngBPxtixQekU=
+github.com/vibrantgio/prism v0.6.0 h1:ech/1VL2bi8MEwUPHSzpEWdN9pPDS+WOP6WzX03bOOs=
+github.com/vibrantgio/prism v0.6.0/go.mod h1:w+KUlehslvmiypyGntmuHkoRNiCY1891jvFz9dUdaU4=
 github.com/vibrantgio/spectrum v0.4.1 h1:v7qC8SvjQUOQ+Afd4nmUl/Ic82j5ltAK1wnuHBeBNtI=
 github.com/vibrantgio/spectrum v0.4.1/go.mod h1:yU6JfS8pETMwAUBlTKGqr6ffzOYR7qCngBPxtixQekU=
 github.com/vibrantgio/textdraw v0.0.4 h1:0YRS1dkongHKd3Lz5EpLKKd31f/bAEI/2nJTPNBNCWQ=

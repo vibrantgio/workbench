@@ -8,12 +8,12 @@ require (
 	github.com/openai/openai-go/v3 v3.48.0
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.3
-	github.com/vibrantgio/cadence v0.4.0
+	github.com/vibrantgio/cadence v0.4.1
 	github.com/vibrantgio/ivg v0.1.6
 	github.com/vibrantgio/ivg/raster/gio v0.1.6
 	github.com/vibrantgio/markdown v0.1.3
 	github.com/vibrantgio/mvu v0.4.4
-	github.com/vibrantgio/prism v0.5.0
+	github.com/vibrantgio/prism v0.6.0
 	github.com/vibrantgio/pulse v0.1.4
 	github.com/vibrantgio/spectrum v0.4.1
 	github.com/vibrantgio/textdraw v0.0.4
