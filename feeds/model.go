@@ -42,6 +42,14 @@ type Model struct {
 	splitRatio      float32 // articles/detail SplitPane divider position
 	addFeedOpen     bool    // "Add feed" modal visibility
 	addFeedError    bool    // empty-URL submit raised the modal alert
+
+	// The Preferences PANEL (⌘,/Ctrl-,) and the two reading preferences it
+	// edits. Both apply the moment they change — nothing here is a draft and
+	// there is nothing to confirm, which is exactly why the surface that
+	// edits them is a panel and not a decision dialog (see preferences.go).
+	prefsOpen   bool // "Preferences" panel visibility
+	rowsPerPage int  // articles table page size
+	unreadOnly  bool // restrict the table to unread articles
 }
 
 // initialSplitRatio gives the articles table ~3/5 of the main area so the
@@ -50,7 +58,8 @@ const initialSplitRatio = 0.6
 
 // initialModel returns the seed state: the default feed selected, the first
 // accordion section open, Published-descending sort, page 1, the Reader tab,
-// the Share popover closed, and the default split position.
+// the Share popover closed, the default split position, and the default
+// reading preferences (every article, ten to a page).
 func initialModel() Model {
 	return Model{
 		feeds:        hardCodedGroups(),
@@ -60,6 +69,7 @@ func initialModel() Model {
 		openSections: map[int]bool{0: true},
 		selectedTab:  0,
 		splitRatio:   initialSplitRatio,
+		rowsPerPage:  defaultRowsPerPage,
 	}
 }
 
@@ -126,6 +136,27 @@ type SubmitFeed struct{ URL string }
 // table resets to page 1, since the old slice no longer applies).
 type ConfirmDelete struct{ Feed FeedID }
 
+// OpenPreferences shows the Preferences panel. Landed by the ⌘,/Ctrl-,
+// accelerator the app chrome binds (shortcut.go) — arrival is the app's
+// business, not the modal's. Idempotent when already open.
+type OpenPreferences struct{}
+
+// ClosePreferences hides the Preferences panel. Landed by the panel's ghost
+// close X, an Escape press, and a backdrop click — all three of which the
+// modal routes to Props.OnClose because the panel intent says every cheap
+// exit is offered. Idempotent when already closed.
+type ClosePreferences struct{}
+
+// SetRowsPerPage sets the articles table's page size. It resets to page 1:
+// a bigger page size shrinks the page count, so the current page can fall
+// out of range.
+type SetRowsPerPage struct{ Rows int }
+
+// ToggleUnreadOnly flips the unread-only reading preference. It resets to
+// page 1 for the same reason SetRowsPerPage does — hiding read articles
+// shrinks the result set.
+type ToggleUnreadOnly struct{}
+
 // Update reduces a message into the next Model. It always returns
 // mvu.DoNothing() — feeds has no async side-effects yet.
 func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
@@ -177,6 +208,20 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			model.selectedFeed = firstFeedID(model.feeds)
 			model.currentPage = 1
 		}
+	case OpenPreferences:
+		model.prefsOpen = true
+	case ClosePreferences:
+		model.prefsOpen = false
+	case SetRowsPerPage:
+		// Applied live, with no Save: the table repaginates on the next
+		// frame, underneath the still-open panel.
+		if m.Rows > 0 {
+			model.rowsPerPage = m.Rows
+			model.currentPage = 1
+		}
+	case ToggleUnreadOnly:
+		model.unreadOnly = !model.unreadOnly
+		model.currentPage = 1
 	}
 	return model, mvu.DoNothing()
 }

@@ -757,6 +757,33 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	if w := await("SetSplitRatio"); w != nil {
 		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
 	}
+	drain()
+
+	// G0A.3: the Preferences panel is folded into this same composed layer,
+	// so the accelerator's message and the live preference it edits must
+	// re-emit it like every message above. This is the shell-level half of
+	// the panel's coverage — the pixel-level half is in g0a3_prefs_test.go,
+	// which deliberately composes the panel WITHOUT the shell (see the note
+	// there on cadence/toast's process-global Subject).
+	m, _ = Update(m, OpenPreferences{})
+	send.Next(m)
+	if w := await("OpenPreferences"); w != nil {
+		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+	}
+	drain()
+
+	m, _ = Update(m, SetRowsPerPage{Rows: 5})
+	send.Next(m)
+	if w := await("SetRowsPerPage"); w != nil {
+		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+	}
+	drain()
+
+	m, _ = Update(m, ClosePreferences{})
+	send.Next(m)
+	if w := await("ClosePreferences"); w != nil {
+		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+	}
 }
 
 // drawShellOnce lays a widget out once on a fresh op buffer so a re-emitted
@@ -818,7 +845,7 @@ func TestArticlesTableGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	all := hardCodedArticles()
 	rows := filterAndSortArticles(all, "hn", "", table.Sort{Column: colPublished, Asc: false})
-	rows = pageSlice(rows, 1, articlesPageSize)
+	rows = pageSlice(rows, 1, defaultRowsPerPage)
 
 	cases := []struct {
 		name   string
@@ -845,7 +872,7 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	all := hardCodedArticles()
 	rows := filterAndSortArticles(all, "hn", "", table.Sort{Column: colPublished, Asc: false})
-	rows = pageSlice(rows, 1, articlesPageSize)
+	rows = pageSlice(rows, 1, defaultRowsPerPage)
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 
 	render := func(colors tokens.ColorTokens) *image.RGBA {

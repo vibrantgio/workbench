@@ -24,8 +24,15 @@ import (
 	"github.com/vibrantgio/spectrum/theme"
 )
 
-// articlesPageSize is the fixed row count per pagination page.
-const articlesPageSize = 10
+// defaultRowsPerPage is the seed row count per pagination page. It is no
+// longer fixed: Model.rowsPerPage carries it and the Preferences panel edits
+// it live (see preferences.go).
+const defaultRowsPerPage = 10
+
+// rowsPerPageChoices are the page sizes the Preferences panel offers. A
+// short closed set is what makes the preference a row of buttons rather
+// than a number field with a validation story.
+var rowsPerPageChoices = []int{5, 10, 25}
 
 // Sortable column indices for the articles table.
 const (
@@ -88,6 +95,25 @@ func filterAndSortArticles(all []article, feed FeedID, query string, sk table.So
 	return out
 }
 
+// unreadOnlyArticles drops the read articles when the unread-only reading
+// preference is on, and returns arts untouched when it is off. It is a
+// separate pass rather than a fifth parameter to filterAndSortArticles
+// because it is a PREFERENCE, applied to whatever that query-and-sort
+// transform produced, and the two have different lifetimes: the filter text
+// is per-keystroke UI state, the preference outlives the session.
+func unreadOnlyArticles(arts []article, unreadOnly bool) []article {
+	if !unreadOnly {
+		return arts
+	}
+	out := make([]article, 0, len(arts))
+	for _, a := range arts {
+		if a.Unread {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
 // pageSlice returns the [start, end) window of arts corresponding to
 // 1-indexed page at the given page size. Out-of-range pages return an
 // empty slice; the consumer is responsible for clamping its page state.
@@ -131,6 +157,8 @@ func articlesMain(
 	selectedFeedObs rx.Observable[FeedID],
 	currentPageObs rx.Observable[int],
 	sortObs rx.Observable[table.Sort],
+	rowsPerPageObs rx.Observable[int],
+	unreadOnlyObs rx.Observable[bool],
 ) rx.Observable[layout.Widget] {
 	all := hardCodedArticles()
 
@@ -175,21 +203,31 @@ func articlesMain(
 		mvu.MessageOp{Message: SetSort{Sort: table.Sort{Column: col, Asc: true}}}.Add(gtx.Ops)
 	}
 
+	// The reading preferences join the pipeline as ordinary model-derived
+	// streams: unread-only narrows what `filtered` holds, rows-per-page
+	// resizes the window `paged` cuts out of it and the count the pagination
+	// row draws. Because they are model state like any other, changing one in
+	// the Preferences panel repaginates the table on the same frame, with the
+	// panel still open over it — which is what "applies live" means here and
+	// why the panel needs no Save.
 	filtered := rx.Map(
-		rx.CombineLatest3(selectedFeedObs, filterObs, sortObs),
-		func(t rx.Tuple3[FeedID, string, table.Sort]) []article {
-			return filterAndSortArticles(all, t.First, t.Second, t.Third)
+		rx.CombineLatest4(selectedFeedObs, filterObs, sortObs, unreadOnlyObs),
+		func(t rx.Tuple4[FeedID, string, table.Sort, bool]) []article {
+			return unreadOnlyArticles(filterAndSortArticles(all, t.First, t.Second, t.Third), t.Fourth)
 		},
 	)
 	paged := rx.Map(
-		rx.CombineLatest2(filtered, currentPageObs),
-		func(t rx.Tuple2[[]article, int]) []article {
-			return pageSlice(t.First, t.Second, articlesPageSize)
+		rx.CombineLatest3(filtered, currentPageObs, rowsPerPageObs),
+		func(t rx.Tuple3[[]article, int, int]) []article {
+			return pageSlice(t.First, t.Second, t.Third)
 		},
 	)
-	pageCountObs := rx.Map(filtered, func(arts []article) int {
-		return pageCountFor(arts, articlesPageSize)
-	})
+	pageCountObs := rx.Map(
+		rx.CombineLatest2(filtered, rowsPerPageObs),
+		func(t rx.Tuple2[[]article, int]) int {
+			return pageCountFor(t.First, t.Second)
+		},
+	)
 
 	// Hover tooltip for the icon-only Unread ("•") column header. The
 	// trigger fills whatever canvas it is given; the overlay wrapper in

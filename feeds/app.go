@@ -60,9 +60,17 @@ import (
 //
 // 10. addFeedOpenObs     → modal Open prop (G5.2d)                        (1)
 // 11. addFeedErrorObs    → modal errorCell mirror (G5.2d)                 (1)
-// Total = 16, confirmed empirically by TestModelObsConsumerCountMatchesConst,
+// 12. prefsOpenObs       → Preferences panel Open prop (G0A.3)            (1)
+// 13. rowsPerPageObs     → paged + pageCountObs + the panel's buttons     (3)
+// 14. unreadOnlyObs      → filtered×2 + the panel's buttons               (3)
+//
+// Total = 23, confirmed empirically by TestModelObsConsumerCountMatchesConst,
 // which fails if a future edit changes the topology without updating this.
-const modelObsConsumers = 16
+// G0A.3 added seven: a preference read by both the pipeline that applies it
+// and the panel that displays it is subscribed on both sides, and `filtered`
+// is itself subscribed twice (by paged and by pageCountObs), so a stream
+// feeding it counts double.
+const modelObsConsumers = 23
 
 // themeTokens is the colour/typography snapshot the app's own drawing code
 // reads at frame time. The shaper is the theme's cached Typography shaper
@@ -161,12 +169,24 @@ func feedsShellLayer(
 	splitRatioObs := rx.Map(modelObs, func(m Model) float32 { return m.splitRatio })
 	addFeedOpenObs := rx.Map(modelObs, func(m Model) bool { return m.addFeedOpen })
 	addFeedErrorObs := rx.Map(modelObs, func(m Model) bool { return m.addFeedError })
+	prefsOpenObs := rx.Map(modelObs, func(m Model) bool { return m.prefsOpen })
+	rowsPerPageObs := rx.Map(modelObs, func(m Model) int { return m.rowsPerPage })
+	unreadOnlyObs := rx.Map(modelObs, func(m Model) bool { return m.unreadOnly })
 
-	articlesObs := articlesMain(th, selectedFeedObs, currentPageObs, sortObs)
+	articlesObs := articlesMain(th, selectedFeedObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs)
 	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
 	shareObs := sharePopover(th, shareOpenObs)
 	modalObs := addFeedModal(th, addFeedOpenObs, addFeedErrorObs)
+	prefsObs := preferencesPanel(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs)
 	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight})
+
+	// The settings accelerator — ⌘, on macOS, Ctrl-, elsewhere. It is app
+	// chrome, laid out under everything else (see shortcut.go): the modal
+	// owns dismissal, the app owns arrival, and the two halves never meet in
+	// one component.
+	prefsShortcut := shortcutArea(prefsAccelerator, func(gtx layout.Context) {
+		mvu.MessageOp{Message: OpenPreferences{}}.Add(gtx.Ops)
+	})
 
 	// Layer-boundary cells (see the function comment). articlesCell and
 	// detailCell feed the SplitPane's static Left/Right slots; splitCell
@@ -218,20 +238,30 @@ func feedsShellLayer(
 		Main:    slot(&splitCell),
 	})
 
-	// Overlay composition: the Add-feed modal scrim and the toast stack draw
-	// OVER the whole window. Rather than adding a third buildLayers layer
-	// (which would change TestBuildLayersConstructsWithoutPanic's asserted
-	// count), they are folded onto the shell stream and drawn after the shell
-	// inside the returned widget, which then reports the shell's dims. Every
-	// model change still re-emits this stream — driving the same-frame repaint.
+	// Overlay composition: the Add-feed modal, the Preferences panel and the
+	// toast stack draw OVER the whole window. Rather than adding a third
+	// buildLayers layer (which would change
+	// TestBuildLayersConstructsWithoutPanic's asserted count), they are folded
+	// onto the shell stream and drawn after the shell inside the returned
+	// widget, which then reports the shell's dims. Every model change still
+	// re-emits this stream — driving the same-frame repaint.
+	//
+	// The accelerator's key area goes FIRST, at the bottom of the hit stack:
+	// it must never sit over the content (llms.txt's occlusion pitfall), and
+	// an open modal's own scrim should shadow it the way it shadows the rest
+	// of the app.
 	return rx.Map(
-		rx.CombineLatest3(shellObs, modalObs, toastObs),
-		func(n rx.Tuple3[layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
-			shellW, modalW, toastW := n.First, n.Second, n.Third
+		rx.CombineLatest4(shellObs, modalObs, prefsObs, toastObs),
+		func(n rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
+			shellW, modalW, prefsW, toastW := n.First, n.Second, n.Third, n.Fourth
 			return func(gtx layout.Context) layout.Dimensions {
+				prefsShortcut(gtx)
 				dims := shellW(gtx)
 				if modalW != nil {
 					modalW(gtx)
+				}
+				if prefsW != nil {
+					prefsW(gtx)
 				}
 				if toastW != nil {
 					toastW(gtx)
