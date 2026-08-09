@@ -128,3 +128,22 @@ F2.2 rewrote DESIGN.md around the inverted layering and F2.3 rewrote the
 README around all seven applications, so read them as current. Where a
 document and the application source still disagree, the source wins and the
 document is a bug to file.
+
+**Arbiters are created in each application's layer function, and that is the
+composition root that matters.** ADR-008 gave `cadence`'s popover, tooltip and
+modal a plain `Arbiter` passed through `Props`, and the value *is* the scope —
+one set per window. `spectrum/window.Render` calls the build function once per
+window, and `feeds`, `watchlist` and `mindchat` each compose every arbitrable
+widget they own inside exactly one layer built there (`feedsShellLayer`,
+`watchlistShellLayer`, `ContentLayer`), so the arbiters are made in those
+function bodies and threaded down through fifteen builder call sites. A second
+arbitrable layer would have to take them as parameters, because it would be
+composed beside this one rather than within it. The other four applications
+compose none of these components and have none.
+
+**Toasts are model state here, not a side channel.** `toast.Queue` lives in
+`feeds`' and `watchlist`' models, `toast.Requested`/`toast.Expired` are
+reduced in `Update`, and every call site raises one with
+`toast.Notify(gtx, ...)` on the same `gtx.Ops` its neighbouring application
+message already uses. A toast is therefore visible to a test that drives the
+app through messages, which it was not before.
