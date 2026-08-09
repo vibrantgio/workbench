@@ -191,19 +191,24 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 			provList, &fieldCells.name, &fieldCells.url, &fieldCells.key)
 	})
 
+	// The two answers this dialog accepts. Each is both a footer button's
+	// OnClick and one half of modal.Decision, because the footer and the
+	// keyboard must answer identically — Escape is Cancel, Return is Save.
+	cancel := func(gtx layout.Context) {
+		mvu.MessageOp{Message: CloseSettings{}}.Add(gtx.Ops)
+	}
+	save := func(gtx layout.Context) {
+		mvu.MessageOp{Message: SaveSettings{}}.Add(gtx.Ops)
+	}
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
 		Clickable: &cancelClick,
-		OnClick: func(gtx layout.Context) {
-			mvu.MessageOp{Message: CloseSettings{}}.Add(gtx.Ops)
-		},
+		OnClick:   cancel,
 	})
 	saveObs := button.Button(th, button.Props{
 		Label:     "Save",
 		Clickable: &saveClick,
-		OnClick: func(gtx layout.Context) {
-			mvu.MessageOp{Message: SaveSettings{}}.Add(gtx.Ops)
-		},
+		OnClick:   save,
 	})
 
 	// The modal body and actions are static slots; the live widgets reach
@@ -247,10 +252,25 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 			return tags
 		},
 		ActionFocusTags: []event.Tag{&cancelClick, &saveClick},
-		HideClose:       true,
-		OnClose: func(gtx layout.Context) {
-			mvu.MessageOp{Message: CloseSettings{}}.Add(gtx.Ops)
-		},
+		// A DECISION, not a panel. The catalogue is edited as a draft and
+		// committed by Save, so the two footer buttons are the only two
+		// answers — and declaring that is what removes the close X (this
+		// modal used to ask for that with the deprecated HideClose), makes
+		// the backdrop inert, binds Escape to Cancel and Return to Save.
+		//
+		// The inert backdrop is the one that matters here: a stray click on
+		// the scrim beside a 560 dp-wide form must not throw away a
+		// half-typed API key, and under the panel grammar it did exactly
+		// that. There is deliberately no OnClose — with both answers named,
+		// no path into it remains.
+		//
+		// Save is NOT Destructive. It writes the draft the body is already
+		// showing, so it destroys nothing the user cannot see; the one
+		// genuinely lossy edit in here is Remove-provider, which is its own
+		// button and happens before Save is reached. Marking Save
+		// destructive would move Return to Cancel, and Return-discards-the-
+		// form is the very accident the inert backdrop is here to prevent.
+		Decision: &modal.Decision{Confirm: save, Cancel: cancel},
 	})
 
 	// Fold the live body/field/button streams onto the modal stream so

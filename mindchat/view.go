@@ -320,13 +320,13 @@ type renameTarget struct {
 	seed  string // current name without extension
 }
 
-// RenameModal builds the rename-chat modal stream: a cadence/modal whose
-// body is an epoch-rebuilt prism TextField plus a Rename button (the
-// watchlist rename-modal recipe). Validation is the reducer's job — an
-// invalid RenameChat is rejected and the modal stays open; a valid one (or
-// an empty submit, or Escape/scrim via OnClose) closes it. Both model
-// derivations are DistinctUntilChanged so completion-stream deltas cannot
-// rebuild the field mid-typing.
+// RenameModal builds the rename-chat modal stream: a cadence/modal DECISION
+// whose body is an epoch-rebuilt prism TextField and whose two answers are
+// Cancel and Rename (the watchlist rename-modal recipe). Validation is the
+// reducer's job — an invalid RenameChat is rejected and the modal stays open;
+// a valid one, or Escape, closes it. Both model derivations are
+// DistinctUntilChanged so completion-stream deltas cannot rebuild the field
+// mid-typing.
 func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.Rename.Target != "" }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
@@ -346,36 +346,41 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) r
 
 	fieldObs := rx.SwitchMap(editObs, func(e renameTarget) rx.Observable[layout.Widget] {
 		nameCell.Store(e.seed)
+		// No editor Submit: the modal is a decision and claims Return for
+		// its default action before the field is laid out, so an editor
+		// submit binding here could never fire. The decision's Confirm
+		// renames with the same text, from nameCell.
 		return input.TextField(th, input.TextFieldProps{
-			Placeholder:   "Chat name",
-			Description:   "chat name",
-			Seed:          e.seed,
-			FocusTag:      func(tag event.Tag) { fieldTagCell.Store(tag) },
-			Submit:        true,
-			SubmitMessage: func(text string) any { return RenameChat{To: text} },
-			OnChange:      func(_ layout.Context, text string) { nameCell.Store(text) },
+			Placeholder: "Chat name",
+			Description: "chat name",
+			Seed:        e.seed,
+			FocusTag:    func(tag event.Tag) { fieldTagCell.Store(tag) },
+			OnChange:    func(_ layout.Context, text string) { nameCell.Store(text) },
 		})
 	})
 
-	// Footer actions: an explicit Cancel (which is why the modal's close
-	// button is hidden) and Rename. Their clickables join the Tab cycle via
+	// The two answers this dialog accepts, each wired to both a footer
+	// button and one half of modal.Decision so the keyboard and the footer
+	// answer identically. Their clickables join the Tab cycle via
 	// ActionFocusTags.
 	var cancelClick, submitClick widget.Clickable
+	cancel := func(gtx layout.Context) {
+		mvu.MessageOp{Message: CloseRename{}}.Add(gtx.Ops)
+	}
+	rename := func(gtx layout.Context) {
+		if name, ok := nameCell.Load().(string); ok {
+			mvu.MessageOp{Message: RenameChat{To: name}}.Add(gtx.Ops)
+		}
+	}
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
 		Clickable: &cancelClick,
-		OnClick: func(gtx layout.Context) {
-			mvu.MessageOp{Message: CloseRename{}}.Add(gtx.Ops)
-		},
+		OnClick:   cancel,
 	})
 	submitObs := button.Button(th, button.Props{
 		Label:     "Rename",
 		Clickable: &submitClick,
-		OnClick: func(gtx layout.Context) {
-			if name, ok := nameCell.Load().(string); ok {
-				mvu.MessageOp{Message: RenameChat{To: name}}.Add(gtx.Ops)
-			}
-		},
+		OnClick:   rename,
 	})
 
 	// The modal body and actions are static slots; the live field/button
@@ -420,10 +425,18 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) r
 			return nil
 		},
 		ActionFocusTags: []event.Tag{&cancelClick, &submitClick},
-		HideClose:       true,
-		OnClose: func(gtx layout.Context) {
-			mvu.MessageOp{Message: CloseRename{}}.Add(gtx.Ops)
-		},
+		// A DECISION, not a panel: "what shall this chat be called?" has
+		// two answers and the footer is both of them. Declaring it drops
+		// the close X (the deprecated HideClose used to ask for that),
+		// makes the backdrop inert so a stray click cannot throw away a
+		// typed name, and binds Escape to Cancel and Return to Rename —
+		// the last of which the field's own Submit binding used to do.
+		//
+		// Rename is not Destructive: it moves a history file to a new name,
+		// keeps its contents, and is undone by renaming back. Return
+		// therefore stays on the primary, which is also where the field's
+		// Submit put it.
+		Decision: &modal.Decision{Confirm: rename, Cancel: cancel},
 	})
 
 	// Fold the live field/button streams onto the modal stream so their
