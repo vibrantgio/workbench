@@ -112,6 +112,15 @@ moved to `vibrantgio/.github` in task A1.2 (ADR-004); the three lines left
 behind point at its raw URL, which is the URL above. Do not restore content
 into it.
 
+**`PLAN.md` here is a finished plan against a design that has since been
+rewritten.** Phases −1 through 6, every task checked off — `mdplan next
+PLAN.md` prints DONE, which is how to re-check it — and its header names
+`DESIGN.md` as its source of truth. That pointer is stale rather than wrong on
+purpose: the document this plan was written against is `DESIGN-v1.md` now, and
+F2.2 put a second edition in `DESIGN.md`'s place. `FEEDBACK-G6.4.md` is one of
+this plan's outputs, filed against `vibrantgio/markdown`. The organization's
+plan lives in `vibrantgio/.github`; do not execute this one.
+
 **`README.md` and `DESIGN.md` have caught up.** They used to be behind the
 code — three example applications described where there were seven, and a
 DESIGN.md that predated ADR-001's layering — and this note used to say so.
