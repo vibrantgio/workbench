@@ -8,11 +8,15 @@ complete bootstrap, and the place to start), `iconbrowser`, `sitedocs`,
 carries the architecture documents — `DESIGN.md` and `BASELINE.md` — that
 no other repository in the organization has.
 
-**Layer.** Outside ADR-001's tier table. `workbench` has no root module,
-and nothing in the design system imports it; its applications sit on top of
-the whole stack and are its only end-to-end consumers. Between them they
-import mvu, spectrum, prism, pulse, cadence, markdown, style, textdraw and
-backdrop, plus the ivg, svg, seen and noise support libraries.
+**Layer.** Outside ADR-001's tier table: applications at the top of the
+stack, which the tier rule exempts and which may import any layer of the
+design system. Its seven applications import, between them, `backdrop`,
+`cadence`, `font`, `ivg`, `ivg/raster/gio`, `markdown`, `mvu`, `noise`,
+`prism`, `pulse`, `seen`, `seen/context/gio`, `spectrum`, `svg`,
+`svg/driver/gio` and `textdraw`. Nothing in the organization imports it.
+Both directions are measured rather than typed — `scripts/check-layers.sh
+--edges` reports the graph and `scripts/sync-agents.sh` renders these
+sentences from it — so correcting them here changes nothing.
 
 **Read the canonical guide before you write code against this module.** It is
 the organization's one agent guide — the module inventory with current tags,
@@ -108,7 +112,10 @@ moved to `vibrantgio/.github` in task A1.2 (ADR-004); the three lines left
 behind point at its raw URL, which is the URL above. Do not restore content
 into it.
 
-**`README.md` and `DESIGN.md` are behind the code.** The README still
-describes three example applications where there are seven, and DESIGN.md
-predates the layering ADR-001 sets out. F2.2 and F2.3 rewrite them; until
-then, trust the application source over either document.
+**`README.md` and `DESIGN.md` have caught up.** They used to be behind the
+code — three example applications described where there were seven, and a
+DESIGN.md that predated ADR-001's layering — and this note used to say so.
+F2.2 rewrote DESIGN.md around the inverted layering and F2.3 rewrote the
+README around all seven applications, so read them as current. Where a
+document and the application source still disagree, the source wins and the
+document is a bug to file.
