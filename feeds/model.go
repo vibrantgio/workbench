@@ -15,6 +15,7 @@
 //   - ToggleShare{}                  — toggle the navbar Share popover
 //   - CloseShare{}                   — close the Share popover (destination click, outside press)
 //   - SetSplitRatio{Ratio float32}   — record the articles/detail split-divider position
+//   - SetFilter{Text string}         — set the articles-table filter text (resets to page 1)
 //
 // Two of the messages are cadence's, not this app's: toast.Requested and
 // toast.Expired. G0C.3 retired cadence/toast's process-global Notify Subject,
@@ -49,6 +50,7 @@ type Model struct {
 	openSections    map[int]bool
 	selectedTab     int     // detail pane tab: 0 Reader, 1 Raw, 2 Comments
 	shareOpen       bool    // navbar Share popover visibility
+	filter          string  // articles-table filter text
 	splitRatio      float32 // articles/detail SplitPane divider position
 	addFeedOpen     bool    // "Add feed" modal visibility
 	addFeedError    bool    // empty-URL submit raised the modal alert
@@ -101,6 +103,20 @@ type SelectArticle struct{ Article ArticleID }
 
 // SetPage navigates the articles table to the given 1-indexed page.
 type SetPage struct{ Page int }
+
+// SetFilter sets the articles-table filter text and resets to page 1 —
+// narrowing the filter shrinks the result set, so the current page can fall
+// out of range. The textfield lands one of these per keystroke.
+//
+// Until G0C.4 the filter lived in an rx.Subject beside the model, on the
+// grounds that it was "local UI state that never needed to be model-derived".
+// ADR-008's test for that is not how the state feels, it is whether anything
+// outside the frame needs to know — and here two things do: the filter is
+// half of what the table shows, so a test that drives this app through
+// messages could not see, set or assert the visible article set without it,
+// and the page reset it forces is a model edit the Subject had to make by
+// landing a SECOND message. One message now does both.
+type SetFilter struct{ Text string }
 
 // SetSort sets the table sort key and direction.
 type SetSort struct{ Sort table.Sort }
@@ -197,6 +213,9 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.selectedArticle = m.Article
 	case SetPage:
 		model.currentPage = m.Page
+	case SetFilter:
+		model.filter = m.Text
+		model.currentPage = 1
 	case SetSort:
 		model.sort = m.Sort
 	case ToggleSection:

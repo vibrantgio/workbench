@@ -18,9 +18,12 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/navbar"
+	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/cadence/tooltip"
 	"github.com/vibrantgio/spectrum/theme"
 	"github.com/vibrantgio/spectrum/tokens"
 	"github.com/vibrantgio/spectrum/typeset"
@@ -43,6 +46,14 @@ import (
 // ON the ledger rather than took off it: the toast queue moved out of a
 // process-global rx.Subject and into the model, so toast.Stack reads modelObs
 // like every other component.
+//
+// G0C.4 moved it by NOTHING, and that is the correction worth recording.
+// ADR-008 expected the per-row rx.Subject open flags to be what this census
+// was counting; they were not. Removing all three of this app's — the row
+// delete confirm, the sidebar context menu, the bulk-delete confirm — left it
+// at 23, because none of them ever subscribed modelObs. They subscribed the
+// THEME, through the popover they fed. This number counts what reads the
+// model, and ephemeral interaction state was never in it.
 //
 // CRITICAL INVARIANT (logged in FEEDBACK-G5.3.md): NEVER subscribe modelObs
 // inside a keyed.Defer (per-row/per-name). A lazy subscription attaches during
@@ -154,6 +165,18 @@ func watchlistShellLayer(
 	modelObs rx.Observable[Model],
 	storePath string,
 ) rx.Observable[layout.Widget] {
+	// This window's arbitration registers (ADR-008). They are plain values
+	// with no synchronisation, so the scope they are created at is the scope
+	// they are safe at: spectrum/window calls the build function once per
+	// window and this layer is composed exactly once inside it, which makes
+	// this function body the window. Every popover, tooltip and modal below
+	// is handed one of these — a second arbitrable LAYER would have to take
+	// them as parameters instead, because it would be composed beside this
+	// one rather than within it.
+	popArb := popover.NewArbiter()
+	tipArb := tooltip.NewArbiter()
+	modalArb := modal.NewArbiter()
+
 	// Cold derivations of modelObs. Their fan-out is mirrored by
 	// modelObsConsumers above — keep them in sync.
 	watchlistsObs := rx.Map(modelObs, func(m Model) []Watchlist { return m.watchlists })
@@ -186,11 +209,11 @@ func watchlistShellLayer(
 	})
 	toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.toasts.Items() })
 
-	sidebarObs := watchlistSidebar(th, watchlistsObs, selectedObs, storePath, modelObs)
-	mainObs := watchlistMain(th, selectedObs, symbolsObs, selectionObs, pageObs, storePath, modelObs)
-	modalObs := addSymbolModal(th, storePath, modelObs, modalOpenObs, modalErrorObs, editObs)
-	renameModalObs := renameWatchlistModal(th, storePath, modelObs, renameOpenObs, renameErrorObs, renameEditObs)
-	bulkDeleteObs := bulkDeletePopover(th, storePath, modelObs)
+	sidebarObs := watchlistSidebar(th, watchlistsObs, selectedObs, storePath, modelObs, popArb)
+	mainObs := watchlistMain(th, selectedObs, symbolsObs, selectionObs, pageObs, storePath, modelObs, popArb, tipArb)
+	modalObs := addSymbolModal(th, storePath, modelObs, modalOpenObs, modalErrorObs, editObs, modalArb)
+	renameModalObs := renameWatchlistModal(th, storePath, modelObs, renameOpenObs, renameErrorObs, renameEditObs, modalArb)
+	bulkDeleteObs := bulkDeletePopover(th, storePath, modelObs, popArb)
 	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})
 
 	// mainCell bridges the live Main widget stream into shell's static Main slot.

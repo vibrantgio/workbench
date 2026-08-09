@@ -24,6 +24,7 @@ import (
 
 	"github.com/reactivego/rx"
 	"github.com/vibrantgio/cadence/modal"
+	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/ivg"
 	"github.com/vibrantgio/ivg/encode"
@@ -128,6 +129,17 @@ func messageMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.
 // CombineLatest3 below. Constructing any of them per emission would reset
 // scroll or typing on every completion-stream delta.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+	// This window's arbitration registers (ADR-008). They are plain values
+	// with no synchronisation, so the scope they are created at is the scope
+	// they are safe at: spectrum/window calls the build function once per
+	// window and this layer is composed exactly once inside it, which makes
+	// this function body the window. Every popover and modal below is handed
+	// one of these — a second arbitrable LAYER would have to take them as
+	// parameters instead, because it would be composed beside this one rather
+	// than within it.
+	popArb := popover.NewArbiter()
+	modalArb := modal.NewArbiter()
+
 	histList := list.NewState()
 	chatList := list.NewState()
 	msgDocs := newDocCache()
@@ -242,9 +254,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		},
 	})
 
-	renameObs := RenameModal(th, modelObs)
-	settingsObs := SettingsModal(th, modelObs)
-	menuObs := ModelMenu(th, modelObs)
+	renameObs := RenameModal(th, modelObs, modalArb)
+	settingsObs := SettingsModal(th, modelObs, popArb, modalArb)
+	menuObs := ModelMenu(th, modelObs, popArb)
 
 	// Global Cmd/Ctrl-Z undoes a pending chat delete (the reducer ignores
 	// it when nothing is pending). A focused text editor claims the chord
@@ -327,7 +339,7 @@ type renameTarget struct {
 // a valid one, or Escape, closes it. Both model derivations are
 // DistinctUntilChanged so completion-stream deltas cannot rebuild the field
 // mid-typing.
-func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], modalArb *modal.Arbiter) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.Rename.Target != "" }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 	editObs := rx.Map(modelObs, func(m Model) renameTarget {
@@ -414,6 +426,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) r
 		Open:    openObs,
 		Title:   "Rename chat",
 		Body:    body,
+		Arbiter: modalArb,
 		Actions: []layout.Widget{action(&cancelCell), action(&submitCell)},
 		// The field leads the Tab cycle — and, being first, receives focus
 		// when the modal opens, so typing starts immediately. Its tag is

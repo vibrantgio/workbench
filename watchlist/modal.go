@@ -85,6 +85,7 @@ func addSymbolModal(
 	modalOpenObs rx.Observable[bool],
 	modalErrorObs rx.Observable[bool],
 	editObs rx.Observable[editTarget],
+	modalArb *modal.Arbiter,
 ) rx.Observable[layout.Widget] {
 	// Model mirror for the submit callback (the disk write needs the full
 	// current watchlists/selection/editIndex, which the four form cells do not
@@ -224,9 +225,10 @@ func addSymbolModal(
 	}
 
 	modalObs := modal.Modal(th, modal.Props{
-		Open:  modalOpenObs,
-		Title: "Symbol",
-		Body:  modalBody,
+		Open:    modalOpenObs,
+		Title:   "Symbol",
+		Body:    modalBody,
+		Arbiter: modalArb,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseModal{}}.Add(gtx.Ops)
 		},

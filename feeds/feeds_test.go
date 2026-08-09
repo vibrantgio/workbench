@@ -13,9 +13,11 @@ import (
 	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
+	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/table"
 	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/spectrum/theme"
@@ -968,5 +970,75 @@ func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, bgColor, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		return w(gtx)
+	}
+}
+
+// TestRowConfirmIsFrameStateAndArbitrates pins G0C.4's destination-2
+// conversion of the per-row delete confirm, which is the one claim the
+// goldens cannot make: the open flag is a plain bool the frame owns, and
+// cadence/popover reads it during layout rather than being told by an
+// emission.
+//
+// Both halves are asserted through the arbiter, because arbitration is the
+// only thing outside the row that can observe whether the popover saw the
+// flag. The two confirms share one Arbiter — the window's, as feedsSidebar
+// hands it out — so:
+//
+//   - opening row A and laying it out ONCE takes top, with no emission in
+//     between. Under the rx.Subject this took a hop to the rx goroutine and
+//     back into an atomic cell before any frame could see it.
+//   - opening row B and laying both out dismisses A in that same frame, which
+//     closes A's own flag, because OnDismiss is the only writer that is not
+//     the row itself.
+func TestRowConfirmIsFrameStateAndArbitrates(t *testing.T) {
+	th := rx.Of(theme.Default())
+	arb := popover.NewArbiter()
+
+	newRow := func(id FeedID) *deleteConfirm {
+		var trash, confirm widget.Clickable
+		dc := newDeleteConfirm(th, id, &trash, &confirm, arb)
+		// The popover widget arrives from the theme subscription on the rx
+		// goroutine; only the OPEN flag is the frame's.
+		deadline := time.Now().Add(2 * time.Second)
+		for time.Now().Before(deadline) {
+			if w, ok := dc.cell.Load().(layout.Widget); ok && w != nil {
+				return dc
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		t.Fatalf("row %q never received a popover widget from the theme stream", id)
+		return nil
+	}
+	a, b := newRow("row-a"), newRow("row-b")
+
+	ops := new(op.Ops)
+	frame := func() {
+		ops.Reset()
+		gtx := layout.Context{
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Constraints: layout.Exact(image.Pt(240, 120)),
+			Ops:         ops,
+		}
+		a.layout(gtx, true)
+		b.layout(gtx, true)
+	}
+
+	// A opens. One frame later it holds top; nothing has dismissed it.
+	a.toggle()
+	frame()
+	if !a.open {
+		t.Fatal("row A closed itself on the frame it opened")
+	}
+
+	// B opens. B's claim dismisses A from inside B's own layout pass, and
+	// A's OnDismiss is what clears A's flag — so the frame that opens B is
+	// the frame that closes A, in this tree order.
+	b.toggle()
+	frame()
+	if a.open {
+		t.Error("row B's confirm did not dismiss row A's in the same frame")
+	}
+	if !b.open {
+		t.Error("row B's confirm closed itself while claiming top")
 	}
 }

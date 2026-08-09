@@ -35,6 +35,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/pagination"
+	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/table"
 	"github.com/vibrantgio/cadence/tooltip"
 	"github.com/vibrantgio/mvu"
@@ -87,6 +88,8 @@ func watchlistMain(
 	pageObs rx.Observable[int],
 	storePath string,
 	modelMirrorObs rx.Observable[Model],
+	popArb *popover.Arbiter,
+	tipArb *tooltip.Arbiter,
 ) rx.Observable[layout.Widget] {
 	loadTok := mirrorTokens(th)
 
@@ -112,16 +115,19 @@ func watchlistMain(
 	// Per-index widget state, stable across list mutation.
 	rowClicks := keyed.Defer(func(int) *widget.Clickable { return &widget.Clickable{} })
 	checkClicks := keyed.Defer(func(int) *widget.Clickable { return &widget.Clickable{} })
-	// Per-row delete-confirm popovers: ephemeral interaction state (per-row
-	// rx.Subject open flag), NOT model state — the feeds idiom. Keyed by the
-	// absolute row index. They read the model via loadModel (the shared eager
-	// mirror), never their own modelObs subscription. (Choice logged in
+	// Per-row delete-confirm popovers: ephemeral interaction state, NOT model
+	// state. Each holds its open flag as a plain bool that only layout writes
+	// and only layout reads (ADR-008 destination 2, see rowdelete.go), and
+	// they all share this window's popover Arbiter, so opening one row's
+	// confirm dismisses whichever row had it open. Keyed by the absolute row
+	// index. They read the model via loadModel (the shared eager mirror),
+	// never their own modelObs subscription. (Choice logged in
 	// FEEDBACK-G5.3.md.)
 	trashClicks := keyed.Defer(func(int) *widget.Clickable { return &widget.Clickable{} })
 	confirmClicks := keyed.Defer(func(int) *widget.Clickable { return &widget.Clickable{} })
 	rowPopovers := keyed.Defer(func(idx int) *rowDeleteConfirm {
 		return newRowDeleteConfirm(th, idx, storePath,
-			trashClicks.For(idx), confirmClicks.For(idx), loadModel)
+			trashClicks.For(idx), confirmClicks.For(idx), loadModel, popArb)
 	})
 
 	columns := symbolColumns(loadTok, rowClicks, checkClicks, rowPopovers)
@@ -185,7 +191,7 @@ func watchlistMain(
 	)
 
 	// One tooltip per column header, overlaid by column-width arithmetic.
-	colTips := columnTooltips(th)
+	colTips := columnTooltips(th, tipArb)
 
 	// "Add symbol" button (a plain clickable, no extra layer-boundary cell).
 	var addClick widget.Clickable
@@ -378,11 +384,12 @@ func drawCheckbox(gtx layout.Context, checked bool, col tokens.ColorTokens) {
 // columnTooltips builds one tooltip per labelled header column (skipping the
 // icon-only checkbox/trash gutters). Each Trigger fills its incoming canvas;
 // overlayHeaderTooltips positions that canvas over the matching header cell.
-func columnTooltips(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func columnTooltips(th rx.Observable[theme.Theme], tipArb *tooltip.Arbiter) []rx.Observable[layout.Widget] {
 	mk := func(textStr string) rx.Observable[layout.Widget] {
 		return tooltip.Tooltip(th, tooltip.Props{
 			Text:      textStr,
 			Placement: tooltip.Bottom,
+			Arbiter:   tipArb,
 			Trigger: func(gtx layout.Context) layout.Dimensions {
 				return layout.Dimensions{Size: gtx.Constraints.Max}
 			},

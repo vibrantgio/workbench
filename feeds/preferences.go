@@ -59,6 +59,7 @@ func preferencesPanel(
 	prefsOpenObs rx.Observable[bool],
 	rowsPerPageObs rx.Observable[int],
 	unreadOnlyObs rx.Observable[bool],
+	modalArb *modal.Arbiter,
 ) rx.Observable[layout.Widget] {
 	loadTok := mirrorTokens(th)
 
@@ -132,6 +133,9 @@ func preferencesPanel(
 		Open:  prefsOpenObs,
 		Title: "Preferences",
 		Body:  body,
+		// This window's modal stack: the panel and the Add-feed modal share
+		// it, so whichever is opened last is the one that takes input.
+		Arbiter: modalArb,
 		// Props.Decision stays nil. That is the panel intent, and with it come
 		// the ghost close X, the dismissing backdrop, and Escape — none of
 		// which is configured here because none of them is this app's choice

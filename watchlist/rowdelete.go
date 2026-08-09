@@ -1,10 +1,18 @@
 // rowdelete.go owns one symbol row's delete-confirm popover: the trash-icon
 // anchor and a "Delete this symbol?" confirm surface. Open state is EPHEMERAL
-// per-row interaction state (a per-row rx.Subject driving a per-row
-// cadence/popover instance), NOT model state — the feeds idiom (logged choice
-// in FEEDBACK-G5.3.md). The trash click toggles open; the confirm click writes
-// the file (applyDelete via deleteSymbolAt), fires a toast, lands DeleteSymbol,
-// and closes; OnDismiss closes.
+// per-row interaction state, NOT model state (logged choice in
+// FEEDBACK-G5.3.md): a plain bool this file owns, written and read during
+// layout on the frame goroutine, which cadence/popover reads back through
+// Props.OpenNow — ADR-008 destination 2. Every row's popover shares the
+// window's Arbiter, so opening one row's confirm dismisses whichever row had
+// it open. The trash click toggles it; the confirm click writes the file
+// (applyDelete via deleteSymbolAt), fires a toast, lands DeleteSymbol, and
+// closes; OnDismiss closes.
+//
+// Until G0C.4 the flag was a per-row rx.Subject with an atomic.Bool mirror
+// beside it, and the flip crossed to the rx goroutine and back before any
+// frame could see it. Both are gone; the atomic cell that remains carries the
+// THEME's re-emissions, which really do arrive from another goroutine.
 //
 // popover-canvas coupling (FEEDBACK-G5.2 Major, recurring): the popover centres
 // its anchor in the canvas and measures Content at canvas/2, so the trash cell
@@ -42,10 +50,10 @@ const (
 
 // rowDeleteConfirm is one symbol row's trash anchor + delete-confirm popover.
 type rowDeleteConfirm struct {
-	idx     int
-	openCh  rx.Observer[bool]
-	openVal atomic.Bool
-	cell    atomic.Value // latest popover layout.Widget
+	idx int
+	// open is frame state: only layout writes it and only layout reads it.
+	open bool
+	cell atomic.Value // latest popover layout.Widget
 }
 
 func newRowDeleteConfirm(
@@ -55,11 +63,9 @@ func newRowDeleteConfirm(
 	trashClick *widget.Clickable,
 	confirmClick *widget.Clickable,
 	loadModel func() Model,
+	popArb *popover.Arbiter,
 ) *rowDeleteConfirm {
 	dc := &rowDeleteConfirm{idx: idx}
-	send, openObs := rx.Subject[bool](0, 1)
-	send.Next(false)
-	dc.openCh = send
 
 	loadTok := mirrorTokens(th)
 
@@ -115,10 +121,11 @@ func newRowDeleteConfirm(
 	}
 
 	popObs := popover.Popover(th, popover.Props{
-		Open:      openObs,
+		OpenNow:   func() bool { return dc.open },
 		Anchor:    anchor,
 		Content:   content,
 		Placement: popover.Left,
+		Arbiter:   popArb,
 		OnDismiss: func(layout.Context) { dc.close() },
 	})
 	dc.cell.Store(layout.Widget(nil))
@@ -130,17 +137,12 @@ func newRowDeleteConfirm(
 	return dc
 }
 
-func (dc *rowDeleteConfirm) toggle() {
-	next := !dc.openVal.Load()
-	dc.openVal.Store(next)
-	dc.openCh.Next(next)
-}
+// toggle and close run during layout, from the anchor click, the confirm
+// click and the arbiter's OnDismiss — all three on the frame goroutine, which
+// is what lets open be a plain bool.
+func (dc *rowDeleteConfirm) toggle() { dc.open = !dc.open }
 
-func (dc *rowDeleteConfirm) close() {
-	if dc.openVal.Swap(false) {
-		dc.openCh.Next(false)
-	}
-}
+func (dc *rowDeleteConfirm) close() { dc.open = false }
 
 // layout draws the trash gutter for one row via the per-row popover widget (the
 // trash anchor always, plus the confirm surface while open).

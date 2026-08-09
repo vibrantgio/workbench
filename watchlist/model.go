@@ -1,8 +1,16 @@
 // model.go defines the MVU model for the watchlist editor, its messages, and
 // the pure Update reducer. Built on the post-GX.8/GX.10 architecture from the
 // start (see feeds/model.go): every interactive callback lands an
-// mvu.MessageOp, Update is pure, and there are no rx.Subject controllers or
-// atomic interaction mirrors.
+// mvu.MessageOp and Update is pure.
+//
+// What is deliberately NOT here is the ephemeral interaction state — which
+// row's delete confirm is open, which watchlist's context menu is up, whether
+// the bulk-delete confirm is showing. Nothing outside the frame ever asks
+// those questions, so by ADR-008 they are frame state: plain bools owned by
+// the widget that draws them, written and read during layout on the one
+// goroutine Gio lays a frame out on, and read back by cadence/popover through
+// Props.OpenNow. Until G0C.4 each was an rx.Subject with an atomic mirror
+// beside it; the model has never held them and does not now.
 //
 // G5.3b adds the symbols editor: a table of the selected watchlist's symbols
 // and an add/edit modal. Messages:

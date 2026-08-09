@@ -55,7 +55,7 @@ type menuThemed struct {
 // ModelMenu builds the chat header picker stream: the widget it emits is
 // laid out by ChatPane in the header's chip box and draws the chip (the
 // popover anchor) plus, while open, the model list surface.
-func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], popArb *popover.Arbiter) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.ModelMenu }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 
@@ -96,6 +96,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 		Anchor:    slot(&chipCell),
 		Content:   slot(&contentCell),
 		Placement: popover.Bottom,
+		Arbiter:   popArb,
 		OnDismiss: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseModelMenu{}}.Add(gtx.Ops)
 		},

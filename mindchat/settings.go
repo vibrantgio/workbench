@@ -77,7 +77,7 @@ type settingsFields struct {
 // SettingsModal builds the settings modal stream. Open state, the draft
 // being edited, and fetch errors all live in Model.Settings; the modal is
 // pure view over them.
-func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], popArb *popover.Arbiter, modalArb *modal.Arbiter) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.Settings.Open }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 
@@ -176,6 +176,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 		Anchor:    cellSlot(&dropChipCell),
 		Content:   cellSlot(&dropContentCell),
 		Placement: popover.Top,
+		Arbiter:   popArb,
 		OnDismiss: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseDefaultModelMenu{}}.Add(gtx.Ops)
 		},
@@ -239,6 +240,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 		Open:    openObs,
 		Title:   "Settings",
 		Body:    body,
+		Arbiter: modalArb,
 		Actions: []layout.Widget{action(&cancelCell), action(&saveCell)},
 		// The provider fields lead the Tab cycle; their tags are dynamic
 		// (each epoch rebuilds the fields — new editors, new tags).

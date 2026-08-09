@@ -3,8 +3,17 @@
 // OpenRenameWatchlist (a small modal opens); Delete confirms inline (a second
 // "Confirm delete" row) then writes the file (deleteWatchlistNamed), toasts,
 // lands DeleteWatchlist, and closes. Open state is EPHEMERAL per-row
-// interaction state (a per-row rx.Subject), keyed by name — the feeds idiom
-// (logged in FEEDBACK-G5.3.md), NOT model state.
+// interaction state, keyed by name and NOT model state (logged in
+// FEEDBACK-G5.3.md): plain bools this file owns, written and read during
+// layout on the frame goroutine, which cadence/popover reads back through
+// Props.OpenNow — ADR-008 destination 2. Every row's menu shares the window's
+// Arbiter, so right-clicking one row closes whichever row's menu was up.
+//
+// Until G0C.4 the open flag was a per-row rx.Subject with an atomic.Bool
+// mirror beside it, and the inline confirm expansion was a second atomic
+// beside that. Both are plain fields now; the atomic cell that remains
+// carries the THEME's re-emissions, which really do arrive from another
+// goroutine.
 //
 // Opening is driven by a SECONDARY (right) pointer press on the row, registered
 // by the sidebar in front of the select clickable inside a pointer.PassOp (see
@@ -39,11 +48,12 @@ const (
 )
 
 // sidebarContext is one watchlist row's context menu (anchor + popover).
+// open and confirmShow are frame state: only layout writes them and only
+// layout reads them.
 type sidebarContext struct {
 	name        string
-	openCh      rx.Observer[bool]
-	openVal     atomic.Bool
-	confirmShow atomic.Bool // inline "confirm delete" expansion
+	open        bool
+	confirmShow bool // inline "confirm delete" expansion
 	cell        atomic.Value
 }
 
@@ -53,11 +63,9 @@ func newSidebarContext(
 	storePath string,
 	renameClick, deleteClick, confirmClick *widget.Clickable,
 	loadModel func() Model,
+	popArb *popover.Arbiter,
 ) *sidebarContext {
 	sc := &sidebarContext{name: name}
-	send, openObs := rx.Subject[bool](0, 1)
-	send.Next(false)
-	sc.openCh = send
 
 	loadTok := mirrorTokens(th)
 
@@ -74,9 +82,9 @@ func newSidebarContext(
 			mvu.MessageOp{Message: OpenRenameWatchlist{Name: sc.name}}.Add(gtx.Ops)
 			sc.close()
 		}
-		if !sc.confirmShow.Load() {
+		if !sc.confirmShow {
 			if deleteClick.Clicked(gtx) {
-				sc.confirmShow.Store(true)
+				sc.confirmShow = true
 			}
 		} else if confirmClick.Clicked(gtx) {
 			m := loadModel()
@@ -114,7 +122,7 @@ func newSidebarContext(
 		dStk := op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		dGtx := gtx
 		dGtx.Constraints = layout.Exact(image.Pt(w, rowH))
-		if !sc.confirmShow.Load() {
+		if !sc.confirmShow {
 			deleteClick.Layout(dGtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.LabelOp("Delete watchlist").Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
@@ -137,10 +145,11 @@ func newSidebarContext(
 	}
 
 	popObs := popover.Popover(th, popover.Props{
-		Open:      openObs,
+		OpenNow:   func() bool { return sc.open },
 		Anchor:    anchor,
 		Content:   content,
 		Placement: popover.Right,
+		Arbiter:   popArb,
 		OnDismiss: func(layout.Context) { sc.close() },
 	})
 	sc.cell.Store(layout.Widget(nil))
@@ -152,18 +161,19 @@ func newSidebarContext(
 	return sc
 }
 
+// openMenu and close run during layout — from the row's secondary-press
+// handler, from the menu entries, and from the arbiter's OnDismiss — all on
+// the frame goroutine, which is what lets these be plain fields. Each opening
+// starts with the inline confirm collapsed, so a menu reopened after a
+// half-finished delete never comes back already armed.
 func (sc *sidebarContext) openMenu() {
-	sc.confirmShow.Store(false)
-	if !sc.openVal.Swap(true) {
-		sc.openCh.Next(true)
-	}
+	sc.confirmShow = false
+	sc.open = true
 }
 
 func (sc *sidebarContext) close() {
-	sc.confirmShow.Store(false)
-	if sc.openVal.Swap(false) {
-		sc.openCh.Next(false)
-	}
+	sc.confirmShow = false
+	sc.open = false
 }
 
 // layout renders the context-menu popover widget (the invisible anchor always,

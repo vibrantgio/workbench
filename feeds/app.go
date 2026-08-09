@@ -27,6 +27,7 @@ import (
 	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/cadence/table"
 	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/cadence/tooltip"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
@@ -64,21 +65,25 @@ import (
 // 13. rowsPerPageObs     → paged + pageCountObs + the panel's buttons     (3)
 // 14. unreadOnlyObs      → filtered×2 + the panel's buttons               (3)
 // 15. toastsObs          → toast.Stack Toasts prop (G0C.3)                (1)
+// 16. filterObs          → filtered, subscribed by paged + pageCountObs   (2)
 //
-// Total = 24, confirmed empirically by TestModelObsConsumerCountMatchesConst,
+// Total = 26, confirmed empirically by TestModelObsConsumerCountMatchesConst,
 // which fails if a future edit changes the topology without updating this.
 // G0A.3 added seven: a preference read by both the pipeline that applies it
 // and the panel that displays it is subscribed on both sides, and `filtered`
 // is itself subscribed twice (by paged and by pageCountObs), so a stream
 // feeding it counts double.
 //
-// G0C.3 added the last one, and it is the first entry here that ADR-008 put
-// on the ledger rather than took off it: the toast queue moved OUT of a
-// process-global rx.Subject and INTO the model, so the stack now reads the
-// model like every other component. Destination 2's conversions (popover,
-// tooltip, modal) could not move this number in either direction — they never
-// touched modelObs.
-const modelObsConsumers = 24
+// The last two entries are ADR-008's, and both put an entry ON this ledger
+// rather than taking one off. G0C.3's toast queue moved OUT of a
+// process-global rx.Subject and INTO the model, so the stack reads the model
+// like every other component; G0C.4's filter text did the same for the same
+// reason, and cost two because it feeds `filtered`. Destination 2's
+// conversions moved this number in neither direction — neither the four
+// cadence buses nor this app's per-row delete-confirm flag ever touched
+// modelObs, which corrects ADR-008's original guess that the per-row flags
+// were what fed this census.
+const modelObsConsumers = 26
 
 // themeTokens is the colour/typography snapshot the app's own drawing code
 // reads at frame time. The shaper is the theme's cached Typography shaper
@@ -164,6 +169,18 @@ func feedsShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
+	// This window's arbitration registers (ADR-008). They are plain values
+	// with no synchronisation, so the scope they are created at is the scope
+	// they are safe at: spectrum/window calls the build function once per
+	// window and this layer is composed exactly once inside it, which makes
+	// this function body the window. Every popover, tooltip and modal below
+	// is handed one of these — a second arbitrable LAYER would have to take
+	// them as parameters instead, because it would be composed beside this
+	// one rather than within it.
+	popArb := popover.NewArbiter()
+	tipArb := tooltip.NewArbiter()
+	modalArb := modal.NewArbiter()
+
 	// The cold derivations of modelObs. Their count is mirrored by
 	// modelObsConsumers above — keep them in sync.
 	openSectionsObs := rx.Map(modelObs, func(m Model) map[int]bool { return m.openSections })
@@ -181,12 +198,13 @@ func feedsShellLayer(
 	rowsPerPageObs := rx.Map(modelObs, func(m Model) int { return m.rowsPerPage })
 	unreadOnlyObs := rx.Map(modelObs, func(m Model) bool { return m.unreadOnly })
 	toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.toasts.Items() })
+	filterObs := rx.Map(modelObs, func(m Model) string { return m.filter })
 
-	articlesObs := articlesMain(th, selectedFeedObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs)
+	articlesObs := articlesMain(th, selectedFeedObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, filterObs, tipArb)
 	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
-	shareObs := sharePopover(th, shareOpenObs)
-	modalObs := addFeedModal(th, addFeedOpenObs, addFeedErrorObs)
-	prefsObs := preferencesPanel(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs)
+	shareObs := sharePopover(th, shareOpenObs, popArb)
+	modalObs := addFeedModal(th, addFeedOpenObs, addFeedErrorObs, modalArb)
+	prefsObs := preferencesPanel(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs, modalArb)
 	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})
 
 	// The settings accelerator — ⌘, on macOS, Ctrl-, elsewhere. It is app
@@ -228,7 +246,7 @@ func feedsShellLayer(
 		},
 	})
 
-	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs)
+	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, popArb)
 	sidebarDriven := rx.Map(
 		rx.CombineLatest5(sidebarObs, articlesObs, detailObs, splitObs, shareObs),
 		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
@@ -355,6 +373,7 @@ const (
 func sharePopover(
 	th rx.Observable[theme.Theme],
 	shareOpenObs rx.Observable[bool],
+	popArb *popover.Arbiter,
 ) rx.Observable[layout.Widget] {
 	loadTok := mirrorTokens(th)
 
@@ -400,6 +419,7 @@ func sharePopover(
 
 	return popover.Popover(th, popover.Props{
 		Open:      shareOpenObs,
+		Arbiter:   popArb,
 		Anchor:    anchor,
 		Content:   content,
 		Placement: popover.Bottom,
@@ -438,6 +458,7 @@ func addFeedModal(
 	th rx.Observable[theme.Theme],
 	addFeedOpenObs rx.Observable[bool],
 	addFeedErrorObs rx.Observable[bool],
+	modalArb *modal.Arbiter,
 ) rx.Observable[layout.Widget] {
 	// urlCell holds the latest editor text (textfield is uncontrolled).
 	var urlCell atomic.Value
@@ -536,9 +557,10 @@ func addFeedModal(
 	}
 
 	modalObs := modal.Modal(th, modal.Props{
-		Open:  addFeedOpenObs,
-		Title: "Add feed",
-		Body:  modalBody,
+		Open:    addFeedOpenObs,
+		Title:   "Add feed",
+		Body:    modalBody,
+		Arbiter: modalArb,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseAddFeed{}}.Add(gtx.Ops)
 		},

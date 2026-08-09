@@ -61,6 +61,7 @@ func renameWatchlistModal(
 	openObs rx.Observable[bool],
 	errorObs rx.Observable[bool],
 	editObs rx.Observable[renameTarget],
+	modalArb *modal.Arbiter,
 ) rx.Observable[layout.Widget] {
 	var modelCell atomic.Value
 	modelCell.Store(Model{editIndex: -1})
@@ -174,9 +175,10 @@ func renameWatchlistModal(
 	}
 
 	modalObs := modal.Modal(th, modal.Props{
-		Open:  openObs,
-		Title: "Rename watchlist",
-		Body:  modalBody,
+		Open:    openObs,
+		Title:   "Rename watchlist",
+		Body:    modalBody,
+		Arbiter: modalArb,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseRenameWatchlist{}}.Add(gtx.Ops)
 		},

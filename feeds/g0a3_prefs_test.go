@@ -28,6 +28,7 @@ import (
 
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/table"
+	"github.com/vibrantgio/cadence/tooltip"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/spectrum/theme"
@@ -300,11 +301,14 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 		rx.Map(modelObs, func(m Model) table.Sort { return m.sort }),
 		rx.Map(modelObs, func(m Model) int { return m.rowsPerPage }),
 		rx.Map(modelObs, func(m Model) bool { return m.unreadOnly }),
+		rx.Map(modelObs, func(m Model) string { return m.filter }),
+		tooltip.NewArbiter(),
 	)
 	prefsObs := preferencesPanel(th,
 		rx.Map(modelObs, func(m Model) bool { return m.prefsOpen }),
 		rx.Map(modelObs, func(m Model) int { return m.rowsPerPage }),
 		rx.Map(modelObs, func(m Model) bool { return m.unreadOnly }),
+		modal.NewArbiter(),
 	)
 	composed := rx.Map(rx.CombineLatest2(articlesObs, prefsObs),
 		func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {

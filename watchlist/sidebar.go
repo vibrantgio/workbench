@@ -38,6 +38,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/keyed"
 	"github.com/vibrantgio/spectrum/theme"
@@ -65,6 +66,7 @@ func watchlistSidebar(
 	selectedObs rx.Observable[string],
 	storePath string,
 	modelMirrorObs rx.Observable[Model],
+	popArb *popover.Arbiter,
 ) rx.Observable[layout.Widget] {
 	loadTok := mirrorTokens(th)
 
@@ -89,16 +91,19 @@ func watchlistSidebar(
 
 	// Per-name row clickables, stable across list mutation.
 	rowClicks := keyed.Defer(func(string) *widget.Clickable { return &widget.Clickable{} })
-	// Per-name right-click context menu (Rename / Delete) — ephemeral per-row
-	// interaction state (feeds idiom). Its inner clickables are owned by the
-	// sidebarContext. The secondary-press hit area uses a per-name tag.
+	// Per-name right-click context menu (Rename / Delete). Its open flag is
+	// ephemeral per-row interaction state, held as a plain bool and read
+	// during layout (ADR-008 destination 2, see sidebarcontext.go); its inner
+	// clickables are owned by the sidebarContext. The secondary-press hit
+	// area uses a per-name tag.
 	renameClicks := keyed.Defer(func(string) *widget.Clickable { return &widget.Clickable{} })
 	deleteClicks := keyed.Defer(func(string) *widget.Clickable { return &widget.Clickable{} })
 	confirmClicks := keyed.Defer(func(string) *widget.Clickable { return &widget.Clickable{} })
 	ctxTags := keyed.Defer(func(string) *ctxPressTag { return &ctxPressTag{} })
 	contexts := keyed.Defer(func(name string) *sidebarContext {
 		return newSidebarContext(th, name, storePath,
-			renameClicks.For(name), deleteClicks.For(name), confirmClicks.For(name), loadModel)
+			renameClicks.For(name), deleteClicks.For(name), confirmClicks.For(name),
+			loadModel, popArb)
 	})
 
 	sidebarW := func(gtx layout.Context) layout.Dimensions {

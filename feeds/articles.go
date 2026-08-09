@@ -148,10 +148,13 @@ func pageCountFor(arts []article, size int) int {
 // articlesMain composes the textfield filter, articles table, and pagination
 // row into an rx.Observable[layout.Widget] suitable for folding onto the
 // shell's sidebar-driven stream. Selection (selectedFeedObs), paging
-// (currentPageObs), and sort (sortObs) are derived from the MVU model; every
-// interactive callback lands an mvu.MessageOp so a click re-emits this layer
-// — and the shell — on the same frame. The filter text is local UI state
-// (it never needed to be model-derived) and is held in a small rx.Subject.
+// (currentPageObs), sort (sortObs) and the filter text (filterObs) are all
+// derived from the MVU model; every interactive callback lands an
+// mvu.MessageOp so a click re-emits this layer — and the shell — on the same
+// frame.
+//
+// tipArb is this window's tooltip arbitration set (ADR-008): the Unread
+// header tooltip joins it so that at most one tooltip in the window is up.
 func articlesMain(
 	th rx.Observable[theme.Theme],
 	selectedFeedObs rx.Observable[FeedID],
@@ -159,6 +162,8 @@ func articlesMain(
 	sortObs rx.Observable[table.Sort],
 	rowsPerPageObs rx.Observable[int],
 	unreadOnlyObs rx.Observable[bool],
+	filterObs rx.Observable[string],
+	tipArb *tooltip.Arbiter,
 ) rx.Observable[layout.Widget] {
 	all := hardCodedArticles()
 
@@ -186,11 +191,6 @@ func articlesMain(
 	rowClicks := keyed.Defer(func(_ ArticleID) *widget.Clickable {
 		return &widget.Clickable{}
 	})
-
-	// Filter text is local UI state, not part of the persisted model. A small
-	// Subject feeds the filter into the Items pipeline.
-	filterSend, filterObs := rx.Subject[string](0, 1)
-	filterSend.Next("")
 
 	columns := articleColumns(loadTok, rowClicks)
 
@@ -236,6 +236,7 @@ func articlesMain(
 	unreadTipObs := tooltip.Tooltip(th, tooltip.Props{
 		Text:      "Unread",
 		Placement: tooltip.Bottom,
+		Arbiter:   tipArb,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		},
@@ -245,11 +246,11 @@ func articlesMain(
 		Placeholder: "Filter articles",
 		Description: "Filter articles by title or author",
 		OnChange: func(gtx layout.Context, s string) {
-			filterSend.Next(s)
-			// Narrowing the filter shrinks the result set, so reset to page 1
-			// to avoid stranding the user on an out-of-range slice. SetPage is
-			// idempotent when already on page 1.
-			mvu.MessageOp{Message: SetPage{Page: 1}}.Add(gtx.Ops)
+			// One message carries both halves: the reducer stores the text
+			// and resets to page 1, because narrowing the filter shrinks the
+			// result set and would otherwise strand the user on an
+			// out-of-range slice.
+			mvu.MessageOp{Message: SetFilter{Text: s}}.Add(gtx.Ops)
 		},
 	})
 	tableWidgetObs := table.Table(th, table.Props[article]{
