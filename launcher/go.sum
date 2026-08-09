@@ -19,6 +19,8 @@ github.com/vibrantgio/cadence v0.3.1 h1:QqLWOt8jOIaDEh9/qGuTAHJ89HBEYR8ySn00kgUY
 github.com/vibrantgio/cadence v0.3.1/go.mod h1:h2HcwW05eOzdVUd+RYb8a0lmFVGiOw+yvM+W3tkhs/I=
 github.com/vibrantgio/cadence v0.3.2 h1:gpkaJPU94hH1kiqQkJ77qhfGKSOn8D2ODSjEO/In4XM=
 github.com/vibrantgio/cadence v0.3.2/go.mod h1:ZW8ydiLNQVScv3SOJXYsBDOftc3dx1bcgt9nYlMbOYY=
+github.com/vibrantgio/cadence v0.4.0 h1:xry2J95pOnvptK1Y8oB+MaBx7j7GE+C4l9YjxFimGFQ=
+github.com/vibrantgio/cadence v0.4.0/go.mod h1:YTC2dzJdccQ6Crx4ywzyv0l7E9eRFlyZVg8o0bLJf0Y=
 github.com/vibrantgio/font v0.1.0 h1:UXlYbXkf3Kbk5oxhdky1JFTTi8oV5Nf7Q8apDoCHFJM=
 github.com/vibrantgio/font v0.1.0/go.mod h1:3xY/uNoUn5FC2+gJ1g9se10R0z+gcWfF8kxvChF/HTQ=
 github.com/vibrantgio/ivg v0.1.6 h1:UQRKowEpGHt+MBlFL1fFZvhYTf/3VieD5gR0LA4uRbw=
@@ -33,6 +35,8 @@ github.com/vibrantgio/prism v0.3.1 h1:MMtG6xva1CW3Yq69Z77LXNWYHjM26xHkeyePzxTP0E
 github.com/vibrantgio/prism v0.3.1/go.mod h1:H6pyf1/CcvuR8qfvEzHg3zZI3KU0V4FNmYzCuZgQxuQ=
 github.com/vibrantgio/prism v0.4.0 h1:6NTvTKu8KfiEhD/rY4yi8dNAmVbKIYzpyWbnp09ENlI=
 github.com/vibrantgio/prism v0.4.0/go.mod h1:w+KUlehslvmiypyGntmuHkoRNiCY1891jvFz9dUdaU4=
+github.com/vibrantgio/prism v0.5.0 h1:ZuYtjCHI2X1Noa1uQlozlO1AAuX/Wh3WOQiFZhPqCSg=
+github.com/vibrantgio/prism v0.5.0/go.mod h1:w+KUlehslvmiypyGntmuHkoRNiCY1891jvFz9dUdaU4=
 github.com/vibrantgio/seen v0.0.7 h1:Ro1Tnqi+omEjPJTbDxK9XnVk2T9hqZuYIbS5+KpkHz0=
 github.com/vibrantgio/seen v0.0.7/go.mod h1:XIerMaflemFdCpWTADE87T5tc+OjZfM2oPq+Fo6dt1c=
 github.com/vibrantgio/seen/context/gio v0.0.7 h1:OJip+UYNVDIgtTyENczDpdm4CEQHYB+kNfVD5H2LwDU=
