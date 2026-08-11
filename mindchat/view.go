@@ -37,7 +37,7 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/pulse/depth"
+	"github.com/vibrantgio/effects/depth"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"

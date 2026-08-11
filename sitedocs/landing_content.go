@@ -22,7 +22,7 @@ func heroContent(gotoDocs, gotoAbout func(gtx layout.Context)) hero.Props {
 	return hero.Props{
 		Eyebrow:      "Native desktop · Go",
 		Title:        "Vibrant Gio",
-		Subtitle:     "Components tokens and primitives, Cadence patterns, Theme platform glue, Pulse motion, and an MVU runtime — a design system for building native desktop apps with Gio.",
+		Subtitle:     "Components tokens and primitives, Cadence patterns, Theme platform glue, Effects motion, and an MVU runtime — a design system for building native desktop apps with Gio.",
 		PrimaryCTA:   &hero.CTA{Label: "Get started", OnClick: gotoDocs},
 		SecondaryCTA: &hero.CTA{Label: "About", OnClick: gotoAbout},
 	}
@@ -44,7 +44,7 @@ func featureContent() feature.Props {
 				Body:  "Shells, tables, modals, navigation and marketing sections — short source, copy into your app and modify.",
 			},
 			{
-				Title: "Pulse — motion + effects",
+				Title: "Effects — motion + effects",
 				Body:  "Springs, tweens, glow and depth sharing the same theme stream as every widget.",
 			},
 		},
@@ -77,7 +77,7 @@ func pricingContent() pricing.Props {
 				Features: []string{
 					"Unlimited projects",
 					"Priority support",
-					"Pulse motion add-on",
+					"Effects motion add-on",
 					"Private examples",
 				},
 				CTA: &pricing.CTA{Label: "Upgrade"},
@@ -115,7 +115,7 @@ func testimonialContent() testimonial.Props {
 				AuthorRole: "Design Lead, Northstar",
 			},
 			{
-				Quote:      "Pulse physics let us prototype micro-interactions without bolting on a separate animation runtime.",
+				Quote:      "Effects physics let us prototype micro-interactions without bolting on a separate animation runtime.",
 				AuthorName: "Owen Reyes",
 				AuthorRole: "Engineer, Forecast Labs",
 			},

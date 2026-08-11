@@ -79,10 +79,10 @@ func docsSidebarSections() []docsSidebarSection {
 			},
 		},
 		{
-			Title: "Pulse",
+			Title: "Effects",
 			Links: []docsSidebarLink{
-				{Label: "Motion", Page: pagePulseMotion},
-				{Label: "Effects", Page: pagePulseEffects},
+				{Label: "Motion", Page: pageEffectsMotion},
+				{Label: "Effects", Page: pageEffectsEffects},
 			},
 		},
 		{

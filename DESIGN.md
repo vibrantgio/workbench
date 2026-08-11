@@ -68,7 +68,7 @@ API (§Key architectural patterns).
 The design-system spine, foundation first:
 
 ```
-mvu  →  theme  →  components  →  pulse  →  cadence  →  markdown
+mvu  →  theme  →  components  →  effects  →  cadence  →  markdown
 ```
 
 `theme` — the theme runtime and every design token — is the **foundation**
@@ -90,7 +90,7 @@ the support row:
 | 0 | mvu, font, style, textdraw, backdrop, gradient, circle | support libraries only |
 | 1 | theme | tier 0 |
 | 2 | components | tiers 0–1 |
-| 3 | pulse | tiers 0–2 |
+| 3 | effects | tiers 0–2 |
 | 4 | cadence, markdown | tiers 0–3 |
 | — | ivg, svg, seen, csg, kiwi, noise, traer | nothing in this table |
 
@@ -206,7 +206,7 @@ not invented (§Desktop divergences).
 `tokens.MotionScale` carries MD3's motion *semantics* at desktop pace: five
 duration stops (50/150/250/400/500 ms), the MD3 standard and emphasized
 easing families as cubic-bezier control points, and spring presets
-(mass/stiffness/damping) for the pulse physics path. Components take
+(mass/stiffness/damping) for the effects physics path. Components take
 durations from the theme, never from local constants — which is what makes
 reduced motion free (below).
 
@@ -285,7 +285,7 @@ of density.
 
 On desktop a raised surface reads as raised by **tint first, shadow second**.
 Elevation is the surface ladder above; shadows survive only as explicit
-vibrancy via `pulse/depth`, and the verdict on when is recorded in that
+vibrancy via `effects/depth`, and the verdict on when is recorded in that
 package's doc: **a shadow marks what floats and can leave** — a toast, a
 popover, a menu, a drag preview — never what is raised in place, which reads
 as raised by its surface step alone. The cost backs the rule: one
@@ -311,7 +311,7 @@ Gio exposes no blur primitive and no custom shaders — but
 back, which is a real backdrop-blur pipeline built from Gio's own primitives.
 The org owns the kernel rather than importing one (all three candidate
 libraries measured compromised: unmaintained, anomalously slow, or silently
-wrong): `pulse/blur` is a parallel three-pass box approximation of a
+wrong): `effects/blur` is a parallel three-pass box approximation of a
 Gaussian, correct at the edges and allocation-free in steady state.
 
 The economics are measured (ten-core Apple Silicon; a 60 fps frame budget is
@@ -336,7 +336,7 @@ Three contracts follow from the numbers:
 2. **Fallback.** Headless rendering is not available on every platform; the
    documented fallback is a flat tinted scrim, never a crash.
 3. **What not to blur: animated glows.** A blur-based glow was prototyped,
-   measured and rejected (evidence in `pulse/glow`'s doc): visually better,
+   measured and rejected (evidence in `effects/glow`'s doc): visually better,
    but an animating blur-glow costs 0.2–0.8 ms of events-thread CPU plus an
    image-sized allocation and texture upload per glow per frame, against
    ~0.5 µs for the eight-gradient halo — and no cache holds while the radius
@@ -410,8 +410,8 @@ Animated widgets tick their simulation inside the frame and request the next
 frame only while active (`gtx.Execute(op.InvalidateCmd{})`); when activity
 settles, nothing invalidates and Gio goes idle. Invalidation is
 window-global — every widget re-lays-out — so expensive widgets cache ops
-when inputs are unchanged (`components/cache`, v1's "Experiment B" landed). Pulse
-effects are explicit *variants* of components widgets (`pulse/springbutton`
+when inputs are unchanged (`components/cache`, v1's "Experiment B" landed).
+Effects are explicit *variants* of components widgets (`effects/springbutton`
 wraps `components/button`), opt-in per call site, never a global decorator — and
 every animated component takes its durations and springs from the theme's
 MotionScale, which is what makes reduced motion a zero-cost guarantee.
@@ -442,7 +442,7 @@ MotionScale, which is what makes reduced motion a zero-cost guarantee.
 ## The road from v1
 
 The original document ([DESIGN-v1.md](DESIGN-v1.md)) planned in phases named
-Components → Spectrum → Pulse → Cadence and recorded open experiments and known
+Components → Spectrum → Effects → Cadence and recorded open experiments and known
 fragilities. Its bets mostly paid off, and its debts were repaid:
 
 - **The Gio migration ("Phase −1") happened.** The stack sits on a current
@@ -481,10 +481,10 @@ planned (the release tags and the shim-deleting major bump).
 
 **Decision.** The token and theme contract moves from `components` down into
 `spectrum`. The design-system spine becomes
-`mvu → spectrum → components → pulse → cadence → markdown`, governed by the full
+`mvu → spectrum → components → effects → cadence → markdown`, governed by the full
 tier table in §The layering, which admits all nineteen library modules and is
 enforced by the org's layer-check script. `spectrum/transition` moves to
-`pulse/transition`, since it is animation code — that move removed an edge
+`effects/transition`, since it is animation code — that move removed an edge
 that already existed rather than preventing a hypothetical one: the
 foundation imported the effects layer, tier 1 reaching into tier 3.
 `spectrum/window` may keep its `mvu` dependency; mvu carries no design
@@ -494,7 +494,7 @@ tokens.
 library it exists to theme. The theme therefore sat above what it themes,
 which is why `LiveTheme` hardcoded the default palettes and why there was no
 palette injection point anywhere in the stack. Separately, `components` and
-`pulse` required each other — a demo file's doing — and that cycle pinned
+`effects` required each other — a demo file's doing — and that cycle pinned
 half the org to a stale components while the other half moved on; cutting it is
 what made one current version resolvable everywhere. The nested-demo rule
 (demo modules may import upward, their parents may not inherit the edge)
@@ -567,7 +567,7 @@ a CI lint enforces it.
 **Why.** The predecessor `TypeScale` was fifteen `float32` sizes and nothing
 else, so the theme had no seam for a typeface at all. The consequence was
 mechanical: seventeen `Props` structs and 118 function signatures carried a
-`*text.Shaper`, and components, pulse, cadence and markdown all constructed a
+`*text.Shaper`, and components, effects, cadence and markdown all constructed a
 gofont shaper inside library code — gofont was not merely used by the
 examples, it was the compiled-in default of the component library. Meanwhile
 `font` and `style`, the repos that package Roboto and a type scale, went
@@ -618,7 +618,7 @@ system is shaped this way.
 - **From shadcn/ui:** density, restraint, and the component inventory. Its
   metrics are the target for the `Density` token — copied rather than
   invented.
-- **From neither:** the visual identity. That comes from `pulse` — glow,
+- **From neither:** the visual identity. That comes from `effects` — glow,
   depth, spring physics — which is what this document names as the point of
   the project.
 
@@ -707,12 +707,12 @@ Seven layers, in this order:
 0  mvu font traer svg seen ivg kiwi noise csg circle gradient backdrop textdraw
 1  style  kiwi/gio  seen/context/gio  svg/driver/{pdf,raster}
 2  svg/driver/{gio,seen}  ivg/raster/gio  traer/gio
-3  components      4  pulse      5  spectrum      6  cadence markdown
+3  components      4  effects      5  spectrum      6  cadence markdown
 7  workbench/*  mvu/example  components/gallery
 ```
 
 (The release protocol's coarser cut of the same order: mvu, font → spectrum →
-components → pulse → cadence, markdown → workbench apps, with the nested demo
+components → effects → cadence, markdown → workbench apps, with the nested demo
 modules last. font tags beside mvu, not beside spectrum, because spectrum
 requires it — ADR-003's tier-0/tier-1 edge. No layer is tagged while the
 layer check or the workspace-debt check fails.)
@@ -934,7 +934,7 @@ stands untouched; its role-vocabulary clause is superseded.
   closures, never in subjects
 - **Frame-driven motion:** animated components self-schedule and idle when
   settled; reduced motion snaps for free
-- **Progressive enhancement is explicit:** pulse widgets are *variants* of
+- **Progressive enhancement is explicit:** effects widgets are *variants* of
   components widgets, not silent decorators
 - **Desktop-native over touch-translated:** measured density, tonal
   elevation, a faster motion subset, shadows only for what floats

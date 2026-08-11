@@ -26,8 +26,8 @@ const (
 	pageThemeWindow = "theme-window"
 	pageThemeTheme  = "theme-live-theme"
 
-	pagePulseMotion  = "pulse-motion"
-	pagePulseEffects = "pulse-effects"
+	pageEffectsMotion  = "effects-motion"
+	pageEffectsEffects = "effects-effects"
 
 	pageMVULoop   = "mvu-loop"
 	pageMVUWindow = "mvu-window"

@@ -280,7 +280,7 @@ func aboutSection(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	paragraphs := []string{
 		"Site Docs is the documentation and marketing example for Vibrant Gio — a design system for building native desktop applications in Go with Gio.",
 		"It is one of the workbench apps that exercise the system end to end, alongside the launcher, feeds, todos, watchlist, iconbrowser and mindchat.",
-		"Every layer — components, cadence, theme, pulse, mvu — is MIT licensed and developed in the open at github.com/vibrantgio.",
+		"Every layer — components, cadence, theme, effects, mvu — is MIT licensed and developed in the open at github.com/vibrantgio.",
 	}
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })

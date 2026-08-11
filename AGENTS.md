@@ -11,8 +11,8 @@ that no other repository in the organization has.
 **Layer.** Outside ADR-001's tier table: applications at the top of the
 stack, which the tier rule exempts and which may import any layer of the
 design system. Its seven applications import, between them, `backdrop`,
-`cadence`, `components`, `font`, `ivg`, `ivg/raster/gio`, `markdown`,
-`mvu`, `noise`, `pulse`, `seen`, `seen/context/gio`, `svg`,
+`cadence`, `components`, `effects`, `font`, `ivg`, `ivg/raster/gio`,
+`markdown`, `mvu`, `noise`, `seen`, `seen/context/gio`, `svg`,
 `svg/driver/gio`, `textdraw` and `theme`. Nothing in the organization
 imports it. Both directions are measured rather than typed —
 `scripts/check-layers.sh --edges` reports the graph and
@@ -47,12 +47,12 @@ root module to run it from:
 `sitedocs/` and `watchlist/` — compare rendered output against PNGs
 committed under `testdata/golden/`. They render through
 `github.com/vibrantgio/components/golden`, which declares `-golden.update`
-and is shared with `cadence`, `markdown` and `pulse`. Do not inline a copy
-of it, and do not declare a second `-golden.update`: two registrations of
-one flag name in a single test binary panic in `flag.Bool` at init, before
-any test runs. When a change legitimately moves pixels, regenerate them
-within the same change, look at what came out, and say so in the commit.
-From inside the directory concerned:
+and is shared with `cadence`, `effects` and `markdown`. Do not inline a
+copy of it, and do not declare a second `-golden.update`: two registrations
+of one flag name in a single test binary panic in `flag.Bool` at init,
+before any test runs. When a change legitimately moves pixels, regenerate
+them within the same change, look at what came out, and say so in the
+commit. From inside the directory concerned:
 
     go test . -golden.update
 

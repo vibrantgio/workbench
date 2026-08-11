@@ -17,7 +17,7 @@ The design system is layered — each layer only depends on the ones below it:
 | Layer | Module | Role |
 |---|---|---|
 | Patterns | [`cadence`](https://github.com/vibrantgio/cadence) | Prebuilt application patterns: shells, tables, modals, popovers, tabs, toasts, navbars, sidebars, pagination, marketing sections |
-| Effects | [`pulse`](https://github.com/vibrantgio/pulse) | Motion & vibrancy: tweens, spring physics, glow, depth, a shared animation conductor |
+| Effects | [`effects`](https://github.com/vibrantgio/effects) | Motion & vibrancy: tweens, spring physics, glow, depth, a shared animation conductor |
 | Theme runtime | [`theme`](https://github.com/vibrantgio/theme) | Reactive theming: live OS dark-mode/accent tracking, preference persistence, animated theme transitions, window integration |
 | Foundation | [`components`](https://github.com/vibrantgio/components) | Component catalogue: buttons, inputs, lists, icons, layout, focus/a11y, tokens, theme contract, keyed identity, coordination |
 | Runtime | [`mvu`](https://github.com/vibrantgio/mvu) | Model-View-Update runtime for Gio: `NewWindow`, `MessageOp` widget protocol, commands |
@@ -85,7 +85,7 @@ cd launcher && go run .
   core patterns (including the `WithLatestFrom2` frame-synchronisation model
   and the `rx.Defer` subscription-state pattern), threading rules,
   accessibility, performance methodology, and the phase plan that produced
-  Components, Theme, Pulse, and Cadence.
+  Components, Theme, Effects, and Cadence.
 - **[llms.txt](https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt)**
   — a condensed guide for AI coding assistants (Claude, etc.) to write
   applications against the Vibrant Gio packages. It is maintained once, at the
