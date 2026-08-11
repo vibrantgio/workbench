@@ -28,9 +28,9 @@ import (
 	"github.com/vibrantgio/cadence/table"
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/cadence/tooltip"
+	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -440,8 +440,8 @@ const (
 )
 
 // addFeedModal composes the "Add feed" modal: a cadence/modal whose Body is a
-// cadence/card wrapping (optionally) a cadence/alert, a prism/input/textfield
-// for the URL, and a prism/button submit. addFeedOpenObs drives the modal's
+// cadence/card wrapping (optionally) a cadence/alert, a components/input/textfield
+// for the URL, and a components/button submit. addFeedOpenObs drives the modal's
 // Open; addFeedErrorObs drives whether the empty-URL alert shows.
 //
 // Component-prop shapes (logged in FEEDBACK-G5.2.md):
@@ -449,9 +449,9 @@ const (
 //     textfield/button/alert/card are rx.Observable[layout.Widget]. Each is
 //     bridged through an atomic layer-boundary cell read by the static slot at
 //     frame time — the same pattern the navbar Share popover uses.
-//   - prism/input/textfield is uncontrolled: its widget.Editor lives in the
+//   - components/input/textfield is uncontrolled: its widget.Editor lives in the
 //     component's rx.Defer scope and is never exposed, and the submit is a
-//     prism/button (not Enter), so the button has no handle to clear the
+//     components/button (not Enter), so the button has no handle to clear the
 //     editor. The latest text is mirrored into urlCell via OnChange and read by
 //     the button's OnClick; the reducer cannot clear the visible field.
 func addFeedModal(

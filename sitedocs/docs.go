@@ -23,9 +23,9 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/breadcrumb"
+	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
-	pllayout "github.com/vibrantgio/prism/layout"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -177,7 +177,7 @@ func drawDocsPage(
 	shaper *text.Shaper,
 	style markdown.Style,
 ) layout.Dimensions {
-	inset := pllayout.Inset(docsOuterInsetDp)
+	inset := complayout.Inset(docsOuterInsetDp)
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -186,7 +186,7 @@ func drawDocsPage(
 				}
 				return layout.Dimensions{}
 			}),
-			layout.Rigid(pllayout.VSpacer(docsCardGapDp)),
+			layout.Rigid(complayout.VSpacer(docsCardGapDp)),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return doc.Layout(gtx, shaper, style)
 			}),

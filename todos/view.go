@@ -28,9 +28,9 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 // from it. Each LiveTheme emission is a static snapshot (every field is an
 // rx.Of), so both derive synchronously.
 type themed struct {
-	prism   theme.Theme
-	palette Palette
-	typ     Type
+	components theme.Theme
+	palette    Palette
+	typ        Type
 }
 
 // ContentLayer renders the page: the latest theme snapshot combined with the
@@ -40,7 +40,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
 			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
-				return themed{prism: t, palette: PaletteFrom(n.First), typ: TypeFrom(n.Second)}
+				return themed{components: t, palette: PaletteFrom(n.First), typ: TypeFrom(n.Second)}
 			})
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
@@ -53,7 +53,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // is reconstructed per emission; per-interaction state (the editor, the
 // clickables) lives inside the widgets for exactly one route's lifetime.
 func View(th themed, model Model) layout.Widget {
-	thObs := rx.Of(th.prism)
+	thObs := rx.Of(th.components)
 	p := th.palette
 
 	add, err := raster.Widget(icons.ContentAddCircle, 40, 40, raster.WithColors(p.Icon))

@@ -18,9 +18,9 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/cadence/card"
 	"github.com/vibrantgio/cadence/hero"
+	"github.com/vibrantgio/components/button"
+	pllayout "github.com/vibrantgio/components/layout"
 	raster "github.com/vibrantgio/ivg/raster/gio"
-	"github.com/vibrantgio/prism/button"
-	pllayout "github.com/vibrantgio/prism/layout"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -79,14 +79,14 @@ func FieldLayer(win *app.Window, th rx.Observable[theme.Theme]) rx.Observable[la
 
 // themed is one theme emission resolved to the token snapshot the view
 // consumes, alongside the emission itself: the snapshot's fields are all
-// rx.Of, so the theme-driven components built from prism resolve
+// rx.Of, so the theme-driven components built from components resolve
 // synchronously via First().
 type themed struct {
-	prism   theme.Theme
-	color   tokens.ColorTokens
-	spacing tokens.SpacingScale
-	typ     tokens.Typography
-	shaper  *text.Shaper // the theme's cached shaper (Typography.Shaper())
+	components theme.Theme
+	color      tokens.ColorTokens
+	spacing    tokens.SpacingScale
+	typ        tokens.Typography
+	shaper     *text.Shaper // the theme's cached shaper (Typography.Shaper())
 }
 
 // ContentLayer renders the page: the latest theme snapshot combined with the
@@ -101,14 +101,14 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			rx.CombineLatest3(t.Color, t.Spacing, t.Typography),
 			func(n rx.Tuple3[tokens.ColorTokens, tokens.SpacingScale, tokens.Typography]) themed {
 				typ := n.Third
-				return themed{prism: t, color: n.First, spacing: n.Second, typ: typ, shaper: typ.Shaper()}
+				return themed{components: t, color: n.First, spacing: n.Second, typ: typ, shaper: typ.Shaper()}
 			},
 		)
 	})
 	heroObs := hero.Hero(th, hero.Props{
 		Eyebrow:  "VIBRANTGIO",
 		Title:    "Workbench",
-		Subtitle: "Six complete example apps built on mvu, prism, theme and cadence — floating on a live seen 3D field.",
+		Subtitle: "Six complete example apps built on mvu, components, theme and cadence — floating on a live seen 3D field.",
 	})
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		clicks := make([]widget.Clickable, len(Apps))
@@ -167,7 +167,7 @@ func cardRow(cells []layout.Widget) layout.Widget {
 // emission's static snapshot; text colours come off the Neutral ramp — 900
 // for the name, 700 for the low-contrast blurb (ADR-007).
 func appCard(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {
-	thObs := rx.Of(tok.prism)
+	thObs := rx.Of(tok.components)
 
 	icon, err := raster.Widget(app.Icon, IconSize, IconSize, raster.WithColors(tok.color.Primary))
 	if err != nil {
@@ -198,7 +198,7 @@ func appCard(tok themed, app App, click *widget.Clickable, status Status) layout
 	}
 }
 
-// launchButton is the theme-driven prism button wired to the caller-owned
+// launchButton is the theme-driven components button wired to the caller-owned
 // clickable (so press/hover/focus state survives the per-message view
 // rebuilds) and emits Launch into the MVU loop on activation. While the app
 // is starting or running it renders disabled and emits nothing; the reducer

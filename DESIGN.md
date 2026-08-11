@@ -68,7 +68,7 @@ API (§Key architectural patterns).
 The design-system spine, foundation first:
 
 ```
-mvu  →  theme  →  prism  →  pulse  →  cadence  →  markdown
+mvu  →  theme  →  components  →  pulse  →  cadence  →  markdown
 ```
 
 `theme` — the theme runtime and every design token — is the **foundation**
@@ -89,7 +89,7 @@ the support row:
 | --- | --- | --- |
 | 0 | mvu, font, style, textdraw, backdrop, gradient, circle | support libraries only |
 | 1 | theme | tier 0 |
-| 2 | prism | tiers 0–1 |
+| 2 | components | tiers 0–1 |
 | 3 | pulse | tiers 0–2 |
 | 4 | cadence, markdown | tiers 0–3 |
 | — | ivg, svg, seen, csg, kiwi, noise, traer | nothing in this table |
@@ -105,7 +105,7 @@ Notes the table needs to be read with:
 - **The support libraries** are consumed by the design system and never
   depend on it. That is the whole of their contract.
 - **Nested demo modules are exempt from being imported, not from importing.**
-  `prism/gallery` and `mvu/example` are separate modules that may depend on
+  `components/gallery` and `mvu/example` are separate modules that may depend on
   layers above their parent; their parents may not inherit that edge. This is
   the mechanism that keeps a demo from re-closing a cycle — the org's one
   real dependency cycle (pulse into prism) was a single demo file's doing.
@@ -194,7 +194,7 @@ not part of elevation (§Desktop divergences).
 ### Density is a theme token
 
 `tokens.Density` carries the drawn control height and inner padding:
-Comfortable (36 dp control, the default) and Compact (28 dp). Every prism and
+Comfortable (36 dp control, the default) and Compact (28 dp). Every components and
 cadence control sizes from it, so switching an app to Compact is a theme
 change, not a sweep. The WCAG 2.5.5 pointer target (44 dp) is deliberately
 *not* part of density — it is a constant floor, and components extend their
@@ -388,10 +388,10 @@ subject. The scope hierarchy: Defer closure (once per subscription, owns the
 lifetime) → Map closure (per emission) → widget closure (per frame, events
 goroutine).
 
-Component identity — v1's open "Experiment A" — landed as `prism/keyed`:
+Component identity — v1's open "Experiment A" — landed as `components/keyed`:
 `keyed.Defer` hands back the same per-key state across reorder, insertion and
 deletion, which is what makes dynamic lists safe in the FRP style.
-First-frame sentinels standardised as `prism/initial`.
+First-frame sentinels standardised as `components/initial`.
 
 ### 3. `MessageOp` bridges components to MVU
 
@@ -410,9 +410,9 @@ Animated widgets tick their simulation inside the frame and request the next
 frame only while active (`gtx.Execute(op.InvalidateCmd{})`); when activity
 settles, nothing invalidates and Gio goes idle. Invalidation is
 window-global — every widget re-lays-out — so expensive widgets cache ops
-when inputs are unchanged (`prism/cache`, v1's "Experiment B" landed). Pulse
-effects are explicit *variants* of prism components (`pulse/springbutton`
-wraps `prism/button`), opt-in per call site, never a global decorator — and
+when inputs are unchanged (`components/cache`, v1's "Experiment B" landed). Pulse
+effects are explicit *variants* of components widgets (`pulse/springbutton`
+wraps `components/button`), opt-in per call site, never a global decorator — and
 every animated component takes its durations and springs from the theme's
 MotionScale, which is what makes reduced motion a zero-cost guarantee.
 
@@ -442,7 +442,7 @@ MotionScale, which is what makes reduced motion a zero-cost guarantee.
 ## The road from v1
 
 The original document ([DESIGN-v1.md](DESIGN-v1.md)) planned in phases named
-Prism → Spectrum → Pulse → Cadence and recorded open experiments and known
+Components → Spectrum → Pulse → Cadence and recorded open experiments and known
 fragilities. Its bets mostly paid off, and its debts were repaid:
 
 - **The Gio migration ("Phase −1") happened.** The stack sits on a current
@@ -450,9 +450,9 @@ fragilities. Its bets mostly paid off, and its debts were repaid:
   rework — the strongest evidence they were architecture rather than
   coincidence. The `unsafe.Pointer` MessageOp hack is gone.
 - **The validation experiments became packages.** Keyed identity is
-  `prism/keyed`, op caching is `prism/cache`, cross-widget coordination is
-  `prism/coordination`.
-- **The layering inverted.** v1 put the token contract in prism with
+  `components/keyed`, op caching is `components/cache`, cross-widget coordination is
+  `components/coordination`.
+- **The layering inverted.** v1 put the token contract in components with
   spectrum above it; ADR-001 records why that was wrong and the tier table
   that replaced it.
 - **The token scale outgrew its sources.** v1 aligned with Tailwind's values
@@ -479,9 +479,9 @@ planned (the release tags and the shim-deleting major bump).
 
 ### ADR-001: Spectrum is the foundation, not a consumer
 
-**Decision.** The token and theme contract moves from `prism` down into
+**Decision.** The token and theme contract moves from `components` down into
 `spectrum`. The design-system spine becomes
-`mvu → spectrum → prism → pulse → cadence → markdown`, governed by the full
+`mvu → spectrum → components → pulse → cadence → markdown`, governed by the full
 tier table in §The layering, which admits all nineteen library modules and is
 enforced by the org's layer-check script. `spectrum/transition` moves to
 `pulse/transition`, since it is animation code — that move removed an edge
@@ -490,18 +490,18 @@ foundation imported the effects layer, tier 1 reaching into tier 3.
 `spectrum/window` may keep its `mvu` dependency; mvu carries no design
 tokens.
 
-**Why.** `spectrum` — the theme runtime — depended on `prism`, the component
+**Why.** `spectrum` — the theme runtime — depended on `components`, the component
 library it exists to theme. The theme therefore sat above what it themes,
 which is why `LiveTheme` hardcoded the default palettes and why there was no
-palette injection point anywhere in the stack. Separately, `prism` and
+palette injection point anywhere in the stack. Separately, `components` and
 `pulse` required each other — a demo file's doing — and that cycle pinned
-half the org to a stale prism while the other half moved on; cutting it is
+half the org to a stale components while the other half moved on; cutting it is
 what made one current version resolvable everywhere. The nested-demo rule
 (demo modules may import upward, their parents may not inherit the edge)
 exists so no demo re-closes a cycle.
 
-**How it stayed non-breaking.** `prism/tokens`, `prism/theme` and
-`prism/a11y` remain as alias packages of type aliases and re-exported
+**How it stayed non-breaking.** `components/tokens`, `components/theme` and
+`components/a11y` remain as alias packages of type aliases and re-exported
 variables; every downstream import path keeps working for one release cycle.
 The shims are deleted in the planned major bump.
 
@@ -567,7 +567,7 @@ a CI lint enforces it.
 **Why.** The predecessor `TypeScale` was fifteen `float32` sizes and nothing
 else, so the theme had no seam for a typeface at all. The consequence was
 mechanical: seventeen `Props` structs and 118 function signatures carried a
-`*text.Shaper`, and prism, pulse, cadence and markdown all constructed a
+`*text.Shaper`, and components, pulse, cadence and markdown all constructed a
 gofont shaper inside library code — gofont was not merely used by the
 examples, it was the compiled-in default of the component library. Meanwhile
 `font` and `style`, the repos that package Roboto and a type scale, went
@@ -631,7 +631,7 @@ Cadence had *already* made this choice without recording it. Its inventory is
 shadcn's inventory, not MD3's — MD3 has no breadcrumb, no data table and no
 pricing section. This ADR ratified a decision the code made a year earlier,
 so the next contributor stops trying to reconcile the two. The hardcoded
-44 dp minimum height in `prism/button` was the same tension showing up as a
+44 dp minimum height in `components/button` was the same tension showing up as a
 magic number; it is now the density-independent pointer-target floor, with
 36/28 dp as the measured control heights (§Desktop divergences).
 
@@ -707,12 +707,12 @@ Seven layers, in this order:
 0  mvu font traer svg seen ivg kiwi noise csg circle gradient backdrop textdraw
 1  style  kiwi/gio  seen/context/gio  svg/driver/{pdf,raster}
 2  svg/driver/{gio,seen}  ivg/raster/gio  traer/gio
-3  prism      4  pulse      5  spectrum      6  cadence markdown
-7  workbench/*  mvu/example  prism/gallery
+3  components      4  pulse      5  spectrum      6  cadence markdown
+7  workbench/*  mvu/example  components/gallery
 ```
 
 (The release protocol's coarser cut of the same order: mvu, font → spectrum →
-prism → pulse → cadence, markdown → workbench apps, with the nested demo
+components → pulse → cadence, markdown → workbench apps, with the nested demo
 modules last. font tags beside mvu, not beside spectrum, because spectrum
 requires it — ADR-003's tier-0/tier-1 edge. No layer is tagged while the
 layer check or the workspace-debt check fails.)
@@ -850,11 +850,11 @@ accent, which is also what every Material app already does.
 
 **Where nine cannot say what twelve can.** Hover background and subtle border
 collide on step 300 (visible in the CD columns above), and there is no
-dedicated solid-hover stop. Neither costs this org anything: prism and
+dedicated solid-hover stop. Neither costs this org anything: components and
 cadence carry exactly two border weights — mapped to 500 and 300 — and
 derive hover as a state resolution rather than a distinct token; MD3 itself
 makes hover an 8% overlay, not a stop. Radix's extra resolution buys
-precision nothing in prism or cadence consumes.
+precision nothing in components or cadence consumes.
 
 **The seed sits deep, so bases are pins.** `#6750A4` is L\* 40 — step‑700
 depth on the shared scale, where 500 sits at L\* 63. Reading the solid fill
@@ -935,7 +935,7 @@ stands untouched; its role-vocabulary clause is superseded.
 - **Frame-driven motion:** animated components self-schedule and idle when
   settled; reduced motion snaps for free
 - **Progressive enhancement is explicit:** pulse widgets are *variants* of
-  prism widgets, not silent decorators
+  components widgets, not silent decorators
 - **Desktop-native over touch-translated:** measured density, tonal
   elevation, a faster motion subset, shadows only for what floats
 - **Accessibility is non-optional:** keyboard, focus, contrast floors, hit

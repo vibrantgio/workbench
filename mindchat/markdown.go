@@ -1,6 +1,6 @@
 // markdown.go renders message bodies through the vibrantgio/markdown
 // module's chat subset: inline styles (bold/italic/code/links/
-// strikethrough) on prism/richtext plus fenced code blocks. Every other
+// strikethrough) on components/richtext plus fenced code blocks. Every other
 // block construct — headings, lists, blockquotes, tables, images, rules —
 // degrades to plain paragraphs preserving its inline runs, so a chat bubble
 // never grows document chrome. Link clicks open in the system browser.

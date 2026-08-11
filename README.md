@@ -19,7 +19,7 @@ The design system is layered — each layer only depends on the ones below it:
 | Patterns | [`cadence`](https://github.com/vibrantgio/cadence) | Prebuilt application patterns: shells, tables, modals, popovers, tabs, toasts, navbars, sidebars, pagination, marketing sections |
 | Effects | [`pulse`](https://github.com/vibrantgio/pulse) | Motion & vibrancy: tweens, spring physics, glow, depth, a shared animation conductor |
 | Theme runtime | [`theme`](https://github.com/vibrantgio/theme) | Reactive theming: live OS dark-mode/accent tracking, preference persistence, animated theme transitions, window integration |
-| Foundation | [`prism`](https://github.com/vibrantgio/prism) | Component catalogue: buttons, inputs, lists, icons, layout, focus/a11y, tokens, theme contract, keyed identity, coordination |
+| Foundation | [`components`](https://github.com/vibrantgio/components) | Component catalogue: buttons, inputs, lists, icons, layout, focus/a11y, tokens, theme contract, keyed identity, coordination |
 | Runtime | [`mvu`](https://github.com/vibrantgio/mvu) | Model-View-Update runtime for Gio: `NewWindow`, `MessageOp` widget protocol, commands |
 
 Supporting libraries: [`seen`](https://github.com/vibrantgio/seen) (3D scenes
@@ -44,13 +44,13 @@ meant to be built — MVU state, live theming from theme, cadence patterns:
   reference for compositing a seen scene as an mvu background layer and for
   a single streaming `mvu.Command` (Started → Exited).
 - **[`todos/`](./todos)** — **start here**: the minimal canonical MVU app
-  (~700 lines). One window, one Model, pure reducers, prism components,
+  (~700 lines). One window, one Model, pure reducers, components widgets,
   live OS light/dark theming — the smallest complete demonstration of the
   bootstrap every other app follows.
 - **[`iconbrowser/`](./iconbrowser)** — a searchable catalogue of the 961
   Material Design icons the apps draw from: type to filter the scrolling
   grid live, every glyph captioned with the name to import. Also the
-  reference for prism `TextField` + per-keystroke MVU updates.
+  reference for components `TextField` + per-keystroke MVU updates.
 - **[`sitedocs/`](./sitedocs)** — a documentation & marketing site app:
   application shell, hero/feature/pricing/testimonial sections,
   accordion-grouped sidebar navigation, breadcrumbs, light/dark theming.
@@ -85,7 +85,7 @@ cd launcher && go run .
   core patterns (including the `WithLatestFrom2` frame-synchronisation model
   and the `rx.Defer` subscription-state pattern), threading rules,
   accessibility, performance methodology, and the phase plan that produced
-  Prism, Theme, Pulse, and Cadence.
+  Components, Theme, Pulse, and Cadence.
 - **[llms.txt](https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt)**
   — a condensed guide for AI coding assistants (Claude, etc.) to write
   applications against the Vibrant Gio packages. It is maintained once, at the

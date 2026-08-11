@@ -4,7 +4,7 @@
 // filters the scrolling grid live; every glyph is captioned with the exported
 // name to import.
 //
-// Architecturally it is the todos bootstrap plus two demonstrations: a prism
+// Architecturally it is the todos bootstrap plus two demonstrations: a components
 // TextField driving the Model through mvu.MessageOp on every keystroke, and
 // subscription-scoped widget state (the grid's scroll position and the
 // field's editor) surviving the per-keystroke view rebuilds.

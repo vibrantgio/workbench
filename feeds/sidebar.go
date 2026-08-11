@@ -20,8 +20,8 @@ import (
 	"github.com/vibrantgio/cadence/accordion"
 	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/keyed"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -46,7 +46,7 @@ const (
 // G5.2d note: the feed tree was a static fixture before this goal. It now
 // lives in the Model so add/delete mutate it; feedEntryListBody therefore
 // reads the live slice each frame and keys its per-entry widget state by
-// FeedID via prism/keyed so add/delete never re-binds a clickable to the
+// FeedID via components/keyed so add/delete never re-binds a clickable to the
 // wrong row.
 func feedsSidebar(
 	th rx.Observable[theme.Theme],

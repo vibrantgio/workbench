@@ -38,8 +38,8 @@ import (
 
 	"github.com/vibrantgio/cadence/navbar"
 	"github.com/vibrantgio/cadence/shell"
+	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/mvu"
-	pllayout "github.com/vibrantgio/prism/layout"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -280,7 +280,7 @@ func aboutSection(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	paragraphs := []string{
 		"Site Docs is the documentation and marketing example for Vibrant Gio — a design system for building native desktop applications in Go with Gio.",
 		"It is one of the workbench apps that exercise the system end to end, alongside the launcher, feeds, todos, watchlist, iconbrowser and mindchat.",
-		"Every layer — prism, cadence, theme, pulse, mvu — is MIT licensed and developed in the open at github.com/vibrantgio.",
+		"Every layer — components, cadence, theme, pulse, mvu — is MIT licensed and developed in the open at github.com/vibrantgio.",
 	}
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
@@ -290,18 +290,18 @@ func aboutSection(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 	return rx.Map(combined, func(p themeTokens) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
-			inset := pllayout.Inset(docsOuterInsetDp)
+			inset := complayout.Inset(docsOuterInsetDp)
 			return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				children := []layout.FlexChild{
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return drawLabel(gtx, p.shaper, "About Vibrant Gio", p.typ.HeadlineSmall, p.col.Text)
 					}),
-					layout.Rigid(pllayout.VSpacer(docsCardGapDp)),
+					layout.Rigid(complayout.VSpacer(docsCardGapDp)),
 				}
 				for _, para := range paragraphs {
 					children = append(children,
 						layout.Rigid(paragraphWidget(p.shaper, para, p.col.Ramps.Neutral.Step(900), p.typ.BodyMedium)),
-						layout.Rigid(pllayout.VSpacer(docsProseGapDp)),
+						layout.Rigid(complayout.VSpacer(docsProseGapDp)),
 					)
 				}
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)

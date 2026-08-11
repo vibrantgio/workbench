@@ -11,9 +11,14 @@ const (
 	pageHome  = "home"
 	pageAbout = "about"
 
-	pagePrismGettingStarted = "prism-getting-started"
-	pagePrismTokens         = "prism-tokens"
-	pagePrismPrimitives     = "prism-primitives"
+	// The getting-started slug keeps the old prism name: the docs goldens
+	// (testdata/golden/docs-{light,dark}-prism-getting-started.png) derive
+	// their filenames from it and its content renders into their pixels, and
+	// G-G0D moves no pixels. It renames when those goldens are next
+	// deliberately regenerated.
+	pageComponentsGettingStarted = "prism-getting-started"
+	pageComponentsTokens         = "components-tokens"
+	pageComponentsPrimitives     = "components-primitives"
 
 	pageCadencePatterns = "cadence-patterns"
 	pageCadenceShells   = "cadence-shells"
@@ -29,4 +34,4 @@ const (
 )
 
 // pageDocsDefault is where generic "Docs" navigation entries land.
-const pageDocsDefault = pagePrismGettingStarted
+const pageDocsDefault = pageComponentsGettingStarted

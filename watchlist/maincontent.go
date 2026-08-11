@@ -38,8 +38,8 @@ import (
 	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/table"
 	"github.com/vibrantgio/cadence/tooltip"
+	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/keyed"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )

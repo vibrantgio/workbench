@@ -32,7 +32,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/tooltip"
-	"github.com/vibrantgio/prism/golden"
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )

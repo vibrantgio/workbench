@@ -53,9 +53,9 @@ func TestInitialModelSeedsHome(t *testing.T) {
 // the model's currentPage field synchronously — no goroutine, no polling.
 func TestUpdateSetRouteAdvancesPage(t *testing.T) {
 	m := initialModel()
-	next, _ := Update(m, SetRoute{Page: pagePrismGettingStarted})
-	if next.currentPage != pagePrismGettingStarted {
-		t.Errorf("after SetRoute: currentPage = %q; want %q", next.currentPage, pagePrismGettingStarted)
+	next, _ := Update(m, SetRoute{Page: pageComponentsGettingStarted})
+	if next.currentPage != pageComponentsGettingStarted {
+		t.Errorf("after SetRoute: currentPage = %q; want %q", next.currentPage, pageComponentsGettingStarted)
 	}
 }
 
@@ -140,7 +140,7 @@ func TestDocsShellLayerReEmitsOnModelChange(t *testing.T) {
 	drainEmissions(emissions)
 
 	// A SetRoute-derived model (navigation) must also re-emit the layer.
-	m, _ = Update(m, SetRoute{Page: pagePrismGettingStarted})
+	m, _ = Update(m, SetRoute{Page: pageComponentsGettingStarted})
 	send.Next(m)
 	if w := await("SetRoute"); w != nil {
 		drawOnce(t, image.Pt(docsCanvasW, docsCanvasH), w)

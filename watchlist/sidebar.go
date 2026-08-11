@@ -6,7 +6,7 @@
 // is data-driven: cadence/sidebar.Props.Items is a static slice fixed at
 // construction, so a dynamic, on-disk-loaded name list cannot drive it — the
 // same reason feeds/sidebar.go hand-draws its rows. Per-name widget.Clickable
-// state is keyed by name via prism/keyed so a future add/rename never re-binds
+// state is keyed by name via components/keyed so a future add/rename never re-binds
 // a clickable to the wrong row. Row clicks land SelectWatchlist messages.
 // (cadence/sidebar friction logged in FEEDBACK-G5.3.md.)
 //
@@ -39,8 +39,8 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/popover"
+	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/keyed"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )

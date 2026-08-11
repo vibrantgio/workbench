@@ -1,6 +1,6 @@
 // renamemodal.go composes the rename-watchlist modal: a cadence/modal whose
 // Body is a cadence/card wrapping (optionally) a cadence/alert and a single
-// prism/input textfield (the new name) plus a prism/button submit. It is the
+// components/input textfield (the new name) plus a components/button submit. It is the
 // symbol modal scaled down to one field — and it reuses the SAME uncontrolled-
 // field pre-population workaround (epoch rebuild + placeholder seed + "empty
 // keeps seed"; full rationale and its clear-to-empty limitation are in
@@ -31,9 +31,9 @@ import (
 	"github.com/vibrantgio/cadence/card"
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/theme/theme"
 )
 

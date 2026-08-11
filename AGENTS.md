@@ -2,7 +2,7 @@
 
 The seven reference applications of the Vibrant Gio design system, each a
 complete product built the way a real one is meant to be built — MVU state,
-live theming from theme, prism components, cadence patterns: `todos` (the
+live theming from theme, components widgets, cadence patterns: `todos` (the
 smallest complete bootstrap, and the place to start), `iconbrowser`,
 `sitedocs`, `feeds`, `watchlist`, `mindchat` and `launcher`. The repository
 also carries the architecture documents — `DESIGN.md` and `BASELINE.md` —
@@ -11,12 +11,13 @@ that no other repository in the organization has.
 **Layer.** Outside ADR-001's tier table: applications at the top of the
 stack, which the tier rule exempts and which may import any layer of the
 design system. Its seven applications import, between them, `backdrop`,
-`cadence`, `font`, `ivg`, `ivg/raster/gio`, `markdown`, `mvu`, `noise`,
-`prism`, `pulse`, `seen`, `seen/context/gio`, `svg`, `svg/driver/gio`,
-`textdraw` and `theme`. Nothing in the organization imports it. Both
-directions are measured rather than typed — `scripts/check-layers.sh
---edges` reports the graph and `scripts/sync-agents.sh` renders these
-sentences from it — so correcting them here changes nothing.
+`cadence`, `components`, `font`, `ivg`, `ivg/raster/gio`, `markdown`,
+`mvu`, `noise`, `pulse`, `seen`, `seen/context/gio`, `svg`,
+`svg/driver/gio`, `textdraw` and `theme`. Nothing in the organization
+imports it. Both directions are measured rather than typed —
+`scripts/check-layers.sh --edges` reports the graph and
+`scripts/sync-agents.sh` renders these sentences from it — so correcting
+them here changes nothing.
 
 **Read the canonical guide before you write code against this module.** It is
 the organization's one agent guide — the module inventory with current tags,
@@ -45,13 +46,13 @@ root module to run it from:
 **Golden images.** Tests in three module directories — `feeds/`,
 `sitedocs/` and `watchlist/` — compare rendered output against PNGs
 committed under `testdata/golden/`. They render through
-`github.com/vibrantgio/prism/golden`, which declares `-golden.update` and
-is shared with `cadence`, `markdown` and `pulse`. Do not inline a copy of
-it, and do not declare a second `-golden.update`: two registrations of one
-flag name in a single test binary panic in `flag.Bool` at init, before any
-test runs. When a change legitimately moves pixels, regenerate them within
-the same change, look at what came out, and say so in the commit. From
-inside the directory concerned:
+`github.com/vibrantgio/components/golden`, which declares `-golden.update`
+and is shared with `cadence`, `markdown` and `pulse`. Do not inline a copy
+of it, and do not declare a second `-golden.update`: two registrations of
+one flag name in a single test binary panic in `flag.Bool` at init, before
+any test runs. When a change legitimately moves pixels, regenerate them
+within the same change, look at what came out, and say so in the commit.
+From inside the directory concerned:
 
     go test . -golden.update
 

@@ -3,7 +3,7 @@
 // key is auto-checked by a debounced /models fetch and its verdict shown
 // beside the field) and the GLOBAL default-model row spanning the modal's
 // bottom, whose dropdown groups every provider's models. It follows the
-// rename-modal recipe (cadence/modal + epoch-rebuilt uncontrolled prism
+// rename-modal recipe (cadence/modal + epoch-rebuilt uncontrolled components
 // fields + cell hand-offs into the modal's static slots); all edits reduce
 // into Model.Settings.Draft per keystroke and apply on Save.
 package main
@@ -30,15 +30,15 @@ import (
 	"github.com/reactivego/rx"
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/popover"
+	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/prism/list"
-	"github.com/vibrantgio/prism/scrollbar"
+	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
-	"github.com/vibrantgio/textdraw"
 )
 
 // settingsThemed pairs one theme emission's palette with the icon widgets

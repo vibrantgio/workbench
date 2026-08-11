@@ -18,9 +18,9 @@ import (
 	"github.com/vibrantgio/cadence/pagination"
 	"github.com/vibrantgio/cadence/table"
 	"github.com/vibrantgio/cadence/tooltip"
+	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/prism/keyed"
 	"github.com/vibrantgio/theme/theme"
 )
 

@@ -19,8 +19,8 @@ import (
 	"github.com/vibrantgio/cadence/pricing"
 	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/cadence/testimonial"
+	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/mvu"
-	pllayout "github.com/vibrantgio/prism/layout"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -43,7 +43,7 @@ func homeShellLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] 
 	gotoAbout := func(gtx layout.Context) {
 		mvu.MessageOp{Message: SetRoute{Page: pageAbout}}.Add(gtx.Ops)
 	}
-	gap := rx.Of[layout.Widget](pllayout.VSpacer(sectionGapDp))
+	gap := rx.Of[layout.Widget](complayout.VSpacer(sectionGapDp))
 	return shell.Shell(th, shell.Props{
 		Layout:          shell.StackedPage,
 		ContentMaxWidth: contentMaxWidthDp,
@@ -77,7 +77,7 @@ func footerSection(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 	return rx.Map(combined, func(p themeTokens) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
-			inset := pllayout.Inset(sectionGapDp)
+			inset := complayout.Inset(sectionGapDp)
 			return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return paragraphWidget(p.shaper,
 					"Vibrant Gio — built with Gio. MIT licensed.",
@@ -113,7 +113,7 @@ func renderLanding(
 		pricing.Render(shaper, pp, colors, sp, rad, typo, d),
 		testimonial.Render(shaper, tp, colors, sp, rad, typo),
 	}
-	gap := pllayout.VSpacer(sectionGapDp)
+	gap := complayout.VSpacer(sectionGapDp)
 	return func(gtx layout.Context) layout.Dimensions {
 		children := make([]layout.FlexChild, 0, 2*len(sections)-1)
 		for i, s := range sections {

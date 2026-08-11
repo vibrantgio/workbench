@@ -7,12 +7,12 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
-	"github.com/vibrantgio/textdraw"
 )
 
-// Palette is the app's view of the prism colour tokens: named roles derived
+// Palette is the app's view of the components colour tokens: named roles derived
 // from tokens.ColorTokens on every theme emission. Because the theme
 // window feeds a live OS theme, an OS light/dark switch re-emits the tokens
 // and restyles the whole app with no imperative wiring.

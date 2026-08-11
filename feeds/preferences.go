@@ -14,7 +14,7 @@
 // Contrast the Add-feed modal next door in app.go, which asks a question and
 // answers it with a submit.
 //
-// The body also puts prism/button's emphasis axis to work as a state display:
+// The body also puts components/button's emphasis axis to work as a state display:
 // the selected page size is TONAL and the rest are GHOST. Nothing here is
 // Filled, and that is the point — a panel of preferences has no one loud
 // action, no thing the screen is about. Filled would be a lie about what the
@@ -35,13 +35,13 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/cadence/modal"
+	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/theme/theme"
 )
 
 // Geometry of the panel body's two preference rows. The row height is the
-// 44 dp pointer floor prism/button guarantees in every emphasis register, so
+// 44 dp pointer floor components/button guarantees in every emphasis register, so
 // a ghost control's hit area never reaches into the row above or below it.
 const (
 	prefsRowHDp     = 44

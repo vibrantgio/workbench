@@ -26,12 +26,12 @@ import (
 
 	"github.com/reactivego/rx"
 	"github.com/vibrantgio/cadence/popover"
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/list"
-	"github.com/vibrantgio/prism/scrollbar"
+	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
-	"github.com/vibrantgio/textdraw"
 )
 
 // menuRow is one popover entry: a provider caption or a pickable model.

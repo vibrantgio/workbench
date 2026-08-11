@@ -22,7 +22,7 @@ func heroContent(gotoDocs, gotoAbout func(gtx layout.Context)) hero.Props {
 	return hero.Props{
 		Eyebrow:      "Native desktop · Go",
 		Title:        "Vibrant Gio",
-		Subtitle:     "Prism tokens and primitives, Cadence patterns, Theme platform glue, Pulse motion, and an MVU runtime — a design system for building native desktop apps with Gio.",
+		Subtitle:     "Components tokens and primitives, Cadence patterns, Theme platform glue, Pulse motion, and an MVU runtime — a design system for building native desktop apps with Gio.",
 		PrimaryCTA:   &hero.CTA{Label: "Get started", OnClick: gotoDocs},
 		SecondaryCTA: &hero.CTA{Label: "About", OnClick: gotoAbout},
 	}
@@ -36,7 +36,7 @@ func featureContent() feature.Props {
 		Columns: 3,
 		Items: []feature.Item{
 			{
-				Title: "Prism — tokens & primitives",
+				Title: "Components — tokens & primitives",
 				Body:  "Semantic token scales, themable widgets, and a11y helpers every layer above builds on.",
 			},
 			{
@@ -110,7 +110,7 @@ func testimonialContent() testimonial.Props {
 				AuthorRole: "Founder, Treevue",
 			},
 			{
-				Quote:      "Prism's token model is the first Go design system that matched what our brand team handed us.",
+				Quote:      "Components' token model is the first Go design system that matched what our brand team handed us.",
 				AuthorName: "Maya Singh",
 				AuthorRole: "Design Lead, Northstar",
 			},

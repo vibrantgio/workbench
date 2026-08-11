@@ -29,8 +29,8 @@ import (
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/table"
 	"github.com/vibrantgio/cadence/tooltip"
-	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/prism/golden"
+	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -192,7 +192,7 @@ func TestUnreadOnlyArticlesFilters(t *testing.T) {
 // --- the panel (dismissal, and the emphasis axis at work) -----------------
 
 // staticPreferencesBody assembles the panel body from the STATIC Render paths
-// of the same prism/button calls preferencesPanel composes, at the default
+// of the same components/button calls preferencesPanel composes, at the default
 // preferences: 10 rows per page (tonal) with 5 and 25 quiet beside it, and
 // unread-only off (ghost). Sharp radii keep the golden deterministic.
 func staticPreferencesBody(shaper *text.Shaper, colors tokens.ColorTokens) layout.Widget {
@@ -270,7 +270,7 @@ var prefsArticlesRegion = image.Rect(20, 60, 216, prefsCanvasH-20)
 var prefsScrimRegion = image.Rect(prefsCanvasW/2-260, prefsCanvasH/2-120, prefsCanvasW/2+260, prefsCanvasH/2+120)
 
 // TestPreferencesPanelOverArticlesLive drives the REAL panel — the live
-// modal.Modal path, the live prism/button emphasis, the live articles
+// modal.Modal path, the live components/button emphasis, the live articles
 // pipeline — over the surface it edits, and asserts the three claims that
 // make it a panel: OpenPreferences paints the scrim, a preference changed
 // while it is open repaints the TABLE underneath with no Save, and closing it

@@ -26,6 +26,10 @@ import (
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/shell"
+	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/ivg"
 	"github.com/vibrantgio/ivg/encode"
 	"github.com/vibrantgio/ivg/generate"
@@ -33,15 +37,11 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/prism/list"
-	"github.com/vibrantgio/prism/scrollbar"
 	"github.com/vibrantgio/pulse/depth"
+	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
-	"github.com/vibrantgio/textdraw"
 
 	"slices"
 )
@@ -333,7 +333,7 @@ type renameTarget struct {
 }
 
 // RenameModal builds the rename-chat modal stream: a cadence/modal DECISION
-// whose body is an epoch-rebuilt prism TextField and whose two answers are
+// whose body is an epoch-rebuilt components TextField and whose two answers are
 // Cancel and Rename (the watchlist rename-modal recipe). Validation is the
 // reducer's job — an invalid RenameChat is rejected and the modal stays open;
 // a valid one, or Escape, closes it. Both model derivations are
@@ -413,7 +413,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 		slot(&fieldCell)(cg)
 		return layout.Dimensions{Size: cg.Constraints.Max}
 	}
-	// prism text buttons fill their available width, so each footer action
+	// components text buttons fill their available width, so each footer action
 	// gets a fixed-size box.
 	action := func(cell *atomic.Value) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {

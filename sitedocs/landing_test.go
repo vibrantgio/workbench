@@ -18,7 +18,7 @@ import (
 	"github.com/vibrantgio/cadence/hero"
 	"github.com/vibrantgio/cadence/pricing"
 	"github.com/vibrantgio/cadence/testimonial"
-	"github.com/vibrantgio/prism/golden"
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )

@@ -1,12 +1,12 @@
 // modal.go composes the add/edit-symbol modal: a cadence/modal whose Body is a
-// cadence/card wrapping (optionally) a cadence/alert, four prism/input
-// textfields (Symbol, Exchange, Timeframe, Notes), and a prism/button submit.
+// cadence/card wrapping (optionally) a cadence/alert, four components/input
+// textfields (Symbol, Exchange, Timeframe, Notes), and a components/button submit.
 // It is structurally the feeds addFeedModal scaled to four fields, plus the
 // machinery G5.3b needs that feeds did not: pre-population of an uncontrolled
 // TextField, and a real atomic disk write on save.
 //
 // Pre-population (the task's hardest part — fully logged in FEEDBACK-G5.3.md):
-// prism/input.TextField is UNCONTROLLED — its widget.Editor lives in the
+// components/input.TextField is UNCONTROLLED — its widget.Editor lives in the
 // component's rx.Defer scope and there is NO initial-value prop, so the row's
 // current values cannot be injected into the live editor. The workaround:
 //   - The model carries an incrementing modalEpoch (bumped on every open) and
@@ -52,9 +52,9 @@ import (
 	"github.com/vibrantgio/cadence/card"
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/theme/theme"
 )
 

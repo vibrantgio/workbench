@@ -19,7 +19,7 @@ import (
 
 	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/table"
-	"github.com/vibrantgio/prism/golden"
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -907,7 +907,7 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 // value that arrived normally.
 //
 // That, not rx, is the "delivery dropout" G5.2d recorded and tried to ride out
-// with retries: a bare rx.Of mapped to a widget, with no theme, prism or
+// with retries: a bare rx.Of mapped to a widget, with no theme, components or
 // cadence code in the chain at all, took errChan with the value already
 // buffered in 95 of 200 iterations — a coin flip, so three retries left a
 // ~1-in-8 failure that surfaced as "layer 0 produced no widget" whenever the

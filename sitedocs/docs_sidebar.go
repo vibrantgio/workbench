@@ -57,11 +57,11 @@ type docsSidebarSection struct {
 func docsSidebarSections() []docsSidebarSection {
 	return []docsSidebarSection{
 		{
-			Title: "Prism",
+			Title: "Components",
 			Links: []docsSidebarLink{
-				{Label: "Getting started", Page: pagePrismGettingStarted},
-				{Label: "Tokens & theme", Page: pagePrismTokens},
-				{Label: "Primitives", Page: pagePrismPrimitives},
+				{Label: "Getting started", Page: pageComponentsGettingStarted},
+				{Label: "Tokens & theme", Page: pageComponentsTokens},
+				{Label: "Primitives", Page: pageComponentsPrimitives},
 			},
 		},
 		{

@@ -18,7 +18,7 @@ var Apps = []App{
 	{
 		Name:  "Todos",
 		Dir:   "todos",
-		Blurb: "The minimal canonical MVU app: pure reducers, prism components, live light/dark theming.",
+		Blurb: "The minimal canonical MVU app: pure reducers, components widgets, live light/dark theming.",
 		Icon:  icons.ActionDone,
 	},
 	{

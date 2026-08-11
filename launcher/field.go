@@ -25,7 +25,7 @@ import (
 
 // The animated triangle field: a seen 3D triangular patch, tilted back,
 // displaced per-vertex by time-evolving simplex noise, and coloured from a
-// fixed spatial hue field keyed to the live prism theme. Originally proven
+// fixed spatial hue field keyed to the live components theme. Originally proven
 // as the seenbgdemo vertical slice; this is its centred variant, whose
 // symmetric overfill margins cover every window edge — a top-left-anchored
 // variant was tried and rejected because noise displacement bared the top
@@ -71,7 +71,7 @@ type fieldPalette struct {
 	lit    float64
 }
 
-// paletteFrom derives the field's palette from the prism colour tokens: the
+// paletteFrom derives the field's palette from the components colour tokens: the
 // hue family follows the theme's Primary, and the value range keeps the field
 // a quiet backdrop — deep tones on a dark background, pastel on a light one —
 // so the hero text and cards floating on it stay readable.

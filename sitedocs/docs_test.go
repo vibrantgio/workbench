@@ -13,8 +13,8 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
-	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -117,7 +117,7 @@ func TestDocsPageGolden(t *testing.T) {
 	lightBG := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 	darkBG := color.NRGBA{R: 20, G: 20, B: 20, A: 255}
 
-	pageCases := []string{pagePrismGettingStarted, pageCadenceShells, pageMVULoop}
+	pageCases := []string{pageComponentsGettingStarted, pageCadenceShells, pageMVULoop}
 	themeCases := []struct {
 		name   string
 		colors tokens.ColorTokens
@@ -144,7 +144,7 @@ func TestDocsPageGolden(t *testing.T) {
 func TestDocsPageLightDarkDiffer(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
-	def := docsPageByID(t, pagePrismGettingStarted)
+	def := docsPageByID(t, pageComponentsGettingStarted)
 
 	light := renderDocsPage(shaper, def, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography)
 	dark := renderDocsPage(shaper, def, tokens.DefaultDark, tokens.Spacing, tokens.DefaultTypography)

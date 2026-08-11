@@ -11,30 +11,30 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/input"
+	complist "github.com/vibrantgio/components/list"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/input"
-	prismlist "github.com/vibrantgio/prism/list"
-	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/textdraw"
+	"github.com/vibrantgio/theme/theme"
 )
 
-// List renders the todos inside a rounded pane using the prism virtual list.
+// List renders the todos inside a rounded pane using the components virtual list.
 func List(typ Type, th rx.Observable[theme.Theme], p Palette, model Model) layout.Widget {
-	listState := prismlist.NewState()
+	listState := complist.NewState()
 	rows := make([]layout.Widget, len(model.List))
 	for i := range model.List {
 		rows[i] = Row(typ, th, p, model.List[i])
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		Pane(gtx, image.Rectangle{Max: gtx.Constraints.Max}, gtx.Dp(BorderRadius), p.Pane)
-		return prismlist.Layout(gtx, listState, rows, func(gtx layout.Context, row layout.Widget) layout.Dimensions {
+		return complist.Layout(gtx, listState, rows, func(gtx layout.Context, row layout.Widget) layout.Dimensions {
 			return layout.UniformInset(Padding).Layout(gtx, row)
 		})
 	}
 }
 
-// Row is one todo line: a prism checkbox toggling completion, the todo text
+// Row is one todo line: a components checkbox toggling completion, the todo text
 // (clickable — opens the edit dialog), and a delete icon. Every event routes
 // through mvu.MessageOp, so the reducers are the only state writers.
 func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.Widget {

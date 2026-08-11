@@ -12,10 +12,10 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/textdraw"
+	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/workbench/todos/internal/place"
 )
 
@@ -41,7 +41,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 		mvu.MessageOp{Message: SetRoute{}}.Add(gtx.Ops)
 	}
 
-	// Prism buttons fill the width they are given and stand at the theme
+	// Components buttons fill the width they are given and stand at the theme
 	// density's control height (36 dp Comfortable), so each one is laid out
 	// inside a fixed-width box.
 	sized := func(w unit.Dp, widget layout.Widget) layout.Widget {

@@ -17,7 +17,7 @@ var docsContentFS embed.FS
 // exist.
 type docsPageDef struct {
 	ID string
-	// Layer names the ecosystem layer the page documents (Prism, Cadence,
+	// Layer names the ecosystem layer the page documents (Components, Cadence,
 	// Theme, Pulse, MVU); it becomes the middle breadcrumb.
 	Layer string
 	// Title is the page title, the trailing breadcrumb.
@@ -30,9 +30,14 @@ type docsPageDef struct {
 // source loaded from the embedded content directory.
 func docsPages() []docsPageDef {
 	defs := []docsPageDef{
-		{ID: pagePrismGettingStarted, Layer: "Prism", Title: "Getting started"},
-		{ID: pagePrismTokens, Layer: "Prism", Title: "Tokens & theme"},
-		{ID: pagePrismPrimitives, Layer: "Prism", Title: "Primitives"},
+		// Getting started keeps Layer "Prism": the layer is the middle
+		// breadcrumb, which renders inside the page's golden viewport
+		// (docs-{light,dark}-prism-getting-started.png), and G-G0D moves no
+		// pixels. It becomes "Components" when those goldens are next
+		// deliberately regenerated.
+		{ID: pageComponentsGettingStarted, Layer: "Prism", Title: "Getting started"},
+		{ID: pageComponentsTokens, Layer: "Components", Title: "Tokens & theme"},
+		{ID: pageComponentsPrimitives, Layer: "Components", Title: "Primitives"},
 		{ID: pageCadencePatterns, Layer: "Cadence", Title: "Patterns"},
 		{ID: pageCadenceShells, Layer: "Cadence", Title: "Shells"},
 		{ID: pageThemeWindow, Layer: "Theme", Title: "Window & system"},

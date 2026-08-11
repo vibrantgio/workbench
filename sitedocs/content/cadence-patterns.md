@@ -4,7 +4,7 @@ Cadence is the pattern layer: accordion, alert, breadcrumb, card, feature,
 hero, modal, navbar, pagination, popover, pricing, shell, sidebar, table,
 tabs, testimonial, toast and tooltip.
 
-Every pattern is a callable function consuming the Prism theme observable
+Every pattern is a callable function consuming the components theme observable
 and returning `rx.Observable[layout.Widget]`, with a static `Render`
 variant for golden-image tests.
 

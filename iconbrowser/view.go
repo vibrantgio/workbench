@@ -10,12 +10,12 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/input"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/prism/input"
+	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
-	"github.com/vibrantgio/textdraw"
 )
 
 // buildLayers returns the layer-builder the theme window renders.
@@ -43,7 +43,7 @@ type themed struct {
 //
 // The two stateful widgets deliberately live at subscription scope, OUTSIDE
 // the per-emission Map (llms.txt rule 2): the grid's scroll position, and the
-// search field — a prism TextField whose editor state is Defer-scoped inside
+// search field — a components TextField whose editor state is Defer-scoped inside
 // the component, subscribed exactly once by the CombineLatest3 below.
 // Constructing either per emission would reset scroll or typing on every
 // keystroke.

@@ -31,9 +31,9 @@ import (
 	"github.com/vibrantgio/cadence/card"
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/cadence/toast"
-	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/prism/golden"
-	"github.com/vibrantgio/prism/input"
+	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
