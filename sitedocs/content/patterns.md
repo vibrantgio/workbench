@@ -1,6 +1,6 @@
 # Patterns
 
-Cadence is the pattern layer: accordion, alert, breadcrumb, card, feature,
+Patterns is the pattern layer: accordion, alert, breadcrumb, card, feature,
 hero, modal, navbar, pagination, popover, pricing, shell, sidebar, table,
 tabs, testimonial, toast and tooltip.
 

@@ -35,7 +35,7 @@ type SetRoute struct{ Page string }
 
 // ToggleAccordion applies the single-open policy for accordion section Idx:
 // opening Idx closes every other section, and clicking an already-open Idx
-// collapses it. The cadence accordion runs with SingleOpen=false, so exactly
+// collapses it. The patterns accordion runs with SingleOpen=false, so exactly
 // one ToggleAccordion is emitted per click and this reducer — not N+1 OnToggle
 // calls — owns the single-open invariant.
 type ToggleAccordion struct{ Idx int }

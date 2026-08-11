@@ -3,7 +3,7 @@
 // key is auto-checked by a debounced /models fetch and its verdict shown
 // beside the field) and the GLOBAL default-model row spanning the modal's
 // bottom, whose dropdown groups every provider's models. It follows the
-// rename-modal recipe (cadence/modal + epoch-rebuilt uncontrolled components
+// rename-modal recipe (patterns/modal + epoch-rebuilt uncontrolled components
 // fields + cell hand-offs into the modal's static slots); all edits reduce
 // into Model.Settings.Draft per keystroke and apply on Save.
 package main
@@ -28,8 +28,8 @@ import (
 	"sync/atomic"
 
 	"github.com/reactivego/rx"
-	"github.com/vibrantgio/cadence/modal"
-	"github.com/vibrantgio/cadence/popover"
+	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"

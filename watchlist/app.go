@@ -18,12 +18,12 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/modal"
-	"github.com/vibrantgio/cadence/navbar"
-	"github.com/vibrantgio/cadence/popover"
-	"github.com/vibrantgio/cadence/shell"
-	"github.com/vibrantgio/cadence/toast"
-	"github.com/vibrantgio/cadence/tooltip"
+	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/navbar"
+	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/shell"
+	"github.com/vibrantgio/patterns/toast"
+	"github.com/vibrantgio/patterns/tooltip"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -153,7 +153,7 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // placeholder, are all derived from modelObs; theme tokens flow independently
 // through th.
 //
-// cadence/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
+// patterns/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
 // (and navbar Actions) as static layout.Widget slots, and Shell re-emits only
 // when its Sidebar or Navbar stream emits. So the live Main widget is folded
 // onto the sidebar-driving observable and the latest is published into an

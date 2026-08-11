@@ -2,7 +2,7 @@
 // anchor and a "Delete this symbol?" confirm surface. Open state is EPHEMERAL
 // per-row interaction state, NOT model state (logged choice in
 // FEEDBACK-G5.3.md): a plain bool this file owns, written and read during
-// layout on the frame goroutine, which cadence/popover reads back through
+// layout on the frame goroutine, which patterns/popover reads back through
 // Props.OpenNow — ADR-008 destination 2. Every row's popover shares the
 // window's Arbiter, so opening one row's confirm dismisses whichever row had
 // it open. The trash click toggles it; the confirm click writes the file
@@ -37,8 +37,8 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/popover"
-	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"
 )

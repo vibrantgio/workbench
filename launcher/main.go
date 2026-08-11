@@ -1,7 +1,7 @@
 // Command launcher is the workbench's front door: a hero screen whose
 // backdrop is a live seen 3D triangular field (animated with simplex noise,
 // colour-keyed to the live components theme) with the six example apps floating
-// on it as cadence cards. Clicking Launch runs `go run ./<app>/` at the
+// on it as patterns cards. Clicking Launch runs `go run ./<app>/` at the
 // workbench root and tracks the process through the MVU loop.
 //
 // Architecturally it is the todos bootstrap plus two demonstrations: a seen

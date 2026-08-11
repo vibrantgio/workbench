@@ -8,7 +8,7 @@
 // the bulk-delete confirm is showing. Nothing outside the frame ever asks
 // those questions, so by ADR-008 they are frame state: plain bools owned by
 // the widget that draws them, written and read during layout on the one
-// goroutine Gio lays a frame out on, and read back by cadence/popover through
+// goroutine Gio lays a frame out on, and read back by patterns/popover through
 // Props.OpenNow. Until G0C.4 each was an rx.Subject with an atomic mirror
 // beside it; the model has never held them and does not now.
 //
@@ -47,7 +47,7 @@
 // BOTH the reducer (in-memory) and the callback (to build the saved Document),
 // keeping the two in lockstep.
 //
-// G0C.3 adds two messages that are cadence's rather than this app's:
+// G0C.3 adds two messages that are patterns' rather than this app's:
 //   - toast.Requested{Level, Text, At} — a toast was asked for. Landed by
 //     toast.Notify(gtx, …) from the same five confirm/submit callbacks that
 //     already land this app's own messages, or returned by any command.
@@ -65,7 +65,7 @@ package main
 import (
 	"strings"
 
-	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/mvu"
 )
 

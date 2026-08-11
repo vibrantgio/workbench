@@ -1,8 +1,8 @@
-// docs_sidebar.go builds the accordion-grouped docs sidebar. The Cadence
+// docs_sidebar.go builds the accordion-grouped docs sidebar. The Patterns
 // shell pattern accepts a sidebar.Props (flat Items + toggle); since the
 // G5.1c milestone calls for phase-grouped sections with nested links, this
-// file composes the sidebar itself from cadence/accordion — bypassing
-// cadence/sidebar. The entry point is docsSidebar, which folds the
+// file composes the sidebar itself from patterns/accordion — bypassing
+// patterns/sidebar. The entry point is docsSidebar, which folds the
 // accordion's open-state stream into the returned layer observable so a
 // header click repaints on the same frame.
 
@@ -25,7 +25,7 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/accordion"
+	"github.com/vibrantgio/patterns/accordion"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -65,10 +65,10 @@ func docsSidebarSections() []docsSidebarSection {
 			},
 		},
 		{
-			Title: "Cadence",
+			Title: "Patterns",
 			Links: []docsSidebarLink{
-				{Label: "Patterns", Page: pageCadencePatterns},
-				{Label: "Shells", Page: pageCadenceShells},
+				{Label: "Patterns", Page: pagePatternsPatterns},
+				{Label: "Shells", Page: pagePatternsShells},
 			},
 		},
 		{
@@ -123,7 +123,7 @@ func docsSidebar(
 		}
 	}
 
-	// SingleOpen is false: the cadence accordion emits exactly one
+	// SingleOpen is false: the patterns accordion emits exactly one
 	// ToggleAccordion per click, and sitedocs.Update owns the single-open
 	// invariant (opening a section closes its peers). One message per click
 	// keeps the model update — and the same-frame repaint it drives — to a

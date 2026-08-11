@@ -1,5 +1,5 @@
 // bulkdelete.go composes the navbar "Delete N" bulk-delete action: an anchor
-// labelled "Delete N" (N = the current selection count) and a cadence/popover
+// labelled "Delete N" (N = the current selection count) and a patterns/popover
 // confirm showing the count. The action HIDES itself when N == 0 (decided:
 // hide, not disable — a "Delete 0" affordance is meaningless; logged in
 // FEEDBACK-G5.3.md). The confirm click writes the file (bulkDeleteRows), fires
@@ -10,7 +10,7 @@
 // navbar Actions slot's canvas and the Content overrides its constraints to
 // self-size. Open state is ephemeral, like the row confirms: a plain bool
 // owned by this closure, written and read during layout on the frame
-// goroutine and read back by cadence/popover through Props.OpenNow — ADR-008
+// goroutine and read back by patterns/popover through Props.OpenNow — ADR-008
 // destination 2. It joins the window's Arbiter, so opening it closes whatever
 // row confirm was up, and vice versa.
 //
@@ -36,8 +36,8 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/popover"
-	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"
 )

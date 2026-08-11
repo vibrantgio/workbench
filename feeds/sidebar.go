@@ -17,9 +17,9 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/accordion"
-	"github.com/vibrantgio/cadence/popover"
-	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/patterns/accordion"
+	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"
@@ -76,7 +76,7 @@ func feedsSidebar(
 		}
 	}
 
-	// SingleOpen is false: the cadence accordion emits exactly one
+	// SingleOpen is false: the patterns accordion emits exactly one
 	// ToggleSection per click, and feeds.Update owns the single-open invariant
 	// (opening a section closes its peers). One message per click keeps the
 	// model update — and the same-frame repaint it drives — to a single hop,
@@ -159,7 +159,7 @@ func feedEntryListBody(
 	hovers := keyed.Defer(func(FeedID) *gesture.Hover { return &gesture.Hover{} })
 	// The per-row delete-confirm popovers. Each holds its open flag as a
 	// plain bool on the frame goroutine — ephemeral interaction state, not
-	// model state, keyed by FeedID — and cadence/popover reads it during
+	// model state, keyed by FeedID — and patterns/popover reads it during
 	// layout through Props.OpenNow (ADR-008 destination 2). They all share
 	// this window's Arbiter, so opening one row's confirm dismisses whichever
 	// row had it open.
@@ -274,7 +274,7 @@ func drawFeedEntry(
 // deleteConfirm owns one feed row's delete-confirm popover: the trash-icon
 // anchor and a "Delete this feed?" confirm surface. Open state is ephemeral
 // per-row interaction state — a plain bool this struct owns, written and read
-// during layout on the frame goroutine, which cadence/popover reads back
+// during layout on the frame goroutine, which patterns/popover reads back
 // through Props.OpenNow (ADR-008 destination 2). Nothing outside the frame
 // ever asks whether a row's confirm is open, so nothing outside the frame
 // holds a copy of the answer. The trash click toggles it; the confirm click

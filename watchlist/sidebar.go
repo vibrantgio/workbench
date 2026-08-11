@@ -2,13 +2,13 @@
 // name loaded from disk, with the selected row tinted, and an empty-state
 // message when no watchlists are present.
 //
-// Rows are drawn MANUALLY (rather than via cadence/sidebar) because the list
-// is data-driven: cadence/sidebar.Props.Items is a static slice fixed at
+// Rows are drawn MANUALLY (rather than via patterns/sidebar) because the list
+// is data-driven: patterns/sidebar.Props.Items is a static slice fixed at
 // construction, so a dynamic, on-disk-loaded name list cannot drive it — the
 // same reason feeds/sidebar.go hand-draws its rows. Per-name widget.Clickable
 // state is keyed by name via components/keyed so a future add/rename never re-binds
 // a clickable to the wrong row. Row clicks land SelectWatchlist messages.
-// (cadence/sidebar friction logged in FEEDBACK-G5.3.md.)
+// (patterns/sidebar friction logged in FEEDBACK-G5.3.md.)
 //
 // G5.3c adds a RIGHT-CLICK context menu (Rename / Delete) per row. This is the
 // codebase's first right-click composition (logged in FEEDBACK-G5.3.md): a raw
@@ -16,7 +16,7 @@
 // inside a pointer.PassOp so the press ALSO reaches the clickable behind it; the
 // drain ignores everything but ButtonSecondary. Without the PassOp the
 // front-most area swallows the PRIMARY press and click-to-select breaks (proven
-// by TestRightClickPassesPrimaryReachesContextSecondary). cadence/popover
+// by TestRightClickPassesPrimaryReachesContextSecondary). patterns/popover
 // anchors to the row and centres in its canvas — it cannot open at the cursor
 // position; the menu opens centred on the row (logged).
 
@@ -38,7 +38,7 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/popover"
+	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"

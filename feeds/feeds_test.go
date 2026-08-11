@@ -17,8 +17,8 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/popover"
-	"github.com/vibrantgio/cadence/table"
+	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -128,7 +128,7 @@ func TestUpdateToggleSectionSingleOpen(t *testing.T) {
 }
 
 // TestUpdateSelectTab verifies SelectTab advances the detail pane's tab
-// index, including out-of-range values (stored as-is; cadence/tabs renders
+// index, including out-of-range values (stored as-is; patterns/tabs renders
 // them as "no tab selected" per its documented contract).
 func TestUpdateSelectTab(t *testing.T) {
 	m := initialModel()
@@ -893,7 +893,7 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 // ----- headless test helpers -----
 
 // collectOne subscribes to obs and returns its first emitted widget. The
-// feeds shell layer folds live cadence widget streams (table, pagination,
+// feeds shell layer folds live patterns widget streams (table, pagination,
 // textfield) onto its output, so it never completes — a .Wait()-until-done
 // would block forever. Instead the first non-nil emission is captured on a
 // goroutine subscription that is then unsubscribed, with a timeout guarding
@@ -908,7 +908,7 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 //
 // That, not rx, is the "delivery dropout" G5.2d recorded and tried to ride out
 // with retries: a bare rx.Of mapped to a widget, with no theme, components or
-// cadence code in the chain at all, took errChan with the value already
+// patterns code in the chain at all, took errChan with the value already
 // buffered in 95 of 200 iterations — a coin flip, so three retries left a
 // ~1-in-8 failure that surfaced as "layer 0 produced no widget" whenever the
 // suite's scheduling let the chain finish first.
@@ -976,7 +976,7 @@ func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 // TestRowConfirmIsFrameStateAndArbitrates pins G0C.4's destination-2
 // conversion of the per-row delete confirm, which is the one claim the
 // goldens cannot make: the open flag is a plain bool the frame owns, and
-// cadence/popover reads it during layout rather than being told by an
+// patterns/popover reads it during layout rather than being told by an
 // emission.
 //
 // Both halves are asserted through the arbiter, because arbitration is the

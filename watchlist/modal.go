@@ -1,5 +1,5 @@
-// modal.go composes the add/edit-symbol modal: a cadence/modal whose Body is a
-// cadence/card wrapping (optionally) a cadence/alert, four components/input
+// modal.go composes the add/edit-symbol modal: a patterns/modal whose Body is a
+// patterns/card wrapping (optionally) a patterns/alert, four components/input
 // textfields (Symbol, Exchange, Timeframe, Notes), and a components/button submit.
 // It is structurally the feeds addFeedModal scaled to four fields, plus the
 // machinery G5.3b needs that feeds did not: pre-population of an uncontrolled
@@ -48,10 +48,10 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/alert"
-	"github.com/vibrantgio/cadence/card"
-	"github.com/vibrantgio/cadence/modal"
-	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/patterns/alert"
+	"github.com/vibrantgio/patterns/card"
+	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/mvu"

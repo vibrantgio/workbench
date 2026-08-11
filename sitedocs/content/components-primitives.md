@@ -1,12 +1,12 @@
 # Primitives
 
-Components' widget packages are the foundation Cadence builds on: `button`,
+Components' widget packages are the foundation Patterns builds on: `button`,
 `input`, `list`, `scrollbar` and `icon`, plus a11y helpers, layout
 utilities, and coordination for cross-widget arbitration (which popover
 closes when another opens).
 
 `components/keyed` gives list items stable identity so per-item state (focus,
-hover, animation) survives reordering — the same mechanism `cadence/table`
+hover, animation) survives reordering — the same mechanism `patterns/table`
 uses for its rows.
 
 ## Layout utilities

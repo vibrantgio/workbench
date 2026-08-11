@@ -96,7 +96,7 @@ func isDarkColor(c color.NRGBA) bool {
 	return luma < 128
 }
 
-// Blend mixes over into base at the given alpha (0–255) — the cadence
+// Blend mixes over into base at the given alpha (0–255) — the patterns
 // toast tint recipe, reused by the undo bar.
 func Blend(base, over color.NRGBA, alpha uint8) color.NRGBA {
 	a := float32(alpha) / 255

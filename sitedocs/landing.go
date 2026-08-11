@@ -1,6 +1,6 @@
-// landing.go composes the four Cadence marketing patterns — Hero, Feature,
+// landing.go composes the four Patterns marketing patterns — Hero, Feature,
 // Pricing, Testimonial — into the Home page. The runtime entry point
-// (homeShellLayer) mounts them as Sections of a cadence/shell StackedPage:
+// (homeShellLayer) mounts them as Sections of a patterns/shell StackedPage:
 // the shell pins the full-width navbar, owns the scroll region, and
 // re-emits whenever any section stream emits. The static entry point
 // (renderLanding) is used by the golden test and skips all subscription
@@ -14,11 +14,11 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/feature"
-	"github.com/vibrantgio/cadence/hero"
-	"github.com/vibrantgio/cadence/pricing"
-	"github.com/vibrantgio/cadence/shell"
-	"github.com/vibrantgio/cadence/testimonial"
+	"github.com/vibrantgio/patterns/feature"
+	"github.com/vibrantgio/patterns/hero"
+	"github.com/vibrantgio/patterns/pricing"
+	"github.com/vibrantgio/patterns/shell"
+	"github.com/vibrantgio/patterns/testimonial"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"

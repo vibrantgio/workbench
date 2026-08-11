@@ -1,4 +1,4 @@
-// docs.go composes the docs pages. Each page stacks a cadence/breadcrumb
+// docs.go composes the docs pages. Each page stacks a patterns/breadcrumb
 // row over a vibrantgio/markdown Document rendered from the page's
 // embedded .md source (docs_content.go): type-scale headings, richtext
 // prose with links, chroma-highlighted code blocks, lists, blockquotes,
@@ -22,7 +22,7 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/breadcrumb"
+	"github.com/vibrantgio/patterns/breadcrumb"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"

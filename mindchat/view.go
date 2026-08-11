@@ -23,9 +23,9 @@ import (
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
-	"github.com/vibrantgio/cadence/modal"
-	"github.com/vibrantgio/cadence/popover"
-	"github.com/vibrantgio/cadence/shell"
+	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
@@ -332,7 +332,7 @@ type renameTarget struct {
 	seed  string // current name without extension
 }
 
-// RenameModal builds the rename-chat modal stream: a cadence/modal DECISION
+// RenameModal builds the rename-chat modal stream: a patterns/modal DECISION
 // whose body is an epoch-rebuilt components TextField and whose two answers are
 // Cancel and Rename (the watchlist rename-modal recipe). Validation is the
 // reducer's job — an invalid RenameChat is rejected and the modal stays open;
@@ -747,7 +747,7 @@ func IconButton(gtx layout.Context, click *widget.Clickable, size unit.Dp, draw 
 }
 
 // PanelGlyph draws the [|] sidebar-toggle icon with clip paths (the
-// cadence convention for chrome glyphs): a rounded outline with a divider
+// patterns convention for chrome glyphs): a rounded outline with a divider
 // line a third of the way in.
 func PanelGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
 	stroke := float32(gtx.Dp(unit.Dp(1.5)))
@@ -853,7 +853,7 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 
 		pos := image.Pt((max.X-dims.Size.X)/2, max.Y-dims.Size.Y-gtx.Dp(UndoBarMargin))
 		defer op.Offset(pos).Push(gtx.Ops).Pop()
-		// The cadence toast treatment: a cast shadow under an accent-tinted
+		// The patterns toast treatment: a cast shadow under an accent-tinted
 		// fill ringed in the accent, so the bar separates from the chat
 		// surfaces it floats over (RowSelected alone sat at ~1.2:1 against
 		// them, and ~1:1 against bot bubbles in dark mode).

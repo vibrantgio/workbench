@@ -8,10 +8,10 @@ package main
 import (
 	"gioui.org/layout"
 
-	"github.com/vibrantgio/cadence/feature"
-	"github.com/vibrantgio/cadence/hero"
-	"github.com/vibrantgio/cadence/pricing"
-	"github.com/vibrantgio/cadence/testimonial"
+	"github.com/vibrantgio/patterns/feature"
+	"github.com/vibrantgio/patterns/hero"
+	"github.com/vibrantgio/patterns/pricing"
+	"github.com/vibrantgio/patterns/testimonial"
 )
 
 // heroContent returns Hero props for the landing page. The primary CTA
@@ -22,7 +22,7 @@ func heroContent(gotoDocs, gotoAbout func(gtx layout.Context)) hero.Props {
 	return hero.Props{
 		Eyebrow:      "Native desktop · Go",
 		Title:        "Vibrant Gio",
-		Subtitle:     "Components tokens and primitives, Cadence patterns, Theme platform glue, Effects motion, and an MVU runtime — a design system for building native desktop apps with Gio.",
+		Subtitle:     "Components tokens and primitives, Patterns patterns, Theme platform glue, Effects motion, and an MVU runtime — a design system for building native desktop apps with Gio.",
 		PrimaryCTA:   &hero.CTA{Label: "Get started", OnClick: gotoDocs},
 		SecondaryCTA: &hero.CTA{Label: "About", OnClick: gotoAbout},
 	}
@@ -40,7 +40,7 @@ func featureContent() feature.Props {
 				Body:  "Semantic token scales, themable widgets, and a11y helpers every layer above builds on.",
 			},
 			{
-				Title: "Cadence — application patterns",
+				Title: "Patterns — application patterns",
 				Body:  "Shells, tables, modals, navigation and marketing sections — short source, copy into your app and modify.",
 			},
 			{
@@ -105,7 +105,7 @@ func testimonialContent() testimonial.Props {
 		Variant: testimonial.Grid,
 		Items: []testimonial.Item{
 			{
-				Quote:      "Cadence dropped into our docs app on a Friday. By Monday the Hero alone had saved us a week.",
+				Quote:      "Patterns dropped into our docs app on a Friday. By Monday the Hero alone had saved us a week.",
 				AuthorName: "Alex Pham",
 				AuthorRole: "Founder, Treevue",
 			},

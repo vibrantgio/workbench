@@ -1,12 +1,12 @@
 // shortcut.go holds the app's keyboard accelerators — the INVOCATION half of
 // the dialog grammar.
 //
-// A modal cannot own how you arrived. cadence/modal owns dismissal (a panel's
+// A modal cannot own how you arrived. patterns/modal owns dismissal (a panel's
 // ghost X, Escape, the backdrop; a decision's Escape-to-Cancel and
 // Return-to-default) because those are affordances the dialog itself draws or
 // traps while it is on screen. Arrival is app chrome: the accelerator has to
 // be live when NO dialog exists, which is precisely the state the modal is not
-// in. So the binding lives here, one function, and cadence carries no notion
+// in. So the binding lives here, one function, and patterns carries no notion
 // of it.
 //
 // The platform-correct modifier is Gio's, not ours: key.ModShortcut is Cmd on

@@ -14,10 +14,10 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/feature"
-	"github.com/vibrantgio/cadence/hero"
-	"github.com/vibrantgio/cadence/pricing"
-	"github.com/vibrantgio/cadence/testimonial"
+	"github.com/vibrantgio/patterns/feature"
+	"github.com/vibrantgio/patterns/hero"
+	"github.com/vibrantgio/patterns/pricing"
+	"github.com/vibrantgio/patterns/testimonial"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"

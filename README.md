@@ -16,7 +16,7 @@ The design system is layered — each layer only depends on the ones below it:
 
 | Layer | Module | Role |
 |---|---|---|
-| Patterns | [`cadence`](https://github.com/vibrantgio/cadence) | Prebuilt application patterns: shells, tables, modals, popovers, tabs, toasts, navbars, sidebars, pagination, marketing sections |
+| Patterns | [`patterns`](https://github.com/vibrantgio/patterns) | Prebuilt application patterns: shells, tables, modals, popovers, tabs, toasts, navbars, sidebars, pagination, marketing sections |
 | Effects | [`effects`](https://github.com/vibrantgio/effects) | Motion & vibrancy: tweens, spring physics, glow, depth, a shared animation conductor |
 | Theme runtime | [`theme`](https://github.com/vibrantgio/theme) | Reactive theming: live OS dark-mode/accent tracking, preference persistence, animated theme transitions, window integration |
 | Foundation | [`components`](https://github.com/vibrantgio/components) | Component catalogue: buttons, inputs, lists, icons, layout, focus/a11y, tokens, theme contract, keyed identity, coordination |
@@ -35,7 +35,7 @@ physics), [`svg`](https://github.com/vibrantgio/svg) and
 ## The example apps
 
 Each app is a full, runnable product built the way a real Vibrant Gio app is
-meant to be built — MVU state, live theming from theme, cadence patterns:
+meant to be built — MVU state, live theming from theme, patterns patterns:
 
 - **[`launcher/`](./launcher)** — the workbench front door: the example apps
   as cards floating on a live [`seen`](https://github.com/vibrantgio/seen)
@@ -85,7 +85,7 @@ cd launcher && go run .
   core patterns (including the `WithLatestFrom2` frame-synchronisation model
   and the `rx.Defer` subscription-state pattern), threading rules,
   accessibility, performance methodology, and the phase plan that produced
-  Components, Theme, Effects, and Cadence.
+  Components, Theme, Effects, and Patterns.
 - **[llms.txt](https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt)**
   — a condensed guide for AI coding assistants (Claude, etc.) to write
   applications against the Vibrant Gio packages. It is maintained once, at the

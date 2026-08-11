@@ -17,7 +17,7 @@ var docsContentFS embed.FS
 // exist.
 type docsPageDef struct {
 	ID string
-	// Layer names the ecosystem layer the page documents (Components, Cadence,
+	// Layer names the ecosystem layer the page documents (Components, Patterns,
 	// Theme, Effects, MVU); it becomes the middle breadcrumb.
 	Layer string
 	// Title is the page title, the trailing breadcrumb.
@@ -38,8 +38,13 @@ func docsPages() []docsPageDef {
 		{ID: pageComponentsGettingStarted, Layer: "Prism", Title: "Getting started"},
 		{ID: pageComponentsTokens, Layer: "Components", Title: "Tokens & theme"},
 		{ID: pageComponentsPrimitives, Layer: "Components", Title: "Primitives"},
-		{ID: pageCadencePatterns, Layer: "Cadence", Title: "Patterns"},
-		{ID: pageCadenceShells, Layer: "Cadence", Title: "Shells"},
+		{ID: pagePatternsPatterns, Layer: "Patterns", Title: "Patterns"},
+		// Shells keeps Layer "Cadence" for the same reason its slug stays:
+		// the layer is the middle breadcrumb, which renders inside the
+		// page's golden viewport (docs-{light,dark}-cadence-shells.png),
+		// and G-G0D moves no pixels. It becomes "Patterns" when those
+		// goldens are next deliberately regenerated.
+		{ID: pagePatternsShells, Layer: "Cadence", Title: "Shells"},
 		{ID: pageThemeWindow, Layer: "Theme", Title: "Window & system"},
 		{ID: pageThemeTheme, Layer: "Theme", Title: "Live theme"},
 		{ID: pageEffectsMotion, Layer: "Effects", Title: "Motion"},

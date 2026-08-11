@@ -27,10 +27,10 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/alert"
-	"github.com/vibrantgio/cadence/card"
-	"github.com/vibrantgio/cadence/modal"
-	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/patterns/alert"
+	"github.com/vibrantgio/patterns/card"
+	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/input"

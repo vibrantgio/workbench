@@ -1,11 +1,11 @@
 // sidebarcontext.go owns one watchlist row's right-click context menu: a
-// cadence/popover with "Rename" and "Delete" entries. Rename lands
+// patterns/popover with "Rename" and "Delete" entries. Rename lands
 // OpenRenameWatchlist (a small modal opens); Delete confirms inline (a second
 // "Confirm delete" row) then writes the file (deleteWatchlistNamed), toasts,
 // lands DeleteWatchlist, and closes. Open state is EPHEMERAL per-row
 // interaction state, keyed by name and NOT model state (logged in
 // FEEDBACK-G5.3.md): plain bools this file owns, written and read during
-// layout on the frame goroutine, which cadence/popover reads back through
+// layout on the frame goroutine, which patterns/popover reads back through
 // Props.OpenNow — ADR-008 destination 2. Every row's menu shares the window's
 // Arbiter, so right-clicking one row closes whichever row's menu was up.
 //
@@ -18,7 +18,7 @@
 // Opening is driven by a SECONDARY (right) pointer press on the row, registered
 // by the sidebar in front of the select clickable inside a pointer.PassOp (see
 // sidebar.go). The popover anchor itself is invisible (the row already draws);
-// the menu surface is positioned by cadence/popover relative to the anchor
+// the menu surface is positioned by patterns/popover relative to the anchor
 // (canvas centre) — it cannot open at the cursor, a logged limitation.
 
 package main
@@ -36,8 +36,8 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/popover"
-	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"
 )

@@ -117,7 +117,7 @@ func TestDocsPageGolden(t *testing.T) {
 	lightBG := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 	darkBG := color.NRGBA{R: 20, G: 20, B: 20, A: 255}
 
-	pageCases := []string{pageComponentsGettingStarted, pageCadenceShells, pageMVULoop}
+	pageCases := []string{pageComponentsGettingStarted, pagePatternsShells, pageMVULoop}
 	themeCases := []struct {
 		name   string
 		colors tokens.ColorTokens

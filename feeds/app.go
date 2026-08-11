@@ -19,15 +19,15 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/alert"
-	"github.com/vibrantgio/cadence/card"
-	"github.com/vibrantgio/cadence/modal"
-	"github.com/vibrantgio/cadence/navbar"
-	"github.com/vibrantgio/cadence/popover"
-	"github.com/vibrantgio/cadence/shell"
-	"github.com/vibrantgio/cadence/table"
-	"github.com/vibrantgio/cadence/toast"
-	"github.com/vibrantgio/cadence/tooltip"
+	"github.com/vibrantgio/patterns/alert"
+	"github.com/vibrantgio/patterns/card"
+	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/navbar"
+	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/shell"
+	"github.com/vibrantgio/patterns/table"
+	"github.com/vibrantgio/patterns/toast"
+	"github.com/vibrantgio/patterns/tooltip"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/mvu"
@@ -153,7 +153,7 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // split position are all derived from modelObs; theme tokens flow
 // independently through th.
 //
-// cadence/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
+// patterns/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
 // (and SplitPane's Left/Right, and navbar Actions) as static layout.Widget
 // slots, and Shell re-emits (driving theme/window's Invalidate) only when
 // its Sidebar or Navbar stream emits. So every live widget stream is folded
@@ -300,7 +300,7 @@ func feedsShellLayer(
 }
 
 // shareCanvasDp sizes the Exact canvas handed to the Share popover widget in
-// the navbar action slot. cadence/popover centres its anchor in the canvas
+// the navbar action slot. patterns/popover centres its anchor in the canvas
 // and sizes its outside-press absorber to it, so the canvas must be (a)
 // small enough to sit in the navbar's action row and (b) wide enough that
 // the Bottom-placed surface (centred under the anchor) stays on-screen when
@@ -365,7 +365,7 @@ const (
 // all mvu.MessageOps, so the popover opens/closes on the same frame.
 //
 // The destination list deliberately overrides its incoming constraints:
-// cadence/popover measures Content against canvas/2, and the canvas here is
+// patterns/popover measures Content against canvas/2, and the canvas here is
 // the button-sized Exact wrapper from feedsNavbarProps — half a button could
 // not fit one label. The content sizes itself and returns its own dims,
 // which popover then pads into the surface rect. (Friction logged in
@@ -439,8 +439,8 @@ const (
 	addFeedGapDp    = 12
 )
 
-// addFeedModal composes the "Add feed" modal: a cadence/modal whose Body is a
-// cadence/card wrapping (optionally) a cadence/alert, a components/input/textfield
+// addFeedModal composes the "Add feed" modal: a patterns/modal whose Body is a
+// patterns/card wrapping (optionally) a patterns/alert, a components/input/textfield
 // for the URL, and a components/button submit. addFeedOpenObs drives the modal's
 // Open; addFeedErrorObs drives whether the empty-URL alert shows.
 //

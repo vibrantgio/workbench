@@ -15,9 +15,9 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/pagination"
-	"github.com/vibrantgio/cadence/table"
-	"github.com/vibrantgio/cadence/tooltip"
+	"github.com/vibrantgio/patterns/pagination"
+	"github.com/vibrantgio/patterns/table"
+	"github.com/vibrantgio/patterns/tooltip"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/mvu"
@@ -54,7 +54,7 @@ const (
 )
 
 // cellPadDp is the horizontal cell padding themedTextCell applies — 12 dp,
-// mirroring cadence/table's own cell padding so app-built cells sit flush
+// mirroring patterns/table's own cell padding so app-built cells sit flush
 // with the table's stock geometry.
 const cellPadDp = 12
 
@@ -319,7 +319,7 @@ func themedTextCell(tok themeTokens, s string) layout.Widget {
 }
 
 // articleColumns builds the four table columns. Title is sortable and hosts
-// the per-row click registration (cadence/table has no whole-row click
+// the per-row click registration (patterns/table has no whole-row click
 // affordance; see FEEDBACK-G5.2.md). A row click lands a SelectArticle
 // message. Published is sortable. Author and Unread are static.
 func articleColumns(
@@ -391,7 +391,7 @@ func articlesLayout(filter, table, pag, unreadTip layout.Widget) layout.Widget {
 // pinned-width column, header row height). The tooltip registers its hover
 // hit area inside that canvas and paints its surface below it, over the
 // table body. Positioning is arithmetic over unreadColWDp/tableHeaderHDp
-// because cadence/table exposes no per-header widget slot.
+// because patterns/table exposes no per-header widget slot.
 func overlayUnreadTooltip(table, tip layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		dims := table(gtx)

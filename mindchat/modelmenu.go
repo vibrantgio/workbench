@@ -1,5 +1,5 @@
 // modelmenu.go owns the chat header's model picker: a chip showing the
-// model prompts in the current chat use, opening a cadence/popover that
+// model prompts in the current chat use, opening a patterns/popover that
 // lists Default plus every provider's cached models. Picking an entry
 // reduces SetChatModel — a per-chat override persisted in the chat file.
 // Open state is model state (Model.ModelMenu), the mindchat idiom.
@@ -25,7 +25,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
-	"github.com/vibrantgio/cadence/popover"
+	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
@@ -224,7 +224,7 @@ func menuContent(t menuThemed, entries []menuRow, rowClicks map[string]*widget.C
 	}
 }
 
-// ChevronDown draws a small V glyph in box with clip paths (the cadence
+// ChevronDown draws a small V glyph in box with clip paths (the patterns
 // convention for chrome glyphs).
 func ChevronDown(gtx layout.Context, box image.Rectangle, col color.NRGBA) {
 	stroke := float32(gtx.Dp(unit.Dp(1.5)))

@@ -1,10 +1,10 @@
 // maincontent.go draws the Main content area: above an "Add symbol" button,
-// a cadence/table of the selected watchlist's symbols (a leading checkbox
+// a patterns/table of the selected watchlist's symbols (a leading checkbox
 // column for bulk-select, then Symbol, Exchange, Timeframe, Notes, then a
 // trailing trash column for row delete). A row click in the Symbol column
-// reopens the add/edit modal; the trash icon opens a per-row cadence/popover
-// delete confirm; cadence/tooltip header overlays explain each column; a
-// cadence/pagination row appears below the table only when the watchlist has
+// reopens the add/edit modal; the trash icon opens a per-row patterns/popover
+// delete confirm; patterns/tooltip header overlays explain each column; a
+// patterns/pagination row appears below the table only when the watchlist has
 // more than pageSize symbols. When no watchlist is selected it prompts to pick.
 //
 // G5.3c additions over G5.3b:
@@ -34,10 +34,10 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/pagination"
-	"github.com/vibrantgio/cadence/popover"
-	"github.com/vibrantgio/cadence/table"
-	"github.com/vibrantgio/cadence/tooltip"
+	"github.com/vibrantgio/patterns/pagination"
+	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/table"
+	"github.com/vibrantgio/patterns/tooltip"
 	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"
@@ -47,13 +47,13 @@ import (
 const wlMainPadDp = 24
 
 // cellPadDp is the horizontal cell padding themedTextCell applies — 12 dp,
-// mirroring cadence/table's own cell padding so app-built cells sit flush
+// mirroring patterns/table's own cell padding so app-built cells sit flush
 // with the table's stock geometry (the feeds F1.2 idiom).
 const cellPadDp = 12
 
 // Column geometry. Symbol flexes; the rest are pinned. The checkbox + trash
 // gutters are fixed leading/trailing columns. tableHeaderHDp mirrors
-// cadence/table's private header height — Density.ControlHeight at
+// patterns/table's private header height — Density.ControlHeight at
 // Comfortable (36 dp, the E1.4 row rule) — because the table draws headers
 // internally with no per-header widget slot, so the tooltip overlays are
 // positioned by arithmetic over these widths (friction logged in
@@ -407,7 +407,7 @@ func columnTooltips(th rx.Observable[theme.Theme], tipArb *tooltip.Arbiter) []rx
 // trigger-sized canvas exactly over its header cell. The x offsets accumulate
 // in column order: checkbox gutter, then the flexing Symbol column, then the
 // pinned Exchange/Timeframe/Notes columns. Header height is tableHeaderHDp.
-// Positioning is arithmetic because cadence/table exposes no per-header slot.
+// Positioning is arithmetic because patterns/table exposes no per-header slot.
 func overlayHeaderTooltips(tbl layout.Widget, tips []layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		dims := tbl(gtx)

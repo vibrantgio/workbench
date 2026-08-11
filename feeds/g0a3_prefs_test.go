@@ -1,6 +1,6 @@
 // g0a3_prefs_test.go covers the two halves of the settings pattern feeds is
 // the reference implementation of: the ACCELERATOR the app chrome binds
-// (⌘,/Ctrl-,, via key.ModShortcut) and the PANEL it opens — a cadence/modal
+// (⌘,/Ctrl-,, via key.ModShortcut) and the PANEL it opens — a patterns/modal
 // with a nil Props.Decision, so its close X, Escape and backdrop dismissal all
 // come from the intent rather than from flags.
 //
@@ -26,9 +26,9 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/modal"
-	"github.com/vibrantgio/cadence/table"
-	"github.com/vibrantgio/cadence/tooltip"
+	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/table"
+	"github.com/vibrantgio/patterns/tooltip"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/theme"

@@ -68,7 +68,7 @@ API (§Key architectural patterns).
 The design-system spine, foundation first:
 
 ```
-mvu  →  theme  →  components  →  effects  →  cadence  →  markdown
+mvu  →  theme  →  components  →  effects  →  patterns  →  markdown
 ```
 
 `theme` — the theme runtime and every design token — is the **foundation**
@@ -91,7 +91,7 @@ the support row:
 | 1 | theme | tier 0 |
 | 2 | components | tiers 0–1 |
 | 3 | effects | tiers 0–2 |
-| 4 | cadence, markdown | tiers 0–3 |
+| 4 | patterns, markdown | tiers 0–3 |
 | — | ivg, svg, seen, csg, kiwi, noise, traer | nothing in this table |
 
 Notes the table needs to be read with:
@@ -195,7 +195,7 @@ not part of elevation (§Desktop divergences).
 
 `tokens.Density` carries the drawn control height and inner padding:
 Comfortable (36 dp control, the default) and Compact (28 dp). Every components and
-cadence control sizes from it, so switching an app to Compact is a theme
+patterns control sizes from it, so switching an app to Compact is a theme
 change, not a sweep. The WCAG 2.5.5 pointer target (44 dp) is deliberately
 *not* part of density — it is a constant floor, and components extend their
 pointer area beyond the drawn control to meet it. The numbers are measured,
@@ -344,7 +344,7 @@ Three contracts follow from the numbers:
 
 ### The component inventory: shadcn's, not MD3's
 
-Cadence's inventory — shell, navbar, sidebar, table, pagination, tabs, modal,
+Patterns' inventory — shell, navbar, sidebar, table, pagination, tabs, modal,
 alert, popover, tooltip, toast, card, accordion, breadcrumb, plus the
 marketing sections — is shadcn/ui's inventory. MD3 has no breadcrumb, no data
 table and no pricing section; conversely there is no FAB, navigation rail,
@@ -442,7 +442,7 @@ MotionScale, which is what makes reduced motion a zero-cost guarantee.
 ## The road from v1
 
 The original document ([DESIGN-v1.md](DESIGN-v1.md)) planned in phases named
-Components → Spectrum → Effects → Cadence and recorded open experiments and known
+Components → Theme → Effects → Patterns and recorded open experiments and known
 fragilities. Its bets mostly paid off, and its debts were repaid:
 
 - **The Gio migration ("Phase −1") happened.** The stack sits on a current
@@ -481,7 +481,7 @@ planned (the release tags and the shim-deleting major bump).
 
 **Decision.** The token and theme contract moves from `components` down into
 `spectrum`. The design-system spine becomes
-`mvu → spectrum → components → effects → cadence → markdown`, governed by the full
+`mvu → theme → components → effects → patterns → markdown`, governed by the full
 tier table in §The layering, which admits all nineteen library modules and is
 enforced by the org's layer-check script. `spectrum/transition` moves to
 `effects/transition`, since it is animation code — that move removed an edge
@@ -567,7 +567,7 @@ a CI lint enforces it.
 **Why.** The predecessor `TypeScale` was fifteen `float32` sizes and nothing
 else, so the theme had no seam for a typeface at all. The consequence was
 mechanical: seventeen `Props` structs and 118 function signatures carried a
-`*text.Shaper`, and components, effects, cadence and markdown all constructed a
+`*text.Shaper`, and components, effects, patterns and markdown all constructed a
 gofont shaper inside library code — gofont was not merely used by the
 examples, it was the compiled-in default of the component library. Meanwhile
 `font` and `style`, the repos that package Roboto and a type scale, went
@@ -627,7 +627,7 @@ a component set shaped for phones — FAB, navigation rail, bottom sheet,
 chips, snackbar. Adopting its look would make a Mac app read as an Android
 port, which defeats the word "native" in the project's own vision statement.
 
-Cadence had *already* made this choice without recording it. Its inventory is
+Patterns had *already* made this choice without recording it. Its inventory is
 shadcn's inventory, not MD3's — MD3 has no breadcrumb, no data table and no
 pricing section. This ADR ratified a decision the code made a year earlier,
 so the next contributor stops trying to reconcile the two. The hardcoded
@@ -707,13 +707,13 @@ Seven layers, in this order:
 0  mvu font traer svg seen ivg kiwi noise csg circle gradient backdrop textdraw
 1  style  kiwi/gio  seen/context/gio  svg/driver/{pdf,raster}
 2  svg/driver/{gio,seen}  ivg/raster/gio  traer/gio
-3  components      4  effects      5  spectrum      6  cadence markdown
+3  components      4  effects      5  theme      6  patterns markdown
 7  workbench/*  mvu/example  components/gallery
 ```
 
-(The release protocol's coarser cut of the same order: mvu, font → spectrum →
-components → effects → cadence, markdown → workbench apps, with the nested demo
-modules last. font tags beside mvu, not beside spectrum, because spectrum
+(The release protocol's coarser cut of the same order: mvu, font → theme →
+components → effects → patterns, markdown → workbench apps, with the nested demo
+modules last. font tags beside mvu, not beside theme, because theme
 requires it — ADR-003's tier-0/tier-1 edge. No layer is tagged while the
 layer check or the workspace-debt check fails.)
 
@@ -851,10 +851,10 @@ accent, which is also what every Material app already does.
 **Where nine cannot say what twelve can.** Hover background and subtle border
 collide on step 300 (visible in the CD columns above), and there is no
 dedicated solid-hover stop. Neither costs this org anything: components and
-cadence carry exactly two border weights — mapped to 500 and 300 — and
+patterns carry exactly two border weights — mapped to 500 and 300 — and
 derive hover as a state resolution rather than a distinct token; MD3 itself
 makes hover an 8% overlay, not a stop. Radix's extra resolution buys
-precision nothing in components or cadence consumes.
+precision nothing in components or patterns consumes.
 
 **The seed sits deep, so bases are pins.** `#6750A4` is L\* 40 — step‑700
 depth on the shared scale, where 500 sits at L\* 63. Reading the solid fill

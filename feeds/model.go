@@ -17,7 +17,7 @@
 //   - SetSplitRatio{Ratio float32}   — record the articles/detail split-divider position
 //   - SetFilter{Text string}         — set the articles-table filter text (resets to page 1)
 //
-// Two of the messages are cadence's, not this app's: toast.Requested and
+// Two of the messages are patterns', not this app's: toast.Requested and
 // toast.Expired. G0C.3 retired cadence/toast's process-global Notify Subject,
 // so a toast request is now an ordinary event that becomes an ordinary
 // message — landed by toast.Notify(gtx, …) from the same callbacks that
@@ -35,8 +35,8 @@ package main
 import (
 	"strings"
 
-	"github.com/vibrantgio/cadence/table"
-	"github.com/vibrantgio/cadence/toast"
+	"github.com/vibrantgio/patterns/table"
+	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/mvu"
 )
 
@@ -123,13 +123,13 @@ type SetSort struct{ Sort table.Sort }
 
 // ToggleSection applies the single-open policy for accordion section Idx:
 // opening Idx closes every other section, and clicking an already-open Idx
-// collapses it. The cadence accordion runs with SingleOpen=false, so exactly
+// collapses it. The patterns accordion runs with SingleOpen=false, so exactly
 // one ToggleSection is emitted per click and this reducer — not N+1 OnToggle
 // calls — owns the single-open invariant.
 type ToggleSection struct{ Idx int }
 
 // SelectTab switches the detail pane's tab strip (0 Reader, 1 Raw,
-// 2 Comments). Out-of-range values are stored as-is; cadence/tabs renders
+// 2 Comments). Out-of-range values are stored as-is; patterns/tabs renders
 // them as "no tab selected", which is its documented contract.
 type SelectTab struct{ Idx int }
 

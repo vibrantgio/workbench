@@ -1,12 +1,12 @@
 // detail.go renders the selected article in the right-hand pane of the
 // articles/detail SplitPane (see feedsShellLayer for the layout choice and
 // FEEDBACK-G5.2.md for the rationale). The pane is a header (title + meta)
-// above a cadence/tabs strip with three tabs: Reader (paragraph-wrapped
+// above a patterns/tabs strip with three tabs: Reader (paragraph-wrapped
 // body), Raw (the same body in the theme's Code style — the mono face), and
 // Comments (a static placeholder list).
 //
 // The tabs instance is constructed ONCE; its Tab.Content closures are static
-// per cadence/tabs' contract, so they read the selected article and theme
+// per patterns/tabs' contract, so they read the selected article and theme
 // tokens from atomic cells at frame time (the same layer-boundary adapter
 // pattern as mainCell in app.go). Selection (which article, which tab) is
 // model-derived: SelectArticle and SelectTab messages re-emit the layer via
@@ -28,7 +28,7 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/tabs"
+	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -66,7 +66,7 @@ func detailPane(
 	// for the pattern rationale).
 	loadTokens := mirrorTokens(th)
 
-	// Selected-article cell. cadence/tabs captures Tab.Content widgets at
+	// Selected-article cell. patterns/tabs captures Tab.Content widgets at
 	// construction (a static slice, not an observable), so the closures
 	// cannot receive the article in-band; they read this cell instead. The
 	// cell is stored synchronously in the combined map below, BEFORE the

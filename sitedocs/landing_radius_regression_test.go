@@ -9,8 +9,8 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 
-	"github.com/vibrantgio/cadence/hero"
-	"github.com/vibrantgio/cadence/pricing"
+	"github.com/vibrantgio/patterns/hero"
+	"github.com/vibrantgio/patterns/pricing"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/tokens"
 )

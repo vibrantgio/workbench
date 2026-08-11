@@ -20,8 +20,13 @@ const (
 	pageComponentsTokens         = "components-tokens"
 	pageComponentsPrimitives     = "components-primitives"
 
-	pageCadencePatterns = "cadence-patterns"
-	pageCadenceShells   = "cadence-shells"
+	pagePatternsPatterns = "patterns"
+	// The shells slug keeps the old cadence name: the docs goldens
+	// (testdata/golden/docs-{light,dark}-cadence-shells.png) derive their
+	// filenames from it and its content renders into their pixels, and
+	// G-G0D moves no pixels. It renames when those goldens are next
+	// deliberately regenerated.
+	pagePatternsShells = "cadence-shells"
 
 	pageThemeWindow = "theme-window"
 	pageThemeTheme  = "theme-live-theme"

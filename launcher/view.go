@@ -16,8 +16,8 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/backdrop"
-	"github.com/vibrantgio/cadence/card"
-	"github.com/vibrantgio/cadence/hero"
+	"github.com/vibrantgio/patterns/card"
+	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/components/button"
 	pllayout "github.com/vibrantgio/components/layout"
 	raster "github.com/vibrantgio/ivg/raster/gio"
@@ -108,7 +108,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	heroObs := hero.Hero(th, hero.Props{
 		Eyebrow:  "VIBRANTGIO",
 		Title:    "Workbench",
-		Subtitle: "Six complete example apps built on mvu, components, theme and cadence — floating on a live seen 3D field.",
+		Subtitle: "Six complete example apps built on mvu, components, theme and patterns — floating on a live seen 3D field.",
 	})
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		clicks := make([]widget.Clickable, len(Apps))
@@ -161,7 +161,7 @@ func cardRow(cells []layout.Widget) layout.Widget {
 	}
 }
 
-// appCard is one launchable app as an elevated cadence card: icon + name
+// appCard is one launchable app as an elevated patterns card: icon + name
 // header, blurb body, and a footer with the launch button and a status line.
 // The card and button are the theme-driven components, built from the
 // emission's static snapshot; text colours come off the Neutral ramp — 900

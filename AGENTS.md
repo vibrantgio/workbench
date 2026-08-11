@@ -2,7 +2,7 @@
 
 The seven reference applications of the Vibrant Gio design system, each a
 complete product built the way a real one is meant to be built — MVU state,
-live theming from theme, components widgets, cadence patterns: `todos` (the
+live theming from theme, components widgets, patterns: `todos` (the
 smallest complete bootstrap, and the place to start), `iconbrowser`,
 `sitedocs`, `feeds`, `watchlist`, `mindchat` and `launcher`. The repository
 also carries the architecture documents — `DESIGN.md` and `BASELINE.md` —
@@ -11,8 +11,8 @@ that no other repository in the organization has.
 **Layer.** Outside ADR-001's tier table: applications at the top of the
 stack, which the tier rule exempts and which may import any layer of the
 design system. Its seven applications import, between them, `backdrop`,
-`cadence`, `components`, `effects`, `font`, `ivg`, `ivg/raster/gio`,
-`markdown`, `mvu`, `noise`, `seen`, `seen/context/gio`, `svg`,
+`components`, `effects`, `font`, `ivg`, `ivg/raster/gio`, `markdown`,
+`mvu`, `noise`, `patterns`, `seen`, `seen/context/gio`, `svg`,
 `svg/driver/gio`, `textdraw` and `theme`. Nothing in the organization
 imports it. Both directions are measured rather than typed —
 `scripts/check-layers.sh --edges` reports the graph and
@@ -47,7 +47,7 @@ root module to run it from:
 `sitedocs/` and `watchlist/` — compare rendered output against PNGs
 committed under `testdata/golden/`. They render through
 `github.com/vibrantgio/components/golden`, which declares `-golden.update`
-and is shared with `cadence`, `effects` and `markdown`. Do not inline a
+and is shared with `effects`, `markdown` and `patterns`. Do not inline a
 copy of it, and do not declare a second `-golden.update`: two registrations
 of one flag name in a single test binary panic in `flag.Bool` at init,
 before any test runs. When a change legitimately moves pixels, regenerate
@@ -131,7 +131,7 @@ document and the application source still disagree, the source wins and the
 document is a bug to file.
 
 **Arbiters are created in each application's layer function, and that is the
-composition root that matters.** ADR-008 gave `cadence`'s popover, tooltip and
+composition root that matters.** ADR-008 gave `patterns`'s popover, tooltip and
 modal a plain `Arbiter` passed through `Props`, and the value *is* the scope —
 one set per window. `theme/window.Render` calls the build function once per
 window, and `feeds`, `watchlist` and `mindchat` each compose every arbitrable

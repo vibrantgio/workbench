@@ -7,7 +7,7 @@
 // repaginates underneath the open panel, and there is consequently nothing to
 // confirm and nothing to cancel. Leaving costs nothing, so every cheap exit is
 // offered — and all three of them (the ghost X, Escape, a backdrop click) come
-// from cadence/modal for free, because Props.Decision is nil. That single
+// from patterns/modal for free, because Props.Decision is nil. That single
 // absence is the whole declaration: no HideClose, no dismiss-on-scrim boolean,
 // no Return binding. The affordances travel with the intent.
 //
@@ -34,7 +34,7 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/modal"
+	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"

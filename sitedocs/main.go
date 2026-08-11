@@ -6,9 +6,9 @@
 // The window renders one shell per route family, all built once and kept
 // subscribed so scroll positions survive navigation:
 //
-//   - Home  → cadence/shell StackedPage: pinned full-width navbar over
+//   - Home  → patterns/shell StackedPage: pinned full-width navbar over
 //     the marketing sections (landing.go).
-//   - Docs  → cadence/shell ThreeColumn with a nil aside: full-width
+//   - Docs  → patterns/shell ThreeColumn with a nil aside: full-width
 //     navbar, accordion sidebar in the leading column, routed page in
 //     the main slot.
 //   - About → StackedPage with a single prose section.
@@ -36,8 +36,8 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/cadence/navbar"
-	"github.com/vibrantgio/cadence/shell"
+	"github.com/vibrantgio/patterns/navbar"
+	"github.com/vibrantgio/patterns/shell"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/mvu"
 	specsystem "github.com/vibrantgio/theme/system"
@@ -191,7 +191,7 @@ func routedShellLayer(
 // into a ThreeColumn shell (nil aside): the navbar spans the full window
 // width and the sidebar sits below it in the leading column.
 //
-// cadence/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
+// patterns/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
 // as a static layout.Widget, and the shell re-emits (driving
 // theme/window's Invalidate) only when one of its input streams emits. So
 // the routed page widget is folded onto the sidebar stream: mainObs is
@@ -280,7 +280,7 @@ func aboutSection(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	paragraphs := []string{
 		"Site Docs is the documentation and marketing example for Vibrant Gio — a design system for building native desktop applications in Go with Gio.",
 		"It is one of the workbench apps that exercise the system end to end, alongside the launcher, feeds, todos, watchlist, iconbrowser and mindchat.",
-		"Every layer — components, cadence, theme, effects, mvu — is MIT licensed and developed in the open at github.com/vibrantgio.",
+		"Every layer — components, patterns, theme, effects, mvu — is MIT licensed and developed in the open at github.com/vibrantgio.",
 	}
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
