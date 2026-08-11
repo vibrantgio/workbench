@@ -18,8 +18,8 @@ const (
 	pageCadencePatterns = "cadence-patterns"
 	pageCadenceShells   = "cadence-shells"
 
-	pageSpectrumWindow = "spectrum-window"
-	pageSpectrumTheme  = "spectrum-live-theme"
+	pageThemeWindow = "theme-window"
+	pageThemeTheme  = "theme-live-theme"
 
 	pagePulseMotion  = "pulse-motion"
 	pagePulseEffects = "pulse-effects"

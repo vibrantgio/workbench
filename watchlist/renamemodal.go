@@ -34,7 +34,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 )
 
 // renameTarget is the per-open rename-modal seed: epoch drives the field

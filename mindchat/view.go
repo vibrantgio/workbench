@@ -38,15 +38,15 @@ import (
 	"github.com/vibrantgio/prism/list"
 	"github.com/vibrantgio/prism/scrollbar"
 	"github.com/vibrantgio/pulse/depth"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
-	"github.com/vibrantgio/spectrum/typeset"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 	"github.com/vibrantgio/textdraw"
 
 	"slices"
 )
 
-// buildLayers returns the layer-builder the spectrum window renders: a
+// buildLayers returns the layer-builder the theme window renders: a
 // backdrop layer and a content layer, both reacting to the live theme.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
@@ -84,7 +84,7 @@ type themed struct {
 	// tokens.Motion.Reduced(), whose every stop is zero — so a zero stop
 	// means "do not animate", exactly as tokens/motion.go documents, and the
 	// waiting indicator and the streaming dot both render static. Reading
-	// spectrum/a11y here as well would be a second path to the same
+	// theme/a11y here as well would be a second path to the same
 	// preference, and a second poller.
 	motion tokens.MotionScale
 }
@@ -131,7 +131,7 @@ func messageMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	// This window's arbitration registers (ADR-008). They are plain values
 	// with no synchronisation, so the scope they are created at is the scope
-	// they are safe at: spectrum/window calls the build function once per
+	// they are safe at: theme/window calls the build function once per
 	// window and this layer is composed exactly once inside it, which makes
 	// this function body the window. Every popover and modal below is handed
 	// one of these — a second arbitrable LAYER would have to take them as

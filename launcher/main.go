@@ -6,7 +6,7 @@
 //
 // Architecturally it is the todos bootstrap plus two demonstrations: a seen
 // 3D scene composited as an ordinary mvu background layer that re-keys its
-// palette on every spectrum theme change, and a single streaming mvu.Command
+// palette on every theme theme change, and a single streaming mvu.Command
 // that emits Started and later Exited for one launched process.
 package main
 
@@ -19,8 +19,8 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/mvu"
-	specsystem "github.com/vibrantgio/spectrum/system"
-	specwin "github.com/vibrantgio/spectrum/window"
+	specsystem "github.com/vibrantgio/theme/system"
+	specwin "github.com/vibrantgio/theme/window"
 )
 
 const winW, winH = unit.Dp(1100), unit.Dp(760)

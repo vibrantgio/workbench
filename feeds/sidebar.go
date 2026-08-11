@@ -22,8 +22,8 @@ import (
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/keyed"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 const (
@@ -93,7 +93,7 @@ func feedsSidebar(
 	// Fold the accordion, the live feed tree, and a theme token together. The
 	// feeds emission updates the per-section cells (read by the bodies above)
 	// before the accordion widget is returned, so a delete/add re-emits this
-	// layer — driving spectrum/window's Invalidate() and the same-frame
+	// layer — driving theme/window's Invalidate() and the same-frame
 	// repaint, the same way the open-section map drives it.
 	colorsObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
 		return t.Color

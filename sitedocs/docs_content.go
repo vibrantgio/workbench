@@ -18,7 +18,7 @@ var docsContentFS embed.FS
 type docsPageDef struct {
 	ID string
 	// Layer names the ecosystem layer the page documents (Prism, Cadence,
-	// Spectrum, Pulse, MVU); it becomes the middle breadcrumb.
+	// Theme, Pulse, MVU); it becomes the middle breadcrumb.
 	Layer string
 	// Title is the page title, the trailing breadcrumb.
 	Title string
@@ -35,8 +35,8 @@ func docsPages() []docsPageDef {
 		{ID: pagePrismPrimitives, Layer: "Prism", Title: "Primitives"},
 		{ID: pageCadencePatterns, Layer: "Cadence", Title: "Patterns"},
 		{ID: pageCadenceShells, Layer: "Cadence", Title: "Shells"},
-		{ID: pageSpectrumWindow, Layer: "Spectrum", Title: "Window & system"},
-		{ID: pageSpectrumTheme, Layer: "Spectrum", Title: "Live theme"},
+		{ID: pageThemeWindow, Layer: "Theme", Title: "Window & system"},
+		{ID: pageThemeTheme, Layer: "Theme", Title: "Live theme"},
 		{ID: pagePulseMotion, Layer: "Pulse", Title: "Motion"},
 		{ID: pagePulseEffects, Layer: "Pulse", Title: "Effects"},
 		{ID: pageMVULoop, Layer: "MVU", Title: "The loop"},

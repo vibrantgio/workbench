@@ -81,7 +81,7 @@ tests; no window needed).
   `stop` strays first.
 - Apps keep running after the driver exits (detached); every `launch`
   needs a matching `stop` or windows accumulate.
-- The apps render in the **current OS appearance** (spectrum live
+- The apps render in the **current OS appearance** (theme live
   theming) — captures come out light or dark depending on the system
   setting at capture time, and two apps captured minutes apart can
   differ if auto-switching crosses the boundary.

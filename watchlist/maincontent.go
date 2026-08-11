@@ -40,8 +40,8 @@ import (
 	"github.com/vibrantgio/cadence/tooltip"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/keyed"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 const wlMainPadDp = 24

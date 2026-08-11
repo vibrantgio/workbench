@@ -68,10 +68,10 @@ API (§Key architectural patterns).
 The design-system spine, foundation first:
 
 ```
-mvu  →  spectrum  →  prism  →  pulse  →  cadence  →  markdown
+mvu  →  theme  →  prism  →  pulse  →  cadence  →  markdown
 ```
 
-`spectrum` — the theme runtime and every design token — is the **foundation**
+`theme` — the theme runtime and every design token — is the **foundation**
 of the design system, below the components it themes. This is the inversion
 ADR-001 records: the system was first built with the tokens inside `prism`
 and `spectrum` layered above it, which meant the theme depended on what it
@@ -88,7 +88,7 @@ the support row:
 | Tier | Modules | May import |
 | --- | --- | --- |
 | 0 | mvu, font, style, textdraw, backdrop, gradient, circle | support libraries only |
-| 1 | spectrum | tier 0 |
+| 1 | theme | tier 0 |
 | 2 | prism | tiers 0–1 |
 | 3 | pulse | tiers 0–2 |
 | 4 | cadence, markdown | tiers 0–3 |
@@ -96,7 +96,7 @@ the support row:
 
 Notes the table needs to be read with:
 
-- **`font` is tier 0** because spectrum depends on it for the default Roboto
+- **`font` is tier 0** because theme depends on it for the default Roboto
   and Roboto Mono faces (ADR-003). Without that row the layer check would
   reject the exact edge the typography decision requires.
 - **One intra-tier edge is admitted explicitly:** `style` imports `font` and
@@ -134,7 +134,7 @@ observable carries the result to every component.
 
 ### Seed → ramps → pins → semantic layer
 
-The engine (`spectrum/color`, ADR-002) derives tonal palettes on two axes:
+The engine (`theme/color`, ADR-002) derives tonal palettes on two axes:
 **tone is CIELAB L\***, exactly as MD3 defines it, and **hue and chroma come
 from OKLCh** — HCT's architecture with OKLab substituted for CAM16, plus
 chroma-reduction gamut mapping. From a seed:
@@ -244,7 +244,7 @@ Apps do nothing to get any of this; it arrives through the theme.
 
 ### The export surface
 
-`spectrum/export` serialises a theme emission to `theme.json` (the generative
+`theme/export` serialises a theme emission to `theme.json` (the generative
 parameters — the theme is reproducible from the file alone) and a CSS token
 sheet (`--color-<role>-100…900`, the pins, `--font-*`, `--space-*`,
 `--radius-*`, density, elevation surface roles, motion), plus foundation
@@ -265,7 +265,7 @@ Gio's rather than a port (ADR-005: MD3's *system*, not MD3's *look*).
 
 MD3 is touch-first: 48 dp targets, 40 dp buttons, 56 dp text fields.
 Desktop numbers were **measured, not invented** — the three-way table lives
-as the doc comment of `spectrum/tokens/density.go` (sources fetched/measured
+as the doc comment of `theme/tokens/density.go` (sources fetched/measured
 2026-08-05):
 
 | metric | shadcn/ui | MD3 | macOS (AppKit, measured) |
@@ -908,7 +908,7 @@ hand-tuned per hue rather than generated, so "adopt Radix" really means
 the part that costs.
 
 **Consequences, as landed.** The ramp/pin/semantic types and the paired
-generator live in `spectrum/tokens` with the MD3 names as deprecated aliases;
+generator live in `theme/tokens` with the MD3 names as deprecated aliases;
 interaction states resolve as step walks rather than opacity overlays; the
 APCA gates run in the test suite with WCAG AA reported alongside; the token
 export emits `--color-<role>-100…900` plus the pinned bases, and the colour

@@ -26,9 +26,9 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	pllayout "github.com/vibrantgio/prism/layout"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
-	"github.com/vibrantgio/spectrum/typeset"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 
 	"github.com/vibrantgio/mvu"
 )

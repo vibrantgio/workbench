@@ -42,8 +42,8 @@ import (
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/golden"
 	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // modalCanvas is the canvas the modal golden draws into.

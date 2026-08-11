@@ -39,7 +39,7 @@ import (
 	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 )
 
 const (

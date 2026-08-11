@@ -7,11 +7,11 @@ import (
 	"gioui.org/text"
 	"gioui.org/unit"
 
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/textdraw"
 )
 
-// Palette is the app's view of the spectrum colour tokens, derived per theme
+// Palette is the app's view of the theme colour tokens, derived per theme
 // emission so the OS light/dark switch restyles the app live.
 type Palette struct {
 	Backdrop color.NRGBA // window background

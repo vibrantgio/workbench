@@ -21,8 +21,8 @@ import (
 	"github.com/vibrantgio/cadence/testimonial"
 	"github.com/vibrantgio/mvu"
 	pllayout "github.com/vibrantgio/prism/layout"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // sectionGapDp is the vertical gap inserted between adjacent sections.

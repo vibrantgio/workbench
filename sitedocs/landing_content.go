@@ -22,14 +22,14 @@ func heroContent(gotoDocs, gotoAbout func(gtx layout.Context)) hero.Props {
 	return hero.Props{
 		Eyebrow:      "Native desktop · Go",
 		Title:        "Vibrant Gio",
-		Subtitle:     "Prism tokens and primitives, Cadence patterns, Spectrum platform glue, Pulse motion, and an MVU runtime — a design system for building native desktop apps with Gio.",
+		Subtitle:     "Prism tokens and primitives, Cadence patterns, Theme platform glue, Pulse motion, and an MVU runtime — a design system for building native desktop apps with Gio.",
 		PrimaryCTA:   &hero.CTA{Label: "Get started", OnClick: gotoDocs},
 		SecondaryCTA: &hero.CTA{Label: "About", OnClick: gotoAbout},
 	}
 }
 
 // featureContent returns the 3-up feature grid naming the marquee
-// layers. Spectrum and MVU are enumerated in the hero subtitle rather
+// layers. Theme and MVU are enumerated in the hero subtitle rather
 // than repeated here — a five-up row would feel padded.
 func featureContent() feature.Props {
 	return feature.Props{

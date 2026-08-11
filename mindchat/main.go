@@ -1,5 +1,5 @@
 // Command mindchat is a ChatGPT-style chat client on the Vibrant Gio stack:
-// mvu.NewWindow wrapped in a spectrum window with a live OS theme, a Model
+// mvu.NewWindow wrapped in a theme window with a live OS theme, a Model
 // observable driven by mvu.Loop — whose command runner feeds side-effect
 // messages (config/history I/O, the streaming OpenAI completion) back into
 // the update scan — and widgets that route every event through
@@ -15,8 +15,8 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/mvu"
-	specsystem "github.com/vibrantgio/spectrum/system"
-	specwin "github.com/vibrantgio/spectrum/window"
+	specsystem "github.com/vibrantgio/theme/system"
+	specwin "github.com/vibrantgio/theme/window"
 )
 
 func main() {

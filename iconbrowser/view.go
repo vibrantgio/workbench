@@ -13,12 +13,12 @@ import (
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/textdraw"
 )
 
-// buildLayers returns the layer-builder the spectrum window renders.
+// buildLayers returns the layer-builder the theme window renders.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{

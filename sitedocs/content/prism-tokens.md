@@ -1,13 +1,13 @@
 # Tokens & theme
 
-`spectrum/tokens` holds the semantic scales: `ColorTokens` carries the nine-step
+`theme/tokens` holds the semantic scales: `ColorTokens` carries the nine-step
 functional `Ramps`, the pinned accent bases with their "On" foregrounds
 (`Primary`/`OnPrimary`, `Error`/`OnError`, …) and the thin semantic layer
 (`Background`, `Text`, `Surface`, `Divider`), plus `Typography`,
 `SpacingScale`, `RadiusScale`, `MotionScale`, `Density` and `ElevationScale`.
 `DefaultLight` and `DefaultDark` ship ready to use.
 
-`spectrum/theme` carries one observable per token category. Components
+`theme/theme` carries one observable per token category. Components
 subscribe to exactly the categories they consume, so a theme change
 re-emits only the widgets it affects.
 

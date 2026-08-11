@@ -1,10 +1,10 @@
 # Live theme
 
-`spectrum/transition` animates token changes so a dark-mode flip
+`theme/transition` animates token changes so a dark-mode flip
 cross-fades instead of snapping: `ColorTokensTween` interpolates a full
 `ColorTokens` set over a fixed frame budget.
 
-`spectrum/preferences` persists the user's explicit appearance choice
+`theme/preferences` persists the user's explicit appearance choice
 across launches, stored under the OS config directory for the app.
 
 ## Tween between token sets

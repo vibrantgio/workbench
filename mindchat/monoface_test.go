@@ -21,7 +21,7 @@ import (
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/prism/golden"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // TestChatCodeShapesInMonoFace is the F1.5 headless confirmation that chat

@@ -27,9 +27,9 @@ import (
 
 	"github.com/vibrantgio/cadence/accordion"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
-	"github.com/vibrantgio/spectrum/typeset"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // Sidebar layout constants.
@@ -72,10 +72,10 @@ func docsSidebarSections() []docsSidebarSection {
 			},
 		},
 		{
-			Title: "Spectrum",
+			Title: "Theme",
 			Links: []docsSidebarLink{
-				{Label: "Window & system", Page: pageSpectrumWindow},
-				{Label: "Live theme", Page: pageSpectrumTheme},
+				{Label: "Window & system", Page: pageThemeWindow},
+				{Label: "Live theme", Page: pageThemeTheme},
 			},
 		},
 		{
@@ -141,7 +141,7 @@ func docsSidebar(
 	// CombineLatest. accObs re-emits whenever the open-section map (driven by
 	// the MVU model) or a theme token changes, so a click that lands a
 	// ToggleAccordion message re-emits this layer on the next frame — which is
-	// what drives spectrum/window's Invalidate() and the same-frame repaint.
+	// what drives theme/window's Invalidate() and the same-frame repaint.
 	// The former atomic.Value mirror severed accObs from the layer chain, so
 	// open-state changes never reached Invalidate (the FEEDBACK-G5.1 lag bug).
 	colorsObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {

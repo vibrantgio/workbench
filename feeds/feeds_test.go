@@ -20,8 +20,8 @@ import (
 	"github.com/vibrantgio/cadence/popover"
 	"github.com/vibrantgio/cadence/table"
 	"github.com/vibrantgio/prism/golden"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // TestBuildLayersConstructsWithoutPanic mirrors the G5.1a smoke test
@@ -646,7 +646,7 @@ const (
 // The bug it guards against: the shell layer observable did not re-emit when
 // the model changed (selection, page, sort were shunted into atomic mirrors
 // disconnected from the layer chain), so a click never reached
-// spectrum/window's Invalidate() and the canvas only repainted on the next
+// theme/window's Invalidate() and the canvas only repainted on the next
 // unrelated input event (FEEDBACK-G5.1/G5.2).
 //
 // Driving the same modelObs the app uses (via an rx.Subject[Model]) and
@@ -907,7 +907,7 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 // value that arrived normally.
 //
 // That, not rx, is the "delivery dropout" G5.2d recorded and tried to ride out
-// with retries: a bare rx.Of mapped to a widget, with no spectrum, prism or
+// with retries: a bare rx.Of mapped to a widget, with no theme, prism or
 // cadence code in the chain at all, took errChan with the value already
 // buffered in 95 of 200 iterations — a coin flip, so three retries left a
 // ~1-in-8 failure that surfaced as "layer 0 produced no widget" whenever the

@@ -55,7 +55,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 )
 
 // editTarget is the per-open modal seed: epoch drives the field rebuild, seed

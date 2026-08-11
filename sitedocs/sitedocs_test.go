@@ -10,7 +10,7 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 )
 
 // TestBuildLayersConstructsWithoutPanic verifies that buildLayers returns two
@@ -89,7 +89,7 @@ func TestUpdateToggleAccordionSingleOpen(t *testing.T) {
 // regression test. The bug it guards against: the shell layer observable did
 // not re-emit when the model changed (accordion state and routing were shunted
 // into atomic mirrors disconnected from the layer chain), so a click never
-// reached spectrum/window's Invalidate() and the canvas only repainted on the
+// reached theme/window's Invalidate() and the canvas only repainted on the
 // next unrelated input event (FEEDBACK-G5.1).
 //
 // Driving the same modelObs the app uses and asserting docsShellLayer's

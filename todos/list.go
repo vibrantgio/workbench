@@ -15,7 +15,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/input"
 	prismlist "github.com/vibrantgio/prism/list"
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/textdraw"
 )
 

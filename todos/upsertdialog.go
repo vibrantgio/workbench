@@ -14,7 +14,7 @@ import (
 
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/workbench/todos/internal/place"
 )

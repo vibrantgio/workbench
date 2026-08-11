@@ -29,8 +29,8 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/list"
 	"github.com/vibrantgio/prism/scrollbar"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/textdraw"
 )
 

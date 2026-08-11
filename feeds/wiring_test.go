@@ -11,12 +11,12 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 )
 
 // TestModelObsConsumerCountMatchesConst measures the EXACT number of cold
 // subscriptions feedsShellLayer makes to modelObs when subscribed once (as
-// spectrum/window does) and asserts it equals modelObsConsumers. rx.Publish()
+// theme/window does) and asserts it equals modelObsConsumers. rx.Publish()
 // does not replay, so Publish().AutoConnect(modelObsConsumers) connects the
 // upstream — and lets the seed flow — only when the count-th subscriber
 // attaches; if this count drifts from the wiring, late consumers miss the seed

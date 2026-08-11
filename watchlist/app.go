@@ -24,13 +24,13 @@ import (
 	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/cadence/toast"
 	"github.com/vibrantgio/cadence/tooltip"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
-	"github.com/vibrantgio/spectrum/typeset"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // modelObsConsumers is the EXACT number of cold subscriptions that reach
-// modelObs when watchlistShellLayer is subscribed once (as spectrum/window
+// modelObs when watchlistShellLayer is subscribed once (as theme/window
 // does). It is LOAD-BEARING and must be MEASURED, not hand-counted:
 // mvuWin.Messages() drains a channel and rx.Publish() multicasts WITHOUT
 // replay, so Publish().AutoConnect(modelObsConsumers) in run() connects the
@@ -119,7 +119,7 @@ func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	return func() themeTokens { return cell.Load().(themeTokens) }
 }
 
-// buildLayers returns the spectrum/window build function: a Surface backdrop
+// buildLayers returns the theme/window build function: a Surface backdrop
 // under the watchlist shell. storePath is the on-disk file the save callback
 // writes back to atomically; tests inject a t.TempDir() path.
 func buildLayers(modelObs rx.Observable[Model], storePath string) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
@@ -167,7 +167,7 @@ func watchlistShellLayer(
 ) rx.Observable[layout.Widget] {
 	// This window's arbitration registers (ADR-008). They are plain values
 	// with no synchronisation, so the scope they are created at is the scope
-	// they are safe at: spectrum/window calls the build function once per
+	// they are safe at: theme/window calls the build function once per
 	// window and this layer is composed exactly once inside it, which makes
 	// this function body the window. Every popover, tooltip and modal below
 	// is handed one of these — a second arbitrable LAYER would have to take

@@ -40,11 +40,11 @@ import (
 	"github.com/vibrantgio/cadence/shell"
 	"github.com/vibrantgio/mvu"
 	pllayout "github.com/vibrantgio/prism/layout"
-	specsystem "github.com/vibrantgio/spectrum/system"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
-	"github.com/vibrantgio/spectrum/typeset"
-	specwin "github.com/vibrantgio/spectrum/window"
+	specsystem "github.com/vibrantgio/theme/system"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
+	specwin "github.com/vibrantgio/theme/window"
 )
 
 const (
@@ -95,7 +95,7 @@ func run() {
 // interval is the intended low-CPU default, not a workaround: each darwin
 // Appearance read is a `defaults` fork+exec (~5.5 ms), so 5 s polling costs
 // ~0.1% CPU at idle while keeping dark-mode response well under a second of a
-// toggle. See spectrum/system for the dark/accent cadence split and the
+// toggle. See theme/system for the dark/accent cadence split and the
 // measured cost table.
 func themeObservable() rx.Observable[theme.Theme] {
 	return specsystem.LiveTheme(5 * time.Second)
@@ -135,7 +135,7 @@ func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	return func() themeTokens { return cell.Load().(themeTokens) }
 }
 
-// buildLayers returns a function that spectrum/window.Render passes the
+// buildLayers returns a function that theme/window.Render passes the
 // per-window theme to. It returns the two rendering layers: a backdrop and
 // the routed shell. The model observable drives routing and accordion state.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
@@ -193,7 +193,7 @@ func routedShellLayer(
 //
 // cadence/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
 // as a static layout.Widget, and the shell re-emits (driving
-// spectrum/window's Invalidate) only when one of its input streams emits. So
+// theme/window's Invalidate) only when one of its input streams emits. So
 // the routed page widget is folded onto the sidebar stream: mainObs is
 // combined into the sidebar-driving observable, and the selected page widget
 // is published into mainCell — a layer-boundary adapter read by the static
@@ -280,7 +280,7 @@ func aboutSection(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	paragraphs := []string{
 		"Site Docs is the documentation and marketing example for Vibrant Gio — a design system for building native desktop applications in Go with Gio.",
 		"It is one of the workbench apps that exercise the system end to end, alongside the launcher, feeds, todos, watchlist, iconbrowser and mindchat.",
-		"Every layer — prism, cadence, spectrum, pulse, mvu — is MIT licensed and developed in the open at github.com/vibrantgio.",
+		"Every layer — prism, cadence, theme, pulse, mvu — is MIT licensed and developed in the open at github.com/vibrantgio.",
 	}
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })

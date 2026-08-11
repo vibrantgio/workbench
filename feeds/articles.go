@@ -21,7 +21,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/input"
 	"github.com/vibrantgio/prism/keyed"
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 )
 
 // defaultRowsPerPage is the seed row count per pagination page. It is no

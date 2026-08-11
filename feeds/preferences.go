@@ -37,7 +37,7 @@ import (
 	"github.com/vibrantgio/cadence/modal"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 )
 
 // Geometry of the panel body's two preference rows. The row height is the

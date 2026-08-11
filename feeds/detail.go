@@ -30,9 +30,9 @@ import (
 
 	"github.com/vibrantgio/cadence/tabs"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
-	"github.com/vibrantgio/spectrum/typeset"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // Detail pane tab indices, in tab-strip order.

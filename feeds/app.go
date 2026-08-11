@@ -31,13 +31,13 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/prism/button"
 	"github.com/vibrantgio/prism/input"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
-	"github.com/vibrantgio/spectrum/typeset"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // modelObsConsumers is the EXACT number of cold subscriptions that reach
-// modelObs when feedsShellLayer is subscribed once (as spectrum/window does).
+// modelObs when feedsShellLayer is subscribed once (as theme/window does).
 // It is LOAD-BEARING and must be measured, not hand-counted: mvuWin.Messages()
 // drains a channel and rx.Publish() multicasts WITHOUT replay, so
 // Publish().AutoConnect(modelObsConsumers) in run() connects the loop's
@@ -118,7 +118,7 @@ func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	return func() themeTokens { return cell.Load().(themeTokens) }
 }
 
-// buildLayers returns the spectrum/window build function. The model
+// buildLayers returns the theme/window build function. The model
 // observable drives selection, paging, sort, and accordion open state; the
 // theme observable flows in independently per window.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
@@ -155,7 +155,7 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 //
 // cadence/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
 // (and SplitPane's Left/Right, and navbar Actions) as static layout.Widget
-// slots, and Shell re-emits (driving spectrum/window's Invalidate) only when
+// slots, and Shell re-emits (driving theme/window's Invalidate) only when
 // its Sidebar or Navbar stream emits. So every live widget stream is folded
 // onto the sidebar-driving observable, and the latest widget of each is
 // published into an atomic cell — a layer-boundary adapter read by the
@@ -171,7 +171,7 @@ func feedsShellLayer(
 ) rx.Observable[layout.Widget] {
 	// This window's arbitration registers (ADR-008). They are plain values
 	// with no synchronisation, so the scope they are created at is the scope
-	// they are safe at: spectrum/window calls the build function once per
+	// they are safe at: theme/window calls the build function once per
 	// window and this layer is composed exactly once inside it, which makes
 	// this function body the window. Every popover, tooltip and modal below
 	// is handed one of these — a second arbitrable LAYER would have to take

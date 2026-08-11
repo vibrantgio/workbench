@@ -6,8 +6,8 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/backdrop"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // BackdropLayer fills the window with the theme's background colour; it is

@@ -9,8 +9,8 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/mvu"
-	specsystem "github.com/vibrantgio/spectrum/system"
-	specwin "github.com/vibrantgio/spectrum/window"
+	specsystem "github.com/vibrantgio/theme/system"
+	specwin "github.com/vibrantgio/theme/window"
 )
 
 func main() {

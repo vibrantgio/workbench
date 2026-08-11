@@ -14,7 +14,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 )
 
 // testDoc is a richer-than-starter document (two watchlists) so selection can
@@ -38,7 +38,7 @@ const (
 
 // TestModelObsConsumerCountMatchesConst measures the EXACT number of cold
 // subscriptions watchlistShellLayer makes to modelObs when subscribed once (as
-// spectrum/window does) and asserts it equals modelObsConsumers.
+// theme/window does) and asserts it equals modelObsConsumers.
 // Publish().AutoConnect(N) connects the upstream — and lets the seed flow —
 // only when the N-th subscriber attaches; if the count drifts from the wiring,
 // late consumers miss the seed (too low) or the app freezes (too high).

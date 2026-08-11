@@ -1,7 +1,7 @@
 # Window & system
 
-`spectrum/window` wraps an MVU window so every rendered layer receives the
-live per-window theme; `spectrum/system` reads the OS appearance (dark
+`theme/window` wraps an MVU window so every rendered layer receives the
+live per-window theme; `theme/system` reads the OS appearance (dark
 mode, accent colour) and republishes it as that theme observable.
 
 > On macOS each appearance read forks a `defaults` process, so `LiveTheme`

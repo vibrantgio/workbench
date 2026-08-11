@@ -12,7 +12,7 @@ import (
 	"github.com/vibrantgio/cadence/hero"
 	"github.com/vibrantgio/cadence/pricing"
 	"github.com/vibrantgio/prism/golden"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // TestPricingHighlightedTierDoesNotFloodCanvas exercises the Pro (Highlighted)

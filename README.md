@@ -18,7 +18,7 @@ The design system is layered — each layer only depends on the ones below it:
 |---|---|---|
 | Patterns | [`cadence`](https://github.com/vibrantgio/cadence) | Prebuilt application patterns: shells, tables, modals, popovers, tabs, toasts, navbars, sidebars, pagination, marketing sections |
 | Effects | [`pulse`](https://github.com/vibrantgio/pulse) | Motion & vibrancy: tweens, spring physics, glow, depth, a shared animation conductor |
-| Theme runtime | [`spectrum`](https://github.com/vibrantgio/spectrum) | Reactive theming: live OS dark-mode/accent tracking, preference persistence, animated theme transitions, window integration |
+| Theme runtime | [`theme`](https://github.com/vibrantgio/theme) | Reactive theming: live OS dark-mode/accent tracking, preference persistence, animated theme transitions, window integration |
 | Foundation | [`prism`](https://github.com/vibrantgio/prism) | Component catalogue: buttons, inputs, lists, icons, layout, focus/a11y, tokens, theme contract, keyed identity, coordination |
 | Runtime | [`mvu`](https://github.com/vibrantgio/mvu) | Model-View-Update runtime for Gio: `NewWindow`, `MessageOp` widget protocol, commands |
 
@@ -35,7 +35,7 @@ physics), [`svg`](https://github.com/vibrantgio/svg) and
 ## The example apps
 
 Each app is a full, runnable product built the way a real Vibrant Gio app is
-meant to be built — MVU state, spectrum theming, cadence patterns:
+meant to be built — MVU state, live theming from theme, cadence patterns:
 
 - **[`launcher/`](./launcher)** — the workbench front door: the example apps
   as cards floating on a live [`seen`](https://github.com/vibrantgio/seen)
@@ -85,7 +85,7 @@ cd launcher && go run .
   core patterns (including the `WithLatestFrom2` frame-synchronisation model
   and the `rx.Defer` subscription-state pattern), threading rules,
   accessibility, performance methodology, and the phase plan that produced
-  Prism, Spectrum, Pulse, and Cadence.
+  Prism, Theme, Pulse, and Cadence.
 - **[llms.txt](https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt)**
   — a condensed guide for AI coding assistants (Claude, etc.) to write
   applications against the Vibrant Gio packages. It is maintained once, at the

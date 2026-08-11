@@ -5,8 +5,8 @@
 // listing watchlist names (or an empty-state message), and a Main pane showing
 // the selected name.
 //
-// Bootstrap mirrors feeds/main.go: mvu.NewWindow + spectrum/window.New +
-// spectrum/system.LiveTheme. (The plan's "prism/initial" citation is stale —
+// Bootstrap mirrors feeds/main.go: mvu.NewWindow + theme/window.New +
+// theme/system.LiveTheme. (The plan's "prism/initial" citation is stale —
 // logged in FEEDBACK-G5.3.md.) Persistence is read-on-startup only; the
 // platform path is resolved here and passed in, so all file logic is testable
 // against t.TempDir() without touching the real config dir.
@@ -22,8 +22,8 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/mvu"
-	specsystem "github.com/vibrantgio/spectrum/system"
-	specwin "github.com/vibrantgio/spectrum/window"
+	specsystem "github.com/vibrantgio/theme/system"
+	specwin "github.com/vibrantgio/theme/window"
 )
 
 func main() {

@@ -2,19 +2,19 @@
 
 The seven reference applications of the Vibrant Gio design system, each a
 complete product built the way a real one is meant to be built — MVU state,
-spectrum theming, prism components, cadence patterns: `todos` (the smallest
-complete bootstrap, and the place to start), `iconbrowser`, `sitedocs`,
-`feeds`, `watchlist`, `mindchat` and `launcher`. The repository also
-carries the architecture documents — `DESIGN.md` and `BASELINE.md` — that
-no other repository in the organization has.
+live theming from theme, prism components, cadence patterns: `todos` (the
+smallest complete bootstrap, and the place to start), `iconbrowser`,
+`sitedocs`, `feeds`, `watchlist`, `mindchat` and `launcher`. The repository
+also carries the architecture documents — `DESIGN.md` and `BASELINE.md` —
+that no other repository in the organization has.
 
 **Layer.** Outside ADR-001's tier table: applications at the top of the
 stack, which the tier rule exempts and which may import any layer of the
 design system. Its seven applications import, between them, `backdrop`,
 `cadence`, `font`, `ivg`, `ivg/raster/gio`, `markdown`, `mvu`, `noise`,
-`prism`, `pulse`, `seen`, `seen/context/gio`, `spectrum`, `svg`,
-`svg/driver/gio` and `textdraw`. Nothing in the organization imports it.
-Both directions are measured rather than typed — `scripts/check-layers.sh
+`prism`, `pulse`, `seen`, `seen/context/gio`, `svg`, `svg/driver/gio`,
+`textdraw` and `theme`. Nothing in the organization imports it. Both
+directions are measured rather than typed — `scripts/check-layers.sh
 --edges` reports the graph and `scripts/sync-agents.sh` renders these
 sentences from it — so correcting them here changes nothing.
 
@@ -132,7 +132,7 @@ document is a bug to file.
 **Arbiters are created in each application's layer function, and that is the
 composition root that matters.** ADR-008 gave `cadence`'s popover, tooltip and
 modal a plain `Arbiter` passed through `Props`, and the value *is* the scope —
-one set per window. `spectrum/window.Render` calls the build function once per
+one set per window. `theme/window.Render` calls the build function once per
 window, and `feeds`, `watchlist` and `mindchat` each compose every arbitrable
 widget they own inside exactly one layer built there (`feedsShellLayer`,
 `watchlistShellLayer`, `ContentLayer`), so the arbiters are made in those

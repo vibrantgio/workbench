@@ -26,7 +26,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/prism/golden"
-	"github.com/vibrantgio/spectrum/theme"
+	"github.com/vibrantgio/theme/theme"
 )
 
 // Region windows. The sidebar is the leading 192 dp column; Main starts after

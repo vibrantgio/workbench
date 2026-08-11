@@ -21,9 +21,9 @@ import (
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/prism/button"
 	pllayout "github.com/vibrantgio/prism/layout"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
-	"github.com/vibrantgio/spectrum/typeset"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // Static layout dimensions; these do not vary with the colour scheme.
@@ -36,7 +36,7 @@ const (
 	perRow           = 3  // cards per grid row
 )
 
-// buildLayers returns the layer-builder the spectrum window renders, back to
+// buildLayers returns the layer-builder the theme window renders, back to
 // front: the theme background fill, the animated seen triangle field, and the
 // hero + launch-card content floating on top.
 func buildLayers(win *app.Window, modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
@@ -108,7 +108,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	heroObs := hero.Hero(th, hero.Props{
 		Eyebrow:  "VIBRANTGIO",
 		Title:    "Workbench",
-		Subtitle: "Six complete example apps built on mvu, prism, spectrum and cadence — floating on a live seen 3D field.",
+		Subtitle: "Six complete example apps built on mvu, prism, theme and cadence — floating on a live seen 3D field.",
 	})
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		clicks := make([]widget.Clickable, len(Apps))
@@ -249,7 +249,7 @@ func statusLine(tok themed, status Status) layout.Widget {
 
 // label renders a colour-materialised label in one Typography role —
 // typeface, weight, size and line height all come from the theme — capped at
-// maxLines. It draws through spectrum/typeset so the role's LineHeight is the
+// maxLines. It draws through theme/typeset so the role's LineHeight is the
 // height of the line box, which widget.Label alone does not give a capped
 // label.
 func label(shaper *text.Shaper, txt string, style tokens.TextStyle, col color.NRGBA, maxLines int) layout.Widget {

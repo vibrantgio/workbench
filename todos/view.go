@@ -9,11 +9,11 @@ import (
 
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/spectrum/theme"
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
-// buildLayers returns the layer-builder the spectrum window renders: a
+// buildLayers returns the layer-builder the theme window renders: a
 // backdrop layer and a content layer, both reacting to the live theme.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {

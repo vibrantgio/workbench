@@ -10,7 +10,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 
-	"github.com/vibrantgio/spectrum/tokens"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // TestVisibleHistoryShowsWaitingRowUntilTheFirstToken pins the rule that
