@@ -5,8 +5,10 @@ complete product built the way a real one is meant to be built — MVU state,
 live theming from theme, components widgets, patterns: `todos` (the
 smallest complete bootstrap, and the place to start), `iconbrowser`,
 `sitedocs`, `feeds`, `watchlist`, `mindchat` and `launcher`. The repository
-also carries the architecture documents — `DESIGN.md` and `BASELINE.md` —
-that no other repository in the organization has.
+also carries `BASELINE.md`, the measured performance baselines the
+component benchmarks compare against — an application-history document that
+stayed behind when the system's architecture rationale (`DESIGN.md`) moved
+to the `design` repository, whose git history for it lives here.
 
 **Layer.** Outside ADR-001's tier table: applications at the top of the
 stack, which the tier rule exempts and which may import any layer of the
@@ -116,19 +118,20 @@ into it.
 **`PLAN.md` here is a finished plan against a design that has since been
 rewritten.** Phases −1 through 6, every task checked off — `mdplan next
 PLAN.md` prints DONE, which is how to re-check it — and its header names
-`DESIGN.md` as its source of truth. That pointer is stale rather than wrong on
-purpose: the document this plan was written against is `DESIGN-v1.md` now, and
-F2.2 put a second edition in `DESIGN.md`'s place. `FEEDBACK-G6.4.md` is one of
-this plan's outputs, filed against `vibrantgio/markdown`. The organization's
-plan lives in `vibrantgio/.github`; do not execute this one.
+`DESIGN.md` as its source of truth. That document no longer lives in this
+repository: G0E.3 moved the rationale — the second edition F2.2 wrote and
+the archived `DESIGN-v1.md` this plan was actually written against — into
+`vibrantgio/design`, and their pre-move history stays in this repository's
+log. `BASELINE.md` stayed here: it is coinviz's performance capture, an
+application's history rather than the system's rationale. `FEEDBACK-G6.4.md`
+is one of this plan's outputs, filed against `vibrantgio/markdown`. The
+organization's plan lives in `vibrantgio/.github`; do not execute this one.
 
-**`README.md` and `DESIGN.md` have caught up.** They used to be behind the
-code — three example applications described where there were seven, and a
-DESIGN.md that predated ADR-001's layering — and this note used to say so.
-F2.2 rewrote DESIGN.md around the inverted layering and F2.3 rewrote the
-README around all seven applications, so read them as current. Where a
-document and the application source still disagree, the source wins and the
-document is a bug to file.
+**`README.md` has caught up.** It used to describe three example
+applications where there were seven — and this note used to say so. F2.3
+rewrote it around all seven, so read it as current. Where a document and the
+application source still disagree, the source wins and the document is a bug
+to file.
 
 **Arbiters are created in each application's layer function, and that is the
 composition root that matters.** ADR-008 gave `patterns`'s popover, tooltip and

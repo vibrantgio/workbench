@@ -81,11 +81,12 @@ cd launcher && go run .
 
 ## Documentation
 
-- **[DESIGN.md](./DESIGN.md)** — the architecture document: vision, the five
-  core patterns (including the `WithLatestFrom2` frame-synchronisation model
-  and the `rx.Defer` subscription-state pattern), threading rules,
-  accessibility, performance methodology, and the phase plan that produced
-  Components, Theme, Effects, and Patterns.
+- **[DESIGN.md](https://github.com/vibrantgio/design/blob/master/DESIGN.md)**
+  — the design system's architecture and rationale. It lived in this
+  repository until G0E.3 (its pre-move history is in this repo's log) and now
+  sits in [vibrantgio/design](https://github.com/vibrantgio/design) beside
+  the published token bundle, together with its archived first edition
+  `DESIGN-v1.md` — the document this repo's `PLAN.md` was written against.
 - **[llms.txt](https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt)**
   — a condensed guide for AI coding assistants (Claude, etc.) to write
   applications against the Vibrant Gio packages. It is maintained once, at the
