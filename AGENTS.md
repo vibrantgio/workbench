@@ -49,12 +49,12 @@ root module to run it from:
 `sitedocs/` and `watchlist/` — compare rendered output against PNGs
 committed under `testdata/golden/`. They render through
 `github.com/vibrantgio/components/golden`, which declares `-golden.update`
-and is shared with `effects`, `markdown` and `patterns`. Do not inline a
-copy of it, and do not declare a second `-golden.update`: two registrations
-of one flag name in a single test binary panic in `flag.Bool` at init,
-before any test runs. When a change legitimately moves pixels, regenerate
-them within the same change, look at what came out, and say so in the
-commit. From inside the directory concerned:
+and is shared with `design`, `effects`, `markdown` and `patterns`. Do not
+inline a copy of it, and do not declare a second `-golden.update`: two
+registrations of one flag name in a single test binary panic in `flag.Bool`
+at init, before any test runs. When a change legitimately moves pixels,
+regenerate them within the same change, look at what came out, and say so
+in the commit. From inside the directory concerned:
 
     go test . -golden.update
 
