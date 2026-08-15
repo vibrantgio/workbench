@@ -7,8 +7,8 @@ require (
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/components v0.7.0
 	github.com/vibrantgio/markdown v0.1.4
-	github.com/vibrantgio/mvu v0.6.0
-	github.com/vibrantgio/mvu/desktop v0.6.0
+	github.com/vibrantgio/mvu v0.7.0
+	github.com/vibrantgio/mvu/desktop v0.7.0
 	github.com/vibrantgio/patterns v0.6.0
 	github.com/vibrantgio/theme v0.6.0
 	golang.org/x/image v0.44.0
