@@ -14,9 +14,9 @@ to the `design` repository, whose git history for it lives here.
 stack, which the tier rule exempts and which may import any layer of the
 design system. Its seven applications import, between them, `backdrop`,
 `components`, `effects`, `font`, `ivg`, `ivg/raster/gio`, `markdown`,
-`mvu`, `noise`, `patterns`, `seen`, `seen/context/gio`, `svg`,
-`svg/driver/gio`, `textdraw` and `theme`. Nothing in the organization
-imports it. Both directions are measured rather than typed —
+`mvu`, `mvu/desktop`, `noise`, `patterns`, `seen`, `seen/context/gio`,
+`svg`, `svg/driver/gio`, `textdraw` and `theme`. Nothing in the
+organization imports it. Both directions are measured rather than typed —
 `scripts/check-layers.sh --edges` reports the graph and
 `scripts/sync-agents.sh` renders these sentences from it — so correcting
 them here changes nothing.
