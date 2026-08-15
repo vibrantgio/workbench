@@ -19,8 +19,10 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"os"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -40,6 +42,7 @@ import (
 	"github.com/vibrantgio/patterns/shell"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -58,10 +61,35 @@ func main() {
 }
 
 func run() {
-	mvuWin := mvu.NewWindow(
+	// mvu/desktop's full-size-content treatment: on macOS the content
+	// extends behind a transparent title bar with the traffic lights
+	// floating over it; on every other platform FullSizeContent returns no
+	// options and the window keeps its normal decorations. app.Title stays
+	// even though the treatment hides the title text — Mission Control, the
+	// Dock and VoiceOver read it all the same.
+	mvuWin := mvu.NewWindow(append(desktop.FullSizeContent(),
 		app.Title("Site Docs"),
 		app.Size(unit.Dp(windowW), unit.Dp(windowH)),
-	)
+	)...)
+	// Gio re-hides the standard window buttons on every configuration
+	// rebuild, so ShowWindowButtons registers a re-assertion on the mvu
+	// OnConfigure seam. Post-construction options must therefore go through
+	// mvuWin.Option — never mvuWin.Window().Option — or the buttons vanish.
+	desktop.ShowWindowButtons(mvuWin)
+
+	// Seam proof hook: SITEDOCS_RETITLE_MS=<n> retitles the window through
+	// mvuWin.Option n milliseconds after launch. A runtime title change is
+	// the exact sequence that re-hides the traffic lights without the
+	// OnConfigure re-assertion (H1.1/H1.2), so this keeps the invariant
+	// reproducible: run with the variable set and watch the buttons survive.
+	if ms := os.Getenv("SITEDOCS_RETITLE_MS"); ms != "" {
+		if n, err := strconv.Atoi(ms); err == nil && n > 0 {
+			go func() {
+				time.Sleep(time.Duration(n) * time.Millisecond)
+				mvuWin.Option(app.Title("Site Docs — retitled"))
+			}()
+		}
+	}
 
 	w := specwin.New(mvuWin, themeObservable())
 
@@ -142,9 +170,38 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			routedShellLayer(th, modelObs),
+			underTitleBar(routedShellLayer(th, modelObs)),
 		}
 	}
+}
+
+// underTitleBar pads the routed shell down by the native title-bar strip's
+// measured height on a full-size-content window. desktop.TopInset is read at
+// frame time: it reports 0 until the window's first frame, in headless tests,
+// and on every platform but macOS, so away from the treatment (goldens
+// included) the wrapper is an exact no-op. The strip itself is paint-only —
+// what shows through the transparent title bar is the backdrop layer's
+// Surface fill, the same colour the navbar paints, so the header reads as one
+// band extending up behind the traffic lights — and because the whole shell
+// starts below the strip, no interactive control ever sits in it, leading
+// ~80 dp (the window buttons' territory) included.
+func underTitleBar(shellObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
+	return rx.Map(shellObs, func(w layout.Widget) layout.Widget {
+		return func(gtx layout.Context) layout.Dimensions {
+			inset := gtx.Dp(desktop.TopInset())
+			if inset <= 0 {
+				return w(gtx)
+			}
+			size := gtx.Constraints.Max
+			defer op.Offset(image.Pt(0, inset)).Push(gtx.Ops).Pop()
+			gtx.Constraints.Max.Y -= inset
+			if gtx.Constraints.Min.Y > gtx.Constraints.Max.Y {
+				gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
+			}
+			w(gtx)
+			return layout.Dimensions{Size: size}
+		}
+	})
 }
 
 // backdropLayer paints a full-canvas rectangle in the theme Surface colour.

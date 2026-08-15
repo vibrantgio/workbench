@@ -8,6 +8,7 @@ require (
 	github.com/vibrantgio/components v0.7.0
 	github.com/vibrantgio/markdown v0.1.4
 	github.com/vibrantgio/mvu v0.5.0
+	github.com/vibrantgio/mvu/desktop v0.0.0-20260815110214-33ad8d1c9d97
 	github.com/vibrantgio/patterns v0.6.0
 	github.com/vibrantgio/theme v0.6.0
 	golang.org/x/image v0.44.0
