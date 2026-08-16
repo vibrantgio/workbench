@@ -12,7 +12,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/obsidian"
@@ -59,6 +61,11 @@ type Model struct {
 	History []HistEntry
 	Cursor  int
 
+	// Folds is the left tree's disclosure state: vault-relative folder
+	// path → open. A missing entry means closed. The map is replaced,
+	// never mutated, when a fold toggles, so no model aliases another.
+	Folds map[string]bool
+
 	PropsOpen bool        // the properties panel is expanded
 	Toasts    toast.Queue // transient notifications, oldest first
 }
@@ -96,6 +103,9 @@ type OpenVault struct{ Path string }
 
 // ToggleProperties expands or collapses the properties panel.
 type ToggleProperties struct{}
+
+// ToggleFold opens or closes one folder row of the left tree.
+type ToggleFold struct{ Dir string }
 
 // Navigate opens a resolved wikilink target: the note at Path, seated at
 // the heading path or block id when one is carried. It pushes onto the
@@ -200,6 +210,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.CurAnchor = -1
 		model.History = nil
 		model.Cursor = 0
+		model.Folds = nil
 		model.PropsOpen = true
 		return model, openVaultCmd(m.Path)
 	case vaultScanned:
@@ -216,6 +227,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			model.NavSeq++
 			model.History = []HistEntry{{Path: m.note.Path, Anchor: -1}}
 			model.Cursor = 0
+			model = revealCurrent(model)
 		}
 	case Navigate:
 		if note := model.Notes[m.Path]; note != nil {
@@ -236,15 +248,24 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			model.Cursor--
 			model.Current = model.History[model.Cursor].Path
 			model.CurAnchor = -1 // the cached document keeps its scroll
+			model = revealCurrent(model)
 		}
 	case GoForward:
 		if model.Cursor+1 < len(model.History) {
 			model.Cursor++
 			model.Current = model.History[model.Cursor].Path
 			model.CurAnchor = -1 // the cached document keeps its scroll
+			model = revealCurrent(model)
 		}
 	case ToggleProperties:
 		model.PropsOpen = !model.PropsOpen
+	case ToggleFold:
+		folds := make(map[string]bool, len(model.Folds)+1)
+		for k, v := range model.Folds {
+			folds[k] = v
+		}
+		folds[m.Dir] = !folds[m.Dir]
+		model.Folds = folds
 	case toast.Requested:
 		return raiseToast(model, m)
 	case toast.Expired:
@@ -293,6 +314,35 @@ func landOn(model Model, nav Navigate, note *Note) Model {
 	hist = append(hist, keep...)
 	model.History = append(hist, HistEntry{Path: note.Path, Anchor: anchor})
 	model.Cursor = len(model.History) - 1
+	return revealCurrent(model)
+}
+
+// revealCurrent opens every folder on the current note's path, so the
+// tree row marking it is visible however the landing happened — link,
+// history or tree click. The fold map is replaced, not mutated, so no
+// model aliases another's disclosure state.
+func revealCurrent(model Model) Model {
+	if model.Current == "" {
+		return model
+	}
+	dir := path.Dir(model.Current)
+	if dir == "." {
+		return model
+	}
+	folds := make(map[string]bool, len(model.Folds)+2)
+	for k, v := range model.Folds {
+		folds[k] = v
+	}
+	cum := ""
+	for _, seg := range strings.Split(dir, "/") {
+		if cum == "" {
+			cum = seg
+		} else {
+			cum += "/" + seg
+		}
+		folds[cum] = true
+	}
+	model.Folds = folds
 	return model
 }
 

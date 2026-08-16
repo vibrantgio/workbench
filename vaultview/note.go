@@ -1,5 +1,6 @@
-// note.go is the vault screen: a patterns/shell ThreeColumn (nil sidebar
-// and aside for now) whose main slot renders the current note — a header
+// note.go is the vault screen: a patterns/shell ThreeColumn (the folder
+// tree in the sidebar slot, nil aside for now) whose main slot renders
+// the current note — a header
 // row with back/forward and the breadcrumb, a collapsible properties
 // panel fed by the frontmatter split, and the parsed body as a markdown
 // Document. Wikilink clicks resolve against the index and navigate; web
@@ -79,10 +80,10 @@ func isDarkColor(c color.NRGBA) bool {
 	return luma < 128
 }
 
-// vaultLayer composes the vault screen: the ThreeColumn shell with a nil
-// sidebar and aside, and the note in the main slot. The main slot reads
-// the model and token snapshots at frame time; repaints on model change
-// are driven by the routed layer's re-emission.
+// vaultLayer composes the vault screen: the ThreeColumn shell with the
+// folder tree in the sidebar slot, a nil aside, and the note in the main
+// slot. The main slot reads the model and token snapshots at frame time;
+// repaints on model change are driven by the routed layer's re-emission.
 func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
 	// Documents are cached per note path and reused on every frame, so
 	// each note's scroll position and richtext interaction state survive
@@ -118,9 +119,10 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, docFor)
 	}
 	return shell.Shell(th, shell.Props{
-		Layout: shell.ThreeColumn,
-		Navbar: vaultNavbar(loadTok),
-		Main:   mainSlot,
+		Layout:  shell.ThreeColumn,
+		Navbar:  vaultNavbar(loadTok),
+		Sidebar: treeSidebar(loadModel, loadTok),
+		Main:    mainSlot,
 	})
 }
 
