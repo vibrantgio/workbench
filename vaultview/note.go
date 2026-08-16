@@ -48,8 +48,8 @@ const (
 	noteGapDp    = 16
 	propRowGapDp = 6
 	propPadDp    = 12
-	propKeyColDp = 160
-	propRadiusDp = 8
+	propKeyGapDp = 16
+	propRadiusDp = 12
 )
 
 // Chroma styles for the two appearance modes; built once, shared.
@@ -199,6 +199,12 @@ func layoutNotePage(
 	docFor func(Model, *Note) *markdown.Document,
 ) layout.Dimensions {
 	note := m.CurrentNote()
+	// The reading column lies on its own paper: the pinned app background,
+	// one neutral step lighter than the Surface the window chrome — header
+	// band, tree rail, aside — sits on. The panel and code fills below tint
+	// down the neutral ramp from this paper, so the note reads as a
+	// document resting on darker furniture rather than more chrome.
+	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	inset := complayout.Inset(noteInsetDp)
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		crumbs := noteCrumbs(m)
@@ -225,11 +231,11 @@ func layoutNotePage(
 		header := func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return navButton(gtx, tok, backClick, "←", "Back", m.Cursor > 0, GoBack{})
+					return navButton(gtx, tok, backClick, "‹", "Back", m.Cursor > 0, GoBack{})
 				}),
 				layout.Rigid(complayout.HSpacer(8)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return navButton(gtx, tok, fwdClick, "→", "Forward", m.Cursor+1 < len(m.History), GoForward{})
+					return navButton(gtx, tok, fwdClick, "›", "Forward", m.Cursor+1 < len(m.History), GoForward{})
 				}),
 				layout.Rigid(complayout.HSpacer(noteGapDp)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -400,9 +406,12 @@ func layoutProperties(
 	if click.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleProperties{}}.Add(gtx.Ops)
 	}
-	chev := "▸"
+	// Disclosure marks drawn from the shipped face: Roboto owns + and −,
+	// where the triangle glyphs resolve only through system fallback and
+	// have rendered as missing-glyph boxes at runtime.
+	chev := "+"
 	if open {
-		chev = "▾"
+		chev = "−"
 	}
 	header := func(gtx layout.Context) layout.Dimensions {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -432,8 +441,10 @@ func layoutProperties(
 }
 
 // propertiesBody is the expanded panel: pairs when the trivial split read
-// them, the raw block in code style otherwise. Both sit on a tinted fill
-// so the panel reads as one surface above the prose.
+// them, the raw block in code style otherwise. Both sit on a rounded
+// tinted fill two neutral steps below the paper the note lies on — the
+// same tint the document's code fences take — so the panel reads as an
+// inset region of the page rather than a stray grey.
 func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter) layout.Dimensions {
 	fill := tok.col.Ramps.Neutral.Step(300)
 	radius := gtx.Dp(unit.Dp(propRadiusDp))
@@ -446,7 +457,25 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 				}
 				return drawText(gtx, tok.shaper, raw, tok.typ.Code, tok.col.Ramps.Neutral.Step(700))
 			}
-			keyW := gtx.Dp(unit.Dp(propKeyColDp))
+			// The key column is as wide as the longest key plus a fixed
+			// gap: each key is measured into a discarded recording, and
+			// the widest ink wins, capped at half the panel so a runaway
+			// key cannot squeeze the values out.
+			keyW := 0
+			mg := gtx
+			mg.Constraints.Min = image.Point{}
+			for _, f := range fm.Fields {
+				macro := op.Record(mg.Ops)
+				d := drawLabel(mg, tok.shaper, f.Key, tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
+				macro.Stop()
+				if d.Size.X > keyW {
+					keyW = d.Size.X
+				}
+			}
+			if maxW := gtx.Constraints.Max.X / 2; keyW > maxW {
+				keyW = maxW
+			}
+			keyGap := gtx.Dp(unit.Dp(propKeyGapDp))
 			var rows []layout.FlexChild
 			for i, f := range fm.Fields {
 				f := f
@@ -461,11 +490,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 								g.Constraints.Max.X = keyW
 							}
 							dims := drawLabel(g, tok.shaper, f.Key, tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
-							w := dims.Size.X
-							if w < keyW && keyW <= gtx.Constraints.Max.X {
-								w = keyW
-							}
-							return layout.Dimensions{Size: image.Pt(w, dims.Size.Y), Baseline: dims.Baseline}
+							return layout.Dimensions{Size: image.Pt(keyW+keyGap, dims.Size.Y), Baseline: dims.Baseline}
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return drawText(gtx, tok.shaper, fieldValue(f), tok.typ.BodyMedium, tok.col.Text)

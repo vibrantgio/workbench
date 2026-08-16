@@ -23,6 +23,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"path"
 	"sort"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
+	"gioui.org/unit"
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
@@ -46,13 +48,18 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// Tree layout constants.
+// Tree layout constants. treeRowInsetDp is the rail's one horizontal
+// inset system: the find field and the row fills share it, so the
+// selection pill's edges line up with the field's own.
 const (
-	treeWidthDp    = 240 // the rail's own width, whatever the slot offers
-	treeRowInsetDp = 8   // leading inset of a depth-0 row
-	treeIndentDp   = 14  // additional inset per depth level
-	treeChevronDp  = 16  // fixed chevron column, so names align per level
-	treeFieldPadDp = 8   // breathing room around the find field
+	treeWidthDp      = 240 // the rail's own width, whatever the slot offers
+	treeRowInsetDp   = 8   // shared horizontal inset: field and row fills
+	treeRowPadDp     = 8   // breathing room between a fill's edge and its ink
+	treeIndentDp     = 14  // additional inset per depth level
+	treeChevronDp    = 16  // fixed disclosure column, so names align per level
+	treeFieldPadDp   = 8   // breathing room around the find field
+	treePillRadiusDp = 8   // corner radius of the selection/active fill
+	treePillVPadDp   = 2   // vertical gap between adjacent row fills
 )
 
 // TreeRow is one visible row of the folder tree.
@@ -298,23 +305,42 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
 				active := !row.IsDir && row.Path == m.Current
+				// The fill is a rounded pill inset to the rail's shared
+				// horizontal inset — the same edges the find field sits
+				// on — never a full-bleed bar. Keyboard selection and the
+				// active note keep their distinct colours.
+				var fill color.NRGBA
 				switch {
 				case active:
-					paint.FillShape(gtx.Ops, tok.col.Ramps.Primary.Step(300), clip.Rect{Max: size}.Op())
+					fill = tok.col.Ramps.Primary.Step(300)
 				case selected:
-					paint.FillShape(gtx.Ops, tok.col.Ramps.Neutral.Step(300), clip.Rect{Max: size}.Op())
+					fill = tok.col.Ramps.Neutral.Step(300)
+				}
+				if fill.A > 0 {
+					ins := gtx.Dp(unit.Dp(treeRowInsetDp))
+					vp := gtx.Dp(unit.Dp(treePillVPadDp))
+					r := gtx.Dp(unit.Dp(treePillRadiusDp))
+					pill := clip.RRect{
+						Rect: image.Rect(ins, vp, size.X-ins, size.Y-vp),
+						NE:   r, NW: r, SE: r, SW: r,
+					}
+					paint.FillShape(gtx.Ops, fill, pill.Op(gtx.Ops))
 				}
 				semantic.LabelOp(row.Name).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
+				// Disclosure marks drawn from the shipped face: Roboto
+				// owns + and −, where the triangle glyphs resolve only
+				// through system fallback and have rendered as
+				// missing-glyph boxes at runtime.
 				chevron := ""
 				if row.IsDir {
-					chevron = "▸"
+					chevron = "+"
 					if row.Open {
-						chevron = "▾"
+						chevron = "−"
 					}
 				}
 				layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(complayout.HSpacer(treeRowInsetDp+float32(row.Depth)*treeIndentDp)),
+					layout.Rigid(complayout.HSpacer(treeRowInsetDp+treeRowPadDp+float32(row.Depth)*treeIndentDp)),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						dims := drawLabel(gtx, tok.shaper, chevron, tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(700))
 						w := gtx.Dp(treeChevronDp)
@@ -335,7 +361,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 						}
 						return drawLabel(gtx, tok.shaper, row.Detail, tok.typ.BodySmall, tok.col.Ramps.Neutral.Step(700))
 					}),
-					layout.Rigid(complayout.HSpacer(treeRowInsetDp)),
+					layout.Rigid(complayout.HSpacer(treeRowInsetDp+treeRowPadDp)),
 				)
 				return layout.Dimensions{Size: size}
 			})

@@ -137,6 +137,7 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
 			underTitleBar(routedLayer(th, modelObs, &modelCell, loadModel, loadTok)),
+			underTitleBar(headerHairline(loadModel, loadTok)),
 			underTitleBar(chooserLayer(th, modelObs, loadModel, loadTok)),
 			underTitleBar(toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})),
 		}
@@ -186,6 +187,30 @@ func underTitleBar(content rx.Observable[layout.Widget]) rx.Observable[layout.Wi
 			w(gtx)
 			return layout.Dimensions{Size: size}
 		}
+	})
+}
+
+// headerHairline draws the one structural rule the window chrome owns: a
+// hairline in the Divider colour across the full width, seated under the
+// header band, separating the chrome from the columns below. The band's
+// height mirrors the shell's density-derived navbar slot (ControlHeight
+// plus vertical control padding twice). The picker screen has no header
+// band, so the line draws on the vault screen only.
+func headerHairline(loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
+	return rx.Of[layout.Widget](func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		if loadModel().Screen != screenVault {
+			return layout.Dimensions{Size: size}
+		}
+		tok := loadTok()
+		y := gtx.Dp(unit.Dp(tok.den.ControlHeight + 2*tok.den.PaddingY))
+		h := gtx.Dp(1)
+		if h < 1 {
+			h = 1
+		}
+		line := image.Rect(0, y, size.X, y+h)
+		paint.FillShape(gtx.Ops, tok.col.Divider, clip.Rect(line).Op())
+		return layout.Dimensions{Size: size}
 	})
 }
 

@@ -110,11 +110,9 @@ var themeCases = []struct {
 // faces the host carries. The theme's own Shaper() is the application
 // default and resolves system fallbacks; a golden must never take it.
 //
-// One consequence is visible in the stored images: the arrow and chevron
-// glyphs the header and the tree draw with are not in Roboto, so they
-// record as fallback boxes here. At runtime the application shaper
-// resolves them from the system faces. Only their positions are pinned
-// by these goldens, not their shapes.
+// Every UI glyph the app draws — history ‹ ›, disclosure + − — is owned
+// by Roboto itself, so the goldens record the same real glyphs the
+// runtime shows and no missing-glyph box can appear in either.
 func TestNotePageGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
