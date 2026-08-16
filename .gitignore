@@ -16,6 +16,7 @@
 !/mindchat/**
 !/sitedocs/**
 !/todos/**
+!/vaultview/**
 !/watchlist/**
 
 # ...except their compiled binaries.
@@ -25,4 +26,5 @@
 /mindchat/mindchat
 /sitedocs/sitedocs
 /todos/todos
+/vaultview/vaultview
 /watchlist/watchlist
