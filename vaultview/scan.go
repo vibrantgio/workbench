@@ -42,15 +42,22 @@ type Index struct {
 // failing the scan; only an unreadable root is an error.
 func ScanVault(root string) (*Index, error) {
 	idx := &Index{Root: root}
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+	// A vault given as a symlink walks as its target — WalkDir would
+	// otherwise see the root as a non-directory and find nothing. The
+	// index keeps the path as given; the notes resolve through the link.
+	walkRoot := root
+	if r, err := filepath.EvalSymlinks(root); err == nil {
+		walkRoot = r
+	}
+	err := filepath.WalkDir(walkRoot, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			if path == root {
+			if path == walkRoot {
 				return walkErr
 			}
 			return nil
 		}
 		if d.IsDir() {
-			if path != root && strings.HasPrefix(d.Name(), ".") {
+			if path != walkRoot && strings.HasPrefix(d.Name(), ".") {
 				return filepath.SkipDir
 			}
 			return nil
@@ -62,7 +69,7 @@ func ScanVault(root string) (*Index, error) {
 		if err != nil {
 			return nil
 		}
-		rel, err := filepath.Rel(root, path)
+		rel, err := filepath.Rel(walkRoot, path)
 		if err != nil {
 			return nil
 		}

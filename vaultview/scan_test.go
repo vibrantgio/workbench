@@ -167,3 +167,75 @@ func TestListDir(t *testing.T) {
 		}
 	}
 }
+
+func TestScanVaultFollowsSymlinkRoot(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "real-vault")
+	if err := os.MkdirAll(filepath.Join(real, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for rel, content := range map[string]string{
+		"a.md":     "# A\n[[b]]\n",
+		"sub/b.md": "# B\n",
+	} {
+		if err := os.WriteFile(filepath.Join(real, filepath.FromSlash(rel)), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	link := filepath.Join(base, "linked-vault")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	idx, err := ScanVault(link)
+	if err != nil {
+		t.Fatalf("ScanVault through symlink: %v", err)
+	}
+	if idx.Root != link {
+		t.Errorf("Index.Root = %q, want the path as given %q", idx.Root, link)
+	}
+	var paths []string
+	for _, f := range idx.Files {
+		paths = append(paths, f.Path)
+	}
+	want := []string{"a.md", "sub/b.md"}
+	if !reflect.DeepEqual(paths, want) {
+		t.Errorf("scanned files = %v, want %v", paths, want)
+	}
+	// The paths must resolve when joined onto the symlinked root.
+	for _, p := range want {
+		if _, err := os.Stat(filepath.Join(link, filepath.FromSlash(p))); err != nil {
+			t.Errorf("note %s does not resolve through the link: %v", p, err)
+		}
+	}
+}
+
+func TestListDirShowsSymlinkedFolders(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "elsewhere", "real-vault")
+	if err := os.MkdirAll(filepath.Join(real, ".obsidian"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(real, "note.md"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(base, "browse")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, filepath.Join(root, "Diarizer")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "loose.txt"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := ListDir(root)
+	if len(got) != 2 {
+		t.Fatalf("ListDir returned %d rows, want 2 (parent, Diarizer): %v", len(got), got)
+	}
+	row := got[1]
+	if row.Name != "Diarizer" || !row.IsVault {
+		t.Errorf("symlinked vault row = %+v, want the .obsidian marker under its link name", row)
+	}
+}

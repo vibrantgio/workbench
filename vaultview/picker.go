@@ -55,10 +55,13 @@ func ListDir(dir string) []DirEntry {
 	}
 	if ents, err := os.ReadDir(dir); err == nil {
 		for _, e := range ents {
-			if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			if strings.HasPrefix(e.Name(), ".") {
 				continue
 			}
 			p := filepath.Join(dir, e.Name())
+			if !e.IsDir() && !symlinkToDir(e, p) {
+				continue
+			}
 			d := DirEntry{Name: e.Name(), Path: p}
 			d.IsVault, d.MDCount = vaultMarks(p)
 			out = append(out, d)
@@ -68,6 +71,16 @@ func ListDir(dir string) []DirEntry {
 		out[i].Idx = i
 	}
 	return out
+}
+
+// symlinkToDir reports whether a listing entry is a symlink whose
+// target is a directory — a linked vault browses like the real one.
+func symlinkToDir(e os.DirEntry, path string) bool {
+	if e.Type()&os.ModeSymlink == 0 {
+		return false
+	}
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
 }
 
 // vaultMarks probes a directory for the row annotations: whether it
