@@ -6,6 +6,10 @@
 // folder-browser picker asks. Every successful open writes the vault
 // back to the store, so the next argument-less launch opens the same
 // vault without asking.
+//
+// Freshness without a file watcher: a landing re-stats the note it is
+// opening and reads it again when the file moved on, while Rescan
+// re-walks the vault for the changes one file cannot show.
 
 package main
 
@@ -15,6 +19,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/obsidian"
@@ -66,6 +71,12 @@ type Model struct {
 	// never mutated, when a fold toggles, so no model aliases another.
 	Folds map[string]bool
 
+	// Filter is the note-name filter typed above the tree. While it is
+	// non-empty the tree shows the matching notes as a flat list instead
+	// of the folder hierarchy — a filter over the scanned names, nothing
+	// more: it reads no file and searches no prose.
+	Filter string
+
 	PropsOpen bool        // the properties panel is expanded
 	Toasts    toast.Queue // transient notifications, oldest first
 
@@ -95,12 +106,18 @@ func (m Model) CurrentNote() *Note {
 // Note is one loaded note: its frontmatter split off, its body parsed,
 // wikilinks lifted into hyperlink spans, and block-id anchors stripped
 // into an id → top-level block index map.
+//
+// Mod and Size record what the file looked like when it was read, so a
+// later navigation can tell a cached note that is still current from one
+// the vault's owner has edited since.
 type Note struct {
 	Path    string // vault-relative, forward slashes
 	Title   string // file name without the .md extension
 	FM      obsidian.FrontMatter
 	Blocks  []markdown.Block
 	Anchors map[string]int // block id → top-level block index
+	Mod     time.Time      // modification time at read
+	Size    int64          // byte size at read
 }
 
 // BrowseTo points the folder browser at a directory.
@@ -159,6 +176,15 @@ type RevealFolder struct{ Dir string }
 // RootTree collapses every fold, returning the tree to its root state.
 type RootTree struct{}
 
+// SetFilter carries the note-name filter typed above the tree, one
+// message per keystroke.
+type SetFilter struct{ Text string }
+
+// Rescan re-walks the vault. Navigation already re-reads a note whose
+// file changed, so this is for the changes a single file cannot show:
+// notes added, renamed or removed while the app was open.
+type Rescan struct{}
+
 // pickerListed delivers the folder browser's rows for a directory.
 type pickerListed struct {
 	dir     string
@@ -168,6 +194,17 @@ type pickerListed struct {
 // vaultScanned delivers the scan command's result: the index and the
 // first note found, or the error that stopped either.
 type vaultScanned struct {
+	vault string
+	index *Index
+	note  *Note
+	err   string
+}
+
+// vaultRescanned delivers a rescan's result: the fresh index and a fresh
+// read of the note on screen, or the error that stopped either. Unlike
+// vaultScanned it disturbs nothing else — the history, the folds and the
+// note being read stay exactly where they were.
+type vaultRescanned struct {
 	vault string
 	index *Index
 	note  *Note
@@ -267,7 +304,10 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			model = revealCurrent(model)
 		}
 	case Navigate:
-		if note := model.Notes[m.Path]; note != nil {
+		// Landing re-stats the target: a note edited outside the app since
+		// it was cached is read again, everything else is served from the
+		// cache with its scroll position and link state intact.
+		if note := model.Notes[m.Path]; note != nil && unchangedOnDisk(model.Vault, note) {
 			return landOn(model, m, note), mvu.DoNothing()
 		}
 		return model, loadNoteCmd(model.Vault, m)
@@ -314,6 +354,41 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.PickerDir = dir
 		model.PickerEntries = nil
 		return model, listDirCmd(dir)
+	case Rescan:
+		if model.Vault == "" || model.Scanning {
+			break
+		}
+		model.Scanning = true
+		return model, rescanCmd(model.Vault, model.Current)
+	case vaultRescanned:
+		if m.vault != model.Vault {
+			break // a rescan of a vault no longer open
+		}
+		model.Scanning = false
+		if m.err != "" {
+			return raiseToast(model, toast.Request(toast.Warning, m.err))
+		}
+		model.Index = m.index
+		model.ScanErr = ""
+		if m.note != nil {
+			// A note the rescan found unchanged keeps its cached value, so
+			// the reader's scroll position survives a rescan that had
+			// nothing to say about the note on screen.
+			if cur := model.Notes[m.note.Path]; cur == nil || cur.Size != m.note.Size || !cur.Mod.Equal(m.note.Mod) {
+				model = cacheNote(model, m.note)
+			}
+			if model.Current == "" {
+				model.Current = m.note.Path
+				model.CurAnchor = -1
+				model.NavSeq++
+				model.History = []HistEntry{{Path: m.note.Path, Anchor: -1}}
+				model.Cursor = 0
+				model = revealCurrent(model)
+			}
+		}
+		return raiseToast(model, toast.Request(toast.Info, rescanSummary(m.index)))
+	case SetFilter:
+		model.Filter = m.Text
 	case RevealFolder:
 		model.Folds = openFolds(model.Folds, m.Dir)
 	case RootTree:
@@ -429,6 +504,60 @@ func loadNoteCmd(vault string, nav Navigate) mvu.Command {
 	})
 }
 
+// rescanCmd re-walks the vault off the render goroutine and re-reads the
+// note on screen (or the first note found, when none is), so a rescan
+// picks up an edit to the open note as well as the vault's new shape.
+func rescanCmd(vault, current string) mvu.Command {
+	return mvu.Do(func() (mvu.Message, error) {
+		idx, err := ScanVault(vault)
+		if err != nil {
+			return vaultRescanned{vault: vault, err: err.Error()}, nil
+		}
+		rel := current
+		if rel == "" && len(idx.Files) > 0 {
+			rel = idx.Files[0].Path
+		}
+		if rel == "" {
+			return vaultRescanned{vault: vault, index: idx}, nil
+		}
+		n, err := LoadNote(vault, rel)
+		if err != nil {
+			// The index is good even when the note has gone; keep it and
+			// let the refusal speak for the note alone.
+			return vaultRescanned{vault: vault, index: idx}, nil
+		}
+		return vaultRescanned{vault: vault, index: idx, note: n}, nil
+	})
+}
+
+// rescanSummary is the line a finished rescan reports, since a rescan
+// that changed nothing must still say it happened.
+func rescanSummary(idx *Index) string {
+	n := 0
+	if idx != nil {
+		n = len(idx.Files)
+	}
+	if n == 1 {
+		return "Rescanned: 1 note"
+	}
+	return fmt.Sprintf("Rescanned: %d notes", n)
+}
+
+// unchangedOnDisk reports whether a cached note still matches the file it
+// was read from. A file that cannot be stat'ed — a vault on a detached
+// volume, a note deleted since — counts as unchanged: a read-only viewer
+// showing what it last read beats one blanking the page.
+func unchangedOnDisk(vault string, n *Note) bool {
+	if vault == "" || n == nil {
+		return true
+	}
+	fi, err := os.Stat(filepath.Join(vault, filepath.FromSlash(n.Path)))
+	if err != nil {
+		return true
+	}
+	return fi.Size() == n.Size && fi.ModTime().Equal(n.Mod)
+}
+
 // listDirCmd lists a directory for the folder browser off the render
 // goroutine.
 func listDirCmd(dir string) mvu.Command {
@@ -466,9 +595,18 @@ func openVaultCmd(path string) mvu.Command {
 // wikilink occurrence lifted into its own hyperlink span, and block-id
 // tails stripped into the anchors map the viewport seats on.
 func LoadNote(root, rel string) (*Note, error) {
-	src, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	full := filepath.Join(root, filepath.FromSlash(rel))
+	src, err := os.ReadFile(full)
 	if err != nil {
 		return nil, err
+	}
+	// Stat after the read, so the recorded stamp can never claim a note is
+	// current when the read raced an edit: a write between the two makes
+	// the note look stale and it is read again on the next landing.
+	var mod time.Time
+	var size int64
+	if fi, serr := os.Stat(full); serr == nil {
+		mod, size = fi.ModTime(), fi.Size()
 	}
 	fm, body := obsidian.SplitFrontMatter(src)
 	blocks, anchors := obsidian.BlockAnchors(obsidian.WikiSpans(markdown.Parse(body)))
@@ -480,5 +618,7 @@ func LoadNote(root, rel string) (*Note, error) {
 		FM:      fm,
 		Blocks:  blocks,
 		Anchors: anchors,
+		Mod:     mod,
+		Size:    size,
 	}, nil
 }

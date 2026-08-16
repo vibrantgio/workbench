@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/patterns/toast"
@@ -328,6 +329,239 @@ func TestSwitchVaultReRootsAndFollowsTheStore(t *testing.T) {
 	want := []string{"0 dir-open sub", "1 note sub/n.md"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("tree rows = %v, want %v — the tree did not re-root on the new vault", got, want)
+	}
+}
+
+// writeNote writes one note into a vault directory, creating folders as
+// needed, and returns its absolute path.
+func writeNote(t *testing.T, root, rel, src string) string {
+	t.Helper()
+	full := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return full
+}
+
+// firstParagraph is the text of a note's first paragraph, the cheapest
+// way to tell one revision of a file from another.
+func firstParagraph(n *Note) string {
+	for _, b := range n.Blocks {
+		if p, ok := b.(*markdown.Paragraph); ok {
+			return spanText(p.Spans)
+		}
+	}
+	return ""
+}
+
+// TestNavigateServesUnchangedNoteFromCache: a note whose file has not
+// moved lands straight from the cache — the same Note value, so the
+// document behind it keeps its scroll position and link state.
+func TestNavigateServesUnchangedNoteFromCache(t *testing.T) {
+	root := t.TempDir()
+	writeNote(t, root, "x.md", "# X\n\nSee [[f]].\n")
+	writeNote(t, root, "f.md", "# F\n\nfirst revision\n")
+	x, err := LoadNote(root, "x.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := LoadNote(root, "f.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	model := Model{Screen: screenVault, Vault: root, CurAnchor: -1}
+	model = cacheNote(model, x)
+	model.Current = "x.md"
+	model.History = []HistEntry{{Path: "x.md", Anchor: -1}}
+	model = cacheNote(model, f)
+
+	model, _ = Update(model, Navigate{Path: "f.md"})
+	if model.Current != "f.md" {
+		t.Fatalf("Current = %q, want the cached note to land on the same frame", model.Current)
+	}
+	if model.Notes["f.md"] != f {
+		t.Error("an unchanged note was re-read; the cache must serve it")
+	}
+}
+
+// TestNavigateRereadsChangedNote is the freshness walk: a note edited on
+// disk after it was cached is not served from the cache — the landing
+// waits for a fresh read, and the reload replaces the cached value so the
+// viewport is rebuilt from the new blocks.
+func TestNavigateRereadsChangedNote(t *testing.T) {
+	root := t.TempDir()
+	writeNote(t, root, "x.md", "# X\n\nSee [[f]].\n")
+	full := writeNote(t, root, "f.md", "# F\n\nfirst revision\n")
+	x, err := LoadNote(root, "x.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := LoadNote(root, "f.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	model := Model{Screen: screenVault, Vault: root, CurAnchor: -1}
+	model = cacheNote(model, x)
+	model.Current = "x.md"
+	model.History = []HistEntry{{Path: "x.md", Anchor: -1}}
+	model = cacheNote(model, f)
+
+	// The vault's owner edits the note in another application.
+	writeNote(t, root, "f.md", "# F\n\nsecond revision, written elsewhere\n")
+	later := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(full, later, later); err != nil {
+		t.Fatal(err)
+	}
+
+	next, cmd := Update(model, Navigate{Path: "f.md"})
+	if next.Current != "x.md" {
+		t.Fatalf("Current = %q; a changed note must not land before it is read again", next.Current)
+	}
+	msg, err := cmd.First()
+	if err != nil {
+		t.Fatalf("load command: %v", err)
+	}
+	loaded, ok := msg.(noteLoaded)
+	if !ok {
+		t.Fatalf("load command returned %T, want noteLoaded", msg)
+	}
+	if got := firstParagraph(loaded.note); got != "second revision, written elsewhere" {
+		t.Errorf("re-read note reads %q, want the edited text", got)
+	}
+
+	next, _ = Update(next, loaded)
+	if next.Current != "f.md" {
+		t.Fatalf("after the re-read: Current = %q, want f.md", next.Current)
+	}
+	if next.Notes["f.md"] == f {
+		t.Error("the cache still holds the stale note; the viewport would render the old text")
+	}
+}
+
+// TestRescanRefreshesIndexKeepingPlace is the Rescan walk: the message
+// puts a scan in flight, the result replaces the index and re-reads the
+// note on screen, and nothing about where the reader was changes — the
+// current note, its history and the tree's disclosure all survive.
+func TestRescanRefreshesIndexKeepingPlace(t *testing.T) {
+	root := t.TempDir()
+	writeNote(t, root, "x.md", "# X\n\nfirst revision\n")
+	idx, err := ScanVault(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	x, err := LoadNote(root, "x.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := Model{Screen: screenVault, Vault: root, Index: idx, CurAnchor: -1}
+	model = cacheNote(model, x)
+	model.Current = "x.md"
+	model.History = []HistEntry{{Path: "x.md", Anchor: -1}}
+
+	// The vault grows a note and the open one is edited, both outside the
+	// app — the structural change is what only a rescan can see.
+	writeNote(t, root, "notes/new.md", "# New\n")
+	writeNote(t, root, "x.md", "# X\n\nsecond revision\n")
+
+	model, cmd := Update(model, Rescan{})
+	if !model.Scanning {
+		t.Error("Rescan did not put a scan in flight")
+	}
+	msg, err := cmd.First()
+	if err != nil {
+		t.Fatalf("rescan command: %v", err)
+	}
+	rescanned, ok := msg.(vaultRescanned)
+	if !ok {
+		t.Fatalf("rescan command returned %T, want vaultRescanned", msg)
+	}
+
+	model, _ = Update(model, rescanned)
+	if model.Scanning {
+		t.Error("the rescan result did not clear the in-flight flag")
+	}
+	if len(model.Index.Files) != 2 {
+		t.Errorf("index carries %d files, want the added note included", len(model.Index.Files))
+	}
+	if model.Current != "x.md" || len(model.History) != 1 || model.Cursor != 0 {
+		t.Errorf("rescan moved the reader: current %q history %v cursor %d", model.Current, model.History, model.Cursor)
+	}
+	if got := firstParagraph(model.CurrentNote()); got != "second revision" {
+		t.Errorf("the note on screen reads %q, want the rescan's fresh read", got)
+	}
+	if model.Toasts.Len() != 1 {
+		t.Errorf("toast queue length %d, want the rescan to report itself", model.Toasts.Len())
+	}
+
+	// A second rescan with nothing changed keeps the cached note, so the
+	// reader's scroll position is not thrown away for no reason.
+	held := model.CurrentNote()
+	model, cmd = Update(model, Rescan{})
+	msg, err = cmd.First()
+	if err != nil {
+		t.Fatalf("second rescan command: %v", err)
+	}
+	model, _ = Update(model, msg)
+	if model.CurrentNote() != held {
+		t.Error("a rescan that found no change replaced the note on screen")
+	}
+
+	// A rescan of a vault no longer open is ignored.
+	stale := vaultRescanned{vault: filepath.Join(root, "elsewhere"), index: &Index{}}
+	if after, _ := Update(model, stale); after.Index != model.Index {
+		t.Error("a rescan result for another vault replaced the index")
+	}
+	// With no vault open there is nothing to rescan.
+	if after, _ := Update(Model{}, Rescan{}); after.Scanning {
+		t.Error("Rescan without a vault put a scan in flight")
+	}
+}
+
+// TestRescanSummaryCounts pins the line a finished rescan reports, the
+// only feedback a rescan that changed nothing can give.
+func TestRescanSummaryCounts(t *testing.T) {
+	cases := []struct {
+		idx  *Index
+		want string
+	}{
+		{nil, "Rescanned: 0 notes"},
+		{&Index{}, "Rescanned: 0 notes"},
+		{treeIndex("a.md"), "Rescanned: 1 note"},
+		{treeIndex("a.md", "b.md"), "Rescanned: 2 notes"},
+	}
+	for _, tc := range cases {
+		if got := rescanSummary(tc.idx); got != tc.want {
+			t.Errorf("rescanSummary = %q, want %q", got, tc.want)
+		}
+	}
+}
+
+// TestSetFilterCarriesTheQuery: each keystroke above the tree reaches the
+// model, and the model is all the filter is — no scan, no reload.
+func TestSetFilterCarriesTheQuery(t *testing.T) {
+	model := scannedModel(t)
+	model.Index = treeIndex("a.md")
+	before := model.Index
+
+	model, cmd := Update(model, SetFilter{Text: "des"})
+	if model.Filter != "des" {
+		t.Errorf("Filter = %q, want the typed text", model.Filter)
+	}
+	if model.Index != before {
+		t.Error("filtering re-scanned the vault; it must be a filter over the index")
+	}
+	if cmd.Observable == nil {
+		t.Error("SetFilter returned no command at all")
+	}
+
+	model, _ = Update(model, SetFilter{Text: ""})
+	if model.Filter != "" {
+		t.Errorf("Filter = %q, want the cleared query", model.Filter)
 	}
 }
 

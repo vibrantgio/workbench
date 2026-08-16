@@ -61,6 +61,12 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   storage, sidebar with right-click context menu, add/edit modals, bulk
   delete with confirmation popovers, conditional pagination.
   Its on-disk format is specified in [WATCHLIST-FORMAT.md](./WATCHLIST-FORMAT.md).
+- **[`vaultview/`](./vaultview)** — a read-only viewer for a folder of
+  Obsidian-style markdown notes: a disclosing file tree, frontmatter as a
+  properties panel, `[[wikilinks]]` that resolve and navigate, history
+  with back/forward, and a backlinks aside. Also the reference for
+  document-centric navigation — a history stack, a nesting tree, and the
+  shell's aside slot in use. See its [README](./vaultview/README.md).
 - **[`mindchat/`](./mindchat)** — an OpenAI chat client and the most
   feature-complete app: streaming completions routed through the MVU
   command loop, a resizable/collapsible split-pane shell, trash-backed

@@ -1,15 +1,12 @@
-// Command vaultview is a read-only desktop viewer for Obsidian-style
-// markdown vaults. Point it at a folder of notes — a vault path on the
-// command line wins; without one the last-used vault opens, and on the
-// first run an in-app folder browser asks — and the first note renders
-// with its frontmatter split into a collapsible properties panel above
-// the prose.
+// main.go is the app's entry point and its layer composition: the
+// canonical MVU shape — mvu.NewWindow, a theme window with a live OS
+// theme (dark mode follows the system), a Model observable driven by
+// mvu.Loop, and a patterns/shell ThreeColumn for the vault screen. The
+// vault scan runs as an mvu.Do command off the render goroutine.
 //
-// The app is the canonical MVU shape: mvu.NewWindow, a theme window with
-// a live OS theme (dark mode follows the system), a Model observable
-// driven by mvu.Loop, and a patterns/shell ThreeColumn for the vault
-// screen. The vault scan runs as an mvu.Do command off the render
-// goroutine.
+// The package's own documentation — what the app is, and what a link
+// means when it is clicked — lives in doc.go.
+
 package main
 
 import (

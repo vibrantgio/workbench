@@ -7,6 +7,15 @@
 // toggles on folder rows, the current note active, and click-to-open on
 // note rows.
 //
+// Above the rows sits the find field: typing filters the tree to the
+// notes whose name matches, as a flat list with the folder as the quiet
+// annotation. It is a filter over the names the scan already collected —
+// it reads no file and searches no prose.
+//
+// The column claims a fixed rail width. The shell lets its sidebar slot
+// size itself, so a tree that answered with the constraint it was handed
+// would take the whole window and leave the note nothing.
+//
 // Keyboard: the list's arrows move the selection; Return activates the
 // selected row — a folder toggles its fold, a note navigates.
 
@@ -24,30 +33,37 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // Tree layout constants.
 const (
-	treeRowInsetDp = 8  // leading inset of a depth-0 row
-	treeIndentDp   = 14 // additional inset per depth level
-	treeChevronDp  = 16 // fixed chevron column, so names align per level
+	treeWidthDp    = 240 // the rail's own width, whatever the slot offers
+	treeRowInsetDp = 8   // leading inset of a depth-0 row
+	treeIndentDp   = 14  // additional inset per depth level
+	treeChevronDp  = 16  // fixed chevron column, so names align per level
+	treeFieldPadDp = 8   // breathing room around the find field
 )
 
 // TreeRow is one visible row of the folder tree.
 type TreeRow struct {
-	Idx   int    // position in the flattened row slice
-	Path  string // vault-relative; the folder path or the note path
-	Name  string // display name; the note title for note rows
-	Depth int    // nesting depth, 0 at the vault root
-	IsDir bool   // a folder row, carrying a disclosure toggle
-	Open  bool   // folder rows only: the fold is open
+	Idx    int    // position in the flattened row slice
+	Path   string // vault-relative; the folder path or the note path
+	Name   string // display name; the note title for note rows
+	Detail string // quiet trailing annotation; the folder on a filtered row
+	Depth  int    // nesting depth, 0 at the vault root
+	IsDir  bool   // a folder row, carrying a disclosure toggle
+	Open   bool   // folder rows only: the fold is open
 }
 
 // treeNode is the intermediate nested shape TreeRows flattens from.
@@ -116,6 +132,47 @@ func TreeRows(idx *Index, folds map[string]bool) []TreeRow {
 	return out
 }
 
+// MatchRows is the find field's answer: the notes whose name contains
+// the query, case-insensitively, as flat rows in title order — the folder
+// carried as each row's quiet annotation, since two vaults' worth of
+// notes may share a title. A note whose title does not match still
+// matches on its folder path, so "meetings/" narrows to a folder.
+//
+// It is a filter over the scanned names and nothing else: no file is
+// read, no prose is searched, and a blank query answers nothing so the
+// caller falls back to the folder tree.
+func MatchRows(idx *Index, query string) []TreeRow {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if idx == nil || q == "" {
+		return nil
+	}
+	var out []TreeRow
+	for _, f := range idx.Files {
+		segs := strings.Split(f.Path, "/")
+		if hasDotSegment(segs) {
+			continue
+		}
+		base := segs[len(segs)-1]
+		title := base[:len(base)-len(path.Ext(base))]
+		if !strings.Contains(strings.ToLower(title), q) && !strings.Contains(strings.ToLower(f.Path), q) {
+			continue
+		}
+		folder := path.Dir(f.Path)
+		if folder == "." {
+			folder = ""
+		}
+		out = append(out, TreeRow{Path: f.Path, Name: title, Detail: folder})
+	}
+	// Title order, with the vault's own walk order holding two notes of
+	// the same name apart — the folder annotation is what tells them
+	// apart on screen.
+	sortByName(out, func(r TreeRow) string { return r.Name })
+	for i := range out {
+		out[i].Idx = i
+	}
+	return out
+}
+
 // hasDotSegment reports whether any path segment starts with a dot. The
 // scanner already skips dot-directories; this keeps the tree honest even
 // against an index built some other way.
@@ -148,21 +205,66 @@ type treeView struct {
 	rowClicks []*widget.Clickable
 }
 
-// treeSidebar builds the sidebar slot's widget stream. The frame closure
-// reads the model and token snapshots at frame time; repaints on model
-// change are driven by the routed layer's re-emission.
-func treeSidebar(loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
+// treeSidebar builds the sidebar slot's widget stream: the find field
+// above the rows. The field is a components TextField built once at
+// subscription scope, so its editor keeps what was typed across
+// emissions; each keystroke reaches the model as a SetFilter message.
+// The frame closure reads the model and token snapshots at frame time;
+// repaints on model change are driven by the routed layer's re-emission.
+func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
+	field := input.TextField(th, input.TextFieldProps{
+		Placeholder: "Find a note…",
+		Description: "filter notes by name",
+		OnChange: func(gtx layout.Context, text string) {
+			mvu.MessageOp{Message: SetFilter{Text: text}}.Add(gtx.Ops)
+		},
+	})
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		v := &treeView{list: list.NewState()}
-		return rx.Of[layout.Widget](func(gtx layout.Context) layout.Dimensions {
-			return v.layout(gtx, loadModel(), loadTok())
+		return rx.Map(field, func(fieldW layout.Widget) layout.Widget {
+			return func(gtx layout.Context) layout.Dimensions {
+				return v.layout(gtx, loadModel(), loadTok(), fieldW)
+			}
 		})
 	})
 }
 
-func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
+// layout draws the rail: the find field, then the rows the model asks
+// for — the filter's matches while it is typed in, the folder tree
+// otherwise. The returned width is the rail's own, never the slot's.
+func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW layout.Widget) layout.Dimensions {
+	railW := gtx.Dp(treeWidthDp)
+	if railW > gtx.Constraints.Max.X {
+		railW = gtx.Constraints.Max.X
+	}
+	size := image.Pt(railW, gtx.Constraints.Max.Y)
+	gtx.Constraints = layout.Exact(size)
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if fieldW == nil {
+				return layout.Dimensions{}
+			}
+			return complayout.Inset(treeFieldPadDp).Layout(gtx, fieldW)
+		}),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return v.rows(gtx, m, tok)
+		}),
+	)
+}
+
+// rows lays out the row region below the find field.
+func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
 	rows := TreeRows(m.Index, m.Folds)
+	filtering := strings.TrimSpace(m.Filter) != ""
+	if filtering {
+		rows = MatchRows(m.Index, m.Filter)
+	}
 	if len(rows) == 0 {
+		if filtering {
+			complayout.Inset(treeRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return drawLabel(gtx, tok.shaper, "No note by that name.", tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(700))
+			})
+		}
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
 	// Return activates the selected row. The list consumes the arrows;
@@ -224,10 +326,43 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens) layout.D
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return drawLabel(gtx, tok.shaper, row.Name, tok.typ.BodyMedium, tok.col.Text)
 					}),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if row.Detail == "" {
+							return layout.Dimensions{}
+						}
+						return drawLabel(gtx, tok.shaper, row.Detail, tok.typ.BodySmall, tok.col.Ramps.Neutral.Step(700))
+					}),
+					layout.Rigid(complayout.HSpacer(treeRowInsetDp)),
 				)
 				return layout.Dimensions{Size: size}
 			})
 		})
+}
+
+// renderTree is the static counterpart of treeSidebar used by goldens: a
+// fresh rail with fresh widget state, laid out once from pre-resolved
+// tokens and processing no events. The find field is drawn through the
+// component's own static path, so the golden carries the same field the
+// live rail wears.
+func renderTree(
+	shaper *text.Shaper,
+	m Model,
+	colors tokens.ColorTokens,
+	sp tokens.SpacingScale,
+	rad tokens.RadiusScale,
+	typo tokens.Typography,
+	den tokens.Density,
+) layout.Widget {
+	v := &treeView{list: list.NewState()}
+	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
+	fieldW := input.Render(shaper, "Find a note…", colors, sp, rad, typo.BodyLarge, den,
+		input.RenderState{Text: m.Filter})
+	return func(gtx layout.Context) layout.Dimensions {
+		return v.layout(gtx, m, tok, fieldW)
+	}
 }
 
 // activateTreeRow performs one row's action: a folder toggles its fold,

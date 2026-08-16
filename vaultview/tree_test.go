@@ -2,8 +2,16 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"strings"
 	"testing"
+
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/unit"
+
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // treeIndex builds an index carrying just the file paths, the only part
@@ -223,5 +231,117 @@ func TestToggleFoldCopiesTheMap(t *testing.T) {
 	}
 	if after.Folds["guide"] {
 		t.Error("ToggleFold did not close the open fold")
+	}
+}
+
+// TestMatchRows table-tests the find field's filter: name matches, the
+// folder fallback, case-insensitivity, the folder annotation, hidden
+// dot-directories, and the blank query that answers nothing.
+func TestMatchRows(t *testing.T) {
+	idx := treeIndex(
+		"Design.md",
+		"guide/Getting Started.md",
+		"guide/deep/design notes.md",
+		".obsidian/design.md",
+	)
+	cases := []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{"a blank query answers nothing", "", nil},
+		{"whitespace is not a query", "   ", nil},
+		{
+			name:  "name matches ignore case and are substrings",
+			query: "design",
+			want:  []string{"Design ()", "design notes (guide/deep)"},
+		},
+		{
+			name:  "the folder path matches too, so a folder narrows",
+			query: "guide/",
+			want:  []string{"design notes (guide/deep)", "Getting Started (guide)"},
+		},
+		{
+			name:  "no match is an empty answer, not the whole vault",
+			query: "nothing here",
+			want:  nil,
+		},
+		{
+			name:  "dot-directories stay hidden",
+			query: ".obsidian",
+			want:  nil,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rows := MatchRows(idx, tc.query)
+			var got []string
+			for i, r := range rows {
+				if r.IsDir {
+					t.Errorf("row %d is a folder; the filter answers notes only", i)
+				}
+				if r.Depth != 0 {
+					t.Errorf("row %d has depth %d; filtered rows are flat", i, r.Depth)
+				}
+				if r.Idx != i {
+					t.Errorf("row %d carries Idx %d", i, r.Idx)
+				}
+				got = append(got, fmt.Sprintf("%s (%s)", r.Name, r.Detail))
+			}
+			if strings.Join(got, "\n") != strings.Join(tc.want, "\n") {
+				t.Errorf("rows:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(tc.want, "\n"))
+			}
+		})
+	}
+
+	if rows := MatchRows(nil, "design"); rows != nil {
+		t.Errorf("MatchRows over no index = %v, want nothing", rows)
+	}
+}
+
+// TestTreeClaimsOnlyItsRail is the layout regression: the shell lets its
+// sidebar slot size itself and gives the main column whatever is left, so
+// a rail answering with the constraint it was handed would take the whole
+// window and leave the note nothing. Every state must answer the rail's
+// own width — with rows, filtered to none, and before the scan lands.
+func TestTreeClaimsOnlyItsRail(t *testing.T) {
+	tok := themeTokens{
+		col:    tokens.DefaultLight,
+		typ:    tokens.DefaultTypography,
+		sp:     tokens.Spacing,
+		den:    tokens.Comfortable,
+		shaper: tokens.DefaultTypography.DeterministicShaper(),
+	}
+	filled := treeModel()
+	filled.Folds = map[string]bool{"guide": true, "guide/deep": true}
+	filtered := filled
+	filtered.Filter = "no such note"
+
+	cases := []struct {
+		name  string
+		model Model
+	}{
+		{"rows", filled},
+		{"filtered to nothing", filtered},
+		{"before the scan lands", Model{Screen: screenVault, Vault: "/v", Scanning: true}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := &treeView{list: list.NewState()}
+			var ops op.Ops
+			gtx := layout.Context{
+				Constraints: layout.Constraints{Max: image.Pt(1100, 700)},
+				Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+				Ops:         &ops,
+			}
+			dims := v.layout(gtx, tc.model, tok, nil)
+			if dims.Size.X != treeWidthDp {
+				t.Errorf("rail width = %d dp, want %d — the main column would get %d",
+					dims.Size.X, treeWidthDp, 1100-dims.Size.X)
+			}
+			if dims.Size.Y != 700 {
+				t.Errorf("rail height = %d, want the full row height 700", dims.Size.Y)
+			}
+		})
 	}
 }

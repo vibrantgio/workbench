@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path"
 	"reflect"
 	"strings"
 	"testing"
@@ -193,11 +194,20 @@ func TestParseRef(t *testing.T) {
 	}
 }
 
-// noteFromSource builds a Note the way LoadNote does, without the disk.
-func noteFromSource(path, src string) *Note {
-	_, body := obsidian.SplitFrontMatter([]byte(src))
+// noteFromSource builds a Note the way LoadNote does, without the disk:
+// frontmatter split off, body parsed, wikilinks lifted into hyperlink
+// spans, block-id tails stripped into the anchors map.
+func noteFromSource(p, src string) *Note {
+	fm, body := obsidian.SplitFrontMatter([]byte(src))
 	blocks, anchors := obsidian.BlockAnchors(obsidian.WikiSpans(markdown.Parse(body)))
-	return &Note{Path: path, Blocks: blocks, Anchors: anchors}
+	base := path.Base(p)
+	return &Note{
+		Path:    p,
+		Title:   strings.TrimSuffix(base, path.Ext(base)),
+		FM:      fm,
+		Blocks:  blocks,
+		Anchors: anchors,
+	}
 }
 
 // TestAnchorBlockLandsHeadingPath is the headless half of the exit

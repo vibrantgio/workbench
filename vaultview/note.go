@@ -24,6 +24,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -80,6 +81,12 @@ func isDarkColor(c color.NRGBA) bool {
 	return luma < 128
 }
 
+// docEntry is one cached document and the Note value it was built from.
+type docEntry struct {
+	note *Note
+	doc  *markdown.Document
+}
+
 // vaultLayer composes the vault screen: the ThreeColumn shell with the
 // folder tree in the sidebar slot, the backlinks panel in the aside, and
 // the note in the main slot. The main slot reads the model and token
@@ -91,9 +98,14 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	// revisiting. A landing that carries an anchor (NavSeq moved and
 	// CurAnchor is set) re-creates the target's document seated at the
 	// anchor's block index; every other visit keeps the cached viewport.
-	// All state here is touched only on the frame goroutine.
+	// The cached document also remembers which Note value it was built
+	// from: notes are never mutated, so a different pointer at the same
+	// path means the file was read again and the document must be rebuilt
+	// — without that, a note edited outside the app would reload into a
+	// viewport still showing the old blocks. All state here is touched
+	// only on the frame goroutine.
 	var (
-		docs      = map[string]*markdown.Document{}
+		docs      = map[string]docEntry{}
 		docsVault string
 		seatedSeq int
 		propClick widget.Clickable
@@ -103,19 +115,21 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	)
 	docFor := func(m Model, n *Note) *markdown.Document {
 		if m.Vault != docsVault {
-			docs = map[string]*markdown.Document{}
+			docs = map[string]docEntry{}
 			docsVault = m.Vault
 		}
-		if m.CurAnchor >= 0 && m.NavSeq != seatedSeq {
-			docs[n.Path] = markdown.NewDocumentAt(n.Blocks, m.CurAnchor)
+		e, cached := docs[n.Path]
+		switch {
+		case m.CurAnchor >= 0 && m.NavSeq != seatedSeq:
 			seatedSeq = m.NavSeq
+			e = docEntry{note: n, doc: markdown.NewDocumentAt(n.Blocks, m.CurAnchor)}
+		case !cached || e.note != n:
+			e = docEntry{note: n, doc: markdown.NewDocument(n.Blocks)}
+		default:
+			return e.doc
 		}
-		d := docs[n.Path]
-		if d == nil {
-			d = markdown.NewDocument(n.Blocks)
-			docs[n.Path] = d
-		}
-		return d
+		docs[n.Path] = e
+		return e.doc
 	}
 	mainSlot := func(gtx layout.Context) layout.Dimensions {
 		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, &trail, docFor)
@@ -123,26 +137,35 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	return shell.Shell(th, shell.Props{
 		Layout:  shell.ThreeColumn,
 		Navbar:  vaultNavbar(loadTok),
-		Sidebar: treeSidebar(loadModel, loadTok),
+		Sidebar: treeSidebar(th, loadModel, loadTok),
 		Aside:   backlinksAside(loadModel, loadTok),
 		Main:    mainSlot,
 	})
 }
 
-// vaultNavbar is the shell's top bar: the app name as the brand and the
-// affordance that returns to the folder browser to open another vault.
+// vaultNavbar is the shell's top bar: the app name as the brand, the
+// affordance that re-walks the vault, and the one that returns to the
+// folder browser to open another vault.
 func vaultNavbar(loadTok func() themeTokens) navbar.Props {
 	return navbar.Props{
 		Brand: func(gtx layout.Context) layout.Dimensions {
 			tok := loadTok()
 			return drawLabel(gtx, tok.shaper, "Vault View", tok.typ.TitleMedium, tok.col.Text)
 		},
-		Links: []navbar.Link{{
-			Label: "Switch vault",
-			OnClick: func(gtx layout.Context) {
-				mvu.MessageOp{Message: SwitchVault{}}.Add(gtx.Ops)
+		Links: []navbar.Link{
+			{
+				Label: "Rescan",
+				OnClick: func(gtx layout.Context) {
+					mvu.MessageOp{Message: Rescan{}}.Add(gtx.Ops)
+				},
 			},
-		}},
+			{
+				Label: "Switch vault",
+				OnClick: func(gtx layout.Context) {
+					mvu.MessageOp{Message: SwitchVault{}}.Add(gtx.Ops)
+				},
+			},
+		},
 	}
 }
 
@@ -164,7 +187,7 @@ func layoutNotePage(
 
 		var body layout.FlexChild
 		switch {
-		case m.Scanning:
+		case m.Scanning && note == nil:
 			body = messageChild(tok, "Scanning vault…")
 		case m.ScanErr != "":
 			body = messageChild(tok, m.ScanErr)
@@ -212,6 +235,39 @@ func layoutNotePage(
 		children = append(children, body)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	})
+}
+
+// renderNotePage is the static counterpart of the vault screen's main
+// slot, used by goldens: fresh widget state, a fresh top-scrolled
+// document per note, laid out once from pre-resolved tokens and
+// processing no events.
+func renderNotePage(
+	shaper *text.Shaper,
+	m Model,
+	colors tokens.ColorTokens,
+	sp tokens.SpacingScale,
+	typo tokens.Typography,
+	den tokens.Density,
+) layout.Widget {
+	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
+	var (
+		propClick widget.Clickable
+		backClick widget.Clickable
+		fwdClick  widget.Clickable
+		trail     crumbRow
+	)
+	docs := map[string]*markdown.Document{}
+	docFor := func(_ Model, n *Note) *markdown.Document {
+		d := docs[n.Path]
+		if d == nil {
+			d = markdown.NewDocument(n.Blocks)
+			docs[n.Path] = d
+		}
+		return d
+	}
+	return func(gtx layout.Context) layout.Dimensions {
+		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, &trail, docFor)
+	}
 }
 
 // navButton renders one history affordance: an arrow glyph that emits its
