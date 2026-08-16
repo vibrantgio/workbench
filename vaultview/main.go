@@ -33,6 +33,7 @@ import (
 
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/toast"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -66,13 +67,14 @@ func run() {
 	w := specwin.New(mvuWin, specsystem.LiveTheme(5*time.Second))
 
 	// mvuWin.Messages() drains a channel, so each message reaches exactly
-	// one subscriber. Exactly one stream derives from modelObs — the
-	// routed layer's CombineLatest — so AutoConnect(1) shares the single
-	// upstream subscription. NOTE: the count is load-bearing; adding
-	// another modelObs consumer requires bumping it.
+	// one subscriber. Exactly two streams derive from modelObs — the
+	// routed layer's CombineLatest and the toast layer's queue map — so
+	// AutoConnect(2) shares the single upstream subscription. NOTE: the
+	// count is load-bearing; adding another modelObs consumer requires
+	// bumping it.
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(1)
+	modelObs := models.Publish().AutoConnect(2)
 
 	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "vaultview:", err)
@@ -119,13 +121,15 @@ func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	return func() themeTokens { return cell.Load().(themeTokens) }
 }
 
-// buildLayers returns the two rendering layers: a backdrop and the routed
-// screen (picker or vault).
+// buildLayers returns the rendering layers: a backdrop, the routed screen
+// (picker or vault), and the toast stack over everything.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+		toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.Toasts.Items() })
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
 			underTitleBar(routedLayer(th, modelObs)),
+			underTitleBar(toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})),
 		}
 	}
 }

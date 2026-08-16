@@ -1,14 +1,18 @@
 // note.go is the vault screen: a patterns/shell ThreeColumn (nil sidebar
-// and aside for now) whose main slot renders the current note — a
-// breadcrumb row, a collapsible properties panel fed by the frontmatter
-// split, and the parsed body as a markdown Document.
+// and aside for now) whose main slot renders the current note — a header
+// row with back/forward and the breadcrumb, a collapsible properties
+// panel fed by the frontmatter split, and the parsed body as a markdown
+// Document. Wikilink clicks resolve against the index and navigate; web
+// links open the system browser; refusals surface as toasts.
 
 package main
 
 import (
 	"image"
 	"image/color"
+	"os/exec"
 	"path"
+	"runtime"
 	"strings"
 
 	"gioui.org/font"
@@ -31,6 +35,7 @@ import (
 	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/patterns/navbar"
 	"github.com/vibrantgio/patterns/shell"
+	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -53,8 +58,8 @@ var (
 
 // noteStyle derives the markdown document style for the current tokens:
 // the token-themed defaults plus chroma highlighting matched to the
-// appearance. No link hook yet — wikilinks render as the literal text
-// they are.
+// appearance. The link hook is attached per frame in layoutNotePage,
+// where the model is at hand.
 func noteStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
 	st := markdown.FromTokens(c, typ)
 	st.Mono = font.Typeface(typ.Code.Typeface)
@@ -79,23 +84,38 @@ func isDarkColor(c color.NRGBA) bool {
 // the model and token snapshots at frame time; repaints on model change
 // are driven by the routed layer's re-emission.
 func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
-	// The Document is allocated once per note path and reused on every
-	// frame, so scroll and richtext interaction state survive. All state
-	// here is touched only on the frame goroutine.
+	// Documents are cached per note path and reused on every frame, so
+	// each note's scroll position and richtext interaction state survive
+	// revisiting. A landing that carries an anchor (NavSeq moved and
+	// CurAnchor is set) re-creates the target's document seated at the
+	// anchor's block index; every other visit keeps the cached viewport.
+	// All state here is touched only on the frame goroutine.
 	var (
-		docPath   string
-		doc       *markdown.Document
+		docs      = map[string]*markdown.Document{}
+		docsVault string
+		seatedSeq int
 		propClick widget.Clickable
+		backClick widget.Clickable
+		fwdClick  widget.Clickable
 	)
-	docFor := func(n *Note) *markdown.Document {
-		if doc == nil || n.Path != docPath {
-			doc = markdown.NewDocument(n.Blocks)
-			docPath = n.Path
+	docFor := func(m Model, n *Note) *markdown.Document {
+		if m.Vault != docsVault {
+			docs = map[string]*markdown.Document{}
+			docsVault = m.Vault
 		}
-		return doc
+		if m.CurAnchor >= 0 && m.NavSeq != seatedSeq {
+			docs[n.Path] = markdown.NewDocumentAt(n.Blocks, m.CurAnchor)
+			seatedSeq = m.NavSeq
+		}
+		d := docs[n.Path]
+		if d == nil {
+			d = markdown.NewDocument(n.Blocks)
+			docs[n.Path] = d
+		}
+		return d
 	}
 	mainSlot := func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, docFor)
+		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, docFor)
 	}
 	return shell.Shell(th, shell.Props{
 		Layout: shell.ThreeColumn,
@@ -115,15 +135,17 @@ func vaultNavbar(loadTok func() themeTokens) navbar.Props {
 	}
 }
 
-// layoutNotePage lays out the main slot: breadcrumb, properties panel,
-// document — or the scanning/error/empty message standing in for them.
+// layoutNotePage lays out the main slot: the header row (back/forward
+// and the breadcrumb), properties panel, document — or the
+// scanning/error/empty message standing in for them.
 func layoutNotePage(
 	gtx layout.Context,
 	m Model,
 	tok themeTokens,
-	propClick *widget.Clickable,
-	docFor func(*Note) *markdown.Document,
+	propClick, backClick, fwdClick *widget.Clickable,
+	docFor func(Model, *Note) *markdown.Document,
 ) layout.Dimensions {
+	note := m.CurrentNote()
 	inset := complayout.Inset(noteInsetDp)
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		bcW := breadcrumb.Render(tok.shaper, breadcrumb.Props{Items: noteBreadcrumb(m)}, tok.col, tok.sp, tok.typ.TitleSmall)
@@ -134,25 +156,41 @@ func layoutNotePage(
 			body = messageChild(tok, "Scanning vault…")
 		case m.ScanErr != "":
 			body = messageChild(tok, m.ScanErr)
-		case m.Note == nil:
+		case note == nil:
 			body = messageChild(tok, "No notes in this vault.")
 		default:
-			note := m.Note
-			doc := docFor(note)
+			doc := docFor(m, note)
 			style := noteStyle(tok.col, tok.typ)
+			style.Text.OnLinkClick = func(gtx layout.Context, url string) {
+				linkClicked(gtx, m, url)
+			}
 			body = layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return doc.Layout(gtx, tok.shaper, style)
 			})
 		}
 
+		header := func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return navButton(gtx, tok, backClick, "←", "Back", m.Cursor > 0, GoBack{})
+				}),
+				layout.Rigid(complayout.HSpacer(8)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return navButton(gtx, tok, fwdClick, "→", "Forward", m.Cursor+1 < len(m.History), GoForward{})
+				}),
+				layout.Rigid(complayout.HSpacer(noteGapDp)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return bcW(gtx) }),
+			)
+		}
+
 		children := []layout.FlexChild{
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return bcW(gtx) }),
+			layout.Rigid(header),
 			layout.Rigid(complayout.VSpacer(noteGapDp)),
 		}
-		if m.Note != nil && m.Note.FM.Present {
+		if note != nil && note.FM.Present {
 			children = append(children,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return layoutProperties(gtx, tok, m.Note.FM, m.PropsOpen, propClick)
+					return layoutProperties(gtx, tok, note.FM, m.PropsOpen, propClick)
 				}),
 				layout.Rigid(complayout.VSpacer(noteGapDp)),
 			)
@@ -160,6 +198,68 @@ func layoutNotePage(
 		children = append(children, body)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	})
+}
+
+// navButton renders one history affordance: an arrow glyph that emits its
+// message on click while enabled, and renders dimmed and inert at the
+// stack's end.
+func navButton(
+	gtx layout.Context,
+	tok themeTokens,
+	click *widget.Clickable,
+	glyph, label string,
+	enabled bool,
+	msg mvu.Message,
+) layout.Dimensions {
+	if click.Clicked(gtx) && enabled {
+		mvu.MessageOp{Message: msg}.Add(gtx.Ops)
+	}
+	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		semantic.LabelOp(label).Add(gtx.Ops)
+		c := tok.col.Ramps.Neutral.Step(500)
+		if enabled {
+			c = tok.col.Text
+			pointer.CursorPointer.Add(gtx.Ops)
+		}
+		return drawLabel(gtx, tok.shaper, glyph, tok.typ.TitleMedium, c)
+	})
+}
+
+// linkClicked dispatches one link activation: wikilinks (embeds included
+// — an embed navigates like an ordinary link) resolve against the index
+// and navigate on the same frame; web links open the system browser; a
+// refused resolution surfaces its reason as a toast; anything else is
+// ignored.
+func linkClicked(gtx layout.Context, m Model, url string) {
+	switch {
+	case strings.HasPrefix(url, "wiki:"), strings.HasPrefix(url, "wikiembed:"):
+		if m.Index == nil {
+			return
+		}
+		body := strings.TrimPrefix(strings.TrimPrefix(url, "wikiembed:"), "wiki:")
+		res, rerr := Resolve(m.Index, m.Current, body)
+		if rerr != nil {
+			toast.Notify(gtx, toast.Warning, rerr.Reason)
+			return
+		}
+		mvu.MessageOp{Message: Navigate{Path: res.Path, Headings: res.Headings, BlockID: res.BlockID}}.Add(gtx.Ops)
+	case strings.HasPrefix(url, "https://"), strings.HasPrefix(url, "http://"):
+		openBrowser(url)
+	}
+}
+
+// openBrowser opens an absolute web URL in the system browser.
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+	_ = cmd.Start()
 }
 
 // messageChild renders a status line in place of the document.
@@ -174,14 +274,14 @@ func messageChild(tok themeTokens, msg string) layout.FlexChild {
 // title. Labels only for now — navigation grows later.
 func noteBreadcrumb(m Model) []breadcrumb.Item {
 	items := []breadcrumb.Item{{Label: path.Base(strings.TrimRight(m.Vault, "/"))}}
-	if m.Note != nil {
-		dir := path.Dir(m.Note.Path)
+	if note := m.CurrentNote(); note != nil {
+		dir := path.Dir(note.Path)
 		if dir != "." {
 			for _, seg := range strings.Split(dir, "/") {
 				items = append(items, breadcrumb.Item{Label: seg})
 			}
 		}
-		items = append(items, breadcrumb.Item{Label: m.Note.Title})
+		items = append(items, breadcrumb.Item{Label: note.Title})
 	}
 	return items
 }
