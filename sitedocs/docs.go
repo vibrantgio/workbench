@@ -22,10 +22,10 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/patterns/breadcrumb"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
+	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"

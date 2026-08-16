@@ -25,10 +25,12 @@ github.com/reactivego/scheduler v0.2.0 h1:XCg1M2L/ejSOI8v5Q0K5xJt+W204+F0AJsjpTP
 github.com/reactivego/scheduler v0.2.0/go.mod h1:Kw99rMXR1WJr/FgeqQfGAWClsWWlVKXZCUwJ+iCXUtQ=
 github.com/vibrantgio/components v0.7.0 h1:9YW8fMAMxM1IVTAIJEE/puOFPpTHIf7/xSTGnyeRyTM=
 github.com/vibrantgio/components v0.7.0/go.mod h1:rQLstIkWA5dCZNGcmufKgAo4q7m5Zds+6LQ483fZD2g=
+github.com/vibrantgio/effects v0.2.0 h1:5XXgRzAmHFnV+SbbK2n9fQ/CqC9+3XWlAfITK1Gw5Sg=
+github.com/vibrantgio/effects v0.2.0/go.mod h1:zSH8OolKX+/KeObC9HGsWxyJduYpBeenCPbdRi1ouwU=
 github.com/vibrantgio/font v0.1.0 h1:UXlYbXkf3Kbk5oxhdky1JFTTi8oV5Nf7Q8apDoCHFJM=
 github.com/vibrantgio/font v0.1.0/go.mod h1:3xY/uNoUn5FC2+gJ1g9se10R0z+gcWfF8kxvChF/HTQ=
-github.com/vibrantgio/markdown v0.1.4 h1:M4y6sOuWqTvgGyEcwWJT5jaOIjVSRAsaHgJ9BZeHxMU=
-github.com/vibrantgio/markdown v0.1.4/go.mod h1:ZTN6t8rlcTurLs5KPsLXkNlySBz9BXcDUE558bE77FY=
+github.com/vibrantgio/markdown v0.2.0 h1:jD/caPbwD1lAQR0wGrg/KhWx7aPQx8Lgd+52H0xCLzU=
+github.com/vibrantgio/markdown v0.2.0/go.mod h1:ZTN6t8rlcTurLs5KPsLXkNlySBz9BXcDUE558bE77FY=
 github.com/vibrantgio/mvu v0.7.0 h1:l0Et6wpOD4I0jc4/EfMWVpkUxSiDaTAHO2hBhphFyRM=
 github.com/vibrantgio/mvu v0.7.0/go.mod h1:jFP2zPvLge60zDSlCqTOcbMLHJaQgv1b8/VsmFD1ejo=
 github.com/vibrantgio/mvu/desktop v0.7.0 h1:at0kgTgAdtzlebMYHKNwtcMEl10pocBp6PzVjdb7dJ0=

@@ -25,8 +25,8 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/patterns/accordion"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/accordion"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"

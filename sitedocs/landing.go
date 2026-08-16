@@ -14,13 +14,13 @@ import (
 
 	"github.com/reactivego/rx"
 
+	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/feature"
 	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/patterns/pricing"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/testimonial"
-	complayout "github.com/vibrantgio/components/layout"
-	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )

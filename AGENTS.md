@@ -1,18 +1,20 @@
 # AGENTS.md — workbench
 
-The seven reference applications of the Vibrant Gio design system, each a
+The eight reference applications of the Vibrant Gio design system, each a
 complete product built the way a real one is meant to be built — MVU state,
 live theming from theme, components widgets, patterns: `todos` (the
 smallest complete bootstrap, and the place to start), `iconbrowser`,
-`sitedocs`, `feeds`, `watchlist`, `mindchat` and `launcher`. The repository
-also carries `BASELINE.md`, the measured performance baselines the
-component benchmarks compare against — an application-history document that
-stayed behind when the system's architecture rationale (`DESIGN.md`) moved
-to the `design` repository, whose git history for it lives here.
+`sitedocs`, `feeds`, `watchlist`, `mindchat`, `launcher` and `vaultview`
+(the document reader — a folder of markdown notes browsed through a file
+tree, wikilinks followed, backlinks in the shell's aside slot). The
+repository also carries `BASELINE.md`, the measured performance baselines
+the component benchmarks compare against — an application-history document
+that stayed behind when the system's architecture rationale (`DESIGN.md`)
+moved to the `design` repository, whose git history for it lives here.
 
 **Layer.** Outside ADR-001's tier table: applications at the top of the
 stack, which the tier rule exempts and which may import any layer of the
-design system. Its seven applications import, between them, `backdrop`,
+design system. Its eight applications import, between them, `backdrop`,
 `components`, `effects`, `font`, `ivg`, `ivg/raster/gio`, `markdown`,
 `mvu`, `mvu/desktop`, `noise`, `patterns`, `seen`, `seen/context/gio`,
 `svg`, `svg/driver/gio`, `textdraw` and `theme`. Nothing in the
@@ -29,14 +31,15 @@ and this file links it rather than copying it:
 
     https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt
 
-**Modules.** No module at the repository root: this repository is seven
+**Modules.** No module at the repository root: this repository is eight
 modules in subdirectories — `feeds/`
 (`github.com/vibrantgio/workbench/feeds`), `iconbrowser/`
 (`github.com/vibrantgio/workbench/iconbrowser`), `launcher/`
 (`github.com/vibrantgio/workbench/launcher`), `mindchat/`
 (`github.com/vibrantgio/workbench/mindchat`), `sitedocs/`
 (`github.com/vibrantgio/workbench/sitedocs`), `todos/`
-(`github.com/vibrantgio/workbench/todos`), `watchlist/`
+(`github.com/vibrantgio/workbench/todos`), `vaultview/`
+(`github.com/vibrantgio/workbench/vaultview`), `watchlist/`
 (`github.com/vibrantgio/workbench/watchlist`). Each is built, tested and
 tagged on its own, with tags that carry the directory as a prefix.
 
@@ -45,9 +48,9 @@ root module to run it from:
 
     go build ./... && go test ./...
 
-**Golden images.** Tests in three module directories — `feeds/`,
-`sitedocs/` and `watchlist/` — compare rendered output against PNGs
-committed under `testdata/golden/`. They render through
+**Golden images.** Tests in four module directories — `feeds/`,
+`sitedocs/`, `vaultview/` and `watchlist/` — compare rendered output
+against PNGs committed under `testdata/golden/`. They render through
 `github.com/vibrantgio/components/golden`, which declares `-golden.update`
 and is shared with `design`, `effects`, `markdown` and `patterns`. Do not
 inline a copy of it, and do not declare a second `-golden.update`: two
@@ -104,7 +107,7 @@ files.
 
 **The `.gitignore` denies everything by default.** Its first line is `*`, and
 what follows re-admits exactly: Markdown at any level, `LICENSE`, `llms.txt`,
-`.claude/skills/**`, and the seven application trees minus their compiled
+`.claude/skills/**`, and the eight application trees minus their compiled
 binaries. A file you add anywhere else — a script, a new top-level directory,
 a `.json` fixture outside an app — does not show up in `git status` and is
 silently not committed. Check with `git check-ignore -v <path>` before
@@ -127,10 +130,11 @@ application's history rather than the system's rationale. `FEEDBACK-G6.4.md`
 is one of this plan's outputs, filed against `vibrantgio/markdown`. The
 organization's plan lives in `vibrantgio/.github`; do not execute this one.
 
-**`README.md` has caught up.** It used to describe three example
-applications where there were seven — and this note used to say so. F2.3
-rewrote it around all seven, so read it as current. Where a document and the
-application source still disagree, the source wins and the document is a bug
+**`README.md` lists every application in the repository, and gains a
+section whenever one is added.** It used to describe three where there were
+seven — and this note used to say so — until F2.3 rewrote it around the
+whole set; read it as current and keep it that way. Where a document and
+the application source disagree, the source wins and the document is a bug
 to file.
 
 **Arbiters are created in each application's layer function, and that is the
