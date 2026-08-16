@@ -67,14 +67,14 @@ func run() {
 	w := specwin.New(mvuWin, specsystem.LiveTheme(5*time.Second))
 
 	// mvuWin.Messages() drains a channel, so each message reaches exactly
-	// one subscriber. Exactly two streams derive from modelObs — the
-	// routed layer's CombineLatest and the toast layer's queue map — so
-	// AutoConnect(2) shares the single upstream subscription. NOTE: the
-	// count is load-bearing; adding another modelObs consumer requires
-	// bumping it.
+	// one subscriber. Exactly three streams derive from modelObs — the
+	// routed layer's CombineLatest, the chooser layer's open flag, and the
+	// toast layer's queue map — so AutoConnect(3) shares the single
+	// upstream subscription. NOTE: the count is load-bearing; adding
+	// another modelObs consumer requires bumping it.
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(2)
+	modelObs := models.Publish().AutoConnect(3)
 
 	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "vaultview:", err)
@@ -121,29 +121,42 @@ func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	return func() themeTokens { return cell.Load().(themeTokens) }
 }
 
-// buildLayers returns the rendering layers: a backdrop, the routed screen
-// (picker or vault), and the toast stack over everything.
+// buildLayers returns the rendering layers, back to front: a backdrop,
+// the routed screen (picker or vault), the ambiguity chooser, and the
+// toast stack over everything.
+//
+// The model cell and the token mirror are built here and shared by every
+// layer's frame-time closures, so the chooser reads the same snapshot the
+// screen beneath it was laid out from. The routed layer owns the store,
+// since its emission is the one that selects a screen.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+		loadTok := mirrorTokens(th)
+		var modelCell atomic.Value
+		modelCell.Store(Model{})
+		loadModel := func() Model { return modelCell.Load().(Model) }
+
 		toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.Toasts.Items() })
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			underTitleBar(routedLayer(th, modelObs)),
+			underTitleBar(routedLayer(th, modelObs, &modelCell, loadModel, loadTok)),
+			underTitleBar(chooserLayer(th, modelObs, loadModel, loadTok)),
 			underTitleBar(toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})),
 		}
 	}
 }
 
 // routedLayer builds the picker and vault screens once and selects
-// between them on every model emission. The model is stored into an
-// atomic cell as part of the same emission, so the frame-time closures
+// between them on every model emission. The model is stored into the
+// shared cell as part of the same emission, so the frame-time closures
 // of both screens read the state that selected them.
-func routedLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
-	loadTok := mirrorTokens(th)
-	var modelCell atomic.Value
-	modelCell.Store(Model{})
-	loadModel := func() Model { return modelCell.Load().(Model) }
-
+func routedLayer(
+	th rx.Observable[theme.Theme],
+	modelObs rx.Observable[Model],
+	modelCell *atomic.Value,
+	loadModel func() Model,
+	loadTok func() themeTokens,
+) rx.Observable[layout.Widget] {
 	picker := pickerLayer(th, loadModel, loadTok)
 	vault := vaultLayer(th, loadModel, loadTok)
 

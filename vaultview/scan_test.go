@@ -30,8 +30,8 @@ func TestScanSource(t *testing.T) {
 			links: []string{"Other Note|the alias", "Folder/Deep#Sec", "img.png"},
 		},
 		{
-			name: "fenced wikilink contributes nothing",
-			src:  "before\n\n```\n[[not-a-link]]\n# not-a-heading\n^not-an-id\n```\n\nafter [[real]]\n",
+			name:  "fenced wikilink contributes nothing",
+			src:   "before\n\n```\n[[not-a-link]]\n# not-a-heading\n^not-an-id\n```\n\nafter [[real]]\n",
 			links: []string{"real"},
 		},
 		{

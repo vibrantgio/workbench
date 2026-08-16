@@ -68,7 +68,16 @@ type Model struct {
 
 	PropsOpen bool        // the properties panel is expanded
 	Toasts    toast.Queue // transient notifications, oldest first
+
+	// Chooser state: an ambiguous wikilink's raw body and the candidate
+	// paths the resolver refused to pick between. The chooser modal is
+	// open exactly while ChooserCandidates is non-empty.
+	ChooserBody       string
+	ChooserCandidates []string
 }
+
+// ChooserOpen reports whether the ambiguity chooser modal is up.
+func (m Model) ChooserOpen() bool { return len(m.ChooserCandidates) > 0 }
 
 // HistEntry is one visited note: its path and the anchor block index the
 // visit landed on (-1 when the visit started at the top). The live scroll
@@ -123,6 +132,32 @@ type GoBack struct{}
 // GoForward moves one entry forward in the history; at the newest entry
 // it is a no-op.
 type GoForward struct{}
+
+// OpenChooser raises the ambiguity chooser: the raw wikilink body that
+// refused to resolve and the candidate paths it matched.
+type OpenChooser struct {
+	Body       string
+	Candidates []string
+}
+
+// ChooseCandidate answers the chooser: navigate to the chosen path,
+// carrying the refused link's own anchor parts.
+type ChooseCandidate struct{ Path string }
+
+// CloseChooser dismisses the chooser without navigating.
+type CloseChooser struct{}
+
+// SwitchVault leaves the vault screen for the folder-browser picker, so
+// another vault can be opened. The vault state itself is untouched until
+// an OpenVault lands.
+type SwitchVault struct{}
+
+// RevealFolder opens every fold on the way to a folder, the folder
+// itself included, so its contents are visible in the tree.
+type RevealFolder struct{ Dir string }
+
+// RootTree collapses every fold, returning the tree to its root state.
+type RootTree struct{}
 
 // pickerListed delivers the folder browser's rows for a directory.
 type pickerListed struct {
@@ -212,6 +247,8 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.Cursor = 0
 		model.Folds = nil
 		model.PropsOpen = true
+		model.ChooserBody = ""
+		model.ChooserCandidates = nil
 		return model, openVaultCmd(m.Path)
 	case vaultScanned:
 		if m.vault != model.Vault {
@@ -257,6 +294,30 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			model.CurAnchor = -1 // the cached document keeps its scroll
 			model = revealCurrent(model)
 		}
+	case OpenChooser:
+		model.ChooserBody = m.Body
+		model.ChooserCandidates = m.Candidates
+	case ChooseCandidate:
+		ref := ParseRef(model.ChooserBody)
+		model.ChooserBody = ""
+		model.ChooserCandidates = nil
+		return Update(model, Navigate{Path: m.Path, Headings: ref.Headings, BlockID: ref.BlockID})
+	case CloseChooser:
+		model.ChooserBody = ""
+		model.ChooserCandidates = nil
+	case SwitchVault:
+		model.Screen = screenPicker
+		dir := startDir()
+		if model.Vault != "" {
+			dir = filepath.Dir(model.Vault)
+		}
+		model.PickerDir = dir
+		model.PickerEntries = nil
+		return model, listDirCmd(dir)
+	case RevealFolder:
+		model.Folds = openFolds(model.Folds, m.Dir)
+	case RootTree:
+		model.Folds = nil
 	case ToggleProperties:
 		model.PropsOpen = !model.PropsOpen
 	case ToggleFold:
@@ -329,8 +390,19 @@ func revealCurrent(model Model) Model {
 	if dir == "." {
 		return model
 	}
-	folds := make(map[string]bool, len(model.Folds)+2)
-	for k, v := range model.Folds {
+	model.Folds = openFolds(model.Folds, dir)
+	return model
+}
+
+// openFolds returns the fold map with every folder on the way to dir
+// opened, dir itself included. The map is replaced, not mutated, so no
+// model aliases another's disclosure state; "" and "." open nothing.
+func openFolds(prev map[string]bool, dir string) map[string]bool {
+	if dir == "" || dir == "." {
+		return prev
+	}
+	folds := make(map[string]bool, len(prev)+2)
+	for k, v := range prev {
 		folds[k] = v
 	}
 	cum := ""
@@ -342,8 +414,7 @@ func revealCurrent(model Model) Model {
 		}
 		folds[cum] = true
 	}
-	model.Folds = folds
-	return model
+	return folds
 }
 
 // loadNoteCmd reads a navigation target off the render goroutine and

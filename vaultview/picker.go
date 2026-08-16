@@ -117,13 +117,13 @@ const (
 )
 
 // pickerView is the picker's widget state: the list scroll/selection
-// state, per-row and per-crumb clickables (pointer-stable across frames),
-// and the one-shot initial focus.
+// state, per-row clickables (pointer-stable across frames), the directory
+// trail's own row state, and the one-shot initial focus.
 type pickerView struct {
-	list        *list.State
-	rowClicks   []*widget.Clickable
-	crumbClicks []*widget.Clickable
-	focused     bool
+	list      *list.State
+	rowClicks []*widget.Clickable
+	trail     crumbRow
+	focused   bool
 }
 
 // pickerLayer builds the picker screen. The frame closure reads the
@@ -251,46 +251,14 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 // browses to that ancestor.
 func (v *pickerView) crumbs(gtx layout.Context, tok themeTokens, dir string) layout.Dimensions {
 	segs := crumbSegments(dir)
-	for len(v.crumbClicks) < len(segs) {
-		v.crumbClicks = append(v.crumbClicks, &widget.Clickable{})
-	}
-	var children []layout.FlexChild
+	items := make([]crumb, len(segs))
 	for i, seg := range segs {
-		i, seg := i, seg
-		last := i == len(segs)-1
-		if i > 0 {
-			children = append(children,
-				layout.Rigid(complayout.HSpacer(4)),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return drawLabel(gtx, tok.shaper, "›", tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
-				}),
-				layout.Rigid(complayout.HSpacer(4)),
-			)
+		items[i] = crumb{label: seg.label}
+		if i < len(segs)-1 {
+			items[i].msg = BrowseTo{Dir: seg.path}
 		}
-		fg := tok.col.Ramps.Neutral.Step(700)
-		if last {
-			fg = tok.col.Text
-		}
-		label := func(gtx layout.Context) layout.Dimensions {
-			return drawLabel(gtx, tok.shaper, seg.label, tok.typ.TitleSmall, fg)
-		}
-		if last {
-			children = append(children, layout.Rigid(label))
-			continue
-		}
-		click := v.crumbClicks[i]
-		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if click.Clicked(gtx) {
-				mvu.MessageOp{Message: BrowseTo{Dir: seg.path}}.Add(gtx.Ops)
-			}
-			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				semantic.LabelOp(seg.label).Add(gtx.Ops)
-				pointer.CursorPointer.Add(gtx.Ops)
-				return label(gtx)
-			})
-		}))
 	}
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
+	return v.trail.layout(gtx, tok, items)
 }
 
 // crumbSegment is one breadcrumb segment: its display label and the

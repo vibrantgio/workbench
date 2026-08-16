@@ -1,10 +1,11 @@
-// note.go is the vault screen: a patterns/shell ThreeColumn (the folder
-// tree in the sidebar slot, nil aside for now) whose main slot renders
-// the current note — a header
-// row with back/forward and the breadcrumb, a collapsible properties
-// panel fed by the frontmatter split, and the parsed body as a markdown
-// Document. Wikilink clicks resolve against the index and navigate; web
-// links open the system browser; refusals surface as toasts.
+// note.go is the vault screen: a patterns/shell ThreeColumn — the folder
+// tree in the sidebar slot, the backlinks panel in the aside — whose main
+// slot renders the current note: a header row with back/forward and the
+// breadcrumb, a collapsible properties panel fed by the frontmatter split,
+// and the parsed body as a markdown Document. Wikilink clicks resolve
+// against the index and navigate; web links open the system browser; a
+// link matching several notes raises the chooser, and every other refusal
+// surfaces as a toast.
 
 package main
 
@@ -33,7 +34,6 @@ import (
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/markdown/obsidian"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/patterns/navbar"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/toast"
@@ -43,12 +43,12 @@ import (
 
 // Note-page layout constants.
 const (
-	noteInsetDp    = 24
-	noteGapDp      = 16
-	propRowGapDp   = 6
-	propPadDp      = 12
-	propKeyColDp   = 160
-	propRadiusDp   = 8
+	noteInsetDp  = 24
+	noteGapDp    = 16
+	propRowGapDp = 6
+	propPadDp    = 12
+	propKeyColDp = 160
+	propRadiusDp = 8
 )
 
 // Chroma styles for the two appearance modes; built once, shared.
@@ -81,9 +81,10 @@ func isDarkColor(c color.NRGBA) bool {
 }
 
 // vaultLayer composes the vault screen: the ThreeColumn shell with the
-// folder tree in the sidebar slot, a nil aside, and the note in the main
-// slot. The main slot reads the model and token snapshots at frame time;
-// repaints on model change are driven by the routed layer's re-emission.
+// folder tree in the sidebar slot, the backlinks panel in the aside, and
+// the note in the main slot. The main slot reads the model and token
+// snapshots at frame time; repaints on model change are driven by the
+// routed layer's re-emission.
 func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
 	// Documents are cached per note path and reused on every frame, so
 	// each note's scroll position and richtext interaction state survive
@@ -98,6 +99,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		propClick widget.Clickable
 		backClick widget.Clickable
 		fwdClick  widget.Clickable
+		trail     crumbRow
 	)
 	docFor := func(m Model, n *Note) *markdown.Document {
 		if m.Vault != docsVault {
@@ -116,24 +118,31 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		return d
 	}
 	mainSlot := func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, docFor)
+		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, &trail, docFor)
 	}
 	return shell.Shell(th, shell.Props{
 		Layout:  shell.ThreeColumn,
 		Navbar:  vaultNavbar(loadTok),
 		Sidebar: treeSidebar(loadModel, loadTok),
+		Aside:   backlinksAside(loadModel, loadTok),
 		Main:    mainSlot,
 	})
 }
 
-// vaultNavbar is the shell's top bar: the app name as the brand, no
-// links yet.
+// vaultNavbar is the shell's top bar: the app name as the brand and the
+// affordance that returns to the folder browser to open another vault.
 func vaultNavbar(loadTok func() themeTokens) navbar.Props {
 	return navbar.Props{
 		Brand: func(gtx layout.Context) layout.Dimensions {
 			tok := loadTok()
 			return drawLabel(gtx, tok.shaper, "Vault View", tok.typ.TitleMedium, tok.col.Text)
 		},
+		Links: []navbar.Link{{
+			Label: "Switch vault",
+			OnClick: func(gtx layout.Context) {
+				mvu.MessageOp{Message: SwitchVault{}}.Add(gtx.Ops)
+			},
+		}},
 	}
 }
 
@@ -145,12 +154,13 @@ func layoutNotePage(
 	m Model,
 	tok themeTokens,
 	propClick, backClick, fwdClick *widget.Clickable,
+	trail *crumbRow,
 	docFor func(Model, *Note) *markdown.Document,
 ) layout.Dimensions {
 	note := m.CurrentNote()
 	inset := complayout.Inset(noteInsetDp)
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		bcW := breadcrumb.Render(tok.shaper, breadcrumb.Props{Items: noteBreadcrumb(m)}, tok.col, tok.sp, tok.typ.TitleSmall)
+		crumbs := noteCrumbs(m)
 
 		var body layout.FlexChild
 		switch {
@@ -181,7 +191,9 @@ func layoutNotePage(
 					return navButton(gtx, tok, fwdClick, "→", "Forward", m.Cursor+1 < len(m.History), GoForward{})
 				}),
 				layout.Rigid(complayout.HSpacer(noteGapDp)),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return bcW(gtx) }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return trail.layout(gtx, tok, crumbs)
+				}),
 			)
 		}
 
@@ -230,8 +242,9 @@ func navButton(
 // linkClicked dispatches one link activation: wikilinks (embeds included
 // — an embed navigates like an ordinary link) resolve against the index
 // and navigate on the same frame; web links open the system browser; a
-// refused resolution surfaces its reason as a toast; anything else is
-// ignored.
+// link whose file part matches several notes raises the chooser with the
+// candidates the resolver refused to pick between, and every other refusal
+// surfaces its reason as a toast; anything else is ignored.
 func linkClicked(gtx layout.Context, m Model, url string) {
 	switch {
 	case strings.HasPrefix(url, "wiki:"), strings.HasPrefix(url, "wikiembed:"):
@@ -241,6 +254,10 @@ func linkClicked(gtx layout.Context, m Model, url string) {
 		body := strings.TrimPrefix(strings.TrimPrefix(url, "wikiembed:"), "wiki:")
 		res, rerr := Resolve(m.Index, m.Current, body)
 		if rerr != nil {
+			if len(rerr.Candidates) > 0 {
+				mvu.MessageOp{Message: OpenChooser{Body: body, Candidates: rerr.Candidates}}.Add(gtx.Ops)
+				return
+			}
 			toast.Notify(gtx, toast.Warning, rerr.Reason)
 			return
 		}
@@ -272,20 +289,28 @@ func messageChild(tok themeTokens, msg string) layout.FlexChild {
 	})
 }
 
-// noteBreadcrumb builds the trail: vault name, folder segments, note
-// title. Labels only for now — navigation grows later.
-func noteBreadcrumb(m Model) []breadcrumb.Item {
-	items := []breadcrumb.Item{{Label: path.Base(strings.TrimRight(m.Vault, "/"))}}
-	if note := m.CurrentNote(); note != nil {
-		dir := path.Dir(note.Path)
-		if dir != "." {
-			for _, seg := range strings.Split(dir, "/") {
-				items = append(items, breadcrumb.Item{Label: seg})
-			}
-		}
-		items = append(items, breadcrumb.Item{Label: note.Title})
+// noteCrumbs builds the trail: the vault name, one segment per folder on
+// the current note's path, then the note title. The vault crumb returns
+// the tree to its root state; each folder crumb reveals that folder in the
+// tree; the note title is where you already are and stays inert.
+func noteCrumbs(m Model) []crumb {
+	items := []crumb{{label: path.Base(strings.TrimRight(m.Vault, "/")), msg: RootTree{}}}
+	note := m.CurrentNote()
+	if note == nil {
+		return items
 	}
-	return items
+	if dir := path.Dir(note.Path); dir != "." {
+		cum := ""
+		for _, seg := range strings.Split(dir, "/") {
+			if cum == "" {
+				cum = seg
+			} else {
+				cum += "/" + seg
+			}
+			items = append(items, crumb{label: seg, msg: RevealFolder{Dir: cum}})
+		}
+	}
+	return append(items, crumb{label: note.Title})
 }
 
 // layoutProperties renders the collapsible properties panel: a header
