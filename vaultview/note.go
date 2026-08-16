@@ -143,29 +143,47 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	})
 }
 
-// vaultNavbar is the shell's top bar: the app name as the brand, the
-// affordance that re-walks the vault, and the one that returns to the
-// folder browser to open another vault.
+// vaultNavbar is the shell's top bar, laid out as one row on one
+// baseline: the app name leads, and the two affordances — re-walk the
+// vault, return to the folder browser — trail right-aligned as a group.
+// The whole row rides in the navbar's Brand slot: the pattern's Links
+// slot centres its content in the bar, and these actions belong at a
+// deliberate edge, not afloat near the middle.
 func vaultNavbar(loadTok func() themeTokens) navbar.Props {
+	var rescanClick, switchClick widget.Clickable
 	return navbar.Props{
 		Brand: func(gtx layout.Context) layout.Dimensions {
 			tok := loadTok()
-			return drawLabel(gtx, tok.shaper, "Vault View", tok.typ.TitleMedium, tok.col.Text)
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return drawLabel(gtx, tok.shaper, "Vault View", tok.typ.TitleMedium, tok.col.Text)
+				}),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
+				}),
+				layout.Rigid(headerAction(&rescanClick, "Rescan", tok, Rescan{})),
+				layout.Rigid(complayout.HSpacer(tok.sp.S4)),
+				layout.Rigid(headerAction(&switchClick, "Switch vault", tok, SwitchVault{})),
+			)
 		},
-		Links: []navbar.Link{
-			{
-				Label: "Rescan",
-				OnClick: func(gtx layout.Context) {
-					mvu.MessageOp{Message: Rescan{}}.Add(gtx.Ops)
-				},
-			},
-			{
-				Label: "Switch vault",
-				OnClick: func(gtx layout.Context) {
-					mvu.MessageOp{Message: SwitchVault{}}.Add(gtx.Ops)
-				},
-			},
-		},
+	}
+}
+
+// headerAction renders one top-bar affordance: a clickable label that
+// emits its message on the frame the click lands. It reports the label's
+// own baseline, so a Baseline-aligned row seats it on the same line as
+// the brand.
+func headerAction(click *widget.Clickable, label string, tok themeTokens, msg mvu.Message) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		if click.Clicked(gtx) {
+			mvu.MessageOp{Message: msg}.Add(gtx.Ops)
+		}
+		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			semantic.LabelOp(label).Add(gtx.Ops)
+			semantic.EnabledOp(true).Add(gtx.Ops)
+			pointer.CursorPointer.Add(gtx.Ops)
+			return drawLabel(gtx, tok.shaper, label, tok.typ.LabelLarge, tok.col.Text)
+		})
 	}
 }
 
