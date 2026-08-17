@@ -6,13 +6,16 @@ import (
 	"strings"
 	"testing"
 
+	"gioui.org/f32"
 	"gioui.org/io/input"
 	"gioui.org/io/key"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -484,5 +487,55 @@ func TestPaneFootNamesItsActions(t *testing.T) {
 		if !spoken[want] {
 			t.Errorf("the pane's semantic tree does not name %q", want)
 		}
+	}
+}
+
+// TestPaneFootAnswersThePointer asserts the foot's actions look like
+// controls when a pointer is on them. Shown the pane as a still picture,
+// a fresh reviewer read two unadorned labels at the bottom of a column as
+// a status line rather than as things to press: a bare label says nothing
+// about being pressable until something answers. So the hit area fills
+// under the pointer, and the assertion is pixels — the fill is the whole
+// point, and dimensions cannot see it.
+//
+// The hover is delivered through the frame's own input router at a point
+// beside the label rather than on it, which also says the hit area is
+// bigger than the glyphs it holds.
+func TestPaneFootAnswersThePointer(t *testing.T) {
+	tok := goldenTokens()
+	size := image.Pt(treeWidthDp, 700)
+	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
+	var r input.Router
+	var ops op.Ops
+	gtx := layout.Context{
+		Constraints: layout.Exact(size),
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Source:      r.Source(),
+		Ops:         &ops,
+	}
+	v.layout(gtx, goldenModel(), tok, nil)
+	r.Frame(&ops)
+
+	foot := v.geom.foot
+	at := f32.Pt(float32(treeRowInsetDp+2), float32(foot.Min.Y+foot.Max.Y)/2)
+	r.Queue(pointer.Event{Kind: pointer.Move, Position: at, Source: pointer.Mouse})
+
+	ops.Reset()
+	v.layout(gtx, goldenModel(), tok, nil)
+	r.Frame(&ops)
+	if !v.rescanClick.Hovered() {
+		t.Fatalf("a pointer at %v is not on the rescan action; its hit area is the label's glyphs alone", at)
+	}
+
+	// Captured after the hover has landed: the clickable holds the state,
+	// so the stored frame is the hovered one.
+	plain := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
+	shot := func(v *treeView) *image.RGBA {
+		return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+			return v.layout(gtx, goldenModel(), tok, nil)
+		})
+	}
+	if n := golden.PixelDiff(shot(plain), shot(v)); n == 0 {
+		t.Error("the foot's action draws the same under the pointer as away from it; nothing marks it as pressable")
 	}
 }

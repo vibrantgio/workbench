@@ -40,6 +40,7 @@ import (
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
@@ -70,7 +71,9 @@ const (
 	treePillVPadDp   = 2   // vertical gap between adjacent row fills
 	treeHideBoxDp    = 24  // the pane's own hide control: a square hit area
 	treeFootPadDp    = 10  // breathing room above and below the foot's actions
-	treeFootGapDp    = 16  // gap between the foot's two actions
+	treeFootGapDp    = 4   // gap between the foot's two hit areas
+	treeFootHPadDp   = 8   // an action's hit area either side of its label
+	treeFootVPadDp   = 4   // an action's hit area above and below its label
 )
 
 // TreeRow is one visible row of the folder tree.
@@ -375,7 +378,9 @@ func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
 		layout.Rigid(complayout.VSpacer(treeFootPadDp)),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(complayout.HSpacer(treeRowInsetDp+treeRowPadDp)),
+				// The hit areas start on the row pills' own edge, which
+				// puts their labels on the row names' own ink margin.
+				layout.Rigid(complayout.HSpacer(treeRowInsetDp)),
 				layout.Rigid(footAction(&v.rescanClick, "Rescan", tok)),
 				layout.Rigid(complayout.HSpacer(treeFootGapDp)),
 				// Title case, which is what the platform's own controls use.
@@ -394,13 +399,42 @@ func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
 // label at the low-contrast neutral step reads as a disabled control
 // rather than a live one, which is what a fresh reviewer called it when
 // these two stood in the chrome row.
+//
+// The label sits in a hit area of its own, and that area fills under the
+// pointer and darkens while it is held. A fresh reviewer, shown the pane
+// as a picture, read two unadorned labels at the bottom of a column as a
+// status line rather than as controls — a bare label says nothing about
+// being pressable until something answers the pointer. The fill is the
+// rows' own pill in the rows' own neutral steps, so the foot answers the
+// way everything above it does rather than inventing a button.
 func footAction(click *widget.Clickable, label string, tok themeTokens) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp(label).Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, tok.shaper, label, tok.typ.LabelLarge, tok.col.Text)
+			hp, vp := gtx.Dp(treeFootHPadDp), gtx.Dp(treeFootVPadDp)
+			macro := op.Record(gtx.Ops)
+			igtx := gtx
+			igtx.Constraints.Min = image.Point{}
+			dims := drawLabel(igtx, tok.shaper, label, tok.typ.LabelLarge, tok.col.Text)
+			call := macro.Stop()
+			size := image.Pt(dims.Size.X+2*hp, dims.Size.Y+2*vp)
+			var fill color.NRGBA
+			switch {
+			case click.Pressed():
+				fill = tok.col.Ramps.Neutral.Step(400)
+			case click.Hovered():
+				fill = tok.col.Ramps.Neutral.Step(300)
+			}
+			if fill.A > 0 {
+				r := gtx.Dp(unit.Dp(treePillRadiusDp))
+				pill := clip.RRect{Rect: image.Rectangle{Max: size}, NE: r, NW: r, SE: r, SW: r}
+				paint.FillShape(gtx.Ops, fill, pill.Op(gtx.Ops))
+			}
+			defer op.Offset(image.Pt(hp, vp)).Push(gtx.Ops).Pop()
+			call.Add(gtx.Ops)
+			return layout.Dimensions{Size: size, Baseline: dims.Baseline + vp}
 		})
 	}
 }
