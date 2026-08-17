@@ -18,9 +18,7 @@
 // bottom edges by one margin, rounded on all four corners, with the
 // window's ground showing around it on every side. No band crosses above
 // it, because on this platform none does; the only thing over the pane is
-// the margin of ground it floats off. The window control buttons stand
-// inside the pane's own top strip — the strip that used to hold nothing
-// but the buttons is the pane's now — and the pane's toggle sits at its
+// the margin of ground it floats off. The pane's toggle sits at its
 // top-right corner, where the pane ends, with the strip's empty middle
 // moving the window. The slivers of ground the margin reveals claim no
 // drag of their own: a hand aims for the strip, not for an eight-dp gap,
@@ -28,10 +26,19 @@
 // pane is also where the vault's own actions live, at its foot — the pane
 // stands for the vault, so what acts on the whole vault belongs to it.
 // Hidden, the pane takes no width at all, the note column reflows from
-// the window's leading edge, and the buttons go back to the geometry
-// their platform chose; the chrome row then carries the toggle that
+// the window's leading edge, and the chrome row carries the toggle that
 // brings the pane back, since a control that travels with the pane cannot
 // be the one that recalls it.
+//
+// The window control buttons are the window's own and are measured from
+// its edges, not from anything drawn under them: they stand a fixed inset
+// in from the window's top and leading glass, the inset the platform's
+// own sidebar apps use, and they stay there whatever the application puts
+// beneath. The pane happens to be under them while it stands, so its top
+// strip is cut deep enough to hold them with air to spare and its toggle
+// centres on their line; when the pane goes, nothing about them changes.
+// A control that belongs to the window cannot shift because a pane the
+// reader dismissed used to be behind it.
 //
 // The window's ground is the same paper the note column lies on, so the
 // note has no edge of its own to draw and the chrome row sits on the
@@ -122,27 +129,35 @@ const (
 	railRadiusDp = 10
 
 	// buttonInsetDp is how far the window control buttons sit in from the
-	// pane's top and leading edges — the drawn circles' own edges, equal on
-	// both axes. The number is the owner's measurement of the platform's
-	// sidebar apps on this display: about four millimetres, which at this
-	// display's ~109 ppi and one pixel per dp is seventeen. The old
-	// placement kept the platform's window-relative x and the strip's
-	// middle line, which read as barely three millimetres from the pane's
-	// leading edge and under two from its top once the pane moved in off
-	// the glass.
-	buttonInsetDp = 17
+	// window's own top and leading edges — the drawn circles' own edges,
+	// equal on both axes, measured from the glass and from nothing else.
+	// The number is the platform's, read off its sidebar apps on this
+	// display: Finder, Mail, Notes and Voice Memos all draw the circles
+	// nineteen pixels in from both edges, which at one pixel per dp is
+	// nineteen. It is not what this window's toolkit would do left alone —
+	// unasked, the buttons land at nine, the inset the platform's compact
+	// windows use — so the placement is stated rather than defaulted.
+	buttonInsetDp = 19
 
 	// buttonDiameterDp is the drawn diameter of one control button on this
 	// machine's macOS, measured from a live capture rather than assumed —
 	// the buttons are the platform's, and so is their size. It converts an
 	// edge inset into the centre line the placement call wants.
-	buttonDiameterDp = 12
+	buttonDiameterDp = 14
+
+	// buttonCenterDp is the line the buttons' centres sit on, below the
+	// window's top edge. It and buttonInsetDp are the whole placement, and
+	// both are the window's measurements: no rail state, no screen and no
+	// pane enters into either.
+	buttonCenterDp = buttonInsetDp + buttonDiameterDp/2
 
 	// paneStripDp is the pane's own top strip: deep enough to hold the
-	// buttons at their inset with the same air below them as above, which
-	// puts the buttons' centre line on the strip's own middle — the line
-	// the pane's toggle centres on too, so the two sit level.
-	paneStripDp = 2*buttonInsetDp + buttonDiameterDp
+	// buttons where the window puts them with the same air below them as
+	// above. The buttons' inset is measured from the glass and the strip
+	// from the pane's own edge, so the strip owes the difference back —
+	// which lands the buttons' centre line on the strip's own middle, the
+	// line the pane's toggle centres on too, so the two sit level.
+	paneStripDp = 2*(buttonInsetDp-railMarginDp) + buttonDiameterDp
 )
 
 // toolbarHeight is the chrome row's height: one LabelLarge line box with

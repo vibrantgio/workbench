@@ -37,14 +37,13 @@ const (
 	// value: a real macOS measurement, recorded once and frozen as a
 	// fixture. It is not a constant the application uses.
 	//
-	// The measurement is a pair now, because the live value depends on the
-	// rail state: with the pane standing the buttons are placed at its own
-	// inset and their trailing edge measures 85; with the pane away they
-	// are back at the platform's own geometry, which measures 69 — the
-	// single value this pin used to hold, when a placement moved only the
-	// buttons' line and never their x.
-	goldenLeading       = 85
-	goldenLeadingHidden = 69
+	// One value, for both rail states and for the same reason the window
+	// itself has one: the buttons are anchored to the window's own edges
+	// and nothing the application draws under them moves them. The pin was
+	// briefly a pair, when hiding the pane handed the buttons back to a
+	// different geometry; that a single number serves again is the
+	// arrangement saying so.
+	goldenLeading = 79
 )
 
 var (
@@ -334,15 +333,11 @@ func TestVaultWindowGolden(t *testing.T) {
 		for _, tc := range themeCases {
 			name := c.name + "-" + tc.name
 			t.Run(name, func(t *testing.T) {
-				// The leading pin follows the rail state the way the live
-				// measurement does: hiding the pane hands the buttons back
-				// to the platform, and the row lays out from that edge.
-				lead := unit.Dp(goldenLeading)
-				if c.model.SidebarHidden {
-					lead = goldenLeadingHidden
-				}
+				// One leading pin for every case, the way the live
+				// measurement is one: the buttons stand at the window's own
+				// inset whether the pane is under them or not.
 				w, _ := renderWindow(shaper, c.model, tc.colors, tokens.Spacing, sharpRadius,
-					tokens.DefaultTypography, tokens.Comfortable, lead)
+					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 				golden.Render(t, name, windowCanvasSize, scene(w, tc.bg))
 			})
 		}

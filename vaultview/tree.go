@@ -311,10 +311,11 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW l
 	}
 	size := image.Pt(railW, gtx.Constraints.Max.Y)
 	gtx.Constraints = layout.Exact(size)
-	// The strip is the pane's own, not the chrome row's: it is as deep as
-	// the buttons' inset asks, which is more than the content area's row
-	// spends, and the two owe each other nothing — the chrome budget is
-	// the content column's, and this band is inside the pane.
+	// The strip is the pane's own, not the chrome row's: it is cut to
+	// clear the window's control buttons where the window keeps them,
+	// which is deeper than the content area's row spends, and the two owe
+	// each other nothing — the chrome budget is the content column's, and
+	// this band is inside the pane.
 	stripH := gtx.Dp(unit.Dp(paneStripDp))
 	if stripH > size.Y {
 		stripH = size.Y
@@ -444,17 +445,18 @@ func footAction(click *widget.Clickable, label string, tok themeTokens) layout.W
 	}
 }
 
-// topStrip is the band the window control buttons stand in now that the
-// top of the window is the pane's: their space at the leading end, left
-// untouched, the pane's own toggle at the trailing corner, and between
-// the two a stretch that moves the window. Under the full-size-content
-// treatment the native title bar hands over no drag, so a pane that owns
-// the top of the window owes the reader one.
+// topStrip is the band the pane keeps clear under the window's control
+// buttons now that the top of the window is the pane's: their space at
+// the leading end, left untouched, the pane's own toggle at the trailing
+// corner, and between the two a stretch that moves the window. Under the
+// full-size-content treatment the native title bar hands over no drag, so
+// a pane that owns the top of the window owes the reader one.
 func (v *treeView) topStrip(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	// The buttons' trailing edge is measured in window coordinates, and
 	// the pane floats one margin inside the window's leading edge, so the
 	// pane-local skip is the measurement less that margin — the buttons
-	// keep their own x, and it is the pane that moved under them.
+	// are the window's and stand where it puts them; it is the pane that
+	// slid in under them.
 	lead := v.buttonEdge() - railMarginDp
 	if lead < 0 {
 		lead = 0

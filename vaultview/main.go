@@ -166,25 +166,12 @@ func routedLayer(
 		modelCell.Store(m)
 		if m.Screen == screenPicker {
 			topBand.Store(unit.Dp(0))
-			placeWindowButtons(0, 0)
+			placeWindowButtons(buttonPlacementFor(m))
 			return t.Second
 		}
 		row := toolbarHeight(loadTok())
 		topBand.Store(row)
-		// The buttons sit inside the sidebar pane, inset from its top and
-		// leading edges the way the platform's own sidebar apps inset
-		// theirs — the pane floats a margin inside the window, and the
-		// buttons sit the measured inset inside the pane, centred on its
-		// own strip's middle line. With the pane away there is no pane to
-		// sit in, so they go back to the geometry their platform chose —
-		// which is what the window looks like everywhere else on this
-		// desktop.
-		if m.SidebarHidden {
-			placeWindowButtons(0, 0)
-		} else {
-			placeWindowButtons(unit.Dp(railMarginDp+buttonInsetDp),
-				unit.Dp(railMarginDp)+unit.Dp(paneStripDp)/2)
-		}
+		placeWindowButtons(buttonPlacementFor(m))
 		return t.Third
 	})
 }
@@ -195,6 +182,29 @@ func routedLayer(
 // platform's own geometry there.
 type buttonPlacement struct {
 	leading, center unit.Dp
+}
+
+// buttonPlacementFor answers where the screen on show puts the window's
+// control buttons.
+//
+// The vault screen states one placement and states it from the window's
+// own top and leading edges. The buttons are part of the window, seen
+// through whatever the application draws under them, so nothing the
+// application draws may move them: not the pane arriving, and not the
+// pane leaving. There is deliberately no rail state in this answer —
+// asking the buttons back to a different geometry when the pane goes is
+// the movement that reading forbids, and the pane is what moved, not
+// them.
+//
+// The picker asks for no placement at all. It claims no band of its own
+// and lays its content out below the native strip, so the whole strip is
+// the platform's there — the buttons included, at whatever geometry the
+// platform keeps them.
+func buttonPlacementFor(m Model) buttonPlacement {
+	if m.Screen == screenPicker {
+		return buttonPlacement{}
+	}
+	return buttonPlacement{leading: buttonInsetDp, center: buttonCenterDp}
 }
 
 // buttonPlace remembers the placement the window buttons were last asked
@@ -208,22 +218,19 @@ var buttonPlace atomic.Value
 // much is not document.
 var topBand atomic.Value
 
-// placeWindowButtons asks the window to place its control buttons — their
-// leading edge at the pane's own inset and their centres on the middle of
-// the pane's top strip while the pane stands, and zero on both axes
-// everywhere else, which lets the platform keep its own geometry.
+// placeWindowButtons asks the window to place its control buttons where
+// the screen on show says, and sends the request only when the answer
+// changes — which, once the vault screen is up, is never again.
 //
-// Screen by screen and rail state by rail state rather than once at
-// startup, because they answer differently: taking the top strip is the
-// pane's doing, and where there is no pane the strip is not the
-// application's to take.
-func placeWindowButtons(leading, center unit.Dp) {
-	p := buttonPlacement{leading: leading, center: center}
+// Screen by screen rather than once at startup, because the two screens
+// answer differently: the vault screen takes the top of the window and
+// states the placement, and the picker leaves the strip to the platform.
+func placeWindowButtons(p buttonPlacement) {
 	if prev, ok := buttonPlace.Load().(buttonPlacement); ok && prev == p {
 		return
 	}
 	buttonPlace.Store(p)
-	desktop.PlaceWindowButtonsAt(leading, center)
+	desktop.PlaceWindowButtonsAt(p.leading, p.center)
 }
 
 // underTitleBar pads a layer down by the native title-bar strip's

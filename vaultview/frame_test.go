@@ -57,10 +57,10 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 	rowW := 1100
 	rowH := int(toolbarHeight(tok))
 
-	// The hidden row lays out past the buttons at the platform's own
-	// geometry — hiding the pane hands them back — so the probe pins the
-	// hidden-state measurement, not the placed one.
-	const lead = goldenLeadingHidden
+	// The hidden row lays out past the buttons, which stand at the
+	// window's own inset in both rail states — so the probe pins the one
+	// measurement there is.
+	const lead = goldenLeading
 	for _, c := range []struct {
 		name     string
 		hidden   bool
@@ -409,12 +409,8 @@ func TestChromeBudget(t *testing.T) {
 		{"rail hidden", hidden},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			lead := unit.Dp(goldenLeading)
-			if c.model.SidebarHidden {
-				lead = goldenLeadingHidden
-			}
 			w, st := renderWindow(shaper, c.model, tokens.DefaultLight, tokens.Spacing,
-				sharpRadius, tokens.DefaultTypography, tokens.Comfortable, lead)
+				sharpRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			drawOnce(t, windowCanvasSize, w)
 
 			if st.geom.rowTop > chromeBudgetDp {
@@ -451,11 +447,10 @@ func TestChromeBudget(t *testing.T) {
 func TestChromeHeightMatchesTheRow(t *testing.T) {
 	row := toolbarHeight(goldenTokens())
 	// What the vault screen states on every emission that selects it: the
-	// chrome band is the row's height, and the buttons sit at the pane's
-	// own inset, centred on the middle line of its top strip.
+	// chrome band is the row's height, and the buttons sit at the window's
+	// own inset.
 	topBand.Store(row)
-	placeWindowButtons(unit.Dp(railMarginDp+buttonInsetDp),
-		unit.Dp(railMarginDp)+unit.Dp(paneStripDp)/2)
+	placeWindowButtons(buttonPlacementFor(goldenModel()))
 	if got := chromeHeight(); got != row {
 		t.Errorf("the overlays are inset by %v dp while the content row starts at %v dp", got, row)
 	}
@@ -464,5 +459,46 @@ func TestChromeHeightMatchesTheRow(t *testing.T) {
 	}
 	if row > chromeBudgetDp {
 		t.Errorf("the chrome row alone is %v dp, over the %d dp budget", row, chromeBudgetDp)
+	}
+}
+
+// TestWindowButtonsStandStillWhenThePaneGoes asserts the one thing the
+// window's control buttons owe the reader: they are the window's, seen
+// through whatever the application draws under them, and nothing the
+// application draws moves them. The vault screen must therefore answer
+// one placement for both rail states — dismissing the pane is a change to
+// what is behind the buttons, not to where they are — and that placement
+// must be stated from the window's own edges rather than from any pane's.
+//
+// The pane's own strip is measured against them in the same breath, since
+// the strip exists to keep the pane's content out from under the buttons:
+// in window coordinates it must reach past their bottom edge, and its
+// middle line — where the pane's toggle centres — must be their centre
+// line, so the two read as one row of furniture.
+func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
+	shown := goldenModel()
+	hidden := shown
+	hidden.SidebarHidden = true
+
+	want := buttonPlacement{leading: buttonInsetDp, center: buttonCenterDp}
+	if got := buttonPlacementFor(shown); got != want {
+		t.Errorf("with the pane standing the buttons are placed at %+v, want %+v — the window's own inset", got, want)
+	}
+	if got := buttonPlacementFor(hidden); got != want {
+		t.Errorf("with the pane away the buttons are placed at %+v, want %+v — dismissing the pane moved a control that is not the pane's", got, want)
+	}
+
+	// The buttons' band in window coordinates, and the pane's strip in the
+	// same coordinates: the pane floats one margin in from the top edge.
+	buttonsTop, buttonsBottom := buttonInsetDp, buttonInsetDp+buttonDiameterDp
+	stripTop, stripBottom := railMarginDp, railMarginDp+paneStripDp
+	if stripTop > buttonsTop {
+		t.Errorf("the pane's strip begins at y=%d, below the buttons' top edge at y=%d — the pane's content would start under them", stripTop, buttonsTop)
+	}
+	if stripBottom < buttonsBottom {
+		t.Errorf("the pane's strip ends at y=%d, above the buttons' bottom edge at y=%d — the pane's content would run under them", stripBottom, buttonsBottom)
+	}
+	if mid := stripTop + paneStripDp/2; mid != buttonCenterDp {
+		t.Errorf("the strip's middle line is y=%d and the buttons' is y=%d; the pane's toggle centres on the strip and would sit off their line", mid, buttonCenterDp)
 	}
 }

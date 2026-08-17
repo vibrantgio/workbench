@@ -33,9 +33,10 @@ The window is a sidebar down the leading edge and two columns beside it.
   type and the hierarchy gives way to the notes whose name matches,
   each with its folder as a quiet annotation. The sidebar is a rounded
   pane floating just inside the window's edge — the window's own buttons
-  stand in it, and its toggle sits at its top-right corner. Put it away
-  and the toggle that brings it back appears at the leading end of the
-  top row.
+  show through its top strip, where the platform puts them and where they
+  stay — and its toggle sits at its top-right corner, on their line. Put
+  the pane away and the toggle that brings it back appears at the leading
+  end of the top row; the buttons do not budge.
 - **Middle — the note.** Back and forward, then the trail — vault name,
   folders, note title. The frontmatter is lifted out of the prose into a
   collapsible **Properties** panel; what a plain line-split can read
