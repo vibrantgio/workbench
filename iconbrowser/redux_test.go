@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	marks "github.com/vibrantgio/components/icons"
 )
 
 func TestSetQueryReduces(t *testing.T) {
@@ -57,6 +59,38 @@ func TestFilterExcludesNonMatches(t *testing.T) {
 	}
 	if got := len(FilterIcons("zzzzzz")); got != 0 {
 		t.Fatalf("nonsense query matched %d icons", got)
+	}
+}
+
+func TestFilterMarksMatchesTheSetsOwnNames(t *testing.T) {
+	all := FilterMarks("")
+	if len(all) == 0 {
+		t.Fatal("the set carries no marks")
+	}
+	if got := len(FilterMarks("   ")); got != len(all) {
+		t.Fatalf("whitespace query matches = %d, want %d", got, len(all))
+	}
+	for _, query := range []string{"history", "HISTORY"} {
+		matches := FilterMarks(query)
+		if len(matches) == 0 {
+			t.Fatalf("query %q matched no mark", query)
+		}
+		for _, name := range matches {
+			if !strings.Contains(string(name), "history") {
+				t.Fatalf("query %q matched %q", query, name)
+			}
+		}
+	}
+	if got := len(FilterMarks("zzzzzz")); got != 0 {
+		t.Fatalf("nonsense query matched %d marks", got)
+	}
+}
+
+func TestEveryMarkPaints(t *testing.T) {
+	for _, name := range FilterMarks("") {
+		if marks.Mark(name) == nil {
+			t.Fatalf("the set lists %q but carries no drawing for it", name)
+		}
 	}
 }
 

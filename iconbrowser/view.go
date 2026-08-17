@@ -80,19 +80,50 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		})
 }
 
-// Page stacks the search field above the grid of icons matching the query.
+// The two sets the page shows, each under its own label: the design system's
+// own marks first, because they are the ones a control should reach for, then
+// the Material catalogue everything outside the standard controls comes from.
+const (
+	MarksHeading     = "Vibrant Gio marks"
+	CatalogueHeading = "Material Design icons"
+)
+
+// Page stacks the search field over the two labelled sets: the design system's
+// own marks, then the grid of Material icons matching the query. The marks
+// section is dropped whole when the query matches none of them, so a search
+// for a Material glyph is not padded by an empty row.
 func Page(t themed, search layout.Widget, model Model, grid *layout.List) layout.Widget {
 	visible := FilterIcons(model.Query)
+	names := FilterMarks(model.Query)
 	gridWidget := Grid(t, visible, model.Query, grid)
+	markWidget := MarkGrid(t, names)
+	marksHeading := Heading(t, MarksHeading, MarkSizeNote())
+	catalogueHeading := Heading(t, CatalogueHeading, fmt.Sprintf("%d icons", len(visible)))
+	sides := layout.Inset{Left: Padding, Right: Padding}
 	return func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		children := make([]layout.FlexChild, 0, 5)
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.UniformInset(Padding).Layout(gtx, search)
+		}))
+		if len(names) > 0 {
+			children = append(children,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return sides.Layout(gtx, marksHeading)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Left: Padding, Right: Padding, Bottom: Padding}.Layout(gtx, markWidget)
+				}),
+			)
+		}
+		children = append(children,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.UniformInset(Padding).Layout(gtx, search)
+				return sides.Layout(gtx, catalogueHeading)
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return layout.UniformInset(Padding).Layout(gtx, gridWidget)
+				return layout.Inset{Left: Padding, Right: Padding, Bottom: Padding}.Layout(gtx, gridWidget)
 			}),
 		)
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	}
 }
 

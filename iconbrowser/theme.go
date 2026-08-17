@@ -7,8 +7,8 @@ import (
 	"gioui.org/text"
 	"gioui.org/unit"
 
-	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/textdraw"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // Palette is the app's view of the theme colour tokens, derived per theme
@@ -40,6 +40,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 type Type struct {
 	Shaper  *text.Shaper
 	Caption textdraw.TextStyle // BodySmall: icon captions
+	Section textdraw.TextStyle // TitleSmall: the labels over the two sets
 	Notice  textdraw.TextStyle // TitleLarge: the "no icons match" notice
 }
 
@@ -47,6 +48,7 @@ func TypeFrom(t tokens.Typography) Type {
 	return Type{
 		Shaper:  t.Shaper(),
 		Caption: textStyle(t.BodySmall),
+		Section: textStyle(t.TitleSmall),
 		Notice:  textStyle(t.TitleLarge),
 	}
 }
@@ -66,4 +68,13 @@ const (
 	CellW    unit.Dp = 160 // grid cell width: glyph + caption both fit
 	CellH    unit.Dp = 84  // 40 dp glyph, gap, one caption line, padding
 	IconSize unit.Dp = 40
+
+	// A mark is shown at the sizes a control draws it at, so its cell is
+	// shorter than a Material cell rather than blowing the marks up to
+	// match: the band is the largest of those sizes, and every size in it
+	// is centred on the band's own line.
+	MarkBand  unit.Dp = 24 // glyph band: the largest size a mark is shown at
+	MarkCellH unit.Dp = 60 // band, gap, one caption line, padding
+	MarkGap   unit.Dp = 12 // between the sizes one mark is shown at
+	HeadingH  unit.Dp = 28 // one section label on its own line
 )

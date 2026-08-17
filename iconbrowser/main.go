@@ -1,8 +1,11 @@
-// Command iconbrowser is a browsable catalogue of the Material Design icons
-// the Vibrant Gio apps draw from (golang.org/x/exp/shiny/materialdesign/icons,
-// rendered through ivg/raster/gio — see llms.txt §Icons). A search field
-// filters the scrolling grid live; every glyph is captioned with the exported
-// name to import.
+// Command iconbrowser is a browsable catalogue of the glyphs the Vibrant Gio
+// apps draw from, in two labelled sets: the design system's own marks
+// (components/icons, each shown at the sizes a control draws it at) above the
+// Material Design icons everything else comes from
+// (golang.org/x/exp/shiny/materialdesign/icons, rendered through
+// ivg/raster/gio — see llms.txt §Icons). The set comes first so an author sees
+// which marks already exist before drawing another. A search field filters
+// both live; every glyph is captioned with the name to write.
 //
 // Architecturally it is the todos bootstrap plus two demonstrations: a components
 // TextField driving the Model through mvu.MessageOp on every keystroke, and

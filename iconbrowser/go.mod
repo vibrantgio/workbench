@@ -6,7 +6,7 @@ require (
 	gioui.org v0.10.1
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.3
-	github.com/vibrantgio/components v0.7.0
+	github.com/vibrantgio/components v0.9.1
 	github.com/vibrantgio/ivg/raster/gio v0.1.6
 	github.com/vibrantgio/mvu v0.5.0
 	github.com/vibrantgio/textdraw v0.0.4
@@ -21,6 +21,7 @@ require (
 	github.com/reactivego/scheduler v0.2.0 // indirect
 	github.com/vibrantgio/font v0.1.0 // indirect
 	github.com/vibrantgio/ivg v0.1.6 // indirect
+	github.com/vibrantgio/svg v0.0.9 // indirect
 	golang.org/x/image v0.44.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
