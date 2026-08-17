@@ -187,13 +187,69 @@ func TestKeyboardReachesTheRailControls(t *testing.T) {
 	}
 }
 
-// TestChromeIsOneRow holds the vault window's chrome to a single row: the
-// distance from the top of the window to the first pixel of content, in
-// the density the app ships. Two stacked bands is what this composition
-// replaced, and a band creeping back is a defect a screenshot should not
-// have to be the one to catch.
-func TestChromeIsOneRow(t *testing.T) {
-	const budget = 40
+// chromeBudgetDp is what the vault window may spend between its top edge
+// and its first row of content. The composition this replaced spent about
+// eighty — a native title-bar strip holding nothing but the window
+// buttons, and a full navbar band under it holding a label and two links
+// — and nothing in the suite could see it. Forty leaves the single row
+// the window now draws its full height and no room for a second thing.
+const chromeBudgetDp = 40
+
+// TestChromeBudget holds the vault window's chrome to that budget, by
+// laying the whole window out at the size it opens at and asking the
+// frame where it put the first content row. It supersedes a cheaper
+// version that checked the toolbar row's own height: a row that measures
+// twenty-eight dp says nothing about a band stacked above it, and a band
+// stacked above it is precisely the defect.
+//
+// Both rail states are measured. Hiding the rail rebuilds the whole
+// composition, and a budget that only holds in one of them holds in
+// neither.
+func TestChromeBudget(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	shown := goldenModel()
+	hidden := shown
+	hidden.SidebarHidden = true
+
+	for _, c := range []struct {
+		name  string
+		model Model
+	}{
+		{"rail shown", shown},
+		{"rail hidden", hidden},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			w, st := renderWindow(shaper, c.model, tokens.DefaultLight, tokens.Spacing,
+				sharpRadius, tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
+			drawOnce(t, windowCanvasSize, w)
+
+			if st.geom.rowTop > chromeBudgetDp {
+				t.Errorf("the window spends %d dp above its first content row, over the %d dp budget — a band has come back",
+					st.geom.rowTop, chromeBudgetDp)
+			}
+			if st.geom.rowTop <= 0 {
+				t.Fatalf("the content row starts at y=%d; the frame drew no chrome row at all", st.geom.rowTop)
+			}
+			// The rail pane hangs its own margin below the row, and
+			// nothing may stand between the two.
+			if !st.geom.pane.Empty() {
+				if want := st.geom.rowTop + railMarginDp; st.geom.pane.Min.Y != want {
+					t.Errorf("the rail pane starts at y=%d, want %d — its own margin below the row and nothing else",
+						st.geom.pane.Min.Y, want)
+				}
+			}
+		})
+	}
+}
+
+// TestChromeHeightMatchesTheRow asserts the two answers to "how much of
+// the top is not document" agree: the one the frame lays the content row
+// out from, and the one chromeHeight gives the overlays. They are
+// computed in different files from different facts — the row's height
+// here, the line the window buttons were placed on there — and if they
+// drift, a toast lands on the vault's own controls or floats a band below
+// them, which is the same class of defect as the band itself.
+func TestChromeHeightMatchesTheRow(t *testing.T) {
 	tok := themeTokens{
 		col:    tokens.DefaultLight,
 		typ:    tokens.DefaultTypography,
@@ -201,7 +257,13 @@ func TestChromeIsOneRow(t *testing.T) {
 		den:    tokens.Comfortable,
 		shaper: tokens.DefaultTypography.DeterministicShaper(),
 	}
-	if h := toolbarHeight(tok); h > budget {
-		t.Errorf("chrome above the first content row is %v dp, over the %d dp budget", h, budget)
+	row := toolbarHeight(tok)
+	// What the vault screen asks for on every emission that selects it.
+	placeWindowButtons(row / 2)
+	if got := chromeHeight(); got != row {
+		t.Errorf("the overlays are inset by %v dp while the content row starts at %v dp", got, row)
+	}
+	if row > chromeBudgetDp {
+		t.Errorf("the chrome row alone is %v dp, over the %d dp budget", row, chromeBudgetDp)
 	}
 }

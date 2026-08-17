@@ -26,11 +26,24 @@ const (
 	noteCanvasH = 700
 	// treeCanvasH gives the rail the same height as the note viewport.
 	treeCanvasH = 700
+
+	// goldenLeading is the window-button trailing edge the window golden
+	// lays its chrome row out from. The live row measures this from the
+	// window; a stored image may not, because off a frame the measurement
+	// is zero and on one it is whatever this machine's macOS answers — two
+	// different windows, neither reproducible elsewhere. So the golden
+	// states a value: a real macOS measurement, recorded once and frozen
+	// as a fixture. It is not a constant the application uses.
+	goldenLeading = 69
 )
 
 var (
 	noteCanvasSize = image.Pt(noteCanvasW, noteCanvasH)
 	treeCanvasSize = image.Pt(treeWidthDp, treeCanvasH)
+	// windowCanvasSize is the size the app's window opens at. The window
+	// goldens are recorded there and nowhere else: a composition is only
+	// worth a picture at a size somebody actually looks at it in.
+	windowCanvasSize = image.Pt(windowW, windowH)
 	// Sharp corners keep the goldens deterministic: anti-aliased rounded
 	// corners vary slightly between GPU contexts, breaking pixel-exact
 	// diffs. The pattern goldens upstream do the same.
@@ -147,6 +160,47 @@ func TestTreeGolden(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				w := renderTree(shaper, c.model, tc.colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
 				golden.Render(t, name, treeCanvasSize, scene(w, tc.bg))
+			})
+		}
+	}
+}
+
+// TestVaultWindowGolden records or diffs the whole vault window, which is
+// the one thing every other golden in this package cannot see. A rail
+// rendered on its own at 240 dp and a note column rendered on its own at
+// its runtime width are both correct pictures of a window that spends
+// eighty dp on empty chrome above them: the defect is in the composition,
+// and only a picture of the composition carries it.
+//
+// Four images, because hiding the rail is not a change to one slot — the
+// pane goes, the note column reflows from the window's own edge, and the
+// toolbar's mark hollows out — and because every appearance the app ships
+// is an appearance the composition can be wrong in.
+//
+// The pane's corners are anti-aliased and the goldens carry those pixels.
+// That is the composition telling the truth; the sharp-radius trick the
+// slot goldens use covers the components' own radii, not a rounded clip
+// the frame draws itself.
+func TestVaultWindowGolden(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	shown := goldenModel()
+	hidden := shown
+	hidden.SidebarHidden = true
+
+	cases := []struct {
+		name  string
+		model Model
+	}{
+		{"window", shown},
+		{"window-hidden", hidden},
+	}
+	for _, c := range cases {
+		for _, tc := range themeCases {
+			name := c.name + "-" + tc.name
+			t.Run(name, func(t *testing.T) {
+				w, _ := renderWindow(shaper, c.model, tc.colors, tokens.Spacing, sharpRadius,
+					tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
+				golden.Render(t, name, windowCanvasSize, scene(w, tc.bg))
 			})
 		}
 	}

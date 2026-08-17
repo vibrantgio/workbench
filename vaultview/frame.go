@@ -58,14 +58,17 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
 	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // Frame layout constants. The aside bounds and divider width follow the
@@ -113,6 +116,30 @@ type frameState struct {
 	startW     unit.Dp
 	dragging   bool
 	hovering   bool
+
+	// leading pins the row's leading inset instead of measuring it. The
+	// measurement is the window's, and the window is the one thing a
+	// headless render does not have: off a real frame it reports zero, and
+	// on a real frame it reports whatever this machine's macOS puts the
+	// control buttons at. Neither is a number a stored image may depend
+	// on, so the static render path states one. The live path leaves this
+	// nil and measures.
+	leading func() unit.Dp
+
+	// geom is the arrangement the last frame laid out. It is kept so the
+	// composition can be measured after the fact — the chrome budget is a
+	// property of what was drawn, and a test that recomputed it from the
+	// tokens would be asserting its own arithmetic rather than the frame's.
+	geom frameGeom
+}
+
+// toolbarLeading answers where this frame's row may start: the pinned
+// value where one was given, and the platform measurement otherwise.
+func (f *frameState) toolbarLeading() unit.Dp {
+	if f.leading != nil {
+		return f.leading()
+	}
+	return toolbarLeading()
 }
 
 // vaultFrame composes the vault screen from its three column streams and
@@ -135,6 +162,41 @@ func vaultFrame(
 			}
 		})
 	})
+}
+
+// renderWindow is the static counterpart of the whole vault window, used
+// by the window golden: the chrome row over the rail pane, the note
+// column and the backlinks aside, all with fresh widget state, laid out
+// once from pre-resolved tokens and processing no events. It is the only
+// renderer in this package that composes rather than filling one slot.
+//
+// The leading inset is a parameter and not a measurement here, for the
+// reason [frameState.leading] gives: the value the live row lays out
+// from belongs to a window this render does not have.
+//
+// The frame is returned beside the widget so that what a render arranged
+// can be read back from it once the widget has run — the chrome budget is
+// measured off the same composition the golden stores, not off a second
+// one built to be measured.
+func renderWindow(
+	shaper *text.Shaper,
+	m Model,
+	colors tokens.ColorTokens,
+	sp tokens.SpacingScale,
+	rad tokens.RadiusScale,
+	typo tokens.Typography,
+	den tokens.Density,
+	leading unit.Dp,
+) (layout.Widget, *frameState) {
+	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
+	st := &frameState{asideW: frameAsideDp, leading: func() unit.Dp { return leading }}
+	sb := renderTree(shaper, m, colors, sp, rad, typo, den)
+	main := renderNotePage(shaper, m, colors, sp, typo, den)
+	av := &asideView{list: list.NewState()}
+	as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
+	return func(gtx layout.Context) layout.Dimensions {
+		return st.layout(gtx, m, tok, sb, as, main)
+	}, st
 }
 
 // frameGeom is where the frame puts things below the toolbar row: the
@@ -190,6 +252,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	f.layoutToolbar(bgtx, m, tok)
 
 	g := frameGeometry(gtx, size, barH, m.SidebarHidden)
+	f.geom = g
 
 	if sb != nil && !g.pane.Empty() {
 		f.layoutRailPane(gtx, tok, g.pane, sb)
@@ -354,7 +417,7 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens)
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 		// The window controls' own space is left alone: a move action
 		// declared over the buttons would fight them for the press.
-		layout.Rigid(complayout.HSpacer(float32(toolbarLeading()))),
+		layout.Rigid(complayout.HSpacer(float32(f.toolbarLeading()))),
 		layout.Rigid(dragSpacer(frameGapDp)),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return f.layoutRailToggle(gtx, m, tok)
