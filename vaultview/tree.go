@@ -60,6 +60,7 @@ const (
 	treeFieldPadDp   = 8   // breathing room around the find field
 	treePillRadiusDp = 8   // corner radius of the selection/active fill
 	treePillVPadDp   = 2   // vertical gap between adjacent row fills
+	treeHideBoxDp    = 24  // the pane's own hide control: a square hit area
 )
 
 // TreeRow is one visible row of the folder tree.
@@ -209,6 +210,7 @@ func sortByName[T any](s []T, name func(T) string) {
 // and per-row clickables (pointer-stable across frames).
 type treeView struct {
 	list      *list.State
+	hideClick widget.Clickable
 	rowClicks []*widget.Clickable
 }
 
@@ -236,9 +238,10 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 	})
 }
 
-// layout draws the rail: the find field, then the rows the model asks
-// for — the filter's matches while it is typed in, the folder tree
-// otherwise. The returned width is the rail's own, never the slot's.
+// layout draws the rail: a header of the find field and the pane's own
+// hide control, then the rows the model asks for — the filter's matches
+// while it is typed in, the folder tree otherwise. The returned width is
+// the rail's own, never the slot's.
 func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW layout.Widget) layout.Dimensions {
 	railW := gtx.Dp(treeWidthDp)
 	if railW > gtx.Constraints.Max.X {
@@ -248,15 +251,52 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW l
 	gtx.Constraints = layout.Exact(size)
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if fieldW == nil {
-				return layout.Dimensions{}
-			}
-			return complayout.Inset(treeFieldPadDp).Layout(gtx, fieldW)
+			return complayout.Inset(treeFieldPadDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						if fieldW == nil {
+							return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
+						}
+						return fieldW(gtx)
+					}),
+					layout.Rigid(complayout.HSpacer(treeFieldPadDp)),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return v.hideControl(gtx, tok)
+					}),
+				)
+			})
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return v.rows(gtx, m, tok)
 		}),
 	)
+}
+
+// hideControl is the pane's own way to put itself away, at the corner of
+// the rail where the pane ends. The toolbar row's toggle is what brings
+// it back — a control that travels with the pane cannot be the one that
+// recalls it — so the two exist for different halves of the same state
+// rather than as duplicates of one control.
+//
+// The mark is the chevron the note's history buttons already use, so the
+// rail's arrow and the document's arrows are the same shape from the same
+// shipped face.
+func (v *treeView) hideControl(gtx layout.Context, tok themeTokens) layout.Dimensions {
+	if v.hideClick.Clicked(gtx) {
+		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
+	}
+	return v.hideClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		semantic.LabelOp("Hide the folder rail").Add(gtx.Ops)
+		semantic.EnabledOp(true).Add(gtx.Ops)
+		pointer.CursorPointer.Add(gtx.Ops)
+		box := gtx.Dp(treeHideBoxDp)
+		cgtx := gtx
+		cgtx.Constraints = layout.Exact(image.Pt(box, box))
+		layout.Center.Layout(cgtx, func(gtx layout.Context) layout.Dimensions {
+			return drawLabel(gtx, tok.shaper, "‹", tok.typ.TitleMedium, tok.col.Ramps.Neutral.Step(700))
+		})
+		return layout.Dimensions{Size: image.Pt(box, box)}
+	})
 }
 
 // rows lays out the row region below the find field.

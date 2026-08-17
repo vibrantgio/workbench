@@ -612,6 +612,17 @@ func TestToggleSidebar(t *testing.T) {
 	if !switched.SidebarHidden {
 		t.Error("SidebarHidden = false after switching vaults, want the rail still hidden")
 	}
+	// And through the far side of the switch: opening a vault resets
+	// everything that belongs to a vault, and the rail's visibility does
+	// not belong to one.
+	opened, _ := Update(switched, OpenVault{Path: "/home/rene/Other Vault"})
+	if !opened.SidebarHidden {
+		t.Error("SidebarHidden = false after opening another vault, want the rail still hidden")
+	}
+	navigated, _ := Update(opened, Navigate{Path: "note.md"})
+	if !navigated.SidebarHidden {
+		t.Error("SidebarHidden = false after navigating, want the rail still hidden")
+	}
 	model, _ = Update(model, ToggleSidebar{})
 	if model.SidebarHidden {
 		t.Error("SidebarHidden = true after the second toggle, want the rail shown")

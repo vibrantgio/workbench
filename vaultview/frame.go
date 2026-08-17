@@ -7,10 +7,28 @@
 // shell for one reason: that shell pins its top slot to a full navbar
 // band (ControlHeight plus twice the vertical control padding, 52 dp at
 // the comfortable density), and this window's whole point is that its
-// chrome is a single tight row. Everything else here — full-height
-// columns, a divider that tracks an absolute aside width, the op order
-// that makes Tab follow the reading order — is the shell's arrangement,
-// kept deliberately recognisable.
+// chrome is a single tight row. Everything else here — a divider that
+// tracks an absolute aside width, the op order that makes Tab follow the
+// reading order — is the shell's arrangement, kept deliberately
+// recognisable.
+//
+// The folder rail is not one of the columns. It is a pane: an inset
+// rounded rectangle a surface step above the window's own ground, with
+// the ground visible on all four sides of it. A full-height column would
+// have to begin somewhere, and wherever it began — under the toolbar row,
+// as it once did — the eye read the start as a seam rather than as a
+// decision. Floating the pane makes every one of its edges deliberate,
+// and it is the idiom the platform's own document windows use. Hidden,
+// the pane takes no width at all and the note column reflows from the
+// window's leading edge.
+//
+// The window's ground is the same paper the note column lies on, so the
+// note has no edge of its own to draw and the toolbar row sits on the
+// document rather than on a band above it. What is furniture — the rail
+// pane — says so by standing a step off that ground; what is document
+// simply is the ground. The divider between the note and the backlinks
+// follows from this: with no column edges left to butt against, it is a
+// hairline drawn down the middle of a wide-enough grab area, not a bar.
 //
 // Where the row sits is a platform fact, not a taste. Under the
 // full-size-content treatment the content extends behind the native
@@ -60,9 +78,16 @@ const (
 	frameMinAsideDp = 160
 	frameMaxAsideDp = 640
 
-	toggleBarWDp   = 14
-	toggleBarHDp   = 2
-	toggleBarGapDp = 3
+	// The rail toggle's mark: a pane in outline, with a leading column
+	// the width of a sidebar filled in when the rail stands.
+	toggleMarkWDp   = 16
+	toggleMarkHDp   = 12
+	toggleMarkColDp = 5
+
+	// The rail pane's margin from the window's edges and from the toolbar
+	// row above it, and its corner radius.
+	railMarginDp = 8
+	railRadiusDp = 10
 )
 
 // toolbarHeight is the chrome row's height: one LabelLarge line box with
@@ -87,6 +112,7 @@ type frameState struct {
 	pressX     float32
 	startW     unit.Dp
 	dragging   bool
+	hovering   bool
 }
 
 // vaultFrame composes the vault screen from its three column streams and
@@ -111,11 +137,49 @@ func vaultFrame(
 	})
 }
 
-// layout draws the toolbar row, then the columns below it, in the order
-// they read: rail, note, divider, aside.
+// frameGeom is where the frame puts things below the toolbar row: the
+// rail pane's rectangle in frame coordinates, empty when the rail is
+// hidden or the window has no room for it, and the leading edge the note
+// column starts from — past the pane and its margin when the rail
+// stands, the window's own edge when it does not.
+type frameGeom struct {
+	pane     image.Rectangle
+	contentX int
+	rowTop   int
+	rowH     int
+}
+
+// frameGeometry measures the pane and the content edge. It is separate
+// from the drawing so the arrangement can be asserted without a frame:
+// the four margins around the pane, and the reflow when the rail goes.
+func frameGeometry(gtx layout.Context, size image.Point, barH int, hidden bool) frameGeom {
+	g := frameGeom{rowTop: barH, rowH: max(size.Y-barH, 0)}
+	if hidden || g.rowH <= 0 {
+		return g
+	}
+	margin := gtx.Dp(unit.Dp(railMarginDp))
+	railW := gtx.Dp(unit.Dp(treeWidthDp))
+	// A pane may never take more than half the window: a narrow window
+	// owes the note a readable column before it owes the rail its width.
+	if maxW := size.X/2 - 2*margin; railW > maxW {
+		railW = maxW
+	}
+	paneH := g.rowH - 2*margin
+	if railW <= 0 || paneH <= 0 {
+		return g
+	}
+	g.pane = image.Rect(margin, barH+margin, margin+railW, barH+margin+paneH)
+	g.contentX = g.pane.Max.X + margin
+	return g
+}
+
+// layout draws the toolbar row, then the rail pane and the columns below
+// it, in the order they read: rail, note, divider, aside.
 func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as, main layout.Widget) layout.Dimensions {
 	size := gtx.Constraints.Max
-	paint.FillShape(gtx.Ops, tok.col.Surface, clip.Rect{Max: size}.Op())
+	// The window's ground is the note's own paper, not a chrome fill: the
+	// document is what the window is, and only the rail pane rises off it.
+	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: size}.Op())
 
 	barH := gtx.Dp(toolbarHeight(tok))
 	if barH > size.Y {
@@ -125,23 +189,10 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	bgtx.Constraints = layout.Exact(image.Pt(size.X, barH))
 	f.layoutToolbar(bgtx, m, tok)
 
-	rowH := size.Y - barH
-	if rowH < 0 {
-		rowH = 0
-	}
+	g := frameGeometry(gtx, size, barH, m.SidebarHidden)
 
-	// The rail sizes its own width; hidden, it takes none and the note
-	// column absorbs what it left.
-	sbW := 0
-	if rowH > 0 && !m.SidebarHidden && sb != nil {
-		st := op.Offset(image.Pt(0, barH)).Push(gtx.Ops)
-		sgtx := gtx
-		sgtx.Constraints = layout.Constraints{Max: image.Pt(size.X, rowH)}
-		sbW = sb(sgtx).Size.X
-		st.Pop()
-		if sbW > size.X {
-			sbW = size.X
-		}
+	if sb != nil && !g.pane.Empty() {
+		f.layoutRailPane(gtx, tok, g.pane, sb)
 	}
 
 	f.processDividerDrag(gtx)
@@ -151,21 +202,21 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		dividerW = 1
 	}
 	asidePx := gtx.Dp(f.asideW)
-	if avail := size.X - sbW - dividerW; asidePx > avail {
+	if avail := size.X - g.contentX - dividerW; asidePx > avail {
 		asidePx = avail
 	}
 	if asidePx < 0 {
 		asidePx = 0
 	}
-	mainW := size.X - sbW - dividerW - asidePx
+	mainW := size.X - g.contentX - dividerW - asidePx
 	if mainW < 0 {
 		mainW = 0
 	}
 
-	if main != nil && rowH > 0 {
-		st := op.Offset(image.Pt(sbW, barH)).Push(gtx.Ops)
+	if main != nil && g.rowH > 0 {
+		st := op.Offset(image.Pt(g.contentX, g.rowTop)).Push(gtx.Ops)
 		mgtx := gtx
-		mgtx.Constraints = layout.Exact(image.Pt(mainW, rowH))
+		mgtx.Constraints = layout.Exact(image.Pt(mainW, g.rowH))
 		main(mgtx)
 		st.Pop()
 	}
@@ -173,22 +224,64 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	// The divider's hit area is registered in frame-local coordinates —
 	// no offset transform pushed — so drag deltas measure against a
 	// stable origin even as the divider itself moves.
-	dividerRect := image.Rect(sbW+mainW, barH, sbW+mainW+dividerW, barH+rowH)
-	paint.FillShape(gtx.Ops, tok.col.Divider, clip.Rect(dividerRect).Op())
+	dividerRect := image.Rect(g.contentX+mainW, g.rowTop, g.contentX+mainW+dividerW, g.rowTop+g.rowH)
+	f.paintDividerLine(gtx, tok, dividerRect)
 	area := clip.Rect(dividerRect).Push(gtx.Ops)
 	event.Op(gtx.Ops, &f.dividerTag)
 	pointer.CursorColResize.Add(gtx.Ops)
 	area.Pop()
 
-	if as != nil && rowH > 0 {
-		st := op.Offset(image.Pt(sbW+mainW+dividerW, barH)).Push(gtx.Ops)
+	if as != nil && g.rowH > 0 {
+		st := op.Offset(image.Pt(g.contentX+mainW+dividerW, g.rowTop)).Push(gtx.Ops)
 		agtx := gtx
-		agtx.Constraints = layout.Exact(image.Pt(asidePx, rowH))
+		agtx.Constraints = layout.Exact(image.Pt(asidePx, g.rowH))
 		as(agtx)
 		st.Pop()
 	}
 
 	return layout.Dimensions{Size: size}
+}
+
+// layoutRailPane fills the pane and lays the rail inside it, clipped to
+// the same rounded rectangle so a scrolled row cannot cross a corner.
+func (f *frameState) layoutRailPane(gtx layout.Context, tok themeTokens, pane image.Rectangle, sb layout.Widget) {
+	r := gtx.Dp(unit.Dp(railRadiusDp))
+	rr := func() clip.RRect {
+		return clip.RRect{Rect: pane, NE: r, NW: r, SE: r, SW: r}
+	}
+	paint.FillShape(gtx.Ops, tok.col.Surface, rr().Op(gtx.Ops))
+	defer rr().Push(gtx.Ops).Pop()
+	defer op.Offset(pane.Min).Push(gtx.Ops).Pop()
+	sgtx := gtx
+	sgtx.Constraints = layout.Exact(pane.Size())
+	sb(sgtx)
+}
+
+// paintDividerLine draws the note/aside divider as a hairline down the
+// middle of its grab area, held clear of the toolbar row and the window's
+// bottom edge by the pane's own margin. The area stays wide enough to
+// catch a pointer; only the ink is thin, because with the note and the
+// backlinks sharing one ground there are no column edges for a bar to
+// separate — just a seam the reader may move.
+//
+// A hairline that never changes is a hairline nobody knows they may take
+// hold of — a fresh reviewer read the whole split as fixed — so under the
+// pointer, and for as long as it is being dragged, the line thickens and
+// darkens. That is the affordance; the cursor already says which way.
+func (f *frameState) paintDividerLine(gtx layout.Context, tok themeTokens, area image.Rectangle) {
+	w := max(gtx.Dp(unit.Dp(1)), 1)
+	ink := tok.col.Divider
+	if f.hovering || f.dragging {
+		w = max(gtx.Dp(unit.Dp(2)), 2)
+		ink = tok.col.Ramps.Neutral.Step(500)
+	}
+	inset := gtx.Dp(unit.Dp(railMarginDp))
+	x := area.Min.X + (area.Dx()-w)/2
+	line := image.Rect(x, area.Min.Y+inset, x+w, area.Max.Y-inset)
+	if line.Empty() {
+		return
+	}
+	paint.FillShape(gtx.Ops, ink, clip.Rect(line).Op())
 }
 
 // processDividerDrag tracks the aside divider. The aside keeps an
@@ -202,7 +295,7 @@ func (f *frameState) processDividerDrag(gtx layout.Context) {
 	for {
 		e, ok := gtx.Event(pointer.Filter{
 			Target: &f.dividerTag,
-			Kinds:  pointer.Press | pointer.Drag | pointer.Release | pointer.Cancel,
+			Kinds:  pointer.Press | pointer.Drag | pointer.Release | pointer.Cancel | pointer.Enter | pointer.Leave,
 		})
 		if !ok {
 			break
@@ -224,6 +317,10 @@ func (f *frameState) processDividerDrag(gtx layout.Context) {
 			}
 		case pointer.Release, pointer.Cancel:
 			f.dragging = false
+		case pointer.Enter:
+			f.hovering = true
+		case pointer.Leave:
+			f.hovering = false
 		}
 	}
 }
@@ -343,8 +440,12 @@ func vaultName(m Model) string {
 	return path.Base(strings.TrimRight(m.Vault, "/"))
 }
 
-// layoutRailToggle draws the rail's show/hide control: three bars, drawn
-// rather than typeset, so the mark does not depend on a face carrying it.
+// layoutRailToggle draws the rail's show/hide control: a pane outline
+// with its leading column filled while the rail stands and hollow while
+// it is away, so the mark is a picture of the window's own state rather
+// than a menu's three bars — which is what a fresh reviewer read the
+// three bars as. It is drawn rather than typeset, so the mark does not
+// depend on a face carrying it.
 func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
 	if f.toggleClick.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
@@ -361,20 +462,24 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 		if m.SidebarHidden {
 			fg = tok.col.Ramps.Neutral.Step(600)
 		}
-		w := gtx.Dp(unit.Dp(toggleBarWDp))
-		h := gtx.Dp(unit.Dp(toggleBarHDp))
-		if h < 1 {
-			h = 1
-		}
-		gap := gtx.Dp(unit.Dp(toggleBarGapDp))
+		w := gtx.Dp(unit.Dp(toggleMarkWDp))
+		h := gtx.Dp(unit.Dp(toggleMarkHDp))
+		stroke := max(gtx.Dp(unit.Dp(1)), 1)
+		rad := max(gtx.Dp(unit.Dp(2)), 1)
 		// The mark is centred in a row-tall box, so the whole height of
-		// the row is pressable rather than the twelve dp of ink alone.
-		total := 3*h + 2*gap
-		boxH := max(gtx.Constraints.Max.Y, total)
-		top := (boxH - total) / 2
-		for i := range 3 {
-			y := top + i*(h+gap)
-			paint.FillShape(gtx.Ops, fg, clip.Rect(image.Rect(0, y, w, y+h)).Op())
+		// the row is pressable rather than the ink alone.
+		boxH := max(gtx.Constraints.Max.Y, h)
+		top := (boxH - h) / 2
+		box := image.Rect(0, top, w, top+h)
+		rr := clip.RRect{Rect: box, NE: rad, NW: rad, SE: rad, SW: rad}
+		paint.FillShape(gtx.Ops, fg, clip.Stroke{
+			Path:  rr.Path(gtx.Ops),
+			Width: float32(stroke),
+		}.Op())
+		if !m.SidebarHidden {
+			cw := max(gtx.Dp(unit.Dp(toggleMarkColDp)), 1)
+			defer clip.RRect{Rect: box, NE: rad, NW: rad, SE: rad, SW: rad}.Push(gtx.Ops).Pop()
+			paint.FillShape(gtx.Ops, fg, clip.Rect(image.Rect(box.Min.X, box.Min.Y, box.Min.X+cw, box.Max.Y)).Op())
 		}
 		return layout.Dimensions{Size: image.Pt(w, boxH)}
 	})

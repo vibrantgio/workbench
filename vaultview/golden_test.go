@@ -17,9 +17,9 @@ import (
 
 const (
 	// noteCanvasW matches the runtime main-slot budget: the 1100 dp
-	// window less the 240 dp tree rail, the 6 dp divider and the 320 dp
-	// backlinks aside.
-	noteCanvasW = 1100 - treeWidthDp - 6 - 320
+	// window less the rail pane with its margin on either side, the
+	// divider's grab area and the backlinks aside.
+	noteCanvasW = 1100 - 2*railMarginDp - treeWidthDp - frameDividerDp - frameAsideDp
 	// noteCanvasH is the golden viewport height. The document scrolls, so
 	// the goldens capture the top of the note — header row, properties
 	// panel, headings, prose with its wikilinks, list and code block.

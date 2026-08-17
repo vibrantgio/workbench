@@ -94,7 +94,13 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 			layout.Rigid(complayout.VSpacer(asideHeaderGapDp)),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				if len(rows) == 0 {
-					return drawText(gtx, tok.shaper, "No notes link here.", tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(700))
+					// Released from the flex child's minimum height, so
+					// the line sits under its own header instead of being
+					// centred in the whole empty column — where a fresh
+					// reviewer read it as belonging to nothing.
+					gtx.Constraints.Min.Y = 0
+					drawText(gtx, tok.shaper, "No notes link here.", tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(700))
+					return layout.Dimensions{Size: gtx.Constraints.Max}
 				}
 				return v.rows(gtx, tok, rows)
 			}),
