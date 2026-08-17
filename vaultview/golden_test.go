@@ -19,9 +19,9 @@ import (
 
 const (
 	// noteCanvasW matches the runtime main-slot budget: the 1100 dp
-	// window less the rail pane with its margin on either side, the
-	// divider's grab area and the backlinks aside.
-	noteCanvasW = 1100 - 2*railMarginDp - treeWidthDp - frameDividerDp - frameAsideDp
+	// window less the sidebar column, which the content area now butts
+	// straight against, the divider's grab area and the backlinks aside.
+	noteCanvasW = 1100 - treeWidthDp - frameDividerDp - frameAsideDp
 	// noteCanvasH is the golden viewport height. The document scrolls, so
 	// the goldens capture the top of the note — header row, properties
 	// panel, headings, prose with its wikilinks, list and code block.
@@ -240,7 +240,7 @@ func TestTreeGolden(t *testing.T) {
 		for _, tc := range themeCases {
 			name := c.name + "-" + tc.name
 			t.Run(name, func(t *testing.T) {
-				w := renderTree(shaper, c.model, tc.colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
+				w := renderTree(shaper, c.model, tc.colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
 				golden.Render(t, name, treeCanvasSize, scene(w, tc.bg))
 			})
 		}

@@ -1,7 +1,7 @@
-// frame.go is the vault window's chrome and its column composition: one
-// toolbar row across the top — the rail toggle, the vault's name, and the
-// two vault actions — over the folder rail, the note column and the
-// backlinks aside, the last two parted by a draggable divider.
+// frame.go is the vault window's chrome and its column composition: the
+// sidebar pane down the leading edge, and beside it the content area —
+// one chrome row across its top, and under that the note column and the
+// backlinks aside, parted by a draggable divider.
 //
 // The composition is app-local rather than the vocabulary's three-column
 // shell for one reason: that shell pins its top slot to a full navbar
@@ -12,36 +12,39 @@
 // reading order — is the shell's arrangement, kept deliberately
 // recognisable.
 //
-// The folder rail is not one of the columns. It is a pane: an inset
-// rounded rectangle a surface step above the window's own ground, with
-// the ground visible on all four sides of it. A full-height column would
-// have to begin somewhere, and wherever it began — under the toolbar row,
-// as it once did — the eye read the start as a seam rather than as a
-// decision. Floating the pane makes every one of its edges deliberate,
-// and it is the idiom the platform's own document windows use. Hidden,
-// the pane takes no width at all and the note column reflows from the
-// window's leading edge.
+// The sidebar is the leading column and it starts at the window's own top
+// edge: no band crosses above it, because on this platform none does.
+// That is the whole of the arrangement's logic. The window control
+// buttons stand inside the pane's own top strip, which is why the pane
+// may begin at y=0 in the first place — the strip that used to hold
+// nothing but the buttons is the pane's now. The pane's toggle sits at
+// its top-right corner, where the pane ends, and the strip's empty middle
+// is what moves the window. Hidden, the pane takes no width at all, the
+// note column reflows from the window's leading edge, and the buttons go
+// back to the geometry their platform chose; the chrome row then carries
+// the toggle that brings the pane back, since a control that travels with
+// the pane cannot be the one that recalls it.
 //
 // The window's ground is the same paper the note column lies on, so the
-// note has no edge of its own to draw and the toolbar row sits on the
-// document rather than on a band above it. What is furniture — the rail
-// pane — says so by standing a step off that ground; what is document
-// simply is the ground. The divider between the note and the backlinks
-// follows from this: with no column edges left to butt against, it is a
-// hairline drawn down the middle of a wide-enough grab area, not a bar.
+// note has no edge of its own to draw and the chrome row sits on the
+// document rather than on a band above it. What is furniture — the
+// sidebar — says so by standing a surface step off that ground; what is
+// document simply is the ground. The divider between the note and the
+// backlinks follows from this: with no column edges left to butt against,
+// it is a hairline drawn down the middle of a wide-enough grab area, not
+// a bar.
 //
-// Where the row sits is a platform fact, not a taste. Under the
+// Where the chrome row sits is a platform fact, not a taste. Under the
 // full-size-content treatment the content extends behind the native
-// title bar, and the window control buttons are the only thing standing
-// in it — so the row takes that strip for itself: the window is asked to
-// centre its buttons on the row's own middle line, and the row starts
-// after their measured trailing edge rather than at the window's edge.
-// The strip is not the system's to click in under this treatment, so the
-// row's controls are pressable where they stand; what the strip does not
-// hand over is the window drag, which the row claims back by declaring a
-// move action over the parts of itself that hold no control. Away from
-// the treatment both measurements report zero, the buttons stay where
-// their platform puts them, and the row lays out from the left edge.
+// title bar, so the top strip is the application's to lay out in. The row
+// takes the content area's share of it and stops there: it begins where
+// the sidebar ends and never crosses above it. The strip is not the
+// system's to click in under this treatment, so the row's controls are
+// pressable where they stand; what the strip does not hand over is the
+// window drag, which the row and the pane's strip claim back by declaring
+// a move action over the parts of themselves that hold no control. Away
+// from the treatment the measurements report zero, the buttons stay where
+// their platform puts them, and the row lays out from its own edge inset.
 
 package main
 
@@ -88,10 +91,10 @@ const (
 	toggleMarkColDp = 6
 	toggleMarkRadDp = 3
 
-	// The rail pane's margin from the window's edges and from the toolbar
-	// row above it, and its corner radius.
+	// railMarginDp is the frame's small edge margin: what the divider's
+	// hairline holds clear of the chrome row and the window's bottom edge,
+	// and what the sidebar's own top strip keeps around its toggle.
 	railMarginDp = 8
-	railRadiusDp = 10
 )
 
 // toolbarHeight is the chrome row's height: one LabelLarge line box with
@@ -191,7 +194,7 @@ func renderWindow(
 ) (layout.Widget, *frameState) {
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	st := &frameState{asideW: frameAsideDp, leading: func() unit.Dp { return leading }}
-	sb := renderTree(shaper, m, colors, sp, rad, typo, den)
+	sb := renderTree(shaper, m, colors, sp, rad, typo, den, leading)
 	main := renderNotePage(shaper, m, colors, sp, typo, den)
 	av := &asideView{list: list.NewState()}
 	as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
@@ -200,11 +203,16 @@ func renderWindow(
 	}, st
 }
 
-// frameGeom is where the frame puts things below the toolbar row: the
-// rail pane's rectangle in frame coordinates, empty when the rail is
-// hidden or the window has no room for it, and the leading edge the note
-// column starts from — past the pane and its margin when the rail
-// stands, the window's own edge when it does not.
+// frameGeom is the arrangement one frame laid out: the sidebar pane's
+// rectangle in frame coordinates, empty when the rail is hidden or the
+// window has no room for it; the leading edge the content area starts
+// from — past the pane when the rail stands, the window's own edge when
+// it does not — and the top and height of the content area's first
+// document row, which the chrome row stands above.
+//
+// Only the content area has a chrome row. The pane runs from the window's
+// top edge to its bottom, so nothing above it is measured here: there is
+// nothing above it.
 type frameGeom struct {
 	pane     image.Rectangle
 	contentX int
@@ -212,51 +220,64 @@ type frameGeom struct {
 	rowH     int
 }
 
-// frameGeometry measures the pane and the content edge. It is separate
+// frameGeometry measures the pane and the content area. It is separate
 // from the drawing so the arrangement can be asserted without a frame:
-// the four margins around the pane, and the reflow when the rail goes.
+// that the pane reaches the window's top edge, and that the content
+// reflows to the window's own edge when the rail goes.
 func frameGeometry(gtx layout.Context, size image.Point, barH int, hidden bool) frameGeom {
-	g := frameGeom{rowTop: barH, rowH: max(size.Y-barH, 0)}
-	if hidden || g.rowH <= 0 {
+	g := frameGeom{rowTop: min(barH, max(size.Y, 0)), rowH: max(size.Y-barH, 0)}
+	if hidden || size.X <= 0 || size.Y <= 0 {
 		return g
 	}
-	margin := gtx.Dp(unit.Dp(railMarginDp))
 	railW := gtx.Dp(unit.Dp(treeWidthDp))
-	// A pane may never take more than half the window: a narrow window
+	// The pane may never take more than half the window: a narrow window
 	// owes the note a readable column before it owes the rail its width.
-	if maxW := size.X/2 - 2*margin; railW > maxW {
+	if maxW := size.X / 2; railW > maxW {
 		railW = maxW
 	}
-	paneH := g.rowH - 2*margin
-	if railW <= 0 || paneH <= 0 {
+	if railW <= 0 {
 		return g
 	}
-	g.pane = image.Rect(margin, barH+margin, margin+railW, barH+margin+paneH)
-	g.contentX = g.pane.Max.X + margin
+	g.pane = image.Rect(0, 0, railW, size.Y)
+	g.contentX = railW
 	return g
 }
 
-// layout draws the toolbar row, then the rail pane and the columns below
-// it, in the order they read: rail, note, divider, aside.
+// layout draws the sidebar pane, then the content area's chrome row and
+// the columns below it, in the order they read: rail, chrome row, note,
+// divider, aside. That order is the focus ring's too.
 func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as, main layout.Widget) layout.Dimensions {
 	size := gtx.Constraints.Max
 	// The window's ground is the note's own paper, not a chrome fill: the
-	// document is what the window is, and only the rail pane rises off it.
+	// document is what the window is, and only the sidebar rises off it.
 	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: size}.Op())
 
 	barH := gtx.Dp(toolbarHeight(tok))
 	if barH > size.Y {
 		barH = size.Y
 	}
-	bgtx := gtx
-	bgtx.Constraints = layout.Exact(image.Pt(size.X, barH))
-	f.layoutToolbar(bgtx, m, tok)
 
 	g := frameGeometry(gtx, size, barH, m.SidebarHidden)
 	f.geom = g
 
 	if sb != nil && !g.pane.Empty() {
 		f.layoutRailPane(gtx, tok, g.pane, sb)
+	}
+
+	// The chrome row belongs to the content area alone. With the pane
+	// standing, the window buttons are inside it and the row owes them no
+	// leading space; with the pane away, the row starts after their
+	// measured trailing edge, as the whole top strip is then its own.
+	if rowW := size.X - g.contentX; rowW > 0 && barH > 0 {
+		lead := unit.Dp(0)
+		if g.pane.Empty() {
+			lead = f.toolbarLeading()
+		}
+		bst := op.Offset(image.Pt(g.contentX, 0)).Push(gtx.Ops)
+		bgtx := gtx
+		bgtx.Constraints = layout.Exact(image.Pt(rowW, barH))
+		f.layoutToolbar(bgtx, m, tok, lead)
+		bst.Pop()
 	}
 
 	f.processDividerDrag(gtx)
@@ -306,15 +327,13 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	return layout.Dimensions{Size: size}
 }
 
-// layoutRailPane fills the pane and lays the rail inside it, clipped to
-// the same rounded rectangle so a scrolled row cannot cross a corner.
+// layoutRailPane fills the sidebar column and lays the rail inside it,
+// clipped to the same rectangle so a scrolled row cannot cross an edge.
+// The column runs to all four of the window's own edges on its side; the
+// only corners it has are the window's, which the platform rounds.
 func (f *frameState) layoutRailPane(gtx layout.Context, tok themeTokens, pane image.Rectangle, sb layout.Widget) {
-	r := gtx.Dp(unit.Dp(railRadiusDp))
-	rr := func() clip.RRect {
-		return clip.RRect{Rect: pane, NE: r, NW: r, SE: r, SW: r}
-	}
-	paint.FillShape(gtx.Ops, tok.col.Surface, rr().Op(gtx.Ops))
-	defer rr().Push(gtx.Ops).Pop()
+	paint.FillShape(gtx.Ops, tok.col.Surface, clip.Rect(pane).Op())
+	defer clip.Rect(pane).Push(gtx.Ops).Pop()
 	defer op.Offset(pane.Min).Push(gtx.Ops).Pop()
 	sgtx := gtx
 	sgtx.Constraints = layout.Exact(pane.Size())
@@ -399,31 +418,46 @@ func clampAside(w unit.Dp) unit.Dp {
 	return w
 }
 
-// layoutToolbar draws the chrome row on one baseline: the window's own
-// controls lead, the rail toggle follows them, the vault's name stands
-// beside it as what this window is showing, and the two vault actions
-// trail as a group at the far edge.
+// layoutToolbar draws the content area's chrome row on one baseline: the
+// vault's name as what this window is showing, and the two vault actions
+// trailing as a group at the far edge. With the sidebar away the row also
+// leads with the toggle that brings it back — the pane's own toggle went
+// with the pane, and something has to recall it.
 //
-// The leading space is a measurement, not a constant: the window controls
-// report where they end, and the row adds its own gap after that, because
-// the reported edge is the bare glass. Where the window has no such
-// controls the measurement is zero and the row falls back to its ordinary
-// edge inset.
+// The leading space is a measurement, not a constant, and only the hidden
+// state spends it: the window controls report where they end, and the row
+// adds its own gap after that, because the reported edge is the bare
+// glass. With the pane standing the buttons are inside it, the row starts
+// where the pane ends, and lead is zero. Where the window has no such
+// controls the measurement falls back to the ordinary edge inset.
 //
 // The vault's name is the row's own affordance rather than a breadcrumb
 // segment: it is window state, and as a crumb it promised a parent to
 // climb to that a vault does not have. Pressing it still returns the
 // folder tree to its root, which is what the crumb did.
-func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens, lead unit.Dp) layout.Dimensions {
+	children := make([]layout.FlexChild, 0, 10)
+	if lead > 0 {
 		// The window controls' own space is left alone: a move action
 		// declared over the buttons would fight them for the press.
-		layout.Rigid(complayout.HSpacer(float32(f.toolbarLeading()))),
-		layout.Rigid(dragSpacer(frameGapDp)),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return f.layoutRailToggle(gtx, m, tok)
-		}),
-		layout.Rigid(dragSpacer(unit.Dp(tok.sp.S3))),
+		children = append(children,
+			layout.Rigid(complayout.HSpacer(float32(lead))),
+			layout.Rigid(dragSpacer(frameGapDp)))
+	} else {
+		// The row's own edge inset is the note column's, not a smaller one
+		// of its own: the vault's name stands directly over the breadcrumb
+		// below it, and a fresh reviewer counted the twelve dp they were
+		// apart as two grids where the window has one.
+		children = append(children, layout.Rigid(dragSpacer(noteInsetDp)))
+	}
+	if m.SidebarHidden {
+		children = append(children,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return f.layoutRailToggle(gtx, m, tok)
+			}),
+			layout.Rigid(dragSpacer(unit.Dp(tok.sp.S3))))
+	}
+	children = append(children,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return f.layoutVaultName(gtx, m, tok)
 		}),
@@ -432,8 +466,11 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens)
 		layout.Rigid(dragSpacer(frameGapDp)),
 		// Title case, which is what the platform's own controls use.
 		layout.Rigid(toolbarAction(&f.switchClick, "Switch Vault", tok, SwitchVault{})),
-		layout.Rigid(dragSpacer(frameEdgeDp)),
-	)
+		// The trailing inset is the backlinks column's own, for the same
+		// reason: the last thing in the row ends where the column under it
+		// ends.
+		layout.Rigid(dragSpacer(asideInsetDp)))
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
 }
 
 // toolbarLeading is where the row's own content may start: the trailing
@@ -504,12 +541,8 @@ func vaultName(m Model) string {
 	return path.Base(strings.TrimRight(m.Vault, "/"))
 }
 
-// layoutRailToggle draws the rail's show/hide control: a pane outline
-// with its leading column filled while the rail stands and hollow while
-// it is away, so the mark is a picture of the window's own state rather
-// than a menu's three bars — which is what a fresh reviewer read the
-// three bars as. It is drawn rather than typeset, so the mark does not
-// depend on a face carrying it.
+// layoutRailToggle draws the chrome row's show control, which stands only
+// while the rail is away: the same mark the pane wears.
 func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
 	if f.toggleClick.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
@@ -519,34 +552,48 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 		label = "Show the folder rail"
 	}
 	return f.toggleClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		semantic.LabelOp(label).Add(gtx.Ops)
-		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointer.CursorPointer.Add(gtx.Ops)
-		fg := tok.col.Text
-		if m.SidebarHidden {
-			fg = tok.col.Ramps.Neutral.Step(600)
-		}
-		w := gtx.Dp(unit.Dp(toggleMarkWDp))
-		h := gtx.Dp(unit.Dp(toggleMarkHDp))
-		stroke := max(gtx.Dp(unit.Dp(1)), 1)
-		rad := max(gtx.Dp(unit.Dp(toggleMarkRadDp)), 1)
-		// The mark is centred in a row-tall box, so the whole height of
-		// the row is pressable rather than the ink alone.
-		boxH := max(gtx.Constraints.Max.Y, h)
-		top := (boxH - h) / 2
-		box := image.Rect(0, top, w, top+h)
-		rr := clip.RRect{Rect: box, NE: rad, NW: rad, SE: rad, SW: rad}
-		paint.FillShape(gtx.Ops, fg, clip.Stroke{
-			Path:  rr.Path(gtx.Ops),
-			Width: float32(stroke),
-		}.Op())
-		if !m.SidebarHidden {
-			cw := max(gtx.Dp(unit.Dp(toggleMarkColDp)), 1)
-			defer clip.RRect{Rect: box, NE: rad, NW: rad, SE: rad, SW: rad}.Push(gtx.Ops).Pop()
-			paint.FillShape(gtx.Ops, fg, clip.Rect(image.Rect(box.Min.X, box.Min.Y, box.Min.X+cw, box.Max.Y)).Op())
-		}
-		return layout.Dimensions{Size: image.Pt(w, boxH)}
+		return railToggleMark(gtx, tok, label)
 	})
+}
+
+// railToggleMark draws the sidebar control's figure: a pane in outline
+// with a leading column the width of a sidebar filled in. It is drawn
+// rather than typeset, so the mark does not depend on a face carrying it,
+// and it is one drawing that never morphs. The mark used to hollow out
+// with the rail away, and a fresh reviewer read the hollow one as an
+// unchecked box: the platform does not change this figure to advertise
+// the action either, because a mark that changes leaves the reader
+// guessing whether it shows the present state or the next one. What the
+// control is about to do is in the label it carries, which the screen
+// reader speaks and the tooltip shows.
+//
+// Both of the window's sidebar controls take it — the one in the pane's
+// top strip and the one the chrome row shows once the pane is gone — so
+// that the two halves of the same switch are one figure and not two.
+func railToggleMark(gtx layout.Context, tok themeTokens, label string) layout.Dimensions {
+	semantic.LabelOp(label).Add(gtx.Ops)
+	semantic.EnabledOp(true).Add(gtx.Ops)
+	pointer.CursorPointer.Add(gtx.Ops)
+	fg := tok.col.Text
+	w := gtx.Dp(unit.Dp(toggleMarkWDp))
+	h := gtx.Dp(unit.Dp(toggleMarkHDp))
+	stroke := max(gtx.Dp(unit.Dp(1)), 1)
+	rad := max(gtx.Dp(unit.Dp(toggleMarkRadDp)), 1)
+	// The mark is centred in a row-tall box, so the whole height of the
+	// row it stands in is pressable rather than the ink alone.
+	boxH := max(gtx.Constraints.Max.Y, h)
+	top := (boxH - h) / 2
+	box := image.Rect(0, top, w, top+h)
+	rr := clip.RRect{Rect: box, NE: rad, NW: rad, SE: rad, SW: rad}
+	paint.FillShape(gtx.Ops, fg, clip.Stroke{
+		Path:  rr.Path(gtx.Ops),
+		Width: float32(stroke),
+	}.Op())
+	cw := max(gtx.Dp(unit.Dp(toggleMarkColDp)), 1)
+	col := clip.RRect{Rect: box, NE: rad, NW: rad, SE: rad, SW: rad}.Push(gtx.Ops)
+	paint.FillShape(gtx.Ops, fg, clip.Rect(image.Rect(box.Min.X, box.Min.Y, box.Min.X+cw, box.Max.Y)).Op())
+	col.Pop()
+	return layout.Dimensions{Size: image.Pt(w, boxH)}
 }
 
 // toolbarAction renders one chrome-row affordance: a pressable label that

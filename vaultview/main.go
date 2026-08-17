@@ -159,12 +159,24 @@ func routedLayer(
 
 	combined := rx.CombineLatest3(modelObs, picker, vault)
 	return rx.Map(combined, func(t rx.Tuple3[Model, layout.Widget, layout.Widget]) layout.Widget {
-		modelCell.Store(t.First)
-		if t.First.Screen == screenPicker {
+		m := t.First
+		modelCell.Store(m)
+		if m.Screen == screenPicker {
+			topBand.Store(unit.Dp(0))
 			placeWindowButtons(0)
 			return t.Second
 		}
-		placeWindowButtons(toolbarHeight(loadTok()) / 2)
+		row := toolbarHeight(loadTok())
+		topBand.Store(row)
+		// The buttons sit inside the sidebar pane, on the middle line of
+		// its own top strip. With the pane away there is no pane to sit
+		// in, so they go back to the geometry their platform chose — which
+		// is what the window looks like everywhere else on this desktop.
+		if m.SidebarHidden {
+			placeWindowButtons(0)
+		} else {
+			placeWindowButtons(row / 2)
+		}
 		return t.Third
 	})
 }
@@ -173,14 +185,22 @@ func routedLayer(
 // on, so the request is sent when it changes and not on every emission.
 var buttonLine atomic.Value
 
+// topBand remembers how tall the band at the top of the window is that
+// the screen on show lays out itself: the vault screen's chrome row, and
+// zero on the picker, which lays out under the native strip instead. It
+// is what tells the two questions below apart — how much is mine, and how
+// much is not document.
+var topBand atomic.Value
+
 // placeWindowButtons asks the window to centre its control buttons on the
-// given line — which is the middle of the vault screen's chrome row, so
-// that the row and the buttons share one band, and zero on the picker,
-// which has no such row and lets the platform keep its own geometry.
+// given line — the middle of the sidebar pane's top strip while the pane
+// stands — and zero everywhere else, which lets the platform keep its own
+// geometry.
 //
-// Screen by screen rather than once at startup, because the two screens
-// answer differently: taking the top strip is the chrome row's doing, and
-// where there is no row the strip is not the application's to take.
+// Screen by screen and rail state by rail state rather than once at
+// startup, because they answer differently: taking the top strip is the
+// pane's doing, and where there is no pane the strip is not the
+// application's to take.
 func placeWindowButtons(center unit.Dp) {
 	if prev, ok := buttonLine.Load().(unit.Dp); ok && prev == center {
 		return
@@ -192,10 +212,21 @@ func placeWindowButtons(center unit.Dp) {
 // underTitleBar pads a layer down by the native title-bar strip's
 // measured height, which is what a full-size-content window leaves above
 // content the application has not claimed — the picker screen's case.
-// Where the chrome row has taken the strip, and away from the treatment
-// altogether, the measurement is zero and this is an exact no-op.
+// Where the screen lays out its own top band, and away from the treatment
+// altogether, this is an exact no-op: the vault screen's chrome row and
+// sidebar strip are drawn in the strip on purpose, and padding them down
+// would put the band back that this window exists without.
 func underTitleBar(content rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
-	return insetTop(content, desktop.TopInset)
+	return insetTop(content, screenTopInset)
+}
+
+// screenTopInset is the native strip's height where the screen on show
+// has not taken the top of the window for itself, and zero where it has.
+func screenTopInset() unit.Dp {
+	if band, ok := topBand.Load().(unit.Dp); ok && band > 0 {
+		return 0
+	}
+	return desktop.TopInset()
 }
 
 // underChrome pads a layer down past everything at the top of the window
@@ -208,17 +239,17 @@ func underChrome(content rx.Observable[layout.Widget]) rx.Observable[layout.Widg
 }
 
 // chromeHeight is the window's top band that belongs to chrome rather
-// than to the document, from whichever of the two owns it.
+// than to the document: the band the screen lays out itself, and the
+// native strip where that is taller — with the rail hidden the buttons
+// are back on the platform's own line, and the strip they stand in can
+// reach below a row shorter than it. An overlay clears the larger of the
+// two, since either would put a toast on top of a live control.
 func chromeHeight() unit.Dp {
-	if inset := desktop.TopInset(); inset > 0 {
+	band, _ := topBand.Load().(unit.Dp)
+	if inset := desktop.TopInset(); inset > band {
 		return inset
 	}
-	// The buttons are centred in the chrome row, so the line they were
-	// placed on is half its height.
-	if line, ok := buttonLine.Load().(unit.Dp); ok {
-		return 2 * line
-	}
-	return 0
+	return band
 }
 
 // insetTop offsets a layer down by a height measured afresh each frame.

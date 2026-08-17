@@ -212,6 +212,21 @@ type treeView struct {
 	list      *list.State
 	hideClick widget.Clickable
 	rowClicks []*widget.Clickable
+
+	// leading pins the window buttons' trailing edge instead of measuring
+	// it, for the reason [frameState.leading] gives: the measurement is a
+	// live window's and a stored image may not depend on one. The live
+	// rail leaves this nil and measures.
+	leading func() unit.Dp
+}
+
+// buttonEdge is where the pane's own top strip may start drawing: past
+// the window buttons that now stand inside it.
+func (v *treeView) buttonEdge() unit.Dp {
+	if v.leading != nil {
+		return v.leading()
+	}
+	return toolbarLeading()
 }
 
 // treeSidebar builds the sidebar slot's widget stream: the find field
@@ -238,10 +253,20 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 	})
 }
 
-// layout draws the rail: a header of the find field and the pane's own
-// hide control, then the rows the model asks for — the filter's matches
-// while it is typed in, the folder tree otherwise. The returned width is
-// the rail's own, never the slot's.
+// layout draws the rail: its own top strip, the find field under that,
+// then the rows the model asks for — the filter's matches while it is
+// typed in, the folder tree otherwise. The returned width is the rail's
+// own, never the slot's.
+//
+// The strip is reserved by the flex and drawn afterwards, which is a
+// statement about the keyboard and not about paint. Focus follows the
+// order the ops are written in, and the reading order of this pane is the
+// field and then the rows: a reader who tabs out of the find field means
+// to reach the notes they just filtered for. Laid out in place, the
+// strip's toggle stood between the two, and Tab-then-Return from the
+// field put the whole pane away instead of opening the selected note.
+// Drawn last, the pane's own control comes after everything the pane is
+// for.
 func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW layout.Widget) layout.Dimensions {
 	railW := gtx.Dp(treeWidthDp)
 	if railW > gtx.Constraints.Max.X {
@@ -249,53 +274,68 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW l
 	}
 	size := image.Pt(railW, gtx.Constraints.Max.Y)
 	gtx.Constraints = layout.Exact(size)
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+	stripH := gtx.Dp(toolbarHeight(tok))
+	if stripH > size.Y {
+		stripH = size.Y
+	}
+	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Dimensions{Size: image.Pt(size.X, stripH)}
+		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return complayout.Inset(treeFieldPadDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						if fieldW == nil {
-							return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
-						}
-						return fieldW(gtx)
-					}),
-					layout.Rigid(complayout.HSpacer(treeFieldPadDp)),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return v.hideControl(gtx, tok)
-					}),
-				)
+				if fieldW == nil {
+					return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
+				}
+				return fieldW(gtx)
 			})
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return v.rows(gtx, m, tok)
 		}),
 	)
+	sgtx := gtx
+	sgtx.Constraints = layout.Exact(image.Pt(size.X, stripH))
+	v.topStrip(sgtx, tok)
+	return layout.Dimensions{Size: size}
 }
 
-// hideControl is the pane's own way to put itself away, at the corner of
-// the rail where the pane ends. The toolbar row's toggle is what brings
-// it back — a control that travels with the pane cannot be the one that
-// recalls it — so the two exist for different halves of the same state
-// rather than as duplicates of one control.
-//
-// The mark is the chevron the note's history buttons already use, so the
-// rail's arrow and the document's arrows are the same shape from the same
-// shipped face.
+// topStrip is the band the window control buttons stand in now that the
+// pane reaches the window's top edge: their space at the leading end,
+// left untouched, the pane's own toggle at the trailing corner, and
+// between the two a stretch that moves the window. Under the
+// full-size-content treatment the native title bar hands over no drag, so
+// a pane that owns the top of the window owes the reader one.
+func (v *treeView) topStrip(gtx layout.Context, tok themeTokens) layout.Dimensions {
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		// A move action declared over the buttons would fight them for
+		// the press, so their own span is skipped rather than claimed.
+		layout.Rigid(complayout.HSpacer(float32(v.buttonEdge()))),
+		layout.Flexed(1, dragFill),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return v.hideControl(gtx, tok)
+		}),
+		layout.Rigid(dragSpacer(railMarginDp)),
+	)
+}
+
+// hideControl is the pane's own way to put itself away, at the pane's
+// top-right corner — where the platform's own sidebars keep it. The
+// chrome row's toggle is what brings the pane back once it is gone: a
+// control that travels with the pane cannot be the one that recalls it,
+// so the two are the two halves of one switch rather than duplicates of
+// one control, and they wear one figure to say so.
 func (v *treeView) hideControl(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	if v.hideClick.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
 	}
 	return v.hideClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		semantic.LabelOp("Hide the folder rail").Add(gtx.Ops)
-		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointer.CursorPointer.Add(gtx.Ops)
 		box := gtx.Dp(treeHideBoxDp)
 		cgtx := gtx
-		cgtx.Constraints = layout.Exact(image.Pt(box, box))
-		layout.Center.Layout(cgtx, func(gtx layout.Context) layout.Dimensions {
-			return drawLabel(gtx, tok.shaper, "‹", tok.typ.TitleMedium, tok.col.Ramps.Neutral.Step(700))
+		cgtx.Constraints = layout.Exact(image.Pt(box, max(gtx.Constraints.Max.Y, box)))
+		return layout.Center.Layout(cgtx, func(gtx layout.Context) layout.Dimensions {
+			return railToggleMark(gtx, tok, "Hide the folder rail")
 		})
-		return layout.Dimensions{Size: image.Pt(box, box)}
 	})
 }
 
@@ -412,7 +452,9 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 // fresh rail with fresh widget state, laid out once from pre-resolved
 // tokens and processing no events. The find field is drawn through the
 // component's own static path, so the golden carries the same field the
-// live rail wears.
+// live rail wears. The window buttons' trailing edge is a parameter here
+// and a measurement in the live pane, for the reason [treeView.leading]
+// gives.
 func renderTree(
 	shaper *text.Shaper,
 	m Model,
@@ -421,8 +463,9 @@ func renderTree(
 	rad tokens.RadiusScale,
 	typo tokens.Typography,
 	den tokens.Density,
+	leading unit.Dp,
 ) layout.Widget {
-	v := &treeView{list: list.NewState()}
+	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return leading }}
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	fieldW := input.Render(shaper, "Find a note…", colors, sp, rad, typo.BodyLarge, den,
 		input.RenderState{Text: m.Filter})

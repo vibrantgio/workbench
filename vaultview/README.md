@@ -26,12 +26,15 @@ unset. Deleting that file is how you forget a vault.
 
 ## Reading
 
-The window is three columns under a top bar.
+The window is a sidebar down the leading edge and two columns beside it.
 
 - **Left — the tree.** Every note in the vault, folders disclosing on
   click, the note you are reading marked. Above it, a find field:
   type and the hierarchy gives way to the notes whose name matches,
-  each with its folder as a quiet annotation.
+  each with its folder as a quiet annotation. The sidebar runs from the
+  window's top edge — the window's own buttons stand in it, and its
+  toggle sits at its top-right corner. Put it away and the toggle that
+  brings it back appears at the leading end of the top row.
 - **Middle — the note.** Back and forward, then the trail — vault name,
   folders, note title. The frontmatter is lifted out of the prose into a
   collapsible **Properties** panel; what a plain line-split can read
@@ -98,10 +101,11 @@ layers — over the design system's vocabulary:
 Three things are the app's own, on purpose. The **folder tree** is an
 app-local composition over `components/list` — the design system's
 sidebar is deliberately flat, and one nesting sidebar is not yet a
-pattern. The **window frame** — one tight chrome row over three columns
-— is an app-local arrangement rather than the three-column shell,
-because that shell pins its top slot to a full navbar band and this
-window spends as little height on chrome as it can. The **resolver** is
+pattern. The **window frame** — the sidebar column, and one tight chrome
+row over the two columns beside it — is an app-local arrangement rather
+than the three-column shell, because that shell pins its top slot to a
+full navbar band and this window spends as little height on chrome as it
+can. The **resolver** is
 vault semantics rather than rendering: pure functions over the scanned
 index, table-tested rule by rule.
 
