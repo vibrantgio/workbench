@@ -440,16 +440,24 @@ func footAction(click *widget.Clickable, label string, tok themeTokens) layout.W
 }
 
 // topStrip is the band the window control buttons stand in now that the
-// pane reaches the window's top edge: their space at the leading end,
-// left untouched, the pane's own toggle at the trailing corner, and
-// between the two a stretch that moves the window. Under the
-// full-size-content treatment the native title bar hands over no drag, so
-// a pane that owns the top of the window owes the reader one.
+// top of the window is the pane's: their space at the leading end, left
+// untouched, the pane's own toggle at the trailing corner, and between
+// the two a stretch that moves the window. Under the full-size-content
+// treatment the native title bar hands over no drag, so a pane that owns
+// the top of the window owes the reader one.
 func (v *treeView) topStrip(gtx layout.Context, tok themeTokens) layout.Dimensions {
+	// The buttons' trailing edge is measured in window coordinates, and
+	// the pane floats one margin inside the window's leading edge, so the
+	// pane-local skip is the measurement less that margin — the buttons
+	// keep their own x, and it is the pane that moved under them.
+	lead := v.buttonEdge() - railMarginDp
+	if lead < 0 {
+		lead = 0
+	}
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 		// A move action declared over the buttons would fight them for
 		// the press, so their own span is skipped rather than claimed.
-		layout.Rigid(complayout.HSpacer(float32(v.buttonEdge()))),
+		layout.Rigid(complayout.HSpacer(float32(lead))),
 		layout.Flexed(1, dragFill),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return v.hideControl(gtx, tok)

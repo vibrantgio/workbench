@@ -6,6 +6,7 @@ require (
 	gioui.org v0.10.1
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/components v0.8.1
+	github.com/vibrantgio/effects v0.2.0
 	github.com/vibrantgio/markdown v0.2.0
 	github.com/vibrantgio/mvu v0.9.0
 	github.com/vibrantgio/mvu/desktop v0.9.0
@@ -20,7 +21,6 @@ require (
 	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/reactivego/scheduler v0.2.0 // indirect
-	github.com/vibrantgio/effects v0.2.0 // indirect
 	github.com/vibrantgio/font v0.1.0 // indirect
 	github.com/yuin/goldmark v1.8.5 // indirect
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743 // indirect

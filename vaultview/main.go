@@ -169,13 +169,15 @@ func routedLayer(
 		row := toolbarHeight(loadTok())
 		topBand.Store(row)
 		// The buttons sit inside the sidebar pane, on the middle line of
-		// its own top strip. With the pane away there is no pane to sit
-		// in, so they go back to the geometry their platform chose — which
-		// is what the window looks like everywhere else on this desktop.
+		// its own top strip — a margin below the window's top edge, since
+		// the pane floats that far inside it. With the pane away there is
+		// no pane to sit in, so they go back to the geometry their
+		// platform chose — which is what the window looks like everywhere
+		// else on this desktop.
 		if m.SidebarHidden {
 			placeWindowButtons(0)
 		} else {
-			placeWindowButtons(row / 2)
+			placeWindowButtons(unit.Dp(railMarginDp) + row/2)
 		}
 		return t.Third
 	})

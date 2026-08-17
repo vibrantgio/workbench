@@ -12,32 +12,38 @@
 // reading order — is the shell's arrangement, kept deliberately
 // recognisable.
 //
-// The sidebar is the leading column and it starts at the window's own top
-// edge: no band crosses above it, because on this platform none does. It
-// is also where the vault's own actions live, at its foot — the pane
+// The sidebar is the leading column and it owns the top of the window the
+// way the platform's own sidebars do: not by being the window's edge but
+// by floating just inside it — inset from the window's leading, top and
+// bottom edges by one margin, rounded on all four corners, with the
+// window's ground showing around it on every side. No band crosses above
+// it, because on this platform none does; the only thing over the pane is
+// the margin of ground it floats off. The window control buttons stand
+// inside the pane's own top strip — the strip that used to hold nothing
+// but the buttons is the pane's now — and the pane's toggle sits at its
+// top-right corner, where the pane ends, with the strip's empty middle
+// moving the window. The slivers of ground the margin reveals claim no
+// drag of their own: a hand aims for the strip, not for an eight-dp gap,
+// and a move action there would promise a handle too thin to hit. The
+// pane is also where the vault's own actions live, at its foot — the pane
 // stands for the vault, so what acts on the whole vault belongs to it.
-// That is the whole of the arrangement's logic. The window control
-// buttons stand inside the pane's own top strip, which is why the pane
-// may begin at y=0 in the first place — the strip that used to hold
-// nothing but the buttons is the pane's now. The pane's toggle sits at
-// its top-right corner, where the pane ends, and the strip's empty middle
-// is what moves the window. Hidden, the pane takes no width at all, the
-// note column reflows from the window's leading edge, and the buttons go
-// back to the geometry their platform chose; the chrome row then carries
-// the toggle that brings the pane back, since a control that travels with
-// the pane cannot be the one that recalls it.
+// Hidden, the pane takes no width at all, the note column reflows from
+// the window's leading edge, and the buttons go back to the geometry
+// their platform chose; the chrome row then carries the toggle that
+// brings the pane back, since a control that travels with the pane cannot
+// be the one that recalls it.
 //
 // The window's ground is the same paper the note column lies on, so the
 // note has no edge of its own to draw and the chrome row sits on the
 // document rather than on a band above it. What is furniture says so by
-// standing a surface step off that ground; what is document simply is the
-// ground. Both of the window's edges are furniture and both say it the
-// same way: the sidebar leading, and trailing the column that carries the
-// note's outline and the notes citing it. Neither is the document, so
-// neither lies on its paper. Both run the window's full height, the
-// trailing one behind the chrome row rather than under it, so that the
-// document is a column of paper between two panes and not a shape cut out
-// of one.
+// standing off that ground; what is document simply is the ground. Both
+// of the window's edges are furniture: leading, the sidebar — raised by
+// tint first and shadow second, its surface step doing the separating
+// and a cast shadow under it saying it floats — and trailing, the column
+// that carries the note's outline and the notes citing it, a full-height
+// surface behind the chrome row. Neither is the document, so neither
+// lies on its paper, and the document is a column of paper between two
+// panes rather than a shape cut out of one.
 //
 // The divider between the note and that column follows from this. Its two
 // sides now stand on different grounds, so the edge between them is the
@@ -80,6 +86,7 @@ import (
 	"github.com/reactivego/rx"
 
 	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/effects/depth"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
@@ -102,10 +109,18 @@ const (
 	toggleMarkColDp = 6
 	toggleMarkRadDp = 3
 
-	// railMarginDp is the frame's small edge margin: what the divider's
-	// hairline holds clear of the chrome row and the window's bottom edge,
-	// and what the sidebar's own top strip keeps around its toggle.
+	// railMarginDp is the frame's small edge margin: the inset the sidebar
+	// pane floats off the window's leading, top and bottom edges, what the
+	// divider's hairline holds clear of the chrome row and the window's
+	// bottom edge, and what the sidebar's own top strip keeps around its
+	// toggle.
 	railMarginDp = 8
+
+	// railRadiusDp rounds the sidebar pane's four corners. The pane floats
+	// inside the window rather than being its edge, so its corners are its
+	// own to round — the window's, which the platform rounds, are a margin
+	// away.
+	railRadiusDp = 10
 )
 
 // toolbarHeight is the chrome row's height: one LabelLarge line box with
@@ -220,9 +235,10 @@ func renderWindow(
 // it does not — and the top and height of the content area's first
 // document row, which the chrome row stands above.
 //
-// Only the content area has a chrome row. The pane runs from the window's
-// top edge to its bottom, so nothing above it is measured here: there is
-// nothing above it.
+// Only the content area has a chrome row. The pane floats one margin
+// inside the window's leading, top and bottom edges, so the only thing
+// above it is that margin of ground: no band, and nothing else to
+// measure.
 type frameGeom struct {
 	pane     image.Rectangle
 	contentX int
@@ -232,24 +248,27 @@ type frameGeom struct {
 
 // frameGeometry measures the pane and the content area. It is separate
 // from the drawing so the arrangement can be asserted without a frame:
-// that the pane reaches the window's top edge, and that the content
-// reflows to the window's own edge when the rail goes.
+// that the pane floats one margin inside the window's leading, top and
+// bottom edges, and that the content reflows to the window's own edge
+// when the rail goes.
 func frameGeometry(gtx layout.Context, size image.Point, barH int, hidden bool) frameGeom {
 	g := frameGeom{rowTop: min(barH, max(size.Y, 0)), rowH: max(size.Y-barH, 0)}
 	if hidden || size.X <= 0 || size.Y <= 0 {
 		return g
 	}
+	margin := gtx.Dp(unit.Dp(railMarginDp))
 	railW := gtx.Dp(unit.Dp(treeWidthDp))
-	// The pane may never take more than half the window: a narrow window
-	// owes the note a readable column before it owes the rail its width.
-	if maxW := size.X / 2; railW > maxW {
+	// The pane and its margin may never take more than half the window: a
+	// narrow window owes the note a readable column before it owes the
+	// rail its width.
+	if maxW := size.X/2 - margin; railW > maxW {
 		railW = maxW
 	}
-	if railW <= 0 {
+	if railW <= 0 || size.Y <= 2*margin {
 		return g
 	}
-	g.pane = image.Rect(0, 0, railW, size.Y)
-	g.contentX = railW
+	g.pane = image.Rect(margin, margin, margin+railW, size.Y-margin)
+	g.contentX = g.pane.Max.X
 	return g
 }
 
@@ -351,13 +370,28 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	return layout.Dimensions{Size: size}
 }
 
-// layoutRailPane fills the sidebar column and lays the rail inside it,
-// clipped to the same rectangle so a scrolled row cannot cross an edge.
-// The column runs to all four of the window's own edges on its side; the
-// only corners it has are the window's, which the platform rounds.
+// layoutRailPane raises the sidebar pane off the window's ground and lays
+// the rail inside it, clipped to the pane's own rounded rectangle so a
+// scrolled row cannot cross an edge or poke through a corner.
+//
+// The pane is raised by tint first and shadow second. The tint is the
+// surface step it has always worn — one fill, the primary cue — and under
+// it a cast shadow from effects/depth, which that package reserves for
+// what floats and can leave. The sidebar qualifies under that criterion
+// as written: it floats above the window's ground, inset with the ground
+// showing around it on every side, and it can leave, dismissed from its
+// own toggle — and the platform's own sidebar visibly casts one. The
+// shadow's geometry takes the middle rung of the elevation ladder: above
+// the one-dp fringe of a card raised in place, below the toasts that
+// float over everything including this pane. What it costs is
+// effects/depth's documented price — nine paint operations per frame —
+// paid only while the pane stands.
 func (f *frameState) layoutRailPane(gtx layout.Context, tok themeTokens, pane image.Rectangle, sb layout.Widget) {
-	paint.FillShape(gtx.Ops, tok.col.Surface, clip.Rect(pane).Op())
-	defer clip.Rect(pane).Push(gtx.Ops).Pop()
+	r := gtx.Dp(unit.Dp(railRadiusDp))
+	depth.Shadow(gtx, pane, tokens.Level2, r, 1)
+	rr := clip.RRect{Rect: pane, NE: r, NW: r, SE: r, SW: r}
+	paint.FillShape(gtx.Ops, tok.col.Surface, rr.Op(gtx.Ops))
+	defer rr.Push(gtx.Ops).Pop()
 	defer op.Offset(pane.Min).Push(gtx.Ops).Pop()
 	sgtx := gtx
 	sgtx.Constraints = layout.Exact(pane.Size())

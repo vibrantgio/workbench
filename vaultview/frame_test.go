@@ -8,6 +8,7 @@ import (
 	"gioui.org/io/event"
 	"gioui.org/io/input"
 	"gioui.org/io/key"
+	"gioui.org/io/pointer"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -120,17 +121,19 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 	}
 }
 
-// TestRailPaneRunsToTheWindowTop asserts the sidebar is the leading
-// column and starts at the window's own top edge: nothing crosses above
-// it, it reaches the bottom edge as well, and the content area starts
-// where it ends. That top edge is the whole point of the arrangement —
-// the window buttons stand inside the pane's own strip, which they can
-// only do if the pane is what is under them.
+// TestRailPaneFloatsAtTheWindowTop asserts the sidebar is the leading
+// column and owns the top of the window the way the platform's own
+// sidebars do: floating one margin inside the window's leading, top and
+// bottom edges, with nothing above it but that margin of ground — no
+// chrome band, which is what the arrangement exists to be without. The
+// window buttons stand inside the pane's own strip, which they can only
+// do if the pane is what is under them; the margin merely moves the
+// strip a step in from the glass.
 //
 // Hidden, the pane is gone entirely and the note column reflows from the
 // window's leading edge — the freed width goes to the document, not to a
 // stripe of nothing where the rail used to be.
-func TestRailPaneRunsToTheWindowTop(t *testing.T) {
+func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 	var ops op.Ops
 	size := image.Pt(1100, 800)
 	gtx := layout.Context{
@@ -144,11 +147,11 @@ func TestRailPaneRunsToTheWindowTop(t *testing.T) {
 	if shown.pane.Empty() {
 		t.Fatal("no rail pane with the rail shown")
 	}
-	if shown.pane.Min.X != 0 || shown.pane.Min.Y != 0 {
-		t.Errorf("pane starts at %v, want the window's own top-leading corner — no band may cross above the sidebar", shown.pane.Min)
+	if want := image.Pt(railMarginDp, railMarginDp); shown.pane.Min != want {
+		t.Errorf("pane starts at %v, want %v — one margin inside the window's top-leading corner, and nothing above it but ground", shown.pane.Min, want)
 	}
-	if shown.pane.Max.Y != size.Y {
-		t.Errorf("pane bottom at y=%d, want the window's own bottom edge %d", shown.pane.Max.Y, size.Y)
+	if want := size.Y - railMarginDp; shown.pane.Max.Y != want {
+		t.Errorf("pane bottom at y=%d, want %d — one margin above the window's bottom edge", shown.pane.Max.Y, want)
 	}
 	if w := shown.pane.Dx(); w != treeWidthDp {
 		t.Errorf("pane width %d, want the rail's own %d", w, treeWidthDp)
@@ -253,6 +256,67 @@ func TestPaneFocusOrder(t *testing.T) {
 	}
 }
 
+// TestPaneStripClaimsInsideTheInsetPane asserts what the sidebar's top
+// strip declares now that the pane floats inside the window's edges,
+// measured on the composed window rather than on the strip alone —
+// through the frame's inset offset and the pane's rounded clip, which is
+// the geometry a real press crosses. Three claims and a delivery:
+//
+//   - the strip's empty middle still moves the window — the pane owns
+//     the top of the window, so it owes the reader the drag the native
+//     title bar handed over;
+//   - the pane's own toggle is not covered by that claim, because a move
+//     action swallows the press before the control sees one;
+//   - the margin of ground the inset reveals claims nothing — it is bare
+//     ground, and an eight-dp sliver is not a handle a hand aims for;
+//   - and a pointer over the toggle reaches the toggle, which is what
+//     proves the rounded clip and the inset offset between the window's
+//     coordinates and the pane's have not orphaned the control.
+func TestPaneStripClaimsInsideTheInsetPane(t *testing.T) {
+	tok := goldenTokens()
+	var ops op.Ops
+	var r input.Router
+	size := image.Pt(1100, 800)
+	gtx := layout.Context{
+		Constraints: layout.Exact(size),
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Source:      r.Source(),
+		Ops:         &ops,
+	}
+	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
+	sb := func(gtx layout.Context) layout.Dimensions {
+		return v.layout(gtx, goldenModel(), tok, nil)
+	}
+	f := &frameState{asideW: frameAsideDp, leading: func() unit.Dp { return goldenLeading }}
+	frame := func() {
+		f.layout(gtx, goldenModel(), tok, sb, nil, nil)
+		r.Frame(&ops)
+	}
+	frame()
+
+	pane := f.geom.pane
+	stripY := float32(pane.Min.Y) + float32(toolbarHeight(tok))/2
+	middle := f32.Pt(float32(pane.Min.X+120), stripY)
+	toggle := f32.Pt(float32(pane.Max.X-railMarginDp-treeHideBoxDp/2), stripY)
+
+	if a, ok := r.ActionAt(middle); !ok || a != system.ActionMove {
+		t.Errorf("no window-move action at %v; the strip's empty middle is the pane's drag handle", middle)
+	}
+	if a, ok := r.ActionAt(toggle); ok && a == system.ActionMove {
+		t.Errorf("window-move action at %v; the toggle's own span must not move the window", toggle)
+	}
+	if a, ok := r.ActionAt(f32.Pt(middle.X, float32(pane.Min.Y)/2)); ok {
+		t.Errorf("action %v claimed over the margin above the pane; the revealed ground is bare", a)
+	}
+
+	r.Queue(pointer.Event{Kind: pointer.Move, Position: toggle, Source: pointer.Mouse})
+	ops.Reset()
+	frame()
+	if !v.hideClick.Hovered() {
+		t.Errorf("a pointer at %v does not reach the pane's toggle through the inset and the rounded clip", toggle)
+	}
+}
+
 // TestTheRowRecallsTheHiddenPane asserts the one thing the pane's own
 // toggle cannot do: bring the pane back. With the rail hidden the chrome
 // row carries a toggle of its own, and the keyboard reaches it — a pane
@@ -319,9 +383,10 @@ const chromeBudgetDp = 40
 // to the content area, so the measurement is now stated per column. The
 // content area spends the row's own height above its first document row
 // and no more — the twenty-eight dp it measured before, which is what
-// must not regress. The sidebar column spends nothing at all, because it
-// starts at the window's top edge, and the assertion says so rather than
-// leaving a column unmeasured.
+// must not regress. The sidebar column spends one margin — the inset the
+// pane floats off the window's edges by — and no chrome at all: what is
+// above the pane is ground, not band, and the assertion pins the margin
+// so a band cannot creep in wearing its name.
 //
 // Both rail states are measured. Hiding the rail rebuilds the whole
 // composition, and a budget that only holds in one of them holds in
@@ -353,11 +418,12 @@ func TestChromeBudget(t *testing.T) {
 				t.Errorf("the content area spends %d dp above its first document row, want the chrome row's own %d dp — nothing else may stand there",
 					st.geom.rowTop, row)
 			}
-			// The sidebar's own budget: none. It is the leading column
-			// from the window's top edge, and anything above it is the
-			// band this whole arrangement exists without.
-			if !st.geom.pane.Empty() && st.geom.pane.Min.Y != 0 {
-				t.Errorf("the sidebar starts at y=%d, want the window's own top edge", st.geom.pane.Min.Y)
+			// The sidebar's own budget: one margin of ground and nothing
+			// else. The pane floats that far inside the window's top
+			// edge; anything more above it would be the band this whole
+			// arrangement exists without.
+			if !st.geom.pane.Empty() && st.geom.pane.Min.Y != railMarginDp {
+				t.Errorf("the sidebar starts at y=%d, want the frame's own %d dp margin and nothing else above it", st.geom.pane.Min.Y, railMarginDp)
 			}
 		})
 	}
@@ -377,9 +443,11 @@ func TestChromeBudget(t *testing.T) {
 // would put the retired band back under another name.
 func TestChromeHeightMatchesTheRow(t *testing.T) {
 	row := toolbarHeight(goldenTokens())
-	// What the vault screen states on every emission that selects it.
+	// What the vault screen states on every emission that selects it: the
+	// chrome band is the row's height, and the buttons sit on the middle
+	// line of the pane's top strip, one margin down from the glass.
 	topBand.Store(row)
-	placeWindowButtons(row / 2)
+	placeWindowButtons(unit.Dp(railMarginDp) + row/2)
 	if got := chromeHeight(); got != row {
 		t.Errorf("the overlays are inset by %v dp while the content row starts at %v dp", got, row)
 	}
