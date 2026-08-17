@@ -91,15 +91,19 @@ layers — over the design system's vocabulary:
 | Loop, commands, click-to-message | `mvu`, `mvu/desktop` |
 | Live OS theme, tokens, type | `theme` |
 | List, text field, layout, goldens | `components` |
-| Shell, navbar, breadcrumb, modal, toast | `patterns` |
+| Breadcrumb, modal, toast | `patterns` |
 | Parsing, rendering, highlighting | `markdown`, `markdown/highlight` |
 | Frontmatter, wikilink spans, block ids | `markdown/obsidian` |
 
-Two things are the app's own, on purpose. The **folder tree** is an
+Three things are the app's own, on purpose. The **folder tree** is an
 app-local composition over `components/list` — the design system's
 sidebar is deliberately flat, and one nesting sidebar is not yet a
-pattern. The **resolver** is vault semantics rather than rendering:
-pure functions over the scanned index, table-tested rule by rule.
+pattern. The **window frame** — one tight chrome row over three columns
+— is an app-local arrangement rather than the three-column shell,
+because that shell pins its top slot to a full navbar band and this
+window spends as little height on chrome as it can. The **resolver** is
+vault semantics rather than rendering: pure functions over the scanned
+index, table-tested rule by rule.
 
 The vault scan is a fence-aware line scanner — never a full parse — run
 off the render goroutine; a note is parsed only when it is opened. Where

@@ -565,9 +565,10 @@ func TestSetFilterCarriesTheQuery(t *testing.T) {
 	}
 }
 
-// TestNoteCrumbsTrail: the trail grows the folder path, the vault crumb
-// roots the tree, each folder crumb reveals its own folder, and the note
-// title is where you already are.
+// TestNoteCrumbsTrail: the trail carries the in-vault path only — each
+// folder crumb reveals its own folder, the note title is where you
+// already are, and the vault is not a segment: it names the window from
+// the chrome row instead.
 func TestNoteCrumbsTrail(t *testing.T) {
 	model := Model{Screen: screenVault, Vault: "/home/rene/Second Brain", CurAnchor: -1}
 	model = cacheNote(model, &Note{Path: "a/b/note.md", Title: "note"})
@@ -575,7 +576,6 @@ func TestNoteCrumbsTrail(t *testing.T) {
 
 	got := noteCrumbs(model)
 	want := []crumb{
-		{label: "Second Brain", msg: RootTree{}},
 		{label: "a", msg: RevealFolder{Dir: "a"}},
 		{label: "b", msg: RevealFolder{Dir: "a/b"}},
 		{label: "note"},
@@ -584,16 +584,43 @@ func TestNoteCrumbsTrail(t *testing.T) {
 		t.Fatalf("noteCrumbs = %+v, want %+v", got, want)
 	}
 
-	// Before a note loads the trail is the vault crumb alone.
+	// Before a note loads there is no path to show at all.
 	empty := Model{Screen: screenVault, Vault: "/home/rene/Second Brain"}
-	if c := noteCrumbs(empty); len(c) != 1 || c[0].label != "Second Brain" {
-		t.Errorf("noteCrumbs without a note = %+v, want the vault crumb alone", c)
+	if c := noteCrumbs(empty); len(c) != 0 {
+		t.Errorf("noteCrumbs without a note = %+v, want an empty trail", c)
+	}
+
+	// The vault's own name is the chrome row's, and it survives a note
+	// at the vault root having no folder crumbs of its own.
+	if n := vaultName(model); n != "Second Brain" {
+		t.Errorf("vaultName = %q, want the vault folder's name", n)
+	}
+	if n := vaultName(Model{}); n != "" {
+		t.Errorf("vaultName with no vault open = %q, want empty", n)
 	}
 }
 
-// TestRevealAndRootTree: the crumb messages move the tree's disclosure —
-// a folder crumb opens the whole way down to its folder, the vault crumb
-// closes everything.
+// TestToggleSidebar: the rail's visibility is window state — it flips on
+// the message and survives a switch to another vault.
+func TestToggleSidebar(t *testing.T) {
+	model := Model{Screen: screenVault, Vault: "/home/rene/Second Brain"}
+	model, _ = Update(model, ToggleSidebar{})
+	if !model.SidebarHidden {
+		t.Fatal("SidebarHidden = false after the first toggle, want the rail hidden")
+	}
+	switched, _ := Update(model, SwitchVault{})
+	if !switched.SidebarHidden {
+		t.Error("SidebarHidden = false after switching vaults, want the rail still hidden")
+	}
+	model, _ = Update(model, ToggleSidebar{})
+	if model.SidebarHidden {
+		t.Error("SidebarHidden = true after the second toggle, want the rail shown")
+	}
+}
+
+// TestRevealAndRootTree: the two disclosure messages move the tree — a
+// folder crumb opens the whole way down to its folder, the chrome row's
+// vault name closes everything.
 func TestRevealAndRootTree(t *testing.T) {
 	model := Model{Screen: screenVault, Index: treeIndex("a/b/note.md", "top.md")}
 

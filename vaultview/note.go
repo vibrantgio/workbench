@@ -1,6 +1,6 @@
-// note.go is the vault screen: a patterns/shell ThreeColumn — the folder
-// tree in the sidebar slot, the backlinks panel in the aside — whose main
-// slot renders the current note: a header row with back/forward and the
+// note.go is the vault screen's note column — the main slot of the
+// composition frame.go builds, with the folder tree leading and the
+// backlinks panel trailing. The column renders the current note: a header row with back/forward and the
 // breadcrumb, a collapsible properties panel fed by the frontmatter split,
 // and the parsed body as a markdown Document. Wikilink clicks resolve
 // against the index and navigate; web links open the system browser; a
@@ -35,8 +35,6 @@ import (
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/markdown/obsidian"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/navbar"
-	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -87,9 +85,9 @@ type docEntry struct {
 	doc  *markdown.Document
 }
 
-// vaultLayer composes the vault screen: the ThreeColumn shell with the
-// folder tree in the sidebar slot, the backlinks panel in the aside, and
-// the note in the main slot. The main slot reads the model and token
+// vaultLayer composes the vault screen: the window frame with the folder
+// tree in the leading column, the backlinks panel in the trailing one,
+// and the note between them. The note column reads the model and token
 // snapshots at frame time; repaints on model change are driven by the
 // routed layer's re-emission.
 func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
@@ -134,57 +132,11 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	mainSlot := func(gtx layout.Context) layout.Dimensions {
 		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, &trail, docFor)
 	}
-	return shell.Shell(th, shell.Props{
-		Layout:  shell.ThreeColumn,
-		Navbar:  vaultNavbar(loadTok),
-		Sidebar: treeSidebar(th, loadModel, loadTok),
-		Aside:   backlinksAside(loadModel, loadTok),
-		Main:    mainSlot,
-	})
-}
-
-// vaultNavbar is the shell's top bar, laid out as one row on one
-// baseline: the app name leads, and the two affordances — re-walk the
-// vault, return to the folder browser — trail right-aligned as a group.
-// The whole row rides in the navbar's Brand slot: the pattern's Links
-// slot centres its content in the bar, and these actions belong at a
-// deliberate edge, not afloat near the middle.
-func vaultNavbar(loadTok func() themeTokens) navbar.Props {
-	var rescanClick, switchClick widget.Clickable
-	return navbar.Props{
-		Brand: func(gtx layout.Context) layout.Dimensions {
-			tok := loadTok()
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return drawLabel(gtx, tok.shaper, "Vault View", tok.typ.TitleMedium, tok.col.Text)
-				}),
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
-				}),
-				layout.Rigid(headerAction(&rescanClick, "Rescan", tok, Rescan{})),
-				layout.Rigid(complayout.HSpacer(tok.sp.S4)),
-				layout.Rigid(headerAction(&switchClick, "Switch vault", tok, SwitchVault{})),
-			)
-		},
-	}
-}
-
-// headerAction renders one top-bar affordance: a clickable label that
-// emits its message on the frame the click lands. It reports the label's
-// own baseline, so a Baseline-aligned row seats it on the same line as
-// the brand.
-func headerAction(click *widget.Clickable, label string, tok themeTokens, msg mvu.Message) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		if click.Clicked(gtx) {
-			mvu.MessageOp{Message: msg}.Add(gtx.Ops)
-		}
-		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			semantic.LabelOp(label).Add(gtx.Ops)
-			semantic.EnabledOp(true).Add(gtx.Ops)
-			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, tok.shaper, label, tok.typ.LabelLarge, tok.col.Text)
-		})
-	}
+	return vaultFrame(loadModel, loadTok,
+		treeSidebar(th, loadModel, loadTok),
+		backlinksAside(loadModel, loadTok),
+		mainSlot,
+	)
 }
 
 // layoutNotePage lays out the main slot: the header row (back/forward
@@ -200,8 +152,8 @@ func layoutNotePage(
 ) layout.Dimensions {
 	note := m.CurrentNote()
 	// The reading column lies on its own paper: the pinned app background,
-	// one neutral step lighter than the Surface the window chrome — header
-	// band, tree rail, aside — sits on. The panel and code fills below tint
+	// one neutral step lighter than the Surface the window chrome — the
+	// chrome row, tree rail, aside — sits on. The panel and code fills below tint
 	// down the neutral ramp from this paper, so the note reads as a
 	// document resting on darker furniture rather than more chrome.
 	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: gtx.Constraints.Max}.Op())
@@ -369,12 +321,14 @@ func messageChild(tok themeTokens, msg string) layout.FlexChild {
 	})
 }
 
-// noteCrumbs builds the trail: the vault name, one segment per folder on
-// the current note's path, then the note title. The vault crumb returns
-// the tree to its root state; each folder crumb reveals that folder in the
-// tree; the note title is where you already are and stays inert.
+// noteCrumbs builds the trail: one segment per folder on the current
+// note's path inside the vault, then the note title. Each folder crumb
+// reveals that folder in the tree; the note title is where you already
+// are and stays inert. The vault itself is not a segment — it names the
+// window from the chrome row, and as a crumb it promised a parent to
+// climb to that does not exist.
 func noteCrumbs(m Model) []crumb {
-	items := []crumb{{label: path.Base(strings.TrimRight(m.Vault, "/")), msg: RootTree{}}}
+	var items []crumb
 	note := m.CurrentNote()
 	if note == nil {
 		return items

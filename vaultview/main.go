@@ -1,7 +1,7 @@
 // main.go is the app's entry point and its layer composition: the
 // canonical MVU shape — mvu.NewWindow, a theme window with a live OS
 // theme (dark mode follows the system), a Model observable driven by
-// mvu.Loop, and a patterns/shell ThreeColumn for the vault screen. The
+// mvu.Loop, and an app-local column frame for the vault screen. The
 // vault scan runs as an mvu.Do command off the render goroutine.
 //
 // The package's own documentation — what the app is, and what a link
@@ -93,8 +93,8 @@ type themeTokens struct {
 
 // mirrorTokens subscribes the theme's token streams into an atomic cell
 // and returns a frame-time loader — the layer-boundary adapter for
-// closures that run outside any rx scope (the shell's static Main slot,
-// the picker's frame closure, the navbar brand).
+// closures that run outside any rx scope (the vault frame's chrome row
+// and note column, the picker's frame closure).
 func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	var cell atomic.Value
 	cell.Store(themeTokens{
@@ -137,7 +137,6 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
 			underTitleBar(routedLayer(th, modelObs, &modelCell, loadModel, loadTok)),
-			underTitleBar(headerHairline(loadModel, loadTok)),
 			underTitleBar(chooserLayer(th, modelObs, loadModel, loadTok)),
 			underTitleBar(toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})),
 		}
@@ -187,30 +186,6 @@ func underTitleBar(content rx.Observable[layout.Widget]) rx.Observable[layout.Wi
 			w(gtx)
 			return layout.Dimensions{Size: size}
 		}
-	})
-}
-
-// headerHairline draws the one structural rule the window chrome owns: a
-// hairline in the Divider colour across the full width, seated under the
-// header band, separating the chrome from the columns below. The band's
-// height mirrors the shell's density-derived navbar slot (ControlHeight
-// plus vertical control padding twice). The picker screen has no header
-// band, so the line draws on the vault screen only.
-func headerHairline(loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
-	return rx.Of[layout.Widget](func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
-		if loadModel().Screen != screenVault {
-			return layout.Dimensions{Size: size}
-		}
-		tok := loadTok()
-		y := gtx.Dp(unit.Dp(tok.den.ControlHeight + 2*tok.den.PaddingY))
-		h := gtx.Dp(1)
-		if h < 1 {
-			h = 1
-		}
-		line := image.Rect(0, y, size.X, y+h)
-		paint.FillShape(gtx.Ops, tok.col.Divider, clip.Rect(line).Op())
-		return layout.Dimensions{Size: size}
 	})
 }
 

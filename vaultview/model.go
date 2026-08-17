@@ -77,6 +77,12 @@ type Model struct {
 	// more: it reads no file and searches no prose.
 	Filter string
 
+	// SidebarHidden hides the folder rail, giving the note column the
+	// freed width. It is window state, not vault state: it survives
+	// navigation and a switch to another vault for as long as the app
+	// runs.
+	SidebarHidden bool
+
 	PropsOpen bool        // the properties panel is expanded
 	Toasts    toast.Queue // transient notifications, oldest first
 
@@ -175,6 +181,9 @@ type RevealFolder struct{ Dir string }
 
 // RootTree collapses every fold, returning the tree to its root state.
 type RootTree struct{}
+
+// ToggleSidebar shows or hides the folder rail.
+type ToggleSidebar struct{}
 
 // SetFilter carries the note-name filter typed above the tree, one
 // message per keystroke.
@@ -393,6 +402,8 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.Folds = openFolds(model.Folds, m.Dir)
 	case RootTree:
 		model.Folds = nil
+	case ToggleSidebar:
+		model.SidebarHidden = !model.SidebarHidden
 	case ToggleProperties:
 		model.PropsOpen = !model.PropsOpen
 	case ToggleFold:
