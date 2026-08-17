@@ -32,6 +32,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/icons"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
@@ -52,6 +53,13 @@ const (
 	propPadDp    = 12
 	propKeyGapDp = 16
 	propRadiusDp = 12
+
+	// noteNavMarkDp sizes the two history controls, which are controls in
+	// their own right at the head of the page; propMarkDp sizes the
+	// properties panel's disclosure, which stands beside its label and
+	// takes the size a mark takes next to a line of text.
+	noteNavMarkDp = markMediumDp
+	propMarkDp    = markSmallDp
 )
 
 // Chroma styles for the two appearance modes; built once, shared.
@@ -331,11 +339,11 @@ func layoutNotePage(
 		header := func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return navButton(gtx, tok, backClick, "‹", "Back", m.Cursor > 0, GoBack{})
+					return navButton(gtx, tok, backClick, icons.HistoryBack, "Back", m.Cursor > 0, GoBack{})
 				}),
 				layout.Rigid(complayout.HSpacer(8)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return navButton(gtx, tok, fwdClick, "›", "Forward", m.Cursor+1 < len(m.History), GoForward{})
+					return navButton(gtx, tok, fwdClick, icons.HistoryForward, "Forward", m.Cursor+1 < len(m.History), GoForward{})
 				}),
 				layout.Rigid(complayout.HSpacer(noteGapDp)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -416,14 +424,15 @@ func renderNotePageInto(
 	}
 }
 
-// navButton renders one history affordance: an arrow glyph that emits its
-// message on click while enabled, and renders dimmed and inert at the
-// stack's end.
+// navButton renders one history affordance: the set's mark for that
+// direction, emitting its message on click while enabled, and drawn
+// dimmed and inert at the stack's end.
 func navButton(
 	gtx layout.Context,
 	tok themeTokens,
 	click *widget.Clickable,
-	glyph, label string,
+	mark icons.Name,
+	label string,
 	enabled bool,
 	msg mvu.Message,
 ) layout.Dimensions {
@@ -437,7 +446,7 @@ func navButton(
 			c = tok.col.Text
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
-		return drawLabel(gtx, tok.shaper, glyph, tok.typ.TitleMedium, c)
+		return drawMark(gtx, mark, noteNavMarkDp, c)
 	})
 }
 
@@ -534,20 +543,13 @@ func layoutProperties(
 	if click.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleProperties{}}.Add(gtx.Ops)
 	}
-	// Disclosure marks drawn from the shipped face: Roboto owns + and −,
-	// where the triangle glyphs resolve only through system fallback and
-	// have rendered as missing-glyph boxes at runtime.
-	chev := "+"
-	if open {
-		chev = "−"
-	}
 	header := func(gtx layout.Context) layout.Dimensions {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp("Properties").Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return drawLabel(gtx, tok.shaper, chev, tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
+					return drawDisclosure(gtx, open, propMarkDp, tok.col.Ramps.Neutral.Step(700))
 				}),
 				layout.Rigid(complayout.HSpacer(6)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {

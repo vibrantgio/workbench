@@ -61,19 +61,20 @@ import (
 // inset system: the find field and the row fills share it, so the
 // selection pill's edges line up with the field's own.
 const (
-	treeWidthDp      = 240 // the rail's own width, whatever the slot offers
-	treeRowInsetDp   = 8   // shared horizontal inset: field and row fills
-	treeRowPadDp     = 8   // breathing room between a fill's edge and its ink
-	treeIndentDp     = 14  // additional inset per depth level
-	treeChevronDp    = 16  // fixed disclosure column, so names align per level
-	treeFieldPadDp   = 8   // breathing room around the find field
-	treePillRadiusDp = 8   // corner radius of the selection/active fill
-	treePillVPadDp   = 2   // vertical gap between adjacent row fills
-	treeHideBoxDp    = 24  // the pane's own hide control: a square hit area
-	treeFootPadDp    = 10  // breathing room above and below the foot's actions
-	treeFootGapDp    = 4   // gap between the foot's two hit areas
-	treeFootHPadDp   = 8   // an action's hit area either side of its label
-	treeFootVPadDp   = 4   // an action's hit area above and below its label
+	treeWidthDp       = 240         // the rail's own width, whatever the slot offers
+	treeRowInsetDp    = 8           // shared horizontal inset: field and row fills
+	treeRowPadDp      = 8           // breathing room between a fill's edge and its ink
+	treeIndentDp      = 14          // additional inset per depth level
+	treeDiscloseDp    = markSmallDp // the disclosure mark's own square
+	treeDiscloseColDp = 20          // fixed column holding it, so names align per level
+	treeFieldPadDp    = 8           // breathing room around the find field
+	treePillRadiusDp  = 8           // corner radius of the selection/active fill
+	treePillVPadDp    = 2           // vertical gap between adjacent row fills
+	treeHideBoxDp     = 24          // the pane's own hide control: a square hit area
+	treeFootPadDp     = 10          // breathing room above and below the foot's actions
+	treeFootGapDp     = 4           // gap between the foot's two hit areas
+	treeFootHPadDp    = 8           // an action's hit area either side of its label
+	treeFootVPadDp    = 4           // an action's hit area above and below its label
 )
 
 // TreeRow is one visible row of the folder tree.
@@ -559,26 +560,21 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 				}
 				semantic.LabelOp(row.Name).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				// Disclosure marks drawn from the shipped face: Roboto
-				// owns + and −, where the triangle glyphs resolve only
-				// through system fallback and have rendered as
-				// missing-glyph boxes at runtime.
-				chevron := ""
-				if row.IsDir {
-					chevron = "+"
-					if row.Open {
-						chevron = "−"
-					}
-				}
 				layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Rigid(complayout.HSpacer(treeRowInsetDp+treeRowPadDp+float32(row.Depth)*treeIndentDp)),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						dims := drawLabel(gtx, tok.shaper, chevron, tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(700))
-						w := gtx.Dp(treeChevronDp)
-						if dims.Size.X > w {
-							w = dims.Size.X
+						// The column is held whether or not the row has a
+						// mark to put in it, so names line up per level.
+						// It is wider than the mark because the mark turns:
+						// closed, the mark is narrow and its square has
+						// room to spare either side; open, it lies across
+						// the full width of that square and would otherwise
+						// end where the name begins.
+						mark := gtx.Dp(treeDiscloseDp)
+						if row.IsDir {
+							drawDisclosure(gtx, row.Open, treeDiscloseDp, tok.col.Ramps.Neutral.Step(700))
 						}
-						return layout.Dimensions{Size: image.Pt(w, dims.Size.Y), Baseline: dims.Baseline}
+						return layout.Dimensions{Size: image.Pt(gtx.Dp(treeDiscloseColDp), mark)}
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return drawLabel(gtx, tok.shaper, row.Name, tok.typ.BodyMedium, tok.col.Text)

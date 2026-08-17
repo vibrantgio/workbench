@@ -13,11 +13,13 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"math"
 	"os"
 	"sync/atomic"
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/f32"
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -28,6 +30,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/toast"
@@ -307,6 +310,56 @@ func drawLabel(gtx layout.Context, shaper *text.Shaper, msg string, style tokens
 	material := mat.Stop()
 	return typeset.Layout(gtx, shaper, typeset.Label(style, 1),
 		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
+}
+
+// Mark sizes. The set the marks come from was drawn and weight-matched
+// against the platform's own symbols at 16, 20 and 24 dp, so every call
+// site here asks for one of those and none for a size in between.
+const (
+	// markSmallDp is the size a mark takes beside a line of text: the
+	// disclosure marks, which stand next to a fourteen-point label.
+	markSmallDp = 16
+	// markMediumDp is the size a mark takes as a control in its own
+	// right: the two history controls.
+	markMediumDp = 20
+	// markLargeDp is the top of the set's range, and what a mark with
+	// axis-aligned edges takes. Those edges land on whole device pixels
+	// at 16 and 24 dp and between them at 20, where the sidebar figure's
+	// faint list lines smear into one grey column; the chevrons are
+	// diagonal throughout and have no grid to miss, so they are the ones
+	// free to take the middle size.
+	markLargeDp = 24
+)
+
+// drawMark paints one of the design system's marks into a square of
+// sizeDp at the current offset, in the colour the caller chose, and
+// reports that square as its dimensions. A name the set does not carry
+// paints nothing and still measures, so a missing mark leaves a gap
+// rather than moving everything around it.
+//
+// The marks are drawn rather than typeset, so what the window shows does
+// not depend on which faces the host carries — the app used to typeset
+// them and had glyphs resolve through system fallback.
+func drawMark(gtx layout.Context, name icons.Name, sizeDp unit.Dp, c color.NRGBA) layout.Dimensions {
+	px := gtx.Dp(sizeDp)
+	if mark := icons.Mark(name); mark != nil {
+		mark(gtx, px, c)
+	}
+	return layout.Dimensions{Size: image.Pt(px, px)}
+}
+
+// drawDisclosure paints the disclosure mark for a row that is open or
+// closed. There is one drawing, not two: the set draws it as the row
+// stands closed, and an open row turns it a quarter turn — which is what
+// the platform does, and what keeps the mark recognisable through the
+// turn. The mark occupies the whole square, so the turn is about the
+// square's own centre.
+func drawDisclosure(gtx layout.Context, open bool, sizeDp unit.Dp, c color.NRGBA) layout.Dimensions {
+	if open {
+		half := float32(gtx.Dp(sizeDp)) / 2
+		defer op.Affine(f32.Affine2D{}.Rotate(f32.Pt(half, half), math.Pi/2)).Push(gtx.Ops).Pop()
+	}
+	return drawMark(gtx, icons.Disclosure, sizeDp, c)
 }
 
 // drawText paints multi-line wrapped text in the given Typography role.

@@ -133,9 +133,9 @@ var themeCases = []struct {
 // faces the host carries. The theme's own Shaper() is the application
 // default and resolves system fallbacks; a golden must never take it.
 //
-// Every UI glyph the app draws — history ‹ ›, disclosure + − — is owned
-// by Roboto itself, so the goldens record the same real glyphs the
-// runtime shows and no missing-glyph box can appear in either.
+// No mark in the window is typeset: the history controls and the
+// disclosures are drawn from the design system's set, so the goldens
+// record the same ink the runtime shows whatever faces the host carries.
 func TestNotePageGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
@@ -265,7 +265,7 @@ func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
 }
 
 // TestTreeGolden records or diffs the tree rail: the find field above
-// the rows, folders with their disclosure chevrons, the current note
+// the rows, folders with their disclosure marks, the current note
 // marked active — and the same rail with a filter typed in, where the
 // hierarchy gives way to the matching notes and their folders.
 func TestTreeGolden(t *testing.T) {
@@ -301,8 +301,9 @@ func TestTreeGolden(t *testing.T) {
 //
 // Four images, because hiding the rail is not a change to one slot — the
 // pane goes, the note column reflows from the window's own edge, and the
-// toolbar's mark hollows out — and because every appearance the app ships
-// is an appearance the composition can be wrong in.
+// control that brings the pane back moves into the chrome row — and
+// because every appearance the app ships is an appearance the
+// composition can be wrong in.
 //
 // The pane's corners are anti-aliased and the goldens carry those pixels.
 // That is the composition telling the truth; the sharp-radius trick the

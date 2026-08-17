@@ -85,6 +85,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/icons"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/effects/depth"
 	"github.com/vibrantgio/mvu"
@@ -102,12 +103,10 @@ const (
 	frameMinAsideDp = 160
 	frameMaxAsideDp = 640
 
-	// The rail toggle's mark: a pane in outline, with a leading column
-	// the width of a sidebar filled in when the rail stands.
-	toggleMarkWDp   = 16
-	toggleMarkHDp   = 12
-	toggleMarkColDp = 6
-	toggleMarkRadDp = 3
+	// railToggleMarkDp is the square the sidebar control's mark takes.
+	// Both of the window's sidebar controls measure by it, so the two
+	// halves of one switch are the same size as well as the same figure.
+	railToggleMarkDp = markLargeDp
 
 	// railMarginDp is the frame's small edge margin: the inset the sidebar
 	// pane floats off the window's leading, top and bottom edges, what the
@@ -637,11 +636,14 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 	})
 }
 
-// railToggleMark draws the sidebar control's figure: a pane in outline
-// with a leading column the width of a sidebar filled in. It is drawn
-// rather than typeset, so the mark does not depend on a face carrying it,
-// and it is one drawing that never morphs. The mark used to hollow out
-// with the rail away, and a fresh reviewer read the hollow one as an
+// railToggleMark draws the sidebar control's figure, taken from the
+// design system's own set: a pane in outline, divided, with the faint
+// list lines the host platform puts in the leading column. The set
+// resolves that per platform, so a Mac user sees the figure they know
+// and everyone else sees the neutral one, from the same name here.
+//
+// It is one drawing that never morphs. The mark used to hollow out with
+// the rail away, and a fresh reviewer read the hollow one as an
 // unchecked box: the platform does not change this figure to advertise
 // the action either, because a mark that changes leaves the reader
 // guessing whether it shows the present state or the next one. What the
@@ -655,24 +657,12 @@ func railToggleMark(gtx layout.Context, tok themeTokens, label string) layout.Di
 	semantic.LabelOp(label).Add(gtx.Ops)
 	semantic.EnabledOp(true).Add(gtx.Ops)
 	pointer.CursorPointer.Add(gtx.Ops)
-	fg := tok.col.Text
-	w := gtx.Dp(unit.Dp(toggleMarkWDp))
-	h := gtx.Dp(unit.Dp(toggleMarkHDp))
-	stroke := max(gtx.Dp(unit.Dp(1)), 1)
-	rad := max(gtx.Dp(unit.Dp(toggleMarkRadDp)), 1)
+	w := gtx.Dp(unit.Dp(railToggleMarkDp))
 	// The mark is centred in a row-tall box, so the whole height of the
 	// row it stands in is pressable rather than the ink alone.
-	boxH := max(gtx.Constraints.Max.Y, h)
-	top := (boxH - h) / 2
-	box := image.Rect(0, top, w, top+h)
-	rr := clip.RRect{Rect: box, NE: rad, NW: rad, SE: rad, SW: rad}
-	paint.FillShape(gtx.Ops, fg, clip.Stroke{
-		Path:  rr.Path(gtx.Ops),
-		Width: float32(stroke),
-	}.Op())
-	cw := max(gtx.Dp(unit.Dp(toggleMarkColDp)), 1)
-	col := clip.RRect{Rect: box, NE: rad, NW: rad, SE: rad, SW: rad}.Push(gtx.Ops)
-	paint.FillShape(gtx.Ops, fg, clip.Rect(image.Rect(box.Min.X, box.Min.Y, box.Min.X+cw, box.Max.Y)).Op())
-	col.Pop()
+	boxH := max(gtx.Constraints.Max.Y, w)
+	st := op.Offset(image.Pt(0, (boxH-w)/2)).Push(gtx.Ops)
+	drawMark(gtx, icons.Sidebar, railToggleMarkDp, tok.col.Text)
+	st.Pop()
 	return layout.Dimensions{Size: image.Pt(w, boxH)}
 }

@@ -131,6 +131,7 @@ go test . -golden.update           # re-record the golden images
 
 The goldens store a rendered note and the tree rail in light and dark
 under `testdata/golden`. They shape with a deterministic font set, so
-they cannot drift with the host's installed fonts — which also means the
-arrow and chevron glyphs record as fallback boxes there and resolve from
-the system faces at runtime.
+they cannot drift with the host's installed fonts. The window's marks —
+the sidebar toggle, the disclosures, the two history controls — are not
+typeset at all: they come from the design system's icon set, so the
+goldens record the same ink the runtime draws.

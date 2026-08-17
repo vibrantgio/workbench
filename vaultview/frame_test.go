@@ -76,7 +76,7 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 		{
 			name: "rail hidden", hidden: true, lead: lead,
 			controls: []int{
-				lead + frameGapDp + toggleMarkWDp/2, // the show toggle
+				lead + frameGapDp + railToggleMarkDp/2, // the show toggle
 			},
 		},
 	} {
