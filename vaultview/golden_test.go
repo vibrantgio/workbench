@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
+	"strings"
 	"testing"
 
 	"gioui.org/layout"
@@ -134,6 +136,86 @@ func TestNotePageGolden(t *testing.T) {
 			w := renderNotePage(shaper, m, tc.colors, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
 			golden.Render(t, "note-"+tc.name, noteCanvasSize, scene(w, tc.bg))
 		})
+	}
+}
+
+// longNoteSource is a note far taller than the viewport: forty numbered
+// sections, each a heading and a paragraph. It exists so the note column
+// can be photographed part way down a document, which is the only state
+// where the scroll indicator has anything to say.
+func longNoteSource() string {
+	var b strings.Builder
+	b.WriteString("# A long note\n\n")
+	for i := 1; i <= 40; i++ {
+		fmt.Fprintf(&b, "## Section %d\n\nParagraph %d of a note that runs well past the "+
+			"bottom of any window it is read in, so the reader needs telling where "+
+			"in it they are.\n\n", i, i)
+	}
+	return b.String()
+}
+
+// longNoteModel is goldenModel's note replaced by the long one, seated at
+// the given block so the render lands mid-document.
+func longNoteModel(first int) Model {
+	m := goldenModel()
+	m = cacheNote(m, noteFromSource("guide/Long note.md", longNoteSource()))
+	m.Current = "guide/Long note.md"
+	m.CurAnchor = first
+	return m
+}
+
+// TestNoteScrollbarGolden records the note column part way down a long
+// note. The indicator sits in the column's trailing gutter, away from both
+// ends of its track and a fraction of its length — position and proportion,
+// which is the whole of what it is for.
+func TestNoteScrollbarGolden(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := longNoteModel(30)
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := renderNotePage(shaper, m, tc.colors, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
+			golden.Render(t, "note-scrollbar-"+tc.name, noteCanvasSize, scene(w, tc.bg))
+		})
+	}
+}
+
+// TestNoteScrollbarOnlyWhenTheNoteOverflows is the exit condition as an
+// assertion: a long note read at its end draws an indicator at the foot of
+// the column's trailing gutter, and the short golden note, in the same
+// viewport, draws none. The probe is pixels rather than dimensions, because
+// the gutter is reserved either way — that is what stops the prose
+// reflowing when the bar fades.
+//
+// The gutter is the column's last ten dp — the bar reaches the edge, where
+// the platform puts it, and every other row stops a reading margin short of
+// it — and the probe takes the foot of that strip, which no note's own ink
+// can reach.
+func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
+	shot := func(m Model) *image.RGBA {
+		w := renderNotePage(shaper, m, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
+		return golden.Capture(t, noteCanvasSize, scene(w, bg))
+	}
+	ground := tokens.DefaultLight.Background
+	footInk := func(img *image.RGBA) int {
+		n := 0
+		for y := noteCanvasH - 100; y < noteCanvasH-noteInsetDp; y++ {
+			for x := noteCanvasW - 10; x < noteCanvasW; x++ {
+				c := img.RGBAAt(x, y)
+				if c.R != ground.R || c.G != ground.G || c.B != ground.B {
+					n++
+				}
+			}
+		}
+		return n
+	}
+
+	if n := footInk(shot(longNoteModel(118))); n == 0 {
+		t.Error("a note taller than the viewport drew no scroll indicator")
+	}
+	if n := footInk(shot(goldenModel())); n != 0 {
+		t.Errorf("a note that fits drew %d indicator pixels, want none", n)
 	}
 }
 

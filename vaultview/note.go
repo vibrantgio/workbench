@@ -31,6 +31,8 @@ import (
 	"github.com/reactivego/rx"
 
 	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/markdown/obsidian"
@@ -157,7 +159,17 @@ func layoutNotePage(
 	// down the neutral ramp from this paper, so the note reads as a
 	// document resting on darker furniture rather than more chrome.
 	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: gtx.Constraints.Max}.Op())
-	inset := complayout.Inset(noteInsetDp)
+	// The page's trailing margin is spent inside each row rather than by
+	// the page, so the document's scrollbar can reach the column's own edge
+	// the way the platform's does. Everything that is not the document —
+	// the header row, the properties panel, the standing messages — puts
+	// the margin back itself.
+	inset := layout.Inset{Top: noteInsetDp, Bottom: noteInsetDp, Left: noteInsetDp}
+	trailing := func(w layout.Widget) layout.Widget {
+		return func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Right: noteInsetDp}.Layout(gtx, w)
+		}
+	}
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		crumbs := noteCrumbs(m)
 
@@ -175,8 +187,24 @@ func layoutNotePage(
 			style.Text.OnLinkClick = func(gtx layout.Context, url string) {
 				linkClicked(gtx, m, url)
 			}
+			// The bar is the design system's, taking the same colour
+			// tokens the document's style did. Occupy rather than
+			// Overlay: the gutter costs the prose ten dp of measure
+			// once, where an overlay bar lands on the ends of the lines
+			// it floats over. It draws nothing at all while the whole
+			// note fits, and fades out a second after the note stops
+			// moving — both the treatment's own behaviour, not the
+			// app's.
+			//
+			// The document is the one row that runs to the column's edge,
+			// where the bar belongs. The reading margin the other rows get
+			// from the page inset it takes as its own gutter, less the
+			// width the bar already reserves, so the prose ends level with
+			// the breadcrumb above it.
+			bar := scrollbar.FromTokens(tok.col)
+			style.Gutter = max(noteInsetDp-bar.Width(), 0)
 			body = layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return doc.Layout(gtx, tok.shaper, style)
+				return doc.LayoutScrollbar(gtx, tok.shaper, style, bar, list.Occupy)
 			})
 		}
 
@@ -197,14 +225,14 @@ func layoutNotePage(
 		}
 
 		children := []layout.FlexChild{
-			layout.Rigid(header),
+			layout.Rigid(trailing(header)),
 			layout.Rigid(complayout.VSpacer(noteGapDp)),
 		}
 		if note != nil && note.FM.Present {
 			children = append(children,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				layout.Rigid(trailing(func(gtx layout.Context) layout.Dimensions {
 					return layoutProperties(gtx, tok, note.FM, m.PropsOpen, propClick)
-				}),
+				})),
 				layout.Rigid(complayout.VSpacer(noteGapDp)),
 			)
 		}
@@ -214,9 +242,11 @@ func layoutNotePage(
 }
 
 // renderNotePage is the static counterpart of the vault screen's main
-// slot, used by goldens: fresh widget state, a fresh top-scrolled
-// document per note, laid out once from pre-resolved tokens and
-// processing no events.
+// slot, used by goldens: fresh widget state, a fresh document per note,
+// laid out once from pre-resolved tokens and processing no events. The
+// document is seated at the model's anchor when it carries one and at the
+// top otherwise, which is the only way a still image can be taken part
+// way down a note.
 func renderNotePage(
 	shaper *text.Shaper,
 	m Model,
@@ -233,10 +263,14 @@ func renderNotePage(
 		trail     crumbRow
 	)
 	docs := map[string]*markdown.Document{}
-	docFor := func(_ Model, n *Note) *markdown.Document {
+	docFor := func(m Model, n *Note) *markdown.Document {
 		d := docs[n.Path]
 		if d == nil {
-			d = markdown.NewDocument(n.Blocks)
+			if m.CurAnchor >= 0 {
+				d = markdown.NewDocumentAt(n.Blocks, m.CurAnchor)
+			} else {
+				d = markdown.NewDocument(n.Blocks)
+			}
 			docs[n.Path] = d
 		}
 		return d
@@ -313,11 +347,15 @@ func openBrowser(url string) {
 	_ = cmd.Start()
 }
 
-// messageChild renders a status line in place of the document.
+// messageChild renders a status line in place of the document. It takes the
+// trailing margin itself, the page inset having handed that job to its rows
+// so the document can reach the column's edge.
 func messageChild(tok themeTokens, msg string) layout.FlexChild {
 	return layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-		drawLabel(gtx, tok.shaper, msg, tok.typ.BodyLarge, tok.col.Ramps.Neutral.Step(700))
-		return layout.Dimensions{Size: gtx.Constraints.Max}
+		return layout.Inset{Right: noteInsetDp}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			drawLabel(gtx, tok.shaper, msg, tok.typ.BodyLarge, tok.col.Ramps.Neutral.Step(700))
+			return layout.Dimensions{Size: gtx.Constraints.Max}
+		})
 	})
 }
 
