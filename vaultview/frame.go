@@ -85,7 +85,8 @@ const (
 	// the width of a sidebar filled in when the rail stands.
 	toggleMarkWDp   = 16
 	toggleMarkHDp   = 12
-	toggleMarkColDp = 5
+	toggleMarkColDp = 6
+	toggleMarkRadDp = 3
 
 	// The rail pane's margin from the window's edges and from the toolbar
 	// row above it, and its corner radius.
@@ -528,7 +529,7 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 		w := gtx.Dp(unit.Dp(toggleMarkWDp))
 		h := gtx.Dp(unit.Dp(toggleMarkHDp))
 		stroke := max(gtx.Dp(unit.Dp(1)), 1)
-		rad := max(gtx.Dp(unit.Dp(2)), 1)
+		rad := max(gtx.Dp(unit.Dp(toggleMarkRadDp)), 1)
 		// The mark is centred in a row-tall box, so the whole height of
 		// the row is pressable rather than the ink alone.
 		boxH := max(gtx.Constraints.Max.Y, h)
