@@ -1,0 +1,245 @@
+package main
+
+import (
+	"image"
+	"testing"
+
+	"gioui.org/f32"
+	"gioui.org/io/event"
+	"gioui.org/io/input"
+	"gioui.org/io/key"
+	"gioui.org/io/pointer"
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/unit"
+	"gioui.org/widget"
+
+	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/theme/tokens"
+)
+
+// notePad drives the note column through a real input router, so the keys
+// under test travel the path they travel in the running app: queued at the
+// window, matched against the filters the column registered last frame,
+// delivered only if the column holds the keyboard.
+type notePad struct {
+	m    Model
+	tok  themeTokens
+	doc  *markdown.Document
+	read reader
+	r    input.Router
+	ops  op.Ops
+	size image.Point
+
+	propClick, backClick, fwdClick widget.Clickable
+	trail                          crumbRow
+
+	// rival is a second focusable target standing for the find field and the
+	// folder rail: anything else in the window that can hold the keyboard.
+	rival     rivalTag
+	takeFocus bool
+}
+
+type rivalTag struct{ _ byte }
+
+func newNotePad(t *testing.T, m Model) *notePad {
+	t.Helper()
+	p := &notePad{
+		m:    m,
+		size: image.Pt(760, 520),
+		tok: themeTokens{
+			col:    tokens.DefaultLight,
+			typ:    tokens.DefaultTypography,
+			sp:     tokens.Spacing,
+			den:    tokens.Comfortable,
+			shaper: tokens.DefaultTypography.DeterministicShaper(),
+		},
+	}
+	note := m.CurrentNote()
+	if note == nil {
+		t.Fatal("the fixture model has no current note")
+	}
+	p.doc = markdown.NewDocument(note.Blocks)
+	return p
+}
+
+func (p *notePad) frame() {
+	p.ops.Reset()
+	gtx := layout.Context{
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: layout.Exact(p.size),
+		Ops:         &p.ops,
+		Source:      p.r.Source(),
+	}
+	layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, &p.trail, &p.read,
+		func(Model, *Note) *markdown.Document { return p.doc })
+	// The rival is registered over nothing, in the corner: it exists to hold
+	// the keyboard, not to be seen.
+	for {
+		if _, ok := gtx.Event(key.FocusFilter{Target: &p.rival}); !ok {
+			break
+		}
+	}
+	area := clip.Rect{Max: image.Pt(1, 1)}.Push(gtx.Ops)
+	event.Op(gtx.Ops, &p.rival)
+	area.Pop()
+	if p.takeFocus {
+		p.takeFocus = false
+		gtx.Execute(key.FocusCmd{Tag: &p.rival})
+	}
+	p.r.Frame(&p.ops)
+}
+
+func (p *notePad) press(name key.Name, mods key.Modifiers) {
+	p.r.Queue(key.Event{Name: name, Modifiers: mods, State: key.Press})
+	p.frame()
+}
+
+// clickInDocument presses near the foot of the column, where the document is
+// and no control of the page's own is.
+func (p *notePad) clickInDocument() {
+	at := f32.Pt(float32(p.size.X)/2, float32(p.size.Y)-30)
+	p.r.Queue(
+		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: at},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: at},
+	)
+	p.frame()
+}
+
+func (p *notePad) pos() layout.Position { return p.doc.Position() }
+
+func (p *notePad) atStart() bool {
+	q := p.pos()
+	return q.First == 0 && q.Offset == 0
+}
+
+// TestReadingKeysMoveTheNote is the wiring assertion: each of the platform's
+// reading keys, pressed at the window, moves the document the note column is
+// showing — no click first, because a reader who has just opened a note has
+// not clicked anything.
+func TestReadingKeysMoveTheNote(t *testing.T) {
+	p := newNotePad(t, longNoteModel(-1))
+	p.frame()
+	if !p.atStart() {
+		t.Fatalf("the note opened at %+v, want the top", p.pos())
+	}
+
+	p.press(key.NamePageDown, 0)
+	down := p.pos()
+	if down.First == 0 && down.Offset == 0 {
+		t.Fatal("Page Down did not move the note")
+	}
+
+	p.press(key.NamePageUp, 0)
+	if !p.atStart() {
+		t.Fatalf("Page Up left the note at %+v, want the top", p.pos())
+	}
+
+	for _, tc := range []struct {
+		name string
+		key  key.Name
+		mods key.Modifiers
+	}{
+		{"End", key.NameEnd, 0},
+		{"Command-Down", key.NameDownArrow, key.ModCommand},
+	} {
+		p.doc.ScrollToStart()
+		p.frame()
+		p.press(tc.key, tc.mods)
+		q := p.pos()
+		if q.First+q.Count != len(p.doc.Blocks()) {
+			t.Errorf("%s left the note at %+v, want the end", tc.name, q)
+		}
+		for _, back := range []struct {
+			name string
+			key  key.Name
+			mods key.Modifiers
+		}{{"Home", key.NameHome, 0}, {"Command-Up", key.NameUpArrow, key.ModCommand}} {
+			p.press(back.key, back.mods)
+			if !p.atStart() {
+				t.Errorf("%s after %s left the note at %+v, want the top", back.name, tc.name, p.pos())
+			}
+			p.press(tc.key, tc.mods)
+		}
+	}
+}
+
+// TestReadingKeysDoNotStealFromAnotherTarget is D2's other half. Home and End
+// mean the line's ends to the find field and the first and last row to the
+// folder rail; while either holds the keyboard the document must not answer
+// them, and pressing in the document must be enough to get them back.
+func TestReadingKeysDoNotStealFromAnotherTarget(t *testing.T) {
+	p := newNotePad(t, longNoteModel(-1))
+	p.frame()
+	p.takeFocus = true
+	p.frame()
+
+	for _, tc := range []struct {
+		name string
+		key  key.Name
+		mods key.Modifiers
+	}{
+		{"Page Down", key.NamePageDown, 0},
+		{"End", key.NameEnd, 0},
+		{"Command-Down", key.NameDownArrow, key.ModCommand},
+	} {
+		p.press(tc.key, tc.mods)
+		if !p.atStart() {
+			t.Fatalf("%s moved the note to %+v while another target held the keyboard", tc.name, p.pos())
+		}
+	}
+
+	p.clickInDocument()
+	p.press(key.NamePageDown, 0)
+	if p.atStart() {
+		t.Fatal("pressing in the document did not hand it the keyboard back: Page Down still moves nothing")
+	}
+}
+
+// TestOpeningANoteHandsTheColumnTheKeyboard is the other way back. Choosing a
+// note in the folder rail leaves the keyboard on the rail, and a reader who
+// has just opened a note wants to read it — so the arrival of a note is
+// itself the request. Without this the only way to page a note opened from
+// the rail is to find somewhere in it to click first.
+func TestOpeningANoteHandsTheColumnTheKeyboard(t *testing.T) {
+	m := longNoteModel(-1)
+	p := newNotePad(t, m)
+	p.frame()
+	p.takeFocus = true
+	p.frame()
+	p.press(key.NamePageDown, 0)
+	if !p.atStart() {
+		t.Fatalf("the fixture's rival never held the keyboard: the note moved to %+v", p.pos())
+	}
+
+	// A note opened from the rail is a new document in the column.
+	p.doc = markdown.NewDocument(m.CurrentNote().Blocks)
+	p.frame()
+	p.press(key.NamePageDown, 0)
+	if p.atStart() {
+		t.Fatal("opening a note left the keyboard elsewhere: Page Down moves nothing")
+	}
+}
+
+// TestTheEndsHoldAfterAnAnchorLanding is the exit condition's second half: a
+// followed link seats the document at its anchor, and the reading keys must
+// still cross it — the seating is a scroll position, not a mode.
+func TestTheEndsHoldAfterAnAnchorLanding(t *testing.T) {
+	m := longNoteModel(30)
+	p := newNotePad(t, m)
+	note := m.CurrentNote()
+	p.doc = markdown.NewDocumentAt(note.Blocks, m.CurAnchor)
+	p.frame()
+	if p.atStart() {
+		t.Fatalf("the anchored landing sat at the top; the fixture cannot say anything")
+	}
+	p.press(key.NameHome, 0)
+	if !p.atStart() {
+		t.Errorf("Home after an anchor landing left the note at %+v", p.pos())
+	}
+	p.press(key.NameEnd, 0)
+	if q := p.pos(); q.First+q.Count != len(p.doc.Blocks()) {
+		t.Errorf("End after an anchor landing left the note at %+v, want the end", q)
+	}
+}

@@ -18,6 +18,8 @@ import (
 	"strings"
 
 	"gioui.org/font"
+	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
@@ -87,6 +89,104 @@ type docEntry struct {
 	doc  *markdown.Document
 }
 
+// readerTag is a non-zero-size type so its address is a unique event tag.
+// A zero-size struct{} field could share an address with its neighbour,
+// which would break tag identity.
+type readerTag struct{ _ byte }
+
+// reader is the note column's keyboard target: one focus tag covering the
+// document, and the platform's reading keys filtered on it.
+//
+// The tag is what keeps the keys the reader's own. A filter with no focus
+// would match whoever is typing in the find field and whatever the folder
+// rail has selected — Home and End mean the line's ends to an editor and the
+// first and last row to a list, and all three would answer the same press.
+// Filtered on this tag, the keys move the document only while the document
+// holds the keyboard, and the field and the rail keep theirs untouched.
+//
+// The column takes the keyboard whenever a note arrives — the first one it
+// shows, and every one opened after it — so a note can be read the moment it
+// is opened rather than after finding somewhere to click. Choosing a note
+// from the rail or following a link is a request to read it, and the keys
+// that read it are the document's; filtering the rail opens nothing and so
+// takes nothing away from the field being typed in.
+type reader struct {
+	tag readerTag
+	// shown is the document the column last laid out. A different pointer
+	// means a different note is on screen, which is the moment to claim the
+	// keyboard.
+	shown *markdown.Document
+}
+
+// layout lays w out and covers it with the reading area: one focus target
+// over the whole document, driven by whatever keys reached it this frame.
+//
+// The area sits over the content rather than under it, and passes pointer
+// events through. Under it, the document's own links and the list's scroll
+// gesture would swallow the press before it arrived, and a click on prose is
+// how a reader says which pane they mean to read; passing through is what
+// lets the same press both follow a link and hand the column the keyboard.
+func (r *reader) layout(gtx layout.Context, doc *markdown.Document, w layout.Widget) layout.Dimensions {
+	r.process(gtx, doc)
+	if r.shown != doc {
+		r.shown = doc
+		gtx.Execute(key.FocusCmd{Tag: &r.tag})
+	}
+	dims := w(gtx)
+	pass := pointer.PassOp{}.Push(gtx.Ops)
+	area := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
+	event.Op(gtx.Ops, &r.tag)
+	area.Pop()
+	pass.Pop()
+	return dims
+}
+
+// process drains this frame's reading keys. The focus filter is what makes
+// the tag focusable at all: without it the router refuses to hold focus on
+// it and every key filter below is dead.
+//
+// Command with an arrow is the macOS spelling of the document's ends, and
+// Home and End are the same two places; the platform's own text views answer
+// both, so the viewer answers both rather than inventing a third.
+func (r *reader) process(gtx layout.Context, doc *markdown.Document) {
+	tag := &r.tag
+	for {
+		e, ok := gtx.Event(
+			key.FocusFilter{Target: tag},
+			pointer.Filter{Target: tag, Kinds: pointer.Press},
+			key.Filter{Focus: tag, Name: key.NamePageUp},
+			key.Filter{Focus: tag, Name: key.NamePageDown},
+			key.Filter{Focus: tag, Name: key.NameHome},
+			key.Filter{Focus: tag, Name: key.NameEnd},
+			key.Filter{Focus: tag, Name: key.NameUpArrow, Required: key.ModCommand},
+			key.Filter{Focus: tag, Name: key.NameDownArrow, Required: key.ModCommand},
+		)
+		if !ok {
+			return
+		}
+		switch e := e.(type) {
+		case pointer.Event:
+			if e.Kind == pointer.Press {
+				gtx.Execute(key.FocusCmd{Tag: tag})
+			}
+		case key.Event:
+			if e.State != key.Press || doc == nil {
+				continue
+			}
+			switch e.Name {
+			case key.NamePageDown:
+				doc.PageDown()
+			case key.NamePageUp:
+				doc.PageUp()
+			case key.NameEnd, key.NameDownArrow:
+				doc.ScrollToEnd()
+			case key.NameHome, key.NameUpArrow:
+				doc.ScrollToStart()
+			}
+		}
+	}
+}
+
 // vaultLayer composes the vault screen: the window frame with the folder
 // tree in the leading column, the backlinks panel in the trailing one,
 // and the note between them. The note column reads the model and token
@@ -112,6 +212,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		backClick widget.Clickable
 		fwdClick  widget.Clickable
 		trail     crumbRow
+		read      reader
 	)
 	docFor := func(m Model, n *Note) *markdown.Document {
 		if m.Vault != docsVault {
@@ -132,7 +233,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		return e.doc
 	}
 	mainSlot := func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, &trail, docFor)
+		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, &trail, &read, docFor)
 	}
 	return vaultFrame(loadModel, loadTok,
 		treeSidebar(th, loadModel, loadTok),
@@ -150,6 +251,7 @@ func layoutNotePage(
 	tok themeTokens,
 	propClick, backClick, fwdClick *widget.Clickable,
 	trail *crumbRow,
+	read *reader,
 	docFor func(Model, *Note) *markdown.Document,
 ) layout.Dimensions {
 	note := m.CurrentNote()
@@ -204,7 +306,13 @@ func layoutNotePage(
 			bar := scrollbar.FromTokens(tok.col)
 			style.Gutter = max(noteInsetDp-bar.Width(), 0)
 			body = layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return doc.LayoutScrollbar(gtx, tok.shaper, style, bar, list.Occupy)
+				// The reading keys are filtered on the column's own focus
+				// tag, so they move the document only while it holds the
+				// keyboard — never out from under the find field or the
+				// folder rail.
+				return read.layout(gtx, doc, func(gtx layout.Context) layout.Dimensions {
+					return doc.LayoutScrollbar(gtx, tok.shaper, style, bar, list.Occupy)
+				})
 			})
 		}
 
@@ -261,6 +369,7 @@ func renderNotePage(
 		backClick widget.Clickable
 		fwdClick  widget.Clickable
 		trail     crumbRow
+		read      reader
 	)
 	docs := map[string]*markdown.Document{}
 	docFor := func(m Model, n *Note) *markdown.Document {
@@ -276,7 +385,7 @@ func renderNotePage(
 		return d
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, &trail, docFor)
+		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, &trail, &read, docFor)
 	}
 }
 
