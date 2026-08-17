@@ -232,12 +232,16 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		docs[n.Path] = e
 		return e.doc
 	}
+	// The document the column is showing, shared with the aside so its
+	// outline can mark where the reader is and move them within the note
+	// they already have open.
+	cur := &docCursor{}
 	mainSlot := func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, &trail, &read, docFor)
+		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, &trail, &read, cur, docFor)
 	}
 	return vaultFrame(loadModel, loadTok,
 		treeSidebar(th, loadModel, loadTok),
-		backlinksAside(loadModel, loadTok),
+		asideColumn(cur, loadModel, loadTok),
 		mainSlot,
 	)
 }
@@ -252,6 +256,7 @@ func layoutNotePage(
 	propClick, backClick, fwdClick *widget.Clickable,
 	trail *crumbRow,
 	read *reader,
+	cur *docCursor,
 	docFor func(Model, *Note) *markdown.Document,
 ) layout.Dimensions {
 	note := m.CurrentNote()
@@ -278,13 +283,20 @@ func layoutNotePage(
 		var body layout.FlexChild
 		switch {
 		case m.Scanning && note == nil:
+			cur.show(nil)
 			body = messageChild(tok, "Scanning vault…")
 		case m.ScanErr != "":
+			cur.show(nil)
 			body = messageChild(tok, m.ScanErr)
 		case note == nil:
+			cur.show(nil)
 			body = messageChild(tok, "No notes in this vault.")
 		default:
 			doc := docFor(m, note)
+			// The aside's outline reads and moves this document. It lays
+			// out after this column does, so what it reads is this frame's
+			// position and what it moves shows on the next.
+			cur.show(doc)
 			style := noteStyle(tok.col, tok.typ)
 			style.Text.OnLinkClick = func(gtx layout.Context, url string) {
 				linkClicked(gtx, m, url)
@@ -363,6 +375,21 @@ func renderNotePage(
 	typo tokens.Typography,
 	den tokens.Density,
 ) layout.Widget {
+	return renderNotePageInto(&docCursor{}, shaper, m, colors, sp, typo, den)
+}
+
+// renderNotePageInto is renderNotePage with the document cursor supplied,
+// so a whole-window render can hand the same one to the aside and the two
+// columns agree about which document is on screen.
+func renderNotePageInto(
+	cur *docCursor,
+	shaper *text.Shaper,
+	m Model,
+	colors tokens.ColorTokens,
+	sp tokens.SpacingScale,
+	typo tokens.Typography,
+	den tokens.Density,
+) layout.Widget {
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	var (
 		propClick widget.Clickable
@@ -385,7 +412,7 @@ func renderNotePage(
 		return d
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, &trail, &read, docFor)
+		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, &trail, &read, cur, docFor)
 	}
 }
 

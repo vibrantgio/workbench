@@ -164,6 +164,43 @@ func longNoteModel(first int) Model {
 	return m
 }
 
+// plainNoteSource is a note with no headings of any kind: the case the
+// outline pane has nothing to list for, and the one where the column had
+// better still be worth its width — this note is cited, and its citations
+// are all the column has to show.
+const plainNoteSource = `The sources these notes came from, kept as a plain
+list because it has never needed sections.
+
+- A shelf of books.
+- A folder of papers.
+- Two decades of margin notes.
+`
+
+// plainNoteModel makes the cited, heading-less note current: the Reading
+// list note links to it, so its backlinks pane has a row while its
+// outline has none.
+func plainNoteModel() Model {
+	m := goldenModel()
+	// The scanned index the tree golden shares carries no link bodies, so
+	// the reverse edges have to be put there for the pane to have a row.
+	// Two citations, one of them from a folder, so the pane shows both of
+	// the shapes a backlink row has.
+	idx := *m.Index
+	idx.Files = append([]FileScan(nil), idx.Files...)
+	for i := range idx.Files {
+		switch idx.Files[i].Path {
+		case "guide/Reading list.md", "Design/Principles.md":
+			idx.Files[i].Links = []string{"Sources"}
+		}
+	}
+	m.Index = &idx
+	m = cacheNote(m, noteFromSource("Sources.md", plainNoteSource))
+	m.Current = "Sources.md"
+	m.History = []HistEntry{{Path: "guide/Reading list.md", Anchor: -1}, {Path: "Sources.md", Anchor: -1}}
+	m.Cursor = 1
+	return m
+}
+
 // TestNoteScrollbarGolden records the note column part way down a long
 // note. The indicator sits in the column's trailing gutter, away from both
 // ends of its track and a fraction of its length — position and proportion,
@@ -275,6 +312,14 @@ func TestVaultWindowGolden(t *testing.T) {
 	}{
 		{"window", shown},
 		{"window-hidden", hidden},
+		// The two shapes the trailing column has to hold. A forty-heading
+		// note read part way down fills the outline pane to its ceiling
+		// and marks the section the reader is inside — and the backlinks
+		// are still below it, which is the whole reason the column is two
+		// panes. A note with no headings at all says so and gives the rest
+		// of the column to the notes citing it.
+		{"window-outline", longNoteModel(30)},
+		{"window-plain", plainNoteModel()},
 	}
 	for _, c := range cases {
 		for _, tc := range themeCases {

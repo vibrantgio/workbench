@@ -41,8 +41,12 @@ The window is a sidebar down the leading edge and two columns beside it.
   shows as key and value, anything it cannot is shown raw. Then the note
   itself: headings, lists, tables, quotes, and code blocks with syntax
   highlighting.
-- **Right — backlinks.** Every note whose links resolve to this one, a
-  row each; click to go there.
+- **Right — outline and backlinks.** Two panes, each scrolling in its own
+  right. Above, the current note's headings: the one you are reading is
+  marked as the note scrolls, and choosing another moves the note to it
+  rather than opening it again. Below, every note whose links resolve to
+  this one, a row each; click to go there. A note with no headings says
+  so and gives the column to its backlinks.
 
 Back and forward walk the notes you have visited, and each note keeps its
 own scroll position, so returning to a note returns you to where you were

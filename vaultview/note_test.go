@@ -28,6 +28,7 @@ type notePad struct {
 	tok  themeTokens
 	doc  *markdown.Document
 	read reader
+	cur  docCursor
 	r    input.Router
 	ops  op.Ops
 	size image.Point
@@ -73,7 +74,7 @@ func (p *notePad) frame() {
 		Source:      p.r.Source(),
 	}
 	layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, &p.trail, &p.read,
-		func(Model, *Note) *markdown.Document { return p.doc })
+		&p.cur, func(Model, *Note) *markdown.Document { return p.doc })
 	// The rival is registered over nothing, in the corner: it exists to hold
 	// the keyboard, not to be seen.
 	for {

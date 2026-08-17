@@ -29,12 +29,22 @@
 //
 // The window's ground is the same paper the note column lies on, so the
 // note has no edge of its own to draw and the chrome row sits on the
-// document rather than on a band above it. What is furniture — the
-// sidebar — says so by standing a surface step off that ground; what is
-// document simply is the ground. The divider between the note and the
-// backlinks follows from this: with no column edges left to butt against,
-// it is a hairline drawn down the middle of a wide-enough grab area, not
-// a bar.
+// document rather than on a band above it. What is furniture says so by
+// standing a surface step off that ground; what is document simply is the
+// ground. Both of the window's edges are furniture and both say it the
+// same way: the sidebar leading, and trailing the column that carries the
+// note's outline and the notes citing it. Neither is the document, so
+// neither lies on its paper. Both run the window's full height, the
+// trailing one behind the chrome row rather than under it, so that the
+// document is a column of paper between two panes and not a shape cut out
+// of one.
+//
+// The divider between the note and that column follows from this. Its two
+// sides now stand on different grounds, so the edge between them is the
+// seam and there is no line to draw at rest — the sidebar's edge on the
+// other side is drawn no other way. The grab area stays as wide as a hand
+// needs, and inks while a hand is on it, which is the only thing the
+// resting edge cannot say for itself.
 //
 // Where the chrome row sits is a platform fact, not a taste. Under the
 // full-size-content treatment the content extends behind the native
@@ -70,7 +80,6 @@ import (
 	"github.com/reactivego/rx"
 
 	complayout "github.com/vibrantgio/components/layout"
-	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
@@ -194,9 +203,10 @@ func renderWindow(
 ) (layout.Widget, *frameState) {
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	st := &frameState{asideW: frameAsideDp, leading: func() unit.Dp { return leading }}
+	cur := &docCursor{}
 	sb := renderTree(shaper, m, colors, sp, rad, typo, den, leading)
-	main := renderNotePage(shaper, m, colors, sp, typo, den)
-	av := &asideView{list: list.NewState()}
+	main := renderNotePageInto(cur, shaper, m, colors, sp, typo, den)
+	av := newAsideView(cur)
 	as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
 	return func(gtx layout.Context) layout.Dimensions {
 		return st.layout(gtx, m, tok, sb, as, main)
@@ -264,22 +274,6 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		f.layoutRailPane(gtx, tok, g.pane, sb)
 	}
 
-	// The chrome row belongs to the content area alone. With the pane
-	// standing, the window buttons are inside it and the row owes them no
-	// leading space; with the pane away, the row starts after their
-	// measured trailing edge, as the whole top strip is then its own.
-	if rowW := size.X - g.contentX; rowW > 0 && barH > 0 {
-		lead := unit.Dp(0)
-		if g.pane.Empty() {
-			lead = f.toolbarLeading()
-		}
-		bst := op.Offset(image.Pt(g.contentX, 0)).Push(gtx.Ops)
-		bgtx := gtx
-		bgtx.Constraints = layout.Exact(image.Pt(rowW, barH))
-		f.layoutToolbar(bgtx, m, tok, lead)
-		bst.Pop()
-	}
-
 	f.processDividerDrag(gtx)
 
 	dividerW := gtx.Dp(unit.Dp(frameDividerDp))
@@ -296,6 +290,36 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	mainW := size.X - g.contentX - dividerW - asidePx
 	if mainW < 0 {
 		mainW = 0
+	}
+	asideX := g.contentX + mainW + dividerW
+
+	// The trailing column's ground, painted before the chrome row and
+	// running the window's full height: the outline and the backlinks are
+	// furniture, and this window's furniture stands a surface step off the
+	// paper the document lies on. Full height because a surface that began
+	// under the chrome row would read as a block hanging off it — the same
+	// arrangement the leading pane was taken out of — and because the two
+	// panes are then the same shape, one down each edge, with the document
+	// between them.
+	if asidePx > 0 {
+		paint.FillShape(gtx.Ops, tok.col.Surface,
+			clip.Rect(image.Rect(asideX, 0, size.X, size.Y)).Op())
+	}
+
+	// The chrome row belongs to the content area alone. With the pane
+	// standing, the window buttons are inside it and the row owes them no
+	// leading space; with the pane away, the row starts after their
+	// measured trailing edge, as the whole top strip is then its own.
+	if rowW := size.X - g.contentX; rowW > 0 && barH > 0 {
+		lead := unit.Dp(0)
+		if g.pane.Empty() {
+			lead = f.toolbarLeading()
+		}
+		bst := op.Offset(image.Pt(g.contentX, 0)).Push(gtx.Ops)
+		bgtx := gtx
+		bgtx.Constraints = layout.Exact(image.Pt(rowW, barH))
+		f.layoutToolbar(bgtx, m, tok, lead)
+		bst.Pop()
 	}
 
 	if main != nil && g.rowH > 0 {
@@ -317,7 +341,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	area.Pop()
 
 	if as != nil && g.rowH > 0 {
-		st := op.Offset(image.Pt(g.contentX+mainW+dividerW, g.rowTop)).Push(gtx.Ops)
+		st := op.Offset(image.Pt(asideX, g.rowTop)).Push(gtx.Ops)
 		agtx := gtx
 		agtx.Constraints = layout.Exact(image.Pt(asidePx, g.rowH))
 		as(agtx)
@@ -340,24 +364,23 @@ func (f *frameState) layoutRailPane(gtx layout.Context, tok themeTokens, pane im
 	sb(sgtx)
 }
 
-// paintDividerLine draws the note/aside divider as a hairline down the
-// middle of its grab area, held clear of the toolbar row and the window's
-// bottom edge by the pane's own margin. The area stays wide enough to
-// catch a pointer; only the ink is thin, because with the note and the
-// backlinks sharing one ground there are no column edges for a bar to
-// separate — just a seam the reader may move.
+// paintDividerLine inks the note/aside divider under the pointer, and for
+// as long as it is being dragged. At rest it draws nothing: the trailing
+// column stands on its own surface now, so the seam between the document
+// and the panel is a change of ground — the same edge the sidebar has on
+// the other side, and that one has never needed a line down it either.
+// A hairline three dp off a hard edge is not a seam, it is a stray mark.
 //
-// A hairline that never changes is a hairline nobody knows they may take
-// hold of — a fresh reviewer read the whole split as fixed — so under the
-// pointer, and for as long as it is being dragged, the line thickens and
-// darkens. That is the affordance; the cursor already says which way.
+// What the resting state cannot say is that the seam moves, and a fresh
+// reviewer did read the whole split as fixed. So the line appears where
+// the pointer is: a grab area wide enough to catch a hand, ink only while
+// a hand is on it, and the cursor already saying which way it goes.
 func (f *frameState) paintDividerLine(gtx layout.Context, tok themeTokens, area image.Rectangle) {
-	w := max(gtx.Dp(unit.Dp(1)), 1)
-	ink := tok.col.Divider
-	if f.hovering || f.dragging {
-		w = max(gtx.Dp(unit.Dp(2)), 2)
-		ink = tok.col.Ramps.Neutral.Step(500)
+	if !f.hovering && !f.dragging {
+		return
 	}
+	w := max(gtx.Dp(unit.Dp(2)), 2)
+	ink := tok.col.Ramps.Neutral.Step(500)
 	inset := gtx.Dp(unit.Dp(railMarginDp))
 	x := area.Min.X + (area.Dx()-w)/2
 	line := image.Rect(x, area.Min.Y+inset, x+w, area.Max.Y-inset)
