@@ -13,15 +13,17 @@
 // kept deliberately recognisable.
 //
 // Where the row sits is a platform fact, not a taste. Under the
-// full-size-content treatment the top strip of the window belongs to the
-// native title bar: it is where the window control buttons live, and
-// clicks that land in it are the system's — window drag, double-click
-// zoom — never the application's. Content drawn there paints but cannot
-// be pressed. So the toolbar row, every part of which is pressable, seats
-// itself immediately below that strip rather than inside it, and the
-// strip carries the window buttons alone. Moving the row up beside the
-// buttons needs the buttons themselves moved down to meet it, which is
-// the window's business rather than the layout's.
+// full-size-content treatment the content extends behind the native
+// title bar, and the window control buttons are the only thing standing
+// in it — so the row takes that strip for itself: the window is asked to
+// centre its buttons on the row's own middle line, and the row starts
+// after their measured trailing edge rather than at the window's edge.
+// The strip is not the system's to click in under this treatment, so the
+// row's controls are pressable where they stand; what the strip does not
+// hand over is the window drag, which the row claims back by declaring a
+// move action over the parts of itself that hold no control. Away from
+// the treatment both measurements report zero, the buttons stay where
+// their platform puts them, and the row lays out from the left edge.
 
 package main
 
@@ -33,6 +35,7 @@ import (
 	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
+	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -44,6 +47,7 @@ import (
 
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 )
 
 // Frame layout constants. The aside bounds and divider width follow the
@@ -234,33 +238,82 @@ func clampAside(w unit.Dp) unit.Dp {
 	return w
 }
 
-// layoutToolbar draws the chrome row on one baseline: the rail toggle
-// leads, the vault's name stands beside it as what this window is
-// showing, and the two vault actions trail as a group at the far edge.
+// layoutToolbar draws the chrome row on one baseline: the window's own
+// controls lead, the rail toggle follows them, the vault's name stands
+// beside it as what this window is showing, and the two vault actions
+// trail as a group at the far edge.
+//
+// The leading space is a measurement, not a constant: the window controls
+// report where they end, and the row adds its own gap after that, because
+// the reported edge is the bare glass. Where the window has no such
+// controls the measurement is zero and the row falls back to its ordinary
+// edge inset.
 //
 // The vault's name is the row's own affordance rather than a breadcrumb
 // segment: it is window state, and as a crumb it promised a parent to
 // climb to that a vault does not have. Pressing it still returns the
 // folder tree to its root, which is what the crumb did.
 func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
-	edge := complayout.HSpacer(frameEdgeDp)
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-		layout.Rigid(edge),
+		// The window controls' own space is left alone: a move action
+		// declared over the buttons would fight them for the press.
+		layout.Rigid(complayout.HSpacer(float32(toolbarLeading()))),
+		layout.Rigid(dragSpacer(frameGapDp)),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return f.layoutRailToggle(gtx, m, tok)
 		}),
-		layout.Rigid(complayout.HSpacer(tok.sp.S3)),
+		layout.Rigid(dragSpacer(unit.Dp(tok.sp.S3))),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return f.layoutVaultName(gtx, m, tok)
 		}),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
-		}),
+		layout.Flexed(1, dragFill),
 		layout.Rigid(toolbarAction(&f.rescanClick, "Rescan", tok, Rescan{})),
-		layout.Rigid(complayout.HSpacer(frameGapDp)),
-		layout.Rigid(toolbarAction(&f.switchClick, "Switch vault", tok, SwitchVault{})),
-		layout.Rigid(edge),
+		layout.Rigid(dragSpacer(frameGapDp)),
+		// Title case, which is what the platform's own controls use.
+		layout.Rigid(toolbarAction(&f.switchClick, "Switch Vault", tok, SwitchVault{})),
+		layout.Rigid(dragSpacer(frameEdgeDp)),
 	)
+}
+
+// toolbarLeading is where the row's own content may start: the trailing
+// edge of the window's control buttons where the platform puts them in
+// the content area, and the ordinary edge inset where it does not.
+func toolbarLeading() unit.Dp {
+	if lead := desktop.LeadingInset(); lead > 0 {
+		return lead
+	}
+	return frameEdgeDp
+}
+
+// dragSpacer is a fixed-width gap in the chrome row that moves the window
+// when it is dragged. The row stands in the strip the native title bar
+// would otherwise own, so the window's top edge is only a handle where
+// the row says it is — and it says so over its empty space alone, since a
+// move action swallows the press before any control beneath it sees one.
+func dragSpacer(w unit.Dp) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		return windowDragArea(gtx, gtx.Dp(w))
+	}
+}
+
+// dragFill is the row's flexible middle: the whole gap between the vault
+// name and the trailing actions, draggable end to end.
+func dragFill(gtx layout.Context) layout.Dimensions {
+	return windowDragArea(gtx, gtx.Constraints.Min.X)
+}
+
+// windowDragArea declares a w-wide, row-tall move handle at the current
+// offset and takes the row's full height as its size, so that the handle
+// reaches the top and bottom of the row rather than a band around the
+// line the labels sit on.
+func windowDragArea(gtx layout.Context, w int) layout.Dimensions {
+	h := gtx.Constraints.Max.Y
+	if w <= 0 || h <= 0 {
+		return layout.Dimensions{Size: image.Pt(max(w, 0), 0)}
+	}
+	defer clip.Rect{Max: image.Pt(w, h)}.Push(gtx.Ops).Pop()
+	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
+	return layout.Dimensions{Size: image.Pt(w, h)}
 }
 
 // layoutVaultName draws the open vault's folder name, pressable, in the

@@ -137,8 +137,8 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
 			underTitleBar(routedLayer(th, modelObs, &modelCell, loadModel, loadTok)),
-			underTitleBar(chooserLayer(th, modelObs, loadModel, loadTok)),
-			underTitleBar(toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})),
+			underChrome(chooserLayer(th, modelObs, loadModel, loadTok)),
+			underChrome(toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})),
 		}
 	}
 }
@@ -161,19 +161,71 @@ func routedLayer(
 	return rx.Map(combined, func(t rx.Tuple3[Model, layout.Widget, layout.Widget]) layout.Widget {
 		modelCell.Store(t.First)
 		if t.First.Screen == screenPicker {
+			placeWindowButtons(0)
 			return t.Second
 		}
+		placeWindowButtons(toolbarHeight(loadTok()) / 2)
 		return t.Third
 	})
 }
 
-// underTitleBar pads the content down by the native title-bar strip's
-// measured height on a full-size-content window; away from the treatment
-// it is an exact no-op (TopInset reports 0).
+// buttonLine remembers the line the window buttons were last asked to sit
+// on, so the request is sent when it changes and not on every emission.
+var buttonLine atomic.Value
+
+// placeWindowButtons asks the window to centre its control buttons on the
+// given line — which is the middle of the vault screen's chrome row, so
+// that the row and the buttons share one band, and zero on the picker,
+// which has no such row and lets the platform keep its own geometry.
+//
+// Screen by screen rather than once at startup, because the two screens
+// answer differently: taking the top strip is the chrome row's doing, and
+// where there is no row the strip is not the application's to take.
+func placeWindowButtons(center unit.Dp) {
+	if prev, ok := buttonLine.Load().(unit.Dp); ok && prev == center {
+		return
+	}
+	buttonLine.Store(center)
+	desktop.PlaceWindowButtons(center)
+}
+
+// underTitleBar pads a layer down by the native title-bar strip's
+// measured height, which is what a full-size-content window leaves above
+// content the application has not claimed — the picker screen's case.
+// Where the chrome row has taken the strip, and away from the treatment
+// altogether, the measurement is zero and this is an exact no-op.
 func underTitleBar(content rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
+	return insetTop(content, desktop.TopInset)
+}
+
+// underChrome pads a layer down past everything at the top of the window
+// that is not document: the native strip where it still stands, and the
+// chrome row's own height where the row has taken the strip instead. It
+// is what the overlays use, because a toast or a dialog landing on the
+// chrome row would cover controls that are live under it.
+func underChrome(content rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
+	return insetTop(content, chromeHeight)
+}
+
+// chromeHeight is the window's top band that belongs to chrome rather
+// than to the document, from whichever of the two owns it.
+func chromeHeight() unit.Dp {
+	if inset := desktop.TopInset(); inset > 0 {
+		return inset
+	}
+	// The buttons are centred in the chrome row, so the line they were
+	// placed on is half its height.
+	if line, ok := buttonLine.Load().(unit.Dp); ok {
+		return 2 * line
+	}
+	return 0
+}
+
+// insetTop offsets a layer down by a height measured afresh each frame.
+func insetTop(content rx.Observable[layout.Widget], height func() unit.Dp) rx.Observable[layout.Widget] {
 	return rx.Map(content, func(w layout.Widget) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
-			inset := gtx.Dp(desktop.TopInset())
+			inset := gtx.Dp(height())
 			if inset <= 0 {
 				return w(gtx)
 			}
