@@ -13,7 +13,9 @@
 // recognisable.
 //
 // The sidebar is the leading column and it starts at the window's own top
-// edge: no band crosses above it, because on this platform none does.
+// edge: no band crosses above it, because on this platform none does. It
+// is also where the vault's own actions live, at its foot — the pane
+// stands for the vault, so what acts on the whole vault belongs to it.
 // That is the whole of the arrangement's logic. The window control
 // buttons stand inside the pane's own top strip, which is why the pane
 // may begin at y=0 in the first place — the strip that used to hold
@@ -111,8 +113,6 @@ func toolbarHeight(tok themeTokens) unit.Dp {
 type frameState struct {
 	toggleClick widget.Clickable
 	vaultClick  widget.Clickable
-	rescanClick widget.Clickable
-	switchClick widget.Clickable
 
 	dividerTag struct{}
 	asideW     unit.Dp
@@ -419,10 +419,15 @@ func clampAside(w unit.Dp) unit.Dp {
 }
 
 // layoutToolbar draws the content area's chrome row on one baseline: the
-// vault's name as what this window is showing, and the two vault actions
-// trailing as a group at the far edge. With the sidebar away the row also
-// leads with the toggle that brings it back — the pane's own toggle went
-// with the pane, and something has to recall it.
+// vault's name as what this window is showing, and nothing else but the
+// window's own drag. With the sidebar away the row also leads with the
+// toggle that brings it back — the pane's own toggle went with the pane,
+// and something has to recall it.
+//
+// The two vault actions that used to end this row now stand at the foot
+// of the sidebar pane. They are the vault's, not the document's, and the
+// row above a document was both the wrong place to say so and width the
+// row did not need to spend.
 //
 // The leading space is a measurement, not a constant, and only the hidden
 // state spends it: the window controls report where they end, and the row
@@ -462,13 +467,9 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 			return f.layoutVaultName(gtx, m, tok)
 		}),
 		layout.Flexed(1, dragFill),
-		layout.Rigid(toolbarAction(&f.rescanClick, "Rescan", tok, Rescan{})),
-		layout.Rigid(dragSpacer(frameGapDp)),
-		// Title case, which is what the platform's own controls use.
-		layout.Rigid(toolbarAction(&f.switchClick, "Switch Vault", tok, SwitchVault{})),
-		// The trailing inset is the backlinks column's own, for the same
-		// reason: the last thing in the row ends where the column under it
-		// ends.
+		// The trailing inset is the backlinks column's own: the row ends
+		// where the column under it ends. With the actions gone it is the
+		// tail of one long drag rather than the gap after a control.
 		layout.Rigid(dragSpacer(asideInsetDp)))
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
 }
@@ -594,23 +595,4 @@ func railToggleMark(gtx layout.Context, tok themeTokens, label string) layout.Di
 	paint.FillShape(gtx.Ops, fg, clip.Rect(image.Rect(box.Min.X, box.Min.Y, box.Min.X+cw, box.Max.Y)).Op())
 	col.Pop()
 	return layout.Dimensions{Size: image.Pt(w, boxH)}
-}
-
-// toolbarAction renders one chrome-row affordance: a pressable label that
-// emits its message on the frame the press lands.
-func toolbarAction(click *widget.Clickable, label string, tok themeTokens, msg mvu.Message) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		if click.Clicked(gtx) {
-			mvu.MessageOp{Message: msg}.Add(gtx.Ops)
-		}
-		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			semantic.LabelOp(label).Add(gtx.Ops)
-			semantic.EnabledOp(true).Add(gtx.Ops)
-			pointer.CursorPointer.Add(gtx.Ops)
-			// Full text contrast, not the low-contrast neutral step: a
-			// bare label at that step reads as a disabled control rather
-			// than a live one, which is what a fresh reviewer called it.
-			return drawLabel(gtx, tok.shaper, label, tok.typ.LabelLarge, tok.col.Text)
-		})
-	}
 }

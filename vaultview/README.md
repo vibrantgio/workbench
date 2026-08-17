@@ -73,8 +73,8 @@ program is written against and tested to. In short:
 Nothing is watched. Instead, following a link checks the note's timestamp
 and re-reads it when the file changed, so an edit made in another
 application shows up the moment you open the note; moving back and
-forward keeps what is already on screen. **Rescan** in the top bar
-re-walks the vault for the changes one note cannot show — notes added,
+forward keeps what is already on screen. **Rescan**, at the foot of the
+folder rail, re-walks the vault for the changes one note cannot show — notes added,
 renamed or removed while the viewer was open — and reports what it found.
 
 ## What it deliberately does not do

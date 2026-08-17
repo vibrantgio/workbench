@@ -42,6 +42,12 @@ func goldenTokens() themeTokens {
 // them: with the pane away it leads with the toggle that brings the pane
 // back, and it leaves the window buttons' own span alone in front of it.
 //
+// The row's trailing end used to hold two vault actions, and the probe
+// there asserted that their span did not drag. They stand at the foot of
+// the sidebar pane now, so the same point makes the opposite statement:
+// nothing but the vault's name stands in this row, and everything past it
+// — to the row's last dp — moves the window.
+//
 // The probe is the same one the window makes on a press — the frame's
 // own hit test, asked what action stands at a point — so it measures the
 // composed row rather than the ops in isolation.
@@ -60,14 +66,13 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 		{
 			name: "rail shown", hidden: false, lead: 0,
 			// With the pane standing the row starts at its own edge
-			// inset and the vault's name is its first control.
-			controls: []int{rowW - frameEdgeDp - 20},
+			// inset and the vault's name is its first and only control.
+			controls: []int{noteInsetDp + 8},
 		},
 		{
 			name: "rail hidden", hidden: true, lead: lead,
 			controls: []int{
 				lead + frameGapDp + toggleMarkWDp/2, // the show toggle
-				rowW - frameEdgeDp - 20,             // inside the trailing action
 			},
 		},
 	} {
@@ -93,9 +98,11 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 			// The middle of the row — between the vault's name and the
 			// trailing actions — is the largest empty stretch, and the one
 			// a hand reaches for. Both ends of it drag.
-			for _, x := range []int{rowW / 3, rowW / 2} {
+			// The trailing end is part of that stretch now that the vault
+			// actions have left the row: the drag runs to its last dp.
+			for _, x := range []int{rowW / 3, rowW / 2, rowW - frameEdgeDp - 20, rowW - 1} {
 				if !moveAt(x) {
-					t.Errorf("no window-move action at x=%d; the row's empty middle must move the window", x)
+					t.Errorf("no window-move action at x=%d; the row holds no control there, so it must move the window", x)
 				}
 			}
 			// Every control's own span belongs to the control.
@@ -175,12 +182,20 @@ func TestRailPaneRunsToTheWindowTop(t *testing.T) {
 }
 
 // TestPaneFocusOrder walks the focus ring the way Tab does and asserts
-// the order it visits the sidebar in: the find field, then the rows, and
-// only after them the pane's own toggle. The order is the point, not the
-// reachability. With the toggle laid out where it is drawn — the pane's
-// top-right corner — it stood between the field and the rows, so Tab and
-// then Return from the field put the whole pane away instead of opening
-// the note the reader had just filtered for.
+// the order it visits the sidebar in: the find field, then the rows, then
+// the vault's own actions at the foot, and only after all of them the
+// pane's own toggle. The order is the point, not the reachability. With
+// the toggle laid out where it is drawn — the pane's top-right corner —
+// it stood between the field and the rows, so Tab and then Return from
+// the field put the whole pane away instead of opening the note the
+// reader had just filtered for.
+//
+// The foot sits after the rows and before the toggle because it acts on
+// what the pane shows rather than on the pane: a reader tabbing out of
+// the find field is still going to the notes, and having reached the end
+// of them, the next thing worth offering is what can be done to the vault
+// they are in. The toggle stays last — it is the pane talking about
+// itself, and nothing the pane is for may stand behind it.
 //
 // The field's slot takes a stand-in with a focus tag of its own: the live
 // field is a component whose static render path processes no events, and
@@ -212,6 +227,8 @@ func TestPaneFocusOrder(t *testing.T) {
 	}{
 		{"the find field", &field},
 		{"the rail's rows", v.list.Focus()},
+		{"the foot's rescan", &v.rescanClick},
+		{"the foot's vault switch", &v.switchClick},
 		{"the pane's own toggle", &v.hideClick},
 	}
 	first := map[string]int{}
