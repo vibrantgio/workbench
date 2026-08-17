@@ -121,6 +121,29 @@ const (
 	// own to round — the window's, which the platform rounds, are a margin
 	// away.
 	railRadiusDp = 10
+
+	// buttonInsetDp is how far the window control buttons sit in from the
+	// pane's top and leading edges — the drawn circles' own edges, equal on
+	// both axes. The number is the owner's measurement of the platform's
+	// sidebar apps on this display: about four millimetres, which at this
+	// display's ~109 ppi and one pixel per dp is seventeen. The old
+	// placement kept the platform's window-relative x and the strip's
+	// middle line, which read as barely three millimetres from the pane's
+	// leading edge and under two from its top once the pane moved in off
+	// the glass.
+	buttonInsetDp = 17
+
+	// buttonDiameterDp is the drawn diameter of one control button on this
+	// machine's macOS, measured from a live capture rather than assumed —
+	// the buttons are the platform's, and so is their size. It converts an
+	// edge inset into the centre line the placement call wants.
+	buttonDiameterDp = 12
+
+	// paneStripDp is the pane's own top strip: deep enough to hold the
+	// buttons at their inset with the same air below them as above, which
+	// puts the buttons' centre line on the strip's own middle — the line
+	// the pane's toggle centres on too, so the two sit level.
+	paneStripDp = 2*buttonInsetDp + buttonDiameterDp
 )
 
 // toolbarHeight is the chrome row's height: one LabelLarge line box with

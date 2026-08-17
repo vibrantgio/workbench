@@ -163,29 +163,40 @@ func routedLayer(
 		modelCell.Store(m)
 		if m.Screen == screenPicker {
 			topBand.Store(unit.Dp(0))
-			placeWindowButtons(0)
+			placeWindowButtons(0, 0)
 			return t.Second
 		}
 		row := toolbarHeight(loadTok())
 		topBand.Store(row)
-		// The buttons sit inside the sidebar pane, on the middle line of
-		// its own top strip — a margin below the window's top edge, since
-		// the pane floats that far inside it. With the pane away there is
-		// no pane to sit in, so they go back to the geometry their
-		// platform chose — which is what the window looks like everywhere
-		// else on this desktop.
+		// The buttons sit inside the sidebar pane, inset from its top and
+		// leading edges the way the platform's own sidebar apps inset
+		// theirs — the pane floats a margin inside the window, and the
+		// buttons sit the measured inset inside the pane, centred on its
+		// own strip's middle line. With the pane away there is no pane to
+		// sit in, so they go back to the geometry their platform chose —
+		// which is what the window looks like everywhere else on this
+		// desktop.
 		if m.SidebarHidden {
-			placeWindowButtons(0)
+			placeWindowButtons(0, 0)
 		} else {
-			placeWindowButtons(unit.Dp(railMarginDp) + row/2)
+			placeWindowButtons(unit.Dp(railMarginDp+buttonInsetDp),
+				unit.Dp(railMarginDp)+unit.Dp(paneStripDp)/2)
 		}
 		return t.Third
 	})
 }
 
-// buttonLine remembers the line the window buttons were last asked to sit
-// on, so the request is sent when it changes and not on every emission.
-var buttonLine atomic.Value
+// buttonPlacement is a full placement request for the window buttons:
+// where their leading edge sits and the line they are centred on, both in
+// dp from the window's top-leading corner, zero per axis meaning the
+// platform's own geometry there.
+type buttonPlacement struct {
+	leading, center unit.Dp
+}
+
+// buttonPlace remembers the placement the window buttons were last asked
+// for, so the request is sent when it changes and not on every emission.
+var buttonPlace atomic.Value
 
 // topBand remembers how tall the band at the top of the window is that
 // the screen on show lays out itself: the vault screen's chrome row, and
@@ -194,21 +205,22 @@ var buttonLine atomic.Value
 // much is not document.
 var topBand atomic.Value
 
-// placeWindowButtons asks the window to centre its control buttons on the
-// given line — the middle of the sidebar pane's top strip while the pane
-// stands — and zero everywhere else, which lets the platform keep its own
-// geometry.
+// placeWindowButtons asks the window to place its control buttons — their
+// leading edge at the pane's own inset and their centres on the middle of
+// the pane's top strip while the pane stands, and zero on both axes
+// everywhere else, which lets the platform keep its own geometry.
 //
 // Screen by screen and rail state by rail state rather than once at
 // startup, because they answer differently: taking the top strip is the
 // pane's doing, and where there is no pane the strip is not the
 // application's to take.
-func placeWindowButtons(center unit.Dp) {
-	if prev, ok := buttonLine.Load().(unit.Dp); ok && prev == center {
+func placeWindowButtons(leading, center unit.Dp) {
+	p := buttonPlacement{leading: leading, center: center}
+	if prev, ok := buttonPlace.Load().(buttonPlacement); ok && prev == p {
 		return
 	}
-	buttonLine.Store(center)
-	desktop.PlaceWindowButtons(center)
+	buttonPlace.Store(p)
+	desktop.PlaceWindowButtonsAt(leading, center)
 }
 
 // underTitleBar pads a layer down by the native title-bar strip's

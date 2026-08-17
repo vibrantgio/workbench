@@ -29,14 +29,22 @@ const (
 	// treeCanvasH gives the rail the same height as the note viewport.
 	treeCanvasH = 700
 
-	// goldenLeading is the window-button trailing edge the window golden
-	// lays its chrome row out from. The live row measures this from the
-	// window; a stored image may not, because off a frame the measurement
-	// is zero and on one it is whatever this machine's macOS answers — two
-	// different windows, neither reproducible elsewhere. So the golden
-	// states a value: a real macOS measurement, recorded once and frozen
-	// as a fixture. It is not a constant the application uses.
-	goldenLeading = 69
+	// goldenLeading is the window-button trailing edge the static renders
+	// lay out from. The live pane measures this from the window; a stored
+	// image may not, because off a frame the measurement is zero and on
+	// one it is whatever this machine's macOS answers — two different
+	// windows, neither reproducible elsewhere. So the golden states a
+	// value: a real macOS measurement, recorded once and frozen as a
+	// fixture. It is not a constant the application uses.
+	//
+	// The measurement is a pair now, because the live value depends on the
+	// rail state: with the pane standing the buttons are placed at its own
+	// inset and their trailing edge measures 85; with the pane away they
+	// are back at the platform's own geometry, which measures 69 — the
+	// single value this pin used to hold, when a placement moved only the
+	// buttons' line and never their x.
+	goldenLeading       = 85
+	goldenLeadingHidden = 69
 )
 
 var (
@@ -325,8 +333,15 @@ func TestVaultWindowGolden(t *testing.T) {
 		for _, tc := range themeCases {
 			name := c.name + "-" + tc.name
 			t.Run(name, func(t *testing.T) {
+				// The leading pin follows the rail state the way the live
+				// measurement does: hiding the pane hands the buttons back
+				// to the platform, and the row lays out from that edge.
+				lead := unit.Dp(goldenLeading)
+				if c.model.SidebarHidden {
+					lead = goldenLeadingHidden
+				}
 				w, _ := renderWindow(shaper, c.model, tc.colors, tokens.Spacing, sharpRadius,
-					tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
+					tokens.DefaultTypography, tokens.Comfortable, lead)
 				golden.Render(t, name, windowCanvasSize, scene(w, tc.bg))
 			})
 		}

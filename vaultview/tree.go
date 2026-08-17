@@ -310,7 +310,11 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW l
 	}
 	size := image.Pt(railW, gtx.Constraints.Max.Y)
 	gtx.Constraints = layout.Exact(size)
-	stripH := gtx.Dp(toolbarHeight(tok))
+	// The strip is the pane's own, not the chrome row's: it is as deep as
+	// the buttons' inset asks, which is more than the content area's row
+	// spends, and the two owe each other nothing — the chrome budget is
+	// the content column's, and this band is inside the pane.
+	stripH := gtx.Dp(unit.Dp(paneStripDp))
 	if stripH > size.Y {
 		stripH = size.Y
 	}

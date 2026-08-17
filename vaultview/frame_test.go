@@ -57,7 +57,10 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 	rowW := 1100
 	rowH := int(toolbarHeight(tok))
 
-	const lead = goldenLeading
+	// The hidden row lays out past the buttons at the platform's own
+	// geometry — hiding the pane hands them back — so the probe pins the
+	// hidden-state measurement, not the placed one.
+	const lead = goldenLeadingHidden
 	for _, c := range []struct {
 		name     string
 		hidden   bool
@@ -295,7 +298,7 @@ func TestPaneStripClaimsInsideTheInsetPane(t *testing.T) {
 	frame()
 
 	pane := f.geom.pane
-	stripY := float32(pane.Min.Y) + float32(toolbarHeight(tok))/2
+	stripY := float32(pane.Min.Y) + float32(paneStripDp)/2
 	middle := f32.Pt(float32(pane.Min.X+120), stripY)
 	toggle := f32.Pt(float32(pane.Max.X-railMarginDp-treeHideBoxDp/2), stripY)
 
@@ -406,8 +409,12 @@ func TestChromeBudget(t *testing.T) {
 		{"rail hidden", hidden},
 	} {
 		t.Run(c.name, func(t *testing.T) {
+			lead := unit.Dp(goldenLeading)
+			if c.model.SidebarHidden {
+				lead = goldenLeadingHidden
+			}
 			w, st := renderWindow(shaper, c.model, tokens.DefaultLight, tokens.Spacing,
-				sharpRadius, tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
+				sharpRadius, tokens.DefaultTypography, tokens.Comfortable, lead)
 			drawOnce(t, windowCanvasSize, w)
 
 			if st.geom.rowTop > chromeBudgetDp {
@@ -444,10 +451,11 @@ func TestChromeBudget(t *testing.T) {
 func TestChromeHeightMatchesTheRow(t *testing.T) {
 	row := toolbarHeight(goldenTokens())
 	// What the vault screen states on every emission that selects it: the
-	// chrome band is the row's height, and the buttons sit on the middle
-	// line of the pane's top strip, one margin down from the glass.
+	// chrome band is the row's height, and the buttons sit at the pane's
+	// own inset, centred on the middle line of its top strip.
 	topBand.Store(row)
-	placeWindowButtons(unit.Dp(railMarginDp) + row/2)
+	placeWindowButtons(unit.Dp(railMarginDp+buttonInsetDp),
+		unit.Dp(railMarginDp)+unit.Dp(paneStripDp)/2)
 	if got := chromeHeight(); got != row {
 		t.Errorf("the overlays are inset by %v dp while the content row starts at %v dp", got, row)
 	}
