@@ -4,7 +4,7 @@
 // window with a live OS theme (dark mode follows the system), a Model
 // observable driven by mvu.Loop, and widgets that route every event
 // through mvu.MessageOp. Start here before reading the larger
-// apps (sitedocs, feeds, watchlist).
+// apps (sitedocs, feeds, mindchat).
 package main
 
 import (

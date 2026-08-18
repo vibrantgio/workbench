@@ -4,10 +4,10 @@
 // reduces SetChatModel — a per-chat override persisted in the chat file.
 // Open state is model state (Model.ModelMenu), the mindchat idiom.
 //
-// popover-canvas coupling (the watchlist recipe): the popover centres its
-// anchor in the canvas it is given and measures Content at canvas/2, so
-// ChatPane hands it an Exact chip-sized box in the header and the content
-// overrides its incoming constraints to self-size.
+// popover-canvas coupling: the popover centres its anchor in the canvas it
+// is given and measures Content at canvas/2, so ChatPane hands it an Exact
+// chip-sized box in the header and the content overrides its incoming
+// constraints to self-size.
 package main
 
 import (

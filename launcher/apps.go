@@ -40,10 +40,10 @@ var Apps = []App{
 		Icon:  icons.ActionViewList,
 	},
 	{
-		Name:  "Watchlist",
-		Dir:   "watchlist",
-		Blurb: "Persistent watchlist editor: JSON storage, context menus, bulk delete with confirms.",
-		Icon:  icons.ActionVisibility,
+		Name:  "Vault View",
+		Dir:   "vaultview",
+		Blurb: "Obsidian vault reader: file tree, breadcrumbs, outline and backlinks, markdown notes.",
+		Icon:  icons.ActionBook,
 	},
 	{
 		Name:  "MindChat",

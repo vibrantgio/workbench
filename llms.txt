@@ -1,3 +1,0 @@
-This file has moved. The canonical Vibrant Gio agent guide now lives once, at
-the root of github.com/vibrantgio/.github, and every repo points at it:
-https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt

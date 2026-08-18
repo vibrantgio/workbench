@@ -143,8 +143,8 @@ type themeTokens struct {
 // mirrorTokens subscribes the theme's Color and Typography streams into an
 // atomic cell and returns a frame-time loader. It is the layer-boundary
 // adapter for closures that run outside any rx scope (static component
-// slots, navbar widgets) — the same hand-off pattern feeds and watchlist
-// use (F1.2/F1.3).
+// slots, navbar widgets) — the same hand-off pattern feeds and vaultview
+// use.
 func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	var cell atomic.Value
 	cell.Store(themeTokens{
@@ -336,7 +336,7 @@ func aboutShellLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget]
 func aboutSection(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	paragraphs := []string{
 		"Site Docs is the documentation and marketing example for Vibrant Gio — a design system for building native desktop applications in Go with Gio.",
-		"It is one of the workbench apps that exercise the system end to end, alongside the launcher, feeds, todos, watchlist, iconbrowser, mindchat and vaultview.",
+		"It is one of the workbench apps that exercise the system end to end, alongside the launcher, feeds, todos, iconbrowser, mindchat and vaultview.",
 		"Every layer — components, patterns, theme, effects, mvu — is MIT licensed and developed in the open at github.com/vibrantgio.",
 	}
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })

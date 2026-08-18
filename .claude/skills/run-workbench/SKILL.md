@@ -1,6 +1,6 @@
 ---
 name: run-workbench
-description: Build, run, screenshot, and stop the workbench Gio apps (launcher, mindchat, todos, feeds, watchlist, iconbrowser, sitedocs) on macOS. Use for "run the app", "launch mindchat", "take a screenshot of the launcher", or capturing app images for docs/READMEs.
+description: Build, run, screenshot, and stop the workbench Gio apps (launcher, mindchat, todos, feeds, vaultview, iconbrowser, sitedocs) on macOS. Use for "run the app", "launch mindchat", "take a screenshot of the launcher", or capturing app images for docs/READMEs.
 ---
 
 # Run the workbench apps
@@ -35,7 +35,7 @@ this display. **Always Read the PNG afterwards** — a capture of a blank
 frame means the app crashed after the window appeared.
 
 `<app>` is any app directory name: `launcher`, `mindchat`, `todos`,
-`feeds`, `watchlist`, `iconbrowser`, `sitedocs`.
+`feeds`, `vaultview`, `iconbrowser`, `sitedocs`.
 
 ## MindChat: never capture real user state
 

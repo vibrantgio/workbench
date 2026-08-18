@@ -4,7 +4,6 @@
 !*.md
 !.gitignore
 !LICENSE
-!llms.txt
 
 # Agent skills — tracked, drivers included.
 !/.claude/skills/**
@@ -17,7 +16,6 @@
 !/sitedocs/**
 !/todos/**
 !/vaultview/**
-!/watchlist/**
 
 # ...except their compiled binaries.
 /feeds/feeds
@@ -27,4 +25,3 @@
 /sitedocs/sitedocs
 /todos/todos
 /vaultview/vaultview
-/watchlist/watchlist

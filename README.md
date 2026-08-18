@@ -6,9 +6,8 @@ analogous to what Material Design is for Google, but built for a Functional
 Reactive Programming application model on top of
 [reactivego/rx](https://github.com/reactivego/rx).
 
-This repository is the **workbench**: it holds the architecture and design
-documentation, and three complete example applications that exercise the
-design system end-to-end.
+This repository is the **workbench**: seven complete example applications
+that exercise the design system end-to-end.
 
 ## The stack
 
@@ -57,10 +56,6 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
 - **[`feeds/`](./feeds)** — an RSS reading-list app: sortable/filterable/
   paginated article table, tabbed detail view in a split pane, modal CRUD
   forms with alerts and toasts, popovers and tooltips.
-- **[`watchlist/`](./watchlist)** — a persistent watchlist editor: JSON-backed
-  storage, sidebar with right-click context menu, add/edit modals, bulk
-  delete with confirmation popovers, conditional pagination.
-  Its on-disk format is specified in [WATCHLIST-FORMAT.md](./WATCHLIST-FORMAT.md).
 - **[`vaultview/`](./vaultview)** — a read-only viewer for a folder of
   Obsidian-style markdown notes: a disclosing file tree, frontmatter as a
   properties panel, `[[wikilinks]]` that resolve and navigate, history
@@ -92,16 +87,17 @@ cd launcher && go run .
   repository until G0E.3 (its pre-move history is in this repo's log) and now
   sits in [vibrantgio/design](https://github.com/vibrantgio/design) beside
   the published token bundle, together with its archived first edition
-  `DESIGN-v1.md` — the document this repo's `PLAN.md` was written against.
+  `DESIGN-v1.md`.
 - **[llms.txt](https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt)**
   — a condensed guide for AI coding assistants (Claude, etc.) to write
   applications against the Vibrant Gio packages. It is maintained once, at the
-  root of [vibrantgio/.github](https://github.com/vibrantgio/.github); the
-  `llms.txt` in this repo is only a pointer to it.
-- **[PLAN.md](./PLAN.md)** — the executed implementation plan, kept as the
-  historical record of how the system was built and validated.
-- **[BASELINE.md](./BASELINE.md)** — measured performance baselines the
-  component benchmarks compare against.
+  root of [vibrantgio/.github](https://github.com/vibrantgio/.github), and
+  this repository links it rather than keeping a copy or a pointer file.
+- Development planning lives once, in
+  [vibrantgio/.github](https://github.com/vibrantgio/.github), not here. The
+  finished plan this repository was built against, its performance baselines
+  and its feedback notes were removed once that became true; they survive in
+  this repository's git log.
 
 ## Requirements
 

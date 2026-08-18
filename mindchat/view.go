@@ -188,7 +188,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	// The shell's Main and Navbar Brand are STATIC slots while the model and
 	// theme are live streams, so the latest widgets are bridged through
 	// atomic cells read at frame time (the observable-over-static-slot
-	// hand-off from watchlist/app.go). Folding main and undo onto the
+	// hand-off feeds/app.go also uses). Folding main and undo onto the
 	// sidebar stream means every model change re-emits the sidebar, which
 	// re-emits the Shell — a same-frame repaint.
 	var mainCell, undoCell atomic.Value
@@ -334,11 +334,10 @@ type renameTarget struct {
 
 // RenameModal builds the rename-chat modal stream: a patterns/modal DECISION
 // whose body is an epoch-rebuilt components TextField and whose two answers are
-// Cancel and Rename (the watchlist rename-modal recipe). Validation is the
-// reducer's job — an invalid RenameChat is rejected and the modal stays open;
-// a valid one, or Escape, closes it. Both model derivations are
-// DistinctUntilChanged so completion-stream deltas cannot rebuild the field
-// mid-typing.
+// Cancel and Rename. Validation is the reducer's job — an invalid RenameChat
+// is rejected and the modal stays open; a valid one, or Escape, closes it.
+// Both model derivations are DistinctUntilChanged so completion-stream deltas
+// cannot rebuild the field mid-typing.
 func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], modalArb *modal.Arbiter) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.Rename.Target != "" }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
