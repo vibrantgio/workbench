@@ -344,6 +344,115 @@ func TestVaultWindowGolden(t *testing.T) {
 	}
 }
 
+// TestTheTopBandStandsOnTheButtonLine reads the rendered window and
+// requires everything along the top of it to be on one line: the line the
+// window's control buttons centre on. The vault's name, the toggle in the
+// pane's own strip, and the toggle the chrome row shows once the pane is
+// away — all three are measured as ink, off the composed image, rather
+// than computed from the constants that placed them. A placement that
+// agrees with its own arithmetic and not with the picture is the defect
+// this is here for.
+//
+// The buttons themselves are the platform's and draw nothing headlessly,
+// so the line is the number the window states to it — the same number
+// the placement call is given, and the one a live capture was measured
+// against.
+//
+// The two toggle marks are also required to occupy exactly the same rows.
+// They are the two halves of one switch, and a reader working the pane
+// back and forth must see one mark stay put, not a mark that hops as the
+// half it is showing changes.
+//
+// A dp of slack, and no more: the label is a line box centred on the
+// line, and a line box reserves room under the baseline for descenders
+// that "Second Brain" does not spend, which puts its ink one row high of
+// the marks beside it. That much is invisible; anything the marks do is
+// not.
+func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	shown := goldenModel()
+	hidden := shown
+	hidden.SidebarHidden = true
+
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			shot := func(m Model) (*image.RGBA, *frameState) {
+				w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, sharpRadius,
+					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+				return golden.Capture(t, windowCanvasSize, scene(w, tc.bg)), st
+			}
+			level := func(what string, top, bot int) {
+				t.Helper()
+				if top < 0 {
+					t.Fatalf("%s leaves no ink in the window's top band", what)
+				}
+				// Ink rows are counted inclusive, so the middle of a span
+				// is half a row past its last row's top edge.
+				if c := float64(top+bot+1) / 2; c < buttonCenterDp-1 || c > buttonCenterDp+1 {
+					t.Errorf("%s centres on %.1f, the window buttons on %d — the top of the window is not one line",
+						what, c, buttonCenterDp)
+				}
+			}
+
+			img, st := shot(shown)
+			// The note's first ink is a full margin below the chrome row,
+			// so the band above that is the row's alone to have marked. The
+			// row starts at the same place in both rail states, which is
+			// its own assertion elsewhere.
+			band := st.geom.rowTop + noteInsetDp
+			nameX := st.geom.contentX + noteInsetDp
+			top, bot := inkRows(img, tc.colors.Background, nameX, nameX+400, 0, band)
+			level("the vault's name", top, bot)
+
+			// The pane's own toggle stands on the pane's surface, in the
+			// square at the trailing end of its strip. The last few columns
+			// of that square are left out: the pane's rounded corner is
+			// there, and the ground showing round it is not the toggle.
+			strip := st.geom.pane.Min.Y + paneStripDp
+			toggleX := st.geom.pane.Max.X - railMarginDp - treeHideBoxDp
+			paneTop, paneBot := inkRows(img, tc.colors.Surface, toggleX, toggleX+treeHideBoxDp-4,
+				st.geom.pane.Min.Y, strip)
+			level("the pane's toggle", paneTop, paneBot)
+
+			img, st = shot(hidden)
+			// With the pane away the row leads with the toggle, in the
+			// span between the window buttons' measured edge and the
+			// vault's name.
+			markX := goldenLeading + frameGapDp
+			rowTop, rowBot := inkRows(img, tc.colors.Background, markX, markX+railToggleMarkDp, 0, band)
+			level("the chrome row's toggle", rowTop, rowBot)
+			if rowTop != paneTop || rowBot != paneBot {
+				t.Errorf("the chrome row's toggle marks rows %d..%d and the pane's %d..%d; one switch, one line",
+					rowTop, rowBot, paneTop, paneBot)
+			}
+
+			nameX = markX + railToggleMarkDp + int(tokens.Spacing.S3)
+			top, bot = inkRows(img, tc.colors.Background, nameX, nameX+400, 0, band)
+			level("the vault's name with the pane away", top, bot)
+		})
+	}
+}
+
+// inkRows answers the first and last row inside the given box that carry
+// anything other than the ground colour, or -1, -1 for a box of bare
+// ground. Alpha is left out of the comparison: what is drawn over the
+// ground is opaque by the time it is captured.
+func inkRows(img *image.RGBA, ground color.NRGBA, x0, x1, y0, y1 int) (int, int) {
+	top, bot := -1, -1
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+				if top < 0 {
+					top = y
+				}
+				bot = y
+				break
+			}
+		}
+	}
+	return top, bot
+}
+
 // TestThePaneEdgeIsCleanBesideTheToggle reads the pixels immediately
 // past the pane's trailing edge and requires every one of them to be the
 // ground the window is painted on. Nothing the pane draws — its tint,

@@ -94,8 +94,12 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 
 			var r input.Router
 			r.Frame(&ops)
+			// Probed on the window buttons' own centre line, which is
+			// where the row's controls stand: a probe on the row's middle
+			// would ask about a control from above it and be told, quite
+			// correctly, that nothing is there.
 			moveAt := func(x int) bool {
-				a, ok := r.ActionAt(f32.Pt(float32(x), float32(rowH)/2))
+				a, ok := r.ActionAt(f32.Pt(float32(x), buttonCenterDp))
 				return ok && a == system.ActionMove
 			}
 

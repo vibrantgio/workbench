@@ -36,7 +36,8 @@ The window is a sidebar down the leading edge and two columns beside it.
   show through its top strip, where the platform puts them and where they
   stay — and its toggle sits at its top-right corner, on their line. Put
   the pane away and the toggle that brings it back appears at the leading
-  end of the top row; the buttons do not budge.
+  end of the top row, on that same line, beside the vault's name which is
+  on it too; the buttons do not budge.
 - **Middle — the note.** Back and forward, then the trail — vault name,
   folders, note title. The frontmatter is lifted out of the prose into a
   collapsible **Properties** panel; what a plain line-split can read

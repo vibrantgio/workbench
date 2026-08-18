@@ -40,6 +40,16 @@
 // A control that belongs to the window cannot shift because a pane the
 // reader dismissed used to be behind it.
 //
+// That line is what everything else at the top of the window stands on
+// too: the pane's toggle, the vault's name, and the toggle the chrome row
+// shows once the pane is away. The buttons are the fixed thing up there
+// and the tallest, so they are what the rest lines up with — and the two
+// halves of the sidebar switch then hold one height between them, rather
+// than the mark jumping as the pane comes and goes. The chrome row is
+// shallower than that line is deep, so its content hangs below the row's
+// own height; the row still spends the height it always did, and what
+// hangs falls in the margin the note column keeps above its first line.
+//
 // The window's ground is the same paper the note column lies on, so the
 // note has no edge of its own to draw and the chrome row sits on the
 // document rather than on a band above it. What is furniture says so by
@@ -380,9 +390,19 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 
 	if main != nil && g.rowH > 0 {
 		st := op.Offset(image.Pt(g.contentX, g.rowTop)).Push(gtx.Ops)
+		// What the chrome row's content hangs below the row is clipped out
+		// of the note, which is drawn after the row and would otherwise
+		// repaint the hanging part away with its own ground. Nothing is
+		// lost by the clip: that ground is the window's own paper, already
+		// painted under everything, and the note's first ink is a full
+		// margin below the row — the band the clip takes is bare either
+		// way.
+		over := min(buttonLineDrop(gtx, barH), g.rowH)
+		clipped := clip.Rect(image.Rect(0, over, mainW, g.rowH)).Push(gtx.Ops)
 		mgtx := gtx
 		mgtx.Constraints = layout.Exact(image.Pt(mainW, g.rowH))
 		main(mgtx)
+		clipped.Pop()
 		st.Pop()
 	}
 
@@ -566,20 +586,66 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 	if m.SidebarHidden {
 		children = append(children,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return f.layoutRailToggle(gtx, m, tok)
+				return onButtonLine(gtx, func(gtx layout.Context) layout.Dimensions {
+					return f.layoutRailToggle(gtx, m, tok)
+				})
 			}),
 			layout.Rigid(dragSpacer(unit.Dp(tok.sp.S3))))
 	}
 	children = append(children,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return f.layoutVaultName(gtx, m, tok)
+			return onButtonLine(gtx, func(gtx layout.Context) layout.Dimensions {
+				return f.layoutVaultName(gtx, m, tok)
+			})
 		}),
 		layout.Flexed(1, dragFill),
 		// The trailing inset is the backlinks column's own: the row ends
 		// where the column under it ends. With the actions gone it is the
 		// tail of one long drag rather than the gap after a control.
 		layout.Rigid(dragSpacer(asideInsetDp)))
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
+	// Each child places itself down the row rather than the row placing
+	// them all: the drag spans take the row's own height, and what the
+	// reader can see stands on the window buttons' line, which is lower.
+	// A row that centred its children on one another would drag whichever
+	// is shorter off that line.
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Start}.Layout(gtx, children...)
+}
+
+// onButtonLine stands w in a row-deep box whose middle is the window
+// buttons' centre line, rather than the chrome row's own middle.
+//
+// Everything in the row that carries ink takes it. The row is one line
+// box deep and the buttons centre below that, so a row that centred its
+// content on itself stood the vault's name a dozen dp above the buttons
+// beside it — and moved the sidebar mark by those same dozen every time
+// the pane came and went, the pane's own toggle being on the buttons'
+// line already.
+//
+// The box keeps the row's depth, so what stands in it is as pressable as
+// it was; all that changes is where that depth sits. It ends below the
+// row's foot, which is the point: the row's height is what the content
+// area puts above its first document row, and moving what stands in the
+// row is not allowed to spend more of it.
+func onButtonLine(gtx layout.Context, w layout.Widget) layout.Dimensions {
+	h := gtx.Constraints.Max.Y
+	cgtx := gtx
+	cgtx.Constraints.Min.Y, cgtx.Constraints.Max.Y = h, h
+	mac := op.Record(gtx.Ops)
+	dims := w(cgtx)
+	call := mac.Stop()
+	top := buttonLineDrop(gtx, h)
+	defer op.Offset(image.Pt(0, top)).Push(gtx.Ops).Pop()
+	call.Add(gtx.Ops)
+	return layout.Dimensions{Size: image.Pt(dims.Size.X, top+max(dims.Size.Y, h))}
+}
+
+// buttonLineDrop is how far the chrome row's content stands below where
+// the row's own middle would have put it: from that middle down to the
+// window buttons' centre line. The box the content stands in is as deep
+// as the row, so the same number is how far the content hangs past the
+// row's foot.
+func buttonLineDrop(gtx layout.Context, rowH int) int {
+	return max(gtx.Dp(unit.Dp(buttonCenterDp))-rowH/2, 0)
 }
 
 // toolbarLeading is where the row's own content may start: the trailing
