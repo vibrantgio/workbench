@@ -54,6 +54,15 @@ const (
 	// reading margin the column keeps at its sides — the eye needs to see
 	// that the text stopped because it ended, not because the window did.
 	//
+	// The amount is measured, not chosen: on this display, at one pixel per
+	// dp, a note read to its end in the reading surfaces this viewer is
+	// judged beside rests its last line about fifty px above the window's
+	// bottom edge. Forty dp, with the last block's own closing gap on top of
+	// it, puts this one at forty-eight. A plain text view — the platform's
+	// own, with no reading margins at any edge — rests its last line five px
+	// up instead, which is the same answer for a surface that is not
+	// designed to be read at length.
+	//
 	// It is spent at the document's end and nowhere else. Part way down a
 	// note every row of the column carries text, and a line cut by the
 	// window's edge is the window cutting it; a margin held back on every
