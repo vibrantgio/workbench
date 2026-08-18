@@ -16,11 +16,13 @@ stack, which the tier rule exempts and which may import any layer of the
 design system. Its seven applications import, between them, `backdrop`,
 `components`, `effects`, `font`, `ivg`, `ivg/raster/gio`, `markdown`,
 `mvu`, `mvu/desktop`, `noise`, `patterns`, `seen`, `seen/context/gio`,
-`svg`, `svg/driver/gio`, `textdraw` and `theme`. Nothing in the
-organization imports it. Both directions are measured rather than typed —
-`scripts/check-layers.sh --edges` reports the graph and
+`svg`, `svg/driver/gio`, `textdraw` and `theme`. That direction is measured
+rather than typed — `scripts/check-layers.sh --edges` reports the graph and
 `scripts/sync-agents.sh` renders these sentences from it — so correcting
-them here changes nothing.
+them here changes nothing. The other direction is measured too and
+deliberately not written down: the gate checks the graph both ways, but a
+public API's consumers are unknowable, so this file says what its module
+needs and never who needs it.
 
 **Read the canonical guide before you write code against this module.** It is
 the organization's one agent guide — the module inventory with current tags,
@@ -50,12 +52,12 @@ root module to run it from:
 `sitedocs/` and `vaultview/` — compare rendered output against PNGs
 committed under `testdata/golden/`. They render through
 `github.com/vibrantgio/components/golden`, which declares `-golden.update`
-and is shared with `design`, `effects`, `markdown` and `patterns`. Do not
-inline a copy of it, and do not declare a second `-golden.update`: two
-registrations of one flag name in a single test binary panic in `flag.Bool`
-at init, before any test runs. When a change legitimately moves pixels,
-regenerate them within the same change, look at what came out, and say so
-in the commit. From inside the directory concerned:
+and is the organization's only golden harness. Do not inline a copy of it,
+and do not declare a second `-golden.update`: two registrations of one flag
+name in a single test binary panic in `flag.Bool` at init, before any test
+runs. When a change legitimately moves pixels, regenerate them within the
+same change, look at what came out, and say so in the commit. From inside
+the directory concerned:
 
     go test . -golden.update
 
