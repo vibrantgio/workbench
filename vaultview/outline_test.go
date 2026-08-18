@@ -324,11 +324,62 @@ func TestBothPanesStandInEitherState(t *testing.T) {
 			if ceiling := asideBacklinkCap * asideRowPx(p.tok); g.backlinks.Dy() > ceiling {
 				t.Errorf("the backlinks pane is %d tall; the cap is %d", g.backlinks.Dy(), ceiling)
 			}
-			// Neither pane runs past the column it stands in.
-			if g.backlinks.Max.Y > colH {
-				t.Errorf("the backlinks pane ends at %d in a %d column", g.backlinks.Max.Y, colH)
+			// The pane stands on the column's foot, one inset off the
+			// bottom edge like everything else the column holds.
+			if got, want := g.backlinks.Max.Y, colH-asideInsetDp; got != want {
+				t.Errorf("the backlinks pane ends at %d in a %d column; the column's foot is %d", got, colH, want)
 			}
 		})
+	}
+}
+
+// TestTheOutlineHoldsTheColumnsSlack is the aside's composition: the
+// backlinks group stands on the foot and the room the column has spare
+// opens inside the outline's region, above the rule, rather than under the
+// pane.
+//
+// It is measured across notes that fill the column to very different
+// depths — none, a few, forty headings; none, a few, twenty citations. The
+// pane ends on the column's foot in every one, and the run of furniture
+// between the outline's region and the pane is the same in every one,
+// which is the slack being inside that region rather than below it: were
+// any of it falling to the foot, the note with the least to show would
+// have the longest run.
+func TestTheOutlineHoldsTheColumnsSlack(t *testing.T) {
+	const colH = 700
+	gaps := map[string]int{}
+	outlines := map[string]int{}
+	for _, tc := range []struct {
+		name  string
+		model Model
+	}{
+		{"nothing to show", citedModel("Sources.md", plainNoteSource, 0)},
+		{"a few of each", citedModel("guide/Outline.md", outlineSource, 3)},
+		{"more than fits", citedModel("guide/Long note.md", longNoteSource(), 20)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := newAsidePad(t, tc.model, colH)
+			p.frame()
+			g := p.v.geom
+			if got, want := g.backlinks.Max.Y, colH-asideInsetDp; got != want {
+				t.Errorf("the backlinks pane ends at %d, want the column's foot at %d", got, want)
+			}
+			if g.outline.Empty() {
+				t.Fatalf("the outline holds no region at all: %v", g.outline)
+			}
+			gaps[tc.name] = g.backlinks.Min.Y - g.outline.Max.Y
+			outlines[tc.name] = g.outline.Dy()
+		})
+	}
+	if gaps["nothing to show"] != gaps["a few of each"] || gaps["a few of each"] != gaps["more than fits"] {
+		t.Errorf("the run between the outline's region and the backlinks pane is %v; the furniture between them is one fixed thing, so the slack must be above it and not below",
+			gaps)
+	}
+	// A note with nothing to list holds the larger region, since its
+	// backlinks pane is a single line rather than the capped four.
+	if outlines["nothing to show"] <= outlines["more than fits"] {
+		t.Errorf("a note with no headings and no citations gives its outline %d px, one with forty headings and twenty citations gives %d; the room the smaller pane gives up is the outline's",
+			outlines["nothing to show"], outlines["more than fits"])
 	}
 }
 
@@ -550,6 +601,69 @@ func TestThePanesKeepTheirNavigationWhenResized(t *testing.T) {
 	p.frame()
 	if got, want := p.v.outlineList.Selected(), outlineActive(entries, p.doc.Position().First); got != want {
 		t.Errorf("after the document moved the mark is entry %d, want %d", got, want)
+	}
+}
+
+// sparseOutlineSource is a note far taller than any viewport with only
+// four headings in it: many pages of prose under each. It is the shape
+// whose outline leaves most of its region empty, and the shape the hit
+// geometry has to be measured on — a note with headings enough to fill
+// the pane cannot say where its rows begin.
+func sparseOutlineSource() string {
+	var b strings.Builder
+	for i := 1; i <= 4; i++ {
+		fmt.Fprintf(&b, "## Section %d\n\n", i)
+		for j := 1; j <= 20; j++ {
+			fmt.Fprintf(&b, "Paragraph %d of section %d, one of many under a heading that is one of few.\n\n", j, i)
+		}
+	}
+	return b.String()
+}
+
+// TestThePanesFindTheirRowsWithRoomToSpare is the hit geometry once the
+// panes stand apart: on a note whose outline is far shorter than the
+// region it holds, a press still finds the row it landed on — the rows
+// lead their region, so they are counted from its top edge as before — a
+// press in the paper below the last row moves nothing, because the slack
+// is room and not a target, and the pane at the foot answers its own rows
+// where they now stand.
+func TestThePanesFindTheirRowsWithRoomToSpare(t *testing.T) {
+	m := citedModel("guide/Sections.md", sparseOutlineSource(), 3)
+	p := newAsidePad(t, m, 700)
+	p.frame()
+
+	entries := noteOutline(m.CurrentNote())
+	if len(entries) != 4 {
+		t.Fatalf("fixture outline has %d entries, want 4", len(entries))
+	}
+	rowH := asideRowPx(p.tok)
+	g := p.v.geom
+	if want := (len(entries) + 2) * rowH; g.outline.Dy() < want {
+		t.Fatalf("the outline's region is %d px for %d rows; the fixture is meant to leave room to spare",
+			g.outline.Dy(), len(entries))
+	}
+
+	const row = 2
+	p.clickAt(g.outline.Min.Y + row*rowH + rowH/2)
+	if got, want := p.doc.Position().First, entries[row].Block; got != want {
+		t.Errorf("pressing outline row %d left the document at block %d, want %d", row, got, want)
+	}
+	if got := p.v.outlineList.Selected(); got != row {
+		t.Errorf("pressing outline row %d marked entry %d", row, got)
+	}
+
+	at := p.doc.Position().First
+	p.clickAt(g.outline.Min.Y + (len(entries)+1)*rowH + rowH/2)
+	if got := p.doc.Position().First; got != at {
+		t.Errorf("pressing the outline's spare paper moved the document to block %d, from %d", got, at)
+	}
+	if got := p.v.outlineList.Selected(); got != row {
+		t.Errorf("pressing the outline's spare paper moved the mark to entry %d, from %d", got, row)
+	}
+
+	p.clickAt(p.v.geom.backlinks.Min.Y + row*rowH + rowH/2)
+	if got := p.v.list.Selected(); got != row {
+		t.Errorf("pressing backlink row %d at the column's foot marked row %d", row, got)
 	}
 }
 

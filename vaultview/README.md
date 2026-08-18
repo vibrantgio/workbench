@@ -47,9 +47,12 @@ The window is a sidebar down the leading edge and two columns beside it.
 - **Right — outline and backlinks.** Two panes, each scrolling in its own
   right. Above, the current note's headings: the one you are reading is
   marked as the note scrolls, and choosing another moves the note to it
-  rather than opening it again. Below, every note whose links resolve to
-  this one, a row each; click to go there. A note with no headings says
-  so and gives the column to its backlinks.
+  rather than opening it again. Below, standing on the column's foot,
+  every note whose links resolve to this one, a row each; click to go
+  there. The backlinks are always at the foot and are the height of their
+  own rows, so the room the column has spare belongs to the outline
+  whether it has headings to put in it or not. A note with no headings
+  says so.
 
 Back and forward walk the notes you have visited, and each note keeps its
 own scroll position, so returning to a note returns you to where you were

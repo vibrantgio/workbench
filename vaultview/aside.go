@@ -97,9 +97,13 @@ type backlinkRow struct {
 	Folder string // the citing note's folder, "" at the vault root
 }
 
-// asideGeom is the column's internal stacking as one layout arranged it:
-// the band each pane's rows occupy, in column coordinates. The two meet
-// and do not overlap, which is what keeps each pane's scroll its own.
+// asideGeom is the column's internal stacking as one layout arranged it,
+// in column coordinates: the region the outline holds, from under its own
+// heading down to the rule, and the band the backlinks pane occupies at
+// the column's foot. Each pane's rows start at the top of its own region,
+// so a row is still found by counting row heights down from the region's
+// leading edge. The two meet and do not overlap, which is what keeps each
+// pane's scroll its own.
 type asideGeom struct {
 	outline   image.Rectangle
 	backlinks image.Rectangle
@@ -190,15 +194,22 @@ func newAsideView(cur *docCursor) *asideView {
 }
 
 // layout stacks the two panes: the outline above, a rule, the backlinks
-// below. Each pane is the height of its own rows and no more — the
-// backlinks up to the cap, the outline up to whatever the backlinks and
-// the column's own furniture leave it — and what neither needs falls to
-// the foot of the column rather than being handed to a pane to stand
-// empty in. That is the split's whole rule, and it is what makes the
-// column read as two lists of what the note has rather than as two halves
-// of a column: the backlinks area used to be far larger than what it
-// held, and the room it was holding is the outline's whenever the outline
-// has rows to put in it.
+// below. The backlinks group — the rule, the header and the pane — stands
+// on the column's foot, and the outline's region is everything left above
+// it, from under its own heading down to the rule. The pane is the height
+// of its own rows and no more, up to the cap; the outline's rows sit at
+// the top of their region, so the paper neither pane needs opens below
+// the outline's rows and above the rule.
+//
+// That is the split's whole rule, and it is what makes the column read as
+// two lists of what the note has rather than as two halves of a column. A
+// note with three headings and one citation used to leave both panes
+// huddled under the column's own heading with the whole lower half of the
+// column empty beneath them, which reads as the column having stopped
+// rather than as two panes with room to spare. The room is the outline's
+// whether it has rows to put in it or not, because the backlinks are what
+// a reader keeps the column open for on a note with no headings at all,
+// and they are easiest to find in the one place they can always be.
 func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
 	entries := v.headings(m)
 	rows := v.backlinks(m)
@@ -208,8 +219,8 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 		rowH := gtx.Dp(list.RowHeight(tok.den))
 		// The backlinks pane: its rows up to the cap, and one row for the
 		// line that stands in for them when the note is cited by nothing —
-		// an empty pane reserving four rows is the shape this task exists
-		// to remove, not a smaller version of it.
+		// an empty pane reserving four rows is a shape this column does not
+		// have, at the foot no less than anywhere else.
 		backH := rowH
 		if len(rows) > 0 {
 			backH = min(len(rows), asideBacklinkCap) * rowH
@@ -217,75 +228,58 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 		if ceiling := inner.Y / asideBacklinkShare; backH > ceiling {
 			backH = max(ceiling, 0)
 		}
-		outlineH := rowH // the empty state's own line
-		if len(entries) > 0 {
-			outlineH = len(entries) * rowH
-		}
-		// What stands between the outline's rows and the column's foot, so
-		// the outline can ask for the rest: the two gaps around the rule,
-		// the rule, the backlinks' own header and the gap under it, and the
-		// pane itself. The header is measured rather than assumed — both
-		// labels are one line of the same style, so the one already laid
-		// out gives the height of the one that has not been.
-		ruleH := max(gtx.Dp(unit.Dp(1)), 1)
-		below := func(labelH int) int {
-			return 2*gtx.Dp(unit.Dp(asideGroupGapDp)) + ruleH +
-				labelH + gtx.Dp(unit.Dp(asideHeaderGapDp)) + backH
-		}
 
-		var y, labelH, outlineTop, outlineRows, backTop, backRows int
-		rigid := func(w layout.Widget) layout.FlexChild {
+		// The stacking measures itself as it is laid out. Rigid children
+		// run before flexed ones whatever order they are declared in, so
+		// the heights are gathered in two buckets — what stands above the
+		// outline's region and what stands below it — rather than by one
+		// running total, which would count the group before the region it
+		// comes after.
+		var above, group, outlineH, backRows int
+		rigid := func(into *int, w layout.Widget) layout.FlexChild {
 			return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				d := w(gtx)
-				y += d.Size.Y
+				*into += d.Size.Y
 				return d
 			})
 		}
 		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			rigid(func(gtx layout.Context) layout.Dimensions {
-				d := drawLabel(gtx, tok.shaper, "Outline", tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
-				labelH = d.Size.Y
-				return d
+			rigid(&above, func(gtx layout.Context) layout.Dimensions {
+				return drawLabel(gtx, tok.shaper, "Outline", tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
 			}),
-			rigid(complayout.VSpacer(asideHeaderGapDp)),
-			rigid(func(gtx layout.Context) layout.Dimensions {
-				outlineTop = y
-				// Never more than the column has left to give once the pane
-				// under it is paid for: a window squeezed to a few rows tall
-				// must still show that there is a second pane down there.
-				h := min(outlineH, max(gtx.Constraints.Max.Y-below(labelH), 0))
-				gtx.Constraints = layout.Exact(image.Pt(inner.X, h))
+			rigid(&above, complayout.VSpacer(asideHeaderGapDp)),
+			// Whatever the group below has left over, and never less than
+			// nothing: the flex pays the rigid children first, so a window
+			// squeezed to a few rows tall still shows that there is a
+			// second pane down there. The region is exact and the rows lead
+			// it, which is what puts the slack under them.
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints = layout.Exact(image.Pt(inner.X, max(gtx.Constraints.Max.Y, 0)))
 				d := v.outlinePane(gtx, tok, entries)
-				outlineRows = d.Size.Y
+				outlineH = d.Size.Y
 				return d
 			}),
-			rigid(complayout.VSpacer(asideGroupGapDp)),
-			rigid(func(gtx layout.Context) layout.Dimensions {
+			rigid(&group, complayout.VSpacer(asideGroupGapDp)),
+			rigid(&group, func(gtx layout.Context) layout.Dimensions {
 				return asideRule(gtx, tok)
 			}),
-			rigid(complayout.VSpacer(asideGroupGapDp)),
-			rigid(func(gtx layout.Context) layout.Dimensions {
+			rigid(&group, complayout.VSpacer(asideGroupGapDp)),
+			rigid(&group, func(gtx layout.Context) layout.Dimensions {
 				return asideBacklinkHeader(gtx, tok, len(rows))
 			}),
-			rigid(complayout.VSpacer(asideHeaderGapDp)),
-			rigid(func(gtx layout.Context) layout.Dimensions {
-				backTop = y
+			rigid(&group, complayout.VSpacer(asideHeaderGapDp)),
+			rigid(&group, func(gtx layout.Context) layout.Dimensions {
 				h := min(backH, max(gtx.Constraints.Max.Y, 0))
 				gtx.Constraints = layout.Exact(image.Pt(inner.X, h))
 				d := v.backlinkPane(gtx, tok, rows)
 				backRows = d.Size.Y
 				return d
 			}),
-			// The paper neither pane needs, at the foot of the column where
-			// a reader reads it as the column running out rather than as a
-			// pane holding room it has nothing to put in.
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return layout.Dimensions{Size: image.Pt(inner.X, max(gtx.Constraints.Min.Y, 0))}
-			}),
 		)
 		off := gtx.Dp(unit.Dp(asideInsetDp))
+		backTop := above + outlineH + group - backRows
 		v.geom = asideGeom{
-			outline:   image.Rect(off, off+outlineTop, off+inner.X, off+outlineTop+outlineRows),
+			outline:   image.Rect(off, off+above, off+inner.X, off+above+outlineH),
 			backlinks: image.Rect(off, off+backTop, off+inner.X, off+backTop+backRows),
 		}
 		return layout.Dimensions{Size: inner}
@@ -386,6 +380,11 @@ func asideRule(gtx layout.Context, tok themeTokens) layout.Dimensions {
 // moves the mark returns to where they are actually reading.
 func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []outlineEntry) layout.Dimensions {
 	if len(entries) == 0 {
+		// Released from the region's minimum height, so the line sits under
+		// its own heading rather than in the middle of the room the region
+		// holds. The region is still returned whole: the room below the
+		// line is the outline's to stand empty in, which is what keeps the
+		// backlinks on the column's foot.
 		gtx.Constraints.Min.Y = 0
 		drawText(gtx, tok.shaper, "This note has no headings.", tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(700))
 		return layout.Dimensions{Size: gtx.Constraints.Max}
