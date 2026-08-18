@@ -129,6 +129,18 @@ func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 // layer's frame-time closures, so the chooser reads the same snapshot the
 // screen beneath it was laid out from. The routed layer owns the store,
 // since its emission is the one that selects a screen.
+//
+// The toasts stand on the midpoint of the window's bottom edge. What a
+// rescan reports is a confirmation of something the reader just did, and
+// it belongs where they are looking — the foot of the column they are
+// reading — rather than in a corner they have no reason to watch. At the
+// width this window opens, the column the stack is wide falls entirely
+// inside the reading column: the sidebar and the actions at its foot end
+// well to the leading side of it, and the backlinks panel begins well to
+// the trailing side, so nothing live is under a toast. The layer keeps
+// the chrome inset it always had, which now bounds the stack from above:
+// a queue tall enough to climb the window stops at the chrome row's foot
+// instead of covering the controls standing in it.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		loadTok := mirrorTokens(th)
@@ -141,7 +153,7 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 			backdropLayer(th),
 			underTitleBar(routedLayer(th, modelObs, &modelCell, loadModel, loadTok)),
 			underChrome(chooserLayer(th, modelObs, loadModel, loadTok)),
-			underChrome(toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})),
+			underChrome(toast.Stack(th, toast.Props{Position: toast.BottomCenter, Toasts: toastsObs})),
 		}
 	}
 }
