@@ -344,6 +344,75 @@ func TestVaultWindowGolden(t *testing.T) {
 	}
 }
 
+// TestThePaneEdgeIsCleanBesideTheToggle reads the pixels immediately
+// past the pane's trailing edge and requires every one of them to be the
+// ground the window is painted on. Nothing the pane draws — its tint,
+// its shadow, its strip or the toggle at the end of that strip — may
+// leave a mark outside the pane's own fill.
+//
+// This is the defect the exit condition names, as an assertion. The
+// pane's cast shadow used to reach three pixels past that edge, and the
+// note column's own ground, painted after the pane, wiped all of it
+// below the chrome row: what survived was a nine-row stub of grey beside
+// the pane's toggle, an inch of edging that stopped dead. Reading the
+// whole column rather than the stub's rows catches both halves — ink
+// where there should be none, and ink that stops where nothing changes.
+//
+// Both appearances, because the shadow is an alpha over whatever is
+// under it and light is only where it shows first; and either side of a
+// round trip through the hidden state, because the pane the toggle
+// brings back has to be the pane that left.
+func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	shown := goldenModel()
+	hidden := shown
+	hidden.SidebarHidden = true
+	// Three pixels is the reach of the elevation this pane floats at,
+	// which is as far as anything it draws could carry.
+	const past = 3
+
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tok := themeTokens{col: tc.colors, typ: tokens.DefaultTypography,
+				sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
+			// One frame state across the three frames, the way the running
+			// window keeps one while the streams re-emit around it.
+			f := &frameState{asideW: frameAsideDp, leading: func() unit.Dp { return goldenLeading }}
+			cur := &docCursor{}
+			av := newAsideView(cur)
+			shot := func(m Model) *image.RGBA {
+				sb := renderTree(shaper, m, tc.colors, tokens.Spacing, sharpRadius,
+					tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
+				main := renderNotePageInto(cur, shaper, m, tc.colors, tokens.Spacing,
+					tokens.DefaultTypography, tokens.Comfortable)
+				as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
+				w := func(gtx layout.Context) layout.Dimensions { return f.layout(gtx, m, tok, sb, as, main) }
+				return golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
+			}
+			ground := tc.colors.Background
+			check := func(when string, img *image.RGBA) {
+				edge := f.geom.pane.Max.X
+				if edge <= 0 {
+					t.Fatalf("%s: the pane has no trailing edge to read", when)
+				}
+				for x := edge; x < edge+past && x < windowW; x++ {
+					for y := 0; y < windowH; y++ {
+						if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+							t.Errorf("%s: (%d,%d) is %v, one column past the pane's edge at x=%d; want the ground %v",
+								when, x, y, c, edge, ground)
+							return
+						}
+					}
+				}
+			}
+
+			check("with the pane shown", shot(shown))
+			shot(hidden)
+			check("with the pane brought back", shot(shown))
+		})
+	}
+}
+
 // TestNotePageLightDarkDiffer confirms swapping the colour token set
 // changes the rendered note — the guard that a golden pair recorded in
 // one appearance cannot silently stand in for both.

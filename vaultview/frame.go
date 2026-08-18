@@ -416,16 +416,30 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 // it a cast shadow from effects/depth, which that package reserves for
 // what floats and can leave. The sidebar qualifies under that criterion
 // as written: it floats above the window's ground, inset with the ground
-// showing around it on every side, and it can leave, dismissed from its
-// own toggle — and the platform's own sidebar visibly casts one. The
-// shadow's geometry takes the middle rung of the elevation ladder: above
-// the one-dp fringe of a card raised in place, below the toasts that
-// float over everything including this pane. What it costs is
-// effects/depth's documented price — nine paint operations per frame —
-// paid only while the pane stands.
+// showing between it and every window edge it has, and it can leave,
+// dismissed from its own toggle — and the platform's own sidebar visibly
+// casts one. The shadow's geometry takes the middle rung of the
+// elevation ladder: above the one-dp fringe of a card raised in place,
+// below the toasts that float over everything including this pane. What
+// it costs is effects/depth's documented price — nine paint operations
+// per frame — paid only while the pane stands.
+//
+// The shadow is cut at the pane's trailing edge, because that is the one
+// edge with no ground under it to fall on. The pane floats off the
+// window's leading, top and bottom edges with the ground showing there;
+// against the trailing edge the content column butts straight up, and a
+// band cast across that seam would be a line down it — the seam is a
+// change of ground, which is exactly the reason this frame draws no line
+// down the matching one between the document and the trailing panel.
+// Uncut, the band did not even reach the whole edge: the note's own
+// ground is painted after the pane and repaints all of it below the
+// chrome row, so what showed was a grey stub beside the pane's toggle
+// and nothing under it.
 func (f *frameState) layoutRailPane(gtx layout.Context, tok themeTokens, pane image.Rectangle, sb layout.Widget) {
 	r := gtx.Dp(unit.Dp(railRadiusDp))
+	onGround := clip.Rect(image.Rect(0, 0, pane.Max.X, gtx.Constraints.Max.Y)).Push(gtx.Ops)
 	depth.Shadow(gtx, pane, tokens.Level2, r, 1)
+	onGround.Pop()
 	rr := clip.RRect{Rect: pane, NE: r, NW: r, SE: r, SW: r}
 	paint.FillShape(gtx.Ops, tok.col.Surface, rr.Op(gtx.Ops))
 	defer rr.Push(gtx.Ops).Pop()
