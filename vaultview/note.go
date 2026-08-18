@@ -47,12 +47,24 @@ import (
 
 // Note-page layout constants.
 const (
-	noteInsetDp  = 24
-	noteGapDp    = 16
-	propRowGapDp = 6
-	propPadDp    = 12
-	propKeyGapDp = 16
-	propRadiusDp = 12
+	noteInsetDp = 24
+	// noteEndSpaceDp is how far above the window's bottom edge a note comes
+	// to rest once it is scrolled as far as it goes. It is the document's
+	// foot margin, and like a printed page's it is set wider than the
+	// reading margin the column keeps at its sides — the eye needs to see
+	// that the text stopped because it ended, not because the window did.
+	//
+	// It is spent at the document's end and nowhere else. Part way down a
+	// note every row of the column carries text, and a line cut by the
+	// window's edge is the window cutting it; a margin held back on every
+	// frame would leave a strip of blank paper under that half-cut line,
+	// which reads as a rendering fault rather than as scrolling.
+	noteEndSpaceDp = 40
+	noteGapDp      = 16
+	propRowGapDp   = 6
+	propPadDp      = 12
+	propKeyGapDp   = 16
+	propRadiusDp   = 12
 
 	// noteNavMarkDp sizes the two history controls, which are controls in
 	// their own right at the head of the page; propMarkDp sizes the
@@ -274,12 +286,17 @@ func layoutNotePage(
 	// down the neutral ramp from this paper, so the note reads as a
 	// document resting on darker furniture rather than more chrome.
 	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: gtx.Constraints.Max}.Op())
-	// The page's trailing margin is spent inside each row rather than by
-	// the page, so the document's scrollbar can reach the column's own edge
-	// the way the platform's does. Everything that is not the document —
-	// the header row, the properties panel, the standing messages — puts
-	// the margin back itself.
-	inset := layout.Inset{Top: noteInsetDp, Bottom: noteInsetDp, Left: noteInsetDp}
+	// The page's trailing and bottom margins are spent inside the document
+	// rather than by the page, so the document's viewport reaches the
+	// column's own edges the way the platform's reading surfaces do: the
+	// scrollbar stands hard against the trailing edge, and the last row of
+	// pixels above the window's bottom carries text like every other row.
+	// The margins are not lost — the document keeps its own reading measure
+	// through the style's gutter, and comes to rest a foot margin above the
+	// bottom edge through its end space. Everything that is not the document
+	// — the header row, the properties panel, the standing messages — puts
+	// the trailing margin back itself.
+	inset := layout.Inset{Top: noteInsetDp, Left: noteInsetDp}
 	trailing := func(w layout.Widget) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Right: noteInsetDp}.Layout(gtx, w)
@@ -323,8 +340,14 @@ func layoutNotePage(
 			// from the page inset it takes as its own gutter, less the
 			// width the bar already reserves, so the prose ends level with
 			// the breadcrumb above it.
+			//
+			// The end space is the vertical half of the same bargain: the
+			// column runs to the window's bottom edge so nothing is clipped
+			// with paper to spare below it, and the note stops a foot margin
+			// short of that edge once there is no more of it to read.
 			bar := scrollbar.FromTokens(tok.col)
 			style.Gutter = max(noteInsetDp-bar.Width(), 0)
+			style.EndSpace = noteEndSpaceDp
 			body = layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				// The reading keys are filtered on the column's own focus
 				// tag, so they move the document only while it holds the

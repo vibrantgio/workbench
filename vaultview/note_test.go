@@ -15,6 +15,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -108,7 +109,41 @@ func (p *notePad) clickInDocument() {
 	p.frame()
 }
 
+// shot renders the column as it stands, so a test can ask where the ink
+// stops. The reading keys move a scroll position, and no position value says
+// how much paper is left under the last line — only the pixels do.
+func (p *notePad) shot(t *testing.T) *image.RGBA {
+	t.Helper()
+	return golden.Capture(t, p.size, func(gtx layout.Context) layout.Dimensions {
+		return layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, &p.trail, &p.read,
+			&p.cur, func(Model, *Note) *markdown.Document { return p.doc })
+	})
+}
+
+// blankFoot returns how many rows of bare paper stand between the column's
+// last prose ink and the window's bottom edge. The trailing gutter is left
+// out of the scan: the scroll indicator lives there and reaches the edge by
+// design, and it is the prose the reader measures the margin by.
+func (p *notePad) blankFoot(img *image.RGBA) int {
+	ground := p.tok.col.Background
+	for y := p.size.Y - 1; y >= 0; y-- {
+		for x := 0; x < p.size.X-noteInsetDp; x++ {
+			if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+				return p.size.Y - 1 - y
+			}
+		}
+	}
+	return p.size.Y
+}
+
 func (p *notePad) pos() layout.Position { return p.doc.Position() }
+
+// atEnd reports whether the document has come to rest: the last block is laid
+// out and its trailing edge is at or above the viewport's.
+func (p *notePad) atEnd() bool {
+	q := p.pos()
+	return q.First+q.Count == len(p.doc.Blocks()) && q.OffsetLast >= 0
+}
 
 func (p *notePad) atStart() bool {
 	q := p.pos()
@@ -242,5 +277,88 @@ func TestTheEndsHoldAfterAnAnchorLanding(t *testing.T) {
 	p.press(key.NameEnd, 0)
 	if q := p.pos(); q.First+q.Count != len(p.doc.Blocks()) {
 		t.Errorf("End after an anchor landing left the note at %+v, want the end", q)
+	}
+}
+
+// TestTheNoteRestsClearOfTheWindowsBottomEdge is the reading surface's foot
+// margin, in pixels: a note scrolled as far as it goes stops well short of the
+// window, so the last line reads as the end of the note rather than as the
+// window running out of room.
+func TestTheNoteRestsClearOfTheWindowsBottomEdge(t *testing.T) {
+	p := newNotePad(t, longNoteModel(-1))
+	p.frame()
+	p.press(key.NameEnd, 0)
+	if !p.atEnd() {
+		t.Fatalf("End left the note at %+v, want its end", p.pos())
+	}
+	if got := p.blankFoot(p.shot(t)); got < noteEndSpaceDp {
+		t.Errorf("the last line rests %d px above the window's bottom edge, want at least %d", got, noteEndSpaceDp)
+	}
+}
+
+// TestOnlyTheNotesEndSpendsTheFootMargin is the other half of the same
+// decision. Part way down a note the column has no margin at the foot at all:
+// every row of it carries text, and a line the window's edge cuts is the
+// window cutting it. Holding the margin back on every frame would leave a
+// strip of bare paper under that half-cut line, which reads as a clipping
+// fault, and it would cost the reader a margin's worth of note on every screen
+// they cross.
+func TestOnlyTheNotesEndSpendsTheFootMargin(t *testing.T) {
+	p := newNotePad(t, longNoteModel(-1))
+	p.frame()
+
+	full := false
+	for page := 1; page <= 4 && !p.atEnd(); page++ {
+		p.press(key.NamePageDown, 0)
+		if p.atEnd() {
+			break
+		}
+		switch got := p.blankFoot(p.shot(t)); {
+		case got == 0:
+			full = true
+		case got >= noteEndSpaceDp:
+			t.Fatalf("page %d down the note left %d px of bare paper at the foot; the margin belongs to the note's end, not to every screen", page, got)
+		}
+	}
+	if !full {
+		t.Error("no screen part way down the note reached the window's bottom edge; the column is not using its full height")
+	}
+}
+
+// TestTheKeyboardLandsOnTheRestingPosition: the end the End key reaches is the
+// end paging arrives at and the end the note stays at. A key that stopped
+// somewhere else would put the note's foot margin at one height for the reader
+// who paged there and another for the reader who jumped.
+func TestTheKeyboardLandsOnTheRestingPosition(t *testing.T) {
+	paged := newNotePad(t, longNoteModel(-1))
+	paged.frame()
+	for i := 0; i < 200 && !paged.atEnd(); i++ {
+		paged.press(key.NamePageDown, 0)
+	}
+	if !paged.atEnd() {
+		t.Fatalf("paging down 200 times never reached the end: %+v", paged.pos())
+	}
+
+	for _, tc := range []struct {
+		name string
+		key  key.Name
+		mods key.Modifiers
+	}{
+		{"End", key.NameEnd, 0},
+		{"Command-Down", key.NameDownArrow, key.ModCommand},
+	} {
+		jumped := newNotePad(t, longNoteModel(-1))
+		jumped.frame()
+		jumped.press(tc.key, tc.mods)
+		if a, b := paged.pos(), jumped.pos(); a.First != b.First || a.Offset != b.Offset {
+			t.Errorf("%s landed at %+v, paging to the end at %+v", tc.name, b, a)
+		}
+		// The end is a place the note stays: another frame must not drift, or
+		// the foot margin would creep after the reader stopped.
+		before := jumped.pos()
+		jumped.frame()
+		if got := jumped.pos(); got.First != before.First || got.Offset != before.Offset {
+			t.Errorf("after %s the note drifted from %+v to %+v on the next frame", tc.name, before, got)
+		}
 	}
 }
