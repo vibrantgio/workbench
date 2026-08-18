@@ -6,6 +6,9 @@
 // composition and a page of prose — which is the shortest honest answer to
 // "what would this colour look like". A switch beside the picture shows the
 // other side of the pair, because a seed has two and both have to be seen.
+// Keep the one you want and it is written where every application that
+// adopts a brand looks for one, this window included: the next thing you
+// open is already wearing it.
 //
 // The whole window is the drop target: file drops arrive as ordinary
 // messages through mvu/desktop, resolved against a single zone covering the
@@ -31,6 +34,7 @@ import (
 
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/theme/brand"
 	specsystem "github.com/vibrantgio/theme/system"
 	specwin "github.com/vibrantgio/theme/window"
 )
@@ -69,7 +73,12 @@ func run() {
 	zones := &desktop.ZoneGroup{}
 	drops := desktop.NewDropTarget(mvuWin, zones)
 
-	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
+	// The window opens in the theme that was kept, if one was: this is the
+	// same one-line adoption every other application makes, and making it
+	// here too is what lets a session start where the last one stopped.
+	// With nothing kept the options are empty and the stream is the OS's
+	// own, which is what this window has always opened in.
+	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second, brand.Kept().Options()...))
 
 	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), drops.Messages()), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()

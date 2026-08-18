@@ -34,6 +34,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/toast"
+	"github.com/vibrantgio/theme/brand"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -64,7 +65,18 @@ func run() {
 	// OnConfigure seam.
 	desktop.ShowWindowButtons(mvuWin)
 
-	w := specwin.New(mvuWin, specsystem.LiveTheme(5*time.Second))
+	// The brand this user kept, if they kept one. It pins the palette the
+	// theme stream flips between; which side shows is still the desktop's
+	// decision, live, as it always was. With nothing kept the options are
+	// empty and the stream is exactly the one this line made before.
+	//
+	// The same value seeds the token mirror's first cell below, so the
+	// opening frames are already in the kept palette rather than flashing
+	// the default one at somebody who chose against it.
+	kept := brand.Kept()
+	opening, _ := kept.Colors()
+
+	w := specwin.New(mvuWin, specsystem.LiveTheme(5*time.Second, kept.Options()...))
 
 	// mvuWin.Messages() drains a channel, so each message reaches exactly
 	// one subscriber. Exactly three streams derive from modelObs — the
@@ -76,7 +88,7 @@ func run() {
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 	modelObs := models.Publish().AutoConnect(3)
 
-	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+	if err := w.Render(buildLayers(modelObs, opening)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "vaultview:", err)
 		os.Exit(1)
 	}
@@ -98,10 +110,16 @@ type themeTokens struct {
 // and returns a frame-time loader — the layer-boundary adapter for
 // closures that run outside any rx scope (the vault frame's chrome row
 // and note column, the picker's frame closure).
-func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
+//
+// opening is the palette the cell holds until the streams first emit, a
+// moment that spans the first frames. It is the caller's business because
+// the caller is the one that knows which palette this run is in: a window
+// that seeds it with the package default while its stream is about to emit
+// something else opens on a colour nobody chose.
+func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.ColorTokens) func() themeTokens {
 	var cell atomic.Value
 	cell.Store(themeTokens{
-		col:    tokens.DefaultLight,
+		col:    opening,
 		typ:    tokens.DefaultTypography,
 		sp:     tokens.Spacing,
 		den:    tokens.Comfortable,
@@ -141,9 +159,9 @@ func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 // the chrome inset it always had, which now bounds the stack from above:
 // a queue tall enough to climb the window stops at the chrome row's foot
 // instead of covering the controls standing in it.
-func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
-		loadTok := mirrorTokens(th)
+		loadTok := mirrorTokens(th, opening)
 		var modelCell atomic.Value
 		modelCell.Store(Model{})
 		loadModel := func() Model { return modelCell.Load().(Model) }

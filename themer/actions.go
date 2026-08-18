@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	stdcolor "image/color"
 
 	"github.com/vibrantgio/theme/imageseed"
 )
@@ -28,6 +29,24 @@ type ImageRejected struct {
 // row. Emitted by a click on a swatch.
 type SelectCandidate struct {
 	Index int
+}
+
+// KeepSeed asks for the chosen candidate to outlast the window: it is
+// written to the kept-theme file, where every application that adopts a
+// brand looks for one. Emitted by a click on the keep affordance.
+type KeepSeed struct{}
+
+// SeedKept reports the colour now in that file.
+type SeedKept struct {
+	Seed stdcolor.NRGBA
+}
+
+// KeepFailed reports a keep that did not happen, with the reason in the
+// words the window shows. Like a rejected drop it is a message and not a
+// command error: a full disk is not a reason to close the window on
+// somebody mid-decision.
+type KeepFailed struct {
+	Reason string
 }
 
 // SetScheme puts the window on one side of the light/dark pair and keeps it

@@ -16,6 +16,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/backdrop"
+	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
@@ -33,10 +34,19 @@ const (
 	Hairline unit.Dp = 1  // the mat's resting outline
 	Ring     unit.Dp = 2  // the chosen candidate's ring, and the drag highlight
 
-	TopBarH   unit.Dp = 72  // thumbnail, file name and the scheme switch
+	TopBarH   unit.Dp = 72  // thumbnail, file name, the keep button and the scheme switch
 	ThumbW    unit.Dp = 108 // the thumbnail's mat
 	ThumbPad  unit.Dp = 6   // mat edge to the picture inside it
 	RowLabelH unit.Dp = 20  // the label over the candidate row, and over the page
+	KeepW     unit.Dp = 150 // the keep button, at the scheme switch's width
+)
+
+// What the keep affordance says. The second word is a state and not an
+// invitation: pressing it again writes the same file, which is why it stays
+// pressable rather than going grey.
+const (
+	KeepLabel = "Keep this theme"
+	KeptLabel = "Kept"
 )
 
 // dropZone is the one zone the window registers: the whole of it. The
@@ -86,7 +96,7 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 // candidate, so the handlers outlive a picture being replaced by another.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
-	scheme := new(gesture.Click)
+	keep, scheme := new(gesture.Click), new(gesture.Click)
 	page := newEmbed()
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
@@ -96,7 +106,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
 		func(n rx.Tuple2[themed, Model]) layout.Widget {
-			return Page(n.First, n.Second, zones, clicks, scheme, page)
+			return Page(n.First, n.Second, zones, clicks, keep, scheme, page)
 		})
 }
 
@@ -106,7 +116,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 // the whole design system drawn in the one that is chosen. The last of those
 // gets the room, because it is the thing being judged — the picture is a
 // reference and needs only to be recognisable.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, scheme *gesture.Click, page *embed) layout.Widget {
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, keep, scheme *gesture.Click, page *embed) layout.Widget {
 	c := SchemeFor(t.os, m)
 	p := PaletteFrom(c)
 	dark := m.Dark(t.os)
@@ -140,7 +150,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, s
 			children := []layout.FlexChild{}
 			if len(m.Candidates) > 0 {
 				children = append(children,
-					rigid(TopBar(p, c, t.typ, m, picture, dark, scheme)),
+					rigid(TopBar(p, c, t.typ, m, picture, dark, keep, scheme)),
 					spacer(Gap),
 					rigid(CandidateRow(p, t.typ, m, pairs, clicks)),
 					spacer(Gap),
@@ -168,7 +178,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, s
 // The picture is a thumbnail and not a plate. What a seed is judged on is the
 // page below, so the picture takes the room a reference needs and no more:
 // enough to recognise which image these colours came out of.
-func TopBar(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp, dark bool, click *gesture.Click) layout.Widget {
+func TopBar(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp, dark bool, keep, scheme *gesture.Click) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		h := gtx.Dp(TopBarH)
 		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = h, h
@@ -177,9 +187,51 @@ func TopBar(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp
 			spacer(Gap),
 			layout.Flexed(1, Caption(p, ty, m)),
 			spacer(Gap),
-			rigid(SchemeToggle(c, ty, dark, click)),
+			rigid(KeepButton(c, ty, m, keep)),
+			spacer(Gap),
+			rigid(SchemeToggle(c, ty, dark, scheme)),
 		)
 		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, h)}
+	}
+}
+
+// KeepButton is what makes a colour outlast the window: it writes the
+// chosen seed where every application that adopts a brand looks for one.
+//
+// It is the published button component rather than something drawn here,
+// because it is the one control in this window that is not furniture — it
+// is the thing the window is for once the looking is done — and it should
+// be the button of the design system on display beneath it. What it says
+// changes with the answer: an offer while the choice on screen is not the
+// one on disk, a confirmation the moment it is.
+func KeepButton(c tokens.ColorTokens, ty Type, m Model, click *gesture.Click) layout.Widget {
+	label, emphasis := KeepLabel, button.Filled
+	if m.SeedIsKept() {
+		label, emphasis = KeptLabel, button.Tonal
+	}
+	draw := button.Render(ty.Shaper, label, c, tokens.Spacing, tokens.Radius, ty.Role, tokens.Comfortable,
+		button.RenderState{Emphasis: emphasis, Hovered: click.Hovered(), Pressed: click.Pressed()})
+	return func(gtx layout.Context) layout.Dimensions {
+		// The component fills the width it is offered, and what it is
+		// offered inside a row is everything the caption did not take. It
+		// is given the switch's width instead, so the two controls at this
+		// end of the bar are the same size whichever word is on this one.
+		gtx.Constraints.Min = image.Point{}
+		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(KeepW))
+		dims := draw(gtx)
+		area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+		click.Add(gtx.Ops)
+		area.Pop()
+		for {
+			e, ok := click.Update(gtx.Source)
+			if !ok {
+				break
+			}
+			if e.Kind == gesture.KindClick {
+				mvu.MessageOp{Message: KeepSeed{}}.Add(gtx.Ops)
+			}
+		}
+		return dims
 	}
 }
 

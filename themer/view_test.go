@@ -39,7 +39,7 @@ func pageOn(t *testing.T, e *embed, m Model, os tokens.ColorTokens) *image.RGBA 
 	t.Helper()
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
 	size := image.Pt(windowW, windowH)
-	widget := Page(themed{os: os, typ: pinned()}, m, &desktop.ZoneGroup{}, clicks, new(gesture.Click), e)
+	widget := Page(themed{os: os, typ: pinned()}, m, &desktop.ZoneGroup{}, clicks, new(gesture.Click), new(gesture.Click), e)
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		// The backdrop is its own layer at runtime; here it is one fill
 		// under the page, resolved the same way that layer resolves it.

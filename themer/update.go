@@ -5,11 +5,21 @@ import (
 	"github.com/vibrantgio/mvu/desktop"
 )
 
-// Update is the MVU update function. The only side effect the application
-// has is reading a dropped file, and it runs as a command so the render
-// goroutine never waits on a disk or on a twenty-megapixel decode.
+// Update is the MVU update function. The application's side effects are
+// both files — reading a dropped picture and keeping a chosen colour — and
+// both run as commands so the render goroutine never waits on a disk or on
+// a twenty-megapixel decode.
 func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 	switch msg := message.(type) {
+	case KeepSeed:
+		seed, ok := model.Seed()
+		if !ok {
+			// Nothing is chosen, so there is nothing to keep. The
+			// affordance is not on screen in that state; a message that
+			// arrives anyway is not an error.
+			return model, mvu.DoNothing()
+		}
+		return model, KeepTheme(model.KeepPath, seed, model.Name)
 	case desktop.FilesDropped:
 		model.DragOver = false
 		if len(msg.Paths) == 0 {
@@ -52,6 +62,11 @@ func ReduceModel(m Model, message any) Model {
 		if msg.Index >= 0 && msg.Index < len(m.Candidates) {
 			m.Selected = msg.Index
 		}
+	case SeedKept:
+		m.Kept = msg.Seed
+		m.Problem = ""
+	case KeepFailed:
+		m.Problem = msg.Reason
 	case SetScheme:
 		m.Scheme = ShowLight
 		if msg.Dark {

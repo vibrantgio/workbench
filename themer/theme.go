@@ -110,6 +110,10 @@ type Type struct {
 	Label  textdraw.TextStyle // LabelLarge: section labels, the pair's "Aa"
 	Body   textdraw.TextStyle // BodyMedium: the file name, the hint line
 	Small  textdraw.TextStyle // BodySmall: hex values and shares
+	// Role is LabelLarge as the theme states it, for the one control here
+	// drawn by a published component rather than by this application: the
+	// component lays the role out itself, in the line box the role names.
+	Role tokens.TextStyle
 }
 
 func TypeFrom(t tokens.Typography) Type {
@@ -119,6 +123,7 @@ func TypeFrom(t tokens.Typography) Type {
 		Label:  textStyle(t.LabelLarge),
 		Body:   textStyle(t.BodyMedium),
 		Small:  textStyle(t.BodySmall),
+		Role:   t.LabelLarge,
 	}
 }
 

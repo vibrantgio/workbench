@@ -8,7 +8,8 @@ smallest complete bootstrap, and the place to start), `iconbrowser`,
 reader — a folder of markdown notes browsed through a file tree, wikilinks
 followed, backlinks in the shell's aside slot) and `themer` (a brand colour
 picked out of a dropped picture, the window re-theming to the candidate
-chosen). Applications only: the system's architecture rationale
+chosen, and the one worth keeping written where every application here
+adopts it). Applications only: the system's architecture rationale
 (`DESIGN.md`) moved to the `design` repository, whose git history for it
 lives here, and development planning lives in `.github`.
 

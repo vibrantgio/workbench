@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/theme/brand"
 	"github.com/vibrantgio/theme/imageseed"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -33,10 +34,20 @@ type Model struct {
 	// own answer from then on: judging a seed means seeing both sides of it,
 	// and waiting for the desktop to change its mind is not a way to do that.
 	Scheme Scheme
-	// Problem describes the last drop that did not become candidates —
-	// an unreadable file, a format nothing here decodes, a picture with no
-	// opaque pixels. Empty when the last drop worked.
+	// Problem describes the last thing that did not work — a drop that
+	// became no candidates (an unreadable file, a format nothing here
+	// decodes, a picture with no opaque pixels), or a theme that could not
+	// be kept. Empty when the last thing worked.
 	Problem string
+	// KeepPath is the file a kept theme is written to, resolved once at
+	// startup. Empty when this machine has no config directory to put it
+	// in, which is the one way keeping can fail before it is tried.
+	KeepPath string
+	// Kept is the colour that file currently holds: read from it at
+	// startup and replaced by every keep that succeeds, so the window can
+	// say whether what is on screen is what would come back. A zero alpha
+	// means nothing has been kept.
+	Kept stdcolor.NRGBA
 }
 
 // Scheme names which side of a light/dark pair is shown, and whether that is
@@ -74,14 +85,32 @@ func (m Model) Seed() (stdcolor.NRGBA, bool) {
 	return m.Candidates[m.Selected].Color, true
 }
 
-// Init returns the empty model, plus the load of a picture named on the
-// command line if there is one — the same command a drop runs, so a path
-// argument and a dragged file reach the application identically.
+// Init returns the model the window starts from — where a kept theme is
+// written and which colour is already there — plus the load of a picture
+// named on the command line if there is one, the same command a drop runs,
+// so a path argument and a dragged file reach the application identically.
+//
+// A machine with no config directory to write to is not a reason to refuse
+// to start: the path stays empty, the window works, and the one thing it
+// cannot do says so when it is asked.
 func Init() (Model, mvu.Command) {
-	if len(os.Args) > 1 {
-		return Model{}, LoadImage(os.Args[1])
+	m := Model{}
+	if path, err := brand.Path(); err == nil {
+		m.KeepPath = path
+		m.Kept = brand.KeptFrom(path).Seed
 	}
-	return Model{}, mvu.DoNothing()
+	if len(os.Args) > 1 {
+		return m, LoadImage(os.Args[1])
+	}
+	return m, mvu.DoNothing()
+}
+
+// SeedIsKept reports whether the chosen candidate is the colour already in
+// the kept-theme file: the difference between an affordance offering
+// something and one confirming it.
+func (m Model) SeedIsKept() bool {
+	seed, ok := m.Seed()
+	return ok && m.Kept.A != 0 && m.Kept == seed
 }
 
 // shortName is what the window shows for a loaded picture: the file's own
