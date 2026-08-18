@@ -136,6 +136,34 @@ func (p *notePad) blankFoot(img *image.RGBA) int {
 	return p.size.Y
 }
 
+// blankHead returns how many rows of bare paper stand between the row above
+// the document — the breadcrumb row, in the models these tests use — and the
+// document's first ink. It reads the image the way the reader does: the first
+// band of ink from the top is that row, and what follows it is the paper the
+// document's viewport begins on. The trailing gutter is left out of the scan
+// for the reason blankFoot leaves it out.
+func (p *notePad) blankHead(img *image.RGBA) int {
+	ground := p.tok.col.Background
+	ink := func(y int) bool {
+		for x := 0; x < p.size.X-noteInsetDp; x++ {
+			if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+				return true
+			}
+		}
+		return false
+	}
+	y := 0
+	for ; y < p.size.Y && !ink(y); y++ { // the paper above the row
+	}
+	for ; y < p.size.Y && ink(y); y++ { // the row's own ink
+	}
+	n := 0
+	for ; y < p.size.Y && !ink(y); y++ {
+		n++
+	}
+	return n
+}
+
 func (p *notePad) pos() layout.Position { return p.doc.Position() }
 
 // atEnd reports whether the document has come to rest: the last block is laid
@@ -322,6 +350,45 @@ func TestOnlyTheNotesEndSpendsTheFootMargin(t *testing.T) {
 	}
 	if !full {
 		t.Error("no screen part way down the note reached the window's bottom edge; the column is not using its full height")
+	}
+}
+
+// noteHeadSlack is how close to the row's edge a line part way down the note
+// must come for the column to count as meeting it. Not zero: where the cut
+// falls inside a line's own leading, the topmost rows of the viewport carry
+// that line's blank rather than its ink, and a few rows of it are the type
+// setting rather than a margin.
+const noteHeadSlack = 6
+
+// TestOnlyTheNotesStartSpendsTheGapUnderTheRow is the foot margin's mirror at
+// the other end of the column. The note opens a gap below the row above it,
+// and part way down it spends none: the viewport begins on that row's lower
+// edge, so a line scrolling out of the top is cut by the row and vanishes
+// under it. A gap held back on every frame would leave a strip of bare paper
+// over that half-cut line — which is what the reader reported seeing, and what
+// reads as a rendering fault rather than as scrolling.
+func TestOnlyTheNotesStartSpendsTheGapUnderTheRow(t *testing.T) {
+	p := newNotePad(t, longNoteModel(-1))
+	p.frame()
+	if got := p.blankHead(p.shot(t)); got < noteGapDp {
+		t.Errorf("at its start the note leaves %d px of paper under the row above it, want at least the page's own %d", got, noteGapDp)
+	}
+
+	met := false
+	for page := 1; page <= 4 && !p.atEnd(); page++ {
+		p.press(key.NamePageDown, 0)
+		if p.atEnd() {
+			break
+		}
+		switch got := p.blankHead(p.shot(t)); {
+		case got >= noteGapDp:
+			t.Fatalf("page %d down the note left %d px of bare paper under the row; the gap belongs to the note's start, not to every screen", page, got)
+		case got <= noteHeadSlack:
+			met = true
+		}
+	}
+	if !met {
+		t.Errorf("no screen part way down the note brought a line up against the row's edge; the column is not using its full height")
 	}
 }
 

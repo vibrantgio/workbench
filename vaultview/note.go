@@ -69,11 +69,15 @@ const (
 	// frame would leave a strip of blank paper under that half-cut line,
 	// which reads as a rendering fault rather than as scrolling.
 	noteEndSpaceDp = 40
-	noteGapDp      = 16
-	propRowGapDp   = 6
-	propPadDp      = 12
-	propKeyGapDp   = 16
-	propRadiusDp   = 12
+	// noteGapDp is the page's own rhythm: the space between the rows above
+	// the document, and the space the document rests below the last of them.
+	// The second is spent inside the document rather than by the page, for
+	// the reason the end space is; see where the style is built.
+	noteGapDp    = 16
+	propRowGapDp = 6
+	propPadDp    = 12
+	propKeyGapDp = 16
+	propRadiusDp = 12
 
 	// noteNavMarkDp sizes the two history controls, which are controls in
 	// their own right at the head of the page; propMarkDp sizes the
@@ -315,6 +319,10 @@ func layoutNotePage(
 		crumbs := noteCrumbs(m)
 
 		var body layout.FlexChild
+		// scrolling records whether the body is the document or a standing
+		// message, which is what decides the gap above it; see the children
+		// below.
+		scrolling := false
 		switch {
 		case m.Scanning && note == nil:
 			cur.show(nil)
@@ -326,6 +334,7 @@ func layoutNotePage(
 			cur.show(nil)
 			body = messageChild(tok, "No notes in this vault.")
 		default:
+			scrolling = true
 			doc := docFor(m, note)
 			// The aside's outline reads and moves this document. It lays
 			// out after this column does, so what it reads is this frame's
@@ -350,12 +359,18 @@ func layoutNotePage(
 			// width the bar already reserves, so the prose ends level with
 			// the breadcrumb above it.
 			//
-			// The end space is the vertical half of the same bargain: the
-			// column runs to the window's bottom edge so nothing is clipped
-			// with paper to spare below it, and the note stops a foot margin
-			// short of that edge once there is no more of it to read.
+			// The two spaces are the vertical half of the same bargain, one
+			// at each end: the column runs from the row above it to the
+			// window's bottom edge so that nothing is clipped with paper to
+			// spare beside it, and the note still rests a gap below the row
+			// at its start and a foot margin above the edge at its end. Both
+			// are the document's own content, so the scroll bounds, the page
+			// moves and the bar's track account for them; a page that held
+			// either back outside the viewport would buy it at the price of a
+			// dead strip beside every half-cut line the reader scrolls past.
 			bar := scrollbar.FromTokens(tok.col)
 			style.Gutter = max(noteInsetDp-bar.Width(), 0)
+			style.StartSpace = noteGapDp
 			style.EndSpace = noteEndSpaceDp
 			body = layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				// The reading keys are filtered on the column's own focus
@@ -384,17 +399,27 @@ func layoutNotePage(
 			)
 		}
 
-		children := []layout.FlexChild{
-			layout.Rigid(trailing(header)),
-			layout.Rigid(complayout.VSpacer(noteGapDp)),
-		}
+		children := []layout.FlexChild{layout.Rigid(trailing(header))}
 		if note != nil && note.FM.Present {
 			children = append(children,
+				layout.Rigid(complayout.VSpacer(noteGapDp)),
 				layout.Rigid(trailing(func(gtx layout.Context) layout.Dimensions {
 					return layoutProperties(gtx, tok, note.FM, m.PropsOpen, propClick)
 				})),
-				layout.Rigid(complayout.VSpacer(noteGapDp)),
 			)
+		}
+		// The page puts no gap above the document: its viewport begins on
+		// the lower edge of whatever row stands over it — the breadcrumb, or
+		// the properties panel when the note carries one — so a line
+		// scrolling out of the top is cut by that edge and disappears under
+		// it. The reading gap is not lost, it is spent inside the document
+		// as its start space, where it is the note's resting position rather
+		// than a margin held back on every frame; held back out here it would
+		// leave a strip of bare paper over every half-cut line, which reads
+		// as a rendering fault and not as scrolling. A standing message owns
+		// no viewport and takes the gap like any other row.
+		if !scrolling {
+			children = append(children, layout.Rigid(complayout.VSpacer(noteGapDp)))
 		}
 		children = append(children, body)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
