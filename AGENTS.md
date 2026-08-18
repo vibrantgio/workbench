@@ -1,19 +1,20 @@
 # AGENTS.md — workbench
 
-The seven reference applications of the Vibrant Gio design system, each a
+The eight reference applications of the Vibrant Gio design system, each a
 complete product built the way a real one is meant to be built — MVU state,
 live theming from theme, components widgets, patterns: `todos` (the
 smallest complete bootstrap, and the place to start), `iconbrowser`,
-`sitedocs`, `feeds`, `mindchat`, `launcher` and `vaultview` (the document
+`sitedocs`, `feeds`, `mindchat`, `launcher`, `vaultview` (the document
 reader — a folder of markdown notes browsed through a file tree, wikilinks
-followed, backlinks in the shell's aside slot). Applications only: the
-system's architecture rationale (`DESIGN.md`) moved to the `design`
-repository, whose git history for it lives here, and development planning
-lives in `.github`.
+followed, backlinks in the shell's aside slot) and `themer` (a brand colour
+picked out of a dropped picture, the window re-theming to the candidate
+chosen). Applications only: the system's architecture rationale
+(`DESIGN.md`) moved to the `design` repository, whose git history for it
+lives here, and development planning lives in `.github`.
 
 **Layer.** Outside ADR-001's tier table: applications at the top of the
 stack, which the tier rule exempts and which may import any layer of the
-design system. Its seven applications import, between them, `backdrop`,
+design system. Its eight applications import, between them, `backdrop`,
 `components`, `effects`, `font`, `ivg`, `ivg/raster/gio`, `markdown`,
 `mvu`, `mvu/desktop`, `noise`, `patterns`, `seen`, `seen/context/gio`,
 `svg`, `svg/driver/gio`, `textdraw` and `theme`. That direction is measured
@@ -32,13 +33,14 @@ and this file links it rather than copying it:
 
     https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt
 
-**Modules.** No module at the repository root: this repository is seven
+**Modules.** No module at the repository root: this repository is eight
 modules in subdirectories — `feeds/`
 (`github.com/vibrantgio/workbench/feeds`), `iconbrowser/`
 (`github.com/vibrantgio/workbench/iconbrowser`), `launcher/`
 (`github.com/vibrantgio/workbench/launcher`), `mindchat/`
 (`github.com/vibrantgio/workbench/mindchat`), `sitedocs/`
-(`github.com/vibrantgio/workbench/sitedocs`), `todos/`
+(`github.com/vibrantgio/workbench/sitedocs`), `themer/`
+(`github.com/vibrantgio/workbench/themer`), `todos/`
 (`github.com/vibrantgio/workbench/todos`), `vaultview/`
 (`github.com/vibrantgio/workbench/vaultview`). Each is built, tested and
 tagged on its own, with tags that carry the directory as a prefix.
@@ -103,7 +105,7 @@ adjacent files.
 
 **The `.gitignore` denies everything by default.** Its first line is `*`, and
 what follows re-admits exactly: Markdown at any level, `LICENSE`,
-`.claude/skills/**`, and the seven application trees minus their compiled
+`.claude/skills/**`, and the eight application trees minus their compiled
 binaries. A file you add anywhere else — a script, a new top-level directory,
 a `.json` fixture outside an app — does not show up in `git status` and is
 silently not committed. Check with `git check-ignore -v <path>` before

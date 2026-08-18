@@ -6,7 +6,7 @@ analogous to what Material Design is for Google, but built for a Functional
 Reactive Programming application model on top of
 [reactivego/rx](https://github.com/reactivego/rx).
 
-This repository is the **workbench**: seven complete example applications
+This repository is the **workbench**: eight complete example applications
 that exercise the design system end-to-end.
 
 ## The stack
@@ -62,6 +62,13 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   with back/forward, and a backlinks aside. Also the reference for
   document-centric navigation — a history stack, a nesting tree, and the
   shell's aside slot in use. See its [README](./vaultview/README.md).
+- **[`themer/`](./themer)** — pick a brand colour out of a picture: drop an
+  image anywhere on the window and the colours it is made of come back as a
+  row of seed candidates, vivid ones first, each swatch beside the primary
+  pair a palette derivation makes of it; click one and the window re-themes
+  to it. Also the reference for an OS file drop — a window-wide drop zone
+  with its hover highlight, delivered into the MVU loop as messages — and
+  for a theme observable the application itself re-seeds.
 - **[`mindchat/`](./mindchat)** — an OpenAI chat client and the most
   feature-complete app: streaming completions routed through the MVU
   command loop, a resizable/collapsible split-pane shell, trash-backed
