@@ -36,11 +36,34 @@ import (
 // Page layout constants. The outer inset matches the marketing-pattern
 // inset (S6 = 24 dp) so the docs page reads at the same canvas inset as
 // the landing page.
+//
+// docsBreadcrumbGapDp is the fallback for the seam between the page chrome
+// and the reading column; docsBreadcrumbGap prefers the document's own
+// number and is what the page actually lays out with.
 const (
-	docsOuterInsetDp = 24
-	docsProseGapDp   = 12
-	docsCardGapDp    = 16
+	docsOuterInsetDp    = 24
+	docsProseGapDp      = 12
+	docsCardGapDp       = 16
+	docsBreadcrumbGapDp = 32
 )
+
+// docsBreadcrumbGap is the blank between the breadcrumb row and the top of
+// the document: the space the renderer would itself put above a level-1
+// heading that had a block above it. The page title is the document's first
+// block, so it reaches nothing above and the app owns that space instead —
+// and owning it as a hardcoded number is what goes stale, because the
+// document's rhythm is derived from the theme and moves when the theme
+// does. Sized from the chrome's side it would be wrong in the other
+// direction: a seam narrower than the blank between two paragraphs binds
+// the title upward to the chrome rather than downward to the prose it
+// opens. A style built by hand carries no heading spaces, and then the
+// constant stands in.
+func docsBreadcrumbGap(style markdown.Style) float32 {
+	if above := style.HeadingSpaceAbove[0]; above > 0 {
+		return float32(above)
+	}
+	return docsBreadcrumbGapDp
+}
 
 // Chroma styles for the two appearance modes; built once, shared by every
 // page. FromTokens leaves Highlight nil, so assigning these is the app's
@@ -186,7 +209,7 @@ func drawDocsPage(
 				}
 				return layout.Dimensions{}
 			}),
-			layout.Rigid(complayout.VSpacer(docsCardGapDp)),
+			layout.Rigid(complayout.VSpacer(docsBreadcrumbGap(style))),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return doc.Layout(gtx, shaper, style)
 			}),
