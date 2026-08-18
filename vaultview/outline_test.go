@@ -6,11 +6,18 @@ import (
 	"strings"
 	"testing"
 
+	"gioui.org/f32"
 	"gioui.org/io/input"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 
+	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 )
 
@@ -190,6 +197,18 @@ func (p *asidePad) frame() {
 	p.r.Frame(&p.ops)
 }
 
+// clickAt presses and releases in the middle of the column at the given
+// height — the way a reader's pointer reaches a row, through the router and
+// against the areas the last frame registered.
+func (p *asidePad) clickAt(y int) {
+	at := f32.Pt(float32(p.colSz.X)/2, float32(y))
+	p.r.Queue(
+		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: at},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: at},
+	)
+	p.frame()
+}
+
 // gtx is a context for driving the column's own affordances outside a
 // frame, which is how the tests reach what a synthetic click cannot.
 func (p *asidePad) gtx() layout.Context {
@@ -274,8 +293,8 @@ func TestChoosingAnEntryMovesTheDocument(t *testing.T) {
 // TestBothPanesStandInEitherState is the exit condition as a
 // measurement: a note with many headings and a note with none both leave
 // the outline and the backlinks their own band of the column, the two
-// meeting without overlapping, and the outline never taking more than its
-// share however many headings the note has.
+// meeting without overlapping, and neither pane standing taller than what
+// it has to put in it.
 func TestBothPanesStandInEitherState(t *testing.T) {
 	plain := goldenModel()
 	plain = cacheNote(plain, noteFromSource("Sources.md", "Just prose, no sections.\n"))
@@ -302,17 +321,123 @@ func TestBothPanesStandInEitherState(t *testing.T) {
 			if g.outline.Max.Y > g.backlinks.Min.Y {
 				t.Errorf("the panes overlap: outline %v, backlinks %v", g.outline, g.backlinks)
 			}
-			if share := colH / asideOutlineShare; g.outline.Dy() > share {
-				t.Errorf("the outline pane is %d tall in a %d column; it may not exceed %d",
-					g.outline.Dy(), colH, share)
+			if ceiling := asideBacklinkCap * asideRowPx(p.tok); g.backlinks.Dy() > ceiling {
+				t.Errorf("the backlinks pane is %d tall; the cap is %d", g.backlinks.Dy(), ceiling)
 			}
-			// Whatever the outline does, the backlinks keep a readable
-			// band of the column below it.
-			if g.backlinks.Dy() < colH/4 {
-				t.Errorf("the backlinks pane is %d tall in a %d column; it was buried",
-					g.backlinks.Dy(), colH)
+			// Neither pane runs past the column it stands in.
+			if g.backlinks.Max.Y > colH {
+				t.Errorf("the backlinks pane ends at %d in a %d column", g.backlinks.Max.Y, colH)
 			}
 		})
+	}
+}
+
+// asideRowPx is a pane row's height in the pixels these tests measure in,
+// where one dp is one pixel.
+func asideRowPx(tok themeTokens) int { return int(list.RowHeight(tok.den)) }
+
+// citedModel makes a note current and gives it cites citing notes, so the
+// backlinks pane has exactly that many rows to size itself to. src is the
+// note's own text, which is what decides how many rows the outline above
+// it has.
+func citedModel(notePath, src string, cites int) Model {
+	m := goldenModel()
+	m = cacheNote(m, noteFromSource(notePath, src))
+	m.Current = notePath
+	m.CurAnchor = -1
+	idx := &Index{Root: "/v", Files: []FileScan{{Path: notePath}}}
+	for i := range cites {
+		idx.Files = append(idx.Files, FileScan{
+			Path:  fmt.Sprintf("notes/Citing %02d.md", i),
+			Links: []string{noteTitle(notePath)},
+		})
+	}
+	m.Index = idx
+	return m
+}
+
+// TestTheBacklinksPaneIsAsTallAsItsRows is the cap at its boundaries: no
+// citations, one, exactly the cap, and far past it. The pane is its own
+// rows and nothing else — a note cited twice does not hold four rows of
+// room, and a note cited twenty times does not take the column.
+//
+// The room it does not take is the outline's, which the second half
+// measures: between a note cited none and one cited the cap, the outline
+// gains exactly the three rows the backlinks gave up.
+func TestTheBacklinksPaneIsAsTallAsItsRows(t *testing.T) {
+	const colH = 700
+	rowH := asideRowPx(goldenTokens())
+	outlineDy := map[string]int{}
+	for _, tc := range []struct {
+		name  string
+		cites int
+		rows  int
+	}{
+		// Nothing to list is one line saying so, not four empty rows.
+		{"none", 0, 1},
+		{"one", 1, 1},
+		{"the cap", asideBacklinkCap, asideBacklinkCap},
+		{"past the cap", 20, asideBacklinkCap},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := citedModel("guide/Long note.md", longNoteSource(), tc.cites)
+			if got := len(Backlinks(m.Index, m.Current)); got != tc.cites {
+				t.Fatalf("the fixture yielded %d backlinks, want %d", got, tc.cites)
+			}
+			p := newAsidePad(t, m, colH)
+			p.frame()
+			g := p.v.geom
+			if got, want := g.backlinks.Dy(), tc.rows*rowH; got != want {
+				t.Errorf("%d citations: the pane is %d tall, want %d (%d rows)", tc.cites, got, want, tc.rows)
+			}
+			if g.outline.Max.Y > g.backlinks.Min.Y {
+				t.Errorf("the panes overlap: outline %v, backlinks %v", g.outline, g.backlinks)
+			}
+			outlineDy[tc.name] = g.outline.Dy()
+		})
+	}
+	if got, want := outlineDy["none"]-outlineDy["the cap"], (asideBacklinkCap-1)*rowH; got != want {
+		t.Errorf("a note cited none gives the outline %d px more than one cited %d, want the %d px the backlinks gave up",
+			got, asideBacklinkCap, want)
+	}
+	if outlineDy["past the cap"] != outlineDy["the cap"] {
+		t.Errorf("past the cap the outline is %d tall, at the cap %d; the pane must stop taking room",
+			outlineDy["past the cap"], outlineDy["the cap"])
+	}
+}
+
+// TestBacklinksPastTheCapScrollWithinIt is the other half of the cap: the
+// citations it cannot show are reachable by scrolling the pane, not lost,
+// and the pane scrolling moves neither the outline nor the document.
+func TestBacklinksPastTheCapScrollWithinIt(t *testing.T) {
+	m := citedModel("guide/Long note.md", longNoteSource(), 20)
+	p := newAsidePad(t, m, 700)
+	p.frame()
+	docFirst := p.doc.Position().First
+	outlineFirst := p.v.outlineList.Position().First
+
+	if got := p.v.list.Position().Count; got > asideBacklinkCap+1 {
+		t.Errorf("the pane laid out %d of 20 rows; the cap shows at most %d", got, asideBacklinkCap)
+	}
+	p.v.list.ScrollTo(16)
+	p.frame()
+	if got := p.v.list.Position().First; got != 16 {
+		t.Fatalf("the backlinks pane leads with row %d, want 16", got)
+	}
+	if got := p.doc.Position().First; got != docFirst {
+		t.Errorf("scrolling the backlinks moved the document to block %d, from %d", got, docFirst)
+	}
+	if got := p.v.outlineList.Position().First; got != outlineFirst {
+		t.Errorf("scrolling the backlinks moved the outline to entry %d, from %d", got, outlineFirst)
+	}
+	// The last citation is reachable from the keyboard, which is the
+	// selection walking rows the capped pane never laid out.
+	p.v.list.Select(-1)
+	p.v.list.Reveal(19)
+	p.frame()
+	q := p.v.list.Position()
+	if q.First+q.Count < 20 {
+		t.Errorf("revealing the last citation left the pane at %+v; row 19 was never laid out", q)
 	}
 }
 
@@ -374,19 +499,154 @@ func TestTheColumnHoldsNoDocumentBeforeOneIsShown(t *testing.T) {
 	}
 }
 
-// TestASqueezedColumnStillShowsBothPanes is the window dragged short: the
-// outline may not eat the column and leave the backlinks with nothing,
-// however many headings the note has.
+// TestASqueezedColumnStillShowsBothPanes is the window dragged short:
+// neither pane may eat the column and leave the other with nothing,
+// however many headings the note has and however often it is cited.
 func TestASqueezedColumnStillShowsBothPanes(t *testing.T) {
 	for _, colH := range []int{240, 160, 100} {
-		p := newAsidePad(t, outlineModel(), colH)
+		p := newAsidePad(t, citedModel("guide/Long note.md", longNoteSource(), 20), colH)
 		p.frame()
 		g := p.v.geom
-		if g.outline.Dy() > colH/asideOutlineShare {
-			t.Errorf("column %d tall: the outline pane took %d", colH, g.outline.Dy())
+		if g.backlinks.Dy() > colH/asideBacklinkShare {
+			t.Errorf("column %d tall: the backlinks pane took %d", colH, g.backlinks.Dy())
 		}
 		if g.outline.Max.Y > g.backlinks.Min.Y {
 			t.Errorf("column %d tall: the panes overlap: %v and %v", colH, g.outline, g.backlinks)
 		}
+	}
+}
+
+// TestThePanesKeepTheirNavigationWhenResized presses in each pane where the
+// resized layout puts its rows, through the router the running window uses:
+// an outline row moves the document to its heading, a backlink row marks the
+// citation it names — which is the click the Navigate message rides out on —
+// and the document-tracking mark returns to where the reader actually is the
+// moment the document moves again.
+func TestThePanesKeepTheirNavigationWhenResized(t *testing.T) {
+	m := citedModel("guide/Long note.md", longNoteSource(), 20)
+	p := newAsidePad(t, m, 700)
+	p.frame()
+
+	entries := noteOutline(m.CurrentNote())
+	rowH := asideRowPx(p.tok)
+	// The third row of each pane: far enough down that a press landing on
+	// the pane's first row by accident would be caught.
+	const row = 2
+	p.clickAt(p.v.geom.outline.Min.Y + row*rowH + rowH/2)
+	if got, want := p.doc.Position().First, entries[row].Block; got != want {
+		t.Errorf("pressing outline row %d left the document at block %d, want %d", row, got, want)
+	}
+	if got := p.v.outlineList.Selected(); got != row {
+		t.Errorf("pressing outline row %d marked entry %d", row, got)
+	}
+
+	p.clickAt(p.v.geom.backlinks.Min.Y + row*rowH + rowH/2)
+	if got := p.v.list.Selected(); got != row {
+		t.Errorf("pressing backlink row %d marked row %d", row, got)
+	}
+
+	// And the mark is the document's again as soon as the document moves.
+	p.doc.ScrollToEnd()
+	p.frame()
+	if got, want := p.v.outlineList.Selected(), outlineActive(entries, p.doc.Position().First); got != want {
+		t.Errorf("after the document moved the mark is entry %d, want %d", got, want)
+	}
+}
+
+// TestEachScrollingPaneShowsItsIndicator is D6 in pixels: a pane with more
+// rows than it can show draws the indicator in its own trailing gutter, and
+// a pane whose rows all fit draws nothing there. Both panes, one column —
+// the outline scrolling and the backlinks capped past their cap.
+func TestEachScrollingPaneShowsItsIndicator(t *testing.T) {
+	tok := goldenTokens()
+	ground := tok.col.Surface
+	shot := func(m Model, colH int) (*image.RGBA, asideGeom) {
+		v := newAsideView(&docCursor{})
+		size := image.Pt(frameAsideDp, colH)
+		img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+			paint.FillShape(gtx.Ops, ground, clip.Rect{Max: size}.Op())
+			return v.layout(gtx, m, tok)
+		})
+		return img, v.geom
+	}
+	// The strip scanned is the thumb's own columns: the bar floats over the
+	// rows here, so the pane's last dp carry row ink as well — but a row's
+	// text and its mark both stop a row inset short of the edge, and the
+	// thumb is drawn inside that. Anything in these columns is the bar.
+	bar := scrollbar.FromTokens(tok.col)
+	thumbFrom := gtx1Dp(bar.Width() - bar.TrackPadding) // the thumb's leading edge
+	thumbTo := gtx1Dp(bar.TrackPadding)                 // its trailing padding
+	gutterInk := func(img *image.RGBA, band image.Rectangle) int {
+		n := 0
+		for y := band.Min.Y; y < band.Max.Y; y++ {
+			for x := band.Max.X - thumbFrom; x < band.Max.X-thumbTo; x++ {
+				if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+					n++
+				}
+			}
+		}
+		return n
+	}
+
+	full, g := shot(citedModel("guide/Long note.md", longNoteSource(), 20), 700)
+	if n := gutterInk(full, g.outline); n == 0 {
+		t.Error("an outline with more headings than its pane can show drew no indicator")
+	}
+	if n := gutterInk(full, g.backlinks); n == 0 {
+		t.Error("a backlinks pane holding twenty citations in four rows drew no indicator")
+	}
+
+	short, sg := shot(citedModel("Sources.md", plainNoteSource, 2), 700)
+	if n := gutterInk(short, sg.backlinks); n != 0 {
+		t.Errorf("a pane whose two citations both fit drew %d indicator pixels, want none", n)
+	}
+}
+
+// gtx1Dp converts dp to the pixels these tests measure in, where the metric
+// is one pixel per dp.
+func gtx1Dp(v unit.Dp) int { return int(v) }
+
+// TestTheBacklinkHeaderCountsWhatItCannotShow pins both halves of the
+// header: a note with citations carries their number, a note with none
+// carries nothing extra — and either way it is the same one line tall, which
+// is what the column's height arithmetic measures the pane below it against.
+func TestTheBacklinkHeaderCountsWhatItCannotShow(t *testing.T) {
+	tok := goldenTokens()
+	ground := tok.col.Surface
+	size := image.Pt(frameAsideDp-2*asideInsetDp, 40)
+	shot := func(n int) (*image.RGBA, int) {
+		var h int
+		img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+			paint.FillShape(gtx.Ops, ground, clip.Rect{Max: size}.Op())
+			d := asideBacklinkHeader(gtx, tok, n)
+			h = d.Size.Y
+			return d
+		})
+		return img, h
+	}
+	ink := func(img *image.RGBA) int {
+		n := 0
+		for y := range size.Y {
+			for x := range size.X {
+				if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+					n++
+				}
+			}
+		}
+		return n
+	}
+
+	none, noneH := shot(0)
+	over, overH := shot(20)
+	if noneH != overH {
+		t.Errorf("the header is %d tall with a count and %d without; the pane below it is measured off one line", overH, noneH)
+	}
+	if ink(over) <= ink(none) {
+		t.Errorf("a pane holding 20 citations drew no more header ink (%d) than one holding none (%d); the count is missing",
+			ink(over), ink(none))
+	}
+	if few, _ := shot(2); ink(few) <= ink(none) {
+		t.Errorf("a pane holding 2 citations drew no more header ink (%d) than one holding none (%d); the count must not appear only past the cap",
+			ink(few), ink(none))
 	}
 }

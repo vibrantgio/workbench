@@ -225,10 +225,16 @@ func TestNoteScrollbarGolden(t *testing.T) {
 
 // TestNoteScrollbarOnlyWhenTheNoteOverflows is the exit condition as an
 // assertion: a long note read at its end draws an indicator at the foot of
-// the column's trailing gutter, and the short golden note, in the same
-// viewport, draws none. The probe is pixels rather than dimensions, because
-// the gutter is reserved either way — that is what stops the prose
-// reflowing when the bar fades.
+// the column's trailing gutter, and a note that fits, in the same viewport,
+// draws none. The probe is pixels rather than dimensions, because the gutter
+// is reserved either way — that is what stops the prose reflowing when the
+// bar fades.
+//
+// The note that fits is the plain one rather than the golden note: at the
+// reading rhythm the renderer now sets, the golden note's frontmatter panel,
+// headings and code block no longer fit a 700 dp viewport, so it has become a
+// second long note and can no longer say anything about a note that does not
+// scroll.
 //
 // The gutter is the column's last ten dp — the bar reaches the edge, where
 // the platform puts it, and every other row stops a reading margin short of
@@ -258,7 +264,7 @@ func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
 	if n := footInk(shot(longNoteModel(118))); n == 0 {
 		t.Error("a note taller than the viewport drew no scroll indicator")
 	}
-	if n := footInk(shot(goldenModel())); n != 0 {
+	if n := footInk(shot(plainNoteModel())); n != 0 {
 		t.Errorf("a note that fits drew %d indicator pixels, want none", n)
 	}
 }
@@ -320,14 +326,17 @@ func TestVaultWindowGolden(t *testing.T) {
 	}{
 		{"window", shown},
 		{"window-hidden", hidden},
-		// The two shapes the trailing column has to hold. A forty-heading
-		// note read part way down fills the outline pane to its ceiling
-		// and marks the section the reader is inside — and the backlinks
-		// are still below it, which is the whole reason the column is two
-		// panes. A note with no headings at all says so and gives the rest
-		// of the column to the notes citing it.
+		// The three shapes the trailing column has to hold. A forty-heading
+		// note read part way down fills the outline pane and marks the
+		// section the reader is inside — and the backlinks are still below
+		// it, which is the whole reason the column is two panes. A note
+		// with no headings at all says so and gives the rest of the column
+		// to the notes citing it. And a note cited far more often than the
+		// pane will show stops at the cap and scrolls the rest, which is
+		// the state both panes' indicators are in at once.
 		{"window-outline", longNoteModel(30)},
 		{"window-plain", plainNoteModel()},
+		{"window-cited", citedModel("guide/Long note.md", longNoteSource(), 20)},
 	}
 	for _, c := range cases {
 		for _, tc := range themeCases {

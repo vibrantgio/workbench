@@ -367,6 +367,14 @@ const noteHeadSlack = 6
 // under it. A gap held back on every frame would leave a strip of bare paper
 // over that half-cut line — which is what the reader reported seeing, and what
 // reads as a rendering fault rather than as scrolling.
+//
+// The evidence is a screen that brings a line hard against the row, not a
+// bound on every screen: the note's own rhythm now opens blanks wider than
+// the page's gap — an ordinary block gap, wider still above a heading — so a
+// page boundary landing inside one begins on the note's own paper, and no
+// per-screen bound can tell that from a margin held back. A page that did
+// hold the gap back could never reach the row's edge on any screen, which is
+// exactly what this measures.
 func TestOnlyTheNotesStartSpendsTheGapUnderTheRow(t *testing.T) {
 	p := newNotePad(t, longNoteModel(-1))
 	p.frame()
@@ -375,15 +383,12 @@ func TestOnlyTheNotesStartSpendsTheGapUnderTheRow(t *testing.T) {
 	}
 
 	met := false
-	for page := 1; page <= 4 && !p.atEnd(); page++ {
+	for page := 1; page <= 8 && !p.atEnd() && !met; page++ {
 		p.press(key.NamePageDown, 0)
 		if p.atEnd() {
 			break
 		}
-		switch got := p.blankHead(p.shot(t)); {
-		case got >= noteGapDp:
-			t.Fatalf("page %d down the note left %d px of bare paper under the row; the gap belongs to the note's start, not to every screen", page, got)
-		case got <= noteHeadSlack:
+		if got := p.blankHead(p.shot(t)); got <= noteHeadSlack {
 			met = true
 		}
 	}

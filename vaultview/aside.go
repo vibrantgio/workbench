@@ -29,6 +29,7 @@ import (
 	"image"
 	"image/color"
 	"path"
+	"strconv"
 
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
@@ -44,6 +45,7 @@ import (
 
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 )
@@ -70,12 +72,22 @@ const (
 	asidePillRadiusDp = 8
 )
 
-// asideOutlineShare is the largest share of the column the outline pane
-// may take. The backlinks keep the rest whatever the note's shape: a
-// forty-heading note may not bury them, and a note with three headings
-// does not hold space it has no use for, because the pane asks only for
-// what its rows need and this is a ceiling, not a size.
-const asideOutlineShare = 2
+// asideBacklinkCap is how many rows the backlinks pane may stand tall.
+// The pane is the height of its own rows up to this many and no more: a
+// note cited twice spends two rows on it and hands the rest of the column
+// back to the outline, a note cited twenty times spends four and scrolls
+// the other sixteen. Four is the count the owner's own vault reads as a
+// list rather than as a second column — enough that the ordinary note
+// shows every citation it has without the pane ever becoming the thing
+// the column is mostly made of.
+const asideBacklinkCap = 4
+
+// asideBacklinkShare is the largest share of a short column the backlinks
+// pane may take, whatever the cap says. It is not the sizing rule — the
+// cap is — but the rule for a window dragged down to a few rows tall,
+// where four rows of citations would leave the outline nothing at all and
+// the reader would not know there was a pane above.
+const asideBacklinkShare = 2
 
 // backlinkRow is one citing note in the lower pane.
 type backlinkRow struct {
@@ -178,12 +190,15 @@ func newAsideView(cur *docCursor) *asideView {
 }
 
 // layout stacks the two panes: the outline above, a rule, the backlinks
-// below. The outline pane takes the height its rows need and no more, up
-// to a share of the column; everything left over is the backlinks'. That
-// is the split's whole rule, and it is a ceiling rather than a division
-// so that the ordinary note — a handful of headings and a handful of
-// citations — spends the column on rows rather than on two half-empty
-// halves.
+// below. Each pane is the height of its own rows and no more — the
+// backlinks up to the cap, the outline up to whatever the backlinks and
+// the column's own furniture leave it — and what neither needs falls to
+// the foot of the column rather than being handed to a pane to stand
+// empty in. That is the split's whole rule, and it is what makes the
+// column read as two lists of what the note has rather than as two halves
+// of a column: the backlinks area used to be far larger than what it
+// held, and the room it was holding is the outline's whenever the outline
+// has rows to put in it.
 func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
 	entries := v.headings(m)
 	rows := v.backlinks(m)
@@ -191,15 +206,34 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 	complayout.Inset(asideInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		inner := gtx.Constraints.Max
 		rowH := gtx.Dp(list.RowHeight(tok.den))
+		// The backlinks pane: its rows up to the cap, and one row for the
+		// line that stands in for them when the note is cited by nothing —
+		// an empty pane reserving four rows is the shape this task exists
+		// to remove, not a smaller version of it.
+		backH := rowH
+		if len(rows) > 0 {
+			backH = min(len(rows), asideBacklinkCap) * rowH
+		}
+		if ceiling := inner.Y / asideBacklinkShare; backH > ceiling {
+			backH = max(ceiling, 0)
+		}
 		outlineH := rowH // the empty state's own line
 		if len(entries) > 0 {
 			outlineH = len(entries) * rowH
 		}
-		if ceiling := inner.Y / asideOutlineShare; outlineH > ceiling {
-			outlineH = max(ceiling, 0)
+		// What stands between the outline's rows and the column's foot, so
+		// the outline can ask for the rest: the two gaps around the rule,
+		// the rule, the backlinks' own header and the gap under it, and the
+		// pane itself. The header is measured rather than assumed — both
+		// labels are one line of the same style, so the one already laid
+		// out gives the height of the one that has not been.
+		ruleH := max(gtx.Dp(unit.Dp(1)), 1)
+		below := func(labelH int) int {
+			return 2*gtx.Dp(unit.Dp(asideGroupGapDp)) + ruleH +
+				labelH + gtx.Dp(unit.Dp(asideHeaderGapDp)) + backH
 		}
 
-		var y, outlineTop, outlineRows, backTop int
+		var y, labelH, outlineTop, outlineRows, backTop, backRows int
 		rigid := func(w layout.Widget) layout.FlexChild {
 			return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				d := w(gtx)
@@ -209,15 +243,17 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 		}
 		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			rigid(func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, tok.shaper, "Outline", tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
+				d := drawLabel(gtx, tok.shaper, "Outline", tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
+				labelH = d.Size.Y
+				return d
 			}),
 			rigid(complayout.VSpacer(asideHeaderGapDp)),
 			rigid(func(gtx layout.Context) layout.Dimensions {
 				outlineTop = y
-				// Never more than the flex has left to give, whatever the
-				// ceiling said: a window squeezed to a few rows tall must
-				// still show that there is a second pane under this one.
-				h := min(outlineH, max(gtx.Constraints.Max.Y, 0))
+				// Never more than the column has left to give once the pane
+				// under it is paid for: a window squeezed to a few rows tall
+				// must still show that there is a second pane down there.
+				h := min(outlineH, max(gtx.Constraints.Max.Y-below(labelH), 0))
 				gtx.Constraints = layout.Exact(image.Pt(inner.X, h))
 				d := v.outlinePane(gtx, tok, entries)
 				outlineRows = d.Size.Y
@@ -229,18 +265,28 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 			}),
 			rigid(complayout.VSpacer(asideGroupGapDp)),
 			rigid(func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, tok.shaper, "Backlinks", tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
+				return asideBacklinkHeader(gtx, tok, len(rows))
 			}),
 			rigid(complayout.VSpacer(asideHeaderGapDp)),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			rigid(func(gtx layout.Context) layout.Dimensions {
 				backTop = y
-				return v.backlinkPane(gtx, tok, rows)
+				h := min(backH, max(gtx.Constraints.Max.Y, 0))
+				gtx.Constraints = layout.Exact(image.Pt(inner.X, h))
+				d := v.backlinkPane(gtx, tok, rows)
+				backRows = d.Size.Y
+				return d
+			}),
+			// The paper neither pane needs, at the foot of the column where
+			// a reader reads it as the column running out rather than as a
+			// pane holding room it has nothing to put in.
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return layout.Dimensions{Size: image.Pt(inner.X, max(gtx.Constraints.Min.Y, 0))}
 			}),
 		)
 		off := gtx.Dp(unit.Dp(asideInsetDp))
 		v.geom = asideGeom{
 			outline:   image.Rect(off, off+outlineTop, off+inner.X, off+outlineTop+outlineRows),
-			backlinks: image.Rect(off, off+backTop, off+inner.X, off+inner.Y),
+			backlinks: image.Rect(off, off+backTop, off+inner.X, off+backTop+backRows),
 		}
 		return layout.Dimensions{Size: inner}
 	})
@@ -261,6 +307,60 @@ func asidePill(gtx layout.Context, size image.Point, fill color.NRGBA) {
 	}
 	pill := clip.RRect{Rect: rect, NE: r, NW: r, SE: r, SW: r}
 	paint.FillShape(gtx.Ops, fill, pill.Op(gtx.Ops))
+}
+
+// asideBacklinkHeader is the lower pane's heading, with the number of
+// citations beside it whenever the note has any.
+//
+// The cap is what makes the number worth drawing. Four rows of twenty
+// look exactly like four rows of four, and the indicator that says
+// otherwise is a hairline that fades a second after the pane stops
+// moving — so a reader given the pane at rest would read it as the whole
+// answer and never learn that sixteen more are a scroll away. The number
+// is there below the cap as well, where it is merely true rather than
+// necessary: a count that appeared only when the list was long would be
+// a figure the reader cannot learn to trust, since its absence would
+// have to be read as "few" rather than as "not counted".
+func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dimensions {
+	ink := tok.col.Ramps.Neutral.Step(700)
+	title := func(gtx layout.Context) layout.Dimensions {
+		return drawLabel(gtx, tok.shaper, "Backlinks", tok.typ.TitleSmall, ink)
+	}
+	if n == 0 {
+		// The pane's own line already says none; a nought beside the
+		// heading would say it twice.
+		return title(gtx)
+	}
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(title),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return drawLabel(gtx, tok.shaper, strconv.Itoa(n), tok.typ.TitleSmall, ink)
+		}),
+	)
+}
+
+// asideIndicator is the scroll indicator both panes carry, taken from the
+// same colour tokens the note column takes its own from — the design
+// system's treatment rather than a drawing of this column's, so that one
+// window has one way of saying "there is more of this below". It draws
+// nothing at all while a pane's rows fit, and fades a second after the
+// pane stops moving; both are the treatment's own behaviour.
+//
+// Overlay rather than Occupy, which is the opposite of what the note
+// column chose and for the same reason it chose that. A reserved gutter
+// takes its width off every row for as long as the pane exists, and in
+// this column the rows carry the mark: the pill would then stand eight dp
+// off the ink margin on its leading edge and eighteen on its trailing
+// one, which a reviewer measured off the window and read as sloppy before
+// reading it as a scrollbar. The prose the note column protects has no
+// such edge to be pushed off centre, and the bar's own width here lands
+// exactly where a row's text stops, so floating costs the rows nothing
+// they were using.
+func asideIndicator(tok themeTokens) scrollbar.Style {
+	return scrollbar.FromTokens(tok.col)
 }
 
 // asideRule is the hairline parting the two panes. It is a hairline for
@@ -319,7 +419,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 		v.outlineClick = append(v.outlineClick, &widget.Clickable{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
-	return list.LayoutSelectable(gtx, v.outlineList, entries,
+	return list.LayoutSelectableScrollbar(gtx, v.outlineList, asideIndicator(tok), list.Overlay, entries,
 		func(gtx layout.Context, e outlineEntry, selected bool) layout.Dimensions {
 			click := v.outlineClick[e.Idx]
 			if click.Clicked(gtx) {
@@ -400,7 +500,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
-	return list.LayoutSelectable(gtx, v.list, rows,
+	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), list.Overlay, rows,
 		func(gtx layout.Context, row backlinkRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
 			if click.Clicked(gtx) {
