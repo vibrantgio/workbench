@@ -336,17 +336,19 @@ func drawLabel(gtx layout.Context, shaper *text.Shaper, msg string, style tokens
 // site here asks for one of those and none for a size in between.
 const (
 	// markSmallDp is the size a mark takes beside a line of text: the
-	// disclosure marks, which stand next to a fourteen-point label.
+	// disclosure marks, which stand next to a fourteen-point label, and
+	// the history controls, which stand next to the breadcrumb.
 	markSmallDp = 16
 	// markMediumDp is the size a mark takes as a control in its own
-	// right: the two history controls.
+	// right, with no text on its row to answer to. Nothing in this
+	// window is one — every mark here either sits in a text row or is
+	// the window's own sidebar control — so the middle of the set is
+	// named, and taken by nothing.
 	markMediumDp = 20
 	// markLargeDp is the top of the set's range, and what a mark with
 	// axis-aligned edges takes. Those edges land on whole device pixels
 	// at 16 and 24 dp and between them at 20, where the sidebar figure's
-	// faint list lines smear into one grey column; the chevrons are
-	// diagonal throughout and have no grid to miss, so they are the ones
-	// free to take the middle size.
+	// faint list lines smear into one grey column.
 	markLargeDp = 24
 )
 

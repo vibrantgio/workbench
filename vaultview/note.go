@@ -79,12 +79,30 @@ const (
 	propKeyGapDp = 16
 	propRadiusDp = 12
 
-	// noteNavMarkDp sizes the two history controls, which are controls in
-	// their own right at the head of the page; propMarkDp sizes the
-	// properties panel's disclosure, which stands beside its label and
-	// takes the size a mark takes next to a line of text.
-	noteNavMarkDp = markMediumDp
+	// noteNavMarkDp sizes the two history controls and propMarkDp the
+	// properties panel's disclosure; both take the size a mark takes next
+	// to a line of text. The history controls sit in the head row beside
+	// the breadcrumb, so that is the size they belong at: a chevron is a
+	// diagonal spanning the whole of its square, and at the size a mark
+	// takes as a control in its own right its ink stood half again over
+	// the caps of the label it serves. The row centres its children, so
+	// the smaller square costs the row no height and moves nothing else.
+	noteNavMarkDp = markSmallDp
 	propMarkDp    = markSmallDp
+
+	// noteNavInkStep and noteNavDimStep are the neutral steps the two
+	// history controls take. Navigation chrome reads under the text it
+	// stands beside rather than at that text's own ink, so the enabled
+	// control takes a step short of the body ink; the reference reading
+	// app mutes its own history arrows further still, to about a quarter
+	// of its title's contrast, but the dim step has to stay clearly below
+	// the enabled one and the neutral ramp's dark scale leaves no room
+	// under a quarter for it. So the enabled ink is muted as far as the
+	// end-of-stack ink can follow, which is here: the two steps read a
+	// third of the scale apart in both appearances, wider than the pair
+	// they replace read at its narrower end.
+	noteNavInkStep = 600
+	noteNavDimStep = 300
 )
 
 // Chroma styles for the two appearance modes; built once, shared.
@@ -498,9 +516,9 @@ func navButton(
 	}
 	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		semantic.LabelOp(label).Add(gtx.Ops)
-		c := tok.col.Ramps.Neutral.Step(500)
+		c := tok.col.Ramps.Neutral.Step(noteNavDimStep)
 		if enabled {
-			c = tok.col.Text
+			c = tok.col.Ramps.Neutral.Step(noteNavInkStep)
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
 		return drawMark(gtx, mark, noteNavMarkDp, c)
