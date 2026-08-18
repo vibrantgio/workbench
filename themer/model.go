@@ -8,6 +8,7 @@ import (
 
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/imageseed"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // Model is the whole application state: the picture last dropped, the seed
@@ -27,10 +28,40 @@ type Model struct {
 	// DragOver is true while a file drag hovers over the window, and is
 	// what the drop zone highlights on.
 	DragOver bool
+	// Scheme is which side of the light/dark pair the window draws in.
+	// FollowOS until the switch in the window is pressed, and the window's
+	// own answer from then on: judging a seed means seeing both sides of it,
+	// and waiting for the desktop to change its mind is not a way to do that.
+	Scheme Scheme
 	// Problem describes the last drop that did not become candidates —
 	// an unreadable file, a format nothing here decodes, a picture with no
 	// opaque pixels. Empty when the last drop worked.
 	Problem string
+}
+
+// Scheme names which side of a light/dark pair is shown, and whether that is
+// the window's decision or the desktop's.
+type Scheme int
+
+const (
+	// FollowOS takes the side the desktop is set to.
+	FollowOS Scheme = iota
+	// ShowLight and ShowDark override it, in the window, for as long as it
+	// is open.
+	ShowLight
+	ShowDark
+)
+
+// Dark reports whether the window is drawing the dark side, given the palette
+// the OS handed over. The OS decides until the window overrides it.
+func (m Model) Dark(os tokens.ColorTokens) bool {
+	switch m.Scheme {
+	case ShowLight:
+		return false
+	case ShowDark:
+		return true
+	}
+	return isDark(os)
 }
 
 // Seed returns the chosen candidate's colour, and whether there is one. No

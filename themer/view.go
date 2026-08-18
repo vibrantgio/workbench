@@ -16,6 +16,8 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/backdrop"
+	"github.com/vibrantgio/components/gallery/inventory"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/imageseed"
@@ -31,8 +33,10 @@ const (
 	Hairline unit.Dp = 1  // the mat's resting outline
 	Ring     unit.Dp = 2  // the chosen candidate's ring, and the drag highlight
 
-	HeaderH   unit.Dp = 24 // file name and the replace hint, on one line
-	RowLabelH unit.Dp = 20 // the label over the candidate row
+	TopBarH   unit.Dp = 72  // thumbnail, file name and the scheme switch
+	ThumbW    unit.Dp = 108 // the thumbnail's mat
+	ThumbPad  unit.Dp = 6   // mat edge to the picture inside it
+	RowLabelH unit.Dp = 20  // the label over the candidate row, and over the page
 )
 
 // dropZone is the one zone the window registers: the whole of it. The
@@ -69,16 +73,21 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 		})
 }
 
-// ContentLayer renders the page: the dropped picture over the candidate row,
-// or the invitation to drop one.
+// ContentLayer renders the page: the dropped picture and the candidate row
+// over the whole inventory drawn in the chosen candidate's theme, or the
+// invitation to drop something.
 //
-// The click handlers live at subscription scope, OUTSIDE the per-emission
-// Map (llms.txt rule 2): a gesture handler reconstructed every emission
-// loses the press it is in the middle of, and every selection re-emits.
-// There is one per candidate slot, not per candidate, so the handlers
-// outlive a picture being replaced by another.
+// The click handlers and the embedded page's state live at subscription
+// scope, OUTSIDE the per-emission Map (llms.txt rule 2). A gesture handler
+// reconstructed every emission loses the press it is in the middle of, and
+// every selection re-emits; an inventory rebuilt every emission would re-read
+// the reading sample on every pick, which is the one thing on this page that
+// costs anything. There is one click handler per candidate slot, not per
+// candidate, so the handlers outlive a picture being replaced by another.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
+	scheme := new(gesture.Click)
+	page := newEmbed()
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
 			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
@@ -87,28 +96,37 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
 		func(n rx.Tuple2[themed, Model]) layout.Widget {
-			return Page(n.First, n.Second, zones, clicks)
+			return Page(n.First, n.Second, zones, clicks, scheme, page)
 		})
 }
 
 // Page lays the window out and registers it, whole, as the drop zone.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click) layout.Widget {
-	scheme := SchemeFor(t.os, m)
-	p := PaletteFrom(scheme)
+//
+// The window is three bands: what was dropped, the seeds taken out of it, and
+// the whole design system drawn in the one that is chosen. The last of those
+// gets the room, because it is the thing being judged — the picture is a
+// reference and needs only to be recognisable.
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, scheme *gesture.Click, page *embed) layout.Widget {
+	c := SchemeFor(t.os, m)
+	p := PaletteFrom(c)
+	dark := m.Dark(t.os)
 	// Each candidate's generated primary pair, on the side the window is
 	// currently showing, so a swatch promises what choosing it delivers.
 	pairs := make([]tokens.ColorTokens, len(m.Candidates))
-	for i, c := range m.Candidates {
-		light, dark := tokens.FromSeed(c.Color)
+	for i, cand := range m.Candidates {
+		light, darkTokens := tokens.FromSeed(cand.Color)
 		pairs[i] = light
-		if isDark(scheme) {
-			pairs[i] = dark
+		if dark {
+			pairs[i] = darkTokens
 		}
 	}
 	var picture paint.ImageOp
 	if m.Preview != nil {
 		picture = paint.NewImageOp(m.Preview)
 	}
+	// Built here rather than per frame: the sections are a function of the
+	// palette, and the palette changes on an emission, not on a frame.
+	items := page.items(t.typ.Shaper, c)
 
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
@@ -122,11 +140,11 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click) l
 			children := []layout.FlexChild{}
 			if len(m.Candidates) > 0 {
 				children = append(children,
-					rigid(Header(p, t.typ, m)),
-					spacer(Gap),
-					layout.Flexed(1, Picture(p, m, picture)),
+					rigid(TopBar(p, c, t.typ, m, picture, dark, scheme)),
 					spacer(Gap),
 					rigid(CandidateRow(p, t.typ, m, pairs, clicks)),
+					spacer(Gap),
+					layout.Flexed(1, Gallery(p, c, t.typ, GalleryHintFor(m), page.st, items)),
 				)
 			} else {
 				children = append(children, layout.Flexed(1, Invitation(p, t.typ, m)))
@@ -143,27 +161,33 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click) l
 	}
 }
 
-// Header is the loaded picture's line: its name, and the standing offer to
-// replace it.
-func Header(p Palette, ty Type, m Model) layout.Widget {
-	hint := "Drop another image to replace it"
-	tone := p.Muted
-	if m.Problem != "" {
-		hint, tone = m.Problem, p.Problem
-	}
+// TopBar is the loaded picture's line: a thumbnail of it, its name with the
+// standing offer to replace it, and the switch to the other side of the
+// scheme.
+//
+// The picture is a thumbnail and not a plate. What a seed is judged on is the
+// page below, so the picture takes the room a reference needs and no more:
+// enough to recognise which image these colours came out of.
+func TopBar(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp, dark bool, click *gesture.Click) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		r := image.Rectangle{Max: image.Pt(gtx.Constraints.Max.X, gtx.Dp(HeaderH))}
-		textdraw.FillText(gtx, ty.Shaper, ty.Body, r, 0, 0.5, p.Text, m.Name)
-		textdraw.FillText(gtx, ty.Shaper, ty.Small, r, 1, 0.5, tone, hint)
-		return layout.Dimensions{Size: r.Max}
+		h := gtx.Dp(TopBarH)
+		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = h, h
+		layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+			rigid(Thumbnail(p, m, src)),
+			spacer(Gap),
+			layout.Flexed(1, Caption(p, ty, m)),
+			spacer(Gap),
+			rigid(SchemeToggle(c, ty, dark, click)),
+		)
+		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, h)}
 	}
 }
 
-// Picture draws the dropped image on a mat, scaled to fit and centred, so
-// the candidates below it can be compared against what they came from.
-func Picture(p Palette, m Model, src paint.ImageOp) layout.Widget {
+// Thumbnail draws the dropped image on a mat, scaled to fit and centred, so
+// the candidates beside it can be compared against what they came from.
+func Thumbnail(p Palette, m Model, src paint.ImageOp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
+		size := image.Pt(gtx.Dp(ThumbW), gtx.Dp(TopBarH))
 		r := image.Rectangle{Max: size}
 		fill, edge := p.Surface, p.Divider
 		if m.DragOver {
@@ -175,7 +199,8 @@ func Picture(p Palette, m Model, src paint.ImageOp) layout.Widget {
 			return layout.Dimensions{Size: size}
 		}
 		defer clip.UniformRRect(r, gtx.Dp(Radius)).Push(gtx.Ops).Pop()
-		return layout.UniformInset(Gap).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints = layout.Exact(size)
+		layout.UniformInset(ThumbPad).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return widget.Image{
 					Src:      src,
@@ -185,6 +210,50 @@ func Picture(p Palette, m Model, src paint.ImageOp) layout.Widget {
 				}.Layout(gtx)
 			})
 		})
+		return layout.Dimensions{Size: size}
+	}
+}
+
+// Caption names the loaded picture and says what to do with the window next.
+func Caption(p Palette, ty Type, m Model) layout.Widget {
+	hint := "Drop another image to replace it"
+	tone := p.Muted
+	if m.Problem != "" {
+		hint, tone = m.Problem, p.Problem
+	}
+	return func(gtx layout.Context) layout.Dimensions {
+		w, h := gtx.Constraints.Max.X, gtx.Dp(TopBarH)
+		line := gtx.Dp(20)
+		name := image.Rect(0, h/2-line, w, h/2)
+		note := image.Rect(0, h/2, w, h/2+line)
+		textdraw.FillText(gtx, ty.Shaper, ty.Body, name, 0, 0.5, p.Text, m.Name)
+		textdraw.FillText(gtx, ty.Shaper, ty.Small, note, 0, 0.5, tone, hint)
+		return layout.Dimensions{Size: image.Pt(w, h)}
+	}
+}
+
+// SchemeToggle is the light/dark switch. The pill is the same one the
+// inventory's own pages carry, so the control that changes scheme looks the
+// same wherever the inventory is shown; what is added here is the press, and
+// the message it sends names the side to move to rather than asking for a
+// flip.
+func SchemeToggle(c tokens.ColorTokens, ty Type, dark bool, click *gesture.Click) layout.Widget {
+	pill := inventory.SchemeSwitch(ty.Shaper, c, dark)
+	return func(gtx layout.Context) layout.Dimensions {
+		dims := pill(gtx)
+		area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+		click.Add(gtx.Ops)
+		area.Pop()
+		for {
+			e, ok := click.Update(gtx.Source)
+			if !ok {
+				break
+			}
+			if e.Kind == gesture.KindClick {
+				mvu.MessageOp{Message: SetScheme{Dark: !dark}}.Add(gtx.Ops)
+			}
+		}
+		return dims
 	}
 }
 

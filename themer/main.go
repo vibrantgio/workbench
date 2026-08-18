@@ -1,9 +1,11 @@
 // Command themer picks a brand colour out of a picture. Drop an image
 // anywhere on the window and the colours the picture is made of come back as
 // a row of seed candidates, vivid ones first, each swatch showing the colour
-// beside the primary pair a palette derivation makes of it. Click one and
-// the window itself re-themes to it, which is the shortest honest answer to
-// "what would this colour look like".
+// beside the primary pair a palette derivation makes of it. Click one and the
+// whole design system underneath re-draws in it — every component, every
+// composition and a page of prose — which is the shortest honest answer to
+// "what would this colour look like". A switch beside the picture shows the
+// other side of the pair, because a seed has two and both have to be seen.
 //
 // The whole window is the drop target: file drops arrive as ordinary
 // messages through mvu/desktop, resolved against a single zone covering the
@@ -46,10 +48,13 @@ func main() {
 const modelObsConsumers = 2
 
 // Window size: wide enough for the candidate row to lay out without
-// wrapping and tall enough for the picture above it to be worth looking at.
+// wrapping and for the widest composition on the embedded page to stand at
+// its own width, and tall enough that the page under the row is the biggest
+// thing in the window — which it has to be, because it is what is being
+// looked at.
 const (
-	windowW = 980
-	windowH = 680
+	windowW = 1040
+	windowH = 820
 )
 
 func run() {

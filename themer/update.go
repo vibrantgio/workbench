@@ -52,6 +52,11 @@ func ReduceModel(m Model, message any) Model {
 		if msg.Index >= 0 && msg.Index < len(m.Candidates) {
 			m.Selected = msg.Index
 		}
+	case SetScheme:
+		m.Scheme = ShowLight
+		if msg.Dark {
+			m.Scheme = ShowDark
+		}
 	}
 	return m
 }

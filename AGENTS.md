@@ -15,10 +15,11 @@ lives here, and development planning lives in `.github`.
 **Layer.** Outside ADR-001's tier table: applications at the top of the
 stack, which the tier rule exempts and which may import any layer of the
 design system. Its eight applications import, between them, `backdrop`,
-`components`, `effects`, `font`, `ivg`, `ivg/raster/gio`, `markdown`,
-`mvu`, `mvu/desktop`, `noise`, `patterns`, `seen`, `seen/context/gio`,
-`svg`, `svg/driver/gio`, `textdraw` and `theme`. That direction is measured
-rather than typed — `scripts/check-layers.sh --edges` reports the graph and
+`components`, `components/gallery`, `effects`, `font`, `ivg`,
+`ivg/raster/gio`, `markdown`, `mvu`, `mvu/desktop`, `noise`, `patterns`,
+`seen`, `seen/context/gio`, `svg`, `svg/driver/gio`, `textdraw` and
+`theme`. That direction is measured rather than typed —
+`scripts/check-layers.sh --edges` reports the graph and
 `scripts/sync-agents.sh` renders these sentences from it — so correcting
 them here changes nothing. The other direction is measured too and
 deliberately not written down: the gate checks the graph both ways, but a

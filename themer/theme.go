@@ -17,17 +17,32 @@ import (
 // the palette the chosen candidate generates — the point of the application
 // being that a seed is judged by what it does to a window, not by a swatch.
 //
-// Which side of the generated pair applies is still the OS's decision, and
-// it is read off the palette the OS handed over rather than asked for a
-// second time: a scheme whose background is dark is a dark scheme.
+// Which side of the generated pair applies starts as the OS's decision, read
+// off the palette the OS handed over rather than asked for a second time — a
+// scheme whose background is dark is a dark scheme — and becomes the window's
+// as soon as its own switch is pressed. A seed has two sides and both have to
+// be reachable to judge it.
+//
+// The one awkward corner is an override with nothing chosen: there is no
+// generated pair to take the other side of, so the theme's own default pair
+// stands in. It is the only other pair there is, and it is what the window
+// would show a moment later anyway.
 func SchemeFor(os tokens.ColorTokens, m Model) tokens.ColorTokens {
+	dark := m.Dark(os)
 	seed, ok := m.Seed()
 	if !ok {
-		return os
+		switch {
+		case m.Scheme == FollowOS:
+			return os
+		case dark:
+			return tokens.DefaultDark
+		default:
+			return tokens.DefaultLight
+		}
 	}
-	light, dark := tokens.FromSeed(seed)
-	if isDark(os) {
-		return dark
+	light, darkTokens := tokens.FromSeed(seed)
+	if dark {
+		return darkTokens
 	}
 	return light
 }
@@ -56,7 +71,18 @@ type Palette struct {
 // PaletteFrom resolves the palette in the token vocabulary: the pinned
 // Background, Primary and Error, the neutral ramp's surface, border and
 // text steps, and the primary ramp's container step for the selection fill.
+//
+// The container step is read off the side the palette is on, and it is the
+// one place a single step number will not do. Every ramp runs dark to light
+// in both schemes, and the ground moves with them: on the light side step 100
+// is a pale tint standing just off a near-white page, while on the dark side
+// the same step is very nearly the dark page itself — a selection fill nobody
+// can see, on the one thing in the window that has to be seen.
 func PaletteFrom(c tokens.ColorTokens) Palette {
+	container := c.Ramps.Primary.Step(100)
+	if isDark(c) {
+		container = c.Ramps.Primary.Step(300)
+	}
 	return Palette{
 		Backdrop: c.Background,
 		Surface:  c.Ramps.Neutral.Step(200),
@@ -70,7 +96,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		Muted:     c.Ramps.Neutral.Step(700),
 		Accent:    c.Primary,
 		OnAccent:  c.OnPrimary,
-		Selection: c.Ramps.Primary.Step(100),
+		Selection: container,
 		Problem:   c.Error,
 	}
 }

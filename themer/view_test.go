@@ -30,9 +30,16 @@ func pinned() Type {
 // page renders the whole window for a model and returns the capture.
 func page(t *testing.T, m Model, os tokens.ColorTokens) *image.RGBA {
 	t.Helper()
+	return pageOn(t, newEmbed(), m, os)
+}
+
+// pageOn is page against an embedded inventory that outlives the render,
+// which is how the window itself holds it: one inventory, many palettes.
+func pageOn(t *testing.T, e *embed, m Model, os tokens.ColorTokens) *image.RGBA {
+	t.Helper()
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
 	size := image.Pt(windowW, windowH)
-	widget := Page(themed{os: os, typ: pinned()}, m, &desktop.ZoneGroup{}, clicks)
+	widget := Page(themed{os: os, typ: pinned()}, m, &desktop.ZoneGroup{}, clicks, new(gesture.Click), e)
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		// The backdrop is its own layer at runtime; here it is one fill
 		// under the page, resolved the same way that layer resolves it.
@@ -61,11 +68,20 @@ func dropped(t *testing.T) Model {
 // cardTop is the y of the candidate cards' top edge, cardW the width they
 // share out between them, and cardX the left edge of card i — all computed
 // from the same constants and the same arithmetic the row lays out with. The
-// row sits at the bottom of the page, inside the window margin.
+// row sits under the top bar, between the picture it came from and the page
+// it themes.
 func cardTop() int {
-	rowH := int(RowLabelH) + int(RowTop) + int(CellH)
-	return windowH - int(Pad) - rowH + int(RowLabelH) + int(RowTop)
+	return int(Pad) + int(TopBarH) + int(Gap) + int(RowLabelH) + int(RowTop)
 }
+
+// galleryTop is the y of the embedded page's panel, and galleryBottom the y
+// past its last row: the band of the window the whole design system is drawn
+// in.
+func galleryTop() int {
+	return cardTop() + int(CellH) + int(Gap) + int(RowLabelH) + int(RowTop)
+}
+
+func galleryBottom() int { return windowH - int(Pad) }
 
 func cardW(n int) int { return cellWidth(windowW-2*int(Pad), int(CellGap), n) }
 
