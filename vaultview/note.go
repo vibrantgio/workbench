@@ -104,17 +104,15 @@ const (
 	noteNavDimStep = 300
 )
 
-// noteCodeBase names the syntax palette a note's code fences are derived
-// from. It is a base, not a finished style: the highlighter holds each of
-// its entries' hue and chroma and re-fits the lightness against the fill
-// this theme actually puts under a fence, so the inks land where they are
-// legible on it rather than where they were legible on the near-white the
-// base's author drew them on. The name covers both appearances — which
-// member of the pair is derived from follows the tokens.
-const noteCodeBase = "github"
-
 // noteHighlight derives the code highlighter for a set of tokens, and
 // remembers the last one it made.
+//
+// The base is the highlighter's own default, and it is a base rather than a
+// finished style: each of its entries keeps its hue and chroma and takes the
+// lightness that is legible on the fill this theme actually puts under a
+// fence, rather than the one that was legible on the near-white its author
+// drew it on. The one name covers both appearances — which member of the pair
+// is derived from follows the tokens.
 //
 // The memo is what keeps the derivation off the frame path. noteStyle runs
 // on every frame, and a derivation walks a chroma base's whole entry table
@@ -127,7 +125,7 @@ var noteHighlight = func() func(tokens.ColorTokens) markdown.Highlighter {
 	var cached markdown.Highlighter
 	return func(c tokens.ColorTokens) markdown.Highlighter {
 		if cached == nil || c != last {
-			last, cached = c, highlight.Adapt(noteCodeBase, c)
+			last, cached = c, highlight.Adapt(highlight.DefaultBase, c)
 		}
 		return cached
 	}
