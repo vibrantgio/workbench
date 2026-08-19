@@ -155,6 +155,7 @@ func TestTheKeepButtonSaysWhetherItIsKept(t *testing.T) {
 	m := loaded()
 	offering := page(t, m, tokens.DefaultLight)
 	m.Kept, _ = m.Seed()
+	m.KeptBase = m.Base()
 	if !m.SeedIsKept() {
 		t.Fatal("the fixture does not have its own choice kept")
 	}

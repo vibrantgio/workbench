@@ -31,14 +31,22 @@ type SelectCandidate struct {
 	Index int
 }
 
-// KeepSeed asks for the chosen candidate to outlast the window: it is
-// written to the kept-theme file, where every application that adopts a
-// brand looks for one. Emitted by a click on the keep affordance.
+// SelectBase chooses the syntax palette code is coloured from, by its
+// position in the base selector. Emitted by a click on one of its rows.
+type SelectBase struct {
+	Index int
+}
+
+// KeepSeed asks for what is on screen to outlast the window: the chosen
+// candidate and the chosen syntax base are written to the kept-theme file,
+// where every application that adopts a brand looks for one. Emitted by a
+// click on the keep affordance.
 type KeepSeed struct{}
 
-// SeedKept reports the colour now in that file.
+// SeedKept reports what is now in that file.
 type SeedKept struct {
 	Seed stdcolor.NRGBA
+	Base string
 }
 
 // KeepFailed reports a keep that did not happen, with the reason in the

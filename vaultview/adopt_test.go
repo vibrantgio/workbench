@@ -10,6 +10,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/theme/brand"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/tokens"
@@ -74,6 +75,103 @@ func TestAKeptBrandDressesTheWholeWindow(t *testing.T) {
 				t.Error("the kept brand's accent is nowhere in the window")
 			}
 		})
+	}
+}
+
+// TestTheKeptBaseColoursTheCode is the adoption proof for the other half of a
+// kept theme. The colour a person chose dresses the window; the syntax base
+// they chose beside it colours the code in it, and this asserts that what
+// reaches a fence here is the same derivation the window that offered the
+// base was showing them — ink for ink, not merely "some highlighting".
+//
+// The comparison is against the derivation done directly from the kept name,
+// because that is what "reproduces it" means: the file names a base, and two
+// applications deriving from that name on one palette must land on the same
+// colours or the name is a suggestion.
+func TestTheKeptBaseColoursTheCode(t *testing.T) {
+	const chosen = "monokai" // nothing like the default, in either appearance
+	path := filepath.Join(t.TempDir(), "theme.json")
+	if err := brand.SaveTo(path, brand.Brand{Seed: harbourRed, Base: chosen, Source: "harbour.jpg"}); err != nil {
+		t.Fatalf("keep: %v", err)
+	}
+	kept := brand.KeptFrom(path)
+	if kept.Base != chosen {
+		t.Fatalf("the kept theme names base %q, want %q", kept.Base, chosen)
+	}
+	defer restoreCodeBase(noteCodeBase)
+	noteCodeBase = adoptCodeBase(kept)
+	if noteCodeBase != chosen {
+		t.Fatalf("this window adopted base %q, want the kept %q", noteCodeBase, chosen)
+	}
+
+	const src = "// greet is a greeting.\nfunc greet(name string) string {\n\treturn fmt.Sprintf(\"hello, %s\", name)\n}\n"
+	light, dark := kept.Colors()
+	for _, tc := range []struct {
+		name   string
+		colors tokens.ColorTokens
+	}{{"light", light}, {"dark", dark}} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := noteStyle(tc.colors, tokens.DefaultTypography).Highlight("go", src)
+			want := highlight.Adapt(chosen, tc.colors)("go", src)
+			if len(got) == 0 {
+				t.Fatal("the note's fence came back with no runs at all")
+			}
+			if len(got) != len(want) {
+				t.Fatalf("the fence split into %d runs, the same derivation gives %d", len(got), len(want))
+			}
+			coloured := 0
+			for i := range got {
+				if got[i] != want[i] {
+					t.Fatalf("run %d is %+v, the same derivation gives %+v", i, got[i], want[i])
+				}
+				if got[i].Color.A != 0 {
+					coloured++
+				}
+			}
+			t.Logf("%d runs, %d of them coloured, matching the derivation ink for ink", len(got), coloured)
+			if coloured == 0 {
+				t.Fatal("no run carries a colour, so matching proves nothing")
+			}
+			// And it is the kept base and not the default that got there.
+			fallback := highlight.Adapt(highlight.DefaultBase, tc.colors)("go", src)
+			same := true
+			for i := range got {
+				if i >= len(fallback) || got[i].Color != fallback[i].Color {
+					same = false
+					break
+				}
+			}
+			if same {
+				t.Error("the fence is coloured exactly as the default base would colour it — the kept name reached nothing")
+			}
+		})
+	}
+
+	// The API agreeing is one thing; the pixels are the other. The window is
+	// rendered under the kept base and under the default, and the two differ
+	// — so the name reaches the screen and not just a style value.
+	under := func(base string) *image.RGBA {
+		noteCodeBase = base
+		return window(t, light)
+	}
+	if golden.PixelDiff(under(chosen), under(highlight.DefaultBase)) == 0 {
+		t.Error("the window drew the same pixels under two different syntax bases")
+	}
+}
+
+// restoreCodeBase puts the process-wide base back after a test has moved it.
+func restoreCodeBase(base string) { noteCodeBase = base }
+
+// TestAnUnknownKeptBaseFallsBackToTheDefault: a theme naming a style this
+// build cannot resolve — one whose file has left the styles folder — colours
+// code exactly as it does for somebody who never chose one. The alternative
+// is a window that refuses to draw a fence because a preference went stale.
+func TestAnUnknownKeptBaseFallsBackToTheDefault(t *testing.T) {
+	defer restoreCodeBase(noteCodeBase)
+	for _, name := range []string{"", "a-style-nobody-wrote"} {
+		if got := adoptCodeBase(brand.Brand{Seed: harbourRed, Base: name}); got != highlight.DefaultBase {
+			t.Errorf("a kept base of %q was adopted as %q, want the default %q", name, got, highlight.DefaultBase)
+		}
 	}
 }
 

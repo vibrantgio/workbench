@@ -40,6 +40,7 @@ import (
 	"github.com/vibrantgio/markdown/obsidian"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/toast"
+	"github.com/vibrantgio/theme/brand"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -104,28 +105,54 @@ const (
 	noteNavDimStep = 300
 )
 
+// noteCodeBase is the syntax palette a note's fences are derived from: the
+// one the kept theme names when it names one this build can resolve, and the
+// highlighter's own default otherwise — a theme with no base in it, or one
+// naming a style file that has since left the styles folder, colours code
+// exactly as it did for somebody who never chose.
+//
+// It is set once, at startup, from the same kept theme the palette comes
+// from, and read from then on. The choice is a preference and not a mode:
+// there is no affordance in this window to change it, because the window
+// that chooses a theme is the one that keeps it.
+var noteCodeBase = highlight.DefaultBase
+
+// adoptCodeBase resolves the syntax base a kept theme asks for. The styles
+// folder is read first: a kept base may name a style somebody wrote
+// themselves, and a name that cannot be resolved falls back rather than
+// failing. What the folder could not read is not surfaced here — this window
+// shows notes, and the place a style file gets fixed is the window that
+// offered it.
+func adoptCodeBase(kept brand.Brand) string {
+	if dir, err := brand.StylesDir(); err == nil {
+		highlight.LoadDir(dir)
+	}
+	return highlight.BaseOrDefault(kept.Base)
+}
+
 // noteHighlight derives the code highlighter for a set of tokens, and
 // remembers the last one it made.
 //
-// The base is the highlighter's own default, and it is a base rather than a
-// finished style: each of its entries keeps its hue and chroma and takes the
-// lightness that is legible on the fill this theme actually puts under a
-// fence, rather than the one that was legible on the near-white its author
-// drew it on. The one name covers both appearances — which member of the pair
-// is derived from follows the tokens.
+// The name is a base rather than a finished style: each of its entries keeps
+// its hue and chroma and takes the lightness that is legible on the fill this
+// theme actually puts under a fence, rather than the one that was legible on
+// the near-white its author drew it on. The one name covers both appearances
+// — which member of the pair is derived from follows the tokens.
 //
 // The memo is what keeps the derivation off the frame path. noteStyle runs
 // on every frame, and a derivation walks a chroma base's whole entry table
 // and re-fits each ink against the surface — cheap once per theme, wasteful
-// sixty times a second. The tokens are the key because they are what the
-// derived style is a function of: a new palette means a new style, and
-// nothing else does.
+// sixty times a second. The base and the tokens are the key because they are
+// what the derived style is a function of: a new palette means a new style,
+// so does a new base, and nothing else does.
 var noteHighlight = func() func(tokens.ColorTokens) markdown.Highlighter {
 	var last tokens.ColorTokens
+	var lastBase string
 	var cached markdown.Highlighter
 	return func(c tokens.ColorTokens) markdown.Highlighter {
-		if cached == nil || c != last {
-			last, cached = c, highlight.Adapt(highlight.DefaultBase, c)
+		if cached == nil || c != last || noteCodeBase != lastBase {
+			last, lastBase = c, noteCodeBase
+			cached = highlight.Adapt(noteCodeBase, c)
 		}
 		return cached
 	}

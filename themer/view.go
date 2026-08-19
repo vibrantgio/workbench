@@ -18,6 +18,7 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/gallery/inventory"
+	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
@@ -97,7 +98,7 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
 	keep, scheme := new(gesture.Click), new(gesture.Click)
-	page := newEmbed()
+	page, bases := newEmbed(), newBaseSelector()
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
 			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
@@ -106,7 +107,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
 		func(n rx.Tuple2[themed, Model]) layout.Widget {
-			return Page(n.First, n.Second, zones, clicks, keep, scheme, page)
+			return Page(n.First, n.Second, zones, clicks, keep, scheme, page, bases)
 		})
 }
 
@@ -116,7 +117,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 // the whole design system drawn in the one that is chosen. The last of those
 // gets the room, because it is the thing being judged — the picture is a
 // reference and needs only to be recognisable.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, keep, scheme *gesture.Click, page *embed) layout.Widget {
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, keep, scheme *gesture.Click, page *embed, bases *baseSelector) layout.Widget {
 	c := SchemeFor(t.os, m)
 	p := PaletteFrom(c)
 	dark := m.Dark(t.os)
@@ -135,8 +136,9 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, k
 		picture = paint.NewImageOp(m.Preview)
 	}
 	// Built here rather than per frame: the sections are a function of the
-	// palette, and the palette changes on an emission, not on a frame.
-	items := page.items(t.typ.Shaper, c)
+	// palette and the chosen syntax base, and both change on an emission,
+	// not on a frame.
+	items := page.items(t.typ.Shaper, c, m.Base())
 
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
@@ -154,7 +156,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, k
 					spacer(Gap),
 					rigid(CandidateRow(p, t.typ, m, pairs, clicks)),
 					spacer(Gap),
-					layout.Flexed(1, Gallery(p, c, t.typ, GalleryHintFor(m), page.st, items)),
+					layout.Flexed(1, JudgingBand(p, c, t.typ, m, page.st, items, bases)),
 				)
 			} else {
 				children = append(children, layout.Flexed(1, Invitation(p, t.typ, m)))
@@ -167,6 +169,29 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, k
 		if m.DragOver {
 			strokeRRect(gtx, image.Rectangle{Max: size}, gtx.Dp(Radius+Pad/2), gtx.Dp(Ring+1), p.Accent)
 		}
+		return layout.Dimensions{Size: size}
+	}
+}
+
+// JudgingBand is the bottom of the window and most of it: the syntax bases
+// in a column on the left, the whole design system drawn in the chosen theme
+// beside them.
+//
+// They share a band rather than stacking because they are one act. The names
+// change what the fence on the page is coloured with, and a name that has to
+// be chosen from behind the thing it changes is chosen blind.
+func JudgingBand(p Palette, c tokens.ColorTokens, ty Type, m Model, st *list.State, items []layout.Widget, bases *baseSelector) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(BaseW))
+				gtx.Constraints.Min = gtx.Constraints.Max
+				return BasePanel(p, c, ty, m, bases)(gtx)
+			}),
+			spacer2(Gap),
+			layout.Flexed(1, Gallery(p, c, ty, GalleryHintFor(m), st, items)),
+		)
 		return layout.Dimensions{Size: size}
 	}
 }
@@ -344,6 +369,11 @@ func rigid(w layout.Widget) layout.FlexChild { return layout.Rigid(w) }
 // spacer is a fixed vertical gap between two Flex children.
 func spacer(h unit.Dp) layout.FlexChild {
 	return layout.Rigid(layout.Spacer{Height: h}.Layout)
+}
+
+// spacer2 is the horizontal one, for the band that lays out across.
+func spacer2(w unit.Dp) layout.FlexChild {
+	return layout.Rigid(layout.Spacer{Width: w}.Layout)
 }
 
 // fillRRect paints a rounded rectangle.

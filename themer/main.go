@@ -3,12 +3,19 @@
 // a row of seed candidates, vivid ones first, each swatch showing the colour
 // beside the primary pair a palette derivation makes of it. Click one and the
 // whole design system underneath re-draws in it — every component, every
-// composition and a page of prose — which is the shortest honest answer to
-// "what would this colour look like". A switch beside the picture shows the
-// other side of the pair, because a seed has two and both have to be seen.
-// Keep the one you want and it is written where every application that
-// adopts a brand looks for one, this window included: the next thing you
-// open is already wearing it.
+// composition, a page of prose and a specimen of code — which is the
+// shortest honest answer to "what would this colour look like". A switch
+// beside the picture shows the other side of the pair, because a seed has two
+// and both have to be seen.
+//
+// Code is the one surface a palette does not settle on its own, so it gets a
+// second choice: a column beside the page lists every syntax base there is —
+// the styles that ship, and any style file dropped into the styles folder
+// beside the kept theme — and choosing one re-colours the specimen on the
+// spot. Keep the two together and they are written where every application
+// that adopts a brand looks for one, this window included: the next thing you
+// open is already wearing the colour, and its code is already in the base you
+// chose.
 //
 // The whole window is the drop target: file drops arrive as ordinary
 // messages through mvu/desktop, resolved against a single zone covering the

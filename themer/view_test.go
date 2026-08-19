@@ -34,12 +34,18 @@ func page(t *testing.T, m Model, os tokens.ColorTokens) *image.RGBA {
 }
 
 // pageOn is page against an embedded inventory that outlives the render,
-// which is how the window itself holds it: one inventory, many palettes.
-func pageOn(t *testing.T, e *embed, m Model, os tokens.ColorTokens) *image.RGBA {
+// which is how the window itself holds it: one inventory, many palettes. The
+// base selector can be passed in for the same reason — a test that reads the
+// column by position needs the column to be where it left it.
+func pageOn(t *testing.T, e *embed, m Model, os tokens.ColorTokens, sel ...*baseSelector) *image.RGBA {
 	t.Helper()
+	bases := newBaseSelector()
+	if len(sel) > 0 {
+		bases = sel[0]
+	}
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
 	size := image.Pt(windowW, windowH)
-	widget := Page(themed{os: os, typ: pinned()}, m, &desktop.ZoneGroup{}, clicks, new(gesture.Click), new(gesture.Click), e)
+	widget := Page(themed{os: os, typ: pinned()}, m, &desktop.ZoneGroup{}, clicks, new(gesture.Click), new(gesture.Click), e, bases)
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		// The backdrop is its own layer at runtime; here it is one fill
 		// under the page, resolved the same way that layer resolves it.

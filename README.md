@@ -66,7 +66,10 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   image anywhere on the window and the colours it is made of come back as a
   row of seed candidates, vivid ones first, each swatch beside the primary
   pair a palette derivation makes of it; click one and the window re-themes
-  to it. Also the reference for an OS file drop — a window-wide drop zone
+  to it. A column beside the page lists every syntax base — the styles that
+  ship and any style file dropped into the styles folder beside the kept
+  theme — so the code specimen can be judged too, and the base is kept with
+  the seed. Also the reference for an OS file drop — a window-wide drop zone
   with its hover highlight, delivered into the MVU loop as messages — and
   for a theme observable the application itself re-seeds.
 - **[`mindchat/`](./mindchat)** — an OpenAI chat client and the most

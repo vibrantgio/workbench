@@ -19,7 +19,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			// arrives anyway is not an error.
 			return model, mvu.DoNothing()
 		}
-		return model, KeepTheme(model.KeepPath, seed, model.Name)
+		return model, KeepTheme(model.KeepPath, seed, model.Base(), model.Name)
 	case desktop.FilesDropped:
 		model.DragOver = false
 		if len(msg.Paths) == 0 {
@@ -62,8 +62,12 @@ func ReduceModel(m Model, message any) Model {
 		if msg.Index >= 0 && msg.Index < len(m.Candidates) {
 			m.Selected = msg.Index
 		}
+	case SelectBase:
+		if msg.Index >= 0 && msg.Index < len(m.Bases) {
+			m.BaseAt = msg.Index
+		}
 	case SeedKept:
-		m.Kept = msg.Seed
+		m.Kept, m.KeptBase = msg.Seed, msg.Base
 		m.Problem = ""
 	case KeepFailed:
 		m.Problem = msg.Reason

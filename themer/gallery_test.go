@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/theme/imageseed"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -20,19 +21,25 @@ import (
 var dumpDir = flag.String("themer.dump", "", "write the window to this directory, one PNG per scheme")
 
 // TestWindowDump writes the window mid-flow — a picture loaded, a candidate
-// applied, the page drawn in it — in both schemes. It skips unless
-// -themer.dump names a directory.
+// applied, a syntax base chosen and the code it colours in view — in both
+// schemes. It skips unless -themer.dump names a directory.
 func TestWindowDump(t *testing.T) {
 	if *dumpDir == "" {
 		t.Skip("themer: pass -themer.dump=DIR to write the window out")
 	}
-	m := ReduceModel(Model{}, ImageLoaded{
+	m := ReduceModel(withBases(), ImageLoaded{
 		Path:       "harbour.png",
 		Preview:    preview(scene(900, 600)),
 		Candidates: imageseed.Extract(scene(900, 600)),
 	})
 	m = ReduceModel(m, SelectCandidate{Index: 1})
 	e := newEmbed()
+	// The first base of a session moves nothing, so the dump opens on the
+	// default and then chooses another — which is the flow the window is for,
+	// and what brings the code specimen into view.
+	first := pageOn(t, e, m, tokens.DefaultLight)
+	_ = first
+	m = ReduceModel(m, SelectBase{Index: baseIndex(m.Bases, "dracula")})
 	for _, sc := range []struct {
 		name string
 		dark bool
@@ -181,14 +188,14 @@ func TestTheEmbeddedPageIsTheBiggestBand(t *testing.T) {
 func TestAPickDoesNotRebuildTheInventory(t *testing.T) {
 	e := newEmbed()
 	shaper := pinned().Shaper
-	e.items(shaper, tokens.DefaultLight)
+	e.items(shaper, tokens.DefaultLight, highlight.DefaultBase)
 	built := e.inv
 	if built == nil {
 		t.Fatal("the first render built no inventory")
 	}
 	light, dark := tokens.FromSeed(fixtureBlue)
-	e.items(shaper, light)
-	e.items(shaper, dark)
+	e.items(shaper, light, highlight.DefaultBase)
+	e.items(shaper, dark, highlight.DefaultBase)
 	if e.inv != built {
 		t.Error("a change of palette rebuilt the inventory — the reading sample is being parsed again on every pick")
 	}
@@ -201,12 +208,12 @@ func BenchmarkRetheme(b *testing.B) {
 	e := newEmbed()
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	light, dark := tokens.FromSeed(fixtureBlue)
-	e.items(shaper, light)
+	e.items(shaper, light, highlight.DefaultBase)
 	for i := 0; b.Loop(); i++ {
 		c := light
 		if i%2 == 1 {
 			c = dark
 		}
-		e.items(shaper, c)
+		e.items(shaper, c, highlight.DefaultBase)
 	}
 }

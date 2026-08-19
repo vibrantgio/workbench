@@ -41,17 +41,35 @@ type embed struct {
 	st     *list.State
 	shaper *text.Shaper
 	inv    *inventory.Inventory
+	base   string
 }
 
 func newEmbed() *embed { return &embed{st: list.NewState()} }
 
 // items returns the whole inventory as the rows of the scrolling column, in
-// the given palette. The inventory itself is built on the first call — before
-// anything has been dropped, so the parse is behind us by the time a pick has
-// to be quick — and again only if the typography under it is replaced.
-func (e *embed) items(shaper *text.Shaper, c tokens.ColorTokens) []layout.Widget {
+// the given palette and with its code coloured from the given syntax base.
+// The inventory itself is built on the first call — before anything has been
+// dropped, so the parse is behind us by the time a pick has to be quick — and
+// again only if the typography under it is replaced.
+//
+// Changing the base scrolls the code specimen into view. The column is
+// several screens tall and the base is the one choice here whose whole effect
+// is inside a single section of it: a person who picks another base and sees
+// no change has been told nothing, and what they were looking at was a page
+// of swatches. The first base of a session is not a change — it is what the
+// window opened on — so it moves nothing.
+func (e *embed) items(shaper *text.Shaper, c tokens.ColorTokens, base string) []layout.Widget {
 	if e.inv == nil || e.shaper != shaper {
 		e.inv, e.shaper = inventory.New(shaper), shaper
+		e.base = ""
+	}
+	if e.base != base {
+		reveal := e.base != ""
+		e.base = base
+		e.inv.SetCodeBase(base)
+		if row := e.inv.ItemIndex(c, inventory.CodeSectionName()); reveal && row >= 0 {
+			e.st.ScrollTo(row)
+		}
 	}
 	return e.inv.Items(c)
 }
@@ -98,11 +116,17 @@ func Gallery(p Palette, c tokens.ColorTokens, ty Type, seed string, st *list.Sta
 	}
 }
 
-// GalleryHintFor writes what the page is rendered from: the chosen colour, or
-// the standing invitation while there is none.
+// GalleryHintFor writes what the page is rendered from: the chosen colour and
+// the syntax base its code is coloured with, or the standing invitation while
+// there is none.
+//
+// The base is named here as well as marked in the column because the column
+// scrolls. A person who has gone looking through seventy-four names has
+// scrolled the one they applied off the top of it, and the page underneath is
+// then coloured by something the window no longer says out loud.
 func GalleryHintFor(m Model) string {
 	if seed, ok := m.Seed(); ok {
-		return "rendered from " + hexOf(seed)
+		return "rendered from " + hexOf(seed) + " · code in " + m.Base()
 	}
 	return GalleryHint
 }
