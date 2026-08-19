@@ -35,9 +35,9 @@ package main
 import (
 	"strings"
 
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/patterns/toast"
-	"github.com/vibrantgio/mvu"
 )
 
 // Model is the complete runtime state of the feeds app.

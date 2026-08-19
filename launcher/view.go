@@ -16,11 +16,11 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/backdrop"
-	"github.com/vibrantgio/patterns/card"
-	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/components/button"
 	pllayout "github.com/vibrantgio/components/layout"
 	raster "github.com/vibrantgio/ivg/raster/gio"
+	"github.com/vibrantgio/patterns/card"
+	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"

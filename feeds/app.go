@@ -19,6 +19,9 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/alert"
 	"github.com/vibrantgio/patterns/card"
 	"github.com/vibrantgio/patterns/modal"
@@ -28,9 +31,6 @@ import (
 	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/patterns/tooltip"
-	"github.com/vibrantgio/components/button"
-	"github.com/vibrantgio/components/input"
-	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"

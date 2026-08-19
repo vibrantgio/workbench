@@ -26,11 +26,11 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/patterns/tooltip"
-	"github.com/vibrantgio/components/button"
-	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )

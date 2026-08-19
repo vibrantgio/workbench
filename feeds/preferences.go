@@ -34,9 +34,9 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/theme/theme"
 )
 

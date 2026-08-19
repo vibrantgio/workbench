@@ -15,12 +15,12 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/patterns/pagination"
-	"github.com/vibrantgio/patterns/table"
-	"github.com/vibrantgio/patterns/tooltip"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/pagination"
+	"github.com/vibrantgio/patterns/table"
+	"github.com/vibrantgio/patterns/tooltip"
 	"github.com/vibrantgio/theme/theme"
 )
 

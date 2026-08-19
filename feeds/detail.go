@@ -28,8 +28,8 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"

@@ -25,10 +25,10 @@ import (
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
-	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"

@@ -17,11 +17,11 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/keyed"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/accordion"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/patterns/toast"
-	"github.com/vibrantgio/components/keyed"
-	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )

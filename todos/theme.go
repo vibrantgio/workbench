@@ -7,8 +7,8 @@ import (
 	"gioui.org/text"
 	"gioui.org/unit"
 
-	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/textdraw"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // Palette is the app's view of the theme colour tokens: a handful of named
