@@ -137,7 +137,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, k
 	// Built here rather than per frame: the sections are a function of the
 	// palette and the chosen syntax base, and both change on an emission,
 	// not on a frame.
-	items := page.items(t.typ.Shaper, c, m.Base())
+	items := page.items(t.typ.Shaper, c, m.AppliedBases())
 	// The base selector rides in the code specimen's own row rather than
 	// standing beside the page: the choice belongs next to its consequence,
 	// and nowhere else on the page is it worth a column.
@@ -161,7 +161,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, k
 					spacer(Gap),
 					rigid(CandidateRow(p, t.typ, m, pairs, clicks)),
 					spacer(Gap),
-					layout.Flexed(1, Gallery(p, c, t.typ, GalleryHintFor(m), page.st, items)),
+					layout.Flexed(1, Gallery(p, c, t.typ, GalleryHintFor(m, dark), page.st, items)),
 				)
 			} else {
 				children = append(children, layout.Flexed(1, Invitation(p, t.typ, m)))

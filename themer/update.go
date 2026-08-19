@@ -19,7 +19,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			// arrives anyway is not an error.
 			return model, mvu.DoNothing()
 		}
-		return model, KeepTheme(model.KeepPath, seed, model.Base(), model.Name)
+		return model, KeepTheme(model.KeepPath, seed, model.AppliedBases(), model.Name)
 	case desktop.FilesDropped:
 		model.DragOver = false
 		if len(msg.Paths) == 0 {
@@ -63,11 +63,18 @@ func ReduceModel(m Model, message any) Model {
 			m.Selected = msg.Index
 		}
 	case SelectBase:
+		// The appearance the row was clicked under is the one it changes: a
+		// base is fitted to a ground, and the list a name was picked off is
+		// the list of names fitted to the ground on screen.
 		if msg.Index >= 0 && msg.Index < len(m.Bases) {
-			m.BaseAt = msg.Index
+			if msg.Dark {
+				m.DarkAt = msg.Index
+			} else {
+				m.LightAt = msg.Index
+			}
 		}
 	case SeedKept:
-		m.Kept, m.KeptBase = msg.Seed, msg.Base
+		m.Kept, m.KeptBases = msg.Seed, msg.Bases
 		m.Problem = ""
 	case KeepFailed:
 		m.Problem = msg.Reason

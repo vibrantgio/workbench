@@ -4,6 +4,7 @@ import (
 	"image"
 	stdcolor "image/color"
 
+	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/theme/imageseed"
 )
 
@@ -33,20 +34,26 @@ type SelectCandidate struct {
 
 // SelectBase chooses the syntax palette code is coloured from, by its
 // position in the base selector. Emitted by a click on one of its rows.
+//
+// It carries the appearance the row was clicked under, because that is what
+// the choice is for: the sun's list sets the light palette and the moon's the
+// dark one. The row knows which list it is on; the reducer, which never sees a
+// palette, does not.
 type SelectBase struct {
 	Index int
+	Dark  bool
 }
 
 // KeepSeed asks for what is on screen to outlast the window: the chosen
-// candidate and the chosen syntax base are written to the kept-theme file,
+// candidate and the chosen syntax bases are written to the kept-theme file,
 // where every application that adopts a brand looks for one. Emitted by a
 // click on the keep affordance.
 type KeepSeed struct{}
 
 // SeedKept reports what is now in that file.
 type SeedKept struct {
-	Seed stdcolor.NRGBA
-	Base string
+	Seed  stdcolor.NRGBA
+	Bases highlight.BasePair
 }
 
 // KeepFailed reports a keep that did not happen, with the reason in the

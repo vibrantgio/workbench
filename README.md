@@ -69,8 +69,8 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   to it. The page ends on a code specimen with the syntax bases listed
   beside it — the styles that ship and any style file dropped into the
   styles folder beside the kept theme, filtered to the half fitted to the
-  scheme on screen — so the code can be judged too, and the base is kept
-  with the seed. Also the reference for an OS file drop — a window-wide drop zone
+  scheme on screen — so the code can be judged too, and a base per scheme is
+  kept with the seed. Also the reference for an OS file drop — a window-wide drop zone
   with its hover highlight, delivered into the MVU loop as messages — and
   for a theme observable the application itself re-seeds.
 - **[`mindchat/`](./mindchat)** — an OpenAI chat client and the most

@@ -35,6 +35,11 @@ func TestWindowDump(t *testing.T) {
 		Candidates: imageseed.Extract(scene(900, 600)),
 	})
 	m = ReduceModel(m, SelectCandidate{Index: 1})
+	// One pair, chosen once: a base off the sun's list and a base off the
+	// moon's, each a name a reader recognises as a deliberate pick rather
+	// than as whatever sorted first. Nothing is picked again inside the loop
+	// — what the two schemes show is the same theme, flipped.
+	m = pick(pick(m, "github", false), "dracula", true)
 	e, sel := newEmbed(), newBaseSelector()
 	save := func(name string, img *image.RGBA) {
 		t.Helper()
@@ -47,10 +52,8 @@ func TestWindowDump(t *testing.T) {
 	for _, sc := range []struct {
 		name string
 		dark bool
-		base string // a base off the list that scheme shows
-	}{{"light", false, "github"}, {"dark", true, "dracula"}} {
-		on := ReduceModel(ReduceModel(m, SetScheme{Dark: sc.dark}), nil)
-		on = ReduceModel(on, SelectBase{Index: baseIndex(on.Bases, sc.base)})
+	}{{"light", false}, {"dark", true}} {
+		on := ReduceModel(m, SetScheme{Dark: sc.dark})
 		e.st.ScrollToStart()
 		save(sc.name+"-top", pageOn(t, e, on, tokens.DefaultLight, sel))
 		if row := e.codeRow(); row > 0 {
@@ -199,14 +202,14 @@ func TestTheEmbeddedPageIsTheBiggestBand(t *testing.T) {
 func TestAPickDoesNotRebuildTheInventory(t *testing.T) {
 	e := newEmbed()
 	shaper := pinned().Shaper
-	e.items(shaper, tokens.DefaultLight, highlight.DefaultBase)
+	e.items(shaper, tokens.DefaultLight, highlight.DefaultBases())
 	built := e.inv
 	if built == nil {
 		t.Fatal("the first render built no inventory")
 	}
 	light, dark := tokens.FromSeed(fixtureBlue)
-	e.items(shaper, light, highlight.DefaultBase)
-	e.items(shaper, dark, highlight.DefaultBase)
+	e.items(shaper, light, highlight.DefaultBases())
+	e.items(shaper, dark, highlight.DefaultBases())
 	if e.inv != built {
 		t.Error("a change of palette rebuilt the inventory — the reading sample is being parsed again on every pick")
 	}
@@ -219,12 +222,12 @@ func BenchmarkRetheme(b *testing.B) {
 	e := newEmbed()
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	light, dark := tokens.FromSeed(fixtureBlue)
-	e.items(shaper, light, highlight.DefaultBase)
+	e.items(shaper, light, highlight.DefaultBases())
 	for i := 0; b.Loop(); i++ {
 		c := light
 		if i%2 == 1 {
 			c = dark
 		}
-		e.items(shaper, c, highlight.DefaultBase)
+		e.items(shaper, c, highlight.DefaultBases())
 	}
 }

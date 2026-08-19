@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	stdcolor "image/color"
@@ -18,10 +19,21 @@ import (
 )
 
 // withBases is the model as the window starts it, as far as the syntax bases
-// go: every base on offer, sitting on the default.
+// go: every base on offer, sitting on the default pair.
 func withBases() Model {
 	bases := baseOptions()
-	return Model{Bases: bases, BaseAt: baseIndex(bases, highlight.DefaultBase)}
+	d := highlight.DefaultBases()
+	return Model{
+		Bases:   bases,
+		LightAt: baseIndex(bases, d.Light, false),
+		DarkAt:  baseIndex(bases, d.Dark, true),
+	}
+}
+
+// pick applies the named base under one appearance, the way a click on that
+// appearance's own list does.
+func pick(m Model, name string, dark bool) Model {
+	return ReduceModel(m, SelectBase{Index: baseIndex(m.Bases, name, dark), Dark: dark})
 }
 
 // atTheCode renders the window with the embedded page scrolled so the code
@@ -120,28 +132,44 @@ func TestAStyleFromTheFolderJoinsTheColumn(t *testing.T) {
 	}
 }
 
-// TestTheWindowOpensOnTheKeptBase, and on the default when what was kept is a
-// name this build cannot resolve — a style whose file has left the folder, or
-// one written by a build that had it. Neither is a reason to open on whatever
-// sorted first.
-func TestTheWindowOpensOnTheKeptBase(t *testing.T) {
+// TestTheWindowOpensOnTheKeptBases, one per appearance, and on that
+// appearance's default when what was kept is a name this build cannot resolve
+// — a style whose file has left the folder, or one written by a build that had
+// it. Neither is a reason to open on whatever sorted first.
+//
+// The last case is the file that predates the pair. It names one base with no
+// appearance attached, and it arrives with that name in both members: the
+// window keeps it for the appearance it was measured to be fitted to, and
+// opens the other on the default rather than putting a palette balanced for
+// paper on a near-black slab.
+func TestTheWindowOpensOnTheKeptBases(t *testing.T) {
 	m := withBases()
+	d := highlight.DefaultBases()
 	for _, tc := range []struct {
-		name string
-		kept string
-		want string
+		name        string
+		kept        brand.BasePair
+		light, dark string
 	}{
-		{"a base that resolves", "dracula", "dracula"},
-		{"a base that does not", "a-style-nobody-wrote", highlight.DefaultBase},
-		{"nothing kept", "", highlight.DefaultBase},
+		{"a pair that resolves", brand.BasePair{Light: "github", Dark: "dracula"}, "github", "dracula"},
+		{"names that do not", brand.BasePair{Light: "a-style-nobody-wrote", Dark: "another"}, d.Light, d.Dark},
+		{"nothing kept", brand.BasePair{}, d.Light, d.Dark},
+		{"one dark base from a file that predates the pair", brand.BasePair{Light: "dracula", Dark: "dracula"}, d.Light, "dracula"},
+		{"one light base from a file that predates the pair", brand.BasePair{Light: "github", Dark: "github"}, "github", d.Dark},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := m.adoptKept(brand.Brand{Seed: fixtureRed, Base: tc.kept})
-			if got.Base() != tc.want {
-				t.Errorf("opened on %q, want %q", got.Base(), tc.want)
+			if got.Base(false) != tc.light || got.Base(true) != tc.dark {
+				t.Errorf("opened on %q under the sun and %q under the moon, want %q and %q",
+					got.Base(false), got.Base(true), tc.light, tc.dark)
 			}
-			if got.KeptBase != tc.want {
-				t.Errorf("the kept base reads %q, want %q", got.KeptBase, tc.want)
+			if want := (highlight.BasePair{Light: tc.light, Dark: tc.dark}); got.KeptBases != want {
+				t.Errorf("the kept bases read %+v, want %+v", got.KeptBases, want)
+			}
+			// And each member is on the list of the appearance it applies to,
+			// so the window opens with the applied row marked on both halves.
+			if !slices.Contains(got.VisibleBases(false), got.LightAt) ||
+				!slices.Contains(got.VisibleBases(true), got.DarkAt) {
+				t.Error("an applied base is missing from the list of the appearance it colours")
 			}
 		})
 	}
@@ -177,12 +205,12 @@ func TestChoosingABaseRecoloursTheCode(t *testing.T) {
 			e := newEmbed()
 			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
 			for _, name := range []string{tc.one, tc.then} {
-				if !m.Bases[baseIndex(m.Bases, name)].Suits(tc.dark) {
+				if !m.Bases[baseIndex(m.Bases, name, tc.dark)].Suits(tc.dark) {
 					t.Fatalf("%q is not on the list this scheme shows", name)
 				}
 			}
-			first := atTheCode(t, e, ReduceModel(m, SelectBase{Index: baseIndex(m.Bases, tc.one)}), tokens.DefaultLight)
-			second := atTheCode(t, e, ReduceModel(m, SelectBase{Index: baseIndex(m.Bases, tc.then)}), tokens.DefaultLight)
+			first := atTheCode(t, e, pick(m, tc.one, tc.dark), tokens.DefaultLight)
+			second := atTheCode(t, e, pick(m, tc.then, tc.dark), tokens.DefaultLight)
 			pct := bandChange(first, second, galleryTop(), galleryBottom())
 			t.Logf("switching base moved %.2f%% of the band the page is in", pct)
 			if pct == 0 {
@@ -205,7 +233,7 @@ func TestTheChosenBaseIsMarked(t *testing.T) {
 	}
 	sel := settled(false)
 	for _, row := range []int{0, 1, 2} {
-		img := atTheCode(t, newEmbed(), ReduceModel(m, SelectBase{Index: visible[row]}), tokens.DefaultLight, sel)
+		img := atTheCode(t, newEmbed(), ReduceModel(m, SelectBase{Index: visible[row], Dark: false}), tokens.DefaultLight, sel)
 		at := func(r int) stdcolor.RGBA { return img.RGBAAt(baseInkX(), baseRowY(r)) }
 		for _, other := range []int{0, 1, 2} {
 			if other == row {
@@ -267,12 +295,12 @@ func TestTheColumnFollowsTheSchemeControl(t *testing.T) {
 		t.Error("a half of the list is the whole list — nothing is being filtered")
 	}
 	for _, i := range light {
-		if b := m.Bases[i]; !b.Light && i != m.BaseAt {
+		if b := m.Bases[i]; !b.Light {
 			t.Errorf("the sun lists %q, which was fitted to a dark ground", b.Name)
 		}
 	}
 	for _, i := range dark {
-		if b := m.Bases[i]; !b.Dark && i != m.BaseAt {
+		if b := m.Bases[i]; !b.Dark {
 			t.Errorf("the moon lists %q, which was fitted to a light ground", b.Name)
 		}
 	}
@@ -285,91 +313,195 @@ func TestTheColumnFollowsTheSchemeControl(t *testing.T) {
 	}
 }
 
-// TestTheAppliedBaseIsNeverTakenOffTheList: a base chosen under one scheme is
-// still the base when the other is showing, and the row saying so stays on the
-// list. Dropping it would leave the page coloured by something the column no
-// longer admits to, and no way back to it.
-func TestTheAppliedBaseIsNeverTakenOffTheList(t *testing.T) {
-	m := ReduceModel(judging(), SelectBase{Index: baseIndex(withBases().Bases, "dracula")})
-	if m.Base() != "dracula" {
-		t.Fatalf("the model applied %q, want dracula", m.Base())
+// paired is the model mid-flow with a distinct base under each appearance:
+// what the window looks like once somebody has chosen twice.
+func paired(t *testing.T) Model {
+	t.Helper()
+	m := pick(pick(judging(), pairLight, false), pairDark, true)
+	if m.Base(false) != pairLight || m.Base(true) != pairDark {
+		t.Fatalf("the model applied %q and %q, want %q and %q", m.Base(false), m.Base(true), pairLight, pairDark)
 	}
-	if !slices.Contains(m.VisibleBases(true), m.BaseAt) {
-		t.Error("a dark base is missing from the moon's own list")
+	return m
+}
+
+// The fixture pair: two styles that are nothing to do with each other, so
+// neither could be reached from the other by any counterpart rule.
+const (
+	pairLight = "github"
+	pairDark  = "dracula"
+)
+
+// TestFlippingTheSchemeSwitchesTheAppliedBase is the pair's whole point. The
+// window holds a base per appearance, and the scheme control moves between
+// them: the code re-derives through the other member, the column marks that
+// member's row, and the line over the page names it — all in the frame the
+// switch is pressed, and without either choice being edited.
+func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
+	m := paired(t)
+	sun := ReduceModel(m, SetScheme{Dark: false})
+	moon := ReduceModel(m, SetScheme{Dark: true})
+	// Neither choice moved: the flip picks which one applies.
+	if sun.AppliedBases() != moon.AppliedBases() {
+		t.Errorf("flipping the scheme edited the pair: %+v became %+v", sun.AppliedBases(), moon.AppliedBases())
 	}
-	if !slices.Contains(m.VisibleBases(false), m.BaseAt) {
-		t.Error("the applied base was dropped from the list when the scheme it was fitted to stopped showing")
+	if got := GalleryHintFor(sun, false); !strings.Contains(got, pairLight) {
+		t.Errorf("under the sun the page says %q, want it naming %q", got, pairLight)
 	}
-	// Flipping the scheme changes what is offered, never what was chosen.
-	if flipped := ReduceModel(m, SetScheme{Dark: false}); flipped.Base() != "dracula" {
-		t.Errorf("flipping the scheme changed the applied base to %q", flipped.Base())
+	if got := GalleryHintFor(moon, true); !strings.Contains(got, pairDark) {
+		t.Errorf("under the moon the page says %q, want it naming %q", got, pairDark)
 	}
-	// And the row is drawn, marked, on the list it does not match. A fresh
-	// selector brings the applied base into view — which is what makes a row
-	// this far down a list of thirty-six findable at all — and leaves baseLead
-	// names above it, so that is the row under test.
-	img := atTheCode(t, newEmbed(), m, tokens.DefaultLight, newBaseSelector())
-	mark := img.RGBAAt(baseInkX(), baseRowY(baseLead))
-	for _, other := range []int{baseLead - 1, baseLead + 1} {
-		if mark == img.RGBAAt(baseInkX(), baseRowY(other)) {
-			t.Errorf("the applied base's row is drawn exactly like row %d — a base on the list for the other scheme is not marked as the applied one", other)
+
+	// The derivation the page is coloured through, ink for ink: under each
+	// appearance it is that appearance's own member, derived alone. This is
+	// the measurement behind the pixels — a page that had gone on colouring
+	// through the other member would match the other derivation here.
+	const src = "// greet.\nfunc greet(name string) string { return name }\n"
+	for _, tc := range []struct {
+		name   string
+		dark   bool
+		colors tokens.ColorTokens
+	}{
+		{"under the sun", false, SchemeFor(tokens.DefaultLight, sun)},
+		{"under the moon", true, SchemeFor(tokens.DefaultLight, moon)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			applied := m.Base(tc.dark)
+			got := highlight.AdaptPair(m.AppliedBases(), tc.colors)("go", src)
+			want := highlight.Adapt(applied, tc.colors)("go", src)
+			other := highlight.Adapt(m.Base(!tc.dark), tc.colors)("go", src)
+			if len(got) == 0 || len(got) != len(want) {
+				t.Fatalf("the specimen split into %d runs, %s alone gives %d", len(got), applied, len(want))
+			}
+			coloured, apart := 0, 0
+			for i := range got {
+				if got[i].Color != want[i].Color {
+					t.Fatalf("run %d is %v, %s alone gives %v", i, got[i].Color, applied, want[i].Color)
+				}
+				if got[i].Color.A != 0 {
+					coloured++
+				}
+				if i < len(other) && got[i].Color != other[i].Color {
+					apart++
+				}
+			}
+			if coloured == 0 || apart == 0 {
+				t.Fatalf("%d runs carry a colour and %d differ from the other member's derivation — this pair cannot show which member is applied", coloured, apart)
+			}
+			t.Logf("%s: %d runs, %d coloured, ink for ink %s's, %d of them unlike %s's",
+				tc.name, len(got), coloured, applied, apart, m.Base(!tc.dark))
+		})
+	}
+
+	// And it is drawn. Each half of the column marks its own appearance's
+	// choice, at its own place in a list the other half does not hold.
+	for _, tc := range []struct {
+		name string
+		dark bool
+		os   tokens.ColorTokens
+	}{{"sun", false, tokens.DefaultLight}, {"moon", true, tokens.DefaultDark}} {
+		on := ReduceModel(m, SetScheme{Dark: tc.dark})
+		visible := on.VisibleBases(tc.dark)
+		row := slices.Index(visible, on.BaseAt(tc.dark))
+		if row < 0 {
+			t.Fatalf("the %s's list does not hold the base it applies", tc.name)
+		}
+		sel := settled(tc.dark)
+		sel.st.ScrollTo(max(0, row-baseLead))
+		img := atTheCode(t, newEmbed(), on, tc.os, sel)
+		mark := img.RGBAAt(baseInkX(), baseRowY(baseLead))
+		for _, other := range []int{baseLead - 1, baseLead + 1} {
+			if mark == img.RGBAAt(baseInkX(), baseRowY(other)) {
+				t.Errorf("under the %s the applied base's row is drawn exactly like row %d — nothing marks which base is applied", tc.name, other)
+			}
 		}
 	}
 }
 
-// TestABasePickedUnderEitherSchemeKeeps: the two halves are one choice and one
-// file. A name picked under the moon comes back out of the kept theme exactly
-// as a name picked under the sun does — the file records what was chosen, and
-// the appearance it was chosen under is not part of it.
-func TestABasePickedUnderEitherSchemeKeeps(t *testing.T) {
+// TestEachSchemeRendersThroughItsOwnMember: changing the member an appearance
+// is not showing changes nothing on screen, and changing the one it is showing
+// changes the page. Same seed, same scheme, same scroll — the only thing that
+// moves between the two renders is one member of the pair.
+func TestEachSchemeRendersThroughItsOwnMember(t *testing.T) {
+	base := paired(t)
+	for _, tc := range []struct {
+		name    string
+		dark    bool
+		os      tokens.ColorTokens
+		other   string // the member for the appearance NOT on screen
+		instead string // and the member for the one that is
+	}{
+		{"under the sun", false, tokens.DefaultLight, "monokai", "solarized-light"},
+		{"under the moon", true, tokens.DefaultDark, "solarized-light", "monokai"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			on := ReduceModel(base, SetScheme{Dark: tc.dark})
+			was := atTheCode(t, newEmbed(), on, tc.os, settled(tc.dark))
+			hidden := pick(on, tc.other, !tc.dark)
+			if got := atTheCode(t, newEmbed(), hidden, tc.os, settled(tc.dark)); golden.PixelDiff(was, got) != 0 {
+				t.Errorf("choosing %q for the appearance that is not showing repainted the window", tc.other)
+			}
+			shown := pick(on, tc.instead, tc.dark)
+			if got := atTheCode(t, newEmbed(), shown, tc.os, settled(tc.dark)); golden.PixelDiff(was, got) == 0 {
+				t.Errorf("choosing %q for the appearance on screen changed no pixel", tc.instead)
+			}
+		})
+	}
+}
+
+// TestAPressIsForTheAppearanceItWasMadeUnder: the sun's list sets the light
+// base and the moon's the dark one, and neither reaches across.
+func TestAPressIsForTheAppearanceItWasMadeUnder(t *testing.T) {
+	m := withBases()
+	d := highlight.DefaultBases()
+	if under := pick(m, "solarized-light", false); under.Base(false) != "solarized-light" || under.Base(true) != d.Dark {
+		t.Errorf("a press under the sun left the pair %+v, want the light member alone moved", under.AppliedBases())
+	}
+	if under := pick(m, "monokai", true); under.Base(true) != "monokai" || under.Base(false) != d.Light {
+		t.Errorf("a press under the moon left the pair %+v, want the dark member alone moved", under.AppliedBases())
+	}
+}
+
+// TestBothMembersOfThePairAreKept: the pair is the choice, so the file holds
+// both names whichever appearance the window happened to be showing when the
+// affordance was pressed — and a window opening on that file comes back on the
+// same pair.
+func TestBothMembersOfThePairAreKept(t *testing.T) {
 	for _, tc := range []struct {
 		scheme string
 		dark   bool
-		base   string
 	}{
-		{"under the sun", false, "solarized-light"},
-		{"under the moon", true, "solarized-dark"},
+		{"pressed under the sun", false},
+		{"pressed under the moon", true},
 	} {
 		t.Run(tc.scheme, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "theme.json")
-			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
+			m := ReduceModel(paired(t), SetScheme{Dark: tc.dark})
 			m.KeepPath = path
-			// Picked off the list the scheme is showing, which is the only way
-			// the window offers it.
-			at := -1
-			for _, i := range m.VisibleBases(tc.dark) {
-				if m.Bases[i].Name == tc.base {
-					at = i
-				}
-			}
-			if at < 0 {
-				t.Fatalf("%q is not on the list this scheme shows", tc.base)
-			}
-			m = ReduceModel(m, SelectBase{Index: at})
 			_, cmd := Update(m, KeepSeed{})
 			msg, err := cmd.First()
 			if err != nil {
 				t.Fatalf("the keep command failed: %v", err)
 			}
 			m = ReduceModel(m, msg)
-			if kept := brand.KeptFrom(path); kept.Base != tc.base {
-				t.Errorf("the file holds base %q, want %q", kept.Base, tc.base)
+			kept := brand.KeptFrom(path)
+			if kept.Base.Light != pairLight || kept.Base.Dark != pairDark {
+				t.Errorf("the file holds %+v, want %q under the sun and %q under the moon", kept.Base, pairLight, pairDark)
 			}
 			if !m.SeedIsKept() {
 				t.Error("the window does not report the kept choice as kept")
 			}
-			// And it comes back: a window opening on that file lands on the
-			// same name, whichever scheme it opens in.
-			if back := withBases().adoptKept(brand.KeptFrom(path)); back.Base() != tc.base {
-				t.Errorf("a window opening on the kept file landed on %q, want %q", back.Base(), tc.base)
+			back := withBases().adoptKept(kept)
+			if back.Base(false) != pairLight || back.Base(true) != pairDark {
+				t.Errorf("a window opening on the kept file landed on %q and %q", back.Base(false), back.Base(true))
 			}
 		})
 	}
 }
 
-// TestKeepingWritesTheBaseBesideTheSeed: the two choices are one theme, so
-// they go into the file together and come back together.
-func TestKeepingWritesTheBaseBesideTheSeed(t *testing.T) {
+// TestKeepingWritesTheBasesBesideTheSeed: the choices are one theme, so they go
+// into the file together and come back together — including a change to the
+// member the window is not showing, which is still a change to what is kept.
+func TestKeepingWritesTheBasesBesideTheSeed(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
 	m := ReduceModel(withBases(), ImageLoaded{
 		Path:       "scene.png",
@@ -377,7 +509,7 @@ func TestKeepingWritesTheBaseBesideTheSeed(t *testing.T) {
 		Candidates: []imageseed.Candidate{candidate(fixtureBlue, 0.5)},
 	})
 	m.KeepPath = path
-	m = ReduceModel(m, SelectBase{Index: baseIndex(m.Bases, "monokai")})
+	m = pick(m, "monokai", true)
 	_, cmd := Update(m, KeepSeed{})
 	msg, err := cmd.First()
 	if err != nil {
@@ -385,8 +517,8 @@ func TestKeepingWritesTheBaseBesideTheSeed(t *testing.T) {
 	}
 	m = ReduceModel(m, msg)
 	kept := brand.KeptFrom(path)
-	if kept.Base != "monokai" {
-		t.Errorf("the file holds base %q, want monokai", kept.Base)
+	if kept.Base.Dark != "monokai" || kept.Base.Light != highlight.DefaultBase {
+		t.Errorf("the file holds %+v, want monokai under the moon and the default under the sun", kept.Base)
 	}
 	if seed, _ := m.Seed(); kept.Seed != seed {
 		t.Errorf("the file holds seed %v, want %v", kept.Seed, seed)
@@ -394,10 +526,14 @@ func TestKeepingWritesTheBaseBesideTheSeed(t *testing.T) {
 	if !m.SeedIsKept() {
 		t.Error("the window does not report the kept choice as kept")
 	}
-	// Changing the base alone is a change to what is kept, and the affordance
-	// has to go back to offering rather than confirming.
-	if ReduceModel(m, SelectBase{Index: baseIndex(m.Bases, "dracula")}).SeedIsKept() {
+	// Changing either member is a change to what is kept, and the affordance
+	// has to go back to offering rather than confirming — including the member
+	// of the pair that is not on screen.
+	if pick(m, "dracula", true).SeedIsKept() {
 		t.Error("choosing another base left the window claiming the theme on screen was kept")
+	}
+	if pick(m, "solarized-light", false).SeedIsKept() {
+		t.Error("choosing a base for the other appearance left the window claiming the theme on screen was kept")
 	}
 }
 

@@ -29,6 +29,15 @@
 // name. It is one state and not a second control — a filter with a switch of
 // its own could be set to disagree with the appearance on screen, which would
 // mean offering a list of styles for the scheme nobody is looking at.
+//
+// # What a press means
+//
+// The appearance on screen is what a name is chosen for. A theme carries a
+// base per appearance, because a palette somebody balanced against a near-white
+// page is not the one they would balance against a near-black one, so the sun's
+// list sets the light base and the moon's the dark one. Flipping the scheme
+// therefore swaps the list, the applied row and the ink under the code together,
+// in the frame the switch is pressed; it changes neither choice.
 package main
 
 import (
@@ -172,22 +181,24 @@ func BesideTheCode(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool,
 // BasePanel draws the base selector: one plate carrying a two-line heading and,
 // under it, the names in a scrolling list with the chosen one marked.
 //
-// Only the half of the list the scheme control is showing, plus the applied
-// base whichever half that is in — see [Model.VisibleBases]. A row carries the
-// index of the base it names in the whole list, not its place in the visible
-// half, so what a press means does not depend on which half is on screen.
+// Only the half of the list the scheme control is showing — see
+// [Model.VisibleBases] — and the marked row is that appearance's own choice. A
+// row carries the index of the base it names in the whole list, not its place
+// in the visible half, so what a press means does not depend on which half is
+// on screen.
 func BasePanel(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, sel *baseSelector) layout.Widget {
 	visible := m.VisibleBases(dark)
 	clicks := sel.handlers(len(m.Bases))
 	rows := make([]layout.Widget, len(visible))
 	applied := -1
+	chosen := m.BaseAt(dark)
 	for row, i := range visible {
 		i := i
-		if i == m.BaseAt {
+		if i == chosen {
 			applied = row
 		}
 		rows[row] = func(gtx layout.Context) layout.Dimensions {
-			return BaseRowWidget(gtx, p, ty, m.Bases[i], i, i == m.BaseAt, &clicks[i])
+			return BaseRowWidget(gtx, p, ty, m.Bases[i], i, dark, i == chosen, &clicks[i])
 		}
 	}
 	st := sel.st
@@ -247,7 +258,7 @@ func BasePanel(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, sel
 // a bar in the accent at its leading edge and its name in the page's own text
 // colour; every other row is muted, so the column reads as one choice among
 // many rather than as a list of equal things.
-func BaseRowWidget(gtx layout.Context, p Palette, ty Type, opt BaseOption, index int, chosen bool, click *gesture.Click) layout.Dimensions {
+func BaseRowWidget(gtx layout.Context, p Palette, ty Type, opt BaseOption, index int, dark, chosen bool, click *gesture.Click) layout.Dimensions {
 	h := gtx.Dp(BaseRow)
 	size := image.Pt(gtx.Constraints.Max.X, h)
 	r := image.Rectangle{Max: size}
@@ -297,7 +308,7 @@ func BaseRowWidget(gtx layout.Context, p Palette, ty Type, opt BaseOption, index
 			break
 		}
 		if e.Kind == gesture.KindClick {
-			mvu.MessageOp{Message: SelectBase{Index: index}}.Add(gtx.Ops)
+			mvu.MessageOp{Message: SelectBase{Index: index, Dark: dark}}.Add(gtx.Ops)
 		}
 	}
 	return layout.Dimensions{Size: size}

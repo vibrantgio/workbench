@@ -76,10 +76,11 @@ func run() {
 	// the default one at somebody who chose against it.
 	kept := brand.Kept()
 	opening, _ := kept.Colors()
-	// The same file names the syntax base a fence is coloured from, so the
-	// code in a note wears the theme that was chosen for it rather than the
-	// one this build happens to default to.
-	noteCodeBase = adoptCodeBase(kept)
+	// The same file names the syntax base a fence is coloured from, one per
+	// appearance, so the code in a note wears the theme that was chosen for it
+	// rather than the one this build happens to default to — and follows the
+	// desktop between the two the way everything else in the window does.
+	noteCodeBases = adoptCodeBases(kept)
 
 	w := specwin.New(mvuWin, specsystem.LiveTheme(5*time.Second, kept.Options()...))
 

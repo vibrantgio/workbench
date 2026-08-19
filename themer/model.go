@@ -50,18 +50,26 @@ type Model struct {
 	// say whether what is on screen is what would come back. A zero alpha
 	// means nothing has been kept.
 	Kept stdcolor.NRGBA
-	// KeptBase is the syntax base that file currently holds, resolved the
-	// same way Base is. It sits beside Kept for the same reason: the keep
-	// affordance confirms when everything on screen is what is on disk,
-	// and the base is now part of everything.
-	KeptBase string
+	// KeptBases are the syntax bases that file currently holds, one per
+	// appearance, resolved the same way the applied pair is. They sit
+	// beside Kept for the same reason: the keep affordance confirms when
+	// everything on screen is what is on disk, and the bases are now part
+	// of everything.
+	KeptBases highlight.BasePair
 	// Bases are the syntax palettes a fence can be coloured from — the
 	// ones that ship embedded and the ones read out of the styles folder —
 	// in the order the selector lists them.
 	Bases []BaseOption
-	// BaseAt indexes Bases. It starts on whatever was kept, so a window
-	// opens showing the code the way the last one left it.
-	BaseAt int
+	// LightAt and DarkAt index Bases, one per appearance: the palette the
+	// code is coloured from under the sun, and the one it is coloured from
+	// under the moon. They start on whatever was kept, so a window opens
+	// showing the code the way the last one left it.
+	//
+	// Two of them because a syntax palette is fitted to a ground, so the
+	// two appearances of one theme are two choices. Picking under the sun
+	// moves one and picking under the moon the other; the scheme control
+	// moves neither, and switches which is applied.
+	LightAt, DarkAt int
 }
 
 // BaseOption is one row of the base selector: a syntax palette's name, whether
@@ -89,14 +97,32 @@ func (o BaseOption) Suits(dark bool) bool {
 	return o.Light
 }
 
-// Base is the syntax palette the code on screen is coloured from. An index
-// out of range — no styles at all, which no build has — falls back to the
-// highlighter's own default, because there is always a base.
-func (m Model) Base() string {
-	if m.BaseAt < 0 || m.BaseAt >= len(m.Bases) {
-		return highlight.DefaultBase
+// BaseAt is the row of Bases the given appearance is coloured from.
+func (m Model) BaseAt(dark bool) int {
+	if dark {
+		return m.DarkAt
 	}
-	return m.Bases[m.BaseAt].Name
+	return m.LightAt
+}
+
+// Base is the syntax palette the code is coloured from under one appearance.
+// An index out of range — no styles at all, which no build has — falls back to
+// the highlighter's own default for that appearance, because there is always a
+// base.
+func (m Model) Base(dark bool) string {
+	at := m.BaseAt(dark)
+	if at < 0 || at >= len(m.Bases) {
+		return highlight.DefaultBases().Base(dark)
+	}
+	return m.Bases[at].Name
+}
+
+// AppliedBases is the pair on screen: what the code is coloured from under
+// each appearance. It is what the window draws through, what it keeps, and
+// what it compares with the file to say whether the theme on screen is the one
+// on disk.
+func (m Model) AppliedBases() highlight.BasePair {
+	return highlight.BasePair{Light: m.Base(false), Dark: m.Base(true)}
 }
 
 // Scheme names which side of a light/dark pair is shown, and whether that is
@@ -170,15 +196,20 @@ func Init() (Model, mvu.Command) {
 }
 
 // adoptKept folds what is already in the kept-theme file into the model: the
-// colour it holds, and the syntax base it names resolved against what this
+// colour it holds, and the syntax bases it names resolved against what this
 // build can actually derive from. A name nothing resolves — a style whose
 // file has left the folder, one written by a build that had it — opens the
 // window on the default rather than on whatever sorted first, because the
-// default is what everything else showing that file's theme will use.
+// default is what everything else showing that file's theme will use. So does
+// a name fitted to the appearance it is not kept for, which is what a file
+// naming one base with no appearance attached comes back as: the name stands
+// on the half it was measured to belong on, and the other half opens on its
+// own default.
 func (m Model) adoptKept(kept brand.Brand) Model {
 	m.Kept = kept.Seed
-	m.KeptBase = highlight.BaseOrDefault(kept.Base)
-	m.BaseAt = baseIndex(m.Bases, m.KeptBase)
+	m.KeptBases = highlight.BasesOrDefault(kept.Base.Names())
+	m.LightAt = baseIndex(m.Bases, m.KeptBases.Light, false)
+	m.DarkAt = baseIndex(m.Bases, m.KeptBases.Dark, true)
 	return m
 }
 
@@ -200,39 +231,37 @@ func baseOptions() []BaseOption {
 }
 
 // VisibleBases are the rows the selector lists under the appearance on screen,
-// as indices into Bases: every base fitted to that appearance, and the applied
-// one whatever it was fitted to.
+// as indices into Bases: every base fitted to that appearance, and nothing
+// else.
 //
-// The applied base is never taken off the list. Half the names go when the
-// scheme flips, and the one the code on screen is actually coloured with can be
-// among them — a light base is still light when the moon is showing, and the
-// derivation goes on reaching its dark counterpart from that same name. A list
-// that dropped it would leave nothing marked, the page coloured by something
-// the column no longer admits to, and no way back to it except flipping the
-// scheme again. So it stays, in its own sorted place, marked as the choice it
-// is. Flipping the scheme changes what the window offers, never what was
-// chosen.
+// The applied base is always among them, and there is no case to make an
+// exception for. Each appearance has its own choice, picked from its own list,
+// so the list a person is looking at always holds the name their code is
+// coloured with — flipping the scheme swaps the list and the applied base
+// together, in one frame, rather than leaving a name marked on the half it was
+// not fitted for.
 func (m Model) VisibleBases(dark bool) []int {
 	out := make([]int, 0, len(m.Bases))
 	for i, b := range m.Bases {
-		if b.Suits(dark) || i == m.BaseAt {
+		if b.Suits(dark) {
 			out = append(out, i)
 		}
 	}
 	return out
 }
 
-// baseIndex finds a base by name, and falls back to the default's position
-// rather than to zero: position zero is whatever sorted first, which is a
-// style nobody chose.
-func baseIndex(bases []BaseOption, name string) int {
+// baseIndex finds a base by name, and falls back to the position of the
+// appearance's own default rather than to zero: position zero is whatever
+// sorted first, which is a style nobody chose.
+func baseIndex(bases []BaseOption, name string, dark bool) int {
 	for i, b := range bases {
 		if b.Name == name {
 			return i
 		}
 	}
+	fallback := highlight.DefaultBases().Base(dark)
 	for i, b := range bases {
-		if b.Name == highlight.DefaultBase {
+		if b.Name == fallback {
 			return i
 		}
 	}
@@ -251,12 +280,16 @@ func skippedSentence(skipped []highlight.Skipped) string {
 }
 
 // SeedIsKept reports whether what is on screen is what is already in the
-// kept-theme file — the colour and the syntax base both, since both are
-// written and both come back. It is the difference between an affordance
-// offering something and one confirming it.
+// kept-theme file — the colour and both syntax bases, since all of them are
+// written and all of them come back. It is the difference between an
+// affordance offering something and one confirming it.
+//
+// Both members count, including the one the appearance on screen is not
+// showing: the file holds the pair, so a base picked under the moon and then
+// left behind a flip to the sun is still an unkept change.
 func (m Model) SeedIsKept() bool {
 	seed, ok := m.Seed()
-	return ok && m.Kept.A != 0 && m.Kept == seed && m.KeptBase == m.Base()
+	return ok && m.Kept.A != 0 && m.Kept == seed && m.KeptBases == m.AppliedBases()
 }
 
 // shortName is what the window shows for a loaded picture: the file's own

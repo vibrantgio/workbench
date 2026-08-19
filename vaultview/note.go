@@ -106,54 +106,62 @@ const (
 	noteNavDimStep = 300
 )
 
-// noteCodeBase is the syntax palette a note's fences are derived from: the
-// one the kept theme names when it names one this build can resolve, and the
-// highlighter's own default otherwise — a theme with no base in it, or one
-// naming a style file that has since left the styles folder, colours code
-// exactly as it did for somebody who never chose.
+// noteCodeBases are the syntax palettes a note's fences are derived from, one
+// per appearance: the ones the kept theme names when it names ones this build
+// can resolve, and the highlighter's own defaults otherwise — a theme with no
+// base in it, or one naming a style file that has since left the styles
+// folder, colours code exactly as it did for somebody who never chose.
 //
-// It is set once, at startup, from the same kept theme the palette comes
+// A pair and not a name because a syntax palette is fitted to a ground: the
+// set of inks balanced against a near-white page is not the set anybody would
+// balance against a near-black one. So the light appearance and the dark one
+// each derive from their own member, and a desktop switching between them
+// switches the code's palette with everything else.
+//
+// They are set once, at startup, from the same kept theme the palette comes
 // from, and read from then on. The choice is a preference and not a mode:
 // there is no affordance in this window to change it, because the window
 // that chooses a theme is the one that keeps it.
-var noteCodeBase = highlight.DefaultBase
+var noteCodeBases = highlight.DefaultBases()
 
-// adoptCodeBase resolves the syntax base a kept theme asks for. The styles
+// adoptCodeBases resolves the syntax bases a kept theme asks for. The styles
 // folder is read first: a kept base may name a style somebody wrote
-// themselves, and a name that cannot be resolved falls back rather than
-// failing. What the folder could not read is not surfaced here — this window
-// shows notes, and the place a style file gets fixed is the window that
-// offered it.
-func adoptCodeBase(kept brand.Brand) string {
+// themselves, and a name that cannot be resolved — or one fitted to the
+// appearance it is not kept for, which is what a theme kept before a theme
+// carried a pair comes back as — falls back to that appearance's default
+// rather than failing. What the folder could not read is not surfaced here —
+// this window shows notes, and the place a style file gets fixed is the window
+// that offered it.
+func adoptCodeBases(kept brand.Brand) highlight.BasePair {
 	if dir, err := brand.StylesDir(); err == nil {
 		highlight.LoadDir(dir)
 	}
-	return highlight.BaseOrDefault(kept.Base)
+	return highlight.BasesOrDefault(kept.Base.Names())
 }
 
 // noteHighlight derives the code highlighter for a set of tokens, and
 // remembers the last one it made.
 //
-// The name is a base rather than a finished style: each of its entries keeps
-// its hue and chroma and takes the lightness that is legible on the fill this
-// theme actually puts under a fence, rather than the one that was legible on
-// the near-white its author drew it on. The one name covers both appearances
-// — which member of the pair is derived from follows the tokens.
+// The names are bases rather than finished styles: each of an entry's inks
+// keeps its hue and chroma and takes the lightness that is legible on the fill
+// this theme actually puts under a fence, rather than the one that was legible
+// on the ground its author drew it on. Which member of the pair is derived
+// from follows the tokens.
 //
 // The memo is what keeps the derivation off the frame path. noteStyle runs
 // on every frame, and a derivation walks a chroma base's whole entry table
 // and re-fits each ink against the surface — cheap once per theme, wasteful
-// sixty times a second. The base and the tokens are the key because they are
+// sixty times a second. The bases and the tokens are the key because they are
 // what the derived style is a function of: a new palette means a new style,
-// so does a new base, and nothing else does.
+// so does a new pair, and nothing else does.
 var noteHighlight = func() func(tokens.ColorTokens) markdown.Highlighter {
 	var last tokens.ColorTokens
-	var lastBase string
+	var lastBases highlight.BasePair
 	var cached markdown.Highlighter
 	return func(c tokens.ColorTokens) markdown.Highlighter {
-		if cached == nil || c != last || noteCodeBase != lastBase {
-			last, lastBase = c, noteCodeBase
-			cached = highlight.Adapt(noteCodeBase, c)
+		if cached == nil || c != last || noteCodeBases != lastBases {
+			last, lastBases = c, noteCodeBases
+			cached = highlight.AdaptPair(noteCodeBases, c)
 		}
 		return cached
 	}

@@ -78,30 +78,35 @@ func TestAKeptBrandDressesTheWholeWindow(t *testing.T) {
 	}
 }
 
-// TestTheKeptBaseColoursTheCode is the adoption proof for the other half of a
-// kept theme. The colour a person chose dresses the window; the syntax base
-// they chose beside it colours the code in it, and this asserts that what
-// reaches a fence here is the same derivation the window that offered the
-// base was showing them — ink for ink, not merely "some highlighting".
+// TestTheKeptBasesColourTheCode is the adoption proof for the other half of a
+// kept theme. The colour a person chose dresses the window; the syntax bases
+// they chose beside it colour the code in it, one per appearance, and this
+// asserts that what reaches a fence here is the same derivation the window that
+// offered them was showing — ink for ink, not merely "some highlighting", and
+// through the appearance's own member rather than through whichever one was
+// named first.
 //
-// The comparison is against the derivation done directly from the kept name,
-// because that is what "reproduces it" means: the file names a base, and two
-// applications deriving from that name on one palette must land on the same
-// colours or the name is a suggestion.
-func TestTheKeptBaseColoursTheCode(t *testing.T) {
-	const chosen = "monokai" // nothing like the default, in either appearance
+// The comparison is against the derivation done directly from the kept names,
+// because that is what "reproduces it" means: the file names a pair, and two
+// applications deriving from that pair on one palette must land on the same
+// colours or the names are a suggestion.
+func TestTheKeptBasesColourTheCode(t *testing.T) {
+	// Two styles that are nothing to do with each other, and nothing like the
+	// default in either appearance.
+	keptPair := brand.BasePair{Light: "solarized-light", Dark: "monokai"}
 	path := filepath.Join(t.TempDir(), "theme.json")
-	if err := brand.SaveTo(path, brand.Brand{Seed: harbourRed, Base: chosen, Source: "harbour.jpg"}); err != nil {
+	if err := brand.SaveTo(path, brand.Brand{Seed: harbourRed, Base: keptPair, Source: "harbour.jpg"}); err != nil {
 		t.Fatalf("keep: %v", err)
 	}
 	kept := brand.KeptFrom(path)
-	if kept.Base != chosen {
-		t.Fatalf("the kept theme names base %q, want %q", kept.Base, chosen)
+	if kept.Base != keptPair {
+		t.Fatalf("the kept theme names %+v, want %+v", kept.Base, keptPair)
 	}
-	defer restoreCodeBase(noteCodeBase)
-	noteCodeBase = adoptCodeBase(kept)
-	if noteCodeBase != chosen {
-		t.Fatalf("this window adopted base %q, want the kept %q", noteCodeBase, chosen)
+	defer restoreCodeBases(noteCodeBases)
+	noteCodeBases = adoptCodeBases(kept)
+	want := highlight.BasePair{Light: keptPair.Light, Dark: keptPair.Dark}
+	if noteCodeBases != want {
+		t.Fatalf("this window adopted %+v, want the kept %+v", noteCodeBases, want)
 	}
 
 	const src = "// greet is a greeting.\nfunc greet(name string) string {\n\treturn fmt.Sprintf(\"hello, %s\", name)\n}\n"
@@ -109,69 +114,107 @@ func TestTheKeptBaseColoursTheCode(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		colors tokens.ColorTokens
-	}{{"light", light}, {"dark", dark}} {
+		member string
+		other  string
+	}{
+		{"light", light, want.Light, want.Dark},
+		{"dark", dark, want.Dark, want.Light},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := noteStyle(tc.colors, tokens.DefaultTypography).Highlight("go", src)
-			want := highlight.Adapt(chosen, tc.colors)("go", src)
+			same := highlight.AdaptPair(want, tc.colors)("go", src)
 			if len(got) == 0 {
 				t.Fatal("the note's fence came back with no runs at all")
 			}
-			if len(got) != len(want) {
-				t.Fatalf("the fence split into %d runs, the same derivation gives %d", len(got), len(want))
+			if len(got) != len(same) {
+				t.Fatalf("the fence split into %d runs, the same derivation gives %d", len(got), len(same))
 			}
 			coloured := 0
 			for i := range got {
-				if got[i] != want[i] {
-					t.Fatalf("run %d is %+v, the same derivation gives %+v", i, got[i], want[i])
+				if got[i] != same[i] {
+					t.Fatalf("run %d is %+v, the same derivation gives %+v", i, got[i], same[i])
 				}
 				if got[i].Color.A != 0 {
 					coloured++
 				}
 			}
-			t.Logf("%d runs, %d of them coloured, matching the derivation ink for ink", len(got), coloured)
 			if coloured == 0 {
 				t.Fatal("no run carries a colour, so matching proves nothing")
 			}
-			// And it is the kept base and not the default that got there.
-			fallback := highlight.Adapt(highlight.DefaultBase, tc.colors)("go", src)
-			same := true
+			// And it is this appearance's own member that got there: the same
+			// runs, ink for ink, as that member derived alone — and not the
+			// other member's, which is what a window colouring both appearances
+			// through one name would have produced.
+			member := highlight.Adapt(tc.member, tc.colors)("go", src)
+			apart := 0
 			for i := range got {
-				if i >= len(fallback) || got[i].Color != fallback[i].Color {
-					same = false
-					break
+				if i >= len(member) || got[i].Color != member[i].Color {
+					t.Fatalf("run %d is %v, %s alone gives %v", i, got[i].Color, tc.member, member[i].Color)
 				}
 			}
-			if same {
-				t.Error("the fence is coloured exactly as the default base would colour it — the kept name reached nothing")
+			other := highlight.Adapt(tc.other, tc.colors)("go", src)
+			for i := range got {
+				if i >= len(other) || got[i].Color != other[i].Color {
+					apart++
+				}
 			}
+			if apart == 0 {
+				t.Fatalf("the fence is coloured exactly as %s would colour it — the pair is not being applied per appearance", tc.other)
+			}
+			t.Logf("%d runs, %d coloured, ink for ink %s's; %d runs unlike %s's", len(got), coloured, tc.member, apart, tc.other)
+			// And it is the kept pair and not the default that got there.
+			fallback := highlight.AdaptPair(highlight.DefaultBases(), tc.colors)("go", src)
+			for i := range got {
+				if i >= len(fallback) || got[i].Color != fallback[i].Color {
+					return
+				}
+			}
+			t.Error("the fence is coloured exactly as the default pair would colour it — the kept names reached nothing")
 		})
 	}
 
 	// The API agreeing is one thing; the pixels are the other. The window is
-	// rendered under the kept base and under the default, and the two differ
-	// — so the name reaches the screen and not just a style value.
-	under := func(base string) *image.RGBA {
-		noteCodeBase = base
+	// rendered under the kept pair and under the default, and the two differ
+	// — so the names reach the screen and not just a style value.
+	under := func(p highlight.BasePair) *image.RGBA {
+		noteCodeBases = p
 		return window(t, light)
 	}
-	if golden.PixelDiff(under(chosen), under(highlight.DefaultBase)) == 0 {
+	if golden.PixelDiff(under(want), under(highlight.DefaultBases())) == 0 {
 		t.Error("the window drew the same pixels under two different syntax bases")
 	}
 }
 
-// restoreCodeBase puts the process-wide base back after a test has moved it.
-func restoreCodeBase(base string) { noteCodeBase = base }
+// restoreCodeBases puts the process-wide pair back after a test has moved it.
+func restoreCodeBases(p highlight.BasePair) { noteCodeBases = p }
 
 // TestAnUnknownKeptBaseFallsBackToTheDefault: a theme naming a style this
 // build cannot resolve — one whose file has left the styles folder — colours
 // code exactly as it does for somebody who never chose one. The alternative
 // is a window that refuses to draw a fence because a preference went stale.
+//
+// The last case is the theme kept before a theme carried a pair: one name, no
+// appearance attached, arriving in both members. The appearance it was fitted
+// to keeps it and the other falls back, so a note opens in the base that was
+// chosen under the light the person chose it in.
 func TestAnUnknownKeptBaseFallsBackToTheDefault(t *testing.T) {
-	defer restoreCodeBase(noteCodeBase)
-	for _, name := range []string{"", "a-style-nobody-wrote"} {
-		if got := adoptCodeBase(brand.Brand{Seed: harbourRed, Base: name}); got != highlight.DefaultBase {
-			t.Errorf("a kept base of %q was adopted as %q, want the default %q", name, got, highlight.DefaultBase)
-		}
+	defer restoreCodeBases(noteCodeBases)
+	d := highlight.DefaultBases()
+	for _, tc := range []struct {
+		name string
+		kept brand.BasePair
+		want highlight.BasePair
+	}{
+		{"nothing kept", brand.BasePair{}, d},
+		{"names nothing resolves", brand.BasePair{Light: "a-style-nobody-wrote", Dark: "another"}, d},
+		{"one dark base, no appearance attached", brand.BasePair{Light: "monokai", Dark: "monokai"},
+			highlight.BasePair{Light: d.Light, Dark: "monokai"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := adoptCodeBases(brand.Brand{Seed: harbourRed, Base: tc.kept}); got != tc.want {
+				t.Errorf("a kept %+v was adopted as %+v, want %+v", tc.kept, got, tc.want)
+			}
+		})
 	}
 }
 
