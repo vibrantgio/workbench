@@ -11,7 +11,6 @@ package main
 
 import (
 	"image"
-	"image/color"
 	"os/exec"
 	"path"
 	"runtime"
@@ -105,33 +104,45 @@ const (
 	noteNavDimStep = 300
 )
 
-// Chroma styles for the two appearance modes; built once, shared.
-var (
-	noteHighlightLight = highlight.New("github")
-	noteHighlightDark  = highlight.New("github-dark")
-)
+// noteCodeBase names the syntax palette a note's code fences are derived
+// from. It is a base, not a finished style: the highlighter holds each of
+// its entries' hue and chroma and re-fits the lightness against the fill
+// this theme actually puts under a fence, so the inks land where they are
+// legible on it rather than where they were legible on the near-white the
+// base's author drew them on. The name covers both appearances — which
+// member of the pair is derived from follows the tokens.
+const noteCodeBase = "github"
+
+// noteHighlight derives the code highlighter for a set of tokens, and
+// remembers the last one it made.
+//
+// The memo is what keeps the derivation off the frame path. noteStyle runs
+// on every frame, and a derivation walks a chroma base's whole entry table
+// and re-fits each ink against the surface — cheap once per theme, wasteful
+// sixty times a second. The tokens are the key because they are what the
+// derived style is a function of: a new palette means a new style, and
+// nothing else does.
+var noteHighlight = func() func(tokens.ColorTokens) markdown.Highlighter {
+	var last tokens.ColorTokens
+	var cached markdown.Highlighter
+	return func(c tokens.ColorTokens) markdown.Highlighter {
+		if cached == nil || c != last {
+			last, cached = c, highlight.Adapt(noteCodeBase, c)
+		}
+		return cached
+	}
+}()
 
 // noteStyle derives the markdown document style for the current tokens:
-// the token-themed defaults plus chroma highlighting matched to the
-// appearance. The link hook is attached per frame in layoutNotePage,
-// where the model is at hand.
+// the token-themed defaults plus code highlighting derived from the same
+// tokens. The link hook is attached per frame in layoutNotePage, where the
+// model is at hand.
 func noteStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
 	st := markdown.FromTokens(c, typ)
 	st.Mono = font.Typeface(typ.Code.Typeface)
 	st.CodeSize = unit.Sp(typ.Code.Size)
-	if isDarkColor(c.Background) {
-		st.Highlight = noteHighlightDark
-	} else {
-		st.Highlight = noteHighlightLight
-	}
+	st.Highlight = noteHighlight(c)
 	return st
-}
-
-// isDarkColor reports whether c reads as a dark ground (Rec. 601 luma
-// below mid-grey), selecting the dark chroma style.
-func isDarkColor(c color.NRGBA) bool {
-	luma := 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)
-	return luma < 128
 }
 
 // docEntry is one cached document and the Note value it was built from.
