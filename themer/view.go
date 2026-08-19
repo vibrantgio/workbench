@@ -39,7 +39,7 @@ const (
 	ThumbW    unit.Dp = 108 // the thumbnail's mat
 	ThumbPad  unit.Dp = 6   // mat edge to the picture inside it
 	RowLabelH unit.Dp = 20  // the label over the candidate row, and over the page
-	KeepW     unit.Dp = 150 // the keep button, at the scheme switch's width
+	KeepW     unit.Dp = 150 // the keep button, at a width neither of its two labels squeezes
 )
 
 // What the keep affordance says. The second word is a state and not an
@@ -97,7 +97,7 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 // candidate, so the handlers outlive a picture being replaced by another.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
-	keep, scheme := new(gesture.Click), new(gesture.Click)
+	keep, scheme := new(gesture.Click), new([2]gesture.Click)
 	page, bases := newEmbed(), newBaseSelector()
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
@@ -117,7 +117,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 // the whole design system drawn in the one that is chosen. The last of those
 // gets the room, because it is the thing being judged — the picture is a
 // reference and needs only to be recognisable.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, keep, scheme *gesture.Click, page *embed, bases *baseSelector) layout.Widget {
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, keep *gesture.Click, scheme *[2]gesture.Click, page *embed, bases *baseSelector) layout.Widget {
 	c := SchemeFor(t.os, m)
 	p := PaletteFrom(c)
 	dark := m.Dark(t.os)
@@ -203,7 +203,7 @@ func JudgingBand(p Palette, c tokens.ColorTokens, ty Type, m Model, st *list.Sta
 // The picture is a thumbnail and not a plate. What a seed is judged on is the
 // page below, so the picture takes the room a reference needs and no more:
 // enough to recognise which image these colours came out of.
-func TopBar(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp, dark bool, keep, scheme *gesture.Click) layout.Widget {
+func TopBar(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp, dark bool, keep *gesture.Click, scheme *[2]gesture.Click) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		h := gtx.Dp(TopBarH)
 		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = h, h
@@ -214,7 +214,7 @@ func TopBar(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp
 			spacer(Gap),
 			rigid(KeepButton(c, ty, m, keep)),
 			spacer(Gap),
-			rigid(SchemeToggle(c, ty, dark, scheme)),
+			rigid(SchemeToggle(c, dark, scheme)),
 		)
 		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, h)}
 	}
@@ -239,8 +239,8 @@ func KeepButton(c tokens.ColorTokens, ty Type, m Model, click *gesture.Click) la
 	return func(gtx layout.Context) layout.Dimensions {
 		// The component fills the width it is offered, and what it is
 		// offered inside a row is everything the caption did not take. It
-		// is given the switch's width instead, so the two controls at this
-		// end of the bar are the same size whichever word is on this one.
+		// is given a fixed width instead, so the button keeps its size
+		// whichever of the two words is on it.
 		gtx.Constraints.Min = image.Point{}
 		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(KeepW))
 		dims := draw(gtx)
@@ -309,30 +309,48 @@ func Caption(p Palette, ty Type, m Model) layout.Widget {
 	}
 }
 
-// SchemeToggle is the light/dark switch. The pill is the same one the
-// inventory's own pages carry, so the control that changes scheme looks the
-// same wherever the inventory is shown; what is added here is the press, and
-// the message it sends names the side to move to rather than asking for a
-// flip.
-func SchemeToggle(c tokens.ColorTokens, ty Type, dark bool, click *gesture.Click) layout.Widget {
-	pill := inventory.SchemeSwitch(ty.Shaper, c, dark)
+// SchemeToggle is the light/dark control: a sun and a moon, the one on screen
+// filled. The segments are the ones the inventory's own pages carry, so the
+// control that changes scheme looks the same wherever the inventory is shown;
+// what is added here is the press.
+//
+// A target per segment, not one over the pair. Each half names a scheme and
+// the message it sends says which — pointing at the moon asks for dark from
+// either side, and pointing at the half already filled asks for the scheme
+// that is already on, which the update treats as the no-op it is.
+func SchemeToggle(c tokens.ColorTokens, dark bool, clicks *[2]gesture.Click) layout.Widget {
+	segment := func(i int, wantDark bool) layout.FlexChild {
+		draw := inventory.SchemeSegment(c, wantDark, dark == wantDark)
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			dims := draw(gtx)
+			area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+			clicks[i].Add(gtx.Ops)
+			area.Pop()
+			for {
+				e, ok := clicks[i].Update(gtx.Source)
+				if !ok {
+					break
+				}
+				if e.Kind == gesture.KindClick {
+					mvu.MessageOp{Message: SetScheme{Dark: wantDark}}.Add(gtx.Ops)
+				}
+			}
+			return dims
+		})
+	}
 	return func(gtx layout.Context) layout.Dimensions {
-		dims := pill(gtx)
-		area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
-		click.Add(gtx.Ops)
-		area.Pop()
-		for {
-			e, ok := click.Update(gtx.Source)
-			if !ok {
-				break
-			}
-			if e.Kind == gesture.KindClick {
-				mvu.MessageOp{Message: SetScheme{Dark: !dark}}.Add(gtx.Ops)
-			}
-		}
-		return dims
+		return layout.Flex{}.Layout(gtx,
+			segment(schemeLightSegment, false),
+			segment(schemeDarkSegment, true),
+		)
 	}
 }
+
+// The halves of the scheme control, in the order they are laid out.
+const (
+	schemeLightSegment = iota
+	schemeDarkSegment
+)
 
 // Invitation is the window before anything has been dropped on it: a well
 // covering the page, saying what to drop and where. "Where" is the whole
