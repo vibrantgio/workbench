@@ -33,6 +33,7 @@ import (
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/theme/brand"
 	specsystem "github.com/vibrantgio/theme/system"
@@ -352,6 +353,49 @@ func drawLabel(gtx layout.Context, shaper *text.Shaper, msg string, style tokens
 	return typeset.Layout(gtx, shaper, typeset.Label(style, 1),
 		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
 }
+
+// place is one stop on a breadcrumb trail: the label the row draws and the
+// path clicking it goes to. The path is the segment's identity as well as
+// its destination, which is what keeps a click addressed to the place it was
+// made on when the trail is reshaped between the frame that drew it and the
+// frame that reports it.
+type place struct {
+	label string
+	path  string
+}
+
+// trailSegments turns a path's places into the row's segments: every place
+// but the last carries the click that goes there, and the last is where the
+// reader already is — the current location, which draws in the text colour
+// and does nothing. Both trails in this window are that shape.
+func trailSegments(places []place, click func(path string) func(gtx layout.Context)) []breadcrumb.Segment {
+	segs := make([]breadcrumb.Segment, len(places))
+	for i, p := range places {
+		segs[i] = breadcrumb.Segment{Key: p.path, Label: p.label}
+		if i < len(places)-1 {
+			segs[i].OnClick = click(p.path)
+		}
+	}
+	return segs
+}
+
+// trailChevronDp is the square the trail's separator is drawn in.
+//
+// The separator is punctuation, not a control: it stands between the labels
+// rather than beside them, so it is the smallest mark in its row and has to
+// stay under the caps of the text it divides. The size is measured, not
+// chosen. The separator's ink fills its square's full height, so the square
+// is the ink height: at eight dp it stands four fifths of the labels' caps,
+// and under the history controls at the row's head in both height and ink,
+// which is the order the row should read in. The vocabulary's own size is a
+// mark's size, and a mark's size here would put solid ink a fifth over those
+// caps — the proportion this window already corrected once, for the controls
+// beside this very row.
+//
+// Eight is also the gap the row leaves either side of it, so the separator
+// and its air are one square wide apiece, and it lands on whole device
+// pixels at every scale this window is read at.
+const trailChevronDp = 8
 
 // Mark sizes. The set the marks come from was drawn and weight-matched
 // against the platform's own symbols at 16, 20 and 24 dp, so every call

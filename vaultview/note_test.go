@@ -17,6 +17,7 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -35,7 +36,7 @@ type notePad struct {
 	size image.Point
 
 	propClick, backClick, fwdClick widget.Clickable
-	trail                          crumbRow
+	trail                          breadcrumb.TrailLayout
 
 	// rival is a second focusable target standing for the find field and the
 	// folder rail: anything else in the window that can hold the keyboard.
@@ -58,6 +59,8 @@ func newNotePad(t *testing.T, m Model) *notePad {
 			shaper: tokens.DefaultTypography.DeterministicShaper(),
 		},
 	}
+	p.trail = breadcrumb.NewTrail(p.tok.shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
+		p.tok.col, p.tok.sp, p.tok.typ.TitleSmall)
 	note := m.CurrentNote()
 	if note == nil {
 		t.Fatal("the fixture model has no current note")
@@ -74,7 +77,7 @@ func (p *notePad) frame() {
 		Ops:         &p.ops,
 		Source:      p.r.Source(),
 	}
-	layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, &p.trail, &p.read,
+	layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, p.trail, &p.read,
 		&p.cur, func(Model, *Note) *markdown.Document { return p.doc })
 	// The rival is registered over nothing, in the corner: it exists to hold
 	// the keyboard, not to be seen.
@@ -115,7 +118,7 @@ func (p *notePad) clickInDocument() {
 func (p *notePad) shot(t *testing.T) *image.RGBA {
 	t.Helper()
 	return golden.Capture(t, p.size, func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, &p.trail, &p.read,
+		return layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, p.trail, &p.read,
 			&p.cur, func(Model, *Note) *markdown.Document { return p.doc })
 	})
 }

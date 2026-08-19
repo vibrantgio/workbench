@@ -565,33 +565,34 @@ func TestSetFilterCarriesTheQuery(t *testing.T) {
 	}
 }
 
-// TestNoteCrumbsTrail: the trail carries the in-vault path only — each
-// folder crumb reveals its own folder, the note title is where you
-// already are, and the vault is not a segment: it names the window from
-// the chrome row instead.
-func TestNoteCrumbsTrail(t *testing.T) {
+// TestNotePlacesTrail: the trail carries the in-vault path only — one place
+// per folder and the note last, each addressed by its own path, and the
+// vault is not a place: it names the window from the chrome row instead.
+// Which of them is clickable, and where a click goes, is the row's business
+// and is proved where the row is driven.
+func TestNotePlacesTrail(t *testing.T) {
 	model := Model{Screen: screenVault, Vault: "/home/rene/Second Brain", CurAnchor: -1}
 	model = cacheNote(model, &Note{Path: "a/b/note.md", Title: "note"})
 	model.Current = "a/b/note.md"
 
-	got := noteCrumbs(model)
-	want := []crumb{
-		{label: "a", msg: RevealFolder{Dir: "a"}},
-		{label: "b", msg: RevealFolder{Dir: "a/b"}},
-		{label: "note"},
+	got := notePlaces(model)
+	want := []place{
+		{label: "a", path: "a"},
+		{label: "b", path: "a/b"},
+		{label: "note", path: "a/b/note.md"},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("noteCrumbs = %+v, want %+v", got, want)
+		t.Fatalf("notePlaces = %+v, want %+v", got, want)
 	}
 
 	// Before a note loads there is no path to show at all.
 	empty := Model{Screen: screenVault, Vault: "/home/rene/Second Brain"}
-	if c := noteCrumbs(empty); len(c) != 0 {
-		t.Errorf("noteCrumbs without a note = %+v, want an empty trail", c)
+	if c := notePlaces(empty); len(c) != 0 {
+		t.Errorf("notePlaces without a note = %+v, want an empty trail", c)
 	}
 
 	// The vault's own name is the chrome row's, and it survives a note
-	// at the vault root having no folder crumbs of its own.
+	// at the vault root having no folder places of its own.
 	if n := vaultName(model); n != "Second Brain" {
 		t.Errorf("vaultName = %q, want the vault folder's name", n)
 	}

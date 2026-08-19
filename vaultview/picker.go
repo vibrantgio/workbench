@@ -32,6 +32,7 @@ import (
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/theme/theme"
 )
 
@@ -130,12 +131,12 @@ const (
 )
 
 // pickerView is the picker's widget state: the list scroll/selection
-// state, per-row clickables (pointer-stable across frames), the directory
-// trail's own row state, and the one-shot initial focus.
+// state, per-row clickables (pointer-stable across frames), and the
+// one-shot initial focus. The directory trail keeps its own state, in the
+// row the theme stream hands this screen every frame.
 type pickerView struct {
 	list      *list.State
 	rowClicks []*widget.Clickable
-	trail     crumbRow
 	focused   bool
 }
 
@@ -149,17 +150,30 @@ func pickerLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 			mvu.MessageOp{Message: OpenVault{Path: loadModel().PickerDir}}.Add(gtx.Ops)
 		},
 	})
+	// The trail comes off the theme stream so a palette change redraws it,
+	// and its interaction state lives in the stream rather than in this
+	// screen: the row it hands out on every emission is the same row, so a
+	// click survives the theme changing under the pointer.
+	trail := breadcrumb.Trail(th, breadcrumb.TrailProps{Chevron: trailChevronDp})
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		v := &pickerView{list: list.NewState()}
-		return rx.Map(openBtn, func(btn layout.Widget) layout.Widget {
-			return func(gtx layout.Context) layout.Dimensions {
-				return v.layout(gtx, loadModel(), loadTok(), btn)
-			}
-		})
+		return rx.Map(rx.CombineLatest2(openBtn, trail),
+			func(next rx.Tuple2[layout.Widget, breadcrumb.TrailLayout]) layout.Widget {
+				btn, row := next.First, next.Second
+				return func(gtx layout.Context) layout.Dimensions {
+					return v.layout(gtx, loadModel(), loadTok(), btn, row)
+				}
+			})
 	})
 }
 
-func (v *pickerView) layout(gtx layout.Context, m Model, tok themeTokens, btn layout.Widget) layout.Dimensions {
+func (v *pickerView) layout(
+	gtx layout.Context,
+	m Model,
+	tok themeTokens,
+	btn layout.Widget,
+	trail breadcrumb.TrailLayout,
+) layout.Dimensions {
 	if !v.focused {
 		gtx.Execute(key.FocusCmd{Tag: v.list.Focus()})
 		v.focused = true
@@ -201,7 +215,7 @@ func (v *pickerView) layout(gtx layout.Context, m Model, tok themeTokens, btn la
 			}),
 			layout.Rigid(complayout.VSpacer(pickerGapDp)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return v.crumbs(gtx, tok, m.PickerDir)
+				return trail(gtx, trailSegments(dirPlaces(m.PickerDir), browseTo))
 			}),
 			layout.Rigid(complayout.VSpacer(pickerGapDp)),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -259,34 +273,20 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 		})
 }
 
-// crumbs draws the current directory as a clickable breadcrumb trail:
-// the filesystem root, then every path segment; clicking a segment
-// browses to that ancestor.
-func (v *pickerView) crumbs(gtx layout.Context, tok themeTokens, dir string) layout.Dimensions {
-	segs := crumbSegments(dir)
-	items := make([]crumb, len(segs))
-	for i, seg := range segs {
-		items[i] = crumb{label: seg.label}
-		if i < len(segs)-1 {
-			items[i].msg = BrowseTo{Dir: seg.path}
-		}
+// browseTo is the click an ancestor in the picker's trail carries: the
+// directory it names becomes the one on show.
+func browseTo(dir string) func(gtx layout.Context) {
+	return func(gtx layout.Context) {
+		mvu.MessageOp{Message: BrowseTo{Dir: dir}}.Add(gtx.Ops)
 	}
-	return v.trail.layout(gtx, tok, items)
 }
 
-// crumbSegment is one breadcrumb segment: its display label and the
-// absolute path it navigates to.
-type crumbSegment struct {
-	label string
-	path  string
-}
-
-// crumbSegments splits an absolute directory into breadcrumb segments,
-// the filesystem root first.
-func crumbSegments(dir string) []crumbSegment {
+// dirPlaces splits an absolute directory into the trail's places, the
+// filesystem root first.
+func dirPlaces(dir string) []place {
 	dir = filepath.Clean(dir)
 	sep := string(filepath.Separator)
-	segs := []crumbSegment{{label: sep, path: sep}}
+	segs := []place{{label: sep, path: sep}}
 	if dir == sep || dir == "." {
 		return segs
 	}
@@ -296,7 +296,7 @@ func crumbSegments(dir string) []crumbSegment {
 			continue
 		}
 		cum = cum + sep + part
-		segs = append(segs, crumbSegment{label: part, path: cum})
+		segs = append(segs, place{label: part, path: cum})
 	}
 	return segs
 }

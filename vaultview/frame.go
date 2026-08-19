@@ -218,22 +218,21 @@ func (f *frameState) toolbarLeading() unit.Dp {
 }
 
 // vaultFrame composes the vault screen from its three column streams and
-// the model: a toolbar row over the columns. The columns arrive as widget
-// streams so a theme change re-renders them; the toolbar reads the token
-// and model snapshots at frame time.
+// the model: a toolbar row over the columns. All three columns arrive as
+// widget streams so a theme change re-renders them; the toolbar reads the
+// token and model snapshots at frame time.
 func vaultFrame(
 	loadModel func() Model,
 	loadTok func() themeTokens,
-	sidebar, aside rx.Observable[layout.Widget],
-	main layout.Widget,
+	sidebar, aside, main rx.Observable[layout.Widget],
 ) rx.Observable[layout.Widget] {
-	columns := rx.CombineLatest2(sidebar, aside)
+	columns := rx.CombineLatest3(sidebar, aside, main)
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		st := &frameState{asideW: frameAsideDp}
-		return rx.Map(columns, func(next rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
-			sbW, asW := next.First, next.Second
+		return rx.Map(columns, func(next rx.Tuple3[layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
+			sbW, asW, mainW := next.First, next.Second, next.Third
 			return func(gtx layout.Context) layout.Dimensions {
-				return st.layout(gtx, loadModel(), loadTok(), sbW, asW, main)
+				return st.layout(gtx, loadModel(), loadTok(), sbW, asW, mainW)
 			}
 		})
 	})

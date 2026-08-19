@@ -39,6 +39,7 @@ import (
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/markdown/obsidian"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/theme/brand"
 	"github.com/vibrantgio/theme/theme"
@@ -298,7 +299,6 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		propClick widget.Clickable
 		backClick widget.Clickable
 		fwdClick  widget.Clickable
-		trail     crumbRow
 		read      reader
 	)
 	docFor := func(m Model, n *Note) *markdown.Document {
@@ -323,9 +323,16 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	// outline can mark where the reader is and move them within the note
 	// they already have open.
 	cur := &docCursor{}
-	mainSlot := func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, &trail, &read, cur, docFor)
-	}
+	// The trail comes off the theme stream, as the two side columns do, so a
+	// palette change redraws it; its interaction state is the stream's and
+	// not the frame's, so a click survives the theme changing under the
+	// pointer.
+	mainSlot := rx.Map(breadcrumb.Trail(th, breadcrumb.TrailProps{Chevron: trailChevronDp}),
+		func(trail breadcrumb.TrailLayout) layout.Widget {
+			return func(gtx layout.Context) layout.Dimensions {
+				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, trail, &read, cur, docFor)
+			}
+		})
 	return vaultFrame(loadModel, loadTok,
 		treeSidebar(th, loadModel, loadTok),
 		asideColumn(cur, loadModel, loadTok),
@@ -341,7 +348,7 @@ func layoutNotePage(
 	m Model,
 	tok themeTokens,
 	propClick, backClick, fwdClick *widget.Clickable,
-	trail *crumbRow,
+	trail breadcrumb.TrailLayout,
 	read *reader,
 	cur *docCursor,
 	docFor func(Model, *Note) *markdown.Document,
@@ -370,7 +377,7 @@ func layoutNotePage(
 		}
 	}
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		crumbs := noteCrumbs(m)
+		crumbs := trailSegments(notePlaces(m), revealFolder)
 
 		var body layout.FlexChild
 		// scrolling records whether the body is the document or a standing
@@ -448,7 +455,7 @@ func layoutNotePage(
 				}),
 				layout.Rigid(complayout.HSpacer(noteGapDp)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return trail.layout(gtx, tok, crumbs)
+					return trail(gtx, crumbs)
 				}),
 			)
 		}
@@ -510,11 +517,15 @@ func renderNotePageInto(
 	den tokens.Density,
 ) layout.Widget {
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
+	// The trail is built here rather than inside the frame closure: it owns
+	// the row's clickables and has to outlive the frame it draws, static
+	// render or not.
+	trail := breadcrumb.NewTrail(shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
+		colors, sp, typo.TitleSmall)
 	var (
 		propClick widget.Clickable
 		backClick widget.Clickable
 		fwdClick  widget.Clickable
-		trail     crumbRow
 		read      reader
 	)
 	docs := map[string]*markdown.Document{}
@@ -531,7 +542,7 @@ func renderNotePageInto(
 		return d
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, &trail, &read, cur, docFor)
+		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, trail, &read, cur, docFor)
 	}
 }
 
@@ -615,17 +626,21 @@ func messageChild(tok themeTokens, msg string) layout.FlexChild {
 	})
 }
 
-// noteCrumbs builds the trail: one segment per folder on the current
-// note's path inside the vault, then the note title. Each folder crumb
-// reveals that folder in the tree; the note title is where you already
-// are and stays inert. The vault itself is not a segment — it names the
-// window from the chrome row, and as a crumb it promised a parent to
-// climb to that does not exist.
-func noteCrumbs(m Model) []crumb {
-	var items []crumb
+// notePlaces builds the trail's places: one per folder on the current
+// note's path inside the vault, then the note itself. Each folder reveals
+// itself in the tree when clicked; the note is where you already are and
+// stays inert. The vault is not a place here — it names the window from
+// the chrome row, and in the trail it promised a parent to climb to that
+// does not exist.
+//
+// The places carry in-vault paths, so a folder and a note of the same name
+// in different branches are different places and a click on one is never
+// delivered to the other.
+func notePlaces(m Model) []place {
+	var places []place
 	note := m.CurrentNote()
 	if note == nil {
-		return items
+		return places
 	}
 	if dir := path.Dir(note.Path); dir != "." {
 		cum := ""
@@ -635,10 +650,18 @@ func noteCrumbs(m Model) []crumb {
 			} else {
 				cum += "/" + seg
 			}
-			items = append(items, crumb{label: seg, msg: RevealFolder{Dir: cum}})
+			places = append(places, place{label: seg, path: cum})
 		}
 	}
-	return append(items, crumb{label: note.Title})
+	return append(places, place{label: note.Title, path: note.Path})
+}
+
+// revealFolder is the click a folder in the note's trail carries: the tree
+// opens the whole way down to it.
+func revealFolder(dir string) func(gtx layout.Context) {
+	return func(gtx layout.Context) {
+		mvu.MessageOp{Message: RevealFolder{Dir: dir}}.Add(gtx.Ops)
+	}
 }
 
 // layoutProperties renders the collapsible properties panel: a header
