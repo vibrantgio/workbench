@@ -9,10 +9,11 @@
 // and both have to be seen.
 //
 // Code is the one surface a palette does not settle on its own, so it gets a
-// second choice: a column beside the page lists every syntax base there is —
-// the styles that ship, and any style file dropped into the styles folder
-// beside the kept theme — and choosing one re-colours the specimen on the
-// spot. Keep the two together and they are written where every application
+// second choice, at the page's far end where the specimen is: a column beside
+// the code lists the syntax bases fitted to the appearance on screen — the
+// styles that ship, and any style file dropped into the styles folder beside
+// the kept theme — and choosing one re-colours the specimen on the spot, in
+// front of you. Keep the two together and they are written where every application
 // that adopts a brand looks for one, this window included: the next thing you
 // open is already wearing the colour, and its code is already in the base you
 // chose.

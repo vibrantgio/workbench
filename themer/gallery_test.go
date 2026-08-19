@@ -21,8 +21,10 @@ import (
 var dumpDir = flag.String("themer.dump", "", "write the window to this directory, one PNG per scheme")
 
 // TestWindowDump writes the window mid-flow — a picture loaded, a candidate
-// applied, a syntax base chosen and the code it colours in view — in both
-// schemes. It skips unless -themer.dump names a directory.
+// applied, a syntax base chosen — in both schemes and at both ends of the
+// embedded page: the first screen, which is what the window opens on, and the
+// page's last section, where the code specimen and the base selector sit side
+// by side. It skips unless -themer.dump names a directory.
 func TestWindowDump(t *testing.T) {
 	if *dumpDir == "" {
 		t.Skip("themer: pass -themer.dump=DIR to write the window out")
@@ -33,23 +35,32 @@ func TestWindowDump(t *testing.T) {
 		Candidates: imageseed.Extract(scene(900, 600)),
 	})
 	m = ReduceModel(m, SelectCandidate{Index: 1})
-	e := newEmbed()
-	// The first base of a session moves nothing, so the dump opens on the
-	// default and then chooses another — which is the flow the window is for,
-	// and what brings the code specimen into view.
-	first := pageOn(t, e, m, tokens.DefaultLight)
-	_ = first
-	m = ReduceModel(m, SelectBase{Index: baseIndex(m.Bases, "dracula")})
-	for _, sc := range []struct {
-		name string
-		dark bool
-	}{{"light", false}, {"dark", true}} {
-		img := pageOn(t, e, ReduceModel(m, SetScheme{Dark: sc.dark}), tokens.DefaultLight)
-		path := filepath.Join(*dumpDir, "themer-"+sc.name+".png")
+	e, sel := newEmbed(), newBaseSelector()
+	save := func(name string, img *image.RGBA) {
+		t.Helper()
+		path := filepath.Join(*dumpDir, "themer-"+name+".png")
 		if err := golden.Save(path, img); err != nil {
 			t.Fatalf("themer: save %s: %v", path, err)
 		}
 		t.Logf("wrote %s", path)
+	}
+	for _, sc := range []struct {
+		name string
+		dark bool
+		base string // a base off the list that scheme shows
+	}{{"light", false, "github"}, {"dark", true, "dracula"}} {
+		on := ReduceModel(ReduceModel(m, SetScheme{Dark: sc.dark}), nil)
+		on = ReduceModel(on, SelectBase{Index: baseIndex(on.Bases, sc.base)})
+		e.st.ScrollToStart()
+		save(sc.name+"-top", pageOn(t, e, on, tokens.DefaultLight, sel))
+		if row := e.codeRow(); row > 0 {
+			e.st.ScrollTo(row - 1) // the specimen's heading, then its body
+		}
+		save(sc.name+"-code", pageOn(t, e, on, tokens.DefaultLight, sel))
+		// And the page's actual bottom, which is a closing line under the
+		// specimen rather than the specimen running out.
+		e.st.ScrollToEnd(len(e.inv.Items(SchemeFor(tokens.DefaultLight, on))))
+		save(sc.name+"-end", pageOn(t, e, on, tokens.DefaultLight, sel))
 	}
 }
 

@@ -18,7 +18,6 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/gallery/inventory"
-	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
@@ -139,6 +138,12 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, k
 	// palette and the chosen syntax base, and both change on an emission,
 	// not on a frame.
 	items := page.items(t.typ.Shaper, c, m.Base())
+	// The base selector rides in the code specimen's own row rather than
+	// standing beside the page: the choice belongs next to its consequence,
+	// and nowhere else on the page is it worth a column.
+	if row := page.codeRow(); row >= 0 && row < len(items) {
+		items[row] = BesideTheCode(p, c, t.typ, m, dark, bases, items[row])
+	}
 
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
@@ -156,7 +161,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, k
 					spacer(Gap),
 					rigid(CandidateRow(p, t.typ, m, pairs, clicks)),
 					spacer(Gap),
-					layout.Flexed(1, JudgingBand(p, c, t.typ, m, page.st, items, bases)),
+					layout.Flexed(1, Gallery(p, c, t.typ, GalleryHintFor(m), page.st, items)),
 				)
 			} else {
 				children = append(children, layout.Flexed(1, Invitation(p, t.typ, m)))
@@ -169,29 +174,6 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, k
 		if m.DragOver {
 			strokeRRect(gtx, image.Rectangle{Max: size}, gtx.Dp(Radius+Pad/2), gtx.Dp(Ring+1), p.Accent)
 		}
-		return layout.Dimensions{Size: size}
-	}
-}
-
-// JudgingBand is the bottom of the window and most of it: the syntax bases
-// in a column on the left, the whole design system drawn in the chosen theme
-// beside them.
-//
-// They share a band rather than stacking because they are one act. The names
-// change what the fence on the page is coloured with, and a name that has to
-// be chosen from behind the thing it changes is chosen blind.
-func JudgingBand(p Palette, c tokens.ColorTokens, ty Type, m Model, st *list.State, items []layout.Widget, bases *baseSelector) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
-		layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(BaseW))
-				gtx.Constraints.Min = gtx.Constraints.Max
-				return BasePanel(p, c, ty, m, bases)(gtx)
-			}),
-			spacer2(Gap),
-			layout.Flexed(1, Gallery(p, c, ty, GalleryHintFor(m), st, items)),
-		)
 		return layout.Dimensions{Size: size}
 	}
 }
@@ -387,11 +369,6 @@ func rigid(w layout.Widget) layout.FlexChild { return layout.Rigid(w) }
 // spacer is a fixed vertical gap between two Flex children.
 func spacer(h unit.Dp) layout.FlexChild {
 	return layout.Rigid(layout.Spacer{Height: h}.Layout)
-}
-
-// spacer2 is the horizontal one, for the band that lays out across.
-func spacer2(w unit.Dp) layout.FlexChild {
-	return layout.Rigid(layout.Spacer{Width: w}.Layout)
 }
 
 // fillRRect paints a rounded rectangle.

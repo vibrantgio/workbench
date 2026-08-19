@@ -64,14 +64,29 @@ type Model struct {
 	BaseAt int
 }
 
-// BaseOption is one row of the base selector: a syntax palette's name, and
-// whether it came out of the styles folder rather than shipping embedded.
-// Where a style came from changes nothing about how it is used; it is worth
-// showing because it is the difference between a name somebody recognises and
-// one they put there themselves.
+// BaseOption is one row of the base selector: a syntax palette's name, whether
+// it came out of the styles folder rather than shipping embedded, and which
+// appearances it is offered under. Where a style came from changes nothing
+// about how it is used; it is worth showing because it is the difference
+// between a name somebody recognises and one they put there themselves.
 type BaseOption struct {
 	Name  string
 	Added bool
+	// Light and Dark are measured off the style's own ground, once, when the
+	// list is built — the answer cannot change while the window is open, and
+	// measuring seventy-four backgrounds per frame to learn that would be a
+	// waste of a frame. A style fitted to no ground of its own carries both.
+	Light bool
+	Dark  bool
+}
+
+// Suits reports whether this base is one to offer under the appearance on
+// screen.
+func (o BaseOption) Suits(dark bool) bool {
+	if dark {
+		return o.Dark
+	}
+	return o.Light
 }
 
 // Base is the syntax palette the code on screen is coloured from. An index
@@ -168,12 +183,41 @@ func (m Model) adoptKept(kept brand.Brand) Model {
 }
 
 // baseOptions is every syntax palette on offer, in the order the highlighter
-// lists them, marked with where each came from.
+// lists them, marked with where each came from and which appearance it was
+// fitted to.
 func baseOptions() []BaseOption {
 	names := highlight.Bases()
 	out := make([]BaseOption, len(names))
 	for i, n := range names {
-		out[i] = BaseOption{Name: n, Added: highlight.Loaded(n)}
+		out[i] = BaseOption{
+			Name:  n,
+			Added: highlight.Loaded(n),
+			Light: highlight.BaseSuits(n, false),
+			Dark:  highlight.BaseSuits(n, true),
+		}
+	}
+	return out
+}
+
+// VisibleBases are the rows the selector lists under the appearance on screen,
+// as indices into Bases: every base fitted to that appearance, and the applied
+// one whatever it was fitted to.
+//
+// The applied base is never taken off the list. Half the names go when the
+// scheme flips, and the one the code on screen is actually coloured with can be
+// among them — a light base is still light when the moon is showing, and the
+// derivation goes on reaching its dark counterpart from that same name. A list
+// that dropped it would leave nothing marked, the page coloured by something
+// the column no longer admits to, and no way back to it except flipping the
+// scheme again. So it stays, in its own sorted place, marked as the choice it
+// is. Flipping the scheme changes what the window offers, never what was
+// chosen.
+func (m Model) VisibleBases(dark bool) []int {
+	out := make([]int, 0, len(m.Bases))
+	for i, b := range m.Bases {
+		if b.Suits(dark) || i == m.BaseAt {
+			out = append(out, i)
+		}
 	}
 	return out
 }
