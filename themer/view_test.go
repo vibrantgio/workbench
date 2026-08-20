@@ -3,13 +3,19 @@ package main
 import (
 	"image"
 	stdcolor "image/color"
+	"strings"
 	"testing"
 
 	"gioui.org/gesture"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
+	"gioui.org/unit"
 
+	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/imageseed"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -39,13 +45,19 @@ func page(t *testing.T, m Model, os tokens.ColorTokens) *image.RGBA {
 // column by position needs the column to be where it left it.
 func pageOn(t *testing.T, e *embed, m Model, os tokens.ColorTokens, sel ...*baseSelector) *image.RGBA {
 	t.Helper()
+	return pageAt(t, e, m, os, image.Pt(windowW, windowH), sel...)
+}
+
+// pageAt is pageOn at a window size of the caller's choosing, which is how the
+// top of the window is measured at more than the one width it was drawn at.
+func pageAt(t *testing.T, e *embed, m Model, os tokens.ColorTokens, size image.Point, sel ...*baseSelector) *image.RGBA {
+	t.Helper()
 	bases := newBaseSelector()
 	if len(sel) > 0 {
 		bases = sel[0]
 	}
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
-	size := image.Pt(windowW, windowH)
-	widget := Page(themed{os: os, typ: pinned()}, m, &desktop.ZoneGroup{}, clicks, new(topBarClicks), e, bases, newStyleGrid())
+	widget := Page(themed{os: os, typ: pinned()}, m, &desktop.ZoneGroup{}, clicks, new(topClicks), e, bases, newStyleGrid())
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		// The backdrop is its own layer at runtime; here it is one fill
 		// under the page, resolved the same way that layer resolves it.
@@ -71,13 +83,21 @@ func dropped(t *testing.T) Model {
 	return Model{Preview: preview(img), Name: "scene.png", Candidates: candidates}
 }
 
+// The bands across the top of the window, from the same constants the page
+// stacks them with: the bar both screens carry, and under it — on the screen
+// that has a theme on it — the identity strip.
+func navTop() int     { return 0 }
+func navBottom() int  { return navTop() + int(NavH) }
+func headTop() int    { return navBottom() + int(Gap) }
+func headBottom() int { return headTop() + int(HeadH) }
+
 // cardTop is the y of the candidate cards' top edge, cardW the width they
 // share out between them, and cardX the left edge of card i — all computed
 // from the same constants and the same arithmetic the row lays out with. The
-// row sits under the top bar, between the picture it came from and the page
-// it themes.
+// row sits under the identity strip, between the picture it came from and the
+// page it themes.
 func cardTop() int {
-	return int(Pad) + int(TopBarH) + int(Gap) + int(RowLabelH) + int(RowTop)
+	return headBottom() + int(Gap) + int(RowLabelH) + int(RowTop)
 }
 
 // galleryTop is the y of the embedded page's panel, and galleryBottom the y
@@ -181,5 +201,451 @@ func TestBothSchemesRender(t *testing.T) {
 	dark := page(t, m, tokens.DefaultDark)
 	if golden.PixelDiff(light, dark) == 0 {
 		t.Error("the dark scheme rendered identically to the light one")
+	}
+}
+
+// The two widths the top of the window is measured at: the one the owner's
+// window was, and one narrow enough that the identity block has to give ground
+// to the controls beside it. Alignment that only holds at the width a screen
+// was captured at is not alignment, it is a coincidence.
+const (
+	wideW   = 1100
+	narrowW = 700
+)
+
+// measuring is a layout context with nothing on it but the scale a render
+// uses, for asking the shaper how wide a string is outside a frame.
+func measuring() layout.Context {
+	return layout.Context{Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}}
+}
+
+// probe is a control of a known size that paints itself solid in a colour
+// nothing else uses, so where a row put it can be read back off a render
+// rather than asserted about.
+func probe(size image.Point, c stdcolor.NRGBA) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		w := min(size.X, gtx.Constraints.Max.X)
+		if w <= 0 {
+			return layout.Dimensions{}
+		}
+		box := image.Pt(w, size.Y)
+		paint.FillShape(gtx.Ops, c, clip.Rect(image.Rectangle{Max: box}).Op())
+		return layout.Dimensions{Size: box}
+	}
+}
+
+// colourBand is the first and last row colour c was painted on, and how many
+// rows that is.
+func colourBand(img *image.RGBA, c stdcolor.NRGBA) (top, height int, found bool) {
+	first, last := -1, -1
+	b := img.Bounds()
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			p := img.RGBAAt(x, y)
+			if p.R == c.R && p.G == c.G && p.B == c.B {
+				if first < 0 {
+					first = y
+				}
+				last = y
+				break
+			}
+		}
+	}
+	if first < 0 {
+		return 0, 0, false
+	}
+	return first, last - first + 1, true
+}
+
+// TestARowPutsEveryControlOnOneCentreLine holds the row that lays out both
+// bands across the top of the window to its whole promise, at the two widths
+// and with controls of the assorted heights the real ones have — a switch, a
+// button, a two-line block, a line of hint text, a swatch the height of the
+// row itself. Every one of them has to come out with its own middle on the
+// row's middle, exactly, whether it is an odd number of points tall or an even
+// one; "near enough" across five objects in the first thing anybody looks at
+// is what a top that reads as sloppy is made of.
+func TestARowPutsEveryControlOnOneCentreLine(t *testing.T) {
+	heights := []int{36, 33, 40, 20, 56, 21}
+	for _, h := range []int{int(NavH), int(HeadH)} {
+		for _, width := range []int{wideW, narrowW} {
+			marks := make([]stdcolor.NRGBA, len(heights))
+			slots := make([]slot, len(heights))
+			for i, dy := range heights {
+				marks[i] = stdcolor.NRGBA{R: uint8(40 + 30*i), G: 0x10, B: uint8(200 - 20*i), A: 0xff}
+				end := leading
+				if i%2 == 1 {
+					end = trailing
+				}
+				slots[i] = slot{end, 0, probe(image.Pt(60, dy), marks[i])}
+			}
+			// The capture is taller than the row, with the row inset into it,
+			// so a control that overflowed its row would still be measured
+			// whole rather than cropped by the edge of the image.
+			const margin = 32
+			size := image.Pt(width, h+2*margin)
+			img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+				fill(gtx, size, tokens.DefaultLight.Background)
+				at(gtx, image.Pt(0, margin), func(gtx layout.Context) {
+					gtx.Constraints = layout.Exact(image.Pt(width, h))
+					centreRow(gtx, h, int(Gap), slots...)
+				})
+				return layout.Dimensions{Size: size}
+			})
+			for i, dy := range heights {
+				top, got, ok := colourBand(img, marks[i])
+				if !ok {
+					t.Errorf("h=%d w=%d: control %d (%d dp tall) was not drawn at all", h, width, i, dy)
+					continue
+				}
+				if got != dy {
+					t.Errorf("h=%d w=%d: control %d came out %d dp tall, want %d", h, width, i, got, dy)
+				}
+				if centre := top + got/2; centre != margin+h/2 {
+					t.Errorf("h=%d w=%d: control %d (%d dp tall) is centred on y=%d, want the row's own centre y=%d",
+						h, width, i, dy, centre-margin, h/2)
+				}
+			}
+		}
+	}
+}
+
+// inkBand is the first and last row between y0 and y1 on which something was
+// drawn over the window's own ground, within the columns x0 up to x1 — the
+// vertical extent of whatever control stands in that column.
+func inkBand(img *image.RGBA, ground stdcolor.NRGBA, x0, x1, y0, y1 int) (top, height int, found bool) {
+	first, last := -1, -1
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			p := img.RGBAAt(x, y)
+			if p.R != ground.R || p.G != ground.G || p.B != ground.B {
+				if first < 0 {
+					first = y
+				}
+				last = y
+				break
+			}
+		}
+	}
+	if first < 0 {
+		return 0, 0, false
+	}
+	return first, last - first + 1, true
+}
+
+// textSlack is how far a run of text's inked rows may sit off the line its box
+// is centred on. Text is centred by its line box and inked by its glyphs, and
+// the two are not the same span: a line with descenders in it inks lower than
+// one without, and a name in the body face inks taller than a caption in the
+// small one. The slack is what that costs, and it is small enough that a
+// control placed on the wrong line could not hide inside it.
+const textSlack = 2
+
+// TestTheTopOfTheWindowIsOnOneCentreLine is the alignment measured on the
+// window itself rather than on the row in isolation: the bar's two controls on
+// one line, and the identity strip's four on another, in both schemes and at
+// both widths.
+//
+// The solid controls are held to the exact centre, because their inked rows
+// are their boxes. The two runs of text are held to it within the slack a
+// glyph's own extent costs, and to sitting wholly inside the block they were
+// laid out in.
+func TestTheTopOfTheWindowIsOnOneCentreLine(t *testing.T) {
+	m := withStyles()
+	after := ReduceModel(m, AdoptStyle{Index: cardIndex(m, "dracula")})
+	for _, sc := range []struct {
+		name string
+		dark bool
+		os   tokens.ColorTokens
+	}{{"light", false, tokens.DefaultLight}, {"dark", true, tokens.DefaultDark}} {
+		on := ReduceModel(after, SetScheme{Dark: sc.dark})
+		ground := stdcolor.NRGBA(SchemeFor(sc.os, on).Background)
+		for _, width := range []int{wideW, narrowW} {
+			img := pageAt(t, newEmbed(), on, sc.os, image.Pt(width, windowH))
+			// The bar. Its rule is the one thing in the band that is not a
+			// control, and it is left out of the scan by stopping a hairline
+			// short of the bottom.
+			navMid := navTop() + int(NavH)/2
+			bar := []struct {
+				what   string
+				x0, x1 int
+			}{
+				{"the way back", int(Pad), int(Pad) + int(BackW)},
+				{"the scheme switch", width - int(Pad) - int(inventory.SchemeSwitchW), width - int(Pad)},
+			}
+			for _, c := range bar {
+				top, h, ok := inkBand(img, ground, c.x0, c.x1, navTop(), navBottom()-int(Hairline))
+				if !ok {
+					t.Errorf("%s at %d dp: %s is not drawn in the bar", sc.name, width, c.what)
+					continue
+				}
+				if centre := top + h/2; centre != navMid {
+					t.Errorf("%s at %d dp: %s is %d dp tall and centred on y=%d, want the bar's centre y=%d",
+						sc.name, width, c.what, h, centre, navMid)
+				}
+			}
+			// The identity strip. The swatch and the keep affordance are
+			// solid; the name block and the standing offer are text.
+			headMid := headTop() + int(HeadH)/2
+			solid := []struct {
+				what   string
+				x0, x1 int
+			}{
+				{"the swatch", int(Pad), int(Pad) + int(ThumbW)},
+				{"the keep affordance", width - int(Pad) - int(KeepW), width - int(Pad)},
+			}
+			for _, c := range solid {
+				top, h, ok := inkBand(img, ground, c.x0, c.x1, headTop(), headBottom())
+				if !ok {
+					t.Errorf("%s at %d dp: %s is not drawn in the identity strip", sc.name, width, c.what)
+					continue
+				}
+				if centre := top + h/2; centre != headMid {
+					t.Errorf("%s at %d dp: %s is %d dp tall and centred on y=%d, want the strip's centre y=%d",
+						sc.name, width, c.what, h, centre, headMid)
+				}
+			}
+			// The name and its caption, as one block, and the standing offer
+			// beside it. The offer's own columns are found by asking the
+			// shaper how wide it is — the same measurement the row sizes it
+			// with — rather than by guessing a gutter at it. It stands one
+			// row gap and one extra gap clear of the keep affordance, which
+			// is the room that stops it reading as part of the button.
+			offerRight := width - int(Pad) - int(KeepW) - 2*int(Gap)
+			offerLeft := offerRight - natural(measuring(), pinned().Shaper, pinned().Small, ReplaceHintFor(on))
+			textAt := []struct {
+				what   string
+				x0, x1 int
+				box    int // the block's own height, which the ink must sit inside
+			}{
+				{"the name and its caption", int(Pad) + int(ThumbW) + int(Gap), offerLeft - int(Gap), 2 * int(LineH)},
+				{"the standing offer", offerLeft, offerRight, int(LineH)},
+			}
+			for _, c := range textAt {
+				top, h, ok := inkBand(img, ground, c.x0, c.x1, headTop(), headBottom())
+				if !ok {
+					t.Errorf("%s at %d dp: %s is not drawn in the identity strip", sc.name, width, c.what)
+					continue
+				}
+				centre := top + h/2
+				t.Logf("%s at %d dp: %s inks %d dp from y=%d, centre y=%d against the strip's y=%d",
+					sc.name, width, c.what, h, top, centre, headMid)
+				if centre < headMid-textSlack || centre > headMid+textSlack {
+					t.Errorf("%s at %d dp: %s inks around y=%d, want it within %d dp of the strip's centre y=%d",
+						sc.name, width, c.what, centre, textSlack, headMid)
+				}
+				if top < headMid-c.box/2 || top+h > headMid+c.box/2 {
+					t.Errorf("%s at %d dp: %s inks rows %d..%d, outside the %d dp block centred on y=%d it was laid out in",
+						sc.name, width, c.what, top, top+h, c.box, headMid)
+				}
+			}
+		}
+	}
+}
+
+// TestTheNameCanNeverRunUnderTheSwatch is the width constraint's whole point,
+// measured: a name and a caption long enough to cross the window twice change
+// nothing in the swatch's own columns, and nothing in the keep affordance's,
+// at either width and in either scheme. What holds them in is the block's
+// width — it is only ever offered the room the swatch and the controls left —
+// and the clip drawn round it, which makes that a property of the painting and
+// not of the arithmetic.
+func TestTheNameCanNeverRunUnderTheSwatch(t *testing.T) {
+	m := withStyles()
+	short := ReduceModel(m, AdoptStyle{Index: cardIndex(m, "dracula")})
+	long := short
+	long.Name = strings.Repeat("quayside-night-", 16)
+	long.Problem = strings.Repeat("a style in the folder would not load and here is why ", 6)
+	for _, sc := range []struct {
+		name string
+		dark bool
+		os   tokens.ColorTokens
+	}{{"light", false, tokens.DefaultLight}, {"dark", true, tokens.DefaultDark}} {
+		for _, width := range []int{wideW, narrowW} {
+			size := image.Pt(width, windowH)
+			was := pageAt(t, newEmbed(), ReduceModel(short, SetScheme{Dark: sc.dark}), sc.os, size)
+			got := pageAt(t, newEmbed(), ReduceModel(long, SetScheme{Dark: sc.dark}), sc.os, size)
+			for _, c := range []struct {
+				what   string
+				x0, x1 int
+			}{
+				{"the swatch and the gap after it", 0, int(Pad) + int(ThumbW) + int(Gap)/2},
+				{"the keep affordance", width - int(Pad) - int(KeepW), width},
+			} {
+				if n := changedIn(was, got, c.x0, c.x1, headTop(), headBottom()); n != 0 {
+					t.Errorf("%s at %d dp: a name and a caption of their longest moved %d pixels of %s",
+						sc.name, width, n, c.what)
+				}
+			}
+			// And the long name is really on screen: a block that drew
+			// nothing at all would pass everything above.
+			mid := int(Pad) + int(ThumbW) + int(Gap)
+			if n := changedIn(was, got, mid, mid+int(LineH), headTop(), headBottom()); n == 0 {
+				t.Errorf("%s at %d dp: the long name changed nothing where the name is drawn", sc.name, width)
+			}
+		}
+	}
+}
+
+// changedIn counts the pixels inside a rectangle that two renders disagree on,
+// past the rasteriser's own jitter.
+func changedIn(a, b *image.RGBA, x0, x1, y0, y1 int) int {
+	n := 0
+	for y := y0; y < y1; y++ {
+		for x := max(x0, 0); x < min(x1, a.Bounds().Max.X); x++ {
+			p, q := a.RGBAAt(x, y), b.RGBAAt(x, y)
+			if apart(p.R, q.R) > inkJitter || apart(p.G, q.G) > inkJitter ||
+				apart(p.B, q.B) > inkJitter || apart(p.A, q.A) > inkJitter {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// inkColumns is the first and last column between x0 and x1 on which something
+// was drawn over the window's own ground, within the rows y0 up to y1.
+func inkColumns(img *image.RGBA, ground stdcolor.NRGBA, x0, x1, y0, y1 int) (first, last int, found bool) {
+	first, last = -1, -1
+	for x := max(x0, 0); x < min(x1, img.Bounds().Max.X); x++ {
+		for y := y0; y < y1; y++ {
+			p := img.RGBAAt(x, y)
+			if p.R != ground.R || p.G != ground.G || p.B != ground.B {
+				if first < 0 {
+					first = x
+				}
+				last = x
+				break
+			}
+		}
+	}
+	if first < 0 {
+		return 0, 0, false
+	}
+	return first, last, true
+}
+
+// TestTheTopBandIsBalancedAndUncrowded holds the two things a shared centre
+// line does not by itself buy.
+//
+// The first is that the bar's controls sit in the middle of the bar and not at
+// the bottom of it. A row centred inside a band that has the window's own top
+// margin stacked above it is centred in the wrong thing: what a reader sees is
+// a margin's worth of air above the controls and a few points below them, and
+// that reads as a row that has slipped rather than as a bar. The air is
+// measured on both sides of the controls, against the rule that closes the bar.
+//
+// The second is that the standing offer is not crowded onto the keep
+// affordance. A button carries its own inner padding, and text closer to the
+// button than the button's label is to its own edge reads as the first half of
+// that label rather than as a line standing on its own.
+func TestTheTopBandIsBalancedAndUncrowded(t *testing.T) {
+	m := withStyles()
+	after := ReduceModel(m, AdoptStyle{Index: cardIndex(m, "dracula")})
+	for _, sc := range []struct {
+		name string
+		dark bool
+		os   tokens.ColorTokens
+	}{{"light", false, tokens.DefaultLight}, {"dark", true, tokens.DefaultDark}} {
+		on := ReduceModel(after, SetScheme{Dark: sc.dark})
+		ground := stdcolor.NRGBA(SchemeFor(sc.os, on).Background)
+		for _, width := range []int{wideW, narrowW} {
+			img := pageAt(t, newEmbed(), on, sc.os, image.Pt(width, windowH))
+			rule := navBottom() - int(Hairline)
+			for _, c := range []struct {
+				what   string
+				x0, x1 int
+			}{
+				{"the way back", int(Pad), int(Pad) + int(BackW)},
+				{"the scheme switch", width - int(Pad) - int(inventory.SchemeSwitchW), width - int(Pad)},
+			} {
+				top, h, ok := inkBand(img, ground, c.x0, c.x1, navTop(), rule)
+				if !ok {
+					t.Errorf("%s at %d dp: %s is not drawn in the bar", sc.name, width, c.what)
+					continue
+				}
+				above, below := top-navTop(), rule-(top+h)
+				t.Logf("%s at %d dp: %s has %d dp of air above it and %d dp below", sc.name, width, c.what, above, below)
+				if above-below > 2 || below-above > 2 {
+					t.Errorf("%s at %d dp: %s has %d dp of air above it and %d dp below — the bar's contents are not in the middle of it",
+						sc.name, width, c.what, above, below)
+				}
+			}
+			// The offer's trailing edge against the keep affordance's leading
+			// one, both read off the render.
+			offerW := natural(measuring(), pinned().Shaper, pinned().Small, ReplaceHintFor(on))
+			_, offerEnds, ok := inkColumns(img, ground,
+				width-int(Pad)-int(KeepW)-2*int(Gap)-offerW, width-int(Pad)-int(KeepW)-int(Gap), headTop(), headBottom())
+			if !ok {
+				t.Errorf("%s at %d dp: the standing offer is not drawn", sc.name, width)
+				continue
+			}
+			keepStarts, _, ok := inkColumns(img, ground, width-int(Pad)-int(KeepW), width-int(Pad), headTop(), headBottom())
+			if !ok {
+				t.Errorf("%s at %d dp: the keep affordance is not drawn", sc.name, width)
+				continue
+			}
+			apart, padding := keepStarts-offerEnds, int(tokens.Comfortable.PaddingX)
+			t.Logf("%s at %d dp: %d dp between the offer and the keep affordance, whose own inner padding is %d dp",
+				sc.name, width, apart, padding)
+			if apart <= padding {
+				t.Errorf("%s at %d dp: the offer ends %d dp from the keep affordance, which pads its own label by %d dp — the offer reads as part of the label",
+					sc.name, width, apart, padding)
+			}
+		}
+	}
+}
+
+// TestTheWayBackHasABoundaryInBothSchemes measures the outline round the way
+// back on the window itself: the pixel actually painted at the control's
+// leading edge, against the page behind it.
+//
+// It is measured off the render rather than off the token because both halves
+// of the fix are only true in the render. The step is chosen against the ground
+// rather than pinned, which is what gives the light scheme the same weight the
+// dark one already had; and the outline is filled rather than stroked, which is
+// what makes the painted pixel the chosen colour instead of a half-strength
+// blend of it. A pinned step passes a token test and still leaves the control a
+// floating label under one of the two schemes, which is exactly what happened.
+func TestTheWayBackHasABoundaryInBothSchemes(t *testing.T) {
+	m := withStyles()
+	after := ReduceModel(m, AdoptStyle{Index: cardIndex(m, "dracula")})
+	for _, sc := range []struct {
+		name string
+		dark bool
+		os   tokens.ColorTokens
+	}{{"light", false, tokens.DefaultLight}, {"dark", true, tokens.DefaultDark}} {
+		on := ReduceModel(after, SetScheme{Dark: sc.dark})
+		c := SchemeFor(sc.os, on)
+		ground := stdcolor.NRGBA(c.Background)
+		for _, width := range []int{wideW, narrowW} {
+			img := pageAt(t, newEmbed(), on, sc.os, image.Pt(width, windowH))
+			top, h, ok := inkBand(img, ground, int(Pad), int(Pad)+int(BackW), navTop(), navBottom()-int(Hairline))
+			if !ok {
+				t.Errorf("%s at %d dp: the way back is not drawn", sc.name, width)
+				continue
+			}
+			// The leading edge of the control, at its own middle height: the
+			// outline, and nothing else.
+			edge := opaque(img.RGBAAt(int(Pad), top+h/2))
+			fill := opaque(img.RGBAAt(int(Pad)+2*int(Hairline), top+h/2))
+			page := color.ContrastRatio(edge, ground)
+			over := color.ContrastRatio(edge, fill)
+			t.Logf("%s at %d dp: outline %v reaches %.2f:1 against the page %v and %.2f:1 against its own fill %v",
+				sc.name, width, edge, page, ground, over, fill)
+			// Within a unit a channel, which is the renderer's own round
+			// trip. A stroke centred on the boundary instead of a fill would
+			// come back a half-and-half blend with the page — scores of units
+			// away, on this palette nearly a hundred — so a unit of slack
+			// cannot hide the thing this is looking for.
+			if want := PaletteFrom(c).Outline; apart(edge.R, want.R) > 1 || apart(edge.G, want.G) > 1 || apart(edge.B, want.B) > 1 {
+				t.Errorf("%s at %d dp: the leading edge drew %v, want the palette's outline %v — the outline is blended, not painted",
+					sc.name, width, edge, want)
+			}
+			if page < EdgeContrast {
+				t.Errorf("%s at %d dp: the way back's outline measures %.2f:1 against the page, under the %.1f:1 a boundary needs — it reads as a tint",
+					sc.name, width, page, EdgeContrast)
+			}
+		}
 	}
 }

@@ -36,13 +36,11 @@ func cardIndex(m Model, name string) int {
 }
 
 // The grid's geometry, computed from the same constants the first screen lays
-// out with: the scheme control, the drop well, the grid's label, and then the
-// cards.
-func wellTop() int  { return int(Pad) + schemeBarH() + int(Gap) }
+// out with: the bar across the top, the drop well, the grid's label, and then
+// the cards.
+func wellTop() int  { return navBottom() + int(Gap) }
 func gridTop() int  { return wellTop() + int(DropH) + int(Gap) }
 func cardsTop() int { return gridTop() + int(StyleHead) + int(RowTop) }
-
-func schemeBarH() int { return 36 } // inventory.SchemeSwitchH
 
 // gridW is the width the cards are laid out in: the page's width less the
 // gutter the scrollbar occupies.
@@ -622,7 +620,7 @@ func TestAnAdoptedStyleStandsWhereThePictureWould(t *testing.T) {
 	m := withStyles()
 	after := ReduceModel(m, AdoptStyle{Index: cardIndex(m, "dracula")})
 	img := page(t, after, tokens.DefaultDark)
-	mat := image.Pt(int(Pad)+int(ThumbPad)+6, int(Pad)+int(TopBarH)/2)
+	mat := image.Pt(int(Pad)+int(ThumbPad)+6, headTop()+int(HeadH)/2)
 	want := after.Candidates[0].Color
 	got := img.RGBAAt(mat.X, mat.Y)
 	if got.R != want.R || got.G != want.G || got.B != want.B {

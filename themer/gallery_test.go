@@ -186,9 +186,10 @@ func TestTheSchemeSwitchIsIndependentOfTheDesktop(t *testing.T) {
 // for, so it gets the room. The picture is a reference and takes a strip.
 func TestTheEmbeddedPageIsTheBiggestBand(t *testing.T) {
 	page := galleryBottom() - galleryTop()
-	if page <= int(TopBarH)+int(CellH) {
+	top := headBottom() - navTop() // the bar and the identity strip together
+	if page <= top+int(CellH) {
 		t.Errorf("the embedded page has %d dp against %d dp of picture and candidates — the thing being judged is not the biggest thing in the window",
-			page, int(TopBarH)+int(CellH))
+			page, top+int(CellH))
 	}
 	if share := 100 * page / windowH; share < 50 {
 		t.Errorf("the embedded page is %d%% of the window, want at least half of it", share)

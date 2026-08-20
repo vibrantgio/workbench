@@ -123,15 +123,15 @@ func chipBand(n, i int) image.Rectangle {
 }
 
 // keepBand finds the keep button in a rendered window and returns the middle
-// of it. The button is the widest run of the palette's primary in the top
-// bar — the scheme switch's selected segment is painted in the same colour
-// and is a fraction of the width, which is what "widest" is for.
+// of it. The button is the widest run of the palette's primary in the identity
+// strip — nothing else there is painted in that colour at that width, and
+// "widest" keeps the answer right even when something is.
 func keepBand(img *image.RGBA, primary stdcolor.NRGBA) (image.Rectangle, bool) {
 	is := func(x, y int) bool {
 		c := img.RGBAAt(x, y)
 		return (stdcolor.NRGBA{c.R, c.G, c.B, 0xff}) == primary
 	}
-	top, bottom := int(Pad), int(Pad)+int(TopBarH)
+	top, bottom := headTop(), headBottom()
 	// The widest unbroken run of the fill anywhere in the bar is the
 	// button's own width, found on one of the rows the label does not cross.
 	best, at := 0, 0

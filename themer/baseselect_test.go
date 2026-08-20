@@ -481,7 +481,7 @@ func TestEachSchemeRendersThroughItsOwnMember(t *testing.T) {
 			if n := movedInk(was, got, galleryTop(), galleryBottom()); n != 0 {
 				t.Errorf("choosing %q for the appearance that is not showing repainted %d pixels of the page", tc.other, n)
 			}
-			if pct := bandChange(was, got, int(Pad), int(Pad)+int(TopBarH)); pct == 0 {
+			if pct := bandChange(was, got, headTop(), headBottom()); pct == 0 {
 				t.Errorf("choosing %q for the appearance that is not showing left the caption naming the old pair", tc.other)
 			}
 			shown := pick(on, tc.instead, tc.dark)
