@@ -832,8 +832,14 @@ func DropWell(p Palette, ty Type, m Model) layout.Widget {
 func SchemeToggle(c tokens.ColorTokens, dark bool, clicks *[2]gesture.Click) layout.Widget {
 	segment := func(i int, wantDark bool) layout.FlexChild {
 		draw := inventory.SchemeSegment(c, wantDark, dark == wantDark)
-		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			dims := draw(gtx)
+		// The press area is the one the control hands out and not the one it
+		// draws. Its track is cut to the scale of the strip it stands in, and
+		// the height that came off it is given back as slop above and below —
+		// which is air on this row either way, so what a pointer has to land
+		// on stands at the standing minimum while the row keeps the height the
+		// track cut it to.
+		press := func(gtx layout.Context, w layout.Widget) layout.Dimensions {
+			dims := w(gtx)
 			area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
 			clicks[i].Add(gtx.Ops)
 			area.Pop()
@@ -847,6 +853,9 @@ func SchemeToggle(c tokens.ColorTokens, dark bool, clicks *[2]gesture.Click) lay
 				}
 			}
 			return dims
+		}
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return inventory.SchemeTarget(gtx, press, draw)
 		})
 	}
 	return func(gtx layout.Context) layout.Dimensions {

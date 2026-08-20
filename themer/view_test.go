@@ -10,6 +10,7 @@ import (
 	"gioui.org/f32"
 	"gioui.org/gesture"
 	"gioui.org/io/input"
+	"gioui.org/io/pointer"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -1008,4 +1009,59 @@ func TestTheTitleRowMovesTheWindow(t *testing.T) {
 			t.Errorf("a window-move action covers %s at x=%d; it would take the press meant for it", c.what, c.x)
 		}
 	}
+}
+
+// TestTheSchemeSwitchIsPressableAboveAndBelowItsTrack is what the row owes the
+// switch for standing it in a strip.
+//
+// The switch draws at the strip's scale, which is shorter than a control on a
+// page, and the height it gave up is slop rather than a smaller target: the
+// band of the row above the track and the band below it press the half they
+// stand over. Both bands are inside this row, so nothing else is competing for
+// them — the row's own drag handle stops at the switch's leading edge.
+func TestTheSchemeSwitchIsPressableAboveAndBelowItsTrack(t *testing.T) {
+	m := ReduceModel(withStyles(), SetScheme{Dark: false})
+	c := SchemeFor(tokens.DefaultLight, m)
+	bar := new(topClicks)
+	row := TitleRow(PaletteFrom(c), c, pinned(), m, false, bar)
+
+	width, h := wideW-2*int(Pad), int(TitleH)
+	r := new(input.Router)
+	ops := new(op.Ops)
+	drive := func() {
+		ops.Reset()
+		gtx := layout.Context{
+			Constraints: layout.Exact(image.Pt(width, h)),
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Ops:         ops,
+			Source:      r.Source(),
+		}
+		row(gtx)
+		r.Frame(ops)
+	}
+	drive() // register the row's areas
+
+	// The moon half's own column, and the rows the track leaves free at the
+	// top and the bottom of the strip.
+	x := float32(width - int(inventory.SchemeSegmentW)/2)
+	top := (h - int(inventory.SchemeSwitchH)) / 2
+	for _, p := range []struct {
+		where string
+		y     int
+	}{
+		{"above the track", top - 1},
+		{"on the track", h / 2},
+		{"below the track", top + int(inventory.SchemeSwitchH)},
+	} {
+		pos := f32.Pt(x, float32(p.y))
+		r.Queue(pointer.Event{Kind: pointer.Press, Position: pos, Buttons: pointer.ButtonPrimary, Source: pointer.Mouse})
+		drive()
+		if !bar.scheme[schemeDarkSegment].Pressed() {
+			t.Errorf("a press %s, at %v, reached nothing — the switch's target does not cover its own strip", p.where, pos)
+		}
+		r.Queue(pointer.Event{Kind: pointer.Release, Position: pos, Buttons: pointer.ButtonPrimary, Source: pointer.Mouse})
+		drive()
+	}
+	t.Logf("the row is %d dp tall, the track %v of it, and the %d dp above and below the track press the half over them",
+		h, inventory.SchemeSwitchH, top)
 }
