@@ -314,15 +314,22 @@ func BaseRowWidget(gtx layout.Context, p Palette, ty Type, opt BaseOption, index
 	return layout.Dimensions{Size: size}
 }
 
-// baseTag is the word marking one row, or none. A style that came out of the
-// folder says so; one that named no ground of its own says that instead, which
-// is the only explanation a reader gets for a name reading "dark" sitting on
-// the light list.
-func baseTag(o BaseOption) string {
+// baseTag is the word marking one row, or none.
+func baseTag(o BaseOption) string { return originTag(o.Added, o.Light, o.Dark) }
+
+// originTag is the word marking one style wherever it is offered, or none. A
+// style that came out of the folder says so; one that named no ground of its
+// own says that instead, which is the only explanation a reader gets for a
+// name reading "dark" sitting under the sun. Where it came from wins when a
+// style is both, being the more surprising fact.
+//
+// One vocabulary for the list and the grid: the same style annotated with two
+// different words in two places on one page would read as two facts.
+func originTag(added, light, dark bool) string {
 	switch {
-	case o.Added:
+	case added:
 		return BaseAdded
-	case o.Light && o.Dark:
+	case light && dark:
 		return BaseEither
 	}
 	return ""

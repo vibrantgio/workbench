@@ -52,6 +52,35 @@ func TestCandidateChipsAreLegible(t *testing.T) {
 	}
 }
 
+// TestStyleChipsAreLegible measures the same thing on the grid, and measures
+// it on every card rather than on the six a picture happens to produce: each
+// card carries the primary pair its style's leading ink derives, under both
+// appearances, and it carries it as a promise about what a click delivers. The
+// sweep is over the model rather than over pixels because the chips are
+// resolved once and drawn from — what a card shows and what a click applies
+// come out of the same two colours.
+func TestStyleChipsAreLegible(t *testing.T) {
+	cards := styleCards()
+	if len(cards) < 70 {
+		t.Fatalf("only %d cards to measure", len(cards))
+	}
+	worst, worstAt := math.Inf(1), ""
+	for _, s := range cards {
+		for _, dark := range []bool{false, true} {
+			chip := s.Chip(dark)
+			ratio := color.ContrastRatio(chip.Ink, chip.Fill)
+			if ratio < worst {
+				worst, worstAt = ratio, s.Name+" under "+sideName(dark)
+			}
+			if ratio < legibleFloor {
+				t.Errorf("%s (%s) under %s: its chip's label measures %.2f:1, under the %.1f:1 floor",
+					s.Name, hexOf(s.Seed()), sideName(dark), ratio, legibleFloor)
+			}
+		}
+	}
+	t.Logf("the tightest chip on the grid is %s at %.2f:1", worstAt, worst)
+}
+
 // TestKeepButtonIsLegible measures the keep affordance in a rendered window,
 // once per candidate. It is the published filled button under the chosen
 // seed's own primary pair, so it fails exactly when a chip does — and it is
@@ -170,4 +199,67 @@ func inkOn(img *image.RGBA, at image.Rectangle) (fill, ink stdcolor.NRGBA) {
 		}
 	}
 	return fill, ink
+}
+
+// boundaryFloor is how far apart a swatch's frame has to be from the colour on
+// either side of it. It is nowhere near a text floor and is not meant to be:
+// what it guards is that there is a line there at all, drawn at its own
+// strength rather than smeared across two rows of antialiasing.
+const boundaryFloor = 2.0
+
+// TestANearWhiteSwatchKeepsItsBoundary: a style's palest ink, drawn at the end
+// of a strip on a card that is itself pale, has to stay a colour somebody chose
+// rather than becoming the place the strip appears to stop. The frame round the
+// strip is what does that, and this measures it on the styles that actually
+// carry a near-white ink — in both schemes, since the pale card and the pale
+// ink swap which of them is the surprise.
+func TestANearWhiteSwatchKeepsItsBoundary(t *testing.T) {
+	m := withStyles()
+	for _, tc := range []struct {
+		scheme string
+		dark   bool
+		os     tokens.ColorTokens
+		styles []string
+	}{
+		{"light", false, tokens.DefaultLight, []string{"tango", "rainbow_dash", "github"}},
+		{"dark", true, tokens.DefaultDark, []string{"swapoff", "hr_high_contrast", "hrdark"}},
+	} {
+		on := ReduceModel(m, SetScheme{Dark: tc.dark})
+		img := page(t, on, tc.os)
+		visible := on.VisibleStyles(tc.dark)
+		for _, name := range tc.styles {
+			at := -1
+			for n, i := range visible {
+				if on.Styles[i].Name == name {
+					at = n
+				}
+			}
+			if at < 0 {
+				t.Errorf("%s is not on the %s grid", name, tc.scheme)
+				continue
+			}
+			cols := gridCols()
+			right := int(Pad) + (at%cols)*(styleCellW()+int(StyleGap)) + styleCellW()
+			y := leadSwatch(at).Y
+			if y > windowH-int(Pad) {
+				continue // a row the window is too short for is not drawn
+			}
+			band := opaque(img.RGBAAt(right-int(StylePad)-4, y))
+			frame := opaque(img.RGBAAt(right-int(StylePad)-1, y))
+			card := opaque(img.RGBAAt(right-int(StylePad)+2, y))
+			inner := color.ContrastRatio(band, frame)
+			outer := color.ContrastRatio(frame, card)
+			t.Logf("%s %s: band %v | frame %v | card %v — %.2f:1 inside, %.2f:1 outside",
+				tc.scheme, name, band, frame, card, inner, outer)
+			if inner < boundaryFloor || outer < boundaryFloor {
+				t.Errorf("%s %s: the strip's trailing edge measures %.2f:1 against the ink and %.2f:1 against the card, want %.1f:1 either side — the band has no boundary and the strip reads as one that stopped short",
+					tc.scheme, name, inner, outer, boundaryFloor)
+			}
+		}
+	}
+}
+
+// opaque reads a captured pixel back as the colour it was painted from.
+func opaque(c stdcolor.RGBA) stdcolor.NRGBA {
+	return stdcolor.NRGBA{R: c.R, G: c.G, B: c.B, A: 0xff}
 }

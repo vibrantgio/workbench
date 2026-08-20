@@ -60,6 +60,15 @@ type Model struct {
 	// ones that ship embedded and the ones read out of the styles folder —
 	// in the order the selector lists them.
 	Bases []BaseOption
+	// Styles are those same palettes offered the other way round: as seeds,
+	// one card each, in the order the grid lays them out. Every style with a
+	// colour in it is here, embedded and folder-loaded alike.
+	Styles []StyleCard
+	// Style names the style the theme on screen was adopted from, and is
+	// empty when the seed came out of a picture. It is what tells the window
+	// to stand the style's own colours where the photograph would be, and
+	// nothing else turns on it: a seed from a style is a seed.
+	Style string
 	// LightAt and DarkAt index Bases, one per appearance: the palette the
 	// code is coloured from under the sun, and the one it is coloured from
 	// under the moon. They start on whatever was kept, so a window opens
@@ -183,6 +192,7 @@ func Init() (Model, mvu.Command) {
 		}
 	}
 	m.Bases = baseOptions()
+	m.Styles = styleCards()
 	kept := brand.Brand{}
 	if path, err := brand.Path(); err == nil {
 		m.KeepPath = path
@@ -244,6 +254,25 @@ func (m Model) VisibleBases(dark bool) []int {
 	out := make([]int, 0, len(m.Bases))
 	for i, b := range m.Bases {
 		if b.Suits(dark) {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// VisibleStyles are the cards the grid lays out under the appearance on
+// screen, as indices into Styles: every style fitted to that appearance, and
+// nothing else.
+//
+// One state and not a second control, for the reason the base list has one:
+// a filter with a switch of its own could be set to disagree with the window,
+// which would mean offering styles for the scheme nobody is looking at — and
+// on this grid it would be worse than on that list, since a click here is what
+// puts the window in a scheme's theme in the first place.
+func (m Model) VisibleStyles(dark bool) []int {
+	out := make([]int, 0, len(m.Styles))
+	for i, s := range m.Styles {
+		if s.Suits(dark) {
 			out = append(out, i)
 		}
 	}

@@ -51,6 +51,38 @@ func atTheCode(t *testing.T, e *embed, m Model, os tokens.ColorTokens, sel ...*b
 	return pageOn(t, e, m, os, sel...)
 }
 
+// inkJitter is how far apart two channel values may be and still count as the
+// same pixel. The window shapes its text through one process-wide shaper with
+// a cache inside it, so two frames whose captions differ by a word come out a
+// level or two of antialiasing apart in glyphs neither frame changed —
+// measured at three levels out of 255 over 293 pixels of a half-million. The
+// tolerance sits above that and far below a recolour, which is what the
+// assertions using it are actually about.
+const inkJitter = 8
+
+// movedInk counts the pixels between rows y0 and y1 that changed by more than
+// the rasteriser's own jitter.
+func movedInk(a, b *image.RGBA, y0, y1 int) int {
+	n := 0
+	for y := y0; y < y1; y++ {
+		for x := a.Bounds().Min.X; x < a.Bounds().Max.X; x++ {
+			p, q := a.RGBAAt(x, y), b.RGBAAt(x, y)
+			if apart(p.R, q.R) > inkJitter || apart(p.G, q.G) > inkJitter ||
+				apart(p.B, q.B) > inkJitter || apart(p.A, q.A) > inkJitter {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+func apart(a, b uint8) int {
+	if a > b {
+		return int(a) - int(b)
+	}
+	return int(b) - int(a)
+}
+
 // settled is a selector that will not move itself: the column brings the
 // applied base into view when the list it is in is new, and a test that reads
 // rows by position needs the rows where it left them.
@@ -418,9 +450,17 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 }
 
 // TestEachSchemeRendersThroughItsOwnMember: changing the member an appearance
-// is not showing changes nothing on screen, and changing the one it is showing
-// changes the page. Same seed, same scheme, same scroll — the only thing that
-// moves between the two renders is one member of the pair.
+// is not showing repaints no part of the page that appearance is drawn
+// through, and changing the one it is showing does. Same seed, same scheme,
+// same scroll — the only thing that moves between the two renders is one
+// member of the pair.
+//
+// The top bar is excluded and then asserted on separately: the line under the
+// source's name reads both members out, so a change to the hidden one has to
+// show there. That is the point of naming the pair rather than the half in
+// force — a choice that reaches two things must not look like one that reached
+// one — and it is the one place on the page where the hidden member is
+// legitimately visible.
 func TestEachSchemeRendersThroughItsOwnMember(t *testing.T) {
 	base := paired(t)
 	for _, tc := range []struct {
@@ -437,8 +477,12 @@ func TestEachSchemeRendersThroughItsOwnMember(t *testing.T) {
 			on := ReduceModel(base, SetScheme{Dark: tc.dark})
 			was := atTheCode(t, newEmbed(), on, tc.os, settled(tc.dark))
 			hidden := pick(on, tc.other, !tc.dark)
-			if got := atTheCode(t, newEmbed(), hidden, tc.os, settled(tc.dark)); golden.PixelDiff(was, got) != 0 {
-				t.Errorf("choosing %q for the appearance that is not showing repainted the window", tc.other)
+			got := atTheCode(t, newEmbed(), hidden, tc.os, settled(tc.dark))
+			if n := movedInk(was, got, galleryTop(), galleryBottom()); n != 0 {
+				t.Errorf("choosing %q for the appearance that is not showing repainted %d pixels of the page", tc.other, n)
+			}
+			if pct := bandChange(was, got, int(Pad), int(Pad)+int(TopBarH)); pct == 0 {
+				t.Errorf("choosing %q for the appearance that is not showing left the caption naming the old pair", tc.other)
 			}
 			shown := pick(on, tc.instead, tc.dark)
 			if got := atTheCode(t, newEmbed(), shown, tc.os, settled(tc.dark)); golden.PixelDiff(was, got) == 0 {

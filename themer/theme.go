@@ -60,6 +60,7 @@ type Palette struct {
 	Surface   stdcolor.NRGBA // the picture's mat and the candidate cards
 	Divider   stdcolor.NRGBA // the drop zone's outline at rest
 	CardEdge  stdcolor.NRGBA // a candidate card's outline at rest
+	Edge      stdcolor.NRGBA // the frame round a swatch, at the strong border weight
 	Text      stdcolor.NRGBA // headings and the chosen candidate's label
 	Muted     stdcolor.NRGBA // hints, hex values, unchosen labels
 	Accent    stdcolor.NRGBA // the chosen candidate's ring, the hover highlight
@@ -91,7 +92,15 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		// neutral steps are close together by design — so the card's own
 		// edge, not its fill, is what makes it an object. It is drawn a rung
 		// stronger than the page's dividers for exactly that reason.
-		CardEdge:  c.Ramps.Neutral.Step(400),
+		CardEdge: c.Ramps.Neutral.Step(400),
+		// The strong border step, and it is on swatches rather than on cards
+		// for one reason: a swatch can be any colour a style or a photograph
+		// contains, and plenty of both are near-white. A near-white swatch on
+		// a near-white card has no boundary of its own, and without one it
+		// does not read as a pale colour somebody chose — it reads as a card
+		// that failed to finish drawing. The weight has to beat the two
+		// near-whites it stands between, which the card weight does not.
+		Edge:      c.Ramps.Neutral.Step(500),
 		Text:      c.Text,
 		Muted:     c.Ramps.Neutral.Step(700),
 		Accent:    c.Primary,

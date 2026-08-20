@@ -51,6 +51,7 @@ func ReduceModel(m Model, message any) Model {
 		}
 		m.Preview = msg.Preview
 		m.Name = shortName(msg.Path)
+		m.Style = "" // a picture replaces a style as the colours' provenance
 		m.Candidates = msg.Candidates
 		m.Selected = 0 // the leading candidate is the one worth seeing first
 		m.Problem = ""
@@ -62,6 +63,27 @@ func ReduceModel(m Model, message any) Model {
 		if msg.Index >= 0 && msg.Index < len(m.Candidates) {
 			m.Selected = msg.Index
 		}
+	case AdoptStyle:
+		// One click, both halves of a theme. The candidates are the style's
+		// own, handed to the row exactly as a picture's are, so the leading
+		// one is applied and the rest stay on offer beside it; the pair is
+		// the style on its own side and the measured counterpart on the
+		// other. Everything downstream — the ring, the keep affordance, the
+		// base list's override — is looking at the same fields it was.
+		if msg.Index >= 0 && msg.Index < len(m.Styles) {
+			s := m.Styles[msg.Index]
+			m.Preview, m.Style, m.Name = nil, s.Name, s.Name
+			m.Candidates, m.Selected = s.Candidates, 0
+			m.LightAt = baseIndex(m.Bases, s.Pair.Light, false)
+			m.DarkAt = baseIndex(m.Bases, s.Pair.Dark, true)
+			m.Problem = ""
+		}
+	case ShowStyles:
+		// Everything the seed came with goes; the pair, which was a separate
+		// choice, stays.
+		m.Preview, m.Style, m.Name = nil, "", ""
+		m.Candidates, m.Selected = nil, 0
+		m.Problem = ""
 	case SelectBase:
 		// The appearance the row was clicked under is the one it changes: a
 		// base is fitted to a ground, and the list a name was picked off is

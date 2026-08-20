@@ -38,10 +38,26 @@ const (
 // and what the number under each swatch is, because those are two different
 // things and a row that says only "most prominent first" reads as broken the
 // moment a vivid tenth of the picture outranks a drab half of it.
+//
+// There are two hints because there are two things a row can be made of. The
+// share under a swatch is a fraction of whatever the colours were counted out
+// of, and after a style card is clicked that is the style's own inks and not a
+// photograph: a line explaining a percentage of a picture, on a window where no
+// picture was ever dropped, describes a route the reader did not take and
+// leaves the number in front of them with nothing to be a fraction of.
 const (
-	RowLabel = "Seed candidates"
-	RowHint  = "vivid first, not largest. The % is how much of the picture. Click to apply."
+	RowLabel     = "Seed candidates"
+	RowHint      = "vivid first, not largest. The % is how much of the picture. Click to apply."
+	RowHintStyle = "vivid first, not largest. The % is how much of the palette. Click to apply."
 )
+
+// RowHintFor is the hint for the row the window is actually showing.
+func RowHintFor(m Model) string {
+	if m.Style != "" {
+		return RowHintStyle
+	}
+	return RowHint
+}
 
 // cellWidth is the width one card takes when n of them share width dp of
 // row, gap dp apart.
@@ -61,7 +77,7 @@ func CandidateRow(p Palette, ty Type, m Model, pairs []tokens.ColorTokens, click
 		labelH := gtx.Dp(RowLabelH)
 		head := image.Rect(0, 0, width, labelH)
 		textdraw.FillText(gtx, ty.Shaper, ty.Label, head, 0, 0.5, p.Text, RowLabel)
-		textdraw.FillText(gtx, ty.Shaper, ty.Small, head, 1, 0.5, p.Muted, RowHint)
+		textdraw.FillText(gtx, ty.Shaper, ty.Small, head, 1, 0.5, p.Muted, RowHintFor(m))
 
 		top := labelH + gtx.Dp(RowTop)
 		gap := gtx.Dp(CellGap)
@@ -102,7 +118,12 @@ func Cell(gtx layout.Context, p Palette, ty Type, c imageseed.Candidate, pair to
 	chip := image.Rect(inner.Min.X, swatch.Max.Y+gtx.Dp(8), inner.Max.X, swatch.Max.Y+gtx.Dp(8)+gtx.Dp(ChipH))
 	caption := image.Rect(inner.Min.X, chip.Max.Y+gtx.Dp(6), inner.Max.X, chip.Max.Y+gtx.Dp(6)+gtx.Dp(CaptionH))
 
-	fillRRect(gtx, swatch, gtx.Dp(InnerR), c.Color)
+	// The swatch is one band in the same frame the style cards wear, and it
+	// wears it for the same reason: a picture's palest colour is a legal
+	// candidate, and a near-white swatch on a near-white card with no
+	// boundary of its own reads as a card that failed to draw rather than as
+	// the colour it is.
+	SwatchBands(gtx, swatch, gtx.Dp(InnerR), []imageseed.Candidate{c}, p.Edge)
 	fillRRect(gtx, chip, gtx.Dp(InnerR), pair.Primary)
 	textdraw.FillText(gtx, ty.Shaper, ty.Label, chip, 0.5, 0.5, pair.OnPrimary, "Aa")
 

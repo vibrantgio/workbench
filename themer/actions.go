@@ -44,6 +44,30 @@ type SelectBase struct {
 	Dark  bool
 }
 
+// AdoptStyle dresses the window in a syntax style, by the card's position in
+// the grid. Emitted by a click on one of its cards.
+//
+// It is one message and not two because it is one act: the style's leading ink
+// becomes the seed the whole system derives from, and the style itself becomes
+// the syntax base on the side its author fitted it to, with the nearest
+// measured answer on the other. Sending a seed and a base separately would let
+// a window exist, however briefly, wearing half of somebody's choice.
+type AdoptStyle struct {
+	Index int
+}
+
+// ShowStyles puts the window back on its first screen — the drop well and the
+// grid — leaving the syntax pair alone. Emitted by the control beside the keep
+// affordance.
+//
+// It exists because a click on a card is otherwise a one-way door. The window
+// offers to keep what is on screen, which is an offer that only means anything
+// where there is a way not to; without this the only route back to the other
+// forty cards was to close the window. The pair stays because it was chosen:
+// coming back to look at more styles is not a reason to un-choose how code is
+// coloured.
+type ShowStyles struct{}
+
 // KeepSeed asks for what is on screen to outlast the window: the chosen
 // candidate and the chosen syntax bases are written to the kept-theme file,
 // where every application that adopts a brand looks for one. Emitted by a

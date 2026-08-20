@@ -34,11 +34,13 @@ const (
 	Hairline unit.Dp = 1  // the mat's resting outline
 	Ring     unit.Dp = 2  // the chosen candidate's ring, and the drag highlight
 
-	TopBarH   unit.Dp = 72  // thumbnail, file name, the keep button and the scheme switch
+	TopBarH   unit.Dp = 72  // thumbnail, source name, the two buttons and the scheme switch
 	ThumbW    unit.Dp = 108 // the thumbnail's mat
 	ThumbPad  unit.Dp = 6   // mat edge to the picture inside it
 	RowLabelH unit.Dp = 20  // the label over the candidate row, and over the page
 	KeepW     unit.Dp = 150 // the keep button, at a width neither of its two labels squeezes
+	BackW     unit.Dp = 140 // the way back to the first screen
+	ReplaceW  unit.Dp = 160 // the standing drop invitation, at the caption's trailing edge
 )
 
 // What the keep affordance says. The second word is a state and not an
@@ -48,6 +50,11 @@ const (
 	KeepLabel = "Keep this theme"
 	KeptLabel = "Kept"
 )
+
+// BackLabel is on the control that undoes a choice by returning to the screen
+// it was made on. It names where it goes rather than what it undoes: "cancel"
+// on a window with nothing pending is a question, and the grid is a place.
+const BackLabel = "Back to styles"
 
 // dropZone is the one zone the window registers: the whole of it. The
 // application has no second drop target, so the index is a constant.
@@ -96,8 +103,8 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 // candidate, so the handlers outlive a picture being replaced by another.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
-	keep, scheme := new(gesture.Click), new([2]gesture.Click)
-	page, bases := newEmbed(), newBaseSelector()
+	bar := new(topBarClicks)
+	page, bases, grid := newEmbed(), newBaseSelector(), newStyleGrid()
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
 			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
@@ -106,17 +113,35 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
 		func(n rx.Tuple2[themed, Model]) layout.Widget {
-			return Page(n.First, n.Second, zones, clicks, keep, scheme, page, bases)
+			return Page(n.First, n.Second, zones, clicks, bar, page, bases, grid)
 		})
+}
+
+// topBarClicks are the handlers of the controls along the top of the window:
+// the way back to the first screen, the keep affordance, and the two halves of
+// the scheme switch. They are one value rather than three parameters because
+// they have one lifetime — subscription scope, so a press in flight survives an
+// emission — and because the scheme switch is on the first screen too, where
+// the other two are not.
+type topBarClicks struct {
+	back   gesture.Click
+	keep   gesture.Click
+	scheme [2]gesture.Click
 }
 
 // Page lays the window out and registers it, whole, as the drop zone.
 //
-// The window is three bands: what was dropped, the seeds taken out of it, and
-// the whole design system drawn in the one that is chosen. The last of those
-// gets the room, because it is the thing being judged — the picture is a
-// reference and needs only to be recognisable.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, keep *gesture.Click, scheme *[2]gesture.Click, page *embed, bases *baseSelector) layout.Widget {
+// With a theme on screen the window is three bands: where the colours came
+// from, the seeds taken out of it, and the whole design system drawn in the one
+// that is chosen. The last of those gets the room, because it is the thing
+// being judged — the source is a reference and needs only to be recognisable.
+//
+// Before anything has been chosen it is the two doors instead: the drop well,
+// which is the primary invitation and takes the top of the page, and under it
+// the grid of styles for somebody who would rather start from a palette than
+// find one. The well is a band rather than the whole page there, because a
+// grid nobody can see without scrolling is a grid nobody knows about.
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topBarClicks, page *embed, bases *baseSelector, grid *styleGrid) layout.Widget {
 	c := SchemeFor(t.os, m)
 	p := PaletteFrom(c)
 	dark := m.Dark(t.os)
@@ -157,14 +182,25 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, k
 			children := []layout.FlexChild{}
 			if len(m.Candidates) > 0 {
 				children = append(children,
-					rigid(TopBar(p, c, t.typ, m, picture, dark, keep, scheme)),
+					rigid(TopBar(p, c, t.typ, m, picture, dark, bar)),
 					spacer(Gap),
 					rigid(CandidateRow(p, t.typ, m, pairs, clicks)),
 					spacer(Gap),
 					layout.Flexed(1, Gallery(p, c, t.typ, GalleryHintFor(m, dark), page.st, items)),
 				)
 			} else {
-				children = append(children, layout.Flexed(1, Invitation(p, t.typ, m)))
+				children = append(children,
+					// The scheme control before anything is chosen, in the
+					// corner it stands in afterwards: it is what the grid
+					// under it is filtered by, and a switch that moved across
+					// the window on the first click would be a second control
+					// as far as anybody reading is concerned.
+					rigid(SchemeBar(c, dark, &bar.scheme)),
+					spacer(Gap),
+					rigid(DropWell(p, t.typ, m)),
+					spacer(Gap),
+					layout.Flexed(1, StyleGrid(p, c, t.typ, m, dark, grid)),
+				)
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		})
@@ -178,14 +214,19 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, k
 	}
 }
 
-// TopBar is the loaded picture's line: a thumbnail of it, its name with the
-// standing offer to replace it, and the switch to the other side of the
-// scheme.
+// TopBar is the line above a chosen theme: where its colours came from, what
+// they are dressing the code in, the way back to the screen the choice was made
+// on, the offer to make it outlast the window, and the switch to the other side
+// of the scheme.
 //
 // The picture is a thumbnail and not a plate. What a seed is judged on is the
-// page below, so the picture takes the room a reference needs and no more:
-// enough to recognise which image these colours came out of.
-func TopBar(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp, dark bool, keep *gesture.Click, scheme *[2]gesture.Click) layout.Widget {
+// page below, so the source takes the room a reference needs and no more:
+// enough to recognise which image or which style these colours came out of.
+//
+// The two buttons are deliberately unequal. Keeping is what the window is for
+// once the looking is done and wears the loud register; going back is a way out
+// of a choice rather than a thing to do, and wears the quiet one.
+func TopBar(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp, dark bool, bar *topBarClicks) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		h := gtx.Dp(TopBarH)
 		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = h, h
@@ -194,11 +235,41 @@ func TopBar(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp
 			spacer(Gap),
 			layout.Flexed(1, Caption(p, ty, m)),
 			spacer(Gap),
-			rigid(KeepButton(c, ty, m, keep)),
+			rigid(BackButton(c, ty, &bar.back)),
 			spacer(Gap),
-			rigid(SchemeToggle(c, dark, scheme)),
+			rigid(KeepButton(c, ty, m, &bar.keep)),
+			spacer(Gap),
+			rigid(SchemeToggle(c, dark, &bar.scheme)),
 		)
 		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, h)}
+	}
+}
+
+// BackButton returns the window to its first screen, where the drop well and
+// the whole grid of styles are. It is the quiet register — a ghost — because
+// its job is to be available rather than to be taken: it sits beside the one
+// control on this page that is an actual decision, and two loud buttons side by
+// side would make going back look like half of what the window is for.
+func BackButton(c tokens.ColorTokens, ty Type, click *gesture.Click) layout.Widget {
+	draw := button.Render(ty.Shaper, BackLabel, c, tokens.Spacing, tokens.Radius, ty.Role, tokens.Comfortable,
+		button.RenderState{Emphasis: button.Ghost, Hovered: click.Hovered(), Pressed: click.Pressed()})
+	return func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min = image.Point{}
+		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(BackW))
+		dims := draw(gtx)
+		area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+		click.Add(gtx.Ops)
+		area.Pop()
+		for {
+			e, ok := click.Update(gtx.Source)
+			if !ok {
+				break
+			}
+			if e.Kind == gesture.KindClick {
+				mvu.MessageOp{Message: ShowStyles{}}.Add(gtx.Ops)
+			}
+		}
+		return dims
 	}
 }
 
@@ -242,8 +313,11 @@ func KeepButton(c tokens.ColorTokens, ty Type, m Model, click *gesture.Click) la
 	}
 }
 
-// Thumbnail draws the dropped image on a mat, scaled to fit and centred, so
-// the candidates beside it can be compared against what they came from.
+// Thumbnail draws where the colours came from on a mat, so the candidates
+// beside it can be compared against their source: the dropped image scaled to
+// fit and centred, or — when the theme was adopted from a style — that style's
+// own inks in the same strip its card carried them in, which is the closest
+// thing to a picture a palette has.
 func Thumbnail(p Palette, m Model, src paint.ImageOp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := image.Pt(gtx.Dp(ThumbW), gtx.Dp(TopBarH))
@@ -255,6 +329,9 @@ func Thumbnail(p Palette, m Model, src paint.ImageOp) layout.Widget {
 		fillRRect(gtx, r, gtx.Dp(Radius), fill)
 		strokeRRect(gtx, r, gtx.Dp(Radius), gtx.Dp(Hairline), edge)
 		if m.Preview == nil {
+			if m.Style != "" {
+				SwatchBands(gtx, r.Inset(gtx.Dp(ThumbPad)), gtx.Dp(InnerR), m.Candidates, p.Edge)
+			}
 			return layout.Dimensions{Size: size}
 		}
 		defer clip.UniformRRect(r, gtx.Dp(Radius)).Push(gtx.Ops).Pop()
@@ -273,21 +350,101 @@ func Thumbnail(p Palette, m Model, src paint.ImageOp) layout.Widget {
 	}
 }
 
-// Caption names the loaded picture and says what to do with the window next.
+// Caption names where the theme on screen came from — a file, or a style — and
+// under it the syntax pair it is wearing and the standing offer to replace the
+// lot with a picture.
+//
+// Both members of the pair, always, and not the one being drawn. The pair is
+// one choice, and half of it is on the other side of the scheme switch: a click
+// on a style card sets two names at once, and a line naming one of them would
+// make a change to two things look like a change to one. The line under the
+// embedded page still names the member in force, because that line answers a
+// different question — what the page beneath it is coloured with right now.
 func Caption(p Palette, ty Type, m Model) layout.Widget {
-	hint := "Drop another image to replace it"
-	tone := p.Muted
+	hint, tone := CaptionHintFor(m), p.Muted
 	if m.Problem != "" {
 		hint, tone = m.Problem, p.Problem
 	}
+	replace := ReplaceHintFor(m)
 	return func(gtx layout.Context) layout.Dimensions {
 		w, h := gtx.Constraints.Max.X, gtx.Dp(TopBarH)
 		line := gtx.Dp(20)
-		name := image.Rect(0, h/2-line, w, h/2)
+		// The standing drop invitation rides at the trailing edge of the name's
+		// own line rather than taking a line of its own: the pair below it is
+		// the state, and a state and an instruction stacked one above the other
+		// read as two states.
+		gutter := min(gtx.Dp(ReplaceW), w/2)
+		name := image.Rect(0, h/2-line, w-gutter, h/2)
+		offer := image.Rect(w-gutter, h/2-line, w, h/2)
 		note := image.Rect(0, h/2, w, h/2+line)
 		textdraw.FillText(gtx, ty.Shaper, ty.Body, name, 0, 0.5, p.Text, m.Name)
+		textdraw.FillText(gtx, ty.Shaper, ty.Small, offer, 1, 0.5, p.Muted, replace)
 		textdraw.FillText(gtx, ty.Shaper, ty.Small, note, 0, 0.5, tone, hint)
 		return layout.Dimensions{Size: image.Pt(w, h)}
+	}
+}
+
+// CaptionHintFor is the line under the source's name: which syntax base the
+// code wears under each appearance.
+//
+// It says which is which rather than joining the two names with a sign. A pair
+// written "perldoc + dracula" leaves a reader looking at a light window with no
+// way to tell whether the palette in front of them is the first name or the
+// second — and on this window it is very often neither of the names they
+// clicked, since one member is completed by measurement. Naming the appearances
+// costs four words and answers it.
+//
+// A style that is its own counterpart says so in one clause. Four of the
+// embedded styles are fitted to no ground and stand under both, and writing
+// such a name out twice reads as a mistake rather than as the fact it is.
+func CaptionHintFor(m Model) string {
+	pair := m.AppliedBases()
+	if pair.Light == pair.Dark {
+		return "syntax base " + pair.Light + ", day and night"
+	}
+	return "syntax base " + pair.Light + " by day, " + pair.Dark + " by night"
+}
+
+// ReplaceHintFor is the standing offer at the caption's trailing edge. A window
+// showing a picture's colours can be handed another picture; one showing a
+// style's has not been handed one yet.
+func ReplaceHintFor(m Model) string {
+	if m.Preview != nil {
+		return "drop another image to replace it"
+	}
+	return "drop an image to replace it"
+}
+
+// SchemeBar is the scheme control alone on its own line, which is the whole of
+// the window's furniture before a theme has been chosen. It stands where the
+// same control stands once one has: at the trailing edge of the topmost band.
+func SchemeBar(c tokens.ColorTokens, dark bool, clicks *[2]gesture.Click) layout.Widget {
+	toggle := SchemeToggle(c, dark, clicks)
+	return func(gtx layout.Context) layout.Dimensions {
+		h := min(gtx.Dp(inventory.SchemeSwitchH), gtx.Constraints.Max.Y)
+		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = h, h
+		width := gtx.Constraints.Max.X
+		layout.Flex{Alignment: layout.Middle}.Layout(gtx,
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
+			}),
+			rigid(toggle),
+		)
+		return layout.Dimensions{Size: image.Pt(width, h)}
+	}
+}
+
+// DropWell is the invitation at the height it takes on the first screen: a band
+// across the top rather than the whole page, so the styles under it are on
+// screen without anybody having to scroll to find out they exist. It is still
+// the first thing and the biggest single object there, because dropping a
+// picture is still what the window is for.
+func DropWell(p Palette, ty Type, m Model) layout.Widget {
+	well := Invitation(p, ty, m)
+	return func(gtx layout.Context) layout.Dimensions {
+		h := min(gtx.Dp(DropH), gtx.Constraints.Max.Y)
+		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = h, h
+		return well(gtx)
 	}
 }
 
