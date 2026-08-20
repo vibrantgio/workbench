@@ -6,8 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"gioui.org/app"
+	"gioui.org/f32"
 	"gioui.org/gesture"
+	"gioui.org/io/input"
+	"gioui.org/io/system"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
@@ -810,6 +815,197 @@ func TestTheSwitchOpensInTheThemeOnScreen(t *testing.T) {
 				t.Errorf("%s at %d dp: one press filled the switch %v, want the other side of the same theme %v",
 					sc.name, width, after, counterpart)
 			}
+		}
+	}
+}
+
+// The window's own strip, and what stands in it.
+//
+// None of the four assertions below can be made from a render. The strip
+// belongs to the native window — a headless capture has no window, no title bar
+// and no control buttons — so what is asserted is the configuration the window
+// is opened with and the insets the page lays the row out from, which is where
+// the arrangement is actually decided. What a render can still say is said: the
+// band the buttons stand in is measured off the page, and so is the run the row
+// hands the window to be dragged by.
+
+// TestTheWindowTakesTheNativeStrip is the treatment, read off the window
+// configuration the options build.
+//
+// The claim is made against what the treatment does rather than against a
+// window flag written out a second time. On macOS the treatment undecorates the
+// window so the content extends behind a transparent title bar and the title
+// row has the strip; everywhere else it contributes nothing and the window keeps
+// the decorations the platform gives it. Comparing the two configurations says
+// "this window opens the way the treatment opens one" on either platform, which
+// is the whole claim.
+func TestTheWindowTakesTheNativeStrip(t *testing.T) {
+	metric := unit.Metric{PxPerDp: 1, PxPerSp: 1}
+	apply := func(opts []app.Option) app.Config {
+		// Decorated is the field under test, and a window is decorated before
+		// anybody asks otherwise, so that is what the base states.
+		cnf := app.Config{Decorated: true}
+		for _, o := range opts {
+			o(metric, &cnf)
+		}
+		return cnf
+	}
+	treatment, got := apply(desktop.FullSizeContent()), apply(WindowOptions())
+	t.Logf("the window opens decorated=%v; the treatment on its own gives decorated=%v",
+		got.Decorated, treatment.Decorated)
+	if got.Decorated != treatment.Decorated {
+		t.Errorf("the window opens decorated=%v where the full-size-content treatment gives decorated=%v — the platform draws a strip above the page and the title row stands under it, which is two bands where there is one row",
+			got.Decorated, treatment.Decorated)
+	}
+	// The name survives the treatment. It is hidden from the strip and read
+	// everywhere else the platform names a window.
+	if got.Title != AppName {
+		t.Errorf("the window is titled %q, want %q", got.Title, AppName)
+	}
+	if want := image.Pt(windowW, windowH); got.Size != want {
+		t.Errorf("the window opens at %v, want %v", got.Size, want)
+	}
+}
+
+// TestTheWindowButtonsStandOnTheTitleRowsLine is the one centre line, asserted
+// where it is decided.
+//
+// The row puts the window's name, the way back and the scheme switch on one
+// line, and with the strip taken it has the window's three control buttons in
+// it as well. They are placed on the row's line rather than left on the one the
+// platform would default them to, and that line is the row's own middle — read
+// here off the arithmetic every other measurement of this row is read off, so a
+// row that changes height takes the buttons with it instead of leaving them
+// behind on a number written down beside them.
+func TestTheWindowButtonsStandOnTheTitleRowsLine(t *testing.T) {
+	b := WindowButtons()
+	mid := unit.Dp(titleTop()) + TitleH/2
+	t.Logf("the title row runs %d to %d dp below the window's top edge; its middle is %v, and the buttons are placed on %v leading at %v",
+		titleTop(), titleBottom(), mid, b.Center, b.Leading)
+	if b.Center != mid {
+		t.Errorf("the window buttons are placed on the line %v below the window's top edge and the title row's middle is %v — the row's fourth object is on a line of its own",
+			b.Center, mid)
+	}
+	if b.Center != TitleCenter {
+		t.Errorf("the placement asks for the line %v and the row is centred on %v — the two have come apart", b.Center, TitleCenter)
+	}
+	if b.Leading != Pad {
+		t.Errorf("the window buttons lead at %v and the page's margin is %v — the buttons start on an edge of their own rather than the one everything else down the window starts on",
+			b.Leading, Pad)
+	}
+}
+
+// TestTheTitleRowLeadsPastTheWindowButtons is the strip claim's other half: the
+// row starts where the window's own controls end, and the run before that is
+// theirs.
+func TestTheTitleRowLeadsPastTheWindowButtons(t *testing.T) {
+	// A render has no window behind it, and neither has a platform that keeps
+	// its decorations: with no buttons to clear, the row leads at the page's own
+	// margin — which is where every render in this file measures it from.
+	if got := TitleLead(); got != Pad {
+		t.Fatalf("with no window buttons measured the title row leads at %v, want the page's margin %v", got, Pad)
+	}
+
+	// With them measured it starts one row gap past their trailing edge. The
+	// edge stands in for the platform's own; what is asserted is that the row
+	// is laid out from a measurement rather than from a constant.
+	const end unit.Dp = 79
+	defer func(was func() unit.Dp) { windowButtonsEnd = was }(windowButtonsEnd)
+	windowButtonsEnd = func() unit.Dp { return end }
+	if got, want := TitleLead(), end+Gap; got != want {
+		t.Fatalf("with the buttons ending at %v the title row leads at %v, want %v", end, got, want)
+	}
+
+	// And the page lays the row out there. The band from the window's leading
+	// edge to the row's start is the buttons' zone: nothing the application
+	// draws may stand in it, and the row's first ink is at its far side.
+	m := withStyles()
+	after := ReduceModel(m, AdoptStyle{Index: cardIndex(m, "dracula")})
+	for _, sc := range []struct {
+		name string
+		dark bool
+		os   tokens.ColorTokens
+	}{{"light", false, tokens.DefaultLight}, {"dark", true, tokens.DefaultDark}} {
+		for _, screen := range []struct {
+			what string
+			m    Model
+		}{
+			{"the start screen", ReduceModel(m, SetScheme{Dark: sc.dark})},
+			{"the screen after a click", ReduceModel(after, SetScheme{Dark: sc.dark})},
+		} {
+			ground := stdcolor.NRGBA(SchemeFor(sc.os, screen.m).Background)
+			img := pageAt(t, newEmbed(), screen.m, sc.os, image.Pt(wideW, windowH))
+			lead := int(TitleLead())
+			if _, _, inked := inkColumns(img, ground, 0, lead, titleTop(), titleBottom()); inked {
+				t.Errorf("%s, %s: something is drawn in the run the window's control buttons stand in", sc.name, screen.what)
+			}
+			first, _, ok := inkColumns(img, ground, lead, wideW, titleTop(), titleBottom())
+			if !ok {
+				t.Errorf("%s, %s: the title row draws nothing past the buttons", sc.name, screen.what)
+				continue
+			}
+			if first-lead >= int(Gap) {
+				t.Errorf("%s, %s: the title row's first ink is at x=%d, %d dp past where the row starts — the row is not laid out from the buttons' edge",
+					sc.name, screen.what, first, first-lead)
+			}
+		}
+	}
+}
+
+// TestTheTitleRowMovesTheWindow is the drag the strip came with.
+//
+// A window is dragged by the strip its title bar stands in, and with the content
+// behind the title bar that press reaches this application instead of the
+// platform. So the row hands a run of itself back as the handle — its empty
+// middle, and only that, because a move action swallows the press before any
+// control under it sees one. Without it the window could not be moved at all.
+func TestTheTitleRowMovesTheWindow(t *testing.T) {
+	m := withStyles()
+	on := ReduceModel(m, AdoptStyle{Index: cardIndex(m, "dracula")})
+	c := SchemeFor(tokens.DefaultLight, on)
+	row := TitleRow(PaletteFrom(c), c, pinned(), on, false, new(topClicks))
+
+	// The row as the page hands it to it: the window's width less its margins.
+	width, h := wideW-2*int(Pad), int(TitleH)
+	var ops op.Ops
+	gtx := layout.Context{
+		Constraints: layout.Exact(image.Pt(width, h)),
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Ops:         &ops,
+	}
+	row(gtx)
+	var r input.Router
+	r.Frame(&ops)
+	moveAt := func(x int) bool {
+		a, ok := r.ActionAt(f32.Pt(float32(x), float32(h/2)))
+		return ok && a == system.ActionMove
+	}
+
+	// In the row's own coordinates the name leads, the way back stands one gap
+	// past it, and the switch ends the row — so the middle runs from the way
+	// back's trailing edge to the switch's leading one.
+	backStarts := titleNameW() + int(Gap)
+	free0, free1 := backStarts+backW(), width-int(inventory.SchemeSwitchW)
+	t.Logf("the row is %d dp wide; its empty middle runs %d to %d", width, free0, free1)
+	if free1-free0 <= 0 {
+		t.Fatalf("the row has no empty middle between x=%d and x=%d — there is nothing to drag the window by", free0, free1)
+	}
+	for _, x := range []int{free0 + 1, (free0 + free1) / 2, free1 - 1} {
+		if !moveAt(x) {
+			t.Errorf("no window-move action at x=%d; the row holds no control there, so it must move the window", x)
+		}
+	}
+	// And every control's own span belongs to the control.
+	for _, c := range []struct {
+		what string
+		x    int
+	}{
+		{"the window's name", titleNameW() / 2},
+		{"the way back", backStarts + backW()/2},
+		{"the scheme switch", width - int(inventory.SchemeSwitchW)/2},
+	} {
+		if moveAt(c.x) {
+			t.Errorf("a window-move action covers %s at x=%d; it would take the press meant for it", c.what, c.x)
 		}
 	}
 }

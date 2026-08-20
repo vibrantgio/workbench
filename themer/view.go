@@ -7,6 +7,7 @@ import (
 
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
+	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -52,13 +53,28 @@ const (
 	// page exactly what the band it replaced cost: that band swallowed the top
 	// margin and stood its controls in the points below it, so margin plus row
 	// comes to the same height and nothing under the row has moved.
-	TitleH    unit.Dp = inventory.SchemeSwitchH + 2*TitleAir
-	HeadH     unit.Dp = 56  // the identity strip under it: swatch, name, offer, keep
-	ThumbW    unit.Dp = 108 // the thumbnail's mat
-	ThumbPad  unit.Dp = 6   // mat edge to the picture inside it
-	RowLabelH unit.Dp = 20  // the label over the candidate row, and over the page
-	LineH     unit.Dp = 20  // one line of the identity block, and of the standing offer
-	KeepW     unit.Dp = 150 // the keep button, at a width neither of its two labels squeezes
+	TitleH unit.Dp = inventory.SchemeSwitchH + 2*TitleAir
+	// TitleCenter is the line everything in the title row is centred on,
+	// measured from the window's own top edge: the page's top margin, which the
+	// row stands in, plus half the row.
+	//
+	// It is the window's line and not just the page's. With the content behind
+	// the title bar there is no native strip above this row, so the window's own
+	// control buttons stand in it — and they are placed on this line rather than
+	// left on the one the platform would default them to, because a row with one
+	// centre line through the name, the way back and the switch does not get to
+	// have its fourth object on a line of its own.
+	//
+	// It is derived from the row's height rather than written down beside it, so
+	// a control in the row changing size takes the buttons with it instead of
+	// leaving them behind.
+	TitleCenter unit.Dp = Pad + TitleH/2
+	HeadH       unit.Dp = 56  // the identity strip under it: swatch, name, offer, keep
+	ThumbW      unit.Dp = 108 // the thumbnail's mat
+	ThumbPad    unit.Dp = 6   // mat edge to the picture inside it
+	RowLabelH   unit.Dp = 20  // the label over the candidate row, and over the page
+	LineH       unit.Dp = 20  // one line of the identity block, and of the standing offer
+	KeepW       unit.Dp = 150 // the keep button, at a width neither of its two labels squeezes
 	// BackMark is the way back's chevron, at the size a mark takes beside a
 	// line of text, and BackGap is what stands between the two: the smallest
 	// step, because a mark and the word it belongs to are one control and a
@@ -92,6 +108,47 @@ const AppName = "Themer"
 // dropZone is the one zone the window registers: the whole of it. The
 // application has no second drop target, so the index is a constant.
 const dropZone = 0
+
+// ButtonPlacement is where the window's own control buttons stand: the leading
+// edge of the group of three, and the line their centres sit on, both in dp
+// from the window's top-leading corner. It is the whole placement — the buttons
+// keep their own size and their own spacing, which are the platform's.
+type ButtonPlacement struct{ Leading, Center unit.Dp }
+
+// WindowButtons answers where this window puts its control buttons.
+//
+// They lead at the page's own margin, so the three of them start on the same
+// edge as the title beneath them and everything else down the window, rather
+// than on an edge of the platform's choosing a few dp to one side of it. And
+// they sit on the title row's centre line, because that row is the strip they
+// are in: one row across the top of the window, one line through it.
+func WindowButtons() ButtonPlacement {
+	return ButtonPlacement{Leading: Pad, Center: TitleCenter}
+}
+
+// windowButtonsEnd reports the trailing edge of the window's control buttons,
+// and is the one place the page asks the window about them. The edge is
+// measured from the buttons themselves rather than worked out from the
+// placement above: their size and spacing are the platform's, and a number
+// written down here would drift with the next release of it.
+//
+// A render with no window behind it is told zero — which is every render in the
+// test suite, and also every platform that keeps its decorations, where there
+// are no such buttons to clear. It is a variable so that a test can state a
+// measurement it has no window to take.
+var windowButtonsEnd = desktop.LeadingInset
+
+// TitleLead is where the title row's own content may start: one row gap past
+// the window's control buttons where the window has them, and the page's own
+// margin where it does not. The gap is added because what is measured is the
+// bare glass the buttons end at, and the row owes the last of them the same air
+// it puts between any two things standing in it.
+func TitleLead() unit.Dp {
+	if end := windowButtonsEnd(); end > 0 {
+		return end + Gap
+	}
+	return Pad
+}
 
 // buildLayers returns the layer-builder the theme window renders.
 func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
@@ -220,11 +277,14 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 
 		// One margin all round. The title row draws no ground of its own, so
 		// it has nothing to carry the window's top margin on and takes it from
-		// the page like every other row.
+		// the page like every other row. Its own leading edge is the one thing
+		// that is not the margin: with the content behind the title bar, the
+		// window's control buttons stand in this row, and the row starts past
+		// them.
 		inset := layout.UniformInset(Pad)
 		inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			children := []layout.FlexChild{
-				rigid(TitleRow(p, c, t.typ, m, dark, bar)),
+				rigid(reserve(TitleLead()-Pad, TitleRow(p, c, t.typ, m, dark, bar))),
 				spacer(Gap),
 			}
 			if len(m.Candidates) > 0 {
@@ -277,6 +337,12 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 // The switch stays in its corner across that change. Both ends are fixed
 // places, which is what lets a reader look for the scheme control once.
 //
+// The row is also the window's own top strip, which is a thing a row on a page
+// is not. Nothing above it belongs to the platform, so three of the window's
+// controls stand in it — placed on its centre line, with the row starting past
+// them — and the run of it that holds nothing is what the window is dragged by,
+// the press that would have gone to a title bar having nowhere else to go.
+//
 // The order the slots are named in is the order they keep their size in when
 // the window is too narrow for all of them — see centreRow. The name goes
 // first because it is the one thing here that identifies the window; then the
@@ -288,8 +354,45 @@ func TitleRow(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, bar 
 		slots = append(slots, slot{leading, 0, WayBack(p, ty, &bar.back)})
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return centreRow(gtx, gtx.Dp(TitleH), gtx.Dp(Gap), slots...)
+		dims, free := centreRowFree(gtx, gtx.Dp(TitleH), gtx.Dp(Gap), slots...)
+		windowDrag(gtx, free)
+		return dims
 	}
+}
+
+// reserve indents a row past furniture that is not the page's: the run between
+// the margin where the row would otherwise begin and the point where it may.
+// Nothing is drawn in that run and no drag is declared over it — the window's
+// control buttons stand there, and a move action over them would fight them for
+// the press.
+//
+// Where there is nothing to clear the row is handed back untouched, so away from
+// the treatment, and in every render with no window behind it, this is not so
+// much as a wrapper.
+func reserve(d unit.Dp, w layout.Widget) layout.Widget {
+	if d <= 0 {
+		return w
+	}
+	return func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Left: d}.Layout(gtx, w)
+	}
+}
+
+// windowDrag declares a run of the title row as the handle the window is moved
+// by.
+//
+// A window is normally dragged by the strip its title bar stands in. This row
+// has that strip, and the press that would have reached the title bar reaches
+// the application instead — so the window's top edge is a handle only where the
+// row says it is, and a window that said nowhere could not be moved at all. It
+// says so over its empty middle alone, since a move action swallows the press
+// before any control under it sees one.
+func windowDrag(gtx layout.Context, r image.Rectangle) {
+	if r.Dx() <= 0 || r.Dy() <= 0 {
+		return
+	}
+	defer clip.Rect(r).Push(gtx.Ops).Pop()
+	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
 }
 
 // AppTitle is what the window is, at the head of its own title row, in the
@@ -634,6 +737,19 @@ type slot struct {
 // named is the last to be squeezed, and a control handed nothing takes no room
 // and no gap.
 func centreRow(gtx layout.Context, h, gap int, slots ...slot) layout.Dimensions {
+	dims, _ := centreRowFree(gtx, h, gap, slots...)
+	return dims
+}
+
+// centreRowFree is centreRow reporting, beside the row it laid out, the run of
+// it nothing was laid in: from the trailing edge of the last leading control to
+// the leading edge of the first trailing one, the row's full height.
+//
+// Only the title row asks. It stands in the strip a title bar would otherwise
+// own, and that makes its empty middle the window's drag handle — which has to
+// be the space between the controls exactly, since a handle overlapping one
+// would take the press meant for it.
+func centreRowFree(gtx layout.Context, h, gap int, slots ...slot) (layout.Dimensions, image.Rectangle) {
 	width := gtx.Constraints.Max.X
 	calls := make([]op.CallOp, len(slots))
 	sizes := make([]image.Point, len(slots))
@@ -665,6 +781,7 @@ func centreRow(gtx layout.Context, h, gap int, slots ...slot) layout.Dimensions 
 		drawn[s.at]++
 	}
 	lead, trail := 0, width
+	free := image.Rect(0, 0, width, h)
 	for i, s := range slots {
 		if sizes[i].X <= 0 {
 			continue
@@ -672,16 +789,21 @@ func centreRow(gtx layout.Context, h, gap int, slots ...slot) layout.Dimensions 
 		origin := image.Pt(lead+apart[i], h/2-sizes[i].Y/2)
 		if s.at == leading {
 			lead = origin.X + sizes[i].X + gap
+			free.Min.X = origin.X + sizes[i].X
 		} else {
 			trail -= apart[i] + sizes[i].X
 			origin.X = trail
 			trail -= gap
+			free.Max.X = origin.X
 		}
 		stack := op.Offset(origin).Push(gtx.Ops)
 		calls[i].Add(gtx.Ops)
 		stack.Pop()
 	}
-	return layout.Dimensions{Size: image.Pt(width, h)}
+	// A row too narrow for its controls has them meeting or overlapping, and
+	// there is no space between them to hand back.
+	free.Max.X = max(free.Max.X, free.Min.X)
+	return layout.Dimensions{Size: image.Pt(width, h)}, free
 }
 
 // DropWell is the invitation at the height it takes on the first screen: a band

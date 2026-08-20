@@ -36,10 +36,18 @@
 // goroutine as one mvu command. A path named on the command line takes the
 // same path, which is how the app is started with a picture already open.
 //
-// Architecturally it is the todos bootstrap plus two things worth copying: a
-// window-wide file-drop zone with its hover highlight, and a theme observable
-// the application itself re-seeds — the OS still decides light or dark, the
-// application decides the colour.
+// The window has no title bar of its own. Its content extends behind the
+// platform's, so the title row is the top of the window rather than a second
+// band under an empty one, and the platform's own control buttons stand in that
+// row beside the name — on the row's centre line, and with the row starting
+// where they end. Away from macOS none of that applies: the window keeps the
+// decorations the platform gives it and the row leads at the page's margin.
+//
+// Architecturally it is the todos bootstrap plus three things worth copying: a
+// window-wide file-drop zone with its hover highlight, a theme observable the
+// application itself re-seeds — the OS still decides light or dark, the
+// application decides the colour — and a title row that has the window's own
+// strip, drag included.
 package main
 
 import (
@@ -81,11 +89,38 @@ const (
 	windowH = 820
 )
 
-func run() {
-	mvuWin := mvu.NewWindow(
+// WindowOptions is the window this application opens: the full-size-content
+// treatment, the window's name and its size.
+//
+// The treatment is what lets the title row have the strip the platform would
+// otherwise keep for itself. On macOS the content extends behind a transparent
+// title bar, so the row stands at the very top of the window and no empty band
+// stands above it; everywhere else the treatment contributes no options at all
+// and the window keeps the decorations the platform gives it. That is why the
+// two options here are appended to whatever it returns rather than written out
+// beside a platform test.
+//
+// The name is passed even where the treatment hides the title text, because
+// Mission Control, the Dock and the screen reader all still read it.
+func WindowOptions() []app.Option {
+	return append(desktop.FullSizeContent(),
 		app.Title(AppName),
 		app.Size(unit.Dp(windowW), unit.Dp(windowH)),
 	)
+}
+
+func run() {
+	mvuWin := mvu.NewWindow(WindowOptions()...)
+
+	// The three standard window buttons are hidden by the treatment and Gio
+	// re-hides them on every rebuild of the window's configuration, so what is
+	// registered here is a re-assertion rather than a one-off unhide. The
+	// placement rides on that same re-assertion, which is why stating it once
+	// at startup holds for the window's life — including across a resize, which
+	// changes no option and so raises no rebuild of its own.
+	desktop.ShowWindowButtons(mvuWin)
+	buttons := WindowButtons()
+	desktop.PlaceWindowButtonsAt(buttons.Leading, buttons.Center)
 
 	// The drop target is constructed before the window renders a frame: it
 	// claims the window's view-event stream, and its messages join the
