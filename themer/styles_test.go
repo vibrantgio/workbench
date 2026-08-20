@@ -4,6 +4,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -62,12 +63,16 @@ func styleCellW() int {
 // two thirds of the strip depending on how many colours the style has, so an
 // eighth is inside it either way and clear of the outline round the strip.
 func leadSwatch(n int) image.Point {
-	cols := gridCols()
-	left := int(Pad) + (n%cols)*(styleCellW()+int(StyleGap)) + int(StylePad)
-	strip := styleCellW() - 2*int(StylePad)
-	top := cardsTop() + (n/cols)*(int(StyleH)+int(StyleGap)) + int(StylePad)
-	bottom := cardsTop() + (n/cols)*(int(StyleH)+int(StyleGap)) + int(StyleH) - int(StylePad) - int(StyleChipH) - int(StyleFoot)
-	return image.Pt(left+strip/8, (top+bottom)/2)
+	band := styleStripBand(n)
+	return image.Pt(band.Min.X+band.Dx()/8, (band.Min.Y+band.Max.Y)/2)
+}
+
+// styleStripBand is the swatch strip on the card at position n: the middle
+// band of the card, between the name over it and the footer under it.
+func styleStripBand(n int) image.Rectangle {
+	inner := styleCardRect(n).Inset(int(StylePad))
+	return image.Rect(inner.Min.X, inner.Min.Y+int(StyleName)+int(StyleFoot),
+		inner.Max.X, inner.Max.Y-int(StyleChipH)-int(StyleFoot))
 }
 
 // TestEveryColouredStyleHasACard: the grid is built from the highlighter's own
@@ -95,20 +100,107 @@ func TestEveryColouredStyleHasACard(t *testing.T) {
 	}
 }
 
-// TestTheGridIsVividFirst: the leading card is the one whose leading ink has
-// the most colour in it, and the near-grey styles honestly come last. A grid
-// ordered by anything else would bury the styles somebody would actually want
-// to wear under thirty they would not.
-func TestTheGridIsVividFirst(t *testing.T) {
-	cards := styleCards()
-	for i := 1; i < len(cards); i++ {
-		if cards[i].Chroma() > cards[i-1].Chroma() {
-			t.Fatalf("card %d (%s, chroma %.4f) is more vivid than card %d (%s, chroma %.4f)",
-				i, cards[i].Name, cards[i].Chroma(), i-1, cards[i-1].Name, cards[i-1].Chroma())
+// TestTheGridIsAlphabetical: the cards are in name order, and so is either
+// half of them after the scheme control has cut the set down. A grid of
+// seventy-odd cards is a list somebody looks a name up in, and the name is the
+// only thing on a card a reader arrives already knowing — so an order they
+// cannot predict from it means finding one style by reading all of them.
+func TestTheGridIsAlphabetical(t *testing.T) {
+	m := withStyles()
+	names := make([]string, len(m.Styles))
+	for i, s := range m.Styles {
+		names[i] = s.Name
+	}
+	inOrder := func(all []string) int {
+		for i := 1; i < len(all); i++ {
+			if lookupKey(all[i]) < lookupKey(all[i-1]) {
+				return i
+			}
+		}
+		return -1
+	}
+	if i := inOrder(names); i >= 0 {
+		t.Fatalf("card %d (%s) sorts before card %d (%s)", i, names[i], i-1, names[i-1])
+	}
+	for _, dark := range []bool{false, true} {
+		var half []string
+		for _, i := range m.VisibleStyles(dark) {
+			half = append(half, m.Styles[i].Name)
+		}
+		if i := inOrder(half); i >= 0 {
+			t.Errorf("the %s half puts %s after %s", sideName(dark), half[i], half[i-1])
+		}
+		t.Logf("%s: %d cards, %s … %s", sideName(dark), len(half), half[0], half[len(half)-1])
+	}
+	// The style the ordering was changed for: a name in the c's is found in
+	// the c's rather than wherever its leading ink's chroma put it.
+	at, before := -1, 0
+	for n, i := range m.VisibleStyles(false) {
+		switch name := m.Styles[i].Name; {
+		case name == "catppuccin-latte":
+			at = n
+		case lookupKey(name) < lookupKey("catppuccin-latte"):
+			before++
 		}
 	}
-	t.Logf("leads with %s (chroma %.4f), ends with %s (chroma %.4f)",
-		cards[0].Name, cards[0].Chroma(), cards[len(cards)-1].Name, cards[len(cards)-1].Chroma())
+	if at < 0 {
+		t.Fatal("catppuccin-latte has no card on the light grid")
+	}
+	if at != before {
+		t.Errorf("catppuccin-latte is card %d with %d names sorting before it", at, before)
+	}
+}
+
+// TestTheGridIsInReadingOrderAndNotByteOrder: the two orderings differ, and
+// where they do the grid is in the one a reader can follow. Byte order sorts an
+// underscore under every letter, which puts hr_high_contrast ahead of hrdark —
+// two rows above where somebody running down the h's for "hrdark" stops
+// looking. The list beside the code is held to the same order, because two
+// orderings of one set inside one window is the same defect as none.
+func TestTheGridIsInReadingOrderAndNotByteOrder(t *testing.T) {
+	m := withStyles()
+	position := func(names []string, want string) int {
+		for i, n := range names {
+			if n == want {
+				return i
+			}
+		}
+		return -1
+	}
+	var carded, listed []string
+	for _, s := range m.Styles {
+		carded = append(carded, s.Name)
+	}
+	for _, b := range m.Bases {
+		listed = append(listed, b.Name)
+	}
+	for _, in := range []struct {
+		what  string
+		names []string
+	}{{"the grid", carded}, {"the base list", listed}} {
+		plain, under := position(in.names, "hrdark"), position(in.names, "hr_high_contrast")
+		if plain < 0 || under < 0 {
+			t.Fatalf("%s is missing one of the pair: hrdark=%d hr_high_contrast=%d", in.what, plain, under)
+		}
+		if plain > under {
+			t.Errorf("%s puts hr_high_contrast (%d) before hrdark (%d) — that is byte order, not reading order",
+				in.what, under, plain)
+		}
+	}
+	// The two are one ordering and not two that happen to agree today.
+	byName := map[string]bool{}
+	for _, n := range carded {
+		byName[n] = true
+	}
+	var listedWithCards []string
+	for _, n := range listed {
+		if byName[n] {
+			listedWithCards = append(listedWithCards, n)
+		}
+	}
+	if !slices.Equal(listedWithCards, carded) {
+		t.Error("the grid and the base list disagree about the order of the styles they both carry")
+	}
 }
 
 // TestTheGridIsTheSameGridEveryRun: two builds of the list agree, name for
@@ -641,11 +733,11 @@ func TestAnAdoptedStyleStandsWhereThePictureWould(t *testing.T) {
 	}
 }
 
-// gridTall is a window height that puts seven rows of cards on screen. The
-// window's own height shows five, which is enough of the sun's grid to hold
-// several styles drawn faint and none of the moon's: the dark half has exactly
-// one, and it is in the seventh row. A measurement of a note that only appears
-// under one appearance would not be a measurement of the note.
+// gridTall is a window height that puts five rows of cards on screen where the
+// window's own height puts four. Both halves of the set carry a style drawn
+// faint inside that many cards, which is what a measurement of the note needs:
+// one that only appears under one appearance would not be a measurement of the
+// note.
 const gridTall = 1024
 
 // styleCardRect is where the card at position n of the visible grid is drawn,
@@ -663,13 +755,26 @@ func styleTagBox(n int) image.Rectangle {
 	return image.Rect(inner.Max.X-int(StyleTagW), inner.Max.Y-int(StyleChipH), inner.Max.X, inner.Max.Y)
 }
 
-// styleNameBox is the run of the footer the card's own name is drawn in, which
+// styleNameBox is the line at the top of the card the name is drawn on, which
 // is what the note has to be measured against: a note louder than the thing it
 // annotates is a warning however calm its wording.
 func styleNameBox(n int) image.Rectangle {
 	inner := styleCardRect(n).Inset(int(StylePad))
-	return image.Rect(inner.Min.X+int(StyleChipW)+int(StyleFoot), inner.Max.Y-int(StyleChipH),
-		inner.Max.X-int(StyleTagW)-int(StyleFoot), inner.Max.Y)
+	return image.Rect(inner.Min.X, inner.Min.Y, inner.Max.X, inner.Min.Y+int(StyleName))
+}
+
+// styleChipBox is the specimen at the leading edge of the card's footer, and
+// styleChipBand the run through the middle of it the letters cross — inset far
+// enough from the rounded corners that nothing behind them is in a sample.
+func styleChipBox(n int) image.Rectangle {
+	inner := styleCardRect(n).Inset(int(StylePad))
+	return image.Rect(inner.Min.X, inner.Max.Y-int(StyleChipH), inner.Min.X+int(StyleChipW), inner.Max.Y)
+}
+
+func styleChipBand(n int) image.Rectangle {
+	box := styleChipBox(n)
+	mid, w := (box.Min.Y+box.Max.Y)/2, box.Dx()/5
+	return image.Rect(box.Min.X+w, mid-6, box.Max.X-w, mid+6)
 }
 
 // onScreen is how many cards of the visible grid are drawn whole in a window
@@ -806,9 +911,9 @@ func TestTheNoteIsOnlyOnTheFaintCards(t *testing.T) {
 
 // TestTheNoteIsQuieterThanTheNameItAnnotates: the note is a remark and not an
 // alarm, so it is drawn in the muted ink the card's other trailing words are
-// drawn in — measurably quieter against the card than the style's own name
-// beside it, and nothing like the colour this window says something went wrong
-// in.
+// drawn in — measurably quieter against the card than the style's own name at
+// the top of it, and nothing like the colour this window says something went
+// wrong in.
 func TestTheNoteIsQuieterThanTheNameItAnnotates(t *testing.T) {
 	for _, sc := range []struct {
 		dark bool
@@ -836,7 +941,7 @@ func TestTheNoteIsQuieterThanTheNameItAnnotates(t *testing.T) {
 				t.Fatalf("the note's slot is drawn on %v, want the card's own fill %v", fill, p.Surface)
 			}
 			noteAt, nameAt := color.ContrastRatio(note, fill), color.ContrastRatio(name, fill)
-			t.Logf("%s: the note reaches %.2f:1 on the card, the name beside it %.2f:1",
+			t.Logf("%s: the note reaches %.2f:1 on the card, the name above it %.2f:1",
 				m.Styles[visible[at]].Name, noteAt, nameAt)
 			if noteAt >= nameAt {
 				t.Errorf("the note measures %.2f:1 against the name's %.2f:1 — it is not the quieter of the two", noteAt, nameAt)

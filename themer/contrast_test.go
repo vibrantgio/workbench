@@ -59,6 +59,13 @@ func TestCandidateChipsAreLegible(t *testing.T) {
 // sweep is over the model rather than over pixels because the chips are
 // resolved once and drawn from — what a card shows and what a click applies
 // come out of the same two colours.
+//
+// Both colours are checked against the derivation and not only against the
+// floor. An ink that happens to clear it is not the same thing as the ink the
+// gate chose: the light half of a pair is the side where the usual answer and
+// the measured one part company, and a specimen that reached for the usual one
+// would go on passing a floor test right up to the seed it could not be read
+// on.
 func TestStyleChipsAreLegible(t *testing.T) {
 	cards := styleCards()
 	if len(cards) < 70 {
@@ -66,19 +73,79 @@ func TestStyleChipsAreLegible(t *testing.T) {
 	}
 	worst, worstAt := math.Inf(1), ""
 	for _, s := range cards {
-		for _, dark := range []bool{false, true} {
-			chip := s.Chip(dark)
+		light, dark := tokens.FromSeed(s.Seed())
+		for _, side := range []struct {
+			dark bool
+			want Chip
+		}{
+			{false, Chip{Fill: light.Primary, Ink: light.OnPrimary}},
+			{true, Chip{Fill: dark.Primary, Ink: dark.OnPrimary}},
+		} {
+			chip := s.Chip(side.dark)
+			if chip != side.want {
+				t.Errorf("%s under %s: the card carries %v, want the derivation's own pair %v",
+					s.Name, sideName(side.dark), chip, side.want)
+			}
 			ratio := color.ContrastRatio(chip.Ink, chip.Fill)
 			if ratio < worst {
-				worst, worstAt = ratio, s.Name+" under "+sideName(dark)
+				worst, worstAt = ratio, s.Name+" under "+sideName(side.dark)
 			}
 			if ratio < legibleFloor {
 				t.Errorf("%s (%s) under %s: its chip's label measures %.2f:1, under the %.1f:1 floor",
-					s.Name, hexOf(s.Seed()), sideName(dark), ratio, legibleFloor)
+					s.Name, hexOf(s.Seed()), sideName(side.dark), ratio, legibleFloor)
 			}
 		}
 	}
 	t.Logf("the tightest chip on the grid is %s at %.2f:1", worstAt, worst)
+}
+
+// TestTheSpecimenOnACardIsLegibleWhereItIsDrawn measures the grid's specimens
+// in a render rather than in the model: what a card resolves and what the frame
+// puts on screen are two different claims, and the second is the one somebody
+// reads. Both appearances, every card the window draws whole.
+//
+// It is the same measurement the candidate row gets, taken the same way, and it
+// is here because the two chips are one promise made twice — the row says what
+// a colour out of a picture derives, the card says what a colour out of a style
+// derives, and a card whose "Aa" cannot be read is arguing against the palette
+// it is offering.
+func TestTheSpecimenOnACardIsLegibleWhereItIsDrawn(t *testing.T) {
+	for _, sc := range []struct {
+		dark bool
+		os   tokens.ColorTokens
+	}{{false, tokens.DefaultLight}, {true, tokens.DefaultDark}} {
+		t.Run(sideName(sc.dark), func(t *testing.T) {
+			m := ReduceModel(withStyles(), SetScheme{Dark: sc.dark})
+			img := pageAt(t, newEmbed(), m, sc.os, image.Pt(windowW, gridTall))
+			visible := m.VisibleStyles(sc.dark)
+			shown := min(onScreen(gridTall), len(visible))
+			if shown < 10 {
+				t.Fatalf("only %d cards are drawn whole, which is not a sweep", shown)
+			}
+			worst, worstAt := math.Inf(1), ""
+			for n, i := range visible[:shown] {
+				card := m.Styles[i]
+				want := card.Chip(sc.dark)
+				fill, ink := inkOn(img, styleChipBand(n))
+				if fill != want.Fill {
+					t.Errorf("%s: the specimen is filled %v, want the derived primary %v", card.Name, fill, want.Fill)
+				}
+				if ink != want.Ink {
+					t.Errorf("%s: the specimen's letters reach %v, want the derivation's measured on-colour %v",
+						card.Name, ink, want.Ink)
+				}
+				ratio := color.ContrastRatio(ink, fill)
+				if ratio < worst {
+					worst, worstAt = ratio, card.Name
+				}
+				if ratio < legibleFloor {
+					t.Errorf("%s (%s): its specimen measures %.2f:1 on screen, under the %.1f:1 floor",
+						card.Name, hexOf(card.Seed()), ratio, legibleFloor)
+				}
+			}
+			t.Logf("%d specimens measured, the tightest %s at %.2f:1", shown, worstAt, worst)
+		})
+	}
 }
 
 // TestKeepButtonIsLegible measures the keep affordance in a rendered window,

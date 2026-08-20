@@ -10,15 +10,15 @@
 //
 // There is a second door for anybody who has not got a picture in mind. Under
 // the drop well, the window opens on a card per syntax style — the ones that
-// ship and the ones read out of the styles folder — each showing the style's
-// dominant inks and the primary pair its leading one derives, vivid styles
-// first, and only the ones fitted to the appearance on screen. One click takes
-// both halves of a theme off a card: the seed from its leading ink, and the
-// syntax base for each appearance, the style itself on the side its author
-// fitted it to and the nearest measured counterpart on the other. Everything
-// after that click is what it is after a drop — the row still offers the
-// style's other colours, the list beside the code still overrides either
-// member, and keeping still writes the lot.
+// ship and the ones read out of the styles folder — each led by its name and
+// showing under it the style's dominant inks and the primary pair its leading
+// one derives, in name order, and only the ones fitted to the appearance on
+// screen. One click takes both halves of a theme off a card: the seed from its
+// leading ink, and the syntax base for each appearance, the style itself on the
+// side its author fitted it to and the nearest measured counterpart on the
+// other. Everything after that click is what it is after a drop — the row
+// still offers the style's other colours, the list beside the code still
+// overrides either member, and keeping still writes the lot.
 //
 // Code is the one surface a palette does not settle on its own, so it gets a
 // second choice, at the page's far end where the specimen is: a column beside

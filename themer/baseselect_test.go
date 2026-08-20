@@ -123,6 +123,10 @@ func baseRowY(i int) int {
 // TestEveryBaseIsOnOffer: the column is built from the highlighter's own list,
 // so a base that exists is a base that can be chosen. A selector showing a
 // subset would be a window that cannot reach half of what it claims to.
+//
+// The two are compared as sets. Which order the column lists them in is the
+// window's own decision and is asserted where that decision is made; what is
+// asserted here is that nothing the highlighter has went missing on the way.
 func TestEveryBaseIsOnOffer(t *testing.T) {
 	got := baseOptions()
 	names := make([]string, len(got))
@@ -130,8 +134,8 @@ func TestEveryBaseIsOnOffer(t *testing.T) {
 		names[i] = b.Name
 	}
 	want := highlight.Bases()
-	if !slices.Equal(names, want) {
-		t.Errorf("the selector offers %d names, the highlighter has %d", len(names), len(want))
+	if offered := slices.Sorted(slices.Values(names)); !slices.Equal(offered, want) {
+		t.Errorf("the selector offers %d names, the highlighter has %d", len(offered), len(want))
 	}
 	if len(names) < 70 {
 		t.Errorf("only %d bases on offer — the embedded set alone is larger than that", len(names))

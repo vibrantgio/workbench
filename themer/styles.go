@@ -15,11 +15,19 @@
 //
 // # What is on a card
 //
-// The style's dominant inks as one strip, the leading one twice as wide as any
-// other because it is the one a click takes as the seed; the primary pair that
-// seed derives, drawn the way the candidate row draws it, so a card promises
-// what choosing it delivers; and the name, with a word at its trailing edge for
-// the one thing about the style the name does not say.
+// The name first, on a line of its own across the top. A card is one of
+// seventy-odd in a grid and the question asked of it most often is which style
+// it is, so the answer goes where an eye starting a card already is rather than
+// at the end of a line it has to read past a swatch to reach. On its own line
+// it is also a whole name: the longest in the set used to reach the word at the
+// footer's trailing edge, and now nothing shares the line with it.
+//
+// Under it the style's dominant inks as one strip, the leading one twice as
+// wide as any other because it is the one a click takes as the seed; and under
+// that the primary pair that seed derives, drawn the way the candidate row
+// draws it, so a card promises what choosing it delivers. The word at the
+// footer's trailing edge stays where it was, for the one thing about the style
+// the name does not say.
 //
 // That word is where a palette drawn faint gets mentioned. A style whose own
 // inks mostly fall under the contrast floor on its own ground carries it, in
@@ -32,14 +40,14 @@
 //
 // # Which cards, and in which order
 //
-// Vivid first, by the chroma of the leading candidate — an absolute quantity in
-// the space seeds are ranked in, and therefore the one axis that means the same
-// thing in two different styles' answers. The prominence weight the candidates
-// inside one style are ordered by is not that axis: it is a share times a
-// chroma, and a share is a fraction of one palette, so a style with three inks
-// would outrank a style with sixty on the strength of having fewer colours.
-// Ties fall back to the order the styles are listed in, which is alphabetical,
-// so the grid is the same grid on every machine and in every run.
+// Alphabetically, by name, in the reading order [styleNames] settles — which
+// is the order the list beside the code uses too. A grid of seventy-odd cards
+// is a list somebody looks a name up in — the names are the one thing on it a
+// person arrives already knowing — and the only ordering that makes looking one
+// up possible is the one they can predict from the name alone. Sorting by how
+// much colour a style's leading ink has cannot be predicted from anything on
+// the card, so a grid ordered that way reads as shuffled and a style is found
+// by scanning all of it.
 //
 // The cards are filtered by the scheme control exactly as the base list is: the
 // sun shows the styles fitted to a light ground and the moon those fitted to a
@@ -58,7 +66,6 @@ import (
 	"image"
 	stdcolor "image/color"
 	"runtime"
-	"sort"
 	"sync"
 
 	"gioui.org/gesture"
@@ -83,9 +90,11 @@ const (
 	// StyleMinW is set where it is because a card whose name is truncated is a
 	// card that has stopped identifying its style, and the longest names in
 	// the set run to seventeen characters. Six columns fit in this window at
-	// 150 and truncated a dozen of them; five at this width truncate none.
+	// 150 and truncated a dozen of them; five at this width truncate none —
+	// and now that the name has a line to itself rather than the tail of the
+	// footer, none of them come close to the edge.
 	StyleMinW unit.Dp = 178
-	// StyleH leaves the strip a third of the card rather than most of it.
+	// StyleH leaves the strip a quarter of the card rather than most of it.
 	// Forty cards of full-chroma ink at their own widest is a test card and
 	// not a gallery: with the colour taking half the tile there was nothing
 	// on the screen for an eye to rest on, and the tile under it — a hairline
@@ -95,12 +104,23 @@ const (
 	// the whole promise of a card is that clicking it applies them; a grid of
 	// muted swatches would be a grid that lied. What is toned down is how
 	// much of each card they are.
-	StyleH     unit.Dp = 82
-	StyleGap   unit.Dp = 12
-	StylePad   unit.Dp = 10 // card edge to the strip inside it
-	StyleChipW unit.Dp = 30 // the derived primary pair, beside the name
+	//
+	// It is three bands and two gaps inside the padding — the name, the
+	// strip, the footer — and the height is what leaves the middle one a
+	// band rather than a line once the name has a whole line of its own.
+	StyleH   unit.Dp = 104
+	StyleGap unit.Dp = 12
+	StylePad unit.Dp = 10 // card edge to the name inside it
+	// StyleName is the line the card leads with. It is a LabelLarge line box,
+	// which is the role the name is set in: the card's own title.
+	StyleName unit.Dp = 20
+	// StyleChipW is the specimen — the derived primary pair with its ink on
+	// it. It is wider than the name ever needed it to be, because the name no
+	// longer shares the footer with it and because a pair of letters is only
+	// a specimen at a size somebody can read.
+	StyleChipW unit.Dp = 56
 	StyleChipH unit.Dp = 22
-	StyleFoot  unit.Dp = 8  // strip to the line under it
+	StyleFoot  unit.Dp = 8  // between the card's three bands
 	StyleTagW  unit.Dp = 34 // the word at a card's trailing edge
 	StyleHead  unit.Dp = 40 // the two lines heading the grid
 	// DropH is the well's height on the first screen. It is more than twice a
@@ -134,17 +154,26 @@ const (
 // are, and what put them in that order. The half matters for the reason it
 // matters on the base list — a grid showing some of the styles there are, with
 // nothing saying so, reads as one that failed to load the rest — and the
-// ordering matters because a grid that opens on its loudest cards looks
-// arbitrary until something says it is not.
+// ordering is said because a reader who knows the grid is alphabetical can
+// jump to a letter instead of reading seventy cards.
 func StyleCountFor(dark bool, n int) string {
 	if dark {
-		return fmt.Sprintf("%d dark styles, vivid first", n)
+		return fmt.Sprintf("%d dark styles, alphabetical", n)
 	}
-	return fmt.Sprintf("%d light styles, vivid first", n)
+	return fmt.Sprintf("%d light styles, alphabetical", n)
 }
 
-// Chip is a derived primary pair as a card wears it: the colour and the ink
-// that proves the colour is legible under something.
+// Chip is a derived primary pair as a card wears it: the colour, and the ink
+// the derivation measured against that colour.
+//
+// The ink is never chosen here and never assumed from the appearance. It is
+// the on-colour the palette derivation resolved over this exact fill — the
+// better of the two ends of the tonal axis, measured, which is what makes it
+// clear the text floor over any fill whatever — and it is the same field the
+// candidate row's chip and the keep button are drawn from. A card offering a
+// pair it cannot itself draw legibly is a card arguing against the thing it is
+// offering, and the way not to have that case is to take the answer from the
+// gate rather than to pick an ink that usually works.
 type Chip struct {
 	Fill, Ink stdcolor.NRGBA
 }
@@ -187,10 +216,6 @@ type StyleCard struct {
 // Seed is the colour a click on this card applies.
 func (s StyleCard) Seed() stdcolor.NRGBA { return s.Candidates[0].Color }
 
-// Chroma is how much colour the style's leading ink has: the axis the grid is
-// ordered on.
-func (s StyleCard) Chroma() float64 { return s.Candidates[0].Chroma }
-
 // Suits reports whether this card belongs on the given appearance's grid.
 func (s StyleCard) Suits(dark bool) bool {
 	if dark {
@@ -207,7 +232,12 @@ func (s StyleCard) Chip(dark bool) Chip {
 	return s.Chips[0]
 }
 
-// styleCards is every style that has a colour to offer, vivid first.
+// styleCards is every style that has a colour to offer, in name order.
+//
+// The order is [styleNames], which is the order the list beside the code uses
+// too: the grid is a place a name is looked up, so the order a reader can
+// predict is the only one worth having, and it has to be the same order in
+// both places a name can be looked up.
 //
 // The cards are built across the machine's cores rather than one after
 // another. Seventy-odd palette derivations are what the grid costs, at over a
@@ -219,7 +249,7 @@ func (s StyleCard) Chip(dark bool) Chip {
 // worker finished when, so the grid is byte for byte the same grid however
 // many cores it was built on.
 func styleCards() []StyleCard {
-	names := highlight.Bases()
+	names := styleNames()
 	built := make([]StyleCard, len(names))
 	var wg sync.WaitGroup
 	next := make(chan int)
@@ -244,10 +274,6 @@ func styleCards() []StyleCard {
 			out = append(out, c)
 		}
 	}
-	// Stable over the alphabetical order the names arrived in, so two styles
-	// whose leading inks are equally vivid — and pure blue is four styles'
-	// leading ink — come out in the same order every time.
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Chroma() > out[j].Chroma() })
 	return out
 }
 
@@ -258,6 +284,10 @@ func styleCardFor(name string) StyleCard {
 	if len(cands) == 0 {
 		return StyleCard{Name: name}
 	}
+	// One derivation per style, and both chips come out of it: the fill and
+	// the ink of each are the same two fields the whole window draws its
+	// accent from, so the specimen on a card is the pair a click installs
+	// rather than an approximation of it.
 	light, dark := tokens.FromSeed(cands[0].Color)
 	authored, measured := highlight.BaseContrast(name)
 	return StyleCard{
@@ -301,9 +331,9 @@ func (g *styleGrid) handlers(n int) []gesture.Click {
 
 // follow puts the grid back at the top when the scheme control has replaced
 // one half of the set with the other. A scroll offset measured against the
-// cards that are gone points at nothing in the cards that arrived, and the new
-// grid's own vivid end is what somebody flipping the switch is looking for.
-// Between flips the grid is left exactly where it was put.
+// cards that are gone points at nothing in the cards that arrived, and the top
+// of the new grid is the one position in it that means the same thing in both
+// halves. Between flips the grid is left exactly where it was put.
 func (g *styleGrid) follow(dark bool) {
 	if g.shown && g.dark == dark {
 		return
@@ -384,25 +414,33 @@ func StyleCell(gtx layout.Context, p Palette, ty Type, s StyleCard, index int, d
 	fillRRect(gtx, card, gtx.Dp(Radius), fill)
 	strokeRRect(gtx, card, gtx.Dp(Radius), gtx.Dp(Hairline), edge)
 
+	// Three bands: the name, the strip, and the footer the specimen and the
+	// word share. The name has the top one to itself and the whole width of
+	// it, which is what stops the longest names in the set truncating.
 	inner := card.Inset(gtx.Dp(StylePad))
+	name := image.Rect(inner.Min.X, inner.Min.Y, inner.Max.X, inner.Min.Y+gtx.Dp(StyleName))
 	foot := image.Rect(inner.Min.X, inner.Max.Y-gtx.Dp(StyleChipH), inner.Max.X, inner.Max.Y)
-	strip := image.Rect(inner.Min.X, inner.Min.Y, inner.Max.X, foot.Min.Y-gtx.Dp(StyleFoot))
+	strip := image.Rect(inner.Min.X, name.Max.Y+gtx.Dp(StyleFoot), inner.Max.X, foot.Min.Y-gtx.Dp(StyleFoot))
+	textdraw.FillText(gtx, ty.Shaper, ty.Label, name, 0, 0.5, p.Text, s.Name)
 	if strip.Dy() > 0 {
 		SwatchBands(gtx, strip, gtx.Dp(InnerR), s.Candidates, p.Edge)
 	}
 
+	// The specimen. Its ink is the derivation's own measured on-colour for
+	// this exact fill, not a light-scheme habit — see [Chip] — and it is set
+	// in the role the candidate row sets its pair's letters in, because the
+	// two are the same claim about the same colour and a claim about
+	// legibility made in smaller type than the claim next to it is a claim
+	// nobody can check.
 	chip := image.Rect(foot.Min.X, foot.Min.Y, min(foot.Min.X+gtx.Dp(StyleChipW), foot.Max.X), foot.Max.Y)
 	pair := s.Chip(dark)
 	fillRRect(gtx, chip, gtx.Dp(InnerR), pair.Fill)
-	textdraw.FillText(gtx, ty.Shaper, ty.Small, chip, 0.5, 0.5, pair.Ink, "Aa")
+	textdraw.FillText(gtx, ty.Shaper, ty.Label, chip, 0.5, 0.5, pair.Ink, "Aa")
 
-	name := image.Rect(chip.Max.X+gtx.Dp(StyleFoot), foot.Min.Y, foot.Max.X, foot.Max.Y)
 	if tag := styleTag(s); tag != "" {
-		box := image.Rect(max(name.Min.X, foot.Max.X-gtx.Dp(StyleTagW)), foot.Min.Y, foot.Max.X, foot.Max.Y)
+		box := image.Rect(max(chip.Max.X+gtx.Dp(StyleFoot), foot.Max.X-gtx.Dp(StyleTagW)), foot.Min.Y, foot.Max.X, foot.Max.Y)
 		textdraw.FillText(gtx, ty.Shaper, ty.Small, box, 1, 0.5, p.Muted, tag)
-		name.Max.X = box.Min.X - gtx.Dp(StyleFoot)/2
 	}
-	textdraw.FillText(gtx, ty.Shaper, ty.Small, name, 0, 0.5, p.Text, s.Name)
 
 	// The clickable area is the card, registered after the paint so the hover
 	// state read above is the one the previous frame recorded.
@@ -466,14 +504,12 @@ func SwatchBands(gtx layout.Context, r image.Rectangle, radius int, cands []imag
 }
 
 // styleTag is the word at a card's trailing edge, or none: one thing about the
-// style that the name in front of it does not say.
+// style that the name above it does not say.
 //
 // It is the slot the base list already keeps for where a style came from, and
-// how the style draws goes in that slot rather than beside it. The footer is
-// one line and it already carries a chip, a name and a word; the longest names
-// in the set reach that word as it is, so a second one at the same edge would
-// be bought by truncating the name — which is the one thing on a card that says
-// which style it is.
+// how the style draws goes in that slot rather than beside it. The footer holds
+// one word because two words at one edge would each have to be read as
+// qualifying the other, and there is no order in which they do.
 //
 // The measured word wins where a style is both. It is the more consequential
 // of the two — how a palette draws is what somebody is choosing, where it came

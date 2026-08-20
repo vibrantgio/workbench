@@ -6,6 +6,8 @@ import (
 	stdcolor "image/color"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu"
@@ -240,11 +242,49 @@ func (m Model) adoptKept(kept brand.Brand) Model {
 	return m
 }
 
-// baseOptions is every syntax palette on offer, in the order the highlighter
-// lists them, marked with where each came from and which appearance it was
-// fitted to.
-func baseOptions() []BaseOption {
+// styleNames is every syntax palette there is, in the order this window lists
+// them: by name, the way somebody scanning for one reads names.
+//
+// It is not the byte order the names arrive in, and the difference is not
+// academic. An underscore sorts under every letter, so a name that carries one
+// lands ahead of every name that continues with a letter past that point —
+// which puts hr_high_contrast in front of hrdark, two rows up from where a
+// reader running down the h's for "hrdark" would stop looking. Separators are
+// not what a name is looked up by, so they are left out of the comparison
+// entirely and the raw name breaks the tie, which keeps the order total and
+// the list the same list on every machine.
+//
+// Both places the styles are offered — the grid of cards and the list beside
+// the code — read this, because two orderings of one set inside one window is
+// the same defect as no ordering at all.
+func styleNames() []string {
 	names := highlight.Bases()
+	slices.SortStableFunc(names, func(a, b string) int {
+		if c := strings.Compare(lookupKey(a), lookupKey(b)); c != 0 {
+			return c
+		}
+		return strings.Compare(a, b)
+	})
+	return names
+}
+
+// lookupKey is a style name reduced to what it is looked up by: its letters and
+// digits, folded to one case.
+func lookupKey(name string) string {
+	var b strings.Builder
+	b.Grow(len(name))
+	for _, r := range strings.ToLower(name) {
+		if r != '-' && r != '_' && r != ' ' && r != '.' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// baseOptions is every syntax palette on offer, in the order the window lists
+// them, marked with where each came from and which appearance it was fitted to.
+func baseOptions() []BaseOption {
+	names := styleNames()
 	out := make([]BaseOption, len(names))
 	for i, n := range names {
 		out[i] = BaseOption{
