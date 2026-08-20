@@ -545,7 +545,7 @@ func exactly(img *image.RGBA, c stdcolor.NRGBA) int {
 // same scroll — the only thing that moves between the two renders is one
 // member of the pair.
 //
-// The top bar is excluded and then asserted on separately: the line under the
+// The identity strip is excluded and then asserted on separately: the line under the
 // source's name reads both members out, so a change to the hidden one has to
 // show there. That is the point of naming the pair rather than the half in
 // force — a choice that reaches two things must not look like one that reached

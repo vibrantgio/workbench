@@ -160,7 +160,7 @@ func TestKeepButtonIsLegible(t *testing.T) {
 		img := page(t, chosen, tokens.DefaultLight)
 		at, ok := keepBand(img, c.Primary)
 		if !ok {
-			t.Fatalf("candidate %d: no filled button found in the top bar", i)
+			t.Fatalf("candidate %d: no filled button found in the identity strip", i)
 		}
 		fill, ink := inkOn(img, at)
 		ratio := color.ContrastRatio(ink, fill)
@@ -199,7 +199,7 @@ func keepBand(img *image.RGBA, primary stdcolor.NRGBA) (image.Rectangle, bool) {
 		return (stdcolor.NRGBA{c.R, c.G, c.B, 0xff}) == primary
 	}
 	top, bottom := headTop(), headBottom()
-	// The widest unbroken run of the fill anywhere in the bar is the
+	// The widest unbroken run of the fill anywhere in the strip is the
 	// button's own width, found on one of the rows the label does not cross.
 	best, at := 0, 0
 	for y := top; y < bottom; y++ {

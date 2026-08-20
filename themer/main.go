@@ -4,9 +4,9 @@
 // beside the primary pair a palette derivation makes of it. Click one and the
 // whole design system underneath re-draws in it — every component, every
 // composition, a page of prose and a specimen of code — which is the
-// shortest honest answer to "what would this colour look like". A switch
-// beside the picture shows the other side of the pair, because a seed has two
-// and both have to be seen.
+// shortest honest answer to "what would this colour look like". A switch at
+// the trailing end of the window's title row shows the other side of the pair,
+// because a seed has two and both have to be seen.
 //
 // There is a second door for anybody who has not got a picture in mind. Under
 // the drop well, the window opens on a card per syntax style — the ones that
@@ -83,7 +83,7 @@ const (
 
 func run() {
 	mvuWin := mvu.NewWindow(
-		app.Title("Themer"),
+		app.Title(AppName),
 		app.Size(unit.Dp(windowW), unit.Dp(windowH)),
 	)
 

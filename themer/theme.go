@@ -89,40 +89,7 @@ type Palette struct {
 	Accent    stdcolor.NRGBA // the chosen candidate's ring, the hover highlight
 	OnAccent  stdcolor.NRGBA // text over Accent
 	Selection stdcolor.NRGBA // the chosen candidate's card fill
-	Outline   stdcolor.NRGBA // the boundary of a control standing on the page
 	Problem   stdcolor.NRGBA // a drop that produced nothing
-}
-
-// EdgeContrast is what an outline has to reach against the surface behind it
-// before it reads as the boundary of an object rather than as a tint. It is
-// the standing floor for the visual boundary of a control, which is what the
-// outline this file resolves is drawn round.
-const EdgeContrast = 3.0
-
-// outlineOn is the step of a ramp an outline is drawn at: the first one
-// standing EdgeContrast clear of the ground behind it.
-//
-// The step is measured rather than pinned, because the same step number is not
-// the same distance from the ground in the two schemes. The primary ramp's mid
-// step stands better than six to one off a dark page and under three to one off
-// a light one — so an outline pinned to it is a boundary under the moon and a
-// tint under the sun, which is precisely how the way back came out: an object
-// on one side of the switch and a floating label on the other. Choosing by
-// measurement is what gives the two schemes the same treatment instead of the
-// same number.
-//
-// The walk runs from the tinted end upward and stops at the first step that
-// clears, so the outline is the quietest one that is still a boundary. The last
-// step is the fallback and cannot fail to be reached in practice: a ramp whose
-// darkest end does not stand three to one off its own ground is not a ramp this
-// application could draw anything on.
-func outlineOn(ramp tokens.Ramp, ground stdcolor.NRGBA) stdcolor.NRGBA {
-	for n := 100; n <= 900; n += 100 {
-		if step := ramp.Step(n); vgcolor.ContrastRatio(step, ground) >= EdgeContrast {
-			return step
-		}
-	}
-	return ramp.Step(900)
 }
 
 // PaletteFrom resolves the palette in the token vocabulary: the pinned
@@ -156,13 +123,17 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		// does not read as a pale colour somebody chose — it reads as a card
 		// that failed to finish drawing. The weight has to beat the two
 		// near-whites it stands between, which the card weight does not.
-		Edge:      c.Ramps.Neutral.Step(500),
-		Text:      c.Text,
+		Edge: c.Ramps.Neutral.Step(500),
+		Text: c.Text,
+		// The quiet register: hints and hex values, and the chrome in the
+		// title row that stands under the window's own name. It is a step
+		// short of the text ink rather than a wash — measured, it clears the
+		// body-text floor against either page by a margin, which is what lets
+		// a control wear it and still be read.
 		Muted:     c.Ramps.Neutral.Step(700),
 		Accent:    c.Primary,
 		OnAccent:  c.OnPrimary,
 		Selection: container,
-		Outline:   outlineOn(c.Ramps.Primary, c.Background),
 		Problem:   c.Error,
 	}
 }
@@ -173,6 +144,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 type Type struct {
 	Shaper *text.Shaper
 	Title  textdraw.TextStyle // TitleLarge: the drop zone's invitation
+	Head   textdraw.TextStyle // TitleSmall: the window's own name in the title row
 	Label  textdraw.TextStyle // LabelLarge: section labels, the pair's "Aa"
 	Body   textdraw.TextStyle // BodyMedium: the file name, the hint line
 	Small  textdraw.TextStyle // BodySmall: hex values and shares
@@ -186,6 +158,7 @@ func TypeFrom(t tokens.Typography) Type {
 	return Type{
 		Shaper: t.Shaper(),
 		Title:  textStyle(t.TitleLarge),
+		Head:   textStyle(t.TitleSmall),
 		Label:  textStyle(t.LabelLarge),
 		Body:   textStyle(t.BodyMedium),
 		Small:  textStyle(t.BodySmall),

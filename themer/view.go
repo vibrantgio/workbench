@@ -6,6 +6,7 @@ import (
 	stdcolor "image/color"
 
 	"gioui.org/gesture"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -19,6 +20,7 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/gallery/inventory"
+	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
@@ -35,21 +37,34 @@ const (
 	Hairline unit.Dp = 1  // the mat's resting outline
 	Ring     unit.Dp = 2  // the chosen candidate's ring, and the drag highlight
 
-	// NavH is the bar along the top of both screens, and it is the whole top
-	// of the window rather than a band inset into it: the bar carries the
-	// window's top margin itself, inside its own height, so its controls are
-	// centred between the top edge and the rule under them. Left inside the
-	// page's uniform inset the same controls would sit a margin's worth low —
-	// a bar with a margin's air above its contents and a few points below
-	// them, which reads as a row that has slipped rather than as a bar.
-	NavH      unit.Dp = 64
+	// TitleAir is what the title row keeps above and below the tallest thing
+	// standing in it: the smallest step on the theme's spacing scale, and no
+	// more. A title row is not a band of controls, and every point it spends
+	// is a point the page under it does not get.
+	TitleAir unit.Dp = 4
+	// TitleH is the row across the top of both screens: the scheme switch,
+	// which is the tallest thing in it, with TitleAir either side. It is
+	// derived from the switch's own height rather than pinned, so a control
+	// that grows cannot end up cropped by a number written down beside it.
+	//
+	// The row stands inside the page's margin like every other row down the
+	// window, having no ground of its own to carry a margin on. It costs the
+	// page exactly what the band it replaced cost: that band swallowed the top
+	// margin and stood its controls in the points below it, so margin plus row
+	// comes to the same height and nothing under the row has moved.
+	TitleH    unit.Dp = inventory.SchemeSwitchH + 2*TitleAir
 	HeadH     unit.Dp = 56  // the identity strip under it: swatch, name, offer, keep
 	ThumbW    unit.Dp = 108 // the thumbnail's mat
 	ThumbPad  unit.Dp = 6   // mat edge to the picture inside it
 	RowLabelH unit.Dp = 20  // the label over the candidate row, and over the page
 	LineH     unit.Dp = 20  // one line of the identity block, and of the standing offer
 	KeepW     unit.Dp = 150 // the keep button, at a width neither of its two labels squeezes
-	BackW     unit.Dp = 140 // the way back to the first screen
+	// BackMark is the way back's chevron, at the size a mark takes beside a
+	// line of text, and BackGap is what stands between the two: the smallest
+	// step, because a mark and the word it belongs to are one control and a
+	// wider gap would make them two.
+	BackMark unit.Dp = 16
+	BackGap  unit.Dp = TitleAir
 	// IdentW is the widest the name and its caption ever get. Past it the
 	// slack goes to the space before the standing offer instead, so a window
 	// dragged wide opens a gap between the identity and the controls rather
@@ -69,6 +84,10 @@ const (
 // it was made on. It names where it goes rather than what it undoes: "cancel"
 // on a window with nothing pending is a question, and the grid is a place.
 const BackLabel = "Back to styles"
+
+// AppName is what this window is, said once — on the window's own title and
+// at the head of its title row, which are the same claim made in two places.
+const AppName = "Themer"
 
 // dropZone is the one zone the window registers: the whole of it. The
 // application has no second drop target, so the index is a constant.
@@ -135,8 +154,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 // the way back to the first screen, the keep affordance, and the two halves of
 // the scheme switch. They are one value rather than three parameters because
 // they have one lifetime — subscription scope, so a press in flight survives an
-// emission — and because the scheme switch is on the first screen too, where
-// the other two are not.
+// emission — and because the scheme switch is in the title row on the first
+// screen too, where the other two are not.
 type topClicks struct {
 	back   gesture.Click
 	keep   gesture.Click
@@ -145,13 +164,14 @@ type topClicks struct {
 
 // Page lays the window out and registers it, whole, as the drop zone.
 //
-// Both screens open with the same bar: the way back at its leading edge, the
-// scheme switch at its trailing one. It is the same bar and not two, which is
+// Both screens open with the same title row: what the window is at its leading
+// edge, the way back beside it once there is somewhere to go back to, and the
+// scheme switch at its trailing one. It is the same row and not two, which is
 // what makes the switch stay put across the click that changes screens — a
 // control that moved across the window on the first press would be a second
 // control as far as anybody reading is concerned.
 //
-// Under the bar, with a theme on screen, the window is three bands: where the
+// Under the row, with a theme on screen, the window is three bands: where the
 // colours came from, the seeds taken out of it, and the whole design system
 // drawn in the one that is chosen. The last of those gets the room, because it
 // is the thing being judged — the source is a reference and needs only to be
@@ -198,12 +218,13 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 		zones.Update(gtx)
 		zones.Record(dropZone, image.Rectangle{Max: size})
 
-		// No top margin: the bar is the first child and owns the window's
-		// top edge, margin included. Everything under it is inset as before.
-		inset := layout.Inset{Left: Pad, Right: Pad, Bottom: Pad}
+		// One margin all round. The title row draws no ground of its own, so
+		// it has nothing to carry the window's top margin on and takes it from
+		// the page like every other row.
+		inset := layout.UniformInset(Pad)
 		inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			children := []layout.FlexChild{
-				rigid(NavBar(p, c, t.typ, m, dark, bar)),
+				rigid(TitleRow(p, c, t.typ, m, dark, bar)),
 				spacer(Gap),
 			}
 			if len(m.Candidates) > 0 {
@@ -233,41 +254,125 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	}
 }
 
-// NavBar is the strip along the top of both screens: the way back at its
-// leading edge, the switch to the other side of the scheme at its trailing one,
-// and a rule under the pair of them.
+// TitleRow is the row across the top of both screens: what the window is at
+// its leading edge, the way back beside it, and the switch to the other side
+// of the scheme at its trailing one — all on one centre line.
 //
-// Both ends are fixed places rather than positions in a row, which is the whole
-// point of a bar. Where a control that scrolls with the page has to be looked
-// for, one pinned to an edge is somewhere a reader already knows to look — and
-// the two controls here are precisely the two that are not about the theme on
-// screen: one leaves it, the other changes which half of it is showing.
+// It is a title row and not a bar. Nothing here is drawn on a ground of its
+// own and nothing is ruled off from what follows: the row stands on the
+// window's own page, and what makes it the top of the window is that it is at
+// the top of the window. A band and a rule are what a row needs when the thing
+// under it is a different kind of surface, and here it is the same page all the
+// way down.
 //
-// The leading slot is empty before anything has been chosen, because there is
-// nowhere to go back to and the window puts no name of its own on the page. An
-// empty slot is what an empty slot should look like; the bar is still a bar,
-// and the switch is still in the corner it stands in on the other screen.
+// The name is what earns the leading edge. A window that says what it is can
+// let everything else in the row be quiet — which is why the way back stands
+// beside the name in the register of chrome rather than dressed as a button:
+// with a title to read under, a label at the muted step is a control that knows
+// its place, where the same label alone on an unnamed row was just a label. It
+// is absent altogether before anything has been chosen, because there is
+// nowhere to go back to, and the row is a row of two rather than a row with a
+// hole in it.
 //
-// The rule is what makes the strip read as a bar rather than as two controls
-// that happen to be high up. It is the page's own divider weight, the one the
-// drop well is outlined in, so the top of the window is ruled off in a line the
-// rest of the window already uses.
-func NavBar(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, bar *topClicks) layout.Widget {
-	var slots []slot
+// The switch stays in its corner across that change. Both ends are fixed
+// places, which is what lets a reader look for the scheme control once.
+//
+// The order the slots are named in is the order they keep their size in when
+// the window is too narrow for all of them — see centreRow. The name goes
+// first because it is the one thing here that identifies the window; then the
+// switch, which is a control with a fixed size and no way to give ground; and
+// the way back last, having a truncator to give ground with.
+func TitleRow(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, bar *topClicks) layout.Widget {
+	slots := []slot{{leading, 0, AppTitle(p, ty)}, {trailing, 0, SchemeToggle(c, dark, &bar.scheme)}}
 	if len(m.Candidates) > 0 {
-		slots = append(slots, slot{leading, 0, BackButton(p, c, ty, &bar.back)})
+		slots = append(slots, slot{leading, 0, WayBack(p, ty, &bar.back)})
 	}
-	slots = append(slots, slot{trailing, 0, SchemeToggle(c, dark, &bar.scheme)})
 	return func(gtx layout.Context) layout.Dimensions {
-		h, line := gtx.Dp(NavH), gtx.Dp(Hairline)
-		dims := centreRow(gtx, h, gtx.Dp(Gap), slots...)
-		paint.FillShape(gtx.Ops, p.Divider,
-			clip.Rect(image.Rect(0, h-line, dims.Size.X, h)).Op())
-		return dims
+		return centreRow(gtx, gtx.Dp(TitleH), gtx.Dp(Gap), slots...)
 	}
 }
 
-// IdentityRow is the line under the bar on the second screen: where the theme's
+// AppTitle is what the window is, at the head of its own title row, in the
+// theme's title register at the size a line of running text takes.
+//
+// It is not pressable and it is not a crumb. The window has one screen behind
+// its other one and a named control that goes there; a title that also went
+// somewhere would be a second way to do the same thing, promising a place of
+// its own that this window does not have.
+func AppTitle(p Palette, ty Type) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		w := min(natural(gtx, ty.Shaper, ty.Head, AppName), gtx.Constraints.Max.X)
+		if w <= 0 {
+			return layout.Dimensions{}
+		}
+		size := image.Pt(w, gtx.Dp(LineH))
+		textdraw.FillText(gtx, ty.Shaper, ty.Head, image.Rectangle{Max: size}, 0, 0.5, p.Text, AppName)
+		return layout.Dimensions{Size: size}
+	}
+}
+
+// WayBack returns the window to its first screen, where the drop well and the
+// whole grid of styles are: a chevron and the name of the place it goes, on the
+// page itself with no ground and no boundary of its own.
+//
+// The dressing is the row's doing. A tonal fill with an outline round it was
+// the right answer to a label standing alone on an unnamed bar a few points
+// from a hint: with nothing to read it against, the label needed a box to be an
+// object at all. Beside a title it does not. What it needs is to read as chrome
+// under the name and still be legible, and that is a matter of ink: the muted
+// step measures 6.19:1 against the light page and 11.06:1 against the dark one,
+// both well over the 4.5:1 a line of text has to reach, while the title's own
+// ink stands at 17.19:1 and 15.30:1 — so the two are plainly a name and
+// something quieter beside it rather than two things of equal weight. Under the
+// pointer the label takes the title's ink, which is the whole of the hover
+// state: a control with no ground has nothing else to change.
+//
+// The chevron is what says "control" before the words are read. It is the mark
+// the design system carries for going back, drawn rather than typeset, at the
+// size a mark takes beside a line of text — and it is bound to its label by the
+// smallest step on the scale, so the two are one object and not a symbol
+// standing near a word.
+func WayBack(p Palette, ty Type, click *gesture.Click) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		mark, gap := gtx.Dp(BackMark), gtx.Dp(BackGap)
+		room := gtx.Constraints.Max.X - mark - gap
+		if room <= 0 {
+			return layout.Dimensions{}
+		}
+		w := min(natural(gtx, ty.Shaper, ty.Body, BackLabel), room)
+		if w <= 0 {
+			return layout.Dimensions{}
+		}
+		ink := p.Muted
+		if click.Hovered() || click.Pressed() {
+			ink = p.Text
+		}
+		h := max(gtx.Dp(LineH), mark)
+		size := image.Pt(mark+gap+w, h)
+		if chevron := icons.Mark(icons.HistoryBack); chevron != nil {
+			at(gtx, image.Pt(0, (h-mark)/2), func(gtx layout.Context) { chevron(gtx, mark, ink) })
+		}
+		textdraw.FillText(gtx, ty.Shaper, ty.Body,
+			image.Rect(mark+gap, 0, size.X, h), 0, 0.5, ink, BackLabel)
+
+		area := clip.Rect{Max: size}.Push(gtx.Ops)
+		pointer.CursorPointer.Add(gtx.Ops)
+		click.Add(gtx.Ops)
+		area.Pop()
+		for {
+			e, ok := click.Update(gtx.Source)
+			if !ok {
+				break
+			}
+			if e.Kind == gesture.KindClick {
+				mvu.MessageOp{Message: ShowStyles{}}.Add(gtx.Ops)
+			}
+		}
+		return layout.Dimensions{Size: size}
+	}
+}
+
+// IdentityRow is the line under the title row on the second screen: where the theme's
 // colours came from, what it is called, what it is dressing code in, the
 // standing offer to replace the lot with a picture, and the offer to make it
 // outlast the window.
@@ -291,65 +396,6 @@ func IdentityRow(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.Im
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		return centreRow(gtx, gtx.Dp(HeadH), gtx.Dp(Gap), slots...)
-	}
-}
-
-// BackButton returns the window to its first screen, where the drop well and
-// the whole grid of styles are.
-//
-// It wears the middle register with an edge drawn round it. A ghost was the
-// wrong reading of the same argument: going back is a way out of a choice
-// rather than the thing the window is for, so it must not shout — but a label
-// with no ground at rest, standing a few points from a hint in the same line,
-// was not quiet, it was indistinguishable from the hint.
-//
-// The tinted ground alone did not settle it either. A tonal fill is a tint by
-// design, and on this window it lands a hair off the page in both schemes —
-// far enough to see once it is pointed out, nowhere near far enough to make an
-// object out of. What a reader sees is a label floating in a wash. The outline
-// is what makes it a thing with a boundary, and it is drawn here rather than
-// asked of the button because the register is a colour property and a border
-// belongs to the surface. Its colour is Palette.Outline, chosen against the
-// page by measurement so the boundary carries the same weight under the sun as
-// under the moon.
-//
-// It is painted under the button and one point wider all round, rather than
-// stroked along the button's own edge. A one-point stroke sits centred on the
-// boundary it names, so it lands as two rows of half-strength antialiasing —
-// half of it outside the control's own box, and none of it at the colour it was
-// asked for. The colour is the whole point of choosing it by measurement, so
-// the outline is a fill with the button laid over it: what shows is one whole
-// point of the chosen colour, and it shows inside the box this returns, which
-// is what keeps the control's leading edge on the same margin as everything
-// else down the page.
-func BackButton(p Palette, c tokens.ColorTokens, ty Type, click *gesture.Click) layout.Widget {
-	draw := button.Render(ty.Shaper, BackLabel, c, tokens.Spacing, tokens.Radius, ty.Role, tokens.Comfortable,
-		button.RenderState{Emphasis: button.Tonal, Hovered: click.Hovered(), Pressed: click.Pressed()})
-	return func(gtx layout.Context) layout.Dimensions {
-		line := gtx.Dp(Hairline)
-		gtx.Constraints.Min = image.Point{}
-		gtx.Constraints.Max.X = max(0, min(gtx.Constraints.Max.X, gtx.Dp(BackW))-2*line)
-		body := op.Record(gtx.Ops)
-		inner := draw(gtx).Size
-		drawn := body.Stop()
-
-		size := inner.Add(image.Pt(2*line, 2*line))
-		fillRRect(gtx, image.Rectangle{Max: size}, gtx.Dp(unit.Dp(tokens.Radius.Md))+line, p.Outline)
-		at(gtx, image.Pt(line, line), func(gtx layout.Context) { drawn.Add(gtx.Ops) })
-
-		area := clip.Rect{Max: size}.Push(gtx.Ops)
-		click.Add(gtx.Ops)
-		area.Pop()
-		for {
-			e, ok := click.Update(gtx.Source)
-			if !ok {
-				break
-			}
-			if e.Kind == gesture.KindClick {
-				mvu.MessageOp{Message: ShowStyles{}}.Add(gtx.Ops)
-			}
-		}
-		return layout.Dimensions{Size: size}
 	}
 }
 

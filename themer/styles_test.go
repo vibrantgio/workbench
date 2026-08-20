@@ -38,9 +38,9 @@ func cardIndex(m Model, name string) int {
 }
 
 // The grid's geometry, computed from the same constants the first screen lays
-// out with: the bar across the top, the drop well, the grid's label, and then
+// out with: the title row across the top, the drop well, the grid's label, and then
 // the cards.
-func wellTop() int  { return navBottom() + int(Gap) }
+func wellTop() int  { return titleBottom() + int(Gap) }
 func gridTop() int  { return wellTop() + int(DropH) + int(Gap) }
 func cardsTop() int { return gridTop() + int(StyleHead) + int(RowTop) }
 
