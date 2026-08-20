@@ -13,12 +13,12 @@ import (
 // that will not take the file comes back as a KeepFailed message, because
 // the window is still worth looking at afterwards.
 //
-// What is written is names for a derivation, not the derivation's output: the
-// seed the palette is generated from, and the base the syntax colours are
-// derived from under each appearance. The generators reproduce themselves
-// exactly from what they were given, so the names are the whole theme —
-// recording the ramps or the token inks beside them would freeze derivations
-// that are still allowed to improve.
+// What is written is names, not the colours they stand for: the seed the
+// palette is generated from, and the base the code is drawn in under each
+// appearance. The palette generator reproduces itself exactly from the seed
+// and a base is a registry entry read as its author left it, so the names are
+// the whole theme — recording the ramps or the token inks beside them would
+// freeze a derivation that is still allowed to improve.
 //
 // Both bases go, not the one the window happens to be showing. The pair is the
 // choice; keeping half of it would leave the other appearance on a default

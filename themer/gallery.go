@@ -49,9 +49,10 @@ type embed struct {
 func newEmbed() *embed { return &embed{st: list.NewState(), code: -1} }
 
 // items returns the whole inventory as the rows of the scrolling column, in
-// the given palette and with its code coloured from the given syntax bases —
-// the pair, so the appearance the palette is on picks its own member and a
-// flip of the scheme re-derives through the other one.
+// the given palette and with its code drawn in the given syntax bases — the
+// pair, so the appearance the palette is on picks its own member and a flip of
+// the scheme puts the other one's whole plate on the specimen, its ground
+// included.
 // The inventory itself is built on the first call — before anything has been
 // dropped, so the parse is behind us by the time a pick has to be quick — and
 // again only if the typography under it is replaced.

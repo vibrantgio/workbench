@@ -207,7 +207,7 @@ func Init() (Model, mvu.Command) {
 
 // adoptKept folds what is already in the kept-theme file into the model: the
 // colour it holds, and the syntax bases it names resolved against what this
-// build can actually derive from. A name nothing resolves — a style whose
+// build can actually draw. A name nothing resolves — a style whose
 // file has left the folder, one written by a build that had it — opens the
 // window on the default rather than on whatever sorted first, because the
 // default is what everything else showing that file's theme will use. So does

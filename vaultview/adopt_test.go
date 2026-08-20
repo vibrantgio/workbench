@@ -10,6 +10,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/theme/brand"
 	specsystem "github.com/vibrantgio/theme/system"
@@ -78,18 +79,58 @@ func TestAKeptBrandDressesTheWholeWindow(t *testing.T) {
 	}
 }
 
+// worn is a fresh note style dressed in one pair under these tokens: what a
+// second application holding the same pair puts under a fence, to compare a
+// note's own fence against.
+func worn(p highlight.BasePair, c tokens.ColorTokens) markdown.Style {
+	st := markdown.FromTokens(c, tokens.DefaultTypography)
+	highlight.WearPair(&st, p, c)
+	return st
+}
+
+// wornAlone is [worn] for one name under both appearances: the plate somebody
+// who chose that base and nothing else would be looking at.
+func wornAlone(name string, c tokens.ColorTokens) markdown.Style {
+	return worn(highlight.BasePair{Light: name, Dark: name}, c)
+}
+
+// plate is the three things a base puts on a fence and a comparison has to
+// cover: the ground under the block, the ink plain code falls back to, and the
+// colours the highlighter hands out run by run.
+type plate struct {
+	ground, body color.NRGBA
+	runs         []markdown.CodeSpan
+}
+
+func plateOf(st markdown.Style, src string) plate {
+	return plate{ground: st.CodeBackground, body: st.CodeColor, runs: st.Highlight("go", src)}
+}
+
+// unlike reports how far two plates are apart: whether the grounds differ, and
+// how many runs are inked differently. Either alone is a visible difference, so
+// a base that reaches the screen shows up in one or the other.
+func (p plate) unlike(q plate) (grounds bool, runs int) {
+	grounds = p.ground != q.ground || p.body != q.body
+	for i := range p.runs {
+		if i >= len(q.runs) || p.runs[i].Color != q.runs[i].Color {
+			runs++
+		}
+	}
+	return grounds, runs
+}
+
 // TestTheKeptBasesColourTheCode is the adoption proof for the other half of a
 // kept theme. The colour a person chose dresses the window; the syntax bases
-// they chose beside it colour the code in it, one per appearance, and this
-// asserts that what reaches a fence here is the same derivation the window that
-// offered them was showing — ink for ink, not merely "some highlighting", and
-// through the appearance's own member rather than through whichever one was
-// named first.
+// they chose beside it draw the code in it, one per appearance, and this
+// asserts that a fence here wears the same plate the window that offered them
+// was showing — the base's own ground under the base's own inks, ink for ink
+// and not merely "some highlighting", and through the appearance's own member
+// rather than through whichever one was named first.
 //
-// The comparison is against the derivation done directly from the kept names,
+// The comparison is against the pair worn directly from the kept names,
 // because that is what "reproduces it" means: the file names a pair, and two
-// applications deriving from that pair on one palette must land on the same
-// colours or the names are a suggestion.
+// applications wearing that pair on one palette must land on the same plate or
+// the names are a suggestion.
 func TestTheKeptBasesColourTheCode(t *testing.T) {
 	// Two styles that are nothing to do with each other, and nothing like the
 	// default in either appearance.
@@ -121,55 +162,48 @@ func TestTheKeptBasesColourTheCode(t *testing.T) {
 		{"dark", dark, want.Dark, want.Light},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := noteStyle(tc.colors, tokens.DefaultTypography).Highlight("go", src)
-			same := highlight.AdaptPair(want, tc.colors)("go", src)
-			if len(got) == 0 {
+			got := plateOf(noteStyle(tc.colors, tokens.DefaultTypography), src)
+			same := plateOf(worn(want, tc.colors), src)
+			if len(got.runs) == 0 {
 				t.Fatal("the note's fence came back with no runs at all")
 			}
-			if len(got) != len(same) {
-				t.Fatalf("the fence split into %d runs, the same derivation gives %d", len(got), len(same))
+			if len(got.runs) != len(same.runs) {
+				t.Fatalf("the fence split into %d runs, the same pair gives %d", len(got.runs), len(same.runs))
 			}
 			coloured := 0
-			for i := range got {
-				if got[i] != same[i] {
-					t.Fatalf("run %d is %+v, the same derivation gives %+v", i, got[i], same[i])
+			for i := range got.runs {
+				if got.runs[i] != same.runs[i] {
+					t.Fatalf("run %d is %+v, the same pair gives %+v", i, got.runs[i], same.runs[i])
 				}
-				if got[i].Color.A != 0 {
+				if got.runs[i].Color.A != 0 {
 					coloured++
 				}
 			}
 			if coloured == 0 {
 				t.Fatal("no run carries a colour, so matching proves nothing")
 			}
+			if got.ground != same.ground || got.body != same.body {
+				t.Fatalf("the fence sits on %v under %v ink, the same pair gives %v under %v",
+					got.ground, got.body, same.ground, same.body)
+			}
 			// And it is this appearance's own member that got there: the same
-			// runs, ink for ink, as that member derived alone — and not the
-			// other member's, which is what a window colouring both appearances
-			// through one name would have produced.
-			member := highlight.Adapt(tc.member, tc.colors)("go", src)
-			apart := 0
-			for i := range got {
-				if i >= len(member) || got[i].Color != member[i].Color {
-					t.Fatalf("run %d is %v, %s alone gives %v", i, got[i].Color, tc.member, member[i].Color)
-				}
+			// ground, the same body ink and the same runs as that member worn
+			// alone — and not the other member's, which is what a window
+			// drawing both appearances through one name would have produced.
+			member := plateOf(wornAlone(tc.member, tc.colors), src)
+			if grounds, apart := got.unlike(member); grounds || apart != 0 {
+				t.Fatalf("the fence is not %s's plate: grounds differ=%v, %d runs inked differently", tc.member, grounds, apart)
 			}
-			other := highlight.Adapt(tc.other, tc.colors)("go", src)
-			for i := range got {
-				if i >= len(other) || got[i].Color != other[i].Color {
-					apart++
-				}
+			otherGrounds, otherRuns := got.unlike(plateOf(wornAlone(tc.other, tc.colors), src))
+			if !otherGrounds && otherRuns == 0 {
+				t.Fatalf("the fence is drawn exactly as %s would draw it — the pair is not being applied per appearance", tc.other)
 			}
-			if apart == 0 {
-				t.Fatalf("the fence is coloured exactly as %s would colour it — the pair is not being applied per appearance", tc.other)
-			}
-			t.Logf("%d runs, %d coloured, ink for ink %s's; %d runs unlike %s's", len(got), coloured, tc.member, apart, tc.other)
+			t.Logf("%d runs, %d coloured, %s's plate on %v; unlike %s's by ground=%v and %d runs",
+				len(got.runs), coloured, tc.member, got.ground, tc.other, otherGrounds, otherRuns)
 			// And it is the kept pair and not the default that got there.
-			fallback := highlight.AdaptPair(highlight.DefaultBases(), tc.colors)("go", src)
-			for i := range got {
-				if i >= len(fallback) || got[i].Color != fallback[i].Color {
-					return
-				}
+			if grounds, apart := got.unlike(plateOf(worn(highlight.DefaultBases(), tc.colors), src)); !grounds && apart == 0 {
+				t.Error("the fence is drawn exactly as the default pair would draw it — the kept names reached nothing")
 			}
-			t.Error("the fence is coloured exactly as the default pair would colour it — the kept names reached nothing")
 		})
 	}
 

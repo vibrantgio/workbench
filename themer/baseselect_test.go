@@ -12,6 +12,7 @@ import (
 
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/theme/brand"
 	"github.com/vibrantgio/theme/imageseed"
@@ -34,6 +35,21 @@ func withBases() Model {
 // appearance's own list does.
 func pick(m Model, name string, dark bool) Model {
 	return ReduceModel(m, SelectBase{Index: baseIndex(m.Bases, name, dark), Dark: dark})
+}
+
+// wearPair is a fresh document style dressed in one pair under these tokens:
+// the plate the specimen on the embedded page is drawn with, to measure the
+// pixels against.
+func wearPair(p highlight.BasePair, c tokens.ColorTokens) markdown.Style {
+	st := markdown.FromTokens(c, tokens.DefaultTypography)
+	highlight.WearPair(&st, p, c)
+	return st
+}
+
+// wearAlone is [wearPair] for one name under both appearances: what somebody
+// who chose that base and nothing else would be looking at.
+func wearAlone(name string, c tokens.ColorTokens) markdown.Style {
+	return wearPair(highlight.BasePair{Light: name, Dark: name}, c)
 }
 
 // atTheCode renders the window with the embedded page scrolled so the code
@@ -127,7 +143,7 @@ func TestEveryBaseIsOnOffer(t *testing.T) {
 
 // TestAStyleFromTheFolderJoinsTheColumn: a style somebody wrote themselves is
 // choosable beside the ones that ship, and says which it is. The mark is the
-// only difference — a loaded base is derived from exactly like an embedded
+// only difference — a loaded base is worn exactly like an embedded
 // one — and it is there because "did my file load" is the first question
 // anybody who dropped one in has.
 func TestAStyleFromTheFolderJoinsTheColumn(t *testing.T) {
@@ -365,7 +381,7 @@ const (
 
 // TestFlippingTheSchemeSwitchesTheAppliedBase is the pair's whole point. The
 // window holds a base per appearance, and the scheme control moves between
-// them: the code re-derives through the other member, the column marks that
+// them: the code takes the other member's plate, the column marks that
 // member's row, and the line over the page names it — all in the frame the
 // switch is pressed, and without either choice being edited.
 func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
@@ -383,10 +399,10 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 		t.Errorf("under the moon the page says %q, want it naming %q", got, pairDark)
 	}
 
-	// The derivation the page is coloured through, ink for ink: under each
-	// appearance it is that appearance's own member, derived alone. This is
-	// the measurement behind the pixels — a page that had gone on colouring
-	// through the other member would match the other derivation here.
+	// The plate the specimen is drawn on, ground and ink: under each
+	// appearance it is that appearance's own member, worn alone. This is the
+	// measurement behind the pixels — a page that had gone on drawing through
+	// the other member would match the other plate here.
 	const src = "// greet.\nfunc greet(name string) string { return name }\n"
 	for _, tc := range []struct {
 		name   string
@@ -398,29 +414,36 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			applied := m.Base(tc.dark)
-			got := highlight.AdaptPair(m.AppliedBases(), tc.colors)("go", src)
-			want := highlight.Adapt(applied, tc.colors)("go", src)
-			other := highlight.Adapt(m.Base(!tc.dark), tc.colors)("go", src)
-			if len(got) == 0 || len(got) != len(want) {
-				t.Fatalf("the specimen split into %d runs, %s alone gives %d", len(got), applied, len(want))
+			got := wearPair(m.AppliedBases(), tc.colors)
+			want := wearAlone(applied, tc.colors)
+			other := wearAlone(m.Base(!tc.dark), tc.colors)
+			gotRuns, wantRuns := got.Highlight("go", src), want.Highlight("go", src)
+			otherRuns := other.Highlight("go", src)
+			if len(gotRuns) == 0 || len(gotRuns) != len(wantRuns) {
+				t.Fatalf("the specimen split into %d runs, %s alone gives %d", len(gotRuns), applied, len(wantRuns))
+			}
+			if got.CodeBackground != want.CodeBackground || got.CodeColor != want.CodeColor {
+				t.Fatalf("the specimen sits on %v under %v ink, %s alone gives %v under %v",
+					got.CodeBackground, got.CodeColor, applied, want.CodeBackground, want.CodeColor)
 			}
 			coloured, apart := 0, 0
-			for i := range got {
-				if got[i].Color != want[i].Color {
-					t.Fatalf("run %d is %v, %s alone gives %v", i, got[i].Color, applied, want[i].Color)
+			for i := range gotRuns {
+				if gotRuns[i].Color != wantRuns[i].Color {
+					t.Fatalf("run %d is %v, %s alone gives %v", i, gotRuns[i].Color, applied, wantRuns[i].Color)
 				}
-				if got[i].Color.A != 0 {
+				if gotRuns[i].Color.A != 0 {
 					coloured++
 				}
-				if i < len(other) && got[i].Color != other[i].Color {
+				if i < len(otherRuns) && gotRuns[i].Color != otherRuns[i].Color {
 					apart++
 				}
 			}
-			if coloured == 0 || apart == 0 {
-				t.Fatalf("%d runs carry a colour and %d differ from the other member's derivation — this pair cannot show which member is applied", coloured, apart)
+			ground := got.CodeBackground != other.CodeBackground
+			if coloured == 0 || (apart == 0 && !ground) {
+				t.Fatalf("%d runs carry a colour, %d differ from the other member's inks and the grounds differ=%v — this pair cannot show which member is applied", coloured, apart, ground)
 			}
-			t.Logf("%s: %d runs, %d coloured, ink for ink %s's, %d of them unlike %s's",
-				tc.name, len(got), coloured, applied, apart, m.Base(!tc.dark))
+			t.Logf("%s: %d runs, %d coloured, %s's plate on %v; unlike %s's by ground=%v and %d runs",
+				tc.name, len(gotRuns), coloured, applied, got.CodeBackground, m.Base(!tc.dark), ground, apart)
 		})
 	}
 
@@ -447,6 +470,69 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestThreeFlavoursOfOneFamilyAreThreeDifferentSpecimens is the case that is
+// hardest for a specimen to pass and the plainest thing it is for. One
+// family's three dark flavours are the same inks at the same volumes on three
+// different grounds: tell a reader they are the same picture and the reader is
+// right. The specimen shows each base's own ground, so the difference between
+// them is on screen and choosing between them is a choice somebody can see
+// they made.
+//
+// Both halves are asserted. The grounds are read off the plate, which is the
+// claim; the pixels are counted in the window, which is whether the claim
+// reached anybody. A ground that only the plate knows about is a value in a
+// struct.
+func TestThreeFlavoursOfOneFamilyAreThreeDifferentSpecimens(t *testing.T) {
+	moon := ReduceModel(judging(), SetScheme{Dark: true})
+	c := SchemeFor(tokens.DefaultDark, moon)
+	flavours := []string{"catppuccin-frappe", "catppuccin-macchiato", "catppuccin-mocha"}
+	grounds := make([]stdcolor.NRGBA, len(flavours))
+	for i, name := range flavours {
+		grounds[i] = wearAlone(name, c).CodeBackground
+		t.Logf("%s draws its fence on %v", name, grounds[i])
+	}
+	for i, a := range flavours {
+		for j := i + 1; j < len(flavours); j++ {
+			if grounds[i] == grounds[j] {
+				t.Errorf("%s and %s put the same ground %v under a fence — these two cannot be told apart", a, flavours[j], grounds[i])
+			}
+		}
+	}
+
+	for i, name := range flavours {
+		img := atTheCode(t, newEmbed(), pick(moon, name, true), tokens.DefaultDark, settled(true))
+		own := exactly(img, grounds[i])
+		if own == 0 {
+			t.Errorf("%s is chosen and not one pixel of the window is its ground %v", name, grounds[i])
+		}
+		for j, other := range grounds {
+			if j == i {
+				continue
+			}
+			if n := exactly(img, other); n >= own {
+				t.Errorf("with %s chosen, %d pixels are its ground and %d are %s's — the specimen is not showing what was picked",
+					name, own, n, flavours[j])
+			}
+		}
+		t.Logf("%s chosen: %d pixels of its own ground on screen", name, own)
+	}
+}
+
+// exactly counts the pixels of img that are precisely c, alpha ignored: a
+// surface filled in a colour and composited over nothing keeps it, so this is
+// how much of the window a fill actually reached.
+func exactly(img *image.RGBA, c stdcolor.NRGBA) int {
+	n, b := 0, img.Bounds()
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			if p := img.RGBAAt(x, y); p.R == c.R && p.G == c.G && p.B == c.B {
+				n++
+			}
+		}
+	}
+	return n
 }
 
 // TestEachSchemeRendersThroughItsOwnMember: changing the member an appearance

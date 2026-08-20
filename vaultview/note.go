@@ -106,17 +106,17 @@ const (
 	noteNavDimStep = 300
 )
 
-// noteCodeBases are the syntax palettes a note's fences are derived from, one
-// per appearance: the ones the kept theme names when it names ones this build
-// can resolve, and the highlighter's own defaults otherwise — a theme with no
-// base in it, or one naming a style file that has since left the styles
-// folder, colours code exactly as it did for somebody who never chose.
+// noteCodeBases are the syntax palettes a note's fences are drawn in, one per
+// appearance: the ones the kept theme names when it names ones this build can
+// resolve, and the highlighter's own defaults otherwise — a theme with no base
+// in it, or one naming a style file that has since left the styles folder,
+// draws code exactly as it did for somebody who never chose.
 //
 // A pair and not a name because a syntax palette is fitted to a ground: the
 // set of inks balanced against a near-white page is not the set anybody would
 // balance against a near-black one. So the light appearance and the dark one
-// each derive from their own member, and a desktop switching between them
-// switches the code's palette with everything else.
+// each wear their own member, ground and all, and a desktop switching between
+// them switches the code's plate with everything else.
 //
 // They are set once, at startup, from the same kept theme the palette comes
 // from, and read from then on. The choice is a preference and not a mode:
@@ -139,43 +139,26 @@ func adoptCodeBases(kept brand.Brand) highlight.BasePair {
 	return highlight.BasesOrDefault(kept.Base.Names())
 }
 
-// noteHighlight derives the code highlighter for a set of tokens, and
-// remembers the last one it made.
+// noteStyle derives the markdown document style for the current tokens: the
+// token-themed defaults, the reading typeface for code, and a fenced block
+// wearing the chosen syntax base. The link hook is attached per frame in
+// layoutNotePage, where the model is at hand.
 //
-// The names are bases rather than finished styles: each of an entry's inks
-// keeps its hue and chroma and takes the lightness that is legible on the fill
-// this theme actually puts under a fence, rather than the one that was legible
-// on the ground its author drew it on. Which member of the pair is derived
-// from follows the tokens.
+// The base is worn rather than re-fitted. A fence takes the ground its author
+// drew their inks on and the inks as they were drawn, so a block in a note is
+// the palette itself and not a rendering of it; the page around it — the
+// prose, the chip an inline span sits on, the bar a wide block scrolls under
+// — stays this theme's. Which member of the pair reaches the fence follows
+// the tokens, so a change of appearance is a change of plate.
 //
-// The memo is what keeps the derivation off the frame path. noteStyle runs
-// on every frame, and a derivation walks a chroma base's whole entry table
-// and re-fits each ink against the surface — cheap once per theme, wasteful
-// sixty times a second. The bases and the tokens are the key because they are
-// what the derived style is a function of: a new palette means a new style,
-// so does a new pair, and nothing else does.
-var noteHighlight = func() func(tokens.ColorTokens) markdown.Highlighter {
-	var last tokens.ColorTokens
-	var lastBases highlight.BasePair
-	var cached markdown.Highlighter
-	return func(c tokens.ColorTokens) markdown.Highlighter {
-		if cached == nil || c != last || noteCodeBases != lastBases {
-			last, lastBases = c, noteCodeBases
-			cached = highlight.AdaptPair(noteCodeBases, c)
-		}
-		return cached
-	}
-}()
-
-// noteStyle derives the markdown document style for the current tokens:
-// the token-themed defaults plus code highlighting derived from the same
-// tokens. The link hook is attached per frame in layoutNotePage, where the
-// model is at hand.
+// There is no memo. Wearing resolves a name and reads four colours off it,
+// which is a map lookup on a path that runs every frame; the derivation this
+// replaced walked a base's whole entry table and had to be kept off it.
 func noteStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
 	st := markdown.FromTokens(c, typ)
 	st.Mono = font.Typeface(typ.Code.Typeface)
 	st.CodeSize = unit.Sp(typ.Code.Size)
-	st.Highlight = noteHighlight(c)
+	highlight.WearPair(&st, noteCodeBases, c)
 	return st
 }
 
