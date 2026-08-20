@@ -15,6 +15,7 @@ import (
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/theme/brand"
 	"github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/imageseed"
 	"github.com/vibrantgio/theme/tokens"
@@ -645,6 +646,124 @@ func TestTheWayBackHasABoundaryInBothSchemes(t *testing.T) {
 			if page < EdgeContrast {
 				t.Errorf("%s at %d dp: the way back's outline measures %.2f:1 against the page, under the %.1f:1 a boundary needs — it reads as a tint",
 					sc.name, width, page, EdgeContrast)
+			}
+		}
+	}
+}
+
+// keptSeed is the brand the startup tests open a window on. It is nothing like
+// the theme's own default seed — a different hue, and one nobody could mistake
+// for it in a render — because the whole point of these two tests is telling
+// the two apart on screen.
+var keptSeed = stdcolor.NRGBA{R: 0xdf, G: 0x8e, B: 0x1d, A: 0xff}
+
+// opened is the model a window starts from with a brand already kept: every
+// base and every card on offer, nothing chosen yet, and the seed the window's
+// own theme was built from recorded the way Init records it.
+func opened(seed stdcolor.NRGBA) Model {
+	m := withStyles().adoptKept(brand.Brand{Seed: seed})
+	m.Opened = seed
+	return m
+}
+
+// switchFill is the colour the filled half of the scheme switch is painted,
+// read off a render at the bar's own centre line. The thumb is inset three
+// points inside its half and the glyph on it is twenty points wide and
+// centred, so the band between the two is the fill and nothing else.
+func switchFill(img *image.RGBA, width int, dark bool) stdcolor.NRGBA {
+	x := width - int(Pad) - int(inventory.SchemeSwitchW)
+	if dark {
+		x += int(inventory.SchemeSegmentW)
+	}
+	return opaque(img.RGBAAt(x+7, navTop()+int(NavH)/2))
+}
+
+// TestTheWindowIsTheSameScreenWhicheverWayItIsReached is the measurement the
+// scheme switch's colour turns on: one side of a theme, arrived at two ways —
+// opened on a desktop already set to it, and toggled to from a desktop set to
+// the other — has to be the same window, pixel for pixel.
+//
+// The whole window and not the switch alone, on purpose. A control resolving
+// its colour from somewhere other than the theme on screen is a kind of defect
+// rather than one control's bug, and comparing every pixel is the only way to
+// say that nothing else in the window does it either.
+//
+// Nothing is chosen here, which is the state the defect lived in: with a seed
+// applied, both paths already derived from that seed, so a test that dropped a
+// picture first would have passed against a window whose switch changed colour
+// on the first press.
+func TestTheWindowIsTheSameScreenWhicheverWayItIsReached(t *testing.T) {
+	light, dark := tokens.FromSeed(keptSeed)
+	m := opened(keptSeed)
+	for _, sc := range []struct {
+		name    string
+		dark    bool
+		on, off tokens.ColorTokens
+	}{
+		{"light", false, light, dark},
+		{"dark", true, dark, light},
+	} {
+		t.Run(sc.name, func(t *testing.T) {
+			// The desktop is already on this side and the window has not been
+			// touched: the first frame.
+			startup := page(t, m, sc.on)
+			// The desktop is on the other side and the window's own switch is
+			// asking for this one: the frame after a toggle.
+			toggled := page(t, ReduceModel(m, SetScheme{Dark: sc.dark}), sc.off)
+			if n := golden.PixelDiff(startup, toggled); n != 0 {
+				t.Errorf("the %s scheme drew %d pixels differently opened into than toggled into — something in the window is themed from a palette other than the one on screen",
+					sc.name, n)
+			}
+		})
+	}
+}
+
+// TestTheSwitchOpensInTheThemeOnScreen reads the colour off the control
+// itself: the filled half of the scheme switch, on the first frame, in both
+// schemes and at both widths.
+//
+// It has to be the primary of the theme the window is wearing. The half of
+// that worth stating is the negative — it must not be the primary of the
+// theme's own default pair, which is what the control used to jump to on the
+// first press of the switch, so that a window opened on a kept brand showed
+// one colour until it was touched and another afterwards.
+func TestTheSwitchOpensInTheThemeOnScreen(t *testing.T) {
+	light, dark := tokens.FromSeed(keptSeed)
+	m := opened(keptSeed)
+	// Both wanted colours are read off the pair the kept seed derives, not off
+	// what the window says it resolved: a window resolving the wrong palette
+	// would agree with itself. on is the side the desktop is set to, which
+	// before anything is chosen is the side of the kept theme on screen.
+	for _, sc := range []struct {
+		name             string
+		dark             bool
+		on, off, fallout tokens.ColorTokens
+	}{
+		{"light", false, light, dark, tokens.DefaultLight},
+		{"dark", true, dark, light, tokens.DefaultDark},
+	} {
+		want := stdcolor.NRGBA(sc.on.Primary)
+		for _, width := range []int{wideW, narrowW} {
+			img := pageAt(t, newEmbed(), m, sc.on, image.Pt(width, windowH))
+			got := switchFill(img, width, sc.dark)
+			t.Logf("%s at %d dp: the switch opens filled %v", sc.name, width, got)
+			if apart(got.R, want.R) > 1 || apart(got.G, want.G) > 1 || apart(got.B, want.B) > 1 {
+				t.Errorf("%s at %d dp: the switch opens filled %v, want the kept theme's primary %v",
+					sc.name, width, got, want)
+			}
+			if fallout := stdcolor.NRGBA(sc.fallout.Primary); got == fallout {
+				t.Errorf("%s at %d dp: the switch opens in the default pair's primary %v rather than the kept theme's",
+					sc.name, width, fallout)
+			}
+			// And the other half of the pair is reachable in that same theme:
+			// one press moves the fill to the counterpart primary, not to a
+			// colour from somewhere else.
+			flipped := ReduceModel(m, SetScheme{Dark: !sc.dark})
+			after := switchFill(pageAt(t, newEmbed(), flipped, sc.on, image.Pt(width, windowH)), width, !sc.dark)
+			counterpart := stdcolor.NRGBA(sc.off.Primary)
+			if apart(after.R, counterpart.R) > 1 || apart(after.G, counterpart.G) > 1 || apart(after.B, counterpart.B) > 1 {
+				t.Errorf("%s at %d dp: one press filled the switch %v, want the other side of the same theme %v",
+					sc.name, width, after, counterpart)
 			}
 		}
 	}

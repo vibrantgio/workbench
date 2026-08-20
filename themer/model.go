@@ -50,6 +50,17 @@ type Model struct {
 	// say whether what is on screen is what would come back. A zero alpha
 	// means nothing has been kept.
 	Kept stdcolor.NRGBA
+	// Opened is the seed the window's own theme was built from, before the
+	// first frame: the brand that was kept when it opened, and the zero
+	// colour when nothing was. The desktop sends one side of that theme per
+	// frame and never the other, so this is what the other side is derived
+	// from while nothing is chosen.
+	//
+	// It is deliberately not Kept. Keeping replaces what is on disk and moves
+	// that field; the stream this window flips was built once and goes on
+	// deriving the pair it was built with, so a window that kept a colour and
+	// then went back to the styles is still wearing the one it opened in.
+	Opened stdcolor.NRGBA
 	// KeptBases are the syntax bases that file currently holds, one per
 	// appearance, resolved the same way the applied pair is. They sit
 	// beside Kept for the same reason: the keep affordance confirms when
@@ -199,6 +210,12 @@ func Init() (Model, mvu.Command) {
 		kept = brand.KeptFrom(path)
 	}
 	m = m.adoptKept(kept)
+	// The window's theme was built from this same file a moment ago, in the
+	// call that opened the window, and it is built once. Recording the colour
+	// it was built from is what lets the window show the other side of that
+	// theme before anything has been chosen — the side the desktop, which
+	// only ever sends the one it is set to, never hands over.
+	m.Opened = kept.Seed
 	if len(os.Args) > 1 {
 		return m, LoadImage(os.Args[1])
 	}

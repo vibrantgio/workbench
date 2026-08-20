@@ -12,39 +12,62 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// SchemeFor resolves the colour tokens the whole window draws in. Until a
-// candidate is chosen that is the OS palette unchanged; from then on it is
-// the palette the chosen candidate generates — the point of the application
-// being that a seed is judged by what it does to a window, not by a swatch.
+// SchemeFor resolves the colour tokens the whole window draws in: one side of
+// the pair [Model.Pair] resolves, chosen by the model's answer to the
+// light/dark question.
 //
-// Which side of the generated pair applies starts as the OS's decision, read
-// off the palette the OS handed over rather than asked for a second time — a
-// scheme whose background is dark is a dark scheme — and becomes the window's
-// as soon as its own switch is pressed. A seed has two sides and both have to
-// be reachable to judge it.
+// Which side applies starts as the OS's decision, read off the palette the OS
+// handed over rather than asked for a second time — a scheme whose background
+// is dark is a dark scheme — and becomes the window's as soon as its own
+// switch is pressed. A seed has two sides and both have to be reachable to
+// judge it.
 //
-// The one awkward corner is an override with nothing chosen: there is no
-// generated pair to take the other side of, so the theme's own default pair
-// stands in. It is the only other pair there is, and it is what the window
-// would show a moment later anyway.
+// It is the one place the window's own colours come from. Every surface the
+// window is themed in is drawn from what this returns — the switch that
+// changes the side included, which is what stops a control from wearing one
+// theme while the page it stands on wears another.
 func SchemeFor(os tokens.ColorTokens, m Model) tokens.ColorTokens {
-	dark := m.Dark(os)
-	seed, ok := m.Seed()
-	if !ok {
-		switch {
-		case m.Scheme == FollowOS:
-			return os
-		case dark:
-			return tokens.DefaultDark
-		default:
-			return tokens.DefaultLight
-		}
-	}
-	light, darkTokens := tokens.FromSeed(seed)
-	if dark {
-		return darkTokens
+	light, dark := m.Pair(os)
+	if m.Dark(os) {
+		return dark
 	}
 	return light
+}
+
+// Pair is both sides of the theme on screen, resolved from one seed so that
+// the two sides are two sides of one thing rather than two answers.
+//
+// With a candidate chosen the seed is that candidate and the pair is what it
+// generates — the point of the application being that a seed is judged by what
+// it does to a window, not by a swatch.
+//
+// With nothing chosen the window is wearing the theme its own stream was
+// built with, and the desktop hands over one side of it per frame. That side
+// is returned exactly as it arrived, so following the desktop stays following
+// the desktop, down to whatever the accessibility preferences did to it. The
+// other side is the side the desktop never sends, and it is derived from the
+// seed the stream was built from: the brand kept when the window opened, or —
+// with nothing kept, the stream following the desktop's accent — the brand
+// base the palette on screen pins, which is the seed itself on the light side
+// and the nearest thing to it a dark palette says about itself.
+//
+// Deriving it rather than reaching for the theme's default pair is the whole
+// of it: a default pair is a different colour, and reaching for it put the
+// window's own controls in one theme and its page in another on the first
+// press of the switch.
+func (m Model) Pair(os tokens.ColorTokens) (light, dark tokens.ColorTokens) {
+	if seed, ok := m.Seed(); ok {
+		return tokens.FromSeed(seed)
+	}
+	seed := m.Opened
+	if seed.A == 0 {
+		seed = os.Primary
+	}
+	light, dark = tokens.FromSeed(seed)
+	if isDark(os) {
+		return light, os
+	}
+	return os, dark
 }
 
 // isDark reports whether a palette is the dark side of its pair, by the
