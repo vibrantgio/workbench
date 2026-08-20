@@ -18,8 +18,17 @@
 // The style's dominant inks as one strip, the leading one twice as wide as any
 // other because it is the one a click takes as the seed; the primary pair that
 // seed derives, drawn the way the candidate row draws it, so a card promises
-// what choosing it delivers; and the name, with the same word at its trailing
-// edge the base list uses for the two things a name does not say.
+// what choosing it delivers; and the name, with a word at its trailing edge for
+// the one thing about the style the name does not say.
+//
+// That word is where a palette drawn faint gets mentioned. A style whose own
+// inks mostly fall under the contrast floor on its own ground carries it, in
+// the muted ink the other words at that edge are set in and in the same slot,
+// because it is the same kind of remark: a fact about the style that a person
+// reading its name would otherwise find out by applying it. It is not a
+// warning, and nothing follows from it — the card still offers the style, the
+// click still applies it, and the fence still draws it exactly as its author
+// drew it. Contrast in content is surfaced here, not enforced.
 //
 // # Which cards, and in which order
 //
@@ -113,6 +122,12 @@ const StyleLeadShare = 2
 const (
 	StyleLabel  = "Or start from a style"
 	StyleInvite = "One click takes the seed and both syntax bases off a card."
+	// StyleFaint is the word a card carries when the palette it offers draws
+	// most of its code under the contrast floor on its author's own ground.
+	// It is a description and not a verdict: the style still applies, still
+	// draws exactly as its author drew it, and is still worth choosing if it
+	// is the one somebody wants.
+	StyleFaint = "faint"
 )
 
 // StyleCountFor says how many cards are on screen, which half of the set they
@@ -148,6 +163,14 @@ type StyleCard struct {
 	// Light and Dark are the appearances this style was fitted to, measured
 	// off its own ground. A style fitted to no ground carries both.
 	Light, Dark bool
+	// Faint marks a style that draws most of its code under the contrast
+	// floor on its own ground — measured, not judged, and measured against
+	// the ground its own author chose rather than against this window's.
+	//
+	// It is here and not asked per frame for the reason none of the rest is:
+	// a style's inks are a fact about a file, and it cannot change while the
+	// window is open.
+	Faint bool
 	// Candidates are the seeds its palette yields, most prominent first.
 	// They are what a click hands the candidate row, so the row a style
 	// produces is the row a picture produces.
@@ -236,11 +259,13 @@ func styleCardFor(name string) StyleCard {
 		return StyleCard{Name: name}
 	}
 	light, dark := tokens.FromSeed(cands[0].Color)
+	authored, measured := highlight.BaseContrast(name)
 	return StyleCard{
 		Name:       name,
 		Added:      highlight.Loaded(name),
 		Light:      highlight.BaseSuits(name, false),
 		Dark:       highlight.BaseSuits(name, true),
+		Faint:      measured && authored.BelowFloor(),
 		Candidates: cands,
 		Pair:       highlight.CompletePair(name),
 		Chips: [2]Chip{
@@ -372,7 +397,7 @@ func StyleCell(gtx layout.Context, p Palette, ty Type, s StyleCard, index int, d
 	textdraw.FillText(gtx, ty.Shaper, ty.Small, chip, 0.5, 0.5, pair.Ink, "Aa")
 
 	name := image.Rect(chip.Max.X+gtx.Dp(StyleFoot), foot.Min.Y, foot.Max.X, foot.Max.Y)
-	if tag := originTag(s.Added, s.Light, s.Dark); tag != "" {
+	if tag := styleTag(s); tag != "" {
 		box := image.Rect(max(name.Min.X, foot.Max.X-gtx.Dp(StyleTagW)), foot.Min.Y, foot.Max.X, foot.Max.Y)
 		textdraw.FillText(gtx, ty.Shaper, ty.Small, box, 1, 0.5, p.Muted, tag)
 		name.Max.X = box.Min.X - gtx.Dp(StyleFoot)/2
@@ -438,6 +463,27 @@ func SwatchBands(gtx layout.Context, r image.Rectangle, radius int, cands []imag
 		}
 		paint.FillShape(gtx.Ops, c.Color, clip.Rect(image.Rect(x0, in.Min.Y, x1, in.Max.Y)).Op())
 	}
+}
+
+// styleTag is the word at a card's trailing edge, or none: one thing about the
+// style that the name in front of it does not say.
+//
+// It is the slot the base list already keeps for where a style came from, and
+// how the style draws goes in that slot rather than beside it. The footer is
+// one line and it already carries a chip, a name and a word; the longest names
+// in the set reach that word as it is, so a second one at the same edge would
+// be bought by truncating the name — which is the one thing on a card that says
+// which style it is.
+//
+// The measured word wins where a style is both. It is the more consequential
+// of the two — how a palette draws is what somebody is choosing, where it came
+// from is a note about the file — and it is also the only place the fact is
+// said at all, the base list saying where a style came from on its own rows.
+func styleTag(s StyleCard) string {
+	if s.Faint {
+		return StyleFaint
+	}
+	return originTag(s.Added, s.Light, s.Dark)
 }
 
 // styleColumns is how many cards fit across width dp, gap dp apart, at no less

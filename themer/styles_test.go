@@ -13,6 +13,7 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/theme/brand"
+	"github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/imageseed"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -598,6 +599,18 @@ func TestStyleGridDump(t *testing.T) {
 	}{{"light", false, tokens.DefaultLight}, {"dark", true, tokens.DefaultDark}} {
 		save("start-"+sc.name, page(t, ReduceModel(m, SetScheme{Dark: sc.dark}), sc.os))
 	}
+	// The grid on a window tall enough to reach its seventh row. The words at
+	// the cards' trailing edges are what this one is for, and the moon's grid
+	// carries exactly one of them, in a row a shorter window cuts off.
+	for _, sc := range []struct {
+		name string
+		dark bool
+		os   tokens.ColorTokens
+	}{{"light", false, tokens.DefaultLight}, {"dark", true, tokens.DefaultDark}} {
+		on := ReduceModel(m, SetScheme{Dark: sc.dark})
+		save("grid-"+sc.name, pageAt(t, newEmbed(), on, sc.os, image.Pt(windowW, gridTall)))
+	}
+
 	// One card off each list, each shown under both appearances: what a click
 	// did has to be legible from the side it was made on and from the other.
 	for _, name := range []string{"github", "dracula"} {
@@ -625,6 +638,213 @@ func TestAnAdoptedStyleStandsWhereThePictureWould(t *testing.T) {
 	got := img.RGBAAt(mat.X, mat.Y)
 	if got.R != want.R || got.G != want.G || got.B != want.B {
 		t.Errorf("the mat at %v drew %v, want the style's leading ink %v", mat, got, want)
+	}
+}
+
+// gridTall is a window height that puts seven rows of cards on screen. The
+// window's own height shows five, which is enough of the sun's grid to hold
+// several styles drawn faint and none of the moon's: the dark half has exactly
+// one, and it is in the seventh row. A measurement of a note that only appears
+// under one appearance would not be a measurement of the note.
+const gridTall = 1024
+
+// styleCardRect is where the card at position n of the visible grid is drawn,
+// counting from the first row, and styleTagBox is the slot at its trailing edge
+// where the word marking it goes.
+func styleCardRect(n int) image.Rectangle {
+	cols := gridCols()
+	x := int(Pad) + (n%cols)*(styleCellW()+int(StyleGap))
+	y := cardsTop() + (n/cols)*(int(StyleH)+int(StyleGap))
+	return image.Rect(x, y, x+styleCellW(), y+int(StyleH))
+}
+
+func styleTagBox(n int) image.Rectangle {
+	inner := styleCardRect(n).Inset(int(StylePad))
+	return image.Rect(inner.Max.X-int(StyleTagW), inner.Max.Y-int(StyleChipH), inner.Max.X, inner.Max.Y)
+}
+
+// styleNameBox is the run of the footer the card's own name is drawn in, which
+// is what the note has to be measured against: a note louder than the thing it
+// annotates is a warning however calm its wording.
+func styleNameBox(n int) image.Rectangle {
+	inner := styleCardRect(n).Inset(int(StylePad))
+	return image.Rect(inner.Min.X+int(StyleChipW)+int(StyleFoot), inner.Max.Y-int(StyleChipH),
+		inner.Max.X-int(StyleTagW)-int(StyleFoot), inner.Max.Y)
+}
+
+// onScreen is how many cards of the visible grid are drawn whole in a window
+// this tall.
+func onScreen(h int) int {
+	rows := 0
+	for cardsTop()+rows*(int(StyleH)+int(StyleGap))+int(StyleH) <= h-int(Pad) {
+		rows++
+	}
+	return rows * gridCols()
+}
+
+// TestACardKnowsWhetherItsStyleIsDrawnFaint: the flag on a card is the
+// highlighter's own measurement of that style and nothing this window decided.
+// Where the grid disagrees with the library, the grid is annotating the wrong
+// styles.
+func TestACardKnowsWhetherItsStyleIsDrawnFaint(t *testing.T) {
+	m := withStyles()
+	faint := 0
+	for _, s := range m.Styles {
+		authored, measured := highlight.BaseContrast(s.Name)
+		if want := measured && authored.BelowFloor(); s.Faint != want {
+			t.Errorf("%q is carded faint=%v, want %v (%d of %d inks under the floor)",
+				s.Name, s.Faint, want, authored.Below, authored.Inks)
+		}
+		if s.Faint {
+			faint++
+		}
+	}
+	if faint == 0 || faint == len(m.Styles) {
+		t.Fatalf("%d of %d cards are faint, so the note says nothing", faint, len(m.Styles))
+	}
+	for _, dark := range []bool{false, true} {
+		var named []string
+		for _, i := range m.VisibleStyles(dark) {
+			if m.Styles[i].Faint {
+				named = append(named, m.Styles[i].Name)
+			}
+		}
+		if len(named) == 0 {
+			t.Errorf("no card on %s grid carries the note, so it cannot be judged there", sideName(dark))
+		}
+		t.Logf("%s: %d of %d cards drawn faint — %v", sideName(dark), len(named), len(m.VisibleStyles(dark)), named)
+	}
+}
+
+// TestAFaintFolderStyleSaysSoRatherThanSayingWhereItCameFrom: a card's trailing
+// edge holds one word, and a style somebody wrote themselves that is also drawn
+// faint has two things to say there. The measured one is the one it says. Where
+// the style came from is on the base list's own row for it; how it draws is
+// said here or nowhere.
+//
+// The style is written for the case rather than found in the set, so the
+// precedence is exercised whatever chroma ships next.
+func TestAFaintFolderStyleSaysSoRatherThanSayingWhereItCameFrom(t *testing.T) {
+	const style = `<style name="paleharbour">
+  <entry type="Background" style="bg:#ffffff #cfcfcf"/>
+  <entry type="Keyword" style="#d8d2dc"/>
+  <entry type="LiteralString" style="#d2dcd8"/>
+  <entry type="Comment" style="#dcd8d2"/>
+</style>
+`
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "paleharbour.xml"), []byte(style), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if names, skipped := highlight.LoadDir(dir); len(names) != 1 || len(skipped) != 0 {
+		t.Fatalf("loaded %v and skipped %v, want the one style", names, skipped)
+	}
+	m := withStyles()
+	i := cardIndex(m, "paleharbour")
+	if i < 0 {
+		t.Fatal("the folder style has no card in the grid")
+	}
+	card := m.Styles[i]
+	if !card.Added || !card.Faint {
+		t.Fatalf("the fixture card is added=%v faint=%v, want both", card.Added, card.Faint)
+	}
+	if got := styleTag(card); got != StyleFaint {
+		t.Errorf("the card's trailing word is %q, want %q — the measured word lost to the provenance one", got, StyleFaint)
+	}
+	if originTag(card.Added, card.Light, card.Dark) != BaseAdded {
+		t.Error("the fixture does not exercise the collision: it carries no provenance word to lose")
+	}
+}
+
+// TestTheNoteIsOnlyOnTheFaintCards is the note measured where it is drawn: two
+// renders of one grid, one of them with every card's measurement cleared, and
+// the word appears at exactly the cards the measurement named. Both
+// appearances, because a note that only lands on one half is a note about the
+// scheme rather than about the style.
+//
+// The comparison is between two renders rather than a sweep for ink, because a
+// card with no word still has a name, and a long enough name reaches the same
+// slot. What the two renders differ by is the word alone.
+func TestTheNoteIsOnlyOnTheFaintCards(t *testing.T) {
+	for _, sc := range []struct {
+		dark bool
+		os   tokens.ColorTokens
+	}{{false, tokens.DefaultLight}, {true, tokens.DefaultDark}} {
+		t.Run(sideName(sc.dark), func(t *testing.T) {
+			m := ReduceModel(withStyles(), SetScheme{Dark: sc.dark})
+			flat := m
+			flat.Styles = append([]StyleCard{}, m.Styles...)
+			for i := range flat.Styles {
+				flat.Styles[i].Faint = false
+			}
+			size := image.Pt(windowW, gridTall)
+			noted := pageAt(t, newEmbed(), m, sc.os, size)
+			plain := pageAt(t, newEmbed(), flat, sc.os, size)
+
+			visible := m.VisibleStyles(sc.dark)
+			shown := min(onScreen(gridTall), len(visible))
+			marked := 0
+			for n, i := range visible[:shown] {
+				box := styleTagBox(n)
+				moved := changedIn(noted, plain, box.Min.X, box.Max.X, box.Min.Y, box.Max.Y) != 0
+				if moved != m.Styles[i].Faint {
+					t.Errorf("card %d (%s) is faint=%v and its trailing word %s",
+						n, m.Styles[i].Name, m.Styles[i].Faint,
+						map[bool]string{true: "appeared anyway", false: "did not appear"}[moved])
+				}
+				if moved {
+					marked++
+				}
+			}
+			if marked == 0 || marked == shown {
+				t.Fatalf("%d of the %d cards on screen carry the note, which proves nothing", marked, shown)
+			}
+			t.Logf("%d of %d cards on screen carry the note", marked, shown)
+		})
+	}
+}
+
+// TestTheNoteIsQuieterThanTheNameItAnnotates: the note is a remark and not an
+// alarm, so it is drawn in the muted ink the card's other trailing words are
+// drawn in — measurably quieter against the card than the style's own name
+// beside it, and nothing like the colour this window says something went wrong
+// in.
+func TestTheNoteIsQuieterThanTheNameItAnnotates(t *testing.T) {
+	for _, sc := range []struct {
+		dark bool
+		os   tokens.ColorTokens
+	}{{false, tokens.DefaultLight}, {true, tokens.DefaultDark}} {
+		t.Run(sideName(sc.dark), func(t *testing.T) {
+			m := ReduceModel(withStyles(), SetScheme{Dark: sc.dark})
+			visible := m.VisibleStyles(sc.dark)
+			shown := min(onScreen(gridTall), len(visible))
+			at := -1
+			for n, i := range visible[:shown] {
+				if m.Styles[i].Faint {
+					at = n
+					break
+				}
+			}
+			if at < 0 {
+				t.Fatalf("no card drawn faint is on screen under %s", sideName(sc.dark))
+			}
+			img := pageAt(t, newEmbed(), m, sc.os, image.Pt(windowW, gridTall))
+			p := PaletteFrom(sc.os)
+			fill, note := inkOn(img, styleTagBox(at))
+			_, name := inkOn(img, styleNameBox(at))
+			if fill != p.Surface {
+				t.Fatalf("the note's slot is drawn on %v, want the card's own fill %v", fill, p.Surface)
+			}
+			noteAt, nameAt := color.ContrastRatio(note, fill), color.ContrastRatio(name, fill)
+			t.Logf("%s: the note reaches %.2f:1 on the card, the name beside it %.2f:1",
+				m.Styles[visible[at]].Name, noteAt, nameAt)
+			if noteAt >= nameAt {
+				t.Errorf("the note measures %.2f:1 against the name's %.2f:1 — it is not the quieter of the two", noteAt, nameAt)
+			}
+			if note == p.Problem {
+				t.Errorf("the note is drawn in %v, the colour this window says a drop failed in", note)
+			}
+		})
 	}
 }
 
