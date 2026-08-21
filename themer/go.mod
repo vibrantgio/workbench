@@ -6,9 +6,9 @@ require (
 	gioui.org v0.10.1
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.3
-	github.com/vibrantgio/components v0.9.2
+	github.com/vibrantgio/components v0.9.3
 	github.com/vibrantgio/components/gallery v0.8.1
-	github.com/vibrantgio/markdown v0.5.0
+	github.com/vibrantgio/markdown v0.5.1
 	github.com/vibrantgio/mvu v0.9.1
 	github.com/vibrantgio/mvu/desktop v0.9.1
 	github.com/vibrantgio/textdraw v0.0.4
