@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"image"
 	stdcolor "image/color"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/markdown/highlight"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -39,8 +41,20 @@ func rampLabelLeft() int { return int(Pad) + int(inventory.SectionPadX) }
 
 func rampContentW() int { return windowW - 2*int(Pad) - 2*int(inventory.SectionPadX) }
 
+// rampCellW is the width one step cell takes when the grid has the whole of the
+// panel's content width, which is what is left of it once the names at one end
+// and the chips at the other have been reserved.
 func rampCellW() int {
-	return min(int(RampCellMax), (rampContentW()-int(RampLabelW))/RampSteps)
+	return min(int(RampCellMax),
+		(rampContentW()-int(RampLabelW)-int(RampPinGap)-int(RampPinW))/RampSteps)
+}
+
+// rampPinCentre is the middle of the chip at the end of row i, which is where
+// that role's pinned base is drawn.
+func rampPinCentre(i int) image.Point {
+	x := rampLabelLeft() + int(RampLabelW) + RampSteps*rampCellW() + int(RampPinGap) + int(RampPinW)/2
+	y := rampGridTop() + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
+	return image.Pt(x, y)
 }
 
 // rampCellCentre is the middle of the cell holding step n+1 of ramp row i,
@@ -199,9 +213,57 @@ func TestEveryColourTokenIsPicked(t *testing.T) {
 			}
 			delete(shown, name)
 		}
+		// And the colours the theme publishes without a field to hold them: the
+		// two ends of the tonal axis, which are package colours, and the four
+		// status containers with their marks, which the theme derives from a role
+		// when it is asked. They are checked the way the fields are — the listing
+		// has to carry each, at the theme's own value — because a colour a widget
+		// is painted with at rest is a colour this window claims to show, and
+		// whether the theme keeps it in a struct is not the reader's problem.
+		for name, want := range publishedBeyondTheFields(sc.c) {
+			got, ok := shown[name]
+			if !ok {
+				t.Errorf("%s: the listing has no %s", sc.name, name)
+				continue
+			}
+			if got != want {
+				t.Errorf("%s: %s is shown as %v, want the theme's own %v", sc.name, name, got, want)
+			}
+			delete(shown, name)
+		}
 		for name := range shown {
 			t.Errorf("%s: the listing shows %q, which is not a colour token", sc.name, name)
 		}
+	}
+}
+
+// publishedBeyondTheFields is every resting colour the theme publishes that is
+// not a field of ColorTokens, by the name the listing carries it under.
+func publishedBeyondTheFields(c tokens.ColorTokens) map[string]stdcolor.NRGBA {
+	out := map[string]stdcolor.NRGBA{WhitePick: tokens.White, BlackPick: tokens.Black}
+	for _, r := range statusRoles() {
+		out[r.name+ContainerPick] = c.StatusContainer(r.id)
+		out[r.name+MarkPick] = c.OnStatusContainer(r.id)
+	}
+	return out
+}
+
+// statusRoles is the four roles that publish a container, each with the way to
+// reach its own ramp.
+func statusRoles() []struct {
+	name string
+	id   tokens.Role
+	ramp func(tokens.ColorTokens) tokens.Ramp
+} {
+	return []struct {
+		name string
+		id   tokens.Role
+		ramp func(tokens.ColorTokens) tokens.Ramp
+	}{
+		{ErrorName, tokens.RoleError, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Error }},
+		{SuccessName, tokens.RoleSuccess, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Success }},
+		{WarningName, tokens.RoleWarning, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Warning }},
+		{InfoName, tokens.RoleInfo, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Info }},
 	}
 }
 
@@ -222,7 +284,18 @@ func TestABaseAndItsInkAreOneCell(t *testing.T) {
 			WarningName:        "OnWarning",
 			InfoName:           "OnInfo",
 		}
-		alone := map[string]bool{SurfacePick: true, DividerPick: true}
+		// A container and the mark read on it are one cell for the reason a base
+		// and its ink are: the mark was measured over that exact ground.
+		for _, r := range statusRoles() {
+			want[r.name+ContainerPick] = r.name + MarkPick
+		}
+		// The two ends of the axis stand alone. They are what an ink turned out
+		// to be, not a ground anything is written on, and writing letters on
+		// either would be this section inventing a pairing the theme never made.
+		alone := map[string]bool{
+			SurfacePick: true, DividerPick: true,
+			WhitePick: true, BlackPick: true,
+		}
 		for _, g := range paletteGroups(sc.c, sc.other, sc.dark) {
 			for _, cell := range g.cells {
 				ink, paired := want[cell.base.name]
@@ -545,6 +618,221 @@ func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestTheAxisEndsSayWhetherThisSchemeWritesInThem: the two ends of the tonal
+// axis are on no ramp, so the only thing that puts either in the picture is its
+// own cell, and the only thing that makes the cell worth reading is whether the
+// scheme on screen turned out to use it.
+//
+// The answer is read off the board's own inks rather than written down, and it
+// is not the same answer on both sides: a light scheme writes almost every ink
+// in white, and a dark scheme takes every ink off the role's own ramp and
+// writes in neither end.
+func TestTheAxisEndsSayWhetherThisSchemeWritesInThem(t *testing.T) {
+	for _, sc := range schemesUnderTest(t) {
+		groups := paletteGroups(sc.c, sc.other, sc.dark)
+		rules := rulesOf(groups)
+		for _, end := range []struct {
+			name, text string
+			col        stdcolor.NRGBA
+		}{
+			{WhitePick, PickAxisLight, tokens.White},
+			{BlackPick, PickAxisDark, tokens.Black},
+		} {
+			used := false
+			for _, g := range groups {
+				for _, cell := range g.cells {
+					if cell.paired() && cell.on == end.col {
+						used = true
+					}
+				}
+			}
+			want := fmt.Sprintf(PickAxisNoInk, end.text)
+			if used {
+				want = fmt.Sprintf(PickAxisInk, end.text)
+			}
+			if got := rules[end.name]; got != want {
+				t.Errorf("%s: %s says %q, want %q", sc.name, end.name, got, want)
+			}
+		}
+		// And the case the rule exists for: a light scheme does write in white
+		// and a dark scheme writes in neither end, so a rule that said one thing
+		// on both sides would be saying nothing on either.
+		if !sc.dark {
+			if got, want := rules[WhitePick], fmt.Sprintf(PickAxisInk, PickAxisLight); got != want {
+				t.Errorf("%s: %s says %q, and this scheme's inks are white", sc.name, WhitePick, got)
+			}
+		}
+	}
+}
+
+// markGraphicFloor is what a mark on the grid owes the step it stands on: WCAG
+// 1.4.11's 3:1 for a non-text graphic, which is what a dot is.
+const markGraphicFloor = 3.0
+
+// TestEveryMarkOnTheGridReadsOnTheStepItStandsOn: a marker nobody can see is
+// not a marker, and the grid puts them on seventy-two possible grounds running
+// from the page itself to nearly black.
+//
+// The ink is chosen by measuring both ends of the tonal axis over the step and
+// keeping the better, and this is why it cannot be chosen by asking whether the
+// step is dark instead: the mid rungs of a saturated hue sit under half the
+// luminance scale and still take black far better than white — a light red at a
+// third of the scale reads at 2.7:1 in white and 7.8:1 in black. Nothing marked
+// those rungs until the status containers named their marks, so the question
+// never came up; it comes up now, on four cells of every dark scheme.
+func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
+	worst, at := math.Inf(1), ""
+	for _, sc := range schemesUnderTest(t) {
+		claims := rampClaims(paletteGroups(sc.c, sc.other, sc.dark))
+		for _, row := range rampRows(sc.c) {
+			for n := range RampSteps {
+				if !claims[rampClaim{row.name, (n + 1) * 100}] {
+					continue
+				}
+				step := row.ramp.Step((n + 1) * 100)
+				if got := vgcolor.ContrastRatio(markInkOn(step), step); got < worst {
+					worst, at = got, fmt.Sprintf("%s %s %d", sc.name, row.name, (n+1)*100)
+				}
+			}
+		}
+	}
+	t.Logf("the faintest mark on the grid reads at %.2f:1, on %s", worst, at)
+	if worst < markGraphicFloor {
+		t.Errorf("a mark reads at %.2f:1 over its own step (%s), under the %.1f:1 a graphic owes its ground",
+			worst, at, markGraphicFloor)
+	}
+}
+
+// TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow: the colour a role was actually
+// pinned is drawn beside the nine it was pinned against, read off the render.
+//
+// This is the whole of what the grid was missing. A light scheme's Primary is
+// the chosen seed at the seed's own depth and its Secondary and Tertiary are
+// pinned off their own 700, so a grid of rungs alone showed nine colours a role
+// might have been and not the one it is — and the seed, which is the colour the
+// window exists to judge, was in the window nowhere.
+func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
+	m := seeded(t)
+	for _, os := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
+		c, _ := derived(m, os)
+		img := page(t, m, os)
+		for i, row := range rampRows(c) {
+			at := rampPinCentre(i)
+			got := img.RGBAAt(at.X, at.Y)
+			if row.pin.A == 0 {
+				// Neutral pins no solid fill, so its slot carries the mark that
+				// says so and no chip: something is drawn in the middle of it,
+				// and the slot around that something is the section's own
+				// ground rather than a colour standing in for a pin.
+				if got.R == c.Background.R && got.G == c.Background.G && got.B == c.Background.B {
+					t.Errorf("%s pins nothing and its slot at %v is empty, want the mark that says so", row.name, at)
+				}
+				off := image.Pt(at.X-int(RampPinW)/3, at.Y)
+				beside := img.RGBAAt(off.X, off.Y)
+				if want := c.Background; beside.R != want.R || beside.G != want.G || beside.B != want.B {
+					t.Errorf("%s pins nothing and its slot at %v drew %v, want the ground %v",
+						row.name, off, beside, want)
+				}
+				continue
+			}
+			if got.R != row.pin.R || got.G != row.pin.G || got.B != row.pin.B {
+				t.Errorf("%s's chip at %v drew %v, want the pinned base %v",
+					row.name, at, got, row.pin)
+			}
+		}
+		// And the seed itself, which is the first chip in the grid on the side
+		// that pins it: a light scheme's Primary is the seed, lifted.
+		if !m.Dark(os) {
+			at := rampPinCentre(0)
+			got := img.RGBAAt(at.X, at.Y)
+			if want := c.Primary; got.R != want.R || got.G != want.G || got.B != want.B {
+				t.Errorf("the first chip drew %v, want the lifted seed %v", got, want)
+			}
+		}
+	}
+}
+
+// TestEachContainerIsItsRungHeldAtLessChroma: the rule under a status container
+// says which rung it was realized at and what was done to that rung, and both
+// halves are checked against the colour itself.
+//
+// The rung is named by tone because tone is what a container keeps: it gives up
+// chroma, so no comparison of colours finds the cell it came from. Rebuilding
+// the container out of the named rung's tone and hue at the container's own
+// chroma has to produce the container back, to within the byte the chroma was
+// rounded into on the way out, or the rule names a rung the derivation did not
+// use.
+func TestEachContainerIsItsRungHeldAtLessChroma(t *testing.T) {
+	for _, sc := range schemesUnderTest(t) {
+		rules := rulesOf(paletteGroups(sc.c, sc.other, sc.dark))
+		for _, r := range statusRoles() {
+			ramp := r.ramp(sc.c)
+			ground := sc.c.StatusContainer(r.id)
+			step := toneStep(ramp, ground)
+			rung := ramp.Step(step)
+			tone, _, _ := vgcolor.LabFromNRGBA(rung)
+			_, chroma, hue := vgcolor.OKLChFromNRGBA(rung)
+			_, held, _ := vgcolor.OKLChFromNRGBA(ground)
+			// Within a part in 255 a channel: the chroma the container is
+			// rebuilt at is read back out of eight bits a channel, so the last
+			// bit of it was rounded away before this test could ask for it.
+			got := vgcolor.NRGBAFromToneChromaHue(tone, held, hue)
+			if off := max(apart(got.R, ground.R), max(apart(got.G, ground.G), apart(got.B, ground.B))); off > 1 {
+				t.Errorf("%s: the %s container is %v, and %s %d's tone and hue at that chroma is %v",
+					sc.name, r.name, ground, r.name, step, got)
+			}
+			if held >= chroma {
+				t.Errorf("%s: the %s container carries chroma %.4f against its rung's %.4f, and the rule says it was pulled down",
+					sc.name, r.name, held, chroma)
+			}
+			if got, want := rules[r.name+ContainerPick], fmt.Sprintf(PickContainerRule, r.name, step); got != want {
+				t.Errorf("%s: %s says %q, want %q", sc.name, r.name+ContainerPick, got, want)
+			}
+			// And the mark on it is a rung of the role's own ramp, named as one.
+			mark := sc.c.OnStatusContainer(r.id)
+			n := stepIn(ramp, mark)
+			if n == 0 {
+				t.Errorf("%s: the %s mark %v is on no rung of its own ramp", sc.name, r.name, mark)
+				continue
+			}
+			if got, want := rules[r.name+MarkPick], fmt.Sprintf(PickMarkRule, r.name, n); got != want {
+				t.Errorf("%s: %s says %q, want %q", sc.name, r.name+MarkPick, got, want)
+			}
+		}
+	}
+}
+
+// TestTheContainersToneNamesOneRungAndNoOther: the tone a container shares with
+// its rung is closer to that rung than half the distance to the rung's
+// neighbour, so reading the rung off the tone cannot land on the wrong one.
+//
+// It is the container's answer to the tolerance the pins are marked by: a rule
+// that names a step has to name the step the derivation used, and a measurement
+// that could be within reach of two steps at once would name whichever came
+// first in a loop.
+func TestTheContainersToneNamesOneRungAndNoOther(t *testing.T) {
+	worst, closest := 0.0, math.Inf(1)
+	for _, sc := range schemesUnderTest(t) {
+		for _, r := range statusRoles() {
+			ramp := r.ramp(sc.c)
+			ground := sc.c.StatusContainer(r.id)
+			held, _, _ := vgcolor.LabFromNRGBA(ground)
+			tone, _, _ := vgcolor.LabFromNRGBA(ramp.Step(toneStep(ramp, ground)))
+			worst = max(worst, math.Abs(held-tone))
+			for n := range RampSteps - 1 {
+				a, _, _ := vgcolor.LabFromNRGBA(ramp.Step((n + 1) * 100))
+				b, _, _ := vgcolor.LabFromNRGBA(ramp.Step((n + 2) * 100))
+				closest = min(closest, math.Abs(a-b))
+			}
+		}
+	}
+	t.Logf("the worst container sits %.4f from its rung's tone; the closest two rungs stand %.4f apart", worst, closest)
+	if 2*worst >= closest {
+		t.Errorf("a container sits %.4f from its rung's tone and two rungs stand %.4f apart — the tone names two rungs",
+			worst, closest)
 	}
 }
 
