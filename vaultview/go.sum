@@ -39,8 +39,8 @@ github.com/vibrantgio/patterns v0.7.0 h1:UjhHFXSoETP4unOZFg6wNosOOfBvaTY0F0z52+y
 github.com/vibrantgio/patterns v0.7.0/go.mod h1:xbD4TNX3H3THnw37w2NtfyBR346YHeua01JLJtDpCr8=
 github.com/vibrantgio/svg v0.0.9 h1:0OCCmVFz13IIDR3oDZeyw0IMy2RKWKWReQIlsRRz9zw=
 github.com/vibrantgio/svg v0.0.9/go.mod h1:H867wFCLH1Lfz+uoklXwtvOTAQgg/7DC0KoZm6nRHUA=
-github.com/vibrantgio/theme v0.7.0 h1:DrH+sVk9iaoJp2pPOV4nO48a018A75Dyvx2C6tzeYuQ=
-github.com/vibrantgio/theme v0.7.0/go.mod h1:44w3153LI3oT2kyOS5XgerzvBoigoQfkMVbSLh4TlqM=
+github.com/vibrantgio/theme v0.8.0 h1:zwRPyJaiedtlEuxjJDzJkwVrMP273Pr7ApdOYSSssZw=
+github.com/vibrantgio/theme v0.8.0/go.mod h1:44w3153LI3oT2kyOS5XgerzvBoigoQfkMVbSLh4TlqM=
 github.com/yuin/goldmark v1.8.5 h1:r6N5afV5qj/5S4UTch8agZHJ8UxNCMwX7WjkkJam2NA=
 github.com/yuin/goldmark v1.8.5/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
 golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 h1:ex206bKw+v3K0dm3andkrIF+ijyQKJG1pLgwQ2PYdQM=

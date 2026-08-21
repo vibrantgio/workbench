@@ -11,7 +11,7 @@ require (
 	github.com/vibrantgio/mvu v0.9.1
 	github.com/vibrantgio/mvu/desktop v0.9.1
 	github.com/vibrantgio/patterns v0.7.0
-	github.com/vibrantgio/theme v0.7.0
+	github.com/vibrantgio/theme v0.8.0
 )
 
 require (
