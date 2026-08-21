@@ -448,11 +448,17 @@ func TestTheKeyboardLandsOnTheRestingPosition(t *testing.T) {
 // other bounded blocks already wear.
 //
 // The panel is found in the pixels rather than asserted at. Its top edge is
-// the first row down the page carrying the divider's tint across most of the
+// the first row down the page carrying the hairline's tint across most of the
 // column's measure — the disclosure row above it draws no fills, so nothing
 // else can be first — and its foot is the next such row. What is asserted is
 // that the two are far enough apart to be a panel, and that between them the
 // page is paper: no band of any other fill, which is what a slab would be.
+//
+// The tint the edge is hunted by is the panel's own step and not the
+// separator's any more. The hair moved one step up the neutral ramp when the
+// dark scheme showed that a separator's tint on a near-black paper is a line
+// the reader cannot see; the assertion is unchanged — paper inside, a hair
+// around it — and only the colour it looks for moved with the drawing.
 func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
@@ -483,9 +489,10 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 				}
 				return false
 			}
+			hair := tc.colors.Ramps.Neutral.Step(propEdgeStep)
 			edges := []int{}
 			for y := 0; y < noteCanvasSize.Y && len(edges) < 2; y++ {
-				if banded(y, tc.colors.Divider) && (len(edges) == 0 || y > edges[0]+10) {
+				if banded(y, hair) && (len(edges) == 0 || y > edges[0]+10) {
 					edges = append(edges, y)
 				}
 			}
@@ -528,37 +535,57 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 
 // TestThePropertiesSlabInksClearTheFloor measures the panel's own inks
 // against the panel's own ground rather than the page's. The keys and the
-// raw-block fallback are the muted tier; the values beside them are read at
-// the body ink. Both are body-sized, so both owe the design system's 4.5:1.
+// raw-block fallback are the muted tier; the values beside them are read a
+// step stronger. Both are body-sized, so both owe the design system's 4.5:1.
+//
+// The values used to be the body ink itself, and the order they are now held
+// in is the finding that moved them: metadata sitting above the note's title
+// was written in the title's own ink and got read first. So the panel's two
+// inks are ranked here as well as floored — the values over the keys, the
+// prose over both — because a floor alone cannot tell a hierarchy from a
+// tie.
 func TestThePropertiesSlabInksClearTheFloor(t *testing.T) {
 	const floor = 4.5
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ground := tc.colors.Background
+			keys := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propLabelStep), ground)
+			values := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propValueStep), ground)
+			prose := vgcolor.ContrastRatio(tc.colors.Text, ground)
 			for _, ink := range []struct {
 				name string
-				col  color.NRGBA
+				r    float64
 			}{
-				{"the keys", tc.colors.Ramps.Neutral.Step(propLabelStep)},
-				{"the values", tc.colors.Text},
+				{"the keys", keys},
+				{"the values", values},
 			} {
-				r := vgcolor.ContrastRatio(ink.col, ground)
-				t.Logf("%s on the panel: %.2f:1", ink.name, r)
-				if r < floor {
-					t.Errorf("%s read %.2f:1 on the panel, under the %.1f:1 floor", ink.name, r, floor)
+				t.Logf("%s on the panel: %.2f:1", ink.name, ink.r)
+				if ink.r < floor {
+					t.Errorf("%s read %.2f:1 on the panel, under the %.1f:1 floor", ink.name, ink.r, floor)
 				}
+			}
+			t.Logf("the panel's ranks: keys %.2f:1, values %.2f:1, the note's prose %.2f:1", keys, values, prose)
+			if values <= keys {
+				t.Errorf("the values read %.2f:1 and the keys beside them %.2f:1; the value is the content of its row", values, keys)
+			}
+			if values >= prose {
+				t.Errorf("the values read %.2f:1 and the note's own prose %.2f:1; metadata standing above the note may not be written in the note's ink", values, prose)
 			}
 			// The hairline has to be visible on the ground it bounds, or the
 			// panel has no edge at all; and it has to stay an edge, well under
 			// the ink the panel is written in.
-			edge := vgcolor.ContrastRatio(tc.colors.Divider, ground)
-			ink := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propLabelStep), ground)
-			t.Logf("the hairline stands %.2f:1 off the paper, the quiet ink %.2f:1", edge, ink)
-			if edge <= 1.05 {
-				t.Errorf("the hairline stands %.2f:1 off the paper; it would not be seen", edge)
+			edge := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propEdgeStep), ground)
+			t.Logf("the hairline stands %.2f:1 off the paper, the quiet ink %.2f:1", edge, keys)
+			// The line the panel is bounded by used to be the separator's, and
+			// on the dark paper that read 1.31:1 — measurably there, and gone
+			// at one device pixel per dp. The floor is the measurement that
+			// replaced it: a hairline this page can be sure of stands at least
+			// half again as far off its ground as a separator does.
+			if edge <= 1.5 {
+				t.Errorf("the hairline stands %.2f:1 off the paper; at one pixel per dp the box dissolves into it", edge)
 			}
-			if edge >= ink {
-				t.Errorf("the hairline stands %.2f:1 off the paper and the panel's own ink %.2f:1; an edge cannot out-read what it bounds", edge, ink)
+			if edge >= keys {
+				t.Errorf("the hairline stands %.2f:1 off the paper and the panel's own ink %.2f:1; an edge cannot out-read what it bounds", edge, keys)
 			}
 		})
 	}

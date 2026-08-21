@@ -78,22 +78,74 @@ const (
 	// the document, and the space the document rests below the last of them.
 	// The second is spent inside the document rather than by the page, for
 	// the reason the end space is; see where the style is built.
-	noteGapDp    = 16
-	propRowGapDp = 6
-	propPadDp    = 12
-	propKeyGapDp = 16
-	propRadiusDp = 12
+	noteGapDp = 16
 
-	// propEdgeDp is the panel's hairline. A block that takes the paper for
-	// its ground needs an edge to be a block at all, and one hair is what
-	// the page's other bounded blocks are drawn with.
-	propEdgeDp = 1
+	// The properties panel's rhythm: the gap between one metadata row and
+	// the next — and between the disclosure head and the box under it — the
+	// pad inside that box, and the gap between the key column and the
+	// values.
+	//
+	// The first two are one stop down the spacing scale from where they
+	// stood, and what they reclaim is the note's title: the panel used to
+	// stand ninety-six px tall and put the title two hundred and three px
+	// down a seven hundred px viewport, which is nearly a third of the
+	// window spent before the note's own name.
+	//
+	// The rows are not where the height was, and the measurement says so.
+	// The reading app this viewer is judged beside sets its metadata on a
+	// twenty-one px line box and spends eleven px between rows; this panel
+	// sets on a twenty px box and spent six, already tighter than the thing
+	// being copied. So the row gap goes down one stop and no further — six
+	// is not a stop on the scale at all, four is — and the pitch lands at
+	// twenty-four against the reference's thirty-two.
+	//
+	// The padding is where a box costs what a list does not: the reference
+	// draws no box round its metadata and spends nothing here, and twelve
+	// is the pad the note's code fences take, which is a screenful of code
+	// and not three lines of key and value. Eight is one stop under it, and
+	// the two paddings together are the larger half of what the panel gives
+	// back.
+	//
+	// What it gives back is fourteen px, measured off the rendered page: a
+	// three-field panel that stood ninety-six px tall now stands eighty-four
+	// and starts two px higher, and the note's title moved from row 203 to
+	// row 189 — twenty-nine per cent of the window down to twenty-seven.
+	propRowGapDp = 4
+	propPadDp    = 8
+	propKeyGapDp = 16
+
+	// propEdgeDp is the panel's hairline and propEdgeStep the neutral step
+	// it is drawn in: one past the separator's, which is where the dark
+	// scheme forced it.
+	//
+	// A block that takes the paper for its ground has its edge for a
+	// channel and nothing else, and on the dark page one hair of the
+	// separator's tint is not channel enough: the line reads 1.31:1 off
+	// that paper, and at one device pixel per dp the box dissolves into it.
+	// A step further up the neutral ramp the same hair reads 1.91:1 in the
+	// dark scheme and 1.88:1 in the light — twice the eight-bit distance
+	// from the paper, forty-seven levels against twenty-two in the dark —
+	// while staying far under the ink it bounds (6.19:1 and 11.06:1), which
+	// is the one thing an edge may not out-read.
+	//
+	// The other remedy is not in the sheet. A faint fill would be the
+	// second channel the dark box wants, and there is no fill to spend: the
+	// neutral ramp's first step IS the paper in both schemes, and its
+	// second is the fill the window's rail and aside wear — 1.13:1 off the
+	// light page against the code blocks' 1.05:1, which would make the
+	// note's metadata heavier than the code it has to stay quieter than,
+	// wearing the chrome's own colour to do it. Nothing lies between the
+	// two, so the edge carries the whole of the change and the panel keeps
+	// its paper.
+	propEdgeDp   = 1
+	propEdgeStep = 400
 
 	// propLabelStep is the neutral step the properties panel writes its
-	// quiet ink at: the field keys, and the raw block a frontmatter too
-	// odd to split falls back to. The values beside them are read at the
-	// body ink, so this step is the panel's muted tier and has the body
-	// floor to clear on the panel's own ground and not on the page's.
+	// quiet ink at: the field keys, the disclosure head above them, and the
+	// raw block a frontmatter too odd to split falls back to. The values
+	// beside them are read a step stronger, so this is the panel's muted
+	// tier and has the body floor to clear on the panel's own ground and
+	// not on the page's.
 	//
 	// It is a measurement. On the paper the panel now stands on the step
 	// reads 6.19:1 in the light scheme and 11.06:1 in the dark, both clear
@@ -104,6 +156,36 @@ const (
 	// floor by a hundredth, which is a floor being touched rather than
 	// cleared. The ground is what moved; the ink did not have to.
 	propLabelStep = 700
+
+	// propValueStep is the step the field values are read at: one under the
+	// prose, which is where the note's own text is written.
+	//
+	// A value used to take the body ink itself — the very step the note's
+	// title and every paragraph below it are set in — so a date and a tag
+	// list stood level with the note's own words while sitting above them
+	// on the page, and the eye landed on the metadata before it landed on
+	// the note. One step down, a value reads 9.30:1 on the panel's ground
+	// in the light scheme and 13.07:1 in the dark, both far clear of the
+	// 4.5:1 body floor, and still comfortably over the keys beside it —
+	// 6.19:1 and 11.06:1 — because the value is the content of its row and
+	// stays the stronger of the pair.
+	propValueStep = 800
+
+	// propHeadWeight is what tells the panel's disclosure head from the
+	// field keys under it.
+	//
+	// The head was the keys' own step, size and weight, which left a
+	// control reading as one more label in the column of labels it opens.
+	// The reading app this viewer is judged beside separates the two by
+	// ink: its head is set at the prose ink its values are, and its keys a
+	// measured step under both — 218 against 179 on a 28 paper. That axis
+	// is already spent here, on the order between the values and the keys,
+	// so the head takes the other axis it has. Its label goes from the
+	// medium weight every other label in this window is set in to the bold
+	// the note's own headings take, at the same size and the same step.
+	// Letter-spacing was the third candidate and is not on the table: the
+	// label helper this window draws with sets no tracking.
+	propHeadWeight = tokens.WeightBold
 
 	// noteNavMarkDp sizes the two history controls and propMarkDp the
 	// properties panel's disclosure; both take the size a mark takes next
@@ -693,17 +775,22 @@ func layoutProperties(
 	if click.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleProperties{}}.Add(gtx.Ops)
 	}
+	// The head is the panel's control: the same quiet step the keys below it
+	// take, at the weight that says a row can be worked rather than read.
+	ink := tok.col.Ramps.Neutral.Step(propLabelStep)
+	headStyle := tok.typ.TitleSmall
+	headStyle.Weight = propHeadWeight
 	header := func(gtx layout.Context) layout.Dimensions {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp("Properties").Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return drawDisclosure(gtx, open, propMarkDp, tok.col.Ramps.Neutral.Step(700))
+					return drawDisclosure(gtx, open, propMarkDp, ink)
 				}),
 				layout.Rigid(complayout.HSpacer(6)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return drawLabel(gtx, tok.shaper, "Properties", tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
+					return drawLabel(gtx, tok.shaper, "Properties", headStyle, ink)
 				}),
 			)
 		})
@@ -742,16 +829,22 @@ func layoutProperties(
 // So the panel takes no fill of its own. The page already has an idiom for
 // a bounded block that does not shout — the code blocks are a hairline
 // around a ground barely off the paper — and the panel now wears it: the
-// paper for its ground and the divider's tint for its one hair, which is
-// the separator token doing the job it is named for instead of flooding an
-// area with it. What was the panel's weight becomes the panel's outline,
-// and the note reads title first, metadata second.
+// paper for its ground, and one hair to say where it is. What was the
+// panel's weight becomes the panel's outline, and the note reads title
+// first, metadata second.
+//
+// The outline is the whole of the panel, so it is the whole of the panel's
+// budget: the hair takes the step past the separator's, not the separator's
+// own, for the measurement in propEdgeStep — a line that dissolves is not
+// an outline. The corners are the code blocks': a page that draws two kinds
+// of bounded box has no reading on which they are different shapes, and the
+// fence's is the one they now share.
 func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter) layout.Dimensions {
 	// The panel names its own ground rather than inheriting whatever it is
 	// dropped on, so the hairline always has the surface it was judged
 	// against inside it.
 	fill := tok.col.Background
-	radius := gtx.Dp(unit.Dp(propRadiusDp))
+	radius := gtx.Dp(unit.Dp(tokens.Radius.Base))
 	rec := func(gtx layout.Context) layout.Dimensions {
 		return complayout.Inset(propPadDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			if len(fm.Fields) == 0 {
@@ -761,6 +854,23 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 				}
 				return drawText(gtx, tok.shaper, raw, tok.typ.Code, tok.col.Ramps.Neutral.Step(propLabelStep))
 			}
+			// Key and value are one face at one weight, told apart by ink
+			// alone — the arrangement the reading app this viewer is judged
+			// beside uses, and the only one in which the steps chosen for
+			// them are the order the reader sees.
+			//
+			// The key used to be set in the label role, a weight heavier
+			// than the value beside it, and that outvoted the ink: measured
+			// off the rendered panel, the value's darkest pixels reached 78
+			// against the key's 92 on a 246 paper — the twenty-six levels
+			// the two steps are apart collapsed to fourteen — and in the
+			// dark scheme the key's brightest reached 196 against the
+			// value's 181, which is the order inverted outright. A regular
+			// weight has too little of each glyph fully covered for its
+			// nominal ink to arrive; two columns can only be ranked by ink
+			// if the ink is the only thing that differs.
+			keyStyle := tok.typ.BodyMedium
+			keyInk := tok.col.Ramps.Neutral.Step(propLabelStep)
 			// The key column is as wide as the longest key plus a fixed
 			// gap: each key is measured into a discarded recording, and
 			// the widest ink wins, capped at half the panel so a runaway
@@ -770,7 +880,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			mg.Constraints.Min = image.Point{}
 			for _, f := range fm.Fields {
 				macro := op.Record(mg.Ops)
-				d := drawLabel(mg, tok.shaper, f.Key, tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(propLabelStep))
+				d := drawLabel(mg, tok.shaper, f.Key, keyStyle, keyInk)
 				macro.Stop()
 				if d.Size.X > keyW {
 					keyW = d.Size.X
@@ -793,11 +903,12 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 							if g.Constraints.Max.X > keyW {
 								g.Constraints.Max.X = keyW
 							}
-							dims := drawLabel(g, tok.shaper, f.Key, tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(propLabelStep))
+							dims := drawLabel(g, tok.shaper, f.Key, keyStyle, keyInk)
 							return layout.Dimensions{Size: image.Pt(keyW+keyGap, dims.Size.Y), Baseline: dims.Baseline}
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-							return drawText(gtx, tok.shaper, fieldValue(f), tok.typ.BodyMedium, tok.col.Text)
+							return drawText(gtx, tok.shaper, fieldValue(f), tok.typ.BodyMedium,
+								tok.col.Ramps.Neutral.Step(propValueStep))
 						}),
 					)
 				}))
@@ -818,7 +929,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 	call := macro.Stop()
 	box := image.Rectangle{Max: image.Pt(gtx.Constraints.Max.X, dims.Size.Y)}
 	edge := max(gtx.Dp(unit.Dp(propEdgeDp)), 1)
-	paint.FillShape(gtx.Ops, tok.col.Divider, clip.UniformRRect(box, radius).Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, tok.col.Ramps.Neutral.Step(propEdgeStep), clip.UniformRRect(box, radius).Op(gtx.Ops))
 	paint.FillShape(gtx.Ops, fill, clip.UniformRRect(box.Inset(edge), max(radius-edge, 0)).Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, dims.Size.Y)}
