@@ -1,33 +1,35 @@
 # AGENTS.md — workbench
 
-The eight reference applications of the Vibrant Gio design system, each a
+The seven reference applications of the Vibrant Gio design system, each a
 complete product built the way a real one is meant to be built — MVU state,
 live theming from theme, components widgets, patterns: `todos` (the
 smallest complete bootstrap, and the place to start), `iconbrowser`,
-`sitedocs`, `feeds`, `mindchat`, `launcher`, `vaultview` (the document
-reader — a folder of markdown notes browsed through a file tree, wikilinks
-followed, backlinks in the shell's aside slot) and `themer` (a brand colour
-picked out of a dropped picture, the window re-theming to the candidate
-chosen, and the one worth keeping written where every application here
-adopts it). Applications only: the system's architecture rationale
-(`DESIGN.md`) moved to the `design` repository, whose git history for it
-lives here, and development planning lives in `.github`.
+`sitedocs`, `feeds`, `mindchat`, `vaultview` (the document reader — a
+folder of markdown notes browsed through a file tree, wikilinks followed,
+backlinks in the shell's aside slot) and `themer` (a brand colour picked
+out of a dropped picture, the window re-theming to the candidate chosen,
+and the one worth keeping written where every application here adopts it) —
+with the launcher that opens them, the package at the repository root,
+which fetches and runs each application's own latest release. Applications
+only: the system's architecture rationale (`DESIGN.md`) moved to the
+`design` repository, whose git history for it lives here, and development
+planning lives in `.github`.
 
 **Layer.** Outside ADR-001's tier table: applications at the top of the
 stack, which the tier rule exempts and which may import any layer of the
-design system. Its root module imports nothing else in the organization.
-Its nested modules `workbench/feeds`, `workbench/iconbrowser`,
-`workbench/launcher`, `workbench/mindchat`, `workbench/sitedocs`,
-`workbench/themer`, `workbench/todos` and `workbench/vaultview` add
-`backdrop`, `components`, `components/gallery`, `effects`, `font`, `ivg`,
-`ivg/raster/gio`, `markdown`, `mvu`, `mvu/desktop`, `noise`, `patterns`,
-`seen`, `seen/context/gio`, `svg`, `svg/driver/gio`, `textdraw` and `theme`
-— those edges are theirs and not the root module's. That direction is
-measured rather than typed — `scripts/check-layers.sh --edges` reports the
-graph and `scripts/sync-agents.sh` renders these sentences from it — so
-correcting them here changes nothing. The other direction is measured too
-and deliberately not written down: the gate checks the graph both ways, but
-a public API's consumers are unknowable, so this file says what its module
+design system. Its root module imports `backdrop`, `components`,
+`ivg/raster/gio`, `mvu`, `noise`, `patterns`, `seen`, `seen/context/gio`
+and `theme`, and reaches `font` and `ivg` through them. Its nested modules
+`workbench/feeds`, `workbench/iconbrowser`, `workbench/mindchat`,
+`workbench/sitedocs`, `workbench/themer`, `workbench/todos` and
+`workbench/vaultview` add `components/gallery`, `effects`, `markdown`,
+`mvu/desktop`, `svg`, `svg/driver/gio` and `textdraw` — those edges are
+theirs and not the root module's. That direction is measured rather than
+typed — `scripts/check-layers.sh --edges` reports the graph and
+`scripts/sync-agents.sh` renders these sentences from it — so correcting
+them here changes nothing. The other direction is measured too and
+deliberately not written down: the gate checks the graph both ways, but a
+public API's consumers are unknowable, so this file says what its module
 needs and never who needs it.
 
 **Read the canonical guide before you write code against this module.** It is
@@ -39,9 +41,8 @@ and this file links it rather than copying it:
     https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt
 
 **Modules.** `github.com/vibrantgio/workbench` at the repository root, and
-eight nested modules: `feeds/` (`github.com/vibrantgio/workbench/feeds`),
-`iconbrowser/` (`github.com/vibrantgio/workbench/iconbrowser`), `launcher/`
-(`github.com/vibrantgio/workbench/launcher`), `mindchat/`
+seven nested modules: `feeds/` (`github.com/vibrantgio/workbench/feeds`),
+`iconbrowser/` (`github.com/vibrantgio/workbench/iconbrowser`), `mindchat/`
 (`github.com/vibrantgio/workbench/mindchat`), `sitedocs/`
 (`github.com/vibrantgio/workbench/sitedocs`), `themer/`
 (`github.com/vibrantgio/workbench/themer`), `todos/`
@@ -54,7 +55,7 @@ module directory — `./...` does not cross a module boundary:
 
     go build ./... && go test ./...
 
-**Golden images.** Tests in three packages compare rendered output against
+**Golden images.** Tests in four packages compare rendered output against
 PNGs committed under `testdata/golden/`. They render through
 `github.com/vibrantgio/components/golden`, which declares `-golden.update`
 and is the organization's only golden harness. Do not inline a copy of it,

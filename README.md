@@ -6,8 +6,17 @@ analogous to what Material Design is for Google, but built for a Functional
 Reactive Programming application model on top of
 [reactivego/rx](https://github.com/reactivego/rx).
 
-This repository is the **workbench**: eight complete example applications
-that exercise the design system end-to-end.
+This repository is the **workbench**: seven complete example applications
+that exercise the design system end-to-end, and the launcher that opens
+them.
+
+```sh
+go run github.com/vibrantgio/workbench@latest
+```
+
+That is the launcher: the package at this repository's root, with the apps
+as cards on a live 3D field. Each card fetches and runs that app's own
+latest release, because each app is a separate product on its own tags.
 
 ## The stack
 
@@ -36,12 +45,6 @@ physics), [`svg`](https://github.com/vibrantgio/svg) and
 Each app is a full, runnable product built the way a real Vibrant Gio app is
 meant to be built — MVU state, live theming from theme, patterns patterns:
 
-- **[`launcher/`](./launcher)** — the workbench front door: the example apps
-  as cards floating on a live [`seen`](https://github.com/vibrantgio/seen)
-  3D triangle field (noise-animated, colour-keyed to the live theme), each
-  with a Launch button that runs the app and tracks its process. Also the
-  reference for compositing a seen scene as an mvu background layer and for
-  a single streaming `mvu.Command` (Started → Exited).
 - **[`todos/`](./todos)** — **start here**: the minimal canonical MVU app
   (~700 lines). One window, one Model, pure reducers, components widgets,
   live OS light/dark theming — the smallest complete demonstration of the
@@ -85,11 +88,14 @@ Each app is its own Go module, so run it from inside its directory:
 cd todos && go run .
 ```
 
-Or run the launcher and start them from there:
+Or open the launcher — `go run .` at this repository's root — and start
+them from there.
 
-```sh
-cd launcher && go run .
-```
+The launcher itself is the root module's `main` package. It is the
+reference for compositing a [`seen`](https://github.com/vibrantgio/seen)
+3D scene as an mvu background layer — a noise-animated triangle field,
+colour-keyed to the live theme — and for a single streaming `mvu.Command`
+that reports one launched process (Started → Exited).
 
 ## Documentation
 

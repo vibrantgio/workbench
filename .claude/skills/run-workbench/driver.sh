@@ -33,7 +33,10 @@ case "$cmd" in
 launch)
   app=${1:?app name required}
   home=${2:-}
-  (cd "$ROOT/$app" && go build -o "$WORK/$app-bin" .)
+  # The launcher is the package at the repository root; every other app is
+  # a directory under it with a module of its own.
+  if [ "$app" = launcher ]; then dir="$ROOT"; else dir="$ROOT/$app"; fi
+  (cd "$dir" && go build -o "$WORK/$app-bin" .)
   if [ -n "$home" ]; then
     # Scratch HOME isolates per-user state (mindchat: config, chats,
     # API keys). OPENAI_API_KEY is cleared so a fresh config cannot
@@ -41,8 +44,8 @@ launch)
     mkdir -p "$home"
     (cd "$home" && HOME="$home" OPENAI_API_KEY= "$WORK/$app-bin" >"$WORK/$app.log" 2>&1 &)
   else
-    # The launcher runs `go run ./<app>/` relative to its cwd, so all
-    # apps start from the workbench root.
+    # A launcher built from source finds the checkout by walking up from
+    # its cwd, so all apps start from the workbench root.
     (cd "$ROOT" && "$WORK/$app-bin" >"$WORK/$app.log" 2>&1 &)
   fi
   for _ in $(seq 1 30); do

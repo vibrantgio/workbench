@@ -32,8 +32,8 @@ const (
 	CardH    unit.Dp = 190
 	ButtonW  unit.Dp = 110 // fixed launch-button width, so labels don't resize it
 	IconSize unit.Dp = 28
-	RowGap   float32 = 16 // dp between cards, and between the two rows
-	perRow           = 3  // cards per grid row
+	RowGap   float32 = 16 // dp between cards, and between the rows
+	perRow           = 4  // cards per grid row; the last row holds the rest
 )
 
 // buildLayers returns the layer-builder the theme window renders, back to
@@ -77,6 +77,19 @@ func FieldLayer(win *app.Window, th rx.Observable[theme.Theme]) rx.Observable[la
 	})
 }
 
+// HeroProps is the page's title block. It is stated once, here, so that a
+// render made outside the running window — which has to name the shaper it
+// shapes with — puts the same words on the page as the window does.
+var HeroProps = hero.Props{
+	Eyebrow: "VIBRANTGIO",
+	Title:   "Workbench",
+	// No count of the apps: the roster is what says how many there are, and
+	// a number written here is one nobody updates when an app is added. seen
+	// is named among the libraries, where it reads as the name of one rather
+	// than as a misspelling of "scene".
+	Subtitle: "Complete example apps built on mvu, components, theme, patterns and seen.",
+}
+
 // themed is one theme emission resolved to the token snapshot the view
 // consumes, alongside the emission itself: the snapshot's fields are all
 // rx.Of, so the theme-driven components built from components resolve
@@ -105,11 +118,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			},
 		)
 	})
-	heroObs := hero.Hero(th, hero.Props{
-		Eyebrow:  "VIBRANTGIO",
-		Title:    "Workbench",
-		Subtitle: "Six complete example apps built on mvu, components, theme and patterns — floating on a live seen 3D field.",
-	})
+	heroObs := hero.Hero(th, HeroProps)
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		clicks := make([]widget.Clickable, len(Apps))
 		return rx.Map(rx.CombineLatest3(resolved, heroObs, modelObs),
@@ -120,7 +129,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 }
 
 // View builds the page widget for one (theme, model) pair: a hero title block
-// over a two-row grid of app cards, the whole column centred on the field.
+// over a grid of app cards, the whole column centred on the field. The window
+// is sized to hold perRow of them across; a roster that outgrows the grid
+// wraps onto a further row rather than shrinking a card.
 func View(tok themed, heroW layout.Widget, clicks []widget.Clickable, model Model) layout.Widget {
 	cards := make([]layout.Widget, len(Apps))
 	for i, app := range Apps {
@@ -134,20 +145,39 @@ func View(tok themed, heroW layout.Widget, clicks []widget.Clickable, model Mode
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			// The hero pads itself by one S6 step; the rows are given the
+			// same padding so that the two share a leading edge instead of
+			// ragging by the width of the hero's inset.
+			gutter := layout.Inset{Left: unit.Dp(tok.spacing.S6), Right: unit.Dp(tok.spacing.S6)}
 			children := []layout.FlexChild{layout.Rigid(heroW), layout.Rigid(pllayout.VSpacer(RowGap))}
 			for i, row := range rows {
 				if i > 0 {
 					children = append(children, layout.Rigid(pllayout.VSpacer(RowGap)))
 				}
-				children = append(children, layout.Rigid(row))
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return gutter.Layout(gtx, row)
+				}))
 			}
-			return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx, children...)
+			// Start, not Middle: every row is already GridW wide, so the
+			// column's leading edge is the grid's first column, and the
+			// hero lands on it too. Centring each child on its own width
+			// is what made the title's position depend on the length of
+			// the sentence under it.
+			return layout.Flex{Axis: layout.Vertical, Alignment: layout.Start}.Layout(gtx, children...)
 		})
 		return layout.Dimensions{Size: size}
 	}
 }
 
-// cardRow lays out one row of fixed-size cards with RowGap gaps, centred.
+// GridW is the width of a full row of cards. Every row is laid out at this
+// width whatever it holds, so a last row with fewer cards than the rest starts
+// in the first column instead of centring itself half a card off it. Centring
+// each row on its own contents is what puts a short row's cards in the seams
+// of the row above.
+const GridW unit.Dp = perRow*CardW + (perRow-1)*unit.Dp(RowGap)
+
+// cardRow lays out one row of fixed-size cards with RowGap gaps, from the
+// leading edge of a full-width row.
 func cardRow(cells []layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		var children []layout.FlexChild
@@ -157,6 +187,8 @@ func cardRow(cells []layout.Widget) layout.Widget {
 			}
 			children = append(children, layout.Rigid(cell))
 		}
+		gtx.Constraints.Min.X = gtx.Dp(GridW)
+		gtx.Constraints.Max.X = gtx.Constraints.Min.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
 	}
 }
@@ -184,7 +216,7 @@ func appCard(tok themed, app App, click *widget.Clickable, status Status) layout
 	body := label(tok.shaper, app.Blurb, tok.typ.BodySmall, tok.color.Ramps.Neutral.Step(700), 3)
 	footer := func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(launchButton(thObs, app, click, status)),
+			layout.Rigid(launchButton(thObs, tok.shaper, app, click, status)),
 			layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
 			layout.Flexed(1, statusLine(tok, status)),
 		)
@@ -203,7 +235,11 @@ func appCard(tok themed, app App, click *widget.Clickable, status Status) layout
 // rebuilds) and emits Launch into the MVU loop on activation. While the app
 // is starting or running it renders disabled and emits nothing; the reducer
 // guards again anyway.
-func launchButton(th rx.Observable[theme.Theme], app App, click *widget.Clickable, status Status) layout.Widget {
+//
+// It shapes with the shaper the rest of the card shapes with, rather than
+// reaching for the theme's on its own: one page, one shaper, and a render
+// made outside the window gets to say which.
+func launchButton(th rx.Observable[theme.Theme], shaper *text.Shaper, app App, click *widget.Clickable, status Status) layout.Widget {
 	busy := status.State == Starting || status.State == Running
 	txt := "Launch"
 	switch status.State {
@@ -221,6 +257,7 @@ func launchButton(th rx.Observable[theme.Theme], app App, click *widget.Clickabl
 		Disabled:    rx.Of(busy),
 		Clickable:   click,
 		Message:     Launch{Name: app.Name},
+		Shaper:      shaper,
 	}).First()
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Dp(ButtonW)

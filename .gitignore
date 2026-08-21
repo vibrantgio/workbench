@@ -5,11 +5,14 @@
 !.gitignore
 !LICENSE
 
-# The root module. Everything at the root is ignored by default, so its own
-# files have to be named here or they are silently untracked.
+# The root module — the launcher. Everything at the root is ignored by
+# default, so its own files have to be named here or they are silently
+# untracked. Its compiled binary is called `workbench` and needs no rule: it
+# is not a .go file, so the default already ignores it.
 !/go.mod
 !/go.sum
 !/*.go
+!/testdata/**
 
 # Agent skills — tracked, drivers included.
 !/.claude/skills/**
@@ -17,7 +20,6 @@
 # Example apps — fully tracked.
 !/feeds/**
 !/iconbrowser/**
-!/launcher/**
 !/mindchat/**
 !/sitedocs/**
 !/themer/**
@@ -27,7 +29,6 @@
 # ...except their compiled binaries.
 /feeds/feeds
 /iconbrowser/iconbrowser
-/launcher/launcher
 /mindchat/mindchat
 /sitedocs/sitedocs
 /themer/themer

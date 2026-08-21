@@ -1,8 +1,16 @@
-// Command launcher is the workbench's front door: a hero screen whose
-// backdrop is a live seen 3D triangular field (animated with simplex noise,
-// colour-keyed to the live components theme) with the six example apps floating
-// on it as patterns cards. Clicking Launch runs `go run ./<app>/` at the
-// workbench root and tracks the process through the MVU loop.
+// Command workbench is the front door to the example apps: a hero screen
+// whose backdrop is a live seen 3D triangular field (animated with simplex
+// noise, colour-keyed to the live components theme) with the seven apps
+// floating on it as patterns cards. Clicking Launch runs one and tracks its
+// process through the MVU loop.
+//
+// This command is the package at the repository root, and the apps are not
+// part of it. Each keeps a module of its own beside it, built, tested and
+// released on its own cadence — a nested module stands outside its parent by
+// Go's own rules, so building this command never builds an app and releasing
+// it never releases one. A launch therefore names the app's own latest
+// release rather than anything this build was compiled alongside; see
+// launch.go for the two ways that resolves.
 //
 // Architecturally it is the todos bootstrap plus two demonstrations: a seen
 // 3D scene composited as an ordinary mvu background layer that re-keys its
@@ -23,7 +31,10 @@ import (
 	specwin "github.com/vibrantgio/theme/window"
 )
 
-const winW, winH = unit.Dp(1100), unit.Dp(760)
+// winW, winH size the window to the card grid: wide enough for a full row of
+// them with a margin either side, tall enough for the hero and the rows the
+// roster fills. The seventh app is what last moved these.
+const winW, winH = unit.Dp(1340), unit.Dp(760)
 
 func main() {
 	go run()
@@ -48,7 +59,7 @@ func run() {
 	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
 	if err := w.Render(buildLayers(mvuWin.Window(), modelObs)).Wait(); err != nil {
-		fmt.Fprintln(os.Stderr, "launcher:", err)
+		fmt.Fprintln(os.Stderr, "workbench:", err)
 		os.Exit(1)
 	}
 	os.Exit(0)

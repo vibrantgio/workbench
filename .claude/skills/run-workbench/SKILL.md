@@ -1,6 +1,6 @@
 ---
 name: run-workbench
-description: Build, run, screenshot, and stop the workbench Gio apps (launcher, mindchat, todos, feeds, vaultview, iconbrowser, sitedocs) on macOS. Use for "run the app", "launch mindchat", "take a screenshot of the launcher", or capturing app images for docs/READMEs.
+description: Build, run, screenshot, and stop the workbench Gio apps (launcher, mindchat, todos, feeds, vaultview, iconbrowser, sitedocs, themer) on macOS. Use for "run the app", "launch mindchat", "take a screenshot of the launcher", or capturing app images for docs/READMEs.
 ---
 
 # Run the workbench apps
@@ -30,12 +30,14 @@ already granted in this environment.
 repos), starts it detached, and polls until the window exists — it
 prints `window <id>` on success, or the log tail from
 `/tmp/workbench-run/<app>.log` on failure. `shoot` captures the window
-(shadowless, silent) at window point size — 1100×788 for the launcher on
-this display. **Always Read the PNG afterwards** — a capture of a blank
-frame means the app crashed after the window appeared.
+(shadowless, silent) at window point size. **Always Read the PNG
+afterwards** — a capture of a blank frame means the app crashed after the
+window appeared.
 
-`<app>` is any app directory name: `launcher`, `mindchat`, `todos`,
-`feeds`, `vaultview`, `iconbrowser`, `sitedocs`.
+`<app>` is any app directory name — `mindchat`, `todos`, `feeds`,
+`vaultview`, `iconbrowser`, `sitedocs`, `themer` — or `launcher`, which
+is not a directory: it is the package at the repository root, and the
+driver builds it from there.
 
 ## MindChat: never capture real user state
 
@@ -60,15 +62,17 @@ the real key from the environment).
 
 ## Run (human path)
 
-`go run ./launcher` from the repo root — a window opens; quit with the
-window close button. The launcher's cards themselves run
-`go run ./<app>/` relative to its cwd, which is why the driver starts
-apps from the repo root.
+`go run .` at the repo root opens the launcher; quit with the window
+close button. A launcher built from source runs the app out of the
+checkout, which it finds by walking up from its cwd — that is why the
+driver starts apps from the repo root. A released one fetches and runs
+the app's own latest release instead.
 
 ## Test
 
-Per app: `go test ./...` inside the app directory (state-only reducer
-tests; no window needed).
+At the repo root, and in each app directory: `go test ./...` (state-only
+reducer tests, plus headless golden renders at the root; no window
+needed).
 
 ## Gotchas
 
