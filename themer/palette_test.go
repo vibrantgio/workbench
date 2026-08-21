@@ -9,7 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"gioui.org/layout"
+
 	"github.com/vibrantgio/components/gallery/inventory"
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown/highlight"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -45,14 +48,17 @@ func rampContentW() int { return windowW - 2*int(Pad) - 2*int(inventory.SectionP
 // panel's content width, which is what is left of it once the names at one end
 // and the chips at the other have been reserved.
 func rampCellW() int {
-	return min(int(RampCellMax),
-		(rampContentW()-int(RampLabelW)-int(RampPinGap)-int(RampPinW))/RampSteps)
+	return (rampContentW() - int(RampLabelW) - int(RampPinGap) - int(RampPinW)) / RampSteps
 }
 
 // rampPinCentre is the middle of the chip at the end of row i, which is where
-// that role's pinned base is drawn.
+// that role's pinned base is drawn. The chips are ranged against the grid's
+// trailing edge, so the middle of one is half a chip in from the far side of
+// the content the section's body is laid out in — not one gap past step 900,
+// which is where they would stand if the cells were the thing setting the
+// grid's width.
 func rampPinCentre(i int) image.Point {
-	x := rampLabelLeft() + int(RampLabelW) + RampSteps*rampCellW() + int(RampPinGap) + int(RampPinW)/2
+	x := rampLabelLeft() + rampContentW() - int(RampPinW)/2
 	y := rampGridTop() + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
 	return image.Pt(x, y)
 }
@@ -60,7 +66,7 @@ func rampPinCentre(i int) image.Point {
 // rampCellCentre is the middle of the cell holding step n+1 of ramp row i,
 // which is where a claimed rung's mark is, and rampCellColour a point in the
 // same cell that no mark reaches — a quarter of the way in, against a mark of
-// six points in a cell of ninety-six.
+// six points in a cell of ninety.
 func rampCellCentre(i, n int) image.Point {
 	x := rampLabelLeft() + int(RampLabelW) + n*rampCellW() + rampCellW()/2
 	y := rampGridTop() + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
@@ -1030,4 +1036,207 @@ func schemesUnderTest(t *testing.T) []struct {
 		)
 	}
 	return out
+}
+
+// paletteSectionW is the palette section on its own, at a width of the
+// caller's choosing: the four rows the column would stack, on the ground the
+// column would stand them on. The section is asserted here rather than inside
+// a window capture because what is under test is how it answers to the width
+// it is handed, and the widths worth trying are wider than the window the rest
+// of this file measures.
+func paletteSectionW(t *testing.T, width int, c, other tokens.ColorTokens, dark bool) *image.RGBA {
+	t.Helper()
+	rows := PaletteRows(PaletteFrom(c), c, other, pinned(), dark)
+	size := image.Pt(width, paletteCaptureH)
+	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+		fill(gtx, size, c.Background)
+		children := make([]layout.FlexChild, 0, len(rows))
+		for _, row := range rows {
+			children = append(children, layout.Rigid(row))
+		}
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	})
+}
+
+// paletteCaptureH is tall enough for the whole section at the widths tried
+// below, so that nothing under test is clipped by the capture rather than by
+// the layout.
+const paletteCaptureH = 940
+
+// sectionRowY is the middle of ramp row i inside a [paletteSectionW] capture,
+// and sectionInset the margin the section's body and its heading bar both keep
+// from either edge.
+func sectionRowY(i int) int {
+	return int(PaletteHeadH) + int(inventory.SectionPadY) + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
+}
+
+func sectionInset() int { return int(inventory.SectionPadX) }
+
+// sectionWidths are the widths the section is judged at: one narrow enough
+// that the caption has to give a clause up, the window's own, and one far
+// wider than either — which is where the grid used to stop hundreds of points
+// short of the heading bar over it.
+var sectionWidths = []int{900 - 2*int(Pad), 1120 - 2*int(Pad), 1440 - 2*int(Pad)}
+
+// TestTheGridEndsWhereTheHeadingBarDoes: the ramps grid and the bar above it
+// keep one trailing edge at every width.
+//
+// The cells used to stop growing at ninety-six points, which left a wide
+// window's grid with width it could not spend — 342 points of it at 1440 — and
+// a ragged edge under a heading bar and over a picks board that both run the
+// full width. Putting that surplus in the gap before the trailing chip instead
+// only moved the defect: a hole four cells wide took the chips out of the rows
+// they end. So the cells divide the whole row, and the chips are ranged
+// against the trailing margin, and this is what holds both ends of that.
+func TestTheGridEndsWhereTheHeadingBarDoes(t *testing.T) {
+	for _, sc := range schemesUnderTest(t)[:4] {
+		for _, width := range sectionWidths {
+			img := paletteSectionW(t, width, sc.c, sc.other, sc.dark)
+			ground := stdcolor.NRGBA(sc.c.Background)
+			y := sectionRowY(0) // Primary, which every derivation pins
+			edge := width - sectionInset()
+			right := -1
+			for x := edge - 1; x >= 0; x-- {
+				if pixelAt(img, x, y) != ground {
+					right = x
+					break
+				}
+			}
+			if right < 0 {
+				t.Fatalf("%s at %d: nothing drawn in the first ramp row", sc.name, width)
+			}
+			if edge-1-right > 1 {
+				t.Errorf("%s at %d: the row's last ink is at x=%d, %d points short of the section's trailing edge at %d — the grid and its heading bar disagree on where the section ends",
+					sc.name, width, right, edge-1-right, edge-1)
+			}
+			// And the chip is still a chip at the end of a row rather than a
+			// tenth step: the air before it is never less than the least the
+			// grid states, however much surplus lands in it.
+			left := right
+			for left >= 0 && pixelAt(img, left, y) != ground {
+				left--
+			}
+			gap := 0
+			for x := left; x >= 0 && pixelAt(img, x, y) == ground; x-- {
+				gap++
+			}
+			if gap < int(RampPinGap)-strokeBleed {
+				t.Errorf("%s at %d: %d points of air between step 900 and the pinned base, want at least %d — nine steps and a pin read as ten steps",
+					sc.name, width, gap, int(RampPinGap)-strokeBleed)
+			}
+			t.Logf("%s at %d: row ends at x=%d (edge %d), chip %d wide, gap %d",
+				sc.name, width, right, edge-1, right-left, gap)
+		}
+	}
+}
+
+// strokeBleed is how far the rounded chip's hairline frame spreads past the
+// rectangle it was asked for: the rasteriser's own antialiasing, a pixel on
+// either side, which a scan reading colour boundaries off a capture counts as
+// ink.
+const strokeBleed = 2
+
+// pixelAt is one pixel of a capture as an opaque colour.
+func pixelAt(img *image.RGBA, x, y int) stdcolor.NRGBA {
+	c := img.RGBAAt(x, y)
+	return stdcolor.NRGBA{R: c.R, G: c.G, B: c.B, A: 0xff}
+}
+
+// TestACaptionTooWideForItsBarLosesWholeClauses: at every width there is, what
+// the heading bar shows of a caption is a whole number of that caption's own
+// clauses.
+//
+// The shaper's truncator used to do this and did it by character, which put
+// "100 nearest the pa…" on the bar — two characters lost off a word and an
+// ellipsis saying the line was clipped. The clauses are what the caption is
+// made of and the only places it can be cut without saying something else.
+func TestACaptionTooWideForItsBarLosesWholeClauses(t *testing.T) {
+	gtx, ty := measuring(), pinned()
+	for _, hint := range []string{RampsHint, PicksHint} {
+		full := natural(gtx, ty.Shaper, ty.Small, hint)
+		for room := 0; room <= full+40; room++ {
+			fit := fitHint(gtx, ty, hint, room)
+			if fit == "" {
+				continue
+			}
+			if fit != hint && !strings.HasPrefix(hint, fit+HintSep) {
+				t.Fatalf("at %d points of room the caption was cut to %q, which is not a run of its clauses", room, fit)
+			}
+			if w := natural(gtx, ty.Shaper, ty.Small, fit); w > room {
+				t.Fatalf("at %d points of room the caption was cut to %q, which wants %d", room, fit, w)
+			}
+		}
+		// And what fits, fits whole: nothing is dropped from a caption the bar
+		// has room for.
+		if fit := fitHint(gtx, ty, hint, full); fit != hint {
+			t.Errorf("with room for the whole caption the bar shows %q", fit)
+		}
+	}
+}
+
+// TestTheCaptionsClausesAreTheOnesItIsWrittenIn: the separator the caption is
+// cut at is the separator it is joined with. They are one string in one place
+// and this is what says so — a caption joined by anything else would not split
+// and would vanish whole at the first width it did not fit.
+func TestTheCaptionsClausesAreTheOnesItIsWrittenIn(t *testing.T) {
+	clauses := strings.Split(RampsHint, HintSep)
+	if len(clauses) < 2 {
+		t.Fatalf("the ramps caption %q does not split on %q", RampsHint, HintSep)
+	}
+	for _, clause := range clauses {
+		if strings.TrimSpace(clause) != clause || clause == "" {
+			t.Errorf("clause %q is not a clause of its own", clause)
+		}
+	}
+	if got := strings.Join(clauses, HintSep); got != RampsHint {
+		t.Errorf("the clauses rejoin to %q, want the caption itself", got)
+	}
+}
+
+// captionRegister is how close a caption's contrast may fall to the contrast
+// of the words beside it on the same bar before it reads as a different class
+// of text. The caption is set in the heading's own ink, so what is measured is
+// the antialiasing of twelve points against fourteen and nothing else.
+const captionRegister = 0.85
+
+// TestTheSectionCaptionReadsInItsNeighboursRegister: the caption on a section's
+// heading bar is read at the contrast the rest of the section is read at, on
+// both sides of the switch.
+//
+// It used to be set in the quiet neutral step every hint in this window uses,
+// and that step does not hold its register across the schemes: measured against
+// the bar it stands on it reaches 9.91:1 in a dark scheme, where its neighbours
+// reach 13.71, and 5.46:1 in a light one, where they reach 15.16. A caption is
+// a legend — the leading clause of this one is the only thing on the screen
+// that says what the dots on the grid below mean — and a legend that is quiet
+// in one scheme and faint in the other is a legend nobody reads in either.
+func TestTheSectionCaptionReadsInItsNeighboursRegister(t *testing.T) {
+	width := 1440 - 2*int(Pad)
+	for _, sc := range schemesUnderTest(t)[:4] {
+		img := paletteSectionW(t, width, sc.c, sc.other, sc.dark)
+		p := PaletteFrom(sc.c)
+		gtx, ty := measuring(), pinned()
+		bar := image.Rect(0, 2, width, int(PaletteHeadH)-4)
+		titleBand := bar
+		titleBand.Min.X = sectionInset()
+		titleBand.Max.X = sectionInset() + natural(gtx, ty.Shaper, ty.Label, RampsLabel)
+		captionBand := bar
+		captionBand.Max.X = width - sectionInset()
+		captionBand.Min.X = captionBand.Max.X - natural(gtx, ty.Shaper, ty.Small, RampsHint)
+
+		titleGround, titleInk := inkOn(img, titleBand)
+		captionGround, captionInk := inkOn(img, captionBand)
+		title := vgcolor.ContrastRatio(titleInk, titleGround)
+		caption := vgcolor.ContrastRatio(captionInk, captionGround)
+		t.Logf("%s: title %v on %v %.2f:1, caption %v on %v %.2f:1",
+			sc.name, titleInk, titleGround, title, captionInk, captionGround, caption)
+		if titleGround != stdcolor.NRGBA(p.Surface) || captionGround != stdcolor.NRGBA(p.Surface) {
+			t.Errorf("%s: the heading bar is not the surface under both runs of text: title on %v, caption on %v, want %v",
+				sc.name, titleGround, captionGround, p.Surface)
+		}
+		if caption < captionRegister*title {
+			t.Errorf("%s: the caption reads at %.2f:1 beside a heading at %.2f:1 — %.0f%% of it, under the %.0f%% that keeps them one register",
+				sc.name, caption, title, 100*caption/title, 100*captionRegister)
+		}
+	}
 }

@@ -145,6 +145,7 @@ import (
 	stdcolor "image/color"
 	"math"
 	"strconv"
+	"strings"
 
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -185,10 +186,23 @@ const (
 	// picks below have to be scrolled to.
 	RampRowH  unit.Dp = 24
 	RampHeadH unit.Dp = 18
-	// RampCellMax stops a wide window from stretching nine swatches into nine
-	// panels. Past it the grid keeps its size and the row simply ends, which is
-	// what a table does.
-	RampCellMax unit.Dp = 96
+	// A cell has no maximum: the nine steps divide whatever the row has left
+	// once the names at one end and the chip at the other are reserved, so the
+	// row fills its width at every window.
+	//
+	// It used to stop at ninety-six points, and the judgement is worth writing
+	// down because the cap looked like the careful choice. A capped table in a
+	// container wider than the cap has width it cannot spend, and there are only
+	// two places to put it: past the last cell, which is a ragged right edge
+	// under a heading bar and over a picks board that both run the full width;
+	// or into the gap before the trailing chip, which was tried and measured —
+	// at a 1440-point window it opened a hole of 356 points, nearly four cells
+	// wide, and eight chips across a hole that size stop reading as the ends of
+	// eight rows and start reading as a strip of their own. Both of those break
+	// something the row is, to prevent a swatch from being wide. A wide swatch
+	// is a wide swatch; a row that comes apart in the middle is a table that has
+	// stopped being one. So the cells stretch.
+	//
 	// RampMark is the dot on a rung a pick sits at. It is a dot and not a ring, a
 	// label or a heavier frame: a fifth of the cells carry one, and anything with
 	// an edge of its own at that count turns a table of colour into a table of
@@ -196,13 +210,20 @@ const (
 	RampMark unit.Dp = 7
 
 	// RampPinW is the chip at the trailing end of a row holding the base that
-	// role pinned, RampPinGap the air between it and step 900, and RampPinInset
-	// how far it stands off the row's top and bottom. The gap is wider than any
-	// space inside the grid and the inset makes the chip shorter than a cell,
-	// which between them are what stop nine steps and a pin from reading as ten
-	// steps. The chip is the width of the swatch a pick carries below, because it
-	// is the same colour shown twice in one section and two sizes would read as
-	// two different claims.
+	// role pinned, RampPinGap the least air there may ever be between it and
+	// step 900, and RampPinInset how far it stands off the row's top and bottom.
+	// The gap is wider than any space inside the grid and the inset makes the
+	// chip shorter than a cell, which between them are what stop nine steps and
+	// a pin from reading as ten steps. The chip is the width of the swatch a
+	// pick carries below, because it is the same colour shown twice in one
+	// section and two sizes would read as two different claims.
+	//
+	// A least and not a fixed distance because the chips are ranged against the
+	// grid's trailing edge rather than set one gap past step 900: nine cells of
+	// a whole number of points rarely divide the row exactly, and the eight
+	// points or fewer left over land here. Eight points is a gap a hair wider,
+	// which is a gap; the same slack left past the chip would be the section
+	// ending in a different place from the bar above it.
 	RampPinW     unit.Dp = 44
 	RampPinGap   unit.Dp = 14
 	RampPinInset unit.Dp = 3
@@ -275,6 +296,14 @@ const (
 	RampsHint  = "a dot marks each pick's step · nine steps a role · 100 nearest the page · each row ends with its role's pinned base, and Neutral pins none"
 	PicksLabel = "Palette Picks"
 	PicksHint  = "every colour the theme names, and where it came from"
+	// HintSep joins one clause of a caption to the next, and is therefore where
+	// a caption too wide for its bar is cut — see [fitHint]. It is written down
+	// because it is two things at once: the mark a reader sees between the
+	// facts, and the seam the layout takes them apart at. A caption whose
+	// clauses were joined by a character the cut did not know about would
+	// truncate to nothing and vanish, silently, at exactly the widths this is
+	// meant to serve.
+	HintSep = " · "
 	// RampPinHead stands over the chips at the ends of the rows, where the step
 	// numbers stand over the columns. It is the word the rules under the picks
 	// already use for a pinned colour — an ink says it was measured over the
@@ -903,12 +932,61 @@ func paletteHeading(p Palette, c tokens.ColorTokens, ty Type, title, hint string
 		// a narrow window truncates it instead of running it into the title:
 		// two runs of text laid out from opposite ends of one box meet in the
 		// middle the moment the box is narrower than the two of them.
+		//
+		// In the ink the title is in, and not a rung quieter. The caption's
+		// leading clause is the only legend the mark on the grid below has —
+		// nothing else on the screen says what a dot on a swatch means — and
+		// the numbers over that grid are set in this same ink for the same
+		// reason: a legend drawn fainter than the thing it explains is a legend
+		// somebody has to go looking for. It is the ink that keeps a caption in
+		// the register of the words around it on both sides of the switch, too,
+		// which a step of the neutral ramp does not: the quiet step reads at
+		// two-thirds of its neighbours' contrast against a dark ground and a
+		// third of it against a light one, so a caption set in it is quiet in
+		// one scheme and faint in the other.
 		if lead := box.Min.X + natural(gtx, ty.Shaper, ty.Label, title) + gtx.Dp(Gap); lead < box.Max.X {
-			textdraw.FillText(gtx, ty.Shaper, ty.Small,
-				image.Rect(lead, 0, box.Max.X, size.Y), 1, 0.5, p.Muted, hint)
+			if fit := fitHint(gtx, ty, hint, box.Max.X-lead); fit != "" {
+				textdraw.FillText(gtx, ty.Shaper, ty.Small,
+					image.Rect(lead, 0, box.Max.X, size.Y), 1, 0.5, p.Text, fit)
+			}
 		}
 		return layout.Dimensions{Size: size}
 	}
+}
+
+// fitHint is a section's caption cut to the room it has, at the boundaries the
+// caption is written in.
+//
+// A caption is a list of clauses joined by [HintSep], and what a narrow window
+// takes off it is whole clauses from the tail. The shaper's own truncation is
+// what this replaces, and it is the wrong cut here for two reasons. It cuts
+// mid-word — the caption arrived at a width reading "100 nearest the pa…",
+// which is not a shorter caption but a caption that failed to finish — and the
+// ellipsis it leaves says the text was clipped, when the fact is that a window
+// this wide gets the three clauses that fit and the fourth was never going to
+// be read. Cut at the clauses, every word on the bar is a whole word and every
+// clause a whole fact, and the line ends where a list ends.
+//
+// Nothing marks the cut. A list that stops is a list of what fits; an ellipsis
+// on the end of it is an invitation to go looking for a clause that was written
+// to be the one nobody has to read. The order is what does the work here — the
+// caption constants say why their clauses stand in the order they do, and it is
+// tail-droppable on purpose — and the cut only has to respect it.
+//
+// With room for not even the leading clause the caption is dropped whole. Half
+// a sentence in a heading bar is not a shorter caption: it is a caption that
+// says something else, and the bar already knows how to carry a title alone.
+func fitHint(gtx layout.Context, ty Type, hint string, room int) string {
+	if natural(gtx, ty.Shaper, ty.Small, hint) <= room {
+		return hint
+	}
+	clauses := strings.Split(hint, HintSep)
+	for n := len(clauses) - 1; n > 0; n-- {
+		if cut := strings.Join(clauses[:n], HintSep); natural(gtx, ty.Shaper, ty.Small, cut) <= room {
+			return cut
+		}
+	}
+	return ""
 }
 
 // paletteBody lays one section's content out on the embedded page's own ground,
@@ -962,11 +1040,20 @@ func RampGrid(p Palette, c tokens.ColorTokens, ty Type, claims map[rampClaim]boo
 		if width-labelW-pinGap-pinW < RampSteps {
 			pinW, pinGap = 0, 0
 		}
-		cellW := min(gtx.Dp(RampCellMax), max(0, width-labelW-pinGap-pinW)/RampSteps)
+		cellW := max(0, width-labelW-pinGap-pinW) / RampSteps
 		if cellW <= 0 {
 			return total
 		}
-		pinX := labelW + RampSteps*cellW + pinGap
+		// Ranged against the trailing edge, which is where the heading bar's own
+		// caption ends and where the picks board below ends: the names stand at
+		// the leading margin, the chips at the trailing one, and the section has
+		// one right edge at every width instead of a grid that stops wherever
+		// nine whole-point cells happen to run out. The width reserved above is
+		// what guarantees the chips cannot reach step 900 — the cells were
+		// divided out of a width the chip and its least gap had already been
+		// taken from, so the slack that lands here is never less than
+		// [RampPinGap] and never more than eight points past it.
+		pinX := width - pinW
 		// The numbers are set in the ink the names are, not a rung quieter. They
 		// are the table's only legend — every cell under them is a colour with
 		// no other way of saying which step it is — and a legend drawn fainter
