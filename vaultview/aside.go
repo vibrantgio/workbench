@@ -48,6 +48,7 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
+	vgcolor "github.com/vibrantgio/theme/color"
 )
 
 // Aside layout constants.
@@ -84,10 +85,15 @@ const (
 	// two panes: enough that the rule reads as parting them rather than as
 	// underlining the pane above it.
 	asideGroupGapDp = 12
-	// asideIndentDp is one heading level's step in the outline. It is
-	// small on purpose — six levels of it must still leave a title room to
-	// be read in a column this narrow.
-	asideIndentDp = 10
+	// asideIndentDp is one heading level's step in the outline. It is the
+	// row's own pad again, because that is the one distance this column
+	// moves anything by: the pad the ink stands inside its fill, the air
+	// the fill keeps above and below it, the lane the bar stands in. A
+	// step of its own size — it was ten — is a second rhythm nothing else
+	// in the column keeps, and the eye reading down the outline is reading
+	// both at once. It is also small enough that six levels of it still
+	// leave a title room to be read in a column this narrow.
+	asideIndentDp = asideRowPadDp
 	// The row fills are the sidebar's pill, in the sidebar's geometry: a
 	// fresh reviewer, shown the whole window, read the column's old
 	// full-bleed grey band and the sidebar's purple pill as two design
@@ -113,6 +119,44 @@ const asideBacklinkCap = 4
 // where four rows of citations would leave the outline nothing at all and
 // the reader would not know there was a pane above.
 const asideBacklinkShare = 2
+
+// asideInkTiers are the three depths of ink this column speaks in: the
+// quiet tier its two headings, its citation count, its folder
+// annotations and its empty lines take; the tier the outline's nested
+// headings take, a step down from the level they hang under; and the
+// reading tier the outline's own top level and every citation's name
+// take.
+type asideInkTiers struct {
+	quiet   color.NRGBA
+	nested  color.NRGBA
+	reading color.NRGBA
+}
+
+// asideInks resolves the tiers against the surface the column stands on.
+//
+// The two quieter tiers come off different ramp steps in a light scheme
+// and a dark one, and that difference is the whole of this function. The
+// neutral ramp's paired scales keep a step's job across the two schemes,
+// not its distance from the ground it is read against: measured on this
+// column's own surface, the light scheme's 700 and 800 stand 52.9 and
+// 64.0 from it in L* under a reading tier at 86.1 — three tiers a reader
+// can name — while the dark scheme's stand 68.8 and 74.9 under 80.9,
+// which is three names for very nearly one ink. A heading read as bright
+// as the rows beneath it and the column had nothing left to say "this is
+// a head" with. The dark scheme's 500 and 600 stand 51.9 and 60.8: the
+// light scheme's own spread, two steps lower down a ramp whose top end
+// is the compressed one.
+func asideInks(tok themeTokens) asideInkTiers {
+	quiet, nested := 700, 800
+	if vgcolor.RelativeLuminance(tok.col.Surface) < 0.5 {
+		quiet, nested = 500, 600
+	}
+	return asideInkTiers{
+		quiet:   tok.col.Ramps.Neutral.Step(quiet),
+		nested:  tok.col.Ramps.Neutral.Step(nested),
+		reading: tok.col.Text,
+	}
+}
 
 // backlinkRow is one citing note in the lower pane.
 type backlinkRow struct {
@@ -281,7 +325,7 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 		}
 		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			rigid(&above, asideTrailing(tok, func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, tok.shaper, "Outline", tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
+				return drawLabel(gtx, tok.shaper, "Outline", tok.typ.TitleSmall, asideInks(tok).quiet)
 			})),
 			rigid(&above, complayout.VSpacer(asideHeaderGapDp)),
 			// Whatever the group below has left over, and never less than
@@ -354,7 +398,7 @@ func asidePill(gtx layout.Context, size image.Point, fill color.NRGBA) {
 // a figure the reader cannot learn to trust, since its absence would
 // have to be read as "few" rather than as "not counted".
 func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dimensions {
-	ink := tok.col.Ramps.Neutral.Step(700)
+	ink := asideInks(tok).quiet
 	title := func(gtx layout.Context) layout.Dimensions {
 		return drawLabel(gtx, tok.shaper, "Backlinks", tok.typ.TitleSmall, ink)
 	}
@@ -425,6 +469,27 @@ func asideTrailing(tok themeTokens, w layout.Widget) layout.Widget {
 	}
 }
 
+// asideEmptyLine is what a pane says instead of rows when it has none.
+//
+// It stands where the first of those rows would have stood, on both
+// axes. Across: a row's own pad inboard of the column's ink margin, the
+// bar's lane and a pad again at its trailing end — a column whose empty
+// lines lead at one x while its rows lead at another is a column a
+// reader has to be told has one leading edge, and the line read as an
+// annotation on the heading above it rather than as the pane's own
+// answer. Down: the whole of the air a row keeps above its ink, which is
+// where both panes' rows put their first line — the outline's by halving
+// that air and centring the line in what is left, the citations' by
+// spending it above the line outright.
+func asideEmptyLine(gtx layout.Context, tok themeTokens, line string) layout.Dimensions {
+	return layout.Inset{
+		Top: asideRowInsetDp, Left: asideRowPadDp,
+		Right: asideBarLane(tok) + asideRowPadDp,
+	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return drawText(gtx, tok.shaper, line, tok.typ.BodyMedium, asideInks(tok).quiet)
+	})
+}
+
 // asideRule is the hairline parting the two panes. It is a hairline for
 // the reason the sidebar's foot uses one: both panes stand on the same
 // surface, so there are no two grounds to separate, only a seam saying
@@ -462,9 +527,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 		// backlinks on the column's foot.
 		gtx.Constraints.Min.Y = 0
 		region := gtx.Constraints.Max
-		layout.Inset{Right: asideBarLane(tok)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return drawText(gtx, tok.shaper, "This note has no headings.", tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(700))
-		})
+		asideEmptyLine(gtx, tok, "This note has no headings.")
 		return layout.Dimensions{Size: region}
 	}
 	if doc := v.cur.document(); doc != nil {
@@ -504,6 +567,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 		v.outlineClick = append(v.outlineClick, &widget.Clickable{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
+	inks := asideInks(tok)
 	return list.LayoutSelectableScrollbar(gtx, v.outlineList, asideIndicator(tok), list.Occupy, entries,
 		func(gtx layout.Context, e outlineEntry, selected bool) layout.Dimensions {
 			click := v.outlineClick[e.Idx]
@@ -541,9 +605,9 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 					// A first-level heading is the note's own title level
 					// and is set apart from what hangs under it.
 					style := tok.typ.BodyMedium
-					ink := tok.col.Text
+					ink := inks.reading
 					if e.Level > 1 {
-						ink = tok.col.Ramps.Neutral.Step(800)
+						ink = inks.nested
 					}
 					return drawLabel(gtx, tok.shaper, e.Title, style, ink)
 				})
@@ -584,15 +648,14 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 		// column — where a fresh reviewer read it as belonging to nothing.
 		gtx.Constraints.Min.Y = 0
 		region := gtx.Constraints.Max
-		layout.Inset{Right: asideBarLane(tok)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return drawText(gtx, tok.shaper, "No notes link here.", tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(700))
-		})
+		asideEmptyLine(gtx, tok, "No notes link here.")
 		return layout.Dimensions{Size: region}
 	}
 	for len(v.rowClicks) < len(rows) {
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
+	inks := asideInks(tok)
 	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), list.Occupy, rows,
 		func(gtx layout.Context, row backlinkRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
@@ -613,7 +676,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 				complayout.InsetXY(asideRowPadDp, asideRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return drawLabel(gtx, tok.shaper, row.Title, tok.typ.BodyMedium, tok.col.Text)
+							return drawLabel(gtx, tok.shaper, row.Title, tok.typ.BodyMedium, inks.reading)
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
@@ -622,7 +685,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 							if row.Folder == "" {
 								return layout.Dimensions{}
 							}
-							return drawLabel(gtx, tok.shaper, row.Folder, tok.typ.BodySmall, tok.col.Ramps.Neutral.Step(700))
+							return drawLabel(gtx, tok.shaper, row.Folder, tok.typ.BodySmall, inks.quiet)
 						}),
 					)
 					return layout.Dimensions{Size: gtx.Constraints.Max}

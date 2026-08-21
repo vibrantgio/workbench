@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"image"
+	"image/color"
+	"math"
 	"strings"
 	"testing"
 
@@ -18,6 +20,8 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/markdown"
+	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // outlineSource is the fixture the outline tests share: a note whose
@@ -928,5 +932,243 @@ func TestTheBacklinkHeaderCountsWhatItCannotShow(t *testing.T) {
 	if few, _ := shot(2); ink(few) <= ink(none) {
 		t.Errorf("a pane holding 2 citations drew no more header ink (%d) than one holding none (%d); the count must not appear only past the cap",
 			ink(few), ink(none))
+	}
+}
+
+// ---- the column's rhythm, its axis and its tiers ------------------------
+
+// rhythmSource nests three heading levels whose titles all begin with the
+// same letter, so a level's step is the difference between two identical
+// glyphs' leading edges and not two different left bearings.
+const rhythmSource = `# Section, the first
+
+Prose under the title.
+
+## Section, the second
+
+More prose.
+
+### Section, the third
+
+Yet more prose.
+`
+
+// asideShot lays a note's document out and then the trailing column on
+// its own, on the surface the frame paints under the column, and captures
+// the column. The document goes into a recording that is thrown away: the
+// outline reads the position it resolves, and none of the note's own ink
+// reaches the picture.
+//
+// Two frames, because the mark is written from the position the first one
+// resolves and drawn by the one after it.
+func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGBA, *asideView) {
+	t.Helper()
+	tok := goldenTokens()
+	tok.col = col
+	n := m.CurrentNote()
+	if n == nil {
+		t.Fatal("the model has no current note")
+	}
+	doc := markdown.NewDocument(n.Blocks)
+	style := markdown.FromTokens(tok.col, tok.typ)
+	cur := &docCursor{}
+	v := newAsideView(cur)
+	w := func(gtx layout.Context) layout.Dimensions {
+		dgtx := gtx
+		dgtx.Constraints = layout.Exact(image.Pt(noteCanvasW, 400))
+		rec := op.Record(dgtx.Ops)
+		doc.Layout(dgtx, tok.shaper, style)
+		rec.Stop()
+		cur.show(doc)
+		return v.layout(gtx, m, tok)
+	}
+	size := image.Pt(frameAsideDp, h)
+	golden.Capture(t, size, scene(w, col.Surface))
+	return golden.Capture(t, size, scene(w, col.Surface)), v
+}
+
+// asideInkAt answers where the ink between two rows of the captured
+// column starts — its leading column and its first row, or -1, -1 for a
+// band of bare surface. The two fills a row may wear are read as ground
+// along with the surface itself: both run to the column's ink margin and
+// fill the row's whole height, so a marked row would otherwise answer
+// with the fill's own corner rather than with its title's.
+func asideInkAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) {
+	ground := []color.NRGBA{col.Surface, col.Ramps.Neutral.Step(300), col.Ramps.Primary.Step(300)}
+	gap := func(a, b uint8) int {
+		if a > b {
+			return int(a) - int(b)
+		}
+		return int(b) - int(a)
+	}
+	// Half the distance between the surface and the quietest ink the
+	// column draws on it: past that a pixel is a glyph's and not a fill's
+	// own anti-aliasing.
+	near := func(c color.RGBA, o color.NRGBA) bool {
+		return max(gap(c.R, o.R), gap(c.G, o.G), gap(c.B, o.B)) < 60
+	}
+	lead, top := -1, -1
+	for y := max(y0, img.Bounds().Min.Y); y < min(y1, img.Bounds().Max.Y); y++ {
+		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
+			c := img.RGBAAt(x, y)
+			inked := true
+			for _, g := range ground {
+				if near(c, g) {
+					inked = false
+					break
+				}
+			}
+			if !inked {
+				continue
+			}
+			if top < 0 {
+				top = y
+			}
+			if lead < 0 || x < lead {
+				lead = x
+			}
+			break
+		}
+	}
+	return lead, top
+}
+
+// TestTheOutlineStepsOnTheColumnsRhythm measures one heading level's step
+// off the picture: the leading edge of a level-two title against a
+// level-one's, and a level-three's against the level-two's. The column
+// moves everything it holds by one distance — the pad a row's ink stands
+// inside its fill, the lane its bar stands in — and the outline's step
+// was ten of a column whose every other number is eight, which is two
+// rhythms down one narrow list.
+func TestTheOutlineStepsOnTheColumnsRhythm(t *testing.T) {
+	rowH := asideRowPx(goldenTokens())
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			img, v := asideShot(t, citedModel("guide/Rhythm.md", rhythmSource, 2), tc.colors, 700)
+			var lead [3]int
+			for i := range lead {
+				top := v.geom.outline.Min.Y + i*rowH
+				lead[i], _ = asideInkAt(img, tc.colors, top, top+rowH)
+				if lead[i] < 0 {
+					t.Fatalf("the outline's level-%d row drew no ink to measure", i+1)
+				}
+			}
+			for i := 1; i < len(lead); i++ {
+				if got := lead[i] - lead[i-1]; got != asideRowPadDp {
+					t.Errorf("a level-%d title stands %d px in from the level-%d title above it, want %d — one column, one rhythm",
+						i+1, got, i, asideRowPadDp)
+				}
+			}
+		})
+	}
+}
+
+// TestAnEmptyPaneStandsOnItsRowsAxis requires the line a pane shows
+// instead of rows to lead where those rows would have led. Both panes
+// have one, and both used to start on the axis of the heading above them
+// — a pad outboard of every row in the column, which reads as an
+// annotation on the heading rather than as the pane's own answer.
+func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
+	rowH := asideRowPx(goldenTokens())
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// A note with headings and citations, and one with neither: the
+			// rows, and the lines standing in for them, in the same panes.
+			full, fv := asideShot(t, citedModel("guide/Rhythm.md", rhythmSource, 2), tc.colors, 700)
+			bare, bv := asideShot(t, citedModel("Sources.md", plainNoteSource, 0), tc.colors, 700)
+
+			head, _ := asideInkAt(bare, tc.colors, 0, bv.geom.outline.Min.Y)
+			if head < 0 {
+				t.Fatal("the column drew no heading to measure against")
+			}
+			for _, c := range []struct {
+				pane      string
+				row, line image.Rectangle
+			}{
+				{"outline", fv.geom.outline, bv.geom.outline},
+				{"backlinks", fv.geom.backlinks, bv.geom.backlinks},
+			} {
+				rowX, rowY := asideInkAt(full, tc.colors, c.row.Min.Y, c.row.Min.Y+rowH)
+				lineX, lineY := asideInkAt(bare, tc.colors, c.line.Min.Y, c.line.Min.Y+rowH)
+				if rowX < 0 || lineX < 0 {
+					t.Fatalf("the %s pane drew no ink to measure: row at %d, line at %d", c.pane, rowX, lineX)
+				}
+				// A pixel of slack on each axis, and no more: the line and
+				// the row start on different letters, and a letter's own
+				// bearings are not the column's placement of it.
+				if d := rowX - lineX; d < -1 || d > 1 {
+					t.Errorf("the %s pane's rows lead at x=%d and the line standing in for them at x=%d; one leading edge",
+						c.pane, rowX, lineX)
+				}
+				// Down the column, each measured from its own pane's top:
+				// the two panes stand at different heights in the two
+				// pictures, because a pane is as tall as the rows it has.
+				rowDown, lineDown := rowY-c.row.Min.Y, lineY-c.line.Min.Y
+				if d := rowDown - lineDown; d < -1 || d > 1 {
+					t.Errorf("the %s pane's first row inks %d px down its pane and the line standing in for it %d; the line stands where the row would",
+						c.pane, rowDown, lineDown)
+				}
+				if lineX-head <= 1 {
+					t.Errorf("the %s pane's line leads at %d and the heading above it at %d; the line stands where its rows do, not where the head does",
+						c.pane, lineX, head)
+				}
+			}
+		})
+	}
+}
+
+// TestTheColumnsInkTiersPartInBothSchemes measures the three depths of
+// ink the column speaks in — its headings and annotations, the outline's
+// nested titles, and what a reader is meant to read — and requires each
+// to part from the next in either appearance.
+//
+// The dark scheme is why this is measured. The neutral ramp's paired
+// scales keep a step's job across the two appearances, not its distance
+// from the ground: taking 700/800 in both put the column's three tiers
+// 68.8, 74.9 and 80.9 from the surface in L* on a dark ground, against
+// 52.9, 64.0 and 86.1 on a light one — three names for very nearly one
+// ink, with the heading reading as bright as the row beneath it.
+func TestTheColumnsInkTiersPartInBothSchemes(t *testing.T) {
+	// The distance two inks must keep to read as two. It is under the
+	// smaller of the light scheme's own two gaps, which is the separation
+	// this is holding the dark scheme to.
+	const partBy = 8.0
+	lstar := func(c color.NRGBA) float64 {
+		l, _, _ := vgcolor.LabFromNRGBA(c)
+		return l
+	}
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tok := goldenTokens()
+			tok.col = tc.colors
+			inks := asideInks(tok)
+			ground := lstar(tc.colors.Surface)
+			depth := func(c color.NRGBA) float64 {
+				return math.Abs(lstar(c) - ground)
+			}
+			tiers := []struct {
+				name string
+				ink  color.NRGBA
+			}{
+				{"the headings and annotations", inks.quiet},
+				{"the outline's nested titles", inks.nested},
+				{"what the column is read for", inks.reading},
+			}
+			for i, tier := range tiers {
+				// Every tier is a tier a reader reads, so none of them may
+				// drop under the body-text contrast the design system holds
+				// its own text to.
+				if r := vgcolor.ContrastRatio(tier.ink, tc.colors.Surface); r < 4.5 {
+					t.Errorf("%s reads at %.2f:1 on the column's surface, under 4.5:1", tier.name, r)
+				}
+				if i == 0 {
+					continue
+				}
+				if d := depth(tier.ink) - depth(tiers[i-1].ink); d < partBy {
+					t.Errorf("%s stands %.1f L* from %s, want at least %.1f — the column has three tiers or it has one",
+						tier.name, d, tiers[i-1].name, partBy)
+				}
+			}
+		})
 	}
 }
