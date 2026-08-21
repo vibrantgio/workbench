@@ -267,7 +267,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	// standing beside the page: the choice belongs next to its consequence,
 	// and nowhere else on the page is it worth a column.
 	if row := page.codeColumnRow(); row >= 0 && row < len(items) {
-		items[row] = BesideTheCode(p, c, t.typ, m, dark, bases, items[row])
+		items[row] = BesideTheCode(p, c, t.typ, m, dark, bases, page.st, items[row])
 	}
 
 	return func(gtx layout.Context) layout.Dimensions {

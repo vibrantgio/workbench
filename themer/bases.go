@@ -146,12 +146,20 @@ func (b *baseSelector) reveal(dark bool, row int) {
 // after the column, and it loses nothing by it: the plate is measured to its own
 // longest line, and the width the column takes is width the specimen was
 // leaving empty on the right.
-func BesideTheCode(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, sel *baseSelector, code layout.Widget) layout.Widget {
+//
+// page is the embedded page's own scrolling list — the one this row is drawn
+// in — asked for one number: how tall its viewport is this frame. See
+// [baseColumnHeight] for what that number decides.
+func BesideTheCode(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, sel *baseSelector, page *list.State, code layout.Widget) layout.Widget {
 	panel := BasePanel(p, c, ty, m, dark, sel)
 	return func(gtx layout.Context) layout.Dimensions {
 		width := gtx.Constraints.Max.X
 		padX, padY := gtx.Dp(inventory.SectionPadX), gtx.Dp(inventory.SectionPadY)
 		col := min(gtx.Dp(BaseW), max(0, width-2*padX))
+		seen := 0
+		if page != nil {
+			seen = page.Viewport()
+		}
 
 		// The specimen first, because its height is the row's and the column
 		// is cut to it. Its own left margin is the gutter between the two, so
@@ -166,8 +174,9 @@ func BesideTheCode(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool,
 
 		// The column stands in the same margin the specimen is inset by, top
 		// and bottom, so the two read as one pair of plates rather than as a
-		// list that happens to be near some code.
-		if h := dims.Size.Y - 2*padY; h > 0 && col > 0 {
+		// list that happens to be near some code — as far as the window can
+		// show of it. See [baseColumnHeight].
+		if h := baseColumnHeight(dims.Size.Y, seen, padY); h > 0 && col > 0 {
 			inner := gtx
 			inner.Constraints = layout.Exact(image.Pt(col, h))
 			at(inner, image.Pt(padX, padY), func(gtx layout.Context) {
@@ -176,6 +185,41 @@ func BesideTheCode(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool,
 		}
 		return layout.Dimensions{Size: image.Pt(width, dims.Size.Y)}
 	}
+}
+
+// baseColumnHeight is how tall the column is drawn: the specimen's row inside
+// the margin it is inset by, but never taller than the window can show of it.
+//
+// row is the specimen row's own height, seen the height of the scrolling
+// column's viewport — zero where there is no scrolling column to ask — and pad
+// the margin the row insets both by.
+//
+// The cap is what makes the list scrollable to its end rather than decorative
+// past the fold. The scrolling list inside the panel measures its viewport from
+// the height it is laid out in, and it stops scrolling when the last row's
+// trailing edge reaches that viewport's trailing edge. The specimen is the
+// tallest row on the page and runs to several times the height of the column it
+// is drawn in, so a panel cut to the whole of that row has its last few inches
+// outside the window on every frame: the list stops with a dozen names still
+// under the fold and no scroll of the column reaches them — the list is at its
+// end and the reader is not. Cut to what the window shows, the two ends are the
+// same end and every name can be scrolled to.
+//
+// Which is why the number comes from the column's own viewport rather than from
+// a height in points. The list records the viewport it is laying out in before
+// it lays out a row, so what is read here is this frame's, and it follows a
+// window somebody resizes without a constant to keep in step.
+//
+// It is the row's height that is capped and not the list's, because the panel
+// is one plate: a list stopping short inside a plate that does not would read
+// as the set finishing there, which is the thing the standing scrollbar is
+// there to deny.
+func baseColumnHeight(row, seen, pad int) int {
+	h := row - 2*pad
+	if seen > 0 {
+		h = min(h, seen-2*pad)
+	}
+	return h
 }
 
 // BasePanel draws the base selector: one plate carrying a two-line heading and,

@@ -116,8 +116,14 @@ func baseInkX() int {
 }
 
 func baseRowY(i int) int {
-	top := galleryTop() + int(inventory.SectionPadY) + int(BasePad) + int(BaseHead)
-	return top + i*int(BaseRow) + int(BaseRow)/2
+	return baseListTop() + i*int(BaseRow) + int(BaseRow)/2
+}
+
+// baseListTop is the y of the first row's leading edge, in a window scrolled to
+// the code specimen: the page's own row, the panel's padding and the two lines
+// heading it.
+func baseListTop() int {
+	return galleryTop() + int(inventory.SectionPadY) + int(BasePad) + int(BaseHead)
 }
 
 // TestEveryBaseIsOnOffer: the column is built from the highlighter's own list,
@@ -328,6 +334,84 @@ func TestTheSelectorSitsBesideTheCodeAndNowhereElse(t *testing.T) {
 	// the strip left of it is that row's own margin, which is the page's ground.
 	if edge := beside.RGBAAt(int(Pad)+int(inventory.SectionPadX)/2, baseRowY(2)); !same(edge, page.Background) {
 		t.Errorf("the strip left of the column drew %v, want the page's own ground %v — the column is not seated in the page", edge, page.Background)
+	}
+}
+
+// TestTheColumnScrollsToEveryNameOnIt: the column's end and the window's end
+// are the same end.
+//
+// The column is drawn in the specimen's own row, and the specimen is several
+// times taller than the band of the window the page is scrolled in. A column
+// cut to the whole of that row is a column whose last few inches are outside
+// the window on every frame — and the list inside it stops scrolling when its
+// last row reaches the bottom of the height it was laid out in, which is a
+// bottom nobody can see. The names between the two bottoms are then unreachable:
+// the list is at its end and the reader is still a dozen names short of the
+// alphabet.
+//
+// So both halves are asserted, and both are arithmetic rather than an
+// impression. What the list believes fits is measured against what the window
+// shows; and with the last name in the half applied and the column scrolled to
+// its end, the marker on that name is read off the pixels.
+func TestTheColumnScrollsToEveryNameOnIt(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		dark bool
+		os   tokens.ColorTokens
+	}{{"sun", false, tokens.DefaultLight}, {"moon", true, tokens.DefaultDark}} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
+			visible := m.VisibleBases(tc.dark)
+			n := len(visible)
+			if n < 3 {
+				t.Fatalf("the %s lists %d bases — too few to scroll", tc.name, n)
+			}
+
+			sel := settled(tc.dark)
+			atTheCode(t, newEmbed(), m, tc.os, sel)
+
+			// The band of the window the names are drawn in: from the top of
+			// the first row to the page's own bottom edge.
+			shows := galleryBottom() - baseListTop()
+			if got := sel.st.Viewport(); got > shows {
+				t.Errorf("the column's list lays out in %d points where the window shows %d of it — %d names sit under the fold with no scroll that reaches them",
+					got, shows, (got-shows)/int(BaseRow))
+			}
+			p := sel.st.Position()
+			t.Logf("the %s lists %d names, lays out %d of them in %d points, and the window shows %d points of the column",
+				tc.name, n, p.Count, sel.st.Viewport(), shows)
+			if p.Count <= 0 {
+				t.Fatalf("the column laid out %d rows", p.Count)
+			}
+			if bottom := baseListTop() + p.Count*int(BaseRow); bottom > galleryBottom() {
+				t.Errorf("the column lays out %d rows, ending at y=%d past the page's bottom edge at y=%d",
+					p.Count, bottom, galleryBottom())
+			}
+
+			// And the last name on the list is one the column can be scrolled
+			// to. It is the applied one, so the marker is what says it arrived.
+			on := ReduceModel(m, SelectBase{Index: visible[n-1], Dark: tc.dark})
+			end := settled(tc.dark)
+			e := newEmbed()
+			atTheCode(t, e, on, tc.os, end)
+			end.st.ScrollToEnd(n)
+			img := pageOn(t, e, on, tc.os, end)
+
+			q := end.st.Position()
+			if last := q.First + q.Count; last < n {
+				t.Fatalf("scrolled to its end the column shows names %d to %d of %d — the last %d cannot be reached",
+					q.First+1, last, n, n-last)
+			}
+			y := baseRowY(n-1-q.First) - q.Offset
+			if y >= galleryBottom() {
+				t.Fatalf("the last name is laid out at y=%d, past the page's bottom edge at y=%d — it is scrolled to and still not on screen",
+					y, galleryBottom())
+			}
+			if mark, plain := img.RGBAAt(baseInkX(), y), img.RGBAAt(baseInkX(), baseRowY(0)-q.Offset); mark == plain {
+				t.Errorf("the last name is applied and its row at y=%d is drawn %v, exactly like an unmarked row — nothing on screen says the column reached it",
+					y, mark)
+			}
+		})
 	}
 }
 
