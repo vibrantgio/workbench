@@ -1,9 +1,15 @@
-# Track Markdown at the root, plus the example apps in full.
+# Track Markdown at the root, plus the root module and the apps in full.
 *
 !*/
 !*.md
 !.gitignore
 !LICENSE
+
+# The root module. Everything at the root is ignored by default, so its own
+# files have to be named here or they are silently untracked.
+!/go.mod
+!/go.sum
+!/*.go
 
 # Agent skills — tracked, drivers included.
 !/.claude/skills/**

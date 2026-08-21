@@ -15,16 +15,19 @@ lives here, and development planning lives in `.github`.
 
 **Layer.** Outside ADR-001's tier table: applications at the top of the
 stack, which the tier rule exempts and which may import any layer of the
-design system. Its eight applications import, between them, `backdrop`,
-`components`, `components/gallery`, `effects`, `font`, `ivg`,
+design system. Its root module imports nothing else in the organization.
+Its nested modules `workbench/feeds`, `workbench/iconbrowser`,
+`workbench/launcher`, `workbench/mindchat`, `workbench/sitedocs`,
+`workbench/themer`, `workbench/todos` and `workbench/vaultview` add
+`backdrop`, `components`, `components/gallery`, `effects`, `font`, `ivg`,
 `ivg/raster/gio`, `markdown`, `mvu`, `mvu/desktop`, `noise`, `patterns`,
-`seen`, `seen/context/gio`, `svg`, `svg/driver/gio`, `textdraw` and
-`theme`. That direction is measured rather than typed —
-`scripts/check-layers.sh --edges` reports the graph and
-`scripts/sync-agents.sh` renders these sentences from it — so correcting
-them here changes nothing. The other direction is measured too and
-deliberately not written down: the gate checks the graph both ways, but a
-public API's consumers are unknowable, so this file says what its module
+`seen`, `seen/context/gio`, `svg`, `svg/driver/gio`, `textdraw` and `theme`
+— those edges are theirs and not the root module's. That direction is
+measured rather than typed — `scripts/check-layers.sh --edges` reports the
+graph and `scripts/sync-agents.sh` renders these sentences from it — so
+correcting them here changes nothing. The other direction is measured too
+and deliberately not written down: the gate checks the graph both ways, but
+a public API's consumers are unknowable, so this file says what its module
 needs and never who needs it.
 
 **Read the canonical guide before you write code against this module.** It is
@@ -35,38 +38,38 @@ and this file links it rather than copying it:
 
     https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt
 
-**Modules.** No module at the repository root: this repository is eight
-modules in subdirectories — `feeds/`
-(`github.com/vibrantgio/workbench/feeds`), `iconbrowser/`
-(`github.com/vibrantgio/workbench/iconbrowser`), `launcher/`
+**Modules.** `github.com/vibrantgio/workbench` at the repository root, and
+eight nested modules: `feeds/` (`github.com/vibrantgio/workbench/feeds`),
+`iconbrowser/` (`github.com/vibrantgio/workbench/iconbrowser`), `launcher/`
 (`github.com/vibrantgio/workbench/launcher`), `mindchat/`
 (`github.com/vibrantgio/workbench/mindchat`), `sitedocs/`
 (`github.com/vibrantgio/workbench/sitedocs`), `themer/`
 (`github.com/vibrantgio/workbench/themer`), `todos/`
 (`github.com/vibrantgio/workbench/todos`), `vaultview/`
-(`github.com/vibrantgio/workbench/vaultview`). Each is built, tested and
-tagged on its own, with tags that carry the directory as a prefix.
+(`github.com/vibrantgio/workbench/vaultview`). Nested-module tags carry the
+directory as a prefix — `feeds/vX.Y.Z`, not `vX.Y.Z`.
 
-**Build and test.** Inside each of those module directories; there is no
-root module to run it from:
+**Build and test.** From the repository root, and again inside each nested
+module directory — `./...` does not cross a module boundary:
 
     go build ./... && go test ./...
 
-**Golden images.** Tests in three module directories — `feeds/`,
-`sitedocs/` and `vaultview/` — compare rendered output against PNGs
-committed under `testdata/golden/`. They render through
+**Golden images.** Tests in three packages compare rendered output against
+PNGs committed under `testdata/golden/`. They render through
 `github.com/vibrantgio/components/golden`, which declares `-golden.update`
 and is the organization's only golden harness. Do not inline a copy of it,
 and do not declare a second `-golden.update`: two registrations of one flag
 name in a single test binary panic in `flag.Bool` at init, before any test
 runs. When a change legitimately moves pixels, regenerate them within the
-same change, look at what came out, and say so in the commit. From inside
-the directory concerned:
+same change, look at what came out, and say so in the commit. From the
+repository root:
 
-    go test . -golden.update
+    go test ./... -golden.update
 
 The flag comes last on purpose: `go test` cannot tell that an unfamiliar
-flag is boolean, so anything after it stops being a package argument.
+flag is boolean, so anything after it stops being a package argument. `go
+test -golden.update ./...` tests whatever package the repository root
+holds, not `./...`.
 
 **Nothing but a developer's machine has ever compared these images.** This
 repository has no CI workflow, so the stored PNGs are checked only where
