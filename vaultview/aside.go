@@ -140,6 +140,12 @@ type asideView struct {
 	// the next frame by a document that has not gone anywhere.
 	marked int
 
+	// choice is the entry the reader chose themselves, which stands over
+	// the document's own answer for as long as they leave the note where
+	// choosing it put them. It is what lets the closing headings of a note
+	// be chosen at all; see outlineChoice.
+	choice outlineChoice
+
 	geom asideGeom
 }
 
@@ -170,6 +176,7 @@ func (v *asideView) headings(m Model) []outlineEntry {
 		v.outNote = n
 		v.outline = noteOutline(n)
 		v.marked = -2 // no mark has been written for this note yet
+		v.choice.drop()
 	}
 	return v.outline
 }
@@ -378,6 +385,13 @@ func asideRule(gtx layout.Context, tok themeTokens) layout.Dimensions {
 // leaves the arrow keys usable inside the pane: a reader may run down the
 // outline while the document stands still, and the moment the document
 // moves the mark returns to where they are actually reading.
+//
+// A chosen entry is the one exception, and it is the reader's: what they
+// pressed is marked until they move the note again, whether or not the
+// document could put that heading at the top. The leading block cannot
+// answer for the closing headings of a note — the document runs out before
+// they reach the top — and an entry that cannot be marked is an entry that
+// cannot be chosen. See outlineChoice.
 func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []outlineEntry) layout.Dimensions {
 	if len(entries) == 0 {
 		// Released from the region's minimum height, so the line sits under
@@ -390,10 +404,18 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
 	if doc := v.cur.document(); doc != nil {
-		if at := outlineActive(entries, doc.Position().First); at != v.marked {
+		first := doc.Position().First
+		at, chosen := v.choice.stands(doc, first)
+		if !chosen {
+			at = outlineActive(entries, first)
+		}
+		if at != v.marked {
 			v.marked = at
 			v.outlineList.Select(at)
-			if at >= 0 {
+			// A chosen entry was pressed, so it is already in view; only a
+			// mark the document moved under the reader has to be brought
+			// there.
+			if at >= 0 && !chosen {
 				v.outlineList.Reveal(at)
 			}
 		}
@@ -477,8 +499,10 @@ func (v *asideView) seek(gtx layout.Context, e outlineEntry) {
 	doc.ScrollToBlock(e.Block)
 	// The mark goes with the reader immediately rather than waiting for
 	// the document to report its new leading block, which it cannot do
-	// until it has laid out again — and it is where the document is about
-	// to be, so the next frame's reading agrees and writes nothing.
+	// until it has laid out again. The choice is what keeps it there: the
+	// document may not be able to put this heading at the top, and where it
+	// does come to rest reads as some earlier section.
+	v.choice.take(doc, e.Idx)
 	v.marked = e.Idx
 	v.outlineList.Select(e.Idx)
 	gtx.Execute(op.InvalidateCmd{})

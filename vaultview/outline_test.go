@@ -290,6 +290,173 @@ func TestChoosingAnEntryMovesTheDocument(t *testing.T) {
 	}
 }
 
+// tailOutlineSource is a note that ends soon after its last heading: three
+// sections of prose enough to carry it well past any window, then a closing
+// heading with a single line under it. It is the shape where a heading can
+// never lead the viewport — the note runs out before the heading can get
+// there — and the outline has few enough rows that every one of them stands
+// where the pane's own geometry says it does.
+func tailOutlineSource() string {
+	var b strings.Builder
+	b.WriteString("# A note with a short tail\n\n")
+	for i := 1; i <= 3; i++ {
+		fmt.Fprintf(&b, "## Section %d\n\n", i)
+		for j := 1; j <= 12; j++ {
+			fmt.Fprintf(&b, "Paragraph %d of section %d, prose enough to carry the note "+
+				"well past the bottom of any window it is read in.\n\n", j, i)
+		}
+	}
+	b.WriteString("## Closing\n\nOne line, and the note is over.\n")
+	return b.String()
+}
+
+// TestAHeadingThatCannotLeadTheViewportIsStillChosen is the reader
+// picking the last entry in the column: the note goes as far toward that
+// heading as it can, and the entry they pressed is the one shown picked —
+// for as long as they leave the note where the press put it, even though
+// the heading itself never reaches the top.
+func TestAHeadingThatCannotLeadTheViewportIsStillChosen(t *testing.T) {
+	m := citedModel("guide/Short tail.md", tailOutlineSource(), 2)
+	p := newAsidePad(t, m, 700)
+	p.frame()
+
+	entries := noteOutline(m.CurrentNote())
+	if len(entries) != 5 {
+		t.Fatalf("fixture outline has %d entries, want 5", len(entries))
+	}
+	tail := entries[len(entries)-1]
+	rowH := asideRowPx(p.tok)
+	g := p.v.geom
+	if want := len(entries) * rowH; g.outline.Dy() < want {
+		t.Fatalf("the outline's region is %d px for %d rows; every row must stand in it",
+			g.outline.Dy(), len(entries))
+	}
+
+	// The note as far along as it goes, which is where pressing the last
+	// entry has to leave it.
+	p.doc.ScrollToEnd()
+	p.frame()
+	end := p.doc.Position().First
+	if end >= tail.Block {
+		t.Fatalf("the last heading leads the viewport at block %d; the fixture must end too soon after it for that",
+			end)
+	}
+	p.doc.ScrollToStart()
+	p.frame()
+
+	// The press wins at once: the entry is picked on the frame it landed
+	// on, before the document has laid out anywhere else.
+	p.clickAt(g.outline.Min.Y + tail.Idx*rowH + rowH/2)
+	if got := p.v.outlineList.Selected(); got != tail.Idx {
+		t.Errorf("pressing the last entry picked entry %d, want %d", got, tail.Idx)
+	}
+	if p.v.marked != tail.Idx {
+		t.Errorf("pressing the last entry marked entry %d, want %d", p.v.marked, tail.Idx)
+	}
+	p.frame() // the document carries the move out
+	if got := p.doc.Position().First; got != end {
+		t.Errorf("pressing the last entry left the note at block %d, want %d — as far toward the heading as it goes",
+			got, end)
+	}
+	// And it stays picked while the reader leaves the note alone: the
+	// leading block is under an earlier heading and always will be, so a
+	// mark taken from it alone would put the pick straight back.
+	for i := range 3 {
+		p.frame()
+		if got := p.v.outlineList.Selected(); got != tail.Idx {
+			t.Fatalf("frame %d after the press: the pick moved to entry %d, want %d",
+				i, got, tail.Idx)
+		}
+		if p.v.marked != tail.Idx {
+			t.Fatalf("frame %d after the press: the mark moved to entry %d, want %d",
+				i, p.v.marked, tail.Idx)
+		}
+	}
+
+	// The moment the reader moves the note themselves, the mark is the
+	// note's again.
+	p.doc.PageUp()
+	p.frame()
+	if got := p.doc.Position().First; got == end {
+		t.Fatalf("the note did not move on a page up; it is still at block %d", got)
+	}
+	want := outlineActive(entries, p.doc.Position().First)
+	if got := p.v.outlineList.Selected(); got != want {
+		t.Errorf("after the reader moved the note the pick is entry %d, want %d", got, want)
+	}
+	if p.v.marked != want {
+		t.Errorf("after the reader moved the note the mark is entry %d, want %d", p.v.marked, want)
+	}
+}
+
+// TestEveryEntryCanBeChosen walks the whole outline of a note with a short
+// tail, entry by entry: each one is the one picked once it has been pressed,
+// whether or not its heading can reach the top of the viewport.
+func TestEveryEntryCanBeChosen(t *testing.T) {
+	m := citedModel("guide/Short tail.md", tailOutlineSource(), 2)
+	p := newAsidePad(t, m, 700)
+	p.frame()
+
+	entries := noteOutline(m.CurrentNote())
+	rowH := asideRowPx(p.tok)
+	g := p.v.geom
+	for _, e := range entries {
+		p.clickAt(g.outline.Min.Y + e.Idx*rowH + rowH/2)
+		p.frame()
+		if got := p.v.outlineList.Selected(); got != e.Idx {
+			t.Errorf("pressing entry %d (%q) picked entry %d", e.Idx, e.Title, got)
+		}
+		if p.v.marked != e.Idx {
+			t.Errorf("pressing entry %d (%q) marked entry %d", e.Idx, e.Title, p.v.marked)
+		}
+	}
+}
+
+// TestAChoiceLetsGoOfADocumentItDidNotFollow is the choice's own state
+// machine, without a column around it: it stands while the same document
+// rests where the choice left it, lets go the moment that document is
+// somewhere else, and lets go of a document that was replaced under it even
+// if the new one happens to rest on the same block.
+func TestAChoiceLetsGoOfADocumentItDidNotFollow(t *testing.T) {
+	n := noteFromSource("guide/Short tail.md", tailOutlineSource())
+	doc := markdown.NewDocument(n.Blocks)
+	other := markdown.NewDocument(n.Blocks)
+
+	var c outlineChoice
+	if at, held := c.stands(doc, 4); held {
+		t.Errorf("a choice nobody made stands on entry %d", at)
+	}
+
+	c.take(doc, 4)
+	// The frame the choice is made on has not laid the document out again,
+	// so the first frame after it is what says where the note came to rest.
+	for i, first := range []int{31, 31, 31} {
+		at, held := c.stands(doc, first)
+		if !held || at != 4 {
+			t.Fatalf("frame %d with the note still at block %d: entry %d, held %v; want entry 4 held",
+				i, first, at, held)
+		}
+	}
+	if at, held := c.stands(doc, 12); held {
+		t.Errorf("the note moved to block 12 and the choice still stands on entry %d", at)
+	}
+	if at, held := c.stands(doc, 31); held {
+		t.Errorf("the note came back to block 31 and the dropped choice stands again on entry %d", at)
+	}
+
+	c.take(doc, 4)
+	if _, held := c.stands(doc, 31); !held {
+		t.Fatal("a fresh choice did not stand on the frame after it was made")
+	}
+	if at, held := c.stands(other, 31); held {
+		t.Errorf("the document was replaced under the choice and it stands on entry %d", at)
+	}
+	c.take(doc, 4)
+	if at, held := c.stands(nil, 31); held {
+		t.Errorf("there is no document at all and the choice stands on entry %d", at)
+	}
+}
+
 // TestBothPanesStandInEitherState is the exit condition as a
 // measurement: a note with many headings and a note with none both leave
 // the outline and the backlinks their own band of the column, the two

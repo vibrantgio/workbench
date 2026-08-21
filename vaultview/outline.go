@@ -73,3 +73,68 @@ func outlineActive(entries []outlineEntry, first int) int {
 	}
 	return active
 }
+
+// outlineChoice is an entry the reader picked, held against the mark the
+// document would otherwise write.
+//
+// It exists because the last headings of a note cannot lead the viewport:
+// the document stops at its own end, so the leading block stays under some
+// earlier heading however far the reader is taken toward the one they
+// picked. A mark read from that block alone takes the pick straight back
+// off the entry they pressed — the entry ends up unpickable, which is not
+// what pressing something means. So the pick stands, and it stands for
+// exactly as long as the reader leaves the note where pressing it put
+// them: move the note by any means and the mark is the document's again,
+// which is the tracking every other entry has.
+//
+// The zero value is a reader who has picked nothing.
+type outlineChoice struct {
+	// entryPlusOne is the picked entry offset by one, so that nothing
+	// picked is the zero value rather than the first entry.
+	entryPlusOne int
+	// doc is the document the pick was made in. A note replaced under a
+	// pick — followed link, reload — is not a note standing still, even
+	// when the block leading it happens to be the same one.
+	doc *markdown.Document
+	// first is the block the document came to rest on once it had carried
+	// the move out, and seated says that has been read. Until then there is
+	// nothing to compare a later frame against: the move takes effect on
+	// the document's next layout, which has not happened yet.
+	first  int
+	seated bool
+}
+
+// take records the entry the reader picked and the document it was picked
+// in, letting go of whatever was held before.
+func (c *outlineChoice) take(doc *markdown.Document, idx int) {
+	*c = outlineChoice{entryPlusOne: idx + 1, doc: doc}
+}
+
+// drop lets go of the pick, leaving the mark to the document.
+func (c *outlineChoice) drop() { *c = outlineChoice{} }
+
+// stands reports whether the reader's pick still holds, and which entry it
+// marks when it does. first is the block leading the viewport of the
+// document laid out this frame.
+//
+// It is the frame's one reading of the pick and it keeps what it reads: the
+// first frame after a pick records where the document came to rest — as far
+// toward the heading as the note goes, whether or not that put the heading
+// at the top — and any later frame that finds the document somewhere else
+// lets the pick go, so the mark returns to following the reader down the
+// note.
+func (c *outlineChoice) stands(doc *markdown.Document, first int) (int, bool) {
+	switch {
+	case c.entryPlusOne == 0:
+		return -1, false
+	case doc == nil || doc != c.doc:
+		c.drop()
+		return -1, false
+	case !c.seated:
+		c.seated, c.first = true, first
+	case first != c.first:
+		c.drop()
+		return -1, false
+	}
+	return c.entryPlusOne - 1, true
+}
