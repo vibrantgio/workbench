@@ -59,7 +59,7 @@ func wearAlone(name string, c tokens.ColorTokens) markdown.Style {
 func atTheCode(t *testing.T, e *embed, m Model, os tokens.ColorTokens, sel ...*baseSelector) *image.RGBA {
 	t.Helper()
 	pageOn(t, e, m, os, sel...)
-	row := e.codeRow()
+	row := e.codeColumnRow()
 	if row < 0 {
 		t.Fatal("the embedded page has no code specimen row to scroll to")
 	}

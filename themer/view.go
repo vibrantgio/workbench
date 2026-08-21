@@ -240,7 +240,7 @@ type topClicks struct {
 // find one. The well is a band rather than the whole page there, because a
 // grid nobody can see without scrolling is a grid nobody knows about.
 func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, page *embed, bases *baseSelector, grid *styleGrid) layout.Widget {
-	c := SchemeFor(t.os, m)
+	c, other := SchemePair(t.os, m)
 	p := PaletteFrom(c)
 	dark := m.Dark(t.os)
 	// Each candidate's generated primary pair, on the side the window is
@@ -260,11 +260,13 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	// Built here rather than per frame: the sections are a function of the
 	// palette and the chosen syntax base, and both change on an emission,
 	// not on a frame.
-	items := page.items(t.typ.Shaper, c, m.AppliedBases())
+	// The column, with the window's own palette sections standing where the
+	// inventory's were — see [embed.items].
+	items := page.items(t.typ.Shaper, c, m.AppliedBases(), PaletteRows(p, c, other, t.typ, dark))
 	// The base selector rides in the code specimen's own row rather than
 	// standing beside the page: the choice belongs next to its consequence,
 	// and nowhere else on the page is it worth a column.
-	if row := page.codeRow(); row >= 0 && row < len(items) {
+	if row := page.codeColumnRow(); row >= 0 && row < len(items) {
 		items[row] = BesideTheCode(p, c, t.typ, m, dark, bases, items[row])
 	}
 

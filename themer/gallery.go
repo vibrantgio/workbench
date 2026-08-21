@@ -44,15 +44,36 @@ type embed struct {
 	inv    *inventory.Inventory
 	bases  highlight.BasePair
 	code   int
+	// swapAt is the row of the inventory's own list where its palette sections
+	// begin and swapRows how many rows they take, or -1 before the first call
+	// has looked. They are the rows this window replaces with its own — see
+	// [embed.items].
+	swapAt, swapRows int
 }
 
-func newEmbed() *embed { return &embed{st: list.NewState(), code: -1} }
+func newEmbed() *embed { return &embed{st: list.NewState(), code: -1, swapAt: -1} }
 
-// items returns the whole inventory as the rows of the scrolling column, in
-// the given palette and with its code drawn in the given syntax bases — the
-// pair, so the appearance the palette is on picks its own member and a flip of
-// the scheme puts the other one's whole plate on the specimen, its ground
-// included.
+// swapped names the inventory's own palette sections, which this window shows
+// its own two in the place of.
+//
+// The window has one palette story and it is the one with the provenance in it.
+// Rendering both would put the same token names in front of a reader twice
+// within a screen, with nothing saying which of the two answers the question
+// they came with — and the second telling, being a definition rather than a
+// specimen of this seed, is the one that answers nothing this window is for.
+//
+// Which is a decision about what this window shows and not an edit to what it
+// shows it from: the inventory is asked for its sections and this window chooses
+// which of them to lay out, exactly as it already chooses to put a base selector
+// beside one of them. Every other section is drawn as the inventory built it.
+var swapped = []string{"foundations-roles", "foundations-ramps"}
+
+// items returns the scrolling column: the inventory in the given palette, with
+// its code drawn in the given syntax bases — the pair, so the appearance the
+// palette is on picks its own member and a flip of the scheme puts the other
+// one's whole plate on the specimen, its ground included — and with the palette
+// rows standing where the inventory's own palette sections were.
+//
 // The inventory itself is built on the first call — before anything has been
 // dropped, so the parse is behind us by the time a pick has to be quick — and
 // again only if the typography under it is replaced.
@@ -63,10 +84,14 @@ func newEmbed() *embed { return &embed{st: list.NewState(), code: -1} }
 // from is beside the specimen, so whoever picked one is already looking at what
 // it did, and a column that jumped under them would be taking a view they had
 // set themselves.
-func (e *embed) items(shaper *text.Shaper, c tokens.ColorTokens, bases highlight.BasePair) []layout.Widget {
+//
+// The palette rows are the window's own and are handed in rather than built
+// here, because they are a function of the derived pair and of the side of it
+// on screen, which this type knows nothing about.
+func (e *embed) items(shaper *text.Shaper, c tokens.ColorTokens, bases highlight.BasePair, palette []layout.Widget) []layout.Widget {
 	if e.inv == nil || e.shaper != shaper {
 		e.inv, e.shaper = inventory.New(shaper), shaper
-		e.bases, e.code = highlight.BasePair{}, -1
+		e.bases, e.code, e.swapAt = highlight.BasePair{}, -1, -1
 	}
 	if e.bases != bases {
 		e.bases = bases
@@ -78,13 +103,67 @@ func (e *embed) items(shaper *text.Shaper, c tokens.ColorTokens, bases highlight
 		if row := e.inv.ItemIndex(c, inventory.CodeSectionName()); row >= 0 {
 			e.code = row + 1 // the heading's row, then the body's
 		}
+		e.swapAt, e.swapRows = e.paletteSpan(c)
 	}
-	return e.inv.Items(c)
+	items := e.inv.Items(c)
+	if e.swapAt < 0 {
+		// Nothing there to stand in the place of, which no build ships: the
+		// window still says what its palette is, at the head of the column.
+		return append(palette, items...)
+	}
+	out := make([]layout.Widget, 0, len(items)-e.swapRows+len(palette))
+	out = append(out, items[:e.swapAt]...)
+	out = append(out, palette...)
+	return append(out, items[e.swapAt+e.swapRows:]...)
+}
+
+// paletteSpan is where the inventory's own palette sections stand in its list:
+// the row the first of them begins on, and how many rows the run of them takes,
+// counting a heading and a body each. It answers (-1, 0) if none of them is
+// there, which is what a rename upstream looks like from here.
+func (e *embed) paletteSpan(c tokens.ColorTokens) (at, rows int) {
+	first, last := -1, -1
+	for _, name := range swapped {
+		row := e.inv.ItemIndex(c, name)
+		if row < 0 {
+			continue
+		}
+		if first < 0 || row < first {
+			first = row
+		}
+		if row > last {
+			last = row
+		}
+	}
+	if first < 0 {
+		return -1, 0
+	}
+	return first, last + 2 - first
 }
 
 // codeRow is the row of [embed.items] the code specimen's body is drawn on, or
 // -1 before the first call has built the column.
+//
+// It indexes the inventory's own list and nothing else. The column is that list
+// with rows taken out of it and rows put in — see [embed.items] — so anything
+// addressing the column asks [embed.codeColumnRow] instead.
 func (e *embed) codeRow() int { return e.code }
+
+// codeColumnRow is the row of the scrolling column the code specimen's body is
+// drawn on: its row in the inventory's own list, moved by whatever the palette
+// swap did to the rows in front of it.
+//
+// It is the number anything addressing the column uses, [embed.codeRow] being
+// an index into a list the column is not.
+func (e *embed) codeColumnRow() int {
+	if e.code < 0 {
+		return -1
+	}
+	if e.swapAt < 0 {
+		return e.code + PaletteSectionRows
+	}
+	return e.code + PaletteSectionRows - e.swapRows
+}
 
 // Gallery draws the embedded page: a label saying what it is and which colour
 // it is rendered from, and under it the inventory on its own panel, scrolled

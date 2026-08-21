@@ -27,11 +27,25 @@ import (
 // changes the side included, which is what stops a control from wearing one
 // theme while the page it stands on wears another.
 func SchemeFor(os tokens.ColorTokens, m Model) tokens.ColorTokens {
+	shown, _ := SchemePair(os, m)
+	return shown
+}
+
+// SchemePair is [SchemeFor] and the side it did not return: the palette the
+// window draws in, and the one on the other side of its switch.
+//
+// Both come out of one derivation, which is the only reason this exists. The
+// window has one place that wants the side it is not showing — the inverse pair,
+// which is by definition the counterpart scheme's surface and text — and asking
+// [SchemeFor] and then asking again for the other side would derive the whole
+// palette twice per emission to learn something the first derivation already
+// knew. A pick costs one derivation, and it stays one.
+func SchemePair(os tokens.ColorTokens, m Model) (shown, other tokens.ColorTokens) {
 	light, dark := m.Pair(os)
 	if m.Dark(os) {
-		return dark
+		return dark, light
 	}
-	return light
+	return light, dark
 }
 
 // Pair is both sides of the theme on screen, resolved from one seed so that

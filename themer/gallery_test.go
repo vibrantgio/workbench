@@ -203,14 +203,14 @@ func TestTheEmbeddedPageIsTheBiggestBand(t *testing.T) {
 func TestAPickDoesNotRebuildTheInventory(t *testing.T) {
 	e := newEmbed()
 	shaper := pinned().Shaper
-	e.items(shaper, tokens.DefaultLight, highlight.DefaultBases())
+	e.items(shaper, tokens.DefaultLight, highlight.DefaultBases(), nil)
 	built := e.inv
 	if built == nil {
 		t.Fatal("the first render built no inventory")
 	}
 	light, dark := tokens.FromSeed(fixtureBlue)
-	e.items(shaper, light, highlight.DefaultBases())
-	e.items(shaper, dark, highlight.DefaultBases())
+	e.items(shaper, light, highlight.DefaultBases(), nil)
+	e.items(shaper, dark, highlight.DefaultBases(), nil)
 	if e.inv != built {
 		t.Error("a change of palette rebuilt the inventory — the reading sample is being parsed again on every pick")
 	}
@@ -223,12 +223,12 @@ func BenchmarkRetheme(b *testing.B) {
 	e := newEmbed()
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	light, dark := tokens.FromSeed(fixtureBlue)
-	e.items(shaper, light, highlight.DefaultBases())
+	e.items(shaper, light, highlight.DefaultBases(), nil)
 	for i := 0; b.Loop(); i++ {
 		c := light
 		if i%2 == 1 {
 			c = dark
 		}
-		e.items(shaper, c, highlight.DefaultBases())
+		e.items(shaper, c, highlight.DefaultBases(), nil)
 	}
 }
