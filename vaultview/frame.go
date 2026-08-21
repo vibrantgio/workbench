@@ -1,7 +1,9 @@
 // frame.go is the vault window's chrome and its column composition: the
 // sidebar pane down the leading edge, and beside it the content area —
-// one chrome row across its top, and under that the note column and the
-// backlinks aside, parted by a draggable divider.
+// one chrome row across its top, the note column and the backlinks aside
+// under it parted by a draggable divider, and one status bar across its
+// foot. The two bands are the same span and the same treatment at either
+// end of the same column; what the foot one carries is in status.go.
 //
 // The composition is app-local rather than the vocabulary's three-column
 // shell for one reason: that shell pins its top slot to a full navbar
@@ -278,27 +280,38 @@ func renderWindow(
 // rectangle in frame coordinates, empty when the rail is hidden or the
 // window has no room for it; the leading edge the content area starts
 // from — past the pane when the rail stands, the window's own edge when
-// it does not — and the top and height of the content area's first
-// document row, which the chrome row stands above.
+// it does not — the top and height of the content area's first document
+// row, which the chrome row stands above, and the line that row stops on,
+// which is where the status bar begins.
 //
-// Only the content area has a chrome row. The pane floats one margin
-// inside the window's leading, top and bottom edges, so the only thing
-// above it is that margin of ground: no band, and nothing else to
-// measure.
+// Only the content area has a chrome row and a status bar. The pane floats
+// one margin inside the window's leading, top and bottom edges, so the
+// only thing above it is that margin of ground and the only thing below it
+// the same: no band at either end, and nothing else to measure.
 type frameGeom struct {
 	pane     image.Rectangle
 	contentX int
 	rowTop   int
 	rowH     int
+	footTop  int
 }
 
 // frameGeometry measures the pane and the content area. It is separate
 // from the drawing so the arrangement can be asserted without a frame:
 // that the pane floats one margin inside the window's leading, top and
-// bottom edges, and that the content reflows to the window's own edge
-// when the rail goes.
-func frameGeometry(gtx layout.Context, size image.Point, barH int, hidden bool) frameGeom {
-	g := frameGeom{rowTop: min(barH, max(size.Y, 0)), rowH: max(size.Y-barH, 0)}
+// bottom edges, that the content reflows to the window's own edge when the
+// rail goes, and that the content area's columns run between its two
+// bands and no further.
+//
+// The bands are taken in the order they matter when there is no room for
+// either: the chrome row first, because it carries the control that brings
+// a dismissed pane back, and the status bar out of what is left, because a
+// window with no height for a document has nothing to report about one.
+func frameGeometry(gtx layout.Context, size image.Point, barH, footH int, hidden bool) frameGeom {
+	h := max(size.Y, 0)
+	barH = min(max(barH, 0), h)
+	footH = min(max(footH, 0), h-barH)
+	g := frameGeom{rowTop: barH, rowH: h - barH - footH, footTop: h - footH}
 	if hidden || size.X <= 0 || size.Y <= 0 {
 		return g
 	}
@@ -320,7 +333,9 @@ func frameGeometry(gtx layout.Context, size image.Point, barH int, hidden bool) 
 
 // layout draws the sidebar pane, then the content area's chrome row and
 // the columns below it, in the order they read: rail, chrome row, note,
-// divider, aside. That order is the focus ring's too.
+// divider, aside — and last the status bar under all of them. That order
+// is the focus ring's too, and the bar is last in it by holding nothing
+// the ring can stop on.
 func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as, main layout.Widget) layout.Dimensions {
 	size := gtx.Constraints.Max
 	// The window's ground is the note's own paper, not a chrome fill: the
@@ -332,7 +347,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		barH = size.Y
 	}
 
-	g := frameGeometry(gtx, size, barH, m.SidebarHidden)
+	g := frameGeometry(gtx, size, barH, gtx.Dp(statusBarHeight(tok)), m.SidebarHidden)
 	f.geom = g
 
 	if sb != nil && !g.pane.Empty() {
@@ -420,6 +435,18 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		agtx := gtx
 		agtx.Constraints = layout.Exact(image.Pt(asidePx, g.rowH))
 		as(agtx)
+		st.Pop()
+	}
+
+	// The status bar goes last: it is the content area's foot, nothing
+	// stands on it, and it holds nothing the keyboard can reach — so the
+	// reading order the ops above set down ends with the document's own
+	// columns rather than with a line about them.
+	if rowW := size.X - g.contentX; rowW > 0 && g.footTop < size.Y {
+		st := op.Offset(image.Pt(g.contentX, g.footTop)).Push(gtx.Ops)
+		fgtx := gtx
+		fgtx.Constraints = layout.Exact(image.Pt(rowW, size.Y-g.footTop))
+		layoutStatusBar(fgtx, m, tok)
 		st.Pop()
 	}
 

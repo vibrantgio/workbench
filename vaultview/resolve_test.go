@@ -196,7 +196,9 @@ func TestParseRef(t *testing.T) {
 
 // noteFromSource builds a Note the way LoadNote does, without the disk:
 // frontmatter split off, body parsed, wikilinks lifted into hyperlink
-// spans, block-id tails stripped into the anchors map.
+// spans, block-id tails stripped into the anchors map, and the source's
+// own lines counted — off the same bytes the reader would count, so a
+// note built here says what the same file on disk would say.
 func noteFromSource(p, src string) *Note {
 	fm, body := obsidian.SplitFrontMatter([]byte(src))
 	blocks, anchors := obsidian.BlockAnchors(obsidian.WikiSpans(markdown.Parse(body)))
@@ -207,6 +209,7 @@ func noteFromSource(p, src string) *Note {
 		FM:      fm,
 		Blocks:  blocks,
 		Anchors: anchors,
+		Lines:   sourceLines([]byte(src)),
 	}
 }
 

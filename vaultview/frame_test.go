@@ -149,8 +149,9 @@ func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 		Ops:         &ops,
 	}
 	const barH = 28
+	const footH = 24
 
-	shown := frameGeometry(gtx, size, barH, false)
+	shown := frameGeometry(gtx, size, barH, footH, false)
 	if shown.pane.Empty() {
 		t.Fatal("no rail pane with the rail shown")
 	}
@@ -169,15 +170,24 @@ func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 	if shown.rowTop != barH {
 		t.Errorf("the content area's first document row starts at y=%d, want %d — below its own chrome row and nothing else", shown.rowTop, barH)
 	}
+	// The status bar is the content area's own foot and the pane's bottom
+	// margin is not measured against it: the pane floats one margin inside
+	// the window's bottom edge whatever the content area spends down there.
+	if want := size.Y - footH; shown.footTop != want {
+		t.Errorf("the status bar starts at y=%d, want %d — one bar above the window's bottom edge", shown.footTop, want)
+	}
+	if got := shown.rowTop + shown.rowH; got != shown.footTop {
+		t.Errorf("the content area's columns end at y=%d and the status bar starts at y=%d; they must meet", got, shown.footTop)
+	}
 
-	hidden := frameGeometry(gtx, size, barH, true)
+	hidden := frameGeometry(gtx, size, barH, footH, true)
 	if !hidden.pane.Empty() {
 		t.Errorf("rail pane %v with the rail hidden, want none", hidden.pane)
 	}
 	if hidden.contentX != 0 {
 		t.Errorf("note column starts at x=%d with the rail hidden, want the window's own edge", hidden.contentX)
 	}
-	if hidden.rowH != shown.rowH || hidden.rowTop != shown.rowTop {
+	if hidden.rowH != shown.rowH || hidden.rowTop != shown.rowTop || hidden.footTop != shown.footTop {
 		t.Errorf("hiding the rail moved the content row: %+v vs %+v", hidden, shown)
 	}
 
@@ -186,7 +196,7 @@ func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 	narrow := image.Pt(200, 800)
 	ngtx := gtx
 	ngtx.Constraints = layout.Exact(narrow)
-	if g := frameGeometry(ngtx, narrow, barH, false); g.pane.Dx() > narrow.X/2 {
+	if g := frameGeometry(ngtx, narrow, barH, footH, false); g.pane.Dx() > narrow.X/2 {
 		t.Errorf("pane %v takes more than half of a %d dp window", g.pane, narrow.X)
 	}
 }

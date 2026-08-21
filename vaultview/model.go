@@ -116,6 +116,10 @@ func (m Model) CurrentNote() *Note {
 // Mod and Size record what the file looked like when it was read, so a
 // later navigation can tell a cached note that is still current from one
 // the vault's owner has edited since.
+//
+// Lines is the file's own line count, taken off the same bytes and kept
+// beside them for the same reason: it is a fact about the file as it was
+// read, not about anything the window later does with it.
 type Note struct {
 	Path    string // vault-relative, forward slashes
 	Title   string // file name without the .md extension
@@ -124,6 +128,7 @@ type Note struct {
 	Anchors map[string]int // block id → top-level block index
 	Mod     time.Time      // modification time at read
 	Size    int64          // byte size at read
+	Lines   int            // source lines at read; see status.go
 }
 
 // BrowseTo points the folder browser at a directory.
@@ -604,7 +609,9 @@ func openVaultCmd(path string) mvu.Command {
 // LoadNote reads one note from the vault and prepares it for rendering:
 // frontmatter split off, body parsed into the public block model, every
 // wikilink occurrence lifted into its own hyperlink span, and block-id
-// tails stripped into the anchors map the viewport seats on.
+// tails stripped into the anchors map the viewport seats on. The file's
+// own lines are counted here, off the bytes that were read, because this
+// is the only place that has them.
 func LoadNote(root, rel string) (*Note, error) {
 	full := filepath.Join(root, filepath.FromSlash(rel))
 	src, err := os.ReadFile(full)
@@ -631,5 +638,6 @@ func LoadNote(root, rel string) (*Note, error) {
 		Anchors: anchors,
 		Mod:     mod,
 		Size:    size,
+		Lines:   sourceLines(src),
 	}, nil
 }

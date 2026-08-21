@@ -49,17 +49,21 @@ import (
 // Note-page layout constants.
 const (
 	noteInsetDp = 24
-	// noteEndSpaceDp is how far above the window's bottom edge a note comes
-	// to rest once it is scrolled as far as it goes. It is the document's
-	// foot margin, and like a printed page's it is set wider than the
-	// reading margin the column keeps at its sides — the eye needs to see
-	// that the text stopped because it ended, not because the window did.
+	// noteEndSpaceDp is how far above the foot of its own column a note
+	// comes to rest once it is scrolled as far as it goes — that foot being
+	// where the window's status bar starts, a band further in than the
+	// glass. It is the document's foot margin, and like a printed page's it
+	// is set wider than the reading margin the column keeps at its sides —
+	// the eye needs to see that the text stopped because it ended, not
+	// because the window did.
 	//
 	// The amount is measured, not chosen: on this display, at one pixel per
 	// dp, a note read to its end in the reading surfaces this viewer is
-	// judged beside rests its last line about fifty px above the window's
-	// bottom edge. Forty dp, with the last block's own closing gap on top of
-	// it, puts this one at forty-eight. A plain text view — the platform's
+	// judged beside rests its last line about fifty px above the foot of
+	// the surface it is read in — the window's bottom edge, on the ones
+	// with nothing below the text. Forty dp, with the last block's own
+	// closing gap on top of it, puts this one at forty-eight above its own
+	// column's foot, which is the bar. A plain text view — the platform's
 	// own, with no reading margins at any edge — rests its last line five px
 	// up instead, which is the same answer for a surface that is not
 	// designed to be read at length.
@@ -355,7 +359,7 @@ func layoutNotePage(
 	// rather than by the page, so the document's viewport reaches the
 	// column's own edges the way the platform's reading surfaces do: the
 	// scrollbar stands hard against the trailing edge, and the last row of
-	// pixels above the window's bottom carries text like every other row.
+	// pixels above the column's foot carries text like every other row.
 	// The margins are not lost — the document keeps its own reading measure
 	// through the style's gutter, and comes to rest a foot margin above the
 	// bottom edge through its end space. Everything that is not the document
@@ -413,9 +417,9 @@ func layoutNotePage(
 			//
 			// The two spaces are the vertical half of the same bargain, one
 			// at each end: the column runs from the row above it to the
-			// window's bottom edge so that nothing is clipped with paper to
+			// status bar below it so that nothing is clipped with paper to
 			// spare beside it, and the note still rests a gap below the row
-			// at its start and a foot margin above the edge at its end. Both
+			// at its start and a foot margin above that bar at its end. Both
 			// are the document's own content, so the scroll bounds, the page
 			// moves and the bar's track account for them; a page that held
 			// either back outside the viewport would buy it at the price of a

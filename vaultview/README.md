@@ -54,6 +54,13 @@ The window is a sidebar down the leading edge and two columns beside it.
   whether it has headings to put in it or not. A note with no headings
   says so.
 
+Across the foot of those two columns, on the paper the note lies on, a
+quiet status bar says how long the open note is: the file's own lines,
+with the frontmatter counted like every other line of it and a last line
+written without a final newline counted too. It changes when the note
+does and at no other time — how wide the window is, and how the prose
+wraps in it, is nothing a line count knows about.
+
 Back and forward walk the notes you have visited, and each note keeps its
 own scroll position, so returning to a note returns you to where you were
 in it.
@@ -112,12 +119,12 @@ Three things are the app's own, on purpose. The **folder tree** is an
 app-local composition over `components/list` — the design system's
 sidebar is deliberately flat, and one nesting sidebar is not yet a
 pattern. The **window frame** — the sidebar column, and one tight chrome
-row over the two columns beside it — is an app-local arrangement rather
-than the three-column shell, because that shell pins its top slot to a
-full navbar band and this window spends as little height on chrome as it
-can. The **resolver** is
-vault semantics rather than rendering: pure functions over the scanned
-index, table-tested rule by rule.
+row and one quiet status bar bracketing the two columns beside it — is an
+app-local arrangement rather than the three-column shell, because that
+shell pins its top slot to a full navbar band and this window spends as
+little height on chrome as it can. The **resolver** is vault semantics
+rather than rendering: pure functions over the scanned index,
+table-tested rule by rule.
 
 The vault scan is a fence-aware line scanner — never a full parse — run
 off the render goroutine; a note is parsed only when it is opened. Where
