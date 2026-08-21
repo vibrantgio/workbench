@@ -714,71 +714,129 @@ func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
 	}
 }
 
-// TestNoSwatchEdgeIsItsOwnFill: every frame in this section is a colour the
-// thing inside it is not, and reads against it.
+// TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill: the section frames every
+// swatch in one colour per scheme — the inverse of the page — and every fill it
+// frames is told from the ground it stands on either by that edge or by being
+// that far from the ground itself.
 //
-// The grid's frame was the neutral ramp's 400 for every one of its cells, and
-// the grid draws that ramp: the Neutral row's own 400 cell was framed in itself,
-// byte for byte, so it had no edge at all — and the whole 400 column sits at
-// that step's luminance, which put the other seven rows at 1.00:1 as well. The
-// frame is measured over the fill now, and what this holds is both halves of
-// that: never the fill itself, and never so near it that the edge is a claim
-// only a colour picker can check.
-func TestNoSwatchEdgeIsItsOwnFill(t *testing.T) {
-	worst, at := math.Inf(1), ""
-	// Per side as well as over the pair, because the two sides are two
-	// different questions — the frames are chosen off one lightness scale but
-	// the fills sit on opposite ends of it — and the numbers are what the
-	// drawing code's own account of this choice cites.
-	side := map[bool]float64{false: math.Inf(1), true: math.Inf(1)}
+// One colour, because a frame chosen per swatch turned its polarity over in the
+// middle of every ramp and the flip was louder than the edges it bought. What
+// replaces the old per-swatch floor is the pair of readings: an edge that fades
+// as a fill leaves the page tone behind is an edge handing the boundary to the
+// fill, and the two multiply out to the contrast between the page and its
+// inverse, so they cannot both be weak. The range is logged in full and the
+// soft end named, which is what the drawing code's own account of this choice
+// cites — see [edgeIn].
+func TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill(t *testing.T) {
+	// Per side, because the two sides are two different questions: one edge is
+	// near-black over fills running up from a near-white page, the other is
+	// near-white over fills running down from a near-black one.
+	type span struct {
+		lo, hi     float64
+		soft, hard string
+	}
+	// The pale side first, so the two lines of the log read in the order the
+	// account of this choice writes them.
+	sides := [2]struct {
+		name string
+		span
+	}{{name: "light"}, {name: "dark"}}
+	worst, at, bounds := math.Inf(1), "", ""
+	for i := range sides {
+		sides[i].lo = math.Inf(1)
+	}
 	for _, sc := range schemesUnderTest(t) {
-		fills := map[string]stdcolor.NRGBA{}
-		for _, row := range rampRows(sc.c) {
-			for n := range RampSteps {
-				fills[fmt.Sprintf("%s %d", row.name, (n+1)*100)] = row.ramp.Step((n + 1) * 100)
-			}
-			if row.pin.A != 0 {
-				fills[row.name+" base"] = row.pin
-			}
+		edge := edgeIn(sc.c)
+		// The single colour, asserted as the token the account names rather
+		// than as bytes: a section framed in something else is a section whose
+		// edge no longer turns over with the switch.
+		if edge != sc.c.InverseSurface {
+			t.Errorf("%s: the section's edge is %v, want the page's inverse %v", sc.name, edge, sc.c.InverseSurface)
 		}
-		for _, g := range paletteGroups(sc.c, sc.other, sc.dark) {
-			for _, cell := range g.cells {
-				fills[cell.title()] = cell.fill
-			}
+		side := &sides[0].span
+		if sc.dark {
+			side = &sides[1].span
 		}
-		for name, fill := range fills {
-			edge := edgeOn(sc.c, fill)
-			if edge == fill {
-				t.Errorf("%s: %s is framed in itself (%v), which is a swatch with no edge", sc.name, name, fill)
+		selfFramed := ""
+		for name, fill := range sectionFills(sc.c, sc.other, sc.dark) {
+			// The recorded exception: one swatch on the board is the edge
+			// colour, so it wears no edge at all and is bounded by being the
+			// furthest thing from the page there is. Any second swatch framed
+			// in itself would be a colour the section is claiming twice.
+			if fill == edge {
+				if selfFramed != "" {
+					t.Errorf("%s: %s and %s are both framed in themselves", sc.name, selfFramed, name)
+				}
+				selfFramed = name
 			}
 			got := vgcolor.ContrastRatio(edge, fill)
-			side[sc.dark] = math.Min(side[sc.dark], got)
-			if got < worst {
-				worst, at = got, sc.name+" "+name
+			if got < side.lo {
+				side.lo, side.soft = got, sc.name+" "+name
+			}
+			if got > side.hi {
+				side.hi, side.hard = got, sc.name+" "+name
+			}
+			// Bounded: by the edge over the fill, or by the fill over the page.
+			// A swatch needs one of the two and the section guarantees it can
+			// never be short of both.
+			page := vgcolor.ContrastRatio(fill, sc.c.Background)
+			if b := math.Max(got, page); b < worst {
+				worst, at = b, sc.name+" "+name
+				bounds = fmt.Sprintf("%.2f:1 in edge, %.2f:1 against the page", got, page)
 			}
 		}
+		if want := InverseSurfacePick + PickPairSep + OnInverseSurfacePick; selfFramed != want {
+			t.Errorf("%s: the swatch framed in itself is %q, want the section's own edge colour on the board, %q",
+				sc.name, selfFramed, want)
+		}
 	}
-	t.Logf("the faintest edge in the section reads at %.2f:1, on %s — %.2f:1 the faintest of any light scheme, %.2f:1 of any dark one",
-		worst, at, side[false], side[true])
+	for _, s := range sides {
+		t.Logf("the %s schemes' edge runs from %.2f:1 on %s to %.2f:1 on %s",
+			s.name, s.lo, s.soft, s.hi, s.hard)
+	}
+	t.Logf("the least-bounded swatch in the section is %s, at %s", at, bounds)
 	if worst < markGraphicFloor {
-		t.Errorf("a swatch's edge reads at %.2f:1 over its own fill (%s), under the %.1f:1 a graphic owes its ground",
-			worst, at, markGraphicFloor)
+		t.Errorf("%s is bounded by neither its edge nor its own fill (%s), under the %.1f:1 a graphic owes its ground",
+			at, bounds, markGraphicFloor)
 	}
 }
 
-// oldEdgeStep is the step of the neutral ramp the section's frames used to be
-// drawn in, and so the one cell on the grid that was framed in its own colour.
-const oldEdgeStep = 400
+// sectionFills is every colour this section paints a swatch in, named as the
+// section names it: the seventy-two rungs of the grid, the base each role
+// pinned, and the fill of every cell on the picks board.
+func sectionFills(c, other tokens.ColorTokens, dark bool) map[string]stdcolor.NRGBA {
+	fills := map[string]stdcolor.NRGBA{}
+	for _, row := range rampRows(c) {
+		for n := range RampSteps {
+			fills[fmt.Sprintf("%s %d", row.name, (n+1)*100)] = row.ramp.Step((n + 1) * 100)
+		}
+		if row.pin.A != 0 {
+			fills[row.name+" base"] = row.pin
+		}
+	}
+	for _, g := range paletteGroups(c, other, dark) {
+		for _, cell := range g.cells {
+			fills[cell.title()] = cell.fill
+		}
+	}
+	return fills
+}
 
-// TestTheNeutralRowsOwnEdgeStepIsDrawnWithAnEdge: read off a render, the cell
-// this whole change is about — the step the old frame was the colour of — has a
-// boundary between its fill and the row it stands in.
-func TestTheNeutralRowsOwnEdgeStepIsDrawnWithAnEdge(t *testing.T) {
+// TestTheGridDrawsOneEdgeColourAcrossTheRow: read off a render, every boundary
+// along a row of the grid is drawn in the section's one edge colour.
+//
+// The grid is where a frame chosen per swatch showed itself, because it is the
+// one place the whole ramp is on screen at once: the boundary between cell four
+// and cell five came out in one polarity and the boundary between five and six
+// in the other, and the row read as two rows. Asserted off the pixels rather
+// than off [edgeIn] alone, because what a reader sees is what was drawn — the
+// Neutral row is scanned because its own fills are the greys the edge is
+// nearest, so a row that holds here holds everywhere.
+func TestTheGridDrawsOneEdgeColourAcrossTheRow(t *testing.T) {
 	for _, sc := range schemesUnderTest(t)[:4] {
 		img := paletteSectionW(t, sectionWidths[0], sc.c, sc.other, sc.dark)
-		rows := rampRows(sc.c)
 		row := -1
-		for i, r := range rows {
+		for i, r := range rampRows(sc.c) {
 			if r.name == NeutralName {
 				row = i
 			}
@@ -786,31 +844,20 @@ func TestTheNeutralRowsOwnEdgeStepIsDrawnWithAnEdge(t *testing.T) {
 		if row < 0 {
 			t.Fatalf("%s: no %s row on the grid", sc.name, NeutralName)
 		}
-		// The old frame was Neutral 400, so its cell is where an edge either
-		// exists or does not. The scan crosses the boundary between that cell
-		// and the one before it, a point below the cell's top so it is the
-		// vertical edge being read and not the row's own gap.
-		fill := sc.c.Ramps.Neutral.Step(oldEdgeStep)
-		mid := sectionRowY(row)
-		cell := sectionCellX(sectionWidths[0], oldEdgeStep/100-1)
-		seen := stdcolor.NRGBA{}
-		for x := cell - 3; x <= cell+1; x++ {
-			if got := pixelAt(img, x, mid); got != fill {
-				seen = got
+		// A point below the cell's top, so what is read is the vertical
+		// boundary between two cells and not the row's own gap. The leading
+		// edge of the first cell stands against the label column rather than
+		// against another cell, so the scan starts at the second.
+		edge, mid := edgeIn(sc.c), sectionRowY(row)
+		for n := 1; n < RampSteps; n++ {
+			x := sectionCellX(sectionWidths[0], n)
+			if got := pixelAt(img, x, mid); got != edge {
+				t.Errorf("%s: the boundary before %s %d drew %v, want the section's edge %v",
+					sc.name, NeutralName, (n+1)*100, got, edge)
 			}
 		}
-		if seen == (stdcolor.NRGBA{}) {
-			t.Errorf("%s: nothing but the fill %v either side of the %s %d cell's leading edge — the cell has no edge",
-				sc.name, fill, NeutralName, oldEdgeStep)
-			continue
-		}
-		if got := vgcolor.ContrastRatio(seen, fill); got < markGraphicFloor {
-			t.Errorf("%s: the %s %d cell's edge drew %v over %v, which reads at %.2f:1",
-				sc.name, NeutralName, oldEdgeStep, seen, fill, got)
-		} else {
-			t.Logf("%s: the %s %d cell's edge drew %v over its fill %v at %.2f:1",
-				sc.name, NeutralName, oldEdgeStep, seen, fill, got)
-		}
+		t.Logf("%s: all %d boundaries of the %s row drew %v",
+			sc.name, RampSteps-1, NeutralName, edge)
 	}
 }
 

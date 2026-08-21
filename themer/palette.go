@@ -1172,11 +1172,12 @@ func RampGrid(p Palette, c tokens.ColorTokens, ty Type, claims map[rampClaim]boo
 				// whose first column dissolves is a grid claiming nine steps and
 				// showing eight.
 				//
-				// The ink of that frame is measured over the step inside it —
-				// see [edgeOn] — which is what stops the middle of the grid
-				// dissolving the same way its first column would.
+				// The ink of that frame is one colour for the whole section —
+				// see [edgeIn] — and it is at its strongest over exactly the
+				// cells that need it, which are the ones whose fill is within a
+				// shade of the ground they stand on.
 				step := r.ramp.Step((n + 1) * 100)
-				paint.FillShape(gtx.Ops, edgeOn(c, step), clip.Rect(cell).Op())
+				paint.FillShape(gtx.Ops, edgeIn(c), clip.Rect(cell).Op())
 				if in := cell.Inset(line); !in.Empty() {
 					paint.FillShape(gtx.Ops, step, clip.Rect(in).Op())
 				}
@@ -1202,19 +1203,18 @@ func RampGrid(p Palette, c tokens.ColorTokens, ty Type, claims map[rampClaim]boo
 // It is a rounded chip with a frame rather than a square butted against its
 // neighbours, which is the whole of what separates it from the nine cells it
 // stands beside — that and the gap. The frame is the one the cells in that row
-// wear, measured over the chip's own colour, and it is here for the reason it
-// is there: a pinned base can be any colour a seed produces, pale ones
-// included, and a pale chip on a pale ground with no boundary reads as a chip
-// that failed to draw. A row whose nine cells were framed by measurement and
-// whose tenth swatch was framed by a fixed grey would say the chip came from
-// somewhere else.
+// wear, and it is here for the reason it is there: a pinned base can be any
+// colour a seed produces, pale ones included, and a pale chip on a pale ground
+// with no boundary reads as a chip that failed to draw. A row whose nine cells
+// wore the section's edge and whose tenth swatch wore some other one would say
+// the chip came from somewhere else.
 func markPin(gtx layout.Context, c tokens.ColorTokens, box image.Rectangle, pin stdcolor.NRGBA) {
 	if box.Empty() {
 		return
 	}
 	radius := gtx.Dp(InnerR) / 2
 	fillRRect(gtx, box, radius, pin)
-	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), edgeOn(c, pin))
+	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), edgeIn(c))
 }
 
 // markRung puts the dot on a cell a pick took.
@@ -1254,49 +1254,48 @@ func markInkOn(step stdcolor.NRGBA) stdcolor.NRGBA {
 	return tokens.Black
 }
 
-// The two steps a frame in this section is chosen between: the step of the
-// neutral ramp nearest the page and the step furthest from it, which are the
-// two quietest things in the theme that are still a long way apart.
-const (
-	EdgeNearStep = 200
-	EdgeFarStep  = 800
-)
-
-// edgeOn is the frame one swatch of this section wears: whichever of those two
-// steps reads better over the colour inside it, measured.
+// edgeIn is the frame every swatch of this section wears: the inverse of the
+// page, which is the theme's own [tokens.ColorTokens.InverseSurface] — the
+// counterpart scheme's surface, near-black under a light window and near-white
+// under a dark one.
 //
-// Measured per swatch, because no single ink can frame this section. The grid
-// alone is seventy-two fills running from the page's own tone to nearly the
-// ink's, and an ink picked for one end of that run has nothing left to say at
-// the other: the frame was the neutral ramp's 400 for every cell, and the
-// whole 400 column sat at that ink's own luminance — 1.00 to 1 across all eight
-// rows, with the Neutral row's 400 cell the same colour byte for byte, so its
-// edge was not faint but absent. The columns either side of it read at 1.37 and
-// 1.42. A grid whose middle third has no edges is a grid of nine steps showing
-// a smear.
+// One colour for the whole section, and not the better of two candidates
+// measured over each fill. Measured per swatch, the frame took the deep
+// candidate over the pale half of a ramp and the pale one over the deep half,
+// so every row turned its edge over somewhere along its own length — at a
+// different column per row, since the eight rows are eight hues carrying their
+// lightness differently — and a table whose boundaries change polarity in the
+// middle of a scale reads as two tables butted together rather than one ramp
+// of nine steps. The flip was louder than the edges it was buying.
 //
-// So the frame is chosen the way the dot on a rung is chosen — two candidates,
-// the better one kept — and the choice cannot land on the fill it is framing:
-// a colour has a contrast of exactly 1.00 to itself, which is the least there
-// is, so a fill that is one of the candidates is always framed in the other.
+// So one voice, and the one that is strongest where an edge is actually needed.
+// An edge is needed where a fill comes near the tone of the page it stands on:
+// step 100 of every ramp is the ground, near enough, and the page, the surface
+// and the divider are three of the colours the board below has to show. That is
+// exactly where the inverse of the page is furthest from the fill. Walking
+// toward the ink end the edge fades, and it may — a fill that far from the page
+// is bounded by its own colour, which is the same boundary read from the other
+// side. The page and its inverse are 14.72:1 apart in a light scheme and 14.49
+// in a dark one, and for a fill between them the two readings multiply out to
+// that: the edge cannot go soft without the fill having already taken the job
+// over. Past the inverse — the deepest rungs of a light scheme, the palest of a
+// dark one — the fill's own reading is larger still. The least-bounded swatch
+// in the section measures 3.98:1 by the better of the two readings, which is
+// the crossover and is above the floor a graphic owes its ground.
 //
-// The candidates are steps of the neutral ramp and not the ends of the tonal
-// axis the dot uses. The axis ends would guarantee more — no colour is closer
-// than 4.58 to both black and white — but a table wants a rule and not a
-// border: black and white lattices around eight rows of colour make the grid
-// read as the frames with colour in them. These two clear the floor a graphic
-// owes its ground everywhere in the section — the faintest edge on any light
-// scheme measures 3.48 and on any dark one 5.90, over four seeds — and they
-// clear it in the theme's own quiet greys. The floor holds rather than happens
-// because the steps stand on one shared lightness scale in both schemes: what
-// is measured there is the scale, and not a seed.
-func edgeOn(c tokens.ColorTokens, fill stdcolor.NRGBA) stdcolor.NRGBA {
-	near, far := c.Ramps.Neutral.Step(EdgeNearStep), c.Ramps.Neutral.Step(EdgeFarStep)
-	if vgcolor.ContrastRatio(near, fill) > vgcolor.ContrastRatio(far, fill) {
-		return near
-	}
-	return far
-}
+// The range, measured over every fill this section draws — seventy-two rungs,
+// the pinned bases and the board's own cells, over four seeds. A light scheme's
+// edge runs from 1.00:1 to 15.91:1, a dark scheme's from 1.00:1 to 17.14:1,
+// with the page's own swatch — the case the edge exists for — at 14.72:1 and
+// 14.49:1. The soft end is the InverseSurface cell of the picks board, which is
+// this exact colour and so is framed in itself at 1.00:1; behind it come the
+// 900 rungs of every ramp, at 1.16:1 in a light scheme and 1.05:1 in a dark
+// one, which are the fills that read against the page at 17.10:1 and 15.22:1.
+// Getting on for half the fills in the section carry an edge under 3:1 and that
+// is the design: the soft end is named here and left alone rather than
+// engineered away, because engineering it away is what put the polarity flip
+// in the grid.
+func edgeIn(c tokens.ColorTokens) stdcolor.NRGBA { return c.InverseSurface }
 
 // PickBoard draws every colour the theme names, in families, across as many
 // columns as the window is wide enough for.
@@ -1371,13 +1370,13 @@ func drawCell(gtx layout.Context, p Palette, c tokens.ColorTokens, ty Type, cell
 	box := image.Rect(r.Min.X, top, r.Min.X+sw, top+sh)
 	radius := gtx.Dp(InnerR) / 2
 	fillRRect(gtx, box, radius, cell.fill)
-	// The frame the grid above uses, measured over this cell's own colour — see
-	// [edgeOn] — and here for the reason it is there: a Background swatch on the
-	// page it is the background of has no boundary of its own, and without one
-	// it reads as a swatch that failed to draw. This board is where that case is
-	// certain rather than possible, since the page, the surface and the divider
-	// are three of the colours it has to show.
-	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), edgeOn(c, cell.fill))
+	// The one frame the grid above uses — see [edgeIn] — and here for the reason
+	// it is there: a Background swatch on the page it is the background of has
+	// no boundary of its own, and without one it reads as a swatch that failed
+	// to draw. This board is where that case is certain rather than possible,
+	// since the page, the surface and the divider are three of the colours it
+	// has to show, and it is where the edge is at its strongest.
+	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), edgeIn(c))
 	switch {
 	case cell.mark:
 		// In the colour the derivation chose, over the ground it chose it
