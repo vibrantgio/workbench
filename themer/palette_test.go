@@ -17,6 +17,7 @@ import (
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/textdraw"
 	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/imageseed"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -919,6 +920,157 @@ func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
 	}
 }
 
+// fixtureMagenta is a seed whose lifted light Primary sits between two rungs
+// of its own ramp: its depth lands between the tones of steps 500 and 600, and
+// the pin sits 0.0575 in OKLab from the nearest rung — over three times
+// [rungTolerance] — so nearest-rung matching honestly claims nothing. Found by
+// scanning the seed cube for the widest such margin at a vivid mid-scale
+// colour. It is the case the chip dot exists for: the light scheme pins the
+// seed at the seed's own depth, and this seed's depth is no rung's.
+var fixtureMagenta = stdcolor.NRGBA{R: 0xf8, G: 0x00, B: 0xd8, A: 0xff}
+
+// offRampSeeded is a window showing the theme fixtureMagenta generates: the
+// one fixture whose light pin claims no rung and whose dark pin is a rung
+// exactly, which are the two sides of the chip-dot question in one seed.
+func offRampSeeded(t *testing.T) Model {
+	t.Helper()
+	m := dropped(t)
+	m.Candidates = []imageseed.Candidate{candidate(fixtureMagenta, 1)}
+	m.Selected = 0
+	return m
+}
+
+// TestTheOffRampFixtureSitsBetweenRungs: the fixture the chip dot is judged
+// with honestly is the case it exists for. The lifted seed is on no rung and
+// indistinguishable from none, with margin; its depth falls between two
+// adjacent steps of the scale rather than off either end; its rule says the
+// seed was lifted and nothing else; and no pick claims a Primary rung — which
+// is the row that read as unused before the chip carried the dot. The dark
+// side of the same seed pins a rung exactly, which is the chip that has to
+// stay undotted.
+func TestTheOffRampFixtureSitsBetweenRungs(t *testing.T) {
+	light, dark := tokens.FromSeed(fixtureMagenta)
+	if n := stepIn(light.Ramps.Primary, light.Primary); n != 0 {
+		t.Fatalf("the light pin is rung %d exactly, want a pin between rungs", n)
+	}
+	if n := nearestStep(light.Ramps.Primary, light.Primary); n != 0 {
+		t.Fatalf("the light pin is indistinguishable from rung %d, want a pin between rungs", n)
+	}
+	nearest := math.Inf(1)
+	for n := range RampSteps {
+		nearest = min(nearest, oklabDistance(light.Ramps.Primary.Step((n+1)*100), light.Primary))
+	}
+	t.Logf("the lifted seed sits %.4f from its nearest rung, against a tolerance of %.4f", nearest, rungTolerance)
+	if nearest < 2*rungTolerance {
+		t.Errorf("the lifted seed sits %.4f from a rung against a tolerance of %.4f — too near to hold the between-rungs case",
+			nearest, rungTolerance)
+	}
+	// Between two adjacent steps of the light scale — which runs pale to deep —
+	// with daylight on both sides, not past either end of it.
+	l, _, _ := vgcolor.LabFromNRGBA(light.Primary)
+	above, _, _ := vgcolor.LabFromNRGBA(light.Ramps.Primary.Step(500))
+	below, _, _ := vgcolor.LabFromNRGBA(light.Ramps.Primary.Step(600))
+	t.Logf("the lifted seed's depth is L* %.2f, between step 500 at %.2f and step 600 at %.2f", l, above, below)
+	if l > above-3 || l < below+3 {
+		t.Errorf("the lifted seed's depth L* %.2f is not between steps 500 (%.2f) and 600 (%.2f) with margin",
+			l, above, below)
+	}
+	groups := paletteGroups(light, dark, false)
+	if got := rulesOf(groups)[PrimaryName]; got != PickSeed {
+		t.Errorf("the light Primary rule says %q, want %q", got, PickSeed)
+	}
+	for claim := range rampClaims(groups) {
+		if claim.role == PrimaryName {
+			t.Errorf("a pick claims %s %d, so the row was never the one with no dot", claim.role, claim.step)
+		}
+	}
+	if stepIn(dark.Ramps.Primary, dark.Primary) == 0 {
+		t.Error("the dark pin is on no rung, want the rung-exact pin whose chip stays undotted")
+	}
+}
+
+// TestTheChipDotAgreesWithTheRule: the chip carries a dot exactly where the
+// rule under the pick says the pin is on no rung. [pinRung] asks the two
+// questions [basePart] resolves a base's rule by, and this holds the two
+// answers together — a chip dotted beside a rule naming a rung, or a bare chip
+// beside a rule claiming none, would be the section disagreeing with itself in
+// the two places it is read.
+func TestTheChipDotAgreesWithTheRule(t *testing.T) {
+	for _, seed := range []stdcolor.NRGBA{fixtureBlue, fixtureRed, fixtureGrey, tokens.DefaultSeed, fixtureMagenta} {
+		light, dark := tokens.FromSeed(seed)
+		for _, sc := range []tokens.ColorTokens{light, dark} {
+			for _, row := range rampRows(sc) {
+				if row.pin.A == 0 {
+					continue // Neutral pins nothing: a dash, and never a dot
+				}
+				// The near and off wordings differ per role and play no part in
+				// which rung the rule claims, which is the half under test.
+				part := basePart(row.name, row.ramp, row.pin, PickJustOff, PickPinned)
+				if dotted, claimed := pinRung(row.ramp, row.pin) == 0, part.step != 0; dotted == claimed {
+					t.Errorf("%s %s: the chip dot says the pin claims no rung (%t) and the rule claims step %d",
+						hexOf(seed), row.name, dotted, part.step)
+				}
+			}
+		}
+	}
+}
+
+// TestAnOffRampBaseCarriesTheDotItself: a pinned base indistinguishable from
+// no rung carries the dot on its own chip, in the ink measured over the chip
+// the way every cell's dot is measured over its step — so the row reads as
+// used and placed rather than as a role nothing picked. The dark side of the
+// same seed is the control: a rung-exact pin keeps its rung dot and an
+// undotted chip. Both read off the render.
+func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
+	m := offRampSeeded(t)
+	for _, os := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
+		c, _ := derived(m, os)
+		img := page(t, m, os)
+		at := rampPinCentre(0) // Primary leads the grid
+		got := img.RGBAAt(at.X, at.Y)
+		if !m.Dark(os) {
+			// The dot, in the middle of the chip, in the measured ink.
+			want := markInkOn(c.Primary)
+			if off := max(apart(got.R, want.R), max(apart(got.G, want.G), apart(got.B, want.B))); off > markJitter {
+				t.Errorf("the chip centre at %v drew %v, want the dot ink %v", at, got, want)
+			}
+			// Beside the dot the chip is still the pin.
+			side := img.RGBAAt(at.X-int(RampPinW)/3, at.Y)
+			if side.R != c.Primary.R || side.G != c.Primary.G || side.B != c.Primary.B {
+				t.Errorf("beside the dot the chip drew %v, want the pinned base %v", side, c.Primary)
+			}
+			// And no cell of the row carries one: the pin claims no rung, and
+			// the dot the row owes its reader is the chip's.
+			for n := range RampSteps {
+				cell := rampCellCentre(0, n)
+				step := c.Ramps.Primary.Step((n + 1) * 100)
+				pix := img.RGBAAt(cell.X, cell.Y)
+				if pix.R != step.R || pix.G != step.G || pix.B != step.B {
+					t.Errorf("%s %d at %v drew %v, want the bare step %v — the pin claims no rung",
+						PrimaryName, (n+1)*100, cell, pix, step)
+				}
+			}
+			continue
+		}
+		// The rung-exact side: the chip stays the pin, whole, and the dot is on
+		// the rung the pin is.
+		if got.R != c.Primary.R || got.G != c.Primary.G || got.B != c.Primary.B {
+			t.Errorf("the rung-exact chip centre at %v drew %v, want the undotted pin %v", at, got, c.Primary)
+		}
+		n := stepIn(c.Ramps.Primary, c.Primary)
+		if n == 0 {
+			t.Fatal("the dark pin claims no rung, want the rung-exact control case")
+		}
+		cell := rampCellCentre(0, n/100-1)
+		step := c.Ramps.Primary.Step(n)
+		want := markInkOn(step)
+		pix := img.RGBAAt(cell.X, cell.Y)
+		if off := max(apart(pix.R, want.R), max(apart(pix.G, want.G), apart(pix.B, want.B))); off > markJitter {
+			t.Errorf("%s %d at %v drew %v, want its dot %v", PrimaryName, n, cell, pix, want)
+		}
+	}
+}
+
 // TestEachContainerIsItsRungHeldAtLessChroma: the rule under a status container
 // says which rung it was realized at and what was done to that rung, and both
 // halves are checked against the colour itself.
@@ -1401,6 +1553,21 @@ func TestPaletteSectionDump(t *testing.T) {
 			}
 			t.Logf("wrote %s at %d points wide", path, w.width)
 		}
+	}
+	// And the seed whose light pin claims no rung, which is the one grid where
+	// the dot is on a chip rather than a cell — with its own dark side, where
+	// the pin is a rung exactly and the chip stays bare.
+	oLight, oDark := tokens.FromSeed(fixtureMagenta)
+	for _, sc := range []struct {
+		name     string
+		c, other tokens.ColorTokens
+		dark     bool
+	}{{"light", oLight, oDark, false}, {"dark", oDark, oLight, true}} {
+		path := filepath.Join(*dumpDir, "themer-palette-offramp-"+sc.name+".png")
+		if err := golden.Save(path, paletteSectionW(t, sectionWidths[1], sc.c, sc.other, sc.dark)); err != nil {
+			t.Fatalf("themer: save %s: %v", path, err)
+		}
+		t.Logf("wrote %s at %d points wide", path, sectionWidths[1])
 	}
 }
 

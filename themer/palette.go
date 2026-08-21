@@ -96,6 +96,16 @@
 // chip is the one that is absent, because Neutral is the one role the theme
 // pins no solid fill for.
 //
+// And where the pin is indistinguishable from no rung at all — the light
+// scheme's Primary, whenever the seed's own depth falls between two steps of
+// the scale — the dot moves to the chip. Nearest-rung matching honestly
+// claimed nothing, but a row with no dot anywhere, beside seven rows that
+// carry one, reads as a role the palette is not using, when the truth is that
+// the role's pinned colour is in use and is the chip. So the chip carries the
+// dot itself, in the ink measured over the chip the way every cell's dot is
+// measured over its step, and every row answers one question one way: the
+// pinned colour lives here — on a rung, or on the chip.
+//
 // # Why the containers and the two ends of the axis are cells of their own
 //
 // Both are colours a widget is painted with at rest and neither is on a rung.
@@ -284,7 +294,9 @@ const (
 // either side. Everybody double-takes at the first press of the switch.
 //
 // And the mark's own clause says what a dot is, in the words anybody reads it
-// with. Some picks are not on the rung they are marked at — a light scheme's
+// with: where a pick lives, which is an answer a chip can give as well as a
+// rung, since a pin indistinguishable from no rung carries its dot on the chip
+// itself. Some picks are not on the rung they are marked at — a light scheme's
 // accents are pinned a hair off their own 700, by three parts in 255 — but the
 // caption is the wrong place to carry that: hedging it there costs every reader
 // a sentence they have to stop and parse, to buy a distinction that is invisible
@@ -293,7 +305,7 @@ const (
 // reading the line that tells them. So the caption is left doing a legend's job.
 const (
 	RampsLabel = "Palette Ramps"
-	RampsHint  = "a dot marks each pick's step · nine steps a role · 100 nearest the page · each row ends with its role's pinned base, and Neutral pins none"
+	RampsHint  = "a dot marks where each pick lives · nine steps a role · 100 nearest the page · each row ends with its role's pinned base, and Neutral pins none"
 	PicksLabel = "Palette Picks"
 	PicksHint  = "every colour the theme names, and where it came from"
 	// HintSep joins one clause of a caption to the next, and is therefore where
@@ -834,6 +846,19 @@ func nearestStep(r tokens.Ramp, col stdcolor.NRGBA) int {
 // measurements it stands between.
 const rungTolerance = 0.018
 
+// pinRung is the rung a pinned base claims: the step it is exactly, else the
+// one it is indistinguishable from, else 0 — the two questions [basePart]
+// resolves a base's rule by, asked in the order it asks them, so the grid and
+// the rule cannot disagree about whether a pin lives on a rung. The one pin
+// that claims nothing is a lifted seed whose depth falls between two steps of
+// the scale, and its row's chip carries the dot instead — see [RampGrid].
+func pinRung(r tokens.Ramp, pin stdcolor.NRGBA) int {
+	if n := stepIn(r, pin); n != 0 {
+		return n
+	}
+	return nearestStep(r, pin)
+}
+
 // oklabDistance is how far apart two colours are, perceptually.
 func oklabDistance(a, b stdcolor.NRGBA) float64 {
 	l1, a1, b1 := vgcolor.OKLabFromNRGBA(a)
@@ -1189,6 +1214,14 @@ func RampGrid(p Palette, c tokens.ColorTokens, ty Type, claims map[rampClaim]boo
 				slot := image.Rect(pinX, y+gtx.Dp(RampPinInset), pinX+pinW, y+rowH-gtx.Dp(RampPinInset))
 				if r.pin.A != 0 {
 					markPin(gtx, c, slot, r.pin)
+					// A pin that claims no rung has no cell to dot, and a row
+					// with no dot anywhere reads as a role nothing picked. The
+					// dot lands on the chip instead — the pinned colour lives
+					// here — in the ink measured over the chip the way every
+					// cell's dot is measured over its step.
+					if pinRung(r.ramp, r.pin) == 0 {
+						markRung(gtx, slot, r.pin)
+					}
 				} else {
 					textdraw.FillText(gtx, ty.Shaper, ty.Small, slot, 0.5, 0.5, p.Muted, RampPinNone)
 				}
@@ -1217,14 +1250,16 @@ func markPin(gtx layout.Context, c tokens.ColorTokens, box image.Rectangle, pin 
 	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), edgeIn(c))
 }
 
-// markRung puts the dot on a cell a pick took.
+// markRung puts the dot on the ground a pick lives on: the cell of a rung it
+// took, or — for a pin that claims no rung — the chip at the end of its row.
 //
-// Its ink is measured over the step it stands on rather than taken from the
-// page: this mark lands on seventy-two possible grounds running from the page
-// itself to nearly black, and one ink chosen for the page would be invisible on
-// a third of them. The two candidates are the ends of the tonal axis, which is
-// the same pair the derivation itself chooses an on-colour from — the mark is
-// doing the same job on the same ground.
+// Its ink is measured over the ground it stands on rather than taken from the
+// page: this mark lands on seventy-two possible rungs running from the page
+// itself to nearly black, and on a chip that can be any colour a seed
+// produces, and one ink chosen for the page would be invisible on a third of
+// them. The two candidates are the ends of the tonal axis, which is the same
+// pair the derivation itself chooses an on-colour from — the mark is doing the
+// same job on the same ground.
 func markRung(gtx layout.Context, cell image.Rectangle, step stdcolor.NRGBA) {
 	d := min(gtx.Dp(RampMark), min(cell.Dx(), cell.Dy())/2)
 	if d <= 0 {
