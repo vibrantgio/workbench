@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"testing"
 
 	"gioui.org/f32"
@@ -18,6 +19,7 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/patterns/breadcrumb"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -435,5 +437,129 @@ func TestTheKeyboardLandsOnTheRestingPosition(t *testing.T) {
 		if got := jumped.pos(); got.First != before.First || got.Offset != before.Offset {
 			t.Errorf("after %s the note drifted from %+v to %+v on the next frame", tc.name, before, got)
 		}
+	}
+}
+
+// TestThePropertiesSlabStandsOnThePaper holds the panel to the page it is
+// read on. It used to be a block of the separator's tint, which made the
+// note's metadata the heaviest thing in the note — further off the paper
+// than the code blocks under it, and the first place the eye landed. It is
+// the paper now, inside one hair of that same tint: the treatment the page's
+// other bounded blocks already wear.
+//
+// The panel is found in the pixels rather than asserted at. Its top edge is
+// the first row down the page carrying the divider's tint across most of the
+// column's measure — the disclosure row above it draws no fills, so nothing
+// else can be first — and its foot is the next such row. What is asserted is
+// that the two are far enough apart to be a panel, and that between them the
+// page is paper: no band of any other fill, which is what a slab would be.
+func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := goldenModel()
+	if !m.PropsOpen {
+		t.Fatal("the model under test folds its properties away; the panel has to be open to be measured")
+	}
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := renderNotePage(shaper, m, tc.colors, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
+			img := golden.Capture(t, noteCanvasSize, scene(w, tc.bg))
+			is := func(c color.RGBA, want color.NRGBA) bool {
+				return c.R == want.R && c.G == want.G && c.B == want.B
+			}
+			// banded reports whether row y carries a run of want wide enough
+			// to cross the column's measure — a fill or an edge, never a
+			// glyph's antialiasing.
+			const wide = 300
+			banded := func(y int, want color.NRGBA) bool {
+				run := 0
+				for x := 0; x < noteCanvasSize.X; x++ {
+					if !is(img.RGBAAt(x, y), want) {
+						run = 0
+						continue
+					}
+					if run++; run >= wide {
+						return true
+					}
+				}
+				return false
+			}
+			edges := []int{}
+			for y := 0; y < noteCanvasSize.Y && len(edges) < 2; y++ {
+				if banded(y, tc.colors.Divider) && (len(edges) == 0 || y > edges[0]+10) {
+					edges = append(edges, y)
+				}
+			}
+			if len(edges) < 2 {
+				t.Fatalf("the panel drew %d hairline edges; a bounded block has a head and a foot", len(edges))
+			}
+			top, bot := edges[0], edges[1]
+			if h := bot - top; h < 40 {
+				t.Errorf("the panel's edges stand %d px apart; it holds several rows of pairs and cannot be that thin", h)
+			}
+			for y := top + 2; y < bot-1; y++ {
+				for _, fill := range []struct {
+					name string
+					col  color.NRGBA
+				}{
+					{"the separator's tint", tc.colors.Divider},
+					{"the chrome's surface", tc.colors.Surface},
+				} {
+					if banded(y, fill.col) {
+						t.Errorf("row %d inside the panel is a band of %s; the panel stands on the paper", y, fill.name)
+						return
+					}
+				}
+			}
+			// The rows between the pairs carry no ink across the measure, so
+			// on a paper ground most of the panel's height is a paper band.
+			// A filled panel would have none.
+			paper := 0
+			for y := top + 2; y < bot-1; y++ {
+				if banded(y, tc.colors.Background) {
+					paper++
+				}
+			}
+			if paper < (bot-top)/4 {
+				t.Errorf("only %d of the panel's %d rows are the note's paper; the panel is filled with something else", paper, bot-top)
+			}
+		})
+	}
+}
+
+// TestThePropertiesSlabInksClearTheFloor measures the panel's own inks
+// against the panel's own ground rather than the page's. The keys and the
+// raw-block fallback are the muted tier; the values beside them are read at
+// the body ink. Both are body-sized, so both owe the design system's 4.5:1.
+func TestThePropertiesSlabInksClearTheFloor(t *testing.T) {
+	const floor = 4.5
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ground := tc.colors.Background
+			for _, ink := range []struct {
+				name string
+				col  color.NRGBA
+			}{
+				{"the keys", tc.colors.Ramps.Neutral.Step(propLabelStep)},
+				{"the values", tc.colors.Text},
+			} {
+				r := vgcolor.ContrastRatio(ink.col, ground)
+				t.Logf("%s on the panel: %.2f:1", ink.name, r)
+				if r < floor {
+					t.Errorf("%s read %.2f:1 on the panel, under the %.1f:1 floor", ink.name, r, floor)
+				}
+			}
+			// The hairline has to be visible on the ground it bounds, or the
+			// panel has no edge at all; and it has to stay an edge, well under
+			// the ink the panel is written in.
+			edge := vgcolor.ContrastRatio(tc.colors.Divider, ground)
+			ink := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propLabelStep), ground)
+			t.Logf("the hairline stands %.2f:1 off the paper, the quiet ink %.2f:1", edge, ink)
+			if edge <= 1.05 {
+				t.Errorf("the hairline stands %.2f:1 off the paper; it would not be seen", edge)
+			}
+			if edge >= ink {
+				t.Errorf("the hairline stands %.2f:1 off the paper and the panel's own ink %.2f:1; an edge cannot out-read what it bounds", edge, ink)
+			}
+		})
 	}
 }

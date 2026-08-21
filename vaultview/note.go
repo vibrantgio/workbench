@@ -84,6 +84,27 @@ const (
 	propKeyGapDp = 16
 	propRadiusDp = 12
 
+	// propEdgeDp is the panel's hairline. A block that takes the paper for
+	// its ground needs an edge to be a block at all, and one hair is what
+	// the page's other bounded blocks are drawn with.
+	propEdgeDp = 1
+
+	// propLabelStep is the neutral step the properties panel writes its
+	// quiet ink at: the field keys, and the raw block a frontmatter too
+	// odd to split falls back to. The values beside them are read at the
+	// body ink, so this step is the panel's muted tier and has the body
+	// floor to clear on the panel's own ground and not on the page's.
+	//
+	// It is a measurement. On the paper the panel now stands on the step
+	// reads 6.19:1 in the light scheme and 11.06:1 in the dark, both clear
+	// of the 4.5:1 the design system holds body-sized text to; the step
+	// below it reads 4.03:1 in the light scheme, under the floor, so 700
+	// is the quietest step this panel can be written in. On the heavy fill
+	// the panel used to wear, the same step measured 4.51:1 — over the
+	// floor by a hundredth, which is a floor being touched rather than
+	// cleared. The ground is what moved; the ink did not have to.
+	propLabelStep = 700
+
 	// noteNavMarkDp sizes the two history controls and propMarkDp the
 	// properties panel's disclosure; both take the size a mark takes next
 	// to a line of text. The history controls sit in the head row beside
@@ -700,12 +721,36 @@ func layoutProperties(
 }
 
 // propertiesBody is the expanded panel: pairs when the trivial split read
-// them, the raw block in code style otherwise. Both sit on a rounded
-// tinted fill two neutral steps below the paper the note lies on — the
-// same tint the document's code fences take — so the panel reads as an
-// inset region of the page rather than a stray grey.
+// them, the raw block in code style otherwise. Both stand on the note's own
+// paper — the ground floor of the surface story, the same level the column
+// itself is laid on — inside a rounded hairline.
+//
+// The ground is a measurement, taken against the surfaces this page already
+// carries rather than against the scale in the abstract. The panel used to
+// fill with the separator's tint, and that made the note's metadata the
+// heaviest block in the note: measured off the paper at 246, the panel's
+// old fill sat at 212 while both code blocks under it sat at 239–245, so
+// the metadata was darker than the code and was the first thing the eye
+// landed on, ahead of the note's own title. A storey up the scale is not
+// far enough to fix it — the next fill the scale offers sits at 232, still
+// further from the paper than anything else the page draws, and it is the
+// exact fill the window's rail and aside wear, which reads as a slab of
+// chrome dropped onto the page rather than as part of the note. The dark
+// scheme measures the same shape: paper 24, code 30, the two candidate
+// fills 46 and 34.
+//
+// So the panel takes no fill of its own. The page already has an idiom for
+// a bounded block that does not shout — the code blocks are a hairline
+// around a ground barely off the paper — and the panel now wears it: the
+// paper for its ground and the divider's tint for its one hair, which is
+// the separator token doing the job it is named for instead of flooding an
+// area with it. What was the panel's weight becomes the panel's outline,
+// and the note reads title first, metadata second.
 func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter) layout.Dimensions {
-	fill := tok.col.Ramps.Neutral.Step(300)
+	// The panel names its own ground rather than inheriting whatever it is
+	// dropped on, so the hairline always has the surface it was judged
+	// against inside it.
+	fill := tok.col.Background
 	radius := gtx.Dp(unit.Dp(propRadiusDp))
 	rec := func(gtx layout.Context) layout.Dimensions {
 		return complayout.Inset(propPadDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -714,7 +759,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 				if raw == "" {
 					raw = "(empty)"
 				}
-				return drawText(gtx, tok.shaper, raw, tok.typ.Code, tok.col.Ramps.Neutral.Step(700))
+				return drawText(gtx, tok.shaper, raw, tok.typ.Code, tok.col.Ramps.Neutral.Step(propLabelStep))
 			}
 			// The key column is as wide as the longest key plus a fixed
 			// gap: each key is measured into a discarded recording, and
@@ -725,7 +770,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			mg.Constraints.Min = image.Point{}
 			for _, f := range fm.Fields {
 				macro := op.Record(mg.Ops)
-				d := drawLabel(mg, tok.shaper, f.Key, tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
+				d := drawLabel(mg, tok.shaper, f.Key, tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(propLabelStep))
 				macro.Stop()
 				if d.Size.X > keyW {
 					keyW = d.Size.X
@@ -748,7 +793,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 							if g.Constraints.Max.X > keyW {
 								g.Constraints.Max.X = keyW
 							}
-							dims := drawLabel(g, tok.shaper, f.Key, tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(700))
+							dims := drawLabel(g, tok.shaper, f.Key, tok.typ.TitleSmall, tok.col.Ramps.Neutral.Step(propLabelStep))
 							return layout.Dimensions{Size: image.Pt(keyW+keyGap, dims.Size.Y), Baseline: dims.Baseline}
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -760,15 +805,21 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
 		})
 	}
-	// Measure, then paint the rounded fill under the measured content.
+	// Measure, then lay the edge and the ground under the measured content.
+	// The hairline is drawn as the whole box in the edge's colour with the
+	// ground inset over it, rather than as a stroke on the path: a stroke is
+	// centred on its path and would spend half its width outside the box the
+	// panel was measured at, and at one hair every pixel of it would be a
+	// blend of the two colours instead of either. Inset the same way the
+	// page's other bounded blocks are drawn, the line is the colour it says
+	// it is and the panel occupies exactly the space it asked for.
 	macro := op.Record(gtx.Ops)
 	dims := rec(gtx)
 	call := macro.Stop()
-	rect := clip.RRect{
-		Rect: image.Rectangle{Max: image.Pt(gtx.Constraints.Max.X, dims.Size.Y)},
-		NE:   radius, NW: radius, SE: radius, SW: radius,
-	}
-	paint.FillShape(gtx.Ops, fill, rect.Op(gtx.Ops))
+	box := image.Rectangle{Max: image.Pt(gtx.Constraints.Max.X, dims.Size.Y)}
+	edge := max(gtx.Dp(unit.Dp(propEdgeDp)), 1)
+	paint.FillShape(gtx.Ops, tok.col.Divider, clip.UniformRRect(box, radius).Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, fill, clip.UniformRRect(box.Inset(edge), max(radius-edge, 0)).Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, dims.Size.Y)}
 }
