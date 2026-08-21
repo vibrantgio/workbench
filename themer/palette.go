@@ -185,13 +185,17 @@ const (
 // page — which is the whole reason a component asking for 100 gets a tint on
 // either side. Everybody double-takes at the first press of the switch.
 //
-// And the mark's own clause says indistinguishable from rather than sitting on,
-// because that is what the grid marks: a light scheme's accents are pinned a
-// hair off their rung and are marked there, so a caption promising the rung was
-// taken would be a caption the picks below it quietly contradict.
+// And the mark's own clause says what a dot is, in the words anybody reads it
+// with. Some picks are not on the rung they are marked at — a light scheme's
+// accents are pinned a hair off their own 700, by three parts in 255 — but the
+// caption is the wrong place to carry that: hedging it there costs every reader
+// a sentence they have to stop and parse, to buy a distinction that is invisible
+// on the grid it describes. The cells below say it per colour, beside the colour
+// it is about, and a reader who wants to know how a pick was pinned is already
+// reading the line that tells them. So the caption is left doing a legend's job.
 const (
 	RampsLabel = "Palette Ramps"
-	RampsHint  = "a dot marks the rung a pick is indistinguishable from · nine steps a role · 100 nearest the page"
+	RampsHint  = "a dot marks each pick's step · nine steps a role · 100 nearest the page"
 	PicksLabel = "Palette Picks"
 	PicksHint  = "every colour the theme names, and where it came from"
 )
