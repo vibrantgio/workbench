@@ -54,7 +54,24 @@ import (
 const (
 	asideInsetDp     = 16
 	asideHeaderGapDp = 8
-	asideRowInsetDp  = 8
+	// asideRowInsetDp holds a row's fill off the column's ink margin, and
+	// asideRowPadDp holds the row's own ink off that fill's edge. They are
+	// the sidebar's two numbers under the sidebar's two names — the rail
+	// calls them treeRowInsetDp and treeRowPadDp — because the pill drawn
+	// here is the pill drawn there and a pill means the same thing in both:
+	// the ink it is behind is spoken for, and it is behind that ink rather
+	// than up against it. The column ran without the second number until a
+	// walkthrough measured a marked heading's first stroke one pixel off
+	// its own pill's edge while the rail beside it stood the same idiom's
+	// ink well clear, and read the pair as two designs rather than one.
+	//
+	// The rail spends more than the pad on its leading edge — a fixed
+	// column for the disclosure mark, so names line up per level whether
+	// or not a row has a fold to offer. This column has no such mark, so
+	// it reserves no column for one: what a row here spends beyond the pad
+	// is its heading's own depth and nothing else.
+	asideRowInsetDp = 8
+	asideRowPadDp   = 8
 	// asideGroupGapDp is what stands either side of the rule between the
 	// two panes: enough that the rule reads as parting them rather than as
 	// underlining the pane above it.
@@ -463,12 +480,15 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 				}
 				semantic.LabelOp(e.Title).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				// The indent is the heading's depth; the top level sits on
-				// the same ink margin the pane's own headings do, so the
-				// column reads as one grid.
-				lead := asideRowInsetDp + max(e.Level-1, 0)*asideIndentDp
+				// The pill's edge, then the pad, then the heading's own
+				// depth: a top-level heading stands a pad inside its own
+				// fill the way every filled row in this window does, and
+				// each level below it steps in from there. The pad is on
+				// the trailing edge too, so a title long enough to be cut
+				// is cut inside the pill rather than at it.
+				lead := asideRowInsetDp + asideRowPadDp + max(e.Level-1, 0)*asideIndentDp
 				layout.Inset{
-					Left: unit.Dp(lead), Right: asideRowInsetDp,
+					Left: unit.Dp(lead), Right: asideRowInsetDp + asideRowPadDp,
 					Top: asideRowInsetDp / 2, Bottom: asideRowInsetDp / 2,
 				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					// A first-level heading is the note's own title level
@@ -538,7 +558,9 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 				}
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				complayout.Inset(asideRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				// The rows below the rule take the same pad the rows above
+				// it do, for the same reason: they wear the same pill.
+				complayout.InsetXY(asideRowInsetDp+asideRowPadDp, asideRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return drawLabel(gtx, tok.shaper, row.Title, tok.typ.BodyMedium, tok.col.Text)
