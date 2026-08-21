@@ -442,6 +442,135 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 	}
 }
 
+// TestTheTrailingColumnKeepsOneEdge reads the trailing column off the
+// composed window and requires everything down it to agree on where the
+// column's ink stops. A marked row's fill, and the hairline parting the
+// two panes, are measured as pixels rather than computed from the
+// constants that placed them: the column kept three edges within eight dp
+// of each other — a fill at 1075, a bar at 1081, a hairline at 1083 of an
+// 1100 dp frame — and every one of them agreed with its own arithmetic.
+//
+// The bar is measured against the note's, which is the same bar: the two
+// stand at the trailing edge of the two columns a reader reads between,
+// and a window where one hugs its edge while the other floats eighteen dp
+// off is a window with two ideas about where a scrollbar goes. The
+// distance measured is to the ground each one stands on — the note's
+// paper gives way to this column's surface, and this column's surface
+// gives way to the window's own edge.
+func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	// A long note read part way down: the outline holds the mark and more
+	// entries than its pane can show, so the fill and the bar are both on
+	// screen to be measured against each other.
+	m := longNoteModel(30)
+
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tok := themeTokens{col: tc.colors, typ: tokens.DefaultTypography,
+				sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
+			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, sharpRadius,
+				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+			img := golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
+
+			asideX := windowW - frameAsideDp
+			lane := int(asideBarLane(tok))
+			top, bot := st.geom.rowTop, st.geom.footTop
+			is := func(c color.RGBA, want color.NRGBA) bool {
+				return c.R == want.R && c.G == want.G && c.B == want.B
+			}
+			// span answers the leading and trailing columns, inside the box,
+			// of every pixel the predicate accepts.
+			span := func(x0, x1 int, pick func(color.RGBA) bool) (int, int) {
+				lo, hi := -1, -1
+				for y := top; y < bot; y++ {
+					for x := x0; x < x1; x++ {
+						if !pick(img.RGBAAt(x, y)) {
+							continue
+						}
+						if lo < 0 {
+							lo = x
+						}
+						lo, hi = min(lo, x), max(hi, x)
+					}
+				}
+				return lo, hi
+			}
+
+			// The mark's own fill: one colour, laid down as a fill, so its
+			// own pixels are the only ones that carry it exactly.
+			pillLo, pillHi := span(asideX, windowW, func(c color.RGBA) bool {
+				return is(c, tc.colors.Ramps.Primary.Step(300))
+			})
+			if pillLo < 0 {
+				t.Fatal("the outline drew no marked row to measure")
+			}
+			// The hairline is the row that runs two hundred dp of the
+			// divider's own colour — a length no glyph's antialiasing and no
+			// other fill in the column can be mistaken for.
+			ruleLo, ruleHi := -1, -1
+			for y := top; y < bot && ruleLo < 0; y++ {
+				run := 0
+				for x := asideX; x < windowW; x++ {
+					if is(img.RGBAAt(x, y), tc.colors.Divider) {
+						if run == 0 {
+							ruleLo = x
+						}
+						run++
+						ruleHi = x
+						continue
+					}
+					if run >= 200 {
+						break
+					}
+					run, ruleLo, ruleHi = 0, -1, -1
+				}
+				if run < 200 {
+					ruleLo, ruleHi = -1, -1
+				}
+			}
+			if ruleLo < 0 {
+				t.Fatal("the column drew no hairline between its panes")
+			}
+
+			if want := asideX + asideInsetDp; pillLo != want || ruleLo != want {
+				t.Errorf("the column leads with the mark at %d and the hairline at %d; one ink margin, at %d",
+					pillLo, ruleLo, want)
+			}
+			if pillHi != ruleHi {
+				t.Errorf("the mark ends at %d and the hairline at %d; the column keeps one right edge", pillHi, ruleHi)
+			}
+
+			// The bar's lane, and nothing else in the column: the rows and
+			// the hairline stop where it starts.
+			barLo, barHi := span(windowW-lane, windowW, func(c color.RGBA) bool {
+				return !is(c, tc.colors.Surface)
+			})
+			if barLo < 0 {
+				t.Fatal("an outline with more entries than its pane can show drew no bar")
+			}
+			if got := barLo - pillHi - 1; got != railMarginDp {
+				t.Errorf("the bar stands %d px off the mark beside it, want %d", got, railMarginDp)
+			}
+			// The note's own bar, in the margin its column keeps: the only
+			// ink out there past the prose, which stops a whole page inset
+			// short of the columns scanned.
+			noteLo, noteHi := span(asideX-noteInsetDp, asideX, func(c color.RGBA) bool {
+				return !is(c, tc.colors.Background)
+			})
+			if noteLo < 0 {
+				t.Fatal("the note column drew no bar to measure against")
+			}
+			if a, b := barHi-barLo, noteHi-noteLo; a != b {
+				t.Errorf("the column's bar is %d px wide and the note's %d; they are the same bar", a+1, b+1)
+			}
+			if a, b := windowW-barHi-1, asideX-noteHi-1; a != b {
+				t.Errorf("the column's bar stands %d px off the window's edge and the note's %d px off this column's; one distance",
+					a, b)
+			}
+		})
+	}
+}
+
 // inkRows answers the first and last row inside the given box that carry
 // anything other than the ground colour, or -1, -1 for a box of bare
 // ground. Alpha is left out of the comparison: what is drawn over the

@@ -17,7 +17,6 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
-	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 )
 
@@ -850,11 +849,11 @@ func TestEachScrollingPaneShowsItsIndicator(t *testing.T) {
 		})
 		return img, v.geom
 	}
-	// The strip scanned is the thumb's own columns: the bar floats over the
-	// rows here, so the pane's last dp carry row ink as well — but a row's
-	// text and its mark both stop a row inset short of the edge, and the
-	// thumb is drawn inside that. Anything in these columns is the bar.
-	bar := scrollbar.FromTokens(tok.col)
+	// The strip scanned is the thumb's own columns, inside the lane each
+	// pane hands its bar. Nothing else in the column is drawn there — the
+	// rows, their marks and the hairline all stop where the lane starts —
+	// so anything in these columns is the bar.
+	bar := asideIndicator(tok)
 	thumbFrom := gtx1Dp(bar.Width() - bar.TrackPadding) // the thumb's leading edge
 	thumbTo := gtx1Dp(bar.TrackPadding)                 // its trailing padding
 	gutterInk := func(img *image.RGBA, band image.Rectangle) int {

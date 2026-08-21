@@ -130,8 +130,10 @@ const (
 	// railMarginDp is the frame's small edge margin: the inset the sidebar
 	// pane floats off the window's leading, top and bottom edges, what the
 	// divider's hairline holds clear of the chrome row and the window's
-	// bottom edge, and what the sidebar's own top strip keeps around its
-	// toggle.
+	// bottom edge, what the sidebar's own top strip keeps around its
+	// toggle, and the air the trailing column leaves either side of a
+	// pane's scrollbar — which is what stands that bar off the window's
+	// edge by what the note's stands off this column's.
 	railMarginDp = 8
 
 	// railRadiusDp rounds the sidebar pane's four corners. The pane floats
