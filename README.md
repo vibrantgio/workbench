@@ -105,7 +105,7 @@ that reports one launched process (Started → Exited).
   sits in [vibrantgio/design](https://github.com/vibrantgio/design) beside
   the published token bundle, together with its archived first edition
   `DESIGN-v1.md`.
-- **[llms.txt](https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt)**
+- **[llms.txt](https://raw.githubusercontent.com/vibrantgio/workbench/master/llms.txt)**
   — a condensed guide for AI coding assistants (Claude, etc.) to write
   applications against the Vibrant Gio packages. It is maintained once, at the
   root of [vibrantgio/.github](https://github.com/vibrantgio/.github), and

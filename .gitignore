@@ -9,6 +9,7 @@
 # default, so its own files have to be named here or they are silently
 # untracked. Its compiled binary is called `workbench` and needs no rule: it
 # is not a .go file, so the default already ignores it.
+!/llms.txt
 !/go.mod
 !/go.sum
 !/*.go
