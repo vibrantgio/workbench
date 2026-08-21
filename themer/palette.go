@@ -151,6 +151,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/gallery/inventory"
@@ -255,11 +256,10 @@ const (
 	PickGroupGap unit.Dp = 22
 	// PickGap is swatch to text.
 	PickGap unit.Dp = 10
-	// PickColGap is between one column of cells and the next, and PickMinW the
-	// narrowest a column is worth having: under it the rule truncates into an
-	// ellipsis and the column stops explaining anything.
+	// PickColGap is between one column of cells and the next. How narrow a
+	// column may be is not written down here — it is measured off the names the
+	// board is about to draw, see [pickNarrowest].
 	PickColGap unit.Dp = 24
-	PickMinW   unit.Dp = 250
 	// PickMaxCols is as wide as the board spreads. Four families across a
 	// window is a row of short lists rather than a board.
 	PickMaxCols = 3
@@ -911,7 +911,7 @@ func PaletteRows(p Palette, c, other tokens.ColorTokens, ty Type, dark bool) []l
 		paletteHeading(p, c, ty, RampsLabel, RampsHint),
 		paletteBody(c, RampGrid(p, c, ty, rampClaims(groups))),
 		paletteHeading(p, c, ty, PicksLabel, PicksHint),
-		paletteBody(c, PickBoard(p, ty, groups)),
+		paletteBody(c, PickBoard(p, c, ty, groups)),
 	}
 }
 
@@ -981,9 +981,88 @@ func fitHint(gtx layout.Context, ty Type, hint string, room int) string {
 		return hint
 	}
 	clauses := strings.Split(hint, HintSep)
+	heads := make([]string, 0, len(clauses))
 	for n := len(clauses) - 1; n > 0; n-- {
-		if cut := strings.Join(clauses[:n], HintSep); natural(gtx, ty.Shaper, ty.Small, cut) <= room {
-			return cut
+		heads = append(heads, strings.Join(clauses[:n], HintSep))
+	}
+	return longestHead(gtx, ty.Shaper, ty.Small, heads, "", room)
+}
+
+// fitLine is one line of the picks board cut to the room its column has, at the
+// boundaries the line is written in.
+//
+// The board is the other place in this section where a run of text can outgrow
+// the box it is in, and the shaper's own truncation is the wrong cut here for
+// the reason it was wrong on the heading bar: it cuts mid-word. What it left on
+// a narrow board was a cell titled "SuccessContainer / SuccessM…" over a rule
+// ending "held at the container chro…" — a token name nobody can look up and a
+// sentence stopped in the middle of a word — where every line on the board is
+// either a name or a sentence with a name at the front of it, and both have
+// boundaries worth cutting at.
+//
+// Clauses first, and with nothing marking the cut. A rule reads "Success 300,
+// held at the container chroma", and its first clause is the identifier the
+// reader came for: cut there it says "Success 300", which is a shorter true
+// sentence and not a sentence that was interrupted. The marks a clause ends at
+// are the ones this section writes its lines with — the comma inside a rule,
+// the slash between the two names of a cell, and the [HintSep] a caption's
+// clauses are strung on.
+//
+// Words second, and with an ellipsis, because a cut inside a sentence is not
+// the sentence any more: "the seed, lifted, just off…" has to say that it
+// stopped, or a reader takes the fragment for the whole rule. This is the case
+// the columns are sized to make rare — see [pickNarrowest] — and not the case
+// they can make impossible, since a rule is longer than the name over it.
+//
+// With room for not even the first word, the line goes to the shaper whole and
+// wears whatever truncation the shaper gives it. That is a board narrower than
+// one identifier, which is narrower than this window opens or resizes to; a
+// line dropped instead would be a cell with a colour and no name at all.
+func fitLine(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, line string, room int) string {
+	if room <= 0 || natural(gtx, shaper, style, line) <= room {
+		return line
+	}
+	if cut := longestHead(gtx, shaper, style, lineHeads(line, true), "", room); cut != "" {
+		return cut
+	}
+	if cut := longestHead(gtx, shaper, style, lineHeads(line, false), Ellipsis, room); cut != "" {
+		return cut
+	}
+	return line
+}
+
+// lineHeads is every head this line can be cut down to, longest first: the head
+// at each of its clause boundaries when clauses is set, and the head at each of
+// its word boundaries when it is not.
+//
+// A boundary is a space, and a clause boundary is a space the line's own
+// punctuation stands in front of. The separator itself is taken off the head —
+// a line ending in a dangling comma reads as a line that lost its second half,
+// which is exactly what a cut at a clause is trying not to say.
+func lineHeads(line string, clauses bool) []string {
+	var heads []string
+	for i := len(line) - 1; i > 0; i-- {
+		if line[i] != ' ' {
+			continue
+		}
+		if clauses && !strings.HasSuffix(line[:i], ",") &&
+			!strings.HasSuffix(line[:i], " ·") && !strings.HasSuffix(line[:i], " /") {
+			continue
+		}
+		if head := strings.TrimRight(line[:i], " ,·/"); head != "" {
+			heads = append(heads, head)
+		}
+	}
+	return heads
+}
+
+// longestHead is the first of these heads that fits the room with the tail on
+// the end of it, and "" when none of them does. The heads arrive longest first,
+// so the first that fits is the most of the line that could be kept.
+func longestHead(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, heads []string, tail string, room int) string {
+	for _, head := range heads {
+		if natural(gtx, shaper, style, head+tail) <= room {
+			return head + tail
 		}
 	}
 	return ""
@@ -1092,8 +1171,12 @@ func RampGrid(p Palette, c tokens.ColorTokens, ty Type, claims map[rampClaim]boo
 				// 100 of every ramp is the ground, near enough — and a grid
 				// whose first column dissolves is a grid claiming nine steps and
 				// showing eight.
+				//
+				// The ink of that frame is measured over the step inside it —
+				// see [edgeOn] — which is what stops the middle of the grid
+				// dissolving the same way its first column would.
 				step := r.ramp.Step((n + 1) * 100)
-				paint.FillShape(gtx.Ops, p.CardEdge, clip.Rect(cell).Op())
+				paint.FillShape(gtx.Ops, edgeOn(c, step), clip.Rect(cell).Op())
 				if in := cell.Inset(line); !in.Empty() {
 					paint.FillShape(gtx.Ops, step, clip.Rect(in).Op())
 				}
@@ -1104,7 +1187,7 @@ func RampGrid(p Palette, c tokens.ColorTokens, ty Type, claims map[rampClaim]boo
 			if pinW > 0 {
 				slot := image.Rect(pinX, y+gtx.Dp(RampPinInset), pinX+pinW, y+rowH-gtx.Dp(RampPinInset))
 				if r.pin.A != 0 {
-					markPin(gtx, p, slot, r.pin)
+					markPin(gtx, c, slot, r.pin)
 				} else {
 					textdraw.FillText(gtx, ty.Shaper, ty.Small, slot, 0.5, 0.5, p.Muted, RampPinNone)
 				}
@@ -1118,17 +1201,20 @@ func RampGrid(p Palette, c tokens.ColorTokens, ty Type, claims map[rampClaim]boo
 //
 // It is a rounded chip with a frame rather than a square butted against its
 // neighbours, which is the whole of what separates it from the nine cells it
-// stands beside — that and the gap. The frame is the one every other swatch in
-// the window wears, and it is here for the reason it is there: a pinned base
-// can be any colour a seed produces, pale ones included, and a pale chip on a
-// pale ground with no boundary reads as a chip that failed to draw.
-func markPin(gtx layout.Context, p Palette, box image.Rectangle, pin stdcolor.NRGBA) {
+// stands beside — that and the gap. The frame is the one the cells in that row
+// wear, measured over the chip's own colour, and it is here for the reason it
+// is there: a pinned base can be any colour a seed produces, pale ones
+// included, and a pale chip on a pale ground with no boundary reads as a chip
+// that failed to draw. A row whose nine cells were framed by measurement and
+// whose tenth swatch was framed by a fixed grey would say the chip came from
+// somewhere else.
+func markPin(gtx layout.Context, c tokens.ColorTokens, box image.Rectangle, pin stdcolor.NRGBA) {
 	if box.Empty() {
 		return
 	}
 	radius := gtx.Dp(InnerR) / 2
 	fillRRect(gtx, box, radius, pin)
-	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), p.CardEdge)
+	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), edgeOn(c, pin))
 }
 
 // markRung puts the dot on a cell a pick took.
@@ -1168,6 +1254,50 @@ func markInkOn(step stdcolor.NRGBA) stdcolor.NRGBA {
 	return tokens.Black
 }
 
+// The two steps a frame in this section is chosen between: the step of the
+// neutral ramp nearest the page and the step furthest from it, which are the
+// two quietest things in the theme that are still a long way apart.
+const (
+	EdgeNearStep = 200
+	EdgeFarStep  = 800
+)
+
+// edgeOn is the frame one swatch of this section wears: whichever of those two
+// steps reads better over the colour inside it, measured.
+//
+// Measured per swatch, because no single ink can frame this section. The grid
+// alone is seventy-two fills running from the page's own tone to nearly the
+// ink's, and an ink picked for one end of that run has nothing left to say at
+// the other: the frame was the neutral ramp's 400 for every cell, and the
+// whole 400 column sat at that ink's own luminance — 1.00 to 1 across all eight
+// rows, with the Neutral row's 400 cell the same colour byte for byte, so its
+// edge was not faint but absent. The columns either side of it read at 1.37 and
+// 1.42. A grid whose middle third has no edges is a grid of nine steps showing
+// a smear.
+//
+// So the frame is chosen the way the dot on a rung is chosen — two candidates,
+// the better one kept — and the choice cannot land on the fill it is framing:
+// a colour has a contrast of exactly 1.00 to itself, which is the least there
+// is, so a fill that is one of the candidates is always framed in the other.
+//
+// The candidates are steps of the neutral ramp and not the ends of the tonal
+// axis the dot uses. The axis ends would guarantee more — no colour is closer
+// than 4.58 to both black and white — but a table wants a rule and not a
+// border: black and white lattices around eight rows of colour make the grid
+// read as the frames with colour in them. These two clear the floor a graphic
+// owes its ground everywhere in the section — the faintest edge on any light
+// scheme measures 3.48 and on any dark one 5.90, over four seeds — and they
+// clear it in the theme's own quiet greys. The floor holds rather than happens
+// because the steps stand on one shared lightness scale in both schemes: what
+// is measured there is the scale, and not a seed.
+func edgeOn(c tokens.ColorTokens, fill stdcolor.NRGBA) stdcolor.NRGBA {
+	near, far := c.Ramps.Neutral.Step(EdgeNearStep), c.Ramps.Neutral.Step(EdgeFarStep)
+	if vgcolor.ContrastRatio(near, fill) > vgcolor.ContrastRatio(far, fill) {
+		return near
+	}
+	return far
+}
+
 // PickBoard draws every colour the theme names, in families, across as many
 // columns as the window is wide enough for.
 //
@@ -1175,10 +1305,14 @@ func markInkOn(step stdcolor.NRGBA) stdcolor.NRGBA {
 // than the window, and the families are short enough that side by side they can
 // all be read at once — which is the comparison worth having, since the question
 // a reader brings here is usually about two roles rather than one.
-func PickBoard(p Palette, ty Type, groups []pickGroup) func(gtx layout.Context, width int) int {
+//
+// How many columns is the window's answer and not a number the board keeps: a
+// third column is worth having only where three of them still hold what the
+// cells have to say, and where they do not the board spreads over two.
+func PickBoard(p Palette, c tokens.ColorTokens, ty Type, groups []pickGroup) func(gtx layout.Context, width int) int {
 	return func(gtx layout.Context, width int) int {
 		gap := gtx.Dp(PickColGap)
-		cols := packPicks(groups, pickColumns(width, gap, gtx.Dp(PickMinW)))
+		cols := packPicks(groups, pickColumns(width, gap, pickNarrowest(gtx, ty, groups)))
 		colW := (width - (len(cols)-1)*gap) / len(cols)
 		if colW <= 0 {
 			return 0
@@ -1193,7 +1327,7 @@ func PickBoard(p Palette, ty Type, groups []pickGroup) func(gtx layout.Context, 
 				y += drawFamily(gtx, p, ty, g.name, x, y, colW)
 				for _, cell := range g.cells {
 					h := gtx.Dp(cell.height())
-					drawCell(gtx, p, ty, cell, image.Rect(x, y, x+colW, y+h))
+					drawCell(gtx, p, c, ty, cell, image.Rect(x, y, x+colW, y+h))
 					y += h
 				}
 			}
@@ -1214,7 +1348,8 @@ func PickBoard(p Palette, ty Type, groups []pickGroup) func(gtx layout.Context, 
 // to what is under it rather than leaving it floating between two families.
 func drawFamily(gtx layout.Context, p Palette, ty Type, name string, x, y, w int) int {
 	head := gtx.Dp(PickHeadH)
-	textdraw.FillText(gtx, ty.Shaper, ty.Head, image.Rect(x, y, x+w, y+head), 0, 0.5, p.Text, name)
+	textdraw.FillText(gtx, ty.Shaper, ty.Head, image.Rect(x, y, x+w, y+head), 0, 0.5, p.Text,
+		fitLine(gtx, ty.Shaper, ty.Head, name, w))
 	line := gtx.Dp(Hairline)
 	paint.FillShape(gtx.Ops, p.Divider, clip.Rect(image.Rect(x, y+head, x+w, y+head+line)).Op())
 	return head + line + gtx.Dp(PickHeadGap)
@@ -1227,7 +1362,7 @@ func drawFamily(gtx layout.Context, p Palette, ty Type, name string, x, y, w int
 // thing — one is what the theme calls this colour, the other is where it came
 // from — and a reader scanning for a token name has to be able to skip the
 // halves that are not names.
-func drawCell(gtx layout.Context, p Palette, ty Type, cell pickCell, r image.Rectangle) {
+func drawCell(gtx layout.Context, p Palette, c tokens.ColorTokens, ty Type, cell pickCell, r image.Rectangle) {
 	if r.Dx() <= 0 {
 		return
 	}
@@ -1236,10 +1371,13 @@ func drawCell(gtx layout.Context, p Palette, ty Type, cell pickCell, r image.Rec
 	box := image.Rect(r.Min.X, top, r.Min.X+sw, top+sh)
 	radius := gtx.Dp(InnerR) / 2
 	fillRRect(gtx, box, radius, cell.fill)
-	// The same frame the window's other swatches wear, for the same reason: a
-	// Background swatch on the page it is the background of has no boundary of
-	// its own, and without one it reads as a swatch that failed to draw.
-	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), p.CardEdge)
+	// The frame the grid above uses, measured over this cell's own colour — see
+	// [edgeOn] — and here for the reason it is there: a Background swatch on the
+	// page it is the background of has no boundary of its own, and without one
+	// it reads as a swatch that failed to draw. This board is where that case is
+	// certain rather than possible, since the page, the surface and the divider
+	// are three of the colours it has to show.
+	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), edgeOn(c, cell.fill))
 	switch {
 	case cell.mark:
 		// In the colour the derivation chose, over the ground it chose it
@@ -1249,10 +1387,16 @@ func drawCell(gtx layout.Context, p Palette, ty Type, cell pickCell, r image.Rec
 	case cell.paired():
 		textdraw.FillText(gtx, ty.Shaper, ty.Label, box, 0.5, 0.5, cell.on, PickGlyph)
 	}
-	text := box.Max.X + gtx.Dp(PickGap)
-	if text >= r.Max.X {
+	lines := box.Max.X + gtx.Dp(PickGap)
+	if lines >= r.Max.X {
 		return
 	}
+	// What the words have to fit in, which is what is left of the slot once the
+	// swatch and the air beside it have taken theirs. Every line drawn below is
+	// cut to it at its own boundaries rather than handed over long — see
+	// [fitLine] — because the shaper's answer to a line that does not fit is to
+	// break a word, and a broken token name is a name a reader cannot look up.
+	room := r.Max.X - lines
 	// The lines stand in a block shorter than the slot, which is where the air
 	// between one cell and the next comes from. Set at the slot's full height
 	// they came out on an even pitch from the top of the column to the bottom,
@@ -1267,14 +1411,17 @@ func drawCell(gtx layout.Context, p Palette, ty Type, cell pickCell, r image.Rec
 	block := min(title+rules*rule, r.Dy())
 	y := r.Min.Y + (r.Dy()-block)/2
 	textdraw.FillText(gtx, ty.Shaper, ty.Body,
-		image.Rect(text, y, r.Max.X, y+title), 0, 0.5, p.Text, cell.title())
+		image.Rect(lines, y, r.Max.X, y+title), 0, 0.5, p.Text,
+		fitLine(gtx, ty.Shaper, ty.Body, cell.title(), room))
 	y += title
 	textdraw.FillText(gtx, ty.Shaper, ty.Small,
-		image.Rect(text, y, r.Max.X, y+rule), 0, 0.5, p.Muted, cell.base.rule)
+		image.Rect(lines, y, r.Max.X, y+rule), 0, 0.5, p.Muted,
+		fitLine(gtx, ty.Shaper, ty.Small, cell.base.rule, room))
 	if cell.paired() {
 		y += rule
 		textdraw.FillText(gtx, ty.Shaper, ty.Small,
-			image.Rect(text, y, r.Max.X, y+rule), 0, 0.5, p.Muted, cell.ink.rule)
+			image.Rect(lines, y, r.Max.X, y+rule), 0, 0.5, p.Muted,
+			fitLine(gtx, ty.Shaper, ty.Small, cell.ink.rule, room))
 	}
 }
 
@@ -1298,6 +1445,37 @@ func markGlyph(gtx layout.Context, box image.Rectangle, mark stdcolor.NRGBA) {
 	}
 	mid := image.Pt((box.Min.X+box.Max.X)/2, (box.Min.Y+box.Max.Y)/2)
 	fillRRect(gtx, image.Rect(mid.X-d/2, mid.Y-d/2, mid.X-d/2+d, mid.Y-d/2+d), gtx.Dp(Hairline), mark)
+}
+
+// pickNarrowest is the narrowest a column is worth having: a swatch, the air
+// beside it, and the longest name the board is about to draw, whole.
+//
+// Measured off those names rather than written down as a number, because the
+// number is a fact about the token vocabulary and not about this layout. It was
+// written down, at two hundred and fifty points, and the vocabulary grew past
+// it: "InverseSurface / OnInverseSurface" wants two hundred and seventeen and
+// the widest family name a hundred and eighteen, so a window at nine hundred
+// took the three columns the constant said it could afford and cut two of them
+// mid-name. A board is worth spreading over another column only when the extra
+// column can still say what a cell says, so the names decide, and they decide
+// again whenever a role is renamed or the theme names a new one.
+//
+// The rules under the names are not in this measurement. A rule is a sentence
+// about a name and it is longer than the name by design — sizing columns to the
+// longest of them would cost the board a column at widths where every name and
+// most rules fit — so the rules are what [fitLine] cuts at their own clauses,
+// and the names are what never has to be cut at all.
+func pickNarrowest(gtx layout.Context, ty Type, groups []pickGroup) int {
+	lead, narrowest := gtx.Dp(PickSwatchW)+gtx.Dp(PickGap), 0
+	for _, g := range groups {
+		// A family's name stands across the column, over the swatches rather
+		// than beside them, so it asks for the column and not for the text.
+		narrowest = max(narrowest, natural(gtx, ty.Shaper, ty.Head, g.name))
+		for _, cell := range g.cells {
+			narrowest = max(narrowest, lead+natural(gtx, ty.Shaper, ty.Body, cell.title()))
+		}
+	}
+	return narrowest
 }
 
 // pickColumns is how many columns of cells fit in width px, gap px apart, at no

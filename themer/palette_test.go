@@ -5,6 +5,7 @@ import (
 	"image"
 	stdcolor "image/color"
 	"math"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown/highlight"
+	"github.com/vibrantgio/textdraw"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -712,6 +714,115 @@ func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
 	}
 }
 
+// TestNoSwatchEdgeIsItsOwnFill: every frame in this section is a colour the
+// thing inside it is not, and reads against it.
+//
+// The grid's frame was the neutral ramp's 400 for every one of its cells, and
+// the grid draws that ramp: the Neutral row's own 400 cell was framed in itself,
+// byte for byte, so it had no edge at all — and the whole 400 column sits at
+// that step's luminance, which put the other seven rows at 1.00:1 as well. The
+// frame is measured over the fill now, and what this holds is both halves of
+// that: never the fill itself, and never so near it that the edge is a claim
+// only a colour picker can check.
+func TestNoSwatchEdgeIsItsOwnFill(t *testing.T) {
+	worst, at := math.Inf(1), ""
+	// Per side as well as over the pair, because the two sides are two
+	// different questions — the frames are chosen off one lightness scale but
+	// the fills sit on opposite ends of it — and the numbers are what the
+	// drawing code's own account of this choice cites.
+	side := map[bool]float64{false: math.Inf(1), true: math.Inf(1)}
+	for _, sc := range schemesUnderTest(t) {
+		fills := map[string]stdcolor.NRGBA{}
+		for _, row := range rampRows(sc.c) {
+			for n := range RampSteps {
+				fills[fmt.Sprintf("%s %d", row.name, (n+1)*100)] = row.ramp.Step((n + 1) * 100)
+			}
+			if row.pin.A != 0 {
+				fills[row.name+" base"] = row.pin
+			}
+		}
+		for _, g := range paletteGroups(sc.c, sc.other, sc.dark) {
+			for _, cell := range g.cells {
+				fills[cell.title()] = cell.fill
+			}
+		}
+		for name, fill := range fills {
+			edge := edgeOn(sc.c, fill)
+			if edge == fill {
+				t.Errorf("%s: %s is framed in itself (%v), which is a swatch with no edge", sc.name, name, fill)
+			}
+			got := vgcolor.ContrastRatio(edge, fill)
+			side[sc.dark] = math.Min(side[sc.dark], got)
+			if got < worst {
+				worst, at = got, sc.name+" "+name
+			}
+		}
+	}
+	t.Logf("the faintest edge in the section reads at %.2f:1, on %s — %.2f:1 the faintest of any light scheme, %.2f:1 of any dark one",
+		worst, at, side[false], side[true])
+	if worst < markGraphicFloor {
+		t.Errorf("a swatch's edge reads at %.2f:1 over its own fill (%s), under the %.1f:1 a graphic owes its ground",
+			worst, at, markGraphicFloor)
+	}
+}
+
+// oldEdgeStep is the step of the neutral ramp the section's frames used to be
+// drawn in, and so the one cell on the grid that was framed in its own colour.
+const oldEdgeStep = 400
+
+// TestTheNeutralRowsOwnEdgeStepIsDrawnWithAnEdge: read off a render, the cell
+// this whole change is about — the step the old frame was the colour of — has a
+// boundary between its fill and the row it stands in.
+func TestTheNeutralRowsOwnEdgeStepIsDrawnWithAnEdge(t *testing.T) {
+	for _, sc := range schemesUnderTest(t)[:4] {
+		img := paletteSectionW(t, sectionWidths[0], sc.c, sc.other, sc.dark)
+		rows := rampRows(sc.c)
+		row := -1
+		for i, r := range rows {
+			if r.name == NeutralName {
+				row = i
+			}
+		}
+		if row < 0 {
+			t.Fatalf("%s: no %s row on the grid", sc.name, NeutralName)
+		}
+		// The old frame was Neutral 400, so its cell is where an edge either
+		// exists or does not. The scan crosses the boundary between that cell
+		// and the one before it, a point below the cell's top so it is the
+		// vertical edge being read and not the row's own gap.
+		fill := sc.c.Ramps.Neutral.Step(oldEdgeStep)
+		mid := sectionRowY(row)
+		cell := sectionCellX(sectionWidths[0], oldEdgeStep/100-1)
+		seen := stdcolor.NRGBA{}
+		for x := cell - 3; x <= cell+1; x++ {
+			if got := pixelAt(img, x, mid); got != fill {
+				seen = got
+			}
+		}
+		if seen == (stdcolor.NRGBA{}) {
+			t.Errorf("%s: nothing but the fill %v either side of the %s %d cell's leading edge — the cell has no edge",
+				sc.name, fill, NeutralName, oldEdgeStep)
+			continue
+		}
+		if got := vgcolor.ContrastRatio(seen, fill); got < markGraphicFloor {
+			t.Errorf("%s: the %s %d cell's edge drew %v over %v, which reads at %.2f:1",
+				sc.name, NeutralName, oldEdgeStep, seen, fill, got)
+		} else {
+			t.Logf("%s: the %s %d cell's edge drew %v over its fill %v at %.2f:1",
+				sc.name, NeutralName, oldEdgeStep, seen, fill, got)
+		}
+	}
+}
+
+// sectionCellX is the leading edge of the n-th step cell inside a
+// [paletteSectionW] capture of the given width.
+func sectionCellX(width, n int) int {
+	inset := sectionInset()
+	content := width - 2*inset
+	cellW := (content - int(RampLabelW) - int(RampPinGap) - int(RampPinW)) / RampSteps
+	return inset + int(RampLabelW) + n*cellW
+}
+
 // TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow: the colour a role was actually
 // pinned is drawn beside the nine it was pinned against, read off the render.
 //
@@ -866,10 +977,10 @@ func TestThePaletteSectionFollowsTheSchemeSwitch(t *testing.T) {
 }
 
 // TestThePicksSpreadOverAWideWindowAndStackOnANarrowOne: the board is as many
-// columns as the window is wide enough for, and never one so narrow that the
-// rule under a name is an ellipsis.
+// columns as the window is wide enough for, and never one so narrow that a name
+// in it has to be cut.
 func TestThePicksSpreadOverAWideWindowAndStackOnANarrowOne(t *testing.T) {
-	gap, narrowest := int(PickColGap), int(PickMinW)
+	gap, narrowest := int(PickColGap), boardNarrowest(t)
 	for _, tc := range []struct{ width, want int }{
 		{rampContentW(), PickMaxCols},
 		{2*narrowest + gap, 2},
@@ -881,6 +992,161 @@ func TestThePicksSpreadOverAWideWindowAndStackOnANarrowOne(t *testing.T) {
 			t.Errorf("a board %d wide took %d columns, want %d", tc.width, got, tc.want)
 		}
 	}
+}
+
+// boardNarrowest is the least a column of this board may be, measured off the
+// names it draws — which is the number the layout itself works from, so a test
+// asserting column counts asserts them against the same measurement and not
+// against a copy of it.
+func boardNarrowest(t *testing.T) int {
+	t.Helper()
+	light, dark := tokens.FromSeed(fixtureBlue)
+	return pickNarrowest(measuring(), pinned(), paletteGroups(light, dark, false))
+}
+
+// TestTheBoardGivesUpAColumnRatherThanCutAName: at the widths the section is
+// judged at, the board takes only as many columns as leave every identifier
+// whole — two at a window of nine hundred, where three used to fit by a
+// written-down minimum and cut two of them in half.
+//
+// The minimum used to be a constant, and the constant went stale the way a
+// number describing a vocabulary does: the vocabulary grew. Measuring the names
+// is what keeps the answer true when a role is renamed or a colour is named for
+// the first time, and this is the assertion that says so — it names no width in
+// points, it asks the board what it needs and then asks the columns to hold it.
+func TestTheBoardGivesUpAColumnRatherThanCutAName(t *testing.T) {
+	gtx, ty := measuring(), pinned()
+	gap := int(PickColGap)
+	// The widths the section is judged at, and the window's own on top of them:
+	// it is the one width a reader is guaranteed to meet, since it is what the
+	// window opens on.
+	widths := append([]int{windowW - 2*int(Pad)}, sectionWidths...)
+	for _, sc := range schemesUnderTest(t) {
+		groups := paletteGroups(sc.c, sc.other, sc.dark)
+		narrowest := pickNarrowest(gtx, ty, groups)
+		for _, section := range widths {
+			width := section - 2*sectionInset()
+			cols := pickColumns(width, gap, narrowest)
+			colW := (width - (cols-1)*gap) / cols
+			if colW < narrowest {
+				t.Errorf("%s at %d: %d columns of %d, under the %d a column needs to hold its names",
+					sc.name, section, cols, colW, narrowest)
+			}
+			room := colW - int(PickSwatchW) - int(PickGap)
+			for _, g := range groups {
+				if got := fitLine(gtx, ty.Shaper, ty.Head, g.name, colW); got != g.name {
+					t.Errorf("%s at %d: the family heading reads %q, want %q whole", sc.name, section, got, g.name)
+				}
+				for _, cell := range g.cells {
+					if got := fitLine(gtx, ty.Shaper, ty.Body, cell.title(), room); got != cell.title() {
+						t.Errorf("%s at %d: a cell is titled %q, want %q whole", sc.name, section, got, cell.title())
+					}
+				}
+			}
+		}
+	}
+	// And the window's own width takes the third column: a board that gave one
+	// up everywhere would be a board that never spread.
+	light, dark := tokens.FromSeed(fixtureBlue)
+	groups := paletteGroups(light, dark, false)
+	if got := pickColumns(rampContentW(), gap, pickNarrowest(gtx, ty, groups)); got != PickMaxCols {
+		t.Errorf("the window's own width deals %d columns, want the board spread over %d", got, PickMaxCols)
+	}
+	t.Logf("a column needs %d points; at the section widths %v the board takes %v columns",
+		pickNarrowest(gtx, ty, groups), sectionWidths, columnsAt(gtx, ty, groups))
+}
+
+// columnsAt is how many columns the board takes at each width it is judged at,
+// for the log line that records what this task changed.
+func columnsAt(gtx layout.Context, ty Type, groups []pickGroup) []int {
+	out := make([]int, 0, len(sectionWidths))
+	for _, section := range sectionWidths {
+		out = append(out, pickColumns(section-2*sectionInset(), int(PickColGap), pickNarrowest(gtx, ty, groups)))
+	}
+	return out
+}
+
+// TestALineTooWideForItsColumnIsCutAtItsOwnBoundaries: nothing the board draws
+// is ever cut inside a word, at any width, and what a cut line keeps is the
+// identifier at the front of it.
+//
+// The rules are the lines this bites on, because a rule is a sentence about a
+// name and is longer than the name by design. "Success 300, held at the
+// container chroma" ended "at the container chro…" on a board three columns
+// wide; cut at its own comma it reads "Success 300", which is the half a reader
+// came for and a true sentence besides.
+func TestALineTooWideForItsColumnIsCutAtItsOwnBoundaries(t *testing.T) {
+	gtx, ty := measuring(), pinned()
+	light, dark := tokens.FromSeed(fixtureBlue)
+	groups := paletteGroups(light, dark, false)
+	kept := map[string]bool{}
+	for _, g := range groups {
+		for _, cell := range g.cells {
+			for _, line := range []struct {
+				style textdraw.TextStyle
+				text  string
+			}{{ty.Body, cell.title()}, {ty.Small, cell.base.rule}, {ty.Small, cell.ink.rule}} {
+				if line.text == "" {
+					continue
+				}
+				for room := natural(gtx, ty.Shaper, line.style, line.text); room > 0; room -= 7 {
+					got := fitLine(gtx, ty.Shaper, line.style, line.text, room)
+					head := strings.TrimSuffix(got, Ellipsis)
+					if head == line.text {
+						continue
+					}
+					if !wholeWords(line.text, head) {
+						t.Errorf("at %d points %q was cut to %q, which ends inside a word",
+							room, line.text, got)
+						break
+					}
+					if natural(gtx, ty.Shaper, line.style, got) > room {
+						t.Errorf("at %d points %q was cut to %q, which is still too wide",
+							room, line.text, got)
+						break
+					}
+					if got != head && !strings.HasSuffix(got, Ellipsis) {
+						t.Errorf("at %d points %q was cut to %q with no mark on the end", room, line.text, got)
+					}
+					kept[line.text] = kept[line.text] || head != ""
+				}
+			}
+		}
+	}
+	if len(kept) == 0 {
+		t.Fatal("no line on the board was ever cut, so nothing here was tested")
+	}
+	// The clause cut is the one that matters, so it is named: the container
+	// rules are the longest lines on the board and their first clause is the
+	// rung a reader is looking for.
+	rule, longest := "", 0
+	for _, r := range rulesOf(groups) {
+		if w := natural(gtx, ty.Shaper, ty.Small, r); w > longest {
+			rule, longest = r, w
+		}
+	}
+	head := strings.SplitN(rule, ", ", 2)[0]
+	if head == rule {
+		t.Fatalf("the longest rule on the board is %q, which has no clause to cut at", rule)
+	}
+	room := natural(gtx, ty.Shaper, ty.Small, rule) - 1
+	if got := fitLine(gtx, ty.Shaper, ty.Small, rule, room); got != head {
+		t.Errorf("a hair too narrow for %q the board shows %q, want its first clause %q", rule, got, head)
+	}
+	t.Logf("%q cut to its room reads %q", rule, head)
+}
+
+// wholeWords reports whether head is line cut at a word boundary: a prefix of
+// the line's own words, with nothing kept that the line does not have whole.
+func wholeWords(line, head string) bool {
+	if head == "" {
+		return true
+	}
+	if !strings.HasPrefix(line, head) {
+		return false
+	}
+	rest := line[len(head):]
+	return rest == "" || rest[0] == ' ' || rest[0] == ',' || rest[0] == '/'
 }
 
 // TestTheFamiliesAreDealtWholeInOrderAndEvenly: no family is split across a
@@ -1060,8 +1326,36 @@ func paletteSectionW(t *testing.T, width int, c, other tokens.ColorTokens, dark 
 
 // paletteCaptureH is tall enough for the whole section at the widths tried
 // below, so that nothing under test is clipped by the capture rather than by
-// the layout.
-const paletteCaptureH = 940
+// the layout. The narrowest of those widths is the tallest section: it is the
+// one the board deals into two columns rather than three.
+const paletteCaptureH = 1120
+
+// TestPaletteSectionDump writes the section on its own at the narrowest width
+// it is judged at and at the widest, in both schemes, for the same reason the
+// window dumps write theirs: looking at it is a review step and not a test. It
+// skips unless -themer.dump names a directory.
+func TestPaletteSectionDump(t *testing.T) {
+	if *dumpDir == "" {
+		t.Skip("themer: pass -themer.dump=DIR to write the section out")
+	}
+	light, dark := tokens.FromSeed(fixtureBlue)
+	for _, w := range []struct {
+		name  string
+		width int
+	}{{"narrow", sectionWidths[0]}, {"wide", sectionWidths[len(sectionWidths)-1]}} {
+		for _, sc := range []struct {
+			name     string
+			c, other tokens.ColorTokens
+			dark     bool
+		}{{"light", light, dark, false}, {"dark", dark, light, true}} {
+			path := filepath.Join(*dumpDir, "themer-palette-"+w.name+"-"+sc.name+".png")
+			if err := golden.Save(path, paletteSectionW(t, w.width, sc.c, sc.other, sc.dark)); err != nil {
+				t.Fatalf("themer: save %s: %v", path, err)
+			}
+			t.Logf("wrote %s at %d points wide", path, w.width)
+		}
+	}
+}
 
 // sectionRowY is the middle of ramp row i inside a [paletteSectionW] capture,
 // and sectionInset the margin the section's body and its heading bar both keep

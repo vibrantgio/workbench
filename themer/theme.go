@@ -180,11 +180,17 @@ func TypeFrom(t tokens.Typography) Type {
 	}
 }
 
+// Ellipsis is the mark a run of text wears when it was cut short: the
+// shaper's own truncator, and the one this window appends when it does the
+// cutting itself rather than leaving it to the shaper. One mark, so a reader
+// meets one sign for one fact wherever a line stopped early.
+const Ellipsis = "…"
+
 // textStyle converts one Typography role to a single-line textdraw style.
 func textStyle(ts tokens.TextStyle) textdraw.TextStyle {
 	f := font.Font{Typeface: font.Typeface(ts.Typeface)}
 	if ts.Weight != 0 {
 		f.Weight = tokens.FontWeight(ts.Weight)
 	}
-	return textdraw.TextStyle{Font: f, Alignment: textdraw.Start, Size: unit.Sp(ts.Size), MaxLines: 1, Truncator: "…"}
+	return textdraw.TextStyle{Font: f, Alignment: textdraw.Start, Size: unit.Sp(ts.Size), MaxLines: 1, Truncator: Ellipsis}
 }
