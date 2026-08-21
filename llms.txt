@@ -79,11 +79,11 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      transition, tween, conductor
 
   tier 4
-  patterns  v0.7.0   patterns: shell, navbar, sidebar, table, pagination,
+  patterns  v0.8.0   patterns: shell, navbar, sidebar, table, pagination,
                      tabs, modal, alert, popover, tooltip, toast, card,
                      accordion, breadcrumb, hero, feature, pricing,
                      testimonial
-  markdown  v0.4.0   GFM document rendering on components widgets (subpackages:
+  markdown  v0.5.0   GFM document rendering on components widgets (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
                      images via vibrantgio/svg; obsidian — the Obsidian
                      dialect: frontmatter, wikilinks, block anchors)
@@ -195,7 +195,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        for traer physics
   github.com/vibrantgio/kiwi/gio              v0.0.6   Gio layout on the
                                                        kiwi solver
-  github.com/vibrantgio/components/gallery    v0.8.0   the components gallery
+  github.com/vibrantgio/components/gallery    v0.8.1   the components gallery
                                                        app
   github.com/vibrantgio/mvu/desktop           v0.9.1   native macOS window
                                                        chrome (FullSizeContent,
@@ -1162,7 +1162,7 @@ purpose (golden determinism); leave those alone.
   require (
       gioui.org v0.10.1
       github.com/reactivego/rx v0.3.0
-      github.com/vibrantgio/patterns v0.7.0
+      github.com/vibrantgio/patterns v0.8.0
       github.com/vibrantgio/mvu v0.9.1
       github.com/vibrantgio/components v0.9.2
       github.com/vibrantgio/theme v0.8.0

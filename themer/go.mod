@@ -7,8 +7,8 @@ require (
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.3
 	github.com/vibrantgio/components v0.9.2
-	github.com/vibrantgio/components/gallery v0.8.0
-	github.com/vibrantgio/markdown v0.4.0
+	github.com/vibrantgio/components/gallery v0.8.1
+	github.com/vibrantgio/markdown v0.5.0
 	github.com/vibrantgio/mvu v0.9.1
 	github.com/vibrantgio/mvu/desktop v0.9.1
 	github.com/vibrantgio/textdraw v0.0.4
@@ -27,7 +27,7 @@ require (
 	github.com/vibrantgio/font v0.1.0 // indirect
 	github.com/vibrantgio/ivg v0.1.6 // indirect
 	github.com/vibrantgio/ivg/raster/gio v0.1.6 // indirect
-	github.com/vibrantgio/patterns v0.7.0 // indirect
+	github.com/vibrantgio/patterns v0.8.0 // indirect
 	github.com/vibrantgio/svg v0.0.9 // indirect
 	github.com/yuin/goldmark v1.8.5 // indirect
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743 // indirect
