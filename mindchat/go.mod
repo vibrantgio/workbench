@@ -16,7 +16,7 @@ require (
 	github.com/vibrantgio/mvu v0.5.0
 	github.com/vibrantgio/patterns v0.6.0
 	github.com/vibrantgio/textdraw v0.0.4
-	github.com/vibrantgio/theme v0.9.0
+	github.com/vibrantgio/theme v1.0.0
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743
 	golang.org/x/image v0.44.0
 )
@@ -31,7 +31,7 @@ require (
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
-	github.com/vibrantgio/font v0.3.0 // indirect
+	github.com/vibrantgio/font v0.4.0 // indirect
 	github.com/vibrantgio/svg v0.0.9 // indirect
 	github.com/vibrantgio/svg/driver/gio v0.0.9 // indirect
 	github.com/yuin/goldmark v1.8.5 // indirect

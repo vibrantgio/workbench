@@ -44,8 +44,8 @@ github.com/vibrantgio/components v0.9.1 h1:va+dpq+tNYQEQkJ8tqV6tqDD74qRqE9zfuWh/
 github.com/vibrantgio/components v0.9.1/go.mod h1:rQLstIkWA5dCZNGcmufKgAo4q7m5Zds+6LQ483fZD2g=
 github.com/vibrantgio/effects v0.2.0 h1:5XXgRzAmHFnV+SbbK2n9fQ/CqC9+3XWlAfITK1Gw5Sg=
 github.com/vibrantgio/effects v0.2.0/go.mod h1:zSH8OolKX+/KeObC9HGsWxyJduYpBeenCPbdRi1ouwU=
-github.com/vibrantgio/font v0.3.0 h1:GPe2FyoamK6KHtHEzbQAy9Eyv0TwcGFrKpeRCZ58kDE=
-github.com/vibrantgio/font v0.3.0/go.mod h1:jG7wGEp0EvGA65OlmSu324jEe4Cc0mpqoIKLTZEfa2g=
+github.com/vibrantgio/font v0.4.0 h1:I7t5/rcBgMx8ydMcFOS+cnmRD8dP/1PjT8mkMaZy3Qg=
+github.com/vibrantgio/font v0.4.0/go.mod h1:jG7wGEp0EvGA65OlmSu324jEe4Cc0mpqoIKLTZEfa2g=
 github.com/vibrantgio/ivg v0.1.6 h1:UQRKowEpGHt+MBlFL1fFZvhYTf/3VieD5gR0LA4uRbw=
 github.com/vibrantgio/ivg v0.1.6/go.mod h1:8B2QZ8dTdYc6KuJbxJqORO77gRmxBM0o8lTOWFCDOP0=
 github.com/vibrantgio/ivg/raster/gio v0.1.6 h1:ovAC6JC+2nDFKSy/wuhduZPMDdpbXFuy2uIZiDHK4Rk=
@@ -62,8 +62,8 @@ github.com/vibrantgio/svg/driver/gio v0.0.9 h1:Yetgi4cH9gZi2q/fsJGJesrusjfXle5pe
 github.com/vibrantgio/svg/driver/gio v0.0.9/go.mod h1:iLgoLoboQGZ3W/eaHjUWS0LUnAScoPp9LFBTtJxAAYU=
 github.com/vibrantgio/textdraw v0.0.4 h1:0YRS1dkongHKd3Lz5EpLKKd31f/bAEI/2nJTPNBNCWQ=
 github.com/vibrantgio/textdraw v0.0.4/go.mod h1:av2ygRSlI5LA0+gauPmq6JhzDuhdsuvCccMI/w38dI8=
-github.com/vibrantgio/theme v0.9.0 h1:SnI86SSDUdVecgc4sGZ2CRbOgViEaMPAuz1D7JtWUhI=
-github.com/vibrantgio/theme v0.9.0/go.mod h1:B7yKGMvHwtKn8MOeA/ZVzvMUDdg7ypLZd6yiaSdtTQY=
+github.com/vibrantgio/theme v1.0.0 h1:DKI9jFlxTN2qV8NJL1AS709JKFLVqU8Cpqv8Ysy4yB0=
+github.com/vibrantgio/theme v1.0.0/go.mod h1:3zDkcLnd6SvEaXu/wRi+I575hlJntybho7SN1VqeyEw=
 github.com/yuin/goldmark v1.8.5 h1:r6N5afV5qj/5S4UTch8agZHJ8UxNCMwX7WjkkJam2NA=
 github.com/yuin/goldmark v1.8.5/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
 golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 h1:ex206bKw+v3K0dm3andkrIF+ijyQKJG1pLgwQ2PYdQM=

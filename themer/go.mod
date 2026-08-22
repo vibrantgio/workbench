@@ -12,7 +12,7 @@ require (
 	github.com/vibrantgio/mvu v0.9.1
 	github.com/vibrantgio/mvu/desktop v0.9.1
 	github.com/vibrantgio/textdraw v0.0.4
-	github.com/vibrantgio/theme v0.9.0
+	github.com/vibrantgio/theme v1.0.0
 	golang.org/x/image v0.44.0
 )
 
@@ -23,7 +23,7 @@ require (
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/reactivego/scheduler v0.2.0 // indirect
 	github.com/vibrantgio/effects v0.2.0 // indirect
-	github.com/vibrantgio/font v0.3.0 // indirect
+	github.com/vibrantgio/font v0.4.0 // indirect
 	github.com/vibrantgio/ivg v0.1.6 // indirect
 	github.com/vibrantgio/ivg/raster/gio v0.1.6 // indirect
 	github.com/vibrantgio/patterns v0.8.0 // indirect

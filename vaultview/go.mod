@@ -11,7 +11,7 @@ require (
 	github.com/vibrantgio/mvu v0.9.1
 	github.com/vibrantgio/mvu/desktop v0.9.1
 	github.com/vibrantgio/patterns v0.8.0
-	github.com/vibrantgio/theme v0.9.0
+	github.com/vibrantgio/theme v1.0.0
 )
 
 require (
@@ -20,7 +20,7 @@ require (
 	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/reactivego/scheduler v0.2.0 // indirect
-	github.com/vibrantgio/font v0.3.0 // indirect
+	github.com/vibrantgio/font v0.4.0 // indirect
 	github.com/vibrantgio/svg v0.0.9 // indirect
 	github.com/yuin/goldmark v1.8.5 // indirect
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743 // indirect

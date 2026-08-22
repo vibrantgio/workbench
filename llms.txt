@@ -39,7 +39,7 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      Gio view events the desktop module's drop target rides;
                      subpackage stream (Value, the one sanctioned
                      observable for state several consumers watch — ADR-008)
-  font      v0.3.0   Roboto, six weights, regular and italic — plus Roboto
+  font      v0.4.0   Roboto, six weights, regular and italic — plus Roboto
                      Mono, normal and bold each with italics, all OFL; TTFs
                      embedded here, not eliasnaur.com/font. The default
                      typography's faces. Also jetbrainsmono, the same
@@ -50,7 +50,12 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      drawing, maths): it is NOT in DefaultTypography.Faces,
                      because the default shaper falls back to the platform's
                      fonts. Append it with Typography.WithFaces() only when
-                     you cannot rely on system fonts — a container, a kiosk
+                     you cannot rely on system fonts — a container, a kiosk.
+                     Also notocoloremoji, the OPTIONAL color-emoji face
+                     (Noto Color Emoji, CBDT/PNG): also not in
+                     DefaultTypography.Faces — 9.9 MB, and Gio's system
+                     fallback does not supply one. The live stream wears it
+                     via Typography.WithEmoji / EmojiTypography
   textdraw  v0.0.4   low-level glyph text drawing
   backdrop  v0.0.3   solid colour fill widget
   gradient  v0.0.3   linear gradient fill widget
@@ -60,7 +65,7 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      (§Typography) — never add it to a new app
 
   tier 1 — the foundation
-  theme     v0.9.0   the theme runtime and every design token: tokens
+  theme     v1.0.0   the theme runtime and every design token: tokens
                      (colour ramps and pins, Typography, Density, Motion,
                      Elevation, spacing/radius), color (the CIELAB/OKLCh
                      engine and APCA), theme (Theme, the token observables),
@@ -68,7 +73,10 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      a11y (OS accessibility observables), export (token
                      serialiser + cmd/vg-tokens), window, preferences,
                      brand (the kept seed and optional "mono" code
-                     face, shared by every app)
+                     face, shared by every app). LiveTheme's default
+                     typography is EmojiTypography — the live stream
+                     wears Noto Color Emoji as fallback; goldens stay
+                     on DefaultTypography
 
   tier 2
   components  v0.9.3 button, input, list, richtext, scrollbar,
@@ -790,13 +798,18 @@ in the value; it is safe for concurrent use and shared by every component.
 The fallback is deliberate: Roboto and Roboto Mono carry no arrow, no
 box-drawing character and no dingbat, so a shaper confined to them draws tofu
 for text a real application genuinely receives. theme/theme.Theme.Typography
-is an rx.Observable[tokens.Typography]; theme.Default(), theme.AutoLightDark
-and theme/system's LiveTheme all emit tokens.DefaultTypography, whose
-fifteen roles name "Roboto", whose Code names "Roboto Mono", and whose
-Faces are vibrantgio/font's Roboto faces plus the Roboto Mono faces Code
-resolves against. Roboto is the default because the DEFAULT TYPOGRAPHY
-names it — restyle an app by putting a different Typography on the theme,
-never by wiring fonts per component.
+is an rx.Observable[tokens.Typography]; theme.Default() and
+theme.AutoLightDark emit tokens.DefaultTypography, whose fifteen roles
+name "Roboto", whose Code names "Roboto Mono", and whose Faces are
+vibrantgio/font's Roboto faces plus the Roboto Mono faces Code resolves
+against. theme/system's LiveTheme emits tokens.EmojiTypography() —
+DefaultTypography.WithEmoji() — so the live stream wears Noto Color Emoji
+as fallback. Gio's system fonts do not supply a color-emoji face; without
+that append, 😀 is Roboto's .notdef. Goldens and DeterministicShaper stay
+on DefaultTypography so they do not parse the 9.9 MB face. Roboto is the
+default because the DEFAULT TYPOGRAPHY names it — restyle an app by
+putting a different Typography on the theme, never by wiring fonts per
+component.
 
 LINE HEIGHT NEEDS theme/typeset. TextStyle.LineHeight is the height of the
 line box, the CSS meaning, and handing it to gioui.org/widget.Label does NOT
@@ -867,12 +880,26 @@ the symbol in a golden image: the face serving it is exactly the
 machine-dependent thing goldens exist to avoid, so assert that the shaper
 resolved the rune to a real face and keep it out of the pixels.
 
+font/notocoloremoji is the optional color-emoji face. The same
+DefaultTypography.Faces rule applies — do not add 9.9 MB to every golden
+— but the system fallback does NOT cover emoji, so a live document that
+draws 😀 would tofu without it. That is why the live stream wears it:
+Typography.WithEmoji appends the one face (and returns the receiver when
+it is already there); EmojiTypography() is DefaultTypography.WithEmoji(),
+built once. LiveTheme defaults to that value; Brand.Typography() and
+Brand.Options() apply WithEmoji on top of the code face, including when
+Mono is empty. First-frame snapshots must use the same value or the first
+emoji flashes tofu. Pinned Noto Color Emoji goldens use
+DefaultTypography.WithEmoji().DeterministicShaper(); default-path goldens
+stay emoji-free.
+
 The workbench apps embody all of this: as of Phase F1, no app builds a
 shaper, imports style or gofont, or passes Props.Shaper — copy any of them.
 Code defaults to Roboto Mono. A kept "mono": "JetBrains Mono" in
 theme.json restyles Typography.Code and appends those four faces; empty,
-absent, or unknown stays on Roboto Mono. Goldens and DeterministicShaper
-pin the default.
+absent, or unknown stays on Roboto Mono. The live stream still wears
+emoji on top of whichever code face is kept. Goldens and
+DeterministicShaper pin the default.
 
 ## Markdown documents
 
@@ -1178,7 +1205,7 @@ purpose (golden determinism); leave those alone.
       github.com/vibrantgio/patterns v0.8.0
       github.com/vibrantgio/mvu v0.9.1
       github.com/vibrantgio/components v0.9.3
-      github.com/vibrantgio/theme v0.9.0
+      github.com/vibrantgio/theme v1.0.0
       github.com/vibrantgio/textdraw v0.0.4
   )
 

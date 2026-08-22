@@ -27,8 +27,8 @@ github.com/vibrantgio/components v0.9.3 h1:PsShrp9m5eqcZaCVPJe3kTSDMimVsZvq7CiRe
 github.com/vibrantgio/components v0.9.3/go.mod h1:rQLstIkWA5dCZNGcmufKgAo4q7m5Zds+6LQ483fZD2g=
 github.com/vibrantgio/effects v0.2.0 h1:5XXgRzAmHFnV+SbbK2n9fQ/CqC9+3XWlAfITK1Gw5Sg=
 github.com/vibrantgio/effects v0.2.0/go.mod h1:zSH8OolKX+/KeObC9HGsWxyJduYpBeenCPbdRi1ouwU=
-github.com/vibrantgio/font v0.3.0 h1:GPe2FyoamK6KHtHEzbQAy9Eyv0TwcGFrKpeRCZ58kDE=
-github.com/vibrantgio/font v0.3.0/go.mod h1:jG7wGEp0EvGA65OlmSu324jEe4Cc0mpqoIKLTZEfa2g=
+github.com/vibrantgio/font v0.4.0 h1:I7t5/rcBgMx8ydMcFOS+cnmRD8dP/1PjT8mkMaZy3Qg=
+github.com/vibrantgio/font v0.4.0/go.mod h1:jG7wGEp0EvGA65OlmSu324jEe4Cc0mpqoIKLTZEfa2g=
 github.com/vibrantgio/markdown v0.6.0 h1:Z89VH2LWq/UCYey5JA6EV4USMdFGNDCZFxiUO7onTdg=
 github.com/vibrantgio/markdown v0.6.0/go.mod h1:rqAB8N1yKF1p9Stac8TB7bYrpoQzsVyorvkZ3vczZII=
 github.com/vibrantgio/mvu v0.9.1 h1:gxv/C0Czuv3avzeWVrfWP/kzkf5eNvk6wX4mEO+2ZDY=
@@ -39,8 +39,8 @@ github.com/vibrantgio/patterns v0.8.0 h1:gWXzMRiuuAolKLrcfqyXkOUzdQ/3N7diPL0zqz1
 github.com/vibrantgio/patterns v0.8.0/go.mod h1:xbD4TNX3H3THnw37w2NtfyBR346YHeua01JLJtDpCr8=
 github.com/vibrantgio/svg v0.0.9 h1:0OCCmVFz13IIDR3oDZeyw0IMy2RKWKWReQIlsRRz9zw=
 github.com/vibrantgio/svg v0.0.9/go.mod h1:H867wFCLH1Lfz+uoklXwtvOTAQgg/7DC0KoZm6nRHUA=
-github.com/vibrantgio/theme v0.9.0 h1:SnI86SSDUdVecgc4sGZ2CRbOgViEaMPAuz1D7JtWUhI=
-github.com/vibrantgio/theme v0.9.0/go.mod h1:B7yKGMvHwtKn8MOeA/ZVzvMUDdg7ypLZd6yiaSdtTQY=
+github.com/vibrantgio/theme v1.0.0 h1:DKI9jFlxTN2qV8NJL1AS709JKFLVqU8Cpqv8Ysy4yB0=
+github.com/vibrantgio/theme v1.0.0/go.mod h1:3zDkcLnd6SvEaXu/wRi+I575hlJntybho7SN1VqeyEw=
 github.com/yuin/goldmark v1.8.5 h1:r6N5afV5qj/5S4UTch8agZHJ8UxNCMwX7WjkkJam2NA=
 github.com/yuin/goldmark v1.8.5/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
 golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 h1:ex206bKw+v3K0dm3andkrIF+ijyQKJG1pLgwQ2PYdQM=
