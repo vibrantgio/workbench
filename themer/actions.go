@@ -32,6 +32,13 @@ type SelectCandidate struct {
 	Index int
 }
 
+// SelectMono chooses the typeface fenced code wears. Emitted by a click
+// on one of the two names beside the specimen. The name is one of the
+// two the plate offers; anything else is ignored.
+type SelectMono struct {
+	Name string
+}
+
 // SelectBase chooses the syntax palette code is coloured from, by its
 // position in the base selector. Emitted by a click on one of its rows.
 //
@@ -78,6 +85,7 @@ type KeepSeed struct{}
 type SeedKept struct {
 	Seed  stdcolor.NRGBA
 	Bases highlight.BasePair
+	Mono  string
 }
 
 // KeepFailed reports a keep that did not happen, with the reason in the

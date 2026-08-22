@@ -150,7 +150,8 @@ func (b *baseSelector) reveal(dark bool, row int) {
 // page is the embedded page's own scrolling list — the one this row is drawn
 // in — asked for one number: how tall its viewport is this frame. See
 // [baseColumnHeight] for what that number decides.
-func BesideTheCode(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, sel *baseSelector, page *list.State, code layout.Widget) layout.Widget {
+func BesideTheCode(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, sel *baseSelector, faces *faceSelector, page *list.State, code layout.Widget) layout.Widget {
+	face := FacePanel(p, ty, m, faces)
 	panel := BasePanel(p, c, ty, m, dark, sel)
 	return func(gtx layout.Context) layout.Dimensions {
 		width := gtx.Constraints.Max.X
@@ -175,13 +176,22 @@ func BesideTheCode(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool,
 		// The column stands in the same margin the specimen is inset by, top
 		// and bottom, so the two read as one pair of plates rather than as a
 		// list that happens to be near some code — as far as the window can
-		// show of it. See [baseColumnHeight].
+		// show of it. See [baseColumnHeight]. The face plate sits on top of
+		// the base list: two names, then the seventy-odd palettes.
 		if h := baseColumnHeight(dims.Size.Y, seen, padY); h > 0 && col > 0 {
+			faceH := min(gtx.Dp(FacePanelH), h)
 			inner := gtx
-			inner.Constraints = layout.Exact(image.Pt(col, h))
+			inner.Constraints = layout.Exact(image.Pt(col, faceH))
 			at(inner, image.Pt(padX, padY), func(gtx layout.Context) {
-				panel(gtx)
+				face(gtx)
 			})
+			remain := h - faceH - gtx.Dp(FaceGap)
+			if remain > 0 {
+				inner.Constraints = layout.Exact(image.Pt(col, remain))
+				at(inner, image.Pt(padX, padY+faceH+gtx.Dp(FaceGap)), func(gtx layout.Context) {
+					panel(gtx)
+				})
+			}
 		}
 		return layout.Dimensions{Size: image.Pt(width, dims.Size.Y)}
 	}

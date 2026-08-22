@@ -43,6 +43,7 @@ import (
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/navbar"
 	"github.com/vibrantgio/patterns/shell"
+	"github.com/vibrantgio/theme/brand"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -119,14 +120,13 @@ func run() {
 	os.Exit(0)
 }
 
-// themeObservable returns the live system-driven theme stream. The 5 s poll
-// interval is the intended low-CPU default, not a workaround: each darwin
-// Appearance read is a `defaults` fork+exec (~5.5 ms), so 5 s polling costs
-// ~0.1% CPU at idle while keeping dark-mode response well under a second of a
-// toggle. See theme/system for the dark/accent cadence split and the
-// measured cost table.
+// themeObservable returns the live system-driven theme stream, dressed in
+// the brand this user kept if they kept one. The 5 s poll interval is the
+// intended low-CPU default, not a workaround: each darwin Appearance read
+// is a `defaults` fork+exec (~5.5 ms), so 5 s polling costs ~0.1% CPU at
+// idle while keeping dark-mode response well under a second of a toggle.
 func themeObservable() rx.Observable[theme.Theme] {
-	return specsystem.LiveTheme(5 * time.Second)
+	return specsystem.LiveTheme(5*time.Second, brand.Kept().Options()...)
 }
 
 // themeTokens is the colour/typography snapshot the app's own drawing code
@@ -147,10 +147,14 @@ type themeTokens struct {
 // use.
 func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	var cell atomic.Value
+	// First-frame typography follows the kept brand so a JetBrains Mono
+	// theme cannot flash Roboto Mono on the navbar before the stream emits.
+	// Goldens and unit tests go through theme.Default(), which is Roboto Mono.
+	opening := brand.Kept().Typography()
 	cell.Store(themeTokens{
 		col:    tokens.DefaultLight,
-		typ:    tokens.DefaultTypography,
-		shaper: tokens.DefaultTypography.Shaper(),
+		typ:    opening,
+		shaper: opening.Shaper(),
 	})
 	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })

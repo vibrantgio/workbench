@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // Update is the MVU update function. The application's side effects are
@@ -19,7 +20,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			// arrives anyway is not an error.
 			return model, mvu.DoNothing()
 		}
-		return model, KeepTheme(model.KeepPath, seed, model.AppliedBases(), model.Name)
+		return model, KeepTheme(model.KeepPath, seed, model.AppliedBases(), model.keepMono(), model.Name)
 	case desktop.FilesDropped:
 		model.DragOver = false
 		if len(msg.Paths) == 0 {
@@ -95,8 +96,16 @@ func ReduceModel(m Model, message any) Model {
 				m.LightAt = msg.Index
 			}
 		}
+	case SelectMono:
+		// Only the two names the plate offers. Anything else — a junk
+		// string arriving as a message — leaves the choice alone.
+		if msg.Name == tokens.CodeFaceJetBrains {
+			m.Mono = tokens.CodeFaceJetBrains
+		} else if msg.Name == tokens.CodeFaceRoboto {
+			m.Mono = ""
+		}
 	case SeedKept:
-		m.Kept, m.KeptBases = msg.Seed, msg.Bases
+		m.Kept, m.KeptBases, m.KeptMono = msg.Seed, msg.Bases, msg.Mono
 		m.Problem = ""
 	case KeepFailed:
 		m.Problem = msg.Reason

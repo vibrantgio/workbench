@@ -25,10 +25,11 @@
 // the code lists the syntax bases fitted to the appearance on screen — the
 // styles that ship, and any style file dropped into the styles folder beside
 // the kept theme — and choosing one re-colours the specimen on the spot, in
-// front of you. Keep the two together and they are written where every application
-// that adopts a brand looks for one, this window included: the next thing you
-// open is already wearing the colour, and its code is already in the base you
-// chose.
+// front of you. The same seat holds a two-name plate for the face the fence
+// wears: Roboto Mono or JetBrains Mono. Keep the lot and they are written
+// where every application that adopts a brand looks for one, this window
+// included: the next thing you open is already wearing the colour, its code
+// is already in the base you chose, and the fence is already in that face.
 //
 // The whole window is the drop target: file drops arrive as ordinary
 // messages through mvu/desktop, resolved against a single zone covering the

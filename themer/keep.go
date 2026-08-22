@@ -14,32 +14,34 @@ import (
 // the window is still worth looking at afterwards.
 //
 // What is written is names, not the colours they stand for: the seed the
-// palette is generated from, and the base the code is drawn in under each
-// appearance. The palette generator reproduces itself exactly from the seed
-// and a base is a registry entry read as its author left it, so the names are
-// the whole theme — recording the ramps or the token inks beside them would
-// freeze a derivation that is still allowed to improve.
+// palette is generated from, the base the code is drawn in under each
+// appearance, and the typeface fenced code wears. The palette generator
+// reproduces itself exactly from the seed and a base is a registry entry
+// read as its author left it, so the names are the whole theme — recording
+// the ramps or the token inks beside them would freeze a derivation that
+// is still allowed to improve.
 //
 // Both bases go, not the one the window happens to be showing. The pair is the
 // choice; keeping half of it would leave the other appearance on a default
 // nobody picked the moment somebody flipped the scheme.
-func KeepTheme(path string, seed stdcolor.NRGBA, bases highlight.BasePair, source string) mvu.Command {
-	return mvu.Do(func() (mvu.Message, error) { return keepTheme(path, seed, bases, source), nil })
+func KeepTheme(path string, seed stdcolor.NRGBA, bases highlight.BasePair, mono, source string) mvu.Command {
+	return mvu.Do(func() (mvu.Message, error) { return keepTheme(path, seed, bases, mono, source), nil })
 }
 
 // keepTheme is KeepTheme's body as a plain function, so the whole path from
 // a press to a file is testable without a message loop.
-func keepTheme(path string, seed stdcolor.NRGBA, bases highlight.BasePair, source string) mvu.Message {
+func keepTheme(path string, seed stdcolor.NRGBA, bases highlight.BasePair, mono, source string) mvu.Message {
 	if path == "" {
 		return KeepFailed{Reason: "nowhere to keep it: this machine has no config directory"}
 	}
 	kept := brand.Brand{
 		Seed:   seed,
 		Base:   brand.BasePair{Light: bases.Light, Dark: bases.Dark},
+		Mono:   mono,
 		Source: source,
 	}
 	if err := brand.SaveTo(path, kept); err != nil {
 		return KeepFailed{Reason: "could not keep " + hexOf(seed) + ": " + err.Error()}
 	}
-	return SeedKept{Seed: seed, Bases: bases}
+	return SeedKept{Seed: seed, Bases: bases, Mono: mono}
 }

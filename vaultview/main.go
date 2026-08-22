@@ -94,7 +94,7 @@ func run() {
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 	modelObs := models.Publish().AutoConnect(3)
 
-	if err := w.Render(buildLayers(modelObs, opening)).Wait(); err != nil {
+	if err := w.Render(buildLayers(modelObs, opening, kept.Typography())).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "vaultview:", err)
 		os.Exit(1)
 	}
@@ -122,14 +122,14 @@ type themeTokens struct {
 // the caller is the one that knows which palette this run is in: a window
 // that seeds it with the package default while its stream is about to emit
 // something else opens on a colour nobody chose.
-func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.ColorTokens) func() themeTokens {
+func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.ColorTokens, typo tokens.Typography) func() themeTokens {
 	var cell atomic.Value
 	cell.Store(themeTokens{
 		col:    opening,
-		typ:    tokens.DefaultTypography,
+		typ:    typo,
 		sp:     tokens.Spacing,
 		den:    tokens.Comfortable,
-		shaper: tokens.DefaultTypography.Shaper(),
+		shaper: typo.Shaper(),
 	})
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
@@ -165,9 +165,9 @@ func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.ColorTokens) fun
 // the chrome inset it always had, which now bounds the stack from above:
 // a queue tall enough to climb the window stops at the chrome row's foot
 // instead of covering the controls standing in it.
-func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens, typo tokens.Typography) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
-		loadTok := mirrorTokens(th, opening)
+		loadTok := mirrorTokens(th, opening, typo)
 		var modelCell atomic.Value
 		modelCell.Store(Model{})
 		loadModel := func() Model { return modelCell.Load().(Model) }

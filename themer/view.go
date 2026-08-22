@@ -164,8 +164,20 @@ func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup) func(t
 // window actually draws in is resolved from this one and the model together,
 // in SchemeFor, because the chosen candidate re-seeds it.
 type themed struct {
-	os  tokens.ColorTokens
-	typ Type
+	os     tokens.ColorTokens
+	typ    Type
+	pinned bool
+}
+
+// codeType is the typography the specimen draws through: the selected
+// code face applied to the stream's roles. Tests pin the faces so a
+// render here cannot depend on the machine's font set.
+func (t themed) codeType(m Model) (tokens.Typography, *text.Shaper) {
+	applied := tokens.CodeFace(m.AppliedMono())
+	if t.pinned {
+		return applied, applied.DeterministicShaper()
+	}
+	return applied, applied.Shaper()
 }
 
 // BackdropLayer fills the window. It follows the model as well as the OS,
@@ -194,7 +206,7 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
 	bar := new(topClicks)
-	page, bases, grid := newEmbed(), newBaseSelector(), newStyleGrid()
+	page, bases, faces, grid := newEmbed(), newBaseSelector(), newFaceSelector(), newStyleGrid()
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
 			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
@@ -203,7 +215,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
 		func(n rx.Tuple2[themed, Model]) layout.Widget {
-			return Page(n.First, n.Second, zones, clicks, bar, page, bases, grid)
+			return Page(n.First, n.Second, zones, clicks, bar, page, bases, faces, grid)
 		})
 }
 
@@ -239,7 +251,7 @@ type topClicks struct {
 // the grid of styles for somebody who would rather start from a palette than
 // find one. The well is a band rather than the whole page there, because a
 // grid nobody can see without scrolling is a grid nobody knows about.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, page *embed, bases *baseSelector, grid *styleGrid) layout.Widget {
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, page *embed, bases *baseSelector, faces *faceSelector, grid *styleGrid) layout.Widget {
 	c, other := SchemePair(t.os, m)
 	p := PaletteFrom(c)
 	dark := m.Dark(t.os)
@@ -262,12 +274,14 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	// not on a frame.
 	// The column, with the window's own palette sections standing where the
 	// inventory's were — see [embed.items].
-	items := page.items(t.typ.Shaper, c, m.AppliedBases(), PaletteRows(p, c, other, t.typ, dark))
-	// The base selector rides in the code specimen's own row rather than
-	// standing beside the page: the choice belongs next to its consequence,
-	// and nowhere else on the page is it worth a column.
+	applied, shaper := t.codeType(m)
+	items := page.items(shaper, applied, c, m.AppliedBases(), PaletteRows(p, c, other, t.typ, dark))
+	// The base selector and the two-name face plate ride in the code
+	// specimen's own row rather than standing beside the page: the choice
+	// belongs next to its consequence, and nowhere else on the page is it
+	// worth a column.
 	if row := page.codeColumnRow(); row >= 0 && row < len(items) {
-		items[row] = BesideTheCode(p, c, t.typ, m, dark, bases, page.st, items[row])
+		items[row] = BesideTheCode(p, c, t.typ, m, dark, bases, faces, page.st, items[row])
 	}
 
 	return func(gtx layout.Context) layout.Dimensions {

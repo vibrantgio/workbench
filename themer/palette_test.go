@@ -121,7 +121,7 @@ func TestTheWindowShowsOnePalette(t *testing.T) {
 	shaper := pinned().Shaper
 	light, dark := tokens.FromSeed(fixtureBlue)
 	palette := PaletteRows(PaletteFrom(light), light, dark, pinned(), false)
-	column := e.items(shaper, light, highlight.DefaultBases(), palette)
+	column := e.items(shaper, tokens.DefaultTypography, light, highlight.DefaultBases(), palette)
 	for _, name := range swapped {
 		if row := e.inv.ItemIndex(light, name); row < 0 {
 			t.Errorf("the embedded page has no section named %q to stand in the place of", name)

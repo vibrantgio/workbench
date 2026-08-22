@@ -75,8 +75,8 @@ var swapped = []string{"foundations-roles", "foundations-ramps"}
 // rows standing where the inventory's own palette sections were.
 //
 // The inventory itself is built on the first call — before anything has been
-// dropped, so the parse is behind us by the time a pick has to be quick — and
-// again only if the typography under it is replaced.
+// dropped, so the parse is behind us by the time a pick has to be quick. A
+// code-face change restyles the parsed document; it does not rebuild it.
 //
 // Changing the base moves nothing. It used to scroll the specimen into view,
 // because a base chosen from the far end of a column several screens tall
@@ -88,11 +88,17 @@ var swapped = []string{"foundations-roles", "foundations-ramps"}
 // The palette rows are the window's own and are handed in rather than built
 // here, because they are a function of the derived pair and of the side of it
 // on screen, which this type knows nothing about.
-func (e *embed) items(shaper *text.Shaper, c tokens.ColorTokens, bases highlight.BasePair, palette []layout.Widget) []layout.Widget {
-	if e.inv == nil || e.shaper != shaper {
+func (e *embed) items(shaper *text.Shaper, typ tokens.Typography, c tokens.ColorTokens, bases highlight.BasePair, palette []layout.Widget) []layout.Widget {
+	if e.inv == nil {
 		e.inv, e.shaper = inventory.New(shaper), shaper
 		e.bases, e.code, e.swapAt = highlight.BasePair{}, -1, -1
+	} else if e.shaper != shaper {
+		// A code-face change needs the matching collection. The parsed
+		// document stays; only Code and the extra faces change.
+		e.inv.SetShaper(shaper)
+		e.shaper = shaper
 	}
+	e.inv.SetTypography(typ)
 	if e.bases != bases {
 		e.bases = bases
 		e.inv.SetCodeBases(bases)

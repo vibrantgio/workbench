@@ -82,6 +82,14 @@ type Model struct {
 	// to stand the style's own colours where the photograph would be, and
 	// nothing else turns on it: a seed from a style is a seed.
 	Style string
+	// Mono is the typeface fenced code wears. Empty is Roboto Mono, the
+	// default; the one other name this window applies is "JetBrains Mono".
+	// It starts on whatever was kept.
+	Mono string
+	// KeptMono is the typeface that file currently holds, empty for
+	// Roboto Mono, so the keep affordance can say whether the face on
+	// screen is the one on disk.
+	KeptMono string
 	// LightAt and DarkAt index Bases, one per appearance: the palette the
 	// code is coloured from under the sun, and the one it is coloured from
 	// under the moon. They start on whatever was kept, so a window opens
@@ -239,7 +247,33 @@ func (m Model) adoptKept(kept brand.Brand) Model {
 	m.KeptBases = highlight.BasesOrDefault(kept.Base.Names())
 	m.LightAt = baseIndex(m.Bases, m.KeptBases.Light, false)
 	m.DarkAt = baseIndex(m.Bases, m.KeptBases.Dark, true)
+	// Unknown, empty, or "Roboto Mono" all open on Roboto Mono. Only
+	// JetBrains Mono is a selection this window can restore.
+	m.Mono = ""
+	if kept.Mono == tokens.CodeFaceJetBrains {
+		m.Mono = tokens.CodeFaceJetBrains
+	}
+	m.KeptMono = m.Mono
 	return m
+}
+
+// AppliedMono is the typeface name the specimen wears: JetBrains Mono
+// when that is selected, Roboto Mono otherwise.
+func (m Model) AppliedMono() string {
+	if m.Mono == tokens.CodeFaceJetBrains {
+		return tokens.CodeFaceJetBrains
+	}
+	return tokens.CodeFaceRoboto
+}
+
+// keepMono is what Keep writes: "JetBrains Mono", or empty for Roboto
+// Mono. Empty is how the file spells the default, so a file without the
+// key and a file that chose Roboto Mono come back the same way.
+func (m Model) keepMono() string {
+	if m.AppliedMono() == tokens.CodeFaceJetBrains {
+		return tokens.CodeFaceJetBrains
+	}
+	return ""
 }
 
 // styleNames is every syntax palette there is, in the order this window lists
@@ -375,7 +409,7 @@ func skippedSentence(skipped []highlight.Skipped) string {
 // left behind a flip to the sun is still an unkept change.
 func (m Model) SeedIsKept() bool {
 	seed, ok := m.Seed()
-	return ok && m.Kept.A != 0 && m.Kept == seed && m.KeptBases == m.AppliedBases()
+	return ok && m.Kept.A != 0 && m.Kept == seed && m.KeptBases == m.AppliedBases() && m.KeptMono == m.keepMono()
 }
 
 // shortName is what the window shows for a loaded picture: the file's own

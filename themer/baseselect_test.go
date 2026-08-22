@@ -123,7 +123,7 @@ func baseRowY(i int) int {
 // the code specimen: the page's own row, the panel's padding and the two lines
 // heading it.
 func baseListTop() int {
-	return galleryTop() + int(inventory.SectionPadY) + int(BasePad) + int(BaseHead)
+	return galleryTop() + int(inventory.SectionPadY) + int(FacePanelH) + int(FaceGap) + int(BasePad) + int(BaseHead)
 }
 
 // TestEveryBaseIsOnOffer: the column is built from the highlighter's own list,

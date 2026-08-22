@@ -60,6 +60,7 @@ func TestWindowDump(t *testing.T) {
 			e.st.ScrollTo(row - 1) // the specimen's heading, then its body
 		}
 		save(sc.name+"-code", pageOn(t, e, on, tokens.DefaultLight, sel))
+		save(sc.name+"-code-jetbrains", pageOn(t, e, pickMono(on, tokens.CodeFaceJetBrains), tokens.DefaultLight, sel))
 		// And the page's actual bottom, which is a closing line under the
 		// specimen rather than the specimen running out.
 		e.st.ScrollToEnd(len(e.inv.Items(SchemeFor(tokens.DefaultLight, on))))
@@ -203,14 +204,14 @@ func TestTheEmbeddedPageIsTheBiggestBand(t *testing.T) {
 func TestAPickDoesNotRebuildTheInventory(t *testing.T) {
 	e := newEmbed()
 	shaper := pinned().Shaper
-	e.items(shaper, tokens.DefaultLight, highlight.DefaultBases(), nil)
+	e.items(shaper, tokens.DefaultTypography, tokens.DefaultLight, highlight.DefaultBases(), nil)
 	built := e.inv
 	if built == nil {
 		t.Fatal("the first render built no inventory")
 	}
 	light, dark := tokens.FromSeed(fixtureBlue)
-	e.items(shaper, light, highlight.DefaultBases(), nil)
-	e.items(shaper, dark, highlight.DefaultBases(), nil)
+	e.items(shaper, tokens.DefaultTypography, light, highlight.DefaultBases(), nil)
+	e.items(shaper, tokens.DefaultTypography, dark, highlight.DefaultBases(), nil)
 	if e.inv != built {
 		t.Error("a change of palette rebuilt the inventory — the reading sample is being parsed again on every pick")
 	}
@@ -223,12 +224,12 @@ func BenchmarkRetheme(b *testing.B) {
 	e := newEmbed()
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	light, dark := tokens.FromSeed(fixtureBlue)
-	e.items(shaper, light, highlight.DefaultBases(), nil)
+	e.items(shaper, tokens.DefaultTypography, light, highlight.DefaultBases(), nil)
 	for i := 0; b.Loop(); i++ {
 		c := light
 		if i%2 == 1 {
 			c = dark
 		}
-		e.items(shaper, c, highlight.DefaultBases(), nil)
+		e.items(shaper, tokens.DefaultTypography, c, highlight.DefaultBases(), nil)
 	}
 }

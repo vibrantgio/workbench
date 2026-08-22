@@ -64,7 +64,10 @@ func pageAt(t *testing.T, e *embed, m Model, os tokens.ColorTokens, size image.P
 		bases = sel[0]
 	}
 	clicks := make([]gesture.Click, imageseed.DefaultMax)
-	widget := Page(themed{os: os, typ: pinned()}, m, &desktop.ZoneGroup{}, clicks, new(topClicks), e, bases, newStyleGrid())
+	typo := tokens.CodeFace(m.AppliedMono())
+	ty := TypeFrom(typo)
+	ty.Shaper = typo.DeterministicShaper()
+	widget := Page(themed{os: os, typ: ty, pinned: true}, m, &desktop.ZoneGroup{}, clicks, new(topClicks), e, bases, newFaceSelector(), newStyleGrid())
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		// The backdrop is its own layer at runtime; here it is one fill
 		// under the page, resolved the same way that layer resolves it.

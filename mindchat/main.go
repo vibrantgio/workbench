@@ -15,6 +15,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/theme/brand"
 	specsystem "github.com/vibrantgio/theme/system"
 	specwin "github.com/vibrantgio/theme/window"
 )
@@ -43,7 +44,7 @@ func MindChat() {
 		app.Size(unit.Dp(1024), unit.Dp(768)),
 		app.MinSize(unit.Dp(575), unit.Dp(256)),
 	)
-	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
+	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second, brand.Kept().Options()...))
 
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
