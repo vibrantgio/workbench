@@ -242,7 +242,7 @@ and not drift. When a root and its nested module are both used, require them
 at matching versions: `seen` and `seen/context/gio` are the case you will hit
 first.
 
-External pins: gioui.org v0.10.1, github.com/reactivego/rx v0.3.0, go 1.25.1
+External pins: gioui.org v0.10.2, github.com/reactivego/rx v0.3.0, go 1.25.1
 — every module in the org is on exactly these.
 
 ## Application bootstrap (the canonical skeleton)
@@ -1167,7 +1167,7 @@ purpose (golden determinism); leave those alone.
   go 1.25.1
 
   require (
-      gioui.org v0.10.1
+      gioui.org v0.10.2
       github.com/reactivego/rx v0.3.0
       github.com/vibrantgio/patterns v0.8.0
       github.com/vibrantgio/mvu v0.9.1

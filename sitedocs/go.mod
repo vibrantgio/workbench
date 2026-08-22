@@ -3,7 +3,7 @@ module github.com/vibrantgio/workbench/sitedocs
 go 1.25.1
 
 require (
-	gioui.org v0.10.1
+	gioui.org v0.10.2
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/components v0.9.2
 	github.com/vibrantgio/markdown v0.4.0
@@ -15,7 +15,7 @@ require (
 )
 
 require (
-	gioui.org/shader v1.0.8 // indirect
+	gioui.org/shader v1.0.9 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
