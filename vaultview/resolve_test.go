@@ -200,7 +200,8 @@ func TestParseRef(t *testing.T) {
 // own lines counted — off the same bytes the reader would count, so a
 // note built here says what the same file on disk would say.
 func noteFromSource(p, src string) *Note {
-	fm, body := obsidian.SplitFrontMatter([]byte(src))
+	raw := []byte(src)
+	fm, body := obsidian.SplitFrontMatter(raw)
 	blocks, anchors := obsidian.BlockAnchors(obsidian.WikiSpans(markdown.Parse(body)))
 	base := path.Base(p)
 	return &Note{
@@ -209,7 +210,9 @@ func noteFromSource(p, src string) *Note {
 		FM:      fm,
 		Blocks:  blocks,
 		Anchors: anchors,
-		Lines:   sourceLines([]byte(src)),
+		Src:     raw,
+		Size:    int64(len(raw)),
+		Lines:   sourceLines(raw),
 	}
 }
 

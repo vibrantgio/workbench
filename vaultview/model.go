@@ -113,9 +113,14 @@ func (m Model) CurrentNote() *Note {
 // wikilinks lifted into hyperlink spans, and block-id anchors stripped
 // into an id → top-level block index map.
 //
+// Src is the file bytes as they were read. A task-checkbox click splices
+// one marker character in a copy of these bytes and writes that copy;
+// the original is never mutated, and neither is the Note.
+//
 // Mod and Size record what the file looked like when it was read, so a
 // later navigation can tell a cached note that is still current from one
-// the vault's owner has edited since.
+// the vault's owner has edited since. A toggle uses the same stamp: a
+// file that has moved on is not written.
 //
 // Lines is the file's own line count, taken off the same bytes and kept
 // beside them for the same reason: it is a fact about the file as it was
@@ -126,6 +131,7 @@ type Note struct {
 	FM      obsidian.FrontMatter
 	Blocks  []markdown.Block
 	Anchors map[string]int // block id → top-level block index
+	Src     []byte         // file bytes at read; see spliceTask
 	Mod     time.Time      // modification time at read
 	Size    int64          // byte size at read
 	Lines   int            // source lines at read; see status.go
@@ -199,6 +205,16 @@ type SetFilter struct{ Text string }
 // notes added, renamed or removed while the app was open.
 type Rescan struct{}
 
+// ToggleTask is a click on a GFM task checkbox. Item is the *ListItem
+// Parse produced — the same pointer OnTaskClick received — and Path is
+// the note it was drawn from. The command that handles it writes the
+// marker before it returns; a toggle that has not yet hit disk has not
+// happened.
+type ToggleTask struct {
+	Path string
+	Item *markdown.ListItem
+}
+
 // pickerListed delivers the folder browser's rows for a directory.
 type pickerListed struct {
 	dir     string
@@ -229,6 +245,17 @@ type vaultRescanned struct {
 type noteLoaded struct {
 	vault string
 	nav   Navigate
+	note  *Note
+	err   string
+}
+
+// taskToggled delivers the result of a toggle command: the note as
+// re-read after the write (or after a refused write), and err when the
+// write was refused. The file on disk already holds the new marker
+// before this message exists.
+type taskToggled struct {
+	vault string
+	path  string
 	note  *Note
 	err   string
 }
@@ -368,6 +395,30 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.PickerDir = dir
 		model.PickerEntries = nil
 		return model, listDirCmd(dir)
+	case ToggleTask:
+		path := m.Path
+		if path == "" {
+			path = model.Current
+		}
+		note := model.Notes[path]
+		if note == nil || m.Item == nil || !m.Item.Task {
+			break
+		}
+		return model, toggleTaskCmd(model.Vault, note, m.Item)
+	case taskToggled:
+		if m.vault != model.Vault {
+			break
+		}
+		if m.note != nil {
+			// Replace, never mutate: a different pointer at the same path
+			// is what makes the document rebuild. NavSeq is not bumped, so
+			// the rebuild seats at the outgoing viewport rather than at
+			// the landing anchor.
+			model = cacheNote(model, m.note)
+		}
+		if m.err != "" {
+			return raiseToast(model, toast.Request(toast.Warning, m.err))
+		}
 	case Rescan:
 		if model.Vault == "" || model.Scanning {
 			break
@@ -561,8 +612,8 @@ func rescanSummary(idx *Index) string {
 
 // unchangedOnDisk reports whether a cached note still matches the file it
 // was read from. A file that cannot be stat'ed — a vault on a detached
-// volume, a note deleted since — counts as unchanged: a read-only viewer
-// showing what it last read beats one blanking the page.
+// volume, a note deleted since — counts as unchanged: a viewer showing
+// what it last read beats one blanking the page.
 func unchangedOnDisk(vault string, n *Note) bool {
 	if vault == "" || n == nil {
 		return true
@@ -636,6 +687,7 @@ func LoadNote(root, rel string) (*Note, error) {
 		FM:      fm,
 		Blocks:  blocks,
 		Anchors: anchors,
+		Src:     src,
 		Mod:     mod,
 		Size:    size,
 		Lines:   sourceLines(src),

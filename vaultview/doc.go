@@ -1,8 +1,11 @@
-// Command vaultview is a read-only desktop viewer for folders of
-// markdown notes written in the Obsidian style: YAML-ish frontmatter at
-// the top, [[wikilinks]] between notes, ^block-ids stamped at the end of
-// a paragraph. It opens a vault, renders a note, and follows the links —
-// nothing more. It never writes to a note.
+// Command vaultview is a desktop viewer for folders of markdown notes
+// written in the Obsidian style: YAML-ish frontmatter at the top,
+// [[wikilinks]] between notes, ^block-ids stamped at the end of a
+// paragraph. It opens a vault, renders a note, and follows the links.
+// The one write it makes is a GFM task marker: clicking a checkbox
+// flips `[ ]` to `[x]` or `[x]`/`[X]` to `[ ]` in the file, one
+// character, before the click's handler returns. Nothing else is
+// writable.
 //
 // # Choosing a vault
 //
@@ -91,7 +94,7 @@
 //
 // # What it deliberately does not do
 //
-// There is no editing, no graph view, and no full-text search. The find
+// There is no editor, no graph view, and no full-text search. The find
 // field above the tree filters by note name over the index the scan
 // already built; it reads no file and searches no prose. An embed is
 // drawn as an ordinary link rather than pulling the other note inline.

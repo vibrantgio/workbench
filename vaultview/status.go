@@ -13,7 +13,7 @@
 // the one place the tools disagree: editors that seat a cursor after the
 // final newline count the seat and say one more, while everything that
 // counts a file rather than an insertion point says what this does. A
-// viewer that never writes to a note has no insertion point to seat, so it
+// viewer that is not an editor has no insertion point to seat, so it
 // counts the file.
 //
 // The whole file counts, the frontmatter and its fences included. Those

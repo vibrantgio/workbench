@@ -1,9 +1,11 @@
 # Vault View
 
-A read-only desktop viewer for a folder of markdown notes written in the
-Obsidian style: frontmatter at the top, `[[wikilinks]]` between notes,
-`^block-ids` stamped at the end of a paragraph. It opens a vault, renders
-a note, and follows the links. It never writes to a note.
+A desktop viewer for a folder of markdown notes written in the Obsidian
+style: frontmatter at the top, `[[wikilinks]]` between notes, `^block-ids`
+stamped at the end of a paragraph. It opens a vault, renders a note, and
+follows the links. Clicking a task checkbox writes that one GFM marker
+character to the file — `[ ]` becomes `[x]`, `[x]`/`[X]` becomes `[ ]` —
+and nothing else is writable.
 
 ```sh
 cd vaultview && go run .            # opens the vault you used last, or asks

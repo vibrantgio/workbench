@@ -208,6 +208,45 @@ func plainNoteModel() Model {
 	return m
 }
 
+// taskNoteSource is a note whose body is a GFM task list: checked, open,
+// [X], and a nested item. It exists so the goldens record the marks a
+// click will write, in both schemes, rather than only the notes that
+// have none.
+const taskNoteSource = `# Tasks
+
+What is still open, and what is not.
+
+- [x] Record the marker offset
+- [ ] Write the character
+- [X] Keep the reader where they were
+  - [ ] nested under a done item
+- [ ] Brackets stay put
+`
+
+func taskNoteModel() Model {
+	m := goldenModel()
+	m = cacheNote(m, noteFromSource("guide/Tasks.md", taskNoteSource))
+	m.Current = "guide/Tasks.md"
+	m.History = []HistEntry{{Path: "guide/Reading list.md", Anchor: -1}, {Path: "guide/Tasks.md", Anchor: -1}}
+	m.Cursor = 1
+	m.PropsOpen = false
+	return m
+}
+
+// TestNoteTasksGolden records the note column in both schemes for a note
+// that has task boxes. The idle marks must match the file; a click is
+// not this picture's job.
+func TestNoteTasksGolden(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := taskNoteModel()
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := renderNotePage(shaper, m, tc.colors, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
+			golden.Render(t, "note-tasks-"+tc.name, noteCanvasSize, scene(w, tc.bg))
+		})
+	}
+}
+
 // TestNoteScrollbarGolden records the note column part way down a long
 // note. The indicator sits in the column's trailing gutter, away from both
 // ends of its track and a fraction of its length — position and proportion,

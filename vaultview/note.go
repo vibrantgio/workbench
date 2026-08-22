@@ -3,9 +3,10 @@
 // backlinks panel trailing. The column renders the current note: a header row with back/forward and the
 // breadcrumb, a collapsible properties panel fed by the frontmatter split,
 // and the parsed body as a markdown Document. Wikilink clicks resolve
-// against the index and navigate; web links open the system browser; a
-// link matching several notes raises the chooser, and every other refusal
-// surfaces as a toast.
+// against the index and navigate; a task checkbox writes its marker in
+// the file before the click returns; web links open the system browser;
+// a link matching several notes raises the chooser, and every other
+// refusal surfaces as a toast.
 
 package main
 
@@ -388,8 +389,10 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	// from: notes are never mutated, so a different pointer at the same
 	// path means the file was read again and the document must be rebuilt
 	// — without that, a note edited outside the app would reload into a
-	// viewport still showing the old blocks. All state here is touched
-	// only on the frame goroutine.
+	// viewport still showing the old blocks. The outgoing viewport is
+	// copied onto the new document so the reader does not jump; mutating
+	// ListItem.Checked in place to dodge the rebuild is not the work.
+	// All state here is touched only on the frame goroutine.
 	var (
 		docs      = map[string]docEntry{}
 		docsVault string
@@ -410,7 +413,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 			seatedSeq = m.NavSeq
 			e = docEntry{note: n, doc: markdown.NewDocumentAt(n.Blocks, m.CurAnchor)}
 		case !cached || e.note != n:
-			e = docEntry{note: n, doc: markdown.NewDocument(n.Blocks)}
+			e = docEntry{note: n, doc: rebuildDocument(n, e.doc)}
 		default:
 			return e.doc
 		}
@@ -503,6 +506,9 @@ func layoutNotePage(
 			style.Text.OnLinkClick = func(gtx layout.Context, url string) {
 				linkClicked(gtx, m, url)
 			}
+			style.OnTaskClick = func(gtx layout.Context, item *markdown.ListItem) {
+				mvu.MessageOp{Message: ToggleTask{Path: note.Path, Item: item}}.Add(gtx.Ops)
+			}
 			// The bar is the design system's, taking the same colour
 			// tokens the document's style did. Occupy rather than
 			// Overlay: the gutter costs the prose ten dp of measure
@@ -583,6 +589,17 @@ func layoutNotePage(
 		children = append(children, body)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	})
+}
+
+// rebuildDocument returns a Document for n, seated at prev's viewport
+// when prev is the document this one replaces. Scroll lives on the
+// document; transferring it is how a reload — a task toggle, a note
+// re-read because the file moved on — keeps the reader where they were.
+func rebuildDocument(n *Note, prev *markdown.Document) *markdown.Document {
+	if prev == nil {
+		return markdown.NewDocument(n.Blocks)
+	}
+	return markdown.NewDocumentAt(n.Blocks, prev.Position().First)
 }
 
 // renderNotePage is the static counterpart of the vault screen's main

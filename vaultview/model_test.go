@@ -49,6 +49,9 @@ func TestLoadNoteWiresWikilinksAndAnchors(t *testing.T) {
 	if n.FM.Present != true {
 		t.Error("frontmatter not split off")
 	}
+	if string(n.Src) != src {
+		t.Errorf("Src = %q, want the file bytes LoadNote read", n.Src)
+	}
 }
 
 // scannedModel builds a vault-screen model the way vaultScanned leaves
