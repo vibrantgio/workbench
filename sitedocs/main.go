@@ -148,7 +148,9 @@ type themeTokens struct {
 func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	var cell atomic.Value
 	// First-frame typography follows the kept brand so a JetBrains Mono
-	// theme cannot flash Roboto Mono on the navbar before the stream emits.
+	// theme cannot flash Roboto Mono on the navbar before the stream emits,
+	// and so the first emoji cannot flash tofu: Brand.Typography is
+	// CodeFace then WithEmoji, the same value the stream emits.
 	// Goldens and unit tests go through theme.Default(), which is Roboto Mono.
 	opening := brand.Kept().Typography()
 	cell.Store(themeTokens{

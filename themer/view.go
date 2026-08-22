@@ -170,13 +170,17 @@ type themed struct {
 }
 
 // codeType is the typography the specimen draws through: the selected
-// code face applied to the stream's roles. Tests pin the faces so a
-// render here cannot depend on the machine's font set.
+// code face applied to the stream's roles. The live path appends emoji
+// the way Brand.Typography does, so a fence cannot flash tofu before
+// the stream emits. Tests pin the faces so a render here cannot depend
+// on the machine's font set, and they stay on DefaultTypography —
+// goldens do not parse the color-emoji face.
 func (t themed) codeType(m Model) (tokens.Typography, *text.Shaper) {
 	applied := tokens.CodeFace(m.AppliedMono())
 	if t.pinned {
 		return applied, applied.DeterministicShaper()
 	}
+	applied = applied.WithEmoji()
 	return applied, applied.Shaper()
 }
 
