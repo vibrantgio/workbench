@@ -39,7 +39,7 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      Gio view events the desktop module's drop target rides;
                      subpackage stream (Value, the one sanctioned
                      observable for state several consumers watch — ADR-008)
-  font      v0.4.0   Roboto, six weights, regular and italic — plus Roboto
+  font      v0.4.1   Roboto, six weights, regular and italic — plus Roboto
                      Mono, normal and bold each with italics, all OFL; TTFs
                      embedded here, not eliasnaur.com/font. The default
                      typography's faces. Also jetbrainsmono, the same
