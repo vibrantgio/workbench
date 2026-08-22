@@ -17,8 +17,8 @@ github.com/vibrantgio/backdrop v0.0.3 h1:Xp+6U5pSCsqKLi5M8Pfkd0P094ut5sLVDrLM5OP
 github.com/vibrantgio/backdrop v0.0.3/go.mod h1:KESYoe+8sDwR/roZM8LJ0wwtfaTqfUGR6DjcxKCydfU=
 github.com/vibrantgio/components v0.9.1 h1:va+dpq+tNYQEQkJ8tqV6tqDD74qRqE9zfuWh/hPQ8p0=
 github.com/vibrantgio/components v0.9.1/go.mod h1:rQLstIkWA5dCZNGcmufKgAo4q7m5Zds+6LQ483fZD2g=
-github.com/vibrantgio/font v0.1.0 h1:UXlYbXkf3Kbk5oxhdky1JFTTi8oV5Nf7Q8apDoCHFJM=
-github.com/vibrantgio/font v0.1.0/go.mod h1:3xY/uNoUn5FC2+gJ1g9se10R0z+gcWfF8kxvChF/HTQ=
+github.com/vibrantgio/font v0.2.0 h1:x2bAinz+alDFSQ1JHPs2UJ/nJsGt/hmnVPHW6wmoZFg=
+github.com/vibrantgio/font v0.2.0/go.mod h1:GqhPQAr9hyibHl4FtRLrqg7u83ONqXUKqQgstuL7Wi4=
 github.com/vibrantgio/ivg v0.1.6 h1:UQRKowEpGHt+MBlFL1fFZvhYTf/3VieD5gR0LA4uRbw=
 github.com/vibrantgio/ivg v0.1.6/go.mod h1:8B2QZ8dTdYc6KuJbxJqORO77gRmxBM0o8lTOWFCDOP0=
 github.com/vibrantgio/ivg/raster/gio v0.1.6 h1:ovAC6JC+2nDFKSy/wuhduZPMDdpbXFuy2uIZiDHK4Rk=
@@ -29,10 +29,10 @@ github.com/vibrantgio/noise v0.0.3 h1:XQb4YPBdTJZSjTXD0SkxMa7Op2nbLmj9vANiEaGUe7
 github.com/vibrantgio/noise v0.0.3/go.mod h1:hlxs1Tvw1DmaWgVEHMjX6c/euvlXyox/F8sCtzdLL5c=
 github.com/vibrantgio/patterns v0.6.0 h1:bnxuqrL9bS2RjKuv9V/p7K3gNYDQX9RSiRKN35X+5rs=
 github.com/vibrantgio/patterns v0.6.0/go.mod h1:wgaAsNXhKGihOzIOorX2m08hGmwVEjP1BbDJCIJuark=
-github.com/vibrantgio/seen v0.0.7 h1:Ro1Tnqi+omEjPJTbDxK9XnVk2T9hqZuYIbS5+KpkHz0=
-github.com/vibrantgio/seen v0.0.7/go.mod h1:XIerMaflemFdCpWTADE87T5tc+OjZfM2oPq+Fo6dt1c=
-github.com/vibrantgio/seen/context/gio v0.0.7 h1:OJip+UYNVDIgtTyENczDpdm4CEQHYB+kNfVD5H2LwDU=
-github.com/vibrantgio/seen/context/gio v0.0.7/go.mod h1:qmUvReYGDlVXW/U+/6yFSztl5iCOwkIqko6beyq8Kyk=
+github.com/vibrantgio/seen v0.0.8 h1:UwOK6yhKNRgTdojQYKN69QbGlUmAAeHht2kr4+V8XC0=
+github.com/vibrantgio/seen v0.0.8/go.mod h1:XIerMaflemFdCpWTADE87T5tc+OjZfM2oPq+Fo6dt1c=
+github.com/vibrantgio/seen/context/gio v0.0.8 h1:VRA1Dm7Y8WtEi+IWBPIyKgQUfibcIX5tik3/KEuDkYg=
+github.com/vibrantgio/seen/context/gio v0.0.8/go.mod h1:TAMe+7C7lfWCrjLDGMPax0a3pZVunj2NJkGh6L/iZi8=
 github.com/vibrantgio/theme v0.6.0 h1:h4HznU/HoKd29XjcTMR7xJWBr0ctDx2Mkve9mByQVyM=
 github.com/vibrantgio/theme v0.6.0/go.mod h1:44w3153LI3oT2kyOS5XgerzvBoigoQfkMVbSLh4TlqM=
 golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 h1:ex206bKw+v3K0dm3andkrIF+ijyQKJG1pLgwQ2PYdQM=

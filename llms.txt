@@ -39,9 +39,10 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      Gio view events the desktop module's drop target rides;
                      subpackage stream (Value, the one sanctioned
                      observable for state several consumers watch — ADR-008)
-  font      v0.1.0   Roboto, six weights, regular and italic — plus Roboto
-                     Mono, normal and bold each with italics, all OFL; the
-                     default typography's faces. Also notosansmono, the
+  font      v0.2.0   Roboto, six weights, regular and italic — plus Roboto
+                     Mono, normal and bold each with italics, all OFL; TTFs
+                     embedded here, not eliasnaur.com/font. The default
+                     typography's faces. Also notosansmono, the
                      OPTIONAL symbol face (arrows, box drawing, maths): it is
                      NOT in DefaultTypography.Faces, because the default
                      shaper falls back to the platform's fonts. Append it
@@ -89,7 +90,7 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      dialect: frontmatter, wikilinks, block anchors)
 
   support libraries — consumed by the design system, never depend on it
-  seen      v0.0.7   3D scene graph rendered to SVG or Gio
+  seen      v0.0.8   3D scene graph rendered to SVG or Gio
   traer     v0.0.8   particle physics (springs, attractions, Verlet)
   svg       v0.0.9   SVG parse + render
   ivg       v0.1.7   IconVG icons, Material icons bundled
@@ -189,7 +190,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
   github.com/vibrantgio/svg/driver/raster     v0.0.9   SVG -> raster image
   github.com/vibrantgio/svg/driver/pdf        v0.0.7   SVG -> PDF
   github.com/vibrantgio/svg/driver/seen       v0.0.8   SVG -> seen scene
-  github.com/vibrantgio/seen/context/gio      v0.0.7   Gio drawing context
+  github.com/vibrantgio/seen/context/gio      v0.0.8   Gio drawing context
                                                        and widget for seen
   github.com/vibrantgio/traer/gio             v0.0.8   Gio examples/render
                                                        for traer physics
@@ -1176,7 +1177,8 @@ the frozen style module to a new app. textdraw is a direct requirement as soon a
 draw text yourself with textdraw.Text/Label — todos does.
 github.com/vibrantgio/font arrives INDIRECTLY, as theme's dependency;
 `go mod tidy` marks it `// indirect` and only promotes it if you import a
-face package yourself.
+face package yourself. The faces are hosted in that module — do not
+require eliasnaur.com/font.
 
 Add markdown/effects/backdrop/seen/traer as needed. All repos are public on
 GitHub.

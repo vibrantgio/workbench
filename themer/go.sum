@@ -31,8 +31,8 @@ github.com/vibrantgio/components/gallery v0.8.1 h1:p2s5jh8dfr0Z6eLDmwjTYAw4Dtlbq
 github.com/vibrantgio/components/gallery v0.8.1/go.mod h1:AHet4Z41tlv+t4e1R3wIlw2j4Q3h5TgtvHjHuvcTTqk=
 github.com/vibrantgio/effects v0.2.0 h1:5XXgRzAmHFnV+SbbK2n9fQ/CqC9+3XWlAfITK1Gw5Sg=
 github.com/vibrantgio/effects v0.2.0/go.mod h1:zSH8OolKX+/KeObC9HGsWxyJduYpBeenCPbdRi1ouwU=
-github.com/vibrantgio/font v0.1.0 h1:UXlYbXkf3Kbk5oxhdky1JFTTi8oV5Nf7Q8apDoCHFJM=
-github.com/vibrantgio/font v0.1.0/go.mod h1:3xY/uNoUn5FC2+gJ1g9se10R0z+gcWfF8kxvChF/HTQ=
+github.com/vibrantgio/font v0.2.0 h1:x2bAinz+alDFSQ1JHPs2UJ/nJsGt/hmnVPHW6wmoZFg=
+github.com/vibrantgio/font v0.2.0/go.mod h1:GqhPQAr9hyibHl4FtRLrqg7u83ONqXUKqQgstuL7Wi4=
 github.com/vibrantgio/ivg v0.1.6 h1:UQRKowEpGHt+MBlFL1fFZvhYTf/3VieD5gR0LA4uRbw=
 github.com/vibrantgio/ivg v0.1.6/go.mod h1:8B2QZ8dTdYc6KuJbxJqORO77gRmxBM0o8lTOWFCDOP0=
 github.com/vibrantgio/ivg/raster/gio v0.1.6 h1:ovAC6JC+2nDFKSy/wuhduZPMDdpbXFuy2uIZiDHK4Rk=

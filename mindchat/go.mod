@@ -22,7 +22,6 @@ require (
 )
 
 require (
-	eliasnaur.com/font v0.0.0-20230308162249-dd43949cb42d // indirect
 	gioui.org/shader v1.0.8 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
@@ -32,7 +31,7 @@ require (
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
-	github.com/vibrantgio/font v0.1.0 // indirect
+	github.com/vibrantgio/font v0.2.0 // indirect
 	github.com/vibrantgio/svg v0.0.9 // indirect
 	github.com/vibrantgio/svg/driver/gio v0.0.9 // indirect
 	github.com/yuin/goldmark v1.8.5 // indirect
