@@ -39,15 +39,18 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      Gio view events the desktop module's drop target rides;
                      subpackage stream (Value, the one sanctioned
                      observable for state several consumers watch — ADR-008)
-  font      v0.2.0   Roboto, six weights, regular and italic — plus Roboto
+  font      v0.3.0   Roboto, six weights, regular and italic — plus Roboto
                      Mono, normal and bold each with italics, all OFL; TTFs
                      embedded here, not eliasnaur.com/font. The default
-                     typography's faces. Also notosansmono, the
-                     OPTIONAL symbol face (arrows, box drawing, maths): it is
-                     NOT in DefaultTypography.Faces, because the default
-                     shaper falls back to the platform's fonts. Append it
-                     with Typography.WithFaces() only when you cannot rely on
-                     system fonts — a container, a kiosk
+                     typography's faces. Also jetbrainsmono, the same
+                     four-face layout under "JetBrains Mono", packaged
+                     beside Roboto Mono and not in the default collection;
+                     a kept theme.json "mono" can name it for code. Also
+                     notosansmono, the OPTIONAL symbol face (arrows, box
+                     drawing, maths): it is NOT in DefaultTypography.Faces,
+                     because the default shaper falls back to the platform's
+                     fonts. Append it with Typography.WithFaces() only when
+                     you cannot rely on system fonts — a container, a kiosk
   textdraw  v0.0.4   low-level glyph text drawing
   backdrop  v0.0.3   solid colour fill widget
   gradient  v0.0.3   linear gradient fill widget
@@ -57,14 +60,15 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      (§Typography) — never add it to a new app
 
   tier 1 — the foundation
-  theme     v0.8.0   the theme runtime and every design token: tokens
+  theme     v0.9.0   the theme runtime and every design token: tokens
                      (colour ramps and pins, Typography, Density, Motion,
                      Elevation, spacing/radius), color (the CIELAB/OKLCh
                      engine and APCA), theme (Theme, the token observables),
                      system (LiveTheme, palette injection, the OS accent),
                      a11y (OS accessibility observables), export (token
                      serialiser + cmd/vg-tokens), window, preferences,
-                     brand (the kept seed, shared by every app)
+                     brand (the kept seed and optional "mono" code
+                     face, shared by every app)
 
   tier 2
   components  v0.9.3 button, input, list, richtext, scrollbar,
@@ -607,7 +611,9 @@ own control; interpreting the stored name is the app's job.
 
 theme/brand is the other persisted choice, and it is per USER, not per app:
 one seed colour in one shared file (<config dir>/vibrantgio/theme.json), so
-a brand chosen once is worn by everything. Adopting it is one line —
+a brand chosen once is worn by everything. The same file may name a code
+face as "mono": "JetBrains Mono" or omitted/empty/unknown, which is Roboto
+Mono — the same fallback "base" already uses. Adopting it is one line —
 
   specsystem.LiveTheme(interval, brand.Kept().Options()...)
 
@@ -863,11 +869,10 @@ resolved the rune to a real face and keep it out of the pixels.
 
 The workbench apps embody all of this: as of Phase F1, no app builds a
 shaper, imports style or gofont, or passes Props.Shaper — copy any of them.
-One pre-release seam remains: the mono face and the Code style are newer
-than the latest published theme and font tags, so a build resolved from
-tags (rather than the org's development workspace) renders code in Roboto
-until the release tags land. The guide describes the system as it ships in
-the working tree; §Modules records the honest tag state.
+Code defaults to Roboto Mono. A kept "mono": "JetBrains Mono" in
+theme.json restyles Typography.Code and appends those four faces; empty,
+absent, or unknown stays on Roboto Mono. Goldens and DeterministicShaper
+pin the default.
 
 ## Markdown documents
 
@@ -900,8 +905,9 @@ viewport would fight the outer one.
     Parse produced (same pointer; MarkerOffset is the opening '[' in
     that source). The library does not write files.
   - Code renders in the theme's mono face: FromTokens resolves Style.Mono
-    and CodeSize from the Typography Code style (Roboto Mono in the default
-    faces), on a tinted neutral-300 surface with horizontal overflow
+    and CodeSize from the Typography Code style (Roboto Mono by default;
+    JetBrains Mono when the kept "mono" names it), on a tinted neutral-300
+    surface with horizontal overflow
     scroll. Syntax colours are opt-in: style.Highlight =
     highlight.Adapt(highlight.DefaultBase, colors) (markdown/highlight,
     chroma) — one base name for both appearances, which member of the pair
@@ -1172,7 +1178,7 @@ purpose (golden determinism); leave those alone.
       github.com/vibrantgio/patterns v0.8.0
       github.com/vibrantgio/mvu v0.9.1
       github.com/vibrantgio/components v0.9.3
-      github.com/vibrantgio/theme v0.8.0
+      github.com/vibrantgio/theme v0.9.0
       github.com/vibrantgio/textdraw v0.0.4
   )
 

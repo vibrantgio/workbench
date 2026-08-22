@@ -25,8 +25,8 @@ github.com/reactivego/scheduler v0.2.0 h1:XCg1M2L/ejSOI8v5Q0K5xJt+W204+F0AJsjpTP
 github.com/reactivego/scheduler v0.2.0/go.mod h1:Kw99rMXR1WJr/FgeqQfGAWClsWWlVKXZCUwJ+iCXUtQ=
 github.com/vibrantgio/components v0.9.2 h1:gPnOfQDK/MZ3I4CBax1uJ+W3gl2t+caNk2Q+RWFQbmY=
 github.com/vibrantgio/components v0.9.2/go.mod h1:rQLstIkWA5dCZNGcmufKgAo4q7m5Zds+6LQ483fZD2g=
-github.com/vibrantgio/font v0.2.0 h1:x2bAinz+alDFSQ1JHPs2UJ/nJsGt/hmnVPHW6wmoZFg=
-github.com/vibrantgio/font v0.2.0/go.mod h1:GqhPQAr9hyibHl4FtRLrqg7u83ONqXUKqQgstuL7Wi4=
+github.com/vibrantgio/font v0.3.0 h1:GPe2FyoamK6KHtHEzbQAy9Eyv0TwcGFrKpeRCZ58kDE=
+github.com/vibrantgio/font v0.3.0/go.mod h1:jG7wGEp0EvGA65OlmSu324jEe4Cc0mpqoIKLTZEfa2g=
 github.com/vibrantgio/markdown v0.4.0 h1:zk6Fi+tqvUbYr76kXMY2U1A5m7U3IrS7//e10uG3CVQ=
 github.com/vibrantgio/markdown v0.4.0/go.mod h1:f5q+eraD4rpR0uP4SNAZ3hW0PNmoYgrBIxaG0xnduks=
 github.com/vibrantgio/mvu v0.7.0 h1:l0Et6wpOD4I0jc4/EfMWVpkUxSiDaTAHO2hBhphFyRM=
@@ -35,8 +35,8 @@ github.com/vibrantgio/mvu/desktop v0.7.0 h1:at0kgTgAdtzlebMYHKNwtcMEl10pocBp6PzV
 github.com/vibrantgio/mvu/desktop v0.7.0/go.mod h1:grMhjlLYMq5soU/oQ6TyyCqyL+C1LfNtAHaZbUwYV+s=
 github.com/vibrantgio/patterns v0.6.0 h1:bnxuqrL9bS2RjKuv9V/p7K3gNYDQX9RSiRKN35X+5rs=
 github.com/vibrantgio/patterns v0.6.0/go.mod h1:wgaAsNXhKGihOzIOorX2m08hGmwVEjP1BbDJCIJuark=
-github.com/vibrantgio/theme v0.7.0 h1:DrH+sVk9iaoJp2pPOV4nO48a018A75Dyvx2C6tzeYuQ=
-github.com/vibrantgio/theme v0.7.0/go.mod h1:44w3153LI3oT2kyOS5XgerzvBoigoQfkMVbSLh4TlqM=
+github.com/vibrantgio/theme v0.9.0 h1:SnI86SSDUdVecgc4sGZ2CRbOgViEaMPAuz1D7JtWUhI=
+github.com/vibrantgio/theme v0.9.0/go.mod h1:B7yKGMvHwtKn8MOeA/ZVzvMUDdg7ypLZd6yiaSdtTQY=
 github.com/yuin/goldmark v1.8.5 h1:r6N5afV5qj/5S4UTch8agZHJ8UxNCMwX7WjkkJam2NA=
 github.com/yuin/goldmark v1.8.5/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
 golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 h1:ex206bKw+v3K0dm3andkrIF+ijyQKJG1pLgwQ2PYdQM=
