@@ -84,7 +84,7 @@ support row — enforced in CI by the org's check-layers script. Current tags:
                      tabs, modal, alert, popover, tooltip, toast, card,
                      accordion, breadcrumb, hero, feature, pricing,
                      testimonial
-  markdown  v0.5.1   GFM document rendering on components widgets (subpackages:
+  markdown  v0.6.0   GFM document rendering on components widgets (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
                      images via vibrantgio/svg; obsidian — the Obsidian
                      dialect: frontmatter, wikilinks, block anchors)
@@ -880,6 +880,8 @@ instead of hand-coding text layouts:
                                          // link, and image state across frames
   style  := markdown.FromTokens(colors, typ)  // typ is tokens.Typography
   style.Text.OnLinkClick = func(gtx layout.Context, url string) { ... }
+  style.OnTaskClick = func(gtx layout.Context, item *markdown.ListItem) { ... }
+                                         // opt-in; nil stays display-only
   doc.Layout(gtx, typ.Shaper(), style)   // scrolling viewport, O(visible);
                                          // typ is the theme's Typography
 
@@ -893,6 +895,10 @@ viewport would fight the outer one.
     rules, and GFM
     tables (columns shrink within their slack, floored at the widest word;
     a table that cannot fit scrolls horizontally).
+  - Task-list checkboxes are display-only until OnTaskClick is set, the
+    same opt-in as Text.OnLinkClick. The hook receives the *ListItem
+    Parse produced (same pointer; MarkerOffset is the opening '[' in
+    that source). The library does not write files.
   - Code renders in the theme's mono face: FromTokens resolves Style.Mono
     and CodeSize from the Typography Code style (Roboto Mono in the default
     faces), on a tinted neutral-300 surface with horizontal overflow
@@ -1251,7 +1257,7 @@ them without the caveats older guides carried:
               .md sources rendered with vibrantgio/markdown (content/*.md +
               docs_content.go route table — the docs-app recipe, including
               the light/dark highlight switch)
-  vaultview/  the document reader: a read-only viewer for a folder of
+  vaultview/  the document reader: a viewer for a folder of
               markdown notes written in the Obsidian style. The genre no
               other app covers — open-ended user content rather than an
               owned data model — so it is where the navigation vocabulary
@@ -1264,8 +1270,10 @@ them without the caveats older guides carried:
               names is app-local and pure — one index built by an mvu.Do
               scan off the render goroutine, pure functions over it, every
               rule pinned by a test. Read doc.go first: it states the link
-              contract the tests enforce. It never writes to a note. Also
-              the reference for adopting a kept brand: one theme.LiveTheme
+              contract the tests enforce. The one write is a GFM task
+              marker: OnTaskClick splices `[ ]` ↔ `[x]` in the file
+              before the handler returns, and nothing else is writable.
+              Also the reference for adopting a kept brand: one theme.LiveTheme
               option, and the same value seeding mirrorTokens' first cell
   (DESIGN.md, the architecture document, no longer lives here: it moved to
   github.com/vibrantgio/design beside the exported token bundle. Read its

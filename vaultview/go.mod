@@ -7,7 +7,7 @@ require (
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/components v0.9.3
 	github.com/vibrantgio/effects v0.2.0
-	github.com/vibrantgio/markdown v0.5.1
+	github.com/vibrantgio/markdown v0.6.0
 	github.com/vibrantgio/mvu v0.9.1
 	github.com/vibrantgio/mvu/desktop v0.9.1
 	github.com/vibrantgio/patterns v0.8.0
