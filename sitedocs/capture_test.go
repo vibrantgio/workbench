@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gioui.org/layout"
-
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/patterns/tabs"
@@ -19,7 +17,7 @@ import (
 // TestWriteTabReviewCaptures is not a test of anything: it is the
 // offscreen camera for the fresh-eyes review the plan's standing rules
 // require. Set SITEDOCS_CAPTURE_DIR to a directory and run this test to
-// write window-sized captures of all three tabs — strip included, the
+// write window-sized captures of all five tabs — strip included, the
 // Docs tab over the real checkout guide — in both schemes; unset (the
 // normal test run) it skips, so no ordinary run depends on the checkout
 // file. It renders offscreen and touches nothing on the owner's screen.
@@ -45,19 +43,11 @@ func TestWriteTabReviewCaptures(t *testing.T) {
 		{"dark", tokens.DefaultDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
 	}
 	for _, tc := range schemes {
-		// contentSlot is the shell's content slot: the camera has to
-		// photograph the same gap under the strip that the app draws.
-		contents := []layout.Widget{
-			contentSlot(renderDocsTab(shaper, src, st, tc.colors, typo)),
-			contentSlot(renderGalleryTab(shaper, tc.colors, typo)),
-			contentSlot(renderThemeTab(shaper, tc.colors, typo)),
-		}
-		props := tabs.Props{Tabs: []tabs.Tab{
-			{Label: "Docs", Content: contents[0]},
-			{Label: "Gallery", Content: contents[1]},
-			{Label: "Theme", Content: contents[2]},
-		}, Shaper: shaper}
-		for i, tabName := range []string{"docs", "gallery", "theme"} {
+		// staticTabs puts every cell's content in the shell's own
+		// contentSlot: the camera has to photograph the same gap under the
+		// strip that the app draws.
+		props := tabs.Props{Tabs: staticTabs(shaper, src, st, tc.colors, typo), Shaper: shaper}
+		for i, tabName := range tabPages {
 			w := tabs.Render(shaper, props, i, tc.colors, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
 			img := golden.Capture(t, size, scene(w, tc.bg))
 			path := filepath.Join(dir, tabName+"-tab-review-"+tc.name+".png")

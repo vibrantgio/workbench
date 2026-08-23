@@ -3,17 +3,20 @@
 // the canonical MVU Model/Update/Messages loop; MessageOp emissions fire
 // within the same frame that originated the click.
 //
-// The window is a patterns/tabs shell with three pages, all built once
+// The window is a patterns/tabs shell with five pages, all built once
 // and kept subscribed so scroll positions survive switching:
 //
-//   - Docs    → the application guide (the workbench root's llms.txt) as
-//     one markdown document, its ##/### outline tree in a leading column.
-//   - Gallery → components/gallery/inventory's live controls in one
-//     scrolling column (gallery.go).
-//   - Theme   → the themer's palette section following the live theme
-//     (theme_tab.go).
+//   - Docs       → the application guide (the workbench root's llms.txt)
+//     as one markdown document, its ##/### outline tree in a leading
+//     column.
+//   - Theme      → the themer's palette section plus the inventory's type
+//     ladder, following the live theme (theme_tab.go).
+//   - Components → components/gallery/inventory's Components group as
+//     live controls in one scrolling column (inventory_tabs.go).
+//   - Patterns   → the same for the inventory's Patterns group.
+//   - Markdown   → the same for the inventory's Markdown group.
 //
-// tabbedShellLayer folds the three content streams into the tab shell on
+// tabbedShellLayer folds the five content streams into the tab shell on
 // every emission.
 
 package main
@@ -197,12 +200,12 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 }
 
-// tabbedShellLayer composes the window: a patterns/tabs strip whose three
-// pages are Docs, Gallery and Theme. The content streams are built once
-// and kept subscribed, so scroll positions and outline state survive
-// switching tabs in both directions.
+// tabbedShellLayer composes the window: a patterns/tabs strip whose five
+// pages are Docs, Theme, Components, Patterns and Markdown. The content
+// streams are built once and kept subscribed, so scroll positions — one
+// per tab — and outline state survive switching tabs in both directions.
 //
-// tabs.Props.Tabs carries static content widgets, while the three pages
+// tabs.Props.Tabs carries static content widgets, while the five pages
 // are streams (theme changes restyle them; model changes move the docs
 // outline). So each Tab.Content reads an atomic cell at frame time, and
 // the combined map below stores every stream's latest widget into its
@@ -210,17 +213,19 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // mvu/window.go uses for its layer snapshot. Any input emitting therefore
 // re-emits this layer, which drives theme/window's Invalidate and the
 // same-frame repaint after a click.
+//
+// The contents are combined as one homogeneous []layout.Widget rather
+// than through a CombineLatestN tuple: rx tops out at five sources and
+// the shell needs the strip plus one per page. Combining the pages by
+// tabPages order and pairing that slice with the strip has no ceiling, so
+// a sixth tab is a line in tabPages and nothing here.
 func tabbedShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
 	selectedObs := rx.Map(modelObs, func(m Model) int { return tabIndex(m.currentPage) })
 
-	docs := docsTabFrom(th, modelObs, loadGuide())
-	gallery := galleryTabLayer(th)
-	themeTab := themeTabLayer(th)
-
-	var docsCell, galleryCell, themeCell atomic.Value
+	cells := make([]atomic.Value, len(tabPages))
 	fromCell := func(cell *atomic.Value) layout.Widget {
 		return contentSlot(func(gtx layout.Context) layout.Dimensions {
 			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
@@ -230,23 +235,33 @@ func tabbedShellLayer(
 		})
 	}
 
-	strip := tabs.Tabs(th, tabs.Props{
-		Tabs: []tabs.Tab{
-			{Label: "Docs", Content: fromCell(&docsCell)},
-			{Label: "Gallery", Content: fromCell(&galleryCell)},
-			{Label: "Theme", Content: fromCell(&themeCell)},
-		},
+	pages := make([]rx.Observable[layout.Widget], len(tabPages))
+	strip := make([]tabs.Tab, len(tabPages))
+	for i, page := range tabPages {
+		switch page {
+		case pageDocs:
+			pages[i] = docsTabFrom(th, modelObs, loadGuide())
+		case pageTheme:
+			pages[i] = themeTabLayer(th)
+		default:
+			pages[i] = groupTabLayer(th, tabGroups[page])
+		}
+		strip[i] = tabs.Tab{Label: tabLabels[i], Content: fromCell(&cells[i])}
+	}
+
+	shell := tabs.Tabs(th, tabs.Props{
+		Tabs:     strip,
 		Selected: selectedObs,
 		OnSelect: func(gtx layout.Context, idx int) {
 			mvu.MessageOp{Message: SetRoute{Page: tabPages[idx]}}.Add(gtx.Ops)
 		},
 	})
 
-	combined := rx.CombineLatest4(strip, docs, gallery, themeTab)
-	return rx.Map(combined, func(n rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
-		docsCell.Store(n.Second)
-		galleryCell.Store(n.Third)
-		themeCell.Store(n.Fourth)
+	combined := rx.CombineLatest2(shell, rx.CombineLatest(pages...))
+	return rx.Map(combined, func(n rx.Tuple2[layout.Widget, []layout.Widget]) layout.Widget {
+		for i, w := range n.Second {
+			cells[i].Store(w)
+		}
 		return n.First
 	})
 }
@@ -271,15 +286,17 @@ var contentGap = unit.Dp(tokens.Spacing.S4)
 // both sides and reads as a line rather than as the top edge of whatever
 // begins below it.
 //
-// The gap lives here, in the shell, rather than in the one tab that
-// currently shows the defect. The collision is structural, not a Gallery
-// property: the underline is the strip's bottom two pixels, so any
-// content whose first row is a filled band — the inventory's Primary
-// group banner today, a future Docs or Theme page tomorrow — merges with
-// it. Docs and Theme open on quiet surfaces by accident of their present
-// content, not by contract, and a gap that appears only on the middle tab
-// would shift every page's first line as the user switches tabs. One slot
-// for all three keeps the strip a fixed band and costs each page 8 dp.
+// The gap lives here, in the shell, rather than in the one tab that first
+// showed the defect. The collision is structural, not a property of the
+// tab that reported it: the underline is the strip's bottom two pixels,
+// so any content whose first row is a filled band merges with it. The
+// case that reported it — the inventory's full-width Primary group banner
+// — is no longer drawn, because a single-group tab drops its banner
+// (inventory_tabs.go); every tab now opens on a quiet surface. That is an
+// accident of the present content and not a contract, and a gap that
+// appeared only on the tab of the day would shift every page's first line
+// as the user switches tabs. One slot for all five keeps the strip a
+// fixed band and costs each page 8 dp.
 //
 // Applied by tabbedShellLayer to the live tabs and by the review capture
 // to the static ones, so the camera photographs the composition the app

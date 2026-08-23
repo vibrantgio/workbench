@@ -42,9 +42,12 @@ var Apps = []App{
 		Icon:  icons.ImagePalette,
 	},
 	{
-		Name:  "Site Docs",
-		Dir:   "sitedocs",
-		Blurb: "Three-tab docs app: the application guide with its outline tree, the live component gallery, the theme palette.",
+		Name: "Site Docs",
+		Dir:  "sitedocs",
+		// The blurb is two lines wide on the card, like every other one
+		// here: a third line pushes this card's Launch button out of line
+		// with the rest of the row.
+		Blurb: "Five-tab docs app: the guide with its outline tree, the theme, the inventory by group.",
 		Icon:  icons.ActionDescription,
 	},
 	{

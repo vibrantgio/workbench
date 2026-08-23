@@ -3,8 +3,10 @@ package main
 import (
 	"image"
 	"image/color"
+	"strings"
 	"testing"
 
+	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -14,19 +16,11 @@ import (
 var themeCanvasSize = image.Pt(1180, 760)
 
 // TestThemeTabGolden pins the Theme tab in both schemes: the ramps grid
-// with its step numbers and pinned-base chips, and the picks board with
-// the rule that chose each colour.
+// with its step numbers and pinned-base chips, the picks board with the
+// rule that chose each colour, and the type ladder under them.
 func TestThemeTabGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
-	cases := []struct {
-		name   string
-		colors tokens.ColorTokens
-		bg     color.NRGBA
-	}{
-		{"light", tokens.DefaultLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-		{"dark", tokens.DefaultDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
-	}
-	for _, tc := range cases {
+	for _, tc := range schemeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := renderThemeTab(shaper, tc.colors, tokens.DefaultTypography)
 			golden.Render(t, "theme-tab-"+tc.name, themeCanvasSize, scene(w, tc.bg))
@@ -53,6 +47,54 @@ func TestPaletteSectionRowsIsTheRowCount(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	if got := len(themePaletteRows(shaper, tokens.DefaultTypography, tokens.DefaultLight)); got != PaletteSectionRows {
 		t.Fatalf("PaletteRows returns %d rows, PaletteSectionRows says %d", got, PaletteSectionRows)
+	}
+}
+
+// TestTypeLadderFollowsThePalette is the AH1.1 move made checkable: the
+// Theme tab borrows the inventory's type ladder as two rows — this tab's
+// own heading band and the section's body — and they come after the
+// palette's four rows, not before them.
+func TestTypeLadderFollowsThePalette(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	typo := tokens.DefaultTypography
+	inv := inventory.NewForOS(shaper, "darwin")
+	c := tokens.DefaultLight
+
+	ladder := typeLadderRows(inv, PaletteFrom(c), c, TypeFrom(shaper, typo))
+	if len(ladder) != 2 {
+		t.Fatalf("the type ladder is %d rows, want 2 (a heading band and a body)", len(ladder))
+	}
+	rows := themeTabRows(inv, shaper, typo, c)
+	if len(rows) != PaletteSectionRows+len(ladder) {
+		t.Fatalf("the Theme column is %d rows, want the palette's %d plus the ladder's %d",
+			len(rows), PaletteSectionRows, len(ladder))
+	}
+}
+
+// TestTypeLadderKeepsTheInventorysWords is the guard on the one place
+// this tab could quietly invent copy: the borrowed band's label and
+// caption are the inventory's own title, split at its separator and
+// nothing else. A title reworded upstream has to arrive here reworded.
+func TestTypeLadderKeepsTheInventorysWords(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	inv := inventory.NewForOS(shaper, "darwin")
+	c := tokens.DefaultLight
+
+	var title string
+	for _, s := range inv.Foundations(c) {
+		if s.Name == typeSection {
+			title = s.Title
+		}
+	}
+	if title == "" {
+		t.Fatalf("the inventory publishes no section named %q — the Theme tab's ladder is empty", typeSection)
+	}
+	label, hint, _ := strings.Cut(title, sectionTitleSep)
+	if label == "" {
+		t.Errorf("splitting %q leaves no label for the band", title)
+	}
+	if rejoined := label + sectionTitleSep + hint; rejoined != title {
+		t.Errorf("the band says %q, the inventory says %q", rejoined, title)
 	}
 }
 

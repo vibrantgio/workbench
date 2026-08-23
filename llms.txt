@@ -1252,13 +1252,17 @@ read it from
 
 ### sitedocs/
 
-The documentation app, three tabs over patterns/tabs: Docs — this guide
+The documentation app, five tabs over patterns/tabs: Docs — this guide
 (llms.txt) rendered whole by vibrantgio/markdown, its ##/### outline as
-a tree whose rows scroll the document (ScrollToBlock); Gallery — the
-components/gallery/inventory catalogue as live controls; Theme — the
-palette story (ramps grid and named picks) following the live theme.
-The reference for a tabbed shell and for an outline tree over one long
-document
+a tree whose rows scroll the document (ScrollToBlock); Theme — the
+palette story (ramps grid and named picks) plus the type ladder,
+following the live theme; then Components, Patterns and Markdown, one
+per group of the components/gallery/inventory catalogue, as live
+controls. A tab showing a single group drops that group's banner, and
+the inventory's own colour sections are dropped for the Theme tab's
+telling — the inventory module is untouched, the app chooses which of
+its sections to lay out. The reference for a tabbed shell and for an
+outline tree over one long document
 
 ### marketing/
 

@@ -22,9 +22,10 @@ var shellCanvasSize = image.Pt(windowW, windowH)
 // draws, the shell's content slot leaves a band of bare Surface between
 // the strip's Primary underline and the content's first row, so the
 // underline reads as a line rather than as the top edge of the content.
-// The Gallery tab is the case that reported the defect — the inventory's
-// first group banner is a full-width Primary fill, the underline's own
-// colour — but the slot is shared, so all three tabs are checked.
+// The old Gallery tab was the case that reported the defect — the
+// inventory's first group banner is a full-width Primary fill, the
+// underline's own colour — but the slot is shared, so all five tabs are
+// checked.
 //
 // The expected colour is sampled from the strip itself rather than named
 // from the token set: the capture round-trips through the GPU, and a
@@ -52,13 +53,9 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 		{"dark", tokens.DefaultDark},
 	}
 	for _, sc := range schemes {
-		for i, tabName := range []string{"docs", "gallery", "theme"} {
+		for i, tabName := range tabPages {
 			t.Run(sc.name+"/"+tabName, func(t *testing.T) {
-				props := tabs.Props{Tabs: []tabs.Tab{
-					{Label: "Docs", Content: contentSlot(renderDocsTab(shaper, source, st, sc.colors, typo))},
-					{Label: "Gallery", Content: contentSlot(renderGalleryTab(shaper, sc.colors, typo))},
-					{Label: "Theme", Content: contentSlot(renderThemeTab(shaper, sc.colors, typo))},
-				}, Shaper: shaper}
+				props := tabs.Props{Tabs: staticTabs(shaper, source, st, sc.colors, typo), Shaper: shaper}
 				w := tabs.Render(shaper, props, i, sc.colors, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
 				img := golden.Capture(t, shellCanvasSize, w)
 

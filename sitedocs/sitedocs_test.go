@@ -57,9 +57,9 @@ func TestInitialModelSeedsDocs(t *testing.T) {
 // the model's currentPage field synchronously — no goroutine, no polling.
 func TestUpdateSetRouteAdvancesPage(t *testing.T) {
 	m := initialModel()
-	next, _ := Update(m, SetRoute{Page: pageGallery})
-	if next.currentPage != pageGallery {
-		t.Errorf("after SetRoute: currentPage = %q; want %q", next.currentPage, pageGallery)
+	next, _ := Update(m, SetRoute{Page: pageComponents})
+	if next.currentPage != pageComponents {
+		t.Errorf("after SetRoute: currentPage = %q; want %q", next.currentPage, pageComponents)
 	}
 }
 
@@ -201,4 +201,19 @@ func collectOne(obs rx.Observable[layout.Widget]) (layout.Widget, error) {
 		}
 	}).Wait()
 	return got, err
+}
+
+// TestStripOrderIsLabelled pins the two lists the strip is built from
+// against each other: every route identifier has a label, in the order
+// the cells are drawn.
+func TestStripOrderIsLabelled(t *testing.T) {
+	if len(tabLabels) != len(tabPages) {
+		t.Fatalf("%d labels for %d tabs", len(tabLabels), len(tabPages))
+	}
+	want := []string{"Docs", "Theme", "Components", "Patterns", "Markdown"}
+	for i, w := range want {
+		if tabLabels[i] != w {
+			t.Errorf("tab %d is labelled %q, want %q", i, tabLabels[i], w)
+		}
+	}
 }
