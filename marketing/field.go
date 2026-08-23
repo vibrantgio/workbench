@@ -45,6 +45,11 @@ const (
 	noiseAmplitude = 0.08
 
 	strokeWidth = 1
+	// strokeMix is how much FocusRing remains after blending toward
+	// Background. Seen's stroke path drops alpha (Hex is #RRGGBB), so
+	// the mesh can only recede in RGB. 0.35 keeps Neutral 500's hue
+	// without letting the wireframe become the subject.
+	strokeMix = 0.35
 )
 
 // Field owns one seen scene and its animation. All fields except pending
@@ -74,7 +79,7 @@ func newField(window *app.Window, width, height unit.Dp) *Field {
 	f := &Field{
 		ctx:    seengio.NewContext(window),
 		scene:  seen.NewDefaultScene(),
-		stroke: tokens.DefaultLight.FocusRing(), // pre-theme placeholder
+		stroke: quietStroke(tokens.DefaultLight), // pre-theme placeholder
 	}
 	f.scene.ShowBackfaces = true
 	f.scene.Shader = shader.Flat
@@ -118,8 +123,25 @@ func (f *Field) Widget() layout.Widget { return f.view }
 // SetColors re-keys the one stroke colour to new theme tokens. Safe from
 // any goroutine; the animation tick applies it on the events thread.
 func (f *Field) SetColors(c tokens.ColorTokens) {
-	col := c.FocusRing()
+	col := quietStroke(c)
 	f.pending.Store(&col)
+}
+
+// quietStroke mixes FocusRing toward Background so a full-bleed wireframe
+// stays one theme colour but reads as a backdrop.
+func quietStroke(c tokens.ColorTokens) color.NRGBA {
+	s := c.FocusRing()
+	g := c.Background
+	return color.NRGBA{
+		R: mixU8(g.R, s.R, strokeMix),
+		G: mixU8(g.G, s.G, strokeMix),
+		B: mixU8(g.B, s.B, strokeMix),
+		A: 255,
+	}
+}
+
+func mixU8(a, b uint8, t float64) uint8 {
+	return uint8(math.Round(float64(a)*(1-t) + float64(b)*t))
 }
 
 func (f *Field) applyPending() {

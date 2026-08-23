@@ -30,7 +30,7 @@ func TestFieldStrokeOnlyOneColour(t *testing.T) {
 			if len(faces) == 0 {
 				t.Fatal("patch has no faces")
 			}
-			want := seenFromNRGBA(tc.colors.FocusRing())
+			want := seenFromNRGBA(quietStroke(tc.colors))
 			for i := range faces {
 				if faces[i].FillMaterial != nil {
 					t.Errorf("face %d: fill set, want none", i)
