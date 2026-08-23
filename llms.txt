@@ -1,11 +1,11 @@
 # Vibrant Gio — guide for AI assistants writing applications
 
 THIS FILE IS THE CANONICAL GUIDE for the whole github.com/vibrantgio
-organization. It lives at the root of the org's `.github` repository and
-exists exactly once; every repo's AGENTS.md links this raw URL rather than
-copying the content, so this is the version to read and the version to edit:
+organization. It lives at the root of the workbench repository and exists
+exactly once; every repo's AGENTS.md is a short static pointer to this
+URL, so this is the version to read and the version to edit:
 
-  https://raw.githubusercontent.com/vibrantgio/.github/master/llms.txt
+  https://raw.githubusercontent.com/vibrantgio/workbench/master/llms.txt
 
 Vibrant Gio is a design system for native desktop apps (macOS/Windows/Linux)
 built on gioui.org, with a Functional Reactive Programming application model
@@ -117,7 +117,7 @@ theme's cmd/vg-tokens and embedded as the Go module
 github.com/vibrantgio/design; its mirror/ package is the G1.1 harness that
 scores bundle pages against the Gio components in headless Chromium — the
 org's one non-Go dependency, pinned by version, verdicts read on one
-machine; see design/AGENTS.md). Both sit at the top of the stack, nothing
+machine; see design/mirror). Both sit at the top of the stack, nothing
 pins them, and both are consumed from the branch tip.
 
 EVERY TAG ABOVE IS RELEASED AND CURRENT, and every number in this file is
@@ -1133,8 +1133,15 @@ purpose (golden determinism); leave those alone.
   the current directory only. And `./...` works only where every test
   package has goldens (markdown); in components, effects, theme and patterns,
   packages without goldens reject the undeclared flag, so name the golden
-  packages one by one (each repo's AGENTS.md carries the measured
-  command line). A golden also PINS ITS FACES with
+  packages one by one:
+
+      components  go test ./button ./gallery ./golden ./icon ./input ./layout ./list ./richtext ./scrollarea ./scrollbar -golden.update
+      effects     go test ./depth ./glow ./motion ./transition -golden.update
+      patterns    go test ./accordion ./alert ./breadcrumb ./card ./feature ./hero ./modal ./navbar ./pagination ./popover ./pricing ./shell ./sidebar ./table ./tabs ./tag ./testimonial ./toast ./tooltip -golden.update
+      markdown    go test ./highlight ./svgimage . -golden.update
+      workbench   go test ./... -golden.update
+
+  A golden also PINS ITS FACES with
   tokens.DefaultTypography.DeterministicShaper(), never the application
   default Shaper() (§Typography), and stores its images under
   `testdata/golden/` — the path the shared harness resolves itself, so a
@@ -1147,29 +1154,16 @@ purpose (golden determinism); leave those alone.
   sum.golang.org CAUSES the version to be recorded. Nested-module tags
   mirror their root's version (§Nested modules); a nested tag never runs
   on its own counter.
-- EVERY REPO'S AGENTS.md IS GENERATED, so correcting one in the repository
-  is a SILENT NO-OP. scripts/sync-agents.sh in vibrantgio/.github renders
-  all twenty-one from templates/ there, and the next run puts the template's
-  words back — accurate words included, without a word of complaint. Fix
-  the template instead (templates/repos.tsv for the role sentence and the
-  ADR-001 tier, templates/notes/<repo>.md for anything longer,
-  templates/AGENTS.md for wording shared by all twenty-one) and regenerate;
-  check-agents.sh is the gate and fails on any file that differs from its
-  render. The module, build, golden-image and import paragraphs are not
-  typed anywhere at all — they are measured from the clone with `go list`,
-  so if one of them is wrong it is the code that moved. The general form is
-  worth carrying to any repo: an edit to a generated file looks like the
-  most direct fix available, passes review, and is thrown away by the next
-  render.
-- AND SO ARE THE VERSION NUMBERS IN THIS FILE. sync-agents.sh cannot reach
-  llms.txt — .github is the PARENT of the clones, not one of them — so for
-  eight phases the canonical guide was the one document with a generator's
-  job and no generator, and it drifted three minors. scripts/
-  sync-versions.sh now reads `git tag` in every clone and writes the version
-  tokens in §Modules, §Nested modules and §Minimal go.mod; check-versions.sh
-  fails when they disagree. Run sync-versions.sh in the same task that cuts
-  a tag, beside check-agents.sh — the generated AGENTS.md files embed tag
-  versions too, so a release moves both.
+- AGENTS.md IN A MEMBER REPO IS A POINTER, not a second guide. It names
+  the module in one sentence and links this file. Do not put versions,
+  import graphs, golden commands or release notes in it — those belong
+  here, or in the code. Do not regenerate it from a template. A wording
+  change in .github must not become a commit in circle.
+- THE VERSION NUMBERS IN THIS FILE ARE GENERATED. scripts/sync-versions.sh
+  in vibrantgio/.github reads `git tag` in every clone and writes the
+  version tokens in §Modules, §Nested modules and §Minimal go.mod;
+  check-versions.sh fails when they disagree. Run sync-versions.sh in the
+  same task that cuts a tag. Do not type a version into this file.
 - AN EXPORTED OBSERVABLE WITH NO SUBSCRIBER IS INVISIBLE TO EVERY TOOL, and
   four of them lived in cadence for eight phases (§Coordination). Publishing
   looks identical whether or not anyone is listening, so a grep for the
