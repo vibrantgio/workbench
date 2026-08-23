@@ -17,7 +17,6 @@ import (
 // secondary stays visual.
 func heroContent(seePlans func(gtx layout.Context)) hero.Props {
 	return hero.Props{
-		Eyebrow:      "simpleapps.eu · coming soon",
 		Title:        "SimpleApps",
 		Subtitle:     "Where did this sentence come from? Who wrote it, and was it generated? The trail stays in the file.",
 		PrimaryCTA:   &hero.CTA{Label: "See plans", OnClick: seePlans},

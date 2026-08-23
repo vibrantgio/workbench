@@ -192,8 +192,8 @@ func TestContentLayerConstructs(t *testing.T) {
 
 func TestSimpleAppsCopy(t *testing.T) {
 	hp := heroContent(nil)
-	if hp.Eyebrow != "simpleapps.eu · coming soon" {
-		t.Errorf("hero eyebrow = %q", hp.Eyebrow)
+	if hp.Eyebrow != "" {
+		t.Errorf("hero eyebrow = %q, want empty (no chip)", hp.Eyebrow)
 	}
 	if hp.Title != "SimpleApps" {
 		t.Errorf("hero title = %q", hp.Title)
