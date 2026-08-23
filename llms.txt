@@ -22,14 +22,14 @@ look. Components take it and need nothing else — typeface, colour, density,
 elevation and motion all arrive through it. Application code reads tokens
 from the theme, never constructs a shaper (the theme's Typography owns the
 one shaper), and never writes a colour literal (colours come off the theme's
-seed-derived ramps). Both rules are enforced by lints that fail `go test`,
-and therefore CI, in the four component repos.
+seed-derived ramps). Both rules are enforced by lints that fail `go test`
+in the four component repos.
 
 ## Modules and versions
 
 All modules live under github.com/vibrantgio/<name>, layered per ADR-001's
 tier table: a module imports only modules in strictly lower tiers, plus the
-support row — enforced in CI by the org's check-layers script. Current tags:
+support row — enforced by `.github`'s `check-layers.sh`. Current tags:
 
   tier 0 — leaves
   mvu       v0.9.1   MVU runtime: NewWindow, Loop/Run, Message/Command,
@@ -539,7 +539,7 @@ half. Every candidate is a pixel the image really has, so it is in gamut and
 FromSeed takes it as it stands. Greyscale in, greys out.
 
 Application code never writes a colour literal. The no-literal-colour lint
-fails `go test`, and therefore CI, on a color.NRGBA literal in components, effects,
+fails `go test` on a color.NRGBA literal in components, effects,
 patterns and markdown (allow-listed exceptions only); write application code
 to the same standard. Every colour you need is on the tokens.ColorTokens
 value the theme's Color observable emits.
@@ -843,10 +843,10 @@ THE RULES
     needs. The style module (style.FontFaces() and the H1-H6 scale) is
     the old way — frozen (§Modules has its tag); do not add it to a new app.
   - Never gofont — and the build enforces it. The no-gofont lint
-    (internal/lint in components, effects, patterns and markdown) fails `go test`,
-    and therefore CI, on any gioui.org/font/gofont import in those four
-    repos; the old practice no longer merely looks wrong, it fails the
-    build. nil Props.Shaper means the theme's shaper, which is correct.
+    (internal/lint in components, effects, patterns and markdown) fails `go test`
+    on any gioui.org/font/gofont import in those four repos; the old
+    practice no longer merely looks wrong, it fails the build. nil
+    Props.Shaper means the theme's shaper, which is correct.
   - Props.Shaper is a DELIBERATE override only. The prop survives on the
     text-drawing components for the rare call site that must shape with a
     different collection; leave it nil everywhere else. If you find
