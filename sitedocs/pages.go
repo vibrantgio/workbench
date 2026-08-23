@@ -36,6 +36,10 @@ const (
 
 	pageMVULoop   = "mvu-loop"
 	pageMVUWindow = "mvu-window"
+
+	// pageGallery is the Gallery tab: the inventory's live controls in one
+	// scrolling column (gallery.go). It joins the three-tab shell in G-AF4.
+	pageGallery = "gallery"
 )
 
 // pageDocsDefault is where generic "Docs" navigation entries land.

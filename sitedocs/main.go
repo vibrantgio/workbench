@@ -226,8 +226,8 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 }
 
-// routedShellLayer builds the three route-family shells once and selects
-// among them on every model emission. CombineLatest keeps all three
+// routedShellLayer builds the route-family shells once and selects
+// among them on every model emission. CombineLatest keeps all of them
 // subscribed, so switching routes is a pure selection — scroll positions
 // and accordion state survive navigation in both directions.
 func routedShellLayer(
@@ -238,13 +238,16 @@ func routedShellLayer(
 	home := homeShellLayer(th)
 	docs := docsShellLayer(th, modelObs)
 	about := aboutShellLayer(th)
-	combined := rx.CombineLatest4(currentPageObs, home, docs, about)
-	return rx.Map(combined, func(n rx.Tuple4[string, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
+	gallery := galleryShellLayer(th)
+	combined := rx.CombineLatest5(currentPageObs, home, docs, about, gallery)
+	return rx.Map(combined, func(n rx.Tuple5[string, layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 		switch n.First {
 		case pageHome:
 			return n.Second
 		case pageAbout:
 			return n.Fourth
+		case pageGallery:
+			return n.Fifth
 		default: // every docs route, and any unrecognised route
 			return n.Third
 		}
