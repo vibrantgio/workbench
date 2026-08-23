@@ -1,6 +1,7 @@
 // Command marketing is a fictional SimpleApps landing: one full-screen
-// page on a surface-fill, with the macOS full-size-content treatment so
-// the traffic lights sit on the page. The window title is SimpleApps.
+// scrolling page — Hero, features, pricing, testimonials — on a
+// surface-fill, with the macOS full-size-content treatment so the
+// traffic lights sit on the page. The window title is SimpleApps.
 package main
 
 import (
