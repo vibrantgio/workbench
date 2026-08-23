@@ -5,7 +5,9 @@ organization. It lives at the root of the workbench repository and exists
 exactly once; every repo's AGENTS.md is a short static pointer to this
 URL, so this is the version to read and the version to edit:
 
+  ```
   https://raw.githubusercontent.com/vibrantgio/workbench/master/llms.txt
+  ```
 
 Vibrant Gio is a design system for native desktop apps (macOS/Windows/Linux)
 built on gioui.org, with a Functional Reactive Programming application model
@@ -28,6 +30,7 @@ seed-derived ramps).
 
 All modules live under github.com/vibrantgio/<name>. Current tags:
 
+  ```
   mvu       v0.9.1   MVU runtime: NewWindow, Loop/Run, Message/Command,
                      MessageOp; Window.Option + OnConfigure, the re-assert
                      seam the nested desktop module builds on (§Nested
@@ -100,6 +103,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
   noise     v0.0.3   Perlin and Simplex noise, 2D/3D
   kiwi      v0.0.6   Cassowary constraint solver
   csg       v0.0.1   constructive solid geometry on meshes (BSP trees)
+  ```
 
 workbench (the reference apps) and design (the published token bundle) carry
 no tags; consume them from the branch tip.
@@ -153,6 +157,7 @@ repo path plus the subdirectory, and — this is the part that trips up
 `github.com/vibrantgio/ivg/raster/gio vX.Y.Z` is `raster/gio/vX.Y.Z` in the
 ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
 
+  ```
   github.com/vibrantgio/ivg/raster/gio        v0.1.7   Gio rasterizer +
                                                        Widget() for IconVG
   github.com/vibrantgio/svg/driver/gio        v0.0.9   SVG -> Gio ops,
@@ -181,6 +186,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        messages)
   github.com/vibrantgio/mvu/example           v0.9.1   numbered mvu examples,
                                                        00-reference upward
+  ```
 
 CGO CAVEAT: mvu/desktop is darwin-only Objective-C behind `//go:build
 darwin`, with no-op stubs on every other platform, so it compiles
@@ -215,6 +221,7 @@ Every Vibrant Gio app follows this shape (todos/main.go is the minimal live
 version; mindchat/main.go the production-sized one — the same shape, with
 its AutoConnect count documented consumer by consumer):
 
+  ```go
   package main
 
   import (
@@ -257,6 +264,7 @@ its AutoConnect count documented consumer by consumer):
           // handle
       }
   }
+  ```
 
 ### MVU pieces you write
 
@@ -292,6 +300,7 @@ from your own goroutine.
 State allocated inside an rx.Defer factory runs once per subscription and
 is captured by reference in the Map and widget closures below it:
 
+  ```go
   rx.Defer(func() rx.Observable[layout.Widget] {
       click := widget.Clickable{}          // allocated once
       return rx.Map(inputs, func(v T) layout.Widget {
@@ -300,6 +309,7 @@ is captured by reference in the Map and widget closures below it:
           }
       })
   })
+  ```
 
 Never put interaction state in rx.Subject — never put anything there;
 §Coordination is where the three replacements are. Never pass
@@ -317,7 +327,9 @@ a long-lived list with high churn.
 Inside any widget callback with a gtx, route events into the MVU loop
 with:
 
+  ```go
   mvu.MessageOp{Message: SelectItem{ID: id}}.Add(gtx.Ops)
+  ```
 
 The runtime extracts these from the ops buffer and delivers them to
 Update. Patterns/components component callbacks receive gtx for exactly this
@@ -352,8 +364,10 @@ count (see feeds/wiring_test.go).
 Animated widgets tick their simulation inside the frame and request the
 next frame only while active:
 
+  ```go
   activity := ps.Tick(step)
   if activity > 0.01 { gtx.Execute(op.InvalidateCmd{}) }
+  ```
 
 Invalidation is window-global (every widget re-lays-out), so expensive
 widgets should cache ops when inputs are unchanged (components/cache).
@@ -390,10 +404,12 @@ needs to know, not by how important it feels:
 Arbitration is a plain value you create and pass in, and the value IS the
 scope:
 
-    popArb := popover.NewArbiter()      // one per WINDOW, in the build fn
-    tipArb := tooltip.NewArbiter()
-    mdlArb := modal.NewArbiter()
-    popover.Popover(th, popover.Props{Arbiter: popArb, ...})
+  ```go
+  popArb := popover.NewArbiter()      // one per WINDOW, in the build fn
+  tipArb := tooltip.NewArbiter()
+  mdlArb := modal.NewArbiter()
+  popover.Popover(th, popover.Props{Arbiter: popArb, ...})
+  ```
 
   - A nil Arbiter is legal and means ARBITRATE ALONE — the widget gets one
     of its own. Two popovers that both forget one stay open together. There
@@ -484,8 +500,10 @@ COLOUR IS DERIVED, NOT PICKED. One seed colour
 generates the entire palette — both modes — through the CIELAB/OKLCh engine
 in theme/color:
 
+  ```go
   light, dark := tokens.FromSeed(seed)  // paired ColorTokens; the light
                                         // Primary pin is the seed exactly
+  ```
 
 ### Where a seed comes from
 
@@ -533,6 +551,7 @@ pressed/selected/dragged two, clamped at 900 — resolved by StateColor
 the 900 depth). Disabled is an opacity (tokens.Disabled, MD3's 38%);
 focus keeps the surface and strokes FocusRing() (neutral 500).
 
+  ```go
   // c is the tokens.ColorTokens the theme's Color observable emitted.
   card    := c.Surface                              // neutral 200
   hover   := c.StateColor(tokens.RoleNeutral, 200, tokens.StateHover)   // 300
@@ -541,6 +560,7 @@ focus keeps the surface and strokes FocusRing() (neutral 500).
   body    := c.Ramps.Neutral.Step(900)              // body text
   accent  := c.Primary                              // the pinned brand base
   accHov  := c.SolidStateColor(tokens.RolePrimary, tokens.StateHover)
+  ```
 
 ### The generator guarantees contrast
 
@@ -557,11 +577,13 @@ The default theme streams — theme.Default(), theme.AutoLightDark and
 theme/system's LiveTheme — emit the default seed's palette. Options on
 LiveTheme/FromSourceTheme brand an app without giving up live OS tracking:
 
+  ```go
   // one brand colour; everything else derived, dark mode still live
   themesystem.LiveTheme(time.Second, themesystem.WithSeed(brand))
 
   // full control: both schemes supplied, OS still picks which is live
   themesystem.LiveTheme(time.Second, themesystem.WithPalette(light, dark))
+  ```
 
 Precedence, highest first: WithSeed/WithPalette pin the pair — the app
 chose its brand, the OS accent is ignored. With NO palette option the
@@ -592,7 +614,9 @@ a brand chosen once is worn by everything. The same file may name a code
 face as "mono": "JetBrains Mono" or omitted/empty/unknown, which is Roboto
 Mono — the same fallback "base" already uses. Adopting it is one line —
 
+  ```go
   specsystem.LiveTheme(interval, brand.Kept().Options()...)
+  ```
 
 — and with no file, or a damaged one, Options() is nil and the stream is the
 one it always was. The pinned pair beats the OS accent; light/dark still
@@ -606,8 +630,10 @@ canonical palette: adoption is runtime, never baked in.
 Desktop density is a theme token, not a per-component prop. tokens.Density
 carries the drawn control height and inner padding:
 
+  ```
   Comfortable   36 dp control, 16/8 dp padding   (the default)
   Compact       28 dp control, 12/6 dp padding
+  ```
 
 The numbers are measured, not invented — shadcn/ui's h-9/h-8 next to
 macOS's control sizes; the derivation table lives in theme/tokens
@@ -618,10 +644,12 @@ theme change, not a sweep. The theme's Density observable defaults to
 Comfortable; there is no LiveTheme option for it — an app that wants
 Compact swaps the field on the stream:
 
+  ```go
   th := rx.Map(themesystem.LiveTheme(time.Second), func(t theme.Theme) theme.Theme {
       t.Density = rx.Of(tokens.Compact)
       return t
   })
+  ```
 
 The WCAG 2.5.5 pointer target (44 dp) is deliberately NOT part of Density:
 Density.MinHitTarget() is a constant, and components extend their pointer
@@ -636,12 +664,16 @@ A raised surface reads as raised by TINT first, shadow second. Elevation
 is a walk up the neutral ramp — the same move states
 make — with the level naming the rung:
 
+  ```
   level 0   the app background (the Background pin)
   level 1   card / raised-in-place surface     — neutral 200
   level 2   menus, toasts, higher panels       — neutral 300
   level 3   the top of the desktop ladder      — neutral 400
+  ```
 
+  ```go
   surface := c.SurfaceAt(tokens.Level1)   // resolves the fill per mode
+  ```
 
 Because the ramps are paired, a raised surface lightens in dark mode and
 darkens in light mode with no second rule — dark-mode surface tint, the
@@ -711,9 +743,11 @@ approximation of a Gaussian, plus the two supported ways to ship it:
 A known source image blurred once and reused — a hero image behind text,
 a frosted thumbnail:
 
+  ```go
   var cache blur.Cache                    // long-lived, e.g. per layer
   op := cache.Image(src, sigma)           // paint.ImageOp, cached on
                                           // source identity+sigma+size
+  ```
 
 Repeat calls with unchanged inputs do no work. Large radii render at a
 reduced size and upscale on the GPU (the divisor defaults from sigma).
@@ -753,10 +787,12 @@ that draws text takes its type style and its *text.Shaper from the theme
 observable it already receives — application code does nothing to get
 correct type:
 
+  ```go
   import "github.com/vibrantgio/components/button"
 
   // th is the theme/theme.Theme the app passes to every component.
   btn := button.Button(th, button.Props{Label: "Save"}) // renders Roboto
+  ```
 
 The contract lives in theme/tokens.Typography: one tokens.TextStyle per
 Material Design 3 type role — Display, Headline, Title, Label and Body,
@@ -847,8 +883,10 @@ rather than reach for the system. WithFaces returns a copy of the
 Typography with extra faces appended last and both shaper caches cleared,
 so the default family still wins for text naming no typeface:
 
+  ```go
   typ := tokens.DefaultTypography.WithFaces(notosansmono.FontFace())
   shaper := typ.DeterministicShaper()
+  ```
 
 font/notosansmono is the org's optional symbol face — box drawing, blocks,
 geometric shapes, arrows, maths operators — deliberately absent from
@@ -888,6 +926,7 @@ github.com/vibrantgio/markdown renders GitHub-flavoured markdown as components
 widgets — use it for docs pages, help screens, and chat message bodies
 instead of hand-coding text layouts:
 
+  ```go
   blocks := markdown.Parse(src)          // goldmark+GFM AST → block model
   doc    := markdown.NewDocument(blocks) // allocate ONCE; holds scroll,
                                          // link, and image state across frames
@@ -897,6 +936,7 @@ instead of hand-coding text layouts:
                                          // opt-in; nil stays display-only
   doc.Layout(gtx, typ.Shaper(), style)   // scrolling viewport, O(visible);
                                          // typ is the theme's Typography
+  ```
 
 doc.LayoutColumn(...) lays out at natural height with no internal scroll —
 use it inside an outer scrolling context (a chat row, a card); Layout's own
@@ -949,10 +989,12 @@ They need markdown/obsidian, the recognition half of
 that dialect. It works on the source and on the public block model, never
 inside the parser, and it adds no dependency:
 
+  ```go
   fm, body := obsidian.SplitFrontMatter(src)     // properties off the top
   blocks, anchors := obsidian.BlockAnchors(      // "^id" tails → indices
       obsidian.WikiSpans(markdown.Parse(body)))  // [[link]] → link spans
   doc := markdown.NewDocumentAt(blocks, anchors["intro"])
+  ```
 
   - Split the frontmatter BEFORE Parse. A leading "---" block otherwise
     renders as a thematic rule with the key lines above the closing "---"
@@ -991,11 +1033,13 @@ does, never what the picture contains, because the drawing behind a name
 differs between platforms and does change, while the name is the part call
 sites store.
 
+  ```go
   import "github.com/vibrantgio/components/icons"
 
   if mark := icons.Mark(icons.Sidebar); mark != nil {
       mark(gtx, gtx.Dp(20), c.Text) // colour from the theme's tokens
   }
+  ```
 
 Mark returns a Painter — func(gtx layout.Context, sizePx int, col
 color.NRGBA) — which is exactly the shape components/button Props.Icon
@@ -1033,6 +1077,7 @@ controls, a close X), use the Material Design icons published as IconVG
 data in golang.org/x/exp/shiny/materialdesign/icons (961 icons, frozen 2016
 Material set) and render them with ivg/raster/gio:
 
+  ```go
   import (
       "golang.org/x/exp/shiny/materialdesign/icons"
       raster "github.com/vibrantgio/ivg/raster/gio"
@@ -1041,6 +1086,7 @@ Material set) and render them with ivg/raster/gio:
   w, err := raster.Widget(icons.ActionSettings, 40, 40, raster.WithColors(p.Icon))
   // w is a layout.Widget; wrap it in a widget.Clickable to make a button.
   // See todos/view.go (the FAB) and todos/list.go (the delete icon).
+  ```
 
 Names are Category+Name: ActionSettings, AVPlayArrow, AVStop, AVPause,
 AVFiberManualRecord, ContentAddCircle, ContentClear, NavigationClose, ...
@@ -1099,6 +1145,7 @@ purpose (golden determinism); leave those alone.
 
 ## Minimal go.mod for a new app
 
+  ```
   module example.com/myapp
 
   go 1.25.1
@@ -1112,6 +1159,7 @@ purpose (golden determinism); leave those alone.
       github.com/vibrantgio/theme v1.0.0
       github.com/vibrantgio/textdraw v0.0.4
   )
+  ```
 
 These are the released tags — the same ones §Modules lists, and the same ones
 all eight workbench apps are pinned to. Typography and colour need no module
