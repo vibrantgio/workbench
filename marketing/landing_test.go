@@ -18,6 +18,7 @@ import (
 
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/patterns/feature"
 	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/patterns/pricing"
@@ -64,7 +65,30 @@ func TestPageGolden(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := renderLanding(shaper, hp, fp, pp, tp, tc.colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
-			golden.Render(t, tc.name, pageCanvasSize, scene(w, tc.colors))
+			golden.Render(t, tc.name, pageCanvasSize, scene(w, tc.colors, pageCanvasSize))
+		})
+	}
+}
+
+// TestRuntimePageGolden records the first frame of the scrolling page
+// at the window's 1200×800: real SimpleApps copy, overlay scrollbar
+// on the trailing edge. The stack is taller than the viewport, so the
+// bar must paint. Overlay, not Occupy — the 1100 dp column stays put.
+func TestRuntimePageGolden(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	size := image.Pt(windowW, windowH)
+
+	cases := []struct {
+		name   string
+		colors tokens.ColorTokens
+	}{
+		{"light-window", tokens.DefaultLight},
+		{"dark-window", tokens.DefaultDark},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := scrollingPage(runtimeSections(shaper, tc.colors), list.NewState(), tc.colors)
+			golden.Render(t, tc.name, size, scene(w, tc.colors, size))
 		})
 	}
 }
@@ -81,8 +105,8 @@ func TestPageLightDarkDiffer(t *testing.T) {
 
 	light := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultLight, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
 	dark := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultDark, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
-	a := golden.Capture(t, pageCanvasSize, scene(light, tokens.DefaultLight))
-	b := golden.Capture(t, pageCanvasSize, scene(dark, tokens.DefaultDark))
+	a := golden.Capture(t, pageCanvasSize, scene(light, tokens.DefaultLight, pageCanvasSize))
+	b := golden.Capture(t, pageCanvasSize, scene(dark, tokens.DefaultDark, pageCanvasSize))
 	if n := golden.PixelDiff(a, b); n == 0 {
 		t.Error("light and dark page render identically; expected colour differences across the four sections")
 	}
@@ -167,6 +191,26 @@ func TestSimpleAppsCopy(t *testing.T) {
 	}
 }
 
+// runtimeSections is the four pattern widgets the live page stacks,
+// shaped deterministically so the 1200×800 goldens do not depend on
+// the host's fallback faces.
+func runtimeSections(shaper *text.Shaper, colors tokens.ColorTokens) []layout.Widget {
+	hp := heroContent(nil)
+	hp.Shaper = shaper
+	fp := featureContent()
+	fp.Shaper = shaper
+	pp := pricingContent()
+	pp.Shaper = shaper
+	tp := testimonialContent()
+	tp.Shaper = shaper
+	return []layout.Widget{
+		hero.Render(shaper, hp, colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable),
+		feature.Render(shaper, fp, colors, tokens.Spacing, tokens.DefaultTypography),
+		pricing.Render(shaper, pp, colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable),
+		testimonial.Render(shaper, tp, colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography),
+	}
+}
+
 // ---- structural prop builders -------------------------------------------
 
 func structuralHeroProps(shaper *text.Shaper) hero.Props {
@@ -220,9 +264,9 @@ func structuralTestimonialProps(shaper *text.Shaper) testimonial.Props {
 // scene is the golden composition: Background pin, a rest-pose
 // wireframe field, then the landing column. The live field is
 // clock-driven; goldens store the un-noised mesh so the frame is
-// one frame.
-func scene(w layout.Widget, colors tokens.ColorTokens) layout.Widget {
-	field := newField(new(app.Window), unit.Dp(pageCanvasW), unit.Dp(pageCanvasH))
+// one frame. size is the canvas the field is built to cover.
+func scene(w layout.Widget, colors tokens.ColorTokens, size image.Point) layout.Widget {
+	field := newField(new(app.Window), unit.Dp(size.X), unit.Dp(size.Y))
 	field.SetColors(colors)
 	field.applyPending()
 	back := backdrop.Widget(colors.Background)

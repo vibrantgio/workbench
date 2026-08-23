@@ -14,6 +14,8 @@ import (
 	"github.com/reactivego/rx"
 
 	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/patterns/feature"
 	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/patterns/pricing"
@@ -39,9 +41,9 @@ const pricingSection = 2
 // fields the page reads. Scroll position lives in this subscription.
 func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	return rx.Defer(func() rx.Observable[layout.Widget] {
-		list := &layout.List{Axis: layout.Vertical}
+		state := list.NewState()
 		seePlans := func(layout.Context) {
-			list.Position = layout.Position{First: pricingSection}
+			state.ScrollTo(pricingSection)
 		}
 		sections := rx.Map(
 			rx.CombineLatest4(
@@ -54,18 +56,23 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 				return []layout.Widget{n.First, n.Second, n.Third, n.Fourth}
 			},
 		)
-		return rx.Map(rx.CombineLatest2(sections, modelObs),
-			func(next rx.Tuple2[[]layout.Widget, Model]) layout.Widget {
-				return scrollingPage(next.First, list)
+		colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
+			return t.Color
+		})
+		return rx.Map(rx.CombineLatest3(sections, modelObs, colors),
+			func(next rx.Tuple3[[]layout.Widget, Model, tokens.ColorTokens]) layout.Widget {
+				return scrollingPage(next.First, state, next.Third)
 			})
 	})
 }
 
 // scrollingPage lays sections in a vertical list, clamping each child
-// to contentMaxWidthDp and centering it. The Background pin and the
-// wireframe field live in layers behind this one, so the page does not
-// paint a ground of its own.
-func scrollingPage(sections []layout.Widget, list *layout.List) layout.Widget {
+// to contentMaxWidthDp and centering it. An overlay scrollbar (not
+// Occupy) sits on the trailing edge so the 1100 dp column does not
+// jump when the bar appears. The Background pin and the wireframe
+// field live in layers behind this one, so the page does not paint a
+// ground of its own.
+func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.ColorTokens) layout.Widget {
 	gap := complayout.VSpacer(sectionGapDp)
 	children := make([]layout.Widget, 0, len(sections))
 	for i, s := range sections {
@@ -85,22 +92,22 @@ func scrollingPage(sections []layout.Widget, list *layout.List) layout.Widget {
 			contentW = px
 		}
 		margin := (size.X - contentW) / 2
-		list.Layout(gtx, len(children), func(gtx layout.Context, i int) layout.Dimensions {
-			w := children[i]
-			if margin == 0 {
-				return w(gtx)
-			}
-			cgtx := gtx
-			cgtx.Constraints.Min.X = contentW
-			cgtx.Constraints.Max.X = contentW
-			off := op.Offset(image.Pt(margin, 0)).Push(gtx.Ops)
-			dims := w(cgtx)
-			off.Pop()
-			return layout.Dimensions{
-				Size:     image.Pt(size.X, dims.Size.Y),
-				Baseline: dims.Baseline,
-			}
-		})
+		list.LayoutScrollbar(gtx, state, scrollbar.FromTokens(colors), list.Overlay, children,
+			func(gtx layout.Context, w layout.Widget) layout.Dimensions {
+				if margin == 0 {
+					return w(gtx)
+				}
+				cgtx := gtx
+				cgtx.Constraints.Min.X = contentW
+				cgtx.Constraints.Max.X = contentW
+				off := op.Offset(image.Pt(margin, 0)).Push(gtx.Ops)
+				dims := w(cgtx)
+				off.Pop()
+				return layout.Dimensions{
+					Size:     image.Pt(size.X, dims.Size.Y),
+					Baseline: dims.Baseline,
+				}
+			})
 		return layout.Dimensions{Size: size}
 	}
 }
