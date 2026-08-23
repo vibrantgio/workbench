@@ -45,6 +45,9 @@ const (
 	docsProseGapDp      = 12
 	docsCardGapDp       = 16
 	docsBreadcrumbGapDp = 32
+	// docsMeasureDp caps the guide document's line length to a readable
+	// column; the window is wider than a comfortable measure.
+	docsMeasureDp = 720
 )
 
 // docsBreadcrumbGap is the blank between the breadcrumb row and the top of
@@ -214,6 +217,53 @@ func drawDocsPage(
 				return doc.Layout(gtx, shaper, style)
 			}),
 		)
+	})
+}
+
+// drawGuideDoc lays out the one guide document as the Docs shell's main
+// slot: the shared outer inset, then the document as its own scrolling
+// viewport. The document is long-lived — scroll position and interaction
+// state belong to it, so ScrollToBlock from an outline row moves the same
+// reader rather than rebuilding the page.
+func drawGuideDoc(
+	gtx layout.Context,
+	doc *markdown.Document,
+	shaper *text.Shaper,
+	style markdown.Style,
+) layout.Dimensions {
+	inset := complayout.Inset(docsOuterInsetDp)
+	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		// Cap the reading measure: unbounded, the guide's prose runs the
+		// window's whole width — far past a comfortable line length
+		// (fresh-eyes, AF2.1). The document keeps its left edge; spare
+		// width stays blank.
+		if cap := gtx.Dp(unit.Dp(docsMeasureDp)); gtx.Constraints.Max.X > cap {
+			gtx.Constraints.Max.X = cap
+			if gtx.Constraints.Min.X > cap {
+				gtx.Constraints.Min.X = cap
+			}
+		}
+		return doc.Layout(gtx, shaper, style)
+	})
+}
+
+// guideDocObservable is the live main-slot stream for the one guide
+// document: the same Document on every emission, restyled per theme
+// change. The shaper is the theme's cached Typography shaper.
+func guideDocObservable(
+	th rx.Observable[theme.Theme],
+	doc *markdown.Document,
+) rx.Observable[layout.Widget] {
+	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
+	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
+	tokensObs := rx.CombineLatest2(colObs, typObs)
+	return rx.Map(tokensObs, func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography]) layout.Widget {
+		typ := t.Second
+		style := docsMarkdownStyle(t.First, typ)
+		shaper := typ.Shaper()
+		return func(gtx layout.Context) layout.Dimensions {
+			return drawGuideDoc(gtx, doc, shaper, style)
+		}
 	})
 }
 

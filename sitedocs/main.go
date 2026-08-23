@@ -9,8 +9,8 @@
 //   - Home  → patterns/shell StackedPage: pinned full-width navbar over
 //     the marketing sections (landing.go).
 //   - Docs  → patterns/shell ThreeColumn with a nil aside: full-width
-//     navbar, accordion sidebar in the leading column, routed page in
-//     the main slot.
+//     navbar, the guide's outline tree in the leading column, the one
+//     guide document (llms.txt) in the main slot.
 //   - About → StackedPage with a single prose section.
 //
 // routedShellLayer selects among the three on every model emission.
@@ -39,6 +39,7 @@ import (
 	"github.com/reactivego/rx"
 
 	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/navbar"
@@ -101,17 +102,17 @@ func run() {
 	// DoNothing everywhere) and emits the seed model first.
 	//
 	// mvuWin.Messages() drains a channel via rx.Recv, so each emitted message
-	// reaches exactly one subscriber. Three streams derive from modelObs —
-	// the router's current-page stream plus the docs shell's open-sections
-	// and current-page streams — so without multicast those cold
-	// subscriptions would each re-drain the channel and split the messages
-	// between them. Publish().AutoConnect(3) shares one upstream
-	// subscription across exactly those three consumers. NOTE: the count 3
-	// is load-bearing — adding another modelObs consumer requires bumping it.
+	// reaches exactly one subscriber. Two streams derive from modelObs —
+	// the router's current-page stream plus the docs shell's outline-state
+	// stream — so without multicast those cold subscriptions would each
+	// re-drain the channel and split the messages between them.
+	// Publish().AutoConnect(2) shares one upstream subscription across
+	// exactly those two consumers. NOTE: the count 2 is load-bearing —
+	// adding another modelObs consumer requires bumping it.
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
 	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(3)
+	modelObs := models.Publish().AutoConnect(2)
 
 	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -250,59 +251,52 @@ func routedShellLayer(
 	})
 }
 
-// docsShellLayer composes the accordion sidebar and the routed docs page
-// into a ThreeColumn shell (nil aside): the navbar spans the full window
-// width and the sidebar sits below it in the leading column.
+// docsShellLayer composes the Docs experience into a ThreeColumn shell
+// (nil aside): the navbar spans the full window width; the leading column
+// is the outline tree of the one guide document; the main slot is that
+// document — llms.txt rendered whole by vibrantgio/markdown. The document
+// and its parse are built once, so scroll position survives navigation
+// and an outline click's ScrollToBlock moves the same reader.
 //
 // patterns/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
 // as a static layout.Widget, and the shell re-emits (driving
 // theme/window's Invalidate) only when one of its input streams emits. So
-// the routed page widget is folded onto the sidebar stream: mainObs is
-// combined into the sidebar-driving observable, and the selected page widget
-// is published into mainCell — a layer-boundary adapter read by the static
-// Main slot at frame time. A SetRoute message therefore re-emits the sidebar
-// stream, which makes the shell re-emit and the window repaint on the same
-// frame.
+// the document widget is folded onto the sidebar stream: mainObs is
+// combined into the sidebar-driving observable, and the latest document
+// widget is published into mainCell — a layer-boundary adapter read by the
+// static Main slot at frame time. A ToggleOutline or SelectHeading message
+// therefore re-emits the sidebar stream, which makes the shell re-emit and
+// the window repaint on the same frame.
 func docsShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
-	openSectionsObs := rx.Map(modelObs, func(m Model) map[int]bool { return m.openSections })
-	currentPageObs := rx.Map(modelObs, func(m Model) string { return m.currentPage })
+	return docsShellLayerFrom(th, modelObs, loadGuide())
+}
 
-	// Pre-build every docs page once so its state (theme token
-	// subscriptions, list scroll position) survives navigation
-	// back-and-forth. docsPages is the single source of truth, so the
-	// sidebar can never route to a page that is not built here.
-	defs := docsPages()
-	pageIdx := make(map[string]int, len(defs))
-	pageObs := make([]rx.Observable[layout.Widget], len(defs))
-	for i, def := range defs {
-		pageIdx[def.ID] = i
-		pageObs[i] = docsPage(th, def)
-	}
+// docsShellLayerFrom is docsShellLayer's source-injected core: tests hand
+// it a fixture so no test run can ever reach the checkout file or the
+// network.
+func docsShellLayerFrom(
+	th rx.Observable[theme.Theme],
+	modelObs rx.Observable[Model],
+	source []byte,
+) rx.Observable[layout.Widget] {
+	blocks := markdown.Parse(source)
+	doc := markdown.NewDocument(blocks)
+	entries := guideOutline(blocks)
 
-	// mainObs re-emits whenever the current page changes or any page
-	// re-renders (theme change). CombineLatest holds the latest widget of
-	// every page, so switching routes is a pure selection — no
-	// re-subscription, no lost scroll state.
-	pagesCombined := rx.CombineLatest(pageObs...)
-	mainObs := rx.Map(
-		rx.CombineLatest2(currentPageObs, pagesCombined),
-		func(n rx.Tuple2[string, []layout.Widget]) layout.Widget {
-			if i, ok := pageIdx[n.First]; ok {
-				return n.Second[i]
-			}
-			return n.Second[0] // non-docs routes keep the first page warm
-		},
-	)
+	stateObs := rx.Map(modelObs, func(m Model) outlineState {
+		return outlineState{open: m.outlineOpen, selected: m.selectedHeading}
+	})
+	sidebarObs := docsOutline(th, entries, stateObs, doc.ScrollToBlock)
+	mainObs := guideDocObservable(th, doc)
 
 	// mainCell bridges the layer boundary: the combined map below stores
 	// the selected Main widget synchronously, and the static Main slot
 	// reads it at frame time — the same atomic hand-off mvu/window.go uses
 	// for its layer snapshot.
 	var mainCell atomic.Value
-	sidebarObs := docsSidebar(th, openSectionsObs)
 	sidebarDriven := rx.Map(rx.CombineLatest2(sidebarObs, mainObs), func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
 		mainCell.Store(n.Second)
 		return n.First

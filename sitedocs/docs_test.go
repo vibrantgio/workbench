@@ -82,26 +82,6 @@ func TestDocsSourcesParse(t *testing.T) {
 	}
 }
 
-// TestDocsSidebarConstructs verifies the accordion-grouped sidebar
-// widget builds and lays out a frame without panicking. The accordion's
-// initial open state is driven by an rx.Of observable seeded with
-// section 0 open (matching the MVU initial model).
-func TestDocsSidebarConstructs(t *testing.T) {
-	openObs := rx.Of(map[int]bool{0: true})
-	sbObs := docsSidebar(rx.Of(theme.Default()), openObs)
-	w, err := collectOne(sbObs)
-	if err != nil {
-		t.Fatalf("docsSidebar subscribe: %v", err)
-	}
-	if w == nil {
-		t.Fatal("docsSidebar produced no widget")
-	}
-	dims := drawOnce(t, image.Pt(docsSidebarWidthDp, docsCanvasH), w)
-	if dims.Size.X == 0 || dims.Size.Y == 0 {
-		t.Errorf("docsSidebar produced zero dimensions: %v", dims)
-	}
-}
-
 // TestDocsPageGolden records or diffs representative docs pages in light
 // and dark themes, rendered from their embedded markdown sources exactly
 // as the runtime path does (breadcrumb + markdown document with chroma

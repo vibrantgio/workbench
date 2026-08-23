@@ -37,15 +37,19 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 }
 
 // TestInitialModelSeedsHome verifies that initialModel() produces a model
-// with currentPage == pageHome and at least section 0 open — the same
-// invariants the former rx.Subject-based controllers guaranteed.
+// with currentPage == pageHome, the first ## section of the docs outline
+// disclosed (so the Docs tab opens with children showing), and no
+// selected heading.
 func TestInitialModelSeedsHome(t *testing.T) {
 	m := initialModel()
 	if m.currentPage != pageHome {
 		t.Errorf("initialModel.currentPage = %q; want %q", m.currentPage, pageHome)
 	}
-	if !m.openSections[0] {
-		t.Errorf("initialModel.openSections[0] = false; want true (first section seeded open)")
+	if !m.outlineOpen[0] {
+		t.Errorf("initialModel.outlineOpen[0] = false; want true (first section seeded open)")
+	}
+	if m.selectedHeading != -1 {
+		t.Errorf("initialModel.selectedHeading = %d; want -1 (nothing selected)", m.selectedHeading)
 	}
 }
 
@@ -59,29 +63,44 @@ func TestUpdateSetRouteAdvancesPage(t *testing.T) {
 	}
 }
 
-// TestUpdateToggleAccordionSingleOpen verifies the single-open reducer policy:
-// opening a section replaces the open set with just that index, and clicking
-// the already-open section collapses it.
-func TestUpdateToggleAccordionSingleOpen(t *testing.T) {
+// TestUpdateToggleOutlineIsIndependent verifies the outline reducer:
+// sections disclose independently (opening one leaves others open),
+// toggling an open section closes just it, and the reducer never mutates
+// the map a previous model holds.
+func TestUpdateToggleOutlineIsIndependent(t *testing.T) {
 	m := initialModel() // section 0 is open
-	if !m.openSections[0] {
+	if !m.outlineOpen[0] {
 		t.Fatal("precondition: section 0 must start open")
 	}
-	// Open section 1 — section 0 must close (single-open).
-	m, _ = Update(m, ToggleAccordion{Idx: 1})
-	if !m.openSections[1] {
-		t.Error("after ToggleAccordion(1): section 1 should be open")
+	before := m
+	// Open section 1 — section 0 must stay open (independent disclosure).
+	m, _ = Update(m, ToggleOutline{Idx: 1})
+	if !m.outlineOpen[1] {
+		t.Error("after ToggleOutline(1): section 1 should be open")
 	}
-	if m.openSections[0] {
-		t.Error("after ToggleAccordion(1): section 0 should have closed (single-open)")
+	if !m.outlineOpen[0] {
+		t.Error("after ToggleOutline(1): section 0 should have stayed open")
 	}
-	// Click the open section 1 again — it collapses, leaving nothing open.
-	m, _ = Update(m, ToggleAccordion{Idx: 1})
-	if m.openSections[1] {
-		t.Error("after second ToggleAccordion(1): section 1 should be closed")
+	if before.outlineOpen[1] {
+		t.Error("Update mutated the previous model's outlineOpen map; the reducer must copy")
 	}
-	if len(m.openSections) != 0 {
-		t.Errorf("expected all sections closed; got %v", m.openSections)
+	// Toggle the open section 1 again — it closes, section 0 unaffected.
+	m, _ = Update(m, ToggleOutline{Idx: 1})
+	if m.outlineOpen[1] {
+		t.Error("after second ToggleOutline(1): section 1 should be closed")
+	}
+	if !m.outlineOpen[0] {
+		t.Error("after second ToggleOutline(1): section 0 should still be open")
+	}
+}
+
+// TestUpdateSelectHeading verifies SelectHeading lands the block index in
+// the model.
+func TestUpdateSelectHeading(t *testing.T) {
+	m := initialModel()
+	m, _ = Update(m, SelectHeading{Block: 42})
+	if m.selectedHeading != 42 {
+		t.Errorf("after SelectHeading{42}: selectedHeading = %d; want 42", m.selectedHeading)
 	}
 }
 
@@ -93,13 +112,14 @@ func TestUpdateToggleAccordionSingleOpen(t *testing.T) {
 // next unrelated input event (FEEDBACK-G5.1).
 //
 // Driving the same modelObs the app uses and asserting docsShellLayer's
-// returned observable emits a fresh widget on each ToggleAccordion / SetRoute
-// is the seam the bug lived on; a reducer-only test passes without proving the
-// layer re-emits. (Live same-frame repaint is confirmed by running the app —
-// the unit test proves the necessary re-emission, not the OS frame timing.)
+// returned observable emits a fresh widget on each ToggleOutline /
+// SelectHeading is the seam the bug lived on; a reducer-only test passes
+// without proving the layer re-emits. (Live same-frame repaint is confirmed
+// by running the app — the unit test proves the necessary re-emission, not
+// the OS frame timing.)
 func TestDocsShellLayerReEmitsOnModelChange(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1)
-	shell := docsShellLayer(rx.Of(theme.Default()), modelObs)
+	shell := docsShellLayerFrom(rx.Of(theme.Default()), modelObs, guideFixture(t))
 
 	emissions := make(chan layout.Widget, 16)
 	sub := shell.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
@@ -131,18 +151,18 @@ func TestDocsShellLayerReEmitsOnModelChange(t *testing.T) {
 	}
 	drainEmissions(emissions)
 
-	// A ToggleAccordion-derived model must produce a fresh layer emission.
-	m, _ := Update(initialModel(), ToggleAccordion{Idx: 1})
+	// A ToggleOutline-derived model must produce a fresh layer emission.
+	m, _ := Update(initialModel(), ToggleOutline{Idx: 1})
 	send.Next(m)
-	if w := await("ToggleAccordion"); w != nil {
+	if w := await("ToggleOutline"); w != nil {
 		drawOnce(t, image.Pt(docsCanvasW, docsCanvasH), w)
 	}
 	drainEmissions(emissions)
 
-	// A SetRoute-derived model (navigation) must also re-emit the layer.
-	m, _ = Update(m, SetRoute{Page: pageComponentsGettingStarted})
+	// A SelectHeading-derived model (a row click) must also re-emit the layer.
+	m, _ = Update(m, SelectHeading{Block: 2})
 	send.Next(m)
-	if w := await("SetRoute"); w != nil {
+	if w := await("SelectHeading"); w != nil {
 		drawOnce(t, image.Pt(docsCanvasW, docsCanvasH), w)
 	}
 }
