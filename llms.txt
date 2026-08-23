@@ -22,23 +22,19 @@ look. Components take it and need nothing else — typeface, colour, density,
 elevation and motion all arrive through it. Application code reads tokens
 from the theme, never constructs a shaper (the theme's Typography owns the
 one shaper), and never writes a colour literal (colours come off the theme's
-seed-derived ramps). Both rules are enforced by lints that fail `go test`
-in the four component repos.
+seed-derived ramps).
 
 ## Modules and versions
 
-All modules live under github.com/vibrantgio/<name>, layered per ADR-001's
-tier table: a module imports only modules in strictly lower tiers, plus the
-support row — enforced by `.github`'s `check-layers.sh`. Current tags:
+All modules live under github.com/vibrantgio/<name>. Current tags:
 
-  tier 0 — leaves
   mvu       v0.9.1   MVU runtime: NewWindow, Loop/Run, Message/Command,
                      MessageOp; Window.Option + OnConfigure, the re-assert
                      seam the nested desktop module builds on (§Nested
                      modules); Window.ViewEvents, the per-window stream of
                      Gio view events the desktop module's drop target rides;
                      subpackage stream (Value, the one sanctioned
-                     observable for state several consumers watch — ADR-008)
+                     observable for state several consumers watch)
   font      v0.4.1   Roboto, six weights, regular and italic — plus Roboto
                      Mono, normal and bold each with italics, all OFL; TTFs
                      embedded here, not eliasnaur.com/font. The default
@@ -60,11 +56,10 @@ support row — enforced by `.github`'s `check-layers.sh`. Current tags:
   backdrop  v0.0.3   solid colour fill widget
   gradient  v0.0.3   linear gradient fill widget
   circle    v0.0.4   precise circle via Bezier
-  style     v0.0.6   FROZEN (ADR-003): the old MD2 type scale and
-                     FontFaces(); superseded by theme/tokens Typography
-                     (§Typography) — never add it to a new app
+  style     v0.0.6   FROZEN: the old MD2 type scale and FontFaces();
+                     superseded by theme/tokens Typography (§Typography)
+                     — never add it to a new app
 
-  tier 1 — the foundation
   theme     v1.0.0   the theme runtime and every design token: tokens
                      (colour ramps and pins, Typography, Density, Motion,
                      Elevation, spacing/radius), color (the CIELAB/OKLCh
@@ -78,7 +73,6 @@ support row — enforced by `.github`'s `check-layers.sh`. Current tags:
                      wears Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  tier 2
   components  v0.9.4 button, input, list, richtext, scrollbar,
                      scrollarea (a horizontal viewport for content that must
                      not be reflowed — a code fence, an over-wide diagram),
@@ -86,12 +80,10 @@ support row — enforced by `.github`'s `check-layers.sh`. Current tags:
                      keyed, initial, cache, bench (coordination
                      is DEPRECATED — use mvu/stream.Value)
 
-  tier 3
   effects   v0.2.1   blur (Gaussian kernel, cached blur, backdrop
                      pipeline), depth, glow, motion, spring, springbutton,
                      transition, tween, conductor
 
-  tier 4
   patterns  v0.8.1   patterns: shell, navbar, sidebar, table, pagination,
                      tabs, modal, alert, popover, tooltip, toast, card,
                      accordion, breadcrumb, hero, feature, pricing,
@@ -101,7 +93,6 @@ support row — enforced by `.github`'s `check-layers.sh`. Current tags:
                      images via vibrantgio/svg; obsidian — the Obsidian
                      dialect: frontmatter, wikilinks, block anchors)
 
-  support libraries — consumed by the design system, never depend on it
   seen      v0.0.8   3D scene graph rendered to SVG or Gio
   traer     v0.0.8   particle physics (springs, attractions, Verlet)
   svg       v0.0.9   SVG parse + render
@@ -110,32 +101,8 @@ support row — enforced by `.github`'s `check-layers.sh`. Current tags:
   kiwi      v0.0.6   Cassowary constraint solver
   csg       v0.0.1   constructive solid geometry on meshes (BSP trees)
 
-Two repositories carry no tags and therefore no row above: workbench, the
-eight reference applications, and design, the published claude.ai/design
-bundle (readme.md, theme.json, styles.css, foundations/ — regenerated from
-theme's cmd/vg-tokens and embedded as the Go module
-github.com/vibrantgio/design; its mirror/ package is the G1.1 harness that
-scores bundle pages against the Gio components in headless Chromium — the
-org's one non-Go dependency, pinned by version, verdicts read on one
-machine; see design/mirror). Both sit at the top of the stack, nothing
-pins them, and both are consumed from the branch tip.
-
-EVERY TAG ABOVE IS RELEASED AND CURRENT, and every number in this file is
-GENERATED rather than typed: `scripts/sync-versions.sh` in the `.github` repo
-reads `git tag` in each clone and writes the highest legal tag into the tables
-above, the nested-module list below and the `go.mod` skeleton in §Minimal
-go.mod. `scripts/check-versions.sh` fails when they drift. So no paragraph
-here restates a version — a second copy of a measurable fact is the copy that
-goes stale, and this one did: before G0C.6 the table claimed prism v0.3.1
-where the tag was v0.6.0, and was wrong for five of the eight modules that
-matter, under this very sentence. If you are about to type a version number
-into this file, that is the defect and not the fix.
-
-Two things the generator will not tell you. Some of these repos carry v0.0.10
-and higher tags: they are buried and never reused, having violated the org's
-no-double-digit rule (§Versioning), and the generator skips them by that rule
-rather than by luck. And `style` is FROZEN (ADR-003) — its number is current
-because nothing will move it again, not because it is maintained.
+workbench (the reference apps) and design (the published token bundle) carry
+no tags; consume them from the branch tip.
 
 ALREADY DELETED — these do not exist in the tags above. If you find them in
 older code or an older answer, they are gone, not deprecated:
@@ -161,29 +128,16 @@ older code or an older answer, they are gone, not deprecated:
   - every cross-widget coordination bus cadence used to export:
     popover.Arbitration, popover.ArbitrationSnapshot, tooltip.Arbitration,
     tooltip.ArbitrationSnapshot, modal.Stack, modal.StackSnapshot and
-    toast.Notifications. ADR-008 replaced them (§Coordination); three of the
-    seven had no subscriber anywhere in the organization. toast.Notify still
-    exists but takes a layout.Context first — the compile error names the
-    fix.
+    toast.Notifications. toast.Notify still exists but takes a
+    layout.Context first — the compile error names the fix. See
+    §Coordination.
 
-RENAMED — the path changed, the code did not (ADR-009). If you find one of
-these module paths in older code or an older answer, it is renamed, not
-deleted: the old path is frozen at the tag shown, resolvable forever through
-the GitHub redirect and the proxy cache, and never re-tagged. All new work
-requires the new path only, which began at the tag shown beside it:
+RENAMED — if you find these in older code, require the new path:
 
-  - github.com/vibrantgio/spectrum, frozen at v0.5.0 → theme, from v0.6.0;
-  - github.com/vibrantgio/prism, frozen at v0.6.1 → components, from v0.7.0
-    (its nested gallery module froze at gallery/v0.6.1 and continues as
-    components/gallery from gallery/v0.7.0);
-  - github.com/vibrantgio/pulse, frozen at v0.1.4 → effects, from v0.2.0;
-  - github.com/vibrantgio/cadence, frozen at v0.5.0 → patterns, from v0.6.0.
-
-The numbering continues across the rename — a changed import path is a
-breaking change, and a breaking change before v1 bumps the minor — so the
-first tag on each new path is the next minor after the old path's last, and
-the frozen tag never sorts above its successor. A tag on a frozen path is a
-defect, full stop.
+  - github.com/vibrantgio/spectrum → theme
+  - github.com/vibrantgio/prism → components
+  - github.com/vibrantgio/pulse → effects
+  - github.com/vibrantgio/cadence → patterns
 
 ## Nested modules
 
@@ -224,14 +178,12 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
   github.com/vibrantgio/mvu/example           v0.9.1   numbered mvu examples,
                                                        00-reference upward
 
-CGO CAVEAT: mvu/desktop is the organization's first cgo beyond what Gio
-itself carries — darwin-only Objective-C behind `//go:build darwin`, with
-no-op stubs on every other platform, so it compiles everywhere but does its
-work only on macOS. Requiring it never adds cgo to mvu's root, which stays
-tier 0 with zero cgo; the dependency runs mvu/desktop -> mvu, never the
-reverse. Apply options through mvu's Window.Option, not the raw app.Window
-handle — options applied through the raw handle bypass the OnConfigure
-notification the chrome re-asserts itself on.
+CGO CAVEAT: mvu/desktop is darwin-only Objective-C behind `//go:build
+darwin`, with no-op stubs on every other platform, so it compiles
+everywhere but does its work only on macOS. Requiring it never adds cgo
+to mvu itself. Apply options through mvu's Window.Option, not the raw
+app.Window handle — options applied through the raw handle bypass the
+OnConfigure notification the chrome re-asserts itself on.
 
 The module's second tenant, file drops, sits behind the same darwin-only
 discipline: NewDropTarget(w, zones, kinds...) registers the mvu window to
@@ -247,12 +199,8 @@ option changes the same way the chrome does — and that stream is
 single-subscriber: constructing a DropTarget claims it, so an application
 using drops must not subscribe ViewEvents itself.
 
-A nested module's version mirrors its root's: `driver/raster/vX.Y.Z` requires
-`svg` at exactly `vX.Y.Z`. A root can be ahead of a nested module that did not
-change, so wherever the list above shows one behind its root that is correct
-and not drift. When a root and its nested module are both used, require them
-at matching versions: `seen` and `seen/context/gio` are the case you will hit
-first.
+When you use a root and its nested module together, require them at matching
+versions: `seen` and `seen/context/gio` are the case you will hit first.
 
 External pins: gioui.org v0.10.2, github.com/reactivego/rx v0.3.0, go 1.25.1
 — every module in the org is on exactly these.
@@ -399,7 +347,7 @@ write (openVaultCmd) are all mvu.Do.
    their targets — take durations and springs from the theme's MotionScale
    and the preference costs you nothing (§Motion).
 
-## Coordination between widgets (ADR-008)
+## Coordination between widgets
 
 Two widgets that must agree — which popover is open, which modal is in
 front, what the filter says, that a toast should appear — have exactly three
@@ -447,26 +395,14 @@ pass in, and the value IS the scope:
 
 TWO SMELLS, ONE OF WHICH NO TOOL WILL FIND FOR YOU.
 
-  - A bare `rx.Subject` in library or application code. It leaks a
-    subscription slot for the life of the process (the 33rd subscriber dies
-    with "out of subject subscriptions") and a departed subscriber's frozen
-    cursor pins the producer — on the frame goroutine, that is a hung app.
-    `scripts/check-subjects.sh` in vibrantgio/.github fails on one.
-    components/coordination, the 292-line wrapper that used to be the answer, is
-    DEPRECATED: it fixed the departed subscriber and not the live one, and
-    delivered 40× slower than rx's own Behavior, which is what
-    mvu/stream.Value wraps.
-  - AN EXPORTED OBSERVABLE THAT NOTHING SUBSCRIBES TO, which is the one that
-    actually happened. Four of these lived in cadence for eight phases —
-    popover.Arbitration, tooltip.Arbitration, modal.Stack and their
-    snapshots — every one published to on a real schedule, through the
-    approved wrapper, into an empty subscriber list; modal's rebuilt and
-    dropped a slice on every open. No grep can see this: mechanism looks
-    identical whether or not anyone is listening. So THE FIRST QUESTION
-    ABOUT AN EXPORTED OBSERVABLE IS NOT WHAT PUBLISHES TO IT BUT WHO READS
-    IT, and you have to go and look. What check-subjects.sh can do is refuse
-    the shape all four arrived in — an exported package-level observable,
-    owned by no one — and it does.
+  - A bare `rx.Subject`. It leaks a subscription slot for the life of the
+    process (the 33rd subscriber dies with "out of subject subscriptions")
+    and a departed subscriber's frozen cursor pins the producer — on the
+    frame goroutine, that is a hung app. Use `mvu/stream.Value`.
+    components/coordination is DEPRECATED.
+  - AN EXPORTED OBSERVABLE THAT NOTHING SUBSCRIBES TO. Mechanism looks
+    identical whether or not anyone is listening. The first question about
+    an exported observable is not what publishes to it but who reads it.
 
 ## Layers and composition
 
@@ -505,9 +441,8 @@ Every component takes the theme observable for visual configuration and
 props structs for content, and the theme carries the whole look: colour,
 typography, density, elevation and motion all arrive through it, so a
 correct app wires the theme once and styles nothing per component.
-theme/tokens supplies the typed design values (ADR-007 colour ramps,
-a 4-pt spacing scale, named radius stops); never use string-keyed style
-maps. components/list can render a visible scrollbar via list.LayoutScrollbar
+theme/tokens supplies the typed design values (colour ramps, a 4-pt
+spacing scale, named radius stops); never use string-keyed style maps. components/list can render a visible scrollbar via list.LayoutScrollbar
 (anchor Occupy reserves a right gutter, Overlay floats the bar over the
 trailing edge; default style from scrollbar.FromTokens).
 
@@ -524,7 +459,7 @@ workbench feeds/app.go, and the same hand-off in sitedocs and vaultview.
 
 ## Colour: one seed, ramps, pins, step walks
 
-COLOUR IS DERIVED, NOT PICKED (ADR-007, landed in Phase D). One seed colour
+COLOUR IS DERIVED, NOT PICKED. One seed colour
 generates the entire palette — both modes — through the CIELAB/OKLCh engine
 in theme/color:
 
@@ -538,14 +473,10 @@ share times chroma squared so a vivid tenth of a picture outranks a drab
 half. Every candidate is a pixel the image really has, so it is in gamut and
 FromSeed takes it as it stands. Greyscale in, greys out.
 
-Application code never writes a colour literal. The no-literal-colour lint
-fails `go test` on a color.NRGBA literal in components, effects,
-patterns and markdown (allow-listed exceptions only); write application code
-to the same standard. Every colour you need is on the tokens.ColorTokens
-value the theme's Color observable emits.
+Application code never writes a colour literal. Every colour you need is
+on the tokens.ColorTokens value the theme's Color observable emits.
 
-The vocabulary (this replaces MD3's role tables — see the deleted-alias list
-in §Modules):
+The vocabulary:
 
   - RAMPS. ColorTokens.Ramps holds five roles — Neutral, Primary,
     Secondary, Tertiary, Error — each a nine-step Ramp addressed
@@ -663,8 +594,8 @@ slop overlapping is by design (the topmost input area wins).
 
 ## Elevation: the surface ladder
 
-A raised surface reads as raised by TINT first, shadow second (ADR-005 for
-desktop). Elevation is a walk up the neutral ramp — the same move states
+A raised surface reads as raised by TINT first, shadow second. Elevation
+is a walk up the neutral ramp — the same move states
 make — with the level naming the rung:
 
   level 0   the app background (the Background pin)
@@ -769,7 +700,7 @@ approximation of a Gaussian, plus the two supported ways to ship it:
 
 ## Typography
 
-THE THEME OWNS THE TYPEFACE (ADR-003, landed in Phase C). Every component
+THE THEME OWNS THE TYPEFACE. Every component
 that draws text takes its type style and its *text.Shaper from the theme
 observable it already receives — application code does nothing to get
 correct type:
@@ -838,15 +769,11 @@ the full metrics and are the only source of truth (see §Modules).
 
 THE RULES
 
-  - Never construct a shaper. text.NewShaper in application code is the
-    pre-ADR-003 practice; Typography.Shaper() is the only shaper an app
+  - Never construct a shaper. Typography.Shaper() is the only shaper an app
     needs. The style module (style.FontFaces() and the H1-H6 scale) is
-    the old way — frozen (§Modules has its tag); do not add it to a new app.
-  - Never gofont — and the build enforces it. The no-gofont lint
-    (internal/lint in components, effects, patterns and markdown) fails `go test`
-    on any gioui.org/font/gofont import in those four repos; the old
-    practice no longer merely looks wrong, it fails the build. nil
-    Props.Shaper means the theme's shaper, which is correct.
+    frozen; do not add it to a new app.
+  - Never gofont. nil Props.Shaper means the theme's shaper, which is
+    correct.
   - Props.Shaper is a DELIBERATE override only. The prop survives on the
     text-drawing components for the rare call site that must shape with a
     different collection; leave it nil everywhere else. If you find
@@ -857,11 +784,9 @@ THE RULES
     fonts, so all text resolves — including the glyphs no embedded face
     was ever going to carry. DeterministicShaper() is the test one: Faces
     and nothing else, system fonts off, so the same text shapes to the
-    same pixels on every machine. Every golden and pixel test in components,
-    effects, patterns, markdown and the workbench apps calls the second.
-    A golden written against Shaper() passes on the machine that wrote it
-    and fails on one with a different font set — silently, and only for
-    whoever runs it next. That failure is the whole reason the two exist.
+    same pixels on every machine. If you write a golden in your app, use
+    the second. A golden written against Shaper() passes on the machine
+    that wrote it and fails on one with a different font set.
 
 WHEN A TEST NEEDS A GLYPH THE DEFAULT FACES LACK, widen the collection
 rather than reach for the system. WithFaces returns a copy of the
@@ -893,8 +818,8 @@ emoji flashes tofu. Pinned Noto Color Emoji goldens use
 DefaultTypography.WithEmoji().DeterministicShaper(); default-path goldens
 stay emoji-free.
 
-The workbench apps embody all of this: as of Phase F1, no app builds a
-shaper, imports style or gofont, or passes Props.Shaper — copy any of them.
+The workbench apps embody all of this: none of them builds a shaper,
+imports style or gofont, or passes Props.Shaper — copy any of them.
 Code defaults to Roboto Mono. A kept "mono": "JetBrains Mono" in
 theme.json restyles Typography.Code and appends those four faces; empty,
 absent, or unknown stays on Roboto Mono. The live stream still wears
@@ -1104,89 +1029,6 @@ purpose (golden determinism); leave those alone.
   github.com/vibrantgio/seen/context/gio at the same tag when using the Gio
   context.
 
-## Pitfalls when working on the org's repos (each cost real time in B–G)
-
-- GREEN HAS TWO MEANINGS, and a change is done only when it has both.
-  Development runs under the org's single go.work, resolving siblings from
-  the working tree; CI and every stranger's `go get` run without it,
-  resolving each go.mod against published tags. A cross-repo change can be
-  green in the tree and broken for the world — that gap is permanent
-  between a seam landing and its tags being cut. Verify both: build/test
-  normally, then again under `GOWORK=off`; the org's
-  check-no-workspace.sh script reports the outstanding debt. Never commit
-  a `replace` directive or a go.work file into a member repo.
-- A STALE go.sum CAN PIN CONTENT THAT WAS NEVER PUBLISHED, and nothing
-  heals it automatically: `go mod tidy` VERIFIES before it rewrites, so it
-  refuses to fix the very lines that are wrong. Delete both lines for the
-  bad version — the `h1:` and the `/go.mod` — then re-run tidy, and
-  cross-check what it writes against sum.golang.org by hand if GOPRIVATE
-  covers the org (with GOPRIVATE set, the checksum db is never consulted,
-  so a wrong hash can be re-recorded unnoticed). The workspace masks this
-  entire failure class — go.sum is not consulted under go.work — so
-  verify the repair with GOWORK=off, from a clean module cache.
-- GOLDENS REGENERATE IN THE TASK THAT MOVES THEM — never in a follow-up,
-  and the commit body says so. Anything that changes rendering (a token, a
-  face, a density) moves golden images in every repo downstream. The
-  regeneration flag is per test binary and MUST FOLLOW the package list:
-  `go test ./button ./input ... -golden.update` — placed before the
-  packages, `go test` hands `./...` to the test binary and silently tests
-  the current directory only. And `./...` works only where every test
-  package has goldens (markdown); in components, effects, theme and patterns,
-  packages without goldens reject the undeclared flag, so name the golden
-  packages one by one:
-
-      components  go test ./button ./gallery ./golden ./icon ./input ./layout ./list ./richtext ./scrollarea ./scrollbar -golden.update
-      effects     go test ./depth ./glow ./motion ./transition -golden.update
-      patterns    go test ./accordion ./alert ./breadcrumb ./card ./feature ./hero ./modal ./navbar ./pagination ./popover ./pricing ./shell ./sidebar ./table ./tabs ./tag ./testimonial ./toast ./tooltip -golden.update
-      markdown    go test ./highlight ./svgimage . -golden.update
-      workbench   go test ./... -golden.update
-
-  A golden also PINS ITS FACES with
-  tokens.DefaultTypography.DeterministicShaper(), never the application
-  default Shaper() (§Typography), and stores its images under
-  `testdata/golden/` — the path the shared harness resolves itself, so a
-  sweep keyed on it finds every one.
-- TAGS ARE FOREVER, SO SPEND THEM CAREFULLY. No version component ever
-  reaches two digits (v0.0.9 → v0.1.0, never v0.0.10); once the proxy or
-  sum.golang.org has seen a version it is immutable, and a wrong tag can
-  only be buried by the next number, never reused. While a tag is in
-  flux, check state with `git ls-remote` — probing proxy.golang.org or
-  sum.golang.org CAUSES the version to be recorded. Nested-module tags
-  mirror their root's version (§Nested modules); a nested tag never runs
-  on its own counter.
-- AGENTS.md IN A MEMBER REPO IS A POINTER, not a second guide. It names
-  the module in one sentence and links this file. Do not put versions,
-  import graphs, golden commands or release notes in it — those belong
-  here, or in the code. Do not regenerate it from a template. A wording
-  change in .github must not become a commit in circle.
-- THE VERSION NUMBERS IN THIS FILE ARE GENERATED. scripts/sync-versions.sh
-  in vibrantgio/.github reads `git tag` in every clone and writes the
-  version tokens in §Modules, §Nested modules and §Minimal go.mod;
-  check-versions.sh fails when they disagree. Run sync-versions.sh in the
-  same task that cuts a tag. Do not type a version into this file.
-- AN EXPORTED OBSERVABLE WITH NO SUBSCRIBER IS INVISIBLE TO EVERY TOOL, and
-  four of them lived in cadence for eight phases (§Coordination). Publishing
-  looks identical whether or not anyone is listening, so a grep for the
-  mechanism finds a healthy-looking bus. When you meet an exported
-  observable, find its readers before you believe in it —
-  `find . -name '*.go' -print0 | xargs -0 grep -n '<pkg>\.<Symbol>'`, over
-  all twenty-one clones, and read the hits rather than counting them. The org's
-  check-subjects.sh refuses the shape those four shared (an exported
-  package-level observable) and says plainly that it cannot check the rest.
-
-- SANITY-CHECK ANY ZERO-RESULT CENSUS BEFORE ACTING ON IT. Until G0E.1 the
-  twenty clones hid under a gitignored .repos/ inside vibrantgio/.github, so
-  ripgrep, ag, and any grep aliased to one of them skipped THE ENTIRE
-  CODEBASE and reported "no matches" — an empty result indistinguishable
-  from a clean bill of health, and "nothing subscribes to this, delete it"
-  is exactly the conclusion it invites. The flattened working tree (siblings
-  beside .github, nothing gitignored between them) removed that particular
-  trap, but the lesson is tool-independent: before believing a zero, search
-  for something you KNOW is there, and if that comes back empty too, it is
-  the tool, not the tree. (Recorded after a G-G0C task deleted exported API
-  on a census — correctly, as it turned out, but only because it took the
-  census twice.)
-
 ## Minimal go.mod for a new app
 
   module example.com/myapp
@@ -1228,7 +1070,7 @@ them without the caveats older guides carried:
               canonical bootstrap, pure testable reducers (redux_test.go),
               components button/checkbox/list, a modal dialog, live light/dark;
               theme.go is the minimal token-adapter recipe (PaletteFrom
-              resolving ADR-007 steps, TypeFrom picking Typography roles)
+              resolving ramp steps, TypeFrom picking Typography roles)
   iconbrowser/ both icon sets in one window: components/icons at the
               sizes controls draw them, over the searchable Material grid —
               components TextField with per-keystroke MessageOp updates,
@@ -1302,7 +1144,5 @@ them without the caveats older guides carried:
               before the handler returns, and nothing else is writable.
               Also the reference for adopting a kept brand: one theme.LiveTheme
               option, and the same value seeding mirrorTokens' first cell
-  (DESIGN.md, the architecture document, no longer lives here: it moved to
-  github.com/vibrantgio/design beside the exported token bundle. Read its
-  §Key architectural patterns and §Threading & lifecycle before writing new
-  components.)
+  DESIGN.md lives in github.com/vibrantgio/design if you want the
+  architecture rationale. You do not need it to write an app.
