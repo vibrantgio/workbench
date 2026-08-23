@@ -36,14 +36,14 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 	}
 }
 
-// TestInitialModelSeedsHome verifies that initialModel() produces a model
-// with currentPage == pageHome, the first ## section of the docs outline
+// TestInitialModelSeedsDocs verifies that initialModel() produces a model
+// with currentPage == pageDocs, the first ## section of the docs outline
 // disclosed (so the Docs tab opens with children showing), and no
 // selected heading.
-func TestInitialModelSeedsHome(t *testing.T) {
+func TestInitialModelSeedsDocs(t *testing.T) {
 	m := initialModel()
-	if m.currentPage != pageHome {
-		t.Errorf("initialModel.currentPage = %q; want %q", m.currentPage, pageHome)
+	if m.currentPage != pageDocs {
+		t.Errorf("initialModel.currentPage = %q; want %q", m.currentPage, pageDocs)
 	}
 	if !m.outlineOpen[0] {
 		t.Errorf("initialModel.outlineOpen[0] = false; want true (first section seeded open)")
@@ -57,9 +57,23 @@ func TestInitialModelSeedsHome(t *testing.T) {
 // the model's currentPage field synchronously — no goroutine, no polling.
 func TestUpdateSetRouteAdvancesPage(t *testing.T) {
 	m := initialModel()
-	next, _ := Update(m, SetRoute{Page: pageComponentsGettingStarted})
-	if next.currentPage != pageComponentsGettingStarted {
-		t.Errorf("after SetRoute: currentPage = %q; want %q", next.currentPage, pageComponentsGettingStarted)
+	next, _ := Update(m, SetRoute{Page: pageGallery})
+	if next.currentPage != pageGallery {
+		t.Errorf("after SetRoute: currentPage = %q; want %q", next.currentPage, pageGallery)
+	}
+}
+
+// TestTabIndexRoundTrips pins the strip order against the identifiers: a
+// click's index maps to a page that maps back to the same index, and an
+// unrecognised identifier lands on the Docs tab.
+func TestTabIndexRoundTrips(t *testing.T) {
+	for i, p := range tabPages {
+		if got := tabIndex(p); got != i {
+			t.Errorf("tabIndex(%q) = %d; want %d", p, got, i)
+		}
+	}
+	if got := tabIndex("no-such-page"); got != 0 {
+		t.Errorf("tabIndex(unknown) = %d; want 0 (the Docs tab)", got)
 	}
 }
 
@@ -104,25 +118,25 @@ func TestUpdateSelectHeading(t *testing.T) {
 	}
 }
 
-// TestDocsShellLayerReEmitsOnModelChange is the GX.9 same-frame-repaint
-// regression test. The bug it guards against: the shell layer observable did
-// not re-emit when the model changed (accordion state and routing were shunted
+// TestDocsTabReEmitsOnModelChange is the GX.9 same-frame-repaint
+// regression test. The bug it guards against: the docs layer observable did
+// not re-emit when the model changed (outline state and routing were shunted
 // into atomic mirrors disconnected from the layer chain), so a click never
 // reached theme/window's Invalidate() and the canvas only repainted on the
 // next unrelated input event (FEEDBACK-G5.1).
 //
-// Driving the same modelObs the app uses and asserting docsShellLayer's
+// Driving the same modelObs the app uses and asserting docsTabFrom's
 // returned observable emits a fresh widget on each ToggleOutline /
 // SelectHeading is the seam the bug lived on; a reducer-only test passes
 // without proving the layer re-emits. (Live same-frame repaint is confirmed
 // by running the app — the unit test proves the necessary re-emission, not
 // the OS frame timing.)
-func TestDocsShellLayerReEmitsOnModelChange(t *testing.T) {
+func TestDocsTabReEmitsOnModelChange(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1)
-	shell := docsShellLayerFrom(rx.Of(theme.Default()), modelObs, guideFixture(t))
+	tab := docsTabFrom(rx.Of(theme.Default()), modelObs, guideFixture(t))
 
 	emissions := make(chan layout.Widget, 16)
-	sub := shell.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
+	sub := tab.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
 			case emissions <- w:

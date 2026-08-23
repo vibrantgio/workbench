@@ -1,56 +1,34 @@
 // theme_tab.go composes the Theme tab: the themer's palette section —
 // the ramps grid and the named picks, drawn by theme_palette.go's copy of
-// that presentation — following the live theme, in the same shell frame
-// the Gallery tab uses: a ThreeColumn shell with a zero-width leading
-// column, the navbar across the top, and the section as a scrolling
-// column filling the rest.
+// that presentation — following the live theme, as a scrolling column
+// filling the panel under the tab strip, the same frame the Gallery tab
+// uses.
 
 package main
 
 import (
-	"sync/atomic"
-
 	"gioui.org/layout"
 	"gioui.org/text"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/list"
-	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// themeShellLayer composes the Theme tab. The theme-driven stream that
-// rebuilds the section rows rides in the shell's Sidebar slot (measuring
-// zero) so a theme emission re-emits the shell and repaints on the same
-// frame; the static Main slot reads the latest column through an atomic
-// cell — the same layer-boundary hand-off the Docs and Gallery shells use.
-func themeShellLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
+// themeTabLayer is the Theme tab's content stream: the freshly themed
+// palette column on every token emission, over one long-lived scroll
+// state.
+func themeTabLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	st := list.NewState()
 
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
 
-	var mainCell atomic.Value
-	sidebarDriven := rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography]) layout.Widget {
+	return rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography]) layout.Widget {
 		col, typ := t.First, t.Second
-		mainCell.Store(galleryColumn(st, col, themePaletteRows(typ.Shaper(), typ, col)))
-		return zeroSidebar
-	})
-
-	mainSlot := func(gtx layout.Context) layout.Dimensions {
-		if w, ok := mainCell.Load().(layout.Widget); ok && w != nil {
-			return w(gtx)
-		}
-		return layout.Dimensions{Size: gtx.Constraints.Max}
-	}
-
-	return shell.Shell(th, shell.Props{
-		Layout:  shell.ThreeColumn,
-		Sidebar: sidebarDriven,
-		Navbar:  navbarProps(mirrorTokens(th), pageTheme),
-		Main:    mainSlot,
+		return galleryColumn(st, col, themePaletteRows(typ.Shaper(), typ, col))
 	})
 }
 

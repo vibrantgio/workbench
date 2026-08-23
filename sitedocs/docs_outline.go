@@ -37,9 +37,9 @@ import (
 	"github.com/vibrantgio/theme/typeset"
 )
 
-// Outline layout constants. The tree is wider than the old accordion
-// sidebar because the guide's ## titles are full sentences; a one-line
-// row truncates what still does not fit.
+// Outline layout constants. The tree column is wide because the guide's
+// ## titles are full sentences; a one-line row truncates what still does
+// not fit.
 const (
 	docsOutlineWidthDp   = 300 // the tree column's width; the guide's ## titles are sentences
 	docsOutlineRowHDp    = 28  // one row's height

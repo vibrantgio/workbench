@@ -6,22 +6,15 @@
 // never pictures of them, and this file adds no second inventory — it asks
 // the published one for its rows and puts a viewport in front of them.
 //
-// The tab is a ThreeColumn shell with a zero-width leading column: the
-// navbar spans the top and the column fills everything under it. The
-// inventory is built once, on the first theme emission, and outlives every
-// palette after it — a theme change is a new set of row values over the
-// same parsed documents and scroll positions, exactly the economy the
-// inventory is designed around. The theme-driven stream that rebuilds the
-// rows rides in the shell's Sidebar slot (measuring zero) so a theme
-// emission re-emits the shell and repaints on the same frame; the static
-// Main slot reads the latest column widget through an atomic cell, the
-// same layer-boundary hand-off the Docs shell uses.
+// The tab's content is the inventory column filling the panel under the
+// tab strip. The inventory is built once, on the first theme emission,
+// and outlives every palette after it — a theme change is a new set of
+// row values over the same parsed documents and scroll positions, exactly
+// the economy the inventory is designed around.
 
 package main
 
 import (
-	"sync/atomic"
-
 	"gioui.org/layout"
 	"gioui.org/text"
 
@@ -30,16 +23,14 @@ import (
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
-	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// galleryShellLayer composes the Gallery tab. The shell is ThreeColumn so
-// the navbar spans the full width; the leading column is the theme-driven
-// zero-size widget described in the file comment, and Main is the
-// inventory column.
-func galleryShellLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
+// galleryTabLayer is the Gallery tab's content stream: the freshly themed
+// inventory column on every token emission, over the one long-lived
+// inventory and scroll state.
+func galleryTabLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	// Built on the first emission and kept: the inventory holds the parsed
 	// reading sample and its sections' scroll state, st the column's own
 	// scroll position. A palette change rebuilds row values, never these.
@@ -49,11 +40,7 @@ func galleryShellLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widge
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
 
-	// mainCell bridges the layer boundary: the sidebar-slot stream below
-	// stores the freshly themed column synchronously, and the static Main
-	// slot reads it at frame time.
-	var mainCell atomic.Value
-	sidebarDriven := rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography]) layout.Widget {
+	return rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography]) layout.Widget {
 		col, typ := t.First, t.Second
 		shaper := typ.Shaper()
 		if inv == nil {
@@ -64,31 +51,8 @@ func galleryShellLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widge
 			inv.SetShaper(shaper)
 		}
 		inv.SetTypography(typ)
-		mainCell.Store(galleryColumn(st, col, inv.Items(col)))
-		return zeroSidebar
+		return galleryColumn(st, col, inv.Items(col))
 	})
-
-	mainSlot := func(gtx layout.Context) layout.Dimensions {
-		if w, ok := mainCell.Load().(layout.Widget); ok && w != nil {
-			return w(gtx)
-		}
-		return layout.Dimensions{Size: gtx.Constraints.Max}
-	}
-
-	return shell.Shell(th, shell.Props{
-		Layout:  shell.ThreeColumn,
-		Sidebar: sidebarDriven,
-		Navbar:  navbarProps(mirrorTokens(th), pageGallery),
-		Main:    mainSlot,
-	})
-}
-
-// zeroSidebar measures nothing, so the shell's Main slot takes the whole
-// row width. It exists because the theme-driven rebuild stream has to live
-// in some shell input for emissions to repaint, and the sidebar slot is
-// the one that accepts a stream.
-func zeroSidebar(gtx layout.Context) layout.Dimensions {
-	return layout.Dimensions{}
 }
 
 // galleryColumn is the scrolling inventory column: the rows in a virtual

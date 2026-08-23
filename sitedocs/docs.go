@@ -1,9 +1,9 @@
-// docs.go composes the docs pages. Each page stacks a patterns/breadcrumb
-// row over a vibrantgio/markdown Document rendered from the page's
-// embedded .md source (docs_content.go): type-scale headings, richtext
-// prose with links, chroma-highlighted code blocks, lists, blockquotes,
-// and tables. The runtime entry point is docsPage; the static counterpart
-// renderDocsPage is used by goldens.
+// docs.go styles and lays out the Docs tab's one document: the
+// application guide rendered by vibrantgio/markdown — type-scale
+// headings, richtext prose with links, chroma-highlighted code blocks,
+// lists, blockquotes, and tables. The live entry point is
+// guideDocObservable; drawGuideDoc is the shared frame path the static
+// review/golden renders reuse.
 
 package main
 
@@ -15,8 +15,6 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/layout"
-	"gioui.org/op"
-	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
 
@@ -25,52 +23,23 @@ import (
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
-	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
-	"github.com/vibrantgio/theme/typeset"
-
-	"github.com/vibrantgio/mvu"
 )
 
-// Page layout constants. The outer inset matches the marketing-pattern
-// inset (S6 = 24 dp) so the docs page reads at the same canvas inset as
-// the landing page.
-//
-// docsBreadcrumbGapDp is the fallback for the seam between the page chrome
-// and the reading column; docsBreadcrumbGap prefers the document's own
-// number and is what the page actually lays out with.
+// Page layout constants.
 const (
-	docsOuterInsetDp    = 24
-	docsProseGapDp      = 12
-	docsCardGapDp       = 16
-	docsBreadcrumbGapDp = 32
+	// docsOuterInsetDp is the blank the document keeps from the panel
+	// edges (S6 = 24 dp).
+	docsOuterInsetDp = 24
 	// docsMeasureDp caps the guide document's line length to a readable
 	// column; the window is wider than a comfortable measure.
 	docsMeasureDp = 720
 )
 
-// docsBreadcrumbGap is the blank between the breadcrumb row and the top of
-// the document: the space the renderer would itself put above a level-1
-// heading that had a block above it. The page title is the document's first
-// block, so it reaches nothing above and the app owns that space instead —
-// and owning it as a hardcoded number is what goes stale, because the
-// document's rhythm is derived from the theme and moves when the theme
-// does. Sized from the chrome's side it would be wrong in the other
-// direction: a seam narrower than the blank between two paragraphs binds
-// the title upward to the chrome rather than downward to the prose it
-// opens. A style built by hand carries no heading spaces, and then the
-// constant stands in.
-func docsBreadcrumbGap(style markdown.Style) float32 {
-	if above := style.HeadingSpaceAbove[0]; above > 0 {
-		return float32(above)
-	}
-	return docsBreadcrumbGapDp
-}
-
 // Chroma styles for the two appearance modes; built once, shared by every
-// page. FromTokens leaves Highlight nil, so assigning these is the app's
-// opt-in to syntax highlighting.
+// emission. FromTokens leaves Highlight nil, so assigning these is the
+// app's opt-in to syntax highlighting.
 var (
 	docsHighlightLight = highlight.New("github")
 	docsHighlightDark  = highlight.New("github-dark")
@@ -107,7 +76,7 @@ func isDarkColor(c color.NRGBA) bool {
 }
 
 // openURL opens an absolute web URL in the system browser. Non-http(s)
-// destinations are ignored — the docs sources only carry web links.
+// destinations are ignored — the guide only carries web links.
 func openURL(url string) {
 	if !strings.HasPrefix(url, "https://") && !strings.HasPrefix(url, "http://") {
 		return
@@ -124,104 +93,8 @@ func openURL(url string) {
 	_ = cmd.Start()
 }
 
-// docsPage returns the runtime observable for the named page. The markdown
-// Document is allocated once per page and closed over by every emission,
-// so scroll position and link interaction state survive theme changes and
-// navigation. The breadcrumb and token observables are combined so the
-// page re-emits on any theme change. The shaper is the theme's cached
-// Typography shaper, so prose shapes in Roboto and the code blocks'
-// Style.Mono face resolves to the theme-carried Roboto Mono (F0.2).
-func docsPage(
-	th rx.Observable[theme.Theme],
-	def docsPageDef,
-) rx.Observable[layout.Widget] {
-	bcObs := breadcrumb.Breadcrumb(th, breadcrumb.Props{
-		Items: docsBreadcrumb(def),
-	})
-
-	doc := markdown.NewDocument(markdown.Parse(def.Source))
-
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
-	tokensObs := rx.CombineLatest2(colObs, typObs)
-
-	full := rx.CombineLatest2(bcObs, tokensObs)
-	return rx.Map(full, func(t rx.Tuple2[layout.Widget, rx.Tuple2[tokens.ColorTokens, tokens.Typography]]) layout.Widget {
-		bcW := t.First
-		typ := t.Second.Second
-		style := docsMarkdownStyle(t.Second.First, typ)
-		shaper := typ.Shaper()
-		return func(gtx layout.Context) layout.Dimensions {
-			return drawDocsPage(gtx, bcW, doc, shaper, style)
-		}
-	})
-}
-
-// renderDocsPage is the static counterpart of docsPage used by goldens: a
-// fresh top-scrolled Document laid out once with the given token sets. The
-// breadcrumb takes the TitleSmall role its live path uses; the code role
-// comes from the same Typography, matching what the runtime path renders.
-func renderDocsPage(
-	shaper *text.Shaper,
-	def docsPageDef,
-	colors tokens.ColorTokens,
-	sp tokens.SpacingScale,
-	typo tokens.Typography,
-) layout.Widget {
-	bcW := breadcrumb.Render(shaper, breadcrumb.Props{Items: docsBreadcrumb(def), Shaper: shaper}, colors, sp, typo.TitleSmall)
-	doc := markdown.NewDocument(markdown.Parse(def.Source))
-	style := docsMarkdownStyle(colors, typo)
-	return func(gtx layout.Context) layout.Dimensions {
-		return drawDocsPage(gtx, bcW, doc, shaper, style)
-	}
-}
-
-// docsBreadcrumb returns the breadcrumb trail for a docs page: Home
-// (clickable) / layer / title. Callbacks emit mvu.MessageOp so
-// navigation fires on the same frame as the click.
-func docsBreadcrumb(def docsPageDef) []breadcrumb.Item {
-	layer := def.Layer
-	if layer == "" {
-		layer = "Docs"
-	}
-	return []breadcrumb.Item{
-		{Label: "Home", OnClick: func(gtx layout.Context) {
-			mvu.MessageOp{Message: SetRoute{Page: pageHome}}.Add(gtx.Ops)
-		}},
-		{Label: layer},
-		{Label: def.Title},
-	}
-}
-
-// drawDocsPage lays out one docs page frame: the breadcrumb row pinned at
-// the top, then the markdown document filling the rest as its own
-// scrolling viewport.
-func drawDocsPage(
-	gtx layout.Context,
-	bcW layout.Widget,
-	doc *markdown.Document,
-	shaper *text.Shaper,
-	style markdown.Style,
-) layout.Dimensions {
-	inset := complayout.Inset(docsOuterInsetDp)
-	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				if bcW != nil {
-					return bcW(gtx)
-				}
-				return layout.Dimensions{}
-			}),
-			layout.Rigid(complayout.VSpacer(docsBreadcrumbGap(style))),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return doc.Layout(gtx, shaper, style)
-			}),
-		)
-	})
-}
-
-// drawGuideDoc lays out the one guide document as the Docs shell's main
-// slot: the shared outer inset, then the document as its own scrolling
+// drawGuideDoc lays out the one guide document as the Docs tab's main
+// column: the shared outer inset, then the document as its own scrolling
 // viewport. The document is long-lived — scroll position and interaction
 // state belong to it, so ScrollToBlock from an outline row moves the same
 // reader rather than rebuilding the page.
@@ -247,7 +120,7 @@ func drawGuideDoc(
 	})
 }
 
-// guideDocObservable is the live main-slot stream for the one guide
+// guideDocObservable is the live main-column stream for the one guide
 // document: the same Document on every emission, restyled per theme
 // change. The shaper is the theme's cached Typography shaper.
 func guideDocObservable(
@@ -265,24 +138,4 @@ func guideDocObservable(
 			return drawGuideDoc(gtx, doc, shaper, style)
 		}
 	})
-}
-
-// paragraphWidget renders one body-text paragraph in the given Typography
-// role (BodyMedium at both call sites). (Used by the About page and the
-// footer, whose short prose stays hand-composed.)
-func paragraphWidget(
-	shaper *text.Shaper,
-	textBody string,
-	fg color.NRGBA,
-	style tokens.TextStyle,
-) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		mColor := op.Record(gtx.Ops)
-		paint.ColorOp{Color: fg}.Add(gtx.Ops)
-		material := mColor.Stop()
-		wl := typeset.Label(style, 0)
-		wl.Alignment = text.Start
-		return typeset.Layout(gtx, shaper, wl, typeset.Font(style, font.Normal),
-			unit.Sp(style.Size), textBody, material)
-	}
 }

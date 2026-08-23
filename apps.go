@@ -44,7 +44,7 @@ var Apps = []App{
 	{
 		Name:  "Site Docs",
 		Dir:   "sitedocs",
-		Blurb: "Documentation & marketing site: hero, pricing, accordion sidebar, breadcrumbs.",
+		Blurb: "Three-tab docs app: the application guide with its outline tree, the live component gallery, the theme palette.",
 		Icon:  icons.ActionDescription,
 	},
 	{

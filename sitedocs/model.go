@@ -2,7 +2,8 @@
 // the message types and the Update function that reduces them.
 //
 // Messages:
-//   - SetRoute{Page string}      — navigate to a named page (pageHome, …)
+//   - SetRoute{Page string}      — select a tab by its page identifier
+//     (pageDocs, pageGallery, pageTheme)
 //   - ToggleOutline{Idx int}     — flip the disclosure of the Idx-th ## section
 //     of the docs outline; sections disclose independently
 //   - SelectHeading{Block int}   — mark the outline row for the heading at
@@ -28,11 +29,11 @@ type Model struct {
 	selectedHeading int
 }
 
-// initialModel returns the seed state: the home page, the first ##
+// initialModel returns the seed state: the Docs tab, the first ##
 // section of the docs outline disclosed, nothing selected.
 func initialModel() Model {
 	return Model{
-		currentPage:     pageHome,
+		currentPage:     pageDocs,
 		outlineOpen:     map[int]bool{0: true},
 		selectedHeading: -1,
 	}

@@ -492,7 +492,9 @@ table cell closures, navbar widgets) cannot subscribe the theme lazily —
 they would miss the current emission. The reference apps solve this with a
 small adapter that subscribes the theme's token streams once into an
 atomic cell and hands frame-time code a loader func: see mirrorTokens in
-workbench feeds/app.go, and the same hand-off in sitedocs and vaultview.
+workbench feeds/app.go, and the same hand-off in vaultview; sitedocs
+stores whole tab-content widgets through the same kind of cell for its
+static tab slots.
 
 ## Colour: one seed, ramps, pins, step walks
 
@@ -978,8 +980,9 @@ viewport would fight the outer one.
     widgets via vibrantgio/svg. Unknown destinations fall back to italic
     alt text — mindchat uses exactly this to bundle provider icons
     (assets/openai.svg) while remote URLs stay network-free.
-  - Working consumers: sitedocs (docs pages are embedded .md files —
-    docs_content.go is just go:embed + a route table), mindchat (message
+  - Working consumers: sitedocs (renders this guide whole as one
+    document, with an outline tree scrolling it via ScrollToBlock — the
+    docs-app recipe, including the light/dark highlight switch), mindchat (message
     bodies degrade() to the chat subset: inline styles, fences, images
     pass through; other blocks flatten to paragraphs).
 
@@ -1249,10 +1252,13 @@ read it from
 
 ### sitedocs/
 
-Marketing + docs shell: hero/feature/pricing/testimonial, accordion
-sidebar, breadcrumbs; the docs pages are embedded .md sources rendered
-with vibrantgio/markdown (content/*.md + docs_content.go route table —
-the docs-app recipe, including the light/dark highlight switch)
+The documentation app, three tabs over patterns/tabs: Docs — this guide
+(llms.txt) rendered whole by vibrantgio/markdown, its ##/### outline as
+a tree whose rows scroll the document (ScrollToBlock); Gallery — the
+components/gallery/inventory catalogue as live controls; Theme — the
+palette story (ramps grid and named picks) following the live theme.
+The reference for a tabbed shell and for an outline tree over one long
+document
 
 ### marketing/
 

@@ -11,134 +11,27 @@ import (
 	"gioui.org/unit"
 	"golang.org/x/image/math/fixed"
 
-	"github.com/reactivego/rx"
-
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
-	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
 const (
-	// docsCanvasW matches the runtime Main slot width budget: 1200 dp
-	// window − 192 dp sidebar = 1008 dp, rounded down to 1000 for a
-	// deterministic golden size.
+	// docsCanvasW/H is the deterministic canvas the docs-layer unit tests
+	// draw one frame at.
 	docsCanvasW = 1000
-	// docsCanvasH is the golden viewport height. The markdown document
-	// scrolls, so the goldens capture the top-of-page viewport — heading
-	// scale, prose, list markers, and the first code block.
 	docsCanvasH = 700
 )
 
 var docsCanvasSize = image.Pt(docsCanvasW, docsCanvasH)
 
-// TestDocsPageConstructs is the smoke test: every docs page in the
-// docsPages registry must build and emit a widget that lays out one
-// frame without panicking, so the sidebar can never route to a page
-// that fails to render.
-func TestDocsPageConstructs(t *testing.T) {
-	for _, def := range docsPages() {
-		tc := def
-		t.Run(tc.ID, func(t *testing.T) {
-			obs := docsPage(rx.Of(theme.Default()), tc)
-			w, err := collectOne(obs)
-			if err != nil {
-				t.Fatalf("docsPage subscribe: %v", err)
-			}
-			if w == nil {
-				t.Fatal("docsPage produced no widget")
-			}
-			dims := drawOnce(t, docsCanvasSize, w)
-			if dims.Size.X == 0 || dims.Size.Y == 0 {
-				t.Errorf("docsPage produced zero dimensions: %v", dims)
-			}
-		})
-	}
-}
-
-// TestDocsSourcesParse pins the embedded markdown sources' shape: every
-// page parses to a document that opens with a level-1 heading (the page
-// title) followed by more content, so a truncated or mis-named .md file
-// fails loudly rather than rendering an empty page.
-func TestDocsSourcesParse(t *testing.T) {
-	for _, def := range docsPages() {
-		tc := def
-		t.Run(tc.ID, func(t *testing.T) {
-			if len(tc.Source) == 0 {
-				t.Fatal("embedded source is empty")
-			}
-			blocks := markdown.Parse(tc.Source)
-			if len(blocks) < 2 {
-				t.Fatalf("parsed %d blocks, want at least a heading and a body", len(blocks))
-			}
-			h, ok := blocks[0].(*markdown.Heading)
-			if !ok {
-				t.Fatalf("first block is %T, want *markdown.Heading", blocks[0])
-			}
-			if h.Level != 1 {
-				t.Errorf("first heading level = %d, want 1", h.Level)
-			}
-		})
-	}
-}
-
-// TestDocsPageGolden records or diffs representative docs pages in light
-// and dark themes, rendered from their embedded markdown sources exactly
-// as the runtime path does (breadcrumb + markdown document with chroma
-// highlighting). Three pages cover the block variety: getting-started
-// (list + links + two code fences), cadence-shells (table), and mvu-loop
-// (multi-line Go fences). Rendering pins DeterministicShaper — Roboto and
-// Roboto Mono, system fonts off — so the rasterisation cannot depend on
-// which faces the host carries, and the code blocks still capture the mono
-// face (F0.2). The theme's own Shaper() is the application default and
-// resolves system fallbacks (F4.2); a golden must never take it.
-func TestDocsPageGolden(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
-	lightBG := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	darkBG := color.NRGBA{R: 20, G: 20, B: 20, A: 255}
-
-	pageCases := []string{pageComponentsGettingStarted, pagePatternsShells, pageMVULoop}
-	themeCases := []struct {
-		name   string
-		colors tokens.ColorTokens
-		bg     color.NRGBA
-	}{
-		{"light", tokens.DefaultLight, lightBG},
-		{"dark", tokens.DefaultDark, darkBG},
-	}
-	for _, id := range pageCases {
-		def := docsPageByID(t, id)
-		for _, tc := range themeCases {
-			name := tc.name + "-" + id
-			t.Run(name, func(t *testing.T) {
-				w := renderDocsPage(shaper, def, tc.colors, tokens.Spacing, tokens.DefaultTypography)
-				golden.Render(t, "docs-"+name, docsCanvasSize, scene(w, tc.bg))
-			})
-		}
-	}
-}
-
-// TestDocsPageLightDarkDiffer confirms swapping the colour token set
-// changes the rendered output of a docs page. The Getting-started page
-// is used as the representative case.
-func TestDocsPageLightDarkDiffer(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
-	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
-	def := docsPageByID(t, pageComponentsGettingStarted)
-
-	light := renderDocsPage(shaper, def, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography)
-	dark := renderDocsPage(shaper, def, tokens.DefaultDark, tokens.Spacing, tokens.DefaultTypography)
-	a := golden.Capture(t, docsCanvasSize, scene(light, bg))
-	b := golden.Capture(t, docsCanvasSize, scene(dark, bg))
-	if n := golden.PixelDiff(a, b); n == 0 {
-		t.Error("light and dark docs page render identically; expected colour differences across breadcrumb / prose / code")
-	}
-}
+// monoProofSource is a minimal guide-shaped document whose Go fence gives
+// the mono-face proof below real code pixels to move.
+const monoProofSource = "# Mono proof\n\nProse before the fence.\n\n```go\nfunc main() {\n\twiiim := \"{mono[0] != prose}\"\n\t_ = wiiim\n}\n```\n"
 
 // TestDocsCodeShapesInMonoFace is the F1.4 headless confirmation that the
-// docs pages — the first app surface after F0.2 wired markdown's code path
-// to the theme's Code role — render code in the mono face. It exercises the
-// exact pieces the runtime path (docsPage) composes for the default theme:
+// Docs tab renders code in the mono face. It exercises the exact pieces
+// the runtime path (guideDocObservable) composes for the default theme:
 // docsMarkdownStyle over the theme-emitted tokens, and the theme's cached
 // Typography shaper that doc.Layout shapes with.
 //
@@ -151,9 +44,9 @@ func TestDocsPageLightDarkDiffer(t *testing.T) {
 //     from proportional Roboto ('w', 'i', 'm', '.' collapse to one width
 //     only under a mono face); and the glyph IDs differ (a Gio GlyphID
 //     packs the face index, so this is face identity, not just metrics);
-//  3. a real docs page with Go code fences (mvu-loop), drawn through the
-//     app's own drawDocsPage with the app's style and shaper, renders
-//     different pixels than the same page with Mono forced back to Roboto —
+//  3. a document with a Go code fence, drawn through the app's own
+//     drawGuideDoc with the app's style and shaper, renders different
+//     pixels than the same document with Mono forced back to Roboto —
 //     the mono face visibly reaches the composed page.
 func TestDocsCodeShapesInMonoFace(t *testing.T) {
 	typ := tokens.DefaultTypography
@@ -195,21 +88,20 @@ func TestDocsCodeShapesInMonoFace(t *testing.T) {
 		t.Errorf("mono and Roboto shaped to identical glyph IDs; the two requests collapsed onto one face")
 	}
 
-	// 3. The mono face changes the rendered pixels of a real docs page.
-	def := docsPageByID(t, pageMVULoop) // multi-line Go fences
+	// 3. The mono face changes the rendered pixels of the composed page.
 	propStyle := style
 	propStyle.Mono = "Roboto"
-	monoDoc := markdown.NewDocument(markdown.Parse(def.Source))
-	propDoc := markdown.NewDocument(markdown.Parse(def.Source))
+	monoDoc := markdown.NewDocument(markdown.Parse([]byte(monoProofSource)))
+	propDoc := markdown.NewDocument(markdown.Parse([]byte(monoProofSource)))
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 	a := golden.Capture(t, docsCanvasSize, scene(func(gtx layout.Context) layout.Dimensions {
-		return drawDocsPage(gtx, nil, monoDoc, shaper, style)
+		return drawGuideDoc(gtx, monoDoc, shaper, style)
 	}, bg))
 	b := golden.Capture(t, docsCanvasSize, scene(func(gtx layout.Context) layout.Dimensions {
-		return drawDocsPage(gtx, nil, propDoc, shaper, propStyle)
+		return drawGuideDoc(gtx, propDoc, shaper, propStyle)
 	}, bg))
 	if n := golden.PixelDiff(a, b); n <= 0 {
-		t.Errorf("docs page renders identically with Mono forced to Roboto (%d pixels differ); code is not shaping in the mono face", n)
+		t.Errorf("guide document renders identically with Mono forced to Roboto (%d pixels differ); code is not shaping in the mono face", n)
 	}
 }
 
@@ -223,16 +115,4 @@ func glyphIDsEqual(a, b []text.GlyphID) bool {
 		}
 	}
 	return true
-}
-
-// docsPageByID returns the registry entry for a route identifier.
-func docsPageByID(t *testing.T, id string) docsPageDef {
-	t.Helper()
-	for _, def := range docsPages() {
-		if def.ID == id {
-			return def
-		}
-	}
-	t.Fatalf("no docs page with ID %q", id)
-	return docsPageDef{}
 }
