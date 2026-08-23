@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"testing"
 
+	"gioui.org/app"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/patterns/feature"
 	"github.com/vibrantgio/patterns/hero"
@@ -39,14 +41,13 @@ var (
 )
 
 // TestPageGolden records or diffs the page composition in light and dark
-// themes. Text labels in the patterns are intentionally blank / single-
+// themes: Background pin, rest-pose wireframe field, then the landing
+// column. Text labels in the patterns are intentionally blank / single-
 // space; structural variations (hero CTA pair, feature row, pricing
 // "Popular" border, testimonial card chrome) drive the visual difference.
 // The runtime path in pageLayer uses landing_content.go for real copy.
 func TestPageGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
-	lightBG := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	darkBG := color.NRGBA{R: 20, G: 20, B: 20, A: 255}
 
 	hp := structuralHeroProps(shaper)
 	fp := structuralFeatureProps(shaper)
@@ -56,15 +57,14 @@ func TestPageGolden(t *testing.T) {
 	cases := []struct {
 		name   string
 		colors tokens.ColorTokens
-		bg     color.NRGBA
 	}{
-		{"light-page", tokens.DefaultLight, lightBG},
-		{"dark-page", tokens.DefaultDark, darkBG},
+		{"light-page", tokens.DefaultLight},
+		{"dark-page", tokens.DefaultDark},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := renderLanding(shaper, hp, fp, pp, tp, tc.colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
-			golden.Render(t, tc.name, pageCanvasSize, scene(w, tc.bg))
+			golden.Render(t, tc.name, pageCanvasSize, scene(w, tc.colors))
 		})
 	}
 }
@@ -73,7 +73,6 @@ func TestPageGolden(t *testing.T) {
 // changes the rendered output of the page composition.
 func TestPageLightDarkDiffer(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
-	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 
 	hp := structuralHeroProps(shaper)
 	fp := structuralFeatureProps(shaper)
@@ -82,8 +81,8 @@ func TestPageLightDarkDiffer(t *testing.T) {
 
 	light := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultLight, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
 	dark := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultDark, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
-	a := golden.Capture(t, pageCanvasSize, scene(light, bg))
-	b := golden.Capture(t, pageCanvasSize, scene(dark, bg))
+	a := golden.Capture(t, pageCanvasSize, scene(light, tokens.DefaultLight))
+	b := golden.Capture(t, pageCanvasSize, scene(dark, tokens.DefaultDark))
 	if n := golden.PixelDiff(a, b); n == 0 {
 		t.Error("light and dark page render identically; expected colour differences across the four sections")
 	}
@@ -218,9 +217,18 @@ func structuralTestimonialProps(shaper *text.Shaper) testimonial.Props {
 
 // ---- headless test helpers ---------------------------------------------
 
-func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
+// scene is the golden composition: Background pin, a rest-pose
+// wireframe field, then the landing column. The live field is
+// clock-driven; goldens store the un-noised mesh so the frame is
+// one frame.
+func scene(w layout.Widget, colors tokens.ColorTokens) layout.Widget {
+	field := newField(new(app.Window), unit.Dp(pageCanvasW), unit.Dp(pageCanvasH))
+	field.SetColors(colors)
+	field.applyPending()
+	back := backdrop.Widget(colors.Background)
 	return func(gtx layout.Context) layout.Dimensions {
-		paint.FillShape(gtx.Ops, bgColor, clip.Rect{Max: gtx.Constraints.Max}.Op())
+		back(gtx)
+		field.Widget()(gtx)
 		return w(gtx)
 	}
 }

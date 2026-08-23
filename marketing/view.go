@@ -3,6 +3,7 @@ package main
 import (
 	"image"
 
+	"gioui.org/app"
 	"gioui.org/layout"
 	"gioui.org/op"
 
@@ -12,13 +13,15 @@ import (
 	"github.com/vibrantgio/theme/theme"
 )
 
-// buildLayers returns the layer-builder the theme window renders: a
-// surface-fill backdrop and the marketing page, both reacting to the
-// live theme.
-func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+// buildLayers returns the layer-builder the theme window renders, back
+// to front: the Background pin, the wireframe triangle field, and the
+// marketing page. The field is full-bleed, including under the title-bar
+// strip; only the page is inset.
+func buildLayers(win *app.Window, modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			BackdropLayer(th),
+			FieldLayer(win, th),
 			ContentLayer(th, modelObs),
 		}
 	}

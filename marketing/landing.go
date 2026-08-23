@@ -6,12 +6,9 @@ package main
 
 import (
 	"image"
-	"image/color"
 
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/op/clip"
-	"gioui.org/op/paint"
 	"gioui.org/text"
 
 	"github.com/reactivego/rx"
@@ -57,19 +54,18 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 				return []layout.Widget{n.First, n.Second, n.Third, n.Fourth}
 			},
 		)
-		colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-			return t.Color
-		})
-		return rx.Map(rx.CombineLatest3(sections, colors, modelObs),
-			func(next rx.Tuple3[[]layout.Widget, tokens.ColorTokens, Model]) layout.Widget {
-				return scrollingPage(next.First, list, next.Second.Background)
+		return rx.Map(rx.CombineLatest2(sections, modelObs),
+			func(next rx.Tuple2[[]layout.Widget, Model]) layout.Widget {
+				return scrollingPage(next.First, list)
 			})
 	})
 }
 
-// scrollingPage paints the page ground and lays sections in a vertical
-// list, clamping each child to contentMaxWidthDp and centering it.
-func scrollingPage(sections []layout.Widget, list *layout.List, ground color.NRGBA) layout.Widget {
+// scrollingPage lays sections in a vertical list, clamping each child
+// to contentMaxWidthDp and centering it. The Background pin and the
+// wireframe field live in layers behind this one, so the page does not
+// paint a ground of its own.
+func scrollingPage(sections []layout.Widget, list *layout.List) layout.Widget {
 	gap := complayout.VSpacer(sectionGapDp)
 	children := make([]layout.Widget, 0, len(sections))
 	for i, s := range sections {
@@ -81,7 +77,6 @@ func scrollingPage(sections []layout.Widget, list *layout.List, ground color.NRG
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
-		paint.FillShape(gtx.Ops, ground, clip.Rect{Max: size}.Op())
 		if len(children) == 0 {
 			return layout.Dimensions{Size: size}
 		}

@@ -1,7 +1,8 @@
 // Command marketing is a fictional SimpleApps landing: one full-screen
 // scrolling page — Hero, features, pricing, testimonials — on a
-// surface-fill, with the macOS full-size-content treatment so the
-// traffic lights sit on the page. The window title is SimpleApps.
+// single-colour wireframe triangle field over the Background pin, with
+// the macOS full-size-content treatment so the traffic lights sit on
+// the page. The window title is SimpleApps.
 package main
 
 import (
@@ -33,7 +34,7 @@ func main() {
 // when the layers are subscribed once. Publish() multicasts WITHOUT replay,
 // so AutoConnect must fire — letting the seed emitted by mvu.Loop flow —
 // only when every consumer is attached. Here the content layer is the single
-// consumer; the backdrop layer is theme-only.
+// consumer; the backdrop and field layers are theme-only.
 const modelObsConsumers = 1
 
 func run() {
@@ -59,7 +60,7 @@ func run() {
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
-	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+	if err := w.Render(buildLayers(mvuWin.Window(), modelObs)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "marketing:", err)
 		os.Exit(1)
 	}
