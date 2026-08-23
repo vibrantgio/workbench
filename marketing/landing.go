@@ -24,10 +24,27 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// sectionGapDp is the vertical gap between adjacent sections. S3, not
-// S6: at 1200×800 the first frame must show the top of the testimonial
-// cards, including under the 32 dp macOS title-bar inset.
-const sectionGapDp float32 = 12
+// sectionGapDp is the ordinary gap (hero to features). The stretch
+// between the feature row and the testimonials is larger: pricing sits
+// in that interval, so afterFeaturesGapDp and afterPricingGapDp are
+// what actually separate those two bands.
+const (
+	sectionGapDp          float32 = 24
+	afterFeaturesGapDp    float32 = 40
+	afterPricingGapDp     float32 = 48
+	pageBottomInsetDp     float32 = 24
+)
+
+func gapAfter(i int) float32 {
+	switch i {
+	case 1:
+		return afterFeaturesGapDp
+	case 2:
+		return afterPricingGapDp
+	default:
+		return sectionGapDp
+	}
+}
 
 // contentMaxWidthDp matches sitedocs' landing column so the same
 // patterns sit at the same measure.
@@ -75,13 +92,12 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 // field live in layers behind this one, so the page does not paint a
 // ground of its own.
 func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.ColorTokens) layout.Widget {
-	gap := complayout.VSpacer(sectionGapDp)
-	children := make([]layout.Widget, 0, len(sections))
+	children := make([]layout.Widget, 0, len(sections)+1)
 	for i, s := range sections {
 		if i < len(sections)-1 {
-			children = append(children, stackSection(s, gap))
+			children = append(children, stackSection(s, complayout.VSpacer(gapAfter(i))))
 		} else {
-			children = append(children, s)
+			children = append(children, stackSection(s, complayout.VSpacer(pageBottomInsetDp)))
 		}
 	}
 	return func(gtx layout.Context) layout.Dimensions {
@@ -148,15 +164,15 @@ func renderLanding(
 		pricing.Render(shaper, pp, colors, sp, rad, typo, d),
 		testimonial.Render(shaper, tp, colors, sp, rad, typo),
 	}
-	gap := complayout.VSpacer(sectionGapDp)
 	return func(gtx layout.Context) layout.Dimensions {
-		children := make([]layout.FlexChild, 0, 2*len(sections)-1)
+		children := make([]layout.FlexChild, 0, 2*len(sections))
 		for i, s := range sections {
 			if i > 0 {
-				children = append(children, layout.Rigid(gap))
+				children = append(children, layout.Rigid(complayout.VSpacer(gapAfter(i-1))))
 			}
 			children = append(children, layout.Rigid(s))
 		}
+		children = append(children, layout.Rigid(complayout.VSpacer(pageBottomInsetDp)))
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	}
 }

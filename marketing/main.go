@@ -22,7 +22,7 @@ import (
 
 const (
 	windowW = 1200
-	windowH = 800
+	windowH = 1040
 )
 
 func main() {

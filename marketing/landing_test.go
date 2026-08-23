@@ -71,9 +71,9 @@ func TestPageGolden(t *testing.T) {
 }
 
 // TestRuntimePageGolden records the first frame of the scrolling page
-// at the window's 1200×800: real SimpleApps copy, overlay scrollbar
-// on the trailing edge. The stack is taller than the viewport, so the
-// bar must paint. Overlay, not Occupy — the 1100 dp column stays put.
+// at the window's own size: real SimpleApps copy. The window is sized
+// so the stack fits; the overlay scrollbar stays available when it
+// does not. Overlay, not Occupy — the 1100 dp column stays put.
 func TestRuntimePageGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	size := image.Pt(windowW, windowH)
@@ -98,9 +98,7 @@ func TestRuntimePageGolden(t *testing.T) {
 const macTitleBarDp = 32
 
 // TestFirstFrameShowsTestimonials asserts the testimonial cards have
-// started before the 1200×800 fold — including under the macOS title-
-// bar inset — so the first frame shows their top, not an empty band
-// under pricing.
+// started before the fold — including under the macOS title-bar inset.
 func TestFirstFrameShowsTestimonials(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	sections := runtimeSections(shaper, tokens.DefaultLight)
@@ -113,7 +111,7 @@ func TestFirstFrameShowsTestimonials(t *testing.T) {
 	start := 0
 	for i := 0; i < 3; i++ {
 		ops.Reset()
-		start += sections[i](gtx).Size.Y + int(sectionGapDp)
+		start += sections[i](gtx).Size.Y + int(gapAfter(i))
 	}
 	if start >= windowH {
 		t.Errorf("testimonials start at y=%d, at or past the %d px fold", start, windowH)
@@ -124,6 +122,34 @@ func TestFirstFrameShowsTestimonials(t *testing.T) {
 	}
 	if peek := windowH - start; peek < int(tokens.Spacing.S5) {
 		t.Errorf("testimonial peek is %d px; want at least the card's S5 top pad", peek)
+	}
+}
+
+// TestPageFitsWindow asserts the four sections, their gaps, and the
+// bottom inset fit in the window even after the macOS title-bar strip.
+func TestPageFitsWindow(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	sections := runtimeSections(shaper, tokens.DefaultLight)
+	var ops op.Ops
+	gtx := layout.Context{
+		Constraints: layout.Constraints{Max: image.Pt(int(contentMaxWidthDp), 1<<20)},
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Ops:         &ops,
+	}
+	h := 0
+	for i, s := range sections {
+		ops.Reset()
+		h += s(gtx).Size.Y
+		if i < len(sections)-1 {
+			h += int(gapAfter(i))
+		}
+	}
+	h += int(pageBottomInsetDp)
+	if h > windowH {
+		t.Errorf("page height %d exceeds window %d", h, windowH)
+	}
+	if h > windowH-macTitleBarDp {
+		t.Errorf("page height %d exceeds the %d px live viewport under the title bar", h, windowH-macTitleBarDp)
 	}
 }
 
@@ -270,7 +296,7 @@ func TestLandingCopyHasNoEmDash(t *testing.T) {
 }
 
 // runtimeSections is the four pattern widgets the live page stacks,
-// shaped deterministically so the 1200×800 goldens do not depend on
+// shaped deterministically so the window goldens do not depend on
 // the host's fallback faces.
 func runtimeSections(shaper *text.Shaper, colors tokens.ColorTokens) []layout.Widget {
 	hp := heroContent(nil)
