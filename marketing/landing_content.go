@@ -19,7 +19,7 @@ func heroContent(seePlans func(gtx layout.Context)) hero.Props {
 	return hero.Props{
 		Eyebrow:      "simpleapps.eu · coming soon",
 		Title:        "SimpleApps",
-		Subtitle:     "Tools for knowing where a sentence came from. Provenance, authenticity and source custody — so work still stands when anyone can generate a paragraph.",
+		Subtitle:     "Where did this sentence come from? Who wrote it, and was it generated? The trail stays in the file.",
 		PrimaryCTA:   &hero.CTA{Label: "See plans", OnClick: seePlans},
 		SecondaryCTA: &hero.CTA{Label: "Learn more"},
 	}

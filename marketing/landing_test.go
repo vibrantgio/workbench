@@ -172,7 +172,7 @@ func TestSimpleAppsCopy(t *testing.T) {
 	if hp.Title != "SimpleApps" {
 		t.Errorf("hero title = %q", hp.Title)
 	}
-	if hp.Subtitle != "Tools for knowing where a sentence came from. Provenance, authenticity and source custody — so work still stands when anyone can generate a paragraph." {
+	if hp.Subtitle != "Where did this sentence come from? Who wrote it, and was it generated? The trail stays in the file." {
 		t.Errorf("hero subtitle = %q", hp.Subtitle)
 	}
 	if hp.PrimaryCTA == nil || hp.PrimaryCTA.Label != "See plans" {
@@ -222,6 +222,50 @@ func TestSimpleAppsCopy(t *testing.T) {
 	}
 	if tp.Items[0].AuthorName != "Kees de Wit" || tp.Items[1].AuthorName != "Amira Haddad" || tp.Items[2].AuthorName != "Jonah Eller" {
 		t.Errorf("testimonial authors = %q, %q, %q", tp.Items[0].AuthorName, tp.Items[1].AuthorName, tp.Items[2].AuthorName)
+	}
+}
+
+// TestLandingCopyHasNoEmDash pins AE6.1: user-facing strings in
+// landing_content.go must not contain U+2014.
+func TestLandingCopyHasNoEmDash(t *testing.T) {
+	check := func(name, s string) {
+		t.Helper()
+		for _, r := range s {
+			if r == '\u2014' {
+				t.Errorf("%s contains U+2014: %q", name, s)
+				return
+			}
+		}
+	}
+	hp := heroContent(nil)
+	check("eyebrow", hp.Eyebrow)
+	check("title", hp.Title)
+	check("subtitle", hp.Subtitle)
+	if hp.PrimaryCTA != nil {
+		check("primary CTA", hp.PrimaryCTA.Label)
+	}
+	if hp.SecondaryCTA != nil {
+		check("secondary CTA", hp.SecondaryCTA.Label)
+	}
+	for _, item := range featureContent().Items {
+		check("feature title", item.Title)
+		check("feature body", item.Body)
+	}
+	for _, tier := range pricingContent().Tiers {
+		check("tier name", tier.Name)
+		check("tier price", tier.Price)
+		check("tier cadence", tier.Cadence)
+		for _, f := range tier.Features {
+			check("tier feature", f)
+		}
+		if tier.CTA != nil {
+			check("tier CTA", tier.CTA.Label)
+		}
+	}
+	for _, item := range testimonialContent().Items {
+		check("quote", item.Quote)
+		check("author", item.AuthorName)
+		check("role", item.AuthorRole)
 	}
 }
 
