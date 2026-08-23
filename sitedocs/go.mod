@@ -11,6 +11,7 @@ require (
 	github.com/vibrantgio/mvu v0.9.1
 	github.com/vibrantgio/mvu/desktop v0.9.1
 	github.com/vibrantgio/patterns v0.8.1
+	github.com/vibrantgio/textdraw v0.0.4
 	github.com/vibrantgio/theme v1.0.0
 	golang.org/x/image v0.44.0
 )

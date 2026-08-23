@@ -238,16 +238,21 @@ func routedShellLayer(
 	home := homeShellLayer(th)
 	docs := docsShellLayer(th, modelObs)
 	about := aboutShellLayer(th)
-	gallery := galleryShellLayer(th)
-	combined := rx.CombineLatest5(currentPageObs, home, docs, about, gallery)
-	return rx.Map(combined, func(n rx.Tuple5[string, layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
+	// The Gallery and Theme shells fold into one pair first: CombineLatest
+	// tops out at five inputs, and the pair keeps both subscribed exactly
+	// as the flat combine would.
+	tabs := rx.CombineLatest2(galleryShellLayer(th), themeShellLayer(th))
+	combined := rx.CombineLatest5(currentPageObs, home, docs, about, tabs)
+	return rx.Map(combined, func(n rx.Tuple5[string, layout.Widget, layout.Widget, layout.Widget, rx.Tuple2[layout.Widget, layout.Widget]]) layout.Widget {
 		switch n.First {
 		case pageHome:
 			return n.Second
 		case pageAbout:
 			return n.Fourth
 		case pageGallery:
-			return n.Fifth
+			return n.Fifth.First
+		case pageTheme:
+			return n.Fifth.Second
 		default: // every docs route, and any unrecognised route
 			return n.Third
 		}

@@ -45,6 +45,8 @@ github.com/vibrantgio/patterns v0.8.1 h1:BmHO5G6f5CEpsX4WrVwupwX0NMkFkCnFDodxUFt
 github.com/vibrantgio/patterns v0.8.1/go.mod h1:v0bI8HIOA+UmzbR4wuKmqGR15BkmeCIuoSwsQwejhcQ=
 github.com/vibrantgio/svg v0.0.9 h1:0OCCmVFz13IIDR3oDZeyw0IMy2RKWKWReQIlsRRz9zw=
 github.com/vibrantgio/svg v0.0.9/go.mod h1:H867wFCLH1Lfz+uoklXwtvOTAQgg/7DC0KoZm6nRHUA=
+github.com/vibrantgio/textdraw v0.0.4 h1:0YRS1dkongHKd3Lz5EpLKKd31f/bAEI/2nJTPNBNCWQ=
+github.com/vibrantgio/textdraw v0.0.4/go.mod h1:av2ygRSlI5LA0+gauPmq6JhzDuhdsuvCccMI/w38dI8=
 github.com/vibrantgio/theme v1.0.0 h1:DKI9jFlxTN2qV8NJL1AS709JKFLVqU8Cpqv8Ysy4yB0=
 github.com/vibrantgio/theme v1.0.0/go.mod h1:3zDkcLnd6SvEaXu/wRi+I575hlJntybho7SN1VqeyEw=
 github.com/yuin/goldmark v1.8.5 h1:r6N5afV5qj/5S4UTch8agZHJ8UxNCMwX7WjkkJam2NA=

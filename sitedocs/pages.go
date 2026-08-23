@@ -40,6 +40,11 @@ const (
 	// pageGallery is the Gallery tab: the inventory's live controls in one
 	// scrolling column (gallery.go). It joins the three-tab shell in G-AF4.
 	pageGallery = "gallery"
+
+	// pageTheme is the Theme tab: the themer's palette section — ramps
+	// grid and named picks — following the live theme (theme_tab.go). It
+	// joins the three-tab shell in G-AF4.
+	pageTheme = "theme"
 )
 
 // pageDocsDefault is where generic "Docs" navigation entries land.
