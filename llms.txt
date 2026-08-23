@@ -13,7 +13,7 @@ using github.com/reactivego/rx generics-based observables. This file tells a
 coding assistant everything needed to scaffold and build a correct Vibrant Gio
 application. The full architecture rationale is in DESIGN.md in
 github.com/vibrantgio/design; the apps in workbench (todos/, sitedocs/,
-feeds/, mindchat/, iconbrowser/, themer/, vaultview/) are the canonical
+feeds/, mindchat/, iconbrowser/, themer/, vaultview/, marketing/) are the canonical
 usage references — todos/ is the minimal complete app; read it first, and
 read the larger ones before inventing a pattern.
 
@@ -1061,7 +1061,7 @@ GitHub.
 ## Where to look for working code
 
 All of these are directories in github.com/vibrantgio/workbench. Every one
-of the eight apps embodies the current contract — theme imports (no
+of the nine apps embodies the current contract — theme imports (no
 alias paths), ramp/pin colours (no MD3 aliases), theme typography (no
 app-built shaper), theme-driven component entry points — so copy any of
 them without the caveats older guides carried:
@@ -1126,6 +1126,9 @@ them without the caveats older guides carried:
               .md sources rendered with vibrantgio/markdown (content/*.md +
               docs_content.go route table — the docs-app recipe, including
               the light/dark highlight switch)
+  marketing/  a fictional SimpleApps landing on an outline field:
+              one full-screen page, macOS full-size-content chrome so
+              the traffic lights sit on the surface
   vaultview/  the document reader: a viewer for a folder of
               markdown notes written in the Obsidian style. The genre no
               other app covers — open-ended user content rather than an

@@ -6,7 +6,7 @@ analogous to what Material Design is for Google, but built for a Functional
 Reactive Programming application model on top of
 [reactivego/rx](https://github.com/reactivego/rx).
 
-This repository is the **workbench**: seven complete example applications
+This repository is the **workbench**: eight complete example applications
 that exercise the design system end-to-end, and the launcher that opens
 them.
 
@@ -81,6 +81,10 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   command loop, a resizable/collapsible split-pane shell, trash-backed
   undo with Cmd/Ctrl-Z, chat rename/delete/create, and per-chat streaming
   indicators. Set `OPENAI_API_KEY` to chat.
+- **[`marketing/`](./marketing)** — a fictional SimpleApps landing on an
+  outline field: one full-screen page for provenance and authenticity
+  tools, with macOS full-size-content chrome so the traffic lights sit
+  on the page.
 
 Each app is its own Go module, so run it from inside its directory:
 

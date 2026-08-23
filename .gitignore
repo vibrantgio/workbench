@@ -21,6 +21,7 @@
 # Example apps — fully tracked.
 !/feeds/**
 !/iconbrowser/**
+!/marketing/**
 !/mindchat/**
 !/sitedocs/**
 !/themer/**
@@ -30,6 +31,7 @@
 # ...except their compiled binaries.
 /feeds/feeds
 /iconbrowser/iconbrowser
+/marketing/marketing
 /mindchat/mindchat
 /sitedocs/sitedocs
 /themer/themer

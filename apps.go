@@ -73,4 +73,10 @@ var Apps = []App{
 		Blurb: "OpenAI chat client: streaming completions through the MVU loop, split-pane shell, undo.",
 		Icon:  icons.CommunicationChat,
 	},
+	{
+		Name:  "Marketing",
+		Dir:   "marketing",
+		Blurb: "A fictional SimpleApps landing on an outline field: provenance and authenticity tools.",
+		Icon:  icons.ActionViewQuilt,
+	},
 }

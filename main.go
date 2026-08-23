@@ -1,6 +1,6 @@
 // Command workbench is the front door to the example apps: a hero screen
 // whose backdrop is a live seen 3D triangular field (animated with simplex
-// noise, colour-keyed to the live components theme) with the seven apps
+// noise, colour-keyed to the live components theme) with the eight apps
 // floating on it as patterns cards. Clicking Launch runs one and tracks its
 // process through the MVU loop.
 //
@@ -33,7 +33,8 @@ import (
 
 // winW, winH size the window to the card grid: wide enough for a full row of
 // them with a margin either side, tall enough for the hero and the rows the
-// roster fills. The seventh app is what last moved these.
+// roster fills. The seventh app is what last moved these; the eighth fills
+// the last row.
 const winW, winH = unit.Dp(1340), unit.Dp(760)
 
 func main() {
