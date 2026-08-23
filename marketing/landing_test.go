@@ -93,6 +93,40 @@ func TestRuntimePageGolden(t *testing.T) {
 	}
 }
 
+// macTitleBarDp is the strip desktop.TopInset reports on current
+// macOS. Headless goldens see 0; the live window subtracts this.
+const macTitleBarDp = 32
+
+// TestFirstFrameShowsTestimonials asserts the testimonial cards have
+// started before the 1200×800 fold — including under the macOS title-
+// bar inset — so the first frame shows their top, not an empty band
+// under pricing.
+func TestFirstFrameShowsTestimonials(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	sections := runtimeSections(shaper, tokens.DefaultLight)
+	var ops op.Ops
+	gtx := layout.Context{
+		Constraints: layout.Constraints{Max: image.Pt(int(contentMaxWidthDp), 1<<20)},
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Ops:         &ops,
+	}
+	start := 0
+	for i := 0; i < 3; i++ {
+		ops.Reset()
+		start += sections[i](gtx).Size.Y + int(sectionGapDp)
+	}
+	if start >= windowH {
+		t.Errorf("testimonials start at y=%d, at or past the %d px fold", start, windowH)
+	}
+	insetFold := windowH - macTitleBarDp
+	if start >= insetFold {
+		t.Errorf("testimonials start at y=%d, at or past the %d px fold under the title-bar inset", start, insetFold)
+	}
+	if peek := windowH - start; peek < int(tokens.Spacing.S5) {
+		t.Errorf("testimonial peek is %d px; want at least the card's S5 top pad", peek)
+	}
+}
+
 // TestPageLightDarkDiffer confirms swapping the colour token set
 // changes the rendered output of the page composition.
 func TestPageLightDarkDiffer(t *testing.T) {

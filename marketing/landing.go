@@ -24,8 +24,10 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// sectionGapDp is the vertical gap inserted between adjacent sections.
-const sectionGapDp float32 = 24
+// sectionGapDp is the vertical gap between adjacent sections. S3, not
+// S6: at 1200×800 the first frame must show the top of the testimonial
+// cards, including under the 32 dp macOS title-bar inset.
+const sectionGapDp float32 = 12
 
 // contentMaxWidthDp matches sitedocs' landing column so the same
 // patterns sit at the same measure.
