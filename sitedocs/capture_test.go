@@ -45,10 +45,12 @@ func TestWriteTabReviewCaptures(t *testing.T) {
 		{"dark", tokens.DefaultDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
 	}
 	for _, tc := range schemes {
+		// contentSlot is the shell's content slot: the camera has to
+		// photograph the same gap under the strip that the app draws.
 		contents := []layout.Widget{
-			renderDocsTab(shaper, src, st, tc.colors, typo),
-			renderGalleryTab(shaper, tc.colors, typo),
-			renderThemeTab(shaper, tc.colors, typo),
+			contentSlot(renderDocsTab(shaper, src, st, tc.colors, typo)),
+			contentSlot(renderGalleryTab(shaper, tc.colors, typo)),
+			contentSlot(renderThemeTab(shaper, tc.colors, typo)),
 		}
 		props := tabs.Props{Tabs: []tabs.Tab{
 			{Label: "Docs", Content: contents[0]},

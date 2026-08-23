@@ -222,12 +222,12 @@ func tabbedShellLayer(
 
 	var docsCell, galleryCell, themeCell atomic.Value
 	fromCell := func(cell *atomic.Value) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
+		return contentSlot(func(gtx layout.Context) layout.Dimensions {
 			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
 				return w(gtx)
 			}
 			return layout.Dimensions{Size: gtx.Constraints.Max}
-		}
+		})
 	}
 
 	strip := tabs.Tabs(th, tabs.Props{
@@ -249,6 +249,45 @@ func tabbedShellLayer(
 		themeCell.Store(n.Fourth)
 		return n.First
 	})
+}
+
+// contentGap is the air the shell keeps between the tab strip and
+// whatever the selected tab shows: S4, eight times the 2 dp underline it
+// has to separate. The first cut of this was S2; the fresh-eyes reviewer
+// measured that 8 dp and still read the underline as camouflaged against
+// the inventory's full-width banner, which is Primary — the underline's
+// own colour, to the byte, in both schemes. The banner is ruled
+// separately and cannot move, so the air is the only variable this task
+// holds, and it is spent generously. sitedocs never overrides the
+// spacing scale — the strip's own cell padding is the theme's S3 — so
+// the value reads the published scale directly, the way the review
+// camera already hands tokens.Spacing to tabs.Render.
+var contentGap = unit.Dp(tokens.Spacing.S4)
+
+// contentSlot is the tab shell's content slot: a tab's content, pushed
+// down by contentGap. The gap exposes the strip's own Surface fill (the
+// tabs pattern paints the whole panel Surface before the content draws
+// over it), so the active tab's Primary underline has quiet ground on
+// both sides and reads as a line rather than as the top edge of whatever
+// begins below it.
+//
+// The gap lives here, in the shell, rather than in the one tab that
+// currently shows the defect. The collision is structural, not a Gallery
+// property: the underline is the strip's bottom two pixels, so any
+// content whose first row is a filled band — the inventory's Primary
+// group banner today, a future Docs or Theme page tomorrow — merges with
+// it. Docs and Theme open on quiet surfaces by accident of their present
+// content, not by contract, and a gap that appears only on the middle tab
+// would shift every page's first line as the user switches tabs. One slot
+// for all three keeps the strip a fixed band and costs each page 8 dp.
+//
+// Applied by tabbedShellLayer to the live tabs and by the review capture
+// to the static ones, so the camera photographs the composition the app
+// actually draws.
+func contentSlot(w layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: contentGap}.Layout(gtx, w)
+	}
 }
 
 // docsTabFrom is the Docs page: the outline tree of the one guide
