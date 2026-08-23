@@ -104,8 +104,10 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
 workbench (the reference apps) and design (the published token bundle) carry
 no tags; consume them from the branch tip.
 
-ALREADY DELETED — these do not exist in the tags above. If you find them in
-older code or an older answer, they are gone, not deprecated:
+### Already deleted
+
+These do not exist in the tags above. If you find them in older code or an
+older answer, they are gone, not deprecated:
 
   - the alias packages prism/tokens, prism/theme and prism/a11y (import the
     theme/... path they used to forward to) and spectrum/transition
@@ -132,7 +134,9 @@ older code or an older answer, they are gone, not deprecated:
     layout.Context first — the compile error names the fix. See
     §Coordination.
 
-RENAMED — if you find these in older code, require the new path:
+### Renamed
+
+If you find these in older code, require the new path:
 
   - github.com/vibrantgio/spectrum → theme
   - github.com/vibrantgio/prism → components
@@ -254,7 +258,9 @@ its AutoConnect count documented consumer by consumer):
       }
   }
 
-MVU pieces you write: a Model struct, message types,
+### MVU pieces you write
+
+A Model struct, message types,
 Init() (Model, mvu.Command), and
 Update(Model, mvu.Message) (Model, mvu.Command). Async side effects are
 mvu.Command values: mvu.Do(func() (mvu.Message, error)), mvu.DoNothing(),
@@ -272,80 +278,89 @@ write (openVaultCmd) are all mvu.Do.
 
 ## The five load-bearing architecture rules
 
-1. THE EVENTS THREAD IS THE HEARTBEAT. mvu's window subscribes the
-   CombineLatest of all layers on an rx goroutine and stores each result as an
-   atomic snapshot, then invalidates the window; the events goroutine reads
-   that snapshot when the frame event arrives. So heavy work runs on rx
-   goroutines, but values only reach rendering on a frame. Everything touching
-   Gio ops runs single-threaded. Never call Gio from your own goroutine.
+### 1. The events thread is the heartbeat
 
-2. INTERACTION STATE LIVES IN rx.Defer CLOSURES. State allocated inside an
-   rx.Defer factory runs once per subscription and is captured by reference
-   in the Map and widget closures below it:
+mvu's window subscribes the CombineLatest of all layers on an rx goroutine
+and stores each result as an atomic snapshot, then invalidates the window;
+the events goroutine reads that snapshot when the frame event arrives. So
+heavy work runs on rx goroutines, but values only reach rendering on a
+frame. Everything touching Gio ops runs single-threaded. Never call Gio
+from your own goroutine.
 
-     rx.Defer(func() rx.Observable[layout.Widget] {
-         click := widget.Clickable{}          // allocated once
-         return rx.Map(inputs, func(v T) layout.Widget {
-             return func(gtx layout.Context) layout.Dimensions {
-                 // read/mutate click here — events thread only
-             }
-         })
-     })
+### 2. Interaction state lives in rx.Defer closures
 
-   Never put interaction state in rx.Subject — never put anything there;
-   §Coordination is where the three replacements are. Never pass
-   Defer-scoped state to a goroutine. For per-row state in dynamic lists
-   use components/keyed:
-   keyed.Defer(factory) returns a *keyed.Deferred[K,V] whose For(key) hands
-   back the same value for the same key, so state survives reorder, insert
-   and delete. Allocate the Deferred inside the rx.Defer closure, next to
-   the other per-subscription state. It is sticky — a removed key's value
-   is retained and reused if the key comes back; call Sweep(activeKeys) on
-   a long-lived list with high churn.
+State allocated inside an rx.Defer factory runs once per subscription and
+is captured by reference in the Map and widget closures below it:
 
-3. WIDGETS EMIT MESSAGES VIA MessageOp. Inside any widget callback with a
-   gtx, route events into the MVU loop with:
+  rx.Defer(func() rx.Observable[layout.Widget] {
+      click := widget.Clickable{}          // allocated once
+      return rx.Map(inputs, func(v T) layout.Widget {
+          return func(gtx layout.Context) layout.Dimensions {
+              // read/mutate click here — events thread only
+          }
+      })
+  })
 
-     mvu.MessageOp{Message: SelectItem{ID: id}}.Add(gtx.Ops)
+Never put interaction state in rx.Subject — never put anything there;
+§Coordination is where the three replacements are. Never pass
+Defer-scoped state to a goroutine. For per-row state in dynamic lists
+use components/keyed:
+keyed.Defer(factory) returns a *keyed.Deferred[K,V] whose For(key) hands
+back the same value for the same key, so state survives reorder, insert
+and delete. Allocate the Deferred inside the rx.Defer closure, next to
+the other per-subscription state. It is sticky — a removed key's value
+is retained and reused if the key comes back; call Sweep(activeKeys) on
+a long-lived list with high churn.
 
-   The runtime extracts these from the ops buffer and delivers them to
-   Update. Patterns/components component callbacks receive gtx for exactly this
-   purpose. This is the bridge between components and MVU, and it is the
-   answer for anything a test, a model dump or a command goroutine would
-   want to see — never a side channel out of the layout pass
-   (§Coordination).
-   Modal forms: components input.TextFieldProps.Seed pre-fills an uncontrolled
-   field so an existing value can be EDITED (rebuild the field keyed on an
-   epoch to reseed); TextFieldProps.FocusTag exposes the editor's focus
-   tag, and patterns/modal's DynamicFocusTags puts it in the Tab cycle
-   (first tag gets initial focus on open). patterns/modal sizes its surface
-   to the content (see mindchat's rename modal for the full recipe).
-   Props.HideClose is DEPRECATED; say Props.Decision instead — see the
-   dialog grammar in §Layers.
+### 3. Widgets emit messages via MessageOp
 
-4. Publish().AutoConnect(N) COUNTS ARE LOAD-BEARING. The model observable is
-   multicast WITHOUT replay; AutoConnect(N) connects the upstream scan only
-   when the N-th subscriber attaches, which is what lets the seed model
-   (emitted first by mvu.Loop) reach everyone. N must equal the exact number of cold subscriptions your
-   layer topology makes — too low and late consumers miss the seed (blank
-   UI), too high and the app freezes. Keep N static: never subscribe the
-   model observable inside a keyed/per-row Defer (it attaches after the seed
-   fired — the row sees a zero Model). Instead let the parent layer
-   subscribe one eager mirror and share it as a `func() Model`. Write a test
-   that measures the subscription count (see feeds/wiring_test.go).
+Inside any widget callback with a gtx, route events into the MVU loop
+with:
 
-5. ANIMATION SELF-SCHEDULES AND IDLES. Animated widgets tick their
-   simulation inside the frame and request the next frame only while active:
+  mvu.MessageOp{Message: SelectItem{ID: id}}.Add(gtx.Ops)
 
-     activity := ps.Tick(step)
-     if activity > 0.01 { gtx.Execute(op.InvalidateCmd{}) }
+The runtime extracts these from the ops buffer and delivers them to
+Update. Patterns/components component callbacks receive gtx for exactly this
+purpose. This is the bridge between components and MVU, and it is the
+answer for anything a test, a model dump or a command goroutine would
+want to see — never a side channel out of the layout pass
+(§Coordination).
+Modal forms: components input.TextFieldProps.Seed pre-fills an uncontrolled
+field so an existing value can be EDITED (rebuild the field keyed on an
+epoch to reseed); TextFieldProps.FocusTag exposes the editor's focus
+tag, and patterns/modal's DynamicFocusTags puts it in the Tab cycle
+(first tag gets initial focus on open). patterns/modal sizes its surface
+to the content (see mindchat's rename modal for the full recipe).
+Props.HideClose is DEPRECATED; say Props.Decision instead — see the
+dialog grammar in §Layers.
 
-   Invalidation is window-global (every widget re-lays-out), so expensive
-   widgets should cache ops when inputs are unchanged (components/cache).
-   Respect reduced motion: while the OS preference is on, the theme's
-   Motion observable emits zero durations and animated components snap to
-   their targets — take durations and springs from the theme's MotionScale
-   and the preference costs you nothing (§Motion).
+### 4. Publish().AutoConnect(N) counts are load-bearing
+
+The model observable is multicast WITHOUT replay; AutoConnect(N) connects
+the upstream scan only when the N-th subscriber attaches, which is what
+lets the seed model (emitted first by mvu.Loop) reach everyone. N must
+equal the exact number of cold subscriptions your layer topology makes —
+too low and late consumers miss the seed (blank UI), too high and the app
+freezes. Keep N static: never subscribe the model observable inside a
+keyed/per-row Defer (it attaches after the seed fired — the row sees a
+zero Model). Instead let the parent layer subscribe one eager mirror and
+share it as a `func() Model`. Write a test that measures the subscription
+count (see feeds/wiring_test.go).
+
+### 5. Animation self-schedules and idles
+
+Animated widgets tick their simulation inside the frame and request the
+next frame only while active:
+
+  activity := ps.Tick(step)
+  if activity > 0.01 { gtx.Execute(op.InvalidateCmd{}) }
+
+Invalidation is window-global (every widget re-lays-out), so expensive
+widgets should cache ops when inputs are unchanged (components/cache).
+Respect reduced motion: while the OS preference is on, the theme's
+Motion observable emits zero durations and animated components snap to
+their targets — take durations and springs from the theme's MotionScale
+and the preference costs you nothing (§Motion).
 
 ## Coordination between widgets
 
@@ -370,8 +385,10 @@ needs to know, not by how important it feels:
    and never blocks the producer — so if every emission is load-bearing you
    are at destination 1, not here.
 
-WHAT THIS LOOKS LIKE IN patterns. Arbitration is a plain value you create and
-pass in, and the value IS the scope:
+### What this looks like in patterns
+
+Arbitration is a plain value you create and pass in, and the value IS the
+scope:
 
     popArb := popover.NewArbiter()      // one per WINDOW, in the build fn
     tipArb := tooltip.NewArbiter()
@@ -393,7 +410,7 @@ pass in, and the value IS the scope:
     where there is no frame. A Stack handed no Toasts renders an empty
     column forever and nothing fails at build time.
 
-TWO SMELLS, ONE OF WHICH NO TOOL WILL FIND FOR YOU.
+### Two smells, one of which no tool will find for you
 
   - A bare `rx.Subject`. It leaks a subscription slot for the life of the
     process (the 33rd subscriber dies with "out of subject subscriptions")
@@ -423,7 +440,9 @@ content layer built from a patterns/shell:
     patterns/tooltip (hover/focus), patterns/toast (transient stack),
     patterns/alert (inline banners).
 
-THE DIALOG GRAMMAR: a modal is a PANEL or a DECISION, and you say which by
+### The dialog grammar
+
+A modal is a PANEL or a DECISION, and you say which by
 leaving patterns/modal's Props.Decision nil or setting it — never by setting
 affordances one at a time. A panel (nil) applies its changes live and gets a
 ghost close X, a dismissing backdrop and Escape; a decision (non-nil) gets
@@ -436,6 +455,8 @@ MODAL'S: ⌘,/Ctrl-, must be live when no dialog exists, so bind it in app
 chrome with Gio's key.ModShortcut (never a GOOS test) over a window-wide
 pointer.PassOp key area, landing a message that opens the panel. Reference
 implementation: workbench/feeds shortcut.go + preferences.go.
+
+### The theme carries the whole look
 
 Every component takes the theme observable for visual configuration and
 props structs for content, and the theme carries the whole look: colour,
@@ -466,7 +487,9 @@ in theme/color:
   light, dark := tokens.FromSeed(seed)  // paired ColorTokens; the light
                                         // Primary pin is the seed exactly
 
-WHERE A SEED COMES FROM, when it is not typed: theme/imageseed.Extract takes
+### Where a seed comes from
+
+When it is not typed, theme/imageseed.Extract takes
 an image.Image and returns candidate seeds — pixels sampled on a stride so a
 20 Mpx photo costs what a thumbnail costs, clustered in OKLab, ranked by
 share times chroma squared so a vivid tenth of a picture outranks a drab
@@ -478,28 +501,37 @@ on the tokens.ColorTokens value the theme's Color observable emits.
 
 The vocabulary:
 
-  - RAMPS. ColorTokens.Ramps holds five roles — Neutral, Primary,
-    Secondary, Tertiary, Error — each a nine-step Ramp addressed
-    Step(100)..Step(900), where THE STEP IS THE MEANING: 100–300 tinted
-    fills, hovers and subtle borders; 500 the mid reference and strong
-    border; 700–900 text over tinted fills and pressed states. Light and
-    dark are PAIRED scales: the same step keeps the same job in both modes,
-    so neutral 200 is a light card on a light ground and a dark card on a
-    dark one — there is no second table and no dark-mode special case.
-  - PINS. A brand colour rarely sits on the shared lightness scale, so each
-    accent role's solid fill is pinned separately from its ramp:
-    ColorTokens.Primary/Secondary/Tertiary/Error, each with an On* colour
-    guaranteed readable over it. Background and Text are pins too.
-  - THE SEMANTIC LAYER. Background (app ground), Surface (card — neutral
-    200), Divider (subtle border — neutral 300), Text (body text over
-    Background). Reach for these first; reach into the ramps when you need
-    a specific step.
-  - STATES ARE STEP WALKS, not alpha overlays. Hover is one step past the
-    component's ground, pressed/selected/dragged two, clamped at 900 —
-    resolved by StateColor (tinted surfaces) and SolidStateColor (pinned
-    fills, which walk toward the 900 depth). Disabled is an opacity
-    (tokens.Disabled, MD3's 38%); focus keeps the surface and strokes
-    FocusRing() (neutral 500).
+### Ramps
+
+ColorTokens.Ramps holds five roles — Neutral, Primary, Secondary,
+Tertiary, Error — each a nine-step Ramp addressed Step(100)..Step(900),
+where THE STEP IS THE MEANING: 100–300 tinted fills, hovers and subtle
+borders; 500 the mid reference and strong border; 700–900 text over
+tinted fills and pressed states. Light and dark are PAIRED scales: the
+same step keeps the same job in both modes, so neutral 200 is a light
+card on a light ground and a dark card on a dark one — there is no
+second table and no dark-mode special case.
+
+### Pins
+
+A brand colour rarely sits on the shared lightness scale, so each
+accent role's solid fill is pinned separately from its ramp:
+ColorTokens.Primary/Secondary/Tertiary/Error, each with an On* colour
+guaranteed readable over it. Background and Text are pins too.
+
+### The semantic layer
+
+Background (app ground), Surface (card — neutral 200), Divider (subtle
+border — neutral 300), Text (body text over Background). Reach for
+these first; reach into the ramps when you need a specific step.
+
+### States are step walks, not alpha overlays
+
+Hover is one step past the component's ground,
+pressed/selected/dragged two, clamped at 900 — resolved by StateColor
+(tinted surfaces) and SolidStateColor (pinned fills, which walk toward
+the 900 depth). Disabled is an opacity (tokens.Disabled, MD3's 38%);
+focus keeps the surface and strokes FocusRing() (neutral 500).
 
   // c is the tokens.ColorTokens the theme's Color observable emitted.
   card    := c.Surface                              // neutral 200
@@ -509,6 +541,8 @@ The vocabulary:
   body    := c.Ramps.Neutral.Step(900)              // body text
   accent  := c.Primary                              // the pinned brand base
   accHov  := c.SolidStateColor(tokens.RolePrimary, tokens.StateHover)
+
+### The generator guarantees contrast
 
 The generator guarantees contrast in APCA terms, in both modes: step 900
 reaches Lc 90 and step 700 Lc 60 over the 100/200 grounds, and every pin's
@@ -537,12 +571,16 @@ named accent or KDE's kdeglobals RGB each become the seed of a derived
 pair, cached per seed. No accent at all falls back to the default palette.
 An accent change re-emits the theme just like a dark-mode flip.
 
-Accessibility composes ON TOP of whichever palette wins: while the OS
+### Accessibility composes on top of whichever palette wins
+
+While the OS
 reports increased contrast, the Color observable emits a high-contrast
 variant derived from the resolved palette's own seed (deeper text steps,
 divider from the strong-border step, stronger On* separation — same APCA
 gates, higher floors); while it reports reduced motion, Motion emits zero
 durations (§Motion). Apps do nothing to get either.
+
+### The persisted choices
 
 theme/preferences persists an explicit in-app theme choice (light/dark/
 auto + a11y overrides) as JSON in the OS config dir, when an app offers its
@@ -620,6 +658,8 @@ controls on raised surfaces — modal's close X, popover, toast — pass their
 level for you. Levels 4 and 5 are GONE — they used to clamp onto level 3;
 asking for one now panics. Desktop has no six-storey stack.
 
+### Shadows are opt-in
+
 Shadows survive as OPT-IN vibrancy via effects/depth, and the verdict on when
 is recorded in that package's doc: a shadow marks what FLOATS AND CAN LEAVE
 — a toast, a popover, a menu, a drag preview — never what is raised in
@@ -646,7 +686,9 @@ observable. MD3's motion semantics at desktop pace:
     (soft). Use a preset or set mass/stiffness/damping together, never one
     field alone.
 
-REDUCED MOTION: while the OS preference is on, the theme's Motion emits
+### Reduced motion
+
+While the OS preference is on, the theme's Motion emits
 MotionScale.Reduced() — every duration zero, easings and springs unchanged.
 A duration-driven component therefore completes in zero frames and snaps; a
 spring-driven component must read the zero durations as the snap signal and
@@ -664,39 +706,45 @@ not encode, such as IncreaseTextSize.
 Gio has no blur primitive; effects/blur owns one — a parallel three-pass box
 approximation of a Gaussian, plus the two supported ways to ship it:
 
-  - STATIC IMAGERY: blur.Cache. A known source image blurred once and
-    reused — a hero image behind text, a frosted thumbnail:
+### Static imagery: blur.Cache
 
-      var cache blur.Cache                    // long-lived, e.g. per layer
-      op := cache.Image(src, sigma)           // paint.ImageOp, cached on
-                                              // source identity+sigma+size
+A known source image blurred once and reused — a hero image behind text,
+a frosted thumbnail:
 
-    Repeat calls with unchanged inputs do no work. Large radii render at a
-    reduced size and upscale on the GPU (the divisor defaults from sigma).
+  var cache blur.Cache                    // long-lived, e.g. per layer
+  op := cache.Image(src, sigma)           // paint.ImageOp, cached on
+                                          // source identity+sigma+size
 
-  - BACKDROPS: blur.Backdrop — the "blurred behind the dialog" pipeline.
-    It renders a caller-supplied layer into an offscreen headless GPU
-    window at reduced resolution, reads back, blurs, and serves a
-    paint.ImageOp. Two contracts to honour:
-      1. REFRESH POLICY. Update runs the whole pipeline synchronously on
-         the calling goroutine (milliseconds — for a 1440×900 backdrop,
-         ~3 ms at the default divisor and 29 ms at full resolution,
-         against a 16.7 ms frame budget). Call Update only when the
-         content behind the blur
-         actually changed — a scroll settled, a dialog opened — and paint
-         the cached Op() every frame in between; Op is free.
-      2. FALLBACK. Headless GPU rendering is not available everywhere.
-         Update returns the error and Op reports ok == false; paint a flat
-         tinted scrim instead — blur.FallbackOp(tint) is ready-made, and
-         blur.Available() answers up front. Never assume the blur.
+Repeat calls with unchanged inputs do no work. Large radii render at a
+reduced size and upscale on the GPU (the divisor defaults from sigma).
 
-  - WHAT NOT TO BLUR: animated glows. This was prototyped, measured and
-    rejected (the evidence is in effects/glow's package doc): an animating
-    blur-glow costs 0.2–0.8 ms of events-thread CPU plus an allocation and
-    texture upload per glow per frame, against ~0.5 µs for glow's
-    eight-gradient halo, and no cache holds while the radius or intensity
-    animates. Use effects/glow for halos; a correct approximation beats a
-    slow exact answer.
+### Backdrops: blur.Backdrop
+
+The "blurred behind the dialog" pipeline. It renders a caller-supplied
+layer into an offscreen headless GPU window at reduced resolution, reads
+back, blurs, and serves a paint.ImageOp. Two contracts to honour:
+
+  1. REFRESH POLICY. Update runs the whole pipeline synchronously on
+     the calling goroutine (milliseconds — for a 1440×900 backdrop,
+     ~3 ms at the default divisor and 29 ms at full resolution,
+     against a 16.7 ms frame budget). Call Update only when the
+     content behind the blur actually changed — a scroll settled, a
+     dialog opened — and paint the cached Op() every frame in between;
+     Op is free.
+  2. FALLBACK. Headless GPU rendering is not available everywhere.
+     Update returns the error and Op reports ok == false; paint a flat
+     tinted scrim instead — blur.FallbackOp(tint) is ready-made, and
+     blur.Available() answers up front. Never assume the blur.
+
+### What not to blur
+
+Animated glows. This was prototyped, measured and
+rejected (the evidence is in effects/glow's package doc): an animating
+blur-glow costs 0.2–0.8 ms of events-thread CPU plus an allocation and
+texture upload per glow per frame, against ~0.5 µs for glow's
+eight-gradient halo, and no cache holds while the radius or intensity
+animates. Use effects/glow for halos; a correct approximation beats a
+slow exact answer.
 
 ## Typography
 
@@ -742,7 +790,9 @@ default because the DEFAULT TYPOGRAPHY names it — restyle an app by
 putting a different Typography on the theme, never by wiring fonts per
 component.
 
-LINE HEIGHT NEEDS theme/typeset. TextStyle.LineHeight is the height of the
+### Line height needs theme/typeset
+
+TextStyle.LineHeight is the height of the
 line box, the CSS meaning, and handing it to gioui.org/widget.Label does NOT
 produce that. Gio baselines the first line at its own ascent and spends the
 line height only on the gap to the next, and widget.Label reports glyph ink as
@@ -757,7 +807,9 @@ why a control's drawn height is max(Density.ControlHeight, lineBox +
 field (BodyLarge, 24 dp line box) draws 40 dp against that 36 dp floor while a
 Comfortable button (LabelLarge, 20 dp) draws exactly 36.
 
-Text you draw yourself with textdraw follows the same source: subscribe
+### Text you draw yourself with textdraw
+
+It follows the same source: subscribe
 th.Typography, take metrics from a role and the shaper from typ.Shaper().
 The positional-shaper APIs — markdown's doc.Layout(gtx, shaper, style),
 components/richtext's Layout and Render, patterns/shell's golden
@@ -767,7 +819,7 @@ and tokens.TypeScale are deleted, and markdown.FromTokens takes the whole
 Typography like every other multi-role consumer. The Typography roles carry
 the full metrics and are the only source of truth (see §Modules).
 
-THE RULES
+### The rules
 
   - Never construct a shaper. Typography.Shaper() is the only shaper an app
     needs. The style module (style.FontFaces() and the H1-H6 scale) is
@@ -788,7 +840,9 @@ THE RULES
     the second. A golden written against Shaper() passes on the machine
     that wrote it and fails on one with a different font set.
 
-WHEN A TEST NEEDS A GLYPH THE DEFAULT FACES LACK, widen the collection
+### When a test needs a glyph the default faces lack
+
+Widen the collection
 rather than reach for the system. WithFaces returns a copy of the
 Typography with extra faces appended last and both shaper caches cleared,
 so the default family still wins for text naming no typeface:
@@ -804,6 +858,8 @@ container, a kiosk, anything shipping its own world. And do not then put
 the symbol in a golden image: the face serving it is exactly the
 machine-dependent thing goldens exist to avoid, so assert that the shaper
 resolved the rune to a real face and keep it out of the pixels.
+
+### The live stream wears emoji; goldens pin the default
 
 font/notocoloremoji is the optional color-emoji face. The same
 DefaultTypography.Faces rule applies — do not add 9.9 MB to every golden
@@ -887,7 +943,9 @@ viewport would fight the outer one.
     bodies degrade() to the chat subset: inline styles, fences, images
     pass through; other blocks flatten to paragraphs).
 
-OBSIDIAN-FLAVOURED NOTES need markdown/obsidian, the recognition half of
+### Obsidian-flavoured notes
+
+They need markdown/obsidian, the recognition half of
 that dialect. It works on the source and on the public block model, never
 inside the parser, and it adds no dependency:
 
@@ -916,7 +974,9 @@ inside the parser, and it adds no dependency:
     styling run, so a wikilink whose body crosses a styling boundary
     ("[[a *b*]]") is not recognised. Link targets carry no styling.
 
-components/richtext is the underlying inline primitive — styled spans with
+### components/richtext
+
+The underlying inline primitive — styled spans with
 interactive links (hover cursor, keyboard traversal, focus ring,
 OnLinkClick(gtx, url)) — usable directly when you need styled text without
 a goldmark document around it.
@@ -956,6 +1016,8 @@ platform's answer on this one, and Set.Resolve reports which file answered.
 Register fills a components/icon Registry an application owns with its own
 parsed copies.
 
+### Adding a mark
+
 Adding a mark is adding an SVG file under components/icons/marks — the file
 name is the whole registration mechanism. The package documentation is the
 authority on how: the 24x24 grid and its keyline, the two stroke measures
@@ -963,6 +1025,8 @@ that read as one weight (1.5 units axis-aligned, 2 diagonal), outlines
 rather than strokes because Gio's clip.Stroke exposes neither cap nor join,
 and non-zero winding for holes. Read it before drawing — every number there
 is a measurement, not a preference.
+
+### The Material catalogue
 
 For a glyph outside the standard controls (a settings button, play/record
 controls, a close X), use the Material Design icons published as IconVG
@@ -986,11 +1050,15 @@ holds for a mark as much as for a Material glyph.
 Run `go run ./iconbrowser/` (in the workbench repo) to see both sets: the
 marks at the sizes controls draw them, over the searchable Material grid.
 
-Arbitrary SVG assets (brand marks, logos) render via vibrantgio/svg:
+### Arbitrary SVG assets
+
+Brand marks and logos render via vibrantgio/svg:
 svg/driver/gio's IconWidget(icon, w, h, opacity) returns a vector
 layout.Widget from a parsed *svg.Icon (parser.NewParser(...).ParseStream);
 inside markdown documents use markdown/svgimage instead (see above, and
 mindchat/assets.go for the embedded-asset pattern).
+
+### Reach for the set first
 
 Reach for the set first where it carries the mark, and use the Material
 catalogue freely everywhere else: an icon that may be replaced later beats
@@ -1066,86 +1134,101 @@ alias paths), ramp/pin colours (no MD3 aliases), theme typography (no
 app-built shaper), theme-driven component entry points — so copy any of
 them without the caveats older guides carried:
 
-  todos/      START HERE: the minimal complete app (~700 lines) — the
-              canonical bootstrap, pure testable reducers (redux_test.go),
-              components button/checkbox/list, a modal dialog, live light/dark;
-              theme.go is the minimal token-adapter recipe (PaletteFrom
-              resolving ramp steps, TypeFrom picking Typography roles)
-  iconbrowser/ both icon sets in one window: components/icons at the
-              sizes controls draw them, over the searchable Material grid —
-              components TextField with per-keystroke MessageOp updates,
-              subscription-scoped scroll and editor state, ivg icon
-              rendering at scale
-  mindchat/   the most feature-complete app: a multi-provider LLM chat
-              client (any OpenAI-compatible Responses endpoint; providers
-              configured with their own BaseURL/key) whose side effects all
-              run as mvu commands — a completion STREAMS dozens of messages
-              back through the loop, routed by stream id so switching/
-              renaming/deleting chats mid-stream stays safe. Message bodies
-              render as markdown (chroma-highlighted fences with code in
-              the mono face, links opening the OS browser, bundled SVG
-              provider icons; markdown.go's degrade() + docCache are the
-              chat-consumer recipe). Also: SplitPane shell with a
-              collapsible, resizable sidebar, trash-backed session-wide
-              undo (Cmd/Ctrl-Z), the modal-form recipe
-              (Seed/FocusTag/DynamicFocusTags), list scrollbars,
-              and a global-shortcut key area done right. Chatting needs
-              OPENAI_API_KEY in the environment (or .env) on first run to
-              seed the config
-  (root)      the workbench front door, and the repository's own root
-              package rather than a directory beside the others, so that
-              `go run github.com/vibrantgio/workbench@latest` opens it — a
-              seen 3D triangle field composited as an mvu background layer
-              (palette re-keyed per theme emission via an atomic handoff to
-              the animation tick), hero + patterns cards over it, and one
-              streaming mvu.Command per launched app (Started, then Exited
-              when the process ends). A card runs the app's own latest
-              release; a launcher built from the checkout runs the copy
-              next door instead
-  feeds/      table-heavy app: sort/filter/pagination, tabs, split pane,
-              modal forms, toasts; app.go's mirrorTokens is the reference
-              theme-to-frame-time adapter (§Layers), and wiring_test.go
-              shows how to test the AutoConnect count. Also the reference
-              implementation of the dialog grammar's invocation half:
-              shortcut.go binds ⌘,/Ctrl-, and preferences.go is the settings
-              PANEL it opens, whose two preferences apply live under it
-  themer/     pick a brand colour out of a picture: an image dropped
-              anywhere on the window comes back as a row of seed
-              candidates — clustered and ranked by theme/imageseed —
-              each swatch beside the primary pair FromSeed makes of it,
-              and clicking one re-themes the window. The reference for OS
-              file drops (mvu/desktop's ZoneGroup + DropTarget merged into
-              the loop as messages, a window-wide zone, hover highlight)
-              and for a theme observable the APPLICATION re-seeds: the OS
-              still decides light or dark, the app decides the colour. A
-              path argument takes the same path a drop does. Keep writes
-              the chosen seed through theme/brand, which is where the
-              other apps read it from
-  sitedocs/   marketing + docs shell: hero/feature/pricing/testimonial,
-              accordion sidebar, breadcrumbs; the docs pages are embedded
-              .md sources rendered with vibrantgio/markdown (content/*.md +
-              docs_content.go route table — the docs-app recipe, including
-              the light/dark highlight switch)
-  marketing/  a fictional SimpleApps landing on an outline field:
-              one full-screen page, macOS full-size-content chrome so
-              the traffic lights sit on the surface
-  vaultview/  the document reader: a viewer for a folder of
-              markdown notes written in the Obsidian style. The genre no
-              other app covers — open-ended user content rather than an
-              owned data model — so it is where the navigation vocabulary
-              lives: a disclosure file tree over components/list with a
-              name-filter field, a back/forward history stack, breadcrumbs,
-              and the patterns/shell aside slot finally in use as a
-              backlinks panel. Notes render through vibrantgio/markdown
-              with markdown/obsidian around it (frontmatter split off,
-              wikilink spans, block anchors); resolving what a wikilink
-              names is app-local and pure — one index built by an mvu.Do
-              scan off the render goroutine, pure functions over it, every
-              rule pinned by a test. Read doc.go first: it states the link
-              contract the tests enforce. The one write is a GFM task
-              marker: OnTaskClick splices `[ ]` ↔ `[x]` in the file
-              before the handler returns, and nothing else is writable.
-              Also the reference for adopting a kept brand: one theme.LiveTheme
-              option, and the same value seeding mirrorTokens' first cell
-  DESIGN.md lives in github.com/vibrantgio/design if you want the
-  architecture rationale. You do not need it to write an app.
+### todos/
+
+START HERE: the minimal complete app (~700 lines) — the canonical
+bootstrap, pure testable reducers (redux_test.go), components
+button/checkbox/list, a modal dialog, live light/dark; theme.go is the
+minimal token-adapter recipe (PaletteFrom resolving ramp steps, TypeFrom
+picking Typography roles)
+
+### iconbrowser/
+
+Both icon sets in one window: components/icons at the sizes controls draw
+them, over the searchable Material grid — components TextField with
+per-keystroke MessageOp updates, subscription-scoped scroll and editor
+state, ivg icon rendering at scale
+
+### mindchat/
+
+The most feature-complete app: a multi-provider LLM chat client (any
+OpenAI-compatible Responses endpoint; providers configured with their own
+BaseURL/key) whose side effects all run as mvu commands — a completion
+STREAMS dozens of messages back through the loop, routed by stream id so
+switching/renaming/deleting chats mid-stream stays safe. Message bodies
+render as markdown (chroma-highlighted fences with code in the mono face,
+links opening the OS browser, bundled SVG provider icons; markdown.go's
+degrade() + docCache are the chat-consumer recipe). Also: SplitPane shell
+with a collapsible, resizable sidebar, trash-backed session-wide undo
+(Cmd/Ctrl-Z), the modal-form recipe (Seed/FocusTag/DynamicFocusTags),
+list scrollbars, and a global-shortcut key area done right. Chatting
+needs OPENAI_API_KEY in the environment (or .env) on first run to seed
+the config
+
+### The front door (root)
+
+The workbench front door, and the repository's own root package rather
+than a directory beside the others, so that
+`go run github.com/vibrantgio/workbench@latest` opens it — a seen 3D
+triangle field composited as an mvu background layer (palette re-keyed
+per theme emission via an atomic handoff to the animation tick), hero +
+patterns cards over it, and one streaming mvu.Command per launched app
+(Started, then Exited when the process ends). A card runs the app's own
+latest release; a launcher built from the checkout runs the copy next
+door instead
+
+### feeds/
+
+Table-heavy app: sort/filter/pagination, tabs, split pane, modal forms,
+toasts; app.go's mirrorTokens is the reference theme-to-frame-time
+adapter (§Layers), and wiring_test.go shows how to test the AutoConnect
+count. Also the reference implementation of the dialog grammar's
+invocation half: shortcut.go binds ⌘,/Ctrl-, and preferences.go is the
+settings PANEL it opens, whose two preferences apply live under it
+
+### themer/
+
+Pick a brand colour out of a picture: an image dropped anywhere on the
+window comes back as a row of seed candidates — clustered and ranked by
+theme/imageseed — each swatch beside the primary pair FromSeed makes of
+it, and clicking one re-themes the window. The reference for OS file
+drops (mvu/desktop's ZoneGroup + DropTarget merged into the loop as
+messages, a window-wide zone, hover highlight) and for a theme observable
+the APPLICATION re-seeds: the OS still decides light or dark, the app
+decides the colour. A path argument takes the same path a drop does. Keep
+writes the chosen seed through theme/brand, which is where the other apps
+read it from
+
+### sitedocs/
+
+Marketing + docs shell: hero/feature/pricing/testimonial, accordion
+sidebar, breadcrumbs; the docs pages are embedded .md sources rendered
+with vibrantgio/markdown (content/*.md + docs_content.go route table —
+the docs-app recipe, including the light/dark highlight switch)
+
+### marketing/
+
+A fictional SimpleApps landing on an outline field: one full-screen
+page, macOS full-size-content chrome so the traffic lights sit on the
+surface
+
+### vaultview/
+
+The document reader: a viewer for a folder of markdown notes written in
+the Obsidian style. The genre no other app covers — open-ended user
+content rather than an owned data model — so it is where the navigation
+vocabulary lives: a disclosure file tree over components/list with a
+name-filter field, a back/forward history stack, breadcrumbs, and the
+patterns/shell aside slot finally in use as a backlinks panel. Notes
+render through vibrantgio/markdown with markdown/obsidian around it
+(frontmatter split off, wikilink spans, block anchors); resolving what a
+wikilink names is app-local and pure — one index built by an mvu.Do scan
+off the render goroutine, pure functions over it, every rule pinned by a
+test. Read doc.go first: it states the link contract the tests enforce.
+The one write is a GFM task marker: OnTaskClick splices `[ ]` ↔ `[x]` in
+the file before the handler returns, and nothing else is writable. Also
+the reference for adopting a kept brand: one theme.LiveTheme option, and
+the same value seeding mirrorTokens' first cell
+
+DESIGN.md lives in github.com/vibrantgio/design if you want the
+architecture rationale. You do not need it to write an app.
