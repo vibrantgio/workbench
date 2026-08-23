@@ -10,7 +10,7 @@ require (
 	github.com/vibrantgio/mvu v0.9.1
 	github.com/vibrantgio/mvu/desktop v0.9.1
 	github.com/vibrantgio/noise v0.0.3
-	github.com/vibrantgio/patterns v0.8.1
+	github.com/vibrantgio/patterns v0.8.2
 	github.com/vibrantgio/seen v0.0.8
 	github.com/vibrantgio/seen/context/gio v0.0.8
 	github.com/vibrantgio/theme v1.0.0

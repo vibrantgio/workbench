@@ -84,7 +84,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      pipeline), depth, glow, motion, spring, springbutton,
                      transition, tween, conductor
 
-  patterns  v0.8.1   patterns: shell, navbar, sidebar, table, pagination,
+  patterns  v0.8.2   patterns: shell, navbar, sidebar, table, pagination,
                      tabs, modal, alert, popover, tooltip, toast, card,
                      accordion, breadcrumb, hero, feature, pricing,
                      testimonial
@@ -1038,7 +1038,7 @@ purpose (golden determinism); leave those alone.
   require (
       gioui.org v0.10.2
       github.com/reactivego/rx v0.3.0
-      github.com/vibrantgio/patterns v0.8.1
+      github.com/vibrantgio/patterns v0.8.2
       github.com/vibrantgio/mvu v0.9.1
       github.com/vibrantgio/components v0.9.4
       github.com/vibrantgio/theme v1.0.0

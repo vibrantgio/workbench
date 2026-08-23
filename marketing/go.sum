@@ -25,8 +25,8 @@ github.com/vibrantgio/mvu/desktop v0.9.1 h1:yteic9BPfVRlQV09+cXcYJqQ/RKQ51MjmKc4
 github.com/vibrantgio/mvu/desktop v0.9.1/go.mod h1:1dqFJ9TRBhGjlFEDl62T/jMBV8t0cFwIW/SWu4wMpt4=
 github.com/vibrantgio/noise v0.0.3 h1:XQb4YPBdTJZSjTXD0SkxMa7Op2nbLmj9vANiEaGUe7g=
 github.com/vibrantgio/noise v0.0.3/go.mod h1:hlxs1Tvw1DmaWgVEHMjX6c/euvlXyox/F8sCtzdLL5c=
-github.com/vibrantgio/patterns v0.8.1 h1:BmHO5G6f5CEpsX4WrVwupwX0NMkFkCnFDodxUFtnokc=
-github.com/vibrantgio/patterns v0.8.1/go.mod h1:v0bI8HIOA+UmzbR4wuKmqGR15BkmeCIuoSwsQwejhcQ=
+github.com/vibrantgio/patterns v0.8.2 h1:UZr6ZzQWnEngs7xsA42bUJxFnWCwR1e8gIja71LgHSk=
+github.com/vibrantgio/patterns v0.8.2/go.mod h1:v0bI8HIOA+UmzbR4wuKmqGR15BkmeCIuoSwsQwejhcQ=
 github.com/vibrantgio/seen v0.0.8 h1:UwOK6yhKNRgTdojQYKN69QbGlUmAAeHht2kr4+V8XC0=
 github.com/vibrantgio/seen v0.0.8/go.mod h1:XIerMaflemFdCpWTADE87T5tc+OjZfM2oPq+Fo6dt1c=
 github.com/vibrantgio/seen/context/gio v0.0.8 h1:VRA1Dm7Y8WtEi+IWBPIyKgQUfibcIX5tik3/KEuDkYg=
