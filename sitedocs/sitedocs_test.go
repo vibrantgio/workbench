@@ -11,6 +11,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // TestBuildLayersConstructsWithoutPanic verifies that buildLayers returns two
@@ -18,9 +19,9 @@ import (
 // The model observable is seeded with the initial model and never receives
 // further messages, so the test is deterministic and free of OS timing.
 func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
-	seed := initialModel()
-	modelObs := rx.Of(seed)
-	layers := buildLayers(modelObs)(rx.Of(theme.Default()))
+	start := initialModel()
+	modelObs := rx.Of(start)
+	layers := buildLayers(modelObs, tokens.DefaultSeed)(rx.Of(theme.Default()))
 	if len(layers) != 2 {
 		t.Fatalf("buildLayers returned %d layers; want 2 (backdrop, shell)", len(layers))
 	}

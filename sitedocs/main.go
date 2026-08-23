@@ -9,8 +9,9 @@
 //   - Docs       → the application guide (the workbench root's llms.txt)
 //     as one markdown document, its ##/### outline tree in a leading
 //     column.
-//   - Theme      → the themer's palette section plus the inventory's type
-//     ladder, following the live theme (theme_tab.go).
+//   - Theme      → the seed the palette grew from, the themer's palette
+//     section and the inventory's type ladder, following the live theme
+//     (theme_tab.go).
 //   - Components → components/gallery/inventory's Components group as
 //     live controls in one scrolling column (inventory_tabs.go).
 //   - Patterns   → the same for the inventory's Patterns group.
@@ -24,6 +25,7 @@ package main
 import (
 	"fmt"
 	"image"
+	stdcolor "image/color"
 	"os"
 	"strconv"
 	"sync/atomic"
@@ -94,7 +96,10 @@ func run() {
 		}
 	}
 
-	w := specwin.New(mvuWin, themeObservable())
+	// The kept brand is read once: the theme stream is dressed in it, and
+	// the Theme tab names its seed from the same reading.
+	kept := brand.Kept()
+	w := specwin.New(mvuWin, themeObservable(kept))
 
 	// Build the model observable with mvu.Loop over mvu messages. The
 	// window's collector registers on each FrameEvent so MessageOp.Add(gtx.Ops)
@@ -115,7 +120,7 @@ func run() {
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 	modelObs := models.Publish().AutoConnect(2)
 
-	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+	if err := w.Render(buildLayers(modelObs, seedOf(kept))).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -127,8 +132,21 @@ func run() {
 // intended low-CPU default, not a workaround: each darwin Appearance read
 // is a `defaults` fork+exec (~5.5 ms), so 5 s polling costs ~0.1% CPU at
 // idle while keeping dark-mode response well under a second of a toggle.
-func themeObservable() rx.Observable[theme.Theme] {
-	return specsystem.LiveTheme(5*time.Second, brand.Kept().Options()...)
+func themeObservable(b brand.Brand) rx.Observable[theme.Theme] {
+	return specsystem.LiveTheme(5*time.Second, b.Options()...)
+}
+
+// seedOf is the colour the Theme tab offers as this window's seed: the
+// brand this user kept, else the palette's own default. It is a candidate
+// and not a claim — an OS accent outranks the default, and the theme
+// stream publishes the tokens it derived without saying which colour they
+// came from, so the seed row checks the candidate against the palette it
+// is drawing before naming it (see theme_seed.go).
+func seedOf(b brand.Brand) stdcolor.NRGBA {
+	if b.Chosen() {
+		return b.Seed
+	}
+	return tokens.DefaultSeed
 }
 
 // themeTokens is the colour/typography snapshot the app's own drawing code
@@ -146,11 +164,11 @@ type themeTokens struct {
 // per-window theme to. It returns the two rendering layers: a backdrop and
 // the tabbed shell. The model observable drives tab selection and the
 // docs outline state.
-func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], seed stdcolor.NRGBA) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			underTitleBar(tabbedShellLayer(th, modelObs)),
+			underTitleBar(tabbedShellLayer(th, modelObs, seed)),
 		}
 	}
 }
@@ -222,6 +240,7 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 func tabbedShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
+	seed stdcolor.NRGBA,
 ) rx.Observable[layout.Widget] {
 	selectedObs := rx.Map(modelObs, func(m Model) int { return tabIndex(m.currentPage) })
 
@@ -242,7 +261,7 @@ func tabbedShellLayer(
 		case pageDocs:
 			pages[i] = docsTabFrom(th, modelObs, loadGuide())
 		case pageTheme:
-			pages[i] = themeTabLayer(th)
+			pages[i] = themeTabLayer(th, seed)
 		default:
 			pages[i] = groupTabLayer(th, tabGroups[page])
 		}

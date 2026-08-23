@@ -37,7 +37,9 @@ func staticTabs(
 		case pageDocs:
 			content = renderDocsTab(shaper, guide, st, c, typo)
 		case pageTheme:
-			content = renderThemeTab(shaper, c, typo)
+			// The static tabs are rendered from the default pair, so
+			// the default seed is the colour they were grown from.
+			content = renderThemeTab(shaper, c, typo, tokens.DefaultSeed)
 		default:
 			content = renderGroupTab(shaper, tabGroups[page], c, typo)
 		}

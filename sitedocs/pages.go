@@ -12,9 +12,10 @@ const (
 	// tree in the leading column (guide.go, docs_outline.go).
 	pageDocs = "docs"
 
-	// pageTheme is the Theme tab: the themer's palette section — ramps
-	// grid and named picks — followed by the inventory's type ladder,
-	// following the live theme (theme_tab.go).
+	// pageTheme is the Theme tab: the seed the palette grew from
+	// (theme_seed.go), then the themer's palette section — ramps grid and
+	// named picks — followed by the inventory's type ladder, following the
+	// live theme (theme_tab.go).
 	pageTheme = "theme"
 
 	// pageComponents, pagePatterns and pageMarkdown are the three tabs cut

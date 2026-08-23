@@ -56,8 +56,9 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
 - **[`sitedocs/`](./sitedocs)** — the documentation app, five tabs over
   `patterns/tabs`: **Docs** renders the application guide (`llms.txt`) as
   one markdown document with a `##`/`###` outline tree that scrolls it;
-  **Theme** shows the whole theme — ramps grid, named picks and the type
-  ladder — following the live one; **Components**, **Patterns** and
+  **Theme** shows the whole theme — the colour the palette grew from,
+  the ramps grid, the named picks and the type ladder — following the
+  live one; **Components**, **Patterns** and
   **Markdown** are the component inventory's own groups, one per tab, as
   live, clickable controls.
 - **[`feeds/`](./feeds)** — an RSS reading-list app: sortable/filterable/
