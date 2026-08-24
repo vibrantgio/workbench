@@ -6,8 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/unit"
+
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -162,28 +167,28 @@ func TestSeedRowNamesWhatItShows(t *testing.T) {
 		cells []seedCell
 	}{
 		{"light, a pick the dial moved", tokens.DefaultLight, moved, []seedCell{
-			{moved, SeedName, SeedPickRule},
-			{grown, SeedLiftedName, SeedLiftedRule},
+			{col: moved, name: SeedName, rule: SeedPickRule, handedIn: true},
+			{col: grown, name: SeedLiftedName, rule: SeedLiftedRule},
 		}},
 		{"dark, a pick the dial moved", tokens.DefaultDark, moved, []seedCell{
-			{moved, SeedName, SeedPickRule},
-			{grown, SeedLiftedName, SeedLiftedRuleDark},
+			{col: moved, name: SeedName, rule: SeedPickRule, handedIn: true},
+			{col: grown, name: SeedLiftedNameDark, rule: SeedLiftedRuleDark},
 		}},
 		{"high contrast", hcLight, moved, []seedCell{
-			{moved, SeedName, SeedPickRule},
-			{hcLight.Primary, SeedLiftedName, SeedLiftedRule},
+			{col: moved, name: SeedName, rule: SeedPickRule, handedIn: true},
+			{col: hcLight.Primary, name: SeedLiftedName, rule: SeedLiftedRule},
 		}},
 		{"light, the pick itself", vividLight, vivid, []seedCell{
-			{vivid, SeedName, SeedKeptRule},
+			{col: vivid, name: SeedName, rule: SeedKeptRule},
 		}},
 		{"dark, the pick itself", vividDark, vivid, []seedCell{
-			{vivid, SeedName, SeedKeptRuleDark},
+			{col: vivid, name: SeedName, rule: SeedKeptRuleDark},
 		}},
 		{"light, not this seed's palette", tokens.DefaultLight, vivid, []seedCell{
-			{tokens.DefaultLight.Primary, SeedName, SeedFromBase},
+			{col: tokens.DefaultLight.Primary, name: SeedPinName, rule: SeedFromBase},
 		}},
 		{"dark, not this seed's palette", tokens.DefaultDark, vivid, []seedCell{
-			{tokens.DefaultDark.Primary, SeedPinName, SeedNotHeld},
+			{col: tokens.DefaultDark.Primary, name: SeedPinName, rule: SeedNotHeld},
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -223,19 +228,10 @@ func TestSeedRowNamesWhatItShows(t *testing.T) {
 // colour at all and no cut can fuse two of them into one claim. This
 // keeps it that way.
 func TestSeedRulesNameOneColourEach(t *testing.T) {
-	rules := []string{
-		SeedPickRule, SeedLiftedRule, SeedLiftedRuleDark,
-		SeedKeptRule, SeedKeptRuleDark, SeedFromBase, SeedNotHeld,
-	}
-	for _, rule := range rules {
+	for _, rule := range seedRules {
 		if strings.Contains(rule, "#") {
 			t.Errorf("rule %q names a colour value; values belong on the cell's own value line, "+
 				"where a truncation cannot attach one colour's value to another colour's claim", rule)
-		}
-		// fitLine cuts at commas and marks nothing, so every head has to
-		// stand as a claim of its own.
-		if head, _, cut := strings.Cut(rule, ","); cut && strings.TrimSpace(head) == "" {
-			t.Errorf("rule %q cuts to nothing", rule)
 		}
 	}
 	// And the two colours really are two cells whenever they are two
@@ -249,6 +245,372 @@ func TestSeedRulesNameOneColourEach(t *testing.T) {
 			t.Errorf("both cells show %s; the row is meant to be showing two colours", hexOf(cells[0].col))
 		}
 	}
+}
+
+// seedRules is every rule the row can put under a swatch, and seedNames
+// every name it can put over one — the two sets the truncation guards
+// below are run over.
+var (
+	seedRules = []string{
+		SeedPickRule, SeedLiftedRule, SeedLiftedRuleDark,
+		SeedKeptRule, SeedKeptRuleDark, SeedFromBase, SeedNotHeld,
+	}
+	seedNames = []string{SeedName, SeedLiftedName, SeedLiftedNameDark, SeedPinName}
+)
+
+// TestSeedTextTakesNoUnmarkedCut is the guard the first fix did not put
+// in. fitLine has two ways to shorten a line: at a clause seam — a
+// comma, " ·" or " /" — with nothing at all marking the cut, and at a
+// word boundary with an ellipsis. The rework of this row moved its
+// honesty disclosure past a comma, where the unmarked cut shed it whole
+// at any window under about 586px and handed the reader back the exact
+// claim the row exists to deny.
+//
+// The fix is structural rather than editorial: no string this row draws
+// carries a clause seam at all, so the unmarked path has nothing to cut
+// at and every cut a reader is ever shown ends in an ellipsis. This
+// checks both halves — that the seams are absent, and that the whole
+// range of rooms a window can give produces nothing but the string
+// itself or a marked prefix of it.
+func TestSeedTextTakesNoUnmarkedCut(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	ty := TypeFrom(shaper, tokens.DefaultTypography)
+	gtx := measuringContext()
+	for _, str := range append(append([]string{}, seedRules...), seedNames...) {
+		t.Run(str, func(t *testing.T) {
+			if heads := lineHeads(str, true); len(heads) != 0 {
+				t.Fatalf("%q carries a clause seam, so fitLine can cut it to %q with nothing marking the cut",
+					str, heads[0])
+			}
+			for _, style := range []textdraw.TextStyle{ty.Small, ty.Body} {
+				full := natural(gtx, shaper, style, str)
+				for room := 0; room <= full+8; room++ {
+					got := fitLine(gtx, shaper, style, str, room)
+					switch {
+					case got == str:
+						// Whole, or the last-resort fallback the shaper
+						// clips itself; either way nothing was dropped
+						// silently by fitLine.
+					case strings.HasSuffix(got, Ellipsis) &&
+						strings.HasPrefix(str, strings.TrimSuffix(got, Ellipsis)):
+						// A marked cut, and a prefix of what it cut.
+					default:
+						t.Fatalf("at room %d, %q comes back as %q — a cut that is neither whole nor marked",
+							room, str, got)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestSeedTextSurvivesTheNarrowWindow puts a number on it. The finding
+// this task answers was measured at a window: under about 586px the dark
+// rule lost its disclosure. Every string the row draws now stands whole
+// in the room a 560px window leaves — the width the verification pass
+// captures at.
+//
+// This is a width, at the one text scale the goldens are drawn at. Room
+// is measured in dp and text in sp, so a reader who has turned the OS
+// text scale up meets these cuts at a wider window than this test asks
+// about; what holds for them is the guard above, that no cut of any of
+// these strings goes unmarked at any scale.
+func TestSeedTextSurvivesTheNarrowWindow(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	ty := TypeFrom(shaper, tokens.DefaultTypography)
+	gtx := measuringContext()
+	// The room drawSeedCell hands a line at this content width: the body's
+	// margins off both edges, then the swatch slot and the air beside it.
+	const narrowContent = 540 // a 560px window, less the shell's own edge
+	room := narrowContent - 2*gtx.Dp(inventory.SectionPadX) - gtx.Dp(PickSwatchW) - gtx.Dp(PickGap)
+	for _, rule := range seedRules {
+		if got := fitLine(gtx, shaper, ty.Small, rule, room); got != rule {
+			t.Errorf("at a %dpx window the row draws %q, cut from %q — it wants %d of the %d it has",
+				narrowContent+20, got, rule, natural(gtx, shaper, ty.Small, rule), room)
+		}
+	}
+	for _, name := range seedNames {
+		if got := fitLine(gtx, shaper, ty.Body, name, room); got != name {
+			t.Errorf("at a %dpx window the row draws the name %q, cut from %q", narrowContent+20, got, name)
+		}
+	}
+}
+
+// TestSeedSaysWhatThePaletteGrewFrom is the second finding. A section
+// titled Palette Seed that identifies no seed is worth less than no
+// section, and on the matched path — the one the goldens photograph —
+// every line the previous draft drew was about the pick or about the
+// base, and none of them said which colour the palette grew from.
+//
+// It has to be said in a clause no cut can shed, so it is said first:
+// fitLine takes words off the tail, and a claim that leads survives
+// every cut down to the point where the shaper is clipping single words.
+func TestSeedSaysWhatThePaletteGrewFrom(t *testing.T) {
+	// Every path where the row can prove what the palette grew from.
+	vivid := color.NRGBA{R: 0xff, G: 0x00, B: 0x00, A: 0xff}
+	vividLight, vividDark := tokens.FromSeed(vivid)
+	hcLight, hcDark := tokens.FromSeedHighContrast(tokens.DefaultSeed)
+	for _, tc := range []struct {
+		name string
+		c    tokens.ColorTokens
+		seed color.NRGBA
+	}{
+		{"light", tokens.DefaultLight, tokens.DefaultSeed},
+		{"dark", tokens.DefaultDark, tokens.DefaultSeed},
+		{"high contrast light", hcLight, tokens.DefaultSeed},
+		{"high contrast dark", hcDark, tokens.DefaultSeed},
+		{"light, the pick itself", vividLight, vivid},
+		{"dark, the pick itself", vividDark, vivid},
+		{"light, no candidate matched", tokens.DefaultLight, vivid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			said := false
+			for _, cell := range seedCells(tc.c, tc.seed) {
+				if strings.HasPrefix(cell.rule, SeedGrewFrom) {
+					said = true
+				}
+			}
+			if !said {
+				t.Errorf("no cell opens with %q, so nothing on screen says which colour the palette grew from",
+					SeedGrewFrom)
+			}
+		})
+	}
+	// And the one path where it cannot be proved must not claim it: a
+	// dark palette handed a candidate that is not its own has no seed to
+	// name, and says so.
+	for _, cell := range seedCells(tokens.DefaultDark, vivid) {
+		if strings.Contains(cell.rule, SeedGrewFrom) {
+			t.Errorf("the unmatched dark row claims %q, and it has no seed to claim", cell.rule)
+		}
+	}
+}
+
+// TestSeedDarkRuleDisclosesItsScheme is the first finding's other half.
+// A dark palette draws a re-toned accent, so the colour this row shows
+// as the one the palette grew from is a colour nowhere in the ramps
+// under it. The rule has to say so, and has to say so in the same clause
+// that makes the claim — the previous draft put it after the rule's only
+// comma, which is exactly where fitLine takes things off.
+func TestSeedDarkRuleDisclosesItsScheme(t *testing.T) {
+	const disclosure = "re-toned"
+	for _, rule := range []string{SeedLiftedRuleDark, SeedKeptRuleDark} {
+		if !strings.Contains(rule, disclosure) {
+			t.Errorf("dark rule %q does not disclose that this scheme re-tones the colour", rule)
+		}
+		if strings.Contains(rule, ",") {
+			t.Errorf("dark rule %q carries a comma, and its disclosure is past it", rule)
+		}
+	}
+	// The rule the dark row actually draws is one of those two, whichever
+	// case the candidate falls in.
+	for _, seed := range []color.NRGBA{tokens.DefaultSeed, {R: 0xff, A: 0xff}} {
+		cells := seedCells(tokens.DefaultDark, seed)
+		last := cells[len(cells)-1]
+		if grown, ok := grownFrom(tokens.DefaultDark, seed); ok {
+			if last.col != grown {
+				t.Fatalf("the dark row's last cell shows %s, not the colour grown %s", hexOf(last.col), hexOf(grown))
+			}
+			if !strings.Contains(last.rule, disclosure) {
+				t.Errorf("the dark row shows %s under %q with no word about this scheme re-toning it",
+					hexOf(last.col), last.rule)
+			}
+		}
+	}
+}
+
+// TestSeedDarkDisclosureOutlivesItsRule is the answer to the half of the
+// finding a single line cannot give. Two facts have to survive here —
+// which colour the palette grew from, and that a dark scheme does not
+// draw it — and fitLine takes words off the tail, so two facts on one
+// line have an order and the second one goes first. They are therefore
+// on two lines, which are cut independently: the rule opens with the
+// claim, and the name carries the scheme. This checks that the name
+// really is the one that lasts, at every room down to nothing.
+func TestSeedDarkDisclosureOutlivesItsRule(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	ty := TypeFrom(shaper, tokens.DefaultTypography)
+	gtx := measuringContext()
+	// narrowest is the least room from which on up the words are always
+	// drawn: the width the reader stops being told this at. Rooms too
+	// small for even one word are not asked about — fitLine hands the
+	// whole line back there and the shaper clips it, so the words are
+	// "present" in a line nobody can read.
+	narrowest := func(style textdraw.TextStyle, str, words string) int {
+		full := natural(gtx, shaper, style, str)
+		for room := full; room > 0; room-- {
+			if !strings.Contains(fitLine(gtx, shaper, style, str, room), words) {
+				return room + 1
+			}
+		}
+		return 1
+	}
+	rule := narrowest(ty.Small, SeedLiftedRuleDark, "re-toned")
+	name := narrowest(ty.Body, SeedLiftedNameDark, "light scheme")
+	if name >= rule {
+		t.Errorf("the name holds the scheme down to %ddp and the rule down to %ddp; "+
+			"the disclosure is meant to outlive the line that makes the claim", name, rule)
+	}
+	// And the claim itself outlives nothing but the shaper: it leads the
+	// rule, so it is the last thing on that line to go.
+	if claim := narrowest(ty.Small, SeedLiftedRuleDark, "grew from"); claim >= rule {
+		t.Errorf("the claim holds down to %ddp and the disclosure to %ddp; the claim is meant to lead", claim, rule)
+	}
+}
+
+// TestSeedNamesOnlyPicksSeed keeps the row's one word for the one thing.
+// A cell called Seed is a colour somebody picked; where the row cannot
+// prove a pick — a palette wearing an accent nobody told this app about
+// — it names the token it is showing instead and leaves the claim to the
+// rule, which is careful about it.
+func TestSeedNamesOnlyPicksSeed(t *testing.T) {
+	vivid := color.NRGBA{R: 0xff, A: 0xff}
+	for _, tc := range []struct {
+		name string
+		c    tokens.ColorTokens
+		seed color.NRGBA
+	}{
+		{"light", tokens.DefaultLight, tokens.DefaultSeed},
+		{"dark", tokens.DefaultDark, tokens.DefaultSeed},
+		{"light, no candidate matched", tokens.DefaultLight, vivid},
+		{"dark, no candidate matched", tokens.DefaultDark, vivid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, cell := range seedCells(tc.c, tc.seed) {
+				if cell.name != SeedName {
+					continue
+				}
+				if cell.col != tc.seed {
+					t.Errorf("a cell showing %s is called %q, and the colour picked is %s",
+						hexOf(cell.col), cell.name, hexOf(tc.seed))
+				}
+			}
+		})
+	}
+}
+
+// TestSeedPairIsToldApartWithoutChroma is the third finding. The two
+// colours are one hue at two chromas: measured, the default pair stands
+// at 1.00:1 luminance and four greyscale levels apart, which is one
+// swatch drawn twice to anybody whose display or eyes take the chroma
+// out. The row answers with size — the smaller swatch is the colour the
+// palette only took in — and this checks the answer the way the finding
+// was made, on the pixels with the colour taken out.
+func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	for _, tc := range schemeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := tc.colors
+			cells := seedCells(c, tokens.DefaultSeed)
+			if len(cells) != 2 {
+				t.Fatalf("the default seed draws %d cell(s); this test needs the pair", len(cells))
+			}
+			p, ty := PaletteFrom(c), TypeFrom(shaper, tokens.DefaultTypography)
+			rows := seedRows(p, c, ty, tokens.DefaultSeed)
+			pairH, padY := int(PickPairH), int(inventory.SectionPadY)
+			size := image.Pt(themeCanvasSize.X, 2*pairH+2*padY)
+			img := golden.Capture(t, size, scene(rows[1], tc.bg))
+			// Only the swatch column: the lines beside it differ in words,
+			// which would carry this test whatever the swatches did.
+			right := int(inventory.SectionPadX) + int(PickSwatchW)
+			worst := 0
+			for y := 0; y < pairH; y++ {
+				for x := 0; x < right; x++ {
+					a := grey(img.At(x, padY+y))
+					b := grey(img.At(x, padY+pairH+y))
+					worst = max(worst, abs(a-b))
+				}
+			}
+			// The chroma-only pair the finding measured came to four.
+			if worst < 24 {
+				t.Errorf("with the colour taken out the two swatches differ by at most %d of 255; "+
+					"they are one swatch drawn twice", worst)
+			}
+			// A difference is not the difference. A one-pixel inset also
+			// puts a ring of ground between the two rows and clears the
+			// bar above while being invisible, so the size the channel is
+			// actually drawn at is measured here rather than assumed: the
+			// swatch of the colour handed in is SeedHandedInset smaller on
+			// every side than the one the realized colour fills.
+			pick := swatchBox(img, c.Background, image.Rect(0, padY, right, padY+pairH))
+			grown := swatchBox(img, c.Background, image.Rect(0, padY+pairH, right, padY+2*pairH))
+			if pick.Empty() || grown.Empty() {
+				t.Fatalf("found %v and %v where two swatches should be", pick, grown)
+			}
+			// Within a pixel of it: the frame is stroked with a
+			// half-width inset and its corners are round, so the outermost
+			// column of a swatch can be one antialiased pixel wide.
+			inset := 2 * int(SeedHandedInset)
+			if got := grown.Dx() - pick.Dx(); abs(got-inset) > 1 {
+				t.Errorf("the swatches are %dpx apart in width, want %d — %v against %v",
+					got, inset, pick, grown)
+			}
+			if got := grown.Dy() - pick.Dy(); abs(got-inset) > 1 {
+				t.Errorf("the swatches are %dpx apart in height, want %d — %v against %v",
+					got, inset, pick, grown)
+			}
+		})
+	}
+	// And the difference is the one the caption promises.
+	for _, c := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
+		cells := seedCells(c, tokens.DefaultSeed)
+		if !cells[0].handedIn || cells[1].handedIn {
+			t.Errorf("the smaller swatch is not the colour picked: handedIn is %v then %v",
+				cells[0].handedIn, cells[1].handedIn)
+		}
+		if !strings.Contains(seedHint(cells), SeedHintPair) {
+			t.Error("the pair is drawn at two sizes and the caption does not say what the sizes mean")
+		}
+	}
+	// A row with nothing to tell apart does not promise a difference.
+	single := seedCells(tokens.DefaultDark, color.NRGBA{R: 0xff, A: 0xff})
+	if strings.Contains(seedHint(single), SeedHintPair) {
+		t.Error("a one-cell row's caption points at a smaller swatch that is not drawn")
+	}
+}
+
+// swatchBox is the rectangle a swatch covers inside the region handed
+// in: everything there that is not the ground it stands on. The seed
+// cells put nothing but a swatch in the column this is asked about, so
+// the extent of what is not ground is the extent of the swatch.
+func swatchBox(img image.Image, ground color.NRGBA, region image.Rectangle) image.Rectangle {
+	box := image.Rectangle{}
+	for y := region.Min.Y; y < region.Max.Y; y++ {
+		for x := region.Min.X; x < region.Max.X; x++ {
+			r, g, b, _ := img.At(x, y).RGBA()
+			if uint8(r>>8) == ground.R && uint8(g>>8) == ground.G && uint8(b>>8) == ground.B {
+				continue
+			}
+			at := image.Rect(x, y, x+1, y+1)
+			if box.Empty() {
+				box = at
+			} else {
+				box = box.Union(at)
+			}
+		}
+	}
+	return box
+}
+
+// grey is the luminance of a pixel, which is what is left of it to a
+// reader the chroma is gone for.
+func grey(c color.Color) int {
+	r, g, b, _ := c.RGBA()
+	return int((299*int(r>>8) + 587*int(g>>8) + 114*int(b>>8)) / 1000)
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+// measuringContext is a context good for asking how wide a string wants
+// to be and what fitLine does with the room it has: one pixel to the dp,
+// so a room in this test is a room on a default display.
+func measuringContext() layout.Context {
+	return layout.Context{Ops: new(op.Ops), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}}
 }
 
 // TestSeedRowIsTheHeadOfTheStory pins the order the tab tells it in: the
