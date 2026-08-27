@@ -701,6 +701,101 @@ place, which reads as raised by its surface step alone. The cost backs the
 rule: a depth.Shadow is nine paint ops per frame, a surface step is one
 FillShape. Do not add a shadow to a card.
 
+## Window anatomy: which region wears which rung
+
+The ladder says how high a surface stands. This says WHICH PART OF A
+WINDOW STANDS WHERE — the assignment every app used to re-derive, some of
+them backwards. Three kinds of area, three rungs:
+
+  ```
+  content ground    what the window exists to show — the document,
+                    the transcript, the list      level 0, Background
+  chrome furniture  what stands around it — sidebars, asides,
+                    rails, toolbars, inspectors   level 1, Surface
+  transient + edges dialogs, menus, popovers, toasts,
+                    Divider, state fills          levels 2-3
+  ```
+
+  - GROUND AT LEVEL 0. The largest resting expanse, the thing the window
+    exists to show, fills with the Background pin — c.SurfaceAt(tokens.Level0).
+    That is why the ladder's level 0 is a sentinel rather than a ramp step
+    and why a button's Ground prop calls its zero value the window ground.
+  - FURNITURE EXACTLY ONE RUNG UP. Sidebars, asides, rails, toolbars and
+    inspectors fill at c.SurfaceAt(tokens.Level1) — the semantic Surface.
+    One step of the neutral ramp is the whole separation between chrome and
+    content; two is a mistake in either direction.
+  - NOTHING RESTING AT LEVEL 2 OR DEEPER. Levels 2 and 3 belong to what
+    appears and leaves — a dialog and a toast's base at 2, a popover and a
+    dropdown at 3, all of which the patterns pass for you — and to edges:
+    Divider and the state walks. Permanence is the test and size is its
+    tell. If a fill is the biggest thing on screen and never goes away, it
+    is not a level-2 surface whatever it is called.
+  - RUNGS WALK FROM THE LOCAL GROUND, not from the window. A card on the
+    content ground is level 1 over level 0; a control inside a dialog walks
+    from level 2, which is what the Ground prop exists to say. An inset
+    inside a body — a code fence, a quote block, a callout — steps UP from
+    the paper it lies on rather than reaching for an absolute step. Level 0
+    answers differently, because the Background pin is off the ramp and has
+    no step to walk from: draw a raised thing on the content ground as a
+    level-1 surface, and start its state walk from level 1's step.
+  - WHAT IS CHOSEN IS TINTED; WHAT IS TRANSIENT IS A NEUTRAL WALK. The item
+    the window is currently showing — the open note, the open conversation —
+    fills from c.Ramps.Primary.Step(300). Hover, pressed and the keyboard
+    cursor stay neutral step walks over the region's own ground. A list has
+    to show a cursor and a current item at once without the two colliding: a
+    neutral fill says something happened here, a tinted one says this is the
+    one you are looking at.
+  - THE TITLEBAR WEARS THE GROUND OF THE REGION IT CAPS. Never leave an
+    unpainted native strip above a painted window. Where the platform allows
+    it, take desktop.FullSizeContent() and let the capped region's own fill
+    reach the window's top edge; where it does not, paint your own band in
+    that region's fill, and desktop.InsetTop(height, w) pads a layer down
+    past a strip the app has not claimed. The strip is part of the region
+    below it, not a fourth kind of area.
+  - TAKING THE STRIP TAKES ON WHAT CAME WITH IT, and a window dressed to the
+    fill alone gets both halves wrong. The platform's window controls now
+    stand inside your layout, so the region reaching the top-leading corner
+    owes them their run, reserved from a measurement and never from a guess:
+    desktop.ButtonRunIn(band) centres the group in a band of that height,
+    desktop.ButtonRunAt(inset) reads the same rule from a leading inset you
+    have already chosen, and desktop.BandLead(gap, gutter) — BandLeadFrom
+    over a measurement you already hold — says where the band's own content
+    may start (desktop.WindowButtonDiameter and WindowButtonPitch are there
+    for the arithmetic in between). And the native drag leaves with the
+    native strip: a window that claims nothing back cannot be moved by its
+    top edge at all, so the capping regions claim it over their own empty
+    runs with Gio's system.ActionMove.
+  - ONE BAND HEIGHT ACROSS A SPLIT. Where the strip crosses a seam —
+    furniture on one side of it, content on the other — the two sides wear
+    their own fills but hold one height between them. Two depths across one
+    strip read as a step in the window's top edge, which is the edge a
+    reader measures every other alignment against. The seam itself paints a
+    hairline, band included, and grabs a band several times that width;
+    patterns/shell's SplitPane already does both, so an app on the shell
+    restates neither.
+  - THE CHECK. Walk out from the middle of the window: the rung numbers must
+    never decrease. Content 0, furniture 1, transient 2-3. Because the ramps
+    are paired, that one sentence dresses both schemes — a light window is
+    lightest at its centre and steps darker outward, a dark one darkest at
+    its centre and steps lighter — so there is no second rule for dark mode.
+    A window deeper in its middle than at its edges has the grammar inverted
+    somewhere.
+
+None of this needs a token that does not already exist. A window that
+cannot be dressed from the vocabulary above is a window whose anatomy is
+wrong, not a token set that is short.
+
+workbench/vaultview is the window the grammar was read off: frame.go fills
+the whole window with Background and raises the sidebar and the aside to
+Surface, main.go takes the full-size-content treatment and insets what it
+must, frame.go places the window buttons with desktop.ButtonRunAt and
+starts the band's content at desktop.BandLead, and tree.go tints the
+current note with Ramps.Primary.Step(300) while the keyboard cursor stays
+a neutral walk. Why the grammar is this shape rather than another is in
+the design repository's rationale document:
+
+    https://raw.githubusercontent.com/vibrantgio/design/master/DESIGN.md
+
 ## Motion
 
 tokens.MotionScale is the animation vocabulary, on the theme as the Motion
@@ -1287,7 +1382,10 @@ test. Read doc.go first: it states the link contract the tests enforce.
 The one write is a GFM task marker: OnTaskClick splices `[ ]` ↔ `[x]` in
 the file before the handler returns, and nothing else is writable. Also
 the reference for adopting a kept brand: one theme.LiveTheme option, and
-the same value seeding mirrorTokens' first cell
+the same value seeding mirrorTokens' first cell. And the window the
+surface-rung grammar was read off: a Background ground running to the top
+edge under the full-size-content treatment, panes raised one rung to
+Surface, the current note a Primary tint against a neutral cursor.
 
 DESIGN.md lives in github.com/vibrantgio/design if you want the
 architecture rationale. You do not need it to write an app.
