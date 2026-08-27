@@ -24,6 +24,7 @@ package main
 
 import (
 	"fmt"
+	"image"
 	stdcolor "image/color"
 	"os"
 	"strconv"
@@ -39,6 +40,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
@@ -67,9 +69,10 @@ func run() {
 	// options and the window keeps its normal decorations. app.Title stays
 	// even though the treatment hides the title text — Mission Control, the
 	// Dock and VoiceOver read it all the same. A docs app wears the
-	// treatment as well as any other: the tab strip's Surface band reads as
-	// one piece with the title-bar strip, and underTitleBar keeps the strip
-	// itself (and so the Docs tree under it) clear of the window buttons.
+	// treatment as well as any other: underTitleBar paints the title-bar
+	// strip in the tab strip's own fill so the two read as one band, and
+	// keeps the strip itself (and so the Docs tree under it) clear of the
+	// window buttons.
 	mvuWin := mvu.NewWindow(append(desktop.FullSizeContent(),
 		app.Title("Site Docs"),
 		app.Size(unit.Dp(windowW), unit.Dp(windowH)),
@@ -166,56 +169,84 @@ func buildLayers(modelObs rx.Observable[Model], seed stdcolor.NRGBA) func(th rx.
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			underTitleBar(tabbedShellLayer(th, modelObs, seed)),
+			underTitleBar(th, tabbedShellLayer(th, modelObs, seed)),
 		}
 	}
 }
 
 // underTitleBar pads the tab shell down by the native title-bar strip's
-// measured height on a full-size-content window. desktop.TopInset is read at
-// frame time: it reports 0 until the window's first frame, in headless tests,
-// and on every platform but macOS, so away from the treatment (goldens
-// included) the wrapper is an exact no-op. The strip itself is paint-only —
-// what shows through the transparent title bar is the backdrop layer's
-// Surface fill, the same colour the tab strip paints, so the header reads as
-// one band extending up behind the traffic lights — and because the whole
-// shell starts below the strip, neither the tab strip nor the Docs tree ever
-// sits under the buttons, leading ~80 dp (the window buttons' territory)
-// included.
+// measured height on a full-size-content window and paints that strip in the
+// fill of the region it caps. desktop.TopInset is read at frame time: it
+// reports 0 until the window's first frame, in headless tests, and on every
+// platform but macOS, so away from the treatment (goldens included) the
+// wrapper is an exact no-op. Because the whole shell starts below the strip,
+// neither the tab strip nor the Docs tree ever sits under the buttons,
+// leading ~80 dp (the window buttons' territory) included.
 //
-// desktop.DragTop claims that same strip for the window's own drag: the
-// strip carries paint but no widget of its own, so without this the window
-// could not be moved by its top edge at all.
-func underTitleBar(shellObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
-	return rx.Map(shellObs, func(w layout.Widget) layout.Widget {
-		return dragUnderStrip(desktop.TopInset, w)
+// The strip carries no widget of its own, so what it shows is whatever was
+// painted there. Until AK6.4 that was the backdrop, which filled the window
+// with Surface — the same colour the tab strip happened to be, so the two
+// agreed by both being wrong. The window ground is now the Background pin
+// and the agreement has to be made rather than inherited: the region this
+// band caps is the tab strip, which patterns/tabs fills one rung over its
+// panel, so on this window's level-0 panel the band is level 1. R6 asks for
+// the region's fill at the window's top edge, not for the region's widget to
+// reach it — which is what lets the shell stay inset off the buttons.
+//
+// desktop.DragTop claims that same strip for the window's own drag: without
+// it the window could not be moved by its top edge at all.
+func underTitleBar(th rx.Observable[theme.Theme], shellObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
+		return t.Color
 	})
+	return rx.Map(rx.CombineLatest2(shellObs, colors), func(n rx.Tuple2[layout.Widget, tokens.ColorTokens]) layout.Widget {
+		return dragUnderStrip(desktop.TopInset, titleBandFill(n.Second), n.First)
+	})
+}
+
+// titleBandFill is the fill the title-bar strip wears. The region it caps is
+// the tab strip, and patterns/tabs fills that strip one rung over its panel;
+// this window's panel takes the pattern's default ground, so the rung is 1.
+// Named once because two callers have to agree on it — the window, and the
+// whole-window render that photographs the window — and because R6 is a
+// statement about which region's fill this is, not about which colour.
+func titleBandFill(c tokens.ColorTokens) stdcolor.NRGBA {
+	return c.SurfaceAt(tokens.Level1)
 }
 
 // dragUnderStrip is underTitleBar's composition over a stated strip height
 // rather than the window's own — the same split desktop.InsetTop's own
 // height parameter already makes — so a test can state a strip it has no
-// window to measure.
-func dragUnderStrip(height func() unit.Dp, w layout.Widget) layout.Widget {
+// window to measure. band is the fill the strip wears; a zero-height strip
+// paints none of it.
+func dragUnderStrip(height func() unit.Dp, band stdcolor.NRGBA, w layout.Widget) layout.Widget {
 	inset := desktop.InsetTop(height, w)
 	return func(gtx layout.Context) layout.Dimensions {
+		if h := gtx.Dp(height()); h > 0 {
+			paint.FillShape(gtx.Ops, band, clip.Rect{
+				Max: image.Pt(gtx.Constraints.Max.X, h),
+			}.Op())
+		}
 		desktop.DragTop(gtx, height)
 		return inset(gtx)
 	}
 }
 
-// backdropLayer paints a full-canvas rectangle in the theme Surface colour.
+// backdropLayer is the window's ground: the Background pin, which ADR-021 R1
+// gives to the expanse a window exists to show. It is the shared mechanism
+// the other workbench windows already call, not a fill of this app's own.
+//
+// It was c.Surface until AK6.4, and every region above it inherited that:
+// patterns/tabs painted strip and panel alike in Surface, so the guide
+// document — the whole point of this window — was read on furniture, the
+// outline rail beside it stood level with what it indexes, and a fenced code
+// block at neutral 200 was the page's own colour and had no step to stand on.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
 		return t.Color
 	})
 	return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
-		fill := c.Surface
-		return func(gtx layout.Context) layout.Dimensions {
-			size := gtx.Constraints.Max
-			paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
-			return layout.Dimensions{Size: size}
-		}
+		return backdrop.Widget(c.Background)
 	})
 }
 
@@ -300,11 +331,14 @@ func tabbedShellLayer(
 var contentGap = unit.Dp(tokens.Spacing.S4)
 
 // contentSlot is the tab shell's content slot: a tab's content, pushed
-// down by contentGap. The gap exposes the strip's own Surface fill (the
-// tabs pattern paints the whole panel Surface before the content draws
-// over it), so the active tab's Primary underline has quiet ground on
-// both sides and reads as a line rather than as the top edge of whatever
-// begins below it.
+// down by contentGap. The gap exposes the panel's own ground — the window
+// paper, since patterns/tabs fills its panel at the caller's ground and this
+// app takes the default — so the active tab's Primary underline has quiet
+// ground on both sides and reads as a line rather than as the top edge of
+// whatever begins below it. Until AK6.4 that band was the strip's Surface,
+// because the pattern painted one fill across strip and panel alike; the gap
+// does the same work either way, and now the strip's lower edge is a rung
+// change as well as an underline.
 //
 // The gap lives here, in the shell, rather than in the one tab that first
 // showed the defect. The collision is structural, not a property of the

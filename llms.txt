@@ -733,8 +733,11 @@ them backwards. Three kinds of area, three rungs:
   - RUNGS WALK FROM THE LOCAL GROUND, not from the window. A card on the
     content ground is level 1 over level 0; a control inside a dialog walks
     from level 2, which is what the Ground prop exists to say. An inset
-    inside a body — a code fence, a quote block, a callout — steps UP from
-    the paper it lies on rather than reaching for an absolute step. Level 0
+    inside a body that is FILLED — a code fence, a callout with a surface —
+    steps UP from the paper it lies on rather than reaching for an absolute
+    step. An inset that is MARKED instead — a blockquote's bar and muted
+    ink, a rule — stands off its page by contrast, owes no rung and gets
+    none; the ladder is for fills. Level 0
     answers differently, because the Background pin is off the ramp and has
     no step to walk from: draw a raised thing on the content ground as a
     level-1 surface, and start its state walk from level 1's step. And a

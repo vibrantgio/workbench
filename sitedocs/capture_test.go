@@ -1,8 +1,6 @@
 package main
 
 import (
-	"image"
-	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -10,7 +8,6 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
-	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -33,23 +30,14 @@ func TestWriteTabReviewCaptures(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	typo := tokens.DefaultTypography
 	st := outlineState{open: map[int]bool{0: true}, selected: guideOutline(markdown.Parse(src))[0].Block}
-	size := image.Pt(1200, 800)
-	schemes := []struct {
-		name   string
-		colors tokens.ColorTokens
-		bg     color.NRGBA
-	}{
-		{"light", tokens.DefaultLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-		{"dark", tokens.DefaultDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
-	}
-	for _, tc := range schemes {
-		// staticTabs puts every cell's content in the shell's own
-		// contentSlot: the camera has to photograph the same gap under the
-		// strip that the app draws.
-		props := tabs.Props{Tabs: staticTabs(shaper, src, st, tc.colors, typo), Shaper: shaper}
+	for _, tc := range windowSchemes {
 		for i, tabName := range tabPages {
-			w := tabs.Render(shaper, props, i, tc.colors, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
-			img := golden.Capture(t, size, scene(w, tc.bg))
+			// windowFrame is the whole composition — the backdrop, the
+			// title-bar band, and the shell with every cell's content in
+			// the app's own contentSlot — so the camera photographs the
+			// window rather than one layer of it.
+			w := windowFrame(shaper, src, st, tc.c, typo, i, titleBandDp)
+			img := golden.Capture(t, windowSize, w)
 			path := filepath.Join(dir, tabName+"-tab-review-"+tc.name+".png")
 			f, err := os.Create(path)
 			if err != nil {

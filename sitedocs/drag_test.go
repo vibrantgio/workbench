@@ -10,7 +10,14 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
+
+	"github.com/vibrantgio/theme/tokens"
 )
+
+// bandFill is the fill these drag tests hand the strip. They are about which
+// presses the band claims and not about what it is painted in, so they name
+// the same rung the app does rather than a colour of their own.
+var bandFill = tokens.DefaultLight.SurfaceAt(tokens.Level1)
 
 // TestDragUnderStripClaimsTheWindowDrag is AK6.2's guard: before this task
 // neither this app nor the strip desktop.InsetTop pads carried a
@@ -31,7 +38,7 @@ func TestDragUnderStripClaimsTheWindowDrag(t *testing.T) {
 	page := func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
-	w := dragUnderStrip(func() unit.Dp { return stripH }, page)
+	w := dragUnderStrip(func() unit.Dp { return stripH }, bandFill, page)
 
 	var ops op.Ops
 	gtx := layout.Context{
@@ -79,7 +86,7 @@ func TestDragUnderStripIsANoOpWithNoStrip(t *testing.T) {
 	page := func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
-	w := dragUnderStrip(func() unit.Dp { return 0 }, page)
+	w := dragUnderStrip(func() unit.Dp { return 0 }, bandFill, page)
 
 	var ops op.Ops
 	gtx := layout.Context{

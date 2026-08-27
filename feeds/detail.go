@@ -142,18 +142,14 @@ func drawDetail(
 	return layout.Dimensions{Size: size}
 }
 
-// drawTabPanelGround puts the reading surface back on the window ground.
-// patterns/tabs fills its whole rect — strip AND panel — with the semantic
-// Surface, which is the right rung for the strip and the wrong one for what
-// the strip is a handle on: the panel under it is where the article is read,
-// so ADR-021 R1 puts it at level 0. Each tab's content closure paints it,
-// because the panel rect is the only place inside the pattern's canvas an
-// app is handed. What is left of the pattern's fill is the strip band, one
-// rung above the reading surface it caps — a toolbar, which is what R2 says
-// chrome furniture wears.
-func drawTabPanelGround(gtx layout.Context, tok themeTokens, size image.Point) {
-	paint.FillShape(gtx.Ops, tok.col.SurfaceAt(tokens.Level0), clip.Rect{Max: size}.Op())
-}
+// The tab panel needs no ground of its own. AK6.3 painted level 0 back over
+// the panel rect from inside each tab's content closure, because
+// patterns/tabs then filled its whole rect — strip AND panel — with the
+// semantic Surface, and the panel is where the article is read. AK6.4 gave
+// the pattern the ground as a prop instead (tabs.Props.Ground, zero value
+// level 0), so the panel arrives on the window paper and the strip band one
+// rung over it without this app saying anything. The workaround was removed
+// with the frame unchanged to the pixel.
 
 // readerTab renders the article body paragraph-wrapped in the theme's
 // BodyMedium role. The closure is static (tabs captures it once) and reads
@@ -177,7 +173,6 @@ func bodyTab(loadTokens func() themeTokens, loadArticle func() detailArticle, pi
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		tok := loadTokens()
-		drawTabPanelGround(gtx, tok, size)
 		sel := loadArticle()
 		if !sel.ok {
 			return layout.Dimensions{Size: size}
@@ -196,7 +191,6 @@ func commentsTab(loadTokens func() themeTokens) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		tok := loadTokens()
-		drawTabPanelGround(gtx, tok, size)
 		layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			children := make([]layout.FlexChild, 0, 2*len(comments))
 			for _, c := range comments {

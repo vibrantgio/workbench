@@ -19,7 +19,7 @@ import (
 var shellCanvasSize = image.Pt(windowW, windowH)
 
 // TestStripUnderlineKeepsItsOwnLine is the AG1.1 guard: whatever a tab
-// draws, the shell's content slot leaves a band of bare Surface between
+// draws, the shell's content slot leaves a band of bare panel ground between
 // the strip's Primary underline and the content's first row, so the
 // underline reads as a line rather than as the top edge of the content.
 // The old Gallery tab was the case that reported the defect — the
@@ -27,10 +27,19 @@ var shellCanvasSize = image.Pt(windowW, windowH)
 // underline's own colour — but the slot is shared, so all five tabs are
 // checked.
 //
-// The expected colour is sampled from the strip itself rather than named
-// from the token set: the capture round-trips through the GPU, and a
-// sampled reference makes the assertion about "the same colour the strip
-// is" instead of about colour-space arithmetic.
+// Both reference colours are sampled rather than named from the token set:
+// the capture round-trips through the GPU, and a sampled reference makes the
+// assertions about "the colour the strip is" and "the colour the panel is"
+// instead of about colour-space arithmetic. The panel's reference comes from
+// a frame rendered with no tab selected at all, so it is bare pattern fill
+// and nothing else — a reference taken from the gap band itself would be
+// satisfied by any content that filled the band uniformly, which is exactly
+// the full-width banner this test exists to catch.
+//
+// Since AK6.4 those two references are different colours: patterns/tabs
+// fills its panel at the caller's ground (this app takes the default, the
+// window paper) and its strip one rung over that, so the gap band is the
+// page rather than the strip's own fill. The test says so.
 func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	typo := tokens.DefaultTypography
@@ -45,6 +54,11 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 	stripH := int(tokens.Comfortable.ControlHeight)
 	gap := int(tokens.Spacing.S4)
 
+	sample := func(img *image.RGBA, x, y int) [3]uint8 {
+		off := img.PixOffset(x, y)
+		return [3]uint8{img.Pix[off], img.Pix[off+1], img.Pix[off+2]}
+	}
+
 	schemes := []struct {
 		name   string
 		colors tokens.ColorTokens
@@ -53,24 +67,32 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 		{"dark", tokens.DefaultDark},
 	}
 	for _, sc := range schemes {
+		render := func(selected int) *image.RGBA {
+			props := tabs.Props{Tabs: staticTabs(shaper, source, st, sc.colors, typo), Shaper: shaper}
+			w := tabs.Render(shaper, props, selected, sc.colors, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
+			return golden.Capture(t, shellCanvasSize, w)
+		}
+
+		// An out-of-range selection draws no content, so the whole panel is
+		// the pattern's own ground and the strip carries no underline.
+		bare := render(-1)
+		// Right of the last tab cell the strip is bare band.
+		strip := sample(bare, shellCanvasSize.X-1, stripH/2)
+		ground := sample(bare, shellCanvasSize.X-1, stripH+gap/2)
+		if strip == ground {
+			t.Fatalf("%s: strip and panel are both %v — the strip owes the page it caps one rung (ADR-021 R2)", sc.name, strip)
+		}
+
 		for i, tabName := range tabPages {
 			t.Run(sc.name+"/"+tabName, func(t *testing.T) {
-				props := tabs.Props{Tabs: staticTabs(shaper, source, st, sc.colors, typo), Shaper: shaper}
-				w := tabs.Render(shaper, props, i, sc.colors, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
-				img := golden.Capture(t, shellCanvasSize, w)
-
-				at := func(x, y int) [3]uint8 {
-					off := img.PixOffset(x, y)
-					return [3]uint8{img.Pix[off], img.Pix[off+1], img.Pix[off+2]}
-				}
-				// Right of the last tab cell the strip is bare Surface.
-				surface := at(shellCanvasSize.X-1, stripH/2)
+				img := render(i)
+				at := func(x, y int) [3]uint8 { return sample(img, x, y) }
 
 				// The underline must exist: the selected cell's bottom row
-				// carries a colour the surface does not.
+				// carries a colour the strip does not.
 				underlined := false
 				for x := 0; x < shellCanvasSize.X; x++ {
-					if at(x, stripH-1) != surface {
+					if at(x, stripH-1) != strip {
 						underlined = true
 						break
 					}
@@ -79,12 +101,12 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 					t.Fatalf("no underline on row %d — the seam test is not looking at the strip", stripH-1)
 				}
 
-				// And the gap band below it must be nothing but Surface.
+				// And the gap band below it must be nothing but the page.
 				for y := stripH; y < stripH+gap; y++ {
 					for x := 0; x < shellCanvasSize.X; x++ {
-						if got := at(x, y); got != surface {
-							t.Fatalf("content reaches into the strip gap at (%d,%d): got %v, want the strip's %v",
-								x, y, got, surface)
+						if got := at(x, y); got != ground {
+							t.Fatalf("content reaches into the strip gap at (%d,%d): got %v, want the panel's %v",
+								x, y, got, ground)
 						}
 					}
 				}
