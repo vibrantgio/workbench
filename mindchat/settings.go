@@ -409,12 +409,17 @@ func templateBar(gtx layout.Context, t settingsThemed, tplClicks []*widget.Click
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				sz := image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Max.Y)
 				pointer.CursorPointer.Add(gtx.Ops)
-				fill := p.BotBubble
+				// A chip inside the dialog walks its rung from the dialog's
+				// surface, not from the window: it rests flush on that
+				// surface and reveals itself with the surface's own one-step
+				// hover. Reaching for the transcript's chip rung here would
+				// measure from a ground this chip is nowhere near.
+				fill := p.ModalChip
 				if click.Hovered() {
-					fill = p.RowHovered
+					fill = p.ModalChipHovered
 				}
 				FillRect(gtx, image.Rectangle{Max: sz}, sz.Y/2, fill)
-				textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), image.Rectangle{Max: sz}, 0.5, 0.5, p.BotText, ProviderTemplates[index].Name)
+				textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), image.Rectangle{Max: sz}, 0.5, 0.5, p.ChipText, ProviderTemplates[index].Name)
 				return layout.Dimensions{Size: sz}
 			})
 		}))
@@ -524,15 +529,17 @@ func dropChip(t settingsThemed, s SettingsState, click *widget.Clickable) layout
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			size := gtx.Constraints.Max
 			pointer.CursorPointer.Add(gtx.Ops)
-			fill := p.BotBubble
+			// Flush on the dialog surface, revealed by that surface's own
+			// hover walk — the same reading as the template chips above.
+			fill := p.ModalChip
 			if click.Hovered() || open {
-				fill = p.RowHovered
+				fill = p.ModalChipHovered
 			}
 			FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(6), fill)
 			chevW := gtx.Dp(12)
 			r := image.Rect(gtx.Dp(10), 0, size.X-chevW-gtx.Dp(10), size.Y)
-			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), r, 0, 0.5, p.BotText, label)
-			ChevronDown(gtx, image.Rect(size.X-chevW-gtx.Dp(6), (size.Y-chevW/2)/2, size.X-gtx.Dp(6), (size.Y+chevW/2)/2), p.BotText)
+			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), r, 0, 0.5, p.ChipText, label)
+			ChevronDown(gtx, image.Rect(size.X-chevW-gtx.Dp(6), (size.Y-chevW/2)/2, size.X-gtx.Dp(6), (size.Y+chevW/2)/2), p.ChipText)
 			return layout.Dimensions{Size: size}
 		})
 	}

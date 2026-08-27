@@ -16,8 +16,17 @@ import (
 // from tokens.ColorTokens on every theme emission. Because the theme
 // window feeds a live OS theme, an OS light/dark switch re-emits the tokens
 // and restyles the whole app with no imperative wiring.
+//
+// The rungs the roles resolve to are the window grammar's, not this app's
+// invention: the transcript is the window's CONTENT GROUND and fills at
+// level 0, the Background pin; the conversation list is CHROME FURNITURE and
+// stands one rung up at level 1; levels 2 and 3 are kept for what appears
+// and leaves — the settings dialog, the model menu, the undo bar — and for
+// edges. A raised thing walks its rung from the surface it is lying on, so a
+// chip on the transcript ground is level 1 while a chip inside the level-2
+// settings dialog is measured from level 2.
 type Palette struct {
-	Sidebar     color.NRGBA // conversation-list surface
+	Sidebar     color.NRGBA // conversation-list surface — chrome furniture, level 1
 	Separator   color.NRGBA // sidebar header underline
 	Heading     color.NRGBA // sidebar heading text
 	Row         color.NRGBA // chat-row text
@@ -25,13 +34,32 @@ type Palette struct {
 	RowSelected color.NRGBA // selected chat-row fill
 	RowHovered  color.NRGBA // hovered chat-row fill (over Sidebar)
 	Accent      color.NRGBA // selected-row accent bar
-	UserBubble  color.NRGBA // user message fill
-	UserText    color.NRGBA // user message text
-	BotBubble   color.NRGBA // assistant message fill
-	BotText     color.NRGBA // assistant message text
-	Icon        color.NRGBA // assistant avatar glyph
-	Error       color.NRGBA // settings fetch-error text
-	Ok          color.NRGBA // settings key-check success icon
+	// Ground is the transcript's resting fill — the header band, the
+	// assistant's turns and the space around them. It is the Background pin,
+	// level 0: the transcript is the thing the window exists to show, so it
+	// is the paper everything else in the pane is measured from, and the
+	// window reads lightest in the middle in the light scheme and darkest in
+	// the middle in the dark one.
+	Ground     color.NRGBA
+	UserBubble color.NRGBA // user message fill — a Primary turn, not a rung
+	UserText   color.NRGBA // user message text
+	BotText    color.NRGBA // assistant message text — the ink pinned to Ground
+	// Chip is the header model picker's fill: an interactive region on the
+	// level-0 ground, which the ladder says to draw as a level-1 surface
+	// because the Background pin is off-ramp and has no step to walk from.
+	// ChipHovered is that surface's own one-rung state walk.
+	Chip        color.NRGBA
+	ChipHovered color.NRGBA
+	ChipText    color.NRGBA // chip label and chevron over a raised chip
+	// ModalChip is a chip inside the settings dialog. Its ground is the
+	// dialog's level-2 surface, so it rests flush on it and reveals itself
+	// with that surface's own state walk rather than reaching for a rung the
+	// transcript's chips use.
+	ModalChip        color.NRGBA
+	ModalChipHovered color.NRGBA
+	Icon             color.NRGBA // assistant avatar glyph
+	Error            color.NRGBA // settings fetch-error text
+	Ok               color.NRGBA // settings key-check success icon
 }
 
 func PaletteFrom(c tokens.ColorTokens) Palette {
@@ -48,12 +76,21 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		RowSelected: c.Ramps.Neutral.Step(300),
 		RowHovered:  hover,
 		Accent:      c.Primary,
+		Ground:      c.SurfaceAt(tokens.Level0),
 		UserBubble:  c.Primary,
 		UserText:    c.OnPrimary,
-		BotBubble:   c.Ramps.Neutral.Step(300),
-		BotText:     c.Ramps.Neutral.Step(900),
-		Icon:        c.Primary,
-		Error:       c.Error,
+		// The ink over the Background pin is the Text pin, not the neutral
+		// ramp's far end: a ground that is off-ramp takes the ink pinned to
+		// it. The two coincide in the shipped schemes and need not in a
+		// brand's.
+		BotText:          c.Text,
+		Chip:             c.SurfaceAt(tokens.Level1),
+		ChipHovered:      c.StateColor(tokens.RoleNeutral, tokens.Elevation.SurfaceStep(tokens.Level1), tokens.StateHover),
+		ChipText:         c.Ramps.Neutral.Step(900),
+		ModalChip:        c.SurfaceAt(tokens.Level2),
+		ModalChipHovered: c.StateColor(tokens.RoleNeutral, tokens.Elevation.SurfaceStep(tokens.Level2), tokens.StateHover),
+		Icon:             c.Primary,
+		Error:            c.Error,
 		// The token set has no green family; Tailwind green 600 is legible
 		// on both schemes' surfaces.
 		Ok: color.NRGBA{0x16, 0xa3, 0x4a, 0xff},

@@ -107,10 +107,27 @@ var (
 // and CodeSize are still re-resolved from the theme's Code role (the F1.4
 // caller-side wiring), which keeps code spans and fences in chat bodies
 // explicit about rendering in the theme's mono face at its size.
+//
+// The insets a reply can grow — a fenced block, an inline code chip — keep
+// FromTokens' grounds, and that is this app's choice and not an accident of
+// inheriting a default: a message body is read on the transcript's paper,
+// FromTokens puts Paper at the Background pin and the code grounds one
+// neutral step off it, and one step off the local paper is exactly the rung
+// a raised inset takes. It reads as raised in both schemes because the ramps
+// are paired — darker than the page on paper, lighter than it on slate.
+// TestCodeInsetsStepUpFromTheTranscriptGround holds the app to it.
+//
+// Wearing a chroma base (highlight.Wear) would hand the fence the base
+// author's own background instead, and a plate fitted to white paper puts a
+// ground LIGHTER than this light scheme's page under the block — a step in
+// the wrong direction. So the chroma style is taken for its inks only
+// (highlight.New), matched to the appearance the ground reports.
 func messageMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
 	md := markdown.FromTokens(c, typ)
 	md.Mono = font.Typeface(typ.Code.Typeface)
 	md.CodeSize = unit.Sp(typ.Code.Size)
+	// The appearance is read off the Background pin, which is the ground the
+	// transcript — and so every fence in it — actually rests on.
 	if isDarkColor(c.Background) {
 		md.Highlight = mdHighlightDark
 	} else {
@@ -476,13 +493,29 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Wid
 		layout.Flex{Axis: layout.Vertical, Spacing: layout.SpaceBetween, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				// The chip itself is overlaid below; the header row only
-				// reserves the space and draws its separator.
+				// reserves the space, paints its ground and draws its
+				// separator.
+				//
+				// The band wears the transcript's ground rather than the
+				// chrome rung. A strip that caps a region belongs to the
+				// region under it — the same reading that says a window's
+				// titlebar is the ground of what it caps — and this one caps
+				// the transcript, which is content. Raising it to the
+				// sidebar's rung would run a second storey of furniture
+				// across the top of the content region and leave the pane
+				// reading as three stripes once the titlebar is painted. So
+				// the band is paper, the model chip is the one raised thing
+				// on it, and a divider hairline is what separates the band
+				// from the messages — an edge, which is what levels 2 and 3
+				// are for.
+				band := image.Rectangle{Max: image.Pt(gtx.Constraints.Max.X, headerH)}
+				FillRect(gtx, band, 0, t.palette.Ground)
 				sep := image.Rectangle{
 					Min: image.Pt(gtx.Dp(12), headerH-gtx.Dp(1)),
 					Max: image.Pt(gtx.Constraints.Max.X-gtx.Dp(12), headerH),
 				}
 				FillRect(gtx, sep, 0, t.palette.Separator)
-				return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, headerH)}
+				return layout.Dimensions{Size: band.Max}
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return list.LayoutScrollbar(gtx, hist, t.bar, list.Occupy, chat,
@@ -508,20 +541,28 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Wid
 	}
 }
 
-// MessageRow renders one history entry: a full-width bubble with the body
+// MessageRow renders one history entry: a full-width row with the body
 // indented past the avatar column, and the assistant avatar on its (and
 // error notices') rows. User and assistant bodies lay out their markdown
-// Document — inline styles and code fences, links live — in the bubble's
-// text colours; error rows read as plain labels in the error colour,
-// transient status rows ("Searching the web…") in the heading colour. An
-// answer's citations arrive inside the Document (messageSource).
+// Document — inline styles and code fences, links live — in the row's text
+// colours; error rows read as plain labels in the error colour, transient
+// status rows ("Searching the web…") in the heading colour. An answer's
+// citations arrive inside the Document (messageSource).
+//
+// Only the user's own turn carries a fill. Everything else rests on the
+// transcript's ground — the Background pin — because the transcript is what
+// this window exists to show and a resting expanse of it may not be filled
+// at a rung the ladder keeps for things that appear and leave. The row
+// paints that ground itself rather than letting the backdrop show through,
+// so a raised inset inside a reply (a code fence) has a stated paper to step
+// up from wherever the row is composed.
 func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 	msg := row.Msg
 	p := t.palette
 	st := t.typ.BodyLarge
 
 	isUser := msg.Role == RoleUser
-	fill, textColor := p.BotBubble, p.BotText
+	fill, textColor := p.Ground, p.BotText
 	switch msg.Role {
 	case RoleUser:
 		fill, textColor = p.UserBubble, p.UserText
@@ -551,7 +592,7 @@ func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 			}
 			gtx.Constraints.Min = image.Point{}
 			dims = row.Doc.LayoutColumn(gtx, t.shaper, md)
-			// The bubble spans the full row width regardless of the
+			// The row spans the full pane width regardless of the
 			// column's natural content width.
 			dims.Size.X = gtx.Constraints.Max.X
 		} else {

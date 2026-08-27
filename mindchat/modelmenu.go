@@ -132,15 +132,20 @@ func menuChip(t menuThemed, m Model, click *widget.Clickable) layout.Widget {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			size := gtx.Constraints.Max
 			pointer.CursorPointer.Add(gtx.Ops)
-			fill := p.BotBubble
+			// The chip is the one raised thing on the header band, so it
+			// takes one rung over the band's own ground and its hover is
+			// that rung's own step walk. Both directions follow the paired
+			// ramps: on paper the chip is darker than the band and darker
+			// again under the pointer, on slate lighter each time.
+			fill := p.Chip
 			if click.Hovered() || open {
-				fill = p.RowHovered
+				fill = p.ChipHovered
 			}
 			FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(ChipRadius), fill)
 			chevW := gtx.Dp(12)
 			r := image.Rect(gtx.Dp(12), 0, size.X-chevW-gtx.Dp(12), size.Y)
-			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), r, 0.5, 0.5, p.BotText, label)
-			ChevronDown(gtx, image.Rect(size.X-chevW-gtx.Dp(8), (size.Y-chevW/2)/2, size.X-gtx.Dp(8), (size.Y+chevW/2)/2), p.BotText)
+			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), r, 0.5, 0.5, p.ChipText, label)
+			ChevronDown(gtx, image.Rect(size.X-chevW-gtx.Dp(8), (size.Y-chevW/2)/2, size.X-gtx.Dp(8), (size.Y+chevW/2)/2), p.ChipText)
 			return layout.Dimensions{Size: size}
 		})
 	}
