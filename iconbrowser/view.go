@@ -137,7 +137,7 @@ func Page(t themed, search layout.Widget, model Model, grid *layout.List) layout
 	names := FilterMarks(model.Query)
 	gridWidget := Grid(t, visible, model.Query, grid)
 	markWidget := MarkGrid(t, names)
-	marksHeading := Heading(t, MarksHeading, MarkSizeNote())
+	marksHeading := Heading(t, MarksHeading, MarkSizeNote(names))
 	catalogueHeading := Heading(t, CatalogueHeading, fmt.Sprintf("%d icons", len(visible)))
 	sides := layout.Inset{Left: Padding, Right: Padding}
 	return func(gtx layout.Context) layout.Dimensions {
