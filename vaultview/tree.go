@@ -269,6 +269,15 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 	field := input.TextField(th, input.TextFieldProps{
 		Placeholder: "Find a note…",
 		Description: "filter notes by name",
+		// The field stands on the rail's rounded Surface pane, not on the
+		// window ground behind it — the pane covers that. Level 1 is what
+		// Surface is, and saying so is what makes the field's resting edge
+		// and its focus ring both derive against the thing they are drawn
+		// on. It changes no pixel today: the neutral and primary ramps
+		// answer the same rungs for the window ground and the first storey.
+		// The declaration is the point — the next rail that raises itself
+		// gets the right edge without anyone remembering this line.
+		Ground: tokens.Level1,
 		OnChange: func(gtx layout.Context, text string) {
 			mvu.MessageOp{Message: SetFilter{Text: text}}.Add(gtx.Ops)
 		},

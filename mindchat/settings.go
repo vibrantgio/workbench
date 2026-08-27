@@ -204,13 +204,21 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	save := func(gtx layout.Context) {
 		mvu.MessageOp{Message: SaveSettings{}}.Add(gtx.Ops)
 	}
+	// Both actions sit in the dialog's footer, on its level-2 fill — the
+	// same storey the fields above them already name. Filled buttons paint
+	// their own ground and ring against it, so this moves nothing today; it
+	// is here so the ground travels with the widget rather than with the
+	// register it happens to wear, and a quieter action added to this footer
+	// later derives against the dialog instead of against the window.
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
+		Ground:    tokens.Level2,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
 	})
 	saveObs := button.Button(th, button.Props{
 		Label:     "Save",
+		Ground:    tokens.Level2,
 		Clickable: &saveClick,
 		OnClick:   save,
 	})

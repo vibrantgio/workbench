@@ -404,13 +404,18 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 			mvu.MessageOp{Message: RenameChat{To: name}}.Add(gtx.Ops)
 		}
 	}
+	// The rename dialog's footer stands on its level-2 fill, like the field
+	// above it. Filled buttons ring against their own ground, so nothing
+	// moves; the declaration keeps the storey with the widget.
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
+		Ground:    tokens.Level2,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
 	})
 	submitObs := button.Button(th, button.Props{
 		Label:     "Rename",
+		Ground:    tokens.Level2,
 		Clickable: &submitClick,
 		OnClick:   rename,
 	})
