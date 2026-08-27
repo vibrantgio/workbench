@@ -163,10 +163,10 @@ func feedsSidebar(
 // window's top edge and the platform's three control buttons stand in its
 // top-leading corner. The fill therefore runs the whole column, band
 // included — the band wears the ground of the region it caps, which here is
-// the sidebar's Surface — and only the accordion starts below it. Before the
-// treatment the first section's header sat at the very corner, exactly where
-// the buttons land, which is the collision the window audit read off this
-// window.
+// the sidebar's own floor — and only the accordion starts below it. Before
+// the treatment the first section's header sat at the very corner, exactly
+// where the buttons land, which is the collision the window audit read off
+// this window.
 //
 // Nothing is drawn in the band on this side. The window's name is already the
 // navbar's brand on the other side of the seam, and a second copy of it under
@@ -180,11 +180,21 @@ func drawFeedsSidebar(
 	w := gtx.Dp(unit.Dp(feedsSidebarWidthDp))
 	h := gtx.Constraints.Max.Y
 	size := image.Pt(w, h)
-	// ADR-021 R2: the sidebar is chrome furniture, so it stands exactly one
-	// rung above the content it frames — the semantic Surface over the
-	// window's Background ground. The token never moved; what moved is the
-	// ground under it, which used to be Surface as well.
-	paint.FillShape(gtx.Ops, colors.Surface, clip.Rect{Max: size}.Op())
+	// ADR-022 V2: the sidebar is chrome furniture, so it is the window's
+	// FLOOR — one step UNDER the paper it frames, toward the scheme's dark
+	// extreme, in both schemes. A sidebar is the desk the document lies on,
+	// not a storey stacked over it.
+	//
+	// It filled colors.Surface until AU2.2, and Surface is a ramp ALIAS
+	// rather than a storey: neutral 200, which happens to be the light
+	// scheme's floor and is the dark scheme's RAISED rung. That did not just
+	// state the wrong direction — it split this one column in two, because
+	// patterns/accordion had already dropped to the floor and covers
+	// everything below the band. On slate the band read #222222 over a
+	// #0C0C0C accordion, a visible step across the sidebar's own top edge
+	// that no golden of a component could see. On paper nothing moves: the
+	// floor is that same neutral 200.
+	paint.FillShape(gtx.Ops, colors.SurfaceAt(tokens.LevelFloor), clip.Rect{Max: size}.Op())
 	top := min(max(gtx.Dp(band), 0), h)
 	defer op.Offset(image.Pt(0, top)).Push(gtx.Ops).Pop()
 	gtx.Constraints = layout.Exact(image.Pt(w, h-top))
@@ -331,6 +341,15 @@ func drawFeedEntryRow(
 // neither open nor hovered. Selection wins over hover: a hovered open feed
 // keeps its tint, because the tint is the answer to "which one am I reading"
 // and the hover is only "the pointer is here".
+//
+// The hover is a STATE and a state is a walk from the surface it happens on,
+// which for these rows is the sidebar's floor. It named neutral 300 until
+// AU2.2 — an absolute ramp index, which answered the light scheme right by
+// accident (the floor's own hover step lands on that same #D4D4D4) and the
+// dark scheme wrong by a whole storey: #2E2E2E is the walk off the RAISED
+// rung, so a pointer over a #0C0C0C row jumped 15.6 L* instead of the
+// floor's own 9.9. Taken with StateAt it is one line that cannot drift when
+// the row's ground moves again.
 func drawFeedEntryPill(
 	gtx layout.Context,
 	tok themeTokens,
@@ -342,7 +361,7 @@ func drawFeedEntryPill(
 	case selected:
 		fill = tok.col.Ramps.Primary.Step(300)
 	case hovered:
-		fill = tok.col.Ramps.Neutral.Step(300)
+		fill = tok.col.StateAt(tokens.LevelFloor, tokens.StateHover)
 	default:
 		return
 	}

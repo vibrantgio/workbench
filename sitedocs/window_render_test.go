@@ -162,19 +162,34 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestWindowRegionsWearTheirRungs reads ADR-021's assignment off the frame:
-// the guide document — the thing this window exists to show — at level 0,
-// the furniture around it exactly one rung up, nothing resting at level 2.
+// TestWindowRegionsWearTheirRungs reads the surface grammar's assignment off
+// the frame: the guide document — the thing this window exists to show — on
+// the paper at level 0, the outline rail indexing it on the FLOOR under that
+// paper, the tab strip raised over the panel it caps, and nothing resting at
+// level 2.
+//
 // Before AK6.4 the window had no level-0 surface at all: the backdrop filled
 // it with Surface and patterns/tabs painted strip and panel alike in Surface
 // over that, so the document was read on furniture and the outline rail
-// beside it stood level with what it indexes.
+// beside it stood level with what it indexes. ADR-022 then moved the rail the
+// other way. It had been called furniture and given the storey ABOVE the
+// paper, and furniture is the desk the document lies on: on paper the fill
+// does not move (the floor is the same neutral 200 the rail already wore) and
+// on slate it drops from #222222 to #0C0C0C.
+//
+// The strip does not follow it, and the difference is the whole of what this
+// test is now worth reading for. A rail is chrome standing beside the
+// document; a tab strip is the panel's own control band, drawn one storey
+// over the panel it belongs to (patterns/tabs walks it from Props.Ground).
+// So this one window carries a region below the paper and a region above it,
+// and the two are named apart here rather than lumped as "furniture".
 func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, titleBandDp)
+			floor := tc.c.SurfaceAt(tokens.LevelFloor)
 			ground := tc.c.SurfaceAt(tokens.Level0)
-			furniture := tc.c.SurfaceAt(tokens.Level1)
+			raised := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
 
 			for _, r := range []struct {
@@ -184,11 +199,11 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 			}{
 				{"document plane", atDocument, ground},
 				{"strip gap", atStripGap, ground},
-				{"outline rail", atRail, furniture},
-				{"tab strip", atTabStrip, furniture},
+				{"outline rail", atRail, floor},
+				{"tab strip", atTabStrip, raised},
 				// R6: the band wears the fill of the region under it, which
 				// here is the tab strip rather than the document.
-				{"title band", atTitleBand, furniture},
+				{"title band", atTitleBand, raised},
 			} {
 				got := pixelAt(img, r.at)
 				if got != r.want {
@@ -201,6 +216,55 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestLightnessClimbsTowardTheViewer is ADR-022's own check taken along this
+// window's depth axis rather than across its plane: the outline rail is the
+// desk, the guide is the paper laid on it, the tab strip is the panel's band
+// raised over that paper, and a dialog would arrive over the lot. Walking
+// that order toward the reader, lightness may only increase — in the light
+// scheme AND in the dark one, which is why this needs no per-scheme clause.
+//
+// It is read off the rendered frame for the rail, the page and the strip,
+// because those three are painted by three different pieces of code (this
+// app, backdrop, and patterns/tabs) and the only place they can be seen
+// agreeing is a frame that has all three in it.
+func TestLightnessClimbsTowardTheViewer(t *testing.T) {
+	for _, tc := range windowSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderWindow(t, tc.c, titleBandDp)
+			toward := []struct {
+				name string
+				fill color.NRGBA
+			}{
+				{"the outline rail's floor", pixelAt(img, atRail)},
+				{"the guide's paper", pixelAt(img, atDocument)},
+				{"the tab strip's band", pixelAt(img, atTabStrip)},
+				{"a dialog's surface", tc.c.SurfaceAt(tokens.Level2)},
+			}
+			for i := 1; i < len(toward); i++ {
+				below, above := toward[i-1], toward[i]
+				if luma(above.fill) <= luma(below.fill) {
+					t.Errorf("%s (%v) is not lighter than %s (%v); walking toward the viewer never gets darker",
+						above.name, above.fill, below.name, below.fill)
+				}
+			}
+			// The composition corollary, stated as the picture it is: the
+			// furniture is this window's darkest region.
+			for _, other := range toward[1:] {
+				if luma(toward[0].fill) >= luma(other.fill) {
+					t.Errorf("the outline rail (%v) is not darker than %s (%v); a window's furniture is its darkest region",
+						toward[0].fill, other.name, other.fill)
+				}
+			}
+		})
+	}
+}
+
+// luma is the Rec. 601 brightness of a fill, the axis "lighter" and "darker"
+// are measured on above.
+func luma(c color.NRGBA) float32 {
+	return 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)
 }
 
 // TestTheBandAgreesWithTheStripItCaps is R6 stated as the agreement it

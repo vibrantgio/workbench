@@ -206,15 +206,22 @@ type Palette struct {
 func PaletteFrom(c tokens.ColorTokens) Palette {
 	return Palette{
 		Backdrop: c.Background,
-		Surface:  c.Ramps.Neutral.Step(200),
+		// The section headings' band: a filled strip lying on the page the
+		// section is printed on, which the ladder makes a RAISED storey and
+		// ADR-022 makes lighter than that page in both schemes. It named
+		// neutral 200 until AU2.2, and a ramp index is not a storey — on
+		// paper that step is #E8E8E8 UNDER a #F6F6F6 page, a resting band
+		// darker than what it lies on, which is the one arrangement V6
+		// forbids by inspection. The storey answers #F8F8F8 there and
+		// #222222 on slate, where nothing moves.
+		Surface:  c.SurfaceAt(tokens.Level1),
 		Divider:  c.Ramps.Neutral.Step(300),
 		CardEdge: c.Ramps.Neutral.Step(400),
 		// The heaviest edge, derived rather than named: the neutral rung the
 		// ramp measures as reaching the graphic floor against Surface — the
-		// level-1 storey this section's cards fill at, and the ground any
-		// edge in this palette is drawn on. Named at step 500 it meant two
-		// different weights, 2.35:1 there in the light scheme against 5.94:1
-		// in the dark, from a line that looks scheme-neutral.
+		// level-1 storey the headings above fill at. Named at step 500 it
+		// meant two different weights, 2.35:1 there in the light scheme
+		// against 5.94:1 in the dark, from a line that looks scheme-neutral.
 		Edge:     c.MarkOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level1), edgeFloor),
 		Text:     c.Text,
 		Muted:    c.Ramps.Neutral.Step(700),

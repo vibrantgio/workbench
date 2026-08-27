@@ -232,17 +232,33 @@ var (
 	atRestingPage = image.Pt(301, 766) // the page beside it, unchosen
 )
 
-// TestWindowRegionsWearTheirRungs reads ADR-021's assignment off the frame:
-// content at level 0, furniture exactly one rung up, nothing resting at
-// level 2. Before this task the window had no level-0 surface at all — the
-// backdrop filled it with Surface and every region drawn over it was Surface
-// too, so the sidebar and navbar stood zero rungs off the content they frame.
+// TestWindowRegionsWearTheirRungs reads the surface grammar's assignment off
+// the frame: content on the paper at level 0, the window's furniture on the
+// FLOOR under it, the reading pane's own tab strip raised over the panel it
+// caps, nothing resting at level 2.
+//
+// Before AK6.3 the window had no level-0 surface at all — the backdrop
+// filled it with Surface and every region drawn over it was Surface too, so
+// the sidebar and navbar stood zero rungs off the content they frame. They
+// were then given the storey ABOVE that content, and ADR-022 turns them the
+// other way: a sidebar and a navbar are the desk this window's articles lie
+// on, so they are its darkest regions in both schemes. On paper they do not
+// move (the floor is the same neutral 200 they already wore); on slate they
+// drop from #222222 to #0C0C0C.
+//
+// The tab strip does not follow them, and the split is worth naming. A
+// sidebar is chrome standing beside the document; a tab strip is the reading
+// pane's own control band, drawn one storey over the panel it belongs to
+// (patterns/tabs walks it from Props.Ground). This window therefore carries
+// regions on three storeys at rest, and "furniture" is no longer one word
+// for all of the fills that are not the page.
 func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
+			floor := tc.c.SurfaceAt(tokens.LevelFloor)
 			ground := tc.c.SurfaceAt(tokens.Level0)
-			furniture := tc.c.SurfaceAt(tokens.Level1)
+			raised := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
 
 			for _, r := range []struct {
@@ -254,9 +270,9 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 				{"article row", atListRow, ground},
 				{"reading pane", atReadingPane, ground},
 				{"reading pane header", atPaneHead, ground},
-				{"sidebar", atSidebar, furniture},
-				{"navbar", atNavbar, furniture},
-				{"tab strip", atTabStrip, furniture},
+				{"sidebar", atSidebar, floor},
+				{"navbar", atNavbar, floor},
+				{"tab strip", atTabStrip, raised},
 			} {
 				got := at(img, r.at.X, r.at.Y)
 				if got != r.want {
@@ -270,34 +286,61 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	}
 }
 
-// TestRungsNeverDecreaseWalkingOut is the grammar's own check, applied to
-// this window's resting fills: content, then the furniture around it, then
-// the surface a dialog would arrive on. Each step out is a step further from
-// the ground, which the paired ramps render as darker in the light scheme and
-// lighter in the dark one — one rule, both schemes.
-func TestRungsNeverDecreaseWalkingOut(t *testing.T) {
+// TestLightnessClimbsTowardTheViewer is ADR-022's own check, taken along this
+// window's depth axis rather than across its plane: the sidebar is the desk,
+// the reading pane is the paper laid on it, the tab strip is the pane's own
+// band raised over that paper, and a dialog arrives over the lot. Walking
+// that order toward the reader, lightness may only increase — in the light
+// scheme AND in the dark one.
+//
+// It replaces TestRungsNeverDecreaseWalkingOut, which walked OUT from the
+// middle of the window and needed a clause per scheme because ADR-021's
+// ladder mirrored: darker outward on paper, lighter outward on slate. The
+// linchpin abolished the mirror, and it abolished the axis too — a dialog is
+// out at the edge of nothing, it is simply nearer, and read along depth it
+// satisfies the rule instead of needing the exception R7 had to grow.
+//
+// Three of the four fills are read off the frame rather than off tokens,
+// because they are painted by three different pieces of code — patterns/
+// sidebar, this app's backdrop, and patterns/tabs — and a frame with all
+// three in it is the only place they can be seen agreeing.
+func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
-			out := []struct {
+			toward := []struct {
 				name string
 				fill color.NRGBA
 			}{
-				{"reading pane", at(img, atReadingPane.X, atReadingPane.Y)},
-				{"sidebar", at(img, atSidebar.X, atSidebar.Y)},
-				{"dialog surface", tc.c.SurfaceAt(tokens.Level2)},
+				{"the sidebar's floor", at(img, atSidebar.X, atSidebar.Y)},
+				{"the reading pane's paper", at(img, atReadingPane.X, atReadingPane.Y)},
+				{"the tab strip's band", at(img, atTabStrip.X, atTabStrip.Y)},
+				{"a dialog's surface", tc.c.SurfaceAt(tokens.Level2)},
 			}
-			dark := luma(tc.c.Background) < luma(tc.c.Ramps.Neutral.Step(500))
-			for i := 1; i < len(out); i++ {
-				in, next := out[i-1], out[i]
-				step := luma(next.fill) - luma(in.fill)
-				if dark && step <= 0 {
-					t.Errorf("%s (%v) is not lighter than %s (%v); on slate every rung out lightens",
-						next.name, next.fill, in.name, in.fill)
+			for i := 1; i < len(toward); i++ {
+				below, above := toward[i-1], toward[i]
+				if luma(above.fill) <= luma(below.fill) {
+					t.Errorf("%s (%v) is not lighter than %s (%v); walking toward the viewer never gets darker",
+						above.name, above.fill, below.name, below.fill)
 				}
-				if !dark && step >= 0 {
-					t.Errorf("%s (%v) is not darker than %s (%v); on paper every rung out darkens",
-						next.name, next.fill, in.name, in.fill)
+			}
+			// The composition corollary, stated as the picture it is: the
+			// furniture is this window's darkest region. The navbar is in it
+			// because this window's furniture is two regions on one storey,
+			// and a window that painted only one of them the floor would read
+			// as a step across its own top edge.
+			for _, furniture := range []struct {
+				name string
+				fill color.NRGBA
+			}{
+				{"sidebar", at(img, atSidebar.X, atSidebar.Y)},
+				{"navbar", at(img, atNavbar.X, atNavbar.Y)},
+			} {
+				for _, other := range toward[1:] {
+					if luma(furniture.fill) >= luma(other.fill) {
+						t.Errorf("the %s (%v) is not darker than %s (%v); a window's furniture is its darkest region",
+							furniture.name, furniture.fill, other.name, other.fill)
+					}
 				}
 			}
 		})
@@ -349,7 +392,7 @@ func TestChosenItemsCarryThePrimaryTint(t *testing.T) {
 			if rest == tint {
 				t.Errorf("an unchosen feed at %v is tinted %v; the mark says nothing if every row wears it", atRestingFeed, rest)
 			}
-			if want := tc.c.SurfaceAt(tokens.Level1); rest != want {
+			if want := tc.c.SurfaceAt(tokens.LevelFloor); rest != want {
 				t.Errorf("resting feed at %v = %v, want the sidebar's own ground %v", atRestingFeed, rest, want)
 			}
 			// The pager's resting cell says the same thing about the pager:
@@ -390,8 +433,12 @@ func TestFeedRowStatesKeepTheirInksApart(t *testing.T) {
 			}
 
 			tint := tc.c.Ramps.Primary.Step(300)
-			walk := tc.c.Ramps.Neutral.Step(300)
-			ground := tc.c.SurfaceAt(tokens.Level1)
+			// The walk is taken from the storey the rows stand on — the
+			// sidebar's floor — rather than named as a ramp index. On paper
+			// the two spell the same #D4D4D4; on slate the index was a step
+			// off the wrong storey entirely.
+			walk := tc.c.StateAt(tokens.LevelFloor, tokens.StateHover)
+			ground := tc.c.SurfaceAt(tokens.LevelFloor)
 
 			if got := fill(false, false); got != sentinel {
 				t.Errorf("a resting row painted %v; it must leave its region's own ground showing", got)
@@ -451,7 +498,7 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
-			surface := tc.c.SurfaceAt(tokens.Level1)
+			surface := tc.c.SurfaceAt(tokens.LevelFloor)
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
 					if got := at(img, x, y); got != surface {
@@ -482,15 +529,22 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 // Each half is measured off the frame, and neither is asked to agree with a
 // number written down in this test:
 //
-//   - The trailing half declares its own depth, because the navbar's Surface
-//     ends where the content region's ground begins. That edge must land
+//   - The trailing half declares its own depth, because the navbar's floor
+//     ends where the content region's paper begins. That edge must land
 //     exactly on the band, which is what proves this app's restatement of
 //     patterns/shell's navbar pin has not drifted from the pin itself.
 //   - The leading half declares nothing, because the sidebar's fill runs the
-//     whole column and the band is the same Surface as everything under it.
+//     whole column and the band is the same floor as everything under it.
 //     What can be seen there is where the sidebar starts drawing, which must
 //     be at or below the band's foot — the band is held open, and wears the
 //     sidebar's own ground while it is.
+//
+// Reading both halves off ONE storey is what would have caught the split
+// AU2.2 closed: until then this app painted its own column at the Surface
+// ALIAS while patterns/accordion had already dropped to the floor, so on
+// slate the leading half of the band stood a whole storey over the sidebar
+// beneath it. The scan below could not see it, because it looked for the
+// alias and the alias is what the band was wearing.
 //
 // Both densities are checked because the depth is the density's, not this
 // app's: a band that only ever met Comfortable would pass while hard-coding
@@ -508,7 +562,7 @@ func TestTheWindowsTopStripIsOneBand(t *testing.T) {
 			for i, dc := range densities {
 				img := renderWindowAt(t, tc.c, dc.d)
 				band := int(windowBandDp(dc.d))
-				surface := tc.c.SurfaceAt(tokens.Level1)
+				surface := tc.c.SurfaceAt(tokens.LevelFloor)
 
 				depth := -1
 				for y := 0; y < windowSize.Y; y++ {

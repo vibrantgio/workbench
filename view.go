@@ -231,17 +231,24 @@ func cardRow(cells []layout.Widget) layout.Widget {
 // the low-contrast blurb (ADR-007).
 //
 // The card is the pattern's default outlined variant, not its Elevated one,
-// and that is the rung rather than the trim: these eight cards are the page's
-// resting content, they lie on the window's own ground — the Background pin,
-// tokens.Level0 — and a thing resting on a plane fills one rung over it,
-// tokens.Level0.Raised(). The outlined variant is the card's level-1 form
-// (SurfaceAt(Level1), with ADR-007's strong 1 dp border); Elevated fills at
-// level 2, the rung the ladder keeps for surfaces that leave the plane
-// altogether. Passing it here put eight menus' worth of neutral 300 at rest on
-// the page, which is what made the grid read heavier than the window around
-// it. The border is not consolation for the lighter fill: one rung is a quiet
-// step, and the stroke is how the pattern keeps a card's edge legible across
-// it in both schemes.
+// and that is the storey rather than the trim: these eight cards are the
+// page's resting content, they lie on the window's own ground — the
+// Background pin, tokens.Level0 — and a thing resting on a plane fills one
+// storey over it, tokens.Level0.Raised(). The outlined variant is the card's
+// level-1 form (SurfaceAt(Level1), with ADR-007's strong 1 dp border);
+// Elevated fills at level 2, the storey the ladder keeps for surfaces that
+// leave the plane altogether. Passing it here put eight menus' worth of
+// neutral 300 at rest on the page, which is what made the grid read heavier
+// than the window around it.
+//
+// Since ADR-022 that storey goes toward the light rather than away from it,
+// in both schemes, and the border stops being trim and becomes the whole
+// answer on paper: level 1 there is #F8F8F8 on a #F6F6F6 page, a step the
+// fill can barely be said to take, so what says where a card ends is the
+// stroke the pattern derives against the fill. On slate the fill still
+// carries it, #222222 over #181818. One recipe, two schemes, and the light
+// one leaning on its edge is the cost the linchpin names rather than a
+// defect in this page.
 func appCard(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {
 	thObs := rx.Of(tok.components)
 

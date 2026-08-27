@@ -156,30 +156,52 @@ func inkSpan(img *image.RGBA, y int, ground color.NRGBA) (int, int) {
 }
 
 // rungTolerance is how far a pixel read back out of the frame may sit from the
-// token that was painted into it and still count as that rung. Gio blends in
-// linear space, so a flat fill does not always survive the round trip to 8-bit
-// sRGB exactly: in the dark scheme, at the bottom of the curve where the
+// token that was painted into it and still count as a storey at all. Gio blends
+// in linear space, so a flat fill does not always survive the round trip to
+// 8-bit sRGB exactly: in the dark scheme, at the bottom of the curve where the
 // quantisation is coarsest, a level-1 card comes back speckled a value or two
-// above its own token. The ladder's rungs are ten steps apart at their closest,
-// so this leaves no room for a pixel to be claimed by the wrong one.
+// above its own token.
+//
+// It is a membership test and nothing more, because since ADR-022 it cannot be
+// a discriminator as well. The ladder's storeys used to be ten steps apart at
+// their closest, so the first one within this distance was always the right
+// one; in the light scheme they are now whispers — the paper is #F6F6F6 and the
+// storey raised on it #F8F8F8, two levels — and a first-match walk hands every
+// card in this window to the page it is lying on. [nearestRung] takes the
+// CLOSEST storey instead, which is decidable at two levels apart and stays
+// decidable at ten.
 const rungTolerance = 4
 
-// nearestRung reports the elevation rung a rendered pixel sits on — the level
-// whose surface fill it is within rungTolerance of — and whether it is a
-// surface fill at all rather than ink drawn on one.
+// nearestRung reports the elevation storey a rendered pixel sits on — the one
+// whose surface fill it is closest to, if that fill is within rungTolerance —
+// and whether it is a surface fill at all rather than ink drawn on one.
+//
+// The floor is in the walk: since ADR-022 the ladder has five storeys and the
+// bottom one is where a window's furniture stands, so a classifier that knew
+// only the four above the paper would report a sidebar as no storey at all.
+// This window has no furniture, which is exactly why the walk should not be
+// written as if furniture did not exist.
 func nearestRung(c color.NRGBA, colors tokens.ColorTokens) (tokens.ElevationLevel, bool) {
-	for _, level := range []tokens.ElevationLevel{tokens.Level0, tokens.Level1, tokens.Level2, tokens.Level3} {
-		if withinRung(c, colors.SurfaceAt(level)) {
-			return level, true
+	best, dist := tokens.Level0, rungTolerance+1
+	for _, level := range []tokens.ElevationLevel{tokens.LevelFloor, tokens.Level0, tokens.Level1, tokens.Level2, tokens.Level3} {
+		if d := rungDistance(c, colors.SurfaceAt(level)); d < dist {
+			best, dist = level, d
 		}
 	}
-	return 0, false
+	return best, dist <= rungTolerance
 }
 
-func withinRung(a, b color.NRGBA) bool {
-	return channelDiff(a.R, b.R) <= rungTolerance &&
-		channelDiff(a.G, b.G) <= rungTolerance &&
-		channelDiff(a.B, b.B) <= rungTolerance
+// rungDistance is the largest per-channel gap between a rendered pixel and a
+// storey's token — the distance rungTolerance is stated in.
+func rungDistance(a, b color.NRGBA) int {
+	d := channelDiff(a.R, b.R)
+	if g := channelDiff(a.G, b.G); g > d {
+		d = g
+	}
+	if bl := channelDiff(a.B, b.B); bl > d {
+		d = bl
+	}
+	return d
 }
 
 func channelDiff(a, b uint8) int {
@@ -347,12 +369,22 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 	}
 }
 
-// TestTheCardsRestOneRungOverThePage is R4 in the small, read off the frame:
+// TestTheCardsRestOneRungOverThePage is V3 in the small, read off the frame:
 // the launcher's eight app cards lie on the window's own ground, and a thing
-// lying on a plane fills one rung over it. The rung is walked from that ground
-// — tokens.Level0.Raised() — rather than named as a step, so what is pinned
-// here is the grammar rather than a colour, and it is checked in both schemes
-// because one rung up darkens in the one and lightens in the other.
+// lying on a plane fills one storey over it. The storey is walked from that
+// ground — tokens.Level0.Raised() — rather than named as a step, so what is
+// pinned here is the grammar rather than a colour, and it is checked in both
+// schemes because since ADR-022 one storey up means LIGHTER in both and a
+// rule stated once has to hold twice.
+//
+// What the linchpin costs this window is worth naming here, because it is
+// what this test now has to survive: on paper the cards are #F8F8F8 on a
+// #F6F6F6 page, two levels, and the card's own border is the whole of what
+// says where a card is. On slate they are #222222 on #181818 and the fill
+// still carries it. Neither of those is a colour this test asserts — it asks
+// the ladder which storey it painted — but a frame that reads as a flat page
+// with eight outlines on it is the light scheme working as ruled, not a
+// regression.
 //
 // The arrangement this replaces is the audit's finding: the cards were built
 // Elevated, and that variant fills at level 2, the rung the ladder keeps for
