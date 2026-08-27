@@ -235,11 +235,24 @@ func cardRow(cells []layout.Widget) layout.Widget {
 	}
 }
 
-// appCard is one launchable app as an elevated patterns card: icon + name
-// header, blurb body, and a footer with the launch button and a status line.
-// The card and button are the theme-driven components, built from the
-// emission's static snapshot; text colours come off the Neutral ramp — 900
-// for the name, 700 for the low-contrast blurb (ADR-007).
+// appCard is one launchable app as a patterns card: icon + name header, blurb
+// body, and a footer with the launch button and a status line. The card and
+// button are the theme-driven components, built from the emission's static
+// snapshot; text colours come off the Neutral ramp — 900 for the name, 700 for
+// the low-contrast blurb (ADR-007).
+//
+// The card is the pattern's default outlined variant, not its Elevated one,
+// and that is the rung rather than the trim: these eight cards are the page's
+// resting content, they lie on the window's own ground — the Background pin,
+// tokens.Level0 — and a thing resting on a plane fills one rung over it,
+// tokens.Level0.Raised(). The outlined variant is the card's level-1 form
+// (SurfaceAt(Level1), with ADR-007's strong 1 dp border); Elevated fills at
+// level 2, the rung the ladder keeps for surfaces that leave the plane
+// altogether. Passing it here put eight menus' worth of neutral 300 at rest on
+// the page, which is what made the grid read heavier than the window around
+// it. The border is not consolation for the lighter fill: one rung is a quiet
+// step, and the stroke is how the pattern keeps a card's edge legible across
+// it in both schemes.
 func appCard(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {
 	thObs := rx.Of(tok.components)
 
@@ -265,7 +278,7 @@ func appCard(tok themed, app App, click *widget.Clickable, status Status) layout
 	}
 
 	// thObs is a static snapshot (rx.Of), so First() resolves synchronously.
-	inner, _ := card.Card(thObs, card.Props{Header: header, Body: body, Footer: footer, Elevated: true}).First()
+	inner, _ := card.Card(thObs, card.Props{Header: header, Body: body, Footer: footer}).First()
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(CardW), gtx.Dp(CardH)))
 		return inner(gtx)

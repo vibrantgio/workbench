@@ -139,6 +139,92 @@ func pixelAt(img *image.RGBA, p image.Point) color.NRGBA {
 	return color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0xff}
 }
 
+// inkSpan reports the first and last column of row y carrying a pixel that is
+// not the ground, or (-1, -1) for a row that is all ground.
+func inkSpan(img *image.RGBA, y int, ground color.NRGBA) (int, int) {
+	first, last := -1, -1
+	size := img.Bounds().Size()
+	for x := 0; x < size.X; x++ {
+		if pixelAt(img, image.Pt(x, y)) != ground {
+			if first < 0 {
+				first = x
+			}
+			last = x
+		}
+	}
+	return first, last
+}
+
+// rungTolerance is how far a pixel read back out of the frame may sit from the
+// token that was painted into it and still count as that rung. Gio blends in
+// linear space, so a flat fill does not always survive the round trip to 8-bit
+// sRGB exactly: in the dark scheme, at the bottom of the curve where the
+// quantisation is coarsest, a level-1 card comes back speckled a value or two
+// above its own token. The ladder's rungs are ten steps apart at their closest,
+// so this leaves no room for a pixel to be claimed by the wrong one.
+const rungTolerance = 4
+
+// nearestRung reports the elevation rung a rendered pixel sits on — the level
+// whose surface fill it is within rungTolerance of — and whether it is a
+// surface fill at all rather than ink drawn on one.
+func nearestRung(c color.NRGBA, colors tokens.ColorTokens) (tokens.ElevationLevel, bool) {
+	for _, level := range []tokens.ElevationLevel{tokens.Level0, tokens.Level1, tokens.Level2, tokens.Level3} {
+		if withinRung(c, colors.SurfaceAt(level)) {
+			return level, true
+		}
+	}
+	return 0, false
+}
+
+func withinRung(a, b color.NRGBA) bool {
+	return channelDiff(a.R, b.R) <= rungTolerance &&
+		channelDiff(a.G, b.G) <= rungTolerance &&
+		channelDiff(a.B, b.B) <= rungTolerance
+}
+
+func channelDiff(a, b uint8) int {
+	if a > b {
+		return int(a - b)
+	}
+	return int(b - a)
+}
+
+// cardRects measures the launcher's resting app cards off the frame instead of
+// recomputing the layout's arithmetic. The grid is the widest thing the page
+// draws — cardRow lays every row out at GridW whatever it holds, and the hero
+// above them is a fraction of that — so the frame rows carrying ink that wide
+// are card rows and nothing else. Each contiguous stretch of them is one row of
+// cards: it is shortened at top and bottom by the same corner radius, so the
+// stretch's midpoint is the cards' midpoint, and it runs a pixel wide at both
+// ends because the outlined card's 1 dp stroke straddles the edge it draws,
+// which is why the samples below are taken half an S4 inside the measured
+// leading edge rather than on it.
+func cardRects(t *testing.T, img *image.RGBA, ground color.NRGBA) []image.Rectangle {
+	t.Helper()
+	size := img.Bounds().Size()
+	var rects []image.Rectangle
+	for y := 0; y < size.Y; y++ {
+		first, last := inkSpan(img, y, ground)
+		if last-first+1 < int(GridW) {
+			continue
+		}
+		top := y
+		for y+1 < size.Y {
+			f, l := inkSpan(img, y+1, ground)
+			if l-f+1 < int(GridW) {
+				break
+			}
+			y++
+		}
+		mid := (top + y) / 2
+		for c := 0; c < perRow && len(rects) < len(Apps); c++ {
+			x := first + c*(int(CardW)+int(RowGap))
+			rects = append(rects, image.Rect(x, mid-int(CardH)/2, x+int(CardW), mid+int(CardH)/2))
+		}
+	}
+	return rects
+}
+
 // topmostInk reports the first row of the frame carrying a pixel that is not
 // the ground, and how many rows were scanned when there is none.
 func topmostInk(img *image.RGBA, ground color.NRGBA) int {
@@ -256,6 +342,78 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 			}
 			if top := topmostInk(img, ground); top <= bottom {
 				t.Errorf("the page's topmost ink is row %d and the buttons end at row %d; the page has no clearance under them", top, bottom)
+			}
+		})
+	}
+}
+
+// TestTheCardsRestOneRungOverThePage is R4 in the small, read off the frame:
+// the launcher's eight app cards lie on the window's own ground, and a thing
+// lying on a plane fills one rung over it. The rung is walked from that ground
+// — tokens.Level0.Raised() — rather than named as a step, so what is pinned
+// here is the grammar rather than a colour, and it is checked in both schemes
+// because one rung up darkens in the one and lightens in the other.
+//
+// The arrangement this replaces is the audit's finding: the cards were built
+// Elevated, and that variant fills at level 2, the rung the ladder keeps for
+// surfaces that leave the plane. Eight of those at rest is why the grid read
+// heavier than the window around it. Only a frame can say which rung was
+// painted — the goldens beside this file would have stored either one without
+// complaint, which is how the wrong one survived an audit that called these
+// cards level 1.
+func TestTheCardsRestOneRungOverThePage(t *testing.T) {
+	for _, tc := range windowSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderWindow(t, tc.colors, titleBandDp)
+			page := tokens.Level0
+			resting := page.Raised()
+			ground := tc.colors.SurfaceAt(page)
+			cards := cardRects(t, img, ground)
+			if len(cards) != len(Apps) {
+				t.Fatalf("measured %d cards in the frame, want one per app in the roster (%d)", len(cards), len(Apps))
+			}
+			for i, r := range cards {
+				at := image.Pt(r.Min.X+int(tokens.Spacing.S4)/2, (r.Min.Y+r.Max.Y)/2)
+				got := pixelAt(img, at)
+				switch level, ok := nearestRung(got, tc.colors); {
+				case !ok:
+					t.Errorf("card %d fills %v at %v, which is no rung of the ladder at all; a card resting on the page fills at %v",
+						i, got, at, tc.colors.SurfaceAt(resting))
+				case level != resting:
+					t.Errorf("card %d fills %v at %v — level %d; it rests on the level-%d page, so it fills one rung over it, at level %d (%v)",
+						i, got, at, level, page, resting, tc.colors.SurfaceAt(resting))
+				}
+
+				// One pixel is a spot check; the fill is the claim. Count the
+				// whole card, so a level-1 gutter around a level-2 body would
+				// fail here even though the sample above passed.
+				covered := map[tokens.ElevationLevel]int{}
+				for y := r.Min.Y; y < r.Max.Y; y++ {
+					for x := r.Min.X; x < r.Max.X; x++ {
+						if level, ok := nearestRung(pixelAt(img, image.Pt(x, y)), tc.colors); ok {
+							covered[level]++
+						}
+					}
+				}
+				widest, n := tokens.Level0, -1
+				for level, count := range covered {
+					if count > n || (count == n && level < widest) {
+						widest, n = level, count
+					}
+				}
+				if area := r.Dx() * r.Dy(); widest != resting || n*2 < area {
+					t.Errorf("card %d is covered by level %d over %d%% of itself; a card resting on the level-%d page is a level-%d fill",
+						i, widest, n*100/area, page, resting)
+				}
+
+				// The plane has to be the level-0 ground, or "one rung over it"
+				// is a claim about nothing. Read it back off the page beside the
+				// card rather than trusting the ground layer's own token.
+				beside := image.Pt(r.Max.X+int(RowGap)/2, (r.Min.Y+r.Max.Y)/2)
+				if level, ok := nearestRung(pixelAt(img, beside), tc.colors); !ok || level != page {
+					t.Errorf("the page beside card %d reads %v at %v, not the level-%d ground %v",
+						i, pixelAt(img, beside), beside, page, ground)
+				}
 			}
 		})
 	}
