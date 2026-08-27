@@ -19,12 +19,12 @@ import (
 // the same rung the app does rather than a colour of their own.
 var bandFill = tokens.DefaultLight.SurfaceAt(tokens.Level1)
 
-// TestDragUnderStripClaimsTheWindowDrag is AK6.2's guard: before this task
+// TestTheStripClaimsTheWindowDrag is AK6.2's guard: before this task
 // neither this app nor the strip desktop.InsetTop pads carried a
 // system.ActionMove anywhere, so the window could not be moved by its top
 // edge at all — R6's second half, unmet while its first half (the
 // full-size-content treatment and the inset) was already in place.
-// dragUnderStrip now also declares desktop.DragTop over the same measured
+// bandedCap now also declares desktop.DragTop over the same measured
 // height InsetTop pads by, so a press in the strip resolves to the window
 // move and a press in the page below it does not.
 //
@@ -32,13 +32,13 @@ var bandFill = tokens.DefaultLight.SurfaceAt(tokens.Level1)
 // because a go test binary has no live macOS window behind it and that
 // function reports 0 without one — the same substitution mvu/desktop's own
 // TestDragTopClaimsTheStripAndNothingBelow makes for the same reason.
-func TestDragUnderStripClaimsTheWindowDrag(t *testing.T) {
+func TestTheStripClaimsTheWindowDrag(t *testing.T) {
 	const width, height, stripH = 400, 300, 32
 
 	page := func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
-	w := dragUnderStrip(func() unit.Dp { return stripH }, bandFill, page)
+	w := bandedCap(func() unit.Dp { return stripH }, bandFill, page)
 
 	var ops op.Ops
 	gtx := layout.Context{
@@ -68,7 +68,7 @@ func TestDragUnderStripClaimsTheWindowDrag(t *testing.T) {
 			t.Errorf("no window-move action at %v; the strip above the page is the drag band", p)
 		}
 	}
-	// Below the strip is the page dragUnderStrip's InsetTop pads down to,
+	// Below the strip is the page bandedCap's InsetTop pads down to,
 	// which keeps its own presses.
 	for _, p := range []image.Point{{X: width / 2, Y: stripH}, {X: width / 2, Y: 150}, {X: width / 2, Y: height - 1}} {
 		if moveAt(p.X, p.Y) {
@@ -77,16 +77,16 @@ func TestDragUnderStripClaimsTheWindowDrag(t *testing.T) {
 	}
 }
 
-// TestDragUnderStripIsANoOpWithNoStrip mirrors InsetTop's own no-strip case:
+// TestTheCapIsANoOpWithNoStrip mirrors InsetTop's own no-strip case:
 // a height of 0 — headless rendering, and every platform other than macOS —
 // claims nothing and lays the page out at the window's own top.
-func TestDragUnderStripIsANoOpWithNoStrip(t *testing.T) {
+func TestTheCapIsANoOpWithNoStrip(t *testing.T) {
 	const width, height = 400, 300
 
 	page := func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
-	w := dragUnderStrip(func() unit.Dp { return 0 }, bandFill, page)
+	w := bandedCap(func() unit.Dp { return 0 }, bandFill, page)
 
 	var ops op.Ops
 	gtx := layout.Context{

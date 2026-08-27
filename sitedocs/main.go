@@ -193,14 +193,14 @@ func buildLayers(modelObs rx.Observable[Model], seed stdcolor.NRGBA) func(th rx.
 // the region's fill at the window's top edge, not for the region's widget to
 // reach it — which is what lets the shell stay inset off the buttons.
 //
-// desktop.DragTop claims that same strip for the window's own drag: without
-// it the window could not be moved by its top edge at all.
+// The cap claims that same strip for the window's own drag: without that
+// claim the window could not be moved by its top edge at all.
 func underTitleBar(th rx.Observable[theme.Theme], shellObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
 		return t.Color
 	})
 	return rx.Map(rx.CombineLatest2(shellObs, colors), func(n rx.Tuple2[layout.Widget, tokens.ColorTokens]) layout.Widget {
-		return dragUnderStrip(desktop.TopInset, titleBandFill(n.Second), n.First)
+		return bandedCap(desktop.TopInset, titleBandFill(n.Second), n.First)
 	})
 }
 
@@ -214,21 +214,25 @@ func titleBandFill(c tokens.ColorTokens) stdcolor.NRGBA {
 	return c.SurfaceAt(tokens.Level1)
 }
 
-// dragUnderStrip is underTitleBar's composition over a stated strip height
-// rather than the window's own — the same split desktop.InsetTop's own
-// height parameter already makes — so a test can state a strip it has no
-// window to measure. band is the fill the strip wears; a zero-height strip
-// paints none of it.
-func dragUnderStrip(height func() unit.Dp, band stdcolor.NRGBA, w layout.Widget) layout.Widget {
-	inset := desktop.InsetTop(height, w)
+// bandedCap is desktop.CapTop with a fill under it: the strip is painted, and
+// then capped as any plain page's strip is — claimed for the window's drag and
+// held open above the page. The fill is this app's half and stays here, since
+// what a band is painted with is a question about colour and the cap answers
+// only in geometry and input; a zero-height strip paints none of it, which is
+// the same no-op the cap itself is at that height.
+//
+// The height is stated rather than read from the window — the same split
+// desktop.InsetTop's own height parameter already makes — so a test can state
+// a strip it has no window to measure.
+func bandedCap(height func() unit.Dp, band stdcolor.NRGBA, w layout.Widget) layout.Widget {
+	capped := desktop.CapTop(height, w)
 	return func(gtx layout.Context) layout.Dimensions {
 		if h := gtx.Dp(height()); h > 0 {
 			paint.FillShape(gtx.Ops, band, clip.Rect{
 				Max: image.Pt(gtx.Constraints.Max.X, h),
 			}.Op())
 		}
-		desktop.DragTop(gtx, height)
-		return inset(gtx)
+		return capped(gtx)
 	}
 }
 

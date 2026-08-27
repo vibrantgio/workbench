@@ -371,7 +371,7 @@ func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 // TestThePageStartsBelowTheStrip is the other half of the same arrangement:
 // the ground runs under the strip, the page does not. Read off the frame
 // rather than off the inset, so that a page which grew a layer of its own
-// outside dragUnderStrip would fail here.
+// outside the cap would fail here.
 func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -440,7 +440,7 @@ func TestTheModalCoversTheStripToo(t *testing.T) {
 
 // TestTheStripMovesThePage guards the inset itself: a frame drawn under the
 // strip is not the frame drawn without one. Without this the tests above would
-// all still pass if dragUnderStrip stopped insetting anything, since the first
+// all still pass if the cap stopped insetting anything, since the first
 // row's ink starts below the buttons' run on its own.
 func TestTheStripMovesThePage(t *testing.T) {
 	capped := renderWindow(t, tokens.DefaultLight, "", titleBandDp)

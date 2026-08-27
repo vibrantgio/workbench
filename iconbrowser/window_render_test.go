@@ -152,7 +152,7 @@ func windowFrame(t *testing.T, c tokens.ColorTokens, model Model, band unit.Dp) 
 	t.Helper()
 	tok := staticThemed(t, c)
 	ground := backdrop.Widget(tok.palette.Backdrop)
-	page := dragUnderStrip(
+	page := desktop.CapTop(
 		func() unit.Dp { return band },
 		Page(tok, staticSearch(t, c), model, &layout.List{Axis: layout.Vertical}),
 	)
@@ -348,7 +348,7 @@ func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 // TestThePageStartsBelowTheStrip is the other half of the same arrangement: the
 // ground runs under the strip, the page does not. Read off the frame rather
 // than off the inset, so that a page which grew a layer of its own outside
-// dragUnderStrip would fail here.
+// the cap would fail here.
 func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {

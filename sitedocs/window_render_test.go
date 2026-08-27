@@ -78,7 +78,7 @@ func windowFrame(
 	props := tabs.Props{Tabs: staticTabs(shaper, guide, st, c, typo), Shaper: shaper}
 	shell := tabs.Render(shaper, props, selected, c, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
 	ground := backdrop.Widget(c.Background)
-	capped := dragUnderStrip(func() unit.Dp { return band }, titleBandFill(c), shell)
+	capped := bandedCap(func() unit.Dp { return band }, titleBandFill(c), shell)
 	return func(gtx layout.Context) layout.Dimensions {
 		ground(gtx)
 		return capped(gtx)

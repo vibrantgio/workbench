@@ -111,14 +111,16 @@ func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 	}
 
 	// The resting page — the list on the ground and the button floating over
-	// it — capped by the strip. desktop.InsetTop reports the size it was given
+	// it — capped by the strip: held down past it, with that same strip claimed
+	// for the window's own drag, which the native title bar took with it when
+	// the treatment removed it. A capped layer reports the size it was given
 	// rather than the inset one, so the button still lands on the window's
 	// bottom-trailing corner and only the top edge moves.
 	resting := func(gtx layout.Context) layout.Dimensions {
 		layout.UniformInset(Padding).Layout(gtx, list)
 		return layout.UniformInset(Padding).Layout(gtx, fab)
 	}
-	capped := dragUnderStrip(strip, resting)
+	capped := desktop.CapTop(strip, resting)
 
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
@@ -141,24 +143,5 @@ func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 		}
 
 		return layout.Dimensions{Size: size}
-	}
-}
-
-// dragUnderStrip pads a widget down by a native title-bar strip's height and
-// claims that same strip for the window's own drag.
-//
-// The height is read at frame time rather than taken as a value because
-// desktop.TopInset is measured from the live window: it reports 0 until the
-// first frame, in headless renders, and on every platform but macOS, so away
-// from the full-size-content treatment the wrapper is an exact no-op.
-//
-// desktop.DragTop is the other half of R6. The native drag leaves with the
-// native strip, and the strip here carries paint but no widget of its own, so
-// without this claim the window could not be moved by its top edge at all.
-func dragUnderStrip(height func() unit.Dp, w layout.Widget) layout.Widget {
-	inset := desktop.InsetTop(height, w)
-	return func(gtx layout.Context) layout.Dimensions {
-		desktop.DragTop(gtx, height)
-		return inset(gtx)
 	}
 }

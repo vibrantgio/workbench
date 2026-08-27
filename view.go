@@ -124,25 +124,14 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // window does not have. What has to stay clear of the strip is the page,
 // which starts below it.
 //
-// desktop.DragTop claims that same strip for the window's own drag: the strip
-// carries paint but no widget of its own, so without this the window could not
-// be moved by its top edge at all.
+// The strip also carries the window's own drag: it holds paint but no widget
+// of its own, so without a claim over it the window could not be moved by its
+// top edge at all. desktop.CapTop is the two together — the claim over the
+// strip and the page held down past it, over one measured height.
 func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	return rx.Map(pageObs, func(w layout.Widget) layout.Widget {
-		return dragUnderStrip(desktop.TopInset, w)
+		return desktop.CapTop(desktop.TopInset, w)
 	})
-}
-
-// dragUnderStrip is underTitleBar's composition over a stated strip height
-// rather than the window's own — the same split desktop.InsetTop's own height
-// parameter already makes — so a test can state a strip it has no window to
-// measure.
-func dragUnderStrip(height func() unit.Dp, w layout.Widget) layout.Widget {
-	inset := desktop.InsetTop(height, w)
-	return func(gtx layout.Context) layout.Dimensions {
-		desktop.DragTop(gtx, height)
-		return inset(gtx)
-	}
 }
 
 // pageLayer renders the page: the latest theme snapshot combined with the

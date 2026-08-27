@@ -7,7 +7,6 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
-	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
@@ -106,35 +105,19 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // the inset is what buys it that clearance: the field is the page's topmost ink
 // and the page starts below the strip. TestThePageClearsTheWindowButtons reads
 // the result off the frame rather than trusting the arithmetic.
+//
+// desktop.CapTop is the other half of R6 with the inset: the native drag
+// leaves with the native strip, and the strip here carries paint but no widget
+// of its own, so without its claim the window could not be moved by its top
+// edge at all. The claim is recorded before the page, so every region the page
+// declares below it — the search field's editor and its focus catcher, the
+// grid's scroll — keeps its own presses; the band and the page do not overlap
+// in any case. desktop.TopInset is read at frame time, so away from the
+// full-size-content treatment the whole cap is an exact no-op.
 func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	return rx.Map(pageObs, func(w layout.Widget) layout.Widget {
-		return dragUnderStrip(desktop.TopInset, w)
+		return desktop.CapTop(desktop.TopInset, w)
 	})
-}
-
-// dragUnderStrip pads a widget down by a native title-bar strip's height and
-// claims that same strip for the window's own drag. It is underTitleBar's
-// composition over a stated strip height rather than the window's own — the
-// same split desktop.InsetTop's own height parameter already makes — so a test
-// can state a strip it has no window to measure.
-//
-// The height is read at frame time rather than taken as a value because
-// desktop.TopInset is measured from the live window: it reports 0 until the
-// first frame, in headless renders, and on every platform but macOS, so away
-// from the full-size-content treatment the wrapper is an exact no-op.
-//
-// desktop.DragTop is the other half of R6. The native drag leaves with the
-// native strip, and the strip here carries paint but no widget of its own, so
-// without this claim the window could not be moved by its top edge at all. The
-// claim is recorded before the page, so every region the page declares below it
-// — the search field's editor and its focus catcher, the grid's scroll — keeps
-// its own presses; the band and the page do not overlap in any case.
-func dragUnderStrip(height func() unit.Dp, w layout.Widget) layout.Widget {
-	inset := desktop.InsetTop(height, w)
-	return func(gtx layout.Context) layout.Dimensions {
-		desktop.DragTop(gtx, height)
-		return inset(gtx)
-	}
 }
 
 // The two sets the page shows, each under its own label: the design system's

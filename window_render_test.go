@@ -57,7 +57,7 @@ const titleBandDp = 32
 
 // windowFrame composes the window for one scheme exactly as buildLayers stacks
 // it, minus the field: the ground full-bleed to the window's top edge, then
-// the page under the strip that dragUnderStrip holds open and claims.
+// the page under the strip that desktop.CapTop holds open and claims.
 //
 // band is the strip height to render under; 0 draws the window as every
 // platform but macOS shows it, with the page at the window's own top edge.
@@ -69,7 +69,7 @@ func windowFrame(tok themed, model Model, band unit.Dp) layout.Widget {
 // held down past a strip of the given height, with that same strip claimed for
 // the window's drag.
 func cappedPage(tok themed, model Model, band unit.Dp) layout.Widget {
-	return dragUnderStrip(func() unit.Dp { return band }, pageContent(tok, model))
+	return desktop.CapTop(func() unit.Dp { return band }, pageContent(tok, model))
 }
 
 // stack draws the given layers back to front into one widget and reports the
@@ -302,7 +302,7 @@ func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 // TestThePageStartsBelowTheStrip is the other half of the same arrangement:
 // the ground runs under the strip, the page does not. Read off the frame
 // rather than off the inset, so that a page which grew a layer of its own
-// outside dragUnderStrip would fail here.
+// outside the cap would fail here.
 func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -421,7 +421,7 @@ func TestTheCardsRestOneRungOverThePage(t *testing.T) {
 
 // TestTheStripMovesThePage guards the inset itself: a frame drawn under the
 // strip is not the frame drawn without one. Without this the three tests above
-// would all still pass if dragUnderStrip stopped insetting anything, since a
+// would all still pass if the cap stopped insetting anything, since a
 // centred page clears a 32 dp strip on its own.
 func TestTheStripMovesThePage(t *testing.T) {
 	capped := renderWindow(t, tokens.DefaultLight, titleBandDp)

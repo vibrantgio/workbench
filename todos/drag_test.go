@@ -11,13 +11,14 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// TestDragUnderStripClaimsTheWindowDrag is R6's second half for this window:
+// TestTheStripClaimsTheWindowDrag is R6's second half for this window:
 // the native drag leaves with the native strip, so a window that takes the
 // full-size-content treatment and claims nothing back cannot be moved by its
-// top edge at all. dragUnderStrip declares desktop.DragTop over the same
+// top edge at all. desktop.CapTop declares desktop.DragTop over the same
 // measured height desktop.InsetTop pads by, so a press in the strip resolves
 // to the window move and a press in the page below it does not.
 //
@@ -25,14 +26,14 @@ import (
 // go test binary has no live macOS window behind it and that function reports
 // 0 without one — the same substitution mvu/desktop's own
 // TestDragTopClaimsTheStripAndNothingBelow makes for the same reason.
-func TestDragUnderStripClaimsTheWindowDrag(t *testing.T) {
+func TestTheStripClaimsTheWindowDrag(t *testing.T) {
 	const width, height = 400, 300
 	const stripH = int(titleBandDp)
 
 	page := func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
-	w := dragUnderStrip(func() unit.Dp { return titleBandDp }, page)
+	w := desktop.CapTop(func() unit.Dp { return titleBandDp }, page)
 
 	var ops op.Ops
 	gtx := layout.Context{
@@ -61,7 +62,7 @@ func TestDragUnderStripClaimsTheWindowDrag(t *testing.T) {
 			t.Errorf("no window-move action at %v; the strip above the page is the drag band", p)
 		}
 	}
-	// Below the strip is the page dragUnderStrip's InsetTop pads down to, which
+	// Below the strip is the page desktop.CapTop's InsetTop pads down to, which
 	// keeps its own presses — the checkboxes, the row labels, the delete
 	// glyphs and the floating add button.
 	for _, p := range []image.Point{{X: width / 2, Y: stripH}, {X: width / 2, Y: 150}, {X: width / 2, Y: height - 1}} {
@@ -71,16 +72,16 @@ func TestDragUnderStripClaimsTheWindowDrag(t *testing.T) {
 	}
 }
 
-// TestDragUnderStripIsANoOpWithNoStrip mirrors InsetTop's own no-strip case: a
+// TestTheCapIsANoOpWithNoStrip mirrors InsetTop's own no-strip case: a
 // height of 0 — headless rendering, and every platform other than macOS —
 // claims nothing and lays the page out at the window's own top.
-func TestDragUnderStripIsANoOpWithNoStrip(t *testing.T) {
+func TestTheCapIsANoOpWithNoStrip(t *testing.T) {
 	const width, height = 400, 300
 
 	page := func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
-	w := dragUnderStrip(func() unit.Dp { return 0 }, page)
+	w := desktop.CapTop(func() unit.Dp { return 0 }, page)
 
 	var ops op.Ops
 	gtx := layout.Context{
