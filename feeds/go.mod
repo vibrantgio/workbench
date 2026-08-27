@@ -15,6 +15,7 @@ require (
 	gioui.org/shader v1.0.9 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/reactivego/scheduler v0.2.0 // indirect
+	github.com/vibrantgio/backdrop v0.0.3 // indirect
 	github.com/vibrantgio/effects v0.2.1 // indirect
 	github.com/vibrantgio/font v0.4.1 // indirect
 	github.com/vibrantgio/svg v0.0.9 // indirect

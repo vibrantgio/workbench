@@ -29,8 +29,25 @@ import (
 const (
 	feedsSidebarWidthDp = 192
 	feedsEntryRowHDp    = 28
-	feedsEntryIndentDp  = 24
+	feedsEntryIndentDp  = 16
 	trashColWDp         = 24 // trailing trash-icon hit area, hover-revealed
+)
+
+// The chosen-feed pill (ADR-021 R5). The fill is inset equally from both
+// edges of the sidebar and padded vertically, so it reads as a pill on the
+// Surface rather than a full-bleed bar — the shape vaultview's tree and
+// sitedocs' outline already draw. Its leading edge is the row's own origin
+// and the label is padded in from there: a pill whose text starts on its
+// left edge is not a pill, it is a bar with a rounded corner, which is what
+// a review of the first draft called out. The indent and the trail are equal
+// for the same reason, so the highlight is centred in the rail rather than
+// hanging off one side of it, and the trash gutter is measured from the
+// pill's trailing edge rather than the row's so the icon stays on the fill.
+const (
+	feedsPillTrailDp   = 16
+	feedsPillVPadDp    = 2
+	feedsPillRadiusDp  = 4
+	feedsRowLabelPadDp = 8
 )
 
 // feedsSidebar returns the accordion-grouped feeds sidebar observable.
@@ -52,6 +69,7 @@ func feedsSidebar(
 	th rx.Observable[theme.Theme],
 	openSectionsObs rx.Observable[map[int]bool],
 	feedsObs rx.Observable[[]feedGroup],
+	selectedFeedObs rx.Observable[FeedID],
 	popArb *popover.Arbiter,
 ) rx.Observable[layout.Widget] {
 	// The fixed section count drives the per-section entry cells. The set of
@@ -60,6 +78,19 @@ func feedsSidebar(
 	sectionCells := make([]atomic.Value, len(groups))
 	for i := range sectionCells {
 		sectionCells[i].Store(groups[i].Entries)
+	}
+
+	// The open feed, mirrored for the section bodies. accordion.Section.Body
+	// is a static layout.Widget slot, so the entry rows cannot be handed the
+	// selection in-band; they read it from this cell at frame time, the same
+	// layer-boundary hand-off the entry list already uses for its entries.
+	// The cell is written in the fold below, BEFORE the emitted widget can be
+	// laid out, so no frame paints last selection's pill.
+	var selectedCell atomic.Value
+	selectedCell.Store(FeedID(""))
+	loadSelected := func() FeedID {
+		id, _ := selectedCell.Load().(FeedID)
+		return id
 	}
 
 	accSections := make([]accordion.Section, len(groups))
@@ -72,7 +103,7 @@ func feedsSidebar(
 					return e
 				}
 				return nil
-			}, popArb),
+			}, loadSelected, popArb),
 		}
 	}
 
@@ -99,9 +130,10 @@ func feedsSidebar(
 		return t.Color
 	})
 	return rx.Map(
-		rx.CombineLatest3(accObs, feedsObs, colorsObs),
-		func(n rx.Tuple3[layout.Widget, []feedGroup, tokens.ColorTokens]) layout.Widget {
+		rx.CombineLatest4(accObs, feedsObs, colorsObs, selectedFeedObs),
+		func(n rx.Tuple4[layout.Widget, []feedGroup, tokens.ColorTokens, FeedID]) layout.Widget {
 			accW, feeds, c := n.First, n.Second, n.Third
+			selectedCell.Store(n.Fourth)
 			for i := range sectionCells {
 				if i < len(feeds) {
 					sectionCells[i].Store(feeds[i].Entries)
@@ -124,6 +156,10 @@ func drawFeedsSidebar(
 	w := gtx.Dp(unit.Dp(feedsSidebarWidthDp))
 	h := gtx.Constraints.Max.Y
 	size := image.Pt(w, h)
+	// ADR-021 R2: the sidebar is chrome furniture, so it stands exactly one
+	// rung above the content it frames — the semantic Surface over the
+	// window's Background ground. The token never moved; what moved is the
+	// ground under it, which used to be Surface as well.
 	paint.FillShape(gtx.Ops, colors.Surface, clip.Rect{Max: size}.Op())
 	gtx.Constraints = layout.Exact(size)
 	if accW != nil {
@@ -144,6 +180,7 @@ func drawFeedsSidebar(
 func feedEntryListBody(
 	th rx.Observable[theme.Theme],
 	entriesFn func() []feedEntry,
+	selectedFn func() FeedID,
 	popArb *popover.Arbiter,
 ) layout.Widget {
 	loadTok := mirrorTokens(th)
@@ -170,6 +207,7 @@ func feedEntryListBody(
 	return func(gtx layout.Context) layout.Dimensions {
 		s := loadTok()
 		entries := entriesFn()
+		selected := selectedFn()
 		size := gtx.Constraints.Max
 		rowH := gtx.Dp(unit.Dp(feedsEntryRowHDp))
 		indent := gtx.Dp(unit.Dp(feedsEntryIndentDp))
@@ -187,7 +225,7 @@ func feedEntryListBody(
 			stk := op.Offset(off).Push(gtx.Ops)
 			rowGtx := gtx
 			rowGtx.Constraints = layout.Exact(image.Pt(size.X-indent, rowH))
-			drawFeedEntryRow(rowGtx, s, e, rowClicks.For(e.ID),
+			drawFeedEntryRow(rowGtx, s, e, e.ID == selected, rowClicks.For(e.ID),
 				hovers.For(e.ID), popovers.For(e.ID), trashW)
 			stk.Pop()
 		}
@@ -195,14 +233,23 @@ func feedEntryListBody(
 	}
 }
 
-// drawFeedEntryRow paints one feed row: the label (left) and a hover-revealed
-// trash icon + delete-confirm popover (right). hover holds the row's pointer
-// hover state; the trash icon paints only while hovered (or while its confirm
-// popover is open, so the popover never floats over an un-hovered row).
+// drawFeedEntryRow paints one feed row: the state pill (under everything),
+// the label (left) and a hover-revealed trash icon + delete-confirm popover
+// (right). hover holds the row's pointer hover state; the trash icon paints
+// only while hovered (or while its confirm popover is open, so the popover
+// never floats over an un-hovered row).
+//
+// ADR-021 R5 governs the pill's two inks and keeps them apart: the OPEN feed
+// — the one whose articles the table is listing — is Primary-tinted, and
+// hover is a neutral step walked from the sidebar's own ground (Surface is
+// neutral 200, so the walk lands on 300). A reader must be able to see which
+// row the pointer is over and which row the window is showing at the same
+// time, which one ink cannot say.
 func drawFeedEntryRow(
 	gtx layout.Context,
 	tok themeTokens,
 	e feedEntry,
+	selected bool,
 	click *widget.Clickable,
 	hover *gesture.Hover,
 	dc *deleteConfirm,
@@ -218,25 +265,73 @@ func drawFeedEntryRow(
 	hover.Add(gtx.Ops)
 	hoverClip.Pop()
 
-	// Label fills the row minus the trash gutter; the label area is the
+	drawFeedEntryPill(gtx, tok, size, selected, hovered)
+
+	// Everything the row draws lives between the pill's two edges: the label
+	// padded in from the leading one, the trash gutter measured back from the
+	// trailing one. Laying either out against the ROW's edges instead is what
+	// puts a label flush on a fill and an icon half off it.
+	pad := gtx.Dp(unit.Dp(feedsRowLabelPadDp))
+	trail := gtx.Dp(unit.Dp(feedsPillTrailDp))
+
+	// Label fills the pill minus the trash gutter; the label area is the
 	// SelectFeed click target. Body text sits on the Neutral ramp's 900
 	// step (ADR-007), in the theme's BodySmall role.
-	labelW := size.X - trashW
+	labelW := size.X - trail - trashW - pad
 	if labelW < 0 {
 		labelW = 0
 	}
+	lbStk := op.Offset(image.Pt(pad, 0)).Push(gtx.Ops)
 	labelGtx := gtx
 	labelGtx.Constraints = layout.Exact(image.Pt(labelW, size.Y))
 	drawFeedEntry(labelGtx, tok, e.Label, click)
+	lbStk.Pop()
 
-	// Trash gutter + confirm popover, right-aligned.
-	trStk := op.Offset(image.Pt(size.X-trashW, 0)).Push(gtx.Ops)
+	// Trash gutter + confirm popover, against the pill's trailing edge.
+	trX := size.X - trail - trashW
+	if trX < 0 {
+		trX = 0
+	}
+	trStk := op.Offset(image.Pt(trX, 0)).Push(gtx.Ops)
 	trGtx := gtx
 	trGtx.Constraints = layout.Exact(image.Pt(trashW, size.Y))
 	dc.layout(trGtx, hovered)
 	trStk.Pop()
 
 	return layout.Dimensions{Size: size}
+}
+
+// drawFeedEntryPill fills the row's state pill, or nothing when the row is
+// neither open nor hovered. Selection wins over hover: a hovered open feed
+// keeps its tint, because the tint is the answer to "which one am I reading"
+// and the hover is only "the pointer is here".
+func drawFeedEntryPill(
+	gtx layout.Context,
+	tok themeTokens,
+	size image.Point,
+	selected, hovered bool,
+) {
+	var fill color.NRGBA
+	switch {
+	case selected:
+		fill = tok.col.Ramps.Primary.Step(300)
+	case hovered:
+		fill = tok.col.Ramps.Neutral.Step(300)
+	default:
+		return
+	}
+	trail := gtx.Dp(unit.Dp(feedsPillTrailDp))
+	vp := gtx.Dp(unit.Dp(feedsPillVPadDp))
+	r := gtx.Dp(unit.Dp(feedsPillRadiusDp))
+	right := size.X - trail
+	if right <= 0 {
+		return
+	}
+	pill := clip.RRect{
+		Rect: image.Rect(0, vp, right, size.Y-vp),
+		NE:   r, NW: r, SE: r, SW: r,
+	}
+	paint.FillShape(gtx.Ops, fill, pill.Op(gtx.Ops))
 }
 
 func drawFeedEntry(

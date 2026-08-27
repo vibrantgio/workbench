@@ -11,7 +11,6 @@ import (
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/mvu"
@@ -50,10 +50,10 @@ import (
 // stream is cold and fans out to multiple downstream subscribers, so the real
 // total is larger. The derivations and their fan-out:
 //  1. openSectionsObs    → accordion Open                                 (1)
-//  2. selectedFeedObs    → filtered, subscribed by paged + pageCountObs   (2)
+//  2. selectedFeedObs    → filtered (paged + pageCountObs) + the sidebar  (3)
 //  3. currentPageObs     → paged + the pagination CombineLatest           (2)
 //  4. sortObs            → sortCell mirror + table Sort prop + filtered×2 (4)
-//  5. selectedArticleObs → the detail-pane CombineLatest                  (1)
+//  5. selectedArticleObs → the detail-pane CombineLatest + the table mark (2)
 //  6. selectedTabObs     → tabs Selected prop                             (1)
 //  7. shareOpenObs       → popover Open prop                              (1)
 //  8. splitRatioObs      → shell SplitPane SplitRatio prop                (1)
@@ -67,7 +67,7 @@ import (
 // 15. toastsObs          → toast.Stack Toasts prop (G0C.3)                (1)
 // 16. filterObs          → filtered, subscribed by paged + pageCountObs   (2)
 //
-// Total = 26, confirmed empirically by TestModelObsConsumerCountMatchesConst,
+// Total = 28, confirmed empirically by TestModelObsConsumerCountMatchesConst,
 // which fails if a future edit changes the topology without updating this.
 // G0A.3 added seven: a preference read by both the pipeline that applies it
 // and the panel that displays it is subscribed on both sides, and `filtered`
@@ -83,7 +83,13 @@ import (
 // cadence buses nor this app's per-row delete-confirm flag ever touched
 // modelObs, which corrects ADR-008's original guess that the per-row flags
 // were what fed this census.
-const modelObsConsumers = 26
+//
+// AK6.3 added two, both for ADR-021 R5's chosen-item fill: the sidebar now
+// reads selectedFeedObs so the open feed can be tinted, and the articles
+// table reads selectedArticleObs so the open article's row can be. A
+// selection that nothing but the reducer knows about cannot be drawn, which
+// is why the mark costs a subscription apiece.
+const modelObsConsumers = 28
 
 // themeTokens is the colour/typography snapshot the app's own drawing code
 // reads at frame time. The shaper is the theme's cached Typography shaper
@@ -130,18 +136,18 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 	}
 }
 
+// backdropLayer paints the window ground. ADR-021 R1: the resting ground of
+// a window is level 0, the Background pin — not Surface, which is the rung
+// its furniture stands on. The fill is the shared backdrop.Widget the other
+// windows in the workbench already call, rather than a hand-rolled
+// paint.FillShape: one mechanism, one token, nothing per-app to re-derive.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	return rx.Map(
 		rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
 			return t.Color
 		}),
 		func(c tokens.ColorTokens) layout.Widget {
-			fill := c.Surface
-			return func(gtx layout.Context) layout.Dimensions {
-				size := gtx.Constraints.Max
-				paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
-				return layout.Dimensions{Size: size}
-			}
+			return backdrop.Widget(c.Background)
 		},
 	)
 }
@@ -200,7 +206,7 @@ func feedsShellLayer(
 	toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.toasts.Items() })
 	filterObs := rx.Map(modelObs, func(m Model) string { return m.filter })
 
-	articlesObs := articlesMain(th, selectedFeedObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, filterObs, tipArb)
+	articlesObs := articlesMain(th, selectedFeedObs, selectedArticleObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, filterObs, tipArb)
 	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
 	shareObs := sharePopover(th, shareOpenObs, popArb)
 	modalObs := addFeedModal(th, addFeedOpenObs, addFeedErrorObs, modalArb)
@@ -246,7 +252,7 @@ func feedsShellLayer(
 		},
 	})
 
-	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, popArb)
+	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, selectedFeedObs, popArb)
 	sidebarDriven := rx.Map(
 		rx.CombineLatest5(sidebarObs, articlesObs, detailObs, splitObs, shareObs),
 		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {

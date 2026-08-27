@@ -10,6 +10,8 @@ import (
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -22,6 +24,7 @@ import (
 	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/patterns/tooltip"
 	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // defaultRowsPerPage is the seed row count per pagination page. It is no
@@ -158,6 +161,7 @@ func pageCountFor(arts []article, size int) int {
 func articlesMain(
 	th rx.Observable[theme.Theme],
 	selectedFeedObs rx.Observable[FeedID],
+	selectedArticleObs rx.Observable[ArticleID],
 	currentPageObs rx.Observable[int],
 	sortObs rx.Observable[table.Sort],
 	rowsPerPageObs rx.Observable[int],
@@ -182,6 +186,20 @@ func articlesMain(
 	_ = sortObs.Subscribe(rx.GoroutineContext(), func(s table.Sort, _ error, done bool) {
 		if !done {
 			sortCell.Store(s)
+		}
+	})
+
+	// The open article, mirrored for the table's Current predicate. The
+	// predicate is called per visible row during layout, outside any rx
+	// scope, so it reads the latest model value from this cell — the same
+	// layer-boundary hand-off sortCell above uses. ADR-021 R5: the row the
+	// detail pane is showing must be marked in the list it came from,
+	// otherwise the reader has no way back from the article to its place.
+	var currentCell atomic.Value
+	currentCell.Store(ArticleID(""))
+	_ = selectedArticleObs.Subscribe(rx.GoroutineContext(), func(id ArticleID, _ error, done bool) {
+		if !done {
+			currentCell.Store(id)
 		}
 	})
 
@@ -258,6 +276,15 @@ func articlesMain(
 		Items:   paged,
 		Sort:    sortObs,
 		OnSort:  onSort,
+		// The list IS the left pane's content, not a card lying on it, so
+		// its plane is the window ground (ADR-021 R1). Stated rather than
+		// left to the zero value, because it is the decision the pane's own
+		// fill below has to agree with.
+		Ground: tokens.Level0,
+		Current: func(a article) bool {
+			id, _ := currentCell.Load().(ArticleID)
+			return id != "" && a.ID == id
+		},
 	})
 	// pagination.Props takes Page/PageCount as static ints; CombineLatest holds
 	// the latest page + page count from the model-derived streams and rebuilds
@@ -278,7 +305,7 @@ func articlesMain(
 	return rx.Map(
 		rx.CombineLatest4(filterWidgetObs, tableWidgetObs, paginationWidgetObs, unreadTipObs),
 		func(t rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
-			return articlesLayout(t.First, t.Second, t.Third, t.Fourth)
+			return articlesLayout(loadTok, t.First, t.Second, t.Third, t.Fourth)
 		},
 	)
 }
@@ -372,8 +399,20 @@ func articleColumns(
 // consume vertical space the filter and pagination rows leave behind.
 // unreadTip is overlaid on the table's Unread header cell — see
 // overlayUnreadTooltip.
-func articlesLayout(filter, table, pag, unreadTip layout.Widget) layout.Widget {
+//
+// The pane paints its own ground before any of that. ADR-021 R1: the article
+// list is content, so its resting ground is level 0, the Background pin —
+// not patterns/shell's SplitPane backstop, which is Surface and used to be
+// what the filter row, the gaps and the pagination row rested on. The table
+// takes the same rung through its Ground prop, so the pane is one sheet of
+// paper from its margin to the last hairline: the grid is the content, and a
+// grid raised off its own pane would put the biggest expanse in the window's
+// middle level with the sidebar framing it, which is R2's failure with extra
+// steps.
+func articlesLayout(loadTok func() themeTokens, filter, table, pag, unreadTip layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
+		paint.FillShape(gtx.Ops, loadTok().col.SurfaceAt(tokens.Level0),
+			clip.Rect{Max: gtx.Constraints.Max}.Op())
 		return layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				layout.Rigid(filter),

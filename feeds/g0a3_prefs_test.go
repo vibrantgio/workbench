@@ -297,6 +297,7 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 
 	articlesObs := articlesMain(th,
 		rx.Map(modelObs, func(m Model) FeedID { return m.selectedFeed }),
+		rx.Map(modelObs, func(m Model) ArticleID { return m.selectedArticle }),
 		rx.Map(modelObs, func(m Model) int { return m.currentPage }),
 		rx.Map(modelObs, func(m Model) table.Sort { return m.sort }),
 		rx.Map(modelObs, func(m Model) int { return m.rowsPerPage }),

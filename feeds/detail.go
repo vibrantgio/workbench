@@ -22,6 +22,7 @@ import (
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
@@ -105,6 +106,12 @@ func detailPane(
 // title + meta header above the tab strip, which flexes to the remaining
 // height. Primary text sits on the Neutral ramp's 900 step, the meta line
 // and the placeholder on the low-contrast 700 step (ADR-007).
+//
+// The pane paints its OWN ground first. It is the reading surface — the
+// thing the window exists to show — so ADR-021 R1 puts it at level 0, the
+// Background pin. Painting nothing was not neutral: it let patterns/shell's
+// SplitPane backstop (Surface, level 1) show through, which is how the
+// article body came to be read on the same rung as the sidebar framing it.
 func drawDetail(
 	gtx layout.Context,
 	tok themeTokens,
@@ -112,6 +119,7 @@ func drawDetail(
 	tabsW layout.Widget,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
+	paint.FillShape(gtx.Ops, tok.col.SurfaceAt(tokens.Level0), clip.Rect{Max: size}.Op())
 	if !sel.ok {
 		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return drawLabel(gtx, tok.shaper, "Select an article", tok.typ.BodyLarge, tok.col.Ramps.Neutral.Step(700))
@@ -132,6 +140,19 @@ func drawDetail(
 		)
 	})
 	return layout.Dimensions{Size: size}
+}
+
+// drawTabPanelGround puts the reading surface back on the window ground.
+// patterns/tabs fills its whole rect — strip AND panel — with the semantic
+// Surface, which is the right rung for the strip and the wrong one for what
+// the strip is a handle on: the panel under it is where the article is read,
+// so ADR-021 R1 puts it at level 0. Each tab's content closure paints it,
+// because the panel rect is the only place inside the pattern's canvas an
+// app is handed. What is left of the pattern's fill is the strip band, one
+// rung above the reading surface it caps — a toolbar, which is what R2 says
+// chrome furniture wears.
+func drawTabPanelGround(gtx layout.Context, tok themeTokens, size image.Point) {
+	paint.FillShape(gtx.Ops, tok.col.SurfaceAt(tokens.Level0), clip.Rect{Max: size}.Op())
 }
 
 // readerTab renders the article body paragraph-wrapped in the theme's
@@ -155,11 +176,12 @@ func rawTab(loadTokens func() themeTokens, loadArticle func() detailArticle) lay
 func bodyTab(loadTokens func() themeTokens, loadArticle func() detailArticle, pick func(tokens.Typography) tokens.TextStyle) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
+		tok := loadTokens()
+		drawTabPanelGround(gtx, tok, size)
 		sel := loadArticle()
 		if !sel.ok {
 			return layout.Dimensions{Size: size}
 		}
-		tok := loadTokens()
 		layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return drawWrappedText(gtx, tok.shaper, hardCodedBody(sel.a), pick(tok.typ), tok.col.Ramps.Neutral.Step(900))
 		})
@@ -174,6 +196,7 @@ func commentsTab(loadTokens func() themeTokens) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		tok := loadTokens()
+		drawTabPanelGround(gtx, tok, size)
 		layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			children := make([]layout.FlexChild, 0, 2*len(comments))
 			for _, c := range comments {

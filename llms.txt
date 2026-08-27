@@ -737,7 +737,12 @@ them backwards. Three kinds of area, three rungs:
     the paper it lies on rather than reaching for an absolute step. Level 0
     answers differently, because the Background pin is off the ramp and has
     no step to walk from: draw a raised thing on the content ground as a
-    level-1 surface, and start its state walk from level 1's step.
+    level-1 surface, and start its state walk from level 1's step. And a
+    shared surface takes its ground as a parameter, because it cannot know
+    it: a pattern that paints a plane and then a band over it — a table's
+    grid and its header, a tab panel and its strip — walks that band from
+    the plane's own rung, never from an absolute step, which is right only
+    for as long as every caller happens to rest where it was written.
   - WHAT IS CHOSEN IS TINTED; WHAT IS TRANSIENT IS A NEUTRAL WALK. The item
     the window is currently showing — the open note, the open conversation —
     fills from c.Ramps.Primary.Step(300). Hover, pressed and the keyboard
