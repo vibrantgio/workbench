@@ -31,7 +31,7 @@ seed-derived ramps).
 All modules live under github.com/vibrantgio/<name>. Current tags:
 
   ```
-  mvu       v0.9.1   MVU runtime: NewWindow, Loop/Run, Message/Command,
+  mvu       v1.0.0   MVU runtime: NewWindow, Loop/Run, Message/Command,
                      MessageOp; Window.Option + OnConfigure, the re-assert
                      seam the nested desktop module builds on (§Nested
                      modules); Window.ViewEvents, the per-window stream of
@@ -63,7 +63,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      superseded by theme/tokens Typography (§Typography)
                      — never add it to a new app
 
-  theme     v1.0.0   the theme runtime and every design token: tokens
+  theme     v1.1.0   the theme runtime and every design token: tokens
                      (colour ramps and pins, Typography, Density, Motion,
                      Elevation, spacing/radius), color (the CIELAB/OKLCh
                      engine and APCA), theme (Theme, the token observables),
@@ -76,22 +76,22 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      wears Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  components  v0.9.4 button, input, list, richtext, scrollbar,
+  components  v1.0.0 button, input, list, richtext, scrollbar,
                      scrollarea (a horizontal viewport for content that must
                      not be reflowed — a code fence, an over-wide diagram),
                      icon, icons (the design system's own marks), layout,
                      keyed, initial, cache, bench (coordination
                      is DEPRECATED — use mvu/stream.Value)
 
-  effects   v0.2.1   blur (Gaussian kernel, cached blur, backdrop
+  effects   v0.2.2   blur (Gaussian kernel, cached blur, backdrop
                      pipeline), depth, glow, motion, spring, springbutton,
                      transition, tween, conductor
 
-  patterns  v0.8.2   patterns: shell, navbar, sidebar, table, pagination,
+  patterns  v0.9.0   patterns: shell, navbar, sidebar, table, pagination,
                      tabs, modal, alert, popover, tooltip, toast, card,
                      accordion, breadcrumb, hero, feature, pricing,
                      testimonial
-  markdown  v0.6.1   GFM document rendering on components widgets (subpackages:
+  markdown  v0.6.2   GFM document rendering on components widgets (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
                      images via vibrantgio/svg; obsidian — the Obsidian
                      dialect: frontmatter, wikilinks, block anchors)
@@ -171,20 +171,23 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        for traer physics
   github.com/vibrantgio/kiwi/gio              v0.0.6   Gio layout on the
                                                        kiwi solver
-  github.com/vibrantgio/components/gallery    v0.9.4   the components gallery
+  github.com/vibrantgio/components/gallery    v1.0.0   the components gallery
                                                        app
-  github.com/vibrantgio/mvu/desktop           v0.9.1   native macOS window
+  github.com/vibrantgio/mvu/desktop           v1.0.0   native macOS window
                                                        chrome (FullSizeContent,
                                                        traffic-light unhide,
                                                        queried top inset) on
                                                        mvu's OnConfigure seam,
+                                                       title-band geometry and
+                                                       drag claims (CapTop,
+                                                       ButtonRunIn, DragTop),
                                                        and OS file drops
                                                        (NewDropTarget, per-zone
                                                        hit-testing, dropped
                                                        paths arriving in
                                                        Update as ordinary
                                                        messages)
-  github.com/vibrantgio/mvu/example           v0.9.1   numbered mvu examples,
+  github.com/vibrantgio/mvu/example           v1.0.0   numbered mvu examples,
                                                        00-reference upward
   ```
 
@@ -550,8 +553,15 @@ these first; reach into the ramps when you need a specific step.
 Hover is one step past the component's ground,
 pressed/selected/dragged two, clamped at 900 — resolved by StateColor
 (tinted surfaces) and SolidStateColor (pinned fills, which walk toward
-the 900 depth). Disabled is an opacity (tokens.Disabled, MD3's 38%);
-focus keeps the surface and strokes FocusRing() (neutral 500).
+the 900 depth). Disabled is an opacity (tokens.Disabled, MD3's 38%).
+Focus keeps the surface and strokes a ring in the primary hue, walked
+rather than named: the rung of the primary ramp nearest that ramp's
+mid-value step which still clears 3:1 against the storey the control
+stands on. Hand a control its Ground and the ring re-derives against
+that fill. ColorTokens.FocusRing() is still on the token set and is
+still neutral 500, but nothing strokes focus with it any more — one
+fixed step measures 2.35:1 on a surface, 1.42:1 three storeys up, and
+1.00:1 around an unchecked checkbox, whose border is that same step.
 
   ```go
   // c is the tokens.ColorTokens the theme's Color observable emitted.
@@ -757,9 +767,13 @@ them backwards. Three kinds of area, three rungs:
     unpainted native strip above a painted window. Where the platform allows
     it, take desktop.FullSizeContent() and let the capped region's own fill
     reach the window's top edge; where it does not, paint your own band in
-    that region's fill, and desktop.InsetTop(height, w) pads a layer down
-    past a strip the app has not claimed. The strip is part of the region
-    below it, not a fourth kind of area.
+    that region's fill. For a plain page the whole cap is one call:
+    desktop.CapTop(height, w) pads the page down past the strip AND claims
+    that strip for dragging, so the two halves cannot be written apart.
+    desktop.InsetTop(height, w) does the padding alone, for a layout that
+    places its own drag region because it has band furniture to work
+    around. The strip is part of the region below it, not a fourth kind
+    of area.
   - TAKING THE STRIP TAKES ON WHAT CAME WITH IT, and a window dressed to the
     fill alone gets both halves wrong. The platform's window controls now
     stand inside your layout, so the region reaching the top-leading corner
@@ -772,12 +786,18 @@ them backwards. Three kinds of area, three rungs:
     for the arithmetic in between). And the native drag leaves with the
     native strip: a window that claims nothing back cannot be moved by its
     top edge at all, so the capping regions claim it over their own empty
-    runs with Gio's system.ActionMove.
+    runs — desktop.DragTop(gtx, height) over the strip while leaving the
+    button run alone, desktop.DragRun(gtx, w) over a run of that width
+    inside a row already being laid out, desktop.DragBand(gtx, r) over a
+    rectangle you have measured. A page with no band furniture needs none
+    of the three: CapTop above claims what it insets.
   - ONE BAND HEIGHT ACROSS A SPLIT. Where the strip crosses a seam —
     furniture on one side of it, content on the other — the two sides wear
-    their own fills but hold one height between them. Two depths across one
-    strip read as a step in the window's top edge, which is the edge a
-    reader measures every other alignment against. The seam itself paints a
+    their own fills but hold one height between them. That height is
+    shell.NavbarHeight(density): ask for it rather than restating a number,
+    and the two sides cannot drift. Two depths across one strip read as a
+    step in the window's top edge, which is the edge a reader measures
+    every other alignment against. The seam itself paints a
     hairline, band included, and grabs a band several times that width;
     patterns/shell's SplitPane already does both, so an app on the shell
     restates neither.
@@ -1265,10 +1285,10 @@ purpose (golden determinism); leave those alone.
   require (
       gioui.org v0.10.2
       github.com/reactivego/rx v0.3.0
-      github.com/vibrantgio/patterns v0.8.2
-      github.com/vibrantgio/mvu v0.9.1
-      github.com/vibrantgio/components v0.9.4
-      github.com/vibrantgio/theme v1.0.0
+      github.com/vibrantgio/patterns v0.9.0
+      github.com/vibrantgio/mvu v1.0.0
+      github.com/vibrantgio/components v1.0.0
+      github.com/vibrantgio/theme v1.1.0
       github.com/vibrantgio/textdraw v0.0.4
   )
   ```
