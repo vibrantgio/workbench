@@ -181,6 +181,12 @@ const (
 	BlackPick            = "Black"
 )
 
+// edgeFloor is WCAG 1.4.11's contrast floor for a graphic that carries
+// meaning without being text — 3:1. An edge is exactly that: it is the whole
+// of what says where one plane ends and the next begins, so it is not
+// decoration and owes its ground this much.
+const edgeFloor = 3.0
+
 // Palette is this section's view of the colour tokens: every colour it
 // draws its own furniture with, named for what it draws.
 type Palette struct {
@@ -203,7 +209,13 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		Surface:  c.Ramps.Neutral.Step(200),
 		Divider:  c.Ramps.Neutral.Step(300),
 		CardEdge: c.Ramps.Neutral.Step(400),
-		Edge:     c.Ramps.Neutral.Step(500),
+		// The heaviest edge, derived rather than named: the neutral rung the
+		// ramp measures as reaching the graphic floor against Surface — the
+		// level-1 storey this section's cards fill at, and the ground any
+		// edge in this palette is drawn on. Named at step 500 it meant two
+		// different weights, 2.35:1 there in the light scheme against 5.94:1
+		// in the dark, from a line that looks scheme-neutral.
+		Edge:     c.MarkOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level1), edgeFloor),
 		Text:     c.Text,
 		Muted:    c.Ramps.Neutral.Step(700),
 		Accent:   c.Primary,

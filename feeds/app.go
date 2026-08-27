@@ -507,6 +507,10 @@ func addFeedModal(
 	field := input.TextField(th, input.TextFieldProps{
 		Placeholder: "https://example.com/feed.xml",
 		Description: "Feed URL",
+		// The field stands on the modal's surface, not on the window: the
+		// dialog is a level-2 plane, and a border derived against the window
+		// ground reads at 2.94:1 over it in the light scheme.
+		Ground: tokens.Level2,
 		OnChange: func(_ layout.Context, txt string) {
 			urlCell.Store(txt)
 		},

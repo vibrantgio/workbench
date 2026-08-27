@@ -90,6 +90,12 @@ func isDark(c tokens.ColorTokens) bool {
 	return vgcolor.RelativeLuminance(c.Background) < 0.5
 }
 
+// edgeFloor is WCAG 1.4.11's contrast floor for a graphic that carries
+// meaning without being text — 3:1. A swatch's frame is exactly that: it is
+// the whole of what says where a pale colour ends and the card behind it
+// begins, so it is not decoration and owes its ground this much.
+const edgeFloor = 3.0
+
 // Palette is the application's view of the colour tokens: every colour it
 // draws with, named for what it draws.
 type Palette struct {
@@ -97,7 +103,7 @@ type Palette struct {
 	Surface   stdcolor.NRGBA // the picture's mat and the candidate cards
 	Divider   stdcolor.NRGBA // the drop zone's outline at rest
 	CardEdge  stdcolor.NRGBA // a candidate card's outline at rest
-	Edge      stdcolor.NRGBA // the frame round a swatch, at the strong border weight
+	Edge      stdcolor.NRGBA // the frame round a swatch, the heaviest edge in the window
 	Text      stdcolor.NRGBA // headings and the chosen candidate's label
 	Muted     stdcolor.NRGBA // hints, hex values, unchosen labels
 	Accent    stdcolor.NRGBA // the chosen candidate's ring, the hover highlight
@@ -130,14 +136,20 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		// edge, not its fill, is what makes it an object. It is drawn a rung
 		// stronger than the page's dividers for exactly that reason.
 		CardEdge: c.Ramps.Neutral.Step(400),
-		// The strong border step, and it is on swatches rather than on cards
-		// for one reason: a swatch can be any colour a style or a photograph
+		// The heaviest edge, and it is on swatches rather than on cards for
+		// one reason: a swatch can be any colour a style or a photograph
 		// contains, and plenty of both are near-white. A near-white swatch on
 		// a near-white card has no boundary of its own, and without one it
 		// does not read as a pale colour somebody chose — it reads as a card
 		// that failed to finish drawing. The weight has to beat the two
 		// near-whites it stands between, which the card weight does not.
-		Edge: c.Ramps.Neutral.Step(500),
+		//
+		// So it is derived rather than named: the neutral rung the ramp
+		// measures as reaching 3:1 against the card the swatches lie on,
+		// which is Surface — the level-1 storey. Named at step 500 it
+		// measured 2.35:1 there in the light scheme and 5.94:1 in the dark,
+		// one line of code meaning two different weights.
+		Edge: c.MarkOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level1), edgeFloor),
 		Text: c.Text,
 		// The quiet register: hints and hex values, and the chrome in the
 		// title row that stands under the window's own name. It is a step

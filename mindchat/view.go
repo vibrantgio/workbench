@@ -383,8 +383,11 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 			Placeholder: "Chat name",
 			Description: "chat name",
 			Seed:        e.seed,
-			FocusTag:    func(tag event.Tag) { fieldTagCell.Store(tag) },
-			OnChange:    func(_ layout.Context, text string) { nameCell.Store(text) },
+			// The rename field stands on the decision modal's surface — a
+			// level-2 plane, not the window ground.
+			Ground:   tokens.Level2,
+			FocusTag: func(tag event.Tag) { fieldTagCell.Store(tag) },
+			OnChange: func(_ layout.Context, text string) { nameCell.Store(text) },
 		})
 	})
 

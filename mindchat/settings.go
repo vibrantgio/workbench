@@ -98,8 +98,11 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				Placeholder: placeholder,
 				Description: description,
 				Seed:        seed,
-				Mask:        mask,
-				FocusTag:    func(t event.Tag) { tag.Store(t) },
+				// Every field here stands on the settings modal's own
+				// surface — a level-2 plane, not the window ground.
+				Ground:   tokens.Level2,
+				Mask:     mask,
+				FocusTag: func(t event.Tag) { tag.Store(t) },
 				OnChange: func(gtx layout.Context, text string) {
 					mvu.MessageOp{Message: EditProvider{Field: f, Text: text}}.Add(gtx.Ops)
 				},
