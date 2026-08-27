@@ -7,6 +7,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -192,24 +193,6 @@ const (
 	// SidebarGutter is the leading inset the sidebar's rows and labels share.
 	SidebarGutter unit.Dp = 16
 
-	// The three macOS window controls stand in the brand row: this window
-	// paints its own title bar, so the row at the top of the sidebar is the
-	// band it gives them and nothing native stands above it.
-	//
-	// The geometry is the stored platform reference's, not a guess. The rule
-	// there is that the buttons are centred in whatever band a window has and
-	// that their leading inset equals their top inset, so the band's height is
-	// the only input: a 32dp plain title bar puts them 9dp in, a 52dp unified
-	// toolbar 19dp in, and this row happens to be 52 — the platform's own
-	// unified band — so it lands on the same 19 five of the reference's six
-	// applications were measured at. The diameter is measured too; without it
-	// an edge inset cannot be turned into the centre line the placement call
-	// wants. Deriving both from BrandRowHeight rather than writing 19 and 26
-	// down keeps them true if the row is ever cut deeper or shallower.
-	WindowButtonDiameter unit.Dp = 14
-	WindowButtonInset            = (BrandRowHeight - WindowButtonDiameter) / 2
-	WindowButtonCenter           = BrandRowHeight / 2
-
 	// WindowButtonGap is the air between the last window control and whatever
 	// the brand row puts beside it. The measurement the window reports is the
 	// bare trailing edge of the third circle and carries no breathing room of
@@ -258,4 +241,23 @@ const (
 	ChipRadius      unit.Dp = 14
 	MenuWidth       unit.Dp = 260
 	MenuMaxHeight   unit.Dp = 320
+)
+
+// The three macOS window controls stand in the brand row: this window
+// paints its own title bar, so the row at the top of the sidebar is the
+// band it gives them and nothing native stands above it. desktop.ButtonRunIn
+// derives their whole geometry from the band's own height — the buttons are
+// centred in whatever band a window has, and their leading inset equals
+// their top inset — so BrandRowHeight is the only input; at 52dp that is
+// 19dp leading and centred, 14dp across, the same numbers the platform
+// reference was measured at.
+var windowButtonRun = desktop.ButtonRunIn(BrandRowHeight)
+
+// WindowButtonDiameter, WindowButtonInset and WindowButtonCenter are
+// windowButtonRun's fields, named for the call sites that already expect
+// them.
+var (
+	WindowButtonDiameter = windowButtonRun.Diameter
+	WindowButtonInset    = windowButtonRun.Leading
+	WindowButtonCenter   = windowButtonRun.Center
 )

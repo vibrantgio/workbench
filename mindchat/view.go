@@ -710,10 +710,7 @@ var windowButtonsEnd = desktop.LeadingInset
 // caps it has to give them their leading run rather than draw the app's name
 // underneath them.
 func brandLead() unit.Dp {
-	if end := windowButtonsEnd(); end > 0 {
-		return end + WindowButtonGap
-	}
-	return SidebarGutter
+	return desktop.BandLeadFrom(windowButtonsEnd(), WindowButtonGap, SidebarGutter)
 }
 
 // windowDragArea declares r a region the window may be picked up and moved by.

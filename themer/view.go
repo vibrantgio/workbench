@@ -144,10 +144,7 @@ var windowButtonsEnd = desktop.LeadingInset
 // bare glass the buttons end at, and the row owes the last of them the same air
 // it puts between any two things standing in it.
 func TitleLead() unit.Dp {
-	if end := windowButtonsEnd(); end > 0 {
-		return end + Gap
-	}
-	return Pad
+	return desktop.BandLeadFrom(windowButtonsEnd(), Gap, Pad)
 }
 
 // buildLayers returns the layer-builder the theme window renders.

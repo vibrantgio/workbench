@@ -1,11 +1,8 @@
 package main
 
 import (
-	"image"
-
 	"gioui.org/app"
 	"gioui.org/layout"
-	"gioui.org/op"
 
 	"github.com/reactivego/rx"
 
@@ -40,19 +37,6 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // headless tests, and on every platform but macOS.
 func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	return rx.Map(pageObs, func(w layout.Widget) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			inset := gtx.Dp(desktop.TopInset())
-			if inset <= 0 {
-				return w(gtx)
-			}
-			size := gtx.Constraints.Max
-			defer op.Offset(image.Pt(0, inset)).Push(gtx.Ops).Pop()
-			gtx.Constraints.Max.Y -= inset
-			if gtx.Constraints.Min.Y > gtx.Constraints.Max.Y {
-				gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
-			}
-			w(gtx)
-			return layout.Dimensions{Size: size}
-		}
+		return desktop.InsetTop(desktop.TopInset, w)
 	})
 }

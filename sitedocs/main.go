@@ -24,7 +24,6 @@ package main
 
 import (
 	"fmt"
-	"image"
 	stdcolor "image/color"
 	"os"
 	"strconv"
@@ -33,7 +32,6 @@ import (
 
 	"gioui.org/app"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
@@ -186,20 +184,7 @@ func buildLayers(modelObs rx.Observable[Model], seed stdcolor.NRGBA) func(th rx.
 // included.
 func underTitleBar(shellObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	return rx.Map(shellObs, func(w layout.Widget) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			inset := gtx.Dp(desktop.TopInset())
-			if inset <= 0 {
-				return w(gtx)
-			}
-			size := gtx.Constraints.Max
-			defer op.Offset(image.Pt(0, inset)).Push(gtx.Ops).Pop()
-			gtx.Constraints.Max.Y -= inset
-			if gtx.Constraints.Min.Y > gtx.Constraints.Max.Y {
-				gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
-			}
-			w(gtx)
-			return layout.Dimensions{Size: size}
-		}
+		return desktop.InsetTop(desktop.TopInset, w)
 	})
 }
 
