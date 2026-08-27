@@ -63,7 +63,11 @@ func staticTheme(c tokens.ColorTokens) theme.Theme {
 
 // demoModel is a settled conversation with the shapes a transcript actually
 // grows: a couple of exchanges, a fenced code block, an inline code span, a
-// bulleted list, and an answer carrying web-search citations.
+// bulleted list with a nested sublist, a numbered list, and an answer
+// carrying web-search citations. Both list kinds are here on purpose — the
+// document draws their markers, hanging indent and item rhythm itself, and a
+// composition is the only place that rhythm can be judged against the prose
+// it sits between.
 func demoModel() Model {
 	return Model{
 		CurrentChat: Chat{
@@ -71,16 +75,19 @@ func demoModel() Model {
 			Loaded: true,
 			History: []Message{
 				{Role: RoleUser, Content: "In MVU, how does a button click reach the update function?"},
-				{Role: RoleAssistant, Content: "The widget never calls back into your code — it records a message. " +
-					"The clickable's layout writes a `MessageOp` into the frame's operation list; after the frame, " +
-					"the window collects every one of them and feeds them to the loop:\n\n" +
-					"```go\nfor _, msg := range frame.Messages() {\n\tmodel = Update(model, msg)\n}\n```\n\n" +
-					"One direction, no callbacks: view → ops → message → update → model → view."},
+				{Role: RoleAssistant, Content: "The widget records a `MessageOp`; after the frame, " +
+					"the window drains the operation list into the loop:\n\n" +
+					"```go\nfor _, msg := range frame.Messages() {\n\tmodel = Update(model, msg)\n}\n```"},
 				{Role: RoleUser, Content: "So state never lives in the widget?"},
 				{Role: RoleAssistant, Content: "Only ephemeral gesture state:\n\n" +
-					"- press tracking\n- scroll position\n- an editor's cursor\n\n" +
-					"Everything the app must remember reduces into the Model — the sidebar split, " +
-					"the open popover, even an in-flight completion stream.",
+					"- press tracking\n" +
+					"- an editor's cursor\n" +
+					"    - the caret's blink phase\n" +
+					"    - the live selection\n\n" +
+					"Everything else reduces into the Model:\n\n" +
+					"1. the message reaches `Update`\n" +
+					"2. `Update` returns the next Model\n" +
+					"3. the view re-renders from it\n",
 					Citations: []Citation{
 						{URL: "https://gioui.org/doc/architecture", Title: "Gio — Architecture"},
 					}},

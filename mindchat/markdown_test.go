@@ -1,9 +1,10 @@
 package main
 
 // Tests for the message-body markdown pipeline: representative bodies parse
-// into the chat subset — inline styles and code fences pass through, every
-// other block degrades to plain paragraphs preserving its inline runs — and
-// the doc cache keeps a stable message's Document across emissions.
+// into the chat subset — inline styles, code fences and lists pass through,
+// the block constructs that would grow document chrome degrade to plain
+// paragraphs preserving their inline runs — and the doc cache keeps a stable
+// message's Document across emissions.
 
 import (
 	"testing"
@@ -98,8 +99,7 @@ func TestBlockquoteDegradesToParagraph(t *testing.T) {
 }
 
 // TestBlocksDegradeToParagraphs maps the remaining unsupported constructs
-// down: headings flatten, list items keep textual markers, table rows join
-// their cells, images fall back to alt text, rules drop.
+// down: headings flatten, table rows join their cells, rules drop.
 func TestBlocksDegradeToParagraphs(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string
@@ -107,8 +107,6 @@ func TestBlocksDegradeToParagraphs(t *testing.T) {
 		wantBlocks int
 	}{
 		{"heading", "# Title\n", "Title", 1},
-		{"bullet list", "- alpha\n- beta\n", "• ", 2},
-		{"ordered list", "3. alpha\n4. beta\n", "3. ", 2},
 		{"table", "| a | b |\n|---|---|\n| c | d |\n", "a", 2},
 		{"rule", "---\n", "", 0},
 	} {
@@ -162,16 +160,104 @@ func TestBundledIconServes(t *testing.T) {
 	}
 }
 
-// TestOrderedMarkersCount numbers every item from the list's start.
-func TestOrderedMarkersCount(t *testing.T) {
-	blocks := parseBody("1. one\n2. two\n3. three\n")
-	want := []string{"1. ", "2. ", "3. "}
-	if len(blocks) != len(want) {
-		t.Fatalf("got %d blocks, want %d", len(blocks), len(want))
+// list asserts the block is a list and returns it.
+func mdList(t *testing.T, b markdown.Block) *markdown.List {
+	t.Helper()
+	l, ok := b.(*markdown.List)
+	if !ok {
+		t.Fatalf("block is %T, want *markdown.List", b)
 	}
-	for i, w := range want {
-		if spans := paragraph(t, blocks[i]).Spans; spans[0].Text != w {
-			t.Errorf("item %d marker = %q, want %q", i, spans[0].Text, w)
+	return l
+}
+
+// TestListsReachTheDocumentAsLists is the point of the chat subset carrying
+// lists at all: the document draws the markers, the hanging indent and the
+// item rhythm, so what leaves degrade must still BE a list — not a run of
+// paragraphs wearing marker text. A bullet list keeps its items unordered;
+// an ordered one keeps Ordered and the number it starts counting from.
+func TestListsReachTheDocumentAsLists(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		wantOrder  bool
+		wantStart  int
+	}{
+		{"bullet", "- alpha\n- beta\n", false, 0},
+		{"ordered", "3. alpha\n4. beta\n", true, 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			blocks := parseBody(tc.body)
+			if len(blocks) != 1 {
+				t.Fatalf("got %d blocks, want 1 list", len(blocks))
+			}
+			l := mdList(t, blocks[0])
+			if l.Ordered != tc.wantOrder || l.Start != tc.wantStart {
+				t.Errorf("list = {Ordered:%v Start:%d}, want {Ordered:%v Start:%d}",
+					l.Ordered, l.Start, tc.wantOrder, tc.wantStart)
+			}
+			if len(l.Items) != 2 {
+				t.Fatalf("got %d items, want 2", len(l.Items))
+			}
+			for i, want := range []string{"alpha", "beta"} {
+				item := l.Items[i]
+				if len(item.Blocks) != 1 {
+					t.Fatalf("item %d holds %d blocks, want 1", i, len(item.Blocks))
+				}
+				if spans := paragraph(t, item.Blocks[0]).Spans; len(spans) == 0 || spans[0].Text != want {
+					t.Errorf("item %d spans = %#v, want %q with no marker text prefixed", i, spans, want)
+				}
+			}
+		})
+	}
+}
+
+// TestNestedListStaysNested keeps a sublist inside its parent item, where the
+// document indents it, rather than unrolling it into the parent's run.
+func TestNestedListStaysNested(t *testing.T) {
+	blocks := parseBody("- outer\n    - inner one\n    - inner two\n")
+	if len(blocks) != 1 {
+		t.Fatalf("got %d blocks, want 1 list", len(blocks))
+	}
+	outer := mdList(t, blocks[0])
+	if len(outer.Items) != 1 {
+		t.Fatalf("outer list holds %d items, want 1", len(outer.Items))
+	}
+	item := outer.Items[0]
+	if len(item.Blocks) != 2 {
+		t.Fatalf("outer item holds %d blocks, want 2 (paragraph + sublist)", len(item.Blocks))
+	}
+	if n := len(mdList(t, item.Blocks[1]).Items); n != 2 {
+		t.Errorf("sublist holds %d items, want 2", n)
+	}
+}
+
+// TestListItemContentStaysInTheSubset recurses degrade through item content,
+// so a construct that would grow document chrome does not smuggle itself in
+// under a bullet.
+func TestListItemContentStaysInTheSubset(t *testing.T) {
+	blocks := parseBody("- # loud\n")
+	l := mdList(t, blocks[0])
+	if len(l.Items) != 1 || len(l.Items[0].Blocks) != 1 {
+		t.Fatalf("list = %#v, want one item holding one block", l)
+	}
+	b := l.Items[0].Blocks[0]
+	if _, ok := b.(*markdown.Heading); ok {
+		t.Fatalf("heading survived inside a list item; want it degraded")
+	}
+	if spans := paragraph(t, b).Spans; len(spans) == 0 || spans[0].Text != "loud" {
+		t.Errorf("degraded item spans = %#v, want the heading's inline run", spans)
+	}
+}
+
+// TestTaskItemsKeepTheirCheckbox carries the GFM task flags through degrade,
+// so the document draws a checkbox rather than a bullet.
+func TestTaskItemsKeepTheirCheckbox(t *testing.T) {
+	l := mdList(t, parseBody("- [x] done\n- [ ] todo\n")[0])
+	if len(l.Items) != 2 {
+		t.Fatalf("got %d items, want 2", len(l.Items))
+	}
+	for i, want := range []bool{true, false} {
+		if item := l.Items[i]; !item.Task || item.Checked != want {
+			t.Errorf("item %d = {Task:%v Checked:%v}, want {Task:true Checked:%v}", i, item.Task, item.Checked, want)
 		}
 	}
 }
@@ -188,16 +274,26 @@ func TestCitationsAutolink(t *testing.T) {
 		},
 	}
 	blocks := degrade(markdown.Parse(messageSource(msg)))
+	// The Sources block is a real list now, so the links sit in its items.
 	var links []markdown.Span
-	for _, b := range blocks {
-		if p, ok := b.(*markdown.Paragraph); ok {
-			for _, s := range p.Spans {
-				if s.URL != "" {
-					links = append(links, s)
+	var walk func([]markdown.Block)
+	walk = func(blocks []markdown.Block) {
+		for _, b := range blocks {
+			switch b := b.(type) {
+			case *markdown.Paragraph:
+				for _, s := range b.Spans {
+					if s.URL != "" {
+						links = append(links, s)
+					}
+				}
+			case *markdown.List:
+				for _, item := range b.Items {
+					walk(item.Blocks)
 				}
 			}
 		}
 	}
+	walk(blocks)
 	if len(links) != 2 {
 		t.Fatalf("got %d link spans %#v, want 2", len(links), links)
 	}

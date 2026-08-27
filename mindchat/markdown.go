@@ -1,9 +1,11 @@
 // markdown.go renders message bodies through the vibrantgio/markdown
 // module's chat subset: inline styles (bold/italic/code/links/
-// strikethrough) on components/richtext plus fenced code blocks. Every other
-// block construct — headings, lists, blockquotes, tables, images, rules —
-// degrades to plain paragraphs preserving its inline runs, so a chat bubble
-// never grows document chrome. Link clicks open in the system browser.
+// strikethrough) on components/richtext, fenced code blocks, images, and
+// lists — which the document renders itself, markers hanging off the text
+// column and items spaced by the list's own rhythm. The block constructs
+// that would grow document chrome in a bubble — headings, blockquotes,
+// tables, rules — degrade to plain paragraphs preserving their inline runs.
+// Link clicks open in the system browser.
 
 package main
 
@@ -97,10 +99,15 @@ func messageSource(msg Message) []byte {
 // degrade maps a parsed block tree onto the chat subset: paragraphs, code
 // blocks, and images pass through (the document renders an image via the
 // style's provider — bundled SVG icons — and falls back to alt text
-// itself), everything else flattens to plain paragraphs preserving its
-// inline runs — headings lose their scale, blockquotes their bar, list
-// items keep a textual marker, table rows join their cells, and rules (no
-// inline content) drop.
+// itself), and so do lists, whose markers, hanging indent and item spacing
+// the document draws itself. What is left would grow document chrome inside
+// a bubble, so it flattens to plain paragraphs preserving its inline runs:
+// headings lose their scale, blockquotes their bar, table rows join their
+// cells, and rules (no inline content) drop.
+//
+// A list keeps its shape but not its licence: its items' own content
+// recurses through here, so a heading or a table nested in an item lands in
+// the same subset as one at top level.
 func degrade(blocks []markdown.Block) []markdown.Block {
 	var out []markdown.Block
 	for _, b := range blocks {
@@ -112,36 +119,18 @@ func degrade(blocks []markdown.Block) []markdown.Block {
 		case *markdown.Blockquote:
 			out = append(out, degrade(b.Blocks)...)
 		case *markdown.List:
-			out = append(out, degradeList(b)...)
+			items := make([]*markdown.ListItem, len(b.Items))
+			for i, item := range b.Items {
+				degraded := *item
+				degraded.Blocks = degrade(item.Blocks)
+				items[i] = &degraded
+			}
+			out = append(out, &markdown.List{Ordered: b.Ordered, Start: b.Start, Items: items})
 		case *markdown.Table:
 			out = append(out, degradeTable(b)...)
 		case *markdown.Rule:
 			// A rule carries no inline runs; nothing to degrade to.
 		}
-	}
-	return out
-}
-
-// degradeList flattens a list's items into paragraphs, prefixing each item's
-// first paragraph with a textual marker ("• " or "3. "). Nested lists
-// recurse through the item content, their items keeping their own markers.
-func degradeList(l *markdown.List) []markdown.Block {
-	var out []markdown.Block
-	for i, item := range l.Items {
-		marker := "• "
-		if l.Ordered {
-			marker = fmt.Sprintf("%d. ", l.Start+i)
-		}
-		blocks := degrade(item.Blocks)
-		if len(blocks) == 0 {
-			continue
-		}
-		if p, ok := blocks[0].(*markdown.Paragraph); ok {
-			p.Spans = append([]markdown.Span{{Text: marker}}, p.Spans...)
-		} else {
-			blocks = append([]markdown.Block{&markdown.Paragraph{Spans: []markdown.Span{{Text: marker}}}}, blocks...)
-		}
-		out = append(out, blocks...)
 	}
 	return out
 }

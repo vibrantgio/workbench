@@ -1090,7 +1090,10 @@ viewport would fight the outer one.
     document, with an outline tree scrolling it via ScrollToBlock — the
     docs-app recipe, including the light/dark highlight switch), mindchat (message
     bodies degrade() to the chat subset: inline styles, fences, images
-    pass through; other blocks flatten to paragraphs).
+    and lists pass through — a subset keeps the constructs the document
+    already draws well and flattens only what would grow document chrome
+    in a bubble, so headings, blockquotes and tables become paragraphs
+    while a list stays a list, markers and all).
 
 ### Obsidian-flavoured notes
 
