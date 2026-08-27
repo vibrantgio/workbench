@@ -14,6 +14,7 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/io/event"
+	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -35,6 +36,7 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/patterns/shell"
@@ -515,6 +517,11 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Wid
 					Max: image.Pt(gtx.Constraints.Max.X-gtx.Dp(12), headerH),
 				}
 				FillRect(gtx, sep, 0, t.palette.Separator)
+				// The band stands in the window's top strip on this side of
+				// the split, so it carries the drag the native title bar
+				// stopped giving back — over its empty run, which is
+				// everything left of the model chip.
+				windowDragArea(gtx, image.Rect(0, 0, gtx.Constraints.Max.X-gtx.Dp(ChipWidth)-gtx.Dp(24), headerH))
 				return layout.Dimensions{Size: band.Max}
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -522,6 +529,21 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Wid
 					func(gtx layout.Context, row msgRow) layout.Dimensions {
 						return MessageRow(gtx, t, row)
 					})
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				// The transcript's foot is the same kind of edge as its head.
+				// The composer stands off the paper the messages lie on
+				// exactly as the header band's chip does, so the seam between
+				// them takes the hairline the band's edge takes — same
+				// Divider, same 12dp inset — rather than being left as a bare
+				// change of content. Drawing the two ends of one region by
+				// different rules is what makes a window look assembled.
+				seam := gtx.Dp(1)
+				FillRect(gtx, image.Rectangle{
+					Min: image.Pt(gtx.Dp(12), 0),
+					Max: image.Pt(gtx.Constraints.Max.X-gtx.Dp(12), seam),
+				}, 0, t.palette.Separator)
+				return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, seam)}
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.UniformInset(8).Layout(gtx, prompt)
@@ -669,18 +691,69 @@ func Sidebar(t themed, chats ChatList, current string, streaming map[string]bool
 	}
 }
 
-// SidebarBrand is the sidebar's top row: the app title and the [|]
-// collapse toggle sharing one vertical centre on the 16dp gutter.
+// windowButtonsEnd reports the trailing edge of the window's three control
+// buttons, and is the one place this app asks the window about them. The edge
+// is read from the buttons themselves rather than worked out from the
+// placement that put them there: their size and spacing are the platform's,
+// and a number written down here would drift with the next release of it.
+//
+// A render with no window behind it is told zero — which is every render in
+// the test suite, and every platform that keeps its own decorations, where
+// there are no such buttons to clear. It is a variable so that a test can
+// state a measurement it has no window to take.
+var windowButtonsEnd = desktop.LeadingInset
+
+// brandLead is where the brand row's own content may start: one gap past the
+// window's control buttons where the window has them, and the sidebar's
+// ordinary gutter where it does not. The controls stand at the top of the
+// sidebar because the sidebar reaches the window's top edge, so the row that
+// caps it has to give them their leading run rather than draw the app's name
+// underneath them.
+func brandLead() unit.Dp {
+	if end := windowButtonsEnd(); end > 0 {
+		return end + WindowButtonGap
+	}
+	return SidebarGutter
+}
+
+// windowDragArea declares r a region the window may be picked up and moved by.
+// Under the full-size-content treatment the native title-bar view never sees a
+// press, so a window cannot be dragged by its top edge until the application
+// claims a region for it; away from the treatment the platform's own title bar
+// is still up there doing that, and this is one more handle rather than the
+// only one.
+func windowDragArea(gtx layout.Context, r image.Rectangle) {
+	if r.Dx() <= 0 || r.Dy() <= 0 {
+		return
+	}
+	defer clip.Rect(r).Push(gtx.Ops).Pop()
+	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
+}
+
+// SidebarBrand is the sidebar's top row: the window's control buttons, the app
+// title and the [|] collapse toggle sharing one vertical centre. The row is
+// as deep as it is so the controls centre in it — it is the band this window
+// hands the platform in place of the native strip — and the title starts where
+// they end.
 func SidebarBrand(gtx layout.Context, t themed, toggle *widget.Clickable) layout.Dimensions {
 	for toggle.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
 	}
 	p := t.palette
 	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(BrandRowHeight))
-	left, right := gtx.Dp(16), gtx.Dp(12)
+	left, right := gtx.Dp(brandLead()), gtx.Dp(12)
 	iconSz := gtx.Dp(ToggleIconSize)
 
-	titleRect := image.Rect(left, 0, size.X-right-iconSz-gtx.Dp(8), size.Y)
+	// The row stands in the strip the native title bar would otherwise own,
+	// and that strip no longer hands back the window drag — so the row says
+	// where the window may be picked up. It says so over everything up to the
+	// toggle, the title included: dragging a window by its name is what the
+	// platform does. Declared before the toggle so the toggle, drawn after,
+	// keeps its own presses.
+	dragW := size.X - right - iconSz - gtx.Dp(8)
+	windowDragArea(gtx, image.Rect(0, 0, dragW, size.Y))
+
+	titleRect := image.Rect(left, 0, dragW, size.Y)
 	textdraw.FillText(gtx, t.shaper, roleText(t.typ.TitleMedium), titleRect, 0, 0.5, p.RowActive, "MindChat")
 
 	defer op.Offset(image.Pt(size.X-right-iconSz, (size.Y-iconSz)/2)).Push(gtx.Ops).Pop()
@@ -752,6 +825,21 @@ func SidebarRail(gtx layout.Context, t themed, toggle, newChat, settings *widget
 			})
 	}
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			// The window's control buttons stay where the window put them
+			// when the sidebar collapses — they belong to the window, not to
+			// a pane the reader dismissed — and the rail is narrower than
+			// they are wide, so they straddle its trailing edge. The rail
+			// gives them the strip anyway and starts its own icons under it:
+			// an icon drawn beneath them is one the platform will not let a
+			// click reach.
+			strip := 0
+			if windowButtonsEnd() > 0 {
+				strip = gtx.Dp(BrandRowHeight)
+			}
+			windowDragArea(gtx, image.Rect(0, 0, gtx.Constraints.Max.X, strip))
+			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, strip)}
+		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return rail(gtx, toggle, func(gtx layout.Context, sz int) { PanelGlyph(gtx, sz, p.Heading) })
 		}),
@@ -895,12 +983,18 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 		defer op.Offset(pos).Push(gtx.Ops).Pop()
 		// The patterns toast treatment: a cast shadow under an accent-tinted
 		// fill ringed in the accent, so the bar separates from the chat
-		// surfaces it floats over (RowSelected alone sat at ~1.2:1 against
-		// them, and ~1:1 against bot bubbles in dark mode).
+		// surfaces it floats over (a level-2 fill alone sat at ~1.2:1 against
+		// them, and ~1:1 against the assistant's rows in dark mode).
+		//
+		// The base is the toast rung, not the selected-row fill it used to
+		// borrow. That borrowing worked only while a selected row was a
+		// neutral step; now that it is a Primary tint, tinting it again with
+		// the accent would leave the bar a purple wash with nothing neutral
+		// under the ring.
 		bounds := image.Rectangle{Max: dims.Size}
 		radius := gtx.Dp(UndoBarRadius)
 		depth.Shadow(gtx, bounds, tokens.Level3, radius, 1)
-		FillRect(gtx, bounds, radius, Blend(p.RowSelected, p.Accent, 0x33))
+		FillRect(gtx, bounds, radius, Blend(p.Toast, p.Accent, 0x33))
 		ring := clip.RRect{Rect: bounds, SE: radius, SW: radius, NE: radius, NW: radius}
 		paint.FillShape(gtx.Ops, p.Accent, clip.Stroke{Path: ring.Path(gtx.Ops), Width: float32(gtx.Dp(1))}.Op())
 		content.Add(gtx.Ops)

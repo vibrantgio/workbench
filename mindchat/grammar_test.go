@@ -17,11 +17,13 @@ package main
 import (
 	"image"
 	"image/color"
+	"math"
 	"testing"
 
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
 	raster "github.com/vibrantgio/ivg/raster/gio"
@@ -238,5 +240,144 @@ func TestAssistantRowPaintsTheGroundItClaims(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// relativeLuminance is the WCAG channel-linearised luminance, the axis a
+// contrast ratio is computed on — a different axis from luma, which is the
+// perceptual brightness the rung walks are ordered by.
+func relativeLuminance(c color.NRGBA) float64 {
+	lin := func(v uint8) float64 {
+		s := float64(v) / 255
+		if s <= 0.03928 {
+			return s / 12.92
+		}
+		return math.Pow((s+0.055)/1.055, 2.4)
+	}
+	return 0.2126*lin(c.R) + 0.7152*lin(c.G) + 0.0722*lin(c.B)
+}
+
+// contrastRatio is the WCAG ratio between two opaque fills.
+func contrastRatio(a, b color.NRGBA) float64 {
+	la, lb := relativeLuminance(a), relativeLuminance(b)
+	if la < lb {
+		la, lb = lb, la
+	}
+	return (la + 0.05) / (lb + 0.05)
+}
+
+// TestChosenIsTintedAndTransientIsNeutral holds the conversation list to the
+// division the grammar draws between the two: the item the window is showing
+// wears the Primary ramp's tinted end, while hover — which is a state, not a
+// choice — stays a walk along the neutral ramp. A list has to be able to say
+// both things at once, and it cannot if both are neutral steps.
+func TestChosenIsTintedAndTransientIsNeutral(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			c := tc.c
+			p := PaletteFrom(c)
+			if want := c.Ramps.Primary.Step(300); p.RowSelected != want {
+				t.Errorf("RowSelected = %v, want the Primary tint %v — the open conversation is a choice, not a state", p.RowSelected, want)
+			}
+			for step := 100; step <= 900; step += 100 {
+				if n := c.Ramps.Neutral.Step(step); p.RowSelected == n {
+					t.Errorf("RowSelected = %v, which is neutral %d; a neutral step cannot say which item is being read", p.RowSelected, step)
+				}
+			}
+			// Hover is a neutral walk off the sidebar's own ground, at half
+			// strength, so the pointer's mark is a tick rather than a rival
+			// to the tint.
+			walk := c.StateColor(tokens.RoleNeutral, tokens.Elevation.SurfaceStep(tokens.Level1), tokens.StateHover)
+			if p.RowHovered.R != walk.R || p.RowHovered.G != walk.G || p.RowHovered.B != walk.B {
+				t.Errorf("RowHovered = %v, want the neutral hover walk %v at reduced alpha", p.RowHovered, walk)
+			}
+			if p.RowHovered.A >= 0xff {
+				t.Errorf("RowHovered alpha = %d, want a fraction of the walk", p.RowHovered.A)
+			}
+		})
+	}
+}
+
+// TestHoverSitsBetweenRestAndChosen checks the ordering a reader expects down
+// the sidebar: the resting surface, then the hovered row, then the row being
+// read. It is checked on paper, where the two fills' luminances are close
+// enough that a full-strength walk would overshoot the tint and put the two in
+// the wrong order — the measurement that set the hover fill's strength.
+func TestHoverSitsBetweenRestAndChosen(t *testing.T) {
+	c := tokens.DefaultLight
+	p := PaletteFrom(c)
+	hover := Blend(p.Sidebar, p.RowHovered, p.RowHovered.A)
+	rest, chosen := luma(p.Sidebar), luma(p.RowSelected)
+	if !(luma(hover) < rest && luma(hover) > chosen) {
+		t.Errorf("hover %v (%.0f) does not sit between the resting surface %v (%.0f) and the chosen row %v (%.0f)",
+			hover, luma(hover), p.Sidebar, rest, p.RowSelected, chosen)
+	}
+}
+
+// TestAccentBarReadsOnTheChosenFill keeps the selected row's leading bar
+// legible against the tint it is drawn on. The bar is what carries the
+// selection at a glance where the tint and the surface are close in
+// luminance — most of all in the dark scheme, where they very nearly match —
+// so it is the one mark that may not wash out.
+func TestAccentBarReadsOnTheChosenFill(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			p := PaletteFrom(tc.c)
+			if got := contrastRatio(p.Accent, p.RowSelected); got < 3 {
+				t.Errorf("accent bar %v on the chosen fill %v = %.2f:1, want at least 3:1", p.Accent, p.RowSelected, got)
+			}
+			if got := contrastRatio(p.RowActive, p.RowSelected); got < 4.5 {
+				t.Errorf("row text %v on the chosen fill %v = %.2f:1, want at least 4.5:1", p.RowActive, p.RowSelected, got)
+			}
+		})
+	}
+}
+
+// TestWindowButtonsAreCentredInTheBandTheyStandIn states the platform rule the
+// window's control placement is derived from: the three buttons are centred in
+// whatever band a window gives them, and their leading inset equals their top
+// one. The band here is the sidebar's brand row, so both numbers fall out of
+// its height and neither is written down twice.
+func TestWindowButtonsAreCentredInTheBandTheyStandIn(t *testing.T) {
+	if got, want := WindowButtonInset, (BrandRowHeight-WindowButtonDiameter)/2; got != want {
+		t.Errorf("WindowButtonInset = %v, want %v — the leading inset is the top inset", got, want)
+	}
+	if got, want := WindowButtonCenter, WindowButtonInset+WindowButtonDiameter/2; got != want {
+		t.Errorf("WindowButtonCenter = %v, want %v — the centre line is the inset plus a radius", got, want)
+	}
+	if got, want := WindowButtonCenter, BrandRowHeight/2; got != want {
+		t.Errorf("WindowButtonCenter = %v, want the band's own middle %v", got, want)
+	}
+	// The reference's unified-toolbar window measures 52dp deep with its
+	// buttons 19dp in; this band is the same depth and must land on the same
+	// number, which is the check that the derivation reproduces the platform
+	// rather than merely being self-consistent.
+	if BrandRowHeight == 52 && WindowButtonInset != 19 {
+		t.Errorf("a 52dp band puts the buttons %v in, want the measured 19", WindowButtonInset)
+	}
+}
+
+// TestBrandRowClearsTheWindowControls checks that the app's name starts after
+// the window's controls where the window has them, and at the sidebar's own
+// gutter where it does not — the collision AK2.1's review predicted the moment
+// the app took over the title bar.
+func TestBrandRowClearsTheWindowControls(t *testing.T) {
+	saved := windowButtonsEnd
+	defer func() { windowButtonsEnd = saved }()
+
+	windowButtonsEnd = func() unit.Dp { return 0 }
+	if got := brandLead(); got != SidebarGutter {
+		t.Errorf("with no window controls the brand row leads at %v, want the sidebar gutter %v", got, SidebarGutter)
+	}
+
+	// The measured edge on this platform: the third circle's trailing side,
+	// which is the leading inset plus a diameter plus two pitches.
+	const measuredEnd = unit.Dp(19 + 14 + 2*23)
+	windowButtonsEnd = func() unit.Dp { return measuredEnd }
+	if got, want := brandLead(), measuredEnd+WindowButtonGap; got != want {
+		t.Errorf("brandLead() = %v, want %v — the measurement carries no air of its own", got, want)
+	}
+	if brandLead() <= measuredEnd {
+		t.Errorf("brandLead() = %v, which is on top of the controls ending at %v", brandLead(), measuredEnd)
 	}
 }

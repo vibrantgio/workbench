@@ -110,7 +110,10 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			c := tc.c
 			p := PaletteFrom(c)
-			hover := c.Ramps.Neutral.Step(300)
+			// Hover is the sidebar's own neutral state walk at half strength,
+			// not a derivation of the selected fill — that one is a Primary
+			// tint, and a transient state stays a neutral walk.
+			hover := c.StateColor(tokens.RoleNeutral, tokens.Elevation.SurfaceStep(tokens.Level1), tokens.StateHover)
 			hover.A = 128
 			for _, f := range []struct {
 				name      string
@@ -121,7 +124,7 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 				{"Heading", p.Heading, c.Ramps.Neutral.Step(700)},
 				{"Row", p.Row, c.Ramps.Neutral.Step(700)},
 				{"RowActive", p.RowActive, c.Ramps.Neutral.Step(900)},
-				{"RowSelected", p.RowSelected, c.Ramps.Neutral.Step(300)},
+				{"RowSelected", p.RowSelected, c.Ramps.Primary.Step(300)},
 				{"RowHovered", p.RowHovered, hover},
 				{"Accent", p.Accent, c.Primary},
 				{"Ground", p.Ground, c.Background},
@@ -133,6 +136,7 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 				{"ChipText", p.ChipText, c.Ramps.Neutral.Step(900)},
 				{"ModalChip", p.ModalChip, c.Ramps.Neutral.Step(300)},
 				{"ModalChipHovered", p.ModalChipHovered, c.Ramps.Neutral.Step(400)},
+				{"Toast", p.Toast, c.SurfaceAt(tokens.Level2)},
 				{"Icon", p.Icon, c.Primary},
 				{"Error", p.Error, c.Error},
 			} {

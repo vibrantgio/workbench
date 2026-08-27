@@ -20,6 +20,7 @@ package main
 import (
 	"flag"
 	"image"
+	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -27,6 +28,9 @@ import (
 	"time"
 
 	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
+	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
@@ -130,12 +134,62 @@ func frame(t *testing.T, c tokens.ColorTokens, model Model) layout.Widget {
 	}
 }
 
+// The macOS window controls, as this window will actually carry them: the
+// leading inset and centre line the app states, and the diameter and pitch the
+// stored platform reference measured (19 in, 14 across, 23 apart, so the third
+// circle's trailing edge lands at 79).
+//
+// A headless frame has no window behind it, so it is told none of this unless
+// it says so: LeadingInset reports 0 with no window, and the buttons the OS
+// draws over the top-left corner do not exist at all. Both are stated here —
+// the measurement so the brand row reserves the run it will really have to
+// reserve, and the circles so a composition is judged with the things that
+// will be standing in it. They are stand-ins drawn at the measured geometry,
+// not the platform's own controls: right in size and place, plain discs rather
+// than the real glyphs and gradients.
+const (
+	buttonLeadDp     = 19
+	buttonDiameterDp = 14
+	buttonPitchDp    = 23
+	buttonsEndDp     = buttonLeadDp + buttonDiameterDp + 2*buttonPitchDp
+)
+
+var buttonHues = []color.NRGBA{
+	{R: 0xff, G: 0x5f, B: 0x57, A: 0xff},
+	{R: 0xfe, G: 0xbc, B: 0x2e, A: 0xff},
+	{R: 0x28, G: 0xc8, B: 0x40, A: 0xff},
+}
+
+// withWindowControls draws w and then puts the window's control buttons over
+// its top-left corner, where the platform will.
+func withWindowControls(w layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		dims := w(gtx)
+		d := gtx.Dp(buttonDiameterDp)
+		r := d / 2
+		for i, hue := range buttonHues {
+			x := gtx.Dp(buttonLeadDp) + i*gtx.Dp(buttonPitchDp)
+			y := gtx.Dp(WindowButtonCenter) - r
+			circle := clip.RRect{
+				Rect: image.Rect(x, y, x+d, y+d),
+				NE:   r, NW: r, SE: r, SW: r,
+			}
+			paint.FillShape(gtx.Ops, hue, circle.Op(gtx.Ops))
+		}
+		return dims
+	}
+}
+
 // TestWholeWindowRender draws the composed window in both schemes, and writes
 // the frames out when -window.dump names a directory.
 func TestWholeWindowRender(t *testing.T) {
+	saved := windowButtonsEnd
+	defer func() { windowButtonsEnd = saved }()
+	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
+
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
-			img := golden.Capture(t, windowSize, frame(t, tc.c, demoModel()))
+			img := golden.Capture(t, windowSize, withWindowControls(frame(t, tc.c, demoModel())))
 			if img.Bounds().Size() != windowSize {
 				t.Fatalf("frame size = %v, want %v", img.Bounds().Size(), windowSize)
 			}

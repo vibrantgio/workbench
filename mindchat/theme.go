@@ -26,13 +26,21 @@ import (
 // chip on the transcript ground is level 1 while a chip inside the level-2
 // settings dialog is measured from level 2.
 type Palette struct {
-	Sidebar     color.NRGBA // conversation-list surface — chrome furniture, level 1
-	Separator   color.NRGBA // sidebar header underline
-	Heading     color.NRGBA // sidebar heading text
-	Row         color.NRGBA // chat-row text
-	RowActive   color.NRGBA // selected/hovered chat-row text
-	RowSelected color.NRGBA // selected chat-row fill
-	RowHovered  color.NRGBA // hovered chat-row fill (over Sidebar)
+	Sidebar   color.NRGBA // conversation-list surface — chrome furniture, level 1
+	Separator color.NRGBA // sidebar header underline
+	Heading   color.NRGBA // sidebar heading text
+	Row       color.NRGBA // chat-row text
+	RowActive color.NRGBA // selected/hovered chat-row text
+	// RowSelected is the fill of the conversation the window is showing, and
+	// RowHovered the fill under the pointer. The two are deliberately
+	// different kinds of colour, not two steps of one: what is *chosen* is
+	// Primary-tinted, what is *transient* is a neutral walk. A list has to be
+	// able to say "this is the one you are reading" and "something is
+	// happening here" at once, and it cannot if both are neutral steps — which
+	// is what they were before, and why the open conversation and a hovered
+	// one read as the same thing.
+	RowSelected color.NRGBA
+	RowHovered  color.NRGBA
 	Accent      color.NRGBA // selected-row accent bar
 	// Ground is the transcript's resting fill — the header band, the
 	// assistant's turns and the space around them. It is the Background pin,
@@ -57,23 +65,46 @@ type Palette struct {
 	// transcript's chips use.
 	ModalChip        color.NRGBA
 	ModalChipHovered color.NRGBA
-	Icon             color.NRGBA // assistant avatar glyph
-	Error            color.NRGBA // settings fetch-error text
-	Ok               color.NRGBA // settings key-check success icon
+	// Toast is the base of a surface that appears and leaves — today the undo
+	// bar. It is a level-2 fill because that is the rung the ladder keeps for
+	// exactly that, and it is its own role rather than a borrowed one: the bar
+	// used to tint the selected-row fill, which was fine only while that fill
+	// was a neutral step and became a purple-on-purple wash the moment the
+	// selection turned into a Primary tint.
+	Toast color.NRGBA
+	Icon  color.NRGBA // assistant avatar glyph
+	Error color.NRGBA // settings fetch-error text
+	Ok    color.NRGBA // settings key-check success icon
 }
 
 func PaletteFrom(c tokens.ColorTokens) Palette {
-	// The hover fill is the selected fill at half opacity, painted over the
-	// sidebar surface, so it sits between rest and selected in both schemes.
-	hover := c.Ramps.Neutral.Step(300)
+	// The hover fill is the sidebar's OWN state walk at half strength, painted
+	// over the sidebar surface. It can no longer be derived from the selected
+	// fill — that one is a Primary tint now — and it must not be: hover is a
+	// transient state, and a transient state is a neutral walk from the ground
+	// it happens on. The ground is the sidebar's level 1, so the walk is the
+	// token set's neutral hover step off level 1's surface step.
+	//
+	// Half strength rather than the full step, and that is the re-derivation
+	// the tint forced. On paper the neutral hover step lands at luma 212 and
+	// the Primary-tinted selection at 215, so a full-strength hover would sit
+	// a hair *past* selected and the two would trade places; half of it lands
+	// at 221, between the resting surface's 232 and the selection's 215, which
+	// is the order a reader expects. On slate the same half-step is a soft
+	// lift off 34 that leaves the tinted row's hue to do the choosing.
+	hover := c.StateColor(tokens.RoleNeutral, tokens.Elevation.SurfaceStep(tokens.Level1), tokens.StateHover)
 	hover.A = 128
 	return Palette{
-		Sidebar:     c.Surface,
-		Separator:   c.Divider,
-		Heading:     c.Ramps.Neutral.Step(700),
-		Row:         c.Ramps.Neutral.Step(700),
-		RowActive:   c.Ramps.Neutral.Step(900),
-		RowSelected: c.Ramps.Neutral.Step(300),
+		Sidebar:   c.Surface,
+		Separator: c.Divider,
+		Heading:   c.Ramps.Neutral.Step(700),
+		Row:       c.Ramps.Neutral.Step(700),
+		RowActive: c.Ramps.Neutral.Step(900),
+		// The open conversation wears the Primary ramp's tinted end — the
+		// same step the vault's current note wears, and for the same reason:
+		// a tint says "this is the one you are looking at" where a neutral
+		// step can only say "something happened here".
+		RowSelected: c.Ramps.Primary.Step(300),
 		RowHovered:  hover,
 		Accent:      c.Primary,
 		Ground:      c.SurfaceAt(tokens.Level0),
@@ -89,6 +120,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		ChipText:         c.Ramps.Neutral.Step(900),
 		ModalChip:        c.SurfaceAt(tokens.Level2),
 		ModalChipHovered: c.StateColor(tokens.RoleNeutral, tokens.Elevation.SurfaceStep(tokens.Level2), tokens.StateHover),
+		Toast:            c.SurfaceAt(tokens.Level2),
 		Icon:             c.Primary,
 		Error:            c.Error,
 		// The token set has no green family; Tailwind green 600 is legible
@@ -155,7 +187,36 @@ const (
 	UndoBarRadius    unit.Dp = 6
 	UndoBarMargin    unit.Dp = 24
 
-	BrandRowHeight     unit.Dp = 52
+	BrandRowHeight unit.Dp = 52
+
+	// SidebarGutter is the leading inset the sidebar's rows and labels share.
+	SidebarGutter unit.Dp = 16
+
+	// The three macOS window controls stand in the brand row: this window
+	// paints its own title bar, so the row at the top of the sidebar is the
+	// band it gives them and nothing native stands above it.
+	//
+	// The geometry is the stored platform reference's, not a guess. The rule
+	// there is that the buttons are centred in whatever band a window has and
+	// that their leading inset equals their top inset, so the band's height is
+	// the only input: a 32dp plain title bar puts them 9dp in, a 52dp unified
+	// toolbar 19dp in, and this row happens to be 52 — the platform's own
+	// unified band — so it lands on the same 19 five of the reference's six
+	// applications were measured at. The diameter is measured too; without it
+	// an edge inset cannot be turned into the centre line the placement call
+	// wants. Deriving both from BrandRowHeight rather than writing 19 and 26
+	// down keeps them true if the row is ever cut deeper or shallower.
+	WindowButtonDiameter unit.Dp = 14
+	WindowButtonInset            = (BrandRowHeight - WindowButtonDiameter) / 2
+	WindowButtonCenter           = BrandRowHeight / 2
+
+	// WindowButtonGap is the air between the last window control and whatever
+	// the brand row puts beside it. The measurement the window reports is the
+	// bare trailing edge of the third circle and carries no breathing room of
+	// its own, so the row owes the buttons the same gap it would leave between
+	// any two things standing in it.
+	WindowButtonGap unit.Dp = 12
+
 	ToggleIconSize     unit.Dp = 20
 	FooterIconSize     unit.Dp = 18
 	FooterRowHeight    unit.Dp = 46
@@ -184,7 +245,14 @@ const (
 	ModelDotSize        unit.Dp = 6
 
 	// Chat header (model picker chip) geometry.
-	HeaderRowHeight unit.Dp = 44
+	// The header band is as deep as the brand row beside it, and both are the
+	// depth the platform's unified toolbar was measured at. They are the two
+	// halves of one strip across the top of a window that now paints its own,
+	// so a reader sees one band rather than a step where the split falls — and
+	// the model chip's centre line lands on the window controls' line instead
+	// of four dp above it. The band was 44 while the strip above it was the
+	// system's and the two never had to agree.
+	HeaderRowHeight         = BrandRowHeight
 	ChipHeight      unit.Dp = 28
 	ChipWidth       unit.Dp = 230
 	ChipRadius      unit.Dp = 14

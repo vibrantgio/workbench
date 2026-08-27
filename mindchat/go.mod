@@ -13,7 +13,8 @@ require (
 	github.com/vibrantgio/ivg v0.1.6
 	github.com/vibrantgio/ivg/raster/gio v0.1.6
 	github.com/vibrantgio/markdown v0.6.1
-	github.com/vibrantgio/mvu v0.5.0
+	github.com/vibrantgio/mvu v0.9.1
+	github.com/vibrantgio/mvu/desktop v0.9.1
 	github.com/vibrantgio/patterns v0.8.1
 	github.com/vibrantgio/textdraw v0.0.4
 	github.com/vibrantgio/theme v1.0.0
