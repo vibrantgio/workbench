@@ -57,18 +57,27 @@ func staticThemed(colors tokens.ColorTokens) themed {
 // invalidates, so it has no one frame to store; the background it is keyed to
 // stands in for it.
 func page(tok themed, model Model) layout.Widget {
+	back := backdrop.Widget(tok.color.Background)
+	content := pageContent(tok, model)
+	return func(gtx layout.Context) layout.Dimensions {
+		back(gtx)
+		return content(gtx)
+	}
+}
+
+// pageContent is the window's content layer alone — the hero over the card
+// grid, with the theme-driven pieces resolved from the frozen snapshot and no
+// ground under them. It is split out because the whole-window render beside
+// this file has to put the strip inset between the ground and the page, which
+// a widget that already carries its own ground gives it no seam to do.
+func pageContent(tok themed, model Model) layout.Widget {
 	props := HeroProps
 	props.Shaper = tok.shaper
 	// tok.components is static (rx.Of throughout), so First() resolves
 	// synchronously.
 	heroW, _ := hero.Hero(rx.Of(tok.components), props).First()
 	clicks := make([]widget.Clickable, len(Apps))
-	back := backdrop.Widget(tok.color.Background)
-	content := View(tok, heroW, clicks, model)
-	return func(gtx layout.Context) layout.Dimensions {
-		back(gtx)
-		return content(gtx)
-	}
+	return View(tok, heroW, clicks, model)
 }
 
 // TestWindowGolden records or diffs the window in both colour schemes, with

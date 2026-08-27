@@ -119,10 +119,7 @@ func NewField(window *app.Window, width, height unit.Dp) *Field {
 	// makes the ripple pattern jump.
 	noiser := noise.NewSimplex3D(0)
 	f.ctx.Animate().OnBefore(func(t, dt time.Duration) {
-		if pal := f.pending.Swap(nil); pal != nil {
-			f.pal = *pal
-			f.recolor()
-		}
+		f.applyPending()
 		tms := float64(t.Milliseconds())
 		faces := f.patch.Faces()
 		for i, surf := range faces {
@@ -161,6 +158,19 @@ func (f *Field) Widget() layout.Widget { return f.view }
 func (f *Field) SetColors(c tokens.ColorTokens) {
 	pal := paletteFrom(c)
 	f.pending.Store(&pal)
+}
+
+// applyPending installs a palette SetColors handed over, if one has arrived.
+// The animation tick calls it before displacing the patch, which is where it
+// belongs: recolouring is the events thread's to do. It is a method of its own
+// so that a render taken outside a running window — where no tick will ever
+// fire — can key the field to a theme before capturing it, instead of
+// photographing the pre-theme placeholder or waiting on a clock.
+func (f *Field) applyPending() {
+	if pal := f.pending.Swap(nil); pal != nil {
+		f.pal = *pal
+		f.recolor()
+	}
 }
 
 // fit (re)builds the patch to cover w×h (plus margin and a growStep of slack)

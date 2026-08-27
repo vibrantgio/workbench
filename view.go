@@ -19,6 +19,7 @@ import (
 	"github.com/vibrantgio/components/button"
 	pllayout "github.com/vibrantgio/components/layout"
 	raster "github.com/vibrantgio/ivg/raster/gio"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/card"
 	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/theme/theme"
@@ -38,7 +39,8 @@ const (
 
 // buildLayers returns the layer-builder the theme window renders, back to
 // front: the theme background fill, the animated seen triangle field, and the
-// hero + launch-card content floating on top.
+// hero + launch-card content floating on top. The ground and the field are
+// full-bleed, the title-bar strip included; only the page is inset below it.
 func buildLayers(win *app.Window, modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
@@ -102,13 +104,53 @@ type themed struct {
 	shaper     *text.Shaper // the theme's cached shaper (Typography.Shaper())
 }
 
-// ContentLayer renders the page: the latest theme snapshot combined with the
-// latest Model, mapped to a widget. This is the single modelObs consumer
-// counted by modelObsConsumers in main.go. The launch buttons' clickables are
+// ContentLayer is the page, held down past the native title-bar strip. It is
+// the single modelObs consumer counted by modelObsConsumers in main.go.
+func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+	return underTitleBar(pageLayer(th, modelObs))
+}
+
+// underTitleBar pads the page down by the native title-bar strip's measured
+// height on a full-size-content window. desktop.TopInset is read at frame
+// time: it reports 0 until the window's first frame, in headless renders, and
+// on every platform but macOS, so away from the treatment the wrapper is an
+// exact no-op.
+//
+// The strip carries no fill of its own here, and that is R6 satisfied rather
+// than skipped: the region this band caps is the window's own ground — the
+// Background pin with the triangle field over it — and both of those layers
+// are already full-bleed, so the region's fill reaches the top edge without
+// anything being painted twice. A band drawn here would be furniture this
+// window does not have. What has to stay clear of the strip is the page,
+// which starts below it.
+//
+// desktop.DragTop claims that same strip for the window's own drag: the strip
+// carries paint but no widget of its own, so without this the window could not
+// be moved by its top edge at all.
+func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
+	return rx.Map(pageObs, func(w layout.Widget) layout.Widget {
+		return dragUnderStrip(desktop.TopInset, w)
+	})
+}
+
+// dragUnderStrip is underTitleBar's composition over a stated strip height
+// rather than the window's own — the same split desktop.InsetTop's own height
+// parameter already makes — so a test can state a strip it has no window to
+// measure.
+func dragUnderStrip(height func() unit.Dp, w layout.Widget) layout.Widget {
+	inset := desktop.InsetTop(height, w)
+	return func(gtx layout.Context) layout.Dimensions {
+		desktop.DragTop(gtx, height)
+		return inset(gtx)
+	}
+}
+
+// pageLayer renders the page: the latest theme snapshot combined with the
+// latest Model, mapped to a widget. The launch buttons' clickables are
 // subscription-scoped (rx.Defer) so press/hover/focus state survives the
 // per-message view rebuilds; the hero is its own theme-driven component
 // observable, rebuilt only when the theme changes.
-func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	resolved := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(
 			rx.CombineLatest3(t.Color, t.Spacing, t.Typography),
