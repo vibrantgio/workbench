@@ -36,10 +36,12 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -61,13 +63,26 @@ var schemes = []struct {
 	{"dark", tokens.DefaultDark},
 }
 
+// densities is the pair the title band's depth is checked against. The live
+// theme emits Comfortable and nothing else, so Compact appears here rather
+// than in the window: the band's whole point is that it holds whatever depth
+// patterns/shell pins the navbar to, and a band that only ever meets one
+// density has not been asked the question.
+var densities = []struct {
+	name string
+	d    tokens.Density
+}{
+	{"comfortable", tokens.Comfortable},
+	{"compact", tokens.Compact},
+}
+
 // staticTheme freezes one colour scheme into a Theme whose every field emits
 // once — the shape theme/window feeds the layers, minus the live OS poll.
-func staticTheme(c tokens.ColorTokens) theme.Theme {
+func staticTheme(c tokens.ColorTokens, d tokens.Density) theme.Theme {
 	return theme.Theme{
 		Color:      rx.Of(c),
 		Typography: rx.Of(tokens.DefaultTypography),
-		Density:    rx.Of(tokens.Comfortable),
+		Density:    rx.Of(d),
 		Motion:     rx.Of(tokens.Motion),
 		Spacing:    rx.Of(tokens.Spacing),
 		Radius:     rx.Of(tokens.Radius),
@@ -100,9 +115,9 @@ var settledArticle = func() ArticleID {
 // windowFrame composes the window's layers for one scheme into a single
 // widget: the backdrop first, the shell over it, exactly as theme/window
 // stacks them.
-func windowFrame(t *testing.T, c tokens.ColorTokens, model Model) layout.Widget {
+func windowFrame(t *testing.T, c tokens.ColorTokens, d tokens.Density, model Model) layout.Widget {
 	t.Helper()
-	layers := buildLayers(rx.Of(model))(rx.Of(staticTheme(c)))
+	layers := buildLayers(rx.Of(model))(rx.Of(staticTheme(c, d)))
 
 	widgets := make([]layout.Widget, len(layers))
 	for i, layer := range layers {
@@ -127,7 +142,14 @@ func windowFrame(t *testing.T, c tokens.ColorTokens, model Model) layout.Widget 
 // warm-up drawShellOnce does for the shell tests.
 func renderWindow(t *testing.T, c tokens.ColorTokens) *image.RGBA {
 	t.Helper()
-	w := windowFrame(t, c, settledModel())
+	return renderWindowAt(t, c, tokens.Comfortable)
+}
+
+// renderWindowAt is renderWindow at a stated density — the input the title
+// band's depth follows, and the one the live theme never varies.
+func renderWindowAt(t *testing.T, c tokens.ColorTokens, d tokens.Density) *image.RGBA {
+	t.Helper()
+	w := windowFrame(t, c, d, settledModel())
 	golden.Capture(t, windowSize, w)
 	return golden.Capture(t, windowSize, w)
 }
@@ -174,6 +196,13 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
+// windowBand is the depth of the title band these frames are drawn with: the
+// strip the sidebar and the navbar hold open across the window's top edge, at
+// the density staticTheme is given below. The sidebar's sample points are
+// stated from it rather than from the window's top edge, because everything
+// the sidebar draws begins under the band.
+var windowBand = int(windowBandDp(tokens.Comfortable))
+
 // Sample points in the rendered window, in the pixels the frame is drawn at
 // (PxPerDp is 1, so a dp is a pixel). Each names a resting expanse and is
 // chosen well clear of ink: the sidebar below its last feed, the navbar
@@ -183,16 +212,16 @@ func TestWholeWindowRender(t *testing.T) {
 // region paints its own fill where it draws, so the frame is the only place
 // the question has an answer.
 var (
-	atSidebar     = image.Pt(96, 400)   // sidebar, below the open section's feeds
-	atNavbar      = image.Pt(600, 12)   // navbar, between the brand and the actions
-	atListPane    = image.Pt(494, 640)  // articles pane, under the last row
-	atListRow     = image.Pt(760, 209)  // second body row, past the Unread glyph
-	atReadingPane = image.Pt(1000, 600) // reading pane, below the article body
-	atPaneHead    = image.Pt(900, 60)   // reading pane, beside the article title
-	atTabStrip    = image.Pt(1100, 144) // the tab strip band, past the last label
-	atOpenFeed    = image.Pt(100, 61)   // the open feed's pill
-	atRestingFeed = image.Pt(100, 89)   // the feed under it, unchosen and unhovered
-	atOpenRow     = image.Pt(760, 173)  // the open article's row, past the glyph
+	atSidebar     = image.Pt(96, 400)            // sidebar, below the open section's feeds
+	atNavbar      = image.Pt(600, 12)            // navbar, between the brand and the actions
+	atListPane    = image.Pt(494, 640)           // articles pane, under the last row
+	atListRow     = image.Pt(760, 209)           // second body row, past the Unread glyph
+	atReadingPane = image.Pt(1000, 600)          // reading pane, below the article body
+	atPaneHead    = image.Pt(900, 60)            // reading pane, beside the article title
+	atTabStrip    = image.Pt(1100, 144)          // the tab strip band, past the last label
+	atOpenFeed    = image.Pt(100, windowBand+61) // the open feed's pill, under the band
+	atRestingFeed = image.Pt(100, windowBand+89) // the feed under it, unchosen and unhovered
+	atOpenRow     = image.Pt(760, 173)           // the open article's row, past the glyph
 )
 
 // TestWindowRegionsWearTheirRungs reads ADR-021's assignment off the frame:
@@ -348,5 +377,159 @@ func TestFeedRowStatesKeepTheirInksApart(t *testing.T) {
 				t.Errorf("the chosen ink and the hover walk are the same colour %v; a row cannot say both things at once", tint)
 			}
 		})
+	}
+}
+
+// topmostInkIn is the first row of the given box that holds a pixel other than
+// ground, or -1 for a box that is nothing but ground. It is how a region's
+// first drawn thing is found without knowing what that thing is — the question
+// the band's assertions ask of the sidebar, whose whole column is one fill
+// until something is drawn on it.
+func topmostInkIn(img *image.RGBA, ground color.NRGBA, x0, x1, y0, y1 int) int {
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			if at(img, x, y) != ground {
+				return y
+			}
+		}
+	}
+	return -1
+}
+
+// TestTheSidebarClearsTheWindowButtons is R6's first consequence read off this
+// window: with the native strip gone, the platform's three control buttons
+// float over the top-leading corner of whatever the application drew there,
+// and in this layout that corner belongs to the sidebar.
+//
+// The collision it guards was real rather than hypothetical, and the audit
+// found it. Measured off this window's frames before the band existed: the
+// first accordion section's header inked from row 17 and the sidebar's own
+// content ran the band's whole depth, while the buttons in a 52 dp band run
+// rows 19 to 33 and reach 79 dp along (desktop.ButtonRunIn(52): leading 19,
+// centre 26, trailing 79) — 184 pixels of the header's caret and name stood
+// inside the run. The band is the whole of the clearance the corner now has;
+// nothing in the sidebar is centred out of the buttons' way.
+//
+// The run is desktop's derivation of the platform's rule rather than a guess
+// at where the circles are, and the clearance is asserted off the frame rather
+// than trusted to the arithmetic that produced it.
+func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
+	run := desktop.ButtonRunIn(windowBandDp(tokens.Comfortable))
+	bottom := int(run.Leading + run.Diameter)
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderWindow(t, tc.c)
+			surface := tc.c.SurfaceAt(tokens.Level1)
+			for y := 0; y <= bottom; y++ {
+				for x := 0; x <= int(run.Trailing); x++ {
+					if got := at(img, x, y); got != surface {
+						t.Fatalf("sidebar ink %v at (%d,%d), inside the window buttons' run (leading %v, trailing %v, centre %v)",
+							got, x, y, run.Leading, run.Trailing, run.Center)
+					}
+				}
+			}
+			top := topmostInkIn(img, surface, 0, feedsSidebarWidthDp, 0, windowSize.Y)
+			if top < 0 {
+				t.Fatalf("the sidebar draws nothing at all; the clearance below the buttons cannot be judged")
+			}
+			if top <= bottom {
+				t.Errorf("the sidebar's topmost ink is row %d and the buttons end at row %d; the sidebar has no clearance under them", top, bottom)
+			}
+			t.Logf("sidebar's topmost ink is row %d; the buttons run rows %v to %d", top, run.Leading, bottom)
+		})
+	}
+}
+
+// TestTheWindowsTopStripIsOneBand is R6's later half, which is the half this
+// window had to answer for: its top edge is crossed by two regions, not one.
+// The sidebar caps the leading side and the navbar caps the content region
+// beside it, and the rule is that the two wear their own fills but hold one
+// depth between them — a strip deeper on one side of the seam than the other
+// is a step in the window's top edge rather than a band with a seam in it.
+//
+// Each half is measured off the frame, and neither is asked to agree with a
+// number written down in this test:
+//
+//   - The trailing half declares its own depth, because the navbar's Surface
+//     ends where the content region's ground begins. That edge must land
+//     exactly on the band, which is what proves this app's restatement of
+//     patterns/shell's navbar pin has not drifted from the pin itself.
+//   - The leading half declares nothing, because the sidebar's fill runs the
+//     whole column and the band is the same Surface as everything under it.
+//     What can be seen there is where the sidebar starts drawing, which must
+//     be at or below the band's foot — the band is held open, and wears the
+//     sidebar's own ground while it is.
+//
+// Both densities are checked because the depth is the density's, not this
+// app's: a band that only ever met Comfortable would pass while hard-coding
+// 52. Checking two also turns the leading half's loose bound into an exact
+// one. The accordion's own lead — the padding above its first section's
+// caret — is whatever it is, but it is the same at both densities, so the gap
+// between the band's foot and the sidebar's first ink has to be the same at
+// both as well. A sidebar reserving anything other than the band would open a
+// different gap at 52 than at 40 and be caught here, without this test ever
+// having to know what the accordion's lead is.
+func TestTheWindowsTopStripIsOneBand(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			leads := make([]int, len(densities))
+			for i, dc := range densities {
+				img := renderWindowAt(t, tc.c, dc.d)
+				band := int(windowBandDp(dc.d))
+				surface := tc.c.SurfaceAt(tokens.Level1)
+
+				depth := -1
+				for y := 0; y < windowSize.Y; y++ {
+					if at(img, atNavbar.X, y) != surface {
+						depth = y
+						break
+					}
+				}
+				if depth != band {
+					t.Errorf("%s: the navbar's half of the strip is %d dp deep at x=%d, want the band's %d dp; the two halves of the window's top edge stand at different depths",
+						dc.name, depth, atNavbar.X, band)
+				}
+
+				top := topmostInkIn(img, surface, 0, feedsSidebarWidthDp, 0, windowSize.Y)
+				if top < 0 {
+					t.Fatalf("%s: the sidebar draws nothing at all; its half of the strip cannot be judged", dc.name)
+				}
+				if top < band {
+					t.Errorf("%s: the sidebar inks row %d, inside a band %d dp deep; its half of the strip is shallower than the navbar's beside it",
+						dc.name, top, band)
+				}
+				leads[i] = top - band
+				t.Logf("%s: band %d dp, navbar's fill ends at row %d, sidebar's first ink is row %d (%d dp below the band)",
+					dc.name, band, depth, top, leads[i])
+			}
+			for i := 1; i < len(leads); i++ {
+				if leads[i] != leads[0] {
+					t.Errorf("the sidebar starts drawing %d dp below a %s band and %d dp below a %s one; the depth it holds open is not the band's",
+						leads[0], densities[0].name, leads[i], densities[i].name)
+				}
+			}
+		})
+	}
+}
+
+// TestTheBandIsTheDensitysBarHeight states the arithmetic the frames above
+// measure, so a failure says which of the two is wrong. The band is the
+// density's bar height — ControlHeight + 2·PaddingY — which is what
+// patterns/shell pins its navbar slot to, and the window buttons' whole
+// geometry falls out of that one number through the platform's centring rule.
+func TestTheBandIsTheDensitysBarHeight(t *testing.T) {
+	for _, dc := range densities {
+		want := unit.Dp(dc.d.ControlHeight + 2*dc.d.PaddingY)
+		if got := windowBandDp(dc.d); got != want {
+			t.Errorf("%s band = %v, want the density's bar height %v", dc.name, got, want)
+		}
+	}
+	run := desktop.ButtonRunIn(windowBandDp(tokens.Comfortable))
+	if windowButtonRun != run {
+		t.Errorf("the window buttons are placed at %+v, want the run derived from the band %+v", windowButtonRun, run)
+	}
+	if windowButtonRun.Center != windowBandDp(tokens.Comfortable)/2 {
+		t.Errorf("the buttons' centre line is %v in a band %v deep; they are not centred in the band they stand in",
+			windowButtonRun.Center, windowBandDp(tokens.Comfortable))
 	}
 }

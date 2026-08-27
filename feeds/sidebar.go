@@ -129,10 +129,17 @@ func feedsSidebar(
 	colorsObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
 		return t.Color
 	})
+	// The density is here for the band alone: it is what the navbar's height
+	// on the other side of the window's top edge is pinned to, and therefore
+	// what the sidebar has to hold open on this side (see windowBandDp).
+	densityObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Density] {
+		return t.Density
+	})
 	return rx.Map(
-		rx.CombineLatest4(accObs, feedsObs, colorsObs, selectedFeedObs),
-		func(n rx.Tuple4[layout.Widget, []feedGroup, tokens.ColorTokens, FeedID]) layout.Widget {
+		rx.CombineLatest5(accObs, feedsObs, colorsObs, selectedFeedObs, densityObs),
+		func(n rx.Tuple5[layout.Widget, []feedGroup, tokens.ColorTokens, FeedID, tokens.Density]) layout.Widget {
 			accW, feeds, c := n.First, n.Second, n.Third
+			band := windowBandDp(n.Fifth)
 			selectedCell.Store(n.Fourth)
 			for i := range sectionCells {
 				if i < len(feeds) {
@@ -142,16 +149,33 @@ func feedsSidebar(
 				}
 			}
 			return func(gtx layout.Context) layout.Dimensions {
-				return drawFeedsSidebar(gtx, accW, c)
+				return drawFeedsSidebar(gtx, accW, c, band)
 			}
 		},
 	)
 }
 
+// drawFeedsSidebar fills the sidebar's column and lays the accordion out
+// below the window's title band.
+//
+// The band is the sidebar's own top rows rather than something drawn over
+// them: this window paints its own title bar, so the sidebar reaches the
+// window's top edge and the platform's three control buttons stand in its
+// top-leading corner. The fill therefore runs the whole column, band
+// included — the band wears the ground of the region it caps, which here is
+// the sidebar's Surface — and only the accordion starts below it. Before the
+// treatment the first section's header sat at the very corner, exactly where
+// the buttons land, which is the collision the window audit read off this
+// window.
+//
+// Nothing is drawn in the band on this side. The window's name is already the
+// navbar's brand on the other side of the seam, and a second copy of it under
+// the buttons would be the same word twice across one strip.
 func drawFeedsSidebar(
 	gtx layout.Context,
 	accW layout.Widget,
 	colors tokens.ColorTokens,
+	band unit.Dp,
 ) layout.Dimensions {
 	w := gtx.Dp(unit.Dp(feedsSidebarWidthDp))
 	h := gtx.Constraints.Max.Y
@@ -161,7 +185,9 @@ func drawFeedsSidebar(
 	// window's Background ground. The token never moved; what moved is the
 	// ground under it, which used to be Surface as well.
 	paint.FillShape(gtx.Ops, colors.Surface, clip.Rect{Max: size}.Op())
-	gtx.Constraints = layout.Exact(size)
+	top := min(max(gtx.Dp(band), 0), h)
+	defer op.Offset(image.Pt(0, top)).Push(gtx.Ops).Pop()
+	gtx.Constraints = layout.Exact(image.Pt(w, h-top))
 	if accW != nil {
 		accW(gtx)
 	}

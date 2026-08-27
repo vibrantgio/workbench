@@ -22,6 +22,7 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/alert"
 	"github.com/vibrantgio/patterns/card"
 	"github.com/vibrantgio/patterns/modal"
@@ -252,6 +253,14 @@ func feedsShellLayer(
 		},
 	})
 
+	// The density, for the window's title band alone: patterns/shell pins the
+	// navbar to the density's bar height, so that is the depth the band holds
+	// across the whole top edge (see windowBandDp). It is read off the theme
+	// rather than the model, so it costs nothing on the modelObs ledger above.
+	densityObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Density] {
+		return t.Density
+	})
+
 	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, selectedFeedObs, popArb)
 	sidebarDriven := rx.Map(
 		rx.CombineLatest5(sidebarObs, articlesObs, detailObs, splitObs, shareObs),
@@ -284,11 +293,36 @@ func feedsShellLayer(
 	// an open modal's own scrim should shadow it the way it shadows the rest
 	// of the app.
 	return rx.Map(
-		rx.CombineLatest4(shellObs, modalObs, prefsObs, toastObs),
-		func(n rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
+		rx.CombineLatest5(shellObs, modalObs, prefsObs, toastObs, densityObs),
+		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, tokens.Density]) layout.Widget {
 			shellW, modalW, prefsW, toastW := n.First, n.Second, n.Third, n.Fourth
+			band := windowBandDp(n.Fifth)
+			bandHeight := func() unit.Dp { return band }
 			return func(gtx layout.Context) layout.Dimensions {
 				prefsShortcut(gtx)
+				// The window's own drag, handed back. The treatment took the
+				// native title bar and the drag went with it, so the strip
+				// across the top of the window says where the window may be
+				// picked up or it cannot be moved by its top edge at all.
+				//
+				// desktop.DragTop is the claim: the band's full width, past
+				// the trailing edge of the platform's control buttons, whose
+				// run is theirs rather than the band's to give away. Its name
+				// is for the window whose page starts below the strip and this
+				// one's regions reach into it, but the rectangle is the same
+				// one either way, and reading the buttons' edge off the window
+				// each frame is what a hand-rolled copy of it would get wrong.
+				//
+				// One claim covers both halves of the band. The drag belongs
+				// to the window rather than to the sidebar or the navbar, and
+				// the seam between them is not somewhere a hand aiming at the
+				// top of a window would think to avoid. It is declared before
+				// the shell and therefore sits at the bottom of the hit stack:
+				// a move action swallows a press before any control beneath it
+				// sees one, so everything standing in the band — Add feed and
+				// Share on the trailing side above all — is registered
+				// afterwards and keeps its own presses.
+				desktop.DragTop(gtx, bandHeight)
 				dims := shellW(gtx)
 				if modalW != nil {
 					modalW(gtx)

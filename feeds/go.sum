@@ -21,8 +21,10 @@ github.com/vibrantgio/effects v0.2.1 h1:URdl0OcrZwwSTY5pScHseeF1spOgyWazYWBpYzAs
 github.com/vibrantgio/effects v0.2.1/go.mod h1:mp/xO0+H/0Kdu8D/tG25YjQ50taR9O30bC6tm1rnbsw=
 github.com/vibrantgio/font v0.4.1 h1:MCn+Sf9jRxjjdgxVGAu+7DRpKFiFLIq5SW3kQOTYDNM=
 github.com/vibrantgio/font v0.4.1/go.mod h1:nU+TnuoartKhdAnHASqn/yNO+t1zLheH1CHgbJJf0FY=
-github.com/vibrantgio/mvu v0.5.0 h1:sLOoAbHCSYwGlOzGj15TUiPQYZjgmo5o5dCpkjlhZOQ=
-github.com/vibrantgio/mvu v0.5.0/go.mod h1:jFP2zPvLge60zDSlCqTOcbMLHJaQgv1b8/VsmFD1ejo=
+github.com/vibrantgio/mvu v0.9.1 h1:gxv/C0Czuv3avzeWVrfWP/kzkf5eNvk6wX4mEO+2ZDY=
+github.com/vibrantgio/mvu v0.9.1/go.mod h1:jFP2zPvLge60zDSlCqTOcbMLHJaQgv1b8/VsmFD1ejo=
+github.com/vibrantgio/mvu/desktop v0.9.1 h1:yteic9BPfVRlQV09+cXcYJqQ/RKQ51MjmKc4qFGXjbc=
+github.com/vibrantgio/mvu/desktop v0.9.1/go.mod h1:1dqFJ9TRBhGjlFEDl62T/jMBV8t0cFwIW/SWu4wMpt4=
 github.com/vibrantgio/patterns v0.8.1 h1:BmHO5G6f5CEpsX4WrVwupwX0NMkFkCnFDodxUFtnokc=
 github.com/vibrantgio/patterns v0.8.1/go.mod h1:v0bI8HIOA+UmzbR4wuKmqGR15BkmeCIuoSwsQwejhcQ=
 github.com/vibrantgio/svg v0.0.9 h1:0OCCmVFz13IIDR3oDZeyw0IMy2RKWKWReQIlsRRz9zw=
