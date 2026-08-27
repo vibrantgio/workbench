@@ -13,6 +13,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -27,15 +28,14 @@ import (
 // mindchat was built to avoid.
 //
 // The right half's depth is not this app's to choose. patterns/shell pins the
-// navbar slot to the density's bar height, so that number IS the band and
-// this restates its rule — ControlHeight + 2·PaddingY, which is 52 dp
-// Comfortable and 40 dp Compact — so the sidebar can hold the same depth open
-// on the other side of the seam. The rule is restated rather than imported
-// because the shell keeps it unexported; TestTheWindowsTopStripIsOneBand
-// measures both halves off a rendered frame at both densities, so a drift in
-// either rule is caught where it would show rather than where it was written.
+// navbar slot to shell.NavbarHeight, so that number IS the band, and the
+// sidebar holds the same depth open on the other side of the seam by calling
+// the same export rather than restating its arithmetic.
+// TestTheWindowsTopStripIsOneBand measures both halves off a rendered frame
+// at both densities, so a drift between them is caught where it would show
+// rather than where it was written.
 func windowBandDp(d tokens.Density) unit.Dp {
-	return unit.Dp(d.ControlHeight + 2*d.PaddingY)
+	return shell.NavbarHeight(d)
 }
 
 // windowButtonRun is where the platform's three control buttons stand once
