@@ -3,6 +3,7 @@ package main
 import (
 	"gioui.org/app"
 	"gioui.org/layout"
+	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
@@ -35,8 +36,24 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // measured height on a full-size-content window. desktop.TopInset is
 // read at frame time: it reports 0 until the window's first frame, in
 // headless tests, and on every platform but macOS.
+//
+// desktop.DragTop claims that same strip for the window's own drag: the
+// strip carries paint but no widget of its own, so without this the window
+// could not be moved by its top edge at all.
 func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	return rx.Map(pageObs, func(w layout.Widget) layout.Widget {
-		return desktop.InsetTop(desktop.TopInset, w)
+		return dragUnderStrip(desktop.TopInset, w)
 	})
+}
+
+// dragUnderStrip is underTitleBar's composition over a stated strip height
+// rather than the window's own — the same split desktop.InsetTop's own
+// height parameter already makes — so a test can state a strip it has no
+// window to measure.
+func dragUnderStrip(height func() unit.Dp, w layout.Widget) layout.Widget {
+	inset := desktop.InsetTop(height, w)
+	return func(gtx layout.Context) layout.Dimensions {
+		desktop.DragTop(gtx, height)
+		return inset(gtx)
+	}
 }
