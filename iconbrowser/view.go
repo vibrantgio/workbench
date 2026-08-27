@@ -7,18 +7,22 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
+	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/input"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// buildLayers returns the layer-builder the theme window renders.
+// buildLayers returns the layer-builder the theme window renders: the backdrop
+// full-bleed to the window's top edge, the title-bar strip included, and the
+// page over it starting below that strip.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
@@ -39,7 +43,9 @@ type themed struct {
 	icons   []layout.Widget
 }
 
-// ContentLayer renders the page: search field over the filtered icon grid.
+// ContentLayer renders the page: search field over the filtered icon grid,
+// held down past the native title-bar strip the window opens the top of itself
+// into.
 //
 // The two stateful widgets deliberately live at subscription scope, OUTSIDE
 // the per-emission Map (llms.txt rule 2): the grid's scroll position, and the
@@ -74,10 +80,61 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			})
 	})
 
-	return rx.Map(rx.CombineLatest3(themes, search, modelObs),
+	return underTitleBar(rx.Map(rx.CombineLatest3(themes, search, modelObs),
 		func(next rx.Tuple3[themed, layout.Widget, Model]) layout.Widget {
 			return Page(next.First, next.Second, next.Third, grid)
-		})
+		}))
+}
+
+// underTitleBar holds the page down past the native title-bar strip the
+// full-size-content window opens the top of itself into, and claims that same
+// strip for the window's own drag.
+//
+// The strip carries no fill of its own, and that is R6 satisfied rather than
+// skipped: the region this band caps is the window's own ground — the
+// Background pin BackdropLayer fills the whole window with — so the region's
+// fill reaches the top edge without anything being painted twice. A band drawn
+// here would be furniture this window does not have. Nothing in this window is
+// chrome: the grid is the content ground, the two section labels are ink on it,
+// and the search field is a control standing on it in the page's own vertical
+// flow rather than a toolbar over it. Lifting that field into the strip would
+// invent the toolbar — and would not fit in one either, since a components
+// TextField is a Density.ControlHeight box (36 dp comfortable) and the band the
+// window buttons are centred in is 32 (ADR-019).
+//
+// So what has to clear the platform's three control buttons is the field, and
+// the inset is what buys it that clearance: the field is the page's topmost ink
+// and the page starts below the strip. TestThePageClearsTheWindowButtons reads
+// the result off the frame rather than trusting the arithmetic.
+func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
+	return rx.Map(pageObs, func(w layout.Widget) layout.Widget {
+		return dragUnderStrip(desktop.TopInset, w)
+	})
+}
+
+// dragUnderStrip pads a widget down by a native title-bar strip's height and
+// claims that same strip for the window's own drag. It is underTitleBar's
+// composition over a stated strip height rather than the window's own — the
+// same split desktop.InsetTop's own height parameter already makes — so a test
+// can state a strip it has no window to measure.
+//
+// The height is read at frame time rather than taken as a value because
+// desktop.TopInset is measured from the live window: it reports 0 until the
+// first frame, in headless renders, and on every platform but macOS, so away
+// from the full-size-content treatment the wrapper is an exact no-op.
+//
+// desktop.DragTop is the other half of R6. The native drag leaves with the
+// native strip, and the strip here carries paint but no widget of its own, so
+// without this claim the window could not be moved by its top edge at all. The
+// claim is recorded before the page, so every region the page declares below it
+// — the search field's editor and its focus catcher, the grid's scroll — keeps
+// its own presses; the band and the page do not overlap in any case.
+func dragUnderStrip(height func() unit.Dp, w layout.Widget) layout.Widget {
+	inset := desktop.InsetTop(height, w)
+	return func(gtx layout.Context) layout.Dimensions {
+		desktop.DragTop(gtx, height)
+		return inset(gtx)
+	}
 }
 
 // The two sets the page shows, each under its own label: the design system's
