@@ -24,6 +24,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -109,14 +110,23 @@ func frame(t *testing.T, c tokens.ColorTokens, model Model) layout.Widget {
 
 	widgets := make([]layout.Widget, len(layers))
 	for i, layer := range layers {
-		var latest layout.Widget
+		// The callback runs on rx's own goroutine, not this one, so the
+		// handoff goes through an atomic cell rather than a bare variable —
+		// the same bridge theme/window's own layers use to cross from a
+		// live stream onto a slot read at frame time (view.go, settings.go).
+		var cell atomic.Value
 		sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, err error, done bool) {
 			if !done && err == nil {
-				latest = w
+				cell.Store(w)
 			}
 		})
+		var latest layout.Widget
 		deadline := time.Now().Add(2 * time.Second)
-		for latest == nil && time.Now().Before(deadline) {
+		for time.Now().Before(deadline) {
+			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
+				latest = w
+				break
+			}
 			time.Sleep(5 * time.Millisecond)
 		}
 		sub.Unsubscribe()
