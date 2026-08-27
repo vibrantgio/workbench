@@ -93,7 +93,6 @@ import (
 	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
-	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -689,28 +688,14 @@ func toolbarLeading() unit.Dp {
 // move action swallows the press before any control beneath it sees one.
 func dragSpacer(w unit.Dp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		return windowDragArea(gtx, gtx.Dp(w))
+		return desktop.DragRun(gtx, gtx.Dp(w))
 	}
 }
 
 // dragFill is the row's flexible middle: the whole gap between the vault
 // name and the trailing actions, draggable end to end.
 func dragFill(gtx layout.Context) layout.Dimensions {
-	return windowDragArea(gtx, gtx.Constraints.Min.X)
-}
-
-// windowDragArea declares a w-wide, row-tall move handle at the current
-// offset and takes the row's full height as its size, so that the handle
-// reaches the top and bottom of the row rather than a band around the
-// line the labels sit on.
-func windowDragArea(gtx layout.Context, w int) layout.Dimensions {
-	h := gtx.Constraints.Max.Y
-	if w <= 0 || h <= 0 {
-		return layout.Dimensions{Size: image.Pt(max(w, 0), 0)}
-	}
-	defer clip.Rect{Max: image.Pt(w, h)}.Push(gtx.Ops).Pop()
-	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
-	return layout.Dimensions{Size: image.Pt(w, h)}
+	return desktop.DragRun(gtx, gtx.Constraints.Min.X)
 }
 
 // layoutVaultName draws the open vault's folder name, pressable, in the

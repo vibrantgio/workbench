@@ -7,7 +7,6 @@ import (
 
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
-	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -372,7 +371,7 @@ func TitleRow(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, bar 
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		dims, free := centreRowFree(gtx, gtx.Dp(TitleH), gtx.Dp(Gap), slots...)
-		windowDrag(gtx, free)
+		desktop.DragBand(gtx, free)
 		return dims
 	}
 }
@@ -393,23 +392,6 @@ func reserve(d unit.Dp, w layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Left: d}.Layout(gtx, w)
 	}
-}
-
-// windowDrag declares a run of the title row as the handle the window is moved
-// by.
-//
-// A window is normally dragged by the strip its title bar stands in. This row
-// has that strip, and the press that would have reached the title bar reaches
-// the application instead — so the window's top edge is a handle only where the
-// row says it is, and a window that said nowhere could not be moved at all. It
-// says so over its empty middle alone, since a move action swallows the press
-// before any control under it sees one.
-func windowDrag(gtx layout.Context, r image.Rectangle) {
-	if r.Dx() <= 0 || r.Dy() <= 0 {
-		return
-	}
-	defer clip.Rect(r).Push(gtx.Ops).Pop()
-	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
 }
 
 // AppTitle is what the window is, at the head of its own title row, in the

@@ -14,7 +14,6 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/io/event"
-	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -521,7 +520,7 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Wid
 				// the split, so it carries the drag the native title bar
 				// stopped giving back — over its empty run, which is
 				// everything left of the model chip.
-				windowDragArea(gtx, image.Rect(0, 0, gtx.Constraints.Max.X-gtx.Dp(ChipWidth)-gtx.Dp(24), headerH))
+				desktop.DragBand(gtx, image.Rect(0, 0, gtx.Constraints.Max.X-gtx.Dp(ChipWidth)-gtx.Dp(24), headerH))
 				return layout.Dimensions{Size: band.Max}
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -713,20 +712,6 @@ func brandLead() unit.Dp {
 	return desktop.BandLeadFrom(windowButtonsEnd(), WindowButtonGap, SidebarGutter)
 }
 
-// windowDragArea declares r a region the window may be picked up and moved by.
-// Under the full-size-content treatment the native title-bar view never sees a
-// press, so a window cannot be dragged by its top edge until the application
-// claims a region for it; away from the treatment the platform's own title bar
-// is still up there doing that, and this is one more handle rather than the
-// only one.
-func windowDragArea(gtx layout.Context, r image.Rectangle) {
-	if r.Dx() <= 0 || r.Dy() <= 0 {
-		return
-	}
-	defer clip.Rect(r).Push(gtx.Ops).Pop()
-	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
-}
-
 // SidebarBrand is the sidebar's top row: the window's control buttons, the app
 // title and the [|] collapse toggle sharing one vertical centre. The row is
 // as deep as it is so the controls centre in it — it is the band this window
@@ -748,7 +733,7 @@ func SidebarBrand(gtx layout.Context, t themed, toggle *widget.Clickable) layout
 	// platform does. Declared before the toggle so the toggle, drawn after,
 	// keeps its own presses.
 	dragW := size.X - right - iconSz - gtx.Dp(8)
-	windowDragArea(gtx, image.Rect(0, 0, dragW, size.Y))
+	desktop.DragBand(gtx, image.Rect(0, 0, dragW, size.Y))
 
 	titleRect := image.Rect(left, 0, dragW, size.Y)
 	textdraw.FillText(gtx, t.shaper, roleText(t.typ.TitleMedium), titleRect, 0, 0.5, p.RowActive, "MindChat")
@@ -834,7 +819,7 @@ func SidebarRail(gtx layout.Context, t themed, toggle, newChat, settings *widget
 			if windowButtonsEnd() > 0 {
 				strip = gtx.Dp(BrandRowHeight)
 			}
-			windowDragArea(gtx, image.Rect(0, 0, gtx.Constraints.Max.X, strip))
+			desktop.DragBand(gtx, image.Rect(0, 0, gtx.Constraints.Max.X, strip))
 			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, strip)}
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
