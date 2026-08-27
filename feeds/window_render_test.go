@@ -222,6 +222,14 @@ var (
 	atOpenFeed    = image.Pt(100, windowBand+61) // the open feed's pill, under the band
 	atRestingFeed = image.Pt(100, windowBand+89) // the feed under it, unchosen and unhovered
 	atOpenRow     = image.Pt(760, 173)           // the open article's row, past the glyph
+
+	// The pager, under the table: a leading chevron and then one
+	// ControlHeight square per page. The current page's square spans
+	// x 252–287, the page beside it 296–331; both are sampled at mid-height
+	// and five pixels in from their leading edge, which clears the rounded
+	// corners and the centred digit alike.
+	atCurrentPage = image.Pt(257, 766) // the page the table is showing
+	atRestingPage = image.Pt(301, 766) // the page beside it, unchosen
 )
 
 // TestWindowRegionsWearTheirRungs reads ADR-021's assignment off the frame:
@@ -296,13 +304,23 @@ func TestRungsNeverDecreaseWalkingOut(t *testing.T) {
 	}
 }
 
-// TestChosenItemsCarryThePrimaryTint is R5 read off the frame: the feed the
-// table is listing and the article the pane is showing both fill from the
-// Primary ramp's tinted end, and a feed nobody chose keeps its region's own
-// ground. The window had neither mark before this task — the sidebar drew
+// TestChosenItemsCarryThePrimaryTint is R5 read off the frame: every mark in
+// this window that means "this is the one you are on" fills from the Primary
+// ramp's tinted end, and a neighbour nobody chose keeps its own region's
+// ground. The window has three such marks — the feed the table is listing,
+// the article the pane is showing, and the page the pager is on — and the
+// point of asserting them together, in both schemes, is that a window may not
+// answer one question in two tones.
+//
+// The window had neither of the first two before AK6.3: the sidebar drew
 // every row in one ink and was never handed the selection, and the table
 // painted no row fill at all, so the article on screen was unmarked in the
-// list it came from.
+// list it came from. The pager kept the Primary PIN a task longer. The pin
+// is not a near miss for the step — it runs saturated in light (#723AD4) and
+// pale in dark (#D0C4FF) while the step runs the other way (#D8CEFF /
+// #3F0085) — so the pager and the sidebar swapped which of them was the pale
+// one every time the scheme changed. Sampling both schemes is what sees that;
+// one frame cannot.
 func TestChosenItemsCarryThePrimaryTint(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -314,9 +332,14 @@ func TestChosenItemsCarryThePrimaryTint(t *testing.T) {
 			}{
 				{"open feed", atOpenFeed},
 				{"open article row", atOpenRow},
+				{"current page", atCurrentPage},
 			} {
-				if got := at(img, r.at.X, r.at.Y); got != tint {
+				got := at(img, r.at.X, r.at.Y)
+				if got != tint {
 					t.Errorf("%s at %v = %v, want the Primary tint %v", r.name, r.at, got, tint)
+				}
+				if got == tc.c.Primary {
+					t.Errorf("%s at %v wears the Primary pin %v; the pin and the step invert against each other between schemes", r.name, r.at, got)
 				}
 			}
 			// A neutral step standing in for the current item is what ADR-021
@@ -328,6 +351,15 @@ func TestChosenItemsCarryThePrimaryTint(t *testing.T) {
 			}
 			if want := tc.c.SurfaceAt(tokens.Level1); rest != want {
 				t.Errorf("resting feed at %v = %v, want the sidebar's own ground %v", atRestingFeed, rest, want)
+			}
+			// The pager's resting cell says the same thing about the pager:
+			// its own neutral fill, not the tint.
+			restPage := at(img, atRestingPage.X, atRestingPage.Y)
+			if restPage == tint {
+				t.Errorf("an unchosen page at %v is tinted %v; only the page the table is showing may wear the mark", atRestingPage, restPage)
+			}
+			if want := tc.c.Ramps.Neutral.Step(300); restPage != want {
+				t.Errorf("resting page at %v = %v, want the pager's neutral fill %v", atRestingPage, restPage, want)
 			}
 		})
 	}
