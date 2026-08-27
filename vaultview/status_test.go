@@ -164,7 +164,7 @@ func TestTheBarsInkIsLegibleOnItsGround(t *testing.T) {
 				ground stdcolor.NRGBA
 			}{
 				{"the note's paper", tc.colors.Background},
-				{"the trailing panel's surface", tc.colors.Surface},
+				{"the trailing panel's floor", chromeSurface(tc.colors)},
 			} {
 				ratio := color.ContrastRatio(ink, g.ground)
 				t.Logf("the bar's ink on %s: %.2f:1", g.name, ratio)

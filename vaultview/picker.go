@@ -34,6 +34,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // DirEntry is one row of the folder browser.
@@ -246,7 +247,7 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
 				if selected {
-					paint.FillShape(gtx.Ops, tok.col.Ramps.Neutral.Step(300), clip.Rect{Max: size}.Op())
+					paint.FillShape(gtx.Ops, tok.col.StateAt(tokens.LevelFloor, tokens.StateHover), clip.Rect{Max: size}.Op())
 				}
 				semantic.LabelOp(item.Name).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)

@@ -98,6 +98,15 @@ func TestChatCodeShapesInMonoFace(t *testing.T) {
 // ramps, pins and semantic fields of ADR-007 — not the deprecated MD3
 // aliases and not stale literals — in both schemes, and confirms the chroma
 // style selection follows the scheme's background.
+//
+// The fills that carry a STOREY are pinned to the ladder's own accessors
+// rather than to ramp indices, and since ADR-022 that is the whole of the
+// difference: a storey is a depth against the Background pin, not a step on
+// the neutral ramp. The three above the pin land back on neutral 200/300/400
+// in the dark scheme and nowhere on the ramp in the light one, and the floor
+// is the mirror image of that — so a ramp index cannot state any of them
+// twice. What this still catches is a role reaching for a literal or for the
+// wrong storey; the tautology is deliberate and cheap.
 func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -113,13 +122,13 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 			// Hover is the sidebar's own neutral state walk at half strength,
 			// not a derivation of the selected fill — that one is a Primary
 			// tint, and a transient state stays a neutral walk.
-			hover := c.StateColor(tokens.RoleNeutral, tokens.Elevation.SurfaceStep(tokens.Level1), tokens.StateHover)
+			hover := c.StateAt(tokens.LevelFloor, tokens.StateHover)
 			hover.A = 128
 			for _, f := range []struct {
 				name      string
 				got, want color.NRGBA
 			}{
-				{"Sidebar", p.Sidebar, c.Surface},
+				{"Sidebar", p.Sidebar, c.SurfaceAt(tokens.LevelFloor)},
 				{"Separator", p.Separator, c.Divider},
 				{"Heading", p.Heading, c.Ramps.Neutral.Step(700)},
 				{"Row", p.Row, c.Ramps.Neutral.Step(700)},
@@ -131,11 +140,11 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 				{"UserBubble", p.UserBubble, c.Primary},
 				{"UserText", p.UserText, c.OnPrimary},
 				{"BotText", p.BotText, c.Text},
-				{"Chip", p.Chip, c.Ramps.Neutral.Step(200)},
-				{"ChipHovered", p.ChipHovered, c.Ramps.Neutral.Step(300)},
+				{"Chip", p.Chip, c.SurfaceAt(tokens.Level1)},
+				{"ChipHovered", p.ChipHovered, c.StateAt(tokens.Level1, tokens.StateHover)},
 				{"ChipText", p.ChipText, c.Ramps.Neutral.Step(900)},
-				{"ModalChip", p.ModalChip, c.Ramps.Neutral.Step(300)},
-				{"ModalChipHovered", p.ModalChipHovered, c.Ramps.Neutral.Step(400)},
+				{"ModalChip", p.ModalChip, c.SurfaceAt(tokens.Level2)},
+				{"ModalChipHovered", p.ModalChipHovered, c.StateAt(tokens.Level2, tokens.StateHover)},
 				{"Toast", p.Toast, c.SurfaceAt(tokens.Level2)},
 				{"Icon", p.Icon, c.Primary},
 				{"Error", p.Error, c.Error},

@@ -24,6 +24,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // Chooser layout constants.
@@ -76,7 +77,7 @@ func chooserLayer(
 				return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					size := gtx.Constraints.Max
 					if click.Hovered() {
-						paint.FillShape(gtx.Ops, tok.col.Ramps.Neutral.Step(400), clip.Rect{Max: size}.Op())
+						paint.FillShape(gtx.Ops, tok.col.StateAt(tokens.Level2, tokens.StateHover), clip.Rect{Max: size}.Op())
 					}
 					semantic.LabelOp(cand).Add(gtx.Ops)
 					pointer.CursorPointer.Add(gtx.Ops)

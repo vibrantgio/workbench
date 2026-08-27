@@ -509,7 +509,7 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 					col  color.NRGBA
 				}{
 					{"the separator's tint", tc.colors.Divider},
-					{"the chrome's surface", tc.colors.Surface},
+					{"the chrome's floor", chromeSurface(tc.colors)},
 				} {
 					if banded(y, fill.col) {
 						t.Errorf("row %d inside the panel is a band of %s; the panel stands on the paper", y, fill.name)

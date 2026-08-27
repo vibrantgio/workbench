@@ -15,8 +15,9 @@
 // The column stands on the sidebar's surface rather than on the note's
 // paper. Both panes are furniture — one says what is in the note, the
 // other what points at it, and neither is the note — and the window's
-// rule is that furniture stands a step off the ground the document lies
-// on. It also answers what the column looked like without one: a heading
+// rule is that furniture is the FLOOR the document lies on, a step under
+// the paper toward the scheme's dark extreme rather than a storey above
+// it. It also answers what the column looked like without one: a heading
 // and a line of grey floating in three hundred dp of the document's own
 // paper, which read as a margin somebody had forgotten to fill rather
 // than as a pane. The fill is the frame's to paint, not this file's, so
@@ -49,6 +50,7 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // Aside layout constants.
@@ -138,17 +140,23 @@ type asideInkTiers struct {
 // and a dark one, and that difference is the whole of this function. The
 // neutral ramp's paired scales keep a step's job across the two schemes,
 // not its distance from the ground it is read against: measured on this
-// column's own surface, the light scheme's 700 and 800 stand 52.9 and
-// 64.0 from it in L* under a reading tier at 86.1 — three tiers a reader
-// can name — while the dark scheme's stand 68.8 and 74.9 under 80.9,
-// which is three names for very nearly one ink. A heading read as bright
-// as the rows beneath it and the column had nothing left to say "this is
-// a head" with. The dark scheme's 500 and 600 stand 51.9 and 60.8: the
-// light scheme's own spread, two steps lower down a ramp whose top end
+// column's own floor, the light scheme's 700 and 800 stand 52.9 and 64.0
+// from it in L* under a reading tier at 86.1 — three tiers a reader can
+// name — while the dark scheme's 700 and 800 stand 78.7 and 84.8 under
+// 90.8, six L* apart at the top where the light pair are eleven, which is
+// three names for very nearly one ink. A heading read as bright as the
+// rows beneath it and the column had nothing left to say "this is a head"
+// with. The dark scheme's 500 and 600 stand 61.8 and 70.7: a spread of
+// the light scheme's own order, two steps lower down a ramp whose top end
 // is the compressed one.
+//
+// The scheme is read off the floor rather than off the neutral alias
+// because the floor is the fill this column is actually painted in
+// (ADR-022 V2) — it is darker than the paper in both schemes now, and in
+// the dark one it is darker than the alias the test used to ask.
 func asideInks(tok themeTokens) asideInkTiers {
 	quiet, nested := 700, 800
-	if vgcolor.RelativeLuminance(tok.col.Surface) < 0.5 {
+	if vgcolor.RelativeLuminance(chromeSurface(tok.col)) < 0.5 {
 		quiet, nested = 500, 600
 	}
 	return asideInkTiers{
@@ -587,7 +595,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 				case e.Idx == v.marked:
 					asidePill(gtx, size, tok.col.Ramps.Primary.Step(300))
 				case selected:
-					asidePill(gtx, size, tok.col.Ramps.Neutral.Step(300))
+					asidePill(gtx, size, tok.col.StateAt(tokens.LevelFloor, tokens.StateHover))
 				}
 				semantic.LabelOp(e.Title).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
@@ -667,7 +675,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
 				if selected {
-					asidePill(gtx, size, tok.col.Ramps.Neutral.Step(300))
+					asidePill(gtx, size, tok.col.StateAt(tokens.LevelFloor, tokens.StateHover))
 				}
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)

@@ -114,8 +114,9 @@ var (
 // inheriting a default: a message body is read on the transcript's paper,
 // FromTokens puts Paper at the Background pin and the code grounds one
 // neutral step off it, and one step off the local paper is exactly the rung
-// a raised inset takes. It reads as raised in both schemes because the ramps
-// are paired — darker than the page on paper, lighter than it on slate.
+// a raised inset takes. Since ADR-022 it reads as raised in both schemes the
+// same way — LIGHTER than the page on paper and on slate alike, a whisper in
+// the light scheme with the derived rim carrying the edge.
 // TestCodeInsetsStepUpFromTheTranscriptGround holds the app to it.
 //
 // Wearing a chroma base (highlight.Wear) would hand the fence the base
@@ -493,8 +494,31 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 // chip anchor + model list surface) is drawn LAST, over the history, so
 // the open surface wins the paint and hit-test order against the rows
 // below the header.
+//
+// The pane paints its own ground before any of that, and it has to: the
+// shell fills the whole split — both halves — with the window's FLOOR, so
+// anything the pane does not paint over shows furniture where the
+// transcript should be. The message rows paint their own ground, so the
+// bleed only appears where the transcript is SHORTER than the window, and
+// that is a state no whole-window golden in this package has ever been in:
+// the demo conversation the headless frame renders fills the viewport, so
+// the harness cannot see it. A live capture of a two-exchange chat shows a
+// hard step across the pane where the last answer ends.
+//
+// One fill is the whole fix, and it is the pane saying what it already
+// claimed — the transcript's ground is the header band, the turns, AND the
+// space around them.
+//
+// It is painted at the SLOT's width, before the pane clamps itself to its
+// reading measure, because the clamp is the second place the floor showed
+// through: on a window wider than ChatPaneWidth plus the sidebar, the strip
+// the pane declines to occupy is still the pane's half of the split, and a
+// band of furniture down the trailing edge of the content region is the
+// same defect at a few pixels wide. A reviewer shown the live window found
+// it before finding anything else.
 func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
+		FillRect(gtx, image.Rectangle{Max: gtx.Constraints.Max}, 0, t.palette.Ground)
 		gtx.Constraints = ClampWidth(gtx, 0, ChatPaneWidth)
 		size := gtx.Constraints.Max
 		headerH := gtx.Dp(HeaderRowHeight)

@@ -843,7 +843,7 @@ func TestThePanesFindTheirRowsWithRoomToSpare(t *testing.T) {
 // the outline scrolling and the backlinks capped past their cap.
 func TestEachScrollingPaneShowsItsIndicator(t *testing.T) {
 	tok := goldenTokens()
-	ground := tok.col.Surface
+	ground := chromeSurface(tok.col)
 	shot := func(m Model, colH int) (*image.RGBA, asideGeom) {
 		v := newAsideView(&docCursor{})
 		size := image.Pt(frameAsideDp, colH)
@@ -896,7 +896,7 @@ func gtx1Dp(v unit.Dp) int { return int(v) }
 // is what the column's height arithmetic measures the pane below it against.
 func TestTheBacklinkHeaderCountsWhatItCannotShow(t *testing.T) {
 	tok := goldenTokens()
-	ground := tok.col.Surface
+	ground := chromeSurface(tok.col)
 	size := image.Pt(frameAsideDp-2*asideInsetDp, 40)
 	shot := func(n int) (*image.RGBA, int) {
 		var h int
@@ -983,8 +983,8 @@ func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGB
 		return v.layout(gtx, m, tok)
 	}
 	size := image.Pt(frameAsideDp, h)
-	golden.Capture(t, size, scene(w, col.Surface))
-	return golden.Capture(t, size, scene(w, col.Surface)), v
+	golden.Capture(t, size, scene(w, chromeSurface(col)))
+	return golden.Capture(t, size, scene(w, chromeSurface(col))), v
 }
 
 // asideInkAt answers where the ink between two rows of the captured
@@ -994,7 +994,7 @@ func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGB
 // fill the row's whole height, so a marked row would otherwise answer
 // with the fill's own corner rather than with its title's.
 func asideInkAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) {
-	ground := []color.NRGBA{col.Surface, col.Ramps.Neutral.Step(300), col.Ramps.Primary.Step(300)}
+	ground := []color.NRGBA{chromeSurface(col), col.StateAt(tokens.LevelFloor, tokens.StateHover), col.Ramps.Primary.Step(300)}
 	gap := func(a, b uint8) int {
 		if a > b {
 			return int(a) - int(b)
@@ -1142,7 +1142,7 @@ func TestTheColumnsInkTiersPartInBothSchemes(t *testing.T) {
 			tok := goldenTokens()
 			tok.col = tc.colors
 			inks := asideInks(tok)
-			ground := lstar(tc.colors.Surface)
+			ground := lstar(chromeSurface(tc.colors))
 			depth := func(c color.NRGBA) float64 {
 				return math.Abs(lstar(c) - ground)
 			}
@@ -1158,7 +1158,7 @@ func TestTheColumnsInkTiersPartInBothSchemes(t *testing.T) {
 				// Every tier is a tier a reader reads, so none of them may
 				// drop under the body-text contrast the design system holds
 				// its own text to.
-				if r := vgcolor.ContrastRatio(tier.ink, tc.colors.Surface); r < 4.5 {
+				if r := vgcolor.ContrastRatio(tier.ink, chromeSurface(tc.colors)); r < 4.5 {
 					t.Errorf("%s reads at %.2f:1 on the column's surface, under 4.5:1", tier.name, r)
 				}
 				if i == 0 {

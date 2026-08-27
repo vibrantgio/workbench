@@ -133,15 +133,27 @@ func menuChip(t menuThemed, m Model, click *widget.Clickable) layout.Widget {
 			size := gtx.Constraints.Max
 			pointer.CursorPointer.Add(gtx.Ops)
 			// The chip is the one raised thing on the header band, so it
-			// takes one rung over the band's own ground and its hover is
-			// that rung's own step walk. Both directions follow the paired
-			// ramps: on paper the chip is darker than the band and darker
-			// again under the pointer, on slate lighter each time.
+			// takes one storey over the band's own ground and its hover is
+			// that storey's own state walk. The two are different axes and
+			// read differently by scheme: the storey is LIGHTER than the
+			// band in both schemes (a whisper on paper, a clear step on
+			// slate), while the hover walks toward the ramp's far end and
+			// so darkens on paper and lightens on slate.
 			fill := p.Chip
 			if click.Hovered() || open {
 				fill = p.ChipHovered
 			}
-			FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(ChipRadius), fill)
+			// Rim first, fill inset over it — the concentric draw a fence's
+			// edge takes, not a stroke on the path: a stroke is centred on
+			// its path, so half a hair of it would fall outside the box the
+			// chip was measured at and every pixel of it would be a blend
+			// of the two colours rather than either. What the rim is for is
+			// on Palette.ChipBorder; in one line, the light scheme's fill
+			// step is 1.02:1 and cannot carry an edge by itself.
+			rad := gtx.Dp(ChipRadius)
+			edge := max(gtx.Dp(ChipEdgeDp), 1)
+			FillRect(gtx, image.Rectangle{Max: size}, rad, p.ChipBorder)
+			FillRect(gtx, image.Rectangle{Max: size}.Inset(edge), max(rad-edge, 0), fill)
 			chevW := gtx.Dp(12)
 			r := image.Rect(gtx.Dp(12), 0, size.X-chevW-gtx.Dp(12), size.Y)
 			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), r, 0.5, 0.5, p.ChipText, label)

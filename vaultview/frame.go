@@ -373,14 +373,15 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 
 	// The trailing column's ground, painted before the chrome row and
 	// running the window's full height: the outline and the backlinks are
-	// furniture, and this window's furniture stands a surface step off the
-	// paper the document lies on. Full height because a surface that began
+	// furniture, and this window's furniture is the FLOOR the paper lies
+	// on — a surface step UNDER the document, toward the scheme's dark
+	// extreme, in both schemes. Full height because a surface that began
 	// under the chrome row would read as a block hanging off it — the same
 	// arrangement the leading pane was taken out of — and because the two
 	// panes are then the same shape, one down each edge, with the document
 	// between them.
 	if asidePx > 0 {
-		paint.FillShape(gtx.Ops, tok.col.Surface,
+		paint.FillShape(gtx.Ops, chromeSurface(tok.col),
 			clip.Rect(image.Rect(asideX, 0, size.X, size.Y)).Op())
 	}
 
@@ -485,7 +486,7 @@ func (f *frameState) layoutRailPane(gtx layout.Context, tok themeTokens, pane im
 	depth.Shadow(gtx, pane, tokens.Level2, r, 1)
 	onGround.Pop()
 	rr := clip.RRect{Rect: pane, NE: r, NW: r, SE: r, SW: r}
-	paint.FillShape(gtx.Ops, tok.col.Surface, rr.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, chromeSurface(tok.col), rr.Op(gtx.Ops))
 	defer rr.Push(gtx.Ops).Pop()
 	defer op.Offset(pane.Min).Push(gtx.Ops).Pop()
 	sgtx := gtx

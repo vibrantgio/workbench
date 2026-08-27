@@ -459,7 +459,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// there, and the ground showing round it is not the toggle.
 			strip := st.geom.pane.Min.Y + paneStripDp
 			toggleX := st.geom.pane.Max.X - railMarginDp - treeHideBoxDp
-			paneTop, paneBot := inkRows(img, tc.colors.Surface, toggleX, toggleX+treeHideBoxDp-4,
+			paneTop, paneBot := inkRows(img, chromeSurface(tc.colors), toggleX, toggleX+treeHideBoxDp-4,
 				st.geom.pane.Min.Y, strip)
 			level("the pane's toggle", paneTop, paneBot)
 
@@ -583,7 +583,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			// The bar's lane, and nothing else in the column: the rows and
 			// the hairline stop where it starts.
 			barLo, barHi := span(windowW-lane, windowW, func(c color.RGBA) bool {
-				return !is(c, tc.colors.Surface)
+				return !is(c, chromeSurface(tc.colors))
 			})
 			if barLo < 0 {
 				t.Fatal("an outline with more entries than its pane can show drew no bar")

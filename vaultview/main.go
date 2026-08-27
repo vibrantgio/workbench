@@ -112,6 +112,27 @@ type themeTokens struct {
 	shaper *text.Shaper
 }
 
+// chromeSurface is the fill every piece of this window's furniture wears:
+// the rail pane, the trailing column, and the backdrop the two of them
+// float on.
+//
+// It is the ladder's FLOOR — one step under the paper, toward the scheme's
+// dark extreme, in both schemes (ADR-022 V2). Furniture is the desk the
+// document lies on, not a storey above it, so the rail and the aside are
+// the darkest regions of this window and the note column between them is
+// the lightest resting one. The light scheme does not move a pixel over
+// this: its floor lands byte-for-byte on the neutral 200 the panes already
+// wore. The dark scheme is where the ruling lands — the panes drop from
+// #222222 to #0C0C0C and stop reading as a storey stacked on top of the
+// page they frame.
+//
+// It is a function rather than a field on themeTokens because the tests
+// hold whole palettes rather than snapshots, and both have to be able to
+// name the same fill.
+func chromeSurface(c tokens.ColorTokens) color.NRGBA {
+	return c.SurfaceAt(tokens.LevelFloor)
+}
+
 // mirrorTokens subscribes the theme's token streams into an atomic cell
 // and returns a frame-time loader — the layer-boundary adapter for
 // closures that run outside any rx scope (the vault frame's chrome row
@@ -319,11 +340,13 @@ func insetTop(content rx.Observable[layout.Widget], height func() unit.Dp) rx.Ob
 	})
 }
 
-// backdropLayer paints a full-canvas rectangle in the theme Surface colour.
+// backdropLayer paints a full-canvas rectangle in the window's floor: the
+// desk the panes stand on and the note column is laid over, and the whole
+// of the window on the picker screen, which lays no paper of its own.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
-		fill := c.Surface
+		fill := chromeSurface(c)
 		return func(gtx layout.Context) layout.Dimensions {
 			size := gtx.Constraints.Max
 			paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())

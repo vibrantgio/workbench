@@ -456,10 +456,11 @@ func layoutNotePage(
 ) layout.Dimensions {
 	note := m.CurrentNote()
 	// The reading column lies on its own paper: the pinned app background,
-	// one neutral step lighter than the Surface the window chrome — the
-	// chrome row, tree rail, aside — sits on. The panel and code fills below tint
-	// down the neutral ramp from this paper, so the note reads as a
-	// document resting on darker furniture rather than more chrome.
+	// one storey above the floor the window chrome — the chrome row, tree
+	// rail, aside — is painted in, in both schemes. The panel and the code
+	// fills below take their rungs from this paper rather than from the
+	// ramp, so the note reads as a document resting on darker furniture
+	// rather than as more chrome.
 	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	// The page's trailing and bottom margins are spent inside the document
 	// rather than by the page, so the document's viewport reaches the

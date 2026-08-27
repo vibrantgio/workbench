@@ -77,6 +77,13 @@ const (
 	treeFootVPadDp    = 4           // an action's hit area above and below its label
 )
 
+// treeFieldGround is the storey the find field is standing on: the rail
+// pane, which is furniture and therefore the window's FLOOR (ADR-022 V2).
+// The live rail and the goldens' static rail both name it here so they
+// cannot drift apart — which they had, silently, with the goldens taking
+// the zero storey's default.
+const treeFieldGround = tokens.LevelFloor
+
 // TreeRow is one visible row of the folder tree.
 type TreeRow struct {
 	Idx    int    // position in the flattened row slice
@@ -269,15 +276,18 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 	field := input.TextField(th, input.TextFieldProps{
 		Placeholder: "Find a note…",
 		Description: "filter notes by name",
-		// The field stands on the rail's rounded Surface pane, not on the
-		// window ground behind it — the pane covers that. Level 1 is what
-		// Surface is, and saying so is what makes the field's resting edge
-		// and its focus ring both derive against the thing they are drawn
-		// on. It changes no pixel today: the neutral and primary ramps
-		// answer the same rungs for the window ground and the first storey.
-		// The declaration is the point — the next rail that raises itself
-		// gets the right edge without anyone remembering this line.
-		Ground: tokens.Level1,
+		// The field stands on the rail's rounded pane, not on the window
+		// ground behind it — the pane covers that. The pane is FURNITURE,
+		// so since ADR-022 it is the ladder's floor rather than a storey
+		// above the paper, and naming the floor here is what makes the
+		// field's fill, its resting edge and its focus ring all derive
+		// against the thing they are actually drawn on. A text field is
+		// raised one storey off whatever it lies on, so the field fills at
+		// the paper's own storey — lighter than the rail in both schemes,
+		// which is the direction the platform draws a search field on a
+		// sidebar (the Settings search field sits above its sidebar, not
+		// under it).
+		Ground: treeFieldGround,
 		OnChange: func(gtx layout.Context, text string) {
 			mvu.MessageOp{Message: SetFilter{Text: text}}.Add(gtx.Ops)
 		},
@@ -438,9 +448,9 @@ func footAction(click *widget.Clickable, label string, tok themeTokens) layout.W
 			var fill color.NRGBA
 			switch {
 			case click.Pressed():
-				fill = tok.col.Ramps.Neutral.Step(400)
+				fill = tok.col.StateAt(tokens.LevelFloor, tokens.StatePressed)
 			case click.Hovered():
-				fill = tok.col.Ramps.Neutral.Step(300)
+				fill = tok.col.StateAt(tokens.LevelFloor, tokens.StateHover)
 			}
 			if fill.A > 0 {
 				r := gtx.Dp(unit.Dp(treePillRadiusDp))
@@ -557,7 +567,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 				case active:
 					fill = tok.col.Ramps.Primary.Step(300)
 				case selected:
-					fill = tok.col.Ramps.Neutral.Step(300)
+					fill = tok.col.StateAt(tokens.LevelFloor, tokens.StateHover)
 				}
 				if fill.A > 0 {
 					ins := gtx.Dp(unit.Dp(treeRowInsetDp))
@@ -613,6 +623,14 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 // live rail wears. The window buttons' trailing edge is a parameter here
 // and a measurement in the live pane, for the reason [treeView.leading]
 // gives.
+//
+// The ground the field is rendered on is named here as well as in
+// [treeSidebar], and it is the same one. Left unsaid it defaulted to the
+// zero storey — the paper — so every golden in this package photographed
+// a field standing on a surface the rail does not have, and the field's
+// fill and its edge both derived against the wrong ground. A golden that
+// pictures something the window never draws cannot catch a regression in
+// what it does draw.
 func renderTree(
 	shaper *text.Shaper,
 	m Model,
@@ -626,7 +644,7 @@ func renderTree(
 	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return leading }}
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	fieldW := input.Render(shaper, "Find a note…", colors, sp, rad, typo.BodyLarge, den,
-		input.RenderState{Text: m.Filter})
+		input.RenderState{Text: m.Filter, Ground: treeFieldGround})
 	return func(gtx layout.Context) layout.Dimensions {
 		return v.layout(gtx, m, tok, fieldW)
 	}

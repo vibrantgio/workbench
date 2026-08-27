@@ -18,16 +18,24 @@ import (
 // window feeds a live OS theme, an OS light/dark switch re-emits the tokens
 // and restyles the whole app with no imperative wiring.
 //
-// The rungs the roles resolve to are the window grammar's, not this app's
+// The storeys the roles resolve to are the window grammar's, not this app's
 // invention: the transcript is the window's CONTENT GROUND and fills at
 // level 0, the Background pin; the conversation list is CHROME FURNITURE and
-// stands one rung up at level 1; levels 2 and 3 are kept for what appears
-// and leaves — the settings dialog, the model menu, the undo bar — and for
-// edges. A raised thing walks its rung from the surface it is lying on, so a
-// chip on the transcript ground is level 1 while a chip inside the level-2
-// settings dialog is measured from level 2.
+// is therefore the window's FLOOR, one step UNDER the paper toward the
+// scheme's dark extreme in both schemes; levels 2 and 3 are kept for what
+// appears and leaves — the settings dialog, the model menu, the undo bar —
+// and for edges. A raised thing walks its storey from the surface it is
+// lying on, so a chip on the transcript ground is level 1 while a chip
+// inside the level-2 settings dialog is measured from level 2.
+//
+// Since ADR-022 the ladder runs one way in both schemes: nearer the viewer
+// is lighter. This window is darkest at its leading edge and lightest where
+// a dialog stands over it, on paper and on slate alike — no mirror. The
+// light scheme does not move for the re-founding (its floor is the neutral
+// 200 the sidebar already wore); the dark sidebar drops from #222222 to
+// #0C0C0C, which is the ruling landing.
 type Palette struct {
-	Sidebar   color.NRGBA // conversation-list surface — chrome furniture, level 1
+	Sidebar   color.NRGBA // conversation-list surface — chrome furniture, the floor
 	Separator color.NRGBA // sidebar header underline
 	Heading   color.NRGBA // sidebar heading text
 	Row       color.NRGBA // chat-row text
@@ -46,20 +54,38 @@ type Palette struct {
 	// Ground is the transcript's resting fill — the header band, the
 	// assistant's turns and the space around them. It is the Background pin,
 	// level 0: the transcript is the thing the window exists to show, so it
-	// is the paper everything else in the pane is measured from, and the
-	// window reads lightest in the middle in the light scheme and darkest in
-	// the middle in the dark one.
+	// is the paper everything else in the pane is measured from, and it is
+	// lighter than the furniture beside it in BOTH schemes — the window
+	// reads lighter toward its middle on paper and on slate alike.
 	Ground     color.NRGBA
 	UserBubble color.NRGBA // user message fill — a Primary turn, not a rung
 	UserText   color.NRGBA // user message text
 	BotText    color.NRGBA // assistant message text — the ink pinned to Ground
-	// Chip is the header model picker's fill: an interactive region on the
-	// level-0 ground, which the ladder says to draw as a level-1 surface
-	// because the Background pin is off-ramp and has no step to walk from.
-	// ChipHovered is that surface's own one-rung state walk.
+	// Chip is the header model picker's fill: an interactive region raised
+	// on the level-0 ground, so it fills at level 1 — lighter than the
+	// paper, in both schemes. In the light scheme that is a whisper (0.7 L*,
+	// 1.02:1 off the paper), which is what the linchpin costs a scheme whose
+	// pin has already spent the axis; what says where the chip is there is
+	// its corner radius and its own hover. ChipHovered is that storey's own
+	// state walk, and a state walk still heads toward the ramp's 900 end —
+	// so the chip DARKENS under the pointer on paper and lightens on slate.
+	// The two directions are not a mirror: the ladder answers to the
+	// linchpin, feedback does not.
 	Chip        color.NRGBA
 	ChipHovered color.NRGBA
-	ChipText    color.NRGBA // chip label and chevron over a raised chip
+	// ChipBorder is the rim that says where the chip is when the fill
+	// cannot. It is the recipe the whole system edges a raised surface
+	// with — MarkOn(RoleNeutral, the fill, the 3:1 graphic floor) — so the
+	// header chip and the composer field standing under it are drawn by one
+	// rule and land on one colour: #797979 on paper, #9E9E9E on slate.
+	//
+	// It exists because of what the linchpin costs the light scheme. A
+	// chip filled a storey over the paper is 1.02:1 off it there, and a
+	// reviewer handed the live window called the model picker "invisible,
+	// reads as static text" before naming anything else. The fill is
+	// correct and it is not the thing that can carry the edge; the rim is.
+	ChipBorder color.NRGBA
+	ChipText   color.NRGBA // chip label and chevron over a raised chip
 	// ModalChip is a chip inside the settings dialog. Its ground is the
 	// dialog's level-2 surface, so it rests flush on it and reveals itself
 	// with that surface's own state walk rather than reaching for a rung the
@@ -78,25 +104,36 @@ type Palette struct {
 	Ok    color.NRGBA // settings key-check success icon
 }
 
+// chipEdgeFloor is the contrast a drawn mark owes the surface it is drawn
+// on: 3:1, the graphic floor the design system measures every derived edge
+// to, and the same one components/input walks a field's bezel to.
+const chipEdgeFloor = 3.0
+
 func PaletteFrom(c tokens.ColorTokens) Palette {
 	// The hover fill is the sidebar's OWN state walk at half strength, painted
 	// over the sidebar surface. It can no longer be derived from the selected
 	// fill — that one is a Primary tint now — and it must not be: hover is a
 	// transient state, and a transient state is a neutral walk from the ground
-	// it happens on. The ground is the sidebar's level 1, so the walk is the
-	// token set's neutral hover step off level 1's surface step.
+	// it happens on. That ground is the sidebar's storey, and since ADR-022
+	// the sidebar's storey is the FLOOR — so the walk is taken with StateAt
+	// from the floor's own fill rather than from a ramp index. Asking the ramp
+	// for the old level-1 step would have kept answering the light scheme
+	// right by accident (its floor IS neutral 200) and the dark scheme wrong
+	// by a whole storey.
 	//
 	// Half strength rather than the full step, and that is the re-derivation
 	// the tint forced. On paper the neutral hover step lands at luma 212 and
 	// the Primary-tinted selection at 215, so a full-strength hover would sit
 	// a hair *past* selected and the two would trade places; half of it lands
 	// at 221, between the resting surface's 232 and the selection's 215, which
-	// is the order a reader expects. On slate the same half-step is a soft
-	// lift off 34 that leaves the tinted row's hue to do the choosing.
-	hover := c.StateColor(tokens.RoleNeutral, tokens.Elevation.SurfaceStep(tokens.Level1), tokens.StateHover)
+	// is the order a reader expects — none of those three numbers moved with
+	// the re-founding. On slate the whole trio dropped with the floor: rest is
+	// luma 12, the half-step lifts to 23 and the tinted row sits at 34, so the
+	// same soft lift still leaves the hue to do the choosing.
+	hover := c.StateAt(tokens.LevelFloor, tokens.StateHover)
 	hover.A = 128
 	return Palette{
-		Sidebar:   c.Surface,
+		Sidebar:   c.SurfaceAt(tokens.LevelFloor),
 		Separator: c.Divider,
 		Heading:   c.Ramps.Neutral.Step(700),
 		Row:       c.Ramps.Neutral.Step(700),
@@ -117,10 +154,11 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		// brand's.
 		BotText:          c.Text,
 		Chip:             c.SurfaceAt(tokens.Level1),
-		ChipHovered:      c.StateColor(tokens.RoleNeutral, tokens.Elevation.SurfaceStep(tokens.Level1), tokens.StateHover),
+		ChipHovered:      c.StateAt(tokens.Level1, tokens.StateHover),
+		ChipBorder:       c.MarkOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level1), chipEdgeFloor),
 		ChipText:         c.Ramps.Neutral.Step(900),
 		ModalChip:        c.SurfaceAt(tokens.Level2),
-		ModalChipHovered: c.StateColor(tokens.RoleNeutral, tokens.Elevation.SurfaceStep(tokens.Level2), tokens.StateHover),
+		ModalChipHovered: c.StateAt(tokens.Level2, tokens.StateHover),
 		Toast:            c.SurfaceAt(tokens.Level2),
 		Icon:             c.Primary,
 		Error:            c.Error,
@@ -237,10 +275,13 @@ const (
 	// system's and the two never had to agree.
 	HeaderRowHeight         = BrandRowHeight
 	ChipHeight      unit.Dp = 28
-	ChipWidth       unit.Dp = 230
-	ChipRadius      unit.Dp = 14
-	MenuWidth       unit.Dp = 260
-	MenuMaxHeight   unit.Dp = 320
+	// ChipEdgeDp is the rim's own width — one hair, the width every other
+	// derived edge in the system is drawn at.
+	ChipEdgeDp    unit.Dp = 1
+	ChipWidth     unit.Dp = 230
+	ChipRadius    unit.Dp = 14
+	MenuWidth     unit.Dp = 260
+	MenuMaxHeight unit.Dp = 320
 )
 
 // The three macOS window controls stand in the brand row: this window
