@@ -150,20 +150,11 @@ const (
 	// nineteen pixels in from both edges, which at one pixel per dp is
 	// nineteen. It is not what this window's toolkit would do left alone —
 	// unasked, the buttons land at nine, the inset the platform's compact
-	// windows use — so the placement is stated rather than defaulted.
+	// windows use — so the placement is stated rather than defaulted. The
+	// rest of the run — the centre line the placement call wants, the
+	// diameter that converts one into the other — follows from this one
+	// number by the platform's own rule, which desktop.ButtonRunAt applies.
 	buttonInsetDp = 19
-
-	// buttonDiameterDp is the drawn diameter of one control button on this
-	// machine's macOS, measured from a live capture rather than assumed —
-	// the buttons are the platform's, and so is their size. It converts an
-	// edge inset into the centre line the placement call wants.
-	buttonDiameterDp = 14
-
-	// buttonCenterDp is the line the buttons' centres sit on, below the
-	// window's top edge. It and buttonInsetDp are the whole placement, and
-	// both are the window's measurements: no rail state, no screen and no
-	// pane enters into either.
-	buttonCenterDp = buttonInsetDp + buttonDiameterDp/2
 
 	// paneStripDp is the pane's own top strip: deep enough to hold the
 	// buttons where the window puts them with the same air below them as
@@ -171,8 +162,14 @@ const (
 	// from the pane's own edge, so the strip owes the difference back —
 	// which lands the buttons' centre line on the strip's own middle, the
 	// line the pane's toggle centres on too, so the two sit level.
-	paneStripDp = 2*(buttonInsetDp-railMarginDp) + buttonDiameterDp
+	paneStripDp = 2*(buttonInsetDp-railMarginDp) + desktop.WindowButtonDiameter
 )
+
+// windowButtons is where this window's three control buttons stand, derived
+// from the inset above by the rule the platform's own windows follow. It is
+// the whole placement, and every number in it is the window's: no rail
+// state, no screen and no pane enters into any of them.
+var windowButtons = desktop.ButtonRunAt(buttonInsetDp)
 
 // toolbarHeight is the chrome row's height: one LabelLarge line box with
 // the smallest spacing step above and below. It deliberately does not
@@ -673,17 +670,16 @@ func onButtonLine(gtx layout.Context, w layout.Widget) layout.Dimensions {
 // as the row, so the same number is how far the content hangs past the
 // row's foot.
 func buttonLineDrop(gtx layout.Context, rowH int) int {
-	return max(gtx.Dp(unit.Dp(buttonCenterDp))-rowH/2, 0)
+	return max(gtx.Dp(windowButtons.Center)-rowH/2, 0)
 }
 
 // toolbarLeading is where the row's own content may start: the trailing
 // edge of the window's control buttons where the platform puts them in
-// the content area, and the ordinary edge inset where it does not.
+// the content area, and the ordinary edge inset where it does not. The
+// row asks for no air past the buttons — it holds its things at the edge
+// inset it holds everything at, and the buttons are one of its things.
 func toolbarLeading() unit.Dp {
-	if lead := desktop.LeadingInset(); lead > 0 {
-		return lead
-	}
-	return frameEdgeDp
+	return desktop.BandLead(0, frameEdgeDp)
 }
 
 // dragSpacer is a fixed-width gap in the chrome row that moves the window

@@ -436,9 +436,10 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 				}
 				// Ink rows are counted inclusive, so the middle of a span
 				// is half a row past its last row's top edge.
-				if c := float64(top+bot+1) / 2; c < buttonCenterDp-1 || c > buttonCenterDp+1 {
-					t.Errorf("%s centres on %.1f, the window buttons on %d — the top of the window is not one line",
-						what, c, buttonCenterDp)
+				line := float64(windowButtons.Center)
+				if c := float64(top+bot+1) / 2; c < line-1 || c > line+1 {
+					t.Errorf("%s centres on %.1f, the window buttons on %.1f — the top of the window is not one line",
+						what, c, line)
 				}
 			}
 

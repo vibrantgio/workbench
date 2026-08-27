@@ -240,7 +240,7 @@ func buttonPlacementFor(m Model) buttonPlacement {
 	if m.Screen == screenPicker {
 		return buttonPlacement{}
 	}
-	return buttonPlacement{leading: buttonInsetDp, center: buttonCenterDp}
+	return buttonPlacement{leading: windowButtons.Leading, center: windowButtons.Center}
 }
 
 // buttonPlace remembers the placement the window buttons were last asked
@@ -315,20 +315,7 @@ func chromeHeight() unit.Dp {
 // insetTop offsets a layer down by a height measured afresh each frame.
 func insetTop(content rx.Observable[layout.Widget], height func() unit.Dp) rx.Observable[layout.Widget] {
 	return rx.Map(content, func(w layout.Widget) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			inset := gtx.Dp(height())
-			if inset <= 0 {
-				return w(gtx)
-			}
-			size := gtx.Constraints.Max
-			defer op.Offset(image.Pt(0, inset)).Push(gtx.Ops).Pop()
-			gtx.Constraints.Max.Y -= inset
-			if gtx.Constraints.Min.Y > gtx.Constraints.Max.Y {
-				gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
-			}
-			w(gtx)
-			return layout.Dimensions{Size: size}
-		}
+		return desktop.InsetTop(height, w)
 	})
 }
 

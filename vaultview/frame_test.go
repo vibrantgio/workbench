@@ -16,6 +16,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -99,7 +100,7 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 			// would ask about a control from above it and be told, quite
 			// correctly, that nothing is there.
 			moveAt := func(x int) bool {
-				a, ok := r.ActionAt(f32.Pt(float32(x), buttonCenterDp))
+				a, ok := r.ActionAt(f32.Pt(float32(x), float32(windowButtons.Center)))
 				return ok && a == system.ActionMove
 			}
 
@@ -494,7 +495,7 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 	hidden := shown
 	hidden.SidebarHidden = true
 
-	want := buttonPlacement{leading: buttonInsetDp, center: buttonCenterDp}
+	want := buttonPlacement{leading: windowButtons.Leading, center: windowButtons.Center}
 	if got := buttonPlacementFor(shown); got != want {
 		t.Errorf("with the pane standing the buttons are placed at %+v, want %+v — the window's own inset", got, want)
 	}
@@ -504,7 +505,7 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 
 	// The buttons' band in window coordinates, and the pane's strip in the
 	// same coordinates: the pane floats one margin in from the top edge.
-	buttonsTop, buttonsBottom := buttonInsetDp, buttonInsetDp+buttonDiameterDp
+	buttonsTop, buttonsBottom := buttonInsetDp, buttonInsetDp+desktop.WindowButtonDiameter
 	stripTop, stripBottom := railMarginDp, railMarginDp+paneStripDp
 	if stripTop > buttonsTop {
 		t.Errorf("the pane's strip begins at y=%d, below the buttons' top edge at y=%d — the pane's content would start under them", stripTop, buttonsTop)
@@ -512,7 +513,7 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 	if stripBottom < buttonsBottom {
 		t.Errorf("the pane's strip ends at y=%d, above the buttons' bottom edge at y=%d — the pane's content would run under them", stripBottom, buttonsBottom)
 	}
-	if mid := stripTop + paneStripDp/2; mid != buttonCenterDp {
-		t.Errorf("the strip's middle line is y=%d and the buttons' is y=%d; the pane's toggle centres on the strip and would sit off their line", mid, buttonCenterDp)
+	if mid := stripTop + paneStripDp/2; unit.Dp(mid) != windowButtons.Center {
+		t.Errorf("the strip's middle line is y=%d and the buttons' is y=%v; the pane's toggle centres on the strip and would sit off their line", mid, windowButtons.Center)
 	}
 }
