@@ -1,0 +1,309 @@
+package main
+
+// A whole-window render, headless, plus the surface-grammar assertions that
+// read off it. The app is a native window binary with no offscreen mode of its
+// own, but both layers it stacks are plain widgets over pre-resolved tokens, so
+// composing the same two paints into a headless canvas at the size the window
+// opens at produces the frame the window would show.
+//
+// It is here because a composition can only be judged as a composition. This
+// app is small enough that every rung it wears is visible in one frame, which
+// is what makes the frame worth storing an argument in. Run it with
+// -window.dump=<dir> to write the frames out for a pair of eyes:
+//
+//	go test ./ -run TestWholeWindowRender -window.dump=/tmp/todos
+//
+// Without the flag it still renders every scheme and route each run, which
+// makes it a smoke test of the whole view: a panic in the backdrop, the list,
+// the fab or the dialog fails it.
+
+import (
+	"flag"
+	"image"
+	"image/color"
+	"image/png"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"gioui.org/layout"
+
+	"github.com/reactivego/rx"
+
+	"github.com/vibrantgio/backdrop"
+	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
+)
+
+var windowDump = flag.String("window.dump", "", "directory to write whole-window renders into")
+
+// windowSize is the size the Todos window opens at (main.go), and the only
+// size these frames are drawn at. golden.Capture renders at one pixel per dp,
+// so every dp figure below is also a pixel figure.
+var windowSize = image.Pt(int(winW), int(winH))
+
+// The frames carry the theme's real radius scale rather than the pinned-sharp
+// one the stored goldens upstream use. Those store an image and need corners
+// that do not vary between GPU contexts; nothing here is stored, and every
+// assertion below counts pixels with room to spare for a few anti-aliased
+// ones. What a sharp scale costs is the review: a reviewer handed square
+// checkboxes in a rounded-corner OS reports square checkboxes, and the
+// finding belongs to the harness rather than to the app.
+
+// staticThemed is one theme emission frozen into the snapshot the view
+// consumes, with the pinned shaper — Roboto and nothing the machine happens to
+// own — that a stored render has to shape with. It builds Type by hand rather
+// than through TypeFrom for that one reason: TypeFrom takes the theme's own
+// cached shaper, which is whatever the host can find.
+func staticThemed(c tokens.ColorTokens) themed {
+	typo := tokens.DefaultTypography
+	return themed{
+		components: theme.Theme{
+			Color:      rx.Of(c),
+			Typography: rx.Of(typo),
+			Density:    rx.Of(tokens.Comfortable),
+			Motion:     rx.Of(tokens.Motion),
+			Spacing:    rx.Of(tokens.Spacing),
+			Radius:     rx.Of(tokens.Radius),
+			Elevation:  rx.Of(tokens.Elevation),
+		},
+		palette: PaletteFrom(c),
+		typ: Type{
+			Shaper:   typo.DeterministicShaper(),
+			Headline: textStyle(typo.HeadlineSmall),
+			Title:    textStyle(typo.TitleLarge),
+		},
+	}
+}
+
+// fixtureModel is a list somebody would actually keep, on the route named. The
+// wording is deliberately ordinary: a frame handed to a reader is judged on
+// what it looks like, and copy about this repository would be read instead.
+func fixtureModel(route string) Model {
+	return Model{
+		Route: route,
+		List: TodoList{
+			{Id: 0, Text: "Buy oat milk", Completed: true},
+			{Id: 1, Text: "Draft the release notes", Completed: false},
+			{Id: 2, Text: "Book the dentist", Completed: false},
+			{Id: 3, Text: "Water the plants", Completed: false},
+		},
+	}
+}
+
+// windowFrame composes the window exactly as buildLayers stacks it: the
+// backdrop first, the page over it. Both come from the same colour tokens the
+// running app resolves them from, so the frame is the app's composition minus
+// the streams.
+func windowFrame(c tokens.ColorTokens, model Model) layout.Widget {
+	th := staticThemed(c)
+	ground := backdrop.Widget(th.palette.Backdrop)
+	page := View(th, model)
+	return func(gtx layout.Context) layout.Dimensions {
+		ground(gtx)
+		return page(gtx)
+	}
+}
+
+func renderWindow(t *testing.T, c tokens.ColorTokens, route string) *image.RGBA {
+	t.Helper()
+	return golden.Capture(t, windowSize, windowFrame(c, fixtureModel(route)))
+}
+
+// pixelAt reads one pixel as an opaque NRGBA, which is what every token in the
+// set is.
+func pixelAt(img *image.RGBA, p image.Point) color.NRGBA {
+	r, g, b, _ := img.At(p.X, p.Y).RGBA()
+	return color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0xff}
+}
+
+// countFill counts the pixels inside r that are exactly want.
+func countFill(img *image.RGBA, r image.Rectangle, want color.NRGBA) int {
+	n := 0
+	for y := r.Min.Y; y < r.Max.Y; y++ {
+		for x := r.Min.X; x < r.Max.X; x++ {
+			if pixelAt(img, image.Pt(x, y)) == want {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// windowSchemes is the pair every rule below is stated once and checked twice
+// against.
+var windowSchemes = []struct {
+	name string
+	c    tokens.ColorTokens
+}{
+	{"light", tokens.DefaultLight},
+	{"dark", tokens.DefaultDark},
+}
+
+var windowRoutes = []struct {
+	name  string
+	route string
+}{
+	{"list", ""},
+	{"add", "add.todo"},
+}
+
+// TestWholeWindowRender draws the composed window in both schemes on both
+// routes, and writes the frames out when -window.dump names a directory.
+func TestWholeWindowRender(t *testing.T) {
+	for _, tc := range windowSchemes {
+		for _, r := range windowRoutes {
+			t.Run(tc.name+"-"+r.name, func(t *testing.T) {
+				img := renderWindow(t, tc.c, r.route)
+				if img.Bounds().Size() != windowSize {
+					t.Fatalf("frame size = %v, want %v", img.Bounds().Size(), windowSize)
+				}
+				if *windowDump == "" {
+					return
+				}
+				if err := os.MkdirAll(*windowDump, 0o755); err != nil {
+					t.Fatalf("dump dir: %v", err)
+				}
+				path := filepath.Join(*windowDump, "todos-"+tc.name+"-"+r.name+".png")
+				f, err := os.Create(path)
+				if err != nil {
+					t.Fatalf("create %s: %v", path, err)
+				}
+				defer f.Close()
+				if err := png.Encode(f, img); err != nil {
+					t.Fatalf("encode %s: %v", path, err)
+				}
+				t.Logf("wrote %s", path)
+			})
+		}
+	}
+}
+
+// TestTheListRestsOnTheWindowGround is ADR-021's R7 walk read off the frame,
+// and it is the regression this app had. The list used to fill a rounded pane
+// at level 1 across the whole window less a 12 dp margin, so the biggest
+// resting expanse was a storey above the only level-0 surface left — the
+// border around it — and the window read deeper in its middle than at its
+// edges. Now the middle and the edge are the same ground, and the only level-1
+// pixels left are the raised controls standing on it.
+//
+// It renders the route with no dialog on it, because the walk is over the
+// window at rest: a modal stands in the middle at level 2 by design, so a walk
+// taken with one open reports a violation the grammar granted.
+func TestTheListRestsOnTheWindowGround(t *testing.T) {
+	for _, tc := range windowSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderWindow(t, tc.c, "")
+			frame := image.Rectangle{Max: windowSize}
+			ground := tc.c.SurfaceAt(tokens.Level0)
+			furniture := tc.c.SurfaceAt(tokens.Level1)
+			transient := tc.c.SurfaceAt(tokens.Level2)
+
+			// The walk out from the middle: centre and edge wear one rung,
+			// and it is the ground. Both points are clear of ink — the rows
+			// stack from the window's top and end well above its middle.
+			for _, p := range []struct {
+				name string
+				at   image.Point
+			}{
+				{"window centre", image.Pt(windowSize.X/2, windowSize.Y/2)},
+				{"window edge", image.Pt(2, windowSize.Y/2)},
+			} {
+				if got := pixelAt(img, p.at); got != ground {
+					t.Errorf("%s at %v = %v, want the ground %v", p.name, p.at, got, ground)
+				}
+			}
+
+			// And it is the ground in bulk, not just at two points: the
+			// resting window is the pin, with ink and controls on it.
+			total := windowSize.X * windowSize.Y
+			if n := countFill(img, frame, ground); n*4 < total*3 {
+				t.Errorf("the ground %v covers %d of %d pixels; the thing this window exists to show is not what most of it is",
+					ground, n, total)
+			}
+			if n := countFill(img, frame, furniture); n*100 > total {
+				t.Errorf("level 1 (%v) covers %d of %d pixels; a control on the ground may wear it, a resting expanse may not",
+					furniture, n, total)
+			}
+			// Level 2 is not asked for zero, because a ramp step is a colour
+			// and an anti-aliased edge between two other colours can land on
+			// it by arithmetic: a couple of dozen pixels along the rounded
+			// checkbox borders do, in both schemes. What the rung may not be
+			// is an expanse, and a tenth of a percent of the window is two
+			// orders of magnitude below the pane that used to be here.
+			if n := countFill(img, frame, transient); n*1000 > total {
+				t.Errorf("level 2 (%v) covers %d of %d pixels of the resting window; that rung is for what appears and leaves",
+					transient, n, total)
+			}
+		})
+	}
+}
+
+// dialogRect is where UpsertDialog puts its surface, derived from the same
+// constants the layout uses rather than measured off the frame: the page's
+// uniform Padding inset, then a ModalWidth by ModalHeight box constrained to
+// that inset area and centred in it.
+func dialogRect() image.Rectangle {
+	pad := int(Padding)
+	inner := image.Rect(pad, pad, windowSize.X-pad, windowSize.Y-pad)
+	w, h := int(ModalWidth), int(ModalHeight)
+	if w > inner.Dx() {
+		w = inner.Dx()
+	}
+	if h > inner.Dy() {
+		h = inner.Dy()
+	}
+	x := inner.Min.X + (inner.Dx()-w)/2
+	y := inner.Min.Y + (inner.Dy()-h)/2
+	return image.Rect(x, y, x+w, y+h)
+}
+
+// TestTheDialogAndItsFieldHoldTheirRungs reads the modal's two rungs off the
+// frame. The dialog is the level 2 the pattern library reserves for a dialog,
+// and the field inside it walks one rung on from the dialog rather than from
+// the window — which is the whole of R4: a raised inset steps up from the
+// surface it is lying on. Both used to be read off the page instead, which is
+// how the dialog ended up level with the list behind it.
+func TestTheDialogAndItsFieldHoldTheirRungs(t *testing.T) {
+	for _, tc := range windowSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			p := PaletteFrom(tc.c)
+			if want := tc.c.SurfaceAt(tokens.Level2); p.Dialog != want {
+				t.Errorf("dialog surface = %v, want level 2 %v", p.Dialog, want)
+			}
+			if want := tc.c.SurfaceAt(tokens.Level3); p.Edit != want {
+				t.Errorf("field fill = %v, want level 3 %v", p.Edit, want)
+			}
+
+			img := renderWindow(t, tc.c, "add.todo")
+			rect := dialogRect()
+
+			// The dialog's own fill, read 6 dp above its bottom edge and
+			// centred: the button row is inset a full Padding from there, so
+			// nothing is drawn over it.
+			at := image.Pt(rect.Min.X+rect.Dx()/2, rect.Max.Y-6)
+			if got := pixelAt(img, at); got != p.Dialog {
+				t.Errorf("dialog surface at %v = %v, want %v", at, got, p.Dialog)
+			}
+
+			// The field is actually painted, and the dialog it lies in is
+			// still the larger of the two.
+			field := countFill(img, rect, p.Edit)
+			dialog := countFill(img, rect, p.Dialog)
+			if field < 2000 {
+				t.Errorf("the field fill %v covers %d pixels of the dialog; a rung nothing is painted in is not a rung",
+					p.Edit, field)
+			}
+			if dialog <= field {
+				t.Errorf("the dialog covers %d pixels and the field on it %d; the inset has swallowed the surface it rests on",
+					dialog, field)
+			}
+
+			// And the page behind is not showing through at either rung.
+			if got := pixelAt(img, at); got == tc.c.SurfaceAt(tokens.Level0) {
+				t.Errorf("the dialog reads as the window ground at %v", at)
+			}
+		})
+	}
+}

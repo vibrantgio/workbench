@@ -787,7 +787,10 @@ them backwards. Three kinds of area, three rungs:
     lightest at its centre and steps darker outward, a dark one darkest at
     its centre and steps lighter — so there is no second rule for dark mode.
     A window deeper in its middle than at its edges has the grammar inverted
-    somewhere.
+    somewhere. Take the walk on the window AT REST — dismiss the overlays
+    first. A dialog stands in the middle at level 2 by design and a control
+    inside it one deeper, so a walk taken with a modal open reports a
+    violation that the rule above it granted.
 
 None of this needs a token that does not already exist. A window that
 cannot be dressed from the vocabulary above is a window whose anatomy is
@@ -1293,8 +1296,12 @@ them without the caveats older guides carried:
 START HERE: the minimal complete app (~700 lines) — the canonical
 bootstrap, pure testable reducers (redux_test.go), components
 button/checkbox/list, a modal dialog, live light/dark; theme.go is the
-minimal token-adapter recipe (PaletteFrom resolving ramp steps, TypeFrom
-picking Typography roles)
+minimal token-adapter recipe (PaletteFrom resolving the window anatomy
+above in one function — the list is the content ground so it wears level 0
+and paints no surface at all, the dialog over it takes level 2 and the
+field inside the dialog level 3 — plus TypeFrom picking Typography roles),
+and window_render_test.go is the smallest example of asserting those rungs
+off a headless frame instead of off the palette that meant them
 
 ### iconbrowser/
 

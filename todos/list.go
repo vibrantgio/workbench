@@ -19,7 +19,13 @@ import (
 	"github.com/vibrantgio/theme/theme"
 )
 
-// List renders the todos inside a rounded pane using the components virtual list.
+// List renders the todos on the window ground using the components virtual
+// list. It paints no surface of its own, and that is the point: the list is
+// what this window exists to show, so it is the content ground rather than
+// something standing on it (ADR-021 R1). It used to fill a rounded pane at
+// level 1 across the whole window less a margin, which put the largest resting
+// expanse of the window one rung above the only level-0 surface left — the
+// border around it. The rows keep their inset; what went is the fill.
 func List(typ Type, th rx.Observable[theme.Theme], p Palette, model Model) layout.Widget {
 	listState := complist.NewState()
 	rows := make([]layout.Widget, len(model.List))
@@ -27,7 +33,6 @@ func List(typ Type, th rx.Observable[theme.Theme], p Palette, model Model) layou
 		rows[i] = Row(typ, th, p, model.List[i])
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		Pane(gtx, image.Rectangle{Max: gtx.Constraints.Max}, gtx.Dp(BorderRadius), p.Pane)
 		return complist.Layout(gtx, listState, rows, func(gtx layout.Context, row layout.Widget) layout.Dimensions {
 			return layout.UniformInset(Padding).Layout(gtx, row)
 		})

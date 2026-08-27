@@ -33,10 +33,18 @@ func main() {
 // backdrop layer is theme-only.
 const modelObsConsumers = 1
 
+// The size the window opens at, named because the whole-window render test
+// draws the composition at exactly this size and a frame is only worth judging
+// where somebody actually looks at it.
+const (
+	winW unit.Dp = 650
+	winH unit.Dp = 600
+)
+
 func run() {
 	mvuWin := mvu.NewWindow(
 		app.Title("Todos"),
-		app.Size(unit.Dp(650), unit.Dp(600)),
+		app.Size(winW, winH),
 	)
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
 
