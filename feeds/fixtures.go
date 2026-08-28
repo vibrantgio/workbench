@@ -73,13 +73,18 @@ func defaultFeedID() FeedID {
 // the table will paginate at a time).
 //
 // Published timestamps are spaced one day apart so sort-by-Published has
-// a strictly-ordered key. The Unread flag toggles every third article so
-// both states are visible in any page slice.
+// a strictly-ordered key. Each title carries its own hand-set Unread flag
+// (see the unread slice beside each titles slice) rather than a computed
+// pattern: within a feed the most recent articles are unread and the
+// older ones are read, with one or two exceptions per feed — an early
+// item already caught up on, an older one still sitting in the list —
+// the way an actual reading history looks rather than a rule.
 func hardCodedArticles() []article {
 	type spec struct {
 		feed   FeedID
 		author string
 		titles []string
+		unread []bool
 	}
 	specs := []spec{
 		{"go-blog", "The Go Team", []string{
@@ -97,6 +102,10 @@ func hardCodedArticles() []article {
 			"Lessons from the Slog Migration",
 			"Async-Friendly Patterns in Go",
 			"Beyond Channels: Coordination Primitives",
+		}, []bool{
+			true, true, false, true, false,
+			false, false, false, false, false,
+			false, false, true, false,
 		}},
 		{"hn", "submitted", []string{
 			"Show HN: A Better Plain-Text Calendar",
@@ -113,6 +122,10 @@ func hardCodedArticles() []article {
 			"Static Site Generators Have Gotten Too Complex",
 			"On the Death of the Personal Homepage",
 			"How We Cut Build Times by 80%",
+		}, []bool{
+			true, true, true, false, false,
+			false, false, false, false, false,
+			false, false, false, true,
 		}},
 		{"lobsters", "various", []string{
 			"Type Systems Are Underrated",
@@ -129,6 +142,10 @@ func hardCodedArticles() []article {
 			"Tail-Call Optimisation Across Compilers",
 			"Static Analysis Wins Worth Adopting",
 			"Type Inference Without Tears",
+		}, []bool{
+			true, false, true, false, false,
+			false, false, false, false, false,
+			false, false, false, false,
 		}},
 		{"bbc", "BBC Newsroom", []string{
 			"Markets React to Central Bank Pause",
@@ -145,6 +162,10 @@ func hardCodedArticles() []article {
 			"Sports Federation Issues Doping Rules",
 			"Migration Policy Faces Court Challenge",
 			"New Subsea Cable Goes Live",
+		}, []bool{
+			true, true, false, true, false,
+			false, false, false, false, false,
+			false, false, false, false,
 		}},
 		{"reuters", "Reuters Staff", []string{
 			"Currency Markets Steady After Volatility",
@@ -161,6 +182,10 @@ func hardCodedArticles() []article {
 			"Service Sector PMI Lifts Outlook",
 			"Crypto Custody Rules Draft Released",
 			"Insurance Claims Surge After Floods",
+		}, []bool{
+			true, false, false, false, false,
+			false, false, false, false, false,
+			false, false, false, true,
 		}},
 		{"my-journal", "me", []string{
 			"Notebook: Morning Walk Through the Park",
@@ -177,6 +202,10 @@ func hardCodedArticles() []article {
 			"Travel Plans for the Long Weekend",
 			"On the Pleasure of Re-Reading",
 			"A Short Inventory of Joys",
+		}, []bool{
+			true, true, true, false, false,
+			false, false, false, false, false,
+			false, false, false, false,
 		}},
 	}
 	base := time.Date(2026, 5, 13, 12, 0, 0, 0, time.UTC)
@@ -190,7 +219,7 @@ func hardCodedArticles() []article {
 				Title:     t,
 				Author:    s.author,
 				Published: base.AddDate(0, 0, -k),
-				Unread:    k%3 == 0,
+				Unread:    s.unread[i],
 			})
 			k++
 		}
@@ -211,22 +240,25 @@ func articleByID(id ArticleID) (article, bool) {
 }
 
 // hardCodedBody returns the static article body shared by the detail pane's
-// Reader and Raw tabs. Per the G5.2c spec there is no real formatting: both
-// tabs render this same text, differing only in font (proportional vs
-// monospace). The paragraphs interpolate the article's title and author so
-// switching articles visibly changes the pane.
+// Reader and Raw tabs. Both tabs render this same text, differing only in
+// font (proportional vs monospace). The paragraphs interpolate the
+// article's title and author so switching articles visibly changes the
+// pane.
 func hardCodedBody(a article) string {
 	return "" +
 		a.Title + " — by " + a.Author + ".\n\n" +
-		"This is the fixture body for the feeds detail pane. It stands in " +
-		"for fetched RSS content while persistence and networking are out " +
-		"of scope for Phase 5. The paragraph is long enough to exercise " +
-		"line wrapping at typical pane widths, which is the only " +
-		"formatting behaviour the Reader tab promises.\n\n" +
-		"A second paragraph confirms that paragraph breaks survive the " +
-		"single-Label rendering path. The Raw tab renders these exact " +
-		"bytes in a monospace face; any visual difference between the two " +
-		"tabs beyond typeface is a defect.\n\n" +
+		"The argument here is simple enough to state in a sentence and " +
+		"awkward enough in practice to fill a dozen paragraphs: most of " +
+		"the pain shows up only once the happy path meets production " +
+		"traffic, existing data, and the two or three callers nobody " +
+		"remembers writing. " + a.Author + " walks through what changed, " +
+		"why the old approach quietly worked for years, and where it " +
+		"started to creak.\n\n" +
+		"A second paragraph rounds it out with the caveats: this trades a " +
+		"little upfront complexity for fewer surprises later, it assumes " +
+		"you already have decent test coverage, and it is not a drop-in " +
+		"fix for every team's constraints. Read the comments below " +
+		"before you copy anything into production.\n\n" +
 		"Published " + a.Published.Format("January 2, 2006") + " in feed “" +
 		string(a.FeedID) + "”."
 }
