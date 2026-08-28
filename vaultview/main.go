@@ -36,6 +36,7 @@ import (
 	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/theme/brand"
+	vgcolor "github.com/vibrantgio/theme/color"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -123,14 +124,78 @@ type themeTokens struct {
 // the lightest resting one. The light scheme does not move a pixel over
 // this: its floor lands byte-for-byte on the neutral 200 the panes already
 // wore. The dark scheme is where the ruling lands — the panes drop from
-// #222222 to #0C0C0C and stop reading as a storey stacked on top of the
-// page they frame.
+// #222222 to #151515, the platform's own measured step under the paper,
+// and stop reading as a storey stacked on top of the page they frame.
 //
 // It is a function rather than a field on themeTokens because the tests
 // hold whole palettes rather than snapshots, and both have to be able to
 // name the same fill.
 func chromeSurface(c tokens.ColorTokens) color.NRGBA {
 	return c.SurfaceAt(tokens.LevelFloor)
+}
+
+// paneSeamRatio is how far a floating pane's own edge stands from the fill
+// it is drawn on: 1.51:1, and it is a MEASUREMENT of the platform rather
+// than a floor anything has to clear.
+//
+// The platform draws this edge and draws it quietly. Voice Memos outlines
+// its floating panel at #3A3A3A on a #1B1B1B panel — 1.514:1, 14.65 L\* —
+// while the flush side of the same window carries no outline at all
+// (owner-attested, 2026-08-28; ADR-019 and ADR-022's amendment). That
+// number is deliberately NOT the 3:1 graphic floor every OBJECT's outline
+// in this system derives to, because the two lines are not the same kind
+// of thing. A 3:1 mark carries meaning by itself and owes its ground WCAG
+// 1.4.11; a pane's own edge is a decorative seam saying "this region is an
+// object", read alongside the fill, the inset and the corner radius that
+// say the same thing. On these grounds 3:1 would answer #666-class ink,
+// far louder than anything the platform draws around a sidebar.
+const paneSeamRatio = 1.51
+
+// paneSeam is the ink of that edge, resolved against the fill it is drawn
+// on rather than named as a rung.
+//
+// Two things are derived and neither names a scheme. The DISTANCE is the
+// measured ratio above, solved in the luminance a contrast ratio is taken
+// in and realized at the fill's own hue and chroma, the way the ladder
+// realizes a storey — so the edge carries whatever tint the palette
+// carries and none of its own. The DIRECTION is toward the scheme's own
+// ink: a dark scheme's edge is lighter than its pane, as Voice Memos
+// draws it, and a light scheme's is darker, which is the only direction a
+// light pane has room in — from #E8E8E8 the whole distance left to white
+// is 1.23:1, less than the whisper itself.
+//
+// On the default palettes it answers #BEBEBE on the light floor, 1.52:1,
+// and #363636 on the dark one, 1.51:1 — the dark pairing within a level
+// of the platform's own #3A3A3A on #1B1B1B.
+func paneSeam(c tokens.ColorTokens) color.NRGBA {
+	fill := chromeSurface(c)
+	y := vgcolor.RelativeLuminance(fill)
+	target := paneSeamRatio*(y+0.05) - 0.05
+	if inkL, fillL := lightnessOf(c.Text), lightnessOf(fill); inkL < fillL {
+		target = (y+0.05)/paneSeamRatio - 0.05
+	}
+	target = min(max(target, 0), 1)
+	_, chroma, hue := vgcolor.OKLChFromNRGBA(fill)
+	return vgcolor.NRGBAFromToneChromaHue(toneOf(target), chroma, hue)
+}
+
+// lightnessOf is a colour's CIELAB L\*, which is what "toward the ink"
+// compares: the seam's direction is a question about lightness and nothing
+// else.
+func lightnessOf(c color.NRGBA) float64 {
+	l, _, _ := vgcolor.LabFromNRGBA(c)
+	return l
+}
+
+// toneOf is the CIELAB lightness of a relative luminance — the inverse of
+// the Y a WCAG contrast ratio is taken on. A distance stated as a ratio is
+// solved in Y; the toolkit realizes a colour from a tone, a chroma and a
+// hue; this is the one step between them.
+func toneOf(y float64) float64 {
+	if y <= 216.0/24389.0 {
+		return y * 24389.0 / 27.0
+	}
+	return 116*math.Cbrt(y) - 16
 }
 
 // mirrorTokens subscribes the theme's token streams into an atomic cell

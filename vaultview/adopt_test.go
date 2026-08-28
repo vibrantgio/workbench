@@ -367,7 +367,7 @@ func TestWithNothingKeptTheWindowIsTheOneItAlwaysWas(t *testing.T) {
 func window(t *testing.T, colors tokens.ColorTokens) *image.RGBA {
 	t.Helper()
 	w, _ := renderWindow(tokens.DefaultTypography.DeterministicShaper(), goldenModel(), colors,
-		tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+		tokens.Spacing, goldenRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 	return golden.Capture(t, windowCanvasSize, scene(w, colors.Background))
 }
 

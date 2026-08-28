@@ -56,20 +56,26 @@
 // note has no edge of its own to draw and the chrome row sits on the
 // document rather than on a band above it. What is furniture says so by
 // standing off that ground; what is document simply is the ground. Both
-// of the window's edges are furniture: leading, the sidebar — raised by
-// tint first and shadow second, its surface step doing the separating
-// and a cast shadow under it saying it floats — and trailing, the column
-// that carries the note's outline and the notes citing it, a full-height
-// surface behind the chrome row. Neither is the document, so neither
+// of the window's edges are furniture and both stand on the same floor,
+// a measured step under the paper in either scheme — but they are two
+// different KINDS of furniture, and this window is where the difference
+// is drawn. Leading, the sidebar is a FLOATING PANE: a button slides it
+// out of the window, so it is an object, and it carries its own hairline
+// just inside its rounded edge to say so. Trailing, the column of the
+// note's outline and the notes citing it is INTEGRAL FURNITURE: fixed,
+// flush, with nothing to dismiss it, so it takes no outline at all and
+// its leading edge is a plain seam. Neither is the document, so neither
 // lies on its paper, and the document is a column of paper between two
 // panes rather than a shape cut out of one.
 //
-// The divider between the note and that column follows from this. Its two
-// sides now stand on different grounds, so the edge between them is the
-// seam and there is no line to draw at rest — the sidebar's edge on the
-// other side is drawn no other way. The grab area stays as wide as a hand
-// needs, and inks while a hand is on it, which is the only thing the
-// resting edge cannot say for itself.
+// Both boundaries paint one hairline, and both run the window's whole
+// height: the platform does not exempt its top band from a split seam,
+// and a seam that stopped at a band would say the window is divided in
+// one place and joined in another. What is left to the pointer is the
+// one thing a resting edge cannot say — that this particular seam moves.
+// The grab area stays as wide as a hand needs, and the seam inside it
+// thickens and takes a firmer ink while a hand is on it, rather than a
+// second bar appearing beside a line that is already drawn.
 //
 // Where the chrome row sits is a platform fact, not a taste. Under the
 // full-size-content treatment the content extends behind the native
@@ -105,7 +111,6 @@ import (
 
 	"github.com/vibrantgio/components/icons"
 	complayout "github.com/vibrantgio/components/layout"
-	"github.com/vibrantgio/effects/depth"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
@@ -134,6 +139,22 @@ const (
 	// pane's scrollbar — which is what stands that bar off the window's
 	// edge by what the note's stands off this column's.
 	railMarginDp = 8
+
+	// seamDp is what any chrome boundary in this window paints: a hairline,
+	// the width the platform's own split dividers take and the width the
+	// vocabulary's shell settled on for the seam between its panes. It is
+	// the pane's internal outline and it is the flush column's seam, so
+	// that a window whose two vertical boundaries are drawn for different
+	// reasons still draws them at one weight. Wider is worse in a way that
+	// is easy to miss: a seam runs the window's whole height, band
+	// included, so its width is the width of the scar it leaves across
+	// every band it crosses.
+	seamDp = 1
+
+	// seamGrabbedDp is what the movable seam paints while a hand is on it:
+	// the same line, thick enough to be seen as a change of state rather
+	// than as a second edge beside the first.
+	seamGrabbedDp = 2
 
 	// railRadiusDp rounds the sidebar pane's four corners. The pane floats
 	// inside the window rather than being its edge, so its corners are its
@@ -423,7 +444,6 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	// no offset transform pushed — so drag deltas measure against a
 	// stable origin even as the divider itself moves.
 	dividerRect := image.Rect(g.contentX+mainW, g.rowTop, g.contentX+mainW+dividerW, g.rowTop+g.rowH)
-	f.paintDividerLine(gtx, tok, dividerRect)
 	area := clip.Rect(dividerRect).Push(gtx.Ops)
 	event.Op(gtx.Ops, &f.dividerTag)
 	pointer.CursorColResize.Add(gtx.Ops)
@@ -449,75 +469,127 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		st.Pop()
 	}
 
+	// The trailing column's own boundary, and the last thing painted so
+	// that neither the column's rows nor the two bands crossing over it can
+	// cover it. It runs the window's full height, band and status bar
+	// included, because that is where the platform runs a split seam and
+	// because a seam that stopped at a band would divide the window in one
+	// place and not another.
+	if asidePx > 0 {
+		f.paintAsideSeam(gtx, tok, asideX, size.Y)
+	}
+
 	return layout.Dimensions{Size: size}
 }
 
-// layoutRailPane raises the sidebar pane off the window's ground and lays
-// the rail inside it, clipped to the pane's own rounded rectangle so a
-// scrolled row cannot cross an edge or poke through a corner.
+// layoutRailPane draws the sidebar pane — its own edge, then its fill —
+// and lays the rail inside it, clipped to the fill rather than to the
+// boundary so a scrolled row can neither cross an edge, poke through a
+// corner, nor paint over the edge itself.
 //
-// The pane is raised by tint first and shadow second. The tint is the
-// surface step it has always worn — one fill, the primary cue — and under
-// it a cast shadow from effects/depth, which that package reserves for
-// what floats and can leave. The sidebar qualifies under that criterion
-// as written: it floats above the window's ground, inset with the ground
-// showing between it and every window edge it has, and it can leave,
-// dismissed from its own toggle — and the platform's own sidebar visibly
-// casts one. The shadow's geometry takes the middle rung of the
-// elevation ladder: above the one-dp fringe of a card raised in place,
-// below the toasts that float over everything including this pane. What
-// it costs is effects/depth's documented price — nine paint operations
-// per frame — paid only while the pane stands.
+// WHAT SAYS THE PANE FLOATS IS ITS EDGE, NOT ITS TONE. The pane is chrome
+// furniture and chrome furniture is the window's floor, in both schemes
+// (ADR-022 V2): it is darker than the document beside it, and it stays
+// darker for sliding out of the window. Depth here is semantic and not
+// geometric — a pane does not climb the ladder by leaving the wall — so
+// what marks it as an object is the hairline it carries just inside its
+// own boundary, at the platform's measured seam strength (paneSeam), and
+// the inset and the corner radius that already say the same thing. The
+// platform's worked example draws exactly this: a floating panel painted
+// darker than the content beside it, outlined internally at 1.51:1, with
+// the flush side of the same window carrying no outline at all.
 //
-// The shadow is cut at the pane's trailing edge, because that is the one
-// edge with no ground under it to fall on. The pane floats off the
-// window's leading, top and bottom edges with the ground showing there;
-// against the trailing edge the content column butts straight up, and a
-// band cast across that seam would be a line down it — the seam is a
-// change of ground, which is exactly the reason this frame draws no line
-// down the matching one between the document and the trailing panel.
-// Uncut, the band did not even reach the whole edge: the note's own
-// ground is painted after the pane and repaints all of it below the
-// chrome row, so what showed was a grey stub beside the pane's toggle
-// and nothing under it.
+// The edge is internal — drawn inside the pane's own rounded rectangle,
+// never on the ground outside it — for the reason the platform's is:
+// half a line lying on the window's ground would blur the one boundary a
+// reader uses to tell where the pane stops.
+//
+// THE SHADOW IS RETIRED, AND THE LADDER RETIRED IT. The pane used to cast
+// one at Level2, from the reading that anything floating and dismissible
+// earns a shadow. What that missed is which storey the pane occupies: its
+// storey is the floor, and tokens.Elevation gives the floor zero dp — "the
+// window's desk is behind everything and has nothing to cast onto". So a
+// shadow resolved against the pane's own storey and a shadow retired in
+// favour of the edge are the same answer, arrived at from opposite ends
+// (ADR-022's amendment leaves the choice open and this is why it does not
+// matter). It also settles the paradox the ledger was holding: a fixed
+// black fringe cast by the darkest region of the window read as lighter
+// than the thing casting it, which is not what a shadow is. Nine paint
+// operations per frame go with it.
 func (f *frameState) layoutRailPane(gtx layout.Context, tok themeTokens, pane image.Rectangle, sb layout.Widget) {
 	r := gtx.Dp(unit.Dp(railRadiusDp))
-	onGround := clip.Rect(image.Rect(0, 0, pane.Max.X, gtx.Constraints.Max.Y)).Push(gtx.Ops)
-	depth.Shadow(gtx, pane, tokens.Level2, r, 1)
-	onGround.Pop()
+	w := max(gtx.Dp(unit.Dp(seamDp)), 1)
+	// Two concentric fills rather than a stroke: a stroke is centred on the
+	// path it follows and antialiases both of its sides, so a one-pixel one
+	// arrives as two rows of half-strength ink and the line the palette
+	// asked for is never actually painted. Filling the pane in the seam's
+	// ink and filling the inset pane back in over it leaves the difference
+	// — exactly one pixel of the seam's own colour down every straight run,
+	// with the corners' arcs antialiased against each other the way a
+	// fence's rim is drawn.
 	rr := clip.RRect{Rect: pane, NE: r, NW: r, SE: r, SW: r}
-	paint.FillShape(gtx.Ops, chromeSurface(tok.col), rr.Op(gtx.Ops))
-	defer rr.Push(gtx.Ops).Pop()
+	paint.FillShape(gtx.Ops, paneSeam(tok.col), rr.Op(gtx.Ops))
+	inner := clip.RRect{Rect: pane.Inset(w), NE: max(r-w, 0), NW: max(r-w, 0), SE: max(r-w, 0), SW: max(r-w, 0)}
+	paint.FillShape(gtx.Ops, chromeSurface(tok.col), inner.Op(gtx.Ops))
+	// The rail is clipped to the pane's inside, not to its boundary, so a
+	// selected row that runs the pane's full width cannot paint over the
+	// edge that says the pane is an object.
+	defer inner.Push(gtx.Ops).Pop()
 	defer op.Offset(pane.Min).Push(gtx.Ops).Pop()
 	sgtx := gtx
 	sgtx.Constraints = layout.Exact(pane.Size())
 	sb(sgtx)
 }
 
-// paintDividerLine inks the note/aside divider under the pointer, and for
-// as long as it is being dragged. At rest it draws nothing: the trailing
-// column stands on its own surface now, so the seam between the document
-// and the panel is a change of ground — the same edge the sidebar has on
-// the other side, and that one has never needed a line down it either.
-// A hairline three dp off a hard edge is not a seam, it is a stray mark.
+// paintAsideSeam draws the boundary of the trailing column: a plain
+// hairline down its leading edge, running the window's full height.
 //
-// What the resting state cannot say is that the seam moves, and a fresh
-// reviewer did read the whole split as fixed. So the line appears where
-// the pointer is: a grab area wide enough to catch a hand, ink only while
-// a hand is on it, and the cursor already saying which way it goes.
-func (f *frameState) paintDividerLine(gtx layout.Context, tok themeTokens, area image.Rectangle) {
-	if !f.hovering && !f.dragging {
+// The column is INTEGRAL FURNITURE — fixed, flush, with no toggle and no
+// way to leave — so it is not outlined the way the rail is (ADR-022's
+// amendment, and the owner's earlier ruling that the pane treatment
+// belongs to what can be moved away). What it takes instead is the plain
+// seam the platform gives its own flush side: Voice Memos carries no
+// outline there at all and parts its panes with a one-pixel divider that
+// runs from the window's top edge to its bottom, band included, and Notes
+// does the same between its list and its note. That is R6's split hairline
+// and the weight the vocabulary's shell settled on.
+//
+// The ink is Divider — the token whose whole job is the line between two
+// regions — and not the pane's own seam ink, deliberately. The two
+// boundaries in this window are two different things and the window is
+// meant to say so: an object's edge circles a pane at the platform's
+// measured whisper, and a region's seam is a divider between grounds. One
+// weight, two inks, and the difference is the doctrine.
+//
+// A line here is new, and what changed is the size of the step it draws
+// over. The worked example this frame used to follow — where two sides
+// stand on different grounds the edge between them IS the seam and there
+// is nothing to draw — was written when furniture and paper stood a full
+// band step apart in both schemes. The floor's dark step is a measured
+// 1.47 L\* now, a whisper the eye can lose, and the platform's answer at a
+// whisper is a line: Voice Memos' two panes are the SAME fill and the
+// divider is the whole of what parts them.
+//
+// UNDER THE HAND THE SEAM ITSELF THICKENS. This boundary is also the one
+// the reader can move, and a resting edge cannot say so — a fresh reviewer
+// read the whole split as fixed. What says it is this same line growing
+// and taking a firmer ink while the pointer is in the grab band, with the
+// resize cursor beside it. The mark used to be a separate bar floating in
+// the middle of the grab band, which was the only thing available when the
+// boundary was unmarked; beside a drawn seam it would read as a stray
+// second edge three dp off the real one. One line, two states.
+func (f *frameState) paintAsideSeam(gtx layout.Context, tok themeTokens, x, height int) {
+	w := max(gtx.Dp(unit.Dp(seamDp)), 1)
+	ink := tok.col.Divider
+	if f.hovering || f.dragging {
+		w = max(gtx.Dp(unit.Dp(seamGrabbedDp)), w)
+		ink = tok.col.Ramps.Neutral.Step(500)
+	}
+	seam := image.Rect(x-w/2, 0, x-w/2+w, height)
+	if seam.Empty() {
 		return
 	}
-	w := max(gtx.Dp(unit.Dp(2)), 2)
-	ink := tok.col.Ramps.Neutral.Step(500)
-	inset := gtx.Dp(unit.Dp(railMarginDp))
-	x := area.Min.X + (area.Dx()-w)/2
-	line := image.Rect(x, area.Min.Y+inset, x+w, area.Max.Y-inset)
-	if line.Empty() {
-		return
-	}
-	paint.FillShape(gtx.Ops, ink, clip.Rect(line).Op())
+	paint.FillShape(gtx.Ops, ink, clip.Rect(seam).Op())
 }
 
 // processDividerDrag tracks the aside divider. The aside keeps an

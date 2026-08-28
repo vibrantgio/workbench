@@ -64,7 +64,7 @@ func TestTheCountIsTheFilesLinesAndNotTheWindows(t *testing.T) {
 	}
 	for _, w := range []int{windowW, windowW / 3} {
 		size := image.Pt(w, windowH)
-		widget, st := renderWindow(shaper, m, tokens.DefaultLight, tokens.Spacing, sharpRadius,
+		widget, st := renderWindow(shaper, m, tokens.DefaultLight, tokens.Spacing, goldenRadius,
 			tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 		drawOnce(t, size, widget)
 		if st.geom.footTop >= size.Y {
@@ -189,7 +189,7 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			m := goldenModel()
-			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, sharpRadius,
+			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			img := golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
 
@@ -229,7 +229,7 @@ func TestTheFootRedrawsOnANoteSwitch(t *testing.T) {
 	}
 
 	shot := func(m Model) *image.RGBA {
-		w, _ := renderWindow(shaper, m, tokens.DefaultLight, tokens.Spacing, sharpRadius,
+		w, _ := renderWindow(shaper, m, tokens.DefaultLight, tokens.Spacing, goldenRadius,
 			tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 		return golden.Capture(t, windowCanvasSize, scene(w, themeCases[0].bg))
 	}

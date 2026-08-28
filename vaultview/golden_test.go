@@ -53,10 +53,24 @@ var (
 	// goldens are recorded there and nowhere else: a composition is only
 	// worth a picture at a size somebody actually looks at it in.
 	windowCanvasSize = image.Pt(windowW, windowH)
-	// Sharp corners keep the goldens deterministic: anti-aliased rounded
-	// corners vary slightly between GPU contexts, breaking pixel-exact
-	// diffs. The pattern goldens upstream do the same.
-	sharpRadius = tokens.RadiusScale{}
+	// goldenRadius is the radius scale every static render lays out from,
+	// and it is the shipped one. It used to be an empty scale, on the
+	// reading that anti-aliased rounded corners vary between GPU contexts
+	// and break pixel-exact diffs — but that reading did not survive being
+	// looked at. The parameter reaches exactly one widget, the rail's find
+	// field, because everything else rounded in this window reads a
+	// module-local constant or the tokens.Radius global: the pane's ten dp,
+	// the tree and outline pills' eight, the properties box and the fence
+	// at Radius.Base, the scrollbar caps. Those arcs are antialiased and
+	// they have always diffed exactly, so the pin bought no determinism
+	// that was not already there and cost the one thing it touched its
+	// corners — leaving a square search field in a rounded window, which is
+	// what a fresh reviewer named as the only real defect in the frame. It
+	// also made renderTree's own promise false: the golden did NOT carry
+	// the field the live rail wears, which builds from the reactive theme
+	// at Radius.Md. Same trap AK6.5 closed in todos, reopened in a sharper
+	// form because here it flattened one control instead of all of them.
+	goldenRadius = tokens.Radius
 )
 
 // goldenNoteSource is the note the goldens render: frontmatter for the
@@ -329,7 +343,7 @@ func TestTreeGolden(t *testing.T) {
 		for _, tc := range themeCases {
 			name := c.name + "-" + tc.name
 			t.Run(name, func(t *testing.T) {
-				w := renderTree(shaper, c.model, tc.colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
+				w := renderTree(shaper, c.model, tc.colors, tokens.Spacing, goldenRadius, tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
 				golden.Render(t, name, treeCanvasSize, scene(w, tc.bg))
 			})
 		}
@@ -384,7 +398,7 @@ func TestVaultWindowGolden(t *testing.T) {
 				// One leading pin for every case, the way the live
 				// measurement is one: the buttons stand at the window's own
 				// inset whether the pane is under them or not.
-				w, _ := renderWindow(shaper, c.model, tc.colors, tokens.Spacing, sharpRadius,
+				w, _ := renderWindow(shaper, c.model, tc.colors, tokens.Spacing, goldenRadius,
 					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 				golden.Render(t, name, windowCanvasSize, scene(w, tc.bg))
 			})
@@ -425,7 +439,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			shot := func(m Model) (*image.RGBA, *frameState) {
-				w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, sharpRadius,
+				w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 				return golden.Capture(t, windowCanvasSize, scene(w, tc.bg)), st
 			}
@@ -456,11 +470,14 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// The pane's own toggle stands on the pane's surface, in the
 			// square at the trailing end of its strip. The last few columns
 			// of that square are left out: the pane's rounded corner is
-			// there, and the ground showing round it is not the toggle.
+			// there, and the ground showing round it is not the toggle. The
+			// pane's own edge is left out the same way — its first row is
+			// the internal hairline that says the pane is an object, ink on
+			// the pane's fill by design and not a mark this is measuring.
 			strip := st.geom.pane.Min.Y + paneStripDp
 			toggleX := st.geom.pane.Max.X - railMarginDp - treeHideBoxDp
 			paneTop, paneBot := inkRows(img, chromeSurface(tc.colors), toggleX, toggleX+treeHideBoxDp-4,
-				st.geom.pane.Min.Y, strip)
+				st.geom.pane.Min.Y+seamDp, strip)
 			level("the pane's toggle", paneTop, paneBot)
 
 			img, st = shot(hidden)
@@ -508,7 +525,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tok := themeTokens{col: tc.colors, typ: tokens.DefaultTypography,
 				sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
-			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, sharpRadius,
+			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			img := golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
 
@@ -668,7 +685,7 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 			cur := &docCursor{}
 			av := newAsideView(cur)
 			shot := func(m Model) *image.RGBA {
-				sb := renderTree(shaper, m, tc.colors, tokens.Spacing, sharpRadius,
+				sb := renderTree(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 					tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
 				main := renderNotePageInto(cur, shaper, m, tc.colors, tokens.Spacing,
 					tokens.DefaultTypography, tokens.Comfortable)

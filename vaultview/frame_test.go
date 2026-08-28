@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"testing"
 
 	"gioui.org/f32"
@@ -15,8 +16,10 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -425,7 +428,7 @@ func TestChromeBudget(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			w, st := renderWindow(shaper, c.model, tokens.DefaultLight, tokens.Spacing,
-				sharpRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+				goldenRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			drawOnce(t, windowCanvasSize, w)
 
 			if st.geom.rowTop > chromeBudgetDp {
@@ -516,4 +519,150 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 	if mid := stripTop + paneStripDp/2; unit.Dp(mid) != windowButtons.Center {
 		t.Errorf("the strip's middle line is y=%d and the buttons' is y=%v; the pane's toggle centres on the strip and would sit off their line", mid, windowButtons.Center)
 	}
+}
+
+// TestTheRailWearsThePlatformsSeam pins the derivation of the floating
+// pane's own edge: how far it stands from the fill it is drawn on, which
+// way it goes, and that it is a whisper rather than a mark.
+//
+// The number is the platform's. Voice Memos outlines its floating panel at
+// #3A3A3A on a #1B1B1B panel — 1.514:1 — and leaves the flush side of the
+// same window unoutlined (owner-attested, 2026-08-28). Both halves are
+// checked here: the derived ink lands on that ratio against this window's
+// own floor in BOTH schemes, and it lands nowhere near the 3:1 graphic
+// floor an object's outline is derived to elsewhere in the system, which
+// on these grounds would answer ink several times louder than anything the
+// platform draws around a sidebar.
+func TestTheRailWearsThePlatformsSeam(t *testing.T) {
+	const (
+		measured  = 1.51 // Voice Memos, panel outline against panel fill
+		tolerance = 0.02 // eight bits' worth of slack, no more
+	)
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fill := chromeSurface(tc.colors)
+			ink := paneSeam(tc.colors)
+			got := vgcolor.ContrastRatio(ink, fill)
+			if got < measured-tolerance || got > measured+tolerance {
+				t.Errorf("the pane's edge stands %.3f:1 off its fill (%v on %v), want the measured %.2f:1",
+					got, ink, fill, measured)
+			}
+			// Toward the scheme's own ink: lighter than the pane in a dark
+			// scheme, as the platform draws it, and darker in a light one,
+			// which is the only direction a light floor has room in.
+			towardInk := lightnessOf(tc.colors.Text) > lightnessOf(fill)
+			if lighter := lightnessOf(ink) > lightnessOf(fill); lighter != towardInk {
+				t.Errorf("the pane's edge is %v against a fill of %v and ink of %v; the edge steps toward the ink",
+					ink, fill, tc.colors.Text)
+			}
+			// Not a mark. 3:1 is what an outline owes its ground when the
+			// line IS the object; a pane's edge is read beside a fill, an
+			// inset and a radius saying the same thing.
+			if got >= 3.0 {
+				t.Errorf("the pane's edge reads %.2f:1, at or over the graphic floor — this is a seam, not a mark", got)
+			}
+		})
+	}
+}
+
+// TestTheRailIsOutlinedAndCastsNothing reads the composed window: the pane
+// carries a hairline just inside its own boundary, and the ground around
+// it is the window's own paper with nothing cast onto it.
+//
+// The two go together. The pane is chrome furniture, so its storey is the
+// floor and the floor's dp is zero — the desk has nothing to cast onto.
+// What says the pane floats is its edge, so the edge has to be there and
+// the shadow has to be gone; a test that checked only one of them would
+// pass on the arrangement this task replaced.
+func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := goldenModel()
+
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
+				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+			img := golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
+			pane := st.geom.pane
+			if pane.Empty() {
+				t.Fatal("the window laid out no pane to read")
+			}
+			ink := paneSeam(tc.colors)
+			// A row clear of the corners' arcs, of the toggle and of every
+			// row's own ink — the middle of the pane's own top strip. On it
+			// the pane's leading and trailing edge columns are the hairline,
+			// and the pixel inside each of them is the fill.
+			y := pane.Min.Y + paneStripDp/2
+			for _, probe := range []struct {
+				what     string
+				edge, in int
+			}{
+				{"leading", pane.Min.X, pane.Min.X + seamDp},
+				{"trailing", pane.Max.X - seamDp, pane.Max.X - seamDp - 1},
+			} {
+				if got := img.RGBAAt(probe.edge, y); !sameInk(got, ink) {
+					t.Errorf("the pane's %s edge at x=%d draws %v, want the seam %v", probe.what, probe.edge, got, ink)
+				}
+				if got, want := img.RGBAAt(probe.in, y), chromeSurface(tc.colors); !sameInk(got, want) {
+					t.Errorf("one pixel inside the pane's %s edge draws %v, want the floor %v — the hairline is wider than a hairline",
+						probe.what, got, want)
+				}
+			}
+			// The gutter the pane floats in, its whole height: bare paper.
+			for x := 0; x < pane.Min.X; x++ {
+				for y := 0; y < windowH; y++ {
+					if got := img.RGBAAt(x, y); !sameInk(got, tc.colors.Background) {
+						t.Fatalf("the ground at (%d,%d) draws %v, want the window's paper %v — the pane is casting something onto its own desk",
+							x, y, got, tc.colors.Background)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestTheAsideKeepsAPlainSeam reads the trailing column's boundary off the
+// same window: one hairline of the divider's own ink, on the column's
+// leading edge, running the window's full height — over the chrome row at
+// the top and the status bar at the foot, because the platform's split
+// seams are not interrupted by a band either.
+//
+// And the column is NOT outlined: it is integral furniture, fixed and
+// flush, so it has no edge of its own on the three sides it shares with
+// the window. The trailing column of pixels is read for that.
+func TestTheAsideKeepsAPlainSeam(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := goldenModel()
+
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
+				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+			img := golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
+			asideX := windowW - frameAsideDp
+			floor := chromeSurface(tc.colors)
+
+			for y := 0; y < windowH; y++ {
+				if got := img.RGBAAt(asideX, y); !sameInk(got, tc.colors.Divider) {
+					t.Fatalf("the column's seam at y=%d draws %v, want the divider %v — the seam stops where a band crosses it",
+						y, got, tc.colors.Divider)
+				}
+				if got := img.RGBAAt(windowW-1, y); !sameInk(got, floor) {
+					t.Fatalf("the column's trailing edge at y=%d draws %v, want its own floor %v — flush furniture wears no outline",
+						y, got, floor)
+				}
+			}
+			// One pixel wide: the column's own fill starts immediately.
+			if got := img.RGBAAt(asideX+seamDp, st.geom.footTop-1); !sameInk(got, floor) {
+				t.Errorf("one pixel past the seam draws %v, want the column's floor %v", got, floor)
+			}
+		})
+	}
+}
+
+// sameInk compares a captured pixel with a token colour on the channels a
+// capture keeps: what is drawn over the ground is opaque by the time it is
+// read back.
+func sameInk(got color.RGBA, want color.NRGBA) bool {
+	return got.R == want.R && got.G == want.G && got.B == want.B
 }
