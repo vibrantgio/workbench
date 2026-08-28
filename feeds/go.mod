@@ -6,18 +6,18 @@ require (
 	gioui.org v0.10.2
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.3
-	github.com/vibrantgio/components v1.0.0
+	github.com/vibrantgio/components v1.1.0
 	github.com/vibrantgio/mvu v1.0.0
 	github.com/vibrantgio/mvu/desktop v1.0.0
-	github.com/vibrantgio/patterns v0.9.0
-	github.com/vibrantgio/theme v1.1.0
+	github.com/vibrantgio/patterns v1.0.0
+	github.com/vibrantgio/theme v1.2.0
 )
 
 require (
 	gioui.org/shader v1.0.9 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/reactivego/scheduler v0.2.0 // indirect
-	github.com/vibrantgio/effects v0.2.2 // indirect
+	github.com/vibrantgio/effects v0.2.3 // indirect
 	github.com/vibrantgio/font v0.4.1 // indirect
 	github.com/vibrantgio/svg v0.0.9 // indirect
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743 // indirect

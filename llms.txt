@@ -63,7 +63,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      superseded by theme/tokens Typography (§Typography)
                      — never add it to a new app
 
-  theme     v1.1.0   the theme runtime and every design token: tokens
+  theme     v1.2.0   the theme runtime and every design token: tokens
                      (colour ramps and pins, Typography, Density, Motion,
                      Elevation, spacing/radius), color (the CIELAB/OKLCh
                      engine and APCA), theme (Theme, the token observables),
@@ -76,22 +76,22 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      wears Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  components  v1.0.0 button, input, list, richtext, scrollbar,
+  components  v1.1.0 button, input, list, richtext, scrollbar,
                      scrollarea (a horizontal viewport for content that must
                      not be reflowed — a code fence, an over-wide diagram),
                      icon, icons (the design system's own marks), layout,
                      keyed, initial, cache, bench (coordination
                      is DEPRECATED — use mvu/stream.Value)
 
-  effects   v0.2.2   blur (Gaussian kernel, cached blur, backdrop
+  effects   v0.2.3   blur (Gaussian kernel, cached blur, backdrop
                      pipeline), depth, glow, motion, spring, springbutton,
                      transition, tween, conductor
 
-  patterns  v0.9.0   patterns: shell, navbar, sidebar, table, pagination,
+  patterns  v1.0.0   patterns: shell, navbar, sidebar, table, pagination,
                      tabs, modal, alert, popover, tooltip, toast, card,
                      accordion, breadcrumb, hero, feature, pricing,
                      testimonial
-  markdown  v0.6.2   GFM document rendering on components widgets (subpackages:
+  markdown  v0.7.0   GFM document rendering on components widgets (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
                      images via vibrantgio/svg; obsidian — the Obsidian
                      dialect: frontmatter, wikilinks, block anchors)
@@ -171,7 +171,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        for traer physics
   github.com/vibrantgio/kiwi/gio              v0.0.6   Gio layout on the
                                                        kiwi solver
-  github.com/vibrantgio/components/gallery    v1.0.0   the components gallery
+  github.com/vibrantgio/components/gallery    v1.1.0   the components gallery
                                                        app
   github.com/vibrantgio/mvu/desktop           v1.0.0   native macOS window
                                                        chrome (FullSizeContent,
@@ -565,7 +565,7 @@ fixed step measures 2.35:1 on a surface, 1.42:1 three storeys up, and
 
   ```go
   // c is the tokens.ColorTokens the theme's Color observable emitted.
-  card    := c.Surface                              // neutral 200
+  alias   := c.Surface        // neutral 200 — a ramp alias, NOT a storey
   hover   := c.StateColor(tokens.RoleNeutral, 200, tokens.StateHover)   // 300
   pressed := c.StateColor(tokens.RoleNeutral, 200, tokens.StatePressed) // 400
   label   := c.Ramps.Neutral.Step(700)              // low-contrast text
@@ -672,20 +672,31 @@ slop overlapping is by design (the topmost input area wins).
 
 ## Elevation: the surface ladder
 
-A raised surface reads as raised by TINT first, shadow second. Elevation
-is a walk up the neutral ramp — the same move states
-make — with the level naming the rung:
+A raised surface reads as raised by TINT first, shadow second. The ladder
+is FIVE storeys, anchored on the Background pin and placed in CIELAB L*
+so that a storey nearer the viewer is lighter in BOTH schemes:
 
   ```
-  level 0   the app background (the Background pin)
-  level 1   card / raised-in-place surface     — neutral 200
-  level 2   menus, toasts, higher panels       — neutral 300
-  level 3   the top of the desktop ladder      — neutral 400
+  LevelFloor  chrome furniture, beneath the paper   darkest in the window
+  Level0      the content ground (the Background pin)
+  Level1      card, fence, field — raised in place
+  Level2      dialogs, toasts, higher panels
+  Level3      popovers, menus — the top of the ladder
   ```
 
   ```go
   surface := c.SurfaceAt(tokens.Level1)   // resolves the fill per mode
   ```
+
+DO NOT READ A STOREY OFF THE NEUTRAL RAMP. A storey is a ramp step only
+where the two happen to coincide: the light scheme's floor lands on
+neutral 200, and the dark scheme's three storeys above the paper land on
+neutral 200/300/400, but the light scheme's raised and floating fills are
+whispers toward white that no ramp step names. c.SurfaceAt is the only
+correct way to ask, and c.Surface is a RAMP ALIAS for neutral 200 rather
+than a storey. In the light scheme the steps between storeys are
+fractions of an L*, so anything that takes a storey owes itself a derived
+hairline or a border to be seen at all.
 
 Because the ramps are paired, a surface tints per scheme with no second
 rule — dark-mode surface tint, the thing MD3's tonal elevation existed to
@@ -693,9 +704,11 @@ encode, falls out for free. WHICH WAY a surface moves is not the pairing's
 to decide: a surface nearer the viewer is lighter, in BOTH schemes, which
 is the window-anatomy rule below and what the steps in the table answer
 to. State
-walks compose on top with the level's step as the ground: hover on a
-level-1 surface is StateColor(RoleNeutral, 200, StateHover) — neutral 300
-in both modes. Ghost buttons obey the same rule from their HOST surface's
+walks compose on top with the storey's OWN FILL as the ground:
+c.StateAt(level, state) answers a storey's hover and active, walking from
+the fill SurfaceAt gives rather than from a ramp index — so a control on
+the furniture floor has an answer as much as one on a
+card. Ghost buttons obey the same rule from their HOST surface's
 rung: button Props carry a Ground elevation level (zero value — the window
 ground, so existing call sites keep their colors), and the ghost hover and
 press washes walk one rung from that local ground rather than from the
@@ -1339,10 +1352,10 @@ purpose (golden determinism); leave those alone.
   require (
       gioui.org v0.10.2
       github.com/reactivego/rx v0.3.0
-      github.com/vibrantgio/patterns v0.9.0
+      github.com/vibrantgio/patterns v1.0.0
       github.com/vibrantgio/mvu v1.0.0
-      github.com/vibrantgio/components v1.0.0
-      github.com/vibrantgio/theme v1.1.0
+      github.com/vibrantgio/components v1.1.0
+      github.com/vibrantgio/theme v1.2.0
       github.com/vibrantgio/textdraw v0.0.4
   )
   ```

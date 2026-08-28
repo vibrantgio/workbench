@@ -6,12 +6,12 @@ require (
 	gioui.org v0.10.2
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.3
-	github.com/vibrantgio/components v1.0.0
+	github.com/vibrantgio/components v1.1.0
 	github.com/vibrantgio/ivg/raster/gio v0.1.7
 	github.com/vibrantgio/mvu v1.0.0
 	github.com/vibrantgio/mvu/desktop v1.0.0
 	github.com/vibrantgio/textdraw v0.0.4
-	github.com/vibrantgio/theme v1.1.0
+	github.com/vibrantgio/theme v1.2.0
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743
 )
 
