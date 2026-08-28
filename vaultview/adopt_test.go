@@ -13,6 +13,7 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/theme/brand"
+	themecolor "github.com/vibrantgio/theme/color"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -72,8 +73,94 @@ func TestAKeptBrandDressesTheWholeWindow(t *testing.T) {
 			if n := pixels(after, tc.fallback.Primary); n != 0 {
 				t.Errorf("%d pixels are still the default seed's accent while a brand is kept", n)
 			}
+			if n := pixelsOf(after, primaryRoleAnswers(adopted)); n == 0 {
+				t.Error("none of the kept brand's own answers for the primary role are anywhere in the window")
+			}
+		})
+	}
+}
+
+// primaryRoleAnswers is the palette's own set of legitimate pixels for the
+// primary role, in this window: the pin, on its own, wherever a surface
+// fills with it outright (the tree's active row and the outline's
+// current-section pill both paint [tokens.RampSet.Primary]'s step 300
+// directly — see tree.go and aside.go); and [tokens.ColorTokens.InkOn]'s
+// answer for the two floors this window gates the role's ink at when it is
+// drawn ON a page rather than filling one — [tokens.TextFloor] for the
+// wikilinks a note's prose carries, [tokens.GraphicFloor] for a graphic
+// mark such as a blockquote's bar. InkOn already returns the bare pin where
+// it clears a floor and a walked ramp step where it does not, so this one
+// list covers both without needing to know which side of the floor c falls
+// on.
+//
+// "The window adopted the brand" no longer means the bare pin reaches every
+// surface — AV1's gate means it may legitimately not — so this asks the
+// palette what its own answers are instead of naming one byte and hoping
+// every seed agrees with it.
+func primaryRoleAnswers(c tokens.ColorTokens) []color.NRGBA {
+	ground := c.SurfaceAt(tokens.Level0)
+	return []color.NRGBA{
+		c.Primary,
+		c.InkOn(tokens.RolePrimary, ground, tokens.TextFloor),
+		c.InkOn(tokens.RolePrimary, ground, tokens.GraphicFloor),
+		c.Ramps.Primary.Step(300),
+	}
+}
+
+// pixelsOf sums [pixels] over every colour in cs: how many pixels of img
+// match ANY of a role's acceptable answers, rather than one named byte.
+func pixelsOf(img *image.RGBA, cs []color.NRGBA) int {
+	n := 0
+	for _, c := range cs {
+		n += pixels(img, c)
+	}
+	return n
+}
+
+// TestAPinThatClearsDressesTheWindowWithItself is the adoption proof's other
+// direction. TestAKeptBrandDressesTheWholeWindow's harbourRed cannot exercise
+// it: its light pin measures 4.27:1, under the text floor by design, so
+// InkOn always walks off it there. A seed whose pin clears needs no walk,
+// and this asserts the bare pin itself — not merely one of
+// [primaryRoleAnswers] — reaches the window, because InkOn is required to
+// hand it back unmodified once it reads on its own page.
+func TestAPinThatClearsDressesTheWindowWithItself(t *testing.T) {
+	// The default brand's own seed: its light pin measures 5.94:1 against
+	// its own paper, clear of the 4.5:1 text floor, and its dark pin is
+	// realized at a fixed depth that always clears — the shape this test is
+	// written for on both sides of the appearance switch.
+	seed := tokens.DefaultSeed
+	path := filepath.Join(t.TempDir(), "theme.json")
+	if err := brand.SaveTo(path, brand.Brand{Seed: seed, Source: "clears.jpg"}); err != nil {
+		t.Fatalf("keep: %v", err)
+	}
+	opts := brand.KeptFrom(path).Options()
+
+	for _, tc := range []struct {
+		name    string
+		desktop specsystem.Appearance
+	}{
+		{"light", specsystem.Appearance{}},
+		{"dark", specsystem.Appearance{Dark: true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			th, err := specsystem.FromSourceTheme(fixedAppearance{tc.desktop}, time.Hour, opts...).First()
+			if err != nil {
+				t.Fatalf("theme: %v", err)
+			}
+			adopted, err := th.Color.First()
+			if err != nil {
+				t.Fatalf("colours: %v", err)
+			}
+
+			ground := adopted.SurfaceAt(tokens.Level0)
+			if got := themecolor.ContrastRatio(adopted.Primary, ground); got < tokens.TextFloor {
+				t.Fatalf("this seed's pin now measures %.2f:1 against its own page, under the %.1f:1 text floor — the test no longer reads the shape it was written for", got, tokens.TextFloor)
+			}
+
+			after := window(t, adopted)
 			if pixels(after, adopted.Primary) == 0 {
-				t.Error("the kept brand's accent is nowhere in the window")
+				t.Error("the pin clears its own floor, and its colour is nowhere in the window")
 			}
 		})
 	}
