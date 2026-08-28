@@ -798,14 +798,34 @@ so do not expect a light window's storeys to stand far apart.
     pin — c.SurfaceAt(tokens.Level0). That is why the ladder's level 0 is a
     sentinel rather than a ramp step and why a button's Ground prop calls
     its zero value the window ground.
-  - FURNITURE IS THE FLOOR, EXACTLY ONE STEP UNDER THE PAPER. Sidebars,
+  - FURNITURE IS THE FLOOR, ONE MEASURED STEP UNDER THE PAPER. Sidebars,
     asides, rails, toolbars and inspectors fill DARKER than the content
     ground — one step below it, in BOTH schemes, because they lie behind
-    the paper rather than on top of it. One step of the ramp is the whole
+    the paper rather than on top of it. One small step is the whole
     separation between chrome and content; two is a mistake in either
-    direction. Resolve it through the theme's ladder (c.SurfaceAt) rather
-    than reaching for a raw ramp step, so a window inherits the value
-    instead of restating it.
+    direction. THAT STEP IS MEASURED OFF THE PLATFORM, PER SCHEME, AND THE
+    TWO SCHEMES DO NOT MEASURE THE SAME. A light window separates its
+    furniture by about 4.9 L* — which is also the neutral ramp's own first
+    surface interval, so the light floor lands on neutral 200 — and a dark
+    window by a whisper, about 1.5: the platform's voice recorder puts its
+    sidebar panel at #1B1B1B under #1E1E1E content, a reference chat
+    application 1.71 L*, the platform's settings window 3.81 with its
+    wallpaper tint on. A full ramp step in the dark scheme is nearly 5 L*
+    and reads as a hole rather than as furniture. Do not derive either
+    number and do not mirror one into the other scheme: resolve the floor
+    through the theme's ladder (c.SurfaceAt) rather than reaching for a raw
+    ramp step, so a window inherits both measurements instead of restating
+    one.
+  - A FLOATING CHROME PANE IS STILL CHROME. Chrome's depth is SEMANTIC, not
+    geometric: a sidebar a button slides out of the window, an inspector
+    that detaches, is still furniture and still fills at the floor. It does
+    not climb the ladder by leaving the wall. What says a pane is a floating
+    object is its OWN HAIRLINE EDGE and its shadow, never a lighter fill —
+    the platform paints even the floating panel darker than the content
+    beside it, and outlines it internally at a ~1.5:1 whisper, a decorative
+    seam rather than a 3:1 mark. Integral furniture — fixed, flush, unable
+    to slide — takes no outline; its boundary is a plain seam. Draw a
+    sliding pane with an edge and let it stay on the floor.
   - NOTHING RESTING TAKES A FLOATING STOREY. Levels 2 and 3 belong to what
     appears and leaves — a dialog and a toast's base at 2, a popover and a
     dropdown at 3, all of which the patterns pass for you — and to edges:
