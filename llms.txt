@@ -548,6 +548,30 @@ Background (app ground), Surface (card — neutral 200), Divider (subtle
 border — neutral 300), Text (body text over Background). Reach for
 these first; reach into the ramps when you need a specific step.
 
+### Ink versus fill
+
+A PIN IS SAFE AS A FILL AND UNPROVEN AS AN INK. FromSeed guarantees
+every pin's On* colour reads over it — that direction is solved — but
+says nothing about the pin drawn ON a ground instead of under one, and
+only the light Primary pin can actually fail there: the rest sit at
+fixed perceptual depths that always clear. Whenever a brand colour is
+the ink rather than the fill — a link, a blockquote's bar, a
+task-list tick (§Markdown has the checkbox split) — derive it instead
+of reading the pin raw:
+
+  ```go
+  ink  := c.InkOn(tokens.RolePrimary, ground, tokens.TextFloor)    // words, 4.5:1
+  mark := c.InkOn(tokens.RolePrimary, ground, tokens.GraphicFloor) // a mark, 3:1
+  ```
+
+InkOn returns the pin untouched once it already clears the floor
+against ground, so the canonical brand — which always clears — comes
+back unchanged; only a pale seed's Primary pin ever walks the ramp
+instead. None of this touches a pin used as a FILL: with something
+else drawn on top of it, c.Primary is already entitled to be its own
+colour, because it is what that something else's On* colour is
+measured against, not the other way round.
+
 ### States are step walks, not alpha overlays
 
 Hover is one step past the component's ground,
@@ -1147,6 +1171,12 @@ viewport would fight the outer one.
     same opt-in as Text.OnLinkClick. The hook receives the *ListItem
     Parse produced (same pointer; MarkerOffset is the opening '[' in
     that source). The library does not write files.
+  - Checkbox colour splits across two fields because the two states
+    draw on different grounds: Style.CheckboxBorder strokes the open
+    box against the page and is gated to GraphicFloor like any other
+    ink (§Colour); Style.CheckboxFill is the closed box's solid fill
+    and takes the brand colour ungated, because it is
+    Style.CheckmarkColor's tick that reads against it, not the page.
   - Code renders in the theme's mono face: FromTokens resolves Style.Mono
     and CodeSize from the Typography Code style (Roboto Mono by default;
     JetBrains Mono when the kept "mono" names it), on a tinted neutral-300
