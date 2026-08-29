@@ -13,9 +13,9 @@ require (
 	github.com/vibrantgio/ivg v0.1.7
 	github.com/vibrantgio/ivg/raster/gio v0.1.7
 	github.com/vibrantgio/markdown v0.7.1
-	github.com/vibrantgio/mvu v1.0.0
-	github.com/vibrantgio/mvu/desktop v1.0.0
-	github.com/vibrantgio/patterns v1.0.2
+	github.com/vibrantgio/mvu v1.0.1
+	github.com/vibrantgio/mvu/desktop v1.0.1
+	github.com/vibrantgio/patterns v1.1.0
 	github.com/vibrantgio/textdraw v0.0.4
 	github.com/vibrantgio/theme v1.3.0
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743

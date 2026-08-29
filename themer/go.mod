@@ -9,8 +9,8 @@ require (
 	github.com/vibrantgio/components v1.2.0
 	github.com/vibrantgio/components/gallery v1.2.0
 	github.com/vibrantgio/markdown v0.7.1
-	github.com/vibrantgio/mvu v1.0.0
-	github.com/vibrantgio/mvu/desktop v1.0.0
+	github.com/vibrantgio/mvu v1.0.1
+	github.com/vibrantgio/mvu/desktop v1.0.1
 	github.com/vibrantgio/textdraw v0.0.4
 	github.com/vibrantgio/theme v1.3.0
 	golang.org/x/image v0.44.0
@@ -26,7 +26,7 @@ require (
 	github.com/vibrantgio/font v0.4.1 // indirect
 	github.com/vibrantgio/ivg v0.1.7 // indirect
 	github.com/vibrantgio/ivg/raster/gio v0.1.7 // indirect
-	github.com/vibrantgio/patterns v1.0.2 // indirect
+	github.com/vibrantgio/patterns v1.1.0 // indirect
 	github.com/vibrantgio/svg v0.0.9 // indirect
 	github.com/yuin/goldmark v1.8.5 // indirect
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743 // indirect

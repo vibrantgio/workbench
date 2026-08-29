@@ -8,10 +8,10 @@ require (
 	github.com/vibrantgio/backdrop v0.0.3
 	github.com/vibrantgio/components v1.2.0
 	github.com/vibrantgio/ivg/raster/gio v0.1.7
-	github.com/vibrantgio/mvu v1.0.0
-	github.com/vibrantgio/mvu/desktop v1.0.0
+	github.com/vibrantgio/mvu v1.0.1
+	github.com/vibrantgio/mvu/desktop v1.0.1
 	github.com/vibrantgio/noise v0.0.3
-	github.com/vibrantgio/patterns v1.0.2
+	github.com/vibrantgio/patterns v1.1.0
 	github.com/vibrantgio/seen v0.0.8
 	github.com/vibrantgio/seen/context/gio v0.0.8
 	github.com/vibrantgio/theme v1.3.0
