@@ -325,7 +325,7 @@ func TestChosenIsTintedAndTransientIsNeutral(t *testing.T) {
 			if p.RowHovered.R != walk.R || p.RowHovered.G != walk.G || p.RowHovered.B != walk.B {
 				t.Errorf("RowHovered = %v, want the neutral hover walk %v at reduced alpha", p.RowHovered, walk)
 			}
-			if p.RowHovered.A >= 0xff {
+			if p.RowHovered.A == 0xff {
 				t.Errorf("RowHovered alpha = %d, want a fraction of the walk", p.RowHovered.A)
 			}
 		})

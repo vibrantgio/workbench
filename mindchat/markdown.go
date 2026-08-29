@@ -70,7 +70,10 @@ func rowKey(i int, msg Message) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%d\x00%s\x00%s", i, msg.Role, msg.Content)
 	for _, cit := range msg.Citations {
-		b.WriteString("\x00" + cit.Title + "\x01" + cit.URL)
+		b.WriteString("\x00")
+		b.WriteString(cit.Title)
+		b.WriteString("\x01")
+		b.WriteString(cit.URL)
 	}
 	return b.String()
 }
@@ -88,7 +91,8 @@ func messageSource(msg Message) []byte {
 			// xAI titles inline citations with their bare marker number;
 			// a title that adds nothing over the URL is dropped.
 			if c.Title != "" && strings.Trim(c.Title, "0123456789") != "" {
-				b.WriteString(c.Title + " — ")
+				b.WriteString(c.Title)
+				b.WriteString(" — ")
 			}
 			b.WriteString(c.URL)
 		}
