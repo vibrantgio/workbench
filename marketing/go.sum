@@ -15,8 +15,8 @@ github.com/reactivego/scheduler v0.2.0 h1:XCg1M2L/ejSOI8v5Q0K5xJt+W204+F0AJsjpTP
 github.com/reactivego/scheduler v0.2.0/go.mod h1:Kw99rMXR1WJr/FgeqQfGAWClsWWlVKXZCUwJ+iCXUtQ=
 github.com/vibrantgio/backdrop v0.0.3 h1:Xp+6U5pSCsqKLi5M8Pfkd0P094ut5sLVDrLM5OPR1rw=
 github.com/vibrantgio/backdrop v0.0.3/go.mod h1:KESYoe+8sDwR/roZM8LJ0wwtfaTqfUGR6DjcxKCydfU=
-github.com/vibrantgio/components v1.1.1 h1:7rpTUQ7bbGaZKWqG5fHZd2W0o9lFSm/gKh9D0j+JRAE=
-github.com/vibrantgio/components v1.1.1/go.mod h1:Rep4zKmaAvYrELndpCnRuY3mB50TtGPZzof3yKJ9TS8=
+github.com/vibrantgio/components v1.2.0 h1:U2v/hRqdj3BCqkrSXCjq43KC97J8xMU6B/33ZsxD+xA=
+github.com/vibrantgio/components v1.2.0/go.mod h1:Rep4zKmaAvYrELndpCnRuY3mB50TtGPZzof3yKJ9TS8=
 github.com/vibrantgio/font v0.4.1 h1:MCn+Sf9jRxjjdgxVGAu+7DRpKFiFLIq5SW3kQOTYDNM=
 github.com/vibrantgio/font v0.4.1/go.mod h1:nU+TnuoartKhdAnHASqn/yNO+t1zLheH1CHgbJJf0FY=
 github.com/vibrantgio/mvu v1.0.0 h1:uzI83VLYJq1UgIIA2mF6JiKaJtRJLWi1ET7+Jv+7Okw=
@@ -25,8 +25,8 @@ github.com/vibrantgio/mvu/desktop v1.0.0 h1:5SQ29Cp3R2Ou1zId4wF2mrJLBoQZKAlkXxRi
 github.com/vibrantgio/mvu/desktop v1.0.0/go.mod h1:DSOdNy33oRkqWm16ncGkMX3zyVtLNrk9aW/OC/vMOOU=
 github.com/vibrantgio/noise v0.0.3 h1:XQb4YPBdTJZSjTXD0SkxMa7Op2nbLmj9vANiEaGUe7g=
 github.com/vibrantgio/noise v0.0.3/go.mod h1:hlxs1Tvw1DmaWgVEHMjX6c/euvlXyox/F8sCtzdLL5c=
-github.com/vibrantgio/patterns v1.0.1 h1:ov2r3dNtYRdQBSbmPQvGPZN6QmLynRBvWgFCwspufR0=
-github.com/vibrantgio/patterns v1.0.1/go.mod h1:IB4Mmwz7XzA1UiVlCRoY2/wrjTmaq3trrPwpJRCX808=
+github.com/vibrantgio/patterns v1.0.2 h1:1bh18H++Vx7s+bf+7n3hWi029T5NvDCXaomg6wf/LVI=
+github.com/vibrantgio/patterns v1.0.2/go.mod h1:eks4ZKYa2xRgWwlbsNkQ2RxDo8S3aPEJ1UTnTfk+Ph0=
 github.com/vibrantgio/seen v0.0.8 h1:UwOK6yhKNRgTdojQYKN69QbGlUmAAeHht2kr4+V8XC0=
 github.com/vibrantgio/seen v0.0.8/go.mod h1:XIerMaflemFdCpWTADE87T5tc+OjZfM2oPq+Fo6dt1c=
 github.com/vibrantgio/seen/context/gio v0.0.8 h1:VRA1Dm7Y8WtEi+IWBPIyKgQUfibcIX5tik3/KEuDkYg=
