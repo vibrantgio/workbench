@@ -5,9 +5,12 @@
 // Open state is model state (Model.ModelMenu), the mindchat idiom.
 //
 // popover-canvas coupling: the popover centres its anchor in the canvas it
-// is given and measures Content at canvas/2, so ChatPane hands it an Exact
+// is given and measures Content at canvas/2, so ChatPane hands it a
 // chip-sized box in the header and the content overrides its incoming
-// constraints to self-size.
+// constraints to self-size. The anchor is components/chip, which is sized to
+// its own content and refuses to stretch, so the box is a CAP rather than a
+// shape: the chip fills it while the label is long and is centred in it when
+// the label is short.
 package main
 
 import (
@@ -16,7 +19,6 @@ import (
 	"sync/atomic"
 
 	"gioui.org/f32"
-	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -25,6 +27,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
+	"github.com/vibrantgio/components/chip"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
@@ -86,8 +89,43 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 
 	dataObs := rx.Map(rx.CombineLatest2(palObs, modelObs), func(next rx.Tuple2[menuThemed, Model]) int {
 		t, m := next.First, next.Second
-		chipCell.Store(menuChip(t, m, &chipClick))
 		contentCell.Store(menuContent(t, menuRows(m), rowClicks, rows))
+		return 0
+	})
+
+	// The chip is a live component rather than a widget this file draws, so
+	// it is a stream of its own: components/chip takes its props once per
+	// subscription, so a chip whose label is data needs a new subscription
+	// when the label changes. That is why the key is deduplicated first —
+	// Model emits on every streamed token, and a subscription per token is
+	// not a rate a component was built for. The clickable is ours, so hover,
+	// press and focus live outside the switch and survive it.
+	chipObs := rx.Map(rx.SwitchMap(
+		rx.Map(modelObs, chipKeyOf).Pipe(rx.DistinctUntilChanged(func(a, b chipKey) bool { return a == b })),
+		func(k chipKey) rx.Observable[layout.Widget] {
+			return chip.Chip(th, chip.Props{
+				Label: k.label,
+				// The chip's own mark, drawn by this app: the chevron points
+				// the way the surface will go, which is the disclosure the
+				// component itself has no state for (it knows rest, hover,
+				// press and focus, and an anchor is none of those while its
+				// popover stands open).
+				Icon:        chevronGlyph(k.open),
+				Description: "Model for this chat",
+				// The header band is the transcript's own level-0 paper, so
+				// the chip fills one storey over it — the zero value.
+				Ground:    tokens.Level0,
+				Clickable: &chipClick,
+				OnClick: func(gtx layout.Context) {
+					if k.open {
+						mvu.MessageOp{Message: CloseModelMenu{}}.Add(gtx.Ops)
+					} else {
+						mvu.MessageOp{Message: OpenModelMenu{}}.Add(gtx.Ops)
+					}
+				},
+			})
+		}), func(w layout.Widget) int {
+		chipCell.Store(w)
 		return 0
 	})
 
@@ -102,17 +140,25 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 		},
 	})
 
-	// Fold the data stream onto the popover stream so chip/content updates
-	// repaint it.
-	return rx.Map(rx.CombineLatest2(popObs, dataObs), func(next rx.Tuple2[layout.Widget, int]) layout.Widget {
+	// Fold the data and chip streams onto the popover stream so chip/content
+	// updates repaint it.
+	return rx.Map(rx.CombineLatest3(popObs, dataObs, chipObs), func(next rx.Tuple3[layout.Widget, int, int]) layout.Widget {
 		return next.First
 	})
 }
 
-// menuChip is the header chip: the effective model label plus a chevron.
-// Clicking toggles the menu.
-func menuChip(t menuThemed, m Model, click *widget.Clickable) layout.Widget {
-	p := t.palette
+// chipKey is everything the header chip is a function of: the label it
+// carries and which way its chevron points. Two Models with the same key
+// build the same chip, which is what lets the chip's subscription outlive a
+// streamed answer.
+type chipKey struct {
+	label string
+	open  bool
+}
+
+// chipKeyOf reads the effective model out of the Model: the per-chat override
+// when there is one, the global default named as such when there is not.
+func chipKeyOf(m Model) chipKey {
 	label := "No model configured"
 	if provider, id, ok := m.EffectiveModel(); ok {
 		label = provider.Name + " · " + id
@@ -120,46 +166,24 @@ func menuChip(t menuThemed, m Model, click *widget.Clickable) layout.Widget {
 			label = "Default · " + label
 		}
 	}
-	open := m.ModelMenu
-	return func(gtx layout.Context) layout.Dimensions {
-		for click.Clicked(gtx) {
-			if open {
-				mvu.MessageOp{Message: CloseModelMenu{}}.Add(gtx.Ops)
-			} else {
-				mvu.MessageOp{Message: OpenModelMenu{}}.Add(gtx.Ops)
-			}
+	return chipKey{label: label, open: m.ModelMenu}
+}
+
+// chevronGlyph adapts this app's chevron to the mark signature
+// components/chip draws with: a painter filling a size×size box at the
+// current origin. The V is inscribed in that box at three fifths of its
+// width, so the mark reads at the weight the label does rather than filling
+// the whole line box.
+func chevronGlyph(open bool) chip.Glyph {
+	return func(gtx layout.Context, size int, col color.NRGBA) {
+		w := size * 3 / 5
+		h := w / 2
+		box := image.Rect((size-w)/2, (size-h)/2, (size+w)/2, (size+h)/2)
+		if open {
+			ChevronUp(gtx, box, col)
+			return
 		}
-		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			size := gtx.Constraints.Max
-			pointer.CursorPointer.Add(gtx.Ops)
-			// The chip is the one raised thing on the header band, so it
-			// takes one storey over the band's own ground and its hover is
-			// that storey's own state walk. The two are different axes and
-			// read differently by scheme: the storey is LIGHTER than the
-			// band in both schemes (a whisper on paper, a clear step on
-			// slate), while the hover walks toward the ramp's far end and
-			// so darkens on paper and lightens on slate.
-			fill := p.Chip
-			if click.Hovered() || open {
-				fill = p.ChipHovered
-			}
-			// Rim first, fill inset over it — the concentric draw a fence's
-			// edge takes, not a stroke on the path: a stroke is centred on
-			// its path, so half a hair of it would fall outside the box the
-			// chip was measured at and every pixel of it would be a blend
-			// of the two colours rather than either. What the rim is for is
-			// on Palette.ChipBorder; in one line, the light scheme's fill
-			// step is 1.02:1 and cannot carry an edge by itself.
-			rad := gtx.Dp(ChipRadius)
-			edge := max(gtx.Dp(ChipEdgeDp), 1)
-			FillRect(gtx, image.Rectangle{Max: size}, rad, p.ChipBorder)
-			FillRect(gtx, image.Rectangle{Max: size}.Inset(edge), max(rad-edge, 0), fill)
-			chevW := gtx.Dp(12)
-			r := image.Rect(gtx.Dp(12), 0, size.X-chevW-gtx.Dp(12), size.Y)
-			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), r, 0.5, 0.5, p.ChipText, label)
-			ChevronDown(gtx, image.Rect(size.X-chevW-gtx.Dp(8), (size.Y-chevW/2)/2, size.X-gtx.Dp(8), (size.Y+chevW/2)/2), p.ChipText)
-			return layout.Dimensions{Size: size}
-		})
+		ChevronDown(gtx, box, col)
 	}
 }
 
@@ -250,5 +274,17 @@ func ChevronDown(gtx layout.Context, box image.Rectangle, col color.NRGBA) {
 	path.MoveTo(f32.Pt(float32(box.Min.X), float32(box.Min.Y)))
 	path.LineTo(f32.Pt(float32(box.Min.X+box.Max.X)/2, float32(box.Max.Y)))
 	path.LineTo(f32.Pt(float32(box.Max.X), float32(box.Min.Y)))
+	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: path.End(), Width: stroke}.Op())
+}
+
+// ChevronUp is ChevronDown's mirror: the same V, pointing the other way, for
+// a disclosure whose surface is already standing.
+func ChevronUp(gtx layout.Context, box image.Rectangle, col color.NRGBA) {
+	stroke := float32(gtx.Dp(unit.Dp(1.5)))
+	var path clip.Path
+	path.Begin(gtx.Ops)
+	path.MoveTo(f32.Pt(float32(box.Min.X), float32(box.Max.Y)))
+	path.LineTo(f32.Pt(float32(box.Min.X+box.Max.X)/2, float32(box.Min.Y)))
+	path.LineTo(f32.Pt(float32(box.Max.X), float32(box.Max.Y)))
 	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: path.End(), Width: stroke}.Op())
 }

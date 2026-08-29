@@ -61,31 +61,12 @@ type Palette struct {
 	UserBubble color.NRGBA // user message fill — a Primary turn, not a rung
 	UserText   color.NRGBA // user message text
 	BotText    color.NRGBA // assistant message text — the ink pinned to Ground
-	// Chip is the header model picker's fill: an interactive region raised
-	// on the level-0 ground, so it fills at level 1 — lighter than the
-	// paper, in both schemes. In the light scheme that is a whisper (0.7 L*,
-	// 1.02:1 off the paper), which is what the linchpin costs a scheme whose
-	// pin has already spent the axis; what says where the chip is there is
-	// its corner radius and its own hover. ChipHovered is that storey's own
-	// state walk, and a state walk still heads toward the ramp's 900 end —
-	// so the chip DARKENS under the pointer on paper and lightens on slate.
-	// The two directions are not a mirror: the ladder answers to the
-	// linchpin, feedback does not.
-	Chip        color.NRGBA
-	ChipHovered color.NRGBA
-	// ChipBorder is the rim that says where the chip is when the fill
-	// cannot. It is the recipe the whole system edges a raised surface
-	// with — MarkOn(RoleNeutral, the fill, the 3:1 graphic floor) — so the
-	// header chip and the composer field standing under it are drawn by one
-	// rule and land on one colour: #797979 on paper, #9E9E9E on slate.
-	//
-	// It exists because of what the linchpin costs the light scheme. A
-	// chip filled a storey over the paper is 1.02:1 off it there, and a
-	// reviewer handed the live window called the model picker "invisible,
-	// reads as static text" before naming anything else. The fill is
-	// correct and it is not the thing that can carry the edge; the rim is.
-	ChipBorder color.NRGBA
-	ChipText   color.NRGBA // chip label and chevron over a raised chip
+	// The header model picker's own fill, hover and rim are no longer here:
+	// it is components/chip now, which derives all three from the storey it
+	// stands on. What this app still says about it is where it stands —
+	// the level-0 paper of the transcript's header band — and the component
+	// answers the rest.
+	ChipText color.NRGBA // label and chevron over the dialog's own chips
 	// ModalChip is a chip inside the settings dialog. Its ground is the
 	// dialog's level-2 surface, so it rests flush on it and reveals itself
 	// with that surface's own state walk rather than reaching for a rung the
@@ -103,11 +84,6 @@ type Palette struct {
 	Error color.NRGBA // settings fetch-error text
 	Ok    color.NRGBA // settings key-check success icon
 }
-
-// chipEdgeFloor is the contrast a drawn mark owes the surface it is drawn
-// on: 3:1, the graphic floor the design system measures every derived edge
-// to, and the same one components/input walks a field's bezel to.
-const chipEdgeFloor = 3.0
 
 func PaletteFrom(c tokens.ColorTokens) Palette {
 	// The hover fill is the sidebar's OWN state walk at half strength, painted
@@ -153,9 +129,6 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		// it. The two coincide in the shipped schemes and need not in a
 		// brand's.
 		BotText:          c.Text,
-		Chip:             c.SurfaceAt(tokens.Level1),
-		ChipHovered:      c.StateAt(tokens.Level1, tokens.StateHover),
-		ChipBorder:       c.MarkOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level1), chipEdgeFloor),
 		ChipText:         c.Ramps.Neutral.Step(900),
 		ModalChip:        c.SurfaceAt(tokens.Level2),
 		ModalChipHovered: c.StateAt(tokens.Level2, tokens.StateHover),
@@ -273,13 +246,14 @@ const (
 	// the model chip's centre line lands on the window controls' line instead
 	// of four dp above it. The band was 44 while the strip above it was the
 	// system's and the two never had to agree.
-	HeaderRowHeight         = BrandRowHeight
-	ChipHeight      unit.Dp = 28
-	// ChipEdgeDp is the rim's own width — one hair, the width every other
-	// derived edge in the system is drawn at.
-	ChipEdgeDp    unit.Dp = 1
+	HeaderRowHeight = BrandRowHeight
+	// ChipHeight is the settings dialog's own hand-rolled chips. The header
+	// model picker no longer takes a height from here: it is components/chip
+	// and draws at the theme density's control height.
+	ChipHeight unit.Dp = 28
+	// ChipWidth is the widest the header picker may grow, not the width it
+	// draws at — the chip is sized to its label and clamped to this.
 	ChipWidth     unit.Dp = 230
-	ChipRadius    unit.Dp = 14
 	MenuWidth     unit.Dp = 260
 	MenuMaxHeight unit.Dp = 320
 )

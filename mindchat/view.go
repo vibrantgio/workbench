@@ -581,13 +581,17 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Wid
 			}),
 		)
 
-		// The popover gets an Exact chip-sized box in the header's right
-		// corner; it centres its anchor (the chip) in that box and hangs
-		// the surface below it.
-		chipW, chipH := gtx.Dp(ChipWidth), gtx.Dp(ChipHeight)
-		defer op.Offset(image.Pt(size.X-chipW-gtx.Dp(24), (headerH-chipH)/2)).Push(gtx.Ops).Pop()
+		// The popover gets a box in the header's right corner spanning the
+		// band's full height; it centres its anchor (the chip) in that box
+		// and hangs the surface below it. The box is a CAP, not a shape: the
+		// anchor is components/chip, which is sized to its own label and
+		// draws at the theme density's control height, so the band's height
+		// is what centres it vertically and ChipWidth is only how wide the
+		// label may run before it is clipped.
+		chipW := gtx.Dp(ChipWidth)
+		defer op.Offset(image.Pt(size.X-chipW-gtx.Dp(24), 0)).Push(gtx.Ops).Pop()
 		mg := gtx
-		mg.Constraints = layout.Exact(image.Pt(chipW, chipH))
+		mg.Constraints = layout.Constraints{Max: image.Pt(chipW, headerH)}
 		menu(mg)
 
 		return layout.Dimensions{Size: size}
