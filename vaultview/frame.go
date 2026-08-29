@@ -18,7 +18,11 @@
 // way the platform's own sidebars do: not by being the window's edge but
 // by floating just inside it — inset from the window's leading, top and
 // bottom edges by one margin, rounded on all four corners, with the
-// window's ground showing around it on every side. No band crosses above
+// window's ground showing around it on every side. That object is the
+// vocabulary's now and this window draws none of it itself: the float, the
+// outline, the strip's arithmetic, the hidden-takes-no-width contract and
+// the recall convention are patterns/pane's, and what is left here is the
+// column that stands in it and the window it stands in. No band crosses above
 // it, because on this platform none does; the only thing over the pane is
 // the margin of ground it floats off. The pane's toggle sits at its
 // top-right corner, where the pane ends, with the strip's empty middle
@@ -113,6 +117,7 @@ import (
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -138,7 +143,11 @@ const (
 	// toggle, and the air the trailing column leaves either side of a
 	// pane's scrollbar — which is what stands that bar off the window's
 	// edge by what the note's stands off this column's.
-	railMarginDp = 8
+	//
+	// The float itself is the vocabulary's now: this is the pattern's own
+	// margin, named here because the window spends it in four places the
+	// pane knows nothing about.
+	railMarginDp = pane.MarginDp
 
 	// seamDp is what any chrome boundary in this window paints: a hairline,
 	// the width the platform's own split dividers take and the width the
@@ -148,19 +157,14 @@ const (
 	// reasons still draws them at one weight. Wider is worse in a way that
 	// is easy to miss: a seam runs the window's whole height, band
 	// included, so its width is the width of the scar it leaves across
-	// every band it crosses.
-	seamDp = 1
+	// every band it crosses. The floating pane's own outline weight is what
+	// the flush column then matches, so the number is taken from there.
+	seamDp = pane.SeamDp
 
 	// seamGrabbedDp is what the movable seam paints while a hand is on it:
 	// the same line, thick enough to be seen as a change of state rather
 	// than as a second edge beside the first.
 	seamGrabbedDp = 2
-
-	// railRadiusDp rounds the sidebar pane's four corners. The pane floats
-	// inside the window rather than being its edge, so its corners are its
-	// own to round — the window's, which the platform rounds, are a margin
-	// away.
-	railRadiusDp = 10
 
 	// buttonInsetDp is how far the window control buttons sit in from the
 	// window's own top and leading edges — the drawn circles' own edges,
@@ -173,23 +177,24 @@ const (
 	// windows use — so the placement is stated rather than defaulted. The
 	// rest of the run — the centre line the placement call wants, the
 	// diameter that converts one into the other — follows from this one
-	// number by the platform's own rule, which desktop.ButtonRunAt applies.
-	buttonInsetDp = 19
+	// number by the platform's own rule, which the pattern applies.
+	buttonInsetDp = pane.ButtonInsetDp
 
 	// paneStripDp is the pane's own top strip: deep enough to hold the
 	// buttons where the window puts them with the same air below them as
 	// above. The buttons' inset is measured from the glass and the strip
 	// from the pane's own edge, so the strip owes the difference back —
 	// which lands the buttons' centre line on the strip's own middle, the
-	// line the pane's toggle centres on too, so the two sit level.
-	paneStripDp = 2*(buttonInsetDp-railMarginDp) + desktop.WindowButtonDiameter
+	// line the pane's toggle centres on too, so the two sit level. The
+	// arithmetic is the pattern's; the rail reads it to reserve the band.
+	paneStripDp = pane.StripDp
 )
 
 // windowButtons is where this window's three control buttons stand, derived
 // from the inset above by the rule the platform's own windows follow. It is
 // the whole placement, and every number in it is the window's: no rail
 // state, no screen and no pane enters into any of them.
-var windowButtons = desktop.ButtonRunAt(buttonInsetDp)
+var windowButtons = pane.Buttons
 
 // toolbarHeight is the chrome row's height: one LabelLarge line box with
 // the smallest spacing step above and below. It deliberately does not
@@ -331,22 +336,15 @@ func frameGeometry(gtx layout.Context, size image.Point, barH, footH int, hidden
 	barH = min(max(barH, 0), h)
 	footH = min(max(footH, 0), h-barH)
 	g := frameGeom{rowTop: barH, rowH: h - barH - footH, footTop: h - footH}
-	if hidden || size.X <= 0 || size.Y <= 0 {
-		return g
+	// The float is the pattern's: one margin inside the window's leading,
+	// top and bottom edges, never more than half the window wide, and empty
+	// in every state where there is no pane to draw — hidden above all,
+	// where the emptiness IS the contract and the content below reflows to
+	// the window's own edge.
+	g.pane = pane.Bounds(gtx, size, treeWidthDp, hidden)
+	if !g.pane.Empty() {
+		g.contentX = g.pane.Max.X
 	}
-	margin := gtx.Dp(unit.Dp(railMarginDp))
-	railW := gtx.Dp(unit.Dp(treeWidthDp))
-	// The pane and its margin may never take more than half the window: a
-	// narrow window owes the note a readable column before it owes the
-	// rail its width.
-	if maxW := size.X/2 - margin; railW > maxW {
-		railW = maxW
-	}
-	if railW <= 0 || size.Y <= 2*margin {
-		return g
-	}
-	g.pane = image.Rect(margin, margin, margin+railW, size.Y-margin)
-	g.contentX = g.pane.Max.X
 	return g
 }
 
@@ -369,8 +367,13 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	g := frameGeometry(gtx, size, barH, gtx.Dp(statusBarHeight(tok)), m.SidebarHidden)
 	f.geom = g
 
-	if sb != nil && !g.pane.Empty() {
-		f.layoutRailPane(gtx, tok, g.pane, sb)
+	// The sidebar is the vocabulary's FLOATING PANE and nothing here draws
+	// it: the float, the rounded outline at the platform's measured whisper,
+	// the floor fill and the clip that keeps a scrolled row off the edge are
+	// all the pattern's. What is left to this window is which column stands
+	// in it.
+	if !g.pane.Empty() {
+		pane.Layout(gtx, tok.col, g.pane, sb)
 	}
 
 	f.processDividerDrag(gtx)
@@ -480,65 +483,6 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	}
 
 	return layout.Dimensions{Size: size}
-}
-
-// layoutRailPane draws the sidebar pane — its own edge, then its fill —
-// and lays the rail inside it, clipped to the fill rather than to the
-// boundary so a scrolled row can neither cross an edge, poke through a
-// corner, nor paint over the edge itself.
-//
-// WHAT SAYS THE PANE FLOATS IS ITS EDGE, NOT ITS TONE. The pane is chrome
-// furniture and chrome furniture is the window's floor, in both schemes
-// (ADR-022 V2): it is darker than the document beside it, and it stays
-// darker for sliding out of the window. Depth here is semantic and not
-// geometric — a pane does not climb the ladder by leaving the wall — so
-// what marks it as an object is the hairline it carries just inside its
-// own boundary, at the platform's measured seam strength (paneSeam), and
-// the inset and the corner radius that already say the same thing. The
-// platform's worked example draws exactly this: a floating panel painted
-// darker than the content beside it, outlined internally at 1.51:1, with
-// the flush side of the same window carrying no outline at all.
-//
-// The edge is internal — drawn inside the pane's own rounded rectangle,
-// never on the ground outside it — for the reason the platform's is:
-// half a line lying on the window's ground would blur the one boundary a
-// reader uses to tell where the pane stops.
-//
-// THE SHADOW IS RETIRED, AND THE LADDER RETIRED IT. The pane used to cast
-// one at Level2, from the reading that anything floating and dismissible
-// earns a shadow. What that missed is which storey the pane occupies: its
-// storey is the floor, and tokens.Elevation gives the floor zero dp — "the
-// window's desk is behind everything and has nothing to cast onto". So a
-// shadow resolved against the pane's own storey and a shadow retired in
-// favour of the edge are the same answer, arrived at from opposite ends
-// (ADR-022's amendment leaves the choice open and this is why it does not
-// matter). It also settles the paradox the ledger was holding: a fixed
-// black fringe cast by the darkest region of the window read as lighter
-// than the thing casting it, which is not what a shadow is. Nine paint
-// operations per frame go with it.
-func (f *frameState) layoutRailPane(gtx layout.Context, tok themeTokens, pane image.Rectangle, sb layout.Widget) {
-	r := gtx.Dp(unit.Dp(railRadiusDp))
-	w := max(gtx.Dp(unit.Dp(seamDp)), 1)
-	// Two concentric fills rather than a stroke: a stroke is centred on the
-	// path it follows and antialiases both of its sides, so a one-pixel one
-	// arrives as two rows of half-strength ink and the line the palette
-	// asked for is never actually painted. Filling the pane in the seam's
-	// ink and filling the inset pane back in over it leaves the difference
-	// — exactly one pixel of the seam's own colour down every straight run,
-	// with the corners' arcs antialiased against each other the way a
-	// fence's rim is drawn.
-	rr := clip.RRect{Rect: pane, NE: r, NW: r, SE: r, SW: r}
-	paint.FillShape(gtx.Ops, paneSeam(tok.col), rr.Op(gtx.Ops))
-	inner := clip.RRect{Rect: pane.Inset(w), NE: max(r-w, 0), NW: max(r-w, 0), SE: max(r-w, 0), SW: max(r-w, 0)}
-	paint.FillShape(gtx.Ops, chromeSurface(tok.col), inner.Op(gtx.Ops))
-	// The rail is clipped to the pane's inside, not to its boundary, so a
-	// selected row that runs the pane's full width cannot paint over the
-	// edge that says the pane is an object.
-	defer inner.Push(gtx.Ops).Pop()
-	defer op.Offset(pane.Min).Push(gtx.Ops).Pop()
-	sgtx := gtx
-	sgtx.Constraints = layout.Exact(pane.Size())
-	sb(sgtx)
 }
 
 // paintAsideSeam draws the boundary of the trailing column: a plain

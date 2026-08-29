@@ -53,6 +53,7 @@ import (
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -471,25 +472,14 @@ func footAction(click *widget.Clickable, label string, tok themeTokens) layout.W
 // full-size-content treatment the native title bar hands over no drag, so
 // a pane that owns the top of the window owes the reader one.
 func (v *treeView) topStrip(gtx layout.Context, tok themeTokens) layout.Dimensions {
-	// The buttons' trailing edge is measured in window coordinates, and
-	// the pane floats one margin inside the window's leading edge, so the
-	// pane-local skip is the measurement less that margin — the buttons
-	// are the window's and stand where it puts them; it is the pane that
-	// slid in under them.
-	lead := v.buttonEdge() - railMarginDp
-	if lead < 0 {
-		lead = 0
-	}
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-		// A move action declared over the buttons would fight them for
-		// the press, so their own span is skipped rather than claimed.
-		layout.Rigid(complayout.HSpacer(float32(lead))),
-		layout.Flexed(1, dragFill),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return v.hideControl(gtx, tok)
-		}),
-		layout.Rigid(dragSpacer(railMarginDp)),
-	)
+	// The band is the pattern's: the buttons' span skipped at the leading
+	// end (a move action over them would fight them for the press), the
+	// window's drag across the middle, and this pane's one control at the
+	// trailing corner. What the rail supplies is the measurement of where
+	// the buttons end — a window fact — and the control itself.
+	return pane.Strip(gtx, v.buttonEdge(), func(gtx layout.Context) layout.Dimensions {
+		return v.hideControl(gtx, tok)
+	})
 }
 
 // hideControl is the pane's own way to put itself away, at the pane's
