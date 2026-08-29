@@ -474,43 +474,27 @@ func TestUpdateRenameChatRejectsInvalidNames(t *testing.T) {
 	}
 }
 
-func TestUpdateToggleSidebarFlipsAndPersists(t *testing.T) {
-	collapsed, _ := Update(testModel(), ToggleSidebar{})
-	if !collapsed.SidebarCollapsed {
-		t.Fatalf("SidebarCollapsed = false, want true after toggle")
+// TestUpdateToggleSidebarSendsThePaneAwayAndBringsItBack is the whole of
+// the pane's state now: there is no ratio and no rail between the two, so
+// the toggle is a flip and nothing else. The state persists because a
+// reader who put the pane away meant it to stay away.
+func TestUpdateToggleSidebarSendsThePaneAwayAndBringsItBack(t *testing.T) {
+	hidden, _ := Update(testModel(), ToggleSidebar{})
+	if !hidden.SidebarHidden {
+		t.Fatalf("SidebarHidden = false, want true after the toggle")
 	}
-	if collapsed.EffectiveRatio() != CollapsedRatio {
-		t.Fatalf("EffectiveRatio = %v, want the rail ratio", collapsed.EffectiveRatio())
+	if !hidden.Config().SidebarHidden {
+		t.Fatalf("the pane's state must reach the config the toggle saves")
 	}
-	restored, _ := Update(collapsed, ToggleSidebar{})
-	if restored.SidebarCollapsed {
-		t.Fatalf("second toggle must restore")
-	}
-	if restored.EffectiveRatio() != DefaultSidebarRatio {
-		t.Fatalf("EffectiveRatio = %v, want the default", restored.EffectiveRatio())
-	}
-}
-
-func TestUpdateSetSidebarRatioDragAndCollapse(t *testing.T) {
-	widened, _ := Update(testModel(), SetSidebarRatio{Ratio: 0.35})
-	if widened.SidebarRatio != 0.35 || widened.SidebarCollapsed {
-		t.Fatalf("drag to 0.35: ratio=%v collapsed=%v", widened.SidebarRatio, widened.SidebarCollapsed)
-	}
-	// Dragging under the rail threshold collapses but keeps the stored
-	// width, so the toggle restores it.
-	collapsed, _ := Update(widened, SetSidebarRatio{Ratio: 0.05})
-	if !collapsed.SidebarCollapsed || collapsed.SidebarRatio != 0.35 {
-		t.Fatalf("drag to rail: ratio=%v collapsed=%v", collapsed.SidebarRatio, collapsed.SidebarCollapsed)
-	}
-	restored, _ := Update(collapsed, ToggleSidebar{})
-	if restored.EffectiveRatio() != 0.35 {
-		t.Fatalf("restore = %v, want the pre-collapse 0.35", restored.EffectiveRatio())
+	restored, _ := Update(hidden, ToggleSidebar{})
+	if restored.SidebarHidden {
+		t.Fatalf("the second toggle must bring the pane back")
 	}
 }
 
 func TestUpdateConfigAdoptsSidebarState(t *testing.T) {
-	next, _ := Update(testModel(), Config{LastChat: "alpha.jsonl", SidebarRatio: 0.3, SidebarCollapsed: true})
-	if next.SidebarRatio != 0.3 || !next.SidebarCollapsed {
+	next, _ := Update(testModel(), Config{LastChat: "alpha.jsonl", SidebarHidden: true})
+	if !next.SidebarHidden {
 		t.Fatalf("sidebar state not adopted from config: %+v", next)
 	}
 }

@@ -22,8 +22,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			last = strings.TrimSuffix(last, ".json") + ".jsonl"
 		}
 		model.CurrentChat.Name = last
-		model.SidebarRatio = message.SidebarRatio
-		model.SidebarCollapsed = message.SidebarCollapsed
+		model.SidebarHidden = message.SidebarHidden
 		model.Providers = message.Providers
 		// Model caches persisted before a nonChatMarkers change (or by an
 		// older build) are re-filtered on the way in.
@@ -354,20 +353,8 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		return model, mvu.DoConcurrent(commands...)
 
 	case ToggleSidebar:
-		model.SidebarCollapsed = !model.SidebarCollapsed
+		model.SidebarHidden = !model.SidebarHidden
 		return model, SaveConfig(model.ConfigFile(), model.Config()).Trace("Save Config")
-
-	case SetSidebarRatio:
-		// Dragging below the rail threshold collapses; dragging wider both
-		// restores and remembers the new width. The stored ratio survives a
-		// collapse so the toggle restores the previous width.
-		if message.Ratio > RailThresholdRatio {
-			model.SidebarRatio = message.Ratio
-			model.SidebarCollapsed = false
-		} else {
-			model.SidebarCollapsed = true
-		}
-		return model, mvu.DoNothing()
 
 	case OpenSettings:
 		selected := 0

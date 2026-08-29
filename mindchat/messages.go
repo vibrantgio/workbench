@@ -52,10 +52,11 @@ type Provider struct {
 
 type Config struct {
 	LastChat string
-	// SidebarRatio is the split-pane position (0 = default); Collapsed
-	// remembers the [|] toggle across launches.
-	SidebarRatio     float32
-	SidebarCollapsed bool
+	// SidebarHidden remembers across launches whether the conversation
+	// pane has been sent away. The split ratio it replaces was the last
+	// trace of an arrangement where the sidebar was one half of a window
+	// rather than an object floating in it.
+	SidebarHidden bool
 	// Providers is the API endpoint catalogue the settings modal edits;
 	// DefaultProvider/DefaultModel name the model new prompts use unless
 	// the chat carries its own override.
@@ -64,14 +65,12 @@ type Config struct {
 	DefaultModel    string
 }
 
-// ToggleSidebar collapses the sidebar to an icon rail or restores it.
+// ToggleSidebar sends the conversation pane away or brings it back. Both
+// halves of the switch send it: the control in the pane's own top strip,
+// and the one the chrome row stands in the same place once the pane is
+// gone — a control that travels with the pane cannot be the one that
+// recalls it.
 type ToggleSidebar struct{}
-
-// SetSidebarRatio follows the split-pane divider drag; dragging below the
-// rail threshold collapses, dragging out restores.
-type SetSidebarRatio struct {
-	Ratio float32
-}
 
 type Prompt struct {
 	Content string

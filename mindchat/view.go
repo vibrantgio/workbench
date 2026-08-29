@@ -37,8 +37,8 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
-	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -74,6 +74,12 @@ type themed struct {
 	// opening in the system browser. MessageRow adapts its text colours per
 	// bubble role.
 	md markdown.Style
+	// col is the emission's whole ColorTokens, kept beside the derived
+	// Palette because patterns/pane resolves its own fill and its own edge
+	// ink from the palette rather than taking them as colours: the pane is
+	// the vocabulary's object and what it is painted with is the pattern's
+	// business, not this app's.
+	col tokens.ColorTokens
 	// typ and shaper carry the theme's Typography and its cached shaper —
 	// the app builds no shaper of its own, so the typefaces (Roboto, and
 	// Roboto Mono for code) come from the theme (G-F1).
@@ -140,8 +146,10 @@ func messageMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.
 	return md
 }
 
-// ContentLayer renders the page: the chat pane with the prompt field, and
-// the conversation sidebar. The stateful widgets live at subscription scope,
+// ContentLayer renders the page: the window's frame — the floating
+// conversation pane, the chrome row and the transcript beside them — with
+// the modals and the undo bar over it. The composition itself is frame.go's;
+// this is the wiring. The stateful widgets live at subscription scope,
 // OUTSIDE the per-emission Map (llm.txt rule 2): the two scroll positions,
 // the sidebar clickables, and the prompt TextField, whose editor state is
 // Defer-scoped inside the component and subscribed exactly once by the
@@ -198,26 +206,32 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				panic(err)
 			}
 			md := messageMarkdownStyle(c, typ)
-			return themed{palette: p, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper(), motion: motion}
+			return themed{palette: p, col: c, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper(), motion: motion}
 		})
 	})
 
-	var newChatClick, settingsClick, toggleClick, undoClick widget.Clickable
+	// The window's own frame: the floating pane, the chrome row and the
+	// content area beside them. It replaces the vocabulary's split-pane
+	// shell, which could only say "two halves of one window sharing its
+	// width" — and the pane is not a half of this window any more.
+	frame := &windowFrame{}
 
-	// The shell's Main and Navbar Brand are STATIC slots while the model and
-	// theme are live streams, so the latest widgets are bridged through
-	// atomic cells read at frame time (the observable-over-static-slot
-	// hand-off feeds/app.go also uses). Folding main and undo onto the
-	// sidebar stream means every model change re-emits the sidebar, which
-	// re-emits the Shell — a same-frame repaint.
-	var mainCell, undoCell atomic.Value
+	var undoClick widget.Clickable
+	// The pane's own controls and the chrome row's are separate widgets on
+	// purpose: the toggle that rides the pane and the one that recalls it
+	// are the two halves of one switch, never the same widget standing in
+	// two places, and only one of the two is laid out in any frame.
+	var paneToggle, paneNewChat, settingsClick widget.Clickable
 
-	type parts struct {
-		sidebar, main, undo layout.Widget
-	}
-	// The model-menu popover widget (the header chip + its surface) reaches
-	// ChatPane's header slot through a cell; its stream joins the final
-	// combine below so menu updates repaint.
+	// The frame and the undo bar are composed per emission and read at
+	// frame time through atomic cells — the observable-over-static-slot
+	// hand-off. Folding them onto one stream means every model change
+	// re-emits the whole composition, which is the same-frame repaint.
+	var frameCell, undoCell atomic.Value
+
+	// The model-menu popover widget (the picker chip + its surface) reaches
+	// the chrome row through a cell; its stream joins the final combine
+	// below so menu updates repaint.
 	var menuCell atomic.Value
 	menuSlot := func(gtx layout.Context) layout.Dimensions {
 		if w, ok := menuCell.Load().(layout.Widget); ok && w != nil {
@@ -226,78 +240,79 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
 
-	combined := rx.Map(rx.CombineLatest3(themes, prompt, modelObs),
-		func(next rx.Tuple3[themed, layout.Widget, Model]) parts {
+	partsObs := rx.Map(rx.CombineLatest3(themes, prompt, modelObs),
+		func(next rx.Tuple3[themed, layout.Widget, Model]) int {
 			t, promptW, model := next.First, next.Second, next.Third
 			streaming := make(map[string]bool, len(model.Streams))
 			for _, s := range model.Streams {
 				streaming[s.Chat] = true
 			}
-			return parts{
-				sidebar: Sidebar(t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &newChatClick, &toggleClick, &settingsClick),
-				main:    ChatPane(t, msgDocs.Rows(visibleHistory(model)), histList, promptW, menuSlot),
-				undo:    UndoBar(t, model.Pending, &undoClick),
-			}
+			sidebar := SidebarPane(t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &paneNewChat, &paneToggle, &settingsClick)
+			main := ChatPane(t, msgDocs.Rows(visibleHistory(model)), histList, promptW)
+			frameCell.Store(layout.Widget(func(gtx layout.Context) layout.Dimensions {
+				return frame.layout(gtx, model, t, sidebar, main, menuSlot)
+			}))
+			undoCell.Store(UndoBar(t, model.Pending, &undoClick))
+			return 0
 		})
-
-	var sidebarCell atomic.Value
-	partsObs := rx.Map(combined, func(p parts) int {
-		sidebarCell.Store(p.sidebar)
-		mainCell.Store(p.main)
-		undoCell.Store(p.undo)
-		return 0
-	})
-
-	slot := func(cell *atomic.Value) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
-				return w(gtx)
-			}
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		}
-	}
-
-	// The split position follows the model: the [|] toggle and divider
-	// drags reduce into SidebarRatio/SidebarCollapsed, and the pane's
-	// minimum ratio doubles as the collapsed icon rail.
-	ratioObs := rx.Map(modelObs, func(m Model) float32 { return m.EffectiveRatio() }).
-		Pipe(rx.DistinctUntilChanged(func(a, b float32) bool { return a == b }))
-
-	shellObs := shell.Shell(th, shell.Props{
-		Layout:     shell.SplitPane,
-		Left:       slot(&sidebarCell),
-		Right:      slot(&mainCell),
-		SplitRatio: ratioObs,
-		OnSplitChange: func(gtx layout.Context, ratio float32) {
-			mvu.MessageOp{Message: SetSidebarRatio{Ratio: ratio}}.Add(gtx.Ops)
-		},
-	})
 
 	renameObs := RenameModal(th, modelObs, modalArb)
 	settingsObs := SettingsModal(th, modelObs, popArb, modalArb)
 	menuObs := ModelMenu(th, modelObs, popArb)
 
-	// Global Cmd/Ctrl-Z undoes a pending chat delete (the reducer ignores
-	// it when nothing is pending). A focused text editor claims the chord
-	// first for its own text undo — correct layering, not a conflict.
-	undoShortcut := OnShortcutKey("Z", func(gtx layout.Context) {
-		mvu.MessageOp{Message: UndoDelete{}}.Add(gtx.Ops)
-	})
+	// The window's chords, each the one its platform already spends on that
+	// action. A focused text editor claims a chord it wants first, for its
+	// own editing; that is correct layering rather than a conflict, which is
+	// why these can be global at all.
+	//
+	// Three of the four also stand as controls somewhere in the window. The
+	// exception is settings while the pane is away: it lives at the pane's
+	// foot, and with the pane gone Cmd-comma is the only way to it. On this
+	// platform that is where a reader looks for it — but the application
+	// menu is meant to say so, and this toolkit builds a fixed menu bar with
+	// no way to add an item to it. Until the menu exists, the chord carries
+	// that state on its own.
+	shortcuts := []layout.Widget{
+		// Cmd/Ctrl-Z undoes a pending chat delete; the reducer ignores it
+		// when nothing is pending.
+		OnShortcutKey("Z", func(gtx layout.Context) {
+			mvu.MessageOp{Message: UndoDelete{}}.Add(gtx.Ops)
+		}),
+		// Cmd/Ctrl-N is the application's primary action, and it reaches it
+		// whether the pane is standing or away.
+		OnShortcutKey("N", func(gtx layout.Context) {
+			mvu.MessageOp{Message: NewChat{}}.Add(gtx.Ops)
+		}),
+		// Cmd/Ctrl-comma is where this platform keeps settings, which is
+		// the whole reason the gear could retreat into the pane's foot.
+		OnShortcutKey(",", func(gtx layout.Context) {
+			mvu.MessageOp{Message: OpenSettings{}}.Add(gtx.Ops)
+		}),
+		// Cmd/Ctrl-backslash sends the pane away and brings it back, so the
+		// switch is reachable from the keyboard in both of its states.
+		OnShortcutKey("\\", func(gtx layout.Context) {
+			mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
+		}),
+	}
 
-	// Overlays: the undo bar and the modals draw over the shell (the
+	// Overlays: the undo bar and the modals draw over the frame (the
 	// settings modal last — its scrim covers everything). partsObs joins
-	// the combine so every model emission re-emits the top widget — the
-	// same-frame repaint the sidebar stream used to provide; menuObs joins
-	// so the header picker's chip and surface stay current.
-	return rx.Map(rx.CombineLatest5(shellObs, renameObs, settingsObs, menuObs, partsObs),
-		func(next rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, int]) layout.Widget {
-			shellW, renameW, settingsW := next.First, next.Second, next.Third
-			menuCell.Store(next.Fourth)
+	// the combine so every model emission re-emits the top widget; menuObs
+	// joins so the picker's chip and surface stay current.
+	return rx.Map(rx.CombineLatest4(renameObs, settingsObs, menuObs, partsObs),
+		func(next rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, int]) layout.Widget {
+			renameW, settingsW := next.First, next.Second
+			menuCell.Store(next.Third)
 			return func(gtx layout.Context) layout.Dimensions {
-				// Key area first, at the BOTTOM of the hit stack (the
-				// todos convention) — it must never sit over the content.
-				undoShortcut(gtx)
-				dims := shellW(gtx)
+				// Key areas first, at the BOTTOM of the hit stack (the
+				// todos convention) — they must never sit over the content.
+				for _, s := range shortcuts {
+					s(gtx)
+				}
+				dims := layout.Dimensions{Size: gtx.Constraints.Max}
+				if w, ok := frameCell.Load().(layout.Widget); ok && w != nil {
+					dims = w(gtx)
+				}
 				if w, ok := undoCell.Load().(layout.Widget); ok && w != nil {
 					w(gtx)
 				}
@@ -489,11 +504,16 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 		})
 }
 
-// ChatPane stacks the header (with the model-picker chip), the scrolling
-// message history, and the prompt field. The menu widget (the popover:
-// chip anchor + model list surface) is drawn LAST, over the history, so
-// the open surface wins the paint and hit-test order against the rows
-// below the header.
+// ChatPane stacks the scrolling message history and the prompt field. The
+// band that used to cap it — the model picker's own header — is gone: the
+// picker stands in the window's chrome row now, beside the conversation's
+// title, and the pane begins at the transcript.
+//
+// The input bar is the last thing in the pane and so owns the window's
+// bottom edge on this side, with nothing standing under it and nothing
+// beside it. That is the whole of the ruling that took the rail's gear
+// away: a bottom rhythm invented on one side of a window and answered on
+// neither is what a reader reads as two applications.
 //
 // The pane paints its own ground before any of that, and it has to: the
 // shell fills the whole split — both halves — with the window's FLOOR, so
@@ -516,45 +536,23 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 // band of furniture down the trailing edge of the content region is the
 // same defect at a few pixels wide. A reviewer shown the live window found
 // it before finding anything else.
-func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Widget) layout.Widget {
+func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		FillRect(gtx, image.Rectangle{Max: gtx.Constraints.Max}, 0, t.palette.Ground)
+		// The transcript is a reading measure, and a reading measure that is
+		// narrower than the room it is given is CENTRED in it. Left alone it
+		// hugged the leading edge, which was invisible while the pane took
+		// the difference up and became the widest thing in the window the
+		// moment the pane went away: a column of prose pinned to one side of
+		// an empty half.
+		avail := gtx.Constraints.Max
 		gtx.Constraints = ClampWidth(gtx, 0, ChatPaneWidth)
 		size := gtx.Constraints.Max
-		headerH := gtx.Dp(HeaderRowHeight)
+		if slack := avail.X - size.X; slack > 0 {
+			defer op.Offset(image.Pt(slack/2, 0)).Push(gtx.Ops).Pop()
+		}
 
 		layout.Flex{Axis: layout.Vertical, Spacing: layout.SpaceBetween, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				// The chip itself is overlaid below; the header row only
-				// reserves the space, paints its ground and draws its
-				// separator.
-				//
-				// The band wears the transcript's ground rather than the
-				// chrome rung. A strip that caps a region belongs to the
-				// region under it — the same reading that says a window's
-				// titlebar is the ground of what it caps — and this one caps
-				// the transcript, which is content. Raising it to the
-				// sidebar's rung would run a second storey of furniture
-				// across the top of the content region and leave the pane
-				// reading as three stripes once the titlebar is painted. So
-				// the band is paper, the model chip is the one raised thing
-				// on it, and a divider hairline is what separates the band
-				// from the messages — an edge, which is what levels 2 and 3
-				// are for.
-				band := image.Rectangle{Max: image.Pt(gtx.Constraints.Max.X, headerH)}
-				FillRect(gtx, band, 0, t.palette.Ground)
-				sep := image.Rectangle{
-					Min: image.Pt(gtx.Dp(12), headerH-gtx.Dp(1)),
-					Max: image.Pt(gtx.Constraints.Max.X-gtx.Dp(12), headerH),
-				}
-				FillRect(gtx, sep, 0, t.palette.Separator)
-				// The band stands in the window's top strip on this side of
-				// the split, so it carries the drag the native title bar
-				// stopped giving back — over its empty run, which is
-				// everything left of the model chip.
-				desktop.DragBand(gtx, image.Rect(0, 0, gtx.Constraints.Max.X-gtx.Dp(ChipWidth)-gtx.Dp(24), headerH))
-				return layout.Dimensions{Size: band.Max}
-			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return list.LayoutScrollbar(gtx, hist, t.bar, list.Occupy, chat,
 					func(gtx layout.Context, row msgRow) layout.Dimensions {
@@ -562,13 +560,12 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Wid
 					})
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				// The transcript's foot is the same kind of edge as its head.
-				// The composer stands off the paper the messages lie on
-				// exactly as the header band's chip does, so the seam between
-				// them takes the hairline the band's edge takes — same
-				// Divider, same 12dp inset — rather than being left as a bare
-				// change of content. Drawing the two ends of one region by
-				// different rules is what makes a window look assembled.
+				// The seam between the transcript and the composer: the
+				// composer stands off the paper the messages lie on, and
+				// what parts two things on one ground is a hairline. It is
+				// the transcript's only rule now that the header band has
+				// gone into the window's own chrome row — one region, one
+				// edge, drawn where the content actually changes.
 				seam := gtx.Dp(1)
 				FillRect(gtx, image.Rectangle{
 					Min: image.Pt(gtx.Dp(12), 0),
@@ -577,22 +574,9 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt, menu layout.Wid
 				return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, seam)}
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.UniformInset(8).Layout(gtx, prompt)
+				return layout.UniformInset(PaneMargin).Layout(gtx, prompt)
 			}),
 		)
-
-		// The popover gets a box in the header's right corner spanning the
-		// band's full height; it centres its anchor (the chip) in that box
-		// and hangs the surface below it. The box is a CAP, not a shape: the
-		// anchor is components/chip, which is sized to its own label and
-		// draws at the theme density's control height, so the band's height
-		// is what centres it vertically and ChipWidth is only how wide the
-		// label may run before it is clipped.
-		chipW := gtx.Dp(ChipWidth)
-		defer op.Offset(image.Pt(size.X-chipW-gtx.Dp(24), 0)).Push(gtx.Ops).Pop()
-		mg := gtx
-		mg.Constraints = layout.Constraints{Max: image.Pt(chipW, headerH)}
-		menu(mg)
 
 		return layout.Dimensions{Size: size}
 	}
@@ -677,11 +661,25 @@ func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 	return dims
 }
 
-// Sidebar renders the shell's left pane: the brand row with the collapse
-// toggle, the conversation list, and the settings row anchored at the
-// bottom. Below RailThreshold width it renders as an icon rail (toggle,
-// new chat, settings) — the collapsed state the [|] toggle drives.
-func Sidebar(t themed, chats ChatList, current string, streaming map[string]bool, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat, toggle, settings *widget.Clickable) layout.Widget {
+// SidebarPane renders the column that stands inside the floating pane: the
+// top strip the window's control buttons pass through, the conversation
+// list, and the settings row at the foot.
+//
+// There is no wordmark and no CONVERSATIONS heading. The menu bar and the
+// Dock carry this application's identity, so a band that truncated the name
+// it could not afford was proof the name never belonged there; and a list
+// with exactly one section does not announce itself — the header's one
+// control, new chat, moved to the strip, which is where a control belongs.
+//
+// The strip is reserved by the flex and DRAWN AFTERWARDS, which is a
+// statement about the keyboard rather than about paint. Focus follows the
+// order the ops are written in, and the reading order of this pane is the
+// conversations, then the settings that act on all of them, then the
+// pane's own controls — a reader who tabs into the pane means to reach a
+// conversation, not to put the pane away. Laid out in place, the strip's
+// toggle stood first and Tab-then-Return dismissed the pane the reader had
+// just opened.
+func SidebarPane(t themed, chats ChatList, current string, streaming map[string]bool, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat, toggle, settings *widget.Clickable) layout.Widget {
 	// Ensure every chat has persistent Clickables for hover/click state.
 	for _, name := range chats {
 		if _, ok := rowClicks[name]; !ok {
@@ -698,19 +696,16 @@ func Sidebar(t themed, chats ChatList, current string, streaming map[string]bool
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
-		FillRect(gtx, image.Rectangle{Max: size}, 0, t.palette.Sidebar)
 
-		if size.X < gtx.Dp(RailThresholdWidth) {
-			SidebarRail(gtx, t, toggle, newChat, settings)
-			return layout.Dimensions{Size: size}
-		}
+		// The pane's own strip: cut deep enough to hold the window's
+		// control buttons where the window keeps them, with the same air
+		// below them as above, by the pattern's arithmetic. The pane fills
+		// itself, so nothing here paints a ground.
+		stripH := min(gtx.Dp(unit.Dp(pane.StripDp)), size.Y)
 
 		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return SidebarBrand(gtx, t, toggle)
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return SidebarHeader(gtx, t, newChat)
+				return layout.Dimensions{Size: image.Pt(size.X, stripH)}
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return list.LayoutScrollbar(gtx, rows, t.bar, list.Overlay, chats,
@@ -722,8 +717,35 @@ func Sidebar(t themed, chats ChatList, current string, streaming map[string]bool
 				return SidebarFooter(gtx, t, settings)
 			}),
 		)
+
+		sgtx := gtx
+		sgtx.Constraints = layout.Exact(image.Pt(size.X, stripH))
+		SidebarStrip(sgtx, t, toggle, newChat)
 		return layout.Dimensions{Size: size}
 	}
+}
+
+// SidebarStrip is the band across the top of the pane: the window control
+// buttons' span skipped at the leading end, a stretch that moves the window
+// across the middle, and the pane's two controls at the trailing corner.
+//
+// Which two is the ruling. The toggle rides here because it puts the pane
+// away and a dismiss control belongs to the thing it dismisses; new chat
+// rides here because it is the application's primary action and the list
+// under it is what it adds to. Both stand again in the chrome row once the
+// pane is gone, at the same size and on the same line — they are two halves
+// of one switch each, not two controls that happen to look alike.
+func SidebarStrip(gtx layout.Context, t themed, toggle, newChat *widget.Clickable) layout.Dimensions {
+	return pane.Strip(gtx, windowButtonsEnd(),
+		func(gtx layout.Context) layout.Dimensions {
+			return sidebarToggle(gtx, t, toggle, "Hide the conversations")
+		},
+		func(gtx layout.Context) layout.Dimensions {
+			return desktop.DragRun(gtx, gtx.Dp(controlGapDp))
+		},
+		func(gtx layout.Context) layout.Dimensions {
+			return newChatMark(gtx, t, newChat)
+		})
 }
 
 // windowButtonsEnd reports the trailing edge of the window's three control
@@ -738,54 +760,20 @@ func Sidebar(t themed, chats ChatList, current string, streaming map[string]bool
 // state a measurement it has no window to take.
 var windowButtonsEnd = desktop.LeadingInset
 
-// brandLead is where the brand row's own content may start: one gap past the
-// window's control buttons where the window has them, and the sidebar's
-// ordinary gutter where it does not. The controls stand at the top of the
-// sidebar because the sidebar reaches the window's top edge, so the row that
-// caps it has to give them their leading run rather than draw the app's name
-// underneath them.
-func brandLead() unit.Dp {
-	return desktop.BandLeadFrom(windowButtonsEnd(), WindowButtonGap, SidebarGutter)
-}
-
-// SidebarBrand is the sidebar's top row: the window's control buttons, the app
-// title and the [|] collapse toggle sharing one vertical centre. The row is
-// as deep as it is so the controls centre in it — it is the band this window
-// hands the platform in place of the native strip — and the title starts where
-// they end.
-func SidebarBrand(gtx layout.Context, t themed, toggle *widget.Clickable) layout.Dimensions {
-	for toggle.Clicked(gtx) {
-		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
-	}
-	p := t.palette
-	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(BrandRowHeight))
-	left, right := gtx.Dp(brandLead()), gtx.Dp(12)
-	iconSz := gtx.Dp(ToggleIconSize)
-
-	// The row stands in the strip the native title bar would otherwise own,
-	// and that strip no longer hands back the window drag — so the row says
-	// where the window may be picked up. It says so over everything up to the
-	// toggle, the title included: dragging a window by its name is what the
-	// platform does. Declared before the toggle so the toggle, drawn after,
-	// keeps its own presses.
-	dragW := size.X - right - iconSz - gtx.Dp(8)
-	desktop.DragBand(gtx, image.Rect(0, 0, dragW, size.Y))
-
-	titleRect := image.Rect(left, 0, dragW, size.Y)
-	textdraw.FillText(gtx, t.shaper, roleText(t.typ.TitleMedium), titleRect, 0, 0.5, p.RowActive, "MindChat")
-
-	defer op.Offset(image.Pt(size.X-right-iconSz, (size.Y-iconSz)/2)).Push(gtx.Ops).Pop()
-	icon := gtx
-	icon.Constraints = layout.Exact(image.Pt(iconSz, iconSz))
-	IconButton(icon, toggle, ToggleIconSize, func(gtx layout.Context, sz int) {
-		PanelGlyph(gtx, sz, p.Heading)
-	})
-	return layout.Dimensions{Size: size}
-}
-
-// SidebarFooter anchors the settings affordance bottom-left: a hairline
-// separator over a full-width hoverable row, gear and label sharing one
-// vertical centre on the 16dp gutter.
+// SidebarFooter is the pane's foot: a hairline off the rows and, under it,
+// the settings affordance — gear and label sharing one vertical centre on
+// the rows' own gutter.
+//
+// Settings stands here and nowhere else in the window's chrome. It acts on
+// the application rather than on the conversation, so it earns no standing
+// place in a window whose pane is away; Cmd-comma is how it is reached
+// then, which is where this platform keeps it anyway. That is what let the
+// rail's gear go, and with it the bottom rhythm the rail invented on one
+// side of the window and nothing on the other side answered.
+//
+// The hairline is the pane's OWN, drawn inside its outline and running only
+// the pane's width — it says the scrolling stops here, which is a fact
+// about this column and not a band across the window.
 func SidebarFooter(gtx layout.Context, t themed, settings *widget.Clickable) layout.Dimensions {
 	for settings.Clicked(gtx) {
 		mvu.MessageOp{Message: OpenSettings{}}.Add(gtx.Ops)
@@ -820,68 +808,6 @@ func SidebarFooter(gtx layout.Context, t themed, settings *widget.Clickable) lay
 	return layout.Dimensions{Size: image.Pt(width, rowH+sep)}
 }
 
-// SidebarRail is the collapsed sidebar: the toggle on top, new chat below
-// it, settings pinned at the bottom — icons only, centred in the rail.
-func SidebarRail(gtx layout.Context, t themed, toggle, newChat, settings *widget.Clickable) layout.Dimensions {
-	for toggle.Clicked(gtx) {
-		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
-	}
-	for newChat.Clicked(gtx) {
-		mvu.MessageOp{Message: NewChat{}}.Add(gtx.Ops)
-	}
-	for settings.Clicked(gtx) {
-		mvu.MessageOp{Message: OpenSettings{}}.Add(gtx.Ops)
-	}
-	p := t.palette
-	size := gtx.Constraints.Max
-	rail := func(gtx layout.Context, click *widget.Clickable, draw func(layout.Context, int)) layout.Dimensions {
-		return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10)}.Layout(gtx,
-			func(gtx layout.Context) layout.Dimensions {
-				return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return IconButton(gtx, click, ToggleIconSize, draw)
-				})
-			})
-	}
-	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			// The window's control buttons stay where the window put them
-			// when the sidebar collapses — they belong to the window, not to
-			// a pane the reader dismissed — and the rail is narrower than
-			// they are wide, so they straddle its trailing edge. The rail
-			// gives them the strip anyway and starts its own icons under it:
-			// an icon drawn beneath them is one the platform will not let a
-			// click reach.
-			strip := 0
-			if windowButtonsEnd() > 0 {
-				strip = gtx.Dp(BrandRowHeight)
-			}
-			desktop.DragBand(gtx, image.Rect(0, 0, gtx.Constraints.Max.X, strip))
-			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, strip)}
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return rail(gtx, toggle, func(gtx layout.Context, sz int) { PanelGlyph(gtx, sz, p.Heading) })
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return rail(gtx, newChat, func(gtx layout.Context, sz int) {
-				icon := gtx
-				icon.Constraints = layout.Exact(image.Pt(sz, sz))
-				t.add(icon)
-			})
-		}),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Max.Y)}
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return rail(gtx, settings, func(gtx layout.Context, sz int) {
-				icon := gtx
-				icon.Constraints = layout.Exact(image.Pt(sz, sz))
-				t.gear(icon)
-			})
-		}),
-	)
-	return layout.Dimensions{Size: size}
-}
-
 // IconButton lays a square icon inside a clickable with a pointer cursor.
 func IconButton(gtx layout.Context, click *widget.Clickable, size unit.Dp, draw func(gtx layout.Context, sizePx int)) layout.Dimensions {
 	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -904,49 +830,6 @@ func PanelGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
 	x := r.Min.X + r.Dx()/3
 	bar := image.Rect(x, r.Min.Y, x+int(stroke), r.Max.Y)
 	paint.FillShape(gtx.Ops, col, clip.Rect(bar).Op())
-}
-
-// SidebarHeader renders the "CONVERSATIONS" heading with the new-chat
-// button at the top of the sidebar.
-func SidebarHeader(gtx layout.Context, t themed, newChat *widget.Clickable) layout.Dimensions {
-	// Drain before Layout, like the rows.
-	for newChat.Clicked(gtx) {
-		mvu.MessageOp{Message: NewChat{}}.Add(gtx.Ops)
-	}
-
-	p := t.palette
-	label := roleLabel(t.typ.LabelSmall, 1)
-	label.Alignment, label.Truncator = text.Start, "…"
-	textMaterial := Material(gtx.Ops, p.Heading)
-
-	m := op.Record(gtx.Ops)
-	dims := layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(10), Left: unit.Dp(16), Right: unit.Dp(12)}.Layout(gtx,
-		func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					cap := t.typ.LabelSmall
-					dims := typeset.Layout(gtx, t.shaper, label, roleFont(cap), unit.Sp(cap.Size), "CONVERSATIONS", textMaterial)
-					dims.Size.X = gtx.Constraints.Max.X
-					return dims
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					iconSize := gtx.Dp(AddIconSize)
-					gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
-					return newChat.Layout(gtx, t.add)
-				}),
-			)
-		},
-	)
-	foreground := m.Stop()
-
-	// Bottom separator line
-	sepRect := image.Rectangle{
-		Min: image.Pt(gtx.Dp(12), dims.Size.Y-gtx.Dp(1)),
-		Max: image.Pt(dims.Size.X-gtx.Dp(12), dims.Size.Y),
-	}
-	FillRect(gtx, sepRect, 0, p.Separator)
-	foreground.Add(gtx.Ops)
-	return dims
 }
 
 // UndoBar renders the transient bottom-centre undo affordance while a

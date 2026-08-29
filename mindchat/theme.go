@@ -7,7 +7,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
-	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -199,22 +199,21 @@ const (
 	UndoBarRadius    unit.Dp = 6
 	UndoBarMargin    unit.Dp = 24
 
-	BrandRowHeight unit.Dp = 52
+	// SidebarWidth is what the conversation pane takes while it stands. It
+	// is a width and not a ratio: the pane is an object floating in the
+	// window rather than one half of a split, so it does not grow with the
+	// window and the transcript takes everything it does not.
+	SidebarWidth unit.Dp = 240
 
-	// SidebarGutter is the leading inset the sidebar's rows and labels share.
-	SidebarGutter unit.Dp = 16
-
-	// WindowButtonGap is the air between the last window control and whatever
-	// the brand row puts beside it. The measurement the window reports is the
-	// bare trailing edge of the third circle and carries no breathing room of
-	// its own, so the row owes the buttons the same gap it would leave between
-	// any two things standing in it.
-	WindowButtonGap unit.Dp = 12
+	// PaneMargin is the sliver of window ground the pane floats off its
+	// leading, top and bottom edges, and the air the chrome row and the
+	// input bar keep off the window's edges so the content area answers the
+	// same margin the pane does. The number is the pattern's.
+	PaneMargin = pane.MarginDp
 
 	ToggleIconSize     unit.Dp = 20
 	FooterIconSize     unit.Dp = 18
 	FooterRowHeight    unit.Dp = 46
-	RailThresholdWidth unit.Dp = 110
 	StreamDotSize      unit.Dp = 7
 	StreamDotSlot      unit.Dp = 15
 	WaitingDotGap      unit.Dp = 6
@@ -238,15 +237,6 @@ const (
 	ModelDotSlot        unit.Dp = 16
 	ModelDotSize        unit.Dp = 6
 
-	// Chat header (model picker chip) geometry.
-	// The header band is as deep as the brand row beside it, and both are the
-	// depth the platform's unified toolbar was measured at. They are the two
-	// halves of one strip across the top of a window that now paints its own,
-	// so a reader sees one band rather than a step where the split falls — and
-	// the model chip's centre line lands on the window controls' line instead
-	// of four dp above it. The band was 44 while the strip above it was the
-	// system's and the two never had to agree.
-	HeaderRowHeight = BrandRowHeight
 	// ChipHeight is the settings dialog's own hand-rolled chips. The header
 	// model picker no longer takes a height from here: it is components/chip
 	// and draws at the theme density's control height.
@@ -258,15 +248,30 @@ const (
 	MenuMaxHeight unit.Dp = 320
 )
 
-// The three macOS window controls stand in the brand row: this window
-// paints its own title bar, so the row at the top of the sidebar is the
-// band it gives them and nothing native stands above it. desktop.ButtonRunIn
-// derives their whole geometry from the band's own height — the buttons are
-// centred in whatever band a window has, and their leading inset equals
-// their top inset — so BrandRowHeight is the only input; at 52dp that is
-// 19dp leading and centred, 14dp across, the same numbers the platform
-// reference was measured at.
-var windowButtonRun = desktop.ButtonRunIn(BrandRowHeight)
+// The three macOS window controls are measured from the window's own glass
+// and from nothing drawn beneath them: this window paints its own title
+// bar, and the pane that floats under the controls while it stands is a
+// thing the reader can send away — a control that belongs to the window
+// cannot shift because a pane the reader dismissed used to be behind it.
+// The whole run is the floating pane pattern's, derived from the inset the
+// platform's own sidebar apps draw at: 19 in from both edges, 14 across,
+// 23 between centres.
+var windowButtonRun = pane.Buttons
+
+// ChromeRowHeight is the depth of the window's chrome row — the title row
+// across the top of the content area, beside the pane while it stands and
+// across the whole window once it is gone.
+//
+// It is twice the window buttons' centre line and nothing else, which is
+// the whole of how the two pane states hold one line. The buttons never
+// move; the pane's strip is cut deep enough to hold them and centres its
+// controls on their line by the pattern's own arithmetic; a row twice that
+// depth centres ITS controls on the same line. So the toggle and the
+// new-chat mark stand at one height whether they ride the pane or stand in
+// the row that recalls it, and neither drops a rung as the pane comes and
+// goes. That jump — the control just clicked leaving from under the
+// pointer — is the defect this composition exists to kill.
+var ChromeRowHeight = 2 * windowButtonRun.Center
 
 // WindowButtonDiameter, WindowButtonInset and WindowButtonCenter are
 // windowButtonRun's fields, named for the call sites that already expect

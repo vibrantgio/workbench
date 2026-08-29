@@ -102,3 +102,47 @@ func TestOnShortcutKeyDoesNotOccludePointer(t *testing.T) {
 		t.Fatalf("clickable fired %d times under the shortcut area, want 1 (pointer occluded?)", clicked)
 	}
 }
+
+// TestTheWindowsChordsAreLiveOnTheirNames drives each of the accelerators
+// this window binds through a real router: new chat, settings and the pane
+// toggle. The undo chord is covered above; these three are the ones the
+// floating pane's composition depends on, because the rail that used to
+// carry a standing settings control is gone and Cmd-comma is what replaced
+// it.
+//
+// The name each is bound to is the whole point of the check: a chord bound
+// to the wrong key name is silently dead, and a settings control that is
+// only reachable by a chord that does not fire is a control that is not
+// reachable at all.
+func TestTheWindowsChordsAreLiveOnTheirNames(t *testing.T) {
+	for _, tc := range []struct {
+		name key.Name
+		what string
+	}{
+		{"N", "new chat"},
+		{",", "settings"},
+		{"\\", "the pane toggle"},
+	} {
+		t.Run(tc.what, func(t *testing.T) {
+			fired := 0
+			w := OnShortcutKey(tc.name, func(layout.Context) { fired++ })
+
+			r := new(gioinput.Router)
+			ops := new(op.Ops)
+			size := image.Pt(400, 300)
+
+			driveKeyFrame(w, ops, r, size)
+			r.Queue(key.Event{Name: tc.name, Modifiers: key.ModShortcut, State: key.Press})
+			driveKeyFrame(w, ops, r, size)
+			if fired != 1 {
+				t.Fatalf("%s: the chord on %q fired %d times, want 1", tc.what, tc.name, fired)
+			}
+			// Without the modifier it is just a keystroke the editor wants.
+			r.Queue(key.Event{Name: tc.name, State: key.Press})
+			driveKeyFrame(w, ops, r, size)
+			if fired != 1 {
+				t.Fatalf("%s: the bare key fired the accelerator", tc.what)
+			}
+		})
+	}
+}

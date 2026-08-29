@@ -30,15 +30,17 @@ func main() {
 // when the layers are subscribed once. Publish() multicasts WITHOUT replay,
 // so AutoConnect must fire — letting the seed emitted by mvu.Loop flow —
 // only when every consumer is attached. The consumers: the content layer's
-// CombineLatest (1), the split-pane ratio derivation (1), the rename
-// modal's open and edit derivations (2), the settings modal's open, field
-// and body derivations (3), the model menu's open, data and chip-key
-// derivations (3), and the settings dropdown's open derivation (1); the
-// backdrop layer is theme-only. The chip key is the third of the menu's
+// CombineLatest (1), the rename modal's open and edit derivations (2), the
+// settings modal's open, field and body derivations (3), the model menu's
+// open, data and chip-key derivations (3), and the settings dropdown's open
+// derivation (1); the backdrop layer is theme-only. The split-pane ratio
+// derivation that used to be the eleventh went with the split: the pane's
+// state is a flip the frame reads at frame time, not a number a shell
+// subscribes to. The chip key is the third of the menu's
 // three because components/chip takes its label as a static prop: the
 // picker derives a deduplicated key from the Model and subscribes a new
 // chip when it changes. Measured by TestModelObsConsumerCountMatchesConst.
-const modelObsConsumers = 11
+const modelObsConsumers = 10
 
 // MindChat drives the MindChat window; one function per window, so further
 // windows get sibling functions with their own theme and loop.
@@ -62,11 +64,12 @@ func MindChat() {
 	// life.
 	//
 	// The placement is stated rather than defaulted because the default is
-	// wrong for this window: left alone the buttons land at the inset the
-	// platform's compact windows use, which would put them high in a band deep
-	// enough to centre them. The sidebar's brand row is the band this window
-	// gives them, and the two numbers below are that row's height read through
-	// the platform's own centring rule.
+	// wrong for this window: left alone the buttons land at nine, the inset
+	// the platform's compact windows use. The numbers below are the floating
+	// pane pattern's — the inset the platform's own sidebar apps draw at —
+	// and they are measured from the window's glass and from nothing drawn
+	// beneath them, which is what lets the pane be sent away without the
+	// window's own controls moving.
 	desktop.ShowWindowButtons(mvuWin)
 	desktop.PlaceWindowButtonsAt(WindowButtonInset, WindowButtonCenter)
 

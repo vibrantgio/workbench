@@ -30,6 +30,7 @@ import (
 	"github.com/vibrantgio/components/chip"
 	"github.com/vibrantgio/components/golden"
 	raster "github.com/vibrantgio/ivg/raster/gio"
+	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -367,51 +368,94 @@ func TestAccentBarReadsOnTheChosenFill(t *testing.T) {
 	}
 }
 
-// TestWindowButtonsAreCentredInTheBandTheyStandIn states the platform rule the
-// window's control placement is derived from: the three buttons are centred in
-// whatever band a window gives them, and their leading inset equals their top
-// one. The band here is the sidebar's brand row, so both numbers fall out of
-// its height and neither is written down twice.
-func TestWindowButtonsAreCentredInTheBandTheyStandIn(t *testing.T) {
-	if got, want := WindowButtonInset, (BrandRowHeight-WindowButtonDiameter)/2; got != want {
-		t.Errorf("WindowButtonInset = %v, want %v — the leading inset is the top inset", got, want)
+// TestWindowButtonsAreMeasuredFromTheWindowsGlass states the platform rule
+// the window's control placement follows: the circles stand a fixed inset in
+// from the window's own top and leading glass, and their leading inset
+// equals their top inset, so the inset alone fixes the centre line.
+//
+// The number is the floating pane pattern's, read off the platform's own
+// sidebar apps, and it is deliberately NOT derived from anything this window
+// draws. Nothing beneath the buttons may move them — that is what makes the
+// pane dismissible without the window's own furniture shifting under the
+// reader's pointer.
+func TestWindowButtonsAreMeasuredFromTheWindowsGlass(t *testing.T) {
+	if got, want := WindowButtonInset, unit.Dp(pane.ButtonInsetDp); got != want {
+		t.Errorf("WindowButtonInset = %v, want the pattern's %v", got, want)
 	}
 	if got, want := WindowButtonCenter, WindowButtonInset+WindowButtonDiameter/2; got != want {
 		t.Errorf("WindowButtonCenter = %v, want %v — the centre line is the inset plus a radius", got, want)
 	}
-	if got, want := WindowButtonCenter, BrandRowHeight/2; got != want {
-		t.Errorf("WindowButtonCenter = %v, want the band's own middle %v", got, want)
-	}
-	// The reference's unified-toolbar window measures 52dp deep with its
-	// buttons 19dp in; this band is the same depth and must land on the same
-	// number, which is the check that the derivation reproduces the platform
-	// rather than merely being self-consistent.
-	if BrandRowHeight == 52 && WindowButtonInset != 19 {
-		t.Errorf("a 52dp band puts the buttons %v in, want the measured 19", WindowButtonInset)
+	// The stored reference measures the platform's sidebar windows at 19 in
+	// from both edges; a derivation that agreed with itself but not with that
+	// number would be self-consistent and wrong.
+	if WindowButtonInset != 19 {
+		t.Errorf("the buttons stand %v in, want the measured 19", WindowButtonInset)
 	}
 }
 
-// TestBrandRowClearsTheWindowControls checks that the app's name starts after
-// the window's controls where the window has them, and at the sidebar's own
-// gutter where it does not — the collision AK2.1's review predicted the moment
-// the app took over the title bar.
-func TestBrandRowClearsTheWindowControls(t *testing.T) {
-	saved := windowButtonsEnd
-	defer func() { windowButtonsEnd = saved }()
-
-	windowButtonsEnd = func() unit.Dp { return 0 }
-	if got := brandLead(); got != SidebarGutter {
-		t.Errorf("with no window controls the brand row leads at %v, want the sidebar gutter %v", got, SidebarGutter)
+// TestBothHalvesOfTheSidebarSwitchStandOnOneLine is the arithmetic the whole
+// phase exists for. A control that rides the pane and the control that
+// recalls it are two halves of one switch, and a switch whose halves stand at
+// two different heights makes the mark jump out from under the pointer that
+// just clicked it — the defect the collapsed rail had.
+//
+// The pane's strip centres its controls on the buttons' line by the pattern's
+// own arithmetic, one margin down from the window's top edge; the chrome row
+// centres its controls on its own middle. The two are the same line only if
+// the row is exactly twice the buttons' centre, which is how ChromeRowHeight
+// is derived and what this checks.
+func TestBothHalvesOfTheSidebarSwitchStandOnOneLine(t *testing.T) {
+	// Where a control standing in the pane's strip centres, in window
+	// coordinates: the pane floats one margin down, and the strip's own
+	// middle is half its depth.
+	strip := unit.Dp(pane.MarginDp) + unit.Dp(pane.StripDp)/2
+	row := ChromeRowHeight / 2
+	if strip != row {
+		t.Errorf("the pane's strip centres its controls at %v and the chrome row at %v; a switch whose halves stand at two heights makes the mark jump", strip, row)
 	}
+	if got := unit.Dp(WindowButtonCenter); got != row {
+		t.Errorf("the chrome row centres at %v, want the window buttons' own line %v", row, got)
+	}
+}
 
+// TestChromeRowClearsTheWindowControlsOnlyWhenThePaneIsAway checks the one
+// state in which the row owes the buttons anything. With the pane standing
+// the buttons are inside it, so the row starts at the transcript's inset and
+// its title stands over the messages below; with the pane away the row
+// inherits the whole top strip and has to start past them.
+func TestChromeRowClearsTheWindowControlsOnlyWhenThePaneIsAway(t *testing.T) {
 	// The measured edge on this platform: the third circle's trailing side,
 	// which is the leading inset plus a diameter plus two pitches.
 	const measuredEnd = unit.Dp(19 + 14 + 2*23)
-	windowButtonsEnd = func() unit.Dp { return measuredEnd }
-	if got, want := brandLead(), measuredEnd+WindowButtonGap; got != want {
-		t.Errorf("brandLead() = %v, want %v — the measurement carries no air of its own", got, want)
+
+	if got := chromeLead(false, measuredEnd); got != chromeInsetDp {
+		t.Errorf("with the pane standing the row leads at %v, want the transcript's own inset %v — the buttons are inside the pane", got, chromeInsetDp)
 	}
-	if brandLead() <= measuredEnd {
-		t.Errorf("brandLead() = %v, which is on top of the controls ending at %v", brandLead(), measuredEnd)
+	if got, want := chromeLead(true, measuredEnd), measuredEnd+chromeGapDp; got != want {
+		t.Errorf("with the pane away the row leads at %v, want %v — the measurement carries no air of its own", got, want)
+	}
+	if chromeLead(true, measuredEnd) <= measuredEnd {
+		t.Errorf("the row leads at %v, which is on top of the controls ending at %v", chromeLead(true, measuredEnd), measuredEnd)
+	}
+	// Every platform that keeps its own decorations reports no buttons at
+	// all, and there the row has nothing to clear.
+	if got := chromeLead(true, 0); got != chromeInsetDp {
+		t.Errorf("with no window controls the row leads at %v, want %v", got, chromeInsetDp)
+	}
+}
+
+// TestChatTitleShowsThePlaceholderUntilAChatEarnsAName holds the chrome row
+// to showing what is open rather than what it is stored as. A chat the
+// application named itself has not been named at all, and a filename is not
+// an orientation cue.
+func TestChatTitleShowsThePlaceholderUntilAChatEarnsAName(t *testing.T) {
+	for _, name := range []string{"", "new.jsonl", "new-3.jsonl"} {
+		if got, ink := chatTitleText(name); ink != titleMuted || got != "Untitled chat" {
+			t.Errorf("chatTitleText(%q) = %q/%v, want the muted placeholder", name, got, ink)
+		}
+	}
+	got, ink := chatTitleText("reactive layouts.jsonl")
+	if ink != titleNamed || got != "Reactive layouts" {
+		t.Errorf("chatTitleText of a named chat = %q/%v, want %q named", got, ink, "Reactive layouts")
 	}
 }

@@ -1472,10 +1472,16 @@ STREAMS dozens of messages back through the loop, routed by stream id so
 switching/renaming/deleting chats mid-stream stays safe. Message bodies
 render as markdown (chroma-highlighted fences with code in the mono face,
 links opening the OS browser, bundled SVG provider icons; markdown.go's
-degrade() + docCache are the chat-consumer recipe). Also: SplitPane shell
-with a collapsible, resizable sidebar, trash-backed session-wide undo
-(Cmd/Ctrl-Z), the modal-form recipe (Seed/FocusTag/DynamicFocusTags),
-list scrollbars, and a global-shortcut key area done right. Chatting
+degrade() + docCache are the chat-consumer recipe). Its window is a
+FLOATING PANE composition (frame.go): the conversation list floats inset
+from the window's leading, top and bottom edges and takes no width at all
+when dismissed, with the chrome row beside it carrying the conversation's
+title and the model picker — and, once the pane is away, the same two
+controls the pane's own strip carried, at the same height and figure.
+Also: trash-backed session-wide undo (Cmd/Ctrl-Z), Cmd/Ctrl-N, Cmd/Ctrl-,
+and Cmd/Ctrl-\ accelerators, the modal-form recipe
+(Seed/FocusTag/DynamicFocusTags), list scrollbars, and a global-shortcut
+key area done right. Chatting
 needs OPENAI_API_KEY in the environment (or .env) on first run to seed
 the config
 

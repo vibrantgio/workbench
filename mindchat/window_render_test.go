@@ -13,9 +13,13 @@ package main
 //
 //	go test ./ -run TestWholeWindowRender -window.dump=/tmp/mindchat
 //
-// Without the flag it still renders both schemes every run, which makes it a
-// smoke test of the whole layer stack: a panic anywhere in the sidebar, the
-// transcript, the header picker or the prompt field fails it.
+// It renders both colour schemes AND both pane states — four frames — because
+// the composition this window is judged on is the pair: the pane standing and
+// the pane away have to hold one line between them, and a picture of either
+// alone cannot show that. Without the flag it still renders all four every
+// run, which makes it a smoke test of the whole layer stack: a panic anywhere
+// in the pane, the transcript, the chrome row's picker or the prompt field
+// fails it.
 
 import (
 	"flag"
@@ -204,28 +208,46 @@ func TestWholeWindowRender(t *testing.T) {
 	defer func() { windowButtonsEnd = saved }()
 	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
 
-	for _, tc := range schemes {
-		t.Run(tc.name, func(t *testing.T) {
-			img := golden.Capture(t, windowSize, withWindowControls(frame(t, tc.c, demoModel())))
-			if img.Bounds().Size() != windowSize {
-				t.Fatalf("frame size = %v, want %v", img.Bounds().Size(), windowSize)
-			}
-			if *windowDump == "" {
-				return
-			}
-			if err := os.MkdirAll(*windowDump, 0o755); err != nil {
-				t.Fatalf("dump dir: %v", err)
-			}
-			path := filepath.Join(*windowDump, "mindchat-"+tc.name+".png")
-			f, err := os.Create(path)
-			if err != nil {
-				t.Fatalf("create %s: %v", path, err)
-			}
-			defer f.Close()
-			if err := png.Encode(f, img); err != nil {
-				t.Fatalf("encode %s: %v", path, err)
-			}
-			t.Logf("wrote %s", path)
-		})
+	states := []struct {
+		name   string
+		hidden bool
+	}{
+		{"pane", false},
+		{"hidden", true},
 	}
+	for _, tc := range schemes {
+		for _, st := range states {
+			t.Run(tc.name+"-"+st.name, func(t *testing.T) {
+				renderWindow(t, tc.name+"-"+st.name, tc.c, st.hidden)
+			})
+		}
+	}
+}
+
+// renderWindow draws one scheme in one pane state and writes it out when the
+// dump flag names a directory.
+func renderWindow(t *testing.T, name string, c tokens.ColorTokens, hidden bool) {
+	t.Helper()
+	m := demoModel()
+	m.SidebarHidden = hidden
+	img := golden.Capture(t, windowSize, withWindowControls(frame(t, c, m)))
+	if img.Bounds().Size() != windowSize {
+		t.Fatalf("frame size = %v, want %v", img.Bounds().Size(), windowSize)
+	}
+	if *windowDump == "" {
+		return
+	}
+	if err := os.MkdirAll(*windowDump, 0o755); err != nil {
+		t.Fatalf("dump dir: %v", err)
+	}
+	path := filepath.Join(*windowDump, "mindchat-"+name+".png")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create %s: %v", path, err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, img); err != nil {
+		t.Fatalf("encode %s: %v", path, err)
+	}
+	t.Logf("wrote %s", path)
 }

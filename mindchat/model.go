@@ -56,41 +56,24 @@ type Model struct {
 	// NextStream issues stream ids; monotonic, never reused.
 	NextStream int
 
-	// SidebarRatio is the split-pane position (0 = use the default);
-	// SidebarCollapsed shrinks the sidebar to an icon rail.
-	SidebarRatio     float32
-	SidebarCollapsed bool
-}
-
-// Sidebar geometry: the default split position, the ratio the collapsed
-// rail sits at (the split pane's minimum), and the width below which the
-// sidebar renders as a rail.
-const (
-	DefaultSidebarRatio = 0.22
-	CollapsedRatio      = 0.05
-	RailThresholdRatio  = 0.08
-)
-
-// EffectiveRatio is the split-pane position the view renders.
-func (model Model) EffectiveRatio() float32 {
-	if model.SidebarCollapsed {
-		return CollapsedRatio
-	}
-	if model.SidebarRatio == 0 {
-		return DefaultSidebarRatio
-	}
-	return model.SidebarRatio
+	// SidebarHidden is whether the conversation pane has been sent away.
+	// There is no third state and no ratio: the pane is a FLOATING PANE of
+	// a fixed width, and hidden it takes no width at all — the transcript
+	// reflows from the window's own leading edge. The rail that used to
+	// stand between those two states was a region whose only job was to
+	// store the controls the collapse displaced, and both of those controls
+	// now stand in the chrome row instead.
+	SidebarHidden bool
 }
 
 // Config snapshots everything config.json persists.
 func (model Model) Config() Config {
 	return Config{
-		LastChat:         model.CurrentChat.Name,
-		SidebarRatio:     model.SidebarRatio,
-		SidebarCollapsed: model.SidebarCollapsed,
-		Providers:        model.Providers,
-		DefaultProvider:  model.DefaultProvider,
-		DefaultModel:     model.DefaultModel,
+		LastChat:        model.CurrentChat.Name,
+		SidebarHidden:   model.SidebarHidden,
+		Providers:       model.Providers,
+		DefaultProvider: model.DefaultProvider,
+		DefaultModel:    model.DefaultModel,
 	}
 }
 

@@ -1,4 +1,5 @@
-// settings.go owns the settings modal the sidebar gear opens: the provider
+// settings.go owns the settings modal the pane's foot opens — and, with the
+// pane away, Cmd-comma, which is where this platform keeps it: the provider
 // catalogue editor (list with +/− , Name/BaseURL/APIKey fields, where the
 // key is auto-checked by a debounced /models fetch and its verdict shown
 // beside the field) and the GLOBAL default-model row spanning the modal's
