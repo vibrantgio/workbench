@@ -261,39 +261,19 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	menuObs := ModelMenu(th, modelObs, popArb)
 
 	// The window's chords, each the one its platform already spends on that
-	// action. A focused text editor claims a chord it wants first, for its
-	// own editing; that is correct layering rather than a conflict, which is
-	// why these can be global at all.
+	// action, laid out from the one table the application menu is built from
+	// too (menu.go). A focused text editor claims a chord it wants first, for
+	// its own editing; that is correct layering rather than a conflict, which
+	// is why these can be global at all.
 	//
-	// Three of the four also stand as controls somewhere in the window. The
-	// exception is settings while the pane is away: it lives at the pane's
-	// foot, and with the pane gone Cmd-comma is the only way to it. On this
-	// platform that is where a reader looks for it — but the application
-	// menu is meant to say so, and this toolkit builds a fixed menu bar with
-	// no way to add an item to it. Until the menu exists, the chord carries
-	// that state on its own.
-	shortcuts := []layout.Widget{
-		// Cmd/Ctrl-Z undoes a pending chat delete; the reducer ignores it
-		// when nothing is pending.
-		OnShortcutKey("Z", func(gtx layout.Context) {
-			mvu.MessageOp{Message: UndoDelete{}}.Add(gtx.Ops)
-		}),
-		// Cmd/Ctrl-N is the application's primary action, and it reaches it
-		// whether the pane is standing or away.
-		OnShortcutKey("N", func(gtx layout.Context) {
-			mvu.MessageOp{Message: NewChat{}}.Add(gtx.Ops)
-		}),
-		// Cmd/Ctrl-comma is where this platform keeps settings, which is
-		// the whole reason the gear could retreat into the pane's foot.
-		OnShortcutKey(",", func(gtx layout.Context) {
-			mvu.MessageOp{Message: OpenSettings{}}.Add(gtx.Ops)
-		}),
-		// Cmd/Ctrl-backslash sends the pane away and brings it back, so the
-		// switch is reachable from the keyboard in both of its states.
-		OnShortcutKey("\\", func(gtx layout.Context) {
-			mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
-		}),
-	}
+	// Where the menu carries the same chord, the menu answers it first and
+	// the key area below never sees it — the two post the same message, so
+	// which one answers is invisible. The area is laid out all the same: away
+	// from macOS the menu declaration is inert, and then this is the action's
+	// only route.
+	shortcuts := ChordAreas(func(gtx layout.Context, msg mvu.Message) {
+		mvu.MessageOp{Message: msg}.Add(gtx.Ops)
+	})
 
 	// Overlays: the undo bar and the modals draw over the frame (the
 	// settings modal last — its scrim covers everything). partsObs joins

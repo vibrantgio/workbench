@@ -14,6 +14,8 @@ import (
 	"gioui.org/app"
 	"gioui.org/unit"
 
+	"github.com/reactivego/rx"
+
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/brand"
@@ -73,9 +75,17 @@ func MindChat() {
 	desktop.ShowWindowButtons(mvuWin)
 	desktop.PlaceWindowButtonsAt(WindowButtonInset, WindowButtonCenter)
 
+	// The application menu carries what the window does: New Chat, the
+	// conversations pane's switch, and Settings — which with the pane away
+	// has no control anywhere in the window and is the reason this exists.
+	// The items post the same messages as the window's own chords, from the
+	// same table (menu.go); away from macOS the declaration is inert and the
+	// chords carry the actions alone.
+	menu := desktop.NewMenuBar(mvuWin, MenuItems()...)
+
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second, brand.Kept().Options()...))
 
-	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
+	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), menu.Messages()), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
