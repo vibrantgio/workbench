@@ -67,8 +67,8 @@ func seedSectionOn(t *testing.T, c tokens.ColorTokens, seed stdcolor.NRGBA, pick
 // section of this column has and what the tab's geometry is measured with.
 func TestSeedSectionIsTwoRows(t *testing.T) {
 	c, _ := tokens.FromSeed(fixtureLifted)
-	if rows := SeedRows(PaletteFrom(c), c, pinned(), fixtureLifted, true); len(rows) != SeedSectionRows {
-		t.Fatalf("the seed section is %d rows, SeedSectionRows says %d", len(rows), SeedSectionRows)
+	if rows := SeedRows(PaletteFrom(c), c, pinned(), fixtureLifted, true); len(rows) != palette.SeedSectionRows {
+		t.Fatalf("the seed section is %d rows, palette.SeedSectionRows says %d", len(rows), palette.SeedSectionRows)
 	}
 }
 
@@ -92,21 +92,21 @@ func TestSeedTellsThePickFromWhatGrewFromIt(t *testing.T) {
 		if len(cells) != 2 {
 			t.Fatalf("%s: the row draws %d cells, want the pick and what grew from it", sc.name, len(cells))
 		}
-		if cells[0].col != fixtureLifted || !cells[0].handedIn {
+		if cells[0].Col != fixtureLifted || !cells[0].HandedIn {
 			t.Errorf("%s: the first cell is %v handedIn=%v, want the pick %v drawn smaller",
-				sc.name, cells[0].col, cells[0].handedIn, fixtureLifted)
+				sc.name, cells[0].Col, cells[0].HandedIn, fixtureLifted)
 		}
-		if cells[0].rule != SeedPickRule {
+		if cells[0].Rule != palette.SeedPickRule {
 			t.Errorf("%s: the pick's rule is %q, want %q — the palette did not grow from it",
-				sc.name, cells[0].rule, SeedPickRule)
+				sc.name, cells[0].Rule, palette.SeedPickRule)
 		}
-		if cells[1].col != light.Primary || cells[1].handedIn {
+		if cells[1].Col != light.Primary || cells[1].HandedIn {
 			t.Errorf("%s: the second cell is %v handedIn=%v, want the realized colour %v at full size",
-				sc.name, cells[1].col, cells[1].handedIn, light.Primary)
+				sc.name, cells[1].Col, cells[1].HandedIn, light.Primary)
 		}
-		if !strings.HasPrefix(cells[1].rule, SeedGrewFrom) {
+		if !strings.HasPrefix(cells[1].Rule, palette.SeedGrewFrom) {
 			t.Errorf("%s: the realized colour's rule is %q, want it to open with %q",
-				sc.name, cells[1].rule, SeedGrewFrom)
+				sc.name, cells[1].Rule, palette.SeedGrewFrom)
 		}
 	}
 }
@@ -121,7 +121,7 @@ func TestSeedTellsThePickFromWhatGrewFromIt(t *testing.T) {
 func TestSeedRowChecksItsClaimAgainstThePaletteOnScreen(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureLifted)
 	lightCells, darkCells := seedCells(light, fixtureLifted, true), seedCells(dark, fixtureLifted, true)
-	grown := lightCells[1].col
+	grown := lightCells[1].Col
 	if grown != light.Primary {
 		t.Errorf("the light row names %v, want the Primary base the palette on screen pins %v", grown, light.Primary)
 	}
@@ -131,14 +131,14 @@ func TestSeedRowChecksItsClaimAgainstThePaletteOnScreen(t *testing.T) {
 	// Two facts, on two lines, because a cell's lines are cut at two different
 	// widths: which colour the palette grew from, and that this scheme does not
 	// draw it. Both must be in the row, and neither may lean on the other.
-	if darkCells[1].name == lightCells[1].name {
-		t.Errorf("the dark cell is named %q, the same as the light one — the name carries the scheme", darkCells[1].name)
+	if darkCells[1].Name == lightCells[1].Name {
+		t.Errorf("the dark cell is named %q, the same as the light one — the name carries the scheme", darkCells[1].Name)
 	}
-	if darkCells[1].rule == lightCells[1].rule {
-		t.Errorf("the dark cell's rule is %q, the same as the light one — the rule carries the re-toning", darkCells[1].rule)
+	if darkCells[1].Rule == lightCells[1].Rule {
+		t.Errorf("the dark cell's rule is %q, the same as the light one — the rule carries the re-toning", darkCells[1].Rule)
 	}
-	if !strings.HasPrefix(darkCells[1].rule, SeedGrewFrom) {
-		t.Errorf("the dark rule is %q, want the claim at the front where no cut takes it off", darkCells[1].rule)
+	if !strings.HasPrefix(darkCells[1].Rule, palette.SeedGrewFrom) {
+		t.Errorf("the dark rule is %q, want the claim at the front where no cut takes it off", darkCells[1].Rule)
 	}
 }
 
@@ -158,15 +158,15 @@ func TestSeedKeptWholeIsOneCell(t *testing.T) {
 		if len(cells) != 1 {
 			t.Fatalf("%s: the row draws %d cells for a seed kept whole, want one", sc.name, len(cells))
 		}
-		if cells[0].col != fixtureBlue || cells[0].handedIn {
-			t.Errorf("%s: the cell is %v handedIn=%v, want the seed at full size", sc.name, cells[0].col, cells[0].handedIn)
+		if cells[0].Col != fixtureBlue || cells[0].HandedIn {
+			t.Errorf("%s: the cell is %v handedIn=%v, want the seed at full size", sc.name, cells[0].Col, cells[0].HandedIn)
 		}
-		if !strings.HasPrefix(cells[0].rule, SeedGrewFrom) || !strings.Contains(cells[0].rule, SeedPickRule) {
+		if !strings.HasPrefix(cells[0].Rule, palette.SeedGrewFrom) || !strings.Contains(cells[0].Rule, palette.SeedPickRule) {
 			t.Errorf("%s: the rule is %q, want it to say both that it grew the palette and that it was picked",
-				sc.name, cells[0].rule)
+				sc.name, cells[0].Rule)
 		}
 	}
-	if a, b := seedCells(light, fixtureBlue, true)[0].rule, seedCells(dark, fixtureBlue, true)[0].rule; a == b {
+	if a, b := seedCells(light, fixtureBlue, true)[0].Rule, seedCells(dark, fixtureBlue, true)[0].Rule; a == b {
 		t.Errorf("both schemes say %q, want the dark one to disclose the re-toning", a)
 	}
 }
@@ -180,11 +180,11 @@ func TestSeedNamesNoSeedItCannotProve(t *testing.T) {
 		t.Fatal("a palette grown from another seed checked out as this one's")
 	}
 	cells := seedCells(stranger, fixtureBlue, true)
-	if len(cells) != 1 || cells[0].col != fixtureBlue {
+	if len(cells) != 1 || cells[0].Col != fixtureBlue {
 		t.Fatalf("the unproven row draws %d cells, want the pick alone", len(cells))
 	}
-	if strings.Contains(cells[0].rule, SeedGrewFrom) {
-		t.Errorf("the unproven rule is %q, want no claim about what the palette grew from", cells[0].rule)
+	if strings.Contains(cells[0].Rule, palette.SeedGrewFrom) {
+		t.Errorf("the unproven rule is %q, want no claim about what the palette grew from", cells[0].Rule)
 	}
 	// And the palette that is this seed's checks out on both sides of the pair,
 	// which is what makes the claim worth checking rather than a formality.
@@ -203,11 +203,11 @@ func TestSeedNamesNoSeedItCannotProve(t *testing.T) {
 func TestSeedRowSaysWhenNothingIsPicked(t *testing.T) {
 	c := tokens.DefaultLight
 	cells := seedCells(c, stdcolor.NRGBA{}, false)
-	if len(cells) != 1 || !cells[0].wordsOnly {
+	if len(cells) != 1 || !cells[0].WordsOnly {
 		t.Fatalf("the unpicked row draws %d cells, want one made of words", len(cells))
 	}
-	if cells[0].name != SeedNoneName {
-		t.Errorf("the unpicked row is named %q, want %q", cells[0].name, SeedNoneName)
+	if cells[0].Name != SeedNoneName {
+		t.Errorf("the unpicked row is named %q, want %q", cells[0].Name, SeedNoneName)
 	}
 	if got := seedHint(cells); got != SeedHintNone {
 		t.Errorf("the unpicked caption is %q, want %q", got, SeedHintNone)
@@ -222,32 +222,25 @@ func TestSeedRowSaysWhenNothingIsPicked(t *testing.T) {
 	}
 }
 
-// TestSeedLinesCarryNoUnmarkedSeam: every line this row can draw is one
-// clause, so [palette.FitLine] has no unmarked cut to make on any of them
-// and every
-// cut a reader is shown ends in an ellipsis.
+// TestSeedLinesCarryNoUnmarkedSeam: every line this window adds to the row is
+// one clause, so [palette.FitLine] has no unmarked cut to make on any of them
+// and every cut a reader is shown ends in an ellipsis.
 //
 // This is the guard the two cells rest on. A line with a clause seam in it is
 // a line a narrow window can shorten into a different claim without saying
 // that it did, and there is no wording of a comma a reader can be relied on to
-// supply back.
+// supply back. The story's own names and rules are guarded where they are
+// written; these are the ones only this window says.
 func TestSeedLinesCarryNoUnmarkedSeam(t *testing.T) {
-	lines := []string{
-		SeedName, SeedLiftedName, SeedLiftedNameDark, SeedNoneName,
-		SeedGrewFrom, SeedPickRule, SeedLiftedRule, SeedLiftedRuleDark,
-		SeedKeptRule, SeedKeptRuleDark, SeedUnprovenRule, SeedNoneRule,
-	}
-	for _, line := range lines {
+	for _, line := range []string{SeedNoneName, SeedNoneRule, SeedUnprovenRule} {
 		if heads := palette.LineHeads(line, true); len(heads) > 0 {
 			t.Errorf("%q can be cut to %q with nothing marking the cut", line, heads[0])
 		}
 	}
 	// The caption is the one thing here written as clauses, and is cut at the
 	// separator the cut knows about.
-	for _, clause := range []string{SeedHintPair, SeedHintHue, SeedHintChroma, SeedHintStatus, SeedHintNone} {
-		if strings.Contains(clause, palette.HintSep) {
-			t.Errorf("the caption clause %q carries the separator its own list is strung on", clause)
-		}
+	if strings.Contains(SeedHintNone, palette.HintSep) {
+		t.Errorf("the caption clause %q carries the separator its own list is strung on", SeedHintNone)
 	}
 }
 
@@ -256,15 +249,15 @@ func TestSeedLinesCarryNoUnmarkedSeam(t *testing.T) {
 func TestSeedCaptionSizesItselfToWhatIsDrawn(t *testing.T) {
 	light, _ := tokens.FromSeed(fixtureLifted)
 	pair := seedHint(seedCells(light, fixtureLifted, true))
-	if !strings.HasPrefix(pair, SeedHintPair) {
+	if !strings.HasPrefix(pair, palette.SeedHintPair) {
 		t.Errorf("the two-cell caption is %q, want it to lead with the legend for the sizes", pair)
 	}
 	kept, _ := tokens.FromSeed(fixtureBlue)
 	one := seedHint(seedCells(kept, fixtureBlue, true))
-	if strings.Contains(one, SeedHintPair) {
+	if strings.Contains(one, palette.SeedHintPair) {
 		t.Errorf("the one-cell caption is %q, want no legend for a size distinction it does not draw", one)
 	}
-	if !strings.HasPrefix(one, SeedHintHue) {
+	if !strings.HasPrefix(one, palette.SeedHintHue) {
 		t.Errorf("the one-cell caption is %q, want the derivation it does describe", one)
 	}
 }

@@ -57,9 +57,9 @@ func TestPaletteSectionRowsIsTheRowCount(t *testing.T) {
 	if got := len(PaletteRows(PaletteFrom(c), c, schemeCounterpart(c), TypeFrom(shaper, tokens.DefaultTypography), false)); got != PaletteSectionRows {
 		t.Fatalf("PaletteRows returns %d rows, PaletteSectionRows says %d", got, PaletteSectionRows)
 	}
-	if got := len(themePaletteRows(shaper, tokens.DefaultTypography, c, tokens.DefaultSeed)); got != SeedSectionRows+PaletteSectionRows {
+	if got := len(themePaletteRows(shaper, tokens.DefaultTypography, c, tokens.DefaultSeed)); got != palette.SeedSectionRows+PaletteSectionRows {
 		t.Fatalf("the palette story is %d rows, want the seed's %d plus the section's %d",
-			got, SeedSectionRows, PaletteSectionRows)
+			got, palette.SeedSectionRows, PaletteSectionRows)
 	}
 }
 
@@ -78,9 +78,9 @@ func TestTypeLadderFollowsThePalette(t *testing.T) {
 		t.Fatalf("the type ladder is %d rows, want 2 (a heading band and a body)", len(ladder))
 	}
 	rows := themeTabRows(inv, shaper, typo, c, tokens.DefaultSeed)
-	if len(rows) != SeedSectionRows+PaletteSectionRows+len(ladder) {
+	if len(rows) != palette.SeedSectionRows+PaletteSectionRows+len(ladder) {
 		t.Fatalf("the Theme column is %d rows, want the seed's %d plus the palette's %d plus the ladder's %d",
-			len(rows), SeedSectionRows, PaletteSectionRows, len(ladder))
+			len(rows), palette.SeedSectionRows, PaletteSectionRows, len(ladder))
 	}
 }
 
@@ -160,7 +160,7 @@ func TestSeedRowNamesWhatItShows(t *testing.T) {
 	moved := tokens.DefaultSeed
 	if tokens.DefaultLight.Primary == moved {
 		t.Fatalf("the default seed %s is no longer moved by the accent dial; this test needs a pick that is",
-			hexOf(moved))
+			palette.SeedHex(moved))
 	}
 	grown := tokens.DefaultLight.Primary
 	// A pick already past the dial comes back byte for byte, which is the
@@ -168,7 +168,7 @@ func TestSeedRowNamesWhatItShows(t *testing.T) {
 	vivid := color.NRGBA{R: 0xff, G: 0x00, B: 0x00, A: 0xff}
 	vividLight, vividDark := tokens.FromSeed(vivid)
 	if vividLight.Primary != vivid {
-		t.Fatalf("fixture %s is moved by the accent dial; this test needs one it leaves alone", hexOf(vivid))
+		t.Fatalf("fixture %s is moved by the accent dial; this test needs one it leaves alone", palette.SeedHex(vivid))
 	}
 	hcLight, _ := tokens.FromSeedHighContrast(tokens.DefaultSeed)
 
@@ -176,31 +176,31 @@ func TestSeedRowNamesWhatItShows(t *testing.T) {
 		name  string
 		c     tokens.ColorTokens
 		seed  color.NRGBA
-		cells []seedCell
+		cells []palette.SeedCell
 	}{
-		{"light, a pick the dial moved", tokens.DefaultLight, moved, []seedCell{
-			{col: moved, name: SeedName, rule: SeedPickRule, handedIn: true},
-			{col: grown, name: SeedLiftedName, rule: SeedLiftedRule},
+		{"light, a pick the dial moved", tokens.DefaultLight, moved, []palette.SeedCell{
+			{Col: moved, Name: palette.SeedName, Rule: palette.SeedPickRule, HandedIn: true},
+			{Col: grown, Name: palette.SeedLiftedName, Rule: palette.SeedLiftedRule},
 		}},
-		{"dark, a pick the dial moved", tokens.DefaultDark, moved, []seedCell{
-			{col: moved, name: SeedName, rule: SeedPickRule, handedIn: true},
-			{col: grown, name: SeedLiftedNameDark, rule: SeedLiftedRuleDark},
+		{"dark, a pick the dial moved", tokens.DefaultDark, moved, []palette.SeedCell{
+			{Col: moved, Name: palette.SeedName, Rule: palette.SeedPickRule, HandedIn: true},
+			{Col: grown, Name: SeedLiftedNameDark, Rule: palette.SeedLiftedRuleDark},
 		}},
-		{"high contrast", hcLight, moved, []seedCell{
-			{col: moved, name: SeedName, rule: SeedPickRule, handedIn: true},
-			{col: hcLight.Primary, name: SeedLiftedName, rule: SeedLiftedRule},
+		{"high contrast", hcLight, moved, []palette.SeedCell{
+			{Col: moved, Name: palette.SeedName, Rule: palette.SeedPickRule, HandedIn: true},
+			{Col: hcLight.Primary, Name: palette.SeedLiftedName, Rule: palette.SeedLiftedRule},
 		}},
-		{"light, the pick itself", vividLight, vivid, []seedCell{
-			{col: vivid, name: SeedName, rule: SeedKeptRule},
+		{"light, the pick itself", vividLight, vivid, []palette.SeedCell{
+			{Col: vivid, Name: palette.SeedName, Rule: palette.SeedKeptRule},
 		}},
-		{"dark, the pick itself", vividDark, vivid, []seedCell{
-			{col: vivid, name: SeedName, rule: SeedKeptRuleDark},
+		{"dark, the pick itself", vividDark, vivid, []palette.SeedCell{
+			{Col: vivid, Name: palette.SeedName, Rule: palette.SeedKeptRuleDark},
 		}},
-		{"light, not this seed's palette", tokens.DefaultLight, vivid, []seedCell{
-			{col: tokens.DefaultLight.Primary, name: SeedPinName, rule: SeedFromBase},
+		{"light, not this seed's palette", tokens.DefaultLight, vivid, []palette.SeedCell{
+			{Col: tokens.DefaultLight.Primary, Name: SeedPinName, Rule: SeedFromBase},
 		}},
-		{"dark, not this seed's palette", tokens.DefaultDark, vivid, []seedCell{
-			{col: tokens.DefaultDark.Primary, name: SeedPinName, rule: SeedNotHeld},
+		{"dark, not this seed's palette", tokens.DefaultDark, vivid, []palette.SeedCell{
+			{Col: tokens.DefaultDark.Primary, Name: SeedPinName, Rule: SeedNotHeld},
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -211,8 +211,8 @@ func TestSeedRowNamesWhatItShows(t *testing.T) {
 			for i, want := range tc.cells {
 				if got[i] != want {
 					t.Errorf("cell %d is {%s %q %q}, want {%s %q %q}",
-						i, hexOf(got[i].col), got[i].name, got[i].rule,
-						hexOf(want.col), want.name, want.rule)
+						i, palette.SeedHex(got[i].Col), got[i].Name, got[i].Rule,
+						palette.SeedHex(want.Col), want.Name, want.Rule)
 				}
 			}
 		})
@@ -222,9 +222,9 @@ func TestSeedRowNamesWhatItShows(t *testing.T) {
 	// pick under the rule that says it is.
 	for _, c := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
 		for _, cell := range seedCells(c, moved) {
-			if cell.rule == SeedPickRule && cell.col != moved {
+			if cell.Rule == palette.SeedPickRule && cell.Col != moved {
 				t.Errorf("a cell showing %s is captioned %q, and the pick is %s",
-					hexOf(cell.col), cell.rule, hexOf(moved))
+					palette.SeedHex(cell.Col), cell.Rule, palette.SeedHex(moved))
 			}
 		}
 	}
@@ -253,21 +253,24 @@ func TestSeedRulesNameOneColourEach(t *testing.T) {
 		if len(cells) != 2 {
 			t.Fatalf("the default pick is moved by the dial but the row draws %d cell(s)", len(cells))
 		}
-		if cells[0].col == cells[1].col {
-			t.Errorf("both cells show %s; the row is meant to be showing two colours", hexOf(cells[0].col))
+		if cells[0].Col == cells[1].Col {
+			t.Errorf("both cells show %s; the row is meant to be showing two colours", palette.SeedHex(cells[0].Col))
 		}
 	}
 }
 
 // seedRules is every rule the row can put under a swatch, and seedNames
 // every name it can put over one — the two sets the truncation guards
-// below are run over.
+// below are run over. The story's own lines are in them as well as this
+// window's: the guards below measure what a cut does in this window's type
+// roles at this window's widths, which is a fact about neither set on its
+// own.
 var (
 	seedRules = []string{
-		SeedPickRule, SeedLiftedRule, SeedLiftedRuleDark,
-		SeedKeptRule, SeedKeptRuleDark, SeedFromBase, SeedNotHeld,
+		palette.SeedPickRule, palette.SeedLiftedRule, palette.SeedLiftedRuleDark,
+		palette.SeedKeptRule, palette.SeedKeptRuleDark, SeedFromBase, SeedNotHeld,
 	}
-	seedNames = []string{SeedName, SeedLiftedName, SeedLiftedNameDark, SeedPinName}
+	seedNames = []string{palette.SeedName, palette.SeedLiftedName, SeedLiftedNameDark, SeedPinName}
 )
 
 // TestSeedTextTakesNoUnmarkedCut is the guard the first fix did not put
@@ -379,13 +382,13 @@ func TestSeedSaysWhatThePaletteGrewFrom(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			said := false
 			for _, cell := range seedCells(tc.c, tc.seed) {
-				if strings.HasPrefix(cell.rule, SeedGrewFrom) {
+				if strings.HasPrefix(cell.Rule, palette.SeedGrewFrom) {
 					said = true
 				}
 			}
 			if !said {
 				t.Errorf("no cell opens with %q, so nothing on screen says which colour the palette grew from",
-					SeedGrewFrom)
+					palette.SeedGrewFrom)
 			}
 		})
 	}
@@ -393,8 +396,8 @@ func TestSeedSaysWhatThePaletteGrewFrom(t *testing.T) {
 	// dark palette handed a candidate that is not its own has no seed to
 	// name, and says so.
 	for _, cell := range seedCells(tokens.DefaultDark, vivid) {
-		if strings.Contains(cell.rule, SeedGrewFrom) {
-			t.Errorf("the unmatched dark row claims %q, and it has no seed to claim", cell.rule)
+		if strings.Contains(cell.Rule, palette.SeedGrewFrom) {
+			t.Errorf("the unmatched dark row claims %q, and it has no seed to claim", cell.Rule)
 		}
 	}
 }
@@ -407,7 +410,7 @@ func TestSeedSaysWhatThePaletteGrewFrom(t *testing.T) {
 // comma, which is exactly where [palette.FitLine] takes things off.
 func TestSeedDarkRuleDisclosesItsScheme(t *testing.T) {
 	const disclosure = "re-toned"
-	for _, rule := range []string{SeedLiftedRuleDark, SeedKeptRuleDark} {
+	for _, rule := range []string{palette.SeedLiftedRuleDark, palette.SeedKeptRuleDark} {
 		if !strings.Contains(rule, disclosure) {
 			t.Errorf("dark rule %q does not disclose that this scheme re-tones the colour", rule)
 		}
@@ -421,12 +424,12 @@ func TestSeedDarkRuleDisclosesItsScheme(t *testing.T) {
 		cells := seedCells(tokens.DefaultDark, seed)
 		last := cells[len(cells)-1]
 		if grown, ok := grownFrom(tokens.DefaultDark, seed); ok {
-			if last.col != grown {
-				t.Fatalf("the dark row's last cell shows %s, not the colour grown %s", hexOf(last.col), hexOf(grown))
+			if last.Col != grown {
+				t.Fatalf("the dark row's last cell shows %s, not the colour grown %s", palette.SeedHex(last.Col), palette.SeedHex(grown))
 			}
-			if !strings.Contains(last.rule, disclosure) {
+			if !strings.Contains(last.Rule, disclosure) {
 				t.Errorf("the dark row shows %s under %q with no word about this scheme re-toning it",
-					hexOf(last.col), last.rule)
+					palette.SeedHex(last.Col), last.Rule)
 			}
 		}
 	}
@@ -458,7 +461,7 @@ func TestSeedDarkDisclosureOutlivesItsRule(t *testing.T) {
 		}
 		return 1
 	}
-	rule := narrowest(ty.Small, SeedLiftedRuleDark, "re-toned")
+	rule := narrowest(ty.Small, palette.SeedLiftedRuleDark, "re-toned")
 	name := narrowest(ty.Body, SeedLiftedNameDark, "light scheme")
 	if name >= rule {
 		t.Errorf("the name holds the scheme down to %ddp and the rule down to %ddp; "+
@@ -466,7 +469,7 @@ func TestSeedDarkDisclosureOutlivesItsRule(t *testing.T) {
 	}
 	// And the claim itself outlives nothing but the shaper: it leads the
 	// rule, so it is the last thing on that line to go.
-	if claim := narrowest(ty.Small, SeedLiftedRuleDark, "grew from"); claim >= rule {
+	if claim := narrowest(ty.Small, palette.SeedLiftedRuleDark, "grew from"); claim >= rule {
 		t.Errorf("the claim holds down to %ddp and the disclosure to %ddp; the claim is meant to lead", claim, rule)
 	}
 }
@@ -490,12 +493,12 @@ func TestSeedNamesOnlyPicksSeed(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, cell := range seedCells(tc.c, tc.seed) {
-				if cell.name != SeedName {
+				if cell.Name != palette.SeedName {
 					continue
 				}
-				if cell.col != tc.seed {
+				if cell.Col != tc.seed {
 					t.Errorf("a cell showing %s is called %q, and the colour picked is %s",
-						hexOf(cell.col), cell.name, hexOf(tc.seed))
+						palette.SeedHex(cell.Col), cell.Name, palette.SeedHex(tc.seed))
 				}
 			}
 		})
@@ -543,8 +546,9 @@ func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
 			// puts a ring of ground between the two rows and clears the
 			// bar above while being invisible, so the size the channel is
 			// actually drawn at is measured here rather than assumed: the
-			// swatch of the colour handed in is SeedHandedInset smaller on
-			// every side than the one the realized colour fills.
+			// swatch of the colour handed in is the story's own inset
+			// smaller on every side than the one the realized colour
+			// fills.
 			pick := swatchBox(img, c.Background, image.Rect(0, padY, right, padY+pairH))
 			grown := swatchBox(img, c.Background, image.Rect(0, padY+pairH, right, padY+2*pairH))
 			if pick.Empty() || grown.Empty() {
@@ -553,7 +557,7 @@ func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
 			// Within a pixel of it: the frame is stroked with a
 			// half-width inset and its corners are round, so the outermost
 			// column of a swatch can be one antialiased pixel wide.
-			inset := 2 * int(SeedHandedInset)
+			inset := 2 * int(palette.SeedHandedInset)
 			if got := grown.Dx() - pick.Dx(); abs(got-inset) > 1 {
 				t.Errorf("the swatches are %dpx apart in width, want %d — %v against %v",
 					got, inset, pick, grown)
@@ -567,17 +571,17 @@ func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
 	// And the difference is the one the caption promises.
 	for _, c := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
 		cells := seedCells(c, tokens.DefaultSeed)
-		if !cells[0].handedIn || cells[1].handedIn {
+		if !cells[0].HandedIn || cells[1].HandedIn {
 			t.Errorf("the smaller swatch is not the colour picked: handedIn is %v then %v",
-				cells[0].handedIn, cells[1].handedIn)
+				cells[0].HandedIn, cells[1].HandedIn)
 		}
-		if !strings.Contains(seedHint(cells), SeedHintPair) {
+		if !strings.Contains(palette.SeedHint(cells), palette.SeedHintPair) {
 			t.Error("the pair is drawn at two sizes and the caption does not say what the sizes mean")
 		}
 	}
 	// A row with nothing to tell apart does not promise a difference.
 	single := seedCells(tokens.DefaultDark, color.NRGBA{R: 0xff, A: 0xff})
-	if strings.Contains(seedHint(single), SeedHintPair) {
+	if strings.Contains(palette.SeedHint(single), palette.SeedHintPair) {
 		t.Error("a one-cell row's caption points at a smaller swatch that is not drawn")
 	}
 }
@@ -641,8 +645,8 @@ func TestSeedRowIsTheHeadOfTheStory(t *testing.T) {
 	p, ty := PaletteFrom(c), TypeFrom(shaper, tokens.DefaultTypography)
 	story := themePaletteRows(shaper, tokens.DefaultTypography, c, tokens.DefaultSeed)
 	head := seedRows(p, c, ty, tokens.DefaultSeed)
-	if len(head) != SeedSectionRows {
-		t.Fatalf("seedRows returns %d rows, SeedSectionRows says %d", len(head), SeedSectionRows)
+	if len(head) != palette.SeedSectionRows {
+		t.Fatalf("seedRows returns %d rows, palette.SeedSectionRows says %d", len(head), palette.SeedSectionRows)
 	}
 	if len(story) < len(head)+1 {
 		t.Fatalf("the palette story is %d rows, too few to lead with the seed", len(story))

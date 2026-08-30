@@ -45,7 +45,7 @@ func seedSectionH(m Model, os tokens.ColorTokens) int {
 	seed, picked := m.Seed()
 	h := int(palette.SectionHeadH) + 2*int(inventory.SectionPadY)
 	for _, cell := range seedCells(c, seed, picked) {
-		h += int(cell.height())
+		h += int(cell.Height())
 	}
 	return h
 }
