@@ -165,15 +165,23 @@ type chipKey struct {
 	open  bool
 }
 
-// chipKeyOf reads the effective model out of the Model: the per-chat override
-// when there is one, the global default named as such when there is not.
+// chipKeyOf reads the effective model out of the Model and names it: provider
+// then model, nothing else. The chip answers one question — which model is
+// this chat talking to — and the answer is the same string whether it came
+// from the chat's own override or from the global default. Where it came from
+// is a different question, it is asked rarely, and the menu answers it in
+// full: the Default row is there, marked active exactly when no override is
+// set. Saying "Default ·" on the anchor too spent a third of a header-wide
+// pill restating what the pill already showed, which is what made a picker
+// read at a search field's width.
+//
+// Dropping it also makes the key coarser on purpose: picking the model that
+// happens to BE the default now yields the same key, so the chip keeps its
+// subscription instead of rebuilding for an identical label.
 func chipKeyOf(m Model) chipKey {
 	label := "No model configured"
 	if provider, id, ok := m.EffectiveModel(); ok {
 		label = provider.Name + " · " + id
-		if m.CurrentChat.Provider == "" {
-			label = "Default · " + label
-		}
 	}
 	return chipKey{label: label, open: m.ModelMenu}
 }
