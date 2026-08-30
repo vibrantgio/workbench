@@ -8,9 +8,11 @@ import (
 
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/text"
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/gallery/inventory"
+	"github.com/vibrantgio/components/gallery/palette"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/tokens"
@@ -71,7 +73,7 @@ func TestTypeLadderFollowsThePalette(t *testing.T) {
 	inv := inventory.NewForOS(shaper, "darwin")
 	c := tokens.DefaultLight
 
-	ladder := typeLadderRows(inv, PaletteFrom(c), c, TypeFrom(shaper, typo))
+	ladder := palette.TypeLadderRows(inv, PaletteFrom(c).story(), c, TypeFrom(shaper, typo).story())
 	if len(ladder) != 2 {
 		t.Fatalf("the type ladder is %d rows, want 2 (a heading band and a body)", len(ladder))
 	}
@@ -81,6 +83,16 @@ func TestTypeLadderFollowsThePalette(t *testing.T) {
 			len(rows), SeedSectionRows, PaletteSectionRows, len(ladder))
 	}
 }
+
+// typeSection is the inventory section the palette story borrows for its
+// type ladder, and sectionTitleSep the seam it splits the borrowed title
+// at. The story owns both; they are written down here because this
+// window's own guards rest on them, and a guard that reads its subject
+// off the thing it is guarding checks nothing.
+const (
+	typeSection     = "foundations-type"
+	sectionTitleSep = " — "
+)
 
 // TestTypeLadderKeepsTheInventorysWords is the guard on the one place
 // this tab could quietly invent copy: the borrowed band's label and
@@ -122,13 +134,13 @@ func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 		{"dark", tokens.DefaultDark, tokens.DefaultLight, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			groups := paletteGroups(tc.c, tc.o, tc.dark)
-			claims := rampClaims(groups)
+			groups := palette.Groups(tc.c, tc.o, tc.dark)
+			claims := palette.Claims(groups)
 			if len(claims) == 0 {
 				t.Fatal("no pick claims any rung — the grid would carry no marks at all")
 			}
 			for claim := range claims {
-				if claim.role == "" || claim.step < 100 || claim.step > 900 || claim.step%100 != 0 {
+				if claim.Role == "" || claim.Step < 100 || claim.Step > 900 || claim.Step%100 != 0 {
 					t.Fatalf("claim %+v names no rung the grid has", claim)
 				}
 			}
@@ -220,8 +232,8 @@ func TestSeedRowNamesWhatItShows(t *testing.T) {
 
 // TestSeedRulesNameOneColourEach is the guard on how this row broke
 // once. The first draft told the pick and the colour grown from it apart
-// inside one sentence; fitLine cuts a line at its commas and marks
-// nothing when it does, so the sentence cut to "the colour this palette
+// inside one sentence; [palette.FitLine] cuts a line at its commas and
+// marks nothing when it does, so the sentence cut to "the colour this
 // grew from — #6750A4 picked" and asserted, unmarked, the one thing the
 // row exists to deny. The fix was structural: two colours are two cells,
 // each swatch carrying its own value on its own line, so no rule names a
@@ -259,9 +271,9 @@ var (
 )
 
 // TestSeedTextTakesNoUnmarkedCut is the guard the first fix did not put
-// in. fitLine has two ways to shorten a line: at a clause seam — a
-// comma, " ·" or " /" — with nothing at all marking the cut, and at a
-// word boundary with an ellipsis. The rework of this row moved its
+// in. [palette.FitLine] has two ways to shorten a line: at a clause seam
+// — a comma, " ·" or " /" — with nothing at all marking the cut, and at
+// a word boundary with an ellipsis. The rework of this row moved its
 // honesty disclosure past a comma, where the unmarked cut shed it whole
 // at any window under about 586px and handed the reader back the exact
 // claim the row exists to deny.
@@ -278,19 +290,19 @@ func TestSeedTextTakesNoUnmarkedCut(t *testing.T) {
 	gtx := measuringContext()
 	for _, str := range append(append([]string{}, seedRules...), seedNames...) {
 		t.Run(str, func(t *testing.T) {
-			if heads := lineHeads(str, true); len(heads) != 0 {
-				t.Fatalf("%q carries a clause seam, so fitLine can cut it to %q with nothing marking the cut",
+			if heads := palette.LineHeads(str, true); len(heads) != 0 {
+				t.Fatalf("%q carries a clause seam, so the story can cut it to %q with nothing marking the cut",
 					str, heads[0])
 			}
 			for _, style := range []textdraw.TextStyle{ty.Small, ty.Body} {
 				full := natural(gtx, shaper, style, str)
 				for room := 0; room <= full+8; room++ {
-					got := fitLine(gtx, shaper, style, str, room)
+					got := palette.FitLine(gtx, shaper, style, str, room)
 					switch {
 					case got == str:
 						// Whole, or the last-resort fallback the shaper
 						// clips itself; either way nothing was dropped
-						// silently by fitLine.
+						// silently.
 					case strings.HasSuffix(got, Ellipsis) &&
 						strings.HasPrefix(str, strings.TrimSuffix(got, Ellipsis)):
 						// A marked cut, and a prefix of what it cut.
@@ -322,15 +334,15 @@ func TestSeedTextSurvivesTheNarrowWindow(t *testing.T) {
 	// The room drawSeedCell hands a line at this content width: the body's
 	// margins off both edges, then the swatch slot and the air beside it.
 	const narrowContent = 540 // a 560px window, less the shell's own edge
-	room := narrowContent - 2*gtx.Dp(inventory.SectionPadX) - gtx.Dp(PickSwatchW) - gtx.Dp(PickGap)
+	room := narrowContent - 2*gtx.Dp(inventory.SectionPadX) - gtx.Dp(palette.PickSwatchW) - gtx.Dp(palette.PickGap)
 	for _, rule := range seedRules {
-		if got := fitLine(gtx, shaper, ty.Small, rule, room); got != rule {
+		if got := palette.FitLine(gtx, shaper, ty.Small, rule, room); got != rule {
 			t.Errorf("at a %dpx window the row draws %q, cut from %q — it wants %d of the %d it has",
 				narrowContent+20, got, rule, natural(gtx, shaper, ty.Small, rule), room)
 		}
 	}
 	for _, name := range seedNames {
-		if got := fitLine(gtx, shaper, ty.Body, name, room); got != name {
+		if got := palette.FitLine(gtx, shaper, ty.Body, name, room); got != name {
 			t.Errorf("at a %dpx window the row draws the name %q, cut from %q", narrowContent+20, got, name)
 		}
 	}
@@ -343,8 +355,9 @@ func TestSeedTextSurvivesTheNarrowWindow(t *testing.T) {
 // base, and none of them said which colour the palette grew from.
 //
 // It has to be said in a clause no cut can shed, so it is said first:
-// fitLine takes words off the tail, and a claim that leads survives
-// every cut down to the point where the shaper is clipping single words.
+// [palette.FitLine] takes words off the tail, and a claim that leads
+// survives every cut down to the point where the shaper is clipping
+// single words.
 func TestSeedSaysWhatThePaletteGrewFrom(t *testing.T) {
 	// Every path where the row can prove what the palette grew from.
 	vivid := color.NRGBA{R: 0xff, G: 0x00, B: 0x00, A: 0xff}
@@ -391,7 +404,7 @@ func TestSeedSaysWhatThePaletteGrewFrom(t *testing.T) {
 // as the one the palette grew from is a colour nowhere in the ramps
 // under it. The rule has to say so, and has to say so in the same clause
 // that makes the claim — the previous draft put it after the rule's only
-// comma, which is exactly where fitLine takes things off.
+// comma, which is exactly where [palette.FitLine] takes things off.
 func TestSeedDarkRuleDisclosesItsScheme(t *testing.T) {
 	const disclosure = "re-toned"
 	for _, rule := range []string{SeedLiftedRuleDark, SeedKeptRuleDark} {
@@ -422,24 +435,24 @@ func TestSeedDarkRuleDisclosesItsScheme(t *testing.T) {
 // TestSeedDarkDisclosureOutlivesItsRule is the answer to the half of the
 // finding a single line cannot give. Two facts have to survive here —
 // which colour the palette grew from, and that a dark scheme does not
-// draw it — and fitLine takes words off the tail, so two facts on one
-// line have an order and the second one goes first. They are therefore
-// on two lines, which are cut independently: the rule opens with the
-// claim, and the name carries the scheme. This checks that the name
-// really is the one that lasts, at every room down to nothing.
+// draw it — and [palette.FitLine] takes words off the tail, so two facts
+// on one line have an order and the second one goes first. They are
+// therefore on two lines, which are cut independently: the rule opens
+// with the claim, and the name carries the scheme. This checks that the
+// name really is the one that lasts, at every room down to nothing.
 func TestSeedDarkDisclosureOutlivesItsRule(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	ty := TypeFrom(shaper, tokens.DefaultTypography)
 	gtx := measuringContext()
 	// narrowest is the least room from which on up the words are always
 	// drawn: the width the reader stops being told this at. Rooms too
-	// small for even one word are not asked about — fitLine hands the
+	// small for even one word are not asked about — the story hands the
 	// whole line back there and the shaper clips it, so the words are
 	// "present" in a line nobody can read.
 	narrowest := func(style textdraw.TextStyle, str, words string) int {
 		full := natural(gtx, shaper, style, str)
 		for room := full; room > 0; room-- {
-			if !strings.Contains(fitLine(gtx, shaper, style, str, room), words) {
+			if !strings.Contains(palette.FitLine(gtx, shaper, style, str, room), words) {
 				return room + 1
 			}
 		}
@@ -507,12 +520,12 @@ func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
 			}
 			p, ty := PaletteFrom(c), TypeFrom(shaper, tokens.DefaultTypography)
 			rows := seedRows(p, c, ty, tokens.DefaultSeed)
-			pairH, padY := int(PickPairH), int(inventory.SectionPadY)
+			pairH, padY := int(palette.PickPairH), int(inventory.SectionPadY)
 			size := image.Pt(themeCanvasSize.X, 2*pairH+2*padY)
 			img := golden.Capture(t, size, scene(rows[1], tc.bg))
 			// Only the swatch column: the lines beside it differ in words,
 			// which would carry this test whatever the swatches did.
-			right := int(inventory.SectionPadX) + int(PickSwatchW)
+			right := int(inventory.SectionPadX) + int(palette.PickSwatchW)
 			worst := 0
 			for y := 0; y < pairH; y++ {
 				for x := 0; x < right; x++ {
@@ -606,9 +619,16 @@ func abs(n int) int {
 	return n
 }
 
+// natural is how wide a string wants to be, unconstrained by the room it
+// is about to be given.
+func natural(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, str string) int {
+	gtx.Constraints = layout.Constraints{Max: image.Pt(1<<20, 1<<20)}
+	return textdraw.MeasureText(gtx, shaper, style, str).X
+}
+
 // measuringContext is a context good for asking how wide a string wants
-// to be and what fitLine does with the room it has: one pixel to the dp,
-// so a room in this test is a room on a default display.
+// to be and what [palette.FitLine] does with the room it has: one pixel
+// to the dp, so a room in this test is a room on a default display.
 func measuringContext() layout.Context {
 	return layout.Context{Ops: new(op.Ops), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}}
 }

@@ -29,11 +29,11 @@
 // The second pass on that fix found it had shed the problem rather than
 // solved it, and the rest of this file is what it asked for.
 //
-// Nothing this row draws carries a clause seam. fitLine cuts a line at
-// its commas and at " ·" and " /" and marks nothing when it does, and
-// cuts at word boundaries with an ellipsis when it cannot; so a line
-// written as one clause can only ever be cut the marked way. That is the
-// whole guard, and it is structural rather than editorial: there is no
+// Nothing this row draws carries a clause seam. [palette.FitLine] cuts
+// a line at its commas and at " ·" and " /" and marks nothing when it
+// does, and cuts at word boundaries with an ellipsis when it cannot; so a
+// line written as one clause can only ever be cut the marked way. That is
+// the whole guard, and it is structural rather than editorial: there is no
 // wording of a comma that a reader can be relied on to supply back. The
 // price is that every string here has to say what it says inside one
 // clause, which is why they are short and why they lean on "and" where a
@@ -81,6 +81,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/unit"
 
+	"github.com/vibrantgio/components/gallery/palette"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -91,17 +92,17 @@ const SeedSectionRows = 2
 
 // SeedHandedInset is how far inside its slot the swatch of a colour the
 // palette only took in is drawn, leaving the full slot to the colour the
-// palette realized. It is the grid's RampPinInset doing the grid's job:
+// palette realized. It is [palette.RampPinInset] doing the grid's job:
 // there, keeping a pinned chip from reading as a tenth step; here,
 // keeping two colours of one hue from reading as one swatch drawn twice.
 // Four rather than the grid's three because the swatch it insets is the
 // larger shape, and the ring has to be a ring at 1x.
 const SeedHandedInset unit.Dp = 4
 
-// What the section says about itself, as HintSep clauses so a narrow
-// window drops it a clause at a time (see fitHint). A caption is a
-// legend, not a claim under a swatch: fitHint drops whole clauses and
-// each of these stands alone.
+// What the section says about itself, as [palette.HintSep] clauses so a
+// narrow window drops it a clause at a time. A caption is a legend, not a
+// claim under a swatch: [palette.FitHint] drops whole clauses and each of
+// these stands alone.
 //
 // The derivation clauses say the hue and the chroma come from different
 // places because they do, and a caption claiming otherwise is disproved
@@ -128,14 +129,14 @@ const (
 // The names over the cells, in the vocabulary the picks board below
 // already uses: it calls the realized colour "the seed, lifted", so the
 // two cells are the seed and the seed lifted. The board's comma is not
-// carried across — a name is cut by the same fitLine the rules are, and
-// "Seed, lifted" cuts to "Seed", which is the other cell's name over the
-// other cell's colour.
+// carried across — a name is cut by the same [palette.FitLine] the rules
+// are, and "Seed, lifted" cuts to "Seed", which is the other cell's name
+// over the other cell's colour.
 //
 // The name is also where the dark scheme's disclosure lives, and it is
 // there for a reason a rule cannot serve. A cell draws three lines, and
-// fitLine cuts each of them on its own; a fact on the name line and a
-// fact on the rule line are therefore shed at two different widths,
+// [palette.FitLine] cuts each of them on its own; a fact on the name line
+// and a fact on the rule line are therefore shed at two different widths,
 // while two facts on one line are shed together. This row has two facts
 // that must both survive — which colour the palette grew from, and that
 // a dark scheme does not draw it — so they are put on two lines. The
@@ -160,8 +161,8 @@ const (
 )
 
 // The rules under the names. Every one of them is one clause — no comma,
-// no " ·", no " /" — so fitLine has no unmarked cut to make on any of
-// them, and every cut a reader is shown ends in an ellipsis.
+// no " ·", no " /" — so [palette.FitLine] has no unmarked cut to make on
+// any of them, and every cut a reader is shown ends in an ellipsis.
 const (
 	// SeedGrewFrom is the claim the section is titled after. Every rule
 	// that can prove it opens with it, so no cut can take it off.
@@ -222,7 +223,7 @@ func seedRows(p Palette, c tokens.ColorTokens, ty Type, seed stdcolor.NRGBA) []l
 	cells := seedCells(c, seed)
 	return []layout.Widget{
 		paletteHeading(p, c, ty, SeedLabel, seedHint(cells)),
-		paletteBody(c, seedBody(p, c, ty, cells)),
+		palette.Body(c, seedBody(p, c, ty, cells)),
 	}
 }
 
@@ -234,7 +235,7 @@ func seedHint(cells []seedCell) string {
 	if len(cells) > 1 {
 		clauses = append([]string{SeedHintPair}, clauses...)
 	}
-	return strings.Join(clauses, HintSep)
+	return strings.Join(clauses, palette.HintSep)
 }
 
 // seedCells is what the row has to say, as cells. seed is a candidate,
@@ -298,7 +299,7 @@ func grownFrom(c tokens.ColorTokens, seed stdcolor.NRGBA) (stdcolor.NRGBA, bool)
 // up with the story.
 func seedBody(p Palette, c tokens.ColorTokens, ty Type, cells []seedCell) func(gtx layout.Context, width int) int {
 	return func(gtx layout.Context, width int) int {
-		h := gtx.Dp(PickPairH)
+		h := gtx.Dp(palette.PickPairH)
 		total := len(cells) * h
 		if width <= 0 {
 			return total
@@ -310,19 +311,18 @@ func seedBody(p Palette, c tokens.ColorTokens, ty Type, cells []seedCell) func(g
 	}
 }
 
-// drawSeedCell draws one cell in the slot it was given, the way drawCell
-// draws a paired one: the colour, and a block of three lines beside it —
-// the name, the value, and what the colour is.
+// drawSeedCell draws one cell in the slot it was given, the way the picks
+// board draws a paired one: the colour, and a block of three lines beside
+// it — the name, the value, and what the colour is.
 //
-// The colour sits in a slot the width of a picks-board swatch whichever
-// cell this is, and the lines start off the slot rather than off the
-// colour, so two cells keep one text column however their swatches are
-// drawn.
+// The colour sits in a slot the width of a picks swatch whichever cell
+// this is, and the lines start off the slot rather than off the colour,
+// so two cells keep one text column however their swatches are drawn.
 func drawSeedCell(gtx layout.Context, p Palette, c tokens.ColorTokens, ty Type, cell seedCell, r image.Rectangle) {
 	if r.Dx() <= 0 {
 		return
 	}
-	sw, sh := min(gtx.Dp(PickSwatchW), r.Dx()), min(gtx.Dp(PickSwatchH), r.Dy())
+	sw, sh := min(gtx.Dp(palette.PickSwatchW), r.Dx()), min(gtx.Dp(palette.PickSwatchH), r.Dy())
 	top := r.Min.Y + (r.Dy()-sh)/2
 	slot := image.Rect(r.Min.X, top, r.Min.X+sw, top+sh)
 	box := slot
@@ -335,33 +335,33 @@ func drawSeedCell(gtx layout.Context, p Palette, c tokens.ColorTokens, ty Type, 
 	}
 	radius := gtx.Dp(InnerR) / 2
 	fillRRect(gtx, box, radius, cell.col)
-	// The same frame every swatch on this page wears: a colour near the
-	// tone of the ground it stands on has no boundary of its own.
-	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), edgeIn(c))
+	// The same frame every swatch on this page wears — see [palette.EdgeIn]
+	// — and here for the reason it is there: a colour near the tone of the
+	// ground it stands on has no boundary of its own.
+	strokeRRect(gtx, box, radius, gtx.Dp(Hairline), palette.EdgeIn(c))
 
-	lines := slot.Max.X + gtx.Dp(PickGap)
+	lines := slot.Max.X + gtx.Dp(palette.PickGap)
 	if lines >= r.Max.X {
 		return
 	}
 	room := r.Max.X - lines
-	title, rule := gtx.Dp(PickTitleH), gtx.Dp(PickRuleH)
+	title, rule := gtx.Dp(palette.PickTitleH), gtx.Dp(palette.PickRuleH)
 	block := min(title+2*rule, r.Dy())
 	y := r.Min.Y + (r.Dy()-block)/2
 	textdraw.FillText(gtx, ty.Shaper, ty.Body,
 		image.Rect(lines, y, r.Max.X, y+title), 0, 0.5, p.Text,
-		fitLine(gtx, ty.Shaper, ty.Body, cell.name, room))
+		palette.FitLine(gtx, ty.Shaper, ty.Body, cell.name, room))
 	y += title
 	for _, line := range []string{hexOf(cell.col), cell.rule} {
 		textdraw.FillText(gtx, ty.Shaper, ty.Small,
 			image.Rect(lines, y, r.Max.X, y+rule), 0, 0.5, p.Muted,
-			fitLine(gtx, ty.Shaper, ty.Small, line, room))
+			palette.FitLine(gtx, ty.Shaper, ty.Small, line, room))
 		y += rule
 	}
 }
 
-// hexOf writes a colour the way this section's original does — the
-// themer's own hexOf, uppercase, the way a stylesheet writes one. Every
-// colour here is opaque, so the alpha is not written.
+// hexOf writes a colour the way a stylesheet writes one: uppercase, and
+// with no alpha, since every colour this row draws is opaque.
 func hexOf(c stdcolor.NRGBA) string {
 	return fmt.Sprintf("#%02X%02X%02X", c.R, c.G, c.B)
 }

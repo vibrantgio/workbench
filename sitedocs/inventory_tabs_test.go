@@ -112,7 +112,8 @@ func TestNoInventorySectionIsLost(t *testing.T) {
 	dropped := map[string]bool{"foundations-roles": true, "foundations-ramps": true}
 
 	// shown counts the sections each surface accounts for: the three group
-	// tabs by their groups, the Theme tab by the one section it borrows.
+	// tabs by their groups, the Theme tab by the one section the palette
+	// story borrows for its type ladder.
 	shown := map[string]int{typeSection: 1}
 	for page, group := range tabGroups {
 		found := false
