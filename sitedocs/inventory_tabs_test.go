@@ -61,7 +61,7 @@ func TestGroupTabsFollowScheme(t *testing.T) {
 }
 
 // TestEveryTabNamesALiveGroup guards the wiring against a group renamed
-// upstream: groupRows looks its group up by name and returns nothing when
+// upstream: TabItems looks its group up by name and returns nothing when
 // no group answers, which on screen is a blank tab and in a golden a flat
 // rectangle nobody reads twice.
 func TestEveryTabNamesALiveGroup(t *testing.T) {
@@ -70,7 +70,7 @@ func TestEveryTabNamesALiveGroup(t *testing.T) {
 	c := tokens.DefaultLight
 	for _, page := range []string{pageComponents, pagePatterns, pageMarkdown} {
 		group := tabGroups[page]
-		rows := groupRows(inv, c, group)
+		rows := inv.TabItems(c, group)
 		if len(rows) == 0 {
 			t.Fatalf("the %s tab asks the inventory for a group named %q and gets nothing", page, group)
 		}
@@ -90,7 +90,7 @@ func TestGroupTabDropsTheBanner(t *testing.T) {
 			continue
 		}
 		want := 2 * len(grp.Sections) // heading + body per section
-		got := len(groupRows(inv, c, grp.Name)) - 1
+		got := len(inv.TabItems(c, grp.Name)) - 1
 		if got != want {
 			t.Errorf("the %s tab lays out %d rows before its closing line, want %d — the group banner is still in",
 				grp.Name, got, want)

@@ -6,15 +6,10 @@
 // never pictures of them, and this file adds no second inventory — it asks
 // the published one for its rows and puts a viewport in front of them.
 //
-// One group per tab, which is why the group's banner is dropped. The
-// inventory bands its groups because they run one after another down a
-// single column and a reader has to be told where one module's families
-// end; a tab whose whole content is one group is already labelled, by the
-// strip cell that was clicked to reach it, and a full-width Primary band
-// repeating that word directly under the strip says nothing the strip did
-// not already say. Which is a decision about what this window shows and
-// not an edit to what it shows it from — the same judgment the themer
-// makes when it lays out the inventory's sections but not two of them.
+// One group per tab, which is the cut the inventory publishes as TabItems:
+// the group's sections without the banner that would only repeat the strip
+// cell clicked to reach it, closing line included. The reasoning is stated
+// where the cut lives; what this window decides is which groups get a tab.
 //
 // The Foundations group is on no tab: its colour sections are the Theme
 // tab's telling, and its type ladder moved there too (theme_tab.go).
@@ -44,8 +39,8 @@ import (
 
 // The inventory's own group names, as Groups() spells them. They are the
 // lookup key rather than an index, so a group reordered upstream still
-// lands on the tab that names it — and groupRows returning nothing is
-// what TestEveryTabNamesALiveGroup turns into a failure.
+// lands on the tab that names it — and TabItems returning nothing is what
+// TestEveryTabNamesALiveGroup turns into a failure.
 const (
 	groupComponents  = "Components"
 	groupPatterns    = "Patterns"
@@ -87,28 +82,8 @@ func groupTabLayer(th rx.Observable[theme.Theme], group string) rx.Observable[la
 			inv.SetShaper(shaper)
 		}
 		inv.SetTypography(typ)
-		return scrollingColumn(st, col, groupRows(inv, col, group))
+		return scrollingColumn(st, col, inv.TabItems(col, group))
 	})
-}
-
-// groupRows is one group as the rows of a tab: the group's sections,
-// heading and body each, with the inventory's own closing line under the
-// last of them — and without the group banner GroupItems leads with, for
-// the reason inventory_tabs.go's header states.
-//
-// It returns nil for a name no group carries, which is a wiring fault
-// rather than an empty catalogue; the guard is a test, not a fallback,
-// because a tab quietly showing a blank column is exactly what a fallback
-// would hide.
-func groupRows(inv *inventory.Inventory, c tokens.ColorTokens, group string) []layout.Widget {
-	for _, grp := range inv.Groups(c) {
-		if grp.Name != group {
-			continue
-		}
-		rows := inv.GroupItems(c, grp)
-		return append(rows[1:], inv.PageEnd(c, len(grp.Sections)))
-	}
-	return nil
 }
 
 // scrollingColumn is the scrolling column every inventory-fed tab shows —
@@ -135,5 +110,5 @@ func scrollingColumn(st *list.State, c tokens.ColorTokens, items []layout.Widget
 func renderGroupTab(shaper *text.Shaper, group string, colors tokens.ColorTokens, typo tokens.Typography) layout.Widget {
 	inv := inventory.NewForOS(shaper, "darwin")
 	inv.SetTypography(typo)
-	return scrollingColumn(list.NewState(), colors, groupRows(inv, colors, group))
+	return scrollingColumn(list.NewState(), colors, inv.TabItems(colors, group))
 }
