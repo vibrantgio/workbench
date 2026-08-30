@@ -17,7 +17,6 @@ package main
 
 import (
 	"image"
-	"strings"
 
 	"gioui.org/layout"
 	"gioui.org/op/clip"
@@ -25,6 +24,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/gallery/inventory"
+	"github.com/vibrantgio/components/gallery/palette"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown/highlight"
@@ -162,56 +162,6 @@ func (e *embed) codeRow(c tokens.ColorTokens) int {
 	return -1
 }
 
-// TypeLadderRows is the inventory's type ladder as the two rows that close
-// the Theme tab: this window's own heading band over the section's own body.
-//
-// The ladder is here rather than on a tab of its own because a theme is a
-// palette and a typeface: the type roles are generated from the same theme
-// the ramps are, so the tab that answers "what is this theme" has to answer
-// both halves of it. It wears the band its neighbours wear, and the
-// inventory's own words are kept — split at the em dash its titles are
-// already written with, so nothing is reworded here and a title reworded
-// upstream arrives reworded.
-func TypeLadderRows(inv *inventory.Inventory, p Palette, c tokens.ColorTokens, ty Type) []layout.Widget {
-	for _, s := range inv.Foundations(c) {
-		if s.Name != TypeSection {
-			continue
-		}
-		label, hint, _ := strings.Cut(s.Title, SectionTitleSep)
-		return []layout.Widget{
-			paletteHeading(p, c, ty, label, hint),
-			paletteBody(c, ladderBody(s)),
-		}
-	}
-	return nil
-}
-
-// TypeSection is the inventory section the Theme tab borrows: the whole type
-// ladder, every role a surface reads in.
-const TypeSection = "foundations-type"
-
-// SectionTitleSep is the seam an inventory section's title is written with:
-// what the section is, then how to read it. The palette's own bands are built
-// from exactly that pair — a label at the leading edge and a caption at the
-// trailing one — so a borrowed title splits into a band with nothing
-// reworded.
-const SectionTitleSep = " — "
-
-// ladderBody adapts an inventory section's body to the palette body's shape:
-// the palette measures its content and reports the height, while a section
-// body is laid out in a slot of the height the section states. So the slot is
-// stated here — bounded, because the type ladder measures nothing of its own
-// and an unbounded one would take the column with it — and handed back as the
-// height the band wraps.
-func ladderBody(s inventory.Section) func(gtx layout.Context, width int) int {
-	return func(gtx layout.Context, width int) int {
-		h := gtx.Dp(s.Height)
-		gtx.Constraints = layout.Constraints{Max: image.Pt(width, h)}
-		s.Body(gtx)
-		return h
-	}
-}
-
 // GalleryColumns is what the four tabs show for one emission, in tab order:
 // the Theme tab's own palette story with the type ladder under it, and the
 // three catalogue groups, one scrolling column each.
@@ -243,7 +193,7 @@ func GalleryColumns(t themed, m Model, page *embed, sel *baseSelector, faces *fa
 	seed, picked := m.Seed()
 	theme := SeedRows(p, c, t.typ, seed, picked)
 	theme = append(theme, PaletteRows(p, c, other, t.typ, dark)...)
-	theme = append(theme, TypeLadderRows(inv, p, c, t.typ)...)
+	theme = append(theme, palette.TypeLadderRows(inv, p.story(), c, t.typ.story())...)
 	cols[TabTheme] = ScrollingColumn(page.state(TabTheme), c, theme)
 	for tab := TabComponents; tab < TabCount; tab++ {
 		rows := inv.TabItems(c, TabGroups[tab])

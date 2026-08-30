@@ -1,19 +1,17 @@
-// theme_palette.go is the themer's palette section, copied: the ramps grid
-// (roles × steps 100–900, colour names) and the named picks with the rule
-// that chose each one, every rule read off the colours themselves so the
-// section cannot drift from the palette it describes.
+// theme_palette.go is the palette section, copied: the ramps grid (roles ×
+// steps 100–900, colour names) and the named picks with the rule that chose
+// each one, every rule read off the colours themselves so the section cannot
+// drift from the palette it describes.
 //
-// Copied from workbench/themer (palette.go and the helpers it leans on in
-// theme.go and view.go) rather than called or re-invented: the section
-// lives in that app's main package, so there is nothing to import, and the
-// palette story deliberately has one telling — this file reproduces it
-// instead of writing a third. The full design rationale for every choice
-// here — why picks carry rules, why a base and its ink are one cell, why
-// the chips stand past the grid, the measured tolerances — is in
-// workbench/themer/palette.go's comments; the copies here keep only what a
-// maintainer needs at the point of use. The one deliberate deviation:
-// TypeFrom takes the shaper explicitly, so goldens can hand in the
-// deterministic one instead of the theme's cached system shaper.
+// It is a copy on its way out. The engine now stands as a package of its own
+// beside the published inventory — components/gallery/palette — and this
+// window is still to adopt it; until it does, this file is the second
+// telling. The full design rationale for every choice here — why picks carry
+// rules, why a base and its ink are one cell, why the chips stand past the
+// grid, the measured tolerances — is in that package's comments; the copies
+// here keep only what a maintainer needs at the point of use. The one
+// deliberate deviation: TypeFrom takes the shaper explicitly, so goldens can
+// hand in the deterministic one instead of the theme's cached system shaper.
 
 package main
 

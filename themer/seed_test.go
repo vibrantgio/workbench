@@ -8,6 +8,7 @@ import (
 
 	"gioui.org/layout"
 	"github.com/vibrantgio/components/gallery/inventory"
+	"github.com/vibrantgio/components/gallery/palette"
 	"github.com/vibrantgio/components/golden"
 
 	"github.com/vibrantgio/theme/imageseed"
@@ -34,14 +35,14 @@ func liftedSeeded(t *testing.T) Model {
 // seedSectionTop is the y of the seed body's first cell inside the window: the
 // section leads the Theme tab, so it stands directly under the strip.
 func seedSectionTop() int {
-	return tabTop() + int(PaletteHeadH) + int(inventory.SectionPadY)
+	return tabTop() + int(palette.SectionHeadH) + int(inventory.SectionPadY)
 }
 
 // seedSwatchCentre is the middle of cell i's swatch, in the slot every cell of
 // this row gives its colour whether it fills the slot or stands inside it.
 func seedSwatchCentre(i int) image.Point {
-	return image.Pt(rampLabelLeft()+int(PickSwatchW)/2,
-		seedSectionTop()+i*int(PickPairH)+int(PickPairH)/2)
+	return image.Pt(rampLabelLeft()+int(palette.PickSwatchW)/2,
+		seedSectionTop()+i*int(palette.PickPairH)+int(palette.PickPairH)/2)
 }
 
 // seedSectionOn captures the seed section on its own, on the ground the column
@@ -213,8 +214,8 @@ func TestSeedRowSaysWhenNothingIsPicked(t *testing.T) {
 	}
 	// And no swatch is drawn: the slot a cell gives its colour is the ground.
 	img := seedSectionOn(t, c, stdcolor.NRGBA{}, false)
-	top := int(PaletteHeadH) + int(inventory.SectionPadY)
-	at := image.Pt(int(inventory.SectionPadX)+int(PickSwatchW)/2, top+int(PickCellH)/2)
+	top := int(palette.SectionHeadH) + int(inventory.SectionPadY)
+	at := image.Pt(int(inventory.SectionPadX)+int(palette.PickSwatchW)/2, top+int(palette.PickCellH)/2)
 	got := img.RGBAAt(at.X, at.Y)
 	if want := c.Background; got.R != want.R || got.G != want.G || got.B != want.B {
 		t.Errorf("the unpicked row drew %v where a swatch would stand at %v, want the ground %v", got, at, want)
@@ -222,7 +223,8 @@ func TestSeedRowSaysWhenNothingIsPicked(t *testing.T) {
 }
 
 // TestSeedLinesCarryNoUnmarkedSeam: every line this row can draw is one
-// clause, so [fitLine] has no unmarked cut to make on any of them and every
+// clause, so [palette.FitLine] has no unmarked cut to make on any of them
+// and every
 // cut a reader is shown ends in an ellipsis.
 //
 // This is the guard the two cells rest on. A line with a clause seam in it is
@@ -236,14 +238,14 @@ func TestSeedLinesCarryNoUnmarkedSeam(t *testing.T) {
 		SeedKeptRule, SeedKeptRuleDark, SeedUnprovenRule, SeedNoneRule,
 	}
 	for _, line := range lines {
-		if heads := lineHeads(line, true); len(heads) > 0 {
+		if heads := palette.LineHeads(line, true); len(heads) > 0 {
 			t.Errorf("%q can be cut to %q with nothing marking the cut", line, heads[0])
 		}
 	}
 	// The caption is the one thing here written as clauses, and is cut at the
 	// separator the cut knows about.
 	for _, clause := range []string{SeedHintPair, SeedHintHue, SeedHintChroma, SeedHintStatus, SeedHintNone} {
-		if strings.Contains(clause, HintSep) {
+		if strings.Contains(clause, palette.HintSep) {
 			t.Errorf("the caption clause %q carries the separator its own list is strung on", clause)
 		}
 	}

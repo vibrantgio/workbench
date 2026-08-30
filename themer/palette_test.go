@@ -13,6 +13,7 @@ import (
 	"gioui.org/layout"
 
 	"github.com/vibrantgio/components/gallery/inventory"
+	"github.com/vibrantgio/components/gallery/palette"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/textdraw"
@@ -33,7 +34,7 @@ const markJitter = 4
 // constant: how tall the seed section is depends on whether the seed and the
 // colour it was lifted into are one cell or two.
 func rampGridTop(m Model, os tokens.ColorTokens) int {
-	return tabTop() + seedSectionH(m, os) + int(PaletteHeadH) + int(inventory.SectionPadY)
+	return tabTop() + seedSectionH(m, os) + int(palette.SectionHeadH) + int(inventory.SectionPadY)
 }
 
 // seedSectionH is the height the seed section takes at the head of the tab:
@@ -42,7 +43,7 @@ func rampGridTop(m Model, os tokens.ColorTokens) int {
 func seedSectionH(m Model, os tokens.ColorTokens) int {
 	c, _ := derived(m, os)
 	seed, picked := m.Seed()
-	h := int(PaletteHeadH) + 2*int(inventory.SectionPadY)
+	h := int(palette.SectionHeadH) + 2*int(inventory.SectionPadY)
 	for _, cell := range seedCells(c, seed, picked) {
 		h += int(cell.height())
 	}
@@ -60,7 +61,7 @@ func rampContentW() int { return windowW - 2*int(Pad) - 2*int(inventory.SectionP
 // panel's content width, which is what is left of it once the names at one end
 // and the chips at the other have been reserved.
 func rampCellW() int {
-	return (rampContentW() - int(RampLabelW) - int(RampPinGap) - int(RampPinW)) / RampSteps
+	return (rampContentW() - int(palette.RampLabelW) - int(palette.RampPinGap) - int(palette.RampPinW)) / palette.RampSteps
 }
 
 // rampPinCentre is the middle of the chip at the end of row i, which is where
@@ -70,8 +71,8 @@ func rampCellW() int {
 // which is where they would stand if the cells were the thing setting the
 // grid's width.
 func rampPinCentre(m Model, os tokens.ColorTokens, i int) image.Point {
-	x := rampLabelLeft() + rampContentW() - int(RampPinW)/2
-	y := rampGridTop(m, os) + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
+	x := rampLabelLeft() + rampContentW() - int(palette.RampPinW)/2
+	y := rampGridTop(m, os) + int(palette.RampHeadH) + i*int(palette.RampRowH) + int(palette.RampRowH)/2
 	return image.Pt(x, y)
 }
 
@@ -80,8 +81,8 @@ func rampPinCentre(m Model, os tokens.ColorTokens, i int) image.Point {
 // same cell that no mark reaches — a quarter of the way in, against a mark of
 // six points in a cell of ninety.
 func rampCellCentre(m Model, os tokens.ColorTokens, i, n int) image.Point {
-	x := rampLabelLeft() + int(RampLabelW) + n*rampCellW() + rampCellW()/2
-	y := rampGridTop(m, os) + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
+	x := rampLabelLeft() + int(palette.RampLabelW) + n*rampCellW() + rampCellW()/2
+	y := rampGridTop(m, os) + int(palette.RampHeadH) + i*int(palette.RampRowH) + int(palette.RampRowH)/2
 	return image.Pt(x, y)
 }
 
@@ -141,29 +142,29 @@ func TestTheWindowShowsOnePalette(t *testing.T) {
 // they are looking at the wrong row.
 func TestTheRampsAreEveryRampWithNeutralLast(t *testing.T) {
 	c, _ := tokens.FromSeed(fixtureBlue)
-	rows := rampRows(c)
+	rows := palette.RampRows(c)
 	want := []struct {
 		name string
 		ramp tokens.Ramp
 	}{
-		{PrimaryName, c.Ramps.Primary},
-		{SecondaryName, c.Ramps.Secondary},
-		{TertiaryName, c.Ramps.Tertiary},
-		{ErrorName, c.Ramps.Error},
-		{SuccessName, c.Ramps.Success},
-		{WarningName, c.Ramps.Warning},
-		{InfoName, c.Ramps.Info},
-		{NeutralName, c.Ramps.Neutral},
+		{palette.PrimaryName, c.Ramps.Primary},
+		{palette.SecondaryName, c.Ramps.Secondary},
+		{palette.TertiaryName, c.Ramps.Tertiary},
+		{palette.ErrorName, c.Ramps.Error},
+		{palette.SuccessName, c.Ramps.Success},
+		{palette.WarningName, c.Ramps.Warning},
+		{palette.InfoName, c.Ramps.Info},
+		{palette.NeutralName, c.Ramps.Neutral},
 	}
 	if len(rows) != len(want) {
 		t.Fatalf("the grid has %d rows, want one per ramp (%d)", len(rows), len(want))
 	}
 	for i, w := range want {
-		if rows[i].name != w.name {
-			t.Errorf("row %d is %q, want %q", i, rows[i].name, w.name)
+		if rows[i].Name != w.name {
+			t.Errorf("row %d is %q, want %q", i, rows[i].Name, w.name)
 		}
-		if rows[i].ramp != w.ramp {
-			t.Errorf("row %q does not carry the theme's own %s ramp", rows[i].name, w.name)
+		if rows[i].Ramp != w.ramp {
+			t.Errorf("row %q does not carry the theme's own %s ramp", rows[i].Name, w.name)
 		}
 	}
 }
@@ -179,17 +180,17 @@ func TestTheRampsAreEveryRampWithNeutralLast(t *testing.T) {
 func TestEveryColourTokenIsPicked(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
 		shown := map[string]stdcolor.NRGBA{}
-		for _, g := range paletteGroups(sc.c, sc.other, sc.dark) {
-			for _, cell := range g.cells {
+		for _, g := range palette.Groups(sc.c, sc.other, sc.dark) {
+			for _, cell := range g.Cells {
 				add := func(name string, col stdcolor.NRGBA) {
 					if _, seen := shown[name]; seen {
 						t.Errorf("%s: %s is listed twice", sc.name, name)
 					}
 					shown[name] = col
 				}
-				add(cell.base.name, cell.fill)
-				if cell.paired() {
-					add(cell.ink.name, cell.on)
+				add(cell.Base.Name, cell.Fill)
+				if cell.Paired() {
+					add(cell.Ink.Name, cell.On)
 				}
 			}
 		}
@@ -237,10 +238,10 @@ func TestEveryColourTokenIsPicked(t *testing.T) {
 // publishedBeyondTheFields is every resting colour the theme publishes that is
 // not a field of ColorTokens, by the name the listing carries it under.
 func publishedBeyondTheFields(c tokens.ColorTokens) map[string]stdcolor.NRGBA {
-	out := map[string]stdcolor.NRGBA{WhitePick: tokens.White, BlackPick: tokens.Black}
+	out := map[string]stdcolor.NRGBA{palette.WhitePick: tokens.White, palette.BlackPick: tokens.Black}
 	for _, r := range statusRoles() {
-		out[r.name+ContainerPick] = c.StatusContainer(r.id)
-		out[r.name+MarkPick] = c.OnStatusContainer(r.id)
+		out[r.name+palette.ContainerPick] = c.StatusContainer(r.id)
+		out[r.name+palette.MarkPick] = c.OnStatusContainer(r.id)
 	}
 	return out
 }
@@ -257,10 +258,10 @@ func statusRoles() []struct {
 		id   tokens.Role
 		ramp func(tokens.ColorTokens) tokens.Ramp
 	}{
-		{ErrorName, tokens.RoleError, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Error }},
-		{SuccessName, tokens.RoleSuccess, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Success }},
-		{WarningName, tokens.RoleWarning, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Warning }},
-		{InfoName, tokens.RoleInfo, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Info }},
+		{palette.ErrorName, tokens.RoleError, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Error }},
+		{palette.SuccessName, tokens.RoleSuccess, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Success }},
+		{palette.WarningName, tokens.RoleWarning, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Warning }},
+		{palette.InfoName, tokens.RoleInfo, func(c tokens.ColorTokens) tokens.Ramp { return c.Ramps.Info }},
 	}
 }
 
@@ -271,48 +272,48 @@ func statusRoles() []struct {
 func TestABaseAndItsInkAreOneCell(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
 		want := map[string]string{
-			BackgroundPick:     TextPick,
-			InverseSurfacePick: OnInverseSurfacePick,
-			PrimaryName:        "OnPrimary",
-			SecondaryName:      "OnSecondary",
-			TertiaryName:       "OnTertiary",
-			ErrorName:          "OnError",
-			SuccessName:        "OnSuccess",
-			WarningName:        "OnWarning",
-			InfoName:           "OnInfo",
+			palette.BackgroundPick:     palette.TextPick,
+			palette.InverseSurfacePick: palette.OnInverseSurfacePick,
+			palette.PrimaryName:        "OnPrimary",
+			palette.SecondaryName:      "OnSecondary",
+			palette.TertiaryName:       "OnTertiary",
+			palette.ErrorName:          "OnError",
+			palette.SuccessName:        "OnSuccess",
+			palette.WarningName:        "OnWarning",
+			palette.InfoName:           "OnInfo",
 		}
 		// A container and the mark read on it are one cell for the reason a base
 		// and its ink are: the mark was measured over that exact ground.
 		for _, r := range statusRoles() {
-			want[r.name+ContainerPick] = r.name + MarkPick
+			want[r.name+palette.ContainerPick] = r.name + palette.MarkPick
 		}
 		// The two ends of the axis stand alone. They are what an ink turned out
 		// to be, not a ground anything is written on, and writing letters on
 		// either would be this section inventing a pairing the theme never made.
 		alone := map[string]bool{
-			SurfacePick: true, DividerPick: true,
-			WhitePick: true, BlackPick: true,
+			palette.SurfacePick: true, palette.DividerPick: true,
+			palette.WhitePick: true, palette.BlackPick: true,
 		}
-		for _, g := range paletteGroups(sc.c, sc.other, sc.dark) {
-			for _, cell := range g.cells {
-				ink, paired := want[cell.base.name]
+		for _, g := range palette.Groups(sc.c, sc.other, sc.dark) {
+			for _, cell := range g.Cells {
+				ink, paired := want[cell.Base.Name]
 				switch {
-				case paired && !cell.paired():
-					t.Errorf("%s: %s is a swatch on its own, want %s written on it", sc.name, cell.base.name, ink)
-				case paired && cell.ink.name != ink:
-					t.Errorf("%s: %s carries %s, want %s", sc.name, cell.base.name, cell.ink.name, ink)
-				case alone[cell.base.name] && cell.paired():
-					t.Errorf("%s: %s carries an ink, and the theme names none for it", sc.name, cell.base.name)
-				case !paired && !alone[cell.base.name]:
-					t.Errorf("%s: %s is a cell nothing accounts for", sc.name, cell.base.name)
+				case paired && !cell.Paired():
+					t.Errorf("%s: %s is a swatch on its own, want %s written on it", sc.name, cell.Base.Name, ink)
+				case paired && cell.Ink.Name != ink:
+					t.Errorf("%s: %s carries %s, want %s", sc.name, cell.Base.Name, cell.Ink.Name, ink)
+				case alone[cell.Base.Name] && cell.Paired():
+					t.Errorf("%s: %s carries an ink, and the theme names none for it", sc.name, cell.Base.Name)
+				case !paired && !alone[cell.Base.Name]:
+					t.Errorf("%s: %s is a cell nothing accounts for", sc.name, cell.Base.Name)
 				}
 				// The title names both members, in the order their rules are
 				// written under them.
-				if cell.paired() && cell.title() != cell.base.name+PickPairSep+cell.ink.name {
-					t.Errorf("%s: the cell is titled %q, want both names in the order the rules are in", sc.name, cell.title())
+				if cell.Paired() && cell.Title() != cell.Base.Name+palette.PickPairSep+cell.Ink.Name {
+					t.Errorf("%s: the cell is titled %q, want both names in the order the rules are in", sc.name, cell.Title())
 				}
-				delete(want, cell.base.name)
-				delete(alone, cell.base.name)
+				delete(want, cell.Base.Name)
+				delete(alone, cell.Base.Name)
 			}
 		}
 		for name := range want {
@@ -335,27 +336,27 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureBlue)
 	want := map[string]map[string]string{
 		"light": {
-			BackgroundPick: "Neutral 100",
-			TextPick:       "Neutral 900",
-			SurfacePick:    "Neutral 200",
-			DividerPick:    "Neutral 300",
-			PrimaryName:    fmt.Sprintf(PickSeedNear, PrimaryName, 700),
-			SecondaryName:  fmt.Sprintf(PickJustOff, SecondaryName, 700),
-			TertiaryName:   fmt.Sprintf(PickJustOff, TertiaryName, 700),
-			ErrorName:      "Error 700",
-			SuccessName:    "Success 700",
-			WarningName:    "Warning 700",
-			InfoName:       "Info 700",
+			palette.BackgroundPick: "Neutral 100",
+			palette.TextPick:       "Neutral 900",
+			palette.SurfacePick:    "Neutral 200",
+			palette.DividerPick:    "Neutral 300",
+			palette.PrimaryName:    fmt.Sprintf(palette.PickSeedNear, palette.PrimaryName, 700),
+			palette.SecondaryName:  fmt.Sprintf(palette.PickJustOff, palette.SecondaryName, 700),
+			palette.TertiaryName:   fmt.Sprintf(palette.PickJustOff, palette.TertiaryName, 700),
+			palette.ErrorName:      "Error 700",
+			palette.SuccessName:    "Success 700",
+			palette.WarningName:    "Warning 700",
+			palette.InfoName:       "Info 700",
 		},
 		"dark": {
-			BackgroundPick: "Neutral 100",
-			TextPick:       "Neutral 900",
-			SurfacePick:    "Neutral 200",
-			DividerPick:    "Neutral 300",
-			PrimaryName:    "Primary 700",
-			SecondaryName:  "Secondary 700",
-			TertiaryName:   "Tertiary 700",
-			ErrorName:      "Error 700",
+			palette.BackgroundPick: "Neutral 100",
+			palette.TextPick:       "Neutral 900",
+			palette.SurfacePick:    "Neutral 200",
+			palette.DividerPick:    "Neutral 300",
+			palette.PrimaryName:    "Primary 700",
+			palette.SecondaryName:  "Secondary 700",
+			palette.TertiaryName:   "Tertiary 700",
+			palette.ErrorName:      "Error 700",
 		},
 	}
 	for _, sc := range []struct {
@@ -367,7 +368,7 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 		{"light", light, dark, false, "the dark scheme's"},
 		{"dark", dark, light, true, "the light scheme's"},
 	} {
-		rules := rulesOf(paletteGroups(sc.c, sc.other, sc.dark))
+		rules := rulesOf(palette.Groups(sc.c, sc.other, sc.dark))
 		for name, rule := range want[sc.name] {
 			if rules[name] != rule {
 				t.Errorf("%s: %s says %q, want %q", sc.name, name, rules[name], rule)
@@ -375,11 +376,11 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 		}
 		// The inverse pair names the other side by name, and names the role it
 		// is over there rather than a step of the ramp on this side.
-		if got, w := rules[InverseSurfacePick], sc.inverseSide+" "+PickSurfaceRole; got != w {
-			t.Errorf("%s: %s says %q, want %q", sc.name, InverseSurfacePick, got, w)
+		if got, w := rules[palette.InverseSurfacePick], sc.inverseSide+" "+palette.PickSurfaceRole; got != w {
+			t.Errorf("%s: %s says %q, want %q", sc.name, palette.InverseSurfacePick, got, w)
 		}
-		if got, w := rules[OnInverseSurfacePick], sc.inverseSide+" "+PickTextRole; got != w {
-			t.Errorf("%s: %s says %q, want %q", sc.name, OnInverseSurfacePick, got, w)
+		if got, w := rules[palette.OnInverseSurfacePick], sc.inverseSide+" "+palette.PickTextRole; got != w {
+			t.Errorf("%s: %s says %q, want %q", sc.name, palette.OnInverseSurfacePick, got, w)
 		}
 		// Every ink says it was measured, because every one of them was, and
 		// that is the half of the answer the colour alone does not give. An ink
@@ -387,10 +388,10 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 		// role's ramp — may say "the base"; one that does not, white and black
 		// belonging to no role, has to name it, or a light scheme's seven cells
 		// carry one sentence between them.
-		for _, role := range []string{PrimaryName, SecondaryName, TertiaryName,
-			ErrorName, SuccessName, WarningName, InfoName} {
+		for _, role := range []string{palette.PrimaryName, palette.SecondaryName, palette.TertiaryName,
+			palette.ErrorName, palette.SuccessName, palette.WarningName, palette.InfoName} {
 			rule := rules["On"+role]
-			named := strings.HasSuffix(rule, fmt.Sprintf(PickMeasuredOver, role))
+			named := strings.HasSuffix(rule, fmt.Sprintf(palette.PickMeasuredOver, role))
 			switch {
 			case !strings.Contains(rule, "measured over"):
 				t.Errorf("%s: On%s says %q, which does not say what it was measured over", sc.name, role, rule)
@@ -401,8 +402,8 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 		// No two inks may say the same thing, which is what naming the base
 		// buys: it is the difference between seven rules and one repeated.
 		said := map[string]string{}
-		for _, role := range []string{PrimaryName, SecondaryName, TertiaryName,
-			ErrorName, SuccessName, WarningName, InfoName} {
+		for _, role := range []string{palette.PrimaryName, palette.SecondaryName, palette.TertiaryName,
+			palette.ErrorName, palette.SuccessName, palette.WarningName, palette.InfoName} {
 			rule := rules["On"+role]
 			if first, seen := said[rule]; seen {
 				t.Errorf("%s: On%s and On%s both say %q", sc.name, first, role, rule)
@@ -412,10 +413,10 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 		// And an ink's rule names what was actually kept: one of the two ends
 		// of the tonal axis, or the role's own deepest rung.
 		if got := rules["OnPrimary"]; sc.dark {
-			if !strings.HasPrefix(got, PrimaryName+" ") && !strings.HasPrefix(got, PickWhite) {
+			if !strings.HasPrefix(got, palette.PrimaryName+" ") && !strings.HasPrefix(got, palette.PickWhite) {
 				t.Errorf("dark: OnPrimary says %q, want its own ramp's step or white", got)
 			}
-		} else if !strings.HasPrefix(got, PickWhite) && !strings.HasPrefix(got, PickBlack) {
+		} else if !strings.HasPrefix(got, palette.PickWhite) && !strings.HasPrefix(got, palette.PickBlack) {
 			t.Errorf("light: OnPrimary says %q, want white or black", got)
 		}
 	}
@@ -426,24 +427,24 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 // of what the window says about its palette.
 func TestNoRuleIsEmpty(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
-		for _, g := range paletteGroups(sc.c, sc.other, sc.dark) {
-			if g.name == "" {
+		for _, g := range palette.Groups(sc.c, sc.other, sc.dark) {
+			if g.Name == "" {
 				t.Errorf("%s: a family of cells has no name", sc.name)
 			}
-			for _, cell := range g.cells {
-				for _, part := range []pickPart{cell.base, cell.ink} {
-					if part.name == "" {
+			for _, cell := range g.Cells {
+				for _, part := range []palette.Part{cell.Base, cell.Ink} {
+					if part.Name == "" {
 						continue
 					}
-					if part.rule == "" {
-						t.Errorf("%s: %s has no rule under it", sc.name, part.name)
+					if part.Rule == "" {
+						t.Errorf("%s: %s has no rule under it", sc.name, part.Name)
 					}
 				}
-				if cell.fill.A == 0 {
-					t.Errorf("%s: %s draws a transparent swatch", sc.name, cell.base.name)
+				if cell.Fill.A == 0 {
+					t.Errorf("%s: %s draws a transparent swatch", sc.name, cell.Base.Name)
 				}
-				if cell.paired() && cell.on.A == 0 {
-					t.Errorf("%s: %s is written in a transparent ink", sc.name, cell.ink.name)
+				if cell.Paired() && cell.On.A == 0 {
+					t.Errorf("%s: %s is written in a transparent ink", sc.name, cell.Ink.Name)
 				}
 			}
 		}
@@ -455,27 +456,27 @@ func TestNoRuleIsEmpty(t *testing.T) {
 // and no rule names a cell that is not marked.
 func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
-		groups := paletteGroups(sc.c, sc.other, sc.dark)
-		claims := rampClaims(groups)
+		groups := palette.Groups(sc.c, sc.other, sc.dark)
+		claims := palette.Claims(groups)
 		for claim := range claims {
-			if claim.step%100 != 0 || claim.step < 100 || claim.step > 900 {
-				t.Errorf("%s: %s claims step %d, which is not a rung", sc.name, claim.role, claim.step)
+			if claim.Step%100 != 0 || claim.Step < 100 || claim.Step > 900 {
+				t.Errorf("%s: %s claims step %d, which is not a rung", sc.name, claim.Role, claim.Step)
 			}
 		}
 		for _, g := range groups {
-			for _, cell := range g.cells {
-				for _, part := range []pickPart{cell.base, cell.ink} {
-					if part.step == 0 {
+			for _, cell := range g.Cells {
+				for _, part := range []palette.Part{cell.Base, cell.Ink} {
+					if part.Step == 0 {
 						continue
 					}
 					// A rule names the rung its mark is on, whether the colour
 					// is that rung or is merely indistinguishable from it.
-					want := fmt.Sprintf("%s %d", part.role, part.step)
-					if !strings.Contains(part.rule, want) {
-						t.Errorf("%s: %s marks %s and its rule says %q", sc.name, part.name, want, part.rule)
+					want := fmt.Sprintf("%s %d", part.Role, part.Step)
+					if !strings.Contains(part.Rule, want) {
+						t.Errorf("%s: %s marks %s and its rule says %q", sc.name, part.Name, want, part.Rule)
 					}
-					if !claims[rampClaim{part.role, part.step}] {
-						t.Errorf("%s: %s names %s and the grid marks nothing there", sc.name, part.name, want)
+					if !claims[palette.Claim{Role: part.Role, Step: part.Step}] {
+						t.Errorf("%s: %s names %s and the grid marks nothing there", sc.name, part.Name, want)
 					}
 				}
 			}
@@ -485,12 +486,12 @@ func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 		// ramp and claim its deepest rung. That difference is the derivation
 		// being visible, and it is worth failing if it stops being true.
 		rules := rulesOf(groups)
-		for _, role := range []string{PrimaryName, ErrorName, InfoName} {
+		for _, role := range []string{palette.PrimaryName, palette.ErrorName, palette.InfoName} {
 			ink := rules["On"+role]
 			if sc.dark && !strings.HasPrefix(ink, role+" ") {
 				t.Errorf("%s: On%s says %q, want a rung of its own ramp", sc.name, role, ink)
 			}
-			if !sc.dark && !strings.HasPrefix(ink, PickWhite) && !strings.HasPrefix(ink, PickBlack) {
+			if !sc.dark && !strings.HasPrefix(ink, palette.PickWhite) && !strings.HasPrefix(ink, palette.PickBlack) {
 				t.Errorf("%s: On%s says %q, want an end of the tonal axis", sc.name, role, ink)
 			}
 		}
@@ -516,41 +517,41 @@ func TestTheRungToleranceStandsBetweenItsTwoMeasurements(t *testing.T) {
 				col  stdcolor.NRGBA
 				ramp tokens.Ramp
 			}{
-				{PrimaryName, sc.Primary, sc.Ramps.Primary},
-				{SecondaryName, sc.Secondary, sc.Ramps.Secondary},
-				{TertiaryName, sc.Tertiary, sc.Ramps.Tertiary},
-				{ErrorName, sc.Error, sc.Ramps.Error},
-				{SuccessName, sc.Success, sc.Ramps.Success},
-				{WarningName, sc.Warning, sc.Ramps.Warning},
-				{InfoName, sc.Info, sc.Ramps.Info},
+				{palette.PrimaryName, sc.Primary, sc.Ramps.Primary},
+				{palette.SecondaryName, sc.Secondary, sc.Ramps.Secondary},
+				{palette.TertiaryName, sc.Tertiary, sc.Ramps.Tertiary},
+				{palette.ErrorName, sc.Error, sc.Ramps.Error},
+				{palette.SuccessName, sc.Success, sc.Ramps.Success},
+				{palette.WarningName, sc.Warning, sc.Ramps.Warning},
+				{palette.InfoName, sc.Info, sc.Ramps.Info},
 			} {
-				step := nearestStep(pin.ramp, pin.col)
+				step := palette.NearestStep(pin.ramp, pin.col)
 				if step == 0 {
 					t.Errorf("%s: the %s pin sits at no rung the grid can mark", hexOf(seed), pin.name)
 					continue
 				}
-				worstMatch = max(worstMatch, oklabDistance(pin.ramp.Step(step), pin.col))
+				worstMatch = max(worstMatch, palette.OKLabDistance(pin.ramp.Step(step), pin.col))
 			}
-			for _, r := range rampRows(sc) {
-				for n := range RampSteps - 1 {
+			for _, r := range palette.RampRows(sc) {
+				for n := range palette.RampSteps - 1 {
 					closestRungs = min(closestRungs,
-						oklabDistance(r.ramp.Step((n+1)*100), r.ramp.Step((n+2)*100)))
+						palette.OKLabDistance(r.Ramp.Step((n+1)*100), r.Ramp.Step((n+2)*100)))
 				}
 			}
 		}
 	}
 	t.Logf("the worst pin sits %.4f from its rung; the closest two rungs are %.4f apart; the tolerance is %.4f",
-		worstMatch, closestRungs, rungTolerance)
-	if worstMatch >= rungTolerance {
+		worstMatch, closestRungs, palette.RungTolerance)
+	if worstMatch >= palette.RungTolerance {
 		t.Errorf("a pin sits %.4f from its own rung and the tolerance is %.4f — a pick the grid should mark goes unmarked",
-			worstMatch, rungTolerance)
+			worstMatch, palette.RungTolerance)
 	}
 	// Two rungs a whole tolerance apart on either side of one colour is the
 	// case that would let a colour be within reach of both, so the gap has to
 	// beat twice the tolerance rather than merely exceed it.
-	if closestRungs <= 2*rungTolerance {
+	if closestRungs <= 2*palette.RungTolerance {
 		t.Errorf("two rungs stand %.4f apart against a tolerance of %.4f — a mark cannot say which rung it means",
-			closestRungs, rungTolerance)
+			closestRungs, palette.RungTolerance)
 	}
 }
 
@@ -566,14 +567,14 @@ func TestTheGridDrawsTheThemesOwnRampSteps(t *testing.T) {
 	for _, os := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
 		c, _ := derived(m, os)
 		img := page(t, m, os)
-		for i, row := range rampRows(c) {
-			for n := range RampSteps {
+		for i, row := range palette.RampRows(c) {
+			for n := range palette.RampSteps {
 				at := rampCellColour(m, os, i, n)
-				want := row.ramp.Step((n + 1) * 100)
+				want := row.Ramp.Step((n + 1) * 100)
 				got := img.RGBAAt(at.X, at.Y)
 				if got.R != want.R || got.G != want.G || got.B != want.B {
 					t.Errorf("%s %d at %v drew %v, want the ramp's %v",
-						row.name, (n+1)*100, at, got, want)
+						row.Name, (n+1)*100, at, got, want)
 				}
 			}
 		}
@@ -589,19 +590,19 @@ func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 	m := seeded(t)
 	for _, os := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
 		c, other := derived(m, os)
-		claims := rampClaims(paletteGroups(c, other, m.Dark(os)))
+		claims := palette.Claims(palette.Groups(c, other, m.Dark(os)))
 		if len(claims) == 0 {
 			t.Fatal("no pick claims a rung, so the grid marks nothing")
 		}
 		img := page(t, m, os)
-		for i, row := range rampRows(c) {
-			for n := range RampSteps {
+		for i, row := range palette.RampRows(c) {
+			for n := range palette.RampSteps {
 				at := rampCellCentre(m, os, i, n)
-				step := row.ramp.Step((n + 1) * 100)
-				marked := claims[rampClaim{row.name, (n + 1) * 100}]
+				step := row.Ramp.Step((n + 1) * 100)
+				marked := claims[palette.Claim{Role: row.Name, Step: (n + 1) * 100}]
 				want := step
 				if marked {
-					want = markInkOn(step)
+					want = palette.MarkInkOn(step)
 				}
 				got := img.RGBAAt(at.X, at.Y)
 				// A mark is a disc, so its own middle carries the last level or
@@ -611,7 +612,7 @@ func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 				// chosen to stand out on it, which is what is being asserted.
 				off := max(apart(got.R, want.R), max(apart(got.G, want.G), apart(got.B, want.B)))
 				if (marked && off > markJitter) || (!marked && off != 0) {
-					t.Errorf("%s %d at %v drew %v, want %v", row.name, (n+1)*100, at, got, want)
+					t.Errorf("%s %d at %v drew %v, want %v", row.Name, (n+1)*100, at, got, want)
 				}
 			}
 		}
@@ -629,26 +630,26 @@ func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 // writes in neither end.
 func TestTheAxisEndsSayWhetherThisSchemeWritesInThem(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
-		groups := paletteGroups(sc.c, sc.other, sc.dark)
+		groups := palette.Groups(sc.c, sc.other, sc.dark)
 		rules := rulesOf(groups)
 		for _, end := range []struct {
 			name, text string
 			col        stdcolor.NRGBA
 		}{
-			{WhitePick, PickAxisLight, tokens.White},
-			{BlackPick, PickAxisDark, tokens.Black},
+			{palette.WhitePick, palette.PickAxisLight, tokens.White},
+			{palette.BlackPick, palette.PickAxisDark, tokens.Black},
 		} {
 			used := false
 			for _, g := range groups {
-				for _, cell := range g.cells {
-					if cell.paired() && cell.on == end.col {
+				for _, cell := range g.Cells {
+					if cell.Paired() && cell.On == end.col {
 						used = true
 					}
 				}
 			}
-			want := fmt.Sprintf(PickAxisNoInk, end.text)
+			want := fmt.Sprintf(palette.PickAxisNoInk, end.text)
 			if used {
-				want = fmt.Sprintf(PickAxisInk, end.text)
+				want = fmt.Sprintf(palette.PickAxisInk, end.text)
 			}
 			if got := rules[end.name]; got != want {
 				t.Errorf("%s: %s says %q, want %q", sc.name, end.name, got, want)
@@ -658,8 +659,8 @@ func TestTheAxisEndsSayWhetherThisSchemeWritesInThem(t *testing.T) {
 		// and a dark scheme writes in neither end, so a rule that said one thing
 		// on both sides would be saying nothing on either.
 		if !sc.dark {
-			if got, want := rules[WhitePick], fmt.Sprintf(PickAxisInk, PickAxisLight); got != want {
-				t.Errorf("%s: %s says %q, and this scheme's inks are white", sc.name, WhitePick, got)
+			if got, want := rules[palette.WhitePick], fmt.Sprintf(palette.PickAxisInk, palette.PickAxisLight); got != want {
+				t.Errorf("%s: %s says %q, and this scheme's inks are white", sc.name, palette.WhitePick, got)
 			}
 		}
 	}
@@ -683,15 +684,15 @@ const markGraphicFloor = 3.0
 func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
 	worst, at := math.Inf(1), ""
 	for _, sc := range schemesUnderTest(t) {
-		claims := rampClaims(paletteGroups(sc.c, sc.other, sc.dark))
-		for _, row := range rampRows(sc.c) {
-			for n := range RampSteps {
-				if !claims[rampClaim{row.name, (n + 1) * 100}] {
+		claims := palette.Claims(palette.Groups(sc.c, sc.other, sc.dark))
+		for _, row := range palette.RampRows(sc.c) {
+			for n := range palette.RampSteps {
+				if !claims[palette.Claim{Role: row.Name, Step: (n + 1) * 100}] {
 					continue
 				}
-				step := row.ramp.Step((n + 1) * 100)
-				if got := vgcolor.ContrastRatio(markInkOn(step), step); got < worst {
-					worst, at = got, fmt.Sprintf("%s %s %d", sc.name, row.name, (n+1)*100)
+				step := row.Ramp.Step((n + 1) * 100)
+				if got := vgcolor.ContrastRatio(palette.MarkInkOn(step), step); got < worst {
+					worst, at = got, fmt.Sprintf("%s %s %d", sc.name, row.Name, (n+1)*100)
 				}
 			}
 		}
@@ -715,7 +716,7 @@ func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
 // fill, and the two multiply out to the contrast between the page and its
 // inverse, so they cannot both be weak. The range is logged in full and the
 // soft end named, which is what the drawing code's own account of this choice
-// cites — see [edgeIn].
+// cites — see [palette.EdgeIn].
 func TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill(t *testing.T) {
 	// Per side, because the two sides are two different questions: one edge is
 	// near-black over fills running up from a near-white page, the other is
@@ -735,7 +736,7 @@ func TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill(t *testing.T) {
 		sides[i].lo = math.Inf(1)
 	}
 	for _, sc := range schemesUnderTest(t) {
-		edge := edgeIn(sc.c)
+		edge := palette.EdgeIn(sc.c)
 		// The single colour, asserted as the token the account names rather
 		// than as bytes: a section framed in something else is a section whose
 		// edge no longer turns over with the switch.
@@ -774,7 +775,7 @@ func TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill(t *testing.T) {
 				bounds = fmt.Sprintf("%.2f:1 in edge, %.2f:1 against the page", got, page)
 			}
 		}
-		if want := InverseSurfacePick + PickPairSep + OnInverseSurfacePick; selfFramed != want {
+		if want := palette.InverseSurfacePick + palette.PickPairSep + palette.OnInverseSurfacePick; selfFramed != want {
 			t.Errorf("%s: the swatch framed in itself is %q, want the section's own edge colour on the board, %q",
 				sc.name, selfFramed, want)
 		}
@@ -795,17 +796,17 @@ func TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill(t *testing.T) {
 // pinned, and the fill of every cell on the picks board.
 func sectionFills(c, other tokens.ColorTokens, dark bool) map[string]stdcolor.NRGBA {
 	fills := map[string]stdcolor.NRGBA{}
-	for _, row := range rampRows(c) {
-		for n := range RampSteps {
-			fills[fmt.Sprintf("%s %d", row.name, (n+1)*100)] = row.ramp.Step((n + 1) * 100)
+	for _, row := range palette.RampRows(c) {
+		for n := range palette.RampSteps {
+			fills[fmt.Sprintf("%s %d", row.Name, (n+1)*100)] = row.Ramp.Step((n + 1) * 100)
 		}
-		if row.pin.A != 0 {
-			fills[row.name+" base"] = row.pin
+		if row.Pin.A != 0 {
+			fills[row.Name+" base"] = row.Pin
 		}
 	}
-	for _, g := range paletteGroups(c, other, dark) {
-		for _, cell := range g.cells {
-			fills[cell.title()] = cell.fill
+	for _, g := range palette.Groups(c, other, dark) {
+		for _, cell := range g.Cells {
+			fills[cell.Title()] = cell.Fill
 		}
 	}
 	return fills
@@ -818,35 +819,36 @@ func sectionFills(c, other tokens.ColorTokens, dark bool) map[string]stdcolor.NR
 // one place the whole ramp is on screen at once: the boundary between cell four
 // and cell five came out in one polarity and the boundary between five and six
 // in the other, and the row read as two rows. Asserted off the pixels rather
-// than off [edgeIn] alone, because what a reader sees is what was drawn — the
+// than off [palette.EdgeIn] alone, because what a reader sees is what was
+// drawn — the
 // Neutral row is scanned because its own fills are the greys the edge is
 // nearest, so a row that holds here holds everywhere.
 func TestTheGridDrawsOneEdgeColourAcrossTheRow(t *testing.T) {
 	for _, sc := range schemesUnderTest(t)[:4] {
 		img := paletteSectionW(t, sectionWidths[0], sc.c, sc.other, sc.dark)
 		row := -1
-		for i, r := range rampRows(sc.c) {
-			if r.name == NeutralName {
+		for i, r := range palette.RampRows(sc.c) {
+			if r.Name == palette.NeutralName {
 				row = i
 			}
 		}
 		if row < 0 {
-			t.Fatalf("%s: no %s row on the grid", sc.name, NeutralName)
+			t.Fatalf("%s: no %s row on the grid", sc.name, palette.NeutralName)
 		}
 		// A point below the cell's top, so what is read is the vertical
 		// boundary between two cells and not the row's own gap. The leading
 		// edge of the first cell stands against the label column rather than
 		// against another cell, so the scan starts at the second.
-		edge, mid := edgeIn(sc.c), sectionRowY(row)
-		for n := 1; n < RampSteps; n++ {
+		edge, mid := palette.EdgeIn(sc.c), sectionRowY(row)
+		for n := 1; n < palette.RampSteps; n++ {
 			x := sectionCellX(sectionWidths[0], n)
 			if got := pixelAt(img, x, mid); got != edge {
 				t.Errorf("%s: the boundary before %s %d drew %v, want the section's edge %v",
-					sc.name, NeutralName, (n+1)*100, got, edge)
+					sc.name, palette.NeutralName, (n+1)*100, got, edge)
 			}
 		}
 		t.Logf("%s: all %d boundaries of the %s row drew %v",
-			sc.name, RampSteps-1, NeutralName, edge)
+			sc.name, palette.RampSteps-1, palette.NeutralName, edge)
 	}
 }
 
@@ -855,8 +857,8 @@ func TestTheGridDrawsOneEdgeColourAcrossTheRow(t *testing.T) {
 func sectionCellX(width, n int) int {
 	inset := sectionInset()
 	content := width - 2*inset
-	cellW := (content - int(RampLabelW) - int(RampPinGap) - int(RampPinW)) / RampSteps
-	return inset + int(RampLabelW) + n*cellW
+	cellW := (content - int(palette.RampLabelW) - int(palette.RampPinGap) - int(palette.RampPinW)) / palette.RampSteps
+	return inset + int(palette.RampLabelW) + n*cellW
 }
 
 // TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow: the colour a role was actually
@@ -872,28 +874,28 @@ func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
 	for _, os := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
 		c, _ := derived(m, os)
 		img := page(t, m, os)
-		for i, row := range rampRows(c) {
+		for i, row := range palette.RampRows(c) {
 			at := rampPinCentre(m, os, i)
 			got := img.RGBAAt(at.X, at.Y)
-			if row.pin.A == 0 {
+			if row.Pin.A == 0 {
 				// Neutral pins no solid fill, so its slot carries the mark that
 				// says so and no chip: something is drawn in the middle of it,
 				// and the slot around that something is the section's own
 				// ground rather than a colour standing in for a pin.
 				if got.R == c.Background.R && got.G == c.Background.G && got.B == c.Background.B {
-					t.Errorf("%s pins nothing and its slot at %v is empty, want the mark that says so", row.name, at)
+					t.Errorf("%s pins nothing and its slot at %v is empty, want the mark that says so", row.Name, at)
 				}
-				off := image.Pt(at.X-int(RampPinW)/3, at.Y)
+				off := image.Pt(at.X-int(palette.RampPinW)/3, at.Y)
 				beside := img.RGBAAt(off.X, off.Y)
 				if want := c.Background; beside.R != want.R || beside.G != want.G || beside.B != want.B {
 					t.Errorf("%s pins nothing and its slot at %v drew %v, want the ground %v",
-						row.name, off, beside, want)
+						row.Name, off, beside, want)
 				}
 				continue
 			}
-			if got.R != row.pin.R || got.G != row.pin.G || got.B != row.pin.B {
+			if got.R != row.Pin.R || got.G != row.Pin.G || got.B != row.Pin.B {
 				t.Errorf("%s's chip at %v drew %v, want the pinned base %v",
-					row.name, at, got, row.pin)
+					row.Name, at, got, row.Pin)
 			}
 		}
 		// And the seed itself, which is the first chip in the grid on the side
@@ -911,7 +913,8 @@ func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
 // fixtureMagenta is a seed whose lifted light Primary sits between two rungs
 // of its own ramp: its depth lands between the tones of steps 500 and 600, and
 // the pin sits 0.0575 in OKLab from the nearest rung — over three times
-// [rungTolerance] — so nearest-rung matching honestly claims nothing. Found by
+// [palette.RungTolerance] — so nearest-rung matching honestly claims nothing.
+// Found by
 // scanning the seed cube for the widest such margin at a vivid mid-scale
 // colour. It is the case the chip dot exists for: the light scheme pins the
 // seed at the seed's own depth, and this seed's depth is no rung's.
@@ -938,20 +941,20 @@ func offRampSeeded(t *testing.T) Model {
 // stay undotted.
 func TestTheOffRampFixtureSitsBetweenRungs(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureMagenta)
-	if n := stepIn(light.Ramps.Primary, light.Primary); n != 0 {
+	if n := palette.StepIn(light.Ramps.Primary, light.Primary); n != 0 {
 		t.Fatalf("the light pin is rung %d exactly, want a pin between rungs", n)
 	}
-	if n := nearestStep(light.Ramps.Primary, light.Primary); n != 0 {
+	if n := palette.NearestStep(light.Ramps.Primary, light.Primary); n != 0 {
 		t.Fatalf("the light pin is indistinguishable from rung %d, want a pin between rungs", n)
 	}
 	nearest := math.Inf(1)
-	for n := range RampSteps {
-		nearest = min(nearest, oklabDistance(light.Ramps.Primary.Step((n+1)*100), light.Primary))
+	for n := range palette.RampSteps {
+		nearest = min(nearest, palette.OKLabDistance(light.Ramps.Primary.Step((n+1)*100), light.Primary))
 	}
-	t.Logf("the lifted seed sits %.4f from its nearest rung, against a tolerance of %.4f", nearest, rungTolerance)
-	if nearest < 2*rungTolerance {
+	t.Logf("the lifted seed sits %.4f from its nearest rung, against a tolerance of %.4f", nearest, palette.RungTolerance)
+	if nearest < 2*palette.RungTolerance {
 		t.Errorf("the lifted seed sits %.4f from a rung against a tolerance of %.4f — too near to hold the between-rungs case",
-			nearest, rungTolerance)
+			nearest, palette.RungTolerance)
 	}
 	// Between two adjacent steps of the light scale — which runs pale to deep —
 	// with daylight on both sides, not past either end of it.
@@ -963,23 +966,23 @@ func TestTheOffRampFixtureSitsBetweenRungs(t *testing.T) {
 		t.Errorf("the lifted seed's depth L* %.2f is not between steps 500 (%.2f) and 600 (%.2f) with margin",
 			l, above, below)
 	}
-	groups := paletteGroups(light, dark, false)
-	if got := rulesOf(groups)[PrimaryName]; got != PickSeed {
-		t.Errorf("the light Primary rule says %q, want %q", got, PickSeed)
+	groups := palette.Groups(light, dark, false)
+	if got := rulesOf(groups)[palette.PrimaryName]; got != palette.PickSeed {
+		t.Errorf("the light Primary rule says %q, want %q", got, palette.PickSeed)
 	}
-	for claim := range rampClaims(groups) {
-		if claim.role == PrimaryName {
-			t.Errorf("a pick claims %s %d, so the row was never the one with no dot", claim.role, claim.step)
+	for claim := range palette.Claims(groups) {
+		if claim.Role == palette.PrimaryName {
+			t.Errorf("a pick claims %s %d, so the row was never the one with no dot", claim.Role, claim.Step)
 		}
 	}
-	if stepIn(dark.Ramps.Primary, dark.Primary) == 0 {
+	if palette.StepIn(dark.Ramps.Primary, dark.Primary) == 0 {
 		t.Error("the dark pin is on no rung, want the rung-exact pin whose chip stays undotted")
 	}
 }
 
 // TestTheChipDotAgreesWithTheRule: the chip carries a dot exactly where the
-// rule under the pick says the pin is on no rung. [pinRung] asks the two
-// questions [basePart] resolves a base's rule by, and this holds the two
+// rule under the pick says the pin is on no rung. [palette.PinRung] asks the two
+// questions [palette.BasePart] resolves a base's rule by, and this holds the two
 // answers together — a chip dotted beside a rule naming a rung, or a bare chip
 // beside a rule claiming none, would be the section disagreeing with itself in
 // the two places it is read.
@@ -987,16 +990,16 @@ func TestTheChipDotAgreesWithTheRule(t *testing.T) {
 	for _, seed := range []stdcolor.NRGBA{fixtureBlue, fixtureRed, fixtureGrey, tokens.DefaultSeed, fixtureMagenta} {
 		light, dark := tokens.FromSeed(seed)
 		for _, sc := range []tokens.ColorTokens{light, dark} {
-			for _, row := range rampRows(sc) {
-				if row.pin.A == 0 {
+			for _, row := range palette.RampRows(sc) {
+				if row.Pin.A == 0 {
 					continue // Neutral pins nothing: a dash, and never a dot
 				}
 				// The near and off wordings differ per role and play no part in
 				// which rung the rule claims, which is the half under test.
-				part := basePart(row.name, row.ramp, row.pin, PickJustOff, PickPinned)
-				if dotted, claimed := pinRung(row.ramp, row.pin) == 0, part.step != 0; dotted == claimed {
+				part := palette.BasePart(row.Name, row.Ramp, row.Pin, palette.PickJustOff, palette.PickPinned)
+				if dotted, claimed := palette.PinRung(row.Ramp, row.Pin) == 0, part.Step != 0; dotted == claimed {
 					t.Errorf("%s %s: the chip dot says the pin claims no rung (%t) and the rule claims step %d",
-						hexOf(seed), row.name, dotted, part.step)
+						hexOf(seed), row.Name, dotted, part.Step)
 				}
 			}
 		}
@@ -1018,24 +1021,24 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 		got := img.RGBAAt(at.X, at.Y)
 		if !m.Dark(os) {
 			// The dot, in the middle of the chip, in the measured ink.
-			want := markInkOn(c.Primary)
+			want := palette.MarkInkOn(c.Primary)
 			if off := max(apart(got.R, want.R), max(apart(got.G, want.G), apart(got.B, want.B))); off > markJitter {
 				t.Errorf("the chip centre at %v drew %v, want the dot ink %v", at, got, want)
 			}
 			// Beside the dot the chip is still the pin.
-			side := img.RGBAAt(at.X-int(RampPinW)/3, at.Y)
+			side := img.RGBAAt(at.X-int(palette.RampPinW)/3, at.Y)
 			if side.R != c.Primary.R || side.G != c.Primary.G || side.B != c.Primary.B {
 				t.Errorf("beside the dot the chip drew %v, want the pinned base %v", side, c.Primary)
 			}
 			// And no cell of the row carries one: the pin claims no rung, and
 			// the dot the row owes its reader is the chip's.
-			for n := range RampSteps {
+			for n := range palette.RampSteps {
 				cell := rampCellCentre(m, os, 0, n)
 				step := c.Ramps.Primary.Step((n + 1) * 100)
 				pix := img.RGBAAt(cell.X, cell.Y)
 				if pix.R != step.R || pix.G != step.G || pix.B != step.B {
 					t.Errorf("%s %d at %v drew %v, want the bare step %v — the pin claims no rung",
-						PrimaryName, (n+1)*100, cell, pix, step)
+						palette.PrimaryName, (n+1)*100, cell, pix, step)
 				}
 			}
 			continue
@@ -1045,16 +1048,16 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 		if got.R != c.Primary.R || got.G != c.Primary.G || got.B != c.Primary.B {
 			t.Errorf("the rung-exact chip centre at %v drew %v, want the undotted pin %v", at, got, c.Primary)
 		}
-		n := stepIn(c.Ramps.Primary, c.Primary)
+		n := palette.StepIn(c.Ramps.Primary, c.Primary)
 		if n == 0 {
 			t.Fatal("the dark pin claims no rung, want the rung-exact control case")
 		}
 		cell := rampCellCentre(m, os, 0, n/100-1)
 		step := c.Ramps.Primary.Step(n)
-		want := markInkOn(step)
+		want := palette.MarkInkOn(step)
 		pix := img.RGBAAt(cell.X, cell.Y)
 		if off := max(apart(pix.R, want.R), max(apart(pix.G, want.G), apart(pix.B, want.B))); off > markJitter {
-			t.Errorf("%s %d at %v drew %v, want its dot %v", PrimaryName, n, cell, pix, want)
+			t.Errorf("%s %d at %v drew %v, want its dot %v", palette.PrimaryName, n, cell, pix, want)
 		}
 	}
 }
@@ -1071,11 +1074,11 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 // use.
 func TestEachContainerIsItsRungHeldAtLessChroma(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
-		rules := rulesOf(paletteGroups(sc.c, sc.other, sc.dark))
+		rules := rulesOf(palette.Groups(sc.c, sc.other, sc.dark))
 		for _, r := range statusRoles() {
 			ramp := r.ramp(sc.c)
 			ground := sc.c.StatusContainer(r.id)
-			step := toneStep(ramp, ground)
+			step := palette.ToneStep(ramp, ground)
 			rung := ramp.Step(step)
 			tone, _, _ := vgcolor.LabFromNRGBA(rung)
 			_, chroma, hue := vgcolor.OKLChFromNRGBA(rung)
@@ -1092,18 +1095,18 @@ func TestEachContainerIsItsRungHeldAtLessChroma(t *testing.T) {
 				t.Errorf("%s: the %s container carries chroma %.4f against its rung's %.4f, and the rule says it was pulled down",
 					sc.name, r.name, held, chroma)
 			}
-			if got, want := rules[r.name+ContainerPick], fmt.Sprintf(PickContainerRule, r.name, step); got != want {
-				t.Errorf("%s: %s says %q, want %q", sc.name, r.name+ContainerPick, got, want)
+			if got, want := rules[r.name+palette.ContainerPick], fmt.Sprintf(palette.PickContainerRule, r.name, step); got != want {
+				t.Errorf("%s: %s says %q, want %q", sc.name, r.name+palette.ContainerPick, got, want)
 			}
 			// And the mark on it is a rung of the role's own ramp, named as one.
 			mark := sc.c.OnStatusContainer(r.id)
-			n := stepIn(ramp, mark)
+			n := palette.StepIn(ramp, mark)
 			if n == 0 {
 				t.Errorf("%s: the %s mark %v is on no rung of its own ramp", sc.name, r.name, mark)
 				continue
 			}
-			if got, want := rules[r.name+MarkPick], fmt.Sprintf(PickMarkRule, r.name, n); got != want {
-				t.Errorf("%s: %s says %q, want %q", sc.name, r.name+MarkPick, got, want)
+			if got, want := rules[r.name+palette.MarkPick], fmt.Sprintf(palette.PickMarkRule, r.name, n); got != want {
+				t.Errorf("%s: %s says %q, want %q", sc.name, r.name+palette.MarkPick, got, want)
 			}
 		}
 	}
@@ -1124,9 +1127,9 @@ func TestTheContainersToneNamesOneRungAndNoOther(t *testing.T) {
 			ramp := r.ramp(sc.c)
 			ground := sc.c.StatusContainer(r.id)
 			held, _, _ := vgcolor.LabFromNRGBA(ground)
-			tone, _, _ := vgcolor.LabFromNRGBA(ramp.Step(toneStep(ramp, ground)))
+			tone, _, _ := vgcolor.LabFromNRGBA(ramp.Step(palette.ToneStep(ramp, ground)))
 			worst = max(worst, math.Abs(held-tone))
-			for n := range RampSteps - 1 {
+			for n := range palette.RampSteps - 1 {
 				a, _, _ := vgcolor.LabFromNRGBA(ramp.Step((n + 1) * 100))
 				b, _, _ := vgcolor.LabFromNRGBA(ramp.Step((n + 2) * 100))
 				closest = min(closest, math.Abs(a-b))
@@ -1151,16 +1154,16 @@ func TestThePaletteSectionFollowsTheSchemeSwitch(t *testing.T) {
 	darkImg := pageOn(t, e, ReduceModel(m, SetScheme{Dark: true}), tokens.DefaultLight)
 	on := ReduceModel(m, SetScheme{Dark: true})
 	c, _ := derived(on, tokens.DefaultLight)
-	for i, row := range rampRows(c) {
-		at := rampCellColour(on, tokens.DefaultLight, i, RampSteps-1)
-		want := row.ramp.Step(RampSteps * 100)
+	for i, row := range palette.RampRows(c) {
+		at := rampCellColour(on, tokens.DefaultLight, i, palette.RampSteps-1)
+		want := row.Ramp.Step(palette.RampSteps * 100)
 		got := darkImg.RGBAAt(at.X, at.Y)
 		if got.R != want.R || got.G != want.G || got.B != want.B {
-			t.Errorf("with the switch on dark, %s 900 drew %v, want the dark ramp's %v", row.name, got, want)
+			t.Errorf("with the switch on dark, %s 900 drew %v, want the dark ramp's %v", row.Name, got, want)
 		}
 	}
 	top := rampGridTop(on, tokens.DefaultLight)
-	if moved := bandChange(lightImg, darkImg, top, top+int(RampHeadH)+8*int(RampRowH)); moved < schemeBandFloor {
+	if moved := bandChange(lightImg, darkImg, top, top+int(palette.RampHeadH)+8*int(palette.RampRowH)); moved < schemeBandFloor {
 		t.Errorf("the switch moved %.2f%% of the grid, want the whole of it", moved)
 	}
 }
@@ -1169,15 +1172,15 @@ func TestThePaletteSectionFollowsTheSchemeSwitch(t *testing.T) {
 // columns as the window is wide enough for, and never one so narrow that a name
 // in it has to be cut.
 func TestThePicksSpreadOverAWideWindowAndStackOnANarrowOne(t *testing.T) {
-	gap, narrowest := int(PickColGap), boardNarrowest(t)
+	gap, narrowest := int(palette.PickColGap), boardNarrowest(t)
 	for _, tc := range []struct{ width, want int }{
-		{rampContentW(), PickMaxCols},
+		{rampContentW(), palette.PickMaxCols},
 		{2*narrowest + gap, 2},
 		{narrowest, 1},
 		{narrowest - 1, 1},
 		{0, 1},
 	} {
-		if got := pickColumns(tc.width, gap, narrowest); got != tc.want {
+		if got := palette.Columns(tc.width, gap, narrowest); got != tc.want {
 			t.Errorf("a board %d wide took %d columns, want %d", tc.width, got, tc.want)
 		}
 	}
@@ -1190,7 +1193,7 @@ func TestThePicksSpreadOverAWideWindowAndStackOnANarrowOne(t *testing.T) {
 func boardNarrowest(t *testing.T) int {
 	t.Helper()
 	light, dark := tokens.FromSeed(fixtureBlue)
-	return pickNarrowest(measuring(), pinned(), paletteGroups(light, dark, false))
+	return palette.Narrowest(measuring(), pinned().story(), palette.Groups(light, dark, false))
 }
 
 // TestTheBoardGivesUpAColumnRatherThanCutAName: at the widths the section is
@@ -1205,30 +1208,30 @@ func boardNarrowest(t *testing.T) int {
 // points, it asks the board what it needs and then asks the columns to hold it.
 func TestTheBoardGivesUpAColumnRatherThanCutAName(t *testing.T) {
 	gtx, ty := measuring(), pinned()
-	gap := int(PickColGap)
+	gap := int(palette.PickColGap)
 	// The widths the section is judged at, and the window's own on top of them:
 	// it is the one width a reader is guaranteed to meet, since it is what the
 	// window opens on.
 	widths := append([]int{windowW - 2*int(Pad)}, sectionWidths...)
 	for _, sc := range schemesUnderTest(t) {
-		groups := paletteGroups(sc.c, sc.other, sc.dark)
-		narrowest := pickNarrowest(gtx, ty, groups)
+		groups := palette.Groups(sc.c, sc.other, sc.dark)
+		narrowest := palette.Narrowest(gtx, ty.story(), groups)
 		for _, section := range widths {
 			width := section - 2*sectionInset()
-			cols := pickColumns(width, gap, narrowest)
+			cols := palette.Columns(width, gap, narrowest)
 			colW := (width - (cols-1)*gap) / cols
 			if colW < narrowest {
 				t.Errorf("%s at %d: %d columns of %d, under the %d a column needs to hold its names",
 					sc.name, section, cols, colW, narrowest)
 			}
-			room := colW - int(PickSwatchW) - int(PickGap)
+			room := colW - int(palette.PickSwatchW) - int(palette.PickGap)
 			for _, g := range groups {
-				if got := fitLine(gtx, ty.Shaper, ty.Head, g.name, colW); got != g.name {
-					t.Errorf("%s at %d: the family heading reads %q, want %q whole", sc.name, section, got, g.name)
+				if got := palette.FitLine(gtx, ty.Shaper, ty.Head, g.Name, colW); got != g.Name {
+					t.Errorf("%s at %d: the family heading reads %q, want %q whole", sc.name, section, got, g.Name)
 				}
-				for _, cell := range g.cells {
-					if got := fitLine(gtx, ty.Shaper, ty.Body, cell.title(), room); got != cell.title() {
-						t.Errorf("%s at %d: a cell is titled %q, want %q whole", sc.name, section, got, cell.title())
+				for _, cell := range g.Cells {
+					if got := palette.FitLine(gtx, ty.Shaper, ty.Body, cell.Title(), room); got != cell.Title() {
+						t.Errorf("%s at %d: a cell is titled %q, want %q whole", sc.name, section, got, cell.Title())
 					}
 				}
 			}
@@ -1237,20 +1240,20 @@ func TestTheBoardGivesUpAColumnRatherThanCutAName(t *testing.T) {
 	// And the window's own width takes the third column: a board that gave one
 	// up everywhere would be a board that never spread.
 	light, dark := tokens.FromSeed(fixtureBlue)
-	groups := paletteGroups(light, dark, false)
-	if got := pickColumns(rampContentW(), gap, pickNarrowest(gtx, ty, groups)); got != PickMaxCols {
-		t.Errorf("the window's own width deals %d columns, want the board spread over %d", got, PickMaxCols)
+	groups := palette.Groups(light, dark, false)
+	if got := palette.Columns(rampContentW(), gap, palette.Narrowest(gtx, ty.story(), groups)); got != palette.PickMaxCols {
+		t.Errorf("the window's own width deals %d columns, want the board spread over %d", got, palette.PickMaxCols)
 	}
 	t.Logf("a column needs %d points; at the section widths %v the board takes %v columns",
-		pickNarrowest(gtx, ty, groups), sectionWidths, columnsAt(gtx, ty, groups))
+		palette.Narrowest(gtx, ty.story(), groups), sectionWidths, columnsAt(gtx, ty, groups))
 }
 
 // columnsAt is how many columns the board takes at each width it is judged at,
 // for the log line that records what this task changed.
-func columnsAt(gtx layout.Context, ty Type, groups []pickGroup) []int {
+func columnsAt(gtx layout.Context, ty Type, groups []palette.Group) []int {
 	out := make([]int, 0, len(sectionWidths))
 	for _, section := range sectionWidths {
-		out = append(out, pickColumns(section-2*sectionInset(), int(PickColGap), pickNarrowest(gtx, ty, groups)))
+		out = append(out, palette.Columns(section-2*sectionInset(), int(palette.PickColGap), palette.Narrowest(gtx, ty.story(), groups)))
 	}
 	return out
 }
@@ -1267,19 +1270,19 @@ func columnsAt(gtx layout.Context, ty Type, groups []pickGroup) []int {
 func TestALineTooWideForItsColumnIsCutAtItsOwnBoundaries(t *testing.T) {
 	gtx, ty := measuring(), pinned()
 	light, dark := tokens.FromSeed(fixtureBlue)
-	groups := paletteGroups(light, dark, false)
+	groups := palette.Groups(light, dark, false)
 	kept := map[string]bool{}
 	for _, g := range groups {
-		for _, cell := range g.cells {
+		for _, cell := range g.Cells {
 			for _, line := range []struct {
 				style textdraw.TextStyle
 				text  string
-			}{{ty.Body, cell.title()}, {ty.Small, cell.base.rule}, {ty.Small, cell.ink.rule}} {
+			}{{ty.Body, cell.Title()}, {ty.Small, cell.Base.Rule}, {ty.Small, cell.Ink.Rule}} {
 				if line.text == "" {
 					continue
 				}
 				for room := natural(gtx, ty.Shaper, line.style, line.text); room > 0; room -= 7 {
-					got := fitLine(gtx, ty.Shaper, line.style, line.text, room)
+					got := palette.FitLine(gtx, ty.Shaper, line.style, line.text, room)
 					head := strings.TrimSuffix(got, Ellipsis)
 					if head == line.text {
 						continue
@@ -1319,7 +1322,7 @@ func TestALineTooWideForItsColumnIsCutAtItsOwnBoundaries(t *testing.T) {
 		t.Fatalf("the longest rule on the board is %q, which has no clause to cut at", rule)
 	}
 	room := natural(gtx, ty.Shaper, ty.Small, rule) - 1
-	if got := fitLine(gtx, ty.Shaper, ty.Small, rule, room); got != head {
+	if got := palette.FitLine(gtx, ty.Shaper, ty.Small, rule, room); got != head {
 		t.Errorf("a hair too narrow for %q the board shows %q, want its first clause %q", rule, got, head)
 	}
 	t.Logf("%q cut to its room reads %q", rule, head)
@@ -1348,13 +1351,13 @@ func wholeWords(line, head string) bool {
 // neighbours — which is the one thing a board of labelled families must not do.
 func TestTheFamiliesAreDealtWholeInOrderAndEvenly(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureBlue)
-	groups := paletteGroups(light, dark, false)
+	groups := palette.Groups(light, dark, false)
 	total := 0
 	for _, g := range groups {
-		total += pickLoad(g)
+		total += palette.Load(g)
 	}
-	for n := 1; n <= PickMaxCols; n++ {
-		cols := packPicks(groups, n)
+	for n := 1; n <= palette.PickMaxCols; n++ {
+		cols := palette.Pack(groups, n)
 		if len(cols) != n {
 			t.Fatalf("%d columns asked for, %d dealt", n, len(cols))
 		}
@@ -1362,8 +1365,8 @@ func TestTheFamiliesAreDealtWholeInOrderAndEvenly(t *testing.T) {
 		for _, col := range cols {
 			load := 0
 			for _, g := range col {
-				read = append(read, g.name)
-				load += pickLoad(g)
+				read = append(read, g.Name)
+				load += palette.Load(g)
 			}
 			tallest = max(tallest, load)
 		}
@@ -1371,7 +1374,7 @@ func TestTheFamiliesAreDealtWholeInOrderAndEvenly(t *testing.T) {
 			t.Errorf("%d columns hold %d families, want all %d", n, len(read), len(groups))
 		}
 		for i, g := range groups {
-			if i < len(read) && read[i] != g.name {
+			if i < len(read) && read[i] != g.Name {
 				t.Errorf("%d columns: read in order the board says %v, want the families in their own order", n, read)
 				break
 			}
@@ -1384,11 +1387,11 @@ func TestTheFamiliesAreDealtWholeInOrderAndEvenly(t *testing.T) {
 
 // best is the shortest tallest column any in-order deal of these families into
 // n columns achieves, found by trying every run of boundaries.
-func best(groups []pickGroup, n int) int {
+func best(groups []palette.Group, n int) int {
 	if n <= 1 || len(groups) == 0 {
 		total := 0
 		for _, g := range groups {
-			total += pickLoad(g)
+			total += palette.Load(g)
 		}
 		return total
 	}
@@ -1398,7 +1401,7 @@ func best(groups []pickGroup, n int) int {
 		if left == 1 {
 			load := 0
 			for _, g := range groups[from:] {
-				load += pickLoad(g)
+				load += palette.Load(g)
 			}
 			if got := max(tallest, load); shortest < 0 || got < shortest {
 				shortest = got
@@ -1409,7 +1412,7 @@ func best(groups []pickGroup, n int) int {
 		for cut := from; cut <= len(groups); cut++ {
 			walk(cut, left-1, max(tallest, load))
 			if cut < len(groups) {
-				load += pickLoad(groups[cut])
+				load += palette.Load(groups[cut])
 			}
 		}
 	}
@@ -1424,38 +1427,38 @@ func best(groups []pickGroup, n int) int {
 // find again after every resize.
 func TestTheInverseFamilyKeepsItsNeighbourAtEveryWidth(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureBlue)
-	groups := paletteGroups(light, dark, false)
-	for n := 1; n <= PickMaxCols; n++ {
-		for _, col := range packPicks(groups, n) {
+	groups := palette.Groups(light, dark, false)
+	for n := 1; n <= palette.PickMaxCols; n++ {
+		for _, col := range palette.Pack(groups, n) {
 			for i, g := range col {
-				if g.name != PickInverseGroup {
+				if g.Name != palette.PickInverseGroup {
 					continue
 				}
-				if i == 0 || col[i-1].name != PickPageGroup {
+				if i == 0 || col[i-1].Name != palette.PickPageGroup {
 					t.Errorf("%d columns: %s stands under %v, want it under %s",
-						n, PickInverseGroup, names(col), PickPageGroup)
+						n, palette.PickInverseGroup, names(col), palette.PickPageGroup)
 				}
 			}
 		}
 	}
 }
 
-func names(col []pickGroup) []string {
+func names(col []palette.Group) []string {
 	out := make([]string, len(col))
 	for i, g := range col {
-		out[i] = g.name
+		out[i] = g.Name
 	}
 	return out
 }
 
 // rulesOf is every cell's rules by the name they stand under.
-func rulesOf(groups []pickGroup) map[string]string {
+func rulesOf(groups []palette.Group) map[string]string {
 	out := map[string]string{}
 	for _, g := range groups {
-		for _, cell := range g.cells {
-			out[cell.base.name] = cell.base.rule
-			if cell.paired() {
-				out[cell.ink.name] = cell.ink.rule
+		for _, cell := range g.Cells {
+			out[cell.Base.Name] = cell.Base.Rule
+			if cell.Paired() {
+				out[cell.Ink.Name] = cell.Ink.Rule
 			}
 		}
 	}
@@ -1565,7 +1568,7 @@ func TestPaletteSectionDump(t *testing.T) {
 // and sectionInset the margin the section's body and its heading bar both keep
 // from either edge.
 func sectionRowY(i int) int {
-	return int(PaletteHeadH) + int(inventory.SectionPadY) + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
+	return int(palette.SectionHeadH) + int(inventory.SectionPadY) + int(palette.RampHeadH) + i*int(palette.RampRowH) + int(palette.RampRowH)/2
 }
 
 func sectionInset() int { return int(inventory.SectionPadX) }
@@ -1618,9 +1621,9 @@ func TestTheGridEndsWhereTheHeadingBarDoes(t *testing.T) {
 			for x := left; x >= 0 && pixelAt(img, x, y) == ground; x-- {
 				gap++
 			}
-			if gap < int(RampPinGap)-strokeBleed {
+			if gap < int(palette.RampPinGap)-strokeBleed {
 				t.Errorf("%s at %d: %d points of air between step 900 and the pinned base, want at least %d — nine steps and a pin read as ten steps",
-					sc.name, width, gap, int(RampPinGap)-strokeBleed)
+					sc.name, width, gap, int(palette.RampPinGap)-strokeBleed)
 			}
 			t.Logf("%s at %d: row ends at x=%d (edge %d), chip %d wide, gap %d",
 				sc.name, width, right, edge-1, right-left, gap)
@@ -1650,14 +1653,14 @@ func pixelAt(img *image.RGBA, x, y int) stdcolor.NRGBA {
 // made of and the only places it can be cut without saying something else.
 func TestACaptionTooWideForItsBarLosesWholeClauses(t *testing.T) {
 	gtx, ty := measuring(), pinned()
-	for _, hint := range []string{RampsHint, PicksHint} {
+	for _, hint := range []string{palette.RampsHint, palette.PicksHint} {
 		full := natural(gtx, ty.Shaper, ty.Small, hint)
 		for room := 0; room <= full+40; room++ {
 			fit := fitHint(gtx, ty, hint, room)
 			if fit == "" {
 				continue
 			}
-			if fit != hint && !strings.HasPrefix(hint, fit+HintSep) {
+			if fit != hint && !strings.HasPrefix(hint, fit+palette.HintSep) {
 				t.Fatalf("at %d points of room the caption was cut to %q, which is not a run of its clauses", room, fit)
 			}
 			if w := natural(gtx, ty.Shaper, ty.Small, fit); w > room {
@@ -1677,16 +1680,16 @@ func TestACaptionTooWideForItsBarLosesWholeClauses(t *testing.T) {
 // and this is what says so — a caption joined by anything else would not split
 // and would vanish whole at the first width it did not fit.
 func TestTheCaptionsClausesAreTheOnesItIsWrittenIn(t *testing.T) {
-	clauses := strings.Split(RampsHint, HintSep)
+	clauses := strings.Split(palette.RampsHint, palette.HintSep)
 	if len(clauses) < 2 {
-		t.Fatalf("the ramps caption %q does not split on %q", RampsHint, HintSep)
+		t.Fatalf("the ramps caption %q does not split on %q", palette.RampsHint, palette.HintSep)
 	}
 	for _, clause := range clauses {
 		if strings.TrimSpace(clause) != clause || clause == "" {
 			t.Errorf("clause %q is not a clause of its own", clause)
 		}
 	}
-	if got := strings.Join(clauses, HintSep); got != RampsHint {
+	if got := strings.Join(clauses, palette.HintSep); got != palette.RampsHint {
 		t.Errorf("the clauses rejoin to %q, want the caption itself", got)
 	}
 }
@@ -1714,13 +1717,13 @@ func TestTheSectionCaptionReadsInItsNeighboursRegister(t *testing.T) {
 		img := paletteSectionW(t, width, sc.c, sc.other, sc.dark)
 		p := PaletteFrom(sc.c)
 		gtx, ty := measuring(), pinned()
-		bar := image.Rect(0, 2, width, int(PaletteHeadH)-4)
+		bar := image.Rect(0, 2, width, int(palette.SectionHeadH)-4)
 		titleBand := bar
 		titleBand.Min.X = sectionInset()
-		titleBand.Max.X = sectionInset() + natural(gtx, ty.Shaper, ty.Label, RampsLabel)
+		titleBand.Max.X = sectionInset() + natural(gtx, ty.Shaper, ty.Label, palette.RampsLabel)
 		captionBand := bar
 		captionBand.Max.X = width - sectionInset()
-		captionBand.Min.X = captionBand.Max.X - natural(gtx, ty.Shaper, ty.Small, RampsHint)
+		captionBand.Min.X = captionBand.Max.X - natural(gtx, ty.Shaper, ty.Small, palette.RampsHint)
 
 		titleGround, titleInk := inkOn(img, titleBand)
 		captionGround, captionInk := inkOn(img, captionBand)
