@@ -43,16 +43,6 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// SeedLiftedNameDark names the realized colour in the scheme that does not
-// draw it. The story's own wording is [palette.SeedLiftedNameDark], recast
-// there as one noun phrase; this window holds the earlier relative clause
-// because its captures photograph this line, and swapping one wording for
-// the other is a change to what is on screen rather than to where the code
-// lives. It is one clause either way, which is the guard that matters: a
-// name is cut by the same [palette.FitLine] a rule is, and neither wording
-// gives that cut a seam to take.
-const SeedLiftedNameDark = "Lifted seed the light scheme pins"
-
 // What the row says where it cannot prove a seed. Every one of these is one
 // clause — no comma, no " ·", no " /" — so [palette.FitLine] has no
 // unmarked cut to make on any of them, and every cut a reader is shown ends
@@ -90,7 +80,7 @@ func seedRows(p Palette, c tokens.ColorTokens, ty Type, seed stdcolor.NRGBA) []l
 func seedCells(c tokens.ColorTokens, seed stdcolor.NRGBA) []palette.SeedCell {
 	dark := isDark(c)
 	if grown, ok := grownFrom(c, seed); ok {
-		return palette.SeedCells(seed, grown, dark, SeedLiftedNameDark)
+		return palette.SeedCells(seed, grown, dark)
 	}
 	if dark {
 		return []palette.SeedCell{{Col: c.Primary, Name: SeedPinName, Rule: SeedNotHeld}}

@@ -184,7 +184,7 @@ func TestSeedRowNamesWhatItShows(t *testing.T) {
 		}},
 		{"dark, a pick the dial moved", tokens.DefaultDark, moved, []palette.SeedCell{
 			{Col: moved, Name: palette.SeedName, Rule: palette.SeedPickRule, HandedIn: true},
-			{Col: grown, Name: SeedLiftedNameDark, Rule: palette.SeedLiftedRuleDark},
+			{Col: grown, Name: palette.SeedLiftedNameDark, Rule: palette.SeedLiftedRuleDark},
 		}},
 		{"high contrast", hcLight, moved, []palette.SeedCell{
 			{Col: moved, Name: palette.SeedName, Rule: palette.SeedPickRule, HandedIn: true},
@@ -270,7 +270,7 @@ var (
 		palette.SeedPickRule, palette.SeedLiftedRule, palette.SeedLiftedRuleDark,
 		palette.SeedKeptRule, palette.SeedKeptRuleDark, SeedFromBase, SeedNotHeld,
 	}
-	seedNames = []string{palette.SeedName, palette.SeedLiftedName, SeedLiftedNameDark, SeedPinName}
+	seedNames = []string{palette.SeedName, palette.SeedLiftedName, palette.SeedLiftedNameDark, SeedPinName}
 )
 
 // TestSeedTextTakesNoUnmarkedCut is the guard the first fix did not put
@@ -462,7 +462,7 @@ func TestSeedDarkDisclosureOutlivesItsRule(t *testing.T) {
 		return 1
 	}
 	rule := narrowest(ty.Small, palette.SeedLiftedRuleDark, "re-toned")
-	name := narrowest(ty.Body, SeedLiftedNameDark, "light scheme")
+	name := narrowest(ty.Body, palette.SeedLiftedNameDark, "light scheme")
 	if name >= rule {
 		t.Errorf("the name holds the scheme down to %ddp and the rule down to %ddp; "+
 			"the disclosure is meant to outlive the line that makes the claim", name, rule)

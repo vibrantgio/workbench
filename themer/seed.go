@@ -119,7 +119,7 @@ func seedCells(c tokens.ColorTokens, seed stdcolor.NRGBA, picked bool) []palette
 	if !ok {
 		return []palette.SeedCell{{Col: seed, Name: palette.SeedName, Rule: SeedUnprovenRule}}
 	}
-	return palette.SeedCells(seed, grown, isDark(c), palette.SeedLiftedNameDark)
+	return palette.SeedCells(seed, grown, isDark(c))
 }
 
 // grownFrom is the colour a palette grew from when the palette is this seed's,
