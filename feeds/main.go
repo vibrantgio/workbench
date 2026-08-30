@@ -33,16 +33,15 @@ func run() {
 	)...)
 	// The treatment hides the three standard window buttons and Gio re-hides
 	// them on every rebuild of the window's configuration, so this registers a
-	// re-assertion rather than a one-off unhide — and the placement rides on
-	// the same seam, which is why stating it once here holds for the window's
-	// life.
+	// re-assertion rather than a one-off unhide; the placement rides on the
+	// same seam, so stating it once here holds for the window's life.
 	//
-	// The placement is stated rather than defaulted because the default is
-	// wrong for this window: left alone the buttons land at the inset the
-	// platform's compact windows use, which would put them high in a band deep
-	// enough to centre them. The band this window gives them is the strip the
-	// sidebar and the navbar hold open across its top, and windowButtonRun is
-	// that strip's height read through the platform's own centring rule.
+	// The placement is stated rather than defaulted: left alone the buttons
+	// land at the inset the platform's compact windows use, which would put
+	// them high in a band deep enough to centre them. The band this window
+	// gives them is the strip the sidebar and the navbar hold open across its
+	// top, and windowButtonRun is that strip's height read through the
+	// platform's own centring rule.
 	desktop.ShowWindowButtons(mvuWin)
 	desktop.PlaceWindowButtonsAt(windowButtonRun.Leading, windowButtonRun.Center)
 
@@ -51,16 +50,16 @@ func run() {
 	// Build the model observable with mvu.Loop over mvu messages. The
 	// window's collector registers on each FrameEvent so MessageOp.Add(gtx.Ops)
 	// calls made during layout are collected and delivered here on the same
-	// frame; Loop also runs the commands Update returns (this app returns
-	// DoNothing everywhere) and emits the seed model first.
+	// frame; Loop also runs the commands Update returns and emits the seed
+	// model first.
 	//
 	// mvuWin.Messages() drains a channel via rx.Recv, so each emitted message
 	// reaches exactly one subscriber. feedsShellLayer derives several cold
 	// streams from modelObs; without multicast each cold subscription would
 	// re-drain the channel and split the messages between them.
 	// Publish().AutoConnect(N) shares one upstream subscription across exactly
-	// those N consumers. See the consumer count documented on feedsShellLayer
-	// — the N here is load-bearing and must match it.
+	// those N consumers. The N here is load-bearing and must match the consumer
+	// count documented on modelObsConsumers.
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
 	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()

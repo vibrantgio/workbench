@@ -1,17 +1,15 @@
 // detail.go renders the selected article in the right-hand pane of the
-// articles/detail SplitPane (see feedsShellLayer for the layout choice and
-// FEEDBACK-G5.2.md for the rationale). The pane is a header (title + meta)
-// above a patterns/tabs strip with three tabs: Reader (paragraph-wrapped
-// body), Raw (the same body in the theme's Code style — the mono face), and
-// Comments (a static placeholder list).
+// articles/detail SplitPane. The pane is a header (title + meta) above a
+// patterns/tabs strip with three tabs: Reader (paragraph-wrapped body), Raw
+// (the same body in the theme's Code style — the mono face), and Comments (a
+// static placeholder list).
 //
 // The tabs instance is constructed ONCE; its Tab.Content closures are static
 // per patterns/tabs' contract, so they read the selected article and theme
-// tokens from atomic cells at frame time (the same layer-boundary adapter
-// pattern as mainCell in app.go). Selection (which article, which tab) is
-// model-derived: SelectArticle and SelectTab messages re-emit the layer via
-// the observables this pane folds together, which is what repaints the
-// window on the same frame as the click.
+// tokens from atomic cells at frame time. Selection (which article, which
+// tab) is model-derived: SelectArticle and SelectTab messages re-emit the
+// layer via the observables this pane folds together, which is what repaints
+// the window on the same frame as the click.
 package main
 
 import (
@@ -62,9 +60,8 @@ func detailPane(
 	selectedArticleObs rx.Observable[ArticleID],
 	selectedTabObs rx.Observable[int],
 ) rx.Observable[layout.Widget] {
-	// Token mirror for the static tab Content closures and the header,
-	// which run outside any rx.Defer scope (see articlesMain's mirror
-	// for the pattern rationale).
+	// Token mirror for the static tab Content closures and the header, which
+	// run outside any rx.Defer scope.
 	loadTokens := mirrorTokens(th)
 
 	// Selected-article cell. patterns/tabs captures Tab.Content widgets at
@@ -72,7 +69,7 @@ func detailPane(
 	// cannot receive the article in-band; they read this cell instead. The
 	// cell is stored synchronously in the combined map below, BEFORE the
 	// emitted widget can be laid out, so a frame never renders tabs for a
-	// stale article. (Friction logged in FEEDBACK-G5.2.md.)
+	// stale article.
 	var articleCell atomic.Value
 	articleCell.Store(detailArticle{})
 	loadArticle := func() detailArticle { return articleCell.Load().(detailArticle) }
@@ -105,13 +102,12 @@ func detailPane(
 // drawDetail lays the pane: placeholder when nothing is selected, otherwise
 // title + meta header above the tab strip, which flexes to the remaining
 // height. Primary text sits on the Neutral ramp's 900 step, the meta line
-// and the placeholder on the low-contrast 700 step (ADR-007).
+// and the placeholder on the low-contrast 700 step.
 //
-// The pane paints its OWN ground first. It is the reading surface — the
-// thing the window exists to show — so ADR-021 R1 puts it at level 0, the
-// Background pin. Painting nothing was not neutral: it let patterns/shell's
-// SplitPane backstop (Surface, level 1) show through, which is how the
-// article body came to be read on the same rung as the sidebar framing it.
+// The pane paints its OWN ground first. It is the reading surface, so it sits
+// at level 0, the Background pin. Painting nothing is not neutral: it lets
+// patterns/shell's SplitPane backstop (Surface, level 1) show through, which
+// would read the article body on the same rung as the sidebar framing it.
 func drawDetail(
 	gtx layout.Context,
 	tok themeTokens,
@@ -142,14 +138,9 @@ func drawDetail(
 	return layout.Dimensions{Size: size}
 }
 
-// The tab panel needs no ground of its own. AK6.3 painted level 0 back over
-// the panel rect from inside each tab's content closure, because
-// patterns/tabs then filled its whole rect — strip AND panel — with the
-// semantic Surface, and the panel is where the article is read. AK6.4 gave
-// the pattern the ground as a prop instead (tabs.Props.Ground, zero value
-// level 0), so the panel arrives on the window paper and the strip band one
-// rung over it without this app saying anything. The workaround was removed
-// with the frame unchanged to the pixel.
+// The tab panel needs no ground of its own: tabs.Props.Ground (zero value
+// level 0) puts the panel on the window paper and the strip band one rung
+// over it.
 
 // readerTab renders the article body paragraph-wrapped in the theme's
 // BodyMedium role. The closure is static (tabs captures it once) and reads
@@ -161,8 +152,8 @@ func readerTab(loadTokens func() themeTokens, loadArticle func() detailArticle) 
 }
 
 // rawTab renders the SAME body bytes as readerTab in the theme's Code style
-// — BodyMedium's metrics on the mono face (Roboto Mono, G-F0). Per the
-// G5.2c spec the two tabs differ only in font.
+// — BodyMedium's metrics on the mono face (Roboto Mono). The two tabs differ
+// only in font.
 func rawTab(loadTokens func() themeTokens, loadArticle func() detailArticle) layout.Widget {
 	return bodyTab(loadTokens, loadArticle, func(typ tokens.Typography) tokens.TextStyle {
 		return typ.Code
@@ -185,7 +176,7 @@ func bodyTab(loadTokens func() themeTokens, loadArticle func() detailArticle, pi
 }
 
 // commentsTab renders the static placeholder comment list. The rows are
-// fixture data shared across all articles (per the G5.2c spec).
+// fixture data shared across all articles.
 func commentsTab(loadTokens func() themeTokens) layout.Widget {
 	comments := hardCodedComments()
 	return func(gtx layout.Context) layout.Dimensions {
@@ -212,9 +203,8 @@ func commentsTab(loadTokens func() themeTokens) layout.Widget {
 }
 
 // drawWrappedText lays a multi-line label (MaxLines 0 = unlimited) in one
-// Typography role, wrapped at the current Max.X. The single-line drawLabel
-// in app.go truncates; body text needs wrapping, which is the Reader tab's
-// one formatting promise.
+// Typography role, wrapped at the current Max.X. The single-line drawLabel in
+// app.go truncates instead.
 func drawWrappedText(
 	gtx layout.Context,
 	shaper *text.Shaper,

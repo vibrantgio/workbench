@@ -10,9 +10,8 @@
 // of it.
 //
 // The platform-correct modifier is Gio's, not ours: key.ModShortcut is Cmd on
-// darwin and Ctrl everywhere else (gioui.org/io/key/mod_darwin.go and its
-// siblings). Testing runtime.GOOS here would be a second, worse copy of a
-// decision the toolkit already made.
+// darwin and Ctrl everywhere else. Testing runtime.GOOS here would be a
+// second copy of a decision the toolkit already made.
 package main
 
 import (
@@ -38,12 +37,11 @@ const prefsAccelerator = ","
 // The area exists only to receive KEY events, so it is wrapped in
 // pointer.PassOp: gio input areas occlude POINTER events by default, and a
 // window-sized area laid over the content would swallow every click in the
-// app (this is the startup lock-up llms.txt records against mindchat).
+// app.
 //
 // A focused widget that claims the same chord first — a text editor's own
-// Cmd-Z, say — receives it and this area does not. That is correct layering
-// rather than a conflict: the accelerator is the app's fallback, not an
-// override.
+// Cmd-Z, say — receives it and this area does not: the accelerator is the
+// app's fallback, not an override.
 func shortcutArea(name key.Name, cb func(gtx layout.Context)) layout.Widget {
 	tag := new(int)
 	return func(gtx layout.Context) layout.Dimensions {

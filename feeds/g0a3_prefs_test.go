@@ -1,15 +1,14 @@
-// g0a3_prefs_test.go covers the two halves of the settings pattern feeds is
-// the reference implementation of: the ACCELERATOR the app chrome binds
-// (⌘,/Ctrl-,, via key.ModShortcut) and the PANEL it opens — a patterns/modal
-// with a nil Props.Decision, so its close X, Escape and backdrop dismissal all
-// come from the intent rather than from flags.
+// g0a3_prefs_test.go covers the two halves of the settings pattern: the
+// ACCELERATOR the app chrome binds (⌘,/Ctrl-,, via key.ModShortcut) and the
+// PANEL it opens — a patterns/modal with a nil Props.Decision, so its close X,
+// Escape and backdrop dismissal all come from the intent rather than from
+// flags.
 //
 // The reducer half is asserted directly; the accelerator is driven through a
 // real gioui input.Router so the modifier requirement is proven rather than
-// read; the panel is pinned as a golden and driven live over the articles
-// table it edits, and driven again through the real composed shell in
-// TestPreferencesPanelInShellLive — the test that was impossible until G0B.1
-// lifted the eight-subscriber ceiling on cadence/toast's Subject.
+// read; the panel is pinned as a golden, driven live over the articles table
+// it edits, and driven again through the real composed shell in
+// TestPreferencesPanelInShellLive.
 package main
 
 import (
@@ -192,9 +191,9 @@ func TestUnreadOnlyArticlesFilters(t *testing.T) {
 // --- the panel (dismissal, and the emphasis axis at work) -----------------
 
 // staticPreferencesBody assembles the panel body from the STATIC Render paths
-// of the same components/button calls preferencesPanel composes, at the default
-// preferences: 10 rows per page (tonal) with 5 and 25 quiet beside it, and
-// unread-only off (ghost). Sharp radii keep the golden deterministic.
+// of the same components/button calls preferencesPanel composes, at the
+// default preferences: 10 rows per page (tonal) with 5 and 25 quiet beside it,
+// and unread-only off (ghost). Sharp radii keep the golden deterministic.
 func staticPreferencesBody(shaper *text.Shaper, colors tokens.ColorTokens) layout.Widget {
 	render := func(label string, emph button.Emphasis) layout.Widget {
 		return button.Render(shaper, label, colors, tokens.Spacing, modalSharpRadius,
@@ -220,8 +219,7 @@ func staticPreferencesBody(shaper *text.Shaper, colors tokens.ColorTokens) layou
 
 // TestPreferencesPanelGolden records the panel intent: a ghost close X in the
 // header (no footer, because there is nothing to confirm) over preference
-// controls in the tonal and ghost registers. Its counterpart is
-// TestAddFeedModalGolden next door.
+// controls in the tonal and ghost registers.
 func TestPreferencesPanelGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	cases := []struct {
@@ -278,19 +276,8 @@ var prefsScrimRegion = image.Rect(prefsCanvasW/2-260, prefsCanvasH/2-120, prefsC
 //
 // It composes preferencesPanel over articlesMain rather than subscribing
 // feedsShellLayer, which keeps the canvas tight enough for the two regions
-// above to mean what they say. When it was written that was not a choice:
-// cadence/toast's Notify Subject was process-global, prism/coordination.Subject
-// then capped it at eight concurrent subscribers, every feedsShellLayer
-// subscription took one via toast.Stack — and rx never returned a slot on
-// Unsubscribe, so the eight were spent for the life of the binary. This
-// package stood at exactly eight, and a ninth shell subscription anywhere in
-// it made the LAST such test in the binary fail with "out of subject
-// subscriptions", which looks for all the world like a wrong AutoConnect
-// count. G0B.1 made Unsubscribe release the slot, so the shell-level half of
-// this pattern got its own test below, TestPreferencesPanelInShellLive — the
-// ninth. G0C.3 removed the ceiling's cause entirely: the toast queue is model
-// state now, toast.Stack subscribes no Subject at all, and a tenth shell
-// subscription costs nothing but time.
+// above to mean what they say. The shell-level half of the pattern is
+// TestPreferencesPanelInShellLive below.
 func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	th := rx.Of(theme.Default())
@@ -380,20 +367,13 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 // the 1200×800 canvas lies wholly inside the region the panel covers.
 var shellPrefsScrimRegion = image.Rect(shellCanvasW/2-260, shellCanvasH/2-120, shellCanvasW/2+260, shellCanvasH/2+120)
 
-// TestPreferencesPanelInShellLive is the ninth feedsShellLayer subscription in
-// this binary, and until G0B.1 it could not exist: the eight-subscriber
-// ceiling on cadence/toast's process-global Subject was already spent, so
-// adding this test broke a different, later test with an error that named
-// neither this test nor the Subject. It is kept as much for that as for what
-// it asserts — if the ceiling ever comes back, this is what says so, in the
-// package that paid for it the first time.
-//
-// What it asserts is the half TestPreferencesPanelOverArticlesLive cannot:
-// that the panel reaches the canvas through the REAL composed shell — navbar,
-// sidebar, split pane, toast stack and all — rather than through a two-widget
-// composition built for the test. Opening it must change the middle of the
-// shell; closing it must put the shell back exactly, because every widget
-// here is a pure function of model and theme.
+// TestPreferencesPanelInShellLive asserts the half
+// TestPreferencesPanelOverArticlesLive cannot: that the panel reaches the
+// canvas through the REAL composed shell — navbar, sidebar, split pane, toast
+// stack and all — rather than through a two-widget composition built for the
+// test. Opening it must change the middle of the shell; closing it must put
+// the shell back exactly, because every widget here is a pure function of
+// model and theme.
 func TestPreferencesPanelInShellLive(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)

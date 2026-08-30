@@ -68,17 +68,13 @@ func defaultFeedID() FeedID {
 
 // hardCodedArticles returns the static article fixture used while
 // persistence is not yet implemented. 14 articles per feed × 6 feeds = 84
-// rows total — comfortably above the G5.2b ≥80 threshold and enough to
-// produce 9 pages of 10 rows for the largest feed (which is more than
-// the table will paginate at a time).
+// rows total, enough to produce 9 pages of 10 rows for the largest feed.
 //
-// Published timestamps are spaced one day apart so sort-by-Published has
-// a strictly-ordered key. Each title carries its own hand-set Unread flag
-// (see the unread slice beside each titles slice) rather than a computed
-// pattern: within a feed the most recent articles are unread and the
-// older ones are read, with one or two exceptions per feed — an early
-// item already caught up on, an older one still sitting in the list —
-// the way an actual reading history looks rather than a rule.
+// Published timestamps are spaced one day apart so sort-by-Published has a
+// strictly-ordered key. Each title carries its own hand-set Unread flag rather
+// than a computed pattern: within a feed the most recent articles are unread
+// and the older ones read, with one or two exceptions per feed, so the fixture
+// looks like an actual reading history rather than a rule.
 func hardCodedArticles() []article {
 	type spec struct {
 		feed   FeedID
@@ -240,10 +236,9 @@ func articleByID(id ArticleID) (article, bool) {
 }
 
 // hardCodedBody returns the static article body shared by the detail pane's
-// Reader and Raw tabs. Both tabs render this same text, differing only in
-// font (proportional vs monospace). The paragraphs interpolate the
-// article's title and author so switching articles visibly changes the
-// pane.
+// Reader and Raw tabs. Both tabs render this same text, differing only in font
+// (proportional vs monospace). The paragraphs interpolate the article's title
+// and author so switching articles visibly changes the pane.
 func hardCodedBody(a article) string {
 	return "" +
 		a.Title + " — by " + a.Author + ".\n\n" +
@@ -270,8 +265,8 @@ type comment struct {
 }
 
 // hardCodedComments returns the static placeholder list the Comments tab
-// renders for every article. Per the G5.2c spec the tab is a placeholder —
-// no per-article comment data exists in the fixtures.
+// renders for every article. No per-article comment data exists in the
+// fixtures.
 func hardCodedComments() []comment {
 	return []comment{
 		{Author: "ada", Text: "Great write-up — the second paragraph nails it."},

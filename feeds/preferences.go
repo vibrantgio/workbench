@@ -1,6 +1,5 @@
-// preferences.go composes the Preferences PANEL — the reference
-// implementation of the dialog grammar's panel half, and the other end of the
-// accelerator shortcut.go binds.
+// preferences.go composes the Preferences PANEL — the panel half of the
+// dialog grammar, and the other end of the accelerator shortcut.go binds.
 //
 // It is a panel because of what its contents ARE, not because of a flag:
 // rows-per-page and unread-only apply the instant they change, the table
@@ -9,16 +8,11 @@
 // offered — and all three of them (the ghost X, Escape, a backdrop click) come
 // from patterns/modal for free, because Props.Decision is nil. That single
 // absence is the whole declaration: no HideClose, no dismiss-on-scrim boolean,
-// no Return binding. The affordances travel with the intent.
+// no Return binding.
 //
-// Contrast the Add-feed modal next door in app.go, which asks a question and
-// answers it with a submit.
-//
-// The body also puts components/button's emphasis axis to work as a state display:
+// The body puts components/button's emphasis axis to work as a state display:
 // the selected page size is TONAL and the rest are GHOST. Nothing here is
-// Filled, and that is the point — a panel of preferences has no one loud
-// action, no thing the screen is about. Filled would be a lie about what the
-// surface is for.
+// Filled — a panel of preferences has no one loud action.
 package main
 
 import (
@@ -42,8 +36,9 @@ import (
 )
 
 // Geometry of the panel body's two preference rows. The row height is the
-// 44 dp pointer floor components/button guarantees in every emphasis register, so
-// a ghost control's hit area never reaches into the row above or below it.
+// 44 dp pointer floor components/button guarantees in every emphasis register,
+// so a ghost control's hit area never reaches into the row above or below
+// it.
 const (
 	prefsRowHDp     = 44
 	prefsRowGapDp   = 12
@@ -71,9 +66,8 @@ func preferencesPanel(
 	sizeClicks := make([]widget.Clickable, len(rowsPerPageChoices))
 	var unreadClick widget.Clickable
 
-	// One SwitchMap over both preferences rebuilds the row of buttons with
-	// the emphasis the new state implies. This is the same rebuild-on-model
-	// -change shape articles.go uses for the pagination row.
+	// One SwitchMap over both preferences rebuilds the row of buttons with the
+	// emphasis the new state implies.
 	buttonsObs := rx.SwitchMap(
 		rx.CombineLatest2(rowsPerPageObs, unreadOnlyObs),
 		func(t rx.Tuple2[int, bool]) rx.Observable[[]layout.Widget] {
@@ -123,7 +117,7 @@ func preferencesPanel(
 	)
 
 	// Layer-boundary cell: modal.Props.Body is a static slot, the buttons are
-	// observables. Same hand-off as addFeedModal's cells.
+	// observables.
 	var buttonCell atomic.Value
 	body := func(gtx layout.Context) layout.Dimensions {
 		tok := loadTok()

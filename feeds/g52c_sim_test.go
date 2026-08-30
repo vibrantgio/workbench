@@ -1,9 +1,9 @@
-// g52c_sim_test.go verifies the G5.2c live behaviours headlessly, at the
-// pixel level, against the REAL composed shell — the same widget tree the
-// running app renders. The mvu message loop itself (click → MessageOp →
-// collector → Update) is exercised by mvu's own collector tests and was
-// proven live by GX.10; here the messages are applied to the model directly
-// and the assertions are on rendered output:
+// g52c_sim_test.go verifies the detail-pane and popover behaviours headlessly,
+// at the pixel level, against the REAL composed shell — the same widget tree
+// the running app renders. The mvu message loop itself (click → MessageOp →
+// collector → Update) is exercised by mvu's own collector tests; here the
+// messages are applied to the model directly and the assertions are on
+// rendered output:
 //
 //   - SelectArticle populates the detail (right) pane,
 //   - SelectTab swaps the pane's content (Reader / Raw / Comments),
@@ -94,7 +94,7 @@ func regionDiff(a, b *image.RGBA, r image.Rectangle) int {
 var rightPaneRegion = image.Rect(810, 80, shellCanvasW-10, shellCanvasH-20)
 
 // TestG52cDetailPopoverStatesHeadless renders the real shell at six model
-// states and asserts the pixel-level deltas the G5.2c Measurable describes.
+// states and asserts the pixel-level deltas between them.
 func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)

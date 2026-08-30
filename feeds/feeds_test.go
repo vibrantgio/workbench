@@ -24,10 +24,9 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// TestBuildLayersConstructsWithoutPanic mirrors the G5.1a smoke test
-// pattern: drives buildLayers with a seeded model and a single-shot theme
-// observable, collects one widget emission from each layer, and fails if any
-// subscription panics or completes with an error.
+// TestBuildLayersConstructsWithoutPanic drives buildLayers with a seeded model
+// and a single-shot theme observable, collects one widget emission from each
+// layer, and fails if any subscription panics or completes with an error.
 func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 	layers := buildLayers(rx.Of(initialModel()))(rx.Of(theme.Default()))
 	if len(layers) != 2 {
@@ -45,9 +44,8 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 	}
 }
 
-// TestInitialModelSeeds verifies the seed state the former rx.Subject
-// controllers guaranteed: the default feed selected, page 1, Published-desc
-// sort, and the first accordion section open.
+// TestInitialModelSeeds verifies the seed state: the default feed selected,
+// page 1, Published-desc sort, and the first accordion section open.
 func TestInitialModelSeeds(t *testing.T) {
 	m := initialModel()
 	if m.selectedFeed != defaultFeedID() {
@@ -183,7 +181,7 @@ func TestUpdateSetSplitRatio(t *testing.T) {
 	}
 }
 
-// ----- G5.2d CRUD reducer tests -----
+// ----- CRUD reducer tests -----
 
 // feedCount counts every feed entry across all groups in a model.
 func feedCount(m Model) int {
@@ -423,8 +421,8 @@ func TestFeedIDsDistinct(t *testing.T) {
 	}
 }
 
-// TestArticleFixtureSizeAndUniqueness enforces the G5.2b "≥80 article
-// rows" guarantee and confirms ArticleIDs are unique across the fixture.
+// TestArticleFixtureSizeAndUniqueness enforces the ≥80 article-row floor and
+// confirms ArticleIDs are unique across the fixture.
 func TestArticleFixtureSizeAndUniqueness(t *testing.T) {
 	arts := hardCodedArticles()
 	if len(arts) < 80 {
@@ -641,20 +639,17 @@ const (
 	shellCanvasH = 800
 )
 
-// TestFeedsShellLayerReEmitsOnModelChange is the GX.10 same-frame-repaint
-// regression test, the sister of GX.9's TestDocsShellLayerReEmitsOnModelChange.
-// The bug it guards against: the shell layer observable did not re-emit when
-// the model changed (selection, page, sort were shunted into atomic mirrors
-// disconnected from the layer chain), so a click never reached
-// theme/window's Invalidate() and the canvas only repainted on the next
-// unrelated input event (FEEDBACK-G5.1/G5.2).
+// TestFeedsShellLayerReEmitsOnModelChange guards the same-frame repaint: a
+// shell layer observable that does not re-emit when the model changes never
+// reaches theme/window's Invalidate(), so the canvas repaints only on the next
+// unrelated input event.
 //
 // Driving the same modelObs the app uses (via an rx.Subject[Model]) and
 // asserting feedsShellLayer's returned observable emits a fresh widget on each
-// SelectFeed / SetPage / SetSort / ToggleSection is the seam the bug lived on;
-// a reducer-only test passes without proving the layer re-emits. (Live
-// same-frame repaint is confirmed by running the app — the unit test proves
-// the necessary re-emission, not the OS frame timing.)
+// SelectFeed / SetPage / SetSort / ToggleSection is the seam that state held
+// outside the layer chain breaks; a reducer-only test passes without proving
+// the layer re-emits. The unit test proves the necessary re-emission, not the
+// OS frame timing.
 func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	shellLayer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
@@ -730,9 +725,9 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	}
 	drain()
 
-	// G5.2c messages: article selection populates the detail pane, tab
-	// switching swaps its content, ToggleShare opens the navbar popover —
-	// each must re-emit the layer just like the original four.
+	// Article selection populates the detail pane, tab switching swaps its
+	// content, ToggleShare opens the navbar popover — each must re-emit the
+	// layer just like the four above.
 	m, _ = Update(m, SelectArticle{Article: "bbc-03"})
 	send.Next(m)
 	if w := await("SelectArticle"); w != nil {
@@ -761,12 +756,11 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	}
 	drain()
 
-	// G0A.3: the Preferences panel is folded into this same composed layer,
-	// so the accelerator's message and the live preference it edits must
-	// re-emit it like every message above. This is the shell-level half of
-	// the panel's coverage — the pixel-level half is in g0a3_prefs_test.go,
-	// which deliberately composes the panel WITHOUT the shell (see the note
-	// there on cadence/toast's process-global Subject).
+	// The Preferences panel is folded into this same composed layer, so the
+	// accelerator's message and the live preference it edits must re-emit it
+	// like every message above. This is the shell-level half of the panel's
+	// coverage; the pixel-level half is in g0a3_prefs_test.go, which composes
+	// the panel without the shell.
 	m, _ = Update(m, OpenPreferences{})
 	send.Next(m)
 	if w := await("OpenPreferences"); w != nil {
@@ -802,8 +796,7 @@ func drawShellOnce(t *testing.T, size image.Point, w layout.Widget) {
 	w(gtx)
 }
 
-// ----- golden render of the articles table for one feed (G5.2b
-// Measurable: "golden of one feed's table state in light + dark") -----
+// ----- golden render of one feed's articles table, light + dark -----
 
 const (
 	canvasW = 900
@@ -838,11 +831,11 @@ func staticArticleColumns(shaper *text.Shaper, colors tokens.ColorTokens, body t
 }
 
 // TestArticlesTableGolden renders the first page of the hn feed with
-// Published-desc sort in both light and dark token sets. Sharp radii and
-// the static Render path keep the output deterministic — only colour
-// pairs distinguish the two goldens. The shaper is the theme's, pinned —
-// tokens.DefaultTypography.DeterministicShaper(), Roboto and nothing else —
-// not an app-built one (F1.2) and not the system-fallback default (F4.3).
+// Published-desc sort in both light and dark token sets. Sharp radii and the
+// static Render path keep the output deterministic — only colour pairs
+// distinguish the two goldens. The shaper is the theme's, pinned to
+// tokens.DefaultTypography.DeterministicShaper(): Roboto and nothing else,
+// never an app-built shaper and never the system-fallback default.
 func TestArticlesTableGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	all := hardCodedArticles()
@@ -906,15 +899,11 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 // picks a ready case uniformly at random. Taking errChan there discards a
 // value that arrived normally.
 //
-// That, not rx, is the "delivery dropout" G5.2d recorded and tried to ride out
-// with retries: a bare rx.Of mapped to a widget, with no theme, components or
+// Measured: a bare rx.Of mapped to a widget, with no theme, components or
 // patterns code in the chain at all, took errChan with the value already
-// buffered in 95 of 200 iterations — a coin flip, so three retries left a
-// ~1-in-8 failure that surfaced as "layer 0 produced no widget" whenever the
-// suite's scheduling let the chain finish first.
-//
-// The retry loop is kept, but only for the case it genuinely covers: a
-// subscription that delivers nothing at all inside the window.
+// buffered in 95 of 200 iterations. Retries cannot fix a coin flip; they cover
+// only the case below, a subscription that delivers nothing at all inside the
+// window.
 func collectOne(obs rx.Observable[layout.Widget]) (layout.Widget, error) {
 	const (
 		attempts = 3
@@ -973,11 +962,10 @@ func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 	}
 }
 
-// TestRowConfirmIsFrameStateAndArbitrates pins G0C.4's destination-2
-// conversion of the per-row delete confirm, which is the one claim the
-// goldens cannot make: the open flag is a plain bool the frame owns, and
-// patterns/popover reads it during layout rather than being told by an
-// emission.
+// TestRowConfirmIsFrameStateAndArbitrates pins the one claim the goldens
+// cannot make about the per-row delete confirm: the open flag is a plain bool
+// the frame owns, and patterns/popover reads it during layout rather than
+// being told by an emission.
 //
 // Both halves are asserted through the arbiter, because arbitration is the
 // only thing outside the row that can observe whether the popover saw the
@@ -985,8 +973,7 @@ func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 // hands it out — so:
 //
 //   - opening row A and laying it out ONCE takes top, with no emission in
-//     between. Under the rx.Subject this took a hop to the rx goroutine and
-//     back into an atomic cell before any frame could see it.
+//     between.
 //   - opening row B and laying both out dismisses A in that same frame, which
 //     closes A's own flag, because OnDismiss is the only writer that is not
 //     the row itself.

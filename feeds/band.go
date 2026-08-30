@@ -20,20 +20,18 @@ import (
 // windowBandDp is the depth of that strip, the same on both sides of the
 // sidebar's trailing edge.
 //
-// ADR-021 R6 lets the two halves of a strip that crosses a seam wear their
-// own fills — here they happen to wear the same one, since both regions are
-// furniture — but not their own depths. A strip 52 dp deep on one side of the
-// seam and 40 on the other is not a band with a seam through it; it is a step
-// in the window's top edge, which is the defect the same arrangement in
-// mindchat was built to avoid.
+// The two halves of a strip that crosses a seam may wear their own fills —
+// here they wear the same one, since both regions are furniture — but not
+// their own depths. A strip 52 dp deep on one side of the seam and 40 on the
+// other is a step in the window's top edge rather than a band with a seam
+// through it.
 //
 // The right half's depth is not this app's to choose. patterns/shell pins the
 // navbar slot to shell.NavbarHeight, so that number IS the band, and the
 // sidebar holds the same depth open on the other side of the seam by calling
 // the same export rather than restating its arithmetic.
 // TestTheWindowsTopStripIsOneBand measures both halves off a rendered frame
-// at both densities, so a drift between them is caught where it would show
-// rather than where it was written.
+// at both densities, so a drift between them is caught where it would show.
 func windowBandDp(d tokens.Density) unit.Dp {
 	return shell.NavbarHeight(d)
 }

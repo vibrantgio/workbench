@@ -1,11 +1,11 @@
-// g52d_sim_test.go verifies the G5.2d CRUD behaviours: a deterministic golden
-// of the Add-feed modal (light + dark, with the empty-URL alert banner), plus
+// g52d_sim_test.go verifies the CRUD behaviours: a deterministic golden of the
+// Add-feed modal (light + dark, with the empty-URL alert banner), plus
 // headless pixel checks against the REAL composed shell — the modal opens on
 // OpenAddFeed, the alert appears on an empty SubmitFeed, a submitted feed
 // appears in the sidebar, and ConfirmDelete removes a sidebar entry. The mvu
 // message loop (click → MessageOp → collector → Update) is proven elsewhere;
 // here the messages are applied to the model directly and the assertions are
-// on rendered output, mirroring g52c_sim_test.go.
+// on rendered output.
 package main
 
 import (
@@ -131,9 +131,9 @@ var sidebarRegion = image.Rect(0, 80, feedsSidebarWidthDp, shellCanvasH-20)
 var scrimRegion = image.Rect(shellCanvasW/2-200, shellCanvasH/2-150, shellCanvasW/2+200, shellCanvasH/2+150)
 
 // TestG52dCrudStatesHeadless renders the real shell at the CRUD model states
-// and asserts the pixel-level deltas the G5.2d Measurable describes:
-// OpenAddFeed paints the modal scrim; an empty SubmitFeed paints the alert;
-// a non-empty SubmitFeed adds a sidebar entry; ConfirmDelete removes one.
+// and asserts the pixel-level deltas: OpenAddFeed paints the modal scrim; an
+// empty SubmitFeed paints the alert; a non-empty SubmitFeed adds a sidebar
+// entry; ConfirmDelete removes one.
 func TestG52dCrudStatesHeadless(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
@@ -208,14 +208,13 @@ func TestG52dCrudStatesHeadless(t *testing.T) {
 	}
 }
 
-// TestHoverGutterDoesNotSwallowSelectPress is the regression guard for the
-// G5.2d sidebar layout: a gesture.Hover area spans the whole feed row (to
-// reveal the trash icon) and is registered UNDER a label-area widget.Clickable
-// (the SelectFeed target). gesture.Hover filters only Enter/Leave/Cancel, so a
-// press inside the label must still reach the clickable — click-to-select (a
-// G5.2a feature) must survive the hover gutter. This drives a real
-// input.Router exactly as drawFeedEntryRow composes the two, and asserts the
-// underlying clickable registered the click.
+// TestHoverGutterDoesNotSwallowSelectPress guards the sidebar row layout: a
+// gesture.Hover area spans the whole feed row (to reveal the trash icon) and
+// is registered UNDER a label-area widget.Clickable (the SelectFeed target).
+// gesture.Hover filters only Enter/Leave/Cancel, so a press inside the label
+// must still reach the clickable — click-to-select must survive the hover
+// gutter. This drives a real input.Router exactly as drawFeedEntryRow composes
+// the two, and asserts the underlying clickable registered the click.
 func TestHoverGutterDoesNotSwallowSelectPress(t *testing.T) {
 	var hover gesture.Hover
 	var click widget.Clickable
@@ -269,8 +268,8 @@ func TestHoverGutterDoesNotSwallowSelectPress(t *testing.T) {
 }
 
 // TestG52dShellReEmitsOnCrudMessages confirms the shell layer re-emits a fresh
-// widget for each G5.2d message — the same-frame-repaint guarantee that the
-// G5.2c regression test checks for the earlier message set.
+// widget for each CRUD message — the same same-frame-repaint guarantee the
+// earlier message set is checked against.
 func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
@@ -315,12 +314,9 @@ func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
 
 // TestToastRequestRendersInStack drives the toast the way every other feature
 // in this app is driven — through Update — and asserts the pixels at the end
-// of it. Before G0C.3 this test could not be written: toast.Notify published
-// to a process-global rx.Subject, so the toast existed on screen and nowhere
-// in the model, and driving Update never produced one. Now toast.Requested is
-// a message like any other, the queue is model state, and toast.Stack renders
-// what the model holds; toast.Expired takes it back off and the canvas
-// returns to empty.
+// of it. toast.Requested is a message like any other, the queue is model
+// state, and toast.Stack renders what the model holds; toast.Expired takes it
+// back off and the canvas returns to empty.
 func TestToastRequestRendersInStack(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 16)
 	stackObs := toast.Stack(rx.Of(theme.Default()), toast.Props{

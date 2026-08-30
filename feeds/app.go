@@ -43,13 +43,16 @@ import (
 // drains a channel and rx.Publish() multicasts WITHOUT replay, so
 // Publish().AutoConnect(modelObsConsumers) in run() connects the loop's
 // upstream scan — and lets the seed emitted by mvu.Loop flow — only once the
-// count-th subscription attaches. Too low and the consumers that attach after Connect miss the seed
-// (the launch table/pagination render blank until the first real message); too
-// high and Connect never fires (the app is frozen).
+// count-th subscription attaches. Too low and the consumers that attach after
+// Connect miss the seed (the launch table/pagination render blank until the
+// first real message); too high and Connect never fires (the app is frozen).
 //
 // The count is NOT the rx.Map(modelObs, …) variable count: each derived
 // stream is cold and fans out to multiple downstream subscribers, so the real
-// total is larger. The derivations and their fan-out:
+// total is larger. A stream read by both the pipeline that applies it and the
+// panel that displays it is subscribed on both sides, and `filtered` is itself
+// subscribed twice (by paged and by pageCountObs), so a stream feeding it
+// counts double. The derivations and their fan-out:
 //  1. openSectionsObs    → accordion Open                                 (1)
 //  2. selectedFeedObs    → filtered (paged + pageCountObs) + the sidebar  (3)
 //  3. currentPageObs     → paged + the pagination CombineLatest           (2)
@@ -58,44 +61,24 @@ import (
 //  6. selectedTabObs     → tabs Selected prop                             (1)
 //  7. shareOpenObs       → popover Open prop                              (1)
 //  8. splitRatioObs      → shell SplitPane SplitRatio prop                (1)
-//  9. feedsObs           → sidebar CombineLatest (G5.2d)                  (1)
+//  9. feedsObs           → sidebar CombineLatest                          (1)
 //
-// 10. addFeedOpenObs     → modal Open prop (G5.2d)                        (1)
-// 11. addFeedErrorObs    → modal errorCell mirror (G5.2d)                 (1)
-// 12. prefsOpenObs       → Preferences panel Open prop (G0A.3)            (1)
+// 10. addFeedOpenObs     → modal Open prop                                (1)
+// 11. addFeedErrorObs    → modal errorCell mirror                         (1)
+// 12. prefsOpenObs       → Preferences panel Open prop                    (1)
 // 13. rowsPerPageObs     → paged + pageCountObs + the panel's buttons     (3)
 // 14. unreadOnlyObs      → filtered×2 + the panel's buttons               (3)
-// 15. toastsObs          → toast.Stack Toasts prop (G0C.3)                (1)
+// 15. toastsObs          → toast.Stack Toasts prop                        (1)
 // 16. filterObs          → filtered, subscribed by paged + pageCountObs   (2)
 //
 // Total = 28, confirmed empirically by TestModelObsConsumerCountMatchesConst,
 // which fails if a future edit changes the topology without updating this.
-// G0A.3 added seven: a preference read by both the pipeline that applies it
-// and the panel that displays it is subscribed on both sides, and `filtered`
-// is itself subscribed twice (by paged and by pageCountObs), so a stream
-// feeding it counts double.
-//
-// The last two entries are ADR-008's, and both put an entry ON this ledger
-// rather than taking one off. G0C.3's toast queue moved OUT of a
-// process-global rx.Subject and INTO the model, so the stack reads the model
-// like every other component; G0C.4's filter text did the same for the same
-// reason, and cost two because it feeds `filtered`. Destination 2's
-// conversions moved this number in neither direction — neither the four
-// cadence buses nor this app's per-row delete-confirm flag ever touched
-// modelObs, which corrects ADR-008's original guess that the per-row flags
-// were what fed this census.
-//
-// AK6.3 added two, both for ADR-021 R5's chosen-item fill: the sidebar now
-// reads selectedFeedObs so the open feed can be tinted, and the articles
-// table reads selectedArticleObs so the open article's row can be. A
-// selection that nothing but the reducer knows about cannot be drawn, which
-// is why the mark costs a subscription apiece.
 const modelObsConsumers = 28
 
 // themeTokens is the colour/typography snapshot the app's own drawing code
-// reads at frame time. The shaper is the theme's cached Typography shaper
-// (F1.2): the app builds none of its own, so the typeface — Roboto, plus the
-// Roboto Mono face the Raw tab's Code style names — comes from the theme.
+// reads at frame time. The shaper is the theme's cached Typography shaper: the
+// app builds none of its own, so the typeface — Roboto, plus the Roboto Mono
+// face the Raw tab's Code style names — comes from the theme.
 type themeTokens struct {
 	col    tokens.ColorTokens
 	typ    tokens.Typography
@@ -137,11 +120,10 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 	}
 }
 
-// backdropLayer paints the window ground. ADR-021 R1: the resting ground of
-// a window is level 0, the Background pin — not Surface, which is the rung
-// its furniture stands on. The fill is the shared backdrop.Widget the other
-// windows in the workbench already call, rather than a hand-rolled
-// paint.FillShape: one mechanism, one token, nothing per-app to re-derive.
+// backdropLayer paints the window ground: level 0, the Background pin — not
+// Surface, which is the rung the window's furniture stands on. The fill is the
+// shared backdrop.Widget rather than a hand-rolled paint.FillShape, so the
+// token is derived in one place.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	return rx.Map(
 		rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
@@ -166,24 +148,22 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // its Sidebar or Navbar stream emits. So every live widget stream is folded
 // onto the sidebar-driving observable, and the latest widget of each is
 // published into an atomic cell — a layer-boundary adapter read by the
-// corresponding static slot at frame time — the same hand-off mvu/window.go
-// uses for its layer snapshot. Any model change therefore re-emits the
-// sidebar stream, which makes Shell re-emit and the window repaint on the
-// same frame. (The previous per-stream controller + mirrorWidget pattern
-// severed state from the layer chain — the FEEDBACK-G5.1/G5.2 "click does
-// nothing until the mouse moves" defect.)
+// corresponding static slot at frame time. Any model change therefore
+// re-emits the sidebar stream, which makes Shell re-emit and the window
+// repaint on the same frame; state held outside the layer chain would leave a
+// click unpainted until the next unrelated input event.
 func feedsShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
-	// This window's arbitration registers (ADR-008). They are plain values
-	// with no synchronisation, so the scope they are created at is the scope
-	// they are safe at: theme/window calls the build function once per
-	// window and this layer is composed exactly once inside it, which makes
-	// this function body the window. Every popover, tooltip and modal below
-	// is handed one of these — a second arbitrable LAYER would have to take
-	// them as parameters instead, because it would be composed beside this
-	// one rather than within it.
+	// This window's arbitration registers. They are plain values with no
+	// synchronisation, so the scope they are created at is the scope they are
+	// safe at: theme/window calls the build function once per window and this
+	// layer is composed exactly once inside it, which makes this function body
+	// the window. Every popover, tooltip and modal below is handed one of
+	// these — a second arbitrable LAYER would have to take them as parameters
+	// instead, because it would be composed beside this one rather than within
+	// it.
 	popArb := popover.NewArbiter()
 	tipArb := tooltip.NewArbiter()
 	modalArb := modal.NewArbiter()
@@ -215,9 +195,8 @@ func feedsShellLayer(
 	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})
 
 	// The settings accelerator — ⌘, on macOS, Ctrl-, elsewhere. It is app
-	// chrome, laid out under everything else (see shortcut.go): the modal
-	// owns dismissal, the app owns arrival, and the two halves never meet in
-	// one component.
+	// chrome, laid out under everything else: the modal owns dismissal, the
+	// app owns arrival, and the two halves never meet in one component.
 	prefsShortcut := shortcutArea(prefsAccelerator, func(gtx layout.Context) {
 		mvu.MessageOp{Message: OpenPreferences{}}.Add(gtx.Ops)
 	})
@@ -238,11 +217,8 @@ func feedsShellLayer(
 
 	// The articles/detail split. Divider drags land SetSplitRatio messages
 	// through OnSplitChange, and the committed position flows back in via
-	// SplitRatio — the divider survives theme re-emissions and is
-	// replayable like every other piece of model state. (A feeds-local
-	// split.go replaced this component while its dragState raced under
-	// model-driven emissions — see FEEDBACK-G5.2.md; cadence v0.1.1 moved
-	// all drag state onto the frame goroutine, so the workaround is gone.)
+	// SplitRatio — the divider survives theme re-emissions and is replayable
+	// like every other piece of model state.
 	splitObs := shell.Shell(th, shell.Props{
 		Layout:     shell.SplitPane,
 		Left:       slot(&articlesCell),
@@ -255,8 +231,8 @@ func feedsShellLayer(
 
 	// The density, for the window's title band alone: patterns/shell pins the
 	// navbar to the density's bar height, so that is the depth the band holds
-	// across the whole top edge (see windowBandDp). It is read off the theme
-	// rather than the model, so it costs nothing on the modelObs ledger above.
+	// across the whole top edge. It is read off the theme rather than the
+	// model, so it costs nothing on the modelObs ledger above.
 	densityObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Density] {
 		return t.Density
 	})
@@ -281,17 +257,16 @@ func feedsShellLayer(
 	})
 
 	// Overlay composition: the Add-feed modal, the Preferences panel and the
-	// toast stack draw OVER the whole window. Rather than adding a third
-	// buildLayers layer (which would change
-	// TestBuildLayersConstructsWithoutPanic's asserted count), they are folded
-	// onto the shell stream and drawn after the shell inside the returned
-	// widget, which then reports the shell's dims. Every model change still
-	// re-emits this stream — driving the same-frame repaint.
+	// toast stack draw OVER the whole window. They are folded onto the shell
+	// stream and drawn after the shell inside the returned widget, which then
+	// reports the shell's dims, rather than becoming a third buildLayers
+	// layer. Every model change still re-emits this stream — driving the
+	// same-frame repaint.
 	//
 	// The accelerator's key area goes FIRST, at the bottom of the hit stack:
-	// it must never sit over the content (llms.txt's occlusion pitfall), and
-	// an open modal's own scrim should shadow it the way it shadows the rest
-	// of the app.
+	// a key area occludes pointer events, so it must never sit over the
+	// content, and an open modal's own scrim should shadow it the way it
+	// shadows the rest of the app.
 	return rx.Map(
 		rx.CombineLatest5(shellObs, modalObs, prefsObs, toastObs, densityObs),
 		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, tokens.Density]) layout.Widget {
@@ -300,25 +275,19 @@ func feedsShellLayer(
 			bandHeight := func() unit.Dp { return band }
 			return func(gtx layout.Context) layout.Dimensions {
 				prefsShortcut(gtx)
-				// The window's own drag, handed back. The treatment took the
-				// native title bar and the drag went with it, so the strip
-				// across the top of the window says where the window may be
-				// picked up or it cannot be moved by its top edge at all.
+				// The window's own drag. The full-size-content treatment
+				// takes the native title bar and the drag with it, so the
+				// strip across the top of the window is the only place the
+				// window can be picked up by its top edge.
 				//
-				// desktop.DragTop is the claim: the band's full width, past
-				// the trailing edge of the platform's control buttons, whose
-				// run is theirs rather than the band's to give away. Its name
-				// is for the window whose page starts below the strip and this
-				// one's regions reach into it, but the rectangle is the same
-				// one either way, and reading the buttons' edge off the window
-				// each frame is what a hand-rolled copy of it would get wrong.
-				//
-				// One claim covers both halves of the band. The drag belongs
-				// to the window rather than to the sidebar or the navbar, and
-				// the seam between them is not somewhere a hand aiming at the
-				// top of a window would think to avoid. It is declared before
-				// the shell and therefore sits at the bottom of the hit stack:
-				// a move action swallows a press before any control beneath it
+				// desktop.DragTop claims the band's full width past the
+				// trailing edge of the platform's control buttons, whose run
+				// is theirs rather than the band's to give away; it reads that
+				// edge off the window each frame. One claim covers both halves
+				// of the band, because the drag belongs to the window rather
+				// than to the sidebar or the navbar. It is declared before the
+				// shell and therefore sits at the bottom of the hit stack: a
+				// move action swallows a press before any control beneath it
 				// sees one, so everything standing in the band — Add feed and
 				// Share on the trailing side above all — is registered
 				// afterwards and keeps its own presses.
@@ -346,7 +315,6 @@ func feedsShellLayer(
 // the Bottom-placed surface (centred under the anchor) stays on-screen when
 // the action row hugs the window's trailing edge. 160 dp leaves ~55 dp of
 // margin either side of the anchor — enough for the ~130 dp surface.
-// (Friction logged in FEEDBACK-G5.2.md.)
 const (
 	shareCanvasWDp = 160
 	shareCanvasHDp = 28
@@ -356,11 +324,10 @@ const (
 // feed action, and the Share popover slot. Brand and action labels are the
 // app's own text, so they read the theme snapshot from loadTok at frame
 // time: the brand in TitleMedium on the Text pin, the Add feed action in
-// LabelLarge on the Primary pin (the accent role the hardcoded link-blue
-// approximated). shareSlot reads the latest popover widget from its
-// layer-boundary cell; the wrapper pins the popover's canvas to an Exact
-// size so the anchor centres where the button should sit and the returned
-// dims do not blow up the navbar's Flex row (popover returns
+// LabelLarge on the Primary pin. shareSlot reads the latest popover widget
+// from its layer-boundary cell; the wrapper pins the popover's canvas to an
+// Exact size so the anchor centres where the button should sit and the
+// returned dims do not blow up the navbar's Flex row (popover returns
 // Dimensions{Size: canvas}).
 func feedsNavbarProps(loadTok func() themeTokens, shareSlot layout.Widget) navbar.Props {
 	brand := func(gtx layout.Context) layout.Dimensions {
@@ -404,12 +371,11 @@ const (
 // lands ToggleShare, each destination click and OnDismiss land CloseShare —
 // all mvu.MessageOps, so the popover opens/closes on the same frame.
 //
-// The destination list deliberately overrides its incoming constraints:
-// patterns/popover measures Content against canvas/2, and the canvas here is
-// the button-sized Exact wrapper from feedsNavbarProps — half a button could
-// not fit one label. The content sizes itself and returns its own dims,
-// which popover then pads into the surface rect. (Friction logged in
-// FEEDBACK-G5.2.md.)
+// The destination list overrides its incoming constraints: patterns/popover
+// measures Content against canvas/2, and the canvas here is the button-sized
+// Exact wrapper from feedsNavbarProps — half a button could not fit one
+// label. The content sizes itself and returns its own dims, which popover
+// then pads into the surface rect.
 func sharePopover(
 	th rx.Observable[theme.Theme],
 	shareOpenObs rx.Observable[bool],
@@ -484,7 +450,7 @@ const (
 // for the URL, and a components/button submit. addFeedOpenObs drives the modal's
 // Open; addFeedErrorObs drives whether the empty-URL alert shows.
 //
-// Component-prop shapes (logged in FEEDBACK-G5.2.md):
+// Component-prop shapes:
 //   - modal.Props.Body and card.Props.* are STATIC layout.Widget slots, but
 //     textfield/button/alert/card are rx.Observable[layout.Widget]. Each is
 //     bridged through an atomic layer-boundary cell read by the static slot at

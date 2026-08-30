@@ -1,9 +1,7 @@
 // model.go defines the canonical MVU model for the feeds app, plus the
-// message types and the Update function that reduces them. GX.10 migrates
-// feeds off the rx.Subject + atomic-mirror controller pattern onto the
-// Model/Update/Messages loop so every interactive callback (sidebar
-// selection, accordion toggle, table sort, pagination) lands a message that
-// re-emits the layer observable on the same frame as the click.
+// message types and the Update function that reduces them. Every interactive
+// callback (sidebar selection, accordion toggle, table sort, pagination) lands
+// a message that re-emits the layer observable on the same frame as the click.
 //
 // Messages:
 //   - SelectFeed{Feed FeedID}        — select a feed (filters the articles table, resets to page 1)
@@ -18,11 +16,10 @@
 //   - SetFilter{Text string}         — set the articles-table filter text (resets to page 1)
 //
 // Two of the messages are patterns', not this app's: toast.Requested and
-// toast.Expired. G0C.3 retired cadence/toast's process-global Notify Subject,
-// so a toast request is now an ordinary event that becomes an ordinary
+// toast.Expired. A toast request is an ordinary event that becomes an ordinary
 // message — landed by toast.Notify(gtx, …) from the same callbacks that
 // already land this app's own messages — and the toast queue is model state
-// like everything else here (ADR-008 destination 1).
+// like everything else here.
 //
 // Update is pure: it takes the current Model and a message and returns the
 // next Model. The Command is DoNothing() everywhere except toast.Requested,
@@ -57,17 +54,15 @@ type Model struct {
 
 	// The Preferences PANEL (⌘,/Ctrl-,) and the two reading preferences it
 	// edits. Both apply the moment they change — nothing here is a draft and
-	// there is nothing to confirm, which is exactly why the surface that
-	// edits them is a panel and not a decision dialog (see preferences.go).
+	// there is nothing to confirm, which is why the surface that edits them is
+	// a panel and not a decision dialog.
 	prefsOpen   bool // "Preferences" panel visibility
 	rowsPerPage int  // articles table page size
 	unreadOnly  bool // restrict the table to unread articles
 
 	// toasts is the transient-notification queue, oldest first. It is model
 	// state so a toast is reproducible from a message log and assertable
-	// through Update without a frame; before G0C.3 it lived in a
-	// process-global rx.Subject inside cadence/toast and no test that drove
-	// this app through messages could see it at all.
+	// through Update without a frame.
 	toasts toast.Queue
 }
 
@@ -97,8 +92,8 @@ func initialModel() Model {
 type SelectFeed struct{ Feed FeedID }
 
 // SelectArticle records the article whose row was clicked. The detail pane
-// (feeds/detail.go) renders the selected article's header, body tabs, and
-// comments placeholder.
+// renders the selected article's header, body tabs, and comments
+// placeholder.
 type SelectArticle struct{ Article ArticleID }
 
 // SetPage navigates the articles table to the given 1-indexed page.
@@ -108,14 +103,10 @@ type SetPage struct{ Page int }
 // narrowing the filter shrinks the result set, so the current page can fall
 // out of range. The textfield lands one of these per keystroke.
 //
-// Until G0C.4 the filter lived in an rx.Subject beside the model, on the
-// grounds that it was "local UI state that never needed to be model-derived".
-// ADR-008's test for that is not how the state feels, it is whether anything
-// outside the frame needs to know — and here two things do: the filter is
-// half of what the table shows, so a test that drives this app through
-// messages could not see, set or assert the visible article set without it,
-// and the page reset it forces is a model edit the Subject had to make by
-// landing a SECOND message. One message now does both.
+// The filter is model state rather than frame state because two things
+// outside the frame need it: it is half of what the table shows, so a test
+// driving this app through messages could not otherwise see or set the
+// visible article set, and the page reset it forces is a model edit.
 type SetFilter struct{ Text string }
 
 // SetSort sets the table sort key and direction.
@@ -170,8 +161,8 @@ type SubmitFeed struct{ URL string }
 type ConfirmDelete struct{ Feed FeedID }
 
 // OpenPreferences shows the Preferences panel. Landed by the ⌘,/Ctrl-,
-// accelerator the app chrome binds (shortcut.go) — arrival is the app's
-// business, not the modal's. Idempotent when already open.
+// accelerator the app chrome binds — arrival is the app's business, not the
+// modal's. Idempotent when already open.
 type OpenPreferences struct{}
 
 // ClosePreferences hides the Preferences panel. Landed by the panel's ghost
@@ -275,10 +266,10 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 }
 
 // appendFeed synthesises a feed entry from a submitted URL and appends it to
-// the first group (the group set is fixed; new feeds join an existing group
-// rather than spawning a section — see G5.2d). The label is the URL itself
-// and the FeedID is derived from it so the entry is addressable. groups is
-// copied before mutation so the previous Model's slice is never aliased.
+// the first group; the group set is fixed, so new feeds join an existing group
+// rather than spawning a section. The label is the URL itself and the FeedID
+// is derived from it so the entry is addressable. groups is copied before
+// mutation so the previous Model's slice is never aliased.
 func appendFeed(groups []feedGroup, url string) []feedGroup {
 	url = strings.TrimSpace(url)
 	out := cloneGroups(groups)

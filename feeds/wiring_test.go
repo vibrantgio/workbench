@@ -20,8 +20,7 @@ import (
 // does not replay, so Publish().AutoConnect(modelObsConsumers) connects the
 // upstream — and lets the seed flow — only when the count-th subscriber
 // attaches; if this count drifts from the wiring, late consumers miss the seed
-// on launch (too low) or the app freezes (too high). A reducer-only test cannot
-// catch that. This guards the load-bearing N against future topology edits.
+// on launch (too low) or the app freezes (too high).
 func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 	base := rx.Of(initialModel()) // cold; replays the seed to each subscription
 	var n int32
@@ -54,8 +53,8 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 
 // TestRealAutoConnectPathDeliversSeedAndReEmits exercises the PRODUCTION seam
 // that run() builds — mvu.Loop(messages) → Publish().AutoConnect(
-// modelObsConsumers) → feedsShellLayer — rather than the rx.Subject shortcut the
-// re-emission test uses. It proves two things the recipe calls out:
+// modelObsConsumers) → feedsShellLayer — rather than the rx.Subject shortcut
+// the re-emission test uses. It proves two things:
 //  1. the layer emits a (seed-derived) widget once all consumers have attached
 //     and Connect has fired — i.e. modelObsConsumers is not too high (no freeze)
 //     and the seed actually reaches every consumer (not too low);
@@ -68,8 +67,8 @@ func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
 	messages := rx.Recv(msgCh)
 
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
-	// The command runner is deliberately leaked along with the layer
-	// subscription below (see the teardown note).
+	// The command runner is leaked along with the layer subscription below
+	// (see the teardown note).
 	models, _ := mvu.Loop(messages, init, Update)
 	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 

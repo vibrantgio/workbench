@@ -33,16 +33,14 @@ const (
 	trashColWDp         = 24 // trailing trash-icon hit area, hover-revealed
 )
 
-// The chosen-feed pill (ADR-021 R5). The fill is inset equally from both
-// edges of the sidebar and padded vertically, so it reads as a pill on the
-// Surface rather than a full-bleed bar — the shape vaultview's tree and
-// sitedocs' outline already draw. Its leading edge is the row's own origin
-// and the label is padded in from there: a pill whose text starts on its
-// left edge is not a pill, it is a bar with a rounded corner, which is what
-// a review of the first draft called out. The indent and the trail are equal
-// for the same reason, so the highlight is centred in the rail rather than
-// hanging off one side of it, and the trash gutter is measured from the
-// pill's trailing edge rather than the row's so the icon stays on the fill.
+// The chosen-feed pill. The fill is inset equally from both edges of the
+// sidebar and padded vertically, so it reads as a pill on the Surface rather
+// than a full-bleed bar. Its leading edge is the row's own origin and the
+// label is padded in from there: a pill whose text starts on its left edge is
+// a bar with a rounded corner. The indent and the trail are equal, so the
+// highlight is centred in the rail rather than hanging off one side of it, and
+// the trash gutter is measured from the pill's trailing edge rather than the
+// row's so the icon stays on the fill.
 const (
 	feedsPillTrailDp   = 16
 	feedsPillVPadDp    = 2
@@ -60,8 +58,7 @@ const (
 // entry clicks emit SelectFeed; the hover-revealed trash icon opens a
 // per-row delete-confirm popover whose confirm fires ConfirmDelete + a toast.
 //
-// G5.2d note: the feed tree was a static fixture before this goal. It now
-// lives in the Model so add/delete mutate it; feedEntryListBody therefore
+// The feed tree lives in the Model, so add/delete mutate it; feedEntryListBody
 // reads the live slice each frame and keys its per-entry widget state by
 // FeedID via components/keyed so add/delete never re-binds a clickable to the
 // wrong row.
@@ -163,10 +160,8 @@ func feedsSidebar(
 // window's top edge and the platform's three control buttons stand in its
 // top-leading corner. The fill therefore runs the whole column, band
 // included — the band wears the ground of the region it caps, which here is
-// the sidebar's own floor — and only the accordion starts below it. Before
-// the treatment the first section's header sat at the very corner, exactly
-// where the buttons land, which is the collision the window audit read off
-// this window.
+// the sidebar's own floor — and only the accordion starts below it, clear of
+// the buttons.
 //
 // Nothing is drawn in the band on this side. The window's name is already the
 // navbar's brand on the other side of the seam, and a second copy of it under
@@ -180,20 +175,17 @@ func drawFeedsSidebar(
 	w := gtx.Dp(unit.Dp(feedsSidebarWidthDp))
 	h := gtx.Constraints.Max.Y
 	size := image.Pt(w, h)
-	// ADR-022 V2: the sidebar is chrome furniture, so it is the window's
-	// FLOOR — one step UNDER the paper it frames, toward the scheme's dark
-	// extreme, in both schemes. A sidebar is the desk the document lies on,
-	// not a storey stacked over it.
+	// The sidebar is chrome furniture, so it is the window's FLOOR — one step
+	// UNDER the paper it frames, toward the scheme's dark extreme, in both
+	// schemes. A sidebar is the desk the document lies on, not a storey
+	// stacked over it.
 	//
-	// It filled colors.Surface until AU2.2, and Surface is a ramp ALIAS
-	// rather than a storey: neutral 200, which happens to be the light
-	// scheme's floor and is the dark scheme's RAISED rung. That did not just
-	// state the wrong direction — it split this one column in two, because
-	// patterns/accordion had already dropped to the floor and covers
-	// everything below the band. On slate the band read #222222 over a
-	// #0C0C0C accordion, a visible step across the sidebar's own top edge
-	// that no golden of a component could see. On paper nothing moves: the
-	// floor is that same neutral 200.
+	// The rung must be named as LevelFloor rather than as colors.Surface,
+	// which is a ramp ALIAS: neutral 200, the light scheme's floor but the
+	// dark scheme's RAISED rung. patterns/accordion draws everything below the
+	// band on the floor, so the alias would split this one column in two — on
+	// slate a #222222 band over a #0C0C0C accordion, a visible step across the
+	// sidebar's own top edge. On paper the two spell the same neutral 200.
 	paint.FillShape(gtx.Ops, colors.SurfaceAt(tokens.LevelFloor), clip.Rect{Max: size}.Op())
 	top := min(max(gtx.Dp(band), 0), h)
 	defer op.Offset(image.Pt(0, top)).Push(gtx.Ops).Pop()
@@ -233,9 +225,8 @@ func feedEntryListBody(
 	// The per-row delete-confirm popovers. Each holds its open flag as a
 	// plain bool on the frame goroutine — ephemeral interaction state, not
 	// model state, keyed by FeedID — and patterns/popover reads it during
-	// layout through Props.OpenNow (ADR-008 destination 2). They all share
-	// this window's Arbiter, so opening one row's confirm dismisses whichever
-	// row had it open.
+	// layout through Props.OpenNow. They all share this window's Arbiter, so
+	// opening one row's confirm dismisses whichever row had it open.
 	popovers := keyed.Defer(func(id FeedID) *deleteConfirm {
 		return newDeleteConfirm(th, id, trashClicks.For(id), confirmClicks.For(id), popArb)
 	})
@@ -275,12 +266,11 @@ func feedEntryListBody(
 // only while hovered (or while its confirm popover is open, so the popover
 // never floats over an un-hovered row).
 //
-// ADR-021 R5 governs the pill's two inks and keeps them apart: the OPEN feed
-// — the one whose articles the table is listing — is Primary-tinted, and
-// hover is a neutral step walked from the sidebar's own ground (Surface is
-// neutral 200, so the walk lands on 300). A reader must be able to see which
-// row the pointer is over and which row the window is showing at the same
-// time, which one ink cannot say.
+// The pill's two inks stay apart: the OPEN feed — the one whose articles the
+// table is listing — is Primary-tinted, and hover is a neutral step walked
+// from the sidebar's own ground (Surface is neutral 200, so the walk lands on
+// 300). A reader must be able to see which row the pointer is over and which
+// row the window is showing at the same time, which one ink cannot say.
 func drawFeedEntryRow(
 	gtx layout.Context,
 	tok themeTokens,
@@ -305,14 +295,14 @@ func drawFeedEntryRow(
 
 	// Everything the row draws lives between the pill's two edges: the label
 	// padded in from the leading one, the trash gutter measured back from the
-	// trailing one. Laying either out against the ROW's edges instead is what
-	// puts a label flush on a fill and an icon half off it.
+	// trailing one. Laying either out against the ROW's edges instead puts a
+	// label flush on a fill and an icon half off it.
 	pad := gtx.Dp(unit.Dp(feedsRowLabelPadDp))
 	trail := gtx.Dp(unit.Dp(feedsPillTrailDp))
 
 	// Label fills the pill minus the trash gutter; the label area is the
-	// SelectFeed click target. Body text sits on the Neutral ramp's 900
-	// step (ADR-007), in the theme's BodySmall role.
+	// SelectFeed click target. Body text sits on the Neutral ramp's 900 step,
+	// in the theme's BodySmall role.
 	labelW := size.X - trail - trashW - pad
 	if labelW < 0 {
 		labelW = 0
@@ -343,13 +333,12 @@ func drawFeedEntryRow(
 // and the hover is only "the pointer is here".
 //
 // The hover is a STATE and a state is a walk from the surface it happens on,
-// which for these rows is the sidebar's floor. It named neutral 300 until
-// AU2.2 — an absolute ramp index, which answered the light scheme right by
-// accident (the floor's own hover step lands on that same #D4D4D4) and the
-// dark scheme wrong by a whole storey: #2E2E2E is the walk off the RAISED
-// rung, so a pointer over a #0C0C0C row jumped 15.6 L* instead of the
-// floor's own 9.9. Taken with StateAt it is one line that cannot drift when
-// the row's ground moves again.
+// which for these rows is the sidebar's floor, so it is taken with StateAt
+// rather than named as an absolute ramp index. Neutral 300 answers the light
+// scheme right by accident (the floor's own hover step lands on that same
+// #D4D4D4) and the dark scheme wrong by a whole storey: #2E2E2E is the walk
+// off the RAISED rung, so a pointer over a #0C0C0C row would jump 15.6 L*
+// instead of the floor's own 9.9.
 func drawFeedEntryPill(
 	gtx layout.Context,
 	tok themeTokens,
@@ -415,20 +404,15 @@ func drawFeedEntry(
 // anchor and a "Delete this feed?" confirm surface. Open state is ephemeral
 // per-row interaction state — a plain bool this struct owns, written and read
 // during layout on the frame goroutine, which patterns/popover reads back
-// through Props.OpenNow (ADR-008 destination 2). Nothing outside the frame
-// ever asks whether a row's confirm is open, so nothing outside the frame
-// holds a copy of the answer. The trash click toggles it; the confirm click
-// fires ConfirmDelete + a toast and closes; OnDismiss closes.
-//
-// Until G0C.4 the flag lived in a per-row rx.Subject with an atomic.Bool
-// mirror beside it, and the flip crossed to the rx goroutine and back before
-// any frame could see it. The Subject and the mirror are both gone; the
-// remaining atomic cell carries the THEME's re-emissions, which really do
-// arrive from another goroutine.
+// through Props.OpenNow. Nothing outside the frame ever asks whether a row's
+// confirm is open, so nothing outside the frame holds a copy of the answer.
+// The trash click toggles it; the confirm click fires ConfirmDelete + a toast
+// and closes; OnDismiss closes. The remaining atomic cell carries the THEME's
+// re-emissions, which do arrive from another goroutine.
 //
 // The popover is wrapped in an Exact canvas (the trash gutter) so its anchor
 // centres on the trash icon and the confirm surface sits below it — the same
-// canvas-coupling workaround as the Share popover (logged in FEEDBACK-G5.2.md).
+// canvas coupling as the Share popover.
 type deleteConfirm struct {
 	id FeedID
 	// open is frame state: only layout writes it and only layout reads it.

@@ -27,9 +27,8 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// defaultRowsPerPage is the seed row count per pagination page. It is no
-// longer fixed: Model.rowsPerPage carries it and the Preferences panel edits
-// it live (see preferences.go).
+// defaultRowsPerPage is the seed row count per pagination page.
+// Model.rowsPerPage carries the live value, which the Preferences panel edits.
 const defaultRowsPerPage = 10
 
 // rowsPerPageChoices are the page sizes the Preferences panel offers. A
@@ -47,10 +46,9 @@ const (
 
 // Geometry shared by the Unread tooltip overlay. unreadColWDp matches the
 // Unread column's pinned Width; tableHeaderHDp mirrors the header band's
-// height at Comfortable density (Density.ControlHeight, the E1.4 row rule) —
-// the table draws its header internally and exposes no per-header widget
-// hook, so the tooltip hit area is positioned by arithmetic over these
-// constants (friction logged in FEEDBACK-G5.2.md).
+// height at Comfortable density (Density.ControlHeight). The table draws its
+// header internally and exposes no per-header widget hook, so the tooltip hit
+// area is positioned by arithmetic over these constants.
 const (
 	unreadColWDp   = 96
 	tableHeaderHDp = 36
@@ -156,8 +154,8 @@ func pageCountFor(arts []article, size int) int {
 // mvu.MessageOp so a click re-emits this layer — and the shell — on the same
 // frame.
 //
-// tipArb is this window's tooltip arbitration set (ADR-008): the Unread
-// header tooltip joins it so that at most one tooltip in the window is up.
+// tipArb is this window's tooltip arbitration set: the Unread header tooltip
+// joins it so that at most one tooltip in the window is up.
 func articlesMain(
 	th rx.Observable[theme.Theme],
 	selectedFeedObs rx.Observable[FeedID],
@@ -192,9 +190,9 @@ func articlesMain(
 	// The open article, mirrored for the table's Current predicate. The
 	// predicate is called per visible row during layout, outside any rx
 	// scope, so it reads the latest model value from this cell — the same
-	// layer-boundary hand-off sortCell above uses. ADR-021 R5: the row the
-	// detail pane is showing must be marked in the list it came from,
-	// otherwise the reader has no way back from the article to its place.
+	// layer-boundary hand-off sortCell above uses. The row the detail pane is
+	// showing must be marked in the list it came from, or the reader has no
+	// way back from the article to its place.
 	var currentCell atomic.Value
 	currentCell.Store(ArticleID(""))
 	_ = selectedArticleObs.Subscribe(rx.GoroutineContext(), func(id ArticleID, _ error, done bool) {
@@ -226,8 +224,7 @@ func articlesMain(
 	// resizes the window `paged` cuts out of it and the count the pagination
 	// row draws. Because they are model state like any other, changing one in
 	// the Preferences panel repaginates the table on the same frame, with the
-	// panel still open over it — which is what "applies live" means here and
-	// why the panel needs no Save.
+	// panel still open over it, so the panel needs no Save.
 	filtered := rx.Map(
 		rx.CombineLatest4(selectedFeedObs, filterObs, sortObs, unreadOnlyObs),
 		func(t rx.Tuple4[FeedID, string, table.Sort, bool]) []article {
@@ -277,9 +274,9 @@ func articlesMain(
 		Sort:    sortObs,
 		OnSort:  onSort,
 		// The list IS the left pane's content, not a card lying on it, so
-		// its plane is the window ground (ADR-021 R1). Stated rather than
-		// left to the zero value, because it is the decision the pane's own
-		// fill below has to agree with.
+		// its plane is the window ground. Stated rather than left to the zero
+		// value, because it is the decision the pane's own fill below has to
+		// agree with.
 		Ground: tokens.Level0,
 		Current: func(a article) bool {
 			id, _ := currentCell.Load().(ArticleID)
@@ -289,8 +286,7 @@ func articlesMain(
 	// pagination.Props takes Page/PageCount as static ints; CombineLatest holds
 	// the latest page + page count from the model-derived streams and rebuilds
 	// the row each emission, so the active highlight tracks model state. The
-	// OnSelect callback lands a SetPage message — no re-subscription SwitchMap
-	// and no captured-at-construction static ints (the FEEDBACK-G5.2 friction).
+	// OnSelect callback lands a SetPage message.
 	paginationWidgetObs := rx.SwitchMap(
 		rx.CombineLatest2(currentPageObs, pageCountObs),
 		func(t rx.Tuple2[int, int]) rx.Observable[layout.Widget] {
@@ -313,9 +309,8 @@ func articlesMain(
 // themedTextCell renders a single line of Text-coloured cell text in the
 // theme's BodyMedium role — typeface, weight, size and line height from the
 // Typography, the shaper the theme's own — within the cell's allocated
-// rectangle, with the table's stock 12 dp horizontal padding. It is the
-// theme-driven successor to the static table.RenderTextCell form
-// (F1.2); the golden tests keep the static form, which is its documented
+// rectangle, with the table's stock 12 dp horizontal padding. The golden tests
+// use the static table.RenderTextCell form instead, which is its documented
 // remit.
 func themedTextCell(tok themeTokens, s string) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
@@ -346,9 +341,9 @@ func themedTextCell(tok themeTokens, s string) layout.Widget {
 }
 
 // articleColumns builds the four table columns. Title is sortable and hosts
-// the per-row click registration (patterns/table has no whole-row click
-// affordance; see FEEDBACK-G5.2.md). A row click lands a SelectArticle
-// message. Published is sortable. Author and Unread are static.
+// the per-row click registration, because patterns/table has no whole-row
+// click affordance. A row click lands a SelectArticle message. Published is
+// sortable. Author and Unread are static.
 func articleColumns(
 	loadTok func() themeTokens,
 	rowClicks *keyed.Deferred[ArticleID, *widget.Clickable],
@@ -400,15 +395,12 @@ func articleColumns(
 // unreadTip is overlaid on the table's Unread header cell — see
 // overlayUnreadTooltip.
 //
-// The pane paints its own ground before any of that. ADR-021 R1: the article
-// list is content, so its resting ground is level 0, the Background pin —
-// not patterns/shell's SplitPane backstop, which is Surface and used to be
-// what the filter row, the gaps and the pagination row rested on. The table
-// takes the same rung through its Ground prop, so the pane is one sheet of
-// paper from its margin to the last hairline: the grid is the content, and a
-// grid raised off its own pane would put the biggest expanse in the window's
-// middle level with the sidebar framing it, which is R2's failure with extra
-// steps.
+// The pane paints its own ground before any of that: the article list is
+// content, so its resting ground is level 0, the Background pin — not
+// patterns/shell's SplitPane backstop, which is Surface. The table takes the
+// same rung through its Ground prop, so the pane is one sheet of paper from
+// its margin to the last hairline; a grid raised off its own pane would put
+// the window's biggest expanse a storey above the content it belongs to.
 func articlesLayout(loadTok func() themeTokens, filter, table, pag, unreadTip layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, loadTok().col.SurfaceAt(tokens.Level0),
