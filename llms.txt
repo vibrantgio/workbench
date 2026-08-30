@@ -38,7 +38,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      Gio view events the desktop module's drop target rides;
                      subpackage stream (Value, the one sanctioned
                      observable for state several consumers watch)
-  font      v0.4.1   Roboto, six weights, regular and italic — plus Roboto
+  font      v0.4.2   Roboto, six weights, regular and italic — plus Roboto
                      Mono, normal and bold each with italics, all OFL; TTFs
                      embedded here, not eliasnaur.com/font. The default
                      typography's faces. Also jetbrainsmono, the same
@@ -55,11 +55,11 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      DefaultTypography.Faces — 9.9 MB, and Gio's system
                      fallback does not supply one. The live stream wears it
                      via Typography.WithEmoji / EmojiTypography
-  textdraw  v0.0.4   low-level glyph text drawing
-  backdrop  v0.0.3   solid colour fill widget
-  gradient  v0.0.3   linear gradient fill widget
-  circle    v0.0.4   precise circle via Bezier
-  style     v0.0.6   FROZEN: the old MD2 type scale and FontFaces();
+  textdraw  v0.0.5   low-level glyph text drawing
+  backdrop  v0.0.4   solid colour fill widget
+  gradient  v0.0.4   linear gradient fill widget
+  circle    v0.0.5   precise circle via Bezier
+  style     v0.0.7   FROZEN: the old MD2 type scale and FontFaces();
                      superseded by theme/tokens Typography (§Typography)
                      — never add it to a new app
 
@@ -99,13 +99,13 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      images via vibrantgio/svg; obsidian — the Obsidian
                      dialect: frontmatter, wikilinks, block anchors)
 
-  seen      v0.0.8   3D scene graph rendered to SVG or Gio
-  traer     v0.0.8   particle physics (springs, attractions, Verlet)
-  svg       v0.0.9   SVG parse + render
-  ivg       v0.1.7   IconVG icons, Material icons bundled
-  noise     v0.0.3   Perlin and Simplex noise, 2D/3D
-  kiwi      v0.0.6   Cassowary constraint solver
-  csg       v0.0.1   constructive solid geometry on meshes (BSP trees)
+  seen      v0.0.9   3D scene graph rendered to SVG or Gio
+  traer     v0.0.9   particle physics (springs, attractions, Verlet)
+  svg       v0.1.0   SVG parse + render
+  ivg       v0.1.8   IconVG icons, Material icons bundled
+  noise     v0.0.4   Perlin and Simplex noise, 2D/3D
+  kiwi      v0.0.7   Cassowary constraint solver
+  csg       v0.0.2   constructive solid geometry on meshes (BSP trees)
   ```
 
 workbench (the reference apps) and design (the published token bundle) carry
@@ -161,18 +161,18 @@ repo path plus the subdirectory, and — this is the part that trips up
 ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
 
   ```
-  github.com/vibrantgio/ivg/raster/gio        v0.1.7   Gio rasterizer +
+  github.com/vibrantgio/ivg/raster/gio        v0.1.8   Gio rasterizer +
                                                        Widget() for IconVG
-  github.com/vibrantgio/svg/driver/gio        v0.0.9   SVG -> Gio ops,
+  github.com/vibrantgio/svg/driver/gio        v0.1.0   SVG -> Gio ops,
                                                        IconWidget()
-  github.com/vibrantgio/svg/driver/raster     v0.0.9   SVG -> raster image
+  github.com/vibrantgio/svg/driver/raster     v0.1.0   SVG -> raster image
   github.com/vibrantgio/svg/driver/pdf        v0.0.7   SVG -> PDF
-  github.com/vibrantgio/svg/driver/seen       v0.0.8   SVG -> seen scene
-  github.com/vibrantgio/seen/context/gio      v0.0.8   Gio drawing context
+  github.com/vibrantgio/svg/driver/seen       v0.1.0   SVG -> seen scene
+  github.com/vibrantgio/seen/context/gio      v0.0.9   Gio drawing context
                                                        and widget for seen
-  github.com/vibrantgio/traer/gio             v0.0.8   Gio examples/render
+  github.com/vibrantgio/traer/gio             v0.0.9   Gio examples/render
                                                        for traer physics
-  github.com/vibrantgio/kiwi/gio              v0.0.6   Gio layout on the
+  github.com/vibrantgio/kiwi/gio              v0.0.7   Gio layout on the
                                                        kiwi solver
   github.com/vibrantgio/components/gallery    v1.2.1   the components gallery
                                                        app
@@ -1439,7 +1439,7 @@ purpose (golden determinism); leave those alone.
       github.com/vibrantgio/mvu v1.0.1
       github.com/vibrantgio/components v1.2.1
       github.com/vibrantgio/theme v1.3.0
-      github.com/vibrantgio/textdraw v0.0.4
+      github.com/vibrantgio/textdraw v0.0.5
   )
   ```
 
