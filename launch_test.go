@@ -7,11 +7,9 @@ import (
 	"testing"
 )
 
-// TestRosterCoversEveryApp is the roster audit kept rather than performed
-// once. Every entry must name a directory beside this command that holds a
-// module of its own, and every such directory must have an entry — an app
-// added to the repository and forgotten here fails this, and so does an entry
-// left behind by an app that moved.
+// TestRosterCoversEveryApp checks that every entry names a directory beside
+// this command holding a module of its own, and that every such directory has
+// an entry.
 func TestRosterCoversEveryApp(t *testing.T) {
 	entries, err := os.ReadDir(".")
 	if err != nil {
@@ -51,7 +49,7 @@ func TestRosterNamesAreDistinct(t *testing.T) {
 
 // TestReleasedLaunchNamesTheAppsOwnRelease covers the first case for every
 // entry in the roster: a released build asks Go for the app's own latest
-// release, by module path, and does not care where it is standing.
+// release, by module path, independent of the working directory.
 func TestReleasedLaunchNamesTheAppsOwnRelease(t *testing.T) {
 	const root = "/somewhere/workbench"
 	for _, app := range Apps {
@@ -87,9 +85,9 @@ func TestCheckoutLaunchRunsTheAppNextDoor(t *testing.T) {
 	}
 }
 
-// TestReleasedAndCheckoutDiffer states the point of the two cases: they are
-// not the same command, so a released build cannot silently run a checkout
-// and a checkout cannot silently fetch a release.
+// TestReleasedAndCheckoutDiffer pins that the two cases are not the same
+// command, so a released build cannot silently run a checkout and a checkout
+// cannot silently fetch a release.
 func TestReleasedAndCheckoutDiffer(t *testing.T) {
 	app := Apps[0]
 	if released, checkout := appInvocation(app, "v1.0.0", "/somewhere/workbench"), appInvocation(app, "(devel)", "/somewhere/workbench"); slices.Equal(released.Args, checkout.Args) {
@@ -123,9 +121,9 @@ func TestOwnVersionIsThisBuild(t *testing.T) {
 	}
 }
 
-// TestLaunchInvocationInThisCheckout runs the glue for real, which a test
-// binary can: it is built from source and it runs in the checkout, so it is
-// exactly the second case, and the answer must point at the app next door.
+// TestLaunchInvocationInThisCheckout runs the resolution for real: a test
+// binary is built from source and runs in the checkout, so it is exactly the
+// second case, and the answer must point at the app next door.
 func TestLaunchInvocationInThisCheckout(t *testing.T) {
 	root, err := workbenchRoot()
 	if err != nil {

@@ -62,10 +62,10 @@ func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 }
 
-// FieldLayer is the animated seen triangle field. The Field (its scene,
-// animation loop and palette) is subscription-scoped state, so it lives in an
-// rx.Defer factory (llms.txt rule 2); each theme emission re-keys its palette
-// in place — the field itself is built exactly once per subscription.
+// FieldLayer is the animated seen triangle field. The Field — its scene,
+// animation loop and palette — is subscription-scoped state, so it lives in an
+// rx.Defer factory: each theme emission re-keys its palette in place, and the
+// field itself is built exactly once per subscription.
 func FieldLayer(win *app.Window, th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
 		return t.Color
@@ -79,16 +79,13 @@ func FieldLayer(win *app.Window, th rx.Observable[theme.Theme]) rx.Observable[la
 	})
 }
 
-// HeroProps is the page's title block. It is stated once, here, so that a
-// render made outside the running window — which has to name the shaper it
-// shapes with — puts the same words on the page as the window does.
+// HeroProps is the page's title block, stated once so a render made outside
+// the running window puts the same words on the page as the window does.
 var HeroProps = hero.Props{
 	Eyebrow: "VIBRANTGIO",
 	Title:   "Workbench",
-	// No count of the apps: the roster is what says how many there are, and
-	// a number written here is one nobody updates when an app is added. seen
-	// is named among the libraries, where it reads as the name of one rather
-	// than as a misspelling of "scene".
+	// The subtitle names no count of the apps: a number written here is one
+	// nobody updates when an app is added.
 	Subtitle: "Complete example apps built on mvu, components, theme, patterns and seen.",
 }
 
@@ -116,18 +113,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // on every platform but macOS, so away from the treatment the wrapper is an
 // exact no-op.
 //
-// The strip carries no fill of its own here, and that is R6 satisfied rather
-// than skipped: the region this band caps is the window's own ground — the
-// Background pin with the triangle field over it — and both of those layers
-// are already full-bleed, so the region's fill reaches the top edge without
-// anything being painted twice. A band drawn here would be furniture this
-// window does not have. What has to stay clear of the strip is the page,
-// which starts below it.
-//
-// The strip also carries the window's own drag: it holds paint but no widget
-// of its own, so without a claim over it the window could not be moved by its
-// top edge at all. desktop.CapTop is the two together — the claim over the
-// strip and the page held down past it, over one measured height.
+// The strip carries no fill of its own: the ground and the field beneath it
+// are already full-bleed, so the region reaches the top edge without anything
+// being painted twice. Only the page has to stay clear of the strip.
+// desktop.CapTop also claims the strip for the window's own drag — without
+// that claim the window could not be moved by its top edge.
 func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	return rx.Map(pageObs, func(w layout.Widget) layout.Widget {
 		return desktop.CapTop(desktop.TopInset, w)
@@ -160,9 +150,8 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 }
 
 // View builds the page widget for one (theme, model) pair: a hero title block
-// over a grid of app cards, the whole column centred on the field. The window
-// is sized to hold perRow of them across; a roster that outgrows the grid
-// wraps onto a further row rather than shrinking a card.
+// over a grid of app cards, the whole column centred on the field. A roster
+// that outgrows a row wraps onto a further row rather than shrinking a card.
 func View(tok themed, heroW layout.Widget, clicks []widget.Clickable, model Model) layout.Widget {
 	cards := make([]layout.Widget, len(Apps))
 	for i, app := range Apps {
@@ -190,10 +179,10 @@ func View(tok themed, heroW layout.Widget, clicks []widget.Clickable, model Mode
 				}))
 			}
 			// Start, not Middle: every row is already GridW wide, so the
-			// column's leading edge is the grid's first column, and the
-			// hero lands on it too. Centring each child on its own width
-			// is what made the title's position depend on the length of
-			// the sentence under it.
+			// column's leading edge is the grid's first column and the hero
+			// lands on it too. Centring each child on its own width would make
+			// the title's position depend on the length of the sentence under
+			// it.
 			return layout.Flex{Axis: layout.Vertical, Alignment: layout.Start}.Layout(gtx, children...)
 		})
 		return layout.Dimensions{Size: size}
@@ -202,9 +191,7 @@ func View(tok themed, heroW layout.Widget, clicks []widget.Clickable, model Mode
 
 // GridW is the width of a full row of cards. Every row is laid out at this
 // width whatever it holds, so a last row with fewer cards than the rest starts
-// in the first column instead of centring itself half a card off it. Centring
-// each row on its own contents is what puts a short row's cards in the seams
-// of the row above.
+// in the first column instead of centring itself half a card off it.
 const GridW unit.Dp = perRow*CardW + (perRow-1)*unit.Dp(RowGap)
 
 // cardRow lays out one row of fixed-size cards with RowGap gaps, from the
@@ -226,29 +213,19 @@ func cardRow(cells []layout.Widget) layout.Widget {
 
 // appCard is one launchable app as a patterns card: icon + name header, blurb
 // body, and a footer with the launch button and a status line. The card and
-// button are the theme-driven components, built from the emission's static
+// button are theme-driven components built from the emission's static
 // snapshot; text colours come off the Neutral ramp — 900 for the name, 700 for
-// the low-contrast blurb (ADR-007).
+// the low-contrast blurb.
 //
-// The card is the pattern's default outlined variant, not its Elevated one,
-// and that is the storey rather than the trim: these eight cards are the
-// page's resting content, they lie on the window's own ground — the
-// Background pin, tokens.Level0 — and a thing resting on a plane fills one
-// storey over it, tokens.Level0.Raised(). The outlined variant is the card's
-// level-1 form (SurfaceAt(Level1), with ADR-007's strong 1 dp border);
-// Elevated fills at level 2, the storey the ladder keeps for surfaces that
-// leave the plane altogether. Passing it here put eight menus' worth of
-// neutral 300 at rest on the page, which is what made the grid read heavier
-// than the window around it.
+// The card stays the pattern's default outlined variant rather than Elevated.
+// These cards are the page's resting content lying on the window's own ground
+// (tokens.Level0), so they fill exactly one storey over it: the outlined
+// variant is the card's level-1 form, while Elevated fills at level 2, the
+// storey reserved for surfaces that leave the plane altogether.
 //
-// Since ADR-022 that storey goes toward the light rather than away from it,
-// in both schemes, and the border stops being trim and becomes the whole
-// answer on paper: level 1 there is #F8F8F8 on a #F6F6F6 page, a step the
-// fill can barely be said to take, so what says where a card ends is the
-// stroke the pattern derives against the fill. On slate the fill still
-// carries it, #222222 over #181818. One recipe, two schemes, and the light
-// one leaning on its edge is the cost the linchpin names rather than a
-// defect in this page.
+// In the light scheme level 1 is #F8F8F8 on a #F6F6F6 page, a step the fill
+// can barely be said to take, so the border — not the fill — is what says
+// where a card ends; on slate the fill carries it at #222222 over #181818.
 func appCard(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {
 	thObs := rx.Of(tok.components)
 
@@ -282,14 +259,14 @@ func appCard(tok themed, app App, click *widget.Clickable, status Status) layout
 }
 
 // launchButton is the theme-driven components button wired to the caller-owned
-// clickable (so press/hover/focus state survives the per-message view
-// rebuilds) and emits Launch into the MVU loop on activation. While the app
-// is starting or running it renders disabled and emits nothing; the reducer
+// clickable — so press/hover/focus state survives the per-message view
+// rebuilds — emitting Launch into the MVU loop on activation. While the app is
+// starting or running it renders disabled and emits nothing; the reducer
 // guards again anyway.
 //
-// It shapes with the shaper the rest of the card shapes with, rather than
-// reaching for the theme's on its own: one page, one shaper, and a render
-// made outside the window gets to say which.
+// It shapes with the shaper the rest of the card uses rather than reaching for
+// the theme's own, so one page has one shaper and a render made outside the
+// window can say which.
 func launchButton(th rx.Observable[theme.Theme], shaper *text.Shaper, app App, click *widget.Clickable, status Status) layout.Widget {
 	busy := status.State == Starting || status.State == Running
 	txt := "Launch"

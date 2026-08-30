@@ -51,13 +51,8 @@ func findApp(name string) (App, bool) {
 }
 
 // launchCommand starts app with `go` and streams two messages through the MVU
-// loop: Started once the process spawns, then Exited when it ends (one
-// command, many messages — the mindchat streaming pattern). A start failure
-// collapses to a single Exited carrying the error.
-//
-// Which `go` command that is — the app's published release, or the copy in
-// the checkout — is appInvocation's decision, made from this build's own
-// version. Everything below the call is the spawn itself.
+// loop: Started once the process spawns, then Exited when it ends. A start
+// failure collapses to a single Exited carrying the error.
 func launchCommand(app App) mvu.Command {
 	var cmd *exec.Cmd
 	var stderr bytes.Buffer
@@ -91,8 +86,8 @@ func launchCommand(app App) mvu.Command {
 	})}
 }
 
-// exitDetail folds the last stderr line into the exit error, which is where
-// both `go run` compile failures and app panics say what actually went wrong.
+// exitDetail folds the last stderr line into the exit error: that line is
+// where both `go run` compile failures and app panics say what went wrong.
 func exitDetail(err error, stderr *bytes.Buffer) string {
 	lines := strings.Split(strings.TrimSpace(stderr.String()), "\n")
 	last := strings.TrimSpace(lines[len(lines)-1])

@@ -6,8 +6,7 @@ import (
 )
 
 // rgbToHSL converts an NRGBA colour to HSL with every channel in [0, 1)/[0, 1].
-// Used to steal the hue of the theme's Primary token and the lightness of its
-// Background for the field palette (field.go); alpha is ignored.
+// Alpha is ignored.
 func rgbToHSL(c color.NRGBA) (h, s, l float64) {
 	r := float64(c.R) / 255
 	g := float64(c.G) / 255

@@ -2,28 +2,21 @@ package main
 
 // A whole-window render, headless, of the launcher as its layers actually
 // stack: the Background ground, and the page held down past the title-bar
-// strip a full-size-content window opens the top of itself into. The window is
-// a native binary with no offscreen mode of its own, but every layer it stacks
-// is a plain widget over pre-resolved tokens, so composing the same paints
-// into a headless canvas at the size the window opens at produces the frame
-// the window would show.
+// strip a full-size-content window opens the top of itself into. Every layer
+// the window stacks is a plain widget over pre-resolved tokens, so composing
+// the same paints into a headless canvas at the size the window opens at
+// produces the frame the window would show.
 //
-// It is here because the goldens beside this file render the page on its
-// ground at the window's own top edge — the frame every platform but macOS
-// shows — and so cannot see the one thing this task changed, which is where
-// the page starts. Run it with -window.dump=<dir> to write the frames out for
-// a pair of eyes:
+// Run it with -window.dump=<dir> to write the frames out for a pair of eyes:
 //
 //	go test ./ -run TestWholeWindowRender -window.dump=/tmp/workbench
 //
-// The frames come in two makes, and the difference is the animated seen
-// triangle field the running window floats the page on. The assertions read a
-// frame drawn without it, for the reason the goldens give: the field is driven
-// by the clock, so it has no one frame to store — and with it gone, every
-// pixel that is not the Background pin is ink the page put there, which is
-// what makes a claim about the strip readable at all. The dumped frames carry
-// it, because a composition handed to a pair of eyes with its most prominent
-// layer missing is not the window.
+// The assertions read a frame drawn without the animated seen triangle field:
+// the field is driven by the clock, so it has no one frame to store, and with
+// it gone every pixel that is not the Background pin is ink the page put
+// there, which is what makes a claim about the strip readable. The dumped
+// frames carry the field, since a composition shown to a reviewer without its
+// most prominent layer is not the window.
 
 import (
 	"flag"
@@ -50,9 +43,7 @@ var windowDump = flag.String("window.dump", "", "directory to write whole-window
 
 // titleBandDp is the strip desktop.TopInset reports on a full-size-content
 // macOS window, stated here because a go test binary has no live window to
-// measure — the same substitution mvu/desktop's own drag tests make. The
-// number is the stored reference's plain title bar band (ADR-019: 32 px), not
-// a guess and not a live measurement.
+// measure. The number is the stored reference's plain title bar band, 32 px.
 const titleBandDp = 32
 
 // windowFrame composes the window for one scheme exactly as buildLayers stacks
@@ -91,12 +82,9 @@ func renderWindow(t *testing.T, colors tokens.ColorTokens, band unit.Dp) *image.
 }
 
 // roundedThemed is the goldens' frozen snapshot with the theme's real radius
-// scale put back. The goldens pin radius to zero because anti-aliased corners
-// vary between GPU contexts and a pixel-exact diff cannot survive that; these
-// frames store nothing and are drawn to be looked at, where the opposite need
-// applies. A square-cornered card is the first thing a reviewer on this
-// platform complains about, and on a frame drawn with RadiusScale{} they would
-// be complaining about the harness rather than the window.
+// scale put back. The goldens pin radius to zero so a pixel-exact diff can
+// survive GPU-dependent corner anti-aliasing; these frames store nothing and
+// are drawn to be looked at, so they keep the real corners.
 func roundedThemed(colors tokens.ColorTokens) themed {
 	tok := staticThemed(colors)
 	tok.components.Radius = rx.Of(tokens.Radius)
@@ -104,17 +92,15 @@ func roundedThemed(colors tokens.ColorTokens) themed {
 }
 
 // livingWindowFrame is windowFrame with the triangle field in the middle of
-// the stack where the running window has it — the whole composition, and the
-// only make of this frame worth showing anybody. It is not what the assertions
-// read: the field's vertices are displaced from a clock, so two captures of it
-// are two pictures.
+// the stack where the running window has it. The assertions do not read it:
+// the field's vertices are displaced from a clock, so two captures are two
+// pictures.
 //
-// The field invalidates a window to drive its own frames, and here there is no
-// window to drive: an app.Window that is never run absorbs those calls, which
-// is all this needs, since a single capture takes the scene as the constructor
-// left it rather than animating it. For the same reason the palette is applied
-// here rather than left to the tick that would normally do it — waiting on a
-// clock for a colour is how a capture ends up photographing the placeholder.
+// An app.Window that is never run absorbs the invalidations the field uses to
+// drive its frames, which is all a single capture needs — it takes the scene
+// as the constructor left it. The palette is applied here rather than left to
+// the animation tick, or the capture would photograph the pre-theme
+// placeholder.
 func livingWindowFrame(tok themed, model Model, band unit.Dp) layout.Widget {
 	field := NewField(new(app.Window), winW, winH)
 	field.SetColors(tok.color)
@@ -122,8 +108,7 @@ func livingWindowFrame(tok themed, model Model, band unit.Dp) layout.Widget {
 	return stack(backdrop.Widget(tok.color.Background), field.Widget(), cappedPage(tok, model, band))
 }
 
-// windowSchemes is the pair every rule below is stated once and checked twice
-// against.
+// windowSchemes is the pair every rule below is checked against.
 var windowSchemes = []struct {
 	name   string
 	colors tokens.ColorTokens
@@ -156,31 +141,25 @@ func inkSpan(img *image.RGBA, y int, ground color.NRGBA) (int, int) {
 }
 
 // rungTolerance is how far a pixel read back out of the frame may sit from the
-// token that was painted into it and still count as a storey at all. Gio blends
-// in linear space, so a flat fill does not always survive the round trip to
-// 8-bit sRGB exactly: in the dark scheme, at the bottom of the curve where the
+// token painted into it and still count as a storey at all. Gio blends in
+// linear space, so a flat fill does not always survive the round trip to 8-bit
+// sRGB exactly: in the dark scheme, at the bottom of the curve where the
 // quantisation is coarsest, a level-1 card comes back speckled a value or two
 // above its own token.
 //
-// It is a membership test and nothing more, because since ADR-022 it cannot be
-// a discriminator as well. The ladder's storeys used to be ten steps apart at
-// their closest, so the first one within this distance was always the right
-// one; in the light scheme they are now whispers — the paper is #F6F6F6 and the
-// storey raised on it #F8F8F8, two levels — and a first-match walk hands every
-// card in this window to the page it is lying on. [nearestRung] takes the
-// CLOSEST storey instead, which is decidable at two levels apart and stays
-// decidable at ten.
+// It is a membership test only, never a discriminator: in the light scheme the
+// paper is #F6F6F6 and the storey raised on it #F8F8F8, so a first-match walk
+// would hand every card to the page it lies on. [nearestRung] takes the
+// closest storey instead, which stays decidable two levels apart.
 const rungTolerance = 4
 
 // nearestRung reports the elevation storey a rendered pixel sits on — the one
 // whose surface fill it is closest to, if that fill is within rungTolerance —
 // and whether it is a surface fill at all rather than ink drawn on one.
 //
-// The floor is in the walk: since ADR-022 the ladder has five storeys and the
-// bottom one is where a window's furniture stands, so a classifier that knew
-// only the four above the paper would report a sidebar as no storey at all.
-// This window has no furniture, which is exactly why the walk should not be
-// written as if furniture did not exist.
+// The walk includes the floor: the ladder has five storeys and the bottom one
+// is where a window's furniture stands, so a classifier covering only the four
+// above the paper would report a sidebar as no storey at all.
 func nearestRung(c color.NRGBA, colors tokens.ColorTokens) (tokens.ElevationLevel, bool) {
 	best, dist := tokens.Level0, rungTolerance+1
 	for _, level := range []tokens.ElevationLevel{tokens.LevelFloor, tokens.Level0, tokens.Level1, tokens.Level2, tokens.Level3} {
@@ -211,16 +190,15 @@ func channelDiff(a, b uint8) int {
 	return int(b - a)
 }
 
-// cardRects measures the launcher's resting app cards off the frame instead of
-// recomputing the layout's arithmetic. The grid is the widest thing the page
-// draws — cardRow lays every row out at GridW whatever it holds, and the hero
-// above them is a fraction of that — so the frame rows carrying ink that wide
-// are card rows and nothing else. Each contiguous stretch of them is one row of
-// cards: it is shortened at top and bottom by the same corner radius, so the
-// stretch's midpoint is the cards' midpoint, and it runs a pixel wide at both
-// ends because the outlined card's 1 dp stroke straddles the edge it draws,
-// which is why the samples below are taken half an S4 inside the measured
-// leading edge rather than on it.
+// cardRects measures the app cards off the frame instead of recomputing the
+// layout's arithmetic. The grid is the widest thing the page draws — cardRow
+// lays every row out at GridW whatever it holds — so the frame rows carrying
+// ink that wide are card rows and nothing else. Each contiguous stretch of
+// them is one row of cards, shortened top and bottom by the same corner
+// radius, so the stretch's midpoint is the cards' midpoint. The outlined
+// card's 1 dp stroke straddles the edge it draws, which is why the samples
+// below are taken half an S4 inside the measured leading edge rather than on
+// it.
 func cardRects(t *testing.T, img *image.RGBA, ground color.NRGBA) []image.Rectangle {
 	t.Helper()
 	size := img.Bounds().Size()
@@ -265,8 +243,7 @@ func topmostInk(img *image.RGBA, ground color.NRGBA) int {
 // the frames out when -window.dump names a directory. Without the flag it is
 // still a smoke test of the whole stack: a panic anywhere in the ground, the
 // strip, the hero or the card grid fails it. The dumped frames carry the field
-// as well, so what a reviewer is handed is the window rather than a diagram
-// of it.
+// as well.
 func TestWholeWindowRender(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -295,13 +272,10 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestTheGroundReachesTheWindowsTopEdge is R6 for a window with no band of its
-// own to paint. The region the strip caps here is the window's own ground, and
-// the ground layer is full-bleed, so the rule is met by the strip showing what
-// was already painted under it rather than by a second fill drawn over it —
-// which is why nothing in this app paints a band. What has to be true for that
-// to be R6 satisfied rather than R6 skipped is that the strip is the ground and
-// nothing else: no page ink in it, and no unpainted glass either.
+// TestTheGroundReachesTheWindowsTopEdge pins that the strip shows the
+// full-bleed ground already painted under it rather than a second fill drawn
+// over it, which is why nothing in this app paints a band. The strip must be
+// the ground and nothing else: no page ink in it, and no unpainted glass.
 func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -321,10 +295,9 @@ func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 	}
 }
 
-// TestThePageStartsBelowTheStrip is the other half of the same arrangement:
-// the ground runs under the strip, the page does not. Read off the frame
-// rather than off the inset, so that a page which grew a layer of its own
-// outside the cap would fail here.
+// TestThePageStartsBelowTheStrip is the other half: the ground runs under the
+// strip, the page does not. Read off the frame rather than off the inset, so
+// that a page which grew a layer of its own outside the cap would fail here.
 func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -336,13 +309,11 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 	}
 }
 
-// TestThePageClearsTheWindowButtons is R6's first consequence: with the native
-// strip gone the platform's three control buttons float over the top-leading
-// corner of whatever this window drew there, so the region reaching that
-// corner owes them their run. Here that region is the ground, which owes them
-// nothing but its own colour — but the page must not reach into the run, and
-// the run is taken from desktop's derivation of the platform's rule rather
-// than from a guess at where the circles are.
+// TestThePageClearsTheWindowButtons: with the native strip gone the platform's
+// three control buttons float over the top-leading corner of whatever this
+// window drew there. The ground owes them nothing but its own colour, but the
+// page must not reach into their run, which is taken from desktop's derivation
+// of the platform's rule rather than from a guess at where the circles are.
 //
 // The margin is generous on purpose: the page is centred in the window, so the
 // distance between its topmost ink and the buttons is not a tuned number and a
@@ -369,30 +340,17 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 	}
 }
 
-// TestTheCardsRestOneRungOverThePage is V3 in the small, read off the frame:
-// the launcher's eight app cards lie on the window's own ground, and a thing
-// lying on a plane fills one storey over it. The storey is walked from that
-// ground — tokens.Level0.Raised() — rather than named as a step, so what is
-// pinned here is the grammar rather than a colour, and it is checked in both
-// schemes because since ADR-022 one storey up means LIGHTER in both and a
-// rule stated once has to hold twice.
+// TestTheCardsRestOneRungOverThePage reads off the frame that the app cards
+// lie exactly one storey over the window's own ground. The storey is walked
+// from that ground — tokens.Level0.Raised() — rather than named as a step, so
+// what is pinned is the grammar rather than a colour, and it is checked in
+// both schemes because one storey up means lighter in both.
 //
-// What the linchpin costs this window is worth naming here, because it is
-// what this test now has to survive: on paper the cards are #F8F8F8 on a
-// #F6F6F6 page, two levels, and the card's own border is the whole of what
-// says where a card is. On slate they are #222222 on #181818 and the fill
-// still carries it. Neither of those is a colour this test asserts — it asks
-// the ladder which storey it painted — but a frame that reads as a flat page
-// with eight outlines on it is the light scheme working as ruled, not a
-// regression.
-//
-// The arrangement this replaces is the audit's finding: the cards were built
-// Elevated, and that variant fills at level 2, the rung the ladder keeps for
-// surfaces that leave the plane. Eight of those at rest is why the grid read
-// heavier than the window around it. Only a frame can say which rung was
-// painted — the goldens beside this file would have stored either one without
-// complaint, which is how the wrong one survived an audit that called these
-// cards level 1.
+// On paper the cards are #F8F8F8 on a #F6F6F6 page and the card's border is
+// the whole of what says where a card is; on slate they are #222222 on
+// #181818 and the fill carries it. Neither is a colour this test asserts — it
+// asks the ladder which storey it painted — but a frame that reads as a flat
+// page with outlines on it is the light scheme working as ruled.
 func TestTheCardsRestOneRungOverThePage(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -452,9 +410,9 @@ func TestTheCardsRestOneRungOverThePage(t *testing.T) {
 }
 
 // TestTheStripMovesThePage guards the inset itself: a frame drawn under the
-// strip is not the frame drawn without one. Without this the three tests above
-// would all still pass if the cap stopped insetting anything, since a
-// centred page clears a 32 dp strip on its own.
+// strip is not the frame drawn without one. Without this the tests above would
+// all still pass if the cap stopped insetting anything, since a centred page
+// clears a 32 dp strip on its own.
 func TestTheStripMovesThePage(t *testing.T) {
 	capped := renderWindow(t, tokens.DefaultLight, titleBandDp)
 	bare := renderWindow(t, tokens.DefaultLight, 0)

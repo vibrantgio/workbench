@@ -17,14 +17,12 @@ import (
 )
 
 // windowCanvasSize is the size the window opens at, and the only size these
-// renders are recorded at: a composition is worth a picture at the size
-// somebody actually looks at it.
+// renders are recorded at.
 var windowCanvasSize = image.Pt(int(winW), int(winH))
 
 // sharpRadius keeps the renders comparable between machines: anti-aliased
 // rounded corners vary slightly between GPU contexts, which is enough to fail
-// a pixel-exact diff on a page of cards and buttons. The pattern renders
-// upstream pin it the same way.
+// a pixel-exact diff on a page of cards and buttons.
 var sharpRadius = tokens.RadiusScale{}
 
 // staticThemed is one theme emission frozen into the snapshot the view
@@ -50,12 +48,9 @@ func staticThemed(colors tokens.ColorTokens) themed {
 }
 
 // page is the window as a single widget: the theme's background fill with the
-// hero and the card grid on it.
-//
-// The animated 3D field the running window floats these on sits between the
-// two and is not here. It is driven by the clock and by the window it
-// invalidates, so it has no one frame to store; the background it is keyed to
-// stands in for it.
+// hero and the card grid on it. The animated 3D field the running window
+// floats these on is driven by the clock, so it has no one frame to store and
+// is omitted; the background it is keyed to stands in for it.
 func page(tok themed, model Model) layout.Widget {
 	back := backdrop.Widget(tok.color.Background)
 	content := pageContent(tok, model)
@@ -67,9 +62,8 @@ func page(tok themed, model Model) layout.Widget {
 
 // pageContent is the window's content layer alone — the hero over the card
 // grid, with the theme-driven pieces resolved from the frozen snapshot and no
-// ground under them. It is split out because the whole-window render beside
-// this file has to put the strip inset between the ground and the page, which
-// a widget that already carries its own ground gives it no seam to do.
+// ground under them. It is separate from page so the whole-window render can
+// put the strip inset between the ground and the page.
 func pageContent(tok themed, model Model) layout.Widget {
 	props := HeroProps
 	props.Shaper = tok.shaper
@@ -97,8 +91,8 @@ func TestWindowGolden(t *testing.T) {
 }
 
 // TestSchemesDiffer confirms the two schemes are two renders rather than one
-// drawn twice — the failure a pair of goldens recorded from the same tokens
-// would otherwise hide.
+// drawn twice, which a pair of goldens recorded from the same tokens would
+// otherwise hide.
 func TestSchemesDiffer(t *testing.T) {
 	light := golden.Capture(t, windowCanvasSize, page(staticThemed(tokens.DefaultLight), Model{}))
 	dark := golden.Capture(t, windowCanvasSize, page(staticThemed(tokens.DefaultDark), Model{}))

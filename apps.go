@@ -3,9 +3,8 @@ package main
 import "golang.org/x/exp/shiny/materialdesign/icons"
 
 // App is one launchable workbench example. Name doubles as the status key in
-// the Model; Dir is the app's directory beside this command, and the last
-// element of its module path — the two are the same word because the app's
-// module is the directory (see launch.go).
+// the Model; Dir is both the app's directory beside this command and the last
+// element of its module path.
 type App struct {
 	Name  string
 	Dir   string
@@ -21,18 +20,17 @@ func (a App) Module() string { return rootModule + "/" + a.Dir }
 // the path names a program that can be fetched and run.
 const rootModule = "github.com/vibrantgio/workbench"
 
-// Apps is the launch catalogue, in the README's reading order (todos first —
-// "start here"). This command is deliberately absent from its own catalogue:
-// it is the window the cards are in, not a card. Every entry must name a
-// directory that exists beside it, and every such app must have an entry.
+// Apps is the launch catalogue, in the README's reading order. Every entry
+// must name a directory that exists beside this command, and every such app
+// must have an entry; this command itself is not one of them.
 var Apps = []App{
 	{
 		Name:  "Todos",
 		Dir:   "todos",
 		Blurb: "The minimal canonical MVU app: pure reducers, components widgets, live light/dark theming.",
-		// A filled clipboard rather than ActionDone's bare check: every
-		// other card's icon depicts its app's subject, and a check is this
-		// set's glyph for a completed thing, not for an app about them.
+		// A filled clipboard rather than ActionDone's bare check: every card's
+		// icon depicts its app's subject, and a check is this set's glyph for a
+		// completed thing, not for an app about them.
 		Icon: icons.ActionAssignmentTurnedIn,
 	},
 	{
@@ -44,9 +42,8 @@ var Apps = []App{
 	{
 		Name: "Site Docs",
 		Dir:  "sitedocs",
-		// The blurb is two lines wide on the card, like every other one
-		// here: a third line pushes this card's Launch button out of line
-		// with the rest of the row.
+		// Blurbs run to two lines on a card; a third pushes the Launch button
+		// out of line with the rest of the row.
 		Blurb: "Five-tab docs app: the guide with its outline tree, the theme, the inventory by group.",
 		Icon:  icons.ActionDescription,
 	},
@@ -66,8 +63,8 @@ var Apps = []App{
 		Name:  "Themer",
 		Dir:   "themer",
 		Blurb: "Drop in a picture and the whole system re-draws in its colour: seeds, palette, syntax.",
-		// An eyedropper, not the palette next to it: ImageColorLens, the
-		// obvious name, draws the same glyph as Icon Browser's ImagePalette.
+		// An eyedropper: ImageColorLens, the obvious name, draws the same glyph
+		// as Icon Browser's ImagePalette.
 		Icon: icons.ImageColorize,
 	},
 	{

@@ -25,11 +25,9 @@ import (
 
 // The animated triangle field: a seen 3D triangular patch, tilted back,
 // displaced per-vertex by time-evolving simplex noise, and coloured from a
-// fixed spatial hue field keyed to the live components theme. Originally proven
-// as the seenbgdemo vertical slice; this is its centred variant, whose
-// symmetric overfill margins cover every window edge — a top-left-anchored
-// variant was tried and rejected because noise displacement bared the top
-// edge.
+// fixed spatial hue field keyed to the live components theme. The patch is
+// centred, so its symmetric overfill margins cover every window edge even
+// under noise displacement.
 
 // Field geometry and motion, tuned by eye at every window size from
 // 1000×680 up to a 3008×1692 (6K) display.
@@ -53,11 +51,10 @@ const (
 	coverMarginY = 1.5
 	growStep     = 256.0 // dp of slack per regrow, so a resize drag rebuilds in chunks
 
-	// The screen-space travel per frame — which is what visible shimmer
-	// scales with — is dominated by amplitude, not speed: a low amplitude
-	// keeps each vertex's projected motion sub-pixel, so even a brisk time
-	// scale reads smooth (1e-3 was too fast; pixel-snapping was rejected
-	// because whole-pixel jitter is worse than the shimmer it removes).
+	// Visible shimmer scales with screen-space travel per frame, which
+	// amplitude dominates rather than speed: a low amplitude keeps each
+	// vertex's projected motion sub-pixel, so even a brisk time scale reads
+	// smooth.
 	noiseSpeed     = 5e-4
 	noiseAmplitude = 0.15
 )
@@ -140,9 +137,9 @@ func NewField(window *app.Window, width, height unit.Dp) *Field {
 		}
 	})
 
-	// Transform isolation: the identity Offset push/pop discards anything the
-	// seen widget adds to the op list, so the background can never disturb the
-	// layers drawn above it (see seenbgdemo patch.go for the full rationale).
+	// The identity Offset push/pop discards anything the seen widget adds to
+	// the op list, so the background can never disturb the layers drawn above
+	// it.
 	f.view = func(gtx layout.Context) layout.Dimensions {
 		defer op.Offset(image.Point{}).Push(gtx.Ops).Pop()
 		return view(gtx)
@@ -161,11 +158,10 @@ func (f *Field) SetColors(c tokens.ColorTokens) {
 }
 
 // applyPending installs a palette SetColors handed over, if one has arrived.
-// The animation tick calls it before displacing the patch, which is where it
-// belongs: recolouring is the events thread's to do. It is a method of its own
-// so that a render taken outside a running window — where no tick will ever
-// fire — can key the field to a theme before capturing it, instead of
-// photographing the pre-theme placeholder or waiting on a clock.
+// Recolouring belongs to the events thread, so the animation tick calls it
+// before displacing the patch. It is separately callable so a render taken
+// outside a running window — where no tick ever fires — can key the field to a
+// theme before capturing it.
 func (f *Field) applyPending() {
 	if pal := f.pending.Swap(nil); pal != nil {
 		f.pal = *pal
@@ -221,14 +217,13 @@ func (f *Field) fit(w, h float64) {
 }
 
 // recolor fills every face from the fixed hue field evaluated at the face's
-// STABLE position — its object-space barycentre minus the patch centre, the
-// same basis the Z-noise is indexed by. A triangle keeps its colour however
-// the field regrows; only a theme change repaints (deliberately, all at once).
+// stable position — its object-space barycentre minus the patch centre, the
+// same basis the Z-noise is indexed by — so a triangle keeps its colour
+// however the field regrows and only a theme change repaints.
 //
-// Position-keyed colour (rather than face-iteration order) is load-bearing:
+// Keying colour to position rather than face-iteration order is load-bearing:
 // shape.Patch emits faces column-major, so growing the field in height remaps
-// every column's face indices — order-keyed colour repaints the world on
-// every regrow (seenbgdemo colors.go documents the failed alternatives).
+// every column's face indices.
 const colorFreq = 0.10 // spatial frequency; lower = larger colour regions
 
 func (f *Field) recolor() {
