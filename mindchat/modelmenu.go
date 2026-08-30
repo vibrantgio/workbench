@@ -10,14 +10,15 @@
 // inside the component: the anchor is the popover's anchor slot and the menu
 // its content slot.
 //
-// popover-canvas coupling: the popover centres its anchor in the canvas it is
-// given and measures Content at canvas/2, so ChatPane hands it an anchor-sized
-// box in the header and the content overrides its incoming constraints to
-// self-size. The anchor is sized to its own value and refuses to stretch, so
-// the box is a CAP rather than a shape: it fills the box while the label is
-// long and leaves slack in it when the label is short. Which end that slack
-// falls on is the anchor's Pin — PinTrailing here, so the control's trailing
-// edge is the box's, which is the content column's, whatever the label says.
+// The canvas the popover gets is the whole chrome row inside the content
+// area's insets (frame.go), because that canvas is the room the open menu may
+// use and the popover keeps its surface inside it. Two things follow. The
+// anchor is stood at the canvas's trailing edge by the popover, so the
+// control lands on the content column's edge whatever the label says; and
+// because the room is the row rather than the control, the two things that
+// are NOT entitled to all of it cap themselves — the anchor at [ChipWidth],
+// the surface at [MenuWidth] — over the constraints the popover offers, which
+// for content is half the canvas.
 package main
 
 import (
@@ -91,13 +92,11 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 				// The header band is the transcript's own level-0 paper, so
 				// the anchor fills one storey over it — the zero value.
 				Ground: tokens.Level0,
-				// The picker's box is a CAP at the trailing edge of the
-				// chrome row and the control has to land ON that edge, over
-				// the last ink of the message column and the composer under
-				// it. The popover standing between this file and the anchor
-				// centres whatever it is handed, so the ask goes to the
-				// anchor — the one place both widths are known.
-				Pin:       picker.PinTrailing,
+				// The anchor reports the shape it drew and nothing wider: the
+				// popover aims its tail at that rect, and a control that
+				// widened its report to reach the trailing edge would be
+				// pointed at from the middle of a box nothing was drawn in.
+				// Reaching the edge is the popover's alignment below.
 				Clickable: &anchorClick,
 				OnClick: func(gtx layout.Context) {
 					if menuOpen.Load() {
@@ -136,9 +135,10 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 
 	popObs := popover.Popover(th, popover.Props{
 		Open:      openObs,
-		Anchor:    slot(&anchorCell),
+		Anchor:    anchorBox(slot(&anchorCell), ChipWidth),
 		Content:   slot(&contentCell),
 		Placement: popover.Bottom,
+		Align:     popover.AlignTrailing,
 		Arbiter:   popArb,
 		OnDismiss: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseModelMenu{}}.Add(gtx.Ops)
@@ -152,10 +152,20 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 	})
 }
 
+// anchorBox caps how far the header control may run before its label is
+// truncated. The popover offers the anchor the whole room it has, and the
+// name of a model is not entitled to the width of the chrome row.
+func anchorBox(anchor layout.Widget, width unit.Dp) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(width))
+		return anchor(gtx)
+	}
+}
+
 // menuSurface gives a picker menu the width this app's floating surfaces are
 // drawn at and room to stack every row it has. Both halves are needed: the
-// popover measures its content at half the canvas it was handed, and that
-// canvas is the anchor's own box.
+// popover measures its content at half the canvas it was handed, and half a
+// chrome row is neither this width nor tall enough for a catalogue.
 func menuSurface(menu layout.Widget, width unit.Dp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(width), 1<<20)}

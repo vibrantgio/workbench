@@ -216,25 +216,27 @@ func (f *windowFrame) chromeRow(gtx layout.Context, m Model, t themed) layout.Di
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
 }
 
-// layoutPicker draws the model picker into the cap the chrome row reserved
-// for it: a control-sized box one inset in from the content area's trailing
-// edge. components/picker sizes its anchor to the value and the box is only
-// how far that value may run before it is clipped, so the box is a CAP rather
-// than a shape — and the anchor is pinned to its trailing edge (modelmenu.go),
-// which is why the control lands on the content column's edge and not a few
-// pixels inboard of it whatever the model is called.
+// layoutPicker draws the model picker into the chrome row, and what it hands
+// it is the WHOLE row inside the content area's insets rather than a box cut
+// to the control. That canvas is patterns/popover's statement of the room the
+// open menu may use: the surface hangs off the anchor and the popover keeps
+// it inside what it was given, so a canvas cut to the control would leave the
+// menu running off the window's trailing edge with nothing to clamp against.
+// Where the control stands in that room is the popover's trailing alignment
+// (modelmenu.go), which is why it lands on the content column's edge and not
+// a few pixels inboard of it whatever the model is called.
 func layoutPicker(gtx layout.Context, menu layout.Widget, contentX, contentW, rowH int) {
 	if menu == nil || rowH <= 0 {
 		return
 	}
-	chipW := gtx.Dp(ChipWidth)
-	x := contentX + contentW - gtx.Dp(chromeInsetDp) - chipW
-	if x < contentX {
+	inset := gtx.Dp(chromeInsetDp)
+	room := contentW - 2*inset
+	if room <= 0 {
 		return
 	}
-	defer op.Offset(image.Pt(x, 0)).Push(gtx.Ops).Pop()
+	defer op.Offset(image.Pt(contentX+inset, 0)).Push(gtx.Ops).Pop()
 	mgtx := gtx
-	mgtx.Constraints = layout.Constraints{Max: image.Pt(chipW, rowH)}
+	mgtx.Constraints = layout.Constraints{Max: image.Pt(room, rowH)}
 	menu(mgtx)
 }
 
