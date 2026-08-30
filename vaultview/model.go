@@ -131,10 +131,10 @@ type Note struct {
 	FM      obsidian.FrontMatter
 	Blocks  []markdown.Block
 	Anchors map[string]int // block id → top-level block index
-	Src     []byte         // file bytes at read; see spliceTask
+	Src     []byte         // file bytes at read
 	Mod     time.Time      // modification time at read
 	Size    int64          // byte size at read
-	Lines   int            // source lines at read; see status.go
+	Lines   int            // source lines at read
 }
 
 // BrowseTo points the folder browser at a directory.

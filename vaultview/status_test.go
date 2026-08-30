@@ -17,11 +17,6 @@ import (
 // reports against, edge by edge: a line ends at a newline, a last line
 // written without one still counts, an empty file has nothing to count,
 // and the frontmatter is part of the file like every other line of it.
-//
-// The cases are the ones a vault actually holds. Notes written by a text
-// editor end with a newline; notes written by a program often do not; a
-// note that is nothing but its frontmatter is what a reader gets when they
-// file a card and have not written the card yet.
 func TestSourceLinesCountsTheFilesOwnLines(t *testing.T) {
 	cases := []struct {
 		name string
@@ -48,11 +43,11 @@ func TestSourceLinesCountsTheFilesOwnLines(t *testing.T) {
 	}
 }
 
-// TestTheCountIsTheFilesLinesAndNotTheWindows is the definition's whole
-// point: what the bar reports is a property of the file, so it cannot move
-// when the window does. One paragraph of four hundred words is one line of
-// source however many rows the column wraps it into, and the bar says one
-// — at the width the window opens at and at a third of it.
+// TestTheCountIsTheFilesLinesAndNotTheWindows: what the bar reports is a
+// property of the file, so it cannot move when the window does. One
+// paragraph of four hundred words is one line of source however many rows
+// the column wraps it into — at the width the window opens at and at a
+// third of it.
 func TestTheCountIsTheFilesLinesAndNotTheWindows(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
@@ -76,9 +71,8 @@ func TestTheCountIsTheFilesLinesAndNotTheWindows(t *testing.T) {
 	}
 }
 
-// TestTheBarNamesWhatItCounted asserts the wording, which is the other
-// half of not lying: one line is not "1 lines", and a note with nothing in
-// it says so rather than saying nothing.
+// TestTheBarNamesWhatItCounted asserts the wording: one line is not
+// "1 lines", and a note with nothing in it says so rather than nothing.
 func TestTheBarNamesWhatItCounted(t *testing.T) {
 	cases := []struct {
 		n    int
@@ -91,14 +85,10 @@ func TestTheBarNamesWhatItCounted(t *testing.T) {
 	}
 }
 
-// TestTheBarFollowsTheNoteOnScreen is the update half of the exit
-// condition, driven through the model rather than around it: opening
-// another note is what a reader does, and the bar has to be reading the
-// note the window is showing rather than the one it opened with.
-//
-// Back through the history counts too. The count is not something that
-// happens on a landing — it is what the current note is, whichever way the
-// reader arrived at it.
+// TestTheBarFollowsTheNoteOnScreen drives the bar through the model: it
+// reads the note the window is showing rather than the one it opened with,
+// whichever way the reader arrived — a landing or back through the
+// history.
 func TestTheBarFollowsTheNoteOnScreen(t *testing.T) {
 	m := goldenModel()
 	m = cacheNote(m, noteFromSource("Sources.md", "one\ntwo\nthree\n"))
@@ -122,10 +112,9 @@ func TestTheBarFollowsTheNoteOnScreen(t *testing.T) {
 	}
 }
 
-// TestTheBarSaysNothingBeforeAnyNoteIsOpen holds the bar to what it knows.
-// Scanning a vault, a scan that failed and a vault with no notes in it are
-// all states with no note to measure, and a bar reporting zero lines in
-// them would be stating a fact it does not have.
+// TestTheBarSaysNothingBeforeAnyNoteIsOpen holds the bar to what it knows:
+// scanning a vault, a scan that failed and a vault with no notes are all
+// states with no note to measure.
 func TestTheBarSaysNothingBeforeAnyNoteIsOpen(t *testing.T) {
 	for _, c := range []struct {
 		name  string
@@ -141,20 +130,18 @@ func TestTheBarSaysNothingBeforeAnyNoteIsOpen(t *testing.T) {
 	}
 }
 
-// TestTheBarsInkIsLegibleOnItsGround measures the pairing rather than
-// asserting it looks fine: the quiet neutral step the count is drawn in,
-// against the paper it stands on, in both appearances the app ships. The
-// numbers are logged, so what is recorded is the measurement and not a
-// claim about it.
+// TestTheBarsInkIsLegibleOnItsGround measures the quiet neutral step the
+// count is drawn in against the paper it stands on, in both appearances
+// the app ships, logging the ratios.
 //
 // The band the bar claims runs past the document and over the trailing
-// panel's own surface, so that ground is measured too. No ink is drawn out
-// there today — the count stands on the note column's reading margin — but
-// a bar with room to grow must not grow onto a pairing nobody measured.
+// panel's own surface, so that ground is measured too: no ink is drawn out
+// there today, but a bar with room to grow must not grow onto a pairing
+// nobody measured.
 func TestTheBarsInkIsLegibleOnItsGround(t *testing.T) {
 	// The floor for body-sized text. The bar's role is smaller than body
 	// text, which asks for more rather than less, so this is the weakest
-	// claim worth making and both appearances clear it comfortably.
+	// claim worth making.
 	const floor = 4.5
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -181,9 +168,8 @@ func TestTheBarsInkIsLegibleOnItsGround(t *testing.T) {
 // the document's own column, clear of the window's bottom edge, and on the
 // note column's reading margin rather than anywhere else across the foot.
 //
-// Measured off the picture, because a bar that agrees with the arithmetic
-// that placed it and not with the pixels is the defect worth catching —
-// the same reason the top of this window is measured that way.
+// Measured off the picture: a bar that agrees with the arithmetic that
+// placed it and not with the pixels is the defect worth catching.
 func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	for _, tc := range themeCases {
@@ -215,10 +201,9 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 	}
 }
 
-// TestTheFootRedrawsOnANoteSwitch is the update half again, in pixels: one
-// window showing two notes of different lengths must not paint the same
-// foot. The model half above proves the string changes; this proves the
-// string reaches the glass.
+// TestTheFootRedrawsOnANoteSwitch is the update path in pixels: one window
+// showing two notes of different lengths must not paint the same foot, so
+// the string reaches the glass and not only the model.
 func TestTheFootRedrawsOnANoteSwitch(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	first := goldenModel()

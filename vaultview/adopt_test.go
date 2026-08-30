@@ -28,12 +28,11 @@ type fixedAppearance struct{ a specsystem.Appearance }
 
 func (f fixedAppearance) Read() (specsystem.Appearance, error) { return f.a, nil }
 
-// TestAKeptBrandDressesTheWholeWindow is the adoption proof. It builds the
-// theme stream from exactly the expression the application builds its own
-// from — a kept brand's options over the live bridge — renders the whole
-// window in what that stream emits, and requires the default seed's accent
-// to be gone from every pixel: a window that adopts a brand adopts it
-// everywhere, or the adoption is a decoration on one panel.
+// TestAKeptBrandDressesTheWholeWindow builds the theme stream from exactly
+// the expression the application builds its own from — a kept brand's
+// options over the live bridge — renders the whole window in what that
+// stream emits, and requires the default seed's accent to be gone from
+// every pixel: a window that adopts a brand adopts it everywhere.
 //
 // Both sides are checked because a kept brand pins a pair, not a colour,
 // and the desktop still chooses between them.
@@ -84,19 +83,17 @@ func TestAKeptBrandDressesTheWholeWindow(t *testing.T) {
 // primary role, in this window: the pin, on its own, wherever a surface
 // fills with it outright (the tree's active row and the outline's
 // current-section pill both paint [tokens.RampSet.Primary]'s step 300
-// directly — see tree.go and aside.go); and [tokens.ColorTokens.InkOn]'s
-// answer for the two floors this window gates the role's ink at when it is
-// drawn ON a page rather than filling one — [tokens.TextFloor] for the
-// wikilinks a note's prose carries, [tokens.GraphicFloor] for a graphic
-// mark such as a blockquote's bar. InkOn already returns the bare pin where
-// it clears a floor and a walked ramp step where it does not, so this one
-// list covers both without needing to know which side of the floor c falls
-// on.
+// directly); and [tokens.ColorTokens.InkOn]'s answer for the two floors
+// this window gates the role's ink at when it is drawn ON a page rather
+// than filling one — [tokens.TextFloor] for the wikilinks a note's prose
+// carries, [tokens.GraphicFloor] for a graphic mark such as a blockquote's
+// bar. InkOn already returns the bare pin where it clears a floor and a
+// walked ramp step where it does not, so this one list covers both without
+// needing to know which side of the floor c falls on.
 //
-// "The window adopted the brand" no longer means the bare pin reaches every
-// surface — AV1's gate means it may legitimately not — so this asks the
-// palette what its own answers are instead of naming one byte and hoping
-// every seed agrees with it.
+// The ink-on-a-floor gate means the bare pin may legitimately not reach
+// every surface, so "the window adopted the brand" is asked of the palette's
+// own answers rather than of one named byte every seed must agree with.
 func primaryRoleAnswers(c tokens.ColorTokens) []color.NRGBA {
 	ground := c.SurfaceAt(tokens.Level0)
 	return []color.NRGBA{
@@ -117,18 +114,16 @@ func pixelsOf(img *image.RGBA, cs []color.NRGBA) int {
 	return n
 }
 
-// TestAPinThatClearsDressesTheWindowWithItself is the adoption proof's other
-// direction. TestAKeptBrandDressesTheWholeWindow's harbourRed cannot exercise
-// it: its light pin measures 4.27:1, under the text floor by design, so
-// InkOn always walks off it there. A seed whose pin clears needs no walk,
-// and this asserts the bare pin itself — not merely one of
-// [primaryRoleAnswers] — reaches the window, because InkOn is required to
-// hand it back unmodified once it reads on its own page.
+// TestAPinThatClearsDressesTheWindowWithItself asserts the bare pin itself
+// — not merely one of [primaryRoleAnswers] — reaches the window, because
+// InkOn hands a pin back unmodified once it reads on its own page. It needs
+// a seed whose pin clears: harbourRed's light pin measures 4.27:1, under the
+// text floor, so InkOn always walks off it there.
 func TestAPinThatClearsDressesTheWindowWithItself(t *testing.T) {
 	// The default brand's own seed: its light pin measures 5.94:1 against
 	// its own paper, clear of the 4.5:1 text floor, and its dark pin is
-	// realized at a fixed depth that always clears — the shape this test is
-	// written for on both sides of the appearance switch.
+	// realized at a fixed depth that always clears — so the pin needs no
+	// walk on either side of the appearance switch.
 	seed := tokens.DefaultSeed
 	path := filepath.Join(t.TempDir(), "theme.json")
 	if err := brand.SaveTo(path, brand.Brand{Seed: seed, Source: "clears.jpg"}); err != nil {
@@ -206,18 +201,15 @@ func (p plate) unlike(q plate) (grounds bool, runs int) {
 	return grounds, runs
 }
 
-// TestTheKeptBasesColourTheCode is the adoption proof for the other half of a
-// kept theme. The colour a person chose dresses the window; the syntax bases
-// they chose beside it draw the code in it, one per appearance, and this
-// asserts that a fence here wears the same plate the window that offered them
-// was showing — the base's own ground under the base's own inks, ink for ink
-// and not merely "some highlighting", and through the appearance's own member
-// rather than through whichever one was named first.
+// TestTheKeptBasesColourTheCode covers the other half of a kept theme: the
+// syntax bases chosen beside the colour draw the code, one per appearance.
+// A fence here must wear the base's own ground under the base's own inks,
+// ink for ink and not merely "some highlighting", and through the
+// appearance's own member rather than whichever one was named first.
 //
-// The comparison is against the pair worn directly from the kept names,
-// because that is what "reproduces it" means: the file names a pair, and two
-// applications wearing that pair on one palette must land on the same plate or
-// the names are a suggestion.
+// The comparison is against the pair worn directly from the kept names: two
+// applications wearing that pair on one palette must land on the same plate,
+// or the names are only a suggestion.
 func TestTheKeptBasesColourTheCode(t *testing.T) {
 	// Two styles that are nothing to do with each other, and nothing like the
 	// default in either appearance.
@@ -276,7 +268,7 @@ func TestTheKeptBasesColourTheCode(t *testing.T) {
 			// And it is this appearance's own member that got there: the same
 			// ground, the same body ink and the same runs as that member worn
 			// alone — and not the other member's, which is what a window
-			// drawing both appearances through one name would have produced.
+			// drawing both appearances through one name would produce.
 			member := plateOf(wornAlone(tc.member, tc.colors), src)
 			if grounds, apart := got.unlike(member); grounds || apart != 0 {
 				t.Fatalf("the fence is not %s's plate: grounds differ=%v, %d runs inked differently", tc.member, grounds, apart)
@@ -314,10 +306,10 @@ func restoreCodeBases(p highlight.BasePair) { noteCodeBases = p }
 // code exactly as it does for somebody who never chose one. The alternative
 // is a window that refuses to draw a fence because a preference went stale.
 //
-// The last case is the theme kept before a theme carried a pair: one name, no
-// appearance attached, arriving in both members. The appearance it was fitted
-// to keeps it and the other falls back, so a note opens in the base that was
-// chosen under the light the person chose it in.
+// The last case is one name with no appearance attached, arriving in both
+// members. The appearance it was fitted to keeps it and the other falls
+// back, so a note opens in the base that was chosen under the light the
+// person chose it in.
 func TestAnUnknownKeptBaseFallsBackToTheDefault(t *testing.T) {
 	defer restoreCodeBases(noteCodeBases)
 	d := highlight.DefaultBases()

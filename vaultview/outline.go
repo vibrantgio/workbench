@@ -58,11 +58,10 @@ func noteOutline(n *Note) []outlineEntry {
 // heading, which is where a note that opens with prose or frontmatter
 // starts, and -1 for a note with no headings at all.
 //
-// "At or above" is the whole rule. The reader is under a heading from the
+// "At or above" is the whole rule: the reader is under a heading from the
 // moment it reaches the top of the viewport until the next one does, so
 // the marked entry changes exactly when a new section's heading crosses
-// the leading edge — which is what a reader watching the column expects,
-// and what makes the mark agree with what the top line of the page says.
+// the leading edge.
 func outlineActive(entries []outlineEntry, first int) int {
 	active := -1
 	for _, e := range entries {
@@ -77,15 +76,13 @@ func outlineActive(entries []outlineEntry, first int) int {
 // outlineChoice is an entry the reader picked, held against the mark the
 // document would otherwise write.
 //
-// It exists because the last headings of a note cannot lead the viewport:
-// the document stops at its own end, so the leading block stays under some
-// earlier heading however far the reader is taken toward the one they
-// picked. A mark read from that block alone takes the pick straight back
-// off the entry they pressed — the entry ends up unpickable, which is not
-// what pressing something means. So the pick stands, and it stands for
-// exactly as long as the reader leaves the note where pressing it put
-// them: move the note by any means and the mark is the document's again,
-// which is the tracking every other entry has.
+// The last headings of a note cannot lead the viewport: the document stops
+// at its own end, so the leading block stays under some earlier heading
+// however far the reader is taken toward the one they picked, and a mark
+// read from that block alone would make those entries unpickable. So the
+// pick stands for exactly as long as the reader leaves the note where
+// pressing it put them: move the note by any means and the mark is the
+// document's again.
 //
 // The zero value is a reader who has picked nothing.
 type outlineChoice struct {
@@ -121,8 +118,7 @@ func (c *outlineChoice) drop() { *c = outlineChoice{} }
 // first frame after a pick records where the document came to rest — as far
 // toward the heading as the note goes, whether or not that put the heading
 // at the top — and any later frame that finds the document somewhere else
-// lets the pick go, so the mark returns to following the reader down the
-// note.
+// lets the pick go.
 func (c *outlineChoice) stands(doc *markdown.Document, first int) (int, bool) {
 	switch {
 	case c.entryPlusOne == 0:

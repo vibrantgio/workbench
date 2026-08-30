@@ -2,96 +2,69 @@
 // sidebar pane down the leading edge, and beside it the content area —
 // one chrome row across its top, the note column and the backlinks aside
 // under it parted by a draggable divider, and one status bar across its
-// foot. The two bands are the same span and the same treatment at either
-// end of the same column; what the foot one carries is in status.go.
+// foot. What the foot band carries is in status.go.
 //
 // The composition is app-local rather than the vocabulary's three-column
-// shell for one reason: that shell pins its top slot to a full navbar
-// band (ControlHeight plus twice the vertical control padding, 52 dp at
-// the comfortable density), and this window's whole point is that its
-// chrome is a single tight row. Everything else here — a divider that
-// tracks an absolute aside width, the op order that makes Tab follow the
-// reading order — is the shell's arrangement, kept deliberately
-// recognisable.
+// shell because that shell pins its top slot to a full navbar band
+// (ControlHeight plus twice the vertical control padding, 52 dp at the
+// comfortable density) and this window's chrome is a single tight row.
+// Everything else here — a divider tracking an absolute aside width, the
+// op order that makes Tab follow the reading order — is the shell's
+// arrangement.
 //
-// The sidebar is the leading column and it owns the top of the window the
-// way the platform's own sidebars do: not by being the window's edge but
-// by floating just inside it — inset from the window's leading, top and
+// The sidebar is a floating pane: inset from the window's leading, top and
 // bottom edges by one margin, rounded on all four corners, with the
-// window's ground showing around it on every side. That object is the
-// vocabulary's now and this window draws none of it itself: the float, the
-// outline, the strip's arithmetic, the hidden-takes-no-width contract and
-// the recall convention are patterns/pane's, and what is left here is the
-// column that stands in it and the window it stands in. No band crosses above
-// it, because on this platform none does; the only thing over the pane is
-// the margin of ground it floats off. The pane's toggle sits at its
-// top-right corner, where the pane ends, with the strip's empty middle
-// moving the window. The slivers of ground the margin reveals claim no
-// drag of their own: a hand aims for the strip, not for an eight-dp gap,
-// and a move action there would promise a handle too thin to hit. The
-// pane is also where the vault's own actions live, at its foot — the pane
-// stands for the vault, so what acts on the whole vault belongs to it.
-// Hidden, the pane takes no width at all, the note column reflows from
-// the window's leading edge, and the chrome row carries the toggle that
-// brings the pane back, since a control that travels with the pane cannot
-// be the one that recalls it.
+// window's ground showing around it. The float, the outline, the strip's
+// arithmetic, the hidden-takes-no-width contract and the recall convention
+// are patterns/pane's; what is left here is the column that stands in it.
+// No band crosses above the pane. Its toggle sits at its top-right corner
+// with the strip's empty middle moving the window; the slivers of ground
+// the margin reveals claim no drag, since a move action there would promise
+// a handle too thin to hit. The vault's own actions live at the pane's
+// foot. Hidden, the pane takes no width at all and the note column reflows
+// from the window's leading edge, so the chrome row carries the toggle that
+// brings the pane back — a control that travels with the pane cannot be the
+// one that recalls it.
 //
-// The window control buttons are the window's own and are measured from
-// its edges, not from anything drawn under them: they stand a fixed inset
-// in from the window's top and leading glass, the inset the platform's
-// own sidebar apps use, and they stay there whatever the application puts
-// beneath. The pane happens to be under them while it stands, so its top
-// strip is cut deep enough to hold them with air to spare and its toggle
-// centres on their line; when the pane goes, nothing about them changes.
-// A control that belongs to the window cannot shift because a pane the
-// reader dismissed used to be behind it.
-//
-// That line is what everything else at the top of the window stands on
-// too: the pane's toggle, the vault's name, and the toggle the chrome row
-// shows once the pane is away. The buttons are the fixed thing up there
-// and the tallest, so they are what the rest lines up with — and the two
-// halves of the sidebar switch then hold one height between them, rather
-// than the mark jumping as the pane comes and goes. The chrome row is
-// shallower than that line is deep, so its content hangs below the row's
-// own height; the row still spends the height it always did, and what
-// hangs falls in the margin the note column keeps above its first line.
+// The window control buttons are measured from the window's own top and
+// leading glass and from nothing drawn under them: they stay put whatever
+// the application puts beneath, so the pane arriving or leaving may not
+// move them. The pane's top strip is therefore cut deep enough to hold them
+// with air to spare, and its toggle centres on their line. That line is
+// what everything else at the top of the window stands on: the pane's
+// toggle, the vault's name, and the toggle the chrome row shows once the
+// pane is away, so the two halves of the sidebar switch hold one height
+// between them. The chrome row is shallower than that line is deep, so its
+// content hangs below the row's own height into the margin the note column
+// keeps above its first line; the row spends no extra height for it.
 //
 // The window's ground is the same paper the note column lies on, so the
-// note has no edge of its own to draw and the chrome row sits on the
-// document rather than on a band above it. What is furniture says so by
-// standing off that ground; what is document simply is the ground. Both
-// of the window's edges are furniture and both stand on the same floor,
-// a measured step under the paper in either scheme — but they are two
-// different KINDS of furniture, and this window is where the difference
-// is drawn. Leading, the sidebar is a FLOATING PANE: a button slides it
-// out of the window, so it is an object, and it carries its own hairline
-// just inside its rounded edge to say so. Trailing, the column of the
-// note's outline and the notes citing it is INTEGRAL FURNITURE: fixed,
-// flush, with nothing to dismiss it, so it takes no outline at all and
-// its leading edge is a plain seam. Neither is the document, so neither
-// lies on its paper, and the document is a column of paper between two
-// panes rather than a shape cut out of one.
+// note draws no edge of its own and the chrome row sits on the document
+// rather than on a band above it. Both of the window's edges are furniture
+// standing on the same floor, a measured step under the paper in either
+// scheme, but they are two different kinds. Leading, the sidebar is a
+// FLOATING PANE: a button slides it out of the window, so it is an object,
+// and it carries its own hairline just inside its rounded edge. Trailing,
+// the column of the note's outline and the notes citing it is INTEGRAL
+// FURNITURE: fixed, flush, with nothing to dismiss it, so it takes no
+// outline and its leading edge is a plain seam.
 //
-// Both boundaries paint one hairline, and both run the window's whole
-// height: the platform does not exempt its top band from a split seam,
-// and a seam that stopped at a band would say the window is divided in
-// one place and joined in another. What is left to the pointer is the
-// one thing a resting edge cannot say — that this particular seam moves.
-// The grab area stays as wide as a hand needs, and the seam inside it
-// thickens and takes a firmer ink while a hand is on it, rather than a
-// second bar appearing beside a line that is already drawn.
+// Both boundaries paint one hairline running the window's whole height: the
+// platform does not exempt its top band from a split seam, and a seam that
+// stopped at a band would say the window is divided in one place and joined
+// in another. The movable seam thickens and takes a firmer ink while a hand
+// is in the grab band, which is the one thing a resting edge cannot say.
 //
-// Where the chrome row sits is a platform fact, not a taste. Under the
-// full-size-content treatment the content extends behind the native
-// title bar, so the top strip is the application's to lay out in. The row
-// takes the content area's share of it and stops there: it begins where
-// the sidebar ends and never crosses above it. The strip is not the
-// system's to click in under this treatment, so the row's controls are
-// pressable where they stand; what the strip does not hand over is the
-// window drag, which the row and the pane's strip claim back by declaring
-// a move action over the parts of themselves that hold no control. Away
-// from the treatment the measurements report zero, the buttons stay where
-// their platform puts them, and the row lays out from its own edge inset.
+// Under the full-size-content treatment the content extends behind the
+// native title bar, so the top strip is the application's to lay out in.
+// The chrome row takes the content area's share of it and never crosses
+// above the sidebar. The strip is not the system's to click in under this
+// treatment, so the row's controls are pressable where they stand; what the
+// strip does not hand over is the window drag, which the row and the pane's
+// strip claim back by declaring a move action over the parts of themselves
+// that hold no control. Away from the treatment the measurements report
+// zero, the buttons stay where their platform puts them, and the row lays
+// out from its own edge inset.
 
 package main
 
@@ -142,23 +115,18 @@ const (
 	// bottom edge, what the sidebar's own top strip keeps around its
 	// toggle, and the air the trailing column leaves either side of a
 	// pane's scrollbar — which is what stands that bar off the window's
-	// edge by what the note's stands off this column's.
-	//
-	// The float itself is the vocabulary's now: this is the pattern's own
-	// margin, named here because the window spends it in four places the
-	// pane knows nothing about.
+	// edge by what the note's stands off this column's. It is the pane
+	// pattern's own margin, named here because the window spends it in four
+	// places the pane knows nothing about.
 	railMarginDp = pane.MarginDp
 
 	// seamDp is what any chrome boundary in this window paints: a hairline,
-	// the width the platform's own split dividers take and the width the
-	// vocabulary's shell settled on for the seam between its panes. It is
-	// the pane's internal outline and it is the flush column's seam, so
-	// that a window whose two vertical boundaries are drawn for different
-	// reasons still draws them at one weight. Wider is worse in a way that
-	// is easy to miss: a seam runs the window's whole height, band
-	// included, so its width is the width of the scar it leaves across
-	// every band it crosses. The floating pane's own outline weight is what
-	// the flush column then matches, so the number is taken from there.
+	// the width the platform's own split dividers take. It is both the
+	// pane's internal outline and the flush column's seam, so that a window
+	// whose two vertical boundaries are drawn for different reasons still
+	// draws them at one weight. A seam runs the window's whole height, band
+	// included, so its width is the width of the scar it leaves across every
+	// band it crosses.
 	seamDp = pane.SeamDp
 
 	// seamGrabbedDp is what the movable seam paints while a hand is on it:
@@ -172,34 +140,31 @@ const (
 	// The number is the platform's, read off its sidebar apps on this
 	// display: Finder, Mail, Notes and Voice Memos all draw the circles
 	// nineteen pixels in from both edges, which at one pixel per dp is
-	// nineteen. It is not what this window's toolkit would do left alone —
-	// unasked, the buttons land at nine, the inset the platform's compact
-	// windows use — so the placement is stated rather than defaulted. The
-	// rest of the run — the centre line the placement call wants, the
-	// diameter that converts one into the other — follows from this one
+	// nineteen. The toolkit left alone lands them at nine, the inset the
+	// platform's compact windows use, so the placement is stated rather than
+	// defaulted. The centre line and the diameter follow from this one
 	// number by the platform's own rule, which the pattern applies.
 	buttonInsetDp = pane.ButtonInsetDp
 
 	// paneStripDp is the pane's own top strip: deep enough to hold the
 	// buttons where the window puts them with the same air below them as
 	// above. The buttons' inset is measured from the glass and the strip
-	// from the pane's own edge, so the strip owes the difference back —
-	// which lands the buttons' centre line on the strip's own middle, the
-	// line the pane's toggle centres on too, so the two sit level. The
-	// arithmetic is the pattern's; the rail reads it to reserve the band.
+	// from the pane's own edge, so the strip owes the difference back, which
+	// lands the buttons' centre line on the strip's own middle — the line
+	// the pane's toggle centres on, so the two sit level.
 	paneStripDp = pane.StripDp
 )
 
 // windowButtons is where this window's three control buttons stand, derived
-// from the inset above by the rule the platform's own windows follow. It is
-// the whole placement, and every number in it is the window's: no rail
-// state, no screen and no pane enters into any of them.
+// from the inset above by the rule the platform's own windows follow. Every
+// number in it is the window's: no rail state, no screen and no pane enters
+// into any of them.
 var windowButtons = pane.Buttons
 
 // toolbarHeight is the chrome row's height: one LabelLarge line box with
-// the smallest spacing step above and below. It deliberately does not
-// take the density's control padding — this is a title row, not a row of
-// controls, and every dp it spends is a dp the document does not get.
+// the smallest spacing step above and below. It takes no control padding —
+// this is a title row, not a row of controls, and every dp it spends is a
+// dp the document does not get.
 func toolbarHeight(tok themeTokens) unit.Dp {
 	return unit.Dp(tok.typ.LabelLarge.LineHeight + 2*tok.sp.S1)
 }
@@ -219,18 +184,16 @@ type frameState struct {
 	hovering   bool
 
 	// leading pins the row's leading inset instead of measuring it. The
-	// measurement is the window's, and the window is the one thing a
-	// headless render does not have: off a real frame it reports zero, and
-	// on a real frame it reports whatever this machine's macOS puts the
-	// control buttons at. Neither is a number a stored image may depend
-	// on, so the static render path states one. The live path leaves this
-	// nil and measures.
+	// measurement is a live window's: off a frame it reports zero, and on
+	// one it reports whatever this machine's macOS puts the control buttons
+	// at. Neither is a number a stored image may depend on, so the static
+	// render path states one. The live path leaves this nil and measures.
 	leading func() unit.Dp
 
-	// geom is the arrangement the last frame laid out. It is kept so the
-	// composition can be measured after the fact — the chrome budget is a
-	// property of what was drawn, and a test that recomputed it from the
-	// tokens would be asserting its own arithmetic rather than the frame's.
+	// geom is the arrangement the last frame laid out, kept so the
+	// composition can be measured after the fact: the chrome budget is a
+	// property of what was drawn, and recomputing it from the tokens would
+	// assert the arithmetic rather than the frame.
 	geom frameGeom
 }
 
@@ -275,9 +238,9 @@ func vaultFrame(
 // from belongs to a window this render does not have.
 //
 // The frame is returned beside the widget so that what a render arranged
-// can be read back from it once the widget has run — the chrome budget is
-// measured off the same composition the golden stores, not off a second
-// one built to be measured.
+// can be read back once the widget has run — the chrome budget is measured
+// off the same composition the golden stores, not off a second one built to
+// be measured.
 func renderWindow(
 	shaper *text.Shaper,
 	m Model,
@@ -399,11 +362,9 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	// running the window's full height: the outline and the backlinks are
 	// furniture, and this window's furniture is the FLOOR the paper lies
 	// on — a surface step UNDER the document, toward the scheme's dark
-	// extreme, in both schemes. Full height because a surface that began
-	// under the chrome row would read as a block hanging off it — the same
-	// arrangement the leading pane was taken out of — and because the two
-	// panes are then the same shape, one down each edge, with the document
-	// between them.
+	// extreme, in both schemes. Full height, so the surface does not read as
+	// a block hanging off the chrome row and the two panes are the same
+	// shape, one down each edge, with the document between them.
 	if asidePx > 0 {
 		paint.FillShape(gtx.Ops, chromeSurface(tok.col),
 			clip.Rect(image.Rect(asideX, 0, size.X, size.Y)).Op())
@@ -489,39 +450,28 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 // hairline down its leading edge, running the window's full height.
 //
 // The column is INTEGRAL FURNITURE — fixed, flush, with no toggle and no
-// way to leave — so it is not outlined the way the rail is (ADR-022's
-// amendment, and the owner's earlier ruling that the pane treatment
-// belongs to what can be moved away). What it takes instead is the plain
-// seam the platform gives its own flush side: Voice Memos carries no
-// outline there at all and parts its panes with a one-pixel divider that
-// runs from the window's top edge to its bottom, band included, and Notes
-// does the same between its list and its note. That is R6's split hairline
-// and the weight the vocabulary's shell settled on.
+// way to leave — so it is not outlined the way the rail is. What it takes
+// instead is the plain seam the platform gives its own flush side: Voice
+// Memos carries no outline there at all and parts its panes with a
+// one-pixel divider running from the window's top edge to its bottom, band
+// included, and Notes does the same between its list and its note.
 //
-// The ink is Divider — the token whose whole job is the line between two
-// regions — and not the pane's own seam ink, deliberately. The two
-// boundaries in this window are two different things and the window is
-// meant to say so: an object's edge circles a pane at the platform's
+// The ink is Divider — the token whose job is the line between two regions
+// — and not the pane's own seam ink. The two boundaries in this window are
+// two different things: an object's edge circles a pane at the platform's
 // measured whisper, and a region's seam is a divider between grounds. One
-// weight, two inks, and the difference is the doctrine.
+// weight, two inks.
 //
-// A line here is new, and what changed is the size of the step it draws
-// over. The worked example this frame used to follow — where two sides
-// stand on different grounds the edge between them IS the seam and there
-// is nothing to draw — was written when furniture and paper stood a full
-// band step apart in both schemes. The floor's dark step is a measured
-// 1.47 L\* now, a whisper the eye can lose, and the platform's answer at a
-// whisper is a line: Voice Memos' two panes are the SAME fill and the
-// divider is the whole of what parts them.
+// A line is drawn here at all because the step it divides is small: the
+// floor's dark step is a measured 1.47 L*, a whisper the eye can lose, and
+// the platform's answer at a whisper is a line — Voice Memos' two panes are
+// the SAME fill and the divider is the whole of what parts them.
 //
-// UNDER THE HAND THE SEAM ITSELF THICKENS. This boundary is also the one
-// the reader can move, and a resting edge cannot say so — a fresh reviewer
-// read the whole split as fixed. What says it is this same line growing
-// and taking a firmer ink while the pointer is in the grab band, with the
-// resize cursor beside it. The mark used to be a separate bar floating in
-// the middle of the grab band, which was the only thing available when the
-// boundary was unmarked; beside a drawn seam it would read as a stray
-// second edge three dp off the real one. One line, two states.
+// Under the hand the seam itself thickens and takes a firmer ink, with the
+// resize cursor beside it. This boundary is the one the reader can move and
+// a resting edge cannot say so; a separate bar floating in the grab band
+// would read as a stray second edge three dp off the real one. One line,
+// two states.
 func (f *frameState) paintAsideSeam(gtx layout.Context, tok themeTokens, x, height int) {
 	w := max(gtx.Dp(unit.Dp(seamDp)), 1)
 	ink := tok.col.Divider
@@ -589,14 +539,10 @@ func clampAside(w unit.Dp) unit.Dp {
 
 // layoutToolbar draws the content area's chrome row on one baseline: the
 // vault's name as what this window is showing, and nothing else but the
-// window's own drag. With the sidebar away the row also leads with the
+// window's own drag. The vault's actions belong at the foot of the sidebar
+// pane, not in this row. With the sidebar away the row also leads with the
 // toggle that brings it back — the pane's own toggle went with the pane,
 // and something has to recall it.
-//
-// The two vault actions that used to end this row now stand at the foot
-// of the sidebar pane. They are the vault's, not the document's, and the
-// row above a document was both the wrong place to say so and width the
-// row did not need to spend.
 //
 // The leading space is a measurement, not a constant, and only the hidden
 // state spends it: the window controls report where they end, and the row
@@ -606,9 +552,9 @@ func clampAside(w unit.Dp) unit.Dp {
 // controls the measurement falls back to the ordinary edge inset.
 //
 // The vault's name is the row's own affordance rather than a breadcrumb
-// segment: it is window state, and as a crumb it promised a parent to
-// climb to that a vault does not have. Pressing it still returns the
-// folder tree to its root, which is what the crumb did.
+// segment: it is window state, and a crumb would promise a parent to climb
+// to that a vault does not have. Pressing it returns the folder tree to its
+// root.
 func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens, lead unit.Dp) layout.Dimensions {
 	children := make([]layout.FlexChild, 0, 10)
 	if lead > 0 {
@@ -619,9 +565,8 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 			layout.Rigid(dragSpacer(frameGapDp)))
 	} else {
 		// The row's own edge inset is the note column's, not a smaller one
-		// of its own: the vault's name stands directly over the breadcrumb
-		// below it, and a fresh reviewer counted the twelve dp they were
-		// apart as two grids where the window has one.
+		// of its own, so the vault's name stands directly over the
+		// breadcrumb below it and the window keeps one grid.
 		children = append(children, layout.Rigid(dragSpacer(noteInsetDp)))
 	}
 	if m.SidebarHidden {
@@ -641,8 +586,7 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 		}),
 		layout.Flexed(1, dragFill),
 		// The trailing inset is the backlinks column's own: the row ends
-		// where the column under it ends. With the actions gone it is the
-		// tail of one long drag rather than the gap after a control.
+		// where the column under it ends.
 		layout.Rigid(dragSpacer(asideInsetDp)))
 	// Each child places itself down the row rather than the row placing
 	// them all: the drag spans take the row's own height, and what the
@@ -655,18 +599,16 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 // onButtonLine stands w in a row-deep box whose middle is the window
 // buttons' centre line, rather than the chrome row's own middle.
 //
-// Everything in the row that carries ink takes it. The row is one line
-// box deep and the buttons centre below that, so a row that centred its
-// content on itself stood the vault's name a dozen dp above the buttons
-// beside it — and moved the sidebar mark by those same dozen every time
-// the pane came and went, the pane's own toggle being on the buttons'
-// line already.
+// Everything in the row that carries ink takes it. The row is one line box
+// deep and the buttons centre below that, so content centred on the row
+// itself would stand a dozen dp above the buttons beside it — and would
+// move the sidebar mark by those same dozen every time the pane came and
+// went, the pane's own toggle being on the buttons' line already.
 //
-// The box keeps the row's depth, so what stands in it is as pressable as
-// it was; all that changes is where that depth sits. It ends below the
-// row's foot, which is the point: the row's height is what the content
-// area puts above its first document row, and moving what stands in the
-// row is not allowed to spend more of it.
+// The box keeps the row's depth, so what stands in it stays as pressable;
+// only where that depth sits changes. It ends below the row's foot: the
+// row's height is what the content area puts above its first document row,
+// and moving what stands in the row may not spend more of it.
 func onButtonLine(gtx layout.Context, w layout.Widget) layout.Dimensions {
 	h := gtx.Constraints.Max.Y
 	cgtx := gtx
@@ -763,11 +705,9 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 // resolves that per platform, so a Mac user sees the figure they know
 // and everyone else sees the neutral one, from the same name here.
 //
-// It is one drawing that never morphs. The mark used to hollow out with
-// the rail away, and a fresh reviewer read the hollow one as an
-// unchecked box: the platform does not change this figure to advertise
-// the action either, because a mark that changes leaves the reader
-// guessing whether it shows the present state or the next one. What the
+// It is one drawing that never morphs, as on the platform: a mark that
+// changes leaves the reader guessing whether it shows the present state or
+// the next one, and a hollowed variant reads as an unchecked box. What the
 // control is about to do is in the label it carries, which the screen
 // reader speaks and the tooltip shows.
 //

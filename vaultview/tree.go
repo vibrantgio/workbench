@@ -1,11 +1,10 @@
 // tree.go is the folder tree at the left: an app-local composition over
 // components/list in the shell's sidebar slot — the design system's
-// sidebar pattern is deliberately flat, so nesting is this app's own.
-// TreeRows flattens the scanned index and the model's fold state into
-// the visible rows (folders first, then notes, name order, indent per
-// depth, dot-directories hidden); the view renders them with disclosure
-// toggles on folder rows, the current note active, and click-to-open on
-// note rows.
+// sidebar pattern is flat, so nesting is this app's own. TreeRows
+// flattens the scanned index and the model's fold state into the visible
+// rows (folders first, then notes, name order, indent per depth,
+// dot-directories hidden); the view renders them with disclosure toggles
+// on folder rows, the current note active, and click-to-open on note rows.
 //
 // Above the rows sits the find field: typing filters the tree to the
 // notes whose name matches, as a flat list with the folder as the quiet
@@ -13,12 +12,10 @@
 // it reads no file and searches no prose.
 //
 // At the foot of the pane stand the two actions that are the vault's and
-// not the document's: rescanning it, and leaving it for another. They sit
-// here because this pane is what stands for the vault — a control that
-// acts on the whole vault belongs to the vault's own column, not to the
-// row above a document it does not touch. With the pane put away they go
-// with it, the way a platform sidebar's own controls do; the chrome row's
-// toggle brings the pane and them back together.
+// not the document's: rescanning it, and leaving it for another. A
+// control that acts on the whole vault belongs to the vault's own column,
+// so with the pane put away they go with it; the chrome row's toggle
+// brings the pane and them back together.
 //
 // The column claims a fixed rail width. The shell lets its sidebar slot
 // size itself, so a tree that answered with the constraint it was handed
@@ -79,10 +76,9 @@ const (
 )
 
 // treeFieldGround is the storey the find field is standing on: the rail
-// pane, which is furniture and therefore the window's FLOOR (ADR-022 V2).
-// The live rail and the goldens' static rail both name it here so they
-// cannot drift apart — which they had, silently, with the goldens taking
-// the zero storey's default.
+// pane, which is furniture and therefore the window's FLOOR. The live
+// rail and the goldens' static rail both name it here so they cannot
+// drift apart.
 const treeFieldGround = tokens.LevelFloor
 
 // TreeRow is one visible row of the folder tree.
@@ -238,14 +234,13 @@ type treeView struct {
 	rowClicks   []*widget.Clickable
 
 	// leading pins the window buttons' trailing edge instead of measuring
-	// it, for the reason [frameState.leading] gives: the measurement is a
-	// live window's and a stored image may not depend on one. The live
-	// rail leaves this nil and measures.
+	// it: the measurement is a live window's, and a stored image may not
+	// depend on one. The live rail leaves this nil and measures.
 	leading func() unit.Dp
 
 	// geom is what the last layout arranged, kept so the pane's own
 	// stacking can be measured after the fact rather than recomputed from
-	// the constants a test would then be asserting against themselves.
+	// the constants that placed it.
 	geom paneGeom
 }
 
@@ -278,10 +273,9 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 		Placeholder: "Find a note…",
 		Description: "filter notes by name",
 		// The field stands on the rail's rounded pane, not on the window
-		// ground behind it — the pane covers that. The pane is FURNITURE,
-		// so since ADR-022 it is the ladder's floor rather than a storey
-		// above the paper, and naming the floor here is what makes the
-		// field's fill, its resting edge and its focus ring all derive
+		// ground behind it — the pane covers that. The pane is FURNITURE
+		// and so the ladder's floor; naming the floor here is what makes
+		// the field's fill, its resting edge and its focus ring all derive
 		// against the thing they are actually drawn on. A text field is
 		// raised one storey off whatever it lies on, so the field fills at
 		// the paper's own storey — lighter than the rail in both schemes,
@@ -318,12 +312,10 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 // statement about the keyboard and not about paint. Focus follows the
 // order the ops are written in, and the reading order of this pane is the
 // field, the rows, then the vault's actions: a reader who tabs out of the
-// find field means to reach the notes they just filtered for. Laid out in
-// place, the strip's toggle stood between the first two, and
-// Tab-then-Return from the field put the whole pane away instead of
-// opening the selected note. Drawn last, the pane's own control comes
-// after everything the pane is for — including the foot, which acts on
-// the vault the pane shows rather than on the pane itself.
+// find field means to reach the notes they just filtered for. Drawn last,
+// the pane's own control comes after everything the pane is for —
+// including the foot, which acts on the vault the pane shows rather than
+// on the pane itself.
 func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW layout.Widget) layout.Dimensions {
 	railW := gtx.Dp(treeWidthDp)
 	if railW > gtx.Constraints.Max.X {
@@ -383,10 +375,9 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW l
 // the rows' names do, so the pane reads as one column and not as a bar
 // bolted under one.
 //
-// The rule above them is what separates the foot from the rows, and it is
-// a hairline for the reason the note's divider is: with the foot on the
-// pane's own surface there are no two grounds to part, only a seam saying
-// the scrolling stops here.
+// The rule above them is a hairline: with the foot on the pane's own
+// surface there are no two grounds to part, only a seam saying the
+// scrolling stops here.
 func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	if v.rescanClick.Clicked(gtx) {
 		mvu.MessageOp{Message: Rescan{}}.Add(gtx.Ops)
@@ -421,15 +412,12 @@ func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
 }
 
 // footAction renders one of the foot's affordances: a pressable label,
-// named for the screen reader and drawn at full text contrast. A bare
-// label at the low-contrast neutral step reads as a disabled control
-// rather than a live one, which is what a fresh reviewer called it when
-// these two stood in the chrome row.
+// named for the screen reader and drawn at full text contrast, since a
+// bare label at the low-contrast neutral step reads as a disabled control
+// rather than a live one.
 //
 // The label sits in a hit area of its own, and that area fills under the
-// pointer and darkens while it is held. A fresh reviewer, shown the pane
-// as a picture, read two unadorned labels at the bottom of a column as a
-// status line rather than as controls — a bare label says nothing about
+// pointer and darkens while it is held: a bare label says nothing about
 // being pressable until something answers the pointer. The fill is the
 // rows' own pill in the rows' own neutral steps, so the foot answers the
 // way everything above it does rather than inventing a button.
@@ -611,16 +599,13 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 // tokens and processing no events. The find field is drawn through the
 // component's own static path, so the golden carries the same field the
 // live rail wears. The window buttons' trailing edge is a parameter here
-// and a measurement in the live pane, for the reason [treeView.leading]
-// gives.
+// and a measurement in the live pane, since a stored image may not depend
+// on a live window's measurement.
 //
 // The ground the field is rendered on is named here as well as in
-// [treeSidebar], and it is the same one. Left unsaid it defaulted to the
-// zero storey — the paper — so every golden in this package photographed
-// a field standing on a surface the rail does not have, and the field's
-// fill and its edge both derived against the wrong ground. A golden that
-// pictures something the window never draws cannot catch a regression in
-// what it does draw.
+// [treeSidebar], and it must be the same one: a golden that pictures a
+// field standing on a surface the rail does not have cannot catch a
+// regression in what the window draws.
 func renderTree(
 	shaper *text.Shaper,
 	m Model,

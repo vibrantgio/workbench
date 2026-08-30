@@ -97,8 +97,8 @@ func TestOutlineEntriesLandWhereALinkWould(t *testing.T) {
 	}
 }
 
-// TestNoteOutlineOfANoteWithNoHeadings is the other half of the exit
-// condition: nothing to list, and nothing invented to list.
+// TestNoteOutlineOfANoteWithNoHeadings: nothing to list, and nothing invented
+// to list.
 func TestNoteOutlineOfANoteWithNoHeadings(t *testing.T) {
 	n := noteFromSource("Sources.md", "Just prose.\n\n- and a list\n")
 	if got := noteOutline(n); len(got) != 0 {
@@ -234,10 +234,9 @@ func outlineModel() Model {
 	return m
 }
 
-// TestTheMarkFollowsTheDocument is the tracking condition as a
-// transition: the document is moved by the reading keys' own machinery,
-// and the outline's mark is on the section the reader is now inside —
-// without anything telling the column that the document moved.
+// TestTheMarkFollowsTheDocument: the document is moved by the reading keys'
+// own machinery, and the outline's mark lands on the section the reader is
+// now inside — without anything telling the column that the document moved.
 func TestTheMarkFollowsTheDocument(t *testing.T) {
 	p := newAsidePad(t, outlineModel(), 700)
 	p.frame()
@@ -266,11 +265,10 @@ func TestTheMarkFollowsTheDocument(t *testing.T) {
 	}
 }
 
-// TestChoosingAnEntryMovesTheDocument is the other half of D4: an entry
-// takes the reader to its heading in the note they already have open. The
-// document is the same object afterwards — a reload would lose the
-// viewport, the interaction state and the history entry alike — and the
-// heading it names leads the viewport.
+// TestChoosingAnEntryMovesTheDocument: an entry takes the reader to its
+// heading in the note they already have open. The document is the same object
+// afterwards — a reload would lose the viewport, the interaction state and the
+// history entry alike — and the heading it names leads the viewport.
 func TestChoosingAnEntryMovesTheDocument(t *testing.T) {
 	p := newAsidePad(t, outlineModel(), 700)
 	p.frame()
@@ -460,11 +458,10 @@ func TestAChoiceLetsGoOfADocumentItDidNotFollow(t *testing.T) {
 	}
 }
 
-// TestBothPanesStandInEitherState is the exit condition as a
-// measurement: a note with many headings and a note with none both leave
-// the outline and the backlinks their own band of the column, the two
-// meeting without overlapping, and neither pane standing taller than what
-// it has to put in it.
+// TestBothPanesStandInEitherState: a note with many headings and a note with
+// none both leave the outline and the backlinks their own band of the column,
+// the two meeting without overlapping, and neither pane standing taller than
+// what it has to put in it.
 func TestBothPanesStandInEitherState(t *testing.T) {
 	plain := goldenModel()
 	plain = cacheNote(plain, noteFromSource("Sources.md", "Just prose, no sections.\n"))
@@ -792,11 +789,10 @@ func sparseOutlineSource() string {
 
 // TestThePanesFindTheirRowsWithRoomToSpare is the hit geometry once the
 // panes stand apart: on a note whose outline is far shorter than the
-// region it holds, a press still finds the row it landed on — the rows
-// lead their region, so they are counted from its top edge as before — a
-// press in the paper below the last row moves nothing, because the slack
-// is room and not a target, and the pane at the foot answers its own rows
-// where they now stand.
+// region it holds, a press still finds the row it landed on — the rows lead
+// their region, so they are counted from its top edge — a press in the paper
+// below the last row moves nothing, because the slack is room and not a
+// target, and the pane at the foot answers its own rows where they stand.
 func TestThePanesFindTheirRowsWithRoomToSpare(t *testing.T) {
 	m := citedModel("guide/Sections.md", sparseOutlineSource(), 3)
 	p := newAsidePad(t, m, 700)
@@ -837,10 +833,10 @@ func TestThePanesFindTheirRowsWithRoomToSpare(t *testing.T) {
 	}
 }
 
-// TestEachScrollingPaneShowsItsIndicator is D6 in pixels: a pane with more
-// rows than it can show draws the indicator in its own trailing gutter, and
-// a pane whose rows all fit draws nothing there. Both panes, one column —
-// the outline scrolling and the backlinks capped past their cap.
+// TestEachScrollingPaneShowsItsIndicator, in pixels: a pane with more rows
+// than it can show draws the indicator in its own trailing gutter, and a pane
+// whose rows all fit draws nothing there. Both panes, one column — the outline
+// scrolling and the backlinks capped past their cap.
 func TestEachScrollingPaneShowsItsIndicator(t *testing.T) {
 	tok := goldenTokens()
 	ground := chromeSurface(tok.col)
@@ -1035,11 +1031,10 @@ func asideInkAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) 
 
 // TestTheOutlineStepsOnTheColumnsRhythm measures one heading level's step
 // off the picture: the leading edge of a level-two title against a
-// level-one's, and a level-three's against the level-two's. The column
-// moves everything it holds by one distance — the pad a row's ink stands
-// inside its fill, the lane its bar stands in — and the outline's step
-// was ten of a column whose every other number is eight, which is two
-// rhythms down one narrow list.
+// level-one's, and a level-three's against the level-two's. The column moves
+// everything it holds by one distance — the pad a row's ink stands inside its
+// fill, the lane its bar stands in — so the outline's step is that same eight
+// and not a second rhythm down one narrow list.
 func TestTheOutlineStepsOnTheColumnsRhythm(t *testing.T) {
 	rowH := asideRowPx(goldenTokens())
 	for _, tc := range themeCases {
@@ -1063,10 +1058,9 @@ func TestTheOutlineStepsOnTheColumnsRhythm(t *testing.T) {
 	}
 }
 
-// TestAnEmptyPaneStandsOnItsRowsAxis requires the line a pane shows
-// instead of rows to lead where those rows would have led. Both panes
-// have one, and both used to start on the axis of the heading above them
-// — a pad outboard of every row in the column, which reads as an
+// TestAnEmptyPaneStandsOnItsRowsAxis requires the line a pane shows instead
+// of rows to lead where those rows would have led, and not on the axis of the
+// heading above it — a pad outboard of every row in the column reads as an
 // annotation on the heading rather than as the pane's own answer.
 func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 	rowH := asideRowPx(goldenTokens())
@@ -1122,12 +1116,12 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 // nested titles, and what a reader is meant to read — and requires each
 // to part from the next in either appearance.
 //
-// The dark scheme is why this is measured. The neutral ramp's paired
-// scales keep a step's job across the two appearances, not its distance
-// from the ground: taking 700/800 in both put the column's three tiers
-// 68.8, 74.9 and 80.9 from the surface in L* on a dark ground, against
-// 52.9, 64.0 and 86.1 on a light one — three names for very nearly one
-// ink, with the heading reading as bright as the row beneath it.
+// The dark scheme is what this is measured for. The neutral ramp's paired
+// scales keep a step's job across the two appearances, not its distance from
+// the ground: one pair of steps taken in both puts the column's three tiers
+// 68.8, 74.9 and 80.9 from the surface in L* on a dark ground against 52.9,
+// 64.0 and 86.1 on a light one — three names for very nearly one ink, with
+// the heading reading as bright as the row beneath it.
 func TestTheColumnsInkTiersPartInBothSchemes(t *testing.T) {
 	// The distance two inks must keep to read as two. It is under the
 	// smaller of the light scheme's own two gaps, which is the separation

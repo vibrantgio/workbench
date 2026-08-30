@@ -47,11 +47,8 @@ func goldenTokens() themeTokens {
 // them: with the pane away it leads with the toggle that brings the pane
 // back, and it leaves the window buttons' own span alone in front of it.
 //
-// The row's trailing end used to hold two vault actions, and the probe
-// there asserted that their span did not drag. They stand at the foot of
-// the sidebar pane now, so the same point makes the opposite statement:
-// nothing but the vault's name stands in this row, and everything past it
-// — to the row's last dp — moves the window.
+// Nothing but the vault's name stands in this row, so everything past it —
+// to the row's last dp — moves the window.
 //
 // The probe is the same one the window makes on a press — the frame's
 // own hit test, asked what action stands at a point — so it measures the
@@ -107,11 +104,8 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 				return ok && a == system.ActionMove
 			}
 
-			// The middle of the row — between the vault's name and the
-			// trailing actions — is the largest empty stretch, and the one
-			// a hand reaches for. Both ends of it drag.
-			// The trailing end is part of that stretch now that the vault
-			// actions have left the row: the drag runs to its last dp.
+			// The stretch past the vault's name is the largest empty one,
+			// and the one a hand reaches for: it drags to the row's last dp.
 			for _, x := range []int{rowW / 3, rowW / 2, rowW - frameEdgeDp - 20, rowW - 1} {
 				if !moveAt(x) {
 					t.Errorf("no window-move action at x=%d; the row holds no control there, so it must move the window", x)
@@ -135,15 +129,13 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 // TestRailPaneFloatsAtTheWindowTop asserts the sidebar is the leading
 // column and owns the top of the window the way the platform's own
 // sidebars do: floating one margin inside the window's leading, top and
-// bottom edges, with nothing above it but that margin of ground — no
-// chrome band, which is what the arrangement exists to be without. The
-// window buttons stand inside the pane's own strip, which they can only
-// do if the pane is what is under them; the margin merely moves the
-// strip a step in from the glass.
+// bottom edges, with nothing above it but that margin of ground and no
+// chrome band. The window buttons stand inside the pane's own strip, which
+// they can only do if the pane is what is under them; the margin merely
+// moves the strip a step in from the glass.
 //
 // Hidden, the pane is gone entirely and the note column reflows from the
-// window's leading edge — the freed width goes to the document, not to a
-// stripe of nothing where the rail used to be.
+// window's leading edge, so the freed width goes to the document.
 func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 	var ops op.Ops
 	size := image.Pt(1100, 800)
@@ -208,18 +200,16 @@ func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 // TestPaneFocusOrder walks the focus ring the way Tab does and asserts
 // the order it visits the sidebar in: the find field, then the rows, then
 // the vault's own actions at the foot, and only after all of them the
-// pane's own toggle. The order is the point, not the reachability. With
-// the toggle laid out where it is drawn — the pane's top-right corner —
-// it stood between the field and the rows, so Tab and then Return from
-// the field put the whole pane away instead of opening the note the
-// reader had just filtered for.
+// pane's own toggle. What is asserted is the order, not the reachability:
+// laid out where it is drawn — the pane's top-right corner — the toggle would
+// stand between the field and the rows, and Tab then Return from the field
+// would put the whole pane away instead of opening the note the reader had
+// just filtered for.
 //
 // The foot sits after the rows and before the toggle because it acts on
-// what the pane shows rather than on the pane: a reader tabbing out of
-// the find field is still going to the notes, and having reached the end
-// of them, the next thing worth offering is what can be done to the vault
-// they are in. The toggle stays last — it is the pane talking about
-// itself, and nothing the pane is for may stand behind it.
+// what the pane shows rather than on the pane. The toggle stays last: it is
+// the pane talking about itself, and nothing the pane is for may stand
+// behind it.
 //
 // The field's slot takes a stand-in with a focus tag of its own: the live
 // field is a component whose static render path processes no events, and
@@ -278,10 +268,9 @@ func TestPaneFocusOrder(t *testing.T) {
 }
 
 // TestPaneStripClaimsInsideTheInsetPane asserts what the sidebar's top
-// strip declares now that the pane floats inside the window's edges,
-// measured on the composed window rather than on the strip alone —
-// through the frame's inset offset and the pane's rounded clip, which is
-// the geometry a real press crosses. Three claims and a delivery:
+// strip declares, measured on the composed window rather than on the strip
+// alone — through the frame's inset offset and the pane's rounded clip,
+// which is the geometry a real press crosses. Three claims and a delivery:
 //
 //   - the strip's empty middle still moves the window — the pane owns
 //     the top of the window, so it owes the reader the drag the native
@@ -385,29 +374,22 @@ func TestTheRowRecallsTheHiddenPane(t *testing.T) {
 }
 
 // chromeBudgetDp is what the vault window may spend between its top edge
-// and its first row of content. The composition this replaced spent about
-// eighty — a native title-bar strip holding nothing but the window
-// buttons, and a full navbar band under it holding a label and two links
-// — and nothing in the suite could see it. Forty leaves the single row
-// the window now draws its full height and no room for a second thing.
+// and its first row of content. Forty leaves the single chrome row its full
+// height and no room for a second thing above it.
 const chromeBudgetDp = 40
 
 // TestChromeBudget holds the vault window's chrome to that budget, by
-// laying the whole window out at the size it opens at and asking the
-// frame where it put the first content row. It supersedes a cheaper
-// version that checked the toolbar row's own height: a row that measures
-// twenty-eight dp says nothing about a band stacked above it, and a band
-// stacked above it is precisely the defect.
+// laying the whole window out at the size it opens at and asking the frame
+// where it put the first content row. The row's own height says nothing
+// about a band stacked above it, and a band stacked above it is the defect.
 //
-// The arrangement the budget is measured against has changed and the
-// budget has not. The chrome row no longer spans the window: it belongs
-// to the content area, so the measurement is now stated per column. The
-// content area spends the row's own height above its first document row
-// and no more — the twenty-eight dp it measured before, which is what
-// must not regress. The sidebar column spends one margin — the inset the
-// pane floats off the window's edges by — and no chrome at all: what is
-// above the pane is ground, not band, and the assertion pins the margin
-// so a band cannot creep in wearing its name.
+// The chrome row belongs to the content area rather than spanning the
+// window, so the measurement is stated per column. The content area spends
+// the row's own height above its first document row (twenty-eight dp) and
+// no more. The sidebar column spends one margin — the inset the pane floats
+// off the window's edges by — and no chrome at all: what is above the pane
+// is ground, not band, and the assertion pins the margin so a band cannot
+// creep in wearing its name.
 //
 // Both rail states are measured. Hiding the rail rebuilds the whole
 // composition, and a budget that only holds in one of them holds in
@@ -440,9 +422,7 @@ func TestChromeBudget(t *testing.T) {
 					st.geom.rowTop, row)
 			}
 			// The sidebar's own budget: one margin of ground and nothing
-			// else. The pane floats that far inside the window's top
-			// edge; anything more above it would be the band this whole
-			// arrangement exists without.
+			// else. Anything more above the pane would be a chrome band.
 			if !st.geom.pane.Empty() && st.geom.pane.Min.Y != railMarginDp {
 				t.Errorf("the sidebar starts at y=%d, want the frame's own %d dp margin and nothing else above it", st.geom.pane.Min.Y, railMarginDp)
 			}
@@ -458,10 +438,10 @@ func TestChromeBudget(t *testing.T) {
 // a toast lands on the vault's own controls or floats a band below them,
 // which is the same class of defect as the band itself.
 //
-// It also holds the screen's own inset to zero while the vault is up.
-// The vault screen draws in the native strip on purpose — the sidebar
-// reaches the window's top edge — and a layer padded down past the strip
-// would put the retired band back under another name.
+// It also holds the screen's own inset to zero while the vault is up. The
+// vault screen draws in the native strip — the sidebar reaches the window's
+// top edge — and a layer padded down past the strip would be a chrome band
+// under another name.
 func TestChromeHeightMatchesTheRow(t *testing.T) {
 	row := toolbarHeight(goldenTokens())
 	// What the vault screen states on every emission that selects it: the
@@ -572,8 +552,7 @@ func TestTheRailWearsThePlatformsSeam(t *testing.T) {
 // The two go together. The pane is chrome furniture, so its storey is the
 // floor and the floor's dp is zero — the desk has nothing to cast onto.
 // What says the pane floats is its edge, so the edge has to be there and
-// the shadow has to be gone; a test that checked only one of them would
-// pass on the arrangement this task replaced.
+// the shadow has to be gone; checking only one of them proves neither.
 func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()

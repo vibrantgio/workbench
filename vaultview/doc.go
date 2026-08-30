@@ -19,10 +19,8 @@
 // # What a link means
 //
 // This is the contract the viewer holds itself to when a wikilink is
-// clicked. It is the behaviour Obsidian itself describes, restated here
-// as the rules this program implements; it is implemented as pure
-// functions over the index the vault scan produced, and each rule below
-// is pinned by a test.
+// clicked: the behaviour Obsidian describes, restated as the rules this
+// program implements over the index the vault scan produced.
 //
 // A link body is written between double brackets and has three parts,
 // all optional after the first: a file part, then a heading path, then a
@@ -53,7 +51,7 @@
 // notes without the extension. Step 3 is where a vault can be
 // ambiguous: when two or more notes share the name, the viewer refuses
 // rather than guessing, and asks which one was meant. Comparisons are
-// exact; the heading match below is the one deliberate exception.
+// exact; the heading match below is the one exception.
 //
 // A heading path descends the target's headings by title, one segment at
 // a time, matching without regard to case. Each matched heading narrows
@@ -70,12 +68,10 @@
 //
 // Code is never a link. A wikilink inside a fenced code block or inline
 // code span does not resolve, does not count as a backlink, and is not
-// drawn as a link — it is a code sample, and a viewer that quietly
-// turned it into navigation would be lying about the file.
+// drawn as a link: it is a code sample, not navigation.
 //
 // A link the viewer cannot follow stays drawn as a link and says why it
 // refused when it is clicked, rather than silently reading as prose.
-// Showing the vault's real state is the whole job.
 //
 // Where a link lands inside the target is computed from the parsed note,
 // never from the scan: the scan only answers whether an anchor exists,
@@ -92,7 +88,7 @@
 // the Rescan affordance at the foot of the folder rail re-walks the
 // vault for those.
 //
-// # What it deliberately does not do
+// # What it does not do
 //
 // There is no editor, no graph view, and no full-text search. The find
 // field above the tree filters by note name over the index the scan

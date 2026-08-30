@@ -2,10 +2,10 @@
 // text file, no format and no dependency.
 //
 // The file lives at ~/.config/vaultview/vault. $XDG_CONFIG_HOME is
-// honoured when set; otherwise the literal ~/.config is used —
-// deliberately NOT os.UserConfigDir(), which on macOS resolves to
-// ~/Library/Application Support and would put the file where it must not
-// be. An absent, empty, or unreadable file reads as "no default".
+// honoured when set; otherwise the literal ~/.config is used — NOT
+// os.UserConfigDir(), which on macOS resolves to ~/Library/Application
+// Support and would put the file where it must not be. An absent, empty,
+// or unreadable file reads as "no default".
 
 package main
 

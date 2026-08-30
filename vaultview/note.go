@@ -54,9 +54,9 @@ const (
 	// comes to rest once it is scrolled as far as it goes — that foot being
 	// where the window's status bar starts, a band further in than the
 	// glass. It is the document's foot margin, and like a printed page's it
-	// is set wider than the reading margin the column keeps at its sides —
-	// the eye needs to see that the text stopped because it ended, not
-	// because the window did.
+	// is set wider than the reading margin the column keeps at its sides, so
+	// that the text reads as having ended rather than as having been cut off
+	// by the window.
 	//
 	// The amount is measured, not chosen: on this display, at one pixel per
 	// dp, a note read to its end in the reading surfaces this viewer is
@@ -72,13 +72,12 @@ const (
 	// It is spent at the document's end and nowhere else. Part way down a
 	// note every row of the column carries text, and a line cut by the
 	// window's edge is the window cutting it; a margin held back on every
-	// frame would leave a strip of blank paper under that half-cut line,
-	// which reads as a rendering fault rather than as scrolling.
+	// frame would leave a strip of blank paper under that half-cut line.
 	noteEndSpaceDp = 40
 	// noteGapDp is the page's own rhythm: the space between the rows above
 	// the document, and the space the document rests below the last of them.
 	// The second is spent inside the document rather than by the page, for
-	// the reason the end space is; see where the style is built.
+	// the reason the end space is.
 	noteGapDp = 16
 
 	// The properties panel's rhythm: the gap between one metadata row and
@@ -86,38 +85,29 @@ const (
 	// pad inside that box, and the gap between the key column and the
 	// values.
 	//
-	// The first two are one stop down the spacing scale from where they
-	// stood, and what they reclaim is the note's title: the panel used to
-	// stand ninety-six px tall and put the title two hundred and three px
-	// down a seven hundred px viewport, which is nearly a third of the
-	// window spent before the note's own name.
-	//
-	// The rows are not where the height was, and the measurement says so.
-	// The reading app this viewer is judged beside sets its metadata on a
-	// twenty-one px line box and spends eleven px between rows; this panel
-	// sets on a twenty px box and spent six, already tighter than the thing
-	// being copied. So the row gap goes down one stop and no further — six
-	// is not a stop on the scale at all, four is — and the pitch lands at
+	// The row gap is measured against the reading app this viewer is judged
+	// beside, which sets its metadata on a twenty-one px line box and spends
+	// eleven px between rows; this panel sets on a twenty px box, already
+	// tighter than the thing being copied. Four is one stop down the spacing
+	// scale — six is not a stop on the scale at all — and lands the pitch at
 	// twenty-four against the reference's thirty-two.
 	//
 	// The padding is where a box costs what a list does not: the reference
 	// draws no box round its metadata and spends nothing here, and twelve
 	// is the pad the note's code fences take, which is a screenful of code
-	// and not three lines of key and value. Eight is one stop under it, and
-	// the two paddings together are the larger half of what the panel gives
-	// back.
+	// and not three lines of key and value. Eight is one stop under it.
 	//
-	// What it gives back is fourteen px, measured off the rendered page: a
-	// three-field panel that stood ninety-six px tall now stands eighty-four
-	// and starts two px higher, and the note's title moved from row 203 to
-	// row 189 — twenty-nine per cent of the window down to twenty-seven.
+	// Measured off the rendered page, this rhythm holds a three-field panel
+	// to eighty-four px — fourteen less than the same panel one stop up the
+	// scale, which stands ninety-six and pushes the note's title from row 189
+	// of a seven hundred px viewport down to row 203, twenty-seven per cent
+	// of the window against twenty-nine.
 	propRowGapDp = 4
 	propPadDp    = 8
 	propKeyGapDp = 16
 
 	// propEdgeDp is the panel's hairline and propEdgeStep the neutral step
-	// it is drawn in: one past the separator's, which is where the dark
-	// scheme forced it.
+	// it is drawn in: one past the separator's.
 	//
 	// A block that takes the paper for its ground has its edge for a
 	// channel and nothing else, and on the dark page one hair of the
@@ -129,15 +119,14 @@ const (
 	// while staying far under the ink it bounds (6.19:1 and 11.06:1), which
 	// is the one thing an edge may not out-read.
 	//
-	// The other remedy is not in the sheet. A faint fill would be the
-	// second channel the dark box wants, and there is no fill to spend: the
-	// neutral ramp's first step IS the paper in both schemes, and its
-	// second is the fill the window's rail and aside wear — 1.13:1 off the
-	// light page against the code blocks' 1.05:1, which would make the
-	// note's metadata heavier than the code it has to stay quieter than,
-	// wearing the chrome's own colour to do it. Nothing lies between the
-	// two, so the edge carries the whole of the change and the panel keeps
-	// its paper.
+	// A faint fill would be the second channel the dark box wants, and
+	// there is no fill to spend: the neutral ramp's first step IS the paper
+	// in both schemes, and its second is the fill the window's rail and
+	// aside wear — 1.13:1 off the light page against the code blocks'
+	// 1.05:1, which would make the note's metadata heavier than the code it
+	// has to stay quieter than, wearing the chrome's own colour to do it.
+	// Nothing lies between the two, so the edge carries the whole of the
+	// channel and the panel keeps its paper.
 	propEdgeDp   = 1
 	propEdgeStep = 400
 
@@ -148,43 +137,40 @@ const (
 	// tier and has the body floor to clear on the panel's own ground and
 	// not on the page's.
 	//
-	// It is a measurement. On the paper the panel now stands on the step
-	// reads 6.19:1 in the light scheme and 11.06:1 in the dark, both clear
-	// of the 4.5:1 the design system holds body-sized text to; the step
-	// below it reads 4.03:1 in the light scheme, under the floor, so 700
-	// is the quietest step this panel can be written in. On the heavy fill
-	// the panel used to wear, the same step measured 4.51:1 — over the
-	// floor by a hundredth, which is a floor being touched rather than
-	// cleared. The ground is what moved; the ink did not have to.
+	// It is a measurement. On the paper the panel stands on, the step reads
+	// 6.19:1 in the light scheme and 11.06:1 in the dark, both clear of the
+	// 4.5:1 the design system holds body-sized text to; the step below it
+	// reads 4.03:1 in the light scheme, under the floor, so 700 is the
+	// quietest step this panel can be written in. On a heavier fill the same
+	// step measures 4.51:1 — over the floor by a hundredth, a floor touched
+	// rather than cleared, which is why the ink is floored against the
+	// panel's own ground.
 	propLabelStep = 700
 
 	// propValueStep is the step the field values are read at: one under the
 	// prose, which is where the note's own text is written.
 	//
-	// A value used to take the body ink itself — the very step the note's
-	// title and every paragraph below it are set in — so a date and a tag
-	// list stood level with the note's own words while sitting above them
-	// on the page, and the eye landed on the metadata before it landed on
-	// the note. One step down, a value reads 9.30:1 on the panel's ground
-	// in the light scheme and 13.07:1 in the dark, both far clear of the
-	// 4.5:1 body floor, and still comfortably over the keys beside it —
-	// 6.19:1 and 11.06:1 — because the value is the content of its row and
-	// stays the stronger of the pair.
+	// A value at the body ink itself — the very step the note's title and
+	// every paragraph below it are set in — would stand level with the
+	// note's own words while sitting above them on the page, landing the eye
+	// on the metadata before the note. One step down, a value reads 9.30:1
+	// on the panel's ground in the light scheme and 13.07:1 in the dark,
+	// both far clear of the 4.5:1 body floor, and still comfortably over the
+	// keys beside it — 6.19:1 and 11.06:1 — because the value is the content
+	// of its row and stays the stronger of the pair.
 	propValueStep = 800
 
 	// propHeadWeight is what tells the panel's disclosure head from the
 	// field keys under it.
 	//
-	// The head was the keys' own step, size and weight, which left a
-	// control reading as one more label in the column of labels it opens.
-	// The reading app this viewer is judged beside separates the two by
-	// ink: its head is set at the prose ink its values are, and its keys a
-	// measured step under both — 218 against 179 on a 28 paper. That axis
-	// is already spent here, on the order between the values and the keys,
-	// so the head takes the other axis it has. Its label goes from the
-	// medium weight every other label in this window is set in to the bold
-	// the note's own headings take, at the same size and the same step.
-	// Letter-spacing was the third candidate and is not on the table: the
+	// At the keys' own step, size and weight the head reads as one more
+	// label in the column of labels it opens. The reading app this viewer is
+	// judged beside separates the two by ink: its head is set at the prose
+	// ink its values are, and its keys a measured step under both — 218
+	// against 179 on a 28 paper. That axis is already spent here, on the
+	// order between the values and the keys, so the head takes the other
+	// axis it has: the bold the note's own headings take, at the same size
+	// and the same step as the keys. Letter-spacing is not available — the
 	// label helper this window draws with sets no tracking.
 	propHeadWeight = tokens.WeightBold
 
@@ -193,7 +179,7 @@ const (
 	// to a line of text. The history controls sit in the head row beside
 	// the breadcrumb, so that is the size they belong at: a chevron is a
 	// diagonal spanning the whole of its square, and at the size a mark
-	// takes as a control in its own right its ink stood half again over
+	// takes as a control in its own right its ink stands half again over
 	// the caps of the label it serves. The row centres its children, so
 	// the smaller square costs the row no height and moves nothing else.
 	noteNavMarkDp = markSmallDp
@@ -207,9 +193,8 @@ const (
 	// of its title's contrast, but the dim step has to stay clearly below
 	// the enabled one and the neutral ramp's dark scale leaves no room
 	// under a quarter for it. So the enabled ink is muted as far as the
-	// end-of-stack ink can follow, which is here: the two steps read a
-	// third of the scale apart in both appearances, wider than the pair
-	// they replace read at its narrower end.
+	// end-of-stack ink can follow: the two steps read a third of the scale
+	// apart in both appearances.
 	noteNavInkStep = 600
 	noteNavDimStep = 300
 )
@@ -233,13 +218,12 @@ const (
 var noteCodeBases = highlight.DefaultBases()
 
 // adoptCodeBases resolves the syntax bases a kept theme asks for. The styles
-// folder is read first: a kept base may name a style somebody wrote
-// themselves, and a name that cannot be resolved — or one fitted to the
-// appearance it is not kept for, which is what a theme kept before a theme
-// carried a pair comes back as — falls back to that appearance's default
-// rather than failing. What the folder could not read is not surfaced here —
-// this window shows notes, and the place a style file gets fixed is the window
-// that offered it.
+// folder is read first, since a kept base may name a style somebody wrote
+// themselves; a name that cannot be resolved, or one fitted to the appearance
+// it is not kept for, falls back to that appearance's default rather than
+// failing. What the folder could not read is not surfaced here — this window
+// shows notes, and the place a style file gets fixed is the window that
+// offered it.
 func adoptCodeBases(kept brand.Brand) highlight.BasePair {
 	if dir, err := brand.StylesDir(); err == nil {
 		highlight.LoadDir(dir)
@@ -259,9 +243,8 @@ func adoptCodeBases(kept brand.Brand) highlight.BasePair {
 // — stays this theme's. Which member of the pair reaches the fence follows
 // the tokens, so a change of appearance is a change of plate.
 //
-// There is no memo. Wearing resolves a name and reads four colours off it,
-// which is a map lookup on a path that runs every frame; the derivation this
-// replaced walked a base's whole entry table and had to be kept off it.
+// There is no memo: wearing resolves a name and reads four colours off it,
+// which is a map lookup cheap enough for a path that runs every frame.
 func noteStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
 	st := markdown.FromTokens(c, typ)
 	st.Mono = font.Typeface(typ.Code.Typeface)
@@ -390,9 +373,8 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	// path means the file was read again and the document must be rebuilt
 	// — without that, a note edited outside the app would reload into a
 	// viewport still showing the old blocks. The outgoing viewport is
-	// copied onto the new document so the reader does not jump; mutating
-	// ListItem.Checked in place to dodge the rebuild is not the work.
-	// All state here is touched only on the frame goroutine.
+	// copied onto the new document so the reader does not jump. All state
+	// here is touched only on the frame goroutine.
 	var (
 		docs      = map[string]docEntry{}
 		docsVault string
@@ -483,8 +465,7 @@ func layoutNotePage(
 
 		var body layout.FlexChild
 		// scrolling records whether the body is the document or a standing
-		// message, which is what decides the gap above it; see the children
-		// below.
+		// message, which is what decides the gap above it.
 		scrolling := false
 		switch {
 		case m.Scanning && note == nil:
@@ -527,13 +508,12 @@ func layoutNotePage(
 			//
 			// The two spaces are the vertical half of the same bargain, one
 			// at each end: the column runs from the row above it to the
-			// status bar below it so that nothing is clipped with paper to
-			// spare beside it, and the note still rests a gap below the row
-			// at its start and a foot margin above that bar at its end. Both
-			// are the document's own content, so the scroll bounds, the page
-			// moves and the bar's track account for them; a page that held
-			// either back outside the viewport would buy it at the price of a
-			// dead strip beside every half-cut line the reader scrolls past.
+			// status bar below it, and the note still rests a gap below the
+			// row at its start and a foot margin above that bar at its end.
+			// Both are the document's own content, so the scroll bounds, the
+			// page moves and the bar's track account for them; held back
+			// outside the viewport either would leave a dead strip beside
+			// every half-cut line the reader scrolls past.
 			bar := scrollbar.FromTokens(tok.col)
 			style.Gutter = max(noteInsetDp-bar.Width(), 0)
 			style.StartSpace = noteGapDp
@@ -581,9 +561,8 @@ func layoutNotePage(
 		// it. The reading gap is not lost, it is spent inside the document
 		// as its start space, where it is the note's resting position rather
 		// than a margin held back on every frame; held back out here it would
-		// leave a strip of bare paper over every half-cut line, which reads
-		// as a rendering fault and not as scrolling. A standing message owns
-		// no viewport and takes the gap like any other row.
+		// leave a strip of bare paper over every half-cut line. A standing
+		// message owns no viewport and takes the gap like any other row.
 		if !scrolling {
 			children = append(children, layout.Rigid(complayout.VSpacer(noteGapDp)))
 		}
@@ -746,8 +725,8 @@ func messageChild(tok themeTokens, msg string) layout.FlexChild {
 // note's path inside the vault, then the note itself. Each folder reveals
 // itself in the tree when clicked; the note is where you already are and
 // stays inert. The vault is not a place here — it names the window from
-// the chrome row, and in the trail it promised a parent to climb to that
-// does not exist.
+// the chrome row, and as a crumb it would promise a parent to climb to
+// that a vault does not have.
 //
 // The places carry in-vault paths, so a folder and a note of the same name
 // in different branches are different places and a click on one is never
@@ -831,32 +810,23 @@ func layoutProperties(
 // itself is laid on — inside a rounded hairline.
 //
 // The ground is a measurement, taken against the surfaces this page already
-// carries rather than against the scale in the abstract. The panel used to
-// fill with the separator's tint, and that made the note's metadata the
-// heaviest block in the note: measured off the paper at 246, the panel's
-// old fill sat at 212 while both code blocks under it sat at 239–245, so
-// the metadata was darker than the code and was the first thing the eye
-// landed on, ahead of the note's own title. A storey up the scale is not
-// far enough to fix it — the next fill the scale offers sits at 232, still
-// further from the paper than anything else the page draws, and it is the
-// exact fill the window's rail and aside wear, which reads as a slab of
-// chrome dropped onto the page rather than as part of the note. The dark
+// carries rather than against the scale in the abstract. Neither fill the
+// scale offers can be spent here: measured off a paper at 246, the
+// separator's tint sits at 212 and the next fill up at 232, while both code
+// blocks under the panel sit at 239–245 — so either would make the metadata
+// darker than the code and the first thing the eye lands on, ahead of the
+// note's own title, and 232 is the exact fill the window's rail and aside
+// wear, which reads as a slab of chrome dropped onto the page. The dark
 // scheme measures the same shape: paper 24, code 30, the two candidate
 // fills 46 and 34.
 //
-// So the panel takes no fill of its own. The page already has an idiom for
-// a bounded block that does not shout — the code blocks are a hairline
-// around a ground barely off the paper — and the panel now wears it: the
-// paper for its ground, and one hair to say where it is. What was the
-// panel's weight becomes the panel's outline, and the note reads title
-// first, metadata second.
-//
-// The outline is the whole of the panel, so it is the whole of the panel's
-// budget: the hair takes the step past the separator's, not the separator's
-// own, for the measurement in propEdgeStep — a line that dissolves is not
-// an outline. The corners are the code blocks': a page that draws two kinds
-// of bounded box has no reading on which they are different shapes, and the
-// fence's is the one they now share.
+// So the panel takes no fill of its own and wears the page's existing idiom
+// for a bounded block that does not shout — as the code blocks do, a
+// hairline around a ground barely off the paper. The outline is the whole
+// of the panel's budget: the hair takes the step past the separator's, for
+// the measurement in propEdgeStep, since a line that dissolves is not an
+// outline. The corners are the code blocks', so the page has one shape for
+// a bounded box rather than two.
 func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter) layout.Dimensions {
 	// The panel names its own ground rather than inheriting whatever it is
 	// dropped on, so the hairline always has the surface it was judged
@@ -877,16 +847,15 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			// beside uses, and the only one in which the steps chosen for
 			// them are the order the reader sees.
 			//
-			// The key used to be set in the label role, a weight heavier
-			// than the value beside it, and that outvoted the ink: measured
-			// off the rendered panel, the value's darkest pixels reached 78
-			// against the key's 92 on a 246 paper — the twenty-six levels
-			// the two steps are apart collapsed to fourteen — and in the
-			// dark scheme the key's brightest reached 196 against the
-			// value's 181, which is the order inverted outright. A regular
-			// weight has too little of each glyph fully covered for its
-			// nominal ink to arrive; two columns can only be ranked by ink
-			// if the ink is the only thing that differs.
+			// A weight difference outvotes the ink: with the key in the
+			// heavier label role, measured off the rendered panel, the
+			// value's darkest pixels reach 78 against the key's 92 on a 246
+			// paper — the twenty-six levels the two steps are apart collapse
+			// to fourteen — and in the dark scheme the key's brightest
+			// reaches 196 against the value's 181, the order inverted
+			// outright. A regular weight has too little of each glyph fully
+			// covered for its nominal ink to arrive; two columns can only be
+			// ranked by ink if the ink is the only thing that differs.
 			keyStyle := tok.typ.BodyMedium
 			keyInk := tok.col.Ramps.Neutral.Step(propLabelStep)
 			// The key column is as wide as the longest key plus a fixed

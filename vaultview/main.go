@@ -69,9 +69,9 @@ func run() {
 	desktop.ShowWindowButtons(mvuWin)
 
 	// The brand this user kept, if they kept one. It pins the palette the
-	// theme stream flips between; which side shows is still the desktop's
-	// decision, live, as it always was. With nothing kept the options are
-	// empty and the stream is exactly the one this line made before.
+	// theme stream flips between; which side shows is the desktop's live
+	// decision. With nothing kept the options are empty and the stream is
+	// the default one.
 	//
 	// The same value seeds the token mirror's first cell below, so the
 	// opening frames are already in the kept palette rather than flashing
@@ -119,14 +119,13 @@ type themeTokens struct {
 // float on.
 //
 // It is the ladder's FLOOR — one step under the paper, toward the scheme's
-// dark extreme, in both schemes (ADR-022 V2). Furniture is the desk the
-// document lies on, not a storey above it, so the rail and the aside are
-// the darkest regions of this window and the note column between them is
-// the lightest resting one. The light scheme does not move a pixel over
-// this: its floor lands byte-for-byte on the neutral 200 the panes already
-// wore. The dark scheme is where the ruling lands — the panes drop from
-// #222222 to #151515, the platform's own measured step under the paper,
-// and stop reading as a storey stacked on top of the page they frame.
+// dark extreme, in both schemes. Furniture is the desk the document lies
+// on, not a storey above it, so the rail and the aside are the darkest
+// regions of this window and the note column between them is the lightest
+// resting one. In the light scheme the floor lands byte-for-byte on the
+// neutral 200 the panes wear. In the dark scheme it is #151515, the
+// platform's own measured step under the paper; at #222222 the panes read
+// as a storey stacked on the page they frame rather than the desk under it.
 //
 // It is a function rather than a field on themeTokens because the tests
 // hold whole palettes rather than snapshots, and both have to be able to
@@ -196,17 +195,15 @@ func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.ColorTokens, typ
 // screen beneath it was laid out from. The routed layer owns the store,
 // since its emission is the one that selects a screen.
 //
-// The toasts stand on the midpoint of the window's bottom edge. What a
-// rescan reports is a confirmation of something the reader just did, and
-// it belongs where they are looking — the foot of the column they are
-// reading — rather than in a corner they have no reason to watch. At the
-// width this window opens, the column the stack is wide falls entirely
-// inside the reading column: the sidebar and the actions at its foot end
-// well to the leading side of it, and the backlinks panel begins well to
-// the trailing side, so nothing live is under a toast. The layer keeps
-// the chrome inset it always had, which now bounds the stack from above:
-// a queue tall enough to climb the window stops at the chrome row's foot
-// instead of covering the controls standing in it.
+// The toasts stand on the midpoint of the window's bottom edge, where the
+// reader is looking, since what a rescan reports confirms something they
+// just did. At the width this window opens, the column the stack is wide
+// falls entirely inside the reading column: the sidebar and the actions at
+// its foot end well to the leading side of it, and the backlinks panel
+// begins well to the trailing side, so nothing live is under a toast. The
+// chrome inset bounds the stack from above, so a queue tall enough to climb
+// the window stops at the chrome row's foot rather than covering the
+// controls standing in it.
 func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens, typo tokens.Typography) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		loadTok := mirrorTokens(th, opening, typo)
@@ -269,10 +266,8 @@ type buttonPlacement struct {
 // own top and leading edges. The buttons are part of the window, seen
 // through whatever the application draws under them, so nothing the
 // application draws may move them: not the pane arriving, and not the
-// pane leaving. There is deliberately no rail state in this answer —
-// asking the buttons back to a different geometry when the pane goes is
-// the movement that reading forbids, and the pane is what moved, not
-// them.
+// pane leaving. No rail state enters this answer — the pane is what
+// moves, not the buttons.
 //
 // The picker asks for no placement at all. It claims no band of its own
 // and lays its content out below the native strip, so the whole strip is
@@ -316,8 +311,8 @@ func placeWindowButtons(p buttonPlacement) {
 // content the application has not claimed — the picker screen's case.
 // Where the screen lays out its own top band, and away from the treatment
 // altogether, this is an exact no-op: the vault screen's chrome row and
-// sidebar strip are drawn in the strip on purpose, and padding them down
-// would put the band back that this window exists without.
+// sidebar strip are drawn inside the strip, and padding them down would
+// stack a band above them.
 func underTitleBar(content rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	return insetTop(content, screenTopInset)
 }
@@ -419,10 +414,8 @@ func trailSegments(places []place, click func(path string) func(gtx layout.Conte
 // chosen. The separator's ink fills its square's full height, so the square
 // is the ink height: at eight dp it stands four fifths of the labels' caps,
 // and under the history controls at the row's head in both height and ink,
-// which is the order the row should read in. The vocabulary's own size is a
-// mark's size, and a mark's size here would put solid ink a fifth over those
-// caps — the proportion this window already corrected once, for the controls
-// beside this very row.
+// which is the order the row reads in. A mark's size here would put solid
+// ink a fifth over those caps.
 //
 // Eight is also the gap the row leaves either side of it, so the separator
 // and its air are one square wide apiece, and it lands on whole device
@@ -457,8 +450,7 @@ const (
 // rather than moving everything around it.
 //
 // The marks are drawn rather than typeset, so what the window shows does
-// not depend on which faces the host carries — the app used to typeset
-// them and had glyphs resolve through system fallback.
+// not depend on which faces the host carries.
 func drawMark(gtx layout.Context, name icons.Name, sizeDp unit.Dp, c color.NRGBA) layout.Dimensions {
 	px := gtx.Dp(sizeDp)
 	if mark := icons.Mark(name); mark != nil {

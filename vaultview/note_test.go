@@ -234,10 +234,10 @@ func TestReadingKeysMoveTheNote(t *testing.T) {
 	}
 }
 
-// TestReadingKeysDoNotStealFromAnotherTarget is D2's other half. Home and End
-// mean the line's ends to the find field and the first and last row to the
-// folder rail; while either holds the keyboard the document must not answer
-// them, and pressing in the document must be enough to get them back.
+// TestReadingKeysDoNotStealFromAnotherTarget: Home and End mean the line's
+// ends to the find field and the first and last row to the folder rail;
+// while either holds the keyboard the document must not answer them, and
+// pressing in the document must be enough to get them back.
 func TestReadingKeysDoNotStealFromAnotherTarget(t *testing.T) {
 	p := newNotePad(t, longNoteModel(-1))
 	p.frame()
@@ -266,11 +266,10 @@ func TestReadingKeysDoNotStealFromAnotherTarget(t *testing.T) {
 	}
 }
 
-// TestOpeningANoteHandsTheColumnTheKeyboard is the other way back. Choosing a
-// note in the folder rail leaves the keyboard on the rail, and a reader who
-// has just opened a note wants to read it — so the arrival of a note is
-// itself the request. Without this the only way to page a note opened from
-// the rail is to find somewhere in it to click first.
+// TestOpeningANoteHandsTheColumnTheKeyboard: choosing a note in the folder
+// rail leaves the keyboard on the rail, so the arrival of a note in the
+// column is itself the request for it — otherwise a note opened from the
+// rail cannot be paged until something in it is clicked.
 func TestOpeningANoteHandsTheColumnTheKeyboard(t *testing.T) {
 	m := longNoteModel(-1)
 	p := newNotePad(t, m)
@@ -291,9 +290,9 @@ func TestOpeningANoteHandsTheColumnTheKeyboard(t *testing.T) {
 	}
 }
 
-// TestTheEndsHoldAfterAnAnchorLanding is the exit condition's second half: a
-// followed link seats the document at its anchor, and the reading keys must
-// still cross it — the seating is a scroll position, not a mode.
+// TestTheEndsHoldAfterAnAnchorLanding: a followed link seats the document at
+// its anchor, and the reading keys must still cross it — the seating is a
+// scroll position, not a mode.
 func TestTheEndsHoldAfterAnAnchorLanding(t *testing.T) {
 	m := longNoteModel(30)
 	p := newNotePad(t, m)
@@ -329,13 +328,11 @@ func TestTheNoteRestsClearOfTheWindowsBottomEdge(t *testing.T) {
 	}
 }
 
-// TestOnlyTheNotesEndSpendsTheFootMargin is the other half of the same
-// decision. Part way down a note the column has no margin at the foot at all:
-// every row of it carries text, and a line the window's edge cuts is the
-// window cutting it. Holding the margin back on every frame would leave a
-// strip of bare paper under that half-cut line, which reads as a clipping
-// fault, and it would cost the reader a margin's worth of note on every screen
-// they cross.
+// TestOnlyTheNotesEndSpendsTheFootMargin: part way down a note the column has
+// no margin at the foot at all — every row of it carries text. Holding the
+// margin back on every frame would leave a strip of bare paper under the
+// half-cut line the window's edge makes, and cost the reader a margin's worth
+// of note on every screen they cross.
 func TestOnlyTheNotesEndSpendsTheFootMargin(t *testing.T) {
 	p := newNotePad(t, longNoteModel(-1))
 	p.frame()
@@ -369,17 +366,14 @@ const noteHeadSlack = 6
 // the other end of the column. The note opens a gap below the row above it,
 // and part way down it spends none: the viewport begins on that row's lower
 // edge, so a line scrolling out of the top is cut by the row and vanishes
-// under it. A gap held back on every frame would leave a strip of bare paper
-// over that half-cut line — which is what the reader reported seeing, and what
-// reads as a rendering fault rather than as scrolling.
+// under it.
 //
-// The evidence is a screen that brings a line hard against the row, not a
-// bound on every screen: the note's own rhythm now opens blanks wider than
-// the page's gap — an ordinary block gap, wider still above a heading — so a
-// page boundary landing inside one begins on the note's own paper, and no
+// What is asserted is one screen that brings a line hard against the row, not
+// a bound on every screen: the note's own rhythm opens blanks wider than the
+// page's gap — an ordinary block gap, wider still above a heading — so a page
+// boundary landing inside one begins on the note's own paper, and no
 // per-screen bound can tell that from a margin held back. A page that did
-// hold the gap back could never reach the row's edge on any screen, which is
-// exactly what this measures.
+// hold the gap back could never reach the row's edge on any screen.
 func TestOnlyTheNotesStartSpendsTheGapUnderTheRow(t *testing.T) {
 	p := newNotePad(t, longNoteModel(-1))
 	p.frame()
@@ -440,12 +434,9 @@ func TestTheKeyboardLandsOnTheRestingPosition(t *testing.T) {
 	}
 }
 
-// TestThePropertiesSlabStandsOnThePaper holds the panel to the page it is
-// read on. It used to be a block of the separator's tint, which made the
-// note's metadata the heaviest thing in the note — further off the paper
-// than the code blocks under it, and the first place the eye landed. It is
-// the paper now, inside one hair of that same tint: the treatment the page's
-// other bounded blocks already wear.
+// TestThePropertiesSlabStandsOnThePaper holds the panel to the page it is read
+// on: the note's own paper for a ground, inside one hair of the panel's own
+// neutral step, which is the treatment the page's other bounded blocks wear.
 //
 // The panel is found in the pixels rather than asserted at. Its top edge is
 // the first row down the page carrying the hairline's tint across most of the
@@ -453,12 +444,6 @@ func TestTheKeyboardLandsOnTheRestingPosition(t *testing.T) {
 // else can be first — and its foot is the next such row. What is asserted is
 // that the two are far enough apart to be a panel, and that between them the
 // page is paper: no band of any other fill, which is what a slab would be.
-//
-// The tint the edge is hunted by is the panel's own step and not the
-// separator's any more. The hair moved one step up the neutral ramp when the
-// dark scheme showed that a separator's tint on a near-black paper is a line
-// the reader cannot see; the assertion is unchanged — paper inside, a hair
-// around it — and only the colour it looks for moved with the drawing.
 func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
@@ -538,12 +523,10 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 // raw-block fallback are the muted tier; the values beside them are read a
 // step stronger. Both are body-sized, so both owe the design system's 4.5:1.
 //
-// The values used to be the body ink itself, and the order they are now held
-// in is the finding that moved them: metadata sitting above the note's title
-// was written in the title's own ink and got read first. So the panel's two
-// inks are ranked here as well as floored — the values over the keys, the
-// prose over both — because a floor alone cannot tell a hierarchy from a
-// tie.
+// The two inks are ranked here as well as floored — the values over the keys,
+// the note's prose over both — because a floor alone cannot tell a hierarchy
+// from a tie, and metadata standing above the note's title may not be written
+// in the title's own ink.
 func TestThePropertiesSlabInksClearTheFloor(t *testing.T) {
 	const floor = 4.5
 	for _, tc := range themeCases {
@@ -576,11 +559,10 @@ func TestThePropertiesSlabInksClearTheFloor(t *testing.T) {
 			// the ink the panel is written in.
 			edge := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propEdgeStep), ground)
 			t.Logf("the hairline stands %.2f:1 off the paper, the quiet ink %.2f:1", edge, keys)
-			// The line the panel is bounded by used to be the separator's, and
-			// on the dark paper that read 1.31:1 — measurably there, and gone
-			// at one device pixel per dp. The floor is the measurement that
-			// replaced it: a hairline this page can be sure of stands at least
-			// half again as far off its ground as a separator does.
+			// A hairline this page can be sure of stands at least half again
+			// as far off its ground as a separator does: the separator's tint
+			// reads 1.31:1 on the dark paper, which at one device pixel per dp
+			// is measurably there and visually gone.
 			if edge <= 1.5 {
 				t.Errorf("the hairline stands %.2f:1 off the paper; at one pixel per dp the box dissolves into it", edge)
 			}

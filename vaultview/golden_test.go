@@ -19,7 +19,7 @@ import (
 
 const (
 	// noteCanvasW matches the runtime main-slot budget: the 1100 dp
-	// window less the sidebar column, which the content area now butts
+	// window less the sidebar column, which the content area butts
 	// straight against, the divider's grab area and the backlinks aside.
 	noteCanvasW = 1100 - treeWidthDp - frameDividerDp - frameAsideDp
 	// noteCanvasH is the golden viewport height. The document scrolls, so
@@ -39,10 +39,7 @@ const (
 	//
 	// One value, for both rail states and for the same reason the window
 	// itself has one: the buttons are anchored to the window's own edges
-	// and nothing the application draws under them moves them. The pin was
-	// briefly a pair, when hiding the pane handed the buttons back to a
-	// different geometry; that a single number serves again is the
-	// arrangement saying so.
+	// and nothing the application draws under them moves them.
 	goldenLeading = 79
 )
 
@@ -54,22 +51,10 @@ var (
 	// worth a picture at a size somebody actually looks at it in.
 	windowCanvasSize = image.Pt(windowW, windowH)
 	// goldenRadius is the radius scale every static render lays out from,
-	// and it is the shipped one. It used to be an empty scale, on the
-	// reading that anti-aliased rounded corners vary between GPU contexts
-	// and break pixel-exact diffs — but that reading did not survive being
-	// looked at. The parameter reaches exactly one widget, the rail's find
-	// field, because everything else rounded in this window reads a
-	// module-local constant or the tokens.Radius global: the pane's ten dp,
-	// the tree and outline pills' eight, the properties box and the fence
-	// at Radius.Base, the scrollbar caps. Those arcs are antialiased and
-	// they have always diffed exactly, so the pin bought no determinism
-	// that was not already there and cost the one thing it touched its
-	// corners — leaving a square search field in a rounded window, which is
-	// what a fresh reviewer named as the only real defect in the frame. It
-	// also made renderTree's own promise false: the golden did NOT carry
-	// the field the live rail wears, which builds from the reactive theme
-	// at Radius.Md. Same trap AK6.5 closed in todos, reopened in a sharper
-	// form because here it flattened one control instead of all of them.
+	// and it is the shipped one, so the golden carries the field the live
+	// rail wears. The parameter reaches exactly one widget, the rail's find
+	// field; everything else rounded in this window reads a module-local
+	// constant or the tokens.Radius global.
 	goldenRadius = tokens.Radius
 )
 
@@ -276,18 +261,15 @@ func TestNoteScrollbarGolden(t *testing.T) {
 	}
 }
 
-// TestNoteScrollbarOnlyWhenTheNoteOverflows is the exit condition as an
-// assertion: a long note read at its end draws an indicator at the foot of
-// the column's trailing gutter, and a note that fits, in the same viewport,
-// draws none. The probe is pixels rather than dimensions, because the gutter
-// is reserved either way — that is what stops the prose reflowing when the
-// bar fades.
+// TestNoteScrollbarOnlyWhenTheNoteOverflows asserts a long note read at its
+// end draws an indicator at the foot of the column's trailing gutter, and a
+// note that fits, in the same viewport, draws none. The probe is pixels
+// rather than dimensions, because the gutter is reserved either way — that
+// is what stops the prose reflowing when the bar fades.
 //
-// The note that fits is the plain one rather than the golden note: at the
-// reading rhythm the renderer now sets, the golden note's frontmatter panel,
-// headings and code block no longer fit a 700 dp viewport, so it has become a
-// second long note and can no longer say anything about a note that does not
-// scroll.
+// The note that fits is the plain one: the golden note's frontmatter panel,
+// headings and code block do not fit a 700 dp viewport, so it says nothing
+// about a note that does not scroll.
 //
 // The gutter is the column's last ten dp — the bar reaches the edge, where
 // the platform puts it, and every other row stops a reading margin short of
@@ -351,22 +333,18 @@ func TestTreeGolden(t *testing.T) {
 }
 
 // TestVaultWindowGolden records or diffs the whole vault window, which is
-// the one thing every other golden in this package cannot see. A rail
-// rendered on its own at 240 dp and a note column rendered on its own at
-// its runtime width are both correct pictures of a window that spends
-// eighty dp on empty chrome above them: the defect is in the composition,
-// and only a picture of the composition carries it.
+// the one thing every other golden in this package cannot see: a slot
+// rendered on its own is a correct picture of a slot, so a defect that
+// lives in the composition is only carried by a picture of the composition.
 //
-// Four images, because hiding the rail is not a change to one slot — the
-// pane goes, the note column reflows from the window's own edge, and the
-// control that brings the pane back moves into the chrome row — and
-// because every appearance the app ships is an appearance the
-// composition can be wrong in.
+// Both rail states are recorded, because hiding the rail is not a change to
+// one slot — the pane goes, the note column reflows from the window's own
+// edge, and the control that brings the pane back moves into the chrome row
+// — and both appearances, since either can be composed wrongly.
 //
-// The pane's corners are anti-aliased and the goldens carry those pixels.
-// That is the composition telling the truth; the sharp-radius trick the
-// slot goldens use covers the components' own radii, not a rounded clip
-// the frame draws itself.
+// The pane's corners are anti-aliased and the goldens carry those pixels:
+// the sharp-radius trick the slot goldens use covers the components' own
+// radii, not a rounded clip the frame draws itself.
 func TestVaultWindowGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	shown := goldenModel()
@@ -410,26 +388,23 @@ func TestVaultWindowGolden(t *testing.T) {
 // requires everything along the top of it to be on one line: the line the
 // window's control buttons centre on. The vault's name, the toggle in the
 // pane's own strip, and the toggle the chrome row shows once the pane is
-// away — all three are measured as ink, off the composed image, rather
-// than computed from the constants that placed them. A placement that
-// agrees with its own arithmetic and not with the picture is the defect
-// this is here for.
+// away — all three are measured as ink, off the composed image, so that a
+// placement agreeing with its own arithmetic but not with the picture
+// fails here.
 //
 // The buttons themselves are the platform's and draw nothing headlessly,
 // so the line is the number the window states to it — the same number
 // the placement call is given, and the one a live capture was measured
 // against.
 //
-// The two toggle marks are also required to occupy exactly the same rows.
-// They are the two halves of one switch, and a reader working the pane
-// back and forth must see one mark stay put, not a mark that hops as the
-// half it is showing changes.
+// The two toggle marks must occupy exactly the same rows: they are the two
+// halves of one switch, and working the pane back and forth must leave one
+// mark standing still.
 //
 // A dp of slack, and no more: the label is a line box centred on the
 // line, and a line box reserves room under the baseline for descenders
 // that "Second Brain" does not spend, which puts its ink one row high of
-// the marks beside it. That much is invisible; anything the marks do is
-// not.
+// the marks beside it.
 func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	shown := goldenModel()
@@ -473,7 +448,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// there, and the ground showing round it is not the toggle. The
 			// pane's own edge is left out the same way — its first row is
 			// the internal hairline that says the pane is an object, ink on
-			// the pane's fill by design and not a mark this is measuring.
+			// the pane's fill and not a mark this is measuring.
 			strip := st.geom.pane.Min.Y + paneStripDp
 			toggleX := st.geom.pane.Max.X - railMarginDp - treeHideBoxDp
 			paneTop, paneBot := inkRows(img, chromeSurface(tc.colors), toggleX, toggleX+treeHideBoxDp-4,
@@ -503,17 +478,14 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 // composed window and requires everything down it to agree on where the
 // column's ink stops. A marked row's fill, and the hairline parting the
 // two panes, are measured as pixels rather than computed from the
-// constants that placed them: the column kept three edges within eight dp
-// of each other — a fill at 1075, a bar at 1081, a hairline at 1083 of an
-// 1100 dp frame — and every one of them agreed with its own arithmetic.
+// constants that placed them, so that edges agreeing with their own
+// arithmetic but not with each other fail here.
 //
 // The bar is measured against the note's, which is the same bar: the two
-// stand at the trailing edge of the two columns a reader reads between,
-// and a window where one hugs its edge while the other floats eighteen dp
-// off is a window with two ideas about where a scrollbar goes. The
-// distance measured is to the ground each one stands on — the note's
-// paper gives way to this column's surface, and this column's surface
-// gives way to the window's own edge.
+// stand at the trailing edge of the two columns a reader reads between and
+// keep one distance from the ground each stands on — the note's paper
+// gives way to this column's surface, and this column's surface gives way
+// to the window's own edge.
 func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	// A long note read part way down: the outline holds the mark and more
@@ -654,18 +626,14 @@ func inkRows(img *image.RGBA, ground color.NRGBA, x0, x1, y0, y1 int) (int, int)
 // its shadow, its strip or the toggle at the end of that strip — may
 // leave a mark outside the pane's own fill.
 //
-// This is the defect the exit condition names, as an assertion. The
-// pane's cast shadow used to reach three pixels past that edge, and the
-// note column's own ground, painted after the pane, wiped all of it
-// below the chrome row: what survived was a nine-row stub of grey beside
-// the pane's toggle, an inch of edging that stopped dead. Reading the
-// whole column rather than the stub's rows catches both halves — ink
-// where there should be none, and ink that stops where nothing changes.
+// The whole column is read rather than a band of it, which catches both
+// halves: ink where there should be none, and ink that stops where nothing
+// changes.
 //
-// Both appearances, because the shadow is an alpha over whatever is
-// under it and light is only where it shows first; and either side of a
-// round trip through the hidden state, because the pane the toggle
-// brings back has to be the pane that left.
+// Both appearances, because a shadow is an alpha over whatever is under it
+// and shows in one before the other; and either side of a round trip
+// through the hidden state, because the pane the toggle brings back has to
+// be the pane that left.
 func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	shown := goldenModel()

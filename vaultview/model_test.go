@@ -83,11 +83,10 @@ func fNote() *Note {
 	}, "\n"))
 }
 
-// TestHistoryFollowBackForward is the headless exit-criterion walk:
-// navigating x → f#A#B pushes a history entry anchored on B's block
-// index; Back returns to x without re-anchoring (the cached document
-// keeps its scroll); Forward returns to f; recorded anchors survive the
-// round trip.
+// TestHistoryFollowBackForward walks the history: navigating x → f#A#B
+// pushes a history entry anchored on B's block index; Back returns to x
+// without re-anchoring (the cached document keeps its scroll); Forward
+// returns to f; recorded anchors survive the round trip.
 func TestHistoryFollowBackForward(t *testing.T) {
 	model := scannedModel(t)
 	f := fNote()
@@ -206,10 +205,10 @@ func TestToastRequestedQueues(t *testing.T) {
 	}
 }
 
-// TestAmbiguousLinkResolvesThroughChooser is the headless exit-criterion
-// walk for the chooser: the resolver refuses an ambiguous link with its
-// candidates, the refusal raises the chooser carrying them, and choosing
-// one navigates there — anchored where the refused link pointed.
+// TestAmbiguousLinkResolvesThroughChooser walks the chooser: the resolver
+// refuses an ambiguous link with its candidates, the refusal raises the
+// chooser carrying them, and choosing one navigates there — anchored where
+// the refused link pointed.
 func TestAmbiguousLinkResolvesThroughChooser(t *testing.T) {
 	idx := backlinkIndex()
 	idx.Files[2].Headings = []Heading{{Level: 2, Title: "Deep"}} // x/Dup.md
@@ -275,10 +274,9 @@ func TestChooserDismissal(t *testing.T) {
 	}
 }
 
-// TestSwitchVaultReRootsAndFollowsTheStore is the headless exit-criterion
-// walk for switching vaults: the model returns to the picker seated at the
-// open vault's parent; opening another vault rewrites the store and
-// re-roots the tree on the new index.
+// TestSwitchVaultReRootsAndFollowsTheStore walks a vault switch: the model
+// returns to the picker seated at the open vault's parent; opening another
+// vault rewrites the store and re-roots the tree on the new index.
 func TestSwitchVaultReRootsAndFollowsTheStore(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
@@ -571,8 +569,6 @@ func TestSetFilterCarriesTheQuery(t *testing.T) {
 // TestNotePlacesTrail: the trail carries the in-vault path only — one place
 // per folder and the note last, each addressed by its own path, and the
 // vault is not a place: it names the window from the chrome row instead.
-// Which of them is clickable, and where a click goes, is the row's business
-// and is proved where the row is driven.
 func TestNotePlacesTrail(t *testing.T) {
 	model := Model{Screen: screenVault, Vault: "/home/rene/Second Brain", CurAnchor: -1}
 	model = cacheNote(model, &Note{Path: "a/b/note.md", Title: "note"})

@@ -172,11 +172,10 @@ func visibleNoteRow(m Model, p string) *TreeRow {
 	return nil
 }
 
-// TestTreeActiveTracksNavigation is the headless half of the exit
-// criterion: as the model moves through Navigate and GoBack/GoForward,
-// the current note's row stays visible in the flattened tree — landing
-// inside a closed folder opens its ancestors — and the row the view
-// would mark active (Path == Current) is always exactly the current one.
+// TestTreeActiveTracksNavigation walks the model through Navigate and
+// GoBack/GoForward: the current note's row stays visible in the flattened
+// tree — landing inside a closed folder opens its ancestors — and the row
+// the view marks active (Path == Current) is always exactly the current one.
 func TestTreeActiveTracksNavigation(t *testing.T) {
 	model := treeModel()
 
@@ -305,11 +304,11 @@ func TestMatchRows(t *testing.T) {
 	}
 }
 
-// TestTreeClaimsOnlyItsRail is the layout regression: the shell lets its
-// sidebar slot size itself and gives the main column whatever is left, so
-// a rail answering with the constraint it was handed would take the whole
-// window and leave the note nothing. Every state must answer the rail's
-// own width — with rows, filtered to none, and before the scan lands.
+// TestTreeClaimsOnlyItsRail: the shell lets its sidebar slot size itself
+// and gives the main column whatever is left, so a rail answering with the
+// constraint it was handed would take the whole window and leave the note
+// nothing. Every state must answer the rail's own width — with rows,
+// filtered to none, and before the scan lands.
 func TestTreeClaimsOnlyItsRail(t *testing.T) {
 	tok := themeTokens{
 		col:    tokens.DefaultLight,
@@ -360,7 +359,7 @@ func TestTreeClaimsOnlyItsRail(t *testing.T) {
 // window and no scroll position can take them out of reach.
 //
 // It is asserted off what the pane laid out rather than recomputed from
-// the constants, which would be the test asserting its own arithmetic.
+// the constants that placed it.
 func TestPaneFootStandsOutsideTheRows(t *testing.T) {
 	tok := goldenTokens()
 	const paneH = 700
@@ -402,10 +401,9 @@ func TestPaneFootStandsOutsideTheRows(t *testing.T) {
 // TestPaneFootActionsAnswerTheKeyboard drives the foot the way a reader
 // without a pointer does: Tab to each action and activate it, through the
 // frame's own input router. Both must report a press. What the press then
-// means — a rescan that counts what it found, a switch that returns to
-// the picker — is asserted at the model in TestRescanRefreshesIndexKeepingPlace
-// and TestSwitchVaultReRootsAndFollowsTheStore; this is the half that says
-// the keyboard can get there at all.
+// means — a rescan that counts what it found, a switch that returns to the
+// picker — is asserted at the model; this covers only whether the keyboard
+// can get there at all.
 func TestPaneFootActionsAnswerTheKeyboard(t *testing.T) {
 	tok := goldenTokens()
 	for _, c := range []struct {
@@ -491,12 +489,10 @@ func TestPaneFootNamesItsActions(t *testing.T) {
 }
 
 // TestPaneFootAnswersThePointer asserts the foot's actions look like
-// controls when a pointer is on them. Shown the pane as a still picture,
-// a fresh reviewer read two unadorned labels at the bottom of a column as
-// a status line rather than as things to press: a bare label says nothing
-// about being pressable until something answers. So the hit area fills
-// under the pointer, and the assertion is pixels — the fill is the whole
-// point, and dimensions cannot see it.
+// controls when a pointer is on them: a bare label says nothing about
+// being pressable until something answers, so the hit area fills under the
+// pointer. The assertion is pixels — the fill is the whole point, and
+// dimensions cannot see it.
 //
 // The hover is delivered through the frame's own input router at a point
 // beside the label rather than on it, which also says the hit area is
