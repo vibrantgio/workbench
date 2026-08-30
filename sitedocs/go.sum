@@ -25,10 +25,10 @@ github.com/reactivego/scheduler v0.2.0 h1:XCg1M2L/ejSOI8v5Q0K5xJt+W204+F0AJsjpTP
 github.com/reactivego/scheduler v0.2.0/go.mod h1:Kw99rMXR1WJr/FgeqQfGAWClsWWlVKXZCUwJ+iCXUtQ=
 github.com/vibrantgio/backdrop v0.0.3 h1:Xp+6U5pSCsqKLi5M8Pfkd0P094ut5sLVDrLM5OPR1rw=
 github.com/vibrantgio/backdrop v0.0.3/go.mod h1:KESYoe+8sDwR/roZM8LJ0wwtfaTqfUGR6DjcxKCydfU=
-github.com/vibrantgio/components v1.2.2 h1:lwRo4MPjj0EKq680nY1KNcd8FKnX0K9IusvSv5Ib5Ck=
-github.com/vibrantgio/components v1.2.2/go.mod h1:Rep4zKmaAvYrELndpCnRuY3mB50TtGPZzof3yKJ9TS8=
-github.com/vibrantgio/components/gallery v1.2.2 h1:TsF/831mtD6dRJz36/n8KCRmoG0VK7HD+uByMde8ZrA=
-github.com/vibrantgio/components/gallery v1.2.2/go.mod h1:SKf1BT3/ncYB7TByPCxd0GUH3TTgVFhBbixtON8KFfY=
+github.com/vibrantgio/components v1.2.3 h1:/ITsHd7eWAgLd9xXllvsHSwzeZF3ZfBtV1R4pVmRFyY=
+github.com/vibrantgio/components v1.2.3/go.mod h1:Rep4zKmaAvYrELndpCnRuY3mB50TtGPZzof3yKJ9TS8=
+github.com/vibrantgio/components/gallery v1.2.3 h1:cFjv82A4rLnw6lfduB/jd7xmID4SM5afVBSedcywyXA=
+github.com/vibrantgio/components/gallery v1.2.3/go.mod h1:BnGFrkp6vG6qGl1yp7P/7JCY3/YVyInLEgRONggwFDo=
 github.com/vibrantgio/effects v0.2.4 h1:PrZRblu9L84PTFbS+Ixf17MJedU0tRoh/SKQursHjJI=
 github.com/vibrantgio/effects v0.2.4/go.mod h1:dC8fqIV5Amr/CLih1AWLZz9Ssdh91Ude2h74Eusb2iE=
 github.com/vibrantgio/font v0.4.1 h1:MCn+Sf9jRxjjdgxVGAu+7DRpKFiFLIq5SW3kQOTYDNM=
