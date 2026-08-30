@@ -17,35 +17,28 @@ import (
 )
 
 // MarkSizes are the sizes every mark is shown at, ascending: the three sizes
-// the library draws an icon at. A mark is drawn on one grid but it is not
-// pixel-exact at all three, so the section shows all three rather than one —
-// what an author sees here is what a control ships.
+// the library draws an icon at. A mark is drawn on one grid but is not
+// pixel-exact at all three, so the section shows all three rather than one.
 var MarkSizes = []unit.Dp{16, 20, 24}
 
 // TurnedMark is the one mark of the set whose single drawing serves two states.
 // The icons package draws disclosure as the row stands closed, and a control
 // showing an open row turns that same drawing a quarter turn rather than
-// reaching for a second name — vaultview's disclosure rows are the precedent.
-// So its cell here shows the turn too: an author who reads this section as
-// "what a control ships" would otherwise never see the state the set does not
-// carry a name for.
+// reaching for a second name, so this cell shows the turn as well.
 //
 // It is a name the set carries, not a name of its own: everything the cell adds
 // is drawn by the painter marks.Mark(TurnedMark) returns.
 const TurnedMark = marks.Disclosure
 
-// MarkSizeNote says what a cell's row of drawings is, in the sizes themselves
-// rather than a typed-out copy of them — and, when the turned mark's cell is on
-// screen, what the extra drawing in it is. The clause is conditional because
-// the section is filtered: a query that keeps only the history marks shows no
-// turn, and a note describing one would be describing the wrong screen.
+// MarkSizeNote says what a cell's row of drawings is, in the sizes themselves,
+// and — only when the turned mark's cell is on screen — what the extra drawing
+// in it is. The clause is conditional because the section is filtered: a query
+// that keeps no turned mark would otherwise be described wrongly.
 //
-// It is a clause and not a sentence on purpose. This note is shipped chrome
-// hanging off the trailing edge of a section label, next to a sibling that says
-// "961 icons", and prose in that slot reads as a design note somebody left in
-// the window. So it names the mark, says it is turned, and says what the turn
-// is for — the mark's own name is the subject, which is what keeps the turned
-// drawing from reading as a second mark called "open".
+// It stays a clause rather than a sentence: the note hangs off the trailing
+// edge of a section label beside a sibling reading "961 icons". Naming the mark
+// as its subject is what keeps the turned drawing from reading as a second mark
+// called "open".
 func MarkSizeNote(names []marks.Name) string {
 	sizes := make([]string, len(MarkSizes))
 	for i, size := range MarkSizes {
@@ -77,14 +70,12 @@ func Heading(t themed, label, note string) layout.Widget {
 // MarkGrid lays the design system's own marks out in the catalogue's cell
 // rhythm, wrapping into as many rows as the width needs. Every cell draws one
 // mark through the icons package at each of MarkSizes and captions it with the
-// name a call site writes — not a picture's description, which is the point of
-// the names. TurnedMark's cell draws that same mark once more, turned; the
-// caption underneath is still the one name, because that is still all a call
-// site can write.
+// name a call site writes. TurnedMark's cell draws that same mark once more,
+// turned; the caption underneath is still the one name, because that is all a
+// call site can write.
 //
-// Unlike the Material grid this one does not scroll: the set is small, and its
-// whole purpose here is to be seen at a glance before somebody draws a mark
-// that already exists.
+// Unlike the Material grid this one does not scroll: the set is meant to be
+// seen at a glance.
 func MarkGrid(t themed, names []marks.Name) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		width := gtx.Constraints.Max.X
@@ -106,31 +97,20 @@ func MarkGrid(t themed, names []marks.Name) layout.Widget {
 //
 // Every size is centred on the band's own line rather than stood on a common
 // foot: a mark is drawn centred in its square, so centring the squares puts
-// every drawing's middle on one line — which is what the eye reads as aligned.
-// Standing them on a foot does not, because how far a drawing's ink reaches
-// into its square is the drawing's business and differs between marks. The turn
-// keeps that rule: it is the same square, so its middle is on the same line.
+// every drawing's middle on one line. How far a drawing's ink reaches into its
+// square differs between marks, so a common foot would not align them.
 //
-// The turned drawing is shown once, at MarkBand — the largest size, where the
-// quarter turn is most legible — rather than beside every size. That is the
-// cell's width deciding: three sizes doubled with a gap between each is 180 dp
-// against a 160 dp CellW, so a pair per size either overflows the cell or
-// crushes the gutter that separates one cell from the next. One turn costs a
-// gap and a band, which the row's own slack covers, and the sizes are what the
-// three closed drawings are already there to show.
-//
-// It sits at the row's trailing end under the plain MarkGap rather than a wider
-// separation of its own, and that is grouping rather than thrift: what is left
-// over centres the row, so widening the gap inside the cell narrows the gutter
-// between cells by the same amount, and past a point the turned drawing reads
-// as belonging to the mark on its right. Nothing is lost by it — the drawing is
-// turned, which no size in an ascending row is, and it repeats a size rather
-// than continuing the ascent.
+// The turned drawing is shown once, at MarkBand, rather than beside every size:
+// three sizes doubled with a gap between each is 180 dp against a 160 dp CellW,
+// so a pair per size either overflows the cell or crushes the gutter between
+// cells. It sits at the row's trailing end under the plain MarkGap — widening
+// that gap would narrow the gutter between cells by the same amount, since what
+// is left over centres the row.
 //
 // A painter is a lookup and a closure over the set's shared cache, so building
-// one per frame costs nothing worth avoiding. Mark returns nil for a name the
-// set does not carry; the cell then captions the name over empty space rather
-// than drawing somebody else's mark.
+// one per frame is cheap. Mark returns nil for a name the set does not carry;
+// the cell then captions the name over empty space rather than drawing somebody
+// else's mark.
 func markCell(gtx layout.Context, t themed, name marks.Name, cell image.Rectangle) {
 	paintMark := marks.Mark(name)
 	gap := gtx.Dp(MarkGap)
@@ -168,10 +148,9 @@ func markCell(gtx layout.Context, t themed, name marks.Name, cell image.Rectangl
 // quarter turn about that square's own centre.
 //
 // The turn is a paint-time affine over the one registered drawing, not a second
-// drawing: it is vaultview's own disclosure transform, applied here to the same
-// painter the closed drawings in the row use. The mark occupies the whole
-// square, so the centre it turns about is the square's — which is what keeps
-// the turned drawing on the band's line and inside its own slot.
+// drawing. The mark occupies the whole square, so the centre it turns about is
+// the square's, which keeps the turned drawing on the band's line and inside
+// its own slot.
 func paintSquare(gtx layout.Context, paint marks.Painter, at image.Point, px int, c color.NRGBA, turn bool) {
 	if paint == nil {
 		return

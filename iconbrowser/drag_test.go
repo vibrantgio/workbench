@@ -14,19 +14,11 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// TestTheSearchFieldKeepsItsOwnPresses is the shadowing question this window
-// has to answer, and the reason it is asked here is todos: there a modal's
-// whole-window Escape catcher, recorded after the band, swallowed the drag
-// claim, and the fix was a second claim on top. The catcher this page carries
-// is the search field's, and it points the other way — the field is a focus and
-// key target, and a drag band laid over a control makes that control's press the
-// window's, because a move action swallows the press before the control sees
-// one.
-//
-// Neither happens, and the frame cannot show it: the band is claimed above the
-// inset the field is laid out below, so the two never overlap. Pressed at its
-// own centre the field is still the field's, and the strip above it is still
-// the window's.
+// TestTheSearchFieldKeepsItsOwnPresses guards press ownership between the drag
+// band and the search field: a drag band laid over a control makes that
+// control's press the window's, because a move action swallows the press
+// before the control sees one. The band is claimed above the inset the field
+// is laid out below, so the two never overlap — which no frame can show.
 func TestTheSearchFieldKeepsItsOwnPresses(t *testing.T) {
 	tok := staticThemed(t, tokens.DefaultLight)
 	page := Page(tok, staticSearch(t, tokens.DefaultLight), Model{}, &layout.List{Axis: layout.Vertical})

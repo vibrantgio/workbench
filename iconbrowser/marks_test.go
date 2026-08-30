@@ -4,10 +4,8 @@ package main
 //
 // The cell is captured on its own rather than out of the whole-window frame:
 // MarkGrid is handed an exact CellW × MarkCellH canvas, so the one cell in it
-// IS the frame and every square's position is arithmetic on the layout
-// constants instead of a hunt through 700 rows for a band. The window render
-// next door still draws the same cells inside the real page — this is the same
-// composition read closer.
+// is the frame and every square's position is arithmetic on the layout
+// constants rather than a hunt through 700 rows for a band.
 
 import (
 	"image"
@@ -46,10 +44,7 @@ func markCellFrame(t *testing.T, c tokens.ColorTokens, name marks.Name) *image.R
 
 // markRow is where markCell puts the row of squares in a cell of CellW: the
 // leading edge of the first square and the row's whole width, with the turned
-// square counted when the cell is the one that shows it. The arithmetic is the
-// cell's own, restated here to say which pixels the assertions below are about
-// — what they then assert is what the pixels are, which the arithmetic cannot
-// tell them.
+// square counted when the cell is the one that shows it.
 func markRow(turn bool) (x0, width int) {
 	for i, size := range MarkSizes {
 		if i > 0 {
@@ -175,15 +170,14 @@ func inkColumns(img *image.RGBA, r image.Rectangle, ground, ink color.NRGBA) (fi
 	return first, last
 }
 
-// TestTheTurnedCellDrawsTheOpenRendition is the phase's whole claim read off
-// the frame: the cell that shows a turn draws, beside its closed row, that same
-// drawing turned a quarter turn about its own square's centre.
+// TestTheTurnedCellDrawsTheOpenRendition reads off the frame that the cell
+// showing a turn draws, beside its closed row, that same drawing turned a
+// quarter turn about its own square's centre.
 //
 // It is checked as a rotation rather than as "a fourth drawing appeared",
 // because a second registered mark would satisfy the weaker reading. The masks
-// have to agree once the closed one is turned, and they have to DISagree when
-// they are not — a mark that came out the same either way would make the first
-// half of this test vacuous, and a cell that forgot the transform would pass it.
+// must agree once the closed one is turned, and must disagree when it is not —
+// a mark that came out the same either way would make the first half vacuous.
 func TestTheTurnedCellDrawsTheOpenRendition(t *testing.T) {
 	n := int(MarkBand)
 	for _, tc := range windowSchemes {
@@ -209,10 +203,9 @@ func TestTheTurnedCellDrawsTheOpenRendition(t *testing.T) {
 	}
 }
 
-// TestTheTurnedCellKeepsTheCellsGutter guards the layout decision the turn was
-// fitted into: the row grew by a gap and a band, it is still centred in the
-// cell, and it still ends inside it — which is what leaves the gutter between
-// one cell and the next wider than any gap inside either.
+// TestTheTurnedCellKeepsTheCellsGutter pins that the row, grown by a gap and a
+// band, is still centred in the cell and still ends inside it, which is what
+// leaves the gutter between cells wider than any gap inside either.
 func TestTheTurnedCellKeepsTheCellsGutter(t *testing.T) {
 	img := markCellFrame(t, tokens.DefaultLight, TurnedMark)
 	p := PaletteFrom(tokens.DefaultLight)
@@ -235,10 +228,10 @@ func TestTheTurnedCellKeepsTheCellsGutter(t *testing.T) {
 	}
 }
 
-// TestPlainMarkCellsAreUnchanged is the other half: every other mark's cell
-// still draws its three sizes and nothing else, centred on the closed row's own
-// arithmetic. The turn belongs to the one mark whose set doc gives it two
-// states, not to the section.
+// TestPlainMarkCellsAreUnchanged: every other mark's cell draws its three
+// sizes and nothing else, centred on the closed row's own arithmetic. The turn
+// belongs to the one mark whose set doc gives it two states, not to the
+// section.
 func TestPlainMarkCellsAreUnchanged(t *testing.T) {
 	p := PaletteFrom(tokens.DefaultLight)
 	top, bottom := bandRows()
@@ -257,11 +250,10 @@ func TestPlainMarkCellsAreUnchanged(t *testing.T) {
 	}
 }
 
-// TestTheNoteSaysWhatTheTurnedDrawingIs is the caption side of the same claim.
-// The section's note is the only place either set says what its cells hold, and
-// a cell showing four drawings of a set of four names has to be accounted for
-// there — otherwise the turned drawing reads as a mark called "open", which is
-// a name no call site can write.
+// TestTheNoteSaysWhatTheTurnedDrawingIs: the section's note is the only place
+// either set says what its cells hold, so a cell showing four drawings of a set
+// of four names has to be accounted for there. Otherwise the turned drawing
+// reads as a mark called "open", a name no call site can write.
 func TestTheNoteSaysWhatTheTurnedDrawingIs(t *testing.T) {
 	plain := MarkSizeNote([]marks.Name{marks.HistoryBack, marks.HistoryForward})
 	if strings.Contains(plain, "turned") {

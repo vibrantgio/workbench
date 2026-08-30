@@ -1,22 +1,17 @@
 package main
 
 // A whole-window render, headless, plus the surface-grammar assertions that
-// read off it. The app is a native window binary with no offscreen mode of its
-// own, but both layers it stacks are plain widgets over pre-resolved tokens, so
-// composing the same two paints into a headless canvas at the size the window
-// opens at produces the frame the window would show.
+// read off it. Both layers the app stacks are plain widgets over pre-resolved
+// tokens, so composing the same two paints into a headless canvas at the size
+// the window opens at produces the frame the window would show.
 //
-// The frames are drawn under a stated title-bar strip, because that is the
-// window this app actually opens: it takes the full-size-content treatment, so
-// its ground runs to the top edge and its page starts below a strip the
-// platform no longer draws. desktop.TopInset reports 0 without a live macOS
-// window behind it, so the height is stated here rather than measured — the
-// same substitution mvu/desktop's own drag tests make.
+// The frames are drawn under a stated title-bar strip, because the app takes
+// the full-size-content treatment: its ground runs to the top edge and its page
+// starts below a strip the platform no longer draws. desktop.TopInset reports 0
+// without a live macOS window behind it, so the height is stated rather than
+// measured.
 //
-// It is here because a composition can only be judged as a composition, and
-// because this app stores no goldens: nothing else in the package renders the
-// page at all. Run it with -window.dump=<dir> to write the frames out for a
-// pair of eyes:
+// Run it with -window.dump=<dir> to write the frames out for a pair of eyes:
 //
 //	go test ./ -run TestWholeWindowRender -window.dump=/tmp/iconbrowser
 //
@@ -49,23 +44,20 @@ import (
 
 var windowDump = flag.String("window.dump", "", "directory to write whole-window renders into")
 
-// windowSize is the size the Icon browser window opens at (main.go), and the
-// only size these frames are drawn at. golden.Capture renders at one pixel per
-// dp, so every dp figure below is also a pixel figure.
+// windowSize is the size the Icon browser window opens at, and the only size
+// these frames are drawn at. golden.Capture renders at one pixel per dp, so
+// every dp figure below is also a pixel figure.
 var windowSize = image.Pt(int(winW), int(winH))
 
 // titleBandDp is the strip desktop.TopInset reports on a full-size-content
-// macOS window. The number is the stored reference's plain title bar band
-// (ADR-019: 32 px), not a guess and not a live measurement.
+// macOS window. The number is the stored reference's plain title bar band,
+// 32 px.
 const titleBandDp unit.Dp = 32
 
 // The frames carry the theme's real radius scale rather than a pinned-sharp
 // one: nothing here is stored, so nothing needs corners that survive a
 // pixel-exact diff between GPU contexts, and every assertion below counts
-// pixels with room to spare for a few anti-aliased ones. What a sharp scale
-// costs is the review — a reviewer handed a square-cornered search field on a
-// rounded-corner OS reports a square search field, and the finding would belong
-// to the harness rather than to the window.
+// pixels with room to spare for a few anti-aliased ones.
 
 // staticTheme is one theme emission as a snapshot: every stream is rx.Of, so
 // the components built from it — the search field is the only one here —
@@ -82,10 +74,9 @@ func staticTheme(c tokens.ColorTokens, typo tokens.Typography) theme.Theme {
 	}
 }
 
-// staticTypo builds Type by hand rather than through TypeFrom, for one reason:
-// TypeFrom takes the theme's own cached shaper, which is whatever typeface the
-// host happens to own, and a render made outside the window has to name the
-// one it shapes with.
+// staticTypo builds Type by hand rather than through TypeFrom, which would
+// take the theme's own cached shaper — whatever typeface the host happens to
+// own. A render made outside the window has to name the one it shapes with.
 func staticTypo(typo tokens.Typography) Type {
 	return Type{
 		Shaper:  typo.DeterministicShaper(),
@@ -201,8 +192,7 @@ func countFill(img *image.RGBA, r image.Rectangle, want color.NRGBA) int {
 	return n
 }
 
-// windowSchemes is the pair every rule below is stated once and checked twice
-// against.
+// windowSchemes is the pair every rule below is checked against.
 var windowSchemes = []struct {
 	name string
 	c    tokens.ColorTokens
@@ -255,12 +245,10 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestTheGridRestsOnTheWindowGround is ADR-021's R7 walk read off the frame.
-// The audit found this window already clean in every fill it traced, and this
-// is that finding pinned rather than a repaint: the grid draws straight onto
-// the Background pin, there is no furniture to raise and no selection to tint,
-// so the only thing that may be off the pin is ink and the one control standing
-// on it.
+// TestTheGridRestsOnTheWindowGround reads the surface walk off the frame: the
+// grid draws straight onto the Background pin, with no furniture to raise and
+// no selection to tint, so the only thing off the pin is ink and the one
+// control standing on it.
 func TestTheGridRestsOnTheWindowGround(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -294,13 +282,11 @@ func TestTheGridRestsOnTheWindowGround(t *testing.T) {
 					ground, n, total)
 			}
 			// Level 1 is bounded by the one control that may wear it rather
-			// than by a round fraction of the window, because here that
-			// control is full-width: R4 draws a raised thing on the pin as a
-			// level-1 surface, and the search field is a
-			// Density.ControlHeight box spanning the page less its Padding
-			// gutters. That box is what the rung is allowed, with a few rows
-			// of slack for the field's own text metrics; anything past it is
-			// an expanse rather than a control.
+			// than by a round fraction of the window, because that control is
+			// full-width: the search field is a Density.ControlHeight box
+			// spanning the page less its Padding gutters. That box is what the
+			// rung is allowed, with a few rows of slack for the field's own
+			// text metrics; anything past it is an expanse, not a control.
 			field := (windowSize.X - 2*int(Padding)) * (int(tokens.Comfortable.ControlHeight) + 8)
 			if n := countFill(img, frame, furniture); n > field {
 				t.Errorf("level 1 (%v) covers %d of %d pixels, past the %d the search field's own box accounts for; a control on the ground may wear it, a resting expanse may not",
@@ -317,14 +303,10 @@ func TestTheGridRestsOnTheWindowGround(t *testing.T) {
 	}
 }
 
-// TestTheGroundReachesTheWindowsTopEdge is R6 for a window with no band of its
-// own to paint. The region the strip caps here is the window's own ground — the
-// grid is the content ground and nothing in this window is furniture — and the
-// backdrop layer is full-bleed, so the rule is met by the strip showing what
-// was already painted under it rather than by a second fill drawn over it. What
-// has to be true for that to be R6 satisfied rather than R6 skipped is that the
-// strip is the ground and nothing else: no page ink in it, and no unpainted
-// glass either.
+// TestTheGroundReachesTheWindowsTopEdge pins that the strip shows the
+// full-bleed backdrop already painted under it rather than a second fill drawn
+// over it, which is why this window paints no band. The strip must be the
+// ground and nothing else: no page ink in it, and no unpainted glass.
 func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 	band := int(titleBandDp)
 	for _, tc := range windowSchemes {
@@ -345,10 +327,9 @@ func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 	}
 }
 
-// TestThePageStartsBelowTheStrip is the other half of the same arrangement: the
-// ground runs under the strip, the page does not. Read off the frame rather
-// than off the inset, so that a page which grew a layer of its own outside
-// the cap would fail here.
+// TestThePageStartsBelowTheStrip is the other half: the ground runs under the
+// strip, the page does not. Read off the frame rather than off the inset, so
+// that a page which grew a layer of its own outside the cap would fail here.
 func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -360,23 +341,20 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 	}
 }
 
-// TestThePageClearsTheWindowButtons is R6's first consequence, and the one this
-// window had to answer for rather than inherit: with the native strip gone the
-// platform's three control buttons float over the top-leading corner of
-// whatever the application drew there, and this page's first row is the search
-// field, which starts at the very corner they stand in. Nothing here is centred
-// out of their way, so the clearance is the inset's alone and it is asserted
-// off the frame rather than trusted to the arithmetic. The run is desktop's
+// TestThePageClearsTheWindowButtons: with the native strip gone the platform's
+// three control buttons float over the top-leading corner of whatever the
+// application drew there, and this page's first row is the search field, which
+// starts at the very corner they stand in. Nothing here is centred out of their
+// way, so the clearance is the inset's alone and it is asserted off the frame
+// rather than trusted to the arithmetic. The run comes from desktop's
 // derivation of the platform's rule rather than a guess at where the circles
 // are.
 //
-// It is the one window in this phase where the collision is real rather than
-// hypothetical. Measured off these frames: with the strip the page's topmost
-// ink is row 44 of 700, and without it row 12 — while the buttons in a 32 dp
-// band run rows 9 to 23 and reach 69 dp along (desktop.ButtonRunIn(32):
-// leading 9, centre 16, trailing 69). So the field's own Padding would have put
-// it eleven rows inside the run, and the inset is the whole of the 21 dp of
-// clearance it now has.
+// Measured off these frames: with the strip the page's topmost ink is row 44 of
+// 700, and without it row 12 — while the buttons in a 32 dp band run rows 9 to
+// 23 and reach 69 dp along (desktop.ButtonRunIn(32): leading 9, centre 16,
+// trailing 69). The field's own Padding would put it eleven rows inside the
+// run, so the inset is the whole of the 21 dp of clearance it has.
 //
 // It is checked on every query state, because the field is the first row of all
 // three and a page that reflowed under a filter would still have to keep it
@@ -405,13 +383,10 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 	}
 }
 
-// TestTheInsetIsWhatBuysTheClearance guards the inset itself, and says why this
-// window needed one. The launcher and todos ask only whether the strip moved
-// the page, because their pages clear the buttons' run on their own; this one
-// does not, and the assertion can therefore state the audit's actual finding:
-// laid out at the window's own top edge, the search field inks inside the run
-// the platform's three control buttons stand in. The inset is what takes it out
-// of there, not the field's own Padding.
+// TestTheInsetIsWhatBuysTheClearance guards the inset itself: laid out at the
+// window's own top edge, the search field inks inside the run the platform's
+// three control buttons stand in. The inset is what takes it out of there, not
+// the field's own Padding.
 func TestTheInsetIsWhatBuysTheClearance(t *testing.T) {
 	run := desktop.ButtonRunIn(titleBandDp)
 	bottom := int(run.Leading + run.Diameter)

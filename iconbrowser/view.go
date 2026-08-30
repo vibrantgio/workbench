@@ -46,12 +46,11 @@ type themed struct {
 // held down past the native title-bar strip the window opens the top of itself
 // into.
 //
-// The two stateful widgets deliberately live at subscription scope, OUTSIDE
-// the per-emission Map (llms.txt rule 2): the grid's scroll position, and the
-// search field — a components TextField whose editor state is Defer-scoped inside
-// the component, subscribed exactly once by the CombineLatest3 below.
-// Constructing either per emission would reset scroll or typing on every
-// keystroke.
+// The two stateful widgets live at subscription scope, outside the
+// per-emission Map: the grid's scroll position, and the search field — a
+// components TextField whose editor state is Defer-scoped inside the component,
+// subscribed exactly once by the CombineLatest3 below. Constructing either per
+// emission would reset scroll or typing on every keystroke.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	grid := &layout.List{Axis: layout.Vertical}
 
@@ -89,31 +88,24 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // full-size-content window opens the top of itself into, and claims that same
 // strip for the window's own drag.
 //
-// The strip carries no fill of its own, and that is R6 satisfied rather than
-// skipped: the region this band caps is the window's own ground — the
-// Background pin BackdropLayer fills the whole window with — so the region's
-// fill reaches the top edge without anything being painted twice. A band drawn
-// here would be furniture this window does not have. Nothing in this window is
-// chrome: the grid is the content ground, the two section labels are ink on it,
+// The strip carries no fill of its own: the region it caps is the window's own
+// ground, which BackdropLayer already fills full-bleed, so the fill reaches the
+// top edge without anything being painted twice. Nothing in this window is
+// chrome — the grid is the content ground, the section labels are ink on it,
 // and the search field is a control standing on it in the page's own vertical
-// flow rather than a toolbar over it. Lifting that field into the strip would
-// invent the toolbar — and would not fit in one either, since a components
-// TextField is a Density.ControlHeight box (36 dp comfortable) and the band the
-// window buttons are centred in is 32 (ADR-019).
+// flow. The field could not be lifted into the strip in any case: a components
+// TextField is a Density.ControlHeight box, 36 dp comfortable, and the band the
+// window buttons are centred in is 32.
 //
 // So what has to clear the platform's three control buttons is the field, and
-// the inset is what buys it that clearance: the field is the page's topmost ink
-// and the page starts below the strip. TestThePageClearsTheWindowButtons reads
-// the result off the frame rather than trusting the arithmetic.
+// the inset is what buys that clearance, since the field is the page's topmost
+// ink and the page starts below the strip.
 //
-// desktop.CapTop is the other half of R6 with the inset: the native drag
-// leaves with the native strip, and the strip here carries paint but no widget
-// of its own, so without its claim the window could not be moved by its top
-// edge at all. The claim is recorded before the page, so every region the page
-// declares below it — the search field's editor and its focus catcher, the
-// grid's scroll — keeps its own presses; the band and the page do not overlap
-// in any case. desktop.TopInset is read at frame time, so away from the
-// full-size-content treatment the whole cap is an exact no-op.
+// desktop.CapTop also claims the strip for the window's drag — without it the
+// window could not be moved by its top edge. The claim is recorded before the
+// page, so every region the page declares below it keeps its own presses.
+// desktop.TopInset is read at frame time, so away from the full-size-content
+// treatment the whole cap is an exact no-op.
 func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	return rx.Map(pageObs, func(w layout.Widget) layout.Widget {
 		return desktop.CapTop(desktop.TopInset, w)

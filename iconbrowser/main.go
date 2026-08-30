@@ -3,14 +3,9 @@
 // (components/icons, each shown at the sizes a control draws it at) above the
 // Material Design icons everything else comes from
 // (golang.org/x/exp/shiny/materialdesign/icons, rendered through
-// ivg/raster/gio — see llms.txt §Icons). The set comes first so an author sees
-// which marks already exist before drawing another. A search field filters
-// both live; every glyph is captioned with the name to write.
-//
-// Architecturally it is the todos bootstrap plus two demonstrations: a components
-// TextField driving the Model through mvu.MessageOp on every keystroke, and
-// subscription-scoped widget state (the grid's scroll position and the
-// field's editor) surviving the per-keystroke view rebuilds.
+// ivg/raster/gio). The system's own set comes first so an author sees which
+// marks already exist before drawing another. A search field filters both
+// live; every glyph is captioned with the name to write.
 package main
 
 import (
@@ -32,10 +27,10 @@ func main() {
 	app.Main()
 }
 
-// modelObsConsumers: the content layer is the single modelObs consumer; the
-// backdrop layer is theme-only. See llms.txt rule 4 — Publish() multicasts
-// without replay, so this count gates when the seed emitted by mvu.Loop
-// flows.
+// modelObsConsumers is the number of layers subscribing to modelObs: the
+// content layer only, since the backdrop layer is theme-only. Publish()
+// multicasts without replay, so this count gates when the seed emitted by
+// mvu.Loop flows.
 const modelObsConsumers = 1
 
 // The size the window opens at: wide enough for six catalogue cells across,
@@ -49,22 +44,20 @@ const (
 )
 
 func run() {
-	// mvu/desktop's full-size-content treatment (ADR-021 R6): on macOS the
-	// content extends behind a transparent title bar with the window control
-	// buttons floating over it, so the Background pin this window paints
-	// reaches its top edge instead of standing under a native strip. On every
-	// other platform FullSizeContent returns no options and the window keeps
-	// its normal decorations. app.Title stays even though the treatment hides
-	// the title text — Mission Control, the Dock and VoiceOver read it all the
-	// same.
+	// On macOS FullSizeContent extends the content behind a transparent title
+	// bar with the window control buttons floating over it, so the Background
+	// pin this window paints reaches its top edge; on every other platform it
+	// returns no options and the window keeps its normal decorations.
+	// app.Title stays even though the treatment hides the title text — Mission
+	// Control, the Dock and VoiceOver still read it.
 	mvuWin := mvu.NewWindow(append(desktop.FullSizeContent(),
 		app.Title("Icon browser"),
 		app.Size(winW, winH),
 	)...)
 	// Gio re-hides the standard window buttons on every configuration rebuild,
-	// so ShowWindowButtons registers a re-assertion on the mvu OnConfigure
-	// seam. Post-construction options must therefore go through mvuWin.Option —
-	// never mvuWin.Window().Option — or the buttons vanish.
+	// so ShowWindowButtons re-asserts them on the mvu OnConfigure seam.
+	// Post-construction options must go through mvuWin.Option — never
+	// mvuWin.Window().Option — or the buttons vanish.
 	desktop.ShowWindowButtons(mvuWin)
 
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))

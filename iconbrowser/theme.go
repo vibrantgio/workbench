@@ -20,10 +20,9 @@ type Palette struct {
 	Icon     color.NRGBA // the glyphs themselves
 }
 
-// PaletteFrom resolves the palette in ADR-007's vocabulary: the pinned
-// Background and Text (body text over Background), the pinned Primary for
-// the glyphs, and the Neutral ramp's low-contrast text step 700 for the
-// muted notice.
+// PaletteFrom resolves the palette: the pinned Background and Text, the pinned
+// Primary for the glyphs, and the Neutral ramp's low-contrast text step 700
+// for the muted notice.
 func PaletteFrom(c tokens.ColorTokens) Palette {
 	return Palette{
 		Backdrop: c.Background,
@@ -33,10 +32,10 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	}
 }
 
-// Type is the app's view of the theme's Typography (ADR-003): the two roles
-// the app draws directly, converted to textdraw styles, plus the theme's
-// cached shaper. The app builds no shaper and bundles no font of its own —
-// the typeface arrives through the theme.
+// Type is the app's view of the theme's Typography: the roles the app draws
+// directly, converted to textdraw styles, plus the theme's cached shaper. The
+// app builds no shaper and bundles no font of its own — the typeface arrives
+// through the theme.
 type Type struct {
 	Shaper  *text.Shaper
 	Caption textdraw.TextStyle // BodySmall: icon captions
