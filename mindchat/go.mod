@@ -8,7 +8,7 @@ require (
 	github.com/openai/openai-go/v3 v3.48.0
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.3
-	github.com/vibrantgio/components v1.2.1
+	github.com/vibrantgio/components v1.2.2
 	github.com/vibrantgio/effects v0.2.4
 	github.com/vibrantgio/ivg v0.1.7
 	github.com/vibrantgio/ivg/raster/gio v0.1.7

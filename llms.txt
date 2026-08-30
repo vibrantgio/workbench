@@ -76,7 +76,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      wears Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  components  v1.2.1 button, chip (a pill carrying a data-bearing summary,
+  components  v1.2.2 button, chip (a pill carrying a data-bearing summary,
                      clickable, with a badge face for the same mark held
                      still and an anchor face for the pop-up control),
                      input, list, richtext, scrollbar,
@@ -174,7 +174,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        for traer physics
   github.com/vibrantgio/kiwi/gio              v0.0.7   Gio layout on the
                                                        kiwi solver
-  github.com/vibrantgio/components/gallery    v1.2.1   the components gallery
+  github.com/vibrantgio/components/gallery    v1.2.2   the components gallery
                                                        app
   github.com/vibrantgio/mvu/desktop           v1.0.1   native macOS window
                                                        chrome (FullSizeContent,
@@ -1437,7 +1437,7 @@ purpose (golden determinism); leave those alone.
       github.com/reactivego/rx v0.3.0
       github.com/vibrantgio/patterns v1.1.0
       github.com/vibrantgio/mvu v1.0.1
-      github.com/vibrantgio/components v1.2.1
+      github.com/vibrantgio/components v1.2.2
       github.com/vibrantgio/theme v1.3.0
       github.com/vibrantgio/textdraw v0.0.5
   )
