@@ -34,9 +34,9 @@ func TestAnchorLabelNamesTheModelOnly(t *testing.T) {
 	}
 
 	// Opening the menu no longer parts two keys. The anchor's mark is the
-	// component's paired chevrons and they do not flip — on this platform they
-	// say "this pops up", never "this is open" — so an open menu draws the
-	// identical anchor and rebuilding its subscription for one would be
+	// component's down chevron and it does not flip — on this platform it says
+	// "a menu opens below this", never "this is open" — so an open menu draws
+	// the identical anchor and rebuilding its subscription for one would be
 	// rebuilding for a frame that looks the same.
 	open := base
 	open.ModelMenu = true
