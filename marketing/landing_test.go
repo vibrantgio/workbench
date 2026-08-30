@@ -34,19 +34,16 @@ const (
 
 var (
 	pageCanvasSize = image.Pt(pageCanvasW, pageCanvasH)
-	// Sharp corner radius keeps the goldens deterministic — anti-aliased
-	// rounded corners and the eyebrow / chip Full radii vary slightly
-	// between GPU contexts, breaking pixel-exact diffs. The pattern
-	// goldens upstream do the same.
+	// Sharp corner radius keeps the goldens deterministic: anti-aliased
+	// rounded corners and the eyebrow / chip Full radii vary slightly between
+	// GPU contexts, breaking pixel-exact diffs.
 	sharpRadius = tokens.RadiusScale{}
 )
 
 // TestPageGolden records or diffs the page composition in light and dark
-// themes: Background pin, rest-pose wireframe field, then the landing
-// column. Text labels in the patterns are intentionally blank / single-
-// space; structural variations (hero CTA pair, feature row, pricing
-// "Popular" border, testimonial card chrome) drive the visual difference.
-// The runtime path in pageLayer uses landing_content.go for real copy.
+// themes: Background pin, rest-pose wireframe field, then the landing column.
+// Text labels are deliberately blank or a single space, so the visual
+// difference is driven by structure alone.
 func TestPageGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 
@@ -70,10 +67,9 @@ func TestPageGolden(t *testing.T) {
 	}
 }
 
-// TestRuntimePageGolden records the first frame of the scrolling page
-// at the window's own size: real SimpleApps copy. The window is sized
-// so the stack fits; the overlay scrollbar stays available when it
-// does not. Overlay, not Occupy — the 1100 dp column stays put.
+// TestRuntimePageGolden records the first frame of the scrolling page at the
+// window's own size, with the real copy. The scrollbar is Overlay rather than
+// Occupy so the 1100 dp column stays put when it appears.
 func TestRuntimePageGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	size := image.Pt(windowW, windowH)
@@ -251,7 +247,7 @@ func TestSimpleAppsCopy(t *testing.T) {
 	}
 }
 
-// TestLandingCopyHasNoEmDash pins AE6.1: user-facing strings in
+// TestLandingCopyHasNoEmDash pins that user-facing strings in
 // landing_content.go must not contain U+2014.
 func TestLandingCopyHasNoEmDash(t *testing.T) {
 	check := func(name, s string) {

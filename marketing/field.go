@@ -25,11 +25,9 @@ import (
 	"github.com/vibrantgio/seen/shape"
 )
 
-// The launcher's tilted triangle field, restated as a wireframe: same
-// patch, camera, overfill and grow-on-resize, but every face is stroked
-// in one Neutral 500 colour (FocusRing) and none is filled. Amplitude
-// is lower than the launcher's 0.15 so vertex noise stays sub-pixel on
-// a stroke.
+// A tilted triangle field drawn as a wireframe: every face is stroked in one
+// Neutral 500 colour (FocusRing) and none is filled. Amplitude is kept low so
+// vertex noise stays sub-pixel on a stroke.
 
 const (
 	triangleSizePx = 70.0

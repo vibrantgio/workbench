@@ -1,7 +1,7 @@
-// landing_content.go holds the fictional SimpleApps copy the marketing
-// page renders. The product story is provenance, authenticity and
-// custody of sources — not a second notes app, and not another
-// company's catalogue.
+// The fictional SimpleApps copy the marketing page renders. The product story
+// is provenance, authenticity and custody of sources — not a second notes app,
+// and not another company's catalogue.
+
 package main
 
 import (

@@ -1,7 +1,6 @@
-// landing.go composes the four Patterns marketing patterns — Hero,
-// Feature, Pricing, Testimonial — into a scrolling column. No navbar,
-// no patterns/shell StackedPage. renderLanding is the golden path and
-// skips subscription work.
+// The four marketing patterns — Hero, Feature, Pricing, Testimonial —
+// composed into a scrolling column, with no navbar and no shell page.
+
 package main
 
 import (
@@ -29,10 +28,10 @@ import (
 // in that interval, so afterFeaturesGapDp and afterPricingGapDp are
 // what actually separate those two bands.
 const (
-	sectionGapDp          float32 = 24
-	afterFeaturesGapDp    float32 = 40
-	afterPricingGapDp     float32 = 48
-	pageBottomInsetDp     float32 = 24
+	sectionGapDp       float32 = 24
+	afterFeaturesGapDp float32 = 40
+	afterPricingGapDp  float32 = 48
+	pageBottomInsetDp  float32 = 24
 )
 
 func gapAfter(i int) float32 {
@@ -55,9 +54,9 @@ const contentMaxWidthDp = 1100
 const pricingSection = 2
 
 // pageLayer is the runtime page: the four pattern streams stacked in a
-// shell-less vertical list, re-emitting on theme change. modelObs is
-// consumed so AutoConnect in main stays balanced; the model has no
-// fields the page reads. Scroll position lives in this subscription.
+// shell-less vertical list, re-emitting on theme change. modelObs is consumed
+// so AutoConnect in main stays balanced, though the model has no fields the
+// page reads. Scroll position lives in this subscription.
 func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		state := list.NewState()
@@ -139,13 +138,13 @@ func stackSection(w, gap layout.Widget) layout.Widget {
 	}
 }
 
-// renderLanding composes the four patterns' Render() forms vertically
-// with sectionGapDp gaps. No scroll, no event handling — intended for
-// the golden test. The runtime path is pageLayer.
+// renderLanding composes the four patterns' Render() forms vertically with
+// sectionGapDp gaps, with no scroll and no event handling. The runtime path is
+// pageLayer.
 //
-// All four sections spend several type roles apiece, so each takes the
-// whole Typography rather than a single style; hero and pricing size
-// controls, so they also take the Density.
+// All four sections spend several type roles apiece, so each takes the whole
+// Typography rather than a single style; hero and pricing size controls, so
+// they also take the Density.
 func renderLanding(
 	shaper *text.Shaper,
 	hp hero.Props,

@@ -31,27 +31,26 @@ func main() {
 }
 
 // modelObsConsumers is the number of cold subscriptions that reach modelObs
-// when the layers are subscribed once. Publish() multicasts WITHOUT replay,
-// so AutoConnect must fire — letting the seed emitted by mvu.Loop flow —
-// only when every consumer is attached. Here the content layer is the single
+// when the layers are subscribed once. Publish() multicasts without replay, so
+// AutoConnect must fire — letting the seed emitted by mvu.Loop flow — only
+// when every consumer is attached. Here the content layer is the single
 // consumer; the backdrop and field layers are theme-only.
 const modelObsConsumers = 1
 
 func run() {
-	// mvu/desktop's full-size-content treatment: on macOS the content
-	// extends behind a transparent title bar with the traffic lights
-	// floating over it; on every other platform FullSizeContent returns no
-	// options and the window keeps its normal decorations. app.Title stays
-	// even though the treatment hides the title text — Mission Control, the
-	// Dock and VoiceOver read it all the same.
+	// On macOS FullSizeContent extends the content behind a transparent title
+	// bar with the traffic lights floating over it; on every other platform it
+	// returns no options and the window keeps its normal decorations.
+	// app.Title stays even though the treatment hides the title text — Mission
+	// Control, the Dock and VoiceOver still read it.
 	mvuWin := mvu.NewWindow(append(desktop.FullSizeContent(),
 		app.Title("SimpleApps"),
 		app.Size(unit.Dp(windowW), unit.Dp(windowH)),
 	)...)
-	// Gio re-hides the standard window buttons on every configuration
-	// rebuild, so ShowWindowButtons registers a re-assertion on the mvu
-	// OnConfigure seam. Post-construction options must therefore go through
-	// mvuWin.Option — never mvuWin.Window().Option — or the buttons vanish.
+	// Gio re-hides the standard window buttons on every configuration rebuild,
+	// so ShowWindowButtons re-asserts them on the mvu OnConfigure seam.
+	// Post-construction options must go through mvuWin.Option — never
+	// mvuWin.Window().Option — or the buttons vanish.
 	desktop.ShowWindowButtons(mvuWin)
 
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second, brand.Kept().Options()...))

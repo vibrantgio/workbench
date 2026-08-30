@@ -31,15 +31,13 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	return underTitleBar(pageLayer(th, modelObs))
 }
 
-// underTitleBar pads the page down by the native title-bar strip's
-// measured height on a full-size-content window. desktop.TopInset is
-// read at frame time: it reports 0 until the window's first frame, in
-// headless tests, and on every platform but macOS.
+// underTitleBar pads the page down by the native title-bar strip's measured
+// height on a full-size-content window. desktop.TopInset is read at frame
+// time: it reports 0 until the window's first frame, in headless tests, and on
+// every platform but macOS.
 //
-// The strip also carries the window's own drag: it holds paint but no widget
-// of its own, so without a claim over it the window could not be moved by its
-// top edge at all. desktop.CapTop is the two together — the claim over the
-// strip and the page held down past it, over one measured height.
+// desktop.CapTop also claims the strip for the window's own drag — without
+// that claim the window could not be moved by its top edge.
 func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	return rx.Map(pageObs, func(w layout.Widget) layout.Widget {
 		return desktop.CapTop(desktop.TopInset, w)
