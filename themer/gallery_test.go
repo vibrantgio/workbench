@@ -4,6 +4,7 @@ import (
 	"flag"
 	"image"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vibrantgio/components/golden"
@@ -21,10 +22,9 @@ import (
 var dumpDir = flag.String("themer.dump", "", "write the window to this directory, one PNG per scheme")
 
 // TestWindowDump writes the window mid-flow — a picture loaded, a candidate
-// applied, a syntax base chosen — in both schemes and at both ends of the
-// embedded page: the first screen, which is what the window opens on, and the
-// page's last section, where the code specimen and the base selector sit side
-// by side. It skips unless -themer.dump names a directory.
+// applied, a syntax base chosen — in both schemes and on every tab, plus the
+// Markdown tab scrolled to the specimen, where the code and the base selector
+// sit side by side. It skips unless -themer.dump names a directory.
 func TestWindowDump(t *testing.T) {
 	if *dumpDir == "" {
 		t.Skip("themer: pass -themer.dump=DIR to write the window out")
@@ -54,17 +54,18 @@ func TestWindowDump(t *testing.T) {
 		dark bool
 	}{{"light", false}, {"dark", true}} {
 		on := ReduceModel(m, SetScheme{Dark: sc.dark})
-		e.st.ScrollToStart()
-		save(sc.name+"-top", pageOn(t, e, on, tokens.DefaultLight, sel))
-		if row := e.codeRow(); row > 0 {
-			e.st.ScrollTo(row - 1) // the specimen's heading, then its body
+		for tab := range TabCount {
+			e.state(tab).ScrollToStart()
+			save(sc.name+"-"+strings.ToLower(TabLabels[tab]), pageOn(t, e, onTab(on, tab), tokens.DefaultLight, sel))
 		}
-		save(sc.name+"-code", pageOn(t, e, on, tokens.DefaultLight, sel))
-		save(sc.name+"-code-jetbrains", pageOn(t, e, pickMono(on, tokens.CodeFaceJetBrains), tokens.DefaultLight, sel))
-		// And the page's actual bottom, which is a closing line under the
-		// specimen rather than the specimen running out.
-		e.st.ScrollToEnd(len(e.inv.Items(SchemeFor(tokens.DefaultLight, on))))
-		save(sc.name+"-end", pageOn(t, e, on, tokens.DefaultLight, sel))
+		// And the specimen itself, which is several screens down the
+		// Markdown tab and is the only place the base selector is on screen.
+		md := onTab(on, TabMarkdown)
+		if row := e.codeRow(SchemeFor(tokens.DefaultLight, md)); row > 0 {
+			e.state(TabMarkdown).ScrollTo(row - 1) // the specimen's heading, then its body
+		}
+		save(sc.name+"-code", pageOn(t, e, md, tokens.DefaultLight, sel))
+		save(sc.name+"-code-jetbrains", pageOn(t, e, pickMono(md, tokens.CodeFaceJetBrains), tokens.DefaultLight, sel))
 	}
 }
 
@@ -204,14 +205,12 @@ func TestTheEmbeddedPageIsTheBiggestBand(t *testing.T) {
 func TestAPickDoesNotRebuildTheInventory(t *testing.T) {
 	e := newEmbed()
 	shaper := pinned().Shaper
-	e.items(shaper, tokens.DefaultTypography, tokens.DefaultLight, highlight.DefaultBases(), nil)
-	built := e.inv
+	built := e.catalogue(shaper, tokens.DefaultTypography, highlight.DefaultBases())
 	if built == nil {
 		t.Fatal("the first render built no inventory")
 	}
-	light, dark := tokens.FromSeed(fixtureBlue)
-	e.items(shaper, tokens.DefaultTypography, light, highlight.DefaultBases(), nil)
-	e.items(shaper, tokens.DefaultTypography, dark, highlight.DefaultBases(), nil)
+	e.catalogue(shaper, tokens.DefaultTypography, highlight.DefaultBases())
+	e.catalogue(shaper, tokens.DefaultTypography, highlight.DefaultBases())
 	if e.inv != built {
 		t.Error("a change of palette rebuilt the inventory — the reading sample is being parsed again on every pick")
 	}
@@ -224,12 +223,85 @@ func BenchmarkRetheme(b *testing.B) {
 	e := newEmbed()
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	light, dark := tokens.FromSeed(fixtureBlue)
-	e.items(shaper, tokens.DefaultTypography, light, highlight.DefaultBases(), nil)
+	inv := e.catalogue(shaper, tokens.DefaultTypography, highlight.DefaultBases())
 	for i := 0; b.Loop(); i++ {
 		c := light
 		if i%2 == 1 {
 			c = dark
 		}
-		e.items(shaper, tokens.DefaultTypography, c, highlight.DefaultBases(), nil)
+		inv.Items(c)
+	}
+}
+
+// TestEveryGroupTabNamesALiveGroup: each of the three catalogue tabs names a
+// group the published inventory actually carries, and the only group without
+// a tab is Foundations — whose colour story the Theme tab tells in this
+// window's own words, with this seed's provenance in it.
+//
+// Both halves matter. A group renamed upstream would leave its tab showing a
+// blank surface, which is a defect somebody has to notice; a group added
+// upstream would be a whole module of the design system the window silently
+// stops showing. Named rather than counted, so the failure says which.
+func TestEveryGroupTabNamesALiveGroup(t *testing.T) {
+	e := newEmbed()
+	inv := e.catalogue(pinned().Shaper, tokens.DefaultTypography, highlight.DefaultBases())
+	c := tokens.DefaultLight
+	shown := map[string]bool{"Foundations": true}
+	for tab := TabComponents; tab < TabCount; tab++ {
+		group := TabGroups[tab]
+		shown[group] = true
+		if rows := inv.TabItems(c, group); len(rows) == 0 {
+			t.Errorf("the %s tab names group %q, which the inventory does not carry", TabLabels[tab], group)
+		}
+	}
+	for _, grp := range inv.Groups(c) {
+		if !shown[grp.Name] {
+			t.Errorf("the inventory carries group %q and no tab shows it", grp.Name)
+		}
+	}
+}
+
+// TestTheWindowOpensOnTheTheme: the tab a window opens on is the one that
+// answers the question it was opened with — what this colour makes.
+func TestTheWindowOpensOnTheTheme(t *testing.T) {
+	if got := (Model{}).Tab; got != TabTheme {
+		t.Errorf("a fresh window opens on tab %d, want the Theme tab at %d", got, TabTheme)
+	}
+}
+
+// TestTheTabSurvivesAPick: choosing another candidate re-derives every palette
+// on screen, and a reader judging buttons is still judging buttons afterwards.
+// A tab reset by a pick would make the row of swatches a control that undoes
+// the reader's own navigation.
+func TestTheTabSurvivesAPick(t *testing.T) {
+	m := onTab(contrasting(t), TabComponents)
+	for _, msg := range []any{
+		SelectCandidate{Index: 1},
+		SetScheme{Dark: true},
+		SelectMono{Name: tokens.CodeFaceJetBrains},
+	} {
+		if got := ReduceModel(m, msg).Tab; got != TabComponents {
+			t.Errorf("after %T the page is on tab %d, want the tab the reader was on (%d)", msg, got, TabComponents)
+		}
+	}
+}
+
+// TestEachTabKeepsItsOwnScroll: a tab scrolled into is a place the reader
+// means to come back to. One shared scroll position would drop them at the
+// other tab's offset every time they switched, which on surfaces of very
+// different heights is a page that jumps under them.
+func TestEachTabKeepsItsOwnScroll(t *testing.T) {
+	e := newEmbed()
+	m := judging()
+	pageOn(t, e, onTab(m, TabComponents), tokens.DefaultLight)
+	e.state(TabComponents).ScrollTo(4)
+	pageOn(t, e, onTab(m, TabComponents), tokens.DefaultLight)
+	was := e.state(TabComponents).Position()
+	pageOn(t, e, onTab(m, TabPatterns), tokens.DefaultLight)
+	if got := e.state(TabComponents).Position(); got.First != was.First {
+		t.Errorf("reading another tab moved the Components tab from row %d to row %d", was.First, got.First)
+	}
+	if got := e.state(TabPatterns).Position(); got.First != 0 {
+		t.Errorf("the Patterns tab opened at row %d, want the top of its own column", got.First)
 	}
 }

@@ -32,6 +32,16 @@ type SelectCandidate struct {
 	Index int
 }
 
+// SelectTab puts the embedded page on one of its tabs, by the cell's position
+// in the strip. Emitted by a click on a cell or by the arrow keys the strip
+// answers.
+//
+// It is the page's state and not the strip's, so a pick — which re-derives
+// every palette on screen — leaves the reader on the tab they were reading.
+type SelectTab struct {
+	Index int
+}
+
 // SelectMono chooses the typeface fenced code wears. Emitted by a click
 // on one of the two names beside the specimen. The name is one of the
 // two the plate offers; anything else is ignored.

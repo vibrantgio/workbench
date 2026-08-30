@@ -21,23 +21,16 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// columnBannerH is the band the embedded page puts over each group of its
-// sections, which the palette section stands directly under. It is the
-// inventory's number and not this window's, so it is stated here — where the
-// pixel assertions below disagree with it loudly — rather than copied into the
-// drawing code, which has no business knowing it.
-const columnBannerH = 44
-
 // markJitter is how far the middle of a drawn disc may sit from the colour it
 // was filled with: the rasteriser's own last level or two of antialiasing, and
 // nothing like the distance between a mark and the step under it.
 const markJitter = 4
 
 // The geometry of the palette section inside the window, from the same
-// constants it lays out with. The section stands where the embedded page's own
-// palette sections stood, which is the first thing under the foundations band.
+// constants it lays out with. The section leads the Theme tab, which is the
+// tab the window opens on, so it stands directly under the strip.
 func rampGridTop() int {
-	return galleryTop() + columnBannerH + int(PaletteHeadH) + int(inventory.SectionPadY)
+	return tabTop() + int(PaletteHeadH) + int(inventory.SectionPadY)
 }
 
 // rampLabelLeft is the x the ramp names are ranged against, and rampCellW the
@@ -96,53 +89,32 @@ func derived(m Model, os tokens.ColorTokens) (shown, other tokens.ColorTokens) {
 	return SchemePair(os, m)
 }
 
-// TestPaletteSectionRowsIsTheRowCount: the count the column is addressed by has
-// to be the number of rows the section actually is, or the scroll that brings
-// the code specimen into view lands short of it.
-func TestPaletteSectionRowsIsTheRowCount(t *testing.T) {
-	light, dark := tokens.FromSeed(fixtureBlue)
-	rows := PaletteRows(PaletteFrom(light), light, dark, pinned(), false)
-	if len(rows) != PaletteSectionRows {
-		t.Errorf("the palette section is %d rows and PaletteSectionRows says %d", len(rows), PaletteSectionRows)
-	}
-}
-
-// TestTheWindowShowsOnePalette: the embedded page's own palette sections are
-// not in this window's column. They are a definition of the roles; this window
-// shows a specimen of one seed's, with where each colour came from, and a reader
-// scrolled past both would have no way of telling which of the two answers the
+// TestTheWindowShowsOnePalette: the catalogue's own palette sections are on
+// no tab of this window. They are a definition of the roles; the Theme tab
+// shows a specimen of one seed's, with where each colour came from, and a
+// reader given both would have no way of telling which of the two answers the
 // question they arrived with.
 //
-// It also asserts the two sections are still there to replace. A rename upstream
-// takes them out of this list silently, and the window would go back to showing
-// the palette twice with nothing failing.
+// It also asserts the two are still there to leave out. A rename upstream
+// would otherwise be silent, and the window would go back to showing the
+// palette twice with nothing failing.
 func TestTheWindowShowsOnePalette(t *testing.T) {
 	e := newEmbed()
-	shaper := pinned().Shaper
-	light, dark := tokens.FromSeed(fixtureBlue)
-	palette := PaletteRows(PaletteFrom(light), light, dark, pinned(), false)
-	column := e.items(shaper, tokens.DefaultTypography, light, highlight.DefaultBases(), palette)
-	for _, name := range swapped {
-		if row := e.inv.ItemIndex(light, name); row < 0 {
-			t.Errorf("the embedded page has no section named %q to stand in the place of", name)
+	inv := e.catalogue(pinned().Shaper, tokens.DefaultTypography, highlight.DefaultBases())
+	light, _ := tokens.FromSeed(fixtureBlue)
+	sections := map[string]bool{}
+	for _, s := range inv.Foundations(light) {
+		sections[s.Name] = true
+	}
+	for _, name := range []string{"foundations-roles", "foundations-ramps"} {
+		if !sections[name] {
+			t.Errorf("the catalogue has no section named %q for this window to leave out", name)
 		}
 	}
-	at, rows := e.paletteSpan(light)
-	if want := 2 * len(swapped); rows != want {
-		t.Errorf("the sections replaced take %d rows, want a heading and a body each (%d)", rows, want)
-	}
-	if first := e.inv.ItemIndex(light, swapped[0]); at != first {
-		t.Errorf("the swap starts at row %d, want the first replaced section's own row %d", at, first)
-	}
-	whole := e.inv.Items(light)
-	if want := len(whole) - rows + len(palette); len(column) != want {
-		t.Errorf("the column is %d rows against an inventory of %d: %d out, %d in makes %d",
-			len(column), len(whole), rows, len(palette), want)
-	}
-	// And the code specimen is still found where it now stands, since the swap
-	// moved every row behind it.
-	if got, want := e.codeColumnRow(), e.codeRow()+len(palette)-rows; got != want {
-		t.Errorf("the code specimen is addressed at row %d, want %d", got, want)
+	for tab := TabComponents; tab < TabCount; tab++ {
+		if rows := inv.TabItems(light, TabGroups[tab]); len(rows) == 0 {
+			t.Errorf("the %s tab shows nothing", TabLabels[tab])
+		}
 	}
 }
 

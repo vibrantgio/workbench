@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	stdcolor "image/color"
+	"sync/atomic"
 
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
@@ -23,6 +24,7 @@ import (
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/imageseed"
 	"github.com/vibrantgio/theme/theme"
@@ -160,8 +162,11 @@ func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup) func(t
 // window actually draws in is resolved from this one and the model together,
 // in SchemeFor, because the chosen candidate re-seeds it.
 type themed struct {
-	os     tokens.ColorTokens
-	typ    Type
+	os  tokens.ColorTokens
+	typ Type
+	// typo is the same typography typ was resolved from, kept whole because
+	// the tab strip is a published pattern and reads its own roles off it.
+	typo   tokens.Typography
 	pinned bool
 }
 
@@ -210,13 +215,63 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
 			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
-				return themed{os: n.First, typ: TypeFrom(n.Second)}
+				return themed{os: n.First, typ: TypeFrom(n.Second), typo: n.Second}
 			})
 	})
-	return rx.Map(rx.CombineLatest2(themes, modelObs),
-		func(n rx.Tuple2[themed, Model]) layout.Widget {
-			return Page(n.First, n.Second, zones, clicks, bar, page, bases, faces, grid)
+	inputs := rx.CombineLatest2(themes, modelObs)
+
+	// The strip's own handlers live at subscription scope, which is what the
+	// pattern's observable form gives and its static form does not: a cell
+	// pressed and held across an emission is still the cell being pressed.
+	// Its content widgets are therefore built once too, and read the tab
+	// columns out of the cells below at frame time — the same hand-off the
+	// window's own layer boundary makes with its layer snapshot.
+	cells := make([]atomic.Value, TabCount)
+	strip := make([]tabs.Tab, TabCount)
+	for i := range strip {
+		strip[i] = tabs.Tab{Label: TabLabels[i], Content: fromCell(&cells[i])}
+	}
+	shell := tabs.Tabs(rx.Map(inputs, func(n rx.Tuple2[themed, Model]) theme.Theme {
+		c, _ := SchemePair(n.First.os, n.Second)
+		return EmbeddedTheme(c, n.First.typo)
+	}), tabs.Props{
+		Tabs:     strip,
+		Selected: rx.Map(modelObs, func(m Model) int { return m.Tab }),
+		OnSelect: func(gtx layout.Context, idx int) {
+			mvu.MessageOp{Message: SelectTab{Index: idx}}.Add(gtx.Ops)
+		},
+	})
+
+	return rx.Map(rx.CombineLatest2(inputs, shell),
+		func(n rx.Tuple2[rx.Tuple2[themed, Model], layout.Widget]) layout.Widget {
+			t, m := n.First.First, n.First.Second
+			for i, col := range GalleryColumns(t, m, page, bases, faces) {
+				cells[i].Store(col)
+			}
+			return Page(t, m, zones, clicks, bar, grid, n.Second)
 		})
+}
+
+// EmbeddedTheme is the theme the tab strip is drawn from: the palette the
+// chosen candidate generates, with the window's own typography and the
+// published scales for everything else. The strip is furniture of the page
+// and not of the window, so its colours are the page's.
+func EmbeddedTheme(c tokens.ColorTokens, typo tokens.Typography) theme.Theme {
+	t := theme.Default()
+	t.Color, t.Typography = rx.Of(c), rx.Of(typo)
+	return t
+}
+
+// fromCell is a tab's content as the strip holds it: a widget that lays out
+// whatever column was last stored for that tab, and an empty surface until
+// one has been.
+func fromCell(cell *atomic.Value) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		if w, ok := cell.Load().(layout.Widget); ok && w != nil {
+			return w(gtx)
+		}
+		return layout.Dimensions{Size: gtx.Constraints.Max}
+	}
 }
 
 // topClicks are the handlers of the controls along the top of the window:
@@ -251,8 +306,8 @@ type topClicks struct {
 // the grid of styles for somebody who would rather start from a palette than
 // find one. The well is a band rather than the whole page there, because a
 // grid nobody can see without scrolling is a grid nobody knows about.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, page *embed, bases *baseSelector, faces *faceSelector, grid *styleGrid) layout.Widget {
-	c, other := SchemePair(t.os, m)
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, grid *styleGrid, shell layout.Widget) layout.Widget {
+	c, _ := SchemePair(t.os, m)
 	p := PaletteFrom(c)
 	dark := m.Dark(t.os)
 	// Each candidate's generated primary pair, on the side the window is
@@ -269,21 +324,6 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	if m.Preview != nil {
 		picture = paint.NewImageOp(m.Preview)
 	}
-	// Built here rather than per frame: the sections are a function of the
-	// palette and the chosen syntax base, and both change on an emission,
-	// not on a frame.
-	// The column, with the window's own palette sections standing where the
-	// inventory's were — see [embed.items].
-	applied, shaper := t.codeType(m)
-	items := page.items(shaper, applied, c, m.AppliedBases(), PaletteRows(p, c, other, t.typ, dark))
-	// The base selector and the two-name face plate ride in the code
-	// specimen's own row rather than standing beside the page: the choice
-	// belongs next to its consequence, and nowhere else on the page is it
-	// worth a column.
-	if row := page.codeColumnRow(); row >= 0 && row < len(items) {
-		items[row] = BesideTheCode(p, c, t.typ, m, dark, bases, faces, page.st, items[row])
-	}
-
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		// The whole window is the target, recorded once per frame before
@@ -309,7 +349,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 					spacer(Gap),
 					rigid(CandidateRow(p, t.typ, m, pairs, clicks)),
 					spacer(Gap),
-					layout.Flexed(1, Gallery(p, c, t.typ, GalleryHintFor(m, dark), page.st, items)),
+					layout.Flexed(1, Gallery(p, c, t.typ, GalleryHintFor(m, dark), shell)),
 				)
 			} else {
 				children = append(children,

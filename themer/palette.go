@@ -922,12 +922,6 @@ func inverseRule(col, counterpart stdcolor.NRGBA, role string, dark bool) string
 	return fmt.Sprintf(PickOtherDark, role)
 }
 
-// PaletteSectionRows is how many rows [PaletteRows] returns: a heading and a
-// body for each of the two sections. The column is addressed by row number in
-// one place — see [embed.codeColumnRow] — and the count is asserted against the
-// rows themselves rather than trusted.
-const PaletteSectionRows = 4
-
 // PaletteRows is the section as rows of the embedded page's column: the ramps
 // under their own heading, and the picks under theirs.
 func PaletteRows(p Palette, c, other tokens.ColorTokens, ty Type, dark bool) []layout.Widget {

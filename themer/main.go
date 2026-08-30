@@ -8,6 +8,11 @@
 // the trailing end of the window's title row shows the other side of the pair,
 // because a seed has two and both have to be seen.
 //
+// That system is drawn a tab at a time — the theme this seed derives, then
+// the catalogue's own groups — so what a colour does to buttons is one click
+// away rather than several screens down, and the tab a reader is on, with the
+// place they scrolled it to, is where the next pick leaves them.
+//
 // There is a second door for anybody who has not got a picture in mind. Under
 // the drop well, the window opens on a card per syntax style — the ones that
 // ship and the ones read out of the styles folder — each led by its name and
@@ -21,7 +26,7 @@
 // overrides either member, and keeping still writes the lot.
 //
 // Code is the one surface a palette does not settle on its own, so it gets a
-// second choice, at the page's far end where the specimen is: a column beside
+// second choice, on the Markdown tab where the specimen is: a column beside
 // the code lists the syntax bases fitted to the appearance on screen — the
 // styles that ship, and any style file dropped into the styles folder beside
 // the kept theme — and choosing one re-colours the specimen on the spot, in
@@ -73,12 +78,14 @@ func main() {
 	app.Main()
 }
 
-// modelObsConsumers: the backdrop and the content layer each subscribe the
-// model, because both are themed from the selected candidate rather than
-// from the OS palette alone. See llms.txt rule 4 — Publish() multicasts
-// without replay, so this count gates when the seed emitted by mvu.Loop
-// flows.
-const modelObsConsumers = 2
+// modelObsConsumers: how many streams subscribe the model. The backdrop is
+// one, because it is themed from the selected candidate rather than from the
+// OS palette alone; the content layer is the other three — the page itself,
+// the palette the embedded tab strip is drawn from, and the strip's selected
+// cell. See llms.txt rule 4 — Publish() multicasts without replay, so this
+// count gates when the seed emitted by mvu.Loop flows, and a subscriber more
+// than it names is a subscriber that misses the first one.
+const modelObsConsumers = 4
 
 // Window size: wide enough for the candidate row to lay out without
 // wrapping and for the widest composition on the embedded page to stand at

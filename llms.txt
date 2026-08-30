@@ -1537,7 +1537,14 @@ messages, a window-wide zone, hover highlight) and for a theme observable
 the APPLICATION re-seeds: the OS still decides light or dark, the app
 decides the colour. A path argument takes the same path a drop does. Keep
 writes the chosen seed through theme/brand, which is where the other apps
-read it from
+read it from. The page under the row is four tabs over patterns/tabs,
+drawn in the palette being judged rather than the window's: Theme — this
+seed's ramps and named picks with where each colour came from, and the
+type ladder — then Components, Patterns and Markdown, one per group of
+the components/gallery/inventory catalogue, with the syntax-base list
+riding in the code specimen's own row on the last of them. The tab and
+its scroll position survive a pick, and the catalogue is parsed once for
+all four
 
 ### sitedocs/
 

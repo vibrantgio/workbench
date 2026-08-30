@@ -251,3 +251,16 @@ func writePNG(t *testing.T, path string, img image.Image) {
 		t.Fatal(err)
 	}
 }
+
+// TestAnUnknownTabChangesNothing: the strip is drawn from the same list the
+// reducer clamps against, so an index outside it is a message nothing on
+// screen could have sent — and a page put on a tab that is not there would
+// show an empty panel with every cell unmarked.
+func TestAnUnknownTabChangesNothing(t *testing.T) {
+	m := onTab(Model{}, TabPatterns)
+	for _, idx := range []int{-1, TabCount, TabCount + 7} {
+		if got := ReduceModel(m, SelectTab{Index: idx}).Tab; got != TabPatterns {
+			t.Errorf("tab %d put the page on tab %d, want it left on %d", idx, got, TabPatterns)
+		}
+	}
+}

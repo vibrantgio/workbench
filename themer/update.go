@@ -85,6 +85,13 @@ func ReduceModel(m Model, message any) Model {
 		m.Preview, m.Style, m.Name = nil, "", ""
 		m.Candidates, m.Selected = nil, 0
 		m.Problem = ""
+	case SelectTab:
+		// A cell that is not on the strip changes nothing: the strip is drawn
+		// from the same list this reads, so an index outside it is a message
+		// nothing on screen could have sent.
+		if msg.Index >= 0 && msg.Index < TabCount {
+			m.Tab = msg.Index
+		}
 	case SelectBase:
 		// The appearance the row was clicked under is the one it changes: a
 		// base is fitted to a ground, and the list a name was picked off is

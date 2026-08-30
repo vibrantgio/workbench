@@ -30,6 +30,12 @@ type Model struct {
 	// Selected indexes Candidates. It is 0 on a fresh extraction, so the
 	// leading candidate is the one the window shows itself in.
 	Selected int
+	// Tab is which of the embedded page's tabs is on screen: the Theme tab
+	// when the window opens, because the palette a seed derives is the answer
+	// the window was opened for. It is model state rather than the strip's
+	// own, so choosing another candidate — which re-derives every surface on
+	// screen — leaves the reader on the tab they were reading.
+	Tab int
 	// DragOver is true while a file drag hovers over the window, and is
 	// what the drop zone highlights on.
 	DragOver bool

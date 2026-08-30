@@ -74,8 +74,9 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   image anywhere on the window and the colours it is made of come back as a
   row of seed candidates, vivid ones first, each swatch beside the primary
   pair a palette derivation makes of it; click one and the window re-themes
-  to it. The page ends on a code specimen with the syntax bases listed
-  beside it — the styles that ship and any style file dropped into the
+  to it. The page under the row is four tabs — the theme itself, then
+  components, patterns and markdown — and the last of them ends on a code
+  specimen with the syntax bases listed beside it — the styles that ship and any style file dropped into the
   styles folder beside the kept theme, filtered to the half fitted to the
   scheme on screen — so the code can be judged too, and a base per scheme is
   kept with the seed. Also the reference for an OS file drop — a window-wide drop zone

@@ -21,6 +21,7 @@ import (
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/theme/brand"
 	"github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/imageseed"
@@ -67,7 +68,9 @@ func pageAt(t *testing.T, e *embed, m Model, os tokens.ColorTokens, size image.P
 	typo := tokens.CodeFace(m.AppliedMono())
 	ty := TypeFrom(typo)
 	ty.Shaper = typo.DeterministicShaper()
-	widget := Page(themed{os: os, typ: ty, pinned: true}, m, &desktop.ZoneGroup{}, clicks, new(topClicks), e, bases, newFaceSelector(), newStyleGrid())
+	th := themed{os: os, typ: ty, typo: typo, pinned: true}
+	widget := Page(th, m, &desktop.ZoneGroup{}, clicks, new(topClicks), newStyleGrid(),
+		shellFor(th, m, e, bases, newFaceSelector()))
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		// The backdrop is its own layer at runtime; here it is one fill
 		// under the page, resolved the same way that layer resolves it.
@@ -75,6 +78,33 @@ func pageAt(t *testing.T, e *embed, m Model, os tokens.ColorTokens, size image.P
 		return widget(gtx)
 	})
 }
+
+// shellFor is the tabbed surface the content layer hands the page: the four
+// columns for this emission under a strip drawn with no event processing, on
+// the tab the model is on. It is the pattern's static form of exactly what
+// the window subscribes, so what a capture shows is what the window draws.
+func shellFor(t themed, m Model, e *embed, sel *baseSelector, faces *faceSelector) layout.Widget {
+	cols := GalleryColumns(t, m, e, sel, faces)
+	strip := make([]tabs.Tab, TabCount)
+	for i := range strip {
+		strip[i] = tabs.Tab{Label: TabLabels[i], Content: cols[i]}
+	}
+	c, _ := SchemePair(t.os, m)
+	return tabs.Render(t.typ.Shaper, tabs.Props{Tabs: strip}, m.Tab, c,
+		tokens.Spacing, t.typo.LabelLarge, tokens.Comfortable)
+}
+
+// onTab is the model showing one of the embedded page's tabs, the way a click
+// on the strip puts it there.
+func onTab(m Model, tab int) Model { return ReduceModel(m, SelectTab{Index: tab}) }
+
+// tabStripH is the strip's own height — the density's control height, which
+// is what the pattern draws it at — and tabTop the y of the first row of
+// whichever tab is on screen: the panel, the strip over it, and the air the
+// underline is given.
+func tabStripH() int { return int(tokens.Comfortable.ControlHeight) }
+
+func tabTop() int { return galleryTop() + tabStripH() + int(TabGap) }
 
 func fill(gtx layout.Context, size image.Point, c stdcolor.NRGBA) {
 	fillRRect(gtx, image.Rectangle{Max: size}, 0, c)

@@ -59,11 +59,11 @@ func wearAlone(name string, c tokens.ColorTokens) markdown.Style {
 func atTheCode(t *testing.T, e *embed, m Model, os tokens.ColorTokens, sel ...*baseSelector) *image.RGBA {
 	t.Helper()
 	pageOn(t, e, m, os, sel...)
-	row := e.codeColumnRow()
+	row := e.codeRow(SchemeFor(os, m))
 	if row < 0 {
-		t.Fatal("the embedded page has no code specimen row to scroll to")
+		t.Fatal("the Markdown tab has no code specimen row to scroll to")
 	}
-	e.st.ScrollTo(row)
+	e.state(TabMarkdown).ScrollTo(row)
 	return pageOn(t, e, m, os, sel...)
 }
 
@@ -120,10 +120,10 @@ func baseRowY(i int) int {
 }
 
 // baseListTop is the y of the first row's leading edge, in a window scrolled to
-// the code specimen: the page's own row, the panel's padding and the two lines
-// heading it.
+// the code specimen: the Markdown tab's own first row, the panel's padding and
+// the two lines heading it.
 func baseListTop() int {
-	return galleryTop() + int(inventory.SectionPadY) + int(FacePanelH) + int(FaceGap) + int(BasePad) + int(BaseHead)
+	return tabTop() + int(inventory.SectionPadY) + int(FacePanelH) + int(FaceGap) + int(BasePad) + int(BaseHead)
 }
 
 // TestEveryBaseIsOnOffer: the column is built from the highlighter's own list,
@@ -237,11 +237,14 @@ func TestTheWindowOpensOnTheKeptBases(t *testing.T) {
 // every base on offer — the only state the embedded page and its selector are
 // drawn in.
 func judging() Model {
-	return ReduceModel(withBases(), ImageLoaded{
+	// On the Markdown tab, which is where the specimen and the selector are:
+	// every assertion below is about the two of them side by side, and a tab
+	// they are not on shows neither.
+	return onTab(ReduceModel(withBases(), ImageLoaded{
 		Path:       "scene.png",
 		Preview:    preview(scene(480, 360)),
 		Candidates: []imageseed.Candidate{candidate(fixtureBlue, 0.5), candidate(fixtureRed, 0.5)},
-	})
+	}), TabMarkdown)
 }
 
 // TestChoosingABaseRecoloursTheCode is the selector's whole claim: the names
@@ -317,18 +320,23 @@ func TestTheSelectorSitsBesideTheCodeAndNowhereElse(t *testing.T) {
 	top := pageOn(t, e, m, tokens.DefaultLight, settled(false))
 	beside := atTheCode(t, e, m, tokens.DefaultLight, settled(false))
 	page := SchemeFor(tokens.DefaultLight, m)
-	// The page reaches the window's own margin. Its first row is the group
-	// banner, painted in the theme's primary across the whole panel; a column
-	// standing beside the page would have that banner starting a hundred and
+	// The tab reaches the window's own margin. Its first row is a section
+	// header, banded across the whole panel at the page's own floor; a column
+	// standing beside the page would have that band starting a hundred and
 	// ninety points further in, with the column's own ground here instead. The
-	// probe is inside the footprint the standing column used to occupy, past
-	// the banner's own label and clear of the panel's rounded corner.
+	// probe is inside the footprint the standing column used to occupy, in the
+	// band's own top few points, above its label and clear of the panel's
+	// rounded corner.
 	same := func(got stdcolor.RGBA, want stdcolor.NRGBA) bool {
 		return got.R == want.R && got.G == want.G && got.B == want.B
 	}
-	if edge := top.RGBAAt(int(Pad)+int(BaseW)-int(Gap), galleryTop()+int(RowLabelH)); !same(edge, page.Primary) {
-		t.Errorf("the page's first row starts at %v rather than the theme's primary %v — something is standing between the window's margin and the page",
-			edge, page.Primary)
+	// bandProbe is far enough into the band to be the band and not the row
+	// above it, and far enough above its label not to be a glyph.
+	const bandProbe = 4
+	floor := page.SurfaceAt(tokens.LevelFloor)
+	if edge := top.RGBAAt(int(Pad)+int(BaseW)-int(Gap), tabTop()+bandProbe); !same(edge, floor) {
+		t.Errorf("the tab's first row starts at %v rather than the page's own floor %v — something is standing between the window's margin and the page",
+			edge, floor)
 	}
 	// And the column is inside the specimen's row rather than beside the page:
 	// the strip left of it is that row's own margin, which is the page's ground.
