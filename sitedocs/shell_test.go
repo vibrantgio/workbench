@@ -18,14 +18,11 @@ import (
 // seen on the content-only canvas the per-tab goldens use.
 var shellCanvasSize = image.Pt(windowW, windowH)
 
-// TestStripUnderlineKeepsItsOwnLine is the AG1.1 guard: whatever a tab
-// draws, the shell's content slot leaves a band of bare panel ground between
-// the strip's Primary underline and the content's first row, so the
-// underline reads as a line rather than as the top edge of the content.
-// The old Gallery tab was the case that reported the defect — the
-// inventory's first group banner is a full-width Primary fill, the
-// underline's own colour — but the slot is shared, so all five tabs are
-// checked.
+// TestStripUnderlineKeepsItsOwnLine guards the seam: whatever a tab draws,
+// the shell's content slot leaves a band of bare panel ground between the
+// strip's Primary underline and the content's first row, so the underline
+// reads as a line rather than as the top edge of the content. The slot is
+// shared, so all five tabs are checked.
 //
 // Both reference colours are sampled rather than named from the token set:
 // the capture round-trips through the GPU, and a sampled reference makes the
@@ -36,10 +33,10 @@ var shellCanvasSize = image.Pt(windowW, windowH)
 // satisfied by any content that filled the band uniformly, which is exactly
 // the full-width banner this test exists to catch.
 //
-// Since AK6.4 those two references are different colours: patterns/tabs
-// fills its panel at the caller's ground (this app takes the default, the
-// window paper) and its strip one rung over that, so the gap band is the
-// page rather than the strip's own fill. The test says so.
+// The two references are different colours: patterns/tabs fills its panel at
+// the caller's ground (this app takes the default, the window paper) and its
+// strip one rung over that, so the gap band is the page rather than the
+// strip's own fill.
 func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	typo := tokens.DefaultTypography

@@ -50,11 +50,9 @@ var (
 // two opt-ins — chroma highlighting matched to the appearance, and links
 // opening in the system browser.
 //
-// FromTokens now takes the whole Typography (it spends several roles), so
-// the type argument the deleted TypeScale used to carry is gone. Mono and
-// CodeSize are still re-resolved from the theme's Code role (F1.4):
-// FromTokens defaults them from the Typography it is handed, and setting
-// them here keeps that explicit at the call site.
+// Mono and CodeSize are re-resolved from the theme's Code role: FromTokens
+// defaults them from the Typography it is handed, and setting them here keeps
+// that explicit at the call site.
 func docsMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
 	st := markdown.FromTokens(c, typ)
 	st.Mono = font.Typeface(typ.Code.Typeface)
@@ -107,9 +105,8 @@ func drawGuideDoc(
 	inset := complayout.Inset(docsOuterInsetDp)
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		// Cap the reading measure: unbounded, the guide's prose runs the
-		// window's whole width — far past a comfortable line length
-		// (fresh-eyes, AF2.1). The document keeps its left edge; spare
-		// width stays blank.
+		// window's whole width, far past a comfortable line length. The
+		// document keeps its left edge; spare width stays blank.
 		if cap := gtx.Dp(unit.Dp(docsMeasureDp)); gtx.Constraints.Max.X > cap {
 			gtx.Constraints.Max.X = cap
 			if gtx.Constraints.Min.X > cap {

@@ -63,8 +63,8 @@ func TestPaletteSectionRowsIsTheRowCount(t *testing.T) {
 	}
 }
 
-// TestTypeLadderFollowsThePalette is the AH1.1 move made checkable: the
-// Theme tab borrows the inventory's type ladder as two rows — this tab's
+// TestTypeLadderFollowsThePalette pins the order: the Theme tab borrows
+// the inventory's type ladder as two rows — this tab's
 // own heading band and the section's body — and they come after the
 // palette's four rows, not before them.
 func TestTypeLadderFollowsThePalette(t *testing.T) {
@@ -230,15 +230,13 @@ func TestSeedRowNamesWhatItShows(t *testing.T) {
 	}
 }
 
-// TestSeedRulesNameOneColourEach is the guard on how this row broke
-// once. The first draft told the pick and the colour grown from it apart
-// inside one sentence; [palette.FitLine] cuts a line at its commas and
-// marks nothing when it does, so the sentence cut to "the colour this
-// grew from — #6750A4 picked" and asserted, unmarked, the one thing the
-// row exists to deny. The fix was structural: two colours are two cells,
-// each swatch carrying its own value on its own line, so no rule names a
-// colour at all and no cut can fuse two of them into one claim. This
-// keeps it that way.
+// TestSeedRulesNameOneColourEach guards the row's structure. [palette.FitLine]
+// cuts a line at its commas and marks nothing when it does, so a sentence
+// telling the pick and the colour grown from it apart can cut to "the colour
+// this grew from — #6750A4 picked" and assert, unmarked, the one thing the
+// row exists to deny. Two colours are therefore two cells, each swatch
+// carrying its own value on its own line, so no rule names a colour at all
+// and no cut can fuse two of them into one claim.
 func TestSeedRulesNameOneColourEach(t *testing.T) {
 	for _, rule := range seedRules {
 		if strings.Contains(rule, "#") {
@@ -273,20 +271,18 @@ var (
 	seedNames = []string{palette.SeedName, palette.SeedLiftedName, palette.SeedLiftedNameDark, SeedPinName}
 )
 
-// TestSeedTextTakesNoUnmarkedCut is the guard the first fix did not put
-// in. [palette.FitLine] has two ways to shorten a line: at a clause seam
-// — a comma, " ·" or " /" — with nothing at all marking the cut, and at
-// a word boundary with an ellipsis. The rework of this row moved its
-// honesty disclosure past a comma, where the unmarked cut shed it whole
-// at any window under about 586px and handed the reader back the exact
-// claim the row exists to deny.
+// TestSeedTextTakesNoUnmarkedCut guards the cut. [palette.FitLine] has two
+// ways to shorten a line: at a clause seam — a comma, " ·" or " /" — with
+// nothing at all marking the cut, and at a word boundary with an ellipsis.
+// An honesty disclosure past a comma is shed whole by the unmarked cut,
+// handing the reader back the exact claim the row exists to deny.
 //
-// The fix is structural rather than editorial: no string this row draws
-// carries a clause seam at all, so the unmarked path has nothing to cut
-// at and every cut a reader is ever shown ends in an ellipsis. This
-// checks both halves — that the seams are absent, and that the whole
-// range of rooms a window can give produces nothing but the string
-// itself or a marked prefix of it.
+// The answer is structural rather than editorial: no string this row draws
+// carries a clause seam at all, so the unmarked path has nothing to cut at
+// and every cut a reader is ever shown ends in an ellipsis. This checks both
+// halves — that the seams are absent, and that the whole range of rooms a
+// window can give produces nothing but the string itself or a marked prefix
+// of it.
 func TestSeedTextTakesNoUnmarkedCut(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	ty := TypeFrom(shaper, tokens.DefaultTypography)
@@ -319,11 +315,10 @@ func TestSeedTextTakesNoUnmarkedCut(t *testing.T) {
 	}
 }
 
-// TestSeedTextSurvivesTheNarrowWindow puts a number on it. The finding
-// this task answers was measured at a window: under about 586px the dark
-// rule lost its disclosure. Every string the row draws now stands whole
-// in the room a 560px window leaves — the width the verification pass
-// captures at.
+// TestSeedTextSurvivesTheNarrowWindow puts a number on it: measured, the
+// dark rule loses its disclosure under about 586px. Every string the row
+// draws stands whole in the room a 560px window leaves — the width the
+// verification pass captures at.
 //
 // This is a width, at the one text scale the goldens are drawn at. Room
 // is measured in dp and text in sp, so a reader who has turned the OS
@@ -351,11 +346,11 @@ func TestSeedTextSurvivesTheNarrowWindow(t *testing.T) {
 	}
 }
 
-// TestSeedSaysWhatThePaletteGrewFrom is the second finding. A section
-// titled Palette Seed that identifies no seed is worth less than no
-// section, and on the matched path — the one the goldens photograph —
-// every line the previous draft drew was about the pick or about the
-// base, and none of them said which colour the palette grew from.
+// TestSeedSaysWhatThePaletteGrewFrom guards the claim itself. A section
+// titled Palette Seed that identifies no seed is worth less than no section,
+// so on the matched path — the one the goldens photograph — some line must
+// say which colour the palette grew from, not only what the pick or the base
+// is.
 //
 // It has to be said in a clause no cut can shed, so it is said first:
 // [palette.FitLine] takes words off the tail, and a claim that leads
@@ -402,12 +397,12 @@ func TestSeedSaysWhatThePaletteGrewFrom(t *testing.T) {
 	}
 }
 
-// TestSeedDarkRuleDisclosesItsScheme is the first finding's other half.
-// A dark palette draws a re-toned accent, so the colour this row shows
-// as the one the palette grew from is a colour nowhere in the ramps
-// under it. The rule has to say so, and has to say so in the same clause
-// that makes the claim — the previous draft put it after the rule's only
-// comma, which is exactly where [palette.FitLine] takes things off.
+// TestSeedDarkRuleDisclosesItsScheme guards the dark rule. A dark palette
+// draws a re-toned accent, so the colour this row shows as the one the
+// palette grew from is a colour nowhere in the ramps under it. The rule has
+// to say so, and has to say so in the same clause that makes the claim —
+// anything after the rule's only comma is exactly where [palette.FitLine]
+// takes things off.
 func TestSeedDarkRuleDisclosesItsScheme(t *testing.T) {
 	const disclosure = "re-toned"
 	for _, rule := range []string{palette.SeedLiftedRuleDark, palette.SeedKeptRuleDark} {
@@ -435,8 +430,8 @@ func TestSeedDarkRuleDisclosesItsScheme(t *testing.T) {
 	}
 }
 
-// TestSeedDarkDisclosureOutlivesItsRule is the answer to the half of the
-// finding a single line cannot give. Two facts have to survive here —
+// TestSeedDarkDisclosureOutlivesItsRule guards what a single line cannot
+// carry. Two facts have to survive here —
 // which colour the palette grew from, and that a dark scheme does not
 // draw it — and [palette.FitLine] takes words off the tail, so two facts
 // on one line have an order and the second one goes first. They are
@@ -505,13 +500,12 @@ func TestSeedNamesOnlyPicksSeed(t *testing.T) {
 	}
 }
 
-// TestSeedPairIsToldApartWithoutChroma is the third finding. The two
-// colours are one hue at two chromas: measured, the default pair stands
-// at 1.00:1 luminance and four greyscale levels apart, which is one
-// swatch drawn twice to anybody whose display or eyes take the chroma
-// out. The row answers with size — the smaller swatch is the colour the
-// palette only took in — and this checks the answer the way the finding
-// was made, on the pixels with the colour taken out.
+// TestSeedPairIsToldApartWithoutChroma guards the pair. The two colours are
+// one hue at two chromas: measured, the default pair stands at 1.00:1
+// luminance and four greyscale levels apart, which is one swatch drawn twice
+// to anybody whose display or eyes take the chroma out. The row answers with
+// size — the smaller swatch is the colour the palette only took in — and
+// this checks that answer on the pixels with the colour taken out.
 func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	for _, tc := range schemeCases {
@@ -537,7 +531,7 @@ func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
 					worst = max(worst, abs(a-b))
 				}
 			}
-			// The chroma-only pair the finding measured came to four.
+			// The chroma-only pair measures four greyscale levels apart.
 			if worst < 24 {
 				t.Errorf("with the colour taken out the two swatches differ by at most %d of 255; "+
 					"they are one swatch drawn twice", worst)

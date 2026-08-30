@@ -129,15 +129,13 @@ func ensureClick(m map[int]*widget.Clickable, key int) *widget.Clickable {
 // rail, the visible rows as a scrolling list under a little top padding.
 //
 // The ground is the ladder's FLOOR. This column is an outline rail — chrome
-// furniture, named in ADR-022's own list — and furniture is the desk the
-// document lies on rather than a storey stacked over it, in both schemes.
-// It filled colors.Surface until AU2.2, and Surface is a RAMP ALIAS rather
-// than a storey: neutral 200, which coincides with the light scheme's floor
-// and with the dark scheme's RAISED rung. One line of code therefore put
-// the rail under the guide on paper and over it on slate, which is the
-// mirror the linchpin abolished. On paper nothing moves — the floor is that
-// same neutral 200 — and on slate the rail drops from #222222 to #0C0C0C,
-// below the #181818 page it indexes.
+// furniture — and furniture is the desk the document lies on rather than a
+// storey stacked over it, in both schemes. colors.Surface would not do: it is
+// a RAMP ALIAS rather than a storey (neutral 200, which coincides with the
+// light scheme's floor but with the dark scheme's RAISED rung), so one line
+// of code would put the rail under the guide on paper and over it on slate.
+// The floor is neutral 200 on paper and #0C0C0C on slate, below the #181818
+// page it indexes.
 func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeTokens) layout.Dimensions {
 	w := gtx.Dp(unit.Dp(docsOutlineWidthDp))
 	if w > gtx.Constraints.Max.X {
@@ -145,9 +143,9 @@ func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeToken
 	}
 	size := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, tok.col.SurfaceAt(tokens.LevelFloor), clip.Rect{Max: size}.Op())
-	// A hairline on the trailing edge parts the tree from the document —
-	// in dark schemes the two grounds are close and would otherwise bleed
-	// together (fresh-eyes, AF2.1).
+	// A hairline on the trailing edge parts the tree from the document: in
+	// dark schemes the two grounds are close and would otherwise bleed
+	// together.
 	hair := max(gtx.Dp(unit.Dp(1)), 1)
 	paint.FillShape(gtx.Ops, tok.col.Divider, clip.Rect{
 		Min: image.Pt(size.X-hair, 0), Max: size,

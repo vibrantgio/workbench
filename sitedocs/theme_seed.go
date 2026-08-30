@@ -1,15 +1,13 @@
 // theme_seed.go opens the Theme tab's palette story with the one colour
-// everything under it is grown from. The ramps, the picks and the bases
-// are all derivations; until this row the tab showed the derivations and
-// never the input.
+// everything under it is grown from. The ramps, the picks and the bases are
+// all derivations; this row is their input.
 //
 // The row itself is the shared story's — [palette.SeedCells] is the
 // two-cell rule, [palette.SeedRows] draws the band and the cells, and the
 // names and rules they carry are that package's constants, written so that
-// no line a narrow window cuts can shed a claim or invert one. The design
-// rationale for all of it is in that package's comments. What is kept here
-// is what belongs to this window: whether the palette on screen is a seed's
-// at all, and what the row says where it is not.
+// no line a narrow window cuts can shed a claim or invert one. What is kept
+// here is what belongs to this window: whether the palette on screen is a
+// seed's at all, and what the row says where it is not.
 //
 // # Why the row checks before it names
 //

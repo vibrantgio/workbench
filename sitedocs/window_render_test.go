@@ -6,11 +6,10 @@ package main
 // tokens, so composing the same three paints into a headless canvas at the
 // size the window opens at produces the frame the window would show.
 //
-// It is here because a composition can only be judged as a composition. The
-// per-tab goldens beside this file render one tab's content onto a canvas of
-// their own and cannot see that the document is being read on the same rung
-// as the rail indexing it; this can. Run it with -window.dump=<dir> to write
-// the frames out for a pair of eyes:
+// The per-tab goldens beside this file render one tab's content onto a canvas
+// of their own and cannot see that the document is being read on the same
+// rung as the rail indexing it; this can. Run it with -window.dump=<dir> to
+// write the frames out for a pair of eyes:
 //
 //	go test ./ -run TestWholeWindowRender -window.dump=/tmp/sitedocs
 //
@@ -53,9 +52,8 @@ var windowSize = image.Pt(windowW, windowH)
 
 // titleBandDp is the strip desktop.TopInset reports on a full-size-content
 // macOS window, stated here because a go test binary has no live window to
-// measure — the same substitution drag_test.go makes. The number is the
-// stored reference's plain title bar band (ADR-019: 32 px, fill y0–30), not
-// a guess and not a live measurement.
+// measure. The number is the stored reference's plain title bar band, 32 px
+// with the fill running y0–30 — not a guess and not a live measurement.
 const titleBandDp = 32
 
 // windowFrame composes the window for one scheme exactly as buildLayers
@@ -168,21 +166,15 @@ func TestWholeWindowRender(t *testing.T) {
 // paper, the tab strip raised over the panel it caps, and nothing resting at
 // level 2.
 //
-// Before AK6.4 the window had no level-0 surface at all: the backdrop filled
-// it with Surface and patterns/tabs painted strip and panel alike in Surface
-// over that, so the document was read on furniture and the outline rail
-// beside it stood level with what it indexes. ADR-022 then moved the rail the
-// other way. It had been called furniture and given the storey ABOVE the
-// paper, and furniture is the desk the document lies on: on paper the fill
-// does not move (the floor is the same neutral 200 the rail already wore) and
-// on slate it drops from #222222 to #0C0C0C.
+// Furniture is the desk the document lies on, so the rail takes the floor
+// under the paper: neutral 200 on paper, #0C0C0C on slate.
 //
-// The strip does not follow it, and the difference is the whole of what this
-// test is now worth reading for. A rail is chrome standing beside the
-// document; a tab strip is the panel's own control band, drawn one storey
-// over the panel it belongs to (patterns/tabs walks it from Props.Ground).
-// So this one window carries a region below the paper and a region above it,
-// and the two are named apart here rather than lumped as "furniture".
+// The strip does not follow it, and the difference is what this test is worth
+// reading for. A rail is chrome standing beside the document; a tab strip is
+// the panel's own control band, drawn one storey over the panel it belongs to
+// (patterns/tabs walks it from Props.Ground). So this one window carries a
+// region below the paper and a region above it, and the two are named apart
+// here rather than lumped as "furniture".
 func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -201,8 +193,8 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 				{"strip gap", atStripGap, ground},
 				{"outline rail", atRail, floor},
 				{"tab strip", atTabStrip, raised},
-				// R6: the band wears the fill of the region under it, which
-				// here is the tab strip rather than the document.
+				// The band wears the fill of the region under it, which here
+				// is the tab strip rather than the document.
 				{"title band", atTitleBand, raised},
 			} {
 				got := pixelAt(img, r.at)
@@ -218,8 +210,8 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	}
 }
 
-// TestLightnessClimbsTowardTheViewer is ADR-022's own check taken along this
-// window's depth axis rather than across its plane: the outline rail is the
+// TestLightnessClimbsTowardTheViewer walks this window's depth axis rather
+// than its plane: the outline rail is the
 // desk, the guide is the paper laid on it, the tab strip is the panel's band
 // raised over that paper, and a dialog would arrive over the lot. Walking
 // that order toward the reader, lightness may only increase — in the light
@@ -249,8 +241,7 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 						above.name, above.fill, below.name, below.fill)
 				}
 			}
-			// The composition corollary, stated as the picture it is: the
-			// furniture is this window's darkest region.
+			// The corollary: the furniture is this window's darkest region.
 			for _, other := range toward[1:] {
 				if luma(toward[0].fill) >= luma(other.fill) {
 					t.Errorf("the outline rail (%v) is not darker than %s (%v); a window's furniture is its darkest region",
@@ -267,9 +258,9 @@ func luma(c color.NRGBA) float32 {
 	return 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)
 }
 
-// TestTheBandAgreesWithTheStripItCaps is R6 stated as the agreement it
-// actually is: the two fills are read off one frame and compared to each
-// other, so the rule holds even if the rung under both of them moves.
+// TestTheBandAgreesWithTheStripItCaps states the agreement directly: the two
+// fills are read off one frame and compared to each other, so the rule holds
+// even if the rung under both of them moves.
 func TestTheBandAgreesWithTheStripItCaps(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -287,11 +278,10 @@ func TestTheBandAgreesWithTheStripItCaps(t *testing.T) {
 	}
 }
 
-// TestARaisedInsetHasAStepToStandOn is the tell the audit read the whole
-// inversion off. The markdown style gives a fenced block neutral 200 — "the
-// step off the page" — which said nothing at all while the page it lay on
-// was neutral 200 itself. On the window ground the fence is a step, and the
-// frame is asked for the pixels rather than the intention.
+// TestARaisedInsetHasAStepToStandOn checks the fence has a ground to stand
+// on. The markdown style gives a fenced block neutral 200 — "the step off the
+// page" — which says nothing at all if the page it lies on is neutral 200
+// itself. The frame is asked for the pixels rather than the intention.
 func TestARaisedInsetHasAStepToStandOn(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {

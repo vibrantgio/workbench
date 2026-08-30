@@ -98,17 +98,17 @@ func TestGroupTabDropsTheBanner(t *testing.T) {
 	}
 }
 
-// TestNoInventorySectionIsLost is the phase's own arithmetic: every
-// section the published inventory builds is on exactly one tab, save the
-// two colour sections the Theme tab tells better. A section added
-// upstream lands on a tab or fails here; it does not quietly vanish
-// because sitedocs picks its groups by name.
+// TestNoInventorySectionIsLost checks the arithmetic: every section the
+// published inventory builds is on exactly one tab, save the two colour
+// sections the Theme tab tells better. A section added upstream lands on a
+// tab or fails here; it does not quietly vanish because sitedocs picks its
+// groups by name.
 func TestNoInventorySectionIsLost(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	inv := inventory.NewForOS(shaper, "darwin")
 	c := tokens.DefaultLight
 
-	// dropped names the sections sitedocs deliberately does not show.
+	// dropped names the sections sitedocs does not show.
 	dropped := map[string]bool{"foundations-roles": true, "foundations-ramps": true}
 
 	// shown counts the sections each surface accounts for: the three group

@@ -8,19 +8,19 @@
 //
 // One group per tab, which is the cut the inventory publishes as TabItems:
 // the group's sections without the banner that would only repeat the strip
-// cell clicked to reach it, closing line included. The reasoning is stated
-// where the cut lives; what this window decides is which groups get a tab.
+// cell clicked to reach it, closing line included. What this window decides
+// is which groups get a tab.
 //
-// The Foundations group is on no tab: its colour sections are the Theme
-// tab's telling, and its type ladder moved there too (theme_tab.go).
+// The Foundations group is on no tab: its colour sections and its type ladder
+// are the Theme tab's telling.
 //
 // Each tab's inventory is built once, on the first theme emission, and
 // outlives every palette after it — a theme change is a new set of row
-// values over the same parsed documents and scroll positions, exactly the
-// economy the inventory is designed around. The tabs hold one Inventory
-// each rather than sharing one, because each stream is subscribed
-// separately and a shared instance would be mutated from more than one of
-// them; what that costs is three parses of the reading sample at startup.
+// values over the same parsed documents and scroll positions. The tabs hold
+// one Inventory each rather than sharing one, because each stream is
+// subscribed separately and a shared instance would be mutated from more than
+// one of them; what that costs is three parses of the reading sample at
+// startup.
 
 package main
 

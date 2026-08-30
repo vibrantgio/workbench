@@ -119,19 +119,16 @@ func TestUpdateSelectHeading(t *testing.T) {
 	}
 }
 
-// TestDocsTabReEmitsOnModelChange is the GX.9 same-frame-repaint
-// regression test. The bug it guards against: the docs layer observable did
-// not re-emit when the model changed (outline state and routing were shunted
-// into atomic mirrors disconnected from the layer chain), so a click never
-// reached theme/window's Invalidate() and the canvas only repainted on the
-// next unrelated input event (FEEDBACK-G5.1).
+// TestDocsTabReEmitsOnModelChange guards the same-frame repaint: the docs
+// layer observable must re-emit when the model changes, or a click never
+// reaches theme/window's Invalidate() and the canvas only repaints on the
+// next unrelated input event.
 //
 // Driving the same modelObs the app uses and asserting docsTabFrom's
 // returned observable emits a fresh widget on each ToggleOutline /
-// SelectHeading is the seam the bug lived on; a reducer-only test passes
-// without proving the layer re-emits. (Live same-frame repaint is confirmed
-// by running the app — the unit test proves the necessary re-emission, not
-// the OS frame timing.)
+// SelectHeading is the seam; a reducer-only test passes without proving the
+// layer re-emits. The unit test proves the necessary re-emission, not the OS
+// frame timing.
 func TestDocsTabReEmitsOnModelChange(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1)
 	tab := docsTabFrom(rx.Of(theme.Default()), modelObs, guideFixture(t))

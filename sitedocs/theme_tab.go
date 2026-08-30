@@ -4,14 +4,12 @@
 // inventory's type ladder, following the live theme, in the same
 // scrolling frame the group tabs use.
 //
-// The seed leads because the two sections after it are both derivations
-// and the tab showed them without ever showing their input: a reader
-// could read every rule on the page and still not know which colour the
-// theme was made from.
+// The seed leads because the two sections after it are both derivations:
+// without it a reader could read every rule on the page and still not know
+// which colour the theme was made from.
 //
-// The ladder rides with the story rather than standing on a tab of its
-// own, and it is the story that draws it — see [palette.TypeLadderRows],
-// which carries why the ladder belongs here and which band it wears.
+// The ladder rides with the story rather than standing on a tab of its own,
+// and it is the story that draws it — [palette.TypeLadderRows].
 //
 // The inventory's other two Foundations sections — foundations-roles and
 // foundations-ramps — are on no tab at all. This window has one palette

@@ -29,18 +29,18 @@ var docsCanvasSize = image.Pt(docsCanvasW, docsCanvasH)
 // the mono-face proof below real code pixels to move.
 const monoProofSource = "# Mono proof\n\nProse before the fence.\n\n```go\nfunc main() {\n\twiiim := \"{mono[0] != prose}\"\n\t_ = wiiim\n}\n```\n"
 
-// TestDocsCodeShapesInMonoFace is the F1.4 headless confirmation that the
-// Docs tab renders code in the mono face. It exercises the exact pieces
-// the runtime path (guideDocObservable) composes for the default theme:
+// TestDocsCodeShapesInMonoFace is the headless confirmation that the Docs
+// tab renders code in the mono face. It exercises the exact pieces the
+// runtime path (guideDocObservable) composes for the default theme:
 // docsMarkdownStyle over the theme-emitted tokens, and the theme's cached
 // Typography shaper that doc.Layout shapes with.
 //
-// Three layers of proof, strongest headless verification available:
+// Three layers of proof:
 //  1. the style the app builds names the theme Code role's "Roboto Mono"
 //     typeface at the Code role's size;
-//  2. that typeface resolves in the app's shaper to a real distinct face —
-//     F0.2's glyph-face/advance technique: the shaper holds no system
-//     fonts, so glyphs coming back proves resolution; the advance differs
+//  2. that typeface resolves in the app's shaper to a real distinct face:
+//     the shaper holds no system fonts, so glyphs coming back proves
+//     resolution; the advance differs
 //     from proportional Roboto ('w', 'i', 'm', '.' collapse to one width
 //     only under a mono face); and the glyph IDs differ (a Gio GlyphID
 //     packs the face index, so this is face identity, not just metrics);

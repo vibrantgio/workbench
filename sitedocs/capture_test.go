@@ -11,13 +11,12 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// TestWriteTabReviewCaptures is not a test of anything: it is the
-// offscreen camera for the fresh-eyes review the plan's standing rules
-// require. Set SITEDOCS_CAPTURE_DIR to a directory and run this test to
-// write window-sized captures of all five tabs — strip included, the
-// Docs tab over the real checkout guide — in both schemes; unset (the
-// normal test run) it skips, so no ordinary run depends on the checkout
-// file. It renders offscreen and touches nothing on the owner's screen.
+// TestWriteTabReviewCaptures is not a test: it is the offscreen camera for
+// review captures. Set SITEDOCS_CAPTURE_DIR to a directory and run this test
+// to write window-sized captures of all five tabs — strip included, the Docs
+// tab over the real checkout guide — in both schemes; unset (the normal test
+// run) it skips, so no ordinary run depends on the checkout file. It renders
+// offscreen and touches nothing on the owner's screen.
 func TestWriteTabReviewCaptures(t *testing.T) {
 	dir := os.Getenv("SITEDOCS_CAPTURE_DIR")
 	if dir == "" {

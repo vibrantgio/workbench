@@ -86,8 +86,8 @@ func run() {
 	// Seam proof hook: SITEDOCS_RETITLE_MS=<n> retitles the window through
 	// mvuWin.Option n milliseconds after launch. A runtime title change is
 	// the exact sequence that re-hides the traffic lights without the
-	// OnConfigure re-assertion (H1.1/H1.2), so this keeps the invariant
-	// reproducible: run with the variable set and watch the buttons survive.
+	// OnConfigure re-assertion, so this keeps the invariant reproducible: run
+	// with the variable set and watch the buttons survive.
 	if ms := os.Getenv("SITEDOCS_RETITLE_MS"); ms != "" {
 		if n, err := strconv.Atoi(ms); err == nil && n > 0 {
 			go func() {
@@ -102,11 +102,9 @@ func run() {
 	kept := brand.Kept()
 	w := specwin.New(mvuWin, themeObservable(kept))
 
-	// Build the model observable with mvu.Loop over mvu messages. The
-	// window's collector registers on each FrameEvent so MessageOp.Add(gtx.Ops)
+	// The window's collector registers on each FrameEvent so MessageOp.Add(gtx.Ops)
 	// calls made during layout are collected and delivered here on the same
-	// frame; Loop also runs the commands Update returns (this app returns
-	// DoNothing everywhere) and emits the seed model first.
+	// frame.
 	//
 	// mvuWin.Messages() drains a channel via rx.Recv, so each emitted message
 	// reaches exactly one subscriber. Two streams derive from modelObs —
@@ -142,7 +140,7 @@ func themeObservable(b brand.Brand) rx.Observable[theme.Theme] {
 // and not a claim — an OS accent outranks the default, and the theme
 // stream publishes the tokens it derived without saying which colour they
 // came from, so the seed row checks the candidate against the palette it
-// is drawing before naming it (see theme_seed.go).
+// is drawing before naming it.
 func seedOf(b brand.Brand) stdcolor.NRGBA {
 	if b.Chosen() {
 		return b.Seed
@@ -151,8 +149,8 @@ func seedOf(b brand.Brand) stdcolor.NRGBA {
 }
 
 // themeTokens is the colour/typography snapshot the app's own drawing code
-// reads at frame time. The shaper is the theme's cached Typography shaper
-// (F1.4): the app builds none of its own, so the typefaces — Roboto, plus
+// reads at frame time. The shaper is the theme's cached Typography shaper:
+// the app builds none of its own, so the typefaces — Roboto, plus
 // the Roboto Mono face the guide's code style names — come from the
 // theme.
 type themeTokens struct {
@@ -184,14 +182,12 @@ func buildLayers(modelObs rx.Observable[Model], seed stdcolor.NRGBA) func(th rx.
 // leading ~80 dp (the window buttons' territory) included.
 //
 // The strip carries no widget of its own, so what it shows is whatever was
-// painted there. Until AK6.4 that was the backdrop, which filled the window
-// with Surface — the same colour the tab strip happened to be, so the two
-// agreed by both being wrong. The window ground is now the Background pin
-// and the agreement has to be made rather than inherited: the region this
-// band caps is the tab strip, which patterns/tabs fills one rung over its
-// panel, so on this window's level-0 panel the band is level 1. R6 asks for
-// the region's fill at the window's top edge, not for the region's widget to
-// reach it — which is what lets the shell stay inset off the buttons.
+// painted there, and the window ground is the Background pin: the agreement
+// has to be made rather than inherited. The region this band caps is the tab
+// strip, which patterns/tabs fills one rung over its panel, so on this
+// window's level-0 panel the band is level 1. What is required is the
+// region's fill at the window's top edge, not the region's widget reaching
+// it — which is what lets the shell stay inset off the buttons.
 //
 // The cap claims that same strip for the window's own drag: without that
 // claim the window could not be moved by its top edge at all.
@@ -208,8 +204,7 @@ func underTitleBar(th rx.Observable[theme.Theme], shellObs rx.Observable[layout.
 // the tab strip, and patterns/tabs fills that strip one rung over its panel;
 // this window's panel takes the pattern's default ground, so the rung is 1.
 // Named once because two callers have to agree on it — the window, and the
-// whole-window render that photographs the window — and because R6 is a
-// statement about which region's fill this is, not about which colour.
+// whole-window render that photographs the window.
 func titleBandFill(c tokens.ColorTokens) stdcolor.NRGBA {
 	return c.SurfaceAt(tokens.Level1)
 }
@@ -236,15 +231,9 @@ func bandedCap(height func() unit.Dp, band stdcolor.NRGBA, w layout.Widget) layo
 	}
 }
 
-// backdropLayer is the window's ground: the Background pin, which ADR-021 R1
-// gives to the expanse a window exists to show. It is the shared mechanism
-// the other workbench windows already call, not a fill of this app's own.
-//
-// It was c.Surface until AK6.4, and every region above it inherited that:
-// patterns/tabs painted strip and panel alike in Surface, so the guide
-// document — the whole point of this window — was read on furniture, the
-// outline rail beside it stood level with what it indexes, and a fenced code
-// block at neutral 200 was the page's own colour and had no step to stand on.
+// backdropLayer is the window's ground: the Background pin, which is what the
+// expanse a window exists to show wears. It is the shared mechanism the other
+// workbench windows already call, not a fill of this app's own.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
 		return t.Color
@@ -263,10 +252,9 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // are streams (theme changes restyle them; model changes move the docs
 // outline). So each Tab.Content reads an atomic cell at frame time, and
 // the combined map below stores every stream's latest widget into its
-// cell before re-emitting the strip — the same layer-boundary hand-off
-// mvu/window.go uses for its layer snapshot. Any input emitting therefore
-// re-emits this layer, which drives theme/window's Invalidate and the
-// same-frame repaint after a click.
+// cell before re-emitting the strip. Any input emitting therefore re-emits
+// this layer, which drives theme/window's Invalidate and the same-frame
+// repaint after a click.
 //
 // The contents are combined as one homogeneous []layout.Widget rather
 // than through a CombineLatestN tuple: rx tops out at five sources and
@@ -323,15 +311,12 @@ func tabbedShellLayer(
 
 // contentGap is the air the shell keeps between the tab strip and
 // whatever the selected tab shows: S4, eight times the 2 dp underline it
-// has to separate. The first cut of this was S2; the fresh-eyes reviewer
-// measured that 8 dp and still read the underline as camouflaged against
-// the inventory's full-width banner, which is Primary — the underline's
-// own colour, to the byte, in both schemes. The banner is ruled
-// separately and cannot move, so the air is the only variable this task
-// holds, and it is spent generously. sitedocs never overrides the
-// spacing scale — the strip's own cell padding is the theme's S3 — so
-// the value reads the published scale directly, the way the review
-// camera already hands tokens.Spacing to tabs.Render.
+// has to separate. S2 — 8 dp, measured — is not enough: the underline reads
+// as camouflaged against the inventory's full-width banner, which is Primary,
+// the underline's own colour to the byte in both schemes. The banner cannot
+// move, so the air is the only variable and it is spent generously. sitedocs
+// never overrides the spacing scale — the strip's own cell padding is the
+// theme's S3 — so the value reads the published scale directly.
 var contentGap = unit.Dp(tokens.Spacing.S4)
 
 // contentSlot is the tab shell's content slot: a tab's content, pushed
@@ -339,22 +324,16 @@ var contentGap = unit.Dp(tokens.Spacing.S4)
 // paper, since patterns/tabs fills its panel at the caller's ground and this
 // app takes the default — so the active tab's Primary underline has quiet
 // ground on both sides and reads as a line rather than as the top edge of
-// whatever begins below it. Until AK6.4 that band was the strip's Surface,
-// because the pattern painted one fill across strip and panel alike; the gap
-// does the same work either way, and now the strip's lower edge is a rung
-// change as well as an underline.
+// whatever begins below it. The strip's lower edge is a rung change as well
+// as an underline.
 //
-// The gap lives here, in the shell, rather than in the one tab that first
-// showed the defect. The collision is structural, not a property of the
-// tab that reported it: the underline is the strip's bottom two pixels,
-// so any content whose first row is a filled band merges with it. The
-// case that reported it — the inventory's full-width Primary group banner
-// — is no longer drawn, because a single-group tab drops its banner
-// (inventory_tabs.go); every tab now opens on a quiet surface. That is an
-// accident of the present content and not a contract, and a gap that
-// appeared only on the tab of the day would shift every page's first line
-// as the user switches tabs. One slot for all five keeps the strip a
-// fixed band and costs each page 8 dp.
+// The gap lives here, in the shell, rather than in any one tab: the collision
+// is structural. The underline is the strip's bottom two pixels, so any
+// content whose first row is a filled band merges with it. That no tab
+// currently opens on such a band is an accident of the present content and
+// not a contract, and a gap that appeared only on the tab of the day would
+// shift every page's first line as the user switches tabs. One slot for all
+// five keeps the strip a fixed band and costs each page 8 dp.
 //
 // Applied by tabbedShellLayer to the live tabs and by the review capture
 // to the static ones, so the camera photographs the composition the app

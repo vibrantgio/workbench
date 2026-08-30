@@ -19,19 +19,14 @@ import (
 // the same rung the app does rather than a colour of their own.
 var bandFill = tokens.DefaultLight.SurfaceAt(tokens.Level1)
 
-// TestTheStripClaimsTheWindowDrag is AK6.2's guard: before this task
-// neither this app nor the strip desktop.InsetTop pads carried a
-// system.ActionMove anywhere, so the window could not be moved by its top
-// edge at all — R6's second half, unmet while its first half (the
-// full-size-content treatment and the inset) was already in place.
-// bandedCap now also declares desktop.DragTop over the same measured
-// height InsetTop pads by, so a press in the strip resolves to the window
-// move and a press in the page below it does not.
+// TestTheStripClaimsTheWindowDrag guards the window's top-edge drag:
+// bandedCap declares desktop.DragTop over the same measured height InsetTop
+// pads by, so a press in the strip resolves to the window move and a press in
+// the page below it does not.
 //
-// The strip height is stated rather than read from desktop.TopInset,
-// because a go test binary has no live macOS window behind it and that
-// function reports 0 without one — the same substitution mvu/desktop's own
-// TestDragTopClaimsTheStripAndNothingBelow makes for the same reason.
+// The strip height is stated rather than read from desktop.TopInset, because
+// a go test binary has no live macOS window behind it and that function
+// reports 0 without one.
 func TestTheStripClaimsTheWindowDrag(t *testing.T) {
 	const width, height, stripH = 400, 300, 32
 
@@ -58,11 +53,9 @@ func TestTheStripClaimsTheWindowDrag(t *testing.T) {
 	// With no live window behind a go test binary, desktop.LeadingInset —
 	// which DragTop consults to leave the platform's own control buttons
 	// their run — reports 0, so the strip's whole width is its empty run
-	// here, the same headless case mvu/desktop's own
-	// TestDragTopClaimsTheStripAndNothingBelow documents. (LeadingInset's
-	// live exclusion of the buttons' own run is mvu/desktop's contract,
-	// pinned there by TestDragTopLeavesTheButtonsTheirRun; this app adds no
-	// arithmetic of its own around it, only the call.)
+	// here. The live exclusion of the buttons' own run is mvu/desktop's
+	// contract; this app adds no arithmetic of its own around it, only the
+	// call.
 	for _, p := range []image.Point{{X: 0, Y: 0}, {X: width / 2, Y: stripH / 2}, {X: width - 1, Y: stripH - 1}} {
 		if !moveAt(p.X, p.Y) {
 			t.Errorf("no window-move action at %v; the strip above the page is the drag band", p)
