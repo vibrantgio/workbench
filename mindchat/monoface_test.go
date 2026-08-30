@@ -140,10 +140,9 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 				{"UserBubble", p.UserBubble, c.Primary},
 				{"UserText", p.UserText, c.OnPrimary},
 				{"BotText", p.BotText, c.Text},
-				// Chip and ChipHovered are gone from the palette: the header
-				// picker is components/picker and derives its own fills. What
-				// remains here is the ink the settings dialog's template
-				// chips still draw their label with.
+				// The header picker is components/picker and derives its own
+				// fills; the palette carries only the ink the settings
+				// dialog's template chips draw their label with.
 				{"ChipText", p.ChipText, c.Ramps.Neutral.Step(900)},
 				{"ModalChip", p.ModalChip, c.SurfaceAt(tokens.Level2)},
 				{"ModalChipHovered", p.ModalChipHovered, c.StateAt(tokens.Level2, tokens.StateHover)},

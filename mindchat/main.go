@@ -35,10 +35,9 @@ func main() {
 // CombineLatest (1), the rename modal's open and edit derivations (2), the
 // settings modal's open, field and body derivations (3), the model menu's
 // open, data and chip-key derivations (3), and the settings dropdown's open
-// derivation (1); the backdrop layer is theme-only. The split-pane ratio
-// derivation that used to be the eleventh went with the split: the pane's
-// state is a flip the frame reads at frame time, not a number a shell
-// subscribes to. Two of the header picker's three are keys, because
+// derivation (1); the backdrop layer is theme-only. The split pane is not a
+// consumer: its state is a flip the frame reads at frame time, not a number a
+// shell subscribes to. Two of the header picker's three are keys, because
 // components/picker takes its value and its options as static props: the
 // picker derives a deduplicated key for each from the Model and subscribes a
 // new control when one changes. Measured by
