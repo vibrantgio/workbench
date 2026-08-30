@@ -1,7 +1,8 @@
 // note.go is the vault screen's note column — the main slot of the
 // composition frame.go builds, with the folder tree leading and the
-// backlinks panel trailing. The column renders the current note: a header row with back/forward and the
-// breadcrumb, a collapsible properties panel fed by the frontmatter split,
+// backlinks panel trailing. The column renders the current note: a header row
+// with back/forward and the breadcrumb, a collapsible properties panel fed by
+// the frontmatter split,
 // and the parsed body as a markdown Document. Wikilink clicks resolve
 // against the index and navigate; a task checkbox writes its marker in
 // the file before the click returns; web links open the system browser;
