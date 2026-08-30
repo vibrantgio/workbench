@@ -9,8 +9,10 @@
 // chip-sized box in the header and the content overrides its incoming
 // constraints to self-size. The anchor is components/chip, which is sized to
 // its own content and refuses to stretch, so the box is a CAP rather than a
-// shape: the chip fills it while the label is long and is centred in it when
-// the label is short.
+// shape: the chip fills it while the label is long and leaves slack in it
+// when the label is short. Which end that slack falls on is the chip's
+// Pin — PinTrailing here, so the pill's trailing edge is the box's, which
+// is the content column's, whatever the label says.
 package main
 
 import (
@@ -114,7 +116,14 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 				Description: "Model for this chat",
 				// The header band is the transcript's own level-0 paper, so
 				// the chip fills one storey over it — the zero value.
-				Ground:    tokens.Level0,
+				Ground: tokens.Level0,
+				// The picker's box is a CAP at the trailing edge of the
+				// chrome row and the pill has to land ON that edge, over
+				// the last ink of the message column and the composer
+				// under it. The popover standing between this file and
+				// the chip centres whatever it is handed, so the ask goes
+				// to the chip — the one place both widths are known.
+				Pin:       chip.PinTrailing,
 				Clickable: &chipClick,
 				OnClick: func(gtx layout.Context) {
 					if k.open {
