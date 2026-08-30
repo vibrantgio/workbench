@@ -325,6 +325,6 @@ func TestRealGuideOutlineShape(t *testing.T) {
 		}
 	}
 	if withChildren == 0 {
-		t.Error("no ## section carries ### children; AF1.1 put them there")
+		t.Error("no ## section carries ### children; the guide's sections must nest")
 	}
 }

@@ -77,7 +77,7 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 		strip := sample(bare, shellCanvasSize.X-1, stripH/2)
 		ground := sample(bare, shellCanvasSize.X-1, stripH+gap/2)
 		if strip == ground {
-			t.Fatalf("%s: strip and panel are both %v — the strip owes the page it caps one rung (ADR-021 R2)", sc.name, strip)
+			t.Fatalf("%s: strip and panel are both %v — the strip owes the page it caps one rung", sc.name, strip)
 		}
 
 		for i, tabName := range tabPages {
