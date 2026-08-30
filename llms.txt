@@ -76,9 +76,10 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      wears Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  components  v1.2.0 button, chip (a pill carrying a data-bearing summary,
+  components  v1.2.1 button, chip (a pill carrying a data-bearing summary,
                      clickable, with a badge face for the same mark held
-                     still), input, list, richtext, scrollbar,
+                     still and an anchor face for the pop-up control),
+                     input, list, richtext, scrollbar,
                      scrollarea (a horizontal viewport for content that must
                      not be reflowed — a code fence, an over-wide diagram),
                      icon, icons (the design system's own marks), layout,
@@ -173,7 +174,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        for traer physics
   github.com/vibrantgio/kiwi/gio              v0.0.6   Gio layout on the
                                                        kiwi solver
-  github.com/vibrantgio/components/gallery    v1.2.0   the components gallery
+  github.com/vibrantgio/components/gallery    v1.2.1   the components gallery
                                                        app
   github.com/vibrantgio/mvu/desktop           v1.0.1   native macOS window
                                                        chrome (FullSizeContent,
@@ -466,14 +467,23 @@ content layer built from a patterns/shell:
     patterns/alert (inline banners).
 
 A DATA-BEARING SUMMARY WITH A GLYPH IS A CHIP, not a quiet button:
-components/chip is a pill sized to its content, filled one storey above the
-ground you name (Props.Ground, like a ghost button's), for the model a
-chat is using, the branch a pane is on, the filter a list is under. It has
+components/chip is a pill sized to its content, filled a measured step above
+the ground you name (Props.Ground, like a ghost button's) — the platform's
+whisper over its band rather than a whole storey — for the model a chat is
+using, the branch a pane is on, the filter a list is under. It has
 no emphasis axis and will not grow one — selection rides components/button's
 emphasis register (Tonal when picked, Ghost when not) and a button's label
-stays a verb. The same face held still is the BADGE (chip.RenderBadge): a
+stays a verb. THREE FACES, ONE GEOMETRY, chosen by Props.Face. The CHIP
+itself is clickable. The BADGE (chip.RenderBadge) is that face held still: a
 mark that keeps a fill and takes no input, so it walks no state and extends
-no pointer target. Neither is patterns/tag, which is the status vocabulary —
+no pointer target. The ANCHOR (chip.RenderAnchor) is the pop-up shape — every
+answer the chip already has, at the button's rounded-rect corner, with the
+paired up/down chevrons drawn by the component rather than passed in, so a
+caller can neither swap that mark nor flip it: on this platform the pair says
+"this pops up" and never "this is open". Props.Pin puts the pill on the
+leading or trailing edge of a box wider than it and reports the box, for the
+container that reserved a cap but cannot place the pill inside it itself.
+Neither is patterns/tag, which is the status vocabulary —
 Success, Warning, Error — drawn in a role's own hue and never clicked.
 
 ### The dialog grammar
@@ -1427,7 +1437,7 @@ purpose (golden determinism); leave those alone.
       github.com/reactivego/rx v0.3.0
       github.com/vibrantgio/patterns v1.1.0
       github.com/vibrantgio/mvu v1.0.1
-      github.com/vibrantgio/components v1.2.0
+      github.com/vibrantgio/components v1.2.1
       github.com/vibrantgio/theme v1.3.0
       github.com/vibrantgio/textdraw v0.0.4
   )
