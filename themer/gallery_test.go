@@ -14,9 +14,7 @@ import (
 )
 
 // dumpDir, when set, makes TestWindowDump write the window out as a PNG per
-// scheme instead of skipping. It is a diagnostic and never a comparison: what
-// it is for is looking at the window with fresh eyes, which is a review step
-// and not a test.
+// scheme instead of skipping. It is a diagnostic and never a comparison.
 //
 //	go test . -themer.dump=/tmp/themer
 var dumpDir = flag.String("themer.dump", "", "write the window to this directory, one PNG per scheme")
@@ -36,8 +34,8 @@ func TestWindowDump(t *testing.T) {
 	})
 	m = ReduceModel(m, SelectCandidate{Index: 1})
 	// One pair, chosen once: a base off the sun's list and a base off the
-	// moon's, each a name a reader recognises as a deliberate pick rather
-	// than as whatever sorted first. Nothing is picked again inside the loop
+	// moon's, each a recognisable name rather than whatever sorted first.
+	// Nothing is picked again inside the loop
 	// — what the two schemes show is the same theme, flipped.
 	m = pick(pick(m, "github", false), "dracula", true)
 	e, sel := newEmbed(), newBaseSelector()
