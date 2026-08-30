@@ -119,6 +119,11 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 			return rx.Map(picker.Menu(th, picker.MenuProps{
 				Options:  labelsOf(entries),
 				Selected: k.selected,
+				// The header's catalogue is the same forty to sixty rows as
+				// the settings dialog's, and the popover that places this
+				// menu makes room for whatever it is handed: uncapped, a
+				// full catalogue is taller than the window it floats in.
+				MaxHeight: MenuMaxHeight,
 				OnSelect: func(gtx layout.Context, i int) {
 					e := entries[i]
 					mvu.MessageOp{Message: SetChatModel{Provider: e.provider, Model: e.model}}.Add(gtx.Ops)

@@ -178,8 +178,15 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				// The field stands on the settings modal's own surface — a
 				// level-2 plane, not the window ground — like every field
 				// above it.
-				Ground:   tokens.Level2,
-				Disabled: rx.Of(len(entries) == 0),
+				Ground: tokens.Level2,
+				// A real provider catalogue is forty to sixty rows and the
+				// menu drops UPWARD out of the dialog's last row, so
+				// uncapped its far end is drawn off the top of the window.
+				MaxHeight: MenuMaxHeight,
+				// The two things a trigger with no value can be saying.
+				Placeholder: "Choose model…",
+				NoOptions:   "No models",
+				Disabled:    rx.Of(len(entries) == 0),
 				OnSelect: func(gtx layout.Context, i int) {
 					e := entries[i]
 					mvu.MessageOp{Message: SetDefaultModel{Provider: e.provider, Model: e.model}}.Add(gtx.Ops)
