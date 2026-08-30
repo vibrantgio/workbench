@@ -27,10 +27,26 @@ import (
 const markJitter = 4
 
 // The geometry of the palette section inside the window, from the same
-// constants it lays out with. The section leads the Theme tab, which is the
-// tab the window opens on, so it stands directly under the strip.
-func rampGridTop() int {
-	return tabTop() + int(PaletteHeadH) + int(inventory.SectionPadY)
+// constants it lays out with. The Theme tab — the tab the window opens on —
+// leads with the seed section, so the grid stands one section down from the
+// strip and the geometry is measured from the model rather than from a
+// constant: how tall the seed section is depends on whether the seed and the
+// colour it was lifted into are one cell or two.
+func rampGridTop(m Model, os tokens.ColorTokens) int {
+	return tabTop() + seedSectionH(m, os) + int(PaletteHeadH) + int(inventory.SectionPadY)
+}
+
+// seedSectionH is the height the seed section takes at the head of the tab:
+// its own heading band, the body's margins, and a cell per colour the row has
+// to tell apart.
+func seedSectionH(m Model, os tokens.ColorTokens) int {
+	c, _ := derived(m, os)
+	seed, picked := m.Seed()
+	h := int(PaletteHeadH) + 2*int(inventory.SectionPadY)
+	for _, cell := range seedCells(c, seed, picked) {
+		h += int(cell.height())
+	}
+	return h
 }
 
 // rampLabelLeft is the x the ramp names are ranged against, and rampCellW the
@@ -53,9 +69,9 @@ func rampCellW() int {
 // the content the section's body is laid out in — not one gap past step 900,
 // which is where they would stand if the cells were the thing setting the
 // grid's width.
-func rampPinCentre(i int) image.Point {
+func rampPinCentre(m Model, os tokens.ColorTokens, i int) image.Point {
 	x := rampLabelLeft() + rampContentW() - int(RampPinW)/2
-	y := rampGridTop() + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
+	y := rampGridTop(m, os) + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
 	return image.Pt(x, y)
 }
 
@@ -63,14 +79,14 @@ func rampPinCentre(i int) image.Point {
 // which is where a claimed rung's mark is, and rampCellColour a point in the
 // same cell that no mark reaches — a quarter of the way in, against a mark of
 // six points in a cell of ninety.
-func rampCellCentre(i, n int) image.Point {
+func rampCellCentre(m Model, os tokens.ColorTokens, i, n int) image.Point {
 	x := rampLabelLeft() + int(RampLabelW) + n*rampCellW() + rampCellW()/2
-	y := rampGridTop() + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
+	y := rampGridTop(m, os) + int(RampHeadH) + i*int(RampRowH) + int(RampRowH)/2
 	return image.Pt(x, y)
 }
 
-func rampCellColour(i, n int) image.Point {
-	at := rampCellCentre(i, n)
+func rampCellColour(m Model, os tokens.ColorTokens, i, n int) image.Point {
+	at := rampCellCentre(m, os, i, n)
 	return image.Pt(at.X-rampCellW()/4, at.Y)
 }
 
@@ -552,7 +568,7 @@ func TestTheGridDrawsTheThemesOwnRampSteps(t *testing.T) {
 		img := page(t, m, os)
 		for i, row := range rampRows(c) {
 			for n := range RampSteps {
-				at := rampCellColour(i, n)
+				at := rampCellColour(m, os, i, n)
 				want := row.ramp.Step((n + 1) * 100)
 				got := img.RGBAAt(at.X, at.Y)
 				if got.R != want.R || got.G != want.G || got.B != want.B {
@@ -580,7 +596,7 @@ func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 		img := page(t, m, os)
 		for i, row := range rampRows(c) {
 			for n := range RampSteps {
-				at := rampCellCentre(i, n)
+				at := rampCellCentre(m, os, i, n)
 				step := row.ramp.Step((n + 1) * 100)
 				marked := claims[rampClaim{row.name, (n + 1) * 100}]
 				want := step
@@ -857,7 +873,7 @@ func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
 		c, _ := derived(m, os)
 		img := page(t, m, os)
 		for i, row := range rampRows(c) {
-			at := rampPinCentre(i)
+			at := rampPinCentre(m, os, i)
 			got := img.RGBAAt(at.X, at.Y)
 			if row.pin.A == 0 {
 				// Neutral pins no solid fill, so its slot carries the mark that
@@ -883,7 +899,7 @@ func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
 		// And the seed itself, which is the first chip in the grid on the side
 		// that pins it: a light scheme's Primary is the seed, lifted.
 		if !m.Dark(os) {
-			at := rampPinCentre(0)
+			at := rampPinCentre(m, os, 0)
 			got := img.RGBAAt(at.X, at.Y)
 			if want := c.Primary; got.R != want.R || got.G != want.G || got.B != want.B {
 				t.Errorf("the first chip drew %v, want the lifted seed %v", got, want)
@@ -998,7 +1014,7 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 	for _, os := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
 		c, _ := derived(m, os)
 		img := page(t, m, os)
-		at := rampPinCentre(0) // Primary leads the grid
+		at := rampPinCentre(m, os, 0) // Primary leads the grid
 		got := img.RGBAAt(at.X, at.Y)
 		if !m.Dark(os) {
 			// The dot, in the middle of the chip, in the measured ink.
@@ -1014,7 +1030,7 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 			// And no cell of the row carries one: the pin claims no rung, and
 			// the dot the row owes its reader is the chip's.
 			for n := range RampSteps {
-				cell := rampCellCentre(0, n)
+				cell := rampCellCentre(m, os, 0, n)
 				step := c.Ramps.Primary.Step((n + 1) * 100)
 				pix := img.RGBAAt(cell.X, cell.Y)
 				if pix.R != step.R || pix.G != step.G || pix.B != step.B {
@@ -1033,7 +1049,7 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 		if n == 0 {
 			t.Fatal("the dark pin claims no rung, want the rung-exact control case")
 		}
-		cell := rampCellCentre(0, n/100-1)
+		cell := rampCellCentre(m, os, 0, n/100-1)
 		step := c.Ramps.Primary.Step(n)
 		want := markInkOn(step)
 		pix := img.RGBAAt(cell.X, cell.Y)
@@ -1133,16 +1149,18 @@ func TestThePaletteSectionFollowsTheSchemeSwitch(t *testing.T) {
 	e := newEmbed()
 	lightImg := pageOn(t, e, ReduceModel(m, SetScheme{Dark: false}), tokens.DefaultLight)
 	darkImg := pageOn(t, e, ReduceModel(m, SetScheme{Dark: true}), tokens.DefaultLight)
-	c, _ := derived(ReduceModel(m, SetScheme{Dark: true}), tokens.DefaultLight)
+	on := ReduceModel(m, SetScheme{Dark: true})
+	c, _ := derived(on, tokens.DefaultLight)
 	for i, row := range rampRows(c) {
-		at := rampCellColour(i, RampSteps-1)
+		at := rampCellColour(on, tokens.DefaultLight, i, RampSteps-1)
 		want := row.ramp.Step(RampSteps * 100)
 		got := darkImg.RGBAAt(at.X, at.Y)
 		if got.R != want.R || got.G != want.G || got.B != want.B {
 			t.Errorf("with the switch on dark, %s 900 drew %v, want the dark ramp's %v", row.name, got, want)
 		}
 	}
-	if moved := bandChange(lightImg, darkImg, rampGridTop(), rampGridTop()+int(RampHeadH)+8*int(RampRowH)); moved < schemeBandFloor {
+	top := rampGridTop(on, tokens.DefaultLight)
+	if moved := bandChange(lightImg, darkImg, top, top+int(RampHeadH)+8*int(RampRowH)); moved < schemeBandFloor {
 		t.Errorf("the switch moved %.2f%% of the grid, want the whole of it", moved)
 	}
 }

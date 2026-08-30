@@ -13,12 +13,14 @@
 // dividers are too faint, the warning is too close to the error — because the
 // thing that decided both is not on screen anywhere.
 //
-// So it is put on screen, and in the order the derivation works in. First the
-// ramps, which are what there is to pick from: eight roles, nine steps each, on
-// one shared lightness scale. Then the picks, which are the colours the theme
-// actually names, each beside the rule that chose it. Ramps above picks, because
-// a pick that says "Neutral 300" means nothing until the row it came out of is
-// the thing directly above it.
+// So it is put on screen, and in the order the derivation works in. The seed
+// itself comes first, one section above this one — see [SeedRows] — because it
+// is the input everything here is a function of. Then the ramps, which are what
+// there is to pick from: eight roles, nine steps each, on one shared lightness
+// scale. Then the picks, which are the colours the theme actually names, each
+// beside the rule that chose it. Ramps above picks, because a pick that says
+// "Neutral 300" means nothing until the row it came out of is the thing directly
+// above it.
 //
 // # Where it stands, and what it replaced
 //

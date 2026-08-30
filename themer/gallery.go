@@ -7,12 +7,12 @@
 // answer, and picking another swatch redraws all of it on the next frame.
 //
 // The page is a tab strip and four surfaces rather than one column several
-// screens tall. Theme is what the window opens on — the palette this seed
-// derived, with the provenance in it, and the type ladder under it — and the
-// three after it are the published catalogue's own groups, one to a tab. A
-// reader judging a colour on buttons does not have to scroll past the ramps to
-// reach them, and the tab they were on is still the tab they are on after the
-// next pick.
+// screens tall. Theme is what the window opens on — the seed itself, then the
+// palette it derived with the provenance in it, and the type ladder under
+// them — and the three after it are the published catalogue's own groups, one
+// to a tab. A reader judging a colour on buttons does not have to scroll past
+// the ramps to reach them, and the tab they were on is still the tab they are
+// on after the next pick.
 package main
 
 import (
@@ -236,7 +236,13 @@ func GalleryColumns(t themed, m Model, page *embed, sel *baseSelector, faces *fa
 	inv := page.catalogue(shaper, applied, m.AppliedBases())
 
 	cols := make([]layout.Widget, TabCount)
-	theme := PaletteRows(p, c, other, t.typ, dark)
+	// The seed leads the palette story because it is what the story is a
+	// story about: the ramps, the picks and the bases under it are all
+	// derivations of this one colour, and the tab showed every derivation and
+	// never the input until this row.
+	seed, picked := m.Seed()
+	theme := SeedRows(p, c, t.typ, seed, picked)
+	theme = append(theme, PaletteRows(p, c, other, t.typ, dark)...)
 	theme = append(theme, TypeLadderRows(inv, p, c, t.typ)...)
 	cols[TabTheme] = ScrollingColumn(page.state(TabTheme), c, theme)
 	for tab := TabComponents; tab < TabCount; tab++ {
