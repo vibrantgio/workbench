@@ -391,7 +391,6 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			return model, mvu.DoNothing()
 		}
 		model.Settings.Selected = message.Index
-		model.Settings.Dropdown = false
 		model.Settings.Epoch++
 		return model, mvu.DoNothing()
 
@@ -426,7 +425,6 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		draft := slices.Clone(s.Draft)
 		draft[s.Selected] = p
 		model.Settings.Draft = draft
-		model.Settings.Dropdown = false
 		model.Settings.Epoch++
 		// A key already present is checked against the new endpoint right
 		// away — a template click is a settled edit.
@@ -436,23 +434,12 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		}
 		return model, command
 
-	case OpenDefaultModelMenu:
-		if model.Settings.Open {
-			model.Settings.Dropdown = true
-		}
-		return model, mvu.DoNothing()
-
-	case CloseDefaultModelMenu:
-		model.Settings.Dropdown = false
-		return model, mvu.DoNothing()
-
 	case AddProvider:
 		if !model.Settings.Open {
 			return model, mvu.DoNothing()
 		}
 		model.Settings.Draft = append(slices.Clone(model.Settings.Draft), Provider{Name: FreshProviderName(model.Settings.Draft)})
 		model.Settings.Selected = len(model.Settings.Draft) - 1
-		model.Settings.Dropdown = false
 		model.Settings.Epoch++
 		return model, mvu.DoNothing()
 
@@ -467,7 +454,6 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		if s.DefaultProvider == removed.Name {
 			model.Settings.DefaultProvider, model.Settings.DefaultModel = "", ""
 		}
-		model.Settings.Dropdown = false
 		model.Settings.Epoch++
 		return model, mvu.DoNothing()
 
@@ -541,7 +527,6 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		}
 		model.Settings.DefaultProvider = message.Provider
 		model.Settings.DefaultModel = message.Model
-		model.Settings.Dropdown = false
 		return model, mvu.DoNothing()
 
 	case RefreshModels:

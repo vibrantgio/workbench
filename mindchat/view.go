@@ -257,7 +257,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		})
 
 	renameObs := RenameModal(th, modelObs, modalArb)
-	settingsObs := SettingsModal(th, modelObs, popArb, modalArb)
+	settingsObs := SettingsModal(th, modelObs, modalArb)
 	menuObs := ModelMenu(th, modelObs, popArb)
 
 	// The window's chords, each the one its platform already spends on that

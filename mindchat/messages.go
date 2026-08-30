@@ -162,11 +162,6 @@ type ApplyTemplate struct {
 	Index int
 }
 
-// OpenDefaultModelMenu / CloseDefaultModelMenu drive the settings modal's
-// default-model dropdown.
-type OpenDefaultModelMenu struct{}
-type CloseDefaultModelMenu struct{}
-
 // SetDefaultModel picks the draft's default (provider, model) pair.
 type SetDefaultModel struct {
 	Provider string

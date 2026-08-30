@@ -82,8 +82,7 @@ func (model Model) Config() Config {
 // indexes the provider the text fields show. Epoch keys the rebuild of the
 // uncontrolled fields — bumped on open and on provider add/remove/select/
 // template, NOT on keystrokes, so typing never reseeds the field under the
-// cursor. Dropdown is whether the global default-model picker is open.
-// EditGen counts key/URL keystrokes; only the settle timer carrying the
+// cursor. EditGen counts key/URL keystrokes; only the settle timer carrying the
 // latest generation may check the key with a /models fetch. Errors holds
 // the last fetch outcome per provider name — no entry means no result yet,
 // "" means the key checked out, anything else is the fetch error.
@@ -94,7 +93,6 @@ type SettingsState struct {
 	Selected        int
 	DefaultProvider string
 	DefaultModel    string
-	Dropdown        bool
 	EditGen         int
 	Errors          map[string]string
 }

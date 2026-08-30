@@ -32,7 +32,11 @@ import (
 	"testing"
 	"time"
 
+	"gioui.org/f32"
+	gioinput "gioui.org/io/input"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
@@ -175,6 +179,13 @@ const (
 	buttonsEndDp     = buttonLeadDp + buttonDiameterDp + 2*buttonPitchDp
 )
 
+// defaultPickerCentre is where the settings dialog's default-model trigger
+// stands in this window: the dialog is 560 dp wide and centred, its body's
+// trailing edge is the picker's, and the row is the last one in the body.
+// Read off the rendered frame rather than recomputed from the modal's
+// internals, and asserted by the open capture differing from the closed one.
+var defaultPickerCentre = f32.Pt(642, 508)
+
 var buttonHues = []color.NRGBA{
 	{R: 0xff, G: 0x5f, B: 0x57, A: 0xff},
 	{R: 0xfe, G: 0xbc, B: 0x2e, A: 0xff},
@@ -218,24 +229,99 @@ func TestWholeWindowRender(t *testing.T) {
 	for _, tc := range schemes {
 		for _, st := range states {
 			t.Run(tc.name+"-"+st.name, func(t *testing.T) {
-				renderWindow(t, tc.name+"-"+st.name, tc.c, st.hidden)
+				renderPane(t, tc.name+"-"+st.name, tc.c, st.hidden)
 			})
 		}
 	}
 }
 
-// renderWindow draws one scheme in one pane state and writes it out when the
+// TestWholeWindowPickerRender draws the window's two pickers where a reader
+// meets them — the header menu standing open over the transcript, and the
+// settings dialog at its default-model row — in both schemes. Both are
+// compositions rather than controls: what the header menu has to clear is the
+// transcript under it, and what the dialog's row has to clear is the action
+// row below it.
+func TestWholeWindowPickerRender(t *testing.T) {
+	saved := windowButtonsEnd
+	defer func() { windowButtonsEnd = saved }()
+	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
+
+	menuOpen := demoModel()
+	menuOpen.ModelMenu = true
+	settings, _ := Update(demoModel(), OpenSettings{})
+
+	for _, tc := range schemes {
+		t.Run(tc.name+"-header-menu", func(t *testing.T) {
+			renderWindow(t, tc.name+"-header-menu", tc.c, menuOpen)
+		})
+		t.Run(tc.name+"-settings", func(t *testing.T) {
+			renderWindow(t, tc.name+"-settings", tc.c, settings)
+		})
+		t.Run(tc.name+"-settings-open", func(t *testing.T) {
+			closed := dumpFrame(t, "", withWindowControls(frame(t, tc.c, settings)))
+			w := withWindowControls(frame(t, tc.c, settings))
+			open := dumpFrame(t, tc.name+"-settings-open", clicked(w, windowSize, defaultPickerCentre))
+			if n := golden.PixelDiff(closed, open); n == 0 {
+				t.Errorf("clicking the default-model trigger at %v changed nothing: the menu did not open, or the point missed it", defaultPickerCentre)
+			}
+		})
+	}
+}
+
+// renderPane draws one scheme in one pane state and writes it out when the
 // dump flag names a directory.
-func renderWindow(t *testing.T, name string, c tokens.ColorTokens, hidden bool) {
+func renderPane(t *testing.T, name string, c tokens.ColorTokens, hidden bool) {
 	t.Helper()
 	m := demoModel()
 	m.SidebarHidden = hidden
-	img := golden.Capture(t, windowSize, withWindowControls(frame(t, c, m)))
+	renderWindow(t, name, c, m)
+}
+
+// renderWindow draws one Model in one scheme and writes it out when the dump
+// flag names a directory.
+func renderWindow(t *testing.T, name string, c tokens.ColorTokens, m Model) {
+	t.Helper()
+	dumpFrame(t, name, withWindowControls(frame(t, c, m)))
+}
+
+// clicked drives w through two headless frames with a click queued at pos and
+// returns a widget drawing from the state those frames left behind. It is how
+// a surface whose open state lives INSIDE a component — a picker field's menu
+// — is captured standing open: the Model cannot be posed into it.
+func clicked(w layout.Widget, size image.Point, pos f32.Point) layout.Widget {
+	r := new(gioinput.Router)
+	drive := func() {
+		var ops op.Ops
+		w(layout.Context{
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Constraints: layout.Exact(size),
+			Ops:         &ops,
+			Source:      r.Source(),
+		})
+		r.Frame(&ops)
+	}
+	drive()
+	r.Queue(
+		pointer.Event{Kind: pointer.Press, Position: pos, Buttons: pointer.ButtonPrimary, Source: pointer.Mouse},
+		pointer.Event{Kind: pointer.Release, Position: pos, Buttons: pointer.ButtonPrimary, Source: pointer.Mouse},
+	)
+	drive()
+	return func(gtx layout.Context) layout.Dimensions {
+		gtx.Source = r.Source()
+		return w(gtx)
+	}
+}
+
+// dumpFrame captures one composed frame, returns it, and writes it out when
+// the dump flag names a directory and the frame is named.
+func dumpFrame(t *testing.T, name string, w layout.Widget) *image.RGBA {
+	t.Helper()
+	img := golden.Capture(t, windowSize, w)
 	if img.Bounds().Size() != windowSize {
 		t.Fatalf("frame size = %v, want %v", img.Bounds().Size(), windowSize)
 	}
-	if *windowDump == "" {
-		return
+	if *windowDump == "" || name == "" {
+		return img
 	}
 	if err := os.MkdirAll(*windowDump, 0o755); err != nil {
 		t.Fatalf("dump dir: %v", err)
@@ -250,4 +336,5 @@ func renderWindow(t *testing.T, name string, c tokens.ColorTokens, hidden bool) 
 		t.Fatalf("encode %s: %v", path, err)
 	}
 	t.Logf("wrote %s", path)
+	return img
 }

@@ -270,23 +270,19 @@ func TestApplyTemplateUniquifiesTakenName(t *testing.T) {
 	}
 }
 
-func TestDefaultModelDropdownOpensAndCloses(t *testing.T) {
+// The default-model picker holds its own open state (it is a components/picker
+// field), so the Model carries the CHOICE and nothing about the menu. What the
+// reducer still owes is that the choice lands in the draft and survives until
+// Save.
+func TestSetDefaultModelPicksTheDraftPair(t *testing.T) {
 	m, _ := Update(providersModel(), OpenSettings{})
-	m, _ = Update(m, OpenDefaultModelMenu{})
-	if !m.Settings.Dropdown {
-		t.Fatalf("dropdown did not open")
-	}
 	m, _ = Update(m, SetDefaultModel{Provider: "OpenAI", Model: "gpt-4o"})
-	if m.Settings.Dropdown {
-		t.Fatalf("picking a model must close the dropdown")
-	}
 	if m.Settings.DefaultProvider != "OpenAI" || m.Settings.DefaultModel != "gpt-4o" {
 		t.Fatalf("default = %q/%q, want OpenAI/gpt-4o", m.Settings.DefaultProvider, m.Settings.DefaultModel)
 	}
-	m, _ = Update(m, OpenDefaultModelMenu{})
 	m, _ = Update(m, SelectProvider{Index: 1})
-	if m.Settings.Dropdown {
-		t.Fatalf("switching provider must close the dropdown")
+	if m.Settings.DefaultProvider != "OpenAI" || m.Settings.DefaultModel != "gpt-4o" {
+		t.Fatalf("default = %q/%q after switching provider, want the pick to stand", m.Settings.DefaultProvider, m.Settings.DefaultModel)
 	}
 }
 

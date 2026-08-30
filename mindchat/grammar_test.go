@@ -114,12 +114,13 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 			}{
 				{"the sidebar's floor", p.Sidebar},
 				{"the transcript's paper", p.Ground},
-				// The header chip's fill is components/chip's now, not this
-				// palette's: the claim moves to the component's own answer
-				// for the storey the picker stands on rather than being
-				// dropped, because the window's ladder is what is on trial
-				// here and the chip is still a rung of it.
-				{"the header chip", chip.Fill(c, tokens.Level0, tokens.StateNormal)},
+				// The header picker's fill is the component's, not this
+				// palette's: the claim is made against the chip family's own
+				// answer for the storey the picker stands on — the picker's
+				// anchor is one of that family's faces — because the window's
+				// ladder is what is on trial here and the control is still a
+				// rung of it.
+				{"the header picker", chip.Fill(c, tokens.Level0, tokens.StateNormal)},
 				{"a dialog's surface", c.SurfaceAt(tokens.Level2)},
 			}
 			for i := 1; i < len(toward); i++ {

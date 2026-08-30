@@ -61,12 +61,12 @@ type Palette struct {
 	UserBubble color.NRGBA // user message fill — a Primary turn, not a rung
 	UserText   color.NRGBA // user message text
 	BotText    color.NRGBA // assistant message text — the ink pinned to Ground
-	// The header model picker's own fill, hover and rim are no longer here:
-	// it is components/chip now, which derives all three from the storey it
-	// stands on. What this app still says about it is where it stands —
-	// the level-0 paper of the transcript's header band — and the component
-	// answers the rest.
-	ChipText color.NRGBA // label and chevron over the dialog's own chips
+	// The header picker's own fill, hover and rim are not here: it is
+	// components/picker, which derives all three from the storey it stands
+	// on. What this app still says about it is where it stands — the level-0
+	// paper of the transcript's header band — and the component answers the
+	// rest.
+	ChipText color.NRGBA // label over the dialog's own template chips
 	// ModalChip is a chip inside the settings dialog. Its ground is the
 	// dialog's level-2 surface, so it rests flush on it and reveals itself
 	// with that surface's own state walk rather than reaching for a rung the
@@ -231,21 +231,20 @@ const (
 	SettingsIconBtn     unit.Dp = 18
 	SettingsPanelInset  unit.Dp = 6
 	TemplateRowHeight   unit.Dp = 26
-	SelectRowHeight     unit.Dp = 32
-	DropChipWidth       unit.Dp = 260
-	ModelRowHeight      unit.Dp = 26
-	ModelDotSlot        unit.Dp = 16
-	ModelDotSize        unit.Dp = 6
-
-	// ChipHeight is the settings dialog's own hand-rolled chips. The header
-	// model picker no longer takes a height from here: it is components/chip
-	// and draws at the theme density's control height.
-	ChipHeight unit.Dp = 28
+	// SelectRowHeight is the DEFAULT MODEL row, and it is the height the
+	// picker field standing in it draws at: one BodyLarge line box over the
+	// comfortable density's vertical padding. The caption and the closed
+	// control share the line, so the row cannot be shorter than the control.
+	SelectRowHeight unit.Dp = 40
+	// DefaultPickerWidth is the width of the settings dialog's default-model
+	// field, and so of the menu it drops: a field's menu is as wide as the
+	// field.
+	DefaultPickerWidth unit.Dp = 260
 	// ChipWidth is the widest the header picker may grow, not the width it
-	// draws at — the chip is sized to its label and clamped to this.
-	ChipWidth     unit.Dp = 230
-	MenuWidth     unit.Dp = 260
-	MenuMaxHeight unit.Dp = 320
+	// draws at — the anchor is sized to its label and clamped to this.
+	ChipWidth unit.Dp = 230
+	// MenuWidth is the width of the header picker's floating surface.
+	MenuWidth unit.Dp = 260
 )
 
 // The three macOS window controls are measured from the window's own glass

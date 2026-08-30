@@ -38,10 +38,11 @@ func main() {
 // derivation (1); the backdrop layer is theme-only. The split-pane ratio
 // derivation that used to be the eleventh went with the split: the pane's
 // state is a flip the frame reads at frame time, not a number a shell
-// subscribes to. The chip key is the third of the menu's
-// three because components/chip takes its label as a static prop: the
-// picker derives a deduplicated key from the Model and subscribes a new
-// chip when it changes. Measured by TestModelObsConsumerCountMatchesConst.
+// subscribes to. Two of the header picker's three are keys, because
+// components/picker takes its value and its options as static props: the
+// picker derives a deduplicated key for each from the Model and subscribes a
+// new control when one changes. Measured by
+// TestModelObsConsumerCountMatchesConst.
 const modelObsConsumers = 10
 
 // MindChat drives the MindChat window; one function per window, so further

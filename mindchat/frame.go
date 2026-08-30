@@ -217,11 +217,11 @@ func (f *windowFrame) chromeRow(gtx layout.Context, m Model, t themed) layout.Di
 }
 
 // layoutPicker draws the model picker into the cap the chrome row reserved
-// for it: a chip-sized box one inset in from the content area's trailing
-// edge. components/chip sizes itself to its label and the box is only how
-// far that label may run before it is clipped, so the box is a CAP rather
-// than a shape — and the chip is pinned to its trailing edge (modelmenu.go),
-// which is why the pill lands on the content column's edge and not a few
+// for it: a control-sized box one inset in from the content area's trailing
+// edge. components/picker sizes its anchor to the value and the box is only
+// how far that value may run before it is clipped, so the box is a CAP rather
+// than a shape — and the anchor is pinned to its trailing edge (modelmenu.go),
+// which is why the control lands on the content column's edge and not a few
 // pixels inboard of it whatever the model is called.
 func layoutPicker(gtx layout.Context, menu layout.Widget, contentX, contentW, rowH int) {
 	if menu == nil || rowH <= 0 {

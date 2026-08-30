@@ -3,17 +3,18 @@
 // catalogue editor (list with +/− , Name/BaseURL/APIKey fields, where the
 // key is auto-checked by a debounced /models fetch and its verdict shown
 // beside the field) and the GLOBAL default-model row spanning the modal's
-// bottom, whose dropdown groups every provider's models. It follows the
-// rename-modal recipe (patterns/modal + epoch-rebuilt uncontrolled components
-// fields + cell hand-offs into the modal's static slots); all edits reduce
-// into Model.Settings.Draft per keystroke and apply on Save.
+// bottom, whose upward-dropping picker field offers every provider's models.
+// It follows the rename-modal recipe (patterns/modal + epoch-rebuilt
+// uncontrolled components fields + cell hand-offs into the modal's static
+// slots); all edits reduce into Model.Settings.Draft per keystroke and apply
+// on Save.
 package main
 
 import (
 	"fmt"
 	"image"
 	"image/color"
-	"slices"
+	"strconv"
 	"strings"
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
@@ -32,11 +33,11 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/picker"
 	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/modal"
-	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -78,7 +79,7 @@ type settingsFields struct {
 // SettingsModal builds the settings modal stream. Open state, the draft
 // being edited, and fetch errors all live in Model.Settings; the modal is
 // pure view over them.
-func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], popArb *popover.Arbiter, modalArb *modal.Arbiter) rx.Observable[layout.Widget] {
+func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], modalArb *modal.Arbiter) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.Settings.Open }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 
@@ -146,52 +147,50 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	})
 
 	// Interaction state at construction scope (subscribed once): the
-	// provider rows', template chips', model rows', and chrome buttons'
-	// clickables, and the two lists' scroll positions.
+	// provider rows', template chips' and chrome buttons' clickables, and the
+	// provider list's scroll position.
 	provClicks := map[int]*widget.Clickable{}
-	modelClicks := map[string]*widget.Clickable{}
 	tplClicks := make([]*widget.Clickable, len(ProviderTemplates))
 	for i := range tplClicks {
 		tplClicks[i] = new(widget.Clickable)
 	}
-	var addClick, removeClick, refreshClick, webClick, cancelClick, saveClick, dropClick widget.Clickable
+	var addClick, removeClick, refreshClick, webClick, cancelClick, saveClick widget.Clickable
 	provList := list.NewState()
-	modelList := list.NewState()
 
-	cellSlot := func(cell *atomic.Value) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
-				return w(gtx)
-			}
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		}
-	}
-
-	// The default-model dropdown is a popover anchored on the chip in the
-	// global default-model row at the body's bottom (the same popover-canvas
-	// coupling ChatPane's picker uses); it opens UPWARD because the modal's
-	// action row is drawn after the body and would paint over a downward
-	// surface.
-	dropOpenObs := rx.Map(modelObs, func(m Model) bool { return m.Settings.Open && m.Settings.Dropdown }).
-		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
-	var dropChipCell, dropContentCell atomic.Value
-	dropObs := popover.Popover(th, popover.Props{
-		Open:      dropOpenObs,
-		Anchor:    cellSlot(&dropChipCell),
-		Content:   cellSlot(&dropContentCell),
-		Placement: popover.Top,
-		Arbiter:   popArb,
-		OnDismiss: func(gtx layout.Context) {
-			mvu.MessageOp{Message: CloseDefaultModelMenu{}}.Add(gtx.Ops)
-		},
-	})
+	// The global default-model picker is the form register's — a
+	// components/picker field, the same control the Name and BaseURL fields
+	// beside it are. It drops UPWARD because the modal's action row is drawn
+	// after the body and would paint over a downward menu.
+	//
+	// The field takes its props once per subscription and keeps its own open
+	// state, so the subscription is keyed: on the option list and the pick, so
+	// a fetch that lands while the dialog stands is offered, and on the
+	// dialog's epoch, so a settings modal that opens again opens closed.
+	defaultPickerObs := rx.SwitchMap(
+		rx.Map(modelObs, defaultPickerKeyOf).Pipe(rx.DistinctUntilChanged(func(a, b defaultPickerKey) bool { return a.id == b.id })),
+		func(k defaultPickerKey) rx.Observable[layout.Widget] {
+			entries := k.entries
+			return picker.Field(th, picker.FieldProps{
+				Description: "Default model",
+				Options:     labelsOf(entries),
+				Selected:    k.selected,
+				Drop:        picker.DropUp,
+				// The field stands on the settings modal's own surface — a
+				// level-2 plane, not the window ground — like every field
+				// above it.
+				Ground:   tokens.Level2,
+				Disabled: rx.Of(len(entries) == 0),
+				OnSelect: func(gtx layout.Context, i int) {
+					e := entries[i]
+					mvu.MessageOp{Message: SetDefaultModel{Provider: e.provider, Model: e.model}}.Add(gtx.Ops)
+				},
+			})
+		})
 
 	var fieldCells struct{ name, url, key atomic.Value }
-	bodyObs := rx.Map(rx.CombineLatest3(themedObs, modelObs, dropObs), func(next rx.Tuple3[settingsThemed, Model, layout.Widget]) layout.Widget {
-		t, s, drop := next.First, next.Second.Settings, next.Third
-		dropChipCell.Store(dropChip(t, s, &dropClick))
-		dropContentCell.Store(dropContent(t, s, modelClicks, modelList))
-		return settingsBody(t, s, drop,
+	bodyObs := rx.Map(rx.CombineLatest3(themedObs, modelObs, defaultPickerObs), func(next rx.Tuple3[settingsThemed, Model, layout.Widget]) layout.Widget {
+		t, s, defaultPicker := next.First, next.Second.Settings, next.Third
+		return settingsBody(t, s, defaultPicker,
 			provClicks, tplClicks, &addClick, &removeClick, &refreshClick, &webClick,
 			provList, &fieldCells.name, &fieldCells.url, &fieldCells.key)
 	})
@@ -306,9 +305,9 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 // selected provider's pane — the template bar, the Name/BaseURL fields,
 // the API-key row (field + check verdict + refresh) and a status line
 // spelling the check out — with the GLOBAL default-model row spanning the
-// bottom under both. The dropdown popover widget (chip anchor + upward
-// surface) is drawn LAST, over the body, at the chip's rect in that row.
-func settingsBody(t settingsThemed, s SettingsState, drop layout.Widget,
+// bottom under both. The default-model picker is drawn LAST, over the body,
+// at the trailing edge of that row.
+func settingsBody(t settingsThemed, s SettingsState, defaultPicker layout.Widget,
 	provClicks map[int]*widget.Clickable, tplClicks []*widget.Clickable,
 	addClick, removeClick, refreshClick, webClick *widget.Clickable,
 	provList *list.State,
@@ -383,20 +382,23 @@ func settingsBody(t settingsThemed, s SettingsState, drop layout.Widget,
 			}),
 		)
 
-		// The dropdown popover gets an Exact chip-sized box at the default
-		// row's right edge; it centres its anchor (the chip) there and
-		// hangs the surface above it.
-		chipH := gtx.Dp(ChipHeight)
-		chipW := gtx.Dp(DropChipWidth)
-		if max := size.X - gtx.Dp(130); chipW > max {
-			chipW = max
+		// The default-model picker drops UPWARD, so the widget reports its
+		// trigger at the BOTTOM of the box it draws and has to be placed by
+		// that bottom edge — which means recording it, reading the height it
+		// reports, and offsetting by that. The trailing edge is the row's, and
+		// the trigger fills the row's height exactly (SelectRowHeight), so the
+		// closed control and its caption sit on one line.
+		fieldW := gtx.Dp(DefaultPickerWidth)
+		if max := size.X - gtx.Dp(130); fieldW > max {
+			fieldW = max
 		}
-		chipX := size.X - chipW
-		chipY := size.Y - gtx.Dp(SelectRowHeight) + (gtx.Dp(SelectRowHeight)-chipH)/2
-		defer op.Offset(image.Pt(chipX, chipY)).Push(gtx.Ops).Pop()
+		macro := op.Record(gtx.Ops)
 		dg := gtx
-		dg.Constraints = layout.Exact(image.Pt(chipW, chipH))
-		drop(dg)
+		dg.Constraints = layout.Exact(image.Pt(fieldW, gtx.Dp(SelectRowHeight)))
+		pickerDims := defaultPicker(dg)
+		pickerOps := macro.Stop()
+		defer op.Offset(image.Pt(size.X-fieldW, size.Y-pickerDims.Size.Y)).Push(gtx.Ops).Pop()
+		pickerOps.Add(gtx.Ops)
 		return layout.Dimensions{Size: size}
 	}
 }
@@ -516,112 +518,39 @@ func defaultModelRow(gtx layout.Context, t settingsThemed) layout.Dimensions {
 	return layout.Dimensions{Size: size}
 }
 
-// dropChip is the dropdown's anchor: the global default pair, or a
-// placeholder while none is picked. Clicking toggles the menu; with no
-// models cached anywhere there is nothing to list and the chip stays inert.
-func dropChip(t settingsThemed, s SettingsState, click *widget.Clickable) layout.Widget {
-	p := t.palette
-	canOpen := slices.ContainsFunc(s.Draft, func(p Provider) bool { return len(p.Models) > 0 })
-	label := "No models"
-	switch {
-	case s.DefaultProvider != "" && s.DefaultModel != "":
-		label = s.DefaultProvider + " · " + s.DefaultModel
-	case canOpen:
-		label = "Choose model…"
-	}
-	open := s.Dropdown
-	return func(gtx layout.Context) layout.Dimensions {
-		for click.Clicked(gtx) {
-			if open {
-				mvu.MessageOp{Message: CloseDefaultModelMenu{}}.Add(gtx.Ops)
-			} else if canOpen {
-				mvu.MessageOp{Message: OpenDefaultModelMenu{}}.Add(gtx.Ops)
-			}
-		}
-		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			size := gtx.Constraints.Max
-			pointer.CursorPointer.Add(gtx.Ops)
-			// Flush on the dialog surface, revealed by that surface's own
-			// hover walk — the same reading as the template chips above.
-			fill := p.ModalChip
-			if click.Hovered() || open {
-				fill = p.ModalChipHovered
-			}
-			FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(6), fill)
-			chevW := gtx.Dp(12)
-			r := image.Rect(gtx.Dp(10), 0, size.X-chevW-gtx.Dp(10), size.Y)
-			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), r, 0, 0.5, p.ChipText, label)
-			ChevronDown(gtx, image.Rect(size.X-chevW-gtx.Dp(6), (size.Y-chevW/2)/2, size.X-gtx.Dp(6), (size.Y+chevW/2)/2), p.ChipText)
-			return layout.Dimensions{Size: size}
-		})
-	}
+// defaultPickerKey is what the modal's default-model field is a function of:
+// the option list, the pick, and the dialog epoch the field belongs to — with
+// the identity the deduplication compares on, so a Model emission that changes
+// none of the three does not rebuild a running field under the pointer.
+type defaultPickerKey struct {
+	id       string
+	entries  []menuEntry
+	selected int
 }
 
-// dropContent lays the dropdown surface: every draft provider's cached
-// models under a provider caption (the chat header picker's grouping),
-// scroll-capped; clicking one sets the draft's global default pair. It
-// overrides the incoming canvas/2 constraints (popover-canvas coupling).
-func dropContent(t settingsThemed, s SettingsState, modelClicks map[string]*widget.Clickable, rows *list.State) layout.Widget {
-	p := t.palette
-	var entries []menuRow
+// defaultPickerKeyOf flattens the draft's cached models into the field's
+// options. Each row carries its provider's name, because the option list is
+// flat and which provider a model belongs to is part of what the row says.
+func defaultPickerKeyOf(m Model) defaultPickerKey {
+	s := m.Settings
+	var entries []menuEntry
+	selected := -1
 	for _, prov := range s.Draft {
-		if len(prov.Models) == 0 {
-			continue
-		}
-		entries = append(entries, menuRow{caption: true, label: prov.Name})
 		for _, id := range prov.Models {
-			entries = append(entries, menuRow{
-				label:    id,
+			if s.DefaultProvider == prov.Name && s.DefaultModel == id {
+				selected = len(entries)
+			}
+			entries = append(entries, menuEntry{
+				label:    prov.Name + " · " + id,
 				provider: prov.Name,
 				model:    id,
-				active:   s.DefaultProvider == prov.Name && s.DefaultModel == id,
 			})
 		}
 	}
-	for _, e := range entries {
-		if e.caption {
-			continue
-		}
-		if _, present := modelClicks[e.provider+"\x00"+e.model]; !present {
-			modelClicks[e.provider+"\x00"+e.model] = new(widget.Clickable)
-		}
-	}
-	return func(gtx layout.Context) layout.Dimensions {
-		rowH := gtx.Dp(ModelRowHeight)
-		w := gtx.Dp(DropChipWidth)
-		h := min(len(entries)*rowH, gtx.Dp(180))
-		gtx.Constraints = layout.Exact(image.Pt(w, h))
-		list.LayoutScrollbar(gtx, rows, t.bar, list.Occupy, entries,
-			func(gtx layout.Context, e menuRow) layout.Dimensions {
-				size := image.Pt(gtx.Constraints.Max.X, rowH)
-				if e.caption {
-					r := image.Rect(gtx.Dp(8), 0, size.X, size.Y)
-					textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), r, 0, 0.5, p.Heading, e.label)
-					return layout.Dimensions{Size: size}
-				}
-				click := modelClicks[e.provider+"\x00"+e.model]
-				for click.Clicked(gtx) {
-					mvu.MessageOp{Message: SetDefaultModel{Provider: e.provider, Model: e.model}}.Add(gtx.Ops)
-				}
-				return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					textColor := p.Row
-					if e.active {
-						textColor = p.RowActive
-					}
-					if click.Hovered() {
-						FillRect(gtx, image.Rectangle{Max: size}, 0, p.RowHovered)
-					}
-					if e.active {
-						d := gtx.Dp(ModelDotSize)
-						dot := image.Rect(0, (size.Y-d)/2, d, (size.Y+d)/2).Add(image.Pt(gtx.Dp(4), 0))
-						FillRect(gtx, dot, d/2, p.Accent)
-					}
-					r := image.Rect(gtx.Dp(ModelDotSlot), 0, size.X-gtx.Dp(4), size.Y)
-					textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium), r, 0, 0.5, textColor, e.label)
-					return layout.Dimensions{Size: size}
-				})
-			})
-		return layout.Dimensions{Size: gtx.Constraints.Max}
+	return defaultPickerKey{
+		id:       strconv.Itoa(s.Epoch) + "\x00" + identityOf(entries, selected),
+		entries:  entries,
+		selected: selected,
 	}
 }
 
