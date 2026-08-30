@@ -1,18 +1,25 @@
-// modelmenu.go owns the chat header's model picker: a chip showing the
-// model prompts in the current chat use, opening a patterns/popover that
-// lists Default plus every provider's cached models. Picking an entry
-// reduces SetChatModel — a per-chat override persisted in the chat file.
-// Open state is model state (Model.ModelMenu), the mindchat idiom.
+// modelmenu.go owns the chat header's model picker: a components/chip in its
+// ANCHOR face, naming the model prompts in the current chat use and opening a
+// patterns/popover that lists Default plus every provider's cached models.
+// Picking an entry reduces SetChatModel — a per-chat override persisted in
+// the chat file. Open state is model state (Model.ModelMenu), the mindchat
+// idiom.
+//
+// The anchor face is the platform's pop-up control: the button's rounded
+// rectangle rather than the chip's pill, with the paired up/down chevrons
+// drawn by the component. Nothing about the mark is this file's any more —
+// it does not choose it and cannot flip it, which is the point, because on
+// this platform the pair says "this pops up" and never "this is open".
 //
 // popover-canvas coupling: the popover centres its anchor in the canvas it
-// is given and measures Content at canvas/2, so ChatPane hands it a
-// chip-sized box in the header and the content overrides its incoming
-// constraints to self-size. The anchor is components/chip, which is sized to
-// its own content and refuses to stretch, so the box is a CAP rather than a
-// shape: the chip fills it while the label is long and leaves slack in it
-// when the label is short. Which end that slack falls on is the chip's
-// Pin — PinTrailing here, so the pill's trailing edge is the box's, which
-// is the content column's, whatever the label says.
+// is given and measures Content at canvas/2, so ChatPane hands it an
+// anchor-sized box in the header and the content overrides its incoming
+// constraints to self-size. The anchor is sized to its own content and
+// refuses to stretch, so the box is a CAP rather than a shape: it fills the
+// box while the label is long and leaves slack in it when the label is short.
+// Which end that slack falls on is the chip's Pin — PinTrailing here, so the
+// control's trailing edge is the box's, which is the content column's,
+// whatever the label says.
 package main
 
 import (
@@ -74,6 +81,13 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 	// Interaction state at construction scope: the chip's clickable, the
 	// rows' clickables, and the list's scroll position.
 	var chipClick widget.Clickable
+	// Whether the menu stands, kept where the anchor's click handler can read
+	// it. It used to ride in the anchor's key, because the old mark was a
+	// chevron this file flipped and a flipped mark is a different widget. The
+	// anchor's mark does not flip, so the key no longer carries the open state
+	// — and an anchor that rebuilt its subscription every time its own menu
+	// opened would be rebuilding for a frame that looks identical.
+	var menuOpen atomic.Bool
 	rowClicks := map[string]*widget.Clickable{}
 	rows := list.NewState()
 
@@ -91,6 +105,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 
 	dataObs := rx.Map(rx.CombineLatest2(palObs, modelObs), func(next rx.Tuple2[menuThemed, Model]) int {
 		t, m := next.First, next.Second
+		menuOpen.Store(m.ModelMenu)
 		contentCell.Store(menuContent(t, menuRows(m), rowClicks, rows))
 		return 0
 	})
@@ -107,12 +122,16 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 		func(k chipKey) rx.Observable[layout.Widget] {
 			return chip.Chip(th, chip.Props{
 				Label: k.label,
-				// The chip's own mark, drawn by this app: the chevron points
-				// the way the surface will go, which is the disclosure the
-				// component itself has no state for (it knows rest, hover,
-				// press and focus, and an anchor is none of those while its
-				// popover stands open).
-				Icon:        chevronGlyph(k.open),
+				// The pop-up anchor face: the platform's own shape for a
+				// control that stands under a menu — the button's rounded
+				// rectangle rather than the chip's pill — with the paired
+				// up/down chevrons drawn by the component. The pair is
+				// static, which settles the open-state question this
+				// picker's first adoption recorded: on this platform an
+				// anchor's glyph says "this pops up" and never "this is
+				// open", so there is no chevron here to flip and no flip
+				// logic left to own.
+				Face:        chip.FaceAnchor,
 				Description: "Model for this chat",
 				// The header band is the transcript's own level-0 paper, so
 				// the chip fills one storey over it — the zero value.
@@ -126,7 +145,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 				Pin:       chip.PinTrailing,
 				Clickable: &chipClick,
 				OnClick: func(gtx layout.Context) {
-					if k.open {
+					if menuOpen.Load() {
 						mvu.MessageOp{Message: CloseModelMenu{}}.Add(gtx.Ops)
 					} else {
 						mvu.MessageOp{Message: OpenModelMenu{}}.Add(gtx.Ops)
@@ -156,13 +175,14 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 	})
 }
 
-// chipKey is everything the header chip is a function of: the label it
-// carries and which way its chevron points. Two Models with the same key
-// build the same chip, which is what lets the chip's subscription outlive a
-// streamed answer.
+// chipKey is everything the header anchor is a function of, which since the
+// anchor face landed is the label alone: the mark is the component's and does
+// not move, so the open state left the key with the chevron that used to read
+// it. Two Models with the same key build the same anchor, which is what lets
+// its subscription outlive a streamed answer — and the key is now coarse
+// enough that opening and closing the menu does not rebuild it at all.
 type chipKey struct {
 	label string
-	open  bool
 }
 
 // chipKeyOf reads the effective model out of the Model and names it: provider
@@ -183,25 +203,7 @@ func chipKeyOf(m Model) chipKey {
 	if provider, id, ok := m.EffectiveModel(); ok {
 		label = provider.Name + " · " + id
 	}
-	return chipKey{label: label, open: m.ModelMenu}
-}
-
-// chevronGlyph adapts this app's chevron to the mark signature
-// components/chip draws with: a painter filling a size×size box at the
-// current origin. The V is inscribed in that box at three fifths of its
-// width, so the mark reads at the weight the label does rather than filling
-// the whole line box.
-func chevronGlyph(open bool) chip.Glyph {
-	return func(gtx layout.Context, size int, col color.NRGBA) {
-		w := size * 3 / 5
-		h := w / 2
-		box := image.Rect((size-w)/2, (size-h)/2, (size+w)/2, (size+h)/2)
-		if open {
-			ChevronUp(gtx, box, col)
-			return
-		}
-		ChevronDown(gtx, box, col)
-	}
+	return chipKey{label: label}
 }
 
 // menuRows flattens the pickable entries: Default first, then each
@@ -291,17 +293,5 @@ func ChevronDown(gtx layout.Context, box image.Rectangle, col color.NRGBA) {
 	path.MoveTo(f32.Pt(float32(box.Min.X), float32(box.Min.Y)))
 	path.LineTo(f32.Pt(float32(box.Min.X+box.Max.X)/2, float32(box.Max.Y)))
 	path.LineTo(f32.Pt(float32(box.Max.X), float32(box.Min.Y)))
-	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: path.End(), Width: stroke}.Op())
-}
-
-// ChevronUp is ChevronDown's mirror: the same V, pointing the other way, for
-// a disclosure whose surface is already standing.
-func ChevronUp(gtx layout.Context, box image.Rectangle, col color.NRGBA) {
-	stroke := float32(gtx.Dp(unit.Dp(1.5)))
-	var path clip.Path
-	path.Begin(gtx.Ops)
-	path.MoveTo(f32.Pt(float32(box.Min.X), float32(box.Max.Y)))
-	path.LineTo(f32.Pt(float32(box.Min.X+box.Max.X)/2, float32(box.Min.Y)))
-	path.LineTo(f32.Pt(float32(box.Max.X), float32(box.Max.Y)))
 	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: path.End(), Width: stroke}.Op())
 }

@@ -33,11 +33,16 @@ func TestChipLabelNamesTheModelOnly(t *testing.T) {
 		t.Fatalf("explicit pick of the default = %+v, want %+v", chipKeyOf(sameAsDefault), fromDefault)
 	}
 
-	// The chevron still parts two keys, and an unconfigured app still says so.
+	// Opening the menu no longer parts two keys. The anchor's mark is the
+	// component's paired chevrons and they do not flip — on this platform they
+	// say "this pops up", never "this is open" — so an open menu draws the
+	// identical anchor and rebuilding its subscription for one would be
+	// rebuilding for a frame that looks the same.
 	open := base
 	open.ModelMenu = true
-	if chipKeyOf(open) == fromDefault {
-		t.Fatal("open menu shares the closed menu's chip key")
+	if chipKeyOf(open) != fromDefault {
+		t.Fatalf("open menu key = %+v, want the closed menu's %+v: the anchor's mark does not move when the menu stands",
+			chipKeyOf(open), fromDefault)
 	}
 	if got := chipKeyOf(Model{}).label; got != "No model configured" {
 		t.Fatalf("empty label = %q, want %q", got, "No model configured")
