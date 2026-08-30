@@ -50,10 +50,7 @@ const (
 	// that grows cannot end up cropped by a number written down beside it.
 	//
 	// The row stands inside the page's margin like every other row down the
-	// window, having no ground of its own to carry a margin on. It costs the
-	// page exactly what the band it replaced cost: that band swallowed the top
-	// margin and stood its controls in the points below it, so margin plus row
-	// comes to the same height and nothing under the row has moved.
+	// window, having no ground of its own to carry a margin on.
 	TitleH unit.Dp = inventory.SchemeSwitchH + 2*TitleAir
 	// TitleCenter is the line everything in the title row is centred on,
 	// measured from the window's own top edge: the page's top margin, which the
@@ -202,7 +199,7 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 // invitation to drop something.
 //
 // The click handlers and the embedded page's state live at subscription
-// scope, OUTSIDE the per-emission Map (llms.txt rule 2). A gesture handler
+// scope, outside the per-emission Map. A gesture handler
 // reconstructed every emission loses the press it is in the middle of, and
 // every selection re-emits; an inventory rebuilt every emission would re-read
 // the reading sample on every pick, which is the one thing on this page that
@@ -385,8 +382,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 // let everything else in the row be quiet — which is why the way back stands
 // beside the name in the register of chrome rather than dressed as a button:
 // with a title to read under, a label at the muted step is a control that knows
-// its place, where the same label alone on an unnamed row was just a label. It
-// is absent altogether before anything has been chosen, because there is
+// its place. It is absent altogether before anything has been chosen, because there is
 // nowhere to go back to, and the row is a row of two rather than a row with a
 // hole in it.
 //
@@ -400,7 +396,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 // the press that would have gone to a title bar having nowhere else to go.
 //
 // The order the slots are named in is the order they keep their size in when
-// the window is too narrow for all of them — see centreRow. The name goes
+// the window is too narrow for all of them. The name goes
 // first because it is the one thing here that identifies the window; then the
 // switch, which is a control with a fixed size and no way to give ground; and
 // the way back last, having a truncator to give ground with.
@@ -457,10 +453,8 @@ func AppTitle(p Palette, ty Type) layout.Widget {
 // whole grid of styles are: a chevron and the name of the place it goes, on the
 // page itself with no ground and no boundary of its own.
 //
-// The dressing is the row's doing. A tonal fill with an outline round it was
-// the right answer to a label standing alone on an unnamed bar a few points
-// from a hint: with nothing to read it against, the label needed a box to be an
-// object at all. Beside a title it does not. What it needs is to read as chrome
+// The dressing is the row's doing. Standing beside the window's name, the
+// control needs no box to be an object; what it needs is to read as chrome
 // under the name and still be legible, and that is a matter of ink: the muted
 // step measures 6.19:1 against the light page and 11.06:1 against the dark one,
 // both well over the 4.5:1 a line of text has to reach, while the title's own
@@ -524,7 +518,7 @@ func WayBack(p Palette, ty Type, click *gesture.Click) layout.Widget {
 // enough to recognise which image or which style these colours came out of.
 //
 // The order the slots are named in is the order they keep their size in when
-// the window is too narrow for all of them — see centreRow. The swatch and the
+// the window is too narrow for all of them. The swatch and the
 // keep affordance are fixed objects and are named first; then the standing
 // offer, which is an instruction and either fits or stands down; and the
 // identity block last, because it is the one thing here that can honestly give
@@ -757,10 +751,9 @@ type slot struct {
 // row's middle exactly, for every height, odd or even, and even for a control
 // taller than the row it is in. Written the other way round, as half of what is
 // left over, the same line is a point out on odd heights and a point out the
-// other way on a control that overflows. That exactness is the point: this row
+// other way on a control that overflows. The exactness matters because this row
 // is the first thing anybody sees, and four objects a point or two out of line
-// with one another is precisely the kind of thing an eye reads as sloppiness
-// without being able to name.
+// with one another read as sloppiness.
 //
 // It is arithmetic rather than a Flex for a second reason. A Flex hands its
 // children the row's own minimum on the cross axis, and a child that honours a

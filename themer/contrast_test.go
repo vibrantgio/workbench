@@ -23,10 +23,10 @@ const legibleFloor = 4.5
 // whole job being to say whether the pair works. A chip whose own "Aa" cannot
 // be read is the loudest possible answer to a question nobody asked.
 //
-// The picture is the fixture scene, whose extraction is where this defect was
-// found: its sky and its foliage are light enough that the light scheme's
-// primary used to come back under white text at 2.26–2.96:1, against a floor
-// of 4.5.
+// The picture is the fixture scene, which is the hard case: its sky and its
+// foliage are light enough that a light scheme's primary under white text
+// measures 2.26–2.96:1 unless the derivation chooses the ink by measurement,
+// against a floor of 4.5.
 func TestCandidateChipsAreLegible(t *testing.T) {
 	m := dropped(t)
 	img := page(t, m, tokens.DefaultLight)

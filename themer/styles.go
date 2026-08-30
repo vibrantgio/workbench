@@ -10,8 +10,8 @@
 // style's inks through the same extractor a photograph goes through is what
 // makes the two doors one door: what comes back is a row of candidates ranked
 // the same way, so everything downstream — the row, the ring, the keep
-// affordance, the base list's override — is the machinery that was already
-// there, unchanged.
+// affordance, the base list's override — is the same machinery a photograph
+// drives.
 //
 // # What is on a card
 //
@@ -19,15 +19,15 @@
 // seventy-odd in a grid and the question asked of it most often is which style
 // it is, so the answer goes where an eye starting a card already is rather than
 // at the end of a line it has to read past a swatch to reach. On its own line
-// it is also a whole name: the longest in the set used to reach the word at the
-// footer's trailing edge, and now nothing shares the line with it.
+// it is also a whole name: nothing shares the line with it, and the longest in
+// the set would otherwise run into the word at the footer's trailing edge.
 //
 // Under it the style's dominant inks as one strip, the leading one twice as
 // wide as any other because it is the one a click takes as the seed; and under
 // that the primary pair that seed derives, drawn the way the candidate row
 // draws it, so a card promises what choosing it delivers. The word at the
-// footer's trailing edge stays where it was, for the one thing about the style
-// the name does not say.
+// footer's trailing edge carries the one thing about the style the name does
+// not say.
 //
 // That word is where a palette drawn faint gets mentioned. A style whose own
 // inks mostly fall under the contrast floor on its own ground carries it, in
@@ -90,20 +90,18 @@ const (
 	// StyleMinW is set where it is because a card whose name is truncated is a
 	// card that has stopped identifying its style, and the longest names in
 	// the set run to seventeen characters. Six columns fit in this window at
-	// 150 and truncated a dozen of them; five at this width truncate none —
-	// and now that the name has a line to itself rather than the tail of the
-	// footer, none of them come close to the edge.
+	// 150 and truncate a dozen of them; five at this width truncate none.
 	StyleMinW unit.Dp = 178
 	// StyleH leaves the strip a quarter of the card rather than most of it.
 	// Forty cards of full-chroma ink at their own widest is a test card and
-	// not a gallery: with the colour taking half the tile there was nothing
-	// on the screen for an eye to rest on, and the tile under it — a hairline
-	// and a fill a couple of rungs off the page — disappeared beside the ink,
-	// so a card read as a sample rather than as something to press. The inks
-	// are not toned down to fix that. They are the styles' own colours and
-	// the whole promise of a card is that clicking it applies them; a grid of
-	// muted swatches would be a grid that lied. What is toned down is how
-	// much of each card they are.
+	// not a gallery: with the colour taking half the tile there is nothing on
+	// the screen for an eye to rest on, and the tile under it — a hairline and
+	// a fill a couple of rungs off the page — disappears beside the ink, so a
+	// card reads as a sample rather than as something to press. The inks are
+	// not toned down for that. They are the styles' own colours and the whole
+	// promise of a card is that clicking it applies them; a grid of muted
+	// swatches would be a grid that lied. What is toned down is how much of
+	// each card they are.
 	//
 	// It is three bands and two gaps inside the padding — the name, the
 	// strip, the footer — and the height is what leaves the middle one a
@@ -115,9 +113,8 @@ const (
 	// which is the role the name is set in: the card's own title.
 	StyleName unit.Dp = 20
 	// StyleChipW is the specimen — the derived primary pair with its ink on
-	// it. It is wider than the name ever needed it to be, because the name no
-	// longer shares the footer with it and because a pair of letters is only
-	// a specimen at a size somebody can read.
+	// it. It has the footer to itself, the name having a line of its own, and
+	// a pair of letters is only a specimen at a size somebody can read.
 	StyleChipW unit.Dp = 56
 	StyleChipH unit.Dp = 22
 	StyleFoot  unit.Dp = 8  // between the card's three bands
@@ -427,7 +424,7 @@ func StyleCell(gtx layout.Context, p Palette, ty Type, s StyleCard, index int, d
 	}
 
 	// The specimen. Its ink is the derivation's own measured on-colour for
-	// this exact fill, not a light-scheme habit — see [Chip] — and it is set
+	// this exact fill, not a light-scheme habit, and it is set
 	// in the role the candidate row sets its pair's letters in, because the
 	// two are the same claim about the same colour and a claim about
 	// legibility made in smaller type than the claim next to it is a claim

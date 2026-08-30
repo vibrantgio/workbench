@@ -64,7 +64,7 @@ type Model struct {
 	// frame and never the other, so this is what the other side is derived
 	// from while nothing is chosen.
 	//
-	// It is deliberately not Kept. Keeping replaces what is on disk and moves
+	// It is not Kept. Keeping replaces what is on disk and moves
 	// that field; the stream this window flips was built once and goes on
 	// deriving the pair it was built with, so a window that kept a colour and
 	// then went back to the styles is still wearing the one it opened in.

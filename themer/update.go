@@ -35,7 +35,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 }
 
 // ReduceModel is the pure reducer — every state transition the application
-// has except the one that needs a file read. See update_test.go.
+// has except the one that needs a file read.
 func ReduceModel(m Model, message any) Model {
 	switch msg := message.(type) {
 	case desktop.FilesEntered:

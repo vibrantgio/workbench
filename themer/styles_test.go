@@ -132,8 +132,8 @@ func TestTheGridIsAlphabetical(t *testing.T) {
 		}
 		t.Logf("%s: %d cards, %s … %s", sideName(dark), len(half), half[0], half[len(half)-1])
 	}
-	// The style the ordering was changed for: a name in the c's is found in
-	// the c's rather than wherever its leading ink's chroma put it.
+	// A name in the c's is found in the c's rather than wherever its leading
+	// ink's chroma would put it.
 	at, before := -1, 0
 	for n, i := range m.VisibleStyles(false) {
 		switch name := m.Styles[i].Name; {

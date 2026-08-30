@@ -82,9 +82,9 @@ func main() {
 // one, because it is themed from the selected candidate rather than from the
 // OS palette alone; the content layer is the other three — the page itself,
 // the palette the embedded tab strip is drawn from, and the strip's selected
-// cell. See llms.txt rule 4 — Publish() multicasts without replay, so this
-// count gates when the seed emitted by mvu.Loop flows, and a subscriber more
-// than it names is a subscriber that misses the first one.
+// cell. Publish() multicasts without replay, so this count gates when the seed
+// emitted by mvu.Loop flows, and a subscriber more than it names is a
+// subscriber that misses the first one.
 const modelObsConsumers = 4
 
 // Window size: wide enough for the candidate row to lay out without

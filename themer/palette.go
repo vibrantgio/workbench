@@ -23,26 +23,24 @@
 // thing that decided both is not on screen anywhere.
 //
 // So it is put on screen, and in the order the derivation works in. The seed
-// itself comes first, one section above this one — see [SeedRows] — because it
-// is the input everything here is a function of. Then the ramps, which are what
-// there is to pick from. Then the picks, which are the colours the theme
-// actually names, each beside the rule that chose it.
+// itself comes first, one section above this one, because it is the input
+// everything here is a function of. Then the ramps, which are what there is to
+// pick from. Then the picks, which are the colours the theme actually names,
+// each beside the rule that chose it.
 //
-// # Where it stands, and what it replaced
+// # Where it stands
 //
-// In the embedded page's own foundations, in the place its two palette sections
-// stood, and those two are gone from this window's column — see [embed.items].
-// Not in front of them: a section of provenance immediately above a section
-// showing the same tokens again is the same page saying one thing twice, and a
-// reader has no way of telling which of the two is the answer. The window shows
-// one palette story and it is this one.
+// In the embedded page's own foundations, and the catalogue's own two palette
+// sections are on no tab of this window: a section of provenance beside a
+// section showing the same tokens again is the same page saying one thing
+// twice, with no way of telling which of the two is the answer.
 //
-// It is a section of that column rather than a band of the window for a second
-// reason. The page under the candidate row is what a seed is judged on and is
-// the biggest thing in the window by design; a fixed band above it would come
-// out of that page, and this section is a third of a screen tall. In the column
-// it costs the page nothing and lands in the causal order: the seed, the ramps,
-// the picks, then everything drawn from them.
+// It is a section of that column rather than a band of the window. The page
+// under the candidate row is what a seed is judged on and is the biggest thing
+// in the window; a fixed band above it would come out of that page, and this
+// section is a third of a screen tall. In the column it costs the page nothing
+// and lands in the causal order: the seed, the ramps, the picks, then
+// everything drawn from them.
 package main
 
 import (

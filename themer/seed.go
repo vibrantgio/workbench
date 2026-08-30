@@ -43,9 +43,9 @@
 //
 // The window as it stands does not reach that state: the page this section is
 // on is drawn only where there are candidates, and a candidate row always has
-// one of them chosen. It is written the way [GalleryHintFor] writes its own
-// standing case — the state is the model's to have, so the row answers for it
-// rather than assuming a fact about the model that this file does not own.
+// one of them chosen. The state is the model's to have all the same, so the row
+// answers for it rather than assuming a fact about the model this file does not
+// own.
 package main
 
 import (

@@ -130,20 +130,15 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	return Palette{
 		Backdrop: c.Background,
 		// The mat and the candidate cards: filled insets lying on the
-		// window's page, which the ladder makes the RAISED storey and
-		// ADR-022 makes lighter than that page in both schemes. It named
-		// neutral 200 until AU2.2, and a ramp index is not a storey — on
-		// paper that step is #E8E8E8 UNDER a #F6F6F6 page, so every card in
-		// this window was a shade sunk into the desk, which is the reading
-		// V6 forbids by inspection and which five reviews reported in their
-		// own words before the linchpin was ruled. The storey answers
-		// #F8F8F8 there and #222222 on slate, where nothing moves.
+		// window's page, and the raised storey is lighter than that page in
+		// both schemes — #F8F8F8 on paper, #222222 on slate. A ramp index is
+		// not a storey: neutral 200 is #E8E8E8 under a #F6F6F6 page, which
+		// sinks a card into the desk instead of raising it.
 		//
-		// On paper the step is now a whisper the fill cannot carry alone,
-		// and this palette was already built for that: CardEdge is what
-		// makes a card an object, and Edge is derived against this very
-		// fill so a near-white swatch on a near-white card still has a
-		// boundary.
+		// On paper the storey is a whisper the fill cannot carry alone, and
+		// this palette is built for that: CardEdge is what makes a card an
+		// object, and Edge is derived against this very fill so a near-white
+		// swatch on a near-white card still has a boundary.
 		Surface: c.SurfaceAt(tokens.Level1),
 		Divider: c.Ramps.Neutral.Step(300),
 		// A card sits on a surface only a shade off the window's own — the

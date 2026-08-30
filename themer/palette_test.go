@@ -422,9 +422,8 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 	}
 }
 
-// TestNoRuleIsEmpty: a colour with no rule under it is a swatch with a name, and
-// a swatch with a name is what this section was added to stop being the whole
-// of what the window says about its palette.
+// TestNoRuleIsEmpty: a colour with no rule under it is a swatch with a name,
+// and a swatch with a name is not what this section says about a palette.
 func TestNoRuleIsEmpty(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
 		for _, g := range palette.Groups(sc.c, sc.other, sc.dark) {
@@ -678,9 +677,9 @@ const markGraphicFloor = 3.0
 // keeping the better, and this is why it cannot be chosen by asking whether the
 // step is dark instead: the mid rungs of a saturated hue sit under half the
 // luminance scale and still take black far better than white — a light red at a
-// third of the scale reads at 2.7:1 in white and 7.8:1 in black. Nothing marked
-// those rungs until the status containers named their marks, so the question
-// never came up; it comes up now, on four cells of every dark scheme.
+// third of the scale reads at 2.7:1 in white and 7.8:1 in black. The status
+// containers name their marks on those rungs, on four cells of every dark
+// scheme.
 func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
 	worst, at := math.Inf(1), ""
 	for _, sc := range schemesUnderTest(t) {
@@ -709,14 +708,13 @@ func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
 // frames is told from the ground it stands on either by that edge or by being
 // that far from the ground itself.
 //
-// One colour, because a frame chosen per swatch turned its polarity over in the
-// middle of every ramp and the flip was louder than the edges it bought. What
-// replaces the old per-swatch floor is the pair of readings: an edge that fades
+// One colour, because a frame chosen per swatch turns its polarity over in the
+// middle of every ramp and the flip is louder than the edges it buys. What
+// stands in for a per-swatch floor is the pair of readings: an edge that fades
 // as a fill leaves the page tone behind is an edge handing the boundary to the
 // fill, and the two multiply out to the contrast between the page and its
 // inverse, so they cannot both be weak. The range is logged in full and the
-// soft end named, which is what the drawing code's own account of this choice
-// cites — see [palette.EdgeIn].
+// soft end named.
 func TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill(t *testing.T) {
 	// Per side, because the two sides are two different questions: one edge is
 	// near-black over fills running up from a near-white page, the other is
@@ -815,14 +813,13 @@ func sectionFills(c, other tokens.ColorTokens, dark bool) map[string]stdcolor.NR
 // TestTheGridDrawsOneEdgeColourAcrossTheRow: read off a render, every boundary
 // along a row of the grid is drawn in the section's one edge colour.
 //
-// The grid is where a frame chosen per swatch showed itself, because it is the
-// one place the whole ramp is on screen at once: the boundary between cell four
-// and cell five came out in one polarity and the boundary between five and six
-// in the other, and the row read as two rows. Asserted off the pixels rather
-// than off [palette.EdgeIn] alone, because what a reader sees is what was
-// drawn — the
-// Neutral row is scanned because its own fills are the greys the edge is
-// nearest, so a row that holds here holds everywhere.
+// The grid is where a frame chosen per swatch would show itself, being the one
+// place the whole ramp is on screen at once: the boundary between cell four and
+// cell five in one polarity and the boundary between five and six in the other
+// reads as two rows. Asserted off the pixels rather than off [palette.EdgeIn]
+// alone, because what a reader sees is what was drawn. The Neutral row is
+// scanned because its own fills are the greys the edge is nearest, so a row
+// that holds here holds everywhere.
 func TestTheGridDrawsOneEdgeColourAcrossTheRow(t *testing.T) {
 	for _, sc := range schemesUnderTest(t)[:4] {
 		img := paletteSectionW(t, sectionWidths[0], sc.c, sc.other, sc.dark)
@@ -864,11 +861,11 @@ func sectionCellX(width, n int) int {
 // TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow: the colour a role was actually
 // pinned is drawn beside the nine it was pinned against, read off the render.
 //
-// This is the whole of what the grid was missing. A light scheme's Primary is
-// the chosen seed at the seed's own depth and its Secondary and Tertiary are
-// pinned off their own 700, so a grid of rungs alone showed nine colours a role
-// might have been and not the one it is — and the seed, which is the colour the
-// window exists to judge, was in the window nowhere.
+// A light scheme's Primary is the chosen seed at the seed's own depth and its
+// Secondary and Tertiary are pinned off their own 700, so a grid of rungs alone
+// shows nine colours a role might have been and not the one it is — and the
+// seed, which is the colour the window exists to judge, is nowhere in the
+// window.
 func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
 	m := seeded(t)
 	for _, os := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
@@ -914,9 +911,8 @@ func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
 // of its own ramp: its depth lands between the tones of steps 500 and 600, and
 // the pin sits 0.0575 in OKLab from the nearest rung — over three times
 // [palette.RungTolerance] — so nearest-rung matching honestly claims nothing.
-// Found by
-// scanning the seed cube for the widest such margin at a vivid mid-scale
-// colour. It is the case the chip dot exists for: the light scheme pins the
+// Found by scanning the seed cube for the widest such margin at a vivid
+// mid-scale colour. It is the case the chip dot exists for: the light scheme pins the
 // seed at the seed's own depth, and this seed's depth is no rung's.
 var fixtureMagenta = stdcolor.NRGBA{R: 0xf8, G: 0x00, B: 0xd8, A: 0xff}
 
@@ -935,10 +931,9 @@ func offRampSeeded(t *testing.T) Model {
 // with honestly is the case it exists for. The lifted seed is on no rung and
 // indistinguishable from none, with margin; its depth falls between two
 // adjacent steps of the scale rather than off either end; its rule says the
-// seed was lifted and nothing else; and no pick claims a Primary rung — which
-// is the row that read as unused before the chip carried the dot. The dark
-// side of the same seed pins a rung exactly, which is the chip that has to
-// stay undotted.
+// seed was lifted and nothing else; and no pick claims a Primary rung, which is
+// the row the chip's own dot keeps from reading as unused. The dark side of the
+// same seed pins a rung exactly, which is the chip that has to stay undotted.
 func TestTheOffRampFixtureSitsBetweenRungs(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureMagenta)
 	if n := palette.StepIn(light.Ramps.Primary, light.Primary); n != 0 {
@@ -1198,14 +1193,13 @@ func boardNarrowest(t *testing.T) int {
 
 // TestTheBoardGivesUpAColumnRatherThanCutAName: at the widths the section is
 // judged at, the board takes only as many columns as leave every identifier
-// whole — two at a window of nine hundred, where three used to fit by a
-// written-down minimum and cut two of them in half.
+// whole — two at a window of nine hundred.
 //
-// The minimum used to be a constant, and the constant went stale the way a
-// number describing a vocabulary does: the vocabulary grew. Measuring the names
-// is what keeps the answer true when a role is renamed or a colour is named for
-// the first time, and this is the assertion that says so — it names no width in
-// points, it asks the board what it needs and then asks the columns to hold it.
+// A column minimum written down as a constant goes stale the way a number
+// describing a vocabulary does: the vocabulary grows. Measuring the names keeps
+// the answer true when a role is renamed or a colour is named for the first
+// time, so this names no width in points — it asks the board what it needs and
+// then asks the columns to hold it.
 func TestTheBoardGivesUpAColumnRatherThanCutAName(t *testing.T) {
 	gtx, ty := measuring(), pinned()
 	gap := int(palette.PickColGap)
@@ -1249,7 +1243,7 @@ func TestTheBoardGivesUpAColumnRatherThanCutAName(t *testing.T) {
 }
 
 // columnsAt is how many columns the board takes at each width it is judged at,
-// for the log line that records what this task changed.
+// for the log line.
 func columnsAt(gtx layout.Context, ty Type, groups []palette.Group) []int {
 	out := make([]int, 0, len(sectionWidths))
 	for _, section := range sectionWidths {
@@ -1575,20 +1569,19 @@ func sectionInset() int { return int(inventory.SectionPadX) }
 
 // sectionWidths are the widths the section is judged at: one narrow enough
 // that the caption has to give a clause up, the window's own, and one far
-// wider than either — which is where the grid used to stop hundreds of points
-// short of the heading bar over it.
+// wider than either, where a grid with a capped cell width would stop hundreds
+// of points short of the heading bar over it.
 var sectionWidths = []int{900 - 2*int(Pad), 1120 - 2*int(Pad), 1440 - 2*int(Pad)}
 
 // TestTheGridEndsWhereTheHeadingBarDoes: the ramps grid and the bar above it
 // keep one trailing edge at every width.
 //
-// The cells used to stop growing at ninety-six points, which left a wide
-// window's grid with width it could not spend — 342 points of it at 1440 — and
-// a ragged edge under a heading bar and over a picks board that both run the
-// full width. Putting that surplus in the gap before the trailing chip instead
-// only moved the defect: a hole four cells wide took the chips out of the rows
-// they end. So the cells divide the whole row, and the chips are ranged
-// against the trailing margin, and this is what holds both ends of that.
+// The cells divide the whole row and the chips are ranged against the trailing
+// margin, which is what holds both ends of that. Cells capped at ninety-six
+// points leave a wide window's grid with width it cannot spend — 342 points of
+// it at 1440 — under a heading bar and over a picks board that both run the
+// full width; putting that surplus in the gap before the trailing chip instead
+// opens a hole four cells wide that takes the chips out of the rows they end.
 func TestTheGridEndsWhereTheHeadingBarDoes(t *testing.T) {
 	for _, sc := range schemesUnderTest(t)[:4] {
 		for _, width := range sectionWidths {
@@ -1647,10 +1640,10 @@ func pixelAt(img *image.RGBA, x, y int) stdcolor.NRGBA {
 // the heading bar shows of a caption is a whole number of that caption's own
 // clauses.
 //
-// The shaper's truncator used to do this and did it by character, which put
-// "100 nearest the pa…" on the bar — two characters lost off a word and an
-// ellipsis saying the line was clipped. The clauses are what the caption is
-// made of and the only places it can be cut without saying something else.
+// The clauses are what the caption is made of and the only places it can be
+// cut without saying something else. Truncating by character puts "100 nearest
+// the pa…" on the bar — two characters lost off a word, and an ellipsis saying
+// only that the line was clipped.
 func TestACaptionTooWideForItsBarLosesWholeClauses(t *testing.T) {
 	gtx, ty := measuring(), pinned()
 	for _, hint := range []string{palette.RampsHint, palette.PicksHint} {
@@ -1704,10 +1697,10 @@ const captionRegister = 0.85
 // heading bar is read at the contrast the rest of the section is read at, on
 // both sides of the switch.
 //
-// It used to be set in the quiet neutral step every hint in this window uses,
-// and that step does not hold its register across the schemes: measured against
-// the bar it stands on it reaches 9.91:1 in a dark scheme, where its neighbours
-// reach 13.71, and 5.46:1 in a light one, where they reach 15.16. A caption is
+// The quiet neutral step every hint in this window uses does not hold its
+// register across the schemes: measured against the bar it stands on it reaches
+// 9.91:1 in a dark scheme, where its neighbours reach 13.71, and 5.46:1 in a
+// light one, where they reach 15.16. A caption is
 // a legend — the leading clause of this one is the only thing on the screen
 // that says what the dots on the grid below mean — and a legend that is quiet
 // in one scheme and faint in the other is a legend nobody reads in either.

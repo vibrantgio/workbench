@@ -585,12 +585,12 @@ func inkColumns(img *image.RGBA, ground stdcolor.NRGBA, x0, x1, y0, y1 int) (fir
 	return first, last, true
 }
 
-// TestNothingRulesOffTheTitleRow is the band and the rule measured gone.
+// TestNothingRulesOffTheTitleRow measures the absence of a band and a rule.
 //
-// A bar is a strip of a different surface with a line closing it, and that is
-// what the top of this window used to be. A title row is neither: it stands on
-// the window's own page, and what marks it as the top of the window is that it
-// is at the top of the window. Two scans say so. The first sweeps the row's own
+// A bar is a strip of a different surface with a line closing it; a title row
+// is neither. It stands on the window's own page, and what marks it as the top
+// of the window is that it is at the top of the window. Two scans say so. The
+// first sweeps the row's own
 // height in the columns between the way back and the scheme switch — the middle
 // of the row, where a ground would show if there were one. The second sweeps
 // every column of the band between the row's foot and whatever stands under it,
@@ -684,14 +684,13 @@ func TestTheStandingOfferIsNotCrowdedOntoTheKeepAffordance(t *testing.T) {
 // the floor a line of text has to reach against the page it is on, and it has
 // to stay plainly under the ink the window's own name is drawn in. That pair of
 // facts is what makes the two items in the row a name and something quieter
-// beside it rather than two things of equal weight — and it is what lets the
-// control drop the ground and the boundary it used to need when it stood alone
-// on a bar with nothing to be read against.
+// beside it rather than two things of equal weight, and what lets the control
+// carry no ground and no boundary of its own.
 //
 // The second is the dressing, measured off the render: inside the control's own
 // line box, the colour most of it is has to be the window's own page. A tonal
 // fill or an outline would take that majority, and a control drawn on the page
-// cannot. The ratios are logged rather than read off pixels on purpose — a
+// cannot. The ratios are logged rather than read off pixels: a
 // fourteen-point stem and a two-unit chevron are antialiased at this scale, so
 // what a pixel reports is coverage and not the colour anybody chose.
 func TestTheWayBackIsUndressedChromeUnderTheName(t *testing.T) {
@@ -767,15 +766,15 @@ func switchFill(img *image.RGBA, width int, dark bool) stdcolor.NRGBA {
 // opened on a desktop already set to it, and toggled to from a desktop set to
 // the other — has to be the same window, pixel for pixel.
 //
-// The whole window and not the switch alone, on purpose. A control resolving
-// its colour from somewhere other than the theme on screen is a kind of defect
-// rather than one control's bug, and comparing every pixel is the only way to
-// say that nothing else in the window does it either.
+// The whole window and not the switch alone: a control resolving its colour
+// from somewhere other than the theme on screen is a kind of defect rather than
+// one control's bug, and comparing every pixel is the only way to say that
+// nothing else in the window does it either.
 //
-// Nothing is chosen here, which is the state the defect lived in: with a seed
-// applied, both paths already derived from that seed, so a test that dropped a
-// picture first would have passed against a window whose switch changed colour
-// on the first press.
+// Nothing is chosen here, which is the state that can tell the two apart: with
+// a seed applied both paths derive from that seed, so a test that dropped a
+// picture first would pass against a window whose switch changed colour on the
+// first press.
 func TestTheWindowIsTheSameScreenWhicheverWayItIsReached(t *testing.T) {
 	light, dark := tokens.FromSeed(keptSeed)
 	m := opened(keptSeed)
@@ -808,9 +807,8 @@ func TestTheWindowIsTheSameScreenWhicheverWayItIsReached(t *testing.T) {
 //
 // It has to be the primary of the theme the window is wearing. The half of
 // that worth stating is the negative — it must not be the primary of the
-// theme's own default pair, which is what the control used to jump to on the
-// first press of the switch, so that a window opened on a kept brand showed
-// one colour until it was touched and another afterwards.
+// theme's own default pair, or a window opened on a kept brand would show one
+// colour until the switch is touched and another afterwards.
 func TestTheSwitchOpensInTheThemeOnScreen(t *testing.T) {
 	light, dark := tokens.FromSeed(keptSeed)
 	m := opened(keptSeed)

@@ -136,7 +136,7 @@ func TestPickRepaintsTheEmbeddedPage(t *testing.T) {
 }
 
 // pickFloor is how much of the page a pick has to move. It is well under the
-// whole band on purpose: the neutral ramps a page mostly stands on carry no
+// whole band: the neutral ramps a page mostly stands on carry no
 // hue by derivation, so what a brand colour moves is the accented furniture,
 // and that is a minority of any honest inventory. What it is not is nothing.
 const pickFloor = 5.0

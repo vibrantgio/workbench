@@ -5,7 +5,7 @@
 //
 // Beside the code, inside the page's last section, and nowhere else. The
 // syntax palette is one choice among the dozens this window is for, and a
-// column standing the whole height of the window gave it a permanence the rest
+// column standing the whole height of the window gives it a permanence the rest
 // of the theming does not get — a page about theming a design system with a
 // syntax chooser pinned to the side of it is a page that says code is half the
 // subject. Seated in the section it drives, it is exactly as prominent as the
@@ -142,10 +142,10 @@ func (b *baseSelector) reveal(dark bool, row int) {
 // can share one, being the tallest on the page and the only one whose whole
 // subject is the choice.
 //
-// The code keeps the margin it had. It is laid out in what is left of the row
+// The code keeps its own margin. It is laid out in what is left of the row
 // after the column, and it loses nothing by it: the plate is measured to its own
-// longest line, and the width the column takes is width the specimen was
-// leaving empty on the right.
+// longest line, and the width the column takes is width the specimen leaves
+// empty on the right.
 //
 // page is the embedded page's own scrolling list — the one this row is drawn
 // in — asked for one number: how tall its viewport is this frame. See
@@ -176,8 +176,8 @@ func BesideTheCode(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool,
 		// The column stands in the same margin the specimen is inset by, top
 		// and bottom, so the two read as one pair of plates rather than as a
 		// list that happens to be near some code — as far as the window can
-		// show of it. See [baseColumnHeight]. The face plate sits on top of
-		// the base list: two names, then the seventy-odd palettes.
+		// show of it. The face plate sits on top of the base list: two names,
+		// then the seventy-odd palettes.
 		if h := baseColumnHeight(dims.Size.Y, seen, padY); h > 0 && col > 0 {
 			faceH := min(gtx.Dp(FacePanelH), h)
 			inner := gtx

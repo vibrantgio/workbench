@@ -76,9 +76,9 @@ func TestSeedSectionIsTwoRows(t *testing.T) {
 // colour the derivation made of it are two cells, each with its own swatch and
 // its own name, and the pick is the one drawn smaller.
 //
-// One sentence relating the two is the draft this row does not have: its only
-// clause boundary sits between the colours, so a narrow window would cut it to
-// a line naming one of them and claiming the other's fact.
+// Two cells and not one sentence relating the two: such a sentence has its only
+// clause boundary between the colours, so a narrow window cuts it to a line
+// naming one of them and claiming the other's fact.
 func TestSeedTellsThePickFromWhatGrewFromIt(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureLifted)
 	if light.Primary == fixtureLifted {
@@ -277,9 +277,8 @@ func TestSeedRowOpensTheThemeTab(t *testing.T) {
 				t.Errorf("cell %d at %v drew %v, want %v", i, at, got, want)
 			}
 		}
-		// And the ramps stand under it rather than where they used to: the
-		// first cell of the first row is the step it always was, one section
-		// further down the column.
+		// And the ramps stand under it: the first cell of the first row is its
+		// own step, one section further down the column.
 		at := rampCellColour(m, os, 0, 0)
 		c, _ := derived(m, os)
 		want := c.Ramps.Primary.Step(100)

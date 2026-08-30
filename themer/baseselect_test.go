@@ -310,10 +310,10 @@ func TestTheChosenBaseIsMarked(t *testing.T) {
 	}
 }
 
-// TestTheSelectorSitsBesideTheCodeAndNowhereElse: the standing column is gone.
-// Before the page is scrolled to the specimen there is no selector on screen at
-// all, and once it is there is one — beside the code, inside the row, not down
-// the side of the window.
+// TestTheSelectorSitsBesideTheCodeAndNowhereElse: there is no column standing
+// down the side of the window. Before the page is scrolled to the specimen
+// there is no selector on screen at all, and once it is there is one — beside
+// the code, inside the row.
 func TestTheSelectorSitsBesideTheCodeAndNowhereElse(t *testing.T) {
 	m := judging()
 	e := newEmbed()
@@ -324,9 +324,9 @@ func TestTheSelectorSitsBesideTheCodeAndNowhereElse(t *testing.T) {
 	// header, banded across the whole panel at the page's own floor; a column
 	// standing beside the page would have that band starting a hundred and
 	// ninety points further in, with the column's own ground here instead. The
-	// probe is inside the footprint the standing column used to occupy, in the
-	// band's own top few points, above its label and clear of the panel's
-	// rounded corner.
+	// probe is inside the footprint such a column would occupy, in the band's
+	// own top few points, above its label and clear of the panel's rounded
+	// corner.
 	same := func(got stdcolor.RGBA, want stdcolor.NRGBA) bool {
 		return got.R == want.R && got.G == want.G && got.B == want.B
 	}
