@@ -59,10 +59,7 @@ type Model struct {
 	// SidebarHidden is whether the conversation pane has been sent away.
 	// There is no third state and no ratio: the pane is a FLOATING PANE of
 	// a fixed width, and hidden it takes no width at all — the transcript
-	// reflows from the window's own leading edge. The rail that used to
-	// stand between those two states was a region whose only job was to
-	// store the controls the collapse displaced, and both of those controls
-	// now stand in the chrome row instead.
+	// reflows from the window's own leading edge.
 	SidebarHidden bool
 }
 

@@ -33,7 +33,7 @@ func TestAnchorLabelNamesTheModelOnly(t *testing.T) {
 		t.Fatalf("explicit pick of the default = %+v, want %+v", anchorKeyOf(sameAsDefault), fromDefault)
 	}
 
-	// Opening the menu no longer parts two keys. The anchor's mark is the
+	// Opening the menu does not part two keys. The anchor's mark is the
 	// component's down chevron and it does not flip — on this platform it says
 	// "a menu opens below this", never "this is open" — so an open menu draws
 	// the identical anchor and rebuilding its subscription for one would be

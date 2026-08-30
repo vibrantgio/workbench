@@ -2,25 +2,15 @@
 // down the leading edge, and beside it the content area — one chrome row
 // across its top and the transcript with its input bar underneath.
 //
-// THE PANE IS AN OBJECT, NOT A HALF OF THE WINDOW. What stood here before
-// was a split: two panes of a window sharing its width by a ratio, with a
-// draggable seam between them, and a collapsed state that shrank the
-// leading half to a narrow rail rather than letting it go. The rail was
-// the defect. A region whose only job is to store the controls a collapse
-// displaced invents a rhythm of its own — the sidebar toggle dropped to a
-// lower rung as the pane closed, so the control just clicked jumped out
-// from under the pointer, and a hairline appeared over a gear that nothing
-// on the content side answered.
-//
-// So the sidebar joins the vocabulary's FLOATING PANE: inset from the
-// window's leading, top and bottom edges by one margin, rounded on all
-// four corners, carrying its own hairline just inside that edge, with the
-// window's ground showing around it. Hidden, it takes no width at all and
-// the transcript reflows from the window's own leading edge. None of that
-// geometry is drawn here — the float, the outline, the strip arithmetic
-// and the hidden-takes-no-width contract are patterns/pane's, and what is
-// left to this file is the column that stands in the pane and the window
-// that stands around it.
+// THE PANE IS AN OBJECT, NOT A HALF OF THE WINDOW. It is the vocabulary's
+// FLOATING PANE: inset from the window's leading, top and bottom edges by
+// one margin, rounded on all four corners, carrying its own hairline just
+// inside that edge, with the window's ground showing around it. Hidden, it
+// takes no width at all and the transcript reflows from the window's own
+// leading edge. None of that geometry is drawn here — the float, the
+// outline, the strip arithmetic and the hidden-takes-no-width contract are
+// patterns/pane's, and what is left to this file is the column that stands
+// in the pane and the window that stands around it.
 //
 // THE CONTROLS OBEY THE RECALL CONVENTION. A control that travels with the
 // pane cannot be the one that recalls it. The pane's toggle and the
@@ -31,10 +21,9 @@
 // action and is reachable in both states for that reason, and Cmd-N
 // reaches it in either.
 //
-// Settings does not stand in that pair. It retreats to the foot of the
-// pane and to Cmd-comma: it acts on the application rather than on the
-// conversation, and it earns no standing place in a window whose pane is
-// away.
+// Settings does not stand in that pair. It sits at the foot of the pane and
+// on Cmd-comma: it acts on the application rather than on the conversation,
+// and it earns no standing place in a window whose pane is away.
 //
 // THE WINDOW BUTTONS ARE MEASURED FROM THE GLASS. The three control
 // buttons stand a fixed inset in from the window's own top and leading
@@ -51,11 +40,7 @@
 // once the pane is away — with the model picker at its trailing end. A
 // chat that has not earned a name shows a muted placeholder rather than a
 // filename. The row carries no section label: the strip's line is for
-// controls and identities, and a category is neither, which is why the
-// CONVERSATIONS heading retired with the header it sat in. The wordmark
-// went with it — the menu bar and the Dock carry this application's
-// identity, and a band that truncates the name it cannot afford is the
-// proof the name never belonged there.
+// controls and identities, and a category is neither.
 //
 // Under the full-size-content treatment the native title bar hands over no
 // window drag, so the chrome row and the pane's strip claim it back over
@@ -127,8 +112,8 @@ type windowFrame struct {
 // pane draws its own strip last for the same reason, inside itself.
 func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, main, menu layout.Widget) layout.Dimensions {
 	size := gtx.Constraints.Max
-	// The window's ground is the transcript's own paper: the document is
-	// what this window is, and only the pane rises off it.
+	// The window's ground is the transcript's own paper; only the pane
+	// rises off it.
 	FillRect(gtx, image.Rectangle{Max: size}, 0, t.palette.Ground)
 
 	bounds := pane.Bounds(gtx, size, SidebarWidth, m.SidebarHidden)

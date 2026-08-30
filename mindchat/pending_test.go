@@ -16,8 +16,7 @@ import (
 // TestVisibleHistoryShowsWaitingRowUntilTheFirstToken pins the rule that
 // covers the blank gap: from the moment a stream is registered for the
 // current chat until the first delta opens the assistant row, the pane draws
-// a pending row. Before it, the four-plus seconds a reasoning model spends
-// thinking drew nothing whatever.
+// a pending row.
 func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 	user := Message{Role: RoleUser, Content: "explain monoids"}
 	partial := Message{Role: RoleAssistant, Content: "A monoid"}
@@ -33,7 +32,6 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 			want:  []string{RoleUser},
 		},
 		{
-			// The gap this task exists to fill.
 			name: "request sent, no token yet",
 			model: Model{
 				CurrentChat: Chat{Name: "a.jsonl", History: []Message{user}},
@@ -129,8 +127,8 @@ func drawIndicator(now time.Time, w func(gtx layout.Context) layout.Dimensions) 
 
 // TestWaitingIndicatorsHonourTheThemesMotionScale is the reduced-motion
 // contract for both in-flight indicators, and the reason neither carries a
-// duration of its own. The theme composes the OS preference (E3.2): while
-// Reduce Motion is on it emits tokens.Motion.Reduced(), every duration stop
+// duration of its own. The theme composes the OS preference: while Reduce
+// Motion is on it emits tokens.Motion.Reduced(), every duration stop
 // zero. A zero stop must mean a still indicator that schedules no further
 // frame — not a slower spin, and not the same spin.
 func TestWaitingIndicatorsHonourTheThemesMotionScale(t *testing.T) {

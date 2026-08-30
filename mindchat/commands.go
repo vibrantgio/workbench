@@ -89,8 +89,8 @@ func errText(err error) string {
 // Both OpenAI and xAI list their whole catalogue — speech, image, video,
 // embedding and moderation models included — with no protocol-level way to
 // tell chat models apart (the discriminating fields are provider-specific),
-// so the picker filters on these id substrings instead. Conservative on
-// purpose: an odd chat model slipping through beats hiding a real one.
+// so the picker filters on these id substrings instead. Conservative: an odd
+// chat model slipping through beats hiding a real one.
 var nonChatMarkers = []string{
 	"embed", "whisper", "tts", "dall-e", "moderation",
 	"transcribe", "diarize", "imagine", "-image", "-video",
@@ -98,7 +98,7 @@ var nonChatMarkers = []string{
 }
 
 // IsChatModel reports whether a /models id looks usable for chat
-// completions (see nonChatMarkers).
+// completions.
 func IsChatModel(id string) bool {
 	lower := strings.ToLower(id)
 	for _, marker := range nonChatMarkers {
@@ -469,9 +469,7 @@ func MigrateChats(chatdir string) mvu.Command {
 // other command goes through it: Load Chat List reads it, Load History reads
 // a file inside it, and Append Prompt — the command that stands between the
 // composer accepting a first-time user's message and that message existing
-// anywhere — writes one. Before this existed, all three failed with
-// "no such file or directory" on a fresh install and the first message was
-// lost silently. An existing directory is left exactly as it is.
+// anywhere — writes one. An existing directory is left exactly as it is.
 func EnsureChatDir(chatdir string) mvu.Command {
 	return mvu.Do(func() (mvu.Message, error) {
 		return nil, os.MkdirAll(chatdir, 0o755)

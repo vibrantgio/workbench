@@ -75,7 +75,7 @@ func TestTheMenuItemsPostTheSameMessagesAsTheChords(t *testing.T) {
 	}
 }
 
-// Which menu each item lands in is part of the ruling, not a detail: settings
+// Which menu each item lands in is load-bearing: settings
 // belongs to the application's own menu on this platform — that is where a
 // reader looks for it with the pane away — and the other two belong to menus
 // of their own beside it.

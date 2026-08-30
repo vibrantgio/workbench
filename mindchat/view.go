@@ -82,17 +82,16 @@ type themed struct {
 	col tokens.ColorTokens
 	// typ and shaper carry the theme's Typography and its cached shaper —
 	// the app builds no shaper of its own, so the typefaces (Roboto, and
-	// Roboto Mono for code) come from the theme (G-F1).
+	// Roboto Mono for code) come from the theme.
 	typ    tokens.Typography
 	shaper *text.Shaper
 	// motion is the theme's duration scale, and it is the app's ONLY
-	// reduce-motion signal. The theme already composes the OS preference
-	// (E3.2): while Reduce Motion is on, LiveTheme emits
-	// tokens.Motion.Reduced(), whose every stop is zero — so a zero stop
-	// means "do not animate", exactly as tokens/motion.go documents, and the
-	// waiting indicator and the streaming dot both render static. Reading
-	// theme/a11y here as well would be a second path to the same
-	// preference, and a second poller.
+	// reduce-motion signal. The theme already composes the OS preference:
+	// while Reduce Motion is on, LiveTheme emits tokens.Motion.Reduced(),
+	// whose every stop is zero — so a zero stop means "do not animate" and
+	// the waiting indicator and the streaming dot both render static. Reading
+	// theme/a11y here as well would be a second path to the same preference,
+	// and a second poller.
 	motion tokens.MotionScale
 }
 
@@ -107,23 +106,17 @@ var (
 // messageMarkdownStyle derives the chat-body markdown style for the current
 // colour and typography tokens: the token-themed defaults plus the app's
 // opt-ins — chroma highlighting matched to the appearance, links opening
-// in the system browser, and the bundled image provider.
-//
-// FromTokens now takes the whole Typography (it spends several roles), so
-// the separate type argument the deleted TypeScale carried is gone. Mono
-// and CodeSize are still re-resolved from the theme's Code role (the F1.4
-// caller-side wiring), which keeps code spans and fences in chat bodies
-// explicit about rendering in the theme's mono face at its size.
+// in the system browser, and the bundled image provider. Mono and CodeSize
+// are re-resolved from the theme's Code role, which keeps code spans and
+// fences in chat bodies rendering in the theme's mono face at its size.
 //
 // The insets a reply can grow — a fenced block, an inline code chip — keep
-// FromTokens' grounds, and that is this app's choice and not an accident of
-// inheriting a default: a message body is read on the transcript's paper,
-// FromTokens puts Paper at the Background pin and the code grounds one
-// neutral step off it, and one step off the local paper is exactly the rung
-// a raised inset takes. Since ADR-022 it reads as raised in both schemes the
-// same way — LIGHTER than the page on paper and on slate alike, a whisper in
-// the light scheme with the derived rim carrying the edge.
-// TestCodeInsetsStepUpFromTheTranscriptGround holds the app to it.
+// FromTokens' grounds, and that is this app's choice: a message body is read
+// on the transcript's paper, FromTokens puts Paper at the Background pin and
+// the code grounds one neutral step off it, and one step off the local paper
+// is exactly the rung a raised inset takes. It reads as raised in both
+// schemes the same way — LIGHTER than the page on paper and on slate alike, a
+// whisper in the light scheme with the derived rim carrying the edge.
 //
 // Wearing a chroma base (highlight.Wear) would hand the fence the base
 // author's own background instead, and a plate fitted to white paper puts a
@@ -150,13 +143,13 @@ func messageMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.
 // conversation pane, the chrome row and the transcript beside them — with
 // the modals and the undo bar over it. The composition itself is frame.go's;
 // this is the wiring. The stateful widgets live at subscription scope,
-// OUTSIDE the per-emission Map (llm.txt rule 2): the two scroll positions,
+// OUTSIDE the per-emission Map: the two scroll positions,
 // the sidebar clickables, and the prompt TextField, whose editor state is
 // Defer-scoped inside the component and subscribed exactly once by the
 // CombineLatest3 below. Constructing any of them per emission would reset
 // scroll or typing on every completion-stream delta.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
-	// This window's arbitration registers (ADR-008). They are plain values
+	// This window's arbitration registers. They are plain values
 	// with no synchronisation, so the scope they are created at is the scope
 	// they are safe at: theme/window calls the build function once per
 	// window and this layer is composed exactly once inside it, which makes
@@ -211,16 +204,14 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	})
 
 	// The window's own frame: the floating pane, the chrome row and the
-	// content area beside them. It replaces the vocabulary's split-pane
-	// shell, which could only say "two halves of one window sharing its
-	// width" — and the pane is not a half of this window any more.
+	// content area beside them.
 	frame := &windowFrame{}
 
 	var undoClick widget.Clickable
-	// The pane's own controls and the chrome row's are separate widgets on
-	// purpose: the toggle that rides the pane and the one that recalls it
-	// are the two halves of one switch, never the same widget standing in
-	// two places, and only one of the two is laid out in any frame.
+	// The pane's own controls and the chrome row's are separate widgets: the
+	// toggle that rides the pane and the one that recalls it are the two
+	// halves of one switch, never the same widget standing in two places, and
+	// only one of the two is laid out in any frame.
 	var paneToggle, paneNewChat, settingsClick widget.Clickable
 
 	// The frame and the undo bar are composed per emission and read at
@@ -262,7 +253,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 
 	// The window's chords, each the one its platform already spends on that
 	// action, laid out from the one table the application menu is built from
-	// too (menu.go). A focused text editor claims a chord it wants first, for
+	// too. A focused text editor claims a chord it wants first, for
 	// its own editing; that is correct layering rather than a conflict, which
 	// is why these can be global at all.
 	//
@@ -284,8 +275,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			renameW, settingsW := next.First, next.Second
 			menuCell.Store(next.Third)
 			return func(gtx layout.Context) layout.Dimensions {
-				// Key areas first, at the BOTTOM of the hit stack (the
-				// todos convention) — they must never sit over the content.
+				// Key areas first, at the BOTTOM of the hit stack — they must
+				// never sit over the content.
 				for _, s := range shortcuts {
 					s(gtx)
 				}
@@ -317,9 +308,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // first token coming back: it appears as soon as the stream is registered and
 // stands down the instant the first AssistantDelta opens the assistant row —
 // which is the one condition below, since a delta is the only thing that puts
-// an assistant row last. Before it existed that gap drew nothing at all, over
-// four seconds of it against a reasoning model, and an inert pane reads as a
-// hung application rather than a working one.
+// an assistant row last. A reasoning model can spend four seconds before its
+// first token, and an inert pane reads as a hung application.
 func visibleHistory(model Model) []Message {
 	id, streaming := model.StreamFor(model.CurrentChat.Name)
 	if !streaming {
@@ -460,16 +450,14 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 		},
 		ActionFocusTags: []event.Tag{&cancelClick, &submitClick},
 		// A DECISION, not a panel: "what shall this chat be called?" has
-		// two answers and the footer is both of them. Declaring it drops
-		// the close X (the deprecated HideClose used to ask for that),
-		// makes the backdrop inert so a stray click cannot throw away a
-		// typed name, and binds Escape to Cancel and Return to Rename —
-		// the last of which the field's own Submit binding used to do.
+		// two answers and the footer is both of them. Declaring it drops the
+		// close X, makes the backdrop inert so a stray click cannot throw
+		// away a typed name, and binds Escape to Cancel and Return to
+		// Rename.
 		//
 		// Rename is not Destructive: it moves a history file to a new name,
 		// keeps its contents, and is undone by renaming back. Return
-		// therefore stays on the primary, which is also where the field's
-		// Submit put it.
+		// therefore stays on the primary.
 		Decision: &modal.Decision{Confirm: rename, Cancel: cancel},
 	})
 
@@ -485,46 +473,36 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 }
 
 // ChatPane stacks the scrolling message history and the prompt field. The
-// band that used to cap it — the model picker's own header — is gone: the
-// picker stands in the window's chrome row now, beside the conversation's
-// title, and the pane begins at the transcript.
+// model picker stands in the window's chrome row, beside the conversation's
+// title, so the pane begins at the transcript.
 //
 // The input bar is the last thing in the pane and so owns the window's
 // bottom edge on this side, with nothing standing under it and nothing
-// beside it. That is the whole of the ruling that took the rail's gear
-// away: a bottom rhythm invented on one side of a window and answered on
-// neither is what a reader reads as two applications.
+// beside it: a bottom rhythm invented on one side of a window and answered
+// on neither is what a reader reads as two applications.
 //
 // The pane paints its own ground before any of that, and it has to: the
 // shell fills the whole split — both halves — with the window's FLOOR, so
 // anything the pane does not paint over shows furniture where the
 // transcript should be. The message rows paint their own ground, so the
-// bleed only appears where the transcript is SHORTER than the window, and
-// that is a state no whole-window golden in this package has ever been in:
-// the demo conversation the headless frame renders fills the viewport, so
-// the harness cannot see it. A live capture of a two-exchange chat shows a
-// hard step across the pane where the last answer ends.
-//
-// One fill is the whole fix, and it is the pane saying what it already
-// claimed — the transcript's ground is the header band, the turns, AND the
-// space around them.
+// bleed only appears where the transcript is SHORTER than the window, which
+// no whole-window golden in this package is ever in: the demo conversation
+// the headless frame renders fills the viewport. The transcript's ground is
+// the header band, the turns AND the space around them, and one fill states
+// all three.
 //
 // It is painted at the SLOT's width, before the pane clamps itself to its
-// reading measure, because the clamp is the second place the floor showed
-// through: on a window wider than ChatPaneWidth plus the sidebar, the strip
-// the pane declines to occupy is still the pane's half of the split, and a
-// band of furniture down the trailing edge of the content region is the
-// same defect at a few pixels wide. A reviewer shown the live window found
-// it before finding anything else.
+// reading measure: on a window wider than ChatPaneWidth plus the sidebar,
+// the strip the pane declines to occupy is still the pane's half of the
+// split, and a band of furniture down the trailing edge of the content
+// region is the same defect at a few pixels wide.
 func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		FillRect(gtx, image.Rectangle{Max: gtx.Constraints.Max}, 0, t.palette.Ground)
 		// The transcript is a reading measure, and a reading measure that is
-		// narrower than the room it is given is CENTRED in it. Left alone it
-		// hugged the leading edge, which was invisible while the pane took
-		// the difference up and became the widest thing in the window the
-		// moment the pane went away: a column of prose pinned to one side of
-		// an empty half.
+		// narrower than the room it is given is CENTRED in it — left alone it
+		// hugs the leading edge, which with the pane away leaves a column of
+		// prose pinned to one side of an empty half.
 		avail := gtx.Constraints.Max
 		gtx.Constraints = ClampWidth(gtx, 0, ChatPaneWidth)
 		size := gtx.Constraints.Max
@@ -543,9 +521,8 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) l
 				// The seam between the transcript and the composer: the
 				// composer stands off the paper the messages lie on, and
 				// what parts two things on one ground is a hairline. It is
-				// the transcript's only rule now that the header band has
-				// gone into the window's own chrome row — one region, one
-				// edge, drawn where the content actually changes.
+				// the transcript's only rule — one region, one edge, drawn
+				// where the content actually changes.
 				seam := gtx.Dp(1)
 				FillRect(gtx, image.Rectangle{
 					Min: image.Pt(gtx.Dp(12), 0),
@@ -645,20 +622,16 @@ func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 // top strip the window's control buttons pass through, the conversation
 // list, and the settings row at the foot.
 //
-// There is no wordmark and no CONVERSATIONS heading. The menu bar and the
-// Dock carry this application's identity, so a band that truncated the name
-// it could not afford was proof the name never belonged there; and a list
-// with exactly one section does not announce itself — the header's one
-// control, new chat, moved to the strip, which is where a control belongs.
+// There is no wordmark and no section heading: the menu bar and the Dock
+// carry this application's identity, and a list with exactly one section does
+// not announce itself.
 //
 // The strip is reserved by the flex and DRAWN AFTERWARDS, which is a
 // statement about the keyboard rather than about paint. Focus follows the
 // order the ops are written in, and the reading order of this pane is the
-// conversations, then the settings that act on all of them, then the
-// pane's own controls — a reader who tabs into the pane means to reach a
-// conversation, not to put the pane away. Laid out in place, the strip's
-// toggle stood first and Tab-then-Return dismissed the pane the reader had
-// just opened.
+// conversations, then the settings that act on all of them, then the pane's
+// own controls — a reader who tabs into the pane means to reach a
+// conversation, not to put the pane away.
 func SidebarPane(t themed, chats ChatList, current string, streaming map[string]bool, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat, toggle, settings *widget.Clickable) layout.Widget {
 	// Ensure every chat has persistent Clickables for hover/click state.
 	for _, name := range chats {
@@ -709,8 +682,8 @@ func SidebarPane(t themed, chats ChatList, current string, streaming map[string]
 // buttons' span skipped at the leading end, a stretch that moves the window
 // across the middle, and the pane's two controls at the trailing corner.
 //
-// Which two is the ruling. The toggle rides here because it puts the pane
-// away and a dismiss control belongs to the thing it dismisses; new chat
+// The toggle rides here because it puts the pane away and a dismiss
+// control belongs to the thing it dismisses; new chat
 // rides here because it is the application's primary action and the list
 // under it is what it adds to. Both stand again in the chrome row once the
 // pane is gone, at the same size and on the same line — they are two halves
@@ -746,10 +719,8 @@ var windowButtonsEnd = desktop.LeadingInset
 //
 // Settings stands here and nowhere else in the window's chrome. It acts on
 // the application rather than on the conversation, so it earns no standing
-// place in a window whose pane is away; Cmd-comma is how it is reached
-// then, which is where this platform keeps it anyway. That is what let the
-// rail's gear go, and with it the bottom rhythm the rail invented on one
-// side of the window and nothing on the other side answered.
+// place in a window whose pane is away; Cmd-comma is how it is reached then,
+// which is where this platform keeps it anyway.
 //
 // The hairline is the pane's OWN, drawn inside its outline and running only
 // the pane's width — it says the scrolling stops here, which is a fact
@@ -867,11 +838,9 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 		// surfaces it floats over (a level-2 fill alone sat at ~1.2:1 against
 		// them, and ~1:1 against the assistant's rows in dark mode).
 		//
-		// The base is the toast rung, not the selected-row fill it used to
-		// borrow. That borrowing worked only while a selected row was a
-		// neutral step; now that it is a Primary tint, tinting it again with
-		// the accent would leave the bar a purple wash with nothing neutral
-		// under the ring.
+		// The base is the toast rung rather than the selected-row fill: that
+		// fill is a Primary tint, and tinting it again with the accent would
+		// leave the bar a purple wash with nothing neutral under the ring.
 		bounds := image.Rectangle{Max: dims.Size}
 		radius := gtx.Dp(UndoBarRadius)
 		depth.Shadow(gtx, bounds, tokens.Level3, radius, 1)
@@ -999,7 +968,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 // A cycle of zero reports ok=false, and that is how both indicators honour
 // reduce-motion: the theme emits tokens.Motion.Reduced() while the preference
 // is on, every stop zero, so a cycle derived from a stop is zero too — no
-// phase, nothing to animate, and no frame to schedule (llms.txt rule 5).
+// phase, nothing to animate, and no frame to schedule.
 func motionPhase(now time.Time, cycle, lead time.Duration) (float64, bool) {
 	if cycle <= 0 {
 		return 0, false
@@ -1020,9 +989,9 @@ func dotPulse(alpha uint8, phase float64) uint8 {
 
 // StreamDot draws the sidebar's in-flight-completion indicator: an accent
 // dot, centred in its slot, gently pulsing over two of the theme's slowest
-// duration stops. Animation follows llms.txt rule 5 — it self-schedules the
-// next frame only while visible, and renders static (a plain accent dot) when
-// the theme's motion scale is the reduced one.
+// duration stops. It self-schedules the next frame only while visible, and
+// renders static (a plain accent dot) when the theme's motion scale is the
+// reduced one.
 func StreamDot(gtx layout.Context, t themed, slot image.Point) {
 	c := t.palette.Accent
 	if phase, animate := motionPhase(gtx.Now, 2*t.motion.DurXSlow, 0); animate {
@@ -1091,12 +1060,9 @@ var ChatGPT = func() []byte {
 	return icon
 }()
 
-// ClampWidth will limit the min and max width of the layout.Context to the given
-// values low and high. If the min width is greater than the max width, the min
-// width will be set to the max width. If the min width is greater than the
-// current width, the current width will be set to the min width. If the max
-// width is less than the current width, the current width will be set to the
-// max width.
+// ClampWidth limits the layout.Context's min and max width to low and high.
+// A min above the max is pulled down to it, and the current width is pulled
+// into the resulting range.
 func ClampWidth(gtx layout.Context, low, high unit.Dp) layout.Constraints {
 	if gtx.Constraints.Min.X < gtx.Dp(low) {
 		gtx.Constraints.Min.X = gtx.Dp(low)

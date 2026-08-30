@@ -17,9 +17,8 @@ func Init() (Model, mvu.Command) {
 		fmt.Fprintln(os.Stderr, "mindchat: data dir:", err)
 		os.Exit(1)
 	}
-	// OPENAI_API_KEY is optional now that providers are configured in the
-	// settings modal; when present it seeds the first provider (see the
-	// Config reduction).
+	// OPENAI_API_KEY is optional — providers are configured in the settings
+	// modal — and when present it seeds the first provider.
 	return InitIn(datadir, os.Getenv("OPENAI_API_KEY"))
 }
 
@@ -39,11 +38,7 @@ func InitIn(datadir, authtoken string) (Model, mvu.Command) {
 		// Pre-JSONL chat files convert once, before anything reads them.
 		MigrateChats(model.ChatDir()).Trace("Migrate Chats"),
 		// The fallback config is what a fresh install gets, so it names no
-		// last chat: there are none. It used to name "monoid.jsonl", a file
-		// that exists on one developer's machine, and Load History then
-		// failed on every genuinely first run — the same directory defect
-		// one level up, and the reason the Config reduction's empty-LastChat
-		// branch was unreachable on the path that most needs it.
+		// last chat: there are none.
 		LoadConfig(model.ConfigFile(), Config{}).Trace("Load Config"),
 	)
 }

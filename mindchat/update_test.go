@@ -474,10 +474,10 @@ func TestUpdateRenameChatRejectsInvalidNames(t *testing.T) {
 	}
 }
 
-// TestUpdateToggleSidebarSendsThePaneAwayAndBringsItBack is the whole of
-// the pane's state now: there is no ratio and no rail between the two, so
-// the toggle is a flip and nothing else. The state persists because a
-// reader who put the pane away meant it to stay away.
+// TestUpdateToggleSidebarSendsThePaneAwayAndBringsItBack covers the whole of
+// the pane's state: there is no ratio and no third state, so the toggle is a
+// flip and nothing else. It persists because a reader who put the pane away
+// meant it to stay away.
 func TestUpdateToggleSidebarSendsThePaneAwayAndBringsItBack(t *testing.T) {
 	hidden, _ := Update(testModel(), ToggleSidebar{})
 	if !hidden.SidebarHidden {

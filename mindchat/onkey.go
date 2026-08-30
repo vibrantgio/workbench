@@ -15,7 +15,7 @@ import (
 // Lay it out over the area the shortcut should be live in — typically the
 // whole window. A focused widget that claims the same chord (e.g. a text
 // editor's own Cmd-Z undo) receives it first; that is correct layering, not
-// a conflict. (Pattern: todos/onescapekey.go.)
+// a conflict.
 func OnShortcutKey(name key.Name, cb func(gtx layout.Context)) layout.Widget {
 	tag := new(int)
 	return func(gtx layout.Context) layout.Dimensions {

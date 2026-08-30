@@ -211,12 +211,12 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	save := func(gtx layout.Context) {
 		mvu.MessageOp{Message: SaveSettings{}}.Add(gtx.Ops)
 	}
-	// Both actions sit in the dialog's footer, on its level-2 fill — the
-	// same storey the fields above them already name. Filled buttons paint
-	// their own ground and ring against it, so this moves nothing today; it
-	// is here so the ground travels with the widget rather than with the
-	// register it happens to wear, and a quieter action added to this footer
-	// later derives against the dialog instead of against the window.
+	// Both actions sit in the dialog's footer, on its level-2 fill — the same
+	// storey the fields above them already name. Filled buttons paint their
+	// own ground and ring against it, so stating the ground moves nothing on
+	// these two; it is stated so the ground travels with the widget, and a
+	// quieter action added to this footer derives against the dialog instead
+	// of against the window.
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
 		Ground:    tokens.Level2,
@@ -274,14 +274,12 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		ActionFocusTags: []event.Tag{&cancelClick, &saveClick},
 		// A DECISION, not a panel. The catalogue is edited as a draft and
 		// committed by Save, so the two footer buttons are the only two
-		// answers — and declaring that is what removes the close X (this
-		// modal used to ask for that with the deprecated HideClose), makes
-		// the backdrop inert, binds Escape to Cancel and Return to Save.
+		// answers — declaring that removes the close X, makes the backdrop
+		// inert, binds Escape to Cancel and Return to Save.
 		//
 		// The inert backdrop is the one that matters here: a stray click on
 		// the scrim beside a 560 dp-wide form must not throw away a
-		// half-typed API key, and under the panel grammar it did exactly
-		// that. There is deliberately no OnClose — with both answers named,
+		// half-typed API key. There is no OnClose — with both answers named,
 		// no path into it remains.
 		//
 		// Save is NOT Destructive. It writes the draft the body is already
@@ -289,7 +287,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		// genuinely lossy edit in here is Remove-provider, which is its own
 		// button and happens before Save is reached. Marking Save
 		// destructive would move Return to Cancel, and Return-discards-the-
-		// form is the very accident the inert backdrop is here to prevent.
+		// form is the accident the inert backdrop is here to prevent.
 		Decision: &modal.Decision{Confirm: save, Cancel: cancel},
 	})
 

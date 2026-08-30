@@ -13,7 +13,7 @@ import (
 // Chord is one of the window's keyboard accelerators: the key, with the
 // platform's shortcut modifier implied (Cmd on macOS, Ctrl elsewhere), and
 // the message pressing it posts. The window lays every one of them out as a
-// key area over the whole frame; see OnShortcutKey.
+// key area over the whole frame.
 type Chord struct {
 	Key key.Name
 	Msg mvu.Message
@@ -21,8 +21,8 @@ type Chord struct {
 
 // MenuCommand is a chord the application menu carries as well: the same key
 // and the same message, under a label in a named menu. The two are one
-// declaration on purpose — an item that posts a different message from the
-// chord printed beside it is the defect this shape makes unwriteable.
+// declaration: an item that posts a different message from the chord printed
+// beside it is unwriteable.
 type MenuCommand struct {
 	Chord
 
@@ -42,8 +42,7 @@ type MenuCommand struct {
 //
 // Settings is the one that must be here. With the conversations pane away it
 // has no control anywhere in the window — it lives at the pane's foot — so
-// the menu is where a reader on this platform goes to look for it, and until
-// there was a menu the chord carried that state alone.
+// the menu is where a reader on this platform goes to look for it.
 var MenuCommands = []MenuCommand{
 	// The application's primary action, reachable whether the pane is
 	// standing or away.
@@ -56,8 +55,8 @@ var MenuCommands = []MenuCommand{
 	{Chord: Chord{Key: ",", Msg: OpenSettings{}}, Menu: desktop.ApplicationMenu, Title: "Settings…"},
 }
 
-// WindowChords are the accelerators the window answers that the menu
-// deliberately does not carry.
+// WindowChords are the accelerators the window answers that the menu does
+// not carry.
 //
 // Undo is the whole list, and the reason is layering rather than taste. A
 // menu key equivalent is answered before the key reaches the window, so an

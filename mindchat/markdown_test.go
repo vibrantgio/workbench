@@ -170,11 +170,11 @@ func mdList(t *testing.T, b markdown.Block) *markdown.List {
 	return l
 }
 
-// TestListsReachTheDocumentAsLists is the point of the chat subset carrying
-// lists at all: the document draws the markers, the hanging indent and the
-// item rhythm, so what leaves degrade must still BE a list — not a run of
-// paragraphs wearing marker text. A bullet list keeps its items unordered;
-// an ordered one keeps Ordered and the number it starts counting from.
+// TestListsReachTheDocumentAsLists holds lists to leaving degrade as lists:
+// the document draws the markers, the hanging indent and the item rhythm, so
+// what leaves must still BE a list — not a run of paragraphs wearing marker
+// text. A bullet list keeps its items unordered; an ordered one keeps Ordered
+// and the number it starts counting from.
 func TestListsReachTheDocumentAsLists(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string

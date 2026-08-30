@@ -6,10 +6,10 @@ package main
 // drawing them into a headless canvas produces the same frame the window
 // would show, at the size the window opens at.
 //
-// It is here because a composition can only be judged as a composition. A
-// render of one widget in isolation cannot see that a window reads darker in
-// the middle than at its edges; this can. Run it with -window.dump=<dir> to
-// write the frames out for a pair of eyes:
+// A composition can only be judged as a composition: a render of one widget
+// in isolation cannot see that a window reads darker in the middle than at
+// its edges, and this can. Run it with -window.dump=<dir> to write the frames
+// out for a pair of eyes:
 //
 //	go test ./ -run TestWholeWindowRender -window.dump=/tmp/mindchat
 //
@@ -72,7 +72,7 @@ func staticTheme(c tokens.ColorTokens) theme.Theme {
 // demoModel is a settled conversation with the shapes a transcript actually
 // grows: a couple of exchanges, a fenced code block, an inline code span, a
 // bulleted list with a nested sublist, a numbered list, and an answer
-// carrying web-search citations. Both list kinds are here on purpose — the
+// carrying web-search citations. Both list kinds are here because the
 // document draws their markers, hanging indent and item rhythm itself, and a
 // composition is the only place that rhythm can be judged against the prose
 // it sits between.

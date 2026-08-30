@@ -30,14 +30,12 @@ func run(t *testing.T, cmd mvu.Command) ([]mvu.Message, error) {
 // TestFirstRunOnAnEmptyDataDir is the fresh-install test: it drives the
 // application's OWN startup sequence (InitIn, exactly what Init runs once the
 // OS data directory is resolved) against a directory that contains nothing,
-// and then the three commands that failed there — Load Chat List, Load
-// History and Append Prompt.
+// and then Load Chat List, Load History and Append Prompt.
 //
-// It creates no directory of its own, and that restraint is the whole point.
-// Every other storage test calls os.MkdirAll(dir, "chats") in its setup,
-// standing in for the application; the suite was green and a first-time
-// user's first message was silently lost. Do not "fix" a failure here by
-// adding a MkdirAll to the test.
+// It creates no directory of its own, and that restraint is load-bearing:
+// every other storage test calls os.MkdirAll(dir, "chats") in its setup,
+// standing in for the application. Do not "fix" a failure here by adding a
+// MkdirAll to the test.
 func TestFirstRunOnAnEmptyDataDir(t *testing.T) {
 	datadir := t.TempDir()
 	model, startup := InitIn(datadir, "")
@@ -55,8 +53,8 @@ func TestFirstRunOnAnEmptyDataDir(t *testing.T) {
 	// The startup sequence ends in a Config, and the reducer answers it with
 	// Load Chat List and (when there is a last chat) Load History. Both are
 	// driven here from the reducer's own output rather than hand-built, so a
-	// fallback config naming a chat no fresh install has — which is what
-	// "monoid.jsonl" was — fails here rather than only on a real first run.
+	// fallback config naming a chat no fresh install has fails here rather
+	// than only on a real first run.
 	if len(startupMsgs) != 1 {
 		t.Fatalf("startup emitted %d messages, want one Config", len(startupMsgs))
 	}

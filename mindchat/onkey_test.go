@@ -63,11 +63,11 @@ func TestOnShortcutKeyFiresOnChord(t *testing.T) {
 	}
 }
 
-// TestOnShortcutKeyDoesNotOccludePointer is the regression test for the
-// startup "lockup": gio input areas occlude pointer events by default, so a
-// window-wide key area laid out over the content swallowed every click in
-// the app. The helper's PassOp must keep it pointer-transparent even when
-// it is laid out ON TOP of a clickable.
+// TestOnShortcutKeyDoesNotOccludePointer holds the pointer-transparency
+// invariant: gio input areas occlude pointer events by default, so a
+// window-wide key area laid out over the content would swallow every click in
+// the app. The helper's PassOp must keep it pointer-transparent even when it
+// is laid out ON TOP of a clickable.
 func TestOnShortcutKeyDoesNotOccludePointer(t *testing.T) {
 	clicked := 0
 	click := new(widget.Clickable)
@@ -80,7 +80,7 @@ func TestOnShortcutKeyDoesNotOccludePointer(t *testing.T) {
 		dims := click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		})
-		// Deliberately the WORST ordering: the key area over the content.
+		// The WORST ordering: the key area over the content.
 		shortcut(gtx)
 		return dims
 	}
@@ -105,15 +105,13 @@ func TestOnShortcutKeyDoesNotOccludePointer(t *testing.T) {
 
 // TestTheWindowsChordsAreLiveOnTheirNames drives each of the accelerators
 // this window binds through a real router: new chat, settings and the pane
-// toggle. The undo chord is covered above; these three are the ones the
-// floating pane's composition depends on, because the rail that used to
-// carry a standing settings control is gone and Cmd-comma is what replaced
-// it.
+// toggle. The undo chord is covered above. These three are the ones the
+// floating pane's composition depends on: with the pane away, Cmd-comma is
+// the only route to settings.
 //
-// The name each is bound to is the whole point of the check: a chord bound
-// to the wrong key name is silently dead, and a settings control that is
-// only reachable by a chord that does not fire is a control that is not
-// reachable at all.
+// The name each is bound to is what the check is for: a chord bound to the
+// wrong key name is silently dead, and a settings control only reachable by
+// a chord that does not fire is not reachable at all.
 func TestTheWindowsChordsAreLiveOnTheirNames(t *testing.T) {
 	for _, tc := range []struct {
 		name key.Name
