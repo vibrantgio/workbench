@@ -6,12 +6,12 @@ require (
 	gioui.org v0.10.2
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.3
-	github.com/vibrantgio/components v1.2.4
-	github.com/vibrantgio/components/gallery v1.2.4
+	github.com/vibrantgio/components v1.2.5
+	github.com/vibrantgio/components/gallery v1.2.5
 	github.com/vibrantgio/markdown v0.7.1
 	github.com/vibrantgio/mvu v1.0.1
 	github.com/vibrantgio/mvu/desktop v1.0.1
-	github.com/vibrantgio/patterns v1.1.0
+	github.com/vibrantgio/patterns v1.1.1
 	github.com/vibrantgio/textdraw v0.0.4
 	github.com/vibrantgio/theme v1.3.0
 	golang.org/x/image v0.44.0
