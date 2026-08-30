@@ -1,9 +1,6 @@
 package main
 
-// The message vocabulary. Widgets emit these via
-// mvu.MessageOp{Message: ...}.Add(gtx.Ops); Update folds them into the next
-// Model. Ids are assigned by the reducer (see ReduceTodoList), never by the
-// view.
+// Ids are assigned by the reducer, never by the view.
 
 // SetRoute navigates: "" home, "add.todo" or "edit.todo" for the dialog.
 type SetRoute struct {

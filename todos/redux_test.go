@@ -89,9 +89,8 @@ func TestReduceModelRoutesAndSelection(t *testing.T) {
 }
 
 func TestFindByIdNotIndex(t *testing.T) {
-	// After deleting todo 0, todo 1 sits at index 0. Find must still
-	// resolve it by Id — indexing List[Selected] was a crash in the
-	// pre-migration app.
+	// After deleting todo 0, todo 1 sits at index 0. Find must still resolve
+	// it by Id; indexing List[Selected] would target the wrong todo.
 	m := Model{List: seedList(), Selected: 1}
 	m.List = ReduceTodoList(m.List, DeleteTodo{Id: 0})
 	todo, ok := m.List.Find(m.Selected)

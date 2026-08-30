@@ -106,11 +106,9 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 		selectMaterial := m.Stop()
 
 		return layout.UniformInset(Padding).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			// Dialog surface, centred, at level 2 — the rung the pattern
-			// library reserves for a dialog, one storey clear of the page
-			// behind it without reaching for the level 3 an unscrimmed
-			// overlay takes, because the scrim is already doing the
-			// isolating.
+			// Dialog surface, centred, at level 2: one storey clear of the
+			// page behind it, and not the level 3 an unscrimmed overlay takes,
+			// because the scrim is already doing the isolating.
 			size := image.Pt(gtx.Dp(ModalWidth), gtx.Dp(ModalHeight))
 			max := gtx.Constraints.Constrain(size)
 			rect = place.Place(image.Rectangle{Max: gtx.Constraints.Max}, max, 0.5, 0.5)
@@ -125,10 +123,10 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 				t := textdraw.MeasureText(gtx, typ.Shaper, typ.Headline, "W").Y
 				r := gtx.Dp(BorderRadius)
 
-				// Bordered text-entry field: accent border, field fill.
-				// The fill is one rung on from the dialog it lies in, not
-				// one rung off the window — a raised inset steps up from
-				// the surface it is lying on.
+				// Bordered text-entry field: accent border, field fill. The
+				// fill is one rung on from the dialog it lies in, not one rung
+				// off the window — a raised inset steps up from the surface it
+				// lies on.
 				rect := image.Rect(0, 0, max.X, t+2*(pad+b))
 				Pane(gtx, rect, r, p.Icon)
 				rect = rect.Inset(b)

@@ -11,9 +11,9 @@ import (
 )
 
 // BackdropLayer fills the window with the content ground — the Background pin
-// the palette resolves for level 0. It is the bottom layer, it re-emits
-// whenever the OS colour scheme changes, and it is the only fill the resting
-// window has: the list above it rests on this, raising nothing.
+// the palette resolves for level 0. It is the bottom layer, re-emits whenever
+// the OS colour scheme changes, and is the only fill the resting window has:
+// the list above it rests on this, raising nothing.
 func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
 		return t.Color

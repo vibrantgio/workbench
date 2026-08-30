@@ -1,4 +1,5 @@
-// Package place was absorbed from the retired github.com/vibrantgio/place repo.
+// Package place positions a rectangle inside another by a normalised anchor
+// point.
 package place
 
 import "image"

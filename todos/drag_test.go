@@ -14,14 +14,11 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// TestTheStripStaysDraggableUnderTheModal is the one place this window's page
-// differs from the plain-page recipe: the modal covers the strip, and the
-// strip's drag claim has to outlive it. A cover is not a reason a window may
-// not be moved — the platform's own sheets never stop one — but the modal's
-// Escape catcher is a whole-window input region recorded after the band, and
-// it shadowed the claim until View gave the strip back on top of the dialog.
-// This is the regression that would return the moment those two lines were
-// reordered, and no frame would show it.
+// TestTheStripStaysDraggableUnderTheModal: the modal covers the strip, and the
+// strip's drag claim has to outlive it. The modal's Escape catcher is a
+// whole-window input region recorded after the band, so it shadows the claim
+// unless View gives the strip back on top of the dialog. No frame would show
+// this.
 func TestTheStripStaysDraggableUnderTheModal(t *testing.T) {
 	const width, height = 650, 600
 	const stripH = int(titleBandDp)

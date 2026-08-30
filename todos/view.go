@@ -62,23 +62,18 @@ func View(th themed, model Model) layout.Widget {
 	return view(th, model, desktop.TopInset)
 }
 
-// view is View over a stated strip height rather than the window's own — the
-// same split desktop.InsetTop's own height parameter already makes — so a test
-// can state a strip it has no window to measure.
+// view is View over a stated strip height rather than the window's own, so a
+// test can state a strip it has no window to measure.
 //
-// The strip carries no fill of its own, and that is R6 satisfied rather than
-// skipped: the region this band caps is the window's own ground — the
-// Background pin BackdropLayer fills the whole window with — so the region's
-// fill reaches the top edge without anything being painted twice. A band drawn
-// here would be furniture this window does not have; the list is the content
-// ground and the only other thing standing on it is a floating button. What
-// has to stay clear of the strip is the resting page, which starts below it.
+// The strip carries no fill of its own: the region it caps is the window's own
+// ground, which BackdropLayer already fills full-bleed, so the fill reaches the
+// top edge without anything being painted twice. Only the resting page has to
+// stay clear of the strip.
 //
-// The modal does not. A scrim isolates the window it covers, and a scrim with
-// a strip-shaped hole in its top edge isolates nothing — so the dialog and its
-// cover are laid out in the window's own coordinates, over the strip as over
-// everything else, which is also where R7's walk puts them: transient
-// surfaces lie over the resting window rather than in it.
+// The modal does not. A scrim with a strip-shaped hole in its top edge
+// isolates nothing, so the dialog and its cover are laid out in the window's
+// own coordinates: transient surfaces lie over the resting window rather than
+// in it.
 func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 	thObs := rx.Of(th.components)
 	p := th.palette
@@ -112,8 +107,7 @@ func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 
 	// The resting page — the list on the ground and the button floating over
 	// it — capped by the strip: held down past it, with that same strip claimed
-	// for the window's own drag, which the native title bar took with it when
-	// the treatment removed it. A capped layer reports the size it was given
+	// for the window's own drag. A capped layer reports the size it was given
 	// rather than the inset one, so the button still lands on the window's
 	// bottom-trailing corner and only the top edge moves.
 	resting := func(gtx layout.Context) layout.Dimensions {
@@ -130,15 +124,13 @@ func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 		} else {
 			capped(gtx.Disabled())
 			dialog(gtx)
-			// And the strip is given back its drag, on top of what was just
-			// drawn over it. The modal's Escape catcher spans the whole window
-			// so that Escape closes the dialog wherever the pointer is, and a
-			// whole-window input region recorded after the band shadows it —
-			// leaving a window that cannot be moved for as long as a text field
-			// is open, which is not a thing any window on this platform does. A
-			// second claim over the same strip settles it; the dialog is
-			// centred and 200 dp tall, so nothing of its own stands in there to
-			// be swallowed.
+			// The strip is given back its drag on top of what was just drawn
+			// over it. The modal's Escape catcher spans the whole window so
+			// Escape closes the dialog wherever the pointer is, and a
+			// whole-window input region recorded after the band would shadow
+			// the drag claim, leaving a window that cannot be moved while a
+			// text field is open. The dialog is centred and 200 dp tall, so
+			// nothing of its own stands in the strip to be swallowed.
 			desktop.DragTop(gtx, strip)
 		}
 

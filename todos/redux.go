@@ -1,8 +1,7 @@
 package main
 
 // The reducers are pure functions from (state, message) to state — one per
-// Model field, composed by ReduceModel. They are trivially unit-testable;
-// see redux_test.go.
+// Model field, composed by ReduceModel.
 
 func ReduceModel(m Model, message any) Model {
 	return Model{

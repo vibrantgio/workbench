@@ -25,17 +25,16 @@ type Palette struct {
 	Cover    color.NRGBA // modal scrim over the disabled page
 }
 
-// PaletteFrom resolves the palette in ADR-007's vocabulary, assigned by
-// ADR-021's window grammar. The list is the thing this window exists to show,
-// so it is the content ground: it wears level 0 and paints no surface of its
-// own. Backdrop is that ground — the Background pin, filled once underneath
-// everything — and nothing in the page is raised above it. The only fills over
-// it belong to the modal, and a modal is transient: the dialog takes level 2,
-// the rung the pattern library reserves for a dialog, and its text-entry field
-// walks one rung on from the dialog it lies in rather than from the window —
-// level 3 — because a rung is counted from the surface a thing is lying on.
-// Primary is the pinned accent, and the remaining Neutral steps are inks: 700
-// the low-contrast text step, 900 the body-text step.
+// PaletteFrom resolves the palette against the window's surface grammar. The
+// list is what this window exists to show, so it is the content ground: it
+// wears level 0 and paints no surface of its own. Backdrop is that ground —
+// the Background pin, filled once underneath everything — and nothing in the
+// page is raised above it. The only fills over it belong to the modal: the
+// dialog takes level 2, the rung reserved for a dialog, and its text-entry
+// field walks one rung on from the dialog it lies in rather than from the
+// window — level 3 — because a rung is counted from the surface a thing lies
+// on. Primary is the pinned accent, and the remaining Neutral steps are inks:
+// 700 the low-contrast text step, 900 the body-text step.
 func PaletteFrom(c tokens.ColorTokens) Palette {
 	return Palette{
 		Backdrop: c.SurfaceAt(tokens.Level0),
@@ -50,10 +49,10 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	}
 }
 
-// Type is the app's view of the theme's Typography (ADR-003): the two roles
-// the app draws directly, converted to textdraw styles, plus the theme's
-// cached shaper. The app builds no shaper and bundles no font of its own —
-// the typeface arrives through the theme.
+// Type is the app's view of the theme's Typography: the two roles the app
+// draws directly, converted to textdraw styles, plus the theme's cached
+// shaper. The app builds no shaper and bundles no font of its own — the
+// typeface arrives through the theme.
 type Type struct {
 	Shaper   *text.Shaper
 	Headline textdraw.TextStyle // HeadlineSmall: the dialog's editor text

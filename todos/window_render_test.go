@@ -1,22 +1,17 @@
 package main
 
 // A whole-window render, headless, plus the surface-grammar assertions that
-// read off it. The app is a native window binary with no offscreen mode of its
-// own, but both layers it stacks are plain widgets over pre-resolved tokens, so
-// composing the same two paints into a headless canvas at the size the window
-// opens at produces the frame the window would show.
+// read off it. Both layers the app stacks are plain widgets over pre-resolved
+// tokens, so composing the same two paints into a headless canvas at the size
+// the window opens at produces the frame the window would show.
 //
-// The frames are drawn under a stated title-bar strip, because that is the
-// window this app actually opens: it takes the full-size-content treatment, so
-// its ground runs to the top edge and its page starts below a strip the
-// platform no longer draws. desktop.TopInset reports 0 without a live macOS
-// window behind it, so the height is stated here rather than measured — the
-// same substitution mvu/desktop's own drag tests make.
+// The frames are drawn under a stated title-bar strip, because the app takes
+// the full-size-content treatment: its ground runs to the top edge and its page
+// starts below a strip the platform no longer draws. desktop.TopInset reports 0
+// without a live macOS window behind it, so the height is stated rather than
+// measured.
 //
-// It is here because a composition can only be judged as a composition. This
-// app is small enough that every rung it wears is visible in one frame, which
-// is what makes the frame worth storing an argument in. Run it with
-// -window.dump=<dir> to write the frames out for a pair of eyes:
+// Run it with -window.dump=<dir> to write the frames out for a pair of eyes:
 //
 //	go test ./ -run TestWholeWindowRender -window.dump=/tmp/todos
 //
@@ -47,29 +42,26 @@ import (
 
 var windowDump = flag.String("window.dump", "", "directory to write whole-window renders into")
 
-// windowSize is the size the Todos window opens at (main.go), and the only
-// size these frames are drawn at. golden.Capture renders at one pixel per dp,
-// so every dp figure below is also a pixel figure.
+// windowSize is the size the Todos window opens at, and the only size these
+// frames are drawn at. golden.Capture renders at one pixel per dp, so every dp
+// figure below is also a pixel figure.
 var windowSize = image.Pt(int(winW), int(winH))
 
 // titleBandDp is the strip desktop.TopInset reports on a full-size-content
-// macOS window. The number is the stored reference's plain title bar band
-// (ADR-019: 32 px), not a guess and not a live measurement.
+// macOS window. The number is the stored reference's plain title bar band,
+// 32 px.
 const titleBandDp unit.Dp = 32
 
-// The frames carry the theme's real radius scale rather than the pinned-sharp
-// one the stored goldens upstream use. Those store an image and need corners
-// that do not vary between GPU contexts; nothing here is stored, and every
-// assertion below counts pixels with room to spare for a few anti-aliased
-// ones. What a sharp scale costs is the review: a reviewer handed square
-// checkboxes in a rounded-corner OS reports square checkboxes, and the
-// finding belongs to the harness rather than to the app.
+// The frames carry the theme's real radius scale rather than a pinned-sharp
+// one: nothing here is stored, so no pixel-exact diff needs GPU-independent
+// corners, and every assertion below counts pixels with room to spare for a few
+// anti-aliased ones.
 
 // staticThemed is one theme emission frozen into the snapshot the view
 // consumes, with the pinned shaper — Roboto and nothing the machine happens to
 // own — that a stored render has to shape with. It builds Type by hand rather
-// than through TypeFrom for that one reason: TypeFrom takes the theme's own
-// cached shaper, which is whatever the host can find.
+// than through TypeFrom, which would take the theme's own cached shaper and so
+// whatever the host can find.
 func staticThemed(c tokens.ColorTokens) themed {
 	typo := tokens.DefaultTypography
 	return themed{
@@ -92,8 +84,8 @@ func staticThemed(c tokens.ColorTokens) themed {
 }
 
 // fixtureModel is a list somebody would actually keep, on the route named. The
-// wording is deliberately ordinary: a frame handed to a reader is judged on
-// what it looks like, and copy about this repository would be read instead.
+// wording is deliberately ordinary so a reader judges the frame on how it
+// looks rather than reading the copy.
 func fixtureModel(route string) Model {
 	return Model{
 		Route: route,
@@ -163,8 +155,7 @@ func countFill(img *image.RGBA, r image.Rectangle, want color.NRGBA) int {
 	return n
 }
 
-// windowSchemes is the pair every rule below is stated once and checked twice
-// against.
+// windowSchemes is the pair every rule below is checked against.
 var windowSchemes = []struct {
 	name string
 	c    tokens.ColorTokens
@@ -212,17 +203,13 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestTheListRestsOnTheWindowGround is ADR-021's R7 walk read off the frame,
-// and it is the regression this app had. The list used to fill a rounded pane
-// at level 1 across the whole window less a 12 dp margin, so the biggest
-// resting expanse was a storey above the only level-0 surface left — the
-// border around it — and the window read deeper in its middle than at its
-// edges. Now the middle and the edge are the same ground, and the only level-1
-// pixels left are the raised controls standing on it.
+// TestTheListRestsOnTheWindowGround reads the surface walk off the frame: the
+// middle and the edge are the same ground, and the only level-1 pixels are the
+// raised controls standing on it.
 //
 // It renders the route with no dialog on it, because the walk is over the
 // window at rest: a modal stands in the middle at level 2 by design, so a walk
-// taken with one open reports a violation the grammar granted.
+// taken with one open would report a violation the grammar granted.
 func TestTheListRestsOnTheWindowGround(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -258,12 +245,11 @@ func TestTheListRestsOnTheWindowGround(t *testing.T) {
 				t.Errorf("level 1 (%v) covers %d of %d pixels; a control on the ground may wear it, a resting expanse may not",
 					furniture, n, total)
 			}
-			// Level 2 is not asked for zero, because a ramp step is a colour
-			// and an anti-aliased edge between two other colours can land on
-			// it by arithmetic: a couple of dozen pixels along the rounded
-			// checkbox borders do, in both schemes. What the rung may not be
-			// is an expanse, and a tenth of a percent of the window is two
-			// orders of magnitude below the pane that used to be here.
+			// Level 2 is not asked for zero: a ramp step is a colour, and an
+			// anti-aliased edge between two other colours can land on it by
+			// arithmetic — a couple of dozen pixels along the rounded checkbox
+			// borders do, in both schemes. What the rung may not be is an
+			// expanse.
 			if n := countFill(img, frame, transient); n*1000 > total {
 				t.Errorf("level 2 (%v) covers %d of %d pixels of the resting window; that rung is for what appears and leaves",
 					transient, n, total)
@@ -292,11 +278,9 @@ func dialogRect() image.Rectangle {
 }
 
 // TestTheDialogAndItsFieldHoldTheirRungs reads the modal's two rungs off the
-// frame. The dialog is the level 2 the pattern library reserves for a dialog,
-// and the field inside it walks one rung on from the dialog rather than from
-// the window — which is the whole of R4: a raised inset steps up from the
-// surface it is lying on. Both used to be read off the page instead, which is
-// how the dialog ended up level with the list behind it.
+// frame. The dialog is at level 2, and the field inside it walks one rung on
+// from the dialog rather than from the window: a raised inset steps up from
+// the surface it lies on.
 func TestTheDialogAndItsFieldHoldTheirRungs(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -340,14 +324,10 @@ func TestTheDialogAndItsFieldHoldTheirRungs(t *testing.T) {
 	}
 }
 
-// TestTheGroundReachesTheWindowsTopEdge is R6 for a window with no band of its
-// own to paint. The region the strip caps here is the window's own ground —
-// the list is the content ground and nothing in this window is furniture — and
-// the backdrop layer is full-bleed, so the rule is met by the strip showing
-// what was already painted under it rather than by a second fill drawn over
-// it. What has to be true for that to be R6 satisfied rather than R6 skipped is
-// that the strip is the ground and nothing else: no page ink in it, and no
-// unpainted glass either.
+// TestTheGroundReachesTheWindowsTopEdge pins that the strip shows the
+// full-bleed backdrop already painted under it rather than a second fill drawn
+// over it, which is why this window paints no band. The strip must be the
+// ground and nothing else: no page ink in it, and no unpainted glass.
 func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 	band := int(titleBandDp)
 	for _, tc := range windowSchemes {
@@ -368,10 +348,9 @@ func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 	}
 }
 
-// TestThePageStartsBelowTheStrip is the other half of the same arrangement:
-// the ground runs under the strip, the page does not. Read off the frame
-// rather than off the inset, so that a page which grew a layer of its own
-// outside the cap would fail here.
+// TestThePageStartsBelowTheStrip is the other half: the ground runs under the
+// strip, the page does not. Read off the frame rather than off the inset, so
+// that a page which grew a layer of its own outside the cap would fail here.
 func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -383,15 +362,14 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 	}
 }
 
-// TestThePageClearsTheWindowButtons is R6's first consequence, and the one
-// this window had to answer for rather than inherit: with the native strip
-// gone the platform's three control buttons float over the top-leading corner
-// of whatever the application drew there, and this page's first list row
-// starts at the very corner they stand in. Nothing here is centred out of
-// their way — the rows stack from the top edge — so the clearance is the
-// inset's alone, and it is asserted off the frame rather than trusted to the
-// arithmetic. The run is desktop's derivation of the platform's rule rather
-// than a guess at where the circles are.
+// TestThePageClearsTheWindowButtons: with the native strip gone the platform's
+// three control buttons float over the top-leading corner of whatever the
+// application drew there, and this page's first list row starts at the very
+// corner they stand in. Nothing here is centred out of their way — the rows
+// stack from the top edge — so the clearance is the inset's alone, and it is
+// asserted off the frame rather than trusted to the arithmetic. The run comes
+// from desktop's derivation of the platform's rule rather than a guess at
+// where the circles are.
 func TestThePageClearsTheWindowButtons(t *testing.T) {
 	run := desktop.ButtonRunIn(titleBandDp)
 	bottom := int(run.Leading + run.Diameter)
@@ -417,10 +395,9 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 // TestTheModalCoversTheStripToo is the exception the page makes for what is
 // transient. The resting page starts below the strip; the scrim does not,
 // because a cover with a strip-shaped hole in its top edge isolates nothing —
-// the un-dimmed band would read as a seam across the window's top edge. So the
-// dialog and its cover are laid out in the window's own coordinates, which is
-// also where R7 puts them: an overlay lies over the resting window rather than
-// in it.
+// the un-dimmed band would read as a seam across the window's top edge. The
+// dialog and its cover are therefore laid out in the window's own
+// coordinates.
 func TestTheModalCoversTheStripToo(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
