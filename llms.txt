@@ -135,6 +135,9 @@ older answer, they are gone, not deprecated:
     replacements;
   - elevation levels 4 and 5 — the desktop ladder tops out at 3, and asking
     for a higher level now panics rather than clamping;
+  - patterns/tag entirely, with no alias. The status label is
+    components/badge (the roster above); a dismissible user-entered token
+    is the chip's territory;
   - tokens.TypeScale entirely. The static `Render(…)` signatures on components,
     patterns and markdown take a role's `tokens.TextStyle` instead — or the
     whole `tokens.Typography` where a component spends several roles — plus
