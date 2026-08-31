@@ -63,7 +63,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      superseded by theme/tokens Typography (§Typography)
                      — never add it to a new app
 
-  theme     v1.3.2   the theme runtime and every design token: tokens
+  theme     v1.3.3   the theme runtime and every design token: tokens
                      (colour ramps and pins, Typography, Density, Motion,
                      Elevation, spacing/radius), color (the CIELAB/OKLCh
                      engine and APCA), theme (Theme, the token observables),
@@ -76,7 +76,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      wears Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  components  v1.3.2 badge (the system's own word about a thing — a word,
+  components  v1.3.3 badge (the system's own word about a thing — a word,
                      a count or a glyph, hued by role: Neutral, Success,
                      Warning, Error, Info; a pale fill of the role's hue
                      under a strong foreground of that same hue, plus an
@@ -184,7 +184,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        for traer physics
   github.com/vibrantgio/kiwi/gio              v0.0.7   Gio layout on the
                                                        kiwi solver
-  github.com/vibrantgio/components/gallery    v1.3.2   the components gallery
+  github.com/vibrantgio/components/gallery    v1.3.3   the components gallery
                                                        app
   github.com/vibrantgio/mvu/desktop           v1.0.1   native macOS window
                                                        chrome (FullSizeContent,
@@ -614,9 +614,14 @@ pressed/selected/dragged two, clamped at 900 — resolved by StateColor
 the 900 depth). Disabled is an opacity (tokens.Disabled, MD3's 38%).
 Focus keeps the surface and strokes a ring in the primary hue, walked
 rather than named: the rung of the primary ramp nearest that ramp's
-mid-value step which still clears 3:1 against the storey the control
-stands on. Hand a control its Ground and the ring re-derives against
-that fill. ColorTokens.FocusRing() is still on the token set and is
+mid-value step which clears 3:1 against every storey at once. That is
+ONE RING COLOUR PER SCHEME, and it does not depend on where the control
+stands — the same purple on the paper, on a card, in a dialog and in a
+popover, because the ring is the system's mark of focus rather than a
+property of the fill under it. The one exception is the band a filled
+control insets in its OWN fill: there the scheme's ring is kept wherever
+it reads against that fill, and walked against the fill only where it
+cannot. ColorTokens.FocusRing() is still on the token set and is
 still neutral 500, but nothing strokes focus with it any more — one
 fixed step measures 2.35:1 on a surface, 1.42:1 three storeys up, and
 1.00:1 around an unchecked checkbox, whose border is that same step.
@@ -1444,8 +1449,8 @@ purpose (golden determinism); leave those alone.
       github.com/reactivego/rx v0.3.0
       github.com/vibrantgio/patterns v1.2.1
       github.com/vibrantgio/mvu v1.0.1
-      github.com/vibrantgio/components v1.3.2
-      github.com/vibrantgio/theme v1.3.2
+      github.com/vibrantgio/components v1.3.3
+      github.com/vibrantgio/theme v1.3.3
       github.com/vibrantgio/textdraw v0.0.5
   )
   ```
