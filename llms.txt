@@ -63,7 +63,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      superseded by theme/tokens Typography (§Typography)
                      — never add it to a new app
 
-  theme     v1.3.0   the theme runtime and every design token: tokens
+  theme     v1.3.1   the theme runtime and every design token: tokens
                      (colour ramps and pins, Typography, Density, Motion,
                      Elevation, spacing/radius), color (the CIELAB/OKLCh
                      engine and APCA), theme (Theme, the token observables),
@@ -76,7 +76,12 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      wears Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  components  v1.3.0 button, chip (a pill carrying a data-bearing summary,
+  components  v1.3.1 badge (the system's own word about a thing — a word,
+                     a count or a glyph, hued by role: Neutral, Success,
+                     Warning, Error, Info; a pale fill of the role's hue
+                     under a strong foreground of that same hue, plus an
+                     optional close mark that dismisses the label),
+                     button, chip (a pill carrying a data-bearing summary,
                      clickable), input, picker (pick one from many — a
                      labelled field for the form register, a chip-shaped
                      anchor for the chrome register, one menu under both;
@@ -92,7 +97,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      pipeline), depth, glow, motion, spring, springbutton,
                      transition, tween, conductor
 
-  patterns  v1.1.1   patterns: shell, navbar, sidebar, pane, table,
+  patterns  v1.2.0   patterns: shell, navbar, sidebar, pane, table,
                      pagination, tabs, modal, alert, popover, tooltip,
                      toast, card, accordion, breadcrumb, hero, feature,
                      pricing, testimonial
@@ -176,7 +181,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        for traer physics
   github.com/vibrantgio/kiwi/gio              v0.0.7   Gio layout on the
                                                        kiwi solver
-  github.com/vibrantgio/components/gallery    v1.3.0   the components gallery
+  github.com/vibrantgio/components/gallery    v1.3.1   the components gallery
                                                        app
   github.com/vibrantgio/mvu/desktop           v1.0.1   native macOS window
                                                        chrome (FullSizeContent,
@@ -480,9 +485,10 @@ because the geometry is shared with components/picker's pull-down anchor and
 a shared geometry is asked which member it is drawing. Props.Pin puts the
 pill on the leading or trailing edge of a box wider than it and reports the
 box, for the container that reserved a cap but cannot place the pill inside
-it itself. It is not components/badge, which is the system's own word about a thing —
-Neutral, Success, Warning, Error, Info — set at the size of its type in a
-role's own hue, with no fill under it, and never clicked.
+it itself. It is not components/badge, which is the system's own word
+about a thing — Neutral, Success, Warning, Error, Info — set at the size
+of its type, wearing a pale fill of the role's hue under a strong
+foreground of that same hue, and never clicked.
 
 ### The dialog grammar
 
@@ -1433,10 +1439,10 @@ purpose (golden determinism); leave those alone.
   require (
       gioui.org v0.10.2
       github.com/reactivego/rx v0.3.0
-      github.com/vibrantgio/patterns v1.1.1
+      github.com/vibrantgio/patterns v1.2.0
       github.com/vibrantgio/mvu v1.0.1
-      github.com/vibrantgio/components v1.3.0
-      github.com/vibrantgio/theme v1.3.0
+      github.com/vibrantgio/components v1.3.1
+      github.com/vibrantgio/theme v1.3.1
       github.com/vibrantgio/textdraw v0.0.5
   )
   ```
