@@ -123,11 +123,17 @@ type asideInkTiers struct {
 // against: measured on this column's own floor, the light scheme's 700 and
 // 800 stand 52.9 and 64.0 from it in L* under a reading tier at 86.1 —
 // three tiers a reader can name — while the dark scheme's 700 and 800
-// stand 78.7 and 84.8 under 90.8, six L* apart at the top where the light
+// stand 75.3 and 79.2 under 87.3, four L* apart at the top where the light
 // pair are eleven, which is three names for very nearly one ink. The dark
-// scheme's 500 and 600 stand 61.8 and 70.7: a spread of the light scheme's
-// own order, two steps lower down a ramp whose top end is the compressed
-// one.
+// scheme's 600 and 700 stand 57.2 and 75.3: a spread of the light
+// scheme's own order, one step lower down a ramp whose top end is the
+// compressed one.
+//
+// One step lower and no further. The step under that reads 3.5:1 on this
+// column's floor, and every tier here is a tier somebody reads, so none of
+// them may sit under the body floor the design system holds its own text
+// to — which is what fixes the dark pair at the deepest two steps that
+// both read and part.
 //
 // The scheme is read off the floor rather than off the neutral alias
 // because the floor is the fill this column is actually painted in, darker
@@ -135,7 +141,7 @@ type asideInkTiers struct {
 func asideInks(tok themeTokens) asideInkTiers {
 	quiet, nested := 700, 800
 	if vgcolor.RelativeLuminance(chromeSurface(tok.col)) < 0.5 {
-		quiet, nested = 500, 600
+		quiet, nested = 600, 700
 	}
 	return asideInkTiers{
 		quiet:   tok.col.Ramps.Neutral.Step(quiet),
