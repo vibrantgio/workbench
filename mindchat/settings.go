@@ -143,11 +143,12 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 			}
 			style := badge.Style(typ, tokens.Comfortable)
 			verdict := func(g badge.Glyph, v badge.Variant) layout.Widget {
-				// The settings modal is a level-2 plane, and a badge has no
-				// fill of its own: the storey it names is the only thing its
-				// ink can be derived against.
-				return badge.Render(typ.Shaper(), "", g, v, c, tokens.Spacing, style,
-					badge.RenderState{Ground: tokens.Level2})
+				// A glyph badge — no label — and a glyph badge stands bare,
+				// its sign carrying the verdict where a word would need a
+				// field behind it. So the storey is the only thing its ink is
+				// derived against, and the settings modal is a level-2 plane.
+				return badge.Render(typ.Shaper(), "", g, v, c, tokens.Spacing,
+					tokens.Radius, style, badge.RenderState{Ground: tokens.Level2})
 			}
 			return settingsThemed{
 				palette:    p,
