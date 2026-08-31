@@ -82,7 +82,6 @@ type Palette struct {
 	Toast color.NRGBA
 	Icon  color.NRGBA // assistant avatar glyph
 	Error color.NRGBA // settings fetch-error text
-	Ok    color.NRGBA // settings key-check success icon
 }
 
 func PaletteFrom(c tokens.ColorTokens) Palette {
@@ -135,9 +134,6 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		Toast:            c.SurfaceAt(tokens.Level2),
 		Icon:             c.Primary,
 		Error:            c.Error,
-		// The token set has no green family; Tailwind green 600 is legible
-		// on both schemes' surfaces.
-		Ok: color.NRGBA{0x16, 0xa3, 0x4a, 0xff},
 	}
 }
 

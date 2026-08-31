@@ -480,8 +480,9 @@ because the geometry is shared with components/picker's pull-down anchor and
 a shared geometry is asked which member it is drawing. Props.Pin puts the
 pill on the leading or trailing edge of a box wider than it and reports the
 box, for the container that reserved a cap but cannot place the pill inside
-it itself. It is not patterns/tag, which is the status vocabulary —
-Success, Warning, Error — drawn in a role's own hue and never clicked.
+it itself. It is not components/badge, which is the system's own word about a thing —
+Neutral, Success, Warning, Error, Info — set at the size of its type in a
+role's own hue, with no fill under it, and never clicked.
 
 ### The dialog grammar
 

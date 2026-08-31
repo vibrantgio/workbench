@@ -35,7 +35,7 @@ const (
 var (
 	pageCanvasSize = image.Pt(pageCanvasW, pageCanvasH)
 	// Sharp corner radius keeps the goldens deterministic: anti-aliased
-	// rounded corners and the eyebrow / chip Full radii vary slightly between
+	// rounded corners and the CTA radii vary slightly between
 	// GPU contexts, breaking pixel-exact diffs.
 	sharpRadius = tokens.RadiusScale{}
 )
@@ -189,7 +189,7 @@ func TestContentLayerConstructs(t *testing.T) {
 func TestSimpleAppsCopy(t *testing.T) {
 	hp := heroContent(nil)
 	if hp.Eyebrow != "" {
-		t.Errorf("hero eyebrow = %q, want empty (no chip)", hp.Eyebrow)
+		t.Errorf("hero eyebrow = %q, want empty (no kicker)", hp.Eyebrow)
 	}
 	if hp.Title != "SimpleApps" {
 		t.Errorf("hero title = %q", hp.Title)

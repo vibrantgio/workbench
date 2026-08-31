@@ -19,10 +19,13 @@ import (
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
+	"gioui.org/f32"
 	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -30,6 +33,7 @@ import (
 	"sync/atomic"
 
 	"github.com/reactivego/rx"
+	"github.com/vibrantgio/components/badge"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
@@ -54,10 +58,17 @@ type settingsThemed struct {
 	add     layout.Widget
 	remove  layout.Widget
 	refresh layout.Widget
-	keyOK   layout.Widget
-	keyBad  layout.Widget
 	boxOn   layout.Widget
 	boxOff  layout.Widget
+
+	// The key-check verdict, as the two glyph badges it is: the sign in the
+	// role's own ink, derived by the library against the modal's level-2
+	// storey rather than picked here. badgeStyle is the type role behind
+	// them, kept so the row can reserve the badge's box while there is no
+	// verdict to draw.
+	badgeStyle tokens.TextStyle
+	verdictOK  layout.Widget
+	verdictBad layout.Widget
 }
 
 // settingsTarget keys the rebuild of the three uncontrolled provider
@@ -130,18 +141,27 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				}
 				return w
 			}
+			style := badge.Style(typ, tokens.Comfortable)
+			verdict := func(g badge.Glyph, v badge.Variant) layout.Widget {
+				// The settings modal is a level-2 plane, and a badge has no
+				// fill of its own: the storey it names is the only thing its
+				// ink can be derived against.
+				return badge.Render(typ.Shaper(), "", g, v, c, tokens.Spacing, style,
+					badge.RenderState{Ground: tokens.Level2})
+			}
 			return settingsThemed{
-				palette: p,
-				bar:     scrollbar.FromTokens(c),
-				typ:     typ,
-				shaper:  typ.Shaper(),
-				add:     mk(icons.ContentAdd, p.Heading),
-				remove:  mk(icons.ContentRemove, p.Heading),
-				refresh: mk(icons.NavigationRefresh, p.Heading),
-				keyOK:   mk(icons.ActionCheckCircle, p.Ok),
-				keyBad:  mk(icons.AlertError, p.Error),
-				boxOn:   mk(icons.ToggleCheckBox, p.Accent),
-				boxOff:  mk(icons.ToggleCheckBoxOutlineBlank, p.Heading),
+				palette:    p,
+				bar:        scrollbar.FromTokens(c),
+				typ:        typ,
+				shaper:     typ.Shaper(),
+				add:        mk(icons.ContentAdd, p.Heading),
+				remove:     mk(icons.ContentRemove, p.Heading),
+				refresh:    mk(icons.NavigationRefresh, p.Heading),
+				boxOn:      mk(icons.ToggleCheckBox, p.Accent),
+				boxOff:     mk(icons.ToggleCheckBoxOutlineBlank, p.Heading),
+				badgeStyle: style,
+				verdictOK:  verdict(keyCheckGlyph, badge.Success),
+				verdictBad: verdict(keyCrossGlyph, badge.Error),
 			}
 		})
 	})
@@ -447,25 +467,28 @@ func templateBar(gtx layout.Context, t settingsThemed, tplClicks []*widget.Click
 	return layout.Dimensions{Size: size}
 }
 
-// keyRow is the API-key line: the key field, the key-check verdict icon
-// (green check = the last /models fetch succeeded, red error = it failed,
-// empty while unchecked), and the manual re-check affordance.
+// keyRow is the API-key line: the key field, the key-check verdict badge
+// (a Success check = the last /models fetch succeeded, an Error cross = it
+// failed, empty while unchecked), and the manual re-check affordance.
 func keyRow(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider, field layout.Widget, refreshClick *widget.Clickable) layout.Dimensions {
 	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SettingsFieldHeight))
 	gtx.Constraints = layout.Exact(size)
 	verdict := func(gtx layout.Context) layout.Dimensions {
-		sz := gtx.Dp(SettingsIconBtn)
-		var icon layout.Widget
+		// The badge's own box, reserved whether or not there is a verdict in
+		// it: a slot that appeared with the answer would shift the field and
+		// the re-check control every time a check completed.
+		sz := gtx.Dp(unit.Dp(t.badgeStyle.LineHeight))
+		var sign layout.Widget
 		switch s.KeyStatus(prov) {
 		case KeyOK:
-			icon = t.keyOK
+			sign = t.verdictOK
 		case KeyBad:
-			icon = t.keyBad
+			sign = t.verdictBad
 		}
-		if icon != nil {
+		if sign != nil {
 			ig := gtx
 			ig.Constraints = layout.Exact(image.Pt(sz, sz))
-			icon(ig)
+			sign(ig)
 		}
 		return layout.Dimensions{Size: image.Pt(sz, sz)}
 	}
@@ -483,6 +506,44 @@ func keyRow(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider
 			})
 		}),
 	)
+}
+
+// keyCheckGlyph and keyCrossGlyph are the two verdict signs the key-check
+// badge speaks with, stroked as vectors rather than rasterised from the icon
+// set: a Glyph is handed the ink the badge derived for its variant, and a
+// pre-coloured rasterisation cannot take a colour it was not built with.
+//
+// Each spans most of the square it is handed and is centred on it, which is
+// what the Glyph contract asks — the badge reserves the box, and a sign that
+// under-fills it reads as a gap in the line.
+func keyCheckGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
+	w := float32(sizePx)
+	var p clip.Path
+	p.Begin(gtx.Ops)
+	p.MoveTo(f32.Pt(w*0.16, w*0.52))
+	p.LineTo(f32.Pt(w*0.42, w*0.76))
+	p.LineTo(f32.Pt(w*0.84, w*0.24))
+	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: p.End(), Width: glyphStroke(gtx)}.Op())
+}
+
+func keyCrossGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
+	w := float32(sizePx)
+	var p clip.Path
+	p.Begin(gtx.Ops)
+	p.MoveTo(f32.Pt(w*0.24, w*0.24))
+	p.LineTo(f32.Pt(w*0.76, w*0.76))
+	p.MoveTo(f32.Pt(w*0.76, w*0.24))
+	p.LineTo(f32.Pt(w*0.24, w*0.76))
+	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: p.End(), Width: glyphStroke(gtx)}.Op())
+}
+
+// glyphStroke is the verdict signs' stroke width in pixels, floored at one:
+// a sub-pixel stroke leaves a smear rather than a sign.
+func glyphStroke(gtx layout.Context) float32 {
+	if s := float32(gtx.Dp(unit.Dp(1.5))); s >= 1 {
+		return s
+	}
+	return 1
 }
 
 // webSearchRow is the provider's server-side search opt-in. With the box
