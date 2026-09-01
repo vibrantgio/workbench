@@ -27,8 +27,8 @@ import (
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 
-	"github.com/vibrantgio/components/chip"
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/picker"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/theme/tokens"
@@ -115,12 +115,10 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 				{"the sidebar's floor", p.Sidebar},
 				{"the transcript's paper", p.Ground},
 				// The header picker's fill is the component's, not this
-				// palette's: the claim is made against the chip family's own
-				// answer for the storey the picker stands on — the picker's
-				// anchor is one of that family's faces — because the window's
-				// ladder is what is on trial here and the control is still a
-				// rung of it.
-				{"the header picker", chip.Fill(c, tokens.Level0, tokens.StateNormal)},
+				// palette's: the claim is made against the control's own answer
+				// for the storey it stands on, because the window's ladder is
+				// what is on trial here and the control is still a rung of it.
+				{"the header picker", picker.AnchorFill(c, tokens.Level0, tokens.StateNormal)},
 				{"a dialog's surface", c.SurfaceAt(tokens.Level2)},
 			}
 			for i := 1; i < len(toward); i++ {
@@ -210,9 +208,9 @@ func TestChipsWalkFromTheSurfaceTheySitOn(t *testing.T) {
 				restIsFlush    bool
 				groundRungName string
 			}{
-				{"header chip", p.Ground,
-					chip.Fill(c, tokens.Level0, tokens.StateNormal),
-					chip.Fill(c, tokens.Level0, tokens.StateHover), false, "transcript"},
+				{"header picker", p.Ground,
+					picker.AnchorFill(c, tokens.Level0, tokens.StateNormal),
+					picker.AnchorFill(c, tokens.Level0, tokens.StateHover), false, "transcript"},
 				{"dialog chip", c.SurfaceAt(tokens.Level2), p.ModalChip, p.ModalChipHovered, true, "dialog surface"},
 			} {
 				if ch.restIsFlush && ch.rest != ch.ground {
