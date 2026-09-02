@@ -384,6 +384,43 @@ func TestVaultWindowGolden(t *testing.T) {
 	}
 }
 
+// arrivalModel is the golden note reached by following a link that named a
+// block: the viewport seated on the block the link pointed at, the landing
+// recorded as an arrival so the column marks the content it brought the
+// reader to. The properties panel is closed, so the picture is of the note
+// and the marking on it rather than of its frontmatter.
+func arrivalModel(t *testing.T) Model {
+	t.Helper()
+	m := goldenModel()
+	m.PropsOpen = false
+	at, ok := AnchorBlock(m.CurrentNote(), nil, "answers-1")
+	if !ok {
+		t.Fatal("the golden note carries no answers-1 anchor to land on")
+	}
+	m.CurAnchor = at
+	m.NavSeq = 2
+	m.Arrival = m.NavSeq
+	return m
+}
+
+// TestVaultWindowArrivalGolden records the whole window at the moment a
+// followed link lands: the block the link named marked with the highlight
+// wash, at full strength, which is the first frame of the marking's life.
+// The static render arms the marking on the frame it draws, so the stored
+// image is that first frame and not a sample part way through the fade.
+func TestVaultWindowArrivalGolden(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := arrivalModel(t)
+	for _, tc := range themeCases {
+		name := "window-arrival-" + tc.name
+		t.Run(name, func(t *testing.T) {
+			w, _ := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
+				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+			golden.Render(t, name, windowCanvasSize, scene(w, tc.bg))
+		})
+	}
+}
+
 // TestTheTopBandStandsOnTheButtonLine reads the rendered window and
 // requires everything along the top of it to be on one line: the line the
 // window's control buttons centre on. The vault's name, the toggle in the

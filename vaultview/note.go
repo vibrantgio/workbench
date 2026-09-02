@@ -13,10 +13,13 @@ package main
 
 import (
 	"image"
+	"image/color"
+	"math"
 	"os/exec"
 	"path"
 	"runtime"
 	"strings"
+	"time"
 
 	"gioui.org/font"
 	"gioui.org/io/event"
@@ -260,6 +263,85 @@ type docEntry struct {
 	doc  *markdown.Document
 }
 
+// The arrival highlight's life. A followed link marks the content it brought
+// the reader to, and the mark then leaves by itself, so the duration is the
+// one this house already gives a mark that leaves by itself: the toast's
+// lifetime, faded over the trailing slice a toast tweens its alpha over,
+// which is the motion scale's DurSlow stop (MD3 medium4, 400 ms).
+var (
+	arrivalLife = toast.DefaultLifetime
+	arrivalFade = tokens.Motion.DurSlow
+)
+
+// arrivalAlpha is how much of the highlight wash is left at age: all of it
+// until the fade opens, linearly less across the fade, and none of it once
+// the life has run.
+func arrivalAlpha(age time.Duration) float64 {
+	switch {
+	case age >= arrivalLife:
+		return 0
+	case arrivalFade <= 0 || age <= arrivalLife-arrivalFade:
+		return 1
+	}
+	return float64(arrivalLife-age) / float64(arrivalFade)
+}
+
+// arrival is the note column's view state for the followed-link highlight:
+// which landing is being marked, on which note, and the instant the marking
+// was armed.
+//
+// It is view state and not model state because the marking is a moment
+// passing rather than something the vault knows. The model records that a
+// link was followed; how much of the mark is left is a question only the
+// frame drawing it asks, and a model carrying it would have to be re-emitted
+// every frame of the fade.
+type arrival struct {
+	seq   int       // the Model.Arrival value this marking is for
+	path  string    // the note it landed on
+	at    time.Time // gtx.Now of the frame it was armed on
+	spent bool      // the reader left the note; the marking does not wait
+}
+
+// mark returns the top-level block the arrival highlight is on this frame
+// and the wash to draw it in, arming a landing the model has newly reported
+// and asking for the frames the fade needs. A landing that carried a block
+// anchor marks the block it seated on; one that carried none marks the
+// note's opening content, which is its first top-level block.
+//
+// The marking is over the moment the reader leaves the note it was made on,
+// and it does not come back when they do: a highlight lives as long as its
+// cause, and the cause was one arrival.
+func (a *arrival) mark(gtx layout.Context, m Model, col tokens.ColorTokens) (int, color.NRGBA, bool) {
+	if m.Arrival == 0 {
+		return 0, color.NRGBA{}, false
+	}
+	if a.seq != m.Arrival {
+		*a = arrival{seq: m.Arrival, path: m.Current, at: gtx.Now}
+	}
+	if a.spent || m.Current != a.path {
+		a.spent = true
+		return 0, color.NRGBA{}, false
+	}
+	age := gtx.Now.Sub(a.at)
+	alpha := arrivalAlpha(age)
+	if alpha <= 0 {
+		return 0, color.NRGBA{}, false
+	}
+	// Holding costs one frame at the instant the fade opens; fading costs
+	// every frame until it is done.
+	if hold := arrivalLife - arrivalFade; age < hold {
+		gtx.Execute(op.InvalidateCmd{At: a.at.Add(hold)})
+	} else {
+		gtx.Execute(op.InvalidateCmd{})
+	}
+	// The reading column's paper is the pinned app background and not the
+	// scheme's own level 0, so the wash is the one the token walks to
+	// against that surface rather than the resolved field itself.
+	wash := col.HighlightOn(col.Background)
+	wash.A = uint8(math.Round(float64(wash.A) * alpha))
+	return max(m.CurAnchor, 0), wash, wash.A > 0
+}
+
 // readerTag is a non-zero-size type so its address is a unique event tag.
 // A zero-size struct{} field could share an address with its neighbour,
 // which would break tag identity.
@@ -384,6 +466,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		backClick widget.Clickable
 		fwdClick  widget.Clickable
 		read      reader
+		arr       arrival
 	)
 	docFor := func(m Model, n *Note) *markdown.Document {
 		if m.Vault != docsVault {
@@ -414,7 +497,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	mainSlot := rx.Map(breadcrumb.Trail(th, breadcrumb.TrailProps{Chevron: trailChevronDp}),
 		func(trail breadcrumb.TrailLayout) layout.Widget {
 			return func(gtx layout.Context) layout.Dimensions {
-				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, trail, &read, cur, docFor)
+				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor)
 			}
 		})
 	return vaultFrame(loadModel, loadTok,
@@ -434,6 +517,7 @@ func layoutNotePage(
 	propClick, backClick, fwdClick *widget.Clickable,
 	trail breadcrumb.TrailLayout,
 	read *reader,
+	arr *arrival,
 	cur *docCursor,
 	docFor func(Model, *Note) *markdown.Document,
 ) layout.Dimensions {
@@ -485,6 +569,15 @@ func layoutNotePage(
 			// out after this column does, so what it reads is this frame's
 			// position and what it moves shows on the next.
 			cur.show(doc)
+			// The followed-link marking is set on the document every frame
+			// it is alive and taken off it on the first frame it is not:
+			// documents are cached across frames, so a marking left behind
+			// would outlive the arrival that caused it.
+			if block, wash, ok := arr.mark(gtx, m, tok.col); ok {
+				doc.Highlight(block, wash)
+			} else {
+				doc.ClearHighlight()
+			}
 			style := noteStyle(tok.col, tok.typ)
 			style.Text.OnLinkClick = func(gtx layout.Context, url string) {
 				linkClicked(gtx, m, url)
@@ -623,6 +716,7 @@ func renderNotePageInto(
 		backClick widget.Clickable
 		fwdClick  widget.Clickable
 		read      reader
+		arr       arrival
 	)
 	docs := map[string]*markdown.Document{}
 	docFor := func(m Model, n *Note) *markdown.Document {
@@ -638,7 +732,7 @@ func renderNotePageInto(
 		return d
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, trail, &read, cur, docFor)
+		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor)
 	}
 }
 

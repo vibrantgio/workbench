@@ -60,6 +60,15 @@ type Model struct {
 	CurAnchor int
 	NavSeq    int
 
+	// Arrival is the NavSeq of the landing a followed link made, and it is
+	// what arms the arrival highlight; zero means no link has been followed
+	// yet. Only a link lands here: the note the app opens on and the one a
+	// rescan finds were not sought, and a step back through the history is a
+	// return to a note already read rather than an arrival at one. A rebuilt
+	// note — a task box written, a file re-read — is neither, so it leaves
+	// this where it was and nothing re-arms.
+	Arrival int
+
 	// History is the visited-note stack; Cursor points at the current
 	// entry. Navigate pushes and truncates the forward tail; Back and
 	// Forward move the cursor.
@@ -321,6 +330,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.Notes = nil
 		model.Current = ""
 		model.CurAnchor = -1
+		model.Arrival = 0
 		model.History = nil
 		model.Cursor = 0
 		model.Folds = nil
@@ -509,6 +519,7 @@ func landOn(model Model, nav Navigate, note *Note) Model {
 	model.Current = note.Path
 	model.CurAnchor = anchor
 	model.NavSeq++
+	model.Arrival = model.NavSeq
 	keep := model.History
 	if len(keep) > model.Cursor+1 {
 		keep = keep[:model.Cursor+1]

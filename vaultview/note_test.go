@@ -32,6 +32,7 @@ type notePad struct {
 	tok  themeTokens
 	doc  *markdown.Document
 	read reader
+	arr  arrival
 	cur  docCursor
 	r    input.Router
 	ops  op.Ops
@@ -80,7 +81,7 @@ func (p *notePad) frame() {
 		Source:      p.r.Source(),
 	}
 	layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, p.trail, &p.read,
-		&p.cur, func(Model, *Note) *markdown.Document { return p.doc })
+		&p.arr, &p.cur, func(Model, *Note) *markdown.Document { return p.doc })
 	// The rival is registered over nothing, in the corner: it exists to hold
 	// the keyboard, not to be seen.
 	for {
@@ -121,7 +122,7 @@ func (p *notePad) shot(t *testing.T) *image.RGBA {
 	t.Helper()
 	return golden.Capture(t, p.size, func(gtx layout.Context) layout.Dimensions {
 		return layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, p.trail, &p.read,
-			&p.cur, func(Model, *Note) *markdown.Document { return p.doc })
+			&p.arr, &p.cur, func(Model, *Note) *markdown.Document { return p.doc })
 	})
 }
 
