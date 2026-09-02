@@ -290,9 +290,14 @@ func TestABaseAndItsInkAreOneCell(t *testing.T) {
 		// The two ends of the axis stand alone. They are what an ink turned out
 		// to be, not a ground anything is written on, and writing letters on
 		// either would be this section inventing a pairing the theme never made.
+		//
+		// The reserved highlighter stands alone for a reason of its own: it
+		// marks content rather than being a surface content is written on, and
+		// the theme names no ink for it.
 		alone := map[string]bool{
 			palette.SurfacePick: true, palette.DividerPick: true,
 			palette.WhitePick: true, palette.BlackPick: true,
+			palette.HighlightPick: true,
 		}
 		for _, g := range palette.Groups(sc.c, sc.other, sc.dark) {
 			for _, cell := range g.Cells {
