@@ -115,23 +115,23 @@ type themeTokens struct {
 }
 
 // chromeSurface is the fill every piece of this window's furniture wears:
-// the rail pane, the trailing column, and the backdrop the two of them
-// float on.
+// the rail pane, the trailing column, and the plane the two of them float
+// on.
 //
-// It is the BACKDROP — one step under the paper, toward the scheme's
-// dark extreme, in both schemes. Furniture is the desk the document lies
-// on, not a level above it, so the rail and the aside are the darkest
-// regions of this window and the note column between them is the lightest
-// resting one. In the light scheme the floor lands byte-for-byte on the
-// neutral 200 the panes wear. In the dark scheme it is #151515, the
-// platform's own measured step under the paper; at #222222 the panes read
-// as a level stacked on the page they frame rather than the desk under it.
+// It is the CHROME level — one step under the content, toward the scheme's
+// dark extreme, in both schemes. Furniture stands under the document, not
+// above it, so the rail and the aside are the darkest regions of this
+// window and the note column between them is the lightest resting one. In
+// the light scheme the chrome level lands byte-for-byte on the neutral 200
+// the panes wear. In the dark scheme it is #151515, the platform's own
+// measured step under the content; at #222222 the panes would read as a
+// level stacked on the page they frame rather than as furniture under it.
 //
 // It is a function rather than a field on themeTokens because the tests
 // hold whole palettes rather than snapshots, and both have to be able to
 // name the same fill.
 func chromeSurface(c tokens.ColorTokens) color.NRGBA {
-	return c.SurfaceAt(tokens.LevelBackdrop)
+	return c.SurfaceAt(tokens.LevelChrome)
 }
 
 // paneSeam is the ink of the rail pane's own edge — the vocabulary's, and
@@ -213,7 +213,7 @@ func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens, typo
 
 		toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.Toasts.Items() })
 		return []rx.Observable[layout.Widget]{
-			backdropLayer(th),
+			chromeLayer(th),
 			underTitleBar(routedLayer(th, modelObs, &modelCell, loadModel, loadTok)),
 			underChrome(chooserLayer(th, modelObs, loadModel, loadTok)),
 			underChrome(toast.Stack(th, toast.Props{Position: toast.BottomCenter, Toasts: toastsObs})),
@@ -356,10 +356,11 @@ func insetTop(content rx.Observable[layout.Widget], height func() unit.Dp) rx.Ob
 	})
 }
 
-// backdropLayer paints a full-canvas rectangle in the window's floor: the
-// desk the panes stand on and the note column is laid over, and the whole
-// of the window on the picker screen, which lays no paper of its own.
-func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
+// chromeLayer paints a full-canvas rectangle at the chrome level: the
+// furniture the panes stand on and the note column is laid over, and the
+// whole of the window on the picker screen, which lays no content plane of
+// its own.
+func chromeLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
 		fill := chromeSurface(c)

@@ -990,7 +990,7 @@ func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGB
 // fill the row's whole height, so a marked row would otherwise answer
 // with the fill's own corner rather than with its title's.
 func asideInkAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) {
-	ground := []color.NRGBA{chromeSurface(col), col.StateAt(tokens.LevelBackdrop, tokens.StateHover), col.Ramps.Primary.Step(300)}
+	ground := []color.NRGBA{chromeSurface(col), col.StateAt(tokens.LevelChrome, tokens.StateHover), col.Ramps.Primary.Step(300)}
 	gap := func(a, b uint8) int {
 		if a > b {
 			return int(a) - int(b)

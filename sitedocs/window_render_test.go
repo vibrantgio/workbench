@@ -161,25 +161,24 @@ func TestWholeWindowRender(t *testing.T) {
 }
 
 // TestWindowRegionsWearTheirRungs reads the surface grammar's assignment off
-// the frame: the guide document — the thing this window exists to show — on
-// the paper at level 0, the outline rail indexing it on the FLOOR under that
-// paper, the tab strip raised over the panel it caps, and nothing resting at
-// level 2.
+// the frame: the guide document — the thing this window exists to show — at
+// level 0, the outline rail indexing it at the CHROME level under it, the
+// tab strip raised over the panel it caps, and nothing resting at level 2.
 //
-// Furniture is the desk the document lies on, so the rail takes the floor
-// under the paper: neutral 200 on paper, #0C0C0C on slate.
+// Furniture stands under the document, so the rail takes the chrome level:
+// neutral 200 in the light scheme, #151515 in the dark one.
 //
 // The strip does not follow it, and the difference is what this test is worth
 // reading for. A rail is chrome standing beside the document; a tab strip is
 // the panel's own control band, drawn one level over the panel it belongs to
 // (patterns/tabs walks it from Props.Ground). So this one window carries a
-// region below the paper and a region above it, and the two are named apart
-// here rather than lumped as "furniture".
+// region below the content and a region above it, and the two are named
+// apart here rather than lumped as "furniture".
 func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, titleBandDp)
-			floor := tc.c.SurfaceAt(tokens.LevelBackdrop)
+			chrome := tc.c.SurfaceAt(tokens.LevelChrome)
 			ground := tc.c.SurfaceAt(tokens.Level0)
 			raised := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
@@ -191,7 +190,7 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 			}{
 				{"document plane", atDocument, ground},
 				{"strip gap", atStripGap, ground},
-				{"outline rail", atRail, floor},
+				{"outline rail", atRail, chrome},
 				{"tab strip", atTabStrip, raised},
 				// The band wears the fill of the region under it, which here
 				// is the tab strip rather than the document.
@@ -229,7 +228,7 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 				name string
 				fill color.NRGBA
 			}{
-				{"the outline rail's floor", pixelAt(img, atRail)},
+				{"the outline rail's chrome", pixelAt(img, atRail)},
 				{"the guide's paper", pixelAt(img, atDocument)},
 				{"the tab strip's band", pixelAt(img, atTabStrip)},
 				{"a dialog's surface", tc.c.SurfaceAt(tokens.Level2)},

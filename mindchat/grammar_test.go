@@ -2,15 +2,15 @@ package main
 
 // Headless confirmations that this window is dressed by the surface grammar:
 // which region of the window wears which elevation level. The
-// transcript is what the window exists to show, so it is the content ground
-// and fills at level 0 — the Background pin; the conversation list is chrome
-// furniture and is therefore the window's FLOOR, a level UNDER the paper;
-// levels 2 and 3 stay with what appears and leaves.
+// transcript is what the window exists to show, so it is the content and
+// fills at level 0 — the Background pin; the conversation list is the
+// window's furniture and therefore stands at the CHROME level, under the
+// content; levels 2 and 3 stay with what appears and leaves.
 //
 // Since ADR-022 elevation has one direction and no mirror: walking toward
 // the viewer never gets darker, in either scheme. Read as a picture of this
 // window that is one sentence rather than two — the furniture is the darkest
-// region and the nearest surface the lightest, on paper and on slate alike.
+// region and the nearest surface the lightest, in both schemes alike.
 //
 // These assertions are the app's, not the token set's: they are what the
 // window would fail if somebody filled a resting expanse of it at a level
@@ -85,11 +85,11 @@ func TestTranscriptRestsOnTheWindowGround(t *testing.T) {
 			if p.Ground == c.SurfaceAt(tokens.Level2) {
 				t.Errorf("transcript ground = %v, the level-2 fill; no resting expanse may sit that deep", p.Ground)
 			}
-			if p.Sidebar != c.SurfaceAt(tokens.LevelBackdrop) {
-				t.Errorf("sidebar = %v, want the floor's fill %v — furniture is the window's floor, one level UNDER the paper", p.Sidebar, c.SurfaceAt(tokens.LevelBackdrop))
+			if p.Sidebar != c.SurfaceAt(tokens.LevelChrome) {
+				t.Errorf("sidebar = %v, want the chrome level's fill %v — furniture stands one level UNDER the content", p.Sidebar, c.SurfaceAt(tokens.LevelChrome))
 			}
 			if p.Sidebar == c.SurfaceAt(tokens.Level1) {
-				t.Errorf("sidebar = %v, the level-1 fill; that level is for what is RAISED on the paper, not for what the paper lies on", p.Sidebar)
+				t.Errorf("sidebar = %v, the level-1 fill; that level is for what is RAISED on the content, not for the furniture the content stands beside", p.Sidebar)
 			}
 		})
 	}
@@ -97,9 +97,9 @@ func TestTranscriptRestsOnTheWindowGround(t *testing.T) {
 
 // TestLightnessClimbsTowardTheViewer is ADR-022's own check applied to this
 // window's resting fills, in depth order rather than across the window's
-// plane: the conversation list is the floor the window stands on, the
-// transcript is the paper laid over it, the model chip is raised on that
-// paper, and a dialog floats over the lot. Walking that order toward the
+// plane: the conversation list is the window's furniture, the transcript is
+// the content laid beside it, the model chip is raised on that content, and
+// a dialog floats over the lot. Walking that order toward the
 // reader, lightness may only increase — in the light scheme AND in the dark
 // one, which is the whole of the linchpin and the reason this test needs no
 // per-scheme clause where its predecessor needed two.
@@ -112,8 +112,8 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 				name string
 				fill color.NRGBA
 			}{
-				{"the sidebar's floor", p.Sidebar},
-				{"the transcript's paper", p.Ground},
+				{"the sidebar's chrome", p.Sidebar},
+				{"the transcript's content", p.Ground},
 				// The header picker's fill is the component's, not this
 				// palette's: the claim is made against the control's own answer
 				// for the level it stands on, because the window's elevation is
@@ -317,11 +317,11 @@ func TestChosenIsTintedAndTransientIsNeutral(t *testing.T) {
 					t.Errorf("RowSelected = %v, which is neutral %d; a neutral step cannot say which item is being read", p.RowSelected, step)
 				}
 			}
-			// Hover is a neutral walk off the sidebar's own ground, at half
+			// Hover is a neutral walk off the sidebar's own fill, at half
 			// strength, so the pointer's mark is a tick rather than a rival
-			// to the tint. The ground is the floor, since that is where the
-			// furniture stands.
-			walk := c.StateAt(tokens.LevelBackdrop, tokens.StateHover)
+			// to the tint. That fill is the chrome level's, since that is
+			// where the furniture stands.
+			walk := c.StateAt(tokens.LevelChrome, tokens.StateHover)
 			if p.RowHovered.R != walk.R || p.RowHovered.G != walk.G || p.RowHovered.B != walk.B {
 				t.Errorf("RowHovered = %v, want the neutral hover walk %v at reduced alpha", p.RowHovered, walk)
 			}

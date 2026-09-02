@@ -76,10 +76,10 @@ const (
 )
 
 // treeFieldLevel is the level of the surface the find field stands on: the
-// rail pane, which is furniture and therefore the window's FLOOR. The live
-// rail and the goldens' static rail both name it here so they cannot
-// drift apart.
-const treeFieldLevel = tokens.LevelBackdrop
+// rail pane, which is the window's furniture and therefore stands at the
+// CHROME level. The live rail and the goldens' static rail both name it
+// here so they cannot drift apart.
+const treeFieldLevel = tokens.LevelChrome
 
 // TreeRow is one visible row of the folder tree.
 type TreeRow struct {
@@ -273,12 +273,13 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 		Placeholder: "Find a note…",
 		Description: "filter notes by name",
 		// The field stands on the rail's rounded pane, not on the window
-		// surface behind it — the pane covers that. The pane is FURNITURE
-		// and so the window's floor; naming the floor here is what makes
-		// the field's fill, its resting edge and its focus ring all derive
-		// against the thing they are actually drawn on. A text field is
-		// raised one step off whatever it lies on, so the field fills at
-		// the paper's own level — lighter than the rail in both schemes,
+		// surface behind it — the pane covers that. The pane is the
+		// window's FURNITURE and so stands at the chrome level; naming that
+		// level here is what makes the field's fill, its resting edge and
+		// its focus ring all derive against the thing they are actually
+		// drawn on. A text field is raised one step off whatever it lies
+		// on, so the field fills at the content's own level — lighter than
+		// the rail in both schemes,
 		// which is the direction the platform draws a search field on a
 		// sidebar (the Settings search field sits above its sidebar, not
 		// under it).
@@ -437,9 +438,9 @@ func footAction(click *widget.Clickable, label string, tok themeTokens) layout.W
 			var fill color.NRGBA
 			switch {
 			case click.Pressed():
-				fill = tok.col.StateAt(tokens.LevelBackdrop, tokens.StatePressed)
+				fill = tok.col.StateAt(tokens.LevelChrome, tokens.StatePressed)
 			case click.Hovered():
-				fill = tok.col.StateAt(tokens.LevelBackdrop, tokens.StateHover)
+				fill = tok.col.StateAt(tokens.LevelChrome, tokens.StateHover)
 			}
 			if fill.A > 0 {
 				r := gtx.Dp(unit.Dp(treePillRadiusDp))
@@ -545,7 +546,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 				case active:
 					fill = tok.col.Ramps.Primary.Step(300)
 				case selected:
-					fill = tok.col.StateAt(tokens.LevelBackdrop, tokens.StateHover)
+					fill = tok.col.StateAt(tokens.LevelChrome, tokens.StateHover)
 				}
 				if fill.A > 0 {
 					ins := gtx.Dp(unit.Dp(treeRowInsetDp))

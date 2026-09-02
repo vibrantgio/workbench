@@ -175,18 +175,18 @@ func drawFeedsSidebar(
 	w := gtx.Dp(unit.Dp(feedsSidebarWidthDp))
 	h := gtx.Constraints.Max.Y
 	size := image.Pt(w, h)
-	// The sidebar is chrome furniture, so it is the window's FLOOR — one step
-	// UNDER the paper it frames, toward the scheme's dark extreme, in both
-	// schemes. A sidebar is the desk the document lies on, not a level
-	// stacked over it.
+	// A sidebar is the window's furniture, so it stands at the CHROME
+	// level — one step UNDER the content it frames, toward the scheme's dark
+	// extreme, in both schemes.
 	//
-	// The rung must be named as LevelBackdrop rather than as colors.Surface,
-	// which is a ramp ALIAS: neutral 200, the light scheme's floor but the
-	// dark scheme's RAISED rung. patterns/accordion draws everything below the
-	// band on the floor, so the alias would split this one column in two — on
-	// slate a #222222 band over a #0C0C0C accordion, a visible step across the
-	// sidebar's own top edge. On paper the two spell the same neutral 200.
-	paint.FillShape(gtx.Ops, colors.SurfaceAt(tokens.LevelBackdrop), clip.Rect{Max: size}.Op())
+	// The level must be named as LevelChrome rather than as colors.Surface,
+	// which is a ramp ALIAS: neutral 200, coinciding with the light scheme's
+	// chrome level but with the dark scheme's RAISED level. patterns/accordion
+	// draws everything below the band at the chrome level, so the alias would
+	// split this one column in two — a visible step across the sidebar's own
+	// top edge in the dark scheme. In the light scheme the two spell the same
+	// neutral 200.
+	paint.FillShape(gtx.Ops, colors.SurfaceAt(tokens.LevelChrome), clip.Rect{Max: size}.Op())
 	top := min(max(gtx.Dp(band), 0), h)
 	defer op.Offset(image.Pt(0, top)).Push(gtx.Ops).Pop()
 	gtx.Constraints = layout.Exact(image.Pt(w, h-top))
@@ -350,7 +350,7 @@ func drawFeedEntryPill(
 	case selected:
 		fill = tok.col.Ramps.Primary.Step(300)
 	case hovered:
-		fill = tok.col.StateAt(tokens.LevelBackdrop, tokens.StateHover)
+		fill = tok.col.StateAt(tokens.LevelChrome, tokens.StateHover)
 	default:
 		return
 	}

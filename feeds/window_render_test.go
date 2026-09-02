@@ -227,14 +227,15 @@ var (
 )
 
 // TestWindowRegionsWearTheirRungs reads the surface grammar's assignment off
-// the frame: content on the paper at level 0, the window's furniture on the
-// FLOOR under it, the reading pane's own tab strip raised over the panel it
-// caps, nothing resting at level 2.
+// the frame: content at level 0, the window's furniture at the CHROME level
+// under it, the reading pane's own tab strip raised over the panel it caps,
+// nothing resting at level 2.
 //
-// A sidebar and a navbar are the desk this window's articles lie on, so they
-// are its darkest regions in both schemes: on paper the floor is neutral 200,
-// on slate #0C0C0C. The tab strip does not follow them — a sidebar is chrome
-// standing beside the document, while a tab strip is the reading pane's own
+// A sidebar and a navbar are the furniture this window's articles stand
+// beside, so they are its darkest regions in both schemes: neutral 200 in the
+// light scheme, #151515 in the dark one. The tab strip does not follow
+// them — a sidebar is chrome standing beside the document, while a tab strip
+// is the reading pane's own
 // control band, drawn one level over the panel it belongs to (patterns/tabs
 // walks it from Props.Ground). This window therefore carries regions on three
 // levels at rest.
@@ -242,7 +243,7 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
-			floor := tc.c.SurfaceAt(tokens.LevelBackdrop)
+			chrome := tc.c.SurfaceAt(tokens.LevelChrome)
 			ground := tc.c.SurfaceAt(tokens.Level0)
 			raised := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
@@ -256,8 +257,8 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 				{"article row", atListRow, ground},
 				{"reading pane", atReadingPane, ground},
 				{"reading pane header", atPaneHead, ground},
-				{"sidebar", atSidebar, floor},
-				{"navbar", atNavbar, floor},
+				{"sidebar", atSidebar, chrome},
+				{"navbar", atNavbar, chrome},
 				{"tab strip", atTabStrip, raised},
 			} {
 				got := at(img, r.at.X, r.at.Y)
@@ -273,9 +274,9 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 }
 
 // TestLightnessClimbsTowardTheViewer walks this window's depth axis rather
-// than its plane: the sidebar is the desk, the reading pane is the paper laid
-// on it, the tab strip is the pane's own band raised over that paper, and a
-// dialog arrives over the lot. Walking that order toward the reader, lightness
+// than its plane: the sidebar is the window's furniture, the reading pane is
+// the content beside it, the tab strip is the pane's own band raised over
+// that content, and a dialog arrives over the lot. Walking that order toward the reader, lightness
 // may only increase — in the light scheme AND in the dark one.
 //
 // Three of the four fills are read off the frame rather than off tokens,
@@ -290,8 +291,8 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 				name string
 				fill color.NRGBA
 			}{
-				{"the sidebar's floor", at(img, atSidebar.X, atSidebar.Y)},
-				{"the reading pane's paper", at(img, atReadingPane.X, atReadingPane.Y)},
+				{"the sidebar's chrome", at(img, atSidebar.X, atSidebar.Y)},
+				{"the reading pane's content", at(img, atReadingPane.X, atReadingPane.Y)},
 				{"the tab strip's band", at(img, atTabStrip.X, atTabStrip.Y)},
 				{"a dialog's surface", tc.c.SurfaceAt(tokens.Level2)},
 			}
@@ -365,7 +366,7 @@ func TestChosenItemsCarryThePrimaryTint(t *testing.T) {
 			if rest == tint {
 				t.Errorf("an unchosen feed at %v is tinted %v; the mark says nothing if every row wears it", atRestingFeed, rest)
 			}
-			if want := tc.c.SurfaceAt(tokens.LevelBackdrop); rest != want {
+			if want := tc.c.SurfaceAt(tokens.LevelChrome); rest != want {
 				t.Errorf("resting feed at %v = %v, want the sidebar's own ground %v", atRestingFeed, rest, want)
 			}
 			// The pager's resting cell says the same thing about the pager:
@@ -407,11 +408,11 @@ func TestFeedRowStatesKeepTheirInksApart(t *testing.T) {
 
 			tint := tc.c.Ramps.Primary.Step(300)
 			// The walk is taken from the level the rows stand on — the
-			// sidebar's floor — rather than named as a ramp index. On paper
-			// the two spell the same #D4D4D4; on slate an index is a step
-			// off the wrong level entirely.
-			walk := tc.c.StateAt(tokens.LevelBackdrop, tokens.StateHover)
-			ground := tc.c.SurfaceAt(tokens.LevelBackdrop)
+			// sidebar's chrome level — rather than named as a ramp index. In
+			// the light scheme the two spell the same #D4D4D4; in the dark
+			// one an index is a step off the wrong level entirely.
+			walk := tc.c.StateAt(tokens.LevelChrome, tokens.StateHover)
+			ground := tc.c.SurfaceAt(tokens.LevelChrome)
 
 			if got := fill(false, false); got != sentinel {
 				t.Errorf("a resting row painted %v; it must leave its region's own ground showing", got)
@@ -470,7 +471,7 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
-			surface := tc.c.SurfaceAt(tokens.LevelBackdrop)
+			surface := tc.c.SurfaceAt(tokens.LevelChrome)
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
 					if got := at(img, x, y); got != surface {
@@ -500,12 +501,12 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 // Each half is measured off the frame, and neither is asked to agree with a
 // number written down in this test:
 //
-//   - The trailing half declares its own depth, because the navbar's floor
-//     ends where the content region's paper begins. That edge must land
-//     exactly on the band, which is what proves this app's restatement of
+//   - The trailing half declares its own depth, because the navbar's chrome
+//     ends where the content region begins. That edge must land exactly on
+//     the band, which is what proves this app's restatement of
 //     patterns/shell's navbar pin has not drifted from the pin itself.
 //   - The leading half declares nothing, because the sidebar's fill runs the
-//     whole column and the band is the same floor as everything under it.
+//     whole column and the band is the same chrome as everything under it.
 //     What can be seen there is where the sidebar starts drawing, which must
 //     be at or below the band's foot — the band is held open, and wears the
 //     sidebar's own ground while it is.
@@ -531,7 +532,7 @@ func TestTheWindowsTopStripIsOneBand(t *testing.T) {
 			for i, dc := range densities {
 				img := renderWindowAt(t, tc.c, dc.d)
 				band := int(windowBandDp(dc.d))
-				surface := tc.c.SurfaceAt(tokens.LevelBackdrop)
+				surface := tc.c.SurfaceAt(tokens.LevelChrome)
 
 				depth := -1
 				for y := 0; y < windowSize.Y; y++ {

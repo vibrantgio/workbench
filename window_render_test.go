@@ -157,12 +157,13 @@ const rungTolerance = 4
 // whose surface fill it is closest to, if that fill is within rungTolerance —
 // and whether it is a surface fill at all rather than ink drawn on one.
 //
-// The walk includes the backdrop: there are five levels and the bottom one
-// is where a window's furniture stands, so a classifier covering only the four
-// above the paper would report a sidebar as no level at all.
+// The walk includes the chrome level: a window's furniture stands there, so
+// a classifier covering only the four levels from the content up would
+// report a sidebar as no level at all. The backdrop is left out — nothing
+// is drawn at it, so no rendered pixel belongs to it.
 func nearestRung(c color.NRGBA, colors tokens.ColorTokens) (tokens.ElevationLevel, bool) {
 	best, dist := tokens.Level0, rungTolerance+1
-	for _, level := range []tokens.ElevationLevel{tokens.LevelBackdrop, tokens.Level0, tokens.Level1, tokens.Level2, tokens.Level3} {
+	for _, level := range []tokens.ElevationLevel{tokens.LevelChrome, tokens.Level0, tokens.Level1, tokens.Level2, tokens.Level3} {
 		if d := rungDistance(c, colors.SurfaceAt(level)); d < dist {
 			best, dist = level, d
 		}

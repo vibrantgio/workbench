@@ -30,12 +30,9 @@ import (
 //
 // Since ADR-022 elevation runs one way in both schemes: nearer the viewer
 // is lighter. This window is darkest at its leading edge and lightest where
-// a dialog stands over it, on paper and on slate alike — no mirror. The
-// light scheme does not move for the re-founding (its floor is the neutral
-// 200 the sidebar already wore); the dark sidebar drops from #222222 to
-// #0C0C0C, which is the ruling landing.
+// a dialog stands over it, in both schemes alike — no mirror.
 type Palette struct {
-	Sidebar   color.NRGBA // conversation-list surface — chrome furniture, the floor
+	Sidebar   color.NRGBA // conversation-list surface — the window's furniture, at the chrome level
 	Separator color.NRGBA // sidebar header underline
 	Heading   color.NRGBA // sidebar heading text
 	Row       color.NRGBA // chat-row text
@@ -105,10 +102,10 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	// the re-founding. On slate the whole trio dropped with the floor: rest is
 	// luma 12, the half-step lifts to 23 and the tinted row sits at 34, so the
 	// same soft lift still leaves the hue to do the choosing.
-	hover := c.StateAt(tokens.LevelBackdrop, tokens.StateHover)
+	hover := c.StateAt(tokens.LevelChrome, tokens.StateHover)
 	hover.A = 128
 	return Palette{
-		Sidebar:   c.SurfaceAt(tokens.LevelBackdrop),
+		Sidebar:   c.SurfaceAt(tokens.LevelChrome),
 		Separator: c.Divider,
 		Heading:   c.Ramps.Neutral.Step(700),
 		Row:       c.Ramps.Neutral.Step(700),

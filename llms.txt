@@ -134,7 +134,7 @@ older answer, they are gone, not deprecated:
     Text, OnSurface step 900, SurfaceVariant step 300, OnSurfaceVariant
     step 700, Outline step 500 (which is FocusRing()). §Colour has the
     replacements;
-  - elevation levels 4 and 5 — the desktop ladder tops out at 3, and asking
+  - elevation levels 4 and 5 — the desktop elevation tops out at 3, and asking
     for a higher level now panics rather than clamping;
   - patterns/tag entirely, with no alias. The status label is
     components/badge (the roster above); a dismissible user-entered token
@@ -629,7 +629,7 @@ pressed/selected/dragged two, clamped at 900 — resolved by StateColor
 the 900 depth). Disabled is an opacity (tokens.Disabled, MD3's 38%).
 Focus keeps the surface and strokes a ring in the primary hue, walked
 rather than named: the rung of the primary ramp nearest that ramp's
-mid-value step which clears 3:1 against every storey at once. That is
+mid-value step which clears 3:1 against every level at once. That is
 ONE RING COLOUR PER SCHEME, and it does not depend on where the control
 stands — the same purple on the paper, on a card, in a dialog and in a
 popover, because the ring is the system's mark of focus rather than a
@@ -638,12 +638,12 @@ control insets in its OWN fill: there the scheme's ring is kept wherever
 it reads against that fill, and walked against the fill only where it
 cannot. ColorTokens.FocusRing() is still on the token set and is
 still neutral 500, but nothing strokes focus with it any more — one
-fixed step measures 2.35:1 on a surface, 1.42:1 three storeys up, and
+fixed step measures 2.35:1 on a surface, 1.42:1 three levels up, and
 1.00:1 around an unchecked checkbox, whose border is that same step.
 
   ```go
   // c is the tokens.ColorTokens the theme's Color observable emitted.
-  alias   := c.Surface        // neutral 200 — a ramp alias, NOT a storey
+  alias   := c.Surface        // neutral 200 — a ramp alias, NOT a level
   hover   := c.StateColor(tokens.RoleNeutral, 200, tokens.StateHover)   // 300
   pressed := c.StateColor(tokens.RoleNeutral, 200, tokens.StatePressed) // 400
   label   := c.Ramps.Neutral.Step(700)              // low-contrast text
@@ -751,12 +751,15 @@ slop overlapping is by design (the topmost input area wins).
 ## Elevation: the surface levels
 
 A raised surface reads as raised by TINT first, shadow second. There are
-FIVE levels, counted from the backdrop up, anchored on the Background pin
+SIX levels, counted from the backdrop up, anchored on the Background pin
 and placed in CIELAB L* so that a level nearer the viewer is lighter in
 BOTH schemes:
 
   ```
-  LevelBackdrop  chrome furniture, beneath the paper   darkest in the window
+  LevelBackdrop  the bare window plane, showing wherever nothing
+                 stands                                darkest in the window
+  LevelChrome    the window's furniture — navbar, toolbar, sidebar,
+                 inspector, status bar, pane
   Level0         the content surface (the Background pin)
   Level1         card, fence, field — raised in place
   Level2         dialogs, toasts, higher panels
@@ -767,14 +770,15 @@ BOTH schemes:
   surface := c.SurfaceAt(tokens.Level1)   // resolves the fill per mode
   ```
 
-DO NOT READ A STOREY OFF THE NEUTRAL RAMP. A storey is a ramp step only
-where the two happen to coincide: the light scheme's floor lands on
-neutral 200, and the dark scheme's three storeys above the paper land on
-neutral 200/300/400, but the light scheme's raised and floating fills are
+DO NOT READ A LEVEL OFF THE NEUTRAL RAMP. A level is a ramp step only
+where the two happen to coincide: the light scheme's chrome level and
+backdrop land on neutral 200 and 300, and the dark scheme's three levels
+above the content land on neutral 200/300/400, but the light scheme's
+raised and floating fills are
 whispers toward white that no ramp step names. c.SurfaceAt is the only
 correct way to ask, and c.Surface is a RAMP ALIAS for neutral 200 rather
-than a storey. In the light scheme the steps between storeys are
-fractions of an L*, so anything that takes a storey owes itself a derived
+than a level. In the light scheme the steps between levels are
+fractions of an L*, so anything that takes a level owes itself a derived
 hairline or a border to be seen at all.
 
 Because the ramps are paired, a surface tints per scheme with no second
@@ -783,10 +787,10 @@ encode, falls out for free. WHICH WAY a surface moves is not the pairing's
 to decide: a surface nearer the viewer is lighter, in BOTH schemes, which
 is the window-anatomy rule below and what the steps in the table answer
 to. State
-walks compose on top with the storey's OWN FILL as the ground:
-c.StateAt(level, state) answers a storey's hover and active, walking from
-the fill SurfaceAt gives rather than from a ramp index — so a control on
-the furniture floor has an answer as much as one on a
+walks compose on top with the level's OWN FILL as the ground:
+c.StateAt(level, state) answers a level's hover and active, walking from
+the fill SurfaceAt gives rather than from a ramp index — so a control at
+the chrome level has an answer as much as one on a
 card. Ghost buttons obey the same rule from their HOST surface's
 rung: button Props carry a Level elevation level (zero value — the window
 ground, so existing call sites keep their colors), and the ghost hover and
@@ -795,7 +799,7 @@ window's. Without it, a ghost control on a level-2 surface would hover to
 the very color it sits on and disappear. The patterns that put ghost
 controls on raised surfaces — modal's close X, popover, toast — pass their
 level for you. Levels 4 and 5 are GONE — they used to clamp onto level 3;
-asking for one now panics. Desktop has no six-storey stack.
+asking for one now panics. Desktop has no six-deep stack.
 
 ### Shadows are opt-in
 
@@ -808,7 +812,7 @@ FillShape. Do not add a shadow to a card.
 
 ## Window anatomy: which region wears which rung
 
-The ladder says how high a surface stands. This says WHICH PART OF A
+Elevation says how high a surface stands. This says WHICH PART OF A
 WINDOW STANDS WHERE — the assignment every app used to re-derive, some of
 them backwards — and WHICH WAY THE LIGHT COMES FROM.
 
@@ -818,21 +822,23 @@ elevation because a surface nearer the viewer catches more light, and
 reflectance does not invert when the room goes dark; what a dark scheme
 inverts is the ink, which the paired ramps already handle.
 
-The consequence that reorganises everything else: CHROME FURNITURE IS THE
-WINDOW'S FLOOR, not a storey above the paper. A sidebar is the desk the
-document lies on, so it is DARKER than the document — in the light scheme
-and in the dark one. Four storeys, ordered away from the desk and toward
-the reader:
+The consequence that reorganises everything else: CHROME IS A LEVEL OF ITS
+OWN, UNDER THE CONTENT rather than above it. A sidebar stands beside the
+document and beneath it, so it is DARKER than the document — in the light
+scheme and in the dark one. Five levels, ordered from the backdrop up
+toward the reader:
 
   ```
-  floor     chrome furniture — sidebars, asides, rails,
-            toolbars, inspectors              darkest in the window
-  paper     the content ground — the document, the
-            transcript, the list              the Background pin
-  raised    filled insets on the paper — cards, code fences,
-            a band's controls, a text field   above the pin
+  backdrop  nothing: the bare window plane, showing wherever
+            nothing stands                   darkest in the window
+  chrome    the window's furniture — navbar, toolbar, sidebar,
+            inspector, status bar, pane      a tint lighter than the backdrop
+  content   the document, the transcript,
+            the list                         the Background pin
+  raised    filled insets on the content — cards, code fences,
+            a band's controls, a text field  above the pin
   floating  what appears and leaves — dialogs, menus,
-            popovers, toasts                  nearest the light extreme
+            popovers, toasts                 nearest the light extreme
   ```
 
 Read that down and lightness increases, in both schemes. That is the whole
@@ -846,70 +852,76 @@ appearances: sidebar 251,251,249 → content 252,252,251 → composer
 search field raised on the sidebar at #2F3233. Monotonic in every one of
 them, in the same direction. Note the sizes: in the light scheme the steps
 are fractions of an L* and the derived hairlines do the visible separating,
-so do not expect a light window's storeys to stand far apart.
+so do not expect a light window's levels to stand far apart.
 
   - THE PAPER IS THE CONTENT GROUND, AT LEVEL 0. The largest resting
     expanse, the thing the window exists to show, fills with the Background
-    pin — c.SurfaceAt(tokens.Level0). That is why the ladder's level 0 is a
+    pin — c.SurfaceAt(tokens.Level0). That is why level 0 is a
     sentinel rather than a ramp step and why a button's Level prop calls
     its zero value the window ground.
-  - FURNITURE IS THE FLOOR, ONE MEASURED STEP UNDER THE PAPER. Sidebars,
-    asides, rails, toolbars and inspectors fill DARKER than the content
-    ground — one step below it, in BOTH schemes, because they lie behind
-    the paper rather than on top of it. One small step is the whole
+  - FURNITURE IS THE CHROME LEVEL, ONE MEASURED STEP UNDER THE CONTENT.
+    Sidebars, asides, rails, toolbars and inspectors fill DARKER than the
+    content — one step below it, in BOTH schemes, because they stand under
+    the document rather than on top of it. Chrome is window-scale only: the
+    trim inside a component or a pattern — a card's header, a dialog's
+    footer, a table's header row — is that thing's structure and takes no
+    level of its own. One small step is the whole
     separation between chrome and content; two is a mistake in either
     direction. THAT STEP IS MEASURED OFF THE PLATFORM, PER SCHEME, AND THE
     TWO SCHEMES DO NOT MEASURE THE SAME. A light window separates its
     furniture by about 4.9 L* — which is also the neutral ramp's own first
-    surface interval, so the light floor lands on neutral 200 — and a dark
+    surface interval, so the light chrome level lands on neutral 200 — and a dark
     window by a whisper, about 1.5: the platform's voice recorder puts its
     sidebar panel at #1B1B1B under #1E1E1E content, a reference chat
     application 1.71 L*, the platform's settings window 3.81 with its
     wallpaper tint on. A full ramp step in the dark scheme is nearly 5 L*
     and reads as a hole rather than as furniture. Do not derive either
-    number and do not mirror one into the other scheme: resolve the floor
-    through the theme's ladder (c.SurfaceAt) rather than reaching for a raw
-    ramp step, so a window inherits both measurements instead of restating
-    one.
+    number and do not mirror one into the other scheme: resolve the level
+    through the theme (c.SurfaceAt) rather than reaching for a raw ramp
+    step, so a window inherits both measurements instead of restating one.
+    The BACKDROP is a further step under the chrome — derived rather than
+    measured, because no platform capture shows a window plane beneath its
+    furniture. Nothing is drawn at it: it shows wherever nothing stands,
+    which in a fully dressed window is nowhere.
   - A FLOATING CHROME PANE IS STILL CHROME. Chrome's depth is SEMANTIC, not
     geometric: a sidebar a button slides out of the window, an inspector
-    that detaches, is still furniture and still fills at the floor. It does
-    not climb the ladder by leaving the wall. What says a pane is a floating
+    that detaches, is still furniture and still fills at the chrome level.
+    It does not climb the levels by leaving the wall. What says a pane is a floating
     object is its OWN HAIRLINE EDGE and its shadow, never a lighter fill —
     the platform paints even the floating panel darker than the content
     beside it, and outlines it internally at a ~1.5:1 whisper, a decorative
     seam rather than a 3:1 mark. Integral furniture — fixed, flush, unable
     to slide — takes no outline; its boundary is a plain seam. Draw a
-    sliding pane with an edge and let it stay on the floor. And do not
+    sliding pane with an edge and let it stay at the chrome level. And do not
     re-derive that object per window: patterns/pane IS the floating pane —
     the inset from the leading, top and bottom edges, the rounded corners,
     the hairline drawn inside them, a top strip cut deep enough to hold the
     window buttons on their own centre line, and a dismissed state that
     takes no width at all so what stood beside it reflows from the window's
     own leading edge.
-  - NOTHING RESTING TAKES A FLOATING STOREY. Levels 2 and 3 belong to what
+  - NOTHING RESTING TAKES A FLOATING LEVEL. Levels 2 and 3 belong to what
     appears and leaves — a dialog and a toast's base at 2, a popover and a
     dropdown at 3, all of which the patterns pass for you — and to edges:
     Divider and the state walks. Permanence is the test and size is its
     tell. If a fill is the biggest thing on screen and never goes away, it
-    is the paper or the floor, whatever it is called.
-  - RUNGS WALK FROM THE LOCAL GROUND, not from the window, and A STEP
-    TOWARD THE VIEWER IS A STEP TOWARD THE SCHEME'S LIGHT EXTREME. A card
-    on the content ground is one storey up from the paper; a control inside
+    is the content or the chrome, whatever it is called.
+  - LEVELS WALK FROM THE SURFACE A THING STANDS ON, not from the window,
+    and A STEP TOWARD THE VIEWER IS A STEP TOWARD THE SCHEME'S LIGHT
+    EXTREME. A card on the content is one level up from it; a control inside
     a dialog walks from the dialog's own fill, which is what the Level prop
     exists to say. An inset inside a body that is FILLED — a code fence, a
     callout with a surface — steps UP from the paper it lies on rather than
     reaching for an absolute step, and UP means LIGHTER in both schemes. An
     inset that is MARKED instead — a blockquote's bar and muted ink, a
     rule — stands off its page by contrast, owes no rung and gets none; the
-    ladder is for fills. The paper answers differently, because the
+    levels are for fills. The content answers differently, because the
     Background pin is off the ramp and has no step to walk from: draw a
-    raised thing on the content ground at the storey above the pin —
+    raised thing on the content at the level above the pin —
     c.SurfaceAt(tokens.Level1) — and start its state walk there. And a
     shared surface takes its ground as a parameter, because it cannot know
     it: a pattern that paints a plane and then a band over it — a table's
     grid and its header, a tab panel and its strip — walks that band from
-    the plane's own storey, never from an absolute step, which is right only
+    the plane's own level, never from an absolute step, which is right only
     for as long as every caller happens to rest where it was written.
   - A FILLED INSET IS RAISED, NEVER A RECESSED WELL. There is no
     recessed class: the only test the system has for what owes a rung is
@@ -989,7 +1001,7 @@ wrong, not a token set that is short.
 
 workbench/vaultview is the window the grammar was read off: frame.go fills
 the whole window with Background and fills the sidebar and the aside from
-the furniture storey, main.go takes the full-size-content treatment and
+the chrome level, main.go takes the full-size-content treatment and
 insets what it must, frame.go places the window buttons with
 desktop.ButtonRunAt and
 starts the band's content at desktop.BandLead, and tree.go tints the

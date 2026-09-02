@@ -333,10 +333,10 @@ func TestTheSelectorSitsBesideTheCodeAndNowhereElse(t *testing.T) {
 	// bandProbe is far enough into the band to be the band and not the row
 	// above it, and far enough above its label not to be a glyph.
 	const bandProbe = 4
-	floor := page.SurfaceAt(tokens.LevelBackdrop)
-	if edge := top.RGBAAt(int(Pad)+int(BaseW)-int(Gap), tabTop()+bandProbe); !same(edge, floor) {
-		t.Errorf("the tab's first row starts at %v rather than the page's own floor %v — something is standing between the window's margin and the page",
-			edge, floor)
+	chrome := page.SurfaceAt(tokens.LevelChrome)
+	if edge := top.RGBAAt(int(Pad)+int(BaseW)-int(Gap), tabTop()+bandProbe); !same(edge, chrome) {
+		t.Errorf("the tab's first row starts at %v rather than the page's own chrome fill %v — something is standing between the window's margin and the page",
+			edge, chrome)
 	}
 	// And the column is inside the specimen's row rather than beside the page:
 	// the strip left of it is that row's own margin, which is the page's ground.

@@ -122,13 +122,13 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 			// Hover is the sidebar's own neutral state walk at half strength,
 			// not a derivation of the selected fill — that one is a Primary
 			// tint, and a transient state stays a neutral walk.
-			hover := c.StateAt(tokens.LevelBackdrop, tokens.StateHover)
+			hover := c.StateAt(tokens.LevelChrome, tokens.StateHover)
 			hover.A = 128
 			for _, f := range []struct {
 				name      string
 				got, want color.NRGBA
 			}{
-				{"Sidebar", p.Sidebar, c.SurfaceAt(tokens.LevelBackdrop)},
+				{"Sidebar", p.Sidebar, c.SurfaceAt(tokens.LevelChrome)},
 				{"Separator", p.Separator, c.Divider},
 				{"Heading", p.Heading, c.Ramps.Neutral.Step(700)},
 				{"Row", p.Row, c.Ramps.Neutral.Step(700)},
