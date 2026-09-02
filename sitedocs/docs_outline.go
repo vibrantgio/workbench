@@ -128,10 +128,10 @@ func ensureClick(m map[int]*widget.Clickable, key int) *widget.Clickable {
 // layout draws the tree column: the rail's own ground the fixed width of the
 // rail, the visible rows as a scrolling list under a little top padding.
 //
-// The ground is the ladder's FLOOR. This column is an outline rail — chrome
+// It stands on the BACKDROP. This column is an outline rail — chrome
 // furniture — and furniture is the desk the document lies on rather than a
-// storey stacked over it, in both schemes. colors.Surface would not do: it is
-// a RAMP ALIAS rather than a storey (neutral 200, which coincides with the
+// level stacked over it, in both schemes. colors.Surface would not do: it is
+// a RAMP ALIAS rather than a level (neutral 200, which coincides with the
 // light scheme's floor but with the dark scheme's RAISED rung), so one line
 // of code would put the rail under the guide on paper and over it on slate.
 // The floor is neutral 200 on paper and #0C0C0C on slate, below the #181818
@@ -142,7 +142,7 @@ func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeToken
 		w = gtx.Constraints.Max.X
 	}
 	size := image.Pt(w, gtx.Constraints.Max.Y)
-	paint.FillShape(gtx.Ops, tok.col.SurfaceAt(tokens.LevelFloor), clip.Rect{Max: size}.Op())
+	paint.FillShape(gtx.Ops, tok.col.SurfaceAt(tokens.LevelBackdrop), clip.Rect{Max: size}.Op())
 	// A hairline on the trailing edge parts the tree from the document: in
 	// dark schemes the two grounds are close and would otherwise bleed
 	// together.

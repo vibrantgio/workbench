@@ -559,7 +559,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 				case e.Idx == v.marked:
 					asidePill(gtx, size, tok.col.Ramps.Primary.Step(300))
 				case selected:
-					asidePill(gtx, size, tok.col.StateAt(tokens.LevelFloor, tokens.StateHover))
+					asidePill(gtx, size, tok.col.StateAt(tokens.LevelBackdrop, tokens.StateHover))
 				}
 				semantic.LabelOp(e.Title).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
@@ -639,7 +639,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
 				if selected {
-					asidePill(gtx, size, tok.col.StateAt(tokens.LevelFloor, tokens.StateHover))
+					asidePill(gtx, size, tok.col.StateAt(tokens.LevelBackdrop, tokens.StateHover))
 				}
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)

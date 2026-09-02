@@ -1,20 +1,20 @@
 package main
 
 // Headless confirmations that this window is dressed by the surface grammar:
-// which region of the window wears which storey of the elevation ladder. The
+// which region of the window wears which elevation level. The
 // transcript is what the window exists to show, so it is the content ground
 // and fills at level 0 — the Background pin; the conversation list is chrome
-// furniture and is therefore the window's FLOOR, a storey UNDER the paper;
+// furniture and is therefore the window's FLOOR, a level UNDER the paper;
 // levels 2 and 3 stay with what appears and leaves.
 //
-// Since ADR-022 the ladder has one direction and no mirror: walking toward
+// Since ADR-022 elevation has one direction and no mirror: walking toward
 // the viewer never gets darker, in either scheme. Read as a picture of this
 // window that is one sentence rather than two — the furniture is the darkest
 // region and the nearest surface the lightest, on paper and on slate alike.
 //
 // These assertions are the app's, not the token set's: they are what the
-// window would fail if somebody filled a resting expanse of it at a storey
-// the ladder keeps for a menu, or hung the furniture above the page again.
+// window would fail if somebody filled a resting expanse of it at a level
+// elevation keeps for a menu, or hung the furniture above the page again.
 
 import (
 	"image"
@@ -71,7 +71,7 @@ func luma(c color.NRGBA) float32 {
 
 // TestTranscriptRestsOnTheWindowGround pins the transcript to level 0 in both
 // schemes: its resting fill is the Background pin, and it is emphatically not
-// the neutral step the ladder reserves for a dialog — the fill this window
+// the neutral step elevation reserves for a dialog — the fill this window
 // used to spread under every answer, which made it darker in the middle than
 // at its edges.
 func TestTranscriptRestsOnTheWindowGround(t *testing.T) {
@@ -85,11 +85,11 @@ func TestTranscriptRestsOnTheWindowGround(t *testing.T) {
 			if p.Ground == c.SurfaceAt(tokens.Level2) {
 				t.Errorf("transcript ground = %v, the level-2 fill; no resting expanse may sit that deep", p.Ground)
 			}
-			if p.Sidebar != c.SurfaceAt(tokens.LevelFloor) {
-				t.Errorf("sidebar = %v, want the floor's fill %v — furniture is the window's floor, one storey UNDER the paper", p.Sidebar, c.SurfaceAt(tokens.LevelFloor))
+			if p.Sidebar != c.SurfaceAt(tokens.LevelBackdrop) {
+				t.Errorf("sidebar = %v, want the floor's fill %v — furniture is the window's floor, one level UNDER the paper", p.Sidebar, c.SurfaceAt(tokens.LevelBackdrop))
 			}
 			if p.Sidebar == c.SurfaceAt(tokens.Level1) {
-				t.Errorf("sidebar = %v, the level-1 fill; that storey is for what is RAISED on the paper, not for what the paper lies on", p.Sidebar)
+				t.Errorf("sidebar = %v, the level-1 fill; that level is for what is RAISED on the paper, not for what the paper lies on", p.Sidebar)
 			}
 		})
 	}
@@ -116,7 +116,7 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 				{"the transcript's paper", p.Ground},
 				// The header picker's fill is the component's, not this
 				// palette's: the claim is made against the control's own answer
-				// for the storey it stands on, because the window's ladder is
+				// for the level it stands on, because the window's elevation is
 				// what is on trial here and the control is still a rung of it.
 				{"the header picker", picker.ToolbarFill(c, tokens.Level0, tokens.StateNormal)},
 				{"a dialog's surface", c.SurfaceAt(tokens.Level2)},
@@ -140,10 +140,10 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 	}
 }
 
-// TestCodeInsetsStepUpFromTheTranscriptGround holds the app to the storey its
+// TestCodeInsetsStepUpFromTheTranscriptGround holds the app to the level its
 // markdown insets take. A raised inset walks from the surface it is lying on,
 // and a message body lies on the transcript's paper — so a fenced block and
-// an inline code chip sit exactly one storey off that paper, and since
+// an inline code chip sit exactly one level off that paper, and since
 // ADR-022's fence ruling "up" means LIGHTER in both schemes: a fence is a
 // raised chip, never a well cut into the page. Inheriting FromTokens' grounds
 // is how the app gets there; this is the assertion that makes it a decision.
@@ -182,18 +182,18 @@ func TestCodeInsetsStepUpFromTheTranscriptGround(t *testing.T) {
 
 // TestChipsWalkFromTheSurfaceTheySitOn checks the two chips this app draws
 // against the same rule from two different grounds: the header picker sits on
-// the transcript's level-0 paper and is raised a storey off it; the dialog's
+// the transcript's level-0 paper and is raised a level off it; the dialog's
 // chips sit flush on the dialog's level-2 surface and reveal themselves with
 // that surface's own walk. Each one's hover is its own ground's one-step
 // walk, so neither is invisible at rest and neither moves the wrong way under
 // the pointer.
 //
 // Two different axes are checked here and they answer differently, which is
-// the point. A STOREY is the ladder and answers to the linchpin: the raised
+// the point. A LEVEL is elevation and answers to the linchpin: the raised
 // chip is lighter than its ground in both schemes. A STATE is feedback and
 // still walks toward the ramp's 900 end: the hover darkens on paper and
 // lightens on slate. That asymmetry is not the mirror ADR-022 abolished —
-// the mirror was in the ladder, and the ladder is one direction now.
+// the mirror was in elevation, and elevation is one direction now.
 func TestChipsWalkFromTheSurfaceTheySitOn(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -220,7 +220,7 @@ func TestChipsWalkFromTheSurfaceTheySitOn(t *testing.T) {
 					t.Errorf("%s rests at %v, the same fill as the %s it sits on; nothing marks it as raised", ch.name, ch.rest, ch.groundRungName)
 				}
 				if !ch.restIsFlush && luma(ch.rest) <= luma(ch.ground) {
-					t.Errorf("%s rests at %v, no lighter than the %s %v it is raised on; a storey nearer the viewer is lighter in both schemes",
+					t.Errorf("%s rests at %v, no lighter than the %s %v it is raised on; a level nearer the viewer is lighter in both schemes",
 						ch.name, ch.rest, ch.groundRungName, ch.ground)
 				}
 				if ch.hovered == ch.rest {
@@ -321,7 +321,7 @@ func TestChosenIsTintedAndTransientIsNeutral(t *testing.T) {
 			// strength, so the pointer's mark is a tick rather than a rival
 			// to the tint. The ground is the floor, since that is where the
 			// furniture stands.
-			walk := c.StateAt(tokens.LevelFloor, tokens.StateHover)
+			walk := c.StateAt(tokens.LevelBackdrop, tokens.StateHover)
 			if p.RowHovered.R != walk.R || p.RowHovered.G != walk.G || p.RowHovered.B != walk.B {
 				t.Errorf("RowHovered = %v, want the neutral hover walk %v at reduced alpha", p.RowHovered, walk)
 			}

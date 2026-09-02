@@ -18,17 +18,17 @@ import (
 // window feeds a live OS theme, an OS light/dark switch re-emits the tokens
 // and restyles the whole app with no imperative wiring.
 //
-// The storeys the roles resolve to are the window grammar's, not this app's
+// The levels the roles resolve to are the window grammar's, not this app's
 // invention: the transcript is the window's CONTENT GROUND and fills at
 // level 0, the Background pin; the conversation list is CHROME FURNITURE and
 // is therefore the window's FLOOR, one step UNDER the paper toward the
 // scheme's dark extreme in both schemes; levels 2 and 3 are kept for what
 // appears and leaves — the settings dialog, the model menu, the undo bar —
-// and for edges. A raised thing walks its storey from the surface it is
+// and for edges. A raised thing walks its level from the surface it is
 // lying on, so a chip on the transcript ground is level 1 while a chip
 // inside the level-2 settings dialog is measured from level 2.
 //
-// Since ADR-022 the ladder runs one way in both schemes: nearer the viewer
+// Since ADR-022 elevation runs one way in both schemes: nearer the viewer
 // is lighter. This window is darkest at its leading edge and lightest where
 // a dialog stands over it, on paper and on slate alike — no mirror. The
 // light scheme does not move for the re-founding (its floor is the neutral
@@ -62,7 +62,7 @@ type Palette struct {
 	UserText   color.NRGBA // user message text
 	BotText    color.NRGBA // assistant message text — the ink pinned to Ground
 	// The header picker's own fill, hover and rim are not here: it is
-	// components/picker, which derives all three from the storey it stands
+	// components/picker, which derives all three from the level it stands
 	// on. What this app still says about it is where it stands — the level-0
 	// paper of the transcript's header band — and the component answers the
 	// rest.
@@ -74,7 +74,7 @@ type Palette struct {
 	ModalChip        color.NRGBA
 	ModalChipHovered color.NRGBA
 	// Toast is the base of a surface that appears and leaves — today the undo
-	// bar. It is a level-2 fill because that is the rung the ladder keeps for
+	// bar. It is a level-2 fill because that is the level elevation keeps for
 	// exactly that, and it is its own role rather than a borrowed one: the bar
 	// used to tint the selected-row fill, which was fine only while that fill
 	// was a neutral step and became a purple-on-purple wash the moment the
@@ -89,12 +89,12 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	// over the sidebar surface. It can no longer be derived from the selected
 	// fill — that one is a Primary tint now — and it must not be: hover is a
 	// transient state, and a transient state is a neutral walk from the ground
-	// it happens on. That ground is the sidebar's storey, and since ADR-022
-	// the sidebar's storey is the FLOOR — so the walk is taken with StateAt
+	// it happens on. That ground is the sidebar's level, and since ADR-022
+	// the sidebar's level is the FLOOR — so the walk is taken with StateAt
 	// from the floor's own fill rather than from a ramp index. Asking the ramp
 	// for the old level-1 step would have kept answering the light scheme
 	// right by accident (its floor IS neutral 200) and the dark scheme wrong
-	// by a whole storey.
+	// by a whole level.
 	//
 	// Half strength rather than the full step, and that is the re-derivation
 	// the tint forced. On paper the neutral hover step lands at luma 212 and
@@ -105,10 +105,10 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	// the re-founding. On slate the whole trio dropped with the floor: rest is
 	// luma 12, the half-step lifts to 23 and the tinted row sits at 34, so the
 	// same soft lift still leaves the hue to do the choosing.
-	hover := c.StateAt(tokens.LevelFloor, tokens.StateHover)
+	hover := c.StateAt(tokens.LevelBackdrop, tokens.StateHover)
 	hover.A = 128
 	return Palette{
-		Sidebar:   c.SurfaceAt(tokens.LevelFloor),
+		Sidebar:   c.SurfaceAt(tokens.LevelBackdrop),
 		Separator: c.Divider,
 		Heading:   c.Ramps.Neutral.Step(700),
 		Row:       c.Ramps.Neutral.Step(700),

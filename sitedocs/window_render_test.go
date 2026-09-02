@@ -171,7 +171,7 @@ func TestWholeWindowRender(t *testing.T) {
 //
 // The strip does not follow it, and the difference is what this test is worth
 // reading for. A rail is chrome standing beside the document; a tab strip is
-// the panel's own control band, drawn one storey over the panel it belongs to
+// the panel's own control band, drawn one level over the panel it belongs to
 // (patterns/tabs walks it from Props.Ground). So this one window carries a
 // region below the paper and a region above it, and the two are named apart
 // here rather than lumped as "furniture".
@@ -179,7 +179,7 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, titleBandDp)
-			floor := tc.c.SurfaceAt(tokens.LevelFloor)
+			floor := tc.c.SurfaceAt(tokens.LevelBackdrop)
 			ground := tc.c.SurfaceAt(tokens.Level0)
 			raised := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
@@ -202,7 +202,7 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 					t.Errorf("%s at %v = %v, want %v", r.name, r.at, got, r.want)
 				}
 				if got == transient {
-					t.Errorf("%s at %v rests at level 2 (%v), the rung the ladder keeps for what appears and leaves",
+					t.Errorf("%s at %v rests at level 2 (%v), the level elevation keeps for what appears and leaves",
 						r.name, r.at, transient)
 				}
 			}

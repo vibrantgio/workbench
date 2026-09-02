@@ -235,14 +235,14 @@ var (
 // are its darkest regions in both schemes: on paper the floor is neutral 200,
 // on slate #0C0C0C. The tab strip does not follow them — a sidebar is chrome
 // standing beside the document, while a tab strip is the reading pane's own
-// control band, drawn one storey over the panel it belongs to (patterns/tabs
+// control band, drawn one level over the panel it belongs to (patterns/tabs
 // walks it from Props.Ground). This window therefore carries regions on three
-// storeys at rest.
+// levels at rest.
 func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
-			floor := tc.c.SurfaceAt(tokens.LevelFloor)
+			floor := tc.c.SurfaceAt(tokens.LevelBackdrop)
 			ground := tc.c.SurfaceAt(tokens.Level0)
 			raised := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
@@ -265,7 +265,7 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 					t.Errorf("%s at %v = %v, want %v", r.name, r.at, got, r.want)
 				}
 				if got == transient {
-					t.Errorf("%s at %v rests at level 2 (%v), the rung the ladder keeps for what appears and leaves", r.name, r.at, transient)
+					t.Errorf("%s at %v rests at level 2 (%v), the level elevation keeps for what appears and leaves", r.name, r.at, transient)
 				}
 			}
 		})
@@ -303,7 +303,7 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 				}
 			}
 			// The furniture is this window's darkest region. The navbar is in
-			// it because this window's furniture is two regions on one storey,
+			// it because this window's furniture is two regions on one level,
 			// and a window that painted only one of them the floor would read
 			// as a step across its own top edge.
 			for _, furniture := range []struct {
@@ -365,7 +365,7 @@ func TestChosenItemsCarryThePrimaryTint(t *testing.T) {
 			if rest == tint {
 				t.Errorf("an unchosen feed at %v is tinted %v; the mark says nothing if every row wears it", atRestingFeed, rest)
 			}
-			if want := tc.c.SurfaceAt(tokens.LevelFloor); rest != want {
+			if want := tc.c.SurfaceAt(tokens.LevelBackdrop); rest != want {
 				t.Errorf("resting feed at %v = %v, want the sidebar's own ground %v", atRestingFeed, rest, want)
 			}
 			// The pager's resting cell says the same thing about the pager:
@@ -406,12 +406,12 @@ func TestFeedRowStatesKeepTheirInksApart(t *testing.T) {
 			}
 
 			tint := tc.c.Ramps.Primary.Step(300)
-			// The walk is taken from the storey the rows stand on — the
+			// The walk is taken from the level the rows stand on — the
 			// sidebar's floor — rather than named as a ramp index. On paper
 			// the two spell the same #D4D4D4; on slate an index is a step
-			// off the wrong storey entirely.
-			walk := tc.c.StateAt(tokens.LevelFloor, tokens.StateHover)
-			ground := tc.c.SurfaceAt(tokens.LevelFloor)
+			// off the wrong level entirely.
+			walk := tc.c.StateAt(tokens.LevelBackdrop, tokens.StateHover)
+			ground := tc.c.SurfaceAt(tokens.LevelBackdrop)
 
 			if got := fill(false, false); got != sentinel {
 				t.Errorf("a resting row painted %v; it must leave its region's own ground showing", got)
@@ -470,7 +470,7 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
-			surface := tc.c.SurfaceAt(tokens.LevelFloor)
+			surface := tc.c.SurfaceAt(tokens.LevelBackdrop)
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
 					if got := at(img, x, y); got != surface {
@@ -510,8 +510,8 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 //     be at or below the band's foot — the band is held open, and wears the
 //     sidebar's own ground while it is.
 //
-// Both halves are read off ONE storey: a column painted at the Surface ALIAS
-// while patterns/accordion sits on the floor stands a whole storey over the
+// Both halves are read off ONE level: a column painted at the Surface ALIAS
+// while patterns/accordion sits on the floor stands a whole level over the
 // sidebar beneath it on slate, and a scan looking for the alias cannot see
 // that.
 //
@@ -531,7 +531,7 @@ func TestTheWindowsTopStripIsOneBand(t *testing.T) {
 			for i, dc := range densities {
 				img := renderWindowAt(t, tc.c, dc.d)
 				band := int(windowBandDp(dc.d))
-				surface := tc.c.SurfaceAt(tokens.LevelFloor)
+				surface := tc.c.SurfaceAt(tokens.LevelBackdrop)
 
 				depth := -1
 				for y := 0; y < windowSize.Y; y++ {

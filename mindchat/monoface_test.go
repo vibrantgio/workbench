@@ -99,14 +99,14 @@ func TestChatCodeShapesInMonoFace(t *testing.T) {
 // aliases and not stale literals — in both schemes, and confirms the chroma
 // style selection follows the scheme's background.
 //
-// The fills that carry a STOREY are pinned to the ladder's own accessors
+// The fills that carry a LEVEL are pinned to elevation's own accessors
 // rather than to ramp indices, and since ADR-022 that is the whole of the
-// difference: a storey is a depth against the Background pin, not a step on
+// difference: a level is a depth against the Background pin, not a step on
 // the neutral ramp. The three above the pin land back on neutral 200/300/400
 // in the dark scheme and nowhere on the ramp in the light one, and the floor
 // is the mirror image of that — so a ramp index cannot state any of them
 // twice. What this still catches is a role reaching for a literal or for the
-// wrong storey; the tautology is deliberate and cheap.
+// wrong level; the tautology is deliberate and cheap.
 func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -122,13 +122,13 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 			// Hover is the sidebar's own neutral state walk at half strength,
 			// not a derivation of the selected fill — that one is a Primary
 			// tint, and a transient state stays a neutral walk.
-			hover := c.StateAt(tokens.LevelFloor, tokens.StateHover)
+			hover := c.StateAt(tokens.LevelBackdrop, tokens.StateHover)
 			hover.A = 128
 			for _, f := range []struct {
 				name      string
 				got, want color.NRGBA
 			}{
-				{"Sidebar", p.Sidebar, c.SurfaceAt(tokens.LevelFloor)},
+				{"Sidebar", p.Sidebar, c.SurfaceAt(tokens.LevelBackdrop)},
 				{"Separator", p.Separator, c.Divider},
 				{"Heading", p.Heading, c.Ramps.Neutral.Step(700)},
 				{"Row", p.Row, c.Ramps.Neutral.Step(700)},

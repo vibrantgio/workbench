@@ -79,7 +79,7 @@ const (
 // rail pane, which is furniture and therefore the window's FLOOR. The live
 // rail and the goldens' static rail both name it here so they cannot
 // drift apart.
-const treeFieldLevel = tokens.LevelFloor
+const treeFieldLevel = tokens.LevelBackdrop
 
 // TreeRow is one visible row of the folder tree.
 type TreeRow struct {
@@ -437,9 +437,9 @@ func footAction(click *widget.Clickable, label string, tok themeTokens) layout.W
 			var fill color.NRGBA
 			switch {
 			case click.Pressed():
-				fill = tok.col.StateAt(tokens.LevelFloor, tokens.StatePressed)
+				fill = tok.col.StateAt(tokens.LevelBackdrop, tokens.StatePressed)
 			case click.Hovered():
-				fill = tok.col.StateAt(tokens.LevelFloor, tokens.StateHover)
+				fill = tok.col.StateAt(tokens.LevelBackdrop, tokens.StateHover)
 			}
 			if fill.A > 0 {
 				r := gtx.Dp(unit.Dp(treePillRadiusDp))
@@ -545,7 +545,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 				case active:
 					fill = tok.col.Ramps.Primary.Step(300)
 				case selected:
-					fill = tok.col.StateAt(tokens.LevelFloor, tokens.StateHover)
+					fill = tok.col.StateAt(tokens.LevelBackdrop, tokens.StateHover)
 				}
 				if fill.A > 0 {
 					ins := gtx.Dp(unit.Dp(treeRowInsetDp))

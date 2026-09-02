@@ -748,18 +748,19 @@ never the clickable area. Don't fight this: a 28 dp Compact button really
 does accept clicks a few dp outside its bounds, and neighbouring controls'
 slop overlapping is by design (the topmost input area wins).
 
-## Elevation: the surface ladder
+## Elevation: the surface levels
 
-A raised surface reads as raised by TINT first, shadow second. The ladder
-is FIVE storeys, anchored on the Background pin and placed in CIELAB L*
-so that a storey nearer the viewer is lighter in BOTH schemes:
+A raised surface reads as raised by TINT first, shadow second. There are
+FIVE levels, counted from the backdrop up, anchored on the Background pin
+and placed in CIELAB L* so that a level nearer the viewer is lighter in
+BOTH schemes:
 
   ```
-  LevelFloor  chrome furniture, beneath the paper   darkest in the window
-  Level0      the content ground (the Background pin)
-  Level1      card, fence, field — raised in place
-  Level2      dialogs, toasts, higher panels
-  Level3      popovers, menus — the top of the ladder
+  LevelBackdrop  chrome furniture, beneath the paper   darkest in the window
+  Level0         the content surface (the Background pin)
+  Level1         card, fence, field — raised in place
+  Level2         dialogs, toasts, higher panels
+  Level3         popovers, menus — the topmost level
   ```
 
   ```go

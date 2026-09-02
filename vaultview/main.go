@@ -118,20 +118,20 @@ type themeTokens struct {
 // the rail pane, the trailing column, and the backdrop the two of them
 // float on.
 //
-// It is the ladder's FLOOR — one step under the paper, toward the scheme's
+// It is the BACKDROP — one step under the paper, toward the scheme's
 // dark extreme, in both schemes. Furniture is the desk the document lies
-// on, not a storey above it, so the rail and the aside are the darkest
+// on, not a level above it, so the rail and the aside are the darkest
 // regions of this window and the note column between them is the lightest
 // resting one. In the light scheme the floor lands byte-for-byte on the
 // neutral 200 the panes wear. In the dark scheme it is #151515, the
 // platform's own measured step under the paper; at #222222 the panes read
-// as a storey stacked on the page they frame rather than the desk under it.
+// as a level stacked on the page they frame rather than the desk under it.
 //
 // It is a function rather than a field on themeTokens because the tests
 // hold whole palettes rather than snapshots, and both have to be able to
 // name the same fill.
 func chromeSurface(c tokens.ColorTokens) color.NRGBA {
-	return c.SurfaceAt(tokens.LevelFloor)
+	return c.SurfaceAt(tokens.LevelBackdrop)
 }
 
 // paneSeam is the ink of the rail pane's own edge — the vocabulary's, and

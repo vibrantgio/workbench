@@ -177,16 +177,16 @@ func drawFeedsSidebar(
 	size := image.Pt(w, h)
 	// The sidebar is chrome furniture, so it is the window's FLOOR — one step
 	// UNDER the paper it frames, toward the scheme's dark extreme, in both
-	// schemes. A sidebar is the desk the document lies on, not a storey
+	// schemes. A sidebar is the desk the document lies on, not a level
 	// stacked over it.
 	//
-	// The rung must be named as LevelFloor rather than as colors.Surface,
+	// The rung must be named as LevelBackdrop rather than as colors.Surface,
 	// which is a ramp ALIAS: neutral 200, the light scheme's floor but the
 	// dark scheme's RAISED rung. patterns/accordion draws everything below the
 	// band on the floor, so the alias would split this one column in two — on
 	// slate a #222222 band over a #0C0C0C accordion, a visible step across the
 	// sidebar's own top edge. On paper the two spell the same neutral 200.
-	paint.FillShape(gtx.Ops, colors.SurfaceAt(tokens.LevelFloor), clip.Rect{Max: size}.Op())
+	paint.FillShape(gtx.Ops, colors.SurfaceAt(tokens.LevelBackdrop), clip.Rect{Max: size}.Op())
 	top := min(max(gtx.Dp(band), 0), h)
 	defer op.Offset(image.Pt(0, top)).Push(gtx.Ops).Pop()
 	gtx.Constraints = layout.Exact(image.Pt(w, h-top))
@@ -336,7 +336,7 @@ func drawFeedEntryRow(
 // which for these rows is the sidebar's floor, so it is taken with StateAt
 // rather than named as an absolute ramp index. Neutral 300 answers the light
 // scheme right by accident (the floor's own hover step lands on that same
-// #D4D4D4) and the dark scheme wrong by a whole storey: #2E2E2E is the walk
+// #D4D4D4) and the dark scheme wrong by a whole level: #2E2E2E is the walk
 // off the RAISED rung, so a pointer over a #0C0C0C row would jump 15.6 L*
 // instead of the floor's own 9.9.
 func drawFeedEntryPill(
@@ -350,7 +350,7 @@ func drawFeedEntryPill(
 	case selected:
 		fill = tok.col.Ramps.Primary.Step(300)
 	case hovered:
-		fill = tok.col.StateAt(tokens.LevelFloor, tokens.StateHover)
+		fill = tok.col.StateAt(tokens.LevelBackdrop, tokens.StateHover)
 	default:
 		return
 	}

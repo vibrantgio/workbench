@@ -333,7 +333,7 @@ func TestTheSelectorSitsBesideTheCodeAndNowhereElse(t *testing.T) {
 	// bandProbe is far enough into the band to be the band and not the row
 	// above it, and far enough above its label not to be a glyph.
 	const bandProbe = 4
-	floor := page.SurfaceAt(tokens.LevelFloor)
+	floor := page.SurfaceAt(tokens.LevelBackdrop)
 	if edge := top.RGBAAt(int(Pad)+int(BaseW)-int(Gap), tabTop()+bandProbe); !same(edge, floor) {
 		t.Errorf("the tab's first row starts at %v rather than the page's own floor %v — something is standing between the window's margin and the page",
 			edge, floor)
