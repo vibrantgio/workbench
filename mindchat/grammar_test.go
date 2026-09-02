@@ -118,7 +118,7 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 				// palette's: the claim is made against the control's own answer
 				// for the storey it stands on, because the window's ladder is
 				// what is on trial here and the control is still a rung of it.
-				{"the header picker", picker.AnchorFill(c, tokens.Level0, tokens.StateNormal)},
+				{"the header picker", picker.ToolbarFill(c, tokens.Level0, tokens.StateNormal)},
 				{"a dialog's surface", c.SurfaceAt(tokens.Level2)},
 			}
 			for i := 1; i < len(toward); i++ {
@@ -209,8 +209,8 @@ func TestChipsWalkFromTheSurfaceTheySitOn(t *testing.T) {
 				groundRungName string
 			}{
 				{"header picker", p.Ground,
-					picker.AnchorFill(c, tokens.Level0, tokens.StateNormal),
-					picker.AnchorFill(c, tokens.Level0, tokens.StateHover), false, "transcript"},
+					picker.ToolbarFill(c, tokens.Level0, tokens.StateNormal),
+					picker.ToolbarFill(c, tokens.Level0, tokens.StateHover), false, "transcript"},
 				{"dialog chip", c.SurfaceAt(tokens.Level2), p.ModalChip, p.ModalChipHovered, true, "dialog surface"},
 			} {
 				if ch.restIsFlush && ch.rest != ch.ground {

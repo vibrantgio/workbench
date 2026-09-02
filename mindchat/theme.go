@@ -236,9 +236,9 @@ const (
 	// field, and so of the menu it drops: a field's menu is as wide as the
 	// field.
 	DefaultPickerWidth unit.Dp = 260
-	// ChipWidth is the widest the header picker may grow, not the width it
-	// draws at — the anchor is sized to its label and clamped to this.
-	ChipWidth unit.Dp = 230
+	// ToolbarWidth is the widest the header picker may grow, not the width it
+	// draws at — the trigger is sized to its label and clamped to this.
+	ToolbarWidth unit.Dp = 230
 	// MenuWidth is the width of the header picker's floating surface.
 	MenuWidth unit.Dp = 260
 	// MenuMaxHeight is the tallest either model menu draws before its rows

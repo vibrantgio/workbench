@@ -1,22 +1,22 @@
 // modelmenu.go owns the chat header's model picker: components/picker's
-// chrome-register anchor, naming the model the prompts in the current chat
-// use, standing under the picker menu that lists Default plus every provider's
-// cached models. Picking an entry reduces SetChatModel — a per-chat override
+// chrome-variant toolbar trigger, naming the model the prompts in the current
+// chat use, standing under the picker menu that lists Default plus every
+// provider's cached models. Picking an entry reduces SetChatModel — a per-chat override
 // persisted in the chat file. Open state is model state (Model.ModelMenu), the
 // mindchat idiom.
 //
-// A chrome-register menu is a floating surface placed against the window and
-// patterns/popover places it, so the anchor and the menu meet here rather than
-// inside the component: the anchor is the popover's anchor slot and the menu
-// its content slot.
+// A chrome-variant menu is a floating surface placed against the window and
+// patterns/popover places it, so the trigger and the menu meet here rather
+// than inside the component: the trigger is the popover's anchor slot and the
+// menu its content slot.
 //
 // The canvas the popover gets is the whole chrome row inside the content
 // area's insets (frame.go), because that canvas is the room the open menu may
 // use and the popover keeps its surface inside it. Two things follow. The
-// anchor is stood at the canvas's trailing edge by the popover, so the
+// trigger is stood at the canvas's trailing edge by the popover, so the
 // control lands on the content column's edge whatever the label says; and
 // because the room is the row rather than the control, the two things that
-// are NOT entitled to all of it cap themselves — the anchor at [ChipWidth],
+// are NOT entitled to all of it cap themselves — the trigger at [ToolbarWidth],
 // the surface at [MenuWidth] — over the constraints the popover offers, which
 // for content is half the canvas.
 package main
@@ -86,7 +86,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 	anchorObs := rx.Map(rx.SwitchMap(
 		rx.Map(modelObs, anchorKeyOf).Pipe(rx.DistinctUntilChanged(func(a, b anchorKey) bool { return a == b })),
 		func(k anchorKey) rx.Observable[layout.Widget] {
-			return picker.Anchor(th, picker.AnchorProps{
+			return picker.Toolbar(th, picker.ToolbarProps{
 				Value:       k.label,
 				Description: "Model for this chat",
 				// The header band is the transcript's own level-0 paper, so
@@ -135,7 +135,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 
 	popObs := popover.Popover(th, popover.Props{
 		Open:      openObs,
-		Anchor:    anchorBox(slot(&anchorCell), ChipWidth),
+		Anchor:    anchorBox(slot(&anchorCell), ToolbarWidth),
 		Content:   slot(&contentCell),
 		Placement: popover.Bottom,
 		Align:     popover.AlignTrailing,

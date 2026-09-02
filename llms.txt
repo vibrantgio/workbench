@@ -81,10 +81,11 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      Warning, Error, Info; a pale fill of the role's hue
                      under a strong foreground of that same hue, plus an
                      optional close mark that dismisses the label),
-                     button, chip (a pill carrying a data-bearing summary,
-                     clickable), input, picker (pick one from many — a
-                     labelled field for the form register, a chip-shaped
-                     anchor for the chrome register, one menu under both;
+                     button, chip (the small control content sprouts,
+                     defined by one of four purposes — Assist, Filter,
+                     Input, Suggestion), input, picker (pick one from many
+                     — a labelled field for the form variant, a Toolbar
+                     trigger for the chrome variant, one menu under both;
                      input.Dropdown is a deprecated forwarder to it),
                      list, richtext, scrollbar,
                      scrollarea (a horizontal viewport for content that must
@@ -137,7 +138,7 @@ older answer, they are gone, not deprecated:
     for a higher level now panics rather than clamping;
   - patterns/tag entirely, with no alias. The status label is
     components/badge (the roster above); a dismissible user-entered token
-    is the chip's territory;
+    is the Input chip's;
   - tokens.TypeScale entirely. The static `Render(…)` signatures on components,
     patterns and markdown take a role's `tokens.TextStyle` instead — or the
     whole `tokens.Typography` where a component spends several roles — plus
@@ -476,22 +477,36 @@ content layer built from a patterns/shell:
     patterns/tooltip (hover/focus), patterns/toast (transient stack),
     patterns/alert (inline banners).
 
-A DATA-BEARING SUMMARY WITH A GLYPH IS A CHIP, not a quiet button:
-components/chip is a pill sized to its content, filled a measured step above
-the ground you name (Props.Ground, like a ghost button's) — the platform's
-whisper over its band rather than a whole storey — for the model a chat is
-using, the branch a pane is on, the filter a list is under. It has
-no emphasis axis and will not grow one — selection rides components/button's
-emphasis register (Tonal when picked, Ghost when not) and a button's label
-stays a verb. ONE FACE, the pill, and it is clickable; Props.Face names it
-because the geometry is shared with components/picker's pull-down anchor and
-a shared geometry is asked which member it is drawing. Props.Pin puts the
-pill on the leading or trailing edge of a box wider than it and reports the
-box, for the container that reserved a cap but cannot place the pill inside
-it itself. It is not components/badge, which is the system's own word
+A CHIP IS DEFINED BY ITS PURPOSE, never by its looks: components/chip is the
+small control content sprouts, and Props.Intent names which of the four it is.
+Assist offers a contextual action; Filter narrows a set and is the only one
+that toggles; Input is a token the reader entered and carries a dismiss mark;
+Suggestion is a generated prompt. One anatomy under all four —
+[mark] label [dismiss], both brackets decided by the purpose rather than by a
+flag — one silhouette, one height (Density.ChipHeight, the density's control
+height less 4 dp).
+
+A chip is not a button at low prominence. A button is a fixture the author
+places, always there, always offering the same action; a chip appears out of
+content and context, and a button's label stays a verb. MARKING A CHOICE IS
+THE FILTER CHIP'S JOB AND NO BUTTON'S, whatever the button's emphasis: the
+button's Filled/Tonal/Ghost variants are a colour axis and record no state.
+
+COLOUR ARRIVES WITH MEANING. The resting chip has no fill at all — it is the
+outline OutlineVariant around OnSurfaceVariant ink over the storey you name
+(Props.Ground) — and a selected Filter chip fills with the secondary container
+and drops that outline. Both are derived against the storey the chip stands
+on rather than copied from a fixed tone, so a brandless palette yields a
+brandless chip. Props.Pin puts the chip on the leading or trailing edge of a
+box wider than it and reports the box, for the container that reserved a cap
+but cannot place the chip inside it itself.
+
+It is not components/badge, which is the system's own word
 about a thing — Neutral, Success, Warning, Error, Info — set at the size
 of its type, wearing a pale fill of the role's hue under a strong
-foreground of that same hue, and never clicked.
+foreground of that same hue, and never clicked. And it is not the picker's
+Toolbar trigger, which names a choice and stands over a list of the
+alternatives.
 
 ### The dialog grammar
 
@@ -895,7 +910,7 @@ so do not expect a light window's storeys to stand far apart.
     grid and its header, a tab panel and its strip — walks that band from
     the plane's own storey, never from an absolute step, which is right only
     for as long as every caller happens to rest where it was written.
-  - A FILLED INSET IS A RAISED CHIP, NEVER A RECESSED WELL. There is no
+  - A FILLED INSET IS RAISED, NEVER A RECESSED WELL. There is no
     recessed class: the only test the system has for what owes a rung is
     FILLED versus MARKED, and it already puts the fence among the fills. So
     a fenced code block is LIGHTER than the page it lies on in both schemes,

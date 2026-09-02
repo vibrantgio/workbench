@@ -191,11 +191,11 @@ func (f *windowFrame) chromeRow(gtx layout.Context, m Model, t themed) layout.Di
 		// over, so the one thing in this row that opens is the one thing
 		// laid out after the document. What the row spends on it is the
 		// space, which is why the reservation stands in the flex: the drag
-		// the row claims across its middle must stop before the chip, since
+		// the row claims across its middle must stop before the control, since
 		// a move action swallows the press before any control beneath it
 		// sees one.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: image.Pt(gtx.Dp(ChipWidth), gtx.Constraints.Max.Y)}
+			return layout.Dimensions{Size: image.Pt(gtx.Dp(ToolbarWidth), gtx.Constraints.Max.Y)}
 		}),
 		layout.Rigid(dragSpacer(chromeInsetDp)))
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
