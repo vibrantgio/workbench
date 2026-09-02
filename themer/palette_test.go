@@ -1063,15 +1063,26 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 }
 
 // TestEachContainerIsItsRungHeldAtLessChroma: the rule under a status container
-// says which rung it was realized at and what was done to that rung, and both
-// halves are checked against the colour itself.
+// says which rung's depth it was realized at and what was done to that rung,
+// and both halves are checked against the colour itself.
 //
 // The rung is named by tone because tone is what a container keeps: it gives up
-// chroma, so no comparison of colours finds the cell it came from. Rebuilding
-// the container out of the named rung's tone and hue at the container's own
-// chroma has to produce the container back, to within the byte the chroma was
-// rounded into on the way out, or the rule names a rung the derivation did not
-// use.
+// chroma and takes its hue from the ramp's pale tint depth, so no comparison of
+// colours finds the cell it came from. Rebuilding the container out of the named
+// rung's tone, the pale tint depth's hue and the container's own chroma has to
+// produce the container back, to within the byte the chroma was rounded into on
+// the way out, or the rule names a rung the derivation did not use.
+// paleTintStep is the step a container reads its hue at (theme's
+// containers.go): the third rung counted from the ramp's pale end.
+func paleTintStep(r tokens.Ramp) int {
+	pale, _, _ := vgcolor.LabFromNRGBA(r.Step(100))
+	deep, _, _ := vgcolor.LabFromNRGBA(r.Step(900))
+	if pale >= deep {
+		return 300
+	}
+	return 700
+}
+
 func TestEachContainerIsItsRungHeldAtLessChroma(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
 		rules := rulesOf(palette.Groups(sc.c, sc.other, sc.dark))
@@ -1081,7 +1092,8 @@ func TestEachContainerIsItsRungHeldAtLessChroma(t *testing.T) {
 			step := palette.ToneStep(ramp, ground)
 			rung := ramp.Step(step)
 			tone, _, _ := vgcolor.LabFromNRGBA(rung)
-			_, chroma, hue := vgcolor.OKLChFromNRGBA(rung)
+			_, chroma, _ := vgcolor.OKLChFromNRGBA(rung)
+			_, _, hue := vgcolor.OKLChFromNRGBA(ramp.Step(paleTintStep(ramp)))
 			_, held, _ := vgcolor.OKLChFromNRGBA(ground)
 			// Within a part in 255 a channel: the chroma the container is
 			// rebuilt at is read back out of eight bits a channel, so the last
