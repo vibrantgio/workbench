@@ -112,8 +112,8 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				Description: description,
 				Seed:        seed,
 				// Every field here stands on the settings modal's own
-				// surface — a level-2 plane, not the window ground.
-				Ground:   tokens.Level2,
+				// surface — a level-2 plane, not the window's own.
+				Level:    tokens.Level2,
 				Mask:     mask,
 				FocusTag: func(t event.Tag) { tag.Store(t) },
 				OnChange: func(gtx layout.Context, text string) {
@@ -145,10 +145,10 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 			verdict := func(g badge.Glyph, v badge.Variant) layout.Widget {
 				// A glyph badge — no label — and a glyph badge stands bare,
 				// its sign carrying the verdict where a word would need a
-				// field behind it. So the storey is the only thing its ink is
+				// field behind it. So that surface is the only thing its ink is
 				// derived against, and the settings modal is a level-2 plane.
 				return badge.Render(typ.Shaper(), "", g, v, c, tokens.Spacing,
-					tokens.Radius, style, badge.RenderState{Ground: tokens.Level2})
+					tokens.Radius, style, badge.RenderState{Level: tokens.Level2})
 			}
 			return settingsThemed{
 				palette:    p,
@@ -197,9 +197,9 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				Selected:    k.selected,
 				Drop:        picker.DropUp,
 				// The field stands on the settings modal's own surface — a
-				// level-2 plane, not the window ground — like every field
+				// level-2 plane, not the window's own — like every field
 				// above it.
-				Ground: tokens.Level2,
+				Level: tokens.Level2,
 				// A real provider catalogue is forty to sixty rows and the
 				// menu drops UPWARD out of the dialog's last row, so
 				// uncapped its far end is drawn off the top of the window.
@@ -233,20 +233,20 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		mvu.MessageOp{Message: SaveSettings{}}.Add(gtx.Ops)
 	}
 	// Both actions sit in the dialog's footer, on its level-2 fill — the same
-	// storey the fields above them already name. Filled buttons paint their
-	// own ground and ring against it, so stating the ground moves nothing on
-	// these two; it is stated so the ground travels with the widget, and a
-	// quieter action added to this footer derives against the dialog instead
-	// of against the window.
+	// level the fields above them already name. Filled buttons paint their
+	// own fill and ring against it, so stating the level moves nothing on
+	// these two; it is stated so the level travels with the widget, and a
+	// less pronounced action added to this footer derives against the dialog
+	// instead of against the window.
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
-		Ground:    tokens.Level2,
+		Level:     tokens.Level2,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
 	})
 	saveObs := button.Button(th, button.Props{
 		Label:     "Save",
-		Ground:    tokens.Level2,
+		Level:     tokens.Level2,
 		Clickable: &saveClick,
 		OnClick:   save,
 	})

@@ -69,13 +69,13 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layo
 		s.Pop()
 		y += alertH + gap
 
-		// Ground: the modal's own level-2 surface, matching what addFeedModal
+		// Level: the modal's own level-2 surface, matching what addFeedModal
 		// hands the live field. A field inside a dialog does not stand on the
-		// window ground, and a border derived against the window reads at
+		// window's own surface, and a border derived against the window reads at
 		// 2.94:1 over the dialog's plane in the light scheme.
 		fld := input.Render(shaper, "https://example.com/feed.xml",
 			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.BodyLarge,
-			tokens.Comfortable, input.RenderState{Ground: tokens.Level2})
+			tokens.Comfortable, input.RenderState{Level: tokens.Level2})
 		s = op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		fg := gtx
 		fg.Constraints = layout.Exact(image.Pt(w, fieldH))

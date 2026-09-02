@@ -478,10 +478,10 @@ content layer built from a patterns/shell:
     patterns/alert (inline banners).
 
 A CHIP IS DEFINED BY ITS PURPOSE, never by its looks: components/chip is the
-small control content sprouts, and Props.Intent names which of the four it is.
+small control content sprouts, and Props.Purpose names which of the four it is.
 Assist offers a contextual action; Filter narrows a set and is the only one
 that toggles; Input is a token the reader entered and carries a dismiss mark;
-Suggestion is a generated prompt. One anatomy under all four —
+Suggestion is a generated prompt. One structure under all four —
 [mark] label [dismiss], both brackets decided by the purpose rather than by a
 flag — one silhouette, one height (Density.ChipHeight, the density's control
 height less 4 dp).
@@ -493,9 +493,9 @@ THE FILTER CHIP'S JOB AND NO BUTTON'S, whatever the button's emphasis: the
 button's Filled/Tonal/Ghost variants are a colour axis and record no state.
 
 COLOUR ARRIVES WITH MEANING. The resting chip has no fill at all — it is the
-outline OutlineVariant around OnSurfaceVariant ink over the storey you name
-(Props.Ground) — and a selected Filter chip fills with the secondary container
-and drops that outline. Both are derived against the storey the chip stands
+outline OutlineVariant around OnSurfaceVariant ink over the surface you name
+(Props.Level) — and a selected Filter chip fills with the secondary container
+and drops that outline. Both are derived against the surface the chip stands
 on rather than copied from a fixed tone, so a brandless palette yields a
 brandless chip. Props.Pin puts the chip on the leading or trailing edge of a
 box wider than it and reports the box, for the container that reserved a cap
@@ -787,7 +787,7 @@ c.StateAt(level, state) answers a storey's hover and active, walking from
 the fill SurfaceAt gives rather than from a ramp index — so a control on
 the furniture floor has an answer as much as one on a
 card. Ghost buttons obey the same rule from their HOST surface's
-rung: button Props carry a Ground elevation level (zero value — the window
+rung: button Props carry a Level elevation level (zero value — the window
 ground, so existing call sites keep their colors), and the ghost hover and
 press washes walk one rung from that local ground rather than from the
 window's. Without it, a ghost control on a level-2 surface would hover to
@@ -850,7 +850,7 @@ so do not expect a light window's storeys to stand far apart.
   - THE PAPER IS THE CONTENT GROUND, AT LEVEL 0. The largest resting
     expanse, the thing the window exists to show, fills with the Background
     pin — c.SurfaceAt(tokens.Level0). That is why the ladder's level 0 is a
-    sentinel rather than a ramp step and why a button's Ground prop calls
+    sentinel rather than a ramp step and why a button's Level prop calls
     its zero value the window ground.
   - FURNITURE IS THE FLOOR, ONE MEASURED STEP UNDER THE PAPER. Sidebars,
     asides, rails, toolbars and inspectors fill DARKER than the content
@@ -895,7 +895,7 @@ so do not expect a light window's storeys to stand far apart.
   - RUNGS WALK FROM THE LOCAL GROUND, not from the window, and A STEP
     TOWARD THE VIEWER IS A STEP TOWARD THE SCHEME'S LIGHT EXTREME. A card
     on the content ground is one storey up from the paper; a control inside
-    a dialog walks from the dialog's own fill, which is what the Ground prop
+    a dialog walks from the dialog's own fill, which is what the Level prop
     exists to say. An inset inside a body that is FILLED — a code fence, a
     callout with a surface — steps UP from the paper it lies on rather than
     reaching for an absolute step, and UP means LIGHTER in both schemes. An

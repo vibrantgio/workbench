@@ -75,11 +75,11 @@ const (
 	treeFootVPadDp    = 4           // an action's hit area above and below its label
 )
 
-// treeFieldGround is the storey the find field is standing on: the rail
-// pane, which is furniture and therefore the window's FLOOR. The live
+// treeFieldLevel is the level of the surface the find field stands on: the
+// rail pane, which is furniture and therefore the window's FLOOR. The live
 // rail and the goldens' static rail both name it here so they cannot
 // drift apart.
-const treeFieldGround = tokens.LevelFloor
+const treeFieldLevel = tokens.LevelFloor
 
 // TreeRow is one visible row of the folder tree.
 type TreeRow struct {
@@ -273,16 +273,16 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 		Placeholder: "Find a note…",
 		Description: "filter notes by name",
 		// The field stands on the rail's rounded pane, not on the window
-		// ground behind it — the pane covers that. The pane is FURNITURE
-		// and so the ladder's floor; naming the floor here is what makes
+		// surface behind it — the pane covers that. The pane is FURNITURE
+		// and so the window's floor; naming the floor here is what makes
 		// the field's fill, its resting edge and its focus ring all derive
 		// against the thing they are actually drawn on. A text field is
-		// raised one storey off whatever it lies on, so the field fills at
-		// the paper's own storey — lighter than the rail in both schemes,
+		// raised one step off whatever it lies on, so the field fills at
+		// the paper's own level — lighter than the rail in both schemes,
 		// which is the direction the platform draws a search field on a
 		// sidebar (the Settings search field sits above its sidebar, not
 		// under it).
-		Ground: treeFieldGround,
+		Level: treeFieldLevel,
 		OnChange: func(gtx layout.Context, text string) {
 			mvu.MessageOp{Message: SetFilter{Text: text}}.Add(gtx.Ops)
 		},
@@ -602,7 +602,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 // and a measurement in the live pane, since a stored image may not depend
 // on a live window's measurement.
 //
-// The ground the field is rendered on is named here as well as in
+// The surface the field is rendered on is named here as well as in
 // [treeSidebar], and it must be the same one: a golden that pictures a
 // field standing on a surface the rail does not have cannot catch a
 // regression in what the window draws.
@@ -619,7 +619,7 @@ func renderTree(
 	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return leading }}
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	fieldW := input.Render(shaper, "Find a note…", colors, sp, rad, typo.BodyLarge, den,
-		input.RenderState{Text: m.Filter, Ground: treeFieldGround})
+		input.RenderState{Text: m.Filter, Level: treeFieldLevel})
 	return func(gtx layout.Context) layout.Dimensions {
 		return v.layout(gtx, m, tok, fieldW)
 	}

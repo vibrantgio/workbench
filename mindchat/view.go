@@ -370,8 +370,8 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 			Description: "chat name",
 			Seed:        e.seed,
 			// The rename field stands on the decision modal's surface — a
-			// level-2 plane, not the window ground.
-			Ground:   tokens.Level2,
+			// level-2 plane, not the window's own surface.
+			Level:    tokens.Level2,
 			FocusTag: func(tag event.Tag) { fieldTagCell.Store(tag) },
 			OnChange: func(_ layout.Context, text string) { nameCell.Store(text) },
 		})
@@ -391,17 +391,17 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 		}
 	}
 	// The rename dialog's footer stands on its level-2 fill, like the field
-	// above it. Filled buttons ring against their own ground, so nothing
-	// moves; the declaration keeps the storey with the widget.
+	// above it. Filled buttons ring against their own fill, so nothing
+	// moves; the declaration keeps the level with the widget.
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
-		Ground:    tokens.Level2,
+		Level:     tokens.Level2,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
 	})
 	submitObs := button.Button(th, button.Props{
 		Label:     "Rename",
-		Ground:    tokens.Level2,
+		Level:     tokens.Level2,
 		Clickable: &submitClick,
 		OnClick:   rename,
 	})

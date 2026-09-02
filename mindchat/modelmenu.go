@@ -90,8 +90,8 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 				Value:       k.label,
 				Description: "Model for this chat",
 				// The header band is the transcript's own level-0 paper, so
-				// the anchor fills one storey over it — the zero value.
-				Ground: tokens.Level0,
+				// the anchor fills one level over it — the zero value.
+				Level: tokens.Level0,
 				// The anchor reports the shape it drew and nothing wider: the
 				// popover aims its tail at that rect, and a control that
 				// widened its report to reach the trailing edge would be

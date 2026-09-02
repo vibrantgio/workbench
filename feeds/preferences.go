@@ -79,20 +79,21 @@ func preferencesPanel(
 				return button.Ghost
 			}
 			// Every button in this row stands on the panel's own surface,
-			// so it says which storey that is. A ghost paints no ground of
+			// so it says which level that is. A ghost paints no fill of
 			// its own: its hover wash and its focus ring both derive from
 			// the host's fill, and a panel is patterns/modal's level-2 one.
 			// Left unsaid, the row would wash and ring against the window
-			// ground it is nowhere near — the wash dissolving into the
+			// surface it is nowhere near — the wash dissolving into the
 			// panel and the ring reading 2.92:1 against it in the light
-			// scheme, under the 3:1 a focus mark owes its ground.
+			// scheme, under the 3:1 a focus mark owes the surface under
+			// it.
 			built := make([]rx.Observable[layout.Widget], 0, len(rowsPerPageChoices)+1)
 			for i, n := range rowsPerPageChoices {
 				n := n
 				built = append(built, button.Button(th, button.Props{
 					Label:     strconv.Itoa(n),
 					Emphasis:  emphasis(n == rows),
-					Ground:    tokens.Level2,
+					Level:     tokens.Level2,
 					Clickable: &sizeClicks[i],
 					OnClick: func(gtx layout.Context) {
 						mvu.MessageOp{Message: SetRowsPerPage{Rows: n}}.Add(gtx.Ops)
@@ -106,7 +107,7 @@ func preferencesPanel(
 			built = append(built, button.Button(th, button.Props{
 				Label:     label,
 				Emphasis:  emphasis(unread),
-				Ground:    tokens.Level2,
+				Level:     tokens.Level2,
 				Clickable: &unreadClick,
 				OnClick: func(gtx layout.Context) {
 					mvu.MessageOp{Message: ToggleUnreadOnly{}}.Add(gtx.Ops)

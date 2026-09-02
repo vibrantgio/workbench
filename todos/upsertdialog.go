@@ -54,12 +54,12 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 	}
 
 	// th is a static snapshot (rx.Of), so First() resolves synchronously.
-	// Ground names the storey these buttons stand on — the dialog's, not the
+	// Level names the surface these buttons stand on — the dialog's, not the
 	// window's — so their state walks are taken from the surface under them.
 	cancelBtn, _ := button.Button(th, button.Props{
 		Label:   "Cancel",
 		Message: SetRoute{},
-		Ground:  tokens.Level2,
+		Level:   tokens.Level2,
 	}).First()
 
 	label := "Save"
@@ -70,7 +70,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 	submitWidget, _ := button.Button(th, button.Props{
 		Label:   label,
 		OnClick: func(_ layout.Context) { submitClicked = true },
-		Ground:  tokens.Level2,
+		Level:   tokens.Level2,
 	}).First()
 	submitBtn := func(gtx layout.Context) layout.Dimensions {
 		dims := submitWidget(gtx)
