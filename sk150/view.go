@@ -283,11 +283,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	// surface.
 	var lvpCancelClick, lvpConfirmClick widget.Clickable
 	reg.add("lvp.cancel", button.Button(th, button.Props{
-		Label: "Cancel", Emphasis: button.Ghost, Ground: tokens.Level2,
+		Label: "Cancel", Emphasis: button.Ghost, Level: tokens.Level2,
 		Clickable: &lvpCancelClick, Message: DismissLVP{},
 	}))
 	reg.add("lvp.confirm", button.Button(th, button.Props{
-		Label: "Set anyway", Ground: tokens.Level2,
+		Label: "Set anyway", Level: tokens.Level2,
 		Clickable: &lvpConfirmClick, Message: ConfirmLVP{},
 	}))
 	widgets := rx.CombineLatest(reg.obs...)
