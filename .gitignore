@@ -23,6 +23,7 @@
 !/iconbrowser/**
 !/marketing/**
 !/mindchat/**
+!/sk150/**
 !/sitedocs/**
 !/themer/**
 !/todos/**
@@ -33,6 +34,7 @@
 /iconbrowser/iconbrowser
 /marketing/marketing
 /mindchat/mindchat
+/sk150/sk150
 /sitedocs/sitedocs
 /themer/themer
 /todos/todos
@@ -43,3 +45,7 @@
 # comes last so it outranks the app allowlist above — a stale one reads as a
 # golden during a sweep.
 **/*.actual.png
+
+# The SK150 app's copy of the manufacturer's manual: a reference, not
+# source, and not ours to redistribute.
+/sk150/*.pdf
