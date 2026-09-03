@@ -217,15 +217,12 @@ func cardRow(cells []layout.Widget) layout.Widget {
 // snapshot; text colours come off the Neutral ramp — 900 for the name, 700 for
 // the low-contrast blurb.
 //
-// The card stays the pattern's default outlined variant rather than Elevated.
-// These cards are the page's resting content lying on the window's own ground
-// (tokens.Level0), so they fill exactly one storey over it: the outlined
-// variant is the card's level-1 form, while Elevated fills at level 2, the
-// storey reserved for surfaces that leave the plane altogether.
-//
-// In the light scheme level 1 is #F8F8F8 on a #F6F6F6 page, a step the fill
-// can barely be said to take, so the border — not the fill — is what says
-// where a card ends; on slate the fill carries it at #222222 over #181818.
+// The card stays the pattern's default outlined look rather than filled.
+// Both looks fill one step over the surface these cards stand on
+// (tokens.Level0), so the outline is all that separates them — and in the
+// light scheme level 1 is #F8F8F8 on a #F6F6F6 page, a step the fill can
+// barely be said to take, so the border, not the fill, is what says where a
+// card ends; on slate the fill carries it at #222222 over #181818.
 func appCard(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {
 	thObs := rx.Of(tok.components)
 
