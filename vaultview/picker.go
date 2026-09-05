@@ -32,6 +32,7 @@ import (
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -162,10 +163,34 @@ func pickerLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 			func(next rx.Tuple2[layout.Widget, breadcrumb.TrailLayout]) layout.Widget {
 				btn, row := next.First, next.Second
 				return func(gtx layout.Context) layout.Dimensions {
-					return v.layout(gtx, loadModel(), loadTok(), btn, row)
+					return v.screen(gtx, loadModel(), loadTok(), btn, row)
 				}
 			})
 	})
+}
+
+// screen draws the picker over the whole window: its own surface first,
+// then the rows under the native title-bar strip.
+//
+// The picker is one chrome region taking the window entire, so it paints at
+// the chrome level rather than letting the backdrop beneath it show: nothing
+// stands inset on this screen, so nothing of the window's plane is meant to
+// be seen. The strip is left to the platform — this screen claims none of
+// it, while the vault screen's chrome row lays itself out inside it — so the
+// rows are inset past it and the region's own fill runs behind it.
+func (v *pickerView) screen(
+	gtx layout.Context,
+	m Model,
+	tok themeTokens,
+	btn layout.Widget,
+	trail breadcrumb.TrailLayout,
+) layout.Dimensions {
+	size := gtx.Constraints.Max
+	paint.FillShape(gtx.Ops, chromeSurface(tok.col), clip.Rect{Max: size}.Op())
+	desktop.InsetTop(desktop.TopInset, func(gtx layout.Context) layout.Dimensions {
+		return v.layout(gtx, m, tok, btn, trail)
+	})(gtx)
+	return layout.Dimensions{Size: size}
 }
 
 func (v *pickerView) layout(

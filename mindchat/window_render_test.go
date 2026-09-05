@@ -338,3 +338,30 @@ func dumpFrame(t *testing.T, name string, w layout.Widget) *image.RGBA {
 	t.Logf("wrote %s", path)
 	return img
 }
+
+// TestTheBackdropShowsAroundThePane reads the composed window down its
+// leading edge: the pane is set in one margin from the window's edges, and
+// what shows in that margin is the window's own plane at the backdrop level.
+// Nothing is drawn at the backdrop, so a frame that painted the transcript's
+// paper across the whole window — as this one once did — would leave the pane
+// standing on the document instead of being set into the window.
+func TestTheBackdropShowsAroundThePane(t *testing.T) {
+	saved := windowButtonsEnd
+	defer func() { windowButtonsEnd = saved }()
+	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
+
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := dumpFrame(t, "", frame(t, tc.c, demoModel()))
+			want := tc.c.SurfaceAt(tokens.LevelBackdrop)
+			for x := 0; x < PaneMargin; x++ {
+				for y := 0; y < windowSize.Y; y++ {
+					got := img.RGBAAt(x, y)
+					if got.R != want.R || got.G != want.G || got.B != want.B {
+						t.Fatalf("the gap at (%d,%d) draws %v, want the backdrop %v", x, y, got, want)
+					}
+				}
+			}
+		})
+	}
+}

@@ -318,10 +318,6 @@ func frameGeometry(gtx layout.Context, size image.Point, barH, footH int, hidden
 // the ring can stop on.
 func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as, main layout.Widget) layout.Dimensions {
 	size := gtx.Constraints.Max
-	// The window's ground is the note's own paper, not a chrome fill: the
-	// document is what the window is, and only the sidebar rises off it.
-	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: size}.Op())
-
 	barH := gtx.Dp(toolbarHeight(tok))
 	if barH > size.Y {
 		barH = size.Y
@@ -330,9 +326,26 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	g := frameGeometry(gtx, size, barH, gtx.Dp(statusBarHeight(tok)), m.SidebarHidden)
 	f.geom = g
 
-	// The sidebar is the vocabulary's FLOATING PANE and nothing here draws
-	// it: the float, the rounded outline at the platform's measured whisper,
-	// the floor fill and the clip that keeps a scrolled row off the edge are
+	// The content area stands on the note's own paper: the document is what
+	// the window is. It starts where the pane stops, so the plane the pane
+	// is set into is left unpainted and the backdrop under this frame shows
+	// in the gap around it — which is the whole of what says the pane is an
+	// object set in from the window's edges.
+	paint.FillShape(gtx.Ops, tok.col.Background,
+		clip.Rect(image.Rect(g.contentX, 0, size.X, size.Y)).Op())
+
+	// The pane's trailing side is the one it is not set in from: the
+	// document stands flush against it, so the document's own paper — not
+	// the backdrop — shows behind the two corners the pane rounds away
+	// there. Painted before the pane, which covers the whole strip but the
+	// arcs.
+	if !g.pane.Empty() {
+		pane.FillTrailingCorners(gtx, tok.col.Background, g.pane)
+	}
+
+	// The rail is the vocabulary's PANE and nothing here draws it: the
+	// inset, the rounded outline at the platform's measured whisper, the
+	// chrome fill and the clip that keeps a scrolled row off the edge are
 	// all the pattern's. What is left to this window is which column stands
 	// in it.
 	if !g.pane.Empty() {
@@ -358,13 +371,13 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	}
 	asideX := g.contentX + mainW + dividerW
 
-	// The trailing column's ground, painted before the chrome row and
+	// The trailing column's own surface, painted before the chrome row and
 	// running the window's full height: the outline and the backlinks are
-	// furniture, and this window's furniture is the FLOOR the paper lies
-	// on — a surface step UNDER the document, toward the scheme's dark
-	// extreme, in both schemes. Full height, so the surface does not read as
-	// a block hanging off the chrome row and the two panes are the same
-	// shape, one down each edge, with the document between them.
+	// chrome, so the column paints at the CHROME level — a surface step
+	// UNDER the document, toward the scheme's dark extreme, in both schemes.
+	// Full height, so the surface does not read as a block hanging off the
+	// chrome row and the two columns are the same shape, one down each edge,
+	// with the document between them.
 	if asidePx > 0 {
 		paint.FillShape(gtx.Ops, chromeSurface(tok.col),
 			clip.Rect(image.Rect(asideX, 0, size.X, size.Y)).Op())

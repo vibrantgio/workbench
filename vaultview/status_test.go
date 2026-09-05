@@ -177,7 +177,7 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 			m := goldenModel()
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
+			img := golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
 
 			foot := st.geom.footTop
 			if foot >= windowH {
@@ -216,7 +216,7 @@ func TestTheFootRedrawsOnANoteSwitch(t *testing.T) {
 	shot := func(m Model) *image.RGBA {
 		w, _ := renderWindow(shaper, m, tokens.DefaultLight, tokens.Spacing, goldenRadius,
 			tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-		return golden.Capture(t, windowCanvasSize, scene(w, themeCases[0].bg))
+		return golden.Capture(t, windowCanvasSize, windowScene(w, themeCases[0].colors))
 	}
 	a, b := shot(first), shot(second)
 

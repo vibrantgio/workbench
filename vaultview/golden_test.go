@@ -378,7 +378,7 @@ func TestVaultWindowGolden(t *testing.T) {
 				// inset whether the pane is under them or not.
 				w, _ := renderWindow(shaper, c.model, tc.colors, tokens.Spacing, goldenRadius,
 					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-				golden.Render(t, name, windowCanvasSize, scene(w, tc.bg))
+				golden.Render(t, name, windowCanvasSize, windowScene(w, tc.colors))
 			})
 		}
 	}
@@ -416,7 +416,7 @@ func TestVaultWindowArrivalGolden(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			w, _ := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			golden.Render(t, name, windowCanvasSize, scene(w, tc.bg))
+			golden.Render(t, name, windowCanvasSize, windowScene(w, tc.colors))
 		})
 	}
 }
@@ -453,7 +453,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			shot := func(m Model) (*image.RGBA, *frameState) {
 				w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-				return golden.Capture(t, windowCanvasSize, scene(w, tc.bg)), st
+				return golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors)), st
 			}
 			level := func(what string, top, bot int) {
 				t.Helper()
@@ -536,7 +536,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 				sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
+			img := golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
 
 			asideX := windowW - frameAsideDp
 			lane := int(asideBarLane(tok))
@@ -696,7 +696,7 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 					tokens.DefaultTypography, tokens.Comfortable)
 				as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
 				w := func(gtx layout.Context) layout.Dimensions { return f.layout(gtx, m, tok, sb, as, main) }
-				return golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
+				return golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
 			}
 			ground := tc.colors.Background
 			check := func(when string, img *image.RGBA) {
@@ -766,7 +766,15 @@ func TestNotePageConstructs(t *testing.T) {
 
 // ---- headless test helpers ---------------------------------------------
 
-// scene paints a ground behind the widget, so a transparent render is
+// windowScene paints the window's own plane behind a whole-window render:
+// the backdrop layer the running application paints under every screen, so
+// a stored window image is the composition the reader sees — the backdrop
+// included, where it shows around the rail pane.
+func windowScene(w layout.Widget, c tokens.ColorTokens) layout.Widget {
+	return scene(w, c.SurfaceAt(tokens.LevelBackdrop))
+}
+
+// scene paints a fill behind the widget, so a transparent render is
 // visible in the stored image rather than reading as black.
 func scene(w layout.Widget, bg color.NRGBA) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {

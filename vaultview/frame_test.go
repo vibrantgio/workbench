@@ -437,11 +437,6 @@ func TestChromeBudget(t *testing.T) {
 // here, the band the screen said it had taken there — and if they drift,
 // a toast lands on the vault's own controls or floats a band below them,
 // which is the same class of defect as the band itself.
-//
-// It also holds the screen's own inset to zero while the vault is up. The
-// vault screen draws in the native strip — the sidebar reaches the window's
-// top edge — and a layer padded down past the strip would be a chrome band
-// under another name.
 func TestChromeHeightMatchesTheRow(t *testing.T) {
 	row := toolbarHeight(goldenTokens())
 	// What the vault screen states on every emission that selects it: the
@@ -451,9 +446,6 @@ func TestChromeHeightMatchesTheRow(t *testing.T) {
 	placeWindowButtons(buttonPlacementFor(goldenModel()))
 	if got := chromeHeight(); got != row {
 		t.Errorf("the overlays are inset by %v dp while the content row starts at %v dp", got, row)
-	}
-	if got := screenTopInset(); got != 0 {
-		t.Errorf("the vault screen is padded down by %v dp; it lays out its own top band", got)
 	}
 	if row > chromeBudgetDp {
 		t.Errorf("the chrome row alone is %v dp, over the %d dp budget", row, chromeBudgetDp)
@@ -546,13 +538,14 @@ func TestTheRailWearsThePlatformsSeam(t *testing.T) {
 }
 
 // TestTheRailIsOutlinedAndCastsNothing reads the composed window: the pane
-// carries a hairline just inside its own boundary, and the ground around
-// it is the window's own paper with nothing cast onto it.
+// carries a hairline just inside its own boundary, and what shows in the
+// gap around it is the backdrop, with nothing cast onto it.
 //
-// The two go together. The pane is chrome furniture, so its storey is the
-// floor and the floor's dp is zero — the desk has nothing to cast onto.
-// What says the pane floats is its edge, so the edge has to be there and
-// the shadow has to be gone; checking only one of them proves neither.
+// The two go together. The pane stands at the chrome level and the chrome
+// level's dp is zero — chrome lies flat on the backdrop and has nothing to
+// cast onto. What says the pane is set in from the window's edges is the
+// backdrop showing around it and the edge inside it, so both have to be
+// there and the shadow has to be gone; checking one of them proves neither.
 func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
@@ -561,7 +554,7 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
+			img := golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
 			pane := st.geom.pane
 			if pane.Empty() {
 				t.Fatal("the window laid out no pane to read")
@@ -583,16 +576,31 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 					t.Errorf("the pane's %s edge at x=%d draws %v, want the seam %v", probe.what, probe.edge, got, ink)
 				}
 				if got, want := img.RGBAAt(probe.in, y), chromeSurface(tc.colors); !sameInk(got, want) {
-					t.Errorf("one pixel inside the pane's %s edge draws %v, want the floor %v — the hairline is wider than a hairline",
+					t.Errorf("one pixel inside the pane's %s edge draws %v, want the chrome level %v — the hairline is wider than a hairline",
 						probe.what, got, want)
 				}
 			}
-			// The gutter the pane floats in, its whole height: bare paper.
+			// The two corners the pane rounds away from its TRAILING edge.
+			// That side is the one it is not set in from — the note stands
+			// flush against it — so what shows behind those arcs is the
+			// note's own paper and not the backdrop, which would read as a
+			// nick bitten out of the boundary.
+			for _, at := range []image.Point{
+				{X: pane.Max.X - 2, Y: pane.Min.Y + 1},
+				{X: pane.Max.X - 2, Y: pane.Max.Y - 2},
+			} {
+				if got := img.RGBAAt(at.X, at.Y); !sameInk(got, tc.colors.Background) {
+					t.Errorf("the pane's trailing corner at %v draws %v, want the note's paper %v", at, got, tc.colors.Background)
+				}
+			}
+			// The gap the pane is set into, its whole height: the bare
+			// backdrop, which is what an inset object stands on.
+			backdrop := tc.colors.SurfaceAt(tokens.LevelBackdrop)
 			for x := 0; x < pane.Min.X; x++ {
 				for y := 0; y < windowH; y++ {
-					if got := img.RGBAAt(x, y); !sameInk(got, tc.colors.Background) {
-						t.Fatalf("the ground at (%d,%d) draws %v, want the window's paper %v — the pane is casting something onto its own desk",
-							x, y, got, tc.colors.Background)
+					if got := img.RGBAAt(x, y); !sameInk(got, backdrop) {
+						t.Fatalf("the gap at (%d,%d) draws %v, want the backdrop %v — the pane is casting something onto the plane it stands on",
+							x, y, got, backdrop)
 					}
 				}
 			}
@@ -617,7 +625,7 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowCanvasSize, scene(w, tc.bg))
+			img := golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
 			asideX := windowW - frameAsideDp
 			floor := chromeSurface(tc.colors)
 

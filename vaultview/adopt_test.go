@@ -360,7 +360,7 @@ func window(t *testing.T, colors tokens.ColorTokens) *image.RGBA {
 	t.Helper()
 	w, _ := renderWindow(tokens.DefaultTypography.DeterministicShaper(), goldenModel(), colors,
 		tokens.Spacing, goldenRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-	return golden.Capture(t, windowCanvasSize, scene(w, colors.Background))
+	return golden.Capture(t, windowCanvasSize, windowScene(w, colors))
 }
 
 // pixels counts how many pixels of img are exactly c, alpha ignored: a

@@ -115,13 +115,13 @@ type themeTokens struct {
 }
 
 // chromeSurface is the fill every piece of this window's furniture wears:
-// the rail pane, the trailing column, and the plane the two of them float
-// on.
+// the rail pane and the trailing column. The plane those two stand on is
+// the backdrop, and no region paints at it.
 //
 // It is the CHROME level — one step under the content, toward the scheme's
 // dark extreme, in both schemes. Furniture stands under the document, not
-// above it, so the rail and the aside are the darkest regions of this
-// window and the note column between them is the lightest resting one. In
+// above it, so the rail and the aside are darker than the note column
+// between them and lighter than the backdrop showing around the rail. In
 // the light scheme the chrome level lands byte-for-byte on the neutral 200
 // the panes wear. In the dark scheme it is #151515, the platform's own
 // measured step under the content; at #222222 the panes would read as a
@@ -213,8 +213,8 @@ func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens, typo
 
 		toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.Toasts.Items() })
 		return []rx.Observable[layout.Widget]{
-			chromeLayer(th),
-			underTitleBar(routedLayer(th, modelObs, &modelCell, loadModel, loadTok)),
+			backdropLayer(th),
+			routedLayer(th, modelObs, &modelCell, loadModel, loadTok),
 			underChrome(chooserLayer(th, modelObs, loadModel, loadTok)),
 			underChrome(toast.Stack(th, toast.Props{Position: toast.BottomCenter, Toasts: toastsObs})),
 		}
@@ -306,26 +306,6 @@ func placeWindowButtons(p buttonPlacement) {
 	desktop.PlaceWindowButtonsAt(p.leading, p.center)
 }
 
-// underTitleBar pads a layer down by the native title-bar strip's
-// measured height, which is what a full-size-content window leaves above
-// content the application has not claimed — the picker screen's case.
-// Where the screen lays out its own top band, and away from the treatment
-// altogether, this is an exact no-op: the vault screen's chrome row and
-// sidebar strip are drawn inside the strip, and padding them down would
-// stack a band above them.
-func underTitleBar(content rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
-	return insetTop(content, screenTopInset)
-}
-
-// screenTopInset is the native strip's height where the screen on show
-// has not taken the top of the window for itself, and zero where it has.
-func screenTopInset() unit.Dp {
-	if band, ok := topBand.Load().(unit.Dp); ok && band > 0 {
-		return 0
-	}
-	return desktop.TopInset()
-}
-
 // underChrome pads a layer down past everything at the top of the window
 // that is not document: the native strip where it still stands, and the
 // chrome row's own height where the row has taken the strip instead. It
@@ -356,14 +336,14 @@ func insetTop(content rx.Observable[layout.Widget], height func() unit.Dp) rx.Ob
 	})
 }
 
-// chromeLayer paints a full-canvas rectangle at the chrome level: the
-// furniture the panes stand on and the note column is laid over, and the
-// whole of the window on the picker screen, which lays no content plane of
-// its own.
-func chromeLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
+// backdropLayer paints the window's own plane, at the backdrop level and
+// under every screen. Nothing is drawn at the backdrop: it shows wherever
+// nothing stands, which in this window is the gap around the rail pane.
+// Every region that stands paints its own surface over it.
+func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
 	return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
-		fill := chromeSurface(c)
+		fill := c.SurfaceAt(tokens.LevelBackdrop)
 		return func(gtx layout.Context) layout.Dimensions {
 			size := gtx.Constraints.Max
 			paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())

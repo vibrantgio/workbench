@@ -3,12 +3,12 @@
 // across its top and the transcript with its input bar underneath.
 //
 // THE PANE IS AN OBJECT, NOT A HALF OF THE WINDOW. It is the vocabulary's
-// FLOATING PANE: inset from the window's leading, top and bottom edges by
-// one margin, rounded on all four corners, carrying its own hairline just
-// inside that edge, with the window's ground showing around it. Hidden, it
-// takes no width at all and the transcript reflows from the window's own
-// leading edge. None of that geometry is drawn here — the float, the
-// outline, the strip arithmetic and the hidden-takes-no-width contract are
+// PANE: inset from the window's leading, top and bottom edges by one
+// margin, rounded on all four corners, carrying its own hairline just
+// inside that edge, with the backdrop showing around it. Hidden, it takes
+// no width at all and the transcript reflows from the window's own leading
+// edge. None of that geometry is drawn here — the inset, the outline, the
+// strip arithmetic and the hidden-takes-no-width contract are
 // patterns/pane's, and what is left to this file is the column that stands
 // in the pane and the window that stands around it.
 //
@@ -28,11 +28,11 @@
 // THE WINDOW BUTTONS ARE MEASURED FROM THE GLASS. The three control
 // buttons stand a fixed inset in from the window's own top and leading
 // edges and stay there whatever the application draws beneath them. The
-// pane happens to float under them while it stands, so its strip is cut
+// pane happens to stand under them while it is up, so its strip is cut
 // deep enough to hold them; when the pane goes, nothing about them
 // changes. That fixed line is what both halves of the sidebar switch stand
 // on: [ChromeRowHeight] is twice it, so a row that centres its content
-// centres it exactly where the pane's strip does, and no mark changes rung
+// centres it exactly where the pane's strip does, and no mark changes step
 // in either direction.
 //
 // THE CHROME ROW IS A TITLE ROW. The current conversation's name stands at
@@ -64,6 +64,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
 )
 
@@ -112,20 +113,29 @@ type windowFrame struct {
 // pane draws its own strip last for the same reason, inside itself.
 func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, main, menu layout.Widget) layout.Dimensions {
 	size := gtx.Constraints.Max
-	// The window's ground is the transcript's own paper; only the pane
-	// rises off it.
-	FillRect(gtx, image.Rectangle{Max: size}, 0, t.palette.Ground)
-
 	bounds := pane.Bounds(gtx, size, SidebarWidth, m.SidebarHidden)
-	// The float, the rounded outline at the platform's measured whisper,
-	// the floor fill and the clip that keeps a scrolled row off the edge
-	// are all the pattern's. What is left here is which column stands in it.
-	pane.Layout(gtx, t.col, bounds, sidebar)
-
 	contentX := 0
 	if !bounds.Empty() {
 		contentX = bounds.Max.X
 	}
+	// The window's plane is the backdrop, and nothing is drawn at it: it
+	// shows in the gap around the pane, which is what says the pane is an
+	// object set in from the window's edges. The content area beside it
+	// stands on the transcript's own paper.
+	FillRect(gtx, image.Rectangle{Max: size}, 0, t.col.SurfaceAt(tokens.LevelBackdrop))
+	FillRect(gtx, image.Rect(contentX, 0, size.X, size.Y), 0, t.palette.Ground)
+
+	// The pane's trailing side is the one it is not set in from: the
+	// transcript stands flush against it, so the transcript's own paper —
+	// not the backdrop — shows behind the two corners the pane rounds away
+	// there.
+	pane.FillTrailingCorners(gtx, t.palette.Ground, bounds)
+
+	// The inset, the rounded outline at the platform's measured whisper,
+	// the chrome fill and the clip that keeps a scrolled row off the edge
+	// are all the pattern's. What is left here is which column stands in it.
+	pane.Layout(gtx, t.col, bounds, sidebar)
+
 	contentW := size.X - contentX
 	if contentW <= 0 {
 		return layout.Dimensions{Size: size}
