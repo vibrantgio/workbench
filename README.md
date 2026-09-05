@@ -91,6 +91,10 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   outline field: one full-screen page for provenance and authenticity
   tools, with macOS full-size-content chrome so the traffic lights sit
   on the page.
+- **[`sk150/`](./sk150)** — a control panel for the XY-SK150 buck-boost
+  converter over Modbus RTU: a live monitor with charts, a presets tab
+  over the device's memory slots, and a device tab for its settings; runs
+  against a simulated device with `sk150 demo`.
 
 Each app is its own Go module, so run it from inside its directory:
 

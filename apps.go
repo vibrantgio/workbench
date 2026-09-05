@@ -79,4 +79,10 @@ var Apps = []App{
 		Blurb: "A fictional SimpleApps landing on an outline field: provenance and authenticity tools.",
 		Icon:  icons.ActionViewQuilt,
 	},
+	{
+		Name:  "SK150 Control",
+		Dir:   "sk150",
+		Blurb: "Control panel for the XY-SK150 buck-boost converter: live monitor, presets, device settings.",
+		Icon:  icons.HardwareDeveloperBoard,
+	},
 }

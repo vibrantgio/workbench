@@ -192,38 +192,58 @@ func channelDiff(a, b uint8) int {
 }
 
 // cardRects measures the app cards off the frame instead of recomputing the
-// layout's arithmetic. The grid is the widest thing the page draws — cardRow
-// lays every row out at GridW whatever it holds — so the frame rows carrying
-// ink that wide are card rows and nothing else. Each contiguous stretch of
-// them is one row of cards, shortened top and bottom by the same corner
-// radius, so the stretch's midpoint is the cards' midpoint. The outlined
-// card's 1 dp stroke straddles the edge it draws, which is why the samples
-// below are taken half an S4 inside the measured leading edge rather than on
-// it.
+// layout's arithmetic. A card row is a contiguous stretch of frame rows whose
+// ink is exactly as wide as some number of cards with their gaps — one to
+// perRow of them — and at least half a card tall; the hero's lines are the
+// only other ink on the page and match neither. The last row holds the
+// roster's remainder, so it may be narrower than GridW and is read for how
+// many cards it actually holds. Each stretch is shortened top and bottom by
+// the same corner radius, so its midpoint is the cards' midpoint. The
+// outlined card's 1 dp stroke straddles the edge it draws, which is why the
+// samples below are taken half an S4 inside the measured leading edge rather
+// than on it.
 func cardRects(t *testing.T, img *image.RGBA, ground color.NRGBA) []image.Rectangle {
 	t.Helper()
 	size := img.Bounds().Size()
 	var rects []image.Rectangle
 	for y := 0; y < size.Y; y++ {
 		first, last := inkSpan(img, y, ground)
-		if last-first+1 < int(GridW) {
+		n := cardsAcross(last - first + 1)
+		if n == 0 {
 			continue
 		}
 		top := y
 		for y+1 < size.Y {
 			f, l := inkSpan(img, y+1, ground)
-			if l-f+1 < int(GridW) {
+			if f != first || cardsAcross(l-f+1) != n {
 				break
 			}
 			y++
 		}
+		if y-top+1 < int(CardH)/2 {
+			continue
+		}
 		mid := (top + y) / 2
-		for c := 0; c < perRow && len(rects) < len(Apps); c++ {
+		for c := 0; c < n && len(rects) < len(Apps); c++ {
 			x := first + c*(int(CardW)+int(RowGap))
 			rects = append(rects, image.Rect(x, mid-int(CardH)/2, x+int(CardW), mid+int(CardH)/2))
 		}
 	}
 	return rects
+}
+
+// cardsAcross reports how many cards an ink span that wide holds, and zero
+// when it is no row of cards. The outlined card's stroke straddles its edge,
+// so a row of n cards inks up to two pixels wider than the n cards' own
+// width; a pixel under it is antialiasing.
+func cardsAcross(width int) int {
+	for n := 1; n <= perRow; n++ {
+		w := n*int(CardW) + (n-1)*int(RowGap)
+		if width >= w-1 && width <= w+2 {
+			return n
+		}
+	}
+	return 0
 }
 
 // topmostInk reports the first row of the frame carrying a pixel that is not

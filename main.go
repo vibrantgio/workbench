@@ -26,7 +26,7 @@ import (
 // winW, winH size the window to the card grid: wide enough for a full row of
 // cards with a margin either side, tall enough for the hero plus every row the
 // roster fills.
-const winW, winH = unit.Dp(1340), unit.Dp(760)
+const winW, winH = unit.Dp(1340), unit.Dp(966)
 
 func main() {
 	go run()
