@@ -100,8 +100,8 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
 
   patterns  v1.2.1   patterns: shell, navbar, sidebar, pane, table,
                      pagination, tabs, modal, alert, popover, tooltip,
-                     toast, card, accordion, breadcrumb, hero, feature,
-                     pricing, testimonial
+                     toast, card, group, accordion, breadcrumb, hero,
+                     feature, pricing, testimonial
   markdown  v0.7.2   GFM document rendering on components widgets (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
                      images via vibrantgio/svg; obsidian — the Obsidian
@@ -472,7 +472,7 @@ content layer built from a patterns/shell:
     the column).
   - patterns/navbar + patterns/sidebar fill the shell's slots.
   - Content composes patterns/table (sortable/filterable/virtualised),
-    patterns/tabs, patterns/card, patterns/pagination, ...
+    patterns/tabs, patterns/card, patterns/group, patterns/pagination, ...
   - Overlays: patterns/modal (focus trap, escape), patterns/popover (anchored),
     patterns/tooltip (hover/focus), patterns/toast (transient stack),
     patterns/alert (inline banners).
@@ -1562,10 +1562,12 @@ than a directory beside the others, so that
 `go run github.com/vibrantgio/workbench@latest` opens it — a seen 3D
 triangle field composited as an mvu background layer (palette re-keyed
 per theme emission via an atomic handoff to the animation tick), hero +
-patterns cards over it, and one streaming mvu.Command per launched app
-(Started, then Exited when the process ends). A card runs the app's own
-latest release; a launcher built from the checkout runs the copy next
-door instead
+a patterns group per app over it, and one streaming mvu.Command per
+launched app (Started, then Exited when the process ends). The roster
+divides the page rather than singling anything out, which is why each
+app is a group; the launch button in one runs that app's own latest
+release, and a launcher built from the checkout runs the copy next door
+instead
 
 ### feeds/
 

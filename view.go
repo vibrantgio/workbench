@@ -20,7 +20,7 @@ import (
 	pllayout "github.com/vibrantgio/components/layout"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/card"
+	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -29,17 +29,17 @@ import (
 
 // Static layout dimensions; these do not vary with the colour scheme.
 const (
-	CardW    unit.Dp = 300 // one app card
-	CardH    unit.Dp = 190
+	CellW    unit.Dp = 300 // one app group
+	CellH    unit.Dp = 190
 	ButtonW  unit.Dp = 110 // fixed launch-button width, so labels don't resize it
 	IconSize unit.Dp = 28
-	RowGap   float32 = 16 // dp between cards, and between the rows
-	perRow           = 4  // cards per grid row; the last row holds the rest
+	RowGap   float32 = 16 // dp between groups, and between the rows
+	perRow           = 4  // groups per grid row; the last row holds the rest
 )
 
 // buildLayers returns the layer-builder the theme window renders, back to
 // front: the theme background fill, the animated seen triangle field, and the
-// hero + launch-card content floating on top. The ground and the field are
+// hero + launch-grid content floating on top. The ground and the field are
 // full-bleed, the title-bar strip included; only the page is inset below it.
 func buildLayers(win *app.Window, modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
@@ -150,16 +150,16 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 }
 
 // View builds the page widget for one (theme, model) pair: a hero title block
-// over a grid of app cards, the whole column centred on the field. A roster
-// that outgrows a row wraps onto a further row rather than shrinking a card.
+// over a grid of app groups, the whole column centred on the field. A roster
+// that outgrows a row wraps onto a further row rather than shrinking a cell.
 func View(tok themed, heroW layout.Widget, clicks []widget.Clickable, model Model) layout.Widget {
-	cards := make([]layout.Widget, len(Apps))
+	cells := make([]layout.Widget, len(Apps))
 	for i, app := range Apps {
-		cards[i] = appCard(tok, app, &clicks[i], model.StatusOf(app.Name))
+		cells[i] = appGroup(tok, app, &clicks[i], model.StatusOf(app.Name))
 	}
 	var rows []layout.Widget
-	for i := 0; i < len(cards); i += perRow {
-		rows = append(rows, cardRow(cards[i:min(i+perRow, len(cards))]))
+	for i := 0; i < len(cells); i += perRow {
+		rows = append(rows, gridRow(cells[i:min(i+perRow, len(cells))]))
 	}
 
 	return func(gtx layout.Context) layout.Dimensions {
@@ -189,14 +189,14 @@ func View(tok themed, heroW layout.Widget, clicks []widget.Clickable, model Mode
 	}
 }
 
-// GridW is the width of a full row of cards. Every row is laid out at this
-// width whatever it holds, so a last row with fewer cards than the rest starts
-// in the first column instead of centring itself half a card off it.
-const GridW unit.Dp = perRow*CardW + (perRow-1)*unit.Dp(RowGap)
+// GridW is the width of a full row. Every row is laid out at this
+// width whatever it holds, so a last row with fewer cells than the rest
+// starts in the first column instead of centring itself half a cell off it.
+const GridW unit.Dp = perRow*CellW + (perRow-1)*unit.Dp(RowGap)
 
-// cardRow lays out one row of fixed-size cards with RowGap gaps, from the
+// gridRow lays out one row of fixed-size cells with RowGap gaps, from the
 // leading edge of a full-width row.
-func cardRow(cells []layout.Widget) layout.Widget {
+func gridRow(cells []layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		var children []layout.FlexChild
 		for i, cell := range cells {
@@ -211,18 +211,18 @@ func cardRow(cells []layout.Widget) layout.Widget {
 	}
 }
 
-// appCard is one launchable app as a patterns card: icon + name header, blurb
-// body, and a footer with the launch button and a status line. The card and
+// appGroup is one launchable app as a patterns group: icon + name row, blurb,
+// and a row holding the launch button and a status line. The group and
 // button are theme-driven components built from the emission's static
 // snapshot; text colours come off the Neutral ramp — 900 for the name, 700 for
 // the low-contrast blurb.
 //
-// The card stays the pattern's default outlined look rather than filled.
-// Both looks fill the raise walked from the surface these cards stand on
-// (tokens.Level0), so the outline is all that separates them — and the fill
-// carries the raise in both schemes, #FFFFFF over a #F1F1F1 page and #222222
-// over #181818.
-func appCard(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {
+// A group and not a card, because the roster is the page dividing itself:
+// every app on the launcher is a peer of every other, and nothing here is
+// singled out. The grid raises nothing off the page it stands on — the
+// hairline at the page's own level is the whole of what chunks one app from
+// the next.
+func appGroup(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {
 	thObs := rx.Of(tok.components)
 
 	icon, err := raster.Widget(app.Icon, IconSize, IconSize, raster.WithColors(tok.color.Primary))
@@ -230,15 +230,15 @@ func appCard(tok themed, app App, click *widget.Clickable, status Status) layout
 		icon = func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
 	}
 
-	header := func(gtx layout.Context) layout.Dimensions {
+	nameRow := func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(icon),
 			layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
 			layout.Rigid(label(tok.shaper, app.Name, tok.typ.TitleMedium, tok.color.Ramps.Neutral.Step(900), 1)),
 		)
 	}
-	body := label(tok.shaper, app.Blurb, tok.typ.BodySmall, tok.color.Ramps.Neutral.Step(700), 3)
-	footer := func(gtx layout.Context) layout.Dimensions {
+	blurb := label(tok.shaper, app.Blurb, tok.typ.BodySmall, tok.color.Ramps.Neutral.Step(700), 3)
+	launchRow := func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(launchButton(thObs, tok.shaper, app, click, status)),
 			layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
@@ -246,10 +246,16 @@ func appCard(tok themed, app App, click *widget.Clickable, status Status) layout
 		)
 	}
 
+	// The app's own name is already the first row, so the group takes no
+	// label of its own: a second copy of it above the icon would name the
+	// group twice.
+	//
 	// thObs is a static snapshot (rx.Of), so First() resolves synchronously.
-	inner, _ := card.Card(thObs, card.Props{Header: header, Body: body, Footer: footer}).First()
+	inner, _ := group.Group(thObs, group.Props{
+		Content: []layout.Widget{nameRow, blurb, launchRow},
+	}).First()
 	return func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(CardW), gtx.Dp(CardH)))
+		gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(CellW), gtx.Dp(CellH)))
 		return inner(gtx)
 	}
 }
@@ -260,7 +266,7 @@ func appCard(tok themed, app App, click *widget.Clickable, status Status) layout
 // starting or running it renders disabled and emits nothing; the reducer
 // guards again anyway.
 //
-// It shapes with the shaper the rest of the card uses rather than reaching for
+// It shapes with the shaper the rest of the cell uses rather than reaching for
 // the theme's own, so one page has one shaper and a render made outside the
 // window can say which.
 func launchButton(th rx.Observable[theme.Theme], shaper *text.Shaper, app App, click *widget.Clickable, status Status) layout.Widget {

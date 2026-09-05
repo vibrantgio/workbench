@@ -24,7 +24,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/alert"
-	"github.com/vibrantgio/patterns/card"
+	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/navbar"
 	"github.com/vibrantgio/patterns/popover"
@@ -435,7 +435,7 @@ func sharePopover(
 	})
 }
 
-// addFeedDimsDp sizes the body card's interior rows. The card's textfield is
+// addFeedDimsDp sizes the group's interior rows. The textfield is
 // height-constrained to a single row; the alert (shown only on empty submit)
 // gets its own band above the field.
 const (
@@ -446,13 +446,19 @@ const (
 )
 
 // addFeedModal composes the "Add feed" modal: a patterns/modal whose Body is a
-// patterns/card wrapping (optionally) a patterns/alert, a components/input/textfield
+// patterns/group holding (optionally) a patterns/alert, a components/input/textfield
 // for the URL, and a components/button submit. addFeedOpenObs drives the modal's
 // Open; addFeedErrorObs drives whether the empty-URL alert shows.
 //
+// A group and not a card: the modal's body is one section of a form, so the
+// hairline is dividing the dialog and nothing inside it is being singled out.
+// It names the dialog's own level, so its hairline is derived against the
+// surface it is actually in rather than against a content plane it is
+// nowhere near, and what it holds stands on the dialog.
+//
 // Component-prop shapes:
-//   - modal.Props.Body and card.Props.* are STATIC layout.Widget slots, but
-//     textfield/button/alert/card are rx.Observable[layout.Widget]. Each is
+//   - modal.Props.Body and group.Props.* are STATIC layout.Widget slots, but
+//     textfield/button/alert/group are rx.Observable[layout.Widget]. Each is
 //     bridged through an atomic layer-boundary cell read by the static slot at
 //     frame time — the same pattern the navbar Share popover uses.
 //   - components/input/textfield is uncontrolled: its widget.Editor lives in the
@@ -504,7 +510,7 @@ func addFeedModal(
 		Title:   "Feed URL required",
 	})
 
-	// Layer-boundary cells for the static modal/card slots.
+	// Layer-boundary cells for the static modal/group slots.
 	var fieldCell, submitCell, alertCell atomic.Value
 	cellSlot := func(c *atomic.Value) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
@@ -515,7 +521,7 @@ func addFeedModal(
 		}
 	}
 
-	// errorCell mirrors addFeedError so the static card body decides whether
+	// errorCell mirrors addFeedError so the static group body decides whether
 	// to draw the alert band at frame time.
 	var errorCell atomic.Bool
 	_ = addFeedErrorObs.Subscribe(rx.GoroutineContext(), func(v bool, _ error, done bool) {
@@ -524,9 +530,9 @@ func addFeedModal(
 		}
 	})
 
-	// The card body: optional alert band, then the URL field, then the submit
-	// button. Static widget assembled from the bridged cells.
-	cardBody := func(gtx layout.Context) layout.Dimensions {
+	// What the group holds: optional alert band, then the URL field, then the
+	// submit button. Static widget assembled from the bridged cells.
+	groupBody := func(gtx layout.Context) layout.Dimensions {
 		w := gtx.Constraints.Max.X
 		gap := gtx.Dp(unit.Dp(addFeedGapDp))
 		fieldH := gtx.Dp(unit.Dp(addFeedFieldHDp))
@@ -557,10 +563,13 @@ func addFeedModal(
 		return layout.Dimensions{Size: image.Pt(w, y)}
 	}
 
-	cardObs := card.Card(th, card.Props{Body: cardBody})
-	var cardCell atomic.Value
+	groupObs := group.Group(th, group.Props{
+		Content: []layout.Widget{groupBody},
+		Level:   tokens.Level2,
+	})
+	var groupCell atomic.Value
 	modalBody := func(gtx layout.Context) layout.Dimensions {
-		if w, ok := cardCell.Load().(layout.Widget); ok && w != nil {
+		if w, ok := groupCell.Load().(layout.Widget); ok && w != nil {
 			return w(gtx)
 		}
 		return layout.Dimensions{Size: gtx.Constraints.Max}
@@ -578,11 +587,11 @@ func addFeedModal(
 
 	// Fold every live component widget into the modal stream so the modal
 	// re-emits when any of them re-emits, and store the latest into its cell.
-	// Positions: modalObs, cardObs, field, submit, alertObs.
+	// Positions: modalObs, groupObs, field, submit, alertObs.
 	return rx.Map(
-		rx.CombineLatest5(modalObs, cardObs, field, submit, alertObs),
+		rx.CombineLatest5(modalObs, groupObs, field, submit, alertObs),
 		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
-			cardCell.Store(n.Second)
+			groupCell.Store(n.Second)
 			fieldCell.Store(n.Third)
 			submitCell.Store(n.Fourth)
 			alertCell.Store(n.Fifth)

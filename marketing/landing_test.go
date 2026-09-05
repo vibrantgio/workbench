@@ -226,7 +226,7 @@ func TestSimpleAppsCopy(t *testing.T) {
 	if pp.Tiers[0].Name != "Free" || pp.Tiers[0].Price != "€0" || pp.Tiers[0].Cadence != "once" {
 		t.Errorf("free tier = %+v", pp.Tiers[0])
 	}
-	if pp.Tiers[1].Name != "Pro" || pp.Tiers[1].Price != "€29" || !pp.Tiers[1].Highlighted {
+	if pp.Tiers[1].Name != "Pro" || pp.Tiers[1].Price != "€29" || !pp.Tiers[1].Recommended {
 		t.Errorf("pro tier = %+v", pp.Tiers[1])
 	}
 	if pp.Tiers[2].Name != "Studio" || pp.Tiers[2].Price != "€79" {
@@ -337,11 +337,11 @@ func structuralFeatureProps(shaper *text.Shaper) feature.Props {
 }
 
 func structuralPricingProps(shaper *text.Shaper) pricing.Props {
-	tier := func(highlighted bool) pricing.Tier {
+	tier := func(recommended bool) pricing.Tier {
 		return pricing.Tier{
 			Features:    []string{"", "", ""},
 			CTA:         &pricing.CTA{Label: ""},
-			Highlighted: highlighted,
+			Recommended: recommended,
 		}
 	}
 	return pricing.Props{

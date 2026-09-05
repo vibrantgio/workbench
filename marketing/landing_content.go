@@ -62,7 +62,7 @@ func pricingContent() pricing.Props {
 				Name:        "Pro",
 				Price:       "€29",
 				Cadence:     "once",
-				Highlighted: true,
+				Recommended: true,
 				Features: []string{
 					"Authenticity marks on every file",
 					"Signed export bundles",

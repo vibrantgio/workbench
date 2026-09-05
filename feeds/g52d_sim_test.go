@@ -31,7 +31,7 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/patterns/alert"
-	"github.com/vibrantgio/patterns/card"
+	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/theme/theme"
@@ -47,7 +47,7 @@ const (
 var modalSharpRadius = tokens.RadiusScale{}
 
 // staticAddFeedModalBody assembles the modal Body from the static Render paths
-// of the same components the live addFeedModal composes: a card wrapping the
+// of the same components the live addFeedModal composes: a group holding the
 // error alert (shown to capture the empty-submit state in the golden), the URL
 // textfield, and the Add button. Sharp radii + the static Render paths keep
 // the golden deterministic.
@@ -94,8 +94,13 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layo
 		return layout.Dimensions{Size: image.Pt(w, y)}
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		c := card.Render(card.Props{Body: body}, colors, tokens.Spacing, modalSharpRadius)
-		return c(gtx)
+		// Level 2, the dialog's own: a group's hairline is derived against
+		// the surface it is in, which here is the modal and not the window.
+		g := group.Render(shaper, group.Props{
+			Content: []layout.Widget{body},
+			Level:   tokens.Level2,
+		}, colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.LabelLarge)
+		return g(gtx)
 	}
 }
 

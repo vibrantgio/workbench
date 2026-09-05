@@ -144,12 +144,12 @@ func inkSpan(img *image.RGBA, y int, ground color.NRGBA) (int, int) {
 // token painted into it and still count as a level at all. Gio blends in
 // linear space, so a flat fill does not always survive the round trip to 8-bit
 // sRGB exactly: in the dark scheme, at the bottom of the curve where the
-// quantisation is coarsest, a level-1 card comes back speckled a value or two
+// quantisation is coarsest, a level-1 fill comes back speckled a value or two
 // above its own token.
 //
 // It is a membership test only, never a discriminator: the light scheme fills
 // its raised and both its floating levels white, so a first-match walk would
-// hand every card to whichever of them it met first. [nearestRung] takes the
+// hand every fill to whichever of them it met first. [nearestRung] takes the
 // closest level instead, which stays decidable wherever the fills differ at
 // all.
 const rungTolerance = 4
@@ -192,54 +192,51 @@ func channelDiff(a, b uint8) int {
 	return int(b - a)
 }
 
-// cardRects measures the app cards off the frame instead of recomputing the
-// layout's arithmetic. A card row is a contiguous stretch of frame rows whose
-// ink is exactly as wide as some number of cards with their gaps — one to
-// perRow of them — and at least half a card tall; the hero's lines are the
+// cellRects measures the app groups off the frame instead of recomputing the
+// layout's arithmetic. A grid row is a contiguous stretch of frame rows whose
+// ink is exactly as wide as some number of cells with their gaps — one to
+// perRow of them — and at least half a cell tall; the hero's lines are the
 // only other ink on the page and match neither. The last row holds the
 // roster's remainder, so it may be narrower than GridW and is read for how
-// many cards it actually holds. Each stretch is shortened top and bottom by
-// the same corner radius, so its midpoint is the cards' midpoint. The
-// outlined card's 1 dp stroke straddles the edge it draws, which is why the
-// samples below are taken half an S4 inside the measured leading edge rather
-// than on it.
-func cardRects(t *testing.T, img *image.RGBA, ground color.NRGBA) []image.Rectangle {
+// many cells it actually holds. Each stretch is shortened top and bottom by
+// the same corner radius, so its midpoint is the cells' midpoint.
+func cellRects(t *testing.T, img *image.RGBA, ground color.NRGBA) []image.Rectangle {
 	t.Helper()
 	size := img.Bounds().Size()
 	var rects []image.Rectangle
 	for y := 0; y < size.Y; y++ {
 		first, last := inkSpan(img, y, ground)
-		n := cardsAcross(last - first + 1)
+		n := cellsAcross(last - first + 1)
 		if n == 0 {
 			continue
 		}
 		top := y
 		for y+1 < size.Y {
 			f, l := inkSpan(img, y+1, ground)
-			if f != first || cardsAcross(l-f+1) != n {
+			if f != first || cellsAcross(l-f+1) != n {
 				break
 			}
 			y++
 		}
-		if y-top+1 < int(CardH)/2 {
+		if y-top+1 < int(CellH)/2 {
 			continue
 		}
 		mid := (top + y) / 2
 		for c := 0; c < n && len(rects) < len(Apps); c++ {
-			x := first + c*(int(CardW)+int(RowGap))
-			rects = append(rects, image.Rect(x, mid-int(CardH)/2, x+int(CardW), mid+int(CardH)/2))
+			x := first + c*(int(CellW)+int(RowGap))
+			rects = append(rects, image.Rect(x, mid-int(CellH)/2, x+int(CellW), mid+int(CellH)/2))
 		}
 	}
 	return rects
 }
 
-// cardsAcross reports how many cards an ink span that wide holds, and zero
-// when it is no row of cards. The outlined card's stroke straddles its edge,
-// so a row of n cards inks up to two pixels wider than the n cards' own
-// width; a pixel under it is antialiasing.
-func cardsAcross(width int) int {
+// cellsAcross reports how many cells an ink span that wide holds, and zero
+// when it is no row of cells. A group's hairline lies wholly inside the
+// bounds it draws, so a row of n cells inks exactly the n cells' own width;
+// the couple of pixels of slack absorb the corner radius's antialiasing.
+func cellsAcross(width int) int {
 	for n := 1; n <= perRow; n++ {
-		w := n*int(CardW) + (n-1)*int(RowGap)
+		w := n*int(CellW) + (n-1)*int(RowGap)
 		if width >= w-1 && width <= w+2 {
 			return n
 		}
@@ -264,7 +261,7 @@ func topmostInk(img *image.RGBA, ground color.NRGBA) int {
 // TestWholeWindowRender draws the composed window in both schemes and writes
 // the frames out when -window.dump names a directory. Without the flag it is
 // still a smoke test of the whole stack: a panic anywhere in the ground, the
-// strip, the hero or the card grid fails it. The dumped frames carry the field
+// strip, the hero or the app grid fails it. The dumped frames carry the field
 // as well.
 func TestWholeWindowRender(t *testing.T) {
 	for _, tc := range windowSchemes {
@@ -362,42 +359,37 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 	}
 }
 
-// TestTheCardsRestOneStepOverThePage reads off the frame that the app cards
-// lie exactly one step over the window's own page. The fill is the raise
-// walked from that page ([tokens.ColorTokens.RaisedOn]) rather than a named
-// step, so what is pinned is the grammar rather than a colour, and it is
-// checked in both schemes because one step up means lighter in both.
+// TestTheAppGroupsTakeThePagesOwnFill reads off the frame that the launcher's
+// roster divides the page rather than standing over it: every cell is a
+// group, so its inside is the window's own page, byte for byte, and the
+// hairline at its edge is the whole of what says where one app ends and the
+// next begins. Checked in both schemes, because a group is derived against
+// whatever surface it is in and neither scheme is the reference one.
 //
-// On paper the cards are #FFFFFF on a #F1F1F1 page and on slate #222222 on
-// #181818 — one band step in either, and the fill carries it. Neither is a
-// colour this test asserts: it asks elevation which level it painted, and
-// level 1 is the name the walk's answer off the content goes by.
-func TestTheCardsRestOneStepOverThePage(t *testing.T) {
+// The claim is the grammar, not a colour: nothing here names a step. It asks
+// elevation which level it painted and requires the page's own, and it asks
+// the palette for the seam of two regions sharing that fill
+// ([tokens.ColorTokens.SeamOn]) and requires the edge to be it.
+func TestTheAppGroupsTakeThePagesOwnFill(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.colors, titleBandDp)
 			page := tokens.Level0
-			resting := tokens.Level1
 			ground := tc.colors.SurfaceAt(page)
-			cards := cardRects(t, img, ground)
-			if len(cards) != len(Apps) {
-				t.Fatalf("measured %d cards in the frame, want one per app in the roster (%d)", len(cards), len(Apps))
+			cells := cellRects(t, img, ground)
+			if len(cells) != len(Apps) {
+				t.Fatalf("measured %d cells in the frame, want one per app in the roster (%d)", len(cells), len(Apps))
 			}
-			for i, r := range cards {
+			for i, r := range cells {
 				at := image.Pt(r.Min.X+int(tokens.Spacing.S4)/2, (r.Min.Y+r.Max.Y)/2)
-				got := pixelAt(img, at)
-				switch level, ok := nearestRung(got, tc.colors); {
-				case !ok:
-					t.Errorf("card %d fills %v at %v, which is no elevation level at all; a card resting on the page fills at %v",
-						i, got, at, tc.colors.SurfaceAt(resting))
-				case level != resting:
-					t.Errorf("card %d fills %v at %v — level %d; it rests on the level-%d page, so it fills one step over it, at level %d (%v)",
-						i, got, at, level, page, resting, tc.colors.SurfaceAt(resting))
+				if got := pixelAt(img, at); got != ground {
+					t.Errorf("group %d fills %v at %v; a group takes the fill of the surface it is in, which is the level-%d page %v",
+						i, got, at, page, ground)
 				}
 
 				// One pixel is a spot check; the fill is the claim. Count the
-				// whole card, so a level-1 gutter around a level-2 body would
-				// fail here even though the sample above passed.
+				// whole cell, so a raised body inside a hairline would fail
+				// here even though the sample above passed.
 				covered := map[tokens.ElevationLevel]int{}
 				for y := r.Min.Y; y < r.Max.Y; y++ {
 					for x := r.Min.X; x < r.Max.X; x++ {
@@ -412,17 +404,27 @@ func TestTheCardsRestOneStepOverThePage(t *testing.T) {
 						widest, n = level, count
 					}
 				}
-				if area := r.Dx() * r.Dy(); widest != resting || n*2 < area {
-					t.Errorf("card %d is covered by level %d over %d%% of itself; a card resting on the level-%d page is a level-%d fill",
-						i, widest, n*100/area, page, resting)
+				if area := r.Dx() * r.Dy(); widest != page || n*2 < area {
+					t.Errorf("group %d is covered by level %d over %d%% of itself; a group raises nothing, so it is the level-%d fill throughout",
+						i, widest, n*100/area, page)
 				}
 
-				// The plane has to be the level-0 ground, or "one rung over it"
-				// is a claim about nothing. Read it back off the page beside the
-				// card rather than trusting the ground layer's own token.
+				// The hairline is the whole of what says the group is there,
+				// so it is read off the frame too: the leading edge at mid
+				// height, where the corner radius is behind and the edge is
+				// one straight column.
+				edge := image.Pt(r.Min.X, (r.Min.Y+r.Max.Y)/2)
+				if got, want := pixelAt(img, edge), tc.colors.SeamOn(ground); got != want {
+					t.Errorf("group %d draws %v at its leading edge %v, not the seam %v the two regions sharing the page's fill are parted by",
+						i, got, edge, want)
+				}
+
+				// The plane has to be the level-0 ground, or "takes the page's
+				// own fill" is a claim about nothing. Read it back off the page
+				// beside the cell rather than trusting the ground layer's token.
 				beside := image.Pt(r.Max.X+int(RowGap)/2, (r.Min.Y+r.Max.Y)/2)
 				if level, ok := nearestRung(pixelAt(img, beside), tc.colors); !ok || level != page {
-					t.Errorf("the page beside card %d reads %v at %v, not the level-%d ground %v",
+					t.Errorf("the page beside group %d reads %v at %v, not the level-%d ground %v",
 						i, pixelAt(img, beside), beside, page, ground)
 				}
 			}
