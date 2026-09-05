@@ -905,6 +905,15 @@ so do not expect a light window's levels to stand far apart.
     Divider and the state walks. Permanence is the test and size is its
     tell. If a fill is the biggest thing on screen and never goes away, it
     is the content or the chrome, whatever it is called.
+  - OUTLINED DIVIDES, FILLED SINGLES OUT. A card's look answers one
+    question: am I dividing the page, or singling something out? Outlined
+    divides: a page full of related items the reader cannot parse — a form
+    in sections, a list of articles, a row of tiers — gets boundaries so
+    the eye chunks it, and nothing is more important than its neighbours.
+    Filled singles out: one thing that must stand apart from the page
+    around it — a selected item, a summary, the recommended tier, a
+    preview — is lifted, still attached, so it is neither a dialog nor
+    merely grouped.
   - LEVELS WALK FROM THE SURFACE A THING STANDS ON, not from the window,
     and A STEP TOWARD THE VIEWER IS A STEP TOWARD THE SCHEME'S LIGHT
     EXTREME. A card on the content is one level up from it; a control inside
