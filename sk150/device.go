@@ -16,12 +16,14 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"go.bug.st/serial"
+	"go.bug.st/serial/enumerator"
 )
 
 const (
@@ -282,8 +284,11 @@ func humane(err error) string {
 		return "no USB serial adapter found — plug the cable in"
 	case errors.Is(err, fs.ErrNotExist) || strings.Contains(msg, "no such file"):
 		return "the serial adapter disappeared — check the USB cable"
-	case errors.Is(err, fs.ErrPermission) || strings.Contains(msg, "permission denied"):
-		return "no permission for the serial port — add your user to the dialout group"
+	case errors.Is(err, fs.ErrPermission) || strings.Contains(msg, "permission denied") || strings.Contains(msg, "access is denied"):
+		if runtime.GOOS == "linux" {
+			return "no permission for the serial port — add your user to the dialout group"
+		}
+		return "no access to the serial port — another program may be using it"
 	case strings.Contains(msg, "timeout"):
 		return "the SK150 isn't answering — check its power and the wiring"
 	case strings.Contains(msg, "bad crc"):
@@ -312,27 +317,69 @@ func crc16(data []byte) uint16 {
 	return crc
 }
 
-// open connects to the first FTDI adapter under /dev/serial/by-id (any
-// adapter if none says FTDI). Callers hold d.mu.
+// ftdiVID is the USB vendor ID of FTDI, whose adapter ships with the SK150.
+const ftdiVID = "0403"
+
+// adapterGlobs is the fallback when port enumeration yields nothing: Linux's
+// stable udev names, then macOS's callout devices (FTDI shows up as
+// cu.usbserial-<id>, CDC-ACM adapters as cu.usbmodem*). Windows ports are
+// COMn names rather than files, so only enumeration finds them.
+var adapterGlobs = []string{
+	"/dev/serial/by-id/*",
+	"/dev/cu.usbserial*",
+	"/dev/cu.usbmodem*",
+}
+
+// findAdapter returns the USB serial adapter to talk to, preferring an FTDI
+// one; empty when none is plugged in. The OS port enumeration works on
+// Linux, macOS and Windows alike; the path globs are a safety net for a
+// system where enumeration fails.
+func findAdapter() string {
+	if ports, err := enumerator.GetDetailedPortsList(); err == nil {
+		first := ""
+		for _, p := range ports {
+			if !p.IsUSB {
+				continue
+			}
+			if strings.EqualFold(p.VID, ftdiVID) {
+				return p.Name
+			}
+			if first == "" {
+				first = p.Name
+			}
+		}
+		if first != "" {
+			return first
+		}
+	}
+	for _, g := range adapterGlobs {
+		matches, _ := filepath.Glob(g)
+		if len(matches) == 0 {
+			continue
+		}
+		sort.Strings(matches)
+		for _, m := range matches {
+			if strings.Contains(m, "FTDI") {
+				return m
+			}
+		}
+		return matches[0]
+	}
+	return ""
+}
+
+// open connects to the FTDI adapter (any USB serial adapter if none says
+// FTDI). Callers hold d.mu.
 func (d *Device) open() error {
 	if d.port != nil {
 		return nil
 	}
 	path := d.path
 	if path == "" {
-		matches, _ := filepath.Glob("/dev/serial/by-id/*")
-		sort.Strings(matches)
-		for _, m := range matches {
-			if path == "" || strings.Contains(m, "FTDI") {
-				path = m
-			}
-			if strings.Contains(m, "FTDI") {
-				break
-			}
-		}
+		path = findAdapter()
 	}
 	if path == "" {
-		return fmt.Errorf("no serial adapter under /dev/serial/by-id")
+		return fmt.Errorf("no serial adapter found")
 	}
 	p, err := serial.Open(path, &serial.Mode{BaudRate: baudRate})
 	if err != nil {
