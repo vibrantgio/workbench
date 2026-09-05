@@ -250,8 +250,13 @@ func TestTheListRestsOnTheWindowGround(t *testing.T) {
 			// arithmetic — a couple of dozen pixels along the rounded checkbox
 			// borders do, in both schemes. What the rung may not be is an
 			// expanse.
-			if n := countFill(img, frame, transient); n*1000 > total {
-				t.Errorf("level 2 (%v) covers %d of %d pixels of the resting window; that rung is for what appears and leaves",
+			//
+			// It only bites where level 2 is a different fill from level 1:
+			// the light scheme has one band step above its content and
+			// spends it on the first raise, so its raised and floating
+			// levels are one colour and no pixel can tell them apart.
+			if n := countFill(img, frame, transient); transient != furniture && n*1000 > total {
+				t.Errorf("level 2 (%v) covers %d of %d pixels of the resting window; that level is for what appears and leaves",
 					transient, n, total)
 			}
 		})
@@ -277,19 +282,24 @@ func dialogRect() image.Rectangle {
 	return image.Rect(x, y, x+w, y+h)
 }
 
-// TestTheDialogAndItsFieldHoldTheirRungs reads the modal's two rungs off the
-// frame. The dialog is at level 2, and the field inside it walks one rung on
-// from the dialog rather than from the window: a raised inset steps up from
-// the surface it lies on.
-func TestTheDialogAndItsFieldHoldTheirRungs(t *testing.T) {
+// TestTheDialogAndItsFieldHoldTheirLevels reads the modal's two surfaces off
+// the frame. The dialog is at level 2, and the field inside it is the raise
+// walked from the dialog rather than from the window: a raised inset steps up
+// from the surface it lies on.
+//
+// Where the scheme has no step left the two are one fill, and the field is
+// told by the border it already draws rather than by its own colour — so the
+// pixel-count claim is made only where the walk actually moved.
+func TestTheDialogAndItsFieldHoldTheirLevels(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			p := PaletteFrom(tc.c)
 			if want := tc.c.SurfaceAt(tokens.Level2); p.Dialog != want {
 				t.Errorf("dialog surface = %v, want level 2 %v", p.Dialog, want)
 			}
-			if want := tc.c.SurfaceAt(tokens.Level3); p.Edit != want {
-				t.Errorf("field fill = %v, want level 3 %v", p.Edit, want)
+			raise := tc.c.RaisedOn(tc.c.SurfaceAt(tokens.Level2))
+			if p.Edit != raise.Fill {
+				t.Errorf("field fill = %v, want the raise off the dialog %v", p.Edit, raise.Fill)
 			}
 
 			img := renderWindow(t, tc.c, "add.todo", titleBandDp)
@@ -304,16 +314,19 @@ func TestTheDialogAndItsFieldHoldTheirRungs(t *testing.T) {
 			}
 
 			// The field is actually painted, and the dialog it lies in is
-			// still the larger of the two.
-			field := countFill(img, rect, p.Edit)
-			dialog := countFill(img, rect, p.Dialog)
-			if field < 2000 {
-				t.Errorf("the field fill %v covers %d pixels of the dialog; a rung nothing is painted in is not a rung",
-					p.Edit, field)
-			}
-			if dialog <= field {
-				t.Errorf("the dialog covers %d pixels and the field on it %d; the inset has swallowed the surface it rests on",
-					dialog, field)
+			// still the larger of the two — asked only where the raise has
+			// a fill of its own to be counted.
+			if !raise.Seamed {
+				field := countFill(img, rect, p.Edit)
+				dialog := countFill(img, rect, p.Dialog)
+				if field < 2000 {
+					t.Errorf("the field fill %v covers %d pixels of the dialog; a level nothing is painted in is not a level",
+						p.Edit, field)
+				}
+				if dialog <= field {
+					t.Errorf("the dialog covers %d pixels and the field on it %d; the inset has swallowed the surface it rests on",
+						dialog, field)
+				}
 			}
 
 			// And the page behind is not showing through at either rung.

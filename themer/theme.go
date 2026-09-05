@@ -130,21 +130,20 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	return Palette{
 		Backdrop: c.Background,
 		// The mat and the candidate cards: filled insets lying on the
-		// window's page, and the raised storey is lighter than that page in
-		// both schemes — #F8F8F8 on paper, #222222 on slate. A ramp index is
-		// not a storey: neutral 200 is #E8E8E8 under a #F6F6F6 page, which
-		// sinks a card into the desk instead of raising it.
+		// window's page, and the raise is lighter than that page in both
+		// schemes — white on paper, #222222 on slate. A ramp index is not a
+		// raise: neutral 200 is #E8E8E8, under a light page, which sinks a
+		// card into the desk instead of raising it.
 		//
-		// On paper the storey is a whisper the fill cannot carry alone, and
-		// this palette is built for that: CardEdge is what makes a card an
+		// On paper the raise off the content is white, so a pale swatch on it
+		// has no boundary of its own: CardEdge is what makes a card an
 		// object, and Edge is derived against this very fill so a near-white
-		// swatch on a near-white card still has a boundary.
-		Surface: c.SurfaceAt(tokens.Level1),
+		// swatch on a white card still has one.
+		Surface: raisedOnPage(c),
 		Divider: c.Ramps.Neutral.Step(300),
-		// A card sits on a surface only a shade off the window's own — the
-		// neutral steps are close together by design — so the card's own
-		// edge, not its fill, is what makes it an object. It is drawn a rung
-		// stronger than the page's dividers for exactly that reason.
+		// A card's own edge, and not its fill alone, is what makes it an
+		// object where the swatches inside it are near-white. It is drawn a
+		// step stronger than the page's dividers for exactly that reason.
 		CardEdge: c.Ramps.Neutral.Step(400),
 		// The heaviest edge, and it is on swatches rather than on cards for
 		// one reason: a swatch can be any colour a style or a photograph
@@ -154,12 +153,12 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		// that failed to finish drawing. The weight has to beat the two
 		// near-whites it stands between, which the card weight does not.
 		//
-		// So it is derived rather than named: the neutral rung the ramp
+		// So it is derived rather than named: the neutral step the ramp
 		// measures as reaching 3:1 against the card the swatches lie on,
-		// which is Surface — the level-1 storey. Named at step 500 it
+		// which is Surface — the raise off the page. Named at step 500 it
 		// measured 2.35:1 there in the light scheme and 5.94:1 in the dark,
 		// one line of code meaning two different weights.
-		Edge: c.MarkOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level1), edgeFloor),
+		Edge: c.MarkOn(tokens.RoleNeutral, raisedOnPage(c), edgeFloor),
 		Text: c.Text,
 		// The quiet register: hints and hex values, and the chrome in the
 		// title row that stands under the window's own name. It is a step
@@ -215,4 +214,11 @@ func textStyle(ts tokens.TextStyle) textdraw.TextStyle {
 		f.Weight = tokens.FontWeight(ts.Weight)
 	}
 	return textdraw.TextStyle{Font: f, Alignment: textdraw.Start, Size: unit.Sp(ts.Size), MaxLines: 1, Truncator: Ellipsis}
+}
+
+// raisedOnPage is the raise walked from the page a section stands on: the
+// surface one step above the content, which is what a band, a card and a
+// filled inset all fill with ([tokens.ColorTokens.RaisedOn]).
+func raisedOnPage(c tokens.ColorTokens) stdcolor.NRGBA {
+	return c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill
 }

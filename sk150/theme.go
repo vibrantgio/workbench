@@ -41,7 +41,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		Amp:      c.InkOn(tokens.RoleSecondary, ground, tokens.TextFloor),
 		Watt:     c.InkOn(tokens.RoleTertiary, ground, tokens.TextFloor),
 		Danger:   c.InkOn(tokens.RoleError, ground, tokens.TextFloor),
-		Panel:    c.SurfaceAt(tokens.Level1),
+		Panel:    c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill,
 		Hairline: c.Divider,
 		TipFill:  c.InverseSurface,
 		TipInk:   c.OnInverseSurface,

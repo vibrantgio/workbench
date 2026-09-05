@@ -917,7 +917,7 @@ func layoutProperties(
 //
 // So the panel takes no fill of its own and wears the page's existing idiom
 // for a bounded block that does not shout — as the code blocks do, a
-// hairline around a ground barely off the paper. The outline is the whole
+// hairline around a ground one step off the paper. The outline is the whole
 // of the panel's budget: the hair takes the step past the separator's, for
 // the measurement in propEdgeStep, since a line that dissolves is not an
 // outline. The corners are the code blocks', so the page has one shape for

@@ -341,7 +341,7 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureBlue)
 	want := map[string]map[string]string{
 		"light": {
-			palette.BackgroundPick: "Neutral 100",
+			palette.BackgroundPick: palette.PickContentPin,
 			palette.TextPick:       "Neutral 900",
 			palette.SurfacePick:    "Neutral 200",
 			palette.DividerPick:    "Neutral 300",

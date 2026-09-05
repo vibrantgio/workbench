@@ -68,21 +68,20 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	return Palette{
 		Backdrop: c.Background,
 		// The section headings' band: a filled strip lying on the page the
-		// section is printed on, which the ladder makes a RAISED storey,
-		// lighter than that page in both schemes. A ramp index is not a
-		// storey — neutral 200 is #E8E8E8 UNDER a #F6F6F6 page on paper, a
-		// resting band darker than what it lies on, which is the one
-		// arrangement the ladder forbids. The storey answers #F8F8F8 there
-		// and #222222 on slate.
-		Surface:  c.SurfaceAt(tokens.Level1),
+		// section is printed on, so it is the RAISE walked from that page,
+		// lighter than it in both schemes. A ramp index is not a raise —
+		// neutral 200 is #E8E8E8 UNDER a light page, a resting band darker
+		// than what it lies on, which is the one arrangement elevation
+		// forbids. The walk answers #FFFFFF on paper and #222222 on slate.
+		Surface:  raisedOnPage(c),
 		Divider:  c.Ramps.Neutral.Step(300),
 		CardEdge: c.Ramps.Neutral.Step(400),
-		// The heaviest edge, derived rather than named: the neutral rung the
+		// The heaviest edge, derived rather than named: the neutral step the
 		// ramp measures as reaching the graphic floor against Surface — the
-		// level-1 storey the headings above fill at. A named step 500 would
-		// mean two different weights from a line that looks scheme-neutral:
-		// measured, 2.35:1 in the light scheme against 5.94:1 in the dark.
-		Edge:     c.MarkOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level1), edgeFloor),
+		// raise the headings above fill at. A named step 500 would mean two
+		// different weights from a line that looks scheme-neutral: measured,
+		// 2.35:1 in the light scheme against 5.94:1 in the dark.
+		Edge:     c.MarkOn(tokens.RoleNeutral, raisedOnPage(c), edgeFloor),
 		Text:     c.Text,
 		Muted:    c.Ramps.Neutral.Step(700),
 		Accent:   c.Primary,
@@ -212,4 +211,11 @@ func strokeRRect(gtx layout.Context, r image.Rectangle, radius, width int, c std
 	defer clip.Stroke{Path: path, Width: half * 2}.Op().Push(gtx.Ops).Pop()
 	paint.ColorOp{Color: c}.Add(gtx.Ops)
 	paint.PaintOp{}.Add(gtx.Ops)
+}
+
+// raisedOnPage is the raise walked from the page a section stands on: the
+// surface one step above the content, which is what a band, a card and a
+// filled inset all fill with ([tokens.ColorTokens.RaisedOn]).
+func raisedOnPage(c tokens.ColorTokens) stdcolor.NRGBA {
+	return c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill
 }

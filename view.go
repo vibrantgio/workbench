@@ -218,11 +218,10 @@ func cardRow(cells []layout.Widget) layout.Widget {
 // the low-contrast blurb.
 //
 // The card stays the pattern's default outlined look rather than filled.
-// Both looks fill one step over the surface these cards stand on
-// (tokens.Level0), so the outline is all that separates them — and in the
-// light scheme level 1 is #F8F8F8 on a #F6F6F6 page, a step the fill can
-// barely be said to take, so the border, not the fill, is what says where a
-// card ends; on slate the fill carries it at #222222 over #181818.
+// Both looks fill the raise walked from the surface these cards stand on
+// (tokens.Level0), so the outline is all that separates them — and the fill
+// carries the raise in both schemes, #FFFFFF over a #F1F1F1 page and #222222
+// over #181818.
 func appCard(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {
 	thObs := rx.Of(tok.components)
 

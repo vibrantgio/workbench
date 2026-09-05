@@ -200,7 +200,13 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 				if got != r.want {
 					t.Errorf("%s at %v = %v, want %v", r.name, r.at, got, r.want)
 				}
-				if got == transient {
+				// A resting region must not be painted at the floating
+				// level. The check only bites where the two are different
+				// fills: the light scheme has one band step above its
+				// content and spends it on the first raise, so its raised
+				// and floating levels are one colour and no pixel can tell
+				// them apart.
+				if r.want != transient && got == transient {
 					t.Errorf("%s at %v rests at level 2 (%v), the level elevation keeps for what appears and leaves",
 						r.name, r.at, transient)
 				}
@@ -209,18 +215,21 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	}
 }
 
-// TestLightnessClimbsTowardTheViewer walks this window's depth axis rather
+// TestLightnessNeverFallsTowardTheViewer walks this window's depth axis rather
 // than its plane: the outline rail is the
 // desk, the guide is the paper laid on it, the tab strip is the panel's band
 // raised over that paper, and a dialog would arrive over the lot. Walking
-// that order toward the reader, lightness may only increase — in the light
+// that order toward the reader, lightness may never fall — in the light
 // scheme AND in the dark one, which is why this needs no per-scheme clause.
+// Never fall rather than always rise: the light scheme has one band step
+// above its content, so its raise and the dialog over it are both white and
+// what tells them apart is the dialog's shadow and scrim.
 //
 // It is read off the rendered frame for the rail, the page and the strip,
 // because those three are painted by three different pieces of code (this
 // app, backdrop, and patterns/tabs) and the only place they can be seen
 // agreeing is a frame that has all three in it.
-func TestLightnessClimbsTowardTheViewer(t *testing.T) {
+func TestLightnessNeverFallsTowardTheViewer(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, titleBandDp)
@@ -235,8 +244,8 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 			}
 			for i := 1; i < len(toward); i++ {
 				below, above := toward[i-1], toward[i]
-				if luma(above.fill) <= luma(below.fill) {
-					t.Errorf("%s (%v) is not lighter than %s (%v); walking toward the viewer never gets darker",
+				if luma(above.fill) < luma(below.fill) {
+					t.Errorf("%s (%v) is under %s (%v); walking toward the viewer never gets darker",
 						above.name, above.fill, below.name, below.fill)
 				}
 			}

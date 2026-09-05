@@ -30,16 +30,18 @@ type Palette struct {
 // wears level 0 and paints no surface of its own. Backdrop is that ground —
 // the Background pin, filled once underneath everything — and nothing in the
 // page is raised above it. The only fills over it belong to the modal: the
-// dialog takes level 2, the rung reserved for a dialog, and its text-entry
-// field walks one rung on from the dialog it lies in rather than from the
-// window — level 3 — because a rung is counted from the surface a thing lies
-// on. Primary is the pinned accent, and the remaining Neutral steps are inks:
+// dialog takes level 2, the level reserved for a dialog, and its text-entry
+// field is the raise walked from the dialog it lies in rather than from the
+// window ([tokens.ColorTokens.RaisedOn]), because a step is counted from the
+// surface a thing lies on. Where the scheme has no step left the field is
+// flush with the dialog and its own border says where it is.
+// Primary is the pinned accent, and the remaining Neutral steps are inks:
 // 700 the low-contrast text step, 900 the body-text step.
 func PaletteFrom(c tokens.ColorTokens) Palette {
 	return Palette{
 		Backdrop: c.SurfaceAt(tokens.Level0),
 		Dialog:   c.SurfaceAt(tokens.Level2),
-		Edit:     c.SurfaceAt(tokens.Level3),
+		Edit:     c.RaisedOn(c.SurfaceAt(tokens.Level2)).Fill,
 		Select:   c.Ramps.Neutral.Step(700),
 		Text:     c.Ramps.Neutral.Step(900),
 		Icon:     c.Primary,

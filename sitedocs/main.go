@@ -201,12 +201,13 @@ func underTitleBar(th rx.Observable[theme.Theme], shellObs rx.Observable[layout.
 }
 
 // titleBandFill is the fill the title-bar strip wears. The region it caps is
-// the tab strip, and patterns/tabs fills that strip one rung over its panel;
-// this window's panel takes the pattern's default ground, so the rung is 1.
-// Named once because two callers have to agree on it — the window, and the
-// whole-window render that photographs the window.
+// the tab strip, and patterns/tabs fills that strip with the raise walked
+// from its panel; this window's panel takes the pattern's default ground,
+// the content, so this is the raise off the content. Named once because two
+// callers have to agree on it — the window, and the whole-window render that
+// photographs the window.
 func titleBandFill(c tokens.ColorTokens) stdcolor.NRGBA {
-	return c.SurfaceAt(tokens.Level1)
+	return c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill
 }
 
 // bandedCap is desktop.CapTop with a fill under it: the strip is painted, and

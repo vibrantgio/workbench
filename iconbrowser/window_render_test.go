@@ -294,9 +294,14 @@ func TestTheGridRestsOnTheWindowGround(t *testing.T) {
 			}
 			// Level 2 is not asked for zero, because a ramp step is a colour
 			// and an anti-aliased edge between two others can land on it by
-			// arithmetic. What the rung may not be is an expanse.
-			if n := countFill(img, frame, transient); n*1000 > total {
-				t.Errorf("level 2 (%v) covers %d of %d pixels of the resting window; that rung is for what appears and leaves",
+			// arithmetic. What the level may not be is an expanse.
+			//
+			// It is only asked at all where level 2 is a different fill from
+			// level 1: the light scheme has one band step above its content
+			// and spends it on the first raise, so its raised and floating
+			// levels are one colour and no pixel can tell them apart.
+			if n := countFill(img, frame, transient); transient != furniture && n*1000 > total {
+				t.Errorf("level 2 (%v) covers %d of %d pixels of the resting window; that level is for what appears and leaves",
 					transient, n, total)
 			}
 		})

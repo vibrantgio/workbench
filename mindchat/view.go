@@ -114,9 +114,9 @@ var (
 // FromTokens' grounds, and that is this app's choice: a message body is read
 // on the transcript's paper, FromTokens puts Paper at the Background pin and
 // the code grounds one neutral step off it, and one step off the local paper
-// is exactly the rung a raised inset takes. It reads as raised in both
-// schemes the same way — LIGHTER than the page on paper and on slate alike, a
-// whisper in the light scheme with the derived rim carrying the edge.
+// is exactly the step a raised inset takes. It reads as raised in both
+// schemes the same way — LIGHTER than the page on paper and on slate alike,
+// with the derived rim carrying the edge in both.
 //
 // Wearing a chroma base (highlight.Wear) would hand the fence the base
 // author's own background instead, and a plate fitted to white paper puts a

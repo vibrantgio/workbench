@@ -147,10 +147,11 @@ func inkSpan(img *image.RGBA, y int, ground color.NRGBA) (int, int) {
 // quantisation is coarsest, a level-1 card comes back speckled a value or two
 // above its own token.
 //
-// It is a membership test only, never a discriminator: in the light scheme the
-// paper is #F6F6F6 and the level raised on it #F8F8F8, so a first-match walk
-// would hand every card to the page it lies on. [nearestRung] takes the
-// closest level instead, which stays decidable two levels apart.
+// It is a membership test only, never a discriminator: the light scheme fills
+// its raised and both its floating levels white, so a first-match walk would
+// hand every card to whichever of them it met first. [nearestRung] takes the
+// closest level instead, which stays decidable wherever the fills differ at
+// all.
 const rungTolerance = 4
 
 // nearestRung reports the elevation level a rendered pixel sits on — the one
@@ -361,23 +362,22 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 	}
 }
 
-// TestTheCardsRestOneRungOverThePage reads off the frame that the app cards
-// lie exactly one level over the window's own ground. The level is walked
-// from that ground — tokens.Level0.Raised() — rather than named as a step, so
-// what is pinned is the grammar rather than a colour, and it is checked in
-// both schemes because one level up means lighter in both.
+// TestTheCardsRestOneStepOverThePage reads off the frame that the app cards
+// lie exactly one step over the window's own page. The fill is the raise
+// walked from that page ([tokens.ColorTokens.RaisedOn]) rather than a named
+// step, so what is pinned is the grammar rather than a colour, and it is
+// checked in both schemes because one step up means lighter in both.
 //
-// On paper the cards are #F8F8F8 on a #F6F6F6 page and the card's border is
-// the whole of what says where a card is; on slate they are #222222 on
-// #181818 and the fill carries it. Neither is a colour this test asserts — it
-// asks elevation which level it painted — but a frame that reads as a flat
-// page with outlines on it is the light scheme working as ruled.
-func TestTheCardsRestOneRungOverThePage(t *testing.T) {
+// On paper the cards are #FFFFFF on a #F1F1F1 page and on slate #222222 on
+// #181818 — one band step in either, and the fill carries it. Neither is a
+// colour this test asserts: it asks elevation which level it painted, and
+// level 1 is the name the walk's answer off the content goes by.
+func TestTheCardsRestOneStepOverThePage(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.colors, titleBandDp)
 			page := tokens.Level0
-			resting := page.Raised()
+			resting := tokens.Level1
 			ground := tc.colors.SurfaceAt(page)
 			cards := cardRects(t, img, ground)
 			if len(cards) != len(Apps) {
@@ -391,7 +391,7 @@ func TestTheCardsRestOneRungOverThePage(t *testing.T) {
 					t.Errorf("card %d fills %v at %v, which is no elevation level at all; a card resting on the page fills at %v",
 						i, got, at, tc.colors.SurfaceAt(resting))
 				case level != resting:
-					t.Errorf("card %d fills %v at %v — level %d; it rests on the level-%d page, so it fills one rung over it, at level %d (%v)",
+					t.Errorf("card %d fills %v at %v — level %d; it rests on the level-%d page, so it fills one step over it, at level %d (%v)",
 						i, got, at, level, page, resting, tc.colors.SurfaceAt(resting))
 				}
 
