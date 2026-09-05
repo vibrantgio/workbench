@@ -85,24 +85,24 @@ func TestArrivalMarkingLivesItsCauseOut(t *testing.T) {
 	full := col.HighlightOn(col.Background)
 
 	var arr arrival
-	block, wash, ok := arr.mark(arrivalGtx(&ops, t0), m, col)
+	block, fill, ok := arr.mark(arrivalGtx(&ops, t0), m, col)
 	if !ok {
 		t.Fatal("the arrival frame drew no marking")
 	}
 	if block != 4 {
 		t.Errorf("marked block %d, want the block the link landed on, 4", block)
 	}
-	if wash != full {
-		t.Errorf("wash = %v, want the highlight walked against the column's paper, %v", wash, full)
+	if fill != full {
+		t.Errorf("fill = %v, want the highlight walked against the column's paper, %v", fill, full)
 	}
 
 	hold := arrivalLife - arrivalFade
 	if _, w, ok := arr.mark(arrivalGtx(&ops, t0.Add(hold)), m, col); !ok || w.A != full.A {
-		t.Errorf("at the end of the hold the wash was %v (drawn=%v), want full strength", w, ok)
+		t.Errorf("at the end of the hold the fill was %v (drawn=%v), want full strength", w, ok)
 	}
 	_, mid, ok := arr.mark(arrivalGtx(&ops, t0.Add(hold+arrivalFade/2)), m, col)
 	if !ok || mid.A == 0 || mid.A >= full.A {
-		t.Errorf("half way through the fade the wash was %v (drawn=%v), want part strength", mid, ok)
+		t.Errorf("half way through the fade the fill was %v (drawn=%v), want part strength", mid, ok)
 	}
 	if _, _, ok := arr.mark(arrivalGtx(&ops, t0.Add(arrivalLife)), m, col); ok {
 		t.Error("the marking outlived its cause")

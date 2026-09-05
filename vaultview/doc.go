@@ -78,7 +78,7 @@
 // so the scroll position and the rendered text cannot disagree.
 //
 // Where it landed is marked. The block a followed link seats on — or the
-// note's opening content, when the link named no block — carries a wash
+// note's opening content, when the link named no block — carries a fill
 // for a few seconds and then loses it again. There is nothing to dismiss
 // and nothing brings it back: leaving the note ends the marking, and a
 // note redrawn under the reader is not marked a second time.

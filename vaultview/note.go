@@ -273,7 +273,7 @@ var (
 	arrivalFade = tokens.Motion.DurSlow
 )
 
-// arrivalAlpha is how much of the highlight wash is left at age: all of it
+// arrivalAlpha is how much of the highlight fill is left at age: all of it
 // until the fade opens, linearly less across the fade, and none of it once
 // the life has run.
 func arrivalAlpha(age time.Duration) float64 {
@@ -303,7 +303,7 @@ type arrival struct {
 }
 
 // mark returns the top-level block the arrival highlight is on this frame
-// and the wash to draw it in, arming a landing the model has newly reported
+// and the fill to draw it in, arming a landing the model has newly reported
 // and asking for the frames the fade needs. A landing that carried a block
 // anchor marks the block it seated on; one that carried none marks the
 // note's opening content, which is its first top-level block.
@@ -335,11 +335,11 @@ func (a *arrival) mark(gtx layout.Context, m Model, col tokens.ColorTokens) (int
 		gtx.Execute(op.InvalidateCmd{})
 	}
 	// The reading column's paper is the pinned app background and not the
-	// scheme's own level 0, so the wash is the one the token walks to
+	// scheme's own level 0, so the fill is the one the token walks to
 	// against that surface rather than the resolved field itself.
-	wash := col.HighlightOn(col.Background)
-	wash.A = uint8(math.Round(float64(wash.A) * alpha))
-	return max(m.CurAnchor, 0), wash, wash.A > 0
+	fill := col.HighlightOn(col.Background)
+	fill.A = uint8(math.Round(float64(fill.A) * alpha))
+	return max(m.CurAnchor, 0), fill, fill.A > 0
 }
 
 // readerTag is a non-zero-size type so its address is a unique event tag.
@@ -573,8 +573,8 @@ func layoutNotePage(
 			// it is alive and taken off it on the first frame it is not:
 			// documents are cached across frames, so a marking left behind
 			// would outlive the arrival that caused it.
-			if block, wash, ok := arr.mark(gtx, m, tok.col); ok {
-				doc.Highlight(block, wash)
+			if block, fill, ok := arr.mark(gtx, m, tok.col); ok {
+				doc.Highlight(block, fill)
 			} else {
 				doc.ClearHighlight()
 			}

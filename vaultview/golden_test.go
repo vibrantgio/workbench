@@ -405,7 +405,7 @@ func arrivalModel(t *testing.T) Model {
 
 // TestVaultWindowArrivalGolden records the whole window at the moment a
 // followed link lands: the block the link named marked with the highlight
-// wash, at full strength, which is the first frame of the marking's life.
+// fill, at full strength, which is the first frame of the marking's life.
 // The static render arms the marking on the frame it draws, so the stored
 // image is that first frame and not a sample part way through the fade.
 func TestVaultWindowArrivalGolden(t *testing.T) {
