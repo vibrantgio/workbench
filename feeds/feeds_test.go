@@ -632,11 +632,11 @@ func TestArticlesPipelineFiltersByFeed(t *testing.T) {
 	}
 }
 
-// shellCanvasW/H size the frame the regression test draws each emitted shell
+// shellFrameW/H size the frame the regression test draws each emitted shell
 // layout.Widget into, exercising the full layout path (sidebar + navbar + Main).
 const (
-	shellCanvasW = 1200
-	shellCanvasH = 800
+	shellFrameW = 1200
+	shellFrameH = 800
 )
 
 // TestFeedsShellLayerReEmitsOnModelChange guards the same-frame repaint: a
@@ -689,7 +689,7 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 
 	send.Next(initialModel())
 	if w := await("initial model"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
@@ -700,28 +700,28 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	m, _ = Update(m, SelectFeed{Feed: "bbc"})
 	send.Next(m)
 	if w := await("SelectFeed"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
 	m, _ = Update(m, SetPage{Page: 2})
 	send.Next(m)
 	if w := await("SetPage"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
 	m, _ = Update(m, SetSort{Sort: table.Sort{Column: colTitle, Asc: true}})
 	send.Next(m)
 	if w := await("SetSort"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
 	m, _ = Update(m, ToggleSection{Idx: 1})
 	send.Next(m)
 	if w := await("ToggleSection"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
@@ -731,28 +731,28 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	m, _ = Update(m, SelectArticle{Article: "bbc-03"})
 	send.Next(m)
 	if w := await("SelectArticle"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
 	m, _ = Update(m, SelectTab{Idx: tabRaw})
 	send.Next(m)
 	if w := await("SelectTab"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
 	m, _ = Update(m, ToggleShare{})
 	send.Next(m)
 	if w := await("ToggleShare"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
 	m, _ = Update(m, SetSplitRatio{Ratio: 0.5})
 	send.Next(m)
 	if w := await("SetSplitRatio"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
@@ -764,21 +764,21 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	m, _ = Update(m, OpenPreferences{})
 	send.Next(m)
 	if w := await("OpenPreferences"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
 	m, _ = Update(m, SetRowsPerPage{Rows: 5})
 	send.Next(m)
 	if w := await("SetRowsPerPage"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()
 
 	m, _ = Update(m, ClosePreferences{})
 	send.Next(m)
 	if w := await("ClosePreferences"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 }
 
@@ -799,11 +799,11 @@ func drawShellOnce(t *testing.T, size image.Point, w layout.Widget) {
 // ----- golden render of one feed's articles table, light + dark -----
 
 const (
-	canvasW = 900
-	canvasH = 360
+	tableFrameW = 900
+	tableFrameH = 360
 )
 
-var canvasSize = image.Pt(canvasW, canvasH)
+var tableFrameSize = image.Pt(tableFrameW, tableFrameH)
 
 // staticArticleColumns mirrors articleColumns for the golden-render path
 // (table.Render's documented remit). Tokens are passed in directly; rows are
@@ -855,7 +855,7 @@ func TestArticlesTableGolden(t *testing.T) {
 			cols := staticArticleColumns(shaper, tc.colors, tokens.DefaultTypography.BodyMedium)
 			tbl := table.Render(shaper, cols, rows, table.Sort{Column: colPublished, Asc: false},
 				tc.colors, tokens.Spacing, tokens.DefaultTypography.LabelLarge, tokens.Comfortable)
-			golden.Render(t, tc.name, canvasSize, scene(tbl, tc.bg))
+			golden.Render(t, tc.name, tableFrameSize, scene(tbl, tc.bg))
 		})
 	}
 }
@@ -874,7 +874,7 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 		cols := staticArticleColumns(shaper, colors, tokens.DefaultTypography.BodyMedium)
 		tbl := table.Render(shaper, cols, rows, table.Sort{Column: colPublished, Asc: false},
 			colors, tokens.Spacing, tokens.DefaultTypography.LabelLarge, tokens.Comfortable)
-		return golden.Capture(t, canvasSize, scene(tbl, bg))
+		return golden.Capture(t, tableFrameSize, scene(tbl, bg))
 	}
 	light := render(tokens.DefaultLight)
 	dark := render(tokens.DefaultDark)

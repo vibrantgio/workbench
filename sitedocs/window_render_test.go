@@ -20,8 +20,8 @@ package main
 //
 // The assertions sample the rendered frame rather than a palette struct,
 // because this app holds no palette: each region paints its own fill at the
-// point it draws, and the frame is the only place the question "what rung is
-// this region wearing" has an answer that sees what was painted rather than
+// point it draws, and the frame is the only place the question "what level
+// is this region wearing" has an answer that sees what was painted rather than
 // what was meant.
 
 import (
@@ -76,10 +76,10 @@ func windowFrame(
 ) layout.Widget {
 	props := tabs.Props{Tabs: staticTabs(shaper, guide, st, c, typo), Shaper: shaper}
 	shell := tabs.Render(shaper, props, selected, c, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
-	ground := backdrop.Widget(c.Background)
+	background := backdrop.Widget(c.Background)
 	capped := bandedCap(func() unit.Dp { return band }, titleBandFill(c), shell)
 	return func(gtx layout.Context) layout.Dimensions {
-		ground(gtx)
+		background(gtx)
 		return capped(gtx)
 	}
 }
@@ -161,7 +161,7 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestWindowRegionsWearTheirRungs reads the surface grammar's assignment off
+// TestWindowRegionsWearTheirLevels reads the surface grammar's assignment off
 // the frame: the guide document — the thing this window exists to show — at
 // level 0, the outline rail indexing it at the CHROME level under it, the
 // tab strip raised over the panel it caps, and nothing resting at level 2.
@@ -175,12 +175,12 @@ func TestWholeWindowRender(t *testing.T) {
 // (patterns/tabs walks it from `Props.Level`). So this one window carries a
 // region below the content and a region above it, and the two are named
 // apart here rather than lumped as "furniture".
-func TestWindowRegionsWearTheirRungs(t *testing.T) {
+func TestWindowRegionsWearTheirLevels(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, titleBandDp)
 			chrome := tc.c.SurfaceAt(tokens.LevelChrome)
-			ground := tc.c.SurfaceAt(tokens.Level0)
+			content := tc.c.SurfaceAt(tokens.Level0)
 			raised := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
 
@@ -189,8 +189,8 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 				at   image.Point
 				want color.NRGBA
 			}{
-				{"document plane", atDocument, ground},
-				{"strip gap", atStripGap, ground},
+				{"document plane", atDocument, content},
+				{"strip gap", atStripGap, content},
 				{"outline rail", atRail, chrome},
 				{"tab strip", atTabStrip, raised},
 				// The band wears the fill of the region under it, which here

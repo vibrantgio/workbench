@@ -12,11 +12,11 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// shellCanvasSize is the whole window at the app's default size. The seam
+// shellFrameSize is the whole window at the app's default size. The seam
 // these tests are about — the strip's underline against the first row of
 // the content — exists only where strip and content meet, so it cannot be
 // seen on the content-only frame the per-tab goldens use.
-var shellCanvasSize = image.Pt(windowW, windowH)
+var shellFrameSize = image.Pt(windowW, windowH)
 
 // TestStripUnderlineKeepsItsOwnLine guards the seam: whatever a tab draws,
 // the shell's content slot leaves a band of bare panel fill between the
@@ -67,16 +67,16 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 		render := func(selected int) *image.RGBA {
 			props := tabs.Props{Tabs: staticTabs(shaper, source, st, sc.colors, typo), Shaper: shaper}
 			w := tabs.Render(shaper, props, selected, sc.colors, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
-			return golden.Capture(t, shellCanvasSize, w)
+			return golden.Capture(t, shellFrameSize, w)
 		}
 
 		// An out-of-range selection draws no content, so the whole panel is
 		// the pattern's own fill and the strip carries no underline.
 		bare := render(-1)
 		// Right of the last tab cell the strip is bare band.
-		strip := sample(bare, shellCanvasSize.X-1, stripH/2)
-		ground := sample(bare, shellCanvasSize.X-1, stripH+gap/2)
-		if strip == ground {
+		strip := sample(bare, shellFrameSize.X-1, stripH/2)
+		panelFill := sample(bare, shellFrameSize.X-1, stripH+gap/2)
+		if strip == panelFill {
 			t.Fatalf("%s: strip and panel are both %v — the strip owes the page it caps one level", sc.name, strip)
 		}
 
@@ -88,7 +88,7 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 				// The underline must exist: the selected cell's bottom row
 				// carries a colour the strip does not.
 				underlined := false
-				for x := 0; x < shellCanvasSize.X; x++ {
+				for x := 0; x < shellFrameSize.X; x++ {
 					if at(x, stripH-1) != strip {
 						underlined = true
 						break
@@ -100,10 +100,10 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 
 				// And the gap band below it must be nothing but the page.
 				for y := stripH; y < stripH+gap; y++ {
-					for x := 0; x < shellCanvasSize.X; x++ {
-						if got := at(x, y); got != ground {
+					for x := 0; x < shellFrameSize.X; x++ {
+						if got := at(x, y); got != panelFill {
 							t.Fatalf("content reaches into the strip gap at (%d,%d): got %v, want the panel's %v",
-								x, y, got, ground)
+								x, y, got, panelFill)
 						}
 					}
 				}

@@ -18,9 +18,9 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// themeCanvasSize is the Theme tab's content area at the app's default
+// themeFrameSize is the Theme tab's content area at the app's default
 // window, which is what the goldens pin.
-var themeCanvasSize = image.Pt(1180, 760)
+var themeFrameSize = image.Pt(1180, 760)
 
 // TestThemeTabGolden pins the Theme tab in both schemes: the ramps grid
 // with its step numbers and pinned-base chips, the picks board with the
@@ -30,7 +30,7 @@ func TestThemeTabGolden(t *testing.T) {
 	for _, tc := range schemeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := renderThemeTab(shaper, tc.colors, tokens.DefaultTypography, tokens.DefaultSeed)
-			golden.Render(t, "theme-tab-"+tc.name, themeCanvasSize, scene(w, tc.bg))
+			golden.Render(t, "theme-tab-"+tc.name, themeFrameSize, scene(w, tc.bg))
 		})
 	}
 }
@@ -41,8 +41,8 @@ func TestThemeTabGolden(t *testing.T) {
 func TestThemeTabFollowsScheme(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	a := golden.Capture(t, themeCanvasSize, scene(renderThemeTab(shaper, tokens.DefaultLight, tokens.DefaultTypography, tokens.DefaultSeed), bg))
-	b := golden.Capture(t, themeCanvasSize, scene(renderThemeTab(shaper, tokens.DefaultDark, tokens.DefaultTypography, tokens.DefaultSeed), bg))
+	a := golden.Capture(t, themeFrameSize, scene(renderThemeTab(shaper, tokens.DefaultLight, tokens.DefaultTypography, tokens.DefaultSeed), bg))
+	b := golden.Capture(t, themeFrameSize, scene(renderThemeTab(shaper, tokens.DefaultDark, tokens.DefaultTypography, tokens.DefaultSeed), bg))
 	if golden.PixelDiff(a, b) == 0 {
 		t.Fatal("theme tab renders identically in light and dark — the section is not following its tokens")
 	}
@@ -63,24 +63,24 @@ func TestPaletteSectionRowsIsTheRowCount(t *testing.T) {
 	}
 }
 
-// TestTypeLadderFollowsThePalette pins the order: the Theme tab borrows
+// TestTypeScaleFollowsThePalette pins the order: the Theme tab borrows
 // the inventory's type scale as two rows — this tab's
 // own heading band and the section's body — and they come after the
 // palette's four rows, not before them.
-func TestTypeLadderFollowsThePalette(t *testing.T) {
+func TestTypeScaleFollowsThePalette(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	typo := tokens.DefaultTypography
 	inv := inventory.NewForOS(shaper, "darwin")
 	c := tokens.DefaultLight
 
-	ladder := palette.TypeScaleRows(inv, PaletteFrom(c).story(), c, TypeFrom(shaper, typo).story())
-	if len(ladder) != 2 {
-		t.Fatalf("the type scale is %d rows, want 2 (a heading band and a body)", len(ladder))
+	scale := palette.TypeScaleRows(inv, PaletteFrom(c).story(), c, TypeFrom(shaper, typo).story())
+	if len(scale) != 2 {
+		t.Fatalf("the type scale is %d rows, want 2 (a heading band and a body)", len(scale))
 	}
 	rows := themeTabRows(inv, shaper, typo, c, tokens.DefaultSeed)
-	if len(rows) != palette.SeedSectionRows+PaletteSectionRows+len(ladder) {
+	if len(rows) != palette.SeedSectionRows+PaletteSectionRows+len(scale) {
 		t.Fatalf("the Theme column is %d rows, want the seed's %d plus the palette's %d plus the scale's %d",
-			len(rows), palette.SeedSectionRows, PaletteSectionRows, len(ladder))
+			len(rows), palette.SeedSectionRows, PaletteSectionRows, len(scale))
 	}
 }
 
@@ -94,11 +94,11 @@ const (
 	sectionTitleSep = " — "
 )
 
-// TestTypeLadderKeepsTheInventorysWords is the guard on the one place
+// TestTypeScaleKeepsTheInventorysWords is the guard on the one place
 // this tab could quietly invent copy: the borrowed band's label and
 // caption are the inventory's own title, split at its separator and
 // nothing else. A title reworded upstream has to arrive here reworded.
-func TestTypeLadderKeepsTheInventorysWords(t *testing.T) {
+func TestTypeScaleKeepsTheInventorysWords(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	inv := inventory.NewForOS(shaper, "darwin")
 	c := tokens.DefaultLight
@@ -121,10 +121,10 @@ func TestTypeLadderKeepsTheInventorysWords(t *testing.T) {
 	}
 }
 
-// TestTheGridMarksTheRungsThePicksTook keeps the copied section's two
+// TestTheGridMarksTheStepsThePicksTook keeps the copied section's two
 // halves honest against each other: every step a pick's rule names is
 // claimed, in both schemes, and the claims carry real roles and steps.
-func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
+func TestTheGridMarksTheStepsThePicksTook(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		c, o tokens.ColorTokens
@@ -518,7 +518,7 @@ func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
 			p, ty := PaletteFrom(c), TypeFrom(shaper, tokens.DefaultTypography)
 			rows := seedRows(p, c, ty, tokens.DefaultSeed)
 			pairH, padY := int(palette.PickPairH), int(inventory.SectionPadY)
-			size := image.Pt(themeCanvasSize.X, 2*pairH+2*padY)
+			size := image.Pt(themeFrameSize.X, 2*pairH+2*padY)
 			img := golden.Capture(t, size, scene(rows[1], tc.bg))
 			// Only the swatch column: the lines beside it differ in words,
 			// which would carry this test whatever the swatches did.
@@ -584,12 +584,12 @@ func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
 // in: everything there that is not the fill it stands on. The seed
 // cells put nothing but a swatch in the column this is asked about, so
 // the extent of what is not that fill is the extent of the swatch.
-func swatchBox(img image.Image, ground color.NRGBA, region image.Rectangle) image.Rectangle {
+func swatchBox(img image.Image, background color.NRGBA, region image.Rectangle) image.Rectangle {
 	box := image.Rectangle{}
 	for y := region.Min.Y; y < region.Max.Y; y++ {
 		for x := region.Min.X; x < region.Max.X; x++ {
 			r, g, b, _ := img.At(x, y).RGBA()
-			if uint8(r>>8) == ground.R && uint8(g>>8) == ground.G && uint8(b>>8) == ground.B {
+			if uint8(r>>8) == background.R && uint8(g>>8) == background.G && uint8(b>>8) == background.B {
 				continue
 			}
 			at := image.Rect(x, y, x+1, y+1)
@@ -648,7 +648,7 @@ func TestSeedRowIsTheHeadOfTheStory(t *testing.T) {
 	// The band a row draws is what identifies it, and the rows
 	// themselves are opaque, so the order is checked by drawing the story's
 	// leading row and the seed band alone and comparing the pixels.
-	size := image.Pt(themeCanvasSize.X, 40)
+	size := image.Pt(themeFrameSize.X, 40)
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 	first := golden.Capture(t, size, scene(story[0], bg))
 	band := golden.Capture(t, size, scene(head[0], bg))

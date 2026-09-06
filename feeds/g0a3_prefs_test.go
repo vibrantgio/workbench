@@ -242,7 +242,7 @@ func TestPreferencesPanelGolden(t *testing.T) {
 			}
 			m := modal.Render(shaper, props, true, tc.colors, tokens.Spacing, modalSharpRadius,
 				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
-			golden.Render(t, tc.name, image.Pt(modalCanvasW, modalCanvasH), scene(m, tc.bg))
+			golden.Render(t, tc.name, image.Pt(modalFrameW, modalFrameH), scene(m, tc.bg))
 		})
 	}
 }
@@ -251,8 +251,8 @@ func TestPreferencesPanelGolden(t *testing.T) {
 // dp the modal surface is its 560 dp maximum, centred, so it spans
 // x∈[220,780) and leaves a clean strip of table either side.
 const (
-	prefsCanvasW = 1000
-	prefsCanvasH = 700
+	prefsFrameW = 1000
+	prefsFrameH = 700
 )
 
 // prefsArticlesRegion is the strip of articles table LEFT of the open panel's
@@ -261,11 +261,11 @@ const (
 // overlapped it would pass without the table having moved. Here the only thing
 // that can differ is the table — go-blog holds 14 articles, so ten to a page
 // fills these rows and five to a page empties them.
-var prefsArticlesRegion = image.Rect(20, 60, 216, prefsCanvasH-20)
+var prefsArticlesRegion = image.Rect(20, 60, 216, prefsFrameH-20)
 
 // prefsScrimRegion samples the middle of the frame, where an open panel
 // paints its scrim and surface over the table.
-var prefsScrimRegion = image.Rect(prefsCanvasW/2-260, prefsCanvasH/2-120, prefsCanvasW/2+260, prefsCanvasH/2+120)
+var prefsScrimRegion = image.Rect(prefsFrameW/2-260, prefsFrameH/2-120, prefsFrameW/2+260, prefsFrameH/2+120)
 
 // TestPreferencesPanelOverArticlesLive drives the REAL panel — the live
 // modal.Modal path, the live components/button emphasis, the live articles
@@ -323,7 +323,7 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	size := image.Pt(prefsCanvasW, prefsCanvasH)
+	size := image.Pt(prefsFrameW, prefsFrameH)
 	snap := func(what string) *image.RGBA {
 		return golden.Capture(t, size, scene(awaitStableWidget(t, emissions, what), bg))
 	}
@@ -365,7 +365,7 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 // open preferences panel paints its scrim and surface over the split pane.
 // The shell's sidebar is 192 dp and its navbar 64 px, so a centred sample of
 // the 1200×800 frame lies wholly inside the region the panel covers.
-var shellPrefsScrimRegion = image.Rect(shellCanvasW/2-260, shellCanvasH/2-120, shellCanvasW/2+260, shellCanvasH/2+120)
+var shellPrefsScrimRegion = image.Rect(shellFrameW/2-260, shellFrameH/2-120, shellFrameW/2+260, shellFrameH/2+120)
 
 // TestPreferencesPanelInShellLive asserts the half
 // TestPreferencesPanelOverArticlesLive cannot: that the panel reaches the
@@ -394,7 +394,7 @@ func TestPreferencesPanelInShellLive(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	size := image.Pt(shellCanvasW, shellCanvasH)
+	size := image.Pt(shellFrameW, shellFrameH)
 	snap := func(what string) *image.RGBA {
 		return golden.Capture(t, size, scene(awaitStableWidget(t, emissions, what), bg))
 	}

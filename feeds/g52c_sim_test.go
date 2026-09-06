@@ -38,20 +38,20 @@ import (
 )
 
 // awaitStableWidget drains the emission channel until it has been silent for
-// `quiet`, returning the LAST layout.Widget seen. Model changes fan out through
-// CombineLatest chains (and the pagination SwitchMap re-subscription), so a
-// single send can produce several intermediate emissions; pixel assertions
-// must run against the settled one.
+// `silence`, returning the LAST layout.Widget seen. Model changes fan out
+// through CombineLatest chains (and the pagination SwitchMap
+// re-subscription), so a single send can produce several intermediate
+// emissions; pixel assertions must run against the settled one.
 func awaitStableWidget(t *testing.T, emissions <-chan layout.Widget, what string) layout.Widget {
 	t.Helper()
-	const quiet = 150 * time.Millisecond
+	const silence = 150 * time.Millisecond
 	var last layout.Widget
 	deadline := time.Now().Add(2 * time.Second)
 	for {
 		select {
 		case w := <-emissions:
 			last = w
-		case <-time.After(quiet):
+		case <-time.After(silence):
 			if last != nil {
 				return last
 			}
@@ -91,7 +91,7 @@ func regionDiff(a, b *image.RGBA, r image.Rectangle) int {
 // area starts after the 192 dp sidebar, the split sits at ratio 0.6 of the
 // remaining 1008 px (≈ x 799 at PxPerDp 1), and the navbar occupies the top
 // 64 px.
-var rightPaneRegion = image.Rect(810, 80, shellCanvasW-10, shellCanvasH-20)
+var rightPaneRegion = image.Rect(810, 80, shellFrameW-10, shellFrameH-20)
 
 // TestG52cDetailPopoverStatesHeadless renders the real shell at six model
 // states and asserts the pixel-level deltas between them.
@@ -111,7 +111,7 @@ func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	size := image.Pt(shellCanvasW, shellCanvasH)
+	size := image.Pt(shellFrameW, shellFrameH)
 	snap := func(what string) *image.RGBA {
 		w := awaitStableWidget(t, emissions, what)
 		img := golden.Capture(t, size, scene(w, bg))
@@ -165,8 +165,8 @@ func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
 
 // Tooltip-harness frame: a stand-in table pane the size of the real one.
 const (
-	tipCanvasW = 800
-	tipCanvasH = 400
+	tipFrameW = 800
+	tipFrameH = 400
 )
 
 // TestUnreadTooltipHoverHeadless drives the Unread-header tooltip through a
@@ -194,7 +194,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	}
 	overlay := overlayUnreadTooltip(stubTable, tip)
 
-	size := image.Pt(tipCanvasW, tipCanvasH)
+	size := image.Pt(tipFrameW, tipFrameH)
 	r := new(gioinput.Router)
 	t0 := time.Unix(100, 0)
 	frame := func(now time.Time) {
@@ -216,7 +216,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	frame(t0)
 	r.Queue(pointer.Event{
 		Kind:     pointer.Move,
-		Position: f32.Pt(tipCanvasW-unreadColWDp/2, tableHeaderHDp/2),
+		Position: f32.Pt(tipFrameW-unreadColWDp/2, tableHeaderHDp/2),
 		Source:   pointer.Mouse,
 	})
 	frame(t0)
@@ -244,7 +244,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	}
 	baseline := renderAt(t0, gioinput.Source{}, overlayUnreadTooltip(stubTable, freshTip))
 
-	surfaceRegion := image.Rect(tipCanvasW-3*unreadColWDp, tableHeaderHDp, tipCanvasW, tableHeaderHDp+80)
+	surfaceRegion := image.Rect(tipFrameW-3*unreadColWDp, tableHeaderHDp, tipFrameW, tableHeaderHDp+80)
 	if n := regionDiff(baseline, hovered, surfaceRegion); n <= 0 {
 		t.Errorf("no pixels changed below the • header after hover + delay (diff=%d); tooltip did not show", n)
 	}

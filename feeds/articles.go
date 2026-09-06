@@ -258,7 +258,7 @@ func articlesMain(
 		},
 	})
 
-	filterWidgetObs := input.TextField(th, input.TextFieldProps{
+	filterFieldObs := input.TextField(th, input.TextFieldProps{
 		Placeholder: "Filter articles",
 		Description: "Filter articles by title or author",
 		OnChange: func(gtx layout.Context, s string) {
@@ -269,7 +269,7 @@ func articlesMain(
 			mvu.MessageOp{Message: SetFilter{Text: s}}.Add(gtx.Ops)
 		},
 	})
-	tableWidgetObs := table.Table(th, table.Props[article]{
+	tableObs := table.Table(th, table.Props[article]{
 		Columns: columns,
 		Items:   paged,
 		Sort:    sortObs,
@@ -288,7 +288,7 @@ func articlesMain(
 	// the latest page + page count from the model-derived streams and rebuilds
 	// the row each emission, so the active highlight tracks model state. The
 	// OnSelect callback lands a SetPage message.
-	paginationWidgetObs := rx.SwitchMap(
+	paginationObs := rx.SwitchMap(
 		rx.CombineLatest2(currentPageObs, pageCountObs),
 		func(t rx.Tuple2[int, int]) rx.Observable[layout.Widget] {
 			return pagination.Pagination(th, pagination.Props{
@@ -300,7 +300,7 @@ func articlesMain(
 	)
 
 	return rx.Map(
-		rx.CombineLatest4(filterWidgetObs, tableWidgetObs, paginationWidgetObs, unreadTipObs),
+		rx.CombineLatest4(filterFieldObs, tableObs, paginationObs, unreadTipObs),
 		func(t rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 			return articlesLayout(loadTok, t.First, t.Second, t.Third, t.Fourth)
 		},

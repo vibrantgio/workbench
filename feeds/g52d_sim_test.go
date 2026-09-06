@@ -38,10 +38,10 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// modalCanvasW/H size the frame the Add-feed modal golden draws into.
+// modalFrameW/H size the frame the Add-feed modal golden draws into.
 const (
-	modalCanvasW = 600
-	modalCanvasH = 480
+	modalFrameW = 600
+	modalFrameH = 480
 )
 
 var modalSharpRadius = tokens.RadiusScale{}
@@ -122,18 +122,18 @@ func TestAddFeedModalGolden(t *testing.T) {
 			m := modal.Render(shaper, modal.Props{Title: "Add feed", Body: body, Shaper: shaper},
 				true, tc.colors, tokens.Spacing, modalSharpRadius,
 				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
-			golden.Render(t, tc.name, image.Pt(modalCanvasW, modalCanvasH), scene(m, tc.bg))
+			golden.Render(t, tc.name, image.Pt(modalFrameW, modalFrameH), scene(m, tc.bg))
 		})
 	}
 }
 
 // sidebarRegion is a window over the sidebar area (the leading 192 dp at
 // PxPerDp 1), below the navbar, where feed entries render.
-var sidebarRegion = image.Rect(0, 80, feedsSidebarWidthDp, shellCanvasH-20)
+var sidebarRegion = image.Rect(0, 80, feedsSidebarWidthDp, shellFrameH-20)
 
 // scrimRegion samples the centre of the window, where an open modal paints its
 // scrim + surface over the shell.
-var scrimRegion = image.Rect(shellCanvasW/2-200, shellCanvasH/2-150, shellCanvasW/2+200, shellCanvasH/2+150)
+var scrimRegion = image.Rect(shellFrameW/2-200, shellFrameH/2-150, shellFrameW/2+200, shellFrameH/2+150)
 
 // TestG52dCrudStatesHeadless renders the real shell at the CRUD model states
 // and asserts the pixel-level deltas: OpenAddFeed paints the modal scrim; an
@@ -155,7 +155,7 @@ func TestG52dCrudStatesHeadless(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	size := image.Pt(shellCanvasW, shellCanvasH)
+	size := image.Pt(shellFrameW, shellFrameH)
 	snap := func(what string) *image.RGBA {
 		w := awaitStableWidget(t, emissions, what)
 		img := golden.Capture(t, size, scene(w, bg))
@@ -293,7 +293,7 @@ func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
 	await := func(what string) {
 		w := awaitStableWidget(t, emissions, what)
 		if w != nil {
-			drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+			drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 		}
 	}
 

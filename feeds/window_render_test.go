@@ -20,7 +20,7 @@ package main
 // The grammar tests below sample the rendered frame rather than a palette
 // struct, because this app holds no palette: each region paints its own fill
 // at the point it draws. Sampling the frame is therefore the only place the
-// question "what rung is this region wearing" has an answer.
+// question "what level is this region wearing" has an answer.
 
 import (
 	"flag"
@@ -226,7 +226,7 @@ var (
 	atRestingPage = image.Pt(301, 766) // the page beside it, unchosen
 )
 
-// TestWindowRegionsWearTheirRungs reads the surface grammar's assignment off
+// TestWindowRegionsWearTheirLevels reads the surface grammar's assignment off
 // the frame: content at level 0, the window's furniture at the CHROME level
 // under it, the reading pane's own tab strip raised over the panel it caps,
 // nothing resting at level 2.
@@ -239,12 +239,12 @@ var (
 // control band, drawn one level over the panel it belongs to (patterns/tabs
 // walks it from `Props.Level`). This window therefore carries regions on
 // three levels at rest.
-func TestWindowRegionsWearTheirRungs(t *testing.T) {
+func TestWindowRegionsWearTheirLevels(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
 			chrome := tc.c.SurfaceAt(tokens.LevelChrome)
-			ground := tc.c.SurfaceAt(tokens.Level0)
+			content := tc.c.SurfaceAt(tokens.Level0)
 			raised := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
 
@@ -253,10 +253,10 @@ func TestWindowRegionsWearTheirRungs(t *testing.T) {
 				at   image.Point
 				want color.NRGBA
 			}{
-				{"articles pane", atListPane, ground},
-				{"article row", atListRow, ground},
-				{"reading pane", atReadingPane, ground},
-				{"reading pane header", atPaneHead, ground},
+				{"articles pane", atListPane, content},
+				{"article row", atListRow, content},
+				{"reading pane", atReadingPane, content},
+				{"reading pane header", atPaneHead, content},
 				{"sidebar", atSidebar, chrome},
 				{"navbar", atNavbar, chrome},
 				{"tab strip", atTabStrip, raised},
@@ -391,12 +391,12 @@ func TestChosenItemsCarryThePrimaryTint(t *testing.T) {
 	}
 }
 
-// TestFeedRowStatesKeepTheirInksApart covers what one rendered frame cannot
+// TestFeedRowStatesKeepTheirFillsApart covers what one rendered frame cannot
 // show: a list has to say "the pointer is here" and "this is the one you are
-// reading" at the same time, so the two fills may never be the same ink and
-// the tint may never lose to the walk. The pill is drawn over a sentinel, so a
-// state that painted nothing is caught too.
-func TestFeedRowStatesKeepTheirInksApart(t *testing.T) {
+// reading" at the same time, so the two fills may never be the same colour
+// and the tint may never lose to the walk. The pill is drawn over a
+// sentinel, so a state that painted nothing is caught too.
+func TestFeedRowStatesKeepTheirFillsApart(t *testing.T) {
 	sentinel := color.NRGBA{R: 255, G: 0, B: 255, A: 255}
 	size := image.Pt(160, 28)
 	for _, tc := range schemes {
@@ -421,13 +421,13 @@ func TestFeedRowStatesKeepTheirInksApart(t *testing.T) {
 			// the light scheme the two spell the same #D4D4D4; in the dark
 			// one an index is a step off the wrong level entirely.
 			walk := tc.c.StateAt(tokens.LevelChrome, tokens.StateHover)
-			ground := tc.c.SurfaceAt(tokens.LevelChrome)
+			surface := tc.c.SurfaceAt(tokens.LevelChrome)
 
 			if got := fill(false, false); got != sentinel {
 				t.Errorf("a resting row painted %v; it must leave its region's own fill showing", got)
 			}
 			if got := fill(false, true); got != walk {
-				t.Errorf("hovered row = %v, want the neutral walk %v off the sidebar's own fill %v", got, walk, ground)
+				t.Errorf("hovered row = %v, want the neutral walk %v off the sidebar's own fill %v", got, walk, surface)
 			}
 			if got := fill(true, false); got != tint {
 				t.Errorf("open row = %v, want the Primary tint %v", got, tint)
@@ -442,15 +442,15 @@ func TestFeedRowStatesKeepTheirInksApart(t *testing.T) {
 	}
 }
 
-// topmostInkIn is the first row of the given box that holds a pixel other
+// topmostDrawnIn is the first row of the given box that holds a pixel other
 // than the region's fill, or -1 for a box that is nothing but that fill. It
 // is how a region's first drawn thing is found without knowing what that
 // thing is — the question the band's assertions ask of the sidebar, whose
 // whole column is one fill until something is drawn on it.
-func topmostInkIn(img *image.RGBA, ground color.NRGBA, x0, x1, y0, y1 int) int {
+func topmostDrawnIn(img *image.RGBA, surface color.NRGBA, x0, x1, y0, y1 int) int {
 	for y := y0; y < y1; y++ {
 		for x := x0; x < x1; x++ {
-			if at(img, x, y) != ground {
+			if at(img, x, y) != surface {
 				return y
 			}
 		}
@@ -489,7 +489,7 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 					}
 				}
 			}
-			top := topmostInkIn(img, surface, 0, feedsSidebarWidthDp, 0, windowSize.Y)
+			top := topmostDrawnIn(img, surface, 0, feedsSidebarWidthDp, 0, windowSize.Y)
 			if top < 0 {
 				t.Fatalf("the sidebar draws nothing at all; the clearance below the buttons cannot be judged")
 			}
@@ -555,7 +555,7 @@ func TestTheWindowsTopStripIsOneBand(t *testing.T) {
 						dc.name, depth, atNavbar.X, band)
 				}
 
-				top := topmostInkIn(img, surface, 0, feedsSidebarWidthDp, 0, windowSize.Y)
+				top := topmostDrawnIn(img, surface, 0, feedsSidebarWidthDp, 0, windowSize.Y)
 				if top < 0 {
 					t.Fatalf("%s: the sidebar draws nothing at all; its half of the strip cannot be judged", dc.name)
 				}

@@ -308,7 +308,7 @@ func feedsShellLayer(
 	)
 }
 
-// shareCanvasWDp and shareCanvasHDp size the Exact space handed to the Share
+// shareSlotWDp and shareSlotHDp size the Exact space handed to the Share
 // popover in the navbar action slot. patterns/popover centres its anchor in
 // that space and sizes its outside-press absorber to it, so the space must
 // be (a) small enough to sit in the navbar's action row and (b) wide enough
@@ -316,8 +316,8 @@ func feedsShellLayer(
 // when the action row hugs the window's trailing edge. 160 dp leaves ~55 dp
 // of margin either side of the anchor — enough for the ~130 dp surface.
 const (
-	shareCanvasWDp = 160
-	shareCanvasHDp = 28
+	shareSlotWDp = 160
+	shareSlotHDp = 28
 )
 
 // feedsNavbarProps builds the navbar with the brand, the (decorative) Add
@@ -348,7 +348,7 @@ func feedsNavbarProps(loadTok func() themeTokens, shareSlot layout.Widget) navba
 		})
 	}
 	share := func(gtx layout.Context) layout.Dimensions {
-		size := image.Pt(gtx.Dp(unit.Dp(shareCanvasWDp)), gtx.Dp(unit.Dp(shareCanvasHDp)))
+		size := image.Pt(gtx.Dp(unit.Dp(shareSlotWDp)), gtx.Dp(unit.Dp(shareSlotHDp)))
 		gtx.Constraints = layout.Exact(size)
 		return shareSlot(gtx)
 	}

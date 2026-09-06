@@ -160,7 +160,7 @@ func TestDocsTabReEmitsOnModelChange(t *testing.T) {
 
 	send.Next(initialModel())
 	if w := await("initial model"); w != nil {
-		drawOnce(t, image.Pt(docsCanvasW, docsCanvasH), w)
+		drawOnce(t, image.Pt(docsFrameW, docsFrameH), w)
 	}
 	drainEmissions(emissions)
 
@@ -168,7 +168,7 @@ func TestDocsTabReEmitsOnModelChange(t *testing.T) {
 	m, _ := Update(initialModel(), ToggleOutline{Idx: 1})
 	send.Next(m)
 	if w := await("ToggleOutline"); w != nil {
-		drawOnce(t, image.Pt(docsCanvasW, docsCanvasH), w)
+		drawOnce(t, image.Pt(docsFrameW, docsFrameH), w)
 	}
 	drainEmissions(emissions)
 
@@ -176,7 +176,7 @@ func TestDocsTabReEmitsOnModelChange(t *testing.T) {
 	m, _ = Update(m, SelectHeading{Block: 2})
 	send.Next(m)
 	if w := await("SelectHeading"); w != nil {
-		drawOnce(t, image.Pt(docsCanvasW, docsCanvasH), w)
+		drawOnce(t, image.Pt(docsFrameW, docsFrameH), w)
 	}
 }
 

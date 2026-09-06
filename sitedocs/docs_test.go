@@ -17,13 +17,13 @@ import (
 )
 
 const (
-	// docsCanvasW/H is the deterministic frame the docs-layer unit tests
+	// docsFrameW/H is the deterministic frame the docs-layer unit tests
 	// draw one frame at.
-	docsCanvasW = 1000
-	docsCanvasH = 700
+	docsFrameW = 1000
+	docsFrameH = 700
 )
 
-var docsCanvasSize = image.Pt(docsCanvasW, docsCanvasH)
+var docsFrameSize = image.Pt(docsFrameW, docsFrameH)
 
 // monoProofSource is a minimal guide-shaped document whose Go fence gives
 // the mono-face proof below real code pixels to move.
@@ -94,10 +94,10 @@ func TestDocsCodeShapesInMonoFace(t *testing.T) {
 	monoDoc := markdown.NewDocument(markdown.Parse([]byte(monoProofSource)))
 	propDoc := markdown.NewDocument(markdown.Parse([]byte(monoProofSource)))
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	a := golden.Capture(t, docsCanvasSize, scene(func(gtx layout.Context) layout.Dimensions {
+	a := golden.Capture(t, docsFrameSize, scene(func(gtx layout.Context) layout.Dimensions {
 		return drawGuideDoc(gtx, monoDoc, shaper, style)
 	}, bg))
-	b := golden.Capture(t, docsCanvasSize, scene(func(gtx layout.Context) layout.Dimensions {
+	b := golden.Capture(t, docsFrameSize, scene(func(gtx layout.Context) layout.Dimensions {
 		return drawGuideDoc(gtx, propDoc, shaper, propStyle)
 	}, bg))
 	if n := golden.PixelDiff(a, b); n <= 0 {

@@ -10,9 +10,9 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// groupCanvasSize is an inventory tab's content area at the app's default
+// groupFrameSize is an inventory tab's content area at the app's default
 // window: the first screen of the column, which is what the goldens pin.
-var groupCanvasSize = image.Pt(1180, 760)
+var groupFrameSize = image.Pt(1180, 760)
 
 // schemeCases is the light/dark pair every golden here is taken in, with
 // the fill the capture is laid over.
@@ -35,7 +35,7 @@ func TestGroupTabGoldens(t *testing.T) {
 		for _, tc := range schemeCases {
 			t.Run(page+"/"+tc.name, func(t *testing.T) {
 				w := renderGroupTab(shaper, tabGroups[page], tc.colors, tokens.DefaultTypography)
-				golden.Render(t, page+"-tab-"+tc.name, groupCanvasSize, scene(w, tc.bg))
+				golden.Render(t, page+"-tab-"+tc.name, groupFrameSize, scene(w, tc.bg))
 			})
 		}
 	}
@@ -51,8 +51,8 @@ func TestGroupTabsFollowScheme(t *testing.T) {
 		t.Run(page, func(t *testing.T) {
 			light := renderGroupTab(shaper, tabGroups[page], tokens.DefaultLight, tokens.DefaultTypography)
 			dark := renderGroupTab(shaper, tabGroups[page], tokens.DefaultDark, tokens.DefaultTypography)
-			a := golden.Capture(t, groupCanvasSize, scene(light, bg))
-			b := golden.Capture(t, groupCanvasSize, scene(dark, bg))
+			a := golden.Capture(t, groupFrameSize, scene(light, bg))
+			b := golden.Capture(t, groupFrameSize, scene(dark, bg))
 			if golden.PixelDiff(a, b) == 0 {
 				t.Fatalf("%s tab renders identically in light and dark — the column is not following its tokens", page)
 			}

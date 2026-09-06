@@ -108,7 +108,7 @@ func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
 
 	// 1. Seed must reach every consumer so the layer renders on launch.
 	if w := await("seed (AutoConnect Connect + StartWith)"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	for {
 		select {
@@ -122,6 +122,6 @@ func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
 	// 2. A real message through the channel must re-emit the layer.
 	msgCh <- SelectFeed{Feed: "bbc"}
 	if w := await("SelectFeed via real channel"); w != nil {
-		drawShellOnce(t, image.Pt(shellCanvasW, shellCanvasH), w)
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 }
