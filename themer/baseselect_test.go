@@ -67,24 +67,24 @@ func atTheCode(t *testing.T, e *embed, m Model, os tokens.ColorTokens, sel ...*b
 	return pageOn(t, e, m, os, sel...)
 }
 
-// inkJitter is how far apart two channel values may be and still count as the
+// pixelJitter is how far apart two channel values may be and still count as the
 // same pixel. The window shapes its text through one process-wide shaper with
 // a cache inside it, so two frames whose captions differ by a word come out a
 // level or two of antialiasing apart in glyphs neither frame changed —
 // measured at three levels out of 255 over 293 pixels of a half-million. The
 // tolerance sits above that and far below a recolour, which is what the
 // assertions using it are actually about.
-const inkJitter = 8
+const pixelJitter = 8
 
-// movedInk counts the pixels between rows y0 and y1 that changed by more than
+// movedPixels counts the pixels between rows y0 and y1 that changed by more than
 // the rasteriser's own jitter.
-func movedInk(a, b *image.RGBA, y0, y1 int) int {
+func movedPixels(a, b *image.RGBA, y0, y1 int) int {
 	n := 0
 	for y := y0; y < y1; y++ {
 		for x := a.Bounds().Min.X; x < a.Bounds().Max.X; x++ {
 			p, q := a.RGBAAt(x, y), b.RGBAAt(x, y)
-			if apart(p.R, q.R) > inkJitter || apart(p.G, q.G) > inkJitter ||
-				apart(p.B, q.B) > inkJitter || apart(p.A, q.A) > inkJitter {
+			if apart(p.R, q.R) > pixelJitter || apart(p.G, q.G) > pixelJitter ||
+				apart(p.B, q.B) > pixelJitter || apart(p.A, q.A) > pixelJitter {
 				n++
 			}
 		}
@@ -108,11 +108,11 @@ func settled(dark bool) *baseSelector {
 	return sel
 }
 
-// baseInkX is the x of the marker on a chosen row, and baseRowY the y of the
+// baseMarkX is the x of the marker on a chosen row, and baseRowY the y of the
 // centre of visible row i — both in a window scrolled to the code specimen,
 // computed from the same constants the row and the column lay out with.
-func baseInkX() int {
-	return int(Pad) + int(inventory.SectionPadX) + int(BasePad) + int(BaseInk)/2
+func baseMarkX() int {
+	return int(Pad) + int(inventory.SectionPadX) + int(BasePad) + int(BaseMark)/2
 }
 
 func baseRowY(i int) int {
@@ -295,7 +295,7 @@ func TestTheChosenBaseIsMarked(t *testing.T) {
 	sel := settled(false)
 	for _, row := range []int{0, 1, 2} {
 		img := atTheCode(t, newEmbed(), ReduceModel(m, SelectBase{Index: visible[row], Dark: false}), tokens.DefaultLight, sel)
-		at := func(r int) stdcolor.RGBA { return img.RGBAAt(baseInkX(), baseRowY(r)) }
+		at := func(r int) stdcolor.RGBA { return img.RGBAAt(baseMarkX(), baseRowY(r)) }
 		for _, other := range []int{0, 1, 2} {
 			if other == row {
 				continue
@@ -415,7 +415,7 @@ func TestTheColumnScrollsToEveryNameOnIt(t *testing.T) {
 				t.Fatalf("the last name is laid out at y=%d, past the page's bottom edge at y=%d — it is scrolled to and still not on screen",
 					y, galleryBottom())
 			}
-			if mark, plain := img.RGBAAt(baseInkX(), y), img.RGBAAt(baseInkX(), baseRowY(0)-q.Offset); mark == plain {
+			if mark, plain := img.RGBAAt(baseMarkX(), y), img.RGBAAt(baseMarkX(), baseRowY(0)-q.Offset); mark == plain {
 				t.Errorf("the last name is applied and its row at y=%d is drawn %v, exactly like an unmarked row — nothing on screen says the column reached it",
 					y, mark)
 			}
@@ -534,12 +534,12 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 					apart++
 				}
 			}
-			ground := got.CodeBackground != other.CodeBackground
-			if coloured == 0 || (apart == 0 && !ground) {
-				t.Fatalf("%d runs carry a colour, %d differ from the other member's colours and the backgrounds differ=%v — this pair cannot show which member is applied", coloured, apart, ground)
+			backgroundsDiffer := got.CodeBackground != other.CodeBackground
+			if coloured == 0 || (apart == 0 && !backgroundsDiffer) {
+				t.Fatalf("%d runs carry a colour, %d differ from the other member's colours and the backgrounds differ=%v — this pair cannot show which member is applied", coloured, apart, backgroundsDiffer)
 			}
 			t.Logf("%s: %d runs, %d coloured, %s's plate on %v; unlike %s's by background=%v and %d runs",
-				tc.name, len(gotRuns), coloured, applied, got.CodeBackground, m.Base(!tc.dark), ground, apart)
+				tc.name, len(gotRuns), coloured, applied, got.CodeBackground, m.Base(!tc.dark), backgroundsDiffer, apart)
 		})
 	}
 
@@ -559,9 +559,9 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 		sel := settled(tc.dark)
 		sel.st.ScrollTo(max(0, row-baseLead))
 		img := atTheCode(t, newEmbed(), on, tc.os, sel)
-		mark := img.RGBAAt(baseInkX(), baseRowY(baseLead))
+		mark := img.RGBAAt(baseMarkX(), baseRowY(baseLead))
 		for _, other := range []int{baseLead - 1, baseLead + 1} {
-			if mark == img.RGBAAt(baseInkX(), baseRowY(other)) {
+			if mark == img.RGBAAt(baseMarkX(), baseRowY(other)) {
 				t.Errorf("under the %s the applied base's row is drawn exactly like row %d — nothing marks which base is applied", tc.name, other)
 			}
 		}
@@ -584,26 +584,26 @@ func TestThreeFlavoursOfOneFamilyAreThreeDifferentSpecimens(t *testing.T) {
 	moon := ReduceModel(judging(), SetScheme{Dark: true})
 	c := SchemeFor(tokens.DefaultDark, moon)
 	flavours := []string{"catppuccin-frappe", "catppuccin-macchiato", "catppuccin-mocha"}
-	grounds := make([]stdcolor.NRGBA, len(flavours))
+	backgrounds := make([]stdcolor.NRGBA, len(flavours))
 	for i, name := range flavours {
-		grounds[i] = wearAlone(name, c).CodeBackground
-		t.Logf("%s draws its fence on %v", name, grounds[i])
+		backgrounds[i] = wearAlone(name, c).CodeBackground
+		t.Logf("%s draws its fence on %v", name, backgrounds[i])
 	}
 	for i, a := range flavours {
 		for j := i + 1; j < len(flavours); j++ {
-			if grounds[i] == grounds[j] {
-				t.Errorf("%s and %s put the same background %v under a fence — these two cannot be told apart", a, flavours[j], grounds[i])
+			if backgrounds[i] == backgrounds[j] {
+				t.Errorf("%s and %s put the same background %v under a fence — these two cannot be told apart", a, flavours[j], backgrounds[i])
 			}
 		}
 	}
 
 	for i, name := range flavours {
 		img := atTheCode(t, newEmbed(), pick(moon, name, true), tokens.DefaultDark, settled(true))
-		own := exactly(img, grounds[i])
+		own := exactly(img, backgrounds[i])
 		if own == 0 {
-			t.Errorf("%s is chosen and not one pixel of the window is its background %v", name, grounds[i])
+			t.Errorf("%s is chosen and not one pixel of the window is its background %v", name, backgrounds[i])
 		}
-		for j, other := range grounds {
+		for j, other := range backgrounds {
 			if j == i {
 				continue
 			}
@@ -659,7 +659,7 @@ func TestEachSchemeRendersThroughItsOwnMember(t *testing.T) {
 			was := atTheCode(t, newEmbed(), on, tc.os, settled(tc.dark))
 			hidden := pick(on, tc.other, !tc.dark)
 			got := atTheCode(t, newEmbed(), hidden, tc.os, settled(tc.dark))
-			if n := movedInk(was, got, galleryTop(), galleryBottom()); n != 0 {
+			if n := movedPixels(was, got, galleryTop(), galleryBottom()); n != 0 {
 				t.Errorf("choosing %q for the appearance that is not showing repainted %d pixels of the page", tc.other, n)
 			}
 			if pct := bandChange(was, got, headTop(), headBottom()); pct == 0 {
@@ -787,10 +787,10 @@ func TestAMalformedStyleIsNamedAndNotThrown(t *testing.T) {
 		Preview:    preview(scene(480, 360)),
 		Candidates: []imageseed.Candidate{candidate(fixtureBlue, 0.5)},
 	})
-	quiet := page(t, m, tokens.DefaultLight)
+	withoutProblem := page(t, m, tokens.DefaultLight)
 	m.Problem = sentence
-	noisy := page(t, m, tokens.DefaultLight)
-	if golden.PixelDiff(quiet, noisy) == 0 {
+	withProblem := page(t, m, tokens.DefaultLight)
+	if golden.PixelDiff(withoutProblem, withProblem) == 0 {
 		t.Error("the window drew the same pixels with and without a style it could not load")
 	}
 }

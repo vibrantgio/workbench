@@ -363,15 +363,15 @@ func TestARowPutsEveryControlOnOneCentreLine(t *testing.T) {
 	}
 }
 
-// inkBand is the first and last row between y0 and y1 on which something was
+// drawnBand is the first and last row between y0 and y1 on which something was
 // drawn over the window's own page, within the columns x0 up to x1 — the
 // vertical extent of whatever control stands in that column.
-func inkBand(img *image.RGBA, ground stdcolor.NRGBA, x0, x1, y0, y1 int) (top, height int, found bool) {
+func drawnBand(img *image.RGBA, background stdcolor.NRGBA, x0, x1, y0, y1 int) (top, height int, found bool) {
 	first, last := -1, -1
 	for y := y0; y < y1; y++ {
 		for x := x0; x < x1; x++ {
 			p := img.RGBAAt(x, y)
-			if p.R != ground.R || p.G != ground.G || p.B != ground.B {
+			if p.R != background.R || p.G != background.G || p.B != background.B {
 				if first < 0 {
 					first = y
 				}
@@ -412,7 +412,7 @@ func TestTheTopOfTheWindowIsOnOneCentreLine(t *testing.T) {
 		os   tokens.ColorTokens
 	}{{"light", false, tokens.DefaultLight}, {"dark", true, tokens.DefaultDark}} {
 		on := ReduceModel(after, SetScheme{Dark: sc.dark})
-		ground := stdcolor.NRGBA(SchemeFor(sc.os, on).Background)
+		background := stdcolor.NRGBA(SchemeFor(sc.os, on).Background)
 		for _, width := range []int{wideW, narrowW} {
 			img := pageAt(t, newEmbed(), on, sc.os, image.Pt(width, windowH))
 			// The title row. The switch is solid and holds the exact
@@ -428,7 +428,7 @@ func TestTheTopOfTheWindowIsOnOneCentreLine(t *testing.T) {
 				{"the way back", backLeft(), backLeft() + backW(), false},
 				{"the scheme switch", width - int(Pad) - int(inventory.SchemeSwitchW), width - int(Pad), true},
 			} {
-				top, h, ok := inkBand(img, ground, c.x0, c.x1, titleTop(), titleBottom())
+				top, h, ok := drawnBand(img, background, c.x0, c.x1, titleTop(), titleBottom())
 				if !ok {
 					t.Errorf("%s at %d dp: %s is not drawn in the title row", sc.name, width, c.what)
 					continue
@@ -455,7 +455,7 @@ func TestTheTopOfTheWindowIsOnOneCentreLine(t *testing.T) {
 				{"the keep affordance", width - int(Pad) - int(KeepW), width - int(Pad)},
 			}
 			for _, c := range solid {
-				top, h, ok := inkBand(img, ground, c.x0, c.x1, headTop(), headBottom())
+				top, h, ok := drawnBand(img, background, c.x0, c.x1, headTop(), headBottom())
 				if !ok {
 					t.Errorf("%s at %d dp: %s is not drawn in the identity strip", sc.name, width, c.what)
 					continue
@@ -482,7 +482,7 @@ func TestTheTopOfTheWindowIsOnOneCentreLine(t *testing.T) {
 				{"the standing offer", offerLeft, offerRight, int(LineH)},
 			}
 			for _, c := range textAt {
-				top, h, ok := inkBand(img, ground, c.x0, c.x1, headTop(), headBottom())
+				top, h, ok := drawnBand(img, background, c.x0, c.x1, headTop(), headBottom())
 				if !ok {
 					t.Errorf("%s at %d dp: %s is not drawn in the identity strip", sc.name, width, c.what)
 					continue
@@ -554,8 +554,8 @@ func changedIn(a, b *image.RGBA, x0, x1, y0, y1 int) int {
 	for y := y0; y < y1; y++ {
 		for x := max(x0, 0); x < min(x1, a.Bounds().Max.X); x++ {
 			p, q := a.RGBAAt(x, y), b.RGBAAt(x, y)
-			if apart(p.R, q.R) > inkJitter || apart(p.G, q.G) > inkJitter ||
-				apart(p.B, q.B) > inkJitter || apart(p.A, q.A) > inkJitter {
+			if apart(p.R, q.R) > pixelJitter || apart(p.G, q.G) > pixelJitter ||
+				apart(p.B, q.B) > pixelJitter || apart(p.A, q.A) > pixelJitter {
 				n++
 			}
 		}
@@ -563,14 +563,14 @@ func changedIn(a, b *image.RGBA, x0, x1, y0, y1 int) int {
 	return n
 }
 
-// inkColumns is the first and last column between x0 and x1 on which something
+// drawnColumns is the first and last column between x0 and x1 on which something
 // was drawn over the window's own page, within the rows y0 up to y1.
-func inkColumns(img *image.RGBA, ground stdcolor.NRGBA, x0, x1, y0, y1 int) (first, last int, found bool) {
+func drawnColumns(img *image.RGBA, background stdcolor.NRGBA, x0, x1, y0, y1 int) (first, last int, found bool) {
 	first, last = -1, -1
 	for x := max(x0, 0); x < min(x1, img.Bounds().Max.X); x++ {
 		for y := y0; y < y1; y++ {
 			p := img.RGBAAt(x, y)
-			if p.R != ground.R || p.G != ground.G || p.B != ground.B {
+			if p.R != background.R || p.G != background.G || p.B != background.B {
 				if first < 0 {
 					first = x
 				}
@@ -611,13 +611,13 @@ func TestNothingRulesOffTheTitleRow(t *testing.T) {
 			{"the start screen", ReduceModel(m, SetScheme{Dark: sc.dark})},
 			{"the screen after a click", ReduceModel(after, SetScheme{Dark: sc.dark})},
 		} {
-			ground := stdcolor.NRGBA(SchemeFor(sc.os, screen.m).Background)
+			background := stdcolor.NRGBA(SchemeFor(sc.os, screen.m).Background)
 			for _, width := range []int{wideW, narrowW} {
 				img := pageAt(t, newEmbed(), screen.m, sc.os, image.Pt(width, windowH))
 				// The middle of the row, from its top edge to its foot: no
 				// fill of its own anywhere the controls are not.
 				mid0, mid1 := backLeft()+backW()+int(Gap), width-int(Pad)-int(inventory.SchemeSwitchW)-int(Gap)
-				if _, _, inked := inkBand(img, ground, mid0, mid1, titleTop(), titleBottom()); inked {
+				if _, _, drawn := drawnBand(img, background, mid0, mid1, titleTop(), titleBottom()); drawn {
 					t.Errorf("%s, %s at %d dp: something is painted across the middle of the title row — it has a fill of its own",
 						sc.name, screen.what, width)
 				}
@@ -626,7 +626,7 @@ func TestNothingRulesOffTheTitleRow(t *testing.T) {
 				// stopping a hairline short of it. The object below owns its
 				// own edge, and a one-point outline drawn on that edge is
 				// half a point of antialiasing in the row above it.
-				if _, _, inked := inkBand(img, ground, 0, width, titleBottom(), titleBottom()+int(Gap)-int(Hairline)); inked {
+				if _, _, drawn := drawnBand(img, background, 0, width, titleBottom(), titleBottom()+int(Gap)-int(Hairline)); drawn {
 					t.Errorf("%s, %s at %d dp: something is painted between the title row and what follows it — the row is still ruled off",
 						sc.name, screen.what, width)
 				}
@@ -649,19 +649,19 @@ func TestTheStandingOfferIsNotCrowdedOntoTheKeepAffordance(t *testing.T) {
 		os   tokens.ColorTokens
 	}{{"light", false, tokens.DefaultLight}, {"dark", true, tokens.DefaultDark}} {
 		on := ReduceModel(after, SetScheme{Dark: sc.dark})
-		ground := stdcolor.NRGBA(SchemeFor(sc.os, on).Background)
+		background := stdcolor.NRGBA(SchemeFor(sc.os, on).Background)
 		for _, width := range []int{wideW, narrowW} {
 			img := pageAt(t, newEmbed(), on, sc.os, image.Pt(width, windowH))
 			// The offer's trailing edge against the keep affordance's leading
 			// one, both read off the render.
 			offerW := natural(measuring(), pinned().Shaper, pinned().Small, ReplaceHintFor(on))
-			_, offerEnds, ok := inkColumns(img, ground,
+			_, offerEnds, ok := drawnColumns(img, background,
 				width-int(Pad)-int(KeepW)-2*int(Gap)-offerW, width-int(Pad)-int(KeepW)-int(Gap), headTop(), headBottom())
 			if !ok {
 				t.Errorf("%s at %d dp: the standing offer is not drawn", sc.name, width)
 				continue
 			}
-			keepStarts, _, ok := inkColumns(img, ground, width-int(Pad)-int(KeepW), width-int(Pad), headTop(), headBottom())
+			keepStarts, _, ok := drawnColumns(img, background, width-int(Pad)-int(KeepW), width-int(Pad), headTop(), headBottom())
 			if !ok {
 				t.Errorf("%s at %d dp: the keep affordance is not drawn", sc.name, width)
 				continue
@@ -704,11 +704,11 @@ func TestTheWayBackIsUndressedChromeUnderTheName(t *testing.T) {
 		on := ReduceModel(after, SetScheme{Dark: sc.dark})
 		c := SchemeFor(sc.os, on)
 		p := PaletteFrom(c)
-		ground := stdcolor.NRGBA(c.Background)
-		chrome := color.ContrastRatio(p.Muted, ground)
-		name := color.ContrastRatio(p.Text, ground)
+		background := stdcolor.NRGBA(c.Background)
+		chrome := color.ContrastRatio(p.Muted, background)
+		name := color.ContrastRatio(p.Text, background)
 		t.Logf("%s: the way back's foreground %v reaches %.2f:1 against the page %v, the window's name %v reaches %.2f:1",
-			sc.name, p.Muted, chrome, ground, p.Text, name)
+			sc.name, p.Muted, chrome, background, p.Text, name)
 		if chrome < legibleFloor {
 			t.Errorf("%s: the way back's foreground measures %.2f:1 against the page, under the %.1f:1 a line of text has to reach — undressed, it cannot be read",
 				sc.name, chrome, legibleFloor)
@@ -719,16 +719,16 @@ func TestTheWayBackIsUndressedChromeUnderTheName(t *testing.T) {
 		}
 		for _, width := range []int{wideW, narrowW} {
 			img := pageAt(t, newEmbed(), on, sc.os, image.Pt(width, windowH))
-			top, h, ok := inkBand(img, ground, backLeft(), backLeft()+backW(), titleTop(), titleBottom())
+			top, h, ok := drawnBand(img, background, backLeft(), backLeft()+backW(), titleTop(), titleBottom())
 			if !ok {
 				t.Errorf("%s at %d dp: the way back is not drawn", sc.name, width)
 				continue
 			}
 			box := image.Rect(backLeft(), top, backLeft()+backW(), top+h)
-			fill, _ := inkOn(img, box)
-			if fill != ground {
+			fill, _ := foregroundOn(img, box)
+			if fill != background {
 				t.Errorf("%s at %d dp: most of the way back's own box is %v, want the window's page %v — the control is standing on a fill of its own",
-					sc.name, width, fill, ground)
+					sc.name, width, fill, background)
 			}
 		}
 	}
@@ -965,13 +965,13 @@ func TestTheTitleRowLeadsPastTheWindowButtons(t *testing.T) {
 			{"the start screen", ReduceModel(m, SetScheme{Dark: sc.dark})},
 			{"the screen after a click", ReduceModel(after, SetScheme{Dark: sc.dark})},
 		} {
-			ground := stdcolor.NRGBA(SchemeFor(sc.os, screen.m).Background)
+			background := stdcolor.NRGBA(SchemeFor(sc.os, screen.m).Background)
 			img := pageAt(t, newEmbed(), screen.m, sc.os, image.Pt(wideW, windowH))
 			lead := int(TitleLead())
-			if _, _, inked := inkColumns(img, ground, 0, lead, titleTop(), titleBottom()); inked {
+			if _, _, drawn := drawnColumns(img, background, 0, lead, titleTop(), titleBottom()); drawn {
 				t.Errorf("%s, %s: something is drawn in the run the window's control buttons stand in", sc.name, screen.what)
 			}
-			first, _, ok := inkColumns(img, ground, lead, wideW, titleTop(), titleBottom())
+			first, _, ok := drawnColumns(img, background, lead, wideW, titleTop(), titleBottom())
 			if !ok {
 				t.Errorf("%s, %s: the title row draws nothing past the buttons", sc.name, screen.what)
 				continue

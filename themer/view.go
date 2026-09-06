@@ -480,17 +480,17 @@ func WayBack(p Palette, ty Type, click *gesture.Click) layout.Widget {
 		if w <= 0 {
 			return layout.Dimensions{}
 		}
-		ink := p.Muted
+		foreground := p.Muted
 		if click.Hovered() || click.Pressed() {
-			ink = p.Text
+			foreground = p.Text
 		}
 		h := max(gtx.Dp(LineH), mark)
 		size := image.Pt(mark+gap+w, h)
 		if chevron := icons.Mark(icons.HistoryBack); chevron != nil {
-			at(gtx, image.Pt(0, (h-mark)/2), func(gtx layout.Context) { chevron(gtx, mark, ink) })
+			at(gtx, image.Pt(0, (h-mark)/2), func(gtx layout.Context) { chevron(gtx, mark, foreground) })
 		}
 		textdraw.FillText(gtx, ty.Shaper, ty.Body,
-			image.Rect(mark+gap, 0, size.X, h), 0, 0.5, ink, BackLabel)
+			image.Rect(mark+gap, 0, size.X, h), 0, 0.5, foreground, BackLabel)
 
 		area := clip.Rect{Max: size}.Push(gtx.Ops)
 		pointer.CursorPointer.Add(gtx.Ops)

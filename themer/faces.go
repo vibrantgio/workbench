@@ -89,14 +89,14 @@ func FaceRowWidget(gtx layout.Context, p Palette, ty Type, name string, chosen b
 	}
 	pad := gtx.Dp(BasePad)
 	if chosen {
-		mark := image.Rect(0, h/8, gtx.Dp(BaseInk), h-h/8)
-		fillRRect(gtx, mark, gtx.Dp(BaseInk)/2, p.Accent)
+		mark := image.Rect(0, h/8, gtx.Dp(BaseMark), h-h/8)
+		fillRRect(gtx, mark, gtx.Dp(BaseMark)/2, p.Accent)
 	}
 	tone := p.Muted
 	if chosen {
 		tone = p.Text
 	}
-	text := image.Rect(pad+gtx.Dp(BaseInk), 0, size.X-pad, h)
+	text := image.Rect(pad+gtx.Dp(BaseMark), 0, size.X-pad, h)
 	textdraw.FillText(gtx, ty.Shaper, ty.Small, text, 0, 0.5, tone, name)
 
 	area := clip.Rect{Max: size}.Push(gtx.Ops)

@@ -172,7 +172,7 @@ func StyleCountFor(dark bool, n int) string {
 // offering, and the way not to have that case is to take the answer from the
 // gate rather than to pick a foreground that usually works.
 type Chip struct {
-	Fill, Ink stdcolor.NRGBA
+	Fill, Foreground stdcolor.NRGBA
 }
 
 // StyleCard is one style offered as a seed: the candidates its palette yields,
@@ -296,8 +296,8 @@ func styleCardFor(name string) StyleCard {
 		Candidates: cands,
 		Pair:       highlight.CompletePair(name),
 		Chips: [2]Chip{
-			{Fill: light.Primary, Ink: light.OnPrimary},
-			{Fill: dark.Primary, Ink: dark.OnPrimary},
+			{Fill: light.Primary, Foreground: light.OnPrimary},
+			{Fill: dark.Primary, Foreground: dark.OnPrimary},
 		},
 	}
 }
@@ -432,7 +432,7 @@ func StyleCell(gtx layout.Context, p Palette, ty Type, s StyleCard, index int, d
 	chip := image.Rect(foot.Min.X, foot.Min.Y, min(foot.Min.X+gtx.Dp(StyleChipW), foot.Max.X), foot.Max.Y)
 	pair := s.Chip(dark)
 	fillRRect(gtx, chip, gtx.Dp(InnerR), pair.Fill)
-	textdraw.FillText(gtx, ty.Shaper, ty.Label, chip, 0.5, 0.5, pair.Ink, "Aa")
+	textdraw.FillText(gtx, ty.Shaper, ty.Label, chip, 0.5, 0.5, pair.Foreground, "Aa")
 
 	if tag := styleTag(s); tag != "" {
 		box := image.Rect(max(chip.Max.X+gtx.Dp(StyleFoot), foot.Max.X-gtx.Dp(StyleTagW)), foot.Min.Y, foot.Max.X, foot.Max.Y)

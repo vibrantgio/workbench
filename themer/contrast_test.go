@@ -37,10 +37,10 @@ func TestCandidateChipsAreLegible(t *testing.T) {
 			break // a card the window is too narrow for is not drawn
 		}
 		pair, _ := tokens.FromSeed(cand.Color)
-		fill, ink := inkOn(img, at)
-		ratio := color.ContrastRatio(ink, fill)
+		fill, foreground := foregroundOn(img, at)
+		ratio := color.ContrastRatio(foreground, fill)
 		t.Logf("candidate %d %s: chip %v, label reaches %v, %.2f:1 (tokens: %v on %v, %.2f:1)",
-			i, hexOf(cand.Color), fill, ink, ratio, pair.OnPrimary, pair.Primary,
+			i, hexOf(cand.Color), fill, foreground, ratio, pair.OnPrimary, pair.Primary,
 			color.ContrastRatio(pair.OnPrimary, pair.Primary))
 		if fill != stdcolor.NRGBA(pair.Primary) {
 			t.Errorf("candidate %d: the chip is filled %v, want the derived primary %v", i, fill, pair.Primary)
@@ -78,15 +78,15 @@ func TestStyleChipsAreLegible(t *testing.T) {
 			dark bool
 			want Chip
 		}{
-			{false, Chip{Fill: light.Primary, Ink: light.OnPrimary}},
-			{true, Chip{Fill: dark.Primary, Ink: dark.OnPrimary}},
+			{false, Chip{Fill: light.Primary, Foreground: light.OnPrimary}},
+			{true, Chip{Fill: dark.Primary, Foreground: dark.OnPrimary}},
 		} {
 			chip := s.Chip(side.dark)
 			if chip != side.want {
 				t.Errorf("%s under %s: the card carries %v, want the derivation's own pair %v",
 					s.Name, sideName(side.dark), chip, side.want)
 			}
-			ratio := color.ContrastRatio(chip.Ink, chip.Fill)
+			ratio := color.ContrastRatio(chip.Foreground, chip.Fill)
 			if ratio < worst {
 				worst, worstAt = ratio, s.Name+" under "+sideName(side.dark)
 			}
@@ -126,15 +126,15 @@ func TestTheSpecimenOnACardIsLegibleWhereItIsDrawn(t *testing.T) {
 			for n, i := range visible[:shown] {
 				card := m.Styles[i]
 				want := card.Chip(sc.dark)
-				fill, ink := inkOn(img, styleChipBand(n))
+				fill, foreground := foregroundOn(img, styleChipBand(n))
 				if fill != want.Fill {
 					t.Errorf("%s: the specimen is filled %v, want the derived primary %v", card.Name, fill, want.Fill)
 				}
-				if ink != want.Ink {
+				if foreground != want.Foreground {
 					t.Errorf("%s: the specimen's letters reach %v, want the derivation's measured on-colour %v",
-						card.Name, ink, want.Ink)
+						card.Name, foreground, want.Foreground)
 				}
-				ratio := color.ContrastRatio(ink, fill)
+				ratio := color.ContrastRatio(foreground, fill)
 				if ratio < worst {
 					worst, worstAt = ratio, card.Name
 				}
@@ -162,10 +162,10 @@ func TestKeepButtonIsLegible(t *testing.T) {
 		if !ok {
 			t.Fatalf("candidate %d: no filled button found in the identity strip", i)
 		}
-		fill, ink := inkOn(img, at)
-		ratio := color.ContrastRatio(ink, fill)
+		fill, foreground := foregroundOn(img, at)
+		ratio := color.ContrastRatio(foreground, fill)
 		t.Logf("keep button on candidate %d %s: fill %v, label reaches %v, %.2f:1",
-			i, hexOf(cand.Color), fill, ink, ratio)
+			i, hexOf(cand.Color), fill, foreground, ratio)
 		if fill != stdcolor.NRGBA(c.Primary) {
 			t.Errorf("candidate %d: the keep button is filled %v, want the chosen seed's primary %v", i, fill, c.Primary)
 		}
@@ -239,12 +239,12 @@ func keepBand(img *image.RGBA, primary stdcolor.NRGBA) (image.Rectangle, bool) {
 	return image.Rect(at+w, mid-6, at+best-w, mid+6), true
 }
 
-// inkOn reads a band of a render: the colour most of it is — the fill — and
+// foregroundOn reads a band of a render: the colour most of it is — the fill — and
 // the pixel of the label furthest from that fill in relative luminance, which
 // is the pixel the label's foreground covers most. A band is used rather than a
 // whole control so that a rounded corner never puts the surface behind it in
 // the sample, where it would be mistaken for the label.
-func inkOn(img *image.RGBA, at image.Rectangle) (fill, ink stdcolor.NRGBA) {
+func foregroundOn(img *image.RGBA, at image.Rectangle) (fill, foreground stdcolor.NRGBA) {
 	counts := map[stdcolor.NRGBA]int{}
 	for y := at.Min.Y; y < at.Max.Y; y++ {
 		for x := at.Min.X; x < at.Max.X; x++ {
@@ -258,14 +258,14 @@ func inkOn(img *image.RGBA, at image.Rectangle) (fill, ink stdcolor.NRGBA) {
 			fill, best = c, n
 		}
 	}
-	ink = fill
+	foreground = fill
 	fl := color.RelativeLuminance(fill)
 	for c := range counts {
-		if math.Abs(color.RelativeLuminance(c)-fl) > math.Abs(color.RelativeLuminance(ink)-fl) {
-			ink = c
+		if math.Abs(color.RelativeLuminance(c)-fl) > math.Abs(color.RelativeLuminance(foreground)-fl) {
+			foreground = c
 		}
 	}
-	return fill, ink
+	return fill, foreground
 }
 
 // boundaryFloor is how far apart a swatch's frame has to be from the colour on

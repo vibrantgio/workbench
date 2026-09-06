@@ -304,10 +304,10 @@ func TestTheGridSitsUnderTheDropWell(t *testing.T) {
 		int(DropH), wellTop(), rows, cardsTop(), gridCols(), styleCellW())
 }
 
-// TestTheCardsCarryTheirStylesLeadingInk: every card on screen draws the colour
+// TestTheCardsCarryTheirStylesLeadingColour: every card on screen draws the colour
 // a click on it applies. A grid of swatches that were not the seeds would be a
 // convincing picture of nothing.
-func TestTheCardsCarryTheirStylesLeadingInk(t *testing.T) {
+func TestTheCardsCarryTheirStylesLeadingColour(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		m := withStyles()
 		m.Scheme = ShowLight
@@ -342,7 +342,7 @@ func TestTheCardsCarryTheirStylesLeadingInk(t *testing.T) {
 func TestTheFirstScreenIsAnInvitationAndNotABlank(t *testing.T) {
 	full := page(t, withStyles(), tokens.DefaultLight)
 	bare := page(t, Model{}, tokens.DefaultLight)
-	if n := movedInk(full, bare, cardsTop(), windowH-int(Pad)); n == 0 {
+	if n := movedPixels(full, bare, cardsTop(), windowH-int(Pad)); n == 0 {
 		t.Fatal("the first screen draws the same thing with styles as without — the grid is not there")
 	}
 	blank := golden.Capture(t, image.Pt(windowW, windowH), func(gtx layout.Context) layout.Dimensions {
@@ -909,12 +909,12 @@ func TestTheNoteIsOnlyOnTheFaintCards(t *testing.T) {
 	}
 }
 
-// TestTheNoteIsQuieterThanTheNameItAnnotates: the note is a remark and not an
+// TestTheNoteIsFainterThanTheNameItAnnotates: the note is a remark and not an
 // alarm, so it is drawn in the muted foreground the card's other trailing words
 // are drawn in — measurably fainter against the card than the style's own name
 // at the top of it, and nothing like the colour this window says something went
 // wrong in.
-func TestTheNoteIsQuieterThanTheNameItAnnotates(t *testing.T) {
+func TestTheNoteIsFainterThanTheNameItAnnotates(t *testing.T) {
 	for _, sc := range []struct {
 		dark bool
 		os   tokens.ColorTokens
@@ -935,8 +935,8 @@ func TestTheNoteIsQuieterThanTheNameItAnnotates(t *testing.T) {
 			}
 			img := pageAt(t, newEmbed(), m, sc.os, image.Pt(windowW, gridTall))
 			p := PaletteFrom(sc.os)
-			fill, note := inkOn(img, styleTagBox(at))
-			_, name := inkOn(img, styleNameBox(at))
+			fill, note := foregroundOn(img, styleTagBox(at))
+			_, name := foregroundOn(img, styleNameBox(at))
 			if fill != p.Surface {
 				t.Fatalf("the note's slot is drawn on %v, want the card's own fill %v", fill, p.Surface)
 			}

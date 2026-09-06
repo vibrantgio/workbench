@@ -265,11 +265,11 @@ func statusRoles() []struct {
 	}
 }
 
-// TestABaseAndItsInkAreOneCell: the seven pinned roles, the page and its
+// TestABaseAndItsForegroundAreOneCell: the seven pinned roles, the page and its
 // text, and the inverse pair are each one cell — one swatch, the foreground
 // written on it — because each is one decision. Surface and Divider stand
 // alone, the theme naming no foreground for either.
-func TestABaseAndItsInkAreOneCell(t *testing.T) {
+func TestABaseAndItsForegroundAreOneCell(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
 		want := map[string]string{
 			palette.BackgroundPick:     palette.TextPick,
@@ -301,12 +301,12 @@ func TestABaseAndItsInkAreOneCell(t *testing.T) {
 		}
 		for _, g := range palette.Groups(sc.c, sc.other, sc.dark) {
 			for _, cell := range g.Cells {
-				ink, paired := want[cell.Base.Name]
+				foreground, paired := want[cell.Base.Name]
 				switch {
 				case paired && !cell.Paired():
-					t.Errorf("%s: %s is a swatch on its own, want %s written on it", sc.name, cell.Base.Name, ink)
-				case paired && cell.Foreground.Name != ink:
-					t.Errorf("%s: %s carries %s, want %s", sc.name, cell.Base.Name, cell.Foreground.Name, ink)
+					t.Errorf("%s: %s is a swatch on its own, want %s written on it", sc.name, cell.Base.Name, foreground)
+				case paired && cell.Foreground.Name != foreground:
+					t.Errorf("%s: %s carries %s, want %s", sc.name, cell.Base.Name, cell.Foreground.Name, foreground)
 				case alone[cell.Base.Name] && cell.Paired():
 					t.Errorf("%s: %s carries a foreground, and the theme names none for it", sc.name, cell.Base.Name)
 				case !paired && !alone[cell.Base.Name]:
@@ -455,10 +455,10 @@ func TestNoRuleIsEmpty(t *testing.T) {
 	}
 }
 
-// TestAClaimedRungIsTheRuleItNames: the mark on the grid and the rule under the
+// TestAClaimedStepIsTheRuleItNames: the mark on the grid and the rule under the
 // pick are resolved from one answer, so a cell marked is a cell some rule names
 // and no rule names a cell that is not marked.
-func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
+func TestAClaimedStepIsTheRuleItNames(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
 		groups := palette.Groups(sc.c, sc.other, sc.dark)
 		claims := palette.Claims(groups)
@@ -491,12 +491,12 @@ func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 		// being visible, and it is worth failing if it stops being true.
 		rules := rulesOf(groups)
 		for _, role := range []string{palette.PrimaryName, palette.ErrorName, palette.InfoName} {
-			ink := rules["On"+role]
-			if sc.dark && !strings.HasPrefix(ink, role+" ") {
-				t.Errorf("%s: On%s says %q, want a step of its own ramp", sc.name, role, ink)
+			rule := rules["On"+role]
+			if sc.dark && !strings.HasPrefix(rule, role+" ") {
+				t.Errorf("%s: On%s says %q, want a step of its own ramp", sc.name, role, rule)
 			}
-			if !sc.dark && !strings.HasPrefix(ink, palette.PickWhite) && !strings.HasPrefix(ink, palette.PickBlack) {
-				t.Errorf("%s: On%s says %q, want an end of the tonal axis", sc.name, role, ink)
+			if !sc.dark && !strings.HasPrefix(rule, palette.PickWhite) && !strings.HasPrefix(rule, palette.PickBlack) {
+				t.Errorf("%s: On%s says %q, want an end of the tonal axis", sc.name, role, rule)
 			}
 		}
 	}
@@ -512,7 +512,7 @@ func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 // of another, or a mark would be ambiguous about which one it means — and
 // worse, a colour could be marked at two steps at once.
 func TestTheStepToleranceStandsBetweenItsTwoMeasurements(t *testing.T) {
-	worstMatch, closestRungs := 0.0, 1.0
+	worstMatch, closestSteps := 0.0, 1.0
 	for _, seed := range []stdcolor.NRGBA{fixtureBlue, fixtureRed, fixtureGrey, tokens.DefaultSeed} {
 		light, dark := tokens.FromSeed(seed)
 		for _, sc := range []tokens.ColorTokens{light, dark} {
@@ -538,14 +538,14 @@ func TestTheStepToleranceStandsBetweenItsTwoMeasurements(t *testing.T) {
 			}
 			for _, r := range palette.RampRows(sc) {
 				for n := range palette.RampSteps - 1 {
-					closestRungs = min(closestRungs,
+					closestSteps = min(closestSteps,
 						palette.OKLabDistance(r.Ramp.Step((n+1)*100), r.Ramp.Step((n+2)*100)))
 				}
 			}
 		}
 	}
 	t.Logf("the worst pin sits %.4f from its step; the closest two steps are %.4f apart; the tolerance is %.4f",
-		worstMatch, closestRungs, palette.StepTolerance)
+		worstMatch, closestSteps, palette.StepTolerance)
 	if worstMatch >= palette.StepTolerance {
 		t.Errorf("a pin sits %.4f from its own step and the tolerance is %.4f — a pick the grid should mark goes unmarked",
 			worstMatch, palette.StepTolerance)
@@ -553,9 +553,9 @@ func TestTheStepToleranceStandsBetweenItsTwoMeasurements(t *testing.T) {
 	// Two steps a whole tolerance apart on either side of one colour is the
 	// case that would let a colour stand within a tolerance of both, so the gap has to
 	// beat twice the tolerance rather than merely exceed it.
-	if closestRungs <= 2*palette.StepTolerance {
+	if closestSteps <= 2*palette.StepTolerance {
 		t.Errorf("two steps stand %.4f apart against a tolerance of %.4f — a mark cannot say which step it means",
-			closestRungs, palette.StepTolerance)
+			closestSteps, palette.StepTolerance)
 	}
 }
 
@@ -585,12 +585,12 @@ func TestTheGridDrawsTheThemesOwnRampSteps(t *testing.T) {
 	}
 }
 
-// TestTheGridMarksTheRungsThePicksTook: the two halves of the section point at
+// TestTheGridMarksTheStepsThePicksTook: the two halves of the section point at
 // each other. A step some pick took carries a mark in the middle of its cell,
 // every other cell is the colour and nothing else, and the mark's foreground is
 // measured over the step it stands on — the same pair of candidates the
 // derivation itself chooses an on-colour from, because it is the same job.
-func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
+func TestTheGridMarksTheStepsThePicksTook(t *testing.T) {
 	m := seeded(t)
 	for _, os := range []tokens.ColorTokens{tokens.DefaultLight, tokens.DefaultDark} {
 		c, other := derived(m, os)
@@ -932,14 +932,14 @@ func offRampSeeded(t *testing.T) Model {
 	return m
 }
 
-// TestTheOffRampFixtureSitsBetweenRungs: the fixture the chip dot is judged
+// TestTheOffRampFixtureSitsBetweenSteps: the fixture the chip dot is judged
 // with honestly is the case it exists for. The lifted seed is on no step and
 // indistinguishable from none, with margin; its depth falls between two
 // adjacent steps of the scale rather than off either end; its rule says the
 // seed was lifted and nothing else; and no pick claims a Primary step, which is
 // the row the chip's own dot keeps from reading as unused. The dark side of the
 // same seed pins a step exactly, which is the chip that has to stay undotted.
-func TestTheOffRampFixtureSitsBetweenRungs(t *testing.T) {
+func TestTheOffRampFixtureSitsBetweenSteps(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureMagenta)
 	if n := palette.StepIn(light.Ramps.Primary, light.Primary); n != 0 {
 		t.Fatalf("the light pin is step %d exactly, want a pin between steps", n)
@@ -1062,16 +1062,6 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 	}
 }
 
-// TestEachContainerIsItsRungHeldAtLessChroma: the rule under a status container
-// says which step's depth it was realized at and what was done to that step,
-// and both halves are checked against the colour itself.
-//
-// The step is named by tone because tone is what a container keeps: it gives up
-// chroma and takes its hue from the ramp's pale tint depth, so no comparison of
-// colours finds the cell it came from. Rebuilding the container out of the named
-// step's tone, the pale tint depth's hue and the container's own chroma has to
-// produce the container back, to within the byte the chroma was rounded into on
-// the way out, or the rule names a step the derivation did not use.
 // paleTintStep is the step a container reads its hue at (theme's
 // containers.go): the third step counted from the ramp's pale end.
 func paleTintStep(r tokens.Ramp) int {
@@ -1083,25 +1073,35 @@ func paleTintStep(r tokens.Ramp) int {
 	return 700
 }
 
-func TestEachContainerIsItsRungHeldAtLessChroma(t *testing.T) {
+// TestEachContainerIsItsStepHeldAtLessChroma: the rule under a status container
+// says which step's depth it was realized at and what was done to that step,
+// and both halves are checked against the colour itself.
+//
+// The step is named by tone because tone is what a container keeps: it gives up
+// chroma and takes its hue from the ramp's pale tint depth, so no comparison of
+// colours finds the cell it came from. Rebuilding the container out of the named
+// step's tone, the pale tint depth's hue and the container's own chroma has to
+// produce the container back, to within the byte the chroma was rounded into on
+// the way out, or the rule names a step the derivation did not use.
+func TestEachContainerIsItsStepHeldAtLessChroma(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
 		rules := rulesOf(palette.Groups(sc.c, sc.other, sc.dark))
 		for _, r := range statusRoles() {
 			ramp := r.ramp(sc.c)
-			ground := sc.c.StatusContainer(r.id)
-			step := palette.ToneStep(ramp, ground)
-			rung := ramp.Step(step)
-			tone, _, _ := vgcolor.LabFromNRGBA(rung)
-			_, chroma, _ := vgcolor.OKLChFromNRGBA(rung)
+			container := sc.c.StatusContainer(r.id)
+			step := palette.ToneStep(ramp, container)
+			stepColor := ramp.Step(step)
+			tone, _, _ := vgcolor.LabFromNRGBA(stepColor)
+			_, chroma, _ := vgcolor.OKLChFromNRGBA(stepColor)
 			_, _, hue := vgcolor.OKLChFromNRGBA(ramp.Step(paleTintStep(ramp)))
-			_, held, _ := vgcolor.OKLChFromNRGBA(ground)
+			_, held, _ := vgcolor.OKLChFromNRGBA(container)
 			// Within a part in 255 a channel: the chroma the container is
 			// rebuilt at is read back out of eight bits a channel, so the last
 			// bit of it was rounded away before this test could ask for it.
 			got := vgcolor.NRGBAFromToneChromaHue(tone, held, hue)
-			if off := max(apart(got.R, ground.R), max(apart(got.G, ground.G), apart(got.B, ground.B))); off > 1 {
+			if off := max(apart(got.R, container.R), max(apart(got.G, container.G), apart(got.B, container.B))); off > 1 {
 				t.Errorf("%s: the %s container is %v, and %s %d's tone and hue at that chroma is %v",
-					sc.name, r.name, ground, r.name, step, got)
+					sc.name, r.name, container, r.name, step, got)
 			}
 			if held >= chroma {
 				t.Errorf("%s: the %s container carries chroma %.4f against its step's %.4f, and the rule says it was pulled down",
@@ -1124,7 +1124,7 @@ func TestEachContainerIsItsRungHeldAtLessChroma(t *testing.T) {
 	}
 }
 
-// TestTheContainersToneNamesOneRungAndNoOther: the tone a container shares with
+// TestTheContainersToneNamesOneStepAndNoOther: the tone a container shares with
 // its step is closer to that step than half the distance to the step's
 // neighbour, so reading the step off the tone cannot land on the wrong one.
 //
@@ -1132,14 +1132,14 @@ func TestEachContainerIsItsRungHeldAtLessChroma(t *testing.T) {
 // that names a step has to name the step the derivation used, and a measurement
 // that could stand within a tolerance of two steps at once would name whichever
 // came first in a loop.
-func TestTheContainersToneNamesOneRungAndNoOther(t *testing.T) {
+func TestTheContainersToneNamesOneStepAndNoOther(t *testing.T) {
 	worst, closest := 0.0, math.Inf(1)
 	for _, sc := range schemesUnderTest(t) {
 		for _, r := range statusRoles() {
 			ramp := r.ramp(sc.c)
-			ground := sc.c.StatusContainer(r.id)
-			held, _, _ := vgcolor.LabFromNRGBA(ground)
-			tone, _, _ := vgcolor.LabFromNRGBA(ramp.Step(palette.ToneStep(ramp, ground)))
+			container := sc.c.StatusContainer(r.id)
+			held, _, _ := vgcolor.LabFromNRGBA(container)
+			tone, _, _ := vgcolor.LabFromNRGBA(ramp.Step(palette.ToneStep(ramp, container)))
 			worst = max(worst, math.Abs(held-tone))
 			for n := range palette.RampSteps - 1 {
 				a, _, _ := vgcolor.LabFromNRGBA(ramp.Step((n + 1) * 100))
@@ -1603,12 +1603,12 @@ func TestTheGridEndsWhereTheHeadingBarDoes(t *testing.T) {
 	for _, sc := range schemesUnderTest(t)[:4] {
 		for _, width := range sectionWidths {
 			img := paletteSectionW(t, width, sc.c, sc.other, sc.dark)
-			ground := stdcolor.NRGBA(sc.c.Background)
+			background := stdcolor.NRGBA(sc.c.Background)
 			y := sectionRowY(0) // Primary, which every derivation pins
 			edge := width - sectionInset()
 			right := -1
 			for x := edge - 1; x >= 0; x-- {
-				if pixelAt(img, x, y) != ground {
+				if pixelAt(img, x, y) != background {
 					right = x
 					break
 				}
@@ -1624,11 +1624,11 @@ func TestTheGridEndsWhereTheHeadingBarDoes(t *testing.T) {
 			// tenth step: the air before it is never less than the least the
 			// grid states, however much surplus lands in it.
 			left := right
-			for left >= 0 && pixelAt(img, left, y) != ground {
+			for left >= 0 && pixelAt(img, left, y) != background {
 				left--
 			}
 			gap := 0
-			for x := left; x >= 0 && pixelAt(img, x, y) == ground; x-- {
+			for x := left; x >= 0 && pixelAt(img, x, y) == background; x-- {
 				gap++
 			}
 			if gap < int(palette.RampPinGap)-strokeBleed {
@@ -1704,13 +1704,13 @@ func TestTheCaptionsClausesAreTheOnesItIsWrittenIn(t *testing.T) {
 	}
 }
 
-// captionRegister is how close a caption's contrast may fall to the contrast of
+// captionTolerance is how close a caption's contrast may fall to the contrast of
 // the words beside it on the same bar before it reads as a different class of
 // text. The caption is set in the heading's own foreground, so what is measured
 // is the antialiasing of twelve points against fourteen and nothing else.
-const captionRegister = 0.85
+const captionTolerance = 0.85
 
-// TestTheSectionCaptionReadsInItsNeighboursRegister: the caption on a section's
+// TestTheSectionCaptionReadsAtItsNeighboursContrast: the caption on a section's
 // heading bar is read at the contrast the rest of the section is read at, on
 // both sides of the switch.
 //
@@ -1721,7 +1721,7 @@ const captionRegister = 0.85
 // a legend — the leading clause of this one is the only thing on the screen
 // that says what the dots on the grid below mean — and a legend that is faint
 // in one scheme and fainter in the other is a legend nobody reads in either.
-func TestTheSectionCaptionReadsInItsNeighboursRegister(t *testing.T) {
+func TestTheSectionCaptionReadsAtItsNeighboursContrast(t *testing.T) {
 	width := 1440 - 2*int(Pad)
 	for _, sc := range schemesUnderTest(t)[:4] {
 		img := paletteSectionW(t, width, sc.c, sc.other, sc.dark)
@@ -1735,19 +1735,19 @@ func TestTheSectionCaptionReadsInItsNeighboursRegister(t *testing.T) {
 		captionBand.Max.X = width - sectionInset()
 		captionBand.Min.X = captionBand.Max.X - natural(gtx, ty.Shaper, ty.Small, palette.RampsHint)
 
-		titleGround, titleInk := inkOn(img, titleBand)
-		captionGround, captionInk := inkOn(img, captionBand)
-		title := vgcolor.ContrastRatio(titleInk, titleGround)
-		caption := vgcolor.ContrastRatio(captionInk, captionGround)
+		titleSurface, titleForeground := foregroundOn(img, titleBand)
+		captionSurface, captionForeground := foregroundOn(img, captionBand)
+		title := vgcolor.ContrastRatio(titleForeground, titleSurface)
+		caption := vgcolor.ContrastRatio(captionForeground, captionSurface)
 		t.Logf("%s: title %v on %v %.2f:1, caption %v on %v %.2f:1",
-			sc.name, titleInk, titleGround, title, captionInk, captionGround, caption)
-		if titleGround != stdcolor.NRGBA(p.Surface) || captionGround != stdcolor.NRGBA(p.Surface) {
+			sc.name, titleForeground, titleSurface, title, captionForeground, captionSurface, caption)
+		if titleSurface != stdcolor.NRGBA(p.Surface) || captionSurface != stdcolor.NRGBA(p.Surface) {
 			t.Errorf("%s: the heading bar is not the surface under both runs of text: title on %v, caption on %v, want %v",
-				sc.name, titleGround, captionGround, p.Surface)
+				sc.name, titleSurface, captionSurface, p.Surface)
 		}
-		if caption < captionRegister*title {
+		if caption < captionTolerance*title {
 			t.Errorf("%s: the caption reads at %.2f:1 beside a heading at %.2f:1 — %.0f%% of it, under the %.0f%% that keeps them one class of text",
-				sc.name, caption, title, 100*caption/title, 100*captionRegister)
+				sc.name, caption, title, 100*caption/title, 100*captionTolerance)
 		}
 	}
 }

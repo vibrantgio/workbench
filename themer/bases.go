@@ -62,7 +62,7 @@ const (
 	BaseW    unit.Dp = 190 // the column, beside the code specimen
 	BaseRow  unit.Dp = 26  // one name
 	BasePad  unit.Dp = 8   // panel edge to the names inside it
-	BaseInk  unit.Dp = 6   // the chosen row's marker, at the row's left edge
+	BaseMark unit.Dp = 6   // the chosen row's marker, at the row's left edge
 	BaseHead unit.Dp = 38  // the two lines heading the column, inside its panel
 )
 
@@ -331,14 +331,14 @@ func BaseRowWidget(gtx layout.Context, p Palette, ty Type, opt BaseOption, index
 		// chosen row is a deep primary against a deep panel and carries almost
 		// none of the signal, so this bar is what says "this one"; a stub a
 		// third of the row tall reads as a stray mark rather than a marker.
-		mark := image.Rect(0, h/8, gtx.Dp(BaseInk), h-h/8)
-		fillRRect(gtx, mark, gtx.Dp(BaseInk)/2, p.Accent)
+		mark := image.Rect(0, h/8, gtx.Dp(BaseMark), h-h/8)
+		fillRRect(gtx, mark, gtx.Dp(BaseMark)/2, p.Accent)
 	}
 	tone := p.Muted
 	if chosen {
 		tone = p.Text
 	}
-	text := image.Rect(pad+gtx.Dp(BaseInk), 0, size.X-pad, h)
+	text := image.Rect(pad+gtx.Dp(BaseMark), 0, size.X-pad, h)
 	// A word at the far end for the two things about a name that are not
 	// obvious from it: that somebody put this style in the folder themselves,
 	// and that this one named no background of its own and is therefore on the light
