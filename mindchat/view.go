@@ -112,9 +112,9 @@ var (
 //
 // The insets a reply can grow — a fenced block, an inline code chip — keep
 // FromTokens' own fills, and that is this app's choice: a message body is read
-// on the transcript's paper, FromTokens puts Paper at the Background pin and
-// the code fills one neutral step off it, and one step off the local paper
-// is exactly the step a raised inset takes. It reads as raised in both
+// on the transcript's paper, FromTokens puts ContentSurface at the Background
+// pin and the code fills one neutral step off it, and one step off the local
+// paper is exactly the step a raised inset takes. It reads as raised in both
 // schemes the same way — LIGHTER than the page on paper and on slate alike,
 // with the derived rim carrying the edge in both.
 //

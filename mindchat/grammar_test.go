@@ -158,8 +158,8 @@ func TestCodeInsetsStepUpFromTheTranscriptFill(t *testing.T) {
 			p := PaletteFrom(c)
 			md := messageMarkdownStyle(c, tokens.DefaultTypography)
 
-			if md.Paper != p.Transcript {
-				t.Errorf("Style.Paper = %v, but a message body is read on the transcript fill %v", md.Paper, p.Transcript)
+			if md.ContentSurface != p.Transcript {
+				t.Errorf("Style.ContentSurface = %v, but a message body is read on the transcript fill %v", md.ContentSurface, p.Transcript)
 			}
 			want := c.SurfaceAt(tokens.Level1)
 			for _, f := range []struct {
