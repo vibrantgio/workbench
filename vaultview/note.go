@@ -84,6 +84,22 @@ const (
 	// The second is spent inside the document rather than by the page, for
 	// the reason the end space is.
 	noteGapDp = 16
+	// noteMeasureDp is the widest a block of this note may lay out: the
+	// column's measure. Past it a wider window gives the reader more of the
+	// document rather than longer lines, and the run of blocks is centred in
+	// what is left.
+	//
+	// The number is measured, not chosen. The reading surface this viewer is
+	// judged beside sets a sixteen px body, and in the stored capture of it
+	// its longest line of prose measures 540 px between its first and last
+	// painted pixel — x 91 to x 630, one pixel per dp on that display —
+	// with its lines falling between 66 and 75 characters. BodyLarge sets at
+	// that same sixteen, and shaping those same lines in it measures an
+	// average advance of 7.19 dp a character, so 540 dp is 75 characters of
+	// this system's body text: the top of the 60–75 characters a line that
+	// typography has long held a reader can walk back along without losing
+	// the next one.
+	noteMeasureDp = 540
 
 	// The properties panel's rhythm: the gap between one metadata row and
 	// the next — and between the disclosure head and the box under it — the
@@ -612,6 +628,7 @@ func layoutNotePage(
 			// every half-cut line the reader scrolls past.
 			bar := scrollbar.FromTokens(tok.col)
 			style.Gutter = max(noteInsetDp-bar.Width(), 0)
+			style.Measure = noteMeasureDp
 			style.StartSpace = noteGapDp
 			style.EndSpace = noteEndSpaceDp
 			body = layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {

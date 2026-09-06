@@ -18,6 +18,7 @@ import (
 
 	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -573,4 +574,95 @@ func TestThePropertiesSlabForegroundsClearTheFloor(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestTheNoteReadsAtItsMeasure requires the reading column to stop at its
+// measure and to sit at the middle of the region between the rail pane and
+// the trailing column, read off the composed window rather than off the
+// arithmetic that placed it.
+//
+// The window is opened wider than the measure needs, which is the only state
+// the measure is visible in: at the width the application opens at, the
+// region is narrower than the measure and every block simply takes what
+// there is.
+//
+// The region is measured from the picture too — the run of the note page's
+// own surface across a row below the document is exactly the span between
+// the pane and the trailing column, so a change to either column's width
+// moves the expectation with it.
+//
+// The two margins do not come out equal, and the difference is a constant
+// the arrangement forces: the scrollbar occupies its own width out of the
+// viewport's trailing edge before the document is handed what is left, so
+// the run of blocks centres in a span already short by that much at one
+// end. Half of it, and half of the splitter's grab strip, is how far the
+// column sits from the middle. The slack below is that width and no more.
+func TestTheNoteReadsAtItsMeasure(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	size := image.Pt(1600, 900)
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// The properties panel is a row of the page rather than a
+			// block of the document, so it spans the column whatever the
+			// document does; closed, the widest thing painted in the
+			// region is the document itself.
+			m := goldenModel()
+			m.PropsOpen = false
+			w, _ := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
+				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+			img := golden.Capture(t, size, windowScene(w, tc.colors))
+			page := tc.colors.Background
+
+			// The page's own fill, on a row below everything the note
+			// paints: its first and last pixel are the region's edges.
+			row := size.Y - 1
+			regionLo, regionHi := -1, -1
+			for x := 0; x < size.X; x++ {
+				if img.RGBAAt(x, row) == rgba(page) {
+					if regionLo < 0 {
+						regionLo = x
+					}
+					regionHi = x
+				}
+			}
+			if regionLo < 0 {
+				t.Fatal("the note page paints no surface of its own along the foot of the window")
+			}
+
+			// The widest run of painted pixels anywhere in the document is
+			// the block that reaches the measure — here the fenced code
+			// block, which fills its whole width.
+			blockLo, blockHi := -1, -1
+			for y := 0; y < size.Y; y++ {
+				lo, hi := -1, -1
+				for x := regionLo; x <= regionHi; x++ {
+					if img.RGBAAt(x, y) != rgba(page) {
+						if lo < 0 {
+							lo = x
+						}
+						hi = x
+					}
+				}
+				if lo >= 0 && hi-lo > blockHi-blockLo {
+					blockLo, blockHi = lo, hi
+				}
+			}
+			if got := blockHi - blockLo + 1; got != noteMeasureDp {
+				t.Errorf("the widest block reads %d dp wide; the measure is %d", got, noteMeasureDp)
+			}
+
+			slack := float64(scrollbar.FromTokens(tc.colors).Width())
+			mid := float64(regionLo+regionHi+1) / 2
+			at := float64(blockLo+blockHi+1) / 2
+			if at < mid-slack || at > mid+slack {
+				t.Errorf("the column centres on %.1f, the region between the rail and the trailing column on %.1f", at, mid)
+			}
+		})
+	}
+}
+
+// rgba is the stored form of a token colour, for comparing against pixels
+// read back out of a capture.
+func rgba(c color.NRGBA) color.RGBA {
+	return color.RGBAModel.Convert(c).(color.RGBA)
 }
