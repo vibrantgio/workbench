@@ -9,7 +9,7 @@
 // which colour the theme was made from.
 //
 // The scale rides with the story rather than standing on a tab of its own,
-// and it is the story that draws it — [palette.TypeLadderRows].
+// and it is the story that draws it — [palette.TypeScaleRows].
 //
 // The inventory's other two Foundations sections — foundations-roles and
 // foundations-ramps — are on no tab at all. This window has one palette
@@ -68,7 +68,7 @@ func themeTabLayer(th rx.Observable[theme.Theme], seed stdcolor.NRGBA) rx.Observ
 // scale is drawn in the colours the palette just accounted for.
 func themeTabRows(inv *inventory.Inventory, shaper *text.Shaper, typo tokens.Typography, c tokens.ColorTokens, seed stdcolor.NRGBA) []layout.Widget {
 	rows := themePaletteRows(shaper, typo, c, seed)
-	return append(rows, palette.TypeLadderRows(inv, PaletteFrom(c).story(), c, TypeFrom(shaper, typo).story())...)
+	return append(rows, palette.TypeScaleRows(inv, PaletteFrom(c).story(), c, TypeFrom(shaper, typo).story())...)
 }
 
 // themePaletteRows resolves the palette section's inputs from the live

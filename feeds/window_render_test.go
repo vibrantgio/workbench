@@ -237,7 +237,7 @@ var (
 // them — a sidebar is chrome standing beside the document, while a tab strip
 // is the reading pane's own
 // control band, drawn one level over the panel it belongs to (patterns/tabs
-// walks it from `Props.Ground`). This window therefore carries regions on
+// walks it from `Props.Level`). This window therefore carries regions on
 // three levels at rest.
 func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	for _, tc := range schemes {

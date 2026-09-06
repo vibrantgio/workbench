@@ -278,7 +278,7 @@ func articlesMain(
 		// its plane is the window's base fill. Stated rather than left to the zero
 		// value, because it is the decision the pane's own fill below has to
 		// agree with.
-		Ground: tokens.Level0,
+		Level: tokens.Level0,
 		Current: func(a article) bool {
 			id, _ := currentCell.Load().(ArticleID)
 			return id != "" && a.ID == id
@@ -399,7 +399,7 @@ func articleColumns(
 // The pane paints its own fill before any of that: the article list is
 // content, so its resting level is 0, the Background pin — not
 // patterns/shell's SplitPane backstop, which is Surface. The table takes the
-// same level through its `Ground` prop, so the pane is one sheet of paper
+// same level through its `Level` prop, so the pane is one sheet of paper
 // from its margin to the last hairline; a grid raised off its own pane would
 // put the window's biggest expanse a level above the content it belongs to.
 func articlesLayout(loadTok func() themeTokens, filter, table, pag, unreadTip layout.Widget) layout.Widget {

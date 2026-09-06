@@ -73,7 +73,7 @@ func TestTypeLadderFollowsThePalette(t *testing.T) {
 	inv := inventory.NewForOS(shaper, "darwin")
 	c := tokens.DefaultLight
 
-	ladder := palette.TypeLadderRows(inv, PaletteFrom(c).story(), c, TypeFrom(shaper, typo).story())
+	ladder := palette.TypeScaleRows(inv, PaletteFrom(c).story(), c, TypeFrom(shaper, typo).story())
 	if len(ladder) != 2 {
 		t.Fatalf("the type scale is %d rows, want 2 (a heading band and a body)", len(ladder))
 	}

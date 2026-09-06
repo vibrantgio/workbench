@@ -138,7 +138,7 @@ func drawDetail(
 	return layout.Dimensions{Size: size}
 }
 
-// The tab panel needs no fill of its own: `tabs.Props.Ground` (zero value
+// The tab panel needs no fill of its own: `tabs.Props.Level` (zero value
 // level 0) puts the panel on the window paper and the strip band one level
 // over it.
 

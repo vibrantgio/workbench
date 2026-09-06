@@ -190,7 +190,7 @@ func TestEveryColourTokenIsPicked(t *testing.T) {
 				}
 				add(cell.Base.Name, cell.Fill)
 				if cell.Paired() {
-					add(cell.Ink.Name, cell.On)
+					add(cell.Foreground.Name, cell.On)
 				}
 			}
 		}
@@ -305,8 +305,8 @@ func TestABaseAndItsInkAreOneCell(t *testing.T) {
 				switch {
 				case paired && !cell.Paired():
 					t.Errorf("%s: %s is a swatch on its own, want %s written on it", sc.name, cell.Base.Name, ink)
-				case paired && cell.Ink.Name != ink:
-					t.Errorf("%s: %s carries %s, want %s", sc.name, cell.Base.Name, cell.Ink.Name, ink)
+				case paired && cell.Foreground.Name != ink:
+					t.Errorf("%s: %s carries %s, want %s", sc.name, cell.Base.Name, cell.Foreground.Name, ink)
 				case alone[cell.Base.Name] && cell.Paired():
 					t.Errorf("%s: %s carries a foreground, and the theme names none for it", sc.name, cell.Base.Name)
 				case !paired && !alone[cell.Base.Name]:
@@ -314,7 +314,7 @@ func TestABaseAndItsInkAreOneCell(t *testing.T) {
 				}
 				// The title names both members, in the order their rules are
 				// written under them.
-				if cell.Paired() && cell.Title() != cell.Base.Name+palette.PickPairSep+cell.Ink.Name {
+				if cell.Paired() && cell.Title() != cell.Base.Name+palette.PickPairSep+cell.Foreground.Name {
 					t.Errorf("%s: the cell is titled %q, want both names in the order the rules are in", sc.name, cell.Title())
 				}
 				delete(want, cell.Base.Name)
@@ -436,7 +436,7 @@ func TestNoRuleIsEmpty(t *testing.T) {
 				t.Errorf("%s: a family of cells has no name", sc.name)
 			}
 			for _, cell := range g.Cells {
-				for _, part := range []palette.Part{cell.Base, cell.Ink} {
+				for _, part := range []palette.Part{cell.Base, cell.Foreground} {
 					if part.Name == "" {
 						continue
 					}
@@ -448,7 +448,7 @@ func TestNoRuleIsEmpty(t *testing.T) {
 					t.Errorf("%s: %s draws a transparent swatch", sc.name, cell.Base.Name)
 				}
 				if cell.Paired() && cell.On.A == 0 {
-					t.Errorf("%s: %s is written in a transparent foreground", sc.name, cell.Ink.Name)
+					t.Errorf("%s: %s is written in a transparent foreground", sc.name, cell.Foreground.Name)
 				}
 			}
 		}
@@ -469,7 +469,7 @@ func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 		}
 		for _, g := range groups {
 			for _, cell := range g.Cells {
-				for _, part := range []palette.Part{cell.Base, cell.Ink} {
+				for _, part := range []palette.Part{cell.Base, cell.Foreground} {
 					if part.Step == 0 {
 						continue
 					}
@@ -502,7 +502,7 @@ func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 	}
 }
 
-// TestTheRungToleranceStandsBetweenItsTwoMeasurements: the tolerance that
+// TestTheStepToleranceStandsBetweenItsTwoMeasurements: the tolerance that
 // decides whether a pick sits at a step is set by measurement, and this is the
 // measurement.
 //
@@ -511,7 +511,7 @@ func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 // at the grid sees them on it. Above it, no step may stand within a tolerance
 // of another, or a mark would be ambiguous about which one it means — and
 // worse, a colour could be marked at two steps at once.
-func TestTheRungToleranceStandsBetweenItsTwoMeasurements(t *testing.T) {
+func TestTheStepToleranceStandsBetweenItsTwoMeasurements(t *testing.T) {
 	worstMatch, closestRungs := 0.0, 1.0
 	for _, seed := range []stdcolor.NRGBA{fixtureBlue, fixtureRed, fixtureGrey, tokens.DefaultSeed} {
 		light, dark := tokens.FromSeed(seed)
@@ -545,17 +545,17 @@ func TestTheRungToleranceStandsBetweenItsTwoMeasurements(t *testing.T) {
 		}
 	}
 	t.Logf("the worst pin sits %.4f from its step; the closest two steps are %.4f apart; the tolerance is %.4f",
-		worstMatch, closestRungs, palette.RungTolerance)
-	if worstMatch >= palette.RungTolerance {
+		worstMatch, closestRungs, palette.StepTolerance)
+	if worstMatch >= palette.StepTolerance {
 		t.Errorf("a pin sits %.4f from its own step and the tolerance is %.4f — a pick the grid should mark goes unmarked",
-			worstMatch, palette.RungTolerance)
+			worstMatch, palette.StepTolerance)
 	}
 	// Two steps a whole tolerance apart on either side of one colour is the
 	// case that would let a colour stand within a tolerance of both, so the gap has to
 	// beat twice the tolerance rather than merely exceed it.
-	if closestRungs <= 2*palette.RungTolerance {
+	if closestRungs <= 2*palette.StepTolerance {
 		t.Errorf("two steps stand %.4f apart against a tolerance of %.4f — a mark cannot say which step it means",
-			closestRungs, palette.RungTolerance)
+			closestRungs, palette.StepTolerance)
 	}
 }
 
@@ -606,7 +606,7 @@ func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 				marked := claims[palette.Claim{Role: row.Name, Step: (n + 1) * 100}]
 				want := step
 				if marked {
-					want = palette.MarkInkOn(step)
+					want = palette.MarkForegroundOn(step)
 				}
 				got := img.RGBAAt(at.X, at.Y)
 				// A mark is a disc, so its own middle carries the last level or
@@ -651,9 +651,9 @@ func TestTheAxisEndsSayWhetherThisSchemeWritesInThem(t *testing.T) {
 					}
 				}
 			}
-			want := fmt.Sprintf(palette.PickAxisNoInk, end.text)
+			want := fmt.Sprintf(palette.PickAxisNoForeground, end.text)
 			if used {
-				want = fmt.Sprintf(palette.PickAxisInk, end.text)
+				want = fmt.Sprintf(palette.PickAxisForeground, end.text)
 			}
 			if got := rules[end.name]; got != want {
 				t.Errorf("%s: %s says %q, want %q", sc.name, end.name, got, want)
@@ -663,7 +663,7 @@ func TestTheAxisEndsSayWhetherThisSchemeWritesInThem(t *testing.T) {
 		// and a dark scheme writes in neither end, so a rule that said one thing
 		// on both sides would be saying nothing on either.
 		if !sc.dark {
-			if got, want := rules[palette.WhitePick], fmt.Sprintf(palette.PickAxisInk, palette.PickAxisLight); got != want {
+			if got, want := rules[palette.WhitePick], fmt.Sprintf(palette.PickAxisForeground, palette.PickAxisLight); got != want {
 				t.Errorf("%s: %s says %q, and this scheme's foregrounds are white", sc.name, palette.WhitePick, got)
 			}
 		}
@@ -695,7 +695,7 @@ func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
 					continue
 				}
 				step := row.Ramp.Step((n + 1) * 100)
-				if got := vgcolor.ContrastRatio(palette.MarkInkOn(step), step); got < worst {
+				if got := vgcolor.ContrastRatio(palette.MarkForegroundOn(step), step); got < worst {
 					worst, at = got, fmt.Sprintf("%s %s %d", sc.name, row.Name, (n+1)*100)
 				}
 			}
@@ -915,7 +915,7 @@ func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
 // fixtureMagenta is a seed whose lifted light Primary sits between two steps
 // of its own ramp: its depth lands between the tones of steps 500 and 600, and
 // the pin sits 0.0575 in OKLab from the nearest step — over three times
-// [palette.RungTolerance] — so nearest-step matching honestly claims nothing.
+// [palette.StepTolerance] — so nearest-step matching honestly claims nothing.
 // Found by scanning the seed cube for the widest such margin at a vivid
 // mid-scale colour. It is the case the chip dot exists for: the light scheme pins the
 // seed at the seed's own depth, and this seed's depth is no step's.
@@ -951,10 +951,10 @@ func TestTheOffRampFixtureSitsBetweenRungs(t *testing.T) {
 	for n := range palette.RampSteps {
 		nearest = min(nearest, palette.OKLabDistance(light.Ramps.Primary.Step((n+1)*100), light.Primary))
 	}
-	t.Logf("the lifted seed sits %.4f from its nearest step, against a tolerance of %.4f", nearest, palette.RungTolerance)
-	if nearest < 2*palette.RungTolerance {
+	t.Logf("the lifted seed sits %.4f from its nearest step, against a tolerance of %.4f", nearest, palette.StepTolerance)
+	if nearest < 2*palette.StepTolerance {
 		t.Errorf("the lifted seed sits %.4f from a step against a tolerance of %.4f — too near to hold the between-steps case",
-			nearest, palette.RungTolerance)
+			nearest, palette.StepTolerance)
 	}
 	// Between two adjacent steps of the light scale — which runs pale to deep —
 	// with daylight on both sides, not past either end of it.
@@ -981,7 +981,7 @@ func TestTheOffRampFixtureSitsBetweenRungs(t *testing.T) {
 }
 
 // TestTheChipDotAgreesWithTheRule: the chip carries a dot exactly where the
-// rule under the pick says the pin is on no step. [palette.PinRung] asks the two
+// rule under the pick says the pin is on no step. [palette.PinStep] asks the two
 // questions [palette.BasePart] resolves a base's rule by, and this holds the two
 // answers together — a chip dotted beside a rule naming a step, or a bare chip
 // beside a rule claiming none, would be the section disagreeing with itself in
@@ -997,7 +997,7 @@ func TestTheChipDotAgreesWithTheRule(t *testing.T) {
 				// The near and off wordings differ per role and play no part in
 				// which step the rule claims, which is the half under test.
 				part := palette.BasePart(row.Name, row.Ramp, row.Pin, palette.PickJustOff, palette.PickPinned)
-				if dotted, claimed := palette.PinRung(row.Ramp, row.Pin) == 0, part.Step != 0; dotted == claimed {
+				if dotted, claimed := palette.PinStep(row.Ramp, row.Pin) == 0, part.Step != 0; dotted == claimed {
 					t.Errorf("%s %s: the chip dot says the pin claims no step (%t) and the rule claims step %d",
 						hexOf(seed), row.Name, dotted, part.Step)
 				}
@@ -1021,7 +1021,7 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 		got := img.RGBAAt(at.X, at.Y)
 		if !m.Dark(os) {
 			// The dot, in the middle of the chip, in the measured foreground.
-			want := palette.MarkInkOn(c.Primary)
+			want := palette.MarkForegroundOn(c.Primary)
 			if off := max(apart(got.R, want.R), max(apart(got.G, want.G), apart(got.B, want.B))); off > markJitter {
 				t.Errorf("the chip centre at %v drew %v, want the dot foreground %v", at, got, want)
 			}
@@ -1054,7 +1054,7 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 		}
 		cell := rampCellCentre(m, os, 0, n/100-1)
 		step := c.Ramps.Primary.Step(n)
-		want := palette.MarkInkOn(step)
+		want := palette.MarkForegroundOn(step)
 		pix := img.RGBAAt(cell.X, cell.Y)
 		if off := max(apart(pix.R, want.R), max(apart(pix.G, want.G), apart(pix.B, want.B))); off > markJitter {
 			t.Errorf("%s %d at %v drew %v, want its dot %v", palette.PrimaryName, n, cell, pix, want)
@@ -1288,7 +1288,7 @@ func TestALineTooWideForItsColumnIsCutAtItsOwnBoundaries(t *testing.T) {
 			for _, line := range []struct {
 				style textdraw.TextStyle
 				text  string
-			}{{ty.Body, cell.Title()}, {ty.Small, cell.Base.Rule}, {ty.Small, cell.Ink.Rule}} {
+			}{{ty.Body, cell.Title()}, {ty.Small, cell.Base.Rule}, {ty.Small, cell.Foreground.Rule}} {
 				if line.text == "" {
 					continue
 				}
@@ -1469,7 +1469,7 @@ func rulesOf(groups []palette.Group) map[string]string {
 		for _, cell := range g.Cells {
 			out[cell.Base.Name] = cell.Base.Rule
 			if cell.Paired() {
-				out[cell.Ink.Name] = cell.Ink.Rule
+				out[cell.Foreground.Name] = cell.Foreground.Rule
 			}
 		}
 	}

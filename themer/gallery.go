@@ -193,7 +193,7 @@ func GalleryColumns(t themed, m Model, page *embed, sel *baseSelector, faces *fa
 	seed, picked := m.Seed()
 	theme := SeedRows(p, c, t.typ, seed, picked)
 	theme = append(theme, PaletteRows(p, c, other, t.typ, dark)...)
-	theme = append(theme, palette.TypeLadderRows(inv, p.story(), c, t.typ.story())...)
+	theme = append(theme, palette.TypeScaleRows(inv, p.story(), c, t.typ.story())...)
 	cols[TabTheme] = ScrollingColumn(page.state(TabTheme), c, theme)
 	for tab := TabComponents; tab < TabCount; tab++ {
 		rows := inv.TabItems(c, TabGroups[tab])

@@ -172,7 +172,7 @@ func TestWholeWindowRender(t *testing.T) {
 // The strip does not follow it, and the difference is what this test is worth
 // reading for. A rail is chrome standing beside the document; a tab strip is
 // the panel's own control band, drawn one level over the panel it belongs to
-// (patterns/tabs walks it from `Props.Ground`). So this one window carries a
+// (patterns/tabs walks it from `Props.Level`). So this one window carries a
 // region below the content and a region above it, and the two are named
 // apart here rather than lumped as "furniture".
 func TestWindowRegionsWearTheirRungs(t *testing.T) {
