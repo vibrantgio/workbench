@@ -142,10 +142,10 @@ func chromeSurface(c tokens.ColorTokens) color.NRGBA {
 // none of its own. It is named here so that this window's own tests can
 // read the colour the window actually draws.
 func paneSeam(c tokens.ColorTokens) color.NRGBA {
-	return pane.SeamInk(c)
+	return pane.SeamColor(c)
 }
 
-// lightnessOf is a colour's CIELAB L\*, which is what "toward the ink"
+// lightnessOf is a colour's CIELAB L\*, which is what "toward the foreground"
 // compares: the seam's direction is a question about lightness and nothing
 // else.
 func lightnessOf(c color.NRGBA) float64 {
