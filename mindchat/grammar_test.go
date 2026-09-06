@@ -69,21 +69,21 @@ func luma(c color.NRGBA) float32 {
 	return 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)
 }
 
-// TestTranscriptRestsOnTheWindowGround pins the transcript to level 0 in both
+// TestTranscriptRestsAtTheContentLevel pins the transcript to level 0 in both
 // schemes: its resting fill is the Background pin, and it is emphatically not
 // the neutral step elevation reserves for a dialog — the fill this window
 // used to spread under every answer, which made it darker in the middle than
 // at its edges.
-func TestTranscriptRestsOnTheWindowGround(t *testing.T) {
+func TestTranscriptRestsAtTheContentLevel(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			c := tc.c
 			p := PaletteFrom(c)
-			if p.Ground != c.SurfaceAt(tokens.Level0) {
-				t.Errorf("transcript fill = %v, want the level-0 fill %v", p.Ground, c.SurfaceAt(tokens.Level0))
+			if p.Transcript != c.SurfaceAt(tokens.Level0) {
+				t.Errorf("transcript fill = %v, want the level-0 fill %v", p.Transcript, c.SurfaceAt(tokens.Level0))
 			}
-			if p.Ground == c.SurfaceAt(tokens.Level2) {
-				t.Errorf("transcript fill = %v, the level-2 fill; no resting expanse may sit that deep", p.Ground)
+			if p.Transcript == c.SurfaceAt(tokens.Level2) {
+				t.Errorf("transcript fill = %v, the level-2 fill; no resting expanse may sit that deep", p.Transcript)
 			}
 			if p.Sidebar != c.SurfaceAt(tokens.LevelChrome) {
 				t.Errorf("sidebar = %v, want the chrome level's fill %v — furniture stands one level UNDER the content", p.Sidebar, c.SurfaceAt(tokens.LevelChrome))
@@ -113,7 +113,7 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 				fill color.NRGBA
 			}{
 				{"the sidebar's chrome", p.Sidebar},
-				{"the transcript's content", p.Ground},
+				{"the transcript's content", p.Transcript},
 				// The header picker's fill is the component's, not this
 				// palette's: the claim is made against the control's own answer
 				// for the level it stands on, because the window's elevation is
@@ -140,7 +140,7 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 	}
 }
 
-// TestCodeInsetsStepUpFromTheTranscriptGround holds the app to the level its
+// TestCodeInsetsStepUpFromTheTranscriptFill holds the app to the level its
 // markdown insets take. A raised inset walks from the surface it is lying on,
 // and a message body lies on the transcript's paper — so a fenced block and
 // an inline code chip sit exactly one level off that paper, and since
@@ -151,15 +151,15 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 // On paper the step is a whisper the fill alone cannot carry — what says
 // where the fence is there is the rim FromTokens derives against it — so this
 // test asks only for the direction, and the rim is markdown's own to prove.
-func TestCodeInsetsStepUpFromTheTranscriptGround(t *testing.T) {
+func TestCodeInsetsStepUpFromTheTranscriptFill(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			c := tc.c
 			p := PaletteFrom(c)
 			md := messageMarkdownStyle(c, tokens.DefaultTypography)
 
-			if md.Paper != p.Ground {
-				t.Errorf("Style.Paper = %v, but a message body is read on the transcript fill %v", md.Paper, p.Ground)
+			if md.Paper != p.Transcript {
+				t.Errorf("Style.Paper = %v, but a message body is read on the transcript fill %v", md.Paper, p.Transcript)
 			}
 			want := c.SurfaceAt(tokens.Level1)
 			for _, f := range []struct {
@@ -173,8 +173,8 @@ func TestCodeInsetsStepUpFromTheTranscriptGround(t *testing.T) {
 					t.Errorf("Style.%s = %v, want one level over the paper, %v", f.name, f.got, want)
 				}
 			}
-			if step := luma(md.CodeBackground) - luma(p.Ground); step <= 0 {
-				t.Errorf("fence fill %v is not lighter than the paper %v; a raised inset lightens in BOTH schemes", md.CodeBackground, p.Ground)
+			if step := luma(md.CodeBackground) - luma(p.Transcript); step <= 0 {
+				t.Errorf("fence fill %v is not lighter than the paper %v; a raised inset lightens in BOTH schemes", md.CodeBackground, p.Transcript)
 			}
 		})
 	}
@@ -202,48 +202,48 @@ func TestChipsWalkFromTheSurfaceTheySitOn(t *testing.T) {
 			dark := isDarkColor(c.Background)
 
 			for _, ch := range []struct {
-				name           string
-				ground         color.NRGBA
-				rest, hovered  color.NRGBA
-				restIsFlush    bool
-				groundRungName string
+				name          string
+				surface       color.NRGBA
+				rest, hovered color.NRGBA
+				restIsFlush   bool
+				surfaceName   string
 			}{
-				{"header picker", p.Ground,
+				{"header picker", p.Transcript,
 					picker.ToolbarFill(c, tokens.Level0, tokens.StateNormal),
 					picker.ToolbarFill(c, tokens.Level0, tokens.StateHover), false, "transcript"},
 				{"dialog chip", c.SurfaceAt(tokens.Level2), p.ModalChip, p.ModalChipHovered, true, "dialog surface"},
 			} {
-				if ch.restIsFlush && ch.rest != ch.ground {
-					t.Errorf("%s rests at %v, not flush on the %s %v", ch.name, ch.rest, ch.groundRungName, ch.ground)
+				if ch.restIsFlush && ch.rest != ch.surface {
+					t.Errorf("%s rests at %v, not flush on the %s %v", ch.name, ch.rest, ch.surfaceName, ch.surface)
 				}
-				if !ch.restIsFlush && ch.rest == ch.ground {
-					t.Errorf("%s rests at %v, the same fill as the %s it sits on; nothing marks it as raised", ch.name, ch.rest, ch.groundRungName)
+				if !ch.restIsFlush && ch.rest == ch.surface {
+					t.Errorf("%s rests at %v, the same fill as the %s it sits on; nothing marks it as raised", ch.name, ch.rest, ch.surfaceName)
 				}
-				if !ch.restIsFlush && luma(ch.rest) <= luma(ch.ground) {
+				if !ch.restIsFlush && luma(ch.rest) <= luma(ch.surface) {
 					t.Errorf("%s rests at %v, no lighter than the %s %v it is raised on; a level nearer the viewer is lighter in both schemes",
-						ch.name, ch.rest, ch.groundRungName, ch.ground)
+						ch.name, ch.rest, ch.surfaceName, ch.surface)
 				}
 				if ch.hovered == ch.rest {
 					t.Errorf("%s hovers to its own resting fill %v; the pointer moves nothing", ch.name, ch.rest)
 				}
-				step := luma(ch.hovered) - luma(ch.ground)
+				step := luma(ch.hovered) - luma(ch.surface)
 				if dark && step <= 0 {
-					t.Errorf("%s hover %v is not lighter than its own fill %v", ch.name, ch.hovered, ch.ground)
+					t.Errorf("%s hover %v is not lighter than its own fill %v", ch.name, ch.hovered, ch.surface)
 				}
 				if !dark && step >= 0 {
-					t.Errorf("%s hover %v is not darker than its own fill %v", ch.name, ch.hovered, ch.ground)
+					t.Errorf("%s hover %v is not darker than its own fill %v", ch.name, ch.hovered, ch.surface)
 				}
 			}
 		})
 	}
 }
 
-// TestAssistantRowPaintsTheGroundItClaims renders a real assistant row
+// TestAssistantRowPaintsTheFillItClaims renders a real assistant row
 // through the app's own MessageRow over a sentinel no fill in this app
 // resolves to. The row is expected to cover it edge to edge with the
 // transcript fill: a row that painted nothing would leak the sentinel, and
 // a row that painted the old dialog step would come back the wrong grey.
-func TestAssistantRowPaintsTheGroundItClaims(t *testing.T) {
+func TestAssistantRowPaintsTheFillItClaims(t *testing.T) {
 	sentinel := color.NRGBA{R: 255, G: 0, B: 255, A: 255}
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -265,8 +265,8 @@ func TestAssistantRowPaintsTheGroundItClaims(t *testing.T) {
 				if got == sentinel {
 					t.Fatalf("pixel %v is the sentinel; the assistant row painted no fill", at)
 				}
-				if got != p.Ground {
-					t.Errorf("pixel %v = %v, want the transcript fill %v", at, got, p.Ground)
+				if got != p.Transcript {
+					t.Errorf("pixel %v = %v, want the transcript fill %v", at, got, p.Transcript)
 				}
 				if got == c.SurfaceAt(tokens.Level2) {
 					t.Errorf("pixel %v = %v, the dialog level under a resting transcript", at, got)
@@ -449,12 +449,12 @@ func TestChromeRowClearsTheWindowControlsOnlyWhenThePaneIsAway(t *testing.T) {
 // an orientation cue.
 func TestChatTitleShowsThePlaceholderUntilAChatEarnsAName(t *testing.T) {
 	for _, name := range []string{"", "new.jsonl", "new-3.jsonl"} {
-		if got, ink := chatTitleText(name); ink != titleMuted || got != "Untitled chat" {
-			t.Errorf("chatTitleText(%q) = %q/%v, want the muted placeholder", name, got, ink)
+		if got, verdict := chatTitleText(name); verdict != titleMuted || got != "Untitled chat" {
+			t.Errorf("chatTitleText(%q) = %q/%v, want the muted placeholder", name, got, verdict)
 		}
 	}
-	got, ink := chatTitleText("reactive layouts.jsonl")
-	if ink != titleNamed || got != "Reactive layouts" {
-		t.Errorf("chatTitleText of a named chat = %q/%v, want %q named", got, ink, "Reactive layouts")
+	got, verdict := chatTitleText("reactive layouts.jsonl")
+	if verdict != titleNamed || got != "Reactive layouts" {
+		t.Errorf("chatTitleText of a named chat = %q/%v, want %q named", got, verdict, "Reactive layouts")
 	}
 }

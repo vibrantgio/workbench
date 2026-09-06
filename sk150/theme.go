@@ -18,33 +18,33 @@ import (
 // accent roles as foregrounds — derived through ForegroundOnAtFloor so a
 // pale seed can never put an unreadable pin on the page.
 type Palette struct {
-	Backdrop color.NRGBA // the window's own plane: the Background pin, level 0
-	Text     color.NRGBA // body text: neutral 900
-	Label    color.NRGBA // captions and secondary text: neutral 700
-	Volt     color.NRGBA // the voltage readout: Primary as foreground
-	Amp      color.NRGBA // the current readout: Secondary as foreground
-	Watt     color.NRGBA // the power readout: Tertiary as foreground
-	Danger   color.NRGBA // protection trips and errors: Error as foreground
-	Panel    color.NRGBA // a chart panel: raised one level off the paper
-	Hairline color.NRGBA // panel borders and the recessive chart grid
-	TipFill  color.NRGBA // a hint bubble: the inverse surface
-	TipInk   color.NRGBA // its text
+	Backdrop      color.NRGBA // the window's own plane: the Background pin, level 0
+	Text          color.NRGBA // body text: neutral 900
+	Label         color.NRGBA // captions and secondary text: neutral 700
+	Volt          color.NRGBA // the voltage readout: Primary as foreground
+	Amp           color.NRGBA // the current readout: Secondary as foreground
+	Watt          color.NRGBA // the power readout: Tertiary as foreground
+	Danger        color.NRGBA // protection trips and errors: Error as foreground
+	Panel         color.NRGBA // a chart panel: raised one level off the paper
+	Hairline      color.NRGBA // panel borders and the recessive chart grid
+	TipFill       color.NRGBA // a hint bubble: the inverse surface
+	TipForeground color.NRGBA // its text
 }
 
 func PaletteFrom(c tokens.ColorTokens) Palette {
-	ground := c.SurfaceAt(tokens.Level0)
+	surface := c.SurfaceAt(tokens.Level0)
 	return Palette{
-		Backdrop: ground,
-		Text:     c.Ramps.Neutral.Step(900),
-		Label:    c.Ramps.Neutral.Step(700),
-		Volt:     c.ForegroundOnAtFloor(tokens.RolePrimary, ground, tokens.TextFloor),
-		Amp:      c.ForegroundOnAtFloor(tokens.RoleSecondary, ground, tokens.TextFloor),
-		Watt:     c.ForegroundOnAtFloor(tokens.RoleTertiary, ground, tokens.TextFloor),
-		Danger:   c.ForegroundOnAtFloor(tokens.RoleError, ground, tokens.TextFloor),
-		Panel:    c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill,
-		Hairline: c.Divider,
-		TipFill:  c.InverseSurface,
-		TipInk:   c.OnInverseSurface,
+		Backdrop:      surface,
+		Text:          c.Ramps.Neutral.Step(900),
+		Label:         c.Ramps.Neutral.Step(700),
+		Volt:          c.ForegroundOnAtFloor(tokens.RolePrimary, surface, tokens.TextFloor),
+		Amp:           c.ForegroundOnAtFloor(tokens.RoleSecondary, surface, tokens.TextFloor),
+		Watt:          c.ForegroundOnAtFloor(tokens.RoleTertiary, surface, tokens.TextFloor),
+		Danger:        c.ForegroundOnAtFloor(tokens.RoleError, surface, tokens.TextFloor),
+		Panel:         c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill,
+		Hairline:      c.Divider,
+		TipFill:       c.InverseSurface,
+		TipForeground: c.OnInverseSurface,
 	}
 }
 

@@ -108,10 +108,10 @@ func fixtureModel(route string) Model {
 // platform but macOS shows it, with the page at the window's own top edge.
 func windowFrame(c tokens.ColorTokens, model Model, band unit.Dp) layout.Widget {
 	th := staticThemed(c)
-	ground := backdrop.Widget(th.palette.Backdrop)
+	paintBackdrop := backdrop.Widget(th.palette.Backdrop)
 	page := view(th, model, func() unit.Dp { return band })
 	return func(gtx layout.Context) layout.Dimensions {
-		ground(gtx)
+		paintBackdrop(gtx)
 		return page(gtx)
 	}
 }
@@ -121,13 +121,13 @@ func renderWindow(t *testing.T, c tokens.ColorTokens, route string, band unit.Dp
 	return golden.Capture(t, windowSize, windowFrame(c, fixtureModel(route), band))
 }
 
-// topmostInk reports the first row of the frame carrying a pixel that is not
-// the background fill, and how many rows were scanned when there is none.
-func topmostInk(img *image.RGBA, ground color.NRGBA) int {
+// topmostDrawn reports the first row of the frame carrying a pixel that is
+// not the fill it is given, and how many rows were scanned when there is none.
+func topmostDrawn(img *image.RGBA, fill color.NRGBA) int {
 	size := img.Bounds().Size()
 	for y := 0; y < size.Y; y++ {
 		for x := 0; x < size.X; x++ {
-			if pixelAt(img, image.Pt(x, y)) != ground {
+			if pixelAt(img, image.Pt(x, y)) != fill {
 				return y
 			}
 		}
@@ -203,19 +203,19 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestTheListRestsOnTheWindowGround reads the surface walk off the frame: the
+// TestTheListRestsAtTheContentLevel reads the surface walk off the frame: the
 // middle and the edge are the same fill, and the only level-1 pixels are the
 // raised controls standing on it.
 //
 // It renders the route with no dialog on it, because the walk is over the
 // window at rest: a modal stands in the middle at level 2 by design, so a walk
 // taken with one open would report a violation the grammar granted.
-func TestTheListRestsOnTheWindowGround(t *testing.T) {
+func TestTheListRestsAtTheContentLevel(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
 			frame := image.Rectangle{Max: windowSize}
-			ground := tc.c.SurfaceAt(tokens.Level0)
+			content := tc.c.SurfaceAt(tokens.Level0)
 			furniture := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
 
@@ -229,17 +229,17 @@ func TestTheListRestsOnTheWindowGround(t *testing.T) {
 				{"window centre", image.Pt(windowSize.X/2, windowSize.Y/2)},
 				{"window edge", image.Pt(2, windowSize.Y/2)},
 			} {
-				if got := pixelAt(img, p.at); got != ground {
-					t.Errorf("%s at %v = %v, want the resting fill %v", p.name, p.at, got, ground)
+				if got := pixelAt(img, p.at); got != content {
+					t.Errorf("%s at %v = %v, want the resting fill %v", p.name, p.at, got, content)
 				}
 			}
 
 			// And it is that fill in bulk, not just at two points: the
 			// resting window is the pin, with text and controls on it.
 			total := windowSize.X * windowSize.Y
-			if n := countFill(img, frame, ground); n*4 < total*3 {
+			if n := countFill(img, frame, content); n*4 < total*3 {
 				t.Errorf("the resting fill %v covers %d of %d pixels; the thing this window exists to show is not what most of it is",
-					ground, n, total)
+					content, n, total)
 			}
 			if n := countFill(img, frame, furniture); n*100 > total {
 				t.Errorf("level 1 (%v) covers %d of %d pixels; a control on the resting fill may wear it, a resting expanse may not",
@@ -337,23 +337,23 @@ func TestTheDialogAndItsFieldHoldTheirLevels(t *testing.T) {
 	}
 }
 
-// TestTheGroundReachesTheWindowsTopEdge pins that the strip shows the
+// TestTheBackdropReachesTheWindowsTopEdge pins that the strip shows the
 // full-bleed backdrop already painted under it rather than a second fill drawn
 // over it, which is why this window paints no band. The strip must be the
 // resting fill and nothing else: no page paint in it, and no unpainted glass.
-func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
+func TestTheBackdropReachesTheWindowsTopEdge(t *testing.T) {
 	band := int(titleBandDp)
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
-			ground := tc.c.SurfaceAt(tokens.Level0)
-			if got := PaletteFrom(tc.c).Backdrop; got != ground {
-				t.Fatalf("the backdrop paints %v and level 0 resolves to %v", got, ground)
+			content := tc.c.SurfaceAt(tokens.Level0)
+			if got := PaletteFrom(tc.c).Backdrop; got != content {
+				t.Fatalf("the backdrop paints %v and level 0 resolves to %v", got, content)
 			}
 			for _, x := range []int{0, windowSize.X / 2, windowSize.X - 1} {
 				for _, y := range []int{0, band / 2, band - 1} {
-					if got := pixelAt(img, image.Pt(x, y)); got != ground {
-						t.Errorf("strip pixel at (%d,%d) = %v, want the window's resting fill %v", x, y, got, ground)
+					if got := pixelAt(img, image.Pt(x, y)); got != content {
+						t.Errorf("strip pixel at (%d,%d) = %v, want the window's resting fill %v", x, y, got, content)
 					}
 				}
 			}
@@ -368,7 +368,7 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
-			if top := topmostInk(img, tc.c.SurfaceAt(tokens.Level0)); top < int(titleBandDp) {
+			if top := topmostDrawn(img, tc.c.SurfaceAt(tokens.Level0)); top < int(titleBandDp) {
 				t.Errorf("the page paints row %d, inside the %d dp title-bar strip; only the window fill belongs there", top, int(titleBandDp))
 			}
 		})
@@ -389,16 +389,16 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
-			ground := tc.c.SurfaceAt(tokens.Level0)
+			content := tc.c.SurfaceAt(tokens.Level0)
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
-					if got := pixelAt(img, image.Pt(x, y)); got != ground {
+					if got := pixelAt(img, image.Pt(x, y)); got != content {
 						t.Fatalf("page paint %v at (%d,%d), inside the window buttons' run (leading %v, trailing %v, centre %v)",
 							got, x, y, run.Leading, run.Trailing, run.Center)
 					}
 				}
 			}
-			if top := topmostInk(img, ground); top <= bottom {
+			if top := topmostDrawn(img, content); top <= bottom {
 				t.Errorf("the page's topmost paint is row %d and the buttons end at row %d; the page has no clearance under them", top, bottom)
 			}
 		})

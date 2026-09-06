@@ -48,16 +48,16 @@ type Palette struct {
 	RowSelected color.NRGBA
 	RowHovered  color.NRGBA
 	Accent      color.NRGBA // selected-row accent bar
-	// `Ground` is the transcript's resting fill — the header band, the
+	// `Transcript` is the transcript's resting fill — the header band, the
 	// assistant's turns and the space around them. It is the Background pin,
 	// level 0: the transcript is the thing the window exists to show, so it
 	// is the paper everything else in the pane is measured from, and it is
 	// lighter than the furniture beside it in BOTH schemes — the window
 	// reads lighter toward its middle on paper and on slate alike.
-	Ground     color.NRGBA
+	Transcript color.NRGBA
 	UserBubble color.NRGBA // user message fill — a Primary turn, not a level
 	UserText   color.NRGBA // user message text
-	BotText    color.NRGBA // assistant message text — the foreground on `Ground`
+	BotText    color.NRGBA // assistant message text — the foreground on `Transcript`
 	// The header picker's own fill, hover and rim are not here: it is
 	// components/picker, which derives all three from the level it stands
 	// on. What this app still says about it is where it stands — the level-0
@@ -117,7 +117,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		RowSelected: c.Ramps.Primary.Step(300),
 		RowHovered:  hover,
 		Accent:      c.Primary,
-		Ground:      c.SurfaceAt(tokens.Level0),
+		Transcript:  c.SurfaceAt(tokens.Level0),
 		UserBubble:  c.Primary,
 		UserText:    c.OnPrimary,
 		// The foreground over the Background pin is the Text pin, not the

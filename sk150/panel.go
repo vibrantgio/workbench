@@ -104,13 +104,13 @@ func wattRow(t themed, r Reading) layout.Widget {
 //
 // The row spans the width it is given (readoutWidth for the natural
 // block).
-func panelRow(t themed, ink color.NRGBA, digits, unit, badgeTxt string, badgeFill color.NRGBA) layout.Widget {
+func panelRow(t themed, foreground color.NRGBA, digits, unit, badgeTxt string, badgeFill color.NRGBA) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		typ := t.typ
 		h := textdraw.MeasureText(gtx, typ.Shaper, typ.Digits, "0").Y
 		w := gtx.Constraints.Max.X
 		rect := image.Rectangle{Max: image.Pt(w, h)}
-		inkTop := int(capTopFrac * float64(h))
+		capTop := int(capTopFrac * float64(h))
 		baseline := int(baseFrac * float64(h))
 
 		// The unit letter shares the digits' baseline: its own line box is
@@ -119,11 +119,11 @@ func panelRow(t themed, ink color.NRGBA, digits, unit, badgeTxt string, badgeFil
 		unitX := w - unitSz.X
 		unitTop := baseline - int(baseFrac*float64(unitSz.Y))
 		textdraw.FillText(gtx, typ.Shaper, typ.Unit,
-			image.Rect(unitX, unitTop, w, unitTop+unitSz.Y), 0.5, 0.5, ink, unit)
+			image.Rect(unitX, unitTop, w, unitTop+unitSz.Y), 0.5, 0.5, foreground, unit)
 
 		digitsRight := unitX - gtx.Dp(8)
 		textdraw.FillText(gtx, typ.Shaper, typ.Digits,
-			image.Rectangle{Max: image.Pt(digitsRight, h)}, 1.0, 0.5, ink, digits)
+			image.Rectangle{Max: image.Pt(digitsRight, h)}, 1.0, 0.5, foreground, digits)
 
 		if badgeTxt != "" {
 			sz := textdraw.MeasureText(gtx, typ.Shaper, typ.Stack, badgeTxt)
@@ -132,7 +132,7 @@ func panelRow(t themed, ink color.NRGBA, digits, unit, badgeTxt string, badgeFil
 			// just sit lighter inside it.
 			bw, bh := sz.X+2*padX, sz.Y+gtx.Dp(1)
 			badgeBox(gtx, t, badgeTxt, badgeFill, true,
-				image.Rect(unitX, inkTop, unitX+bw, inkTop+bh))
+				image.Rect(unitX, capTop, unitX+bw, capTop+bh))
 		}
 
 		return layout.Dimensions{Size: rect.Max}

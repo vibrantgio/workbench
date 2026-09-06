@@ -77,7 +77,7 @@ func newField(window *app.Window, width, height unit.Dp) *Field {
 	f := &Field{
 		ctx:    seengio.NewContext(window),
 		scene:  seen.NewDefaultScene(),
-		stroke: quietStroke(tokens.DefaultLight), // pre-theme placeholder
+		stroke: faintStroke(tokens.DefaultLight), // pre-theme placeholder
 	}
 	f.scene.ShowBackfaces = true
 	f.scene.Shader = shader.Flat
@@ -121,13 +121,13 @@ func (f *Field) Widget() layout.Widget { return f.view }
 // SetColors re-keys the one stroke colour to new theme tokens. Safe from
 // any goroutine; the animation tick applies it on the events thread.
 func (f *Field) SetColors(c tokens.ColorTokens) {
-	col := quietStroke(c)
+	col := faintStroke(c)
 	f.pending.Store(&col)
 }
 
-// quietStroke mixes FocusRing toward Background so a full-bleed wireframe
+// faintStroke mixes FocusRing toward Background so a full-bleed wireframe
 // stays one theme colour but reads as a backdrop.
-func quietStroke(c tokens.ColorTokens) color.NRGBA {
+func faintStroke(c tokens.ColorTokens) color.NRGBA {
 	s := c.FocusRing()
 	g := c.Background
 	return color.NRGBA{

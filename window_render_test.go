@@ -79,7 +79,7 @@ func stack(layers ...layout.Widget) layout.Widget {
 
 func renderWindow(t *testing.T, colors tokens.ColorTokens, band unit.Dp) *image.RGBA {
 	t.Helper()
-	return golden.Capture(t, windowCanvasSize, windowFrame(roundedThemed(colors), Model{}, band))
+	return golden.Capture(t, windowFrameSize, windowFrame(roundedThemed(colors), Model{}, band))
 }
 
 // roundedThemed is the goldens' frozen snapshot with the theme's real radius
@@ -125,14 +125,13 @@ func pixelAt(img *image.RGBA, p image.Point) color.NRGBA {
 	return color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0xff}
 }
 
-// inkSpan reports the first and last column of row y carrying a pixel that is
-// not the background fill, or (-1, -1) for a row that is all background
-// fill.
-func inkSpan(img *image.RGBA, y int, ground color.NRGBA) (int, int) {
+// drawnSpan reports the first and last column of row y carrying a pixel that
+// is not the fill it is given, or (-1, -1) for a row that is all that fill.
+func drawnSpan(img *image.RGBA, y int, fill color.NRGBA) (int, int) {
 	first, last := -1, -1
 	size := img.Bounds().Size()
 	for x := 0; x < size.X; x++ {
-		if pixelAt(img, image.Pt(x, y)) != ground {
+		if pixelAt(img, image.Pt(x, y)) != fill {
 			if first < 0 {
 				first = x
 			}
@@ -142,8 +141,8 @@ func inkSpan(img *image.RGBA, y int, ground color.NRGBA) (int, int) {
 	return first, last
 }
 
-// rungTolerance is how far a pixel read back out of the frame may sit from the
-// token painted into it and still count as a level at all. Gio blends in
+// levelTolerance is how far a pixel read back out of the frame may sit from
+// the token painted into it and still count as a level at all. Gio blends in
 // linear space, so a flat fill does not always survive the round trip to 8-bit
 // sRGB exactly: in the dark scheme, at the bottom of the curve where the
 // quantisation is coarsest, a level-1 fill comes back speckled a value or two
@@ -151,32 +150,32 @@ func inkSpan(img *image.RGBA, y int, ground color.NRGBA) (int, int) {
 //
 // It is a membership test only, never a discriminator: the light scheme fills
 // its raised and both its floating levels white, so a first-match walk would
-// hand every fill to whichever of them it met first. [nearestRung] takes the
+// hand every fill to whichever of them it met first. [nearestLevel] takes the
 // closest level instead, which stays decidable wherever the fills differ at
 // all.
-const rungTolerance = 4
+const levelTolerance = 4
 
-// nearestRung reports the elevation level a rendered pixel sits on — the one
-// whose surface fill it is closest to, if that fill is within rungTolerance —
+// nearestLevel reports the elevation level a rendered pixel sits on — the one
+// whose surface fill it is closest to, if that fill is within levelTolerance —
 // and whether it is a surface fill at all rather than foreground drawn on it.
 //
 // The walk includes the chrome level: a window's furniture stands there, so
 // a classifier covering only the four levels from the content up would
 // report a sidebar as no level at all. The backdrop is left out — nothing
 // is drawn at it, so no rendered pixel belongs to it.
-func nearestRung(c color.NRGBA, colors tokens.ColorTokens) (tokens.ElevationLevel, bool) {
-	best, dist := tokens.Level0, rungTolerance+1
+func nearestLevel(c color.NRGBA, colors tokens.ColorTokens) (tokens.ElevationLevel, bool) {
+	best, dist := tokens.Level0, levelTolerance+1
 	for _, level := range []tokens.ElevationLevel{tokens.LevelChrome, tokens.Level0, tokens.Level1, tokens.Level2, tokens.Level3} {
-		if d := rungDistance(c, colors.SurfaceAt(level)); d < dist {
+		if d := levelDistance(c, colors.SurfaceAt(level)); d < dist {
 			best, dist = level, d
 		}
 	}
-	return best, dist <= rungTolerance
+	return best, dist <= levelTolerance
 }
 
-// rungDistance is the largest per-channel gap between a rendered pixel and a
-// level's token — the distance rungTolerance is stated in.
-func rungDistance(a, b color.NRGBA) int {
+// levelDistance is the largest per-channel gap between a rendered pixel and a
+// level's token — the distance levelTolerance is stated in.
+func levelDistance(a, b color.NRGBA) int {
 	d := channelDiff(a.R, b.R)
 	if g := channelDiff(a.G, b.G); g > d {
 		d = g
@@ -202,19 +201,19 @@ func channelDiff(a, b uint8) int {
 // roster's remainder, so it may be narrower than GridW and is read for how
 // many cells it actually holds. Each stretch is shortened top and bottom by
 // the same corner radius, so its midpoint is the cells' midpoint.
-func cellRects(t *testing.T, img *image.RGBA, ground color.NRGBA) []image.Rectangle {
+func cellRects(t *testing.T, img *image.RGBA, fill color.NRGBA) []image.Rectangle {
 	t.Helper()
 	size := img.Bounds().Size()
 	var rects []image.Rectangle
 	for y := 0; y < size.Y; y++ {
-		first, last := inkSpan(img, y, ground)
+		first, last := drawnSpan(img, y, fill)
 		n := cellsAcross(last - first + 1)
 		if n == 0 {
 			continue
 		}
 		top := y
 		for y+1 < size.Y {
-			f, l := inkSpan(img, y+1, ground)
+			f, l := drawnSpan(img, y+1, fill)
 			if f != first || cellsAcross(l-f+1) != n {
 				break
 			}
@@ -246,13 +245,13 @@ func cellsAcross(width int) int {
 	return 0
 }
 
-// topmostInk reports the first row of the frame carrying a pixel that is not
-// the background fill, and how many rows were scanned when there is none.
-func topmostInk(img *image.RGBA, ground color.NRGBA) int {
+// topmostDrawn reports the first row of the frame carrying a pixel that is
+// not the fill it is given, and how many rows were scanned when there is none.
+func topmostDrawn(img *image.RGBA, fill color.NRGBA) int {
 	size := img.Bounds().Size()
 	for y := 0; y < size.Y; y++ {
 		for x := 0; x < size.X; x++ {
-			if pixelAt(img, image.Pt(x, y)) != ground {
+			if pixelAt(img, image.Pt(x, y)) != fill {
 				return y
 			}
 		}
@@ -269,13 +268,13 @@ func TestWholeWindowRender(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.colors, titleBandDp)
-			if img.Bounds().Size() != windowCanvasSize {
-				t.Fatalf("frame size = %v, want %v", img.Bounds().Size(), windowCanvasSize)
+			if img.Bounds().Size() != windowFrameSize {
+				t.Fatalf("frame size = %v, want %v", img.Bounds().Size(), windowFrameSize)
 			}
 			if *windowDump == "" {
 				return
 			}
-			img = golden.Capture(t, windowCanvasSize, livingWindowFrame(roundedThemed(tc.colors), Model{}, titleBandDp))
+			img = golden.Capture(t, windowFrameSize, livingWindowFrame(roundedThemed(tc.colors), Model{}, titleBandDp))
 			if err := os.MkdirAll(*windowDump, 0o755); err != nil {
 				t.Fatalf("dump dir: %v", err)
 			}
@@ -293,23 +292,23 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestTheGroundReachesTheWindowsTopEdge pins that the strip shows the
-// full-bleed background fill already painted under it rather than a second
-// fill drawn over it, which is why nothing in this app paints a band. The
-// strip must be the background fill and nothing else: no page paint in it,
-// and no unpainted glass.
-func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
+// TestTheBackdropReachesTheWindowsTopEdge pins that the strip shows the
+// full-bleed backdrop already painted under it rather than a second fill
+// drawn over it, which is why nothing in this app paints a band. The strip
+// must be that fill and nothing else: no page paint in it, and no unpainted
+// glass.
+func TestTheBackdropReachesTheWindowsTopEdge(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.colors, titleBandDp)
-			ground := tc.colors.SurfaceAt(tokens.Level0)
-			if ground != tc.colors.Background {
-				t.Fatalf("level 0 resolves to %v and the Background layer paints %v", ground, tc.colors.Background)
+			content := tc.colors.SurfaceAt(tokens.Level0)
+			if content != tc.colors.Background {
+				t.Fatalf("level 0 resolves to %v and the Background layer paints %v", content, tc.colors.Background)
 			}
-			for _, x := range []int{0, windowCanvasSize.X / 2, windowCanvasSize.X - 1} {
+			for _, x := range []int{0, windowFrameSize.X / 2, windowFrameSize.X - 1} {
 				for _, y := range []int{0, titleBandDp / 2, titleBandDp - 1} {
-					if got := pixelAt(img, image.Pt(x, y)); got != ground {
-						t.Errorf("strip pixel at (%d,%d) = %v, want the window's background fill %v", x, y, got, ground)
+					if got := pixelAt(img, image.Pt(x, y)); got != content {
+						t.Errorf("strip pixel at (%d,%d) = %v, want the window's background fill %v", x, y, got, content)
 					}
 				}
 			}
@@ -325,7 +324,7 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.colors, titleBandDp)
-			if top := topmostInk(img, tc.colors.SurfaceAt(tokens.Level0)); top < titleBandDp {
+			if top := topmostDrawn(img, tc.colors.SurfaceAt(tokens.Level0)); top < titleBandDp {
 				t.Errorf("the page paints row %d, inside the %d dp title-bar strip; only the background fill belongs there", top, titleBandDp)
 			}
 		})
@@ -348,16 +347,16 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.colors, titleBandDp)
-			ground := tc.colors.SurfaceAt(tokens.Level0)
+			content := tc.colors.SurfaceAt(tokens.Level0)
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
-					if got := pixelAt(img, image.Pt(x, y)); got != ground {
+					if got := pixelAt(img, image.Pt(x, y)); got != content {
 						t.Fatalf("page paint %v at (%d,%d), inside the window buttons' run (leading %v, trailing %v, centre %v)",
 							got, x, y, run.Leading, run.Trailing, run.Center)
 					}
 				}
 			}
-			if top := topmostInk(img, ground); top <= bottom {
+			if top := topmostDrawn(img, content); top <= bottom {
 				t.Errorf("the page's topmost paint is row %d and the buttons end at row %d; the page has no clearance under them", top, bottom)
 			}
 		})
@@ -380,16 +379,16 @@ func TestTheAppGroupsTakeThePagesOwnFill(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.colors, titleBandDp)
 			page := tokens.Level0
-			ground := tc.colors.SurfaceAt(page)
-			cells := cellRects(t, img, ground)
+			content := tc.colors.SurfaceAt(page)
+			cells := cellRects(t, img, content)
 			if len(cells) != len(Apps) {
 				t.Fatalf("measured %d cells in the frame, want one per app in the roster (%d)", len(cells), len(Apps))
 			}
 			for i, r := range cells {
 				at := image.Pt(r.Min.X+int(tokens.Spacing.S4)/2, (r.Min.Y+r.Max.Y)/2)
-				if got := pixelAt(img, at); got != ground {
+				if got := pixelAt(img, at); got != content {
 					t.Errorf("group %d fills %v at %v; a group takes the fill of the surface it is in, which is the level-%d page %v",
-						i, got, at, page, ground)
+						i, got, at, page, content)
 				}
 
 				// One pixel is a spot check; the fill is the claim. Count the
@@ -398,7 +397,7 @@ func TestTheAppGroupsTakeThePagesOwnFill(t *testing.T) {
 				covered := map[tokens.ElevationLevel]int{}
 				for y := r.Min.Y; y < r.Max.Y; y++ {
 					for x := r.Min.X; x < r.Max.X; x++ {
-						if level, ok := nearestRung(pixelAt(img, image.Pt(x, y)), tc.colors); ok {
+						if level, ok := nearestLevel(pixelAt(img, image.Pt(x, y)), tc.colors); ok {
 							covered[level]++
 						}
 					}
@@ -419,7 +418,7 @@ func TestTheAppGroupsTakeThePagesOwnFill(t *testing.T) {
 				// height, where the corner radius is behind and the edge is
 				// one straight column.
 				edge := image.Pt(r.Min.X, (r.Min.Y+r.Max.Y)/2)
-				if got, want := pixelAt(img, edge), tc.colors.SeamOn(ground); got != want {
+				if got, want := pixelAt(img, edge), tc.colors.SeamOn(content); got != want {
 					t.Errorf("group %d draws %v at its leading edge %v, not the seam %v the two regions sharing the page's fill are parted by",
 						i, got, edge, want)
 				}
@@ -428,9 +427,9 @@ func TestTheAppGroupsTakeThePagesOwnFill(t *testing.T) {
 				// own fill" is a claim about nothing. Read it back off the page
 				// beside the cell rather than trusting the Background layer's token.
 				beside := image.Pt(r.Max.X+int(RowGap)/2, (r.Min.Y+r.Max.Y)/2)
-				if level, ok := nearestRung(pixelAt(img, beside), tc.colors); !ok || level != page {
+				if level, ok := nearestLevel(pixelAt(img, beside), tc.colors); !ok || level != page {
 					t.Errorf("the page beside group %d reads %v at %v, not the level-%d fill %v",
-						i, pixelAt(img, beside), beside, page, ground)
+						i, pixelAt(img, beside), beside, page, content)
 				}
 			}
 		})

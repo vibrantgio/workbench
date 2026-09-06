@@ -110,5 +110,5 @@ func (tp *tips) bubble(gtx layout.Context, t themed, txt string, y, avail int) {
 	r := image.Rect(x, y, x+w, y+sz.Y+2*padV)
 	paint.FillShape(gtx.Ops, t.palette.TipFill, clip.UniformRRect(r, gtx.Dp(4)).Op(gtx.Ops))
 	textdraw.FillText(gtx, typ.Shaper, typ.Small,
-		image.Rect(x+padH, y+padV, x+padH+sz.X, y+padV+sz.Y), 0, 0.5, t.palette.TipInk, txt)
+		image.Rect(x+padH, y+padV, x+padH+sz.X, y+padV+sz.Y), 0, 0.5, t.palette.TipForeground, txt)
 }

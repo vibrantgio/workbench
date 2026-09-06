@@ -136,7 +136,7 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 				{"RowSelected", p.RowSelected, c.Ramps.Primary.Step(300)},
 				{"RowHovered", p.RowHovered, hover},
 				{"Accent", p.Accent, c.Primary},
-				{"transcript fill", p.Ground, c.Background},
+				{"transcript fill", p.Transcript, c.Background},
 				{"UserBubble", p.UserBubble, c.Primary},
 				{"UserText", p.UserText, c.OnPrimary},
 				{"BotText", p.BotText, c.Text},

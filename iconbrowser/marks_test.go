@@ -34,10 +34,10 @@ func markThemed(c tokens.ColorTokens) themed {
 func markCellFrame(t *testing.T, c tokens.ColorTokens, name marks.Name) *image.RGBA {
 	t.Helper()
 	tok := markThemed(c)
-	ground := backdrop.Widget(tok.palette.Backdrop)
+	paintBackdrop := backdrop.Widget(tok.palette.Backdrop)
 	cell := MarkGrid(tok, []marks.Name{name})
 	return golden.Capture(t, image.Pt(int(CellW), int(MarkCellH)), func(gtx layout.Context) layout.Dimensions {
-		ground(gtx)
+		paintBackdrop(gtx)
 		return cell(gtx)
 	})
 }
@@ -88,23 +88,23 @@ func sizesPx() []int {
 	return px
 }
 
-// inkMask reads r as a grid of glyph-or-fill decisions, row-major. A pixel
+// drawnMask reads r as a grid of glyph-or-fill decisions, row-major. A pixel
 // counts as glyph when it has travelled more than half the way from the fill
 // to the glyph colour, which is what puts an anti-aliased edge on one side or
 // the other without a per-scheme threshold.
-func inkMask(img *image.RGBA, r image.Rectangle, ground, ink color.NRGBA) []bool {
-	full := channelDistance(ink, ground)
+func drawnMask(img *image.RGBA, r image.Rectangle, fill, glyph color.NRGBA) []bool {
+	full := channelDistance(glyph, fill)
 	mask := make([]bool, 0, r.Dx()*r.Dy())
 	for y := r.Min.Y; y < r.Max.Y; y++ {
 		for x := r.Min.X; x < r.Max.X; x++ {
-			mask = append(mask, full > 0 && 2*channelDistance(pixelAt(img, image.Pt(x, y)), ground) > full)
+			mask = append(mask, full > 0 && 2*channelDistance(pixelAt(img, image.Pt(x, y)), fill) > full)
 		}
 	}
 	return mask
 }
 
 // channelDistance is the summed per-channel distance between two opaque
-// colours: a scale on which "half way from the ground to the glyph" means the
+// colours: a scale on which "half way from the fill to the glyph" means the
 // same thing in either scheme.
 func channelDistance(a, b color.NRGBA) int {
 	d := 0
@@ -118,7 +118,7 @@ func channelDistance(a, b color.NRGBA) int {
 	return d
 }
 
-func inkCount(mask []bool) int {
+func drawnCount(mask []bool) int {
 	n := 0
 	for _, on := range mask {
 		if on {
@@ -155,12 +155,12 @@ func turnedClockwise(mask []bool, n int) []bool {
 	return out
 }
 
-// inkColumns reports the first and last column of r carrying glyph pixels.
-func inkColumns(img *image.RGBA, r image.Rectangle, ground, ink color.NRGBA) (first, last int) {
+// drawnColumns reports the first and last column of r carrying glyph pixels.
+func drawnColumns(img *image.RGBA, r image.Rectangle, fill, glyph color.NRGBA) (first, last int) {
 	first, last = -1, -1
 	for x := r.Min.X; x < r.Max.X; x++ {
 		col := image.Rect(x, r.Min.Y, x+1, r.Max.Y)
-		if inkCount(inkMask(img, col, ground, ink)) > 0 {
+		if drawnCount(drawnMask(img, col, fill, glyph)) > 0 {
 			if first < 0 {
 				first = x
 			}
@@ -185,12 +185,12 @@ func TestTheTurnedCellDrawsTheOpenRendition(t *testing.T) {
 			img := markCellFrame(t, tc.c, TurnedMark)
 			p := PaletteFrom(tc.c)
 
-			closed := inkMask(img, squareAt(true, len(MarkSizes)-1), p.Backdrop, p.Icon)
-			turned := inkMask(img, squareAt(true, len(MarkSizes)), p.Backdrop, p.Icon)
-			if got := inkCount(closed); got < n {
+			closed := drawnMask(img, squareAt(true, len(MarkSizes)-1), p.Backdrop, p.Icon)
+			turned := drawnMask(img, squareAt(true, len(MarkSizes)), p.Backdrop, p.Icon)
+			if got := drawnCount(closed); got < n {
 				t.Fatalf("the closed drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
 			}
-			if got := inkCount(turned); got < n {
+			if got := drawnCount(turned); got < n {
 				t.Fatalf("the turned drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
 			}
 			if got := agreement(turnedClockwise(closed, n), turned, n); got < 0.95 {
@@ -212,7 +212,7 @@ func TestTheTurnedCellKeepsTheCellsGutter(t *testing.T) {
 	top, bottom := bandRows()
 	x0, width := markRow(true)
 
-	first, last := inkColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Icon)
+	first, last := drawnColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Icon)
 	if first < x0 || last >= x0+width {
 		t.Errorf("the row paints columns %d..%d, outside the %d..%d it is laid out in", first, last, x0, x0+width-1)
 	}
@@ -242,7 +242,7 @@ func TestPlainMarkCellsAreUnchanged(t *testing.T) {
 		}
 		t.Run(string(name), func(t *testing.T) {
 			img := markCellFrame(t, tokens.DefaultLight, name)
-			first, last := inkColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Icon)
+			first, last := drawnColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Icon)
 			if first < x0 || last >= x0+width {
 				t.Errorf("%s paints columns %d..%d, outside the closed row's %d..%d", name, first, last, x0, x0+width-1)
 			}

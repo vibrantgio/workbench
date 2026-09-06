@@ -498,7 +498,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 // region is the same defect at a few pixels wide.
 func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		FillRect(gtx, image.Rectangle{Max: gtx.Constraints.Max}, 0, t.palette.Ground)
+		FillRect(gtx, image.Rectangle{Max: gtx.Constraints.Max}, 0, t.palette.Transcript)
 		// The transcript is a reading measure, and a reading measure that is
 		// narrower than the room it is given is CENTRED in it — left alone it
 		// hugs the leading edge, which with the pane away leaves a column of
@@ -560,7 +560,7 @@ func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 	st := t.typ.BodyLarge
 
 	isUser := msg.Role == RoleUser
-	fill, textColor := p.Ground, p.BotText
+	fill, textColor := p.Transcript, p.BotText
 	switch msg.Role {
 	case RoleUser:
 		fill, textColor = p.UserBubble, p.UserText

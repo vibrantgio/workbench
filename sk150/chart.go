@@ -59,7 +59,7 @@ func chartPanels(t themed, m Model, hov *hoverState) layout.Widget {
 // with a hairline edge, three recessive gridlines, the 2 dp series stroke,
 // min/max labels in the text colour, and the synced hover crosshair.
 func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
-	ink color.NRGBA, valFmt string, minSpan float64, hov *hoverState) layout.Widget {
+	foreground color.NRGBA, valFmt string, minSpan float64, hov *hoverState) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		p, typ := t.palette, t.typ
 		size := gtx.Constraints.Max
@@ -147,7 +147,7 @@ func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 		}
 		last := samples[len(samples)-1]
 		path.LineTo(f32.Pt(xAt(last.At), yAt(sel(last))))
-		paint.FillShape(gtx.Ops, ink,
+		paint.FillShape(gtx.Ops, foreground,
 			clip.Stroke{Path: path.End(), Width: float32(gtx.Dp(2))}.Op())
 
 		// Scale labels in text tokens, tucked inside the plot corners.

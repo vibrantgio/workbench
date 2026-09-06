@@ -16,9 +16,9 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// windowCanvasSize is the size the window opens at, and the only size these
+// windowFrameSize is the size the window opens at, and the only size these
 // renders are recorded at.
-var windowCanvasSize = image.Pt(int(winW), int(winH))
+var windowFrameSize = image.Pt(int(winW), int(winH))
 
 // sharpRadius keeps the renders comparable between machines: anti-aliased
 // rounded corners vary slightly between GPU contexts, which is enough to fail
@@ -85,7 +85,7 @@ func TestWindowGolden(t *testing.T) {
 		{"dark-window", tokens.DefaultDark},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			golden.Render(t, tc.name, windowCanvasSize, page(staticThemed(tc.colors), Model{}))
+			golden.Render(t, tc.name, windowFrameSize, page(staticThemed(tc.colors), Model{}))
 		})
 	}
 }
@@ -94,8 +94,8 @@ func TestWindowGolden(t *testing.T) {
 // drawn twice, which a pair of goldens recorded from the same tokens would
 // otherwise hide.
 func TestSchemesDiffer(t *testing.T) {
-	light := golden.Capture(t, windowCanvasSize, page(staticThemed(tokens.DefaultLight), Model{}))
-	dark := golden.Capture(t, windowCanvasSize, page(staticThemed(tokens.DefaultDark), Model{}))
+	light := golden.Capture(t, windowFrameSize, page(staticThemed(tokens.DefaultLight), Model{}))
+	dark := golden.Capture(t, windowFrameSize, page(staticThemed(tokens.DefaultDark), Model{}))
 	if n := golden.PixelDiff(light, dark); n == 0 {
 		t.Error("the light and dark windows render identically")
 	}

@@ -123,13 +123,13 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, mai
 	// object set in from the window's edges. The content area beside it
 	// stands on the transcript's own paper.
 	FillRect(gtx, image.Rectangle{Max: size}, 0, t.col.SurfaceAt(tokens.LevelBackdrop))
-	FillRect(gtx, image.Rect(contentX, 0, size.X, size.Y), 0, t.palette.Ground)
+	FillRect(gtx, image.Rect(contentX, 0, size.X, size.Y), 0, t.palette.Transcript)
 
 	// The pane's trailing side is the one it is not set in from: the
 	// transcript stands flush against it, so the transcript's own paper —
 	// not the backdrop — shows behind the two corners the pane rounds away
 	// there.
-	pane.FillTrailingCorners(gtx, t.palette.Ground, bounds)
+	pane.FillTrailingCorners(gtx, t.palette.Transcript, bounds)
 
 	// The inset, the rounded outline at the platform's measured whisper,
 	// the chrome fill and the clip that keeps a scrolled row off the edge
@@ -258,9 +258,9 @@ func chromeLead(hidden bool, buttonsEnd unit.Dp) unit.Dp {
 // earned a name yet shows a muted placeholder rather than the filename it
 // is stored under: the row says what is open, and "new.jsonl" is not that.
 func chatTitle(gtx layout.Context, m Model, t themed) layout.Dimensions {
-	text, ink := chatTitleText(m.CurrentChat.Name)
+	text, verdict := chatTitleText(m.CurrentChat.Name)
 	colour := t.palette.RowActive
-	if ink == titleMuted {
+	if verdict == titleMuted {
 		colour = t.palette.Heading
 	}
 	semantic.LabelOp(text).Add(gtx.Ops)
@@ -278,12 +278,12 @@ func chatTitle(gtx layout.Context, m Model, t themed) layout.Dimensions {
 	return typeset.Layout(gtx, t.shaper, label, roleFont(st), unit.Sp(st.Size), text, Material(gtx.Ops, colour))
 }
 
-// titleInk distinguishes a chat that has a name from one that does not, so
+// titleVerdict distinguishes a chat that has a name from one that does not, so
 // the placeholder reads as an absence rather than as a title.
-type titleInk int
+type titleVerdict int
 
 const (
-	titleNamed titleInk = iota
+	titleNamed titleVerdict = iota
 	titleMuted
 )
 
@@ -291,7 +291,7 @@ const (
 // verdict on whether it is a name at all. The untitled chats are the ones
 // the application itself named — new.jsonl and its numbered siblings — and
 // they show the placeholder until the conversation earns something better.
-func chatTitleText(name string) (string, titleInk) {
+func chatTitleText(name string) (string, titleVerdict) {
 	base := strings.TrimSuffix(name, filepath.Ext(name))
 	if base == "" || base == "new" || strings.HasPrefix(base, "new-") {
 		return "Untitled chat", titleMuted

@@ -28,12 +28,12 @@ import (
 )
 
 const (
-	pageCanvasW = 960
-	pageCanvasH = 1100
+	pageFrameW = 960
+	pageFrameH = 1100
 )
 
 var (
-	pageCanvasSize = image.Pt(pageCanvasW, pageCanvasH)
+	pageFrameSize = image.Pt(pageFrameW, pageFrameH)
 	// Sharp corner radius keeps the goldens deterministic: anti-aliased
 	// rounded corners and the CTA radii vary slightly between
 	// GPU contexts, breaking pixel-exact diffs.
@@ -62,7 +62,7 @@ func TestPageGolden(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := renderLanding(shaper, hp, fp, pp, tp, tc.colors, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
-			golden.Render(t, tc.name, pageCanvasSize, scene(w, tc.colors, pageCanvasSize))
+			golden.Render(t, tc.name, pageFrameSize, scene(w, tc.colors, pageFrameSize))
 		})
 	}
 }
@@ -161,8 +161,8 @@ func TestPageLightDarkDiffer(t *testing.T) {
 
 	light := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultLight, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
 	dark := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultDark, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
-	a := golden.Capture(t, pageCanvasSize, scene(light, tokens.DefaultLight, pageCanvasSize))
-	b := golden.Capture(t, pageCanvasSize, scene(dark, tokens.DefaultDark, pageCanvasSize))
+	a := golden.Capture(t, pageFrameSize, scene(light, tokens.DefaultLight, pageFrameSize))
+	b := golden.Capture(t, pageFrameSize, scene(dark, tokens.DefaultDark, pageFrameSize))
 	if n := golden.PixelDiff(a, b); n == 0 {
 		t.Error("light and dark page render identically; expected colour differences across the four sections")
 	}
@@ -180,7 +180,7 @@ func TestContentLayerConstructs(t *testing.T) {
 	if w == nil {
 		t.Fatal("ContentLayer produced no layout.Widget")
 	}
-	dims := drawOnce(t, pageCanvasSize, w)
+	dims := drawOnce(t, pageFrameSize, w)
 	if dims.Size.X == 0 || dims.Size.Y == 0 {
 		t.Errorf("ContentLayer's layout.Widget produced zero dimensions: %v", dims)
 	}

@@ -83,18 +83,18 @@ func iconsFrom(p Palette) statIcons {
 	}
 }
 
-// widgetSet is the page's component slots by name. Every component is
+// slotSet is the page's component slots by name. Every component is
 // constructed ONCE at subscription scope (llms.txt rule 2 — a TextField
 // rebuilt per model emission would drop the user's typing on every poll),
 // collected by one variadic CombineLatest, and addressed here by key.
-type widgetSet struct {
+type slotSet struct {
 	list  []layout.Widget
 	index map[string]int
 }
 
-func (ws widgetSet) get(key string) layout.Widget {
-	if i, ok := ws.index[key]; ok && i < len(ws.list) {
-		return ws.list[i]
+func (slots slotSet) get(key string) layout.Widget {
+	if i, ok := slots.index[key]; ok && i < len(slots.list) {
+		return slots.list[i]
 	}
 	return func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }
 }
@@ -117,10 +117,10 @@ func (r *registry) add(key string, o rx.Observable[layout.Widget]) {
 // emitted layer can be laid out — a frame never renders a stale snapshot
 // (the feeds/detail.go recipe).
 type pageState struct {
-	t  themed
-	m  Model
-	ws widgetSet
-	tp *tips
+	t     themed
+	m     Model
+	slots slotSet
+	tp    *tips
 }
 
 // buildLayers returns the layer-builder the theme window renders: a backdrop
@@ -303,7 +303,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if !ok {
 				return layout.Dimensions{}
 			}
-			return st.ws.get(key)(gtx)
+			return st.slots.get(key)(gtx)
 		}
 	}
 
@@ -353,9 +353,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
 			{Label: "Monitor", Content: monitorContent(loadState, hov)},
-			{Label: "Presets", Content: listContent(loadState, presetsList, func(t themed, m Model, ws widgetSet) []layout.Widget {
+			{Label: "Presets", Content: listContent(loadState, presetsList, func(t themed, m Model, slots slotSet) []layout.Widget {
 				clearPresetFields(m)
-				return presetsRows(t, m, ws, tp)
+				return presetsRows(t, m, slots, tp)
 			})},
 			{Label: "Device", Content: deviceContent(loadState, deviceList)},
 		},
@@ -398,9 +398,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 
 	return rx.Map(rx.CombineLatest4(themes, modelObs, widgets, overlays),
 		func(n rx.Tuple4[themed, Model, []layout.Widget, []layout.Widget]) layout.Widget {
-			ws := widgetSet{list: n.Third, index: index}
-			stateCell.Store(pageState{t: n.First, m: n.Second, ws: ws, tp: tp})
-			content := desktop.CapTop(desktop.TopInset, Page(n.First, n.Second, ws, n.Fourth[0]))
+			slots := slotSet{list: n.Third, index: index}
+			stateCell.Store(pageState{t: n.First, m: n.Second, slots: slots, tp: tp})
+			content := desktop.CapTop(desktop.TopInset, Page(n.First, n.Second, slots, n.Fourth[0]))
 			dialog := n.Fourth[1]
 			return func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
@@ -416,11 +416,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 
 // Page lays the whole window: the header band, the tab strip with its
 // content panel taking the remaining height, and the notice line under it.
-func Page(t themed, m Model, ws widgetSet, tabsW layout.Widget) layout.Widget {
+func Page(t themed, m Model, slots slotSet, tabsW layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.UniformInset(Padding).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			rows := []layout.FlexChild{
-				layout.Rigid(headerRow(t, m, ws)),
+				layout.Rigid(headerRow(t, m, slots)),
 				vgap(12),
 				layout.Flexed(1, tabsW),
 			}
@@ -442,10 +442,10 @@ func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widge
 		if !ok {
 			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}
-		t, m, ws := st.t, st.m, st.ws
+		t, m, slots := st.t, st.m, st.slots
 		return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			if !m.HaveR {
-				rows := append([]layout.FlexChild{vgap(10)}, monitorFallback(t, m, ws)...)
+				rows := append([]layout.FlexChild{vgap(10)}, monitorFallback(t, m, slots)...)
 				return layout.N.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Min.X = 0
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
@@ -453,7 +453,7 @@ func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widge
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				vgap(10),
-				layout.Rigid(monitorBlock(t, m, ws)),
+				layout.Rigid(monitorBlock(t, m, slots)),
 				vgap(16),
 				layout.Flexed(1, chartPanels(t, m, hov)),
 			)
@@ -464,13 +464,13 @@ func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widge
 // listContent adapts a row builder into a scrolling tab Content slot:
 // the rows flow through a layout.List whose scroll state the caller keeps
 // at subscription scope.
-func listContent(load func() (pageState, bool), list *layout.List, build func(themed, Model, widgetSet) []layout.Widget) layout.Widget {
+func listContent(load func() (pageState, bool), list *layout.List, build func(themed, Model, slotSet) []layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
 		if !ok {
 			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}
-		rows := append([]layout.Widget{vspace(10)}, build(st.t, st.m, st.ws)...)
+		rows := append([]layout.Widget{vspace(10)}, build(st.t, st.m, st.slots)...)
 		return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return list.Layout(gtx, len(rows), func(gtx layout.Context, i int) layout.Dimensions {
 				return rows[i](gtx)
@@ -569,7 +569,7 @@ func switchWidget(load func() (pageState, bool), click *widget.Clickable, s Swit
 // stands right under it, centered the same way: the recovery hint for LVP —
 // which heals itself and takes no Clear — or the Clear button for the trips
 // that latch.
-func headerRow(t themed, m Model, ws widgetSet) layout.Widget {
+func headerRow(t themed, m Model, slots slotSet) layout.Widget {
 	statusCol := t.palette.Label
 	if !m.Online {
 		statusCol = t.palette.Danger
@@ -588,7 +588,7 @@ func headerRow(t themed, m Model, ws widgetSet) layout.Widget {
 			children = append(children,
 				layout.Rigid(outputCluster(t, m.R)),
 				hgap(10),
-				layout.Rigid(ws.get("power")),
+				layout.Rigid(slots.get("power")),
 			)
 		}
 		row := func(gtx layout.Context) layout.Dimensions {
@@ -613,7 +613,7 @@ func headerRow(t themed, m Model, ws widgetSet) layout.Widget {
 					layout.Rigid(textLine(t.typ, t.typ.Small, t.palette.Label,
 						"the trip holds the output off until cleared")),
 					hgap(12),
-					layout.Rigid(fixed(90, ws.get("clear"))),
+					layout.Rigid(fixed(90, slots.get("clear"))),
 				)
 			}
 		}
@@ -630,7 +630,7 @@ func headerRow(t themed, m Model, ws widgetSet) layout.Widget {
 
 // monitorFallback is the Monitor tab before the first reading: the demo
 // offer while no device is reachable, or a waiting line.
-func monitorFallback(t themed, m Model, ws widgetSet) []layout.FlexChild {
+func monitorFallback(t themed, m Model, slots slotSet) []layout.FlexChild {
 	p, typ := t.palette, t.typ
 	if !m.Online && !m.Demo {
 		return []layout.FlexChild{
@@ -638,7 +638,7 @@ func monitorFallback(t themed, m Model, ws widgetSet) []layout.FlexChild {
 			vgap(6),
 			layout.Rigid(textLine(typ, typ.Body, p.Label, m.Status)),
 			vgap(14),
-			layout.Rigid(fixed(160, ws.get("demo"))),
+			layout.Rigid(fixed(160, slots.get("demo"))),
 			vgap(6),
 			layout.Rigid(textLine(typ, typ.Small, p.Label,
 				"Explore the app with a simulated SK150. Restart the app to use real hardware again.")),
@@ -654,7 +654,7 @@ func monitorFallback(t themed, m Model, ws widgetSet) []layout.FlexChild {
 // panel. The active-preset badge and the Set button share the top line at
 // the column's edges, the three readouts are centered at their natural
 // width beneath it, and the stat line closes the block.
-func monitorBlock(t themed, m Model, ws widgetSet) layout.Widget {
+func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 	p, typ := t.palette, t.typ
 	r := m.R
 
@@ -716,7 +716,7 @@ func monitorBlock(t themed, m Model, ws widgetSet) layout.Widget {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Rigid(presetBadge(t, active)),
 					layout.Flexed(1, spacer),
-					layout.Rigid(fixed(72, ws.get("set.active"))),
+					layout.Rigid(fixed(72, slots.get("set.active"))),
 				)
 			}),
 			vgap(8),
@@ -740,7 +740,7 @@ func monitorBlock(t themed, m Model, ws widgetSet) layout.Widget {
 
 // presetsRows is the memory screen: the nine stored profiles with Edit and
 // Recall, or — while one is open — its editor with every field.
-func presetsRows(t themed, m Model, ws widgetSet, tp *tips) []layout.Widget {
+func presetsRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 	p, typ := t.palette, t.typ
 	if !m.HavePresets {
 		return []layout.Widget{textLine(typ, typ.Body, p.Label, "reading memory slots…")}
@@ -760,7 +760,7 @@ func presetsRows(t themed, m Model, ws widgetSet, tp *tips) []layout.Widget {
 		cell := func(col int, f Field) layout.Widget {
 			key := f.spec().Key
 			return tp.wrap(t, "p."+key, hints[key], col, presetColWidth,
-				compactField(t, f, pr.Value(f), ws.get("p."+key+".field")))
+				compactField(t, f, pr.Value(f), slots.get("p."+key+".field")))
 		}
 		pon := switchSpecs[SwPresetPowerOn]
 		blank := vspace(0)
@@ -772,7 +772,7 @@ func presetsRows(t themed, m Model, ws widgetSet, tp *tips) []layout.Widget {
 			cell(0, FOHPH), cell(1, FOHPM),
 			cell(0, FOAH), cell(1, FOWH),
 			tp.wrap(t, pon.Key, hints[pon.Key], 0, presetColWidth,
-				compactSwitch(t, textLine(typ, typ.Body, p.Text, pon.Short), pr.PowerOn, ws.get(pon.Key))), blank,
+				compactSwitch(t, textLine(typ, typ.Body, p.Text, pon.Short), pr.PowerOn, slots.get(pon.Key))), blank,
 		}
 		left, right := []layout.Widget{}, []layout.Widget{}
 		for i, c := range cells {
@@ -789,7 +789,7 @@ func presetsRows(t themed, m Model, ws widgetSet, tp *tips) []layout.Widget {
 			fixed(2*presetColWidth+compactGap, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Flexed(1, spacer),
-					layout.Rigid(fixed(90, ws.get("p.save"))),
+					layout.Rigid(fixed(90, slots.get("p.save"))),
 				)
 			}),
 			vspace(10),
@@ -811,7 +811,7 @@ func presetsRows(t themed, m Model, ws widgetSet, tp *tips) []layout.Widget {
 		if n == activeGroup(m) {
 			col = p.Volt // the active profile
 		}
-		edit, recall := ws.get(fmt.Sprintf("edit.%d", n)), ws.get(fmt.Sprintf("recall.%d", n))
+		edit, recall := slots.get(fmt.Sprintf("edit.%d", n)), slots.get(fmt.Sprintf("recall.%d", n))
 		rows = append(rows,
 			func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -845,7 +845,7 @@ func presetTableRow(n int, p Preset) string {
 // deviceRows is the Device tab: the device-wide settings as a two-column
 // grid in the panel's own names — input and charging on the left, panel
 // behaviour on the right — each numeric cell with its own Set.
-func deviceRows(t themed, m Model, ws widgetSet, tp *tips) []layout.Widget {
+func deviceRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 	p, typ := t.palette, t.typ
 	if !m.HaveD {
 		return []layout.Widget{textLine(typ, typ.Body, p.Label, "reading the device settings…")}
@@ -853,13 +853,13 @@ func deviceRows(t themed, m Model, ws widgetSet, tp *tips) []layout.Widget {
 	sw := func(col int, s Switch, on bool) layout.Widget {
 		spec := switchSpecs[s]
 		return tp.wrap(t, spec.Key, hints[spec.Key], col, deviceColWidth,
-			compactSwitch(t, textLine(typ, typ.Body, p.Text, spec.Short), on, ws.get(spec.Key)))
+			compactSwitch(t, textLine(typ, typ.Body, p.Text, spec.Short), on, slots.get(spec.Key)))
 	}
 	fr := func(col int, f Field) layout.Widget {
 		spec := f.spec()
 		return tp.wrap(t, spec.Key, hints[spec.Key], col, deviceColWidth,
 			compactCell(t, textLine(typ, typ.Body, p.Text, spec.Short),
-				fmt.Sprintf(spec.Format, m.D.Value(f)), ws.get(spec.Key+".field"), ws.get(spec.Key+".set")))
+				fmt.Sprintf(spec.Format, m.D.Value(f)), slots.get(spec.Key+".field"), slots.get(spec.Key+".set")))
 	}
 	d := m.D
 	left := []layout.Widget{sw(0, SwMPPT, d.MPPTOn), fr(0, FMPPTPct), fr(0, FBatCutoff), sw(0, SwCP, d.CPOn), fr(0, FCPWatts)}
@@ -923,9 +923,9 @@ func deviceFooter(t themed, m Model) layout.Widget {
 // deviceContent is the Device tab: the scrolling settings grid with the
 // status footer pinned beneath it.
 func deviceContent(load func() (pageState, bool), list *layout.List) layout.Widget {
-	grid := listContent(load, list, func(t themed, m Model, ws widgetSet) []layout.Widget {
+	grid := listContent(load, list, func(t themed, m Model, slots slotSet) []layout.Widget {
 		st, _ := load()
-		return deviceRows(t, m, ws, st.tp)
+		return deviceRows(t, m, slots, st.tp)
 	})
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
