@@ -103,19 +103,20 @@ const asideBacklinkCap = 4
 // would not know there was a pane above.
 const asideBacklinkShare = 2
 
-// asideInkTiers are the three depths of foreground this column speaks in: the
-// faintest tier its two headings, its citation count, its folder
-// annotations and its empty lines take; the tier the outline's nested
-// headings take, a step down from the level they hang under; and the
-// reading tier the outline's own top level and every citation's name
+// asideForegroundTiers are the three depths of foreground this column
+// speaks in: the faintest tier its two headings, its citation count, its
+// folder annotations and its empty lines take; the tier the outline's
+// nested headings take, a step down from the level they hang under; and
+// the reading tier the outline's own top level and every citation's name
 // take.
-type asideInkTiers struct {
-	quiet   color.NRGBA
+type asideForegroundTiers struct {
+	faint   color.NRGBA
 	nested  color.NRGBA
 	reading color.NRGBA
 }
 
-// asideInks resolves the tiers against the surface the column stands on.
+// asideForegrounds resolves the tiers against the surface the column
+// stands on.
 //
 // The two fainter tiers come off different ramp steps in a light scheme
 // and a dark one. The neutral ramp's paired scales keep a step's job
@@ -138,13 +139,13 @@ type asideInkTiers struct {
 // The scheme is read off the floor rather than off the neutral alias
 // because the floor is the fill this column is actually painted in, darker
 // than the paper in both schemes.
-func asideInks(tok themeTokens) asideInkTiers {
-	quiet, nested := 700, 800
+func asideForegrounds(tok themeTokens) asideForegroundTiers {
+	faint, nested := 700, 800
 	if vgcolor.RelativeLuminance(chromeSurface(tok.col)) < 0.5 {
-		quiet, nested = 600, 700
+		faint, nested = 600, 700
 	}
-	return asideInkTiers{
-		quiet:   tok.col.Ramps.Neutral.Step(quiet),
+	return asideForegroundTiers{
+		faint:   tok.col.Ramps.Neutral.Step(faint),
 		nested:  tok.col.Ramps.Neutral.Step(nested),
 		reading: tok.col.Text,
 	}
@@ -312,7 +313,7 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 		}
 		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			rigid(&above, asideTrailing(tok, func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, tok.shaper, "Outline", tok.typ.TitleSmall, asideInks(tok).quiet)
+				return drawLabel(gtx, tok.shaper, "Outline", tok.typ.TitleSmall, asideForegrounds(tok).faint)
 			})),
 			rigid(&above, complayout.VSpacer(asideHeaderGapDp)),
 			// Whatever the group below has left over, and never less than
@@ -380,9 +381,9 @@ func asidePill(gtx layout.Context, size image.Point, fill color.NRGBA) {
 // moving. The number stands below the cap as well, so that its absence is
 // never read as "few" rather than as "not counted".
 func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dimensions {
-	ink := asideInks(tok).quiet
+	foreground := asideForegrounds(tok).faint
 	title := func(gtx layout.Context) layout.Dimensions {
-		return drawLabel(gtx, tok.shaper, "Backlinks", tok.typ.TitleSmall, ink)
+		return drawLabel(gtx, tok.shaper, "Backlinks", tok.typ.TitleSmall, foreground)
 	}
 	if n == 0 {
 		// The pane's own line already says none; a nought beside the
@@ -395,7 +396,7 @@ func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dime
 			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return drawLabel(gtx, tok.shaper, strconv.Itoa(n), tok.typ.TitleSmall, ink)
+			return drawLabel(gtx, tok.shaper, strconv.Itoa(n), tok.typ.TitleSmall, foreground)
 		}),
 	)
 }
@@ -459,7 +460,7 @@ func asideEmptyLine(gtx layout.Context, tok themeTokens, line string) layout.Dim
 		Top: asideRowInsetDp, Left: asideRowPadDp,
 		Right: asideBarLane(tok) + asideRowPadDp,
 	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return drawText(gtx, tok.shaper, line, tok.typ.BodyMedium, asideInks(tok).quiet)
+		return drawText(gtx, tok.shaper, line, tok.typ.BodyMedium, asideForegrounds(tok).faint)
 	})
 }
 
@@ -539,7 +540,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 		v.outlineClick = append(v.outlineClick, &widget.Clickable{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
-	inks := asideInks(tok)
+	foregrounds := asideForegrounds(tok)
 	return list.LayoutSelectableScrollbar(gtx, v.outlineList, asideIndicator(tok), list.Occupy, entries,
 		func(gtx layout.Context, e outlineEntry, selected bool) layout.Dimensions {
 			click := v.outlineClick[e.Idx]
@@ -577,11 +578,11 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 					// A first-level heading is the note's own title level
 					// and is set apart from what hangs under it.
 					style := tok.typ.BodyMedium
-					ink := inks.reading
+					foreground := foregrounds.reading
 					if e.Level > 1 {
-						ink = inks.nested
+						foreground = foregrounds.nested
 					}
-					return drawLabel(gtx, tok.shaper, e.Title, style, ink)
+					return drawLabel(gtx, tok.shaper, e.Title, style, foreground)
 				})
 				return layout.Dimensions{Size: size}
 			})
@@ -627,7 +628,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
-	inks := asideInks(tok)
+	foregrounds := asideForegrounds(tok)
 	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), list.Occupy, rows,
 		func(gtx layout.Context, row backlinkRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
@@ -648,7 +649,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 				complayout.InsetXY(asideRowPadDp, asideRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return drawLabel(gtx, tok.shaper, row.Title, tok.typ.BodyMedium, inks.reading)
+							return drawLabel(gtx, tok.shaper, row.Title, tok.typ.BodyMedium, foregrounds.reading)
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
@@ -657,7 +658,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 							if row.Folder == "" {
 								return layout.Dimensions{}
 							}
-							return drawLabel(gtx, tok.shaper, row.Folder, tok.typ.BodySmall, inks.quiet)
+							return drawLabel(gtx, tok.shaper, row.Folder, tok.typ.BodySmall, foregrounds.faint)
 						}),
 					)
 					return layout.Dimensions{Size: gtx.Constraints.Max}

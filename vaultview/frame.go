@@ -487,16 +487,16 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 // two states.
 func (f *frameState) paintAsideSeam(gtx layout.Context, tok themeTokens, x, height int) {
 	w := max(gtx.Dp(unit.Dp(seamDp)), 1)
-	ink := tok.col.Divider
+	seamColor := tok.col.Divider
 	if f.hovering || f.dragging {
 		w = max(gtx.Dp(unit.Dp(seamGrabbedDp)), w)
-		ink = tok.col.Ramps.Neutral.Step(500)
+		seamColor = tok.col.Ramps.Neutral.Step(500)
 	}
 	seam := image.Rect(x-w/2, 0, x-w/2+w, height)
 	if seam.Empty() {
 		return
 	}
-	paint.FillShape(gtx.Ops, ink, clip.Rect(seam).Op())
+	paint.FillShape(gtx.Ops, seamColor, clip.Rect(seam).Op())
 }
 
 // processDividerDrag tracks the aside divider. The aside keeps an

@@ -175,7 +175,7 @@ func newAsidePad(t *testing.T, m Model, colH int) *asidePad {
 		cur:   &docCursor{},
 		doc:   markdown.NewDocument(n.Blocks),
 		style: markdown.FromTokens(tok.col, tok.typ),
-		docSz: image.Pt(noteCanvasW, 400),
+		docSz: image.Pt(noteFrameW, 400),
 		colSz: image.Pt(frameAsideDp, colH),
 	}
 	p.v = newAsideView(p.cur)
@@ -839,12 +839,12 @@ func TestThePanesFindTheirRowsWithRoomToSpare(t *testing.T) {
 // scrolling and the backlinks capped past their cap.
 func TestEachScrollingPaneShowsItsIndicator(t *testing.T) {
 	tok := goldenTokens()
-	ground := chromeSurface(tok.col)
+	surface := chromeSurface(tok.col)
 	shot := func(m Model, colH int) (*image.RGBA, asideGeom) {
 		v := newAsideView(&docCursor{})
 		size := image.Pt(frameAsideDp, colH)
 		img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
-			paint.FillShape(gtx.Ops, ground, clip.Rect{Max: size}.Op())
+			paint.FillShape(gtx.Ops, surface, clip.Rect{Max: size}.Op())
 			return v.layout(gtx, m, tok)
 		})
 		return img, v.geom
@@ -856,11 +856,11 @@ func TestEachScrollingPaneShowsItsIndicator(t *testing.T) {
 	bar := asideIndicator(tok)
 	thumbFrom := gtx1Dp(bar.Width() - bar.TrackPadding) // the thumb's leading edge
 	thumbTo := gtx1Dp(bar.TrackPadding)                 // its trailing padding
-	gutterInk := func(img *image.RGBA, band image.Rectangle) int {
+	gutterPixels := func(img *image.RGBA, band image.Rectangle) int {
 		n := 0
 		for y := band.Min.Y; y < band.Max.Y; y++ {
 			for x := band.Max.X - thumbFrom; x < band.Max.X-thumbTo; x++ {
-				if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+				if c := img.RGBAAt(x, y); c.R != surface.R || c.G != surface.G || c.B != surface.B {
 					n++
 				}
 			}
@@ -869,15 +869,15 @@ func TestEachScrollingPaneShowsItsIndicator(t *testing.T) {
 	}
 
 	full, g := shot(citedModel("guide/Long note.md", longNoteSource(), 20), 700)
-	if n := gutterInk(full, g.outline); n == 0 {
+	if n := gutterPixels(full, g.outline); n == 0 {
 		t.Error("an outline with more headings than its pane can show drew no indicator")
 	}
-	if n := gutterInk(full, g.backlinks); n == 0 {
+	if n := gutterPixels(full, g.backlinks); n == 0 {
 		t.Error("a backlinks pane holding twenty citations in four rows drew no indicator")
 	}
 
 	short, sg := shot(citedModel("Sources.md", plainNoteSource, 2), 700)
-	if n := gutterInk(short, sg.backlinks); n != 0 {
+	if n := gutterPixels(short, sg.backlinks); n != 0 {
 		t.Errorf("a pane whose two citations both fit drew %d indicator pixels, want none", n)
 	}
 }
@@ -892,23 +892,23 @@ func gtx1Dp(v unit.Dp) int { return int(v) }
 // is what the column's height arithmetic measures the pane below it against.
 func TestTheBacklinkHeaderCountsWhatItCannotShow(t *testing.T) {
 	tok := goldenTokens()
-	ground := chromeSurface(tok.col)
+	surface := chromeSurface(tok.col)
 	size := image.Pt(frameAsideDp-2*asideInsetDp, 40)
 	shot := func(n int) (*image.RGBA, int) {
 		var h int
 		img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
-			paint.FillShape(gtx.Ops, ground, clip.Rect{Max: size}.Op())
+			paint.FillShape(gtx.Ops, surface, clip.Rect{Max: size}.Op())
 			d := asideBacklinkHeader(gtx, tok, n)
 			h = d.Size.Y
 			return d
 		})
 		return img, h
 	}
-	ink := func(img *image.RGBA) int {
+	paintedPixels := func(img *image.RGBA) int {
 		n := 0
 		for y := range size.Y {
 			for x := range size.X {
-				if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+				if c := img.RGBAAt(x, y); c.R != surface.R || c.G != surface.G || c.B != surface.B {
 					n++
 				}
 			}
@@ -921,13 +921,13 @@ func TestTheBacklinkHeaderCountsWhatItCannotShow(t *testing.T) {
 	if noneH != overH {
 		t.Errorf("the header is %d tall with a count and %d without; the pane below it is measured off one line", overH, noneH)
 	}
-	if ink(over) <= ink(none) {
+	if paintedPixels(over) <= paintedPixels(none) {
 		t.Errorf("a pane holding 20 citations painted no more of its header (%d) than one holding none (%d); the count is missing",
-			ink(over), ink(none))
+			paintedPixels(over), paintedPixels(none))
 	}
-	if few, _ := shot(2); ink(few) <= ink(none) {
+	if few, _ := shot(2); paintedPixels(few) <= paintedPixels(none) {
 		t.Errorf("a pane holding 2 citations painted no more of its header (%d) than one holding none (%d); the count must not appear only past the cap",
-			ink(few), ink(none))
+			paintedPixels(few), paintedPixels(none))
 	}
 }
 
@@ -971,7 +971,7 @@ func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGB
 	v := newAsideView(cur)
 	w := func(gtx layout.Context) layout.Dimensions {
 		dgtx := gtx
-		dgtx.Constraints = layout.Exact(image.Pt(noteCanvasW, 400))
+		dgtx.Constraints = layout.Exact(image.Pt(noteFrameW, 400))
 		rec := op.Record(dgtx.Ops)
 		doc.Layout(dgtx, tok.shaper, style)
 		rec.Stop()
@@ -983,14 +983,14 @@ func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGB
 	return golden.Capture(t, size, scene(w, chromeSurface(col))), v
 }
 
-// asideInkAt answers where the paint between two rows of the captured
+// asideDrawnAt answers where the paint between two rows of the captured
 // column starts — its leading column and its first row, or -1, -1 for a
 // band of bare surface. The two fills a row may wear are read as surface
 // along with the surface itself: both run to the column's text margin and
 // fill the row's whole height, so a marked row would otherwise answer
 // with the fill's own corner rather than with its title's.
-func asideInkAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) {
-	ground := []color.NRGBA{chromeSurface(col), col.StateAt(tokens.LevelChrome, tokens.StateHover), col.Ramps.Primary.Step(300)}
+func asideDrawnAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) {
+	surfaces := []color.NRGBA{chromeSurface(col), col.StateAt(tokens.LevelChrome, tokens.StateHover), col.Ramps.Primary.Step(300)}
 	gap := func(a, b uint8) int {
 		if a > b {
 			return int(a) - int(b)
@@ -1007,14 +1007,14 @@ func asideInkAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) 
 	for y := max(y0, img.Bounds().Min.Y); y < min(y1, img.Bounds().Max.Y); y++ {
 		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
 			c := img.RGBAAt(x, y)
-			inked := true
-			for _, g := range ground {
+			drawn := true
+			for _, g := range surfaces {
 				if near(c, g) {
-					inked = false
+					drawn = false
 					break
 				}
 			}
-			if !inked {
+			if !drawn {
 				continue
 			}
 			if top < 0 {
@@ -1043,7 +1043,7 @@ func TestTheOutlineStepsOnTheColumnsRhythm(t *testing.T) {
 			var lead [3]int
 			for i := range lead {
 				top := v.geom.outline.Min.Y + i*rowH
-				lead[i], _ = asideInkAt(img, tc.colors, top, top+rowH)
+				lead[i], _ = asideDrawnAt(img, tc.colors, top, top+rowH)
 				if lead[i] < 0 {
 					t.Fatalf("the outline's level-%d row drew nothing to measure", i+1)
 				}
@@ -1071,7 +1071,7 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 			full, fv := asideShot(t, citedModel("guide/Rhythm.md", rhythmSource, 2), tc.colors, 700)
 			bare, bv := asideShot(t, citedModel("Sources.md", plainNoteSource, 0), tc.colors, 700)
 
-			head, _ := asideInkAt(bare, tc.colors, 0, bv.geom.outline.Min.Y)
+			head, _ := asideDrawnAt(bare, tc.colors, 0, bv.geom.outline.Min.Y)
 			if head < 0 {
 				t.Fatal("the column drew no heading to measure against")
 			}
@@ -1082,8 +1082,8 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 				{"outline", fv.geom.outline, bv.geom.outline},
 				{"backlinks", fv.geom.backlinks, bv.geom.backlinks},
 			} {
-				rowX, rowY := asideInkAt(full, tc.colors, c.row.Min.Y, c.row.Min.Y+rowH)
-				lineX, lineY := asideInkAt(bare, tc.colors, c.line.Min.Y, c.line.Min.Y+rowH)
+				rowX, rowY := asideDrawnAt(full, tc.colors, c.row.Min.Y, c.row.Min.Y+rowH)
+				lineX, lineY := asideDrawnAt(bare, tc.colors, c.line.Min.Y, c.line.Min.Y+rowH)
 				if rowX < 0 || lineX < 0 {
 					t.Fatalf("the %s pane drew nothing to measure: row at %d, line at %d", c.pane, rowX, lineX)
 				}
@@ -1111,10 +1111,10 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 	}
 }
 
-// TestTheColumnsInkTiersPartInBothSchemes measures the three depths of
-// foreground the column speaks in — its headings and annotations, the outline's
-// nested titles, and what a reader is meant to read — and requires each
-// to part from the next in either appearance.
+// TestTheColumnsForegroundTiersPartInBothSchemes measures the three
+// depths of foreground the column speaks in — its headings and
+// annotations, the outline's nested titles, and what a reader is meant to
+// read — and requires each to part from the next in either appearance.
 //
 // The dark scheme is what this is measured for. The neutral ramp's paired
 // scales keep a step's job across the two appearances, not its distance from
@@ -1122,7 +1122,7 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 // 68.8, 74.9 and 80.9 from the surface in L* on a dark page against 52.9,
 // 64.0 and 86.1 on a light one — three names for very nearly one colour, with
 // the heading reading as bright as the row beneath it.
-func TestTheColumnsInkTiersPartInBothSchemes(t *testing.T) {
+func TestTheColumnsForegroundTiersPartInBothSchemes(t *testing.T) {
 	// The distance two foregrounds must keep to read as two. It is under the
 	// smaller of the light scheme's own two gaps, which is the separation
 	// this is holding the dark scheme to.
@@ -1135,30 +1135,30 @@ func TestTheColumnsInkTiersPartInBothSchemes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tok := goldenTokens()
 			tok.col = tc.colors
-			inks := asideInks(tok)
-			ground := lstar(chromeSurface(tc.colors))
+			foregrounds := asideForegrounds(tok)
+			surfaceL := lstar(chromeSurface(tc.colors))
 			depth := func(c color.NRGBA) float64 {
-				return math.Abs(lstar(c) - ground)
+				return math.Abs(lstar(c) - surfaceL)
 			}
 			tiers := []struct {
-				name string
-				ink  color.NRGBA
+				name       string
+				foreground color.NRGBA
 			}{
-				{"the headings and annotations", inks.quiet},
-				{"the outline's nested titles", inks.nested},
-				{"what the column is read for", inks.reading},
+				{"the headings and annotations", foregrounds.faint},
+				{"the outline's nested titles", foregrounds.nested},
+				{"what the column is read for", foregrounds.reading},
 			}
 			for i, tier := range tiers {
 				// Every tier is a tier a reader reads, so none of them may
 				// drop under the body-text contrast the design system holds
 				// its own text to.
-				if r := vgcolor.ContrastRatio(tier.ink, chromeSurface(tc.colors)); r < 4.5 {
+				if r := vgcolor.ContrastRatio(tier.foreground, chromeSurface(tc.colors)); r < 4.5 {
 					t.Errorf("%s reads at %.2f:1 on the column's surface, under 4.5:1", tier.name, r)
 				}
 				if i == 0 {
 					continue
 				}
-				if d := depth(tier.ink) - depth(tiers[i-1].ink); d < partBy {
+				if d := depth(tier.foreground) - depth(tiers[i-1].foreground); d < partBy {
 					t.Errorf("%s stands %.1f L* from %s, want at least %.1f — the column has three tiers or it has one",
 						tier.name, d, tiers[i-1].name, partBy)
 				}

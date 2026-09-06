@@ -74,10 +74,11 @@ import (
 	"gioui.org/unit"
 )
 
-// statusInkStep is the neutral step the bar's text takes: the faint foreground
-// this window already spends on what annotates the document rather than
-// being it — the properties panel's keys and the messages that stand in
-// place of a document are the same step on the same paper.
+// statusForegroundStep is the neutral step the bar's text takes: the
+// faint foreground this window already spends on what annotates the
+// document rather than being it — the properties panel's keys and the
+// messages that stand in place of a document are the same step on the
+// same paper.
 //
 // Measured against that paper, the pairing reads 6.19:1 in the light
 // appearance and 11.06:1 in the dark one; against the trailing panel's
@@ -85,7 +86,7 @@ import (
 // 9.91:1. Both are clear of the floor for text this size. The spread
 // between them is the neutral ramp's own — its dark half runs at about
 // twice the light half's contrast everywhere in this window.
-const statusInkStep = 700
+const statusForegroundStep = 700
 
 // statusBarHeight is the band's depth: one LabelMedium line box with the
 // smallest spacing step above and below. It is the chrome row's own
@@ -151,6 +152,6 @@ func layoutStatusBar(gtx layout.Context, m Model, tok themeTokens) layout.Dimens
 	lgtx.Constraints.Min = image.Point{}
 	lgtx.Constraints.Max.X = max(size.X-2*inset, 0)
 	defer op.Offset(image.Pt(inset, gtx.Dp(unit.Dp(tok.sp.S1)))).Push(gtx.Ops).Pop()
-	drawLabel(lgtx, tok.shaper, line, tok.typ.LabelMedium, tok.col.Ramps.Neutral.Step(statusInkStep))
+	drawLabel(lgtx, tok.shaper, line, tok.typ.LabelMedium, tok.col.Ramps.Neutral.Step(statusForegroundStep))
 	return layout.Dimensions{Size: size}
 }

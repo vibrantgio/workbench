@@ -189,7 +189,7 @@ const (
 	noteNavMarkDp = markSmallDp
 	propMarkDp    = markSmallDp
 
-	// noteNavInkStep and noteNavDimStep are the neutral steps the two
+	// noteNavForegroundStep and noteNavDimStep are the neutral steps the two
 	// history controls take. Navigation chrome reads under the text it
 	// stands beside rather than at that text's own foreground, so the enabled
 	// control takes a step short of the body foreground; the reference reading
@@ -199,8 +199,8 @@ const (
 	// under a quarter for it. So the enabled foreground is muted as far as the
 	// end-of-stack foreground can follow: the two steps read a third of the scale
 	// apart in both appearances.
-	noteNavInkStep = 600
-	noteNavDimStep = 300
+	noteNavForegroundStep = 600
+	noteNavDimStep        = 300
 )
 
 // noteCodeBases are the syntax palettes a note's fences are drawn in, one per
@@ -756,7 +756,7 @@ func navButton(
 		semantic.LabelOp(label).Add(gtx.Ops)
 		c := tok.col.Ramps.Neutral.Step(noteNavDimStep)
 		if enabled {
-			c = tok.col.Ramps.Neutral.Step(noteNavInkStep)
+			c = tok.col.Ramps.Neutral.Step(noteNavForegroundStep)
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
 		return drawMark(gtx, mark, noteNavMarkDp, c)
@@ -870,7 +870,7 @@ func layoutProperties(
 	}
 	// The head is the panel's control: the same faint step the keys below it
 	// take, at the weight that says a row can be worked rather than read.
-	ink := tok.col.Ramps.Neutral.Step(propLabelStep)
+	foreground := tok.col.Ramps.Neutral.Step(propLabelStep)
 	headStyle := tok.typ.TitleSmall
 	headStyle.Weight = propHeadWeight
 	header := func(gtx layout.Context) layout.Dimensions {
@@ -879,11 +879,11 @@ func layoutProperties(
 			pointer.CursorPointer.Add(gtx.Ops)
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return drawDisclosure(gtx, open, propMarkDp, ink)
+					return drawDisclosure(gtx, open, propMarkDp, foreground)
 				}),
 				layout.Rigid(complayout.HSpacer(6)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return drawLabel(gtx, tok.shaper, "Properties", headStyle, ink)
+					return drawLabel(gtx, tok.shaper, "Properties", headStyle, foreground)
 				}),
 			)
 		})
@@ -953,7 +953,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			// covered for its nominal colour to arrive; two columns can only be
 			// ranked by colour if the colour is the only thing that differs.
 			keyStyle := tok.typ.BodyMedium
-			keyInk := tok.col.Ramps.Neutral.Step(propLabelStep)
+			keyForeground := tok.col.Ramps.Neutral.Step(propLabelStep)
 			// The key column is as wide as the longest key plus a fixed
 			// gap: each key is measured into a discarded recording, and
 			// the widest of them wins, capped at half the panel so a runaway
@@ -963,7 +963,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			mg.Constraints.Min = image.Point{}
 			for _, f := range fm.Fields {
 				macro := op.Record(mg.Ops)
-				d := drawLabel(mg, tok.shaper, f.Key, keyStyle, keyInk)
+				d := drawLabel(mg, tok.shaper, f.Key, keyStyle, keyForeground)
 				macro.Stop()
 				if d.Size.X > keyW {
 					keyW = d.Size.X
@@ -986,7 +986,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 							if g.Constraints.Max.X > keyW {
 								g.Constraints.Max.X = keyW
 							}
-							dims := drawLabel(g, tok.shaper, f.Key, keyStyle, keyInk)
+							dims := drawLabel(g, tok.shaper, f.Key, keyStyle, keyForeground)
 							return layout.Dimensions{Size: image.Pt(keyW+keyGap, dims.Size.Y), Baseline: dims.Baseline}
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {

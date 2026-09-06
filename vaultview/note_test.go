@@ -131,10 +131,10 @@ func (p *notePad) shot(t *testing.T) *image.RGBA {
 // out of the scan: the scroll indicator lives there and reaches the edge by
 // design, and it is the prose the reader measures the margin by.
 func (p *notePad) blankFoot(img *image.RGBA) int {
-	ground := p.tok.col.Background
+	background := p.tok.col.Background
 	for y := p.size.Y - 1; y >= 0; y-- {
 		for x := 0; x < p.size.X-noteInsetDp; x++ {
-			if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+			if c := img.RGBAAt(x, y); c.R != background.R || c.G != background.G || c.B != background.B {
 				return p.size.Y - 1 - y
 			}
 		}
@@ -149,22 +149,22 @@ func (p *notePad) blankFoot(img *image.RGBA) int {
 // paper the document's viewport begins on. The trailing gutter is left out of
 // the scan for the reason blankFoot leaves it out.
 func (p *notePad) blankHead(img *image.RGBA) int {
-	ground := p.tok.col.Background
-	ink := func(y int) bool {
+	background := p.tok.col.Background
+	drawn := func(y int) bool {
 		for x := 0; x < p.size.X-noteInsetDp; x++ {
-			if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+			if c := img.RGBAAt(x, y); c.R != background.R || c.G != background.G || c.B != background.B {
 				return true
 			}
 		}
 		return false
 	}
 	y := 0
-	for ; y < p.size.Y && !ink(y); y++ { // the paper above the row
+	for ; y < p.size.Y && !drawn(y); y++ { // the paper above the row
 	}
-	for ; y < p.size.Y && ink(y); y++ { // the row's own paint
+	for ; y < p.size.Y && drawn(y); y++ { // the row's own paint
 	}
 	n := 0
-	for ; y < p.size.Y && !ink(y); y++ {
+	for ; y < p.size.Y && !drawn(y); y++ {
 		n++
 	}
 	return n
@@ -454,7 +454,7 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := renderNotePage(shaper, m, tc.colors, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
-			img := golden.Capture(t, noteCanvasSize, scene(w, tc.bg))
+			img := golden.Capture(t, noteFrameSize, scene(w, tc.bg))
 			is := func(c color.RGBA, want color.NRGBA) bool {
 				return c.R == want.R && c.G == want.G && c.B == want.B
 			}
@@ -464,7 +464,7 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 			const wide = 300
 			banded := func(y int, want color.NRGBA) bool {
 				run := 0
-				for x := 0; x < noteCanvasSize.X; x++ {
+				for x := 0; x < noteFrameSize.X; x++ {
 					if !is(img.RGBAAt(x, y), want) {
 						run = 0
 						continue
@@ -477,7 +477,7 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 			}
 			hair := tc.colors.Ramps.Neutral.Step(propEdgeStep)
 			edges := []int{}
-			for y := 0; y < noteCanvasSize.Y && len(edges) < 2; y++ {
+			for y := 0; y < noteFrameSize.Y && len(edges) < 2; y++ {
 				if banded(y, hair) && (len(edges) == 0 || y > edges[0]+10) {
 					edges = append(edges, y)
 				}
@@ -519,33 +519,34 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 	}
 }
 
-// TestThePropertiesSlabInksClearTheFloor measures the panel's own foregrounds
-// against the panel's own fill rather than the page's. The keys and the
-// raw-block fallback are the muted tier; the values beside them are read a
-// step stronger. Both are body-sized, so both owe the design system's 4.5:1.
+// TestThePropertiesSlabForegroundsClearTheFloor measures the panel's own
+// foregrounds against the panel's own fill rather than the page's. The
+// keys and the raw-block fallback are the muted tier; the values beside
+// them are read a step stronger. Both are body-sized, so both owe the
+// design system's 4.5:1.
 //
 // The two foregrounds are ranked here as well as floored — the values over the
 // keys, the note's prose over both — because a floor alone cannot tell a
 // hierarchy from a tie, and metadata standing above the note's title may not be
 // written in the title's own foreground.
-func TestThePropertiesSlabInksClearTheFloor(t *testing.T) {
+func TestThePropertiesSlabForegroundsClearTheFloor(t *testing.T) {
 	const floor = 4.5
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ground := tc.colors.Background
-			keys := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propLabelStep), ground)
-			values := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propValueStep), ground)
-			prose := vgcolor.ContrastRatio(tc.colors.Text, ground)
-			for _, ink := range []struct {
+			background := tc.colors.Background
+			keys := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propLabelStep), background)
+			values := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propValueStep), background)
+			prose := vgcolor.ContrastRatio(tc.colors.Text, background)
+			for _, foreground := range []struct {
 				name string
 				r    float64
 			}{
 				{"the keys", keys},
 				{"the values", values},
 			} {
-				t.Logf("%s on the panel: %.2f:1", ink.name, ink.r)
-				if ink.r < floor {
-					t.Errorf("%s read %.2f:1 on the panel, under the %.1f:1 floor", ink.name, ink.r, floor)
+				t.Logf("%s on the panel: %.2f:1", foreground.name, foreground.r)
+				if foreground.r < floor {
+					t.Errorf("%s read %.2f:1 on the panel, under the %.1f:1 floor", foreground.name, foreground.r, floor)
 				}
 			}
 			t.Logf("the panel's ranks: keys %.2f:1, values %.2f:1, the note's prose %.2f:1", keys, values, prose)
@@ -558,7 +559,7 @@ func TestThePropertiesSlabInksClearTheFloor(t *testing.T) {
 			// The hairline has to be visible on the fill it bounds, or the
 			// panel has no edge at all; and it has to stay an edge, well under
 			// the foreground the panel is written in.
-			edge := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propEdgeStep), ground)
+			edge := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propEdgeStep), background)
 			t.Logf("the hairline stands %.2f:1 off the paper, the faint foreground %.2f:1", edge, keys)
 			// A hairline this page can be sure of stands at least half again
 			// as far off its fill as a separator does: the separator's tint

@@ -18,16 +18,16 @@ import (
 )
 
 const (
-	// noteCanvasW matches the runtime main-slot budget: the 1100 dp
+	// noteFrameW matches the runtime main-slot budget: the 1100 dp
 	// window less the sidebar column, which the content area butts
 	// straight against, the divider's grab area and the backlinks aside.
-	noteCanvasW = 1100 - treeWidthDp - frameDividerDp - frameAsideDp
-	// noteCanvasH is the golden viewport height. The document scrolls, so
+	noteFrameW = 1100 - treeWidthDp - frameDividerDp - frameAsideDp
+	// noteFrameH is the golden viewport height. The document scrolls, so
 	// the goldens capture the top of the note — header row, properties
 	// panel, headings, prose with its wikilinks, list and code block.
-	noteCanvasH = 700
-	// treeCanvasH gives the rail the same height as the note viewport.
-	treeCanvasH = 700
+	noteFrameH = 700
+	// treeFrameH gives the rail the same height as the note viewport.
+	treeFrameH = 700
 
 	// goldenLeading is the window-button trailing edge the static renders
 	// lay out from. The live pane measures this from the window; a stored
@@ -44,12 +44,12 @@ const (
 )
 
 var (
-	noteCanvasSize = image.Pt(noteCanvasW, noteCanvasH)
-	treeCanvasSize = image.Pt(treeWidthDp, treeCanvasH)
-	// windowCanvasSize is the size the app's window opens at. The window
+	noteFrameSize = image.Pt(noteFrameW, noteFrameH)
+	treeFrameSize = image.Pt(treeWidthDp, treeFrameH)
+	// windowFrameSize is the size the app's window opens at. The window
 	// goldens are recorded there and nowhere else: a composition is only
 	// worth a picture at a size somebody actually looks at it in.
-	windowCanvasSize = image.Pt(windowW, windowH)
+	windowFrameSize = image.Pt(windowW, windowH)
 	// goldenRadius is the radius scale every static render lays out from,
 	// and it is the shipped one, so the golden carries the field the live
 	// rail wears. The parameter reaches exactly one component, the rail's find
@@ -140,7 +140,7 @@ func TestNotePageGolden(t *testing.T) {
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := renderNotePage(shaper, m, tc.colors, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
-			golden.Render(t, "note-"+tc.name, noteCanvasSize, scene(w, tc.bg))
+			golden.Render(t, "note-"+tc.name, noteFrameSize, scene(w, tc.bg))
 		})
 	}
 }
@@ -241,7 +241,7 @@ func TestNoteTasksGolden(t *testing.T) {
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := renderNotePage(shaper, m, tc.colors, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
-			golden.Render(t, "note-tasks-"+tc.name, noteCanvasSize, scene(w, tc.bg))
+			golden.Render(t, "note-tasks-"+tc.name, noteFrameSize, scene(w, tc.bg))
 		})
 	}
 }
@@ -256,7 +256,7 @@ func TestNoteScrollbarGolden(t *testing.T) {
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := renderNotePage(shaper, m, tc.colors, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
-			golden.Render(t, "note-scrollbar-"+tc.name, noteCanvasSize, scene(w, tc.bg))
+			golden.Render(t, "note-scrollbar-"+tc.name, noteFrameSize, scene(w, tc.bg))
 		})
 	}
 }
@@ -280,15 +280,15 @@ func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 	shot := func(m Model) *image.RGBA {
 		w := renderNotePage(shaper, m, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
-		return golden.Capture(t, noteCanvasSize, scene(w, bg))
+		return golden.Capture(t, noteFrameSize, scene(w, bg))
 	}
-	ground := tokens.DefaultLight.Background
-	footInk := func(img *image.RGBA) int {
+	background := tokens.DefaultLight.Background
+	footPixels := func(img *image.RGBA) int {
 		n := 0
-		for y := noteCanvasH - 100; y < noteCanvasH-noteInsetDp; y++ {
-			for x := noteCanvasW - 10; x < noteCanvasW; x++ {
+		for y := noteFrameH - 100; y < noteFrameH-noteInsetDp; y++ {
+			for x := noteFrameW - 10; x < noteFrameW; x++ {
 				c := img.RGBAAt(x, y)
-				if c.R != ground.R || c.G != ground.G || c.B != ground.B {
+				if c.R != background.R || c.G != background.G || c.B != background.B {
 					n++
 				}
 			}
@@ -296,10 +296,10 @@ func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
 		return n
 	}
 
-	if n := footInk(shot(longNoteModel(118))); n == 0 {
+	if n := footPixels(shot(longNoteModel(118))); n == 0 {
 		t.Error("a note taller than the viewport drew no scroll indicator")
 	}
-	if n := footInk(shot(plainNoteModel())); n != 0 {
+	if n := footPixels(shot(plainNoteModel())); n != 0 {
 		t.Errorf("a note that fits drew %d indicator pixels, want none", n)
 	}
 }
@@ -326,7 +326,7 @@ func TestTreeGolden(t *testing.T) {
 			name := c.name + "-" + tc.name
 			t.Run(name, func(t *testing.T) {
 				w := renderTree(shaper, c.model, tc.colors, tokens.Spacing, goldenRadius, tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
-				golden.Render(t, name, treeCanvasSize, scene(w, tc.bg))
+				golden.Render(t, name, treeFrameSize, scene(w, tc.bg))
 			})
 		}
 	}
@@ -378,7 +378,7 @@ func TestVaultWindowGolden(t *testing.T) {
 				// inset whether the pane is under them or not.
 				w, _ := renderWindow(shaper, c.model, tc.colors, tokens.Spacing, goldenRadius,
 					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-				golden.Render(t, name, windowCanvasSize, windowScene(w, tc.colors))
+				golden.Render(t, name, windowFrameSize, windowScene(w, tc.colors))
 			})
 		}
 	}
@@ -416,7 +416,7 @@ func TestVaultWindowArrivalGolden(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			w, _ := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			golden.Render(t, name, windowCanvasSize, windowScene(w, tc.colors))
+			golden.Render(t, name, windowFrameSize, windowScene(w, tc.colors))
 		})
 	}
 }
@@ -453,7 +453,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			shot := func(m Model) (*image.RGBA, *frameState) {
 				w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-				return golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors)), st
+				return golden.Capture(t, windowFrameSize, windowScene(w, tc.colors)), st
 			}
 			level := func(what string, top, bot int) {
 				t.Helper()
@@ -476,7 +476,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// its own assertion elsewhere.
 			band := st.geom.rowTop + noteInsetDp
 			nameX := st.geom.contentX + noteInsetDp
-			top, bot := inkRows(img, tc.colors.Background, nameX, nameX+400, 0, band)
+			top, bot := drawnRows(img, tc.colors.Background, nameX, nameX+400, 0, band)
 			level("the vault's name", top, bot)
 
 			// The pane's own toggle stands on the pane's surface, in the
@@ -488,7 +488,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// the pane's fill and not a mark this is measuring.
 			strip := st.geom.pane.Min.Y + paneStripDp
 			toggleX := st.geom.pane.Max.X - railMarginDp - treeHideBoxDp
-			paneTop, paneBot := inkRows(img, chromeSurface(tc.colors), toggleX, toggleX+treeHideBoxDp-4,
+			paneTop, paneBot := drawnRows(img, chromeSurface(tc.colors), toggleX, toggleX+treeHideBoxDp-4,
 				st.geom.pane.Min.Y+seamDp, strip)
 			level("the pane's toggle", paneTop, paneBot)
 
@@ -497,7 +497,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// span between the window buttons' measured edge and the
 			// vault's name.
 			markX := goldenLeading + frameGapDp
-			rowTop, rowBot := inkRows(img, tc.colors.Background, markX, markX+railToggleMarkDp, 0, band)
+			rowTop, rowBot := drawnRows(img, tc.colors.Background, markX, markX+railToggleMarkDp, 0, band)
 			level("the chrome row's toggle", rowTop, rowBot)
 			if rowTop != paneTop || rowBot != paneBot {
 				t.Errorf("the chrome row's toggle marks rows %d..%d and the pane's %d..%d; one switch, one line",
@@ -505,7 +505,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			}
 
 			nameX = markX + railToggleMarkDp + int(tokens.Spacing.S3)
-			top, bot = inkRows(img, tc.colors.Background, nameX, nameX+400, 0, band)
+			top, bot = drawnRows(img, tc.colors.Background, nameX, nameX+400, 0, band)
 			level("the vault's name with the pane away", top, bot)
 		})
 	}
@@ -536,7 +536,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 				sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
+			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
 
 			asideX := windowW - frameAsideDp
 			lane := int(asideBarLane(tok))
@@ -637,15 +637,15 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 	}
 }
 
-// inkRows answers the first and last row inside the given box that carry
+// drawnRows answers the first and last row inside the given box that carry
 // anything other than the surface colour, or -1, -1 for a box of bare
 // surface. Alpha is left out of the comparison: what is drawn over the
 // surface is opaque by the time it is captured.
-func inkRows(img *image.RGBA, ground color.NRGBA, x0, x1, y0, y1 int) (int, int) {
+func drawnRows(img *image.RGBA, surface color.NRGBA, x0, x1, y0, y1 int) (int, int) {
 	top, bot := -1, -1
 	for y := y0; y < y1; y++ {
 		for x := x0; x < x1; x++ {
-			if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+			if c := img.RGBAAt(x, y); c.R != surface.R || c.G != surface.G || c.B != surface.B {
 				if top < 0 {
 					top = y
 				}
@@ -696,9 +696,9 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 					tokens.DefaultTypography, tokens.Comfortable)
 				as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
 				w := func(gtx layout.Context) layout.Dimensions { return f.layout(gtx, m, tok, sb, as, main) }
-				return golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
+				return golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
 			}
-			ground := tc.colors.Background
+			background := tc.colors.Background
 			check := func(when string, img *image.RGBA) {
 				edge := f.geom.pane.Max.X
 				if edge <= 0 {
@@ -706,9 +706,9 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 				}
 				for x := edge; x < edge+past && x < windowW; x++ {
 					for y := 0; y < windowH; y++ {
-						if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
+						if c := img.RGBAAt(x, y); c.R != background.R || c.G != background.G || c.B != background.B {
 							t.Errorf("%s: (%d,%d) is %v, one column past the pane's edge at x=%d; want the backdrop %v",
-								when, x, y, c, edge, ground)
+								when, x, y, c, edge, background)
 							return
 						}
 					}
@@ -732,8 +732,8 @@ func TestNotePageLightDarkDiffer(t *testing.T) {
 
 	light := renderNotePage(shaper, m, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
 	dark := renderNotePage(shaper, m, tokens.DefaultDark, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
-	a := golden.Capture(t, noteCanvasSize, scene(light, bg))
-	b := golden.Capture(t, noteCanvasSize, scene(dark, bg))
+	a := golden.Capture(t, noteFrameSize, scene(light, bg))
+	b := golden.Capture(t, noteFrameSize, scene(dark, bg))
 	if n := golden.PixelDiff(a, b); n == 0 {
 		t.Error("light and dark render the note identically; expected colour differences across breadcrumb, properties and prose")
 	}
@@ -756,7 +756,7 @@ func TestNotePageConstructs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := renderNotePage(shaper, tc.model, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
-			dims := drawOnce(t, noteCanvasSize, w)
+			dims := drawOnce(t, noteFrameSize, w)
 			if dims.Size.X == 0 || dims.Size.Y == 0 {
 				t.Errorf("note page produced zero dimensions: %v", dims)
 			}

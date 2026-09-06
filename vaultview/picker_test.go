@@ -39,11 +39,11 @@ func TestThePickerPaintsItsOwnChrome(t *testing.T) {
 			w := func(gtx layout.Context) layout.Dimensions {
 				return v.screen(gtx, m, tok, stub, trail)
 			}
-			img := golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
+			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
 			fill := chromeSurface(tc.colors)
 			ring := func(x, y int) {
 				t.Helper()
-				if got := img.RGBAAt(x, y); !sameInk(got, fill) {
+				if got := img.RGBAAt(x, y); !sameColor(got, fill) {
 					t.Fatalf("the picker's edge at (%d,%d) draws %v, want its own chrome %v — the screen is standing on the plane instead of painting on it",
 						x, y, got, fill)
 				}

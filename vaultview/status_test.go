@@ -130,30 +130,30 @@ func TestTheBarSaysNothingBeforeAnyNoteIsOpen(t *testing.T) {
 	}
 }
 
-// TestTheBarsInkIsLegibleOnItsGround measures the faint neutral step the
-// count is drawn in against the paper it stands on, in both appearances
-// the app ships, logging the ratios.
+// TestTheBarsForegroundIsLegibleOnItsSurface measures the faint neutral
+// step the count is drawn in against the paper it stands on, in both
+// appearances the app ships, logging the ratios.
 //
 // The band the bar claims runs past the document and over the trailing
 // panel's own surface, so that surface is measured too: no text is drawn out
 // there today, but a bar with room to grow must not grow onto a pairing
 // nobody measured.
-func TestTheBarsInkIsLegibleOnItsGround(t *testing.T) {
+func TestTheBarsForegroundIsLegibleOnItsSurface(t *testing.T) {
 	// The floor for body-sized text. The bar's role is smaller than body
 	// text, which asks for more rather than less, so this is the weakest
 	// claim worth making.
 	const floor = 4.5
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ink := tc.colors.Ramps.Neutral.Step(statusInkStep)
+			foreground := tc.colors.Ramps.Neutral.Step(statusForegroundStep)
 			for _, g := range []struct {
-				name   string
-				ground stdcolor.NRGBA
+				name    string
+				surface stdcolor.NRGBA
 			}{
 				{"the note's paper", tc.colors.Background},
 				{"the trailing panel's surface", chromeSurface(tc.colors)},
 			} {
-				ratio := color.ContrastRatio(ink, g.ground)
+				ratio := color.ContrastRatio(foreground, g.surface)
 				t.Logf("the bar's foreground on %s: %.2f:1", g.name, ratio)
 				if ratio < floor {
 					t.Errorf("the bar's foreground reads %.2f:1 on %s, under the %.1f:1 floor", ratio, g.name, floor)
@@ -177,14 +177,14 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 			m := goldenModel()
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
+			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
 
 			foot := st.geom.footTop
 			if foot >= windowH {
 				t.Fatal("the frame reserved no foot for the status bar")
 			}
 			x0 := st.geom.contentX + noteInsetDp
-			top, bot := inkRows(img, tc.colors.Background, x0, x0+200, foot, windowH)
+			top, bot := drawnRows(img, tc.colors.Background, x0, x0+200, foot, windowH)
 			if top < 0 {
 				t.Fatalf("nothing painted on the reading margin between y=%d and the window's foot; the count is not being drawn", foot)
 			}
@@ -194,7 +194,7 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 			// Nothing of the count may stand above the band: the document
 			// column ends where the band begins, and anything painted over that line
 			// would be the bar reaching back into the note.
-			if above, _ := inkRows(img, tc.colors.Background, x0, x0+200, foot-4, foot); above >= 0 {
+			if above, _ := drawnRows(img, tc.colors.Background, x0, x0+200, foot-4, foot); above >= 0 {
 				t.Errorf("paint at row %d, above the band the bar was given at y=%d", above, foot)
 			}
 		})
@@ -216,7 +216,7 @@ func TestTheFootRedrawsOnANoteSwitch(t *testing.T) {
 	shot := func(m Model) *image.RGBA {
 		w, _ := renderWindow(shaper, m, tokens.DefaultLight, tokens.Spacing, goldenRadius,
 			tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-		return golden.Capture(t, windowCanvasSize, windowScene(w, themeCases[0].colors))
+		return golden.Capture(t, windowFrameSize, windowScene(w, themeCases[0].colors))
 	}
 	a, b := shot(first), shot(second)
 

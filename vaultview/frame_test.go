@@ -411,7 +411,7 @@ func TestChromeBudget(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			w, st := renderWindow(shaper, c.model, tokens.DefaultLight, tokens.Spacing,
 				goldenRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			drawOnce(t, windowCanvasSize, w)
+			drawOnce(t, windowFrameSize, w)
 
 			if st.geom.rowTop > chromeBudgetDp {
 				t.Errorf("the content area spends %d dp above its first document row, over the %d dp budget — a band has come back",
@@ -513,19 +513,19 @@ func TestTheRailWearsThePlatformsSeam(t *testing.T) {
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fill := chromeSurface(tc.colors)
-			ink := paneSeam(tc.colors)
-			got := vgcolor.ContrastRatio(ink, fill)
+			seamColor := paneSeam(tc.colors)
+			got := vgcolor.ContrastRatio(seamColor, fill)
 			if got < measured-tolerance || got > measured+tolerance {
 				t.Errorf("the pane's edge stands %.3f:1 off its fill (%v on %v), want the measured %.2f:1",
-					got, ink, fill, measured)
+					got, seamColor, fill, measured)
 			}
 			// Toward the scheme's own foreground: lighter than the pane in a dark
 			// scheme, as the platform draws it, and darker in a light one,
 			// which is the only direction a light floor has room in.
-			towardInk := lightnessOf(tc.colors.Text) > lightnessOf(fill)
-			if lighter := lightnessOf(ink) > lightnessOf(fill); lighter != towardInk {
+			towardForeground := lightnessOf(tc.colors.Text) > lightnessOf(fill)
+			if lighter := lightnessOf(seamColor) > lightnessOf(fill); lighter != towardForeground {
 				t.Errorf("the pane's edge is %v against a fill of %v and foreground of %v; the edge steps toward the foreground",
-					ink, fill, tc.colors.Text)
+					seamColor, fill, tc.colors.Text)
 			}
 			// Not a mark. 3:1 is what an outline owes what it stands on when the
 			// line IS the object; a pane's edge is read beside a fill, an
@@ -554,12 +554,12 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
+			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
 			pane := st.geom.pane
 			if pane.Empty() {
 				t.Fatal("the window laid out no pane to read")
 			}
-			ink := paneSeam(tc.colors)
+			seamColor := paneSeam(tc.colors)
 			// A row clear of the corners' arcs, of the toggle and of every
 			// row's own text — the middle of the pane's own top strip. On it
 			// the pane's leading and trailing edge columns are the hairline,
@@ -572,10 +572,10 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 				{"leading", pane.Min.X, pane.Min.X + seamDp},
 				{"trailing", pane.Max.X - seamDp, pane.Max.X - seamDp - 1},
 			} {
-				if got := img.RGBAAt(probe.edge, y); !sameInk(got, ink) {
-					t.Errorf("the pane's %s edge at x=%d draws %v, want the seam %v", probe.what, probe.edge, got, ink)
+				if got := img.RGBAAt(probe.edge, y); !sameColor(got, seamColor) {
+					t.Errorf("the pane's %s edge at x=%d draws %v, want the seam %v", probe.what, probe.edge, got, seamColor)
 				}
-				if got, want := img.RGBAAt(probe.in, y), chromeSurface(tc.colors); !sameInk(got, want) {
+				if got, want := img.RGBAAt(probe.in, y), chromeSurface(tc.colors); !sameColor(got, want) {
 					t.Errorf("one pixel inside the pane's %s edge draws %v, want the chrome level %v — the hairline is wider than a hairline",
 						probe.what, got, want)
 				}
@@ -589,7 +589,7 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 				{X: pane.Max.X - 2, Y: pane.Min.Y + 1},
 				{X: pane.Max.X - 2, Y: pane.Max.Y - 2},
 			} {
-				if got := img.RGBAAt(at.X, at.Y); !sameInk(got, tc.colors.Background) {
+				if got := img.RGBAAt(at.X, at.Y); !sameColor(got, tc.colors.Background) {
 					t.Errorf("the pane's trailing corner at %v draws %v, want the note's paper %v", at, got, tc.colors.Background)
 				}
 			}
@@ -598,7 +598,7 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 			backdrop := tc.colors.SurfaceAt(tokens.LevelBackdrop)
 			for x := 0; x < pane.Min.X; x++ {
 				for y := 0; y < windowH; y++ {
-					if got := img.RGBAAt(x, y); !sameInk(got, backdrop) {
+					if got := img.RGBAAt(x, y); !sameColor(got, backdrop) {
 						t.Fatalf("the gap at (%d,%d) draws %v, want the backdrop %v — the pane is casting something onto the plane it stands on",
 							x, y, got, backdrop)
 					}
@@ -625,31 +625,31 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowCanvasSize, windowScene(w, tc.colors))
+			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
 			asideX := windowW - frameAsideDp
 			floor := chromeSurface(tc.colors)
 
 			for y := 0; y < windowH; y++ {
-				if got := img.RGBAAt(asideX, y); !sameInk(got, tc.colors.Divider) {
+				if got := img.RGBAAt(asideX, y); !sameColor(got, tc.colors.Divider) {
 					t.Fatalf("the column's seam at y=%d draws %v, want the divider %v — the seam stops where a band crosses it",
 						y, got, tc.colors.Divider)
 				}
-				if got := img.RGBAAt(windowW-1, y); !sameInk(got, floor) {
+				if got := img.RGBAAt(windowW-1, y); !sameColor(got, floor) {
 					t.Fatalf("the column's trailing edge at y=%d draws %v, want its own floor %v — flush furniture wears no outline",
 						y, got, floor)
 				}
 			}
 			// One pixel wide: the column's own fill starts immediately.
-			if got := img.RGBAAt(asideX+seamDp, st.geom.footTop-1); !sameInk(got, floor) {
+			if got := img.RGBAAt(asideX+seamDp, st.geom.footTop-1); !sameColor(got, floor) {
 				t.Errorf("one pixel past the seam draws %v, want the column's floor %v", got, floor)
 			}
 		})
 	}
 }
 
-// sameInk compares a captured pixel with a token colour on the channels a
+// sameColor compares a captured pixel with a token colour on the channels a
 // capture keeps: what is drawn over the surface is opaque by the time it is
 // read back.
-func sameInk(got color.RGBA, want color.NRGBA) bool {
+func sameColor(got color.RGBA, want color.NRGBA) bool {
 	return got.R == want.R && got.G == want.G && got.B == want.B
 }
