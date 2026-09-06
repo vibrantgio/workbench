@@ -28,7 +28,7 @@ The design system is layered — each layer only depends on the ones below it:
 | Effects | [`effects`](https://github.com/vibrantgio/effects) | Motion & vibrancy: tweens, spring physics, glow, depth, a shared animation conductor |
 | Theme runtime | [`theme`](https://github.com/vibrantgio/theme) | Reactive theming: live OS dark-mode/accent tracking, preference persistence, animated theme transitions, window integration |
 | Foundation | [`components`](https://github.com/vibrantgio/components) | Component catalogue: buttons, inputs, lists, icons, layout, focus/a11y, tokens, theme contract, keyed identity, coordination |
-| Runtime | [`mvu`](https://github.com/vibrantgio/mvu) | Model-View-Update runtime for Gio: `NewWindow`, `MessageOp` widget protocol, commands |
+| Runtime | [`mvu`](https://github.com/vibrantgio/mvu) | Model-View-Update runtime for Gio: `NewWindow`, `MessageOp` component protocol, commands |
 
 Supporting libraries: [`seen`](https://github.com/vibrantgio/seen) (3D scenes
 to SVG/Gio), [`traer`](https://github.com/vibrantgio/traer) (particle
@@ -46,7 +46,7 @@ Each app is a full, runnable product built the way a real Vibrant Gio app is
 meant to be built — MVU state, live theming from theme, patterns patterns:
 
 - **[`todos/`](./todos)** — **start here**: the minimal canonical MVU app
-  (~700 lines). One window, one Model, pure reducers, components widgets,
+  (~700 lines). One window, one Model, pure reducers, library components,
   live OS light/dark theming — the smallest complete demonstration of the
   bootstrap every other app follows.
 - **[`iconbrowser/`](./iconbrowser)** — a searchable catalogue of the 961
@@ -57,7 +57,7 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   `patterns/tabs`: **Docs** renders the application guide (`llms.txt`) as
   one markdown document with a `##`/`###` outline tree that scrolls it;
   **Theme** shows the whole theme — the colour the palette grew from,
-  the ramps grid, the named picks and the type ladder — following the
+  the ramps grid, the named picks and the type ramp — following the
   live one; **Components**, **Patterns** and
   **Markdown** are the component inventory's own groups, one per tab, as
   live, clickable controls.

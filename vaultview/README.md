@@ -33,8 +33,8 @@ The window is a sidebar down the leading edge and two columns beside it.
 - **Left — the tree.** Every note in the vault, folders disclosing on
   click, the note you are reading marked. Above it, a find field:
   type and the hierarchy gives way to the notes whose name matches,
-  each with its folder as a quiet annotation. The sidebar is a rounded
-  pane floating just inside the window's edge — the window's own buttons
+  each with its folder as a less pronounced annotation. The sidebar is a
+  rounded pane floating just inside the window's edge — the window's own buttons
   show through its top strip, where the platform puts them and where they
   stay — and its toggle sits at its top-right corner, on their line. Put
   the pane away and the toggle that brings it back appears at the leading
@@ -60,8 +60,8 @@ The window is a sidebar down the leading edge and two columns beside it.
   says so.
 
 Across the foot of those two columns, on the paper the note lies on, a
-quiet status bar says how long the open note is: the file's own lines,
-with the frontmatter counted like every other line of it and a last line
+less pronounced status bar says how long the open note is: the file's own
+lines, with the frontmatter counted like every other line of it and a last line
 written without a final newline counted too. It changes when the note
 does and at no other time — how wide the window is, and how the prose
 wraps in it, is nothing a line count knows about.
@@ -124,8 +124,8 @@ Three things are the app's own, on purpose. The **folder tree** is an
 app-local composition over `components/list` — the design system's
 sidebar is deliberately flat, and one nesting sidebar is not yet a
 pattern. The **window frame** — the sidebar column, and one tight chrome
-row and one quiet status bar bracketing the two columns beside it — is an
-app-local arrangement rather than the three-column shell, because that
+row and one less pronounced status bar bracketing the two columns beside it
+— is an app-local arrangement rather than the three-column shell, because that
 shell pins its top slot to a full navbar band and this window spends as
 little height on chrome as it can. The **resolver** is vault semantics
 rather than rendering: pure functions over the scanned index,
@@ -151,4 +151,4 @@ under `testdata/golden`. They shape with a deterministic font set, so
 they cannot drift with the host's installed fonts. The window's marks —
 the sidebar toggle, the disclosures, the two history controls — are not
 typeset at all: they come from the design system's icon set, so the
-goldens record the same ink the runtime draws.
+goldens record the same foreground the runtime draws.

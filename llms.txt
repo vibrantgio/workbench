@@ -56,8 +56,8 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      fallback does not supply one. The live stream wears it
                      via Typography.WithEmoji / EmojiTypography
   textdraw  v0.0.5   low-level glyph text drawing
-  backdrop  v0.0.4   solid colour fill widget
-  gradient  v0.0.4   linear gradient fill widget
+  backdrop  v0.0.4   solid colour fill component
+  gradient  v0.0.4   linear gradient fill component
   circle    v0.0.5   precise circle via Bezier
   style     v0.0.7   FROZEN: the old MD2 type scale and FontFaces();
                      superseded by theme/tokens Typography (§Typography)
@@ -102,7 +102,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      pagination, tabs, modal, alert, popover, tooltip,
                      toast, card, group, accordion, breadcrumb, hero,
                      feature, pricing, testimonial
-  markdown  v0.7.2   GFM document rendering on components widgets (subpackages:
+  markdown  v0.7.2   GFM document rendering on library components (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
                      images via vibrantgio/svg; obsidian — the Obsidian
                      dialect: frontmatter, wikilinks, block anchors)
@@ -145,7 +145,7 @@ older answer, they are gone, not deprecated:
     a `tokens.Density` wherever a control is sized. Drive components through
     their theme-driven entry points (button.Button, table.Table, …) and the
     theme supplies all of it for you;
-  - every cross-widget coordination bus cadence used to export:
+  - every cross-component coordination bus cadence used to export:
     popover.Arbitration, popover.ArbitrationSnapshot, tooltip.Arbitration,
     tooltip.ArbitrationSnapshot, modal.Stack, modal.StackSnapshot and
     toast.Notifications. toast.Notify still exists but takes a
@@ -173,14 +173,14 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
 
   ```
   github.com/vibrantgio/ivg/raster/gio        v0.1.8   Gio rasterizer +
-                                                       Widget() for IconVG
+                                                       gio.Widget() for IconVG
   github.com/vibrantgio/svg/driver/gio        v0.1.0   SVG -> Gio ops,
                                                        IconWidget()
   github.com/vibrantgio/svg/driver/raster     v0.1.0   SVG -> raster image
   github.com/vibrantgio/svg/driver/pdf        v0.0.7   SVG -> PDF
   github.com/vibrantgio/svg/driver/seen       v0.1.0   SVG -> seen scene
   github.com/vibrantgio/seen/context/gio      v0.0.9   Gio drawing context
-                                                       and widget for seen
+                                                       and gio.Widget() for seen
   github.com/vibrantgio/traer/gio             v0.0.9   Gio examples/render
                                                        for traer physics
   github.com/vibrantgio/kiwi/gio              v0.0.7   Gio layout on the
@@ -225,7 +225,7 @@ ordinary messages — no manual invalidate needed. File URLs are the one
 registered kind today; the kind parameter is MIME-shaped so other payloads
 can join without changing the surface. On non-mac platforms construction
 succeeds and nothing is ever delivered. The target rides mvu's ViewEvents
-stream to re-register whenever the native view is rebuilt, so it survives
+stream and re-attaches whenever the native view is rebuilt, so it survives
 option changes the same way the chrome does — and that stream is
 single-subscriber: constructing a DropTarget claims it, so an application
 using drops must not subscribe ViewEvents itself.
@@ -319,7 +319,7 @@ from your own goroutine.
 ### 2. Interaction state lives in rx.Defer closures
 
 State allocated inside an rx.Defer factory runs once per subscription and
-is captured by reference in the Map and widget closures below it:
+is captured by reference in the Map and layout.Widget closures below it:
 
   ```go
   rx.Defer(func() rx.Observable[layout.Widget] {
@@ -343,9 +343,9 @@ the other per-subscription state. It is sticky — a removed key's value
 is retained and reused if the key comes back; call Sweep(activeKeys) on
 a long-lived list with high churn.
 
-### 3. Widgets emit messages via MessageOp
+### 3. Components emit messages via MessageOp
 
-Inside any widget callback with a gtx, route events into the MVU loop
+Inside any layout.Widget callback with a gtx, route events into the MVU loop
 with:
 
   ```go
@@ -382,7 +382,7 @@ count (see feeds/wiring_test.go).
 
 ### 5. Animation self-schedules and idles
 
-Animated widgets tick their simulation inside the frame and request the
+Animated components tick their simulation inside the frame and request the
 next frame only while active:
 
   ```go
@@ -390,16 +390,16 @@ next frame only while active:
   if activity > 0.01 { gtx.Execute(op.InvalidateCmd{}) }
   ```
 
-Invalidation is window-global (every widget re-lays-out), so expensive
-widgets should cache ops when inputs are unchanged (components/cache).
+Invalidation is window-global (every component re-lays-out), so expensive
+components should cache ops when inputs are unchanged (components/cache).
 Respect reduced motion: while the OS preference is on, the theme's
 Motion observable emits zero durations and animated components snap to
 their targets — take durations and springs from the theme's MotionScale
 and the preference costs you nothing (§Motion).
 
-## Coordination between widgets
+## Coordination between components
 
-Two widgets that must agree — which popover is open, which modal is in
+Two components that must agree — which popover is open, which modal is in
 front, what the filter says, that a toast should appear — have exactly three
 places to do it, and `rx.Subject` is not one of them. Pick by asking who
 needs to know, not by how important it feels:
@@ -432,7 +432,7 @@ scope:
   popover.Popover(th, popover.Props{Arbiter: popArb, ...})
   ```
 
-  - A nil Arbiter is legal and means ARBITRATE ALONE — the widget gets one
+  - A nil Arbiter is legal and means ARBITRATE ALONE — the component gets one
     of its own. Two popovers that both forget one stay open together. There
     is no package-level default any more; sharing is an act.
   - popover.Props.OpenNow (`func() bool`) is read during layout, so a flag
@@ -468,8 +468,8 @@ content layer built from a patterns/shell:
   - patterns/shell: application shells in four variants — SidebarHeaderMain,
     SplitPane (draggable divider, either axis), ThreeColumn (resizable
     aside), StackedPage (pinned navbar over a shell-owned section scroll,
-    for marketing pages; sections are widget streams, ContentMaxWidth caps
-    the column).
+    for marketing pages; sections are layout.Widget streams, ContentMaxWidth
+    caps the column).
   - patterns/navbar + patterns/sidebar fill the shell's slots.
   - Content composes patterns/table (sortable/filterable/virtualised),
     patterns/tabs, patterns/card, patterns/group, patterns/pagination, ...
@@ -486,20 +486,20 @@ Suggestion is a generated prompt. One structure under all four —
 flag — one silhouette, one height (Density.ChipHeight, the density's control
 height less 4 dp).
 
-A chip is not a button at low prominence. A button is a fixture the author
+A chip is not a button at low prominence. A button is a fixture the developer
 places, always there, always offering the same action; a chip appears out of
 content and context, and a button's label stays a verb. MARKING A CHOICE IS
 THE FILTER CHIP'S JOB AND NO BUTTON'S, whatever the button's emphasis: the
 button's Filled/Tonal/Ghost variants are a colour axis and record no state.
 
 COLOUR ARRIVES WITH MEANING. The resting chip has no fill at all — it is the
-outline OutlineVariant around OnSurfaceVariant ink over the surface you name
-(Props.Level) — and a selected Filter chip fills with the secondary container
-and drops that outline. Both are derived against the surface the chip stands
-on rather than copied from a fixed tone, so a brandless palette yields a
-brandless chip. Props.Pin puts the chip on the leading or trailing edge of a
-box wider than it and reports the box, for the container that reserved a cap
-but cannot place the chip inside it itself.
+outline OutlineVariant around the OnSurfaceVariant foreground over the surface
+you name (Props.Level) — and a selected Filter chip fills with the secondary
+container and drops that outline. Both are derived against the surface the
+chip stands on rather than copied from a fixed tone, so a brandless palette
+yields a brandless chip. Props.Pin puts the chip on the leading or trailing
+edge of a box wider than it and reports the box, for the container that
+reserved a cap but cannot place the chip inside it itself.
 
 It is not components/badge, which is the system's own word
 about a thing — Neutral, Success, Warning, Error, Info — set at the size
@@ -535,17 +535,17 @@ spacing scale, named radius stops); never use string-keyed style maps. component
 (anchor Occupy reserves a right gutter, Overlay floats the bar over the
 trailing edge; default style from scrollbar.FromTokens).
 
-Effects components are explicit VARIANTS of components widgets, e.g.
+Effects components are explicit VARIANTS of library components, e.g.
 effects/springbutton wraps components/button with physics-driven press/release —
 opt in per call site, never a global decorator.
 
-Widget closures that run outside any rx scope (static component slots,
-table cell closures, navbar widgets) cannot subscribe the theme lazily —
+layout.Widget closures that run outside any rx scope (static component slots,
+table cell closures, navbar slots) cannot subscribe the theme lazily —
 they would miss the current emission. The reference apps solve this with a
 small adapter that subscribes the theme's token streams once into an
 atomic cell and hands frame-time code a loader func: see mirrorTokens in
 workbench feeds/app.go, and the same hand-off in vaultview; sitedocs
-stores whole tab-content widgets through the same kind of cell for its
+stores whole tab-content layout.Widgets through the same kind of cell for its
 static tab slots.
 
 ## Colour: one seed, ramps, pins, step walks
@@ -581,7 +581,7 @@ where THE STEP IS THE MEANING: 100–300 tinted fills, hovers and subtle
 borders; 500 the mid reference and strong border; 700–900 text over
 tinted fills and pressed states. Light and dark are PAIRED scales: the
 same step keeps the same job in both modes, so neutral 200 is a light
-card on a light ground and a dark card on a dark one — there is no
+card on a light surface and a dark card on a dark one — there is no
 second table and no dark-mode special case.
 
 ### Pins
@@ -593,28 +593,28 @@ guaranteed readable over it. Background and Text are pins too.
 
 ### The semantic layer
 
-Background (app ground), Surface (card — neutral 200), Divider (subtle
-border — neutral 300), Text (body text over Background). Reach for
+Background (the window's backdrop), Surface (card — neutral 200), Divider
+(subtle border — neutral 300), Text (body text over Background). Reach for
 these first; reach into the ramps when you need a specific step.
 
-### Ink versus fill
+### Foreground versus fill
 
-A PIN IS SAFE AS A FILL AND UNPROVEN AS AN INK. FromSeed guarantees
+A PIN IS SAFE AS A FILL AND UNPROVEN AS A FOREGROUND. FromSeed guarantees
 every pin's On* colour reads over it — that direction is solved — but
-says nothing about the pin drawn ON a ground instead of under one, and
+says nothing about the pin drawn ON a surface instead of under one, and
 only the light Primary pin can actually fail there: the rest sit at
 fixed perceptual depths that always clear. Whenever a brand colour is
-the ink rather than the fill — a link, a blockquote's bar, a
+the foreground rather than the fill — a link, a blockquote's bar, a
 task-list tick (§Markdown has the checkbox split) — derive it instead
 of reading the pin raw:
 
   ```go
-  ink  := c.InkOn(tokens.RolePrimary, ground, tokens.TextFloor)    // words, 4.5:1
-  mark := c.InkOn(tokens.RolePrimary, ground, tokens.GraphicFloor) // a mark, 3:1
+  fg   := c.InkOn(tokens.RolePrimary, surface, tokens.TextFloor)    // words, 4.5:1
+  mark := c.InkOn(tokens.RolePrimary, surface, tokens.GraphicFloor) // a mark, 3:1
   ```
 
 InkOn returns the pin untouched once it already clears the floor
-against ground, so the canonical brand — which always clears — comes
+against that surface, so the canonical brand — which always clears — comes
 back unchanged; only a pale seed's Primary pin ever walks the ramp
 instead. None of this touches a pin used as a FILL: with something
 else drawn on top of it, c.Primary is already entitled to be its own
@@ -623,12 +623,12 @@ measured against, not the other way round.
 
 ### States are step walks, not alpha overlays
 
-Hover is one step past the component's ground,
+Hover is one step past the component's own fill,
 pressed/selected/dragged two, clamped at 900 — resolved by StateColor
 (tinted surfaces) and SolidStateColor (pinned fills, which walk toward
 the 900 depth). Disabled is an opacity (tokens.Disabled, MD3's 38%).
 Focus keeps the surface and strokes a ring in the primary hue, walked
-rather than named: the rung of the primary ramp nearest that ramp's
+rather than named: the step of the primary ramp nearest that ramp's
 mid-value step which clears 3:1 against every level at once. That is
 ONE RING COLOUR PER SCHEME, and it does not depend on where the control
 stands — the same purple on the paper, on a card, in a dialog and in a
@@ -655,7 +655,7 @@ fixed step measures 2.35:1 on a surface, 1.42:1 three levels up, and
 ### The generator guarantees contrast
 
 The generator guarantees contrast in APCA terms, in both modes: step 900
-reaches Lc 90 and step 700 Lc 60 over the 100/200 grounds, and every pin's
+reaches Lc 90 and step 700 Lc 60 over the 100/200 surfaces, and every pin's
 On* colour reaches Lc 60 over its pin. So neutral 900 on Surface is always
 body-text safe and neutral 700 always label-safe — by construction, not by
 review. (WCAG 2 ratios are reported alongside but do not gate; APCA is the
@@ -785,16 +785,16 @@ Because the ramps are paired, a surface tints per scheme with no second
 rule — dark-mode surface tint, the thing MD3's tonal elevation existed to
 encode, falls out for free. WHICH WAY a surface moves is not the pairing's
 to decide: a surface nearer the viewer is lighter, in BOTH schemes, which
-is the window-anatomy rule below and what the steps in the table answer
+is the window-structure rule below and what the steps in the table answer
 to. State
-walks compose on top with the level's OWN FILL as the ground:
+walks compose on top with the level's OWN FILL as the surface under them:
 c.StateAt(level, state) answers a level's hover and active, walking from
 the fill SurfaceAt gives rather than from a ramp index — so a control at
 the chrome level has an answer as much as one on a
 card. Ghost buttons obey the same rule from their HOST surface's
-rung: button Props carry a Level elevation level (zero value — the window
-ground, so existing call sites keep their colors), and the ghost hover and
-press washes walk one rung from that local ground rather than from the
+step: button Props carry a Level elevation level (zero value — the window's
+own surface, so existing call sites keep their colors), and the ghost hover
+and press fills walk one step from that local surface rather than from the
 window's. Without it, a ghost control on a level-2 surface would hover to
 the very color it sits on and disappear. The patterns that put ghost
 controls on raised surfaces — modal's close X, popover, toast — pass their
@@ -810,7 +810,7 @@ place, which reads as raised by its surface step alone. The cost backs the
 rule: a depth.Shadow is nine paint ops per frame, a surface step is one
 FillShape. Do not add a shadow to a card.
 
-## Window anatomy: which region wears which rung
+## Window structure: which region wears which step
 
 Elevation says how high a surface stands. This says WHICH PART OF A
 WINDOW STANDS WHERE — the assignment every app used to re-derive, some of
@@ -820,7 +820,7 @@ THE ONE RULE: in BOTH schemes, a surface nearer the viewer is LIGHTER.
 There is no second rule for dark mode and no mirror. Elevation reads as
 elevation because a surface nearer the viewer catches more light, and
 reflectance does not invert when the room goes dark; what a dark scheme
-inverts is the ink, which the paired ramps already handle.
+inverts is the foreground, which the paired ramps already handle.
 
 The consequence that reorganises everything else: CHROME IS A LEVEL OF ITS
 OWN, UNDER THE CONTENT rather than above it. A sidebar stands beside the
@@ -848,17 +848,17 @@ Measured, so you can check it yourself. A desktop application in both
 appearances: sidebar 251,251,249 → content 252,252,251 → composer
 255,255,255 in light, sidebar 17,17,17 → content 21,21,21 → composer
 32,32,31 in dark. The platform's own settings window in dark: sidebar
-#1C2123 under content ground #23292C under setting cards #2A2F32, with a
+#1C2123 under content surface #23292C under setting cards #2A2F32, with a
 search field raised on the sidebar at #2F3233. Monotonic in every one of
 them, in the same direction. Note the sizes: in the light scheme the steps
 are fractions of an L* and the derived hairlines do the visible separating,
 so do not expect a light window's levels to stand far apart.
 
-  - THE PAPER IS THE CONTENT GROUND, AT LEVEL 0. The largest resting
+  - THE PAPER IS THE CONTENT SURFACE, AT LEVEL 0. The largest resting
     expanse, the thing the window exists to show, fills with the Background
     pin — c.SurfaceAt(tokens.Level0). That is why level 0 is a
-    sentinel rather than a ramp step and why a button's Level prop calls
-    its zero value the window ground.
+    sentinel rather than a ramp step and why a button's Level prop takes
+    the window's own surface as its zero value.
   - FURNITURE IS THE CHROME LEVEL, ONE MEASURED STEP UNDER THE CONTENT.
     Sidebars, asides, rails, toolbars and inspectors fill DARKER than the
     content — one step below it, in BOTH schemes, because they stand under
@@ -871,7 +871,7 @@ so do not expect a light window's levels to stand far apart.
     TWO SCHEMES DO NOT MEASURE THE SAME. A light window separates its
     furniture by about 4.9 L* — which is also the neutral ramp's own first
     surface interval, so the light chrome level lands on neutral 200 — and a dark
-    window by a whisper, about 1.5: the platform's voice recorder puts its
+    window by a whisper, about 1.5: the platform's Voice Memos puts its
     sidebar panel at #1B1B1B under #1E1E1E content, a reference chat
     application 1.71 L*, the platform's settings window 3.81 with its
     wallpaper tint on. A full ramp step in the dark scheme is nearly 5 L*
@@ -922,19 +922,19 @@ so do not expect a light window's levels to stand far apart.
     exists to say. An inset inside a body that is FILLED — a code fence, a
     callout with a surface — steps UP from the paper it lies on rather than
     reaching for an absolute step, and UP means LIGHTER in both schemes. An
-    inset that is MARKED instead — a blockquote's bar and muted ink, a
-    rule — stands off its page by contrast, owes no rung and gets none; the
+    inset that is MARKED instead — a blockquote's bar and a muted foreground,
+    a rule — stands off its page by contrast, owes no step and gets none; the
     levels are for fills. The content answers differently, because the
     Background pin is off the ramp and has no step to walk from: draw a
     raised thing on the content at the level above the pin —
     c.SurfaceAt(tokens.Level1) — and start its state walk there. And a
-    shared surface takes its ground as a parameter, because it cannot know
+    shared surface takes its host surface as a parameter, because it cannot know
     it: a pattern that paints a plane and then a band over it — a table's
     grid and its header, a tab panel and its strip — walks that band from
     the plane's own level, never from an absolute step, which is right only
     for as long as every caller happens to rest where it was written.
   - A FILLED INSET IS RAISED, NEVER A RECESSED WELL. There is no
-    recessed class: the only test the system has for what owes a rung is
+    recessed class: the only test the system has for what owes a step is
     FILLED versus MARKED, and it already puts the fence among the fills. So
     a fenced code block is LIGHTER than the page it lies on in both schemes,
     with its hairline border and its corner radius carrying the visible
@@ -946,16 +946,16 @@ so do not expect a light window's levels to stand far apart.
     and lighter in dark is a step taken in whichever direction the scheme
     had room for, and a text well drawn at the scale's extreme in each
     appearance is a convention about where content lives. If a fence receded
-    while a card rose, one page would show two directions from one ground
+    while a card rose, one page would show two directions from one surface
     and THE CHECK below would stop being decidable by looking.
   - WHAT IS CHOSEN IS TINTED; WHAT IS TRANSIENT IS A NEUTRAL WALK. The item
     the window is currently showing — the open note, the open conversation —
     fills from c.Ramps.Primary.Step(300). Hover, pressed and the keyboard
-    cursor stay neutral step walks over the region's own ground. A list has
+    cursor stay neutral step walks over the region's own fill. A list has
     to show a cursor and a current item at once without the two colliding: a
     neutral fill says something happened here, a tinted one says this is the
     one you are looking at.
-  - THE TITLEBAR WEARS THE GROUND OF THE REGION IT CAPS. Never leave an
+  - THE TITLEBAR WEARS THE FILL OF THE REGION IT CAPS. Never leave an
     unpainted native strip above a painted window. Where the platform allows
     it, take desktop.FullSizeContent() and let the capped region's own fill
     reach the window's top edge; where it does not, paint your own band in
@@ -1006,7 +1006,7 @@ so do not expect a light window's levels to stand far apart.
     grammar inverted somewhere.
 
 None of this needs a token that does not already exist. A window that
-cannot be dressed from the vocabulary above is a window whose anatomy is
+cannot be dressed from the vocabulary above is a window whose structure is
 wrong, not a token set that is short.
 
 workbench/vaultview is the window the grammar was read off: frame.go fills
@@ -1153,13 +1153,14 @@ component.
 TextStyle.LineHeight is the height of the
 line box, the CSS meaning, and handing it to gioui.org/widget.Label does NOT
 produce that. Gio baselines the first line at its own ascent and spends the
-line height only on the gap to the next, and widget.Label reports glyph ink as
-its size — so a MaxLines:1 label, which nearly every control is, measures the
-same at any line height at all, and wrapped text lands one deficit short of a
-whole multiple. Draw text through theme/typeset instead: typeset.Font(style,
-fallback) builds the font.Font, typeset.Label(style, maxLines) the widget.Label
-with the line height installed, and typeset.Layout(gtx, shaper, lbl, f, size,
-txt, material) lays it out and pads the result to the line box. That is also
+line height only on the gap to the next, and widget.Label reports the glyphs'
+drawn extent as its size — so a MaxLines:1 label, which nearly every control
+is, measures the same at any line height at all, and wrapped text lands one
+deficit short of a whole multiple. Draw text through theme/typeset instead:
+typeset.Font(style, fallback) builds the font.Font, typeset.Label(style,
+maxLines) the widget.Label with the line height installed, and
+typeset.Layout(gtx, shaper, lbl, f, size, txt, material) lays it out and pads
+the result to the line box. That is also
 why a control's drawn height is max(Density.ControlHeight, lineBox +
 2*PaddingY): ControlHeight is a FLOOR, not a height, and a Comfortable text
 field (BodyLarge, 24 dp line box) draws 40 dp against that 36 dp floor while a
@@ -1244,9 +1245,9 @@ DeterministicShaper pin the default.
 
 ## Markdown documents
 
-github.com/vibrantgio/markdown renders GitHub-flavoured markdown as components
-widgets — use it for docs pages, help screens, and chat message bodies
-instead of hand-coding text layouts:
+github.com/vibrantgio/markdown renders GitHub-flavoured markdown through the
+components library — use it for docs pages, help screens, and chat message
+bodies instead of hand-coding text layouts:
 
   ```go
   blocks := markdown.Parse(src)          // goldmark+GFM AST → block model
@@ -1264,7 +1265,7 @@ doc.LayoutColumn(...) lays out at natural height with no internal scroll —
 use it inside an outer scrolling context (a chat row, a card); Layout's own
 viewport would fight the outer one.
 
-  - Constructs: headings set in the Typography's DocumentHeadings ladder
+  - Constructs: headings set in the Typography's DocumentHeadings ramp
     rather than in the screen roles (§Typography), richtext paragraphs,
     nested lists, task-list checkboxes, strikethrough, blockquote bars,
     rules, and GFM
@@ -1275,9 +1276,9 @@ viewport would fight the outer one.
     Parse produced (same pointer; MarkerOffset is the opening '[' in
     that source). The library does not write files.
   - Checkbox colour splits across two fields because the two states
-    draw on different grounds: Style.CheckboxBorder strokes the open
+    draw on different surfaces: Style.CheckboxBorder strokes the open
     box against the page and is gated to GraphicFloor like any other
-    ink (§Colour); Style.CheckboxFill is the closed box's solid fill
+    foreground (§Colour); Style.CheckboxFill is the closed box's solid fill
     and takes the brand colour ungated, because it is
     Style.CheckmarkColor's tick that reads against it, not the page.
   - Code renders in the theme's mono face: FromTokens resolves Style.Mono
@@ -1301,10 +1302,10 @@ viewport would fight the outer one.
     FromTokens.
   - Images: paragraph-sole ![alt](url) blocks only; the library performs NO
     I/O. Set style.Images to an ImageProvider (raster pixels) and/or a
-    WidgetImageProvider (vector widgets); markdown/svgimage serves .svg
-    destinations from a caller fs.FS (go:embed assets) as crisp vector
-    widgets via vibrantgio/svg. Unknown destinations fall back to italic
-    alt text — mindchat uses exactly this to bundle provider icons
+    WidgetImageProvider (vector art as a layout.Widget); markdown/svgimage
+    serves .svg destinations from a caller fs.FS (go:embed assets) as crisp
+    vector layout.Widgets via vibrantgio/svg. Unknown destinations fall back
+    to italic alt text — mindchat uses exactly this to bundle provider icons
     (assets/openai.svg) while remote URLs stay network-free.
   - Working consumers: sitedocs (renders this guide whole as one
     document, with an outline tree scrolling it via ScrollToBlock — the
@@ -1440,12 +1441,12 @@ mindchat/assets.go for the embedded-asset pattern).
 
 Reach for the set first where it carries the mark, and use the Material
 catalogue freely everywhere else: an icon that may be replaced later beats
-no icon, and a Material glyph swaps out behind the same widget when the set
+no icon, and a Material glyph swaps out behind the same call site when the set
 grows a mark for it. Do not plumb shiny icons into components/button
 Props.Icon — that field wants the painter func(gtx, sizePx, col) the set
-returns, not a widget; keep IVG icons in your own clickable until an adapter
-exists. Patterns draws its built-in chevrons/X with hand-coded clip paths on
-purpose (golden determinism); leave those alone.
+returns, not a layout.Widget; keep IVG icons in your own clickable until an
+adapter exists. Patterns draws its built-in chevrons/X with hand-coded clip
+paths on purpose (golden determinism); leave those alone.
 
 ## Pitfalls in an application (each caused a real bug in the example apps)
 
@@ -1461,7 +1462,7 @@ purpose (golden determinism); leave those alone.
   must flow from the Model, not be captured as static ints.
 - Radius tokens: tokens.Radius.Full is a 9999 dp pill sentinel and Gio's
   clip.RRect does not clamp — pass it raw and paint sprays across the
-  canvas. Use components/layout.Pill, which clamps to min(w,h)/2.
+  window's plane. Use components/layout.Pill, which clamps to min(w,h)/2.
 - theme/system.LiveTheme polls the OS. The reference apps pass one
   second; the appearance stream is cold today — each subscriber runs its
   own poll loop — so wire LiveTheme once per window and let the theme
@@ -1519,11 +1520,11 @@ them without the caveats older guides carried:
 START HERE: the minimal complete app (~700 lines) — the canonical
 bootstrap, pure testable reducers (redux_test.go), components
 button/checkbox/list, a modal dialog, live light/dark; theme.go is the
-minimal token-adapter recipe (PaletteFrom resolving the window anatomy
-above in one function — the list is the content ground so it wears level 0
+minimal token-adapter recipe (PaletteFrom resolving the window structure
+above in one function — the list is the content surface so it wears level 0
 and paints no surface at all, the dialog over it takes level 2 and the
 field inside the dialog level 3 — plus TypeFrom picking Typography roles),
-and window_render_test.go is the smallest example of asserting those rungs
+and window_render_test.go is the smallest example of asserting those levels
 off a headless frame instead of off the palette that meant them
 
 ### iconbrowser/
@@ -1592,7 +1593,7 @@ writes the chosen seed through theme/brand, which is where the other apps
 read it from. The page under the row is four tabs over patterns/tabs,
 drawn in the palette being judged rather than the window's: Theme — this
 seed's ramps and named picks with where each colour came from, and the
-type ladder — then Components, Patterns and Markdown, one per group of
+type ramp — then Components, Patterns and Markdown, one per group of
 the components/gallery/inventory catalogue, with the syntax-base list
 riding in the code specimen's own row on the last of them. The tab and
 its scroll position survive a pick, and the catalogue is parsed once for
@@ -1604,7 +1605,7 @@ The documentation app, five tabs over patterns/tabs: Docs — this guide
 (llms.txt) rendered whole by vibrantgio/markdown, its ##/### outline as
 a tree whose rows scroll the document (ScrollToBlock); Theme — the
 palette story, opening with the colour the palette grew from and going
-on to the ramps grid, the named picks and the type ladder, following the
+on to the ramps grid, the named picks and the type ramp, following the
 live theme; then Components, Patterns and Markdown, one
 per group of the components/gallery/inventory catalogue, as live
 controls. A tab showing a single group drops that group's banner, and
@@ -1636,8 +1637,8 @@ The one write is a GFM task marker: OnTaskClick splices `[ ]` ↔ `[x]` in
 the file before the handler returns, and nothing else is writable. Also
 the reference for adopting a kept brand: one theme.LiveTheme option, and
 the same value seeding mirrorTokens' first cell. And the window the
-surface-rung grammar was read off: a Background ground running to the top
-edge under the full-size-content treatment, panes raised one rung to
+surface-step grammar was read off: a Background fill running to the top
+edge under the full-size-content treatment, panes raised one step to
 Surface, the current note a Primary tint against a neutral cursor.
 
 DESIGN.md lives in github.com/vibrantgio/design if you want the
