@@ -134,13 +134,13 @@ func chromeSurface(c tokens.ColorTokens) color.NRGBA {
 	return c.SurfaceAt(tokens.LevelChrome)
 }
 
-// paneSeam is the ink of the rail pane's own edge — the vocabulary's, and
+// paneSeam is the colour of the rail pane's own edge — the vocabulary's, and
 // this window's only because the rail is a floating pane. The derivation is
 // the pattern's: a measured platform whisper off the fill it is drawn on,
-// stepped toward the scheme's own ink and realized at the fill's own hue
+// stepped toward the scheme's own foreground and realized at the fill's own hue
 // and chroma, so the edge carries whatever tint the palette carries and
 // none of its own. It is named here so that this window's own tests can
-// read the ink the window actually draws.
+// read the colour the window actually draws.
 func paneSeam(c tokens.ColorTokens) color.NRGBA {
 	return pane.SeamInk(c)
 }
@@ -392,11 +392,11 @@ func trailSegments(places []place, click func(path string) func(gtx layout.Conte
 // The separator is punctuation, not a control: it stands between the labels
 // rather than beside them, so it is the smallest mark in its row and has to
 // stay under the caps of the text it divides. The size is measured, not
-// chosen. The separator's ink fills its square's full height, so the square
-// is the ink height: at eight dp it stands four fifths of the labels' caps,
-// and under the history controls at the row's head in both height and ink,
-// which is the order the row reads in. A mark's size here would put solid
-// ink a fifth over those caps.
+// chosen. The separator's stroke fills its square's full height, so the square
+// is the stroke height: at eight dp it stands four fifths of the labels' caps,
+// and under the history controls at the row's head in both height and weight,
+// which is the order the row reads in. A mark's size here would put a solid
+// stroke a fifth over those caps.
 //
 // Eight is also the gap the row leaves either side of it, so the separator
 // and its air are one square wide apiece, and it lands on whole device

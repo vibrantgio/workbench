@@ -216,8 +216,8 @@ func TestPreviewIsBounded(t *testing.T) {
 // must lead with: a small share of the frame, and the only vivid thing in it.
 var sceneAccent = stdcolor.NRGBA{R: 0xe8, G: 0x11, B: 0x2d, A: 0xff}
 
-// scene paints a picture with no flat regions: a graded sky over a graded
-// ground, with one vivid patch. It stands in for a photograph without one
+// scene paints a picture with no flat regions: a graded sky over graded
+// terrain, with one vivid patch. It stands in for a photograph without one
 // being stored — a stored photograph is a palette nobody can check.
 func scene(w, h int) *image.NRGBA {
 	img := image.NewNRGBA(image.Rect(0, 0, w, h))

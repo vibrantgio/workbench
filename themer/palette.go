@@ -54,9 +54,9 @@ import (
 // colours that section draws its own furniture with, and no more.
 //
 // The window's palette names more than that — a selection fill, a card edge,
-// an accent and the ink over it — and none of them is a colour the story has
-// any business reading. Handing over four fields rather than the whole value
-// is what keeps that true by construction: a colour the window adds later
+// an accent and the foreground over it — and none of them is a colour the story
+// has any business reading. Handing over four fields rather than the whole
+// value is what keeps that true by construction: a colour the window adds later
 // cannot silently start appearing inside a section that never asked for it.
 func (p Palette) story() palette.Chrome {
 	return palette.Chrome{
@@ -88,9 +88,9 @@ func PaletteRows(p Palette, c, other tokens.ColorTokens, ty Type, dark bool) []l
 }
 
 // paletteHeading is the section's heading band, which the seed row above the
-// story and the type ladder below it wear as well: one band for the whole
+// story and the type scale below it wear as well: one band for the whole
 // column, so a reader meets one kind of heading between the seed and the
-// ladder rather than three.
+// scale rather than three.
 func paletteHeading(p Palette, c tokens.ColorTokens, ty Type, title, hint string) layout.Widget {
 	return palette.Heading(p.story(), c, ty.story(), title, hint)
 }

@@ -52,7 +52,7 @@ var (
 	windowCanvasSize = image.Pt(windowW, windowH)
 	// goldenRadius is the radius scale every static render lays out from,
 	// and it is the shipped one, so the golden carries the field the live
-	// rail wears. The parameter reaches exactly one widget, the rail's find
+	// rail wears. The parameter reaches exactly one component, the rail's find
 	// field; everything else rounded in this window reads a module-local
 	// constant or the tokens.Radius global.
 	goldenRadius = tokens.Radius
@@ -133,7 +133,7 @@ var themeCases = []struct {
 //
 // No mark in the window is typeset: the history controls and the
 // disclosures are drawn from the design system's set, so the goldens
-// record the same ink the runtime shows whatever faces the host carries.
+// record what the runtime shows whatever faces the host carries.
 func TestNotePageGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
@@ -273,7 +273,7 @@ func TestNoteScrollbarGolden(t *testing.T) {
 //
 // The gutter is the column's last ten dp — the bar reaches the edge, where
 // the platform puts it, and every other row stops a reading margin short of
-// it — and the probe takes the foot of that strip, which no note's own ink
+// it — and the probe takes the foot of that strip, which no note's own text
 // can reach.
 func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
@@ -425,8 +425,8 @@ func TestVaultWindowArrivalGolden(t *testing.T) {
 // requires everything along the top of it to be on one line: the line the
 // window's control buttons centre on. The vault's name, the toggle in the
 // pane's own strip, and the toggle the chrome row shows once the pane is
-// away — all three are measured as ink, off the composed image, so that a
-// placement agreeing with its own arithmetic but not with the picture
+// away — all three are measured as painted pixels, off the composed image, so
+// that a placement agreeing with its own arithmetic but not with the picture
 // fails here.
 //
 // The buttons themselves are the platform's and draw nothing headlessly,
@@ -440,7 +440,7 @@ func TestVaultWindowArrivalGolden(t *testing.T) {
 //
 // A dp of slack, and no more: the label is a line box centred on the
 // line, and a line box reserves room under the baseline for descenders
-// that "Second Brain" does not spend, which puts its ink one row high of
+// that "Second Brain" does not spend, which puts its glyphs one row high of
 // the marks beside it.
 func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
@@ -458,9 +458,9 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			level := func(what string, top, bot int) {
 				t.Helper()
 				if top < 0 {
-					t.Fatalf("%s leaves no ink in the window's top band", what)
+					t.Fatalf("%s paints nothing in the window's top band", what)
 				}
-				// Ink rows are counted inclusive, so the middle of a span
+				// Painted rows are counted inclusive, so the middle of a span
 				// is half a row past its last row's top edge.
 				line := float64(windowButtons.Center)
 				if c := float64(top+bot+1) / 2; c < line-1 || c > line+1 {
@@ -470,7 +470,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			}
 
 			img, st := shot(shown)
-			// The note's first ink is a full margin below the chrome row,
+			// The note's first painted row is a full margin below the chrome row,
 			// so the band above that is the row's alone to have marked. The
 			// row starts at the same place in both rail states, which is
 			// its own assertion elsewhere.
@@ -482,9 +482,9 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// The pane's own toggle stands on the pane's surface, in the
 			// square at the trailing end of its strip. The last few columns
 			// of that square are left out: the pane's rounded corner is
-			// there, and the ground showing round it is not the toggle. The
+			// there, and the surface showing round it is not the toggle. The
 			// pane's own edge is left out the same way — its first row is
-			// the internal hairline that says the pane is an object, ink on
+			// the internal hairline that says the pane is an object, a line on
 			// the pane's fill and not a mark this is measuring.
 			strip := st.geom.pane.Min.Y + paneStripDp
 			toggleX := st.geom.pane.Max.X - railMarginDp - treeHideBoxDp
@@ -513,14 +513,14 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 
 // TestTheTrailingColumnKeepsOneEdge reads the trailing column off the
 // composed window and requires everything down it to agree on where the
-// column's ink stops. A marked row's fill, and the hairline parting the
+// column's drawing stops. A marked row's fill, and the hairline parting the
 // two panes, are measured as pixels rather than computed from the
 // constants that placed them, so that edges agreeing with their own
 // arithmetic but not with each other fail here.
 //
 // The bar is measured against the note's, which is the same bar: the two
 // stand at the trailing edge of the two columns a reader reads between and
-// keep one distance from the ground each stands on — the note's paper
+// keep one distance from the surface each stands on — the note's paper
 // gives way to this column's surface, and this column's surface gives way
 // to the window's own edge.
 func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
@@ -599,7 +599,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			}
 
 			if want := asideX + asideInsetDp; pillLo != want || ruleLo != want {
-				t.Errorf("the column leads with the mark at %d and the hairline at %d; one ink margin, at %d",
+				t.Errorf("the column leads with the mark at %d and the hairline at %d; one margin, at %d",
 					pillLo, ruleLo, want)
 			}
 			if pillHi != ruleHi {
@@ -618,7 +618,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 				t.Errorf("the bar stands %d px off the mark beside it, want %d", got, railMarginDp)
 			}
 			// The note's own bar, in the margin its column keeps: the only
-			// ink out there past the prose, which stops a whole page inset
+			// thing drawn out there past the prose, which stops a whole page inset
 			// short of the columns scanned.
 			noteLo, noteHi := span(asideX-noteInsetDp, asideX, func(c color.RGBA) bool {
 				return !is(c, tc.colors.Background)
@@ -638,9 +638,9 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 }
 
 // inkRows answers the first and last row inside the given box that carry
-// anything other than the ground colour, or -1, -1 for a box of bare
-// ground. Alpha is left out of the comparison: what is drawn over the
-// ground is opaque by the time it is captured.
+// anything other than the surface colour, or -1, -1 for a box of bare
+// surface. Alpha is left out of the comparison: what is drawn over the
+// surface is opaque by the time it is captured.
 func inkRows(img *image.RGBA, ground color.NRGBA, x0, x1, y0, y1 int) (int, int) {
 	top, bot := -1, -1
 	for y := y0; y < y1; y++ {
@@ -659,12 +659,12 @@ func inkRows(img *image.RGBA, ground color.NRGBA, x0, x1, y0, y1 int) (int, int)
 
 // TestThePaneEdgeIsCleanBesideTheToggle reads the pixels immediately
 // past the pane's trailing edge and requires every one of them to be the
-// ground the window is painted on. Nothing the pane draws — its tint,
+// backdrop the window is painted on. Nothing the pane draws — its tint,
 // its shadow, its strip or the toggle at the end of that strip — may
 // leave a mark outside the pane's own fill.
 //
 // The whole column is read rather than a band of it, which catches both
-// halves: ink where there should be none, and ink that stops where nothing
+// halves: paint where there should be none, and paint that stops where nothing
 // changes.
 //
 // Both appearances, because a shadow is an alpha over whatever is under it
@@ -707,7 +707,7 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 				for x := edge; x < edge+past && x < windowW; x++ {
 					for y := 0; y < windowH; y++ {
 						if c := img.RGBAAt(x, y); c.R != ground.R || c.G != ground.G || c.B != ground.B {
-							t.Errorf("%s: (%d,%d) is %v, one column past the pane's edge at x=%d; want the ground %v",
+							t.Errorf("%s: (%d,%d) is %v, one column past the pane's edge at x=%d; want the backdrop %v",
 								when, x, y, c, edge, ground)
 							return
 						}
@@ -774,7 +774,7 @@ func windowScene(w layout.Widget, c tokens.ColorTokens) layout.Widget {
 	return scene(w, c.SurfaceAt(tokens.LevelBackdrop))
 }
 
-// scene paints a fill behind the widget, so a transparent render is
+// scene paints a fill behind the layout.Widget, so a transparent render is
 // visible in the stored image rather than reading as black.
 func scene(w layout.Widget, bg color.NRGBA) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {

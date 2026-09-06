@@ -101,7 +101,7 @@ type Model struct {
 	// under the moon. They start on whatever was kept, so a window opens
 	// showing the code the way the last one left it.
 	//
-	// Two of them because a syntax palette is fitted to a ground, so the
+	// Two of them because a syntax palette is fitted to a background, so the
 	// two appearances of one theme are two choices. Picking under the sun
 	// moves one and picking under the moon the other; the scheme control
 	// moves neither, and switches which is applied.
@@ -116,10 +116,10 @@ type Model struct {
 type BaseOption struct {
 	Name  string
 	Added bool
-	// Light and Dark are measured off the style's own ground, once, when the
+	// Light and Dark are measured off the style's own background, once, when the
 	// list is built — the answer cannot change while the window is open, and
 	// measuring seventy-four backgrounds per frame to learn that would be a
-	// waste of a frame. A style fitted to no ground of its own carries both.
+	// waste of a frame. A style fitted to no background of its own carries both.
 	Light bool
 	Dark  bool
 }

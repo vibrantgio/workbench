@@ -14,11 +14,11 @@
 //
 // The sidebar is a floating pane: inset from the window's leading, top and
 // bottom edges by one margin, rounded on all four corners, with the
-// window's ground showing around it. The float, the outline, the strip's
+// window's backdrop showing around it. The float, the outline, the strip's
 // arithmetic, the hidden-takes-no-width contract and the recall convention
 // are patterns/pane's; what is left here is the column that stands in it.
 // No band crosses above the pane. Its toggle sits at its top-right corner
-// with the strip's empty middle moving the window; the slivers of ground
+// with the strip's empty middle moving the window; the slivers of backdrop
 // the margin reveals claim no drag, since a move action there would promise
 // a handle too thin to hit. The vault's own actions live at the pane's
 // foot. Hidden, the pane takes no width at all and the note column reflows
@@ -38,10 +38,10 @@
 // content hangs below the row's own height into the margin the note column
 // keeps above its first line; the row spends no extra height for it.
 //
-// The window's ground is the same paper the note column lies on, so the
+// The window's fill is the same paper the note column lies on, so the
 // note draws no edge of its own and the chrome row sits on the document
 // rather than on a band above it. Both of the window's edges are furniture
-// standing on the same floor, a measured step under the paper in either
+// drawn at the same level, a measured step under the paper in either
 // scheme, but they are two different kinds. Leading, the sidebar is a
 // FLOATING PANE: a button slides it out of the window, so it is an object,
 // and it carries its own hairline just inside its rounded edge. Trailing,
@@ -52,7 +52,7 @@
 // Both boundaries paint one hairline running the window's whole height: the
 // platform does not exempt its top band from a split seam, and a seam that
 // stopped at a band would say the window is divided in one place and joined
-// in another. The movable seam thickens and takes a firmer ink while a hand
+// in another. The movable seam thickens and takes a firmer colour while a hand
 // is in the grab band, which is the one thing a resting edge cannot say.
 //
 // Under the full-size-content treatment the content extends behind the
@@ -208,8 +208,8 @@ func (f *frameState) toolbarLeading() unit.Dp {
 
 // vaultFrame composes the vault screen from its three column streams and
 // the model: a toolbar row over the columns. All three columns arrive as
-// widget streams so a theme change re-renders them; the toolbar reads the
-// token and model snapshots at frame time.
+// layout.Widget streams so a theme change re-renders them; the toolbar reads
+// the token and model snapshots at frame time.
 func vaultFrame(
 	loadModel func() Model,
 	loadTok func() themeTokens,
@@ -229,16 +229,16 @@ func vaultFrame(
 
 // renderWindow is the static counterpart of the whole vault window, used
 // by the window golden: the chrome row over the rail pane, the note
-// column and the backlinks aside, all with fresh widget state, laid out
-// once from pre-resolved tokens and processing no events. It is the only
+// column and the backlinks aside, all with fresh widget.Clickable state, laid
+// out once from pre-resolved tokens and processing no events. It is the only
 // renderer in this package that composes rather than filling one slot.
 //
 // The leading inset is a parameter and not a measurement here, for the
 // reason [frameState.leading] gives: the value the live row lays out
 // from belongs to a window this render does not have.
 //
-// The frame is returned beside the widget so that what a render arranged
-// can be read back once the widget has run — the chrome budget is measured
+// The frame is returned beside the layout.Widget so that what a render
+// arranged can be read back once it has run — the chrome budget is measured
 // off the same composition the golden stores, not off a second one built to
 // be measured.
 func renderWindow(
@@ -273,7 +273,7 @@ func renderWindow(
 //
 // Only the content area has a chrome row and a status bar. The pane floats
 // one margin inside the window's leading, top and bottom edges, so the
-// only thing above it is that margin of ground and the only thing below it
+// only thing above it is that margin of backdrop and the only thing below it
 // the same: no band at either end, and nothing else to measure.
 type frameGeom struct {
 	pane     image.Rectangle
@@ -403,9 +403,9 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		st := op.Offset(image.Pt(g.contentX, g.rowTop)).Push(gtx.Ops)
 		// What the chrome row's content hangs below the row is clipped out
 		// of the note, which is drawn after the row and would otherwise
-		// repaint the hanging part away with its own ground. Nothing is
-		// lost by the clip: that ground is the window's own paper, already
-		// painted under everything, and the note's first ink is a full
+		// repaint the hanging part away with its own fill. Nothing is
+		// lost by the clip: that fill is the window's own paper, already
+		// painted under everything, and the note's first painted row is a full
 		// margin below the row — the band the clip takes is bare either
 		// way.
 		over := min(buttonLineDrop(gtx, barH), g.rowH)
@@ -464,23 +464,23 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 //
 // The column is INTEGRAL FURNITURE — fixed, flush, with no toggle and no
 // way to leave — so it is not outlined the way the rail is. What it takes
-// instead is the plain seam the platform gives its own flush side: Voice
-// Memos carries no outline there at all and parts its panes with a
+// instead is the plain seam the platform gives its own flush side: Voice Memos
+// carries no outline there at all and parts its panes with a
 // one-pixel divider running from the window's top edge to its bottom, band
 // included, and Notes does the same between its list and its note.
 //
-// The ink is Divider — the token whose job is the line between two regions
-// — and not the pane's own seam ink. The two boundaries in this window are
+// The colour is Divider — the token whose job is the line between two regions
+// — and not the pane's own seam colour. The two boundaries in this window are
 // two different things: an object's edge circles a pane at the platform's
-// measured whisper, and a region's seam is a divider between grounds. One
-// weight, two inks.
+// measured whisper, and a region's seam is a divider between surfaces. One
+// weight, two colours.
 //
 // A line is drawn here at all because the step it divides is small: the
 // floor's dark step is a measured 1.47 L*, a whisper the eye can lose, and
 // the platform's answer at a whisper is a line — Voice Memos' two panes are
 // the SAME fill and the divider is the whole of what parts them.
 //
-// Under the hand the seam itself thickens and takes a firmer ink, with the
+// Under the hand the seam itself thickens and takes a firmer colour, with the
 // resize cursor beside it. This boundary is the one the reader can move and
 // a resting edge cannot say so; a separate bar floating in the grab band
 // would read as a stray second edge three dp off the real one. One line,
@@ -612,7 +612,7 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 // onButtonLine stands w in a row-deep box whose middle is the window
 // buttons' centre line, rather than the chrome row's own middle.
 //
-// Everything in the row that carries ink takes it. The row is one line box
+// Everything in the row that draws anything takes it. The row is one line box
 // deep and the buttons centre below that, so content centred on the row
 // itself would stand a dozen dp above the buttons beside it — and would
 // move the sidebar mark by those same dozen every time the pane came and
@@ -733,7 +733,7 @@ func railToggleMark(gtx layout.Context, tok themeTokens, label string) layout.Di
 	pointer.CursorPointer.Add(gtx.Ops)
 	w := gtx.Dp(unit.Dp(railToggleMarkDp))
 	// The mark is centred in a row-tall box, so the whole height of the
-	// row it stands in is pressable rather than the ink alone.
+	// row it stands in is pressable rather than the mark alone.
 	boxH := max(gtx.Constraints.Max.Y, w)
 	st := op.Offset(image.Pt(0, (boxH-w)/2)).Push(gtx.Ops)
 	drawMark(gtx, icons.Sidebar, railToggleMarkDp, tok.col.Text)

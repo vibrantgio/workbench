@@ -392,7 +392,7 @@ func TestAHeadingThatCannotLeadTheViewportIsStillChosen(t *testing.T) {
 
 // TestEveryEntryCanBeChosen walks the whole outline of a note with a short
 // tail, entry by entry: each one is the one picked once it has been pressed,
-// whether or not its heading can reach the top of the viewport.
+// whether or not its heading can rise to the top of the viewport.
 func TestEveryEntryCanBeChosen(t *testing.T) {
 	m := citedModel("guide/Short tail.md", tailOutlineSource(), 2)
 	p := newAsidePad(t, m, 700)
@@ -922,11 +922,11 @@ func TestTheBacklinkHeaderCountsWhatItCannotShow(t *testing.T) {
 		t.Errorf("the header is %d tall with a count and %d without; the pane below it is measured off one line", overH, noneH)
 	}
 	if ink(over) <= ink(none) {
-		t.Errorf("a pane holding 20 citations drew no more header ink (%d) than one holding none (%d); the count is missing",
+		t.Errorf("a pane holding 20 citations painted no more of its header (%d) than one holding none (%d); the count is missing",
 			ink(over), ink(none))
 	}
 	if few, _ := shot(2); ink(few) <= ink(none) {
-		t.Errorf("a pane holding 2 citations drew no more header ink (%d) than one holding none (%d); the count must not appear only past the cap",
+		t.Errorf("a pane holding 2 citations painted no more of its header (%d) than one holding none (%d); the count must not appear only past the cap",
 			ink(few), ink(none))
 	}
 }
@@ -952,7 +952,7 @@ Yet more prose.
 // asideShot lays a note's document out and then the trailing column on
 // its own, on the surface the frame paints under the column, and captures
 // the column. The document goes into a recording that is thrown away: the
-// outline reads the position it resolves, and none of the note's own ink
+// outline reads the position it resolves, and none of the note's own text
 // reaches the picture.
 //
 // Two frames, because the mark is written from the position the first one
@@ -983,10 +983,10 @@ func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGB
 	return golden.Capture(t, size, scene(w, chromeSurface(col))), v
 }
 
-// asideInkAt answers where the ink between two rows of the captured
+// asideInkAt answers where the paint between two rows of the captured
 // column starts — its leading column and its first row, or -1, -1 for a
-// band of bare surface. The two fills a row may wear are read as ground
-// along with the surface itself: both run to the column's ink margin and
+// band of bare surface. The two fills a row may wear are read as surface
+// along with the surface itself: both run to the column's text margin and
 // fill the row's whole height, so a marked row would otherwise answer
 // with the fill's own corner rather than with its title's.
 func asideInkAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) {
@@ -997,7 +997,7 @@ func asideInkAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) 
 		}
 		return int(b) - int(a)
 	}
-	// Half the distance between the surface and the quietest ink the
+	// Half the distance between the surface and the faintest colour the
 	// column draws on it: past that a pixel is a glyph's and not a fill's
 	// own anti-aliasing.
 	near := func(c color.RGBA, o color.NRGBA) bool {
@@ -1032,7 +1032,7 @@ func asideInkAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) 
 // TestTheOutlineStepsOnTheColumnsRhythm measures one heading level's step
 // off the picture: the leading edge of a level-two title against a
 // level-one's, and a level-three's against the level-two's. The column moves
-// everything it holds by one distance — the pad a row's ink stands inside its
+// everything it holds by one distance — the pad a row's text stands inside its
 // fill, the lane its bar stands in — so the outline's step is that same eight
 // and not a second rhythm down one narrow list.
 func TestTheOutlineStepsOnTheColumnsRhythm(t *testing.T) {
@@ -1045,7 +1045,7 @@ func TestTheOutlineStepsOnTheColumnsRhythm(t *testing.T) {
 				top := v.geom.outline.Min.Y + i*rowH
 				lead[i], _ = asideInkAt(img, tc.colors, top, top+rowH)
 				if lead[i] < 0 {
-					t.Fatalf("the outline's level-%d row drew no ink to measure", i+1)
+					t.Fatalf("the outline's level-%d row drew nothing to measure", i+1)
 				}
 			}
 			for i := 1; i < len(lead); i++ {
@@ -1085,7 +1085,7 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 				rowX, rowY := asideInkAt(full, tc.colors, c.row.Min.Y, c.row.Min.Y+rowH)
 				lineX, lineY := asideInkAt(bare, tc.colors, c.line.Min.Y, c.line.Min.Y+rowH)
 				if rowX < 0 || lineX < 0 {
-					t.Fatalf("the %s pane drew no ink to measure: row at %d, line at %d", c.pane, rowX, lineX)
+					t.Fatalf("the %s pane drew nothing to measure: row at %d, line at %d", c.pane, rowX, lineX)
 				}
 				// A pixel of slack on each axis, and no more: the line and
 				// the row start on different letters, and a letter's own
@@ -1099,7 +1099,7 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 				// pictures, because a pane is as tall as the rows it has.
 				rowDown, lineDown := rowY-c.row.Min.Y, lineY-c.line.Min.Y
 				if d := rowDown - lineDown; d < -1 || d > 1 {
-					t.Errorf("the %s pane's first row inks %d px down its pane and the line standing in for it %d; the line stands where the row would",
+					t.Errorf("the %s pane's first row paints %d px down its pane and the line standing in for it %d; the line stands where the row would",
 						c.pane, rowDown, lineDown)
 				}
 				if lineX-head <= 1 {
@@ -1112,18 +1112,18 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 }
 
 // TestTheColumnsInkTiersPartInBothSchemes measures the three depths of
-// ink the column speaks in — its headings and annotations, the outline's
+// foreground the column speaks in — its headings and annotations, the outline's
 // nested titles, and what a reader is meant to read — and requires each
 // to part from the next in either appearance.
 //
 // The dark scheme is what this is measured for. The neutral ramp's paired
 // scales keep a step's job across the two appearances, not its distance from
-// the ground: one pair of steps taken in both puts the column's three tiers
-// 68.8, 74.9 and 80.9 from the surface in L* on a dark ground against 52.9,
-// 64.0 and 86.1 on a light one — three names for very nearly one ink, with
+// the surface: one pair of steps taken in both puts the column's three tiers
+// 68.8, 74.9 and 80.9 from the surface in L* on a dark page against 52.9,
+// 64.0 and 86.1 on a light one — three names for very nearly one colour, with
 // the heading reading as bright as the row beneath it.
 func TestTheColumnsInkTiersPartInBothSchemes(t *testing.T) {
-	// The distance two inks must keep to read as two. It is under the
+	// The distance two foregrounds must keep to read as two. It is under the
 	// smaller of the light scheme's own two gaps, which is the separation
 	// this is holding the dark scheme to.
 	const partBy = 8.0

@@ -60,7 +60,7 @@ func (p *trailPad) clickAt(x int, segs []breadcrumb.Segment) {
 }
 
 // trailWidth measures the natural width of a row of these labels: loose
-// constraints, so the answer is the row's own and not the canvas's.
+// constraints, so the answer is the row's own and not the window's.
 func trailWidth(shaper *text.Shaper, labels ...string) int {
 	segs := make([]breadcrumb.Segment, len(labels))
 	for i, l := range labels {

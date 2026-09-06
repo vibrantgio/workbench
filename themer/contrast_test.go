@@ -21,11 +21,11 @@ const legibleFloor = 4.5
 // window: each card shows a colour extracted from the picture and, under it,
 // the primary pair a palette derivation makes of that colour — the chip's
 // whole job being to say whether the pair works. A chip whose own "Aa" cannot
-// be read is the loudest possible answer to a question nobody asked.
+// be read is the most emphatic possible answer to a question nobody asked.
 //
 // The picture is the fixture scene, which is the hard case: its sky and its
 // foliage are light enough that a light scheme's primary under white text
-// measures 2.26–2.96:1 unless the derivation chooses the ink by measurement,
+// measures 2.26–2.96:1 unless the derivation chooses the foreground by measurement,
 // against a floor of 4.5.
 func TestCandidateChipsAreLegible(t *testing.T) {
 	m := dropped(t)
@@ -54,14 +54,14 @@ func TestCandidateChipsAreLegible(t *testing.T) {
 
 // TestStyleChipsAreLegible measures the same thing on the grid, and measures
 // it on every card rather than on the six a picture happens to produce: each
-// card carries the primary pair its style's leading ink derives, under both
+// card carries the primary pair its style's leading colour derives, under both
 // appearances, and it carries it as a promise about what a click delivers. The
 // sweep is over the model rather than over pixels because the chips are
 // resolved once and drawn from — what a card shows and what a click applies
 // come out of the same two colours.
 //
 // Both colours are checked against the derivation and not only against the
-// floor. An ink that happens to clear it is not the same thing as the ink the
+// floor. A foreground that happens to clear it is not the same thing as the one
 // gate chose: the light half of a pair is the side where the usual answer and
 // the measured one part company, and a specimen that reached for the usual one
 // would go on passing a floor test right up to the seed it could not be read
@@ -241,9 +241,9 @@ func keepBand(img *image.RGBA, primary stdcolor.NRGBA) (image.Rectangle, bool) {
 
 // inkOn reads a band of a render: the colour most of it is — the fill — and
 // the pixel of the label furthest from that fill in relative luminance, which
-// is the pixel the label's ink covers most. A band is used rather than a
+// is the pixel the label's foreground covers most. A band is used rather than a
 // whole control so that a rounded corner never puts the surface behind it in
-// the sample, where it would be mistaken for ink.
+// the sample, where it would be mistaken for the label.
 func inkOn(img *image.RGBA, at image.Rectangle) (fill, ink stdcolor.NRGBA) {
 	counts := map[stdcolor.NRGBA]int{}
 	for y := at.Min.Y; y < at.Max.Y; y++ {
@@ -274,12 +274,12 @@ func inkOn(img *image.RGBA, at image.Rectangle) (fill, ink stdcolor.NRGBA) {
 // strength rather than smeared across two rows of antialiasing.
 const boundaryFloor = 2.0
 
-// TestANearWhiteSwatchKeepsItsBoundary: a style's palest ink, drawn at the end
+// TestANearWhiteSwatchKeepsItsBoundary: a style's palest colour, drawn at the end
 // of a strip on a card that is itself pale, has to stay a colour somebody chose
 // rather than becoming the place the strip appears to stop. The frame round the
 // strip is what does that, and this measures it on the styles that actually
-// carry a near-white ink — in both schemes, since the pale card and the pale
-// ink swap which of them is the surprise.
+// carry a near-white colour — in both schemes, since the pale card and the pale
+// colour swap which of them is the surprise.
 func TestANearWhiteSwatchKeepsItsBoundary(t *testing.T) {
 	m := withStyles()
 	for _, tc := range []struct {
@@ -319,7 +319,7 @@ func TestANearWhiteSwatchKeepsItsBoundary(t *testing.T) {
 			t.Logf("%s %s: band %v | frame %v | card %v — %.2f:1 inside, %.2f:1 outside",
 				tc.scheme, name, band, frame, card, inner, outer)
 			if inner < boundaryFloor || outer < boundaryFloor {
-				t.Errorf("%s %s: the strip's trailing edge measures %.2f:1 against the ink and %.2f:1 against the card, want %.1f:1 either side — the band has no boundary and the strip reads as one that stopped short",
+				t.Errorf("%s %s: the strip's trailing edge measures %.2f:1 against the band and %.2f:1 against the card, want %.1f:1 either side — the band has no boundary and the strip reads as one that stopped short",
 					tc.scheme, name, inner, outer, boundaryFloor)
 			}
 		}

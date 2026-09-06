@@ -93,7 +93,7 @@ func isDark(c tokens.ColorTokens) bool {
 // edgeFloor is WCAG 1.4.11's contrast floor for a graphic that carries
 // meaning without being text — 3:1. A swatch's frame is exactly that: it is
 // the whole of what says where a pale colour ends and the card behind it
-// begins, so it is not decoration and owes its ground this much.
+// begins, so it is not decoration and owes the surface behind it this much.
 const edgeFloor = 3.0
 
 // Palette is the application's view of the colour tokens: every colour it
@@ -118,7 +118,7 @@ type Palette struct {
 //
 // The container step is read off the side the palette is on, and it is the
 // one place a single step number will not do. Every ramp runs dark to light
-// in both schemes, and the ground moves with them: on the light side step 100
+// in both schemes, and the page moves with them: on the light side step 100
 // is a pale tint standing just off a near-white page, while on the dark side
 // the same step is very nearly the dark page itself — a selection fill nobody
 // can see, on the one thing in the window that has to be seen.
@@ -160,10 +160,10 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		// one line of code meaning two different weights.
 		Edge: c.MarkOn(tokens.RoleNeutral, raisedOnPage(c), edgeFloor),
 		Text: c.Text,
-		// The quiet register: hints and hex values, and the chrome in the
+		// The muted step: hints and hex values, and the chrome in the
 		// title row that stands under the window's own name. It is a step
-		// short of the text ink rather than a wash — measured, it clears the
-		// body-text floor against either page by a margin, which is what lets
+		// short of the text foreground rather than a faded fill — measured, it clears
+		// the body-text floor against either page by a margin, which is what lets
 		// a control wear it and still be read.
 		Muted:     c.Ramps.Neutral.Step(700),
 		Accent:    c.Primary,

@@ -7,7 +7,7 @@
 // on folder rows, the current note active, and click-to-open on note rows.
 //
 // Above the rows sits the find field: typing filters the tree to the
-// notes whose name matches, as a flat list with the folder as the quiet
+// notes whose name matches, as a flat list with the folder as the faint
 // annotation. It is a filter over the names the scan already collected —
 // it reads no file and searches no prose.
 //
@@ -61,7 +61,7 @@ import (
 const (
 	treeWidthDp       = 240         // the rail's own width, whatever the slot offers
 	treeRowInsetDp    = 8           // shared horizontal inset: field and row fills
-	treeRowPadDp      = 8           // breathing room between a fill's edge and its ink
+	treeRowPadDp      = 8           // breathing room between a fill's edge and its text
 	treeIndentDp      = 14          // additional inset per depth level
 	treeDiscloseDp    = markSmallDp // the disclosure mark's own square
 	treeDiscloseColDp = 20          // fixed column holding it, so names align per level
@@ -86,7 +86,7 @@ type TreeRow struct {
 	Idx    int    // position in the flattened row slice
 	Path   string // vault-relative; the folder path or the note path
 	Name   string // display name; the note title for note rows
-	Detail string // quiet trailing annotation; the folder on a filtered row
+	Detail string // faint trailing annotation; the folder on a filtered row
 	Depth  int    // nesting depth, 0 at the vault root
 	IsDir  bool   // a folder row, carrying a disclosure toggle
 	Open   bool   // folder rows only: the fold is open
@@ -160,7 +160,7 @@ func TreeRows(idx *Index, folds map[string]bool) []TreeRow {
 
 // MatchRows is the find field's answer: the notes whose name contains
 // the query, case-insensitively, as flat rows in title order — the folder
-// carried as each row's quiet annotation, since two vaults' worth of
+// carried as each row's faint annotation, since two vaults' worth of
 // notes may share a title. A note whose title does not match still
 // matches on its folder path, so "meetings/" narrows to a folder.
 //
@@ -224,7 +224,7 @@ func sortByName[T any](s []T, name func(T) string) {
 	})
 }
 
-// treeView is the tree's widget state: the list scroll/selection state
+// treeView is the tree's own view state: the list scroll/selection state
 // and per-row clickables (pointer-stable across frames).
 type treeView struct {
 	list        *list.State
@@ -262,7 +262,7 @@ func (v *treeView) buttonEdge() unit.Dp {
 	return toolbarLeading()
 }
 
-// treeSidebar builds the sidebar slot's widget stream: the find field
+// treeSidebar builds the sidebar slot's layout.Widget stream: the find field
 // above the rows. The field is a components TextField built once at
 // subscription scope, so its editor keeps what was typed across
 // emissions; each keystroke reaches the model as a SetFilter message.
@@ -372,12 +372,12 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW l
 
 // foot is the pane's bottom band: a hairline off the rows, and under it
 // the two actions that belong to the vault rather than to the note —
-// rescan it, or leave it for another. They stand on the same ink margin
+// rescan it, or leave it for another. They stand on the same text margin
 // the rows' names do, so the pane reads as one column and not as a bar
 // bolted under one.
 //
 // The rule above them is a hairline: with the foot on the pane's own
-// surface there are no two grounds to part, only a seam saying the
+// surface there are no two fills to part, only a seam saying the
 // scrolling stops here.
 func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	if v.rescanClick.Clicked(gtx) {
@@ -397,7 +397,7 @@ func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				// The hit areas start on the row pills' own edge, which
-				// puts their labels on the row names' own ink margin.
+				// puts their labels on the row names' own text margin.
 				layout.Rigid(complayout.HSpacer(treeRowInsetDp)),
 				layout.Rigid(footAction(&v.rescanClick, "Rescan", tok)),
 				layout.Rigid(complayout.HSpacer(treeFootGapDp)),
@@ -596,10 +596,10 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 }
 
 // renderTree is the static counterpart of treeSidebar used by goldens: a
-// fresh rail with fresh widget state, laid out once from pre-resolved
-// tokens and processing no events. The find field is drawn through the
-// component's own static path, so the golden carries the same field the
-// live rail wears. The window buttons' trailing edge is a parameter here
+// fresh rail with fresh widget.Clickable state, laid out once from
+// pre-resolved tokens and processing no events. The find field is drawn
+// through the component's own static path, so the golden carries the same
+// field the live rail wears. The window buttons' trailing edge is a parameter
 // and a measurement in the live pane, since a stored image may not depend
 // on a live window's measurement.
 //

@@ -113,14 +113,14 @@ const (
 	// propEdgeDp is the panel's hairline and propEdgeStep the neutral step
 	// it is drawn in: one past the separator's.
 	//
-	// A block that takes the paper for its ground has its edge for a
+	// A block that takes the paper for its own fill has its edge for a
 	// channel and nothing else, and on the dark page one hair of the
 	// separator's tint is not channel enough: the line reads 1.31:1 off
 	// that paper, and at one device pixel per dp the box dissolves into it.
 	// A step further up the neutral ramp the same hair reads 1.91:1 in the
 	// dark scheme and 1.88:1 in the light — twice the eight-bit distance
 	// from the paper, forty-seven levels against twenty-two in the dark —
-	// while staying far under the ink it bounds (6.19:1 and 11.06:1), which
+	// while staying far under the foreground it bounds (6.19:1 and 11.06:1), which
 	// is the one thing an edge may not out-read.
 	//
 	// A faint fill would be the second channel the dark box wants, and
@@ -128,37 +128,37 @@ const (
 	// in both schemes, and its second is the fill the window's rail and
 	// aside wear — 1.13:1 off the light page against the code blocks'
 	// 1.05:1, which would make the note's metadata heavier than the code it
-	// has to stay quieter than, wearing the chrome's own colour to do it.
+	// has to stay fainter than, wearing the chrome's own colour to do it.
 	// Nothing lies between the two, so the edge carries the whole of the
 	// channel and the panel keeps its paper.
 	propEdgeDp   = 1
 	propEdgeStep = 400
 
 	// propLabelStep is the neutral step the properties panel writes its
-	// quiet ink at: the field keys, the disclosure head above them, and the
+	// faint foreground at: the field keys, the disclosure head above them, and the
 	// raw block a frontmatter too odd to split falls back to. The values
 	// beside them are read a step stronger, so this is the panel's muted
-	// tier and has the body floor to clear on the panel's own ground and
+	// tier and has the body floor to clear on the panel's own fill and
 	// not on the page's.
 	//
 	// It is a measurement. On the paper the panel stands on, the step reads
 	// 6.19:1 in the light scheme and 11.06:1 in the dark, both clear of the
 	// 4.5:1 the design system holds body-sized text to; the step below it
 	// reads 4.03:1 in the light scheme, under the floor, so 700 is the
-	// quietest step this panel can be written in. On a heavier fill the same
+	// faintest step this panel can be written in. On a heavier fill the same
 	// step measures 4.51:1 — over the floor by a hundredth, a floor touched
-	// rather than cleared, which is why the ink is floored against the
-	// panel's own ground.
+	// rather than cleared, which is why the foreground is floored against the
+	// panel's own fill.
 	propLabelStep = 700
 
 	// propValueStep is the step the field values are read at: one under the
 	// prose, which is where the note's own text is written.
 	//
-	// A value at the body ink itself — the very step the note's title and
+	// A value at the body foreground itself — the very step the note's title and
 	// every paragraph below it are set in — would stand level with the
 	// note's own words while sitting above them on the page, landing the eye
 	// on the metadata before the note. One step down, a value reads 9.30:1
-	// on the panel's ground in the light scheme and 13.07:1 in the dark,
+	// on the panel's fill in the light scheme and 13.07:1 in the dark,
 	// both far clear of the 4.5:1 body floor, and still comfortably over the
 	// keys beside it — 6.19:1 and 11.06:1 — because the value is the content
 	// of its row and stays the stronger of the pair.
@@ -169,8 +169,8 @@ const (
 	//
 	// At the keys' own step, size and weight the head reads as one more
 	// label in the column of labels it opens. The reading app this viewer is
-	// judged beside separates the two by ink: its head is set at the prose
-	// ink its values are, and its keys a measured step under both — 218
+	// judged beside separates the two by colour: its head is set at the prose
+	// foreground its values are, and its keys a measured step under both — 218
 	// against 179 on a 28 paper. That axis is already spent here, on the
 	// order between the values and the keys, so the head takes the other
 	// axis it has: the bold the note's own headings take, at the same size
@@ -183,7 +183,7 @@ const (
 	// to a line of text. The history controls sit in the head row beside
 	// the breadcrumb, so that is the size they belong at: a chevron is a
 	// diagonal spanning the whole of its square, and at the size a mark
-	// takes as a control in its own right its ink stands half again over
+	// takes as a control in its own right its stroke stands half again over
 	// the caps of the label it serves. The row centres its children, so
 	// the smaller square costs the row no height and moves nothing else.
 	noteNavMarkDp = markSmallDp
@@ -191,13 +191,13 @@ const (
 
 	// noteNavInkStep and noteNavDimStep are the neutral steps the two
 	// history controls take. Navigation chrome reads under the text it
-	// stands beside rather than at that text's own ink, so the enabled
-	// control takes a step short of the body ink; the reference reading
+	// stands beside rather than at that text's own foreground, so the enabled
+	// control takes a step short of the body foreground; the reference reading
 	// app mutes its own history arrows further still, to about a quarter
 	// of its title's contrast, but the dim step has to stay clearly below
 	// the enabled one and the neutral ramp's dark scale leaves no room
-	// under a quarter for it. So the enabled ink is muted as far as the
-	// end-of-stack ink can follow: the two steps read a third of the scale
+	// under a quarter for it. So the enabled foreground is muted as far as the
+	// end-of-stack foreground can follow: the two steps read a third of the scale
 	// apart in both appearances.
 	noteNavInkStep = 600
 	noteNavDimStep = 300
@@ -209,11 +209,11 @@ const (
 // in it, or one naming a style file that has since left the styles folder,
 // draws code exactly as it did for somebody who never chose.
 //
-// A pair and not a name because a syntax palette is fitted to a ground: the
-// set of inks balanced against a near-white page is not the set anybody would
-// balance against a near-black one. So the light appearance and the dark one
-// each wear their own member, ground and all, and a desktop switching between
-// them switches the code's plate with everything else.
+// A pair and not a name because a syntax palette is fitted to a background:
+// the set of colours balanced against a near-white page is not the set
+// anybody would balance against a near-black one. So the light appearance and
+// the dark one each wear their own member, background and all, and a desktop
+// switching between them switches the code's plate with everything else.
 //
 // They are set once, at startup, from the same kept theme the palette comes
 // from, and read from then on. The choice is a preference and not a mode:
@@ -240,12 +240,13 @@ func adoptCodeBases(kept brand.Brand) highlight.BasePair {
 // wearing the chosen syntax base. The link hook is attached per frame in
 // layoutNotePage, where the model is at hand.
 //
-// The base is worn rather than re-fitted. A fence takes the ground its author
-// drew their inks on and the inks as they were drawn, so a block in a note is
-// the palette itself and not a rendering of it; the page around it — the
-// prose, the chip an inline span sits on, the bar a wide block scrolls under
-// — stays this theme's. Which member of the pair reaches the fence follows
-// the tokens, so a change of appearance is a change of plate.
+// The base is worn rather than re-fitted. A fence takes the background the
+// author drew their colours on and those colours as they were drawn, so a
+// block in a note is the palette itself and not a rendering of it; the page
+// around it — the prose, the chip an inline span sits on, the bar a wide
+// block scrolls under — stays this theme's. Which member of the pair reaches
+// the fence follows the tokens, so a change of appearance is a change of
+// plate.
 //
 // There is no memo: wearing resolves a name and reads four colours off it,
 // which is a map lookup cheap enough for a path that runs every frame.
@@ -523,9 +524,9 @@ func layoutNotePage(
 ) layout.Dimensions {
 	note := m.CurrentNote()
 	// The reading column lies on its own paper: the pinned app background,
-	// one storey above the floor the window chrome — the chrome row, tree
+	// one level above the fill the window chrome — the chrome row, tree
 	// rail, aside — is painted in, in both schemes. The panel and the code
-	// fills below take their rungs from this paper rather than from the
+	// fills below take their steps from this paper rather than from the
 	// ramp, so the note reads as a document resting on darker furniture
 	// rather than as more chrome.
 	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: gtx.Constraints.Max}.Op())
@@ -676,12 +677,12 @@ func rebuildDocument(n *Note, prev *markdown.Document) *markdown.Document {
 	return markdown.NewDocumentAt(n.Blocks, prev.Position().First)
 }
 
-// renderNotePage is the static counterpart of the vault screen's main
-// slot, used by goldens: fresh widget state, a fresh document per note,
+// renderNotePage is the static counterpart of the vault screen's main slot,
+// used by goldens: fresh widget.Clickable state, a fresh document per note,
 // laid out once from pre-resolved tokens and processing no events. The
-// document is seated at the model's anchor when it carries one and at the
-// top otherwise, which is the only way a still image can be taken part
-// way down a note.
+// document is seated at the model's anchor when it carries one and at the top
+// otherwise, which is the only way a still image can be taken part way down a
+// note.
 func renderNotePage(
 	shaper *text.Shaper,
 	m Model,
@@ -806,7 +807,7 @@ func openBrowser(url string) {
 
 // messageChild renders a status line in place of the document. It takes the
 // trailing margin itself, the page inset having handed that job to its rows
-// so the document can reach the column's edge.
+// so the document can run to the column's edge.
 func messageChild(tok themeTokens, msg string) layout.FlexChild {
 	return layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Right: noteInsetDp}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -867,7 +868,7 @@ func layoutProperties(
 	if click.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleProperties{}}.Add(gtx.Ops)
 	}
-	// The head is the panel's control: the same quiet step the keys below it
+	// The head is the panel's control: the same faint step the keys below it
 	// take, at the weight that says a row can be worked rather than read.
 	ink := tok.col.Ramps.Neutral.Step(propLabelStep)
 	headStyle := tok.typ.TitleSmall
@@ -901,10 +902,10 @@ func layoutProperties(
 
 // propertiesBody is the expanded panel: pairs when the trivial split read
 // them, the raw block in code style otherwise. Both stand on the note's own
-// paper — the ground floor of the surface story, the same level the column
+// paper — the base of the surface story, the same level the column
 // itself is laid on — inside a rounded hairline.
 //
-// The ground is a measurement, taken against the surfaces this page already
+// The fill is a measurement, taken against the surfaces this page already
 // carries rather than against the scale in the abstract. Neither fill the
 // scale offers can be spent here: measured off a paper at 246, the
 // separator's tint sits at 212 and the next fill up at 232, while both code
@@ -916,14 +917,14 @@ func layoutProperties(
 // fills 46 and 34.
 //
 // So the panel takes no fill of its own and wears the page's existing idiom
-// for a bounded block that does not shout — as the code blocks do, a
-// hairline around a ground one step off the paper. The outline is the whole
+// for a bounded block of low prominence — as the code blocks do, a
+// hairline around a fill one step off the paper. The outline is the whole
 // of the panel's budget: the hair takes the step past the separator's, for
 // the measurement in propEdgeStep, since a line that dissolves is not an
 // outline. The corners are the code blocks', so the page has one shape for
 // a bounded box rather than two.
 func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter) layout.Dimensions {
-	// The panel names its own ground rather than inheriting whatever it is
+	// The panel names its own fill rather than inheriting whatever it is
 	// dropped on, so the hairline always has the surface it was judged
 	// against inside it.
 	fill := tok.col.Background
@@ -937,25 +938,25 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 				}
 				return drawText(gtx, tok.shaper, raw, tok.typ.Code, tok.col.Ramps.Neutral.Step(propLabelStep))
 			}
-			// Key and value are one face at one weight, told apart by ink
+			// Key and value are one face at one weight, told apart by colour
 			// alone — the arrangement the reading app this viewer is judged
 			// beside uses, and the only one in which the steps chosen for
 			// them are the order the reader sees.
 			//
-			// A weight difference outvotes the ink: with the key in the
+			// A weight difference outvotes the colour: with the key in the
 			// heavier label role, measured off the rendered panel, the
 			// value's darkest pixels reach 78 against the key's 92 on a 246
 			// paper — the twenty-six levels the two steps are apart collapse
 			// to fourteen — and in the dark scheme the key's brightest
 			// reaches 196 against the value's 181, the order inverted
 			// outright. A regular weight has too little of each glyph fully
-			// covered for its nominal ink to arrive; two columns can only be
-			// ranked by ink if the ink is the only thing that differs.
+			// covered for its nominal colour to arrive; two columns can only be
+			// ranked by colour if the colour is the only thing that differs.
 			keyStyle := tok.typ.BodyMedium
 			keyInk := tok.col.Ramps.Neutral.Step(propLabelStep)
 			// The key column is as wide as the longest key plus a fixed
 			// gap: each key is measured into a discarded recording, and
-			// the widest ink wins, capped at half the panel so a runaway
+			// the widest of them wins, capped at half the panel so a runaway
 			// key cannot squeeze the values out.
 			keyW := 0
 			mg := gtx
@@ -998,9 +999,9 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
 		})
 	}
-	// Measure, then lay the edge and the ground under the measured content.
+	// Measure, then lay the edge and the fill under the measured content.
 	// The hairline is drawn as the whole box in the edge's colour with the
-	// ground inset over it, rather than as a stroke on the path: a stroke is
+	// fill inset over it, rather than as a stroke on the path: a stroke is
 	// centred on its path and would spend half its width outside the box the
 	// panel was measured at, and at one hair every pixel of it would be a
 	// blend of the two colours instead of either. Inset the same way the

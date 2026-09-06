@@ -24,7 +24,7 @@
 // # Which names are on it
 //
 // One half at a time, following the scheme control at the top: the sun's list
-// is the bases fitted to a light ground and the moon's the bases fitted to a
+// is the bases fitted to a light background and the moon's those fitted to a
 // dark one, measured off each style's own background rather than read off its
 // name. It is one state and not a second control — a filter with a switch of
 // its own could be set to disagree with the appearance on screen, which would
@@ -36,8 +36,8 @@
 // base per appearance, because a palette somebody balanced against a near-white
 // page is not the one they would balance against a near-black one, so the sun's
 // list sets the light base and the moon's the dark one. Flipping the scheme
-// therefore swaps the list, the applied row and the ink under the code together,
-// in the frame the switch is pressed; it changes neither choice.
+// therefore swaps the list, the applied row and the colour under the code
+// together, in the frame the switch is pressed; it changes neither choice.
 package main
 
 import (
@@ -77,7 +77,7 @@ const (
 	BaseLabel  = "Syntax base"
 	BaseInvite = "Click one to apply."
 	BaseAdded  = "added"  // a style read from the styles folder
-	BaseEither = "either" // a style that named no ground, so it is on both lists
+	BaseEither = "either" // a style that named no background, so it is on both lists
 )
 
 // BaseCountFor says how long the list on screen is and which half of the set it
@@ -320,7 +320,7 @@ func BaseRowWidget(gtx layout.Context, p Palette, ty Type, opt BaseOption, index
 	case chosen:
 		fillRRect(gtx, r, gtx.Dp(InnerR), p.Selection)
 	case click.Hovered():
-		// A rung off the panel it is drawn on rather than the panel's own
+		// A step off the panel it is drawn on rather than the panel's own
 		// fill: the rows sit on Surface, so a hover painted in Surface is a
 		// hover nobody can see.
 		fillRRect(gtx, r, gtx.Dp(InnerR), p.Divider)
@@ -341,7 +341,7 @@ func BaseRowWidget(gtx layout.Context, p Palette, ty Type, opt BaseOption, index
 	text := image.Rect(pad+gtx.Dp(BaseInk), 0, size.X-pad, h)
 	// A word at the far end for the two things about a name that are not
 	// obvious from it: that somebody put this style in the folder themselves,
-	// and that this one named no ground of its own and is therefore on the light
+	// and that this one named no background of its own and is therefore on the light
 	// list and the dark one both. Where it came from wins when a style is both,
 	// being the more surprising fact. It is muted and not accented because the
 	// accent belongs to the one row that is the answer, and a coloured word on
@@ -372,7 +372,7 @@ func BaseRowWidget(gtx layout.Context, p Palette, ty Type, opt BaseOption, index
 func baseTag(o BaseOption) string { return originTag(o.Added, o.Light, o.Dark) }
 
 // originTag is the word marking one style wherever it is offered, or none. A
-// style that came out of the folder says so; one that named no ground of its
+// style that came out of the folder says so; one that named no background of its
 // own says that instead, which is the only explanation a reader gets for a
 // name reading "dark" sitting under the sun. Where it came from wins when a
 // style is both, being the more surprising fact.

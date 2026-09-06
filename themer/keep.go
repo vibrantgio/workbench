@@ -18,7 +18,7 @@ import (
 // appearance, and the typeface fenced code wears. The palette generator
 // reproduces itself exactly from the seed and a base is a registry entry
 // read as its author left it, so the names are the whole theme — recording
-// the ramps or the token inks beside them would freeze a derivation that
+// the ramps or the token colours beside them would freeze a derivation that
 // is still allowed to improve.
 //
 // Both bases go, not the one the window happens to be showing. The pair is the

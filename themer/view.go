@@ -50,7 +50,7 @@ const (
 	// that grows cannot end up cropped by a number written down beside it.
 	//
 	// The row stands inside the page's margin like every other row down the
-	// window, having no ground of its own to carry a margin on.
+	// window, having no fill of its own to carry a margin on.
 	TitleH unit.Dp = inventory.SchemeSwitchH + 2*TitleAir
 	// TitleCenter is the line everything in the title row is centred on,
 	// measured from the window's own top edge: the page's top margin, which the
@@ -103,7 +103,7 @@ const BackLabel = "Back to styles"
 // at the head of its title row, which are the same claim made in two places.
 const AppName = "Themer"
 
-// dropZone is the one zone the window registers: the whole of it. The
+// dropZone is the one zone the window registers a drop in: the whole of it. The
 // application has no second drop target, so the index is a constant.
 const dropZone = 0
 
@@ -220,8 +220,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	// The strip's own handlers live at subscription scope, which is what the
 	// pattern's observable form gives and its static form does not: a cell
 	// pressed and held across an emission is still the cell being pressed.
-	// Its content widgets are therefore built once too, and read the tab
-	// columns out of the cells below at frame time — the same hand-off the
+	// Its content layout.Widget values are therefore built once too, and read the
+	// tab columns out of the cells below at frame time — the same hand-off the
 	// window's own layer boundary makes with its layer snapshot.
 	cells := make([]atomic.Value, TabCount)
 	strip := make([]tabs.Tab, TabCount)
@@ -259,9 +259,9 @@ func EmbeddedTheme(c tokens.ColorTokens, typo tokens.Typography) theme.Theme {
 	return t
 }
 
-// fromCell is a tab's content as the strip holds it: a widget that lays out
-// whatever column was last stored for that tab, and an empty surface until
-// one has been.
+// fromCell is a tab's content as the strip holds it: a [layout.Widget] that
+// lays out whatever column was last stored for that tab, and an empty surface
+// until one has been.
 func fromCell(cell *atomic.Value) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if w, ok := cell.Load().(layout.Widget); ok && w != nil {
@@ -328,7 +328,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 		zones.Update(gtx)
 		zones.Record(dropZone, image.Rectangle{Max: size})
 
-		// One margin all round. The title row draws no ground of its own, so
+		// One margin all round. The title row draws no fill of its own, so
 		// it has nothing to carry the window's top margin on and takes it from
 		// the page like every other row. Its own leading edge is the one thing
 		// that is not the margin: with the content behind the title bar, the
@@ -371,7 +371,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 // its leading edge, the way back beside it, and the switch to the other side
 // of the scheme at its trailing one — all on one centre line.
 //
-// It is a title row and not a bar. Nothing here is drawn on a ground of its
+// It is a title row and not a bar. Nothing here is drawn on a fill of its
 // own and nothing is ruled off from what follows: the row stands on the
 // window's own page, and what makes it the top of the window is that it is at
 // the top of the window. A band and a rule are what a row needs when the thing
@@ -379,12 +379,12 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 // way down.
 //
 // The name is what earns the leading edge. A window that says what it is can
-// let everything else in the row be quiet — which is why the way back stands
-// beside the name in the register of chrome rather than dressed as a button:
+// let everything else in the row be less pronounced — which is why the way back
+// stands beside the name in the chrome variant rather than dressed as a button:
 // with a title to read under, a label at the muted step is a control that knows
-// its place. It is absent altogether before anything has been chosen, because there is
-// nowhere to go back to, and the row is a row of two rather than a row with a
-// hole in it.
+// its place. It is absent altogether before anything has been chosen, because
+// there is nowhere to go back to, and the row is a row of two rather than a row
+// with a hole in it.
 //
 // The switch stays in its corner across that change. Both ends are fixed
 // places, which is what lets a reader look for the scheme control once.
@@ -398,8 +398,8 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 // The order the slots are named in is the order they keep their size in when
 // the window is too narrow for all of them. The name goes
 // first because it is the one thing here that identifies the window; then the
-// switch, which is a control with a fixed size and no way to give ground; and
-// the way back last, having a truncator to give ground with.
+// switch, which is a control with a fixed size and no room to give; and
+// the way back last, having a truncator to give room with.
 func TitleRow(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, bar *topClicks) layout.Widget {
 	slots := []slot{{leading, 0, AppTitle(p, ty)}, {trailing, 0, SchemeToggle(c, dark, &bar.scheme)}}
 	if len(m.Candidates) > 0 {
@@ -431,7 +431,7 @@ func reserve(d unit.Dp, w layout.Widget) layout.Widget {
 }
 
 // AppTitle is what the window is, at the head of its own title row, in the
-// theme's title register at the size a line of running text takes.
+// theme's heading type at the size a line of running text takes.
 //
 // It is not pressable and it is not a crumb. The window has one screen behind
 // its other one and a named control that goes there; a title that also went
@@ -451,17 +451,18 @@ func AppTitle(p Palette, ty Type) layout.Widget {
 
 // WayBack returns the window to its first screen, where the drop well and the
 // whole grid of styles are: a chevron and the name of the place it goes, on the
-// page itself with no ground and no boundary of its own.
+// page itself with no fill and no boundary of its own.
 //
 // The dressing is the row's doing. Standing beside the window's name, the
 // control needs no box to be an object; what it needs is to read as chrome
-// under the name and still be legible, and that is a matter of ink: the muted
-// step measures 6.19:1 against the light page and 11.06:1 against the dark one,
-// both well over the 4.5:1 a line of text has to reach, while the title's own
-// ink stands at 17.19:1 and 15.30:1 — so the two are plainly a name and
-// something quieter beside it rather than two things of equal weight. Under the
-// pointer the label takes the title's ink, which is the whole of the hover
-// state: a control with no ground has nothing else to change.
+// under the name and still be legible, and that is a matter of foreground: the
+// muted step measures 6.19:1 against the light page and 11.06:1 against the
+// dark one, both well over the 4.5:1 a line of text has to reach, while the
+// title's own foreground stands at 17.19:1 and 15.30:1 — so the two are plainly
+// a name and something fainter beside it rather than two things of equal
+// weight. Under the pointer the label takes the title's foreground, which is
+// the whole of the hover state: a control with no fill has nothing else to
+// change.
 //
 // The chevron is what says "control" before the words are read. It is the mark
 // the design system carries for going back, drawn rather than typeset, at the
@@ -522,7 +523,7 @@ func WayBack(p Palette, ty Type, click *gesture.Click) layout.Widget {
 // keep affordance are fixed objects and are named first; then the standing
 // offer, which is an instruction and either fits or stands down; and the
 // identity block last, because it is the one thing here that can honestly give
-// ground, having a truncator to give it with.
+// room, having a truncator to give it with.
 func IdentityRow(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp, bar *topClicks) layout.Widget {
 	slots := []slot{
 		{leading, 0, Thumbnail(p, m, src)},
@@ -578,7 +579,7 @@ func KeepButton(c tokens.ColorTokens, ty Type, m Model, click *gesture.Click) la
 // Thumbnail draws where the colours came from on a mat, so the candidates
 // beside it can be compared against their source: the dropped image scaled to
 // fit and centred, or — when the theme was adopted from a style — that style's
-// own inks in the same strip its card carried them in, which is the closest
+// own colours in the same strip its card carried them in, which is the closest
 // thing to a picture a palette has.
 func Thumbnail(p Palette, m Model, src paint.ImageOp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
@@ -697,7 +698,7 @@ func natural(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, 
 // costs four words and answers it.
 //
 // A style that is its own counterpart says so in one clause. Four of the
-// embedded styles are fitted to no ground and stand under both, and writing
+// embedded styles are fitted to no background and stand under both, and writing
 // such a name out twice reads as a mistake rather than as the fact it is.
 func CaptionHintFor(m Model) string {
 	pair := m.AppliedBases()
@@ -727,7 +728,7 @@ const (
 
 // slot is one control in a centred row: the end it packs against, how much
 // room to leave between it and the control already placed at that end, and the
-// widget itself.
+// [layout.Widget] itself.
 //
 // The extra room is for the one case a uniform gap gets wrong. A button carries
 // its own inner padding, and where the row's gap is the narrower of the two, a
@@ -933,7 +934,8 @@ func Invitation(p Palette, ty Type, m Model) layout.Widget {
 	}
 }
 
-// rigid wraps a widget as a Flex child that takes the height it asks for.
+// rigid wraps a [layout.Widget] as a Flex child that takes the height it asks
+// for.
 func rigid(w layout.Widget) layout.FlexChild { return layout.Rigid(w) }
 
 // spacer is a fixed vertical gap between two Flex children.

@@ -132,7 +132,7 @@ const (
 	pickerMaxWDp     = 720
 )
 
-// pickerView is the picker's widget state: the list scroll/selection
+// pickerView is the picker's own view state: the list scroll/selection
 // state, per-row clickables (pointer-stable across frames), and the
 // one-shot initial focus. The directory trail keeps its own state, in the
 // row the theme stream hands this screen every frame.

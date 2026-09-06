@@ -140,7 +140,7 @@ func TestPickRepaintsTheEmbeddedPage(t *testing.T) {
 const pickFloor = 5.0
 
 // TestTheSchemeSwitchRepaintsEveryBand: the switch is the other half of the
-// judgment loop, and the sharper of the two. Light and dark invert the ground
+// judgment loop, and the sharper of the two. Light and dark invert the surface
 // every section stands on, so no strip of the page can come out of the switch
 // unchanged. One that does is a surface drawing itself from something other
 // than the theme it was handed — the defect that hides on a page where
@@ -161,7 +161,7 @@ func TestTheSchemeSwitchRepaintsEveryBand(t *testing.T) {
 }
 
 // schemeBandFloor is how much of one strip has to move when the scheme flips.
-// Every strip measures over 99% today, because the ground itself inverts; the
+// Every strip measures over 99% today, because the page itself inverts; the
 // floor is set just under that rather than at some cautious fraction, since a
 // fraction is exactly what lets one stale panel hide inside a strip that
 // changed everywhere else.

@@ -125,7 +125,7 @@ func dropped(t *testing.T) Model {
 
 // The bands across the top of the window, from the same constants the page
 // stacks them with: the title row both screens carry — inside the page's own
-// margin, having no ground of its own to carry one on — and under it, on the
+// margin, having no fill of its own to carry one on — and under it, on the
 // screen that has a theme on it, the identity strip.
 func titleTop() int    { return int(Pad) }
 func titleBottom() int { return titleTop() + int(TitleH) }
@@ -258,7 +258,7 @@ func TestBothSchemesRender(t *testing.T) {
 }
 
 // The two widths the top of the window is measured at: the one the owner's
-// window was, and one narrow enough that the identity block has to give ground
+// window was, and one narrow enough that the identity block has to give room
 // to the controls beside it. Alignment that only holds at the width a screen
 // was captured at is not alignment, it is a coincidence.
 const (
@@ -364,7 +364,7 @@ func TestARowPutsEveryControlOnOneCentreLine(t *testing.T) {
 }
 
 // inkBand is the first and last row between y0 and y1 on which something was
-// drawn over the window's own ground, within the columns x0 up to x1 — the
+// drawn over the window's own page, within the columns x0 up to x1 — the
 // vertical extent of whatever control stands in that column.
 func inkBand(img *image.RGBA, ground stdcolor.NRGBA, x0, x1, y0, y1 int) (top, height int, found bool) {
 	first, last := -1, -1
@@ -386,11 +386,11 @@ func inkBand(img *image.RGBA, ground stdcolor.NRGBA, x0, x1, y0, y1 int) (top, h
 	return first, last - first + 1, true
 }
 
-// textSlack is how far a run of text's inked rows may sit off the line its box
-// is centred on. Text is centred by its line box and inked by its glyphs, and
-// the two are not the same span: a line with descenders in it inks lower than
-// one without, and a name in the body face inks taller than a caption in the
-// small one. The slack is what that costs, and it is small enough that a
+// textSlack is how far a run of text's painted rows may sit off the line its
+// box is centred on. Text is centred by its line box and painted by its glyphs,
+// and the two are not the same span: a line with descenders in it paints lower
+// than one without, and a name in the body face paints taller than a caption in
+// the small one. The slack is what that costs, and it is small enough that a
 // control placed on the wrong line could not hide inside it.
 const textSlack = 2
 
@@ -399,7 +399,7 @@ const textSlack = 2
 // items on one line — the window's name, the way back, the scheme switch — and
 // the identity strip's four on another, in both schemes and at both widths.
 //
-// The solid controls are held to the exact centre, because their inked rows
+// The solid controls are held to the exact centre, because their painted rows
 // are their boxes. Everything drawn as glyphs or as a mark is held to it within
 // the slack an outline's own extent costs, and to sitting wholly inside the
 // line box it was laid out in.
@@ -416,7 +416,7 @@ func TestTheTopOfTheWindowIsOnOneCentreLine(t *testing.T) {
 		for _, width := range []int{wideW, narrowW} {
 			img := pageAt(t, newEmbed(), on, sc.os, image.Pt(width, windowH))
 			// The title row. The switch is solid and holds the exact
-			// centre; the name and the way back are ink on the page, and are
+			// centre; the name and the way back are glyphs on the page, and are
 			// held to it within the slack a glyph's own extent costs.
 			titleMid := titleTop() + int(TitleH)/2
 			for _, c := range []struct {
@@ -437,7 +437,7 @@ func TestTheTopOfTheWindowIsOnOneCentreLine(t *testing.T) {
 				if c.solid {
 					slack = 0
 				}
-				t.Logf("%s at %d dp: %s inks %d dp from y=%d, centre y=%d against the row's centre y=%d",
+				t.Logf("%s at %d dp: %s paints %d dp from y=%d, centre y=%d against the row's centre y=%d",
 					sc.name, width, c.what, h, top, centre, titleMid)
 				if centre < titleMid-slack || centre > titleMid+slack {
 					t.Errorf("%s at %d dp: %s is %d dp tall and centred on y=%d, want within %d dp of the row's centre y=%d",
@@ -476,7 +476,7 @@ func TestTheTopOfTheWindowIsOnOneCentreLine(t *testing.T) {
 			textAt := []struct {
 				what   string
 				x0, x1 int
-				box    int // the block's own height, which the ink must sit inside
+				box    int // the block's own height, which the text must sit inside
 			}{
 				{"the name and its caption", int(Pad) + int(ThumbW) + int(Gap), offerLeft - int(Gap), 2 * int(LineH)},
 				{"the standing offer", offerLeft, offerRight, int(LineH)},
@@ -488,14 +488,14 @@ func TestTheTopOfTheWindowIsOnOneCentreLine(t *testing.T) {
 					continue
 				}
 				centre := top + h/2
-				t.Logf("%s at %d dp: %s inks %d dp from y=%d, centre y=%d against the strip's y=%d",
+				t.Logf("%s at %d dp: %s paints %d dp from y=%d, centre y=%d against the strip's y=%d",
 					sc.name, width, c.what, h, top, centre, headMid)
 				if centre < headMid-textSlack || centre > headMid+textSlack {
-					t.Errorf("%s at %d dp: %s inks around y=%d, want it within %d dp of the strip's centre y=%d",
+					t.Errorf("%s at %d dp: %s paints around y=%d, want it within %d dp of the strip's centre y=%d",
 						sc.name, width, c.what, centre, textSlack, headMid)
 				}
 				if top < headMid-c.box/2 || top+h > headMid+c.box/2 {
-					t.Errorf("%s at %d dp: %s inks rows %d..%d, outside the %d dp block centred on y=%d it was laid out in",
+					t.Errorf("%s at %d dp: %s paints rows %d..%d, outside the %d dp block centred on y=%d it was laid out in",
 						sc.name, width, c.what, top, top+h, c.box, headMid)
 				}
 			}
@@ -564,7 +564,7 @@ func changedIn(a, b *image.RGBA, x0, x1, y0, y1 int) int {
 }
 
 // inkColumns is the first and last column between x0 and x1 on which something
-// was drawn over the window's own ground, within the rows y0 up to y1.
+// was drawn over the window's own page, within the rows y0 up to y1.
 func inkColumns(img *image.RGBA, ground stdcolor.NRGBA, x0, x1, y0, y1 int) (first, last int, found bool) {
 	first, last = -1, -1
 	for x := max(x0, 0); x < min(x1, img.Bounds().Max.X); x++ {
@@ -592,10 +592,10 @@ func inkColumns(img *image.RGBA, ground stdcolor.NRGBA, x0, x1, y0, y1 int) (fir
 // of the window is that it is at the top of the window. Two scans say so. The
 // first sweeps the row's own
 // height in the columns between the way back and the scheme switch — the middle
-// of the row, where a ground would show if there were one. The second sweeps
+// of the row, where a fill would show if there were one. The second sweeps
 // every column of the band between the row's foot and whatever stands under it,
 // which is where a rule would be. Both have to come back as the window's own
-// ground, on both screens and in both schemes.
+// page, on both screens and in both schemes.
 func TestNothingRulesOffTheTitleRow(t *testing.T) {
 	m := withStyles()
 	after := ReduceModel(m, AdoptStyle{Index: cardIndex(m, "dracula")})
@@ -615,10 +615,10 @@ func TestNothingRulesOffTheTitleRow(t *testing.T) {
 			for _, width := range []int{wideW, narrowW} {
 				img := pageAt(t, newEmbed(), screen.m, sc.os, image.Pt(width, windowH))
 				// The middle of the row, from its top edge to its foot: no
-				// ground of its own anywhere the controls are not.
+				// fill of its own anywhere the controls are not.
 				mid0, mid1 := backLeft()+backW()+int(Gap), width-int(Pad)-int(inventory.SchemeSwitchW)-int(Gap)
 				if _, _, inked := inkBand(img, ground, mid0, mid1, titleTop(), titleBottom()); inked {
-					t.Errorf("%s, %s at %d dp: something is painted across the middle of the title row — it has a ground of its own",
+					t.Errorf("%s, %s at %d dp: something is painted across the middle of the title row — it has a fill of its own",
 						sc.name, screen.what, width)
 				}
 				// The whole width of the band under the row, where the rule
@@ -680,12 +680,12 @@ func TestTheStandingOfferIsNotCrowdedOntoTheKeepAffordance(t *testing.T) {
 // TestTheWayBackIsUndressedChromeUnderTheName is the dressing the title row
 // asks of the way back, measured two ways.
 //
-// The first is the ink, measured off the tokens: the muted step has to clear
-// the floor a line of text has to reach against the page it is on, and it has
-// to stay plainly under the ink the window's own name is drawn in. That pair of
-// facts is what makes the two items in the row a name and something quieter
-// beside it rather than two things of equal weight, and what lets the control
-// carry no ground and no boundary of its own.
+// The first is the foreground, measured off the tokens: the muted step has to
+// clear the floor a line of text has to reach against the page it is on, and it
+// has to stay plainly under the foreground the window's own name is drawn in.
+// That pair of facts is what makes the two items in the row a name and
+// something fainter beside it rather than two things of equal weight, and what
+// lets the control carry no fill and no boundary of its own.
 //
 // The second is the dressing, measured off the render: inside the control's own
 // line box, the colour most of it is has to be the window's own page. A tonal
@@ -707,14 +707,14 @@ func TestTheWayBackIsUndressedChromeUnderTheName(t *testing.T) {
 		ground := stdcolor.NRGBA(c.Background)
 		chrome := color.ContrastRatio(p.Muted, ground)
 		name := color.ContrastRatio(p.Text, ground)
-		t.Logf("%s: the way back's ink %v reaches %.2f:1 against the page %v, the window's name %v reaches %.2f:1",
+		t.Logf("%s: the way back's foreground %v reaches %.2f:1 against the page %v, the window's name %v reaches %.2f:1",
 			sc.name, p.Muted, chrome, ground, p.Text, name)
 		if chrome < legibleFloor {
-			t.Errorf("%s: the way back's ink measures %.2f:1 against the page, under the %.1f:1 a line of text has to reach — undressed, it cannot be read",
+			t.Errorf("%s: the way back's foreground measures %.2f:1 against the page, under the %.1f:1 a line of text has to reach — undressed, it cannot be read",
 				sc.name, chrome, legibleFloor)
 		}
 		if chrome >= name {
-			t.Errorf("%s: the way back's ink measures %.2f:1 against the page and the window's name %.2f:1 — the chrome does not read under the name",
+			t.Errorf("%s: the way back's foreground measures %.2f:1 against the page and the window's name %.2f:1 — the chrome does not read under the name",
 				sc.name, chrome, name)
 		}
 		for _, width := range []int{wideW, narrowW} {
@@ -727,7 +727,7 @@ func TestTheWayBackIsUndressedChromeUnderTheName(t *testing.T) {
 			box := image.Rect(backLeft(), top, backLeft()+backW(), top+h)
 			fill, _ := inkOn(img, box)
 			if fill != ground {
-				t.Errorf("%s at %d dp: most of the way back's own box is %v, want the window's page %v — the control is standing on a ground of its own",
+				t.Errorf("%s at %d dp: most of the way back's own box is %v, want the window's page %v — the control is standing on a fill of its own",
 					sc.name, width, fill, ground)
 			}
 		}
@@ -950,7 +950,7 @@ func TestTheTitleRowLeadsPastTheWindowButtons(t *testing.T) {
 
 	// And the page lays the row out there. The band from the window's leading
 	// edge to the row's start is the buttons' zone: nothing the application
-	// draws may stand in it, and the row's first ink is at its far side.
+	// draws may stand in it, and the row's first painted pixel is at its far side.
 	m := withStyles()
 	after := ReduceModel(m, AdoptStyle{Index: cardIndex(m, "dracula")})
 	for _, sc := range []struct {
@@ -977,7 +977,7 @@ func TestTheTitleRowLeadsPastTheWindowButtons(t *testing.T) {
 				continue
 			}
 			if first-lead >= int(Gap) {
-				t.Errorf("%s, %s: the title row's first ink is at x=%d, %d dp past where the row starts — the row is not laid out from the buttons' edge",
+				t.Errorf("%s, %s: the title row's first painted pixel is at x=%d, %d dp past where the row starts — the row is not laid out from the buttons' edge",
 					sc.name, screen.what, first, first-lead)
 			}
 		}

@@ -77,7 +77,7 @@ func rampPinCentre(m Model, os tokens.ColorTokens, i int) image.Point {
 }
 
 // rampCellCentre is the middle of the cell holding step n+1 of ramp row i,
-// which is where a claimed rung's mark is, and rampCellColour a point in the
+// which is where a claimed step's mark is, and rampCellColour a point in the
 // same cell that no mark reaches — a quarter of the way in, against a mark of
 // six points in a cell of ninety.
 func rampCellCentre(m Model, os tokens.ColorTokens, i, n int) image.Point {
@@ -215,7 +215,7 @@ func TestEveryColourTokenIsPicked(t *testing.T) {
 		// two ends of the tonal axis, which are package colours, and the four
 		// status containers with their marks, which the theme derives from a role
 		// when it is asked. They are checked the way the fields are — the listing
-		// has to carry each, at the theme's own value — because a colour a widget
+		// has to carry each, at the theme's own value — because a colour a component
 		// is painted with at rest is a colour this window claims to show, and
 		// whether the theme keeps it in a struct is not the reader's problem.
 		for name, want := range publishedBeyondTheFields(sc.c) {
@@ -265,10 +265,10 @@ func statusRoles() []struct {
 	}
 }
 
-// TestABaseAndItsInkAreOneCell: the seven pinned roles, the page and its text,
-// and the inverse pair are each one cell — one swatch, the ink written on it —
-// because each is one decision. Surface and Divider stand alone, the theme
-// naming no ink for either.
+// TestABaseAndItsInkAreOneCell: the seven pinned roles, the page and its
+// text, and the inverse pair are each one cell — one swatch, the foreground
+// written on it — because each is one decision. Surface and Divider stand
+// alone, the theme naming no foreground for either.
 func TestABaseAndItsInkAreOneCell(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
 		want := map[string]string{
@@ -283,17 +283,17 @@ func TestABaseAndItsInkAreOneCell(t *testing.T) {
 			palette.InfoName:           "OnInfo",
 		}
 		// A container and the mark read on it are one cell for the reason a base
-		// and its ink are: the mark was measured over that exact ground.
+		// and its foreground are: the mark was measured over that exact fill.
 		for _, r := range statusRoles() {
 			want[r.name+palette.ContainerPick] = r.name + palette.MarkPick
 		}
-		// The two ends of the axis stand alone. They are what an ink turned out
-		// to be, not a ground anything is written on, and writing letters on
+		// The two ends of the axis stand alone. They are what a foreground turned out
+		// to be, not a surface anything is written on, and writing letters on
 		// either would be this section inventing a pairing the theme never made.
 		//
 		// The reserved highlighter stands alone for a reason of its own: it
 		// marks content rather than being a surface content is written on, and
-		// the theme names no ink for it.
+		// the theme names no foreground for it.
 		alone := map[string]bool{
 			palette.SurfacePick: true, palette.DividerPick: true,
 			palette.WhitePick: true, palette.BlackPick: true,
@@ -308,7 +308,7 @@ func TestABaseAndItsInkAreOneCell(t *testing.T) {
 				case paired && cell.Ink.Name != ink:
 					t.Errorf("%s: %s carries %s, want %s", sc.name, cell.Base.Name, cell.Ink.Name, ink)
 				case alone[cell.Base.Name] && cell.Paired():
-					t.Errorf("%s: %s carries an ink, and the theme names none for it", sc.name, cell.Base.Name)
+					t.Errorf("%s: %s carries a foreground, and the theme names none for it", sc.name, cell.Base.Name)
 				case !paired && !alone[cell.Base.Name]:
 					t.Errorf("%s: %s is a cell nothing accounts for", sc.name, cell.Base.Name)
 				}
@@ -336,7 +336,7 @@ func TestABaseAndItsInkAreOneCell(t *testing.T) {
 // The claims asserted here are the ones a reader would otherwise have to take
 // on trust: the neutral resolutions, the status pins that are their own ramp's
 // 700 in both schemes, the light primary that is on no ramp at all, and the
-// light secondary and tertiary that are near a rung without being on it.
+// light secondary and tertiary that are near a step without being on it.
 func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureBlue)
 	want := map[string]map[string]string{
@@ -387,9 +387,9 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 		if got, w := rules[palette.OnInverseSurfacePick], sc.inverseSide+" "+palette.PickTextRole; got != w {
 			t.Errorf("%s: %s says %q, want %q", sc.name, palette.OnInverseSurfacePick, got, w)
 		}
-		// Every ink says it was measured, because every one of them was, and
-		// that is the half of the answer the colour alone does not give. An ink
-		// whose own name says which role the cell is about — a rung of that
+		// Every foreground says it was measured, because every one of them was, and
+		// that is the half of the answer the colour alone does not give. A foreground
+		// whose own name says which role the cell is about — a step of that
 		// role's ramp — may say "the base"; one that does not, white and black
 		// belonging to no role, has to name it, or a light scheme's seven cells
 		// carry one sentence between them.
@@ -404,7 +404,7 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 				t.Errorf("%s: On%s says %q, which names neither the base nor its own role", sc.name, role, rule)
 			}
 		}
-		// No two inks may say the same thing, which is what naming the base
+		// No two foregrounds may say the same thing, which is what naming the base
 		// buys: it is the difference between seven rules and one repeated.
 		said := map[string]string{}
 		for _, role := range []string{palette.PrimaryName, palette.SecondaryName, palette.TertiaryName,
@@ -415,8 +415,8 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 			}
 			said[rule] = role
 		}
-		// And an ink's rule names what was actually kept: one of the two ends
-		// of the tonal axis, or the role's own deepest rung.
+		// And a foreground's rule names what was actually kept: one of the two ends
+		// of the tonal axis, or the role's own deepest step.
 		if got := rules["OnPrimary"]; sc.dark {
 			if !strings.HasPrefix(got, palette.PrimaryName+" ") && !strings.HasPrefix(got, palette.PickWhite) {
 				t.Errorf("dark: OnPrimary says %q, want its own ramp's step or white", got)
@@ -448,7 +448,7 @@ func TestNoRuleIsEmpty(t *testing.T) {
 					t.Errorf("%s: %s draws a transparent swatch", sc.name, cell.Base.Name)
 				}
 				if cell.Paired() && cell.On.A == 0 {
-					t.Errorf("%s: %s is written in a transparent ink", sc.name, cell.Ink.Name)
+					t.Errorf("%s: %s is written in a transparent foreground", sc.name, cell.Ink.Name)
 				}
 			}
 		}
@@ -464,7 +464,7 @@ func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 		claims := palette.Claims(groups)
 		for claim := range claims {
 			if claim.Step%100 != 0 || claim.Step < 100 || claim.Step > 900 {
-				t.Errorf("%s: %s claims step %d, which is not a rung", sc.name, claim.Role, claim.Step)
+				t.Errorf("%s: %s claims step %d, which is not one of the ramp's nine", sc.name, claim.Role, claim.Step)
 			}
 		}
 		for _, g := range groups {
@@ -473,8 +473,8 @@ func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 					if part.Step == 0 {
 						continue
 					}
-					// A rule names the rung its mark is on, whether the colour
-					// is that rung or is merely indistinguishable from it.
+					// A rule names the step its mark is on, whether the colour
+					// is that step or is merely indistinguishable from it.
 					want := fmt.Sprintf("%s %d", part.Role, part.Step)
 					if !strings.Contains(part.Rule, want) {
 						t.Errorf("%s: %s marks %s and its rule says %q", sc.name, part.Name, want, part.Rule)
@@ -485,15 +485,15 @@ func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 				}
 			}
 		}
-		// A light scheme's inks are the ends of the tonal axis, which are on no
+		// A light scheme's foregrounds are the ends of the tonal axis, which are on no
 		// ramp, so they claim nothing; a dark scheme's come off their own role's
-		// ramp and claim its deepest rung. That difference is the derivation
+		// ramp and claim its deepest step. That difference is the derivation
 		// being visible, and it is worth failing if it stops being true.
 		rules := rulesOf(groups)
 		for _, role := range []string{palette.PrimaryName, palette.ErrorName, palette.InfoName} {
 			ink := rules["On"+role]
 			if sc.dark && !strings.HasPrefix(ink, role+" ") {
-				t.Errorf("%s: On%s says %q, want a rung of its own ramp", sc.name, role, ink)
+				t.Errorf("%s: On%s says %q, want a step of its own ramp", sc.name, role, ink)
 			}
 			if !sc.dark && !strings.HasPrefix(ink, palette.PickWhite) && !strings.HasPrefix(ink, palette.PickBlack) {
 				t.Errorf("%s: On%s says %q, want an end of the tonal axis", sc.name, role, ink)
@@ -503,14 +503,14 @@ func TestAClaimedRungIsTheRuleItNames(t *testing.T) {
 }
 
 // TestTheRungToleranceStandsBetweenItsTwoMeasurements: the tolerance that
-// decides whether a pick sits at a rung is set by measurement, and this is the
+// decides whether a pick sits at a step is set by measurement, and this is the
 // measurement.
 //
-// Below it, every pin that ought to match its rung has to match: the light
+// Below it, every pin that ought to match its step has to match: the light
 // accents are pinned a unit of lightness off their own 700 and a reader looking
-// at the grid sees them on it. Above it, no rung may be within reach of another,
-// or a mark would be ambiguous about which one it means — and worse, a colour
-// could be marked at two rungs at once.
+// at the grid sees them on it. Above it, no step may stand within a tolerance
+// of another, or a mark would be ambiguous about which one it means — and
+// worse, a colour could be marked at two steps at once.
 func TestTheRungToleranceStandsBetweenItsTwoMeasurements(t *testing.T) {
 	worstMatch, closestRungs := 0.0, 1.0
 	for _, seed := range []stdcolor.NRGBA{fixtureBlue, fixtureRed, fixtureGrey, tokens.DefaultSeed} {
@@ -531,7 +531,7 @@ func TestTheRungToleranceStandsBetweenItsTwoMeasurements(t *testing.T) {
 			} {
 				step := palette.NearestStep(pin.ramp, pin.col)
 				if step == 0 {
-					t.Errorf("%s: the %s pin sits at no rung the grid can mark", hexOf(seed), pin.name)
+					t.Errorf("%s: the %s pin sits at no step the grid can mark", hexOf(seed), pin.name)
 					continue
 				}
 				worstMatch = max(worstMatch, palette.OKLabDistance(pin.ramp.Step(step), pin.col))
@@ -544,17 +544,17 @@ func TestTheRungToleranceStandsBetweenItsTwoMeasurements(t *testing.T) {
 			}
 		}
 	}
-	t.Logf("the worst pin sits %.4f from its rung; the closest two rungs are %.4f apart; the tolerance is %.4f",
+	t.Logf("the worst pin sits %.4f from its step; the closest two steps are %.4f apart; the tolerance is %.4f",
 		worstMatch, closestRungs, palette.RungTolerance)
 	if worstMatch >= palette.RungTolerance {
-		t.Errorf("a pin sits %.4f from its own rung and the tolerance is %.4f — a pick the grid should mark goes unmarked",
+		t.Errorf("a pin sits %.4f from its own step and the tolerance is %.4f — a pick the grid should mark goes unmarked",
 			worstMatch, palette.RungTolerance)
 	}
-	// Two rungs a whole tolerance apart on either side of one colour is the
-	// case that would let a colour be within reach of both, so the gap has to
+	// Two steps a whole tolerance apart on either side of one colour is the
+	// case that would let a colour stand within a tolerance of both, so the gap has to
 	// beat twice the tolerance rather than merely exceed it.
 	if closestRungs <= 2*palette.RungTolerance {
-		t.Errorf("two rungs stand %.4f apart against a tolerance of %.4f — a mark cannot say which rung it means",
+		t.Errorf("two steps stand %.4f apart against a tolerance of %.4f — a mark cannot say which step it means",
 			closestRungs, palette.RungTolerance)
 	}
 }
@@ -586,8 +586,8 @@ func TestTheGridDrawsTheThemesOwnRampSteps(t *testing.T) {
 }
 
 // TestTheGridMarksTheRungsThePicksTook: the two halves of the section point at
-// each other. A rung some pick took carries a mark in the middle of its cell,
-// every other cell is the colour and nothing else, and the mark's ink is
+// each other. A step some pick took carries a mark in the middle of its cell,
+// every other cell is the colour and nothing else, and the mark's foreground is
 // measured over the step it stands on — the same pair of candidates the
 // derivation itself chooses an on-colour from, because it is the same job.
 func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
@@ -596,7 +596,7 @@ func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 		c, other := derived(m, os)
 		claims := palette.Claims(palette.Groups(c, other, m.Dark(os)))
 		if len(claims) == 0 {
-			t.Fatal("no pick claims a rung, so the grid marks nothing")
+			t.Fatal("no pick claims a step, so the grid marks nothing")
 		}
 		img := page(t, m, os)
 		for i, row := range palette.RampRows(c) {
@@ -628,10 +628,10 @@ func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 // own cell, and the only thing that makes the cell worth reading is whether the
 // scheme on screen turned out to use it.
 //
-// The answer is read off the board's own inks rather than written down, and it
-// is not the same answer on both sides: a light scheme writes almost every ink
-// in white, and a dark scheme takes every ink off the role's own ramp and
-// writes in neither end.
+// The answer is read off the board's own foregrounds rather than written down,
+// and it is not the same answer on both sides: a light scheme writes almost
+// every foreground in white, and a dark scheme takes every foreground off the
+// role's own ramp and writes in neither end.
 func TestTheAxisEndsSayWhetherThisSchemeWritesInThem(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
 		groups := palette.Groups(sc.c, sc.other, sc.dark)
@@ -664,7 +664,7 @@ func TestTheAxisEndsSayWhetherThisSchemeWritesInThem(t *testing.T) {
 		// on both sides would be saying nothing on either.
 		if !sc.dark {
 			if got, want := rules[palette.WhitePick], fmt.Sprintf(palette.PickAxisInk, palette.PickAxisLight); got != want {
-				t.Errorf("%s: %s says %q, and this scheme's inks are white", sc.name, palette.WhitePick, got)
+				t.Errorf("%s: %s says %q, and this scheme's foregrounds are white", sc.name, palette.WhitePick, got)
 			}
 		}
 	}
@@ -675,16 +675,16 @@ func TestTheAxisEndsSayWhetherThisSchemeWritesInThem(t *testing.T) {
 const markGraphicFloor = 3.0
 
 // TestEveryMarkOnTheGridReadsOnTheStepItStandsOn: a marker nobody can see is
-// not a marker, and the grid puts them on seventy-two possible grounds running
+// not a marker, and the grid puts them on seventy-two possible surfaces running
 // from the page itself to nearly black.
 //
-// The ink is chosen by measuring both ends of the tonal axis over the step and
-// keeping the better, and this is why it cannot be chosen by asking whether the
-// step is dark instead: the mid rungs of a saturated hue sit under half the
-// luminance scale and still take black far better than white — a light red at a
-// third of the scale reads at 2.7:1 in white and 7.8:1 in black. The status
-// containers name their marks on those rungs, on four cells of every dark
-// scheme.
+// The foreground is chosen by measuring both ends of the tonal axis over the
+// step and keeping the better, and this is why it cannot be chosen by asking
+// whether the step is dark instead: the mid steps of a saturated hue sit under
+// half the luminance scale and still take black far better than white — a light
+// red at a third of the scale reads at 2.7:1 in white and 7.8:1 in black. The
+// status containers name their marks on those steps, on four cells of every
+// dark scheme.
 func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
 	worst, at := math.Inf(1), ""
 	for _, sc := range schemesUnderTest(t) {
@@ -703,18 +703,18 @@ func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
 	}
 	t.Logf("the faintest mark on the grid reads at %.2f:1, on %s", worst, at)
 	if worst < markGraphicFloor {
-		t.Errorf("a mark reads at %.2f:1 over its own step (%s), under the %.1f:1 a graphic owes its ground",
+		t.Errorf("a mark reads at %.2f:1 over its own step (%s), under the %.1f:1 a graphic owes the surface it stands on",
 			worst, at, markGraphicFloor)
 	}
 }
 
 // TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill: the section frames every
 // swatch in one colour per scheme — the inverse of the page — and every fill it
-// frames is told from the ground it stands on either by that edge or by being
-// that far from the ground itself.
+// frames is told from the surface it stands on either by that edge or by being
+// that far from that surface itself.
 //
 // One colour, because a frame chosen per swatch turns its polarity over in the
-// middle of every ramp and the flip is louder than the edges it buys. What
+// middle of every ramp and the flip is more pronounced than the edges it buys. What
 // stands in for a per-swatch floor is the pair of readings: an edge that fades
 // as a fill leaves the page tone behind is an edge handing the boundary to the
 // fill, and the two multiply out to the contrast between the page and its
@@ -789,13 +789,13 @@ func TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill(t *testing.T) {
 	}
 	t.Logf("the least-bounded swatch in the section is %s, at %s", at, bounds)
 	if worst < markGraphicFloor {
-		t.Errorf("%s is bounded by neither its edge nor its own fill (%s), under the %.1f:1 a graphic owes its ground",
+		t.Errorf("%s is bounded by neither its edge nor its own fill (%s), under the %.1f:1 a graphic owes the surface it stands on",
 			at, bounds, markGraphicFloor)
 	}
 }
 
 // sectionFills is every colour this section paints a swatch in, named as the
-// section names it: the seventy-two rungs of the grid, the base each role
+// section names it: the seventy-two steps of the grid, the base each role
 // pinned, and the fill of every cell on the picks board.
 func sectionFills(c, other tokens.ColorTokens, dark bool) map[string]stdcolor.NRGBA {
 	fills := map[string]stdcolor.NRGBA{}
@@ -867,7 +867,7 @@ func sectionCellX(width, n int) int {
 // pinned is drawn beside the nine it was pinned against, read off the render.
 //
 // A light scheme's Primary is the chosen seed at the seed's own depth and its
-// Secondary and Tertiary are pinned off their own 700, so a grid of rungs alone
+// Secondary and Tertiary are pinned off their own 700, so a grid of steps alone
 // shows nine colours a role might have been and not the one it is — and the
 // seed, which is the colour the window exists to judge, is nowhere in the
 // window.
@@ -883,14 +883,14 @@ func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
 				// Neutral pins no solid fill, so its slot carries the mark that
 				// says so and no chip: something is drawn in the middle of it,
 				// and the slot around that something is the section's own
-				// ground rather than a colour standing in for a pin.
+				// fill rather than a colour standing in for a pin.
 				if got.R == c.Background.R && got.G == c.Background.G && got.B == c.Background.B {
 					t.Errorf("%s pins nothing and its slot at %v is empty, want the mark that says so", row.Name, at)
 				}
 				off := image.Pt(at.X-int(palette.RampPinW)/3, at.Y)
 				beside := img.RGBAAt(off.X, off.Y)
 				if want := c.Background; beside.R != want.R || beside.G != want.G || beside.B != want.B {
-					t.Errorf("%s pins nothing and its slot at %v drew %v, want the ground %v",
+					t.Errorf("%s pins nothing and its slot at %v drew %v, want the surface %v",
 						row.Name, off, beside, want)
 				}
 				continue
@@ -912,17 +912,17 @@ func TestEveryPinnedBaseStandsAtTheEndOfItsOwnRow(t *testing.T) {
 	}
 }
 
-// fixtureMagenta is a seed whose lifted light Primary sits between two rungs
+// fixtureMagenta is a seed whose lifted light Primary sits between two steps
 // of its own ramp: its depth lands between the tones of steps 500 and 600, and
-// the pin sits 0.0575 in OKLab from the nearest rung — over three times
-// [palette.RungTolerance] — so nearest-rung matching honestly claims nothing.
+// the pin sits 0.0575 in OKLab from the nearest step — over three times
+// [palette.RungTolerance] — so nearest-step matching honestly claims nothing.
 // Found by scanning the seed cube for the widest such margin at a vivid
 // mid-scale colour. It is the case the chip dot exists for: the light scheme pins the
-// seed at the seed's own depth, and this seed's depth is no rung's.
+// seed at the seed's own depth, and this seed's depth is no step's.
 var fixtureMagenta = stdcolor.NRGBA{R: 0xf8, G: 0x00, B: 0xd8, A: 0xff}
 
 // offRampSeeded is a window showing the theme fixtureMagenta generates: the
-// one fixture whose light pin claims no rung and whose dark pin is a rung
+// one fixture whose light pin claims no step and whose dark pin is a step
 // exactly, which are the two sides of the chip-dot question in one seed.
 func offRampSeeded(t *testing.T) Model {
 	t.Helper()
@@ -933,27 +933,27 @@ func offRampSeeded(t *testing.T) Model {
 }
 
 // TestTheOffRampFixtureSitsBetweenRungs: the fixture the chip dot is judged
-// with honestly is the case it exists for. The lifted seed is on no rung and
+// with honestly is the case it exists for. The lifted seed is on no step and
 // indistinguishable from none, with margin; its depth falls between two
 // adjacent steps of the scale rather than off either end; its rule says the
-// seed was lifted and nothing else; and no pick claims a Primary rung, which is
+// seed was lifted and nothing else; and no pick claims a Primary step, which is
 // the row the chip's own dot keeps from reading as unused. The dark side of the
-// same seed pins a rung exactly, which is the chip that has to stay undotted.
+// same seed pins a step exactly, which is the chip that has to stay undotted.
 func TestTheOffRampFixtureSitsBetweenRungs(t *testing.T) {
 	light, dark := tokens.FromSeed(fixtureMagenta)
 	if n := palette.StepIn(light.Ramps.Primary, light.Primary); n != 0 {
-		t.Fatalf("the light pin is rung %d exactly, want a pin between rungs", n)
+		t.Fatalf("the light pin is step %d exactly, want a pin between steps", n)
 	}
 	if n := palette.NearestStep(light.Ramps.Primary, light.Primary); n != 0 {
-		t.Fatalf("the light pin is indistinguishable from rung %d, want a pin between rungs", n)
+		t.Fatalf("the light pin is indistinguishable from step %d, want a pin between steps", n)
 	}
 	nearest := math.Inf(1)
 	for n := range palette.RampSteps {
 		nearest = min(nearest, palette.OKLabDistance(light.Ramps.Primary.Step((n+1)*100), light.Primary))
 	}
-	t.Logf("the lifted seed sits %.4f from its nearest rung, against a tolerance of %.4f", nearest, palette.RungTolerance)
+	t.Logf("the lifted seed sits %.4f from its nearest step, against a tolerance of %.4f", nearest, palette.RungTolerance)
 	if nearest < 2*palette.RungTolerance {
-		t.Errorf("the lifted seed sits %.4f from a rung against a tolerance of %.4f — too near to hold the between-rungs case",
+		t.Errorf("the lifted seed sits %.4f from a step against a tolerance of %.4f — too near to hold the between-steps case",
 			nearest, palette.RungTolerance)
 	}
 	// Between two adjacent steps of the light scale — which runs pale to deep —
@@ -976,14 +976,14 @@ func TestTheOffRampFixtureSitsBetweenRungs(t *testing.T) {
 		}
 	}
 	if palette.StepIn(dark.Ramps.Primary, dark.Primary) == 0 {
-		t.Error("the dark pin is on no rung, want the rung-exact pin whose chip stays undotted")
+		t.Error("the dark pin is on no step, want the step-exact pin whose chip stays undotted")
 	}
 }
 
 // TestTheChipDotAgreesWithTheRule: the chip carries a dot exactly where the
-// rule under the pick says the pin is on no rung. [palette.PinRung] asks the two
+// rule under the pick says the pin is on no step. [palette.PinRung] asks the two
 // questions [palette.BasePart] resolves a base's rule by, and this holds the two
-// answers together — a chip dotted beside a rule naming a rung, or a bare chip
+// answers together — a chip dotted beside a rule naming a step, or a bare chip
 // beside a rule claiming none, would be the section disagreeing with itself in
 // the two places it is read.
 func TestTheChipDotAgreesWithTheRule(t *testing.T) {
@@ -995,10 +995,10 @@ func TestTheChipDotAgreesWithTheRule(t *testing.T) {
 					continue // Neutral pins nothing: a dash, and never a dot
 				}
 				// The near and off wordings differ per role and play no part in
-				// which rung the rule claims, which is the half under test.
+				// which step the rule claims, which is the half under test.
 				part := palette.BasePart(row.Name, row.Ramp, row.Pin, palette.PickJustOff, palette.PickPinned)
 				if dotted, claimed := palette.PinRung(row.Ramp, row.Pin) == 0, part.Step != 0; dotted == claimed {
-					t.Errorf("%s %s: the chip dot says the pin claims no rung (%t) and the rule claims step %d",
+					t.Errorf("%s %s: the chip dot says the pin claims no step (%t) and the rule claims step %d",
 						hexOf(seed), row.Name, dotted, part.Step)
 				}
 			}
@@ -1007,10 +1007,10 @@ func TestTheChipDotAgreesWithTheRule(t *testing.T) {
 }
 
 // TestAnOffRampBaseCarriesTheDotItself: a pinned base indistinguishable from
-// no rung carries the dot on its own chip, in the ink measured over the chip
+// no step carries the dot on its own chip, in the foreground measured over the chip
 // the way every cell's dot is measured over its step — so the row reads as
 // used and placed rather than as a role nothing picked. The dark side of the
-// same seed is the control: a rung-exact pin keeps its rung dot and an
+// same seed is the control: a step-exact pin keeps its step dot and an
 // undotted chip. Both read off the render.
 func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 	m := offRampSeeded(t)
@@ -1020,37 +1020,37 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 		at := rampPinCentre(m, os, 0) // Primary leads the grid
 		got := img.RGBAAt(at.X, at.Y)
 		if !m.Dark(os) {
-			// The dot, in the middle of the chip, in the measured ink.
+			// The dot, in the middle of the chip, in the measured foreground.
 			want := palette.MarkInkOn(c.Primary)
 			if off := max(apart(got.R, want.R), max(apart(got.G, want.G), apart(got.B, want.B))); off > markJitter {
-				t.Errorf("the chip centre at %v drew %v, want the dot ink %v", at, got, want)
+				t.Errorf("the chip centre at %v drew %v, want the dot foreground %v", at, got, want)
 			}
 			// Beside the dot the chip is still the pin.
 			side := img.RGBAAt(at.X-int(palette.RampPinW)/3, at.Y)
 			if side.R != c.Primary.R || side.G != c.Primary.G || side.B != c.Primary.B {
 				t.Errorf("beside the dot the chip drew %v, want the pinned base %v", side, c.Primary)
 			}
-			// And no cell of the row carries one: the pin claims no rung, and
+			// And no cell of the row carries one: the pin claims no step, and
 			// the dot the row owes its reader is the chip's.
 			for n := range palette.RampSteps {
 				cell := rampCellCentre(m, os, 0, n)
 				step := c.Ramps.Primary.Step((n + 1) * 100)
 				pix := img.RGBAAt(cell.X, cell.Y)
 				if pix.R != step.R || pix.G != step.G || pix.B != step.B {
-					t.Errorf("%s %d at %v drew %v, want the bare step %v — the pin claims no rung",
+					t.Errorf("%s %d at %v drew %v, want the bare step %v — the pin claims no step",
 						palette.PrimaryName, (n+1)*100, cell, pix, step)
 				}
 			}
 			continue
 		}
-		// The rung-exact side: the chip stays the pin, whole, and the dot is on
-		// the rung the pin is.
+		// The step-exact side: the chip stays the pin, whole, and the dot is on
+		// the step the pin is.
 		if got.R != c.Primary.R || got.G != c.Primary.G || got.B != c.Primary.B {
-			t.Errorf("the rung-exact chip centre at %v drew %v, want the undotted pin %v", at, got, c.Primary)
+			t.Errorf("the step-exact chip centre at %v drew %v, want the undotted pin %v", at, got, c.Primary)
 		}
 		n := palette.StepIn(c.Ramps.Primary, c.Primary)
 		if n == 0 {
-			t.Fatal("the dark pin claims no rung, want the rung-exact control case")
+			t.Fatal("the dark pin claims no step, want the step-exact control case")
 		}
 		cell := rampCellCentre(m, os, 0, n/100-1)
 		step := c.Ramps.Primary.Step(n)
@@ -1063,17 +1063,17 @@ func TestAnOffRampBaseCarriesTheDotItself(t *testing.T) {
 }
 
 // TestEachContainerIsItsRungHeldAtLessChroma: the rule under a status container
-// says which rung's depth it was realized at and what was done to that rung,
+// says which step's depth it was realized at and what was done to that step,
 // and both halves are checked against the colour itself.
 //
-// The rung is named by tone because tone is what a container keeps: it gives up
+// The step is named by tone because tone is what a container keeps: it gives up
 // chroma and takes its hue from the ramp's pale tint depth, so no comparison of
 // colours finds the cell it came from. Rebuilding the container out of the named
-// rung's tone, the pale tint depth's hue and the container's own chroma has to
+// step's tone, the pale tint depth's hue and the container's own chroma has to
 // produce the container back, to within the byte the chroma was rounded into on
-// the way out, or the rule names a rung the derivation did not use.
+// the way out, or the rule names a step the derivation did not use.
 // paleTintStep is the step a container reads its hue at (theme's
-// containers.go): the third rung counted from the ramp's pale end.
+// containers.go): the third step counted from the ramp's pale end.
 func paleTintStep(r tokens.Ramp) int {
 	pale, _, _ := vgcolor.LabFromNRGBA(r.Step(100))
 	deep, _, _ := vgcolor.LabFromNRGBA(r.Step(900))
@@ -1104,17 +1104,17 @@ func TestEachContainerIsItsRungHeldAtLessChroma(t *testing.T) {
 					sc.name, r.name, ground, r.name, step, got)
 			}
 			if held >= chroma {
-				t.Errorf("%s: the %s container carries chroma %.4f against its rung's %.4f, and the rule says it was pulled down",
+				t.Errorf("%s: the %s container carries chroma %.4f against its step's %.4f, and the rule says it was pulled down",
 					sc.name, r.name, held, chroma)
 			}
 			if got, want := rules[r.name+palette.ContainerPick], fmt.Sprintf(palette.PickContainerRule, r.name, step); got != want {
 				t.Errorf("%s: %s says %q, want %q", sc.name, r.name+palette.ContainerPick, got, want)
 			}
-			// And the mark on it is a rung of the role's own ramp, named as one.
+			// And the mark on it is a step of the role's own ramp, named as one.
 			mark := sc.c.OnStatusContainer(r.id)
 			n := palette.StepIn(ramp, mark)
 			if n == 0 {
-				t.Errorf("%s: the %s mark %v is on no rung of its own ramp", sc.name, r.name, mark)
+				t.Errorf("%s: the %s mark %v is on no step of its own ramp", sc.name, r.name, mark)
 				continue
 			}
 			if got, want := rules[r.name+palette.MarkPick], fmt.Sprintf(palette.PickMarkRule, r.name, n); got != want {
@@ -1125,13 +1125,13 @@ func TestEachContainerIsItsRungHeldAtLessChroma(t *testing.T) {
 }
 
 // TestTheContainersToneNamesOneRungAndNoOther: the tone a container shares with
-// its rung is closer to that rung than half the distance to the rung's
-// neighbour, so reading the rung off the tone cannot land on the wrong one.
+// its step is closer to that step than half the distance to the step's
+// neighbour, so reading the step off the tone cannot land on the wrong one.
 //
 // It is the container's answer to the tolerance the pins are marked by: a rule
 // that names a step has to name the step the derivation used, and a measurement
-// that could be within reach of two steps at once would name whichever came
-// first in a loop.
+// that could stand within a tolerance of two steps at once would name whichever
+// came first in a loop.
 func TestTheContainersToneNamesOneRungAndNoOther(t *testing.T) {
 	worst, closest := 0.0, math.Inf(1)
 	for _, sc := range schemesUnderTest(t) {
@@ -1148,9 +1148,9 @@ func TestTheContainersToneNamesOneRungAndNoOther(t *testing.T) {
 			}
 		}
 	}
-	t.Logf("the worst container sits %.4f from its rung's tone; the closest two rungs stand %.4f apart", worst, closest)
+	t.Logf("the worst container sits %.4f from its step's tone; the closest two steps stand %.4f apart", worst, closest)
 	if 2*worst >= closest {
-		t.Errorf("a container sits %.4f from its rung's tone and two rungs stand %.4f apart — the tone names two rungs",
+		t.Errorf("a container sits %.4f from its step's tone and two steps stand %.4f apart — the tone names two steps",
 			worst, closest)
 	}
 }
@@ -1321,7 +1321,7 @@ func TestALineTooWideForItsColumnIsCutAtItsOwnBoundaries(t *testing.T) {
 	}
 	// The clause cut is the one that matters, so it is named: the container
 	// rules are the longest lines on the board and their first clause is the
-	// rung a reader is looking for.
+	// step a reader is looking for.
 	rule, longest := "", 0
 	for _, r := range rulesOf(groups) {
 		if w := natural(gtx, ty.Shaper, ty.Small, r); w > longest {
@@ -1508,7 +1508,7 @@ func schemesUnderTest(t *testing.T) []struct {
 }
 
 // paletteSectionW is the palette section on its own, at a width of the
-// caller's choosing: the four rows the column would stack, on the ground the
+// caller's choosing: the four rows the column would stack, on the surface the
 // column would stand them on. The section is asserted here rather than inside
 // a window capture because what is under test is how it answers to the width
 // it is handed, and the widths worth trying are wider than the window the rest
@@ -1558,9 +1558,9 @@ func TestPaletteSectionDump(t *testing.T) {
 			t.Logf("wrote %s at %d points wide", path, w.width)
 		}
 	}
-	// And the seed whose light pin claims no rung, which is the one grid where
+	// And the seed whose light pin claims no step, which is the one grid where
 	// the dot is on a chip rather than a cell — with its own dark side, where
-	// the pin is a rung exactly and the chip stays bare.
+	// the pin is a step exactly and the chip stays bare.
 	oLight, oDark := tokens.FromSeed(fixtureMagenta)
 	for _, sc := range []struct {
 		name     string
@@ -1617,7 +1617,7 @@ func TestTheGridEndsWhereTheHeadingBarDoes(t *testing.T) {
 				t.Fatalf("%s at %d: nothing drawn in the first ramp row", sc.name, width)
 			}
 			if edge-1-right > 1 {
-				t.Errorf("%s at %d: the row's last ink is at x=%d, %d points short of the section's trailing edge at %d — the grid and its heading bar disagree on where the section ends",
+				t.Errorf("%s at %d: the row's last painted pixel is at x=%d, %d points short of the section's trailing edge at %d — the grid and its heading bar disagree on where the section ends",
 					sc.name, width, right, edge-1-right, edge-1)
 			}
 			// And the chip is still a chip at the end of a row rather than a
@@ -1643,8 +1643,8 @@ func TestTheGridEndsWhereTheHeadingBarDoes(t *testing.T) {
 
 // strokeBleed is how far the rounded chip's hairline frame spreads past the
 // rectangle it was asked for: the rasteriser's own antialiasing, a pixel on
-// either side, which a scan reading colour boundaries off a capture counts as
-// ink.
+// either side, which a scan reading colour boundaries off a capture counts as part
+// of the stroke.
 const strokeBleed = 2
 
 // pixelAt is one pixel of a capture as an opaque colour.
@@ -1704,23 +1704,23 @@ func TestTheCaptionsClausesAreTheOnesItIsWrittenIn(t *testing.T) {
 	}
 }
 
-// captionRegister is how close a caption's contrast may fall to the contrast
-// of the words beside it on the same bar before it reads as a different class
-// of text. The caption is set in the heading's own ink, so what is measured is
-// the antialiasing of twelve points against fourteen and nothing else.
+// captionRegister is how close a caption's contrast may fall to the contrast of
+// the words beside it on the same bar before it reads as a different class of
+// text. The caption is set in the heading's own foreground, so what is measured
+// is the antialiasing of twelve points against fourteen and nothing else.
 const captionRegister = 0.85
 
 // TestTheSectionCaptionReadsInItsNeighboursRegister: the caption on a section's
 // heading bar is read at the contrast the rest of the section is read at, on
 // both sides of the switch.
 //
-// The quiet neutral step every hint in this window uses does not hold its
-// register across the schemes: measured against the bar it stands on it reaches
+// The faint neutral step every hint in this window uses does not hold its
+// contrast across the schemes: measured against the bar it stands on it reaches
 // 9.91:1 in a dark scheme, where its neighbours reach 13.71, and 5.46:1 in a
 // light one, where they reach 15.16. A caption is
 // a legend — the leading clause of this one is the only thing on the screen
-// that says what the dots on the grid below mean — and a legend that is quiet
-// in one scheme and faint in the other is a legend nobody reads in either.
+// that says what the dots on the grid below mean — and a legend that is faint
+// in one scheme and fainter in the other is a legend nobody reads in either.
 func TestTheSectionCaptionReadsInItsNeighboursRegister(t *testing.T) {
 	width := 1440 - 2*int(Pad)
 	for _, sc := range schemesUnderTest(t)[:4] {
@@ -1746,7 +1746,7 @@ func TestTheSectionCaptionReadsInItsNeighboursRegister(t *testing.T) {
 				sc.name, titleGround, captionGround, p.Surface)
 		}
 		if caption < captionRegister*title {
-			t.Errorf("%s: the caption reads at %.2f:1 beside a heading at %.2f:1 — %.0f%% of it, under the %.0f%% that keeps them one register",
+			t.Errorf("%s: the caption reads at %.2f:1 beside a heading at %.2f:1 — %.0f%% of it, under the %.0f%% that keeps them one class of text",
 				sc.name, caption, title, 100*caption/title, 100*captionRegister)
 		}
 	}

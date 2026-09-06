@@ -623,7 +623,7 @@ func rescanSummary(idx *Index) string {
 
 // unchangedOnDisk reports whether a cached note still matches the file it
 // was read from. A file that cannot be stat'ed — a vault on a detached
-// volume, a note deleted since — counts as unchanged: a viewer showing
+// drive, a note deleted since — counts as unchanged: a viewer showing
 // what it last read beats one blanking the page.
 func unchangedOnDisk(vault string, n *Note) bool {
 	if vault == "" || n == nil {

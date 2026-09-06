@@ -41,9 +41,9 @@ const (
 //
 // There are two hints because there are two things a row can be made of. The
 // share under a swatch is a fraction of whatever the colours were counted out
-// of, and after a style card is clicked that is the style's own inks and not a
-// photograph: a line explaining a percentage of a picture, on a window where no
-// picture was ever dropped, describes a route the reader did not take and
+// of, and after a style card is clicked that is the style's own colours and not
+// a photograph: a line explaining a percentage of a picture, on a window where
+// no picture was ever dropped, describes a route the reader did not take and
 // leaves the number in front of them with nothing to be a fraction of.
 const (
 	RowLabel     = "Seed candidates"

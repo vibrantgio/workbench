@@ -129,7 +129,7 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 // TestRailPaneFloatsAtTheWindowTop asserts the sidebar is the leading
 // column and owns the top of the window the way the platform's own
 // sidebars do: floating one margin inside the window's leading, top and
-// bottom edges, with nothing above it but that margin of ground and no
+// bottom edges, with nothing above it but that margin of backdrop and no
 // chrome band. The window buttons stand inside the pane's own strip, which
 // they can only do if the pane is what is under them; the margin merely
 // moves the strip a step in from the glass.
@@ -152,7 +152,7 @@ func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 		t.Fatal("no rail pane with the rail shown")
 	}
 	if want := image.Pt(railMarginDp, railMarginDp); shown.pane.Min != want {
-		t.Errorf("pane starts at %v, want %v — one margin inside the window's top-leading corner, and nothing above it but ground", shown.pane.Min, want)
+		t.Errorf("pane starts at %v, want %v — one margin inside the window's top-leading corner, and nothing above it but backdrop", shown.pane.Min, want)
 	}
 	if want := size.Y - railMarginDp; shown.pane.Max.Y != want {
 		t.Errorf("pane bottom at y=%d, want %d — one margin above the window's bottom edge", shown.pane.Max.Y, want)
@@ -277,8 +277,8 @@ func TestPaneFocusOrder(t *testing.T) {
 //     title bar handed over;
 //   - the pane's own toggle is not covered by that claim, because a move
 //     action swallows the press before the control sees one;
-//   - the margin of ground the inset reveals claims nothing — it is bare
-//     ground, and an eight-dp sliver is not a handle a hand aims for;
+//   - the margin of backdrop the inset reveals claims nothing — it is bare
+//     backdrop, and an eight-dp sliver is not a handle a hand aims for;
 //   - and a pointer over the toggle reaches the toggle, which is what
 //     proves the rounded clip and the inset offset between the window's
 //     coordinates and the pane's have not orphaned the control.
@@ -316,7 +316,7 @@ func TestPaneStripClaimsInsideTheInsetPane(t *testing.T) {
 		t.Errorf("window-move action at %v; the toggle's own span must not move the window", toggle)
 	}
 	if a, ok := r.ActionAt(f32.Pt(middle.X, float32(pane.Min.Y)/2)); ok {
-		t.Errorf("action %v claimed over the margin above the pane; the revealed ground is bare", a)
+		t.Errorf("action %v claimed over the margin above the pane; the revealed backdrop is bare", a)
 	}
 
 	r.Queue(pointer.Event{Kind: pointer.Move, Position: toggle, Source: pointer.Mouse})
@@ -388,7 +388,7 @@ const chromeBudgetDp = 40
 // the row's own height above its first document row (twenty-eight dp) and
 // no more. The sidebar column spends one margin — the inset the pane floats
 // off the window's edges by — and no chrome at all: what is above the pane
-// is ground, not band, and the assertion pins the margin so a band cannot
+// is backdrop, not band, and the assertion pins the margin so a band cannot
 // creep in wearing its name.
 //
 // Both rail states are measured. Hiding the rail rebuilds the whole
@@ -421,7 +421,7 @@ func TestChromeBudget(t *testing.T) {
 				t.Errorf("the content area spends %d dp above its first document row, want the chrome row's own %d dp — nothing else may stand there",
 					st.geom.rowTop, row)
 			}
-			// The sidebar's own budget: one margin of ground and nothing
+			// The sidebar's own budget: one margin of backdrop and nothing
 			// else. Anything more above the pane would be a chrome band.
 			if !st.geom.pane.Empty() && st.geom.pane.Min.Y != railMarginDp {
 				t.Errorf("the sidebar starts at y=%d, want the frame's own %d dp margin and nothing else above it", st.geom.pane.Min.Y, railMarginDp)
@@ -500,11 +500,11 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 // The number is the platform's. Voice Memos outlines its floating panel at
 // #3A3A3A on a #1B1B1B panel — 1.514:1 — and leaves the flush side of the
 // same window unoutlined (owner-attested, 2026-08-28). Both halves are
-// checked here: the derived ink lands on that ratio against this window's
+// checked here: the derived colour lands on that ratio against this window's
 // own floor in BOTH schemes, and it lands nowhere near the 3:1 graphic
 // floor an object's outline is derived to elsewhere in the system, which
-// on these grounds would answer ink several times louder than anything the
-// platform draws around a sidebar.
+// on these surfaces would answer a colour several times more pronounced than
+// anything the platform draws around a sidebar.
 func TestTheRailWearsThePlatformsSeam(t *testing.T) {
 	const (
 		measured  = 1.51 // Voice Memos, panel outline against panel fill
@@ -519,15 +519,15 @@ func TestTheRailWearsThePlatformsSeam(t *testing.T) {
 				t.Errorf("the pane's edge stands %.3f:1 off its fill (%v on %v), want the measured %.2f:1",
 					got, ink, fill, measured)
 			}
-			// Toward the scheme's own ink: lighter than the pane in a dark
+			// Toward the scheme's own foreground: lighter than the pane in a dark
 			// scheme, as the platform draws it, and darker in a light one,
 			// which is the only direction a light floor has room in.
 			towardInk := lightnessOf(tc.colors.Text) > lightnessOf(fill)
 			if lighter := lightnessOf(ink) > lightnessOf(fill); lighter != towardInk {
-				t.Errorf("the pane's edge is %v against a fill of %v and ink of %v; the edge steps toward the ink",
+				t.Errorf("the pane's edge is %v against a fill of %v and foreground of %v; the edge steps toward the foreground",
 					ink, fill, tc.colors.Text)
 			}
-			// Not a mark. 3:1 is what an outline owes its ground when the
+			// Not a mark. 3:1 is what an outline owes what it stands on when the
 			// line IS the object; a pane's edge is read beside a fill, an
 			// inset and a radius saying the same thing.
 			if got >= 3.0 {
@@ -561,7 +561,7 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 			}
 			ink := paneSeam(tc.colors)
 			// A row clear of the corners' arcs, of the toggle and of every
-			// row's own ink — the middle of the pane's own top strip. On it
+			// row's own text — the middle of the pane's own top strip. On it
 			// the pane's leading and trailing edge columns are the hairline,
 			// and the pixel inside each of them is the fill.
 			y := pane.Min.Y + paneStripDp/2
@@ -609,7 +609,7 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 }
 
 // TestTheAsideKeepsAPlainSeam reads the trailing column's boundary off the
-// same window: one hairline of the divider's own ink, on the column's
+// same window: one hairline of the divider's own colour, on the column's
 // leading edge, running the window's full height — over the chrome row at
 // the top and the status bar at the foot, because the platform's split
 // seams are not interrupted by a band either.
@@ -648,7 +648,7 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 }
 
 // sameInk compares a captured pixel with a token colour on the channels a
-// capture keeps: what is drawn over the ground is opaque by the time it is
+// capture keeps: what is drawn over the surface is opaque by the time it is
 // read back.
 func sameInk(got color.RGBA, want color.NRGBA) bool {
 	return got.R == want.R && got.G == want.G && got.B == want.B

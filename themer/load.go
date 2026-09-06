@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	// The formats a picture is likely to arrive in. Decoders register
-	// themselves, so importing them for the side effect is what makes
+	// The formats a picture is likely to arrive in. Decoders
+	// register themselves, so importing them for the side effect is what makes
 	// image.Decode able to answer at all.
 	_ "image/gif"
 	_ "image/jpeg"

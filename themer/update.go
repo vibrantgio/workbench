@@ -94,8 +94,8 @@ func ReduceModel(m Model, message any) Model {
 		}
 	case SelectBase:
 		// The appearance the row was clicked under is the one it changes: a
-		// base is fitted to a ground, and the list a name was picked off is
-		// the list of names fitted to the ground on screen.
+		// base is fitted to a background, and the list a name was picked off is
+		// the list of names fitted to the background on screen.
 		if msg.Index >= 0 && msg.Index < len(m.Bases) {
 			if msg.Dark {
 				m.DarkAt = msg.Index

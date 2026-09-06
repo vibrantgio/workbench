@@ -250,7 +250,7 @@ func judging() Model {
 // TestChoosingABaseRecoloursTheCode is the selector's whole claim: the names
 // are not a list of styles, they are what the code on the page is coloured
 // with. Both captures are taken with the specimen in view, so what moves
-// between them is ink and not scroll.
+// between them is colour and not scroll.
 func TestChoosingABaseRecoloursTheCode(t *testing.T) {
 	// Two names off each scheme's own list, which is the only way the window
 	// offers them.
@@ -323,7 +323,7 @@ func TestTheSelectorSitsBesideTheCodeAndNowhereElse(t *testing.T) {
 	// The tab reaches the window's own margin. Its first row is a section
 	// header, banded across the whole panel at the page's own floor; a column
 	// standing beside the page would have that band starting a hundred and
-	// ninety points further in, with the column's own ground here instead. The
+	// ninety points further in, with the column's own fill here instead. The
 	// probe is inside the footprint such a column would occupy, in the band's
 	// own top few points, above its label and clear of the panel's rounded
 	// corner.
@@ -339,9 +339,9 @@ func TestTheSelectorSitsBesideTheCodeAndNowhereElse(t *testing.T) {
 			edge, chrome)
 	}
 	// And the column is inside the specimen's row rather than beside the page:
-	// the strip left of it is that row's own margin, which is the page's ground.
+	// the strip left of it is that row's own margin, which is the page's own fill.
 	if edge := beside.RGBAAt(int(Pad)+int(inventory.SectionPadX)/2, baseRowY(2)); !same(edge, page.Background) {
-		t.Errorf("the strip left of the column drew %v, want the page's own ground %v — the column is not seated in the page", edge, page.Background)
+		t.Errorf("the strip left of the column drew %v, want the page's own fill %v — the column is not seated in the page", edge, page.Background)
 	}
 }
 
@@ -440,12 +440,12 @@ func TestTheColumnFollowsTheSchemeControl(t *testing.T) {
 	}
 	for _, i := range light {
 		if b := m.Bases[i]; !b.Light {
-			t.Errorf("the sun lists %q, which was fitted to a dark ground", b.Name)
+			t.Errorf("the sun lists %q, which was fitted to a dark background", b.Name)
 		}
 	}
 	for _, i := range dark {
 		if b := m.Bases[i]; !b.Dark {
-			t.Errorf("the moon lists %q, which was fitted to a light ground", b.Name)
+			t.Errorf("the moon lists %q, which was fitted to a light background", b.Name)
 		}
 	}
 	// And the two lists are drawn, not just computed.
@@ -495,7 +495,7 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 		t.Errorf("under the moon the page says %q, want it naming %q", got, pairDark)
 	}
 
-	// The plate the specimen is drawn on, ground and ink: under each
+	// The plate the specimen is drawn on, background and foreground: under each
 	// appearance it is that appearance's own member, worn alone. This is the
 	// measurement behind the pixels — a page that had gone on drawing through
 	// the other member would match the other plate here.
@@ -519,7 +519,7 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 				t.Fatalf("the specimen split into %d runs, %s alone gives %d", len(gotRuns), applied, len(wantRuns))
 			}
 			if got.CodeBackground != want.CodeBackground || got.CodeColor != want.CodeColor {
-				t.Fatalf("the specimen sits on %v under %v ink, %s alone gives %v under %v",
+				t.Fatalf("the specimen sits on %v under %v foreground, %s alone gives %v under %v",
 					got.CodeBackground, got.CodeColor, applied, want.CodeBackground, want.CodeColor)
 			}
 			coloured, apart := 0, 0
@@ -536,9 +536,9 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 			}
 			ground := got.CodeBackground != other.CodeBackground
 			if coloured == 0 || (apart == 0 && !ground) {
-				t.Fatalf("%d runs carry a colour, %d differ from the other member's inks and the grounds differ=%v — this pair cannot show which member is applied", coloured, apart, ground)
+				t.Fatalf("%d runs carry a colour, %d differ from the other member's colours and the backgrounds differ=%v — this pair cannot show which member is applied", coloured, apart, ground)
 			}
-			t.Logf("%s: %d runs, %d coloured, %s's plate on %v; unlike %s's by ground=%v and %d runs",
+			t.Logf("%s: %d runs, %d coloured, %s's plate on %v; unlike %s's by background=%v and %d runs",
 				tc.name, len(gotRuns), coloured, applied, got.CodeBackground, m.Base(!tc.dark), ground, apart)
 		})
 	}
@@ -570,16 +570,16 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 
 // TestThreeFlavoursOfOneFamilyAreThreeDifferentSpecimens is the case that is
 // hardest for a specimen to pass and the plainest thing it is for. One
-// family's three dark flavours are the same inks at the same volumes on three
-// different grounds: tell a reader they are the same picture and the reader is
-// right. The specimen shows each base's own ground, so the difference between
-// them is on screen and choosing between them is a choice somebody can see
-// they made.
+// family's three dark flavours are the same colours at the same strengths on
+// three different backgrounds: tell a reader they are the same picture and the
+// reader is right. The specimen shows each base's own background, so the
+// difference between them is on screen and choosing between them is a choice
+// somebody can see they made.
 //
-// Both halves are asserted. The grounds are read off the plate, which is the
-// claim; the pixels are counted in the window, which is whether the claim
-// reached anybody. A ground that only the plate knows about is a value in a
-// struct.
+// Both halves are asserted. The backgrounds are read off the plate, which is
+// the claim; the pixels are counted in the window, which is whether the claim
+// reached anybody. A background that only the plate knows about is a value in
+// a struct.
 func TestThreeFlavoursOfOneFamilyAreThreeDifferentSpecimens(t *testing.T) {
 	moon := ReduceModel(judging(), SetScheme{Dark: true})
 	c := SchemeFor(tokens.DefaultDark, moon)
@@ -592,7 +592,7 @@ func TestThreeFlavoursOfOneFamilyAreThreeDifferentSpecimens(t *testing.T) {
 	for i, a := range flavours {
 		for j := i + 1; j < len(flavours); j++ {
 			if grounds[i] == grounds[j] {
-				t.Errorf("%s and %s put the same ground %v under a fence — these two cannot be told apart", a, flavours[j], grounds[i])
+				t.Errorf("%s and %s put the same background %v under a fence — these two cannot be told apart", a, flavours[j], grounds[i])
 			}
 		}
 	}
@@ -601,18 +601,18 @@ func TestThreeFlavoursOfOneFamilyAreThreeDifferentSpecimens(t *testing.T) {
 		img := atTheCode(t, newEmbed(), pick(moon, name, true), tokens.DefaultDark, settled(true))
 		own := exactly(img, grounds[i])
 		if own == 0 {
-			t.Errorf("%s is chosen and not one pixel of the window is its ground %v", name, grounds[i])
+			t.Errorf("%s is chosen and not one pixel of the window is its background %v", name, grounds[i])
 		}
 		for j, other := range grounds {
 			if j == i {
 				continue
 			}
 			if n := exactly(img, other); n >= own {
-				t.Errorf("with %s chosen, %d pixels are its ground and %d are %s's — the specimen is not showing what was picked",
+				t.Errorf("with %s chosen, %d pixels are its background and %d are %s's — the specimen is not showing what was picked",
 					name, own, n, flavours[j])
 			}
 		}
-		t.Logf("%s chosen: %d pixels of its own ground on screen", name, own)
+		t.Logf("%s chosen: %d pixels of its own background on screen", name, own)
 	}
 }
 

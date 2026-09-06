@@ -3,11 +3,11 @@
 //
 // # Why a style is a seed at all
 //
-// A syntax style is a palette somebody balanced — a dozen inks chosen against
-// one another and against a ground, argued over for years in some cases. The
+// A syntax style is a palette somebody balanced — a dozen colours chosen against
+// one another and against a background, argued over for years in some cases. The
 // window's other door asks for a picture and finds the colours in it; this one
 // asks for nothing and offers colours that were already settled. Running a
-// style's inks through the same extractor a photograph goes through is what
+// style's colours through the same extractor a photograph goes through is what
 // makes the two doors one door: what comes back is a row of candidates ranked
 // the same way, so everything downstream — the row, the ring, the keep
 // affordance, the base list's override — is the same machinery a photograph
@@ -22,7 +22,7 @@
 // it is also a whole name: nothing shares the line with it, and the longest in
 // the set would otherwise run into the word at the footer's trailing edge.
 //
-// Under it the style's dominant inks as one strip, the leading one twice as
+// Under it the style's dominant colours as one strip, the leading one twice as
 // wide as any other because it is the one a click takes as the seed; and under
 // that the primary pair that seed derives, drawn the way the candidate row
 // draws it, so a card promises what choosing it delivers. The word at the
@@ -30,13 +30,13 @@
 // not say.
 //
 // That word is where a palette drawn faint gets mentioned. A style whose own
-// inks mostly fall under the contrast floor on its own ground carries it, in
-// the muted ink the other words at that edge are set in and in the same slot,
-// because it is the same kind of remark: a fact about the style that a person
-// reading its name would otherwise find out by applying it. It is not a
-// warning, and nothing follows from it — the card still offers the style, the
-// click still applies it, and the fence still draws it exactly as its author
-// drew it. Contrast in content is surfaced here, not enforced.
+// colours mostly fall under the contrast floor on its own background carries
+// it, in the muted foreground the other words at that edge are set in and in
+// the same slot, because it is the same kind of remark: a fact about the style
+// that a person reading its name would otherwise find out by applying it. It is
+// not a warning, and nothing follows from it — the card still offers the style,
+// the click still applies it, and the fence still draws it exactly as it was
+// written. Contrast in content is surfaced here, not enforced.
 //
 // # Which cards, and in which order
 //
@@ -45,14 +45,14 @@
 // is a list somebody looks a name up in — the names are the one thing on it a
 // person arrives already knowing — and the only ordering that makes looking one
 // up possible is the one they can predict from the name alone. Sorting by how
-// much colour a style's leading ink has cannot be predicted from anything on
+// saturated a style's leading colour is cannot be predicted from anything on
 // the card, so a grid ordered that way reads as shuffled and a style is found
 // by scanning all of it.
 //
 // The cards are filtered by the scheme control exactly as the base list is: the
-// sun shows the styles fitted to a light ground and the moon those fitted to a
-// dark one, measured off each style's own background rather than read off its
-// name. A style that names no ground is on both.
+// sun shows the styles fitted to a light background and the moon those fitted
+// to a dark one, measured off each style's own background rather than read off
+// its name. A style that names no background is on both.
 //
 // One style gets no card. bw colours nothing at all — it draws code in the
 // plain foreground and takes no position on anything else — so it yields no
@@ -93,11 +93,11 @@ const (
 	// 150 and truncate a dozen of them; five at this width truncate none.
 	StyleMinW unit.Dp = 178
 	// StyleH leaves the strip a quarter of the card rather than most of it.
-	// Forty cards of full-chroma ink at their own widest is a test card and
+	// Forty cards of full-chroma colour at their own widest is a test card and
 	// not a gallery: with the colour taking half the tile there is nothing on
 	// the screen for an eye to rest on, and the tile under it — a hairline and
-	// a fill a couple of rungs off the page — disappears beside the ink, so a
-	// card reads as a sample rather than as something to press. The inks are
+	// a fill a couple of steps off the page — disappears beside the colour, so a
+	// card reads as a sample rather than as something to press. The colours are
 	// not toned down for that. They are the styles' own colours and the whole
 	// promise of a card is that clicking it applies them; a grid of muted
 	// swatches would be a grid that lied. What is toned down is how much of
@@ -112,7 +112,7 @@ const (
 	// StyleName is the line the card leads with. It is a LabelLarge line box,
 	// which is the role the name is set in: the card's own title.
 	StyleName unit.Dp = 20
-	// StyleChipW is the specimen — the derived primary pair with its ink on
+	// StyleChipW is the specimen — the derived primary pair with its foreground on
 	// it. It has the footer to itself, the name having a line of its own, and
 	// a pair of letters is only a specimen at a size somebody can read.
 	StyleChipW unit.Dp = 56
@@ -126,7 +126,7 @@ const (
 	DropH unit.Dp = 184
 )
 
-// StyleLeadShare is how many shares of the swatch strip the leading ink takes
+// StyleLeadShare is how many shares of the swatch strip the lead colour takes
 // against one for each of the others. It is what says which of the colours on
 // a card is the one a click applies: equal bands would make a card a palette
 // swatch, and a palette swatch does not tell anybody what pressing it does.
@@ -140,7 +140,7 @@ const (
 	StyleLabel  = "Or start from a style"
 	StyleInvite = "One click takes the seed and both syntax bases off a card."
 	// StyleFaint is the word a card carries when the palette it offers draws
-	// most of its code under the contrast floor on its author's own ground.
+	// most of its code under the contrast floor on its own background.
 	// It is a description and not a verdict: the style still applies, still
 	// draws exactly as its author drew it, and is still worth choosing if it
 	// is the one somebody wants.
@@ -160,17 +160,17 @@ func StyleCountFor(dark bool, n int) string {
 	return fmt.Sprintf("%d light styles, alphabetical", n)
 }
 
-// Chip is a derived primary pair as a card wears it: the colour, and the ink
-// the derivation measured against that colour.
+// Chip is a derived primary pair as a card wears it: the fill, and the
+// foreground the derivation measured against that fill.
 //
-// The ink is never chosen here and never assumed from the appearance. It is
-// the on-colour the palette derivation resolved over this exact fill — the
+// The foreground is never chosen here and never assumed from the appearance. It
+// is the on-colour the palette derivation resolved over this exact fill — the
 // better of the two ends of the tonal axis, measured, which is what makes it
 // clear the text floor over any fill whatever — and it is the same field the
 // candidate row's chip and the keep button are drawn from. A card offering a
 // pair it cannot itself draw legibly is a card arguing against the thing it is
 // offering, and the way not to have that case is to take the answer from the
-// gate rather than to pick an ink that usually works.
+// gate rather than to pick a foreground that usually works.
 type Chip struct {
 	Fill, Ink stdcolor.NRGBA
 }
@@ -179,7 +179,7 @@ type Chip struct {
 // the pair a click applies, and the two chips it is drawn with.
 //
 // All of it is resolved once, before the first frame. None of it can change
-// while the window is open — a style's inks are a fact about a file — and
+// while the window is open — a style's colours are a fact about a file — and
 // deriving forty palettes per frame to learn that would be a waste of a frame.
 type StyleCard struct {
 	Name string
@@ -187,22 +187,22 @@ type StyleCard struct {
 	// ships embedded.
 	Added bool
 	// Light and Dark are the appearances this style was fitted to, measured
-	// off its own ground. A style fitted to no ground carries both.
+	// off its own background. A style fitted to no background carries both.
 	Light, Dark bool
 	// Faint marks a style that draws most of its code under the contrast
-	// floor on its own ground — measured, not judged, and measured against
-	// the ground its own author chose rather than against this window's.
+	// floor on its own background — measured, not judged, and measured
+	// against that background rather than against this window's.
 	//
 	// It is here and not asked per frame for the reason none of the rest is:
-	// a style's inks are a fact about a file, and it cannot change while the
+	// a style's colours are a fact about a file, and it cannot change while the
 	// window is open.
 	Faint bool
 	// Candidates are the seeds its palette yields, most prominent first.
 	// They are what a click hands the candidate row, so the row a style
 	// produces is the row a picture produces.
 	Candidates []imageseed.Candidate
-	// Pair is what a click applies: this style on the side its author fitted
-	// it to, and the nearest measured answer on the other.
+	// Pair is what a click applies: this style on the side it was fitted
+	// to, and the nearest measured answer on the other.
 	Pair highlight.BasePair
 	// Chips are the primary pair the leading candidate derives, one per
 	// appearance, so the card can promise under either scheme what choosing
@@ -282,7 +282,7 @@ func styleCardFor(name string) StyleCard {
 		return StyleCard{Name: name}
 	}
 	// One derivation per style, and both chips come out of it: the fill and
-	// the ink of each are the same two fields the whole window draws its
+	// the foreground of each are the same two fields the whole window draws its
 	// accent from, so the specimen on a card is the pair a click installs
 	// rather than an approximation of it.
 	light, dark := tokens.FromSeed(cands[0].Color)
@@ -355,7 +355,7 @@ func StyleGrid(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, g *
 		under := image.Rect(0, headH/2, size.X, headH)
 		textdraw.FillText(gtx, ty.Shaper, ty.Label, line, 0, 0.5, p.Text, StyleLabel)
 		textdraw.FillText(gtx, ty.Shaper, ty.Small, line, 1, 0.5, p.Muted, count)
-		// Full-strength ink, small: it is a promise and not a footnote.
+		// Full-strength foreground, small: it is a promise and not a footnote.
 		textdraw.FillText(gtx, ty.Shaper, ty.Small, under, 0, 0.5, p.Text, StyleInvite)
 
 		top := headH + gtx.Dp(RowTop)
@@ -423,7 +423,7 @@ func StyleCell(gtx layout.Context, p Palette, ty Type, s StyleCard, index int, d
 		SwatchBands(gtx, strip, gtx.Dp(InnerR), s.Candidates, p.Edge)
 	}
 
-	// The specimen. Its ink is the derivation's own measured on-colour for
+	// The specimen. Its foreground is the derivation's own measured on-colour for
 	// this exact fill, not a light-scheme habit, and it is set
 	// in the role the candidate row sets its pair's letters in, because the
 	// two are the same claim about the same colour and a claim about
@@ -461,7 +461,7 @@ func StyleCell(gtx layout.Context, p Palette, ty Type, s StyleCard, index int, d
 // row below carries, in the same order, in the place the photograph would be.
 //
 // The frame drawn in edge is not decoration. Plenty of styles carry a
-// near-white ink, and plenty of photographs do; a near-white band at the end of
+// near-white colour, and plenty of photographs do; a near-white band at the end of
 // a strip standing on a near-white card has no boundary of its own, so the
 // strip appears to stop short and reads as something that failed to finish
 // drawing rather than as a colour somebody chose. The frame is what says the
@@ -470,7 +470,7 @@ func StyleCell(gtx layout.Context, p Palette, ty Type, s StyleCard, index int, d
 // It is a fill with the colours inset into it rather than a stroke over them.
 // A one-point stroke is centred on the boundary, so it lands as two rows of
 // half-strength antialiasing rather than as a line — which is enough of a line
-// between an ink and a card that differ, and not enough between two
+// between a colour and a card that differ, and not enough between two
 // near-whites, exactly the case the frame exists for. A fill and an inset put a
 // whole pixel of the border colour there at its own strength.
 func SwatchBands(gtx layout.Context, r image.Rectangle, radius int, cands []imageseed.Candidate, edge stdcolor.NRGBA) {

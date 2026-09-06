@@ -130,12 +130,12 @@ func TestTheBarSaysNothingBeforeAnyNoteIsOpen(t *testing.T) {
 	}
 }
 
-// TestTheBarsInkIsLegibleOnItsGround measures the quiet neutral step the
+// TestTheBarsInkIsLegibleOnItsGround measures the faint neutral step the
 // count is drawn in against the paper it stands on, in both appearances
 // the app ships, logging the ratios.
 //
 // The band the bar claims runs past the document and over the trailing
-// panel's own surface, so that ground is measured too: no ink is drawn out
+// panel's own surface, so that surface is measured too: no text is drawn out
 // there today, but a bar with room to grow must not grow onto a pairing
 // nobody measured.
 func TestTheBarsInkIsLegibleOnItsGround(t *testing.T) {
@@ -151,12 +151,12 @@ func TestTheBarsInkIsLegibleOnItsGround(t *testing.T) {
 				ground stdcolor.NRGBA
 			}{
 				{"the note's paper", tc.colors.Background},
-				{"the trailing panel's floor", chromeSurface(tc.colors)},
+				{"the trailing panel's surface", chromeSurface(tc.colors)},
 			} {
 				ratio := color.ContrastRatio(ink, g.ground)
-				t.Logf("the bar's ink on %s: %.2f:1", g.name, ratio)
+				t.Logf("the bar's foreground on %s: %.2f:1", g.name, ratio)
 				if ratio < floor {
-					t.Errorf("the bar's ink reads %.2f:1 on %s, under the %.1f:1 floor", ratio, g.name, floor)
+					t.Errorf("the bar's foreground reads %.2f:1 on %s, under the %.1f:1 floor", ratio, g.name, floor)
 				}
 			}
 		})
@@ -164,7 +164,7 @@ func TestTheBarsInkIsLegibleOnItsGround(t *testing.T) {
 }
 
 // TestTheBarStandsInTheFootItWasGiven reads the composed window and
-// requires the count's ink to be inside the band the frame reserved: below
+// requires the count's text to be inside the band the frame reserved: below
 // the document's own column, clear of the window's bottom edge, and on the
 // note column's reading margin rather than anywhere else across the foot.
 //
@@ -186,16 +186,16 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 			x0 := st.geom.contentX + noteInsetDp
 			top, bot := inkRows(img, tc.colors.Background, x0, x0+200, foot, windowH)
 			if top < 0 {
-				t.Fatalf("no ink on the reading margin between y=%d and the window's foot; the count is not being drawn", foot)
+				t.Fatalf("nothing painted on the reading margin between y=%d and the window's foot; the count is not being drawn", foot)
 			}
 			if bot >= windowH-1 {
-				t.Errorf("the count's ink reaches row %d of a %d dp window; the window's edge is cutting it", bot, windowH)
+				t.Errorf("the count's text reaches row %d of a %d dp window; the window's edge is cutting it", bot, windowH)
 			}
 			// Nothing of the count may stand above the band: the document
-			// column ends where the band begins, and ink over that line
+			// column ends where the band begins, and anything painted over that line
 			// would be the bar reaching back into the note.
 			if above, _ := inkRows(img, tc.colors.Background, x0, x0+200, foot-4, foot); above >= 0 {
-				t.Errorf("ink at row %d, above the band the bar was given at y=%d", above, foot)
+				t.Errorf("paint at row %d, above the band the bar was given at y=%d", above, foot)
 			}
 		})
 	}

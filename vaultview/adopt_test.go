@@ -84,14 +84,14 @@ func TestAKeptBrandDressesTheWholeWindow(t *testing.T) {
 // fills with it outright (the tree's active row and the outline's
 // current-section pill both paint [tokens.RampSet.Primary]'s step 300
 // directly); and [tokens.ColorTokens.InkOn]'s answer for the two floors
-// this window gates the role's ink at when it is drawn ON a page rather
+// this window gates the role's foreground at when it is drawn ON a page rather
 // than filling one — [tokens.TextFloor] for the wikilinks a note's prose
 // carries, [tokens.GraphicFloor] for a graphic mark such as a blockquote's
 // bar. InkOn already returns the bare pin where it clears a floor and a
 // walked ramp step where it does not, so this one list covers both without
 // needing to know which side of the floor c falls on.
 //
-// The ink-on-a-floor gate means the bare pin may legitimately not reach
+// The foreground-on-a-floor gate means the bare pin may legitimately not reach
 // every surface, so "the window adopted the brand" is asked of the palette's
 // own answers rather than of one named byte every seed must agree with.
 func primaryRoleAnswers(c tokens.ColorTokens) []color.NRGBA {
@@ -177,8 +177,8 @@ func wornAlone(name string, c tokens.ColorTokens) markdown.Style {
 }
 
 // plate is the three things a base puts on a fence and a comparison has to
-// cover: the ground under the block, the ink plain code falls back to, and the
-// colours the highlighter hands out run by run.
+// cover: the background under the block, the colour plain code falls back to,
+// and the colours the highlighter hands out run by run.
 type plate struct {
 	ground, body color.NRGBA
 	runs         []markdown.CodeSpan
@@ -188,9 +188,9 @@ func plateOf(st markdown.Style, src string) plate {
 	return plate{ground: st.CodeBackground, body: st.CodeColor, runs: st.Highlight("go", src)}
 }
 
-// unlike reports how far two plates are apart: whether the grounds differ, and
-// how many runs are inked differently. Either alone is a visible difference, so
-// a base that reaches the screen shows up in one or the other.
+// unlike reports how far two plates are apart: whether the backgrounds differ,
+// and how many runs are coloured differently. Either alone is a visible
+// difference, so a base that reaches the screen shows up in one or the other.
 func (p plate) unlike(q plate) (grounds bool, runs int) {
 	grounds = p.ground != q.ground || p.body != q.body
 	for i := range p.runs {
@@ -203,9 +203,9 @@ func (p plate) unlike(q plate) (grounds bool, runs int) {
 
 // TestTheKeptBasesColourTheCode covers the other half of a kept theme: the
 // syntax bases chosen beside the colour draw the code, one per appearance.
-// A fence here must wear the base's own ground under the base's own inks,
-// ink for ink and not merely "some highlighting", and through the
-// appearance's own member rather than whichever one was named first.
+// A fence here must wear the base's own background under the base's own
+// colours, colour for colour and not merely "some highlighting", and through
+// the appearance's own member rather than whichever one was named first.
 //
 // The comparison is against the pair worn directly from the kept names: two
 // applications wearing that pair on one palette must land on the same plate,
@@ -262,22 +262,22 @@ func TestTheKeptBasesColourTheCode(t *testing.T) {
 				t.Fatal("no run carries a colour, so matching proves nothing")
 			}
 			if got.ground != same.ground || got.body != same.body {
-				t.Fatalf("the fence sits on %v under %v ink, the same pair gives %v under %v",
+				t.Fatalf("the fence sits on %v under %v foreground, the same pair gives %v under %v",
 					got.ground, got.body, same.ground, same.body)
 			}
 			// And it is this appearance's own member that got there: the same
-			// ground, the same body ink and the same runs as that member worn
+			// background, the same body colour and the same runs as that member worn
 			// alone — and not the other member's, which is what a window
 			// drawing both appearances through one name would produce.
 			member := plateOf(wornAlone(tc.member, tc.colors), src)
 			if grounds, apart := got.unlike(member); grounds || apart != 0 {
-				t.Fatalf("the fence is not %s's plate: grounds differ=%v, %d runs inked differently", tc.member, grounds, apart)
+				t.Fatalf("the fence is not %s's plate: backgrounds differ=%v, %d runs coloured differently", tc.member, grounds, apart)
 			}
 			otherGrounds, otherRuns := got.unlike(plateOf(wornAlone(tc.other, tc.colors), src))
 			if !otherGrounds && otherRuns == 0 {
 				t.Fatalf("the fence is drawn exactly as %s would draw it — the pair is not being applied per appearance", tc.other)
 			}
-			t.Logf("%d runs, %d coloured, %s's plate on %v; unlike %s's by ground=%v and %d runs",
+			t.Logf("%d runs, %d coloured, %s's plate on %v; unlike %s's by background=%v and %d runs",
 				len(got.runs), coloured, tc.member, got.ground, tc.other, otherGrounds, otherRuns)
 			// And it is the kept pair and not the default that got there.
 			if grounds, apart := got.unlike(plateOf(worn(highlight.DefaultBases(), tc.colors), src)); !grounds && apart == 0 {

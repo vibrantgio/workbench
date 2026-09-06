@@ -115,7 +115,7 @@ func (p *notePad) clickInDocument() {
 	p.frame()
 }
 
-// shot renders the column as it stands, so a test can ask where the ink
+// shot renders the column as it stands, so a test can ask where the paint
 // stops. The reading keys move a scroll position, and no position value says
 // how much paper is left under the last line — only the pixels do.
 func (p *notePad) shot(t *testing.T) *image.RGBA {
@@ -127,7 +127,7 @@ func (p *notePad) shot(t *testing.T) *image.RGBA {
 }
 
 // blankFoot returns how many rows of bare paper stand between the column's
-// last prose ink and the window's bottom edge. The trailing gutter is left
+// last painted prose row and the window's bottom edge. The trailing gutter is left
 // out of the scan: the scroll indicator lives there and reaches the edge by
 // design, and it is the prose the reader measures the margin by.
 func (p *notePad) blankFoot(img *image.RGBA) int {
@@ -144,10 +144,10 @@ func (p *notePad) blankFoot(img *image.RGBA) int {
 
 // blankHead returns how many rows of bare paper stand between the row above
 // the document — the breadcrumb row, in the models these tests use — and the
-// document's first ink. It reads the image the way the reader does: the first
-// band of ink from the top is that row, and what follows it is the paper the
-// document's viewport begins on. The trailing gutter is left out of the scan
-// for the reason blankFoot leaves it out.
+// document's first painted row. It reads the image the way the reader does:
+// the first band of paint from the top is that row, and what follows it is the
+// paper the document's viewport begins on. The trailing gutter is left out of
+// the scan for the reason blankFoot leaves it out.
 func (p *notePad) blankHead(img *image.RGBA) int {
 	ground := p.tok.col.Background
 	ink := func(y int) bool {
@@ -161,7 +161,7 @@ func (p *notePad) blankHead(img *image.RGBA) int {
 	y := 0
 	for ; y < p.size.Y && !ink(y); y++ { // the paper above the row
 	}
-	for ; y < p.size.Y && ink(y); y++ { // the row's own ink
+	for ; y < p.size.Y && ink(y); y++ { // the row's own paint
 	}
 	n := 0
 	for ; y < p.size.Y && !ink(y); y++ {
@@ -359,7 +359,7 @@ func TestOnlyTheNotesEndSpendsTheFootMargin(t *testing.T) {
 // noteHeadSlack is how close to the row's edge a line part way down the note
 // must come for the column to count as meeting it. Not zero: where the cut
 // falls inside a line's own leading, the topmost rows of the viewport carry
-// that line's blank rather than its ink, and a few rows of it are the type
+// that line's blank rather than its glyphs, and a few rows of it are the type
 // setting rather than a margin.
 const noteHeadSlack = 6
 
@@ -374,7 +374,7 @@ const noteHeadSlack = 6
 // page's gap — an ordinary block gap, wider still above a heading — so a page
 // boundary landing inside one begins on the note's own paper, and no
 // per-screen bound can tell that from a margin held back. A page that did
-// hold the gap back could never reach the row's edge on any screen.
+// hold the gap back could never meet the row's edge on any screen.
 func TestOnlyTheNotesStartSpendsTheGapUnderTheRow(t *testing.T) {
 	p := newNotePad(t, longNoteModel(-1))
 	p.frame()
@@ -436,7 +436,7 @@ func TestTheKeyboardLandsOnTheRestingPosition(t *testing.T) {
 }
 
 // TestThePropertiesSlabStandsOnThePaper holds the panel to the page it is read
-// on: the note's own paper for a ground, inside one hair of the panel's own
+// on: the note's own paper for a fill, inside one hair of the panel's own
 // neutral step, which is the treatment the page's other bounded blocks wear.
 //
 // The panel is found in the pixels rather than asserted at. Its top edge is
@@ -503,8 +503,8 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 					}
 				}
 			}
-			// The rows between the pairs carry no ink across the measure, so
-			// on a paper ground most of the panel's height is a paper band.
+			// The rows between the pairs carry nothing across the measure, so
+			// on a paper fill most of the panel's height is a paper band.
 			// A filled panel would have none.
 			paper := 0
 			for y := top + 2; y < bot-1; y++ {
@@ -519,15 +519,15 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 	}
 }
 
-// TestThePropertiesSlabInksClearTheFloor measures the panel's own inks
-// against the panel's own ground rather than the page's. The keys and the
+// TestThePropertiesSlabInksClearTheFloor measures the panel's own foregrounds
+// against the panel's own fill rather than the page's. The keys and the
 // raw-block fallback are the muted tier; the values beside them are read a
 // step stronger. Both are body-sized, so both owe the design system's 4.5:1.
 //
-// The two inks are ranked here as well as floored — the values over the keys,
-// the note's prose over both — because a floor alone cannot tell a hierarchy
-// from a tie, and metadata standing above the note's title may not be written
-// in the title's own ink.
+// The two foregrounds are ranked here as well as floored — the values over the
+// keys, the note's prose over both — because a floor alone cannot tell a
+// hierarchy from a tie, and metadata standing above the note's title may not be
+// written in the title's own foreground.
 func TestThePropertiesSlabInksClearTheFloor(t *testing.T) {
 	const floor = 4.5
 	for _, tc := range themeCases {
@@ -553,22 +553,22 @@ func TestThePropertiesSlabInksClearTheFloor(t *testing.T) {
 				t.Errorf("the values read %.2f:1 and the keys beside them %.2f:1; the value is the content of its row", values, keys)
 			}
 			if values >= prose {
-				t.Errorf("the values read %.2f:1 and the note's own prose %.2f:1; metadata standing above the note may not be written in the note's ink", values, prose)
+				t.Errorf("the values read %.2f:1 and the note's own prose %.2f:1; metadata standing above the note may not be written in the note's own foreground", values, prose)
 			}
-			// The hairline has to be visible on the ground it bounds, or the
+			// The hairline has to be visible on the fill it bounds, or the
 			// panel has no edge at all; and it has to stay an edge, well under
-			// the ink the panel is written in.
+			// the foreground the panel is written in.
 			edge := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propEdgeStep), ground)
-			t.Logf("the hairline stands %.2f:1 off the paper, the quiet ink %.2f:1", edge, keys)
+			t.Logf("the hairline stands %.2f:1 off the paper, the faint foreground %.2f:1", edge, keys)
 			// A hairline this page can be sure of stands at least half again
-			// as far off its ground as a separator does: the separator's tint
+			// as far off its fill as a separator does: the separator's tint
 			// reads 1.31:1 on the dark paper, which at one device pixel per dp
 			// is measurably there and visually gone.
 			if edge <= 1.5 {
 				t.Errorf("the hairline stands %.2f:1 off the paper; at one pixel per dp the box dissolves into it", edge)
 			}
 			if edge >= keys {
-				t.Errorf("the hairline stands %.2f:1 off the paper and the panel's own ink %.2f:1; an edge cannot out-read what it bounds", edge, keys)
+				t.Errorf("the hairline stands %.2f:1 off the paper and the panel's own foreground %.2f:1; an edge cannot out-read what it bounds", edge, keys)
 			}
 		})
 	}

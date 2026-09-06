@@ -50,7 +50,7 @@ import (
 const (
 	asideInsetDp     = 16
 	asideHeaderGapDp = 8
-	// asideRowPadDp holds a row's own ink off its fill's edge. It is the
+	// asideRowPadDp holds a row's own text off its fill's edge. It is the
 	// sidebar's treeRowPadDp under this column's name, because the pill
 	// drawn here is the pill drawn there.
 	//
@@ -59,14 +59,14 @@ const (
 	// column for one, so what a row here spends beyond the pad is its
 	// heading's own depth and nothing else.
 	//
-	// asideRowInsetDp is the air a row keeps around its ink on the vertical
+	// asideRowInsetDp is the air a row keeps around its text on the vertical
 	// — half of it above and below a heading's line, the whole of it around
 	// the line a citation centres in. It is not spent horizontally: the
 	// rail's pill stands off a drawn, rounded pane edge and these panes have
 	// none, so a fill held inboard would line up with nothing. The fill
 	// takes the one line the column does draw — the headings, the citations'
 	// head and the hairline between them — as its own leading edge, and the
-	// pad is the whole of what stands between the fill and the ink it is
+	// pad is the whole of what stands between the fill and the text it is
 	// behind.
 	asideRowInsetDp = 8
 	asideRowPadDp   = 8
@@ -76,7 +76,7 @@ const (
 	asideGroupGapDp = 12
 	// asideIndentDp is one heading level's step in the outline. It is the
 	// row's own pad again, because that is the one distance this column
-	// moves anything by: the pad the ink stands inside its fill, the air the
+	// moves anything by: the pad the text stands inside its fill, the air the
 	// fill keeps above and below it, the lane the bar stands in. It is also
 	// small enough that six levels of it still leave a title room to be read
 	// in a column this narrow.
@@ -103,8 +103,8 @@ const asideBacklinkCap = 4
 // would not know there was a pane above.
 const asideBacklinkShare = 2
 
-// asideInkTiers are the three depths of ink this column speaks in: the
-// quiet tier its two headings, its citation count, its folder
+// asideInkTiers are the three depths of foreground this column speaks in: the
+// faintest tier its two headings, its citation count, its folder
 // annotations and its empty lines take; the tier the outline's nested
 // headings take, a step down from the level they hang under; and the
 // reading tier the outline's own top level and every citation's name
@@ -117,14 +117,14 @@ type asideInkTiers struct {
 
 // asideInks resolves the tiers against the surface the column stands on.
 //
-// The two quieter tiers come off different ramp steps in a light scheme
+// The two fainter tiers come off different ramp steps in a light scheme
 // and a dark one. The neutral ramp's paired scales keep a step's job
-// across the two schemes, not its distance from the ground it is read
-// against: measured on this column's own floor, the light scheme's 700 and
+// across the two schemes, not its distance from the surface it is read
+// against: measured on this column's own surface, the light scheme's 700 and
 // 800 stand 52.9 and 64.0 from it in L* under a reading tier at 86.1 —
 // three tiers a reader can name — while the dark scheme's 700 and 800
 // stand 75.3 and 79.2 under 87.3, four L* apart at the top where the light
-// pair are eleven, which is three names for very nearly one ink. The dark
+// pair are eleven, which is three names for very nearly one colour. The dark
 // scheme's 600 and 700 stand 57.2 and 75.3: a spread of the light
 // scheme's own order, one step lower down a ramp whose top end is the
 // compressed one.
@@ -170,7 +170,7 @@ type asideGeom struct {
 	backlinks image.Rectangle
 }
 
-// asideView is the column's widget state: a scroll state and per-row
+// asideView is the column's own view state: a scroll state and per-row
 // clickables for each pane (pointer-stable across frames), the memoised
 // rows, and the note column's document, which the outline reads its mark
 // from and moves when an entry is chosen.
@@ -242,7 +242,7 @@ func (v *asideView) headings(m Model) []outlineEntry {
 	return v.outline
 }
 
-// asideColumn builds the aside slot's widget stream. The frame closure
+// asideColumn builds the aside slot's layout.Widget stream. The frame closure
 // reads the model and token snapshots at frame time; repaints on model
 // change are driven by the routed layer's re-emission. cur is the note
 // column's live document, shared so the outline can mark and move it.
@@ -279,7 +279,7 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 	size := gtx.Constraints.Max
 	// Three sides of the column's inset, and the trailing one spent inside
 	// the panes instead: the bar's lane runs to the window's own edge the
-	// way the note's runs to its column's, and what the panes ink stops a
+	// way the note's runs to its column's, and what the panes draw stops a
 	// lane short of it.
 	layout.Inset{Top: asideInsetDp, Bottom: asideInsetDp, Left: asideInsetDp}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		inner := gtx.Constraints.Max
@@ -354,7 +354,7 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 	return layout.Dimensions{Size: size}
 }
 
-// asidePill fills a row's mark: a rounded pill on the column's own ink
+// asidePill fills a row's mark: a rounded pill on the column's own text
 // margin, running the band the pane's headings and its hairline run and no
 // further. It is the sidebar's fill — the same shape, the same radius, the
 // same two colours — so one window has one way of saying a row is spoken
@@ -412,7 +412,7 @@ func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dime
 // off the note's bar, which stands eight dp inside the seam where its
 // column gives way to this column's surface; with the same eight against
 // the window's own edge, the two bars a reader reads between keep one
-// distance from the ground each runs out of. The inboard eight is what the
+// distance from the surface each runs out of. The inboard eight is what the
 // rows need: they carry the mark, and a fill whose edge is a bar's edge
 // leaves a single pixel of daylight between them.
 //
@@ -430,14 +430,14 @@ func asideIndicator(tok themeTokens) scrollbar.Style {
 
 // asideBarLane is the trailing band a pane hands its scrollbar: the
 // thumb's own width and the air either side of it. It is what the rows
-// stop short of, and what everything else the column inks — the two
+// stop short of, and what everything else the column draws — the two
 // headings, the citation count, the hairline between the panes — takes as
 // its own trailing inset, so that one right edge runs down the column
 // whether a pane is scrolling or not.
 func asideBarLane(tok themeTokens) unit.Dp { return asideIndicator(tok).Width() }
 
-// asideTrailing insets a widget by the bar's lane, which is what puts what
-// it draws on the column's own trailing edge.
+// asideTrailing insets a layout.Widget by the bar's lane, which is what puts
+// what it draws on the column's own trailing edge.
 func asideTrailing(tok themeTokens, w layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Right: asideBarLane(tok)}.Layout(gtx, w)
@@ -449,9 +449,9 @@ func asideTrailing(tok themeTokens, w layout.Widget) layout.Widget {
 // It stands where the first of those rows would have stood, on both axes,
 // so that one leading edge runs down the column and the line reads as the
 // pane's own answer rather than as an annotation on the heading above it.
-// Across: a row's own pad inboard of the column's ink margin, the bar's
+// Across: a row's own pad inboard of the column's text margin, the bar's
 // lane and a pad again at its trailing end. Down: the whole of the air a
-// row keeps above its ink, which is where both panes' rows put their first
+// row keeps above its text, which is where both panes' rows put their first
 // line — the outline's by halving that air and centring the line in what
 // is left, the citations' by spending it above the line outright.
 func asideEmptyLine(gtx layout.Context, tok themeTokens, line string) layout.Dimensions {
@@ -465,7 +465,7 @@ func asideEmptyLine(gtx layout.Context, tok themeTokens, line string) layout.Dim
 
 // asideRule is the hairline parting the two panes. It is a hairline for
 // the reason the sidebar's foot uses one: both panes stand on the same
-// surface, so there are no two grounds to separate, only a seam saying
+// surface, so there are no two fills to separate, only a seam saying
 // one pane's scrolling stops here and another's begins.
 func asideRule(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	h := max(gtx.Dp(unit.Dp(1)), 1)
@@ -612,7 +612,7 @@ func (v *asideView) seek(gtx layout.Context, e outlineEntry) {
 }
 
 // backlinkPane lays out the citing notes: the note title leading, its
-// folder as the quiet trailing annotation when it has one.
+// folder as the faint trailing annotation when it has one.
 func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []backlinkRow) layout.Dimensions {
 	if len(rows) == 0 {
 		// Released from the flex child's minimum height, so the line sits
@@ -675,7 +675,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 //
 // It is a shared pointer rather than a round trip through the model
 // because what it carries is not model state: the scroll position is the
-// widget's, it changes on every frame of a wheel gesture, and a note that
+// view's, it changes on every frame of a wheel gesture, and a note that
 // went through the update loop to be scrolled would be a note reloaded.
 type docCursor struct{ doc *markdown.Document }
 

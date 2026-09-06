@@ -57,7 +57,7 @@ func styleCellW() int {
 	return (gridW() - (cols-1)*int(StyleGap)) / cols
 }
 
-// leadSwatch is a point well inside the leading ink's band on the card at
+// leadSwatch is a point well inside the leading colour's band on the card at
 // position n of the visible grid — the band a click takes its seed from. An
 // eighth of the strip's width in: the leading band is between two sevenths and
 // two thirds of the strip depending on how many colours the style has, so an
@@ -133,7 +133,7 @@ func TestTheGridIsAlphabetical(t *testing.T) {
 		t.Logf("%s: %d cards, %s … %s", sideName(dark), len(half), half[0], half[len(half)-1])
 	}
 	// A name in the c's is found in the c's rather than wherever its leading
-	// ink's chroma would put it.
+	// colour's chroma would put it.
 	at, before := -1, 0
 	for n, i := range m.VisibleStyles(false) {
 		switch name := m.Styles[i].Name; {
@@ -220,8 +220,8 @@ func TestTheGridIsTheSameGridEveryRun(t *testing.T) {
 }
 
 // TestTheGridFollowsTheSchemeControl: the sun's cards are the styles fitted to
-// a light ground and the moon's those fitted to a dark one, exactly as the base
-// list is filtered. A style that named no ground is on both.
+// a light background and the moon's those fitted to a dark one, exactly as the
+// base list is filtered. A style that named no background is on both.
 func TestTheGridFollowsTheSchemeControl(t *testing.T) {
 	m := withStyles()
 	light, dark := m.VisibleStyles(false), m.VisibleStyles(true)
@@ -230,12 +230,12 @@ func TestTheGridFollowsTheSchemeControl(t *testing.T) {
 	}
 	for _, i := range light {
 		if !m.Styles[i].Light {
-			t.Errorf("%q is on the sun's grid and is not fitted to a light ground", m.Styles[i].Name)
+			t.Errorf("%q is on the sun's grid and is not fitted to a light background", m.Styles[i].Name)
 		}
 	}
 	for _, i := range dark {
 		if !m.Styles[i].Dark {
-			t.Errorf("%q is on the moon's grid and is not fitted to a dark ground", m.Styles[i].Name)
+			t.Errorf("%q is on the moon's grid and is not fitted to a dark background", m.Styles[i].Name)
 		}
 	}
 	both := 0
@@ -282,7 +282,7 @@ func TestAStyleFromTheFolderGetsACard(t *testing.T) {
 		t.Errorf("the card is tagged %q, want the same word the base list uses", originTag(card.Added, card.Light, card.Dark))
 	}
 	if !card.Dark || card.Light {
-		t.Errorf("the card is offered light=%v dark=%v, want the dark ground its own background names", card.Light, card.Dark)
+		t.Errorf("the card is offered light=%v dark=%v, want the dark side its own background names", card.Light, card.Dark)
 	}
 }
 
@@ -326,7 +326,7 @@ func TestTheCardsCarryTheirStylesLeadingInk(t *testing.T) {
 			want := m.Styles[i].Seed()
 			got := img.RGBAAt(p.X, p.Y)
 			if got.R != want.R || got.G != want.G || got.B != want.B {
-				t.Errorf("card %d (%s) at %v drew %v, want its leading ink %v", n, m.Styles[i].Name, p, got, want)
+				t.Errorf("card %d (%s) at %v drew %v, want its leading colour %v", n, m.Styles[i].Name, p, got, want)
 			}
 			checked++
 		}
@@ -357,8 +357,8 @@ func TestTheFirstScreenIsAnInvitationAndNotABlank(t *testing.T) {
 }
 
 // TestOneClickAdoptsTheSeedAndBothMembers: the whole of what a card promises,
-// in the reducer. The seed is the card's leading ink; the pair is the card's
-// own style on the side its author fitted it to and the completed member on the
+// in the reducer. The seed is the card's leading colour; the pair is the card's
+// own style on the side it was fitted to and the completed member on the
 // other; and the row beside it holds the rest of the style's colours, so what a
 // style hands the window is what a picture hands it.
 func TestOneClickAdoptsTheSeedAndBothMembers(t *testing.T) {
@@ -372,7 +372,7 @@ func TestOneClickAdoptsTheSeedAndBothMembers(t *testing.T) {
 		after := ReduceModel(m, AdoptStyle{Index: i})
 		seed, ok := after.Seed()
 		if !ok || seed != card.Seed() {
-			t.Errorf("%s: the window wears %v, want the card's leading ink %v", name, seed, card.Seed())
+			t.Errorf("%s: the window wears %v, want the card's leading colour %v", name, seed, card.Seed())
 		}
 		if after.Selected != 0 {
 			t.Errorf("%s: the row leads with candidate %d, want the leading one", name, after.Selected)
@@ -503,7 +503,7 @@ func TestTheCaptionSaysWhichMemberIsWhich(t *testing.T) {
 	if !strings.Contains(hint, pair.Light+" by day") || !strings.Contains(hint, pair.Dark+" by night") {
 		t.Errorf("the caption reads %q, want it to say which member each appearance wears", hint)
 	}
-	// A style fitted to no ground is its own counterpart, and writing such a
+	// A style fitted to no background is its own counterpart, and writing such a
 	// name out twice reads as a mistake rather than as the fact it is.
 	both := -1
 	for i, s := range m.Styles {
@@ -642,7 +642,7 @@ func TestKeepingAnAdoptedStyleReproducesIt(t *testing.T) {
 
 	onDisk := brand.KeptFrom(path)
 	if onDisk.Seed != seed {
-		t.Errorf("the file holds %v, want the card's leading ink %v", onDisk.Seed, seed)
+		t.Errorf("the file holds %v, want the card's leading colour %v", onDisk.Seed, seed)
 	}
 	if onDisk.Source != "dracula" {
 		t.Errorf("the file credits %q, want the style the colour came out of", onDisk.Source)
@@ -720,7 +720,7 @@ func TestStyleGridDump(t *testing.T) {
 
 // TestAnAdoptedStyleStandsWhereThePictureWould: a window whose colours came out
 // of a palette has no photograph to show, and an empty mat beside a name reads
-// as a picture that failed to load. The style's own inks go there instead.
+// as a picture that failed to load. The style's own colours go there instead.
 func TestAnAdoptedStyleStandsWhereThePictureWould(t *testing.T) {
 	m := withStyles()
 	after := ReduceModel(m, AdoptStyle{Index: cardIndex(m, "dracula")})
@@ -729,7 +729,7 @@ func TestAnAdoptedStyleStandsWhereThePictureWould(t *testing.T) {
 	want := after.Candidates[0].Color
 	got := img.RGBAAt(mat.X, mat.Y)
 	if got.R != want.R || got.G != want.G || got.B != want.B {
-		t.Errorf("the mat at %v drew %v, want the style's leading ink %v", mat, got, want)
+		t.Errorf("the mat at %v drew %v, want the style's leading colour %v", mat, got, want)
 	}
 }
 
@@ -756,8 +756,8 @@ func styleTagBox(n int) image.Rectangle {
 }
 
 // styleNameBox is the line at the top of the card the name is drawn on, which
-// is what the note has to be measured against: a note louder than the thing it
-// annotates is a warning however calm its wording.
+// is what the note has to be measured against: a note more pronounced than the
+// thing it annotates is a warning however calm its wording.
 func styleNameBox(n int) image.Rectangle {
 	inner := styleCardRect(n).Inset(int(StylePad))
 	return image.Rect(inner.Min.X, inner.Min.Y, inner.Max.X, inner.Min.Y+int(StyleName))
@@ -797,7 +797,7 @@ func TestACardKnowsWhetherItsStyleIsDrawnFaint(t *testing.T) {
 	for _, s := range m.Styles {
 		authored, measured := highlight.BaseContrast(s.Name)
 		if want := measured && authored.BelowFloor(); s.Faint != want {
-			t.Errorf("%q is carded faint=%v, want %v (%d of %d inks under the floor)",
+			t.Errorf("%q is carded faint=%v, want %v (%d of %d colours under the floor)",
 				s.Name, s.Faint, want, authored.Below, authored.Inks)
 		}
 		if s.Faint {
@@ -867,8 +867,8 @@ func TestAFaintFolderStyleSaysSoRatherThanSayingWhereItCameFrom(t *testing.T) {
 // appearances, because a note that only lands on one half is a note about the
 // scheme rather than about the style.
 //
-// The comparison is between two renders rather than a sweep for ink, because a
-// card with no word still has a name, and a long enough name reaches the same
+// The comparison is between two renders rather than a sweep for colour, because
+// a card with no word still has a name, and a long enough name reaches the same
 // slot. What the two renders differ by is the word alone.
 func TestTheNoteIsOnlyOnTheFaintCards(t *testing.T) {
 	for _, sc := range []struct {
@@ -910,9 +910,9 @@ func TestTheNoteIsOnlyOnTheFaintCards(t *testing.T) {
 }
 
 // TestTheNoteIsQuieterThanTheNameItAnnotates: the note is a remark and not an
-// alarm, so it is drawn in the muted ink the card's other trailing words are
-// drawn in — measurably quieter against the card than the style's own name at
-// the top of it, and nothing like the colour this window says something went
+// alarm, so it is drawn in the muted foreground the card's other trailing words
+// are drawn in — measurably fainter against the card than the style's own name
+// at the top of it, and nothing like the colour this window says something went
 // wrong in.
 func TestTheNoteIsQuieterThanTheNameItAnnotates(t *testing.T) {
 	for _, sc := range []struct {
@@ -944,7 +944,7 @@ func TestTheNoteIsQuieterThanTheNameItAnnotates(t *testing.T) {
 			t.Logf("%s: the note reaches %.2f:1 on the card, the name above it %.2f:1",
 				m.Styles[visible[at]].Name, noteAt, nameAt)
 			if noteAt >= nameAt {
-				t.Errorf("the note measures %.2f:1 against the name's %.2f:1 — it is not the quieter of the two", noteAt, nameAt)
+				t.Errorf("the note measures %.2f:1 against the name's %.2f:1 — it is not the fainter of the two", noteAt, nameAt)
 			}
 			if note == p.Problem {
 				t.Errorf("the note is drawn in %v, the colour this window says a drop failed in", note)

@@ -1,5 +1,5 @@
 // status.go is the bar across the foot of the vault window's content
-// area: a quiet band under the document saying how long the note on
+// area: a faint band under the document saying how long the note on
 // screen is.
 //
 // # What a line is
@@ -31,13 +31,13 @@
 // margin inside the window's own edges and keeps its own foot, which is
 // the vault's actions.
 //
-// It stands on the window's ground, which is the note's paper, and paints
+// It stands on the window's own fill, which is the note's paper, and paints
 // nothing: no fill and no rule — the treatment the chrome row at the head
 // of the same column has. A surface step under the document would make the
 // paper a shape cut out of furniture on three sides.
 //
 // The count stands on the note column's own reading margin, under the
-// breadcrumb and under the vault's name above that: one column of ink down
+// breadcrumb and under the vault's name above that: one column of text down
 // the leading edge of the content area, top to bottom. The trailing end,
 // where editors on this platform put their counts, is the panel of
 // citations here rather than the document.
@@ -54,7 +54,7 @@
 // # What it says
 //
 // One fact, in one line: how long the note is. The bar is as deep as that
-// line and no deeper, and it is the quiet ink this window gives what
+// line and no deeper, and it is the faint foreground this window gives what
 // annotates rather than states — the same step the properties panel's keys
 // and the standing messages take.
 //
@@ -74,14 +74,14 @@ import (
 	"gioui.org/unit"
 )
 
-// statusInkStep is the neutral step the bar's text takes: the quiet ink
+// statusInkStep is the neutral step the bar's text takes: the faint foreground
 // this window already spends on what annotates the document rather than
 // being it — the properties panel's keys and the messages that stand in
 // place of a document are the same step on the same paper.
 //
 // Measured against that paper, the pairing reads 6.19:1 in the light
 // appearance and 11.06:1 in the dark one; against the trailing panel's
-// surface, which the band runs over without putting ink on it, 5.46:1 and
+// surface, which the band runs over without putting text on it, 5.46:1 and
 // 9.91:1. Both are clear of the floor for text this size. The spread
 // between them is the neutral ramp's own — its dark half runs at about
 // twice the light half's contrast everywhere in this window.

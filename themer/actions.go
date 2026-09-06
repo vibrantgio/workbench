@@ -64,9 +64,9 @@ type SelectBase struct {
 // AdoptStyle dresses the window in a syntax style, by the card's position in
 // the grid. Emitted by a click on one of its cards.
 //
-// It is one message and not two because it is one act: the style's leading ink
-// becomes the seed the whole system derives from, and the style itself becomes
-// the syntax base on the side its author fitted it to, with the nearest
+// It is one message and not two because it is one act: the style's leading
+// colour becomes the seed the whole system derives from, and the style itself
+// becomes the syntax base on the side it was fitted to, with the nearest
 // measured answer on the other. Sending a seed and a base separately would let
 // a window exist, however briefly, wearing half of somebody's choice.
 type AdoptStyle struct {

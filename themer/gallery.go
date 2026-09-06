@@ -8,7 +8,7 @@
 //
 // The page is a tab strip and four surfaces rather than one column several
 // screens tall. Theme is what the window opens on — the seed itself, then the
-// palette it derived with the provenance in it, and the type ladder under
+// palette it derived with the provenance in it, and the type scale under
 // them — and the three after it are the published catalogue's own groups, one
 // to a tab. A reader judging a colour on buttons does not have to scroll past
 // the ramps to reach them, and the tab they were on is still the tab they are
@@ -60,7 +60,7 @@ var TabLabels = [TabCount]string{"Theme", "Components", "Patterns", "Markdown"}
 //
 // The inventory's Foundations group is on no tab of its own. Its colour
 // sections are the Theme tab's telling, in this window's own words and with
-// this seed's provenance, and its type ladder stands under them there.
+// this seed's provenance, and its type scale stands under them there.
 var TabGroups = map[int]string{
 	TabComponents: "Components",
 	TabPatterns:   "Patterns",
@@ -70,7 +70,7 @@ var TabGroups = map[int]string{
 // TabGap is the air between the strip and the surface under it: eight times
 // the underline the selected cell is marked with. Without it the underline is
 // the top edge of whatever the tab opens on, and a mark that doubles as a
-// border is not a mark. It exposes the panel's own ground on both sides of
+// border is not a mark. It exposes the panel's own fill on both sides of
 // the line, so the line reads as a line.
 var TabGap = unit.Dp(tokens.Spacing.S4)
 
@@ -113,7 +113,7 @@ func (e *embed) state(tab int) *list.State { return e.sts[tab] }
 // catalogue returns the inventory every tab is cut from, in the given
 // typography and with its code drawn in the given syntax bases — the pair, so
 // the appearance the palette is on picks its own member and a flip of the
-// scheme puts the other one's whole plate on the specimen, its ground
+// scheme puts the other one's whole plate on the specimen, its background
 // included.
 //
 // It is built on the first call — before anything has been dropped, so the
@@ -163,7 +163,7 @@ func (e *embed) codeRow(c tokens.ColorTokens) int {
 }
 
 // GalleryColumns is what the four tabs show for one emission, in tab order:
-// the Theme tab's own palette story with the type ladder under it, and the
+// the Theme tab's own palette story with the type scale under it, and the
 // three catalogue groups, one scrolling column each.
 //
 // The columns are built here rather than per frame, because the rows are a

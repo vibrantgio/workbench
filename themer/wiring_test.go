@@ -55,8 +55,8 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 
 // TestTheContentLayerDraws: the page's layer is the model, the theme and the
 // tab strip's own stream combined, and a combination that never emits is a
-// window with nothing in it. What is asserted is that a widget arrives at all
-// — what it draws is asserted everywhere else in this package, on pixels.
+// window with nothing in it. What is asserted is that a [layout.Widget] arrives
+// at all — what it draws is asserted everywhere else in this package, on pixels.
 func TestTheContentLayerDraws(t *testing.T) {
 	got := make(chan layout.Widget, 1)
 	sub := ContentLayer(rx.Of(theme.Default()), rx.Of(judging()), &desktop.ZoneGroup{}).
@@ -73,6 +73,6 @@ func TestTheContentLayerDraws(t *testing.T) {
 	select {
 	case <-got:
 	case <-time.After(2 * time.Second):
-		t.Fatal("the content layer emitted no widget — the window would open on an empty page")
+		t.Fatal("the content layer emitted nothing to lay out — the window would open on an empty page")
 	}
 }

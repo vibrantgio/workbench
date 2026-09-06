@@ -352,11 +352,11 @@ func TestTreeClaimsOnlyItsRail(t *testing.T) {
 }
 
 // TestPaneFootStandsOutsideTheRows asserts the arrangement that keeps the
-// vault's actions where a reader can always reach them: the foot takes
+// vault's actions where a reader can always operate them: the foot takes
 // its band off the pane's bottom, the rows end exactly where it begins,
 // and the rows still get the bulk of the pane. The rows scroll inside
 // their own band, so no number of notes can push the actions off the
-// window and no scroll position can take them out of reach.
+// window and no scroll position can scroll them away.
 //
 // It is asserted off what the pane laid out rather than recomputed from
 // the constants that placed it.

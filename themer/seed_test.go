@@ -45,7 +45,7 @@ func seedSwatchCentre(i int) image.Point {
 		seedSectionTop()+i*int(palette.PickPairH)+int(palette.PickPairH)/2)
 }
 
-// seedSectionOn captures the seed section on its own, on the ground the column
+// seedSectionOn captures the seed section on its own, on the surface the column
 // would stand it on, for the assertions about what it draws where nothing is
 // picked — a state the window has no gallery in, so it cannot be read off a
 // window render.
@@ -212,13 +212,13 @@ func TestSeedRowSaysWhenNothingIsPicked(t *testing.T) {
 	if got := seedHint(cells); got != SeedHintNone {
 		t.Errorf("the unpicked caption is %q, want %q", got, SeedHintNone)
 	}
-	// And no swatch is drawn: the slot a cell gives its colour is the ground.
+	// And no swatch is drawn: the slot a cell gives its colour is the page.
 	img := seedSectionOn(t, c, stdcolor.NRGBA{}, false)
 	top := int(palette.SectionHeadH) + int(inventory.SectionPadY)
 	at := image.Pt(int(inventory.SectionPadX)+int(palette.PickSwatchW)/2, top+int(palette.PickCellH)/2)
 	got := img.RGBAAt(at.X, at.Y)
 	if want := c.Background; got.R != want.R || got.G != want.G || got.B != want.B {
-		t.Errorf("the unpicked row drew %v where a swatch would stand at %v, want the ground %v", got, at, want)
+		t.Errorf("the unpicked row drew %v where a swatch would stand at %v, want the page %v", got, at, want)
 	}
 }
 
