@@ -101,6 +101,22 @@ const (
 	// the next one.
 	noteMeasureDp = 540
 
+	// noteMinMeasureDp is the narrowest a line of this note may lay out
+	// at, and it comes off the same measurement the measure does: the
+	// band typography has long held a reader can walk back along is 60 to
+	// 75 characters, [noteMeasureDp] is the top of it — 75 characters at
+	// the 7.19 dp an average character of this body advances — and this is
+	// its bottom, 60 of them. Narrower than this the column is no longer a
+	// column of prose.
+	noteMinMeasureDp = 431
+
+	// noteMinWidthDp is the narrowest the note column may be dragged to:
+	// that measure and the insets either side of it. It bounds both of the
+	// window's splitters and nothing else, so a window is free to be
+	// narrower than it — what it stops is a boundary taking the last of
+	// the document's room, not a small window from opening.
+	noteMinWidthDp = noteMinMeasureDp + 2*noteInsetDp
+
 	// The properties panel's rhythm: the gap between one metadata row and
 	// the next — and between the disclosure head and the box under it — the
 	// pad inside that box, and the gap between the key column and the

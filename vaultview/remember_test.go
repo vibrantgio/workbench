@@ -207,10 +207,12 @@ func TestTheAsideIsKeptWhereItWasDragged(t *testing.T) {
 	}
 	frame()
 
-	// The boundary's own middle, and a drag toward the leading edge, which
-	// is the direction that widens the aside.
-	const pull = 60
-	x := float32(size.X) - float32(f.asideW) - float32(frameSplitterDp)/2
+	// The boundary's own line, and a drag toward the leading edge, which
+	// is the direction that widens the aside. The pull stops short of
+	// where the note column's own minimum would stop it: what is under
+	// test here is that a drag is remembered, not where it is bounded.
+	const pull = 40
+	x := float32(size.X) - float32(f.asideW)
 	y := float32(f.geom.rowTop + f.geom.rowH/2)
 	r.Queue(pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x, y)})
 	frame()

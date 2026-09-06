@@ -304,11 +304,11 @@ func TestMatchRows(t *testing.T) {
 	}
 }
 
-// TestTreeClaimsOnlyItsRail: the shell lets its sidebar slot size itself
-// and gives the main column whatever is left, so a rail answering with the
-// constraint it was handed would take the whole window and leave the note
-// nothing. Every state must answer the rail's own width — with rows,
-// filtered to none, and before the scan lands.
+// TestTreeClaimsOnlyItsRail: a slot that leaves the width open lets its
+// sidebar size itself and gives the main column whatever is left, so a
+// rail answering with the constraint it was handed would take the whole
+// window and leave the note nothing. Every state must answer the rail's
+// own width — with rows, filtered to none, and before the scan lands.
 func TestTreeClaimsOnlyItsRail(t *testing.T) {
 	tok := themeTokens{
 		col:    tokens.DefaultLight,
@@ -348,6 +348,35 @@ func TestTreeClaimsOnlyItsRail(t *testing.T) {
 				t.Errorf("rail height = %d, want the full row height 700", dims.Size.Y)
 			}
 		})
+	}
+}
+
+// TestTreeFillsTheWidthTheSlotStates verifies the other half of the rule
+// above: where the slot states a width — which is what the pane does,
+// laying its column out at exactly the width the reader dragged the
+// pane's edge to — the rail is that wide. A rail that held its own 240 dp
+// inside a pane dragged wider would widen into nothing.
+func TestTreeFillsTheWidthTheSlotStates(t *testing.T) {
+	tok := themeTokens{
+		col:    tokens.DefaultLight,
+		typ:    tokens.DefaultTypography,
+		sp:     tokens.Spacing,
+		den:    tokens.Comfortable,
+		shaper: tokens.DefaultTypography.DeterministicShaper(),
+	}
+	filled := treeModel()
+	filled.Folds = map[string]bool{"guide": true}
+	for _, w := range []int{treeWidthDp - 60, treeWidthDp + 140} {
+		v := &treeView{list: list.NewState()}
+		var ops op.Ops
+		gtx := layout.Context{
+			Constraints: layout.Exact(image.Pt(w, 700)),
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Ops:         &ops,
+		}
+		if got := v.layout(gtx, filled, tok, nil).Size.X; got != w {
+			t.Errorf("in a %d dp slot the rail lays out %d dp wide, want the slot's own width", w, got)
+		}
 	}
 }
 

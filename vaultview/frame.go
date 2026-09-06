@@ -8,9 +8,9 @@
 // shell because that shell pins its top slot to a full navbar band
 // (ControlHeight plus twice the vertical control padding, 52 dp at the
 // comfortable density) and this window's chrome is a single tight row.
-// Everything else here — a splitter tracking an absolute aside width, the
-// op order that makes Tab follow the reading order — is the shell's
-// arrangement.
+// Everything else here — a splitter on each of the window's two
+// boundaries, the op order that makes Tab follow the reading order — is
+// the shell's arrangement.
 //
 // The sidebar is a floating pane: inset from the window's leading, top and
 // bottom edges by one margin, rounded on all four corners, with the
@@ -49,11 +49,22 @@
 // CHROME: fixed, flush, with nothing to dismiss it, so it takes no
 // outline and its leading edge is a plain seam.
 //
-// Both boundaries paint one hairline running the window's whole height: the
-// platform does not exempt its top band from a split seam, and a seam that
-// stopped at a band would say the window is divided in one place and joined
-// in another. The movable seam thickens and takes a firmer colour while a hand
-// is in the grab band, which is the one thing a resting edge cannot say.
+// Both boundaries are the reader's to move, and both are the same
+// pattern: the seam between two regions made operable, thickening and
+// taking a firmer colour while a hand is in the band it is taken by,
+// which is the one thing a resting edge cannot say. What differs is the
+// line each is drawn on. Trailing, the seam is the splitter's own and
+// runs the window's whole height, band and status bar included: the
+// platform does not exempt its top band from a split seam, and a seam
+// that stopped at a band would say the window is divided in one place and
+// joined in another. Leading, the line is the pane's own hairline down
+// its trailing edge, so the splitter draws over it in the pane's own
+// colour rather than beside it in a second — a resting window is the same
+// window whether or not that edge can be taken hold of.
+//
+// The two boundaries answer to the note column between them: neither is
+// dragged past the point where the note would be left with less than a
+// column of prose.
 //
 // Under the full-size-content treatment the content extends behind the
 // native title bar, so the top strip is the application's to lay out in.
@@ -73,7 +84,6 @@ import (
 	"path"
 	"strings"
 
-	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
@@ -91,15 +101,23 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/splitter"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// Frame layout constants. The aside bounds and splitter width follow the
-// three-column shell's, so the two compositions resize alike.
+// Frame layout constants. The aside bounds follow the three-column
+// shell's, so the two compositions resize alike.
 const (
-	frameEdgeDp     = 12
-	frameGapDp      = 16
+	frameEdgeDp = 12
+	frameGapDp  = 16
+
+	// frameGapDp's counterpart at the trailing boundary: the air the
+	// content area keeps between the note column's edge and the seam the
+	// aside stands behind. The splitter's own band is wider than the line
+	// and reaches into both columns, so this gap is not the band — it is
+	// what stops the note's last pixel standing hard against the seam.
 	frameSplitterDp = 6
+
 	frameAsideDp    = 320
 	frameMinAsideDp = 160
 	frameMaxAsideDp = 640
@@ -128,11 +146,6 @@ const (
 	// included, so its width is the width of the scar it leaves across every
 	// band it crosses.
 	seamDp = pane.SeamDp
-
-	// seamGrabbedDp is what the movable seam paints while a hand is on it:
-	// the same line, thick enough to be seen as a change of state rather
-	// than as a second edge beside the first.
-	seamGrabbedDp = 2
 
 	// buttonInsetDp is how far the window control buttons sit in from the
 	// window's own top and leading edges — the drawn circles' own edges,
@@ -170,19 +183,21 @@ func toolbarHeight(tok themeTokens) unit.Dp {
 }
 
 // frameState is the vault frame's per-subscription state: the toolbar's
-// clickables and the aside splitter's drag. It is touched only on the
-// frame goroutine.
+// clickables, the two splitters' hands and the widths they move. It is
+// touched only on the frame goroutine.
 type frameState struct {
 	toggleClick widget.Clickable
 	vaultClick  widget.Clickable
 
-	splitterTag struct{}
-	railW       unit.Dp
-	asideW      unit.Dp
-	pressX      float32
-	startW      unit.Dp
-	dragging    bool
-	hovering    bool
+	// The window's two boundaries, each the seam between two regions made
+	// operable. Both are the same pattern; what differs is the edge each
+	// stands on — the pane's own hairline leading, the flush column's
+	// plain seam trailing — and how much of that edge a hand may take.
+	railSplitter  splitter.State
+	asideSplitter splitter.State
+
+	railW  unit.Dp
+	asideW unit.Dp
 
 	// widths keeps this frame's two column widths across launches. It is
 	// nil wherever a frame is laid out for measurement rather than for a
@@ -206,9 +221,8 @@ type frameState struct {
 
 // newFrameState seats a frame on the arrangement it opens with. Both
 // column widths are state rather than constants because both boundaries
-// belong to the reader: the aside's is the one they can already take hold
-// of, and the rail's is carried and written back unchanged until its own
-// edge can be taken hold of too.
+// belong to the reader: each is a splitter's to move and the memory's to
+// keep.
 func newFrameState(w columnWidths) *frameState {
 	return &frameState{railW: w.Rail, asideW: w.Aside}
 }
@@ -350,7 +364,18 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		barH = size.Y
 	}
 
-	g := frameGeometry(gtx, size, f.railW, barH, gtx.Dp(statusBarHeight(tok)), m.SidebarHidden)
+	// Both boundaries are taken hold of before anything is laid out, so
+	// that the whole frame is drawn where this frame's drag left them
+	// rather than where the last one did. The rail's goes first: the
+	// aside's bounds are measured from where the pane ends, and a rail
+	// that moved in this same frame has already moved that.
+	footH := gtx.Dp(statusBarHeight(tok))
+	g := frameGeometry(gtx, size, f.railW, barH, footH, m.SidebarHidden)
+	if !g.pane.Empty() {
+		f.railSplitter.Update(gtx, f.railProps(gtx, tok, size, g))
+		g = frameGeometry(gtx, size, f.railW, barH, footH, m.SidebarHidden)
+	}
+	f.asideSplitter.Update(gtx, f.asideProps(gtx, tok, size, g))
 	f.geom = g
 
 	// The content area stands on the note's own surface: the document is what
@@ -379,24 +404,8 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		pane.Layout(gtx, tok.col, g.pane, sb)
 	}
 
-	f.processSplitterDrag(gtx)
-
-	splitterW := gtx.Dp(unit.Dp(frameSplitterDp))
-	if splitterW < 1 {
-		splitterW = 1
-	}
-	asidePx := gtx.Dp(f.asideW)
-	if avail := size.X - g.contentX - splitterW; asidePx > avail {
-		asidePx = avail
-	}
-	if asidePx < 0 {
-		asidePx = 0
-	}
-	mainW := size.X - g.contentX - splitterW - asidePx
-	if mainW < 0 {
-		mainW = 0
-	}
-	asideX := g.contentX + mainW + splitterW
+	c := contentColumns(gtx, size, g.contentX, f.asideW)
+	asidePx, mainW, asideX := c.aside, c.note, c.asideX
 
 	// The trailing column's own surface, painted before the chrome row and
 	// running the window's full height: the outline and the backlinks are
@@ -444,15 +453,6 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		st.Pop()
 	}
 
-	// The splitter's hit area is registered in frame-local coordinates —
-	// no offset transform pushed — so drag deltas measure against a
-	// stable origin even as the splitter itself moves.
-	splitterRect := image.Rect(g.contentX+mainW, g.rowTop, g.contentX+mainW+splitterW, g.rowTop+g.rowH)
-	area := clip.Rect(splitterRect).Push(gtx.Ops)
-	event.Op(gtx.Ops, &f.splitterTag)
-	pointer.CursorColResize.Add(gtx.Ops)
-	area.Pop()
-
 	if as != nil && g.rowH > 0 {
 		st := op.Offset(image.Pt(asideX, g.rowTop)).Push(gtx.Ops)
 		agtx := gtx
@@ -473,14 +473,14 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		st.Pop()
 	}
 
-	// The trailing column's own boundary, and the last thing painted so
-	// that neither the column's rows nor the two bands crossing over it can
-	// cover it. It runs the window's full height, band and status bar
-	// included, because that is where the platform runs a split seam and
-	// because a seam that stopped at a band would divide the window in one
-	// place and not another.
+	// The window's two boundaries, last of everything, so that neither the
+	// columns' rows nor the two bands crossing over them can cover a line
+	// and so that a press this close to a boundary reaches the boundary.
+	if !g.pane.Empty() {
+		f.layoutRailSplitter(gtx, tok, size, g)
+	}
 	if asidePx > 0 {
-		f.paintAsideSeam(gtx, tok, asideX, size.Y)
+		f.asideSplitter.Layout(gtx, f.asideProps(gtx, tok, size, g))
 	}
 
 	// What this frame arranged, offered to the memory that keeps it —
@@ -494,85 +494,164 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	return layout.Dimensions{Size: size}
 }
 
-// paintAsideSeam draws the boundary of the trailing column: a plain
-// hairline down its leading edge, running the window's full height.
-//
-// The column is INTEGRAL CHROME — fixed, flush, with no toggle and no
-// way to leave — so it is not outlined the way the rail is. What it takes
-// instead is the plain seam the platform gives its own flush side: Voice Memos
-// carries no outline there at all and parts its panes with a
-// one-pixel seam running from the window's top edge to its bottom, band
-// included, and Notes does the same between its list and its note.
-//
-// The colour is Seam — the token whose job is the line between two regions
-// — and not the pane's own seam colour. The two boundaries in this window are
-// two different things: an object's edge circles a pane at the platform's
-// measured whisper, and a region's seam is the line between two surfaces. One
-// weight, two colours.
-//
-// A line is drawn here at all because the step it divides is small: the
-// floor's dark step is a measured 1.47 L*, a whisper the eye can lose, and
-// the platform's answer at a whisper is a line — Voice Memos' two panes are
-// the SAME fill and the seam is the whole of what parts them.
-//
-// Under the hand the seam itself thickens and takes a firmer colour, with the
-// resize cursor beside it. This boundary is the one the reader can move and
-// a resting edge cannot say so; a separate bar floating in the grab band
-// would read as a stray second edge three dp off the real one. One line,
-// two states.
-func (f *frameState) paintAsideSeam(gtx layout.Context, tok themeTokens, x, height int) {
-	w := max(gtx.Dp(unit.Dp(seamDp)), 1)
-	seamColor := tok.col.Seam
-	if f.hovering || f.dragging {
-		w = max(gtx.Dp(unit.Dp(seamGrabbedDp)), w)
-		seamColor = tok.col.Ramps.Neutral.Step(500)
-	}
-	seam := image.Rect(x-w/2, 0, x-w/2+w, height)
-	if seam.Empty() {
-		return
-	}
-	paint.FillShape(gtx.Ops, seamColor, clip.Rect(seam).Op())
+// columns is the content area's horizontal arrangement for one frame:
+// what the trailing column takes, what is left for the note, and where
+// the boundary between them stands.
+type columns struct {
+	aside  int
+	note   int
+	asideX int
 }
 
-// processSplitterDrag tracks the aside splitter. The aside keeps an
-// absolute width, so a window resize leaves it alone and the note column
-// absorbs the change.
-func (f *frameState) processSplitterDrag(gtx layout.Context) {
-	scale := gtx.Metric.PxPerDp
-	if scale <= 0 {
-		scale = 1
+// contentColumns measures the content area beside the pane: the aside at
+// the width it is kept at, cut to what the window has for it; the note
+// column taking the rest; and the boundary one gap trailing of the note.
+//
+// The aside keeps an absolute width, so a window resize leaves it alone
+// and the note column absorbs the change.
+func contentColumns(gtx layout.Context, size image.Point, contentX int, asideW unit.Dp) columns {
+	gap := max(gtx.Dp(unit.Dp(frameSplitterDp)), 1)
+	aside := gtx.Dp(asideW)
+	if avail := size.X - contentX - gap; aside > avail {
+		aside = avail
 	}
-	for {
-		e, ok := gtx.Event(pointer.Filter{
-			Target: &f.splitterTag,
-			Kinds:  pointer.Press | pointer.Drag | pointer.Release | pointer.Cancel | pointer.Enter | pointer.Leave,
-		})
-		if !ok {
-			break
-		}
-		pe, ok := e.(pointer.Event)
-		if !ok {
-			continue
-		}
-		switch pe.Kind {
-		case pointer.Press:
-			f.pressX = pe.Position.X
-			f.startW = f.asideW
-			f.dragging = true
-		case pointer.Drag:
-			if f.dragging {
-				// The aside sits trailing of the splitter, so dragging
-				// right shrinks it.
-				f.asideW = clampAside(f.startW - unit.Dp((pe.Position.X-f.pressX)/scale))
-			}
-		case pointer.Release, pointer.Cancel:
-			f.dragging = false
-		case pointer.Enter:
-			f.hovering = true
-		case pointer.Leave:
-			f.hovering = false
-		}
+	aside = max(aside, 0)
+	note := max(size.X-contentX-gap-aside, 0)
+	return columns{aside: aside, note: note, asideX: contentX + note + gap}
+}
+
+// noteFloor is the room the note column is not squeezed out of: the
+// narrowest measure it may lay out at and the insets either side of it,
+// or what it already has where the window is too narrow for that much.
+//
+// A boundary may always be dragged the way that gives the note room and
+// never the way that takes more of it away. That is why the floor gives
+// way to what the column already has: at a window narrower than all three
+// columns' minimums together the note is under its measure before anyone
+// touches a boundary, and a bound that cut in front of where a boundary
+// already stands would jump it out from under the hand taking hold of it.
+func noteFloor(gtx layout.Context, note int) int {
+	return min(gtx.Dp(unit.Dp(noteMinWidthDp)), note)
+}
+
+// railProps states the splitter on the pane's trailing edge — the one
+// side the pane is not set in from, where the note stands flush against
+// it and the pane's own hairline IS the seam between the two.
+//
+// So the line this splitter draws is that hairline: the same pixel, in
+// the pane's own edge colour rather than the Seam token, drawn over it
+// rather than beside it. A resting window is unchanged by the splitter
+// being there; what the reader gains is a band to take the edge by and a
+// thickening under the hand that takes it. A second line three dp off the
+// first would read as a stray edge, and a line of the region's own colour
+// would recolour the pane's outline down one side.
+//
+// The boundary is the hairline's own leading edge and not the pane's
+// trailing one, which is the pixel after it: the splitter draws from the
+// boundary outward, so the pane's edge as the boundary would put the line
+// in the note column instead of on the pane.
+//
+// The bounds are the rail's own, and the note's floor over them: the rail
+// stops where widening it further would take the note under the narrowest
+// column of prose it may be.
+func (f *frameState) railProps(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) splitter.Props {
+	seamPx := splitter.SeamWidth(gtx)
+	margin := gtx.Dp(unit.Dp(railMarginDp))
+	gap := max(gtx.Dp(unit.Dp(frameSplitterDp)), 1)
+	c := contentColumns(gtx, size, g.contentX, f.asideW)
+
+	lo := margin + gtx.Dp(railMinWidthDp)
+	hi := max(min(margin+gtx.Dp(railMaxWidthDp), size.X-gap-c.aside-noteFloor(gtx, c.note)), lo)
+
+	colors := tok.col
+	colors.Seam = paneSeam(tok.col)
+	scale := pxPerDp(gtx)
+	return splitter.Props{
+		Axis:     layout.Horizontal,
+		Boundary: float32(g.pane.Max.X - seamPx),
+		Min:      float32(lo - seamPx),
+		Max:      float32(hi - seamPx),
+		Colors:   colors,
+		OnChange: func(at float32) {
+			f.railW = clampRail(unit.Dp((at + float32(seamPx-margin)) / scale))
+		},
 	}
+}
+
+// layoutRailSplitter draws that hand-hold over the straight run of the
+// pane's trailing edge, between the arcs its two corners round away. The
+// corners are the pane's shape and not the boundary's: a straight line
+// across them would square off what the pattern rounded, and a thickening
+// that followed the arc would be a different line from the one at rest.
+func (f *frameState) layoutRailSplitter(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) {
+	r := gtx.Dp(unit.Dp(pane.RadiusDp))
+	top, bottom := g.pane.Min.Y+r, g.pane.Max.Y-r
+	if bottom <= top {
+		return
+	}
+	// Offset down the cross axis alone, so the boundary the splitter is
+	// given stays in the frame's own horizontal coordinates.
+	defer op.Offset(image.Pt(0, top)).Push(gtx.Ops).Pop()
+	sgtx := gtx
+	sgtx.Constraints = layout.Exact(image.Pt(size.X, bottom-top))
+	f.railSplitter.Layout(sgtx, f.railProps(gtx, tok, size, g))
+}
+
+// asideProps states the splitter on the trailing column's leading edge.
+//
+// That column is INTEGRAL CHROME — fixed, flush, with no toggle and no
+// way to leave — so it is not outlined the way the rail is. What it takes
+// instead is the plain seam the platform gives its own flush side:
+// Voice Memos carries no outline there at all and parts its panes with
+// a one-pixel seam running from the window's top edge to its bottom,
+// band included, and Notes does the same between its list and its note.
+// So the line here is the Seam token's, not the pane's edge colour:
+// an object's edge circles a pane at the platform's measured whisper,
+// and a region's seam is the line between two surfaces. One weight, two
+// colours.
+//
+// A line is drawn here at all because the step it divides is small: the
+// chrome level's dark step is a measured 1.47 L*, a whisper the eye can
+// lose, and the platform's answer at a whisper is a line — Voice Memos'
+// two panes are the SAME fill and the seam is the whole of what parts
+// them.
+//
+// The line runs the window's whole height and the hand-hold does not. The
+// bands above and below the columns are the window's own — one carries
+// the window's drag, the other reports on the document — and neither is
+// resized by this boundary, so the hold is the document row alone.
+//
+// The bounds are the aside's own, and the note's floor over them.
+func (f *frameState) asideProps(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) splitter.Props {
+	gap := max(gtx.Dp(unit.Dp(frameSplitterDp)), 1)
+	c := contentColumns(gtx, size, g.contentX, f.asideW)
+
+	lo := gtx.Dp(frameMinAsideDp)
+	hi := max(min(gtx.Dp(frameMaxAsideDp), size.X-g.contentX-gap-noteFloor(gtx, c.note)), lo)
+
+	scale := pxPerDp(gtx)
+	return splitter.Props{
+		Axis:     layout.Horizontal,
+		Boundary: float32(c.asideX),
+		Min:      float32(size.X - hi),
+		Max:      float32(size.X - lo),
+		Colors:   tok.col,
+		HitSpan:  splitter.Span{Min: g.rowTop, Max: g.rowTop + g.rowH},
+		OnChange: func(at float32) {
+			f.asideW = clampAside(unit.Dp((float32(size.X) - at) / scale))
+		},
+	}
+}
+
+// pxPerDp is the metric a boundary reported in pixels is carried back to
+// dp by, never zero: a width kept in dp is the same physical measure on a
+// screen of a different pixel density, which is the whole reason the two
+// widths are kept in dp rather than in what a drag reports.
+func pxPerDp(gtx layout.Context) float32 {
+	if gtx.Metric.PxPerDp <= 0 {
+		return 1
+	}
+	return gtx.Metric.PxPerDp
 }
 
 func clampAside(w unit.Dp) unit.Dp {

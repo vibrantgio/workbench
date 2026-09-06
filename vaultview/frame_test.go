@@ -19,6 +19,7 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/pane"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -653,4 +654,165 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 // read back.
 func sameColor(got color.RGBA, want color.NRGBA) bool {
 	return got.R == want.R && got.G == want.G && got.B == want.B
+}
+
+// dragFrame is one live window laid out through a router, so that the
+// splitters' hit areas, pointers and drags all go through the path a real
+// frame does. The sidebar slot records the width the pane hands its
+// column, which is the only place a caller can read it back from.
+type dragFrame struct {
+	f    *frameState
+	gtx  layout.Context
+	ops  op.Ops
+	r    input.Router
+	size image.Point
+	slot int
+}
+
+func newDragFrame(size image.Point, w columnWidths) *dragFrame {
+	d := &dragFrame{f: newFrameState(w), size: size}
+	d.f.leading = func() unit.Dp { return goldenLeading }
+	d.gtx = layout.Context{
+		Constraints: layout.Exact(size),
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Source:      d.r.Source(),
+		Ops:         &d.ops,
+	}
+	return d
+}
+
+func (d *dragFrame) frame() {
+	d.ops.Reset()
+	sb := func(gtx layout.Context) layout.Dimensions {
+		d.slot = gtx.Constraints.Max.X
+		return layout.Dimensions{Size: gtx.Constraints.Max}
+	}
+	d.f.layout(d.gtx, goldenModel(), goldenTokens(), sb, nil, nil)
+	d.r.Frame(&d.ops)
+}
+
+// drag takes hold at x on the row's own middle and pulls to x+by. Two
+// frames go first, so that the hit area is known to the router before a
+// pointer is put on it.
+func (d *dragFrame) drag(x, by float32) {
+	d.frame()
+	d.frame()
+	y := float32(d.f.geom.rowTop + d.f.geom.rowH/2)
+	d.r.Queue(
+		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x, y)},
+		pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x+by, y)},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: f32.Pt(x+by, y)},
+	)
+	d.frame()
+}
+
+// TestTheRailEdgeIsDraggedAndItsColumnFollows verifies the leading
+// boundary: the pane's own trailing hairline is what a hand takes hold
+// of, the pane widens with the drag, and the column standing in the pane
+// is as wide as the pane. A rail dragged wider that still held a 240 dp
+// column would be a rail widened into nothing.
+func TestTheRailEdgeIsDraggedAndItsColumnFollows(t *testing.T) {
+	const pull = 40
+	d := newDragFrame(image.Pt(windowW, windowH), defaultWidths())
+	d.frame()
+	edge := d.f.geom.pane.Max.X
+	d.drag(float32(edge-seamDp), pull)
+
+	if got, want := d.f.railW, unit.Dp(treeWidthDp+pull); got != want {
+		t.Fatalf("the drag left the rail at %v dp, want %v", got, want)
+	}
+	if got, want := d.f.geom.pane.Dx(), treeWidthDp+pull; got != want {
+		t.Errorf("the pane draws %d px wide, want %d — the pane is not where its own edge was dragged to", got, want)
+	}
+	if got, want := d.slot, treeWidthDp+pull; got != want {
+		t.Errorf("the pane hands its column %d px, want %d", got, want)
+	}
+}
+
+// TestTheAsideEdgeIsDraggedByTheRowAlone verifies the trailing boundary's
+// hand-hold: the seam runs the window's whole height, and the part of it
+// a hand may take is the document row alone. The bands crossing over it
+// are the window's own — one carries the window's drag, the other reports
+// on the document — and neither is resized by this boundary.
+func TestTheAsideEdgeIsDraggedByTheRowAlone(t *testing.T) {
+	const pull = 40
+	size := image.Pt(windowW, windowH)
+
+	over := newDragFrame(size, defaultWidths())
+	over.frame()
+	over.frame()
+	x := float32(size.X - frameAsideDp)
+	// The chrome row's own middle, on the seam's line: over the seam, and
+	// over a band the boundary does not part.
+	y := float32(over.f.geom.rowTop / 2)
+	over.r.Queue(
+		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x, y)},
+		pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x-pull, y)},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: f32.Pt(x-pull, y)},
+	)
+	over.frame()
+	if got := over.f.asideW; got != frameAsideDp {
+		t.Errorf("a drag begun in the chrome row left the aside at %v dp, want the untouched %v", got, unit.Dp(frameAsideDp))
+	}
+
+	in := newDragFrame(size, defaultWidths())
+	in.drag(x, -pull)
+	if got, want := in.f.asideW, unit.Dp(frameAsideDp+pull); got != want {
+		t.Errorf("a drag begun in the document row left the aside at %v dp, want %v", got, want)
+	}
+}
+
+// TestTheNoteKeepsItsMinimumBetweenTheTwoBoundaries verifies what stops
+// both splitters: neither column may be widened into the note's own
+// minimum. Both are dragged well past where the note runs out, and both
+// stop at the width that leaves the note exactly that much.
+func TestTheNoteKeepsItsMinimumBetweenTheTwoBoundaries(t *testing.T) {
+	size := image.Pt(windowW, windowH)
+	gap := frameSplitterDp
+
+	rail := newDragFrame(size, defaultWidths())
+	rail.frame()
+	rail.drag(float32(rail.f.geom.pane.Max.X-seamDp), 400)
+	if got, want := int(rail.f.railW), windowW-railMarginDp-gap-frameAsideDp-noteMinWidthDp; got != want {
+		t.Errorf("the rail dragged past the note's minimum stopped at %d dp, want %d", got, want)
+	}
+
+	aside := newDragFrame(size, defaultWidths())
+	aside.drag(float32(size.X-frameAsideDp), -400)
+	if got, want := int(aside.f.asideW), windowW-railMarginDp-treeWidthDp-gap-noteMinWidthDp; got != want {
+		t.Errorf("the aside dragged past the note's minimum stopped at %d dp, want %d", got, want)
+	}
+}
+
+// TestTheRailEdgeDrawsNoSecondLine verifies what the leading splitter
+// draws at rest: nothing the pane did not already draw. The boundary
+// there is the pane's own hairline, and a splitter drawing its own line
+// beside it would put two edges a pixel apart down the whole pane.
+func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := goldenModel()
+
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
+				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
+			p := st.geom.pane
+			if p.Empty() {
+				t.Fatal("the window laid out no pane to read")
+			}
+			// Down the straight run of the trailing edge, clear of the
+			// arcs the two corners round away: one hairline of the pane's
+			// own edge colour, and the note's surface the pixel after it.
+			for y := p.Min.Y + pane.RadiusDp; y < p.Max.Y-pane.RadiusDp; y++ {
+				if got := img.RGBAAt(p.Max.X-seamDp, y); !sameColor(got, paneSeam(tc.colors)) {
+					t.Fatalf("the pane's trailing edge at y=%d draws %v, want its own edge %v", y, got, paneSeam(tc.colors))
+				}
+				if got := img.RGBAAt(p.Max.X, y); !sameColor(got, tc.colors.Background) {
+					t.Fatalf("the pixel past the pane's trailing edge at y=%d draws %v, want the note's surface %v — a second line stands beside the pane's own",
+						y, got, tc.colors.Background)
+				}
+			}
+		})
+	}
 }

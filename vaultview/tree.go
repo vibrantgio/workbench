@@ -59,7 +59,7 @@ import (
 // inset system: the find field and the row fills share it, so the
 // selection pill's edges line up with the field's own.
 const (
-	treeWidthDp       = 240         // the rail's own width, whatever the slot offers
+	treeWidthDp       = 240         // the rail's own width where the slot states none
 	treeRowInsetDp    = 8           // shared horizontal inset: field and row fills
 	treeRowPadDp      = 8           // breathing room between a fill's edge and its text
 	treeIndentDp      = 14          // additional inset per depth level
@@ -304,7 +304,9 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 // layout draws the rail: its own top strip, the find field under that,
 // the rows the model asks for — the filter's matches while it is typed
 // in, the folder tree otherwise — and the vault's own actions at the
-// foot. The returned width is the rail's own, never the slot's.
+// foot. The returned width is the width the slot states, and the rail's
+// own where the slot states none — never an open constraint's whole
+// extent.
 //
 // The rows are the flex's only flexed child, so the foot takes its own
 // height off the pane before the rows are given what is left. That is
@@ -321,9 +323,15 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 // including the foot, which acts on the vault the pane shows rather than
 // on the pane itself.
 func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW layout.Widget) layout.Dimensions {
-	railW := gtx.Dp(treeWidthDp)
-	if railW > gtx.Constraints.Max.X {
-		railW = gtx.Constraints.Max.X
+	// The rail is as wide as the slot says where the slot says: the pane
+	// lays its column out at exactly the width the reader dragged the
+	// pane's edge to, and the column standing in it is that width or the
+	// pane holds a 240 dp strip with a gap beside it. Where the slot
+	// leaves the width open — a rail measured on its own, or drawn for a
+	// stored image — the rail states its own.
+	railW := gtx.Constraints.Min.X
+	if railW <= 0 {
+		railW = min(gtx.Dp(treeWidthDp), gtx.Constraints.Max.X)
 	}
 	size := image.Pt(railW, gtx.Constraints.Max.Y)
 	gtx.Constraints = layout.Exact(size)
