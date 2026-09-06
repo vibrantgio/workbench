@@ -448,7 +448,7 @@ func (r *reader) process(gtx layout.Context, doc *markdown.Document) {
 // routed layer's re-emission.
 func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
 	// Documents are cached per note path and reused on every frame, so
-	// each note's scroll position and richtext interaction state survive
+	// each note's scroll position and paragraph interaction state survive
 	// revisiting. A landing that carries an anchor (NavSeq moved and
 	// CurAnchor is set) re-creates the target's document seated at the
 	// anchor's block index; every other visit keeps the cached viewport.

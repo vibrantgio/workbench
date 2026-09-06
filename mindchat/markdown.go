@@ -1,6 +1,6 @@
 // markdown.go renders message bodies through the vibrantgio/markdown
 // module's chat subset: inline styles (bold/italic/code/links/
-// strikethrough) on components/richtext, fenced code blocks, images, and
+// strikethrough) on components/paragraph, fenced code blocks, images, and
 // lists — which the document renders itself, markers hanging off the text
 // column and items spaced by the list's own rhythm. The block constructs
 // that would grow document chrome in a bubble — headings, blockquotes,
@@ -28,7 +28,7 @@ type msgRow struct {
 
 // docCache maps history rows onto their markdown Documents across model
 // emissions, so a stable message keeps its Document — and with it the
-// richtext link interaction state — while the model re-emits around it.
+// paragraph link interaction state — while the model re-emits around it.
 // Rows is called at emission scope only (inside the view's combine Map);
 // the frame never touches the cache, only the msgRow slice it produced.
 type docCache struct {
@@ -160,7 +160,7 @@ func degradeTable(t *markdown.Table) []markdown.Block {
 }
 
 // openURL opens an absolute web URL in the system browser — the app-layer
-// OS-open handler behind richtext's OnLinkClick. Non-http(s) destinations
+// OS-open handler behind paragraph's OnLinkClick. Non-http(s) destinations
 // are ignored.
 func openURL(url string) {
 	if !strings.HasPrefix(url, "https://") && !strings.HasPrefix(url, "http://") {

@@ -90,7 +90,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      — a labelled field for the form variant, a Toolbar
                      trigger for the chrome variant, one menu under both;
                      input.Dropdown is a deprecated forwarder to it),
-                     list, richtext, scrollbar,
+                     list, paragraph, scrollbar,
                      scrollarea (a horizontal viewport for content that must
                      not be reflowed — a code fence, an over-wide diagram),
                      icon, icons (the design system's own marks), layout,
@@ -1175,7 +1175,7 @@ Comfortable button (LabelLarge, 20 dp) draws exactly 36.
 It follows the same source: subscribe
 th.Typography, take metrics from a role and the shaper from typ.Shaper().
 The positional-shaper APIs — markdown's doc.Layout(gtx, shaper, style),
-components/richtext's Layout and Render, patterns/shell's golden
+components/paragraph's Layout and Render, patterns/shell's golden
 Render/RenderThreeColumn/RenderStackedPage — want that same typ.Shaper()
 value. There is no second, size-only type source any more: theme.Theme.Type
 and tokens.TypeScale are deleted, and markdown.FromTokens takes the whole
@@ -1270,7 +1270,7 @@ use it inside an outer scrolling context (a chat row, a card); Layout's own
 viewport would fight the outer one.
 
   - Constructs: headings set in the Typography's DocumentHeadings ramp
-    rather than in the screen roles (§Typography), richtext paragraphs,
+    rather than in the screen roles (§Typography), paragraphs,
     nested lists, task-list checkboxes, strikethrough, blockquote bars,
     rules, and GFM
     tables (columns shrink within their slack, floored at the widest word;
@@ -1353,7 +1353,7 @@ inside the parser, and it adds no dependency:
     styling run, so a wikilink whose body crosses a styling boundary
     ("[[a *b*]]") is not recognised. Link targets carry no styling.
 
-### components/richtext
+### components/paragraph
 
 The underlying inline primitive — styled spans with
 interactive links (hover cursor, keyboard traversal, focus ring,

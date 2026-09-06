@@ -1,6 +1,6 @@
 // docs.go styles and lays out the Docs tab's one document: the
 // application guide rendered by vibrantgio/markdown — type-scale
-// headings, richtext prose with links, chroma-highlighted code blocks,
+// headings, paragraph prose with links, chroma-highlighted code blocks,
 // lists, blockquotes, and tables. The live entry point is
 // guideDocObservable; drawGuideDoc is the shared frame path the static
 // review/golden renders reuse.
