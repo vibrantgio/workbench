@@ -686,7 +686,8 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 				sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
 			// One frame state across the three frames, the way the running
 			// window keeps one while the streams re-emit around it.
-			f := &frameState{asideW: frameAsideDp, leading: func() unit.Dp { return goldenLeading }}
+			f := newFrameState(defaultWidths())
+			f.leading = func() unit.Dp { return goldenLeading }
 			cur := &docCursor{}
 			av := newAsideView(cur)
 			shot := func(m Model) *image.RGBA {

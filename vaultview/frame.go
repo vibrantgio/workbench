@@ -177,11 +177,18 @@ type frameState struct {
 	vaultClick  widget.Clickable
 
 	splitterTag struct{}
+	railW       unit.Dp
 	asideW      unit.Dp
 	pressX      float32
 	startW      unit.Dp
 	dragging    bool
 	hovering    bool
+
+	// widths keeps this frame's two column widths across launches. It is
+	// nil wherever a frame is laid out for measurement rather than for a
+	// reader, so a stored render arranges a window nobody is sitting at
+	// without writing over what a real one kept.
+	widths *columnMemory
 
 	// leading pins the row's leading inset instead of measuring it. The
 	// measurement is a live window's: off a frame it reports zero, and on
@@ -197,6 +204,15 @@ type frameState struct {
 	geom frameGeom
 }
 
+// newFrameState seats a frame on the arrangement it opens with. Both
+// column widths are state rather than constants because both boundaries
+// belong to the reader: the aside's is the one they can already take hold
+// of, and the rail's is carried and written back unchanged until its own
+// edge can be taken hold of too.
+func newFrameState(w columnWidths) *frameState {
+	return &frameState{railW: w.Rail, asideW: w.Aside}
+}
+
 // toolbarLeading answers where this frame's row may start: the pinned
 // value where one was given, and the platform measurement otherwise.
 func (f *frameState) toolbarLeading() unit.Dp {
@@ -210,14 +226,20 @@ func (f *frameState) toolbarLeading() unit.Dp {
 // the model: a toolbar row over the columns. All three columns arrive as
 // layout.Widget streams so a theme change re-renders them; the toolbar reads
 // the token and model snapshots at frame time.
+//
+// The two side columns open at the widths the memory hands over — what the
+// reader last left, or the defaults — and that same memory is what every
+// frame reports its arrangement back to.
 func vaultFrame(
 	loadModel func() Model,
 	loadTok func() themeTokens,
+	widths *columnMemory,
 	sidebar, aside, main rx.Observable[layout.Widget],
 ) rx.Observable[layout.Widget] {
 	columns := rx.CombineLatest3(sidebar, aside, main)
 	return rx.Defer(func() rx.Observable[layout.Widget] {
-		st := &frameState{asideW: frameAsideDp}
+		st := newFrameState(widths.widths())
+		st.widths = widths
 		return rx.Map(columns, func(next rx.Tuple3[layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 			sbW, asW, mainW := next.First, next.Second, next.Third
 			return func(gtx layout.Context) layout.Dimensions {
@@ -232,6 +254,10 @@ func vaultFrame(
 // column and the backlinks aside, all with fresh widget.Clickable state, laid
 // out once from pre-resolved tokens and processing no events. It is the only
 // renderer in this package that composes rather than filling one slot.
+//
+// It opens at the default column widths and keeps no memory of its own: a
+// stored image may not depend on an arrangement whoever runs it happens to
+// have left behind, and may not write over one either.
 //
 // The leading inset is a parameter and not a measurement here, for the
 // reason [frameState.leading] gives: the value the live row lays out
@@ -252,7 +278,8 @@ func renderWindow(
 	leading unit.Dp,
 ) (layout.Widget, *frameState) {
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
-	st := &frameState{asideW: frameAsideDp, leading: func() unit.Dp { return leading }}
+	st := newFrameState(defaultWidths())
+	st.leading = func() unit.Dp { return leading }
 	cur := &docCursor{}
 	sb := renderTree(shaper, m, colors, sp, rad, typo, den, leading)
 	main := renderNotePageInto(cur, shaper, m, colors, sp, typo, den)
@@ -294,7 +321,7 @@ type frameGeom struct {
 // either: the chrome row first, because it carries the control that brings
 // a dismissed pane back, and the status bar out of what is left, because a
 // window with no height for a document has nothing to report about one.
-func frameGeometry(gtx layout.Context, size image.Point, barH, footH int, hidden bool) frameGeom {
+func frameGeometry(gtx layout.Context, size image.Point, railW unit.Dp, barH, footH int, hidden bool) frameGeom {
 	h := max(size.Y, 0)
 	barH = min(max(barH, 0), h)
 	footH = min(max(footH, 0), h-barH)
@@ -304,7 +331,7 @@ func frameGeometry(gtx layout.Context, size image.Point, barH, footH int, hidden
 	// in every state where there is no pane to draw — hidden above all,
 	// where the emptiness IS the contract and the content below reflows to
 	// the window's own edge.
-	g.pane = pane.Bounds(gtx, size, treeWidthDp, hidden)
+	g.pane = pane.Bounds(gtx, size, railW, hidden)
 	if !g.pane.Empty() {
 		g.contentX = g.pane.Max.X
 	}
@@ -323,7 +350,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		barH = size.Y
 	}
 
-	g := frameGeometry(gtx, size, barH, gtx.Dp(statusBarHeight(tok)), m.SidebarHidden)
+	g := frameGeometry(gtx, size, f.railW, barH, gtx.Dp(statusBarHeight(tok)), m.SidebarHidden)
 	f.geom = g
 
 	// The content area stands on the note's own surface: the document is what
@@ -455,6 +482,14 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	if asidePx > 0 {
 		f.paintAsideSeam(gtx, tok, asideX, size.Y)
 	}
+
+	// What this frame arranged, offered to the memory that keeps it —
+	// last, so a boundary the hand moved earlier in this same frame is
+	// reported at where it ended up rather than at where it was found.
+	// Every frame reports and the memory drops what says nothing new,
+	// since a boundary can move in any frame and no frame says whether
+	// one did.
+	f.widths.record(columnWidths{Rail: f.railW, Aside: f.asideW})
 
 	return layout.Dimensions{Size: size}
 }

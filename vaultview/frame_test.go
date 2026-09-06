@@ -90,7 +90,7 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 			}
 			m := goldenModel()
 			m.SidebarHidden = c.hidden
-			f := &frameState{asideW: frameAsideDp}
+			f := newFrameState(defaultWidths())
 			f.layoutToolbar(gtx, m, tok, c.lead)
 
 			var r input.Router
@@ -147,7 +147,7 @@ func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 	const barH = 28
 	const footH = 24
 
-	shown := frameGeometry(gtx, size, barH, footH, false)
+	shown := frameGeometry(gtx, size, treeWidthDp, barH, footH, false)
 	if shown.pane.Empty() {
 		t.Fatal("no rail pane with the rail shown")
 	}
@@ -176,7 +176,7 @@ func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 		t.Errorf("the content area's columns end at y=%d and the status bar starts at y=%d; they must meet", got, shown.footTop)
 	}
 
-	hidden := frameGeometry(gtx, size, barH, footH, true)
+	hidden := frameGeometry(gtx, size, treeWidthDp, barH, footH, true)
 	if !hidden.pane.Empty() {
 		t.Errorf("rail pane %v with the rail hidden, want none", hidden.pane)
 	}
@@ -192,7 +192,7 @@ func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 	narrow := image.Pt(200, 800)
 	ngtx := gtx
 	ngtx.Constraints = layout.Exact(narrow)
-	if g := frameGeometry(ngtx, narrow, barH, footH, false); g.pane.Dx() > narrow.X/2 {
+	if g := frameGeometry(ngtx, narrow, treeWidthDp, barH, footH, false); g.pane.Dx() > narrow.X/2 {
 		t.Errorf("pane %v takes more than half of a %d dp window", g.pane, narrow.X)
 	}
 }
@@ -297,7 +297,8 @@ func TestPaneStripClaimsInsideTheInsetPane(t *testing.T) {
 	sb := func(gtx layout.Context) layout.Dimensions {
 		return v.layout(gtx, goldenModel(), tok, nil)
 	}
-	f := &frameState{asideW: frameAsideDp, leading: func() unit.Dp { return goldenLeading }}
+	f := newFrameState(defaultWidths())
+	f.leading = func() unit.Dp { return goldenLeading }
 	frame := func() {
 		f.layout(gtx, goldenModel(), tok, sb, nil, nil)
 		r.Frame(&ops)
@@ -354,7 +355,7 @@ func TestTheRowRecallsTheHiddenPane(t *testing.T) {
 			}
 			m := goldenModel()
 			m.SidebarHidden = c.hidden
-			f := &frameState{asideW: frameAsideDp}
+			f := newFrameState(defaultWidths())
 			f.layoutToolbar(gtx, m, tok, 0)
 
 			r.Frame(&ops)

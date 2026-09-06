@@ -447,7 +447,7 @@ func (r *reader) process(gtx layout.Context, doc *markdown.Document) {
 // and the note between them. The note column reads the model and token
 // snapshots at frame time; repaints on model change are driven by the
 // routed layer's re-emission.
-func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
+func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens, widths *columnMemory) rx.Observable[layout.Widget] {
 	// Documents are cached per note path and reused on every frame, so
 	// each note's scroll position and paragraph interaction state survive
 	// revisiting. A landing that carries an anchor (NavSeq moved and
@@ -502,7 +502,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor)
 			}
 		})
-	return vaultFrame(loadModel, loadTok,
+	return vaultFrame(loadModel, loadTok, widths,
 		treeSidebar(th, loadModel, loadTok),
 		asideColumn(cur, loadModel, loadTok),
 		mainSlot,

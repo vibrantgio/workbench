@@ -48,6 +48,11 @@ import (
 const (
 	windowW = 1100
 	windowH = 800
+
+	// appName is the directory this application keeps its state in, under
+	// the OS config directory: the window's frame, and the widths of the
+	// two columns beside the note.
+	appName = "vaultview"
 )
 
 func main() {
@@ -63,6 +68,22 @@ func run() {
 		app.Title("Vault View"),
 		app.Size(unit.Dp(windowW), unit.Dp(windowH)),
 	)...)
+	// The window reopens the size it was left at, and where it was left on
+	// the platforms that can say. The size above stays the default: it is
+	// what a first launch gets, and what a launch whose kept frame no
+	// longer lands on any screen falls back to. Nothing above this window
+	// depends on it succeeding, so a config directory the OS will not name
+	// costs the reader the memory and nothing else.
+	if err := mvu.RememberFrame(mvuWin, appName); err != nil {
+		fmt.Fprintln(os.Stderr, "vaultview: the window will not remember its frame:", err)
+	}
+	// The arrangement inside the window is this application's own to keep:
+	// how wide the rail pane and the aside stand. A nil memory is a working
+	// one — the window opens on the defaults and keeps nothing.
+	widths, err := rememberWidths(appName)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "vaultview: the window will not remember its columns:", err)
+	}
 	// Gio re-hides the standard window buttons on every configuration
 	// rebuild; ShowWindowButtons registers the re-assertion on the mvu
 	// OnConfigure seam.
@@ -96,8 +117,14 @@ func run() {
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 	modelObs := models.Publish().AutoConnect(3)
 
-	if err := w.Render(buildLayers(modelObs, opening, kept.Typography())).Wait(); err != nil {
-		fmt.Fprintln(os.Stderr, "vaultview:", err)
+	renderErr := w.Render(buildLayers(modelObs, opening, kept.Typography(), widths)).Wait()
+	// Render returns once the window is destroyed, which is the last moment
+	// a width moved inside the write delay can still be kept — and the
+	// change the reader most expects to find again is the one they made
+	// just before quitting.
+	widths.stop()
+	if renderErr != nil {
+		fmt.Fprintln(os.Stderr, "vaultview:", renderErr)
 		os.Exit(1)
 	}
 	os.Exit(0)
@@ -204,7 +231,7 @@ func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.ColorTokens, typ
 // chrome inset bounds the stack from above, so a queue tall enough to climb
 // the window stops at the chrome row's foot rather than covering the
 // controls standing in it.
-func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens, typo tokens.Typography) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens, typo tokens.Typography, widths *columnMemory) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		loadTok := mirrorTokens(th, opening, typo)
 		var modelCell atomic.Value
@@ -214,7 +241,7 @@ func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens, typo
 		notesObs := rx.Map(modelObs, func(m Model) []notifications.Notification { return m.Notifications.Items() })
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			routedLayer(th, modelObs, &modelCell, loadModel, loadTok),
+			routedLayer(th, modelObs, &modelCell, loadModel, loadTok, widths),
 			underChrome(chooserLayer(th, modelObs, loadModel, loadTok)),
 			underChrome(notifications.Column(th, notifications.Props{Position: notifications.BottomCenter, Notifications: notesObs})),
 		}
@@ -231,9 +258,10 @@ func routedLayer(
 	modelCell *atomic.Value,
 	loadModel func() Model,
 	loadTok func() themeTokens,
+	widths *columnMemory,
 ) rx.Observable[layout.Widget] {
 	picker := pickerLayer(th, loadModel, loadTok)
-	vault := vaultLayer(th, loadModel, loadTok)
+	vault := vaultLayer(th, loadModel, loadTok, widths)
 
 	combined := rx.CombineLatest3(modelObs, picker, vault)
 	return rx.Map(combined, func(t rx.Tuple3[Model, layout.Widget, layout.Widget]) layout.Widget {
