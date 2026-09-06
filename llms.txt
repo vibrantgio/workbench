@@ -96,6 +96,10 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      toast (the status signal for an event — a small
                      inverse-filled surface floating at level 2, its status
                      role in the leading edge, drawn without a queue),
+                     tooltip (the signal naming a control or explaining
+                     another signal on demand — a small inverse-filled
+                     annotation placed at level 3 beside its trigger, text
+                     only, one visible at a time per arbiter),
                      icon, icons (the design system's own marks), layout,
                      keyed, initial, cache, bench (coordination
                      is DEPRECATED — use mvu/stream.Value)
@@ -105,7 +109,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      transition, tween, conductor
 
   patterns  v1.2.1   patterns: shell, navbar, sidebar, pane, table,
-                     pagination, tabs, modal, popover, tooltip,
+                     pagination, tabs, modal, popover,
                      notifications, card, group, accordion, breadcrumb, hero,
                      feature, pricing, testimonial
   markdown  v0.7.2   GFM document rendering on library components (subpackages:
@@ -428,7 +432,7 @@ needs to know, not by how important it feels:
    and never blocks the producer — so if every emission is load-bearing you
    are at destination 1, not here.
 
-### What this looks like in patterns
+### What this looks like in the libraries
 
 Arbitration is a plain value you create and pass in, and the value IS the
 scope:
@@ -485,12 +489,13 @@ content layer built from a patterns/shell:
   - Content composes patterns/table (sortable/filterable/virtualised),
     patterns/tabs, patterns/card, patterns/group, patterns/pagination, ...
   - Overlays: patterns/modal (focus trap, escape), patterns/popover (anchored),
-    patterns/tooltip (hover/focus), patterns/notifications (the column of
-    toasts).
+    patterns/notifications (the column of toasts).
   - Signals in the page flow: components/alert (the banner a situation
     stands behind until it resolves). components/toast is the third status
     signal — the one that floats and leaves by itself — and it is raised by
     message through patterns/notifications, never drawn in place.
+    components/tooltip names a control on demand, floating beside its
+    trigger after a short delay on hover or focus.
 
 A CHIP IS DEFINED BY ITS PURPOSE, never by its looks: components/chip is the
 small control content sprouts, and Props.Purpose names which of the four it is.

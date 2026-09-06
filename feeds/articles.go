@@ -19,10 +19,10 @@ import (
 
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/keyed"
+	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/pagination"
 	"github.com/vibrantgio/patterns/table"
-	"github.com/vibrantgio/patterns/tooltip"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )

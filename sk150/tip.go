@@ -2,7 +2,7 @@ package main
 
 // Hint cells: a grid cell that, hovered anywhere for a dwell, shows the
 // setting's explanation in an inverse bubble beneath it. A
-// trimmed copy of patterns/tooltip — that pattern centres its trigger on
+// trimmed copy of components/tooltip — that signal centres its trigger on
 // the space it is handed and sizes the bubble from that space, so it
 // cannot sit inline as a cell label; this keeps its dwell, its inverse
 // surface and its one-visible-at-a-time rule, and paints the bubble
@@ -25,7 +25,7 @@ import (
 )
 
 // tipDelay is the hover dwell before a bubble shows — the motion scale's
-// slowest stop, the same one patterns/tooltip uses.
+// slowest stop, the same one components/tooltip uses.
 var tipDelay = tokens.Motion.DurXSlow
 
 // tips is the hint cells' cross-frame state, one per window at
