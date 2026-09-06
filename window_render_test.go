@@ -159,7 +159,7 @@ const levelTolerance = 4
 // whose surface fill it is closest to, if that fill is within levelTolerance —
 // and whether it is a surface fill at all rather than foreground drawn on it.
 //
-// The walk includes the chrome level: a window's furniture stands there, so
+// The walk includes the chrome level: a window's chrome stands there, so
 // a classifier covering only the four levels from the content up would
 // report a sidebar as no level at all. The backdrop is left out — nothing
 // is drawn at it, so no rendered pixel belongs to it.

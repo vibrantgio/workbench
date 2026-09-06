@@ -631,7 +631,7 @@ Focus keeps the surface and strokes a ring in the primary hue, walked
 rather than named: the step of the primary ramp nearest that ramp's
 mid-value step which clears 3:1 against every level at once. That is
 ONE RING COLOUR PER SCHEME, and it does not depend on where the control
-stands — the same purple on the paper, on a card, in a dialog and in a
+stands — the same purple on the content, on a card, in a dialog and in a
 popover, because the ring is the system's mark of focus rather than a
 property of the fill under it. The one exception is the band a filled
 control insets in its OWN fill: there the scheme's ring is kept wherever
@@ -758,7 +758,7 @@ BOTH schemes:
   ```
   LevelBackdrop  the bare window plane, showing wherever nothing
                  stands                                darkest in the window
-  LevelChrome    the window's furniture — navbar, toolbar, sidebar,
+  LevelChrome    the chrome regions — navbar, toolbar, sidebar,
                  inspector, status bar, pane
   Level0         the content surface (the Background pin)
   Level1         card, fence, field — raised in place
@@ -831,7 +831,7 @@ toward the reader:
   ```
   backdrop  nothing: the bare window plane, showing wherever
             nothing stands                   darkest in the window
-  chrome    the window's furniture — navbar, toolbar, sidebar,
+  chrome    the chrome regions — navbar, toolbar, sidebar,
             inspector, status bar, pane      a tint lighter than the backdrop
   content   the document, the transcript,
             the list                         the Background pin
@@ -854,12 +854,12 @@ them, in the same direction. Note the sizes: in the light scheme the steps
 are fractions of an L* and the derived hairlines do the visible separating,
 so do not expect a light window's levels to stand far apart.
 
-  - THE PAPER IS THE CONTENT SURFACE, AT LEVEL 0. The largest resting
+  - THE CONTENT SURFACE IS LEVEL 0. The largest resting
     expanse, the thing the window exists to show, fills with the Background
     pin — c.SurfaceAt(tokens.Level0). That is why level 0 is a
     sentinel rather than a ramp step and why a button's Level prop takes
     the window's own surface as its zero value.
-  - FURNITURE IS THE CHROME LEVEL, ONE MEASURED STEP UNDER THE CONTENT.
+  - CHROME IS ONE MEASURED STEP UNDER THE CONTENT.
     Sidebars, asides, rails, toolbars and inspectors fill DARKER than the
     content — one step below it, in BOTH schemes, because they stand under
     the document rather than on top of it. Chrome is window-scale only: the
@@ -869,28 +869,28 @@ so do not expect a light window's levels to stand far apart.
     separation between chrome and content; two is a mistake in either
     direction. THAT STEP IS MEASURED OFF THE PLATFORM, PER SCHEME, AND THE
     TWO SCHEMES DO NOT MEASURE THE SAME. A light window separates its
-    furniture by about 4.9 L* — which is also the neutral ramp's own first
+    chrome by about 4.9 L* — which is also the neutral ramp's own first
     surface interval, so the light chrome level lands on neutral 200 — and a dark
     window by a whisper, about 1.5: the platform's Voice Memos puts its
     sidebar panel at #1B1B1B under #1E1E1E content, a reference chat
     application 1.71 L*, the platform's settings window 3.81 with its
     wallpaper tint on. A full ramp step in the dark scheme is nearly 5 L*
-    and reads as a hole rather than as furniture. Do not derive either
+    and reads as a hole rather than as chrome. Do not derive either
     number and do not mirror one into the other scheme: resolve the level
     through the theme (c.SurfaceAt) rather than reaching for a raw ramp
     step, so a window inherits both measurements instead of restating one.
     The BACKDROP is a further step under the chrome — derived rather than
     measured, because no platform capture shows a window plane beneath its
-    furniture. Nothing is drawn at it: it shows wherever nothing stands,
+    chrome. Nothing is drawn at it: it shows wherever nothing stands,
     which in a fully dressed window is nowhere.
   - A FLOATING CHROME PANE IS STILL CHROME. Chrome's depth is SEMANTIC, not
     geometric: a sidebar a button slides out of the window, an inspector
-    that detaches, is still furniture and still fills at the chrome level.
+    that detaches, is still chrome and still fills at that level.
     It does not climb the levels by leaving the wall. What says a pane is a floating
     object is its OWN HAIRLINE EDGE and its shadow, never a lighter fill —
     the platform paints even the floating panel darker than the content
     beside it, and outlines it internally at a ~1.5:1 whisper, a decorative
-    seam rather than a 3:1 mark. Integral furniture — fixed, flush, unable
+    seam rather than a 3:1 mark. Integral chrome — fixed, flush, unable
     to slide — takes no outline; its boundary is a plain seam. Draw a
     sliding pane with an edge and let it stay at the chrome level. And do not
     re-derive that object per window: patterns/pane IS the floating pane —
@@ -920,7 +920,7 @@ so do not expect a light window's levels to stand far apart.
     EXTREME. A card on the content is one level up from it; a control inside
     a dialog walks from the dialog's own fill, which is what the Level prop
     exists to say. An inset inside a body that is FILLED — a code fence, a
-    callout with a surface — steps UP from the paper it lies on rather than
+    callout with a surface — steps UP from the surface it lies on rather than
     reaching for an absolute step, and UP means LIGHTER in both schemes. An
     inset that is MARKED instead — a blockquote's bar and a muted foreground,
     a rule — stands off its page by contrast, owes no step and gets none; the
@@ -963,7 +963,7 @@ so do not expect a light window's levels to stand far apart.
     desktop.CapTop(height, w) pads the page down past the strip AND claims
     that strip for dragging, so the two halves cannot be written apart.
     desktop.InsetTop(height, w) does the padding alone, for a layout that
-    places its own drag region because it has band furniture to work
+    places its own drag region because it has controls in the band to work
     around. The strip is part of the region below it, not a fourth kind
     of area.
   - TAKING THE STRIP TAKES ON WHAT CAME WITH IT, and a window dressed to the
@@ -981,10 +981,10 @@ so do not expect a light window's levels to stand far apart.
     runs — desktop.DragTop(gtx, height) over the strip while leaving the
     button run alone, desktop.DragRun(gtx, w) over a run of that width
     inside a row already being laid out, desktop.DragBand(gtx, r) over a
-    rectangle you have measured. A page with no band furniture needs none
+    rectangle you have measured. A page with no controls in its band needs none
     of the three: CapTop above claims what it insets.
   - ONE BAND HEIGHT ACROSS A SPLIT. Where the strip crosses a seam —
-    furniture on one side of it, content on the other — the two sides wear
+    chrome on one side of it, content on the other — the two sides wear
     their own fills but hold one height between them. That height is
     shell.NavbarHeight(density): ask for it rather than restating a number,
     and the two sides cannot drift. Two depths across one strip read as a
@@ -994,14 +994,14 @@ so do not expect a light window's levels to stand far apart.
     patterns/shell's SplitPane already does both, so an app on the shell
     restates neither.
   - THE CHECK, IN ONE SENTENCE: WALKING TOWARD THE VIEWER NEVER GETS
-    DARKER, IN EITHER SCHEME. Floor, paper, raised, floating — sample a
+    DARKER, IN EITHER SCHEME. Floor, content, raised, floating — sample a
     pixel from each and the lightness must climb. There is no mirror clause,
     because the check does not care which scheme is on, and no
     dismiss-the-overlays clause either, because it is taken along the depth
     axis rather than across the window's plane: a dialog is nearer than the
-    paper AND lighter than it, so a modal satisfies the check instead of
+    content AND lighter than it, so a modal satisfies the check instead of
     breaking it. The corollary is the same sentence in both schemes — A
-    WINDOW'S FURNITURE IS ITS DARKEST REGION AND THE NEAREST SURFACE ITS
+    WINDOW'S CHROME IS ITS DARKEST REGION AND THE NEAREST SURFACE ITS
     LIGHTEST. A window darker in its middle than at its edges has the
     grammar inverted somewhere.
 

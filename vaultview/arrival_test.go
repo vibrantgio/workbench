@@ -93,7 +93,7 @@ func TestArrivalMarkingLivesItsCauseOut(t *testing.T) {
 		t.Errorf("marked block %d, want the block the link landed on, 4", block)
 	}
 	if fill != full {
-		t.Errorf("fill = %v, want the highlight walked against the column's paper, %v", fill, full)
+		t.Errorf("fill = %v, want the highlight walked against the column's surface, %v", fill, full)
 	}
 
 	hold := arrivalLife - arrivalFade

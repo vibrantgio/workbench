@@ -464,7 +464,7 @@ func TestChromeHeightMatchesTheRow(t *testing.T) {
 // the strip exists to keep the pane's content out from under the buttons:
 // in window coordinates it must reach past their bottom edge, and its
 // middle line — where the pane's toggle centres — must be their centre
-// line, so the two read as one row of furniture.
+// line, so the two read as one row of chrome.
 func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 	shown := goldenModel()
 	hidden := shown
@@ -583,14 +583,14 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 			// The two corners the pane rounds away from its TRAILING edge.
 			// That side is the one it is not set in from — the note stands
 			// flush against it — so what shows behind those arcs is the
-			// note's own paper and not the backdrop, which would read as a
+			// note's own surface and not the backdrop, which would read as a
 			// nick bitten out of the boundary.
 			for _, at := range []image.Point{
 				{X: pane.Max.X - 2, Y: pane.Min.Y + 1},
 				{X: pane.Max.X - 2, Y: pane.Max.Y - 2},
 			} {
 				if got := img.RGBAAt(at.X, at.Y); !sameColor(got, tc.colors.Background) {
-					t.Errorf("the pane's trailing corner at %v draws %v, want the note's paper %v", at, got, tc.colors.Background)
+					t.Errorf("the pane's trailing corner at %v draws %v, want the note's surface %v", at, got, tc.colors.Background)
 				}
 			}
 			// The gap the pane is set into, its whole height: the bare
@@ -614,7 +614,7 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 // the top and the status bar at the foot, because the platform's split
 // seams are not interrupted by a band either.
 //
-// And the column is NOT outlined: it is integral furniture, fixed and
+// And the column is NOT outlined: it is integral chrome, fixed and
 // flush, so it has no edge of its own on the three sides it shares with
 // the window. The trailing column of pixels is read for that.
 func TestTheAsideKeepsAPlainSeam(t *testing.T) {
@@ -635,7 +635,7 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 						y, got, tc.colors.Divider)
 				}
 				if got := img.RGBAAt(windowW-1, y); !sameColor(got, floor) {
-					t.Fatalf("the column's trailing edge at y=%d draws %v, want its own floor %v — flush furniture wears no outline",
+					t.Fatalf("the column's trailing edge at y=%d draws %v, want its own floor %v — flush chrome wears no outline",
 						y, got, floor)
 				}
 			}

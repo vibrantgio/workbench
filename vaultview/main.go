@@ -114,18 +114,18 @@ type themeTokens struct {
 	shaper *text.Shaper
 }
 
-// chromeSurface is the fill every piece of this window's furniture wears:
+// chromeSurface is the fill every piece of this window's chrome wears:
 // the rail pane and the trailing column. The plane those two stand on is
 // the backdrop, and no region paints at it.
 //
 // It is the CHROME level — one step under the content, toward the scheme's
-// dark extreme, in both schemes. Furniture stands under the document, not
+// dark extreme, in both schemes. Chrome stands under the document, not
 // above it, so the rail and the aside are darker than the note column
 // between them and lighter than the backdrop showing around the rail. In
 // the light scheme the chrome level lands byte-for-byte on the neutral 200
 // the panes wear. In the dark scheme it is #151515, the platform's own
 // measured step under the content; at #222222 the panes would read as a
-// level stacked on the page they frame rather than as furniture under it.
+// level stacked on the page they frame rather than as chrome under it.
 //
 // It is a function rather than a field on themeTokens because the tests
 // hold whole palettes rather than snapshots, and both have to be able to

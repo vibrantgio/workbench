@@ -7,7 +7,7 @@ package main
 // a headless image produces the same frame the window would show, at the
 // size the window opens at.
 //
-// A render of one column in isolation cannot see that a window's furniture
+// A render of one column in isolation cannot see that a window's chrome
 // stands level with the content it is meant to frame; this can. Run it with
 // -window.dump=<dir> to write the frames out for a pair of eyes:
 //
@@ -227,11 +227,11 @@ var (
 )
 
 // TestWindowRegionsWearTheirLevels reads the surface grammar's assignment off
-// the frame: content at level 0, the window's furniture at the CHROME level
+// the frame: content at level 0, the window's chrome at the CHROME level
 // under it, the reading pane's own tab strip raised over the panel it caps,
 // nothing resting at level 2.
 //
-// A sidebar and a navbar are the furniture this window's articles stand
+// A sidebar and a navbar are the chrome this window's articles stand
 // beside, so they are its darkest regions in both schemes: neutral 200 in the
 // light scheme, #151515 in the dark one. The tab strip does not follow
 // them — a sidebar is chrome standing beside the document, while a tab strip
@@ -280,7 +280,7 @@ func TestWindowRegionsWearTheirLevels(t *testing.T) {
 }
 
 // TestLightnessNeverFallsTowardTheViewer walks this window's depth axis rather
-// than its plane: the sidebar is the window's furniture, the reading pane is
+// than its plane: the sidebar is the window's chrome, the reading pane is
 // the content beside it, the tab strip is the pane's own band raised over
 // that content, and a dialog arrives over the lot. Walking that order toward
 // the reader, lightness may never fall — in the light scheme AND in the dark
@@ -312,11 +312,11 @@ func TestLightnessNeverFallsTowardTheViewer(t *testing.T) {
 						above.name, above.fill, below.name, below.fill)
 				}
 			}
-			// The furniture is this window's darkest region. The navbar is in
-			// it because this window's furniture is two regions on one level,
+			// The chrome is this window's darkest region. The navbar is in
+			// it because this window's chrome is two regions on one level,
 			// and a window that painted only one of them the floor would read
 			// as a step across its own top edge.
-			for _, furniture := range []struct {
+			for _, chrome := range []struct {
 				name string
 				fill color.NRGBA
 			}{
@@ -324,9 +324,9 @@ func TestLightnessNeverFallsTowardTheViewer(t *testing.T) {
 				{"navbar", at(img, atNavbar.X, atNavbar.Y)},
 			} {
 				for _, other := range toward[1:] {
-					if luma(furniture.fill) >= luma(other.fill) {
-						t.Errorf("the %s (%v) is not darker than %s (%v); a window's furniture is its darkest region",
-							furniture.name, furniture.fill, other.name, other.fill)
+					if luma(chrome.fill) >= luma(other.fill) {
+						t.Errorf("the %s (%v) is not darker than %s (%v); a window's chrome is its darkest region",
+							chrome.name, chrome.fill, other.name, other.fill)
 					}
 				}
 			}

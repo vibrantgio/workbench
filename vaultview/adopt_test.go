@@ -123,7 +123,7 @@ func pixelsOf(img *image.RGBA, cs []color.NRGBA) int {
 // there.
 func TestAPinThatClearsDressesTheWindowWithItself(t *testing.T) {
 	// The default brand's own seed: its light pin measures 5.94:1 against
-	// its own paper, clear of the 4.5:1 text floor, and its dark pin is
+	// its own page, clear of the 4.5:1 text floor, and its dark pin is
 	// realized at a fixed depth that always clears — so the pin needs no
 	// walk on either side of the appearance switch.
 	seed := tokens.DefaultSeed

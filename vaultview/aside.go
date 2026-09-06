@@ -11,9 +11,9 @@
 // current note) pair so the resolver runs once per landing rather than
 // once per frame.
 //
-// Both panes are furniture, so the column stands on the window's FLOOR — a
-// step under the paper, toward the scheme's dark extreme — rather than on
-// the note's own paper. The fill is the frame's to paint, not this file's,
+// Both panes are chrome, so the column stands on the window's FLOOR — a
+// step under the content, toward the scheme's dark extreme — rather than on
+// the note's own surface. The fill is the frame's to paint, not this file's,
 // so that the column can run the window's full height the way the sidebar
 // opposite it does.
 
@@ -138,7 +138,7 @@ type asideForegroundTiers struct {
 //
 // The scheme is read off the floor rather than off the neutral alias
 // because the floor is the fill this column is actually painted in, darker
-// than the paper in both schemes.
+// than the content in both schemes.
 func asideForegrounds(tok themeTokens) asideForegroundTiers {
 	faint, nested := 700, 800
 	if vgcolor.RelativeLuminance(chromeSurface(tok.col)) < 0.5 {
@@ -267,7 +267,7 @@ func newAsideView(cur *docCursor) *asideView {
 // on the column's foot, and the outline's region is everything left above
 // it, from under its own heading down to the rule. The pane is the height
 // of its own rows and no more, up to the cap; the outline's rows sit at
-// the top of their region, so the paper neither pane needs opens below
+// the top of their region, so the room neither pane needs opens below
 // the outline's rows and above the rule.
 //
 // The spare room is the outline's whether it has rows to put in it or not:

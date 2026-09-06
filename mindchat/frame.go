@@ -121,12 +121,12 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, mai
 	// The window's plane is the backdrop, and nothing is drawn at it: it
 	// shows in the gap around the pane, which is what says the pane is an
 	// object set in from the window's edges. The content area beside it
-	// stands on the transcript's own paper.
+	// stands on the transcript's own surface.
 	FillRect(gtx, image.Rectangle{Max: size}, 0, t.col.SurfaceAt(tokens.LevelBackdrop))
 	FillRect(gtx, image.Rect(contentX, 0, size.X, size.Y), 0, t.palette.Transcript)
 
 	// The pane's trailing side is the one it is not set in from: the
-	// transcript stands flush against it, so the transcript's own paper —
+	// transcript stands flush against it, so the transcript's own surface —
 	// not the backdrop — shows behind the two corners the pane rounds away
 	// there.
 	pane.FillTrailingCorners(gtx, t.palette.Transcript, bounds)

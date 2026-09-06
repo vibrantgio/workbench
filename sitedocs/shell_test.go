@@ -34,7 +34,8 @@ var shellFrameSize = image.Pt(windowW, windowH)
 // the full-width banner this test exists to catch.
 //
 // The two references are different colours: patterns/tabs fills its panel at
-// the caller's level (this app takes the default, the window paper) and its
+// the caller's level (this app takes the default, the window's content
+// surface) and its
 // strip one level over that, so the gap band is the page rather than the
 // strip's own fill.
 func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {

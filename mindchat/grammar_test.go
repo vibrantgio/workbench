@@ -4,17 +4,17 @@ package main
 // which region of the window wears which elevation level. The
 // transcript is what the window exists to show, so it is the content and
 // fills at level 0 — the Background pin; the conversation list is the
-// window's furniture and therefore stands at the CHROME level, under the
+// window's chrome and therefore stands at the CHROME level, under the
 // content; levels 2 and 3 stay with what appears and leaves.
 //
 // Since ADR-022 elevation has one direction and no mirror: walking toward
 // the viewer never gets darker, in either scheme. Read as a picture of this
-// window that is one sentence rather than two — the furniture is the darkest
+// window that is one sentence rather than two — the chrome is the darkest
 // region and the nearest surface the lightest, in both schemes alike.
 //
 // These assertions are the app's, not the token set's: they are what the
 // window would fail if somebody filled a resting expanse of it at a level
-// elevation keeps for a menu, or hung the furniture above the page again.
+// elevation keeps for a menu, or hung the chrome above the page again.
 
 import (
 	"image"
@@ -86,10 +86,10 @@ func TestTranscriptRestsAtTheContentLevel(t *testing.T) {
 				t.Errorf("transcript fill = %v, the level-2 fill; no resting expanse may sit that deep", p.Transcript)
 			}
 			if p.Sidebar != c.SurfaceAt(tokens.LevelChrome) {
-				t.Errorf("sidebar = %v, want the chrome level's fill %v — furniture stands one level UNDER the content", p.Sidebar, c.SurfaceAt(tokens.LevelChrome))
+				t.Errorf("sidebar = %v, want the chrome level's fill %v — chrome stands one level UNDER the content", p.Sidebar, c.SurfaceAt(tokens.LevelChrome))
 			}
 			if p.Sidebar == c.SurfaceAt(tokens.Level1) {
-				t.Errorf("sidebar = %v, the level-1 fill; that level is for what is RAISED on the content, not for the furniture the content stands beside", p.Sidebar)
+				t.Errorf("sidebar = %v, the level-1 fill; that level is for what is RAISED on the content, not for the chrome the content stands beside", p.Sidebar)
 			}
 		})
 	}
@@ -97,7 +97,7 @@ func TestTranscriptRestsAtTheContentLevel(t *testing.T) {
 
 // TestLightnessClimbsTowardTheViewer is ADR-022's own check applied to this
 // window's resting fills, in depth order rather than across the window's
-// plane: the conversation list is the window's furniture, the transcript is
+// plane: the conversation list is the window's chrome, the transcript is
 // the content laid beside it, the model chip is raised on that content, and
 // a dialog floats over the lot. Walking that order toward the
 // reader, lightness may only increase — in the light scheme AND in the dark
@@ -129,10 +129,10 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 				}
 			}
 			// The composition corollary, stated as the picture it is: the
-			// furniture is this window's darkest region.
+			// chrome is this window's darkest region.
 			for _, other := range toward[1:] {
 				if luma(p.Sidebar) >= luma(other.fill) {
-					t.Errorf("the sidebar (%v) is not darker than %s (%v); a window's furniture is its darkest region",
+					t.Errorf("the sidebar (%v) is not darker than %s (%v); a window's chrome is its darkest region",
 						p.Sidebar, other.name, other.fill)
 				}
 			}
@@ -142,15 +142,16 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 
 // TestCodeInsetsStepUpFromTheTranscriptFill holds the app to the level its
 // markdown insets take. A raised inset walks from the surface it is lying on,
-// and a message body lies on the transcript's paper — so a fenced block and
-// an inline code chip sit exactly one level off that paper, and since
-// ADR-022's fence ruling "up" means LIGHTER in both schemes: a fence is a
+// and a message body lies on the transcript's content surface — so a fenced
+// block and an inline code chip sit exactly one level off that surface, and
+// since ADR-022's fence ruling "up" means LIGHTER in both schemes: a fence is a
 // raised chip, never a well cut into the page. Inheriting FromTokens' fills
 // is how the app gets there; this is the assertion that makes it a decision.
 //
-// On paper the step is a whisper the fill alone cannot carry — what says
-// where the fence is there is the rim FromTokens derives against it — so this
-// test asks only for the direction, and the rim is markdown's own to prove.
+// In the light scheme the step is a whisper the fill alone cannot carry —
+// what says where the fence is there is the rim FromTokens derives against
+// it — so this test asks only for the direction, and the rim is markdown's
+// own to prove.
 func TestCodeInsetsStepUpFromTheTranscriptFill(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -170,11 +171,11 @@ func TestCodeInsetsStepUpFromTheTranscriptFill(t *testing.T) {
 				{"CodeChip", md.CodeChip},
 			} {
 				if f.got != want {
-					t.Errorf("Style.%s = %v, want one level over the paper, %v", f.name, f.got, want)
+					t.Errorf("Style.%s = %v, want one level over the content, %v", f.name, f.got, want)
 				}
 			}
 			if step := luma(md.CodeBackground) - luma(p.Transcript); step <= 0 {
-				t.Errorf("fence fill %v is not lighter than the paper %v; a raised inset lightens in BOTH schemes", md.CodeBackground, p.Transcript)
+				t.Errorf("fence fill %v is not lighter than the content %v; a raised inset lightens in BOTH schemes", md.CodeBackground, p.Transcript)
 			}
 		})
 	}
@@ -182,7 +183,7 @@ func TestCodeInsetsStepUpFromTheTranscriptFill(t *testing.T) {
 
 // TestChipsWalkFromTheSurfaceTheySitOn checks the two chips this app draws
 // against the same rule from two different fills: the header picker sits on
-// the transcript's level-0 paper and is raised a level off it; the dialog's
+// the transcript's level-0 surface and is raised a level off it; the dialog's
 // chips sit flush on the dialog's level-2 surface and reveal themselves with
 // that surface's own walk. Each one's hover is its own fill's one-step
 // walk, so neither is invisible at rest and neither moves the wrong way under
@@ -191,9 +192,10 @@ func TestCodeInsetsStepUpFromTheTranscriptFill(t *testing.T) {
 // Two different axes are checked here and they answer differently, which is
 // the point. A LEVEL is elevation and answers to the linchpin: the raised
 // chip is lighter than its fill in both schemes. A STATE is feedback and
-// still walks toward the ramp's 900 end: the hover darkens on paper and
-// lightens on slate. That asymmetry is not the mirror ADR-022 abolished —
-// the mirror was in elevation, and elevation is one direction now.
+// still walks toward the ramp's 900 end: the hover darkens in the light
+// scheme and lightens in the dark. That asymmetry is not the mirror ADR-022
+// abolished — the mirror was in elevation, and elevation is one direction
+// now.
 func TestChipsWalkFromTheSurfaceTheySitOn(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -320,7 +322,7 @@ func TestChosenIsTintedAndTransientIsNeutral(t *testing.T) {
 			// Hover is a neutral walk off the sidebar's own fill, at half
 			// strength, so the pointer's mark is a tick rather than a rival
 			// to the tint. That fill is the chrome level's, since that is
-			// where the furniture stands.
+			// where the sidebar stands.
 			walk := c.StateAt(tokens.LevelChrome, tokens.StateHover)
 			if p.RowHovered.R != walk.R || p.RowHovered.G != walk.G || p.RowHovered.B != walk.B {
 				t.Errorf("RowHovered = %v, want the neutral hover walk %v at reduced alpha", p.RowHovered, walk)
@@ -334,9 +336,10 @@ func TestChosenIsTintedAndTransientIsNeutral(t *testing.T) {
 
 // TestHoverSitsBetweenRestAndChosen checks the ordering a reader expects down
 // the sidebar: the resting surface, then the hovered row, then the row being
-// read. It is checked on paper, where the two fills' luminances are close
-// enough that a full-strength walk would overshoot the tint and put the two in
-// the wrong order — the measurement that set the hover fill's strength.
+// read. It is checked in the light scheme, where the two fills' luminances
+// are close enough that a full-strength walk would overshoot the tint and put
+// the two in the wrong order — the measurement that set the hover fill's
+// strength.
 func TestHoverSitsBetweenRestAndChosen(t *testing.T) {
 	c := tokens.DefaultLight
 	p := PaletteFrom(c)
@@ -375,7 +378,7 @@ func TestAccentBarReadsOnTheChosenFill(t *testing.T) {
 // The number is the floating pane pattern's, read off the platform's own
 // sidebar apps, and it is deliberately NOT derived from anything this window
 // draws. Nothing beneath the buttons may move them — that is what makes the
-// pane dismissible without the window's own furniture shifting under the
+// pane dismissible without the window's own chrome shifting under the
 // reader's pointer.
 func TestWindowButtonsAreMeasuredFromTheWindowsGlass(t *testing.T) {
 	if got, want := WindowButtonInset, unit.Dp(pane.ButtonInsetDp); got != want {

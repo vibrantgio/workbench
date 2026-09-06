@@ -166,7 +166,7 @@ func TestWholeWindowRender(t *testing.T) {
 // level 0, the outline rail indexing it at the CHROME level under it, the
 // tab strip raised over the panel it caps, and nothing resting at level 2.
 //
-// Furniture stands under the document, so the rail takes the chrome level:
+// Chrome stands under the document, so the rail takes the chrome level:
 // neutral 200 in the light scheme, #151515 in the dark one.
 //
 // The strip does not follow it, and the difference is what this test is worth
@@ -217,9 +217,9 @@ func TestWindowRegionsWearTheirLevels(t *testing.T) {
 }
 
 // TestLightnessNeverFallsTowardTheViewer walks this window's depth axis rather
-// than its plane: the outline rail is the
-// desk, the guide is the paper laid on it, the tab strip is the panel's band
-// raised over that paper, and a dialog would arrive over the lot. Walking
+// than its plane: the outline rail is the window's chrome, the guide is the
+// content beside it, the tab strip is the panel's band raised over that
+// content, and a dialog would arrive over the lot. Walking
 // that order toward the reader, lightness may never fall — in the light
 // scheme AND in the dark one, which is why this needs no per-scheme clause.
 // Never fall rather than always rise: the light scheme has one band step
@@ -239,7 +239,7 @@ func TestLightnessNeverFallsTowardTheViewer(t *testing.T) {
 				fill color.NRGBA
 			}{
 				{"the outline rail's chrome", pixelAt(img, atRail)},
-				{"the guide's paper", pixelAt(img, atDocument)},
+				{"the guide's content", pixelAt(img, atDocument)},
 				{"the tab strip's band", pixelAt(img, atTabStrip)},
 				{"a dialog's surface", tc.c.SurfaceAt(tokens.Level2)},
 			}
@@ -250,10 +250,10 @@ func TestLightnessNeverFallsTowardTheViewer(t *testing.T) {
 						above.name, above.fill, below.name, below.fill)
 				}
 			}
-			// The corollary: the furniture is this window's darkest region.
+			// The corollary: the chrome is this window's darkest region.
 			for _, other := range toward[1:] {
 				if luma(toward[0].fill) >= luma(other.fill) {
-					t.Errorf("the outline rail (%v) is not darker than %s (%v); a window's furniture is its darkest region",
+					t.Errorf("the outline rail (%v) is not darker than %s (%v); a window's chrome is its darkest region",
 						toward[0].fill, other.name, other.fill)
 				}
 			}

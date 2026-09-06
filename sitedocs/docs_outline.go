@@ -129,7 +129,7 @@ func ensureClick(m map[int]*widget.Clickable, key int) *widget.Clickable {
 // rail, the visible rows as a scrolling list under a little top padding.
 //
 // It stands at the CHROME level. This column is an outline rail, which is
-// the window's furniture, and furniture stands under the document rather
+// chrome, and chrome stands under the document rather
 // than over it, in both schemes. colors.Surface would not do: it is a RAMP
 // ALIAS rather than a level (neutral 200, which coincides with the light
 // scheme's chrome level but with the dark scheme's RAISED level), so one

@@ -175,7 +175,7 @@ func drawFeedsSidebar(
 	w := gtx.Dp(unit.Dp(feedsSidebarWidthDp))
 	h := gtx.Constraints.Max.Y
 	size := image.Pt(w, h)
-	// A sidebar is the window's furniture, so it stands at the CHROME
+	// A sidebar is chrome, so it stands at the CHROME
 	// level — one step UNDER the content it frames, toward the scheme's dark
 	// extreme, in both schemes.
 	//

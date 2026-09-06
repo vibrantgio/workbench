@@ -199,7 +199,7 @@ func TestAStyleFromTheFolderJoinsTheColumn(t *testing.T) {
 // appearance attached, and it arrives with that name in both members: the
 // window keeps it for the appearance it was measured to be fitted to, and
 // opens the other on the default rather than putting a palette balanced for
-// paper on a near-black slab.
+// a light page on a near-black slab.
 func TestTheWindowOpensOnTheKeptBases(t *testing.T) {
 	m := withBases()
 	d := highlight.DefaultBases()

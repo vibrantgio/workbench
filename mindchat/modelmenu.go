@@ -89,7 +89,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 			return picker.Toolbar(th, picker.ToolbarProps{
 				Value:       k.label,
 				Description: "Model for this chat",
-				// The header band is the transcript's own level-0 paper, so
+				// The header band is the transcript's own level-0 surface, so
 				// the anchor fills one level over it — the zero value.
 				Level: tokens.Level0,
 				// The anchor reports the shape it drew and nothing wider: the

@@ -121,7 +121,7 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 }
 
 // backdropLayer paints the window's base fill: level 0, the Background pin —
-// not Surface, which is the level the window's furniture stands on. The fill
+// not Surface, which is the level the window's chrome stands at. The fill
 // is the shared `backdrop.Widget` rather than a hand-rolled paint.FillShape,
 // so the token is derived in one place.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {

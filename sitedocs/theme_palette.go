@@ -6,7 +6,7 @@
 // they describe or from each other.
 //
 // What is kept here is what belongs to this window: the colours and type
-// roles it draws its own furniture in, which side of the scheme pair is on
+// roles it draws itself in, which side of the scheme pair is on
 // screen and what the other side is, and the conversions that hand the
 // window's palette and typography over in the shape the story asks for.
 //
@@ -33,8 +33,8 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// The window's own furniture measurements, which are the ones it draws the
-// seed row's swatches with. The story keeps its own copies of these for the
+// The window's own edge and corner measurements, which are the ones it draws
+// the seed row's swatches with. The story keeps its own copies of these for the
 // cells it draws itself; they are the same numbers, because a swatch above
 // the board and a swatch on it are the same object shown twice.
 const (
@@ -49,7 +49,7 @@ const (
 const edgeFloor = 3.0
 
 // Palette is this window's view of the colour tokens: every colour it
-// draws its own furniture with, named for what it draws.
+// draws itself with, named for what it draws.
 type Palette struct {
 	Backdrop stdcolor.NRGBA
 	Surface  stdcolor.NRGBA
@@ -72,7 +72,8 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		// lighter than it in both schemes. A ramp index is not a raise —
 		// neutral 200 is #E8E8E8 UNDER a light page, a resting band darker
 		// than what it lies on, which is the one arrangement elevation
-		// forbids. The walk answers #FFFFFF on paper and #222222 on slate.
+		// forbids. The walk answers #FFFFFF in the light scheme and #222222 in
+		// the dark.
 		Surface:  raisedOnPage(c),
 		Divider:  c.Ramps.Neutral.Step(300),
 		CardEdge: c.Ramps.Neutral.Step(400),
@@ -91,7 +92,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 }
 
 // story is the window's palette as the shared section takes it: the four
-// colours that section draws its own furniture with, and no more.
+// colours that section draws itself with, and no more.
 //
 // The window's palette names more than that — a card edge, an accent and
 // the foreground over it, the colour a problem is said in — and none of them

@@ -76,7 +76,7 @@ const (
 	// It is spent at the document's end and nowhere else. Part way down a
 	// note every row of the column carries text, and a line cut by the
 	// window's edge is the window cutting it; a margin held back on every
-	// frame would leave a strip of blank paper under that half-cut line.
+	// frame would leave a strip of blank page under that half-cut line.
 	noteEndSpaceDp = 40
 	// noteGapDp is the page's own rhythm: the space between the rows above
 	// the document, and the space the document rests below the last of them.
@@ -113,24 +113,24 @@ const (
 	// propEdgeDp is the panel's hairline and propEdgeStep the neutral step
 	// it is drawn in: one past the separator's.
 	//
-	// A block that takes the paper for its own fill has its edge for a
+	// A block that takes the page for its own fill has its edge for a
 	// channel and nothing else, and on the dark page one hair of the
 	// separator's tint is not channel enough: the line reads 1.31:1 off
-	// that paper, and at one device pixel per dp the box dissolves into it.
+	// that page, and at one device pixel per dp the box dissolves into it.
 	// A step further up the neutral ramp the same hair reads 1.91:1 in the
 	// dark scheme and 1.88:1 in the light — twice the eight-bit distance
-	// from the paper, forty-seven levels against twenty-two in the dark —
+	// from the page, forty-seven levels against twenty-two in the dark —
 	// while staying far under the foreground it bounds (6.19:1 and 11.06:1), which
 	// is the one thing an edge may not out-read.
 	//
 	// A faint fill would be the second channel the dark box wants, and
-	// there is no fill to spend: the neutral ramp's first step IS the paper
+	// there is no fill to spend: the neutral ramp's first step IS the page
 	// in both schemes, and its second is the fill the window's rail and
 	// aside wear — 1.13:1 off the light page against the code blocks'
 	// 1.05:1, which would make the note's metadata heavier than the code it
 	// has to stay fainter than, wearing the chrome's own colour to do it.
 	// Nothing lies between the two, so the edge carries the whole of the
-	// channel and the panel keeps its paper.
+	// channel and the panel keeps its page.
 	propEdgeDp   = 1
 	propEdgeStep = 400
 
@@ -141,7 +141,7 @@ const (
 	// tier and has the body floor to clear on the panel's own fill and
 	// not on the page's.
 	//
-	// It is a measurement. On the paper the panel stands on, the step reads
+	// It is a measurement. On the page the panel stands on, the step reads
 	// 6.19:1 in the light scheme and 11.06:1 in the dark, both clear of the
 	// 4.5:1 the design system holds body-sized text to; the step below it
 	// reads 4.03:1 in the light scheme, under the floor, so 700 is the
@@ -171,7 +171,7 @@ const (
 	// label in the column of labels it opens. The reading app this viewer is
 	// judged beside separates the two by colour: its head is set at the prose
 	// foreground its values are, and its keys a measured step under both — 218
-	// against 179 on a 28 paper. That axis is already spent here, on the
+	// against 179 on a 28 page. That axis is already spent here, on the
 	// order between the values and the keys, so the head takes the other
 	// axis it has: the bold the note's own headings take, at the same size
 	// and the same step as the keys. Letter-spacing is not available — the
@@ -335,7 +335,7 @@ func (a *arrival) mark(gtx layout.Context, m Model, col tokens.ColorTokens) (int
 	} else {
 		gtx.Execute(op.InvalidateCmd{})
 	}
-	// The reading column's paper is the pinned app background and not the
+	// The reading column's surface is the pinned app background and not the
 	// scheme's own level 0, so the fill is the one the token walks to
 	// against that surface rather than the resolved field itself.
 	fill := col.HighlightOn(col.Background)
@@ -523,12 +523,12 @@ func layoutNotePage(
 	docFor func(Model, *Note) *markdown.Document,
 ) layout.Dimensions {
 	note := m.CurrentNote()
-	// The reading column lies on its own paper: the pinned app background,
+	// The reading column lies on its own surface: the pinned app background,
 	// one level above the fill the window chrome — the chrome row, tree
 	// rail, aside — is painted in, in both schemes. The panel and the code
-	// fills below take their steps from this paper rather than from the
-	// ramp, so the note reads as a document resting on darker furniture
-	// rather than as more chrome.
+	// fills below take their steps from this surface rather than from the
+	// ramp, so the note reads as a document resting on darker chrome rather
+	// than as a piece of that chrome.
 	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	// The page's trailing and bottom margins are spent inside the document
 	// rather than by the page, so the document's viewport reaches the
@@ -656,7 +656,7 @@ func layoutNotePage(
 		// it. The reading gap is not lost, it is spent inside the document
 		// as its start space, where it is the note's resting position rather
 		// than a margin held back on every frame; held back out here it would
-		// leave a strip of bare paper over every half-cut line. A standing
+		// leave a strip of bare page over every half-cut line. A standing
 		// message owns no viewport and takes the gap like any other row.
 		if !scrolling {
 			children = append(children, layout.Rigid(complayout.VSpacer(noteGapDp)))
@@ -902,23 +902,23 @@ func layoutProperties(
 
 // propertiesBody is the expanded panel: pairs when the trivial split read
 // them, the raw block in code style otherwise. Both stand on the note's own
-// paper — the base of the surface story, the same level the column
+// surface — the base of the surface story, the same level the column
 // itself is laid on — inside a rounded hairline.
 //
 // The fill is a measurement, taken against the surfaces this page already
 // carries rather than against the scale in the abstract. Neither fill the
-// scale offers can be spent here: measured off a paper at 246, the
+// scale offers can be spent here: measured off a page at 246, the
 // separator's tint sits at 212 and the next fill up at 232, while both code
 // blocks under the panel sit at 239–245 — so either would make the metadata
 // darker than the code and the first thing the eye lands on, ahead of the
 // note's own title, and 232 is the exact fill the window's rail and aside
 // wear, which reads as a slab of chrome dropped onto the page. The dark
-// scheme measures the same shape: paper 24, code 30, the two candidate
+// scheme measures the same shape: page 24, code 30, the two candidate
 // fills 46 and 34.
 //
 // So the panel takes no fill of its own and wears the page's existing idiom
 // for a bounded block of low prominence — as the code blocks do, a
-// hairline around a fill one step off the paper. The outline is the whole
+// hairline around a fill one step off the page. The outline is the whole
 // of the panel's budget: the hair takes the step past the separator's, for
 // the measurement in propEdgeStep, since a line that dissolves is not an
 // outline. The corners are the code blocks', so the page has one shape for
@@ -946,7 +946,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			// A weight difference outvotes the colour: with the key in the
 			// heavier label role, measured off the rendered panel, the
 			// value's darkest pixels reach 78 against the key's 92 on a 246
-			// paper — the twenty-six levels the two steps are apart collapse
+			// page — the twenty-six levels the two steps are apart collapse
 			// to fourteen — and in the dark scheme the key's brightest
 			// reaches 196 against the value's 181, the order inverted
 			// outright. A regular weight has too little of each glyph fully

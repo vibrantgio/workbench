@@ -20,8 +20,8 @@ import (
 //
 // The levels the roles resolve to are the window grammar's, not this app's
 // invention: the transcript is the window's CONTENT PLANE and fills at
-// level 0, the Background pin; the conversation list is CHROME FURNITURE and
-// is therefore at the CHROME level, one step UNDER the paper toward the
+// level 0, the Background pin; the conversation list is CHROME and
+// is therefore at the CHROME level, one step UNDER the content toward the
 // scheme's dark extreme in both schemes; levels 2 and 3 are kept for what
 // appears and leaves — the settings dialog, the model menu, the undo bar —
 // and for edges. A raised thing walks its level from the surface it is
@@ -32,7 +32,7 @@ import (
 // is lighter. This window is darkest at its leading edge and lightest where
 // a dialog stands over it, in both schemes alike — no mirror.
 type Palette struct {
-	Sidebar   color.NRGBA // conversation-list surface — the window's furniture, at the chrome level
+	Sidebar   color.NRGBA // conversation-list surface — chrome, at the chrome level
 	Separator color.NRGBA // sidebar header underline
 	Heading   color.NRGBA // sidebar heading text
 	Row       color.NRGBA // chat-row text
@@ -51,9 +51,9 @@ type Palette struct {
 	// `Transcript` is the transcript's resting fill — the header band, the
 	// assistant's turns and the space around them. It is the Background pin,
 	// level 0: the transcript is the thing the window exists to show, so it
-	// is the paper everything else in the pane is measured from, and it is
-	// lighter than the furniture beside it in BOTH schemes — the window
-	// reads lighter toward its middle on paper and on slate alike.
+	// is the surface everything else in the pane is measured from, and it is
+	// lighter than the chrome beside it in BOTH schemes — the window
+	// reads lighter toward its middle in the light scheme and the dark alike.
 	Transcript color.NRGBA
 	UserBubble color.NRGBA // user message fill — a Primary turn, not a level
 	UserText   color.NRGBA // user message text
@@ -61,7 +61,7 @@ type Palette struct {
 	// The header picker's own fill, hover and rim are not here: it is
 	// components/picker, which derives all three from the level it stands
 	// on. What this app still says about it is where it stands — the level-0
-	// paper of the transcript's header band — and the component answers the
+	// surface of the transcript's header band — and the component answers the
 	// rest.
 	ChipText color.NRGBA // label over the dialog's own template chips
 	// ModalChip is a chip inside the settings dialog. It stands on the
@@ -94,14 +94,14 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	// wrong by a whole level.
 	//
 	// Half strength rather than the full step, and that is the re-derivation
-	// the tint forced. On paper the neutral hover step lands at luma 212 and
-	// the Primary-tinted selection at 215, so a full-strength hover would sit
-	// a hair *past* selected and the two would trade places; half of it lands
-	// at 221, between the resting surface's 232 and the selection's 215, which
-	// is the order a reader expects — none of those three numbers moved with
-	// the re-founding. On slate the whole trio dropped with the floor: rest is
-	// luma 12, the half-step lifts to 23 and the tinted row sits at 34, so the
-	// same soft lift still leaves the hue to do the choosing.
+	// the tint forced. In the light scheme the neutral hover step lands at luma
+	// 212 and the Primary-tinted selection at 215, so a full-strength hover
+	// would sit a hair *past* selected and the two would trade places; half of
+	// it lands at 221, between the resting surface's 232 and the selection's
+	// 215, which is the order a reader expects — none of those three numbers
+	// moved with the re-founding. On slate the whole trio dropped with the
+	// floor: rest is luma 12, the half-step lifts to 23 and the tinted row sits
+	// at 34, so the same soft lift still leaves the hue to do the choosing.
 	hover := c.StateAt(tokens.LevelChrome, tokens.StateHover)
 	hover.A = 128
 	return Palette{

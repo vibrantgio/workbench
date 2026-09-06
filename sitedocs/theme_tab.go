@@ -72,7 +72,7 @@ func themeTabRows(inv *inventory.Inventory, shaper *text.Shaper, typo tokens.Typ
 }
 
 // themePaletteRows resolves the palette section's inputs from the live
-// tokens: the section's own furniture palette and type roles, the
+// tokens: the section's own palette and type roles, the
 // counterpart scheme the inverse pair's rules name, and which side of the
 // pair is on screen — all read off the tokens themselves, so the section
 // follows whatever theme the window is wearing.

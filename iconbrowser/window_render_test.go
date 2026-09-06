@@ -246,7 +246,7 @@ func TestWholeWindowRender(t *testing.T) {
 }
 
 // TestTheGridRestsAtTheContentLevel reads the surface walk off the frame: the
-// grid draws straight onto the Background pin, with no furniture to raise and
+// grid draws straight onto the Background pin, with nothing raised on it and
 // no selection to tint, so the only thing off the pin is paint and the one
 // control standing on it.
 func TestTheGridRestsAtTheContentLevel(t *testing.T) {
@@ -255,12 +255,12 @@ func TestTheGridRestsAtTheContentLevel(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
 			frame := image.Rectangle{Max: windowSize}
 			content := tc.c.SurfaceAt(tokens.Level0)
-			furniture := tc.c.SurfaceAt(tokens.Level1)
+			raised := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
 
 			// The walk out from the middle: the window's centre and its edge
 			// wear one level, and it is the resting fill. Both points land
-			// on the paper — the catalogue's paint is a glyph and a caption
+			// on the content — the catalogue's paint is a glyph and a caption
 			// centred in each cell, never a fill of one.
 			for _, p := range []struct {
 				name string
@@ -275,7 +275,7 @@ func TestTheGridRestsAtTheContentLevel(t *testing.T) {
 			}
 
 			// And it is that fill in bulk, not just at two points: the
-			// catalogue is glyphs and captions on the paper, not tiles.
+			// catalogue is glyphs and captions on the content, not tiles.
 			total := windowSize.X * windowSize.Y
 			if n := countFill(img, frame, content); n*4 < total*3 {
 				t.Errorf("the resting fill %v covers %d of %d pixels; the thing this window exists to show is not what most of it is",
@@ -288,9 +288,9 @@ func TestTheGridRestsAtTheContentLevel(t *testing.T) {
 			// level is allowed, with a few rows of slack for the field's own
 			// text metrics; anything past it is an expanse, not a control.
 			field := (windowSize.X - 2*int(Padding)) * (int(tokens.Comfortable.ControlHeight) + 8)
-			if n := countFill(img, frame, furniture); n > field {
+			if n := countFill(img, frame, raised); n > field {
 				t.Errorf("level 1 (%v) covers %d of %d pixels, past the %d the search field's own box accounts for; a control on the resting fill may wear it, a resting expanse may not",
-					furniture, n, total, field)
+					raised, n, total, field)
 			}
 			// Level 2 is not asked for zero, because a ramp step is a colour
 			// and an anti-aliased edge between two others can land on it by
@@ -300,7 +300,7 @@ func TestTheGridRestsAtTheContentLevel(t *testing.T) {
 			// level 1: the light scheme has one band step above its content
 			// and spends it on the first raise, so its raised and floating
 			// levels are one colour and no pixel can tell them apart.
-			if n := countFill(img, frame, transient); transient != furniture && n*1000 > total {
+			if n := countFill(img, frame, transient); transient != raised && n*1000 > total {
 				t.Errorf("level 2 (%v) covers %d of %d pixels of the resting window; that level is for what appears and leaves",
 					transient, n, total)
 			}

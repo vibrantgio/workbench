@@ -131,7 +131,7 @@ func TestTheBarSaysNothingBeforeAnyNoteIsOpen(t *testing.T) {
 }
 
 // TestTheBarsForegroundIsLegibleOnItsSurface measures the faint neutral
-// step the count is drawn in against the paper it stands on, in both
+// step the count is drawn in against the surface it stands on, in both
 // appearances the app ships, logging the ratios.
 //
 // The band the bar claims runs past the document and over the trailing
@@ -150,7 +150,7 @@ func TestTheBarsForegroundIsLegibleOnItsSurface(t *testing.T) {
 				name    string
 				surface stdcolor.NRGBA
 			}{
-				{"the note's paper", tc.colors.Background},
+				{"the note's content", tc.colors.Background},
 				{"the trailing panel's surface", chromeSurface(tc.colors)},
 			} {
 				ratio := color.ContrastRatio(foreground, g.surface)

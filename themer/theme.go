@@ -131,12 +131,12 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		Backdrop: c.Background,
 		// The mat and the candidate cards: filled insets lying on the
 		// window's page, and the raise is lighter than that page in both
-		// schemes — white on paper, #222222 on slate. A ramp index is not a
-		// raise: neutral 200 is #E8E8E8, under a light page, which sinks a
-		// card into the desk instead of raising it.
+		// schemes — white in the light scheme, #222222 in the dark. A ramp index
+		// is not a raise: neutral 200 is #E8E8E8, under a light page, which sinks
+		// a card into the desk instead of raising it.
 		//
-		// On paper the raise off the content is white, so a pale swatch on it
-		// has no boundary of its own: CardEdge is what makes a card an
+		// In the light scheme the raise off the content is white, so a pale
+		// swatch on it has no boundary of its own: CardEdge is what makes a card an
 		// object, and Edge is derived against this very fill so a near-white
 		// swatch on a white card still has one.
 		Surface: raisedOnPage(c),

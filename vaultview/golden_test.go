@@ -178,7 +178,7 @@ const plainNoteSource = `The sources these notes came from, kept as a plain
 list because it has never needed sections.
 
 - A shelf of books.
-- A folder of papers.
+- A folder of clippings.
 - Two decades of margin notes.
 `
 
@@ -520,9 +520,9 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 //
 // The bar is measured against the note's, which is the same bar: the two
 // stand at the trailing edge of the two columns a reader reads between and
-// keep one distance from the surface each stands on — the note's paper
-// gives way to this column's surface, and this column's surface gives way
-// to the window's own edge.
+// keep one distance from the surface each stands on — the note's content
+// surface gives way to this column's surface, and this column's surface
+// gives way to the window's own edge.
 func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	// A long note read part way down: the outline holds the mark and more

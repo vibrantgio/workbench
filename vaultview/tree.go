@@ -76,7 +76,7 @@ const (
 )
 
 // treeFieldLevel is the level of the surface the find field stands on: the
-// rail pane, which is the window's furniture and therefore stands at the
+// rail pane, which is chrome and therefore stands at the
 // CHROME level. The live rail and the goldens' static rail both name it
 // here so they cannot drift apart.
 const treeFieldLevel = tokens.LevelChrome
@@ -274,7 +274,7 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 		Description: "filter notes by name",
 		// The field stands on the rail's rounded pane, not on the window
 		// surface behind it — the pane covers that. The pane is the
-		// window's FURNITURE and so stands at the chrome level; naming that
+		// window's CHROME and so stands at the chrome level; naming that
 		// level here is what makes the field's fill, its resting edge and
 		// its focus ring all derive against the thing they are actually
 		// drawn on. A text field is raised one step off whatever it lies

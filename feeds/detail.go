@@ -139,8 +139,8 @@ func drawDetail(
 }
 
 // The tab panel needs no fill of its own: `tabs.Props.Level` (zero value
-// level 0) puts the panel on the window paper and the strip band one level
-// over it.
+// level 0) puts the panel on the window's content surface and the strip band
+// one level over it.
 
 // readerTab renders the article body paragraph-wrapped in the theme's
 // BodyMedium role. The closure is static (tabs captures it once) and reads

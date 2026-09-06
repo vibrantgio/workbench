@@ -344,8 +344,8 @@ func dumpFrame(t *testing.T, name string, w layout.Widget) *image.RGBA {
 // leading edge: the pane is set in one margin from the window's edges, and
 // what shows in that margin is the window's own plane at the backdrop level.
 // Nothing is drawn at the backdrop, so a frame that painted the transcript's
-// paper across the whole window — as this one once did — would leave the pane
-// standing on the document instead of being set into the window.
+// fill across the whole window — as this one once did — would leave the
+// pane standing on the document instead of being set into the window.
 func TestTheBackdropShowsAroundThePane(t *testing.T) {
 	saved := windowButtonsEnd
 	defer func() { windowButtonsEnd = saved }()

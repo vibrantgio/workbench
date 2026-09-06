@@ -9,7 +9,7 @@ package main
 // on the readout block.
 //
 // Everything aligns with the digits' GLYPHS, not their line box: the box
-// carries the font's leading, and furniture hung off its edges floats
+// carries the font's leading, and trim hung off its edges floats
 // visibly too far from the glyphs.
 
 import (

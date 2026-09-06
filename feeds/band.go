@@ -21,7 +21,7 @@ import (
 // sidebar's trailing edge.
 //
 // The two halves of a strip that crosses a seam may wear their own fills —
-// here they wear the same one, since both regions are furniture — but not
+// here they wear the same one, since both regions are chrome — but not
 // their own depths. A strip 52 dp deep on one side of the seam and 40 on the
 // other is a step in the window's top edge rather than a band with a seam
 // through it.

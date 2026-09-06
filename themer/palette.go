@@ -51,7 +51,7 @@ import (
 )
 
 // story is the window's palette as the shared section takes it: the four
-// colours that section draws its own furniture with, and no more.
+// colours that section draws itself with, and no more.
 //
 // The window's palette names more than that — a selection fill, a card edge,
 // an accent and the foreground over it — and none of them is a colour the story

@@ -507,8 +507,8 @@ func TestBothPanesStandInEitherState(t *testing.T) {
 //
 // It is measured across notes that fill the column to very different
 // depths — none, a few, forty headings; none, a few, twenty citations. The
-// pane ends on the column's foot in every one, and the run of furniture
-// between the outline's region and the pane is the same in every one,
+// pane ends on the column's foot in every one, and the run between the
+// outline's region and the pane is the same in every one,
 // which is the slack being inside that region rather than below it: were
 // any of it falling to the foot, the note with the least to show would
 // have the longest run.
@@ -539,7 +539,7 @@ func TestTheOutlineHoldsTheColumnsSlack(t *testing.T) {
 		})
 	}
 	if gaps["nothing to show"] != gaps["a few of each"] || gaps["a few of each"] != gaps["more than fits"] {
-		t.Errorf("the run between the outline's region and the backlinks pane is %v; the furniture between them is one fixed thing, so the slack must be above it and not below",
+		t.Errorf("the run between the outline's region and the backlinks pane is %v; the trim between them is one fixed thing, so the slack must be above it and not below",
 			gaps)
 	}
 	// A note with nothing to list holds the larger region, since its
@@ -790,7 +790,8 @@ func sparseOutlineSource() string {
 // TestThePanesFindTheirRowsWithRoomToSpare is the hit geometry once the
 // panes stand apart: on a note whose outline is far shorter than the
 // region it holds, a press still finds the row it landed on — the rows lead
-// their region, so they are counted from its top edge — a press in the paper
+// their region, so they are counted from its top edge — a press in the spare
+// surface
 // below the last row moves nothing, because the slack is room and not a
 // target, and the pane at the foot answers its own rows where they stand.
 func TestThePanesFindTheirRowsWithRoomToSpare(t *testing.T) {
@@ -821,10 +822,10 @@ func TestThePanesFindTheirRowsWithRoomToSpare(t *testing.T) {
 	at := p.doc.Position().First
 	p.clickAt(g.outline.Min.Y + (len(entries)+1)*rowH + rowH/2)
 	if got := p.doc.Position().First; got != at {
-		t.Errorf("pressing the outline's spare paper moved the document to block %d, from %d", got, at)
+		t.Errorf("pressing the outline's spare surface moved the document to block %d, from %d", got, at)
 	}
 	if got := p.v.outlineList.Selected(); got != row {
-		t.Errorf("pressing the outline's spare paper moved the mark to entry %d, from %d", got, row)
+		t.Errorf("pressing the outline's spare surface moved the mark to entry %d, from %d", got, row)
 	}
 
 	p.clickAt(p.v.geom.backlinks.Min.Y + row*rowH + rowH/2)

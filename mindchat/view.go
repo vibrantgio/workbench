@@ -112,14 +112,15 @@ var (
 //
 // The insets a reply can grow — a fenced block, an inline code chip — keep
 // FromTokens' own fills, and that is this app's choice: a message body is read
-// on the transcript's paper, FromTokens puts ContentSurface at the Background
-// pin and the code fills one neutral step off it, and one step off the local
-// paper is exactly the step a raised inset takes. It reads as raised in both
-// schemes the same way — LIGHTER than the page on paper and on slate alike,
+// on the transcript's content surface, FromTokens puts ContentSurface at the
+// Background pin and the code fills one neutral step off it, and one step off
+// the local surface is exactly the step a raised inset takes. It reads as
+// raised in both schemes the same way — LIGHTER than the page in the light
+// scheme and the dark alike,
 // with the derived rim carrying the edge in both.
 //
 // Wearing a chroma base (highlight.Wear) would hand the fence that base's
-// own background instead, and a plate fitted to white paper puts a fill
+// own background instead, and a plate fitted to a white page puts a fill
 // LIGHTER than this light scheme's page under the block — a step in the
 // wrong direction. So the chroma style is taken for its colours only
 // (highlight.New), matched to the appearance the surface beneath reports.
@@ -483,7 +484,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 //
 // The pane paints its own fill before any of that, and it has to: the
 // shell fills the whole split — both halves — with the chrome fill, so
-// anything the pane does not paint over shows furniture where the
+// anything the pane does not paint over shows chrome where the
 // transcript should be. The message rows paint their own fill, so the
 // bleed only appears where the transcript is SHORTER than the window, which
 // no whole-window golden in this package is ever in: the demo conversation
@@ -494,7 +495,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 // It is painted at the SLOT's width, before the pane clamps itself to its
 // reading measure: on a window wider than ChatPaneWidth plus the sidebar,
 // the strip the pane declines to occupy is still the pane's half of the
-// split, and a band of furniture down the trailing edge of the content
+// split, and a band of chrome down the trailing edge of the content
 // region is the same defect at a few pixels wide.
 func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
@@ -519,7 +520,7 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) l
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				// The seam between the transcript and the composer: the
-				// composer stands off the paper the messages lie on, and
+				// composer stands off the surface the messages lie on, and
 				// what parts two things on one fill is a hairline. It is
 				// the transcript's only rule — one region, one edge, drawn
 				// where the content actually changes.
@@ -552,7 +553,7 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) l
 // this window exists to show and a resting expanse of it may not be filled
 // at a level the elevation keeps for things that appear and leave. The row
 // paints that fill itself rather than letting the backdrop show through,
-// so a raised inset inside a reply (a code fence) has a stated paper to step
+// so a raised inset inside a reply (a code fence) has a stated surface to step
 // up from wherever the row is composed.
 func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 	msg := row.Msg

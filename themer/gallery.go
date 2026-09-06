@@ -32,7 +32,7 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// The embedded page's own furniture.
+// The embedded page's own frame.
 const (
 	GalleryLabel = "Everything in this theme"
 	GalleryHint  = "the whole published surface, a tab at a time"
@@ -214,8 +214,8 @@ func GalleryColumns(t themed, m Model, page *embed, sel *baseSelector, faces *fa
 // The bar floats over the rows rather than reserving a gutter: the column
 // below is the design system at its own widths, and a gutter cut out of it
 // would be the application editing what it is showing. It is drawn from the
-// embedded palette, because it is furniture of the page and not of the
-// window.
+// embedded palette, because it belongs to the page's frame and not to the
+// window's.
 func ScrollingColumn(st *list.State, c tokens.ColorTokens, items []layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: TabGap}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -235,8 +235,8 @@ func ScrollingColumn(st *list.State, c tokens.ColorTokens, items []layout.Widget
 // The panel is filled with the embedded palette's own background, not the
 // window's — for a moment after a pick those are the same thing, and that is
 // the point: the page is not a preview beside the theme, it is the theme. The
-// strip is drawn in that same palette for the same reason: it is furniture of
-// the page, not of the window.
+// strip is drawn in that same palette for the same reason: it belongs to the
+// page's frame, not the window's.
 //
 // shell is the tab strip with the selected tab's surface under it, handed in
 // because the strip's own handlers outlive an emission and this function is

@@ -38,15 +38,15 @@
 // content hangs below the row's own height into the margin the note column
 // keeps above its first line; the row spends no extra height for it.
 //
-// The window's fill is the same paper the note column lies on, so the
+// The window's fill is the same surface the note column lies on, so the
 // note draws no edge of its own and the chrome row sits on the document
-// rather than on a band above it. Both of the window's edges are furniture
-// drawn at the same level, a measured step under the paper in either
+// rather than on a band above it. Both of the window's edges are chrome
+// drawn at the same level, a measured step under the content in either
 // scheme, but they are two different kinds. Leading, the sidebar is a
 // FLOATING PANE: a button slides it out of the window, so it is an object,
 // and it carries its own hairline just inside its rounded edge. Trailing,
 // the column of the note's outline and the notes citing it is INTEGRAL
-// FURNITURE: fixed, flush, with nothing to dismiss it, so it takes no
+// CHROME: fixed, flush, with nothing to dismiss it, so it takes no
 // outline and its leading edge is a plain seam.
 //
 // Both boundaries paint one hairline running the window's whole height: the
@@ -326,7 +326,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	g := frameGeometry(gtx, size, barH, gtx.Dp(statusBarHeight(tok)), m.SidebarHidden)
 	f.geom = g
 
-	// The content area stands on the note's own paper: the document is what
+	// The content area stands on the note's own surface: the document is what
 	// the window is. It starts where the pane stops, so the plane the pane
 	// is set into is left unpainted and the backdrop under this frame shows
 	// in the gap around it — which is the whole of what says the pane is an
@@ -335,7 +335,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		clip.Rect(image.Rect(g.contentX, 0, size.X, size.Y)).Op())
 
 	// The pane's trailing side is the one it is not set in from: the
-	// document stands flush against it, so the document's own paper — not
+	// document stands flush against it, so the document's own surface — not
 	// the backdrop — shows behind the two corners the pane rounds away
 	// there. Painted before the pane, which covers the whole strip but the
 	// arcs.
@@ -404,7 +404,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		// What the chrome row's content hangs below the row is clipped out
 		// of the note, which is drawn after the row and would otherwise
 		// repaint the hanging part away with its own fill. Nothing is
-		// lost by the clip: that fill is the window's own paper, already
+		// lost by the clip: that fill is the window's own surface, already
 		// painted under everything, and the note's first painted row is a full
 		// margin below the row — the band the clip takes is bare either
 		// way.
@@ -462,7 +462,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 // paintAsideSeam draws the boundary of the trailing column: a plain
 // hairline down its leading edge, running the window's full height.
 //
-// The column is INTEGRAL FURNITURE — fixed, flush, with no toggle and no
+// The column is INTEGRAL CHROME — fixed, flush, with no toggle and no
 // way to leave — so it is not outlined the way the rail is. What it takes
 // instead is the plain seam the platform gives its own flush side: Voice Memos
 // carries no outline there at all and parts its panes with a

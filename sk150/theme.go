@@ -25,7 +25,7 @@ type Palette struct {
 	Amp           color.NRGBA // the current readout: Secondary as foreground
 	Watt          color.NRGBA // the power readout: Tertiary as foreground
 	Danger        color.NRGBA // protection trips and errors: Error as foreground
-	Panel         color.NRGBA // a chart panel: raised one level off the paper
+	Panel         color.NRGBA // a chart panel: raised one level off the content
 	Hairline      color.NRGBA // panel borders and the recessive chart grid
 	TipFill       color.NRGBA // a hint bubble: the inverse surface
 	TipForeground color.NRGBA // its text

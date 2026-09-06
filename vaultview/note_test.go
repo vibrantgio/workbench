@@ -117,7 +117,7 @@ func (p *notePad) clickInDocument() {
 
 // shot renders the column as it stands, so a test can ask where the paint
 // stops. The reading keys move a scroll position, and no position value says
-// how much paper is left under the last line — only the pixels do.
+// how much blank page is left under the last line — only the pixels do.
 func (p *notePad) shot(t *testing.T) *image.RGBA {
 	t.Helper()
 	return golden.Capture(t, p.size, func(gtx layout.Context) layout.Dimensions {
@@ -126,7 +126,7 @@ func (p *notePad) shot(t *testing.T) *image.RGBA {
 	})
 }
 
-// blankFoot returns how many rows of bare paper stand between the column's
+// blankFoot returns how many rows of bare page stand between the column's
 // last painted prose row and the window's bottom edge. The trailing gutter is left
 // out of the scan: the scroll indicator lives there and reaches the edge by
 // design, and it is the prose the reader measures the margin by.
@@ -142,11 +142,11 @@ func (p *notePad) blankFoot(img *image.RGBA) int {
 	return p.size.Y
 }
 
-// blankHead returns how many rows of bare paper stand between the row above
+// blankHead returns how many rows of bare page stand between the row above
 // the document — the breadcrumb row, in the models these tests use — and the
 // document's first painted row. It reads the image the way the reader does:
 // the first band of paint from the top is that row, and what follows it is the
-// paper the document's viewport begins on. The trailing gutter is left out of
+// page the document's viewport begins on. The trailing gutter is left out of
 // the scan for the reason blankFoot leaves it out.
 func (p *notePad) blankHead(img *image.RGBA) int {
 	background := p.tok.col.Background
@@ -159,7 +159,7 @@ func (p *notePad) blankHead(img *image.RGBA) int {
 		return false
 	}
 	y := 0
-	for ; y < p.size.Y && !drawn(y); y++ { // the paper above the row
+	for ; y < p.size.Y && !drawn(y); y++ { // the page above the row
 	}
 	for ; y < p.size.Y && drawn(y); y++ { // the row's own paint
 	}
@@ -331,7 +331,7 @@ func TestTheNoteRestsClearOfTheWindowsBottomEdge(t *testing.T) {
 
 // TestOnlyTheNotesEndSpendsTheFootMargin: part way down a note the column has
 // no margin at the foot at all — every row of it carries text. Holding the
-// margin back on every frame would leave a strip of bare paper under the
+// margin back on every frame would leave a strip of bare page under the
 // half-cut line the window's edge makes, and cost the reader a margin's worth
 // of note on every screen they cross.
 func TestOnlyTheNotesEndSpendsTheFootMargin(t *testing.T) {
@@ -348,7 +348,7 @@ func TestOnlyTheNotesEndSpendsTheFootMargin(t *testing.T) {
 		case got == 0:
 			full = true
 		case got >= noteEndSpaceDp:
-			t.Fatalf("page %d down the note left %d px of bare paper at the foot; the margin belongs to the note's end, not to every screen", page, got)
+			t.Fatalf("page %d down the note left %d px of bare page at the foot; the margin belongs to the note's end, not to every screen", page, got)
 		}
 	}
 	if !full {
@@ -372,14 +372,14 @@ const noteHeadSlack = 6
 // What is asserted is one screen that brings a line hard against the row, not
 // a bound on every screen: the note's own rhythm opens blanks wider than the
 // page's gap — an ordinary block gap, wider still above a heading — so a page
-// boundary landing inside one begins on the note's own paper, and no
+// boundary landing inside one begins on the note's own surface, and no
 // per-screen bound can tell that from a margin held back. A page that did
 // hold the gap back could never meet the row's edge on any screen.
 func TestOnlyTheNotesStartSpendsTheGapUnderTheRow(t *testing.T) {
 	p := newNotePad(t, longNoteModel(-1))
 	p.frame()
 	if got := p.blankHead(p.shot(t)); got < noteGapDp {
-		t.Errorf("at its start the note leaves %d px of paper under the row above it, want at least the page's own %d", got, noteGapDp)
+		t.Errorf("at its start the note leaves %d px of page under the row above it, want at least the page's own %d", got, noteGapDp)
 	}
 
 	met := false
@@ -435,8 +435,8 @@ func TestTheKeyboardLandsOnTheRestingPosition(t *testing.T) {
 	}
 }
 
-// TestThePropertiesSlabStandsOnThePaper holds the panel to the page it is read
-// on: the note's own paper for a fill, inside one hair of the panel's own
+// TestThePropertiesSlabStandsOnThePage holds the panel to the page it is read
+// on: the note's own surface for a fill, inside one hair of the panel's own
 // neutral step, which is the treatment the page's other bounded blocks wear.
 //
 // The panel is found in the pixels rather than asserted at. Its top edge is
@@ -444,8 +444,8 @@ func TestTheKeyboardLandsOnTheRestingPosition(t *testing.T) {
 // column's measure — the disclosure row above it draws no fills, so nothing
 // else can be first — and its foot is the next such row. What is asserted is
 // that the two are far enough apart to be a panel, and that between them the
-// page is paper: no band of any other fill, which is what a slab would be.
-func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
+// page is bare: no band of any other fill, which is what a slab would be.
+func TestThePropertiesSlabStandsOnThePage(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
 	if !m.PropsOpen {
@@ -498,22 +498,22 @@ func TestThePropertiesSlabStandsOnThePaper(t *testing.T) {
 					{"the chrome's floor", chromeSurface(tc.colors)},
 				} {
 					if banded(y, fill.col) {
-						t.Errorf("row %d inside the panel is a band of %s; the panel stands on the paper", y, fill.name)
+						t.Errorf("row %d inside the panel is a band of %s; the panel stands on the page", y, fill.name)
 						return
 					}
 				}
 			}
 			// The rows between the pairs carry nothing across the measure, so
-			// on a paper fill most of the panel's height is a paper band.
+			// on the page's own fill most of the panel's height is a band of it.
 			// A filled panel would have none.
-			paper := 0
+			page := 0
 			for y := top + 2; y < bot-1; y++ {
 				if banded(y, tc.colors.Background) {
-					paper++
+					page++
 				}
 			}
-			if paper < (bot-top)/4 {
-				t.Errorf("only %d of the panel's %d rows are the note's paper; the panel is filled with something else", paper, bot-top)
+			if page < (bot-top)/4 {
+				t.Errorf("only %d of the panel's %d rows are the note's page; the panel is filled with something else", page, bot-top)
 			}
 		})
 	}
@@ -560,16 +560,16 @@ func TestThePropertiesSlabForegroundsClearTheFloor(t *testing.T) {
 			// panel has no edge at all; and it has to stay an edge, well under
 			// the foreground the panel is written in.
 			edge := vgcolor.ContrastRatio(tc.colors.Ramps.Neutral.Step(propEdgeStep), background)
-			t.Logf("the hairline stands %.2f:1 off the paper, the faint foreground %.2f:1", edge, keys)
+			t.Logf("the hairline stands %.2f:1 off the page, the faint foreground %.2f:1", edge, keys)
 			// A hairline this page can be sure of stands at least half again
 			// as far off its fill as a separator does: the separator's tint
-			// reads 1.31:1 on the dark paper, which at one device pixel per dp
+			// reads 1.31:1 on the dark page, which at one device pixel per dp
 			// is measurably there and visually gone.
 			if edge <= 1.5 {
-				t.Errorf("the hairline stands %.2f:1 off the paper; at one pixel per dp the box dissolves into it", edge)
+				t.Errorf("the hairline stands %.2f:1 off the page; at one pixel per dp the box dissolves into it", edge)
 			}
 			if edge >= keys {
-				t.Errorf("the hairline stands %.2f:1 off the paper and the panel's own foreground %.2f:1; an edge cannot out-read what it bounds", edge, keys)
+				t.Errorf("the hairline stands %.2f:1 off the page and the panel's own foreground %.2f:1; an edge cannot out-read what it bounds", edge, keys)
 			}
 		})
 	}

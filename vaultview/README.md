@@ -59,7 +59,7 @@ The window is a sidebar down the leading edge and two columns beside it.
   whether it has headings to put in it or not. A note with no headings
   says so.
 
-Across the foot of those two columns, on the paper the note lies on, a
+Across the foot of those two columns, on the surface the note lies on, a
 less pronounced status bar says how long the open note is: the file's own
 lines, with the frontmatter counted like every other line of it and a last line
 written without a final newline counted too. It changes when the note

@@ -251,8 +251,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 
 // EmbeddedTheme is the theme the tab strip is drawn from: the palette the
 // chosen candidate generates, with the window's own typography and the
-// published scales for everything else. The strip is furniture of the page
-// and not of the window, so its colours are the page's.
+// published scales for everything else. The strip belongs to the page's frame
+// and not to the window's, so its colours are the page's.
 func EmbeddedTheme(c tokens.ColorTokens, typo tokens.Typography) theme.Theme {
 	t := theme.Default()
 	t.Color, t.Typography = rx.Of(c), rx.Of(typo)
@@ -412,7 +412,7 @@ func TitleRow(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, bar 
 	}
 }
 
-// reserve indents a row past furniture that is not the page's: the run between
+// reserve indents a row past chrome that is not the page's: the run between
 // the margin where the row would otherwise begin and the point where it may.
 // Nothing is drawn in that run and no drag is declared over it — the window's
 // control buttons stand there, and a move action over them would fight them for
@@ -540,11 +540,11 @@ func IdentityRow(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.Im
 // chosen seed where every application that adopts a brand looks for one.
 //
 // It is the published button component rather than something drawn here,
-// because it is the one control in this window that is not furniture — it
-// is the thing the window is for once the looking is done — and it should
-// be the button of the design system on display beneath it. What it says
-// changes with the answer: an offer while the choice on screen is not the
-// one on disk, a confirmation the moment it is.
+// because it is the one control in this window that is not part of the
+// frame — it is the thing the window is for once the looking is done — and
+// it should be the button of the design system on display beneath it. What
+// it says changes with the answer: an offer while the choice on screen is
+// not the one on disk, a confirmation the moment it is.
 func KeepButton(c tokens.ColorTokens, ty Type, m Model, click *gesture.Click) layout.Widget {
 	label, emphasis := KeepLabel, button.Filled
 	if m.SeedIsKept() {

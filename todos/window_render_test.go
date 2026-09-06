@@ -216,7 +216,7 @@ func TestTheListRestsAtTheContentLevel(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
 			frame := image.Rectangle{Max: windowSize}
 			content := tc.c.SurfaceAt(tokens.Level0)
-			furniture := tc.c.SurfaceAt(tokens.Level1)
+			raised := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
 
 			// The walk out from the middle: centre and edge wear one level,
@@ -241,9 +241,9 @@ func TestTheListRestsAtTheContentLevel(t *testing.T) {
 				t.Errorf("the resting fill %v covers %d of %d pixels; the thing this window exists to show is not what most of it is",
 					content, n, total)
 			}
-			if n := countFill(img, frame, furniture); n*100 > total {
+			if n := countFill(img, frame, raised); n*100 > total {
 				t.Errorf("level 1 (%v) covers %d of %d pixels; a control on the resting fill may wear it, a resting expanse may not",
-					furniture, n, total)
+					raised, n, total)
 			}
 			// Level 2 is not asked for zero: a ramp step is a colour, and an
 			// anti-aliased edge between two other colours can land on it by
@@ -255,7 +255,7 @@ func TestTheListRestsAtTheContentLevel(t *testing.T) {
 			// the light scheme has one band step above its content and
 			// spends it on the first raise, so its raised and floating
 			// levels are one colour and no pixel can tell them apart.
-			if n := countFill(img, frame, transient); transient != furniture && n*1000 > total {
+			if n := countFill(img, frame, transient); transient != raised && n*1000 > total {
 				t.Errorf("level 2 (%v) covers %d of %d pixels of the resting window; that level is for what appears and leaves",
 					transient, n, total)
 			}
