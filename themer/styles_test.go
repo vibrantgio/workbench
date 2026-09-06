@@ -798,7 +798,7 @@ func TestACardKnowsWhetherItsStyleIsDrawnFaint(t *testing.T) {
 		authored, measured := highlight.BaseContrast(s.Name)
 		if want := measured && authored.BelowFloor(); s.Faint != want {
 			t.Errorf("%q is carded faint=%v, want %v (%d of %d colours under the floor)",
-				s.Name, s.Faint, want, authored.Below, authored.Inks)
+				s.Name, s.Faint, want, authored.Below, authored.Colors)
 		}
 		if s.Faint {
 			faint++
