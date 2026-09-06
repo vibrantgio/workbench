@@ -263,13 +263,16 @@ func (v *treeView) buttonEdge() unit.Dp {
 }
 
 // treeSidebar builds the sidebar slot's layout.Widget stream: the find field
-// above the rows. The field is a components TextField built once at
+// above the rows. The field is a components SearchField built once at
 // subscription scope, so its editor keeps what was typed across
-// emissions; each keystroke reaches the model as a SetFilter message.
+// emissions; each keystroke reaches the model as a SetFilter message, and
+// the field's own clear mark reaches it as the same message carrying the
+// empty query — which is what takes the rail back to the folder tree and
+// the match marks off the rows with it.
 // The frame closure reads the model and token snapshots at frame time;
 // repaints on model change are driven by the routed layer's re-emission.
 func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
-	field := input.TextField(th, input.TextFieldProps{
+	field := input.SearchField(th, input.SearchFieldProps{
 		Placeholder: "Find a note…",
 		Description: "filter notes by name",
 		// The field stands on the rail's rounded pane, not on the window
@@ -494,7 +497,11 @@ func (v *treeView) hideControl(gtx layout.Context, tok themeTokens) layout.Dimen
 // rows lays out the row region below the find field.
 func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
 	rows := TreeRows(m.Index, m.Folds)
-	filtering := strings.TrimSpace(m.Filter) != ""
+	// The query is empty exactly while the rail shows the folder tree, and
+	// then nothing on a row is marked: a highlight lives as long as the
+	// search that caused it and no longer.
+	query := strings.TrimSpace(m.Filter)
+	filtering := query != ""
 	if filtering {
 		rows = MatchRows(m.Index, m.Filter)
 	}
@@ -558,6 +565,15 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 					}
 					paint.FillShape(gtx.Ops, fill, pill.Op(gtx.Ops))
 				}
+				// The highlighter is derived against what the row's words
+				// actually stand on — the pane where the row is bare, the
+				// pill where one is drawn under them — because a fill that
+				// separates from the pane can be invisible on the pill.
+				surface := tok.col.SurfaceAt(tokens.LevelChrome)
+				if fill.A > 0 {
+					surface = fill
+				}
+				hl := tok.col.HighlightOn(surface)
 				semantic.LabelOp(row.Name).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
 				layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -577,7 +593,8 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 						return layout.Dimensions{Size: image.Pt(gtx.Dp(treeDiscloseColDp), mark)}
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return drawLabel(gtx, tok.shaper, row.Name, tok.typ.BodyMedium, tok.col.Text)
+						return drawFound(gtx, tok.shaper, row.Name, tok.typ.BodyMedium,
+							tok.col.Text, hl, query)
 					}),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
@@ -586,13 +603,90 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 						if row.Detail == "" {
 							return layout.Dimensions{}
 						}
-						return drawLabel(gtx, tok.shaper, row.Detail, tok.typ.BodySmall, tok.col.Ramps.Neutral.Step(700))
+						return drawFound(gtx, tok.shaper, row.Detail, tok.typ.BodySmall,
+							tok.col.Ramps.Neutral.Step(700), hl, query)
 					}),
 					layout.Rigid(complayout.HSpacer(treeRowInsetDp+treeRowPadDp)),
 				)
 				return layout.Dimensions{Size: size}
 			})
 		})
+}
+
+// drawFound draws one of a row's words with the run the query matched marked
+// behind it, and draws them plainly when the query matched somewhere else or
+// is not there at all.
+//
+// The mark is a fill behind the characters rather than a colour on them: a
+// highlight is applied to content, and recolouring the words would make the
+// row's own text say something it does not. What the words are set in is
+// unchanged, which the highlighter's own derivation guarantees is still
+// readable over it.
+//
+// A query whose lowercase form is a different length than the text's is left
+// unmarked rather than marked in the wrong place: the offsets the search is
+// found at are the lowercase text's, and only a text that folds character for
+// character carries them back unchanged.
+func drawFound(gtx layout.Context, shaper *text.Shaper, msg string, style tokens.TextStyle, fg, hl color.NRGBA, query string) layout.Dimensions {
+	start, end, ok := foundRun(msg, query)
+	if !ok {
+		return drawLabel(gtx, shaper, msg, style, fg)
+	}
+	macro := op.Record(gtx.Ops)
+	dims := drawLabel(gtx, shaper, msg, style, fg)
+	call := macro.Stop()
+	x0, x1 := runWidth(gtx, shaper, style, msg[:start]), runWidth(gtx, shaper, style, msg[:end])
+	// The mark is the role's own line box tall, centred in whatever box the
+	// row gave the label — which is the row's full height, and taller. A
+	// mark cut to that box would run edge to edge and the marks on two
+	// neighbouring rows would meet in one unbroken stripe.
+	h := gtx.Sp(unit.Sp(style.LineHeight))
+	if h <= 0 || h > dims.Size.Y {
+		h = dims.Size.Y
+	}
+	y0 := (dims.Size.Y - h) / 2
+	if x1 > x0 {
+		paint.FillShape(gtx.Ops, hl, clip.Rect{
+			Min: image.Pt(x0, y0),
+			Max: image.Pt(x1, y0+h),
+		}.Op())
+	}
+	call.Add(gtx.Ops)
+	return dims
+}
+
+// foundRun reports the run of msg the query matched, in bytes, the way
+// MatchRows matches: the first case-insensitive occurrence.
+func foundRun(msg, query string) (start, end int, ok bool) {
+	if msg == "" || query == "" {
+		return 0, 0, false
+	}
+	lower := strings.ToLower(msg)
+	if len(lower) != len(msg) {
+		return 0, 0, false
+	}
+	i := strings.Index(lower, strings.ToLower(query))
+	if i < 0 {
+		return 0, 0, false
+	}
+	return i, i + len(query), true
+}
+
+// runWidth measures how wide a run of text is in the style the row draws it
+// in, by laying it out into ops that are thrown away. The measurement drops
+// the caller's constraints so a run wider than the rail still reports its
+// true width, and it is a hit in the shaper's cache: the same run is laid out
+// for real on the next line.
+func runWidth(gtx layout.Context, shaper *text.Shaper, style tokens.TextStyle, s string) int {
+	if s == "" {
+		return 0
+	}
+	m := gtx
+	m.Constraints = layout.Constraints{Max: image.Pt(1<<20, 1<<20)}
+	rec := op.Record(m.Ops)
+	dims := drawLabel(m, shaper, s, style, color.NRGBA{})
+	rec.Stop()
+	return dims.Size.X
 }
 
 // renderTree is the static counterpart of treeSidebar used by goldens: a
@@ -619,7 +713,7 @@ func renderTree(
 ) layout.Widget {
 	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return leading }}
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
-	fieldW := input.Render(shaper, "Find a note…", colors, sp, rad, typo.BodyLarge, den,
+	fieldW := input.RenderSearch(shaper, "Find a note…", colors, sp, rad, typo.BodyLarge, den,
 		input.RenderState{Text: m.Filter, Level: treeFieldLevel})
 	return func(gtx layout.Context) layout.Dimensions {
 		return v.layout(gtx, m, tok, fieldW)
