@@ -771,8 +771,8 @@ func IconButton(gtx layout.Context, click *widget.Clickable, size unit.Dp, draw 
 }
 
 // PanelGlyph draws the [|] sidebar-toggle icon with clip paths (the
-// patterns convention for chrome glyphs): a rounded outline with a divider
-// line a third of the way in.
+// patterns convention for chrome glyphs): a rounded outline with a seam
+// a third of the way in.
 func PanelGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
 	stroke := float32(gtx.Dp(unit.Dp(1.5)))
 	inset := gtx.Dp(unit.Dp(1))

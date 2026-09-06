@@ -471,7 +471,7 @@ func asideEmptyLine(gtx layout.Context, tok themeTokens, line string) layout.Dim
 func asideRule(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	h := max(gtx.Dp(unit.Dp(1)), 1)
 	w := gtx.Constraints.Min.X
-	paint.FillShape(gtx.Ops, tok.col.Divider, clip.Rect{Max: image.Pt(w, h)}.Op())
+	paint.FillShape(gtx.Ops, tok.col.Seam, clip.Rect{Max: image.Pt(w, h)}.Op())
 	return layout.Dimensions{Size: image.Pt(w, h)}
 }
 

@@ -147,7 +147,7 @@ func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeToken
 	// dark schemes the two fills are close and would otherwise bleed
 	// together.
 	hair := max(gtx.Dp(unit.Dp(1)), 1)
-	paint.FillShape(gtx.Ops, tok.col.Divider, clip.Rect{
+	paint.FillShape(gtx.Ops, tok.col.Seam, clip.Rect{
 		Min: image.Pt(size.X-hair, 0), Max: size,
 	}.Op())
 

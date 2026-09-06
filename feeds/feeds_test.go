@@ -169,7 +169,7 @@ func TestUpdateShareOpenClose(t *testing.T) {
 	}
 }
 
-// TestUpdateSetSplitRatio verifies the divider position lands in the model.
+// TestUpdateSetSplitRatio verifies the splitter position lands in the model.
 func TestUpdateSetSplitRatio(t *testing.T) {
 	m := initialModel()
 	if m.splitRatio != initialSplitRatio {

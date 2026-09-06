@@ -71,7 +71,7 @@ func FacePanel(p Palette, ty Type, m Model, faces *faceSelector) layout.Widget {
 			}
 			return layout.Dimensions{Size: size}
 		})
-		strokeRRect(gtx, panel, gtx.Dp(Radius), gtx.Dp(Hairline), p.Divider)
+		strokeRRect(gtx, panel, gtx.Dp(Radius), gtx.Dp(Hairline), p.Seam)
 		return layout.Dimensions{Size: size}
 	}
 }
@@ -85,7 +85,7 @@ func FaceRowWidget(gtx layout.Context, p Palette, ty Type, name string, chosen b
 	case chosen:
 		fillRRect(gtx, r, gtx.Dp(InnerR), p.Selection)
 	case click.Hovered():
-		fillRRect(gtx, r, gtx.Dp(InnerR), p.Divider)
+		fillRRect(gtx, r, gtx.Dp(InnerR), p.Seam)
 	}
 	pad := gtx.Dp(BasePad)
 	if chosen {

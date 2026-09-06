@@ -494,7 +494,7 @@ func TestThePropertiesSlabStandsOnThePage(t *testing.T) {
 					name string
 					col  color.NRGBA
 				}{
-					{"the separator's tint", tc.colors.Divider},
+					{"the separator's tint", tc.colors.Seam},
 					{"the chrome's floor", chromeSurface(tc.colors)},
 				} {
 					if banded(y, fill.col) {

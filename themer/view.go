@@ -585,7 +585,7 @@ func Thumbnail(p Palette, m Model, src paint.ImageOp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := image.Pt(gtx.Dp(ThumbW), gtx.Dp(HeadH))
 		r := image.Rectangle{Max: size}
-		fill, edge := p.Surface, p.Divider
+		fill, edge := p.Surface, p.Seam
 		if m.DragOver {
 			fill, edge = p.Selection, p.Accent
 		}
@@ -913,7 +913,7 @@ func Invitation(p Palette, ty Type, m Model) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		r := image.Rectangle{Max: size}
-		fill, edge, width := p.Surface, p.Divider, gtx.Dp(Hairline)
+		fill, edge, width := p.Surface, p.Seam, gtx.Dp(Hairline)
 		if m.DragOver {
 			fill, edge, width = p.Selection, p.Accent, gtx.Dp(Ring)
 		}

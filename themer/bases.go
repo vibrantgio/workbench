@@ -303,7 +303,7 @@ func BasePanel(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, sel
 			})
 			return layout.Dimensions{Size: size}
 		})
-		strokeRRect(gtx, panel, gtx.Dp(Radius), gtx.Dp(Hairline), p.Divider)
+		strokeRRect(gtx, panel, gtx.Dp(Radius), gtx.Dp(Hairline), p.Seam)
 		return layout.Dimensions{Size: size}
 	}
 }
@@ -323,7 +323,7 @@ func BaseRowWidget(gtx layout.Context, p Palette, ty Type, opt BaseOption, index
 		// A step off the panel it is drawn on rather than the panel's own
 		// fill: the rows sit on Surface, so a hover painted in Surface is a
 		// hover nobody can see.
-		fillRRect(gtx, r, gtx.Dp(InnerR), p.Divider)
+		fillRRect(gtx, r, gtx.Dp(InnerR), p.Seam)
 	}
 	pad := gtx.Dp(BasePad)
 	if chosen {

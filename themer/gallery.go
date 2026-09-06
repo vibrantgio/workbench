@@ -262,7 +262,7 @@ func Gallery(p Palette, c tokens.ColorTokens, ty Type, seed string, shell layout
 			defer clip.UniformRRect(panel, gtx.Dp(Radius)).Push(gtx.Ops).Pop()
 			gtx.Constraints = layout.Exact(panel.Max)
 			shell(gtx)
-			strokeRRect(gtx, panel, gtx.Dp(Radius), gtx.Dp(Hairline), p.Divider)
+			strokeRRect(gtx, panel, gtx.Dp(Radius), gtx.Dp(Hairline), p.Seam)
 		})
 		return layout.Dimensions{Size: size}
 	}

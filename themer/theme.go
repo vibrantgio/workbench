@@ -101,7 +101,7 @@ const edgeFloor = 3.0
 type Palette struct {
 	Backdrop  stdcolor.NRGBA // window background
 	Surface   stdcolor.NRGBA // the picture's mat and the candidate cards
-	Divider   stdcolor.NRGBA // the drop zone's outline at rest
+	Seam      stdcolor.NRGBA // the drop zone's outline at rest
 	CardEdge  stdcolor.NRGBA // a candidate card's outline at rest
 	Edge      stdcolor.NRGBA // the frame round a swatch, the heaviest edge in the window
 	Text      stdcolor.NRGBA // headings and the chosen candidate's label
@@ -140,10 +140,10 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		// object, and Edge is derived against this very fill so a near-white
 		// swatch on a white card still has one.
 		Surface: raisedOnPage(c),
-		Divider: c.Ramps.Neutral.Step(300),
+		Seam:    c.Ramps.Neutral.Step(300),
 		// A card's own edge, and not its fill alone, is what makes it an
 		// object where the swatches inside it are near-white. It is drawn a
-		// step stronger than the page's dividers for exactly that reason.
+		// step stronger than the page's seams for exactly that reason.
 		CardEdge: c.Ramps.Neutral.Step(400),
 		// The heaviest edge, and it is on swatches rather than on cards for
 		// one reason: a swatch can be any colour a style or a photograph

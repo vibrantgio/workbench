@@ -216,9 +216,9 @@ func feedsShellLayer(
 		}
 	}
 
-	// The articles/detail split. Divider drags land SetSplitRatio messages
+	// The articles/detail split. Splitter drags land SetSplitRatio messages
 	// through OnSplitChange, and the committed position flows back in via
-	// SplitRatio — the divider survives theme re-emissions and is replayable
+	// SplitRatio — the splitter survives theme re-emissions and is replayable
 	// like every other piece of model state.
 	splitObs := shell.Shell(th, shell.Props{
 		Layout:     shell.SplitPane,

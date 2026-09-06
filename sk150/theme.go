@@ -42,7 +42,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		Watt:          c.ForegroundOnAtFloor(tokens.RoleTertiary, surface, tokens.TextFloor),
 		Danger:        c.ForegroundOnAtFloor(tokens.RoleError, surface, tokens.TextFloor),
 		Panel:         c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill,
-		Hairline:      c.Divider,
+		Hairline:      c.Seam,
 		TipFill:       c.InverseSurface,
 		TipForeground: c.OnInverseSurface,
 	}

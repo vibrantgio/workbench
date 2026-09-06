@@ -267,7 +267,7 @@ func statusRoles() []struct {
 
 // TestABaseAndItsForegroundAreOneCell: the seven pinned roles, the page and its
 // text, and the inverse pair are each one cell — one swatch, the foreground
-// written on it — because each is one decision. Surface and Divider stand
+// written on it — because each is one decision. Surface and Seam stand
 // alone, the theme naming no foreground for either.
 func TestABaseAndItsForegroundAreOneCell(t *testing.T) {
 	for _, sc := range schemesUnderTest(t) {
@@ -295,7 +295,7 @@ func TestABaseAndItsForegroundAreOneCell(t *testing.T) {
 		// marks content rather than being a surface content is written on, and
 		// the theme names no foreground for it.
 		alone := map[string]bool{
-			palette.SurfacePick: true, palette.DividerPick: true,
+			palette.SurfacePick: true, palette.SeamPick: true,
 			palette.WhitePick: true, palette.BlackPick: true,
 			palette.HighlightPick: true,
 		}
@@ -344,7 +344,7 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 			palette.BackgroundPick: palette.PickContentPin,
 			palette.TextPick:       "Neutral 900",
 			palette.SurfacePick:    "Neutral 200",
-			palette.DividerPick:    "Neutral 300",
+			palette.SeamPick:       "Neutral 300",
 			palette.PrimaryName:    fmt.Sprintf(palette.PickSeedNear, palette.PrimaryName, 700),
 			palette.SecondaryName:  fmt.Sprintf(palette.PickJustOff, palette.SecondaryName, 700),
 			palette.TertiaryName:   fmt.Sprintf(palette.PickJustOff, palette.TertiaryName, 700),
@@ -357,7 +357,7 @@ func TestPickRulesNameWhereTheColourCameFrom(t *testing.T) {
 			palette.BackgroundPick: "Neutral 100",
 			palette.TextPick:       "Neutral 900",
 			palette.SurfacePick:    "Neutral 200",
-			palette.DividerPick:    "Neutral 300",
+			palette.SeamPick:       "Neutral 300",
 			palette.PrimaryName:    "Primary 700",
 			palette.SecondaryName:  "Secondary 700",
 			palette.TertiaryName:   "Tertiary 700",

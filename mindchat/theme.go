@@ -106,7 +106,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	hover.A = 128
 	return Palette{
 		Sidebar:   c.SurfaceAt(tokens.LevelChrome),
-		Separator: c.Divider,
+		Separator: c.Seam,
 		Heading:   c.Ramps.Neutral.Step(700),
 		Row:       c.Ramps.Neutral.Step(700),
 		RowActive: c.Ramps.Neutral.Step(900),

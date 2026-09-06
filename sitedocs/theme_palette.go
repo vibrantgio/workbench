@@ -53,7 +53,7 @@ const edgeFloor = 3.0
 type Palette struct {
 	Backdrop stdcolor.NRGBA
 	Surface  stdcolor.NRGBA
-	Divider  stdcolor.NRGBA
+	Seam     stdcolor.NRGBA
 	CardEdge stdcolor.NRGBA
 	Edge     stdcolor.NRGBA
 	Text     stdcolor.NRGBA
@@ -75,7 +75,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		// forbids. The walk answers #FFFFFF in the light scheme and #222222 in
 		// the dark.
 		Surface:  raisedOnPage(c),
-		Divider:  c.Ramps.Neutral.Step(300),
+		Seam:     c.Ramps.Neutral.Step(300),
 		CardEdge: c.Ramps.Neutral.Step(400),
 		// The heaviest edge, derived rather than named: the neutral step the
 		// ramp measures as reaching the graphic floor against Surface — the
@@ -103,7 +103,7 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 func (p Palette) story() palette.Chrome {
 	return palette.Chrome{
 		Surface: p.Surface,
-		Divider: p.Divider,
+		Seam:    p.Seam,
 		Text:    p.Text,
 		Muted:   p.Muted,
 	}

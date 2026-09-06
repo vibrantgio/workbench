@@ -485,7 +485,7 @@ back-to-front (background first). A typical app has a backdrop layer and a
 content layer built from a patterns/shell:
 
   - patterns/shell: application shells in four variants — SidebarHeaderMain,
-    SplitPane (draggable divider, either axis), ThreeColumn (resizable
+    SplitPane (draggable splitter, either axis), ThreeColumn (resizable
     aside), StackedPage (pinned navbar over a shell-owned section scroll,
     for marketing pages; sections are layout.Widget streams, ContentMaxWidth
     caps the column).
@@ -617,7 +617,7 @@ guaranteed readable over it. Background and Text are pins too.
 
 ### The semantic layer
 
-Background (the window's backdrop), Surface (card — neutral 200), Divider
+Background (the window's backdrop), Surface (card — neutral 200), Seam
 (subtle border — neutral 300), Text (body text over Background). Reach for
 these first; reach into the ramps when you need a specific step.
 
@@ -712,7 +712,7 @@ An accent change re-emits the theme just like a dark-mode flip.
 While the OS
 reports increased contrast, the Color observable emits a high-contrast
 variant derived from the resolved palette's own seed (deeper text steps,
-divider from the strong-border step, stronger On* separation — same APCA
+seam from the strong-border step, stronger On* separation — same APCA
 gates, higher floors); while it reports reduced motion, Motion emits zero
 durations (§Motion). Apps do nothing to get either.
 
@@ -926,7 +926,7 @@ so do not expect a light window's levels to stand far apart.
   - NOTHING RESTING TAKES A FLOATING LEVEL. Levels 2 and 3 belong to what
     appears and leaves — a dialog and a toast's base at 2, a popover and a
     dropdown at 3, all of which the patterns pass for you — and to edges:
-    Divider and the state walks. Permanence is the test and size is its
+    Seam and the state walks. Permanence is the test and size is its
     tell. If a fill is the biggest thing on screen and never goes away, it
     is the content or the chrome, whatever it is called.
   - A GROUP DIVIDES, A CARD SINGLES OUT. Which of the two a developer

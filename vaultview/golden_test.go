@@ -20,8 +20,8 @@ import (
 const (
 	// noteFrameW matches the runtime main-slot budget: the 1100 dp
 	// window less the sidebar column, which the content area butts
-	// straight against, the divider's grab area and the backlinks aside.
-	noteFrameW = 1100 - treeWidthDp - frameDividerDp - frameAsideDp
+	// straight against, the splitter's grab area and the backlinks aside.
+	noteFrameW = 1100 - treeWidthDp - frameSplitterDp - frameAsideDp
 	// noteFrameH is the golden viewport height. The document scrolls, so
 	// the goldens capture the top of the note — header row, properties
 	// panel, headings, prose with its wikilinks, list and code block.
@@ -571,13 +571,13 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 				t.Fatal("the outline drew no marked row to measure")
 			}
 			// The hairline is the row that runs two hundred dp of the
-			// divider's own colour — a length no glyph's antialiasing and no
+			// seam's own colour — a length no glyph's antialiasing and no
 			// other fill in the column can be mistaken for.
 			ruleLo, ruleHi := -1, -1
 			for y := top; y < bot && ruleLo < 0; y++ {
 				run := 0
 				for x := asideX; x < windowW; x++ {
-					if is(img.RGBAAt(x, y), tc.colors.Divider) {
+					if is(img.RGBAAt(x, y), tc.colors.Seam) {
 						if run == 0 {
 							ruleLo = x
 						}

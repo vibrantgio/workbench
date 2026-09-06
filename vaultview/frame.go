@@ -1,14 +1,14 @@
 // frame.go is the vault window's chrome and its column composition: the
 // sidebar pane down the leading edge, and beside it the content area —
 // one chrome row across its top, the note column and the backlinks aside
-// under it parted by a draggable divider, and one status bar across its
+// under it parted by a splitter, and one status bar across its
 // foot. What the foot band carries is in status.go.
 //
 // The composition is app-local rather than the vocabulary's three-column
 // shell because that shell pins its top slot to a full navbar band
 // (ControlHeight plus twice the vertical control padding, 52 dp at the
 // comfortable density) and this window's chrome is a single tight row.
-// Everything else here — a divider tracking an absolute aside width, the
+// Everything else here — a splitter tracking an absolute aside width, the
 // op order that makes Tab follow the reading order — is the shell's
 // arrangement.
 //
@@ -94,12 +94,12 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// Frame layout constants. The aside bounds and divider width follow the
+// Frame layout constants. The aside bounds and splitter width follow the
 // three-column shell's, so the two compositions resize alike.
 const (
 	frameEdgeDp     = 12
 	frameGapDp      = 16
-	frameDividerDp  = 6
+	frameSplitterDp = 6
 	frameAsideDp    = 320
 	frameMinAsideDp = 160
 	frameMaxAsideDp = 640
@@ -111,7 +111,7 @@ const (
 
 	// railMarginDp is the frame's small edge margin: the inset the sidebar
 	// pane floats off the window's leading, top and bottom edges, what the
-	// divider's hairline holds clear of the chrome row and the window's
+	// seam's hairline holds clear of the chrome row and the window's
 	// bottom edge, what the sidebar's own top strip keeps around its
 	// toggle, and the air the trailing column leaves either side of a
 	// pane's scrollbar — which is what stands that bar off the window's
@@ -121,7 +121,7 @@ const (
 	railMarginDp = pane.MarginDp
 
 	// seamDp is what any chrome boundary in this window paints: a hairline,
-	// the width the platform's own split dividers take. It is both the
+	// the width the platform's own splitters take. It is both the
 	// pane's internal outline and the flush column's seam, so that a window
 	// whose two vertical boundaries are drawn for different reasons still
 	// draws them at one weight. A seam runs the window's whole height, band
@@ -170,18 +170,18 @@ func toolbarHeight(tok themeTokens) unit.Dp {
 }
 
 // frameState is the vault frame's per-subscription state: the toolbar's
-// clickables and the aside divider's drag. It is touched only on the
+// clickables and the aside splitter's drag. It is touched only on the
 // frame goroutine.
 type frameState struct {
 	toggleClick widget.Clickable
 	vaultClick  widget.Clickable
 
-	dividerTag struct{}
-	asideW     unit.Dp
-	pressX     float32
-	startW     unit.Dp
-	dragging   bool
-	hovering   bool
+	splitterTag struct{}
+	asideW      unit.Dp
+	pressX      float32
+	startW      unit.Dp
+	dragging    bool
+	hovering    bool
 
 	// leading pins the row's leading inset instead of measuring it. The
 	// measurement is a live window's: off a frame it reports zero, and on
@@ -313,7 +313,7 @@ func frameGeometry(gtx layout.Context, size image.Point, barH, footH int, hidden
 
 // layout draws the sidebar pane, then the content area's chrome row and
 // the columns below it, in the order they read: rail, chrome row, note,
-// divider, aside — and last the status bar under all of them. That order
+// splitter, aside — and last the status bar under all of them. That order
 // is the focus ring's too, and the bar is last in it by holding nothing
 // the ring can stop on.
 func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as, main layout.Widget) layout.Dimensions {
@@ -352,24 +352,24 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		pane.Layout(gtx, tok.col, g.pane, sb)
 	}
 
-	f.processDividerDrag(gtx)
+	f.processSplitterDrag(gtx)
 
-	dividerW := gtx.Dp(unit.Dp(frameDividerDp))
-	if dividerW < 1 {
-		dividerW = 1
+	splitterW := gtx.Dp(unit.Dp(frameSplitterDp))
+	if splitterW < 1 {
+		splitterW = 1
 	}
 	asidePx := gtx.Dp(f.asideW)
-	if avail := size.X - g.contentX - dividerW; asidePx > avail {
+	if avail := size.X - g.contentX - splitterW; asidePx > avail {
 		asidePx = avail
 	}
 	if asidePx < 0 {
 		asidePx = 0
 	}
-	mainW := size.X - g.contentX - dividerW - asidePx
+	mainW := size.X - g.contentX - splitterW - asidePx
 	if mainW < 0 {
 		mainW = 0
 	}
-	asideX := g.contentX + mainW + dividerW
+	asideX := g.contentX + mainW + splitterW
 
 	// The trailing column's own surface, painted before the chrome row and
 	// running the window's full height: the outline and the backlinks are
@@ -417,12 +417,12 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		st.Pop()
 	}
 
-	// The divider's hit area is registered in frame-local coordinates —
+	// The splitter's hit area is registered in frame-local coordinates —
 	// no offset transform pushed — so drag deltas measure against a
-	// stable origin even as the divider itself moves.
-	dividerRect := image.Rect(g.contentX+mainW, g.rowTop, g.contentX+mainW+dividerW, g.rowTop+g.rowH)
-	area := clip.Rect(dividerRect).Push(gtx.Ops)
-	event.Op(gtx.Ops, &f.dividerTag)
+	// stable origin even as the splitter itself moves.
+	splitterRect := image.Rect(g.contentX+mainW, g.rowTop, g.contentX+mainW+splitterW, g.rowTop+g.rowH)
+	area := clip.Rect(splitterRect).Push(gtx.Ops)
+	event.Op(gtx.Ops, &f.splitterTag)
 	pointer.CursorColResize.Add(gtx.Ops)
 	area.Pop()
 
@@ -466,19 +466,19 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 // way to leave — so it is not outlined the way the rail is. What it takes
 // instead is the plain seam the platform gives its own flush side: Voice Memos
 // carries no outline there at all and parts its panes with a
-// one-pixel divider running from the window's top edge to its bottom, band
+// one-pixel seam running from the window's top edge to its bottom, band
 // included, and Notes does the same between its list and its note.
 //
-// The colour is Divider — the token whose job is the line between two regions
+// The colour is Seam — the token whose job is the line between two regions
 // — and not the pane's own seam colour. The two boundaries in this window are
 // two different things: an object's edge circles a pane at the platform's
-// measured whisper, and a region's seam is a divider between surfaces. One
+// measured whisper, and a region's seam is the line between two surfaces. One
 // weight, two colours.
 //
 // A line is drawn here at all because the step it divides is small: the
 // floor's dark step is a measured 1.47 L*, a whisper the eye can lose, and
 // the platform's answer at a whisper is a line — Voice Memos' two panes are
-// the SAME fill and the divider is the whole of what parts them.
+// the SAME fill and the seam is the whole of what parts them.
 //
 // Under the hand the seam itself thickens and takes a firmer colour, with the
 // resize cursor beside it. This boundary is the one the reader can move and
@@ -487,7 +487,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 // two states.
 func (f *frameState) paintAsideSeam(gtx layout.Context, tok themeTokens, x, height int) {
 	w := max(gtx.Dp(unit.Dp(seamDp)), 1)
-	seamColor := tok.col.Divider
+	seamColor := tok.col.Seam
 	if f.hovering || f.dragging {
 		w = max(gtx.Dp(unit.Dp(seamGrabbedDp)), w)
 		seamColor = tok.col.Ramps.Neutral.Step(500)
@@ -499,17 +499,17 @@ func (f *frameState) paintAsideSeam(gtx layout.Context, tok themeTokens, x, heig
 	paint.FillShape(gtx.Ops, seamColor, clip.Rect(seam).Op())
 }
 
-// processDividerDrag tracks the aside divider. The aside keeps an
+// processSplitterDrag tracks the aside splitter. The aside keeps an
 // absolute width, so a window resize leaves it alone and the note column
 // absorbs the change.
-func (f *frameState) processDividerDrag(gtx layout.Context) {
+func (f *frameState) processSplitterDrag(gtx layout.Context) {
 	scale := gtx.Metric.PxPerDp
 	if scale <= 0 {
 		scale = 1
 	}
 	for {
 		e, ok := gtx.Event(pointer.Filter{
-			Target: &f.dividerTag,
+			Target: &f.splitterTag,
 			Kinds:  pointer.Press | pointer.Drag | pointer.Release | pointer.Cancel | pointer.Enter | pointer.Leave,
 		})
 		if !ok {
@@ -526,7 +526,7 @@ func (f *frameState) processDividerDrag(gtx layout.Context) {
 			f.dragging = true
 		case pointer.Drag:
 			if f.dragging {
-				// The aside sits trailing of the divider, so dragging
+				// The aside sits trailing of the splitter, so dragging
 				// right shrinks it.
 				f.asideW = clampAside(f.startW - unit.Dp((pe.Position.X-f.pressX)/scale))
 			}

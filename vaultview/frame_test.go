@@ -609,7 +609,7 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 }
 
 // TestTheAsideKeepsAPlainSeam reads the trailing column's boundary off the
-// same window: one hairline of the divider's own colour, on the column's
+// same window: one hairline of the seam's own colour, on the column's
 // leading edge, running the window's full height — over the chrome row at
 // the top and the status bar at the foot, because the platform's split
 // seams are not interrupted by a band either.
@@ -630,9 +630,9 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 			floor := chromeSurface(tc.colors)
 
 			for y := 0; y < windowH; y++ {
-				if got := img.RGBAAt(asideX, y); !sameColor(got, tc.colors.Divider) {
-					t.Fatalf("the column's seam at y=%d draws %v, want the divider %v — the seam stops where a band crosses it",
-						y, got, tc.colors.Divider)
+				if got := img.RGBAAt(asideX, y); !sameColor(got, tc.colors.Seam) {
+					t.Fatalf("the column's seam at y=%d draws %v, want the seam %v — the seam stops where a band crosses it",
+						y, got, tc.colors.Seam)
 				}
 				if got := img.RGBAAt(windowW-1, y); !sameColor(got, floor) {
 					t.Fatalf("the column's trailing edge at y=%d draws %v, want its own floor %v — flush chrome wears no outline",

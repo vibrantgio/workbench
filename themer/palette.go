@@ -19,7 +19,7 @@
 // nobody sees: a seed does not become a window, it becomes a palette, and the
 // palette is what the window is drawn from. A person judging a seed by the page
 // alone can tell that something is wrong without being able to say what — the
-// dividers are too faint, the warning is too close to the error — because the
+// seams are too faint, the warning is too close to the error — because the
 // thing that decided both is not on screen anywhere.
 //
 // So it is put on screen, and in the order the derivation works in. The seed
@@ -61,7 +61,7 @@ import (
 func (p Palette) story() palette.Chrome {
 	return palette.Chrome{
 		Surface: p.Surface,
-		Divider: p.Divider,
+		Seam:    p.Seam,
 		Text:    p.Text,
 		Muted:   p.Muted,
 	}

@@ -12,7 +12,7 @@
 //   - SelectTab{Idx int}             — switch the detail pane's Reader/Raw/Comments tab
 //   - ToggleShare{}                  — toggle the navbar Share popover
 //   - CloseShare{}                   — close the Share popover (destination click, outside press)
-//   - SetSplitRatio{Ratio float32}   — record the articles/detail split-divider position
+//   - SetSplitRatio{Ratio float32}   — record the articles/detail splitter position
 //   - SetFilter{Text string}         — set the articles-table filter text (resets to page 1)
 //
 // Two of the messages are patterns', not this app's: notifications.Requested and
@@ -48,7 +48,7 @@ type Model struct {
 	selectedTab     int     // detail pane tab: 0 Reader, 1 Raw, 2 Comments
 	shareOpen       bool    // navbar Share popover visibility
 	filter          string  // articles-table filter text
-	splitRatio      float32 // articles/detail SplitPane divider position
+	splitRatio      float32 // articles/detail SplitPane splitter position
 	addFeedOpen     bool    // "Add feed" modal visibility
 	addFeedError    bool    // empty-URL submit raised the modal alert
 
@@ -134,10 +134,10 @@ type ToggleShare struct{}
 // popover is already closed.
 type CloseShare struct{}
 
-// SetSplitRatio records the articles/detail SplitPane divider position as a
+// SetSplitRatio records the articles/detail SplitPane splitter position as a
 // fraction in [0, 1]. Emitted by shell.Props.OnSplitChange during drags so
 // the position survives theme re-emissions (which would otherwise snap the
-// divider back to the constant fed into Props.SplitRatio).
+// splitter back to the constant fed into Props.SplitRatio).
 type SetSplitRatio struct{ Ratio float32 }
 
 // OpenAddFeed shows the "Add feed" modal. It clears any stale alert flag so

@@ -129,7 +129,7 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 				got, want color.NRGBA
 			}{
 				{"Sidebar", p.Sidebar, c.SurfaceAt(tokens.LevelChrome)},
-				{"Separator", p.Separator, c.Divider},
+				{"Separator", p.Separator, c.Seam},
 				{"Heading", p.Heading, c.Ramps.Neutral.Step(700)},
 				{"Row", p.Row, c.Ramps.Neutral.Step(700)},
 				{"RowActive", p.RowActive, c.Ramps.Neutral.Step(900)},
