@@ -24,10 +24,10 @@ The design system is layered — each layer only depends on the ones below it:
 
 | Layer | Module | Role |
 |---|---|---|
-| Patterns | [`patterns`](https://github.com/vibrantgio/patterns) | Prebuilt application patterns: shells, tables, modals, popovers, tabs, toasts, navbars, sidebars, pagination, marketing sections |
+| Patterns | [`patterns`](https://github.com/vibrantgio/patterns) | Prebuilt application patterns: shells, tables, modals, popovers, tabs, notifications, navbars, sidebars, pagination, marketing sections |
 | Effects | [`effects`](https://github.com/vibrantgio/effects) | Motion & vibrancy: tweens, spring physics, glow, depth, a shared animation conductor |
 | Theme runtime | [`theme`](https://github.com/vibrantgio/theme) | Reactive theming: live OS dark-mode/accent tracking, preference persistence, animated theme transitions, window integration |
-| Foundation | [`components`](https://github.com/vibrantgio/components) | Component catalogue: buttons, inputs, lists, icons, layout, focus/a11y, tokens, theme contract, keyed identity, coordination |
+| Foundation | [`components`](https://github.com/vibrantgio/components) | Component catalogue: buttons, inputs, lists, icons, toasts, layout, focus/a11y, tokens, theme contract, keyed identity, coordination |
 | Runtime | [`mvu`](https://github.com/vibrantgio/mvu) | Model-View-Update runtime for Gio: `NewWindow`, `MessageOp` component protocol, commands |
 
 Supporting libraries: [`seen`](https://github.com/vibrantgio/seen) (3D scenes

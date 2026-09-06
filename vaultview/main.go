@@ -34,8 +34,8 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/breadcrumb"
+	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/pane"
-	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/theme/brand"
 	vgcolor "github.com/vibrantgio/theme/color"
 	specsystem "github.com/vibrantgio/theme/system"
@@ -211,12 +211,12 @@ func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens, typo
 		modelCell.Store(Model{})
 		loadModel := func() Model { return modelCell.Load().(Model) }
 
-		toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.Toasts.Items() })
+		notesObs := rx.Map(modelObs, func(m Model) []notifications.Notification { return m.Notifications.Items() })
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
 			routedLayer(th, modelObs, &modelCell, loadModel, loadTok),
 			underChrome(chooserLayer(th, modelObs, loadModel, loadTok)),
-			underChrome(toast.Stack(th, toast.Props{Position: toast.BottomCenter, Toasts: toastsObs})),
+			underChrome(notifications.Column(th, notifications.Props{Position: notifications.BottomCenter, Notifications: notesObs})),
 		}
 	}
 }

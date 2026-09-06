@@ -97,8 +97,8 @@ func TestToggleTaskWritesTheMarker(t *testing.T) {
 			if next.NavSeq != seq {
 				t.Errorf("NavSeq %d → %d; a toggle must not re-seat at the landing anchor", seq, next.NavSeq)
 			}
-			if next.Toasts.Len() != 0 {
-				t.Errorf("successful toggle queued %d toasts", next.Toasts.Len())
+			if next.Notifications.Len() != 0 {
+				t.Errorf("successful toggle queued %d toasts", next.Notifications.Len())
 			}
 			fresh := collectTasks(next.Notes["t.md"].Blocks)
 			if tc.pick >= len(fresh) {
@@ -154,10 +154,10 @@ func TestToggleTaskRefusesStaleFile(t *testing.T) {
 	if next.Notes["t.md"] == held {
 		t.Error("stale reload mutated the cached *Note in place")
 	}
-	if next.Toasts.Len() != 1 {
-		t.Fatalf("toast queue length %d, want 1", next.Toasts.Len())
+	if next.Notifications.Len() != 1 {
+		t.Fatalf("toast queue length %d, want 1", next.Notifications.Len())
 	}
-	if got := next.Toasts.Items()[0].Text; got != taskChangedOnDisk {
+	if got := next.Notifications.Items()[0].Text; got != taskChangedOnDisk {
 		t.Errorf("toast = %q, want %q", got, taskChangedOnDisk)
 	}
 	if p := firstParagraph(next.Notes["t.md"]); p != "edited elsewhere" {

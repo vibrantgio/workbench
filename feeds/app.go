@@ -22,15 +22,16 @@ import (
 	"github.com/vibrantgio/components/alert"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/navbar"
+	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/table"
-	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/patterns/tooltip"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -68,7 +69,7 @@ import (
 // 12. prefsOpenObs       → Preferences panel Open prop                    (1)
 // 13. rowsPerPageObs     → paged + pageCountObs + the panel's buttons     (3)
 // 14. unreadOnlyObs      → filtered×2 + the panel's buttons               (3)
-// 15. toastsObs          → toast.Stack Toasts prop                        (1)
+// 15. notesObs           → notifications.Column Notifications prop       (1)
 // 16. filterObs          → filtered, subscribed by paged + pageCountObs   (2)
 //
 // Total = 28, confirmed empirically by TestModelObsConsumerCountMatchesConst,
@@ -184,7 +185,7 @@ func feedsShellLayer(
 	prefsOpenObs := rx.Map(modelObs, func(m Model) bool { return m.prefsOpen })
 	rowsPerPageObs := rx.Map(modelObs, func(m Model) int { return m.rowsPerPage })
 	unreadOnlyObs := rx.Map(modelObs, func(m Model) bool { return m.unreadOnly })
-	toastsObs := rx.Map(modelObs, func(m Model) []toast.Toast { return m.toasts.Items() })
+	notesObs := rx.Map(modelObs, func(m Model) []notifications.Notification { return m.notes.Items() })
 	filterObs := rx.Map(modelObs, func(m Model) string { return m.filter })
 
 	articlesObs := articlesMain(th, selectedFeedObs, selectedArticleObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, filterObs, tipArb)
@@ -192,7 +193,7 @@ func feedsShellLayer(
 	shareObs := sharePopover(th, shareOpenObs, popArb)
 	modalObs := addFeedModal(th, addFeedOpenObs, addFeedErrorObs, modalArb)
 	prefsObs := preferencesPanel(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs, modalArb)
-	toastObs := toast.Stack(th, toast.Props{Position: toast.TopRight, Toasts: toastsObs})
+	notesColumnObs := notifications.Column(th, notifications.Props{Position: notifications.TopRight, Notifications: notesObs})
 
 	// The settings accelerator — ⌘, on macOS, Ctrl-, elsewhere. It is app
 	// chrome, laid out under everything else: the modal owns dismissal, the
@@ -268,7 +269,7 @@ func feedsShellLayer(
 	// content, and an open modal's own scrim should shadow it the way it
 	// shadows the rest of the app.
 	return rx.Map(
-		rx.CombineLatest5(shellObs, modalObs, prefsObs, toastObs, densityObs),
+		rx.CombineLatest5(shellObs, modalObs, prefsObs, notesColumnObs, densityObs),
 		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, tokens.Density]) layout.Widget {
 			shellW, modalW, prefsW, toastW := n.First, n.Second, n.Third, n.Fourth
 			band := windowBandDp(n.Fifth)
@@ -499,7 +500,7 @@ func addFeedModal(
 				// the same ops queue as SubmitFeed below: the reducer queues
 				// it and owns the append/close. Empty submit raises no toast —
 				// the reducer raises the modal alert instead.
-				toast.Notify(gtx, toast.Success, "Feed added")
+				notifications.Notify(gtx, toast.Success, "Feed added")
 			}
 			mvu.MessageOp{Message: SubmitFeed{URL: url}}.Add(gtx.Ops)
 		},

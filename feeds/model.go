@@ -15,16 +15,16 @@
 //   - SetSplitRatio{Ratio float32}   — record the articles/detail split-divider position
 //   - SetFilter{Text string}         — set the articles-table filter text (resets to page 1)
 //
-// Two of the messages are patterns', not this app's: toast.Requested and
-// toast.Expired. A toast request is an ordinary event that becomes an ordinary
-// message — landed by toast.Notify(gtx, …) from the same callbacks that
+// Two of the messages are patterns', not this app's: notifications.Requested and
+// notifications.Expired. A toast request is an ordinary event that becomes an ordinary
+// message — landed by notifications.Notify(gtx, …) from the same callbacks that
 // already land this app's own messages — and the toast queue is model state
 // like everything else here.
 //
 // Update is pure: it takes the current Model and a message and returns the
-// next Model. The Command is DoNothing() everywhere except toast.Requested,
-// which returns toast.Expire — the timer that brings the toast's removal back
-// through Update as toast.Expired. That is the app's only Command; feeds has
+// next Model. The Command is DoNothing() everywhere except notifications.Requested,
+// which returns notifications.Expire — the timer that brings the toast's removal back
+// through Update as notifications.Expired. That is the app's only Command; feeds has
 // no async side-effects of its own yet.
 
 package main
@@ -33,8 +33,8 @@ import (
 	"strings"
 
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/table"
-	"github.com/vibrantgio/patterns/toast"
 )
 
 // Model is the complete runtime state of the feeds app.
@@ -60,10 +60,10 @@ type Model struct {
 	rowsPerPage int  // articles table page size
 	unreadOnly  bool // restrict the table to unread articles
 
-	// toasts is the transient-notification queue, oldest first. It is model
+	// notes is the notification queue, oldest first. It is model
 	// state so a toast is reproducible from a message log and assertable
 	// through Update without a frame.
-	toasts toast.Queue
+	notes notifications.Queue
 }
 
 // initialSplitRatio gives the articles table ~3/5 of the main area so the
@@ -186,17 +186,17 @@ type ToggleUnreadOnly struct{}
 // Command.
 func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 	switch m := msg.(type) {
-	case toast.Requested:
+	case notifications.Requested:
 		// The toast joins the model now and leaves it later, by message: the
-		// command is a cancellable timer that emits toast.Expired when the
+		// command is a cancellable timer that emits notifications.Expired when the
 		// toast's own Lifetime has run. Read the lifetime off the queued
 		// toast rather than re-deriving it, so the timer and the fade the
 		// stack paints cannot disagree.
-		queue, t := model.toasts.Add(m)
-		model.toasts = queue
-		return model, toast.Expire(t.ID, t.Lifetime)
-	case toast.Expired:
-		model.toasts = model.toasts.Remove(m.ID)
+		queue, t := model.notes.Add(m)
+		model.notes = queue
+		return model, notifications.Expire(t.ID, t.Lifetime)
+	case notifications.Expired:
+		model.notes = model.notes.Remove(m.ID)
 	case SelectFeed:
 		model.selectedFeed = m.Feed
 		model.currentPage = 1 // new feed: reset to the first page.

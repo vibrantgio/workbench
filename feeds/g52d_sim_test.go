@@ -31,9 +31,10 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/modal"
-	"github.com/vibrantgio/patterns/toast"
+	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -319,15 +320,15 @@ func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
 
 // TestToastRequestRendersInStack drives the toast the way every other feature
 // in this app is driven — through Update — and asserts the pixels at the end
-// of it. toast.Requested is a message like any other, the queue is model
-// state, and toast.Stack renders what the model holds; toast.Expired takes it
+// of it. notifications.Requested is a message like any other, the queue is model
+// state, and notifications.Column renders what the model holds; notifications.Expired takes it
 // back off and the frame returns to empty.
 func TestToastRequestRendersInStack(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 16)
-	stackObs := toast.Stack(rx.Of(theme.Default()), toast.Props{
-		Position: toast.TopRight,
-		Toasts:   rx.Map(modelObs, func(m Model) []toast.Toast { return m.toasts.Items() }),
-		Shaper:   tokens.DefaultTypography.DeterministicShaper(),
+	stackObs := notifications.Column(rx.Of(theme.Default()), notifications.Props{
+		Position:      notifications.TopRight,
+		Notifications: rx.Map(modelObs, func(m Model) []notifications.Notification { return m.notes.Items() }),
+		Shaper:        tokens.DefaultTypography.DeterministicShaper(),
 	})
 
 	emissions := make(chan layout.Widget, 16)
@@ -352,25 +353,25 @@ func TestToastRequestRendersInStack(t *testing.T) {
 	send.Next(m)
 	before := snap("seeded empty stack")
 
-	// The exact message the Add-feed submit callback lands via toast.Notify.
-	m, _ = Update(m, toast.Requested{Level: toast.Success, Text: "Feed added", At: time.Now()})
-	if m.toasts.Len() != 1 {
-		t.Fatalf("model queue length = %d after toast.Requested; want 1", m.toasts.Len())
+	// The exact message the Add-feed submit callback lands via notifications.Notify.
+	m, _ = Update(m, notifications.Requested{Role: toast.Success, Text: "Feed added", At: time.Now()})
+	if m.notes.Len() != 1 {
+		t.Fatalf("model queue length = %d after notifications.Requested; want 1", m.notes.Len())
 	}
 	send.Next(m)
-	got := snap("toast.Requested")
+	got := snap("notifications.Requested")
 	if n := golden.PixelDiff(before, got); n <= 0 {
-		t.Errorf("stack frame unchanged after toast.Requested (diff=%d); toast did not render", n)
+		t.Errorf("stack frame unchanged after notifications.Requested (diff=%d); toast did not render", n)
 	}
 
 	// And the expiry is a message too, so the toast leaves through Update.
-	m, _ = Update(m, toast.Expired{ID: m.toasts.Items()[0].ID})
-	if m.toasts.Len() != 0 {
-		t.Fatalf("model queue length = %d after toast.Expired; want 0", m.toasts.Len())
+	m, _ = Update(m, notifications.Expired{ID: m.notes.Items()[0].ID})
+	if m.notes.Len() != 0 {
+		t.Fatalf("model queue length = %d after notifications.Expired; want 0", m.notes.Len())
 	}
 	send.Next(m)
-	after := snap("toast.Expired")
+	after := snap("notifications.Expired")
 	if n := golden.PixelDiff(before, after); n != 0 {
-		t.Errorf("stack frame differs from empty after toast.Expired (diff=%d); toast did not leave", n)
+		t.Errorf("stack frame differs from empty after notifications.Expired (diff=%d); toast did not leave", n)
 	}
 }

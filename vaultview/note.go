@@ -40,12 +40,13 @@ import (
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
+	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/markdown/obsidian"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/breadcrumb"
-	"github.com/vibrantgio/patterns/toast"
+	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/theme/brand"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -270,7 +271,7 @@ type docEntry struct {
 // lifetime, faded over the trailing slice a toast tweens its alpha over,
 // which is the motion scale's DurSlow stop (MD3 medium4, 400 ms).
 var (
-	arrivalLife = toast.DefaultLifetime
+	arrivalLife = notifications.DefaultLifetime
 	arrivalFade = tokens.Motion.DurSlow
 )
 
@@ -782,7 +783,7 @@ func linkClicked(gtx layout.Context, m Model, url string) {
 				mvu.MessageOp{Message: OpenChooser{Body: body, Candidates: rerr.Candidates}}.Add(gtx.Ops)
 				return
 			}
-			toast.Notify(gtx, toast.Warning, rerr.Reason)
+			notifications.Notify(gtx, toast.Warning, rerr.Reason)
 			return
 		}
 		mvu.MessageOp{Message: Navigate{Path: res.Path, Headings: res.Headings, BlockID: res.BlockID}}.Add(gtx.Ops)

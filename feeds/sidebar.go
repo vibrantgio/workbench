@@ -18,10 +18,11 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/keyed"
+	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/accordion"
+	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/popover"
-	"github.com/vibrantgio/patterns/toast"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -450,7 +451,7 @@ func newDeleteConfirm(
 	content := func(gtx layout.Context) layout.Dimensions {
 		s := loadTok()
 		if confirmClick.Clicked(gtx) {
-			toast.Notify(gtx, toast.Success, "Feed deleted")
+			notifications.Notify(gtx, toast.Success, "Feed deleted")
 			mvu.MessageOp{Message: ConfirmDelete{Feed: dc.id}}.Add(gtx.Ops)
 			dc.close()
 		}

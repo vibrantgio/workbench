@@ -21,10 +21,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/obsidian"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/toast"
+	"github.com/vibrantgio/patterns/notifications"
 )
 
 // screen selects which top-level surface the window shows.
@@ -92,8 +93,8 @@ type Model struct {
 	// runs.
 	SidebarHidden bool
 
-	PropsOpen bool        // the properties panel is expanded
-	Toasts    toast.Queue // transient notifications, oldest first
+	PropsOpen     bool                // the properties panel is expanded
+	Notifications notifications.Queue // transient notifications, oldest first
 
 	// Chooser state: an ambiguous wikilink's raw body and the candidate
 	// paths the resolver refused to pick between. The chooser modal is
@@ -367,7 +368,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			break // a load for a vault no longer open
 		}
 		if m.err != "" {
-			return raiseToast(model, toast.Request(toast.Error, m.err))
+			return raiseNotification(model, notifications.Request(toast.Error, m.err))
 		}
 		model = cacheNote(model, m.note)
 		return landOn(model, m.nav, m.note), mvu.DoNothing()
@@ -427,7 +428,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			model = cacheNote(model, m.note)
 		}
 		if m.err != "" {
-			return raiseToast(model, toast.Request(toast.Warning, m.err))
+			return raiseNotification(model, notifications.Request(toast.Warning, m.err))
 		}
 	case Rescan:
 		if model.Vault == "" || model.Scanning {
@@ -441,7 +442,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		}
 		model.Scanning = false
 		if m.err != "" {
-			return raiseToast(model, toast.Request(toast.Warning, m.err))
+			return raiseNotification(model, notifications.Request(toast.Warning, m.err))
 		}
 		model.Index = m.index
 		model.ScanErr = ""
@@ -461,7 +462,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 				model = revealCurrent(model)
 			}
 		}
-		return raiseToast(model, toast.Request(toast.Info, rescanSummary(m.index)))
+		return raiseNotification(model, notifications.Request(toast.Info, rescanSummary(m.index)))
 	case SetFilter:
 		model.Filter = m.Text
 	case RevealFolder:
@@ -479,20 +480,20 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		}
 		folds[m.Dir] = !folds[m.Dir]
 		model.Folds = folds
-	case toast.Requested:
-		return raiseToast(model, m)
-	case toast.Expired:
-		model.Toasts = model.Toasts.Remove(m.ID)
+	case notifications.Requested:
+		return raiseNotification(model, m)
+	case notifications.Expired:
+		model.Notifications = model.Notifications.Remove(m.ID)
 	}
 	return model, mvu.DoNothing()
 }
 
-// raiseToast queues a toast request and returns the expiry timer that
+// raiseNotification queues a toast request and returns the expiry timer that
 // will bring its removal back through Update.
-func raiseToast(model Model, r toast.Requested) (Model, mvu.Command) {
-	q, t := model.Toasts.Add(r)
-	model.Toasts = q
-	return model, toast.Expire(t.ID, t.Lifetime)
+func raiseNotification(model Model, r notifications.Requested) (Model, mvu.Command) {
+	q, t := model.Notifications.Add(r)
+	model.Notifications = q
+	return model, notifications.Expire(t.ID, t.Lifetime)
 }
 
 // cacheNote returns the model with the note added to the cache. The map

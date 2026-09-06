@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/markdown"
-	"github.com/vibrantgio/patterns/toast"
+	"github.com/vibrantgio/patterns/notifications"
 )
 
 // TestLoadNoteWiresWikilinksAndAnchors covers the render-path wiring: a
@@ -185,23 +186,23 @@ func TestNoteLoadErrorRaisesToast(t *testing.T) {
 	if model.Current != "x.md" || len(model.History) != 1 {
 		t.Error("a failed load must not navigate")
 	}
-	if model.Toasts.Len() != 1 {
-		t.Fatalf("toast queue length %d, want 1", model.Toasts.Len())
+	if model.Notifications.Len() != 1 {
+		t.Fatalf("toast queue length %d, want 1", model.Notifications.Len())
 	}
-	id := model.Toasts.Items()[0].ID
-	model, _ = Update(model, toast.Expired{ID: id})
-	if model.Toasts.Len() != 0 {
+	id := model.Notifications.Items()[0].ID
+	model, _ = Update(model, notifications.Expired{ID: id})
+	if model.Notifications.Len() != 0 {
 		t.Error("Expired did not retire the toast")
 	}
 }
 
 // TestToastRequestedQueues: a toast request lands in the model's queue —
-// the path a refused resolution's toast.Notify takes through Update.
+// the path a refused resolution's notifications.Notify takes through Update.
 func TestToastRequestedQueues(t *testing.T) {
 	model := scannedModel(t)
-	model, _ = Update(model, toast.Request(toast.Warning, `no note "nope" in this vault`))
-	if model.Toasts.Len() != 1 {
-		t.Fatalf("toast queue length %d, want 1", model.Toasts.Len())
+	model, _ = Update(model, notifications.Request(toast.Warning, `no note "nope" in this vault`))
+	if model.Notifications.Len() != 1 {
+		t.Fatalf("toast queue length %d, want 1", model.Notifications.Len())
 	}
 }
 
@@ -495,8 +496,8 @@ func TestRescanRefreshesIndexKeepingPlace(t *testing.T) {
 	if got := firstParagraph(model.CurrentNote()); got != "second revision" {
 		t.Errorf("the note on screen reads %q, want the rescan's fresh read", got)
 	}
-	if model.Toasts.Len() != 1 {
-		t.Errorf("toast queue length %d, want the rescan to report itself", model.Toasts.Len())
+	if model.Notifications.Len() != 1 {
+		t.Errorf("toast queue length %d, want the rescan to report itself", model.Notifications.Len())
 	}
 
 	// A second rescan with nothing changed keeps the cached note, so the

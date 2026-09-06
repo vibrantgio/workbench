@@ -93,6 +93,9 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      list, paragraph, scrollbar,
                      scrollarea (a horizontal viewport for content that must
                      not be reflowed — a code fence, an over-wide diagram),
+                     toast (the status signal for an event — a small
+                     inverse-filled surface floating at level 2, its status
+                     role in the leading edge, drawn without a queue),
                      icon, icons (the design system's own marks), layout,
                      keyed, initial, cache, bench (coordination
                      is DEPRECATED — use mvu/stream.Value)
@@ -103,7 +106,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
 
   patterns  v1.2.1   patterns: shell, navbar, sidebar, pane, table,
                      pagination, tabs, modal, popover, tooltip,
-                     toast, card, group, accordion, breadcrumb, hero,
+                     notifications, card, group, accordion, breadcrumb, hero,
                      feature, pricing, testimonial
   markdown  v0.7.2   GFM document rendering on library components (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
@@ -151,9 +154,9 @@ older answer, they are gone, not deprecated:
   - every cross-component coordination bus cadence used to export:
     popover.Arbitration, popover.ArbitrationSnapshot, tooltip.Arbitration,
     tooltip.ArbitrationSnapshot, modal.Stack, modal.StackSnapshot and
-    toast.Notifications. toast.Notify still exists but takes a
-    layout.Context first — the compile error names the fix. See
-    §Coordination.
+    toast.Notifications. The raise-by-message call still exists as
+    notifications.Notify and takes a layout.Context first — the compile
+    error names the fix. See §Coordination.
 
 ### Renamed
 
@@ -163,6 +166,8 @@ If you find these in older code, require the new path:
   - github.com/vibrantgio/prism → components
   - github.com/vibrantgio/pulse → effects
   - github.com/vibrantgio/cadence → patterns
+  - patterns/toast → the column is patterns/notifications, the single toast
+    it presents is components/toast
 
 ## Nested modules
 
@@ -442,13 +447,16 @@ scope:
     the frame owns opens the popover on the frame it flips. Props.Open (an
     observable) is still right when the flag lives in the model — a non-nil
     OpenNow wins.
-  - Toasts are model state: `toast.Requested{Level,Text}` /
-    `toast.Expired{ID}` are messages, `toast.Queue` is the field you reduce
-    onto, `toast.Expire(id, lifetime)` is the command that arms expiry, and
-    `toast.Stack` takes them through `Props.Toasts`. Raise one with
-    `toast.Notify(gtx, level, text)` inside a callback, or `toast.Request`
-    where there is no frame. A Stack handed no Toasts renders an empty
-    column forever and nothing fails at build time.
+  - Notifications are model state: `notifications.Requested{Role,Text}` /
+    `notifications.Expired{ID}` are messages, `notifications.Queue` is the
+    field you reduce onto, `notifications.Expire(id, lifetime)` is the
+    command that arms expiry, and `notifications.Column` takes them through
+    `Props.Notifications`. Raise one with
+    `notifications.Notify(gtx, toast.Info, text)` inside a callback, or
+    `notifications.Request` where there is no frame — the status role is
+    components/toast's, because the toast is what speaks it. A Column handed
+    no Notifications renders an empty column forever and nothing fails at
+    build time.
 
 ### Two smells, one of which no tool will find for you
 
@@ -477,9 +485,12 @@ content layer built from a patterns/shell:
   - Content composes patterns/table (sortable/filterable/virtualised),
     patterns/tabs, patterns/card, patterns/group, patterns/pagination, ...
   - Overlays: patterns/modal (focus trap, escape), patterns/popover (anchored),
-    patterns/tooltip (hover/focus), patterns/toast (transient stack).
+    patterns/tooltip (hover/focus), patterns/notifications (the column of
+    toasts).
   - Signals in the page flow: components/alert (the banner a situation
-    stands behind until it resolves).
+    stands behind until it resolves). components/toast is the third status
+    signal — the one that floats and leaves by itself — and it is raised by
+    message through patterns/notifications, never drawn in place.
 
 A CHIP IS DEFINED BY ITS PURPOSE, never by its looks: components/chip is the
 small control content sprouts, and Props.Purpose names which of the four it is.
