@@ -12,7 +12,7 @@ import (
 	"gioui.org/text"
 	"gioui.org/unit"
 
-	"github.com/vibrantgio/patterns/breadcrumb"
+	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/theme/tokens"
 )
 

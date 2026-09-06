@@ -36,6 +36,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/icons"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
@@ -45,7 +46,6 @@ import (
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/markdown/obsidian"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/theme/brand"
 	"github.com/vibrantgio/theme/theme"

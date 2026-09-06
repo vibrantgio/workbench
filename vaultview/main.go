@@ -30,10 +30,10 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/theme/brand"

@@ -100,6 +100,10 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      another signal on demand — a small inverse-filled
                      annotation placed at level 3 beside its trigger, text
                      only, one visible at a time per arbiter),
+                     breadcrumb (going back up the hierarchy — each step a
+                     link, the last where you are; Trail routes clicks by
+                     the segment's own key), pagination (moving between
+                     numbered pages of content),
                      icon, icons (the design system's own marks), layout,
                      keyed, initial, cache, bench (coordination
                      is DEPRECATED — use mvu/stream.Value)
@@ -109,8 +113,8 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      transition, tween, conductor
 
   patterns  v1.2.1   patterns: shell, navbar, sidebar, pane, table,
-                     pagination, tabs, modal, popover,
-                     notifications, card, group, accordion, breadcrumb, hero,
+                     tabs, modal, popover,
+                     notifications, card, group, accordion, hero,
                      feature, pricing, testimonial
   markdown  v0.7.2   GFM document rendering on library components (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
@@ -487,7 +491,7 @@ content layer built from a patterns/shell:
     caps the column).
   - patterns/navbar + patterns/sidebar fill the shell's slots.
   - Content composes patterns/table (sortable/filterable/virtualised),
-    patterns/tabs, patterns/card, patterns/group, patterns/pagination, ...
+    patterns/tabs, patterns/card, patterns/group, components/pagination, ...
   - Overlays: patterns/modal (focus trap, escape), patterns/popover (anchored),
     patterns/notifications (the column of toasts).
   - Signals in the page flow: components/alert (the banner a situation

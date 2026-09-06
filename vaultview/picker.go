@@ -28,12 +28,12 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/button"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/breadcrumb"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )

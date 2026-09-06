@@ -16,9 +16,9 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
-	"github.com/vibrantgio/patterns/breadcrumb"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
