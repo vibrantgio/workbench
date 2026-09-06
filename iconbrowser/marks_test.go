@@ -3,7 +3,7 @@ package main
 // What the marks section shows, read off the pixels of one cell.
 //
 // The cell is captured on its own rather than out of the whole-window frame:
-// MarkGrid is handed an exact CellW × MarkCellH canvas, so the one cell in it
+// MarkGrid is handed an exact CellW × MarkCellH frame, so the one cell in it
 // is the frame and every square's position is arithmetic on the layout
 // constants rather than a hunt through 700 rows for a band.
 
@@ -22,14 +22,14 @@ import (
 )
 
 // markThemed is the snapshot MarkGrid needs, and no more: the palette and the
-// pinned typography. The prebuilt Material widgets staticThemed carries are the
+// pinned typography. The prebuilt Material icons staticThemed carries are the
 // catalogue grid's, and the marks section draws none of them — it paints
 // through the icons package.
 func markThemed(c tokens.ColorTokens) themed {
 	return themed{palette: PaletteFrom(c), typ: staticTypo(tokens.DefaultTypography)}
 }
 
-// markCellFrame renders one mark's cell alone, on the window's own ground so
+// markCellFrame renders one mark's cell alone, on the window's own fill so
 // that what is not the mark can be told from what is.
 func markCellFrame(t *testing.T, c tokens.ColorTokens, name marks.Name) *image.RGBA {
 	t.Helper()
@@ -88,10 +88,10 @@ func sizesPx() []int {
 	return px
 }
 
-// inkMask reads r as a grid of ink-or-ground decisions, row-major. A pixel
-// counts as ink when it has travelled more than half the way from the ground to
-// the glyph colour, which is what puts an anti-aliased edge on one side or the
-// other without a per-scheme threshold.
+// inkMask reads r as a grid of glyph-or-fill decisions, row-major. A pixel
+// counts as glyph when it has travelled more than half the way from the fill
+// to the glyph colour, which is what puts an anti-aliased edge on one side or
+// the other without a per-scheme threshold.
 func inkMask(img *image.RGBA, r image.Rectangle, ground, ink color.NRGBA) []bool {
 	full := channelDistance(ink, ground)
 	mask := make([]bool, 0, r.Dx()*r.Dy())
@@ -155,7 +155,7 @@ func turnedClockwise(mask []bool, n int) []bool {
 	return out
 }
 
-// inkColumns reports the first and last column of r carrying ink.
+// inkColumns reports the first and last column of r carrying glyph pixels.
 func inkColumns(img *image.RGBA, r image.Rectangle, ground, ink color.NRGBA) (first, last int) {
 	first, last = -1, -1
 	for x := r.Min.X; x < r.Max.X; x++ {
@@ -188,10 +188,10 @@ func TestTheTurnedCellDrawsTheOpenRendition(t *testing.T) {
 			closed := inkMask(img, squareAt(true, len(MarkSizes)-1), p.Backdrop, p.Icon)
 			turned := inkMask(img, squareAt(true, len(MarkSizes)), p.Backdrop, p.Icon)
 			if got := inkCount(closed); got < n {
-				t.Fatalf("the closed drawing at %d dp inks %d pixels; the cell is not drawing it", n, got)
+				t.Fatalf("the closed drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
 			}
 			if got := inkCount(turned); got < n {
-				t.Fatalf("the turned drawing at %d dp inks %d pixels; the cell is not drawing it", n, got)
+				t.Fatalf("the turned drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
 			}
 			if got := agreement(turnedClockwise(closed, n), turned, n); got < 0.95 {
 				t.Errorf("the extra drawing agrees with the quarter-turned mark on %.1f%% of its square; it is not that mark turned", got*100)
@@ -214,11 +214,11 @@ func TestTheTurnedCellKeepsTheCellsGutter(t *testing.T) {
 
 	first, last := inkColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Icon)
 	if first < x0 || last >= x0+width {
-		t.Errorf("the row inks columns %d..%d, outside the %d..%d it is laid out in", first, last, x0, x0+width-1)
+		t.Errorf("the row paints columns %d..%d, outside the %d..%d it is laid out in", first, last, x0, x0+width-1)
 	}
 	closed := squareAt(true, len(MarkSizes)-1)
 	if last <= closed.Max.X {
-		t.Errorf("the row's last ink is column %d and its closed drawings end at %d; there is no second rendition", last, closed.Max.X)
+		t.Errorf("the row's last painted column is %d and its closed drawings end at %d; there is no second rendition", last, closed.Max.X)
 	}
 	// The gutter is what is left over on both sides of one cell, and cells
 	// abut: two of those margins is the distance between neighbours.
@@ -244,7 +244,7 @@ func TestPlainMarkCellsAreUnchanged(t *testing.T) {
 			img := markCellFrame(t, tokens.DefaultLight, name)
 			first, last := inkColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Icon)
 			if first < x0 || last >= x0+width {
-				t.Errorf("%s inks columns %d..%d, outside the closed row's %d..%d", name, first, last, x0, x0+width-1)
+				t.Errorf("%s paints columns %d..%d, outside the closed row's %d..%d", name, first, last, x0, x0+width-1)
 			}
 		})
 	}

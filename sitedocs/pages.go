@@ -14,7 +14,7 @@ const (
 
 	// pageTheme is the Theme tab: the seed the palette grew from
 	// (theme_seed.go), then the themer's palette section — ramps grid and
-	// named picks — followed by the inventory's type ladder, following the
+	// named picks — followed by the inventory's type scale, following the
 	// live theme (theme_tab.go).
 	pageTheme = "theme"
 
@@ -33,7 +33,7 @@ const (
 //
 // Theme comes second, directly after the guide, because the three tabs
 // after it are all drawn in the theme it shows: a reader meets the
-// palette and the type ladder before meeting the widgets wearing them.
+// palette and the type scale before meeting the components wearing them.
 var tabPages = []string{pageDocs, pageTheme, pageComponents, pagePatterns, pageMarkdown}
 
 // tabLabels is what the strip writes on each cell, in tabPages order.

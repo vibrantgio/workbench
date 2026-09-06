@@ -2,7 +2,7 @@
 // inventory's own groups — Components, Patterns, Markdown — as one
 // scrolling column of live controls each. The catalogue is
 // components/gallery/inventory, the same one the themer embeds: the rows
-// are the real widgets (buttons press, fields take type, toggles flip),
+// are the real components (buttons press, fields take type, toggles flip),
 // never pictures of them, and this file adds no second inventory — it asks
 // the published one for its rows and puts a viewport in front of them.
 //
@@ -11,7 +11,7 @@
 // cell clicked to reach it, closing line included. What this window decides
 // is which groups get a tab.
 //
-// The Foundations group is on no tab: its colour sections and its type ladder
+// The Foundations group is on no tab: its colour sections and its type scale
 // are the Theme tab's telling.
 //
 // Each tab's inventory is built once, on the first theme emission, and

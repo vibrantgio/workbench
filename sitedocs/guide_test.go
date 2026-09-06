@@ -225,7 +225,7 @@ func TestOutlineClickScrollsTheDocument(t *testing.T) {
 	}
 }
 
-// driveWidget frames the widget through an input router, queues the
+// driveWidget frames the layout.Widget through an input router, queues the
 // events, and frames again so tags register, events deliver, and the
 // resulting state draws — the same cadence the markdown package's own
 // pointer tests use.

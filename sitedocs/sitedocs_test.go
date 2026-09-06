@@ -15,9 +15,10 @@ import (
 )
 
 // TestBuildLayersConstructsWithoutPanic verifies that buildLayers returns two
-// observable layers and that each emits at least one widget without error.
-// The model observable is seeded with the initial model and never receives
-// further messages, so the test is deterministic and free of OS timing.
+// observable layers and that each emits at least one layout.Widget without
+// error. The model observable is seeded with the initial model and never
+// receives further messages, so the test is deterministic and free of OS
+// timing.
 func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 	start := initialModel()
 	modelObs := rx.Of(start)
@@ -32,7 +33,7 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 			continue
 		}
 		if got == nil {
-			t.Errorf("layer %d produced no widget", i)
+			t.Errorf("layer %d produced no layout.Widget", i)
 		}
 	}
 }
@@ -121,11 +122,11 @@ func TestUpdateSelectHeading(t *testing.T) {
 
 // TestDocsTabReEmitsOnModelChange guards the same-frame repaint: the docs
 // layer observable must re-emit when the model changes, or a click never
-// reaches theme/window's Invalidate() and the canvas only repaints on the
+// reaches theme/window's Invalidate() and the window only repaints on the
 // next unrelated input event.
 //
 // Driving the same modelObs the app uses and asserting docsTabFrom's
-// returned observable emits a fresh widget on each ToggleOutline /
+// returned observable emits a fresh layout.Widget on each ToggleOutline /
 // SelectHeading is the seam; a reducer-only test passes without proving the
 // layer re-emits. The unit test proves the necessary re-emission, not the OS
 // frame timing.

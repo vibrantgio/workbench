@@ -19,10 +19,10 @@ import (
 	"github.com/vibrantgio/theme/theme"
 )
 
-// List renders the todos on the window ground using the components virtual
-// list. It paints no surface of its own: the list is what this window exists
-// to show, so it is the content ground rather than something standing on it.
-// The rows keep their inset.
+// List renders the todos on the window's own fill using the components
+// virtual list. It paints no surface of its own: the list is what this window
+// exists to show, so it is the content plane rather than something standing
+// on it. The rows keep their inset.
 func List(typ Type, th rx.Observable[theme.Theme], p Palette, model Model) layout.Widget {
 	listState := complist.NewState()
 	rows := make([]layout.Widget, len(model.List))

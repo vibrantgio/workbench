@@ -16,7 +16,7 @@ import (
 
 // bandFill is the fill these drag tests hand the strip. They are about which
 // presses the band claims and not about what it is painted in, so they name
-// the same rung the app does rather than a colour of their own.
+// the same level the app does rather than a colour of their own.
 var bandFill = tokens.DefaultLight.SurfaceAt(tokens.Level1)
 
 // TestTheStripClaimsTheWindowDrag guards the window's top-edge drag:

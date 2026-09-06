@@ -15,7 +15,7 @@ import (
 var groupCanvasSize = image.Pt(1180, 760)
 
 // schemeCases is the light/dark pair every golden here is taken in, with
-// the ground the capture is laid over.
+// the fill the capture is laid over.
 var schemeCases = []struct {
 	name   string
 	colors tokens.ColorTokens
@@ -27,7 +27,7 @@ var schemeCases = []struct {
 
 // TestGroupTabGoldens pins each inventory tab's first screen in both
 // schemes: the sections' headings and bodies, laid out by the same column
-// widget the app scrolls — and, at the top of each, a section heading
+// layout.Widget the app scrolls — and, at the top of each, a section heading
 // rather than the group banner a tab of one group does not need.
 func TestGroupTabGoldens(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
@@ -113,7 +113,7 @@ func TestNoInventorySectionIsLost(t *testing.T) {
 
 	// shown counts the sections each surface accounts for: the three group
 	// tabs by their groups, the Theme tab by the one section the palette
-	// story borrows for its type ladder.
+	// story borrows for its type scale.
 	shown := map[string]int{typeSection: 1}
 	for page, group := range tabGroups {
 		found := false

@@ -16,7 +16,7 @@ import (
 // theme window feeds a live OS theme, an OS light/dark switch re-emits the
 // tokens and restyles the whole app with no imperative wiring.
 type Palette struct {
-	Backdrop color.NRGBA // the window ground: the Background pin, level 0
+	Backdrop color.NRGBA // the window's own plane: the Background pin, level 0
 	Dialog   color.NRGBA // the modal's surface, level 2
 	Edit     color.NRGBA // the dialog's text-entry fill, level 3
 	Select   color.NRGBA // placeholder text and editor selection
@@ -26,8 +26,8 @@ type Palette struct {
 }
 
 // PaletteFrom resolves the palette against the window's surface grammar. The
-// list is what this window exists to show, so it is the content ground: it
-// wears level 0 and paints no surface of its own. Backdrop is that ground —
+// list is what this window exists to show, so it is the content plane: it
+// wears level 0 and paints no surface of its own. Backdrop is that fill —
 // the Background pin, filled once underneath everything — and nothing in the
 // page is raised above it. The only fills over it belong to the modal: the
 // dialog takes level 2, the level reserved for a dialog, and its text-entry
@@ -35,7 +35,7 @@ type Palette struct {
 // window ([tokens.ColorTokens.RaisedOn]), because a step is counted from the
 // surface a thing lies on. Where the scheme has no step left the field is
 // flush with the dialog and its own border says where it is.
-// Primary is the pinned accent, and the remaining Neutral steps are inks:
+// Primary is the pinned accent, and the remaining Neutral steps are text:
 // 700 the low-contrast text step, 900 the body-text step.
 func PaletteFrom(c tokens.ColorTokens) Palette {
 	return Palette{

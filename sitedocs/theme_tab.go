@@ -1,14 +1,14 @@
 // theme_tab.go composes the Theme tab: the whole theme in one column —
 // the colour the palette grew from (theme_seed.go), then the shared
 // palette story (the ramps grid and the named picks), then the
-// inventory's type ladder, following the live theme, in the same
+// inventory's type scale, following the live theme, in the same
 // scrolling frame the group tabs use.
 //
 // The seed leads because the two sections after it are both derivations:
 // without it a reader could read every rule on the page and still not know
 // which colour the theme was made from.
 //
-// The ladder rides with the story rather than standing on a tab of its own,
+// The scale rides with the story rather than standing on a tab of its own,
 // and it is the story that draws it — [palette.TypeLadderRows].
 //
 // The inventory's other two Foundations sections — foundations-roles and
@@ -36,7 +36,7 @@ import (
 )
 
 // themeTabLayer is the Theme tab's content stream: the freshly themed
-// palette column with the type ladder under it on every token emission,
+// palette column with the type scale under it on every token emission,
 // over one long-lived scroll state and one long-lived inventory.
 //
 // seed is the colour this window believes its palette was grown from. It
@@ -64,8 +64,8 @@ func themeTabLayer(th rx.Observable[theme.Theme], seed stdcolor.NRGBA) rx.Observ
 }
 
 // themeTabRows is the whole Theme column: the palette story, then the
-// type ladder under it, in that order — the palette first because the
-// ladder is drawn in the colours the palette just accounted for.
+// type scale under it, in that order — the palette first because the
+// scale is drawn in the colours the palette just accounted for.
 func themeTabRows(inv *inventory.Inventory, shaper *text.Shaper, typo tokens.Typography, c tokens.ColorTokens, seed stdcolor.NRGBA) []layout.Widget {
 	rows := themePaletteRows(shaper, typo, c, seed)
 	return append(rows, palette.TypeLadderRows(inv, PaletteFrom(c).story(), c, TypeFrom(shaper, typo).story())...)

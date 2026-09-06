@@ -187,7 +187,7 @@ func hardCodedArticles() []article {
 			"Notebook: Morning Walk Through the Park",
 			"On Slowing Down at the Right Moments",
 			"Reading List for the Quarter",
-			"Coffee, Quiet, and Continuous Learning",
+			"Coffee, Calm, and Continuous Learning",
 			"The Garden Almost Survived the Frost",
 			"A Letter I Did Not Send",
 			"Late-Night Thoughts on Pacing",

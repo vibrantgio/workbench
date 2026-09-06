@@ -24,7 +24,7 @@ var themeCanvasSize = image.Pt(1180, 760)
 
 // TestThemeTabGolden pins the Theme tab in both schemes: the ramps grid
 // with its step numbers and pinned-base chips, the picks board with the
-// rule that chose each colour, and the type ladder under them.
+// rule that chose each colour, and the type scale under them.
 func TestThemeTabGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	for _, tc := range schemeCases {
@@ -64,7 +64,7 @@ func TestPaletteSectionRowsIsTheRowCount(t *testing.T) {
 }
 
 // TestTypeLadderFollowsThePalette pins the order: the Theme tab borrows
-// the inventory's type ladder as two rows — this tab's
+// the inventory's type scale as two rows — this tab's
 // own heading band and the section's body — and they come after the
 // palette's four rows, not before them.
 func TestTypeLadderFollowsThePalette(t *testing.T) {
@@ -75,17 +75,17 @@ func TestTypeLadderFollowsThePalette(t *testing.T) {
 
 	ladder := palette.TypeLadderRows(inv, PaletteFrom(c).story(), c, TypeFrom(shaper, typo).story())
 	if len(ladder) != 2 {
-		t.Fatalf("the type ladder is %d rows, want 2 (a heading band and a body)", len(ladder))
+		t.Fatalf("the type scale is %d rows, want 2 (a heading band and a body)", len(ladder))
 	}
 	rows := themeTabRows(inv, shaper, typo, c, tokens.DefaultSeed)
 	if len(rows) != palette.SeedSectionRows+PaletteSectionRows+len(ladder) {
-		t.Fatalf("the Theme column is %d rows, want the seed's %d plus the palette's %d plus the ladder's %d",
+		t.Fatalf("the Theme column is %d rows, want the seed's %d plus the palette's %d plus the scale's %d",
 			len(rows), palette.SeedSectionRows, PaletteSectionRows, len(ladder))
 	}
 }
 
 // typeSection is the inventory section the palette story borrows for its
-// type ladder, and sectionTitleSep the seam it splits the borrowed title
+// type scale, and sectionTitleSep the seam it splits the borrowed title
 // at. The story owns both; they are written down here because this
 // window's own guards rest on them, and a guard that reads its subject
 // off the thing it is guarding checks nothing.
@@ -110,7 +110,7 @@ func TestTypeLadderKeepsTheInventorysWords(t *testing.T) {
 		}
 	}
 	if title == "" {
-		t.Fatalf("the inventory publishes no section named %q — the Theme tab's ladder is empty", typeSection)
+		t.Fatalf("the inventory publishes no section named %q — the Theme tab's type scale is empty", typeSection)
 	}
 	label, hint, _ := strings.Cut(title, sectionTitleSep)
 	if label == "" {
@@ -122,7 +122,7 @@ func TestTypeLadderKeepsTheInventorysWords(t *testing.T) {
 }
 
 // TestTheGridMarksTheRungsThePicksTook keeps the copied section's two
-// halves honest against each other: every rung a pick's rule names is
+// halves honest against each other: every step a pick's rule names is
 // claimed, in both schemes, and the claims carry real roles and steps.
 func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 	for _, tc := range []struct {
@@ -137,11 +137,11 @@ func TestTheGridMarksTheRungsThePicksTook(t *testing.T) {
 			groups := palette.Groups(tc.c, tc.o, tc.dark)
 			claims := palette.Claims(groups)
 			if len(claims) == 0 {
-				t.Fatal("no pick claims any rung — the grid would carry no marks at all")
+				t.Fatal("no pick claims any step — the grid would carry no marks at all")
 			}
 			for claim := range claims {
 				if claim.Role == "" || claim.Step < 100 || claim.Step > 900 || claim.Step%100 != 0 {
-					t.Fatalf("claim %+v names no rung the grid has", claim)
+					t.Fatalf("claim %+v names no step the grid has", claim)
 				}
 			}
 		})
@@ -537,7 +537,7 @@ func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
 					"they are one swatch drawn twice", worst)
 			}
 			// A difference is not the difference. A one-pixel inset also
-			// puts a ring of ground between the two rows and clears the
+			// puts a ring of fill between the two rows and clears the
 			// bar above while being invisible, so the size the channel is
 			// actually drawn at is measured here rather than assumed: the
 			// swatch of the colour handed in is the story's own inset
@@ -581,9 +581,9 @@ func TestSeedPairIsToldApartWithoutChroma(t *testing.T) {
 }
 
 // swatchBox is the rectangle a swatch covers inside the region handed
-// in: everything there that is not the ground it stands on. The seed
+// in: everything there that is not the fill it stands on. The seed
 // cells put nothing but a swatch in the column this is asked about, so
-// the extent of what is not ground is the extent of the swatch.
+// the extent of what is not that fill is the extent of the swatch.
 func swatchBox(img image.Image, ground color.NRGBA, region image.Rectangle) image.Rectangle {
 	box := image.Rectangle{}
 	for y := region.Min.Y; y < region.Max.Y; y++ {
@@ -645,7 +645,7 @@ func TestSeedRowIsTheHeadOfTheStory(t *testing.T) {
 	if len(story) < len(head)+1 {
 		t.Fatalf("the palette story is %d rows, too few to lead with the seed", len(story))
 	}
-	// The band a row draws is what identifies it, and the widgets
+	// The band a row draws is what identifies it, and the rows
 	// themselves are opaque, so the order is checked by drawing the story's
 	// leading row and the seed band alone and comparing the pixels.
 	size := image.Pt(themeCanvasSize.X, 40)

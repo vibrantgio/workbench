@@ -10,7 +10,7 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// BackdropLayer fills the window with the content ground — the Background
+// BackdropLayer fills the window with the content plane — the Background
 // pin the palette resolves for level 0. It is the bottom layer and the only
 // fill the resting window has.
 func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {

@@ -64,12 +64,12 @@ func detailPane(
 	// run outside any rx.Defer scope.
 	loadTokens := mirrorTokens(th)
 
-	// Selected-article cell. patterns/tabs captures Tab.Content widgets at
-	// construction (a static slice, not an observable), so the closures
-	// cannot receive the article in-band; they read this cell instead. The
-	// cell is stored synchronously in the combined map below, BEFORE the
-	// emitted widget can be laid out, so a frame never renders tabs for a
-	// stale article.
+	// Selected-article cell. patterns/tabs captures each Tab.Content
+	// layout.Widget at construction (a static slice, not an observable), so the
+	// closures cannot receive the article in-band; they read this cell instead.
+	// The cell is stored synchronously in the combined map below, BEFORE the
+	// emitted layout.Widget can be laid out, so a frame never renders tabs for
+	// a stale article.
 	var articleCell atomic.Value
 	articleCell.Store(detailArticle{})
 	loadArticle := func() detailArticle { return articleCell.Load().(detailArticle) }
@@ -104,10 +104,10 @@ func detailPane(
 // height. Primary text sits on the Neutral ramp's 900 step, the meta line
 // and the placeholder on the low-contrast 700 step.
 //
-// The pane paints its OWN ground first. It is the reading surface, so it sits
+// The pane paints its OWN fill first. It is the reading surface, so it sits
 // at level 0, the Background pin. Painting nothing is not neutral: it lets
 // patterns/shell's SplitPane backstop (Surface, level 1) show through, which
-// would read the article body on the same rung as the sidebar framing it.
+// would read the article body on the same level as the sidebar framing it.
 func drawDetail(
 	gtx layout.Context,
 	tok themeTokens,
@@ -138,8 +138,8 @@ func drawDetail(
 	return layout.Dimensions{Size: size}
 }
 
-// The tab panel needs no ground of its own: tabs.Props.Ground (zero value
-// level 0) puts the panel on the window paper and the strip band one rung
+// The tab panel needs no fill of its own: `tabs.Props.Ground` (zero value
+// level 0) puts the panel on the window paper and the strip band one level
 // over it.
 
 // readerTab renders the article body paragraph-wrapped in the theme's

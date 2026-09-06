@@ -25,7 +25,7 @@
 // scheme pins the colour it grew from, so the row reads it off the base and
 // claims nothing about which colour was picked to get it; a dark scheme
 // pins its accent at a fixed depth rather than at the seed's, so there is
-// nothing to read off and the rule says so out loud.
+// nothing to read off and the rule says so plainly.
 //
 // Both of those cells are named for the token on screen rather than for a
 // pick, because "Seed" is a name for a colour somebody chose and this
@@ -59,7 +59,7 @@ const (
 	// its accent at a fixed depth rather than at the seed's. The swatch is
 	// that pin, and the rule says so and denies the rest — the one rule this
 	// window draws with no claim to what the palette grew from, and the only
-	// one that has to say out loud that it has none.
+	// one that has to say plainly that it has none.
 	SeedNotHeld = "the Primary base this scheme pins and not the colour the pair grew from"
 )
 

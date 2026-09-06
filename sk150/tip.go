@@ -3,7 +3,7 @@ package main
 // Hint cells: a grid cell that, hovered anywhere for a dwell, shows the
 // setting's explanation in an inverse bubble beneath it. A
 // trimmed copy of patterns/tooltip — that pattern centres its trigger on
-// the canvas it is handed and sizes the bubble from that canvas, so it
+// the space it is handed and sizes the bubble from that space, so it
 // cannot sit inline as a cell label; this keeps its dwell, its inverse
 // surface and its one-visible-at-a-time rule, and paints the bubble
 // through op.Defer so it lands over the rest of the grid.
@@ -91,7 +91,7 @@ func (tp *tips) wrap(t themed, key, long string, col int, colW unit.Dp, w layout
 	}
 }
 
-// bubble paints the explanation in the inverse surface under its ink,
+// bubble paints the explanation in the inverse surface and its foreground,
 // under the cell at y, left-aligned with it unless that would run past
 // avail — the room between the cell's left edge and the window's right
 // padding — in which case it slides left to fit.

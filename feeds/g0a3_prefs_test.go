@@ -1,7 +1,7 @@
 // g0a3_prefs_test.go covers the two halves of the settings pattern: the
 // ACCELERATOR the app chrome binds (⌘,/Ctrl-,, via key.ModShortcut) and the
 // PANEL it opens — a patterns/modal with a nil Props.Decision, so its close X,
-// Escape and backdrop dismissal all come from the intent rather than from
+// Escape and backdrop dismissal all come from the purpose rather than from
 // flags.
 //
 // The reducer half is asserted directly; the accelerator is driven through a
@@ -192,7 +192,7 @@ func TestUnreadOnlyArticlesFilters(t *testing.T) {
 
 // staticPreferencesBody assembles the panel body from the STATIC Render paths
 // of the same components/button calls preferencesPanel composes, at the
-// default preferences: 10 rows per page (tonal) with 5 and 25 quiet beside it,
+// default preferences: 10 rows per page (tonal) with 5 and 25 ghost beside it,
 // and unread-only off (ghost). Sharp radii keep the golden deterministic.
 func staticPreferencesBody(shaper *text.Shaper, colors tokens.ColorTokens) layout.Widget {
 	render := func(label string, emph button.Emphasis) layout.Widget {
@@ -217,9 +217,9 @@ func staticPreferencesBody(shaper *text.Shaper, colors tokens.ColorTokens) layou
 	}
 }
 
-// TestPreferencesPanelGolden records the panel intent: a ghost close X in the
+// TestPreferencesPanelGolden records the panel purpose: a ghost close X in the
 // header (no footer, because there is nothing to confirm) over preference
-// controls in the tonal and ghost registers.
+// controls at the tonal and ghost emphasis.
 func TestPreferencesPanelGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	cases := []struct {
@@ -238,7 +238,7 @@ func TestPreferencesPanelGolden(t *testing.T) {
 				Shaper: shaper,
 			}
 			if props.Intent() != modal.IntentPanel {
-				t.Fatalf("Preferences modal intent = %v, want %v", props.Intent(), modal.IntentPanel)
+				t.Fatalf("Preferences modal purpose = %v, want %v", props.Intent(), modal.IntentPanel)
 			}
 			m := modal.Render(shaper, props, true, tc.colors, tokens.Spacing, modalSharpRadius,
 				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
@@ -247,9 +247,9 @@ func TestPreferencesPanelGolden(t *testing.T) {
 	}
 }
 
-// Canvas for the live panel-over-articles composition below. At 1000 dp the
-// modal surface is its 560 dp maximum, centred, so it spans x∈[220,780) and
-// leaves a clean strip of table either side.
+// The frame size for the live panel-over-articles composition below. At 1000
+// dp the modal surface is its 560 dp maximum, centred, so it spans
+// x∈[220,780) and leaves a clean strip of table either side.
 const (
 	prefsCanvasW = 1000
 	prefsCanvasH = 700
@@ -263,7 +263,7 @@ const (
 // fills these rows and five to a page empties them.
 var prefsArticlesRegion = image.Rect(20, 60, 216, prefsCanvasH-20)
 
-// prefsScrimRegion samples the middle of the canvas, where an open panel
+// prefsScrimRegion samples the middle of the frame, where an open panel
 // paints its scrim and surface over the table.
 var prefsScrimRegion = image.Rect(prefsCanvasW/2-260, prefsCanvasH/2-120, prefsCanvasW/2+260, prefsCanvasH/2+120)
 
@@ -272,10 +272,10 @@ var prefsScrimRegion = image.Rect(prefsCanvasW/2-260, prefsCanvasH/2-120, prefsC
 // pipeline — over the surface it edits, and asserts the three claims that
 // make it a panel: OpenPreferences paints the scrim, a preference changed
 // while it is open repaints the TABLE underneath with no Save, and closing it
-// puts the canvas back.
+// puts the frame back.
 //
 // It composes preferencesPanel over articlesMain rather than subscribing
-// feedsShellLayer, which keeps the canvas tight enough for the two regions
+// feedsShellLayer, which keeps the frame tight enough for the two regions
 // above to mean what they say. The shell-level half of the pattern is
 // TestPreferencesPanelInShellLive below.
 func TestPreferencesPanelOverArticlesLive(t *testing.T) {
@@ -336,7 +336,7 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 	send.Next(m)
 	open := snap("OpenPreferences")
 	if n := regionDiff(closed, open, prefsScrimRegion); n <= 0 {
-		t.Errorf("canvas unchanged after OpenPreferences (diff=%d in the scrim region); the panel did not open", n)
+		t.Errorf("frame unchanged after OpenPreferences (diff=%d in the scrim region); the panel did not open", n)
 	}
 
 	// The preference applies live: the table behind the panel repaginates
@@ -361,18 +361,18 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 	}
 }
 
-// shellPrefsScrimRegion samples the middle of the FULL shell canvas, where an
+// shellPrefsScrimRegion samples the middle of the FULL shell frame, where an
 // open preferences panel paints its scrim and surface over the split pane.
 // The shell's sidebar is 192 dp and its navbar 64 px, so a centred sample of
-// the 1200×800 canvas lies wholly inside the region the panel covers.
+// the 1200×800 frame lies wholly inside the region the panel covers.
 var shellPrefsScrimRegion = image.Rect(shellCanvasW/2-260, shellCanvasH/2-120, shellCanvasW/2+260, shellCanvasH/2+120)
 
 // TestPreferencesPanelInShellLive asserts the half
 // TestPreferencesPanelOverArticlesLive cannot: that the panel reaches the
-// canvas through the REAL composed shell — navbar, sidebar, split pane, toast
-// stack and all — rather than through a two-widget composition built for the
+// frame through the REAL composed shell — navbar, sidebar, split pane, toast
+// stack and all — rather than through a two-layer composition built for the
 // test. Opening it must change the middle of the shell; closing it must put
-// the shell back exactly, because every widget here is a pure function of
+// the shell back exactly, because every layer here is a pure function of
 // model and theme.
 func TestPreferencesPanelInShellLive(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
@@ -410,7 +410,7 @@ func TestPreferencesPanelInShellLive(t *testing.T) {
 	}
 	open := snap("OpenPreferences")
 	if n := regionDiff(closed, open, shellPrefsScrimRegion); n <= 0 {
-		t.Errorf("shell canvas unchanged after OpenPreferences (diff=%d in the scrim region); the panel never reached the composed shell", n)
+		t.Errorf("shell frame unchanged after OpenPreferences (diff=%d in the scrim region); the panel never reached the composed shell", n)
 	}
 
 	m, _ = Update(m, ClosePreferences{})

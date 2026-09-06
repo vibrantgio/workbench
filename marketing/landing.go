@@ -89,7 +89,7 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 // Occupy) sits on the trailing edge so the 1100 dp column does not
 // jump when the bar appears. The Background pin and the wireframe
 // field live in layers behind this one, so the page does not paint a
-// ground of its own.
+// fill of its own.
 func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.ColorTokens) layout.Widget {
 	children := make([]layout.Widget, 0, len(sections)+1)
 	for i, s := range sections {

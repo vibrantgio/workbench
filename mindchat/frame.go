@@ -71,7 +71,7 @@ import (
 const (
 	// chromeInsetDp is where the chrome row's own content begins while the
 	// pane stands: the transcript's row inset, so the conversation's title
-	// stands over the first ink of the messages under it rather than on a
+	// stands over the first glyphs of the messages under it rather than on a
 	// grid of its own.
 	chromeInsetDp unit.Dp = 12
 
@@ -99,7 +99,7 @@ const (
 
 // windowFrame is the window's per-subscription state: the clickables of the
 // controls that stand in the chrome row, kept apart from the pane's own
-// (a control and its recalling half are two widgets, not one shared one).
+// (a control and its recalling half are two clickables, not one shared one).
 type windowFrame struct {
 	rowToggle  widget.Clickable
 	rowNewChat widget.Clickable
@@ -213,9 +213,9 @@ func (f *windowFrame) chromeRow(gtx layout.Context, m Model, t themed) layout.Di
 
 // layoutPicker draws the model picker into the chrome row, and what it hands
 // it is the WHOLE row inside the content area's insets rather than a box cut
-// to the control. That canvas is patterns/popover's statement of the room the
+// to the control. That box is patterns/popover's statement of the room the
 // open menu may use: the surface hangs off the anchor and the popover keeps
-// it inside what it was given, so a canvas cut to the control would leave the
+// it inside what it was given, so a box cut to the control would leave the
 // menu running off the window's trailing edge with nothing to clamp against.
 // Where the control stands in that room is the popover's trailing alignment
 // (modelmenu.go), which is why it lands on the content column's edge and not
@@ -241,7 +241,7 @@ func layoutPicker(gtx layout.Context, menu layout.Widget, contentX, contentW, ro
 // It is a measurement in exactly one state. With the pane standing, the
 // window's control buttons are inside the pane and the row owes them
 // nothing: it starts at the transcript's own inset, so the conversation's
-// title stands over the first ink of the messages under it. With the pane
+// title stands over the first glyphs of the messages under it. With the pane
 // away the whole top strip is the row's, and the row starts past the
 // buttons' reported trailing edge plus the air that bare edge does not
 // carry. Where the platform draws no such buttons the measurement is zero

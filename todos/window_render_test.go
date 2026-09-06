@@ -1,12 +1,12 @@
 package main
 
 // A whole-window render, headless, plus the surface-grammar assertions that
-// read off it. Both layers the app stacks are plain widgets over pre-resolved
-// tokens, so composing the same two paints into a headless canvas at the size
-// the window opens at produces the frame the window would show.
+// read off it. Both layers the app stacks are plain layout.Widgets over
+// pre-resolved tokens, so composing the same two paints into a headless image
+// at the size the window opens at produces the frame the window would show.
 //
 // The frames are drawn under a stated title-bar strip, because the app takes
-// the full-size-content treatment: its ground runs to the top edge and its page
+// the full-size-content treatment: its fill runs to the top edge and its page
 // starts below a strip the platform no longer draws. desktop.TopInset reports 0
 // without a live macOS window behind it, so the height is stated rather than
 // measured.
@@ -122,7 +122,7 @@ func renderWindow(t *testing.T, c tokens.ColorTokens, route string, band unit.Dp
 }
 
 // topmostInk reports the first row of the frame carrying a pixel that is not
-// the ground, and how many rows were scanned when there is none.
+// the background fill, and how many rows were scanned when there is none.
 func topmostInk(img *image.RGBA, ground color.NRGBA) int {
 	size := img.Bounds().Size()
 	for y := 0; y < size.Y; y++ {
@@ -204,7 +204,7 @@ func TestWholeWindowRender(t *testing.T) {
 }
 
 // TestTheListRestsOnTheWindowGround reads the surface walk off the frame: the
-// middle and the edge are the same ground, and the only level-1 pixels are the
+// middle and the edge are the same fill, and the only level-1 pixels are the
 // raised controls standing on it.
 //
 // It renders the route with no dialog on it, because the walk is over the
@@ -219,9 +219,9 @@ func TestTheListRestsOnTheWindowGround(t *testing.T) {
 			furniture := tc.c.SurfaceAt(tokens.Level1)
 			transient := tc.c.SurfaceAt(tokens.Level2)
 
-			// The walk out from the middle: centre and edge wear one rung,
-			// and it is the ground. Both points are clear of ink — the rows
-			// stack from the window's top and end well above its middle.
+			// The walk out from the middle: centre and edge wear one level,
+			// and it is the resting fill. Both points are clear of paint — the
+			// rows stack from the window's top and end well above its middle.
 			for _, p := range []struct {
 				name string
 				at   image.Point
@@ -230,25 +230,25 @@ func TestTheListRestsOnTheWindowGround(t *testing.T) {
 				{"window edge", image.Pt(2, windowSize.Y/2)},
 			} {
 				if got := pixelAt(img, p.at); got != ground {
-					t.Errorf("%s at %v = %v, want the ground %v", p.name, p.at, got, ground)
+					t.Errorf("%s at %v = %v, want the resting fill %v", p.name, p.at, got, ground)
 				}
 			}
 
-			// And it is the ground in bulk, not just at two points: the
-			// resting window is the pin, with ink and controls on it.
+			// And it is that fill in bulk, not just at two points: the
+			// resting window is the pin, with text and controls on it.
 			total := windowSize.X * windowSize.Y
 			if n := countFill(img, frame, ground); n*4 < total*3 {
-				t.Errorf("the ground %v covers %d of %d pixels; the thing this window exists to show is not what most of it is",
+				t.Errorf("the resting fill %v covers %d of %d pixels; the thing this window exists to show is not what most of it is",
 					ground, n, total)
 			}
 			if n := countFill(img, frame, furniture); n*100 > total {
-				t.Errorf("level 1 (%v) covers %d of %d pixels; a control on the ground may wear it, a resting expanse may not",
+				t.Errorf("level 1 (%v) covers %d of %d pixels; a control on the resting fill may wear it, a resting expanse may not",
 					furniture, n, total)
 			}
 			// Level 2 is not asked for zero: a ramp step is a colour, and an
 			// anti-aliased edge between two other colours can land on it by
 			// arithmetic — a couple of dozen pixels along the rounded checkbox
-			// borders do, in both schemes. What the rung may not be is an
+			// borders do, in both schemes. What the level may not be is an
 			// expanse.
 			//
 			// It only bites where level 2 is a different fill from level 1:
@@ -329,9 +329,9 @@ func TestTheDialogAndItsFieldHoldTheirLevels(t *testing.T) {
 				}
 			}
 
-			// And the page behind is not showing through at either rung.
+			// And the page behind is not showing through at either level.
 			if got := pixelAt(img, at); got == tc.c.SurfaceAt(tokens.Level0) {
-				t.Errorf("the dialog reads as the window ground at %v", at)
+				t.Errorf("the dialog reads as the window fill at %v", at)
 			}
 		})
 	}
@@ -340,7 +340,7 @@ func TestTheDialogAndItsFieldHoldTheirLevels(t *testing.T) {
 // TestTheGroundReachesTheWindowsTopEdge pins that the strip shows the
 // full-bleed backdrop already painted under it rather than a second fill drawn
 // over it, which is why this window paints no band. The strip must be the
-// ground and nothing else: no page ink in it, and no unpainted glass.
+// resting fill and nothing else: no page paint in it, and no unpainted glass.
 func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 	band := int(titleBandDp)
 	for _, tc := range windowSchemes {
@@ -353,7 +353,7 @@ func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 			for _, x := range []int{0, windowSize.X / 2, windowSize.X - 1} {
 				for _, y := range []int{0, band / 2, band - 1} {
 					if got := pixelAt(img, image.Pt(x, y)); got != ground {
-						t.Errorf("strip pixel at (%d,%d) = %v, want the window ground %v", x, y, got, ground)
+						t.Errorf("strip pixel at (%d,%d) = %v, want the window's resting fill %v", x, y, got, ground)
 					}
 				}
 			}
@@ -361,7 +361,7 @@ func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 	}
 }
 
-// TestThePageStartsBelowTheStrip is the other half: the ground runs under the
+// TestThePageStartsBelowTheStrip is the other half: the fill runs under the
 // strip, the page does not. Read off the frame rather than off the inset, so
 // that a page which grew a layer of its own outside the cap would fail here.
 func TestThePageStartsBelowTheStrip(t *testing.T) {
@@ -369,7 +369,7 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
 			if top := topmostInk(img, tc.c.SurfaceAt(tokens.Level0)); top < int(titleBandDp) {
-				t.Errorf("the page inks row %d, inside the %d dp title-bar strip; only the ground belongs there", top, int(titleBandDp))
+				t.Errorf("the page paints row %d, inside the %d dp title-bar strip; only the window fill belongs there", top, int(titleBandDp))
 			}
 		})
 	}
@@ -393,13 +393,13 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
 					if got := pixelAt(img, image.Pt(x, y)); got != ground {
-						t.Fatalf("page ink %v at (%d,%d), inside the window buttons' run (leading %v, trailing %v, centre %v)",
+						t.Fatalf("page paint %v at (%d,%d), inside the window buttons' run (leading %v, trailing %v, centre %v)",
 							got, x, y, run.Leading, run.Trailing, run.Center)
 					}
 				}
 			}
 			if top := topmostInk(img, ground); top <= bottom {
-				t.Errorf("the page's topmost ink is row %d and the buttons end at row %d; the page has no clearance under them", top, bottom)
+				t.Errorf("the page's topmost paint is row %d and the buttons end at row %d; the page has no clearance under them", top, bottom)
 			}
 		})
 	}
@@ -431,7 +431,7 @@ func TestTheModalCoversTheStripToo(t *testing.T) {
 // TestTheStripMovesThePage guards the inset itself: a frame drawn under the
 // strip is not the frame drawn without one. Without this the tests above would
 // all still pass if the cap stopped insetting anything, since the first
-// row's ink starts below the buttons' run on its own.
+// row's paint starts below the buttons' run on its own.
 func TestTheStripMovesThePage(t *testing.T) {
 	capped := renderWindow(t, tokens.DefaultLight, "", titleBandDp)
 	bare := renderWindow(t, tokens.DefaultLight, "", 0)

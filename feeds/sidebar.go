@@ -59,7 +59,7 @@ const (
 // per-row delete-confirm popover whose confirm fires ConfirmDelete + a toast.
 //
 // The feed tree lives in the Model, so add/delete mutate it; feedEntryListBody
-// reads the live slice each frame and keys its per-entry widget state by
+// reads the live slice each frame and keys its per-entry view state by
 // FeedID via components/keyed so add/delete never re-binds a clickable to the
 // wrong row.
 func feedsSidebar(
@@ -81,8 +81,8 @@ func feedsSidebar(
 	// is a static layout.Widget slot, so the entry rows cannot be handed the
 	// selection in-band; they read it from this cell at frame time, the same
 	// layer-boundary hand-off the entry list already uses for its entries.
-	// The cell is written in the fold below, BEFORE the emitted widget can be
-	// laid out, so no frame paints last selection's pill.
+	// The cell is written in the fold below, BEFORE the emitted layout.Widget
+	// can be laid out, so no frame paints last selection's pill.
 	var selectedCell atomic.Value
 	selectedCell.Store(FeedID(""))
 	loadSelected := func() FeedID {
@@ -120,8 +120,8 @@ func feedsSidebar(
 
 	// Fold the accordion, the live feed tree, and a theme token together. The
 	// feeds emission updates the per-section cells (read by the bodies above)
-	// before the accordion widget is returned, so a delete/add re-emits this
-	// layer — driving theme/window's Invalidate() and the same-frame
+	// before the accordion's layout.Widget is returned, so a delete/add re-emits
+	// this layer — driving theme/window's Invalidate() and the same-frame
 	// repaint, the same way the open-section map drives it.
 	colorsObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
 		return t.Color
@@ -159,9 +159,9 @@ func feedsSidebar(
 // them: this window paints its own title bar, so the sidebar reaches the
 // window's top edge and the platform's three control buttons stand in its
 // top-leading corner. The fill therefore runs the whole column, band
-// included — the band wears the ground of the region it caps, which here is
-// the sidebar's own floor — and only the accordion starts below it, clear of
-// the buttons.
+// included — the band wears the fill of the region it caps, which here is
+// the sidebar's own chrome fill — and only the accordion starts below it,
+// clear of the buttons.
 //
 // Nothing is drawn in the band on this side. The window's name is already the
 // navbar's brand on the other side of the seam, and a second copy of it under
@@ -196,13 +196,13 @@ func drawFeedsSidebar(
 	return layout.Dimensions{Size: size}
 }
 
-// feedEntryListBody returns the body widget for a single accordion section.
+// feedEntryListBody returns the body layout.Widget for one accordion section.
 // entriesFn yields the section's CURRENT entries each frame (read from the
 // per-section model cell). Entry clicks emit SelectFeed; hovering a row
 // reveals a trash icon whose click toggles a per-row delete-confirm popover,
 // whose confirm fires ConfirmDelete + a "Feed deleted" toast.
 //
-// All per-entry widget state (the row clickable, the trash clickable, the
+// All per-entry view state (the row clickable, the trash clickable, the
 // confirm clickable, the per-row open flag) is keyed by FeedID so add/delete
 // never re-binds state to the wrong row.
 func feedEntryListBody(
@@ -213,7 +213,7 @@ func feedEntryListBody(
 ) layout.Widget {
 	loadTok := mirrorTokens(th)
 
-	// Per-FeedID widget state, stable across list mutation.
+	// Per-FeedID view state, stable across list mutation.
 	rowClicks := keyed.Defer(func(FeedID) *widget.Clickable { return &widget.Clickable{} })
 	trashClicks := keyed.Defer(func(FeedID) *widget.Clickable { return &widget.Clickable{} })
 	confirmClicks := keyed.Defer(func(FeedID) *widget.Clickable { return &widget.Clickable{} })
@@ -266,11 +266,12 @@ func feedEntryListBody(
 // only while hovered (or while its confirm popover is open, so the popover
 // never floats over an un-hovered row).
 //
-// The pill's two inks stay apart: the OPEN feed — the one whose articles the
-// table is listing — is Primary-tinted, and hover is a neutral step walked
-// from the sidebar's own ground (Surface is neutral 200, so the walk lands on
-// 300). A reader must be able to see which row the pointer is over and which
-// row the window is showing at the same time, which one ink cannot say.
+// The pill's two fills stay apart: the OPEN feed — the one whose articles
+// the table is listing — is Primary-tinted, and hover is a neutral step
+// walked from the sidebar's own fill (Surface is neutral 200, so the walk
+// lands on 300). A reader must be able to see which row the pointer is over
+// and which row the window is showing at the same time, which one fill
+// cannot say.
 func drawFeedEntryRow(
 	gtx layout.Context,
 	tok themeTokens,
@@ -283,8 +284,8 @@ func drawFeedEntryRow(
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 
-	// Hover tracking spans the whole row but registers ONLY Enter/Leave (via
-	// gesture.Hover), so it never claims the select press. Register the hover
+	// Hover tracking spans the whole row but registers hover Enter/Leave only
+	// (gesture.Hover), so it never claims the select press. Register the hover
 	// area first so it sits under the label/trash content.
 	hovered := hover.Update(gtx.Source) || dc.open
 	hoverClip := clip.Rect{Max: size}.Push(gtx.Ops)
@@ -337,7 +338,7 @@ func drawFeedEntryRow(
 // rather than named as an absolute ramp index. Neutral 300 answers the light
 // scheme right by accident (the floor's own hover step lands on that same
 // #D4D4D4) and the dark scheme wrong by a whole level: #2E2E2E is the walk
-// off the RAISED rung, so a pointer over a #0C0C0C row would jump 15.6 L*
+// off the RAISED level, so a pointer over a #0C0C0C row would jump 15.6 L*
 // instead of the floor's own 9.9.
 func drawFeedEntryPill(
 	gtx layout.Context,
@@ -410,9 +411,9 @@ func drawFeedEntry(
 // and closes; OnDismiss closes. The remaining atomic cell carries the THEME's
 // re-emissions, which do arrive from another goroutine.
 //
-// The popover is wrapped in an Exact canvas (the trash gutter) so its anchor
+// The popover is wrapped in an Exact space (the trash gutter) so its anchor
 // centres on the trash icon and the confirm surface sits below it — the same
-// canvas coupling as the Share popover.
+// anchor-to-space coupling as the Share popover.
 type deleteConfirm struct {
 	id FeedID
 	// open is frame state: only layout writes it and only layout reads it.
@@ -453,9 +454,9 @@ func newDeleteConfirm(
 			mvu.MessageOp{Message: ConfirmDelete{Feed: dc.id}}.Add(gtx.Ops)
 			dc.close()
 		}
-		// Override the incoming canvas/2 constraints: the popover sized the
-		// anchor canvas to the tiny trash gutter, so half of it cannot hold a
-		// confirm prompt. Size the content ourselves; popover pads it.
+		// Override the incoming half-space constraints: the popover sized
+		// the anchor space to the tiny trash gutter, so half of it cannot
+		// hold a confirm prompt. Size the content ourselves; popover pads it.
 		w := gtx.Dp(unit.Dp(deleteConfirmWDp))
 		promptH := gtx.Dp(unit.Dp(deleteConfirmRowHDp))
 		btnH := gtx.Dp(unit.Dp(deleteConfirmRowHDp))
@@ -500,8 +501,8 @@ func (dc *deleteConfirm) close() { dc.open = false }
 
 // layout draws the trash gutter for one row. When the row is not hovered (and
 // the confirm popover is closed), nothing is painted and the gutter is inert.
-// When hovered/open the popover widget renders the trash anchor (and, while
-// open, the confirm surface) inside the gutter's Exact canvas.
+// When hovered/open the popover renders the trash anchor (and, while open,
+// the confirm surface) inside the gutter's Exact space.
 func (dc *deleteConfirm) layout(gtx layout.Context, visible bool) layout.Dimensions {
 	size := gtx.Constraints.Max
 	if !visible {

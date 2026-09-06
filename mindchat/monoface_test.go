@@ -136,12 +136,12 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 				{"RowSelected", p.RowSelected, c.Ramps.Primary.Step(300)},
 				{"RowHovered", p.RowHovered, hover},
 				{"Accent", p.Accent, c.Primary},
-				{"Ground", p.Ground, c.Background},
+				{"transcript fill", p.Ground, c.Background},
 				{"UserBubble", p.UserBubble, c.Primary},
 				{"UserText", p.UserText, c.OnPrimary},
 				{"BotText", p.BotText, c.Text},
 				// The header picker is components/picker and derives its own
-				// fills; the palette carries only the ink the settings
+				// fills; the palette carries only the colour the settings
 				// dialog's template chips draw their label with.
 				{"ChipText", p.ChipText, c.Ramps.Neutral.Step(900)},
 				{"ModalChip", p.ModalChip, c.SurfaceAt(tokens.Level2)},
@@ -174,7 +174,7 @@ func testThemed(t *testing.T, md markdown.Style) themed {
 	typ := tokens.DefaultTypography
 	avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
 	if err != nil {
-		t.Fatalf("avatar widget: %v", err)
+		t.Fatalf("avatar raster: %v", err)
 	}
 	return themed{palette: p, avatar: avatar, md: md, typ: typ, shaper: typ.DeterministicShaper()}
 }

@@ -66,7 +66,7 @@ func docsMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Sty
 	return st
 }
 
-// isDarkColor reports whether c reads as a dark ground (Rec. 601 luma
+// isDarkColor reports whether c reads as a dark fill (Rec. 601 luma
 // below mid-grey), selecting the dark chroma style.
 func isDarkColor(c color.NRGBA) bool {
 	luma := 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)

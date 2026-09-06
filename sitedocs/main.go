@@ -10,7 +10,7 @@
 //     as one markdown document, its ##/### outline tree in a leading
 //     column.
 //   - Theme      → the seed the palette grew from, the themer's palette
-//     section and the inventory's type ladder, following the live theme
+//     section and the inventory's type scale, following the live theme
 //     (theme_tab.go).
 //   - Components → components/gallery/inventory's Components group as
 //     live controls in one scrolling column (inventory_tabs.go).
@@ -181,13 +181,13 @@ func buildLayers(modelObs rx.Observable[Model], seed stdcolor.NRGBA) func(th rx.
 // neither the tab strip nor the Docs tree ever sits under the buttons,
 // leading ~80 dp (the window buttons' territory) included.
 //
-// The strip carries no widget of its own, so what it shows is whatever was
-// painted there, and the window ground is the Background pin: the agreement
-// has to be made rather than inherited. The region this band caps is the tab
-// strip, which patterns/tabs fills one rung over its panel, so on this
-// window's level-0 panel the band is level 1. What is required is the
-// region's fill at the window's top edge, not the region's widget reaching
-// it — which is what lets the shell stay inset off the buttons.
+// The strip draws nothing of its own, so what it shows is whatever was
+// painted there, and the window's own fill is the Background pin: the
+// agreement has to be made rather than inherited. The region this band caps
+// is the tab strip, which patterns/tabs fills one level over its panel, so
+// on this window's level-0 panel the band is level 1. What is required is
+// the region's fill at the window's top edge, not the region's layout
+// reaching it — which is what lets the shell stay inset off the buttons.
 //
 // The cap claims that same strip for the window's own drag: without that
 // claim the window could not be moved by its top edge at all.
@@ -202,7 +202,7 @@ func underTitleBar(th rx.Observable[theme.Theme], shellObs rx.Observable[layout.
 
 // titleBandFill is the fill the title-bar strip wears. The region it caps is
 // the tab strip, and patterns/tabs fills that strip with the raise walked
-// from its panel; this window's panel takes the pattern's default ground,
+// from its panel; this window's panel takes the pattern's default level,
 // the content, so this is the raise off the content. Named once because two
 // callers have to agree on it — the window, and the whole-window render that
 // photographs the window.
@@ -232,9 +232,9 @@ func bandedCap(height func() unit.Dp, band stdcolor.NRGBA, w layout.Widget) layo
 	}
 }
 
-// backdropLayer is the window's ground: the Background pin, which is what the
-// expanse a window exists to show wears. It is the shared mechanism the other
-// workbench windows already call, not a fill of this app's own.
+// backdropLayer paints the window's own plane: the Background pin, which is
+// what the expanse a window exists to show wears. It is the shared mechanism
+// the other workbench windows already call, not a fill of this app's own.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
 		return t.Color
@@ -249,10 +249,10 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // streams are built once and kept subscribed, so scroll positions — one
 // per tab — and outline state survive switching tabs in both directions.
 //
-// tabs.Props.Tabs carries static content widgets, while the five pages
+// tabs.Props.Tabs carries static content slots, while the five pages
 // are streams (theme changes restyle them; model changes move the docs
 // outline). So each Tab.Content reads an atomic cell at frame time, and
-// the combined map below stores every stream's latest widget into its
+// the combined map below stores every stream's latest layout.Widget into its
 // cell before re-emitting the strip. Any input emitting therefore re-emits
 // this layer, which drives theme/window's Invalidate and the same-frame
 // repaint after a click.
@@ -321,11 +321,11 @@ func tabbedShellLayer(
 var contentGap = unit.Dp(tokens.Spacing.S4)
 
 // contentSlot is the tab shell's content slot: a tab's content, pushed
-// down by contentGap. The gap exposes the panel's own ground — the window
-// paper, since patterns/tabs fills its panel at the caller's ground and this
-// app takes the default — so the active tab's Primary underline has quiet
-// ground on both sides and reads as a line rather than as the top edge of
-// whatever begins below it. The strip's lower edge is a rung change as well
+// down by contentGap. The gap exposes the panel's own fill — the window
+// paper, since patterns/tabs fills its panel at the caller's level and this
+// app takes the default — so the active tab's Primary underline has plain
+// fill on both sides and reads as a line rather than as the top edge of
+// whatever begins below it. The strip's lower edge is a level change as well
 // as an underline.
 //
 // The gap lives here, in the shell, rather than in any one tab: the collision
@@ -354,7 +354,7 @@ func contentSlot(w layout.Widget) layout.Widget {
 // The source parameter is the injection seam: tests hand it a fixture
 // so no test run can ever reach the checkout file or the network. The
 // outline stream carries the model's disclosure and selection, so a
-// ToggleOutline or SelectHeading message re-emits the combined widget and
+// ToggleOutline or SelectHeading message re-emits the combined layer and
 // the window repaints on the same frame.
 func docsTabFrom(
 	th rx.Observable[theme.Theme],

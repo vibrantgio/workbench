@@ -15,8 +15,8 @@ import (
 )
 
 // postedByChord drives the real key area the window lays out for name — the
-// widget ChordAreas builds, not a copy of it — and returns every message it
-// posted for one press of that chord with the platform modifier.
+// layout.Widget ChordAreas builds, not a copy of it — and returns every
+// message it posted for one press of that chord with the platform modifier.
 func postedByChord(t *testing.T, name key.Name) []mvu.Message {
 	t.Helper()
 
@@ -43,7 +43,7 @@ func postedByChord(t *testing.T, name key.Name) []mvu.Message {
 
 // The item and the chord must be the same action, not two spellings of one.
 // Each declared menu item is matched to the chord on its key and the two
-// messages compared — the chord's read out of the widget the window actually
+// messages compared — the chord's read out of the layout.Widget the window
 // lays out, the item's out of the declaration handed to the menu bar. A menu
 // that opened settings while Cmd-comma toggled the pane is the failure this
 // forbids, and it is worth forbidding because on this platform only one of

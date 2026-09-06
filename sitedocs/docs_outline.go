@@ -5,7 +5,7 @@
 // markdown document to that heading's block and marks the row selected;
 // clicking a triangle toggles its section's disclosure. Disclosure and
 // selection state live in the MVU model (ToggleOutline / SelectHeading) —
-// the widget here holds only Gio interaction state (clickables, list
+// the state here is only Gio's interaction state (clickables, list
 // scroll).
 
 package main
@@ -125,7 +125,7 @@ func ensureClick(m map[int]*widget.Clickable, key int) *widget.Clickable {
 	return c
 }
 
-// layout draws the tree column: the rail's own ground the fixed width of the
+// layout draws the tree column: the rail's own fill the fixed width of the
 // rail, the visible rows as a scrolling list under a little top padding.
 //
 // It stands at the CHROME level. This column is an outline rail, which is
@@ -144,7 +144,7 @@ func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeToken
 	size := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, tok.col.SurfaceAt(tokens.LevelChrome), clip.Rect{Max: size}.Op())
 	// A hairline on the trailing edge parts the tree from the document: in
-	// dark schemes the two grounds are close and would otherwise bleed
+	// dark schemes the two fills are close and would otherwise bleed
 	// together.
 	hair := max(gtx.Dp(unit.Dp(1)), 1)
 	paint.FillShape(gtx.Ops, tok.col.Divider, clip.Rect{

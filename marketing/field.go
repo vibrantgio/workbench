@@ -91,7 +91,7 @@ func newField(window *app.Window, width, height unit.Dp) *Field {
 	})
 
 	// Transform isolation: the identity Offset push/pop discards anything
-	// the seen widget adds to the op list, so the background can never
+	// `seengio.Widget` adds to the op list, so the background can never
 	// disturb the layers drawn above it.
 	f.view = func(gtx layout.Context) layout.Dimensions {
 		defer op.Offset(image.Point{}).Push(gtx.Ops).Pop()
@@ -115,7 +115,7 @@ func (f *Field) start() {
 	}).Start()
 }
 
-// Widget returns the field as a plain background widget.
+// Widget returns the field as a plain background layout.Widget.
 func (f *Field) Widget() layout.Widget { return f.view }
 
 // SetColors re-keys the one stroke colour to new theme tokens. Safe from

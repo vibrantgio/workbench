@@ -38,8 +38,8 @@ type themed struct {
 }
 
 // ContentLayer renders the page: the latest theme snapshot combined with the
-// latest Model, mapped to a widget. This is the single modelObs consumer
-// counted by modelObsConsumers in main.go.
+// latest Model, mapped to a layout.Widget. This is the single modelObs
+// consumer counted by modelObsConsumers in main.go.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
@@ -53,11 +53,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		})
 }
 
-// View builds the page widget for one (theme, model) pair, held down past the
-// native title-bar strip the full-size-content window opens the top of itself
-// into. Everything here is reconstructed per emission; per-interaction state
-// (the editor, the clickables) lives inside the widgets for exactly one
-// route's lifetime.
+// View builds the page's layout.Widget for one (theme, model) pair, held down
+// past the native title-bar strip the full-size-content window opens the top
+// of itself into. Everything here is reconstructed per emission;
+// per-interaction state (the editor, the clickables) lives inside the
+// controls for exactly one route's lifetime.
 func View(th themed, model Model) layout.Widget {
 	return view(th, model, desktop.TopInset)
 }
@@ -66,7 +66,7 @@ func View(th themed, model Model) layout.Widget {
 // test can state a strip it has no window to measure.
 //
 // The strip carries no fill of its own: the region it caps is the window's own
-// ground, which BackdropLayer already fills full-bleed, so the fill reaches the
+// plane, which BackdropLayer already fills full-bleed, so the fill reaches the
 // top edge without anything being painted twice. Only the resting page has to
 // stay clear of the strip.
 //
@@ -105,7 +105,7 @@ func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 		}
 	}
 
-	// The resting page — the list on the ground and the button floating over
+	// The resting page — the list on the fill and the button floating over
 	// it — capped by the strip: held down past it, with that same strip claimed
 	// for the window's own drag. A capped layer reports the size it was given
 	// rather than the inset one, so the button still lands on the window's

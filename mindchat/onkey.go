@@ -10,10 +10,10 @@ import (
 	"gioui.org/op/clip"
 )
 
-// OnShortcutKey returns a widget that invokes cb on every press of the given
+// OnShortcutKey returns a layout.Widget that invokes cb on each press of the given
 // key with the platform shortcut modifier (Cmd on macOS, Ctrl elsewhere).
 // Lay it out over the area the shortcut should be live in — typically the
-// whole window. A focused widget that claims the same chord (e.g. a text
+// whole window. A focused component that claims the same chord (e.g. a text
 // editor's own Cmd-Z undo) receives it first; that is correct layering, not
 // a conflict.
 func OnShortcutKey(name key.Name, cb func(gtx layout.Context)) layout.Widget {

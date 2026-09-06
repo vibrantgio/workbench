@@ -13,7 +13,7 @@ import (
 )
 
 // BackdropLayer fills the window with the theme's Background pin; it is
-// the ground under the wireframe field and re-emits whenever the OS
+// the fill under the wireframe field and re-emits whenever the OS
 // colour scheme changes.
 func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {

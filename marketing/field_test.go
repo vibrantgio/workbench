@@ -55,11 +55,11 @@ func TestFieldLayerConstructs(t *testing.T) {
 		t.Fatalf("FieldLayer subscribe: %v", err)
 	}
 	if w == nil {
-		t.Fatal("FieldLayer produced no widget")
+		t.Fatal("FieldLayer produced no layout.Widget")
 	}
 	dims := drawOnce(t, image.Pt(320, 240), w)
 	if dims.Size.X == 0 || dims.Size.Y == 0 {
-		t.Errorf("FieldLayer widget produced zero dimensions: %v", dims)
+		t.Errorf("FieldLayer's layout.Widget produced zero dimensions: %v", dims)
 	}
 }
 

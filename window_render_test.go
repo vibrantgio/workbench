@@ -1,11 +1,11 @@
 package main
 
 // A whole-window render, headless, of the launcher as its layers actually
-// stack: the Background ground, and the page held down past the title-bar
+// stack: the Background fill, and the page held down past the title-bar
 // strip a full-size-content window opens the top of itself into. Every layer
-// the window stacks is a plain widget over pre-resolved tokens, so composing
-// the same paints into a headless canvas at the size the window opens at
-// produces the frame the window would show.
+// the window stacks is a plain layout.Widget over pre-resolved tokens, so
+// composing the same paints into a headless image at the size the window
+// opens at produces the frame the window would show.
 //
 // Run it with -window.dump=<dir> to write the frames out for a pair of eyes:
 //
@@ -13,7 +13,7 @@ package main
 //
 // The assertions read a frame drawn without the animated seen triangle field:
 // the field is driven by the clock, so it has no one frame to store, and with
-// it gone every pixel that is not the Background pin is ink the page put
+// it gone every pixel that is not the Background pin is paint the page put
 // there, which is what makes a claim about the strip readable. The dumped
 // frames carry the field, since a composition shown to a reviewer without its
 // most prominent layer is not the window.
@@ -47,8 +47,9 @@ var windowDump = flag.String("window.dump", "", "directory to write whole-window
 const titleBandDp = 32
 
 // windowFrame composes the window for one scheme exactly as buildLayers stacks
-// it, minus the field: the ground full-bleed to the window's top edge, then
-// the page under the strip that desktop.CapTop holds open and claims.
+// it, minus the field: the background fill full-bleed to the window's top
+// edge, then the page under the strip that desktop.CapTop holds open and
+// claims.
 //
 // band is the strip height to render under; 0 draws the window as every
 // platform but macOS shows it, with the page at the window's own top edge.
@@ -63,9 +64,9 @@ func cappedPage(tok themed, model Model, band unit.Dp) layout.Widget {
 	return desktop.CapTop(func() unit.Dp { return band }, pageContent(tok, model))
 }
 
-// stack draws the given layers back to front into one widget and reports the
-// frontmost one's dimensions, which is what theme/window's own layer stack
-// does with the observables buildLayers hands it.
+// stack draws the given layers back to front into one layout.Widget and
+// reports the frontmost one's dimensions, which is what theme/window's own
+// layer stack does with the observables buildLayers hands it.
 func stack(layers ...layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		var dims layout.Dimensions
@@ -125,7 +126,8 @@ func pixelAt(img *image.RGBA, p image.Point) color.NRGBA {
 }
 
 // inkSpan reports the first and last column of row y carrying a pixel that is
-// not the ground, or (-1, -1) for a row that is all ground.
+// not the background fill, or (-1, -1) for a row that is all background
+// fill.
 func inkSpan(img *image.RGBA, y int, ground color.NRGBA) (int, int) {
 	first, last := -1, -1
 	size := img.Bounds().Size()
@@ -156,7 +158,7 @@ const rungTolerance = 4
 
 // nearestRung reports the elevation level a rendered pixel sits on — the one
 // whose surface fill it is closest to, if that fill is within rungTolerance —
-// and whether it is a surface fill at all rather than ink drawn on one.
+// and whether it is a surface fill at all rather than foreground drawn on it.
 //
 // The walk includes the chrome level: a window's furniture stands there, so
 // a classifier covering only the four levels from the content up would
@@ -194,9 +196,9 @@ func channelDiff(a, b uint8) int {
 
 // cellRects measures the app groups off the frame instead of recomputing the
 // layout's arithmetic. A grid row is a contiguous stretch of frame rows whose
-// ink is exactly as wide as some number of cells with their gaps — one to
+// paint is exactly as wide as some number of cells with their gaps — one to
 // perRow of them — and at least half a cell tall; the hero's lines are the
-// only other ink on the page and match neither. The last row holds the
+// only other paint on the page and match neither. The last row holds the
 // roster's remainder, so it may be narrower than GridW and is read for how
 // many cells it actually holds. Each stretch is shortened top and bottom by
 // the same corner radius, so its midpoint is the cells' midpoint.
@@ -230,9 +232,9 @@ func cellRects(t *testing.T, img *image.RGBA, ground color.NRGBA) []image.Rectan
 	return rects
 }
 
-// cellsAcross reports how many cells an ink span that wide holds, and zero
+// cellsAcross reports how many cells a painted span that wide holds, and zero
 // when it is no row of cells. A group's hairline lies wholly inside the
-// bounds it draws, so a row of n cells inks exactly the n cells' own width;
+// bounds it draws, so a row of n cells paints exactly the n cells' own width;
 // the couple of pixels of slack absorb the corner radius's antialiasing.
 func cellsAcross(width int) int {
 	for n := 1; n <= perRow; n++ {
@@ -245,7 +247,7 @@ func cellsAcross(width int) int {
 }
 
 // topmostInk reports the first row of the frame carrying a pixel that is not
-// the ground, and how many rows were scanned when there is none.
+// the background fill, and how many rows were scanned when there is none.
 func topmostInk(img *image.RGBA, ground color.NRGBA) int {
 	size := img.Bounds().Size()
 	for y := 0; y < size.Y; y++ {
@@ -260,9 +262,9 @@ func topmostInk(img *image.RGBA, ground color.NRGBA) int {
 
 // TestWholeWindowRender draws the composed window in both schemes and writes
 // the frames out when -window.dump names a directory. Without the flag it is
-// still a smoke test of the whole stack: a panic anywhere in the ground, the
-// strip, the hero or the app grid fails it. The dumped frames carry the field
-// as well.
+// still a smoke test of the whole stack: a panic anywhere in the background
+// fill, the strip, the hero or the app grid fails it. The dumped frames carry
+// the field as well.
 func TestWholeWindowRender(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -292,21 +294,22 @@ func TestWholeWindowRender(t *testing.T) {
 }
 
 // TestTheGroundReachesTheWindowsTopEdge pins that the strip shows the
-// full-bleed ground already painted under it rather than a second fill drawn
-// over it, which is why nothing in this app paints a band. The strip must be
-// the ground and nothing else: no page ink in it, and no unpainted glass.
+// full-bleed background fill already painted under it rather than a second
+// fill drawn over it, which is why nothing in this app paints a band. The
+// strip must be the background fill and nothing else: no page paint in it,
+// and no unpainted glass.
 func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.colors, titleBandDp)
 			ground := tc.colors.SurfaceAt(tokens.Level0)
 			if ground != tc.colors.Background {
-				t.Fatalf("level 0 resolves to %v and the ground layer paints %v", ground, tc.colors.Background)
+				t.Fatalf("level 0 resolves to %v and the Background layer paints %v", ground, tc.colors.Background)
 			}
 			for _, x := range []int{0, windowCanvasSize.X / 2, windowCanvasSize.X - 1} {
 				for _, y := range []int{0, titleBandDp / 2, titleBandDp - 1} {
 					if got := pixelAt(img, image.Pt(x, y)); got != ground {
-						t.Errorf("strip pixel at (%d,%d) = %v, want the window ground %v", x, y, got, ground)
+						t.Errorf("strip pixel at (%d,%d) = %v, want the window's background fill %v", x, y, got, ground)
 					}
 				}
 			}
@@ -314,15 +317,16 @@ func TestTheGroundReachesTheWindowsTopEdge(t *testing.T) {
 	}
 }
 
-// TestThePageStartsBelowTheStrip is the other half: the ground runs under the
-// strip, the page does not. Read off the frame rather than off the inset, so
-// that a page which grew a layer of its own outside the cap would fail here.
+// TestThePageStartsBelowTheStrip is the other half: the background fill runs
+// under the strip, the page does not. Read off the frame rather than off the
+// inset, so that a page which grew a layer of its own outside the cap would
+// fail here.
 func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.colors, titleBandDp)
 			if top := topmostInk(img, tc.colors.SurfaceAt(tokens.Level0)); top < titleBandDp {
-				t.Errorf("the page inks row %d, inside the %d dp title-bar strip; only the ground belongs there", top, titleBandDp)
+				t.Errorf("the page paints row %d, inside the %d dp title-bar strip; only the background fill belongs there", top, titleBandDp)
 			}
 		})
 	}
@@ -330,13 +334,14 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 
 // TestThePageClearsTheWindowButtons: with the native strip gone the platform's
 // three control buttons float over the top-leading corner of whatever this
-// window drew there. The ground owes them nothing but its own colour, but the
-// page must not reach into their run, which is taken from desktop's derivation
-// of the platform's rule rather than from a guess at where the circles are.
+// window drew there. The background fill owes them nothing but its own
+// colour, but the page must not reach into their run, which is taken from
+// desktop's derivation of the platform's rule rather than from a guess at
+// where the circles are.
 //
 // The margin is generous on purpose: the page is centred in the window, so the
-// distance between its topmost ink and the buttons is not a tuned number and a
-// regression that ate the inset would close it entirely.
+// distance between its topmost paint and the buttons is not a tuned number
+// and a regression that ate the inset would close it entirely.
 func TestThePageClearsTheWindowButtons(t *testing.T) {
 	run := desktop.ButtonRunIn(titleBandDp)
 	bottom := int(run.Leading + run.Diameter)
@@ -347,13 +352,13 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
 					if got := pixelAt(img, image.Pt(x, y)); got != ground {
-						t.Fatalf("page ink %v at (%d,%d), inside the window buttons' run (leading %v, trailing %v, centre %v)",
+						t.Fatalf("page paint %v at (%d,%d), inside the window buttons' run (leading %v, trailing %v, centre %v)",
 							got, x, y, run.Leading, run.Trailing, run.Center)
 					}
 				}
 			}
 			if top := topmostInk(img, ground); top <= bottom {
-				t.Errorf("the page's topmost ink is row %d and the buttons end at row %d; the page has no clearance under them", top, bottom)
+				t.Errorf("the page's topmost paint is row %d and the buttons end at row %d; the page has no clearance under them", top, bottom)
 			}
 		})
 	}
@@ -419,12 +424,12 @@ func TestTheAppGroupsTakeThePagesOwnFill(t *testing.T) {
 						i, got, edge, want)
 				}
 
-				// The plane has to be the level-0 ground, or "takes the page's
+				// The plane has to be the level-0 fill, or "takes the page's
 				// own fill" is a claim about nothing. Read it back off the page
-				// beside the cell rather than trusting the ground layer's token.
+				// beside the cell rather than trusting the Background layer's token.
 				beside := image.Pt(r.Max.X+int(RowGap)/2, (r.Min.Y+r.Max.Y)/2)
 				if level, ok := nearestRung(pixelAt(img, beside), tc.colors); !ok || level != page {
-					t.Errorf("the page beside group %d reads %v at %v, not the level-%d ground %v",
+					t.Errorf("the page beside group %d reads %v at %v, not the level-%d fill %v",
 						i, pixelAt(img, beside), beside, page, ground)
 				}
 			}

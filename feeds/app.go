@@ -88,8 +88,8 @@ type themeTokens struct {
 // mirrorTokens subscribes the theme's Color and Typography streams into an
 // atomic cell and returns a frame-time loader. It is the layer-boundary
 // adapter for closures that run outside any rx scope (static component
-// slots, table cell closures, navbar widgets) — the same hand-off pattern
-// the widget cells in feedsShellLayer use.
+// slots, table cell closures, navbar components) — the same hand-off pattern
+// the layout.Widget cells in feedsShellLayer use.
 func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	var cell atomic.Value
 	cell.Store(themeTokens{
@@ -120,10 +120,10 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 	}
 }
 
-// backdropLayer paints the window ground: level 0, the Background pin — not
-// Surface, which is the rung the window's furniture stands on. The fill is the
-// shared backdrop.Widget rather than a hand-rolled paint.FillShape, so the
-// token is derived in one place.
+// backdropLayer paints the window's base fill: level 0, the Background pin —
+// not Surface, which is the level the window's furniture stands on. The fill
+// is the shared `backdrop.Widget` rather than a hand-rolled paint.FillShape,
+// so the token is derived in one place.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	return rx.Map(
 		rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
@@ -145,8 +145,8 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // patterns/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
 // (and SplitPane's Left/Right, and navbar Actions) as static layout.Widget
 // slots, and Shell re-emits (driving theme/window's Invalidate) only when
-// its Sidebar or Navbar stream emits. So every live widget stream is folded
-// onto the sidebar-driving observable, and the latest widget of each is
+// its Sidebar or Navbar stream emits. So every live layout.Widget stream is
+// folded onto the sidebar-driving observable, and the latest one of each is
 // published into an atomic cell — a layer-boundary adapter read by the
 // corresponding static slot at frame time. Any model change therefore
 // re-emits the sidebar stream, which makes Shell re-emit and the window
@@ -156,7 +156,7 @@ func feedsShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 ) rx.Observable[layout.Widget] {
-	// This window's arbitration registers. They are plain values with no
+	// This window's arbiters. They are plain values with no
 	// synchronisation, so the scope they are created at is the scope they are
 	// safe at: theme/window calls the build function once per window and this
 	// layer is composed exactly once inside it, which makes this function body
@@ -204,7 +204,7 @@ func feedsShellLayer(
 	// Layer-boundary cells (see the function comment). articlesCell and
 	// detailCell feed the SplitPane's static Left/Right slots; splitCell
 	// feeds the outer shell's static Main slot; shareCell feeds the navbar
-	// Share action widget.
+	// Share action slot.
 	var articlesCell, detailCell, splitCell, shareCell atomic.Value
 	slot := func(cell *atomic.Value) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
@@ -258,7 +258,7 @@ func feedsShellLayer(
 
 	// Overlay composition: the Add-feed modal, the Preferences panel and the
 	// toast stack draw OVER the whole window. They are folded onto the shell
-	// stream and drawn after the shell inside the returned widget, which then
+	// stream and drawn after the shell inside the returned layout.Widget, which
 	// reports the shell's dims, rather than becoming a third buildLayers
 	// layer. Every model change still re-emits this stream — driving the
 	// same-frame repaint.
@@ -308,13 +308,13 @@ func feedsShellLayer(
 	)
 }
 
-// shareCanvasDp sizes the Exact canvas handed to the Share popover widget in
-// the navbar action slot. patterns/popover centres its anchor in the canvas
-// and sizes its outside-press absorber to it, so the canvas must be (a)
-// small enough to sit in the navbar's action row and (b) wide enough that
-// the Bottom-placed surface (centred under the anchor) stays on-screen when
-// the action row hugs the window's trailing edge. 160 dp leaves ~55 dp of
-// margin either side of the anchor — enough for the ~130 dp surface.
+// shareCanvasWDp and shareCanvasHDp size the Exact space handed to the Share
+// popover in the navbar action slot. patterns/popover centres its anchor in
+// that space and sizes its outside-press absorber to it, so the space must
+// be (a) small enough to sit in the navbar's action row and (b) wide enough
+// that the Bottom-placed surface (centred under the anchor) stays on-screen
+// when the action row hugs the window's trailing edge. 160 dp leaves ~55 dp
+// of margin either side of the anchor — enough for the ~130 dp surface.
 const (
 	shareCanvasWDp = 160
 	shareCanvasHDp = 28
@@ -324,11 +324,11 @@ const (
 // feed action, and the Share popover slot. Brand and action labels are the
 // app's own text, so they read the theme snapshot from loadTok at frame
 // time: the brand in TitleMedium on the Text pin, the Add feed action in
-// LabelLarge on the Primary pin. shareSlot reads the latest popover widget
-// from its layer-boundary cell; the wrapper pins the popover's canvas to an
-// Exact size so the anchor centres where the button should sit and the
-// returned dims do not blow up the navbar's Flex row (popover returns
-// Dimensions{Size: canvas}).
+// LabelLarge on the Primary pin. shareSlot reads the latest popover
+// layout.Widget from its layer-boundary cell; the wrapper pins the popover's
+// space to an Exact size so the anchor centres where the button should sit
+// and the returned dims do not blow up the navbar's Flex row (popover
+// returns the size it was given as its dims).
 func feedsNavbarProps(loadTok func() themeTokens, shareSlot layout.Widget) navbar.Props {
 	brand := func(gtx layout.Context) layout.Dimensions {
 		s := loadTok()
@@ -372,10 +372,10 @@ const (
 // all mvu.MessageOps, so the popover opens/closes on the same frame.
 //
 // The destination list overrides its incoming constraints: patterns/popover
-// measures Content against canvas/2, and the canvas here is the button-sized
-// Exact wrapper from feedsNavbarProps — half a button could not fit one
-// label. The content sizes itself and returns its own dims, which popover
-// then pads into the surface rect.
+// measures Content against half the space it is given, and that space here is
+// the button-sized Exact wrapper from feedsNavbarProps — half a button could
+// not fit one label. The content sizes itself and returns its own dims, which
+// popover then pads into the surface rect.
 func sharePopover(
 	th rx.Observable[theme.Theme],
 	shareOpenObs rx.Observable[bool],
@@ -531,7 +531,7 @@ func addFeedModal(
 	})
 
 	// What the group holds: optional alert band, then the URL field, then the
-	// submit button. Static widget assembled from the bridged cells.
+	// submit button. A static layout.Widget assembled from the bridged cells.
 	groupBody := func(gtx layout.Context) layout.Dimensions {
 		w := gtx.Constraints.Max.X
 		gap := gtx.Dp(unit.Dp(addFeedGapDp))
@@ -585,7 +585,7 @@ func addFeedModal(
 		},
 	})
 
-	// Fold every live component widget into the modal stream so the modal
+	// Fold every live component stream into the modal stream so the modal
 	// re-emits when any of them re-emits, and store the latest into its cell.
 	// Positions: modalObs, groupObs, field, submit, alertObs.
 	return rx.Map(

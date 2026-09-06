@@ -4,7 +4,7 @@ package main
 // stacked panels sharing the time axis — deliberately NOT one dual-axis
 // chart (two y-scales on one plot is the classic chart defect; two measures
 // of different scale get two panels). One series per panel, so the panel
-// title carries identity and no legend is needed; the series ink is the
+// title carries identity and no legend is needed; the series colour is the
 // same theme-derived colour the monitor readout wears, axis text stays in
 // text tokens, and the grid is a recessive hairline.
 
@@ -57,7 +57,7 @@ func chartPanels(t themed, m Model, hov *hoverState) layout.Widget {
 
 // chartPanel draws one series over the shared time window: a raised panel
 // with a hairline edge, three recessive gridlines, the 2 dp series stroke,
-// min/max labels in text ink, and the synced hover crosshair.
+// min/max labels in the text colour, and the synced hover crosshair.
 func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 	ink color.NRGBA, valFmt string, minSpan float64, hov *hoverState) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {

@@ -1,5 +1,5 @@
 // g52c_sim_test.go verifies the detail-pane and popover behaviours headlessly,
-// at the pixel level, against the REAL composed shell — the same widget tree
+// at the pixel level, against the REAL composed shell — the same layout tree
 // the running app renders. The mvu message loop itself (click → MessageOp →
 // collector → Update) is exercised by mvu's own collector tests; here the
 // messages are applied to the model directly and the assertions are on
@@ -38,7 +38,7 @@ import (
 )
 
 // awaitStableWidget drains the emission channel until it has been silent for
-// quiet, returning the LAST widget seen. Model changes fan out through
+// `quiet`, returning the LAST layout.Widget seen. Model changes fan out through
 // CombineLatest chains (and the pagination SwitchMap re-subscription), so a
 // single send can produce several intermediate emissions; pixel assertions
 // must run against the settled one.
@@ -56,7 +56,7 @@ func awaitStableWidget(t *testing.T, emissions <-chan layout.Widget, what string
 				return last
 			}
 			if time.Now().After(deadline) {
-				t.Fatalf("no widget emission after %s", what)
+				t.Fatalf("no layout.Widget emission after %s", what)
 				return nil
 			}
 		}
@@ -147,7 +147,7 @@ func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
 	}
 
 	// ToggleShare paints the popover; CloseShare must restore the pre-open
-	// frame EXACTLY (the widgets are pure functions of model + theme).
+	// frame EXACTLY (every layer is a pure function of model + theme).
 	m, _ = Update(m, ToggleShare{})
 	send.Next(m)
 	shareOpen := snap("ToggleShare")
@@ -163,7 +163,7 @@ func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
 	}
 }
 
-// Tooltip-harness canvas: a stand-in table pane the size of the real one.
+// Tooltip-harness frame: a stand-in table pane the size of the real one.
 const (
 	tipCanvasW = 800
 	tipCanvasH = 400
@@ -185,7 +185,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	})
 	tip, err := collectOne(tipObs)
 	if err != nil || tip == nil {
-		t.Fatalf("tooltip widget: %v", err)
+		t.Fatalf("tooltip layout.Widget: %v", err)
 	}
 
 	stubTable := func(gtx layout.Context) layout.Dimensions {
@@ -240,7 +240,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 		},
 	}))
 	if err != nil || freshTip == nil {
-		t.Fatalf("baseline tooltip widget: %v", err)
+		t.Fatalf("baseline tooltip layout.Widget: %v", err)
 	}
 	baseline := renderAt(t0, gioinput.Source{}, overlayUnreadTooltip(stubTable, freshTip))
 

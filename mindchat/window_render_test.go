@@ -3,10 +3,10 @@ package main
 // A whole-window render, headless. The app has no offscreen mode of its own —
 // it is a native window binary — but the layers the window renders are plain
 // observables of layout.Widget, so composing them over a frozen theme and
-// drawing them into a headless canvas produces the same frame the window
+// drawing them into a headless image produces the same frame the window
 // would show, at the size the window opens at.
 //
-// A composition can only be judged as a composition: a render of one widget
+// A composition can only be judged as a composition: a render of one component
 // in isolation cannot see that a window reads darker in the middle than at
 // its edges, and this can. Run it with -window.dump=<dir> to write the frames
 // out for a pair of eyes:
@@ -83,10 +83,10 @@ func demoModel() Model {
 			Loaded: true,
 			History: []Message{
 				{Role: RoleUser, Content: "In MVU, how does a button click reach the update function?"},
-				{Role: RoleAssistant, Content: "The widget records a `MessageOp`; after the frame, " +
+				{Role: RoleAssistant, Content: "The component records a `MessageOp`; after the frame, " +
 					"the window drains the operation list into the loop:\n\n" +
 					"```go\nfor _, msg := range frame.Messages() {\n\tmodel = Update(model, msg)\n}\n```"},
-				{Role: RoleUser, Content: "So state never lives in the widget?"},
+				{Role: RoleUser, Content: "So state never lives in the component?"},
 				{Role: RoleAssistant, Content: "Only ephemeral gesture state:\n\n" +
 					"- press tracking\n" +
 					"- an editor's cursor\n" +
@@ -117,8 +117,9 @@ func demoModel() Model {
 	}
 }
 
-// frame composes the window's layers for one scheme into a single widget: the
-// backdrop first, the content over it, exactly as theme/window stacks them.
+// frame composes the window's layers for one scheme into a single
+// layout.Widget: the backdrop first, the content over it, exactly as
+// theme/window stacks them.
 func frame(t *testing.T, c tokens.ColorTokens, model Model) layout.Widget {
 	t.Helper()
 	layers := buildLayers(rx.Of(model))(rx.Of(staticTheme(c)))
@@ -146,7 +147,7 @@ func frame(t *testing.T, c tokens.ColorTokens, model Model) layout.Widget {
 		}
 		sub.Unsubscribe()
 		if latest == nil {
-			t.Fatalf("layer %d never emitted a widget", i)
+			t.Fatalf("layer %d never emitted a layout.Widget", i)
 		}
 		widgets[i] = latest
 	}
@@ -285,9 +286,9 @@ func renderWindow(t *testing.T, name string, c tokens.ColorTokens, m Model) {
 }
 
 // clicked drives w through two headless frames with a click queued at pos and
-// returns a widget drawing from the state those frames left behind. It is how
-// a surface whose open state lives INSIDE a component — a picker field's menu
-// — is captured standing open: the Model cannot be posed into it.
+// returns a layout.Widget drawing from the state those frames left behind. It
+// is how a surface whose open state lives INSIDE a component — a picker
+// field's menu — is captured standing open: the Model cannot be posed into it.
 func clicked(w layout.Widget, size image.Point, pos f32.Point) layout.Widget {
 	r := new(gioinput.Router)
 	drive := func() {

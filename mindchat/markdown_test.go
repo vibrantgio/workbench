@@ -149,11 +149,11 @@ func TestImagePassesThrough(t *testing.T) {
 }
 
 // TestBundledIconServes verifies the embedded asset tree serves the OpenAI
-// icon as a vector widget — proving the bundled SVG parses.
+// icon as a vector image — proving the bundled SVG parses.
 func TestBundledIconServes(t *testing.T) {
 	w, err := mdImages.ImageWidget("openai.svg")
 	if err != nil || w == nil {
-		t.Fatalf("ImageWidget(openai.svg) = (%v, %v); want a widget", w, err)
+		t.Fatalf("ImageWidget(openai.svg) = (%v, %v); want a layout.Widget", w, err)
 	}
 	if _, err := mdImages.ImageWidget("https://example.com/photo.png"); err == nil {
 		t.Error("remote destination served; want an error so it falls back to alt text")
@@ -234,7 +234,7 @@ func TestNestedListStaysNested(t *testing.T) {
 // so a construct that would grow document chrome does not smuggle itself in
 // under a bullet.
 func TestListItemContentStaysInTheSubset(t *testing.T) {
-	blocks := parseBody("- # loud\n")
+	blocks := parseBody("- # head\n")
 	l := mdList(t, blocks[0])
 	if len(l.Items) != 1 || len(l.Items[0].Blocks) != 1 {
 		t.Fatalf("list = %#v, want one item holding one block", l)
@@ -243,7 +243,7 @@ func TestListItemContentStaysInTheSubset(t *testing.T) {
 	if _, ok := b.(*markdown.Heading); ok {
 		t.Fatalf("heading survived inside a list item; want it degraded")
 	}
-	if spans := paragraph(t, b).Spans; len(spans) == 0 || spans[0].Text != "loud" {
+	if spans := paragraph(t, b).Spans; len(spans) == 0 || spans[0].Text != "head" {
 		t.Errorf("degraded item spans = %#v, want the heading's inline run", spans)
 	}
 }

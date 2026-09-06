@@ -29,7 +29,7 @@ import (
 // panel and nothing else — closing it is the panel's job.
 const prefsAccelerator = ","
 
-// shortcutArea returns a widget that invokes cb on every press of name with
+// shortcutArea returns a layout.Widget that invokes cb on every press of name
 // the platform shortcut modifier held. Lay it out over the area the shortcut
 // should be live in — for a global accelerator, the whole window, FIRST, so
 // it sits at the bottom of the hit stack under the content.
@@ -39,7 +39,7 @@ const prefsAccelerator = ","
 // window-sized area laid over the content would swallow every click in the
 // app.
 //
-// A focused widget that claims the same chord first — a text editor's own
+// A focused component that claims the same chord first — a text editor's own
 // Cmd-Z, say — receives it and this area does not: the accelerator is the
 // app's fallback, not an override.
 func shortcutArea(name key.Name, cb func(gtx layout.Context)) layout.Widget {

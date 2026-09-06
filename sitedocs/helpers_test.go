@@ -48,8 +48,8 @@ func staticTabs(
 	return out
 }
 
-// scene fills the canvas with a background colour and lays the widget
-// over it, so captures have a deterministic ground.
+// scene fills the frame with a background colour and lays the
+// layout.Widget over it, so captures have a deterministic fill.
 func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, bgColor, clip.Rect{Max: gtx.Constraints.Max}.Op())
@@ -57,8 +57,8 @@ func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 	}
 }
 
-// drawOnce lays a widget out for one frame at the given size and returns
-// its dimensions; a widget that fails to compose panics or reports zero.
+// drawOnce lays a layout.Widget out for one frame at the given size and
+// returns its dimensions; one that fails to compose panics or reports zero.
 func drawOnce(t *testing.T, size image.Point, w layout.Widget) layout.Dimensions {
 	t.Helper()
 	var ops op.Ops

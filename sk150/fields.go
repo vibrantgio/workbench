@@ -34,7 +34,7 @@ const (
 )
 
 type fieldSpec struct {
-	Key      string  // widget slot key
+	Key      string  // field slot key
 	Label    string  // row caption
 	Short    string  // the device's own name, for compact grids
 	Unit     string  // field placeholder

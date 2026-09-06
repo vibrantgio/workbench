@@ -45,7 +45,7 @@ const (
 // edgeFloor is WCAG 1.4.11's contrast floor for a graphic that carries
 // meaning without being text — 3:1. An edge is exactly that: it is the whole
 // of what says where one plane ends and the next begins, so it is not
-// decoration and owes its ground this much.
+// decoration and owes the surface under it this much.
 const edgeFloor = 3.0
 
 // Palette is this window's view of the colour tokens: every colour it
@@ -94,8 +94,8 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 // colours that section draws its own furniture with, and no more.
 //
 // The window's palette names more than that — a card edge, an accent and
-// the ink over it, the colour a problem is said in — and none of them is a
-// colour the story has any business reading. Handing over four fields
+// the foreground over it, the colour a problem is said in — and none of them
+// is a colour the story has any business reading. Handing over four fields
 // rather than the whole value is what keeps that true by construction: a
 // colour this window adds later cannot silently start appearing inside a
 // section that never asked for it.
@@ -185,9 +185,9 @@ func PaletteRows(p Palette, c, other tokens.ColorTokens, ty Type, dark bool) []l
 }
 
 // paletteHeading is a section's heading band, which the seed row above the
-// story and the type ladder below it wear as well: one band for the whole
+// story and the type scale below it wear as well: one band for the whole
 // column, so a reader meets one kind of heading between the seed and the
-// ladder rather than three.
+// scale rather than three.
 func paletteHeading(p Palette, c tokens.ColorTokens, ty Type, title, hint string) layout.Widget {
 	return palette.Heading(p.story(), c, ty.story(), title, hint)
 }

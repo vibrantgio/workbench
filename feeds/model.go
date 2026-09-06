@@ -167,7 +167,7 @@ type OpenPreferences struct{}
 
 // ClosePreferences hides the Preferences panel. Landed by the panel's ghost
 // close X, an Escape press, and a backdrop click — all three of which the
-// modal routes to Props.OnClose because the panel intent says every cheap
+// modal routes to Props.OnClose because the panel purpose says every cheap
 // exit is offered. Idempotent when already closed.
 type ClosePreferences struct{}
 

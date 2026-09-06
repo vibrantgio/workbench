@@ -44,11 +44,11 @@ type themed struct {
 }
 
 // statIcons are the dashboard's glyphs, rasterised once per theme emission
-// in the ink they are drawn with.
+// in the colour they are drawn with.
 type statIcons struct {
 	Bolt     layout.Widget // input voltage
 	BoltOn   layout.Widget // the amp row's output bolt, lit
-	BoltOff  layout.Widget // the amp row's output bolt, disabled ink
+	BoltOff  layout.Widget // the amp row's output bolt, disabled
 	Flame    layout.Widget // internal temperature
 	FlameHot layout.Widget // internal temperature, running hot
 	Battery  layout.Widget // accumulated charge
@@ -111,11 +111,11 @@ func (r *registry) add(key string, o rx.Observable[layout.Widget]) {
 }
 
 // pageState is the frame-time snapshot the static tab Content closures read.
-// patterns/tabs captures Content widgets at construction (a static slice),
-// so the closures cannot receive the model in-band; they read this cell,
-// which the combined map below stores synchronously BEFORE the emitted
-// widget can be laid out — a frame never renders a stale snapshot (the
-// feeds/detail.go recipe).
+// patterns/tabs captures Content layout.Widgets at construction (a static
+// slice), so the closures cannot receive the model in-band; they read this
+// cell, which the combined map below stores synchronously BEFORE the
+// emitted layer can be laid out — a frame never renders a stale snapshot
+// (the feeds/detail.go recipe).
 type pageState struct {
 	t  themed
 	m  Model
@@ -392,7 +392,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			})
 	})
 
-	// The two overlay widgets: the tab strip (content) and the modal above
+	// The two overlay layers: the tab strip (content) and the modal above
 	// it. Same element type, so one variadic combine carries both.
 	overlays := rx.CombineLatest(tabsObs, lvpModal)
 
@@ -461,7 +461,7 @@ func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widge
 	}
 }
 
-// listContent adapts a row builder into a scrolling tab Content widget:
+// listContent adapts a row builder into a scrolling tab Content slot:
 // the rows flow through a layout.List whose scroll state the caller keeps
 // at subscription scope.
 func listContent(load func() (pageState, bool), list *layout.List, build func(themed, Model, widgetSet) []layout.Widget) layout.Widget {
@@ -480,11 +480,11 @@ func listContent(load func() (pageState, bool), list *layout.List, build func(th
 }
 
 // powerButton is the header's output toggle: the power glyph, lit in the
-// accent ink while the output is on, emitting ToggleOutput on click. The
+// accent colour while the output is on, emitting ToggleOutput on click. The
 // clickable lives at subscription scope; state and colours arrive through
 // the frame-time snapshot. Affordance is the standard recipe: a pointer
-// cursor over the target, a circular hover/press wash one step off the
-// ground, and padding that grows the hit area past the glyph.
+// cursor over the target, a circular hover/press fill one step off the
+// surface beneath, and padding that grows the hit area past the glyph.
 func powerButton(load func() (pageState, bool), click *widget.Clickable) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
@@ -523,7 +523,7 @@ func powerButton(load func() (pageState, bool), click *widget.Clickable) layout.
 }
 
 // switchWidget is a toggle switch for one boolean setting: a pill track
-// with a knob, the accent ink when on and the hairline when off, emitting
+// with a knob, the accent colour when on and the hairline when off, emitting
 // SetSwitch with the flipped value on click. Same affordance recipe as the
 // power button.
 func switchWidget(load func() (pageState, bool), click *widget.Clickable, s Switch) layout.Widget {
@@ -1091,7 +1091,7 @@ func spacer(gtx layout.Context) layout.Dimensions {
 	return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
 }
 
-// vspace is a vertical gap as a plain widget, for list rows.
+// vspace is a vertical gap as a plain layout.Widget, for list rows.
 func vspace(dp unit.Dp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: image.Pt(0, gtx.Dp(dp))}

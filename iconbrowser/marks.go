@@ -97,8 +97,8 @@ func MarkGrid(t themed, names []marks.Name) layout.Widget {
 //
 // Every size is centred on the band's own line rather than stood on a common
 // foot: a mark is drawn centred in its square, so centring the squares puts
-// every drawing's middle on one line. How far a drawing's ink reaches into its
-// square differs between marks, so a common foot would not align them.
+// every drawing's middle on one line. How far a drawing's paint reaches into
+// its square differs between marks, so a common foot would not align them.
 //
 // The turned drawing is shown once, at MarkBand, rather than beside every size:
 // three sizes doubled with a gap between each is 180 dp against a 160 dp CellW,

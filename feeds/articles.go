@@ -47,8 +47,8 @@ const (
 // Geometry shared by the Unread tooltip overlay. unreadColWDp matches the
 // Unread column's pinned Width; tableHeaderHDp mirrors the header band's
 // height at Comfortable density (Density.ControlHeight). The table draws its
-// header internally and exposes no per-header widget hook, so the tooltip hit
-// area is positioned by arithmetic over these constants.
+// header internally and exposes no per-header layout.Widget hook, so the
+// tooltip hit area is positioned by arithmetic over these constants.
 const (
 	unreadColWDp   = 96
 	tableHeaderHDp = 36
@@ -245,9 +245,10 @@ func articlesMain(
 	)
 
 	// Hover tooltip for the icon-only Unread ("•") column header. The
-	// trigger fills whatever canvas it is given; the overlay wrapper in
-	// articlesLayout positions that canvas over the header cell, since the
-	// table draws its headers internally and offers no widget slot there.
+	// trigger fills whatever space it is given; the overlay wrapper in
+	// articlesLayout positions that space over the header cell, since the
+	// table draws its headers internally and offers no layout.Widget slot
+	// there.
 	unreadTipObs := tooltip.Tooltip(th, tooltip.Props{
 		Text:      "Unread",
 		Placement: tooltip.Bottom,
@@ -274,7 +275,7 @@ func articlesMain(
 		Sort:    sortObs,
 		OnSort:  onSort,
 		// The list IS the left pane's content, not a card lying on it, so
-		// its plane is the window ground. Stated rather than left to the zero
+		// its plane is the window's base fill. Stated rather than left to the zero
 		// value, because it is the decision the pane's own fill below has to
 		// agree with.
 		Ground: tokens.Level0,
@@ -389,18 +390,18 @@ func articleColumns(
 	}
 }
 
-// articlesLayout vertically stacks the three composed widgets with a
+// articlesLayout vertically stacks the three composed rows with a
 // uniform inset and a small gap between rows. The table flexes to
 // consume vertical space the filter and pagination rows leave behind.
 // unreadTip is overlaid on the table's Unread header cell — see
 // overlayUnreadTooltip.
 //
-// The pane paints its own ground before any of that: the article list is
-// content, so its resting ground is level 0, the Background pin — not
+// The pane paints its own fill before any of that: the article list is
+// content, so its resting level is 0, the Background pin — not
 // patterns/shell's SplitPane backstop, which is Surface. The table takes the
-// same rung through its Ground prop, so the pane is one sheet of paper from
-// its margin to the last hairline; a grid raised off its own pane would put
-// the window's biggest expanse a storey above the content it belongs to.
+// same level through its `Ground` prop, so the pane is one sheet of paper
+// from its margin to the last hairline; a grid raised off its own pane would
+// put the window's biggest expanse a level above the content it belongs to.
 func articlesLayout(loadTok func() themeTokens, filter, table, pag, unreadTip layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, loadTok().col.SurfaceAt(tokens.Level0),
@@ -418,11 +419,11 @@ func articlesLayout(loadTok func() themeTokens, filter, table, pag, unreadTip la
 }
 
 // overlayUnreadTooltip draws the table, then lays the tooltip's
-// trigger-sized canvas exactly over the Unread header cell (the trailing
+// trigger-sized region exactly over the Unread header cell (the trailing
 // pinned-width column, header row height). The tooltip registers its hover
-// hit area inside that canvas and paints its surface below it, over the
+// hit area inside that region and paints its surface below it, over the
 // table body. Positioning is arithmetic over unreadColWDp/tableHeaderHDp
-// because patterns/table exposes no per-header widget slot.
+// because patterns/table exposes no per-header layout.Widget slot.
 func overlayUnreadTooltip(table, tip layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		dims := table(gtx)

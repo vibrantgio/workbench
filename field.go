@@ -70,7 +70,7 @@ type fieldPalette struct {
 
 // paletteFrom derives the field's palette from the components colour tokens: the
 // hue family follows the theme's Primary, and the value range keeps the field
-// a quiet backdrop — deep tones on a dark background, pastel on a light one —
+// a faint backdrop — deep tones on a dark background, pastel on a light one —
 // so the hero text and cards floating on it stay readable.
 func paletteFrom(c tokens.ColorTokens) fieldPalette {
 	hue, _, _ := rgbToHSL(c.Primary)
@@ -84,8 +84,8 @@ func paletteFrom(c tokens.ColorTokens) fieldPalette {
 // Field owns one seen scene and its animation. All fields except pending are
 // touched only on the events thread (construction happens before the first
 // frame; after that, mutation happens inside the animation tick and the
-// widget's resize callback). SetColors may be called from any rx goroutine —
-// it only stores into pending; the tick applies it.
+// `seengio.Widget`'s resize callback). SetColors may be called from any rx
+// goroutine — it only stores into pending; the tick applies it.
 type Field struct {
 	ctx     *seengio.Context
 	scene   *seen.Scene
@@ -137,7 +137,7 @@ func NewField(window *app.Window, width, height unit.Dp) *Field {
 		}
 	})
 
-	// The identity Offset push/pop discards anything the seen widget adds to
+	// The identity Offset push/pop discards anything `seengio.Widget` adds to
 	// the op list, so the background can never disturb the layers drawn above
 	// it.
 	f.view = func(gtx layout.Context) layout.Dimensions {
@@ -147,7 +147,7 @@ func NewField(window *app.Window, width, height unit.Dp) *Field {
 	return f
 }
 
-// Widget returns the field as a plain background widget.
+// Widget returns the field as a plain background layout.Widget.
 func (f *Field) Widget() layout.Widget { return f.view }
 
 // SetColors re-keys the palette to new theme tokens. Safe from any goroutine;

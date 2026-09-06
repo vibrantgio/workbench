@@ -55,9 +55,9 @@ func TestModelObsConsumerCountMatchesConst(t *testing.T) {
 // that run() builds — mvu.Loop(messages) → Publish().AutoConnect(
 // modelObsConsumers) → feedsShellLayer — rather than the rx.Subject shortcut
 // the re-emission test uses. It proves two things:
-//  1. the layer emits a (seed-derived) widget once all consumers have attached
-//     and Connect has fired — i.e. modelObsConsumers is not too high (no freeze)
-//     and the seed actually reaches every consumer (not too low);
+//  1. the layer emits a (seed-derived) layout.Widget once all consumers have
+//     attached and Connect has fired — i.e. modelObsConsumers is not too high
+//     (no freeze) and the seed actually reaches every consumer (not too low);
 //  2. a message pushed through the real message channel re-emits the layer with
 //     the updated model — the same-frame repaint driver.
 func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {

@@ -12,7 +12,7 @@
 //
 // The body puts components/button's emphasis axis to work as a state display:
 // the selected page size is TONAL and the rest are GHOST. Nothing here is
-// Filled — a panel of preferences has no one loud action.
+// Filled — a panel of preferences is about no one action.
 package main
 
 import (
@@ -36,9 +36,8 @@ import (
 )
 
 // Geometry of the panel body's two preference rows. The row height is the
-// 44 dp pointer floor components/button guarantees in every emphasis register,
-// so a ghost control's hit area never reaches into the row above or below
-// it.
+// 44 dp pointer floor components/button guarantees at every emphasis, so a
+// ghost control's hit area never reaches into the row above or below it.
 const (
 	prefsRowHDp     = 44
 	prefsRowGapDp   = 12
@@ -80,10 +79,10 @@ func preferencesPanel(
 			}
 			// Every button in this row stands on the panel's own surface,
 			// so it says which level that is. A ghost paints no fill of
-			// its own: its hover wash and its focus ring both derive from
+			// its own: its hover fill and its focus ring both derive from
 			// the host's fill, and a panel is patterns/modal's level-2 one.
-			// Left unsaid, the row would wash and ring against the window
-			// surface it is nowhere near — the wash dissolving into the
+			// Left unsaid, the row would take both from the window surface
+			// it is nowhere near — the fill dissolving into the
 			// panel and the ring reading 2.92:1 against it in the light
 			// scheme, under the 3:1 a focus mark owes the surface under
 			// it.
@@ -142,7 +141,7 @@ func preferencesPanel(
 		// This window's modal stack: the panel and the Add-feed modal share
 		// it, so whichever is opened last is the one that takes input.
 		Arbiter: modalArb,
-		// Props.Decision stays nil. That is the panel intent, and with it come
+		// Props.Decision stays nil. That is the panel purpose, and with it come
 		// the ghost close X, the dismissing backdrop, and Escape — none of
 		// which is configured here because none of them is this app's choice
 		// to make once it has said what kind of dialog this is.

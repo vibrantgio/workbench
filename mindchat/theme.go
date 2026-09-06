@@ -19,13 +19,13 @@ import (
 // and restyles the whole app with no imperative wiring.
 //
 // The levels the roles resolve to are the window grammar's, not this app's
-// invention: the transcript is the window's CONTENT GROUND and fills at
+// invention: the transcript is the window's CONTENT PLANE and fills at
 // level 0, the Background pin; the conversation list is CHROME FURNITURE and
-// is therefore the window's FLOOR, one step UNDER the paper toward the
+// is therefore at the CHROME level, one step UNDER the paper toward the
 // scheme's dark extreme in both schemes; levels 2 and 3 are kept for what
 // appears and leaves — the settings dialog, the model menu, the undo bar —
 // and for edges. A raised thing walks its level from the surface it is
-// lying on, so a chip on the transcript ground is level 1 while a chip
+// lying on, so a chip on the transcript is level 1 while a chip
 // inside the level-2 settings dialog is measured from level 2.
 //
 // Since ADR-022 elevation runs one way in both schemes: nearer the viewer
@@ -48,25 +48,25 @@ type Palette struct {
 	RowSelected color.NRGBA
 	RowHovered  color.NRGBA
 	Accent      color.NRGBA // selected-row accent bar
-	// Ground is the transcript's resting fill — the header band, the
+	// `Ground` is the transcript's resting fill — the header band, the
 	// assistant's turns and the space around them. It is the Background pin,
 	// level 0: the transcript is the thing the window exists to show, so it
 	// is the paper everything else in the pane is measured from, and it is
 	// lighter than the furniture beside it in BOTH schemes — the window
 	// reads lighter toward its middle on paper and on slate alike.
 	Ground     color.NRGBA
-	UserBubble color.NRGBA // user message fill — a Primary turn, not a rung
+	UserBubble color.NRGBA // user message fill — a Primary turn, not a level
 	UserText   color.NRGBA // user message text
-	BotText    color.NRGBA // assistant message text — the ink pinned to Ground
+	BotText    color.NRGBA // assistant message text — the foreground on `Ground`
 	// The header picker's own fill, hover and rim are not here: it is
 	// components/picker, which derives all three from the level it stands
 	// on. What this app still says about it is where it stands — the level-0
 	// paper of the transcript's header band — and the component answers the
 	// rest.
 	ChipText color.NRGBA // label over the dialog's own template chips
-	// ModalChip is a chip inside the settings dialog. Its ground is the
+	// ModalChip is a chip inside the settings dialog. It stands on the
 	// dialog's level-2 surface, so it rests flush on it and reveals itself
-	// with that surface's own state walk rather than reaching for a rung the
+	// with that surface's own state walk rather than taking a level the
 	// transcript's chips use.
 	ModalChip        color.NRGBA
 	ModalChipHovered color.NRGBA
@@ -74,7 +74,7 @@ type Palette struct {
 	// bar. It is a level-2 fill because that is the level elevation keeps for
 	// exactly that, and it is its own role rather than a borrowed one: the bar
 	// used to tint the selected-row fill, which was fine only while that fill
-	// was a neutral step and became a purple-on-purple wash the moment the
+	// was a neutral step and became a purple-on-purple fill the moment the
 	// selection turned into a Primary tint.
 	Toast color.NRGBA
 	Icon  color.NRGBA // assistant avatar glyph
@@ -85,13 +85,13 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 	// The hover fill is the sidebar's OWN state walk at half strength, painted
 	// over the sidebar surface. It can no longer be derived from the selected
 	// fill — that one is a Primary tint now — and it must not be: hover is a
-	// transient state, and a transient state is a neutral walk from the ground
-	// it happens on. That ground is the sidebar's level, and since ADR-022
-	// the sidebar's level is the FLOOR — so the walk is taken with StateAt
-	// from the floor's own fill rather than from a ramp index. Asking the ramp
+	// transient state, and a transient state is a neutral walk from the fill
+	// it happens on. That fill is the sidebar's level, and since ADR-022
+	// the sidebar's level is CHROME — so the walk is taken with StateAt
+	// from the chrome fill rather than from a ramp index. Asking the ramp
 	// for the old level-1 step would have kept answering the light scheme
-	// right by accident (its floor IS neutral 200) and the dark scheme wrong
-	// by a whole level.
+	// right by accident (its chrome fill IS neutral 200) and the dark scheme
+	// wrong by a whole level.
 	//
 	// Half strength rather than the full step, and that is the re-derivation
 	// the tint forced. On paper the neutral hover step lands at luma 212 and
@@ -120,10 +120,10 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		Ground:      c.SurfaceAt(tokens.Level0),
 		UserBubble:  c.Primary,
 		UserText:    c.OnPrimary,
-		// The ink over the Background pin is the Text pin, not the neutral
-		// ramp's far end: a ground that is off-ramp takes the ink pinned to
-		// it. The two coincide in the shipped schemes and need not in a
-		// brand's.
+		// The foreground over the Background pin is the Text pin, not the
+		// neutral ramp's far end: a fill that is off-ramp takes the foreground
+		// pinned to it. The two coincide in the shipped schemes and need not in
+		// a brand's.
 		BotText:          c.Text,
 		ChipText:         c.Ramps.Neutral.Step(900),
 		ModalChip:        c.SurfaceAt(tokens.Level2),
@@ -163,7 +163,7 @@ func roleText(role tokens.TextStyle) textdraw.TextStyle {
 	}
 }
 
-// isDarkColor reports whether c reads as a dark ground (Rec. 601 luma below
+// isDarkColor reports whether c reads as a dark fill (Rec. 601 luma below
 // mid-grey), selecting the dark chroma style for code highlighting.
 func isDarkColor(c color.NRGBA) bool {
 	luma := 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)
@@ -198,7 +198,7 @@ const (
 	// window and the transcript takes everything it does not.
 	SidebarWidth unit.Dp = 240
 
-	// PaneMargin is the sliver of window ground the pane floats off its
+	// PaneMargin is the sliver of backdrop the pane floats off its
 	// leading, top and bottom edges, and the air the chrome row and the
 	// input bar keep off the window's edges so the content area answers the
 	// same margin the pane does. The number is the pattern's.
@@ -271,7 +271,7 @@ var windowButtonRun = pane.Buttons
 // controls on their line by the pattern's own arithmetic; a row twice that
 // depth centres ITS controls on the same line. So the toggle and the
 // new-chat mark stand at one height whether they ride the pane or stand in
-// the row that recalls it, and neither drops a rung as the pane comes and
+// the row that recalls it, and neither drops a step as the pane comes and
 // goes. That jump — the control just clicked leaving from under the
 // pointer — is the defect this composition exists to kill.
 var ChromeRowHeight = 2 * windowButtonRun.Center

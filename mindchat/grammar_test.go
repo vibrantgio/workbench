@@ -42,7 +42,7 @@ func schemeThemed(t *testing.T, c tokens.ColorTokens) themed {
 	typ := tokens.DefaultTypography
 	avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
 	if err != nil {
-		t.Fatalf("avatar widget: %v", err)
+		t.Fatalf("avatar raster: %v", err)
 	}
 	return themed{
 		palette: p,
@@ -80,10 +80,10 @@ func TestTranscriptRestsOnTheWindowGround(t *testing.T) {
 			c := tc.c
 			p := PaletteFrom(c)
 			if p.Ground != c.SurfaceAt(tokens.Level0) {
-				t.Errorf("transcript ground = %v, want the level-0 fill %v", p.Ground, c.SurfaceAt(tokens.Level0))
+				t.Errorf("transcript fill = %v, want the level-0 fill %v", p.Ground, c.SurfaceAt(tokens.Level0))
 			}
 			if p.Ground == c.SurfaceAt(tokens.Level2) {
-				t.Errorf("transcript ground = %v, the level-2 fill; no resting expanse may sit that deep", p.Ground)
+				t.Errorf("transcript fill = %v, the level-2 fill; no resting expanse may sit that deep", p.Ground)
 			}
 			if p.Sidebar != c.SurfaceAt(tokens.LevelChrome) {
 				t.Errorf("sidebar = %v, want the chrome level's fill %v — furniture stands one level UNDER the content", p.Sidebar, c.SurfaceAt(tokens.LevelChrome))
@@ -117,7 +117,7 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 				// The header picker's fill is the component's, not this
 				// palette's: the claim is made against the control's own answer
 				// for the level it stands on, because the window's elevation is
-				// what is on trial here and the control is still a rung of it.
+				// what is on trial here and the control is still a level of it.
 				{"the header picker", picker.ToolbarFill(c, tokens.Level0, tokens.StateNormal)},
 				{"a dialog's surface", c.SurfaceAt(tokens.Level2)},
 			}
@@ -145,7 +145,7 @@ func TestLightnessClimbsTowardTheViewer(t *testing.T) {
 // and a message body lies on the transcript's paper — so a fenced block and
 // an inline code chip sit exactly one level off that paper, and since
 // ADR-022's fence ruling "up" means LIGHTER in both schemes: a fence is a
-// raised chip, never a well cut into the page. Inheriting FromTokens' grounds
+// raised chip, never a well cut into the page. Inheriting FromTokens' fills
 // is how the app gets there; this is the assertion that makes it a decision.
 //
 // On paper the step is a whisper the fill alone cannot carry — what says
@@ -159,7 +159,7 @@ func TestCodeInsetsStepUpFromTheTranscriptGround(t *testing.T) {
 			md := messageMarkdownStyle(c, tokens.DefaultTypography)
 
 			if md.Paper != p.Ground {
-				t.Errorf("Style.Paper = %v, but a message body is read on the transcript ground %v", md.Paper, p.Ground)
+				t.Errorf("Style.Paper = %v, but a message body is read on the transcript fill %v", md.Paper, p.Ground)
 			}
 			want := c.SurfaceAt(tokens.Level1)
 			for _, f := range []struct {
@@ -170,27 +170,27 @@ func TestCodeInsetsStepUpFromTheTranscriptGround(t *testing.T) {
 				{"CodeChip", md.CodeChip},
 			} {
 				if f.got != want {
-					t.Errorf("Style.%s = %v, want one rung over the paper, %v", f.name, f.got, want)
+					t.Errorf("Style.%s = %v, want one level over the paper, %v", f.name, f.got, want)
 				}
 			}
 			if step := luma(md.CodeBackground) - luma(p.Ground); step <= 0 {
-				t.Errorf("fence ground %v is not lighter than the paper %v; a raised inset lightens in BOTH schemes", md.CodeBackground, p.Ground)
+				t.Errorf("fence fill %v is not lighter than the paper %v; a raised inset lightens in BOTH schemes", md.CodeBackground, p.Ground)
 			}
 		})
 	}
 }
 
 // TestChipsWalkFromTheSurfaceTheySitOn checks the two chips this app draws
-// against the same rule from two different grounds: the header picker sits on
+// against the same rule from two different fills: the header picker sits on
 // the transcript's level-0 paper and is raised a level off it; the dialog's
 // chips sit flush on the dialog's level-2 surface and reveal themselves with
-// that surface's own walk. Each one's hover is its own ground's one-step
+// that surface's own walk. Each one's hover is its own fill's one-step
 // walk, so neither is invisible at rest and neither moves the wrong way under
 // the pointer.
 //
 // Two different axes are checked here and they answer differently, which is
 // the point. A LEVEL is elevation and answers to the linchpin: the raised
-// chip is lighter than its ground in both schemes. A STATE is feedback and
+// chip is lighter than its fill in both schemes. A STATE is feedback and
 // still walks toward the ramp's 900 end: the hover darkens on paper and
 // lightens on slate. That asymmetry is not the mirror ADR-022 abolished —
 // the mirror was in elevation, and elevation is one direction now.
@@ -228,10 +228,10 @@ func TestChipsWalkFromTheSurfaceTheySitOn(t *testing.T) {
 				}
 				step := luma(ch.hovered) - luma(ch.ground)
 				if dark && step <= 0 {
-					t.Errorf("%s hover %v is not lighter than its ground %v", ch.name, ch.hovered, ch.ground)
+					t.Errorf("%s hover %v is not lighter than its own fill %v", ch.name, ch.hovered, ch.ground)
 				}
 				if !dark && step >= 0 {
-					t.Errorf("%s hover %v is not darker than its ground %v", ch.name, ch.hovered, ch.ground)
+					t.Errorf("%s hover %v is not darker than its own fill %v", ch.name, ch.hovered, ch.ground)
 				}
 			}
 		})
@@ -241,7 +241,7 @@ func TestChipsWalkFromTheSurfaceTheySitOn(t *testing.T) {
 // TestAssistantRowPaintsTheGroundItClaims renders a real assistant row
 // through the app's own MessageRow over a sentinel no fill in this app
 // resolves to. The row is expected to cover it edge to edge with the
-// transcript ground: a row that painted nothing would leak the sentinel, and
+// transcript fill: a row that painted nothing would leak the sentinel, and
 // a row that painted the old dialog step would come back the wrong grey.
 func TestAssistantRowPaintsTheGroundItClaims(t *testing.T) {
 	sentinel := color.NRGBA{R: 255, G: 0, B: 255, A: 255}
@@ -257,19 +257,19 @@ func TestAssistantRowPaintsTheGroundItClaims(t *testing.T) {
 				return MessageRow(gtx, th, rows[0])
 			})
 
-			// Two samples inside the row's own margins, well clear of ink:
+			// Two samples inside the row's own margins, well clear of any glyphs:
 			// the top-left corner and the right edge of the first line.
 			for _, at := range []image.Point{{X: 2, Y: 2}, {X: size.X - 3, Y: 2}} {
 				r, g, b, _ := img.At(at.X, at.Y).RGBA()
 				got := color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0xff}
 				if got == sentinel {
-					t.Fatalf("pixel %v is the sentinel; the assistant row painted no ground", at)
+					t.Fatalf("pixel %v is the sentinel; the assistant row painted no fill", at)
 				}
 				if got != p.Ground {
-					t.Errorf("pixel %v = %v, want the transcript ground %v", at, got, p.Ground)
+					t.Errorf("pixel %v = %v, want the transcript fill %v", at, got, p.Ground)
 				}
 				if got == c.SurfaceAt(tokens.Level2) {
-					t.Errorf("pixel %v = %v, the dialog rung under a resting transcript", at, got)
+					t.Errorf("pixel %v = %v, the dialog level under a resting transcript", at, got)
 				}
 			}
 		})
@@ -278,7 +278,7 @@ func TestAssistantRowPaintsTheGroundItClaims(t *testing.T) {
 
 // relativeLuminance is the WCAG channel-linearised luminance, the axis a
 // contrast ratio is computed on — a different axis from luma, which is the
-// perceptual brightness the rung walks are ordered by.
+// perceptual brightness the level walks are ordered by.
 func relativeLuminance(c color.NRGBA) float64 {
 	lin := func(v uint8) float64 {
 		s := float64(v) / 255
@@ -352,7 +352,7 @@ func TestHoverSitsBetweenRestAndChosen(t *testing.T) {
 // legible against the tint it is drawn on. The bar is what carries the
 // selection at a glance where the tint and the surface are close in
 // luminance — most of all in the dark scheme, where they very nearly match —
-// so it is the one mark that may not wash out.
+// so it is the one mark that may not disappear.
 func TestAccentBarReadsOnTheChosenFill(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {

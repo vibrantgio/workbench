@@ -4,7 +4,7 @@ package main
 // read off it. The app has no offscreen mode of its own — it is a native
 // window binary — but the layers the window renders are plain observables of
 // layout.Widget, so composing them over a frozen theme and drawing them into
-// a headless canvas produces the same frame the window would show, at the
+// a headless image produces the same frame the window would show, at the
 // size the window opens at.
 //
 // A render of one column in isolation cannot see that a window's furniture
@@ -107,8 +107,8 @@ var settledArticle = func() ArticleID {
 }()
 
 // windowFrame composes the window's layers for one scheme into a single
-// widget: the backdrop first, the shell over it, exactly as theme/window
-// stacks them.
+// layout.Widget: the backdrop first, the shell over it, exactly as
+// theme/window stacks them.
 func windowFrame(t *testing.T, c tokens.ColorTokens, d tokens.Density, model Model) layout.Widget {
 	t.Helper()
 	layers := buildLayers(rx.Of(model))(rx.Of(staticTheme(c, d)))
@@ -117,7 +117,7 @@ func windowFrame(t *testing.T, c tokens.ColorTokens, d tokens.Density, model Mod
 	for i, layer := range layers {
 		w, err := collectOne(layer)
 		if err != nil {
-			t.Fatalf("layer %d never emitted a widget: %v", i, err)
+			t.Fatalf("layer %d never emitted a layout.Widget: %v", i, err)
 		}
 		widgets[i] = w
 	}
@@ -132,7 +132,7 @@ func windowFrame(t *testing.T, c tokens.ColorTokens, d tokens.Density, model Mod
 
 // renderWindow draws the settled window in one scheme. Two frames are drawn
 // and the second is kept: the first registers the pointer and click tags the
-// widget tree needs before any of them can report state, which is the same
+// layout tree needs before any of them can report state, which is the same
 // warm-up drawShellOnce does for the shell tests.
 func renderWindow(t *testing.T, c tokens.ColorTokens) *image.RGBA {
 	t.Helper()
@@ -199,7 +199,7 @@ var windowBand = int(windowBandDp(tokens.Comfortable))
 
 // Sample points in the rendered window, in the pixels the frame is drawn at
 // (PxPerDp is 1, so a dp is a pixel). Each names a resting expanse and is
-// chosen well clear of ink: the sidebar below its last feed, the navbar
+// chosen well clear of paint: the sidebar below its last feed, the navbar
 // between the brand and the actions, the articles pane under the last row,
 // a body row's empty trailing column, the reading pane's lower half. They
 // are coordinates because this app holds no palette to interrogate — every
@@ -237,8 +237,8 @@ var (
 // them — a sidebar is chrome standing beside the document, while a tab strip
 // is the reading pane's own
 // control band, drawn one level over the panel it belongs to (patterns/tabs
-// walks it from Props.Ground). This window therefore carries regions on three
-// levels at rest.
+// walks it from `Props.Ground`). This window therefore carries regions on
+// three levels at rest.
 func TestWindowRegionsWearTheirRungs(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -337,7 +337,7 @@ func TestLightnessNeverFallsTowardTheViewer(t *testing.T) {
 // TestChosenItemsCarryThePrimaryTint reads off the frame that every mark in
 // this window meaning "this is the one you are on" fills from the Primary
 // ramp's tinted end, and that a neighbour nobody chose keeps its own region's
-// ground. The window has three such marks — the feed the table is listing, the
+// fill. The window has three such marks — the feed the table is listing, the
 // article the pane is showing, and the page the pager is on — asserted
 // together, in both schemes, because a window may not answer one question in
 // two tones.
@@ -370,13 +370,13 @@ func TestChosenItemsCarryThePrimaryTint(t *testing.T) {
 			}
 			// A neutral step may not stand in for the current item, so the
 			// resting neighbour must NOT be tinted — and must be its own
-			// region's ground rather than a walk of it.
+			// region's own fill rather than a walk of it.
 			rest := at(img, atRestingFeed.X, atRestingFeed.Y)
 			if rest == tint {
 				t.Errorf("an unchosen feed at %v is tinted %v; the mark says nothing if every row wears it", atRestingFeed, rest)
 			}
 			if want := tc.c.SurfaceAt(tokens.LevelChrome); rest != want {
-				t.Errorf("resting feed at %v = %v, want the sidebar's own ground %v", atRestingFeed, rest, want)
+				t.Errorf("resting feed at %v = %v, want the sidebar's own fill %v", atRestingFeed, rest, want)
 			}
 			// The pager's resting cell says the same thing about the pager:
 			// its own neutral fill, not the tint.
@@ -424,10 +424,10 @@ func TestFeedRowStatesKeepTheirInksApart(t *testing.T) {
 			ground := tc.c.SurfaceAt(tokens.LevelChrome)
 
 			if got := fill(false, false); got != sentinel {
-				t.Errorf("a resting row painted %v; it must leave its region's own ground showing", got)
+				t.Errorf("a resting row painted %v; it must leave its region's own fill showing", got)
 			}
 			if got := fill(false, true); got != walk {
-				t.Errorf("hovered row = %v, want the neutral walk %v off the sidebar's own ground %v", got, walk, ground)
+				t.Errorf("hovered row = %v, want the neutral walk %v off the sidebar's own fill %v", got, walk, ground)
 			}
 			if got := fill(true, false); got != tint {
 				t.Errorf("open row = %v, want the Primary tint %v", got, tint)
@@ -436,17 +436,17 @@ func TestFeedRowStatesKeepTheirInksApart(t *testing.T) {
 				t.Errorf("hovered open row = %v, want the tint %v to hold; the pointer must not take the answer away", got, tint)
 			}
 			if tint == walk {
-				t.Errorf("the chosen ink and the hover walk are the same colour %v; a row cannot say both things at once", tint)
+				t.Errorf("the chosen tint and the hover walk are the same colour %v; a row cannot say both things at once", tint)
 			}
 		})
 	}
 }
 
-// topmostInkIn is the first row of the given box that holds a pixel other than
-// ground, or -1 for a box that is nothing but ground. It is how a region's
-// first drawn thing is found without knowing what that thing is — the question
-// the band's assertions ask of the sidebar, whose whole column is one fill
-// until something is drawn on it.
+// topmostInkIn is the first row of the given box that holds a pixel other
+// than the region's fill, or -1 for a box that is nothing but that fill. It
+// is how a region's first drawn thing is found without knowing what that
+// thing is — the question the band's assertions ask of the sidebar, whose
+// whole column is one fill until something is drawn on it.
 func topmostInkIn(img *image.RGBA, ground color.NRGBA, x0, x1, y0, y1 int) int {
 	for y := y0; y < y1; y++ {
 		for x := x0; x < x1; x++ {
@@ -464,7 +464,7 @@ func topmostInkIn(img *image.RGBA, ground color.NRGBA, x0, x1, y0, y1 int) int {
 // to the sidebar.
 //
 // Measured off this window's frames without the band: the first accordion
-// section's header inks from row 17 and the sidebar's own content runs the
+// section's header paints from row 17 and the sidebar's own content runs the
 // band's whole depth, while the buttons in a 52 dp band run rows 19 to 33 and
 // reach 79 dp along (desktop.ButtonRunIn(52): leading 19, centre 26, trailing
 // 79) — 184 pixels of the header's caret and name inside the run. The band is
@@ -484,7 +484,7 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
 					if got := at(img, x, y); got != surface {
-						t.Fatalf("sidebar ink %v at (%d,%d), inside the window buttons' run (leading %v, trailing %v, centre %v)",
+						t.Fatalf("sidebar paint %v at (%d,%d), inside the window buttons' run (leading %v, trailing %v, centre %v)",
 							got, x, y, run.Leading, run.Trailing, run.Center)
 					}
 				}
@@ -494,9 +494,9 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 				t.Fatalf("the sidebar draws nothing at all; the clearance below the buttons cannot be judged")
 			}
 			if top <= bottom {
-				t.Errorf("the sidebar's topmost ink is row %d and the buttons end at row %d; the sidebar has no clearance under them", top, bottom)
+				t.Errorf("the sidebar's topmost paint is row %d and the buttons end at row %d; the sidebar has no clearance under them", top, bottom)
 			}
-			t.Logf("sidebar's topmost ink is row %d; the buttons run rows %v to %d", top, run.Leading, bottom)
+			t.Logf("sidebar's topmost paint is row %d; the buttons run rows %v to %d", top, run.Leading, bottom)
 		})
 	}
 }
@@ -518,7 +518,7 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 //     whole column and the band is the same chrome as everything under it.
 //     What can be seen there is where the sidebar starts drawing, which must
 //     be at or below the band's foot — the band is held open, and wears the
-//     sidebar's own ground while it is.
+//     sidebar's own fill while it is.
 //
 // Both halves are read off ONE level: a column painted at the Surface ALIAS
 // while patterns/accordion sits on the floor stands a whole level over the
@@ -530,10 +530,10 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 // 52. Checking two also turns the leading half's loose bound into an exact
 // one. The accordion's own lead — the padding above its first section's caret
 // — is the same at both densities, so the gap between the band's foot and the
-// sidebar's first ink has to be the same at both as well. A sidebar reserving
-// anything other than the band would open a different gap at 52 than at 40 and
-// be caught here, without this test ever having to know what the accordion's
-// lead is.
+// sidebar's first paint has to be the same at both as well. A sidebar that
+// reserved anything other than the band would open a different gap at 52 than
+// at 40 and be caught here, without this test ever having to know what the
+// accordion's lead is.
 func TestTheWindowsTopStripIsOneBand(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -560,11 +560,11 @@ func TestTheWindowsTopStripIsOneBand(t *testing.T) {
 					t.Fatalf("%s: the sidebar draws nothing at all; its half of the strip cannot be judged", dc.name)
 				}
 				if top < band {
-					t.Errorf("%s: the sidebar inks row %d, inside a band %d dp deep; its half of the strip is shallower than the navbar's beside it",
+					t.Errorf("%s: the sidebar paints row %d, inside a band %d dp deep; its half of the strip is shallower than the navbar's beside it",
 						dc.name, top, band)
 				}
 				leads[i] = top - band
-				t.Logf("%s: band %d dp, navbar's fill ends at row %d, sidebar's first ink is row %d (%d dp below the band)",
+				t.Logf("%s: band %d dp, navbar's fill ends at row %d, sidebar's first paint is row %d (%d dp below the band)",
 					dc.name, band, depth, top, leads[i])
 			}
 			for i := 1; i < len(leads); i++ {

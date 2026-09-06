@@ -10,15 +10,15 @@
 // than inside the component: the trigger is the popover's anchor slot and the
 // menu its content slot.
 //
-// The canvas the popover gets is the whole chrome row inside the content
-// area's insets (frame.go), because that canvas is the room the open menu may
+// The room the popover gets is the whole chrome row inside the content
+// area's insets (frame.go), because that room is what the open menu may
 // use and the popover keeps its surface inside it. Two things follow. The
-// trigger is stood at the canvas's trailing edge by the popover, so the
+// trigger is stood at that room's trailing edge by the popover, so the
 // control lands on the content column's edge whatever the label says; and
 // because the room is the row rather than the control, the two things that
 // are NOT entitled to all of it cap themselves — the trigger at [ToolbarWidth],
 // the surface at [MenuWidth] — over the constraints the popover offers, which
-// for content is half the canvas.
+// for content is half that room.
 package main
 
 import (
@@ -47,9 +47,9 @@ type menuEntry struct {
 	model    string
 }
 
-// ModelMenu builds the chat header picker stream: the widget it emits is
-// laid out by ChatPane in the header's picker box and draws the anchor (the
-// popover's own anchor) plus, while open, the model list surface.
+// ModelMenu builds the chat header picker stream: the layout.Widget it emits
+// is laid out by ChatPane in the header's picker box and draws the anchor
+// (the popover's own anchor) plus, while open, the model list surface.
 func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], popArb *popover.Arbiter) rx.Observable[layout.Widget] {
 	// Whether the menu stands, kept where the anchor's click handler can read
 	// it: the anchor's mark does not flip, so the open state is not part of
@@ -65,7 +65,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 	// outside the switch below so hover, press and focus survive a rebuild.
 	var anchorClick widget.Clickable
 
-	// The anchor and content are static popover props; the live widgets
+	// The anchor and content are static popover props; the live streams
 	// reach them through cells (the observable-over-static-slot hand-off).
 	var anchorCell, contentCell atomic.Value
 	slot := func(cell *atomic.Value) layout.Widget {
@@ -77,7 +77,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 		}
 	}
 
-	// Both halves are live components rather than widgets this file draws, so
+	// Both halves are live components rather than something this file draws, so
 	// each is a stream of its own: components/picker takes its props once per
 	// subscription, so a control whose value is data needs a new subscription
 	// when that data changes. That is why each key is deduplicated first —
@@ -164,7 +164,7 @@ func anchorBox(anchor layout.Widget, width unit.Dp) layout.Widget {
 
 // menuSurface gives a picker menu the width this app's floating surfaces are
 // drawn at and room to stack every row it has. Both halves are needed: the
-// popover measures its content at half the canvas it was handed, and half a
+// popover measures its content at half the room it was handed, and half a
 // chrome row is neither this width nor tall enough for a catalogue.
 func menuSurface(menu layout.Widget, width unit.Dp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {

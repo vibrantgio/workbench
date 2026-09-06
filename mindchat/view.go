@@ -58,9 +58,9 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 	}
 }
 
-// themed pairs one theme emission's palette with the icon widgets prebuilt
-// in that theme's glyph colours (rebuilding raster widgets per frame would
-// discard their rasterisation cache).
+// themed pairs one theme emission's palette with the icons prebuilt in that
+// theme's glyph colours (rebuilding the rasters per frame would discard
+// their rasterisation cache).
 type themed struct {
 	palette Palette
 	bar     scrollbar.Style
@@ -76,7 +76,7 @@ type themed struct {
 	md markdown.Style
 	// col is the emission's whole ColorTokens, kept beside the derived
 	// Palette because patterns/pane resolves its own fill and its own edge
-	// ink from the palette rather than taking them as colours: the pane is
+	// stroke from the palette rather than taking them as colours: the pane is
 	// the vocabulary's object and what it is painted with is the pattern's
 	// business, not this app's.
 	col tokens.ColorTokens
@@ -111,23 +111,23 @@ var (
 // fences in chat bodies rendering in the theme's mono face at its size.
 //
 // The insets a reply can grow — a fenced block, an inline code chip — keep
-// FromTokens' grounds, and that is this app's choice: a message body is read
+// FromTokens' own fills, and that is this app's choice: a message body is read
 // on the transcript's paper, FromTokens puts Paper at the Background pin and
-// the code grounds one neutral step off it, and one step off the local paper
+// the code fills one neutral step off it, and one step off the local paper
 // is exactly the step a raised inset takes. It reads as raised in both
 // schemes the same way — LIGHTER than the page on paper and on slate alike,
 // with the derived rim carrying the edge in both.
 //
-// Wearing a chroma base (highlight.Wear) would hand the fence the base
-// author's own background instead, and a plate fitted to white paper puts a
-// ground LIGHTER than this light scheme's page under the block — a step in
-// the wrong direction. So the chroma style is taken for its inks only
-// (highlight.New), matched to the appearance the ground reports.
+// Wearing a chroma base (highlight.Wear) would hand the fence that base's
+// own background instead, and a plate fitted to white paper puts a fill
+// LIGHTER than this light scheme's page under the block — a step in the
+// wrong direction. So the chroma style is taken for its colours only
+// (highlight.New), matched to the appearance the surface beneath reports.
 func messageMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
 	md := markdown.FromTokens(c, typ)
 	md.Mono = font.Typeface(typ.Code.Typeface)
 	md.CodeSize = unit.Sp(typ.Code.Size)
-	// The appearance is read off the Background pin, which is the ground the
+	// The appearance is read off the Background pin, which is the fill the
 	// transcript — and so every fence in it — actually rests on.
 	if isDarkColor(c.Background) {
 		md.Highlight = mdHighlightDark
@@ -142,14 +142,14 @@ func messageMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.
 // ContentLayer renders the page: the window's frame — the floating
 // conversation pane, the chrome row and the transcript beside them — with
 // the modals and the undo bar over it. The composition itself is frame.go's;
-// this is the wiring. The stateful widgets live at subscription scope,
+// this is the wiring. The view state lives at subscription scope,
 // OUTSIDE the per-emission Map: the two scroll positions,
 // the sidebar clickables, and the prompt TextField, whose editor state is
 // Defer-scoped inside the component and subscribed exactly once by the
 // CombineLatest3 below. Constructing any of them per emission would reset
 // scroll or typing on every completion-stream delta.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
-	// This window's arbitration registers. They are plain values
+	// This window's arbiters. They are plain values
 	// with no synchronisation, so the scope they are created at is the scope
 	// they are safe at: theme/window calls the build function once per
 	// window and this layer is composed exactly once inside it, which makes
@@ -208,9 +208,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	frame := &windowFrame{}
 
 	var undoClick widget.Clickable
-	// The pane's own controls and the chrome row's are separate widgets: the
-	// toggle that rides the pane and the one that recalls it are the two
-	// halves of one switch, never the same widget standing in two places, and
+	// The pane's own controls and the chrome row's are separate clickables:
+	// the toggle that rides the pane and the one that recalls it are the two
+	// halves of one switch, never one clickable standing in two places, and
 	// only one of the two is laid out in any frame.
 	var paneToggle, paneNewChat, settingsClick widget.Clickable
 
@@ -220,7 +220,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	// re-emits the whole composition, which is the same-frame repaint.
 	var frameCell, undoCell atomic.Value
 
-	// The model-menu popover widget (the picker chip + its surface) reaches
+	// The model-menu popover (the picker chip + its surface) reaches
 	// the chrome row through a cell; its stream joins the final combine
 	// below so menu updates repaint.
 	var menuCell atomic.Value
@@ -268,7 +268,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 
 	// Overlays: the undo bar and the modals draw over the frame (the
 	// settings modal last — its scrim covers everything). partsObs joins
-	// the combine so every model emission re-emits the top widget; menuObs
+	// the combine so every model emission re-emits the top layer; menuObs
 	// joins so the picker's chip and surface stay current.
 	return rx.Map(rx.CombineLatest4(renameObs, settingsObs, menuObs, partsObs),
 		func(next rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, int]) layout.Widget {
@@ -392,7 +392,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 	}
 	// The rename dialog's footer stands on its level-2 fill, like the field
 	// above it. Filled buttons ring against their own fill, so nothing
-	// moves; the declaration keeps the level with the widget.
+	// moves; the declaration keeps the level with the control.
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
 		Level:     tokens.Level2,
@@ -407,7 +407,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 	})
 
 	// The modal body and actions are static slots; the live field/button
-	// widgets reach them through cells (the observable-over-static-slot
+	// streams reach them through cells (the observable-over-static-slot
 	// hand-off).
 	var fieldCell, cancelCell, submitCell atomic.Value
 	slot := func(cell *atomic.Value) layout.Widget {
@@ -481,13 +481,13 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 // beside it: a bottom rhythm invented on one side of a window and answered
 // on neither is what a reader reads as two applications.
 //
-// The pane paints its own ground before any of that, and it has to: the
-// shell fills the whole split — both halves — with the window's FLOOR, so
+// The pane paints its own fill before any of that, and it has to: the
+// shell fills the whole split — both halves — with the chrome fill, so
 // anything the pane does not paint over shows furniture where the
-// transcript should be. The message rows paint their own ground, so the
+// transcript should be. The message rows paint their own fill, so the
 // bleed only appears where the transcript is SHORTER than the window, which
 // no whole-window golden in this package is ever in: the demo conversation
-// the headless frame renders fills the viewport. The transcript's ground is
+// the headless frame renders fills the viewport. The transcript's fill is
 // the header band, the turns AND the space around them, and one fill states
 // all three.
 //
@@ -520,7 +520,7 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) l
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				// The seam between the transcript and the composer: the
 				// composer stands off the paper the messages lie on, and
-				// what parts two things on one ground is a hairline. It is
+				// what parts two things on one fill is a hairline. It is
 				// the transcript's only rule — one region, one edge, drawn
 				// where the content actually changes.
 				seam := gtx.Dp(1)
@@ -548,10 +548,10 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) l
 // citations arrive inside the Document (messageSource).
 //
 // Only the user's own turn carries a fill. Everything else rests on the
-// transcript's ground — the Background pin — because the transcript is what
+// transcript's fill — the Background pin — because the transcript is what
 // this window exists to show and a resting expanse of it may not be filled
-// at a rung the ladder keeps for things that appear and leave. The row
-// paints that ground itself rather than letting the backdrop show through,
+// at a level the elevation keeps for things that appear and leave. The row
+// paints that fill itself rather than letting the backdrop show through,
 // so a raised inset inside a reply (a code fence) has a stated paper to step
 // up from wherever the row is composed.
 func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
@@ -653,7 +653,7 @@ func SidebarPane(t themed, chats ChatList, current string, streaming map[string]
 		// The pane's own strip: cut deep enough to hold the window's
 		// control buttons where the window keeps them, with the same air
 		// below them as above, by the pattern's arithmetic. The pane fills
-		// itself, so nothing here paints a ground.
+		// itself, so nothing here paints a fill.
 		stripH := min(gtx.Dp(unit.Dp(pane.StripDp)), size.Y)
 
 		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -838,9 +838,9 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 		// surfaces it floats over (a level-2 fill alone sat at ~1.2:1 against
 		// them, and ~1:1 against the assistant's rows in dark mode).
 		//
-		// The base is the toast rung rather than the selected-row fill: that
+		// The base is the toast level rather than the selected-row fill: that
 		// fill is a Primary tint, and tinting it again with the accent would
-		// leave the bar a purple wash with nothing neutral under the ring.
+		// leave the bar a purple fill with nothing neutral under the ring.
 		bounds := image.Rectangle{Max: dims.Size}
 		radius := gtx.Dp(UndoBarRadius)
 		depth.Shadow(gtx, bounds, tokens.Level3, radius, 1)

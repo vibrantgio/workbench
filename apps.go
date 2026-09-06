@@ -27,7 +27,7 @@ var Apps = []App{
 	{
 		Name:  "Todos",
 		Dir:   "todos",
-		Blurb: "The minimal canonical MVU app: pure reducers, components widgets, live light/dark theming.",
+		Blurb: "The minimal canonical MVU app: pure reducers, library components, live light/dark theming.",
 		// A filled clipboard rather than ActionDone's bare check: every card's
 		// icon depicts its app's subject, and a check is this set's glyph for a
 		// completed thing, not for an app about them.

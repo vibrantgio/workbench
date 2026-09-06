@@ -85,7 +85,7 @@ func Chords() []Chord {
 // ChordAreas returns one key area per chord, each posting that chord's
 // message through post when the chord fires. The window lays them out at the
 // bottom of its hit stack; post is what recording the message costs, and it
-// is a parameter so a test can drive the very widgets the window lays out and
+// is a parameter so a test can drive the very items the window lays out and
 // read what they post — the message a chord posts and the message the menu
 // item beside it posts have to be the same one, and only a test that reads
 // both can say so.

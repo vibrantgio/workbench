@@ -25,7 +25,7 @@ import (
 )
 
 // TestBuildLayersConstructsWithoutPanic drives buildLayers with a seeded model
-// and a single-shot theme observable, collects one widget emission from each
+// and a single-shot theme observable, collects one layout.Widget emission from each
 // layer, and fails if any subscription panics or completes with an error.
 func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 	layers := buildLayers(rx.Of(initialModel()))(rx.Of(theme.Default()))
@@ -39,7 +39,7 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 			continue
 		}
 		if got == nil {
-			t.Errorf("layer %d produced no widget", i)
+			t.Errorf("layer %d produced no layout.Widget", i)
 		}
 	}
 }
@@ -632,8 +632,8 @@ func TestArticlesPipelineFiltersByFeed(t *testing.T) {
 	}
 }
 
-// shellCanvas is the canvas the regression test draws each emitted shell
-// widget into, exercising the full layout path (sidebar + navbar + Main).
+// shellCanvasW/H size the frame the regression test draws each emitted shell
+// layout.Widget into, exercising the full layout path (sidebar + navbar + Main).
 const (
 	shellCanvasW = 1200
 	shellCanvasH = 800
@@ -641,11 +641,11 @@ const (
 
 // TestFeedsShellLayerReEmitsOnModelChange guards the same-frame repaint: a
 // shell layer observable that does not re-emit when the model changes never
-// reaches theme/window's Invalidate(), so the canvas repaints only on the next
+// reaches theme/window's Invalidate(), so the window repaints only on the next
 // unrelated input event.
 //
 // Driving the same modelObs the app uses (via an rx.Subject[Model]) and
-// asserting feedsShellLayer's returned observable emits a fresh widget on each
+// asserting feedsShellLayer's returned observable emits a fresh layout.Widget on each
 // SelectFeed / SetPage / SetSort / ToggleSection is the seam that state held
 // outside the layer chain breaks; a reducer-only test passes without proving
 // the layer re-emits. The unit test proves the necessary re-emission, not the
@@ -782,9 +782,9 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	}
 }
 
-// drawShellOnce lays a widget out once on a fresh op buffer so a re-emitted
-// shell widget is exercised through its full layout path (catching a panic in
-// the composed sidebar/table/pagination), without requiring a GPU.
+// drawShellOnce lays a layout.Widget out once on a fresh op buffer so a
+// re-emitted shell is exercised through its full layout path (catching a panic
+// in the composed sidebar/table/pagination), without requiring a GPU.
 func drawShellOnce(t *testing.T, size image.Point, w layout.Widget) {
 	t.Helper()
 	var ops op.Ops
@@ -885,8 +885,8 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 
 // ----- headless test helpers -----
 
-// collectOne subscribes to obs and returns its first emitted widget. The
-// feeds shell layer folds live patterns widget streams (table, pagination,
+// collectOne subscribes to obs and returns its first emitted layout.Widget.
+// The feeds shell layer folds live patterns streams (table, pagination,
 // textfield) onto its output, so it never completes — a .Wait()-until-done
 // would block forever. Instead the first non-nil emission is captured on a
 // goroutine subscription that is then unsubscribed, with a timeout guarding
@@ -899,8 +899,8 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 // picks a ready case uniformly at random. Taking errChan there discards a
 // value that arrived normally.
 //
-// Measured: a bare rx.Of mapped to a widget, with no theme, components or
-// patterns code in the chain at all, took errChan with the value already
+// Measured: a bare rx.Of mapped to a layout.Widget, with no theme, components
+// or patterns code in the chain at all, took errChan with the value already
 // buffered in 95 of 200 iterations. Retries cannot fix a coin flip; they cover
 // only the case below, a subscription that delivers nothing at all inside the
 // window.
@@ -984,8 +984,8 @@ func TestRowConfirmIsFrameStateAndArbitrates(t *testing.T) {
 	newRow := func(id FeedID) *deleteConfirm {
 		var trash, confirm widget.Clickable
 		dc := newDeleteConfirm(th, id, &trash, &confirm, arb)
-		// The popover widget arrives from the theme subscription on the rx
-		// goroutine; only the OPEN flag is the frame's.
+		// The popover's layout.Widget arrives from the theme subscription on
+		// the rx goroutine; only the OPEN flag is the frame's.
 		deadline := time.Now().Add(2 * time.Second)
 		for time.Now().Before(deadline) {
 			if w, ok := dc.cell.Load().(layout.Widget); ok && w != nil {
@@ -993,7 +993,7 @@ func TestRowConfirmIsFrameStateAndArbitrates(t *testing.T) {
 			}
 			time.Sleep(5 * time.Millisecond)
 		}
-		t.Fatalf("row %q never received a popover widget from the theme stream", id)
+		t.Fatalf("row %q never received a popover layout.Widget from the theme stream", id)
 		return nil
 	}
 	a, b := newRow("row-a"), newRow("row-b")

@@ -2,7 +2,7 @@
 // mvu.NewWindow wrapped in a theme window with a live OS theme, a Model
 // observable driven by mvu.Loop — whose command runner feeds side-effect
 // messages (config/history I/O, the streaming OpenAI completion) back into
-// the update scan — and widgets that route every event through
+// the update scan — and layout.Widgets that route every event through
 // mvu.MessageOp.
 package main
 
@@ -49,7 +49,7 @@ const modelObsConsumers = 10
 func MindChat() {
 	// The full-size-content treatment: on macOS the window's content extends
 	// behind a transparent title bar, so the sidebar's surface and the
-	// transcript's ground each reach the window's top edge and there is no
+	// transcript's fill each reach the window's top edge and there is no
 	// native white strip standing above either of them. Everywhere else the
 	// treatment contributes no options and the window keeps the decorations
 	// its platform gives it. The title is passed all the same — the treatment

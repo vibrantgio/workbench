@@ -39,8 +39,9 @@ const (
 
 // buildLayers returns the layer-builder the theme window renders, back to
 // front: the theme background fill, the animated seen triangle field, and the
-// hero + launch-grid content floating on top. The ground and the field are
-// full-bleed, the title-bar strip included; only the page is inset below it.
+// hero + launch-grid content floating on top. The background fill and the
+// field are full-bleed, the title-bar strip included; only the page is inset
+// below it.
 func buildLayers(win *app.Window, modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
@@ -113,9 +114,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // on every platform but macOS, so away from the treatment the wrapper is an
 // exact no-op.
 //
-// The strip carries no fill of its own: the ground and the field beneath it
-// are already full-bleed, so the region reaches the top edge without anything
-// being painted twice. Only the page has to stay clear of the strip.
+// The strip carries no fill of its own: the background fill and the field
+// beneath it are already full-bleed, so the region reaches the top edge
+// without anything being painted twice. Only the page has to stay clear of
+// the strip.
 // desktop.CapTop also claims the strip for the window's own drag — without
 // that claim the window could not be moved by its top edge.
 func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
@@ -125,7 +127,7 @@ func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Wi
 }
 
 // pageLayer renders the page: the latest theme snapshot combined with the
-// latest Model, mapped to a widget. The launch buttons' clickables are
+// latest Model, mapped to a layout.Widget. The launch buttons' clickables are
 // subscription-scoped (rx.Defer) so press/hover/focus state survives the
 // per-message view rebuilds; the hero is its own theme-driven component
 // observable, rebuilt only when the theme changes.
@@ -149,9 +151,10 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 	})
 }
 
-// View builds the page widget for one (theme, model) pair: a hero title block
-// over a grid of app groups, the whole column centred on the field. A roster
-// that outgrows a row wraps onto a further row rather than shrinking a cell.
+// View builds the page's layout.Widget for one (theme, model) pair: a hero
+// title block over a grid of app groups, the whole column centred on the
+// field. A roster that outgrows a row wraps onto a further row rather than
+// shrinking a cell.
 func View(tok themed, heroW layout.Widget, clicks []widget.Clickable, model Model) layout.Widget {
 	cells := make([]layout.Widget, len(Apps))
 	for i, app := range Apps {
@@ -297,7 +300,7 @@ func launchButton(th rx.Observable[theme.Theme], shaper *text.Shaper, app App, c
 }
 
 // statusLine is the small caption beside the launch button: the failure
-// detail in Error red, or a quiet lifecycle note.
+// detail in Error red, or a lifecycle note in neutral.
 func statusLine(tok themed, status Status) layout.Widget {
 	txt, col := "", tok.color.Ramps.Neutral.Step(700)
 	switch status.State {

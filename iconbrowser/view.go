@@ -32,9 +32,9 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 }
 
 // themed carries one theme emission's palette and typography plus the 961
-// icon widgets prebuilt in that theme's glyph colour. Prebuilding is cheap —
-// raster.Widget only decodes the viewBox up front and rasterises lazily,
-// caching per size — and it means a keystroke re-filters prebuilt widgets
+// icons prebuilt in that theme's glyph colour. Prebuilding is cheap —
+// `raster.Widget` only decodes the viewBox up front and rasterises lazily,
+// caching per size — and it means a keystroke re-filters prebuilt icons
 // instead of reconstructing them.
 type themed struct {
 	palette Palette
@@ -46,7 +46,7 @@ type themed struct {
 // held down past the native title-bar strip the window opens the top of itself
 // into.
 //
-// The two stateful widgets live at subscription scope, outside the
+// The two pieces of view state live at subscription scope, outside the
 // per-emission Map: the grid's scroll position, and the search field — a
 // components TextField whose editor state is Defer-scoped inside the component,
 // subscribed exactly once by the CombineLatest3 below. Constructing either per
@@ -89,9 +89,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // strip for the window's own drag.
 //
 // The strip carries no fill of its own: the region it caps is the window's own
-// ground, which BackdropLayer already fills full-bleed, so the fill reaches the
+// plane, which BackdropLayer already fills full-bleed, so the fill reaches the
 // top edge without anything being painted twice. Nothing in this window is
-// chrome — the grid is the content ground, the section labels are ink on it,
+// chrome — the grid is the content plane, the section labels are text on it,
 // and the search field is a control standing on it in the page's own vertical
 // flow. The field could not be lifted into the strip in any case: a components
 // TextField is a Density.ControlHeight box, 36 dp comfortable, and the band the
@@ -99,7 +99,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 //
 // So what has to clear the platform's three control buttons is the field, and
 // the inset is what buys that clearance, since the field is the page's topmost
-// ink and the page starts below the strip.
+// paint and the page starts below the strip.
 //
 // desktop.CapTop also claims the strip for the window's drag — without it the
 // window could not be moved by its top edge. The claim is recorded before the

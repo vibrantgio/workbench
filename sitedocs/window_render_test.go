@@ -2,13 +2,14 @@ package main
 
 // A whole-window render, headless, plus the surface-grammar assertions that
 // read off it. The app is a native window binary with no offscreen mode of
-// its own, but every layer it stacks is a plain widget over pre-resolved
-// tokens, so composing the same three paints into a headless canvas at the
-// size the window opens at produces the frame the window would show.
+// its own, but every layer it stacks is a plain layout.Widget over
+// pre-resolved tokens, so composing the same three paints into a headless
+// image at the size the window opens at produces the frame the window would
+// show.
 //
-// The per-tab goldens beside this file render one tab's content onto a canvas
+// The per-tab goldens beside this file render one tab's content onto a frame
 // of their own and cannot see that the document is being read on the same
-// rung as the rail indexing it; this can. Run it with -window.dump=<dir> to
+// level as the rail indexing it; this can. Run it with -window.dump=<dir> to
 // write the frames out for a pair of eyes:
 //
 //	go test ./ -run TestWholeWindowRender -window.dump=/tmp/sitedocs
@@ -116,7 +117,7 @@ var windowSchemes = []struct {
 
 // Sample points in the rendered window, in the pixels the frame is drawn at
 // (PxPerDp is 1, so a dp is a pixel). Each names a resting expanse and is
-// chosen clear of ink: the title band right of the window title, the tab
+// chosen clear of paint: the title band right of the window title, the tab
 // strip right of the last cell, the gap the shell keeps under the strip, the
 // outline rail below its last row, and the document plane out past the
 // reading measure the guide is capped to.
@@ -171,7 +172,7 @@ func TestWholeWindowRender(t *testing.T) {
 // The strip does not follow it, and the difference is what this test is worth
 // reading for. A rail is chrome standing beside the document; a tab strip is
 // the panel's own control band, drawn one level over the panel it belongs to
-// (patterns/tabs walks it from Props.Ground). So this one window carries a
+// (patterns/tabs walks it from `Props.Ground`). So this one window carries a
 // region below the content and a region above it, and the two are named
 // apart here rather than lumped as "furniture".
 func TestWindowRegionsWearTheirRungs(t *testing.T) {
@@ -268,7 +269,7 @@ func luma(c color.NRGBA) float32 {
 
 // TestTheBandAgreesWithTheStripItCaps states the agreement directly: the two
 // fills are read off one frame and compared to each other, so the rule holds
-// even if the rung under both of them moves.
+// even if the level under both of them moves.
 func TestTheBandAgreesWithTheStripItCaps(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -286,7 +287,7 @@ func TestTheBandAgreesWithTheStripItCaps(t *testing.T) {
 	}
 }
 
-// TestARaisedInsetHasAStepToStandOn checks the fence has a ground to stand
+// TestARaisedInsetHasAStepToStandOn checks the fence has a fill to stand
 // on. The markdown style gives a fenced block neutral 200 — "the step off the
 // page" — which says nothing at all if the page it lies on is neutral 200
 // itself. The frame is asked for the pixels rather than the intention.
@@ -316,10 +317,10 @@ func TestARaisedInsetHasAStepToStandOn(t *testing.T) {
 			}
 
 			// The quote block is marked rather than filled: its bar is the
-			// Primary ink, which must not be the page either.
+			// Primary colour, which must not be the page either.
 			bar := color.NRGBA{R: style.QuoteBar.R, G: style.QuoteBar.G, B: style.QuoteBar.B, A: 0xff}
 			if bar == page {
-				t.Errorf("a quote bar inks %v on a page of %v; the mark is invisible", bar, page)
+				t.Errorf("a quote bar paints %v on a page of %v; the mark is invisible", bar, page)
 			}
 		})
 	}

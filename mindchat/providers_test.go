@@ -197,7 +197,7 @@ func TestModelsFetchedRecordsError(t *testing.T) {
 }
 
 func TestSetChatModelSetsOverrideAndStream(t *testing.T) {
-	m, _ := Update(providersModel(), Prompt{Content: "hello"}) // registers stream 1
+	m, _ := Update(providersModel(), Prompt{Content: "hello"}) // registers a stream
 	next, _ := Update(m, SetChatModel{Provider: "xAI", Model: "grok-4"})
 	if next.CurrentChat.Provider != "xAI" || next.CurrentChat.Model != "grok-4" {
 		t.Fatalf("override = %q/%q, want xAI/grok-4", next.CurrentChat.Provider, next.CurrentChat.Model)

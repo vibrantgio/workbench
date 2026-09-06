@@ -13,19 +13,19 @@ import (
 
 // Palette is the app's view of the theme colour tokens, resolved fresh on
 // every theme emission so an OS light/dark switch restyles the whole app.
-// The page is the content ground (level 0); nothing in it is raised, so the
+// The page is the content plane (level 0); nothing in it is raised, so the
 // only fills are the components' own. The three readouts wear the three
-// accent roles as inks — derived through InkOn so a pale seed can never put
-// an unreadable pin on the page.
+// accent roles as foregrounds — derived through InkOn so a pale seed can
+// never put an unreadable pin on the page.
 type Palette struct {
-	Backdrop color.NRGBA // the window ground: the Background pin, level 0
-	Text     color.NRGBA // body ink: neutral 900
-	Label    color.NRGBA // captions and secondary ink: neutral 700
-	Volt     color.NRGBA // the voltage readout: Primary as ink
-	Amp      color.NRGBA // the current readout: Secondary as ink
-	Watt     color.NRGBA // the power readout: Tertiary as ink
-	Danger   color.NRGBA // protection trips and errors: Error as ink
-	Panel    color.NRGBA // a chart panel: raised one storey off the paper
+	Backdrop color.NRGBA // the window's own plane: the Background pin, level 0
+	Text     color.NRGBA // body text: neutral 900
+	Label    color.NRGBA // captions and secondary text: neutral 700
+	Volt     color.NRGBA // the voltage readout: Primary as foreground
+	Amp      color.NRGBA // the current readout: Secondary as foreground
+	Watt     color.NRGBA // the power readout: Tertiary as foreground
+	Danger   color.NRGBA // protection trips and errors: Error as foreground
+	Panel    color.NRGBA // a chart panel: raised one level off the paper
 	Hairline color.NRGBA // panel borders and the recessive chart grid
 	TipFill  color.NRGBA // a hint bubble: the inverse surface
 	TipInk   color.NRGBA // its text

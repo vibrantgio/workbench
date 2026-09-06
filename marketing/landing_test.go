@@ -170,7 +170,7 @@ func TestPageLightDarkDiffer(t *testing.T) {
 
 // TestContentLayerConstructs verifies that the runtime composition —
 // the four pattern observables in a scrolling column — wires up and
-// emits a usable widget.
+// emits a usable layout.Widget.
 func TestContentLayerConstructs(t *testing.T) {
 	obs := ContentLayer(rx.Of(theme.Default()), rx.Of(Model{}))
 	w, err := collectOne(obs)
@@ -178,11 +178,11 @@ func TestContentLayerConstructs(t *testing.T) {
 		t.Fatalf("ContentLayer subscribe: %v", err)
 	}
 	if w == nil {
-		t.Fatal("ContentLayer produced no widget")
+		t.Fatal("ContentLayer produced no layout.Widget")
 	}
 	dims := drawOnce(t, pageCanvasSize, w)
 	if dims.Size.X == 0 || dims.Size.Y == 0 {
-		t.Errorf("ContentLayer widget produced zero dimensions: %v", dims)
+		t.Errorf("ContentLayer's layout.Widget produced zero dimensions: %v", dims)
 	}
 }
 
@@ -291,7 +291,7 @@ func TestLandingCopyHasNoEmDash(t *testing.T) {
 	}
 }
 
-// runtimeSections is the four pattern widgets the live page stacks,
+// runtimeSections is the four pattern layers the live page stacks,
 // shaped deterministically so the window goldens do not depend on
 // the host's fallback faces.
 func runtimeSections(shaper *text.Shaper, colors tokens.ColorTokens) []layout.Widget {
@@ -364,7 +364,7 @@ func structuralTestimonialProps(shaper *text.Shaper) testimonial.Props {
 // scene is the golden composition: Background pin, a rest-pose
 // wireframe field, then the landing column. The live field is
 // clock-driven; goldens store the un-noised mesh so the frame is
-// one frame. size is the canvas the field is built to cover.
+// one frame. size is the area the field is built to cover.
 func scene(w layout.Widget, colors tokens.ColorTokens, size image.Point) layout.Widget {
 	field := newField(new(app.Window), unit.Dp(size.X), unit.Dp(size.Y))
 	field.SetColors(colors)

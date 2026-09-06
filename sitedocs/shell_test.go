@@ -15,11 +15,11 @@ import (
 // shellCanvasSize is the whole window at the app's default size. The seam
 // these tests are about — the strip's underline against the first row of
 // the content — exists only where strip and content meet, so it cannot be
-// seen on the content-only canvas the per-tab goldens use.
+// seen on the content-only frame the per-tab goldens use.
 var shellCanvasSize = image.Pt(windowW, windowH)
 
 // TestStripUnderlineKeepsItsOwnLine guards the seam: whatever a tab draws,
-// the shell's content slot leaves a band of bare panel ground between the
+// the shell's content slot leaves a band of bare panel fill between the
 // strip's Primary underline and the content's first row, so the underline
 // reads as a line rather than as the top edge of the content. The slot is
 // shared, so all five tabs are checked.
@@ -34,8 +34,8 @@ var shellCanvasSize = image.Pt(windowW, windowH)
 // the full-width banner this test exists to catch.
 //
 // The two references are different colours: patterns/tabs fills its panel at
-// the caller's ground (this app takes the default, the window paper) and its
-// strip one rung over that, so the gap band is the page rather than the
+// the caller's level (this app takes the default, the window paper) and its
+// strip one level over that, so the gap band is the page rather than the
 // strip's own fill.
 func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
@@ -71,13 +71,13 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 		}
 
 		// An out-of-range selection draws no content, so the whole panel is
-		// the pattern's own ground and the strip carries no underline.
+		// the pattern's own fill and the strip carries no underline.
 		bare := render(-1)
 		// Right of the last tab cell the strip is bare band.
 		strip := sample(bare, shellCanvasSize.X-1, stripH/2)
 		ground := sample(bare, shellCanvasSize.X-1, stripH+gap/2)
 		if strip == ground {
-			t.Fatalf("%s: strip and panel are both %v — the strip owes the page it caps one rung", sc.name, strip)
+			t.Fatalf("%s: strip and panel are both %v — the strip owes the page it caps one level", sc.name, strip)
 		}
 
 		for i, tabName := range tabPages {

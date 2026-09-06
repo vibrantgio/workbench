@@ -20,7 +20,7 @@ func Init() (Model, mvu.Command) {
 
 // FilterIcons returns the indices into IconTable whose names contain the
 // query, case-insensitively. An empty query matches everything. Indices
-// (not copies) keep the per-theme prebuilt icon widgets addressable.
+// (not copies) keep the per-theme prebuilt icons addressable.
 func FilterIcons(query string) []int {
 	query = strings.ToLower(strings.TrimSpace(query))
 	matches := make([]int, 0, len(IconTable))

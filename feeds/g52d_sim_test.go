@@ -38,7 +38,7 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// modalCanvas is the canvas the Add-feed modal golden draws into.
+// modalCanvasW/H size the frame the Add-feed modal golden draws into.
 const (
 	modalCanvasW = 600
 	modalCanvasH = 480
@@ -273,7 +273,7 @@ func TestHoverGutterDoesNotSwallowSelectPress(t *testing.T) {
 }
 
 // TestG52dShellReEmitsOnCrudMessages confirms the shell layer re-emits a fresh
-// widget for each CRUD message — the same same-frame-repaint guarantee the
+// layout.Widget for each CRUD message — the same same-frame-repaint guarantee the
 // earlier message set is checked against.
 func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
@@ -321,7 +321,7 @@ func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
 // in this app is driven — through Update — and asserts the pixels at the end
 // of it. toast.Requested is a message like any other, the queue is model
 // state, and toast.Stack renders what the model holds; toast.Expired takes it
-// back off and the canvas returns to empty.
+// back off and the frame returns to empty.
 func TestToastRequestRendersInStack(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 16)
 	stackObs := toast.Stack(rx.Of(theme.Default()), toast.Props{

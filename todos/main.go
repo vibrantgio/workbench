@@ -1,8 +1,8 @@
 // Command todos is the minimal canonical Vibrant Gio MVU application: an
 // in-memory todo list with add, edit, toggle, and delete. It demonstrates the
 // full bootstrap in its smallest honest form — mvu.NewWindow, a theme window
-// with a live OS theme, a Model observable driven by mvu.Loop, and widgets
-// that route every event through mvu.MessageOp.
+// with a live OS theme, a Model observable driven by mvu.Loop, and
+// layout.Widgets that route every event through mvu.MessageOp.
 package main
 
 import (
@@ -40,7 +40,7 @@ const (
 
 func run() {
 	// On macOS FullSizeContent extends the content behind a transparent title
-	// bar with the window control buttons floating over it, so the ground this
+	// bar with the window control buttons floating over it, so the fill this
 	// window paints reaches its top edge; on every other platform it returns no
 	// options and the window keeps its normal decorations. app.Title stays even
 	// though the treatment hides the title text — Mission Control, the Dock and

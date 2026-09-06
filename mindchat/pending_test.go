@@ -105,10 +105,10 @@ func motionThemed(m tokens.MotionScale) themed {
 	}
 }
 
-// drawIndicator lays a widget out at one instant against a live input.Source
-// and reports its dimensions and whether it asked to be repainted. The
-// wakeup is what op.InvalidateCmd sets, so it answers "does this animate?"
-// exactly, with no reference to pixels.
+// drawIndicator lays a layout.Widget out at one instant against a live
+// input.Source and reports its dimensions and whether it asked to be
+// repainted. The wakeup is what op.InvalidateCmd sets, so it answers "does
+// this animate?" exactly, with no reference to pixels.
 func drawIndicator(now time.Time, w func(gtx layout.Context) layout.Dimensions) (layout.Dimensions, bool) {
 	var router input.Router
 	var ops op.Ops

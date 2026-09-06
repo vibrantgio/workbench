@@ -47,7 +47,7 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// settingsThemed pairs one theme emission's palette with the icon widgets
+// settingsThemed pairs one theme emission's palette with the icons
 // the modal body draws (prebuilt per emission, like view.go's themed), plus
 // the theme's Typography and its cached shaper for the body's own text.
 type settingsThemed struct {
@@ -62,8 +62,8 @@ type settingsThemed struct {
 	boxOff  layout.Widget
 
 	// The key-check verdict, as the two glyph badges it is: the sign in the
-	// role's own ink, derived by the library against the modal's level-2
-	// storey rather than picked here. badgeStyle is the type role behind
+	// role's own foreground, derived by the library against the modal's
+	// level 2 rather than picked here. badgeStyle is the type role behind
 	// them, kept so the row can reserve the badge's box while there is no
 	// verdict to draw.
 	badgeStyle tokens.TextStyle
@@ -82,7 +82,7 @@ type settingsTarget struct {
 	hasProvider    bool
 }
 
-// settingsFields carries the three live field widgets of one epoch.
+// settingsFields carries the three live field layout.Widgets of one epoch.
 type settingsFields struct {
 	name, url, key layout.Widget
 }
@@ -145,7 +145,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 			verdict := func(g badge.Glyph, v badge.Variant) layout.Widget {
 				// A glyph badge — no label — and a glyph badge stands bare,
 				// its sign carrying the verdict where a word would need a
-				// field behind it. So that surface is the only thing its ink is
+				// field behind it. So that surface is the only thing its foreground is
 				// derived against, and the settings modal is a level-2 plane.
 				return badge.Render(typ.Shaper(), "", g, v, c, tokens.Spacing,
 					tokens.Radius, style, badge.RenderState{Level: tokens.Level2})
@@ -178,7 +178,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	var addClick, removeClick, refreshClick, webClick, cancelClick, saveClick widget.Clickable
 	provList := list.NewState()
 
-	// The global default-model picker is the form register's — a
+	// The global default-model picker is the form variant — a
 	// components/picker field, the same control the Name and BaseURL fields
 	// beside it are. It drops UPWARD because the modal's action row is drawn
 	// after the body and would paint over a downward menu.
@@ -235,7 +235,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	// Both actions sit in the dialog's footer, on its level-2 fill — the same
 	// level the fields above them already name. Filled buttons paint their
 	// own fill and ring against it, so stating the level moves nothing on
-	// these two; it is stated so the level travels with the widget, and a
+	// these two; it is stated so the level travels with the control, and a
 	// less pronounced action added to this footer derives against the dialog
 	// instead of against the window.
 	cancelObs := button.Button(th, button.Props{
@@ -251,7 +251,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		OnClick:   save,
 	})
 
-	// The modal body and actions are static slots; the live widgets reach
+	// The modal body and actions are static slots; the live streams reach
 	// them through cells (the observable-over-static-slot hand-off).
 	var bodyCell, cancelCell, saveCell atomic.Value
 	slot := func(cell *atomic.Value) layout.Widget {
@@ -408,7 +408,7 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker layout.Widget
 			}),
 		)
 
-		// The default-model picker drops UPWARD, so the widget reports its
+		// The default-model picker drops UPWARD, so the picker reports its
 		// trigger at the BOTTOM of the box it draws and has to be placed by
 		// that bottom edge — which means recording it, reading the height it
 		// reports, and offsetting by that. The trailing edge is the row's, and
@@ -449,11 +449,11 @@ func templateBar(gtx layout.Context, t settingsThemed, tplClicks []*widget.Click
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				sz := image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Max.Y)
 				pointer.CursorPointer.Add(gtx.Ops)
-				// A chip inside the dialog walks its rung from the dialog's
+				// A chip inside the dialog walks its level from the dialog's
 				// surface, not from the window: it rests flush on that
 				// surface and reveals itself with the surface's own one-step
-				// hover. Reaching for the transcript's chip rung here would
-				// measure from a ground this chip is nowhere near.
+				// hover. Taking the transcript's chip level here would
+				// measure from a fill this chip is nowhere near.
 				fill := p.ModalChip
 				if click.Hovered() {
 					fill = p.ModalChipHovered
@@ -511,7 +511,7 @@ func keyRow(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider
 
 // keyCheckGlyph and keyCrossGlyph are the two verdict signs the key-check
 // badge speaks with, stroked as vectors rather than rasterised from the icon
-// set: a Glyph is handed the ink the badge derived for its variant, and a
+// set: a Glyph is handed the colour the badge derived for its variant, and a
 // pre-coloured rasterisation cannot take a colour it was not built with.
 //
 // Each spans most of the square it is handed and is centred on it, which is

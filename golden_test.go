@@ -47,10 +47,10 @@ func staticThemed(colors tokens.ColorTokens) themed {
 	}
 }
 
-// page is the window as a single widget: the theme's background fill with the
-// hero and the app grid on it. The animated 3D field the running window
-// floats these on is driven by the clock, so it has no one frame to store and
-// is omitted; the background it is keyed to stands in for it.
+// page is the window as a single layout.Widget: the theme's background fill
+// with the hero and the app grid on it. The animated 3D field the running
+// window floats these on is driven by the clock, so it has no one frame to
+// store and is omitted; the background it is keyed to stands in for it.
 func page(tok themed, model Model) layout.Widget {
 	back := backdrop.Widget(tok.color.Background)
 	content := pageContent(tok, model)
@@ -62,8 +62,8 @@ func page(tok themed, model Model) layout.Widget {
 
 // pageContent is the window's content layer alone — the hero over the app
 // grid, with the theme-driven pieces resolved from the frozen snapshot and no
-// ground under them. It is separate from page so the whole-window render can
-// put the strip inset between the ground and the page.
+// background fill under them. It is separate from page so the whole-window
+// render can put the strip inset between the background fill and the page.
 func pageContent(tok themed, model Model) layout.Widget {
 	props := HeroProps
 	props.Shaper = tok.shaper

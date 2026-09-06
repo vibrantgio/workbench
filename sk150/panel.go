@@ -4,11 +4,11 @@ package main
 // big mono digits with a half-size capital unit letter baseline-aligned in
 // a right column; while the output is regulating, the line of the quantity
 // in control wears the mode badge above its unit letter — CV on the volt
-// line in the volt ink, CC on the amp line in the amp ink. Output state
+// line in the volt colour, CC on the amp line in the amp colour. Output state
 // lives in the header's bolt + ON/OFF cluster beside the power toggle, not
 // on the readout block.
 //
-// Everything aligns with the digits' INK, not their line box: the box
+// Everything aligns with the digits' GLYPHS, not their line box: the box
 // carries the font's leading, and furniture hung off its edges floats
 // visibly too far from the glyphs.
 
@@ -27,13 +27,13 @@ import (
 )
 
 // boltDp is the construction size of the output bolt; the header's output
-// cluster hands the widget exact constraints at draw time, so this is only
+// cluster hands the bolt exact constraints at draw time, so this is only
 // its default.
 const boltDp unit.Dp = 26
 
 // Roboto Mono's vertical metrics as fractions of the line box: where the
 // digit glyphs' top (ascent minus cap height) and the baseline sit. The
-// digits and unit letters are caps and numerals, so ink runs from capTop to
+// digits and unit letters are caps and numerals, so paint runs from capTop to
 // the baseline exactly.
 const (
 	capTopFrac = 0.256
@@ -52,7 +52,7 @@ func voltRow(t themed, r Reading) layout.Widget {
 }
 
 // presetBadge is the active-preset pill ("M2"): the unit letters' style
-// knocked out of the volt ink, on the line above the readouts.
+// knocked out of the volt colour, on the line above the readouts.
 func presetBadge(t themed, active int) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if !isGroup(active) {
@@ -140,7 +140,7 @@ func panelRow(t themed, ink color.NRGBA, digits, unit, badgeTxt string, badgeFil
 }
 
 // tripBadge is the header's protection flag: the latest trip, the badge
-// labels' style knocked out of the danger ink — the backdrop-coloured text
+// labels' style knocked out of the danger colour — the backdrop-coloured text
 // reads white-on-red in a light scheme. Empty while nothing is tripped.
 func tripBadge(t themed, r Reading) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
@@ -187,7 +187,7 @@ func outputCluster(t themed, r Reading) layout.Widget {
 }
 
 // badgeBox paints one badge: the label centered in the box — knocked out of
-// the state ink when active, set in disabled ink with no fill when idle.
+// the state colour when active, set in the disabled one with no fill when idle.
 func badgeBox(gtx layout.Context, t themed, txt string, fill color.NRGBA, active bool, r image.Rectangle) {
 	badgeBoxStyled(gtx, t, t.typ.Stack, txt, fill, active, r)
 }

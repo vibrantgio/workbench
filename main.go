@@ -41,7 +41,7 @@ const modelObsConsumers = 1
 
 func run() {
 	// On macOS FullSizeContent extends the content behind a transparent title
-	// bar so the ground and the field reach the window's top edge; on every
+	// bar so the background fill and the field reach the window's top edge; on every
 	// other platform it returns no options. app.Title stays even though the
 	// treatment hides the title text — Mission Control, the Dock and VoiceOver
 	// still read it.

@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	// docsCanvasW/H is the deterministic canvas the docs-layer unit tests
+	// docsCanvasW/H is the deterministic frame the docs-layer unit tests
 	// draw one frame at.
 	docsCanvasW = 1000
 	docsCanvasH = 700

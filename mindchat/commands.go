@@ -154,7 +154,7 @@ type wireLine struct {
 }
 
 // wireLog appends raw exchange records to logs/wire-YYYY-MM-DD.jsonl, the
-// forensic ground truth when an exchange goes wrong. A nil receiver (the
+// forensic record when an exchange goes wrong. A nil receiver (the
 // log could not be opened) drops writes silently — logging must never
 // break the exchange it records.
 type wireLog struct{ file *os.File }
@@ -540,7 +540,7 @@ func ExpireDelete(gen int, after time.Duration) mvu.Command {
 	})}
 }
 
-// EditSettleDelay is the quiet period after a key/URL keystroke before the
+// EditSettleDelay is the idle period after a key/URL keystroke before the
 // key is checked with a /models fetch — long enough not to fire while
 // typing, short enough to feel immediate after a paste.
 const EditSettleDelay = 600 * time.Millisecond
