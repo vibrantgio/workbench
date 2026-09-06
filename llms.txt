@@ -994,7 +994,7 @@ so do not expect a light window's levels to stand far apart.
     patterns/shell's SplitPane already does both, so an app on the shell
     restates neither.
   - THE CHECK, IN ONE SENTENCE: WALKING TOWARD THE VIEWER NEVER GETS
-    DARKER, IN EITHER SCHEME. Floor, content, raised, floating — sample a
+    DARKER, IN EITHER SCHEME. Backdrop, content, raised, floating — sample a
     pixel from each and the lightness must climb. There is no mirror clause,
     because the check does not care which scheme is on, and no
     dismiss-the-overlays clause either, because it is taken along the depth
