@@ -19,11 +19,11 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/backdrop"
+	"github.com/vibrantgio/components/alert"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/alert"
 	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/navbar"
@@ -446,7 +446,7 @@ const (
 )
 
 // addFeedModal composes the "Add feed" modal: a patterns/modal whose Body is a
-// patterns/group holding (optionally) a patterns/alert, a components/input/textfield
+// patterns/group holding (optionally) a components/alert, a components/input/textfield
 // for the URL, and a components/button submit. addFeedOpenObs drives the modal's
 // Open; addFeedErrorObs drives whether the empty-URL alert shows.
 //

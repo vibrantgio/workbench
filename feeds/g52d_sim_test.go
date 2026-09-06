@@ -27,10 +27,10 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/alert"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/input"
-	"github.com/vibrantgio/patterns/alert"
 	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/toast"
