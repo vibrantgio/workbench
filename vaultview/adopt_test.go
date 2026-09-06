@@ -83,13 +83,14 @@ func TestAKeptBrandDressesTheWholeWindow(t *testing.T) {
 // primary role, in this window: the pin, on its own, wherever a surface
 // fills with it outright (the tree's active row and the outline's
 // current-section pill both paint [tokens.RampSet.Primary]'s step 300
-// directly); and [tokens.ColorTokens.InkOn]'s answer for the two floors
-// this window gates the role's foreground at when it is drawn ON a page rather
-// than filling one — [tokens.TextFloor] for the wikilinks a note's prose
-// carries, [tokens.GraphicFloor] for a graphic mark such as a blockquote's
-// bar. InkOn already returns the bare pin where it clears a floor and a
-// walked ramp step where it does not, so this one list covers both without
-// needing to know which side of the floor c falls on.
+// directly); and [tokens.ColorTokens.ForegroundOnAtFloor]'s answer for the
+// two floors this window gates the role's foreground at when it is drawn ON
+// a page rather than filling one — [tokens.TextFloor] for the wikilinks a
+// note's prose carries, [tokens.GraphicFloor] for a graphic mark such as a
+// blockquote's bar. ForegroundOnAtFloor already returns the bare pin where
+// it clears a floor and a walked ramp step where it does not, so this one
+// list covers both without needing to know which side of the floor c falls
+// on.
 //
 // The foreground-on-a-floor gate means the bare pin may legitimately not reach
 // every surface, so "the window adopted the brand" is asked of the palette's
@@ -98,8 +99,8 @@ func primaryRoleAnswers(c tokens.ColorTokens) []color.NRGBA {
 	ground := c.SurfaceAt(tokens.Level0)
 	return []color.NRGBA{
 		c.Primary,
-		c.InkOn(tokens.RolePrimary, ground, tokens.TextFloor),
-		c.InkOn(tokens.RolePrimary, ground, tokens.GraphicFloor),
+		c.ForegroundOnAtFloor(tokens.RolePrimary, ground, tokens.TextFloor),
+		c.ForegroundOnAtFloor(tokens.RolePrimary, ground, tokens.GraphicFloor),
 		c.Ramps.Primary.Step(300),
 	}
 }
@@ -116,9 +117,10 @@ func pixelsOf(img *image.RGBA, cs []color.NRGBA) int {
 
 // TestAPinThatClearsDressesTheWindowWithItself asserts the bare pin itself
 // — not merely one of [primaryRoleAnswers] — reaches the window, because
-// InkOn hands a pin back unmodified once it reads on its own page. It needs
-// a seed whose pin clears: harbourRed's light pin measures 4.27:1, under the
-// text floor, so InkOn always walks off it there.
+// ForegroundOnAtFloor hands a pin back unmodified once it reads on its own
+// page. It needs a seed whose pin clears: harbourRed's light pin measures
+// 4.27:1, under the text floor, so ForegroundOnAtFloor always walks off it
+// there.
 func TestAPinThatClearsDressesTheWindowWithItself(t *testing.T) {
 	// The default brand's own seed: its light pin measures 5.94:1 against
 	// its own paper, clear of the 4.5:1 text floor, and its dark pin is

@@ -15,8 +15,8 @@ import (
 // every theme emission so an OS light/dark switch restyles the whole app.
 // The page is the content plane (level 0); nothing in it is raised, so the
 // only fills are the components' own. The three readouts wear the three
-// accent roles as foregrounds — derived through InkOn so a pale seed can
-// never put an unreadable pin on the page.
+// accent roles as foregrounds — derived through ForegroundOnAtFloor so a
+// pale seed can never put an unreadable pin on the page.
 type Palette struct {
 	Backdrop color.NRGBA // the window's own plane: the Background pin, level 0
 	Text     color.NRGBA // body text: neutral 900
@@ -37,10 +37,10 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		Backdrop: ground,
 		Text:     c.Ramps.Neutral.Step(900),
 		Label:    c.Ramps.Neutral.Step(700),
-		Volt:     c.InkOn(tokens.RolePrimary, ground, tokens.TextFloor),
-		Amp:      c.InkOn(tokens.RoleSecondary, ground, tokens.TextFloor),
-		Watt:     c.InkOn(tokens.RoleTertiary, ground, tokens.TextFloor),
-		Danger:   c.InkOn(tokens.RoleError, ground, tokens.TextFloor),
+		Volt:     c.ForegroundOnAtFloor(tokens.RolePrimary, ground, tokens.TextFloor),
+		Amp:      c.ForegroundOnAtFloor(tokens.RoleSecondary, ground, tokens.TextFloor),
+		Watt:     c.ForegroundOnAtFloor(tokens.RoleTertiary, ground, tokens.TextFloor),
+		Danger:   c.ForegroundOnAtFloor(tokens.RoleError, ground, tokens.TextFloor),
 		Panel:    c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill,
 		Hairline: c.Divider,
 		TipFill:  c.InverseSurface,
