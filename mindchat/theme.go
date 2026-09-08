@@ -238,16 +238,16 @@ const (
 	ToolbarWidth unit.Dp = 230
 	// MenuWidth is the width of the header picker's floating surface.
 	MenuWidth unit.Dp = 260
-	// MenuMaxHeight is the tallest either model menu draws before its rows
-	// start scrolling inside it. Both take it, because both list the same
-	// catalogue and a window shows one of them at a time.
+	// MenuMaxHeight is the tallest the HEADER's model menu draws before its
+	// rows start scrolling inside it. The settings dialog's field takes no
+	// number of its own: it is told the room its body leaves and the picker
+	// caps the plane to that.
 	//
 	// It is a share of the window rather than a count of rows: a catalogue
 	// of forty models is a menu 1600 dp tall, and what the number has to
 	// keep is a menu that fits the window it opens in with its own host
 	// still visible around it. 320 dp is under half the 768 dp window this
-	// app is drawn for, which leaves the header or the dialog footer the
-	// menu drops from in view either way.
+	// app is drawn for, which leaves the header the menu drops from in view.
 	MenuMaxHeight unit.Dp = 320
 )
 

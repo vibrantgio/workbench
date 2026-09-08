@@ -190,9 +190,15 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	// dialog's epoch, so a settings modal that opens again opens closed.
 	defaultPickerObs := rx.SwitchMap(
 		rx.Map(modelObs, defaultPickerKeyOf).Pipe(rx.DistinctUntilChanged(func(a, b defaultPickerKey) bool { return a.id == b.id })),
-		func(k defaultPickerKey) rx.Observable[layout.Widget] {
+		func(k defaultPickerKey) rx.Observable[func(gtx layout.Context, above, below int) layout.Dimensions] {
 			entries := k.entries
-			return picker.Field(th, picker.FieldProps{
+			// The available room the dialog's body leaves this field's menu.
+			// A component cannot see where its container put it, so the body
+			// says, on every frame, immediately before it lays the field out
+			// — and the field asks back on that same frame, on the one
+			// goroutine a layout tree is walked on.
+			var above, below int
+			field := picker.Field(th, picker.FieldProps{
 				Description: "Default model",
 				Options:     labelsOf(entries),
 				Selected:    k.selected,
@@ -201,10 +207,11 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				// level-2 plane, not the window's own — like every field
 				// above it.
 				Level: tokens.Level2,
-				// A real provider catalogue is forty to sixty rows and the
-				// menu drops UPWARD out of the dialog's last row, so
-				// uncapped its far end is drawn off the top of the window.
-				MaxHeight: MenuMaxHeight,
+				// A real provider catalogue is forty to sixty rows, and what
+				// bounds the menu is the room the body has rather than a
+				// number this app picks: the picker caps the plane to what
+				// the side it drops on leaves and scrolls the rows inside it.
+				AvailableRoom: func(layout.Context) (int, int) { return above, below },
 				// The two things a trigger with no value can be saying.
 				Placeholder: "Choose model…",
 				NoOptions:   "No models",
@@ -214,10 +221,16 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 					mvu.MessageOp{Message: SetDefaultModel{Provider: e.provider, Model: e.model}}.Add(gtx.Ops)
 				},
 			})
+			return rx.Map(field, func(w layout.Widget) func(layout.Context, int, int) layout.Dimensions {
+				return func(gtx layout.Context, a, b int) layout.Dimensions {
+					above, below = a, b
+					return w(gtx)
+				}
+			})
 		})
 
 	var fieldCells struct{ name, url, key atomic.Value }
-	bodyObs := rx.Map(rx.CombineLatest3(themedObs, modelObs, defaultPickerObs), func(next rx.Tuple3[settingsThemed, Model, layout.Widget]) layout.Widget {
+	bodyObs := rx.Map(rx.CombineLatest3(themedObs, modelObs, defaultPickerObs), func(next rx.Tuple3[settingsThemed, Model, func(layout.Context, int, int) layout.Dimensions]) layout.Widget {
 		t, s, defaultPicker := next.First, next.Second.Settings, next.Third
 		return settingsBody(t, s, defaultPicker,
 			provClicks, tplClicks, &addClick, &removeClick, &refreshClick, &webClick,
@@ -334,7 +347,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 // spelling the check out — with the GLOBAL default-model row spanning the
 // bottom under both. The default-model picker is drawn LAST, over the body,
 // at the trailing edge of that row.
-func settingsBody(t settingsThemed, s SettingsState, defaultPicker layout.Widget,
+func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layout.Context, above, below int) layout.Dimensions,
 	provClicks map[int]*widget.Clickable, tplClicks []*widget.Clickable,
 	addClick, removeClick, refreshClick, webClick *widget.Clickable,
 	provList *list.State,
@@ -410,23 +423,26 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker layout.Widget
 		)
 
 		// The picker reports its TRIGGER, open or closed — the menu it drops
-		// floats and takes no room — so it is placed by the trigger's own
-		// bottom edge against the body's, which means recording it, reading
-		// the height it reports, and offsetting by that. The trailing edge is
-		// the row's, and the trigger fills the row's height exactly
-		// (SelectRowHeight), so the closed control and its caption sit on one
-		// line.
+		// floats and takes no room — so it stands in the body's trailing
+		// bottom corner, in the row's own height: the trigger fills
+		// SelectRowHeight exactly, so the closed control and its caption sit
+		// on one line.
+		//
+		// That corner is also the whole of what the field has to be told
+		// about the available room. Everything above the trigger is the
+		// body's and the menu may take it; below the trigger there is the
+		// body's own bottom edge and nothing else, so the upward menu is
+		// capped by the body and scrolls inside it rather than standing off
+		// the top of the dialog.
 		fieldW := gtx.Dp(DefaultPickerWidth)
 		if max := size.X - gtx.Dp(130); fieldW > max {
 			fieldW = max
 		}
-		macro := op.Record(gtx.Ops)
+		rowH := gtx.Dp(SelectRowHeight)
 		dg := gtx
-		dg.Constraints = layout.Exact(image.Pt(fieldW, gtx.Dp(SelectRowHeight)))
-		pickerDims := defaultPicker(dg)
-		pickerOps := macro.Stop()
-		defer op.Offset(image.Pt(size.X-fieldW, size.Y-pickerDims.Size.Y)).Push(gtx.Ops).Pop()
-		pickerOps.Add(gtx.Ops)
+		dg.Constraints = layout.Exact(image.Pt(fieldW, rowH))
+		defer op.Offset(image.Pt(size.X-fieldW, size.Y-rowH)).Push(gtx.Ops).Pop()
+		defaultPicker(dg, size.Y-rowH, 0)
 		return layout.Dimensions{Size: size}
 	}
 }
