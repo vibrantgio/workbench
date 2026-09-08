@@ -180,8 +180,9 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 
 	// The global default-model picker is the form variant — a
 	// components/picker field, the same control the Name and BaseURL fields
-	// beside it are. It drops UPWARD because the modal's action row is drawn
-	// after the body and would paint over a downward menu.
+	// beside it are. It drops UPWARD because the field is the dialog's last
+	// row: the room beneath the trigger belongs to the action row and to the
+	// window's own edge, so the menu takes the room above instead.
 	//
 	// The field takes its props once per subscription and keeps its own open
 	// state, so the subscription is keyed: on the option list and the pick, so
@@ -408,12 +409,13 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker layout.Widget
 			}),
 		)
 
-		// The default-model picker drops UPWARD, so the picker reports its
-		// trigger at the BOTTOM of the box it draws and has to be placed by
-		// that bottom edge — which means recording it, reading the height it
-		// reports, and offsetting by that. The trailing edge is the row's, and
-		// the trigger fills the row's height exactly (SelectRowHeight), so the
-		// closed control and its caption sit on one line.
+		// The picker reports its TRIGGER, open or closed — the menu it drops
+		// floats and takes no room — so it is placed by the trigger's own
+		// bottom edge against the body's, which means recording it, reading
+		// the height it reports, and offsetting by that. The trailing edge is
+		// the row's, and the trigger fills the row's height exactly
+		// (SelectRowHeight), so the closed control and its caption sit on one
+		// line.
 		fieldW := gtx.Dp(DefaultPickerWidth)
 		if max := size.X - gtx.Dp(130); fieldW > max {
 			fieldW = max
