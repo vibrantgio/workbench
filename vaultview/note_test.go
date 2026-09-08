@@ -46,6 +46,12 @@ type notePad struct {
 	// folder rail: anything else in the window that can hold the keyboard.
 	rival     rivalTag
 	takeFocus bool
+
+	// find is the page's own find, and fieldW what its field lays out as —
+	// nil in every test that is not about the field itself, which draws
+	// nothing and reserves the field's width.
+	find   pageFind
+	fieldW layout.Widget
 }
 
 type rivalTag struct{ _ byte }
@@ -82,7 +88,7 @@ func (p *notePad) frame() {
 		Source:      p.r.Source(),
 	}
 	layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, p.trail, &p.read,
-		&p.arr, &p.cur, func(Model, *Note) *markdown.Document { return p.doc })
+		&p.arr, &p.cur, func(Model, *Note) *markdown.Document { return p.doc }, &p.find, p.fieldW)
 	// The rival is registered over nothing, in the corner: it exists to hold
 	// the keyboard, not to be seen.
 	for {
@@ -123,7 +129,7 @@ func (p *notePad) shot(t *testing.T) *image.RGBA {
 	t.Helper()
 	return golden.Capture(t, p.size, func(gtx layout.Context) layout.Dimensions {
 		return layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, p.trail, &p.read,
-			&p.arr, &p.cur, func(Model, *Note) *markdown.Document { return p.doc })
+			&p.arr, &p.cur, func(Model, *Note) *markdown.Document { return p.doc }, &p.find, p.fieldW)
 	})
 }
 

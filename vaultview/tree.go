@@ -33,6 +33,7 @@ import (
 	"sort"
 	"strings"
 
+	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
@@ -272,9 +273,13 @@ func (v *treeView) buttonEdge() unit.Dp {
 // The frame closure reads the model and token snapshots at frame time;
 // repaints on model change are driven by the routed layer's re-emission.
 func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
+	// The field's own focus tag, so the shortcut this rail answers can put
+	// the keyboard in it.
+	var fieldTag event.Tag
 	field := input.SearchField(th, input.SearchFieldProps{
 		Placeholder: "Find a note…",
 		Description: "filter notes by name",
+		FocusTag:    func(tag event.Tag) { fieldTag = tag },
 		// The field stands on the rail's rounded pane, not on the window
 		// surface behind it — the pane covers that. The pane is the
 		// window's CHROME and so stands at the chrome level; naming that
@@ -295,10 +300,33 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 		v := &treeView{list: list.NewState()}
 		return rx.Map(field, func(fieldW layout.Widget) layout.Widget {
 			return func(gtx layout.Context) layout.Dimensions {
+				focusFindField(gtx, fieldTag)
 				return v.layout(gtx, loadModel(), loadTok(), fieldW)
 			}
 		})
 	})
+}
+
+// focusFindField puts the keyboard in the rail's find field on the shortcut
+// the rail answers with it: the platform's find shortcut with Shift held,
+// where the page's own find takes that shortcut plain. Two finds, the wider
+// of them one modifier further.
+//
+// It is bound here rather than on the field, because a shortcut has to be
+// live when the reader is nowhere near the control it reaches.
+func focusFindField(gtx layout.Context, tag event.Tag) {
+	if tag == nil {
+		return
+	}
+	for {
+		e, ok := gtx.Event(key.Filter{Name: findKey, Required: key.ModShortcut | key.ModShift})
+		if !ok {
+			return
+		}
+		if ke, ok := e.(key.Event); ok && ke.State == key.Press {
+			gtx.Execute(key.FocusCmd{Tag: tag})
+		}
+	}
 }
 
 // layout draws the rail: its own top strip, the find field under that,

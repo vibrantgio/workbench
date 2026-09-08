@@ -38,6 +38,7 @@ import (
 
 	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/icons"
+	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
@@ -501,6 +502,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		fwdClick  widget.Clickable
 		read      reader
 		arr       arrival
+		find      pageFind
 	)
 	docFor := func(m Model, n *Note) *markdown.Document {
 		if m.Vault != docsVault {
@@ -528,10 +530,24 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	// palette change redraws it; its interaction state is the stream's and
 	// not the frame's, so a click survives the theme changing under the
 	// pointer.
-	mainSlot := rx.Map(breadcrumb.Trail(th, breadcrumb.TrailProps{Chevron: trailChevronDp}),
-		func(trail breadcrumb.TrailLayout) layout.Widget {
+	//
+	// The find field is the components search field, built once at
+	// subscription scope so what was typed survives every emission, and it
+	// hands over its focus tag and its clearing: the shortcut that opens the
+	// field puts the keyboard in it, and Escape takes the query back out.
+	field := input.SearchField(th, input.SearchFieldProps{
+		Placeholder: "Find in note…",
+		Description: "find in this note",
+		Level:       findFieldLevel,
+		FocusTag:    func(tag event.Tag) { find.tag = tag },
+		Clear:       func(clear func()) { find.clear = clear },
+		OnChange:    func(_ layout.Context, text string) { find.typed(text) },
+	})
+	mainSlot := rx.Map(rx.CombineLatest2(breadcrumb.Trail(th, breadcrumb.TrailProps{Chevron: trailChevronDp}), field),
+		func(next rx.Tuple2[breadcrumb.TrailLayout, layout.Widget]) layout.Widget {
+			trail, fieldW := next.First, next.Second
 			return func(gtx layout.Context) layout.Dimensions {
-				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor)
+				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor, &find, fieldW)
 			}
 		})
 	return vaultFrame(loadModel, loadTok, widths,
@@ -554,6 +570,8 @@ func layoutNotePage(
 	arr *arrival,
 	cur *docCursor,
 	docFor func(Model, *Note) *markdown.Document,
+	find *pageFind,
+	fieldW layout.Widget,
 ) layout.Dimensions {
 	note := m.CurrentNote()
 	// The reading column lies on its own surface: the pinned app background,
@@ -599,6 +617,9 @@ func layoutNotePage(
 		default:
 			scrolling = true
 			doc := docFor(m, note)
+			// The find keys are drained before anything lays out, so a step
+			// asked for on this frame is a step this frame's document makes.
+			find.keys(gtx, read)
 			// The aside's outline reads and moves this document. It lays
 			// out after this column does, so what it reads is this frame's
 			// position and what it moves shows on the next.
@@ -643,6 +664,13 @@ func layoutNotePage(
 			// outside the viewport either would leave a dead strip beside
 			// every half-cut line the reader scrolls past.
 			bar := scrollbar.FromTokens(tok.col)
+			// The query is put on the document every frame it is alive and
+			// taken off it on the first frame it is not, the way the arrival
+			// marking is, and the places it finds go on the bar: one query
+			// marks the prose and the bar alike, and one dismissal takes
+			// both.
+			bar.Matches = find.apply(doc, note.Path)
+			bar.Current = find.current
 			style.Gutter = max(noteInsetDp-bar.Width(), 0)
 			style.Measure = noteMeasureDp
 			style.StartSpace = noteGapDp
@@ -680,6 +708,17 @@ func layoutNotePage(
 				layout.Rigid(complayout.VSpacer(noteGapDp)),
 				layout.Rigid(trailing(func(gtx layout.Context) layout.Dimensions {
 					return layoutProperties(gtx, tok, note.FM, m.PropsOpen, propClick)
+				})),
+			)
+		}
+		if find.open && scrolling {
+			// The field stands between the page's own rows and the
+			// document it searches, so it is the row the document's
+			// viewport begins under.
+			children = append(children,
+				layout.Rigid(complayout.VSpacer(noteGapDp)),
+				layout.Rigid(trailing(func(gtx layout.Context) layout.Dimensions {
+					return layoutFindBar(gtx, tok, find, fieldW)
 				})),
 			)
 		}
@@ -725,7 +764,7 @@ func renderNotePage(
 	typo tokens.Typography,
 	den tokens.Density,
 ) layout.Widget {
-	return renderNotePageInto(&docCursor{}, shaper, m, colors, sp, typo, den)
+	return renderNotePageInto(&docCursor{}, shaper, m, colors, sp, typo, den, pageFind{})
 }
 
 // renderNotePageInto is renderNotePage with the document cursor supplied,
@@ -739,6 +778,7 @@ func renderNotePageInto(
 	sp tokens.SpacingScale,
 	typo tokens.Typography,
 	den tokens.Density,
+	find pageFind,
 ) layout.Widget {
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	// The trail is built here rather than inside the frame closure: it owns
@@ -753,6 +793,19 @@ func renderNotePageInto(
 		read      reader
 		arr       arrival
 	)
+	// The find field is the static search field in the state the query
+	// leaves it: no editor, no events, the query drawn where the reader
+	// typed it and the field focused, which is where a find in the page is
+	// worked from.
+	var fieldW layout.Widget
+	if find.open {
+		fieldW = input.RenderSearch(shaper, "Find in note…", colors, sp, tokens.Radius, typo.BodyLarge, den,
+			input.RenderState{Text: find.query, Focused: true, Level: findFieldLevel})
+	}
+	// The page is drawn showing the note the model has current, so that is
+	// the note the query is being marked in: a static render has no earlier
+	// frame for the column to have noticed it on.
+	find.note = m.Current
 	docs := map[string]*markdown.Document{}
 	docFor := func(m Model, n *Note) *markdown.Document {
 		d := docs[n.Path]
@@ -767,7 +820,7 @@ func renderNotePageInto(
 		return d
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor)
+		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor, &find, fieldW)
 	}
 }
 

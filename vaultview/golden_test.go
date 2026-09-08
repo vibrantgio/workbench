@@ -304,6 +304,44 @@ func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
 	}
 }
 
+// findAnchor is the block the find goldens seat the note at: the section
+// above the three the query matches in, which puts all three marks on the
+// page with the one the reader is on in the middle of it.
+const findAnchor = 14
+
+// TestNoteFindGolden records the note page being searched: the field open
+// over the page with the query in it and what it found beside it, three
+// matches marked in the prose with the current one stronger, and the places
+// of all three on the scrollbar. Both schemes.
+func TestNoteFindGolden(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := findModel(findAnchor)
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := renderNotePageInto(&docCursor{}, shaper, m, tc.colors, tokens.Spacing,
+				tokens.DefaultTypography, tokens.Comfortable, findState())
+			golden.Render(t, "note-find-"+tc.name, noteFrameSize, scene(w, tc.bg))
+		})
+	}
+}
+
+// TestVaultWindowFindGolden records the whole window while the page is being
+// searched, which is the only picture that can show the find field against
+// the rail's own find field and the marks against everything else the window
+// draws.
+func TestVaultWindowFindGolden(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := findModel(findAnchor)
+	for _, tc := range themeCases {
+		name := "window-find-" + tc.name
+		t.Run(name, func(t *testing.T) {
+			w, _ := renderWindowFinding(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
+				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading), findState())
+			golden.Render(t, name, windowFrameSize, windowScene(w, tc.colors))
+		})
+	}
+}
+
 // TestTreeGolden records or diffs the tree rail: the find field above
 // the rows, folders with their disclosure marks, the current note
 // marked active — and the same rail with a filter typed in, where the
@@ -694,7 +732,7 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 				sb := renderTree(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 					tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
 				main := renderNotePageInto(cur, shaper, m, tc.colors, tokens.Spacing,
-					tokens.DefaultTypography, tokens.Comfortable)
+					tokens.DefaultTypography, tokens.Comfortable, pageFind{})
 				as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
 				w := func(gtx layout.Context) layout.Dimensions { return f.layout(gtx, m, tok, sb, as, main) }
 				return golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))

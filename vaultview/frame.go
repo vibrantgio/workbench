@@ -291,12 +291,29 @@ func renderWindow(
 	den tokens.Density,
 	leading unit.Dp,
 ) (layout.Widget, *frameState) {
+	return renderWindowFinding(shaper, m, colors, sp, rad, typo, den, leading, pageFind{})
+}
+
+// renderWindowFinding is renderWindow with the page's find in the state a
+// query has left it, which is the only way a still image can be taken of a
+// note being searched.
+func renderWindowFinding(
+	shaper *text.Shaper,
+	m Model,
+	colors tokens.ColorTokens,
+	sp tokens.SpacingScale,
+	rad tokens.RadiusScale,
+	typo tokens.Typography,
+	den tokens.Density,
+	leading unit.Dp,
+	find pageFind,
+) (layout.Widget, *frameState) {
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	st := newFrameState(defaultWidths())
 	st.leading = func() unit.Dp { return leading }
 	cur := &docCursor{}
 	sb := renderTree(shaper, m, colors, sp, rad, typo, den, leading)
-	main := renderNotePageInto(cur, shaper, m, colors, sp, typo, den)
+	main := renderNotePageInto(cur, shaper, m, colors, sp, typo, den, find)
 	av := newAsideView(cur)
 	as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
 	return func(gtx layout.Context) layout.Dimensions {
