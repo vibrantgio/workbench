@@ -142,12 +142,12 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				return w
 			}
 			style := badge.Style(typ, tokens.Comfortable)
-			verdict := func(g badge.Glyph, v badge.Variant) layout.Widget {
+			verdict := func(g badge.Glyph, status badge.Status) layout.Widget {
 				// A glyph badge — no label — and a glyph badge stands bare,
 				// its sign carrying the verdict where a word would need a
 				// field behind it. So that surface is the only thing its foreground is
 				// derived against, and the settings modal is a level-2 plane.
-				return badge.Render(typ.Shaper(), "", g, v, c, tokens.Spacing,
+				return badge.Render(typ.Shaper(), "", g, status, c, tokens.Spacing,
 					tokens.Radius, style, badge.RenderState{Level: tokens.Level2})
 			}
 			return settingsThemed{

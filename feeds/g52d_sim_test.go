@@ -61,7 +61,7 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layo
 		btnH := gtx.Dp(unit.Dp(addFeedBtnHDp))
 		y := 0
 
-		al := alert.Render(shaper, alert.Props{Variant: alert.Error, Title: "Feed URL required"},
+		al := alert.Render(shaper, alert.Props{Status: alert.Error, Title: "Feed URL required"},
 			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.TitleMedium)
 		s := op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		ag := gtx
@@ -354,7 +354,7 @@ func TestToastRequestRendersInStack(t *testing.T) {
 	before := snap("seeded empty stack")
 
 	// The exact message the Add-feed submit callback lands via notifications.Notify.
-	m, _ = Update(m, notifications.Requested{Role: toast.Success, Text: "Feed added", At: time.Now()})
+	m, _ = Update(m, notifications.Requested{Status: toast.Success, Text: "Feed added", At: time.Now()})
 	if m.notes.Len() != 1 {
 		t.Fatalf("model queue length = %d after notifications.Requested; want 1", m.notes.Len())
 	}

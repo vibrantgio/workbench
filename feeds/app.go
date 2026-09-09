@@ -507,8 +507,8 @@ func addFeedModal(
 	})
 
 	alertObs := alert.Alert(th, alert.Props{
-		Variant: alert.Error,
-		Title:   "Feed URL required",
+		Status: alert.Error,
+		Title:  "Feed URL required",
 	})
 
 	// Layer-boundary cells for the static modal/group slots.
