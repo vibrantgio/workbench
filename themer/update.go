@@ -1,6 +1,8 @@
 package main
 
 import (
+	stdcolor "image/color"
+
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
@@ -20,7 +22,13 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			// arrives anyway is not an error.
 			return model, mvu.DoNothing()
 		}
-		return model, KeepTheme(model.KeepPath, seed, model.AppliedBases(), model.keepMono(), model.Name)
+		if model.Follows {
+			// A theme that follows the system keeps no colour, and credits
+			// no picture for one: the colour is the platform's and changes
+			// after this file is written.
+			return model, KeepTheme(model.KeepPath, stdcolor.NRGBA{}, true, model.AppliedBases(), model.keepMono(), "")
+		}
+		return model, KeepTheme(model.KeepPath, seed, false, model.AppliedBases(), model.keepMono(), model.Name)
 	case desktop.FilesDropped:
 		model.DragOver = false
 		if len(msg.Paths) == 0 {
@@ -53,6 +61,7 @@ func ReduceModel(m Model, message any) Model {
 		m.Preview = msg.Preview
 		m.Name = shortName(msg.Path)
 		m.Style = "" // a picture replaces a style as the colours' provenance
+		m.Follows = false
 		m.Candidates = msg.Candidates
 		m.Selected = 0 // the leading candidate is the one worth seeing first
 		m.Problem = ""
@@ -62,8 +71,19 @@ func ReduceModel(m Model, message any) Model {
 		m.Problem = msg.Reason
 	case SelectCandidate:
 		if msg.Index >= 0 && msg.Index < len(m.Candidates) {
-			m.Selected = msg.Index
+			m.Selected, m.Follows = msg.Index, false
 		}
+	case FollowSystem:
+		// Only where there is a colour to follow. A platform that reports
+		// none draws no cell to click, and a message that arrives anyway
+		// must not put the window on the zero colour.
+		if m.Platform.A != 0 {
+			m.Follows = true
+		}
+	case PlatformColorChanged:
+		// The colour on screen while the window is following moves with
+		// this, which is the whole of following: no message chooses again.
+		m.Platform = msg.Color
 	case AdoptStyle:
 		// One click, both halves of a theme. The candidates are the style's
 		// own, handed to the row exactly as a picture's are, so the leading
@@ -74,7 +94,7 @@ func ReduceModel(m Model, message any) Model {
 		if msg.Index >= 0 && msg.Index < len(m.Styles) {
 			s := m.Styles[msg.Index]
 			m.Preview, m.Style, m.Name = nil, s.Name, s.Name
-			m.Candidates, m.Selected = s.Candidates, 0
+			m.Candidates, m.Selected, m.Follows = s.Candidates, 0, false
 			m.LightAt = baseIndex(m.Bases, s.Pair.Light, false)
 			m.DarkAt = baseIndex(m.Bases, s.Pair.Dark, true)
 			m.Problem = ""
@@ -83,7 +103,7 @@ func ReduceModel(m Model, message any) Model {
 		// Everything the seed came with goes; the pair, which was a separate
 		// choice, stays.
 		m.Preview, m.Style, m.Name = nil, "", ""
-		m.Candidates, m.Selected = nil, 0
+		m.Candidates, m.Selected, m.Follows = nil, 0, false
 		m.Problem = ""
 	case SelectTab:
 		// A cell that is not on the strip changes nothing: the strip is drawn
@@ -112,7 +132,7 @@ func ReduceModel(m Model, message any) Model {
 			m.Mono = ""
 		}
 	case SeedKept:
-		m.Kept, m.KeptBases, m.KeptMono = msg.Seed, msg.Bases, msg.Mono
+		m.Kept, m.KeptFollows, m.KeptBases, m.KeptMono = msg.Seed, msg.Follows, msg.Bases, msg.Mono
 		m.Problem = ""
 	case KeepFailed:
 		m.Problem = msg.Reason

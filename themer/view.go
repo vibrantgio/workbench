@@ -107,6 +107,11 @@ const AppName = "Themer"
 // application has no second drop target, so the index is a constant.
 const dropZone = 0
 
+// rowSlots is how many press targets the candidate row can want: one per
+// candidate the extraction can return, and one more for the cell offering
+// the colour the platform reports.
+const rowSlots = imageseed.DefaultMax + 1
+
 // ButtonPlacement is where the window's own control buttons stand: the leading
 // edge of the group of three, and the line their centres sit on, both in dp
 // from the window's top-leading corner. It is the whole placement — the buttons
@@ -204,9 +209,10 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 // every selection re-emits; an inventory rebuilt every emission would re-read
 // the reading sample on every pick, which is the one thing on this page that
 // costs anything. There is one click handler per candidate slot, not per
-// candidate, so the handlers outlive a picture being replaced by another.
+// candidate, so the handlers outlive a picture being replaced by another —
+// plus the one the row's last cell takes, which belongs to no candidate.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup) rx.Observable[layout.Widget] {
-	clicks := make([]gesture.Click, imageseed.DefaultMax)
+	clicks := make([]gesture.Click, rowSlots)
 	bar := new(topClicks)
 	page, bases, faces, grid := newEmbed(), newBaseSelector(), newFaceSelector(), newStyleGrid()
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
@@ -307,15 +313,17 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	c, _ := SchemePair(t.os, m)
 	p := PaletteFrom(c)
 	dark := m.Dark(t.os)
-	// Each candidate's generated primary pair, on the side the window is
+	// Each cell's generated primary pair, on the side the window is
 	// currently showing, so a swatch promises what choosing it delivers.
-	pairs := make([]tokens.ColorTokens, len(m.Candidates))
-	for i, cand := range m.Candidates {
-		light, darkTokens := tokens.FromSeed(cand.Color)
-		pairs[i] = light
-		if dark {
-			pairs[i] = darkTokens
-		}
+	// The row's cells are the candidates and then, where the platform
+	// reports a colour, that colour — so this is as long as the row is, and
+	// the row reads its own length off it.
+	pairs := make([]tokens.ColorTokens, 0, len(m.Candidates)+1)
+	for _, cand := range m.Candidates {
+		pairs = append(pairs, shownSide(cand.Color, dark))
+	}
+	if m.Platform.A != 0 {
+		pairs = append(pairs, shownSide(m.Platform, dark))
 	}
 	var picture paint.ImageOp
 	if m.Preview != nil {
@@ -932,6 +940,15 @@ func Invitation(p Palette, ty Type, m Model) layout.Widget {
 		}
 		return layout.Dimensions{Size: size}
 	}
+}
+
+// shownSide is the side of a seed's pair the window is currently drawing.
+func shownSide(seed stdcolor.NRGBA, dark bool) tokens.ColorTokens {
+	light, darkTokens := tokens.FromSeed(seed)
+	if dark {
+		return darkTokens
+	}
+	return light
 }
 
 // rigid wraps a [layout.Widget] as a Flex child that takes the height it asks

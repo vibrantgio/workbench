@@ -32,6 +32,27 @@ type SelectCandidate struct {
 	Index int
 }
 
+// FollowSystem makes the colour the platform reports the theme colour on
+// screen, in place of any candidate. Emitted by a click on the cell at the
+// trailing end of the candidate row.
+//
+// It is not a candidate index because it is not a candidate: the colour it
+// chooses is whatever the platform is set to at the moment it is drawn, and
+// it goes on changing under a window that has chosen it.
+type FollowSystem struct{}
+
+// PlatformColorChanged reports the colour the platform now says an
+// application that has chosen none should paint itself with — the macOS
+// accent colour, blue while macOS is on Multicolour. Emitted by the
+// appearance stream the window subscribes, once at startup and again on
+// every change.
+//
+// A zero alpha means this platform reports no such colour, which is how a
+// window on a desktop that publishes none learns not to offer the choice.
+type PlatformColorChanged struct {
+	Color stdcolor.NRGBA
+}
+
 // SelectTab puts the embedded page on one of its tabs, by the cell's position
 // in the strip. Emitted by a click on a cell or by the arrow keys the strip
 // answers.
@@ -91,11 +112,14 @@ type ShowStyles struct{}
 // click on the keep affordance.
 type KeepSeed struct{}
 
-// SeedKept reports what is now in that file.
+// SeedKept reports what is now in that file. Follows is the file holding the
+// instruction to follow the system rather than a colour, in which case Seed
+// is the zero colour.
 type SeedKept struct {
-	Seed  stdcolor.NRGBA
-	Bases highlight.BasePair
-	Mono  string
+	Seed    stdcolor.NRGBA
+	Follows bool
+	Bases   highlight.BasePair
+	Mono    string
 }
 
 // KeepFailed reports a keep that did not happen, with the reason in the

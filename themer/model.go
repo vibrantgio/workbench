@@ -53,11 +53,28 @@ type Model struct {
 	// startup. Empty when this machine has no config directory to put it
 	// in, which is the one way keeping can fail before it is tried.
 	KeepPath string
+	// Follows is true while the theme colour on screen is the one the
+	// platform reports rather than a colour taken out of a picture or a
+	// style. It is a choice like a candidate and is dropped by every act
+	// that chooses colours some other way.
+	Follows bool
+	// Platform is the colour the platform reports for an application that
+	// has chosen none — the macOS accent colour, which is blue while macOS
+	// is on Multicolour. It is read off the appearance stream and kept
+	// current, so the swatch offering it is the colour in force rather than
+	// the one in force when the window opened. A zero alpha means this
+	// platform reports none, and the choice is not offered at all.
+	Platform stdcolor.NRGBA
 	// Kept is the colour that file currently holds: read from it at
 	// startup and replaced by every keep that succeeds, so the window can
 	// say whether what is on screen is what would come back. A zero alpha
 	// means nothing has been kept.
 	Kept stdcolor.NRGBA
+	// KeptFollows is that file saying the theme colour follows the system,
+	// which is the one thing it can hold that is not a colour. It sits
+	// beside Kept for the same reason the bases do: the keep affordance
+	// confirms only when what is on screen is what is on disk.
+	KeptFollows bool
 	// Opened is the seed the window's own theme was built from, before the
 	// first frame: the brand that was kept when it opened, and the zero
 	// colour when nothing was. The desktop sends one side of that theme per
@@ -186,10 +203,14 @@ func (m Model) Dark(os tokens.ColorTokens) bool {
 	return isDark(os)
 }
 
-// Seed returns the chosen candidate's colour, and whether there is one. No
+// Seed returns the chosen colour, and whether there is one: the platform's
+// while the window follows the system, else the chosen candidate's. No
 // candidates, or an index no longer in range, means no seed and the window
 // stays in the OS palette.
 func (m Model) Seed() (stdcolor.NRGBA, bool) {
+	if m.Follows {
+		return m.Platform, m.Platform.A != 0
+	}
 	if m.Selected < 0 || m.Selected >= len(m.Candidates) {
 		return stdcolor.NRGBA{}, false
 	}
@@ -249,7 +270,7 @@ func Init() (Model, mvu.Command) {
 // on the half it was measured to belong on, and the other half opens on its
 // own default.
 func (m Model) adoptKept(kept brand.Brand) Model {
-	m.Kept = kept.Seed
+	m.Kept, m.KeptFollows = kept.Seed, kept.FollowSystem
 	m.KeptBases = highlight.BasesOrDefault(kept.Base.Names())
 	m.LightAt = baseIndex(m.Bases, m.KeptBases.Light, false)
 	m.DarkAt = baseIndex(m.Bases, m.KeptBases.Dark, true)
@@ -406,16 +427,25 @@ func skippedSentence(skipped []highlight.Skipped) string {
 }
 
 // SeedIsKept reports whether what is on screen is what is already in the
-// kept-theme file — the colour and both syntax bases, since all of them are
-// written and all of them come back. It is the difference between an
-// affordance offering something and one confirming it.
+// kept-theme file — the colour, or the standing instruction to follow the
+// system, and both syntax bases, since all of them are written and all of
+// them come back. It is the difference between an affordance offering
+// something and one confirming it.
 //
 // Both members count, including the one the appearance on screen is not
 // showing: the file holds the pair, so a base picked under the moon and then
 // left behind a flip to the sun is still an unkept change.
 func (m Model) SeedIsKept() bool {
+	if !(m.KeptBases == m.AppliedBases() && m.KeptMono == m.keepMono()) {
+		return false
+	}
+	if m.Follows {
+		// The file holds no colour to compare, so what is compared is the
+		// one thing it does hold: that it follows too.
+		return m.KeptFollows
+	}
 	seed, ok := m.Seed()
-	return ok && m.Kept.A != 0 && m.Kept == seed && m.KeptBases == m.AppliedBases() && m.KeptMono == m.keepMono()
+	return ok && m.Kept.A != 0 && m.Kept == seed
 }
 
 // shortName is what the window shows for a loaded picture: the file's own

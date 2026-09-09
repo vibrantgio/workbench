@@ -58,6 +58,7 @@ package main
 
 import (
 	"fmt"
+	stdcolor "image/color"
 	"os"
 	"time"
 
@@ -117,6 +118,26 @@ func WindowOptions() []app.Option {
 	)
 }
 
+// platformColors is the colour the platform reports for an application that
+// has chosen none, as messages: the appearance stream mapped through the one
+// question this window asks it, emitting at startup and again whenever the
+// setting changes.
+//
+// It is a stream of its own rather than the window's theme, because the
+// theme is not the answer: a window that opened on a kept brand is wearing
+// that brand's palette, and the colour offered beside it is the one the
+// platform is set to. A platform that reports none emits the zero colour,
+// which is the row drawing no cell for it.
+func platformColors(interval time.Duration) rx.Observable[mvu.Message] {
+	return rx.Map(specsystem.Live(interval), func(a specsystem.Appearance) mvu.Message {
+		seed, ok := specsystem.PlatformColor(a)
+		if !ok {
+			seed = stdcolor.NRGBA{}
+		}
+		return PlatformColorChanged{Color: seed}
+	})
+}
+
 func run() {
 	mvuWin := mvu.NewWindow(WindowOptions()...)
 
@@ -143,7 +164,7 @@ func run() {
 	// own, which is what this window has always opened in.
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second, brand.Kept().Options()...))
 
-	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), drops.Messages()), Init, Update)
+	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), drops.Messages(), platformColors(time.Second)), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 

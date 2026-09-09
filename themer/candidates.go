@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"image"
+	stdcolor "image/color"
+	"runtime"
 
 	"gioui.org/gesture"
 	"gioui.org/layout"
@@ -51,13 +53,43 @@ const (
 	RowHintStyle = "vivid first, not largest. The % is how much of the palette. Click to apply."
 )
 
-// RowHintFor is the hint for the row the window is actually showing.
-func RowHintFor(m Model) string {
-	if m.Style != "" {
-		return RowHintStyle
+// SystemCaption is what the last cell says it is: the platform's own word
+// for the setting it is showing, under the colour that setting is on. It is
+// the platform's word and not one of this window's, because a reader who
+// wants to change it changes it there.
+func SystemCaption() string { return platformName() + " accent colour" }
+
+// platformName is what the platform calls itself where a reader would go
+// looking for the setting. A desktop that is not one of the two named is
+// called what its own settings call the family of them.
+func platformName() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "macOS"
+	case "windows":
+		return "Windows"
 	}
-	return RowHint
+	return "desktop"
 }
+
+// RowHintFor is the hint for the row the window is actually showing. It
+// names the last cell where there is one, because that cell's caption is a
+// setting's name and not a share of anything the hint has just described.
+func RowHintFor(m Model) string {
+	hint := RowHint
+	if m.Style != "" {
+		hint = RowHintStyle
+	}
+	if m.Platform.A != 0 {
+		hint += " The last is the " + SystemCaption() + "."
+	}
+	return hint
+}
+
+// systemClick is the handler for that cell, which is the last of the row's
+// slots: the ones before it belong to the candidate at the same position,
+// and this one belongs to a colour that is not a candidate.
+func systemClick(clicks []gesture.Click) *gesture.Click { return &clicks[len(clicks)-1] }
 
 // cellWidth is the width one card takes when n of them share width dp of
 // row, gap dp apart.
@@ -81,26 +113,39 @@ func CandidateRow(p Palette, ty Type, m Model, pairs []tokens.ColorTokens, click
 
 		top := labelH + gtx.Dp(RowTop)
 		gap := gtx.Dp(CellGap)
-		cell := image.Pt(gtx.Dp(unit.Dp(cellWidth(width, gap, len(m.Candidates)))), gtx.Dp(CellH))
-		for i := range m.Candidates {
+		cell := image.Pt(gtx.Dp(unit.Dp(cellWidth(width, gap, len(pairs)))), gtx.Dp(CellH))
+		draw := func(i int, col stdcolor.NRGBA, label string, chosen bool, click *gesture.Click, choose mvu.Message) bool {
 			x := i * (cell.X + gap)
 			if x+cell.X > width {
-				break // a window too narrow for the whole row shows what fits
+				return false // a window too narrow for the whole row shows what fits
 			}
 			at(gtx, image.Pt(x, top), func(gtx layout.Context) {
-				Cell(gtx, p, ty, m.Candidates[i], pairs[i], i, i == m.Selected, &clicks[i], cell)
+				Cell(gtx, p, ty, col, pairs[i], label, chosen, click, cell, choose)
 			})
+			return true
+		}
+		for i, c := range m.Candidates {
+			if !draw(i, c.Color, fmt.Sprintf("%s · %s", hexOf(c.Color), share(c.Share)), !m.Follows && i == m.Selected, &clicks[i], SelectCandidate{Index: i}) {
+				return layout.Dimensions{Size: image.Pt(width, top+cell.Y)}
+			}
+		}
+		if m.Platform.A != 0 {
+			draw(len(m.Candidates), m.Platform, hexOf(m.Platform)+" · "+platformName(), m.Follows, systemClick(clicks), FollowSystem{})
 		}
 		return layout.Dimensions{Size: image.Pt(width, top+cell.Y)}
 	}
 }
 
-// Cell draws one candidate card at the origin and makes it clickable. The
-// card carries three things stacked: the colour as it occurs in the picture,
-// the primary pair derived from it with its own on-colour proving the pair
-// is legible, and the colour written out with the share of the image it
-// stands for.
-func Cell(gtx layout.Context, p Palette, ty Type, c imageseed.Candidate, pair tokens.ColorTokens, index int, chosen bool, click *gesture.Click, size image.Point) {
+// Cell draws one card of the row at the origin and makes it clickable. The
+// card carries three things stacked: the colour itself, the primary pair
+// derived from it with its own on-colour proving the pair is legible, and
+// the label under it — the colour written out with the share of the picture
+// it stands for, or with the name of the setting it came off.
+//
+// choose is the message the card sends when it is clicked, because what a
+// card offers is not always a candidate: the last one offers the colour the
+// platform reports, which has no index in any list.
+func Cell(gtx layout.Context, p Palette, ty Type, c stdcolor.NRGBA, pair tokens.ColorTokens, label string, chosen bool, click *gesture.Click, size image.Point, choose mvu.Message) {
 	card := image.Rectangle{Max: size}
 	fill, edge, width := p.Surface, p.CardEdge, gtx.Dp(Hairline)
 	if click.Hovered() {
@@ -123,16 +168,15 @@ func Cell(gtx layout.Context, p Palette, ty Type, c imageseed.Candidate, pair to
 	// candidate, and a near-white swatch on a near-white card with no
 	// boundary of its own reads as a card that failed to draw rather than as
 	// the colour it is.
-	SwatchBands(gtx, swatch, gtx.Dp(InnerR), []imageseed.Candidate{c}, p.Edge)
+	SwatchBands(gtx, swatch, gtx.Dp(InnerR), []imageseed.Candidate{{Color: c}}, p.Edge)
 	fillRRect(gtx, chip, gtx.Dp(InnerR), pair.Primary)
 	textdraw.FillText(gtx, ty.Shaper, ty.Label, chip, 0.5, 0.5, pair.OnPrimary, "Aa")
 
-	label, tone := hexOf(c.Color), p.Muted
+	tone := p.Muted
 	if chosen {
 		tone = p.Text
 	}
-	textdraw.FillText(gtx, ty.Shaper, ty.Small, caption, 0.5, 0.5, tone,
-		fmt.Sprintf("%s · %s", label, share(c.Share)))
+	textdraw.FillText(gtx, ty.Shaper, ty.Small, caption, 0.5, 0.5, tone, label)
 
 	// The clickable area is the card, registered after the paint so the
 	// hover state read above is the one the previous frame recorded.
@@ -145,7 +189,7 @@ func Cell(gtx layout.Context, p Palette, ty Type, c imageseed.Candidate, pair to
 			break
 		}
 		if e.Kind == gesture.KindClick {
-			mvu.MessageOp{Message: SelectCandidate{Index: index}}.Add(gtx.Ops)
+			mvu.MessageOp{Message: choose}.Add(gtx.Ops)
 		}
 	}
 }

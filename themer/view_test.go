@@ -64,7 +64,7 @@ func pageAt(t *testing.T, e *embed, m Model, os tokens.ColorTokens, size image.P
 	if len(sel) > 0 {
 		bases = sel[0]
 	}
-	clicks := make([]gesture.Click, imageseed.DefaultMax)
+	clicks := make([]gesture.Click, rowSlots)
 	typo := tokens.CodeFace(m.AppliedMono())
 	ty := TypeFrom(typo)
 	ty.Shaper = typo.DeterministicShaper()
