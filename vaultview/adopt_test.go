@@ -345,10 +345,22 @@ func TestWithNothingKeptTheWindowIsTheOneItAlwaysWas(t *testing.T) {
 	if err != nil {
 		t.Fatalf("colours: %v", err)
 	}
-	if colors != tokens.DefaultLight {
-		t.Fatal("with nothing kept the stream did not emit the default palette")
+	// Which colours an unbranded stream carries is the platform's business
+	// — macOS derives from the colour it paints an application that has
+	// chosen none — so what is asserted is that nothing kept changes
+	// nothing, both in the palette and on the window it paints.
+	unbranded, err := specsystem.FromSourceTheme(fixedAppearance{}, time.Hour).First()
+	if err != nil {
+		t.Fatalf("theme: %v", err)
 	}
-	if golden.PixelDiff(window(t, colors), window(t, tokens.DefaultLight)) != 0 {
+	want, err := unbranded.Color.First()
+	if err != nil {
+		t.Fatalf("colours: %v", err)
+	}
+	if colors != want {
+		t.Fatal("with nothing kept the stream did not emit the unbranded palette")
+	}
+	if golden.PixelDiff(window(t, colors), window(t, want)) != 0 {
 		t.Error("with nothing kept the window is not the one it always was")
 	}
 }
