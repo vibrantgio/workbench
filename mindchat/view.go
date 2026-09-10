@@ -304,12 +304,12 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // is persisted, and neither exists for a chat whose stream is not the current
 // one — model.StreamFor is the whole test.
 //
-// The status row reports a server-side tool ("Searching the web…") while one
-// runs. The pending row covers the gap between the request going out and the
+// The note reports a server-side tool ("Searching the web…") while one runs.
+// The arriving row covers the gap between the request going out and the
 // first token coming back: it appears as soon as the stream is registered and
-// stands down the instant the first AssistantDelta opens the assistant row —
+// stands down the instant the first AssistantDelta opens the assistant turn —
 // which is the one condition below, since a delta is the only thing that puts
-// an assistant row last. A reasoning model can spend four seconds before its
+// an assistant turn last. A reasoning model can spend four seconds before its
 // first token, and an inert pane reads as a hung application.
 func visibleHistory(model Model) []Message {
 	id, streaming := model.StreamFor(model.CurrentChat.Name)
@@ -319,13 +319,13 @@ func visibleHistory(model Model) []Message {
 	own := model.CurrentChat.History
 	history := slices.Clone(own)
 	if status := model.Streams[id].Status; status != "" {
-		history = append(history, Message{Role: RoleStatus, Content: status})
+		history = append(history, Message{Kind: KindNote, Content: status})
 	}
-	// Tested against the chat's OWN last row, not the appended status row:
+	// Tested against the chat's OWN last row, not the appended note:
 	// a tool running after the answer has started must not resurrect the
 	// waiting indicator.
-	if n := len(own); n == 0 || own[n-1].Role != RoleAssistant {
-		history = append(history, Message{Role: RolePending})
+	if n := len(own); n == 0 || !own[n-1].IsAssistantTurn() {
+		history = append(history, Message{Role: RoleAssistant, Kind: KindArriving})
 	}
 	return history
 }
@@ -562,12 +562,12 @@ func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 
 	isUser := msg.Role == RoleUser
 	fill, textColor := p.Transcript, p.BotText
-	switch msg.Role {
-	case RoleUser:
+	switch {
+	case isUser:
 		fill, textColor = p.UserBubble, p.UserText
-	case RoleError:
+	case msg.Kind == KindFailed:
 		textColor = p.Error
-	case RoleStatus:
+	case msg.Kind == KindNote:
 		textColor = p.Heading
 	}
 
@@ -578,7 +578,7 @@ func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 		gtx.Constraints.Max.X -= margin
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		var dims layout.Dimensions
-		if msg.Role == RolePending {
+		if msg.Kind == KindArriving {
 			dims = WaitingDots(gtx, t)
 			dims.Size.X = gtx.Constraints.Max.X
 		} else if row.Doc != nil {
@@ -607,7 +607,7 @@ func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 
 	FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, fill)
 
-	if !isUser && msg.Role != RoleStatus {
+	if !isUser && msg.Kind != KindNote {
 		constraints := gtx.Constraints
 		iconSize := gtx.Dp(AvatarSize)
 		gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))

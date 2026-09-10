@@ -38,7 +38,7 @@ func runExchange(t *testing.T, provider Provider, model, prompt string) []mvu.Me
 	logdir := filepath.Join(t.TempDir(), "logs")
 	var got []mvu.Message
 	cmd := RequestResponse(1, provider, model,
-		[]Message{{Role: RoleUser, Content: prompt}}, logdir, "live.jsonl")
+		[]Message{{Role: RoleUser, Kind: KindTurn, Content: prompt}}, logdir, "live.jsonl")
 	sub := cmd.Observable.Subscribe(rx.GoroutineContext(), func(next mvu.Message, err error, done bool) {
 		if !done && next != nil {
 			got = append(got, next)

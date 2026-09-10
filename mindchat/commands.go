@@ -207,14 +207,17 @@ func urlCitation(annotation any) (url, title string, ok bool) {
 // stream-tagged reducer messages: text deltas, web-search status and
 // citations, and an explicit completed/failed/done tail so no ending —
 // however abnormal — can pass silently. Every raw event is appended to
-// the wire log. Error/status rows in the history are view-only and are
-// not sent to the model.
+// the wire log. Only settled turns are sent to the model: a failed turn and
+// a note are the application's own record of the exchange, not part of it.
 func RequestResponse(id int, provider Provider, modelID string, hist []Message, logdir, chat string) mvu.Command {
 	messages := slices.Clone(hist)
 	return mvu.Command{Observable: rx.Defer(func() rx.Observable[any] {
 		ctx := context.Background()
 		input := responses.ResponseInputParam{}
 		for _, m := range messages {
+			if m.Kind != KindTurn {
+				continue
+			}
 			switch m.Role {
 			case RoleUser:
 				input = append(input, responses.ResponseInputItemParamOfMessage(m.Content, responses.EasyInputMessageRoleUser))
@@ -315,7 +318,9 @@ func ParseChatFile(data []byte) (ChatFile, error) {
 		return cf, nil
 	}
 	if trimmed[0] == '[' {
-		return cf, json.Unmarshal(trimmed, &cf.History)
+		err := json.Unmarshal(trimmed, &cf.History)
+		cf.History = adoptKinds(cf.History)
+		return cf, err
 	}
 	var probe struct {
 		Type     string `json:"type"`
@@ -324,7 +329,7 @@ func ParseChatFile(data []byte) (ChatFile, error) {
 		History  []Message
 	}
 	if err := json.Unmarshal(trimmed, &probe); err == nil && probe.Type == "" {
-		return ChatFile{Provider: probe.Provider, Model: probe.Model, History: probe.History}, nil
+		return ChatFile{Provider: probe.Provider, Model: probe.Model, History: adoptKinds(probe.History)}, nil
 	}
 	decoder := json.NewDecoder(bytes.NewReader(trimmed))
 	for {
@@ -337,12 +342,14 @@ func ParseChatFile(data []byte) (ChatFile, error) {
 		switch e.Type {
 		case "meta":
 			cf.Provider, cf.Model = e.Provider, e.Model
+		case "message":
+			cf.History = append(cf.History, adoptKind(Message{Role: e.Role, Kind: e.Kind, Content: e.Text, Citations: e.Citations}))
 		case "user":
-			cf.History = append(cf.History, Message{Role: RoleUser, Content: e.Text})
+			cf.History = append(cf.History, Message{Role: RoleUser, Kind: KindTurn, Content: e.Text})
 		case "assistant":
-			cf.History = append(cf.History, Message{Role: RoleAssistant, Content: e.Text, Citations: e.Citations})
+			cf.History = append(cf.History, Message{Role: RoleAssistant, Kind: KindTurn, Content: e.Text, Citations: e.Citations})
 		case "error":
-			cf.History = append(cf.History, Message{Role: RoleError, Content: e.Error})
+			cf.History = append(cf.History, Message{Role: RoleAssistant, Kind: KindFailed, Content: e.Error})
 		}
 	}
 	return cf, nil
@@ -447,10 +454,12 @@ func MigrateChats(chatdir string) mvu.Command {
 				encoder.Encode(ChatEvent{Time: stamp, Type: "meta", Provider: cf.Provider, Model: cf.Model})
 			}
 			for _, m := range cf.History {
-				if m.Role != RoleUser && m.Role != RoleAssistant {
+				if m.Kind != KindTurn {
 					continue
 				}
-				encoder.Encode(ChatEvent{Time: stamp, Type: m.Role, Text: m.Content, Citations: m.Citations})
+				event := MessageEvent(m)
+				event.Time = stamp
+				encoder.Encode(event)
 			}
 			if err := os.WriteFile(target, buf.Bytes(), 0o644); err != nil {
 				return nil, err

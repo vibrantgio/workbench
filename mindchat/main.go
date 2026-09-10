@@ -4,6 +4,10 @@
 // messages (config/history I/O, the streaming OpenAI completion) back into
 // the update scan — and layout.Widgets that route every event through
 // mvu.MessageOp.
+//
+// A message says two things separately: its role, the chat API's word for
+// who it is from (user or assistant), and its kind — a turn, a turn still
+// arriving, a failed turn, or a note the application itself wrote.
 package main
 
 import (

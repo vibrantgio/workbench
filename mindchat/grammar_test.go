@@ -255,7 +255,7 @@ func TestAssistantRowPaintsTheFillItClaims(t *testing.T) {
 			size := image.Pt(560, 200)
 			img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 				paint.FillShape(gtx.Ops, sentinel, clip.Rect{Max: gtx.Constraints.Max}.Op())
-				rows := newDocCache().Rows([]Message{{Role: RoleAssistant, Content: "A settled answer."}})
+				rows := newDocCache().Rows([]Message{{Role: RoleAssistant, Kind: KindTurn, Content: "A settled answer."}})
 				return MessageRow(gtx, th, rows[0])
 			})
 

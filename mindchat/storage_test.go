@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/reactivego/rx"
@@ -193,10 +194,127 @@ func TestAppendChatEventRoundTrip(t *testing.T) {
 	if err != nil || cf.Provider != "xAI" || cf.Model != "grok-4.5" {
 		t.Fatalf("replay = %+v, %v; want the meta override applied", cf, err)
 	}
-	if len(cf.History) != 3 || cf.History[0].Role != RoleUser || cf.History[2].Role != RoleError {
+	if len(cf.History) != 3 || cf.History[0].Role != RoleUser || cf.History[2].Kind != KindFailed {
 		t.Fatalf("history = %+v, want user+assistant+error rows", cf.History)
 	}
 	if len(cf.History[1].Citations) != 1 || cf.History[1].Citations[0].URL != "https://x.ai" {
 		t.Fatalf("citations = %+v, want the source preserved", cf.History[1].Citations)
+	}
+}
+
+// TestParseChatFileAdoptsLegacyKindRows reads chat files written before role
+// and kind were separate — the role field then carried both — in each of the
+// three stored formats. Every row whose role named no sender arrives as the
+// kind it meant, under the role that kind implies.
+func TestParseChatFileAdoptsLegacyKindRows(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		data string
+	}{
+		{
+			name: "bare history array",
+			data: `[{"role":"user","content":"hi"},` +
+				`{"role":"status","content":"Searching the web…"},` +
+				`{"role":"pending"},` +
+				`{"role":"error","content":"HTTP 410: Gone"}]`,
+		},
+		{
+			name: "wrapped object",
+			data: `{"Provider":"xAI","Model":"grok-4","History":[` +
+				`{"role":"user","content":"hi"},` +
+				`{"role":"status","content":"Searching the web…"},` +
+				`{"role":"pending"},` +
+				`{"role":"error","content":"HTTP 410: Gone"}]}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cf, err := ParseChatFile([]byte(tc.data))
+			if err != nil {
+				t.Fatalf("ParseChatFile: %v", err)
+			}
+			want := []Message{
+				{Role: RoleUser, Kind: KindTurn, Content: "hi"},
+				{Kind: KindNote, Content: "Searching the web…"},
+				{Role: RoleAssistant, Kind: KindArriving},
+				{Role: RoleAssistant, Kind: KindFailed, Content: "HTTP 410: Gone"},
+			}
+			if len(cf.History) != len(want) {
+				t.Fatalf("history = %+v, want %+v", cf.History, want)
+			}
+			for i := range want {
+				got := cf.History[i]
+				if got.Role != want[i].Role || got.Kind != want[i].Kind || got.Content != want[i].Content {
+					t.Errorf("row %d = %+v, want %+v", i, got, want[i])
+				}
+			}
+		})
+	}
+
+	// The event log's pre-separation types carry the same meaning.
+	events := `{"time":"2026-01-01T00:00:00Z","type":"user","text":"hi"}` + "\n" +
+		`{"time":"2026-01-01T00:00:01Z","type":"assistant","text":"hello"}` + "\n" +
+		`{"time":"2026-01-01T00:00:02Z","type":"error","error":"HTTP 410: Gone"}` + "\n"
+	cf, err := ParseChatFile([]byte(events))
+	if err != nil {
+		t.Fatalf("ParseChatFile(events): %v", err)
+	}
+	want := []Message{
+		{Role: RoleUser, Kind: KindTurn, Content: "hi"},
+		{Role: RoleAssistant, Kind: KindTurn, Content: "hello"},
+		{Role: RoleAssistant, Kind: KindFailed, Content: "HTTP 410: Gone"},
+	}
+	if len(cf.History) != len(want) {
+		t.Fatalf("event history = %+v, want %+v", cf.History, want)
+	}
+	for i := range want {
+		got := cf.History[i]
+		if got.Role != want[i].Role || got.Kind != want[i].Kind || got.Content != want[i].Content {
+			t.Errorf("event row %d = %+v, want %+v", i, got, want[i])
+		}
+	}
+}
+
+// TestChatFileWritesRoleAndKindSeparately is the other direction: a file
+// written now states each row's role and its kind in fields of their own,
+// and replays into exactly the rows it was given.
+func TestChatFileWritesRoleAndKindSeparately(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "chat.jsonl")
+	if err := AppendChatEvent(file, ChatEvent{Type: "meta", Provider: "xAI", Model: "grok-4.5"}).Wait(); err != nil {
+		t.Fatal(err)
+	}
+	written := []Message{
+		{Role: RoleUser, Kind: KindTurn, Content: "search this"},
+		{Role: RoleAssistant, Kind: KindTurn, Content: "found it", Citations: []Citation{{URL: "https://x.ai", Title: "xAI"}}},
+		{Role: RoleAssistant, Kind: KindFailed, Content: "HTTP 410: Gone"},
+	}
+	for _, m := range written {
+		if err := AppendChatEvent(file, MessageEvent(m)).Wait(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"role":"assistant"`, `"kind":"turn"`, `"kind":"failed"`} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("file does not carry %s; role and kind must be stored apart:\n%s", want, data)
+		}
+	}
+	cf, err := ParseChatFile(data)
+	if err != nil || cf.Provider != "xAI" || cf.Model != "grok-4.5" {
+		t.Fatalf("replay = %+v, %v; want the meta override applied", cf, err)
+	}
+	if len(cf.History) != len(written) {
+		t.Fatalf("history = %+v, want %+v", cf.History, written)
+	}
+	for i := range written {
+		got := cf.History[i]
+		if got.Role != written[i].Role || got.Kind != written[i].Kind || got.Content != written[i].Content {
+			t.Errorf("row %d = %+v, want %+v", i, got, written[i])
+		}
+	}
+	if len(cf.History[1].Citations) != 1 || cf.History[1].Citations[0].URL != "https://x.ai" {
+		t.Errorf("citations = %+v, want the source preserved", cf.History[1].Citations)
 	}
 }

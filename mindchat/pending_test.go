@@ -13,13 +13,17 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
+// rowTag names a row by who it is from and what kind of line it is, the
+// two the pane now reads separately.
+func rowTag(m Message) string { return m.Role + "/" + string(m.Kind) }
+
 // TestVisibleHistoryShowsWaitingRowUntilTheFirstToken pins the rule that
 // covers the blank gap: from the moment a stream is registered for the
 // current chat until the first delta opens the assistant row, the pane draws
 // a pending row.
 func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
-	user := Message{Role: RoleUser, Content: "explain monoids"}
-	partial := Message{Role: RoleAssistant, Content: "A monoid"}
+	user := Message{Role: RoleUser, Kind: KindTurn, Content: "explain monoids"}
+	partial := Message{Role: RoleAssistant, Kind: KindTurn, Content: "A monoid"}
 
 	for _, tc := range []struct {
 		name  string
@@ -29,7 +33,7 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 		{
 			name:  "idle chat draws its history and nothing else",
 			model: Model{CurrentChat: Chat{Name: "a.jsonl", History: []Message{user}}},
-			want:  []string{RoleUser},
+			want:  []string{"user/turn"},
 		},
 		{
 			name: "request sent, no token yet",
@@ -37,7 +41,7 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 				CurrentChat: Chat{Name: "a.jsonl", History: []Message{user}},
 				Streams:     map[int]StreamState{1: {Chat: "a.jsonl"}},
 			},
-			want: []string{RoleUser, RolePending},
+			want: []string{"user/turn", "assistant/arriving"},
 		},
 		{
 			name: "first delta stands the waiting row down",
@@ -45,7 +49,7 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 				CurrentChat: Chat{Name: "a.jsonl", History: []Message{user, partial}},
 				Streams:     map[int]StreamState{1: {Chat: "a.jsonl"}},
 			},
-			want: []string{RoleUser, RoleAssistant},
+			want: []string{"user/turn", "assistant/turn"},
 		},
 		{
 			name: "a tool running before the first token gets both rows",
@@ -53,7 +57,7 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 				CurrentChat: Chat{Name: "a.jsonl", History: []Message{user}},
 				Streams:     map[int]StreamState{1: {Chat: "a.jsonl", Status: "Searching the web…"}},
 			},
-			want: []string{RoleUser, RoleStatus, RolePending},
+			want: []string{"user/turn", "/note", "assistant/arriving"},
 		},
 		{
 			name: "a tool running after the answer started does not resurrect it",
@@ -61,7 +65,7 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 				CurrentChat: Chat{Name: "a.jsonl", History: []Message{user, partial}},
 				Streams:     map[int]StreamState{1: {Chat: "a.jsonl", Status: "Searching the web…"}},
 			},
-			want: []string{RoleUser, RoleAssistant, RoleStatus},
+			want: []string{"user/turn", "assistant/turn", "/note"},
 		},
 		{
 			name: "another chat's stream draws nothing here",
@@ -69,13 +73,13 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 				CurrentChat: Chat{Name: "a.jsonl", History: []Message{user}},
 				Streams:     map[int]StreamState{1: {Chat: "b.jsonl"}},
 			},
-			want: []string{RoleUser},
+			want: []string{"user/turn"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := make([]string, 0, len(tc.want))
 			for _, msg := range visibleHistory(tc.model) {
-				got = append(got, msg.Role)
+				got = append(got, rowTag(msg))
 			}
 			if len(got) != len(tc.want) {
 				t.Fatalf("rows = %v, want %v", got, tc.want)
@@ -87,7 +91,7 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 			}
 			// Nothing transient may reach the model, and so the history file.
 			for _, msg := range tc.model.CurrentChat.History {
-				if msg.Role == RolePending || msg.Role == RoleStatus {
+				if msg.Kind == KindArriving || msg.Kind == KindNote {
 					t.Fatalf("transient row leaked into the model's history: %+v", tc.model.CurrentChat.History)
 				}
 			}

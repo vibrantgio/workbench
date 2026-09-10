@@ -49,7 +49,7 @@ func (c *docCache) Rows(history []Message) []msgRow {
 	rows := make([]msgRow, len(history))
 	for i, msg := range history {
 		rows[i] = msgRow{Msg: msg}
-		if msg.Role != RoleUser && msg.Role != RoleAssistant {
+		if msg.Kind != KindTurn {
 			continue
 		}
 		key := rowKey(i, msg)
@@ -64,11 +64,11 @@ func (c *docCache) Rows(history []Message) []msgRow {
 	return rows
 }
 
-// rowKey identifies one history row for the cache: position, role, content,
-// and citations (which arrive incrementally during a stream).
+// rowKey identifies one history row for the cache: position, role, kind,
+// content, and citations (which arrive incrementally during a stream).
 func rowKey(i int, msg Message) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%d\x00%s\x00%s", i, msg.Role, msg.Content)
+	fmt.Fprintf(&b, "%d\x00%s\x00%s\x00%s", i, msg.Role, msg.Kind, msg.Content)
 	for _, cit := range msg.Citations {
 		b.WriteString("\x00")
 		b.WriteString(cit.Title)

@@ -124,7 +124,7 @@ func TestBackgroundStreamSavesToOwningChatFile(t *testing.T) {
 		NextStream:  1,
 		Streams: map[int]StreamState{
 			1: {Chat: "alpha.jsonl", History: []Message{
-				{Role: RoleUser, Content: "tell me a story"},
+				{Role: RoleUser, Kind: KindTurn, Content: "tell me a story"},
 			}},
 		},
 	}

@@ -82,12 +82,12 @@ func demoModel() Model {
 			Name:   "reactive layouts.jsonl",
 			Loaded: true,
 			History: []Message{
-				{Role: RoleUser, Content: "In MVU, how does a button click reach the update function?"},
-				{Role: RoleAssistant, Content: "The component records a `MessageOp`; after the frame, " +
+				{Role: RoleUser, Kind: KindTurn, Content: "In MVU, how does a button click reach the update function?"},
+				{Role: RoleAssistant, Kind: KindTurn, Content: "The component records a `MessageOp`; after the frame, " +
 					"the window drains the operation list into the loop:\n\n" +
 					"```go\nfor _, msg := range frame.Messages() {\n\tmodel = Update(model, msg)\n}\n```"},
-				{Role: RoleUser, Content: "So state never lives in the component?"},
-				{Role: RoleAssistant, Content: "Only ephemeral gesture state:\n\n" +
+				{Role: RoleUser, Kind: KindTurn, Content: "So state never lives in the component?"},
+				{Role: RoleAssistant, Kind: KindTurn, Content: "Only ephemeral gesture state:\n\n" +
 					"- press tracking\n" +
 					"- an editor's cursor\n" +
 					"    - the caret's blink phase\n" +

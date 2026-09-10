@@ -267,6 +267,7 @@ func TestTaskItemsKeepTheirCheckbox(t *testing.T) {
 func TestCitationsAutolink(t *testing.T) {
 	msg := Message{
 		Role:    RoleAssistant,
+		Kind:    KindTurn,
 		Content: "Go 1.26 is out.",
 		Citations: []Citation{
 			{URL: "https://go.dev/blog", Title: "The Go Blog"},
@@ -308,8 +309,8 @@ func TestCitationsAutolink(t *testing.T) {
 func TestDocCacheReusesStableRows(t *testing.T) {
 	cache := newDocCache()
 	history := []Message{
-		{Role: RoleUser, Content: "**question**"},
-		{Role: RoleAssistant, Content: "answer so"},
+		{Role: RoleUser, Kind: KindTurn, Content: "**question**"},
+		{Role: RoleAssistant, Kind: KindTurn, Content: "answer so"},
 	}
 	first := cache.Rows(history)
 	if first[0].Doc == nil || first[1].Doc == nil {
@@ -329,10 +330,10 @@ func TestDocCacheReusesStableRows(t *testing.T) {
 		t.Errorf("cache holds %d documents, want 2 (stale delta key dropped)", n)
 	}
 
-	// Status rows render as plain labels.
-	rows := cache.Rows([]Message{{Role: RoleStatus, Content: "Searching…"}})
+	// Notes render as plain labels.
+	rows := cache.Rows([]Message{{Kind: KindNote, Content: "Searching…"}})
 	if rows[0].Doc != nil {
-		t.Error("status row got a Document; want plain label")
+		t.Error("note got a Document; want plain label")
 	}
 	if n := len(cache.docs); n != 0 {
 		t.Errorf("cache holds %d documents after the switch, want 0", n)

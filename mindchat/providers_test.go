@@ -340,7 +340,7 @@ func TestParseChatFileAllFormats(t *testing.T) {
 	if cf.History[1].Role != RoleAssistant || len(cf.History[1].Citations) != 1 || cf.History[1].Citations[0].URL != "https://x.ai" {
 		t.Fatalf("assistant row = %+v, want the citation attached", cf.History[1])
 	}
-	if cf.History[2].Role != RoleError || cf.History[2].Content != "HTTP 410: Gone" {
+	if cf.History[2].Kind != KindFailed || cf.History[2].Content != "HTTP 410: Gone" {
 		t.Fatalf("error row = %+v, want the persisted error notice", cf.History[2])
 	}
 	empty, err := ParseChatFile(nil)

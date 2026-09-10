@@ -55,7 +55,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 				model.CurrentChat = Chat{Name: FreshChatName(model.TakenNames()), Loaded: true}
 				model.ChatList = append(slices.Clone(model.ChatList), model.CurrentChat.Name)
 			}
-			model.CurrentChat.History = append(model.CurrentChat.History, Message{Role: RoleUser, Content: message.Content})
+			model.CurrentChat.History = append(model.CurrentChat.History, Message{Role: RoleUser, Kind: KindTurn, Content: message.Content})
 			// Register the stream so its events stay routable to THIS chat
 			// whatever is current when they arrive; it carries the chat's
 			// model override so stream saves preserve it in the file.
@@ -72,7 +72,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			// override wins over the global default.
 			provider, modelID, _ := model.EffectiveModel()
 			command = mvu.DoSequence(
-				AppendChatEvent(model.ChatFile(model.CurrentChat.Name), ChatEvent{Type: "user", Text: message.Content}).Trace("Append Prompt"),
+				AppendChatEvent(model.ChatFile(model.CurrentChat.Name), MessageEvent(Message{Role: RoleUser, Kind: KindTurn, Content: message.Content})).Trace("Append Prompt"),
 				RequestResponse(model.NextStream, provider, modelID, model.CurrentChat.History, model.LogDir(), model.CurrentChat.Name).Trace("Request Response"),
 				SaveConfig(model.ConfigFile(), model.Config()).Trace("Save Config"),
 			)
@@ -89,10 +89,10 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		hist := streamHist(model, s)
 		// The exchange's first delta opens the assistant row; later ones
 		// extend it.
-		if n := len(hist); n > 0 && hist[n-1].Role == RoleAssistant {
+		if n := len(hist); n > 0 && hist[n-1].IsAssistantTurn() {
 			hist[n-1].Content += message.Text
 		} else {
-			hist = append(hist, Message{Role: RoleAssistant, Content: message.Text})
+			hist = append(hist, Message{Role: RoleAssistant, Kind: KindTurn, Content: message.Text})
 		}
 		return storeStreamHist(model, message.Stream, s, hist), mvu.DoNothing()
 
@@ -113,9 +113,9 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			return model, mvu.DoNothing()
 		}
 		hist := streamHist(model, s)
-		if n := len(hist); n == 0 || hist[n-1].Role != RoleAssistant {
+		if n := len(hist); n == 0 || !hist[n-1].IsAssistantTurn() {
 			// A citation can precede the first text delta: open the row.
-			hist = append(hist, Message{Role: RoleAssistant})
+			hist = append(hist, Message{Role: RoleAssistant, Kind: KindTurn})
 		}
 		last := &hist[len(hist)-1]
 		if !slices.ContainsFunc(last.Citations, func(c Citation) bool { return c.URL == message.URL }) {
@@ -134,9 +134,8 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		model.Streams = streams
 		// Persist the final assistant row to the stream's OWN chat file —
 		// never to whatever chat happens to be current.
-		if n := len(hist); n > 0 && hist[n-1].Role == RoleAssistant {
-			last := hist[n-1]
-			return model, AppendChatEvent(model.ChatFile(s.Chat), ChatEvent{Type: "assistant", Text: last.Content, Citations: last.Citations}).Trace("Append Reply")
+		if n := len(hist); n > 0 && hist[n-1].IsAssistantTurn() {
+			return model, AppendChatEvent(model.ChatFile(s.Chat), MessageEvent(hist[n-1])).Trace("Append Reply")
 		}
 		return model, mvu.DoNothing()
 
@@ -149,12 +148,12 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		// in the chat itself, so a failed exchange is never a silent one.
 		hist := streamHist(model, s)
 		var commands []mvu.Command
-		if n := len(hist); n > 0 && hist[n-1].Role == RoleAssistant {
-			last := hist[n-1]
-			commands = append(commands, AppendChatEvent(model.ChatFile(s.Chat), ChatEvent{Type: "assistant", Text: last.Content, Citations: last.Citations}).Trace("Append Partial Reply"))
+		if n := len(hist); n > 0 && hist[n-1].IsAssistantTurn() {
+			commands = append(commands, AppendChatEvent(model.ChatFile(s.Chat), MessageEvent(hist[n-1])).Trace("Append Partial Reply"))
 		}
-		commands = append(commands, AppendChatEvent(model.ChatFile(s.Chat), ChatEvent{Type: "error", Error: message.Err}).Trace("Append Error"))
-		hist = append(hist, Message{Role: RoleError, Content: message.Err})
+		failed := Message{Role: RoleAssistant, Kind: KindFailed, Content: message.Err}
+		commands = append(commands, AppendChatEvent(model.ChatFile(s.Chat), MessageEvent(failed)).Trace("Append Error"))
+		hist = append(hist, failed)
 		model = storeStreamHist(model, message.Stream, s, hist)
 		streams := cloneStreams(model.Streams)
 		delete(streams, message.Stream)

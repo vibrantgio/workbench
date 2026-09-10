@@ -4,18 +4,33 @@ import "time"
 
 type LoadState struct{}
 
-// Message roles. User and assistant rows round-trip through the history
-// file and the wire; error rows are persisted notices of a failed exchange;
-// status and pending rows are transient (the "Searching the web…" indicator
-// the view appends while a stream's server-side tool runs, and the waiting
-// indicator it appends between the request going out and the first token
-// coming back) and never persisted.
+// Message roles are the chat API's own word for who a message is from, and
+// carry nothing else. The API also defines a system role; nothing here
+// sends or receives one, so no constant stands for it.
 const (
 	RoleUser      = "user"
 	RoleAssistant = "assistant"
-	RoleError     = "error"
-	RoleStatus    = "status"
-	RolePending   = "pending"
+)
+
+// MessageKind is what kind of line a message is, as opposed to who it is
+// from. Every message carries one; a note carries no role, because the
+// application, not the API, wrote it.
+type MessageKind string
+
+const (
+	// KindTurn is a settled turn of the conversation — the only kind sent
+	// to the model and the only kind rendered as a document.
+	KindTurn MessageKind = "turn"
+	// KindArriving stands in for a turn whose first token has not come
+	// back yet. Transient: it never reaches the model or the history file.
+	KindArriving MessageKind = "arriving"
+	// KindFailed is a turn that ended in an error, persisted so a failed
+	// exchange is never a silent one.
+	KindFailed MessageKind = "failed"
+	// KindNote is the application's own line about the exchange (the
+	// "Searching the web…" report while a server-side tool runs).
+	// Transient: it never reaches the model or the history file.
+	KindNote MessageKind = "note"
 )
 
 // Citation is one source an assistant answer referenced — a url_citation
@@ -27,11 +42,50 @@ type Citation struct {
 
 // Message is one history entry as the view renders it. The lowercase JSON
 // tags match the wire shape of the pre-JSONL history files, so legacy
-// arrays decode into it directly.
+// arrays decode into it directly — carrying no kind, which adoptKind
+// supplies.
 type Message struct {
-	Role      string     `json:"role"`
-	Content   string     `json:"content"`
-	Citations []Citation `json:"citations,omitempty"`
+	Role      string      `json:"role,omitempty"`
+	Kind      MessageKind `json:"kind,omitempty"`
+	Content   string      `json:"content"`
+	Citations []Citation  `json:"citations,omitempty"`
+}
+
+// IsAssistantTurn reports whether this is the assistant's own answer — the
+// row a stream's deltas extend. A failed turn carries the assistant's role
+// too, so the kind is part of the test.
+func (m Message) IsAssistantTurn() bool {
+	return m.Role == RoleAssistant && m.Kind == KindTurn
+}
+
+// adoptKind puts a message decoded from a chat file written before role and
+// kind were separate into the current shape: the role field then carried
+// both, so "error", "pending" and "status" rows arrive with no kind and a
+// role that names no sender. A row that already states a kind is returned
+// unchanged.
+func adoptKind(m Message) Message {
+	if m.Kind != "" {
+		return m
+	}
+	switch m.Role {
+	case "error":
+		m.Role, m.Kind = RoleAssistant, KindFailed
+	case "pending":
+		m.Role, m.Kind = RoleAssistant, KindArriving
+	case "status":
+		m.Role, m.Kind = "", KindNote
+	default:
+		m.Kind = KindTurn
+	}
+	return m
+}
+
+// adoptKinds applies adoptKind across a decoded history.
+func adoptKinds(history []Message) []Message {
+	for i := range history {
+		history[i] = adoptKind(history[i])
+	}
+	return history
 }
 
 // Provider is one OpenAI-compatible API endpoint the app can talk to,
@@ -213,18 +267,29 @@ type Chat struct {
 
 // ChatEvent is one line of a chat's .jsonl history file — the append-only
 // conversation log. Type keys which payload group is meaningful: "meta"
-// carries the chat's model override from that point on, "user"/"assistant"
-// carry a message (assistant may add citations), "error" records what
-// ended an exchange abnormally. Unknown types are skipped on replay, so
-// the format can grow without breaking older builds.
+// carries the chat's model override from that point on, "message" carries
+// a history row whose Role and Kind are stated separately. The types
+// "user", "assistant" and "error" are the shape written before that
+// separation and are still replayed. Unknown types are skipped on replay,
+// so the format can grow without breaking older builds.
 type ChatEvent struct {
-	Time      time.Time  `json:"time"`
-	Type      string     `json:"type"`
-	Provider  string     `json:"provider,omitempty"`
-	Model     string     `json:"model,omitempty"`
-	Text      string     `json:"text,omitempty"`
-	Citations []Citation `json:"citations,omitempty"`
-	Error     string     `json:"error,omitempty"`
+	Time      time.Time   `json:"time"`
+	Type      string      `json:"type"`
+	Provider  string      `json:"provider,omitempty"`
+	Model     string      `json:"model,omitempty"`
+	Role      string      `json:"role,omitempty"`
+	Kind      MessageKind `json:"kind,omitempty"`
+	Text      string      `json:"text,omitempty"`
+	Citations []Citation  `json:"citations,omitempty"`
+	// Error carries a failed exchange's message in the pre-separation
+	// shape; a "message" event puts it in Text.
+	Error string `json:"error,omitempty"`
+}
+
+// MessageEvent is the history-row event in the current shape: role and kind
+// stated separately, the text in Text.
+func MessageEvent(m Message) ChatEvent {
+	return ChatEvent{Type: "message", Role: m.Role, Kind: m.Kind, Text: m.Content, Citations: m.Citations}
 }
 
 // ChatFile is a chat history replayed into memory: the model override the

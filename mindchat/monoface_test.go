@@ -182,7 +182,7 @@ func testThemed(t *testing.T, md markdown.Style) themed {
 // chatScene renders one assistant message row — parsed through the app's
 // own docCache pipeline — over a solid background.
 func chatScene(th themed, body string, bg color.NRGBA) layout.Widget {
-	rows := newDocCache().Rows([]Message{{Role: RoleAssistant, Content: body}})
+	rows := newDocCache().Rows([]Message{{Role: RoleAssistant, Kind: KindTurn, Content: body}})
 	return func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		return MessageRow(gtx, th, rows[0])

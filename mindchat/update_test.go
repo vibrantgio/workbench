@@ -15,7 +15,7 @@ func testModel() Model {
 		CurrentChat: Chat{
 			Name: "alpha.jsonl",
 			History: []Message{
-				{Role: RoleUser, Content: "hi"},
+				{Role: RoleUser, Kind: KindTurn, Content: "hi"},
 			},
 		},
 		ChatList: ChatList{"alpha.jsonl", "beta.jsonl"},
@@ -88,7 +88,7 @@ func TestUpdateStreamAfterSwitchBuffersToOwningChat(t *testing.T) {
 	m, _ := Update(testModel(), Prompt{Content: "tell me a story"}) // alpha, stream 1
 	m, _ = Update(m, SelectChat{Name: "beta.jsonl"})
 	m, _ = Update(m, HistLoaded{Chat: "beta.jsonl", History: []Message{
-		{Role: RoleUser, Content: "beta's own question"},
+		{Role: RoleUser, Kind: KindTurn, Content: "beta's own question"},
 	}})
 
 	// alpha's deltas keep arriving; they must not touch beta's view.
@@ -168,7 +168,7 @@ func TestUpdateStreamDoneTreatsSilentEndAsFailure(t *testing.T) {
 		t.Fatalf("Streams = %+v, want cleaned up after StreamDone", done.Streams)
 	}
 	hist := done.CurrentChat.History
-	if len(hist) != 3 || hist[2].Role != RoleError {
+	if len(hist) != 3 || hist[2].Kind != KindFailed {
 		t.Fatalf("History = %+v, want the prompt kept plus an error row", hist)
 	}
 	// A StreamDone after normal StreamCompleted cleanup is a no-op.
@@ -183,7 +183,7 @@ func TestUpdateStreamFailedShowsErrorRow(t *testing.T) {
 	m, _ = Update(m, AssistantDelta{Stream: 1, Text: "I'll search"})
 	failed, _ := Update(m, StreamFailed{Stream: 1, Err: "HTTP 410: Gone"})
 	hist := failed.CurrentChat.History
-	if len(hist) != 4 || hist[3].Role != RoleError || hist[3].Content != "HTTP 410: Gone" {
+	if len(hist) != 4 || hist[3].Kind != KindFailed || hist[3].Content != "HTTP 410: Gone" {
 		t.Fatalf("History = %+v, want the partial answer plus the error row", hist)
 	}
 	if len(failed.Streams) != 0 {
@@ -228,7 +228,7 @@ func TestUpdateCitationsAttachAndDedupe(t *testing.T) {
 func TestUpdateStaleHistLoadIsIgnored(t *testing.T) {
 	m := testModel() // current: alpha
 	next, _ := Update(m, HistLoaded{Chat: "beta.jsonl", History: []Message{
-		{Role: RoleUser, Content: "beta content"},
+		{Role: RoleUser, Kind: KindTurn, Content: "beta content"},
 	}})
 	if len(next.CurrentChat.History) != 1 || next.CurrentChat.History[0].Content != "hi" {
 		t.Fatalf("a load tagged for beta was applied to alpha: %+v", next.CurrentChat.History)
