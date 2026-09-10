@@ -337,16 +337,19 @@ type arrival struct {
 	spent bool      // the reader left the note; the marking does not wait
 }
 
-// mark returns the top-level block the arrival highlight is on this frame
-// and the fill to draw it in, arming a landing the model has newly reported
-// and asking for the frames the fade needs. A landing that carried a block
-// anchor marks the block it seated on; one that carried none marks the
-// note's opening content, which is its first top-level block.
+// mark returns the top-level block the arrival highlight is on this frame and
+// base at what the fade has left of its alpha, arming a landing the model has
+// newly reported and asking for the frames the fade needs. A landing that
+// carried a block anchor marks the block it seated on; one that carried none
+// marks the note's opening content, which is its first top-level block.
+//
+// base is the document style's own arrival fill, so the flash is the fill the
+// library lays over the surface the note is read on.
 //
 // The marking is over the moment the reader leaves the note it was made on,
 // and it does not come back when they do: a highlight lives as long as its
 // cause, and the cause was one arrival.
-func (a *arrival) mark(gtx layout.Context, m Model, col tokens.ColorTokens) (int, color.NRGBA, bool) {
+func (a *arrival) mark(gtx layout.Context, m Model, base color.NRGBA) (int, color.NRGBA, bool) {
 	if m.Arrival == 0 {
 		return 0, color.NRGBA{}, false
 	}
@@ -369,10 +372,7 @@ func (a *arrival) mark(gtx layout.Context, m Model, col tokens.ColorTokens) (int
 	} else {
 		gtx.Execute(op.InvalidateCmd{})
 	}
-	// The reading column's surface is the pinned app background and not the
-	// scheme's own level 0, so the fill is the one the token walks to
-	// against that surface rather than the resolved field itself.
-	fill := col.HighlightOn(col.Background)
+	fill := base
 	fill.A = uint8(math.Round(float64(fill.A) * alpha))
 	return max(m.CurAnchor, 0), fill, fill.A > 0
 }
@@ -624,16 +624,16 @@ func layoutNotePage(
 			// out after this column does, so what it reads is this frame's
 			// position and what it moves shows on the next.
 			cur.show(doc)
+			style := noteStyle(tok.col, tok.typ)
 			// The followed-link marking is set on the document every frame
 			// it is alive and taken off it on the first frame it is not:
 			// documents are cached across frames, so a marking left behind
 			// would outlive the arrival that caused it.
-			if block, fill, ok := arr.mark(gtx, m, tok.col); ok {
+			if block, fill, ok := arr.mark(gtx, m, style.ArrivalFill); ok {
 				doc.Highlight(block, fill)
 			} else {
 				doc.ClearHighlight()
 			}
-			style := noteStyle(tok.col, tok.typ)
 			style.Text.OnLinkClick = func(gtx layout.Context, url string) {
 				linkClicked(gtx, m, url)
 			}

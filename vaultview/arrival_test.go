@@ -82,10 +82,10 @@ func TestArrivalMarkingLivesItsCauseOut(t *testing.T) {
 	col := tokens.DefaultLight
 	m := Model{Current: "f.md", CurAnchor: 4, NavSeq: 3, Arrival: 3}
 	t0 := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
-	full := col.HighlightOn(col.Background)
+	full := noteStyle(col, tokens.DefaultTypography).ArrivalFill
 
 	var arr arrival
-	block, fill, ok := arr.mark(arrivalGtx(&ops, t0), m, col)
+	block, fill, ok := arr.mark(arrivalGtx(&ops, t0), m, full)
 	if !ok {
 		t.Fatal("the arrival frame drew no marking")
 	}
@@ -93,18 +93,18 @@ func TestArrivalMarkingLivesItsCauseOut(t *testing.T) {
 		t.Errorf("marked block %d, want the block the link landed on, 4", block)
 	}
 	if fill != full {
-		t.Errorf("fill = %v, want the highlight walked against the column's surface, %v", fill, full)
+		t.Errorf("fill = %v, want the document style's arrival fill, %v", fill, full)
 	}
 
 	hold := arrivalLife - arrivalFade
-	if _, w, ok := arr.mark(arrivalGtx(&ops, t0.Add(hold)), m, col); !ok || w.A != full.A {
+	if _, w, ok := arr.mark(arrivalGtx(&ops, t0.Add(hold)), m, full); !ok || w.A != full.A {
 		t.Errorf("at the end of the hold the fill was %v (drawn=%v), want full strength", w, ok)
 	}
-	_, mid, ok := arr.mark(arrivalGtx(&ops, t0.Add(hold+arrivalFade/2)), m, col)
+	_, mid, ok := arr.mark(arrivalGtx(&ops, t0.Add(hold+arrivalFade/2)), m, full)
 	if !ok || mid.A == 0 || mid.A >= full.A {
 		t.Errorf("half way through the fade the fill was %v (drawn=%v), want part strength", mid, ok)
 	}
-	if _, _, ok := arr.mark(arrivalGtx(&ops, t0.Add(arrivalLife)), m, col); ok {
+	if _, _, ok := arr.mark(arrivalGtx(&ops, t0.Add(arrivalLife)), m, full); ok {
 		t.Error("the marking outlived its cause")
 	}
 
@@ -112,13 +112,13 @@ func TestArrivalMarkingLivesItsCauseOut(t *testing.T) {
 	// content, which is its first top-level block.
 	top := Model{Current: "f.md", CurAnchor: -1, NavSeq: 4, Arrival: 4}
 	var opening arrival
-	if block, _, ok := opening.mark(arrivalGtx(&ops, t0), top, col); !ok || block != 0 {
+	if block, _, ok := opening.mark(arrivalGtx(&ops, t0), top, full); !ok || block != 0 {
 		t.Errorf("a landing with no anchor marked block %d (drawn=%v), want the opening block 0", block, ok)
 	}
 
 	// Nothing followed, nothing marked.
 	var none arrival
-	if _, _, ok := none.mark(arrivalGtx(&ops, t0), Model{Current: "f.md"}, col); ok {
+	if _, _, ok := none.mark(arrivalGtx(&ops, t0), Model{Current: "f.md"}, full); ok {
 		t.Error("a note reached without following a link was marked")
 	}
 }
@@ -128,12 +128,12 @@ func TestArrivalMarkingLivesItsCauseOut(t *testing.T) {
 // is not waiting on the other side when the reader comes back.
 func TestArrivalMarkingDoesNotFollowTheReader(t *testing.T) {
 	var ops op.Ops
-	col := tokens.DefaultLight
+	full := noteStyle(tokens.DefaultLight, tokens.DefaultTypography).ArrivalFill
 	t0 := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 	landed := Model{Current: "f.md", CurAnchor: 4, NavSeq: 3, Arrival: 3}
 
 	var arr arrival
-	if _, _, ok := arr.mark(arrivalGtx(&ops, t0), landed, col); !ok {
+	if _, _, ok := arr.mark(arrivalGtx(&ops, t0), landed, full); !ok {
 		t.Fatal("the arrival frame drew no marking")
 	}
 	// Back: the same landing is still the newest one the model records, but
@@ -141,10 +141,10 @@ func TestArrivalMarkingDoesNotFollowTheReader(t *testing.T) {
 	away := landed
 	away.Current = "x.md"
 	away.CurAnchor = -1
-	if _, _, ok := arr.mark(arrivalGtx(&ops, t0.Add(time.Second)), away, col); ok {
+	if _, _, ok := arr.mark(arrivalGtx(&ops, t0.Add(time.Second)), away, full); ok {
 		t.Error("the marking followed the reader to another note")
 	}
-	if _, _, ok := arr.mark(arrivalGtx(&ops, t0.Add(2*time.Second)), landed, col); ok {
+	if _, _, ok := arr.mark(arrivalGtx(&ops, t0.Add(2*time.Second)), landed, full); ok {
 		t.Error("the marking was waiting on the note when the reader came back to it")
 	}
 }
