@@ -61,11 +61,12 @@ type settingsThemed struct {
 	boxOn   layout.Widget
 	boxOff  layout.Widget
 
-	// The key-check verdict, as the two glyph badges it is: the sign in the
-	// role's own foreground, derived by the library against the modal's
-	// level 2 rather than picked here. badgeStyle is the type role behind
-	// them, kept so the row can reserve the badge's box while there is no
-	// verdict to draw.
+	// The key-check verdict, as the two glyph badges it is: a disc in the
+	// status's fill with the sign in the status's foreground, both derived
+	// by the library against the modal's level 2 rather than picked here.
+	// badgeStyle is the type role behind them, kept so the row can reserve
+	// the badge's box while there is no verdict to draw — a disc measures
+	// the same box the bare sign does, so the row holds either unmoved.
 	badgeStyle tokens.TextStyle
 	verdictOK  layout.Widget
 	verdictBad layout.Widget
@@ -143,12 +144,13 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 			}
 			style := badge.Style(typ, tokens.Comfortable)
 			verdict := func(g badge.Glyph, status badge.Status) layout.Widget {
-				// A glyph badge — no label — and a glyph badge stands bare,
-				// its sign carrying the verdict where a word would need a
-				// field behind it. So that surface is the only thing its foreground is
-				// derived against, and the settings modal is a level-2 plane.
+				// A glyph badge — no label — standing as a disc: the status's
+				// fill a circle the line box across, the sign centred in it in
+				// the status's foreground. Both are derived against the
+				// surface the badge stands on, and the settings modal is a
+				// level-2 plane.
 				return badge.Render(typ.Shaper(), "", g, status, c, tokens.Spacing,
-					tokens.Radius, style, badge.RenderState{Level: tokens.Level2})
+					tokens.Radius, style, badge.RenderState{Level: tokens.Level2, Disc: true})
 			}
 			return settingsThemed{
 				palette:    p,
@@ -247,13 +249,17 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		mvu.MessageOp{Message: SaveSettings{}}.Add(gtx.Ops)
 	}
 	// Both actions sit in the dialog's footer, on its level-2 fill — the same
-	// level the fields above them already name. Filled buttons paint their
-	// own fill and ring against it, so stating the level moves nothing on
-	// these two; it is stated so the level travels with the control, and a
-	// less pronounced action added to this footer derives against the dialog
-	// instead of against the window.
+	// level the fields above them already name. Filled paints its own fill
+	// and ring against that level, and Ghost derives its label and its hover
+	// fill from it, so the level is what both emphases are resolved against.
+	//
+	// One filled action per surface: Save is what this dialog is for, so it
+	// keeps the Filled emphasis and Cancel takes the least pronounced one
+	// beside it. Cancel undoes an interruption rather than performing the
+	// dialog's work, and this platform draws that action plain.
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
+		Emphasis:  button.Ghost,
 		Level:     tokens.Level2,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
@@ -487,8 +493,9 @@ func templateBar(gtx layout.Context, t settingsThemed, tplClicks []*widget.Click
 }
 
 // keyRow is the API-key line: the key field, the key-check verdict badge
-// (a Success check = the last /models fetch succeeded, an Error cross = it
-// failed, empty while unchecked), and the manual re-check affordance.
+// (a Success disc with a check = the last /models fetch succeeded, an Error
+// disc with a cross = it failed, empty while unchecked), and the manual
+// re-check affordance.
 func keyRow(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider, field layout.Widget, refreshClick *widget.Clickable) layout.Dimensions {
 	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SettingsFieldHeight))
 	gtx.Constraints = layout.Exact(size)
@@ -534,7 +541,9 @@ func keyRow(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider
 //
 // Each spans most of the square it is handed and is centred on it, which is
 // what the Glyph contract asks — the badge reserves the box, and a sign that
-// under-fills it reads as a gap in the line.
+// under-fills it reads as a gap in the line. Both span the same 0.16 to 0.84
+// of that square, so the pair reads as one shape varying rather than as two
+// icon sets.
 func keyCheckGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
 	w := float32(sizePx)
 	var p clip.Path
@@ -549,10 +558,10 @@ func keyCrossGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
 	w := float32(sizePx)
 	var p clip.Path
 	p.Begin(gtx.Ops)
-	p.MoveTo(f32.Pt(w*0.24, w*0.24))
-	p.LineTo(f32.Pt(w*0.76, w*0.76))
-	p.MoveTo(f32.Pt(w*0.76, w*0.24))
-	p.LineTo(f32.Pt(w*0.24, w*0.76))
+	p.MoveTo(f32.Pt(w*0.16, w*0.16))
+	p.LineTo(f32.Pt(w*0.84, w*0.84))
+	p.MoveTo(f32.Pt(w*0.84, w*0.16))
+	p.LineTo(f32.Pt(w*0.16, w*0.84))
 	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: p.End(), Width: glyphStroke(gtx)}.Op())
 }
 

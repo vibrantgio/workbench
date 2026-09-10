@@ -294,6 +294,46 @@ func TestWholeWindowPickerRender(t *testing.T) {
 	}
 }
 
+// TestWholeWindowVerdictRender draws the settings dialog with the selected
+// provider's key already answered for — the one state the key-check verdict
+// is drawn in, and the one the dialogs rendered above cannot show, since a
+// dialog opened on a keyless catalogue reserves the verdict's box and leaves
+// it empty.
+func TestWholeWindowVerdictRender(t *testing.T) {
+	saved := windowButtonsEnd
+	defer func() { windowButtonsEnd = saved }()
+	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
+
+	verdicts := []struct {
+		name string
+		m    Model
+	}{
+		{"key-ok", settingsWithKey("")},
+		{"key-bad", settingsWithKey("HTTP 401: invalid_api_key")},
+	}
+	for _, tc := range schemes {
+		for _, v := range verdicts {
+			t.Run(tc.name+"-"+v.name, func(t *testing.T) {
+				renderWindow(t, tc.name+"-settings-"+v.name, tc.c, v.m)
+			})
+		}
+	}
+}
+
+// settingsWithKey opens the settings dialog on a catalogue whose selected
+// provider carries a key the /models fetch has already answered for: an
+// empty failure is the live key, a non-empty one the failed key. The
+// verdict's status is read off that answer, so this is what decides which
+// disc the key row draws.
+func settingsWithKey(failure string) Model {
+	m, _ := Update(demoModel(), OpenSettings{})
+	sel := m.Settings.Draft[m.Settings.Selected]
+	sel.APIKey = "sk-demo-key"
+	m.Settings.Draft[m.Settings.Selected] = sel
+	m.Settings.Errors = map[string]string{sel.Name: failure}
+	return m
+}
+
 // renderPane draws one scheme in one pane state and writes it out when the
 // dump flag names a directory.
 func renderPane(t *testing.T, name string, c tokens.ColorTokens, hidden bool) {
