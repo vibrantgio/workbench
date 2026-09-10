@@ -46,10 +46,13 @@ func schemeThemed(t *testing.T, c tokens.ColorTokens) themed {
 	}
 	return themed{
 		palette: p,
+		col:     c,
 		avatar:  avatar,
 		md:      messageMarkdownStyle(c, typ),
 		typ:     typ,
 		shaper:  typ.DeterministicShaper(),
+		sp:      tokens.Spacing,
+		rad:     tokens.Radius,
 	}
 }
 
@@ -459,5 +462,59 @@ func TestChatTitleShowsThePlaceholderUntilAChatEarnsAName(t *testing.T) {
 	got, verdict := chatTitleText("reactive layouts.jsonl")
 	if verdict != titleNamed || got != "Reactive layouts" {
 		t.Errorf("chatTitleText of a named chat = %q/%v, want %q named", got, verdict, "Reactive layouts")
+	}
+}
+
+// TestTheUserTurnStandsOnARaiseOfTheContent is the elevation claim the card
+// makes. The card is one step off the content plane and nothing else — not
+// the accent, which would make a turn of the conversation wear a role. And a
+// raise is only a raise if it can be seen, so the step is checked against the
+// surface beneath in both schemes, and where the scheme has no lighter step
+// left the seam has to carry it instead.
+func TestTheUserTurnStandsOnARaiseOfTheContent(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			c := tc.c
+			p := PaletteFrom(c)
+			raise := c.RaisedOn(p.Transcript)
+			if raise.Fill == c.Primary {
+				t.Errorf("the card fills with %v, the accent; a turn of the conversation wears no role", raise.Fill)
+			}
+			if luma(raise.Fill) <= luma(p.Transcript) {
+				t.Errorf("the card fills at %v, no lighter than the content %v it stands on; a raise lightens in BOTH schemes", raise.Fill, p.Transcript)
+			}
+			if raise.Seamed && contrastRatio(raise.Seam, raise.Fill) < 1.2 {
+				t.Errorf("the card owes a seam and its seam %v is indistinguishable from its fill %v", raise.Seam, raise.Fill)
+			}
+		})
+	}
+}
+
+// TestTheConversationsWordsClearTheTextFloor holds every run of words in the
+// transcript to WCAG's 4.5:1 on the surface it is actually set on — the
+// answer on the content, the prompt on the card raised over it, and the
+// system note, which takes a neutral step rather than the body's own
+// foreground and is the one of the three that could quietly fall short.
+func TestTheConversationsWordsClearTheTextFloor(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			c := tc.c
+			p := PaletteFrom(c)
+			for _, f := range []struct {
+				what   string
+				fg, on color.NRGBA
+			}{
+				{"the answer on the content", p.TurnText, p.Transcript},
+				{"the prompt on its card", p.TurnText, c.RaisedOn(p.Transcript).Fill},
+				{"the system note", p.Note, p.Transcript},
+				// The failure's words are set on the alert's own tinted
+				// banner, in the colour the banner sets its own title in.
+				{"the failure on its banner", c.Text, c.StatusContainer(tokens.RoleError)},
+			} {
+				if got := contrastRatio(f.fg, f.on); got < tokens.TextFloor {
+					t.Errorf("%s reads %.2f:1 (%v on %v), want at least %.1f:1", f.what, got, f.fg, f.on, tokens.TextFloor)
+				}
+			}
+		})
 	}
 }

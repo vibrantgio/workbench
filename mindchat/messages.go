@@ -21,8 +21,12 @@ const (
 	// KindTurn is a settled turn of the conversation — the only kind sent
 	// to the model and the only kind rendered as a document.
 	KindTurn MessageKind = "turn"
-	// KindArriving stands in for a turn whose first token has not come
-	// back yet. Transient: it never reaches the model or the history file.
+	// KindArriving is the assistant's turn while it is still coming back:
+	// the row a stream's deltas extend, flagged arriving until the stream
+	// completes and settles it into a KindTurn. Before the first token
+	// there is nothing to extend, so the pane stands one of these with no
+	// content in the slot the answer will fill. It never reaches the model
+	// or the history file — only a settled turn does.
 	KindArriving MessageKind = "arriving"
 	// KindFailed is a turn that ended in an error, persisted so a failed
 	// exchange is never a silent one.
@@ -52,10 +56,22 @@ type Message struct {
 }
 
 // IsAssistantTurn reports whether this is the assistant's own answer — the
-// row a stream's deltas extend. A failed turn carries the assistant's role
-// too, so the kind is part of the test.
+// row a stream's deltas extend. An answer still arriving is one: the kind
+// says how far along it is, not whose it is. A failed turn carries the
+// assistant's role too and is not one, so the kind is part of the test.
 func (m Message) IsAssistantTurn() bool {
-	return m.Role == RoleAssistant && m.Kind == KindTurn
+	return m.Role == RoleAssistant && (m.Kind == KindTurn || m.Kind == KindArriving)
+}
+
+// Settled returns the message with an arriving turn flagged as the settled
+// turn it has become. Nothing else moves, and a row that is not arriving is
+// returned unchanged — which is what makes it safe on the tail of a history
+// whose last row may be anything.
+func (m Message) Settled() Message {
+	if m.Kind == KindArriving {
+		m.Kind = KindTurn
+	}
+	return m
 }
 
 // adoptKind puts a message decoded from a chat file written before role and

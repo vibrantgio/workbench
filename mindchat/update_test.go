@@ -505,3 +505,37 @@ func TestUpdateChatListReplacesList(t *testing.T) {
 		t.Fatalf("ChatList = %v, want [gamma.jsonl]", next.ChatList)
 	}
 }
+
+// TestTheAnswerIsArrivingUntilTheStreamCompletes is the whole of what the
+// pane reads to know an answer is still coming: not a separate placeholder
+// row beside the answer, but the answer's own kind. A delta opens the row
+// arriving and every later one leaves it so; completion settles it, and a
+// failure settles however much of it came back before appending the error.
+func TestTheAnswerIsArrivingUntilTheStreamCompletes(t *testing.T) {
+	m, _ := Update(testModel(), Prompt{Content: "explain monoids"}) // stream 1
+	m, _ = Update(m, AssistantDelta{Stream: 1, Text: "A monoid"})
+	hist := m.CurrentChat.History
+	if n := len(hist); n == 0 || hist[n-1].Kind != KindArriving {
+		t.Fatalf("History = %+v, want the open answer flagged arriving", hist)
+	}
+	m, _ = Update(m, AssistantDelta{Stream: 1, Text: " is a set"})
+	hist = m.CurrentChat.History
+	if n := len(hist); hist[n-1].Kind != KindArriving || hist[n-1].Content != "A monoid is a set" {
+		t.Fatalf("History = %+v, want one arriving row carrying both deltas", hist)
+	}
+
+	done, _ := Update(m, StreamCompleted{Stream: 1})
+	hist = done.CurrentChat.History
+	if n := len(hist); hist[n-1].Kind != KindTurn || hist[n-1].Content != "A monoid is a set" {
+		t.Fatalf("History = %+v, want the answer settled into a turn", hist)
+	}
+	if len(done.Streams) != 0 {
+		t.Fatalf("Streams = %+v, want unregistered after completion", done.Streams)
+	}
+
+	failed, _ := Update(m, StreamFailed{Stream: 1, Err: "HTTP 410: Gone"})
+	hist = failed.CurrentChat.History
+	if n := len(hist); n != 4 || hist[n-2].Kind != KindTurn || hist[n-1].Kind != KindFailed {
+		t.Fatalf("History = %+v, want the partial answer settled and the failure after it", hist)
+	}
+}

@@ -3,7 +3,7 @@
 // strikethrough) on components/paragraph, fenced code blocks, images, and
 // lists — which the document renders itself, markers hanging off the text
 // column and items spaced by the list's own rhythm. The block constructs
-// that would grow document chrome in a bubble — headings, blockquotes,
+// that would grow document chrome inside a turn — headings, blockquotes,
 // tables, rules — degrade to plain paragraphs preserving their inline runs.
 // Link clicks open in the system browser.
 
@@ -18,9 +18,11 @@ import (
 	"github.com/vibrantgio/markdown"
 )
 
-// msgRow is one rendered history entry: the message plus, for user and
-// assistant rows, the parsed markdown document the bubble lays out. Error
-// and status rows keep the plain label (Doc == nil).
+// msgRow is one rendered history entry: the message plus, for the
+// assistant's answers, the parsed markdown document the pane lays out. Every
+// other kind of line keeps a plain label (Doc == nil) — the user's own turn
+// included, which is shown as the text they typed rather than as a document
+// rendered from it.
 type msgRow struct {
 	Msg Message
 	Doc *markdown.Document
@@ -39,17 +41,20 @@ func newDocCache() *docCache {
 	return &docCache{docs: map[string]*markdown.Document{}}
 }
 
-// Rows resolves the visible history to message rows. Each user/assistant
-// row's key is its index plus content, so a streaming delta re-parses just
-// the row it grew while every settled row hits the cache. Keys absent from
-// the new history are dropped, so deltas and chat switches never leak
-// Documents.
+// Rows resolves the visible history to message rows. Each answer's key is
+// its index plus content, so a streaming delta re-parses just the row it
+// grew while every settled row hits the cache. Keys absent from the new
+// history are dropped, so deltas and chat switches never leak Documents.
+//
+// An answer still arriving is parsed like any other: it is the same document
+// with less of it. Before the first token there is nothing to parse, and the
+// row draws the waiting indicator in the slot the answer will fill.
 func (c *docCache) Rows(history []Message) []msgRow {
 	next := make(map[string]*markdown.Document, len(history))
 	rows := make([]msgRow, len(history))
 	for i, msg := range history {
 		rows[i] = msgRow{Msg: msg}
-		if msg.Kind != KindTurn {
+		if !msg.IsAssistantTurn() || (msg.Content == "" && len(msg.Citations) == 0) {
 			continue
 		}
 		key := rowKey(i, msg)
@@ -105,7 +110,7 @@ func messageSource(msg Message) []byte {
 // style's provider — bundled SVG icons — and falls back to alt text
 // itself), and so do lists, whose markers, hanging indent and item spacing
 // the document draws itself. What is left would grow document chrome inside
-// a bubble, so it flattens to plain paragraphs preserving its inline runs:
+// a turn, so it flattens to plain paragraphs preserving its inline runs:
 // headings lose their scale, blockquotes their bar, table rows join their
 // cells, and rules (no inline content) drop.
 //

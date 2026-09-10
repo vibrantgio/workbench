@@ -37,9 +37,9 @@ import (
 //     resolution; the advance differs from proportional Roboto; and the
 //     glyph IDs differ (a Gio GlyphID packs the face index, so this is
 //     face identity, not just metrics);
-//  3. a real assistant chat bubble with a Go code fence, drawn through the
+//  3. a real assistant answer with a Go code fence, drawn through the
 //     app's own MessageRow with the app's style and shaper, renders
-//     different pixels than the same bubble with Mono forced back to
+//     different pixels than the same answer with Mono forced back to
 //     Roboto — the mono face visibly reaches the composed row.
 func TestChatCodeShapesInMonoFace(t *testing.T) {
 	typ := tokens.DefaultTypography
@@ -81,7 +81,7 @@ func TestChatCodeShapesInMonoFace(t *testing.T) {
 		t.Errorf("mono and Roboto shaped to identical glyph IDs; the two requests collapsed onto one face")
 	}
 
-	// 3. The mono face changes the rendered pixels of a real chat bubble.
+	// 3. The mono face changes the rendered pixels of a real answer.
 	body := "Try `wiiim` inline:\n\n```go\nfunc main() { wiiim := \"....\" }\n```\n"
 	propStyle := style
 	propStyle.Mono = "Roboto"
@@ -90,7 +90,7 @@ func TestChatCodeShapesInMonoFace(t *testing.T) {
 	a := golden.Capture(t, size, chatScene(testThemed(t, style), body, bg))
 	b := golden.Capture(t, size, chatScene(testThemed(t, propStyle), body, bg))
 	if n := golden.PixelDiff(a, b); n <= 0 {
-		t.Errorf("chat bubble renders identically with Mono forced to Roboto (%d pixels differ); code is not shaping in the mono face", n)
+		t.Errorf("the answer renders identically with Mono forced to Roboto (%d pixels differ); code is not shaping in the mono face", n)
 	}
 }
 
@@ -137,9 +137,8 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 				{"RowHovered", p.RowHovered, hover},
 				{"Accent", p.Accent, c.Primary},
 				{"transcript fill", p.Transcript, c.Background},
-				{"UserBubble", p.UserBubble, c.Primary},
-				{"UserText", p.UserText, c.OnPrimary},
-				{"BotText", p.BotText, c.Text},
+				{"TurnText", p.TurnText, c.Text},
+				{"Note", p.Note, c.ForegroundOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level0))},
 				// The header picker is components/picker and derives its own
 				// fills; the palette carries only the colour the settings
 				// dialog's template chips draw their label with.
@@ -176,7 +175,7 @@ func testThemed(t *testing.T, md markdown.Style) themed {
 	if err != nil {
 		t.Fatalf("avatar raster: %v", err)
 	}
-	return themed{palette: p, avatar: avatar, md: md, typ: typ, shaper: typ.DeterministicShaper()}
+	return themed{palette: p, col: c, avatar: avatar, md: md, typ: typ, shaper: typ.DeterministicShaper(), sp: tokens.Spacing, rad: tokens.Radius}
 }
 
 // chatScene renders one assistant message row — parsed through the app's

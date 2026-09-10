@@ -303,37 +303,55 @@ func TestCitationsAutolink(t *testing.T) {
 	}
 }
 
-// TestDocCacheReusesStableRows keeps a stable message's Document pointer
+// TestDocCacheReusesStableRows keeps a stable answer's Document pointer
 // across emissions (link state must survive), re-parses a row whose content
 // changed (a streaming delta), and drops rows that left the history.
+//
+// Only the assistant's turns are documents. The user's own turn is shown as
+// the text they typed, so a prompt full of asterisks reads back as the
+// asterisks they wrote rather than as somebody's idea of bold.
 func TestDocCacheReusesStableRows(t *testing.T) {
 	cache := newDocCache()
 	history := []Message{
 		{Role: RoleUser, Kind: KindTurn, Content: "**question**"},
-		{Role: RoleAssistant, Kind: KindTurn, Content: "answer so"},
+		{Role: RoleAssistant, Kind: KindArriving, Content: "answer so"},
 	}
 	first := cache.Rows(history)
-	if first[0].Doc == nil || first[1].Doc == nil {
-		t.Fatal("user/assistant rows got no Document")
+	if first[0].Doc != nil {
+		t.Error("the user's turn got a Document; it is shown as the text they typed")
+	}
+	if first[1].Doc == nil {
+		t.Fatal("an arriving answer got no Document; it is the same document with less of it in")
 	}
 
-	// A streaming delta grows the assistant row; the user row is untouched.
+	// A streaming delta grows the answer.
 	history[1].Content = "answer so far"
 	second := cache.Rows(history)
-	if second[0].Doc != first[0].Doc {
-		t.Error("stable user row got a new Document; link state would reset")
-	}
 	if second[1].Doc == first[1].Doc {
-		t.Error("grown assistant row kept its old Document; body would render stale")
-	}
-	if n := len(cache.docs); n != 2 {
-		t.Errorf("cache holds %d documents, want 2 (stale delta key dropped)", n)
+		t.Error("grown answer kept its old Document; the body would render stale")
 	}
 
-	// Notes render as plain labels.
-	rows := cache.Rows([]Message{{Kind: KindNote, Content: "Searching…"}})
+	// The stream completes and the row settles; the text is the same, so
+	// only the kind moved.
+	settled := cache.Rows([]Message{history[0], history[1].Settled()})
+	if settled[1].Doc == nil {
+		t.Error("a settled answer got no Document")
+	}
+	if n := len(cache.docs); n != 1 {
+		t.Errorf("cache holds %d documents, want 1 (only the answer is a document)", n)
+	}
+
+	// Notes render as plain labels, and so does an answer with nothing in
+	// it yet — that row draws the waiting indicator instead.
+	rows := cache.Rows([]Message{
+		{Kind: KindNote, Content: "Searching…"},
+		{Role: RoleAssistant, Kind: KindArriving},
+	})
 	if rows[0].Doc != nil {
 		t.Error("note got a Document; want plain label")
+	}
+	if rows[1].Doc != nil {
+		t.Error("an answer with nothing in it got a Document; the row waits instead")
 	}
 	if n := len(cache.docs); n != 0 {
 		t.Errorf("cache holds %d documents after the switch, want 0", n)

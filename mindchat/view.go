@@ -23,6 +23,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
+	"github.com/vibrantgio/components/alert"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
@@ -36,6 +37,7 @@ import (
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	cardpattern "github.com/vibrantgio/patterns/card"
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
@@ -71,8 +73,8 @@ type themed struct {
 	gear    layout.Widget
 	// md is the message-body markdown style: token defaults plus the app's
 	// opt-ins — chroma highlighting matched to the appearance, and links
-	// opening in the system browser. MessageRow adapts its text colours per
-	// bubble role.
+	// opening in the system browser. MessageRow sets the foreground the
+	// answer's prose is drawn in.
 	md markdown.Style
 	// col is the emission's whole ColorTokens, kept beside the derived
 	// Palette because patterns/pane resolves its own fill and its own edge
@@ -85,6 +87,12 @@ type themed struct {
 	// Roboto Mono for code) come from the theme.
 	typ    tokens.Typography
 	shaper *text.Shaper
+	// sp and rad are what the patterns and components composed into the
+	// transcript are handed: the user's card and the failed turn's alert
+	// resolve their insets, gaps and corners from the theme's own scales
+	// rather than from numbers this app would have to keep in step.
+	sp  tokens.SpacingScale
+	rad tokens.RadiusScale
 	// motion is the theme's duration scale, and it is the app's ONLY
 	// reduce-motion signal. The theme already composes the OS preference:
 	// while Reduce Motion is on, LiveTheme emits tokens.Motion.Reduced(),
@@ -176,8 +184,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	})
 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest3(t.Color, t.Typography, t.Motion), func(ct rx.Tuple3[tokens.ColorTokens, tokens.Typography, tokens.MotionScale]) themed {
-			c, typ, motion := ct.First, ct.Second, ct.Third
+		return rx.Map(rx.CombineLatest5(t.Color, t.Typography, t.Motion, t.Spacing, t.Radius), func(ct rx.Tuple5[tokens.ColorTokens, tokens.Typography, tokens.MotionScale, tokens.SpacingScale, tokens.RadiusScale]) themed {
+			c, typ, motion, sp, rad := ct.First, ct.Second, ct.Third, ct.Fourth, ct.Fifth
 			p := PaletteFrom(c)
 			avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
 			if err != nil {
@@ -200,7 +208,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				panic(err)
 			}
 			md := messageMarkdownStyle(c, typ)
-			return themed{palette: p, col: c, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper(), motion: motion}
+			return themed{palette: p, col: c, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad}
 		})
 	})
 
@@ -305,12 +313,13 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // one — model.StreamFor is the whole test.
 //
 // The note reports a server-side tool ("Searching the web…") while one runs.
-// The arriving row covers the gap between the request going out and the
+// The empty arriving row covers the gap between the request going out and the
 // first token coming back: it appears as soon as the stream is registered and
-// stands down the instant the first AssistantDelta opens the assistant turn —
-// which is the one condition below, since a delta is the only thing that puts
-// an assistant turn last. A reasoning model can spend four seconds before its
-// first token, and an inert pane reads as a hung application.
+// stands down the instant the first AssistantDelta opens the assistant turn,
+// which is arriving in its own right from then on — that is the one condition
+// below, since a delta is the only thing that puts an assistant turn last. A
+// reasoning model can spend four seconds before its first token, and an inert
+// pane reads as a hung application.
 func visibleHistory(model Model) []Message {
 	id, streaming := model.StreamFor(model.CurrentChat.Name)
 	if !streaming {
@@ -540,83 +549,204 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) l
 	}
 }
 
-// MessageRow renders one history entry: a full-width row with the body
-// indented past the avatar column, and the assistant avatar on its (and
-// error notices') rows. User and assistant bodies lay out their markdown
-// Document — inline styles and code fences, links live — in the row's text
-// colours; error rows read as plain labels in the error colour, transient
-// status rows ("Searching the web…") in the heading colour. An answer's
-// citations arrive inside the Document (messageSource).
+// MessageRow renders one history entry. Every row is the pane's full width
+// and every row paints the transcript's fill across it — the Background pin,
+// level 0 — because the transcript is what this window exists to show and a
+// resting expanse of it may not be filled at a level the elevation keeps for
+// things that appear and leave. Painting it here rather than letting the
+// pane's fill show through gives a raised inset inside an answer (a code
+// fence) a stated surface to step up from wherever the row is composed.
 //
-// Only the user's own turn carries a fill. Everything else rests on the
-// transcript's fill — the Background pin — because the transcript is what
-// this window exists to show and a resting expanse of it may not be filled
-// at a level the elevation keeps for things that appear and leave. The row
-// paints that fill itself rather than letting the backdrop show through,
-// so a raised inset inside a reply (a code fence) has a stated surface to step
-// up from wherever the row is composed.
+// What stands on that fill is one of four things, and which one is read off
+// the kind of line and who it is from:
+//
+//   - the user's turn: a card on the trailing side, holding the words they
+//     typed;
+//   - the assistant's turn: a markdown document at the measure, indented
+//     past the avatar column — arriving or settled, the same document with
+//     less or more of it in;
+//   - a failed turn: an Error alert standing in the flow, at the document's
+//     own measure and in the document's place;
+//   - a system note: a centred text label.
 func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 	msg := row.Msg
-	p := t.palette
-	st := t.typ.BodyLarge
-
-	isUser := msg.Role == RoleUser
-	fill, textColor := p.Transcript, p.BotText
-	switch {
-	case isUser:
-		fill, textColor = p.UserBubble, p.UserText
-	case msg.Kind == KindFailed:
-		textColor = p.Error
-	case msg.Kind == KindNote:
-		textColor = p.Heading
-	}
 
 	m := op.Record(gtx.Ops)
-	dims := layout.UniformInset(12).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		margin := gtx.Dp(50)
-		defer op.Offset(image.Pt(margin, 0)).Push(gtx.Ops).Pop()
-		gtx.Constraints.Max.X -= margin
-		gtx.Constraints.Min.X = gtx.Constraints.Max.X
-		var dims layout.Dimensions
-		if msg.Kind == KindArriving {
-			dims = WaitingDots(gtx, t)
-			dims.Size.X = gtx.Constraints.Max.X
-		} else if row.Doc != nil {
-			md := t.md
-			md.Text.Color = textColor
-			if isUser {
-				// The token link colour (Primary) would vanish on the
-				// Primary user bubble; the underline still marks links.
-				md.Text.LinkColor = textColor
-			}
-			gtx.Constraints.Min = image.Point{}
-			dims = row.Doc.LayoutColumn(gtx, t.shaper, md)
-			// The row spans the full pane width regardless of the
-			// column's natural content width.
-			dims.Size.X = gtx.Constraints.Max.X
-		} else {
-			textMaterial := Material(gtx.Ops, textColor)
-			label := roleLabel(st, 0)
-			label.Alignment, label.Truncator = text.Start, "…"
-			dims = typeset.Layout(gtx, t.shaper, label, roleFont(st), unit.Sp(st.Size), msg.Content, textMaterial)
-		}
-		dims.Size.X += margin
-		return dims
-	})
+	var dims layout.Dimensions
+	switch {
+	case msg.Role == RoleUser && msg.Kind == KindTurn:
+		dims = userTurn(gtx, t, msg)
+	case msg.Kind == KindFailed:
+		dims = failedTurn(gtx, t, msg)
+	case msg.Kind == KindNote:
+		dims = systemNote(gtx, t, msg)
+	default:
+		dims = assistantTurn(gtx, t, row)
+	}
 	foreground := m.Stop()
 
-	FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, fill)
-
-	if !isUser && msg.Kind != KindNote {
-		constraints := gtx.Constraints
-		iconSize := gtx.Dp(AvatarSize)
-		gtx.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
-		t.avatar(gtx)
-		gtx.Constraints = constraints
-	}
-
+	FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, t.palette.Transcript)
 	foreground.Add(gtx.Ops)
 	return dims
+}
+
+// turnColumn is the band every turn stands in: the answer's reading measure
+// plus the gutter the assistant's mark stands in, centred in whatever room
+// the row has. Both turns share it — the answer fills it past the gutter,
+// the prompt's card is set against its trailing edge — so however wide the
+// window is dragged the conversation stays one column with one trailing
+// edge, rather than two runs of text drifting apart across the pane.
+type turnColumn struct {
+	lead  int // the band's leading edge, in the row's own coordinates
+	width int // the band's width, the gutter included
+	top   int // the air above the content
+}
+
+func columnOf(gtx layout.Context) turnColumn {
+	inset := gtx.Dp(TurnInset)
+	avail := max(gtx.Constraints.Max.X-2*inset, 0)
+	width := min(avail, gtx.Dp(AvatarGutter)+gtx.Dp(TurnMeasure))
+	return turnColumn{lead: inset + (avail-width)/2, width: width, top: inset}
+}
+
+// body is where a turn's own content sits and how wide it may be: past the
+// gutter for the assistant's, at the band's leading edge for everything
+// else.
+func (c turnColumn) body(gtx layout.Context, indented bool) (image.Point, int) {
+	if !indented {
+		return image.Pt(c.lead, c.top), c.width
+	}
+	gutter := min(gtx.Dp(AvatarGutter), c.width)
+	return image.Pt(c.lead+gutter, c.top), c.width - gutter
+}
+
+// rowHeight is what a row reports once its content has been laid out inside
+// the band: the content plus the air above and below.
+func rowHeight(gtx layout.Context, contentY int) layout.Dimensions {
+	return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, contentY+2*gtx.Dp(TurnInset))}
+}
+
+// assistantTurn lays the answer out: a markdown document at the reading
+// measure, standing on the transcript with no card, the assistant's mark in
+// the gutter beside it. An answer still arriving is the same document with
+// what has come back so far; before the first token there is no document at
+// all and the waiting indicator stands in the slot it will fill, so the row
+// does not change shape when the first delta lands.
+func assistantTurn(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
+	col := columnOf(gtx)
+	at, width := col.body(gtx, true)
+	body := gtx
+	body.Constraints.Max.X = width
+	body.Constraints.Min = image.Point{}
+
+	stack := op.Offset(at).Push(gtx.Ops)
+	var dims layout.Dimensions
+	if row.Doc != nil {
+		md := t.md
+		md.Text.Color = t.palette.TurnText
+		dims = row.Doc.LayoutColumn(body, t.shaper, md)
+	} else {
+		dims = WaitingDots(body, t)
+	}
+	stack.Pop()
+
+	// The mark stands at the band's leading edge, on the row's own top line:
+	// taller than the line of prose beside it, it reads as centred on that
+	// line rather than as hanging above it.
+	iconSize := gtx.Dp(AvatarSize)
+	avatar := gtx
+	avatar.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
+	mark := op.Offset(image.Pt(col.lead, 0)).Push(gtx.Ops)
+	t.avatar(avatar)
+	mark.Pop()
+
+	return rowHeight(gtx, max(dims.Size.Y, iconSize-2*gtx.Dp(TurnInset)))
+}
+
+// userTurn lays the prompt out: a card set against the band's trailing edge,
+// raised one step off the content with no hairline and no role, holding the
+// words in the Body role. Its width is its content's, up to UserCardMeasure
+// — a one-line prompt is a small card, and a pasted paragraph stops at the
+// measure rather than running the length of the band.
+func userTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
+	col := columnOf(gtx)
+	at, width := col.body(gtx, false)
+	pad := gtx.Dp(unit.Dp(t.sp.S4))
+	st := t.typ.BodyLarge
+	label := roleLabel(st, 0)
+	label.Alignment, label.Truncator = text.Start, "…"
+	words := func(gtx layout.Context) layout.Dimensions {
+		return typeset.Layout(gtx, t.shaper, label, roleFont(st), unit.Sp(st.Size), msg.Content, Material(gtx.Ops, t.palette.TurnText))
+	}
+
+	// Measured first, so the card can be handed the exact box its words
+	// need: a card fills the constraints it is given.
+	measure := gtx
+	measure.Constraints.Max.X = max(min(width, gtx.Dp(UserCardMeasure))-2*pad, 0)
+	measure.Constraints.Min = image.Point{}
+	m := op.Record(gtx.Ops)
+	inner := words(measure)
+	m.Stop()
+
+	card := gtx
+	card.Constraints = layout.Exact(image.Pt(inner.Size.X+2*pad, inner.Size.Y+2*pad))
+	stack := op.Offset(image.Pt(at.X+width-card.Constraints.Max.X, at.Y)).Push(gtx.Ops)
+	cardpattern.Render(cardpattern.Props{Level: tokens.Level0, Body: words}, t.col, t.sp, t.rad)(card)
+	stack.Pop()
+
+	return rowHeight(gtx, card.Constraints.Max.Y)
+}
+
+// failedTurn lays the failure out: an Error alert standing in the flow where
+// the answer would have been, at the answer's own measure. It carries a
+// status icon of its own, so the assistant's mark is not drawn beside it —
+// one line of the conversation wears one leading sign.
+func failedTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
+	col := columnOf(gtx)
+	at, width := col.body(gtx, true)
+	st := t.typ.BodyLarge
+	label := roleLabel(st, 0)
+	label.Alignment, label.Truncator = text.Start, "…"
+
+	banner := gtx
+	banner.Constraints.Max.X = width
+	banner.Constraints.Min = image.Point{}
+	stack := op.Offset(at).Push(gtx.Ops)
+	dims := alert.Render(t.shaper, alert.Props{
+		Status: alert.Error,
+		Body: func(gtx layout.Context) layout.Dimensions {
+			return typeset.Layout(gtx, t.shaper, label, roleFont(st), unit.Sp(st.Size), msg.Content, Material(gtx.Ops, t.col.Text))
+		},
+		Shaper: t.shaper,
+	}, t.col, t.sp, t.rad, t.typ.TitleMedium)(banner)
+	stack.Pop()
+
+	return rowHeight(gtx, dims.Size.Y)
+}
+
+// systemNote lays the application's own line about the exchange out: a text
+// label in the Label role, centred across the COLUMN OF TEXT rather than
+// across the band — the band carries the mark's gutter on its leading side,
+// so a line centred in it lands a half-gutter left of everything above it
+// and reads as a misalignment rather than as a centred line. A text label
+// carries no status and no role of its own, so it takes the neutral
+// foreground of the surface it sits on rather than a colour this view chose
+// for it.
+func systemNote(gtx layout.Context, t themed, msg Message) layout.Dimensions {
+	col := columnOf(gtx)
+	at, width := col.body(gtx, true)
+	st := t.typ.LabelLarge
+	label := roleLabel(st, 1)
+	label.Alignment, label.Truncator = text.Middle, "…"
+
+	body := gtx
+	body.Constraints.Max.X = width
+	body.Constraints.Min.X = width
+	stack := op.Offset(at).Push(gtx.Ops)
+	dims := typeset.Layout(body, t.shaper, label, roleFont(st), unit.Sp(st.Size), msg.Content, Material(gtx.Ops, t.palette.Note))
+	stack.Pop()
+
+	return rowHeight(gtx, dims.Size.Y)
 }
 
 // SidebarPane renders the column that stands inside the floating pane: the
@@ -816,7 +946,7 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 			body, action, caption := t.typ.BodyMedium, t.typ.LabelLarge, t.typ.BodySmall
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return typeset.Layout(gtx, t.shaper, roleLabel(body, 1), roleFont(body), unit.Sp(body.Size), msg, Material(gtx.Ops, p.BotText))
+					return typeset.Layout(gtx, t.shaper, roleLabel(body, 1), roleFont(body), unit.Sp(body.Size), msg, Material(gtx.Ops, t.col.Text))
 				}),
 				layout.Rigid(layout.Spacer{Width: 16}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -1005,8 +1135,9 @@ func StreamDot(gtx layout.Context, t themed, slot image.Point) {
 }
 
 // WaitingDots draws the chat pane's waiting indicator: three accent dots in
-// the assistant bubble, pulsing in a wave that travels across them — the
-// cycle is one DurXSlow stop per dot and each dot leads the next by one stop.
+// the slot the answer will fill, pulsing in a wave that travels across them
+// — the cycle is one DurXSlow stop per dot and each dot leads the next by
+// one stop.
 // It occupies exactly the body line box, so the row does not change height
 // when the first delta replaces it with the answer.
 //

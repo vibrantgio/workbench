@@ -55,9 +55,16 @@ type Palette struct {
 	// lighter than the chrome beside it in BOTH schemes — the window
 	// reads lighter toward its middle in the light scheme and the dark alike.
 	Transcript color.NRGBA
-	UserBubble color.NRGBA // user message fill — a Primary turn, not a level
-	UserText   color.NRGBA // user message text
-	BotText    color.NRGBA // assistant message text — the foreground on `Transcript`
+	// TurnText is the foreground a turn's words are set in — the
+	// assistant's document on the transcript, and the user's text on the
+	// card raised over it. One colour for both, because both are the
+	// conversation's own prose; what tells the two apart is the card, not
+	// a second grey.
+	TurnText color.NRGBA
+	// Note is the system note's foreground: a text label carries no status
+	// and no role of its own, so it takes the neutral ramp's own step over
+	// the surface it sits on, at the text floor.
+	Note color.NRGBA
 	// The header picker's own fill, hover and rim are not here: it is
 	// components/picker, which derives all three from the level it stands
 	// on. What this app still says about it is where it stands — the level-0
@@ -118,13 +125,13 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 		RowHovered:  hover,
 		Accent:      c.Primary,
 		Transcript:  c.SurfaceAt(tokens.Level0),
-		UserBubble:  c.Primary,
-		UserText:    c.OnPrimary,
 		// The foreground over the Background pin is the Text pin, not the
 		// neutral ramp's far end: a fill that is off-ramp takes the foreground
 		// pinned to it. The two coincide in the shipped schemes and need not in
-		// a brand's.
-		BotText:          c.Text,
+		// a brand's. It carries the user's card too, one raise up from the
+		// same pin — a raise is one step, which the text floor absorbs.
+		TurnText:         c.Text,
+		Note:             c.ForegroundOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level0)),
 		ChipText:         c.Ramps.Neutral.Step(900),
 		ModalChip:        c.SurfaceAt(tokens.Level2),
 		ModalChipHovered: c.StateAt(tokens.Level2, tokens.StateHover),
@@ -184,7 +191,37 @@ func Blend(base, over color.NRGBA, alpha uint8) color.NRGBA {
 
 // Static layout dimensions; these do not vary with the colour scheme.
 const (
-	ChatPaneWidth    unit.Dp = 794
+	ChatPaneWidth unit.Dp = 794
+
+	// TurnMeasure is the widest a turn's prose may lay out: the
+	// conversation's reading measure. Past it a wider window gives the
+	// reader more of the conversation rather than longer lines.
+	//
+	// The number is measured, not chosen. BodyLarge sets at sixteen, and
+	// shaping prose in it measures an average advance of 7.19 dp a
+	// character, so 540 dp is 75 characters of this system's body text —
+	// the top of the 60 to 75 characters a line that typography has long
+	// held a reader can walk back along without losing the next one.
+	TurnMeasure unit.Dp = 540
+
+	// UserCardMeasure is the widest the user's card may grow — the card
+	// itself, not the words in it: 432 dp of prose plus the card's own S4
+	// inset either side, which is 16 dp on the shipped spacing scale. The
+	// 432 is 60 characters at the same 7.19 dp advance, the BOTTOM of the
+	// band [TurnMeasure] sits at the top of: a prompt is still prose, so
+	// its lines may not drop under the band. Its prose stopping a fifth
+	// short of the answer's is what makes the two turns tell each other
+	// apart by shape as well as by side, before any colour is read.
+	UserCardMeasure unit.Dp = 432 + 2*16
+
+	// TurnInset is the air every turn keeps off the transcript's edges and
+	// its neighbours.
+	TurnInset unit.Dp = 12
+
+	// AvatarGutter is the column the assistant's mark stands in, which the
+	// answer beside it is indented past.
+	AvatarGutter unit.Dp = 50
+
 	AvatarSize       unit.Dp = 40
 	DeleteIconSize   unit.Dp = 16
 	AddIconSize      unit.Dp = 18

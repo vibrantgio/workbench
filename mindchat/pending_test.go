@@ -19,11 +19,13 @@ func rowTag(m Message) string { return m.Role + "/" + string(m.Kind) }
 
 // TestVisibleHistoryShowsWaitingRowUntilTheFirstToken pins the rule that
 // covers the blank gap: from the moment a stream is registered for the
-// current chat until the first delta opens the assistant row, the pane draws
-// a pending row.
+// current chat until the first delta opens the assistant row, the pane
+// stands an empty arriving row. Once a delta has landed the answer itself is
+// the arriving row, so no second one is added beside it.
 func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 	user := Message{Role: RoleUser, Kind: KindTurn, Content: "explain monoids"}
-	partial := Message{Role: RoleAssistant, Kind: KindTurn, Content: "A monoid"}
+	partial := Message{Role: RoleAssistant, Kind: KindArriving, Content: "A monoid"}
+	settled := Message{Role: RoleAssistant, Kind: KindTurn, Content: "A monoid is a set"}
 
 	for _, tc := range []struct {
 		name  string
@@ -44,9 +46,17 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 			want: []string{"user/turn", "assistant/arriving"},
 		},
 		{
-			name: "first delta stands the waiting row down",
+			name: "first delta stands the empty waiting row down",
 			model: Model{
 				CurrentChat: Chat{Name: "a.jsonl", History: []Message{user, partial}},
+				Streams:     map[int]StreamState{1: {Chat: "a.jsonl"}},
+			},
+			want: []string{"user/turn", "assistant/arriving"},
+		},
+		{
+			name: "a settled answer with the stream still open gets no second row",
+			model: Model{
+				CurrentChat: Chat{Name: "a.jsonl", History: []Message{user, settled}},
 				Streams:     map[int]StreamState{1: {Chat: "a.jsonl"}},
 			},
 			want: []string{"user/turn", "assistant/turn"},
@@ -65,7 +75,7 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 				CurrentChat: Chat{Name: "a.jsonl", History: []Message{user, partial}},
 				Streams:     map[int]StreamState{1: {Chat: "a.jsonl", Status: "Searching the web…"}},
 			},
-			want: []string{"user/turn", "assistant/turn", "/note"},
+			want: []string{"user/turn", "assistant/arriving", "/note"},
 		},
 		{
 			name: "another chat's stream draws nothing here",
@@ -89,10 +99,14 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 					t.Fatalf("rows = %v, want %v", got, tc.want)
 				}
 			}
-			// Nothing transient may reach the model, and so the history file.
+			// The rows the pane adds are the pane's own: the chat's
+			// history is what the reducer left, never what was drawn.
+			if n := len(tc.model.CurrentChat.History); n > len(tc.want) {
+				t.Fatalf("visibleHistory grew the chat's own history to %d rows: %+v", n, tc.model.CurrentChat.History)
+			}
 			for _, msg := range tc.model.CurrentChat.History {
-				if msg.Kind == KindArriving || msg.Kind == KindNote {
-					t.Fatalf("transient row leaked into the model's history: %+v", tc.model.CurrentChat.History)
+				if msg.Kind == KindNote {
+					t.Fatalf("a note leaked into the model's history: %+v", tc.model.CurrentChat.History)
 				}
 			}
 		})

@@ -117,6 +117,28 @@ func demoModel() Model {
 	}
 }
 
+// streamingModel is demoModel's window over a shorter conversation, caught
+// part way through: two settled exchanges, one of which failed, and a third
+// prompt whose answer has not started — a server-side tool reporting itself
+// under it while the request is out. It is the one state the pane draws
+// every kind of line in at once, and a composition of the four can be judged
+// nowhere else. The history is its own rather than demoModel's because the
+// four have to fit one viewport together.
+func streamingModel() Model {
+	m := demoModel()
+	m.CurrentChat.History = []Message{
+		{Role: RoleUser, Kind: KindTurn, Content: "In MVU, how does a button click reach the update function?"},
+		{Role: RoleAssistant, Kind: KindTurn, Content: "The component records a `MessageOp`; after the frame, " +
+			"the window drains the operation list into the loop:\n\n" +
+			"```go\nfor _, msg := range frame.Messages() {\n\tmodel = Update(model, msg)\n}\n```"},
+		{Role: RoleUser, Kind: KindTurn, Content: "So state never lives in the component? I mean the gesture state as well, or only what the model would have to reduce."},
+		{Role: RoleAssistant, Kind: KindFailed, Content: "HTTP 410: Gone"},
+		{Role: RoleUser, Kind: KindTurn, Content: "Show me the current release notes."},
+	}
+	m.Streams = map[int]StreamState{1: {Chat: m.CurrentChat.Name, Status: "Searching the web…"}}
+	return m
+}
+
 // frame composes the window's layers for one scheme into a single
 // layout.Widget: the backdrop first, the content over it, exactly as
 // theme/window stacks them.
@@ -233,6 +255,9 @@ func TestWholeWindowRender(t *testing.T) {
 				renderPane(t, tc.name+"-"+st.name, tc.c, st.hidden)
 			})
 		}
+		t.Run(tc.name+"-stream", func(t *testing.T) {
+			renderWindow(t, tc.name+"-stream", tc.c, streamingModel())
+		})
 	}
 }
 

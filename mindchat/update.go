@@ -88,11 +88,14 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		}
 		hist := streamHist(model, s)
 		// The exchange's first delta opens the assistant row; later ones
-		// extend it.
+		// extend it. It opens ARRIVING and stays so until the stream
+		// completes: the pane draws the answer that has come back so far,
+		// and the kind is what says there is more of it coming.
 		if n := len(hist); n > 0 && hist[n-1].IsAssistantTurn() {
 			hist[n-1].Content += message.Text
+			hist[n-1].Kind = KindArriving
 		} else {
-			hist = append(hist, Message{Role: RoleAssistant, Kind: KindTurn, Content: message.Text})
+			hist = append(hist, Message{Role: RoleAssistant, Kind: KindArriving, Content: message.Text})
 		}
 		return storeStreamHist(model, message.Stream, s, hist), mvu.DoNothing()
 
@@ -115,7 +118,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		hist := streamHist(model, s)
 		if n := len(hist); n == 0 || !hist[n-1].IsAssistantTurn() {
 			// A citation can precede the first text delta: open the row.
-			hist = append(hist, Message{Role: RoleAssistant, Kind: KindTurn})
+			hist = append(hist, Message{Role: RoleAssistant, Kind: KindArriving})
 		}
 		last := &hist[len(hist)-1]
 		if !slices.ContainsFunc(last.Citations, func(c Citation) bool { return c.URL == message.URL }) {
@@ -129,15 +132,21 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			return model, mvu.DoNothing()
 		}
 		hist := streamHist(model, s)
+		// The answer has stopped arriving: settle the row before it is
+		// shown again or written down, so no arriving row outlives its
+		// stream in the pane or reaches the history file.
+		var reply mvu.Command = mvu.DoNothing()
+		if n := len(hist); n > 0 && hist[n-1].IsAssistantTurn() {
+			hist[n-1] = hist[n-1].Settled()
+			// Persist the final assistant row to the stream's OWN chat file
+			// — never to whatever chat happens to be current.
+			reply = AppendChatEvent(model.ChatFile(s.Chat), MessageEvent(hist[n-1])).Trace("Append Reply")
+		}
+		model = storeStreamHist(model, message.Stream, s, hist)
 		streams := cloneStreams(model.Streams)
 		delete(streams, message.Stream)
 		model.Streams = streams
-		// Persist the final assistant row to the stream's OWN chat file —
-		// never to whatever chat happens to be current.
-		if n := len(hist); n > 0 && hist[n-1].IsAssistantTurn() {
-			return model, AppendChatEvent(model.ChatFile(s.Chat), MessageEvent(hist[n-1])).Trace("Append Reply")
-		}
-		return model, mvu.DoNothing()
+		return model, reply
 
 	case StreamFailed:
 		s, tracked := model.Streams[message.Stream]
@@ -149,6 +158,8 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		hist := streamHist(model, s)
 		var commands []mvu.Command
 		if n := len(hist); n > 0 && hist[n-1].IsAssistantTurn() {
+			// However far it got, it is not arriving any more.
+			hist[n-1] = hist[n-1].Settled()
 			commands = append(commands, AppendChatEvent(model.ChatFile(s.Chat), MessageEvent(hist[n-1])).Trace("Append Partial Reply"))
 		}
 		failed := Message{Role: RoleAssistant, Kind: KindFailed, Content: message.Err}
