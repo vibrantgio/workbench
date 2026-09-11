@@ -22,6 +22,7 @@ import (
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/hero"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -52,14 +53,18 @@ func buildLayers(win *app.Window, modelObs rx.Observable[Model]) func(th rx.Obse
 	}
 }
 
-// BackdropLayer fills the window with the theme's background colour; it is
-// the bottom layer and re-emits whenever the OS colour scheme changes.
+// BackdropLayer fills the window with its own plane; it is the bottom layer
+// and re-emits whenever the OS colour scheme changes.
+//
+// The launcher is one plane edge to edge — the page of app groups stands
+// straight on it, with the field between — so the fill is the window's own
+// and no region paints a band of its own over it.
 func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-		return t.Color
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+		return t.Platform
 	})
-	return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
-		return backdrop.Widget(c.Background)
+	return rx.Map(colors, func(c tokens.PlatformColors) layout.Widget {
+		return backdrop.Widget(c.WindowBackground)
 	})
 }
 
@@ -68,12 +73,12 @@ func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // rx.Defer factory: each theme emission re-keys its palette in place, and the
 // field itself is built exactly once per subscription.
 func FieldLayer(win *app.Window, th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-		return t.Color
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+		return t.Platform
 	})
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		field := NewField(win, winW, winH)
-		return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
+		return rx.Map(colors, func(c tokens.PlatformColors) layout.Widget {
 			field.SetColors(c)
 			return field.Widget()
 		})
@@ -90,13 +95,23 @@ var HeroProps = hero.Props{
 	Subtitle: "Complete example apps built on mvu, components, theme, patterns and seen.",
 }
 
+// windowPlane is the fill this window's page stands on: the window's own
+// plane, which the launcher carries edge to edge — the title-bar strip
+// included — since nothing here paints a band of its own. Every
+// alpha-carrying platform name the page draws is flattened onto it before it
+// reaches Gio.
+//
+// It is a function rather than a field on themed so this window's own tests
+// can name the same fill the window draws.
+func windowPlane(c tokens.PlatformColors) color.NRGBA { return c.WindowBackground }
+
 // themed is one theme emission resolved to the token snapshot the view
 // consumes, alongside the emission itself: the snapshot's fields are all
 // rx.Of, so the theme-driven components built from components resolve
 // synchronously via First().
 type themed struct {
 	components theme.Theme
-	color      tokens.ColorTokens
+	color      tokens.PlatformColors
 	spacing    tokens.SpacingScale
 	typ        tokens.Typography
 	shaper     *text.Shaper // the theme's cached shaper (Typography.Shaper())
@@ -134,8 +149,8 @@ func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Wi
 func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	resolved := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(
-			rx.CombineLatest3(t.Color, t.Spacing, t.Typography),
-			func(n rx.Tuple3[tokens.ColorTokens, tokens.SpacingScale, tokens.Typography]) themed {
+			rx.CombineLatest3(t.Platform, t.Spacing, t.Typography),
+			func(n rx.Tuple3[tokens.PlatformColors, tokens.SpacingScale, tokens.Typography]) themed {
 				typ := n.Third
 				return themed{components: t, color: n.First, spacing: n.Second, typ: typ, shaper: typ.Shaper()}
 			},
@@ -217,18 +232,18 @@ func gridRow(cells []layout.Widget) layout.Widget {
 // appGroup is one launchable app as a patterns group: icon + name row, blurb,
 // and a row holding the launch button and a status line. The group and
 // button are theme-driven components built from the emission's static
-// snapshot; text colours come off the Neutral ramp — 900 for the name, 700 for
-// the low-contrast blurb.
+// snapshot; the name is the platform's label and the blurb its secondary
+// strength, both flattened onto the window's plane.
 //
 // A group and not a card, because the roster is the page dividing itself:
 // every app on the launcher is a peer of every other, and nothing here is
-// singled out. The grid raises nothing off the page it stands on — the
-// hairline at the page's own level is the whole of what chunks one app from
-// the next.
+// singled out. The grid raises nothing off the plane it stands on — the
+// hairline is the whole of what chunks one app from the next.
 func appGroup(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {
 	thObs := rx.Of(tok.components)
+	plane := windowPlane(tok.color)
 
-	icon, err := raster.Widget(app.Icon, IconSize, IconSize, raster.WithColors(tok.color.Primary))
+	icon, err := raster.Widget(app.Icon, IconSize, IconSize, raster.WithColors(tok.color.ControlAccent))
 	if err != nil {
 		icon = func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
 	}
@@ -237,13 +252,13 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(icon),
 			layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
-			layout.Rigid(label(tok.shaper, app.Name, tok.typ.TitleMedium, tok.color.Ramps.Neutral.Step(900), 1)),
+			layout.Rigid(label(tok.shaper, app.Name, tok.typ.TitleMedium, vgcolor.Flatten(tok.color.Label, plane), 1)),
 		)
 	}
-	blurb := label(tok.shaper, app.Blurb, tok.typ.BodySmall, tok.color.Ramps.Neutral.Step(700), 3)
+	blurb := label(tok.shaper, app.Blurb, tok.typ.BodySmall, vgcolor.Flatten(tok.color.SecondaryLabel, plane), 3)
 	launchRow := func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(launchButton(thObs, tok.shaper, app, click, status)),
+			layout.Rigid(launchButton(thObs, tok.shaper, app, click, status, plane)),
 			layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
 			layout.Flexed(1, statusLine(tok, status)),
 		)
@@ -253,9 +268,14 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 	// label of its own: a second copy of it above the icon would name the
 	// group twice.
 	//
+	// The group paints nothing inside itself, so the fill its hairline is
+	// flattened onto is the plane the page stands on rather than anything
+	// the cell carries.
+	//
 	// thObs is a static snapshot (rx.Of), so First() resolves synchronously.
 	inner, _ := group.Group(thObs, group.Props{
 		Content: []layout.Widget{nameRow, blurb, launchRow},
+		Surface: plane,
 	}).First()
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(CellW), gtx.Dp(CellH)))
@@ -272,7 +292,7 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 // It shapes with the shaper the rest of the cell uses rather than reaching for
 // the theme's own, so one page has one shaper and a render made outside the
 // window can say which.
-func launchButton(th rx.Observable[theme.Theme], shaper *text.Shaper, app App, click *widget.Clickable, status Status) layout.Widget {
+func launchButton(th rx.Observable[theme.Theme], shaper *text.Shaper, app App, click *widget.Clickable, status Status, surface color.NRGBA) layout.Widget {
 	busy := status.State == Starting || status.State == Running
 	txt := "Launch"
 	switch status.State {
@@ -291,6 +311,7 @@ func launchButton(th rx.Observable[theme.Theme], shaper *text.Shaper, app App, c
 		Clickable:   click,
 		Message:     Launch{Name: app.Name},
 		Shaper:      shaper,
+		Surface:     surface,
 	}).First()
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Dp(ButtonW)
@@ -300,16 +321,17 @@ func launchButton(th rx.Observable[theme.Theme], shaper *text.Shaper, app App, c
 }
 
 // statusLine is the small caption beside the launch button: the failure
-// detail in Error red, or a lifecycle note in neutral.
+// detail in the platform's red, a running app in the accent, and anything
+// else at the secondary strength.
 func statusLine(tok themed, status Status) layout.Widget {
-	txt, col := "", tok.color.Ramps.Neutral.Step(700)
+	txt, col := "", vgcolor.Flatten(tok.color.SecondaryLabel, windowPlane(tok.color))
 	switch status.State {
 	case Starting:
 		txt = "compiling…"
 	case Running:
-		txt, col = "running", tok.color.Primary
+		txt, col = "running", tok.color.ControlAccent
 	case Failed:
-		txt, col = status.Detail, tok.color.Error
+		txt, col = status.Detail, tok.color.SystemRed
 	}
 	if txt == "" {
 		return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }

@@ -20,24 +20,24 @@ var shellFrameSize = image.Pt(windowW, windowH)
 
 // TestStripUnderlineKeepsItsOwnLine guards the seam: whatever a tab draws,
 // the shell's content slot leaves a band of bare panel fill between the
-// strip's Primary underline and the content's first row, so the underline
-// reads as a line rather than as the top edge of the content. The slot is
-// shared, so all five tabs are checked.
+// strip's underline and the content's first row, so the underline reads as a
+// line rather than as the top edge of the content. The slot is shared, so all
+// five tabs are checked.
 //
-// Both reference colours are sampled rather than named from the token set:
-// the capture round-trips through the GPU, and a sampled reference makes the
-// assertions about "the colour the strip is" and "the colour the panel is"
-// instead of about colour-space arithmetic. The panel's reference comes from
-// a frame rendered with no tab selected at all, so it is bare pattern fill
-// and nothing else — a reference taken from the gap band itself would be
+// Both reference colours are sampled rather than named from the set: the
+// capture round-trips through the GPU, and a sampled reference makes the
+// assertions about "the colour the strip's foot is" and "the colour the panel
+// is" instead of about colour-space arithmetic. The panel's reference comes
+// from a frame rendered with no tab selected at all, so it is bare pattern
+// fill and nothing else — a reference taken from the gap band itself would be
 // satisfied by any content that filled the band uniformly, which is exactly
-// the full-width banner this test exists to catch.
+// the full-width band this test exists to catch.
 //
-// The two references are different colours: patterns/tabs fills its panel at
-// the caller's level (this app takes the default, the window's content
-// surface) and its
-// strip one level over that, so the gap band is the page rather than the
-// strip's own fill.
+// The strip's own fill is NOT a reference here. On this platform the chrome
+// material the strip carries is the content's own fill exactly in the light
+// appearance, so the two regions are one colour there and what parts them is
+// the seam along the strip's foot — which is where the underline is read
+// against.
 func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	typo := tokens.DefaultTypography
@@ -59,10 +59,10 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 
 	schemes := []struct {
 		name   string
-		colors tokens.ColorTokens
+		colors tokens.PlatformColors
 	}{
-		{"light", tokens.DefaultLight},
-		{"dark", tokens.DefaultDark},
+		{"light", tokens.PlatformLight},
+		{"dark", tokens.PlatformDark},
 	}
 	for _, sc := range schemes {
 		render := func(selected int) *image.RGBA {
@@ -72,25 +72,23 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 		}
 
 		// An out-of-range selection draws no content, so the whole panel is
-		// the pattern's own fill and the strip carries no underline.
+		// the pattern's own fill and the strip carries no underline: its foot
+		// is the seam and nothing else.
 		bare := render(-1)
-		// Right of the last tab cell the strip is bare band.
-		strip := sample(bare, shellFrameSize.X-1, stripH/2)
+		seam := sample(bare, shellFrameSize.X-1, stripH-1)
 		panelFill := sample(bare, shellFrameSize.X-1, stripH+gap/2)
-		if strip == panelFill {
-			t.Fatalf("%s: strip and panel are both %v — the strip owes the page it caps one level", sc.name, strip)
-		}
 
 		for i, tabName := range tabPages {
 			t.Run(sc.name+"/"+tabName, func(t *testing.T) {
 				img := render(i)
 				at := func(x, y int) [3]uint8 { return sample(img, x, y) }
 
-				// The underline must exist: the selected cell's bottom row
-				// carries a colour the strip does not.
+				// The underline must exist: somewhere along the selected
+				// cell, the strip's bottom row carries a colour the bare
+				// seam does not.
 				underlined := false
 				for x := 0; x < shellFrameSize.X; x++ {
-					if at(x, stripH-1) != strip {
+					if at(x, stripH-1) != seam {
 						underlined = true
 						break
 					}

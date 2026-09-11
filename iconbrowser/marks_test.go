@@ -25,13 +25,13 @@ import (
 // pinned typography. The prebuilt Material icons staticThemed carries are the
 // catalogue grid's, and the marks section draws none of them — it paints
 // through the icons package.
-func markThemed(c tokens.ColorTokens) themed {
+func markThemed(c tokens.PlatformColors) themed {
 	return themed{palette: PaletteFrom(c), typ: staticTypo(tokens.DefaultTypography)}
 }
 
 // markCellFrame renders one mark's cell alone, on the window's own fill so
 // that what is not the mark can be told from what is.
-func markCellFrame(t *testing.T, c tokens.ColorTokens, name marks.Name) *image.RGBA {
+func markCellFrame(t *testing.T, c tokens.PlatformColors, name marks.Name) *image.RGBA {
 	t.Helper()
 	tok := markThemed(c)
 	paintBackdrop := backdrop.Widget(tok.palette.Backdrop)
@@ -207,8 +207,8 @@ func TestTheTurnedCellDrawsTheOpenRendition(t *testing.T) {
 // band, is still centred in the cell and still ends inside it, which is what
 // leaves the gutter between cells wider than any gap inside either.
 func TestTheTurnedCellKeepsTheCellsGutter(t *testing.T) {
-	img := markCellFrame(t, tokens.DefaultLight, TurnedMark)
-	p := PaletteFrom(tokens.DefaultLight)
+	img := markCellFrame(t, tokens.PlatformLight, TurnedMark)
+	p := PaletteFrom(tokens.PlatformLight)
 	top, bottom := bandRows()
 	x0, width := markRow(true)
 
@@ -233,7 +233,7 @@ func TestTheTurnedCellKeepsTheCellsGutter(t *testing.T) {
 // belongs to the one mark whose set doc gives it two states, not to the
 // section.
 func TestPlainMarkCellsAreUnchanged(t *testing.T) {
-	p := PaletteFrom(tokens.DefaultLight)
+	p := PaletteFrom(tokens.PlatformLight)
 	top, bottom := bandRows()
 	x0, width := markRow(false)
 	for _, name := range marks.Names() {
@@ -241,7 +241,7 @@ func TestPlainMarkCellsAreUnchanged(t *testing.T) {
 			continue
 		}
 		t.Run(string(name), func(t *testing.T) {
-			img := markCellFrame(t, tokens.DefaultLight, name)
+			img := markCellFrame(t, tokens.PlatformLight, name)
 			first, last := drawnColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Icon)
 			if first < x0 || last >= x0+width {
 				t.Errorf("%s paints columns %d..%d, outside the closed row's %d..%d", name, first, last, x0, x0+width-1)

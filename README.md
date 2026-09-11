@@ -56,9 +56,9 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
 - **[`sitedocs/`](./sitedocs)** — the documentation app, five tabs over
   `patterns/tabs`: **Docs** renders the application guide (`llms.txt`) as
   one markdown document with a `##`/`###` outline tree that scrolls it;
-  **Theme** shows the whole theme — the colour the palette grew from,
-  the ramps grid, the named picks and the type ramp — following the
-  live one; **Components**, **Patterns** and
+  **Theme** shows the whole theme — the platform's colour set, name by
+  name with each value in both appearances, and the type scale — following
+  the live one; **Components**, **Patterns** and
   **Markdown** are the component inventory's own groups, one per tab, as
   live, clickable controls.
 - **[`feeds/`](./feeds)** — an RSS reading-list app: sortable/filterable/
@@ -70,18 +70,17 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   with back/forward, and a backlinks aside. Also the reference for
   document-centric navigation — a history stack, a nesting tree, and the
   shell's aside slot in use. See its [README](./vaultview/README.md).
-- **[`themer/`](./themer)** — pick a brand colour out of a picture: drop an
-  image anywhere on the window and the colours it is made of come back as a
-  row of seed candidates, vivid ones first, each swatch beside the primary
-  pair a palette derivation makes of it; click one and the window re-themes
-  to it. The page under the row is four tabs — the theme itself, then
-  components, patterns and markdown — and the last of them ends on a code
-  specimen with the syntax bases listed beside it — the styles that ship and any style file dropped into the
-  styles folder beside the kept theme, filtered to the half fitted to the
-  scheme on screen — so the code can be judged too, and a base per scheme is
-  kept with the seed. Also the reference for an OS file drop — a window-wide drop zone
-  with its hover highlight, delivered into the MVU loop as messages — and
-  for a theme observable the application itself re-seeds.
+- **[`themer/`](./themer)** — the theme colour's chooser, and nothing else.
+  The platform's own accent colour leads the row as the default; drop an
+  image anywhere on the window and the colours it is made of come back as
+  swatches beside it, vivid ones first; or write the colour into the field.
+  What it previews is the platform's colour set with the chosen colour
+  standing in where the platform uses its accent — the set itself, name by
+  name, beside a picture of an application showing the handful of places
+  that colour lands. Keeping it writes the shared theme file every
+  application reads. Also the reference for an OS file drop — a window-wide
+  drop zone with its hover highlight, delivered into the MVU loop as
+  messages.
 - **[`mindchat/`](./mindchat)** — an OpenAI chat client and the most
   feature-complete app: streaming completions routed through the MVU
   command loop, a resizable/collapsible split-pane shell, trash-backed

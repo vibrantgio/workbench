@@ -27,7 +27,7 @@ func staticTabs(
 	shaper *text.Shaper,
 	guide []byte,
 	st outlineState,
-	c tokens.ColorTokens,
+	c tokens.PlatformColors,
 	typo tokens.Typography,
 ) []tabs.Tab {
 	out := make([]tabs.Tab, len(tabPages))
@@ -37,9 +37,7 @@ func staticTabs(
 		case pageDocs:
 			content = renderDocsTab(shaper, guide, st, c, typo)
 		case pageTheme:
-			// The static tabs are rendered from the default pair, so
-			// the default seed is the colour they were grown from.
-			content = renderThemeTab(shaper, c, typo, tokens.DefaultSeed)
+			content = renderThemeTab(shaper, c, typo)
 		default:
 			content = renderGroupTab(shaper, tabGroups[page], c, typo)
 		}

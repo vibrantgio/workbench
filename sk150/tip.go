@@ -1,12 +1,12 @@
 package main
 
 // Hint cells: a grid cell that, hovered anywhere for a dwell, shows the
-// setting's explanation in an inverse bubble beneath it. A
-// trimmed copy of components/tooltip — that signal centres its trigger on
-// the space it is handed and sizes the bubble from that space, so it
-// cannot sit inline as a cell label; this keeps its dwell, its inverse
-// surface and its one-visible-at-a-time rule, and paints the bubble
-// through op.Defer so it lands over the rest of the grid.
+// setting's explanation in a bubble beneath it. A trimmed copy of
+// components/tooltip — that signal centres its trigger on the space it is
+// handed and sizes the bubble from that space, so it cannot sit inline as a
+// cell label; this keeps its dwell, its surface and its one-visible-at-a-time
+// rule, and paints the bubble through op.Defer so it lands over the rest of
+// the grid.
 
 import (
 	"image"
@@ -91,10 +91,15 @@ func (tp *tips) wrap(t themed, key, long string, col int, colW unit.Dp, w layout
 	}
 }
 
-// bubble paints the explanation in the inverse surface and its foreground,
-// under the cell at y, left-aligned with it unless that would run past
-// avail — the room between the cell's left edge and the window's right
-// padding — in which case it slides left to fit.
+// bubble paints the explanation under the cell at y, left-aligned with it
+// unless that would run past avail — the room between the cell's left edge
+// and the window's right padding — in which case it slides left to fit.
+//
+// A floating surface is the window's own plane on this platform, which is
+// the plane the bubble stands on, so the separator hairline is the whole of
+// what says where the bubble is. It is two fills rather than a stroke: a
+// stroke is centred on its path and spends half its coverage outside the
+// shape.
 func (tp *tips) bubble(gtx layout.Context, t themed, txt string, y, avail int) {
 	typ := t.typ
 	padH, padV := gtx.Dp(8), gtx.Dp(4)
@@ -108,7 +113,11 @@ func (tp *tips) bubble(gtx layout.Context, t themed, txt string, y, avail int) {
 		x = avail - w
 	}
 	r := image.Rect(x, y, x+w, y+sz.Y+2*padV)
-	paint.FillShape(gtx.Ops, t.palette.TipFill, clip.UniformRRect(r, gtx.Dp(4)).Op(gtx.Ops))
+	rad := gtx.Dp(4)
+	edge := max(gtx.Dp(1), 1)
+	paint.FillShape(gtx.Ops, t.palette.Seam, clip.UniformRRect(r, rad).Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, t.palette.Backdrop,
+		clip.UniformRRect(r.Inset(edge), max(rad-edge, 0)).Op(gtx.Ops))
 	textdraw.FillText(gtx, typ.Shaper, typ.Small,
-		image.Rect(x+padH, y+padV, x+padH+sz.X, y+padV+sz.Y), 0, 0.5, t.palette.TipForeground, txt)
+		image.Rect(x+padH, y+padV, x+padH+sz.X, y+padV+sz.Y), 0, 0.5, t.palette.Label, txt)
 }

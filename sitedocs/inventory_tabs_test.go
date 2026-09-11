@@ -18,11 +18,11 @@ var groupFrameSize = image.Pt(1180, 760)
 // the fill the capture is laid over.
 var schemeCases = []struct {
 	name   string
-	colors tokens.ColorTokens
+	colors tokens.PlatformColors
 	bg     color.NRGBA
 }{
-	{"light", tokens.DefaultLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-	{"dark", tokens.DefaultDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
+	{"light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
+	{"dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
 }
 
 // TestGroupTabGoldens pins each inventory tab's first screen in both
@@ -42,19 +42,19 @@ func TestGroupTabGoldens(t *testing.T) {
 }
 
 // TestGroupTabsFollowScheme is the standing hunt for an inventory surface
-// drawn from something other than the tokens it was handed: the same
-// column in the two schemes must not come out the same bytes.
+// drawn from something other than the set it was handed: the same column in
+// the two appearances must not come out the same bytes.
 func TestGroupTabsFollowScheme(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
 	for _, page := range []string{pageComponents, pagePatterns, pageMarkdown} {
 		t.Run(page, func(t *testing.T) {
-			light := renderGroupTab(shaper, tabGroups[page], tokens.DefaultLight, tokens.DefaultTypography)
-			dark := renderGroupTab(shaper, tabGroups[page], tokens.DefaultDark, tokens.DefaultTypography)
+			light := renderGroupTab(shaper, tabGroups[page], tokens.PlatformLight, tokens.DefaultTypography)
+			dark := renderGroupTab(shaper, tabGroups[page], tokens.PlatformDark, tokens.DefaultTypography)
 			a := golden.Capture(t, groupFrameSize, scene(light, bg))
 			b := golden.Capture(t, groupFrameSize, scene(dark, bg))
 			if golden.PixelDiff(a, b) == 0 {
-				t.Fatalf("%s tab renders identically in light and dark — the column is not following its tokens", page)
+				t.Fatalf("%s tab renders identically in light and dark — the column is not following the set it was handed", page)
 			}
 		})
 	}
@@ -67,7 +67,7 @@ func TestGroupTabsFollowScheme(t *testing.T) {
 func TestEveryTabNamesALiveGroup(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	inv := inventory.NewForOS(shaper, "darwin")
-	c := tokens.DefaultLight
+	c := tokens.PlatformLight
 	for _, page := range []string{pageComponents, pagePatterns, pageMarkdown} {
 		group := tabGroups[page]
 		rows := inv.TabItems(c, group)
@@ -84,7 +84,7 @@ func TestEveryTabNamesALiveGroup(t *testing.T) {
 func TestGroupTabDropsTheBanner(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	inv := inventory.NewForOS(shaper, "darwin")
-	c := tokens.DefaultLight
+	c := tokens.PlatformLight
 	for _, grp := range inv.Groups(c) {
 		if grp.Name == groupFoundations {
 			continue
@@ -99,21 +99,23 @@ func TestGroupTabDropsTheBanner(t *testing.T) {
 }
 
 // TestNoInventorySectionIsLost checks the arithmetic: every section the
-// published inventory builds is on exactly one tab, save the two colour
-// sections the Theme tab tells better. A section added upstream lands on a
-// tab or fails here; it does not quietly vanish because sitedocs picks its
-// groups by name.
+// published inventory builds is on exactly one tab, save the colour section
+// the Theme tab tells with the shared board instead. A section added upstream
+// lands on a tab or fails here; it does not quietly vanish because sitedocs
+// picks its groups by name.
 func TestNoInventorySectionIsLost(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	inv := inventory.NewForOS(shaper, "darwin")
-	c := tokens.DefaultLight
+	c := tokens.PlatformLight
 
-	// dropped names the sections sitedocs does not show.
-	dropped := map[string]bool{"foundations-roles": true, "foundations-ramps": true}
+	// dropped names the sections sitedocs does not show: the inventory's own
+	// board of the platform's set, which the Theme tab draws from the shared
+	// section instead, so a reader meets those names once.
+	dropped := map[string]bool{"foundations-platform": true}
 
 	// shown counts the sections each surface accounts for: the three group
-	// tabs by their groups, the Theme tab by the one section the palette
-	// story borrows for its type scale.
+	// tabs by their groups, the Theme tab by the one section the colour
+	// board borrows for its type scale.
 	shown := map[string]int{typeSection: 1}
 	for page, group := range tabGroups {
 		found := false

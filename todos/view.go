@@ -42,8 +42,8 @@ type themed struct {
 // consumer counted by modelObsConsumers in main.go.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
-			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
+		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
+			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
 				return themed{components: t, palette: PaletteFrom(n.First), typ: TypeFrom(n.Second)}
 			})
 	})

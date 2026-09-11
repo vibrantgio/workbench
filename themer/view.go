@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"image"
 	stdcolor "image/color"
-	"sync/atomic"
 
 	"gioui.org/gesture"
-	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -21,10 +19,10 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/gallery/inventory"
-	"github.com/vibrantgio/components/icons"
+	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/imageseed"
 	"github.com/vibrantgio/theme/theme"
@@ -35,96 +33,75 @@ import (
 const (
 	Pad      unit.Dp = 20 // window margin
 	Gap      unit.Dp = 14 // between the page's stacked parts
-	Radius   unit.Dp = 12 // the picture mat and the candidate cards
-	Hairline unit.Dp = 1  // the mat's resting outline
-	Ring     unit.Dp = 2  // the chosen candidate's ring, and the drag highlight
+	Radius   unit.Dp = 12 // the picture's mat, a swatch card, the preview panel
+	Hairline unit.Dp = 1  // a resting outline
+	Ring     unit.Dp = 2  // the drag highlight
 
 	// TitleAir is what the title row keeps above and below the tallest thing
 	// standing in it: the smallest step on the theme's spacing scale, and no
 	// more. A title row is not a band of controls, and every point it spends
 	// is a point the page under it does not get.
 	TitleAir unit.Dp = 4
-	// TitleH is the row across the top of both screens: the scheme switch,
+	// TitleH is the row across the top of the window: the scheme switch,
 	// which is the tallest thing in it, with TitleAir either side. It is
 	// derived from the switch's own height rather than pinned, so a control
 	// that grows cannot end up cropped by a number written down beside it.
-	//
-	// The row stands inside the page's margin like every other row down the
-	// window, having no fill of its own to carry a margin on.
 	TitleH unit.Dp = inventory.SchemeSwitchH + 2*TitleAir
 	// TitleCenter is the line everything in the title row is centred on,
-	// measured from the window's own top edge: the page's top margin, which the
-	// row stands in, plus half the row.
-	//
-	// It is the window's line and not just the page's. With the content behind
-	// the title bar there is no native strip above this row, so the window's own
-	// control buttons stand in it — and they are placed on this line rather than
-	// left on the one the platform would default them to, because a row with one
-	// centre line through the name, the way back and the switch does not get to
-	// have its fourth object on a line of its own.
-	//
-	// It is derived from the row's height rather than written down beside it, so
-	// a control in the row changing size takes the buttons with it instead of
-	// leaving them behind.
-	TitleCenter unit.Dp = Pad + TitleH/2
-	HeadH       unit.Dp = 56  // the identity strip under it: swatch, name, offer, keep
-	ThumbW      unit.Dp = 108 // the thumbnail's mat
-	ThumbPad    unit.Dp = 6   // mat edge to the picture inside it
-	RowLabelH   unit.Dp = 20  // the label over the candidate row, and over the page
-	LineH       unit.Dp = 20  // one line of the identity block, and of the standing offer
-	KeepW       unit.Dp = 150 // the keep button, at a width neither of its two labels squeezes
-	// BackMark is the way back's chevron, at the size a mark takes beside a
-	// line of text, and BackGap is what stands between the two: the smallest
-	// step, because a mark and the word it belongs to are one control and a
-	// wider gap would make them two.
-	BackMark unit.Dp = 16
-	BackGap  unit.Dp = TitleAir
-	// IdentW is the widest the name and its caption ever get. Past it the
-	// slack goes to the space before the standing offer instead, so a window
-	// dragged wide opens a gap between the identity and the controls rather
-	// than stretching a two-line block across half a screen.
-	IdentW unit.Dp = 420
+	// measured from the window's top edge: the page's margin plus half the
+	// row. The window's own control buttons stand on it too.
+	TitleCenter = Pad + TitleH/2
+
+	// HeadH is the source row: where the colour came from, what to call it,
+	// the field it can be written into, and the offer to keep it.
+	HeadH unit.Dp = 64
+	// ThumbW is the picture's mat and ThumbPad the air inside it.
+	ThumbW   unit.Dp = 110
+	ThumbPad unit.Dp = 6
+	// IdentW is the widest the name and its caption may run, so neither can
+	// land on the mat beside them.
+	IdentW unit.Dp = 300
+	// KeepW is the keep affordance's width, fixed so the control keeps its
+	// size whichever of its two words is on it; HexW is the colour field's.
+	KeepW unit.Dp = 150
+	HexW  unit.Dp = 132
+
+	// LineH is one line of running text and RowLabelH a section's label row.
+	LineH     unit.Dp = 20
+	RowLabelH unit.Dp = 22
 )
 
-// What the keep affordance says. The second word is a state and not an
-// invitation: pressing it again writes the same file, which is why it stays
-// pressable rather than going grey.
+// What the keep affordance says: an offer while the colour on screen is not
+// the one on disk, a confirmation the moment it is.
 const (
 	KeepLabel = "Keep this theme"
 	KeptLabel = "Kept"
 )
 
-// BackLabel is on the control that undoes a choice by returning to the screen
-// it was made on. It names where it goes rather than what it undoes: "cancel"
-// on a window with nothing pending is a question, and the grid is a place.
-const BackLabel = "Back to styles"
+// HexPlaceholder is what the colour field says when it is empty: the spelling
+// it reads, so nobody has to guess at the form.
+const HexPlaceholder = "#RRGGBB"
 
 // AppName is what this window is, said once — on the window's own title and
 // at the head of its title row, which are the same claim made in two places.
 const AppName = "Themer"
 
-// dropZone is the one zone the window registers a drop in: the whole of it. The
-// application has no second drop target, so the index is a constant.
+// dropZone is the one zone the window registers a drop in: the whole of it.
+// The application has no second drop target, so the index is a constant.
 const dropZone = 0
 
-// rowSlots is how many press targets the candidate row can want: one per
-// candidate the extraction can return, and one more for the cell offering
-// the colour the platform reports.
+// rowSlots is how many press targets the swatch row can want: one per colour
+// the extraction can return, and one more for the platform's own.
 const rowSlots = imageseed.DefaultMax + 1
 
-// ButtonPlacement is where the window's own control buttons stand: the leading
-// edge of the group of three, and the line their centres sit on, both in dp
-// from the window's top-leading corner. It is the whole placement — the buttons
-// keep their own size and their own spacing, which are the platform's.
+// ButtonPlacement is where the window's own control buttons stand: the
+// leading edge of the group of three, and the line their centres sit on, both
+// in dp from the window's top-leading corner. It is the whole placement — the
+// buttons keep their own size and their own spacing, which are the platform's.
 type ButtonPlacement struct{ Leading, Center unit.Dp }
 
-// WindowButtons answers where this window puts its control buttons.
-//
-// They lead at the page's own margin, so the three of them start on the same
-// edge as the title beneath them and everything else down the window, rather
-// than on an edge of the platform's choosing a few dp to one side of it. And
-// they sit on the title row's centre line, because that row is the strip they
-// are in: one row across the top of the window, one line through it.
+// WindowButtons answers where this window puts its control buttons: leading
+// at the page's own margin, on the title row's centre line.
 func WindowButtons() ButtonPlacement {
 	return ButtonPlacement{Leading: Pad, Center: TitleCenter}
 }
@@ -135,17 +112,15 @@ func WindowButtons() ButtonPlacement {
 // placement above: their size and spacing are the platform's, and a number
 // written down here would drift with the next release of it.
 //
-// A render with no window behind it is told zero — which is every render in the
-// test suite, and also every platform that keeps its decorations, where there
-// are no such buttons to clear. It is a variable so that a test can state a
-// measurement it has no window to take.
+// A render with no window behind it is told zero — which is every render in
+// the test suite, and also every platform that keeps its decorations, where
+// there are no such buttons to clear. It is a variable so that a test can
+// state a measurement it has no window to take.
 var windowButtonsEnd = desktop.LeadingInset
 
 // TitleLead is where the title row's own content may start: one row gap past
 // the window's control buttons where the window has them, and the page's own
-// margin where it does not. The gap is added because what is measured is the
-// bare glass the buttons end at, and the row owes the last of them the same air
-// it puts between any two things standing in it.
+// margin where it does not.
 func TitleLead() unit.Dp {
 	return desktop.BandLeadFrom(windowButtonsEnd(), Gap, Pad)
 }
@@ -154,177 +129,83 @@ func TitleLead() unit.Dp {
 func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
-			BackdropLayer(th, modelObs),
+			BackdropLayer(th),
 			ContentLayer(th, modelObs, zones),
 		}
 	}
 }
 
-// themed carries one emission's OS palette and typography. The palette the
-// window actually draws in is resolved from this one and the model together,
-// in SchemeFor, because the chosen candidate re-seeds it.
+// themed carries one emission's platform colours and typography — the set the
+// window itself wears, which is the platform's live reading of the appearance
+// the desktop is on.
 type themed struct {
-	os  tokens.ColorTokens
+	col tokens.PlatformColors
 	typ Type
-	// typo is the same typography typ was resolved from, kept whole because
-	// the tab strip is a published pattern and reads its own roles off it.
-	typo   tokens.Typography
-	pinned bool
 }
 
-// codeType is the typography the specimen draws through: the selected
-// code face applied to the stream's roles. The live path appends emoji
-// the way Brand.Typography does, so a fence cannot flash tofu before
-// the stream emits. Tests pin the faces so a render here cannot depend
-// on the machine's font set, and they stay on DefaultTypography —
-// goldens do not parse the color-emoji face.
-func (t themed) codeType(m Model) (tokens.Typography, *text.Shaper) {
-	applied := tokens.CodeFace(m.AppliedMono())
-	if t.pinned {
-		return applied, applied.DeterministicShaper()
-	}
-	applied = applied.WithEmoji()
-	return applied, applied.Shaper()
-}
-
-// BackdropLayer fills the window. It follows the model as well as the OS,
-// because the background is one of the surfaces a chosen seed changes.
-func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-		return t.Color
+// BackdropLayer fills the window. It follows the platform alone: this window
+// wears the theme the desktop is set to, like every other application, and
+// what a chosen colour changes is the preview inside it.
+func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+		return t.Platform
 	})
-	return rx.Map(rx.CombineLatest2(colors, modelObs),
-		func(n rx.Tuple2[tokens.ColorTokens, Model]) layout.Widget {
-			return backdrop.Widget(SchemeFor(n.First, n.Second).Background)
-		})
+	return rx.Map(colors, func(c tokens.PlatformColors) layout.Widget {
+		return backdrop.Widget(c.WindowBackground)
+	})
 }
 
-// ContentLayer renders the page: the dropped picture and the candidate row
-// over the whole inventory drawn in the chosen candidate's theme, or the
-// invitation to drop something.
+// ContentLayer renders the page: where the colour came from, the colours on
+// offer, and the preview of the platform's set with the chosen one standing in
+// for the accent.
 //
-// The click handlers and the embedded page's state live at subscription
-// scope, outside the per-emission Map. A gesture handler
+// The click handlers, the colour field and the board's scroll position live at
+// subscription scope, outside the per-emission Map. A gesture handler
 // reconstructed every emission loses the press it is in the middle of, and
-// every selection re-emits; an inventory rebuilt every emission would re-read
-// the reading sample on every pick, which is the one thing on this page that
-// costs anything. There is one click handler per candidate slot, not per
-// candidate, so the handlers outlive a picture being replaced by another —
-// plus the one the row's last cell takes, which belongs to no candidate.
+// every selection re-emits. There is one click handler per swatch slot, not
+// per colour, so the handlers outlive a picture being replaced by another.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, rowSlots)
 	bar := new(topClicks)
-	page, bases, faces, grid := newEmbed(), newBaseSelector(), newFaceSelector(), newStyleGrid()
-	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
-			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
-				return themed{os: n.First, typ: TypeFrom(n.Second), typo: n.Second}
-			})
-	})
-	inputs := rx.CombineLatest2(themes, modelObs)
-
-	// The strip's own handlers live at subscription scope, which is what the
-	// pattern's observable form gives and its static form does not: a cell
-	// pressed and held across an emission is still the cell being pressed.
-	// Its content layout.Widget values are therefore built once too, and read the
-	// tab columns out of the cells below at frame time — the same hand-off the
-	// window's own layer boundary makes with its layer snapshot.
-	cells := make([]atomic.Value, TabCount)
-	strip := make([]tabs.Tab, TabCount)
-	for i := range strip {
-		strip[i] = tabs.Tab{Label: TabLabels[i], Content: fromCell(&cells[i])}
-	}
-	shell := tabs.Tabs(rx.Map(inputs, func(n rx.Tuple2[themed, Model]) theme.Theme {
-		c, _ := SchemePair(n.First.os, n.Second)
-		return EmbeddedTheme(c, n.First.typo)
-	}), tabs.Props{
-		Tabs:     strip,
-		Selected: rx.Map(modelObs, func(m Model) int { return m.Tab }),
-		OnSelect: func(gtx layout.Context, idx int) {
-			mvu.MessageOp{Message: SelectTab{Index: idx}}.Add(gtx.Ops)
+	board := list.NewState()
+	hex := input.TextField(th, input.TextFieldProps{
+		Placeholder: HexPlaceholder,
+		Description: "Theme colour, written as a hex triplet",
+		OnChange: func(gtx layout.Context, txt string) {
+			mvu.MessageOp{Message: HexTyped{Text: txt}}.Add(gtx.Ops)
 		},
 	})
-
-	return rx.Map(rx.CombineLatest2(inputs, shell),
-		func(n rx.Tuple2[rx.Tuple2[themed, Model], layout.Widget]) layout.Widget {
-			t, m := n.First.First, n.First.Second
-			for i, col := range GalleryColumns(t, m, page, bases, faces) {
-				cells[i].Store(col)
-			}
-			return Page(t, m, zones, clicks, bar, grid, n.Second)
+	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
+		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
+			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
+				return themed{col: n.First, typ: TypeFrom(n.Second)}
+			})
+	})
+	return rx.Map(rx.CombineLatest3(themes, modelObs, hex),
+		func(n rx.Tuple3[themed, Model, layout.Widget]) layout.Widget {
+			return Page(n.First, n.Second, zones, clicks, bar, board, n.Third)
 		})
 }
 
-// EmbeddedTheme is the theme the tab strip is drawn from: the palette the
-// chosen candidate generates, with the window's own typography and the
-// published scales for everything else. The strip belongs to the page's frame
-// and not to the window's, so its colours are the page's.
-func EmbeddedTheme(c tokens.ColorTokens, typo tokens.Typography) theme.Theme {
-	t := theme.Default()
-	t.Color, t.Typography = rx.Of(c), rx.Of(typo)
-	return t
-}
-
-// fromCell is a tab's content as the strip holds it: a [layout.Widget] that
-// lays out whatever column was last stored for that tab, and an empty surface
-// until one has been.
-func fromCell(cell *atomic.Value) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		if w, ok := cell.Load().(layout.Widget); ok && w != nil {
-			return w(gtx)
-		}
-		return layout.Dimensions{Size: gtx.Constraints.Max}
-	}
-}
-
-// topClicks are the handlers of the controls along the top of the window:
-// the way back to the first screen, the keep affordance, and the two halves of
-// the scheme switch. They are one value rather than three parameters because
-// they have one lifetime — subscription scope, so a press in flight survives an
-// emission — and because the scheme switch is in the title row on the first
-// screen too, where the other two are not.
+// topClicks are the handlers of the controls along the top of the window: the
+// keep affordance and the two halves of the scheme switch. They are one value
+// rather than two parameters because they have one lifetime — subscription
+// scope, so a press in flight survives an emission.
 type topClicks struct {
-	back   gesture.Click
 	keep   gesture.Click
 	scheme [2]gesture.Click
 }
 
 // Page lays the window out and registers it, whole, as the drop zone.
 //
-// Both screens open with the same title row: what the window is at its leading
-// edge, the way back beside it once there is somewhere to go back to, and the
-// scheme switch at its trailing one. It is the same row and not two, which is
-// what makes the switch stay put across the click that changes screens — a
-// control that moved across the window on the first press would be a second
-// control as far as anybody reading is concerned.
-//
-// Under the row, with a theme on screen, the window is three bands: where the
-// colours came from, the seeds taken out of it, and the whole design system
-// drawn in the one that is chosen. The last of those gets the room, because it
-// is the thing being judged — the source is a reference and needs only to be
-// recognisable.
-//
-// Before anything has been chosen it is the two doors instead: the drop well,
-// which is the primary invitation and takes the top of the page, and under it
-// the grid of styles for somebody who would rather start from a palette than
-// find one. The well is a band rather than the whole page there, because a
-// grid nobody can see without scrolling is a grid nobody knows about.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, grid *styleGrid, shell layout.Widget) layout.Widget {
-	c, _ := SchemePair(t.os, m)
-	p := PaletteFrom(c)
-	dark := m.Dark(t.os)
-	// Each cell's generated primary pair, on the side the window is
-	// currently showing, so a swatch promises what choosing it delivers.
-	// The row's cells are the candidates and then, where the platform
-	// reports a colour, that colour — so this is as long as the row is, and
-	// the row reads its own length off it.
-	pairs := make([]tokens.ColorTokens, 0, len(m.Candidates)+1)
-	for _, cand := range m.Candidates {
-		pairs = append(pairs, shownSide(cand.Color, dark))
-	}
-	if m.Platform.A != 0 {
-		pairs = append(pairs, shownSide(m.Platform, dark))
-	}
+// Four rows down the page: the title row, the source row — where the colour
+// came from, what it is, and the two ways of settling it — the colours on
+// offer, and under them the preview, which gets the room because it is the
+// thing being judged.
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, board *list.State, hex layout.Widget) layout.Widget {
+	p := PaletteFrom(t.col)
+	dark := m.Dark(t.col)
+	preview := PreviewSet(t.col, m, dark)
 	var picture paint.ImageOp
 	if m.Preview != nil {
 		picture = paint.NewImageOp(m.Preview)
@@ -337,37 +218,25 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 		zones.Record(dropZone, image.Rectangle{Max: size})
 
 		// One margin all round. The title row draws no fill of its own, so
-		// it has nothing to carry the window's top margin on and takes it from
-		// the page like every other row. Its own leading edge is the one thing
-		// that is not the margin: with the content behind the title bar, the
-		// window's control buttons stand in this row, and the row starts past
-		// them.
-		inset := layout.UniformInset(Pad)
-		inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			children := []layout.FlexChild{
-				rigid(reserve(TitleLead()-Pad, TitleRow(p, c, t.typ, m, dark, bar))),
+		// it has nothing to carry the window's top margin on and takes it
+		// from the page like every other row. Its own leading edge is the
+		// one thing that is not the margin: with the content behind the
+		// title bar, the window's control buttons stand in this row, and the
+		// row starts past them.
+		layout.UniformInset(Pad).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				rigid(reserve(TitleLead()-Pad, TitleRow(p, t.col, t.typ, dark, bar))),
 				spacer(Gap),
-			}
-			if len(m.Candidates) > 0 {
-				children = append(children,
-					rigid(IdentityRow(p, c, t.typ, m, picture, bar)),
-					spacer(Gap),
-					rigid(CandidateRow(p, t.typ, m, pairs, clicks)),
-					spacer(Gap),
-					layout.Flexed(1, Gallery(p, c, t.typ, GalleryHintFor(m, dark), shell)),
-				)
-			} else {
-				children = append(children,
-					rigid(DropWell(p, t.typ, m)),
-					spacer(Gap),
-					layout.Flexed(1, StyleGrid(p, c, t.typ, m, dark, grid)),
-				)
-			}
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+				rigid(SourceRow(p, t.col, t.typ, m, picture, bar, hex)),
+				spacer(Gap),
+				rigid(SwatchRow(p, t.typ, m, clicks)),
+				spacer(Gap),
+				layout.Flexed(1, Preview(p, preview, t.typ, board)),
+			)
 		})
 
-		// The drag highlight rings the window itself, not a panel inside
-		// it, because the window itself is what accepts the drop.
+		// The drag highlight rings the window itself, not a panel inside it,
+		// because the window itself is what accepts the drop.
 		if m.DragOver {
 			strokeRRect(gtx, image.Rectangle{Max: size}, gtx.Dp(Radius+Pad/2), gtx.Dp(Ring+1), p.Accent)
 		}
@@ -375,43 +244,24 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	}
 }
 
-// TitleRow is the row across the top of both screens: what the window is at
-// its leading edge, the way back beside it, and the switch to the other side
-// of the scheme at its trailing one — all on one centre line.
+// TitleRow is the row across the top of the window: what the window is at its
+// leading edge, and the switch that shows the other side of the preview at its
+// trailing one, on one centre line.
 //
-// It is a title row and not a bar. Nothing here is drawn on a fill of its
-// own and nothing is ruled off from what follows: the row stands on the
-// window's own page, and what makes it the top of the window is that it is at
-// the top of the window. A band and a rule are what a row needs when the thing
-// under it is a different kind of surface, and here it is the same page all the
-// way down.
+// It is a title row and not a bar. Nothing here is drawn on a fill of its own
+// and nothing is ruled off from what follows: the row stands on the window's
+// own page, and what makes it the top of the window is that it is at the top
+// of the window.
 //
-// The name is what earns the leading edge. A window that says what it is can
-// let everything else in the row be less pronounced — which is why the way back
-// stands beside the name in the chrome variant rather than dressed as a button:
-// with a title to read under, a label at the muted step is a control that knows
-// its place. It is absent altogether before anything has been chosen, because
-// there is nowhere to go back to, and the row is a row of two rather than a row
-// with a hole in it.
-//
-// The switch stays in its corner across that change. Both ends are fixed
-// places, which is what lets a reader look for the scheme control once.
-//
-// The row is also the window's own top strip, which is a thing a row on a page
-// is not. Nothing above it belongs to the platform, so three of the window's
-// controls stand in it — placed on its centre line, with the row starting past
-// them — and the run of it that holds nothing is what the window is dragged by,
-// the press that would have gone to a title bar having nowhere else to go.
-//
-// The order the slots are named in is the order they keep their size in when
-// the window is too narrow for all of them. The name goes
-// first because it is the one thing here that identifies the window; then the
-// switch, which is a control with a fixed size and no room to give; and
-// the way back last, having a truncator to give room with.
-func TitleRow(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, bar *topClicks) layout.Widget {
-	slots := []slot{{leading, 0, AppTitle(p, ty)}, {trailing, 0, SchemeToggle(c, dark, &bar.scheme)}}
-	if len(m.Candidates) > 0 {
-		slots = append(slots, slot{leading, 0, WayBack(p, ty, &bar.back)})
+// The row is also the window's own top strip. Nothing above it belongs to the
+// platform, so three of the window's controls stand in it — placed on its
+// centre line, with the row starting past them — and the run of it that holds
+// nothing is what the window is dragged by, the press that would have gone to
+// a title bar having nowhere else to go.
+func TitleRow(p Palette, c tokens.PlatformColors, ty Type, dark bool, bar *topClicks) layout.Widget {
+	slots := []slot{
+		{leading, 0, AppTitle(p, ty)},
+		{trailing, 0, SchemeToggle(c, dark, &bar.scheme)},
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		dims, free := centreRowFree(gtx, gtx.Dp(TitleH), gtx.Dp(Gap), slots...)
@@ -423,12 +273,8 @@ func TitleRow(p Palette, c tokens.ColorTokens, ty Type, m Model, dark bool, bar 
 // reserve indents a row past chrome that is not the page's: the run between
 // the margin where the row would otherwise begin and the point where it may.
 // Nothing is drawn in that run and no drag is declared over it — the window's
-// control buttons stand there, and a move action over them would fight them for
-// the press.
-//
-// Where there is nothing to clear the row is handed back untouched, so away from
-// the treatment, and in every render with no window behind it, this is not so
-// much as a wrapper.
+// control buttons stand there, and a move action over them would fight them
+// for the press.
 func reserve(d unit.Dp, w layout.Widget) layout.Widget {
 	if d <= 0 {
 		return w
@@ -440,11 +286,6 @@ func reserve(d unit.Dp, w layout.Widget) layout.Widget {
 
 // AppTitle is what the window is, at the head of its own title row, in the
 // theme's heading type at the size a line of running text takes.
-//
-// It is not pressable and it is not a crumb. The window has one screen behind
-// its other one and a named control that goes there; a title that also went
-// somewhere would be a second way to do the same thing, promising a place of
-// its own that this window does not have.
 func AppTitle(p Palette, ty Type) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		w := min(natural(gtx, ty.Shaper, ty.Head, AppName), gtx.Constraints.Max.X)
@@ -457,86 +298,20 @@ func AppTitle(p Palette, ty Type) layout.Widget {
 	}
 }
 
-// WayBack returns the window to its first screen, where the drop well and the
-// whole grid of styles are: a chevron and the name of the place it goes, on the
-// page itself with no fill and no boundary of its own.
-//
-// The dressing is the row's doing. Standing beside the window's name, the
-// control needs no box to be an object; what it needs is to read as chrome
-// under the name and still be legible, and that is a matter of foreground: the
-// muted step measures 6.19:1 against the light page and 11.06:1 against the
-// dark one, both well over the 4.5:1 a line of text has to reach, while the
-// title's own foreground stands at 17.19:1 and 15.30:1 — so the two are plainly
-// a name and something fainter beside it rather than two things of equal
-// weight. Under the pointer the label takes the title's foreground, which is
-// the whole of the hover state: a control with no fill has nothing else to
-// change.
-//
-// The chevron is what says "control" before the words are read. It is the mark
-// the design system carries for going back, drawn rather than typeset, at the
-// size a mark takes beside a line of text — and it is bound to its label by the
-// smallest step on the scale, so the two are one object and not a symbol
-// standing near a word.
-func WayBack(p Palette, ty Type, click *gesture.Click) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		mark, gap := gtx.Dp(BackMark), gtx.Dp(BackGap)
-		room := gtx.Constraints.Max.X - mark - gap
-		if room <= 0 {
-			return layout.Dimensions{}
-		}
-		w := min(natural(gtx, ty.Shaper, ty.Body, BackLabel), room)
-		if w <= 0 {
-			return layout.Dimensions{}
-		}
-		foreground := p.Muted
-		if click.Hovered() || click.Pressed() {
-			foreground = p.Text
-		}
-		h := max(gtx.Dp(LineH), mark)
-		size := image.Pt(mark+gap+w, h)
-		if chevron := icons.Mark(icons.HistoryBack); chevron != nil {
-			at(gtx, image.Pt(0, (h-mark)/2), func(gtx layout.Context) { chevron(gtx, mark, foreground) })
-		}
-		textdraw.FillText(gtx, ty.Shaper, ty.Body,
-			image.Rect(mark+gap, 0, size.X, h), 0, 0.5, foreground, BackLabel)
-
-		area := clip.Rect{Max: size}.Push(gtx.Ops)
-		pointer.CursorPointer.Add(gtx.Ops)
-		click.Add(gtx.Ops)
-		area.Pop()
-		for {
-			e, ok := click.Update(gtx.Source)
-			if !ok {
-				break
-			}
-			if e.Kind == gesture.KindClick {
-				mvu.MessageOp{Message: ShowStyles{}}.Add(gtx.Ops)
-			}
-		}
-		return layout.Dimensions{Size: size}
-	}
-}
-
-// IdentityRow is the line under the title row on the second screen: where the theme's
-// colours came from, what it is called, what it is dressing code in, the
-// standing offer to replace the lot with a picture, and the offer to make it
-// outlast the window.
-//
-// The picture is a thumbnail and not a plate. What a seed is judged on is the
-// page below, so the source takes the room a reference needs and no more:
-// enough to recognise which image or which style these colours came out of.
+// SourceRow is the line under the title row: where the colour came from, what
+// it is called, the field it can be written into instead, and the offer to
+// make it outlast the window.
 //
 // The order the slots are named in is the order they keep their size in when
-// the window is too narrow for all of them. The swatch and the
-// keep affordance are fixed objects and are named first; then the standing
-// offer, which is an instruction and either fits or stands down; and the
-// identity block last, because it is the one thing here that can honestly give
-// room, having a truncator to give it with.
-func IdentityRow(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.ImageOp, bar *topClicks) layout.Widget {
+// the window is too narrow for all of them. The mat, the keep affordance and
+// the field are fixed objects and are named first; the identity block last,
+// because it is the one thing here that can honestly give room, having a
+// truncator to give it with.
+func SourceRow(p Palette, c tokens.PlatformColors, ty Type, m Model, src paint.ImageOp, bar *topClicks, hex layout.Widget) layout.Widget {
 	slots := []slot{
-		{leading, 0, Thumbnail(p, m, src)},
+		{leading, 0, Thumbnail(p, ty, m, src)},
 		{trailing, 0, KeepButton(c, ty, m, &bar.keep)},
-		{trailing, Gap, ReplaceHint(p, ty, m)},
+		{trailing, 0, fixed(HexW, hex)},
 		{leading, 0, Identity(p, ty, m)},
 	}
 	return func(gtx layout.Context) layout.Dimensions {
@@ -544,27 +319,37 @@ func IdentityRow(p Palette, c tokens.ColorTokens, ty Type, m Model, src paint.Im
 	}
 }
 
-// KeepButton is what makes a colour outlast the window: it writes the
-// chosen seed where every application that adopts a brand looks for one.
+// fixed gives a component a width of its own inside a row that would
+// otherwise hand it everything left over.
+func fixed(w unit.Dp, inner layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min = image.Point{}
+		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(w))
+		return inner(gtx)
+	}
+}
+
+// KeepButton is what makes a colour outlast the window: it writes the theme
+// colour where every application that adopts a brand looks for one.
 //
 // It is the published button component rather than something drawn here,
-// because it is the one control in this window that is not part of the
-// frame — it is the thing the window is for once the looking is done — and
-// it should be the button of the design system on display beneath it. What
-// it says changes with the answer: an offer while the choice on screen is
-// not the one on disk, a confirmation the moment it is.
-func KeepButton(c tokens.ColorTokens, ty Type, m Model, click *gesture.Click) layout.Widget {
+// because it is the one control in this window that is not part of the frame —
+// it is the thing the window is for once the looking is done. What it says
+// changes with the answer: an offer while the choice on screen is not the one
+// on disk, a confirmation the moment it is.
+func KeepButton(c tokens.PlatformColors, ty Type, m Model, click *gesture.Click) layout.Widget {
 	label, emphasis := KeepLabel, button.Filled
-	if m.SeedIsKept() {
+	if m.IsKept() {
 		label, emphasis = KeptLabel, button.Tonal
 	}
 	draw := button.Render(ty.Shaper, label, c, tokens.Spacing, tokens.Radius, ty.Role, tokens.Comfortable,
-		button.RenderState{Emphasis: emphasis, Hovered: click.Hovered(), Pressed: click.Pressed()})
+		button.RenderState{Emphasis: emphasis, Hovered: click.Hovered(), Pressed: click.Pressed(),
+			Surface: c.WindowBackground})
 	return func(gtx layout.Context) layout.Dimensions {
-		// The component fills the width it is offered, and what it is
-		// offered inside a row is everything the caption did not take. It
-		// is given a fixed width instead, so the button keeps its size
-		// whichever of the two words is on it.
+		// The component fills the width it is offered, and what it is offered
+		// inside a row is everything the caption did not take. It is given a
+		// fixed width instead, so the button keeps its size whichever of the
+		// two words is on it.
 		gtx.Constraints.Min = image.Point{}
 		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(KeepW))
 		dims := draw(gtx)
@@ -584,25 +369,26 @@ func KeepButton(c tokens.ColorTokens, ty Type, m Model, click *gesture.Click) la
 	}
 }
 
-// Thumbnail draws where the colours came from on a mat, so the candidates
+// Thumbnail draws where the colours came from on a mat, so the swatches
 // beside it can be compared against their source: the dropped image scaled to
-// fit and centred, or — when the theme was adopted from a style — that style's
-// own colours in the same strip its card carried them in, which is the closest
-// thing to a picture a palette has.
-func Thumbnail(p Palette, m Model, src paint.ImageOp) layout.Widget {
+// fit and centred, or — with nothing dropped — the invitation to drop one,
+// which is the only way a target with no edges of its own is discovered.
+func Thumbnail(p Palette, ty Type, m Model, src paint.ImageOp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := image.Pt(gtx.Dp(ThumbW), gtx.Dp(HeadH))
 		r := image.Rectangle{Max: size}
-		fill, edge := p.Surface, p.Seam
+		fill, edge, width := p.Surface, p.Edge, gtx.Dp(Hairline)
 		if m.DragOver {
-			fill, edge = p.Selection, p.Accent
+			fill, edge, width = p.Selection, p.Accent, gtx.Dp(Ring)
 		}
 		fillRRect(gtx, r, gtx.Dp(Radius), fill)
-		strokeRRect(gtx, r, gtx.Dp(Radius), gtx.Dp(Hairline), edge)
+		strokeRRect(gtx, r, gtx.Dp(Radius), width, edge)
 		if m.Preview == nil {
-			if m.Style != "" {
-				SwatchBands(gtx, r.Inset(gtx.Dp(ThumbPad)), gtx.Dp(InnerR), m.Candidates, p.Edge)
+			foreground := p.CardMuted
+			if m.DragOver {
+				foreground = p.OnAccent
 			}
+			textdraw.FillText(gtx, ty.Shaper, ty.Small, r, 0.5, 0.5, foreground, "Drop an image")
 			return layout.Dimensions{Size: size}
 		}
 		defer clip.UniformRRect(r, gtx.Dp(Radius)).Push(gtx.Ops).Pop()
@@ -621,109 +407,62 @@ func Thumbnail(p Palette, m Model, src paint.ImageOp) layout.Widget {
 	}
 }
 
-// Identity names where the theme on screen came from — a file, or a style —
-// and under it the syntax pair it is wearing: two lines that are one object,
-// and are laid out as one so the pair is never orphaned from the name it
-// belongs to.
-//
-// Both members of the pair, always, and not the one being drawn. The pair is
-// one choice, and half of it is on the other side of the scheme switch: a click
-// on a style card sets two names at once, and a line naming one of them would
-// make a change to two things look like a change to one. The line under the
-// embedded page still names the member in force, because that line answers a
-// different question — what the page beneath it is coloured with right now.
+// Identity names the theme colour on screen and, under it, where it came
+// from: two lines that are one object, and are laid out as one so the second
+// is never orphaned from the first.
 //
 // The block is as wide as its own text and never wider than IdentW, and it is
-// clipped to that width besides. Both of those are here for one reason: nothing
-// this block draws may land on the swatch to its left. The width is what keeps
-// the text out of the swatch's column, since the block is only ever handed the
-// room left over once the swatch has taken its own; the clip is what makes that
-// a property of the drawing rather than of the arithmetic, so a name of any
-// length, in any face, at any window width, cannot put a pixel there. Only the
+// clipped to that width besides. Both of those are here for one reason:
+// nothing this block draws may land on the mat to its leading side. Only the
 // width is clipped — the height is left open, because a clip tight enough to
 // cut a descender is a bug of its own.
 func Identity(p Palette, ty Type, m Model) layout.Widget {
-	hint, tone := CaptionHintFor(m), p.Muted
+	name, hint, tone := IdentityName(m), IdentityHint(m), p.Muted
 	if m.Problem != "" {
 		hint, tone = m.Problem, p.Problem
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		line := gtx.Dp(LineH)
 		room := min(gtx.Constraints.Max.X, gtx.Dp(IdentW))
-		w := min(room, max(natural(gtx, ty.Shaper, ty.Body, m.Name), natural(gtx, ty.Shaper, ty.Small, hint)))
+		w := min(room, max(natural(gtx, ty.Shaper, ty.Body, name), natural(gtx, ty.Shaper, ty.Small, hint)))
 		if w <= 0 {
 			return layout.Dimensions{}
 		}
 		size := image.Pt(w, 2*line)
 		guard := clip.Rect(image.Rect(0, -size.Y, size.X, 2*size.Y)).Push(gtx.Ops)
-		textdraw.FillText(gtx, ty.Shaper, ty.Body, image.Rect(0, 0, size.X, line), 0, 0.5, p.Text, m.Name)
+		textdraw.FillText(gtx, ty.Shaper, ty.Body, image.Rect(0, 0, size.X, line), 0, 0.5, p.Text, name)
 		textdraw.FillText(gtx, ty.Shaper, ty.Small, image.Rect(0, line, size.X, 2*line), 0, 0.5, tone, hint)
 		guard.Pop()
 		return layout.Dimensions{Size: size}
 	}
 }
 
-// ReplaceHint is the standing offer to hand the window another picture. It is
-// an instruction rather than a state, which is why it stands on the controls'
-// side of the line and not under the name: a state and an instruction stacked
-// one above the other read as two states.
-//
-// It fits whole or it is not drawn at all. A truncated instruction is worse
-// than an absent one — "drop an image to repl…" is a sentence nobody can act
-// on, and the target it describes is the whole window, which is still there
-// whether or not there is room to say so.
-func ReplaceHint(p Palette, ty Type, m Model) layout.Widget {
-	offer := ReplaceHintFor(m)
-	return func(gtx layout.Context) layout.Dimensions {
-		w := natural(gtx, ty.Shaper, ty.Small, offer)
-		if w > gtx.Constraints.Max.X {
-			return layout.Dimensions{}
+// IdentityName is the theme colour on screen, written out, and says so in
+// words where there is no colour to write.
+func IdentityName(m Model) string {
+	col, ok := m.Color()
+	if !ok {
+		return "No theme colour"
+	}
+	return hexOf(col)
+}
+
+// IdentityHint is where that colour came from: the platform's setting, the
+// picture it was taken out of, or the field it was written into.
+func IdentityHint(m Model) string {
+	switch m.From {
+	case FromImage:
+		if m.Name != "" {
+			return "from " + m.Name
 		}
-		size := image.Pt(w, gtx.Dp(LineH))
-		textdraw.FillText(gtx, ty.Shaper, ty.Small, image.Rectangle{Max: size}, 0, 0.5, p.Muted, offer)
-		return layout.Dimensions{Size: size}
+		return "from a picture"
+	case FromHex:
+		return "written in"
 	}
-}
-
-// natural is how wide a string wants to be, unconstrained by the room it is
-// about to be given. It is measured against a width nothing reaches rather than
-// against the constraints in hand, because the shaper truncates to whatever
-// MaxWidth it is handed — so measuring inside the available room would report
-// the room back, and never that the string did not fit in it.
-func natural(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, str string) int {
-	gtx.Constraints = layout.Constraints{Max: image.Pt(1<<20, 1<<20)}
-	return textdraw.MeasureText(gtx, shaper, style, str).X
-}
-
-// CaptionHintFor is the line under the source's name: which syntax base the
-// code wears under each appearance.
-//
-// It says which is which rather than joining the two names with a sign. A pair
-// written "perldoc + dracula" leaves a reader looking at a light window with no
-// way to tell whether the palette in front of them is the first name or the
-// second — and on this window it is very often neither of the names they
-// clicked, since one member is completed by measurement. Naming the appearances
-// costs four words and answers it.
-//
-// A style that is its own counterpart says so in one clause. Four of the
-// embedded styles are fitted to no background and stand under both, and writing
-// such a name out twice reads as a mistake rather than as the fact it is.
-func CaptionHintFor(m Model) string {
-	pair := m.AppliedBases()
-	if pair.Light == pair.Dark {
-		return "syntax base " + pair.Light + ", day and night"
+	if m.Platform.A == 0 {
+		return "this desktop reports no accent colour"
 	}
-	return "syntax base " + pair.Light + " by day, " + pair.Dark + " by night"
-}
-
-// ReplaceHintFor is the standing offer at the caption's trailing edge. A window
-// showing a picture's colours can be handed another picture; one showing a
-// style's has not been handed one yet.
-func ReplaceHintFor(m Model) string {
-	if m.Preview != nil {
-		return "drop another image to replace it"
-	}
-	return "drop an image to replace it"
+	return "the " + SystemCaption() + ", and it follows it"
 }
 
 // side names which end of a row a control is packed against.
@@ -735,15 +474,9 @@ const (
 )
 
 // slot is one control in a centred row: the end it packs against, how much
-// room to leave between it and the control already placed at that end, and the
-// [layout.Widget] itself.
-//
-// The extra room is for the one case a uniform gap gets wrong. A button carries
-// its own inner padding, and where the row's gap is the narrower of the two, a
-// run of text beside the button sits closer to the label than the label sits to
-// its own edge — so the text reads as the first half of the button's label
-// rather than as something standing on its own. Nothing else in either row
-// needs it, and the zero value is the row's own gap.
+// room to leave between it and the control already placed at that end, and
+// the [layout.Widget] itself. The zero value for the room is the row's own
+// gap.
 type slot struct {
 	at    side
 	apart unit.Dp
@@ -751,40 +484,33 @@ type slot struct {
 }
 
 // centreRow lays a row of controls out on one shared centre line: the leading
-// ones packed against the left edge in the order they are named, the trailing
-// ones against the right edge in the order they are named, and every one of
-// them placed so its own middle lands on the row's middle.
+// ones packed against the leading edge in the order they are named, the
+// trailing ones against the trailing edge in the order they are named, and
+// every one of them placed so its own middle lands on the row's middle.
 //
 // The middle is arithmetic and not an alignment flag. A control dy tall goes
 // at h/2 - dy/2 from the top, which makes its own middle — top + dy/2 — the
 // row's middle exactly, for every height, odd or even, and even for a control
-// taller than the row it is in. Written the other way round, as half of what is
-// left over, the same line is a point out on odd heights and a point out the
-// other way on a control that overflows. The exactness matters because this row
-// is the first thing anybody sees, and four objects a point or two out of line
-// with one another read as sloppiness.
+// taller than the row it is in.
 //
 // It is arithmetic rather than a Flex for a second reason. A Flex hands its
 // children the row's own minimum on the cross axis, and a child that honours a
 // minimum it was never meant to fill comes back the full height of the row and
-// then draws itself at the top of it — which is how a scheme switch ends up
-// sitting a dozen points above the buttons it is supposed to be level with.
-// Here every control is measured with no minimum at all, so what comes back is
-// the height the control actually wanted.
+// then draws itself at the top of it.
 //
 // The order the slots are named in is the order they are measured in, and each
 // is offered only what the ones before it left. So it is also the order they
-// keep their size in when the row is too narrow for all of them: the first slot
-// named is the last to be squeezed, and a control handed nothing takes no room
-// and no gap.
+// keep their size in when the row is too narrow for all of them: the first
+// slot named is the last to be squeezed, and a control handed nothing takes no
+// room and no gap.
 func centreRow(gtx layout.Context, h, gap int, slots ...slot) layout.Dimensions {
 	dims, _ := centreRowFree(gtx, h, gap, slots...)
 	return dims
 }
 
 // centreRowFree is centreRow reporting, beside the row it laid out, the run of
-// it nothing was laid in: from the trailing edge of the last leading control to
-// the leading edge of the first trailing one, the row's full height.
+// it nothing was laid in: from the trailing edge of the last leading control
+// to the leading edge of the first trailing one, the row's full height.
 //
 // Only the title row asks. It stands in the strip a title bar would otherwise
 // own, and that makes its empty middle the window's drag handle — which has to
@@ -847,20 +573,6 @@ func centreRowFree(gtx layout.Context, h, gap int, slots ...slot) (layout.Dimens
 	return layout.Dimensions{Size: image.Pt(width, h)}, free
 }
 
-// DropWell is the invitation at the height it takes on the first screen: a band
-// across the top rather than the whole page, so the styles under it are on
-// screen without anybody having to scroll to find out they exist. It is still
-// the first thing and the biggest single object there, because dropping a
-// picture is still what the window is for.
-func DropWell(p Palette, ty Type, m Model) layout.Widget {
-	well := Invitation(p, ty, m)
-	return func(gtx layout.Context) layout.Dimensions {
-		h := min(gtx.Dp(DropH), gtx.Constraints.Max.Y)
-		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = h, h
-		return well(gtx)
-	}
-}
-
 // SchemeToggle is the light/dark control: a sun and a moon, the one on screen
 // filled. The segments are the ones the inventory's own pages carry, so the
 // control that changes scheme looks the same wherever the inventory is shown;
@@ -870,15 +582,12 @@ func DropWell(p Palette, ty Type, m Model) layout.Widget {
 // the message it sends says which — pointing at the moon asks for dark from
 // either side, and pointing at the half already filled asks for the scheme
 // that is already on, which the update treats as the no-op it is.
-func SchemeToggle(c tokens.ColorTokens, dark bool, clicks *[2]gesture.Click) layout.Widget {
+func SchemeToggle(c tokens.PlatformColors, dark bool, clicks *[2]gesture.Click) layout.Widget {
 	segment := func(i int, wantDark bool) layout.FlexChild {
 		draw := inventory.SchemeSegment(c, wantDark, dark == wantDark)
 		// The press area is the one the control hands out and not the one it
 		// draws. Its track is cut to the scale of the strip it stands in, and
-		// the height that came off it is given back as slop above and below —
-		// which is air on this row either way, so what a pointer has to land
-		// on stands at the standing minimum while the row keeps the height the
-		// track cut it to.
+		// the height that came off it is given back as slop above and below.
 		press := func(gtx layout.Context, w layout.Widget) layout.Dimensions {
 			dims := w(gtx)
 			area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
@@ -913,42 +622,14 @@ const (
 	schemeDarkSegment
 )
 
-// Invitation is the window before anything has been dropped on it: a well
-// covering the page, saying what to drop and where. "Where" is the whole
-// window, and saying so is the only way a target with no edges of its own
-// can be discovered.
-func Invitation(p Palette, ty Type, m Model) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
-		r := image.Rectangle{Max: size}
-		fill, edge, width := p.Surface, p.Seam, gtx.Dp(Hairline)
-		if m.DragOver {
-			fill, edge, width = p.Selection, p.Accent, gtx.Dp(Ring)
-		}
-		fillRRect(gtx, r, gtx.Dp(Radius), fill)
-		strokeRRect(gtx, r, gtx.Dp(Radius), width, edge)
-
-		line := gtx.Dp(28)
-		mid := size.Y / 2
-		title := image.Rect(0, mid-line*3/2, size.X, mid-line/2)
-		sub := image.Rect(0, mid-line/2, size.X, mid+line/2)
-		note := image.Rect(0, mid+line/2, size.X, mid+line*3/2)
-		textdraw.FillText(gtx, ty.Shaper, ty.Title, title, 0.5, 0.5, p.Text, "Drop an image here")
-		textdraw.FillText(gtx, ty.Shaper, ty.Body, sub, 0.5, 0.5, p.Muted, "Anywhere on the window. PNG, JPEG or GIF.")
-		if m.Problem != "" {
-			textdraw.FillText(gtx, ty.Shaper, ty.Small, note, 0.5, 0.5, p.Problem, m.Problem)
-		}
-		return layout.Dimensions{Size: size}
-	}
-}
-
-// shownSide is the side of a seed's pair the window is currently drawing.
-func shownSide(seed stdcolor.NRGBA, dark bool) tokens.ColorTokens {
-	light, darkTokens := tokens.FromSeed(seed)
-	if dark {
-		return darkTokens
-	}
-	return light
+// natural is how wide a string wants to be, unconstrained by the room it is
+// about to be given. It is measured against a width nothing reaches rather
+// than against the constraints in hand, because the shaper truncates to
+// whatever MaxWidth it is handed — so measuring inside the available room
+// would report the room back, and never that the string did not fit in it.
+func natural(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, str string) int {
+	gtx.Constraints = layout.Constraints{Max: image.Pt(1<<20, 1<<20)}
+	return textdraw.MeasureText(gtx, shaper, style, str).X
 }
 
 // rigid wraps a [layout.Widget] as a Flex child that takes the height it asks
@@ -960,6 +641,11 @@ func spacer(h unit.Dp) layout.FlexChild {
 	return layout.Rigid(layout.Spacer{Height: h}.Layout)
 }
 
+// fillRect paints a rectangle.
+func fillRect(gtx layout.Context, r image.Rectangle, c stdcolor.NRGBA) {
+	paint.FillShape(gtx.Ops, c, clip.Rect(r).Op())
+}
+
 // fillRRect paints a rounded rectangle.
 func fillRRect(gtx layout.Context, r image.Rectangle, radius int, c stdcolor.NRGBA) {
 	defer clip.UniformRRect(r, radius).Push(gtx.Ops).Pop()
@@ -967,8 +653,8 @@ func fillRRect(gtx layout.Context, r image.Rectangle, radius int, c stdcolor.NRG
 	paint.PaintOp{}.Add(gtx.Ops)
 }
 
-// strokeRRect outlines a rounded rectangle, inset by half the stroke width
-// so the whole line lands inside the rectangle rather than half outside it.
+// strokeRRect outlines a rounded rectangle, inset by half the stroke width so
+// the whole line lands inside the rectangle rather than half outside it.
 func strokeRRect(gtx layout.Context, r image.Rectangle, radius, width int, c stdcolor.NRGBA) {
 	if width <= 0 {
 		return

@@ -23,7 +23,6 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/textdraw"
-	"github.com/vibrantgio/theme/tokens"
 )
 
 // boltDp is the construction size of the output bolt; the header's output
@@ -51,8 +50,8 @@ func voltRow(t themed, r Reading) layout.Widget {
 	return panelRow(t, t.palette.Volt, fmt.Sprintf("%05.2f", r.VOut), "V", badgeTxt, t.palette.Volt)
 }
 
-// presetBadge is the active-preset pill ("M2"): the unit letters' style
-// knocked out of the volt colour, on the line above the readouts.
+// presetBadge is the active-preset pill ("M2"): the unit letters' style on
+// the volt colour, on the line above the readouts.
 func presetBadge(t themed, active int) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if !isGroup(active) {
@@ -140,8 +139,7 @@ func panelRow(t themed, foreground color.NRGBA, digits, unit, badgeTxt string, b
 }
 
 // tripBadge is the header's protection flag: the latest trip, the badge
-// labels' style knocked out of the danger colour — the backdrop-coloured text
-// reads white-on-red in a light scheme. Empty while nothing is tripped.
+// labels' style on the danger colour. Empty while nothing is tripped.
 func tripBadge(t themed, r Reading) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if r.Protect == 0 {
@@ -180,14 +178,15 @@ func outputCluster(t themed, r Reading) layout.Widget {
 		stackX := totalH - totalH*7/24 + gtx.Dp(2)
 		badgeBox(gtx, t, "ON", p.Volt, r.On,
 			image.Rect(stackX, 0, stackX+boxW, boxH))
-		badgeBox(gtx, t, "OFF", p.Label, !r.On,
+		badgeBox(gtx, t, "OFF", p.Secondary, !r.On,
 			image.Rect(stackX, boxH+gap, stackX+boxW, totalH))
 		return layout.Dimensions{Size: image.Pt(stackX+boxW, totalH)}
 	}
 }
 
-// badgeBox paints one badge: the label centered in the box — knocked out of
-// the state colour when active, set in the disabled one with no fill when idle.
+// badgeBox paints one badge: the label centered in the box — on the state
+// colour when active, in the platform's disabled control text with no fill
+// when idle.
 func badgeBox(gtx layout.Context, t themed, txt string, fill color.NRGBA, active bool, r image.Rectangle) {
 	badgeBoxStyled(gtx, t, t.typ.Stack, txt, fill, active, r)
 }
@@ -196,8 +195,8 @@ func badgeBox(gtx layout.Context, t themed, txt string, fill color.NRGBA, active
 func badgeBoxStyled(gtx layout.Context, t themed, style textdraw.TextStyle, txt string, fill color.NRGBA, active bool, r image.Rectangle) {
 	if active {
 		paint.FillShape(gtx.Ops, fill, clip.UniformRRect(r, gtx.Dp(4)).Op(gtx.Ops))
-		textdraw.FillText(gtx, t.typ.Shaper, style, r, 0.5, 0.5, t.palette.Backdrop, txt)
+		textdraw.FillText(gtx, t.typ.Shaper, style, r, 0.5, 0.5, t.palette.FilledText, txt)
 		return
 	}
-	textdraw.FillText(gtx, t.typ.Shaper, style, r, 0.5, 0.5, tokens.Disabled(t.palette.Label), txt)
+	textdraw.FillText(gtx, t.typ.Shaper, style, r, 0.5, 0.5, t.palette.Dim, txt)
 }

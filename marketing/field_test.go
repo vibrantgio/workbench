@@ -16,10 +16,10 @@ import (
 func TestFieldStrokeOnlyOneColour(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
-		colors tokens.ColorTokens
+		colors tokens.PlatformColors
 	}{
-		{"light", tokens.DefaultLight},
-		{"dark", tokens.DefaultDark},
+		{"light", tokens.PlatformLight},
+		{"dark", tokens.PlatformDark},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newField(new(app.Window), 400, 300)
@@ -41,7 +41,7 @@ func TestFieldStrokeOnlyOneColour(t *testing.T) {
 				}
 				got := faces[i].StrokeMaterial.Color
 				if !got.Equal(want) {
-					t.Errorf("face %d: stroke %v, want FocusRing %v", i, got, want)
+					t.Errorf("face %d: stroke %v, want the separator over the window's plane %v", i, got, want)
 				}
 			}
 		})

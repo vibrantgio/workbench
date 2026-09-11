@@ -62,9 +62,9 @@ const titleBandDp unit.Dp = 32
 // staticTheme is one theme emission as a snapshot: every stream is rx.Of, so
 // the components built from it — the search field is the only one here —
 // resolve synchronously through First().
-func staticTheme(c tokens.ColorTokens, typo tokens.Typography) theme.Theme {
+func staticTheme(c tokens.PlatformColors, typo tokens.Typography) theme.Theme {
 	return theme.Theme{
-		Color:      rx.Of(c),
+		Platform:   rx.Of(c),
 		Typography: rx.Of(typo),
 		Density:    rx.Of(tokens.Comfortable),
 		Motion:     rx.Of(tokens.Motion),
@@ -92,7 +92,7 @@ func staticTypo(typo tokens.Typography) Type {
 // The prebuild is the app's own — `raster.Widget` decodes a viewBox up front and
 // rasterises lazily — and it is cached across frames so that four renders of a
 // 961-glyph catalogue cost one pass over it.
-func staticThemed(t *testing.T, c tokens.ColorTokens) themed {
+func staticThemed(t *testing.T, c tokens.PlatformColors) themed {
 	t.Helper()
 	p := PaletteFrom(c)
 	if cached, ok := prebuilt[p.Icon]; ok {
@@ -118,7 +118,7 @@ var prebuilt = map[color.NRGBA][]layout.Widget{}
 // snapshot: the same components TextField ContentLayer subscribes to, with the
 // pinned shaper a render made outside the window has to name. It is the
 // window's topmost paint, so it is the thing the clearance assertions are about.
-func staticSearch(t *testing.T, c tokens.ColorTokens) layout.Widget {
+func staticSearch(t *testing.T, c tokens.PlatformColors) layout.Widget {
 	t.Helper()
 	typo := tokens.DefaultTypography
 	w, err := input.TextField(rx.Of(staticTheme(c, typo)), input.TextFieldProps{
@@ -139,7 +139,7 @@ func staticSearch(t *testing.T, c tokens.ColorTokens) layout.Widget {
 //
 // band is the strip height to render under; 0 draws the window as every
 // platform but macOS shows it, with the page at the window's own top edge.
-func windowFrame(t *testing.T, c tokens.ColorTokens, model Model, band unit.Dp) layout.Widget {
+func windowFrame(t *testing.T, c tokens.PlatformColors, model Model, band unit.Dp) layout.Widget {
 	t.Helper()
 	tok := staticThemed(t, c)
 	paintBackdrop := backdrop.Widget(tok.palette.Backdrop)
@@ -153,7 +153,7 @@ func windowFrame(t *testing.T, c tokens.ColorTokens, model Model, band unit.Dp) 
 	}
 }
 
-func renderWindow(t *testing.T, c tokens.ColorTokens, query string, band unit.Dp) *image.RGBA {
+func renderWindow(t *testing.T, c tokens.PlatformColors, query string, band unit.Dp) *image.RGBA {
 	t.Helper()
 	return golden.Capture(t, windowSize, windowFrame(t, c, Model{Query: query}, band))
 }
@@ -195,10 +195,10 @@ func countFill(img *image.RGBA, r image.Rectangle, want color.NRGBA) int {
 // windowSchemes is the pair every rule below is checked against.
 var windowSchemes = []struct {
 	name string
-	c    tokens.ColorTokens
+	c    tokens.PlatformColors
 }{
-	{"light", tokens.DefaultLight},
-	{"dark", tokens.DefaultDark},
+	{"light", tokens.PlatformLight},
+	{"dark", tokens.PlatformDark},
 }
 
 // windowQueries are the three shapes the page takes: the whole catalogue under
@@ -245,23 +245,17 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestTheGridRestsAtTheContentLevel reads the surface walk off the frame: the
-// grid draws straight onto the Background pin, with nothing raised on it and
-// no selection to tint, so the only thing off the pin is paint and the one
-// control standing on it.
-func TestTheGridRestsAtTheContentLevel(t *testing.T) {
+// TestTheGridRestsOnTheWindowsPlane reads the window's fill off the frame:
+// the catalogue draws straight onto the window's own plane, so the plane is
+// what most of the frame is. Nothing here is a second fill — the catalogue's
+// paint is a glyph and a caption centred in each cell, never a tile.
+func TestTheGridRestsOnTheWindowsPlane(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
 			frame := image.Rectangle{Max: windowSize}
-			content := tc.c.SurfaceAt(tokens.Level0)
-			raised := tc.c.SurfaceAt(tokens.Level1)
-			transient := tc.c.SurfaceAt(tokens.Level2)
+			plane := tc.c.WindowBackground
 
-			// The walk out from the middle: the window's centre and its edge
-			// wear one level, and it is the resting fill. Both points land
-			// on the content — the catalogue's paint is a glyph and a caption
-			// centred in each cell, never a fill of one.
 			for _, p := range []struct {
 				name string
 				at   image.Point
@@ -269,40 +263,15 @@ func TestTheGridRestsAtTheContentLevel(t *testing.T) {
 				{"window centre", image.Pt(windowSize.X/2, windowSize.Y/2)},
 				{"window edge", image.Pt(2, windowSize.Y/2)},
 			} {
-				if got := pixelAt(img, p.at); got != content {
-					t.Errorf("%s at %v = %v, want the resting fill %v", p.name, p.at, got, content)
+				if got := pixelAt(img, p.at); got != plane {
+					t.Errorf("%s at %v = %v, want the window's plane %v", p.name, p.at, got, plane)
 				}
 			}
 
-			// And it is that fill in bulk, not just at two points: the
-			// catalogue is glyphs and captions on the content, not tiles.
 			total := windowSize.X * windowSize.Y
-			if n := countFill(img, frame, content); n*4 < total*3 {
-				t.Errorf("the resting fill %v covers %d of %d pixels; the thing this window exists to show is not what most of it is",
-					content, n, total)
-			}
-			// Level 1 is bounded by the one control that may wear it rather
-			// than by a round fraction of the window, because that control is
-			// full-width: the search field is a Density.ControlHeight box
-			// spanning the page less its Padding gutters. That box is what the
-			// level is allowed, with a few rows of slack for the field's own
-			// text metrics; anything past it is an expanse, not a control.
-			field := (windowSize.X - 2*int(Padding)) * (int(tokens.Comfortable.ControlHeight) + 8)
-			if n := countFill(img, frame, raised); n > field {
-				t.Errorf("level 1 (%v) covers %d of %d pixels, past the %d the search field's own box accounts for; a control on the resting fill may wear it, a resting expanse may not",
-					raised, n, total, field)
-			}
-			// Level 2 is not asked for zero, because a ramp step is a colour
-			// and an anti-aliased edge between two others can land on it by
-			// arithmetic. What the level may not be is an expanse.
-			//
-			// It is only asked at all where level 2 is a different fill from
-			// level 1: the light scheme has one band step above its content
-			// and spends it on the first raise, so its raised and floating
-			// levels are one colour and no pixel can tell them apart.
-			if n := countFill(img, frame, transient); transient != raised && n*1000 > total {
-				t.Errorf("level 2 (%v) covers %d of %d pixels of the resting window; that level is for what appears and leaves",
-					transient, n, total)
+			if n := countFill(img, frame, plane); n*4 < total*3 {
+				t.Errorf("the window's plane %v covers %d of %d pixels; the thing this window exists to show is not what most of it is",
+					plane, n, total)
 			}
 		})
 	}
@@ -317,9 +286,9 @@ func TestTheBackdropReachesTheWindowsTopEdge(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
-			content := tc.c.SurfaceAt(tokens.Level0)
+			content := tc.c.WindowBackground
 			if got := PaletteFrom(tc.c).Backdrop; got != content {
-				t.Fatalf("the backdrop paints %v and level 0 resolves to %v", got, content)
+				t.Fatalf("the backdrop paints %v and the window's plane is %v", got, content)
 			}
 			for _, x := range []int{0, windowSize.X / 2, windowSize.X - 1} {
 				for _, y := range []int{0, band / 2, band - 1} {
@@ -339,7 +308,7 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
-			if top := topmostDrawn(img, tc.c.SurfaceAt(tokens.Level0)); top < int(titleBandDp) {
+			if top := topmostDrawn(img, tc.c.WindowBackground); top < int(titleBandDp) {
 				t.Errorf("the page paints row %d, inside the %d dp title-bar strip; only the window fill belongs there", top, int(titleBandDp))
 			}
 		})
@@ -371,7 +340,7 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 		for _, q := range windowQueries {
 			t.Run(tc.name+"-"+q.name, func(t *testing.T) {
 				img := renderWindow(t, tc.c, q.query, titleBandDp)
-				content := tc.c.SurfaceAt(tokens.Level0)
+				content := tc.c.WindowBackground
 				for y := 0; y <= bottom; y++ {
 					for x := 0; x <= int(run.Trailing); x++ {
 						if got := pixelAt(img, image.Pt(x, y)); got != content {
@@ -395,10 +364,10 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 func TestTheInsetIsWhatBuysTheClearance(t *testing.T) {
 	run := desktop.ButtonRunIn(titleBandDp)
 	bottom := int(run.Leading + run.Diameter)
-	content := tokens.DefaultLight.SurfaceAt(tokens.Level0)
+	content := tokens.PlatformLight.WindowBackground
 
-	capped := renderWindow(t, tokens.DefaultLight, "", titleBandDp)
-	bare := renderWindow(t, tokens.DefaultLight, "", 0)
+	capped := renderWindow(t, tokens.PlatformLight, "", titleBandDp)
+	bare := renderWindow(t, tokens.PlatformLight, "", 0)
 
 	if top := topmostDrawn(bare, content); top > bottom {
 		t.Errorf("the uninset page's topmost paint is row %d and the buttons end at row %d; it clears them without the strip, so this window's inset is not what it is documented to be",

@@ -62,11 +62,11 @@ const titleBandDp unit.Dp = 32
 // own — that a stored render has to shape with. It builds Type by hand rather
 // than through TypeFrom, which would take the theme's own cached shaper and so
 // whatever the host can find.
-func staticThemed(c tokens.ColorTokens) themed {
+func staticThemed(p tokens.PlatformColors) themed {
 	typo := tokens.DefaultTypography
 	return themed{
 		components: theme.Theme{
-			Color:      rx.Of(c),
+			Platform:   rx.Of(p),
 			Typography: rx.Of(typo),
 			Density:    rx.Of(tokens.Comfortable),
 			Motion:     rx.Of(tokens.Motion),
@@ -74,7 +74,7 @@ func staticThemed(c tokens.ColorTokens) themed {
 			Radius:     rx.Of(tokens.Radius),
 			Elevation:  rx.Of(tokens.Elevation),
 		},
-		palette: PaletteFrom(c),
+		palette: PaletteFrom(p),
 		typ: Type{
 			Shaper:   typo.DeterministicShaper(),
 			Headline: textStyle(typo.HeadlineSmall),
@@ -106,8 +106,8 @@ func fixtureModel(route string) Model {
 //
 // band is the strip height to render under; 0 draws the window as every
 // platform but macOS shows it, with the page at the window's own top edge.
-func windowFrame(c tokens.ColorTokens, model Model, band unit.Dp) layout.Widget {
-	th := staticThemed(c)
+func windowFrame(p tokens.PlatformColors, model Model, band unit.Dp) layout.Widget {
+	th := staticThemed(p)
 	paintBackdrop := backdrop.Widget(th.palette.Backdrop)
 	page := view(th, model, func() unit.Dp { return band })
 	return func(gtx layout.Context) layout.Dimensions {
@@ -116,9 +116,9 @@ func windowFrame(c tokens.ColorTokens, model Model, band unit.Dp) layout.Widget 
 	}
 }
 
-func renderWindow(t *testing.T, c tokens.ColorTokens, route string, band unit.Dp) *image.RGBA {
+func renderWindow(t *testing.T, p tokens.PlatformColors, route string, band unit.Dp) *image.RGBA {
 	t.Helper()
-	return golden.Capture(t, windowSize, windowFrame(c, fixtureModel(route), band))
+	return golden.Capture(t, windowSize, windowFrame(p, fixtureModel(route), band))
 }
 
 // topmostDrawn reports the first row of the frame carrying a pixel that is
@@ -158,10 +158,10 @@ func countFill(img *image.RGBA, r image.Rectangle, want color.NRGBA) int {
 // windowSchemes is the pair every rule below is checked against.
 var windowSchemes = []struct {
 	name string
-	c    tokens.ColorTokens
+	c    tokens.PlatformColors
 }{
-	{"light", tokens.DefaultLight},
-	{"dark", tokens.DefaultDark},
+	{"light", tokens.PlatformLight},
+	{"dark", tokens.PlatformDark},
 }
 
 var windowRoutes = []struct {
@@ -203,25 +203,22 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestTheListRestsAtTheContentLevel reads the surface walk off the frame: the
-// middle and the edge are the same fill, and the only level-1 pixels are the
-// raised controls standing on it.
+// TestTheListStandsOnTheWindowsOwnPlane reads the window's fills off the
+// frame: the middle and the edge are the platform's window background, and
+// that fill is most of what the window is. The list paints nothing of its
+// own, so anything else in the frame is text, a checkbox or a glyph.
 //
-// It renders the route with no dialog on it, because the walk is over the
-// window at rest: a modal stands in the middle at level 2 by design, so a walk
-// taken with one open would report a violation the grammar granted.
-func TestTheListRestsAtTheContentLevel(t *testing.T) {
+// It renders the route with no dialog on it, because the claim is about the
+// window at rest: a modal lays a scrim over everything.
+func TestTheListStandsOnTheWindowsOwnPlane(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
 			frame := image.Rectangle{Max: windowSize}
-			content := tc.c.SurfaceAt(tokens.Level0)
-			raised := tc.c.SurfaceAt(tokens.Level1)
-			transient := tc.c.SurfaceAt(tokens.Level2)
+			plane := tc.c.WindowBackground
 
-			// The walk out from the middle: centre and edge wear one level,
-			// and it is the resting fill. Both points are clear of paint — the
-			// rows stack from the window's top and end well above its middle.
+			// Both points are clear of paint — the rows stack from the
+			// window's top and end well above its middle.
 			for _, p := range []struct {
 				name string
 				at   image.Point
@@ -229,35 +226,16 @@ func TestTheListRestsAtTheContentLevel(t *testing.T) {
 				{"window centre", image.Pt(windowSize.X/2, windowSize.Y/2)},
 				{"window edge", image.Pt(2, windowSize.Y/2)},
 			} {
-				if got := pixelAt(img, p.at); got != content {
-					t.Errorf("%s at %v = %v, want the resting fill %v", p.name, p.at, got, content)
+				if got := pixelAt(img, p.at); got != plane {
+					t.Errorf("%s at %v = %v, want the window's own plane %v", p.name, p.at, got, plane)
 				}
 			}
 
-			// And it is that fill in bulk, not just at two points: the
-			// resting window is the pin, with text and controls on it.
+			// And it is that fill in bulk, not just at two points.
 			total := windowSize.X * windowSize.Y
-			if n := countFill(img, frame, content); n*4 < total*3 {
-				t.Errorf("the resting fill %v covers %d of %d pixels; the thing this window exists to show is not what most of it is",
-					content, n, total)
-			}
-			if n := countFill(img, frame, raised); n*100 > total {
-				t.Errorf("level 1 (%v) covers %d of %d pixels; a control on the resting fill may wear it, a resting expanse may not",
-					raised, n, total)
-			}
-			// Level 2 is not asked for zero: a ramp step is a colour, and an
-			// anti-aliased edge between two other colours can land on it by
-			// arithmetic — a couple of dozen pixels along the rounded checkbox
-			// borders do, in both schemes. What the level may not be is an
-			// expanse.
-			//
-			// It only bites where level 2 is a different fill from level 1:
-			// the light scheme has one band step above its content and
-			// spends it on the first raise, so its raised and floating
-			// levels are one colour and no pixel can tell them apart.
-			if n := countFill(img, frame, transient); transient != raised && n*1000 > total {
-				t.Errorf("level 2 (%v) covers %d of %d pixels of the resting window; that level is for what appears and leaves",
-					transient, n, total)
+			if n := countFill(img, frame, plane); n*4 < total*3 {
+				t.Errorf("the window's own plane %v covers %d of %d pixels; the thing this window exists to show is not what most of it is",
+					plane, n, total)
 			}
 		})
 	}
@@ -282,24 +260,24 @@ func dialogRect() image.Rectangle {
 	return image.Rect(x, y, x+w, y+h)
 }
 
-// TestTheDialogAndItsFieldHoldTheirLevels reads the modal's two surfaces off
-// the frame. The dialog is at level 2, and the field inside it is the raise
-// walked from the dialog rather than from the window: a raised inset steps up
-// from the surface it lies on.
-//
-// Where the scheme has no step left the two are one fill, and the field is
-// told by the border it already draws rather than by its own colour — so the
-// pixel-count claim is made only where the walk actually moved.
-func TestTheDialogAndItsFieldHoldTheirLevels(t *testing.T) {
+// TestTheDialogAndItsFieldWearThePlatformsFills reads the modal's two fills
+// off the frame. A floating surface is the window's own plane on this
+// platform, and the field inside it is the platform's text plane inside the
+// hairline a field draws around itself — the two fills are the same value,
+// which is what the platform's own save sheet draws, so the hairline is the
+// whole of what says where the field is.
+func TestTheDialogAndItsFieldWearThePlatformsFills(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			p := PaletteFrom(tc.c)
-			if want := tc.c.SurfaceAt(tokens.Level2); p.Dialog != want {
-				t.Errorf("dialog surface = %v, want level 2 %v", p.Dialog, want)
+			if p.Dialog != tc.c.WindowBackground {
+				t.Errorf("dialog fill = %v, want the window's own plane %v", p.Dialog, tc.c.WindowBackground)
 			}
-			raise := tc.c.RaisedOn(tc.c.SurfaceAt(tokens.Level2))
-			if p.Edit != raise.Fill {
-				t.Errorf("field fill = %v, want the raise off the dialog %v", p.Edit, raise.Fill)
+			if p.Field != tc.c.TextBackground {
+				t.Errorf("field fill = %v, want the platform's text plane %v", p.Field, tc.c.TextBackground)
+			}
+			if p.FieldEdge != tc.c.FieldEdge {
+				t.Errorf("field hairline = %v, want the platform's field edge %v", p.FieldEdge, tc.c.FieldEdge)
 			}
 
 			img := renderWindow(t, tc.c, "add.todo", titleBandDp)
@@ -310,28 +288,23 @@ func TestTheDialogAndItsFieldHoldTheirLevels(t *testing.T) {
 			// nothing is drawn over it.
 			at := image.Pt(rect.Min.X+rect.Dx()/2, rect.Max.Y-6)
 			if got := pixelAt(img, at); got != p.Dialog {
-				t.Errorf("dialog surface at %v = %v, want %v", at, got, p.Dialog)
+				t.Errorf("dialog fill at %v = %v, want %v", at, got, p.Dialog)
 			}
 
-			// The field is actually painted, and the dialog it lies in is
-			// still the larger of the two — asked only where the raise has
-			// a fill of its own to be counted.
-			if !raise.Seamed {
-				field := countFill(img, rect, p.Edit)
-				dialog := countFill(img, rect, p.Dialog)
-				if field < 2000 {
-					t.Errorf("the field fill %v covers %d pixels of the dialog; a level nothing is painted in is not a level",
-						p.Edit, field)
-				}
-				if dialog <= field {
-					t.Errorf("the dialog covers %d pixels and the field on it %d; the inset has swallowed the surface it rests on",
-						dialog, field)
-				}
+			// The hairline is actually drawn: it rings a field the width of
+			// the dialog's inset content, so a ring of it is thousands of
+			// pixels and a threshold well under that catches a field that
+			// stopped being painted.
+			if n := countFill(img, rect, p.FieldEdge); n < 1000 {
+				t.Errorf("the field hairline %v covers %d pixels of the dialog; the hairline is the whole of what says where the field is",
+					p.FieldEdge, n)
 			}
 
-			// And the page behind is not showing through at either level.
-			if got := pixelAt(img, at); got == tc.c.SurfaceAt(tokens.Level0) {
-				t.Errorf("the dialog reads as the window fill at %v", at)
+			// And the page behind it is dimmed, which is what tells the
+			// dialog from the plane it repeats.
+			behind := image.Pt(rect.Min.X/2, rect.Max.Y-6)
+			if got := pixelAt(img, behind); got == p.Dialog {
+				t.Errorf("the page beside the dialog at %v reads %v, the dialog's own fill; the scrim is not dimming it", behind, got)
 			}
 		})
 	}
@@ -346,14 +319,14 @@ func TestTheBackdropReachesTheWindowsTopEdge(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
-			content := tc.c.SurfaceAt(tokens.Level0)
+			content := tc.c.WindowBackground
 			if got := PaletteFrom(tc.c).Backdrop; got != content {
-				t.Fatalf("the backdrop paints %v and level 0 resolves to %v", got, content)
+				t.Fatalf("the backdrop paints %v and the window's own plane is %v", got, content)
 			}
 			for _, x := range []int{0, windowSize.X / 2, windowSize.X - 1} {
 				for _, y := range []int{0, band / 2, band - 1} {
 					if got := pixelAt(img, image.Pt(x, y)); got != content {
-						t.Errorf("strip pixel at (%d,%d) = %v, want the window's resting fill %v", x, y, got, content)
+						t.Errorf("strip pixel at (%d,%d) = %v, want the window's own plane %v", x, y, got, content)
 					}
 				}
 			}
@@ -368,7 +341,7 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
-			if top := topmostDrawn(img, tc.c.SurfaceAt(tokens.Level0)); top < int(titleBandDp) {
+			if top := topmostDrawn(img, tc.c.WindowBackground); top < int(titleBandDp) {
 				t.Errorf("the page paints row %d, inside the %d dp title-bar strip; only the window fill belongs there", top, int(titleBandDp))
 			}
 		})
@@ -389,7 +362,7 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, "", titleBandDp)
-			content := tc.c.SurfaceAt(tokens.Level0)
+			content := tc.c.WindowBackground
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
 					if got := pixelAt(img, image.Pt(x, y)); got != content {
@@ -433,8 +406,8 @@ func TestTheModalCoversTheStripToo(t *testing.T) {
 // all still pass if the cap stopped insetting anything, since the first
 // row's paint starts below the buttons' run on its own.
 func TestTheStripMovesThePage(t *testing.T) {
-	capped := renderWindow(t, tokens.DefaultLight, "", titleBandDp)
-	bare := renderWindow(t, tokens.DefaultLight, "", 0)
+	capped := renderWindow(t, tokens.PlatformLight, "", titleBandDp)
+	bare := renderWindow(t, tokens.PlatformLight, "", 0)
 	if n := golden.PixelDiff(capped, bare); n == 0 {
 		t.Error("the window renders identically with and without a title-bar strip; the page is not being inset")
 	}

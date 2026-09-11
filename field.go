@@ -68,13 +68,13 @@ type fieldPalette struct {
 	lit    float64
 }
 
-// paletteFrom derives the field's palette from the components colour tokens: the
-// hue family follows the theme's Primary, and the value range keeps the field
-// a faint backdrop — deep tones on a dark background, pastel on a light one —
-// so the hero text and cards floating on it stay readable.
-func paletteFrom(c tokens.ColorTokens) fieldPalette {
-	hue, _, _ := rgbToHSL(c.Primary)
-	_, _, backLit := rgbToHSL(c.Background)
+// paletteFrom derives the field's palette from the platform's colour set: the
+// hue family follows the platform's accent, and the value range keeps the
+// field a faint backdrop — deep tones on a dark plane, pastel on a light one —
+// so the hero text and the groups floating on it stay readable.
+func paletteFrom(c tokens.PlatformColors) fieldPalette {
+	hue, _, _ := rgbToHSL(c.ControlAccent)
+	_, _, backLit := rgbToHSL(c.WindowBackground)
 	if backLit < 0.5 {
 		return fieldPalette{hue: hue, spread: 0.10, sat: 0.38, lit: 0.30}
 	}
@@ -150,9 +150,9 @@ func NewField(window *app.Window, width, height unit.Dp) *Field {
 // Widget returns the field as a plain background layout.Widget.
 func (f *Field) Widget() layout.Widget { return f.view }
 
-// SetColors re-keys the palette to new theme tokens. Safe from any goroutine;
-// the animation tick applies it on the events thread.
-func (f *Field) SetColors(c tokens.ColorTokens) {
+// SetColors re-keys the palette to a new platform colour set. Safe from any
+// goroutine; the animation tick applies it on the events thread.
+func (f *Field) SetColors(c tokens.PlatformColors) {
 	pal := paletteFrom(c)
 	f.pending.Store(&pal)
 }

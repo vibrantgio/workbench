@@ -11,7 +11,6 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/theme/theme"
-	"github.com/vibrantgio/theme/tokens"
 )
 
 // TestBuildLayersConstructsWithoutPanic verifies that buildLayers returns two
@@ -22,7 +21,7 @@ import (
 func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 	start := initialModel()
 	modelObs := rx.Of(start)
-	layers := buildLayers(modelObs, tokens.DefaultSeed)(rx.Of(theme.Default()))
+	layers := buildLayers(modelObs)(rx.Of(theme.Default()))
 	if len(layers) != 2 {
 		t.Fatalf("buildLayers returned %d layers; want 2 (backdrop, shell)", len(layers))
 	}
@@ -38,17 +37,17 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 	}
 }
 
-// TestInitialModelSeedsDocs verifies that initialModel() produces a model
+// TestInitialModelOpensOnDocs verifies that initialModel() produces a model
 // with currentPage == pageDocs, the first ## section of the docs outline
 // disclosed (so the Docs tab opens with children showing), and no
 // selected heading.
-func TestInitialModelSeedsDocs(t *testing.T) {
+func TestInitialModelOpensOnDocs(t *testing.T) {
 	m := initialModel()
 	if m.currentPage != pageDocs {
 		t.Errorf("initialModel.currentPage = %q; want %q", m.currentPage, pageDocs)
 	}
 	if !m.outlineOpen[0] {
-		t.Errorf("initialModel.outlineOpen[0] = false; want true (first section seeded open)")
+		t.Errorf("initialModel.outlineOpen[0] = false; want true (first section opens disclosed)")
 	}
 	if m.selectedHeading != -1 {
 		t.Errorf("initialModel.selectedHeading = %d; want -1 (nothing selected)", m.selectedHeading)

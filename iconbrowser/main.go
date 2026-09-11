@@ -45,8 +45,8 @@ const (
 
 func run() {
 	// On macOS FullSizeContent extends the content behind a transparent title
-	// bar with the window control buttons floating over it, so the Background
-	// pin this window paints reaches its top edge; on every other platform it
+	// bar with the window control buttons floating over it, so the window plane
+	// this window paints reaches its top edge; on every other platform it
 	// returns no options and the window keeps its normal decorations.
 	// app.Title stays even though the treatment hides the title text — Mission
 	// Control, the Dock and VoiceOver still read it.

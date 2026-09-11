@@ -16,7 +16,6 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
-	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/workbench/todos/internal/place"
 )
 
@@ -54,12 +53,16 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 	}
 
 	// th is a static snapshot (rx.Of), so First() resolves synchronously.
-	// Level names the surface these buttons stand on — the dialog's, not the
-	// window's — so their state walks are taken from the surface under them.
+	// Surface names the opaque fill these buttons stand on — the dialog's,
+	// not the window's — so the seam and the press overlay they draw land
+	// where they actually fall.
+	// The platform fills one action in a sheet with the accent — the default
+	// one — and draws the other as an ordinary push button.
 	cancelBtn, _ := button.Button(th, button.Props{
-		Label:   "Cancel",
-		Message: SetRoute{},
-		Level:   tokens.Level2,
+		Label:    "Cancel",
+		Emphasis: button.Tonal,
+		Message:  SetRoute{},
+		Surface:  p.Dialog,
 	}).First()
 
 	label := "Save"
@@ -70,7 +73,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 	submitWidget, _ := button.Button(th, button.Props{
 		Label:   label,
 		OnClick: func(_ layout.Context) { submitClicked = true },
-		Level:   tokens.Level2,
+		Surface: p.Dialog,
 	}).First()
 	submitBtn := func(gtx layout.Context) layout.Dimensions {
 		dims := submitWidget(gtx)
@@ -98,17 +101,18 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 		gtx.Constraints.Min = image.Point{}
 
 		m := op.Record(gtx.Ops)
-		paint.ColorOp{Color: p.Text}.Add(gtx.Ops)
+		paint.ColorOp{Color: p.Editing}.Add(gtx.Ops)
 		textMaterial := m.Stop()
 
 		m = op.Record(gtx.Ops)
-		paint.ColorOp{Color: p.Select}.Add(gtx.Ops)
+		paint.ColorOp{Color: p.Selection}.Add(gtx.Ops)
 		selectMaterial := m.Stop()
 
 		return layout.UniformInset(Padding).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			// Dialog surface, centred, at level 2: one level clear of the
-			// page behind it, and not the level 3 an unscrimmed overlay takes,
-			// because the scrim is already doing the isolating.
+			// The dialog, centred: a floating surface, which on this
+			// platform is the window's own plane. What tells it from the page
+			// is the dim its scrim lays over everything behind it, so it
+			// needs no colour and no ring of its own.
 			size := image.Pt(gtx.Dp(ModalWidth), gtx.Dp(ModalHeight))
 			max := gtx.Constraints.Constrain(size)
 			rect = place.Place(image.Rectangle{Max: gtx.Constraints.Max}, max, 0.5, 0.5)
@@ -123,14 +127,12 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 				t := textdraw.MeasureText(gtx, typ.Shaper, typ.Headline, "W").Y
 				r := gtx.Dp(BorderRadius)
 
-				// Bordered text-entry field: accent border, field fill. The
-				// fill is one step on from the dialog it lies in, not one step
-				// off the window — a raised inset steps up from the surface it
-				// lies on.
+				// The text-entry field: the platform's text plane inside the
+				// hairline a field draws around itself.
 				rect := image.Rect(0, 0, max.X, t+2*(pad+b))
-				Pane(gtx, rect, r, p.Icon)
+				Pane(gtx, rect, r, p.FieldEdge)
 				rect = rect.Inset(b)
-				Pane(gtx, rect, r, p.Edit)
+				Pane(gtx, rect, r, p.Field)
 				rect = rect.Inset(pad)
 
 				for {
@@ -144,7 +146,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 				}
 
 				if edit.Text() == "" {
-					textdraw.FillText(gtx, typ.Shaper, typ.Title, rect, 0.0, 0.5, p.Select, "What needs to be done?")
+					textdraw.FillText(gtx, typ.Shaper, typ.Title, rect, 0.0, 0.5, p.Placeholder, "What needs to be done?")
 				}
 				func(gtx layout.Context) {
 					defer op.Offset(rect.Min).Push(gtx.Ops).Pop()

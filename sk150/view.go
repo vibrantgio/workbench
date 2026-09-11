@@ -58,6 +58,19 @@ type statIcons struct {
 	PowerOff layout.Widget // the header's toggle glyph while it is off
 }
 
+// pointerFill is the overlay the platform lays over a toolbar button's own
+// fill while the pointer is on it and while it is held. The zero colour
+// means the button is at rest and nothing is painted.
+func pointerFill(p Palette, click *widget.Clickable) color.NRGBA {
+	switch {
+	case click.Pressed():
+		return p.Press
+	case click.Hovered():
+		return p.Hover
+	}
+	return color.NRGBA{}
+}
+
 // statIconDp is the drawn glyph size of a dashboard stat.
 const statIconDp = 20
 
@@ -70,16 +83,16 @@ func iconsFrom(p Palette) statIcons {
 		return w
 	}
 	return statIcons{
-		Bolt:     mk(icons.ImageFlashOn, p.Label, statIconDp),
+		Bolt:     mk(icons.ImageFlashOn, p.Secondary, statIconDp),
 		BoltOn:   mk(icons.ImageFlashOn, p.Volt, boltDp),
-		BoltOff:  mk(icons.ImageFlashOn, tokens.Disabled(p.Label), boltDp),
-		Flame:    mk(icons.SocialWhatsHot, p.Label, statIconDp),
+		BoltOff:  mk(icons.ImageFlashOn, p.Dim, boltDp),
+		Flame:    mk(icons.SocialWhatsHot, p.Secondary, statIconDp),
 		FlameHot: mk(icons.SocialWhatsHot, p.Danger, statIconDp),
-		Battery:  mk(icons.DeviceBatteryChargingFull, p.Label, statIconDp),
-		Flare:    mk(icons.ImageFlare, p.Label, statIconDp),
-		Clock:    mk(icons.DeviceAccessTime, p.Label, statIconDp),
+		Battery:  mk(icons.DeviceBatteryChargingFull, p.Secondary, statIconDp),
+		Flare:    mk(icons.ImageFlare, p.Secondary, statIconDp),
+		Clock:    mk(icons.DeviceAccessTime, p.Secondary, statIconDp),
 		PowerOn:  mk(icons.ActionPowerSettingsNew, p.Volt, 28),
-		PowerOff: mk(icons.ActionPowerSettingsNew, p.Label, 28),
+		PowerOff: mk(icons.ActionPowerSettingsNew, p.Secondary, 28),
 	}
 }
 
@@ -279,15 +292,16 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	}))
 
 	// The override dialog's footer actions. Caller-owned clickables put
-	// them in the modal's Tab cycle; both stand on the dialog's level-2
-	// surface.
+	// them in the modal's Tab cycle. Both stand on the dialog's own fill,
+	// which is the window's plane — the button's own default — so neither
+	// states a surface.
 	var lvpCancelClick, lvpConfirmClick widget.Clickable
 	reg.add("lvp.cancel", button.Button(th, button.Props{
-		Label: "Cancel", Emphasis: button.Ghost, Level: tokens.Level2,
+		Label: "Cancel", Emphasis: button.Ghost,
 		Clickable: &lvpCancelClick, Message: DismissLVP{},
 	}))
 	reg.add("lvp.confirm", button.Button(th, button.Props{
-		Label: "Set anyway", Level: tokens.Level2,
+		Label:     "Set anyway",
 		Clickable: &lvpConfirmClick, Message: ConfirmLVP{},
 	}))
 	widgets := rx.CombineLatest(reg.obs...)
@@ -318,7 +332,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		}
 		m, t := st.m, st.t
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Text,
+			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label,
 				fmt.Sprintf("An input cutoff of %.2f V is above the live input (%.2f V).",
 					m.LVPPending, m.LVPPendingVIn))),
 			vgap(4),
@@ -385,8 +399,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	})
 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
-			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
+		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
+			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
 				p := PaletteFrom(n.First)
 				return themed{palette: p, typ: TypeFrom(n.Second), ic: iconsFrom(p)}
 			})
@@ -426,7 +440,7 @@ func Page(t themed, m Model, slots slotSet, tabsW layout.Widget) layout.Widget {
 			}
 			if m.Notice != "" {
 				rows = append(rows, vgap(8),
-					layout.Rigid(textLine(t.typ, t.typ.Small, t.palette.Label, m.Notice)))
+					layout.Rigid(textLine(t.typ, t.typ.Small, t.palette.Secondary, m.Notice)))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
 		})
@@ -483,8 +497,8 @@ func listContent(load func() (pageState, bool), list *layout.List, build func(th
 // accent colour while the output is on, emitting ToggleOutput on click. The
 // clickable lives at subscription scope; state and colours arrive through
 // the frame-time snapshot. Affordance is the standard recipe: a pointer
-// cursor over the target, a circular hover/press fill one step off the
-// surface beneath, and padding that grows the hit area past the glyph.
+// cursor over the target, the platform's hover and press overlays in a
+// circle, and padding that grows the hit area past the glyph.
 func powerButton(load func() (pageState, bool), click *widget.Clickable) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
@@ -499,9 +513,10 @@ func powerButton(load func() (pageState, bool), click *widget.Clickable) layout.
 			pad := gtx.Dp(6)
 			total := sz + 2*pad
 			box := image.Rectangle{Max: image.Pt(total, total)}
-			if click.Hovered() || click.Pressed() {
-				paint.FillShape(gtx.Ops, st.t.palette.Hairline,
-					clip.UniformRRect(box, total/2).Op(gtx.Ops))
+			// A toolbar button is where the platform answers the pointer
+			// with an overlay, and this is one.
+			if over := pointerFill(st.t.palette, click); over != (color.NRGBA{}) {
+				paint.FillShape(gtx.Ops, over, clip.UniformRRect(box, total/2).Op(gtx.Ops))
 			}
 			// The content is replayed inside the Clickable's own clip
 			// area, so a bare Add binds the cursor to exactly that area —
@@ -523,9 +538,9 @@ func powerButton(load func() (pageState, bool), click *widget.Clickable) layout.
 }
 
 // switchWidget is a toggle switch for one boolean setting: a pill track
-// with a knob, the accent colour when on and the hairline when off, emitting
-// SetSwitch with the flipped value on click. Same affordance recipe as the
-// power button.
+// with a knob, the accent when on and the platform's separator when off,
+// emitting SetSwitch with the flipped value on click. Same affordance recipe
+// as the power button.
 func switchWidget(load func() (pageState, bool), click *widget.Clickable, s Switch) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
@@ -541,15 +556,15 @@ func switchWidget(load func() (pageState, bool), click *widget.Clickable, s Swit
 			w, h := gtx.Dp(40), gtx.Dp(22)
 			pad := gtx.Dp(4)
 			box := image.Rectangle{Max: image.Pt(w+2*pad, h+2*pad)}
-			if click.Hovered() || click.Pressed() {
-				paint.FillShape(gtx.Ops, p.Hairline, clip.UniformRRect(box, box.Max.Y/2).Op(gtx.Ops))
+			if over := pointerFill(p, click); over != (color.NRGBA{}) {
+				paint.FillShape(gtx.Ops, over, clip.UniformRRect(box, box.Max.Y/2).Op(gtx.Ops))
 			}
 			pointer.CursorPointer.Add(gtx.Ops)
 			track := image.Rect(pad, pad, pad+w, pad+h)
-			trackCol, knobCol := p.Hairline, p.Label
+			trackCol, knobCol := p.Seam, p.Secondary
 			knobX := track.Min.X + gtx.Dp(3)
 			if on {
-				trackCol, knobCol = p.Volt, p.Backdrop
+				trackCol, knobCol = p.Volt, p.FilledText
 				knobX = track.Max.X - gtx.Dp(3) - (h - 2*gtx.Dp(3))
 			}
 			paint.FillShape(gtx.Ops, trackCol, clip.UniformRRect(track, h/2).Op(gtx.Ops))
@@ -570,7 +585,7 @@ func switchWidget(load func() (pageState, bool), click *widget.Clickable, s Swit
 // which heals itself and takes no Clear — or the Clear button for the trips
 // that latch.
 func headerRow(t themed, m Model, slots slotSet) layout.Widget {
-	statusCol := t.palette.Label
+	statusCol := t.palette.Secondary
 	if !m.Online {
 		statusCol = t.palette.Danger
 	}
@@ -578,7 +593,7 @@ func headerRow(t themed, m Model, slots slotSet) layout.Widget {
 		children := []layout.FlexChild{
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					layout.Rigid(textLine(t.typ, t.typ.Title, t.palette.Text, "XY-SK150")),
+					layout.Rigid(textLine(t.typ, t.typ.Title, t.palette.Label, "XY-SK150")),
 					layout.Rigid(textLine(t.typ, t.typ.Small, statusCol, m.Status)),
 				)
 			}),
@@ -605,12 +620,12 @@ func headerRow(t themed, m Model, slots slotSet) layout.Widget {
 		if !m.HaveR || m.R.Protect == 0 {
 			return row(gtx)
 		}
-		hint := textLine(t.typ, t.typ.Small, t.palette.Label,
+		hint := textLine(t.typ, t.typ.Small, t.palette.Secondary,
 			fmt.Sprintf("lower the input cutoff below the %.2f V input to recover", m.R.VIn))
 		if m.R.Protect != protectLVP {
 			hint = func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(textLine(t.typ, t.typ.Small, t.palette.Label,
+					layout.Rigid(textLine(t.typ, t.typ.Small, t.palette.Secondary,
 						"the trip holds the output off until cleared")),
 					hgap(12),
 					layout.Rigid(fixed(90, slots.get("clear"))),
@@ -634,18 +649,18 @@ func monitorFallback(t themed, m Model, slots slotSet) []layout.FlexChild {
 	p, typ := t.palette, t.typ
 	if !m.Online && !m.Demo {
 		return []layout.FlexChild{
-			layout.Rigid(textLine(typ, typ.Title, p.Text, "No SK150 connected")),
+			layout.Rigid(textLine(typ, typ.Title, p.Label, "No SK150 connected")),
 			vgap(6),
-			layout.Rigid(textLine(typ, typ.Body, p.Label, m.Status)),
+			layout.Rigid(textLine(typ, typ.Body, p.Secondary, m.Status)),
 			vgap(14),
 			layout.Rigid(fixed(160, slots.get("demo"))),
 			vgap(6),
-			layout.Rigid(textLine(typ, typ.Small, p.Label,
+			layout.Rigid(textLine(typ, typ.Small, p.Secondary,
 				"Explore the app with a simulated SK150. Restart the app to use real hardware again.")),
 		}
 	}
 	return []layout.FlexChild{
-		layout.Rigid(textLine(typ, typ.Body, p.Label, "waiting for the first reading…")),
+		layout.Rigid(textLine(typ, typ.Body, p.Secondary, "waiting for the first reading…")),
 	}
 }
 
@@ -658,7 +673,7 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 	p, typ := t.palette, t.typ
 	r := m.R
 
-	tempIcon, tempCol := t.ic.Flame, p.Text
+	tempIcon, tempCol := t.ic.Flame, p.Label
 	if r.TempIn >= 60 {
 		tempIcon, tempCol = t.ic.FlameHot, p.Danger
 	}
@@ -672,16 +687,16 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 	}
 	statLine := func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(statItem(typ, t.ic.Bolt, fmt.Sprintf("IN %.2f V", r.VIn), p.Text, 0)),
+			layout.Rigid(statItem(typ, t.ic.Bolt, fmt.Sprintf("IN %.2f V", r.VIn), p.Label, 0)),
 			hgap(12),
 			layout.Rigid(statItem(typ, tempIcon, fmt.Sprintf("%.1f °C", r.TempIn), tempCol, 4)),
 			hgap(12),
-			layout.Rigid(statItem(typ, t.ic.Battery, charge, p.Text, 4)),
+			layout.Rigid(statItem(typ, t.ic.Battery, charge, p.Label, 4)),
 			hgap(12),
-			layout.Rigid(statItem(typ, t.ic.Flare, energy, p.Text, 4)),
+			layout.Rigid(statItem(typ, t.ic.Flare, energy, p.Label, 4)),
 			hgap(12),
 			layout.Rigid(statItem(typ, t.ic.Clock,
-				fmt.Sprintf("%02d:%02d:%02d", r.Hours, r.Mins, r.Secs), p.Text, 4)),
+				fmt.Sprintf("%02d:%02d:%02d", r.Hours, r.Mins, r.Secs), p.Label, 4)),
 		)
 	}
 	active := activeGroup(m)
@@ -743,14 +758,14 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 func presetsRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 	p, typ := t.palette, t.typ
 	if !m.HavePresets {
-		return []layout.Widget{textLine(typ, typ.Body, p.Label, "reading memory slots…")}
+		return []layout.Widget{textLine(typ, typ.Body, p.Secondary, "reading memory slots…")}
 	}
 	if n := m.EditPreset; isGroup(n) {
 		pr := m.Presets[n]
 		rows := []layout.Widget{
 			presetBadge(t, n),
 			vspace(6),
-			textLine(typ, typ.Small, p.Label, "Blank keeps the stored value. Return writes whole group, Presets tab cancels, Save writes and returns."),
+			textLine(typ, typ.Small, p.Secondary, "Blank keeps the stored value. Return writes whole group, Presets tab cancels, Save writes and returns."),
 			vspace(10),
 		}
 		// Two columns filled row by row — Tab follows layout order, so it
@@ -772,7 +787,7 @@ func presetsRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 			cell(0, FOHPH), cell(1, FOHPM),
 			cell(0, FOAH), cell(1, FOWH),
 			tp.wrap(t, pon.Key, hints[pon.Key], 0, presetColWidth,
-				compactSwitch(t, textLine(typ, typ.Body, p.Text, pon.Short), pr.PowerOn, slots.get(pon.Key))), blank,
+				compactSwitch(t, textLine(typ, typ.Body, p.Label, pon.Short), pr.PowerOn, slots.get(pon.Key))), blank,
 		}
 		left, right := []layout.Widget{}, []layout.Widget{}
 		for i, c := range cells {
@@ -797,17 +812,17 @@ func presetsRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 		return rows
 	}
 	rows := []layout.Widget{
-		textLine(typ, typ.Title, p.Text, "Memory slots"),
+		textLine(typ, typ.Title, p.Label, "Memory slots"),
 		vspace(4),
-		textLine(typ, typ.Small, p.Label,
+		textLine(typ, typ.Small, p.Secondary,
 			"Recall makes a slot the active profile and switches the output off until you turn it on."),
 		vspace(8),
-		textLine(typ, typ.Table, p.Label, presetTableHeader),
+		textLine(typ, typ.Table, p.Secondary, presetTableHeader),
 		vspace(3),
 	}
 	for n := 0; n <= 9; n++ {
 		txt := presetTableRow(n, m.Presets[n])
-		col := p.Text
+		col := p.Label
 		if n == activeGroup(m) {
 			col = p.Volt // the active profile
 		}
@@ -848,17 +863,17 @@ func presetTableRow(n int, p Preset) string {
 func deviceRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 	p, typ := t.palette, t.typ
 	if !m.HaveD {
-		return []layout.Widget{textLine(typ, typ.Body, p.Label, "reading the device settings…")}
+		return []layout.Widget{textLine(typ, typ.Body, p.Secondary, "reading the device settings…")}
 	}
 	sw := func(col int, s Switch, on bool) layout.Widget {
 		spec := switchSpecs[s]
 		return tp.wrap(t, spec.Key, hints[spec.Key], col, deviceColWidth,
-			compactSwitch(t, textLine(typ, typ.Body, p.Text, spec.Short), on, slots.get(spec.Key)))
+			compactSwitch(t, textLine(typ, typ.Body, p.Label, spec.Short), on, slots.get(spec.Key)))
 	}
 	fr := func(col int, f Field) layout.Widget {
 		spec := f.spec()
 		return tp.wrap(t, spec.Key, hints[spec.Key], col, deviceColWidth,
-			compactCell(t, textLine(typ, typ.Body, p.Text, spec.Short),
+			compactCell(t, textLine(typ, typ.Body, p.Label, spec.Short),
 				fmt.Sprintf(spec.Format, m.D.Value(f)), slots.get(spec.Key+".field"), slots.get(spec.Key+".set")))
 	}
 	d := m.D
@@ -867,9 +882,9 @@ func deviceRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 	rows := []layout.Widget{
 		func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Title, p.Text, "Input and charging"))),
+				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Title, p.Label, "Input and charging"))),
 				hgap(compactGap),
-				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Title, p.Text, "Panel"))),
+				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Title, p.Label, "Panel"))),
 			)
 		},
 		vspace(8),
@@ -915,7 +930,7 @@ func deviceFooter(t themed, m Model) layout.Widget {
 	if !m.HaveD {
 		return vspace(0)
 	}
-	return textLine(t.typ, t.typ.Small, t.palette.Label,
+	return textLine(t.typ, t.typ.Small, t.palette.Secondary,
 		fmt.Sprintf("Link: %d baud, Modbus address %d — changing either needs a power cycle, so this app leaves them alone.",
 			baudRate, slaveAddr))
 }
@@ -978,7 +993,7 @@ const (
 // name for the field, the text field, and the stored value beside it.
 func compactField(t themed, f Field, current float64, field layout.Widget) layout.Widget {
 	spec := f.spec()
-	return compactCell(t, textLine(t.typ, t.typ.Body, t.palette.Text, spec.Short), fmt.Sprintf(spec.Format, current), field, nil)
+	return compactCell(t, textLine(t.typ, t.typ.Body, t.palette.Label, spec.Short), fmt.Sprintf(spec.Format, current), field, nil)
 }
 
 // compactCell is one grid cell: short label, text field, an optional Set
@@ -997,7 +1012,7 @@ func compactCell(t themed, label layout.Widget, current string, field, apply lay
 				layout.Rigid(fixed(56, apply)))
 		}
 		children = append(children, hgap(10),
-			layout.Rigid(fixed(compactValueWidth, textLine(t.typ, t.typ.Body, t.palette.Label, current))))
+			layout.Rigid(fixed(compactValueWidth, textLine(t.typ, t.typ.Body, t.palette.Secondary, current))))
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
 	}
 }
@@ -1013,7 +1028,7 @@ func compactSwitch(t themed, label layout.Widget, on bool, sw layout.Widget) lay
 			layout.Rigid(fixed(compactLabelWidth, label)),
 			layout.Rigid(sw),
 			hgap(10),
-			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, state)),
+			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Secondary, state)),
 		)
 	}
 }
@@ -1023,14 +1038,14 @@ func compactSwitch(t themed, label layout.Widget, on bool, sw layout.Widget) lay
 func fieldRow(t themed, label, current string, field, apply layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		children := []layout.FlexChild{
-			layout.Rigid(fixed(LabelWidth, textLine(t.typ, t.typ.Body, t.palette.Text, label))),
+			layout.Rigid(fixed(LabelWidth, textLine(t.typ, t.typ.Body, t.palette.Label, label))),
 			layout.Rigid(fixed(FieldWidth, field)),
 		}
 		if apply != nil {
 			children = append(children, hgap(8), layout.Rigid(fixed(72, apply)))
 		}
 		children = append(children, hgap(12),
-			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, current)))
+			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Secondary, current)))
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
 	}
 }
@@ -1043,10 +1058,10 @@ func switchRow(t themed, label string, on bool, sw layout.Widget) layout.Widget 
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(fixed(LabelWidth, textLine(t.typ, t.typ.Body, t.palette.Text, label))),
+			layout.Rigid(fixed(LabelWidth, textLine(t.typ, t.typ.Body, t.palette.Label, label))),
 			layout.Rigid(sw),
 			hgap(10),
-			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, state)),
+			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Secondary, state)),
 		)
 	}
 }

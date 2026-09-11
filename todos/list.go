@@ -19,10 +19,10 @@ import (
 	"github.com/vibrantgio/theme/theme"
 )
 
-// List renders the todos on the window's own fill using the components
-// virtual list. It paints no surface of its own: the list is what this window
-// exists to show, so it is the content plane rather than something standing
-// on it. The rows keep their inset.
+// List renders the todos on the window's own plane using the components
+// virtual list. It paints no fill of its own: the list is what this window
+// exists to show rather than something standing on it. The rows keep their
+// inset.
 func List(typ Type, th rx.Observable[theme.Theme], p Palette, model Model) layout.Widget {
 	listState := complist.NewState()
 	rows := make([]layout.Widget, len(model.List))
@@ -49,12 +49,12 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 		Message:     ToggleTodo{Id: item.Id},
 	}).First()
 
-	// The text is a plain clickable label, not a button: completed todos dim
-	// to the placeholder colour.
+	// The text is a plain clickable label, not a button: a completed todo
+	// drops to the secondary strength.
 	var editClick widget.Clickable
-	textColor := p.Text
+	textColor := p.Label
 	if item.Completed {
-		textColor = p.Select
+		textColor = p.Secondary
 	}
 	label := func(gtx layout.Context) layout.Dimensions {
 		if editClick.Clicked(gtx) {

@@ -11,11 +11,11 @@
 // cell clicked to reach it, closing line included. What this window decides
 // is which groups get a tab.
 //
-// The Foundations group is on no tab: its colour sections and its type scale
+// The Foundations group is on no tab: its colour section and its type scale
 // are the Theme tab's telling.
 //
 // Each tab's inventory is built once, on the first theme emission, and
-// outlives every palette after it — a theme change is a new set of row
+// outlives every appearance after it — a theme change is a new set of row
 // values over the same parsed documents and scroll positions. The tabs hold
 // one Inventory each rather than sharing one, because each stream is
 // subscribed separately and a shared instance would be mutated from more than
@@ -68,10 +68,10 @@ func groupTabLayer(th rx.Observable[theme.Theme], group string) rx.Observable[la
 	var inv *inventory.Inventory
 	st := list.NewState()
 
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
+	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
 
-	return rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography]) layout.Widget {
+	return rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.PlatformColors, tokens.Typography]) layout.Widget {
 		col, typ := t.First, t.Second
 		shaper := typ.Shaper()
 		if inv == nil {
@@ -89,13 +89,16 @@ func groupTabLayer(th rx.Observable[theme.Theme], group string) rx.Observable[la
 // scrollingColumn is the scrolling column every inventory-fed tab shows —
 // the three group tabs and the Theme tab both: the rows in a virtual list
 // — only what shows is laid out — with an overlay scrollbar drawn from the
-// same tokens the rows are, floating over the rows rather than cutting a
+// same set the rows are, floating over the rows rather than cutting a
 // gutter out of families shown at their own widths.
-func scrollingColumn(st *list.State, c tokens.ColorTokens, items []layout.Widget) layout.Widget {
+//
+// The bar's thumb is a coverage, so it is told the fill it rides on: the
+// content plane, which is what the sections under it fill with.
+func scrollingColumn(st *list.State, c tokens.PlatformColors, items []layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
-		list.LayoutScrollbar(gtx, st, scrollbar.FromTokens(c), list.Overlay, items,
+		list.LayoutScrollbar(gtx, st, scrollbar.FromTokens(c, c.ControlBackground), list.Overlay, items,
 			func(gtx layout.Context, w layout.Widget) layout.Dimensions {
 				return w(gtx)
 			})
@@ -107,7 +110,7 @@ func scrollingColumn(st *list.State, c tokens.ColorTokens, items []layout.Widget
 // used by goldens and review captures: a fresh top-scrolled column laid
 // out once from pre-resolved tokens, with the control marks pinned to one
 // platform so the same bytes come out on any machine.
-func renderGroupTab(shaper *text.Shaper, group string, colors tokens.ColorTokens, typo tokens.Typography) layout.Widget {
+func renderGroupTab(shaper *text.Shaper, group string, colors tokens.PlatformColors, typo tokens.Typography) layout.Widget {
 	inv := inventory.NewForOS(shaper, "darwin")
 	inv.SetTypography(typo)
 	return scrollingColumn(list.NewState(), colors, inv.TabItems(colors, group))

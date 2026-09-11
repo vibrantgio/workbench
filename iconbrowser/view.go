@@ -63,8 +63,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	})
 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest2(t.Color, t.Typography),
-			func(n rx.Tuple2[tokens.ColorTokens, tokens.Typography]) themed {
+		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
+			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
 				p := PaletteFrom(n.First)
 				widgets := make([]layout.Widget, len(IconTable))
 				for i, icon := range IconTable {
@@ -91,9 +91,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 // The strip carries no fill of its own: the region it caps is the window's own
 // plane, which BackdropLayer already fills full-bleed, so the fill reaches the
 // top edge without anything being painted twice. Nothing in this window is
-// chrome — the grid is the content plane, the section labels are text on it,
-// and the search field is a control standing on it in the page's own vertical
-// flow. The field could not be lifted into the strip in any case: a components
+// chrome — the catalogue stands on the window's own plane, the section labels
+// are text on it, and the search field is a control standing on it in the
+// page's own vertical flow. The field could not be lifted into the strip in any case: a components
 // TextField is a Density.ControlHeight box, 36 dp comfortable, and the band the
 // window buttons are centred in is 32.
 //

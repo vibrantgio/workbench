@@ -8,43 +8,62 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/textdraw"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// Palette is the app's view of the theme colour tokens, resolved fresh on
-// every theme emission so an OS light/dark switch restyles the whole app.
-// The page is the content plane (level 0); nothing in it is raised, so the
-// only fills are the components' own. The three readouts wear the three
-// accent roles as foregrounds — derived through ForegroundOnAtFloor so a
-// pale seed can never put an unreadable pin on the page.
+// Palette is the app's view of the platform's colour set, resolved fresh on
+// every theme emission so an appearance switch restyles the whole app. The
+// page stands on the window's own plane and paints no fill of its own; the
+// chart panels are the one thing standing on it, and they wear the
+// platform's box fill.
+//
+// Every alpha-carrying platform name is flattened onto the fill it lands on
+// here, so what reaches Gio is opaque.
 type Palette struct {
-	Backdrop      color.NRGBA // the window's own plane: the Background pin, level 0
-	Text          color.NRGBA // body text: neutral 900
-	Label         color.NRGBA // captions and secondary text: neutral 700
-	Volt          color.NRGBA // the voltage readout: Primary as foreground
-	Amp           color.NRGBA // the current readout: Secondary as foreground
-	Watt          color.NRGBA // the power readout: Tertiary as foreground
-	Danger        color.NRGBA // protection trips and errors: Error as foreground
-	Panel         color.NRGBA // a chart panel: raised one level off the content
-	Hairline      color.NRGBA // panel borders and the recessive chart grid
-	TipFill       color.NRGBA // a hint bubble: the inverse surface
-	TipForeground color.NRGBA // its text
+	Backdrop   color.NRGBA // the window's own plane
+	Label      color.NRGBA // body text
+	Secondary  color.NRGBA // captions and secondary text
+	Dim        color.NRGBA // a disabled glyph and an idle badge's label
+	Volt       color.NRGBA // the voltage readout, and every on-and-active mark
+	Amp        color.NRGBA // the current readout
+	Watt       color.NRGBA // the power readout
+	Danger     color.NRGBA // protection trips and errors
+	FilledText color.NRGBA // a label drawn on a fill one of the four paints
+	Panel      color.NRGBA // a chart panel's fill
+	Grid       color.NRGBA // the chart's recessive grid lines
+	Seam       color.NRGBA // a switch's track while it is off
+	Hover      color.NRGBA // a header button under the pointer
+	Press      color.NRGBA // a header button held down
 }
 
-func PaletteFrom(c tokens.ColorTokens) Palette {
-	surface := c.SurfaceAt(tokens.Level0)
+// PaletteFrom reads the page off the platform's set.
+//
+// The three readouts are three quantities the reader has to tell apart at a
+// glance, so each takes a colour the platform publishes by name. Voltage
+// takes the accent, which is also what every on-and-active mark in this
+// window wears — the lit bolt, the ON badge, a closed switch, the active
+// memory slot — so the panel and the controls agree without a second
+// colour. Current and power take two more of the platform's named colours,
+// picked as far from the accent and from each other as the catalogue
+// allows; neither is one of the four the platform reserves for a status, so
+// a readout can never be mistaken for a warning.
+func PaletteFrom(c tokens.PlatformColors) Palette {
 	return Palette{
-		Backdrop:      surface,
-		Text:          c.Ramps.Neutral.Step(900),
-		Label:         c.Ramps.Neutral.Step(700),
-		Volt:          c.ForegroundOnAtFloor(tokens.RolePrimary, surface, tokens.TextFloor),
-		Amp:           c.ForegroundOnAtFloor(tokens.RoleSecondary, surface, tokens.TextFloor),
-		Watt:          c.ForegroundOnAtFloor(tokens.RoleTertiary, surface, tokens.TextFloor),
-		Danger:        c.ForegroundOnAtFloor(tokens.RoleError, surface, tokens.TextFloor),
-		Panel:         c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill,
-		Hairline:      c.Seam,
-		TipFill:       c.InverseSurface,
-		TipForeground: c.OnInverseSurface,
+		Backdrop:   c.WindowBackground,
+		Label:      vgcolor.Flatten(c.Label, c.WindowBackground),
+		Secondary:  vgcolor.Flatten(c.SecondaryLabel, c.WindowBackground),
+		Dim:        vgcolor.Flatten(c.DisabledControlText, c.WindowBackground),
+		Volt:       c.ControlAccent,
+		Amp:        c.SystemTeal,
+		Watt:       c.SystemPurple,
+		Danger:     c.SystemRed,
+		FilledText: c.AlternateSelectedControlText,
+		Panel:      c.CardFill,
+		Grid:       c.Grid,
+		Seam:       vgcolor.Flatten(c.Separator, c.WindowBackground),
+		Hover:      vgcolor.Flatten(c.HoverOverlay, c.WindowBackground),
+		Press:      vgcolor.Flatten(c.PressOverlay, c.WindowBackground),
 	}
 }
 

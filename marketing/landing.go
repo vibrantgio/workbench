@@ -74,11 +74,11 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 				return []layout.Widget{n.First, n.Second, n.Third, n.Fourth}
 			},
 		)
-		colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-			return t.Color
+		colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+			return t.Platform
 		})
 		return rx.Map(rx.CombineLatest3(sections, modelObs, colors),
-			func(next rx.Tuple3[[]layout.Widget, Model, tokens.ColorTokens]) layout.Widget {
+			func(next rx.Tuple3[[]layout.Widget, Model, tokens.PlatformColors]) layout.Widget {
 				return scrollingPage(next.First, state, next.Third)
 			})
 	})
@@ -87,10 +87,12 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 // scrollingPage lays sections in a vertical list, clamping each child
 // to contentMaxWidthDp and centering it. An overlay scrollbar (not
 // Occupy) sits on the trailing edge so the 1100 dp column does not
-// jump when the bar appears. The Background pin and the wireframe
+// jump when the bar appears. The window's plane and the wireframe
 // field live in layers behind this one, so the page does not paint a
-// fill of its own.
-func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.ColorTokens) layout.Widget {
+// fill of its own — which is also the fill the scrollbar's knob is
+// composited onto, the bar riding over the page rather than a band of
+// its own.
+func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.PlatformColors) layout.Widget {
 	children := make([]layout.Widget, 0, len(sections)+1)
 	for i, s := range sections {
 		if i < len(sections)-1 {
@@ -109,7 +111,7 @@ func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.Co
 			contentW = px
 		}
 		margin := (size.X - contentW) / 2
-		list.LayoutScrollbar(gtx, state, scrollbar.FromTokens(colors), list.Overlay, children,
+		list.LayoutScrollbar(gtx, state, scrollbar.FromTokens(colors, colors.WindowBackground), list.Overlay, children,
 			func(gtx layout.Context, w layout.Widget) layout.Dimensions {
 				if margin == 0 {
 					return w(gtx)
@@ -151,7 +153,7 @@ func renderLanding(
 	fp feature.Props,
 	pp pricing.Props,
 	tp testimonial.Props,
-	colors tokens.ColorTokens,
+	colors tokens.PlatformColors,
 	sp tokens.SpacingScale,
 	rad tokens.RadiusScale,
 	typo tokens.Typography,

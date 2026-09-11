@@ -39,15 +39,15 @@ type hoverState struct {
 func chartPanels(t themed, m Model, hov *hoverState) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if len(m.History) < 2 {
-			return textLine(t.typ, t.typ.Body, t.palette.Label, "collecting samples…")(gtx)
+			return textLine(t.typ, t.typ.Body, t.palette.Secondary, "collecting samples…")(gtx)
 		}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Text, "Output voltage (V)")),
+			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, "Output voltage (V)")),
 			vgap(6),
 			layout.Flexed(1, chartPanel(t, m.History,
 				func(s Sample) float64 { return s.V }, t.palette.Volt, "%.2f V", 0.05, hov)),
 			vgap(12),
-			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Text, "Output current (A)")),
+			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, "Output current (A)")),
 			vgap(6),
 			layout.Flexed(1, chartPanel(t, m.History,
 				func(s Sample) float64 { return s.I }, t.palette.Amp, "%.3f A", 0.02, hov)),
@@ -55,9 +55,9 @@ func chartPanels(t themed, m Model, hov *hoverState) layout.Widget {
 	}
 }
 
-// chartPanel draws one series over the shared time window: a raised panel
-// with a hairline edge, three recessive gridlines, the 2 dp series stroke,
-// min/max labels in the text colour, and the synced hover crosshair.
+// chartPanel draws one series over the shared time window: the platform's
+// box fill, three recessive gridlines, the 2 dp series stroke, min/max
+// labels at the secondary strength, and the synced hover crosshair.
 func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 	foreground color.NRGBA, valFmt string, minSpan float64, hov *hoverState) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
@@ -92,11 +92,10 @@ func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 			}
 		}
 
-		// The panel surface and its edge.
+		// The panel's fill. The platform's box carries no hairline and no
+		// shadow: its edge is where the plane gives way to the fill.
 		rr := clip.UniformRRect(image.Rectangle{Max: size}, gtx.Dp(6))
 		paint.FillShape(gtx.Ops, p.Panel, rr.Op(gtx.Ops))
-		paint.FillShape(gtx.Ops, p.Hairline,
-			clip.Stroke{Path: rr.Path(gtx.Ops), Width: float32(gtx.Dp(1))}.Op())
 
 		// The pointer area for the crosshair.
 		area := clip.Rect(image.Rectangle{Max: size}).Push(gtx.Ops)
@@ -106,7 +105,7 @@ func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 		// Recessive grid: three horizontal hairlines.
 		for i := 1; i < 4; i++ {
 			y := plot.Min.Y + i*plot.Dy()/4
-			paint.FillShape(gtx.Ops, p.Hairline,
+			paint.FillShape(gtx.Ops, p.Grid,
 				clip.Rect(image.Rect(plot.Min.X, y, plot.Max.X, y+1)).Op())
 		}
 
@@ -157,7 +156,7 @@ func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 			x := r.Min.X + int(ax*float64(r.Dx()-sz.X))
 			y := r.Min.Y + int(ay*float64(r.Dy()-sz.Y))
 			rect := image.Rectangle{Min: image.Pt(x, y), Max: image.Pt(x+sz.X, y+sz.Y)}
-			textdraw.FillText(gtx, typ.Shaper, typ.Small, rect, 0, 0.5, p.Label, txt)
+			textdraw.FillText(gtx, typ.Shaper, typ.Small, rect, 0, 0.5, p.Secondary, txt)
 		}
 		in := plot.Inset(inset)
 		label(fmt.Sprintf(valFmt, hi), 0, 0, in)
@@ -169,7 +168,7 @@ func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 		// sample's value and age in the top-right corner.
 		if hov.active {
 			cx := plot.Min.X + int(hov.frac*float64(plot.Dx()))
-			paint.FillShape(gtx.Ops, p.Label,
+			paint.FillShape(gtx.Ops, p.Secondary,
 				clip.Rect(image.Rect(cx, plot.Min.Y, cx+1, plot.Max.Y)).Op())
 			s := nearestSample(samples, t0.Add(time.Duration(hov.frac*float64(span))))
 			txt := fmt.Sprintf(valFmt, sel(s)) + " · -" + fmtAge(last.At.Sub(s.At))

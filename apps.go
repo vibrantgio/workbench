@@ -62,7 +62,7 @@ var Apps = []App{
 	{
 		Name:  "Themer",
 		Dir:   "themer",
-		Blurb: "Drop in a picture and the whole system re-draws in its colour: seeds, palette, syntax.",
+		Blurb: "The theme colour: the platform's accent, a colour out of a picture, or one written in.",
 		// An eyedropper: ImageColorLens, the obvious name, draws the same glyph
 		// as Icon Browser's ImagePalette.
 		Icon: icons.ImageColorize,

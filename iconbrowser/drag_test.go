@@ -20,8 +20,8 @@ import (
 // before the control sees one. The band is claimed above the inset the field
 // is laid out below, so the two never overlap — which no frame can show.
 func TestTheSearchFieldKeepsItsOwnPresses(t *testing.T) {
-	tok := staticThemed(t, tokens.DefaultLight)
-	page := Page(tok, staticSearch(t, tokens.DefaultLight), Model{}, &layout.List{Axis: layout.Vertical})
+	tok := staticThemed(t, tokens.PlatformLight)
+	page := Page(tok, staticSearch(t, tokens.PlatformLight), Model{}, &layout.List{Axis: layout.Vertical})
 	w := desktop.CapTop(func() unit.Dp { return titleBandDp }, page)
 
 	var ops op.Ops

@@ -29,8 +29,8 @@ type Model struct {
 	selectedHeading int
 }
 
-// initialModel returns the seed state: the Docs tab, the first ##
-// section of the docs outline disclosed, nothing selected.
+// initialModel returns the state the app opens on: the Docs tab, the first
+// ## section of the docs outline disclosed, nothing selected.
 func initialModel() Model {
 	return Model{
 		currentPage:     pageDocs,

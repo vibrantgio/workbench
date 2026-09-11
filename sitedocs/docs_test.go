@@ -32,7 +32,7 @@ const monoProofSource = "# Mono proof\n\nProse before the fence.\n\n```go\nfunc 
 // TestDocsCodeShapesInMonoFace is the headless confirmation that the Docs
 // tab renders code in the mono face. It exercises the exact pieces the
 // runtime path (guideDocObservable) composes for the default theme:
-// docsMarkdownStyle over the theme-emitted tokens, and the theme's cached
+// docsMarkdownStyle over the theme-emitted set, and the theme's cached
 // Typography shaper that doc.Layout shapes with.
 //
 // Three layers of proof:
@@ -50,7 +50,7 @@ const monoProofSource = "# Mono proof\n\nProse before the fence.\n\n```go\nfunc 
 //     the mono face visibly reaches the composed page.
 func TestDocsCodeShapesInMonoFace(t *testing.T) {
 	typ := tokens.DefaultTypography
-	style := docsMarkdownStyle(tokens.DefaultLight, typ)
+	style := docsMarkdownStyle(tokens.PlatformLight, typ)
 	shaper := typ.DeterministicShaper()
 
 	// 1. The style resolves the theme's Code role.

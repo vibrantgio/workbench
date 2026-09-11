@@ -28,11 +28,11 @@ var sharpRadius = tokens.RadiusScale{}
 // staticThemed is one theme emission frozen into the snapshot the view
 // consumes, with the pinned shaper — Roboto and nothing the machine happens to
 // own — that a stored render has to shape with.
-func staticThemed(colors tokens.ColorTokens) themed {
+func staticThemed(colors tokens.PlatformColors) themed {
 	typ := tokens.DefaultTypography
 	return themed{
 		components: theme.Theme{
-			Color:      rx.Of(colors),
+			Platform:   rx.Of(colors),
 			Typography: rx.Of(typ),
 			Density:    rx.Of(tokens.Comfortable),
 			Motion:     rx.Of(tokens.Motion),
@@ -47,12 +47,12 @@ func staticThemed(colors tokens.ColorTokens) themed {
 	}
 }
 
-// page is the window as a single layout.Widget: the theme's background fill
-// with the hero and the app grid on it. The animated 3D field the running
-// window floats these on is driven by the clock, so it has no one frame to
-// store and is omitted; the background it is keyed to stands in for it.
+// page is the window as a single layout.Widget: the window's own plane with
+// the hero and the app grid on it. The animated 3D field the running window
+// floats these on is driven by the clock, so it has no one frame to store and
+// is omitted; the plane it is keyed to stands in for it.
 func page(tok themed, model Model) layout.Widget {
-	back := backdrop.Widget(tok.color.Background)
+	back := backdrop.Widget(windowPlane(tok.color))
 	content := pageContent(tok, model)
 	return func(gtx layout.Context) layout.Dimensions {
 		back(gtx)
@@ -62,8 +62,8 @@ func page(tok themed, model Model) layout.Widget {
 
 // pageContent is the window's content layer alone — the hero over the app
 // grid, with the theme-driven pieces resolved from the frozen snapshot and no
-// background fill under them. It is separate from page so the whole-window
-// render can put the strip inset between the background fill and the page.
+// plane under them. It is separate from page so the whole-window render can
+// put the strip inset between the plane and the page.
 func pageContent(tok themed, model Model) layout.Widget {
 	props := HeroProps
 	props.Shaper = tok.shaper
@@ -79,10 +79,10 @@ func pageContent(tok themed, model Model) layout.Widget {
 func TestWindowGolden(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
-		colors tokens.ColorTokens
+		colors tokens.PlatformColors
 	}{
-		{"light-window", tokens.DefaultLight},
-		{"dark-window", tokens.DefaultDark},
+		{"light-window", tokens.PlatformLight},
+		{"dark-window", tokens.PlatformDark},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			golden.Render(t, tc.name, windowFrameSize, page(staticThemed(tc.colors), Model{}))
@@ -94,8 +94,8 @@ func TestWindowGolden(t *testing.T) {
 // drawn twice, which a pair of goldens recorded from the same tokens would
 // otherwise hide.
 func TestSchemesDiffer(t *testing.T) {
-	light := golden.Capture(t, windowFrameSize, page(staticThemed(tokens.DefaultLight), Model{}))
-	dark := golden.Capture(t, windowFrameSize, page(staticThemed(tokens.DefaultDark), Model{}))
+	light := golden.Capture(t, windowFrameSize, page(staticThemed(tokens.PlatformLight), Model{}))
+	dark := golden.Capture(t, windowFrameSize, page(staticThemed(tokens.PlatformDark), Model{}))
 	if n := golden.PixelDiff(light, dark); n == 0 {
 		t.Error("the light and dark windows render identically")
 	}

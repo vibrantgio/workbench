@@ -41,7 +41,8 @@ var (
 )
 
 // TestPageGolden records or diffs the page composition in light and dark
-// themes: Background pin, rest-pose wireframe field, then the landing column.
+// themes: the window's plane, rest-pose wireframe field, then the landing
+// column.
 // Text labels are deliberately blank or a single space, so the visual
 // difference is driven by structure alone.
 func TestPageGolden(t *testing.T) {
@@ -54,10 +55,10 @@ func TestPageGolden(t *testing.T) {
 
 	cases := []struct {
 		name   string
-		colors tokens.ColorTokens
+		colors tokens.PlatformColors
 	}{
-		{"light-page", tokens.DefaultLight},
-		{"dark-page", tokens.DefaultDark},
+		{"light-page", tokens.PlatformLight},
+		{"dark-page", tokens.PlatformDark},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -76,10 +77,10 @@ func TestRuntimePageGolden(t *testing.T) {
 
 	cases := []struct {
 		name   string
-		colors tokens.ColorTokens
+		colors tokens.PlatformColors
 	}{
-		{"light-window", tokens.DefaultLight},
-		{"dark-window", tokens.DefaultDark},
+		{"light-window", tokens.PlatformLight},
+		{"dark-window", tokens.PlatformDark},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -97,7 +98,7 @@ const macTitleBarDp = 32
 // started before the fold — including under the macOS title-bar inset.
 func TestFirstFrameShowsTestimonials(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
-	sections := runtimeSections(shaper, tokens.DefaultLight)
+	sections := runtimeSections(shaper, tokens.PlatformLight)
 	var ops op.Ops
 	gtx := layout.Context{
 		Constraints: layout.Constraints{Max: image.Pt(int(contentMaxWidthDp), 1<<20)},
@@ -125,7 +126,7 @@ func TestFirstFrameShowsTestimonials(t *testing.T) {
 // bottom inset fit in the window even after the macOS title-bar strip.
 func TestPageFitsWindow(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
-	sections := runtimeSections(shaper, tokens.DefaultLight)
+	sections := runtimeSections(shaper, tokens.PlatformLight)
 	var ops op.Ops
 	gtx := layout.Context{
 		Constraints: layout.Constraints{Max: image.Pt(int(contentMaxWidthDp), 1<<20)},
@@ -159,10 +160,10 @@ func TestPageLightDarkDiffer(t *testing.T) {
 	pp := structuralPricingProps(shaper)
 	tp := structuralTestimonialProps(shaper)
 
-	light := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultLight, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
-	dark := renderLanding(shaper, hp, fp, pp, tp, tokens.DefaultDark, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
-	a := golden.Capture(t, pageFrameSize, scene(light, tokens.DefaultLight, pageFrameSize))
-	b := golden.Capture(t, pageFrameSize, scene(dark, tokens.DefaultDark, pageFrameSize))
+	light := renderLanding(shaper, hp, fp, pp, tp, tokens.PlatformLight, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
+	dark := renderLanding(shaper, hp, fp, pp, tp, tokens.PlatformDark, tokens.Spacing, sharpRadius, tokens.DefaultTypography, tokens.Comfortable)
+	a := golden.Capture(t, pageFrameSize, scene(light, tokens.PlatformLight, pageFrameSize))
+	b := golden.Capture(t, pageFrameSize, scene(dark, tokens.PlatformDark, pageFrameSize))
 	if n := golden.PixelDiff(a, b); n == 0 {
 		t.Error("light and dark page render identically; expected colour differences across the four sections")
 	}
@@ -294,7 +295,7 @@ func TestLandingCopyHasNoEmDash(t *testing.T) {
 // runtimeSections is the four pattern layers the live page stacks,
 // shaped deterministically so the window goldens do not depend on
 // the host's fallback faces.
-func runtimeSections(shaper *text.Shaper, colors tokens.ColorTokens) []layout.Widget {
+func runtimeSections(shaper *text.Shaper, colors tokens.PlatformColors) []layout.Widget {
 	hp := heroContent(nil)
 	hp.Shaper = shaper
 	fp := featureContent()
@@ -361,15 +362,15 @@ func structuralTestimonialProps(shaper *text.Shaper) testimonial.Props {
 
 // ---- headless test helpers ---------------------------------------------
 
-// scene is the golden composition: Background pin, a rest-pose
+// scene is the golden composition: the window's plane, a rest-pose
 // wireframe field, then the landing column. The live field is
 // clock-driven; goldens store the un-noised mesh so the frame is
 // one frame. size is the area the field is built to cover.
-func scene(w layout.Widget, colors tokens.ColorTokens, size image.Point) layout.Widget {
+func scene(w layout.Widget, colors tokens.PlatformColors, size image.Point) layout.Widget {
 	field := newField(new(app.Window), unit.Dp(size.X), unit.Dp(size.Y))
 	field.SetColors(colors)
 	field.applyPending()
-	back := backdrop.Widget(colors.Background)
+	back := backdrop.Widget(colors.WindowBackground)
 	return func(gtx layout.Context) layout.Dimensions {
 		back(gtx)
 		field.Widget()(gtx)

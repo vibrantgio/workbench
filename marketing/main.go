@@ -1,6 +1,6 @@
 // Command marketing is a fictional SimpleApps landing: one full-screen
 // scrolling page — Hero, features, pricing, testimonials — on a
-// single-colour wireframe triangle field over the Background pin, with
+// single-colour wireframe triangle field over the window's own plane, with
 // the macOS full-size-content treatment so the traffic lights sit on
 // the page. The window title is SimpleApps.
 package main

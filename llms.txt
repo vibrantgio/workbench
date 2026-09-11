@@ -20,11 +20,11 @@ usage references — todos/ is the minimal complete app; read it first, and
 read the larger ones before inventing a pattern.
 
 THE SHORT VERSION, before the detail: the theme observable carries the whole
-look. Components take it and need nothing else — typeface, colour, density,
-elevation and motion all arrive through it. Application code reads tokens
+look. Components take it and need nothing else — typeface, colour, density
+and motion all arrive through it. Application code reads tokens
 from the theme, never constructs a shaper (the theme's Typography owns the
-one shaper), and never writes a colour literal (colours come off the theme's
-seed-derived ramps).
+one shaper), and never writes a colour literal (colours come off the
+platform's own colour set, which the theme carries).
 
 ## Modules and versions
 
@@ -64,26 +64,27 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      — never add it to a new app
 
   theme     v1.3.3   the theme runtime and every design token: tokens
-                     (colour ramps and pins, Typography, Density, Motion,
-                     Elevation, spacing/radius), color (the CIELAB/OKLCh
-                     engine and APCA), theme (Theme, the token observables),
-                     system (LiveTheme, palette injection, the OS accent),
-                     a11y (OS accessibility observables), export (token
-                     serialiser + cmd/vg-tokens), window, preferences,
-                     brand (the kept seed and optional "mono" code
-                     face, shared by every app). LiveTheme's default
+                     (the platform's colour set, Typography, Density,
+                     Motion, spacing/radius), color (APCA and the sRGB
+                     flatten), theme (Theme, the token observables),
+                     system (LiveTheme, the live platform set, the OS
+                     accent), a11y (OS accessibility observables), export
+                     (token serialiser + cmd/vg-tokens), window,
+                     preferences, brand (the kept theme colour and optional
+                     "mono" code face, shared by every app). LiveTheme's default
                      typography is EmojiTypography — the live stream
                      wears Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  components  v1.3.3 alert (the status signal for a situation — a tinted
-                     rounded banner, icon, title and body, one status role,
-                     standing in the page flow until the situation
-                     resolves), badge (the system's own word about a thing — a word,
-                     a count or a glyph, hued by role: Neutral, Success,
-                     Warning, Error, Info; a pale fill of the role's hue
-                     under a strong foreground of that same hue, plus an
-                     optional close mark that dismisses the label),
+  components  v1.3.3 alert (the status signal for a situation — a banner on
+                     the content's fill inside a Separator hairline, its
+                     status carried by the leading glyph in the platform's
+                     system colour for it, standing in the page flow until
+                     the situation resolves), badge (the system's own word
+                     about a thing — a word, a count or a glyph, filled with
+                     the platform's system colour for its status under a
+                     white foreground, plus an optional close mark that
+                     dismisses the label),
                      button, chip (the small control content sprouts,
                      defined by one of four purposes — Assist, Filter,
                      Input, Suggestion), input, picker (pick one from many
@@ -94,12 +95,14 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      scrollarea (a horizontal viewport for content that must
                      not be reflowed — a code fence, an over-wide diagram),
                      toast (the status signal for an event — a small
-                     inverse-filled surface floating at level 2, its status
-                     role in the leading edge, drawn without a queue),
+                     floating surface on the window's plane under the
+                     platform's shadow, its status in the leading edge,
+                     drawn without a queue),
                      tooltip (the signal naming a control or explaining
-                     another signal on demand — a small inverse-filled
-                     annotation placed at level 3 beside its trigger, text
-                     only, one visible at a time per arbiter),
+                     another signal on demand — a small floating annotation
+                     beside its trigger, the window's plane inside a
+                     Separator hairline, text only, one visible at a time
+                     per arbiter),
                      breadcrumb (going back up the hierarchy — each step a
                      link, the last where you are; Trail routes clicks by
                      the segment's own key), pagination (moving between
@@ -142,14 +145,13 @@ older answer, they are gone, not deprecated:
     theme/... path they used to forward to) and spectrum/transition
     (import effects/transition — that is where the colour-token tween lives,
     and it is why theme no longer depends on effects at all);
-  - the MD3 colour aliases on ColorTokens: OnBackground, OnSurface,
-    SurfaceVariant, OnSurfaceVariant, Outline. Each was a fixed resolution
-    off the neutral ramp and nothing is unreachable — OnBackground was
-    Text, OnSurface step 900, SurfaceVariant step 300, OnSurfaceVariant
-    step 700, Outline step 500 (which is FocusRing()). §Colour has the
-    replacements;
-  - elevation levels 4 and 5 — the desktop elevation tops out at 3, and asking
-    for a higher level now panics rather than clamping;
+  - the generated colour set and every derivation behind it. A component
+    takes tokens.PlatformColors and reads a name; there is no set to
+    generate, no colour to walk toward and no on-colour to resolve.
+    §Colour has the vocabulary that replaced it;
+  - the level argument. A component that draws an alpha name onto what it
+    stands on takes a Surface colour instead, and one standing on its own
+    opaque fill takes nothing;
   - patterns/tag entirely, with no alias. The status label is
     components/badge (the roster above); a dismissible user-entered token
     is the Input chip's;
@@ -516,19 +518,19 @@ content and context, and a button's label stays a verb. MARKING A CHOICE IS
 THE FILTER CHIP'S JOB AND NO BUTTON'S, whatever the button's emphasis: the
 button's Filled/Tonal/Ghost variants are a colour axis and record no state.
 
-COLOUR ARRIVES WITH MEANING. The resting chip has no fill at all — it is the
-outline OutlineVariant around the OnSurfaceVariant foreground over the surface
-you name (Props.Level) — and a selected Filter chip fills with the secondary
-container and drops that outline. Both are derived against the surface the
-chip stands on rather than copied from a fixed tone, so a brandless palette
-yields a brandless chip. Props.Pin puts the chip on the leading or trailing
-edge of a box wider than it and reports the box, for the container that
-reserved a cap but cannot place the chip inside it itself.
+COLOUR IS THE PLATFORM'S. The resting chip is Control under ControlText
+inside a Separator rim, over the fill you name (Props.Surface); a selected
+Filter chip fills with SelectedContentBackground under
+AlternateSelectedControlText and drops that rim. THE FOUR PURPOSES ARE ONE
+COLOUR — they differ in behaviour and structure, never in hue. Props.Pin
+puts the chip on the leading or trailing edge of a box wider than it and
+reports the box, for a caller that reserved a cap but cannot place the chip
+inside it itself.
 
 It is not components/badge, which is the system's own word
 about a thing — Neutral, Success, Warning, Error, Info — set at the size
-of its type, wearing a pale fill of the role's hue under a strong
-foreground of that same hue, and never clicked. And it is not the picker's
+of its type, filled with the platform's system colour for that status under
+a white foreground, and never clicked. And it is not the picker's
 Toolbar trigger, which names a choice and stands over a list of the
 alternatives.
 
@@ -541,8 +543,8 @@ ghost close X, a dismissing backdrop and Escape; a decision (non-nil) gets
 right-aligned footer Actions, Return on Decision.DefaultAction, Escape on
 Cancel, no X, and an inert backdrop. A footer with Save/Cancel means you have
 a decision, not a panel with HideClose (deprecated). Return never reaches a
-destructive primary: Decision derives the default from Confirm+Destructive, so
-there is no field with which to bind it wrongly. THE ACCELERATOR IS NOT THE
+destructive default action: Decision derives the default from
+Confirm+Destructive, so there is no field with which to bind it wrongly. THE ACCELERATOR IS NOT THE
 MODAL'S: ⌘,/Ctrl-, must be live when no dialog exists, so bind it in app
 chrome with Gio's key.ModShortcut (never a GOOS test) over a window-wide
 pointer.PassOp key area, landing a message that opens the panel. Reference
@@ -552,10 +554,10 @@ implementation: workbench/feeds shortcut.go + preferences.go.
 
 Every component takes the theme observable for visual configuration and
 props structs for content, and the theme carries the whole look: colour,
-typography, density, elevation and motion all arrive through it, so a
+typography, density and motion all arrive through it, so a
 correct app wires the theme once and styles nothing per component.
-theme/tokens supplies the typed design values (colour ramps, a 4-pt
-spacing scale, named radius stops); never use string-keyed style maps. components/list can render a visible scrollbar via list.LayoutScrollbar
+theme/tokens supplies the typed design values (the platform's colour set, a
+4-pt spacing scale, named radius stops); never use string-keyed style maps. components/list can render a visible scrollbar via list.LayoutScrollbar
 (anchor Occupy reserves a right gutter, Overlay floats the bar over the
 trailing edge; default style from scrollbar.FromTokens).
 
@@ -572,149 +574,138 @@ workbench feeds/app.go, and the same hand-off in vaultview; sitedocs
 stores whole tab-content layout.Widgets through the same kind of cell for its
 static tab slots.
 
-## Colour: one seed, ramps, pins, step walks
+## Colour: the platform's set
 
-COLOUR IS DERIVED, NOT PICKED. One seed colour
-generates the entire palette — both modes — through the CIELAB/OKLCh engine
-in theme/color:
-
-  ```go
-  light, dark := tokens.FromSeed(seed)  // paired ColorTokens; the light
-                                        // Primary pin is the seed exactly
-  ```
-
-### Where a seed comes from
-
-When it is not typed, theme/imageseed.Extract takes
-an image.Image and returns candidate seeds — pixels sampled on a stride so a
-20 Mpx photo costs what a thumbnail costs, clustered in OKLab, ranked by
-share times chroma squared so a vivid tenth of a picture outranks a drab
-half. Every candidate is a pixel the image really has, so it is in gamut and
-FromSeed takes it as it stands. Greyscale in, greys out.
-
-Application code never writes a colour literal. Every colour you need is
-on the tokens.ColorTokens value the theme's Color observable emits.
-
-The vocabulary:
-
-### Ramps
-
-ColorTokens.Ramps holds five roles — Neutral, Primary, Secondary,
-Tertiary, Error — each a nine-step Ramp addressed Step(100)..Step(900),
-where THE STEP IS THE MEANING: 100–300 tinted fills, hovers and subtle
-borders; 500 the mid reference and strong border; 700–900 text over
-tinted fills and pressed states. Light and dark are PAIRED scales: the
-same step keeps the same job in both modes, so neutral 200 is a light
-card on a light surface and a dark card on a dark one — there is no
-second table and no dark-mode special case.
-
-### Pins
-
-A brand colour rarely sits on the shared lightness scale, so each
-accent role's solid fill is pinned separately from its ramp:
-ColorTokens.Primary/Secondary/Tertiary/Error, each with an On* colour
-guaranteed readable over it. Background and Text are pins too.
-
-### The semantic layer
-
-Background (the window's backdrop), Surface (card — neutral 200), Seam
-(subtle border — neutral 300), Text (body text over Background). Reach for
-these first; reach into the ramps when you need a specific step.
-
-### Foreground versus fill
-
-A PIN IS SAFE AS A FILL AND UNPROVEN AS A FOREGROUND. FromSeed guarantees
-every pin's On* colour reads over it — that direction is solved — but
-says nothing about the pin drawn ON a surface instead of under one, and
-only the light Primary pin can actually fail there: the rest sit at
-fixed perceptual depths that always clear. Whenever a brand colour is
-the foreground rather than the fill — a link, a blockquote's bar, a
-task-list tick (§Markdown has the checkbox split) — derive it instead
-of reading the pin raw:
+COLOUR IS READ OFF THE PLATFORM, NOT DERIVED. There is one colour set,
+tokens.PlatformColors, whose fields are AppKit's semantic colour names one
+to one in Go casing — WindowBackground, ControlBackground, TextBackground,
+UnderPageBackground, Separator, Grid, SelectedContentBackground, Label and
+its three weaker weights, Control, ControlText, ControlAccent,
+KeyboardFocusIndicator, SystemRed … SystemGray — plus the ten fills the
+platform paints and gives no name to, measured off stored captures:
+SidebarMaterial, CardFill, PushButtonFill, HoverOverlay, PressOverlay,
+FloatingShadow, FieldEdge, ScrollbarThumb, AlternatingContentBackground and
+Scrim. It arrives on the theme's Platform observable:
 
   ```go
-  fg   := c.InkOn(tokens.RolePrimary, surface, tokens.TextFloor)    // words, 4.5:1
-  mark := c.InkOn(tokens.RolePrimary, surface, tokens.GraphicFloor) // a mark, 3:1
+  c, _ := t.Platform.First()      // tokens.PlatformColors
   ```
 
-InkOn returns the pin untouched once it already clears the floor
-against that surface, so the canonical brand — which always clears — comes
-back unchanged; only a pale seed's Primary pin ever walks the ramp
-instead. None of this touches a pin used as a FILL: with something
-else drawn on top of it, c.Primary is already entitled to be its own
-colour, because it is what that something else's On* colour is
-measured against, not the other way round.
+Application code never writes a colour literal and never derives one. Every
+fill, foreground, seam, ring and highlight reads the platform's name for
+what that element IS on the platform.
 
-### States are step walks, not alpha overlays
+### Where the values come from
 
-Hover is one step past the component's own fill,
-pressed/selected/dragged two, clamped at 900 — resolved by StateColor
-(tinted surfaces) and SolidStateColor (pinned fills, which walk toward
-the 900 depth). Disabled is an opacity (tokens.Disabled, MD3's 38%).
-Focus keeps the surface and strokes a ring in the primary hue, walked
-rather than named: the step of the primary ramp nearest that ramp's
-mid-value step which clears 3:1 against every level at once. That is
-ONE RING COLOUR PER SCHEME, and it does not depend on where the control
-stands — the same purple on the content, on a card, in a dialog and in a
-popover, because the ring is the system's mark of focus rather than a
-property of the fill under it. The one exception is the band a filled
-control insets in its OWN fill: there the scheme's ring is kept wherever
-it reads against that fill, and walked against the fill only where it
-cannot. ColorTokens.FocusRing() is still on the token set and is
-still neutral 500, but nothing strokes focus with it any more — one
-fixed step measures 2.35:1 on a surface, 1.42:1 three levels up, and
-1.00:1 around an unchecked checkbox, whose border is that same step.
+macOS answers for them live: theme/system asks AppKit for every name in the
+set under both appearances, on the same cadence as the accent key, so the
+user's accent setting and future platform changes come through. Windows and
+Linux carry the recorded sets with the accent rows rebuilt from the colour
+their desktop reports (PlatformColors.WithAccent). The catalogue was read
+off the platform with a command-line program — no application launched —
+in sRGB with alpha kept, and is stored in the organization's macOS
+reference; each measured field cites its capture in its own doc comment.
+MEASURED BEATS PUBLISHED: systemRed light is #ff383c where older documents
+say #ff3b30.
+
+### Alpha is part of the answer
+
+A label, a seam, a disabled text, an overlay and the focus ring are black or
+white AT A COVERAGE, which is how one recorded value reads correctly on
+every fill. Nothing in the set is pre-composited. FLATTEN IT ONTO THE FILL
+IT LANDS ON BEFORE THE RASTERIZER SEES IT, in encoded sRGB — the space the
+platform composites in:
 
   ```go
-  // c is the tokens.ColorTokens the theme's Color observable emitted.
-  alias   := c.Surface        // neutral 200 — a ramp alias, NOT a level
-  hover   := c.StateColor(tokens.RoleNeutral, 200, tokens.StateHover)   // 300
-  pressed := c.StateColor(tokens.RoleNeutral, 200, tokens.StatePressed) // 400
-  label   := c.Ramps.Neutral.Step(700)              // low-contrast text
-  body    := c.Ramps.Neutral.Step(900)              // body text
-  accent  := c.Primary                              // the pinned brand base
-  accHov  := c.SolidStateColor(tokens.RolePrimary, tokens.StateHover)
+  import vgcolor "github.com/vibrantgio/theme/color"
+  label := vgcolor.Flatten(c.Label, c.ControlBackground)
   ```
 
-### The generator guarantees contrast
+Handing Gio the coverage instead blends in linear light and misses the
+platform's byte. Scrim is the one exception: a modal's dim covers whatever
+the window happens to be showing, so there is no one surface to flatten it
+onto.
 
-The generator guarantees contrast in APCA terms, in both modes: step 900
-reaches Lc 90 and step 700 Lc 60 over the 100/200 surfaces, and every pin's
-On* colour reaches Lc 60 over its pin. So neutral 900 on Surface is always
-body-text safe and neutral 700 always label-safe — by construction, not by
-review. (WCAG 2 ratios are reported alongside but do not gate; APCA is the
-gate because WCAG 2 over-rates light-on-dark pairs.)
+### The theme colour
 
-## Branding: palette injection and the OS accent
+The theme colour is the one colour a person may choose. On macOS it is the
+accent colour from the system's Appearance settings unless the user picks
+another in workbench/themer; on other platforms the themer sets it. It
+STANDS IN wherever the platform uses its accent — the default button, the
+selection, the sidebar's pill, the focus ring — and nothing else derives
+from it: no ramp, no palette, no second hue.
+
+### The names, by what they answer for
+
+  ```
+  the window's plane      WindowBackground; UnderPageBackground is the
+                          backdrop showing around an inset pane
+  the chrome regions      SidebarMaterial — sidebars, toolbars, navbars,
+                          inspectors, status bars, panes
+  the content             ControlBackground; TextBackground for text and
+                          fields
+  a card, a grouped box   CardFill — no hairline, no shadow
+  a push button           PushButtonFill under ControlText, inside a
+                          Separator hairline
+  the default action      ControlAccent under AlternateSelectedControlText
+  a selected row          SelectedContentBackground under
+                          AlternateSelectedControlText where the window is
+                          frontmost; UnemphasizedSelectedContentBackground
+                          where it is not
+  a sidebar's open entry  patterns/sidebar's pill — SelectionFill,
+                          SelectionLabel, PaintSelection: inset from the
+                          rail's edges, rounded, never edge to edge and
+                          never the list's selection
+  every seam              Separator over whatever is beneath it; Grid for a
+                          table's own rules
+  text, four strengths    Label, SecondaryLabel, TertiaryLabel,
+                          QuaternaryLabel
+  a field                 TextBackground inside FieldEdge, the ring
+                          KeyboardFocusIndicator, the placeholder
+                          PlaceholderText
+  disabled                DisabledControlText, and a fill that falls back
+                          to Control
+  Error, Success,         SystemRed, SystemGreen, SystemOrange,
+  Warning, Info           SystemBlue
+  the find highlight      FindHighlight; the text it covers keeps its
+                          colour
+  hover and press         HoverOverlay, PressOverlay — TOOLBAR BUTTONS
+                          ONLY. Measured: a push button does not tint under
+                          the pointer on macOS 26, and neither does a list
+                          row or a sidebar row.
+  ```
+
+### Contrast
+
+Contrast is APCA lightness contrast, Lc, and it is the one measure. The
+floors choose colours the platform did not already choose: a pair measured
+off the platform — white on systemGreen, say — stands as the platform
+paints it, floor or no floor. A fill the user chose takes as its foreground
+whichever of black or white reads better on it, and that is the answer even
+when neither clears a floor.
+
+## The theme colour: what a brand is now
 
 The default theme streams — theme.Default(), theme.AutoLightDark and
-theme/system's LiveTheme — emit the default seed's palette. Options on
-LiveTheme/FromSourceTheme brand an app without giving up live OS tracking:
+theme/system's LiveTheme — carry the platform's set, read live on macOS.
+The one thing an application or a person chooses is the theme colour:
 
   ```go
-  // one brand colour; everything else derived, dark mode still live
-  themesystem.LiveTheme(time.Second, themesystem.WithSeed(brand))
-
-  // full control: both schemes supplied, OS still picks which is live
-  themesystem.LiveTheme(time.Second, themesystem.WithPalette(light, dark))
+  // the theme colour, chosen; every other name the platform's own
+  themesystem.LiveTheme(time.Second, themesystem.WithSeed(chosen))
   ```
 
-Precedence, highest first: WithSeed/WithPalette pin the pair — the app
-chose its brand, the OS accent is ignored. With NO palette option the
-stream follows the OS accent colour live: macOS's accent choice (including
-graphite; multicolour means "no accent"), the Windows DWM accent, GNOME's
-named accent or KDE's kdeglobals RGB each become the seed of a derived
-pair, cached per seed. No accent at all falls back to the default palette.
-An accent change re-emits the theme just like a dark-mode flip.
+With nothing chosen the stream follows the platform's own accent, live:
+macOS's accent choice (multicolour means "no accent override", which is the
+platform's own blue), the Windows DWM accent, GNOME's named accent or KDE's
+kdeglobals RGB. An accent change re-emits the theme just like a dark-mode
+flip.
 
-### Accessibility composes on top of whichever palette wins
+### Accessibility composes on top
 
-While the OS
-reports increased contrast, the Color observable emits a high-contrast
-variant derived from the resolved palette's own seed (deeper text steps,
-seam from the strong-border step, stronger On* separation — same APCA
-gates, higher floors); while it reports reduced motion, Motion emits zero
-durations (§Motion). Apps do nothing to get either.
+While the OS reports increased contrast the theme emits a higher-contrast
+answer; while it reports reduced motion, Motion emits zero durations
+(§Motion). Apps do nothing to get either.
 
 ### The persisted choices
 
@@ -723,21 +714,26 @@ auto + a11y overrides) as JSON in the OS config dir, when an app offers its
 own control; interpreting the stored name is the app's job.
 
 theme/brand is the other persisted choice, and it is per USER, not per app:
-one seed colour in one shared file (<config dir>/vibrantgio/theme.json), so
-a brand chosen once is worn by everything. The same file may name a code
-face as "mono": "JetBrains Mono" or omitted/empty/unknown, which is Roboto
-Mono — the same fallback "base" already uses. Adopting it is one line —
+the theme colour in one shared file (<config dir>/vibrantgio/theme.json), so
+a colour chosen once is worn by everything. The file may say instead that
+the theme colour FOLLOWS THE SYSTEM ("followSystem": true), which is what a
+machine left on the platform's own accent keeps; such a file carries no
+colour at all. The same file may name a code face as "mono": "JetBrains
+Mono" or omitted/empty/unknown, which is Roboto Mono — the same fallback
+"base" already uses. workbench/themer is what writes it, and it writes the
+colour alone: the other keys are read back and written out untouched.
+Adopting it is one line —
 
   ```go
   specsystem.LiveTheme(interval, brand.Kept().Options()...)
   ```
 
 — and with no file, or a damaged one, Options() is nil and the stream is the
-one it always was. The pinned pair beats the OS accent; light/dark still
-follows the desktop, live. An app that keeps a pre-emission fallback palette
-(an atomic cell read at frame time) must seed it from brand.Kept().Colors(),
-or its opening frames are in a colour nobody chose. Goldens stay on the
-canonical palette: adoption is runtime, never baked in.
+one it always was. The chosen colour beats the OS accent; light/dark still
+follows the desktop, live. An app that keeps a pre-emission fallback set (an
+atomic cell read at frame time) seeds it from tokens.PlatformLight or
+PlatformDark, which is what every platform but macOS carries anyway.
+Goldens stay on the recorded sets: adoption is runtime, never baked in.
 
 ## Density
 
@@ -745,13 +741,18 @@ Desktop density is a theme token, not a per-component prop. tokens.Density
 carries the drawn control height and inner padding:
 
   ```
-  Comfortable   36 dp control, 16/8 dp padding   (the default)
-  Compact       28 dp control, 12/6 dp padding
+  Comfortable   24 dp control, 27 dp text field   (the default)
+  Compact       19 dp control, 21 dp text field
   ```
 
-The numbers are measured, not invented — shadcn/ui's h-9/h-8 next to
-macOS's control sizes; the derivation table lives in theme/tokens
-density.go. Components and patterns read Density from the theme:
+The numbers are MEASURED off the platform, and measured beats published:
+the save dialog captured into the organization's macOS reference draws its
+regular push button and pop-up at 24 pt and its text field at 27, where the
+guideline publishes 22 and 13, and its checkbox at 16. A text field has a
+height of its own, taller than the control height, and a checkbox its own,
+smaller; a list's rows take the platform's row height (20) and a sidebar's
+its own (32). None of them is derived from the control height. The table
+lives in theme/tokens density.go. Components and patterns read Density from the theme:
 buttons, inputs, checkboxes, list rows, table rows, navbar, sidebar items,
 tabs and pagination all size from it, so switching an app to Compact is a
 theme change, not a sweep. The theme's Density observable defaults to
@@ -768,217 +769,105 @@ Compact swaps the field on the stream:
 The WCAG 2.5.5 pointer target (44 dp) is deliberately NOT part of Density:
 Density.MinHitTarget() is a constant, and components extend their pointer
 area beyond the drawn control to meet it — Compact shrinks the pixels,
-never the clickable area. Don't fight this: a 28 dp Compact button really
-does accept clicks a few dp outside its bounds, and neighbouring controls'
+never the clickable area. Don't fight this: a 19 dp Compact button really
+does accept clicks several dp outside its bounds, and neighbouring controls'
 slop overlapping is by design (the topmost input area wins).
 
-## Elevation: the surface levels
+## Level: the five positions in a window's depth
 
-A raised surface reads as raised by TINT first, shadow second. There are
-SIX levels, counted from the backdrop up, anchored on the Background pin
-and placed in CIELAB L* so that a level nearer the viewer is lighter in
-BOTH schemes:
+A level is a position in the window's depth. EACH LEVEL'S FILL IS THE
+PLATFORM'S, read off the platform per appearance, never derived from
+another level's; no level is lighter or darker than another by rule.
 
   ```
-  LevelBackdrop  the bare window plane, showing wherever nothing
-                 stands                                darkest in the window
-  LevelChrome    the chrome regions — navbar, toolbar, sidebar,
-                 inspector, status bar, pane
-  Level0         the content surface (the Background pin)
-  Level1         card, fence, field — raised in place
-  Level2         dialogs, toasts, higher panels
-  Level3         popovers, menus — the topmost level
+  backdrop   nothing: the window's own plane, showing wherever
+             nothing stands                        WindowBackground
+  chrome     the chrome regions — navbar, toolbar, sidebar,
+             inspector, status bar, pane           SidebarMaterial
+  content    the document being read, lists, tables ControlBackground
+                                                   (TextBackground for
+                                                   text and fields)
+  raised     on the content and attached to it — cards,
+             fields, filled insets                 CardFill; a field
+                                                   TextBackground inside
+                                                   FieldEdge
+  floating   detached, placed by an attachment or over a
+             scrim — dialogs, toasts, menus,
+             popovers, tooltips                    WindowBackground under
+                                                   FloatingShadow
   ```
+
+STANDING HIGHER IS TOLD THE WAY THE PLATFORM TELLS IT: a raised thing by
+the box's small step of fill, with NO hairline and NO shadow; a floating
+thing by its shadow. A field inside a card is raised on the card the same
+way. Cards do not nest: grouping within a card is its structure.
+
+Do not expect the levels to stand far apart. On macOS 26 the light
+appearance draws the window's plane, the content's fill and the chrome
+material as the same white, so THE SEAM IS WHAT SEPARATES THEM — a
+Separator hairline over whatever is beneath. In the dark appearance the
+chrome material reads on its own.
+
+There is no level argument left in the system. A component that draws an
+alpha name onto what it stands on is told the FILL it stands on instead —
+a Surface colour on its Props or RenderState — and a component standing on
+its own opaque fill is told nothing.
+
+### Shadows
+
+effects/depth draws the platform's shadow, and the verdict on when is
+recorded in that package's doc: a shadow marks what FLOATS AND CAN LEAVE —
+a toast, a popover, a menu, a dialog, a drag preview — never what is raised
+in place, which the platform tells by its box's fill alone. Pass
+c.FloatingShadow:
 
   ```go
-  surface := c.SurfaceAt(tokens.Level1)   // resolves the fill per mode
+  depth.Shadow(gtx, bounds, radius, c.FloatingShadow)
   ```
 
-DO NOT READ A LEVEL OFF THE NEUTRAL RAMP. A level is a ramp step only
-where the two happen to coincide: the light scheme's chrome level and
-backdrop land on neutral 200 and 300, and the dark scheme's three levels
-above the content land on neutral 200/300/400, but the light scheme's
-raised and floating fills are
-whispers toward white that no ramp step names. c.SurfaceAt is the only
-correct way to ask, and c.Surface is a RAMP ALIAS for neutral 200 rather
-than a level. In the light scheme the steps between levels are
-fractions of an L*, so anything that takes a level owes itself a derived
-hairline or a border to be seen at all.
+Do not add a shadow to a card.
 
-Because the ramps are paired, a surface tints per scheme with no second
-rule — dark-mode surface tint, the thing MD3's tonal elevation existed to
-encode, falls out for free. WHICH WAY a surface moves is not the pairing's
-to decide: a surface nearer the viewer is lighter, in BOTH schemes, which
-is the window-structure rule below and what the steps in the table answer
-to. State
-walks compose on top with the level's OWN FILL as the surface under them:
-c.StateAt(level, state) answers a level's hover and active, walking from
-the fill SurfaceAt gives rather than from a ramp index — so a control at
-the chrome level has an answer as much as one on a
-card. Ghost buttons obey the same rule from their HOST surface's
-step: button Props carry a Level elevation level (zero value — the window's
-own surface, so existing call sites keep their colors), and the ghost hover
-and press fills walk one step from that local surface rather than from the
-window's. Without it, a ghost control on a level-2 surface would hover to
-the very color it sits on and disappear. The patterns that put ghost
-controls on raised surfaces — modal's close X, popover, toast — pass their
-level for you. Levels 4 and 5 are GONE — they used to clamp onto level 3;
-asking for one now panics. Desktop has no six-deep stack.
+## Window structure: which region wears which name
 
-### Shadows are opt-in
+Level says how high a surface stands. This says WHICH PART OF A WINDOW
+STANDS WHERE — the assignment every app used to re-derive, some of them
+backwards.
 
-Shadows survive as OPT-IN vibrancy via effects/depth, and the verdict on when
-is recorded in that package's doc: a shadow marks what FLOATS AND CAN LEAVE
-— a toast, a popover, a menu, a drag preview — never what is raised in
-place, which reads as raised by its surface step alone. The cost backs the
-rule: a depth.Shadow is nine paint ops per frame, a surface step is one
-FillShape. Do not add a shadow to a card.
-
-## Window structure: which region wears which step
-
-Elevation says how high a surface stands. This says WHICH PART OF A
-WINDOW STANDS WHERE — the assignment every app used to re-derive, some of
-them backwards — and WHICH WAY THE LIGHT COMES FROM.
-
-THE ONE RULE: in BOTH schemes, a surface nearer the viewer is LIGHTER.
-There is no second rule for dark mode and no mirror. Elevation reads as
-elevation because a surface nearer the viewer catches more light, and
-reflectance does not invert when the room goes dark; what a dark scheme
-inverts is the foreground, which the paired ramps already handle.
-
-The consequence that reorganises everything else: CHROME IS A LEVEL OF ITS
-OWN, UNDER THE CONTENT rather than above it. A sidebar stands beside the
-document and beneath it, so it is DARKER than the document — in the light
-scheme and in the dark one. Five levels, ordered from the backdrop up
-toward the reader:
-
-  ```
-  backdrop  nothing: the bare window plane, showing wherever
-            nothing stands                   darkest in the window
-  chrome    the chrome regions — navbar, toolbar, sidebar,
-            inspector, status bar, pane      a tint lighter than the backdrop
-  content   the document, the transcript,
-            the list                         the Background pin
-  raised    filled insets on the content — cards, code fences,
-            a band's controls, a text field  above the pin
-  floating  what appears and leaves — dialogs, menus,
-            popovers, toasts                 nearest the light extreme
-  ```
-
-Read that down and lightness increases, in both schemes. That is the whole
-model.
-
-Measured, so you can check it yourself. A desktop application in both
-appearances: sidebar 251,251,249 → content 252,252,251 → composer
-255,255,255 in light, sidebar 17,17,17 → content 21,21,21 → composer
-32,32,31 in dark. The platform's own settings window in dark: sidebar
-#1C2123 under content surface #23292C under setting cards #2A2F32, with a
-search field raised on the sidebar at #2F3233. Monotonic in every one of
-them, in the same direction. Note the sizes: in the light scheme the steps
-are fractions of an L* and the derived hairlines do the visible separating,
-so do not expect a light window's levels to stand far apart.
-
-  - THE CONTENT SURFACE IS LEVEL 0. The largest resting
-    expanse, the thing the window exists to show, fills with the Background
-    pin — c.SurfaceAt(tokens.Level0). That is why level 0 is a
-    sentinel rather than a ramp step and why a button's Level prop takes
-    the window's own surface as its zero value.
-  - CHROME IS ONE MEASURED STEP UNDER THE CONTENT.
-    Sidebars, asides, rails, toolbars and inspectors fill DARKER than the
-    content — one step below it, in BOTH schemes, because they stand under
-    the document rather than on top of it. Chrome is window-scale only: the
-    trim inside a component or a pattern — a card's header, a dialog's
-    footer, a table's header row — is that thing's structure and takes no
-    level of its own. One small step is the whole
-    separation between chrome and content; two is a mistake in either
-    direction. THAT STEP IS MEASURED OFF THE PLATFORM, PER SCHEME, AND THE
-    TWO SCHEMES DO NOT MEASURE THE SAME. A light window separates its
-    chrome by about 4.9 L* — which is also the neutral ramp's own first
-    surface interval, so the light chrome level lands on neutral 200 — and a dark
-    window by a whisper, about 1.5: the platform's Voice Memos puts its
-    sidebar panel at #1B1B1B under #1E1E1E content, a reference chat
-    application 1.71 L*, the platform's settings window 3.81 with its
-    wallpaper tint on. A full ramp step in the dark scheme is nearly 5 L*
-    and reads as a hole rather than as chrome. Do not derive either
-    number and do not mirror one into the other scheme: resolve the level
-    through the theme (c.SurfaceAt) rather than reaching for a raw ramp
-    step, so a window inherits both measurements instead of restating one.
-    The BACKDROP is a further step under the chrome — derived rather than
-    measured, because no platform capture shows a window plane beneath its
-    chrome. Nothing is drawn at it: it shows wherever nothing stands,
-    which in a fully dressed window is nowhere.
-  - A FLOATING CHROME PANE IS STILL CHROME. Chrome's depth is SEMANTIC, not
-    geometric: a sidebar a button slides out of the window, an inspector
-    that detaches, is still chrome and still fills at that level.
-    It does not climb the levels by leaving the wall. What says a pane is a floating
-    object is its OWN HAIRLINE EDGE and its shadow, never a lighter fill —
-    the platform paints even the floating panel darker than the content
-    beside it, and outlines it internally at a ~1.5:1 whisper, a decorative
-    seam rather than a 3:1 mark. Integral chrome — fixed, flush, unable
-    to slide — takes no outline; its boundary is a plain seam. Draw a
-    sliding pane with an edge and let it stay at the chrome level. And do not
-    re-derive that object per window: patterns/pane IS the floating pane —
-    the inset from the leading, top and bottom edges, the rounded corners,
-    the hairline drawn inside them, a top strip cut deep enough to hold the
-    window buttons on their own centre line, and a dismissed state that
-    takes no width at all so what stood beside it reflows from the window's
-    own leading edge.
-  - NOTHING RESTING TAKES A FLOATING LEVEL. Levels 2 and 3 belong to what
-    appears and leaves — a dialog and a toast's base at 2, a popover and a
-    dropdown at 3, all of which the patterns pass for you — and to edges:
-    Seam and the state walks. Permanence is the test and size is its
-    tell. If a fill is the biggest thing on screen and never goes away, it
-    is the content or the chrome, whatever it is called.
+  - THE CONTENT IS THE LARGEST RESTING EXPANSE — the document, the
+    transcript, the list, the table — and it fills with ControlBackground,
+    or TextBackground where it is text or a field.
+  - CHROME IS THE SIDEBAR MATERIAL. Sidebars, asides, rails, toolbars,
+    navbars, inspectors, status bars and panes fill with SidebarMaterial
+    and are separated from the content by a Separator seam. Chrome is
+    window-scale only: the trim inside a component or a pattern — a card's
+    header, a dialog's footer, a table's header row — is that thing's
+    structure and is not chrome.
+  - A FLOATING CHROME PANE IS STILL CHROME. A sidebar a button slides out
+    of the window, an inspector that detaches, still fills with the chrome
+    material; what says it is a floating object is its own hairline edge
+    and its shadow. Do not re-derive that object per window: patterns/pane
+    IS the floating pane — the inset from the leading, top and bottom
+    edges, the rounded corners, the hairline drawn inside them, a top strip
+    cut deep enough to hold the window buttons on their own centre line,
+    and a dismissed state that takes no width at all.
   - A GROUP DIVIDES, A CARD SINGLES OUT. Which of the two a developer
     reaches for answers one question: am I dividing the page, or singling
-    something out? A form in sections, a list of articles, a row of tiers
-    — groups: a hairline around related components at the surface's own
-    level, taking its fill, raising nothing. The one thing that must
-    stand apart — a summary, a preview, the recommended tier — a card:
-    one rounded surface raised one step above the surface it is in, no
-    hairline, the raise doing the work. A card is never outlined and
-    never wears a role; the developer's word about it is a badge in its
-    header.
-  - LEVELS WALK FROM THE SURFACE A THING STANDS ON, not from the window,
-    and A STEP TOWARD THE VIEWER IS A STEP TOWARD THE SCHEME'S LIGHT
-    EXTREME. A card on the content is one level up from it; a control inside
-    a dialog walks from the dialog's own fill, which is what the Level prop
-    exists to say. An inset inside a body that is FILLED — a code fence, a
-    callout with a surface — steps UP from the surface it lies on rather than
-    reaching for an absolute step, and UP means LIGHTER in both schemes. An
-    inset that is MARKED instead — a blockquote's bar and a muted foreground,
-    a rule — stands off its page by contrast, owes no step and gets none; the
-    levels are for fills. The content answers differently, because the
-    Background pin is off the ramp and has no step to walk from: draw a
-    raised thing on the content at the level above the pin —
-    c.SurfaceAt(tokens.Level1) — and start its state walk there. And a
-    shared surface takes its host surface as a parameter, because it cannot know
-    it: a pattern that paints a plane and then a band over it — a table's
-    grid and its header, a tab panel and its strip — walks that band from
-    the plane's own level, never from an absolute step, which is right only
-    for as long as every caller happens to rest where it was written.
-  - A FILLED INSET IS RAISED, NEVER A RECESSED WELL. There is no
-    recessed class: the only test the system has for what owes a step is
-    FILLED versus MARKED, and it already puts the fence among the fills. So
-    a fenced code block is LIGHTER than the page it lies on in both schemes,
-    with its hairline border and its corner radius carrying the visible
-    edge — which is what the desktop applications this system is judged
-    against measure in both appearances (page #151515 under fence #1A1A1A in
-    dark, page #FCFCFB under fence #FDFDFD in light — 2.5 and 0.4 L* of
-    step, the rest done by the hairline). The precedents that look like
-    wells are mirrors rather than recessions: a fence drawn darker in light
-    and lighter in dark is a step taken in whichever direction the scheme
-    had room for, and a text well drawn at the scale's extreme in each
-    appearance is a convention about where content lives. If a fence receded
-    while a card rose, one page would show two directions from one surface
-    and THE CHECK below would stop being decidable by looking.
-  - WHAT IS CHOSEN IS TINTED; WHAT IS TRANSIENT IS A NEUTRAL WALK. The item
-    the window is currently showing — the open note, the open conversation —
-    fills from c.Ramps.Primary.Step(300). Hover, pressed and the keyboard
-    cursor stay neutral step walks over the region's own fill. A list has
-    to show a cursor and a current item at once without the two colliding: a
-    neutral fill says something happened here, a tinted one says this is the
-    one you are looking at.
+    something out? A form in sections, a list of articles, a row of tiers —
+    groups: a hairline around related components, taking the fill of the
+    surface they stand on, raising nothing. The one thing that must stand
+    apart — a summary, a preview, the recommended tier — a card: one
+    rounded surface filled with CardFill, no hairline and no shadow. A card
+    holds content, never another card, and never wears a role; the
+    developer's word about it is a badge in its header.
+  - WHAT IS CHOSEN WEARS THE PLATFORM'S SELECTION. The row the window is
+    currently showing takes SelectedContentBackground under
+    AlternateSelectedControlText where the window is frontmost, and
+    UnemphasizedSelectedContentBackground where it is not. In a SIDEBAR it
+    is the pill instead, through patterns/sidebar. Hover and press are the
+    platform's overlays and belong to toolbar buttons alone: a list row and
+    a sidebar row do not tint under the pointer on this platform, so a
+    keyboard cursor in a list is shown by the unemphasized selection rather
+    than by a tint of its own.
   - THE TITLEBAR WEARS THE FILL OF THE REGION IT CAPS. Never leave an
     unpainted native strip above a painted window. Where the platform allows
     it, take desktop.FullSizeContent() and let the capped region's own fill
@@ -1017,31 +906,24 @@ so do not expect a light window's levels to stand far apart.
     hairline, band included, and grabs a band several times that width;
     patterns/shell's SplitPane already does both, so an app on the shell
     restates neither.
-  - THE CHECK, IN ONE SENTENCE: WALKING TOWARD THE VIEWER NEVER GETS
-    DARKER, IN EITHER SCHEME. Backdrop, content, raised, floating — sample a
-    pixel from each and the lightness must climb. There is no mirror clause,
-    because the check does not care which scheme is on, and no
-    dismiss-the-overlays clause either, because it is taken along the depth
-    axis rather than across the window's plane: a dialog is nearer than the
-    content AND lighter than it, so a modal satisfies the check instead of
-    breaking it. The corollary is the same sentence in both schemes — A
-    WINDOW'S CHROME IS ITS DARKEST REGION AND THE NEAREST SURFACE ITS
-    LIGHTEST. A window darker in its middle than at its edges has the
-    grammar inverted somewhere.
+  - THE CHECK, IN ONE SENTENCE: EVERY FILL IN THE WINDOW IS A NAME OFF THE
+    PLATFORM'S SET, AND EVERY ALPHA IS FLATTENED ONTO WHAT IT LANDS ON.
+    Sample a pixel from any resting expanse and it must equal a field of
+    tokens.PlatformColors for the appearance on screen, byte for byte. A
+    pixel that equals nothing in the set is a colour somebody derived.
 
 None of this needs a token that does not already exist. A window that
 cannot be dressed from the vocabulary above is a window whose structure is
-wrong, not a token set that is short.
+wrong, not a colour set that is short.
 
-workbench/vaultview is the window the grammar was read off: frame.go fills
-the whole window with Background and fills the sidebar and the aside from
-the chrome level, main.go takes the full-size-content treatment and
+workbench/vaultview is the window the grammar was read off: main.go fills
+the whole window with WindowBackground and fills the tree rail and the
+aside with the chrome material, takes the full-size-content treatment and
 insets what it must, frame.go places the window buttons with
-desktop.ButtonRunAt and
-starts the band's content at desktop.BandLead, and tree.go tints the
-current note with Ramps.Primary.Step(300) while the keyboard cursor stays
-a neutral walk. Why the grammar is this shape rather than another is in
-the design repository's rationale document:
+desktop.ButtonRunAt and starts the band's content at desktop.BandLead, and
+tree.go marks the open note with the sidebar pattern's pill. Why the
+grammar is this shape rather than another is in the design repository's
+rationale document:
 
     https://raw.githubusercontent.com/vibrantgio/design/master/DESIGN.md
 
@@ -1113,7 +995,7 @@ back, blurs, and serves a paint.ImageOp. Two contracts to honour:
      Op is free.
   2. FALLBACK. Headless GPU rendering is not available everywhere.
      Update returns the error and Op reports ok == false; paint a flat
-     tinted scrim instead — blur.FallbackOp(tint) is ready-made, and
+     scrim instead — blur.FallbackOp(c.Scrim) is ready-made, and
      blur.Available() answers up front. Never assume the blur.
 
 ### What not to blur
@@ -1299,16 +1181,15 @@ viewport would fight the outer one.
     same opt-in as Text.OnLinkClick. The hook receives the *ListItem
     Parse produced (same pointer; MarkerOffset is the opening '[' in
     that source). The library does not write files.
-  - Checkbox colour splits across two fields because the two states
-    draw on different surfaces: Style.CheckboxBorder strokes the open
-    box against the page and is gated to GraphicFloor like any other
-    foreground (§Colour); Style.CheckboxFill is the closed box's solid fill
-    and takes the brand colour ungated, because it is
-    Style.CheckmarkColor's tick that reads against it, not the page.
+  - Checkbox colour splits across two fields because the two states draw
+    on different surfaces: Style.CheckboxBorder strokes the open box
+    against the page, and Style.CheckboxFill is the closed box's solid
+    fill under Style.CheckmarkColor's tick — the platform's accent under
+    the text that reads on it.
   - Code renders in the theme's mono face: FromTokens resolves Style.Mono
     and CodeSize from the Typography Code style (Roboto Mono by default;
-    JetBrains Mono when the kept "mono" names it), on a tinted neutral-300
-    surface with horizontal overflow
+    JetBrains Mono when the kept "mono" names it), on the platform's box
+    fill with horizontal overflow
     scroll. Syntax colours are opt-in: style.Highlight =
     highlight.Adapt(highlight.DefaultBase, colors) (markdown/highlight,
     chroma) — one base name for both appearances, which member of the pair
@@ -1320,8 +1201,8 @@ viewport would fight the outer one.
     (counterpart catppuccin-mocha); pass any name chroma's registry holds.
     Derive once per theme, not once per frame. highlight.New(name) still
     wears a stock style verbatim — stock styles are never mutated, and a
-    style fitted to a near-white page will measure short on the neutral-300
-    fill (github's keyword red reads 3.61:1 there). If you supply a custom
+    style fitted to a near-white page will measure short on the platform's
+    box fill (github's keyword red reads 3.61:1 there). If you supply a custom
     Typography, set Style.Mono and CodeSize from its Code role after
     FromTokens.
   - Images: paragraph-sole ![alt](url) blocks only; the library performs NO
@@ -1447,9 +1328,10 @@ Material set) and render them with ivg/raster/gio:
 
 Names are Category+Name: ActionSettings, AVPlayArrow, AVStop, AVPause,
 AVFiberManualRecord, ContentAddCircle, ContentClear, NavigationClose, ...
-Colour the glyph from the theme's tokens — the pinned Primary for accent
-glyphs, a neutral text step otherwise — never a hard-coded colour, and that
-holds for a mark as much as for a Material glyph.
+Colour the glyph from the theme's tokens — ControlAccent for an accent
+glyph, a label weight otherwise, flattened onto the fill it lands on —
+never a hard-coded colour, and that holds for a mark as much as for a
+catalogue glyph.
 Run `go run ./iconbrowser/` (in the workbench repo) to see both sets: the
 marks at the sizes controls draw them, over the searchable Material grid.
 
@@ -1535,9 +1417,9 @@ GitHub.
 
 All of these are directories in github.com/vibrantgio/workbench. Every one
 of the nine apps embodies the current contract — theme imports (no
-alias paths), ramp/pin colours (no MD3 aliases), theme typography (no
-app-built shaper), theme-driven component entry points — so copy any of
-them without the caveats older guides carried:
+alias paths), the platform's colour names read off t.Platform, theme
+typography (no app-built shaper), theme-driven component entry points — so
+copy any of them without the caveats older guides carried:
 
 ### todos/
 
@@ -1605,37 +1487,32 @@ settings PANEL it opens, whose two preferences apply live under it
 
 ### themer/
 
-Pick a brand colour out of a picture: an image dropped anywhere on the
-window comes back as a row of seed candidates — clustered and ranked by
-theme/imageseed — each swatch beside the primary pair FromSeed makes of
-it, and clicking one re-themes the window. The reference for OS file
-drops (mvu/desktop's ZoneGroup + DropTarget merged into the loop as
-messages, a window-wide zone, hover highlight) and for a theme observable
-the APPLICATION re-seeds: the OS still decides light or dark, the app
-decides the colour. A path argument takes the same path a drop does. Keep
-writes the chosen seed through theme/brand, which is where the other apps
-read it from. The page under the row is four tabs over patterns/tabs,
-drawn in the palette being judged rather than the window's: Theme — this
-seed's ramps and named picks with where each colour came from, and the
-type ramp — then Components, Patterns and Markdown, one per group of
-the components/gallery/inventory catalogue, with the syntax-base list
-riding in the code specimen's own row on the last of them. The tab and
-its scroll position survive a pick, and the catalogue is parsed once for
-all four
+The theme colour's chooser, and nothing else. The platform's own accent
+colour leads the row as the default; an image dropped anywhere on the
+window comes back as swatches of the colours it is made of — clustered and
+ranked by theme/imageseed — and a field takes a colour written as a hex
+triplet. Whichever is chosen, what the window previews is the platform's
+set with that colour standing in for the accent: the set itself, name by
+name by reflection, beside a picture of an application where the handful of
+places the colour lands can be seen together. The scheme switch moves the
+preview; the window itself follows the desktop's setting like every other
+app. The reference for OS file drops (mvu/desktop's ZoneGroup + DropTarget
+merged into the loop as messages, a window-wide zone, hover highlight). A
+path argument takes the same path a drop does. Keep writes the colour
+through theme/brand, which is where the other apps read it from — and
+leaves every other key in that file as it found it
 
 ### sitedocs/
 
 The documentation app, five tabs over patterns/tabs: Docs — this guide
 (llms.txt) rendered whole by vibrantgio/markdown, its ##/### outline as
 a tree whose rows scroll the document (ScrollToBlock); Theme — the
-palette story, opening with the colour the palette grew from and going
-on to the ramps grid, the named picks and the type ramp, following the
-live theme; then Components, Patterns and Markdown, one
-per group of the components/gallery/inventory catalogue, as live
-controls. A tab showing a single group drops that group's banner, and
-the inventory's own colour sections are dropped for the Theme tab's
-telling — the inventory module is untouched, the app chooses which of
-its sections to lay out. The reference for a tabbed shell and for an
+platform's colour set, name by name with each value in both appearances,
+and the type scale, following the live theme; then Components, Patterns
+and Markdown, one per group of the components/gallery/inventory
+catalogue, as live controls. A tab showing a single group drops that
+group's banner — the inventory module is untouched, the app chooses which
+of its sections to lay out. The reference for a tabbed shell and for an
 outline tree over one long document
 
 ### marketing/
@@ -1659,11 +1536,12 @@ off the render goroutine, pure functions over it, every rule pinned by a
 test. Read doc.go first: it states the link contract the tests enforce.
 The one write is a GFM task marker: OnTaskClick splices `[ ]` ↔ `[x]` in
 the file before the handler returns, and nothing else is writable. Also
-the reference for adopting a kept brand: one theme.LiveTheme option, and
-the same value seeding mirrorTokens' first cell. And the window the
-surface-step grammar was read off: a Background fill running to the top
-edge under the full-size-content treatment, panes raised one step to
-Surface, the current note a Primary tint against a neutral cursor.
+the reference for adopting a kept theme colour: one theme.LiveTheme option,
+and the same value seeding mirrorTokens' first cell. And the window the
+structure grammar was read off: WindowBackground running to the top edge
+under the full-size-content treatment, the rail and the aside filled with
+the chrome material behind a Separator seam, and the open note marked with
+patterns/sidebar's pill.
 
 DESIGN.md lives in github.com/vibrantgio/design if you want the
 architecture rationale. You do not need it to write an app.

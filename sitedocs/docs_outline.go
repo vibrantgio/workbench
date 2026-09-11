@@ -32,6 +32,8 @@ import (
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/sidebar"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -47,8 +49,6 @@ const (
 	docsOutlineMarkDp    = 12  // the disclosure mark's own square
 	docsOutlineMarkColDp = 20  // fixed column holding it, so titles align
 	docsOutlineIndentDp  = 14  // additional inset for ### children
-	docsOutlinePillRDp   = 8   // corner radius of the selection fill
-	docsOutlinePillVDp   = 2   // vertical gap between adjacent row fills
 	docsOutlineTopPadDp  = 8   // breathing room above the first row
 )
 
@@ -128,26 +128,22 @@ func ensureClick(m map[int]*widget.Clickable, key int) *widget.Clickable {
 // layout draws the tree column: the rail's own fill the fixed width of the
 // rail, the visible rows as a scrolling list under a little top padding.
 //
-// It stands at the CHROME level. This column is an outline rail, which is
-// chrome, and chrome stands under the document rather
-// than over it, in both schemes. colors.Surface would not do: it is a RAMP
-// ALIAS rather than a level (neutral 200, which coincides with the light
-// scheme's chrome level but with the dark scheme's RAISED level), so one
-// line of code would put the rail under the guide in the light scheme and
-// over it in the dark one. The chrome level is neutral 200 in the light
-// scheme and #151515 in the dark one, below the #181818 page it indexes.
+// The column is an outline rail, which on this platform is a sidebar, so it
+// wears the chrome material — the fill the platform gives a sidebar, a
+// toolbar and an inspector. In the light appearance that material is the
+// content's own white exactly, so the seam along the rail's trailing edge is
+// the whole of what parts the rail from the document there.
 func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeTokens) layout.Dimensions {
 	w := gtx.Dp(unit.Dp(docsOutlineWidthDp))
 	if w > gtx.Constraints.Max.X {
 		w = gtx.Constraints.Max.X
 	}
 	size := image.Pt(w, gtx.Constraints.Max.Y)
-	paint.FillShape(gtx.Ops, tok.col.SurfaceAt(tokens.LevelChrome), clip.Rect{Max: size}.Op())
-	// A hairline on the trailing edge parts the tree from the document: in
-	// dark schemes the two fills are close and would otherwise bleed
-	// together.
+	paint.FillShape(gtx.Ops, tok.col.SidebarMaterial, clip.Rect{Max: size}.Op())
+	// Two flush regions, so the one drawn first says where it ends: the
+	// platform's seam, laid on the material it is drawn inside.
 	hair := max(gtx.Dp(unit.Dp(1)), 1)
-	paint.FillShape(gtx.Ops, tok.col.Seam, clip.Rect{
+	paint.FillShape(gtx.Ops, vgcolor.Flatten(tok.col.Separator, tok.col.SidebarMaterial), clip.Rect{
 		Min: image.Pt(size.X-hair, 0), Max: size,
 	}.Op())
 
@@ -178,15 +174,14 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 		mvu.MessageOp{Message: SelectHeading{Block: row.Block}}.Add(gtx.Ops)
 	}
 
+	// The pill is the sidebar pattern's — its inset, its corner and its two
+	// colours — so a rail in this window is a rail on this platform. The
+	// window drawing it is the frontmost one, so the selected row wears the
+	// emphasized fill.
+	surface := tok.col.SidebarMaterial
 	if st.selected == row.Block {
-		ins := gtx.Dp(unit.Dp(docsOutlineInsetDp))
-		vp := gtx.Dp(unit.Dp(docsOutlinePillVDp))
-		r := gtx.Dp(unit.Dp(docsOutlinePillRDp))
-		pill := clip.RRect{
-			Rect: image.Rect(ins, vp, size.X-ins, size.Y-vp),
-			NE:   r, NW: r, SE: r, SW: r,
-		}
-		paint.FillShape(gtx.Ops, tok.col.Ramps.Primary.Step(300), pill.Op(gtx.Ops))
+		sidebar.PaintSelection(gtx, size, tok.col, false)
+		surface = sidebar.SelectionFill(tok.col, false)
 	}
 
 	indent := float32(docsOutlineInsetDp)
@@ -197,6 +192,16 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 	if row.Child {
 		style = tok.typ.BodySmall
 	}
+
+	// A row's words and its mark are the platform's label at two strengths,
+	// each composited onto the fill it actually lands on — the material, or
+	// the pill where this row is the selected one.
+	title := tok.col.Label
+	if st.selected == row.Block {
+		title = sidebar.SelectionLabel(tok.col, false)
+	}
+	title = vgcolor.Flatten(title, surface)
+	discloseMark := vgcolor.Flatten(tok.col.SecondaryLabel, surface)
 
 	children := []layout.FlexChild{
 		layout.Rigid(hSpacer(indent)),
@@ -216,7 +221,7 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 					semantic.LabelOp("disclose " + row.Title).Add(gtx.Ops)
 					semantic.EnabledOp(true).Add(gtx.Ops)
 					pointer.CursorPointer.Add(gtx.Ops)
-					drawOutlineDisclosure(gtx, row.Open, unit.Dp(docsOutlineMarkDp), tok.col.Ramps.Neutral.Step(700))
+					drawOutlineDisclosure(gtx, row.Open, unit.Dp(docsOutlineMarkDp), discloseMark)
 					return layout.Dimensions{Size: image.Pt(col, mark)}
 				})
 			}
@@ -228,7 +233,7 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				return drawOutlineLabel(gtx, tok.shaper, row.Title, style, tok.col.Ramps.Neutral.Step(900))
+				return drawOutlineLabel(gtx, tok.shaper, row.Title, style, title)
 			})
 		}),
 		layout.Rigid(hSpacer(docsOutlineInsetDp)),
@@ -302,11 +307,11 @@ func docsOutline(
 	scrollTo func(int),
 ) rx.Observable[layout.Widget] {
 	v := newOutlineView(entries, scrollTo)
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
+	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
 	tokensObs := rx.CombineLatest2(colObs, typObs)
 	full := rx.CombineLatest2(stateObs, tokensObs)
-	return rx.Map(full, func(t rx.Tuple2[outlineState, rx.Tuple2[tokens.ColorTokens, tokens.Typography]]) layout.Widget {
+	return rx.Map(full, func(t rx.Tuple2[outlineState, rx.Tuple2[tokens.PlatformColors, tokens.Typography]]) layout.Widget {
 		st := t.First
 		typ := t.Second.Second
 		tok := themeTokens{col: t.Second.First, typ: typ, shaper: typ.Shaper()}
@@ -324,7 +329,7 @@ func renderDocsTab(
 	shaper *text.Shaper,
 	source []byte,
 	st outlineState,
-	colors tokens.ColorTokens,
+	colors tokens.PlatformColors,
 	typo tokens.Typography,
 ) layout.Widget {
 	blocks := markdown.Parse(source)

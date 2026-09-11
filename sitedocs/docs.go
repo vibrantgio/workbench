@@ -46,18 +46,22 @@ var (
 )
 
 // docsMarkdownStyle derives the markdown document style for the current
-// colour and typography tokens: the token-themed defaults plus the app's
+// colour set and typography: the platform-themed defaults plus the app's
 // two opt-ins — chroma highlighting matched to the appearance, and links
 // opening in the system browser.
+//
+// The document is read on the content plane, which is what the tab shell
+// fills its panel with and what this column therefore stands on. Every
+// coverage the style carries is composited onto it there.
 //
 // Mono and CodeSize are re-resolved from the theme's Code role: FromTokens
 // defaults them from the Typography it is handed, and setting them here keeps
 // that explicit at the call site.
-func docsMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
-	st := markdown.FromTokens(c, typ)
+func docsMarkdownStyle(p tokens.PlatformColors, typ tokens.Typography) markdown.Style {
+	st := markdown.FromTokens(p, typ, p.ControlBackground)
 	st.Mono = font.Typeface(typ.Code.Typeface)
 	st.CodeSize = unit.Sp(typ.Code.Size)
-	if isDarkColor(c.Background) {
+	if isDarkColor(p.ControlBackground) {
 		st.Highlight = docsHighlightDark
 	} else {
 		st.Highlight = docsHighlightLight
@@ -124,10 +128,10 @@ func guideDocObservable(
 	th rx.Observable[theme.Theme],
 	doc *markdown.Document,
 ) rx.Observable[layout.Widget] {
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
+	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
 	tokensObs := rx.CombineLatest2(colObs, typObs)
-	return rx.Map(tokensObs, func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography]) layout.Widget {
+	return rx.Map(tokensObs, func(t rx.Tuple2[tokens.PlatformColors, tokens.Typography]) layout.Widget {
 		typ := t.Second
 		style := docsMarkdownStyle(t.First, typ)
 		shaper := typ.Shaper()

@@ -23,7 +23,7 @@ func TestTheStripStaysDraggableUnderTheModal(t *testing.T) {
 	const width, height = 650, 600
 	const stripH = int(titleBandDp)
 
-	th := staticThemed(tokens.DefaultLight)
+	th := staticThemed(tokens.PlatformLight)
 	w := view(th, fixtureModel("add.todo"), func() unit.Dp { return titleBandDp })
 
 	var ops op.Ops

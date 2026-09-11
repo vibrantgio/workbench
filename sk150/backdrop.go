@@ -10,14 +10,13 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// BackdropLayer fills the window with the content plane — the Background
-// pin the palette resolves for level 0. It is the bottom layer and the only
-// fill the resting window has.
+// BackdropLayer fills the window with the window's own plane. It is the
+// bottom layer and the only fill the resting window has.
 func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-		return t.Color
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+		return t.Platform
 	})
-	return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
+	return rx.Map(colors, func(c tokens.PlatformColors) layout.Widget {
 		return backdrop.Widget(PaletteFrom(c).Backdrop)
 	})
 }

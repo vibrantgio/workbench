@@ -9,9 +9,9 @@
 //   - Docs       → the application guide (the workbench root's llms.txt)
 //     as one markdown document, its ##/### outline tree in a leading
 //     column.
-//   - Theme      → the seed the palette grew from, the themer's palette
-//     section and the inventory's type scale, following the live theme
-//     (theme_tab.go).
+//   - Theme      → the shared colour board — every name the platform
+//     answers for — and the inventory's type scale, following the live
+//     theme (theme_tab.go).
 //   - Components → components/gallery/inventory's Components group as
 //     live controls in one scrolling column (inventory_tabs.go).
 //   - Patterns   → the same for the inventory's Patterns group.
@@ -97,10 +97,11 @@ func run() {
 		}
 	}
 
-	// The kept brand is read once: the theme stream is dressed in it, and
-	// the Theme tab names its seed from the same reading.
-	kept := brand.Kept()
-	w := specwin.New(mvuWin, themeObservable(kept))
+	// The kept brand dresses the theme stream: what a brand file still pins
+	// is the type and the theme colour that stands in where the platform
+	// uses its accent. The colour set itself is the platform's under either
+	// appearance, so nothing kept pins that.
+	w := specwin.New(mvuWin, themeObservable(brand.Kept()))
 
 	// The window's collector registers on each FrameEvent so MessageOp.Add(gtx.Ops)
 	// calls made during layout are collected and delivered here on the same
@@ -119,7 +120,7 @@ func run() {
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 	modelObs := models.Publish().AutoConnect(2)
 
-	if err := w.Render(buildLayers(modelObs, seedOf(kept))).Wait(); err != nil {
+	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -135,26 +136,13 @@ func themeObservable(b brand.Brand) rx.Observable[theme.Theme] {
 	return specsystem.LiveTheme(5*time.Second, b.Options()...)
 }
 
-// seedOf is the colour the Theme tab offers as this window's seed: the
-// brand this user kept, else the palette's own default. It is a candidate
-// and not a claim — an OS accent outranks the default, and the theme
-// stream publishes the tokens it derived without saying which colour they
-// came from, so the seed row checks the candidate against the palette it
-// is drawing before naming it.
-func seedOf(b brand.Brand) stdcolor.NRGBA {
-	if b.Chosen() {
-		return b.Seed
-	}
-	return tokens.DefaultSeed
-}
-
 // themeTokens is the colour/typography snapshot the app's own drawing code
 // reads at frame time. The shaper is the theme's cached Typography shaper:
 // the app builds none of its own, so the typefaces — Roboto, plus
 // the Roboto Mono face the guide's code style names — come from the
 // theme.
 type themeTokens struct {
-	col    tokens.ColorTokens
+	col    tokens.PlatformColors
 	typ    tokens.Typography
 	shaper *text.Shaper
 }
@@ -163,11 +151,11 @@ type themeTokens struct {
 // per-window theme to. It returns the two rendering layers: a backdrop and
 // the tabbed shell. The model observable drives tab selection and the
 // docs outline state.
-func buildLayers(modelObs rx.Observable[Model], seed stdcolor.NRGBA) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			underTitleBar(th, tabbedShellLayer(th, modelObs, seed)),
+			underTitleBar(th, tabbedShellLayer(th, modelObs)),
 		}
 	}
 }
@@ -182,32 +170,32 @@ func buildLayers(modelObs rx.Observable[Model], seed stdcolor.NRGBA) func(th rx.
 // leading ~80 dp (the window buttons' territory) included.
 //
 // The strip draws nothing of its own, so what it shows is whatever was
-// painted there, and the window's own fill is the Background pin: the
-// agreement has to be made rather than inherited. The region this band caps
-// is the tab strip, which patterns/tabs fills one level over its panel, so
-// on this window's level-0 panel the band is level 1. What is required is
-// the region's fill at the window's top edge, not the region's layout
-// reaching it — which is what lets the shell stay inset off the buttons.
+// painted there, and the window's own plane is not it: the agreement has to
+// be made rather than inherited. The region this band caps is the tab strip,
+// which patterns/tabs fills with the platform's chrome material. What is
+// required is the region's fill at the window's top edge, not the region's
+// layout reaching it — which is what lets the shell stay inset off the
+// buttons.
 //
 // The cap claims that same strip for the window's own drag: without that
 // claim the window could not be moved by its top edge at all.
 func underTitleBar(th rx.Observable[theme.Theme], shellObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-		return t.Color
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+		return t.Platform
 	})
-	return rx.Map(rx.CombineLatest2(shellObs, colors), func(n rx.Tuple2[layout.Widget, tokens.ColorTokens]) layout.Widget {
+	return rx.Map(rx.CombineLatest2(shellObs, colors), func(n rx.Tuple2[layout.Widget, tokens.PlatformColors]) layout.Widget {
 		return bandedCap(desktop.TopInset, titleBandFill(n.Second), n.First)
 	})
 }
 
 // titleBandFill is the fill the title-bar strip wears. The region it caps is
-// the tab strip, and patterns/tabs fills that strip with the raise walked
-// from its panel; this window's panel takes the pattern's default level,
-// the content, so this is the raise off the content. Named once because two
+// the tab strip, and patterns/tabs fills that strip with the platform's
+// chrome material — the fill a toolbar, a navbar and a sidebar carry, which
+// is what a band across the top of a window is. Named once because two
 // callers have to agree on it — the window, and the whole-window render that
 // photographs the window.
-func titleBandFill(c tokens.ColorTokens) stdcolor.NRGBA {
-	return c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill
+func titleBandFill(c tokens.PlatformColors) stdcolor.NRGBA {
+	return c.SidebarMaterial
 }
 
 // bandedCap is desktop.CapTop with a fill under it: the strip is painted, and
@@ -232,15 +220,16 @@ func bandedCap(height func() unit.Dp, band stdcolor.NRGBA, w layout.Widget) layo
 	}
 }
 
-// backdropLayer paints the window's own plane: the Background pin, which is
-// what the expanse a window exists to show wears. It is the shared mechanism
-// the other workbench windows already call, not a fill of this app's own.
+// backdropLayer paints the window's own plane, under every other layer.
+// Every region that stands paints its own fill over it; what is left showing
+// is the window itself. It is the shared mechanism the other workbench
+// windows already call, not a fill of this app's own.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-		return t.Color
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+		return t.Platform
 	})
-	return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
-		return backdrop.Widget(c.Background)
+	return rx.Map(colors, func(c tokens.PlatformColors) layout.Widget {
+		return backdrop.Widget(c.WindowBackground)
 	})
 }
 
@@ -265,7 +254,6 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 func tabbedShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
-	seed stdcolor.NRGBA,
 ) rx.Observable[layout.Widget] {
 	selectedObs := rx.Map(modelObs, func(m Model) int { return tabIndex(m.currentPage) })
 
@@ -286,7 +274,7 @@ func tabbedShellLayer(
 		case pageDocs:
 			pages[i] = docsTabFrom(th, modelObs, loadGuide())
 		case pageTheme:
-			pages[i] = themeTabLayer(th, seed)
+			pages[i] = themeTabLayer(th)
 		default:
 			pages[i] = groupTabLayer(th, tabGroups[page])
 		}
@@ -313,20 +301,18 @@ func tabbedShellLayer(
 // contentGap is the air the shell keeps between the tab strip and
 // whatever the selected tab shows: S4, eight times the 2 dp underline it
 // has to separate. S2 — 8 dp, measured — is not enough: the underline reads
-// as camouflaged against the inventory's full-width banner, which is Primary,
-// the underline's own colour to the byte in both schemes. The banner cannot
-// move, so the air is the only variable and it is spent generously. sitedocs
-// never overrides the spacing scale — the strip's own cell padding is the
-// theme's S3 — so the value reads the published scale directly.
+// as camouflaged against a full-width band drawn in the selection colour,
+// the underline's own colour to the byte in both appearances. Such a band
+// cannot move, so the air is the only variable and it is spent generously.
+// sitedocs never overrides the spacing scale — the strip's own cell padding
+// is the theme's S3 — so the value reads the published scale directly.
 var contentGap = unit.Dp(tokens.Spacing.S4)
 
 // contentSlot is the tab shell's content slot: a tab's content, pushed
-// down by contentGap. The gap exposes the panel's own fill — the window's
-// content surface, since patterns/tabs fills its panel at the caller's level
-// and this app takes the default — so the active tab's Primary underline has
-// plain fill on both sides and reads as a line rather than as the top edge
-// of whatever begins below it. The strip's lower edge is a level change as well
-// as an underline.
+// down by contentGap. The gap exposes the panel's own fill — the platform's
+// content plane, which is what patterns/tabs fills its panel with — so the
+// active tab's underline has plain fill on both sides and reads as a line
+// rather than as the top edge of whatever begins below it.
 //
 // The gap lives here, in the shell, rather than in any one tab: the collision
 // is structural. The underline is the strip's bottom two pixels, so any

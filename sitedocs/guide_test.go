@@ -193,7 +193,7 @@ func TestOutlineClickScrollsTheDocument(t *testing.T) {
 
 	st := outlineState{open: map[int]bool{0: true}, selected: -1}
 	typ := tokens.DefaultTypography
-	tok := themeTokens{col: tokens.DefaultLight, typ: typ, shaper: typ.DeterministicShaper()}
+	tok := themeTokens{col: tokens.PlatformLight, typ: typ, shaper: typ.DeterministicShaper()}
 	tree := func(gtx layout.Context) layout.Dimensions {
 		return v.layout(gtx, st, tok)
 	}
@@ -210,7 +210,7 @@ func TestOutlineClickScrollsTheDocument(t *testing.T) {
 	)
 
 	// One document layout resolves the recorded scroll.
-	style := docsMarkdownStyle(tokens.DefaultLight, typ)
+	style := docsMarkdownStyle(tokens.PlatformLight, typ)
 	var ops op.Ops
 	gtx := layout.Context{
 		Constraints: layout.Exact(image.Pt(600, 400)),
@@ -265,11 +265,11 @@ func TestDocsTabGolden(t *testing.T) {
 
 	cases := []struct {
 		name   string
-		colors tokens.ColorTokens
+		colors tokens.PlatformColors
 		bg     color.NRGBA
 	}{
-		{"light", tokens.DefaultLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-		{"dark", tokens.DefaultDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
+		{"light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
+		{"dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -279,8 +279,8 @@ func TestDocsTabGolden(t *testing.T) {
 	}
 }
 
-// TestDocsTabLightDarkDiffer confirms swapping the colour token set moves
-// the rendered Docs tab's pixels.
+// TestDocsTabLightDarkDiffer confirms swapping the appearance's colour set
+// moves the rendered Docs tab's pixels.
 func TestDocsTabLightDarkDiffer(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	source := guideFixture(t)
@@ -288,8 +288,8 @@ func TestDocsTabLightDarkDiffer(t *testing.T) {
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 	size := image.Pt(1180, 760)
 
-	a := golden.Capture(t, size, scene(renderDocsTab(shaper, source, st, tokens.DefaultLight, tokens.DefaultTypography), bg))
-	b := golden.Capture(t, size, scene(renderDocsTab(shaper, source, st, tokens.DefaultDark, tokens.DefaultTypography), bg))
+	a := golden.Capture(t, size, scene(renderDocsTab(shaper, source, st, tokens.PlatformLight, tokens.DefaultTypography), bg))
+	b := golden.Capture(t, size, scene(renderDocsTab(shaper, source, st, tokens.PlatformDark, tokens.DefaultTypography), bg))
 	if golden.PixelDiff(a, b) == 0 {
 		t.Error("light and dark Docs tab render identically")
 	}

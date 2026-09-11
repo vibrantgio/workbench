@@ -8,27 +8,36 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/textdraw"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// Palette is the app's view of the theme colour tokens, derived per theme
-// emission so the OS light/dark switch restyles the app live.
+// Palette is the app's view of the platform's colour set: the named places
+// this window paints, each resolved from tokens.PlatformColors on every theme
+// emission. Because the theme window feeds a live OS theme, an OS light/dark
+// switch re-emits the set and restyles the whole app with no imperative
+// wiring.
+//
+// Which platform name each place takes is what this window IS on macOS.
+// Nothing here is chrome: the window is one plane with a catalogue drawn on
+// it, so the fill is the window's own and the captions are the platform's
+// label over it. Every alpha-carrying name is flattened onto the fill it
+// lands on, in encoded sRGB, so what Gio is handed is opaque.
 type Palette struct {
-	Backdrop color.NRGBA // window background
-	Text     color.NRGBA // icon captions
-	Muted    color.NRGBA // "no icons match" notice
+	Backdrop color.NRGBA // the window's own plane, full-bleed
+	Text     color.NRGBA // icon captions and section labels
+	Muted    color.NRGBA // section notes and the "no icons match" notice
 	Icon     color.NRGBA // the glyphs themselves
 }
 
-// PaletteFrom resolves the palette: the pinned Background and Text, the pinned
-// Primary for the glyphs, and the Neutral ramp's low-contrast text step 700
-// for the muted notice.
-func PaletteFrom(c tokens.ColorTokens) Palette {
+// PaletteFrom resolves the window's places from the platform's set.
+func PaletteFrom(c tokens.PlatformColors) Palette {
+	plane := c.WindowBackground
 	return Palette{
-		Backdrop: c.Background,
-		Text:     c.Text,
-		Muted:    c.Ramps.Neutral.Step(700),
-		Icon:     c.Primary,
+		Backdrop: plane,
+		Text:     vgcolor.Flatten(c.Label, plane),
+		Muted:    vgcolor.Flatten(c.SecondaryLabel, plane),
+		Icon:     c.ControlAccent,
 	}
 }
 

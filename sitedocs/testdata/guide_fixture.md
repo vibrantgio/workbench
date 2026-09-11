@@ -8,18 +8,18 @@ sections that are the tree's top level, `###` children that disclose, a
 ## First section
 
 Prose under the first section. The fenced block and the quote below are
-here so a render of this page can be asked whether a raised inset has a
-step to stand on: both are drawn against the page's own ground, and on a
-page that was itself the fence's colour neither had one.
+here so a render of this page can be asked whether a fenced block has a
+fill to stand on: both are drawn against the plane the document is read
+on, and on a page that was itself the fence's colour neither had one.
 
 ```go
-func step(off page.Ground) tokens.ElevationLevel {
-	return off + 1
+func fence(p tokens.PlatformColors) color.NRGBA {
+	return codeFill(p, p.ControlBackground)
 }
 ```
 
-> A quote block is marked rather than filled: a Primary bar leads it and
-> its prose is set in the low-contrast step.
+> A quote block is marked rather than filled: a bar leads it and its
+> prose is set at the strength an aside is read at.
 
 ### First child
 

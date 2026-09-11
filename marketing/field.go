@@ -13,6 +13,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/noise"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 
 	"github.com/vibrantgio/seen"
@@ -26,8 +27,8 @@ import (
 )
 
 // A tilted triangle field drawn as a wireframe: every face is stroked in one
-// Neutral 500 colour (FocusRing) and none is filled. Amplitude is kept low so
-// vertex noise stays sub-pixel on a stroke.
+// colour and none is filled. Amplitude is kept low so vertex noise stays
+// sub-pixel on a stroke.
 
 const (
 	triangleSizePx = 70.0
@@ -43,11 +44,6 @@ const (
 	noiseAmplitude = 0.08
 
 	strokeWidth = 1
-	// strokeMix is how much FocusRing remains after blending toward
-	// Background. Seen's stroke path drops alpha (Hex is #RRGGBB), so
-	// the mesh can only recede in RGB. 0.35 keeps Neutral 500's hue
-	// without letting the wireframe become the subject.
-	strokeMix = 0.35
 )
 
 // Field owns one seen scene and its animation. All fields except pending
@@ -77,7 +73,7 @@ func newField(window *app.Window, width, height unit.Dp) *Field {
 	f := &Field{
 		ctx:    seengio.NewContext(window),
 		scene:  seen.NewDefaultScene(),
-		stroke: faintStroke(tokens.DefaultLight), // pre-theme placeholder
+		stroke: faintStroke(tokens.PlatformLight), // pre-theme placeholder
 	}
 	f.scene.ShowBackfaces = true
 	f.scene.Shader = shader.Flat
@@ -120,26 +116,17 @@ func (f *Field) Widget() layout.Widget { return f.view }
 
 // SetColors re-keys the one stroke colour to new theme tokens. Safe from
 // any goroutine; the animation tick applies it on the events thread.
-func (f *Field) SetColors(c tokens.ColorTokens) {
+func (f *Field) SetColors(c tokens.PlatformColors) {
 	col := faintStroke(c)
 	f.pending.Store(&col)
 }
 
-// faintStroke mixes FocusRing toward Background so a full-bleed wireframe
-// stays one theme colour but reads as a backdrop.
-func faintStroke(c tokens.ColorTokens) color.NRGBA {
-	s := c.FocusRing()
-	g := c.Background
-	return color.NRGBA{
-		R: mixU8(g.R, s.R, strokeMix),
-		G: mixU8(g.G, s.G, strokeMix),
-		B: mixU8(g.B, s.B, strokeMix),
-		A: 255,
-	}
-}
-
-func mixU8(a, b uint8, t float64) uint8 {
-	return uint8(math.Round(float64(a)*(1-t) + float64(b)*t))
+// faintStroke is the one colour every face is stroked in: the platform's
+// separator, the neutral hairline it rules with, laid on the window's plane
+// the field is drawn over. Seen's stroke path drops alpha (Hex is #RRGGBB),
+// so the coverage is composited here rather than handed to the rasterizer.
+func faintStroke(c tokens.PlatformColors) color.NRGBA {
+	return vgcolor.Flatten(c.Separator, c.WindowBackground)
 }
 
 func (f *Field) applyPending() {

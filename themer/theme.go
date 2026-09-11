@@ -12,164 +12,79 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// SchemeFor resolves the colour tokens the whole window draws in: one side of
-// the pair [Model.Pair] resolves, chosen by the model's answer to the
-// light/dark question.
-//
-// Which side applies starts as the OS's decision, read off the palette the OS
-// handed over rather than asked for a second time — a scheme whose background
-// is dark is a dark scheme — and becomes the window's as soon as its own
-// switch is pressed. A seed has two sides and both have to be reachable to
-// judge it.
-//
-// It is the one place the window's own colours come from. Every surface the
-// window is themed in is drawn from what this returns — the switch that
-// changes the side included, which is what stops a control from wearing one
-// theme while the page it stands on wears another.
-func SchemeFor(os tokens.ColorTokens, m Model) tokens.ColorTokens {
-	shown, _ := SchemePair(os, m)
-	return shown
+// isDark reports which side of the platform's pair a set is, by the luminance
+// of the window's own plane.
+func isDark(c tokens.PlatformColors) bool {
+	return vgcolor.RelativeLuminance(c.WindowBackground) < 0.5
 }
 
-// SchemePair is [SchemeFor] and the side it did not return: the palette the
-// window draws in, and the one on the other side of its switch.
+// PreviewSet is what the window previews: the platform's set with the theme
+// colour standing in where the platform uses its accent — the default button,
+// the selection, the focus ring. With nothing chosen, and on a desktop that
+// reports no accent, it is the platform's set as it stands.
 //
-// Both come out of one derivation, which is the only reason this exists. The
-// window has one place that wants the side it is not showing — the inverse pair,
-// which is by definition the counterpart scheme's surface and text — and asking
-// [SchemeFor] and then asking again for the other side would derive the whole
-// palette twice per emission to learn something the first derivation already
-// knew. A pick costs one derivation, and it stays one.
-func SchemePair(os tokens.ColorTokens, m Model) (shown, other tokens.ColorTokens) {
-	light, dark := m.Pair(os)
-	if m.Dark(os) {
-		return dark, light
+// live is the set the window itself is wearing, which is the platform's own
+// reading of the appearance the desktop is on. The other side cannot be read
+// live while the desktop is on this one, so it is the recorded set — which is
+// what every platform but macOS carries anyway.
+func PreviewSet(live tokens.PlatformColors, m Model, dark bool) tokens.PlatformColors {
+	base := live
+	if dark != isDark(live) {
+		base = tokens.PlatformLight
+		if dark {
+			base = tokens.PlatformDark
+		}
 	}
-	return light, dark
+	if col, ok := m.Color(); ok {
+		return base.WithAccent(col)
+	}
+	return base
 }
 
-// Pair is both sides of the theme on screen, resolved from one seed so that
-// the two sides are two sides of one thing rather than two answers.
+// Palette is the window's own colours: the platform's name for what each one
+// draws, flattened onto the fill it lands on.
 //
-// With a candidate chosen the seed is that candidate and the pair is what it
-// generates — the point of the application being that a seed is judged by what
-// it does to a window, not by a swatch.
-//
-// With nothing chosen the window is wearing the theme its own stream was
-// built with, and the desktop hands over one side of it per frame. That side
-// is returned exactly as it arrived, so following the desktop stays following
-// the desktop, down to whatever the accessibility preferences did to it. The
-// other side is the side the desktop never sends, and it is derived from the
-// seed the stream was built from: the brand kept when the window opened, or —
-// with nothing kept, the stream following the desktop's accent — the brand
-// base the palette on screen pins, which is the seed itself on the light side
-// and the nearest thing to it a dark palette says about itself.
-//
-// Deriving it rather than reaching for the theme's default pair is the whole
-// of it: a default pair is a different colour, and reaching for it put the
-// window's own controls in one theme and its page in another on the first
-// press of the switch.
-func (m Model) Pair(os tokens.ColorTokens) (light, dark tokens.ColorTokens) {
-	if seed, ok := m.Seed(); ok {
-		return tokens.FromSeed(seed)
-	}
-	seed := m.Opened
-	if seed.A == 0 {
-		seed = os.Primary
-	}
-	light, dark = tokens.FromSeed(seed)
-	if isDark(os) {
-		return light, os
-	}
-	return os, dark
-}
-
-// isDark reports whether a palette is the dark side of its pair, by the
-// luminance of the surface everything else is drawn on.
-func isDark(c tokens.ColorTokens) bool {
-	return vgcolor.RelativeLuminance(c.Background) < 0.5
-}
-
-// edgeFloor is the contrast floor for a graphic that carries meaning without
-// being text, the theme's own. A swatch's frame is exactly that: it is the
-// whole of what says where a pale colour ends and the card behind it begins,
-// so it is not decoration and owes the surface behind it this much.
-const edgeFloor = tokens.GraphicFloor
-
-// Palette is the application's view of the colour tokens: every colour it
-// draws with, named for what it draws.
+// The window draws in the platform's live set and follows the desktop's
+// setting like every other application. What the scheme switch moves is the
+// preview, which is a picture of a theme rather than the theme this window
+// is wearing.
 type Palette struct {
-	Backdrop  stdcolor.NRGBA // window background
-	Surface   stdcolor.NRGBA // the picture's mat and the candidate cards
-	Seam      stdcolor.NRGBA // the drop zone's outline at rest
-	CardEdge  stdcolor.NRGBA // a candidate card's outline at rest
-	Edge      stdcolor.NRGBA // the frame round a swatch, the heaviest edge in the window
-	Text      stdcolor.NRGBA // headings and the chosen candidate's label
-	Muted     stdcolor.NRGBA // hints, hex values, unchosen labels
-	Accent    stdcolor.NRGBA // the chosen candidate's ring, the hover highlight
-	OnAccent  stdcolor.NRGBA // text over Accent
-	Selection stdcolor.NRGBA // the chosen candidate's card fill
+	Backdrop  stdcolor.NRGBA // the window's own plane
+	Surface   stdcolor.NRGBA // the card under a swatch, the picture's mat, the well
+	Seam      stdcolor.NRGBA // a hairline on the plane
+	Edge      stdcolor.NRGBA // a hairline on a card: the frame round a swatch
+	Text      stdcolor.NRGBA // headings and names, on the plane
+	Muted     stdcolor.NRGBA // hints and hex values, on the plane
+	CardText  stdcolor.NRGBA // a chosen swatch's label, on the card
+	CardMuted stdcolor.NRGBA // a swatch's label, on the card
+	Hover     stdcolor.NRGBA // a card under the pointer
+	Accent    stdcolor.NRGBA // the theme colour in force
+	OnAccent  stdcolor.NRGBA // what reads on the selection
+	Selection stdcolor.NRGBA // the chosen swatch's fill
 	Problem   stdcolor.NRGBA // a drop that produced nothing
 }
 
-// PaletteFrom resolves the palette in the token vocabulary: the pinned
-// Background, Primary and Error, the neutral ramp's surface, border and
-// text steps, and the primary ramp's container step for the selection fill.
+// PaletteFrom reads the window's colours off the platform's set.
 //
-// The container step is read off the side the palette is on, and it is the
-// one place a single step number will not do. Every ramp runs dark to light
-// in both schemes, and the page moves with them: on the light side step 100
-// is a pale tint standing just off a near-white page, while on the dark side
-// the same step is very nearly the dark page itself — a selection fill nobody
-// can see, on the one thing in the window that has to be seen.
-func PaletteFrom(c tokens.ColorTokens) Palette {
-	container := c.Ramps.Primary.Step(100)
-	if isDark(c) {
-		container = c.Ramps.Primary.Step(300)
-	}
+// The swatch cards are the platform's box on the window's plane, so they take
+// the box's fill and a seam for an edge. A swatch is a graphic the pointer
+// operates, which is what the platform lays its hover overlay over; a list row
+// and a push button, which do not tint, are neither.
+func PaletteFrom(c tokens.PlatformColors) Palette {
 	return Palette{
-		Backdrop: c.Background,
-		// The mat and the candidate cards: filled insets lying on the
-		// window's page, and the raise is lighter than that page in both
-		// schemes — white in the light scheme, #222222 in the dark. A ramp index
-		// is not a raise: neutral 200 is #E8E8E8, under a light page, which sinks
-		// a card into the desk instead of raising it.
-		//
-		// In the light scheme the raise off the content is white, so a pale
-		// swatch on it has no boundary of its own: CardEdge is what makes a card an
-		// object, and Edge is derived against this very fill so a near-white
-		// swatch on a white card still has one.
-		Surface: raisedOnPage(c),
-		Seam:    c.Ramps.Neutral.Step(300),
-		// A card's own edge, and not its fill alone, is what makes it an
-		// object where the swatches inside it are near-white. It is drawn a
-		// step stronger than the page's seams for exactly that reason.
-		CardEdge: c.Ramps.Neutral.Step(400),
-		// The heaviest edge, and it is on swatches rather than on cards for
-		// one reason: a swatch can be any colour a style or a photograph
-		// contains, and plenty of both are near-white. A near-white swatch on
-		// a near-white card has no boundary of its own, and without one it
-		// does not read as a pale colour somebody chose — it reads as a card
-		// that failed to finish drawing. The weight has to beat the two
-		// near-whites it stands between, which the card weight does not.
-		//
-		// So it is derived rather than named: the neutral step the ramp
-		// measures as reaching 3:1 against the card the swatches lie on,
-		// which is Surface — the raise off the page. Named at step 500 it
-		// measured 2.35:1 there in the light scheme and 5.94:1 in the dark,
-		// one line of code meaning two different weights.
-		Edge: c.MarkOn(tokens.RoleNeutral, raisedOnPage(c), edgeFloor),
-		Text: c.Text,
-		// The muted step: hints and hex values, and the chrome in the
-		// title row that stands under the window's own name. It is a step
-		// short of the text foreground rather than a faded fill — measured, it clears
-		// the body-text floor against either page by a margin, which is what lets
-		// a control wear it and still be read.
-		Muted:     c.Ramps.Neutral.Step(700),
-		Accent:    c.Primary,
-		OnAccent:  c.OnPrimary,
-		Selection: container,
-		Problem:   c.Error,
+		Backdrop:  c.WindowBackground,
+		Surface:   c.CardFill,
+		Seam:      vgcolor.Flatten(c.Separator, c.WindowBackground),
+		Edge:      vgcolor.Flatten(c.Separator, c.CardFill),
+		Text:      vgcolor.Flatten(c.Label, c.WindowBackground),
+		Muted:     vgcolor.Flatten(c.SecondaryLabel, c.WindowBackground),
+		CardText:  vgcolor.Flatten(c.Label, c.CardFill),
+		CardMuted: vgcolor.Flatten(c.SecondaryLabel, c.CardFill),
+		Hover:     vgcolor.Flatten(c.HoverOverlay, c.CardFill),
+		Accent:    c.ControlAccent,
+		OnAccent:  c.AlternateSelectedControlText,
+		Selection: c.SelectedContentBackground,
+		Problem:   c.SystemRed,
 	}
 }
 
@@ -178,13 +93,13 @@ func PaletteFrom(c tokens.ColorTokens) Palette {
 // application builds no shaper and bundles no font of its own.
 type Type struct {
 	Shaper *text.Shaper
-	Title  textdraw.TextStyle // TitleLarge: the drop zone's invitation
+	Title  textdraw.TextStyle // TitleLarge: the drop well's invitation
 	Head   textdraw.TextStyle // TitleSmall: the window's own name in the title row
-	Label  textdraw.TextStyle // LabelLarge: section labels, the pair's "Aa"
+	Label  textdraw.TextStyle // LabelLarge: section labels
 	Body   textdraw.TextStyle // BodyMedium: the file name, the hint line
 	Small  textdraw.TextStyle // BodySmall: hex values and shares
-	// Role is LabelLarge as the theme states it, for the one control here
-	// drawn by a published component rather than by this application: the
+	// Role is LabelLarge as the theme states it, for the controls here drawn
+	// by a published component rather than by this application: the
 	// component lays the role out itself, in the line box the role names.
 	Role tokens.TextStyle
 }
@@ -214,11 +129,4 @@ func textStyle(ts tokens.TextStyle) textdraw.TextStyle {
 		f.Weight = tokens.FontWeight(ts.Weight)
 	}
 	return textdraw.TextStyle{Font: f, Alignment: textdraw.Start, Size: unit.Sp(ts.Size), MaxLines: 1, Truncator: Ellipsis}
-}
-
-// raisedOnPage is the raise walked from the page a section stands on: the
-// surface one step above the content, which is what a band, a card and a
-// filled inset all fill with ([tokens.ColorTokens.RaisedOn]).
-func raisedOnPage(c tokens.ColorTokens) stdcolor.NRGBA {
-	return c.RaisedOn(c.SurfaceAt(tokens.Level0)).Fill
 }

@@ -12,15 +12,15 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// BackdropLayer fills the window with the theme's Background pin; it is
-// the fill under the wireframe field and re-emits whenever the OS
-// colour scheme changes.
+// BackdropLayer fills the window with the platform's window plane; it is the
+// fill under the wireframe field and re-emits whenever the OS colour scheme
+// changes.
 func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-		return t.Color
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+		return t.Platform
 	})
-	return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
-		return backdrop.Widget(c.Background)
+	return rx.Map(colors, func(c tokens.PlatformColors) layout.Widget {
+		return backdrop.Widget(c.WindowBackground)
 	})
 }
 
@@ -29,12 +29,12 @@ func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // rx.Defer factory; each theme emission re-keys the one stroke colour
 // in place — the field itself is built exactly once per subscription.
 func FieldLayer(win *app.Window, th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-		return t.Color
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+		return t.Platform
 	})
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		field := NewField(win, unit.Dp(windowW), unit.Dp(windowH))
-		return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
+		return rx.Map(colors, func(c tokens.PlatformColors) layout.Widget {
 			field.SetColors(c)
 			return field.Widget()
 		})

@@ -12,10 +12,10 @@ const (
 	// tree in the leading column (guide.go, docs_outline.go).
 	pageDocs = "docs"
 
-	// pageTheme is the Theme tab: the seed the palette grew from
-	// (theme_seed.go), then the themer's palette section — ramps grid and
-	// named picks — followed by the inventory's type scale, following the
-	// live theme (theme_tab.go).
+	// pageTheme is the Theme tab: the shared colour board — every name the
+	// platform answers for, with the value it carries in each appearance —
+	// followed by the inventory's type scale, following the live theme
+	// (theme_tab.go).
 	pageTheme = "theme"
 
 	// pageComponents, pagePatterns and pageMarkdown are the three tabs cut
@@ -32,8 +32,8 @@ const (
 // index and the model's page identifier round-trip through the one list.
 //
 // Theme comes second, directly after the guide, because the three tabs
-// after it are all drawn in the theme it shows: a reader meets the
-// palette and the type scale before meeting the components wearing them.
+// after it are all drawn in the theme it shows: a reader meets the colour
+// set and the type scale before meeting the components wearing them.
 var tabPages = []string{pageDocs, pageTheme, pageComponents, pagePatterns, pageMarkdown}
 
 // tabLabels is what the strip writes on each cell, in tabPages order.

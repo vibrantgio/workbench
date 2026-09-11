@@ -8,46 +8,52 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/textdraw"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// Palette is the app's view of the theme colour tokens: a handful of named
-// roles derived from tokens.ColorTokens on every theme emission. Because the
-// theme window feeds a live OS theme, an OS light/dark switch re-emits the
-// tokens and restyles the whole app with no imperative wiring.
+// Palette is the app's view of the platform's colour set: the fills and
+// foregrounds this window draws, resolved fresh on every theme emission.
+// Because the theme window feeds a live OS theme, an appearance switch
+// re-emits the set and restyles the whole app with no imperative wiring.
 type Palette struct {
-	Backdrop color.NRGBA // the window's own plane: the Background pin, level 0
-	Dialog   color.NRGBA // the modal's surface, level 2
-	Edit     color.NRGBA // the dialog's text-entry fill, level 3
-	Select   color.NRGBA // placeholder text and editor selection
-	Text     color.NRGBA // primary text
-	Icon     color.NRGBA // accent glyphs and dialog border
-	Cover    color.NRGBA // modal scrim over the disabled page
+	Backdrop    color.NRGBA // the window's own plane
+	Dialog      color.NRGBA // the modal's own plane
+	Field       color.NRGBA // the dialog's text-entry fill
+	FieldEdge   color.NRGBA // the hairline a field draws around itself
+	Label       color.NRGBA // a todo's text
+	Secondary   color.NRGBA // a completed todo's text
+	Editing     color.NRGBA // the editor's text, on the field
+	Placeholder color.NRGBA // the empty field's prompt
+	Selection   color.NRGBA // the fill behind selected text
+	Icon        color.NRGBA // the add and delete glyphs
+	Cover       color.NRGBA // the dim over the page the modal interrupts
 }
 
-// PaletteFrom resolves the palette against the window's surface grammar. The
-// list is what this window exists to show, so it is the content plane: it
-// wears level 0 and paints no surface of its own. Backdrop is that fill —
-// the Background pin, filled once underneath everything — and nothing in the
-// page is raised above it. The only fills over it belong to the modal: the
-// dialog takes level 2, the level reserved for a dialog, and its text-entry
-// field is the raise walked from the dialog it lies in rather than from the
-// window ([tokens.ColorTokens.RaisedOn]), because a step is counted from the
-// surface a thing lies on. Where the scheme has no step left the field is
-// flush with the dialog and its own border says where it is.
-// Primary is the pinned accent, and the remaining Neutral steps are text:
-// 700 the low-contrast text step, 900 the body-text step.
-func PaletteFrom(c tokens.ColorTokens) Palette {
+// PaletteFrom reads this window's fills and foregrounds off the platform's
+// set. The list is what the window exists to show and stands on the window's
+// own plane, painting no fill of its own. The only fills over it belong to
+// the modal, which is a floating surface: the window's plane again, told
+// apart by the dim its scrim lays over everything it interrupts. Its
+// text-entry field is the platform's text plane inside the hairline a field
+// draws around itself.
+//
+// Every alpha-carrying name is flattened onto the fill it lands on, so what
+// reaches Gio is opaque. Scrim is the exception: it covers whatever the
+// window happens to be showing, so there is no one fill to flatten it onto.
+func PaletteFrom(p tokens.PlatformColors) Palette {
 	return Palette{
-		Backdrop: c.SurfaceAt(tokens.Level0),
-		Dialog:   c.SurfaceAt(tokens.Level2),
-		Edit:     c.RaisedOn(c.SurfaceAt(tokens.Level2)).Fill,
-		Select:   c.Ramps.Neutral.Step(700),
-		Text:     c.Ramps.Neutral.Step(900),
-		Icon:     c.Primary,
-		// A scrim darkens regardless of scheme, so it is black-based
-		// rather than token-based.
-		Cover: color.NRGBA{A: 153},
+		Backdrop:    p.WindowBackground,
+		Dialog:      p.WindowBackground,
+		Field:       p.TextBackground,
+		FieldEdge:   p.FieldEdge,
+		Label:       vgcolor.Flatten(p.Label, p.WindowBackground),
+		Secondary:   vgcolor.Flatten(p.SecondaryLabel, p.WindowBackground),
+		Editing:     vgcolor.Flatten(p.Label, p.TextBackground),
+		Placeholder: vgcolor.Flatten(p.PlaceholderText, p.TextBackground),
+		Selection:   p.SelectedTextBackground,
+		Icon:        p.ControlAccent,
+		Cover:       p.Scrim,
 	}
 }
 

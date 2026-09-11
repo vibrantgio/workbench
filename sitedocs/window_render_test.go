@@ -18,11 +18,11 @@ package main
 // smoke test of the whole stack: a panic anywhere in the backdrop, the title
 // band, the tab strip, the outline rail or the document fails it.
 //
-// The assertions sample the rendered frame rather than a palette struct,
-// because this app holds no palette: each region paints its own fill at the
-// point it draws, and the frame is the only place the question "what level
-// is this region wearing" has an answer that sees what was painted rather than
-// what was meant.
+// The assertions sample the rendered frame rather than a struct of colours,
+// because this app holds none: each region paints its own fill at the point
+// it draws, and the frame is the only place the question "what is this region
+// wearing" has an answer that sees what was painted rather than what was
+// meant.
 
 import (
 	"flag"
@@ -69,14 +69,14 @@ func windowFrame(
 	shaper *text.Shaper,
 	guide []byte,
 	st outlineState,
-	c tokens.ColorTokens,
+	c tokens.PlatformColors,
 	typo tokens.Typography,
 	selected int,
 	band unit.Dp,
 ) layout.Widget {
 	props := tabs.Props{Tabs: staticTabs(shaper, guide, st, c, typo), Shaper: shaper}
 	shell := tabs.Render(shaper, props, selected, c, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
-	background := backdrop.Widget(c.Background)
+	background := backdrop.Widget(c.WindowBackground)
 	capped := bandedCap(func() unit.Dp { return band }, titleBandFill(c), shell)
 	return func(gtx layout.Context) layout.Dimensions {
 		background(gtx)
@@ -87,7 +87,7 @@ func windowFrame(
 // renderWindow draws the settled window — the Docs tab open, its first
 // section disclosed and selected, which is the state a reader leaves this
 // window in — at the app's own size.
-func renderWindow(t *testing.T, c tokens.ColorTokens, band unit.Dp) *image.RGBA {
+func renderWindow(t *testing.T, c tokens.PlatformColors, band unit.Dp) *image.RGBA {
 	t.Helper()
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	typo := tokens.DefaultTypography
@@ -109,22 +109,20 @@ func pixelAt(img *image.RGBA, p image.Point) color.NRGBA {
 // twice against.
 var windowSchemes = []struct {
 	name string
-	c    tokens.ColorTokens
+	c    tokens.PlatformColors
 }{
-	{"light", tokens.DefaultLight},
-	{"dark", tokens.DefaultDark},
+	{"light", tokens.PlatformLight},
+	{"dark", tokens.PlatformDark},
 }
 
 // Sample points in the rendered window, in the pixels the frame is drawn at
 // (PxPerDp is 1, so a dp is a pixel). Each names a resting expanse and is
 // chosen clear of paint: the title band right of the window title, the tab
-// strip right of the last cell, the gap the shell keeps under the strip, the
-// outline rail below its last row, and the document plane out past the
-// reading measure the guide is capped to.
+// strip right of the last cell, and the document plane out past the reading
+// measure the guide is capped to.
 var (
 	atTitleBand = image.Pt(1100, titleBandDp/2)
 	atTabStrip  = image.Pt(1100, titleBandDp+18)
-	atStripGap  = image.Pt(1100, titleBandDp+36+8)
 	atRail      = image.Pt(150, 700)
 	atDocument  = image.Pt(1100, 700)
 )
@@ -161,115 +159,49 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestWindowRegionsWearTheirLevels reads the surface grammar's assignment off
-// the frame: the guide document — the thing this window exists to show — at
-// level 0, the outline rail indexing it at the CHROME level under it, the
-// tab strip raised over the panel it caps, and nothing resting at level 2.
+// TestWindowRegionsWearThePlatformsFills reads the assignment off the frame:
+// the guide document — the thing this window exists to show — on the
+// platform's content plane, the outline rail indexing it in the chrome
+// material a sidebar wears, and the tab strip capping the panel in that same
+// material.
 //
-// Chrome stands under the document, so the rail takes the chrome level:
-// neutral 200 in the light scheme, #151515 in the dark one.
-//
-// The strip does not follow it, and the difference is what this test is worth
-// reading for. A rail is chrome standing beside the document; a tab strip is
-// the panel's own control band, drawn one level over the panel it belongs to
-// (patterns/tabs walks it from `Props.Level`). So this one window carries a
-// region below the content and a region above it, and the two are named
-// apart here rather than lumped as "furniture".
-func TestWindowRegionsWearTheirLevels(t *testing.T) {
+// It is read off the rendered frame rather than off the set, because those
+// three are painted by three different pieces of code (this app, backdrop,
+// and patterns/tabs) and the only place they can be seen agreeing is a frame
+// that has all three in it.
+func TestWindowRegionsWearThePlatformsFills(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, titleBandDp)
-			chrome := tc.c.SurfaceAt(tokens.LevelChrome)
-			content := tc.c.SurfaceAt(tokens.Level0)
-			raised := tc.c.SurfaceAt(tokens.Level1)
-			transient := tc.c.SurfaceAt(tokens.Level2)
-
 			for _, r := range []struct {
 				name string
 				at   image.Point
 				want color.NRGBA
 			}{
-				{"document plane", atDocument, content},
-				{"strip gap", atStripGap, content},
-				{"outline rail", atRail, chrome},
-				{"tab strip", atTabStrip, raised},
+				{"document plane", atDocument, tc.c.ControlBackground},
+				{"outline rail", atRail, tc.c.SidebarMaterial},
+				{"tab strip", atTabStrip, tc.c.SidebarMaterial},
 				// The band wears the fill of the region under it, which here
 				// is the tab strip rather than the document.
-				{"title band", atTitleBand, raised},
+				{"title band", atTitleBand, tc.c.SidebarMaterial},
 			} {
-				got := pixelAt(img, r.at)
-				if got != r.want {
+				if got := pixelAt(img, r.at); got != r.want {
 					t.Errorf("%s at %v = %v, want %v", r.name, r.at, got, r.want)
 				}
-				// A resting region must not be painted at the floating
-				// level. The check only bites where the two are different
-				// fills: the light scheme has one band step above its
-				// content and spends it on the first raise, so its raised
-				// and floating levels are one colour and no pixel can tell
-				// them apart.
-				if r.want != transient && got == transient {
-					t.Errorf("%s at %v rests at level 2 (%v), the level elevation keeps for what appears and leaves",
-						r.name, r.at, transient)
-				}
 			}
 		})
 	}
-}
-
-// TestLightnessNeverFallsTowardTheViewer walks this window's depth axis rather
-// than its plane: the outline rail is the window's chrome, the guide is the
-// content beside it, the tab strip is the panel's band raised over that
-// content, and a dialog would arrive over the lot. Walking
-// that order toward the reader, lightness may never fall — in the light
-// scheme AND in the dark one, which is why this needs no per-scheme clause.
-// Never fall rather than always rise: the light scheme has one band step
-// above its content, so its raise and the dialog over it are both white and
-// what tells them apart is the dialog's shadow and scrim.
-//
-// It is read off the rendered frame for the rail, the page and the strip,
-// because those three are painted by three different pieces of code (this
-// app, backdrop, and patterns/tabs) and the only place they can be seen
-// agreeing is a frame that has all three in it.
-func TestLightnessNeverFallsTowardTheViewer(t *testing.T) {
-	for _, tc := range windowSchemes {
-		t.Run(tc.name, func(t *testing.T) {
-			img := renderWindow(t, tc.c, titleBandDp)
-			toward := []struct {
-				name string
-				fill color.NRGBA
-			}{
-				{"the outline rail's chrome", pixelAt(img, atRail)},
-				{"the guide's content", pixelAt(img, atDocument)},
-				{"the tab strip's band", pixelAt(img, atTabStrip)},
-				{"a dialog's surface", tc.c.SurfaceAt(tokens.Level2)},
-			}
-			for i := 1; i < len(toward); i++ {
-				below, above := toward[i-1], toward[i]
-				if luma(above.fill) < luma(below.fill) {
-					t.Errorf("%s (%v) is under %s (%v); walking toward the viewer never gets darker",
-						above.name, above.fill, below.name, below.fill)
-				}
-			}
-			// The corollary: the chrome is this window's darkest region.
-			for _, other := range toward[1:] {
-				if luma(toward[0].fill) >= luma(other.fill) {
-					t.Errorf("the outline rail (%v) is not darker than %s (%v); a window's chrome is its darkest region",
-						toward[0].fill, other.name, other.fill)
-				}
-			}
-		})
-	}
-}
-
-// luma is the Rec. 601 brightness of a fill, the axis "lighter" and "darker"
-// are measured on above.
-func luma(c color.NRGBA) float32 {
-	return 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)
 }
 
 // TestTheBandAgreesWithTheStripItCaps states the agreement directly: the two
 // fills are read off one frame and compared to each other, so the rule holds
-// even if the level under both of them moves.
+// wherever the fill under both of them moves to.
+//
+// Only the agreement is asserted, and not that the band differs from the
+// document: the chrome material the strip carries is the content's own fill
+// exactly in the light appearance, so on this platform those two are one
+// colour there and a test demanding a step would be demanding a colour the
+// platform does not draw.
 func TestTheBandAgreesWithTheStripItCaps(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -279,19 +211,15 @@ func TestTheBandAgreesWithTheStripItCaps(t *testing.T) {
 				t.Errorf("title band is %v and the tab strip it caps is %v; a painted window may not step at its own top edge",
 					band, strip)
 			}
-			if doc := pixelAt(img, atDocument); band == doc {
-				t.Errorf("title band and document plane are both %v; the band wears the fill of the region under IT, not of the window's content",
-					band)
-			}
 		})
 	}
 }
 
-// TestARaisedInsetHasAStepToStandOn checks the fence has a fill to stand
-// on. The markdown style gives a fenced block neutral 200 — "the step off the
-// page" — which says nothing at all if the page it lies on is neutral 200
+// TestAFencedBlockHasAStepToStandOn checks the fence has a fill to stand on.
+// The markdown style gives a fenced block the one step a document takes off
+// its page, which says nothing at all if the page it lies on is that step
 // itself. The frame is asked for the pixels rather than the intention.
-func TestARaisedInsetHasAStepToStandOn(t *testing.T) {
+func TestAFencedBlockHasAStepToStandOn(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, titleBandDp)
@@ -316,8 +244,8 @@ func TestARaisedInsetHasAStepToStandOn(t *testing.T) {
 				t.Errorf("no pixel of the fence fill %v anywhere in the document column; the page shows no fenced block to judge", fence)
 			}
 
-			// The quote block is marked rather than filled: its bar is the
-			// Primary colour, which must not be the page either.
+			// The quote block is marked rather than filled, and the mark
+			// must not be the page either.
 			bar := color.NRGBA{R: style.QuoteBar.R, G: style.QuoteBar.G, B: style.QuoteBar.B, A: 0xff}
 			if bar == page {
 				t.Errorf("a quote bar paints %v on a page of %v; the mark is invisible", bar, page)
