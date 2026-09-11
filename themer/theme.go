@@ -90,11 +90,11 @@ func isDark(c tokens.ColorTokens) bool {
 	return vgcolor.RelativeLuminance(c.Background) < 0.5
 }
 
-// edgeFloor is WCAG 1.4.11's contrast floor for a graphic that carries
-// meaning without being text — 3:1. A swatch's frame is exactly that: it is
-// the whole of what says where a pale colour ends and the card behind it
-// begins, so it is not decoration and owes the surface behind it this much.
-const edgeFloor = 3.0
+// edgeFloor is the contrast floor for a graphic that carries meaning without
+// being text, the theme's own. A swatch's frame is exactly that: it is the
+// whole of what says where a pale colour ends and the card behind it begins,
+// so it is not decoration and owes the surface behind it this much.
+const edgeFloor = tokens.GraphicFloor
 
 // Palette is the application's view of the colour tokens: every colour it
 // draws with, named for what it draws.

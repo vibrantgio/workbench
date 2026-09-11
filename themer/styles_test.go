@@ -940,11 +940,11 @@ func TestTheNoteIsFainterThanTheNameItAnnotates(t *testing.T) {
 			if fill != p.Surface {
 				t.Fatalf("the note's slot is drawn on %v, want the card's own fill %v", fill, p.Surface)
 			}
-			noteAt, nameAt := color.ContrastRatio(note, fill), color.ContrastRatio(name, fill)
-			t.Logf("%s: the note reaches %.2f:1 on the card, the name above it %.2f:1",
+			noteAt, nameAt := color.Magnitude(note, fill), color.Magnitude(name, fill)
+			t.Logf("%s: the note reaches |Lc| %.2f on the card, the name above it |Lc| %.2f",
 				m.Styles[visible[at]].Name, noteAt, nameAt)
 			if noteAt >= nameAt {
-				t.Errorf("the note measures %.2f:1 against the name's %.2f:1 — it is not the fainter of the two", noteAt, nameAt)
+				t.Errorf("the note measures |Lc| %.2f against the name's |Lc| %.2f — it is not the fainter of the two", noteAt, nameAt)
 			}
 			if note == p.Problem {
 				t.Errorf("the note is drawn in %v, the colour this window says a drop failed in", note)

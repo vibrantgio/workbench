@@ -42,11 +42,11 @@ const (
 	InnerR   unit.Dp = 8 // swatch and chip corners
 )
 
-// edgeFloor is WCAG 1.4.11's contrast floor for a graphic that carries
-// meaning without being text — 3:1. An edge is exactly that: it is the whole
-// of what says where one plane ends and the next begins, so it is not
-// decoration and owes the surface under it this much.
-const edgeFloor = 3.0
+// edgeFloor is the contrast floor for a graphic that carries meaning without
+// being text, the theme's own. An edge is exactly that: it is the whole of
+// what says where one plane ends and the next begins, so it is not decoration
+// and owes the surface under it this much.
+const edgeFloor = tokens.GraphicFloor
 
 // Palette is this window's view of the colour tokens: every colour it
 // draws itself with, named for what it draws.

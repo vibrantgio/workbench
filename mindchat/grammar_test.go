@@ -31,6 +31,7 @@ import (
 	"github.com/vibrantgio/components/picker"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/patterns/pane"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -363,11 +364,11 @@ func TestAccentBarReadsOnTheChosenFill(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			p := PaletteFrom(tc.c)
-			if got := contrastRatio(p.Accent, p.RowSelected); got < 3 {
-				t.Errorf("accent bar %v on the chosen fill %v = %.2f:1, want at least 3:1", p.Accent, p.RowSelected, got)
+			if got := vgcolor.Magnitude(p.Accent, p.RowSelected); got < tokens.GraphicFloor {
+				t.Errorf("accent bar %v on the chosen fill %v = |Lc| %.2f, want at least |Lc| %.1f", p.Accent, p.RowSelected, got, tokens.GraphicFloor)
 			}
-			if got := contrastRatio(p.RowActive, p.RowSelected); got < 4.5 {
-				t.Errorf("row text %v on the chosen fill %v = %.2f:1, want at least 4.5:1", p.RowActive, p.RowSelected, got)
+			if got := vgcolor.Magnitude(p.RowActive, p.RowSelected); got < tokens.TextFloor {
+				t.Errorf("row text %v on the chosen fill %v = |Lc| %.2f, want at least |Lc| %.1f", p.RowActive, p.RowSelected, got, tokens.TextFloor)
 			}
 		})
 	}
@@ -511,8 +512,8 @@ func TestTheConversationsWordsClearTheTextFloor(t *testing.T) {
 				// banner, in the colour the banner sets its own title in.
 				{"the failure on its banner", c.Text, c.StatusContainer(tokens.RoleError)},
 			} {
-				if got := contrastRatio(f.fg, f.on); got < tokens.TextFloor {
-					t.Errorf("%s reads %.2f:1 (%v on %v), want at least %.1f:1", f.what, got, f.fg, f.on, tokens.TextFloor)
+				if got := vgcolor.Magnitude(f.fg, f.on); got < tokens.TextFloor {
+					t.Errorf("%s reads |Lc| %.2f (%v on %v), want at least |Lc| %.1f", f.what, got, f.fg, f.on, tokens.TextFloor)
 				}
 			}
 		})

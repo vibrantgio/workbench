@@ -672,7 +672,7 @@ func TestTheAxisEndsSayWhetherThisSchemeWritesInThem(t *testing.T) {
 
 // markGraphicFloor is what a mark on the grid owes the step it stands on: WCAG
 // 1.4.11's 3:1 for a non-text graphic, which is what a dot is.
-const markGraphicFloor = 3.0
+const markGraphicFloor = tokens.GraphicFloor
 
 // TestEveryMarkOnTheGridReadsOnTheStepItStandsOn: a marker nobody can see is
 // not a marker, and the grid puts them on seventy-two possible surfaces running
@@ -695,15 +695,15 @@ func TestEveryMarkOnTheGridReadsOnTheStepItStandsOn(t *testing.T) {
 					continue
 				}
 				step := row.Ramp.Step((n + 1) * 100)
-				if got := vgcolor.ContrastRatio(palette.MarkForegroundOn(step), step); got < worst {
+				if got := vgcolor.Magnitude(palette.MarkForegroundOn(step), step); got < worst {
 					worst, at = got, fmt.Sprintf("%s %s %d", sc.name, row.Name, (n+1)*100)
 				}
 			}
 		}
 	}
-	t.Logf("the faintest mark on the grid reads at %.2f:1, on %s", worst, at)
+	t.Logf("the faintest mark on the grid reads at |Lc| %.2f, on %s", worst, at)
 	if worst < markGraphicFloor {
-		t.Errorf("a mark reads at %.2f:1 over its own step (%s), under the %.1f:1 a graphic owes the surface it stands on",
+		t.Errorf("a mark reads at |Lc| %.2f over its own step (%s), under the |Lc| %.1f a graphic owes the surface it stands on",
 			worst, at, markGraphicFloor)
 	}
 }
@@ -762,7 +762,7 @@ func TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill(t *testing.T) {
 				}
 				selfFramed = name
 			}
-			got := vgcolor.ContrastRatio(edge, fill)
+			got := vgcolor.Magnitude(edge, fill)
 			if got < side.lo {
 				side.lo, side.soft = got, sc.name+" "+name
 			}
@@ -772,10 +772,10 @@ func TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill(t *testing.T) {
 			// Bounded: by the edge over the fill, or by the fill over the page.
 			// A swatch needs one of the two and the section guarantees it can
 			// never be short of both.
-			page := vgcolor.ContrastRatio(fill, sc.c.Background)
+			page := vgcolor.Magnitude(fill, sc.c.Background)
 			if b := math.Max(got, page); b < worst {
 				worst, at = b, sc.name+" "+name
-				bounds = fmt.Sprintf("%.2f:1 in edge, %.2f:1 against the page", got, page)
+				bounds = fmt.Sprintf("|Lc| %.2f in edge, |Lc| %.2f against the page", got, page)
 			}
 		}
 		if want := palette.InverseSurfacePick + palette.PickPairSep + palette.OnInverseSurfacePick; selfFramed != want {
@@ -784,12 +784,12 @@ func TestEverySwatchIsBoundedByItsEdgeOrByItsOwnFill(t *testing.T) {
 		}
 	}
 	for _, s := range sides {
-		t.Logf("the %s schemes' edge runs from %.2f:1 on %s to %.2f:1 on %s",
+		t.Logf("the %s schemes' edge runs from |Lc| %.2f on %s to |Lc| %.2f on %s",
 			s.name, s.lo, s.soft, s.hi, s.hard)
 	}
 	t.Logf("the least-bounded swatch in the section is %s, at %s", at, bounds)
 	if worst < markGraphicFloor {
-		t.Errorf("%s is bounded by neither its edge nor its own fill (%s), under the %.1f:1 a graphic owes the surface it stands on",
+		t.Errorf("%s is bounded by neither its edge nor its own fill (%s), under the |Lc| %.1f a graphic owes the surface it stands on",
 			at, bounds, markGraphicFloor)
 	}
 }
@@ -1737,16 +1737,16 @@ func TestTheSectionCaptionReadsAtItsNeighboursContrast(t *testing.T) {
 
 		titleSurface, titleForeground := foregroundOn(img, titleBand)
 		captionSurface, captionForeground := foregroundOn(img, captionBand)
-		title := vgcolor.ContrastRatio(titleForeground, titleSurface)
-		caption := vgcolor.ContrastRatio(captionForeground, captionSurface)
-		t.Logf("%s: title %v on %v %.2f:1, caption %v on %v %.2f:1",
+		title := vgcolor.Magnitude(titleForeground, titleSurface)
+		caption := vgcolor.Magnitude(captionForeground, captionSurface)
+		t.Logf("%s: title %v on %v |Lc| %.2f, caption %v on %v |Lc| %.2f",
 			sc.name, titleForeground, titleSurface, title, captionForeground, captionSurface, caption)
 		if titleSurface != stdcolor.NRGBA(p.Surface) || captionSurface != stdcolor.NRGBA(p.Surface) {
 			t.Errorf("%s: the heading bar is not the surface under both runs of text: title on %v, caption on %v, want %v",
 				sc.name, titleSurface, captionSurface, p.Surface)
 		}
 		if caption < captionTolerance*title {
-			t.Errorf("%s: the caption reads at %.2f:1 beside a heading at %.2f:1 — %.0f%% of it, under the %.0f%% that keeps them one class of text",
+			t.Errorf("%s: the caption reads at |Lc| %.2f beside a heading at |Lc| %.2f — %.0f%% of it, under the %.0f%% that keeps them one class of text",
 				sc.name, caption, title, 100*caption/title, 100*captionTolerance)
 		}
 	}
