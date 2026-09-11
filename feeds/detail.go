@@ -29,6 +29,7 @@ import (
 
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/tabs"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -101,13 +102,13 @@ func detailPane(
 
 // drawDetail lays the pane: placeholder when nothing is selected, otherwise
 // title + meta header above the tab strip, which flexes to the remaining
-// height. Primary text sits on the Neutral ramp's 900 step, the meta line
-// and the placeholder on the low-contrast 700 step.
+// height. The title and the body are the platform's label; the meta line and
+// the placeholder are its secondary label.
 //
-// The pane paints its OWN fill first. It is the reading surface, so it sits
-// at level 0, the Background pin. Painting nothing is not neutral: it lets
-// patterns/shell's SplitPane backstop (Surface, level 1) show through, which
-// would read the article body on the same level as the sidebar framing it.
+// The pane paints its OWN fill first. It is the reading surface, so it wears
+// ControlBackground. Painting nothing is not neutral: it lets
+// patterns/shell's SplitPane backstop show through, which would read the
+// article body on the chrome the sidebar wears.
 func drawDetail(
 	gtx layout.Context,
 	tok themeTokens,
@@ -115,21 +116,24 @@ func drawDetail(
 	tabsW layout.Widget,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
-	paint.FillShape(gtx.Ops, tok.col.SurfaceAt(tokens.Level0), clip.Rect{Max: size}.Op())
+	paint.FillShape(gtx.Ops, tok.col.ControlBackground, clip.Rect{Max: size}.Op())
 	if !sel.ok {
 		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return drawLabel(gtx, tok.shaper, "Select an article", tok.typ.BodyLarge, tok.col.Ramps.Neutral.Step(700))
+			return drawLabel(gtx, tok.shaper, "Select an article", tok.typ.BodyLarge,
+				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground))
 		})
 	}
 	layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, tok.shaper, sel.a.Title, tok.typ.TitleLarge, tok.col.Ramps.Neutral.Step(900))
+				return drawLabel(gtx, tok.shaper, sel.a.Title, tok.typ.TitleLarge,
+					vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground))
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				meta := sel.a.Author + " · " + sel.a.Published.Format("Jan 2 2006")
-				return drawLabel(gtx, tok.shaper, meta, tok.typ.BodySmall, tok.col.Ramps.Neutral.Step(700))
+				return drawLabel(gtx, tok.shaper, meta, tok.typ.BodySmall,
+					vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground))
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
 			layout.Flexed(1, tabsW),
@@ -138,9 +142,9 @@ func drawDetail(
 	return layout.Dimensions{Size: size}
 }
 
-// The tab panel needs no fill of its own: `tabs.Props.Level` (zero value
-// level 0) puts the panel on the window's content surface and the strip band
-// one level over it.
+// The tab panel needs no fill of its own: patterns/tabs draws its panel on
+// ControlBackground and its strip on the chrome material, which is the pair
+// this pane already stands on.
 
 // readerTab renders the article body paragraph-wrapped in the theme's
 // BodyMedium role. The closure is static (tabs captures it once) and reads
@@ -169,7 +173,8 @@ func bodyTab(loadTokens func() themeTokens, loadArticle func() detailArticle, pi
 			return layout.Dimensions{Size: size}
 		}
 		layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return drawWrappedText(gtx, tok.shaper, hardCodedBody(sel.a), pick(tok.typ), tok.col.Ramps.Neutral.Step(900))
+			return drawWrappedText(gtx, tok.shaper, hardCodedBody(sel.a), pick(tok.typ),
+				vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground))
 		})
 		return layout.Dimensions{Size: size}
 	}
@@ -188,10 +193,12 @@ func commentsTab(loadTokens func() themeTokens) layout.Widget {
 				c := c
 				children = append(children,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return drawLabel(gtx, tok.shaper, c.Author, tok.typ.LabelLarge, tok.col.Primary)
+						return drawLabel(gtx, tok.shaper, c.Author, tok.typ.LabelLarge,
+							vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground))
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return drawWrappedText(gtx, tok.shaper, c.Text, tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(900))
+						return drawWrappedText(gtx, tok.shaper, c.Text, tok.typ.BodyMedium,
+							vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground))
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
 				)

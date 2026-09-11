@@ -809,7 +809,7 @@ var tableFrameSize = image.Pt(tableFrameW, tableFrameH)
 // (table.Render's documented remit). Tokens are passed in directly; rows are
 // not clickable. The cell role is BodyMedium, the same role themedTextCell
 // draws with on the runtime path.
-func staticArticleColumns(shaper *text.Shaper, colors tokens.ColorTokens, body tokens.TextStyle) []table.Column[article] {
+func staticArticleColumns(shaper *text.Shaper, colors tokens.PlatformColors, body tokens.TextStyle) []table.Column[article] {
 	cellText := func(get func(a article) string) func(article) layout.Widget {
 		return func(a article) layout.Widget {
 			return table.RenderTextCell(shaper, colors, body, get(a))
@@ -844,11 +844,11 @@ func TestArticlesTableGolden(t *testing.T) {
 
 	cases := []struct {
 		name   string
-		colors tokens.ColorTokens
+		colors tokens.PlatformColors
 		bg     color.NRGBA
 	}{
-		{"hn-page1-light", tokens.DefaultLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-		{"hn-page1-dark", tokens.DefaultDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
+		{"hn-page1-light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
+		{"hn-page1-dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -870,14 +870,14 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 	rows = pageSlice(rows, 1, defaultRowsPerPage)
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 
-	render := func(colors tokens.ColorTokens) *image.RGBA {
+	render := func(colors tokens.PlatformColors) *image.RGBA {
 		cols := staticArticleColumns(shaper, colors, tokens.DefaultTypography.BodyMedium)
 		tbl := table.Render(shaper, cols, rows, table.Sort{Column: colPublished, Asc: false},
 			colors, tokens.Spacing, tokens.DefaultTypography.LabelLarge, tokens.Comfortable)
 		return golden.Capture(t, tableFrameSize, scene(tbl, bg))
 	}
-	light := render(tokens.DefaultLight)
-	dark := render(tokens.DefaultDark)
+	light := render(tokens.PlatformLight)
+	dark := render(tokens.PlatformDark)
 	if n := golden.PixelDiff(light, dark); n == 0 {
 		t.Error("light and dark token sets produced identical output; expected colour differences")
 	}

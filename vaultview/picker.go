@@ -34,8 +34,8 @@ import (
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
-	"github.com/vibrantgio/theme/tokens"
 )
 
 // DirEntry is one row of the folder browser.
@@ -172,10 +172,10 @@ func pickerLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 // screen draws the picker over the whole window: its own surface first,
 // then the rows under the native title-bar strip.
 //
-// The picker is one chrome region taking the window entire, so it paints at
-// the chrome level rather than letting the backdrop beneath it show: nothing
-// stands inset on this screen, so nothing of the window's plane is meant to
-// be seen. The strip is left to the platform — this screen claims none of
+// The picker is one chrome region taking the window entire, so it paints the
+// platform's chrome material rather than letting the backdrop beneath it
+// show: nothing stands inset on this screen, so nothing of the window's
+// plane is meant to be seen. The strip is left to the platform — this screen claims none of
 // it, while the vault screen's chrome row lays itself out inside it — so the
 // rows are inset past it and the region's own fill runs behind it.
 func (v *pickerView) screen(
@@ -271,15 +271,22 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowH))
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
+				surface := chromeSurface(tok.col)
 				if selected {
-					paint.FillShape(gtx.Ops, tok.col.StateAt(tokens.LevelChrome, tokens.StateHover), clip.Rect{Max: size}.Op())
+					surface = tok.col.SelectedContentBackground
+					paint.FillShape(gtx.Ops, surface, clip.Rect{Max: size}.Op())
 				}
 				semantic.LabelOp(item.Name).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
 				complayout.Inset(pickerRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return drawLabel(gtx, tok.shaper, item.Name, tok.typ.BodyLarge, tok.col.Text)
+							name := tok.col.Label
+							if selected {
+								name = tok.col.AlternateSelectedControlText
+							}
+							return drawLabel(gtx, tok.shaper, item.Name, tok.typ.BodyLarge,
+								vgcolor.Flatten(name, surface))
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
@@ -289,7 +296,12 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 							if a == "" {
 								return layout.Dimensions{}
 							}
-							return drawLabel(gtx, tok.shaper, a, tok.typ.BodySmall, tok.col.Ramps.Neutral.Step(700))
+							ann := tok.col.SecondaryLabel
+							if selected {
+								ann = tok.col.AlternateSelectedControlText
+							}
+							return drawLabel(gtx, tok.shaper, a, tok.typ.BodySmall,
+								vgcolor.Flatten(ann, surface))
 						}),
 					)
 					return layout.Dimensions{Size: gtx.Constraints.Max}

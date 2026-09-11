@@ -49,6 +49,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/theme/brand"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -144,59 +145,10 @@ const (
 	propPadDp    = 8
 	propKeyGapDp = 16
 
-	// propEdgeDp is the panel's hairline and propEdgeStep the neutral step
-	// it is drawn in: one past the separator's.
-	//
-	// A block that takes the page for its own fill has its edge for a
-	// channel and nothing else, and on the dark page one hair of the
-	// separator's tint is not channel enough: the line reads 1.31:1 off
-	// that page, and at one device pixel per dp the box dissolves into it.
-	// A step further up the neutral ramp the same hair reads 1.91:1 in the
-	// dark scheme and 1.88:1 in the light — twice the eight-bit distance
-	// from the page, forty-seven levels against twenty-two in the dark —
-	// while staying far under the foreground it bounds (6.19:1 and 11.06:1), which
-	// is the one thing an edge may not out-read.
-	//
-	// A faint fill would be the second channel the dark box wants, and
-	// there is no fill to spend: the neutral ramp's first step IS the page
-	// in both schemes, and its second is the fill the window's rail and
-	// aside wear — 1.13:1 off the light page against the code blocks'
-	// 1.05:1, which would make the note's metadata heavier than the code it
-	// has to stay fainter than, wearing the chrome's own colour to do it.
-	// Nothing lies between the two, so the edge carries the whole of the
-	// channel and the panel keeps its page.
-	propEdgeDp   = 1
-	propEdgeStep = 400
-
-	// propLabelStep is the neutral step the properties panel writes its
-	// faint foreground at: the field keys, the disclosure head above them, and the
-	// raw block a frontmatter too odd to split falls back to. The values
-	// beside them are read a step stronger, so this is the panel's muted
-	// tier and has the body floor to clear on the panel's own fill and
-	// not on the page's.
-	//
-	// It is a measurement. On the page the panel stands on, the step reads
-	// 6.19:1 in the light scheme and 11.06:1 in the dark, both clear of the
-	// 4.5:1 the design system holds body-sized text to; the step below it
-	// reads 4.03:1 in the light scheme, under the floor, so 700 is the
-	// faintest step this panel can be written in. On a heavier fill the same
-	// step measures 4.51:1 — over the floor by a hundredth, a floor touched
-	// rather than cleared, which is why the foreground is floored against the
-	// panel's own fill.
-	propLabelStep = 700
-
-	// propValueStep is the step the field values are read at: one under the
-	// prose, which is where the note's own text is written.
-	//
-	// A value at the body foreground itself — the very step the note's title and
-	// every paragraph below it are set in — would stand level with the
-	// note's own words while sitting above them on the page, landing the eye
-	// on the metadata before the note. One step down, a value reads 9.30:1
-	// on the panel's fill in the light scheme and 13.07:1 in the dark,
-	// both far clear of the 4.5:1 body floor, and still comfortably over the
-	// keys beside it — 6.19:1 and 11.06:1 — because the value is the content
-	// of its row and stays the stronger of the pair.
-	propValueStep = 800
+	// propEdgeDp is the panel's hairline. The panel is a group: it takes the
+	// page for its own fill and draws the platform's separator at its edge,
+	// which is the whole of the channel it has.
+	propEdgeDp = 1
 
 	// propHeadWeight is what tells the panel's disclosure head from the
 	// field keys under it.
@@ -222,19 +174,6 @@ const (
 	// the smaller square costs the row no height and moves nothing else.
 	noteNavMarkDp = markSmallDp
 	propMarkDp    = markSmallDp
-
-	// noteNavForegroundStep and noteNavDimStep are the neutral steps the two
-	// history controls take. Navigation chrome reads under the text it
-	// stands beside rather than at that text's own foreground, so the enabled
-	// control takes a step short of the body foreground; the reference reading
-	// app mutes its own history arrows further still, to about a quarter
-	// of its title's contrast, but the dim step has to stay clearly below
-	// the enabled one and the neutral ramp's dark scale leaves no room
-	// under a quarter for it. So the enabled foreground is muted as far as the
-	// end-of-stack foreground can follow: the two steps read a third of the scale
-	// apart in both appearances.
-	noteNavForegroundStep = 600
-	noteNavDimStep        = 300
 )
 
 // noteCodeBases are the syntax palettes a note's fences are drawn in, one per
@@ -284,8 +223,8 @@ func adoptCodeBases(kept brand.Brand) highlight.BasePair {
 //
 // There is no memo: wearing resolves a name and reads four colours off it,
 // which is a map lookup cheap enough for a path that runs every frame.
-func noteStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
-	st := markdown.FromTokens(c, typ)
+func noteStyle(c tokens.PlatformColors, typ tokens.Typography) markdown.Style {
+	st := markdown.FromTokens(c, typ, c.TextBackground)
 	st.Mono = font.Typeface(typ.Code.Typeface)
 	st.CodeSize = unit.Sp(typ.Code.Size)
 	highlight.WearPair(&st, noteCodeBases, c)
@@ -538,7 +477,6 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	field := input.SearchField(th, input.SearchFieldProps{
 		Placeholder: "Find in note…",
 		Description: "find in this note",
-		Level:       findFieldLevel,
 		FocusTag:    func(tag event.Tag) { find.tag = tag },
 		Clear:       func(clear func()) { find.clear = clear },
 		OnChange:    func(_ layout.Context, text string) { find.typed(text) },
@@ -574,13 +512,11 @@ func layoutNotePage(
 	fieldW layout.Widget,
 ) layout.Dimensions {
 	note := m.CurrentNote()
-	// The reading column lies on its own surface: the pinned app background,
-	// one level above the fill the window chrome — the chrome row, tree
-	// rail, aside — is painted in, in both schemes. The panel and the code
-	// fills below take their steps from this surface rather than from the
-	// ramp, so the note reads as a document resting on darker chrome rather
-	// than as a piece of that chrome.
-	paint.FillShape(gtx.Ops, tok.col.Background, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	// The reading column lies on the platform's text background, the fill a
+	// document is read on. The properties panel and the code fills below are
+	// read against this surface rather than against the chrome the rail and
+	// the trailing column wear.
+	paint.FillShape(gtx.Ops, tok.col.TextBackground, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	// The page's trailing and bottom margins are spent inside the document
 	// rather than by the page, so the document's viewport reaches the
 	// column's own edges the way the platform's reading surfaces do: the
@@ -663,7 +599,7 @@ func layoutNotePage(
 			// page moves and the bar's track account for them; held back
 			// outside the viewport either would leave a dead strip beside
 			// every half-cut line the reader scrolls past.
-			bar := scrollbar.FromTokens(tok.col)
+			bar := scrollbar.FromTokens(tok.col, tok.col.TextBackground)
 			// The query is put on the document every frame it is alive and
 			// taken off it on the first frame it is not, the way the arrival
 			// marking is, and the places it finds go on the bar: one query
@@ -759,7 +695,7 @@ func rebuildDocument(n *Note, prev *markdown.Document) *markdown.Document {
 func renderNotePage(
 	shaper *text.Shaper,
 	m Model,
-	colors tokens.ColorTokens,
+	colors tokens.PlatformColors,
 	sp tokens.SpacingScale,
 	typo tokens.Typography,
 	den tokens.Density,
@@ -774,7 +710,7 @@ func renderNotePageInto(
 	cur *docCursor,
 	shaper *text.Shaper,
 	m Model,
-	colors tokens.ColorTokens,
+	colors tokens.PlatformColors,
 	sp tokens.SpacingScale,
 	typo tokens.Typography,
 	den tokens.Density,
@@ -800,7 +736,7 @@ func renderNotePageInto(
 	var fieldW layout.Widget
 	if find.open {
 		fieldW = input.RenderSearch(shaper, "Find in note…", colors, sp, tokens.Radius, typo.BodyLarge, den,
-			input.RenderState{Text: find.query, Focused: true, Level: findFieldLevel})
+			input.RenderState{Text: find.query, Focused: true, Surface: findFieldSurface(tok.col)})
 	}
 	// The page is drawn showing the note the model has current, so that is
 	// the note the query is being marked in: a static render has no earlier
@@ -841,9 +777,9 @@ func navButton(
 	}
 	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		semantic.LabelOp(label).Add(gtx.Ops)
-		c := tok.col.Ramps.Neutral.Step(noteNavDimStep)
+		c := vgcolor.Flatten(tok.col.TertiaryLabel, tok.col.TextBackground)
 		if enabled {
-			c = tok.col.Ramps.Neutral.Step(noteNavForegroundStep)
+			c = vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground)
 			pointer.CursorPointer.Add(gtx.Ops)
 		}
 		return drawMark(gtx, mark, noteNavMarkDp, c)
@@ -898,7 +834,8 @@ func openBrowser(url string) {
 func messageChild(tok themeTokens, msg string) layout.FlexChild {
 	return layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Right: noteInsetDp}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			drawLabel(gtx, tok.shaper, msg, tok.typ.BodyLarge, tok.col.Ramps.Neutral.Step(700))
+			drawLabel(gtx, tok.shaper, msg, tok.typ.BodyLarge,
+				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground))
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		})
 	})
@@ -957,7 +894,7 @@ func layoutProperties(
 	}
 	// The head is the panel's control: the same faint step the keys below it
 	// take, at the weight that says a row can be worked rather than read.
-	foreground := tok.col.Ramps.Neutral.Step(propLabelStep)
+	foreground := vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground)
 	headStyle := tok.typ.TitleSmall
 	headStyle.Weight = propHeadWeight
 	header := func(gtx layout.Context) layout.Dimensions {
@@ -1014,7 +951,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 	// The panel names its own fill rather than inheriting whatever it is
 	// dropped on, so the hairline always has the surface it was judged
 	// against inside it.
-	fill := tok.col.Background
+	fill := tok.col.TextBackground
 	radius := gtx.Dp(unit.Dp(tokens.Radius.Base))
 	rec := func(gtx layout.Context) layout.Dimensions {
 		return complayout.Inset(propPadDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -1023,7 +960,8 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 				if raw == "" {
 					raw = "(empty)"
 				}
-				return drawText(gtx, tok.shaper, raw, tok.typ.Code, tok.col.Ramps.Neutral.Step(propLabelStep))
+				return drawText(gtx, tok.shaper, raw, tok.typ.Code,
+					vgcolor.Flatten(tok.col.SecondaryLabel, fill))
 			}
 			// Key and value are one face at one weight, told apart by colour
 			// alone — the arrangement the reading app this viewer is judged
@@ -1040,7 +978,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			// covered for its nominal colour to arrive; two columns can only be
 			// ranked by colour if the colour is the only thing that differs.
 			keyStyle := tok.typ.BodyMedium
-			keyForeground := tok.col.Ramps.Neutral.Step(propLabelStep)
+			keyForeground := vgcolor.Flatten(tok.col.SecondaryLabel, fill)
 			// The key column is as wide as the longest key plus a fixed
 			// gap: each key is measured into a discarded recording, and
 			// the widest of them wins, capped at half the panel so a runaway
@@ -1078,7 +1016,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return drawText(gtx, tok.shaper, fieldValue(f), tok.typ.BodyMedium,
-								tok.col.Ramps.Neutral.Step(propValueStep))
+								vgcolor.Flatten(tok.col.Label, fill))
 						}),
 					)
 				}))
@@ -1099,7 +1037,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 	call := macro.Stop()
 	box := image.Rectangle{Max: image.Pt(gtx.Constraints.Max.X, dims.Size.Y)}
 	edge := max(gtx.Dp(unit.Dp(propEdgeDp)), 1)
-	paint.FillShape(gtx.Ops, tok.col.Ramps.Neutral.Step(propEdgeStep), clip.UniformRRect(box, radius).Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, vgcolor.Flatten(tok.col.Separator, fill), clip.UniformRRect(box, radius).Op(gtx.Ops))
 	paint.FillShape(gtx.Ops, fill, clip.UniformRRect(box.Inset(edge), max(radius-edge, 0)).Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, dims.Size.Y)}

@@ -23,31 +23,23 @@ import (
 	"github.com/vibrantgio/patterns/accordion"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/popover"
+	patsidebar "github.com/vibrantgio/patterns/sidebar"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
 const (
 	feedsSidebarWidthDp = 192
-	feedsEntryRowHDp    = 28
-	feedsEntryIndentDp  = 16
 	trashColWDp         = 24 // trailing trash-icon hit area, hover-revealed
 )
 
-// The chosen-feed pill. The fill is inset equally from both edges of the
-// sidebar and padded vertically, so it reads as a pill on the Surface rather
-// than a full-bleed bar. Its leading edge is the row's own origin and the
-// label is padded in from there: a pill whose text starts on its left edge is
-// a bar with a rounded corner. The indent and the trail are equal, so the
-// highlight is centred in the rail rather than hanging off one side of it, and
-// the trash gutter is measured from the pill's trailing edge rather than the
-// row's so the icon stays on the fill.
-const (
-	feedsPillTrailDp   = 16
-	feedsPillVPadDp    = 2
-	feedsPillRadiusDp  = 4
-	feedsRowLabelPadDp = 8
-)
+// feedsRowLabelPadDp is the gap between the pill's leading edge and the
+// label's first mark: a pill whose text starts on its own left edge is a bar
+// with a rounded corner. The row's height, the pill's inset from the rail's
+// edges and its corner are patterns/sidebar's — a list of feeds is a chrome
+// rail, so its rows are the sidebar's rows and not the platform's list rows.
+const feedsRowLabelPadDp = 8
 
 // feedsSidebar returns the accordion-grouped feeds sidebar observable.
 // openSectionsObs streams the current open-section map from the MVU model;
@@ -124,8 +116,8 @@ func feedsSidebar(
 	// before the accordion's layout.Widget is returned, so a delete/add re-emits
 	// this layer — driving theme/window's Invalidate() and the same-frame
 	// repaint, the same way the open-section map drives it.
-	colorsObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-		return t.Color
+	colorsObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+		return t.Platform
 	})
 	// The density is here for the band alone: it is what the navbar's height
 	// on the other side of the window's top edge is pinned to, and therefore
@@ -135,7 +127,7 @@ func feedsSidebar(
 	})
 	return rx.Map(
 		rx.CombineLatest5(accObs, feedsObs, colorsObs, selectedFeedObs, densityObs),
-		func(n rx.Tuple5[layout.Widget, []feedGroup, tokens.ColorTokens, FeedID, tokens.Density]) layout.Widget {
+		func(n rx.Tuple5[layout.Widget, []feedGroup, tokens.PlatformColors, FeedID, tokens.Density]) layout.Widget {
 			accW, feeds, c := n.First, n.Second, n.Third
 			band := windowBandDp(n.Fifth)
 			selectedCell.Store(n.Fourth)
@@ -170,24 +162,15 @@ func feedsSidebar(
 func drawFeedsSidebar(
 	gtx layout.Context,
 	accW layout.Widget,
-	colors tokens.ColorTokens,
+	colors tokens.PlatformColors,
 	band unit.Dp,
 ) layout.Dimensions {
 	w := gtx.Dp(unit.Dp(feedsSidebarWidthDp))
 	h := gtx.Constraints.Max.Y
 	size := image.Pt(w, h)
-	// A sidebar is chrome, so it stands at the CHROME
-	// level — one step UNDER the content it frames, toward the scheme's dark
-	// extreme, in both schemes.
-	//
-	// The level must be named as LevelChrome rather than as colors.Surface,
-	// which is a ramp ALIAS: neutral 200, coinciding with the light scheme's
-	// chrome level but with the dark scheme's RAISED level. patterns/accordion
-	// draws everything below the band at the chrome level, so the alias would
-	// split this one column in two — a visible step across the sidebar's own
-	// top edge in the dark scheme. In the light scheme the two spell the same
-	// neutral 200.
-	paint.FillShape(gtx.Ops, colors.SurfaceAt(tokens.LevelChrome), clip.Rect{Max: size}.Op())
+	// A sidebar is chrome, so it wears the platform's chrome material —
+	// the fill a sidebar, a toolbar and a status strip share.
+	paint.FillShape(gtx.Ops, colors.SidebarMaterial, clip.Rect{Max: size}.Op())
 	top := min(max(gtx.Dp(band), 0), h)
 	defer op.Offset(image.Pt(0, top)).Push(gtx.Ops).Pop()
 	gtx.Constraints = layout.Exact(image.Pt(w, h-top))
@@ -237,8 +220,7 @@ func feedEntryListBody(
 		entries := entriesFn()
 		selected := selectedFn()
 		size := gtx.Constraints.Max
-		rowH := gtx.Dp(unit.Dp(feedsEntryRowHDp))
-		indent := gtx.Dp(unit.Dp(feedsEntryIndentDp))
+		rowH := gtx.Dp(patsidebar.RowHeight)
 		trashW := gtx.Dp(unit.Dp(trashColWDp))
 
 		for _, e := range entries {
@@ -249,10 +231,9 @@ func feedEntryListBody(
 		}
 
 		for i, e := range entries {
-			off := image.Pt(indent, i*rowH)
-			stk := op.Offset(off).Push(gtx.Ops)
+			stk := op.Offset(image.Pt(0, i*rowH)).Push(gtx.Ops)
 			rowGtx := gtx
-			rowGtx.Constraints = layout.Exact(image.Pt(size.X-indent, rowH))
+			rowGtx.Constraints = layout.Exact(image.Pt(size.X, rowH))
 			drawFeedEntryRow(rowGtx, s, e, e.ID == selected, rowClicks.For(e.ID),
 				hovers.For(e.ID), popovers.For(e.ID), trashW)
 			stk.Pop()
@@ -261,18 +242,16 @@ func feedEntryListBody(
 	}
 }
 
-// drawFeedEntryRow paints one feed row: the state pill (under everything),
-// the label (left) and a hover-revealed trash icon + delete-confirm popover
-// (right). hover holds the row's pointer hover state; the trash icon paints
-// only while hovered (or while its confirm popover is open, so the popover
-// never floats over an un-hovered row).
+// drawFeedEntryRow paints one feed row: the selected feed's pill (under
+// everything), the label (left) and a hover-revealed trash icon +
+// delete-confirm popover (right). hover holds the row's pointer hover state;
+// the trash icon paints only while hovered (or while its confirm popover is
+// open, so the popover never floats over an un-hovered row).
 //
-// The pill's two fills stay apart: the OPEN feed — the one whose articles
-// the table is listing — is Primary-tinted, and hover is a neutral step
-// walked from the sidebar's own fill (Surface is neutral 200, so the walk
-// lands on 300). A reader must be able to see which row the pointer is over
-// and which row the window is showing at the same time, which one fill
-// cannot say.
+// Only the open feed — the one whose articles the table is listing — takes a
+// fill, and it is patterns/sidebar's pill. A sidebar row does not tint under
+// the pointer on this platform, which the stored reference captures measure,
+// so the hover state reveals the trash gutter and paints nothing.
 func drawFeedEntryRow(
 	gtx layout.Context,
 	tok themeTokens,
@@ -293,18 +272,21 @@ func drawFeedEntryRow(
 	hover.Add(gtx.Ops)
 	hoverClip.Pop()
 
-	drawFeedEntryPill(gtx, tok, size, selected, hovered)
+	if selected {
+		patsidebar.PaintSelection(gtx, size, tok.col, false)
+	}
 
 	// Everything the row draws lives between the pill's two edges: the label
 	// padded in from the leading one, the trash gutter measured back from the
 	// trailing one. Laying either out against the ROW's edges instead puts a
 	// label flush on a fill and an icon half off it.
-	pad := gtx.Dp(unit.Dp(feedsRowLabelPadDp))
-	trail := gtx.Dp(unit.Dp(feedsPillTrailDp))
+	inset := gtx.Dp(patsidebar.SelectionInset)
+	pad := inset + gtx.Dp(unit.Dp(feedsRowLabelPadDp))
+	trail := inset
 
 	// Label fills the pill minus the trash gutter; the label area is the
-	// SelectFeed click target. Body text sits on the Neutral ramp's 900 step,
-	// in the theme's BodySmall role.
+	// SelectFeed click target. It wears the foreground the platform pairs
+	// with whatever the row is filled with, in the theme's BodySmall role.
 	labelW := size.X - trail - trashW - pad
 	if labelW < 0 {
 		labelW = 0
@@ -312,7 +294,7 @@ func drawFeedEntryRow(
 	lbStk := op.Offset(image.Pt(pad, 0)).Push(gtx.Ops)
 	labelGtx := gtx
 	labelGtx.Constraints = layout.Exact(image.Pt(labelW, size.Y))
-	drawFeedEntry(labelGtx, tok, e.Label, click)
+	drawFeedEntry(labelGtx, tok, e.Label, selected, click)
 	lbStk.Pop()
 
 	// Trash gutter + confirm popover, against the pill's trailing edge.
@@ -329,51 +311,22 @@ func drawFeedEntryRow(
 	return layout.Dimensions{Size: size}
 }
 
-// drawFeedEntryPill fills the row's state pill, or nothing when the row is
-// neither open nor hovered. Selection wins over hover: a hovered open feed
-// keeps its tint, because the tint is the answer to "which one am I reading"
-// and the hover is only "the pointer is here".
-//
-// The hover is a STATE and a state is a walk from the surface it happens on,
-// which for these rows is the sidebar's floor, so it is taken with StateAt
-// rather than named as an absolute ramp index. Neutral 300 answers the light
-// scheme right by accident (the floor's own hover step lands on that same
-// #D4D4D4) and the dark scheme wrong by a whole level: #2E2E2E is the walk
-// off the RAISED level, so a pointer over a #0C0C0C row would jump 15.6 L*
-// instead of the floor's own 9.9.
-func drawFeedEntryPill(
-	gtx layout.Context,
-	tok themeTokens,
-	size image.Point,
-	selected, hovered bool,
-) {
-	var fill color.NRGBA
-	switch {
-	case selected:
-		fill = tok.col.Ramps.Primary.Step(300)
-	case hovered:
-		fill = tok.col.StateAt(tokens.LevelChrome, tokens.StateHover)
-	default:
-		return
+// feedRowForeground is what a feed row's marks wear: the foreground the
+// platform pairs with the selection pill on the open feed, and the ordinary
+// label on the chrome material everywhere else. Both are flattened onto the
+// fill they actually land on.
+func feedRowForeground(c tokens.PlatformColors, selected bool) color.NRGBA {
+	if selected {
+		return vgcolor.Flatten(patsidebar.SelectionLabel(c, false), patsidebar.SelectionFill(c, false))
 	}
-	trail := gtx.Dp(unit.Dp(feedsPillTrailDp))
-	vp := gtx.Dp(unit.Dp(feedsPillVPadDp))
-	r := gtx.Dp(unit.Dp(feedsPillRadiusDp))
-	right := size.X - trail
-	if right <= 0 {
-		return
-	}
-	pill := clip.RRect{
-		Rect: image.Rect(0, vp, right, size.Y-vp),
-		NE:   r, NW: r, SE: r, SW: r,
-	}
-	paint.FillShape(gtx.Ops, fill, pill.Op(gtx.Ops))
+	return vgcolor.Flatten(c.Label, c.SidebarMaterial)
 }
 
 func drawFeedEntry(
 	gtx layout.Context,
 	tok themeTokens,
 	label string,
+	selected bool,
 	click *widget.Clickable,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
@@ -382,7 +335,7 @@ func drawFeedEntry(
 		labelGtx.Constraints.Min = image.Point{}
 		labelGtx.Constraints.Max = size
 		mLabel := op.Record(gtx.Ops)
-		labelDims := drawLabel(labelGtx, tok.shaper, label, tok.typ.BodySmall, tok.col.Ramps.Neutral.Step(900))
+		labelDims := drawLabel(labelGtx, tok.shaper, label, tok.typ.BodySmall, feedRowForeground(tok.col, selected))
 		labelCall := mLabel.Stop()
 		offY := (size.Y - labelDims.Size.Y) / 2
 		if offY < 0 {
@@ -443,7 +396,7 @@ func newDeleteConfirm(
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
 			sz := gtx.Constraints.Max
-			drawTrashIcon(gtx, sz, s.col.Ramps.Neutral.Step(900))
+			drawTrashIcon(gtx, sz, feedRowForeground(s.col, false))
 			return layout.Dimensions{Size: sz}
 		})
 	}
@@ -461,7 +414,8 @@ func newDeleteConfirm(
 		w := gtx.Dp(unit.Dp(deleteConfirmWDp))
 		promptH := gtx.Dp(unit.Dp(deleteConfirmRowHDp))
 		btnH := gtx.Dp(unit.Dp(deleteConfirmRowHDp))
-		drawLabel(gtx, s.shaper, "Delete this feed?", s.typ.BodyMedium, s.col.Ramps.Neutral.Step(900))
+		drawLabel(gtx, s.shaper, "Delete this feed?", s.typ.BodyMedium,
+			vgcolor.Flatten(s.col.Label, s.col.WindowBackground))
 		btnStk := op.Offset(image.Pt(0, promptH)).Push(gtx.Ops)
 		btnGtx := gtx
 		btnGtx.Constraints = layout.Exact(image.Pt(w, btnH))
@@ -469,7 +423,7 @@ func newDeleteConfirm(
 			semantic.LabelOp("Confirm delete").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			drawLabel(gtx, s.shaper, "Delete", s.typ.LabelLarge, s.col.Error)
+			drawLabel(gtx, s.shaper, "Delete", s.typ.LabelLarge, s.col.SystemRed)
 			return layout.Dimensions{Size: image.Pt(w, btnH)}
 		})
 		btnStk.Pop()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -23,6 +24,7 @@ import (
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/table"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -46,12 +48,16 @@ const (
 
 // Geometry shared by the Unread tooltip overlay. unreadColWDp matches the
 // Unread column's pinned Width; tableHeaderHDp mirrors the header band's
-// height at Comfortable density (Density.ControlHeight). The table draws its
-// header internally and exposes no per-header layout.Widget hook, so the
-// tooltip hit area is positioned by arithmetic over these constants.
+// height, which patterns/table draws at Density.RowHeight — the platform's
+// own list row — like every body row under it. The table draws its header
+// internally and exposes no per-header layout.Widget hook, so the tooltip hit
+// area is positioned by arithmetic over these constants.
 const (
-	unreadColWDp   = 96
-	tableHeaderHDp = 36
+	unreadColWDp = 96
+	// The platform's list row, Density.RowHeight at Comfortable — the
+	// density this overlay's arithmetic is pinned to, as it was when the
+	// header stood at the control height.
+	tableHeaderHDp = 20
 )
 
 // cellPadDp is the horizontal cell padding themedTextCell applies — 12 dp,
@@ -208,7 +214,14 @@ func articlesMain(
 		return &widget.Clickable{}
 	})
 
-	columns := articleColumns(loadTok, rowClicks)
+	// The row the detail pane is showing, asked the same way the table's own
+	// Current predicate asks it, so a cell's foreground and its row's fill
+	// cannot disagree.
+	isCurrent := func(id ArticleID) bool {
+		cur, _ := currentCell.Load().(ArticleID)
+		return cur != "" && id == cur
+	}
+	columns := articleColumns(loadTok, isCurrent, rowClicks)
 
 	onSort := func(gtx layout.Context, col int) {
 		cur, _ := sortCell.Load().(table.Sort)
@@ -274,15 +287,7 @@ func articlesMain(
 		Items:   paged,
 		Sort:    sortObs,
 		OnSort:  onSort,
-		// The list IS the left pane's content, not a card lying on it, so
-		// its plane is the window's base fill. Stated rather than left to the zero
-		// value, because it is the decision the pane's own fill below has to
-		// agree with.
-		Level: tokens.Level0,
-		Current: func(a article) bool {
-			id, _ := currentCell.Load().(ArticleID)
-			return id != "" && a.ID == id
-		},
+		Current: func(a article) bool { return isCurrent(a.ID) },
 	})
 	// pagination.Props takes Page/PageCount as static ints; CombineLatest holds
 	// the latest page + page count from the model-derived streams and rebuilds
@@ -307,13 +312,17 @@ func articlesMain(
 	)
 }
 
-// themedTextCell renders a single line of Text-coloured cell text in the
-// theme's BodyMedium role — typeface, weight, size and line height from the
-// Typography, the shaper the theme's own — within the cell's allocated
-// rectangle, with the table's stock 12 dp horizontal padding. The golden tests
-// use the static table.RenderTextCell form instead, which is its documented
-// remit.
-func themedTextCell(tok themeTokens, s string) layout.Widget {
+// themedTextCell renders one line of cell text in the theme's BodyMedium role
+// — typeface, weight, size and line height from the Typography, the shaper the
+// theme's own — within the cell's allocated rectangle, with the table's stock
+// 12 dp horizontal padding. The golden tests use the static
+// table.RenderTextCell form instead, which is its documented remit.
+//
+// current says the row is the one patterns/table has filled with the
+// platform's selection colour. A cell that always drew the ordinary label
+// would put dark text on that fill: the platform pairs an accent-filled row
+// with the foreground it names for one, so the cell has to know.
+func themedTextCell(tok themeTokens, s string, current bool) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		padH := gtx.Dp(unit.Dp(cellPadDp))
@@ -327,7 +336,7 @@ func themedTextCell(tok themeTokens, s string) layout.Widget {
 		labelGtx.Constraints.Max.Y = size.Y
 
 		mLabel := op.Record(gtx.Ops)
-		labelDims := drawLabel(labelGtx, tok.shaper, s, tok.typ.BodyMedium, tok.col.Text)
+		labelDims := drawLabel(labelGtx, tok.shaper, s, tok.typ.BodyMedium, cellForeground(tok.col, current))
 		labelCall := mLabel.Stop()
 
 		offY := (size.Y - labelDims.Size.Y) / 2
@@ -341,19 +350,32 @@ func themedTextCell(tok themeTokens, s string) layout.Widget {
 	}
 }
 
+// cellForeground is what a table cell's text wears: the foreground the
+// platform pairs with a selected row's fill on the current row, and the
+// ordinary label on the content everywhere else. Both are flattened onto the
+// fill they land on.
+func cellForeground(c tokens.PlatformColors, current bool) color.NRGBA {
+	if current {
+		return vgcolor.Flatten(c.AlternateSelectedControlText, c.SelectedContentBackground)
+	}
+	return vgcolor.Flatten(c.Label, c.ControlBackground)
+}
+
 // articleColumns builds the four table columns. Title is sortable and hosts
 // the per-row click registration, because patterns/table has no whole-row
 // click affordance. A row click lands a SelectArticle message. Published is
 // sortable. Author and Unread are static.
 func articleColumns(
 	loadTok func() themeTokens,
+	isCurrent func(ArticleID) bool,
 	rowClicks *keyed.Deferred[ArticleID, *widget.Clickable],
 ) []table.Column[article] {
 	cellText := func(get func(a article) string) func(article) layout.Widget {
 		return func(a article) layout.Widget {
 			s := get(a)
+			id := a.ID
 			return func(gtx layout.Context) layout.Dimensions {
-				return themedTextCell(loadTok(), s)(gtx)
+				return themedTextCell(loadTok(), s, isCurrent(id))(gtx)
 			}
 		}
 	}
@@ -363,7 +385,7 @@ func articleColumns(
 			if click.Clicked(gtx) {
 				mvu.MessageOp{Message: SelectArticle{Article: a.ID}}.Add(gtx.Ops)
 			}
-			body := themedTextCell(loadTok(), a.Title)
+			body := themedTextCell(loadTok(), a.Title, isCurrent(a.ID))
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.LabelOp(a.Title).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
@@ -396,15 +418,13 @@ func articleColumns(
 // unreadTip is overlaid on the table's Unread header cell — see
 // overlayUnreadTooltip.
 //
-// The pane paints its own fill before any of that: the article list is
-// content, so its resting level is 0, the Background pin — not
-// patterns/shell's SplitPane backstop, which is Surface. The table takes the
-// same level through its `Level` prop, so the pane is one unbroken surface
-// from its margin to the last hairline; a grid raised off its own pane would
-// put the window's biggest expanse a level above the content it belongs to.
+// The pane paints its own fill before any of that: the article list is the
+// window's content, so it wears ControlBackground, which is the fill the
+// table draws on too — the pane is one unbroken surface from its margin to
+// the last rule.
 func articlesLayout(loadTok func() themeTokens, filter, table, pag, unreadTip layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		paint.FillShape(gtx.Ops, loadTok().col.SurfaceAt(tokens.Level0),
+		paint.FillShape(gtx.Ops, loadTok().col.ControlBackground,
 			clip.Rect{Max: gtx.Constraints.Max}.Op())
 		return layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,

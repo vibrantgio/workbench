@@ -14,6 +14,8 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/patterns/sidebar"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -115,11 +117,11 @@ func goldenModel() Model {
 // themeCases are the two appearance modes every golden records.
 var themeCases = []struct {
 	name   string
-	colors tokens.ColorTokens
+	colors tokens.PlatformColors
 	bg     color.NRGBA
 }{
-	{"light", tokens.DefaultLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-	{"dark", tokens.DefaultDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
+	{"light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
+	{"dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
 }
 
 // TestNotePageGolden records or diffs the rendered note in light and
@@ -279,10 +281,10 @@ func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 	shot := func(m Model) *image.RGBA {
-		w := renderNotePage(shaper, m, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
+		w := renderNotePage(shaper, m, tokens.PlatformLight, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
 		return golden.Capture(t, noteFrameSize, scene(w, bg))
 	}
-	background := tokens.DefaultLight.Background
+	background := tokens.PlatformLight.TextBackground
 	footPixels := func(img *image.RGBA) int {
 		n := 0
 		for y := noteFrameH - 100; y < noteFrameH-noteInsetDp; y++ {
@@ -514,7 +516,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// its own assertion elsewhere.
 			band := st.geom.rowTop + noteInsetDp
 			nameX := st.geom.contentX + noteInsetDp
-			top, bot := drawnRows(img, tc.colors.Background, nameX, nameX+400, 0, band)
+			top, bot := drawnRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
 			level("the vault's name", top, bot)
 
 			// The pane's own toggle stands on the pane's surface, in the
@@ -535,7 +537,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// span between the window buttons' measured edge and the
 			// vault's name.
 			markX := goldenLeading + frameGapDp
-			rowTop, rowBot := drawnRows(img, tc.colors.Background, markX, markX+railToggleMarkDp, 0, band)
+			rowTop, rowBot := drawnRows(img, tc.colors.TextBackground, markX, markX+railToggleMarkDp, 0, band)
 			level("the chrome row's toggle", rowTop, rowBot)
 			if rowTop != paneTop || rowBot != paneBot {
 				t.Errorf("the chrome row's toggle marks rows %d..%d and the pane's %d..%d; one switch, one line",
@@ -543,7 +545,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			}
 
 			nameX = markX + railToggleMarkDp + int(tokens.Spacing.S3)
-			top, bot = drawnRows(img, tc.colors.Background, nameX, nameX+400, 0, band)
+			top, bot = drawnRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
 			level("the vault's name with the pane away", top, bot)
 		})
 	}
@@ -603,7 +605,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			// The mark's own fill: one colour, laid down as a fill, so its
 			// own pixels are the only ones that carry it exactly.
 			pillLo, pillHi := span(asideX, windowW, func(c color.RGBA) bool {
-				return is(c, tc.colors.Ramps.Primary.Step(300))
+				return is(c, sidebar.SelectionFill(tc.colors, false))
 			})
 			if pillLo < 0 {
 				t.Fatal("the outline drew no marked row to measure")
@@ -615,7 +617,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			for y := top; y < bot && ruleLo < 0; y++ {
 				run := 0
 				for x := asideX; x < windowW; x++ {
-					if is(img.RGBAAt(x, y), tc.colors.Seam) {
+					if is(img.RGBAAt(x, y), vgcolor.Flatten(tc.colors.Separator, chromeSurface(tc.colors))) {
 						if run == 0 {
 							ruleLo = x
 						}
@@ -636,11 +638,16 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 				t.Fatal("the column drew no hairline between its panes")
 			}
 
-			if want := asideX + asideInsetDp; pillLo != want || ruleLo != want {
+			// A pixel of slack on each edge. The mark is a stadium — its
+			// fill is as tall as the row less the pad either side and its
+			// corner radius is half of that — so its leading and trailing
+			// edges are tangent points, antialiased on every row, and the
+			// hairline beside it is a plain rectangle that is not.
+			if want := asideX + asideInsetDp; abs(pillLo-want) > 1 || abs(ruleLo-want) > 1 {
 				t.Errorf("the column leads with the mark at %d and the hairline at %d; one margin, at %d",
 					pillLo, ruleLo, want)
 			}
-			if pillHi != ruleHi {
+			if abs(pillHi-ruleHi) > 1 {
 				t.Errorf("the mark ends at %d and the hairline at %d; the column keeps one right edge", pillHi, ruleHi)
 			}
 
@@ -652,14 +659,14 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			if barLo < 0 {
 				t.Fatal("an outline with more entries than its pane can show drew no bar")
 			}
-			if got := barLo - pillHi - 1; got != railMarginDp {
+			if got := barLo - pillHi - 1; abs(got-railMarginDp) > 1 {
 				t.Errorf("the bar stands %d px off the mark beside it, want %d", got, railMarginDp)
 			}
 			// The note's own bar, in the margin its column keeps: the only
 			// thing drawn out there past the prose, which stops a whole page inset
 			// short of the columns scanned.
 			noteLo, noteHi := span(asideX-noteInsetDp, asideX, func(c color.RGBA) bool {
-				return !is(c, tc.colors.Background)
+				return !is(c, tc.colors.TextBackground)
 			})
 			if noteLo < 0 {
 				t.Fatal("the note column drew no bar to measure against")
@@ -737,7 +744,7 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 				w := func(gtx layout.Context) layout.Dimensions { return f.layout(gtx, m, tok, sb, as, main) }
 				return golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
 			}
-			background := tc.colors.Background
+			background := tc.colors.TextBackground
 			check := func(when string, img *image.RGBA) {
 				edge := f.geom.pane.Max.X
 				if edge <= 0 {
@@ -769,8 +776,8 @@ func TestNotePageLightDarkDiffer(t *testing.T) {
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 	m := goldenModel()
 
-	light := renderNotePage(shaper, m, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
-	dark := renderNotePage(shaper, m, tokens.DefaultDark, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
+	light := renderNotePage(shaper, m, tokens.PlatformLight, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
+	dark := renderNotePage(shaper, m, tokens.PlatformDark, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
 	a := golden.Capture(t, noteFrameSize, scene(light, bg))
 	b := golden.Capture(t, noteFrameSize, scene(dark, bg))
 	if n := golden.PixelDiff(a, b); n == 0 {
@@ -794,7 +801,7 @@ func TestNotePageConstructs(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			w := renderNotePage(shaper, tc.model, tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
+			w := renderNotePage(shaper, tc.model, tokens.PlatformLight, tokens.Spacing, tokens.DefaultTypography, tokens.Comfortable)
 			dims := drawOnce(t, noteFrameSize, w)
 			if dims.Size.X == 0 || dims.Size.Y == 0 {
 				t.Errorf("note page produced zero dimensions: %v", dims)
@@ -809,8 +816,8 @@ func TestNotePageConstructs(t *testing.T) {
 // the backdrop layer the running application paints under every screen, so
 // a stored window image is the composition the reader sees — the backdrop
 // included, where it shows around the rail pane.
-func windowScene(w layout.Widget, c tokens.ColorTokens) layout.Widget {
-	return scene(w, c.SurfaceAt(tokens.LevelBackdrop))
+func windowScene(w layout.Widget, c tokens.PlatformColors) layout.Widget {
+	return scene(w, surfaceBackdrop(c))
 }
 
 // scene paints a fill behind the layout.Widget, so a transparent render is
@@ -832,4 +839,13 @@ func drawOnce(t *testing.T, size image.Point, w layout.Widget) layout.Dimensions
 		Ops:         &ops,
 	}
 	return w(gtx)
+}
+
+// abs is the distance between two measured columns, for the pixel of slack
+// an antialiased edge is read with.
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }

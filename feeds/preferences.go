@@ -31,8 +31,8 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/modal"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
-	"github.com/vibrantgio/theme/tokens"
 )
 
 // Geometry of the panel body's two preference rows. The row height is the
@@ -77,22 +77,16 @@ func preferencesPanel(
 				}
 				return button.Ghost
 			}
-			// Every button in this row stands on the panel's own surface,
-			// so it says which level that is. A ghost paints no fill of
-			// its own: its hover fill and its focus ring both derive from
-			// the host's fill, and a panel is patterns/modal's level-2 one.
-			// Left unsaid, the row would take both from the window surface
-			// it is nowhere near — the fill dissolving into the
-			// panel and the ring reading 2.92:1 against it in the light
-			// scheme, under the 3:1 a focus mark owes the surface under
-			// it.
+			// Surface is left unsaid on every button here: a ghost paints
+			// no fill of its own and flattens its press overlay and its
+			// focus ring onto what it stands on, which for a dialog's body
+			// is WindowBackground — the fill button.Props falls back to.
 			built := make([]rx.Observable[layout.Widget], 0, len(rowsPerPageChoices)+1)
 			for i, n := range rowsPerPageChoices {
 				n := n
 				built = append(built, button.Button(th, button.Props{
 					Label:     strconv.Itoa(n),
 					Emphasis:  emphasis(n == rows),
-					Level:     tokens.Level2,
 					Clickable: &sizeClicks[i],
 					OnClick: func(gtx layout.Context) {
 						mvu.MessageOp{Message: SetRowsPerPage{Rows: n}}.Add(gtx.Ops)
@@ -106,7 +100,6 @@ func preferencesPanel(
 			built = append(built, button.Button(th, button.Props{
 				Label:     label,
 				Emphasis:  emphasis(unread),
-				Level:     tokens.Level2,
 				Clickable: &unreadClick,
 				OnClick: func(gtx layout.Context) {
 					mvu.MessageOp{Message: ToggleUnreadOnly{}}.Add(gtx.Ops)
@@ -183,7 +176,8 @@ func prefsRow(
 	labelGtx.Constraints.Min = image.Point{}
 	labelGtx.Constraints.Max = image.Pt(w, rowH)
 	rec := op.Record(gtx.Ops)
-	dims := drawLabel(labelGtx, tok.shaper, caption, tok.typ.BodyMedium, tok.col.Text)
+	dims := drawLabel(labelGtx, tok.shaper, caption, tok.typ.BodyMedium,
+		vgcolor.Flatten(tok.col.Label, tok.col.WindowBackground))
 	call := rec.Stop()
 	off := op.Offset(image.Pt(0, y+(rowH-dims.Size.Y)/2)).Push(gtx.Ops)
 	call.Add(gtx.Ops)

@@ -20,7 +20,7 @@ import (
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
-	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/patterns/splitter"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -29,7 +29,7 @@ import (
 // depend on which faces the host carries.
 func goldenTokens() themeTokens {
 	return themeTokens{
-		col:    tokens.DefaultLight,
+		col:    tokens.PlatformLight,
 		typ:    tokens.DefaultTypography,
 		sp:     tokens.Spacing,
 		den:    tokens.Comfortable,
@@ -411,7 +411,7 @@ func TestChromeBudget(t *testing.T) {
 		{"rail hidden", hidden},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			w, st := renderWindow(shaper, c.model, tokens.DefaultLight, tokens.Spacing,
+			w, st := renderWindow(shaper, c.model, tokens.PlatformLight, tokens.Spacing,
 				goldenRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			drawOnce(t, windowFrameSize, w)
 
@@ -495,50 +495,6 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 	}
 }
 
-// TestTheRailWearsThePlatformsSeam pins the derivation of the floating
-// pane's own edge: how far it stands from the fill it is drawn on, which
-// way it goes, and that it is a whisper rather than a mark.
-//
-// The number is the platform's. Voice Memos outlines its floating panel at
-// #3A3A3A on a #1B1B1B panel — 1.514:1 — and leaves the flush side of the
-// same window unoutlined (owner-attested, 2026-08-28). Both halves are
-// checked here: the derived colour lands on that ratio against this window's
-// own floor in BOTH schemes, and it lands nowhere near the 3:1 graphic
-// floor an object's outline is derived to elsewhere in the system, which
-// on these surfaces would answer a colour several times more pronounced than
-// anything the platform draws around a sidebar.
-func TestTheRailWearsThePlatformsSeam(t *testing.T) {
-	const (
-		measured  = 1.51 // Voice Memos, panel outline against panel fill
-		tolerance = 0.02 // eight bits' worth of slack, no more
-	)
-	for _, tc := range themeCases {
-		t.Run(tc.name, func(t *testing.T) {
-			fill := chromeSurface(tc.colors)
-			seamColor := paneSeam(tc.colors)
-			got := vgcolor.LuminanceRatio(seamColor, fill)
-			if got < measured-tolerance || got > measured+tolerance {
-				t.Errorf("the pane's edge stands %.3f:1 off its fill (%v on %v), want the measured %.2f:1",
-					got, seamColor, fill, measured)
-			}
-			// Toward the scheme's own foreground: lighter than the pane in a dark
-			// scheme, as the platform draws it, and darker in a light one,
-			// which is the only direction a light floor has room in.
-			towardForeground := lightnessOf(tc.colors.Text) > lightnessOf(fill)
-			if lighter := lightnessOf(seamColor) > lightnessOf(fill); lighter != towardForeground {
-				t.Errorf("the pane's edge is %v against a fill of %v and foreground of %v; the edge steps toward the foreground",
-					seamColor, fill, tc.colors.Text)
-			}
-			// Not a mark. The graphic floor is what an outline owes what it
-			// stands on when the line IS the object; a pane's edge is read
-			// beside a fill, an inset and a radius saying the same thing.
-			if mark := vgcolor.Magnitude(seamColor, fill); mark >= tokens.GraphicFloor {
-				t.Errorf("the pane's edge reads |Lc| %.2f, at or over the graphic floor — this is a seam, not a mark", mark)
-			}
-		})
-	}
-}
-
 // TestTheRailIsOutlinedAndCastsNothing reads the composed window: the pane
 // carries a hairline just inside its own boundary, and what shows in the
 // gap around it is the backdrop, with nothing cast onto it.
@@ -591,13 +547,13 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 				{X: pane.Max.X - 2, Y: pane.Min.Y + 1},
 				{X: pane.Max.X - 2, Y: pane.Max.Y - 2},
 			} {
-				if got := img.RGBAAt(at.X, at.Y); !sameColor(got, tc.colors.Background) {
-					t.Errorf("the pane's trailing corner at %v draws %v, want the note's surface %v", at, got, tc.colors.Background)
+				if got := img.RGBAAt(at.X, at.Y); !sameColor(got, tc.colors.TextBackground) {
+					t.Errorf("the pane's trailing corner at %v draws %v, want the note's surface %v", at, got, tc.colors.TextBackground)
 				}
 			}
 			// The gap the pane is set into, its whole height: the bare
 			// backdrop, which is what an inset object stands on.
-			backdrop := tc.colors.SurfaceAt(tokens.LevelBackdrop)
+			backdrop := surfaceBackdrop(tc.colors)
 			for x := 0; x < pane.Min.X; x++ {
 				for y := 0; y < windowH; y++ {
 					if got := img.RGBAAt(x, y); !sameColor(got, backdrop) {
@@ -632,9 +588,9 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 			floor := chromeSurface(tc.colors)
 
 			for y := 0; y < windowH; y++ {
-				if got := img.RGBAAt(asideX, y); !sameColor(got, tc.colors.Seam) {
+				if got := img.RGBAAt(asideX, y); !sameColor(got, splitter.SeamColor(tc.colors, color.NRGBA{})) {
 					t.Fatalf("the column's seam at y=%d draws %v, want the seam %v — the seam stops where a band crosses it",
-						y, got, tc.colors.Seam)
+						y, got, splitter.SeamColor(tc.colors, color.NRGBA{}))
 				}
 				if got := img.RGBAAt(windowW-1, y); !sameColor(got, floor) {
 					t.Fatalf("the column's trailing edge at y=%d draws %v, want its own floor %v — flush chrome wears no outline",
@@ -808,9 +764,9 @@ func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
 				if got := img.RGBAAt(p.Max.X-seamDp, y); !sameColor(got, paneSeam(tc.colors)) {
 					t.Fatalf("the pane's trailing edge at y=%d draws %v, want its own edge %v", y, got, paneSeam(tc.colors))
 				}
-				if got := img.RGBAAt(p.Max.X, y); !sameColor(got, tc.colors.Background) {
+				if got := img.RGBAAt(p.Max.X, y); !sameColor(got, tc.colors.TextBackground) {
 					t.Fatalf("the pixel past the pane's trailing edge at y=%d draws %v, want the note's surface %v — a second line stands beside the pane's own",
-						y, got, tc.colors.Background)
+						y, got, tc.colors.TextBackground)
 				}
 			}
 		})

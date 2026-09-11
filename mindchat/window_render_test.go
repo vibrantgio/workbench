@@ -44,6 +44,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -57,9 +58,9 @@ var windowSize = image.Pt(1024, 768)
 
 // staticTheme freezes one colour scheme into a Theme whose every field emits
 // once — the shape theme/window feeds the layers, minus the live OS poll.
-func staticTheme(c tokens.ColorTokens) theme.Theme {
+func staticTheme(c tokens.PlatformColors) theme.Theme {
 	return theme.Theme{
-		Color:      rx.Of(c),
+		Platform:   rx.Of(c),
 		Typography: rx.Of(tokens.DefaultTypography),
 		Density:    rx.Of(tokens.Comfortable),
 		Motion:     rx.Of(tokens.Motion),
@@ -142,7 +143,7 @@ func streamingModel() Model {
 // frame composes the window's layers for one scheme into a single
 // layout.Widget: the backdrop first, the content over it, exactly as
 // theme/window stacks them.
-func frame(t *testing.T, c tokens.ColorTokens, model Model) layout.Widget {
+func frame(t *testing.T, c tokens.PlatformColors, model Model) layout.Widget {
 	t.Helper()
 	layers := buildLayers(rx.Of(model))(rx.Of(staticTheme(c)))
 
@@ -336,7 +337,7 @@ func settingsWithKey(failure string) Model {
 
 // renderPane draws one scheme in one pane state and writes it out when the
 // dump flag names a directory.
-func renderPane(t *testing.T, name string, c tokens.ColorTokens, hidden bool) {
+func renderPane(t *testing.T, name string, c tokens.PlatformColors, hidden bool) {
 	t.Helper()
 	m := demoModel()
 	m.SidebarHidden = hidden
@@ -345,7 +346,7 @@ func renderPane(t *testing.T, name string, c tokens.ColorTokens, hidden bool) {
 
 // renderWindow draws one Model in one scheme and writes it out when the dump
 // flag names a directory.
-func renderWindow(t *testing.T, name string, c tokens.ColorTokens, m Model) {
+func renderWindow(t *testing.T, name string, c tokens.PlatformColors, m Model) {
 	t.Helper()
 	dumpFrame(t, name, withWindowControls(frame(t, c, m)))
 }
@@ -407,10 +408,10 @@ func dumpFrame(t *testing.T, name string, w layout.Widget) *image.RGBA {
 
 // TestTheBackdropShowsAroundThePane reads the composed window down its
 // leading edge: the pane is set in one margin from the window's edges, and
-// what shows in that margin is the window's own plane at the backdrop level.
-// Nothing is drawn at the backdrop, so a frame that painted the transcript's
-// fill across the whole window — as this one once did — would leave the
-// pane standing on the document instead of being set into the window.
+// what shows in that margin is the platform's under-page background over the
+// window's own plane. A frame that painted the transcript's fill across the
+// whole window — as this one once did — would leave the pane standing on the
+// document instead of being set into the window.
 func TestTheBackdropShowsAroundThePane(t *testing.T) {
 	saved := windowButtonsEnd
 	defer func() { windowButtonsEnd = saved }()
@@ -419,7 +420,7 @@ func TestTheBackdropShowsAroundThePane(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := dumpFrame(t, "", frame(t, tc.c, demoModel()))
-			want := tc.c.SurfaceAt(tokens.LevelBackdrop)
+			want := vgcolor.Flatten(tc.c.UnderPageBackground, tc.c.WindowBackground)
 			for x := 0; x < PaneMargin; x++ {
 				for y := 0; y < windowSize.Y; y++ {
 					got := img.RGBAAt(x, y)

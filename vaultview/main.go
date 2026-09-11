@@ -98,7 +98,11 @@ func run() {
 	// opening frames are already in the kept palette rather than flashing
 	// the default one at somebody who chose against it.
 	kept := brand.Kept()
-	opening, _ := kept.Colors()
+	// The platform's own light set opens the window. The colour set is the
+	// platform's on every appearance now, so nothing a brand file holds
+	// pins it; what the file still pins is the type and the syntax palette
+	// below.
+	opening := tokens.PlatformLight
 	// The same file names the syntax base a fence is coloured from, one per
 	// appearance, so the code in a note wears the theme that was chosen for it
 	// rather than the one this build happens to default to — and follows the
@@ -134,50 +138,39 @@ func run() {
 // own drawing code reads at frame time. The shaper is the theme's cached
 // Typography shaper: the app builds none of its own.
 type themeTokens struct {
-	col    tokens.ColorTokens
+	col    tokens.PlatformColors
 	typ    tokens.Typography
 	sp     tokens.SpacingScale
 	den    tokens.Density
 	shaper *text.Shaper
 }
 
-// chromeSurface is the fill every piece of this window's chrome wears:
-// the rail pane and the trailing column. The plane those two stand on is
-// the backdrop, and no region paints at it.
-//
-// It is the CHROME level — one step under the content, toward the scheme's
-// dark extreme, in both schemes. Chrome stands under the document, not
-// above it, so the rail and the aside are darker than the note column
-// between them and lighter than the backdrop showing around the rail. In
-// the light scheme the chrome level lands byte-for-byte on the neutral 200
-// the panes wear. In the dark scheme it is #151515, the platform's own
-// measured step under the content; at #222222 the panes would read as a
-// level stacked on the page they frame rather than as chrome under it.
+// chromeSurface is the fill every piece of this window's chrome wears: the
+// rail pane and the trailing column. It is the platform's chrome material,
+// the fill a sidebar, a toolbar and an inspector carry, which is what those
+// two regions are. The plane they stand on is the backdrop, and no region
+// paints at it.
 //
 // It is a function rather than a field on themeTokens because the tests
-// hold whole palettes rather than snapshots, and both have to be able to
-// name the same fill.
-func chromeSurface(c tokens.ColorTokens) color.NRGBA {
-	return c.SurfaceAt(tokens.LevelChrome)
+// hold whole sets rather than snapshots, and both have to be able to name
+// the same fill.
+func chromeSurface(c tokens.PlatformColors) color.NRGBA {
+	return pane.Surface(c)
 }
 
-// paneSeam is the colour of the rail pane's own edge — the vocabulary's, and
-// this window's only because the rail is a floating pane. The derivation is
-// the pattern's: a measured platform whisper off the fill it is drawn on,
-// stepped toward the scheme's own foreground and realized at the fill's own hue
-// and chroma, so the edge carries whatever tint the palette carries and
-// none of its own. It is named here so that this window's own tests can
-// read the colour the window actually draws.
-func paneSeam(c tokens.ColorTokens) color.NRGBA {
+// paneSeam is the colour of the rail pane's own edge: the platform's
+// separator over the backdrop the pane floats on, which is the pattern's own
+// answer. It is named here so this window's own tests can read the colour
+// the window actually draws.
+func paneSeam(c tokens.PlatformColors) color.NRGBA {
 	return pane.SeamColor(c)
 }
 
-// lightnessOf is a colour's CIELAB L\*, which is what "toward the foreground"
-// compares: the seam's direction is a question about lightness and nothing
-// else.
-func lightnessOf(c color.NRGBA) float64 {
-	l, _, _ := vgcolor.LabFromNRGBA(c)
-	return l
+// surfaceBackdrop is the opaque fill the window's backdrop resolves to: the
+// platform's underPageBackground, which is a coverage in the light
+// appearance, laid on the window's own plane.
+func surfaceBackdrop(c tokens.PlatformColors) color.NRGBA {
+	return vgcolor.Flatten(c.UnderPageBackground, c.WindowBackground)
 }
 
 // mirrorTokens subscribes the theme's token streams into an atomic cell
@@ -190,7 +183,7 @@ func lightnessOf(c color.NRGBA) float64 {
 // the caller is the one that knows which palette this run is in: a window
 // that seeds it with the package default while its stream is about to emit
 // something else opens on a colour nobody chose.
-func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.ColorTokens, typo tokens.Typography) func() themeTokens {
+func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.PlatformColors, typo tokens.Typography) func() themeTokens {
 	var cell atomic.Value
 	cell.Store(themeTokens{
 		col:    opening,
@@ -199,12 +192,12 @@ func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.ColorTokens, typ
 		den:    tokens.Comfortable,
 		shaper: typo.Shaper(),
 	})
-	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
+	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
 	spObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.SpacingScale] { return t.Spacing })
 	denObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Density] { return t.Density })
 	_ = rx.CombineLatest4(colObs, typObs, spObs, denObs).Subscribe(rx.GoroutineContext(),
-		func(t rx.Tuple4[tokens.ColorTokens, tokens.Typography, tokens.SpacingScale, tokens.Density], _ error, done bool) {
+		func(t rx.Tuple4[tokens.PlatformColors, tokens.Typography, tokens.SpacingScale, tokens.Density], _ error, done bool) {
 			if !done {
 				typ := t.Second
 				cell.Store(themeTokens{col: t.First, typ: typ, sp: t.Third, den: t.Fourth, shaper: typ.Shaper()})
@@ -231,7 +224,7 @@ func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.ColorTokens, typ
 // chrome inset bounds the stack from above, so a queue tall enough to climb
 // the window stops at the chrome row's foot rather than covering the
 // controls standing in it.
-func buildLayers(modelObs rx.Observable[Model], opening tokens.ColorTokens, typo tokens.Typography, widths *columnMemory) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], opening tokens.PlatformColors, typo tokens.Typography, widths *columnMemory) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		loadTok := mirrorTokens(th, opening, typo)
 		var modelCell atomic.Value
@@ -369,9 +362,11 @@ func insetTop(content rx.Observable[layout.Widget], height func() unit.Dp) rx.Ob
 // nothing stands, which in this window is the gap around the rail pane.
 // Every region that stands paints its own surface over it.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
-	return rx.Map(colors, func(c tokens.ColorTokens) layout.Widget {
-		fill := c.SurfaceAt(tokens.LevelBackdrop)
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
+	return rx.Map(colors, func(c tokens.PlatformColors) layout.Widget {
+		// The backdrop is the platform's underPageBackground, a coverage in
+		// the light appearance, so it lands on the window's own plane.
+		fill := surfaceBackdrop(c)
 		return func(gtx layout.Context) layout.Dimensions {
 			size := gtx.Constraints.Max
 			paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())

@@ -41,7 +41,9 @@ import (
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/textdraw"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -69,19 +71,23 @@ type themed struct {
 	avatar  layout.Widget
 	remove  layout.Widget
 	edit    layout.Widget
-	add     layout.Widget
-	gear    layout.Widget
+	// removeOn and editOn are the same two marks in the foreground the
+	// platform pairs with its selection pill, for the row that wears one.
+	removeOn layout.Widget
+	editOn   layout.Widget
+	add      layout.Widget
+	gear     layout.Widget
 	// md is the message-body markdown style: token defaults plus the app's
 	// opt-ins — chroma highlighting matched to the appearance, and links
 	// opening in the system browser. MessageRow sets the foreground the
 	// answer's prose is drawn in.
 	md markdown.Style
-	// col is the emission's whole ColorTokens, kept beside the derived
+	// col is the emission's whole platform set, kept beside the derived
 	// Palette because patterns/pane resolves its own fill and its own edge
-	// stroke from the palette rather than taking them as colours: the pane is
+	// stroke from the set rather than taking them as colours: the pane is
 	// the vocabulary's object and what it is painted with is the pattern's
 	// business, not this app's.
-	col tokens.ColorTokens
+	col tokens.PlatformColors
 	// typ and shaper carry the theme's Typography and its cached shaper —
 	// the app builds no shaper of its own, so the typefaces (Roboto, and
 	// Roboto Mono for code) come from the theme.
@@ -112,33 +118,29 @@ var (
 )
 
 // messageMarkdownStyle derives the chat-body markdown style for the current
-// colour and typography tokens: the token-themed defaults plus the app's
-// opt-ins — chroma highlighting matched to the appearance, links opening
-// in the system browser, and the bundled image provider. Mono and CodeSize
-// are re-resolved from the theme's Code role, which keeps code spans and
-// fences in chat bodies rendering in the theme's mono face at its size.
+// platform colours and typography: the themed defaults plus the app's
+// opt-ins — chroma highlighting matched to the appearance, links opening in
+// the system browser, and the bundled image provider. Mono and CodeSize are
+// re-resolved from the theme's Code role, which keeps code spans and fences
+// in chat bodies rendering in the theme's mono face at its size.
 //
-// The insets a reply can grow — a fenced block, an inline code chip — keep
-// FromTokens' own fills, and that is this app's choice: a message body is read
-// on the transcript's content surface, FromTokens puts ContentSurface at the
-// Background pin and the code fills one neutral step off it, and one step off
-// the local surface is exactly the step a raised inset takes. It reads as
-// raised in both schemes the same way — LIGHTER than the page in the light
-// scheme and the dark alike,
-// with the derived rim carrying the edge in both.
+// FromTokens is told the surface a message body is read on — the content
+// plane the transcript fills — and resolves every alpha-carrying name onto
+// it. The fills a reply can grow, a fenced block and an inline code chip,
+// keep FromTokens' own, which is markdown's business and not this app's.
 //
 // Wearing a chroma base (highlight.Wear) would hand the fence that base's
 // own background instead, and a plate fitted to a white page puts a fill
-// LIGHTER than this light scheme's page under the block — a step in the
-// wrong direction. So the chroma style is taken for its colours only
-// (highlight.New), matched to the appearance the surface beneath reports.
-func messageMarkdownStyle(c tokens.ColorTokens, typ tokens.Typography) markdown.Style {
-	md := markdown.FromTokens(c, typ)
+// lighter than this light scheme's page under the block. So the chroma style
+// is taken for its colours only (highlight.New), matched to the appearance
+// the surface beneath reports.
+func messageMarkdownStyle(c tokens.PlatformColors, typ tokens.Typography) markdown.Style {
+	md := markdown.FromTokens(c, typ, c.ControlBackground)
 	md.Mono = font.Typeface(typ.Code.Typeface)
 	md.CodeSize = unit.Sp(typ.Code.Size)
-	// The appearance is read off the Background pin, which is the fill the
+	// The appearance is read off the content plane, which is the fill the
 	// transcript — and so every fence in it — actually rests on.
-	if isDarkColor(c.Background) {
+	if isDarkColor(c.ControlBackground) {
 		md.Highlight = mdHighlightDark
 	} else {
 		md.Highlight = mdHighlightLight
@@ -184,7 +186,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	})
 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest5(t.Color, t.Typography, t.Motion, t.Spacing, t.Radius), func(ct rx.Tuple5[tokens.ColorTokens, tokens.Typography, tokens.MotionScale, tokens.SpacingScale, tokens.RadiusScale]) themed {
+		return rx.Map(rx.CombineLatest5(t.Platform, t.Typography, t.Motion, t.Spacing, t.Radius), func(ct rx.Tuple5[tokens.PlatformColors, tokens.Typography, tokens.MotionScale, tokens.SpacingScale, tokens.RadiusScale]) themed {
 			c, typ, motion, sp, rad := ct.First, ct.Second, ct.Third, ct.Fourth, ct.Fifth
 			p := PaletteFrom(c)
 			avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
@@ -199,6 +201,17 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if err != nil {
 				panic(err)
 			}
+			// A second pair in the foreground the platform pairs with its
+			// selection pill: a row's marks stand on the pill once the row is
+			// the open one, and the chrome's own label is unreadable there.
+			removeOn, err := raster.Widget(icons.ContentClear, DeleteIconSize, DeleteIconSize, raster.WithColors(p.RowActive))
+			if err != nil {
+				panic(err)
+			}
+			editOn, err := raster.Widget(icons.EditorModeEdit, DeleteIconSize, DeleteIconSize, raster.WithColors(p.RowActive))
+			if err != nil {
+				panic(err)
+			}
 			add, err := raster.Widget(icons.ContentAdd, AddIconSize, AddIconSize, raster.WithColors(p.Heading))
 			if err != nil {
 				panic(err)
@@ -208,7 +221,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				panic(err)
 			}
 			md := messageMarkdownStyle(c, typ)
-			return themed{palette: p, col: c, bar: scrollbar.FromTokens(c), avatar: avatar, remove: remove, edit: edit, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad}
+			return themed{palette: p, col: c, bar: scrollbar.FromTokens(c, c.ControlBackground), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad}
 		})
 	})
 
@@ -379,11 +392,8 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 			Placeholder: "Chat name",
 			Description: "chat name",
 			Seed:        e.seed,
-			// The rename field stands on the decision modal's surface — a
-			// level-2 plane, not the window's own surface.
-			Level:    tokens.Level2,
-			FocusTag: func(tag event.Tag) { fieldTagCell.Store(tag) },
-			OnChange: func(_ layout.Context, text string) { nameCell.Store(text) },
+			FocusTag:    func(tag event.Tag) { fieldTagCell.Store(tag) },
+			OnChange:    func(_ layout.Context, text string) { nameCell.Store(text) },
 		})
 	})
 
@@ -400,18 +410,16 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 			mvu.MessageOp{Message: RenameChat{To: name}}.Add(gtx.Ops)
 		}
 	}
-	// The rename dialog's footer stands on its level-2 fill, like the field
-	// above it. Filled buttons ring against their own fill, so nothing
-	// moves; the declaration keeps the level with the control.
+	// The rename dialog stands on the window's own plane — the fill a
+	// floating surface takes on this platform — which is the zero value of
+	// the button's Surface, so neither action is told anything.
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
-		Level:     tokens.Level2,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
 	})
 	submitObs := button.Button(th, button.Props{
 		Label:     "Rename",
-		Level:     tokens.Level2,
 		Clickable: &submitClick,
 		OnClick:   rename,
 	})
@@ -550,12 +558,10 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) l
 }
 
 // MessageRow renders one history entry. Every row is the pane's full width
-// and every row paints the transcript's fill across it — the Background pin,
-// level 0 — because the transcript is what this window exists to show and a
-// resting expanse of it may not be filled at a level the elevation keeps for
-// things that appear and leave. Painting it here rather than letting the
-// pane's fill show through gives a raised inset inside an answer (a code
-// fence) a stated surface to step up from wherever the row is composed.
+// and every row paints the transcript's fill across it — the platform's
+// content plane — rather than letting whatever is beneath show through, so a
+// fenced block inside an answer has a stated surface to stand on wherever the
+// row is composed.
 //
 // What stands on that fill is one of four things, and which one is read off
 // the kind of line and who it is from:
@@ -691,7 +697,7 @@ func userTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	card := gtx
 	card.Constraints = layout.Exact(image.Pt(inner.Size.X+2*pad, inner.Size.Y+2*pad))
 	stack := op.Offset(image.Pt(at.X+width-card.Constraints.Max.X, at.Y)).Push(gtx.Ops)
-	cardpattern.Render(cardpattern.Props{Level: tokens.Level0, Body: words}, t.col, t.sp, t.rad)(card)
+	cardpattern.Render(cardpattern.Props{Body: words}, t.col, t.sp, t.rad)(card)
 	stack.Pop()
 
 	return rowHeight(gtx, card.Constraints.Max.Y)
@@ -870,11 +876,10 @@ func SidebarFooter(gtx layout.Context, t themed, settings *widget.Clickable) lay
 	defer op.Offset(image.Pt(0, sep)).Push(gtx.Ops).Pop()
 	gtx.Constraints = layout.Exact(image.Pt(width, rowH))
 	settings.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		// A sidebar row does not tint under the pointer on this platform,
+		// which the reference captures measure, so the footer's row does not
+		// either: it keeps one foreground however the pointer moves.
 		textColor := p.Row
-		if settings.Hovered() {
-			textColor = p.RowActive
-			FillRect(gtx, image.Rectangle{Max: gtx.Constraints.Max}, 0, p.RowHovered)
-		}
 		left := gtx.Dp(16)
 		iconSz := gtx.Dp(FooterIconSize)
 		off := op.Offset(image.Pt(left, (rowH-iconSz)/2)).Push(gtx.Ops)
@@ -946,7 +951,7 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 			body, action, caption := t.typ.BodyMedium, t.typ.LabelLarge, t.typ.BodySmall
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return typeset.Layout(gtx, t.shaper, roleLabel(body, 1), roleFont(body), unit.Sp(body.Size), msg, Material(gtx.Ops, t.col.Text))
+					return typeset.Layout(gtx, t.shaper, roleLabel(body, 1), roleFont(body), unit.Sp(body.Size), msg, Material(gtx.Ops, vgcolor.Flatten(t.col.Label, p.Toast)))
 				}),
 				layout.Rigid(layout.Spacer{Width: 16}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -956,7 +961,7 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 				}),
 				layout.Rigid(layout.Spacer{Width: 8}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return typeset.Layout(gtx, t.shaper, roleLabel(caption, 1), roleFont(caption), unit.Sp(caption.Size), hint, Material(gtx.Ops, p.Row))
+					return typeset.Layout(gtx, t.shaper, roleLabel(caption, 1), roleFont(caption), unit.Sp(caption.Size), hint, Material(gtx.Ops, vgcolor.Flatten(t.col.SecondaryLabel, p.Toast)))
 				}),
 			)
 		})
@@ -964,20 +969,13 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 
 		pos := image.Pt((max.X-dims.Size.X)/2, max.Y-dims.Size.Y-gtx.Dp(UndoBarMargin))
 		defer op.Offset(pos).Push(gtx.Ops).Pop()
-		// The patterns toast treatment: a cast shadow under an accent-tinted
-		// fill ringed in the accent, so the bar separates from the chat
-		// surfaces it floats over (a level-2 fill alone sat at ~1.2:1 against
-		// them, and ~1:1 against the assistant's rows in dark mode).
-		//
-		// The base is the toast level rather than the selected-row fill: that
-		// fill is a Primary tint, and tinting it again with the accent would
-		// leave the bar a purple fill with nothing neutral under the ring.
+		// A surface that appears and leaves is the window's own plane under
+		// the platform's shadow, and the platform draws no edge around one:
+		// the shadow is what says it floats.
 		bounds := image.Rectangle{Max: dims.Size}
 		radius := gtx.Dp(UndoBarRadius)
-		depth.Shadow(gtx, bounds, tokens.Level3, radius, 1)
-		FillRect(gtx, bounds, radius, Blend(p.Toast, p.Accent, 0x33))
-		ring := clip.RRect{Rect: bounds, SE: radius, SW: radius, NE: radius, NW: radius}
-		paint.FillShape(gtx.Ops, p.Accent, clip.Stroke{Path: ring.Path(gtx.Ops), Width: float32(gtx.Dp(1))}.Op())
+		depth.Shadow(gtx, bounds, radius, t.col.FloatingShadow)
+		FillRect(gtx, bounds, radius, p.Toast)
 		content.Add(gtx.Ops)
 		return layout.Dimensions{}
 	}
@@ -1016,19 +1014,13 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 
 	// The icons' input areas occlude the row's, so hovering an icon must
 	// still count as hovering the row (else the icons would flicker away).
+	// Hover reveals the row's icons and nothing else: a sidebar row does not
+	// tint under the pointer on this platform, which the reference captures
+	// measure.
 	hovered := row.Hovered() || del.Hovered() || ren.Hovered()
-	var bgColor color.NRGBA
-	var textColor color.NRGBA
-	switch {
-	case selected:
-		bgColor = p.RowSelected
+	textColor := p.Row
+	if selected {
 		textColor = p.RowActive
-	case hovered:
-		bgColor = p.RowHovered
-		textColor = p.RowActive
-	default:
-		bgColor = p.Sidebar
-		textColor = p.Row
 	}
 
 	label := roleLabel(t.typ.BodyMedium, 1)
@@ -1037,8 +1029,12 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 	return row.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		textMaterial := Material(gtx.Ops, textColor)
 
+		// The rail draws the platform's sidebar row, which patterns/sidebar
+		// measures at 32 dp — taller than a content list's row and not the
+		// same number.
+		gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, gtx.Dp(sidebar.RowHeight)))
 		m := op.Record(gtx.Ops)
-		dims := layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(20), Right: unit.Dp(12)}.Layout(gtx,
+		dims := layout.Inset{Left: unit.Dp(20), Right: unit.Dp(12)}.Layout(gtx,
 			func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -1069,11 +1065,15 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 						size := image.Pt(2*iconSize+gap, iconSize)
 						gtx.Constraints = layout.Exact(size)
 						if selected || hovered {
+							editMark, removeMark := t.edit, t.remove
+							if selected {
+								editMark, removeMark = t.editOn, t.removeOn
+							}
 							icon := gtx
 							icon.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
-							ren.Layout(icon, t.edit)
+							ren.Layout(icon, editMark)
 							defer op.Offset(image.Pt(iconSize+gap, 0)).Push(gtx.Ops).Pop()
-							del.Layout(icon, t.remove)
+							del.Layout(icon, removeMark)
 						}
 						return layout.Dimensions{Size: size}
 					}),
@@ -1082,10 +1082,12 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 		)
 		foreground := m.Stop()
 
-		FillRect(gtx, image.Rectangle{Max: dims.Size}, 0, bgColor)
-		// Left accent bar for the selected item.
+		// The pane's chrome shows through a row at rest; the open
+		// conversation wears the platform's sidebar pill, which
+		// patterns/sidebar draws — inset from the rail's edges and rounded —
+		// so this window paints no selection of its own.
 		if selected {
-			FillRect(gtx, image.Rectangle{Max: image.Pt(gtx.Dp(3), dims.Size.Y)}, 0, p.Accent)
+			sidebar.PaintSelection(gtx, dims.Size, t.col, false)
 		}
 		foreground.Add(gtx.Ops)
 		return dims

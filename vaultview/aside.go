@@ -42,8 +42,8 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
-	"github.com/vibrantgio/theme/tokens"
 )
 
 // Aside layout constants.
@@ -115,39 +115,16 @@ type asideForegroundTiers struct {
 	reading color.NRGBA
 }
 
-// asideForegrounds resolves the tiers against the surface the column
-// stands on.
-//
-// The two fainter tiers come off different ramp steps in a light scheme
-// and a dark one. The neutral ramp's paired scales keep a step's job
-// across the two schemes, not its distance from the surface it is read
-// against: measured on this column's own surface, the light scheme's 700 and
-// 800 stand 52.9 and 64.0 from it in L* under a reading tier at 86.1 —
-// three tiers a reader can name — while the dark scheme's 700 and 800
-// stand 75.3 and 79.2 under 87.3, four L* apart at the top where the light
-// pair are eleven, which is three names for very nearly one colour. The dark
-// scheme's 600 and 700 stand 57.2 and 75.3: a spread of the light
-// scheme's own order, one step lower down a ramp whose top end is the
-// compressed one.
-//
-// One step lower and no further. The step under that reads 3.5:1 on this
-// column's floor, and every tier here is a tier somebody reads, so none of
-// them may sit under the body floor the design system holds its own text
-// to — which is what fixes the dark pair at the deepest two steps that
-// both read and part.
-//
-// The scheme is read off the floor rather than off the neutral alias
-// because the floor is the fill this column is actually painted in, darker
-// than the content in both schemes.
+// asideForegrounds resolves the tiers against the surface the column stands
+// on. The platform speaks its text in four strengths and this column uses
+// three of them; each is a coverage, so each is flattened onto the chrome
+// material the column is painted in.
 func asideForegrounds(tok themeTokens) asideForegroundTiers {
-	faint, nested := 700, 800
-	if vgcolor.RelativeLuminance(chromeSurface(tok.col)) < 0.5 {
-		faint, nested = 600, 700
-	}
+	surface := chromeSurface(tok.col)
 	return asideForegroundTiers{
-		faint:   tok.col.Ramps.Neutral.Step(faint),
-		nested:  tok.col.Ramps.Neutral.Step(nested),
-		reading: tok.col.Text,
+		faint:   vgcolor.Flatten(tok.col.TertiaryLabel, surface),
+		nested:  vgcolor.Flatten(tok.col.SecondaryLabel, surface),
+		reading: vgcolor.Flatten(tok.col.Label, surface),
 	}
 }
 
@@ -357,10 +334,11 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 
 // asidePill fills a row's mark: a rounded pill on the column's own text
 // margin, running the band the pane's headings and its hairline run and no
-// further. It is the sidebar's fill — the same shape, the same radius, the
-// same two colours — so one window has one way of saying a row is spoken
-// for; where it stands is this column's own, because this column's panes
-// have no drawn edge of their own for a fill to stand off.
+// further. Its two colours are the sidebar pattern's, so one window has one
+// way of saying a row is spoken for; where it stands is this column's own,
+// because this column's panes have no drawn edge of their own for a fill to
+// stand off, and its rows are list rows rather than the pattern's 32 dp
+// chrome rows.
 func asidePill(gtx layout.Context, size image.Point, fill color.NRGBA) {
 	vp := gtx.Dp(unit.Dp(asidePillVPadDp))
 	r := gtx.Dp(unit.Dp(asidePillRadiusDp))
@@ -424,7 +402,7 @@ func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dime
 // trailing margin, so the rows stop where it starts and nothing is drawn
 // under a bar.
 func asideIndicator(tok themeTokens) scrollbar.Style {
-	s := scrollbar.FromTokens(tok.col)
+	s := scrollbar.FromTokens(tok.col, chromeSurface(tok.col))
 	s.TrackPadding = railMarginDp
 	return s
 }
@@ -451,13 +429,13 @@ func asideTrailing(tok themeTokens, w layout.Widget) layout.Widget {
 // so that one leading edge runs down the column and the line reads as the
 // pane's own answer rather than as an annotation on the heading above it.
 // Across: a row's own pad inboard of the column's text margin, the bar's
-// lane and a pad again at its trailing end. Down: the whole of the air a
-// row keeps above its text, which is where both panes' rows put their first
-// line — the outline's by halving that air and centring the line in what
-// is left, the citations' by spending it above the line outright.
-func asideEmptyLine(gtx layout.Context, tok themeTokens, line string) layout.Dimensions {
+// lane and a pad again at its trailing end. Down: the air the pane's own
+// rows keep above their text, which the two panes do not spend alike — the
+// outline halves it, the citations spend it outright — so the caller states
+// it rather than one constant standing for both.
+func asideEmptyLine(gtx layout.Context, tok themeTokens, line string, top unit.Dp) layout.Dimensions {
 	return layout.Inset{
-		Top: asideRowInsetDp, Left: asideRowPadDp,
+		Top: top, Left: asideRowPadDp,
 		Right: asideBarLane(tok) + asideRowPadDp,
 	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return drawText(gtx, tok.shaper, line, tok.typ.BodyMedium, asideForegrounds(tok).faint)
@@ -471,7 +449,8 @@ func asideEmptyLine(gtx layout.Context, tok themeTokens, line string) layout.Dim
 func asideRule(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	h := max(gtx.Dp(unit.Dp(1)), 1)
 	w := gtx.Constraints.Min.X
-	paint.FillShape(gtx.Ops, tok.col.Seam, clip.Rect{Max: image.Pt(w, h)}.Op())
+	paint.FillShape(gtx.Ops, vgcolor.Flatten(tok.col.Separator, chromeSurface(tok.col)),
+		clip.Rect{Max: image.Pt(w, h)}.Op())
 	return layout.Dimensions{Size: image.Pt(w, h)}
 }
 
@@ -500,7 +479,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 		// backlinks on the column's foot.
 		gtx.Constraints.Min.Y = 0
 		region := gtx.Constraints.Max
-		asideEmptyLine(gtx, tok, "This note has no headings.")
+		asideEmptyLine(gtx, tok, "This note has no headings.", asideRowInsetDp/2)
 		return layout.Dimensions{Size: region}
 	}
 	if doc := v.cur.document(); doc != nil {
@@ -551,16 +530,16 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowH))
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
-				// Two states, the sidebar's two: the heading the reader is
-				// inside wears the "you are here" fill the open note wears
-				// in the rail, and a row merely arrowed onto in this pane
-				// wears the neutral one. They part because the reader can
-				// move the mark off where they are actually reading.
-				switch {
-				case e.Idx == v.marked:
-					asidePill(gtx, size, tok.col.Ramps.Primary.Step(300))
-				case selected:
-					asidePill(gtx, size, tok.col.StateAt(tokens.LevelChrome, tokens.StateHover))
+				// Two states, the platform's two selection colours: the
+				// heading the reader is inside wears the emphasized fill the
+				// open note wears in the rail, and a row merely arrowed onto
+				// in this pane wears the unemphasized one. They part because
+				// the reader can move the mark off where they are actually
+				// reading.
+				marked := e.Idx == v.marked
+				filled := marked || selected
+				if filled {
+					asidePill(gtx, size, sidebar.SelectionFill(tok.col, !marked))
 				}
 				semantic.LabelOp(e.Title).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
@@ -581,6 +560,10 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 					foreground := foregrounds.reading
 					if e.Level > 1 {
 						foreground = foregrounds.nested
+					}
+					if filled {
+						fill := sidebar.SelectionFill(tok.col, !marked)
+						foreground = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, !marked), fill)
 					}
 					return drawLabel(gtx, tok.shaper, e.Title, style, foreground)
 				})
@@ -621,7 +604,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 		// column, where it would belong to nothing.
 		gtx.Constraints.Min.Y = 0
 		region := gtx.Constraints.Max
-		asideEmptyLine(gtx, tok, "No notes link here.")
+		asideEmptyLine(gtx, tok, "No notes link here.", asideRowInsetDp)
 		return layout.Dimensions{Size: region}
 	}
 	for len(v.rowClicks) < len(rows) {
@@ -640,7 +623,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
 				if selected {
-					asidePill(gtx, size, tok.col.StateAt(tokens.LevelChrome, tokens.StateHover))
+					asidePill(gtx, size, sidebar.SelectionFill(tok.col, false))
 				}
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
@@ -649,7 +632,12 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 				complayout.InsetXY(asideRowPadDp, asideRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return drawLabel(gtx, tok.shaper, row.Title, tok.typ.BodyMedium, foregrounds.reading)
+							title := foregrounds.reading
+							if selected {
+								fill := sidebar.SelectionFill(tok.col, false)
+								title = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, false), fill)
+							}
+							return drawLabel(gtx, tok.shaper, row.Title, tok.typ.BodyMedium, title)
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}

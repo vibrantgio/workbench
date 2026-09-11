@@ -79,7 +79,7 @@ func arrivalGtx(ops *op.Ops, now time.Time) layout.Context {
 // early is the reader leaving the note it was made on.
 func TestArrivalMarkingLivesItsCauseOut(t *testing.T) {
 	var ops op.Ops
-	col := tokens.DefaultLight
+	col := tokens.PlatformLight
 	m := Model{Current: "f.md", CurAnchor: 4, NavSeq: 3, Arrival: 3}
 	t0 := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 	full := noteStyle(col, tokens.DefaultTypography).ArrivalFill
@@ -128,7 +128,7 @@ func TestArrivalMarkingLivesItsCauseOut(t *testing.T) {
 // is not waiting on the other side when the reader comes back.
 func TestArrivalMarkingDoesNotFollowTheReader(t *testing.T) {
 	var ops op.Ops
-	full := noteStyle(tokens.DefaultLight, tokens.DefaultTypography).ArrivalFill
+	full := noteStyle(tokens.PlatformLight, tokens.DefaultTypography).ArrivalFill
 	t0 := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 	landed := Model{Current: "f.md", CurAnchor: 4, NavSeq: 3, Arrival: 3}
 

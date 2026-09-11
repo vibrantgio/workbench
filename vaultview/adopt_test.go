@@ -13,7 +13,6 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/theme/brand"
-	themecolor "github.com/vibrantgio/theme/color"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -28,155 +27,18 @@ type fixedAppearance struct{ a specsystem.Appearance }
 
 func (f fixedAppearance) Read() (specsystem.Appearance, error) { return f.a, nil }
 
-// TestAKeptBrandDressesTheWholeWindow builds the theme stream from exactly
-// the expression the application builds its own from — a kept brand's
-// options over the live bridge — renders the whole window in what that
-// stream emits, and requires the default seed's accent to be gone from
-// every pixel: a window that adopts a brand adopts it everywhere.
-//
-// Both sides are checked because a kept brand pins a pair, not a colour,
-// and the desktop still chooses between them.
-func TestAKeptBrandDressesTheWholeWindow(t *testing.T) {
-	t.Skip("the kept brand's pin reads |Lc| 72.71 over its own page where TextFloor is 75, so every place this window drew the accent walks the ramp and the window shows none of it; the Material palette leaves in Phase CE (CE2.7).")
-	path := filepath.Join(t.TempDir(), "theme.json")
-	if err := brand.SaveTo(path, brand.Brand{Seed: harbourRed, Source: "harbour.jpg"}); err != nil {
-		t.Fatalf("keep: %v", err)
-	}
-	opts := brand.KeptFrom(path).Options()
-
-	for _, tc := range []struct {
-		name     string
-		desktop  specsystem.Appearance
-		fallback tokens.ColorTokens
-	}{
-		{"light", specsystem.Appearance{}, tokens.DefaultLight},
-		{"dark", specsystem.Appearance{Dark: true}, tokens.DefaultDark},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			th, err := specsystem.FromSourceTheme(fixedAppearance{tc.desktop}, time.Hour, opts...).First()
-			if err != nil {
-				t.Fatalf("theme: %v", err)
-			}
-			adopted, err := th.Color.First()
-			if err != nil {
-				t.Fatalf("colours: %v", err)
-			}
-			if adopted == tc.fallback {
-				t.Fatal("the stream emitted the default palette with a brand kept")
-			}
-
-			before := window(t, tc.fallback)
-			after := window(t, adopted)
-			if pixels(before, tc.fallback.Primary) == 0 {
-				t.Fatal("this window shows none of its accent, so it cannot show that it changed")
-			}
-			if n := pixels(after, tc.fallback.Primary); n != 0 {
-				t.Errorf("%d pixels are still the default seed's accent while a brand is kept", n)
-			}
-			if n := pixelsOf(after, primaryRoleAnswers(adopted)); n == 0 {
-				t.Error("none of the kept brand's own answers for the primary role are anywhere in the window")
-			}
-		})
-	}
-}
-
-// primaryRoleAnswers is the palette's own set of legitimate pixels for the
-// primary role, in this window: the pin, on its own, wherever a surface
-// fills with it outright (the tree's active row and the outline's
-// current-section pill both paint [tokens.RampSet.Primary]'s step 300
-// directly); and [tokens.ColorTokens.ForegroundOnAtFloor]'s answer for the
-// two floors this window gates the role's foreground at when it is drawn ON
-// a page rather than filling one — [tokens.TextFloor] for the wikilinks a
-// note's prose carries, [tokens.GraphicFloor] for a graphic mark such as a
-// blockquote's bar. ForegroundOnAtFloor already returns the bare pin where
-// it clears a floor and a walked ramp step where it does not, so this one
-// list covers both without needing to know which side of the floor c falls
-// on.
-//
-// The foreground-on-a-floor gate means the bare pin may legitimately not reach
-// every surface, so "the window adopted the brand" is asked of the palette's
-// own answers rather than of one named byte every seed must agree with.
-func primaryRoleAnswers(c tokens.ColorTokens) []color.NRGBA {
-	surface := c.SurfaceAt(tokens.Level0)
-	return []color.NRGBA{
-		c.Primary,
-		c.ForegroundOnAtFloor(tokens.RolePrimary, surface, tokens.TextFloor),
-		c.ForegroundOnAtFloor(tokens.RolePrimary, surface, tokens.GraphicFloor),
-		c.Ramps.Primary.Step(300),
-	}
-}
-
-// pixelsOf sums [pixels] over every colour in cs: how many pixels of img
-// match ANY of a role's acceptable answers, rather than one named byte.
-func pixelsOf(img *image.RGBA, cs []color.NRGBA) int {
-	n := 0
-	for _, c := range cs {
-		n += pixels(img, c)
-	}
-	return n
-}
-
-// TestAPinThatClearsDressesTheWindowWithItself asserts the bare pin itself
-// — not merely one of [primaryRoleAnswers] — reaches the window, because
-// ForegroundOnAtFloor hands a pin back unmodified once it reads on its own
-// page. It needs a seed whose pin clears: harbourRed's light pin measures
-// 4.27:1, under the text floor, so ForegroundOnAtFloor always walks off it
-// there.
-func TestAPinThatClearsDressesTheWindowWithItself(t *testing.T) {
-	t.Skip("this seed's pin reads |Lc| 72.71 light and 74.34 dark over its own page where TextFloor is 75, so there is no pin that clears to read the shape this test was written for; the Material palette leaves in Phase CE (CE2.7).")
-	// The default brand's own seed: its light pin measures 5.94:1 against
-	// its own page, clear of the 4.5:1 text floor, and its dark pin is
-	// realized at a fixed depth that always clears — so the pin needs no
-	// walk on either side of the appearance switch.
-	seed := tokens.DefaultSeed
-	path := filepath.Join(t.TempDir(), "theme.json")
-	if err := brand.SaveTo(path, brand.Brand{Seed: seed, Source: "clears.jpg"}); err != nil {
-		t.Fatalf("keep: %v", err)
-	}
-	opts := brand.KeptFrom(path).Options()
-
-	for _, tc := range []struct {
-		name    string
-		desktop specsystem.Appearance
-	}{
-		{"light", specsystem.Appearance{}},
-		{"dark", specsystem.Appearance{Dark: true}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			th, err := specsystem.FromSourceTheme(fixedAppearance{tc.desktop}, time.Hour, opts...).First()
-			if err != nil {
-				t.Fatalf("theme: %v", err)
-			}
-			adopted, err := th.Color.First()
-			if err != nil {
-				t.Fatalf("colours: %v", err)
-			}
-
-			surface := adopted.SurfaceAt(tokens.Level0)
-			if got := themecolor.Magnitude(adopted.Primary, surface); got < tokens.TextFloor {
-				t.Fatalf("this seed's pin now measures |Lc| %.2f against its own page, under the |Lc| %.1f text floor — the test no longer reads the shape it was written for", got, tokens.TextFloor)
-			}
-
-			after := window(t, adopted)
-			if pixels(after, adopted.Primary) == 0 {
-				t.Error("the pin clears its own floor, and its colour is nowhere in the window")
-			}
-		})
-	}
-}
-
 // worn is a fresh note style dressed in one pair under these tokens: what a
 // second application holding the same pair puts under a fence, to compare a
 // note's own fence against.
-func worn(p highlight.BasePair, c tokens.ColorTokens) markdown.Style {
-	st := markdown.FromTokens(c, tokens.DefaultTypography)
+func worn(p highlight.BasePair, c tokens.PlatformColors) markdown.Style {
+	st := markdown.FromTokens(c, tokens.DefaultTypography, c.TextBackground)
 	highlight.WearPair(&st, p, c)
 	return st
 }
 
 // wornAlone is [worn] for one name under both appearances: the plate somebody
 // who chose that base and nothing else would be looking at.
-func wornAlone(name string, c tokens.ColorTokens) markdown.Style {
+func wornAlone(name string, c tokens.PlatformColors) markdown.Style {
 	return worn(highlight.BasePair{Light: name, Dark: name}, c)
 }
 
@@ -234,10 +96,10 @@ func TestTheKeptBasesColourTheCode(t *testing.T) {
 	}
 
 	const src = "// greet is a greeting.\nfunc greet(name string) string {\n\treturn fmt.Sprintf(\"hello, %s\", name)\n}\n"
-	light, dark := kept.Colors()
+	light, dark := tokens.PlatformLight, tokens.PlatformDark
 	for _, tc := range []struct {
 		name   string
-		colors tokens.ColorTokens
+		colors tokens.PlatformColors
 		member string
 		other  string
 	}{
@@ -343,19 +205,18 @@ func TestWithNothingKeptTheWindowIsTheOneItAlwaysWas(t *testing.T) {
 	if err != nil {
 		t.Fatalf("theme: %v", err)
 	}
-	colors, err := th.Color.First()
+	colors, err := th.Platform.First()
 	if err != nil {
 		t.Fatalf("colours: %v", err)
 	}
-	// Which colours an unbranded stream carries is the platform's business
-	// — macOS derives from the colour it paints an application that has
-	// chosen none — so what is asserted is that nothing kept changes
-	// nothing, both in the palette and on the window it paints.
+	// The colour set is the platform's own, so what is asserted is that
+	// nothing kept changes nothing, both in the set and on the window it
+	// paints.
 	unbranded, err := specsystem.FromSourceTheme(fixedAppearance{}, time.Hour).First()
 	if err != nil {
 		t.Fatalf("theme: %v", err)
 	}
-	want, err := unbranded.Color.First()
+	want, err := unbranded.Platform.First()
 	if err != nil {
 		t.Fatalf("colours: %v", err)
 	}
@@ -372,7 +233,7 @@ func TestWithNothingKeptTheWindowIsTheOneItAlwaysWas(t *testing.T) {
 // what is asserted here is which colours reach which surfaces, and the
 // stored goldens stay on the canonical palette because adoption happens at
 // runtime and is not baked into the application.
-func window(t *testing.T, colors tokens.ColorTokens) *image.RGBA {
+func window(t *testing.T, colors tokens.PlatformColors) *image.RGBA {
 	t.Helper()
 	w, _ := renderWindow(tokens.DefaultTypography.DeterministicShaper(), goldenModel(), colors,
 		tokens.Spacing, goldenRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))

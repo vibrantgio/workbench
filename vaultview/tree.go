@@ -52,6 +52,8 @@ import (
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/sidebar"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -60,15 +62,17 @@ import (
 // inset system: the find field and the row fills share it, so the
 // selection pill's edges line up with the field's own.
 const (
-	treeWidthDp       = 240         // the rail's own width where the slot states none
-	treeRowInsetDp    = 8           // shared horizontal inset: field and row fills
+	treeWidthDp = 240 // the rail's own width where the slot states none
+	// treeRowInsetDp is the shared horizontal inset: the find field and the
+	// row pills sit on one pair of edges. It is the sidebar pattern's own
+	// measured inset, so a pill drawn here is the pill the platform draws.
+	treeRowInsetDp    = float32(sidebar.SelectionInset)
 	treeRowPadDp      = 8           // breathing room between a fill's edge and its text
 	treeIndentDp      = 14          // additional inset per depth level
 	treeDiscloseDp    = markSmallDp // the disclosure mark's own square
 	treeDiscloseColDp = 20          // fixed column holding it, so names align per level
 	treeFieldPadDp    = 8           // breathing room around the find field
-	treePillRadiusDp  = 8           // corner radius of the selection/active fill
-	treePillVPadDp    = 2           // vertical gap between adjacent row fills
+	treePillRadiusDp  = 8           // corner radius of the foot action's own fill
 	treeHideBoxDp     = 24          // the pane's own hide control: a square hit area
 	treeFootPadDp     = 10          // breathing room above and below the foot's actions
 	treeFootGapDp     = 4           // gap between the foot's two hit areas
@@ -76,11 +80,10 @@ const (
 	treeFootVPadDp    = 4           // an action's hit area above and below its label
 )
 
-// treeFieldLevel is the level of the surface the find field stands on: the
-// rail pane, which is chrome and therefore stands at the
-// CHROME level. The live rail and the goldens' static rail both name it
-// here so they cannot drift apart.
-const treeFieldLevel = tokens.LevelChrome
+// treeFieldSurface is the fill the find field stands on: the rail pane,
+// which is chrome and wears the platform's chrome material. The live rail
+// and the goldens' static rail both name it here so they cannot drift apart.
+func treeFieldSurface(c tokens.PlatformColors) color.NRGBA { return chromeSurface(c) }
 
 // TreeRow is one visible row of the folder tree.
 type TreeRow struct {
@@ -280,18 +283,6 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 		Placeholder: "Find a note…",
 		Description: "filter notes by name",
 		FocusTag:    func(tag event.Tag) { fieldTag = tag },
-		// The field stands on the rail's rounded pane, not on the window
-		// surface behind it — the pane covers that. The pane is the
-		// window's CHROME and so stands at the chrome level; naming that
-		// level here is what makes the field's fill, its resting edge and
-		// its focus ring all derive against the thing they are actually
-		// drawn on. A text field is raised one step off whatever it lies
-		// on, so the field fills at the content's own level — lighter than
-		// the rail in both schemes,
-		// which is the direction the platform draws a search field on a
-		// sidebar (the Settings search field sits above its sidebar, not
-		// under it).
-		Level: treeFieldLevel,
 		OnChange: func(gtx layout.Context, text string) {
 			mvu.MessageOp{Message: SetFilter{Text: text}}.Add(gtx.Ops)
 		},
@@ -429,7 +420,8 @@ func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			h := max(gtx.Dp(unit.Dp(1)), 1)
 			w := gtx.Constraints.Min.X
-			paint.FillShape(gtx.Ops, tok.col.Seam, clip.Rect{Max: image.Pt(w, h)}.Op())
+			paint.FillShape(gtx.Ops, vgcolor.Flatten(tok.col.Separator, chromeSurface(tok.col)),
+				clip.Rect{Max: image.Pt(w, h)}.Op())
 			return layout.Dimensions{Size: image.Pt(w, h)}
 		}),
 		layout.Rigid(complayout.VSpacer(treeFootPadDp)),
@@ -452,15 +444,14 @@ func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
 }
 
 // footAction renders one of the foot's affordances: a pressable label,
-// named for the screen reader and drawn at full text contrast, since a
-// bare label at the low-contrast neutral step reads as a disabled control
-// rather than a live one.
+// named for the screen reader and drawn in the platform's own label colour,
+// since a fainter one reads as a disabled control rather than a live one.
 //
 // The label sits in a hit area of its own, and that area fills under the
 // pointer and darkens while it is held: a bare label says nothing about
-// being pressable until something answers the pointer. The fill is the
-// rows' own pill in the rows' own neutral steps, so the foot answers the
-// way everything above it does rather than inventing a button.
+// being pressable until something answers the pointer. These are the one
+// place in this rail the platform tints, being toolbar buttons rather than
+// rows.
 func footAction(click *widget.Clickable, label string, tok themeTokens) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -471,15 +462,20 @@ func footAction(click *widget.Clickable, label string, tok themeTokens) layout.W
 			macro := op.Record(gtx.Ops)
 			igtx := gtx
 			igtx.Constraints.Min = image.Point{}
-			dims := drawLabel(igtx, tok.shaper, label, tok.typ.LabelLarge, tok.col.Text)
+			dims := drawLabel(igtx, tok.shaper, label, tok.typ.LabelLarge,
+				vgcolor.Flatten(tok.col.Label, chromeSurface(tok.col)))
 			call := macro.Stop()
 			size := image.Pt(dims.Size.X+2*hp, dims.Size.Y+2*vp)
+			// The foot's actions are the one place in this rail the
+			// platform tints under the pointer: they are toolbar buttons,
+			// not rows, and a toolbar button is where the measured hover
+			// and press overlays were read.
 			var fill color.NRGBA
 			switch {
 			case click.Pressed():
-				fill = tok.col.StateAt(tokens.LevelChrome, tokens.StatePressed)
+				fill = vgcolor.Flatten(tok.col.PressOverlay, chromeSurface(tok.col))
 			case click.Hovered():
-				fill = tok.col.StateAt(tokens.LevelChrome, tokens.StateHover)
+				fill = vgcolor.Flatten(tok.col.HoverOverlay, chromeSurface(tok.col))
 			}
 			if fill.A > 0 {
 				r := gtx.Dp(unit.Dp(treePillRadiusDp))
@@ -544,7 +540,8 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	if len(rows) == 0 {
 		if filtering {
 			complayout.Inset(treeRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, tok.shaper, "No note by that name.", tok.typ.BodyMedium, tok.col.Ramps.Neutral.Step(700))
+				return drawLabel(gtx, tok.shaper, "No note by that name.", tok.typ.BodyMedium,
+					vgcolor.Flatten(tok.col.SecondaryLabel, chromeSurface(tok.col)))
 			})
 		}
 		return layout.Dimensions{Size: gtx.Constraints.Max}
@@ -568,7 +565,9 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	for len(v.rowClicks) < len(rows) {
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
-	rowH := gtx.Dp(list.RowHeight(tok.den))
+	// A tree rail is chrome, so its rows take the sidebar's own row height
+	// rather than the platform's list row.
+	rowH := gtx.Dp(sidebar.RowHeight)
 	return list.LayoutSelectable(gtx, v.list, rows,
 		func(gtx layout.Context, row TreeRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
@@ -580,36 +579,19 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
 				active := !row.IsDir && row.Path == m.Current
-				// The fill is a rounded pill inset to the rail's shared
-				// horizontal inset — the same edges the find field sits
-				// on — never a full-bleed bar. Keyboard selection and the
-				// active note keep their distinct colours.
-				var fill color.NRGBA
-				switch {
-				case active:
-					fill = tok.col.Ramps.Primary.Step(300)
-				case selected:
-					fill = tok.col.StateAt(tokens.LevelChrome, tokens.StateHover)
+				// The pill is the sidebar pattern's — its inset, its corner
+				// and its two colours — so a rail in this window is a rail
+				// on this platform. The open note wears the emphasized fill
+				// and a row merely arrowed onto the unemphasized one.
+				filled := active || selected
+				surface := chromeSurface(tok.col)
+				if filled {
+					sidebar.PaintSelection(gtx, size, tok.col, !active)
+					surface = sidebar.SelectionFill(tok.col, !active)
 				}
-				if fill.A > 0 {
-					ins := gtx.Dp(unit.Dp(treeRowInsetDp))
-					vp := gtx.Dp(unit.Dp(treePillVPadDp))
-					r := gtx.Dp(unit.Dp(treePillRadiusDp))
-					pill := clip.RRect{
-						Rect: image.Rect(ins, vp, size.X-ins, size.Y-vp),
-						NE:   r, NW: r, SE: r, SW: r,
-					}
-					paint.FillShape(gtx.Ops, fill, pill.Op(gtx.Ops))
-				}
-				// The highlighter is derived against what the row's words
-				// actually stand on — the pane where the row is bare, the
-				// pill where one is drawn under them — because a fill that
-				// separates from the pane can be invisible on the pill.
-				surface := tok.col.SurfaceAt(tokens.LevelChrome)
-				if fill.A > 0 {
-					surface = fill
-				}
-				hl := tok.col.HighlightOn(surface)
+				// The find mark is the platform's own, and the words it
+				// covers keep their colour.
+				hl := tok.col.FindHighlight
 				semantic.LabelOp(row.Name).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
 				layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -624,13 +606,18 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 						// end where the name begins.
 						mark := gtx.Dp(treeDiscloseDp)
 						if row.IsDir {
-							drawDisclosure(gtx, row.Open, treeDiscloseDp, tok.col.Ramps.Neutral.Step(700))
+							drawDisclosure(gtx, row.Open, treeDiscloseDp,
+								vgcolor.Flatten(tok.col.SecondaryLabel, surface))
 						}
 						return layout.Dimensions{Size: image.Pt(gtx.Dp(treeDiscloseColDp), mark)}
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						name := tok.col.Label
+						if filled {
+							name = sidebar.SelectionLabel(tok.col, !active)
+						}
 						return drawFound(gtx, tok.shaper, row.Name, tok.typ.BodyMedium,
-							tok.col.Text, hl, query)
+							vgcolor.Flatten(name, surface), hl, query)
 					}),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
@@ -639,8 +626,12 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 						if row.Detail == "" {
 							return layout.Dimensions{}
 						}
+						detail := tok.col.SecondaryLabel
+						if filled {
+							detail = sidebar.SelectionLabel(tok.col, !active)
+						}
 						return drawFound(gtx, tok.shaper, row.Detail, tok.typ.BodySmall,
-							tok.col.Ramps.Neutral.Step(700), hl, query)
+							vgcolor.Flatten(detail, surface), hl, query)
 					}),
 					layout.Rigid(complayout.HSpacer(treeRowInsetDp+treeRowPadDp)),
 				)
@@ -740,7 +731,7 @@ func runWidth(gtx layout.Context, shaper *text.Shaper, style tokens.TextStyle, s
 func renderTree(
 	shaper *text.Shaper,
 	m Model,
-	colors tokens.ColorTokens,
+	colors tokens.PlatformColors,
 	sp tokens.SpacingScale,
 	rad tokens.RadiusScale,
 	typo tokens.Typography,
@@ -750,7 +741,7 @@ func renderTree(
 	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return leading }}
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	fieldW := input.RenderSearch(shaper, "Find a note…", colors, sp, rad, typo.BodyLarge, den,
-		input.RenderState{Text: m.Filter, Level: treeFieldLevel})
+		input.RenderState{Text: m.Filter, Surface: treeFieldSurface(colors)})
 	return func(gtx layout.Context) layout.Dimensions {
 		return v.layout(gtx, m, tok, fieldW)
 	}

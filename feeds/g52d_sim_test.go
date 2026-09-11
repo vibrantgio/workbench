@@ -52,7 +52,7 @@ var modalSharpRadius = tokens.RadiusScale{}
 // error alert (shown to capture the empty-submit state in the golden), the URL
 // textfield, and the Add button. Sharp radii + the static Render paths keep
 // the golden deterministic.
-func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layout.Widget {
+func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.PlatformColors) layout.Widget {
 	body := func(gtx layout.Context) layout.Dimensions {
 		w := gtx.Constraints.Max.X
 		gap := gtx.Dp(unit.Dp(addFeedGapDp))
@@ -70,13 +70,11 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layo
 		s.Pop()
 		y += alertH + gap
 
-		// Level: the modal's own level-2 surface, matching what addFeedModal
-		// hands the live field. A field inside a dialog does not stand on the
-		// window's own surface, and a border derived against the window reads at
-		// 2.94:1 over the dialog's plane in the light scheme.
+		// The field stands on the dialog's own plane, which is
+		// WindowBackground — the fill its edge is flattened onto.
 		fld := input.Render(shaper, "https://example.com/feed.xml",
 			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.BodyLarge,
-			tokens.Comfortable, input.RenderState{Level: tokens.Level2})
+			tokens.Comfortable, input.RenderState{Surface: colors.WindowBackground})
 		s = op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		fg := gtx
 		fg.Constraints = layout.Exact(image.Pt(w, fieldH))
@@ -95,11 +93,11 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.ColorTokens) layo
 		return layout.Dimensions{Size: image.Pt(w, y)}
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		// Level 2, the dialog's own: a group's hairline is derived against
-		// the surface it is in, which here is the modal and not the window.
+		// A group's hairline is the platform's separator flattened onto the
+		// surface it is in, which here is the dialog's plane.
 		g := group.Render(shaper, group.Props{
 			Content: []layout.Widget{body},
-			Level:   tokens.Level2,
+			Surface: colors.WindowBackground,
 		}, colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.LabelLarge)
 		return g(gtx)
 	}
@@ -111,11 +109,11 @@ func TestAddFeedModalGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	cases := []struct {
 		name   string
-		colors tokens.ColorTokens
+		colors tokens.PlatformColors
 		bg     color.NRGBA
 	}{
-		{"add-feed-modal-light", tokens.DefaultLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-		{"add-feed-modal-dark", tokens.DefaultDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
+		{"add-feed-modal-light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
+		{"add-feed-modal-dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

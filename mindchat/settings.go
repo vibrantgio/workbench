@@ -62,8 +62,8 @@ type settingsThemed struct {
 	boxOff  layout.Widget
 
 	// The key-check verdict, as the two glyph badges it is: a disc in the
-	// status's fill with the sign in the status's foreground, both derived
-	// by the library against the modal's level 2 rather than picked here.
+	// system colour the status names, with the sign centred in it. Both are
+	// the badge's own, resolved against the plane it stands on.
 	// badgeStyle is the type role behind them, kept so the row can reserve
 	// the badge's box while there is no verdict to draw — a disc measures
 	// the same box the bare sign does, so the row holds either unmoved.
@@ -112,11 +112,8 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				Placeholder: placeholder,
 				Description: description,
 				Seed:        seed,
-				// Every field here stands on the settings modal's own
-				// surface — a level-2 plane, not the window's own.
-				Level:    tokens.Level2,
-				Mask:     mask,
-				FocusTag: func(t event.Tag) { tag.Store(t) },
+				Mask:        mask,
+				FocusTag:    func(t event.Tag) { tag.Store(t) },
 				OnChange: func(gtx layout.Context, text string) {
 					mvu.MessageOp{Message: EditProvider{Field: f, Text: text}}.Add(gtx.Ops)
 				},
@@ -132,7 +129,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	})
 
 	themedObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[settingsThemed] {
-		return rx.Map(rx.CombineLatest2(t.Color, t.Typography), func(ct rx.Tuple2[tokens.ColorTokens, tokens.Typography]) settingsThemed {
+		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography), func(ct rx.Tuple2[tokens.PlatformColors, tokens.Typography]) settingsThemed {
 			c, typ := ct.First, ct.Second
 			p := PaletteFrom(c)
 			mk := func(data []byte, col color.NRGBA) layout.Widget {
@@ -144,24 +141,23 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 			}
 			style := badge.Style(typ, tokens.Comfortable)
 			verdict := func(g badge.Glyph, status badge.Status) layout.Widget {
-				// A glyph badge — no label — standing as a disc: the status's
-				// fill a circle the line box across, the sign centred in it in
-				// the status's foreground. Both are derived against the
-				// surface the badge stands on, and the settings modal is a
-				// level-2 plane.
+				// A glyph badge — no label — standing as a disc: the system
+				// colour the status names fills a circle the line box across,
+				// with the sign centred in it. The dialog stands on the
+				// window's own plane, which is the badge's zero Surface.
 				return badge.Render(typ.Shaper(), "", g, status, c, tokens.Spacing,
-					tokens.Radius, style, badge.RenderState{Level: tokens.Level2, Disc: true})
+					tokens.Radius, style, badge.RenderState{Disc: true})
 			}
 			return settingsThemed{
 				palette:    p,
-				bar:        scrollbar.FromTokens(c),
+				bar:        scrollbar.FromTokens(c, c.WindowBackground),
 				typ:        typ,
 				shaper:     typ.Shaper(),
-				add:        mk(icons.ContentAdd, p.Heading),
-				remove:     mk(icons.ContentRemove, p.Heading),
-				refresh:    mk(icons.NavigationRefresh, p.Heading),
+				add:        mk(icons.ContentAdd, p.FloatingHeading),
+				remove:     mk(icons.ContentRemove, p.FloatingHeading),
+				refresh:    mk(icons.NavigationRefresh, p.FloatingHeading),
 				boxOn:      mk(icons.ToggleCheckBox, p.Accent),
-				boxOff:     mk(icons.ToggleCheckBoxOutlineBlank, p.Heading),
+				boxOff:     mk(icons.ToggleCheckBoxOutlineBlank, p.FloatingHeading),
 				badgeStyle: style,
 				verdictOK:  verdict(keyCheckGlyph, badge.Success),
 				verdictBad: verdict(keyCrossGlyph, badge.Error),
@@ -205,10 +201,6 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				Options:     labelsOf(entries),
 				Selected:    k.selected,
 				Drop:        picker.DropUp,
-				// The field stands on the settings modal's own surface — a
-				// level-2 plane, not the window's own — like every field
-				// above it.
-				Level: tokens.Level2,
 				// A real provider catalogue is forty to sixty rows, and what
 				// bounds the menu is the room the body has rather than a
 				// number this app picks: the picker caps the plane to what
@@ -248,10 +240,9 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	save := func(gtx layout.Context) {
 		mvu.MessageOp{Message: SaveSettings{}}.Add(gtx.Ops)
 	}
-	// Both actions sit in the dialog's footer, on its level-2 fill — the same
-	// level the fields above them already name. Filled paints its own fill
-	// and ring against that level, and Ghost derives its label and its hover
-	// fill from it, so the level is what both emphases are resolved against.
+	// Both actions sit in the dialog's footer, which stands on the window's
+	// own plane — the fill a floating surface takes on this platform, and the
+	// zero value of the button's Surface, so neither action is told anything.
 	//
 	// One filled action per surface: Save is what this dialog is for, so it
 	// keeps the Filled emphasis and Cancel takes the least pronounced one
@@ -260,13 +251,11 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
 		Emphasis:  button.Ghost,
-		Level:     tokens.Level2,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
 	})
 	saveObs := button.Button(th, button.Props{
 		Label:     "Save",
-		Level:     tokens.Level2,
 		Clickable: &saveClick,
 		OnClick:   save,
 	})
@@ -392,7 +381,7 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layo
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						if !hasProvider {
 							textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium),
-								image.Rectangle{Max: gtx.Constraints.Max}, 0.5, 0.5, p.Row,
+								image.Rectangle{Max: gtx.Constraints.Max}, 0.5, 0.5, p.FloatingText,
 								"No providers — add one with +")
 							return layout.Dimensions{Size: gtx.Constraints.Max}
 						}
@@ -473,16 +462,11 @@ func templateBar(gtx layout.Context, t settingsThemed, tplClicks []*widget.Click
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				sz := image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Max.Y)
 				pointer.CursorPointer.Add(gtx.Ops)
-				// A chip inside the dialog walks its level from the dialog's
-				// surface, not from the window: it rests flush on that
-				// surface and reveals itself with the surface's own one-step
-				// hover. Taking the transcript's chip level here would
-				// measure from a fill this chip is nowhere near.
-				fill := p.ModalChip
-				if click.Hovered() {
-					fill = p.ModalChipHovered
-				}
-				FillRect(gtx, image.Rectangle{Max: sz}, sz.Y/2, fill)
+				// A chip wears the fill an ordinary push button wears on
+				// this platform, and a push button does not tint under the
+				// pointer here, so the chip keeps one fill however the
+				// pointer moves.
+				FillRect(gtx, image.Rectangle{Max: sz}, sz.Y/2, p.ModalChip)
 				textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), image.Rectangle{Max: sz}, 0.5, 0.5, p.ChipText, ProviderTemplates[index].Name)
 				return layout.Dimensions{Size: sz}
 			})
@@ -598,7 +582,7 @@ func webSearchRow(gtx layout.Context, t settingsThemed, on bool, click *widget.C
 			}
 		}()
 		r := image.Rect(sz+gtx.Dp(8), 0, size.X, size.Y)
-		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodySmall), r, 0, 0.5, t.palette.Row, "Web search tool (server-side; xAI and OpenAI)")
+		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodySmall), r, 0, 0.5, t.palette.FloatingText, "Web search tool (server-side; xAI and OpenAI)")
 		return layout.Dimensions{Size: size}
 	})
 }
@@ -608,7 +592,7 @@ func webSearchRow(gtx layout.Context, t settingsThemed, on bool, click *widget.C
 // overlays at the row's right edge.
 func defaultModelRow(gtx layout.Context, t settingsThemed) layout.Dimensions {
 	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SelectRowHeight))
-	textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), image.Rectangle{Max: size}, 0, 0.5, t.palette.Heading, "DEFAULT MODEL")
+	textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), image.Rectangle{Max: size}, 0, 0.5, t.palette.FloatingHeading, "DEFAULT MODEL")
 	return layout.Dimensions{Size: size}
 }
 
@@ -663,7 +647,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 		mvu.MessageOp{Message: RemoveProvider{}}.Add(gtx.Ops)
 	}
 	size := gtx.Constraints.Max
-	FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(SettingsPanelInset), p.RowHovered)
+	FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(SettingsPanelInset), p.Panel)
 	defer op.Offset(image.Pt(gtx.Dp(SettingsPanelInset), gtx.Dp(SettingsPanelInset))).Push(gtx.Ops).Pop()
 	gtx.Constraints = layout.Exact(image.Pt(size.X-2*gtx.Dp(SettingsPanelInset), size.Y-2*gtx.Dp(SettingsPanelInset)))
 	indices := make([]int, len(s.Draft))
@@ -673,7 +657,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			r := image.Rect(0, 0, gtx.Constraints.Max.X, gtx.Dp(SettingsCaptionRow))
-			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), r, 0, 0.5, p.Heading, "PROVIDERS")
+			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), r, 0, 0.5, p.FloatingHeading, "PROVIDERS")
 			return layout.Dimensions{Size: r.Max}
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -718,15 +702,13 @@ func providerRow(gtx layout.Context, t settingsThemed, prov Provider, selected b
 	}
 	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SettingsRowHeight))
-		textColor := p.Row
-		switch {
-		case selected:
-			FillRect(gtx, image.Rectangle{Max: size}, 0, p.RowSelected)
-			FillRect(gtx, image.Rectangle{Max: image.Pt(gtx.Dp(3), size.Y)}, 0, p.Accent)
-			textColor = p.RowActive
-		case click.Hovered():
-			FillRect(gtx, image.Rectangle{Max: size}, 0, p.RowHovered)
-			textColor = p.RowActive
+		// The provider list is a content list, so its selected row wears the
+		// platform's content selection rather than the sidebar's pill, and no
+		// row tints under the pointer.
+		textColor := p.FloatingText
+		if selected {
+			FillRect(gtx, image.Rectangle{Max: size}, 0, p.ListSelected)
+			textColor = p.ListSelectedText
 		}
 		r := image.Rect(gtx.Dp(10), 0, size.X-gtx.Dp(4), size.Y)
 		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium), r, 0, 0.5, textColor, name)
@@ -740,7 +722,7 @@ func providerRow(gtx layout.Context, t settingsThemed, prov Provider, selected b
 func statusLine(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider) layout.Dimensions {
 	p := t.palette
 	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SettingsCaptionRow))
-	text, col := "", p.Row
+	text, col := "", p.FloatingText
 	switch s.KeyStatus(prov) {
 	case KeyBad:
 		text, col = s.Errors[prov.Name], p.Error

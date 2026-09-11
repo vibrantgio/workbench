@@ -8,136 +8,107 @@ import (
 	"gioui.org/widget"
 
 	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/textdraw"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
 )
 
-// Palette is the app's view of the components colour tokens: named roles derived
-// from tokens.ColorTokens on every theme emission. Because the theme
-// window feeds a live OS theme, an OS light/dark switch re-emits the tokens
-// and restyles the whole app with no imperative wiring.
+// Palette is the app's view of the platform's colour set: the named places
+// this window paints, each resolved from tokens.PlatformColors on every
+// theme emission. Because the theme window feeds a live OS theme, an OS
+// light/dark switch re-emits the set and restyles the whole app with no
+// imperative wiring.
 //
-// The levels the roles resolve to are the window grammar's, not this app's
-// invention: the transcript is the window's CONTENT PLANE and fills at
-// level 0, the Background pin; the conversation list is CHROME and
-// is therefore at the CHROME level, one step UNDER the content toward the
-// scheme's dark extreme in both schemes; levels 2 and 3 are kept for what
-// appears and leaves — the settings dialog, the model menu, the undo bar —
-// and for edges. A raised thing walks its level from the surface it is
-// lying on, so a chip on the transcript is level 1 while a chip
-// inside the level-2 settings dialog is measured from level 2.
-//
-// Since ADR-022 elevation runs one way in both schemes: nearer the viewer
-// is lighter. This window is darkest at its leading edge and lightest where
-// a dialog stands over it, in both schemes alike — no mirror.
+// Which platform name each place takes is what the window IS on macOS, not
+// this app's invention: the transcript is the content, so it wears
+// ControlBackground; the conversation pane is chrome, so it wears the chrome
+// material a sidebar carries; a surface that appears and leaves — the
+// settings dialog, the model menu, the undo bar — is a floating surface and
+// wears the window's own plane under the platform's shadow. Every
+// alpha-carrying name is flattened onto the fill it lands on, in encoded
+// sRGB, so what Gio is handed is opaque.
 type Palette struct {
-	Sidebar   color.NRGBA // conversation-list surface — chrome, at the chrome level
-	Separator color.NRGBA // sidebar header underline
-	Heading   color.NRGBA // sidebar heading text
-	Row       color.NRGBA // chat-row text
-	RowActive color.NRGBA // selected/hovered chat-row text
-	// RowSelected is the fill of the conversation the window is showing, and
-	// RowHovered the fill under the pointer. The two are deliberately
-	// different kinds of colour, not two steps of one: what is *chosen* is
-	// Primary-tinted, what is *transient* is a neutral walk. A list has to be
-	// able to say "this is the one you are reading" and "something is
-	// happening here" at once, and it cannot if both are neutral steps — which
-	// is what they were before, and why the open conversation and a hovered
-	// one read as the same thing.
+	Sidebar   color.NRGBA // conversation-pane fill — the chrome material
+	Separator color.NRGBA // the pane header's seam, over the chrome
+	Heading   color.NRGBA // pane heading and chrome glyphs
+	Row       color.NRGBA // chat-row text on the chrome
+	RowActive color.NRGBA // text on the selected row's pill
+	// RowSelected is the fill under the conversation the window is showing.
+	// It is the platform's sidebar pill, which patterns/sidebar draws and
+	// this app does not paint itself; the colour is kept here for the rows
+	// that only measure against it. A sidebar row does NOT tint under the
+	// pointer on this platform, so there is no hovered fill beside it.
 	RowSelected color.NRGBA
-	RowHovered  color.NRGBA
-	Accent      color.NRGBA // selected-row accent bar
-	// `Transcript` is the transcript's resting fill — the header band, the
-	// assistant's turns and the space around them. It is the Background pin,
-	// level 0: the transcript is the thing the window exists to show, so it
-	// is the surface everything else in the pane is measured from, and it is
-	// lighter than the chrome beside it in BOTH schemes — the window
-	// reads lighter toward its middle in the light scheme and the dark alike.
+	Accent      color.NRGBA // the in-flight dot and the waiting indicator
+	// Transcript is the transcript's fill: the content plane, which is what
+	// the platform gives a window's document area.
 	Transcript color.NRGBA
-	// TurnText is the foreground a turn's words are set in — the
-	// assistant's document on the transcript, and the user's text on the
-	// card raised over it. One colour for both, because both are the
-	// conversation's own prose; what tells the two apart is the card, not
-	// a second grey.
+	// TurnText is the foreground a turn's words are set in — the assistant's
+	// document on the transcript, and the user's text on the card raised over
+	// it. One colour for both, because both are the conversation's own prose;
+	// what tells the two apart is the card, not a second grey.
 	TurnText color.NRGBA
-	// Note is the system note's foreground: a text label carries no status
-	// and no role of its own, so it takes the neutral ramp's own step over
-	// the surface it sits on, at the text floor.
+	// Note is the system note's foreground: a line that carries no status of
+	// its own takes the platform's secondary label over the transcript.
 	Note color.NRGBA
-	// The header picker's own fill, hover and rim are not here: it is
-	// components/picker, which derives all three from the level it stands
-	// on. What this app still says about it is where it stands — the level-0
-	// surface of the transcript's header band — and the component answers the
-	// rest.
-	ChipText color.NRGBA // label over the dialog's own template chips
-	// ModalChip is a chip inside the settings dialog. It stands on the
-	// dialog's level-2 surface, so it rests flush on it and reveals itself
-	// with that surface's own state walk rather than taking a level the
-	// transcript's chips use.
-	ModalChip        color.NRGBA
-	ModalChipHovered color.NRGBA
-	// Toast is the base of a surface that appears and leaves — today the undo
-	// bar. It is a level-2 fill because that is the level elevation keeps for
-	// exactly that, and it is its own role rather than a borrowed one: the bar
-	// used to tint the selected-row fill, which was fine only while that fill
-	// was a neutral step and became a purple-on-purple fill the moment the
-	// selection turned into a Primary tint.
+	// ChipText is the label over the dialog's own template chips, which stand
+	// on the dialog's plane.
+	ChipText color.NRGBA
+	// ModalChip is a chip inside the settings dialog: the fill an ordinary
+	// push button wears on this platform, which is what the reference
+	// measures a resting chip at. It does not tint under the pointer.
+	ModalChip color.NRGBA
+	// Toast is a surface that appears and leaves — the undo bar and the
+	// settings dialog alike. It is the window's own plane, which is what the
+	// platform fills a floating surface with; its shadow is the caller's.
 	Toast color.NRGBA
-	Icon  color.NRGBA // assistant avatar glyph
-	Error color.NRGBA // settings fetch-error text
+	// Panel is the platform's grouped box: the fill a small inset region
+	// takes inside a dialog. It carries no hairline and no shadow.
+	Panel color.NRGBA
+	// FloatingText and FloatingHeading are the two text strengths over a
+	// floating surface, flattened onto the plane it fills with — which is not
+	// the chrome Row and Heading are flattened onto.
+	FloatingText    color.NRGBA
+	FloatingHeading color.NRGBA
+	// ListSelected is the fill under the selected row of a content list, and
+	// ListSelectedText the foreground on it. A content list's selected row and
+	// a sidebar's are two different colours on this platform.
+	ListSelected     color.NRGBA
+	ListSelectedText color.NRGBA
+	Icon             color.NRGBA // assistant avatar glyph
+	Error            color.NRGBA // settings fetch-error text
 }
 
-func PaletteFrom(c tokens.ColorTokens) Palette {
-	// The hover fill is the sidebar's OWN state walk at half strength, painted
-	// over the sidebar surface. It can no longer be derived from the selected
-	// fill — that one is a Primary tint now — and it must not be: hover is a
-	// transient state, and a transient state is a neutral walk from the fill
-	// it happens on. That fill is the sidebar's level, and since ADR-022
-	// the sidebar's level is CHROME — so the walk is taken with StateAt
-	// from the chrome fill rather than from a ramp index. Asking the ramp
-	// for the old level-1 step would have kept answering the light scheme
-	// right by accident (its chrome fill IS neutral 200) and the dark scheme
-	// wrong by a whole level.
-	//
-	// Half strength rather than the full step, and that is the re-derivation
-	// the tint forced. In the light scheme the neutral hover step lands at luma
-	// 212 and the Primary-tinted selection at 215, so a full-strength hover
-	// would sit a hair *past* selected and the two would trade places; half of
-	// it lands at 221, between the resting surface's 232 and the selection's
-	// 215, which is the order a reader expects — none of those three numbers
-	// moved with the re-founding. On slate the whole trio dropped with the
-	// floor: rest is luma 12, the half-step lifts to 23 and the tinted row sits
-	// at 34, so the same soft lift still leaves the hue to do the choosing.
-	hover := c.StateAt(tokens.LevelChrome, tokens.StateHover)
-	hover.A = 128
+// PaletteFrom resolves the window's places from the platform's set.
+func PaletteFrom(c tokens.PlatformColors) Palette {
+	chrome := c.SidebarMaterial
+	content := c.ControlBackground
+	floating := c.WindowBackground
 	return Palette{
-		Sidebar:   c.SurfaceAt(tokens.LevelChrome),
-		Separator: c.Seam,
-		Heading:   c.Ramps.Neutral.Step(700),
-		Row:       c.Ramps.Neutral.Step(700),
-		RowActive: c.Ramps.Neutral.Step(900),
-		// The open conversation wears the Primary ramp's tinted end — the
-		// same step the vault's current note wears, and for the same reason:
-		// a tint says "this is the one you are looking at" where a neutral
-		// step can only say "something happened here".
-		RowSelected: c.Ramps.Primary.Step(300),
-		RowHovered:  hover,
-		Accent:      c.Primary,
-		Transcript:  c.SurfaceAt(tokens.Level0),
-		// The foreground over the Background pin is the Text pin, not the
-		// neutral ramp's far end: a fill that is off-ramp takes the foreground
-		// pinned to it. The two coincide in the shipped schemes and need not in
-		// a brand's. It carries the user's card too, one raise up from the
-		// same pin — a raise is one step, which the text floor absorbs.
-		TurnText:         c.Text,
-		Note:             c.ForegroundOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level0)),
-		ChipText:         c.Ramps.Neutral.Step(900),
-		ModalChip:        c.SurfaceAt(tokens.Level2),
-		ModalChipHovered: c.StateAt(tokens.Level2, tokens.StateHover),
-		Toast:            c.SurfaceAt(tokens.Level2),
-		Icon:             c.Primary,
-		Error:            c.Error,
+		Sidebar:         chrome,
+		Separator:       vgcolor.Flatten(c.Separator, chrome),
+		Heading:         vgcolor.Flatten(c.SecondaryLabel, chrome),
+		Row:             vgcolor.Flatten(c.Label, chrome),
+		RowActive:       vgcolor.Flatten(sidebar.SelectionLabel(c, false), sidebar.SelectionFill(c, false)),
+		RowSelected:     sidebar.SelectionFill(c, false),
+		Accent:          c.ControlAccent,
+		Transcript:      content,
+		TurnText:        vgcolor.Flatten(c.Label, content),
+		Note:            vgcolor.Flatten(c.SecondaryLabel, content),
+		ChipText:        vgcolor.Flatten(c.Label, c.PushButtonFill),
+		ModalChip:       c.PushButtonFill,
+		Toast:           floating,
+		Panel:           c.CardFill,
+		FloatingText:    vgcolor.Flatten(c.Label, floating),
+		FloatingHeading: vgcolor.Flatten(c.SecondaryLabel, floating),
+
+		ListSelected:     c.SelectedContentBackground,
+		ListSelectedText: vgcolor.Flatten(c.AlternateSelectedControlText, c.SelectedContentBackground),
+
+		Icon:  c.ControlAccent,
+		Error: c.SystemRed,
 	}
 }
 
@@ -175,18 +146,6 @@ func roleText(role tokens.TextStyle) textdraw.TextStyle {
 func isDarkColor(c color.NRGBA) bool {
 	luma := 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)
 	return luma < 128
-}
-
-// Blend mixes over into base at the given alpha (0–255) — the patterns
-// toast tint recipe, reused by the undo bar.
-func Blend(base, over color.NRGBA, alpha uint8) color.NRGBA {
-	a := float32(alpha) / 255
-	return color.NRGBA{
-		R: uint8(float32(over.R)*a + float32(base.R)*(1-a)),
-		G: uint8(float32(over.G)*a + float32(base.G)*(1-a)),
-		B: uint8(float32(over.B)*a + float32(base.B)*(1-a)),
-		A: 0xff,
-	}
 }
 
 // Static layout dimensions; these do not vary with the colour scheme.

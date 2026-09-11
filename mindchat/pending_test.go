@@ -117,7 +117,7 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 // scale. Everything else is the default theme.
 func motionThemed(m tokens.MotionScale) themed {
 	return themed{
-		palette: PaletteFrom(tokens.DefaultLight),
+		palette: PaletteFrom(tokens.PlatformLight),
 		typ:     tokens.DefaultTypography,
 		motion:  m,
 	}

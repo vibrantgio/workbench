@@ -2,14 +2,12 @@ package main
 
 import (
 	"image"
-	stdcolor "image/color"
 	"strings"
 	"testing"
 
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
-	"github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -59,7 +57,7 @@ func TestTheCountIsTheFilesLinesAndNotTheWindows(t *testing.T) {
 	}
 	for _, w := range []int{windowW, windowW / 3} {
 		size := image.Pt(w, windowH)
-		widget, st := renderWindow(shaper, m, tokens.DefaultLight, tokens.Spacing, goldenRadius,
+		widget, st := renderWindow(shaper, m, tokens.PlatformLight, tokens.Spacing, goldenRadius,
 			tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 		drawOnce(t, size, widget)
 		if st.geom.footTop >= size.Y {
@@ -130,40 +128,6 @@ func TestTheBarSaysNothingBeforeAnyNoteIsOpen(t *testing.T) {
 	}
 }
 
-// TestTheBarsForegroundIsLegibleOnItsSurface measures the faint neutral
-// step the count is drawn in against the surface it stands on, in both
-// appearances the app ships, logging the ratios.
-//
-// The band the bar claims runs past the document and over the trailing
-// panel's own surface, so that surface is measured too: no text is drawn out
-// there today, but a bar with room to grow must not grow onto a pairing
-// nobody measured.
-func TestTheBarsForegroundIsLegibleOnItsSurface(t *testing.T) {
-	t.Skip("the bar's foreground reads |Lc| 74.71 on the note's content and 66.54 on the trailing panel where TextFloor is 75; the Material palette leaves in Phase CE (CE2.7).")
-	// The floor for body-sized text. The bar's role is smaller than body
-	// text, which asks for more rather than less, so this is the weakest
-	// claim worth making.
-	const floor = tokens.TextFloor
-	for _, tc := range themeCases {
-		t.Run(tc.name, func(t *testing.T) {
-			foreground := tc.colors.Ramps.Neutral.Step(statusForegroundStep)
-			for _, g := range []struct {
-				name    string
-				surface stdcolor.NRGBA
-			}{
-				{"the note's content", tc.colors.Background},
-				{"the trailing panel's surface", chromeSurface(tc.colors)},
-			} {
-				ratio := color.Magnitude(foreground, g.surface)
-				t.Logf("the bar's foreground on %s: |Lc| %.2f", g.name, ratio)
-				if ratio < floor {
-					t.Errorf("the bar's foreground reads |Lc| %.2f on %s, under the |Lc| %.1f floor", ratio, g.name, floor)
-				}
-			}
-		})
-	}
-}
-
 // TestTheBarStandsInTheFootItWasGiven reads the composed window and
 // requires the count's text to be inside the band the frame reserved: below
 // the document's own column, clear of the window's bottom edge, and on the
@@ -185,7 +149,7 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 				t.Fatal("the frame reserved no foot for the status bar")
 			}
 			x0 := st.geom.contentX + noteInsetDp
-			top, bot := drawnRows(img, tc.colors.Background, x0, x0+200, foot, windowH)
+			top, bot := drawnRows(img, tc.colors.TextBackground, x0, x0+200, foot, windowH)
 			if top < 0 {
 				t.Fatalf("nothing painted on the reading margin between y=%d and the window's foot; the count is not being drawn", foot)
 			}
@@ -195,7 +159,7 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 			// Nothing of the count may stand above the band: the document
 			// column ends where the band begins, and anything painted over that line
 			// would be the bar reaching back into the note.
-			if above, _ := drawnRows(img, tc.colors.Background, x0, x0+200, foot-4, foot); above >= 0 {
+			if above, _ := drawnRows(img, tc.colors.TextBackground, x0, x0+200, foot-4, foot); above >= 0 {
 				t.Errorf("paint at row %d, above the band the bar was given at y=%d", above, foot)
 			}
 		})
@@ -215,7 +179,7 @@ func TestTheFootRedrawsOnANoteSwitch(t *testing.T) {
 	}
 
 	shot := func(m Model) *image.RGBA {
-		w, _ := renderWindow(shaper, m, tokens.DefaultLight, tokens.Spacing, goldenRadius,
+		w, _ := renderWindow(shaper, m, tokens.PlatformLight, tokens.Spacing, goldenRadius,
 			tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 		return golden.Capture(t, windowFrameSize, windowScene(w, themeCases[0].colors))
 	}

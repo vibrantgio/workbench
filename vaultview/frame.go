@@ -284,7 +284,7 @@ func vaultFrame(
 func renderWindow(
 	shaper *text.Shaper,
 	m Model,
-	colors tokens.ColorTokens,
+	colors tokens.PlatformColors,
 	sp tokens.SpacingScale,
 	rad tokens.RadiusScale,
 	typo tokens.Typography,
@@ -300,7 +300,7 @@ func renderWindow(
 func renderWindowFinding(
 	shaper *text.Shaper,
 	m Model,
-	colors tokens.ColorTokens,
+	colors tokens.PlatformColors,
 	sp tokens.SpacingScale,
 	rad tokens.RadiusScale,
 	typo tokens.Typography,
@@ -400,7 +400,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	// is set into is left unpainted and the backdrop under this frame shows
 	// in the gap around it — which is the whole of what says the pane is an
 	// object set in from the window's edges.
-	paint.FillShape(gtx.Ops, tok.col.Background,
+	paint.FillShape(gtx.Ops, tok.col.TextBackground,
 		clip.Rect(image.Rect(g.contentX, 0, size.X, size.Y)).Op())
 
 	// The pane's trailing side is the one it is not set in from: the
@@ -409,7 +409,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	// there. Painted before the pane, which covers the whole strip but the
 	// arcs.
 	if !g.pane.Empty() {
-		pane.FillTrailingCorners(gtx, tok.col.Background, g.pane)
+		pane.FillTrailingCorners(gtx, tok.col.TextBackground, g.pane)
 	}
 
 	// The rail is the vocabulary's PANE and nothing here draws it: the
@@ -426,11 +426,10 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 
 	// The trailing column's own surface, painted before the chrome row and
 	// running the window's full height: the outline and the backlinks are
-	// chrome, so the column paints at the CHROME level — a surface step
-	// UNDER the document, toward the scheme's dark extreme, in both schemes.
-	// Full height, so the surface does not read as a block hanging off the
-	// chrome row and the two columns are the same shape, one down each edge,
-	// with the document between them.
+	// chrome, so the column wears the platform's chrome material. Full
+	// height, so the surface does not read as a block hanging off the chrome
+	// row and the two columns are the same shape, one down each edge, with
+	// the document between them.
 	if asidePx > 0 {
 		paint.FillShape(gtx.Ops, chromeSurface(tok.col),
 			clip.Rect(image.Rect(asideX, 0, size.X, size.Y)).Op())
@@ -580,15 +579,17 @@ func (f *frameState) railProps(gtx layout.Context, tok themeTokens, size image.P
 	lo := margin + gtx.Dp(railMinWidthDp)
 	hi := max(min(margin+gtx.Dp(railMaxWidthDp), size.X-gap-c.aside-noteFloor(gtx, c.note)), lo)
 
-	colors := tok.col
-	colors.Seam = paneSeam(tok.col)
 	scale := pxPerDp(gtx)
 	return splitter.Props{
 		Axis:     layout.Horizontal,
 		Boundary: float32(g.pane.Max.X - seamPx),
 		Min:      float32(lo - seamPx),
 		Max:      float32(hi - seamPx),
-		Colors:   colors,
+		Colors:   tok.col,
+		// The rail's boundary is the pane's own trailing edge, so the line
+		// stands on the backdrop the pane floats on rather than on the
+		// content beside it.
+		Surface: surfaceBackdrop(tok.col),
 		OnChange: func(at float32) {
 			f.railW = clampRail(unit.Dp((at + float32(seamPx-margin)) / scale))
 		},
@@ -627,11 +628,11 @@ func (f *frameState) layoutRailSplitter(gtx layout.Context, tok themeTokens, siz
 // and a region's seam is the line between two surfaces. One weight, two
 // colours.
 //
-// A line is drawn here at all because the step it divides is small: the
-// chrome level's dark step is a measured 1.47 L*, a whisper the eye can
-// lose, and the platform's answer at a whisper is a line — Voice Memos'
-// two panes are the SAME fill and the seam is the whole of what parts
-// them.
+// A line is drawn here at all because the step it divides is small, and in
+// the light appearance the chrome material IS the content's fill, so there
+// is no step at all. The platform's answer at a whisper is a line:
+// Voice Memos' two panes are the SAME fill and the seam is the whole of
+// what parts them.
 //
 // The line runs the window's whole height and the hand-hold does not. The
 // bands above and below the columns are the window's own — one carries

@@ -194,7 +194,7 @@ func TestUnreadOnlyArticlesFilters(t *testing.T) {
 // of the same components/button calls preferencesPanel composes, at the
 // default preferences: 10 rows per page (tonal) with 5 and 25 ghost beside it,
 // and unread-only off (ghost). Sharp radii keep the golden deterministic.
-func staticPreferencesBody(shaper *text.Shaper, colors tokens.ColorTokens) layout.Widget {
+func staticPreferencesBody(shaper *text.Shaper, colors tokens.PlatformColors) layout.Widget {
 	render := func(label string, emph button.Emphasis) layout.Widget {
 		return button.Render(shaper, label, colors, tokens.Spacing, modalSharpRadius,
 			tokens.DefaultTypography.LabelLarge, tokens.Comfortable,
@@ -224,11 +224,11 @@ func TestPreferencesPanelGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	cases := []struct {
 		name   string
-		colors tokens.ColorTokens
+		colors tokens.PlatformColors
 		bg     color.NRGBA
 	}{
-		{"preferences-panel-light", tokens.DefaultLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-		{"preferences-panel-dark", tokens.DefaultDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
+		{"preferences-panel-light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
+		{"preferences-panel-dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

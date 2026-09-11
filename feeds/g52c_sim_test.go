@@ -189,7 +189,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	}
 
 	stubTable := func(gtx layout.Context) layout.Dimensions {
-		paint.FillShape(gtx.Ops, tokens.DefaultLight.Surface, clip.Rect{Max: gtx.Constraints.Max}.Op())
+		paint.FillShape(gtx.Ops, tokens.PlatformLight.ControlBackground, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
 	overlay := overlayUnreadTooltip(stubTable, tip)

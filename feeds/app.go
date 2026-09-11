@@ -33,6 +33,7 @@ import (
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/table"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
@@ -81,12 +82,12 @@ const modelObsConsumers = 28
 // app builds none of its own, so the typeface — Roboto, plus the Roboto Mono
 // face the Raw tab's Code style names — comes from the theme.
 type themeTokens struct {
-	col    tokens.ColorTokens
+	col    tokens.PlatformColors
 	typ    tokens.Typography
 	shaper *text.Shaper
 }
 
-// mirrorTokens subscribes the theme's Color and Typography streams into an
+// mirrorTokens subscribes the theme's Platform and Typography streams into an
 // atomic cell and returns a frame-time loader. It is the layer-boundary
 // adapter for closures that run outside any rx scope (static component
 // slots, table cell closures, navbar components) — the same hand-off pattern
@@ -94,13 +95,13 @@ type themeTokens struct {
 func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	var cell atomic.Value
 	cell.Store(themeTokens{
-		col:    tokens.DefaultLight,
+		col:    tokens.PlatformLight,
 		typ:    tokens.DefaultTypography,
 		shaper: tokens.DefaultTypography.Shaper(),
 	})
-	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] { return t.Color })
+	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
-	_ = rx.CombineLatest2(colorObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.ColorTokens, tokens.Typography], _ error, done bool) {
+	_ = rx.CombineLatest2(colorObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.PlatformColors, tokens.Typography], _ error, done bool) {
 		if !done {
 			typ := t.Second
 			cell.Store(themeTokens{col: t.First, typ: typ, shaper: typ.Shaper()})
@@ -121,17 +122,18 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 	}
 }
 
-// backdropLayer paints the window's base fill: level 0, the Background pin —
-// not Surface, which is the level the window's chrome stands at. The fill
-// is the shared `backdrop.Widget` rather than a hand-rolled paint.FillShape,
-// so the token is derived in one place.
+// backdropLayer paints the window's own plane under everything else:
+// WindowBackground, the fill the platform gives a window. The regions above
+// it — the content, the chrome rail — paint their own. The fill goes through
+// the shared `backdrop.Widget` rather than a hand-rolled paint.FillShape, so
+// the name is read in one place.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	return rx.Map(
-		rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.ColorTokens] {
-			return t.Color
+		rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+			return t.Platform
 		}),
-		func(c tokens.ColorTokens) layout.Widget {
-			return backdrop.Widget(c.Background)
+		func(c tokens.PlatformColors) layout.Widget {
+			return backdrop.Widget(c.WindowBackground)
 		},
 	)
 }
@@ -324,8 +326,9 @@ const (
 // feedsNavbarProps builds the navbar with the brand, the (decorative) Add
 // feed action, and the Share popover slot. Brand and action labels are the
 // app's own text, so they read the theme snapshot from loadTok at frame
-// time: the brand in TitleMedium on the Text pin, the Add feed action in
-// LabelLarge on the Primary pin. shareSlot reads the latest popover
+// time: both stand on the chrome material the navbar wears, the brand in
+// TitleMedium on the platform's label and the Add feed action in LabelLarge
+// on the accent. shareSlot reads the latest popover
 // layout.Widget from its layer-boundary cell; the wrapper pins the popover's
 // space to an Exact size so the anchor centres where the button should sit
 // and the returned dims do not blow up the navbar's Flex row (popover
@@ -333,7 +336,8 @@ const (
 func feedsNavbarProps(loadTok func() themeTokens, shareSlot layout.Widget) navbar.Props {
 	brand := func(gtx layout.Context) layout.Dimensions {
 		s := loadTok()
-		return drawLabel(gtx, s.shaper, "Feeds", s.typ.TitleMedium, s.col.Text)
+		return drawLabel(gtx, s.shaper, "Feeds", s.typ.TitleMedium,
+			vgcolor.Flatten(s.col.Label, s.col.SidebarMaterial))
 	}
 	var addClick widget.Clickable
 	addFeed := func(gtx layout.Context) layout.Dimensions {
@@ -345,7 +349,7 @@ func feedsNavbarProps(loadTok func() themeTokens, shareSlot layout.Widget) navba
 			semantic.LabelOp("Add feed").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, s.shaper, "Add feed", s.typ.LabelLarge, s.col.Primary)
+			return drawLabel(gtx, s.shaper, "Add feed", s.typ.LabelLarge, s.col.ControlAccent)
 		})
 	}
 	share := func(gtx layout.Context) layout.Dimensions {
@@ -394,7 +398,7 @@ func sharePopover(
 			semantic.LabelOp("Share").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, s.shaper, "Share", s.typ.LabelLarge, s.col.Primary)
+			return drawLabel(gtx, s.shaper, "Share", s.typ.LabelLarge, s.col.ControlAccent)
 		})
 	}
 
@@ -417,7 +421,8 @@ func sharePopover(
 				semantic.LabelOp(dest).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				return drawLabel(gtx, s.shaper, dest, s.typ.BodyMedium, s.col.Ramps.Neutral.Step(900))
+				return drawLabel(gtx, s.shaper, dest, s.typ.BodyMedium,
+					vgcolor.Flatten(s.col.Label, s.col.WindowBackground))
 			})
 			off.Pop()
 		}
@@ -452,10 +457,9 @@ const (
 // Open; addFeedErrorObs drives whether the empty-URL alert shows.
 //
 // A group and not a card: the modal's body is one section of a form, so the
-// hairline is dividing the dialog and nothing inside it is being singled out.
-// It names the dialog's own level, so its hairline is derived against the
-// surface it is actually in rather than against a content plane it is
-// nowhere near, and what it holds stands on the dialog.
+// hairline parts the dialog and nothing inside it is being singled out. The
+// hairline is the platform's separator flattened onto the fill the group
+// stands on, which here is the dialog's own plane.
 //
 // Component-prop shapes:
 //   - modal.Props.Body and group.Props.* are STATIC layout.Widget slots, but
@@ -480,10 +484,9 @@ func addFeedModal(
 	field := input.TextField(th, input.TextFieldProps{
 		Placeholder: "https://example.com/feed.xml",
 		Description: "Feed URL",
-		// The field stands on the modal's surface, not on the window: the
-		// dialog is a level-2 plane, and a border derived against the window
-		// surface reads at 2.94:1 over it in the light scheme.
-		Level: tokens.Level2,
+		// Surface is left unsaid: a dialog's plane is WindowBackground, which
+		// is what the field falls back to, so the edge it flattens its
+		// hairline onto is already the fill it stands on.
 		OnChange: func(_ layout.Context, txt string) {
 			urlCell.Store(txt)
 		},
@@ -566,7 +569,6 @@ func addFeedModal(
 
 	groupObs := group.Group(th, group.Props{
 		Content: []layout.Widget{groupBody},
-		Level:   tokens.Level2,
 	})
 	var groupCell atomic.Value
 	modalBody := func(gtx layout.Context) layout.Dimensions {

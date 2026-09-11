@@ -43,7 +43,7 @@ import (
 //     Roboto — the mono face visibly reaches the composed row.
 func TestChatCodeShapesInMonoFace(t *testing.T) {
 	typ := tokens.DefaultTypography
-	style := messageMarkdownStyle(tokens.DefaultLight, typ)
+	style := messageMarkdownStyle(tokens.PlatformLight, typ)
 	shaper := typ.DeterministicShaper()
 
 	// 1. The style resolves the theme's Code role.
@@ -94,67 +94,23 @@ func TestChatCodeShapesInMonoFace(t *testing.T) {
 	}
 }
 
-// TestPaletteDerivesFromRampsAndPins pins the palette's derivation to the
-// ramps, pins and semantic fields of ADR-007 — not the deprecated MD3
-// aliases and not stale literals — in both schemes, and confirms the chroma
-// style selection follows the scheme's background.
-//
-// The fills that carry a LEVEL are pinned to elevation's own accessors
-// rather than to ramp indices, and since ADR-022 that is the whole of the
-// difference: a level is a depth against the Background pin, not a step on
-// the neutral ramp. The three above the pin land back on neutral 200/300/400
-// in the dark scheme and nowhere on the ramp in the light one, and the floor
-// is the mirror image of that — so a ramp index cannot state any of them
-// twice. What this still catches is a role reaching for a literal or for the
-// wrong level; the tautology is deliberate and cheap.
-func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
+// TestTheChromaStyleFollowsTheAppearance confirms the one appearance-driven
+// choice this app makes about a message body: the chroma style is picked off
+// the fill the transcript actually rests on, so a fence in a dark window is
+// highlighted for a dark page.
+func TestTheChromaStyleFollowsTheAppearance(t *testing.T) {
 	for _, tc := range []struct {
 		name string
-		c    tokens.ColorTokens
+		c    tokens.PlatformColors
 		dark bool
 	}{
-		{"light", tokens.DefaultLight, false},
-		{"dark", tokens.DefaultDark, true},
+		{"light", tokens.PlatformLight, false},
+		{"dark", tokens.PlatformDark, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := tc.c
-			p := PaletteFrom(c)
-			// Hover is the sidebar's own neutral state walk at half strength,
-			// not a derivation of the selected fill — that one is a Primary
-			// tint, and a transient state stays a neutral walk.
-			hover := c.StateAt(tokens.LevelChrome, tokens.StateHover)
-			hover.A = 128
-			for _, f := range []struct {
-				name      string
-				got, want color.NRGBA
-			}{
-				{"Sidebar", p.Sidebar, c.SurfaceAt(tokens.LevelChrome)},
-				{"Separator", p.Separator, c.Seam},
-				{"Heading", p.Heading, c.Ramps.Neutral.Step(700)},
-				{"Row", p.Row, c.Ramps.Neutral.Step(700)},
-				{"RowActive", p.RowActive, c.Ramps.Neutral.Step(900)},
-				{"RowSelected", p.RowSelected, c.Ramps.Primary.Step(300)},
-				{"RowHovered", p.RowHovered, hover},
-				{"Accent", p.Accent, c.Primary},
-				{"transcript fill", p.Transcript, c.Background},
-				{"TurnText", p.TurnText, c.Text},
-				{"Note", p.Note, c.ForegroundOn(tokens.RoleNeutral, c.SurfaceAt(tokens.Level0))},
-				// The header picker is components/picker and derives its own
-				// fills; the palette carries only the colour the settings
-				// dialog's template chips draw their label with.
-				{"ChipText", p.ChipText, c.Ramps.Neutral.Step(900)},
-				{"ModalChip", p.ModalChip, c.SurfaceAt(tokens.Level2)},
-				{"ModalChipHovered", p.ModalChipHovered, c.StateAt(tokens.Level2, tokens.StateHover)},
-				{"Toast", p.Toast, c.SurfaceAt(tokens.Level2)},
-				{"Icon", p.Icon, c.Primary},
-				{"Error", p.Error, c.Error},
-			} {
-				if f.got != f.want {
-					t.Errorf("Palette.%s = %v, want %v (ramp/pin resolution)", f.name, f.got, f.want)
-				}
-			}
-			if got := isDarkColor(c.Background); got != tc.dark {
-				t.Errorf("isDarkColor(Background) = %v, want %v — the chroma style would follow the wrong appearance", got, tc.dark)
+			if got := isDarkColor(c.ControlBackground); got != tc.dark {
+				t.Errorf("isDarkColor(ControlBackground) = %v, want %v — the chroma style would follow the wrong appearance", got, tc.dark)
 			}
 			md := messageMarkdownStyle(c, tokens.DefaultTypography)
 			if md.Highlight == nil {
@@ -168,7 +124,7 @@ func TestPaletteDerivesFromRampsAndPins(t *testing.T) {
 // ContentLayer builds it for one theme emission.
 func testThemed(t *testing.T, md markdown.Style) themed {
 	t.Helper()
-	c := tokens.DefaultLight
+	c := tokens.PlatformLight
 	p := PaletteFrom(c)
 	typ := tokens.DefaultTypography
 	avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))

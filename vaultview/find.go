@@ -9,6 +9,7 @@ package main
 import (
 	"fmt"
 	"image"
+	"image/color"
 
 	"gioui.org/io/event"
 	"gioui.org/io/key"
@@ -16,6 +17,7 @@ import (
 
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/markdown"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -32,23 +34,15 @@ const (
 	// window.
 	findFieldDp = treeWidthDp - 2*treeFieldPadDp
 
-	// findFieldLevel is the surface the field stands on: the note page's
-	// own, which is the content level the page fills with the Background
-	// pin.
-	findFieldLevel = tokens.Level0
-
 	// findCountGapDp is the air between the field and what it says it has
 	// found: the pad the rail keeps around its own find field, which is the
 	// tightest stop of the scale this window spends beside a control.
 	findCountGapDp = treeFieldPadDp
-
-	// findCountStep is the neutral step the count beside the field is
-	// written at. It says how much of the query is left to walk rather than
-	// anything about the note, so it reads under the note's own text at the
-	// page's muted tier — the step the properties panel's keys take, which
-	// clears the body floor on this page in both schemes.
-	findCountStep = propLabelStep
 )
+
+// findFieldSurface is the fill the find field stands on: the note page's
+// own, which is the platform's text background.
+func findFieldSurface(c tokens.PlatformColors) color.NRGBA { return c.TextBackground }
 
 // pageFind is find in the page: the query the reader is looking for in the
 // note on screen, which of its matches they are on, and whether the field is
@@ -232,8 +226,11 @@ func layoutFindBar(gtx layout.Context, tok themeTokens, find *pageFind, fieldW l
 		// stands one stop of the scale from it rather than a page gap away.
 		layout.Rigid(complayout.HSpacer(findCountGapDp)),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			// The count says how much of the query is left to walk rather
+			// than anything about the note, so it reads under the note's own
+			// text at the platform's secondary strength.
 			return drawLabel(gtx, tok.shaper, find.label(), tok.typ.BodyMedium,
-				tok.col.Ramps.Neutral.Step(findCountStep))
+				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground))
 		}),
 	)
 }

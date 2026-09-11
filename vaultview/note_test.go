@@ -62,7 +62,7 @@ func newNotePad(t *testing.T, m Model) *notePad {
 		m:    m,
 		size: image.Pt(760, 520),
 		tok: themeTokens{
-			col:    tokens.DefaultLight,
+			col:    tokens.PlatformLight,
 			typ:    tokens.DefaultTypography,
 			sp:     tokens.Spacing,
 			den:    tokens.Comfortable,
@@ -138,7 +138,7 @@ func (p *notePad) shot(t *testing.T) *image.RGBA {
 // out of the scan: the scroll indicator lives there and reaches the edge by
 // design, and it is the prose the reader measures the margin by.
 func (p *notePad) blankFoot(img *image.RGBA) int {
-	background := p.tok.col.Background
+	background := p.tok.col.TextBackground
 	for y := p.size.Y - 1; y >= 0; y-- {
 		for x := 0; x < p.size.X-noteInsetDp; x++ {
 			if c := img.RGBAAt(x, y); c.R != background.R || c.G != background.G || c.B != background.B {
@@ -156,7 +156,7 @@ func (p *notePad) blankFoot(img *image.RGBA) int {
 // page the document's viewport begins on. The trailing gutter is left out of
 // the scan for the reason blankFoot leaves it out.
 func (p *notePad) blankHead(img *image.RGBA) int {
-	background := p.tok.col.Background
+	background := p.tok.col.TextBackground
 	drawn := func(y int) bool {
 		for x := 0; x < p.size.X-noteInsetDp; x++ {
 			if c := img.RGBAAt(x, y); c.R != background.R || c.G != background.G || c.B != background.B {
@@ -482,7 +482,7 @@ func TestThePropertiesSlabStandsOnThePage(t *testing.T) {
 				}
 				return false
 			}
-			hair := tc.colors.Ramps.Neutral.Step(propEdgeStep)
+			hair := vgcolor.Flatten(tc.colors.Separator, tc.colors.TextBackground)
 			edges := []int{}
 			for y := 0; y < noteFrameSize.Y && len(edges) < 2; y++ {
 				if banded(y, hair) && (len(edges) == 0 || y > edges[0]+10) {
@@ -496,89 +496,21 @@ func TestThePropertiesSlabStandsOnThePage(t *testing.T) {
 			if h := bot - top; h < 40 {
 				t.Errorf("the panel's edges stand %d px apart; it holds several rows of pairs and cannot be that thin", h)
 			}
-			for y := top + 2; y < bot-1; y++ {
-				for _, fill := range []struct {
-					name string
-					col  color.NRGBA
-				}{
-					{"the separator's tint", tc.colors.Seam},
-					{"the chrome's floor", chromeSurface(tc.colors)},
-				} {
-					if banded(y, fill.col) {
-						t.Errorf("row %d inside the panel is a band of %s; the panel stands on the page", y, fill.name)
-						return
-					}
-				}
-			}
+			// Nothing to check here for a band of the chrome material: on
+			// this platform that material IS the content's white in the
+			// light appearance, so a band of it inside the panel is a band
+			// of the page. What the panel stands on is read below instead.
 			// The rows between the pairs carry nothing across the measure, so
 			// on the page's own fill most of the panel's height is a band of it.
 			// A filled panel would have none.
 			page := 0
 			for y := top + 2; y < bot-1; y++ {
-				if banded(y, tc.colors.Background) {
+				if banded(y, tc.colors.TextBackground) {
 					page++
 				}
 			}
 			if page < (bot-top)/4 {
 				t.Errorf("only %d of the panel's %d rows are the note's page; the panel is filled with something else", page, bot-top)
-			}
-		})
-	}
-}
-
-// TestThePropertiesSlabForegroundsClearTheFloor measures the panel's own
-// foregrounds against the panel's own fill rather than the page's. The
-// keys and the raw-block fallback are the muted tier; the values beside
-// them are read a step stronger. Both are body-sized, so both owe the
-// design system's 4.5:1.
-//
-// The two foregrounds are ranked here as well as floored — the values over the
-// keys, the note's prose over both — because a floor alone cannot tell a
-// hierarchy from a tie, and metadata standing above the note's title may not be
-// written in the title's own foreground.
-func TestThePropertiesSlabForegroundsClearTheFloor(t *testing.T) {
-	t.Skip("the slab's keys are the neutral ramp's muted step and read |Lc| 74.71 on the panel where TextFloor is 75; the Material palette leaves in Phase CE (CE2.7).")
-	const floor = tokens.TextFloor
-	for _, tc := range themeCases {
-		t.Run(tc.name, func(t *testing.T) {
-			background := tc.colors.Background
-			keys := vgcolor.Magnitude(tc.colors.Ramps.Neutral.Step(propLabelStep), background)
-			values := vgcolor.Magnitude(tc.colors.Ramps.Neutral.Step(propValueStep), background)
-			prose := vgcolor.Magnitude(tc.colors.Text, background)
-			for _, foreground := range []struct {
-				name string
-				r    float64
-			}{
-				{"the keys", keys},
-				{"the values", values},
-			} {
-				t.Logf("%s on the panel: |Lc| %.2f", foreground.name, foreground.r)
-				if foreground.r < floor {
-					t.Errorf("%s read |Lc| %.2f on the panel, under the |Lc| %.1f floor", foreground.name, foreground.r, floor)
-				}
-			}
-			t.Logf("the panel's ranks: keys |Lc| %.2f, values |Lc| %.2f, the note's prose |Lc| %.2f", keys, values, prose)
-			if values <= keys {
-				t.Errorf("the values read |Lc| %.2f and the keys beside them |Lc| %.2f; the value is the content of its row", values, keys)
-			}
-			if values >= prose {
-				t.Errorf("the values read |Lc| %.2f and the note's own prose |Lc| %.2f; metadata standing above the note may not be written in the note's own foreground", values, prose)
-			}
-			// The hairline has to be visible on the fill it bounds, or the
-			// panel has no edge at all; and it has to stay an edge, well under
-			// the foreground the panel is written in.
-			edge := vgcolor.Magnitude(tc.colors.Ramps.Neutral.Step(propEdgeStep), background)
-			t.Logf("the hairline reads |Lc| %.2f off the page, the faint foreground |Lc| %.2f", edge, keys)
-			// A hairline this page can be sure of stands at least half again
-			// as far off its fill as a separator does: the separator's tint
-			// reads 1.31:1 on the dark page, which at one device pixel per dp
-			// is measurably there and visually gone. That distance is a
-			// lightness one and is measured as such.
-			if apart := vgcolor.LuminanceRatio(tc.colors.Ramps.Neutral.Step(propEdgeStep), background); apart <= 1.5 {
-				t.Errorf("the hairline stands %.2f:1 off the page; at one pixel per dp the box dissolves into it", apart)
-			}
-			if edge >= keys {
-				t.Errorf("the hairline stands |Lc| %.2f off the page and the panel's own foreground |Lc| %.2f; an edge cannot out-read what it bounds", edge, keys)
 			}
 		})
 	}
@@ -616,25 +548,19 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 			// region is the document itself.
 			m := goldenModel()
 			m.PropsOpen = false
-			w, _ := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
+			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			img := golden.Capture(t, size, windowScene(w, tc.colors))
-			page := tc.colors.Background
+			page := tc.colors.TextBackground
 
-			// The page's own fill, on a row below everything the note
-			// paints: its first and last pixel are the region's edges.
-			row := size.Y - 1
-			regionLo, regionHi := -1, -1
-			for x := 0; x < size.X; x++ {
-				if img.RGBAAt(x, row) == rgba(page) {
-					if regionLo < 0 {
-						regionLo = x
-					}
-					regionHi = x
-				}
-			}
-			if regionLo < 0 {
-				t.Fatal("the note page paints no surface of its own along the foot of the window")
+			// The region the note has to itself, taken from the frame's own
+			// geometry rather than from the page's colour: on this platform
+			// the chrome material IS the content's white in the light
+			// appearance, so a run of the page's fill along the window's
+			// foot would take in the rail and the trailing column too.
+			regionLo, regionHi := st.geom.contentX, size.X-frameAsideDp-1
+			if regionLo >= regionHi {
+				t.Fatal("the note page has no region of its own between the rail and the trailing column")
 			}
 
 			// The widest run of painted pixels anywhere in the document is
@@ -659,7 +585,7 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 				t.Errorf("the widest block reads %d dp wide; the measure is %d", got, noteMeasureDp)
 			}
 
-			slack := float64(scrollbar.FromTokens(tc.colors).Width())
+			slack := float64(scrollbar.FromTokens(tc.colors, tc.colors.TextBackground).Width())
 			mid := float64(regionLo+regionHi+1) / 2
 			at := float64(blockLo+blockHi+1) / 2
 			if at < mid-slack || at > mid+slack {

@@ -64,7 +64,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
-	"github.com/vibrantgio/theme/tokens"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/typeset"
 )
 
@@ -118,11 +118,12 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, mai
 	if !bounds.Empty() {
 		contentX = bounds.Max.X
 	}
-	// The window's plane is the backdrop, and nothing is drawn at it: it
-	// shows in the gap around the pane, which is what says the pane is an
-	// object set in from the window's edges. The content area beside it
-	// stands on the transcript's own surface.
-	FillRect(gtx, image.Rectangle{Max: size}, 0, t.col.SurfaceAt(tokens.LevelBackdrop))
+	// The window's plane is the backdrop showing in the gap around the pane,
+	// which is what says the pane is an object set in from the window's
+	// edges. The platform's under-page background carries a coverage in the
+	// light appearance, so it is flattened onto the window plane it lies on.
+	// The content area beside it stands on the transcript's own surface.
+	FillRect(gtx, image.Rectangle{Max: size}, 0, vgcolor.Flatten(t.col.UnderPageBackground, t.col.WindowBackground))
 	FillRect(gtx, image.Rect(contentX, 0, size.X, size.Y), 0, t.palette.Transcript)
 
 	// The pane's trailing side is the one it is not set in from: the

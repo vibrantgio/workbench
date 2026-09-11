@@ -52,7 +52,7 @@ func goldenConversation() []Message {
 // pinned shaper, so the same words shape to the same pixels on every
 // machine, and the shipped scales, so the card and the banner carry the
 // insets and corners the live pane gives them.
-func goldenThemed(t *testing.T, c tokens.ColorTokens) themed {
+func goldenThemed(t *testing.T, c tokens.PlatformColors) themed {
 	t.Helper()
 	th := schemeThemed(t, c)
 	th.sp, th.rad = tokens.Spacing, tokens.Radius
@@ -93,12 +93,12 @@ func TestConversationGolden(t *testing.T) {
 // wider, and it is set against the band's trailing edge, which is the
 // trailing edge the answer above it reads to.
 func TestTheUserTurnStopsAtItsMeasure(t *testing.T) {
-	th := goldenThemed(t, tokens.DefaultLight)
+	th := goldenThemed(t, tokens.PlatformLight)
 	sentinel := color.NRGBA{R: 255, G: 0, B: 255, A: 255}
 
 	// The card's own fill, which is the one thing on the row that is not the
-	// transcript's.
-	fill := tokens.DefaultLight.RaisedOn(th.palette.Transcript).Fill
+	// transcript's: the platform's grouped box, which patterns/card paints.
+	fill := tokens.PlatformLight.CardFill
 
 	measure := func(body string) (lo, hi, rowW int) {
 		rows := newDocCache().Rows([]Message{{Role: RoleUser, Kind: KindTurn, Content: body}})

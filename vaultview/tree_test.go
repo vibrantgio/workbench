@@ -311,7 +311,7 @@ func TestMatchRows(t *testing.T) {
 // own width — with rows, filtered to none, and before the scan lands.
 func TestTreeClaimsOnlyItsRail(t *testing.T) {
 	tok := themeTokens{
-		col:    tokens.DefaultLight,
+		col:    tokens.PlatformLight,
 		typ:    tokens.DefaultTypography,
 		sp:     tokens.Spacing,
 		den:    tokens.Comfortable,
@@ -358,7 +358,7 @@ func TestTreeClaimsOnlyItsRail(t *testing.T) {
 // inside a pane dragged wider would widen into nothing.
 func TestTreeFillsTheWidthTheSlotStates(t *testing.T) {
 	tok := themeTokens{
-		col:    tokens.DefaultLight,
+		col:    tokens.PlatformLight,
 		typ:    tokens.DefaultTypography,
 		sp:     tokens.Spacing,
 		den:    tokens.Comfortable,

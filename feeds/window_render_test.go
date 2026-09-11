@@ -1,14 +1,14 @@
 package main
 
-// A whole-window render, headless, plus the surface-grammar assertions that
-// read off it. The app has no offscreen mode of its own — it is a native
+// A whole-window render, headless, plus the assertions that read the
+// platform's names off it. The app has no offscreen mode of its own — it is a native
 // window binary — but the layers the window renders are plain observables of
 // layout.Widget, so composing them over a frozen theme and drawing them into
 // a headless image produces the same frame the window would show, at the
 // size the window opens at.
 //
-// A render of one column in isolation cannot see that a window's chrome
-// stands level with the content it is meant to frame; this can. Run it with
+// A render of one column in isolation cannot see that a window's chrome and
+// the content it frames have come out the same fill; this can. Run it with
 // -window.dump=<dir> to write the frames out for a pair of eyes:
 //
 //	go test ./ -run TestWholeWindowRender -window.dump=/tmp/feeds
@@ -17,10 +17,10 @@ package main
 // smoke test of the whole layer stack: a panic anywhere in the sidebar, the
 // navbar, the articles table or the detail pane fails it.
 //
-// The grammar tests below sample the rendered frame rather than a palette
-// struct, because this app holds no palette: each region paints its own fill
-// at the point it draws. Sampling the frame is therefore the only place the
-// question "what level is this region wearing" has an answer.
+// The tests below sample the rendered frame rather than the token set,
+// because this app holds no palette: each region paints its own fill at the
+// point it draws. Sampling the frame is therefore the only place the question
+// "which platform name is this region wearing" has an answer.
 
 import (
 	"flag"
@@ -32,14 +32,13 @@ import (
 	"testing"
 
 	"gioui.org/layout"
-	"gioui.org/op/clip"
-	"gioui.org/op/paint"
 	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/mvu/desktop"
+	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -53,10 +52,10 @@ var windowSize = image.Pt(1200, 800)
 // schemes is the pair every rule below is checked against.
 var schemes = []struct {
 	name string
-	c    tokens.ColorTokens
+	c    tokens.PlatformColors
 }{
-	{"light", tokens.DefaultLight},
-	{"dark", tokens.DefaultDark},
+	{"light", tokens.PlatformLight},
+	{"dark", tokens.PlatformDark},
 }
 
 // densities is the pair the title band's depth is checked against. The live
@@ -73,9 +72,9 @@ var densities = []struct {
 
 // staticTheme freezes one colour scheme into a Theme whose every field emits
 // once — the shape theme/window feeds the layers, minus the live OS poll.
-func staticTheme(c tokens.ColorTokens, d tokens.Density) theme.Theme {
+func staticTheme(c tokens.PlatformColors, d tokens.Density) theme.Theme {
 	return theme.Theme{
-		Color:      rx.Of(c),
+		Platform:   rx.Of(c),
 		Typography: rx.Of(tokens.DefaultTypography),
 		Density:    rx.Of(d),
 		Motion:     rx.Of(tokens.Motion),
@@ -109,7 +108,7 @@ var settledArticle = func() ArticleID {
 // windowFrame composes the window's layers for one scheme into a single
 // layout.Widget: the backdrop first, the shell over it, exactly as
 // theme/window stacks them.
-func windowFrame(t *testing.T, c tokens.ColorTokens, d tokens.Density, model Model) layout.Widget {
+func windowFrame(t *testing.T, c tokens.PlatformColors, d tokens.Density, model Model) layout.Widget {
 	t.Helper()
 	layers := buildLayers(rx.Of(model))(rx.Of(staticTheme(c, d)))
 
@@ -134,14 +133,14 @@ func windowFrame(t *testing.T, c tokens.ColorTokens, d tokens.Density, model Mod
 // and the second is kept: the first registers the pointer and click tags the
 // layout tree needs before any of them can report state, which is the same
 // warm-up drawShellOnce does for the shell tests.
-func renderWindow(t *testing.T, c tokens.ColorTokens) *image.RGBA {
+func renderWindow(t *testing.T, c tokens.PlatformColors) *image.RGBA {
 	t.Helper()
 	return renderWindowAt(t, c, tokens.Comfortable)
 }
 
 // renderWindowAt is renderWindow at a stated density — the input the title
 // band's depth follows, and the one the live theme never varies.
-func renderWindowAt(t *testing.T, c tokens.ColorTokens, d tokens.Density) *image.RGBA {
+func renderWindowAt(t *testing.T, c tokens.PlatformColors, d tokens.Density) *image.RGBA {
 	t.Helper()
 	w := windowFrame(t, c, d, settledModel())
 	golden.Capture(t, windowSize, w)
@@ -206,237 +205,97 @@ var windowBand = int(windowBandDp(tokens.Comfortable))
 // region paints its own fill where it draws, so the frame is the only place
 // the question has an answer.
 var (
-	atSidebar     = image.Pt(96, 400)            // sidebar, below the open section's feeds
+	atSidebar     = image.Pt(96, 10)             // the sidebar's own band, above the accordion
 	atNavbar      = image.Pt(600, 12)            // navbar, between the brand and the actions
 	atListPane    = image.Pt(494, 640)           // articles pane, under the last row
-	atListRow     = image.Pt(760, 209)           // second body row, past the Unread glyph
+	atListRow     = image.Pt(760, 153)           // a body row the stripe skips, past the glyph
 	atReadingPane = image.Pt(1000, 600)          // reading pane, below the article body
 	atPaneHead    = image.Pt(900, 60)            // reading pane, beside the article title
-	atTabStrip    = image.Pt(1100, 144)          // the tab strip band, past the last label
-	atOpenFeed    = image.Pt(100, windowBand+61) // the open feed's pill, under the band
-	atRestingFeed = image.Pt(100, windowBand+89) // the feed under it, unchosen and unhovered
-	atOpenRow     = image.Pt(760, 173)           // the open article's row, past the glyph
+	atTabStrip    = image.Pt(1100, 114)          // the tab strip band, past the last label
+	atOpenFeed    = image.Pt(100, windowBand+63) // the open feed's pill, under the band
+	atRestingFeed = image.Pt(100, windowBand+95) // the feed under it, unchosen
+	atOpenRow     = image.Pt(760, 113)           // the open article's row, past the glyph
 
-	// The pager, under the table: a leading chevron and then one
-	// ControlHeight square per page. The current page's square spans
-	// x 252–287, the page beside it 296–331; both are sampled at mid-height
-	// and five pixels in from their leading edge, which clears the rounded
-	// corners and the centred digit alike.
-	atCurrentPage = image.Pt(257, 766) // the page the table is showing
-	atRestingPage = image.Pt(301, 766) // the page beside it, unchosen
+	// The pager, under the table: a leading chevron and then one square per
+	// page. Only the page the table is showing is filled; the others carry
+	// the pane's own fill, so the resting sample is taken in the gap between
+	// two squares.
+	atCurrentPage = image.Pt(247, 762) // the page the table is showing
+	atRestingPage = image.Pt(280, 762) // the pager beside it, unfilled
 )
 
-// TestWindowRegionsWearTheirLevels reads the surface grammar's assignment off
-// the frame: content at level 0, the window's chrome at the CHROME level
-// under it, the reading pane's own tab strip raised over the panel it caps,
-// nothing resting at level 2.
+// TestWindowRegionsWearThePlatformNames reads off the frame that every
+// resting expanse of this window wears the platform's name for what it is:
+// the content regions ControlBackground, the chrome regions — the sidebar,
+// the navbar and the reading pane's tab strip — the chrome material.
 //
-// A sidebar and a navbar are the chrome this window's articles stand
-// beside, so they are its darkest regions in both schemes: neutral 200 in the
-// light scheme, #151515 in the dark one. The tab strip does not follow
-// them — a sidebar is chrome standing beside the document, while a tab strip
-// is the reading pane's own
-// control band, drawn one level over the panel it belongs to (patterns/tabs
-// walks it from `Props.Level`). This window therefore carries regions on
-// three levels at rest.
-func TestWindowRegionsWearTheirLevels(t *testing.T) {
+// It is read off the frame rather than off the token set because the three
+// chrome regions are painted by three different pieces of code (this app's
+// sidebar, patterns/shell's navbar band, patterns/tabs' strip) and a frame
+// with all of them in it is the only place they can be seen agreeing.
+func TestWindowRegionsWearThePlatformNames(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
-			chrome := tc.c.SurfaceAt(tokens.LevelChrome)
-			content := tc.c.SurfaceAt(tokens.Level0)
-			raised := tc.c.SurfaceAt(tokens.Level1)
-			transient := tc.c.SurfaceAt(tokens.Level2)
-
 			for _, r := range []struct {
 				name string
 				at   image.Point
 				want color.NRGBA
 			}{
-				{"articles pane", atListPane, content},
-				{"article row", atListRow, content},
-				{"reading pane", atReadingPane, content},
-				{"reading pane header", atPaneHead, content},
-				{"sidebar", atSidebar, chrome},
-				{"navbar", atNavbar, chrome},
-				{"tab strip", atTabStrip, raised},
+				{"articles pane", atListPane, tc.c.ControlBackground},
+				{"article row", atListRow, tc.c.ControlBackground},
+				{"reading pane", atReadingPane, tc.c.ControlBackground},
+				{"reading pane header", atPaneHead, tc.c.ControlBackground},
+				{"sidebar", atSidebar, tc.c.SidebarMaterial},
+				{"navbar", atNavbar, tc.c.SidebarMaterial},
+				{"tab strip", atTabStrip, tc.c.SidebarMaterial},
 			} {
-				got := at(img, r.at.X, r.at.Y)
-				if got != r.want {
+				if got := at(img, r.at.X, r.at.Y); got != r.want {
 					t.Errorf("%s at %v = %v, want %v", r.name, r.at, got, r.want)
 				}
-				// A resting region must not be painted at the floating
-				// level. The check only bites where the two are different
-				// fills: the light scheme has one band step above its
-				// content and spends it on the first raise, so its raised
-				// and floating levels are one colour and no pixel can tell
-				// them apart.
-				if r.want != transient && got == transient {
-					t.Errorf("%s at %v rests at level 2 (%v), the level elevation keeps for what appears and leaves", r.name, r.at, transient)
-				}
 			}
 		})
 	}
 }
 
-// TestLightnessNeverFallsTowardTheViewer walks this window's depth axis rather
-// than its plane: the sidebar is the window's chrome, the reading pane is
-// the content beside it, the tab strip is the pane's own band raised over
-// that content, and a dialog arrives over the lot. Walking that order toward
-// the reader, lightness may never fall — in the light scheme AND in the dark
-// one. Never fall rather than always rise: the light scheme has one band step
-// above its content, so its raise and the dialog over it are both white, and
-// what tells them apart is the dialog's shadow and scrim.
+// TestChosenItemsWearThePlatformsSelection reads off the frame that every
+// mark in this window meaning "this is the one you are on" is the platform's
+// own answer for that kind of row, and that a neighbour nobody chose keeps
+// its own region's fill.
 //
-// Three of the four fills are read off the frame rather than off tokens,
-// because they are painted by three different pieces of code — patterns/
-// sidebar, this app's backdrop, and patterns/tabs — and a frame with all
-// three in it is the only place they can be seen agreeing.
-func TestLightnessNeverFallsTowardTheViewer(t *testing.T) {
+// The three marks are three different names on this platform, which is the
+// point of asserting them together: a sidebar row's pill follows the accent,
+// a content list's current row wears the emphasized selection, and the pager
+// fills the page it is on with the accent under the foreground the platform
+// pairs with it. Both schemes are sampled, because a window may not answer
+// one question in two ways.
+func TestChosenItemsWearThePlatformsSelection(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
-			toward := []struct {
-				name string
-				fill color.NRGBA
-			}{
-				{"the sidebar's chrome", at(img, atSidebar.X, atSidebar.Y)},
-				{"the reading pane's content", at(img, atReadingPane.X, atReadingPane.Y)},
-				{"the tab strip's band", at(img, atTabStrip.X, atTabStrip.Y)},
-				{"a dialog's surface", tc.c.SurfaceAt(tokens.Level2)},
-			}
-			for i := 1; i < len(toward); i++ {
-				below, above := toward[i-1], toward[i]
-				if luma(above.fill) < luma(below.fill) {
-					t.Errorf("%s (%v) is under %s (%v); walking toward the viewer never gets darker",
-						above.name, above.fill, below.name, below.fill)
-				}
-			}
-			// The chrome is this window's darkest region. The navbar is in
-			// it because this window's chrome is two regions on one level,
-			// and a window that painted only one of them the floor would read
-			// as a step across its own top edge.
-			for _, chrome := range []struct {
-				name string
-				fill color.NRGBA
-			}{
-				{"sidebar", at(img, atSidebar.X, atSidebar.Y)},
-				{"navbar", at(img, atNavbar.X, atNavbar.Y)},
-			} {
-				for _, other := range toward[1:] {
-					if luma(chrome.fill) >= luma(other.fill) {
-						t.Errorf("the %s (%v) is not darker than %s (%v); a window's chrome is its darkest region",
-							chrome.name, chrome.fill, other.name, other.fill)
-					}
-				}
-			}
-		})
-	}
-}
-
-// TestChosenItemsCarryThePrimaryTint reads off the frame that every mark in
-// this window meaning "this is the one you are on" fills from the Primary
-// ramp's tinted end, and that a neighbour nobody chose keeps its own region's
-// fill. The window has three such marks — the feed the table is listing, the
-// article the pane is showing, and the page the pager is on — asserted
-// together, in both schemes, because a window may not answer one question in
-// two tones.
-//
-// The mark must be the Primary STEP, never the Primary pin: the pin runs
-// saturated in light (#723AD4) and pale in dark (#D0C4FF) while the step runs
-// the other way (#D8CEFF / #3F0085), so a window mixing them swaps which mark
-// is the pale one every time the scheme changes. Sampling both schemes is what
-// sees that; one frame cannot.
-func TestChosenItemsCarryThePrimaryTint(t *testing.T) {
-	for _, tc := range schemes {
-		t.Run(tc.name, func(t *testing.T) {
-			img := renderWindow(t, tc.c)
-			tint := tc.c.Ramps.Primary.Step(300)
 			for _, r := range []struct {
 				name string
 				at   image.Point
+				want color.NRGBA
 			}{
-				{"open feed", atOpenFeed},
-				{"open article row", atOpenRow},
-				{"current page", atCurrentPage},
+				{"open feed", atOpenFeed, patsidebar.SelectionFill(tc.c, false)},
+				{"open article row", atOpenRow, tc.c.SelectedContentBackground},
+				{"current page", atCurrentPage, tc.c.ControlAccent},
 			} {
-				got := at(img, r.at.X, r.at.Y)
-				if got != tint {
-					t.Errorf("%s at %v = %v, want the Primary tint %v", r.name, r.at, got, tint)
-				}
-				if got == tc.c.Primary {
-					t.Errorf("%s at %v wears the Primary pin %v; the pin and the step invert against each other between schemes", r.name, r.at, got)
+				if got := at(img, r.at.X, r.at.Y); got != r.want {
+					t.Errorf("%s at %v = %v, want %v", r.name, r.at, got, r.want)
 				}
 			}
-			// A neutral step may not stand in for the current item, so the
-			// resting neighbour must NOT be tinted — and must be its own
-			// region's own fill rather than a walk of it.
-			rest := at(img, atRestingFeed.X, atRestingFeed.Y)
-			if rest == tint {
-				t.Errorf("an unchosen feed at %v is tinted %v; the mark says nothing if every row wears it", atRestingFeed, rest)
+			// A resting row takes no fill of its own: the platform tints
+			// neither a sidebar row nor a list row, so each shows whatever
+			// its region already painted. patterns/accordion paints the
+			// rail's body, which is why the resting feed reads the content's
+			// fill rather than the chrome the sidebar's own band wears.
+			if got, want := at(img, atRestingFeed.X, atRestingFeed.Y), tc.c.ControlBackground; got != want {
+				t.Errorf("resting feed at %v = %v, want the fill under it %v", atRestingFeed, got, want)
 			}
-			if want := tc.c.SurfaceAt(tokens.LevelChrome); rest != want {
-				t.Errorf("resting feed at %v = %v, want the sidebar's own fill %v", atRestingFeed, rest, want)
-			}
-			// The pager's resting cell says the same thing about the pager:
-			// its own neutral fill, not the tint.
-			restPage := at(img, atRestingPage.X, atRestingPage.Y)
-			if restPage == tint {
-				t.Errorf("an unchosen page at %v is tinted %v; only the page the table is showing may wear the mark", atRestingPage, restPage)
-			}
-			if want := tc.c.Ramps.Neutral.Step(300); restPage != want {
-				t.Errorf("resting page at %v = %v, want the pager's neutral fill %v", atRestingPage, restPage, want)
-			}
-		})
-	}
-}
-
-// TestFeedRowStatesKeepTheirFillsApart covers what one rendered frame cannot
-// show: a list has to say "the pointer is here" and "this is the one you are
-// reading" at the same time, so the two fills may never be the same colour
-// and the tint may never lose to the walk. The pill is drawn over a
-// sentinel, so a state that painted nothing is caught too.
-func TestFeedRowStatesKeepTheirFillsApart(t *testing.T) {
-	sentinel := color.NRGBA{R: 255, G: 0, B: 255, A: 255}
-	size := image.Pt(160, 28)
-	for _, tc := range schemes {
-		t.Run(tc.name, func(t *testing.T) {
-			tok := themeTokens{
-				col:    tc.c,
-				typ:    tokens.DefaultTypography,
-				shaper: tokens.DefaultTypography.DeterministicShaper(),
-			}
-			fill := func(selected, hovered bool) color.NRGBA {
-				img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
-					paint.FillShape(gtx.Ops, sentinel, clip.Rect{Max: gtx.Constraints.Max}.Op())
-					drawFeedEntryPill(gtx, tok, gtx.Constraints.Max, selected, hovered)
-					return layout.Dimensions{Size: gtx.Constraints.Max}
-				})
-				return at(img, 40, size.Y/2)
-			}
-
-			tint := tc.c.Ramps.Primary.Step(300)
-			// The walk is taken from the level the rows stand on — the
-			// sidebar's chrome level — rather than named as a ramp index. In
-			// the light scheme the two spell the same #D4D4D4; in the dark
-			// one an index is a step off the wrong level entirely.
-			walk := tc.c.StateAt(tokens.LevelChrome, tokens.StateHover)
-			surface := tc.c.SurfaceAt(tokens.LevelChrome)
-
-			if got := fill(false, false); got != sentinel {
-				t.Errorf("a resting row painted %v; it must leave its region's own fill showing", got)
-			}
-			if got := fill(false, true); got != walk {
-				t.Errorf("hovered row = %v, want the neutral walk %v off the sidebar's own fill %v", got, walk, surface)
-			}
-			if got := fill(true, false); got != tint {
-				t.Errorf("open row = %v, want the Primary tint %v", got, tint)
-			}
-			if got := fill(true, true); got != tint {
-				t.Errorf("hovered open row = %v, want the tint %v to hold; the pointer must not take the answer away", got, tint)
-			}
-			if tint == walk {
-				t.Errorf("the chosen tint and the hover walk are the same colour %v; a row cannot say both things at once", tint)
+			if got, want := at(img, atRestingPage.X, atRestingPage.Y), tc.c.ControlBackground; got != want {
+				t.Errorf("the pager beside the current page at %v = %v, want the pane's own fill %v", atRestingPage, got, want)
 			}
 		})
 	}
@@ -480,7 +339,7 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
-			surface := tc.c.SurfaceAt(tokens.LevelChrome)
+			surface := tc.c.SidebarMaterial
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
 					if got := at(img, x, y); got != surface {
@@ -511,23 +370,19 @@ func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
 // number written down in this test:
 //
 //   - The trailing half declares its own depth, because the navbar's chrome
-//     ends where the content region begins. That edge must land exactly on
-//     the band, which is what proves this app's restatement of
-//     patterns/shell's navbar pin has not drifted from the pin itself.
-//   - The leading half declares nothing, because the sidebar's fill runs the
-//     whole column and the band is the same chrome as everything under it.
-//     What can be seen there is where the sidebar starts drawing, which must
-//     be at or below the band's foot — the band is held open, and wears the
-//     sidebar's own fill while it is.
-//
-// Both halves are read off ONE level: a column painted at the Surface ALIAS
-// while patterns/accordion sits on the floor stands a whole level over the
-// sidebar beneath it on slate, and a scan looking for the alias cannot see
-// that.
+//     ends where the content region begins. patterns/navbar closes its band
+//     with a seam along its own foot, so the last row of flat chrome is the
+//     one above that line and the edge lands at band-1. That is what proves
+//     this app's restatement of patterns/shell's navbar pin has not drifted
+//     from the pin itself.
+//   - The leading half declares nothing, because the sidebar's own fill runs
+//     the whole column under the accordion. What can be seen there is where
+//     the sidebar starts drawing, which must be at or below the band's foot —
+//     the band is held open, and wears the sidebar's own fill while it is.
 //
 // Both densities are checked because the depth is the density's, not this
 // app's: a band that only ever met Comfortable would pass while hard-coding
-// 52. Checking two also turns the leading half's loose bound into an exact
+// its depth. Checking two also turns the leading half's loose bound into an exact
 // one. The accordion's own lead — the padding above its first section's caret
 // — is the same at both densities, so the gap between the band's foot and the
 // sidebar's first paint has to be the same at both as well. A sidebar that
@@ -541,7 +396,7 @@ func TestTheWindowsTopStripIsOneBand(t *testing.T) {
 			for i, dc := range densities {
 				img := renderWindowAt(t, tc.c, dc.d)
 				band := int(windowBandDp(dc.d))
-				surface := tc.c.SurfaceAt(tokens.LevelChrome)
+				surface := tc.c.SidebarMaterial
 
 				depth := -1
 				for y := 0; y < windowSize.Y; y++ {
@@ -550,8 +405,8 @@ func TestTheWindowsTopStripIsOneBand(t *testing.T) {
 						break
 					}
 				}
-				if depth != band {
-					t.Errorf("%s: the navbar's half of the strip is %d dp deep at x=%d, want the band's %d dp; the two halves of the window's top edge stand at different depths",
+				if depth != band-1 {
+					t.Errorf("%s: the navbar's flat chrome ends at row %d at x=%d, want the row above the seam that closes a %d dp band; the two halves of the window's top edge stand at different depths",
 						dc.name, depth, atNavbar.X, band)
 				}
 

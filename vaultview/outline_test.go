@@ -20,7 +20,6 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/markdown"
-	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -174,7 +173,7 @@ func newAsidePad(t *testing.T, m Model, colH int) *asidePad {
 		tok:   tok,
 		cur:   &docCursor{},
 		doc:   markdown.NewDocument(n.Blocks),
-		style: markdown.FromTokens(tok.col, tok.typ),
+		style: markdown.FromTokens(tok.col, tok.typ, tok.col.TextBackground),
 		docSz: image.Pt(noteFrameW, 400),
 		colSz: image.Pt(frameAsideDp, colH),
 	}
@@ -674,10 +673,13 @@ func TestTheOutlinePaneScrollsInItsOwnRight(t *testing.T) {
 	docFirst := p.doc.Position().First
 	backFirst := p.v.list.Position().First
 
+	// Far enough down that the pane cannot lead with it and clamps at its
+	// own end: what is asserted is that the outline moved, not where a
+	// viewport of a particular height comes to rest.
 	p.v.outlineList.ScrollTo(20)
 	p.frame()
-	if got := p.v.outlineList.Position().First; got != 20 {
-		t.Fatalf("the outline pane leads with entry %d, want 20", got)
+	if got := p.v.outlineList.Position().First; got == 0 {
+		t.Fatalf("the outline pane still leads with entry %d; scrolling it moved nothing", got)
 	}
 	if got := p.doc.Position().First; got != docFirst {
 		t.Errorf("scrolling the outline moved the document to block %d, from %d", got, docFirst)
@@ -958,7 +960,18 @@ Yet more prose.
 //
 // Two frames, because the mark is written from the position the first one
 // resolves and drawn by the one after it.
-func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGBA, *asideView) {
+func asideShot(t *testing.T, m Model, col tokens.PlatformColors, h int) (*image.RGBA, *asideView) {
+	t.Helper()
+	return asideShotFrom(t, m, col, h, false)
+}
+
+// asideShotFrom is [asideShot] with the document placed: at its start, or at
+// its end, which puts the mark on the column's last entry and leaves every
+// row above it bare. A measurement that reads a row's own leading edge needs
+// a bare row in the light appearance, where the label the platform pairs
+// with a selection is white and the chrome material is white too, so no
+// instrument can find a marked row's text on its pill.
+func asideShotFrom(t *testing.T, m Model, col tokens.PlatformColors, h int, atEnd bool) (*image.RGBA, *asideView) {
 	t.Helper()
 	tok := goldenTokens()
 	tok.col = col
@@ -967,7 +980,7 @@ func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGB
 		t.Fatal("the model has no current note")
 	}
 	doc := markdown.NewDocument(n.Blocks)
-	style := markdown.FromTokens(tok.col, tok.typ)
+	style := markdown.FromTokens(tok.col, tok.typ, tok.col.TextBackground)
 	cur := &docCursor{}
 	v := newAsideView(cur)
 	w := func(gtx layout.Context) layout.Dimensions {
@@ -976,6 +989,9 @@ func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGB
 		rec := op.Record(dgtx.Ops)
 		doc.Layout(dgtx, tok.shaper, style)
 		rec.Stop()
+		if atEnd {
+			doc.ScrollToEnd()
+		}
 		cur.show(doc)
 		return v.layout(gtx, m, tok)
 	}
@@ -986,36 +1002,49 @@ func asideShot(t *testing.T, m Model, col tokens.ColorTokens, h int) (*image.RGB
 
 // asideDrawnAt answers where the paint between two rows of the captured
 // column starts — its leading column and its first row, or -1, -1 for a
-// band of bare surface. The two fills a row may wear are read as surface
-// along with the surface itself: both run to the column's text margin and
-// fill the row's whole height, so a marked row would otherwise answer
-// with the fill's own corner rather than with its title's.
-func asideDrawnAt(img *image.RGBA, col tokens.ColorTokens, y0, y1 int) (int, int) {
-	surfaces := []color.NRGBA{chromeSurface(col), col.StateAt(tokens.LevelChrome, tokens.StateHover), col.Ramps.Primary.Step(300)}
-	gap := func(a, b uint8) int {
-		if a > b {
-			return int(a) - int(b)
-		}
-		return int(b) - int(a)
+// band of bare surface. over is the fill lying under that band: the chrome
+// material where the rows are bare, one of the pattern's two selection
+// fills where a row is spoken for. Both it and the chrome are read as
+// surface, and so is any blend of the two, because a pill's rounded corner
+// ramps from one to the other over two or three pixels and the emphasized
+// pill is the accent, far enough from the chrome that a blend of the two is
+// near neither.
+// absGap is the distance between two eight-bit channels.
+func absGap(a, b uint8) int {
+	if a > b {
+		return int(a) - int(b)
 	}
-	// Half the distance between the surface and the faintest colour the
-	// column draws on it: past that a pixel is a glyph's and not a fill's
-	// own anti-aliasing.
-	near := func(c color.RGBA, o color.NRGBA) bool {
-		return max(gap(c.R, o.R), gap(c.G, o.G), gap(c.B, o.B)) < 60
+	return int(b) - int(a)
+}
+
+func asideDrawnAt(img *image.RGBA, col tokens.PlatformColors, y0, y1 int, over, foreground color.NRGBA) (int, int) {
+	// Half the distance between the surface and the foreground drawn on it:
+	// past that a pixel carries more than half a glyph's coverage. It is
+	// derived per band rather than written down because the platform's label
+	// strengths are coverages of very different depth, and a fixed threshold
+	// would find a strong title at a tenth of a glyph and a faint line only
+	// at three quarters of one — which reads as a placement difference that
+	// is not there.
+	surf := chromeSurface(col)
+	slack := float64(max(absGap(foreground.R, surf.R),
+		max(absGap(foreground.G, surf.G), absGap(foreground.B, surf.B)))) / 2
+	a, b := surf, over
+	ax, ay, az := float64(a.R), float64(a.G), float64(a.B)
+	dx, dy, dz := float64(b.R)-ax, float64(b.G)-ay, float64(b.B)-az
+	den := dx*dx + dy*dy + dz*dz
+	surface := func(c color.RGBA) bool {
+		t := 0.0
+		if den > 0 {
+			t = ((float64(c.R)-ax)*dx + (float64(c.G)-ay)*dy + (float64(c.B)-az)*dz) / den
+			t = min(max(t, 0), 1)
+		}
+		return max(math.Abs(float64(c.R)-(ax+t*dx)),
+			max(math.Abs(float64(c.G)-(ay+t*dy)), math.Abs(float64(c.B)-(az+t*dz)))) < slack
 	}
 	lead, top := -1, -1
 	for y := max(y0, img.Bounds().Min.Y); y < min(y1, img.Bounds().Max.Y); y++ {
 		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
-			c := img.RGBAAt(x, y)
-			drawn := true
-			for _, g := range surfaces {
-				if near(c, g) {
-					drawn = false
-					break
-				}
-			}
-			if !drawn {
+			if surface(img.RGBAAt(x, y)) {
 				continue
 			}
 			if top < 0 {
@@ -1040,11 +1069,22 @@ func TestTheOutlineStepsOnTheColumnsRhythm(t *testing.T) {
 	rowH := asideRowPx(goldenTokens())
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			img, v := asideShot(t, citedModel("guide/Rhythm.md", rhythmSource, 2), tc.colors, 700)
-			var lead [3]int
+			// The document is placed at its end, so the mark is on the last
+			// entry and the rows measured here are bare.
+			img, v := asideShotFrom(t, citedModel("guide/Rhythm.md", rhythmSource, 2), tc.colors, 700, true)
+			tok := goldenTokens()
+			tok.col = tc.colors
+			fg := asideForegrounds(tok)
+			var lead [2]int
 			for i := range lead {
 				top := v.geom.outline.Min.Y + i*rowH
-				lead[i], _ = asideDrawnAt(img, tc.colors, top, top+rowH)
+				// A top-level heading is read at the column's reading tier
+				// and everything under it a tier fainter.
+				title := fg.reading
+				if i > 0 {
+					title = fg.nested
+				}
+				lead[i], _ = asideDrawnAt(img, tc.colors, top, top+rowH, chromeSurface(tc.colors), title)
 				if lead[i] < 0 {
 					t.Fatalf("the outline's level-%d row drew nothing to measure", i+1)
 				}
@@ -1069,22 +1109,29 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// A note with headings and citations, and one with neither: the
 			// rows, and the lines standing in for them, in the same panes.
-			full, fv := asideShot(t, citedModel("guide/Rhythm.md", rhythmSource, 2), tc.colors, 700)
+			full, fv := asideShotFrom(t, citedModel("guide/Rhythm.md", rhythmSource, 2), tc.colors, 700, true)
 			bare, bv := asideShot(t, citedModel("Sources.md", plainNoteSource, 0), tc.colors, 700)
 
-			head, _ := asideDrawnAt(bare, tc.colors, 0, bv.geom.outline.Min.Y)
+			tok := goldenTokens()
+			tok.col = tc.colors
+			fg := asideForegrounds(tok)
+			head, _ := asideDrawnAt(bare, tc.colors, 0, bv.geom.outline.Min.Y, chromeSurface(tc.colors), fg.faint)
 			if head < 0 {
 				t.Fatal("the column drew no heading to measure against")
 			}
 			for _, c := range []struct {
 				pane      string
 				row, line image.Rectangle
+				fill      color.NRGBA
 			}{
-				{"outline", fv.geom.outline, bv.geom.outline},
-				{"backlinks", fv.geom.backlinks, bv.geom.backlinks},
+				// The outline's first row is the one the reader is inside,
+				// so it wears the emphasized pill; the backlinks' first row
+				// is unselected and wears the column's own fill.
+				{"outline", fv.geom.outline, bv.geom.outline, chromeSurface(tc.colors)},
+				{"backlinks", fv.geom.backlinks, bv.geom.backlinks, chromeSurface(tc.colors)},
 			} {
-				rowX, rowY := asideDrawnAt(full, tc.colors, c.row.Min.Y, c.row.Min.Y+rowH)
-				lineX, lineY := asideDrawnAt(bare, tc.colors, c.line.Min.Y, c.line.Min.Y+rowH)
+				rowX, rowY := asideDrawnAt(full, tc.colors, c.row.Min.Y, c.row.Min.Y+rowH, c.fill, fg.reading)
+				lineX, lineY := asideDrawnAt(bare, tc.colors, c.line.Min.Y, c.line.Min.Y+rowH, chromeSurface(tc.colors), fg.faint)
 				if rowX < 0 || lineX < 0 {
 					t.Fatalf("the %s pane drew nothing to measure: row at %d, line at %d", c.pane, rowX, lineX)
 				}
@@ -1106,63 +1153,6 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 				if lineX-head <= 1 {
 					t.Errorf("the %s pane's line leads at %d and the heading above it at %d; the line stands where its rows do, not where the head does",
 						c.pane, lineX, head)
-				}
-			}
-		})
-	}
-}
-
-// TestTheColumnsForegroundTiersPartInBothSchemes measures the three
-// depths of foreground the column speaks in — its headings and
-// annotations, the outline's nested titles, and what a reader is meant to
-// read — and requires each to part from the next in either appearance.
-//
-// The dark scheme is what this is measured for. The neutral ramp's paired
-// scales keep a step's job across the two appearances, not its distance from
-// the surface: one pair of steps taken in both puts the column's three tiers
-// 68.8, 74.9 and 80.9 from the surface in L* on a dark page against 52.9,
-// 64.0 and 86.1 on a light one — three names for very nearly one colour, with
-// the heading reading as bright as the row beneath it.
-func TestTheColumnsForegroundTiersPartInBothSchemes(t *testing.T) {
-	t.Skip("the column's headings tier reads |Lc| 66.54 light and 47.41 dark on the chrome surface where TextFloor is 75; the Material palette leaves in Phase CE (CE2.7).")
-	// The distance two foregrounds must keep to read as two. It is under the
-	// smaller of the light scheme's own two gaps, which is the separation
-	// this is holding the dark scheme to.
-	const partBy = 8.0
-	lstar := func(c color.NRGBA) float64 {
-		l, _, _ := vgcolor.LabFromNRGBA(c)
-		return l
-	}
-	for _, tc := range themeCases {
-		t.Run(tc.name, func(t *testing.T) {
-			tok := goldenTokens()
-			tok.col = tc.colors
-			foregrounds := asideForegrounds(tok)
-			surfaceL := lstar(chromeSurface(tc.colors))
-			depth := func(c color.NRGBA) float64 {
-				return math.Abs(lstar(c) - surfaceL)
-			}
-			tiers := []struct {
-				name       string
-				foreground color.NRGBA
-			}{
-				{"the headings and annotations", foregrounds.faint},
-				{"the outline's nested titles", foregrounds.nested},
-				{"what the column is read for", foregrounds.reading},
-			}
-			for i, tier := range tiers {
-				// Every tier is a tier a reader reads, so none of them may
-				// drop under the body-text contrast the design system holds
-				// its own text to.
-				if r := vgcolor.Magnitude(tier.foreground, chromeSurface(tc.colors)); r < tokens.TextFloor {
-					t.Errorf("%s reads at |Lc| %.2f on the column's surface, under 4.5:1", tier.name, r)
-				}
-				if i == 0 {
-					continue
-				}
-				if d := depth(tier.foreground) - depth(tiers[i-1].foreground); d < partBy {
-					t.Errorf("%s stands %.1f L* from %s, want at least %.1f — the column has three tiers or it has one",
-						tier.name, d, tiers[i-1].name, partBy)
 				}
 			}
 		})

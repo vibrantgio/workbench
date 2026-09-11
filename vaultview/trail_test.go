@@ -28,7 +28,7 @@ type trailPad struct {
 	dims layout.Dimensions
 }
 
-func newTrailPad(shaper *text.Shaper, colors tokens.ColorTokens) *trailPad {
+func newTrailPad(shaper *text.Shaper, colors tokens.PlatformColors) *trailPad {
 	return &trailPad{
 		row: breadcrumb.NewTrail(shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
 			colors, tokens.Spacing, tokens.DefaultTypography.TitleSmall),
@@ -67,7 +67,7 @@ func trailWidth(shaper *text.Shaper, labels ...string) int {
 		segs[i] = breadcrumb.Segment{Key: l, Label: l}
 	}
 	row := breadcrumb.NewTrail(shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
-		tokens.DefaultLight, tokens.Spacing, tokens.DefaultTypography.TitleSmall)
+		tokens.PlatformLight, tokens.Spacing, tokens.DefaultTypography.TitleSmall)
 	gtx := layout.Context{
 		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 		Constraints: layout.Constraints{Max: image.Pt(1<<14, 1<<14)},
@@ -116,7 +116,7 @@ func TestTrailClicksReachThePlaceClicked(t *testing.T) {
 				segs := trailSegments(tc.places, func(path string) func(gtx layout.Context) {
 					return func(gtx layout.Context) { clicked = path }
 				})
-				pad := newTrailPad(shaper, tokens.DefaultLight)
+				pad := newTrailPad(shaper, tokens.PlatformLight)
 				pad.frame(segs)
 				if pad.dims.Size.X == 0 || pad.dims.Size.Y == 0 {
 					t.Fatalf("the trail drew nothing: %v", pad.dims)
@@ -156,7 +156,7 @@ func TestTrailClickFollowsItsPlaceAcrossAReshuffle(t *testing.T) {
 	after := []place{{label: "guide", path: "guide"}, {label: "drafts", path: "guide/drafts"},
 		{label: "Sketch", path: "guide/drafts/Sketch.md"}}
 
-	pad := newTrailPad(shaper, tokens.DefaultLight)
+	pad := newTrailPad(shaper, tokens.PlatformLight)
 	pad.frame(trailSegments(before, click))
 	pad.clickAt(centreOf(shaper, 1, before), trailSegments(after, click))
 
