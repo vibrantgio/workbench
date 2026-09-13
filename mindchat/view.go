@@ -25,6 +25,7 @@ import (
 	"github.com/reactivego/rx"
 	"github.com/vibrantgio/components/alert"
 	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/composite"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
@@ -297,6 +298,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			renameW, settingsW := next.First, next.Second
 			menuCell.Store(next.Third)
 			return func(gtx layout.Context) layout.Dimensions {
+				// The window's own plane, declared before anything is
+				// offset, so a modal's scrim composites over the frame
+				// beneath it rather than blending with it.
+				composite.Frame(gtx)
 				// Key areas first, at the BOTTOM of the hit stack — they must
 				// never sit over the content.
 				for _, s := range shortcuts {

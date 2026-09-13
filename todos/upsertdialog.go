@@ -13,6 +13,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/composite"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
@@ -93,9 +94,10 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 
 		escape(gtx)
 
-		// Dialog modal fullscreen scrim over the disabled page behind it.
-		rect := image.Rectangle{Max: max}
-		Pane(gtx, rect, 0, p.Cover)
+		// Dialog modal fullscreen scrim over the disabled page behind it,
+		// composited over what that page drew: the page is mixed content, so
+		// there is no one fill to flatten the scrim onto.
+		composite.Flatten(gtx, image.Rectangle{Max: max}, p.Cover)
 
 		// Allow the dialog to be smaller than max.
 		gtx.Constraints.Min = image.Point{}
@@ -115,7 +117,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 			// needs no colour and no ring of its own.
 			size := image.Pt(gtx.Dp(ModalWidth), gtx.Dp(ModalHeight))
 			max := gtx.Constraints.Constrain(size)
-			rect = place.Place(image.Rectangle{Max: gtx.Constraints.Max}, max, 0.5, 0.5)
+			rect := place.Place(image.Rectangle{Max: gtx.Constraints.Max}, max, 0.5, 0.5)
 			Pane(gtx, rect, gtx.Dp(BorderRadius), p.Dialog)
 			defer op.Offset(rect.Min).Push(gtx.Ops).Pop()
 			gtx.Constraints.Max = rect.Size()

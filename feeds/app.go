@@ -21,6 +21,7 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/alert"
 	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/composite"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/components/tooltip"
@@ -277,6 +278,10 @@ func feedsShellLayer(
 			band := windowBandDp(n.Fifth)
 			bandHeight := func() unit.Dp { return band }
 			return func(gtx layout.Context) layout.Dimensions {
+				// The window's own plane, declared before anything is
+				// offset, so a modal's scrim composites over the frame
+				// beneath it rather than blending with it.
+				composite.Frame(gtx)
 				prefsShortcut(gtx)
 				// The window's own drag. The full-size-content treatment
 				// takes the native title bar and the drag with it, so the

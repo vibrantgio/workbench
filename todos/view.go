@@ -8,6 +8,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/composite"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
@@ -118,6 +119,10 @@ func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
+		// The window's own plane, declared before anything is offset, so the
+		// dialog's scrim composites over the page rather than blending with
+		// it. The backdrop layer beneath has already painted into these ops.
+		composite.Frame(gtx)
 
 		if route == "" {
 			capped(gtx)

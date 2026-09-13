@@ -36,6 +36,7 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/mvu/desktop"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -301,10 +302,16 @@ func TestTheDialogAndItsFieldWearThePlatformsFills(t *testing.T) {
 			}
 
 			// And the page behind it is dimmed, which is what tells the
-			// dialog from the plane it repeats.
+			// dialog from the plane it repeats — dimmed to the byte the
+			// platform's own blend puts there, which is the scrim composited
+			// over the plane in encoded sRGB rather than blended with it.
 			behind := image.Pt(rect.Min.X/2, rect.Max.Y-6)
-			if got := pixelAt(img, behind); got == p.Dialog {
+			got := pixelAt(img, behind)
+			if got == p.Dialog {
 				t.Errorf("the page beside the dialog at %v reads %v, the dialog's own fill; the scrim is not dimming it", behind, got)
+			}
+			if want := vgcolor.Flatten(p.Cover, p.Backdrop); got != want {
+				t.Errorf("the dimmed page at %v reads %v, want the platform's composite %v", behind, got, want)
 			}
 		})
 	}
