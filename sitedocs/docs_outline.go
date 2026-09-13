@@ -43,13 +43,13 @@ import (
 // ## titles are full sentences; a one-line row truncates what still does
 // not fit.
 const (
-	docsOutlineWidthDp   = 300 // the tree column's width; the guide's ## titles are sentences
-	docsOutlineRowHDp    = 28  // one row's height
-	docsOutlineInsetDp   = 8   // shared horizontal inset: row fills sit on it
-	docsOutlineMarkDp    = 12  // the disclosure mark's own square
-	docsOutlineMarkColDp = 20  // fixed column holding it, so titles align
-	docsOutlineIndentDp  = 14  // additional inset for ### children
-	docsOutlineTopPadDp  = 8   // breathing room above the first row
+	docsOutlineWidthDp   = 300               // the tree column's width; the guide's ## titles are sentences
+	docsOutlineRowHDp    = sidebar.RowHeight // the platform's sidebar and tree row, measured
+	docsOutlineInsetDp   = 8                 // shared horizontal inset: row fills sit on it
+	docsOutlineMarkDp    = 12                // the disclosure mark's own square
+	docsOutlineMarkColDp = 20                // fixed column holding it, so titles align
+	docsOutlineIndentDp  = 14                // additional inset for ### children
+	docsOutlineTopPadDp  = 8                 // breathing room above the first row
 )
 
 // outlineState is the model snapshot the tree renders from: which ##
@@ -162,7 +162,7 @@ func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeToken
 // and the clickable title. The triangle and the title are separate hit
 // areas — the triangle only discloses, the title scrolls the document.
 func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, tok themeTokens) layout.Dimensions {
-	rowH := gtx.Dp(unit.Dp(docsOutlineRowHDp))
+	rowH := gtx.Dp(docsOutlineRowHDp)
 	gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowH))
 	size := gtx.Constraints.Max
 

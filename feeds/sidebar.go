@@ -172,11 +172,21 @@ func drawFeedsSidebar(
 	// the fill a sidebar, a toolbar and a status strip share.
 	paint.FillShape(gtx.Ops, colors.SidebarMaterial, clip.Rect{Max: size}.Op())
 	top := min(max(gtx.Dp(band), 0), h)
-	defer op.Offset(image.Pt(0, top)).Push(gtx.Ops).Pop()
-	gtx.Constraints = layout.Exact(image.Pt(w, h-top))
 	if accW != nil {
-		accW(gtx)
+		st := op.Offset(image.Pt(0, top)).Push(gtx.Ops)
+		agtx := gtx
+		agtx.Constraints = layout.Exact(image.Pt(w, h-top))
+		accW(agtx)
+		st.Pop()
 	}
+	// The seam parting the sidebar from the content beside it, drawn by the
+	// leading region and last, so nothing the column holds paints over it.
+	// It is the platform's separator over the sidebar's own fill, which is
+	// what this column carries. It starts under the band: across the band the
+	// two halves of the strip are one region, and the navbar draws that seam.
+	seam := max(gtx.Dp(1), 1)
+	paint.FillShape(gtx.Ops, vgcolor.Flatten(colors.Separator, colors.SidebarMaterial),
+		clip.Rect(image.Rect(w-seam, top, w, h)).Op())
 	return layout.Dimensions{Size: size}
 }
 

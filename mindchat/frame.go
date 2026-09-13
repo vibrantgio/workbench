@@ -260,9 +260,12 @@ func chromeLead(hidden bool, buttonsEnd unit.Dp) unit.Dp {
 // is stored under: the row says what is open, and "new.jsonl" is not that.
 func chatTitle(gtx layout.Context, m Model, t themed) layout.Dimensions {
 	text, verdict := chatTitleText(m.CurrentChat.Name)
-	colour := t.palette.RowActive
+	// The chrome row stands over the transcript, so its title is the
+	// platform's label over that content. The sidebar's selected-row
+	// foreground is white, and on the light content it paints nothing.
+	colour := t.palette.TurnText
 	if verdict == titleMuted {
-		colour = t.palette.Heading
+		colour = t.palette.Note
 	}
 	semantic.LabelOp(text).Add(gtx.Ops)
 	st := t.typ.TitleSmall
