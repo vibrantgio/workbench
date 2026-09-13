@@ -70,15 +70,17 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   with back/forward, and a backlinks aside. Also the reference for
   document-centric navigation — a history stack, a nesting tree, and the
   shell's aside slot in use. See its [README](./vaultview/README.md).
-- **[`themer/`](./themer)** — the theme colour's chooser, and nothing else.
-  The platform's own accent colour leads the row as the default; drop an
-  image anywhere on the window and the colours it is made of come back as
-  swatches beside it, vivid ones first; or write the colour into the field.
-  What it previews is the platform's colour set with the chosen colour
-  standing in where the platform uses its accent — the set itself, name by
-  name, beside a picture of an application showing the handful of places
-  that colour lands. Keeping it writes the shared theme file every
-  application reads. Also the reference for an OS file drop — a window-wide
+- **[`themer/`](./themer)** — the chooser for the theme colour and for
+  what a theme says about code. The platform's own accent colour leads the
+  row as the default; drop an image anywhere on the window and the colours
+  it is made of come back as swatches beside it, vivid ones first; or write
+  the colour into the field. Under them a plate of two code faces and a
+  column of syntax bases — the half fitted to the appearance on screen —
+  stand beside the fence they land on. What it previews is the platform's
+  colour set with the chosen colour standing in where the platform uses its
+  accent — the set itself, name by name, beside a picture of an application
+  showing the handful of places that colour lands. Keeping it writes the
+  shared theme file every application reads. Also the reference for an OS file drop — a window-wide
   drop zone with its hover highlight, delivered into the MVU loop as
   messages.
 - **[`mindchat/`](./mindchat)** — an OpenAI chat client and the most

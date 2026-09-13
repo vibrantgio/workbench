@@ -3,6 +3,7 @@ package main
 import (
 	"image"
 	stdcolor "image/color"
+	"slices"
 	"testing"
 
 	"gioui.org/gesture"
@@ -39,9 +40,16 @@ func page(t *testing.T, m Model, c tokens.PlatformColors) *image.RGBA {
 // pageAt is page at a window size of the caller's choosing.
 func pageAt(t *testing.T, m Model, c tokens.PlatformColors, size image.Point) *image.RGBA {
 	t.Helper()
+	return pageState(t, m, c, size, newCodeState())
+}
+
+// pageState is pageAt with the code section's own state in the caller's
+// hands, so a test can read the column where it left it.
+func pageState(t *testing.T, m Model, c tokens.PlatformColors, size image.Point, code *codeState) *image.RGBA {
+	t.Helper()
 	clicks := make([]gesture.Click, rowSlots)
-	w := Page(themed{col: c, typ: pinned()}, m, &desktop.ZoneGroup{}, clicks, new(topClicks),
-		list.NewState(), func(gtx layout.Context) layout.Dimensions {
+	w := Page(themed{col: c, typ: pinned(), pinned: true}, m, &desktop.ZoneGroup{}, clicks, new(topClicks),
+		list.NewState(), code, func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(SampleFieldH))}
 		})
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
@@ -162,4 +170,59 @@ func found(img *image.RGBA, want stdcolor.NRGBA) bool {
 		}
 	}
 	return false
+}
+
+// TestTheTwoCodeChoicesAreOnScreen: the window carries both choices it makes
+// about code, under either appearance — the face plate with the chosen name
+// marked, the base column with the applied base marked, and beside them the
+// fence wearing that appearance's own member of the pair.
+//
+// It is the assertion that the section is on screen at all. Every other test
+// in the package reads a part of it; this one is the composition, and it is
+// run twice because a theme's code has two appearances and the window shows
+// one of them at a time.
+func TestTheTwoCodeChoicesAreOnScreen(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		dark bool
+		set  tokens.PlatformColors
+	}{{"under the sun", false, tokens.PlatformLight}, {"under the moon", true, tokens.PlatformDark}} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
+			p := PaletteFrom(tc.set)
+			code := newCodeState()
+			img := pageWith(t, m, tc.set, code)
+
+			// The face plate: the applied name wears the platform's selection.
+			chosen := slices.Index(codeFaces, m.AppliedMono())
+			if chosen < 0 {
+				t.Fatalf("the applied face %q is not one the plate offers", m.AppliedMono())
+			}
+			at := image.Pt(rowFillX(), faceRowY(chosen))
+			if got := img.RGBAAt(at.X, at.Y); !is(got, p.Selection) {
+				t.Errorf("the chosen face's row at %v drew %v, want the platform's selection %v", at, got, p.Selection)
+			}
+			if got := img.RGBAAt(at.X, faceRowY(1-chosen)); is(got, p.Selection) {
+				t.Error("both faces are marked — the plate is not saying which one is applied")
+			}
+
+			// The base column: the applied base is brought into view and
+			// marked, which is where the chooser's own reveal puts it.
+			visible := m.VisibleBases(tc.dark)
+			row := slices.Index(visible, m.BaseAt(tc.dark))
+			if row < 0 {
+				t.Fatalf("the applied base is not on the list this appearance shows")
+			}
+			on := row - max(0, row-baseLead)
+			if got := img.RGBAAt(rowFillX(), baseRowY(on)); !is(got, p.Selection) {
+				t.Errorf("the applied base's row drew %v, want the platform's selection %v", got, p.Selection)
+			}
+
+			// And the fence beside them wears that appearance's own member.
+			fence := CodeStyle(PreviewSet(tc.set, m, tc.dark), tokens.DefaultTypography, m.AppliedBases()).CodeBackground
+			if !found(img, fence) {
+				t.Errorf("the fence's own background %v (from %q) is nowhere in the window", fence, m.Base(tc.dark))
+			}
+		})
+	}
 }

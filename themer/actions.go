@@ -4,6 +4,7 @@ import (
 	"image"
 	stdcolor "image/color"
 
+	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/theme/imageseed"
 )
 
@@ -58,17 +59,38 @@ type HexTyped struct {
 	Text string
 }
 
+// SelectBase chooses the syntax palette code is coloured from, by its
+// position in the chooser's list. Emitted by a click on one of its rows.
+//
+// It carries the appearance the row was clicked under, because that is what
+// the choice is for: the sun's list sets the light palette and the moon's the
+// dark one. The row knows which list it is on; the reducer, which never sees
+// a palette, does not.
+type SelectBase struct {
+	Index int
+	Dark  bool
+}
+
+// SelectMono chooses the typeface fenced code wears. Emitted by a click on
+// one of the two names beside the sample. The name is one of the two the
+// plate offers; anything else is ignored.
+type SelectMono struct {
+	Name string
+}
+
 // KeepSeed asks for the theme colour on screen to outlast the window: it is
 // written to the kept-theme file, where every application that adopts a brand
 // looks for one. Emitted by a click on the keep affordance.
 type KeepSeed struct{}
 
-// SeedKept reports what is now in that file. Follows is the file holding the
-// instruction to follow the system rather than a colour, in which case Seed
-// is the zero colour.
+// SeedKept reports what is now in that file: the colour, the syntax bases and
+// the code face. Follows is the file holding the instruction to follow the
+// system rather than a colour, in which case Seed is the zero colour.
 type SeedKept struct {
 	Seed    stdcolor.NRGBA
 	Follows bool
+	Bases   highlight.BasePair
+	Mono    string
 }
 
 // KeepFailed reports a keep that did not happen, with the reason in the words

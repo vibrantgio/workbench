@@ -720,8 +720,9 @@ the theme colour FOLLOWS THE SYSTEM ("followSystem": true), which is what a
 machine left on the platform's own accent keeps; such a file carries no
 colour at all. The same file may name a code face as "mono": "JetBrains
 Mono" or omitted/empty/unknown, which is Roboto Mono — the same fallback
-"base" already uses. workbench/themer is what writes it, and it writes the
-colour alone: the other keys are read back and written out untouched.
+"base" already uses. workbench/themer is what writes it: the colour, the
+"base" pair and "mono" together, with every other key read back and written
+out untouched.
 Adopting it is one line —
 
   ```go
@@ -1487,20 +1488,26 @@ settings PANEL it opens, whose two preferences apply live under it
 
 ### themer/
 
-The theme colour's chooser, and nothing else. The platform's own accent
-colour leads the row as the default; an image dropped anywhere on the
-window comes back as swatches of the colours it is made of — clustered and
-ranked by theme/imageseed — and a field takes a colour written as a hex
-triplet. Whichever is chosen, what the window previews is the platform's
-set with that colour standing in for the accent: the set itself, name by
-name by reflection, beside a picture of an application where the handful of
-places the colour lands can be seen together. The scheme switch moves the
-preview; the window itself follows the desktop's setting like every other
-app. The reference for OS file drops (mvu/desktop's ZoneGroup + DropTarget
-merged into the loop as messages, a window-wide zone, hover highlight). A
-path argument takes the same path a drop does. Keep writes the colour
-through theme/brand, which is where the other apps read it from — and
-leaves every other key in that file as it found it
+The chooser for the theme colour and for the two things a theme says about
+code. The platform's own accent colour leads the row as the default; an
+image dropped anywhere on the window comes back as swatches of the colours
+it is made of — clustered and ranked by theme/imageseed — and a field takes
+a colour written as a hex triplet. Whichever is chosen, what the window
+previews is the platform's set with that colour standing in for the accent:
+the set itself, name by name by reflection, beside a picture of an
+application where the handful of places the colour lands can be seen
+together. Under the colours, a plate of two code faces (Roboto Mono,
+JetBrains Mono) and a scrolled column of markdown/highlight's syntax bases
+— the half fitted to the appearance on screen — stand beside the fenced
+sample they colour, so a name is chosen in front of what it changes. A base
+is a pair, one member per appearance. The scheme switch moves the preview,
+the list, the marked row and the sample's plate together; the window itself
+follows the desktop's setting like every other app. The reference for OS
+file drops (mvu/desktop's ZoneGroup + DropTarget merged into the loop as
+messages, a window-wide zone, hover highlight). A path argument takes the
+same path a drop does. Keep writes the colour, the base pair and the code
+face through theme/brand, which is where the other apps read them from —
+and leaves every other key in that file as it found it
 
 ### sitedocs/
 

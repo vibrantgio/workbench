@@ -141,6 +141,23 @@ func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup) func(t
 type themed struct {
 	col tokens.PlatformColors
 	typ Type
+	// pinned says the faces are the test suite's rather than the machine's.
+	pinned bool
+}
+
+// codeType is the typography the code sample draws through: the chosen code
+// face applied to the theme's roles. The live path appends emoji the way a
+// kept brand's own typography does, so a fence cannot flash tofu before the
+// stream emits. Tests pin the faces so a render here cannot depend on the
+// machine's font set, and they stay off the colour-emoji face, which no
+// pinned render parses.
+func (t themed) codeType(m Model) (tokens.Typography, *text.Shaper) {
+	applied := tokens.CodeFace(m.AppliedMono())
+	if t.pinned {
+		return applied, applied.DeterministicShaper()
+	}
+	applied = applied.WithEmoji()
+	return applied, applied.Shaper()
 }
 
 // BackdropLayer fills the window. It follows the platform alone: this window
@@ -168,6 +185,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	clicks := make([]gesture.Click, rowSlots)
 	bar := new(topClicks)
 	board := list.NewState()
+	code := newCodeState()
 	hex := input.TextField(th, input.TextFieldProps{
 		Placeholder: HexPlaceholder,
 		Description: "Theme colour, written as a hex triplet",
@@ -183,7 +201,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 	return rx.Map(rx.CombineLatest3(themes, modelObs, hex),
 		func(n rx.Tuple3[themed, Model, layout.Widget]) layout.Widget {
-			return Page(n.First, n.Second, zones, clicks, bar, board, n.Third)
+			return Page(n.First, n.Second, zones, clicks, bar, board, code, n.Third)
 		})
 }
 
@@ -198,14 +216,16 @@ type topClicks struct {
 
 // Page lays the window out and registers it, whole, as the drop zone.
 //
-// Four rows down the page: the title row, the source row — where the colour
+// Five rows down the page: the title row, the source row — where the colour
 // came from, what it is, and the two ways of settling it — the colours on
-// offer, and under them the preview, which gets the room because it is the
-// thing being judged.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, board *list.State, hex layout.Widget) layout.Widget {
+// offer, the two choices this window makes about code with the fence they
+// land on, and under them the preview, which gets the room left because it is
+// the thing being judged.
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, board *list.State, code *codeState, hex layout.Widget) layout.Widget {
 	p := PaletteFrom(t.col)
 	dark := m.Dark(t.col)
 	preview := PreviewSet(t.col, m, dark)
+	typo, shaper := t.codeType(m)
 	var picture paint.ImageOp
 	if m.Preview != nil {
 		picture = paint.NewImageOp(m.Preview)
@@ -230,6 +250,8 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 				rigid(SourceRow(p, t.col, t.typ, m, picture, bar, hex)),
 				spacer(Gap),
 				rigid(SwatchRow(p, t.typ, m, clicks)),
+				spacer(Gap),
+				rigid(fixedH(CodeH, CodeSection(p, t.col, preview, t.typ, typo, shaper, m, dark, code))),
 				spacer(Gap),
 				layout.Flexed(1, Preview(p, preview, t.typ, board)),
 			)
@@ -316,6 +338,16 @@ func SourceRow(p Palette, c tokens.PlatformColors, ty Type, m Model, src paint.I
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		return centreRow(gtx, gtx.Dp(HeadH), gtx.Dp(Gap), slots...)
+	}
+}
+
+// fixedH gives a row a height of its own inside a column that would otherwise
+// hand it everything left over.
+func fixedH(h unit.Dp, inner layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Max.Y = min(gtx.Constraints.Max.Y, gtx.Dp(h))
+		gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
+		return inner(gtx)
 	}
 }
 

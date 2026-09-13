@@ -5,6 +5,7 @@ import (
 
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // Update is the MVU update function. The application's side effects are both
@@ -25,9 +26,11 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			// A theme that follows the system keeps no colour, and credits
 			// no picture for one: the colour is the platform's and changes
 			// after this file is written.
-			return model, KeepTheme(model.KeepPath, stdcolor.NRGBA{}, true, "")
+			return model, KeepTheme(model.KeepPath, stdcolor.NRGBA{}, true,
+				model.AppliedBases(), model.keepMono(), "")
 		}
-		return model, KeepTheme(model.KeepPath, col, false, model.KeepSource())
+		return model, KeepTheme(model.KeepPath, col, false,
+			model.AppliedBases(), model.keepMono(), model.KeepSource())
 	case desktop.FilesDropped:
 		model.DragOver = false
 		if len(msg.Paths) == 0 {
@@ -91,8 +94,28 @@ func ReduceModel(m Model, message any) Model {
 		if col, ok := parseHex(msg.Text); ok {
 			m.Typed, m.From = col, FromHex
 		}
+	case SelectBase:
+		// The appearance the row was clicked under is the one it changes: a
+		// base is fitted to a background, and the list a name was picked off
+		// is the list of names fitted to the background on screen.
+		if msg.Index >= 0 && msg.Index < len(m.Bases) && m.Bases[msg.Index].Suits(msg.Dark) {
+			if msg.Dark {
+				m.DarkAt = msg.Index
+			} else {
+				m.LightAt = msg.Index
+			}
+		}
+	case SelectMono:
+		// Only the two names the plate offers. Anything else — a junk string
+		// arriving as a message — leaves the choice alone.
+		if msg.Name == tokens.CodeFaceJetBrains {
+			m.Mono = tokens.CodeFaceJetBrains
+		} else if msg.Name == tokens.CodeFaceRoboto {
+			m.Mono = ""
+		}
 	case SeedKept:
 		m.Kept, m.KeptFollows = msg.Seed, msg.Follows
+		m.KeptBases, m.KeptMono = msg.Bases, msg.Mono
 		m.Problem = ""
 	case KeepFailed:
 		m.Problem = msg.Reason

@@ -1,4 +1,6 @@
-// Command themer chooses the theme colour, and nothing else.
+// Command themer chooses the theme colour, and the two things a theme says
+// about code: the syntax palette a fence is coloured from and the typeface it
+// is set in.
 //
 // The theme colour is the one colour a person may choose. On macOS it is the
 // accent colour from the system's Appearance settings unless it is chosen
@@ -6,13 +8,20 @@
 // wherever the platform uses its accent — the default button, the selection,
 // the sidebar's pill, the focus ring — and nothing derives from it.
 //
-// So the window offers three ways to settle one colour and one place to see
+// So the window offers three ways to settle that colour and one place to see
 // what it does. The platform's own accent colour leads the row, being the
 // default. Drop a picture anywhere on the window and the colours it is made
 // of come back as swatches beside it, vivid first, one click each. Or write
 // the colour into the field. Keeping it writes the file every application
 // that adopts a brand reads — which holds choices this window does not make,
 // and they are written back untouched.
+//
+// Under the colours stands what a theme says about code: a plate of two code
+// faces, a column of syntax bases — the half of them fitted to the appearance
+// on screen — and beside the two, the fence they land on. A base is a pair,
+// one member per appearance, so the scheme switch swaps the list, the marked
+// row and the colours under the code together. Keeping writes both beside the
+// colour.
 //
 // What is previewed is the platform's set with the chosen colour standing in
 // for the accent, twice over: as the set itself, every name the platform
@@ -69,13 +78,14 @@ func main() {
 // than it names is a subscriber that misses the first one.
 const modelObsConsumers = 1
 
-// Window size: wide enough for the swatch row to lay out without wrapping and
-// for the preview's window and board to stand side by side, and tall enough
-// that the preview is the biggest thing in the window — which it has to be,
-// because it is what is being looked at.
+// Window size: wide enough for the swatch row to lay out without wrapping,
+// for the code section's two choosers to stand beside their sample, and for
+// the preview's window and board to stand side by side; tall enough that the
+// preview is the biggest thing in the window — which it has to be, because it
+// is what is being looked at — with the code section under the colours.
 const (
 	windowW = 1040
-	windowH = 760
+	windowH = 960
 )
 
 // WindowOptions is the window this application opens: the full-size-content

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/brand"
 	"github.com/vibrantgio/theme/imageseed"
@@ -56,17 +57,29 @@ func dropped(t *testing.T) Model {
 	if len(candidates) < 3 {
 		t.Fatalf("the fixture scene yielded %d candidates, want a row to test", len(candidates))
 	}
-	return Model{
-		Preview: preview(img), Name: "scene.png",
-		Candidates: candidates, From: FromImage,
-		Platform: fixturePlatform,
-	}
+	m := withBases()
+	m.Preview, m.Name = preview(img), "scene.png"
+	m.Candidates, m.From = candidates, FromImage
+	m.Platform = fixturePlatform
+	return m
+}
+
+// withBases is the model as the window starts it, as far as the syntax bases
+// and the code face go: every base on offer, sitting on the pair and the face
+// a file holding neither opens on.
+func withBases() Model {
+	m := Model{Bases: baseOptions()}
+	return m.adoptKept(brand.Brand{})
 }
 
 // judging is the model a window is in while somebody is looking at a colour:
-// a picture dropped, a colour chosen out of it, and a platform reporting one
-// of its own beside it.
-func judging() Model { return Model{Platform: fixturePlatform} }
+// nothing dropped, every base on offer, and a platform reporting a colour of
+// its own.
+func judging() Model {
+	m := withBases()
+	m.Platform = fixturePlatform
+	return m
+}
 
 // TestThePlatformsColourIsTheDefault: a window that has been handed nothing
 // is on the platform's own accent colour, which is what an application
@@ -304,7 +317,7 @@ func TestTheWindowsColoursAreThePlatformsNames(t *testing.T) {
 func TestKeepWritesTheColour(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
 	want := stdcolor.NRGBA{R: 0xe8, G: 0x11, B: 0x2d, A: 0xff}
-	msg := keepTheme(path, want, false, "scene.png")
+	msg := keepTheme(path, want, false, highlight.DefaultBases(), "", "scene.png")
 	kept, ok := msg.(SeedKept)
 	if !ok {
 		t.Fatalf("keeping answered %#v, want the colour kept", msg)
@@ -326,7 +339,7 @@ func TestKeepWritesTheColour(t *testing.T) {
 // and changes after the file is written.
 func TestKeepingTheSystemsColourWritesNoColour(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
-	if _, ok := keepTheme(path, stdcolor.NRGBA{}, true, "").(SeedKept); !ok {
+	if _, ok := keepTheme(path, stdcolor.NRGBA{}, true, highlight.DefaultBases(), "", "").(SeedKept); !ok {
 		t.Fatal("keeping the system's colour failed")
 	}
 	back := brand.KeptFrom(path)
@@ -346,10 +359,11 @@ func TestKeepingTheSystemsColourWritesNoColour(t *testing.T) {
 	}
 }
 
-// TestKeepingTheColourLeavesEverythingElseInTheFile: the kept file is shared
-// by every application that adopts a brand and holds choices this window does
-// not make. Choosing a theme colour here must not take one away.
-func TestKeepingTheColourLeavesEverythingElseInTheFile(t *testing.T) {
+// TestKeepingTheColourKeepsTheCodeChoicesTheWindowOpenedOn: the kept file is
+// shared by every application that adopts a brand, and a window that opened
+// on it is wearing what it holds. Settling a colour here must write those
+// choices back rather than replace them with defaults nobody picked.
+func TestKeepingTheColourKeepsTheCodeChoicesTheWindowOpenedOn(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
 	before := brand.Brand{
 		Seed: stdcolor.NRGBA{R: 0x11, G: 0x22, B: 0x33, A: 0xff},
@@ -359,10 +373,16 @@ func TestKeepingTheColourLeavesEverythingElseInTheFile(t *testing.T) {
 	if err := brand.SaveTo(path, before); err != nil {
 		t.Fatal(err)
 	}
+	m := withBases().adoptKept(brand.KeptFrom(path))
+	m.KeepPath = path
 	want := stdcolor.NRGBA{R: 0xe8, G: 0x11, B: 0x2d, A: 0xff}
-	if _, ok := keepTheme(path, want, false, "").(SeedKept); !ok {
-		t.Fatal("keeping the colour failed")
+	m = ReduceModel(m, HexTyped{Text: "#e8112d"})
+	_, cmd := Update(m, KeepSeed{})
+	msg, err := cmd.First()
+	if err != nil {
+		t.Fatalf("the keep command failed: %v", err)
 	}
+	m = ReduceModel(m, msg)
 	back := brand.KeptFrom(path)
 	if back.Seed != want {
 		t.Errorf("the colour is %v, want %v", back.Seed, want)
@@ -373,13 +393,16 @@ func TestKeepingTheColourLeavesEverythingElseInTheFile(t *testing.T) {
 	if back.Mono != before.Mono {
 		t.Errorf("the code face came back as %q, want the %q that was there", back.Mono, before.Mono)
 	}
+	if !m.IsKept() {
+		t.Error("the window does not report the kept theme as kept")
+	}
 }
 
 // TestKeepingSaysWhereItCouldNot: a machine with no config directory is not a
 // reason to refuse to start, so the one thing the window cannot do says so
 // when it is asked.
 func TestKeepingSaysWhereItCouldNot(t *testing.T) {
-	msg := keepTheme("", fixturePlatform, false, "")
+	msg := keepTheme("", fixturePlatform, false, highlight.DefaultBases(), "", "")
 	failed, ok := msg.(KeepFailed)
 	if !ok {
 		t.Fatalf("keeping with nowhere to write answered %#v, want a refusal", msg)
@@ -397,7 +420,8 @@ func TestTheAffordanceConfirmsOnlyWhatIsOnDisk(t *testing.T) {
 		t.Error("a colour nothing has written confirms as kept")
 	}
 	col, _ := m.Color()
-	m = ReduceModel(m, SeedKept{Seed: col})
+	kept := SeedKept{Seed: col, Bases: m.AppliedBases(), Mono: m.keepMono()}
+	m = ReduceModel(m, kept)
 	if !m.IsKept() {
 		t.Error("the colour just written does not confirm as kept")
 	}
@@ -405,7 +429,8 @@ func TestTheAffordanceConfirmsOnlyWhatIsOnDisk(t *testing.T) {
 	if m.IsKept() {
 		t.Error("following the system confirms against a file holding a colour")
 	}
-	m = ReduceModel(m, SeedKept{Follows: true})
+	kept.Seed, kept.Follows = stdcolor.NRGBA{}, true
+	m = ReduceModel(m, kept)
 	if !m.IsKept() {
 		t.Error("following the system does not confirm against a file that follows too")
 	}
