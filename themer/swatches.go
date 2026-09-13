@@ -158,7 +158,7 @@ func Cell(gtx layout.Context, p Palette, ty Type, c cell, click *gesture.Click, 
 	fill, edge, foreground := p.Surface, p.Edge, p.CardMuted
 	switch {
 	case c.chosen:
-		fill, edge, foreground = p.Selection, p.Selection, p.OnAccent
+		fill, edge, foreground = p.Selection, p.Selection, p.AccentForeground
 	case click.Hovered():
 		fill = p.Hover
 	}

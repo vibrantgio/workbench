@@ -114,11 +114,11 @@ func WindowOptions() []app.Option {
 // drawing no cell for it.
 func platformColors(interval time.Duration) rx.Observable[mvu.Message] {
 	return rx.Map(specsystem.Live(interval), func(a specsystem.Appearance) mvu.Message {
-		seed, ok := specsystem.PlatformColor(a)
+		col, ok := specsystem.PlatformColor(a)
 		if !ok {
-			seed = stdcolor.NRGBA{}
+			col = stdcolor.NRGBA{}
 		}
-		return PlatformColorChanged{Color: seed}
+		return PlatformColorChanged{Color: col}
 	})
 }
 

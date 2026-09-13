@@ -13,8 +13,8 @@ import (
 	"github.com/vibrantgio/patterns/testimonial"
 )
 
-// heroContent returns Hero props. Primary CTA may scroll to pricing;
-// secondary stays visual.
+// heroContent returns Hero props. The primary CTA may scroll to pricing;
+// the secondary CTA stays visual.
 func heroContent(seePlans func(gtx layout.Context)) hero.Props {
 	return hero.Props{
 		Title:        "SimpleApps",

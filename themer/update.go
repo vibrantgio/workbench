@@ -14,7 +14,7 @@ import (
 // twenty-megapixel decode.
 func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 	switch msg := message.(type) {
-	case KeepSeed:
+	case KeepColor:
 		col, ok := model.Color()
 		if !ok {
 			// There is no colour on screen, so there is nothing to keep.
@@ -113,8 +113,8 @@ func ReduceModel(m Model, message any) Model {
 		} else if msg.Name == tokens.CodeFaceRoboto {
 			m.Mono = ""
 		}
-	case SeedKept:
-		m.Kept, m.KeptFollows = msg.Seed, msg.Follows
+	case ColorKept:
+		m.Kept, m.KeptFollows = msg.ThemeColor, msg.Follows
 		m.KeptBases, m.KeptMono = msg.Bases, msg.Mono
 		m.Problem = ""
 	case KeepFailed:

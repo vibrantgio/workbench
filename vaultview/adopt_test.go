@@ -81,7 +81,7 @@ func TestTheKeptBasesColourTheCode(t *testing.T) {
 	// default in either appearance.
 	keptPair := brand.BasePair{Light: "solarized-light", Dark: "monokai"}
 	path := filepath.Join(t.TempDir(), "theme.json")
-	if err := brand.SaveTo(path, brand.Brand{Seed: harbourRed, Base: keptPair, Source: "harbour.jpg"}); err != nil {
+	if err := brand.SaveTo(path, brand.Brand{ThemeColor: harbourRed, Base: keptPair, Source: "harbour.jpg"}); err != nil {
 		t.Fatalf("keep: %v", err)
 	}
 	kept := brand.KeptFrom(path)
@@ -190,7 +190,7 @@ func TestAnUnknownKeptBaseFallsBackToTheDefault(t *testing.T) {
 			highlight.BasePair{Light: d.Light, Dark: "monokai"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := adoptCodeBases(brand.Brand{Seed: harbourRed, Base: tc.kept}); got != tc.want {
+			if got := adoptCodeBases(brand.Brand{ThemeColor: harbourRed, Base: tc.kept}); got != tc.want {
 				t.Errorf("a kept %+v was adopted as %+v, want %+v", tc.kept, got, tc.want)
 			}
 		})

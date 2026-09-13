@@ -147,7 +147,7 @@ older answer, they are gone, not deprecated:
     and it is why theme no longer depends on effects at all);
   - the generated colour set and every derivation behind it. A component
     takes tokens.PlatformColors and reads a name; there is no set to
-    generate, no colour to walk toward and no on-colour to resolve.
+    generate, no colour to walk toward and no foreground to resolve.
     §Colour has the vocabulary that replaced it;
   - the level argument. A component that draws an alpha name onto what it
     stands on takes a Surface colour instead, and one standing on its own
@@ -633,7 +633,7 @@ accent colour from the system's Appearance settings unless the user picks
 another in workbench/themer; on other platforms the themer sets it. It
 STANDS IN wherever the platform uses its accent — the default button, the
 selection, the sidebar's pill, the focus ring — and nothing else derives
-from it: no ramp, no palette, no second hue.
+from it: nothing is derived, no palette, no second hue.
 
 ### The names, by what they answer for
 
@@ -804,8 +804,8 @@ thing by its shadow. A field inside a card is raised on the card the same
 way. Cards do not nest: grouping within a card is its structure.
 
 Do not expect the levels to stand far apart. On macOS 26 the light
-appearance draws the window's plane, the content's fill and the chrome
-material as the same white, so THE SEAM IS WHAT SEPARATES THEM — a
+appearance draws the window's plane, the content's fill and the
+chrome material as the same white, so THE SEAM IS WHAT SEPARATES THEM — a
 Separator hairline over whatever is beneath. In the dark appearance the
 chrome material reads on its own.
 
@@ -844,8 +844,8 @@ backwards.
     header, a dialog's footer, a table's header row — is that thing's
     structure and is not chrome.
   - A FLOATING CHROME PANE IS STILL CHROME. A sidebar a button slides out
-    of the window, an inspector that detaches, still fills with the chrome
-    material; what says it is a floating object is its own hairline edge
+    of the window, an inspector that detaches, still fills with the
+    chrome material; what says it is a floating object is its own hairline edge
     and its shadow. Do not re-derive that object per window: patterns/pane
     IS the floating pane — the inset from the leading, top and bottom
     edges, the rounded corners, the hairline drawn inside them, a top strip
@@ -931,7 +931,7 @@ rationale document:
 ## Motion
 
 tokens.MotionScale is the animation vocabulary, on the theme as the Motion
-observable. MD3's motion semantics at desktop pace:
+observable. The motion semantics, at desktop pace:
 
   - DURATION STOPS, fastest to slowest: DurXFast 50 ms (hover feedback),
     DurFast 150 ms (small transitions), DurNormal 250 ms (standard
@@ -939,7 +939,7 @@ observable. MD3's motion semantics at desktop pace:
     (the ceiling; also the tooltip delay). Take durations from these stops,
     never from local constants — effects/motion's frame counts, toast's fade
     and tooltip's delay all resolve from the theme already.
-  - EASINGS: the MD3 standard and emphasized families, each with
+  - EASINGS: the standard and emphasized families, each with
     accelerate (exit) and decelerate (enter) variants, as cubic-bezier
     control points (tokens.Bezier).
   - SPRINGS, for the effects physics path: SpringDefault (critically damped,
@@ -1024,10 +1024,10 @@ correct type:
   ```
 
 The contract lives in theme/tokens.Typography: one tokens.TextStyle per
-Material Design 3 type role — Display, Headline, Title, Label and Body,
+type role — Display, Headline, Title, Label and Body,
 each Large/Medium/Small, fifteen roles in all — plus Code, a sixteenth
-style outside the MD3 grid: BodyMedium's metrics on the mono face, the
-style code renders in (MD3 has no code role, so the org added one) — plus
+style outside that grid: BodyMedium's metrics on the mono face, the
+style code renders in (the scale has no code role, so the org added one) — plus
 DocumentHeadings, a tokens.DocumentHeadingScale of six TextStyle stops for
 prose surfaces, stepped off BodyLarge (1.6× body down to 0.875×, bold
 throughout) because the Display and Headline roles size a screen's one
@@ -1309,12 +1309,12 @@ rather than strokes because Gio's clip.Stroke exposes neither cap nor join,
 and non-zero winding for holes. Read it before drawing — every number there
 is a measurement, not a preference.
 
-### The Material catalogue
+### The Material Design icon catalogue
 
 For a glyph outside the standard controls (a settings button, play/record
 controls, a close X), use the Material Design icons published as IconVG
 data in golang.org/x/exp/shiny/materialdesign/icons (961 icons, frozen 2016
-Material set) and render them with ivg/raster/gio:
+Material Design icons set) and render them with ivg/raster/gio:
 
   ```go
   import (
@@ -1334,7 +1334,7 @@ glyph, a label weight otherwise, flattened onto the fill it lands on —
 never a hard-coded colour, and that holds for a mark as much as for a
 catalogue glyph.
 Run `go run ./iconbrowser/` (in the workbench repo) to see both sets: the
-marks at the sizes controls draw them, over the searchable Material grid.
+marks at the sizes controls draw them, over the searchable Material Design icons grid.
 
 ### Arbitrary SVG assets
 
@@ -1346,9 +1346,9 @@ mindchat/assets.go for the embedded-asset pattern).
 
 ### Reach for the set first
 
-Reach for the set first where it carries the mark, and use the Material
-catalogue freely everywhere else: an icon that may be replaced later beats
-no icon, and a Material glyph swaps out behind the same call site when the set
+Reach for the set first where it carries the mark, and use the
+Material Design icons catalogue freely everywhere else: an icon that may be replaced
+later beats no icon, and one of its glyphs swaps out behind the same call site when the set
 grows a mark for it. Do not plumb shiny icons into components/button
 Props.Icon — that field wants the painter func(gtx, sizePx, col) the set
 returns, not a layout.Widget; keep IVG icons in your own clickable until an
@@ -1437,7 +1437,7 @@ off a headless frame instead of off the palette that meant them
 ### iconbrowser/
 
 Both icon sets in one window: components/icons at the sizes controls draw
-them, over the searchable Material grid — components TextField with
+them, over the searchable Material Design icons grid — components TextField with
 per-keystroke MessageOp updates, subscription-scoped scroll and editor
 state, ivg icon rendering at scale
 
@@ -1491,7 +1491,7 @@ settings PANEL it opens, whose two preferences apply live under it
 The chooser for the theme colour and for the two things a theme says about
 code. The platform's own accent colour leads the row as the default; an
 image dropped anywhere on the window comes back as swatches of the colours
-it is made of — clustered and ranked by theme/imageseed — and a field takes
+it is made of — clustered and ranked by theme/imagecolor — and a field takes
 a colour written as a hex triplet. Whichever is chosen, what the window
 previews is the platform's set with that colour standing in for the accent:
 the set itself, name by name by reflection, beside a picture of an

@@ -241,7 +241,7 @@ type docEntry struct {
 // the reader to, and the mark then leaves by itself, so the duration is the
 // one this house already gives a mark that leaves by itself: the toast's
 // lifetime, faded over the trailing slice a toast tweens its alpha over,
-// which is the motion scale's DurSlow stop (MD3 medium4, 400 ms).
+// which is the motion scale's DurSlow stop (400 ms).
 var (
 	arrivalLife = notifications.DefaultLifetime
 	arrivalFade = tokens.Motion.DurSlow

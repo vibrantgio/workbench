@@ -223,7 +223,7 @@ func TestTheWindowOpensOnTheKeptBases(t *testing.T) {
 		{"one light base from a file that predates the pair", brand.BasePair{Light: "github", Dark: "github"}, "github", d.Dark},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := m.adoptKept(brand.Brand{Seed: sceneAccent, Base: tc.kept})
+			got := m.adoptKept(brand.Brand{ThemeColor: sceneAccent, Base: tc.kept})
 			if got.Base(false) != tc.light || got.Base(true) != tc.dark {
 				t.Errorf("opened on %q under the sun and %q under the moon, want %q and %q",
 					got.Base(false), got.Base(true), tc.light, tc.dark)
@@ -596,7 +596,7 @@ func TestBothMembersOfThePairAreKept(t *testing.T) {
 			m := ReduceModel(paired(t), SetScheme{Dark: tc.dark})
 			m.KeepPath = path
 			m = ReduceModel(m, HexTyped{Text: "#e8112d"})
-			_, cmd := Update(m, KeepSeed{})
+			_, cmd := Update(m, KeepColor{})
 			msg, err := cmd.First()
 			if err != nil {
 				t.Fatalf("the keep command failed: %v", err)
@@ -626,7 +626,7 @@ func TestKeepingWritesTheBasesBesideTheColour(t *testing.T) {
 	m := ReduceModel(judging(), HexTyped{Text: "#e8112d"})
 	m.KeepPath = path
 	m = pick(m, "monokai", true)
-	_, cmd := Update(m, KeepSeed{})
+	_, cmd := Update(m, KeepColor{})
 	msg, err := cmd.First()
 	if err != nil {
 		t.Fatalf("the keep command failed: %v", err)
@@ -636,8 +636,8 @@ func TestKeepingWritesTheBasesBesideTheColour(t *testing.T) {
 	if kept.Base.Dark != "monokai" || kept.Base.Light != highlight.DefaultBase {
 		t.Errorf("the file holds %+v, want monokai under the moon and the default under the sun", kept.Base)
 	}
-	if col, _ := m.Color(); kept.Seed != col {
-		t.Errorf("the file holds the colour %v, want %v", kept.Seed, col)
+	if col, _ := m.Color(); kept.ThemeColor != col {
+		t.Errorf("the file holds the colour %v, want %v", kept.ThemeColor, col)
 	}
 	if !m.IsKept() {
 		t.Error("the window does not report the kept choice as kept")

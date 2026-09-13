@@ -13,7 +13,7 @@ import (
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/brand"
-	"github.com/vibrantgio/theme/imageseed"
+	"github.com/vibrantgio/theme/imagecolor"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -27,7 +27,7 @@ type Model struct {
 	// Name is the dropped file's base name, shown beside the picture.
 	Name string
 	// Candidates are the colours the picture offers, most prominent first.
-	Candidates []imageseed.Candidate
+	Candidates []imagecolor.Candidate
 	// Selected indexes Candidates. It is 0 on a fresh extraction, so the
 	// leading colour is the one a drop lands on.
 	Selected int
@@ -384,7 +384,7 @@ func Init() (Model, mvu.Command) {
 	if kept.Chosen() {
 		// A window opens on the colour that was kept, so the first frame
 		// previews the theme every other application is already wearing.
-		m.From, m.Typed, m.Text = FromHex, kept.Seed, hexOf(kept.Seed)
+		m.From, m.Typed, m.Text = FromHex, kept.ThemeColor, hexOf(kept.ThemeColor)
 	}
 	if len(os.Args) > 1 {
 		return m, LoadImage(os.Args[1])
@@ -407,7 +407,7 @@ func Init() (Model, mvu.Command) {
 // Unknown, empty, or "Roboto Mono" all open on Roboto Mono. Only JetBrains
 // Mono is a selection this window can restore.
 func (m Model) adoptKept(kept brand.Brand) Model {
-	m.Kept, m.KeptFollows = kept.Seed, kept.FollowSystem
+	m.Kept, m.KeptFollows = kept.ThemeColor, kept.FollowSystem
 	m.KeptBases = highlight.BasesOrDefault(kept.Base.Names())
 	m.LightAt = baseIndex(m.Bases, m.KeptBases.Light, false)
 	m.DarkAt = baseIndex(m.Bases, m.KeptBases.Dark, true)

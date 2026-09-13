@@ -24,7 +24,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
-	"github.com/vibrantgio/theme/imageseed"
+	"github.com/vibrantgio/theme/imagecolor"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -92,7 +92,7 @@ const dropZone = 0
 
 // rowSlots is how many press targets the swatch row can want: one per colour
 // the extraction can return, and one more for the platform's own.
-const rowSlots = imageseed.DefaultMax + 1
+const rowSlots = imagecolor.DefaultMax + 1
 
 // ButtonPlacement is where the window's own control buttons stand: the
 // leading edge of the group of three, and the line their centres sit on, both
@@ -394,7 +394,7 @@ func KeepButton(c tokens.PlatformColors, ty Type, m Model, click *gesture.Click)
 				break
 			}
 			if e.Kind == gesture.KindClick {
-				mvu.MessageOp{Message: KeepSeed{}}.Add(gtx.Ops)
+				mvu.MessageOp{Message: KeepColor{}}.Add(gtx.Ops)
 			}
 		}
 		return dims
@@ -418,7 +418,7 @@ func Thumbnail(p Palette, ty Type, m Model, src paint.ImageOp) layout.Widget {
 		if m.Preview == nil {
 			foreground := p.CardMuted
 			if m.DragOver {
-				foreground = p.OnAccent
+				foreground = p.AccentForeground
 			}
 			textdraw.FillText(gtx, ty.Shaper, ty.Small, r, 0.5, 0.5, foreground, "Drop an image")
 			return layout.Dimensions{Size: size}
@@ -449,9 +449,9 @@ func Thumbnail(p Palette, ty Type, m Model, src paint.ImageOp) layout.Widget {
 // width is clipped — the height is left open, because a clip tight enough to
 // cut a descender is a bug of its own.
 func Identity(p Palette, ty Type, m Model) layout.Widget {
-	name, hint, tone := IdentityName(m), IdentityHint(m), p.Muted
+	name, hint, hintColor := IdentityName(m), IdentityHint(m), p.Muted
 	if m.Problem != "" {
-		hint, tone = m.Problem, p.Problem
+		hint, hintColor = m.Problem, p.Problem
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		line := gtx.Dp(LineH)
@@ -463,7 +463,7 @@ func Identity(p Palette, ty Type, m Model) layout.Widget {
 		size := image.Pt(w, 2*line)
 		guard := clip.Rect(image.Rect(0, -size.Y, size.X, 2*size.Y)).Push(gtx.Ops)
 		textdraw.FillText(gtx, ty.Shaper, ty.Body, image.Rect(0, 0, size.X, line), 0, 0.5, p.Text, name)
-		textdraw.FillText(gtx, ty.Shaper, ty.Small, image.Rect(0, line, size.X, 2*line), 0, 0.5, tone, hint)
+		textdraw.FillText(gtx, ty.Shaper, ty.Small, image.Rect(0, line, size.X, 2*line), 0, 0.5, hintColor, hint)
 		guard.Pop()
 		return layout.Dimensions{Size: size}
 	}

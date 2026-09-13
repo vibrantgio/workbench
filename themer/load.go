@@ -15,7 +15,7 @@ import (
 	xdraw "golang.org/x/image/draw"
 
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/theme/imageseed"
+	"github.com/vibrantgio/theme/imagecolor"
 )
 
 // previewMax is the longest edge the on-screen picture is reduced to. It is
@@ -44,7 +44,7 @@ func loadImage(path string) mvu.Message {
 	if err != nil {
 		return ImageRejected{Path: path, Reason: filepath.Base(path) + " is not an image this reads (PNG, JPEG and GIF are)"}
 	}
-	candidates := imageseed.Extract(img)
+	candidates := imagecolor.Extract(img)
 	if len(candidates) == 0 {
 		return ImageRejected{Path: path, Reason: filepath.Base(path) + " has no visible colour in it"}
 	}

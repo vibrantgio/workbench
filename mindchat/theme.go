@@ -23,8 +23,8 @@ import (
 //
 // Which platform name each place takes is what the window IS on macOS, not
 // this app's invention: the transcript is the content, so it wears
-// ControlBackground; the conversation pane is chrome, so it wears the chrome
-// material a sidebar carries; a surface that appears and leaves — the
+// ControlBackground; the conversation pane is chrome, so it wears the
+// chrome material a sidebar carries; a surface that appears and leaves — the
 // settings dialog, the model menu, the undo bar — is a floating surface and
 // wears the window's own plane under the platform's shadow. Every
 // alpha-carrying name is flattened onto the fill it lands on, in encoded

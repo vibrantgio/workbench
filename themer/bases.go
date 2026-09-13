@@ -231,11 +231,11 @@ func ChoiceRow(gtx layout.Context, p Palette, ty Type, name, tag string, chosen 
 	pad := gtx.Dp(BasePad)
 	foreground := p.CardMuted
 	if chosen {
-		foreground = p.OnAccent
+		foreground = p.AccentForeground
 		// Nearly the row's full height: a stub a third of the row tall reads
 		// as a stray mark rather than as a marker.
 		mark := image.Rect(0, h/8, gtx.Dp(BaseMark), h-h/8)
-		fillRRect(gtx, mark, gtx.Dp(BaseMark)/2, p.OnAccent)
+		fillRRect(gtx, mark, gtx.Dp(BaseMark)/2, p.AccentForeground)
 	}
 	text := image.Rect(pad+gtx.Dp(BaseMark), 0, size.X-pad, h)
 	// A word at the far end for the two things about a name that are not

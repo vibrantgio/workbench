@@ -11,7 +11,7 @@ import (
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/brand"
-	"github.com/vibrantgio/theme/imageseed"
+	"github.com/vibrantgio/theme/imagecolor"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -53,7 +53,7 @@ func scene(w, h int) *image.NRGBA {
 func dropped(t *testing.T) Model {
 	t.Helper()
 	img := scene(480, 360)
-	candidates := imageseed.Extract(img)
+	candidates := imagecolor.Extract(img)
 	if len(candidates) < 3 {
 		t.Fatalf("the fixture scene yielded %d candidates, want a row to test", len(candidates))
 	}
@@ -289,7 +289,7 @@ func TestTheWindowsColoursAreThePlatformsNames(t *testing.T) {
 			{"a card", p.Surface, c.CardFill},
 			{"the accent", p.Accent, c.ControlAccent},
 			{"the selection", p.Selection, c.SelectedContentBackground},
-			{"what reads on it", p.OnAccent, c.AlternateSelectedControlText},
+			{"what reads on it", p.AccentForeground, c.AlternateSelectedControlText},
 			{"a problem", p.Problem, c.SystemRed},
 		} {
 			if row.got != row.want {
@@ -318,16 +318,16 @@ func TestKeepWritesTheColour(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
 	want := stdcolor.NRGBA{R: 0xe8, G: 0x11, B: 0x2d, A: 0xff}
 	msg := keepTheme(path, want, false, highlight.DefaultBases(), "", "scene.png")
-	kept, ok := msg.(SeedKept)
+	kept, ok := msg.(ColorKept)
 	if !ok {
 		t.Fatalf("keeping answered %#v, want the colour kept", msg)
 	}
-	if kept.Seed != want || kept.Follows {
-		t.Errorf("keeping answered %v (follows %t), want %v", kept.Seed, kept.Follows, want)
+	if kept.ThemeColor != want || kept.Follows {
+		t.Errorf("keeping answered %v (follows %t), want %v", kept.ThemeColor, kept.Follows, want)
 	}
 	back := brand.KeptFrom(path)
-	if back.Seed != want {
-		t.Errorf("the file came back as %v, want %v", back.Seed, want)
+	if back.ThemeColor != want {
+		t.Errorf("the file came back as %v, want %v", back.ThemeColor, want)
 	}
 	if back.Source != "scene.png" {
 		t.Errorf("the file credits %q, want the picture it came out of", back.Source)
@@ -339,12 +339,12 @@ func TestKeepWritesTheColour(t *testing.T) {
 // and changes after the file is written.
 func TestKeepingTheSystemsColourWritesNoColour(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
-	if _, ok := keepTheme(path, stdcolor.NRGBA{}, true, highlight.DefaultBases(), "", "").(SeedKept); !ok {
+	if _, ok := keepTheme(path, stdcolor.NRGBA{}, true, highlight.DefaultBases(), "", "").(ColorKept); !ok {
 		t.Fatal("keeping the system's colour failed")
 	}
 	back := brand.KeptFrom(path)
 	if !back.FollowSystem || back.Chosen() {
-		t.Errorf("the file holds follows=%t seed=%v, want the instruction and no colour", back.FollowSystem, back.Seed)
+		t.Errorf("the file holds follows=%t colour=%v, want the instruction and no colour", back.FollowSystem, back.ThemeColor)
 	}
 	var raw map[string]any
 	data, err := os.ReadFile(path)
@@ -354,8 +354,8 @@ func TestKeepingTheSystemsColourWritesNoColour(t *testing.T) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := raw["seed"]; ok {
-		t.Error("the file carries a seed key, which a reader written before the flag would pin")
+	if _, ok := raw["themeColour"]; ok {
+		t.Error("the file carries a theme-colour key, which a reader written before the flag would pin")
 	}
 }
 
@@ -366,9 +366,9 @@ func TestKeepingTheSystemsColourWritesNoColour(t *testing.T) {
 func TestKeepingTheColourKeepsTheCodeChoicesTheWindowOpenedOn(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
 	before := brand.Brand{
-		Seed: stdcolor.NRGBA{R: 0x11, G: 0x22, B: 0x33, A: 0xff},
-		Base: brand.BasePair{Light: "catppuccin-latte", Dark: "catppuccin-mocha"},
-		Mono: tokens.CodeFaceJetBrains,
+		ThemeColor: stdcolor.NRGBA{R: 0x11, G: 0x22, B: 0x33, A: 0xff},
+		Base:       brand.BasePair{Light: "catppuccin-latte", Dark: "catppuccin-mocha"},
+		Mono:       tokens.CodeFaceJetBrains,
 	}
 	if err := brand.SaveTo(path, before); err != nil {
 		t.Fatal(err)
@@ -377,15 +377,15 @@ func TestKeepingTheColourKeepsTheCodeChoicesTheWindowOpenedOn(t *testing.T) {
 	m.KeepPath = path
 	want := stdcolor.NRGBA{R: 0xe8, G: 0x11, B: 0x2d, A: 0xff}
 	m = ReduceModel(m, HexTyped{Text: "#e8112d"})
-	_, cmd := Update(m, KeepSeed{})
+	_, cmd := Update(m, KeepColor{})
 	msg, err := cmd.First()
 	if err != nil {
 		t.Fatalf("the keep command failed: %v", err)
 	}
 	m = ReduceModel(m, msg)
 	back := brand.KeptFrom(path)
-	if back.Seed != want {
-		t.Errorf("the colour is %v, want %v", back.Seed, want)
+	if back.ThemeColor != want {
+		t.Errorf("the colour is %v, want %v", back.ThemeColor, want)
 	}
 	if back.Base != before.Base {
 		t.Errorf("the syntax bases came back as %v, want the %v that were there", back.Base, before.Base)
@@ -420,7 +420,7 @@ func TestTheAffordanceConfirmsOnlyWhatIsOnDisk(t *testing.T) {
 		t.Error("a colour nothing has written confirms as kept")
 	}
 	col, _ := m.Color()
-	kept := SeedKept{Seed: col, Bases: m.AppliedBases(), Mono: m.keepMono()}
+	kept := ColorKept{ThemeColor: col, Bases: m.AppliedBases(), Mono: m.keepMono()}
 	m = ReduceModel(m, kept)
 	if !m.IsKept() {
 		t.Error("the colour just written does not confirm as kept")
@@ -429,7 +429,7 @@ func TestTheAffordanceConfirmsOnlyWhatIsOnDisk(t *testing.T) {
 	if m.IsKept() {
 		t.Error("following the system confirms against a file holding a colour")
 	}
-	kept.Seed, kept.Follows = stdcolor.NRGBA{}, true
+	kept.ThemeColor, kept.Follows = stdcolor.NRGBA{}, true
 	m = ReduceModel(m, kept)
 	if !m.IsKept() {
 		t.Error("following the system does not confirm against a file that follows too")

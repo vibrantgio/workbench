@@ -118,7 +118,7 @@ type asideForegroundTiers struct {
 // asideForegrounds resolves the tiers against the surface the column stands
 // on. The platform speaks its text in four strengths and this column uses
 // three of them; each is a coverage, so each is flattened onto the chrome
-// material the column is painted in.
+// chrome material the column is painted in.
 func asideForegrounds(tok themeTokens) asideForegroundTiers {
 	surface := chromeSurface(tok.col)
 	return asideForegroundTiers{

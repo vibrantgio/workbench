@@ -39,7 +39,7 @@ type hoverState struct {
 func chartPanels(t themed, m Model, hov *hoverState) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if len(m.History) < 2 {
-			return textLine(t.typ, t.typ.Body, t.palette.Secondary, "collecting samples…")(gtx)
+			return textLine(t.typ, t.typ.Body, t.palette.SecondaryLabel, "collecting samples…")(gtx)
 		}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, "Output voltage (V)")),
@@ -156,7 +156,7 @@ func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 			x := r.Min.X + int(ax*float64(r.Dx()-sz.X))
 			y := r.Min.Y + int(ay*float64(r.Dy()-sz.Y))
 			rect := image.Rectangle{Min: image.Pt(x, y), Max: image.Pt(x+sz.X, y+sz.Y)}
-			textdraw.FillText(gtx, typ.Shaper, typ.Small, rect, 0, 0.5, p.Secondary, txt)
+			textdraw.FillText(gtx, typ.Shaper, typ.Small, rect, 0, 0.5, p.SecondaryLabel, txt)
 		}
 		in := plot.Inset(inset)
 		label(fmt.Sprintf(valFmt, hi), 0, 0, in)
@@ -168,7 +168,7 @@ func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 		// sample's value and age in the top-right corner.
 		if hov.active {
 			cx := plot.Min.X + int(hov.frac*float64(plot.Dx()))
-			paint.FillShape(gtx.Ops, p.Secondary,
+			paint.FillShape(gtx.Ops, p.SecondaryLabel,
 				clip.Rect(image.Rect(cx, plot.Min.Y, cx+1, plot.Max.Y)).Op())
 			s := nearestSample(samples, t0.Add(time.Duration(hov.frac*float64(span))))
 			txt := fmt.Sprintf(valFmt, sel(s)) + " · -" + fmtAge(last.At.Sub(s.At))

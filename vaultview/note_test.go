@@ -497,7 +497,7 @@ func TestThePropertiesSlabStandsOnThePage(t *testing.T) {
 				t.Errorf("the panel's edges stand %d px apart; it holds several rows of pairs and cannot be that thin", h)
 			}
 			// Nothing to check here for a band of the chrome material: on
-			// this platform that material IS the content's white in the
+			// this platform that chrome material IS the content's white in the
 			// light appearance, so a band of it inside the panel is a band
 			// of the page. What the panel stands on is read below instead.
 			// The rows between the pairs carry nothing across the measure, so

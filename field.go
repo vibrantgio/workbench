@@ -70,7 +70,7 @@ type fieldPalette struct {
 
 // paletteFrom derives the field's palette from the platform's colour set: the
 // hue family follows the platform's accent, and the value range keeps the
-// field a faint backdrop — deep tones on a dark plane, pastel on a light one —
+// field a faint backdrop — deep colours on a dark plane, pastel on a light one —
 // so the hero text and the groups floating on it stay readable.
 func paletteFrom(c tokens.PlatformColors) fieldPalette {
 	hue, _, _ := rgbToHSL(c.ControlAccent)

@@ -305,7 +305,7 @@ func TestWholeWindowRender(t *testing.T) {
 // TestTheBackdropReachesTheWindowsTopEdge pins that the strip shows the
 // full-bleed plane already painted under it rather than a second fill drawn
 // over it, which is why nothing in this app paints a band of the chrome
-// material. The strip must be that plane and nothing else: no page paint in
+// chrome material. The strip must be that plane and nothing else: no page paint in
 // it, and no unpainted glass.
 func TestTheBackdropReachesTheWindowsTopEdge(t *testing.T) {
 	for _, tc := range windowSchemes {

@@ -2,8 +2,7 @@ package main
 
 // Headless confirmations for the F1.5 migration: the chat bodies' markdown
 // style resolves the THEME's mono code face (the F1.4 technique), and the
-// app palette derives from the ramps and pins rather than the deprecated
-// MD3 aliases or stale literals.
+// app palette reads the platform's own names rather than stale literals.
 
 import (
 	"image"

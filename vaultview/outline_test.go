@@ -1003,7 +1003,7 @@ func asideShotFrom(t *testing.T, m Model, col tokens.PlatformColors, h int, atEn
 // asideDrawnAt answers where the paint between two rows of the captured
 // column starts — its leading column and its first row, or -1, -1 for a
 // band of bare surface. over is the fill lying under that band: the chrome
-// material where the rows are bare, one of the pattern's two selection
+// chrome material where the rows are bare, one of the pattern's two selection
 // fills where a row is spoken for. Both it and the chrome are read as
 // surface, and so is any blend of the two, because a pill's rounded corner
 // ramps from one to the other over two or three pixels and the emphasized

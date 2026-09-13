@@ -50,11 +50,11 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 	}).First()
 
 	// The text is a plain clickable label, not a button: a completed todo
-	// drops to the secondary strength.
+	// drops to the second strength.
 	var editClick widget.Clickable
 	textColor := p.Label
 	if item.Completed {
-		textColor = p.Secondary
+		textColor = p.SecondaryLabel
 	}
 	label := func(gtx layout.Context) layout.Dimensions {
 		if editClick.Clicked(gtx) {

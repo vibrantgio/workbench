@@ -178,7 +178,7 @@ func outputCluster(t themed, r Reading) layout.Widget {
 		stackX := totalH - totalH*7/24 + gtx.Dp(2)
 		badgeBox(gtx, t, "ON", p.Volt, r.On,
 			image.Rect(stackX, 0, stackX+boxW, boxH))
-		badgeBox(gtx, t, "OFF", p.Secondary, !r.On,
+		badgeBox(gtx, t, "OFF", p.SecondaryLabel, !r.On,
 			image.Rect(stackX, boxH+gap, stackX+boxW, totalH))
 		return layout.Dimensions{Size: image.Pt(stackX+boxW, totalH)}
 	}

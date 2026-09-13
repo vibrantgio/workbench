@@ -5,7 +5,7 @@ import (
 	stdcolor "image/color"
 
 	"github.com/vibrantgio/markdown/highlight"
-	"github.com/vibrantgio/theme/imageseed"
+	"github.com/vibrantgio/theme/imagecolor"
 )
 
 // ImageLoaded reports a picture read, decoded and reduced to the colours it
@@ -15,7 +15,7 @@ import (
 type ImageLoaded struct {
 	Path       string
 	Preview    *image.NRGBA
-	Candidates []imageseed.Candidate
+	Candidates []imagecolor.Candidate
 }
 
 // ImageRejected reports a drop that produced no colours, with the reason in
@@ -78,19 +78,19 @@ type SelectMono struct {
 	Name string
 }
 
-// KeepSeed asks for the theme colour on screen to outlast the window: it is
+// KeepColor asks for the theme colour on screen to outlast the window: it is
 // written to the kept-theme file, where every application that adopts a brand
 // looks for one. Emitted by a click on the keep affordance.
-type KeepSeed struct{}
+type KeepColor struct{}
 
-// SeedKept reports what is now in that file: the colour, the syntax bases and
+// ColorKept reports what is now in that file: the colour, the syntax bases and
 // the code face. Follows is the file holding the instruction to follow the
-// system rather than a colour, in which case Seed is the zero colour.
-type SeedKept struct {
-	Seed    stdcolor.NRGBA
-	Follows bool
-	Bases   highlight.BasePair
-	Mono    string
+// system rather than a colour, in which case ThemeColor is the zero colour.
+type ColorKept struct {
+	ThemeColor stdcolor.NRGBA
+	Follows    bool
+	Bases      highlight.BasePair
+	Mono       string
 }
 
 // KeepFailed reports a keep that did not happen, with the reason in the words

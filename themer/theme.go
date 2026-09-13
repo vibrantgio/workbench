@@ -49,19 +49,19 @@ func PreviewSet(live tokens.PlatformColors, m Model, dark bool) tokens.PlatformC
 // preview, which is a picture of a theme rather than the theme this window
 // is wearing.
 type Palette struct {
-	Backdrop  stdcolor.NRGBA // the window's own plane
-	Surface   stdcolor.NRGBA // the card under a swatch, the picture's mat, the well
-	Seam      stdcolor.NRGBA // a hairline on the plane
-	Edge      stdcolor.NRGBA // a hairline on a card: the frame round a swatch
-	Text      stdcolor.NRGBA // headings and names, on the plane
-	Muted     stdcolor.NRGBA // hints and hex values, on the plane
-	CardText  stdcolor.NRGBA // a chosen swatch's label, on the card
-	CardMuted stdcolor.NRGBA // a swatch's label, on the card
-	Hover     stdcolor.NRGBA // a card under the pointer
-	Accent    stdcolor.NRGBA // the theme colour in force
-	OnAccent  stdcolor.NRGBA // what reads on the selection
-	Selection stdcolor.NRGBA // the chosen swatch's fill
-	Problem   stdcolor.NRGBA // a drop that produced nothing
+	Backdrop         stdcolor.NRGBA // the window's own plane
+	Surface          stdcolor.NRGBA // the card under a swatch, the picture's mat, the well
+	Seam             stdcolor.NRGBA // a hairline on the plane
+	Edge             stdcolor.NRGBA // a hairline on a card: the frame round a swatch
+	Text             stdcolor.NRGBA // headings and names, on the plane
+	Muted            stdcolor.NRGBA // hints and hex values, on the plane
+	CardText         stdcolor.NRGBA // a chosen swatch's label, on the card
+	CardMuted        stdcolor.NRGBA // a swatch's label, on the card
+	Hover            stdcolor.NRGBA // a card under the pointer
+	Accent           stdcolor.NRGBA // the theme colour in force
+	AccentForeground stdcolor.NRGBA // what reads on the selection
+	Selection        stdcolor.NRGBA // the chosen swatch's fill
+	Problem          stdcolor.NRGBA // a drop that produced nothing
 }
 
 // PaletteFrom reads the window's colours off the platform's set.
@@ -72,19 +72,19 @@ type Palette struct {
 // and a push button, which do not tint, are neither.
 func PaletteFrom(c tokens.PlatformColors) Palette {
 	return Palette{
-		Backdrop:  c.WindowBackground,
-		Surface:   c.CardFill,
-		Seam:      vgcolor.Flatten(c.Separator, c.WindowBackground),
-		Edge:      vgcolor.Flatten(c.Separator, c.CardFill),
-		Text:      vgcolor.Flatten(c.Label, c.WindowBackground),
-		Muted:     vgcolor.Flatten(c.SecondaryLabel, c.WindowBackground),
-		CardText:  vgcolor.Flatten(c.Label, c.CardFill),
-		CardMuted: vgcolor.Flatten(c.SecondaryLabel, c.CardFill),
-		Hover:     vgcolor.Flatten(c.HoverOverlay, c.CardFill),
-		Accent:    c.ControlAccent,
-		OnAccent:  c.AlternateSelectedControlText,
-		Selection: c.SelectedContentBackground,
-		Problem:   c.SystemRed,
+		Backdrop:         c.WindowBackground,
+		Surface:          c.CardFill,
+		Seam:             vgcolor.Flatten(c.Separator, c.WindowBackground),
+		Edge:             vgcolor.Flatten(c.Separator, c.CardFill),
+		Text:             vgcolor.Flatten(c.Label, c.WindowBackground),
+		Muted:            vgcolor.Flatten(c.SecondaryLabel, c.WindowBackground),
+		CardText:         vgcolor.Flatten(c.Label, c.CardFill),
+		CardMuted:        vgcolor.Flatten(c.SecondaryLabel, c.CardFill),
+		Hover:            vgcolor.Flatten(c.HoverOverlay, c.CardFill),
+		Accent:           c.ControlAccent,
+		AccentForeground: c.AlternateSelectedControlText,
+		Selection:        c.SelectedContentBackground,
+		Problem:          c.SystemRed,
 	}
 }
 

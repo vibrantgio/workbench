@@ -83,16 +83,16 @@ func iconsFrom(p Palette) statIcons {
 		return w
 	}
 	return statIcons{
-		Bolt:     mk(icons.ImageFlashOn, p.Secondary, statIconDp),
+		Bolt:     mk(icons.ImageFlashOn, p.SecondaryLabel, statIconDp),
 		BoltOn:   mk(icons.ImageFlashOn, p.Volt, boltDp),
 		BoltOff:  mk(icons.ImageFlashOn, p.Dim, boltDp),
-		Flame:    mk(icons.SocialWhatsHot, p.Secondary, statIconDp),
+		Flame:    mk(icons.SocialWhatsHot, p.SecondaryLabel, statIconDp),
 		FlameHot: mk(icons.SocialWhatsHot, p.Danger, statIconDp),
-		Battery:  mk(icons.DeviceBatteryChargingFull, p.Secondary, statIconDp),
-		Flare:    mk(icons.ImageFlare, p.Secondary, statIconDp),
-		Clock:    mk(icons.DeviceAccessTime, p.Secondary, statIconDp),
+		Battery:  mk(icons.DeviceBatteryChargingFull, p.SecondaryLabel, statIconDp),
+		Flare:    mk(icons.ImageFlare, p.SecondaryLabel, statIconDp),
+		Clock:    mk(icons.DeviceAccessTime, p.SecondaryLabel, statIconDp),
 		PowerOn:  mk(icons.ActionPowerSettingsNew, p.Volt, 28),
-		PowerOff: mk(icons.ActionPowerSettingsNew, p.Secondary, 28),
+		PowerOff: mk(icons.ActionPowerSettingsNew, p.SecondaryLabel, 28),
 	}
 }
 
@@ -440,7 +440,7 @@ func Page(t themed, m Model, slots slotSet, tabsW layout.Widget) layout.Widget {
 			}
 			if m.Notice != "" {
 				rows = append(rows, vgap(8),
-					layout.Rigid(textLine(t.typ, t.typ.Small, t.palette.Secondary, m.Notice)))
+					layout.Rigid(textLine(t.typ, t.typ.Small, t.palette.SecondaryLabel, m.Notice)))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
 		})
@@ -561,7 +561,7 @@ func switchWidget(load func() (pageState, bool), click *widget.Clickable, s Swit
 			}
 			pointer.CursorPointer.Add(gtx.Ops)
 			track := image.Rect(pad, pad, pad+w, pad+h)
-			trackCol, knobCol := p.Seam, p.Secondary
+			trackCol, knobCol := p.Seam, p.SecondaryLabel
 			knobX := track.Min.X + gtx.Dp(3)
 			if on {
 				trackCol, knobCol = p.Volt, p.FilledText
@@ -585,7 +585,7 @@ func switchWidget(load func() (pageState, bool), click *widget.Clickable, s Swit
 // which heals itself and takes no Clear — or the Clear button for the trips
 // that latch.
 func headerRow(t themed, m Model, slots slotSet) layout.Widget {
-	statusCol := t.palette.Secondary
+	statusCol := t.palette.SecondaryLabel
 	if !m.Online {
 		statusCol = t.palette.Danger
 	}
@@ -620,12 +620,12 @@ func headerRow(t themed, m Model, slots slotSet) layout.Widget {
 		if !m.HaveR || m.R.Protect == 0 {
 			return row(gtx)
 		}
-		hint := textLine(t.typ, t.typ.Small, t.palette.Secondary,
+		hint := textLine(t.typ, t.typ.Small, t.palette.SecondaryLabel,
 			fmt.Sprintf("lower the input cutoff below the %.2f V input to recover", m.R.VIn))
 		if m.R.Protect != protectLVP {
 			hint = func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(textLine(t.typ, t.typ.Small, t.palette.Secondary,
+					layout.Rigid(textLine(t.typ, t.typ.Small, t.palette.SecondaryLabel,
 						"the trip holds the output off until cleared")),
 					hgap(12),
 					layout.Rigid(fixed(90, slots.get("clear"))),
@@ -651,16 +651,16 @@ func monitorFallback(t themed, m Model, slots slotSet) []layout.FlexChild {
 		return []layout.FlexChild{
 			layout.Rigid(textLine(typ, typ.Title, p.Label, "No SK150 connected")),
 			vgap(6),
-			layout.Rigid(textLine(typ, typ.Body, p.Secondary, m.Status)),
+			layout.Rigid(textLine(typ, typ.Body, p.SecondaryLabel, m.Status)),
 			vgap(14),
 			layout.Rigid(fixed(160, slots.get("demo"))),
 			vgap(6),
-			layout.Rigid(textLine(typ, typ.Small, p.Secondary,
+			layout.Rigid(textLine(typ, typ.Small, p.SecondaryLabel,
 				"Explore the app with a simulated SK150. Restart the app to use real hardware again.")),
 		}
 	}
 	return []layout.FlexChild{
-		layout.Rigid(textLine(typ, typ.Body, p.Secondary, "waiting for the first reading…")),
+		layout.Rigid(textLine(typ, typ.Body, p.SecondaryLabel, "waiting for the first reading…")),
 	}
 }
 
@@ -758,14 +758,14 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 func presetsRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 	p, typ := t.palette, t.typ
 	if !m.HavePresets {
-		return []layout.Widget{textLine(typ, typ.Body, p.Secondary, "reading memory slots…")}
+		return []layout.Widget{textLine(typ, typ.Body, p.SecondaryLabel, "reading memory slots…")}
 	}
 	if n := m.EditPreset; isGroup(n) {
 		pr := m.Presets[n]
 		rows := []layout.Widget{
 			presetBadge(t, n),
 			vspace(6),
-			textLine(typ, typ.Small, p.Secondary, "Blank keeps the stored value. Return writes whole group, Presets tab cancels, Save writes and returns."),
+			textLine(typ, typ.Small, p.SecondaryLabel, "Blank keeps the stored value. Return writes whole group, Presets tab cancels, Save writes and returns."),
 			vspace(10),
 		}
 		// Two columns filled row by row — Tab follows layout order, so it
@@ -814,10 +814,10 @@ func presetsRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 	rows := []layout.Widget{
 		textLine(typ, typ.Title, p.Label, "Memory slots"),
 		vspace(4),
-		textLine(typ, typ.Small, p.Secondary,
+		textLine(typ, typ.Small, p.SecondaryLabel,
 			"Recall makes a slot the active profile and switches the output off until you turn it on."),
 		vspace(8),
-		textLine(typ, typ.Table, p.Secondary, presetTableHeader),
+		textLine(typ, typ.Table, p.SecondaryLabel, presetTableHeader),
 		vspace(3),
 	}
 	for n := 0; n <= 9; n++ {
@@ -863,7 +863,7 @@ func presetTableRow(n int, p Preset) string {
 func deviceRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 	p, typ := t.palette, t.typ
 	if !m.HaveD {
-		return []layout.Widget{textLine(typ, typ.Body, p.Secondary, "reading the device settings…")}
+		return []layout.Widget{textLine(typ, typ.Body, p.SecondaryLabel, "reading the device settings…")}
 	}
 	sw := func(col int, s Switch, on bool) layout.Widget {
 		spec := switchSpecs[s]
@@ -930,7 +930,7 @@ func deviceFooter(t themed, m Model) layout.Widget {
 	if !m.HaveD {
 		return vspace(0)
 	}
-	return textLine(t.typ, t.typ.Small, t.palette.Secondary,
+	return textLine(t.typ, t.typ.Small, t.palette.SecondaryLabel,
 		fmt.Sprintf("Link: %d baud, Modbus address %d — changing either needs a power cycle, so this app leaves them alone.",
 			baudRate, slaveAddr))
 }
@@ -1012,7 +1012,7 @@ func compactCell(t themed, label layout.Widget, current string, field, apply lay
 				layout.Rigid(fixed(56, apply)))
 		}
 		children = append(children, hgap(10),
-			layout.Rigid(fixed(compactValueWidth, textLine(t.typ, t.typ.Body, t.palette.Secondary, current))))
+			layout.Rigid(fixed(compactValueWidth, textLine(t.typ, t.typ.Body, t.palette.SecondaryLabel, current))))
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
 	}
 }
@@ -1028,7 +1028,7 @@ func compactSwitch(t themed, label layout.Widget, on bool, sw layout.Widget) lay
 			layout.Rigid(fixed(compactLabelWidth, label)),
 			layout.Rigid(sw),
 			hgap(10),
-			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Secondary, state)),
+			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.SecondaryLabel, state)),
 		)
 	}
 }
@@ -1045,7 +1045,7 @@ func fieldRow(t themed, label, current string, field, apply layout.Widget) layou
 			children = append(children, hgap(8), layout.Rigid(fixed(72, apply)))
 		}
 		children = append(children, hgap(12),
-			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Secondary, current)))
+			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.SecondaryLabel, current)))
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
 	}
 }
@@ -1061,7 +1061,7 @@ func switchRow(t themed, label string, on bool, sw layout.Widget) layout.Widget 
 			layout.Rigid(fixed(LabelWidth, textLine(t.typ, t.typ.Body, t.palette.Label, label))),
 			layout.Rigid(sw),
 			hgap(10),
-			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Secondary, state)),
+			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.SecondaryLabel, state)),
 		)
 	}
 }

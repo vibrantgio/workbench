@@ -17,17 +17,17 @@ import (
 // Because the theme window feeds a live OS theme, an appearance switch
 // re-emits the set and restyles the whole app with no imperative wiring.
 type Palette struct {
-	Backdrop    color.NRGBA // the window's own plane
-	Dialog      color.NRGBA // the modal's own plane
-	Field       color.NRGBA // the dialog's text-entry fill
-	FieldEdge   color.NRGBA // the hairline a field draws around itself
-	Label       color.NRGBA // a todo's text
-	Secondary   color.NRGBA // a completed todo's text
-	Editing     color.NRGBA // the editor's text, on the field
-	Placeholder color.NRGBA // the empty field's prompt
-	Selection   color.NRGBA // the fill behind selected text
-	Icon        color.NRGBA // the add and delete glyphs
-	Cover       color.NRGBA // the dim over the page the modal interrupts
+	Backdrop       color.NRGBA // the window's own plane
+	Dialog         color.NRGBA // the modal's own plane
+	Field          color.NRGBA // the dialog's text-entry fill
+	FieldEdge      color.NRGBA // the hairline a field draws around itself
+	Label          color.NRGBA // a todo's text
+	SecondaryLabel color.NRGBA // a completed todo's text
+	Editing        color.NRGBA // the editor's text, on the field
+	Placeholder    color.NRGBA // the empty field's prompt
+	Selection      color.NRGBA // the fill behind selected text
+	Icon           color.NRGBA // the add and delete glyphs
+	Cover          color.NRGBA // the dim over the page the modal interrupts
 }
 
 // PaletteFrom reads this window's fills and foregrounds off the platform's
@@ -43,17 +43,17 @@ type Palette struct {
 // window happens to be showing, so there is no one fill to flatten it onto.
 func PaletteFrom(p tokens.PlatformColors) Palette {
 	return Palette{
-		Backdrop:    p.WindowBackground,
-		Dialog:      p.WindowBackground,
-		Field:       p.TextBackground,
-		FieldEdge:   p.FieldEdge,
-		Label:       vgcolor.Flatten(p.Label, p.WindowBackground),
-		Secondary:   vgcolor.Flatten(p.SecondaryLabel, p.WindowBackground),
-		Editing:     vgcolor.Flatten(p.Label, p.TextBackground),
-		Placeholder: vgcolor.Flatten(p.PlaceholderText, p.TextBackground),
-		Selection:   p.SelectedTextBackground,
-		Icon:        p.ControlAccent,
-		Cover:       p.Scrim,
+		Backdrop:       p.WindowBackground,
+		Dialog:         p.WindowBackground,
+		Field:          p.TextBackground,
+		FieldEdge:      p.FieldEdge,
+		Label:          vgcolor.Flatten(p.Label, p.WindowBackground),
+		SecondaryLabel: vgcolor.Flatten(p.SecondaryLabel, p.WindowBackground),
+		Editing:        vgcolor.Flatten(p.Label, p.TextBackground),
+		Placeholder:    vgcolor.Flatten(p.PlaceholderText, p.TextBackground),
+		Selection:      p.SelectedTextBackground,
+		Icon:           p.ControlAccent,
+		Cover:          p.Scrim,
 	}
 }
 

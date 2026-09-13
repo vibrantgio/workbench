@@ -480,7 +480,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 		//
 		// Rename is not Destructive: it moves a history file to a new name,
 		// keeps its contents, and is undone by renaming back. Return
-		// therefore stays on the primary.
+		// therefore stays on the primary action.
 		Decision: &modal.Decision{Confirm: rename, Cancel: cancel},
 	})
 

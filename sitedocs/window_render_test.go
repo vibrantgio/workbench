@@ -162,8 +162,8 @@ func TestWholeWindowRender(t *testing.T) {
 // TestWindowRegionsWearThePlatformsFills reads the assignment off the frame:
 // the guide document — the thing this window exists to show — on the
 // platform's content plane, the outline rail indexing it in the chrome
-// material a sidebar wears, and the tab strip capping the panel in that same
-// material.
+// chrome material a sidebar wears, and the tab strip capping the panel in that
+// same chrome material.
 //
 // It is read off the rendered frame rather than off the set, because those
 // three are painted by three different pieces of code (this app, backdrop,

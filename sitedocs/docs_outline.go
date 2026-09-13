@@ -130,7 +130,7 @@ func ensureClick(m map[int]*widget.Clickable, key int) *widget.Clickable {
 //
 // The column is an outline rail, which on this platform is a sidebar, so it
 // wears the chrome material — the fill the platform gives a sidebar, a
-// toolbar and an inspector. In the light appearance that material is the
+// toolbar and an inspector. In the light appearance that chrome material is the
 // content's own white exactly, so the seam along the rail's trailing edge is
 // the whole of what parts the rail from the document there.
 func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeTokens) layout.Dimensions {
@@ -141,7 +141,7 @@ func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeToken
 	size := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, tok.col.SidebarMaterial, clip.Rect{Max: size}.Op())
 	// Two flush regions, so the one drawn first says where it ends: the
-	// platform's seam, laid on the material it is drawn inside.
+	// platform's seam, laid on the chrome material it is drawn inside.
 	hair := max(gtx.Dp(unit.Dp(1)), 1)
 	paint.FillShape(gtx.Ops, vgcolor.Flatten(tok.col.Separator, tok.col.SidebarMaterial), clip.Rect{
 		Min: image.Pt(size.X-hair, 0), Max: size,

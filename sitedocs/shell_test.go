@@ -34,7 +34,7 @@ var shellFrameSize = image.Pt(windowW, windowH)
 // the full-width band this test exists to catch.
 //
 // The strip's own fill is NOT a reference here. On this platform the chrome
-// material the strip carries is the content's own fill exactly in the light
+// chrome material the strip carries is the content's own fill exactly in the light
 // appearance, so the two regions are one colour there and what parts them is
 // the seam along the strip's foot — which is where the underline is read
 // against.

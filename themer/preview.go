@@ -263,7 +263,7 @@ var sampleRows = [...]string{"The selected row", "Another row", "One more"}
 // rail entry's pill, the selected row, the default button and the focus ring.
 func SampleWindow(c tokens.PlatformColors, ty Type) layout.Widget {
 	label := vgcolor.Flatten(c.Label, c.ControlBackground)
-	secondary := vgcolor.Flatten(c.SecondaryLabel, c.ControlBackground)
+	secondaryLabel := vgcolor.Flatten(c.SecondaryLabel, c.ControlBackground)
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		h := min(gtx.Dp(SampleH), size.Y)
@@ -319,7 +319,7 @@ func SampleWindow(c tokens.PlatformColors, ty Type) layout.Widget {
 		textdraw.FillText(gtx, ty.Shaper, ty.Label,
 			image.Rect(pane.Min.X, pane.Min.Y, pane.Max.X, pane.Min.Y+line), 0, 0.5, label, SampleHeading)
 		textdraw.FillText(gtx, ty.Shaper, ty.Small,
-			image.Rect(pane.Min.X, pane.Min.Y+line, pane.Max.X, pane.Min.Y+2*line), 0, 0.5, secondary, SampleLine)
+			image.Rect(pane.Min.X, pane.Min.Y+line, pane.Max.X, pane.Min.Y+2*line), 0, 0.5, secondaryLabel, SampleLine)
 
 		// A field carries the platform's own fill inside its hairline, and
 		// the ring a focused control wears is the one place the theme colour

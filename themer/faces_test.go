@@ -50,7 +50,7 @@ func TestTheFacePlateMarksTheChosenName(t *testing.T) {
 		if mine == other {
 			t.Errorf("with %q chosen its row is drawn exactly like the other — nothing marks the choice", name)
 		}
-		if !is(mine, PaletteFrom(tokens.PlatformLight).OnAccent) {
+		if !is(mine, PaletteFrom(tokens.PlatformLight).AccentForeground) {
 			t.Errorf("the marker on %q drew %v, want what reads on the platform's selection", name, mine)
 		}
 	}
@@ -92,7 +92,7 @@ func TestTheWindowOpensOnTheKeptMono(t *testing.T) {
 		{"a name nobody ships", "Comic Sans", tokens.CodeFaceRoboto},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := m.adoptKept(brand.Brand{Seed: sceneAccent, Mono: tc.kept})
+			got := m.adoptKept(brand.Brand{ThemeColor: sceneAccent, Mono: tc.kept})
 			if got.AppliedMono() != tc.want {
 				t.Errorf("opened on %q, want %q", got.AppliedMono(), tc.want)
 			}
@@ -148,7 +148,7 @@ func TestKeepingWritesTheMonoBesideTheColour(t *testing.T) {
 // opens the window on the default.
 func TestAnUnknownMonoInTheFileIsRobotoMono(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
-	if err := brand.SaveTo(path, brand.Brand{Seed: sceneAccent, Mono: "Comic Sans"}); err != nil {
+	if err := brand.SaveTo(path, brand.Brand{ThemeColor: sceneAccent, Mono: "Comic Sans"}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
 	if got := withBases().adoptKept(brand.KeptFrom(path)); got.AppliedMono() != tokens.CodeFaceRoboto {
@@ -160,7 +160,7 @@ func TestAnUnknownMonoInTheFileIsRobotoMono(t *testing.T) {
 // into the model, which is the whole path from a press to a file.
 func keep(t *testing.T, m Model) Model {
 	t.Helper()
-	_, cmd := Update(m, KeepSeed{})
+	_, cmd := Update(m, KeepColor{})
 	msg, err := cmd.First()
 	if err != nil {
 		t.Fatalf("the keep command failed: %v", err)

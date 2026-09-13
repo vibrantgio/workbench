@@ -93,7 +93,7 @@ func fetchGuide() ([]byte, error) {
 
 // outlineEntry is one ## section of the guide: its title, the index of
 // its heading block in the parsed document, and its ### children. Deeper
-// headings are not outline material and the lone # title is skipped — the
+// headings do not enter the outline and the lone # title is skipped — the
 // document itself is the root.
 type outlineEntry struct {
 	Title    string

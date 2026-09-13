@@ -2,7 +2,7 @@
 
 Vibrant Gio is a design system for building beautiful, native desktop
 applications on macOS, Windows, and Linux with [Gio](https://gioui.org) —
-analogous to what Material Design is for Google, but built for a Functional
+analogous to what a platform's own design system is for that platform, but built for a Functional
 Reactive Programming application model on top of
 [reactivego/rx](https://github.com/reactivego/rx).
 

@@ -21,20 +21,20 @@ import (
 // Every alpha-carrying platform name is flattened onto the fill it lands on
 // here, so what reaches Gio is opaque.
 type Palette struct {
-	Backdrop   color.NRGBA // the window's own plane
-	Label      color.NRGBA // body text
-	Secondary  color.NRGBA // captions and secondary text
-	Dim        color.NRGBA // a disabled glyph and an idle badge's label
-	Volt       color.NRGBA // the voltage readout, and every on-and-active mark
-	Amp        color.NRGBA // the current readout
-	Watt       color.NRGBA // the power readout
-	Danger     color.NRGBA // protection trips and errors
-	FilledText color.NRGBA // a label drawn on a fill one of the four paints
-	Panel      color.NRGBA // a chart panel's fill
-	Grid       color.NRGBA // the chart's recessive grid lines
-	Seam       color.NRGBA // a switch's track while it is off
-	Hover      color.NRGBA // a header button under the pointer
-	Press      color.NRGBA // a header button held down
+	Backdrop       color.NRGBA // the window's own plane
+	Label          color.NRGBA // body text
+	SecondaryLabel color.NRGBA // captions and text at the second strength
+	Dim            color.NRGBA // a disabled glyph and an idle badge's label
+	Volt           color.NRGBA // the voltage readout, and every on-and-active mark
+	Amp            color.NRGBA // the current readout
+	Watt           color.NRGBA // the power readout
+	Danger         color.NRGBA // protection trips and errors
+	FilledText     color.NRGBA // a label drawn on a fill one of the four paints
+	Panel          color.NRGBA // a chart panel's fill
+	Grid           color.NRGBA // the chart's recessive grid lines
+	Seam           color.NRGBA // a switch's track while it is off
+	Hover          color.NRGBA // a header button under the pointer
+	Press          color.NRGBA // a header button held down
 }
 
 // PaletteFrom reads the page off the platform's set.
@@ -50,20 +50,20 @@ type Palette struct {
 // a readout can never be mistaken for a warning.
 func PaletteFrom(c tokens.PlatformColors) Palette {
 	return Palette{
-		Backdrop:   c.WindowBackground,
-		Label:      vgcolor.Flatten(c.Label, c.WindowBackground),
-		Secondary:  vgcolor.Flatten(c.SecondaryLabel, c.WindowBackground),
-		Dim:        vgcolor.Flatten(c.DisabledControlText, c.WindowBackground),
-		Volt:       c.ControlAccent,
-		Amp:        c.SystemTeal,
-		Watt:       c.SystemPurple,
-		Danger:     c.SystemRed,
-		FilledText: c.AlternateSelectedControlText,
-		Panel:      c.CardFill,
-		Grid:       c.Grid,
-		Seam:       vgcolor.Flatten(c.Separator, c.WindowBackground),
-		Hover:      vgcolor.Flatten(c.HoverOverlay, c.WindowBackground),
-		Press:      vgcolor.Flatten(c.PressOverlay, c.WindowBackground),
+		Backdrop:       c.WindowBackground,
+		Label:          vgcolor.Flatten(c.Label, c.WindowBackground),
+		SecondaryLabel: vgcolor.Flatten(c.SecondaryLabel, c.WindowBackground),
+		Dim:            vgcolor.Flatten(c.DisabledControlText, c.WindowBackground),
+		Volt:           c.ControlAccent,
+		Amp:            c.SystemTeal,
+		Watt:           c.SystemPurple,
+		Danger:         c.SystemRed,
+		FilledText:     c.AlternateSelectedControlText,
+		Panel:          c.CardFill,
+		Grid:           c.Grid,
+		Seam:           vgcolor.Flatten(c.Separator, c.WindowBackground),
+		Hover:          vgcolor.Flatten(c.HoverOverlay, c.WindowBackground),
+		Press:          vgcolor.Flatten(c.PressOverlay, c.WindowBackground),
 	}
 }
 
