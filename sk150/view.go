@@ -84,14 +84,14 @@ func iconsFrom(p Palette) statIcons {
 	}
 	return statIcons{
 		Bolt:     mk(icons.ImageFlashOn, p.SecondaryLabel, statIconDp),
-		BoltOn:   mk(icons.ImageFlashOn, p.Volt, boltDp),
+		BoltOn:   mk(icons.ImageFlashOn, p.Accent, boltDp),
 		BoltOff:  mk(icons.ImageFlashOn, p.Dim, boltDp),
 		Flame:    mk(icons.SocialWhatsHot, p.SecondaryLabel, statIconDp),
 		FlameHot: mk(icons.SocialWhatsHot, p.Danger, statIconDp),
 		Battery:  mk(icons.DeviceBatteryChargingFull, p.SecondaryLabel, statIconDp),
 		Flare:    mk(icons.ImageFlare, p.SecondaryLabel, statIconDp),
 		Clock:    mk(icons.DeviceAccessTime, p.SecondaryLabel, statIconDp),
-		PowerOn:  mk(icons.ActionPowerSettingsNew, p.Volt, 28),
+		PowerOn:  mk(icons.ActionPowerSettingsNew, p.Accent, 28),
 		PowerOff: mk(icons.ActionPowerSettingsNew, p.SecondaryLabel, 28),
 	}
 }
@@ -447,9 +447,9 @@ func Page(t themed, m Model, slots slotSet, tabsW layout.Widget) layout.Widget {
 	}
 }
 
-// monitorContent is the Monitor tab: the readout block, centered in the
-// panel on the stat line's width, with the history charts spanning the
-// full width underneath.
+// monitorContent is the Monitor tab: the readout block, centered in the tab's
+// content on the stat line's width, with the history charts spanning the full
+// width underneath.
 func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
@@ -564,7 +564,7 @@ func switchWidget(load func() (pageState, bool), click *widget.Clickable, s Swit
 			trackCol, knobCol := p.Seam, p.SecondaryLabel
 			knobX := track.Min.X + gtx.Dp(3)
 			if on {
-				trackCol, knobCol = p.Volt, p.FilledText
+				trackCol, knobCol = p.Accent, p.FilledText
 				knobX = track.Max.X - gtx.Dp(3) - (h - 2*gtx.Dp(3))
 			}
 			paint.FillShape(gtx.Ops, trackCol, clip.UniformRRect(track, h/2).Op(gtx.Ops))
@@ -665,10 +665,10 @@ func monitorFallback(t themed, m Model, slots slotSet) []layout.FlexChild {
 }
 
 // monitorBlock is the live readout block: one column as wide as the stat
-// line (input, temperature, charge, energy, on-time), centered in the
-// panel. The active-preset badge and the Set button share the top line at
-// the column's edges, the three readouts are centered at their natural
-// width beneath it, and the stat line closes the block.
+// line (input, temperature, charge, energy, on-time), centered in the tab's
+// content. The active-preset badge and the Set button share the top line at
+// the column's edges, the three readouts stand on the device's own panel
+// beneath it at their natural width, and the stat line closes the block.
 func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 	p, typ := t.palette, t.typ
 	r := m.R
@@ -715,7 +715,7 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 		}
 		col := min(statDims.Size.X, gtx.Constraints.Max.X)
 
-		readW := min(readoutWidth(gtx, t, r), col)
+		readW := min(readoutWidth(gtx, t, r), col-2*gtx.Dp(readoutPanelInset))
 		centered := func(w layout.Widget) layout.Widget {
 			return func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -735,11 +735,10 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 				)
 			}),
 			vgap(8),
-			layout.Rigid(centered(voltRow(t, r))),
-			vgap(2),
-			layout.Rigid(centered(ampRow(t, r))),
-			vgap(2),
-			layout.Rigid(centered(wattRow(t, r))),
+			layout.Rigid(readoutPanel(t, 2,
+				centered(voltRow(t, r)),
+				centered(ampRow(t, r)),
+				centered(wattRow(t, r)))),
 			vgap(14),
 			layout.Rigid(statW),
 		}
@@ -824,7 +823,7 @@ func presetsRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 		txt := presetTableRow(n, m.Presets[n])
 		col := p.Label
 		if n == activeGroup(m) {
-			col = p.Volt // the active profile
+			col = p.Accent // the active profile
 		}
 		edit, recall := slots.get(fmt.Sprintf("edit.%d", n)), slots.get(fmt.Sprintf("recall.%d", n))
 		rows = append(rows,

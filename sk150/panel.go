@@ -1,12 +1,13 @@
 package main
 
-// The readout block, styled after the SK150's own display. Each line is
-// big mono digits with a half-size capital unit letter baseline-aligned in
-// a right column; while the output is regulating, the line of the quantity
-// in control wears the mode badge above its unit letter — CV on the volt
-// line in the volt colour, CC on the amp line in the amp colour. Output state
-// lives in the header's bolt + ON/OFF cluster beside the power toggle, not
-// on the readout block.
+// The readout block: the SK150's own display, in the device's own colours
+// measured off the photograph of it. Each line is big mono digits with a
+// half-size capital unit letter baseline-aligned in a right column; while the
+// output is regulating, the line of the quantity in control wears the mode
+// badge above its unit letter — CV on the volt line in the volt colour, CC on
+// the amp line in the amp colour, each a lit pill with the panel's black cut
+// out of it, as the device draws them. Output state lives in the header's
+// bolt + ON/OFF cluster beside the power toggle, not on the readout block.
 //
 // Everything aligns with the digits' GLYPHS, not their line box: the box
 // carries the font's leading, and trim hung off its edges floats
@@ -18,6 +19,7 @@ import (
 	"image/color"
 
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
@@ -47,11 +49,11 @@ func voltRow(t themed, r Reading) layout.Widget {
 	if r.On && !r.CC {
 		badgeTxt = "CV"
 	}
-	return panelRow(t, t.palette.Volt, fmt.Sprintf("%05.2f", r.VOut), "V", badgeTxt, t.palette.Volt)
+	return panelRow(t, t.palette.DisplayVolt, fmt.Sprintf("%05.2f", r.VOut), "V", badgeTxt, t.palette.DisplayVolt)
 }
 
 // presetBadge is the active-preset pill ("M2"): the unit letters' style on
-// the volt colour, on the line above the readouts.
+// the accent, on the line above the readout panel and so outside it.
 func presetBadge(t themed, active int) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if !isGroup(active) {
@@ -61,7 +63,7 @@ func presetBadge(t themed, active int) layout.Widget {
 		txt := fmt.Sprintf("M%d", active)
 		sz := textdraw.MeasureText(gtx, typ.Shaper, typ.Unit, txt)
 		r := image.Rect(0, 0, sz.X+2*gtx.Dp(8), sz.Y+2*gtx.Dp(2))
-		badgeBoxStyled(gtx, t, typ.Unit, txt, t.palette.Volt, true, r)
+		badgeBoxStyled(gtx, t, typ.Unit, txt, t.palette.Accent, t.palette.FilledText, true, r)
 		return layout.Dimensions{Size: r.Max}
 	}
 }
@@ -88,12 +90,43 @@ func ampRow(t themed, r Reading) layout.Widget {
 	if r.On && r.CC {
 		badgeTxt = "CC"
 	}
-	return panelRow(t, t.palette.Amp, fmt.Sprintf("%5.3f", r.IOut), "A", badgeTxt, t.palette.Amp)
+	return panelRow(t, t.palette.DisplayAmp, fmt.Sprintf("%5.3f", r.IOut), "A", badgeTxt, t.palette.DisplayAmp)
 }
 
 // wattRow is the power line, three decimals like the device.
 func wattRow(t themed, r Reading) layout.Widget {
-	return panelRow(t, t.palette.Watt, fmt.Sprintf("%.3f", r.Power), "W", "", color.NRGBA{})
+	return panelRow(t, t.palette.DisplayWatt, fmt.Sprintf("%.3f", r.Power), "W", "", color.NRGBA{})
+}
+
+// readoutPanelInset is the unlit margin the panel keeps on every side of its
+// segments.
+const readoutPanelInset unit.Dp = 12
+
+// readoutPanel is the device's display: the three readout lines lit on the
+// panel's black. It is the same in both colour schemes because the meter has
+// one panel — the window around it is the platform's.
+func readoutPanel(t themed, rowGap unit.Dp, rows ...layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		children := make([]layout.FlexChild, 0, 2*len(rows))
+		for i, w := range rows {
+			if i > 0 {
+				children = append(children, vgap(rowGap))
+			}
+			children = append(children, layout.Rigid(w))
+		}
+		// The fill is painted under the lines, so it is recorded first and
+		// replayed after the panel's own size is known.
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(readoutPanelInset).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		lines := macro.Stop()
+		paint.FillShape(gtx.Ops, t.palette.DisplayPanel,
+			clip.UniformRRect(image.Rectangle{Max: dims.Size}, gtx.Dp(6)).Op(gtx.Ops))
+		lines.Add(gtx.Ops)
+		return dims
+	}
 }
 
 // panelRow draws one line of the readout block: digits right-aligned
@@ -130,7 +163,7 @@ func panelRow(t themed, foreground color.NRGBA, digits, unit, badgeTxt string, b
 			// The same height as the ON/OFF boxes; the lowercase glyphs
 			// just sit lighter inside it.
 			bw, bh := sz.X+2*padX, sz.Y+gtx.Dp(1)
-			badgeBox(gtx, t, badgeTxt, badgeFill, true,
+			badgeBox(gtx, t, badgeTxt, badgeFill, t.palette.DisplayPanel, true,
 				image.Rect(unitX, capTop, unitX+bw, capTop+bh))
 		}
 
@@ -149,7 +182,7 @@ func tripBadge(t themed, r Reading) layout.Widget {
 		txt := "PROTECTION TRIPPED: " + ProtectName(r.Protect)
 		sz := textdraw.MeasureText(gtx, typ.Shaper, typ.Stack, txt)
 		rect := image.Rect(0, 0, sz.X+2*gtx.Dp(8), sz.Y+2*gtx.Dp(2))
-		badgeBox(gtx, t, txt, t.palette.Danger, true, rect)
+		badgeBox(gtx, t, txt, t.palette.Danger, t.palette.FilledText, true, rect)
 		return layout.Dimensions{Size: rect.Max}
 	}
 }
@@ -176,26 +209,28 @@ func outputCluster(t themed, r Reading) layout.Widget {
 		icon(igtx)
 
 		stackX := totalH - totalH*7/24 + gtx.Dp(2)
-		badgeBox(gtx, t, "ON", p.Volt, r.On,
+		badgeBox(gtx, t, "ON", p.DisplayAmp, p.DisplayPanel, r.On,
 			image.Rect(stackX, 0, stackX+boxW, boxH))
-		badgeBox(gtx, t, "OFF", p.SecondaryLabel, !r.On,
+		badgeBox(gtx, t, "OFF", p.SecondaryLabel, p.FilledText, !r.On,
 			image.Rect(stackX, boxH+gap, stackX+boxW, totalH))
 		return layout.Dimensions{Size: image.Pt(stackX+boxW, totalH)}
 	}
 }
 
 // badgeBox paints one badge: the label centered in the box — on the state
-// colour when active, in the platform's disabled control text with no fill
-// when idle.
-func badgeBox(gtx layout.Context, t themed, txt string, fill color.NRGBA, active bool, r image.Rectangle) {
-	badgeBoxStyled(gtx, t, t.typ.Stack, txt, fill, active, r)
+// colour in the foreground given when active, in the platform's disabled
+// control text with no fill when idle. A badge lit in one of the display's
+// colours reads its label in the panel's black, as the device's own cut-out
+// segments do; a badge on a platform fill reads the platform's foreground.
+func badgeBox(gtx layout.Context, t themed, txt string, fill, foreground color.NRGBA, active bool, r image.Rectangle) {
+	badgeBoxStyled(gtx, t, t.typ.Stack, txt, fill, foreground, active, r)
 }
 
 // badgeBoxStyled is badgeBox with the label's text style chosen.
-func badgeBoxStyled(gtx layout.Context, t themed, style textdraw.TextStyle, txt string, fill color.NRGBA, active bool, r image.Rectangle) {
+func badgeBoxStyled(gtx layout.Context, t themed, style textdraw.TextStyle, txt string, fill, foreground color.NRGBA, active bool, r image.Rectangle) {
 	if active {
 		paint.FillShape(gtx.Ops, fill, clip.UniformRRect(r, gtx.Dp(4)).Op(gtx.Ops))
-		textdraw.FillText(gtx, t.typ.Shaper, style, r, 0.5, 0.5, t.palette.FilledText, txt)
+		textdraw.FillText(gtx, t.typ.Shaper, style, r, 0.5, 0.5, foreground, txt)
 		return
 	}
 	textdraw.FillText(gtx, t.typ.Shaper, style, r, 0.5, 0.5, t.palette.Dim, txt)

@@ -45,12 +45,12 @@ func chartPanels(t themed, m Model, hov *hoverState) layout.Widget {
 			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, "Output voltage (V)")),
 			vgap(6),
 			layout.Flexed(1, chartPanel(t, m.History,
-				func(s Sample) float64 { return s.V }, t.palette.Volt, "%.2f V", 0.05, hov)),
+				func(s Sample) float64 { return s.V }, t.palette.VoltSeries, "%.2f V", 0.05, hov)),
 			vgap(12),
 			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, "Output current (A)")),
 			vgap(6),
 			layout.Flexed(1, chartPanel(t, m.History,
-				func(s Sample) float64 { return s.I }, t.palette.Amp, "%.3f A", 0.02, hov)),
+				func(s Sample) float64 { return s.I }, t.palette.AmpSeries, "%.3f A", 0.02, hov)),
 		)
 	}
 }
@@ -95,7 +95,7 @@ func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 		// The panel's fill. The platform's box carries no hairline and no
 		// shadow: its edge is where the plane gives way to the fill.
 		rr := clip.UniformRRect(image.Rectangle{Max: size}, gtx.Dp(6))
-		paint.FillShape(gtx.Ops, p.Panel, rr.Op(gtx.Ops))
+		paint.FillShape(gtx.Ops, p.ChartPanel, rr.Op(gtx.Ops))
 
 		// The pointer area for the crosshair.
 		area := clip.Rect(image.Rectangle{Max: size}).Push(gtx.Ops)

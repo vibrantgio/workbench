@@ -12,11 +12,22 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
+// The meter's own display, measured off the brightest lit-segment pixels of
+// the photograph in the plan's reference/sk150-display.png. These are the
+// device's values, not the platform's: the readout panel is a picture of the
+// meter, so it is the same in both colour schemes — the meter has one panel.
+var (
+	displayVolt  = color.NRGBA{R: 0x2b, G: 0xf4, B: 0x2f, A: 0xff}
+	displayAmp   = color.NRGBA{R: 0xfe, G: 0xfb, B: 0x43, A: 0xff}
+	displayWatt  = color.NRGBA{R: 0xf9, G: 0x28, B: 0xfa, A: 0xff}
+	displayPanel = color.NRGBA{R: 0x09, G: 0x09, B: 0x05, A: 0xff}
+)
+
 // Palette is the app's view of the platform's colour set, resolved fresh on
-// every theme emission so an appearance switch restyles the whole app. The
-// page stands on the window's own plane and paints no fill of its own; the
-// chart panels are the one thing standing on it, and they wear the
-// platform's box fill.
+// every theme emission so an appearance switch restyles the whole app, plus
+// the four device values the readout panel is lit in. The page stands on the
+// window's own plane and paints no fill of its own; the readout panel and the
+// chart panels are the things standing on it.
 //
 // Every alpha-carrying platform name is flattened onto the fill it lands on
 // here, so what reaches Gio is opaque.
@@ -25,45 +36,60 @@ type Palette struct {
 	Label          color.NRGBA // body text
 	SecondaryLabel color.NRGBA // captions and text at the second strength
 	Dim            color.NRGBA // a disabled glyph and an idle badge's label
-	Volt           color.NRGBA // the voltage readout, and every on-and-active mark
-	Amp            color.NRGBA // the current readout
-	Watt           color.NRGBA // the power readout
-	Danger         color.NRGBA // protection trips and errors
-	FilledText     color.NRGBA // a label drawn on a fill one of the four paints
-	Panel          color.NRGBA // a chart panel's fill
-	Grid           color.NRGBA // the chart's recessive grid lines
-	Seam           color.NRGBA // a switch's track while it is off
-	Hover          color.NRGBA // a header button under the pointer
-	Press          color.NRGBA // a header button held down
+	// Accent is every on-and-active mark outside the readout panel: the lit
+	// bolt, the power glyph, a closed switch, the active memory group and the
+	// preset badge.
+	Accent     color.NRGBA
+	VoltSeries color.NRGBA // the output-voltage history's stroke
+	AmpSeries  color.NRGBA // the output-current history's stroke
+	Danger     color.NRGBA // protection trips and errors
+	FilledText color.NRGBA // a label drawn on a platform fill
+	ChartPanel color.NRGBA // a chart panel's fill
+	Grid       color.NRGBA // the chart's recessive grid lines
+	Seam       color.NRGBA // a switch's track while it is off
+	Hover      color.NRGBA // a header button under the pointer
+	Press      color.NRGBA // a header button held down
+
+	// The readout panel, off the photograph and the same in both schemes.
+	DisplayVolt  color.NRGBA // the voltage readout, its unit and the CV badge
+	DisplayAmp   color.NRGBA // the current readout, its unit, the CC badge and the ON badge
+	DisplayWatt  color.NRGBA // the power readout and its unit
+	DisplayPanel color.NRGBA // the panel the readouts are lit on, and the label cut out of a lit badge
 }
 
-// PaletteFrom reads the page off the platform's set.
+// PaletteFrom reads the page off the platform's set and hands the readout
+// panel the meter's own values.
 //
-// The three readouts are three quantities the reader has to tell apart at a
-// glance, so each takes a colour the platform publishes by name. Voltage
-// takes the accent, which is also what every on-and-active mark in this
-// window wears — the lit bolt, the ON badge, a closed switch, the active
-// memory slot — so the panel and the controls agree without a second
-// colour. Current and power take two more of the platform's named colours,
-// picked as far from the accent and from each other as the catalogue
-// allows; neither is one of the four the platform reserves for a status, so
-// a readout can never be mistaken for a warning.
+// The window's chrome, its controls and its labels are the platform's
+// throughout. The three readouts are not: the owner asked for the colours of
+// the device's display, so the voltage line is its green, the current line
+// and the ON badge its yellow, the power line its magenta, all lit on its
+// black. The two history charts stand outside that panel and keep the
+// platform's names — the voltage series takes the accent, the current series
+// one more of the platform's named colours, neither of them one of the four
+// the platform reserves for a status, so a series can never be mistaken for a
+// warning.
 func PaletteFrom(c tokens.PlatformColors) Palette {
 	return Palette{
 		Backdrop:       c.WindowBackground,
 		Label:          vgcolor.Flatten(c.Label, c.WindowBackground),
 		SecondaryLabel: vgcolor.Flatten(c.SecondaryLabel, c.WindowBackground),
 		Dim:            vgcolor.Flatten(c.DisabledControlText, c.WindowBackground),
-		Volt:           c.ControlAccent,
-		Amp:            c.SystemTeal,
-		Watt:           c.SystemPurple,
+		Accent:         c.ControlAccent,
+		VoltSeries:     c.ControlAccent,
+		AmpSeries:      c.SystemTeal,
 		Danger:         c.SystemRed,
 		FilledText:     c.AlternateSelectedControlText,
-		Panel:          c.CardFill,
+		ChartPanel:     c.CardFill,
 		Grid:           c.Grid,
 		Seam:           vgcolor.Flatten(c.Separator, c.WindowBackground),
 		Hover:          vgcolor.Flatten(c.HoverOverlay, c.WindowBackground),
 		Press:          vgcolor.Flatten(c.PressOverlay, c.WindowBackground),
+
+		DisplayVolt:  displayVolt,
+		DisplayAmp:   displayAmp,
+		DisplayWatt:  displayWatt,
+		DisplayPanel: displayPanel,
 	}
 }
 
@@ -83,6 +109,12 @@ type Type struct {
 	Table  textdraw.TextStyle // the preset table: compact aligned columns
 }
 
+// appShaper hands the app's typography its shaper. The window draws with the
+// platform's fonts as fallback, which varies by machine; a stored render
+// replaces this with the pinned collection so the same text shapes to the same
+// pixels everywhere.
+var appShaper = func(t tokens.Typography) *text.Shaper { return t.Shaper() }
+
 func TypeFrom(t tokens.Typography) Type {
 	digits := t.Code
 	digits.Size = 56
@@ -96,7 +128,7 @@ func TypeFrom(t tokens.Typography) Type {
 	table := t.Code
 	table.Size = 12
 	return Type{
-		Shaper: t.Shaper(),
+		Shaper: appShaper(t),
 		Digits: textStyle(digits),
 		Unit:   textStyle(unit),
 		Stack:  textStyle(stack),
