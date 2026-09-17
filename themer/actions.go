@@ -101,10 +101,10 @@ type KeepFailed struct {
 	Reason string
 }
 
-// SetScheme puts the preview on one side of the platform's pair and keeps it
-// there. It carries the side to move to rather than a "flip it" instruction,
-// because which side is showing depends on a set the reducer never sees: the
-// switch knows what it is drawn on, so it says where to go.
+// SetScheme puts the syntax base group on one side of the platform's pair and
+// keeps it there. It carries the side to move to rather than a "flip it"
+// instruction, because which side is showing depends on a set the reducer
+// never sees: the switch knows what it is drawn on, so it says where to go.
 type SetScheme struct {
 	Dark bool
 }

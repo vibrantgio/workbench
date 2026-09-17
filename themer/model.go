@@ -42,12 +42,14 @@ type Model struct {
 	// DragOver is true while a file drag hovers over the window, and is
 	// what the drop zone highlights on.
 	DragOver bool
-	// Scheme is which side of the platform's pair the preview is drawn in.
-	// FollowOS until the switch is pressed, and the window's own answer from
-	// then on: a theme colour has to be seen on both sides, and waiting for
-	// the desktop to change its mind is not a way to do that. It moves the
-	// preview alone — the window itself follows the setting, like every
-	// other application.
+	// Scheme is which side of the platform's pair the syntax base group is
+	// offering names for. FollowOS until the switch is pressed, and the
+	// window's own answer from then on: a base is fitted to a background, so
+	// the two appearances of one theme are two choices and a person settling
+	// a theme has to reach both without waiting for the desktop to change
+	// its mind. It moves that group alone — the preview shows both
+	// appearances at once, and the window itself follows the desktop's
+	// setting like every other application.
 	Scheme Scheme
 	// Problem describes the last thing that did not work — a drop that
 	// became no colours (an unreadable file, a format nothing here decodes,
@@ -83,7 +85,7 @@ type Model struct {
 	// Two of them because a syntax palette is fitted to a background, so the
 	// two appearances of one theme are two choices. Picking under the sun
 	// moves one and picking under the moon the other; the scheme switch moves
-	// neither, and switches which is applied.
+	// neither, and switches which is on offer.
 	LightAt, DarkAt int
 	// KeptBases are the syntax bases that file currently holds, one per
 	// appearance, resolved the same way the applied pair is. They sit beside
@@ -307,8 +309,9 @@ func (m Model) Color() (stdcolor.NRGBA, bool) {
 	return m.Platform, m.Platform.A != 0
 }
 
-// Scheme names which side of the platform's pair the preview shows, and
-// whether that is the window's decision or the desktop's.
+// Scheme names which side of the platform's pair the syntax base group is
+// offering names for, and whether that is the window's decision or the
+// desktop's.
 type Scheme int
 
 const (
@@ -319,8 +322,9 @@ const (
 	ShowDark
 )
 
-// Dark reports which side the preview is drawn on, given the platform set the
-// window itself is wearing. The desktop decides until the switch is pressed.
+// Dark reports which side the syntax base group is set for, given the
+// platform set the window itself is wearing. The desktop decides until the
+// switch is pressed.
 func (m Model) Dark(live tokens.PlatformColors) bool {
 	switch m.Scheme {
 	case ShowLight:

@@ -16,22 +16,27 @@
 // that adopts a brand reads — which holds choices this window does not make,
 // and they are written back untouched.
 //
-// Under the colours stands what a theme says about code: a plate of two code
-// faces, a column of syntax bases — the half of them fitted to the appearance
-// on screen — and beside the two, the fence they land on. A base is a pair,
-// one member per appearance, so the scheme switch swaps the list, the marked
-// row and the colours under the code together. Keeping writes both beside the
-// colour.
+// The window is one column of titled groups, in the order somebody settling a
+// theme works through them: the picture and the colours it gave, the theme
+// colour in force, the code face, and the syntax base. Under them stands the
+// preview, and under that the one default button this window has.
 //
-// What is previewed is the platform's set with the chosen colour standing in
-// for the accent, twice over: as the set itself, every name the platform
-// answers for beside its value, and as a picture of an application, where the
-// handful of places the colour actually lands can be seen together. A switch
-// at the trailing end of the title row shows the other appearance, because a
-// colour has to be seen on both.
+// The last two groups are what a theme says about code: two code faces, and a
+// column of syntax bases — the half of them fitted to the appearance the
+// switch on that group's title row is showing — with the fence they land on
+// beside the column. A base is a pair, one member per appearance, so the
+// switch swaps the list, the marked row and the colours under the code
+// together. Keeping writes both beside the colour.
+//
+// What is previewed is a picture of an application in the platform's set with
+// the chosen colour standing in for the accent, drawn twice side by side, once
+// per appearance — because a colour has to be seen on both, and a switch
+// showing one at a time makes that two looks and a memory instead of one look.
+// The set itself, every name the platform answers for beside its value, is
+// what the gallery's colour board is for and is not repeated here.
 //
 // The window itself follows the desktop's setting, like every other
-// application here. What the switch moves is the preview.
+// application here.
 //
 // The whole window is the drop target: file drops arrive as ordinary messages
 // through mvu/desktop, resolved against a single zone covering the window,
@@ -79,13 +84,14 @@ func main() {
 const modelObsConsumers = 1
 
 // Window size: wide enough for the swatch row to lay out without wrapping,
-// for the code section's two choosers to stand beside their sample, and for
-// the preview's window and board to stand side by side; tall enough that the
-// preview is the biggest thing in the window — which it has to be, because it
-// is what is being looked at — with the code section under the colours.
+// for the base column to stand beside its sample, and for the two sample
+// windows to stand side by side; tall enough for the whole column of choices,
+// the preview and the footer to close without the window scrolling. The
+// column is laid out to that height exactly — see the box heights in view.go —
+// so a change to either wants the other checked.
 const (
-	windowW = 1040
-	windowH = 960
+	windowW = 1200
+	windowH = 900
 )
 
 // WindowOptions is the window this application opens: the full-size-content

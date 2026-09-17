@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/vibrantgio/components/golden"
@@ -33,43 +34,80 @@ func wearAlone(name string, c tokens.PlatformColors) markdown.Style {
 	return wearPair(highlight.BasePair{Light: name, Dark: name}, c)
 }
 
-// The code section's geometry in window pixels, worked out from the same
-// constants the page lays out with. The section stands under the swatch row,
-// its label row over a face plate and, below that, the base chooser.
-func codeTop() int {
-	return int(Pad) + int(TitleH) + int(Gap) + int(HeadH) + int(Gap) +
-		int(RowLabelH) + int(RowTop) + int(CellH) + int(Gap)
-}
+// The column's geometry in window pixels, worked out from the same constants
+// the page lays out with: a title row, then five groups, each a title row and
+// a box under it, then the footer.
+func pictureTitleTop() int { return int(Pad) + int(TitleH) + int(Gap) }
 
-func codeBottom() int { return codeTop() + int(CodeH) }
+func boxTopAfter(titleTop int) int { return titleTop + int(GroupTitleH) + int(GroupBelow) }
 
-func facePlateTop() int { return codeTop() + int(RowLabelH) }
+func pictureBoxTop() int { return boxTopAfter(pictureTitleTop()) }
 
-// faceRowY is the centre of the nth name on the face plate.
-func faceRowY(i int) int {
-	return facePlateTop() + int(BasePad) + int(FaceHead) + i*int(BaseRow) + int(BaseRow)/2
-}
+func colourTitleTop() int { return pictureBoxTop() + int(PictureBoxH) + int(GroupAbove) }
 
-func basePanelTop() int { return facePlateTop() + int(FacePanelH) + int(FaceGap) }
+func colourBoxTop() int { return boxTopAfter(colourTitleTop()) }
 
-// baseListTop is the leading edge of the first name in the column: the
-// panel's own padding and the two lines heading it.
-func baseListTop() int { return basePanelTop() + int(BasePad) + int(BaseHead) }
+func faceTitleTop() int { return colourBoxTop() + int(ColourBoxH) + int(GroupAbove) }
+
+func faceBoxTop() int { return boxTopAfter(faceTitleTop()) }
+
+func baseTitleTop() int { return faceBoxTop() + int(FaceBoxH) + int(GroupAbove) }
+
+func baseBoxTop() int { return boxTopAfter(baseTitleTop()) }
+
+func previewTitleTop() int { return baseBoxTop() + int(BaseBoxH) + int(GroupAbove) }
+
+func previewBoxTop() int { return boxTopAfter(previewTitleTop()) }
+
+// footerTop is where the footer's row begins, and previewBoxBottom the edge
+// the preview's box is cut at: the footer is pinned to the page's bottom
+// margin and the preview takes what is left.
+func footerTop() int { return windowH - int(Pad) - int(FooterH) }
+
+func previewBoxBottom() int { return footerTop() - int(GroupAbove) }
+
+// boxLead is the leading edge of what stands in a box, and boxTrail the
+// trailing one.
+func boxLead() int { return int(Pad) + int(BoxInset) }
+
+func boxTrail() int { return windowW - int(Pad) - int(BoxInset) }
+
+// faceChipX is the leading edge of the nth code face's row, faceMarkX the x
+// of the marker a chosen one carries, and faceFillX a point clear of both the
+// marker and the name, where the row's own fill can be read.
+func faceChipX(i int) int { return boxLead() + i*(int(FaceChipW)+int(CellGap)) }
+
+func faceMarkX(i int) int { return faceChipX(i) + int(BaseMark)/2 }
+
+func faceFillX(i int) int { return faceChipX(i) + int(BaseMark) + 4 }
+
+// faceRowY is the centre line the two code faces stand on: the box's content
+// is one row tall, so both are on it.
+func faceRowY() int { return faceBoxTop() + int(BoxPad) + int(BaseRow)/2 }
+
+// baseListTop is the leading edge of the first name in the column: the box's
+// own air above its content.
+func baseListTop() int { return baseBoxTop() + int(BoxPad) }
+
+// baseListBottom is where the column runs out: the box's own air below its
+// content.
+func baseListBottom() int { return baseBoxTop() + int(BaseBoxH) - int(BoxPad) }
 
 // baseRowY is the centre of visible row i, and baseMarkX the x of the marker
 // a chosen row carries.
 func baseRowY(i int) int { return baseListTop() + i*int(BaseRow) + int(BaseRow)/2 }
 
-func baseMarkX() int { return int(Pad) + int(BasePad) + int(BaseMark)/2 }
+func baseMarkX() int { return boxLead() + int(BaseMark)/2 }
 
 // rowFillX is a point in a chooser row clear of both its marker and the name
 // it carries, which is where a row's own fill can be read.
-func rowFillX() int { return int(Pad) + int(BasePad) + int(BaseMark) + 4 }
+func rowFillX() int { return boxLead() + int(BaseMark) + 4 }
 
-// codePlate is the region the sample is drawn in: what is left of the
-// section's row after the chooser column.
+// codePlate is the region the sample is drawn in: what is left of the syntax
+// base group's box after the column of names.
 func codePlate() image.Rectangle {
-	return image.Rect(int(Pad)+int(BaseW)+int(Gap), codeTop()+int(RowLabelH), windowW-int(Pad), codeBottom())
+	return image.Rect(boxLead()+int(BaseW)+int(Gap), baseListTop(),
+		boxTrail(), baseListBottom())
 }
 
 // pixelJitter is how far apart two channel values may be and still count as
@@ -301,22 +339,23 @@ func TestTheChosenBaseIsMarked(t *testing.T) {
 }
 
 // TestTheChooserStandsBesideTheSample: the names and the fence they colour
-// are on screen at the same time, in one row — the column at the section's
+// are on screen at the same time, in one row — the column at the group box's
 // leading edge, the sample's plate beside it. A name chosen from behind the
 // thing it changes is chosen blind.
 func TestTheChooserStandsBesideTheSample(t *testing.T) {
 	c := tokens.PlatformLight
 	img := pageWith(t, judging(), c, settled(false))
 	p := PaletteFrom(c)
-	// A point in the column, clear of the rows' own marks and text: the
-	// chooser's plate, which is the platform's box on the window's plane.
-	if got := img.RGBAAt(int(Pad)+int(BaseW)-int(BasePad), baseRowY(0)); !is(got, p.Surface) {
-		t.Errorf("the column drew %v where its own plate should be, want %v", got, p.Surface)
+	// The run between the column and the plate, where the group's box shows
+	// through: the box is the platform's box on the window's plane, and the
+	// column draws no plate of its own inside it.
+	if got := img.RGBAAt(boxLead()+int(BaseW)+int(Gap)/2, baseRowY(0)); !is(got, p.Surface) {
+		t.Errorf("the run between the column and the sample drew %v, want the group's box %v", got, p.Surface)
 	}
 	// And the sample's plate is where the row leaves it, on the previewed
 	// set's own plane.
 	plate := codePlate()
-	if got := img.RGBAAt(plate.Min.X+int(SampleInset)/2, plate.Min.Y+plate.Dy()/2); !is(got, c.WindowBackground) {
+	if got := img.RGBAAt(plate.Min.X+int(BasePad)/2, plate.Min.Y+plate.Dy()/2); !is(got, c.WindowBackground) {
 		t.Errorf("the sample's plate drew %v, want the previewed set's plane %v", got, c.WindowBackground)
 	}
 }
@@ -338,7 +377,7 @@ func TestTheColumnScrollsToEveryNameOnIt(t *testing.T) {
 			if n < 3 {
 				t.Fatalf("the %s lists %d bases — too few to scroll", tc.name, n)
 			}
-			shows := codeBottom() - int(BasePad) - baseListTop()
+			shows := baseListBottom() - baseListTop()
 			cs := settled(tc.dark)
 			pageWith(t, m, tc.set, cs)
 			if got := cs.bases.st.Viewport(); got > shows {
@@ -360,8 +399,8 @@ func TestTheColumnScrollsToEveryNameOnIt(t *testing.T) {
 					q.First+1, last, n, n-last)
 			}
 			y := baseRowY(n-1-q.First) - q.Offset
-			if y >= codeBottom() {
-				t.Fatalf("the last name is laid out at y=%d, past the section's bottom edge at y=%d", y, codeBottom())
+			if y >= baseListBottom() {
+				t.Fatalf("the last name is laid out at y=%d, past the box's bottom edge at y=%d", y, baseListBottom())
 			}
 			if mark, plain := img.RGBAAt(baseMarkX(), y), img.RGBAAt(baseMarkX(), baseRowY(0)-q.Offset); mark == plain {
 				t.Errorf("the last name is applied and its row at y=%d is drawn %v, exactly like an unmarked row — nothing on screen says the column reached it",
@@ -435,11 +474,11 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 	if sun.AppliedBases() != moon.AppliedBases() {
 		t.Errorf("flipping the scheme edited the pair: %+v became %+v", sun.AppliedBases(), moon.AppliedBases())
 	}
-	if got := CodeHintFor(sun, false); got != pairLight+" · "+tokens.CodeFaceRoboto {
-		t.Errorf("under the sun the section says %q, want it naming %q", got, pairLight)
+	if got := BaseHintFor(sun, false, len(sun.VisibleBases(false))); !strings.HasPrefix(got, pairLight+", ") {
+		t.Errorf("under the sun the group says %q, want it naming %q", got, pairLight)
 	}
-	if got := CodeHintFor(moon, true); got != pairDark+" · "+tokens.CodeFaceRoboto {
-		t.Errorf("under the moon the section says %q, want it naming %q", got, pairDark)
+	if got := BaseHintFor(moon, true, len(moon.VisibleBases(true))); !strings.HasPrefix(got, pairDark+", ") {
+		t.Errorf("under the moon the group says %q, want it naming %q", got, pairDark)
 	}
 
 	// The plate the sample is drawn on, background and foreground: under each

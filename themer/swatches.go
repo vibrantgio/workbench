@@ -18,29 +18,34 @@ import (
 
 // The swatch row's dimensions. The cards SHARE the row's width rather than
 // each taking a fixed slice of it, so a full row reaches the same trailing
-// margin as everything above it instead of stopping short of it. The bounds
+// edge as the box it stands in instead of stopping short of it. The bounds
 // keep a row of two from becoming two enormous panels and a row on a narrow
 // window from becoming unreadable slivers.
 const (
 	CellMinW unit.Dp = 108 // narrower than this and the hex no longer fits
 	CellMaxW unit.Dp = 190 // wider than this a swatch stops reading as a swatch
-	CellH    unit.Dp = 104
 	CellGap  unit.Dp = 12
-	CellPad  unit.Dp = 12 // card edge to the swatch inside it
-	SwatchH  unit.Dp = 52 // the colour itself
-	CaptionH unit.Dp = 18 // the colour written out under it
-	InnerR   unit.Dp = 8  // the swatch's corners
-	RowTop   unit.Dp = 8  // label to cards
+	CellPad  unit.Dp = 6  // card edge to the swatch inside it
+	SwatchH  unit.Dp = 34 // the colour itself
+	CaptionH unit.Dp = 16 // the colour written out under it
+	InnerR   unit.Dp = 8  // the swatch's corners, and the picture's mat
+
+	// MarkRing and MarkGutter are how the platform marks a chosen thumbnail,
+	// MEASURED off the Appearance pane's own row in
+	// `system-settings-grouped-box-light.png`: the ring round the selected
+	// thumbnail spans x 455–457 and y 62–64, three points of the accent, and
+	// one point of the box's own fill stands between it and the thumbnail at
+	// x 458. Nothing else about the thumbnail changes when it is chosen.
+	MarkRing   unit.Dp = 3
+	MarkGutter unit.Dp = 1
 )
 
-// RowLabel and RowHint head the swatch row. The hint states the ordering and
-// what the number under each swatch is, because those are two different things
-// and a row that says only "most prominent first" reads as broken the moment a
-// vivid tenth of the picture outranks a drab half of it.
-const (
-	RowLabel = "Theme colour"
-	RowHint  = "vivid first, not largest. The % is how much of the picture. Click to apply."
-)
+// RowHint says what the cards are, at the trailing end of the picture
+// group's title row. It states the ordering and what the number under each
+// swatch is, because those are two different things and a row that says only
+// "most prominent first" reads as broken the moment a vivid tenth of the
+// picture outranks a drab half of it.
+const RowHint = "Vivid colours first, not the largest areas; the percentage is each colour's share of the picture."
 
 // SystemCaption is what the platform's own cell says it is: the platform's
 // word for the setting it is showing, under the colour that setting is on. It
@@ -62,10 +67,12 @@ func platformName() string {
 }
 
 // RowHintFor is the hint for the row the window is actually showing. A row
-// with no picture behind it has no shares in it to explain.
+// with no picture behind it has no shares in it to explain, and what it says
+// instead is how a picture gets here: the window is the drop target and has no
+// edges of its own to say so.
 func RowHintFor(m Model) string {
 	if len(m.Candidates) == 0 {
-		return "the colour the platform is set to. Drop a picture for more."
+		return "Drop a picture on this window and its colours come back here."
 	}
 	return RowHint
 }
@@ -75,32 +82,26 @@ func RowHintFor(m Model) string {
 // having chosen none.
 const systemSlot = 0
 
-// SwatchRow draws the colours on offer as a row of cards: the platform's
-// accent colour where the platform reports one, then every colour the picture
-// gave, with the chosen one marked. A click on a card makes that colour the
-// theme colour.
+// SwatchRow draws the colours on offer as a row of cards, filling the run of
+// the picture group's box that the mat left: the platform's accent colour
+// where the platform reports one, then every colour the picture gave, with the
+// chosen one marked. A click on a card makes that colour the theme colour.
 func SwatchRow(p Palette, ty Type, m Model, clicks []gesture.Click) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		width := gtx.Constraints.Max.X
-		labelH := gtx.Dp(RowLabelH)
-		head := image.Rect(0, 0, width, labelH)
-		textdraw.FillText(gtx, ty.Shaper, ty.Label, head, 0, 0.5, p.Text, RowLabel)
-		textdraw.FillText(gtx, ty.Shaper, ty.Small, head, 1, 0.5, p.Muted, RowHintFor(m))
-
+		room := gtx.Constraints.Max
 		cells := rowCells(m)
-		top := labelH + gtx.Dp(RowTop)
 		gap := gtx.Dp(CellGap)
-		size := image.Pt(gtx.Dp(unit.Dp(cellWidth(width, gap, len(cells)))), gtx.Dp(CellH))
+		size := image.Pt(gtx.Dp(unit.Dp(cellWidth(room.X, gap, len(cells)))), room.Y)
 		for i, cell := range cells {
 			x := i * (size.X + gap)
-			if x+size.X > width {
+			if x+size.X > room.X {
 				break // a window too narrow for the whole row shows what fits
 			}
-			at(gtx, image.Pt(x, top), func(gtx layout.Context) {
+			at(gtx, image.Pt(x, 0), func(gtx layout.Context) {
 				Cell(gtx, p, ty, cell, &clicks[i], size)
 			})
 		}
-		return layout.Dimensions{Size: image.Pt(width, top+size.Y)}
+		return layout.Dimensions{Size: room}
 	}
 }
 
@@ -148,27 +149,34 @@ func cellWidth(width, gap, n int) int {
 // Cell draws one card of the row at the origin and makes it clickable: the
 // colour itself over the label that names it, on the platform's box.
 //
-// The chosen card wears the platform's selection under the label the platform
-// pairs with it, which is how a list says which of its rows is the one in
-// force. Under the pointer a card takes the platform's hover overlay: a swatch
-// is a graphic operated by pointing at it, which is where the platform lays
-// one.
+// The chosen card is marked by a RING round its swatch and by nothing else —
+// the swatch keeps its size and its place, and the caption keeps its colour
+// and its place. That is how the platform marks a chosen thumbnail, and it is
+// what this row needs: a card filled with the platform's selection put a
+// second large flat colour beside the six the row exists to compare, and read
+// cold it made the tile twitch, "the caption jumped from below the tile to
+// inside it".
+//
+// Under the pointer a card takes the platform's hover overlay: a swatch is a
+// graphic operated by pointing at it, which is where the platform lays one.
+//
+// The card carries no resting hairline. It stands inside a grouped box, and
+// the platform's box carries none — what tells one card from the next is the
+// air between them and the swatch's own edge.
 func Cell(gtx layout.Context, p Palette, ty Type, c cell, click *gesture.Click, size image.Point) {
 	card := image.Rectangle{Max: size}
-	fill, edge, foreground := p.Surface, p.Edge, p.CardMuted
-	switch {
-	case c.chosen:
-		fill, edge, foreground = p.Selection, p.Selection, p.AccentForeground
-	case click.Hovered():
-		fill = p.Hover
+	if click.Hovered() {
+		fillRRect(gtx, card, gtx.Dp(InnerR), p.Hover)
 	}
-	fillRRect(gtx, card, gtx.Dp(Radius), fill)
-	strokeRRect(gtx, card, gtx.Dp(Radius), gtx.Dp(Hairline), edge)
 
-	pad := gtx.Dp(CellPad)
-	inner := card.Inset(pad)
+	inner := card.Inset(gtx.Dp(CellPad))
 	swatch := image.Rect(inner.Min.X, inner.Min.Y, inner.Max.X, inner.Min.Y+gtx.Dp(SwatchH))
-	caption := image.Rect(inner.Min.X, swatch.Max.Y+gtx.Dp(8), inner.Max.X, swatch.Max.Y+gtx.Dp(8)+gtx.Dp(CaptionH))
+	caption := image.Rect(inner.Min.X, inner.Max.Y-gtx.Dp(CaptionH), inner.Max.X, inner.Max.Y)
+
+	if c.chosen {
+		ring, gutter := gtx.Dp(MarkRing), gtx.Dp(MarkGutter)
+		strokeRRect(gtx, swatch.Inset(-(ring + gutter)), gtx.Dp(InnerR)+ring+gutter, ring, p.Accent)
+	}
 
 	// The swatch carries a hairline of its own because a picture's palest
 	// colour is a legal choice, and a near-white swatch on a near-white card
@@ -176,11 +184,11 @@ func Cell(gtx layout.Context, p Palette, ty Type, c cell, click *gesture.Click, 
 	// colour it is.
 	fillRRect(gtx, swatch, gtx.Dp(InnerR), c.col)
 	strokeRRect(gtx, swatch, gtx.Dp(InnerR), gtx.Dp(Hairline), p.Edge)
-	textdraw.FillText(gtx, ty.Shaper, ty.Small, caption, 0.5, 0.5, foreground, c.label)
+	textdraw.FillText(gtx, ty.Shaper, ty.Small, caption, 0.5, 0.5, p.CardText, c.label)
 
 	// The clickable area is the card, registered after the paint so the hover
 	// state read above is the one the previous frame recorded.
-	area := clip.UniformRRect(card, gtx.Dp(Radius)).Push(gtx.Ops)
+	area := clip.UniformRRect(card, gtx.Dp(InnerR)).Push(gtx.Ops)
 	pointer.CursorPointer.Add(gtx.Ops)
 	click.Add(gtx.Ops)
 	area.Pop()

@@ -1490,25 +1490,32 @@ settings PANEL it opens, whose two preferences apply live under it
 ### themer/
 
 The chooser for the theme colour and for the two things a theme says about
-code. The platform's own accent colour leads the row as the default; an
-image dropped anywhere on the window comes back as swatches of the colours
-it is made of — clustered and ranked by theme/imagecolor — and a field takes
-a colour written as a hex triplet. Whichever is chosen, what the window
-previews is the platform's set with that colour standing in for the accent:
-the set itself, name by name by reflection, beside a picture of an
-application where the handful of places the colour lands can be seen
-together. Under the colours, a plate of two code faces (Roboto Mono,
-JetBrains Mono) and a scrolled column of markdown/highlight's syntax bases
-— the half fitted to the appearance on screen — stand beside the fenced
-sample they colour, so a name is chosen in front of what it changes. A base
-is a pair, one member per appearance. The scheme switch moves the preview,
-the list, the marked row and the sample's plate together; the window itself
-follows the desktop's setting like every other app. The reference for OS
-file drops (mvu/desktop's ZoneGroup + DropTarget merged into the loop as
-messages, a window-wide zone, hover highlight). A path argument takes the
-same path a drop does. Keep writes the colour, the base pair and the code
-face through theme/brand, which is where the other apps read them from —
-and leaves every other key in that file as it found it
+code. The window is one column of titled groups in the order somebody
+settling a theme works through them — the picture and the colours it gave,
+the theme colour, the code face, the syntax base — then the preview, then a
+footer holding the window's one default button. Each group is the platform's
+grouped box, the rhythm measured off System Settings' Appearance pane. The
+platform's own accent colour leads the swatches as the default; an image
+dropped anywhere on the window comes back as swatches of the colours it is
+made of — clustered and ranked by theme/imagecolor — and a field takes a
+colour written as a hex triplet. The code groups offer two faces (Roboto
+Mono, JetBrains Mono) and a scrolled column of markdown/highlight's syntax
+bases — the half fitted to the appearance the switch on that group's title
+row shows — beside the fenced sample they colour, so a name is chosen in
+front of what it changes. A base is a pair, one member per appearance, and
+the switch moves the list, the marked row and the sample's plate together.
+What the window previews is a picture of an application in the platform's
+set with the chosen colour standing in for the accent, drawn twice side by
+side, one appearance each, at a fixed size: the handful of places the colour
+lands — the rail's pill, the default button, the focus ring — seen on both
+appearances at once. The set itself, name by name, is the gallery's colour
+board and is not repeated here. The window follows the desktop's setting
+like every other app. The reference for OS file drops (mvu/desktop's
+ZoneGroup + DropTarget merged into the loop as messages, a window-wide zone,
+hover highlight). A path argument takes the same path a drop does. Keep
+writes the colour, the base pair and the code face through theme/brand,
+which is where the other apps read them from — and leaves every other key in
+that file as it found it
 
 ### sitedocs/
 

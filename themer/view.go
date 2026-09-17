@@ -20,7 +20,6 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/input"
-	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
@@ -32,43 +31,80 @@ import (
 // Layout dimensions. None of them varies with the colour scheme.
 const (
 	Pad      unit.Dp = 20 // window margin
-	Gap      unit.Dp = 14 // between the page's stacked parts
-	Radius   unit.Dp = 12 // the picture's mat, a swatch card, the preview panel
+	Gap      unit.Dp = 14 // between the title row and the first group
+	Radius   unit.Dp = 12 // the picture's mat, a swatch card, the code plate
 	Hairline unit.Dp = 1  // a resting outline
 	Ring     unit.Dp = 2  // the drag highlight
 
-	// TitleAir is what the title row keeps above and below the tallest thing
-	// standing in it: the smallest step on the theme's spacing scale, and no
-	// more. A title row is not a band of controls, and every point it spends
-	// is a point the page under it does not get.
-	TitleAir unit.Dp = 4
-	// TitleH is the row across the top of the window: the scheme switch,
-	// which is the tallest thing in it, with TitleAir either side. It is
-	// derived from the switch's own height rather than pinned, so a control
-	// that grows cannot end up cropped by a number written down beside it.
-	TitleH unit.Dp = inventory.SchemeSwitchH + 2*TitleAir
+	// TitleH is the row across the top of the window: the plain title bar
+	// band, 32, which is the band ADR-019 measured TextEdit's window
+	// buttons centred in.
+	TitleH unit.Dp = 32
 	// TitleCenter is the line everything in the title row is centred on,
 	// measured from the window's top edge: the page's margin plus half the
 	// row. The window's own control buttons stand on it too.
 	TitleCenter = Pad + TitleH/2
+)
 
-	// HeadH is the source row: where the colour came from, what to call it,
-	// the field it can be written into, and the offer to keep it.
-	HeadH unit.Dp = 64
-	// ThumbW is the picture's mat and ThumbPad the air inside it.
-	ThumbW   unit.Dp = 110
-	ThumbPad unit.Dp = 6
-	// IdentW is the widest the name and its caption may run, so neither can
-	// land on the mat beside them.
-	IdentW unit.Dp = 300
+// The choices column's rhythm, measured at 1x off System Settings' Appearance
+// pane — `reference/macos/system-settings-grouped-box-{light,dark}.png`, the
+// whole 723×720 window — with column scans for the edges between the pane's
+// plane and the boxes standing on it.
+//
+// A box's bottom edge to the next box's top edge is 56 (the plane runs
+// 225–280 and 521–576), the group's title standing in that run: its cap band
+// sits 33 under the box above it and 14 over its own. GroupAbove, GroupTitleH
+// and GroupBelow add back to that 56, with the title's cap centred in the row.
+const (
+	GroupAbove  unit.Dp = 18
+	GroupTitleH unit.Dp = 28
+	GroupBelow  unit.Dp = 10
+
+	// BoxRadius is the grouped box's corner, fitted to the contour of the
+	// box at y 577 in the light capture: the fill reaches the box's own
+	// leading edge 9 rows down, a continuous corner a hair wider than the
+	// circle of that radius. BoxInset is the run from the box's edge to
+	// what stands in it — the seam between two rows spans x 253–692 inside
+	// a box spanning 243–702, and a row's label starts on the same line.
+	BoxRadius unit.Dp = 10
+	BoxInset  unit.Dp = 10
+	// BoxPad is the air above and below a box's content. The platform's own
+	// rows carry theirs inside a 38 row pitch; ours hold objects taller than
+	// a line of text, so the box states the air and the content states its
+	// height.
+	BoxPad unit.Dp = 10
+)
+
+// The boxes' heights, and the footer's. The preview's box is what is left,
+// which is what makes the column close at whatever height the window opens
+// at.
+const (
+	PictureBoxH unit.Dp = 84
+	ColourBoxH  unit.Dp = 48
+	FaceBoxH    unit.Dp = 46
+	BaseBoxH    unit.Dp = 154
+	FooterH     unit.Dp = 28
+)
+
+// PictureLabel and ColourLabel head the first two groups; the other three
+// are headed by the sections that draw them.
+const (
+	PictureLabel = "Picture"
+	ColourLabel  = "Theme colour"
+)
+
+const (
+	// ThumbW is the picture's mat, square, and ThumbPad the air inside it.
+	ThumbW   unit.Dp = 64
+	ThumbPad unit.Dp = 4
 	// KeepW is the keep affordance's width, fixed so the control keeps its
 	// size whichever of its two words is on it; HexW is the colour field's.
 	KeepW unit.Dp = 150
 	HexW  unit.Dp = 132
-
-	// LineH is one line of running text and RowLabelH a section's label row.
-	LineH     unit.Dp = 20
-	RowLabelH unit.Dp = 22
+	// ChipW is the colour in force, drawn beside the field that can replace
+	// it, and ChipH its height.
+	ChipW unit.Dp = 44
+	ChipH unit.Dp = 20
 )
 
 // What the keep affordance says: an offer while the colour on screen is not
@@ -172,19 +208,18 @@ func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 }
 
-// ContentLayer renders the page: where the colour came from, the colours on
-// offer, and the preview of the platform's set with the chosen one standing in
-// for the accent.
+// ContentLayer renders the page: one column of titled groups, the choices in
+// reading order, and under them the preview of the platform's set with the
+// chosen colour standing in for the accent.
 //
-// The click handlers, the colour field and the board's scroll position live at
-// subscription scope, outside the per-emission Map. A gesture handler
+// The click handlers, the colour field and the base column's scroll position
+// live at subscription scope, outside the per-emission Map. A gesture handler
 // reconstructed every emission loses the press it is in the middle of, and
 // every selection re-emits. There is one click handler per swatch slot, not
 // per colour, so the handlers outlive a picture being replaced by another.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, rowSlots)
 	bar := new(topClicks)
-	board := list.NewState()
 	code := newCodeState()
 	hex := input.TextField(th, input.TextFieldProps{
 		Placeholder: HexPlaceholder,
@@ -201,14 +236,15 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 	return rx.Map(rx.CombineLatest3(themes, modelObs, hex),
 		func(n rx.Tuple3[themed, Model, layout.Widget]) layout.Widget {
-			return Page(n.First, n.Second, zones, clicks, bar, board, code, n.Third)
+			return Page(n.First, n.Second, zones, clicks, bar, code, n.Third)
 		})
 }
 
-// topClicks are the handlers of the controls along the top of the window: the
-// keep affordance and the two halves of the scheme switch. They are one value
-// rather than two parameters because they have one lifetime — subscription
-// scope, so a press in flight survives an emission.
+// topClicks are the handlers of the controls the page keeps outside its
+// boxes: the keep affordance in the footer and the two halves of the scheme
+// switch on the syntax base group's title row. They are one value rather than
+// two parameters because they have one lifetime — subscription scope, so a
+// press in flight survives an emission.
 type topClicks struct {
 	keep   gesture.Click
 	scheme [2]gesture.Click
@@ -216,15 +252,19 @@ type topClicks struct {
 
 // Page lays the window out and registers it, whole, as the drop zone.
 //
-// Five rows down the page: the title row, the source row — where the colour
-// came from, what it is, and the two ways of settling it — the colours on
-// offer, the two choices this window makes about code with the fence they
-// land on, and under them the preview, which gets the room left because it is
-// the thing being judged.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, board *list.State, code *codeState, hex layout.Widget) layout.Widget {
+// One column, top to bottom: the title row, then four titled groups — the
+// picture and the colours it gave, the theme colour in force, the code face,
+// the syntax base — then the preview, which gets the room left over because
+// it is the thing being judged, and a footer holding the one default button
+// this window has.
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, code *codeState, hex layout.Widget) layout.Widget {
 	p := PaletteFrom(t.col)
 	dark := m.Dark(t.col)
-	preview := PreviewSet(t.col, m, dark)
+	light, night := PreviewSet(t.col, m, false), PreviewSet(t.col, m, true)
+	shown := light
+	if dark {
+		shown = night
+	}
 	typo, shaper := t.codeType(m)
 	var picture paint.ImageOp
 	if m.Preview != nil {
@@ -245,15 +285,36 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 		// row starts past them.
 		layout.UniformInset(Pad).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-				rigid(reserve(TitleLead()-Pad, TitleRow(p, t.col, t.typ, dark, bar))),
+				rigid(reserve(TitleLead()-Pad, TitleRow(p, t.typ, bar))),
 				spacer(Gap),
-				rigid(SourceRow(p, t.col, t.typ, m, picture, bar, hex)),
-				spacer(Gap),
-				rigid(SwatchRow(p, t.typ, m, clicks)),
-				spacer(Gap),
-				rigid(fixedH(CodeH, CodeSection(p, t.col, preview, t.typ, typo, shaper, m, dark, code))),
-				spacer(Gap),
-				layout.Flexed(1, Preview(p, preview, t.typ, board)),
+
+				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, PictureLabel, RowHintFor(m), nil))),
+				spacer(GroupBelow),
+				rigid(fixedH(PictureBoxH, GroupBox(p, PictureRow(p, t.typ, m, picture, clicks)))),
+				spacer(GroupAbove),
+
+				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, ColourLabel, ColourHint, nil))),
+				spacer(GroupBelow),
+				rigid(fixedH(ColourBoxH, GroupBox(p, ColourRow(p, t.typ, m, hex)))),
+				spacer(GroupAbove),
+
+				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, FaceLabel, FaceHint, nil))),
+				spacer(GroupBelow),
+				rigid(fixedH(FaceBoxH, GroupBox(p, FaceChoices(p, t.typ, m, code.faces)))),
+				spacer(GroupAbove),
+
+				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, BaseLabel, BaseHintFor(m, dark, len(m.VisibleBases(dark))),
+					SchemeToggle(t.col, dark, &bar.scheme)))),
+				spacer(GroupBelow),
+				rigid(fixedH(BaseBoxH, GroupBox(p, BaseChoices(p, t.col, shown, t.typ, typo, shaper, m, dark, code)))),
+				spacer(GroupAbove),
+
+				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, PreviewLabel, PreviewHint, nil))),
+				spacer(GroupBelow),
+				layout.Flexed(1, GroupBox(p, Preview(light, night, t.typ))),
+				spacer(GroupAbove),
+
+				rigid(fixedH(FooterH, Footer(p, t.col, t.typ, m, &bar.keep))),
 			)
 		})
 
@@ -266,9 +327,64 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	}
 }
 
-// TitleRow is the row across the top of the window: what the window is at its
-// leading edge, and the switch that shows the other side of the preview at its
-// trailing one, on one centre line.
+// ColourHint and FaceHint say what the group under them settles, beside its
+// title. The picture's and the syntax base's are answers about the state on
+// screen and are worked out per emission. Every one of them is a sentence:
+// read cold, the lowercase fragments this row used to carry were called "a
+// note to the implementer, not to a user".
+const (
+	ColourHint     = "Where the platform paints its accent, this colour stands."
+	ColourRowLabel = "Colour"
+	FaceHint       = "The typeface a code block is set in."
+)
+
+// GroupTitle is one group's title row: what the group is at its leading edge,
+// what there is to say about it after that, and — where a group has one — the
+// control that says which of two things the group is being set for, at the
+// trailing end.
+//
+// The hint stands beside the title and not at the trailing edge. Read cold,
+// a caption pushed out to the window's far margin — a thousand points from
+// the words it belongs to — made every section a zigzag: title far leading,
+// caption far trailing, the value back at the leading edge inside the box,
+// the control at the trailing edge again. The platform never separates the
+// two: its own captions stand inside the box under the label they explain.
+func GroupTitle(p Palette, ty Type, title, hint string, control layout.Widget) layout.Widget {
+	slots := []slot{{leading, 0, Line(ty, ty.Label, p.Text, title)}}
+	if control != nil {
+		slots = append(slots, slot{at: trailing, w: control})
+	}
+	if hint != "" {
+		slots = append(slots, slot{leading, 0, Line(ty, ty.Small, p.Muted, hint)})
+	}
+	return func(gtx layout.Context) layout.Dimensions {
+		return centreRow(gtx, gtx.Dp(GroupTitleH), gtx.Dp(Gap), slots...)
+	}
+}
+
+// GroupBox is the platform's grouped box: a rounded rectangle of the box's
+// own fill with what stands in it inset from its edges.
+//
+// It carries no hairline and no shadow. The captures say so — a column
+// crossing a box's top edge in `system-settings-grouped-box-light.png` steps
+// from the pane's plane straight to the fill over two or three rows of
+// antialiasing, with no darker line anywhere in the run.
+func GroupBox(p Palette, inner layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		fillRRect(gtx, image.Rectangle{Max: size}, gtx.Dp(BoxRadius), p.Surface)
+		return layout.Inset{
+			Top: BoxPad, Bottom: BoxPad, Left: BoxInset, Right: BoxInset,
+		}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min = gtx.Constraints.Max
+			inner(gtx)
+			return layout.Dimensions{Size: gtx.Constraints.Max}
+		})
+	}
+}
+
+// TitleRow is the row across the top of the window: what the window is, at
+// its leading edge, on one centre line.
 //
 // It is a title row and not a bar. Nothing here is drawn on a fill of its own
 // and nothing is ruled off from what follows: the row stands on the window's
@@ -280,11 +396,8 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 // centre line, with the row starting past them — and the run of it that holds
 // nothing is what the window is dragged by, the press that would have gone to
 // a title bar having nowhere else to go.
-func TitleRow(p Palette, c tokens.PlatformColors, ty Type, dark bool, bar *topClicks) layout.Widget {
-	slots := []slot{
-		{leading, 0, AppTitle(p, ty)},
-		{trailing, 0, SchemeToggle(c, dark, &bar.scheme)},
-	}
+func TitleRow(p Palette, ty Type, bar *topClicks) layout.Widget {
+	slots := []slot{{leading, 0, AppTitle(p, ty)}}
 	return func(gtx layout.Context) layout.Dimensions {
 		dims, free := centreRowFree(gtx, gtx.Dp(TitleH), gtx.Dp(Gap), slots...)
 		desktop.DragBand(gtx, free)
@@ -309,35 +422,106 @@ func reserve(d unit.Dp, w layout.Widget) layout.Widget {
 // AppTitle is what the window is, at the head of its own title row, in the
 // theme's heading type at the size a line of running text takes.
 func AppTitle(p Palette, ty Type) layout.Widget {
+	return Line(ty, ty.Head, p.Text, AppName)
+}
+
+// Line is one line of text as wide as it wants to be and no wider than the
+// room it is offered, centred on the row it is laid in. It is what every slot
+// in this window that carries a word rather than a control is made of.
+//
+// It takes the row's full height rather than a line box of its own, so a role
+// set larger than the running text is centred in the row instead of clipped
+// by a height written down beside it.
+func Line(ty Type, style textdraw.TextStyle, col stdcolor.NRGBA, s string) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		w := min(natural(gtx, ty.Shaper, ty.Head, AppName), gtx.Constraints.Max.X)
-		if w <= 0 {
+		w := min(natural(gtx, ty.Shaper, style, s), gtx.Constraints.Max.X)
+		if w <= 0 || s == "" {
 			return layout.Dimensions{}
 		}
-		size := image.Pt(w, gtx.Dp(LineH))
-		textdraw.FillText(gtx, ty.Shaper, ty.Head, image.Rectangle{Max: size}, 0, 0.5, p.Text, AppName)
+		size := image.Pt(w, gtx.Constraints.Max.Y)
+		textdraw.FillText(gtx, ty.Shaper, style, image.Rectangle{Max: size}, 0, 0.5, col, s)
 		return layout.Dimensions{Size: size}
 	}
 }
 
-// SourceRow is the line under the title row: where the colour came from, what
-// it is called, the field it can be written into instead, and the offer to
-// make it outlast the window.
+// PictureRow is what stands in the picture group's box: the mat the dropped
+// picture is shown on, and beside it the colours that picture gave, as cards.
 //
-// The order the slots are named in is the order they keep their size in when
-// the window is too narrow for all of them. The mat, the keep affordance and
-// the field are fixed objects and are named first; the identity block last,
-// because it is the one thing here that can honestly give room, having a
-// truncator to give it with.
-func SourceRow(p Palette, c tokens.PlatformColors, ty Type, m Model, src paint.ImageOp, bar *topClicks, hex layout.Widget) layout.Widget {
+// The mat leads because it is what the cards are read against — a colour
+// pulled out of a picture is judged by looking from the swatch back to the
+// thing it came from.
+func PictureRow(p Palette, ty Type, m Model, src paint.ImageOp, clicks []gesture.Click) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		mat := gtx.Dp(ThumbW)
+		at(gtx, image.Point{}, func(gtx layout.Context) {
+			gtx.Constraints = layout.Exact(image.Pt(mat, size.Y))
+			Thumbnail(p, ty, m, src)(gtx)
+		})
+		lead := mat + gtx.Dp(BoxInset)
+		if lead >= size.X {
+			return layout.Dimensions{Size: size}
+		}
+		at(gtx, image.Pt(lead, 0), func(gtx layout.Context) {
+			gtx.Constraints = layout.Exact(image.Pt(size.X-lead, size.Y))
+			SwatchRow(p, ty, m, clicks)(gtx)
+		})
+		return layout.Dimensions{Size: size}
+	}
+}
+
+// ColourRow is what stands in the theme colour group's box: the row's own
+// label, then the colour in force and where it came from, and at the trailing
+// end the two things that can replace it — the colour itself, and the field
+// it can be written into.
+//
+// The label leads because that is where the platform puts one. Read cold
+// without it, the row went value, then provenance, then control — "the
+// platform's order with the label deleted".
+func ColourRow(p Palette, ty Type, m Model, hex layout.Widget) layout.Widget {
+	name, hint, hintColor := IdentityName(m), IdentityHint(m), p.CardMuted
+	if m.Problem != "" {
+		hint, hintColor = m.Problem, p.Problem
+	}
 	slots := []slot{
-		{leading, 0, Thumbnail(p, ty, m, src)},
-		{trailing, 0, KeepButton(c, ty, m, &bar.keep)},
+		{leading, 0, Line(ty, ty.Body, p.CardText, ColourRowLabel)},
 		{trailing, 0, fixed(HexW, hex)},
-		{leading, 0, Identity(p, ty, m)},
+		{trailing, 0, Chip(p, m)},
+		{leading, 0, Line(ty, ty.Body, p.CardText, name)},
+		{leading, 0, Line(ty, ty.Small, hintColor, hint)},
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return centreRow(gtx, gtx.Dp(HeadH), gtx.Dp(Gap), slots...)
+		return centreRow(gtx, gtx.Constraints.Max.Y, gtx.Dp(Gap), slots...)
+	}
+}
+
+// Chip is the colour in force, drawn beside the field that can replace it. It
+// carries a hairline of its own for the same reason a swatch does: a picture's
+// palest colour is a legal choice, and a near-white chip on a near-white box
+// with no boundary reads as a box that failed to draw.
+func Chip(p Palette, m Model) layout.Widget {
+	col, ok := m.Color()
+	return func(gtx layout.Context) layout.Dimensions {
+		if !ok {
+			return layout.Dimensions{}
+		}
+		size := image.Pt(gtx.Dp(ChipW), gtx.Dp(ChipH))
+		r := image.Rectangle{Max: size}
+		fillRRect(gtx, r, gtx.Dp(InnerR), col)
+		strokeRRect(gtx, r, gtx.Dp(InnerR), gtx.Dp(Hairline), p.Edge)
+		return layout.Dimensions{Size: size}
+	}
+}
+
+// Footer is the run under the preview: what went wrong at its leading edge,
+// and the window's one default button at its trailing one.
+func Footer(p Palette, c tokens.PlatformColors, ty Type, m Model, click *gesture.Click) layout.Widget {
+	slots := []slot{{trailing, 0, KeepButton(c, ty, m, click)}}
+	if m.Problem != "" {
+		slots = append(slots, slot{leading, 0, Line(ty, ty.Small, p.Problem, m.Problem)})
+	}
+	return func(gtx layout.Context) layout.Dimensions {
+		return centreRow(gtx, gtx.Dp(FooterH), gtx.Dp(Gap), slots...)
 	}
 }
 
@@ -407,23 +591,23 @@ func KeepButton(c tokens.PlatformColors, ty Type, m Model, click *gesture.Click)
 // which is the only way a target with no edges of its own is discovered.
 func Thumbnail(p Palette, ty Type, m Model, src paint.ImageOp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		size := image.Pt(gtx.Dp(ThumbW), gtx.Dp(HeadH))
+		size := gtx.Constraints.Max
 		r := image.Rectangle{Max: size}
-		fill, edge, width := p.Surface, p.Edge, gtx.Dp(Hairline)
+		fill, edge, width := p.Backdrop, p.Edge, gtx.Dp(Hairline)
 		if m.DragOver {
 			fill, edge, width = p.Selection, p.Accent, gtx.Dp(Ring)
 		}
-		fillRRect(gtx, r, gtx.Dp(Radius), fill)
-		strokeRRect(gtx, r, gtx.Dp(Radius), width, edge)
+		fillRRect(gtx, r, gtx.Dp(InnerR), fill)
+		strokeRRect(gtx, r, gtx.Dp(InnerR), width, edge)
 		if m.Preview == nil {
 			foreground := p.CardMuted
 			if m.DragOver {
 				foreground = p.AccentForeground
 			}
-			textdraw.FillText(gtx, ty.Shaper, ty.Small, r, 0.5, 0.5, foreground, "Drop an image")
+			textdraw.FillText(gtx, ty.Shaper, ty.Small, r, 0.5, 0.5, foreground, "Drop")
 			return layout.Dimensions{Size: size}
 		}
-		defer clip.UniformRRect(r, gtx.Dp(Radius)).Push(gtx.Ops).Pop()
+		defer clip.UniformRRect(r, gtx.Dp(InnerR)).Push(gtx.Ops).Pop()
 		gtx.Constraints = layout.Exact(size)
 		layout.UniformInset(ThumbPad).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -435,36 +619,6 @@ func Thumbnail(p Palette, ty Type, m Model, src paint.ImageOp) layout.Widget {
 				}.Layout(gtx)
 			})
 		})
-		return layout.Dimensions{Size: size}
-	}
-}
-
-// Identity names the theme colour on screen and, under it, where it came
-// from: two lines that are one object, and are laid out as one so the second
-// is never orphaned from the first.
-//
-// The block is as wide as its own text and never wider than IdentW, and it is
-// clipped to that width besides. Both of those are here for one reason:
-// nothing this block draws may land on the mat to its leading side. Only the
-// width is clipped — the height is left open, because a clip tight enough to
-// cut a descender is a bug of its own.
-func Identity(p Palette, ty Type, m Model) layout.Widget {
-	name, hint, hintColor := IdentityName(m), IdentityHint(m), p.Muted
-	if m.Problem != "" {
-		hint, hintColor = m.Problem, p.Problem
-	}
-	return func(gtx layout.Context) layout.Dimensions {
-		line := gtx.Dp(LineH)
-		room := min(gtx.Constraints.Max.X, gtx.Dp(IdentW))
-		w := min(room, max(natural(gtx, ty.Shaper, ty.Body, name), natural(gtx, ty.Shaper, ty.Small, hint)))
-		if w <= 0 {
-			return layout.Dimensions{}
-		}
-		size := image.Pt(w, 2*line)
-		guard := clip.Rect(image.Rect(0, -size.Y, size.X, 2*size.Y)).Push(gtx.Ops)
-		textdraw.FillText(gtx, ty.Shaper, ty.Body, image.Rect(0, 0, size.X, line), 0, 0.5, p.Text, name)
-		textdraw.FillText(gtx, ty.Shaper, ty.Small, image.Rect(0, line, size.X, 2*line), 0, 0.5, hintColor, hint)
-		guard.Pop()
 		return layout.Dimensions{Size: size}
 	}
 }
@@ -609,6 +763,13 @@ func centreRowFree(gtx layout.Context, h, gap int, slots ...slot) (layout.Dimens
 // filled. The segments are the ones the inventory's own pages carry, so the
 // control that changes scheme looks the same wherever the inventory is shown;
 // what is added here is the press.
+//
+// It stands on the syntax base group's title row because that is the one
+// choice in this window that is made per appearance: a palette somebody
+// balanced against a near-white page is not the one they would balance against
+// a near-black one, so the control says which of the two the column is
+// offering names for. The preview under it shows both appearances at once and
+// asks the switch nothing.
 //
 // A target per segment, not one over the pair. Each half names a scheme and
 // the message it sends says which — pointing at the moon asks for dark from

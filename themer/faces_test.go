@@ -15,14 +15,14 @@ func pickMono(m Model, name string) Model {
 	return ReduceModel(m, SelectMono{Name: name})
 }
 
-// TestThePlateOffersExactlyTwoFaces: Roboto Mono and JetBrains Mono, nothing
+// TestTheGroupOffersExactlyTwoFaces: Roboto Mono and JetBrains Mono, nothing
 // else. A font picker this is not.
-func TestThePlateOffersExactlyTwoFaces(t *testing.T) {
+func TestTheGroupOffersExactlyTwoFaces(t *testing.T) {
 	if len(codeFaces) != 2 {
-		t.Fatalf("the plate offers %d names, want exactly two", len(codeFaces))
+		t.Fatalf("the group offers %d names, want exactly two", len(codeFaces))
 	}
 	if codeFaces[0] != tokens.CodeFaceRoboto || codeFaces[1] != tokens.CodeFaceJetBrains {
-		t.Errorf("the plate offers %v, want Roboto Mono then JetBrains Mono", codeFaces)
+		t.Errorf("the group offers %v, want Roboto Mono then JetBrains Mono", codeFaces)
 	}
 }
 
@@ -40,13 +40,13 @@ func TestChoosingACodeFaceRestylesTheSample(t *testing.T) {
 	}
 }
 
-// TestTheFacePlateMarksTheChosenName: one of the two rows carries the choice,
-// and it is the one that was chosen.
-func TestTheFacePlateMarksTheChosenName(t *testing.T) {
+// TestTheTwoFacesMarkTheChosenName: one of the two carries the choice, and it
+// is the one that was chosen.
+func TestTheTwoFacesMarkTheChosenName(t *testing.T) {
 	for i, name := range codeFaces {
 		img := pageWith(t, pickMono(judging(), name), tokens.PlatformLight, settled(false))
-		mine := img.RGBAAt(baseMarkX(), faceRowY(i))
-		other := img.RGBAAt(baseMarkX(), faceRowY(1-i))
+		mine := img.RGBAAt(faceMarkX(i), faceRowY())
+		other := img.RGBAAt(faceMarkX(1-i), faceRowY())
 		if mine == other {
 			t.Errorf("with %q chosen its row is drawn exactly like the other — nothing marks the choice", name)
 		}

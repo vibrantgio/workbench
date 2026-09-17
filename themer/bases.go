@@ -27,7 +27,8 @@
 // the idioms a smaller set would take: a row of cards is the swatch row's
 // shape and holds six, and a menu drawing its full height would run off the
 // bottom of the window long before it ran out of names. So the names are a
-// scrolled column with the chosen one marked, beside the sample they colour.
+// scrolled column with the chosen one marked, beside the sample they colour,
+// inside the group's own box.
 package main
 
 import (
@@ -50,9 +51,8 @@ import (
 const (
 	BaseW    unit.Dp = 190 // the column, beside the code sample
 	BaseRow  unit.Dp = 26  // one name
-	BasePad  unit.Dp = 8   // panel edge to the names inside it
+	BasePad  unit.Dp = 8   // a row's leading edge to the name on it
 	BaseMark unit.Dp = 6   // the chosen row's marker, at the row's leading edge
-	BaseHead unit.Dp = 38  // the two lines heading the column, inside its panel
 )
 
 // baseLead is how many names the column keeps above the applied one when it
@@ -61,22 +61,29 @@ const (
 // of rows above it show the cut for what it is.
 const baseLead = 2
 
-// What heads the column and what marks a row.
+// What heads the group and what marks a row.
 const (
 	BaseLabel  = "Syntax base"
-	BaseInvite = "Click one to apply."
 	BaseAdded  = "added"  // a style read from the styles folder
 	BaseEither = "either" // a style that named no background, so it is on both lists
 )
+
+// BaseHintFor is what the syntax base group's title row says beside its
+// title: the base the code on screen is coloured from, and how much of the
+// set the column under it is offering. The base named is the applied one
+// rather than the kept one, because what is on screen is what is being judged.
+func BaseHintFor(m Model, dark bool, n int) string {
+	return m.Base(dark) + ", " + BaseCountFor(dark, n)
+}
 
 // BaseCountFor says how long the list on screen is and which half of the set
 // it is. A column showing half the styles there are, with nothing saying so,
 // reads as one that failed to load the rest.
 func BaseCountFor(dark bool, n int) string {
 	if dark {
-		return fmt.Sprintf("%d dark bases", n)
+		return fmt.Sprintf("one of %d fitted to a dark background.", n)
 	}
-	return fmt.Sprintf("%d light bases", n)
+	return fmt.Sprintf("one of %d fitted to a light background.", n)
 }
 
 // baseChooser is what the column keeps across emissions: where it is
@@ -122,14 +129,18 @@ func (b *baseChooser) reveal(dark bool, row int) {
 	}
 }
 
-// BasePanel draws the base chooser: one plate carrying a two-line heading
-// and, under it, the names in a scrolling list with the chosen one marked.
+// BasePanel draws the base chooser: the names in a scrolling column with the
+// chosen one marked, standing in the group's box.
 //
 // Only the half of the list the scheme switch is showing — see
 // [Model.VisibleBases] — and the marked row is that appearance's own choice.
 // A row carries the index of the base it names in the whole list, not its
 // place in the visible half, so what a press means does not depend on which
 // half is on screen.
+//
+// The column draws no plate of its own and no heading. The group's box is the
+// plate and the group's title row is the heading, which is where the count and
+// the scheme switch stand.
 func BasePanel(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, sel *baseChooser) layout.Widget {
 	if sel == nil {
 		sel = newBaseChooser()
@@ -151,43 +162,18 @@ func BasePanel(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, 
 	// The window opens on the base that was kept, which may be sixty names
 	// down a sorted list, and a flip of the scheme replaces the list under it.
 	sel.reveal(dark, applied)
-	count := BaseCountFor(dark, len(visible))
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
-		panel := image.Rectangle{Max: size}
-		fillRRect(gtx, panel, gtx.Dp(Radius), p.Surface)
-		defer clip.UniformRRect(panel, gtx.Dp(Radius)).Push(gtx.Ops).Pop()
 		gtx.Constraints = layout.Exact(size)
-		layout.UniformInset(BasePad).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			w, headH := gtx.Constraints.Max.X, gtx.Dp(BaseHead)
-			// Two lines: what the list is, how much of it there is, and that
-			// it can be pressed — a column of plain names with one row tinted
-			// is a legend until something says otherwise.
-			line := headH / 2
-			name := image.Rect(0, 0, w, line)
-			hint := image.Rect(0, line, w, headH)
-			textdraw.FillText(gtx, ty.Shaper, ty.Label, name, 0, 0.5, p.CardText, BaseLabel)
-			textdraw.FillText(gtx, ty.Shaper, ty.Small, name, 1, 0.5, p.CardMuted, count)
-			textdraw.FillText(gtx, ty.Shaper, ty.Small, hint, 0, 0.5, p.CardMuted, BaseInvite)
-
-			if headH >= gtx.Constraints.Max.Y {
-				return layout.Dimensions{Size: size}
-			}
-			at(gtx, image.Pt(0, headH), func(gtx layout.Context) {
-				gtx.Constraints = layout.Exact(image.Pt(w, gtx.Constraints.Max.Y-headH))
-				// The bar takes a gutter rather than floating over the names.
-				// The gutter costs a few points of a column that is narrow
-				// already and buys the one thing an overlay cannot on a list
-				// this dense: the marked row ends where the row ends rather
-				// than running under the track.
-				list.LayoutScrollbar(gtx, st, scrollbar.FromTokens(c, p.Surface), list.Occupy, rows,
-					func(gtx layout.Context, row layout.Widget) layout.Dimensions {
-						return row(gtx)
-					})
+		// The bar takes a gutter rather than floating over the names. The
+		// gutter costs a few points of a column that is narrow already and
+		// buys the one thing an overlay cannot on a list this dense: the
+		// marked row ends where the row ends rather than running under the
+		// track.
+		list.LayoutScrollbar(gtx, st, scrollbar.FromTokens(c, p.Surface), list.Occupy, rows,
+			func(gtx layout.Context, row layout.Widget) layout.Dimensions {
+				return row(gtx)
 			})
-			return layout.Dimensions{Size: size}
-		})
-		strokeRRect(gtx, panel, gtx.Dp(Radius), gtx.Dp(Hairline), p.Edge)
 		return layout.Dimensions{Size: size}
 	}
 }
@@ -218,6 +204,13 @@ func BaseRowWidget(gtx layout.Context, p Palette, ty Type, opt BaseOption, index
 // colour: the selection fill is the accent, so a marker drawn in the accent
 // would be a marker nobody can see. Under the pointer a row takes the
 // platform's hover overlay.
+//
+// An unchosen row takes the platform's label colour, and not the muted step
+// under it. Read cold, a column of choices set in that muted step read as a
+// column of choices that were not available — "a 36-item list of available
+// choices reads as one live row and four dead ones" — and the platform's own
+// lists carry the label colour on every row, marking the chosen one by
+// inverting it.
 func ChoiceRow(gtx layout.Context, p Palette, ty Type, name, tag string, chosen bool, click *gesture.Click) layout.Dimensions {
 	h := gtx.Dp(BaseRow)
 	size := image.Pt(gtx.Constraints.Max.X, h)
@@ -229,7 +222,7 @@ func ChoiceRow(gtx layout.Context, p Palette, ty Type, name, tag string, chosen 
 		fillRRect(gtx, r, gtx.Dp(InnerR), p.Hover)
 	}
 	pad := gtx.Dp(BasePad)
-	foreground := p.CardMuted
+	foreground := p.CardText
 	if chosen {
 		foreground = p.AccentForeground
 		// Nearly the row's full height: a stub a third of the row tall reads

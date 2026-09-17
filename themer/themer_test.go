@@ -211,16 +211,16 @@ func TestAFailedDropKeepsWhatIsOnScreen(t *testing.T) {
 	}
 }
 
-// TestTheSchemeSwitchMovesThePreviewAlone: the window wears the theme the
-// desktop is set to, like every other application; what the switch moves is
-// which side of the platform's pair is previewed.
-func TestTheSchemeSwitchMovesThePreviewAlone(t *testing.T) {
+// TestTheSchemeSwitchMovesTheSyntaxBaseGroupAlone: the window wears the theme
+// the desktop is set to, like every other application; what the switch moves
+// is which appearance the syntax base group is offering names for.
+func TestTheSchemeSwitchMovesTheSyntaxBaseGroupAlone(t *testing.T) {
 	m := ReduceModel(judging(), SetScheme{Dark: true})
 	if !m.Dark(tokens.PlatformLight) {
-		t.Error("the switch was pressed for dark and the preview stayed light")
+		t.Error("the switch was pressed for dark and the group stayed light")
 	}
 	if m.Dark(tokens.PlatformDark) != true {
-		t.Error("the preview is not dark on a dark desktop after the switch")
+		t.Error("the group is not dark on a dark desktop after the switch")
 	}
 	// The window's own colours are the live set's, whatever the switch says.
 	p := PaletteFrom(tokens.PlatformLight)
@@ -300,7 +300,7 @@ func TestTheWindowsColoursAreThePlatformsNames(t *testing.T) {
 			name string
 			got  stdcolor.NRGBA
 		}{
-			{"a seam", p.Seam}, {"a card's edge", p.Edge},
+			{"a hairline in a box", p.Edge},
 			{"the text", p.Text}, {"the muted step", p.Muted},
 			{"the text on a card", p.CardText}, {"the muted step on a card", p.CardMuted},
 			{"a card under the pointer", p.Hover},
