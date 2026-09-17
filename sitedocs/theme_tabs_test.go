@@ -62,13 +62,13 @@ func TestThemeTabsFollowScheme(t *testing.T) {
 	}
 }
 
-// TestPaletteSectionRowsIsTheRowCount asserts the stated row count against
+// TestColourSectionRowsIsTheRowCount asserts the stated row count against
 // the rows themselves: the board is a heading and a body.
-func TestPaletteSectionRowsIsTheRowCount(t *testing.T) {
+func TestColourSectionRowsIsTheRowCount(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	c := tokens.PlatformLight
-	if got := len(PaletteRows(c, TypeFrom(shaper, tokens.DefaultTypography))); got != PaletteSectionRows {
-		t.Fatalf("PaletteRows returns %d rows, PaletteSectionRows says %d", got, PaletteSectionRows)
+	if got := len(ColourRows(c, TypeFrom(shaper, tokens.DefaultTypography))); got != ColourSectionRows {
+		t.Fatalf("ColourRows returns %d rows, ColourSectionRows says %d", got, ColourSectionRows)
 	}
 }
 
@@ -83,15 +83,15 @@ func TestEachThemeTabHoldsItsOwnSection(t *testing.T) {
 	inv := inventory.NewForOS(shaper, "darwin")
 	c := tokens.PlatformLight
 
-	scale := palette.TypeScaleRows(inv, paletteChrome(c), c, TypeFrom(shaper, typo).story())
+	scale := palette.TypeScaleRows(inv, colourChrome(c), c, TypeFrom(shaper, typo).story())
 	if len(scale) != 2 {
 		t.Fatalf("the type scale is %d rows, want 2 (a heading band and a body)", len(scale))
 	}
 	if got := len(typeScaleRows(inv, shaper, typo, c)); got != len(scale) {
 		t.Errorf("the Typography column is %d rows, want the scale's %d and nothing else", got, len(scale))
 	}
-	if got := len(PaletteRows(c, TypeFrom(shaper, typo))); got != PaletteSectionRows {
-		t.Errorf("the Colours column is %d rows, want the board's %d and nothing else", got, PaletteSectionRows)
+	if got := len(ColourRows(c, TypeFrom(shaper, typo))); got != ColourSectionRows {
+		t.Errorf("the Colours column is %d rows, want the board's %d and nothing else", got, ColourSectionRows)
 	}
 }
 
@@ -159,7 +159,7 @@ func TestTheBoardShowsEveryPlatformName(t *testing.T) {
 func TestTheBoardsChromeIsFlattened(t *testing.T) {
 	for _, tc := range schemeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			chrome := paletteChrome(tc.colors)
+			chrome := colourChrome(tc.colors)
 			for _, f := range []struct {
 				name string
 				col  color.NRGBA

@@ -39,7 +39,7 @@ import (
 func colourTabLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	st := list.NewState()
 	return rx.Map(themeTokenStream(th), func(t themeTokens) layout.Widget {
-		return scrollingColumn(st, t.col, PaletteRows(t.col, TypeFrom(t.shaper, t.typ)))
+		return scrollingColumn(st, t.col, ColourRows(t.col, TypeFrom(t.shaper, t.typ)))
 	})
 }
 
@@ -77,14 +77,14 @@ func themeTokenStream(th rx.Observable[theme.Theme]) rx.Observable[themeTokens] 
 // scale, framed in the colours and type roles this window resolved for the
 // board.
 func typeScaleRows(inv *inventory.Inventory, shaper *text.Shaper, typo tokens.Typography, c tokens.PlatformColors) []layout.Widget {
-	return palette.TypeScaleRows(inv, paletteChrome(c), c, TypeFrom(shaper, typo).story())
+	return palette.TypeScaleRows(inv, colourChrome(c), c, TypeFrom(shaper, typo).story())
 }
 
 // renderColourTab is the static counterpart of the Colours tab's content
 // used by goldens and review captures: a fresh top-scrolled column laid
 // out once from pre-resolved tokens with no event processing.
 func renderColourTab(shaper *text.Shaper, colors tokens.PlatformColors, typo tokens.Typography) layout.Widget {
-	return scrollingColumn(list.NewState(), colors, PaletteRows(colors, TypeFrom(shaper, typo)))
+	return scrollingColumn(list.NewState(), colors, ColourRows(colors, TypeFrom(shaper, typo)))
 }
 
 // renderTypographyTab is the static counterpart of the Typography tab's

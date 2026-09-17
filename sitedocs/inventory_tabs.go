@@ -63,7 +63,8 @@ var tabGroups = map[string]string{
 func groupTabLayer(th rx.Observable[theme.Theme], group string) rx.Observable[layout.Widget] {
 	// Built on the first emission and kept: the inventory holds the parsed
 	// reading sample and its sections' scroll state, st the column's own
-	// scroll position. A palette change rebuilds row values, never these.
+	// scroll position. A change to the platform's colours rebuilds row
+	// values, never these.
 	// st is per tab, which is what gives each tab its own scroll position.
 	var inv *inventory.Inventory
 	st := list.NewState()

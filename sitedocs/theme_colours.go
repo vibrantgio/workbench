@@ -1,4 +1,4 @@
-// theme_palette.go is what this window brings to the colour board: the
+// theme_colours.go is what this window brings to the colour board: the
 // board itself is the shared section that stands beside the published
 // inventory — components/gallery/palette — and every application that shows
 // the platform's set draws it from there, so what is on screen cannot drift
@@ -26,7 +26,7 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// paletteChrome is the board's own frame, drawn in the set the board is
+// colourChrome is the board's own frame, drawn in the set the board is
 // describing: the band a section heading fills is chrome capping the content
 // the board's rows stand on, so it wears the chrome material and parts itself
 // from what is under it with the platform's seam.
@@ -34,7 +34,7 @@ import (
 // The two foregrounds are the platform's labels at two strengths, flattened
 // onto the fill each actually lands on — the board's rows stand on the
 // content plane, which is what the shared section fills its bodies with.
-func paletteChrome(c tokens.PlatformColors) palette.Chrome {
+func colourChrome(c tokens.PlatformColors) palette.Chrome {
 	return palette.Chrome{
 		Surface: c.SidebarMaterial,
 		Seam:    vgcolor.Flatten(c.Separator, c.SidebarMaterial),
@@ -90,12 +90,12 @@ func palTextStyle(ts tokens.TextStyle) textdraw.TextStyle {
 	return textdraw.TextStyle{Font: f, Alignment: textdraw.Start, Size: unit.Sp(ts.Size), MaxLines: 1, Truncator: Ellipsis}
 }
 
-// PaletteSectionRows is how many rows PaletteRows returns: the board's
+// ColourSectionRows is how many rows ColourRows returns: the board's
 // heading and its body.
-const PaletteSectionRows = 2
+const ColourSectionRows = 2
 
-// PaletteRows is the colour board as rows of this window's column, framed in
+// ColourRows is the colour board as rows of this window's column, framed in
 // the colours and type roles this window resolved.
-func PaletteRows(c tokens.PlatformColors, ty Type) []layout.Widget {
-	return palette.Rows(paletteChrome(c), c, ty.story())
+func ColourRows(c tokens.PlatformColors, ty Type) []layout.Widget {
+	return palette.Rows(colourChrome(c), c, ty.story())
 }
