@@ -159,7 +159,7 @@ func chromeSurface(c tokens.PlatformColors) color.NRGBA {
 }
 
 // paneSeam is the colour of the rail pane's own edge: the platform's
-// separator over the backdrop the pane floats on, which is the pattern's own
+// separator over the rail's own fill, which is the pattern's own
 // answer. It is named here so this window's own tests can read the colour
 // the window actually draws.
 func paneSeam(c tokens.PlatformColors) color.NRGBA {
@@ -359,8 +359,10 @@ func insetTop(content rx.Observable[layout.Widget], height func() unit.Dp) rx.Ob
 
 // backdropLayer paints the window's own plane, at the backdrop level and
 // under every screen. Nothing is drawn at the backdrop: it shows wherever
-// nothing stands, which in this window is the gap around the rail pane.
-// Every region that stands paints its own surface over it.
+// nothing stands, and in the vault window nothing is the answer — the rail
+// and the content run to the window's own edges between them. It is the
+// plane the screens that are not the vault stand on, and the fill a frame
+// mid-arrangement shows through.
 func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	return rx.Map(colors, func(c tokens.PlatformColors) layout.Widget {

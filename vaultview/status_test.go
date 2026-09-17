@@ -191,7 +191,7 @@ func TestTheFootRedrawsOnANoteSwitch(t *testing.T) {
 	foot := windowH - int(statusBarHeight(goldenTokens()))
 	diff := 0
 	for y := foot; y < windowH; y++ {
-		for x := treeWidthDp + railMarginDp; x < windowW-frameAsideDp; x++ {
+		for x := treeWidthDp; x < windowW-frameAsideDp; x++ {
 			if a.RGBAAt(x, y) != b.RGBAAt(x, y) {
 				diff++
 			}

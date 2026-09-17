@@ -44,7 +44,6 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
-	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -406,13 +405,13 @@ func dumpFrame(t *testing.T, name string, w layout.Widget) *image.RGBA {
 	return img
 }
 
-// TestTheBackdropShowsAroundThePane reads the composed window down its
-// leading edge: the pane is set in one margin from the window's edges, and
-// what shows in that margin is the platform's under-page background over the
-// window's own plane. A frame that painted the transcript's fill across the
-// whole window — as this one once did — would leave the pane standing on the
-// document instead of being set into the window.
-func TestTheBackdropShowsAroundThePane(t *testing.T) {
+// TestTheRailRunsToTheWindowsEdges reads the composed window down its
+// leading edge: the rail is the window's own leading, top and bottom edges,
+// with nothing between it and any of them. MEASURED off Finder's untinted
+// captures, where the sidebar's fill runs to the window's bounds on three
+// sides; a frame that set the rail in from them — as this one once did —
+// leaves a plane round it that no macOS window has.
+func TestTheRailRunsToTheWindowsEdges(t *testing.T) {
 	saved := windowButtonsEnd
 	defer func() { windowButtonsEnd = saved }()
 	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
@@ -420,12 +419,12 @@ func TestTheBackdropShowsAroundThePane(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := dumpFrame(t, "", frame(t, tc.c, demoModel()))
-			want := vgcolor.Flatten(tc.c.UnderPageBackground, tc.c.WindowBackground)
+			want := tc.c.SidebarMaterial
 			for x := 0; x < PaneMargin; x++ {
 				for y := 0; y < windowSize.Y; y++ {
 					got := img.RGBAAt(x, y)
 					if got.R != want.R || got.G != want.G || got.B != want.B {
-						t.Fatalf("the gap at (%d,%d) draws %v, want the backdrop %v", x, y, got, want)
+						t.Fatalf("the window's leading edge at (%d,%d) draws %v, want the chrome material %v", x, y, got, want)
 					}
 				}
 			}

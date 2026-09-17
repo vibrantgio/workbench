@@ -728,7 +728,7 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 	shown := goldenModel()
 	hidden := shown
 	hidden.SidebarHidden = true
-	// Three pixels is the reach of the elevation this pane floats at,
+	// Three pixels is the reach of the elevation this rail stands at,
 	// which is as far as anything it draws could carry.
 	const past = 3
 

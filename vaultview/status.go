@@ -27,9 +27,9 @@
 // and runs to the window's trailing edge — the chrome row's span, at the
 // other end of the same column — and everything above it stops at its top
 // edge, so the document and the trailing panel end on one line. The
-// sidebar pane is not under it and does not shorten: the pane floats one
-// margin inside the window's own edges and keeps its own foot, which is
-// the vault's actions.
+// sidebar rail is not under it and does not shorten: the rail runs to the
+// window's own bottom edge and keeps its own foot, which is the vault's
+// actions.
 //
 // It stands on the window's own fill, which is the note's surface, and paints
 // nothing: no fill and no rule — the treatment the chrome row at the head
@@ -43,8 +43,8 @@
 // citations here rather than the document.
 //
 // The bar does not share a line with the vault's actions at the foot of
-// the sidebar: those stand inside a card that floats one margin above the
-// window's bottom edge and spends a rule and its own padding above them,
+// the sidebar: those stand at the foot of the rail's own column, which
+// spends a rule and its own padding above them,
 // so a band on the window's own foot would have to be twice as deep as the
 // line it carries to put its baseline on theirs — depth that comes out of
 // the document. What the two share is measured, on the window as it opens:

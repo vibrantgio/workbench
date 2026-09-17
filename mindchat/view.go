@@ -226,7 +226,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		})
 	})
 
-	// The window's own frame: the floating pane, the chrome row and the
+	// The window's own frame: the rail, the chrome row and the
 	// content area beside them.
 	frame := &windowFrame{}
 
@@ -760,7 +760,7 @@ func systemNote(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	return rowHeight(gtx, dims.Size.Y)
 }
 
-// SidebarPane renders the column that stands inside the floating pane: the
+// SidebarPane renders the column that stands inside the rail: the
 // top strip the window's control buttons pass through, the conversation
 // list, and the settings row at the foot.
 //

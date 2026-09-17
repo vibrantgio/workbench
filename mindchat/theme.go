@@ -194,10 +194,11 @@ const (
 	// window and the transcript takes everything it does not.
 	SidebarWidth unit.Dp = 240
 
-	// PaneMargin is the sliver of backdrop the pane floats off its
-	// leading, top and bottom edges, and the air the chrome row and the
-	// input bar keep off the window's edges so the content area answers the
-	// same margin the pane does. The number is the pattern's.
+	// PaneMargin is the air the chrome row and the input bar keep off the
+	// window's edges, and the air the rail's own top strip keeps at its
+	// trailing end. The rail itself stands off nothing — it runs to the
+	// window's leading, top and bottom edges — so this is nowhere a
+	// region's own inset. The number is the pattern's strip margin.
 	PaneMargin = pane.MarginDp
 
 	ToggleIconSize     unit.Dp = 20

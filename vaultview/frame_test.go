@@ -19,7 +19,6 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/splitter"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -127,17 +126,15 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 	}
 }
 
-// TestRailPaneFloatsAtTheWindowTop asserts the sidebar is the leading
-// column and owns the top of the window the way the platform's own
-// sidebars do: floating one margin inside the window's leading, top and
-// bottom edges, with nothing above it but that margin of backdrop and no
-// chrome band. The window buttons stand inside the pane's own strip, which
-// they can only do if the pane is what is under them; the margin merely
-// moves the strip a step in from the glass.
+// TestRailRunsToTheWindowTop asserts the sidebar is the leading column and
+// owns the top of the window the way the platform's own sidebars do: its
+// fill running to the window's leading, top and bottom edges, with nothing
+// above it and no chrome band. The window buttons stand inside the rail's
+// own strip, which they can only do if the rail is what is under them.
 //
 // Hidden, the pane is gone entirely and the note column reflows from the
 // window's leading edge, so the freed width goes to the document.
-func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
+func TestRailRunsToTheWindowTop(t *testing.T) {
 	var ops op.Ops
 	size := image.Pt(1100, 800)
 	gtx := layout.Context{
@@ -152,10 +149,10 @@ func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 	if shown.pane.Empty() {
 		t.Fatal("no rail pane with the rail shown")
 	}
-	if want := image.Pt(railMarginDp, railMarginDp); shown.pane.Min != want {
+	if want := (image.Point{}); shown.pane.Min != want {
 		t.Errorf("pane starts at %v, want %v — one margin inside the window's top-leading corner, and nothing above it but backdrop", shown.pane.Min, want)
 	}
-	if want := size.Y - railMarginDp; shown.pane.Max.Y != want {
+	if want := size.Y; shown.pane.Max.Y != want {
 		t.Errorf("pane bottom at y=%d, want %d — one margin above the window's bottom edge", shown.pane.Max.Y, want)
 	}
 	if w := shown.pane.Dx(); w != treeWidthDp {
@@ -167,9 +164,9 @@ func TestRailPaneFloatsAtTheWindowTop(t *testing.T) {
 	if shown.rowTop != barH {
 		t.Errorf("the content area's first document row starts at y=%d, want %d — below its own chrome row and nothing else", shown.rowTop, barH)
 	}
-	// The status bar is the content area's own foot and the pane's bottom
-	// margin is not measured against it: the pane floats one margin inside
-	// the window's bottom edge whatever the content area spends down there.
+	// The status bar is the content area's own foot and the rail is not
+	// measured against it: the rail runs to the window's bottom edge
+	// whatever the content area spends down there.
 	if want := size.Y - footH; shown.footTop != want {
 		t.Errorf("the status bar starts at y=%d, want %d — one bar above the window's bottom edge", shown.footTop, want)
 	}
@@ -273,17 +270,14 @@ func TestPaneFocusOrder(t *testing.T) {
 // alone — through the frame's inset offset and the pane's rounded clip,
 // which is the geometry a real press crosses. Three claims and a delivery:
 //
-//   - the strip's empty middle still moves the window — the pane owns
+//   - the strip's empty middle still moves the window — the rail owns
 //     the top of the window, so it owes the reader the drag the native
 //     title bar handed over;
-//   - the pane's own toggle is not covered by that claim, because a move
+//   - the rail's own toggle is not covered by that claim, because a move
 //     action swallows the press before the control sees one;
-//   - the margin of backdrop the inset reveals claims nothing — it is bare
-//     backdrop, and an eight-dp sliver is not a handle a hand aims for;
 //   - and a pointer over the toggle reaches the toggle, which is what
-//     proves the rounded clip and the inset offset between the window's
-//     coordinates and the pane's have not orphaned the control.
-func TestPaneStripClaimsInsideTheInsetPane(t *testing.T) {
+//     proves the rail's clip has not orphaned the control.
+func TestPaneStripClaimsInsideTheRail(t *testing.T) {
 	tok := goldenTokens()
 	var ops op.Ops
 	var r input.Router
@@ -316,9 +310,6 @@ func TestPaneStripClaimsInsideTheInsetPane(t *testing.T) {
 	}
 	if a, ok := r.ActionAt(toggle); ok && a == system.ActionMove {
 		t.Errorf("window-move action at %v; the toggle's own span must not move the window", toggle)
-	}
-	if a, ok := r.ActionAt(f32.Pt(middle.X, float32(pane.Min.Y)/2)); ok {
-		t.Errorf("action %v claimed over the margin above the pane; the revealed backdrop is bare", a)
 	}
 
 	r.Queue(pointer.Event{Kind: pointer.Move, Position: toggle, Source: pointer.Mouse})
@@ -388,10 +379,9 @@ const chromeBudgetDp = 40
 // The chrome row belongs to the content area rather than spanning the
 // window, so the measurement is stated per column. The content area spends
 // the row's own height above its first document row (twenty-eight dp) and
-// no more. The sidebar column spends one margin — the inset the pane floats
-// off the window's edges by — and no chrome at all: what is above the pane
-// is backdrop, not band, and the assertion pins the margin so a band cannot
-// creep in wearing its name.
+// no more. The sidebar column spends nothing at all: it starts at the
+// window's own top edge, and the assertion pins that so a band cannot creep
+// in above it.
 //
 // Both rail states are measured. Hiding the rail rebuilds the whole
 // composition, and a budget that only holds in one of them holds in
@@ -423,10 +413,10 @@ func TestChromeBudget(t *testing.T) {
 				t.Errorf("the content area spends %d dp above its first document row, want the chrome row's own %d dp — nothing else may stand there",
 					st.geom.rowTop, row)
 			}
-			// The sidebar's own budget: one margin of backdrop and nothing
-			// else. Anything more above the pane would be a chrome band.
-			if !st.geom.pane.Empty() && st.geom.pane.Min.Y != railMarginDp {
-				t.Errorf("the sidebar starts at y=%d, want the frame's own %d dp margin and nothing else above it", st.geom.pane.Min.Y, railMarginDp)
+			// The sidebar's own budget: nothing at all. Anything above the
+			// rail would be a chrome band.
+			if !st.geom.pane.Empty() && st.geom.pane.Min.Y != 0 {
+				t.Errorf("the sidebar starts at y=%d, want the window's own top edge and nothing above it", st.geom.pane.Min.Y)
 			}
 		})
 	}
@@ -480,10 +470,10 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 		t.Errorf("with the pane away the buttons are placed at %+v, want %+v — dismissing the pane moved a control that is not the pane's", got, want)
 	}
 
-	// The buttons' band in window coordinates, and the pane's strip in the
-	// same coordinates: the pane floats one margin in from the top edge.
+	// The buttons' band in window coordinates, and the rail's strip in the
+	// same coordinates: the rail starts at the window's own top edge.
 	buttonsTop, buttonsBottom := buttonInsetDp, buttonInsetDp+desktop.WindowButtonDiameter
-	stripTop, stripBottom := railMarginDp, railMarginDp+paneStripDp
+	stripTop, stripBottom := 0, paneStripDp
 	if stripTop > buttonsTop {
 		t.Errorf("the pane's strip begins at y=%d, below the buttons' top edge at y=%d — the pane's content would start under them", stripTop, buttonsTop)
 	}
@@ -495,16 +485,21 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 	}
 }
 
-// TestTheRailIsOutlinedAndCastsNothing reads the composed window: the pane
-// carries a hairline just inside its own boundary, and what shows in the
-// gap around it is the backdrop, with nothing cast onto it.
+// TestTheRailKeepsOneSeamAndNothingElse reads the composed window: the rail
+// runs to the window's leading, top and bottom edges with no line and no
+// plane on any of the three, and carries exactly one hairline, down the
+// inside of its trailing edge, where the note stands flush against it.
 //
-// The two go together. The pane stands at the chrome level and the chrome
-// level's dp is zero — chrome lies flat on the backdrop and has nothing to
-// cast onto. What says the pane is set in from the window's edges is the
-// backdrop showing around it and the edge inside it, so both have to be
-// there and the shadow has to be gone; checking one of them proves neither.
-func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
+// The two go together. What said the rail was an object set into the window
+// was the plane showing around it and a line on four sides; what says it is
+// the window's own leading edge is that neither is there, and that the one
+// line it does draw is the boundary to the document. Checking one of them
+// proves neither.
+//
+// MEASURED, finder-window-untinted-{light,dark}.png: Finder's sidebar fill
+// runs to the window's bounds on three sides and gives way to the content
+// on the fourth.
+func TestTheRailKeepsOneSeamAndNothingElse(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
 
@@ -513,52 +508,42 @@ func TestTheRailIsOutlinedAndCastsNothing(t *testing.T) {
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
-			pane := st.geom.pane
-			if pane.Empty() {
-				t.Fatal("the window laid out no pane to read")
+			rail := st.geom.pane
+			if rail.Empty() {
+				t.Fatal("the window laid out no rail to read")
+			}
+			if rail.Min != (image.Point{}) || rail.Max.Y != windowH {
+				t.Fatalf("the rail stands at %v; it runs to the window's leading, top and bottom edges", rail)
 			}
 			seamColor := paneSeam(tc.colors)
-			// A row clear of the corners' arcs, of the toggle and of every
-			// row's own text — the middle of the pane's own top strip. On it
-			// the pane's leading and trailing edge columns are the hairline,
-			// and the pixel inside each of them is the fill.
-			y := pane.Min.Y + paneStripDp/2
-			for _, probe := range []struct {
-				what     string
-				edge, in int
-			}{
-				{"leading", pane.Min.X, pane.Min.X + seamDp},
-				{"trailing", pane.Max.X - seamDp, pane.Max.X - seamDp - 1},
-			} {
-				if got := img.RGBAAt(probe.edge, y); !sameColor(got, seamColor) {
-					t.Errorf("the pane's %s edge at x=%d draws %v, want the seam %v", probe.what, probe.edge, got, seamColor)
-				}
-				if got, want := img.RGBAAt(probe.in, y), chromeSurface(tc.colors); !sameColor(got, want) {
-					t.Errorf("one pixel inside the pane's %s edge draws %v, want the chrome level %v — the hairline is wider than a hairline",
-						probe.what, got, want)
+			fill := chromeSurface(tc.colors)
+			// A row clear of the toggle and of every row's own text — the
+			// middle of the rail's own top strip.
+			y := rail.Min.Y + paneStripDp/2
+			if got := img.RGBAAt(rail.Max.X-seamDp, y); !sameColor(got, seamColor) {
+				t.Errorf("the rail's trailing edge draws %v, want the seam %v", got, seamColor)
+			}
+			if got := img.RGBAAt(rail.Max.X-seamDp-1, y); !sameColor(got, fill) {
+				t.Errorf("one pixel inside the rail's trailing edge draws %v, want the chrome level %v — the hairline is wider than a hairline", got, fill)
+			}
+			if got := img.RGBAAt(rail.Max.X, y); !sameColor(got, tc.colors.TextBackground) {
+				t.Errorf("the pixel past the rail's trailing edge draws %v, want the note's surface %v — a second line stands beside the rail's own",
+					got, tc.colors.TextBackground)
+			}
+			// The other three sides: the rail's fill stands on the window's
+			// own edge, top to bottom and at the first column, with no line
+			// and no plane anywhere along them.
+			for y := 0; y < windowH; y++ {
+				if got := img.RGBAAt(0, y); !sameColor(got, fill) {
+					t.Fatalf("the rail's leading edge draws %v at (0,%d), want the chrome level %v — nothing stands between the rail and the window's edge",
+						got, y, fill)
 				}
 			}
-			// The two corners the pane rounds away from its TRAILING edge.
-			// That side is the one it is not set in from — the note stands
-			// flush against it — so what shows behind those arcs is the
-			// note's own surface and not the backdrop, which would read as a
-			// nick bitten out of the boundary.
-			for _, at := range []image.Point{
-				{X: pane.Max.X - 2, Y: pane.Min.Y + 1},
-				{X: pane.Max.X - 2, Y: pane.Max.Y - 2},
-			} {
-				if got := img.RGBAAt(at.X, at.Y); !sameColor(got, tc.colors.TextBackground) {
-					t.Errorf("the pane's trailing corner at %v draws %v, want the note's surface %v", at, got, tc.colors.TextBackground)
-				}
-			}
-			// The gap the pane is set into, its whole height: the bare
-			// backdrop, which is what an inset object stands on.
-			backdrop := surfaceBackdrop(tc.colors)
-			for x := 0; x < pane.Min.X; x++ {
-				for y := 0; y < windowH; y++ {
-					if got := img.RGBAAt(x, y); !sameColor(got, backdrop) {
-						t.Fatalf("the gap at (%d,%d) draws %v, want the backdrop %v — the pane is casting something onto the plane it stands on",
-							x, y, got, backdrop)
+			for x := 0; x < rail.Max.X-seamDp; x++ {
+				for _, y := range []int{0, windowH - 1} {
+					if got := img.RGBAAt(x, y); !sameColor(got, fill) {
+						t.Fatalf("the rail draws %v at (%d,%d), want the chrome level %v — nothing stands between the rail and the window's top or bottom edge",
+							got, x, y, fill)
 					}
 				}
 			}
@@ -729,13 +714,13 @@ func TestTheNoteKeepsItsMinimumBetweenTheTwoBoundaries(t *testing.T) {
 	rail := newDragFrame(size, defaultWidths())
 	rail.frame()
 	rail.drag(float32(rail.f.geom.pane.Max.X-seamDp), 400)
-	if got, want := int(rail.f.railW), windowW-railMarginDp-gap-frameAsideDp-noteMinWidthDp; got != want {
+	if got, want := int(rail.f.railW), windowW-gap-frameAsideDp-noteMinWidthDp; got != want {
 		t.Errorf("the rail dragged past the note's minimum stopped at %d dp, want %d", got, want)
 	}
 
 	aside := newDragFrame(size, defaultWidths())
 	aside.drag(float32(size.X-frameAsideDp), -400)
-	if got, want := int(aside.f.asideW), windowW-railMarginDp-treeWidthDp-gap-noteMinWidthDp; got != want {
+	if got, want := int(aside.f.asideW), windowW-treeWidthDp-gap-noteMinWidthDp; got != want {
 		t.Errorf("the aside dragged past the note's minimum stopped at %d dp, want %d", got, want)
 	}
 }
@@ -757,10 +742,10 @@ func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
 			if p.Empty() {
 				t.Fatal("the window laid out no pane to read")
 			}
-			// Down the straight run of the trailing edge, clear of the
-			// arcs the two corners round away: one hairline of the pane's
-			// own edge colour, and the note's surface the pixel after it.
-			for y := p.Min.Y + pane.RadiusDp; y < p.Max.Y-pane.RadiusDp; y++ {
+			// The whole of the trailing edge, top to bottom: one hairline
+			// of the rail's own seam colour, and the note's surface the
+			// pixel after it.
+			for y := p.Min.Y; y < p.Max.Y; y++ {
 				if got := img.RGBAAt(p.Max.X-seamDp, y); !sameColor(got, paneSeam(tc.colors)) {
 					t.Fatalf("the pane's trailing edge at y=%d draws %v, want its own edge %v", y, got, paneSeam(tc.colors))
 				}

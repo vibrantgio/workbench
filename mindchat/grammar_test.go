@@ -255,19 +255,19 @@ func TestWindowButtonsAreMeasuredFromTheWindowsGlass(t *testing.T) {
 // two different heights makes the mark jump out from under the pointer that
 // just clicked it — the defect the collapsed rail had.
 //
-// The pane's strip centres its controls on the buttons' line by the pattern's
-// own arithmetic, one margin down from the window's top edge; the chrome row
+// The rail's strip centres its controls on the buttons' line by the
+// pattern's own arithmetic, from the window's own top edge; the chrome row
 // centres its controls on its own middle. The two are the same line only if
 // the row is exactly twice the buttons' centre, which is how ChromeRowHeight
 // is derived and what this checks.
 func TestBothHalvesOfTheSidebarSwitchStandOnOneLine(t *testing.T) {
-	// Where a control standing in the pane's strip centres, in window
-	// coordinates: the pane floats one margin down, and the strip's own
-	// middle is half its depth.
-	strip := unit.Dp(pane.MarginDp) + unit.Dp(pane.StripDp)/2
+	// Where a control standing in the rail's strip centres, in window
+	// coordinates: the rail starts at the window's own top edge, so the
+	// strip's own middle is half its depth.
+	strip := unit.Dp(pane.StripDp) / 2
 	row := ChromeRowHeight / 2
 	if strip != row {
-		t.Errorf("the pane's strip centres its controls at %v and the chrome row at %v; a switch whose halves stand at two heights makes the mark jump", strip, row)
+		t.Errorf("the rail's strip centres its controls at %v and the chrome row at %v; a switch whose halves stand at two heights makes the mark jump", strip, row)
 	}
 	if got := unit.Dp(WindowButtonCenter); got != row {
 		t.Errorf("the chrome row centres at %v, want the window buttons' own line %v", row, got)

@@ -639,7 +639,7 @@ from it: nothing is derived, no palette, no second hue.
 
   ```
   the window's plane      WindowBackground; UnderPageBackground is the
-                          backdrop showing around an inset pane
+                          backdrop showing around an inset object
   the chrome regions      SidebarMaterial — sidebars, toolbars, navbars,
                           inspectors, status bars, panes
   the content             ControlBackground; TextBackground for text and
@@ -843,14 +843,15 @@ backwards.
     window-scale only: the trim inside a component or a pattern — a card's
     header, a dialog's footer, a table's header row — is that thing's
     structure and is not chrome.
-  - A FLOATING CHROME PANE IS STILL CHROME. A sidebar a button slides out
-    of the window, an inspector that detaches, still fills with the
-    chrome material; what says it is a floating object is its own hairline edge
-    and its shadow. Do not re-derive that object per window: patterns/pane
-    IS the floating pane — the inset from the leading, top and bottom
-    edges, the rounded corners, the hairline drawn inside them, a top strip
-    cut deep enough to hold the window buttons on their own centre line,
-    and a dismissed state that takes no width at all.
+  - A CHROME COLUMN RUNS TO THE WINDOW'S EDGES. A sidebar a button slides
+    out of the window, an inspector beside the content, both fill with the
+    chrome material and both run to the window's own edges, parted from the
+    document by one seam and never set into a plane of their own. MEASURED,
+    finder-window-untinted-{light,dark}.png. Do not re-derive that column
+    per window: patterns/pane IS it — the run to the leading, top and bottom
+    edges, one seam down the trailing one, a top strip cut deep enough to
+    hold the window buttons on their own centre line, and a dismissed state
+    that takes no width at all.
   - A GROUP DIVIDES, A CARD SINGLES OUT. Which of the two a developer
     reaches for answers one question: am I dividing the page, or singling
     something out? A form in sections, a list of articles, a row of tiers —

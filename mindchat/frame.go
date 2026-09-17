@@ -2,13 +2,12 @@
 // down the leading edge, and beside it the content area — one chrome row
 // across its top and the transcript with its input bar underneath.
 //
-// THE PANE IS AN OBJECT, NOT A HALF OF THE WINDOW. It is the vocabulary's
-// PANE: inset from the window's leading, top and bottom edges by one
-// margin, rounded on all four corners, carrying its own hairline just
-// inside that edge, with the backdrop showing around it. Hidden, it takes
-// no width at all and the transcript reflows from the window's own leading
-// edge. None of that geometry is drawn here — the inset, the outline, the
-// strip arithmetic and the hidden-takes-no-width contract are
+// THE PANE IS AN EDGE OF THE WINDOW, NOT A HALF OF IT. It is the
+// vocabulary's PANE: running to the window's leading, top and bottom edges,
+// parted from the transcript by one seam down its trailing edge. Hidden, it
+// takes no width at all and the transcript reflows from the window's own
+// leading edge. None of that geometry is drawn here — the run, the seam,
+// the strip arithmetic and the hidden-takes-no-width contract are
 // patterns/pane's, and what is left to this file is the column that stands
 // in the pane and the window that stands around it.
 //
@@ -118,23 +117,20 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, mai
 	if !bounds.Empty() {
 		contentX = bounds.Max.X
 	}
-	// The window's plane is the backdrop showing in the gap around the pane,
-	// which is what says the pane is an object set in from the window's
-	// edges. The platform's under-page background carries a coverage in the
-	// light appearance, so it is flattened onto the window plane it lies on.
-	// The content area beside it stands on the transcript's own surface.
+	// The window's plane, under everything, and the content area on the
+	// transcript's own surface. The rail and the content run to the
+	// window's own edges between them, so nothing of the plane is left
+	// showing; it is painted because a frame mid-arrangement would
+	// otherwise show whatever was beneath. The platform's under-page
+	// background carries a coverage in the light appearance, so it is
+	// flattened onto the window plane it lies on.
 	FillRect(gtx, image.Rectangle{Max: size}, 0, vgcolor.Flatten(t.col.UnderPageBackground, t.col.WindowBackground))
 	FillRect(gtx, image.Rect(contentX, 0, size.X, size.Y), 0, t.palette.Transcript)
 
-	// The pane's trailing side is the one it is not set in from: the
-	// transcript stands flush against it, so the transcript's own surface —
-	// not the backdrop — shows behind the two corners the pane rounds away
-	// there.
-	pane.FillTrailingCorners(gtx, t.palette.Transcript, bounds)
-
-	// The inset, the rounded outline at the platform's measured whisper,
-	// the chrome fill and the clip that keeps a scrolled row off the edge
-	// are all the pattern's. What is left here is which column stands in it.
+	// The run to the window's leading, top and bottom edges, the chrome
+	// fill, the one seam down the trailing edge and the clip that keeps a
+	// scrolled row off it are all the pattern's. What is left here is which
+	// column stands in it.
 	pane.Layout(gtx, t.col, bounds, sidebar)
 
 	contentW := size.X - contentX
