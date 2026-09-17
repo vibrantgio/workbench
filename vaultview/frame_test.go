@@ -360,7 +360,7 @@ func TestTheRowRecallsTheHiddenPane(t *testing.T) {
 				}
 			}
 			if seen != c.want {
-				t.Errorf("the chrome row's rail toggle reachable=%v, want %v", seen, c.want)
+				t.Errorf("the chrome row's rail toggle operable=%v, want %v", seen, c.want)
 			}
 		})
 	}

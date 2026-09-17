@@ -44,10 +44,10 @@ type MenuCommand struct {
 // has no control anywhere in the window — it lives at the pane's foot — so
 // the menu is where a reader on this platform goes to look for it.
 var MenuCommands = []MenuCommand{
-	// The application's primary action, reachable whether the pane is
+	// The application's primary action, operable whether the pane is
 	// standing or away.
 	{Chord: Chord{Key: "N", Msg: NewChat{}}, Menu: "File", Title: "New Chat"},
-	// Sends the pane away and brings it back, so the switch is reachable
+	// Sends the pane away and brings it back, so the switch is operable
 	// from the keyboard and the menu in both of its states.
 	{Chord: Chord{Key: "\\", Msg: ToggleSidebar{}}, Menu: "View", Title: "Hide/Show Conversations"},
 	// Where this platform keeps settings, which is the whole reason the gear

@@ -110,8 +110,8 @@ func TestOnShortcutKeyDoesNotOccludePointer(t *testing.T) {
 // the only route to settings.
 //
 // The name each is bound to is what the check is for: a chord bound to the
-// wrong key name is silently dead, and a settings control only reachable by
-// a chord that does not fire is not reachable at all.
+// wrong key name is silently dead, and a settings control only operable by
+// a chord that does not fire is not operable at all.
 func TestTheWindowsChordsAreLiveOnTheirNames(t *testing.T) {
 	for _, tc := range []struct {
 		name key.Name

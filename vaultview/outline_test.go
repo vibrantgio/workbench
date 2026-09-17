@@ -624,7 +624,7 @@ func TestTheBacklinksPaneIsAsTallAsItsRows(t *testing.T) {
 }
 
 // TestBacklinksPastTheCapScrollWithinIt is the other half of the cap: the
-// citations it cannot show are reachable by scrolling the pane, not lost,
+// citations it cannot show are operable by scrolling the pane, not lost,
 // and the pane scrolling moves neither the outline nor the document.
 func TestBacklinksPastTheCapScrollWithinIt(t *testing.T) {
 	m := citedModel("guide/Long note.md", longNoteSource(), 20)
@@ -647,7 +647,7 @@ func TestBacklinksPastTheCapScrollWithinIt(t *testing.T) {
 	if got := p.v.outlineList.Position().First; got != outlineFirst {
 		t.Errorf("scrolling the backlinks moved the outline to entry %d, from %d", got, outlineFirst)
 	}
-	// The last citation is reachable from the keyboard, which is the
+	// The last citation is operable from the keyboard, which is the
 	// selection walking rows the capped pane never laid out.
 	p.v.list.Select(-1)
 	p.v.list.Reveal(19)
