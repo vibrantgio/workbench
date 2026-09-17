@@ -41,8 +41,10 @@ func TestChoosingACodeFaceRestylesTheSample(t *testing.T) {
 }
 
 // TestTheTwoFacesMarkTheChosenName: one of the two carries the choice, and it
-// is the one that was chosen.
+// is the one that was chosen. The mark is the platform's selection under the
+// row and nothing else, which is how the platform's own lists say it.
 func TestTheTwoFacesMarkTheChosenName(t *testing.T) {
+	want := PaletteFrom(tokens.PlatformLight).Selection
 	for i, name := range codeFaces {
 		img := pageWith(t, pickMono(judging(), name), tokens.PlatformLight, settled(false))
 		mine := img.RGBAAt(faceMarkX(i), faceRowY())
@@ -50,8 +52,8 @@ func TestTheTwoFacesMarkTheChosenName(t *testing.T) {
 		if mine == other {
 			t.Errorf("with %q chosen its row is drawn exactly like the other — nothing marks the choice", name)
 		}
-		if !is(mine, PaletteFrom(tokens.PlatformLight).AccentForeground) {
-			t.Errorf("the marker on %q drew %v, want what reads on the platform's selection", name, mine)
+		if !is(mine, want) {
+			t.Errorf("the chosen row %q drew %v, want the platform's selection %v", name, mine, want)
 		}
 	}
 }
@@ -80,7 +82,7 @@ func TestTheCodeFaceMovesTheShaperAndNotTheSample(t *testing.T) {
 // TestTheWindowOpensOnTheKeptMono, and on Roboto Mono when the file says
 // nothing, says an empty name, or names a face this build does not ship.
 func TestTheWindowOpensOnTheKeptMono(t *testing.T) {
-	m := withBases()
+	m := withStyles()
 	for _, tc := range []struct {
 		name string
 		kept string
@@ -117,7 +119,7 @@ func TestKeepingWritesTheMonoBesideTheColour(t *testing.T) {
 	if !m.IsKept() {
 		t.Error("the window does not report the kept choice as kept")
 	}
-	if back := withBases().adoptKept(kept); back.AppliedMono() != tokens.CodeFaceJetBrains {
+	if back := withStyles().adoptKept(kept); back.AppliedMono() != tokens.CodeFaceJetBrains {
 		t.Errorf("a window opening on the kept file landed on %q", back.AppliedMono())
 	}
 
@@ -139,7 +141,7 @@ func TestKeepingWritesTheMonoBesideTheColour(t *testing.T) {
 	if strings.Contains(string(raw), `"mono"`) {
 		t.Errorf("Roboto Mono left a mono key in the file:\n%s", raw)
 	}
-	if withBases().adoptKept(kept).AppliedMono() != tokens.CodeFaceRoboto {
+	if withStyles().adoptKept(kept).AppliedMono() != tokens.CodeFaceRoboto {
 		t.Error("a file without the key did not open on Roboto Mono")
 	}
 }
@@ -151,7 +153,7 @@ func TestAnUnknownMonoInTheFileIsRobotoMono(t *testing.T) {
 	if err := brand.SaveTo(path, brand.Brand{ThemeColor: sceneAccent, Mono: "Comic Sans"}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	if got := withBases().adoptKept(brand.KeptFrom(path)); got.AppliedMono() != tokens.CodeFaceRoboto {
+	if got := withStyles().adoptKept(brand.KeptFrom(path)); got.AppliedMono() != tokens.CodeFaceRoboto {
 		t.Errorf("opened on %q, want Roboto Mono", got.AppliedMono())
 	}
 }

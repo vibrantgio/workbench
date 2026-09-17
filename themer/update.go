@@ -27,10 +27,10 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			// no picture for one: the colour is the platform's and changes
 			// after this file is written.
 			return model, KeepTheme(model.KeepPath, stdcolor.NRGBA{}, true,
-				model.AppliedBases(), model.keepMono(), "")
+				model.AppliedStyles(), model.keepMono(), "")
 		}
 		return model, KeepTheme(model.KeepPath, col, false,
-			model.AppliedBases(), model.keepMono(), model.KeepSource())
+			model.AppliedStyles(), model.keepMono(), model.KeepSource())
 	case desktop.FilesDropped:
 		model.DragOver = false
 		if len(msg.Paths) == 0 {
@@ -94,11 +94,11 @@ func ReduceModel(m Model, message any) Model {
 		if col, ok := parseHex(msg.Text); ok {
 			m.Typed, m.From = col, FromHex
 		}
-	case SelectBase:
+	case SelectStyle:
 		// The appearance the row was clicked under is the one it changes: a
-		// base is fitted to a background, and the list a name was picked off
+		// style is fitted to a background, and the list a name was picked off
 		// is the list of names fitted to the background on screen.
-		if msg.Index >= 0 && msg.Index < len(m.Bases) && m.Bases[msg.Index].Suits(msg.Dark) {
+		if msg.Index >= 0 && msg.Index < len(m.Styles) && m.Styles[msg.Index].Suits(msg.Dark) {
 			if msg.Dark {
 				m.DarkAt = msg.Index
 			} else {
@@ -115,7 +115,7 @@ func ReduceModel(m Model, message any) Model {
 		}
 	case ColorKept:
 		m.Kept, m.KeptFollows = msg.ThemeColor, msg.Follows
-		m.KeptBases, m.KeptMono = msg.Bases, msg.Mono
+		m.KeptStyles, m.KeptMono = msg.Styles, msg.Mono
 		m.Problem = ""
 	case KeepFailed:
 		m.Problem = msg.Reason

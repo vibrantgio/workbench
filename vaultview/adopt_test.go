@@ -30,19 +30,19 @@ func (f fixedAppearance) Read() (specsystem.Appearance, error) { return f.a, nil
 // worn is a fresh note style dressed in one pair under these tokens: what a
 // second application holding the same pair puts under a fence, to compare a
 // note's own fence against.
-func worn(p highlight.BasePair, c tokens.PlatformColors) markdown.Style {
+func worn(p highlight.StylePair, c tokens.PlatformColors) markdown.Style {
 	st := markdown.FromTokens(c, tokens.DefaultTypography, c.TextBackground)
 	highlight.WearPair(&st, p, c)
 	return st
 }
 
 // wornAlone is [worn] for one name under both appearances: the plate somebody
-// who chose that base and nothing else would be looking at.
+// who chose that style and nothing else would be looking at.
 func wornAlone(name string, c tokens.PlatformColors) markdown.Style {
-	return worn(highlight.BasePair{Light: name, Dark: name}, c)
+	return worn(highlight.StylePair{Light: name, Dark: name}, c)
 }
 
-// plate is the three things a base puts on a fence and a comparison has to
+// plate is the three things a style puts on a fence and a comparison has to
 // cover: the background under the block, the colour plain code falls back to,
 // and the colours the highlighter hands out run by run.
 type plate struct {
@@ -56,7 +56,7 @@ func plateOf(st markdown.Style, src string) plate {
 
 // unlike reports how far two plates are apart: whether the backgrounds differ,
 // and how many runs are coloured differently. Either alone is a visible
-// difference, so a base that reaches the screen shows up in one or the other.
+// difference, so a style that reaches the screen shows up in one or the other.
 func (p plate) unlike(q plate) (backgroundsDiffer bool, runs int) {
 	backgroundsDiffer = p.background != q.background || p.body != q.body
 	for i := range p.runs {
@@ -68,8 +68,8 @@ func (p plate) unlike(q plate) (backgroundsDiffer bool, runs int) {
 }
 
 // TestTheKeptBasesColourTheCode covers the other half of a kept theme: the
-// syntax bases chosen beside the colour draw the code, one per appearance.
-// A fence here must wear the base's own background under the base's own
+// syntax highlighter styles chosen beside the colour draw the code, one per appearance.
+// A fence here must wear the style's own background under the style's own
 // colours, colour for colour and not merely "some highlighting", and through
 // the appearance's own member rather than whichever one was named first.
 //
@@ -79,20 +79,20 @@ func (p plate) unlike(q plate) (backgroundsDiffer bool, runs int) {
 func TestTheKeptBasesColourTheCode(t *testing.T) {
 	// Two styles that are nothing to do with each other, and nothing like the
 	// default in either appearance.
-	keptPair := brand.BasePair{Light: "solarized-light", Dark: "monokai"}
+	keptPair := brand.StylePair{Light: "solarized-light", Dark: "monokai"}
 	path := filepath.Join(t.TempDir(), "theme.json")
-	if err := brand.SaveTo(path, brand.Brand{ThemeColor: harbourRed, Base: keptPair, Source: "harbour.jpg"}); err != nil {
+	if err := brand.SaveTo(path, brand.Brand{ThemeColor: harbourRed, Style: keptPair, Source: "harbour.jpg"}); err != nil {
 		t.Fatalf("keep: %v", err)
 	}
 	kept := brand.KeptFrom(path)
-	if kept.Base != keptPair {
-		t.Fatalf("the kept theme names %+v, want %+v", kept.Base, keptPair)
+	if kept.Style != keptPair {
+		t.Fatalf("the kept theme names %+v, want %+v", kept.Style, keptPair)
 	}
-	defer restoreCodeBases(noteCodeBases)
-	noteCodeBases = adoptCodeBases(kept)
-	want := highlight.BasePair{Light: keptPair.Light, Dark: keptPair.Dark}
-	if noteCodeBases != want {
-		t.Fatalf("this window adopted %+v, want the kept %+v", noteCodeBases, want)
+	defer restoreCodeBases(noteCodeStyles)
+	noteCodeStyles = adoptCodeStyles(kept)
+	want := highlight.StylePair{Light: keptPair.Light, Dark: keptPair.Dark}
+	if noteCodeStyles != want {
+		t.Fatalf("this window adopted %+v, want the kept %+v", noteCodeStyles, want)
 	}
 
 	const src = "// greet is a greeting.\nfunc greet(name string) string {\n\treturn fmt.Sprintf(\"hello, %s\", name)\n}\n"
@@ -146,7 +146,7 @@ func TestTheKeptBasesColourTheCode(t *testing.T) {
 			t.Logf("%d runs, %d coloured, %s's plate on %v; unlike %s's by background=%v and %d runs",
 				len(got.runs), coloured, tc.member, got.background, tc.other, otherBackgroundsDiffer, otherRuns)
 			// And it is the kept pair and not the default that got there.
-			if backgroundsDiffer, apart := got.unlike(plateOf(worn(highlight.DefaultBases(), tc.colors), src)); !backgroundsDiffer && apart == 0 {
+			if backgroundsDiffer, apart := got.unlike(plateOf(worn(highlight.DefaultStyles(), tc.colors), src)); !backgroundsDiffer && apart == 0 {
 				t.Error("the fence is drawn exactly as the default pair would draw it — the kept names reached nothing")
 			}
 		})
@@ -155,17 +155,17 @@ func TestTheKeptBasesColourTheCode(t *testing.T) {
 	// The API agreeing is one thing; the pixels are the other. The window is
 	// rendered under the kept pair and under the default, and the two differ
 	// — so the names reach the screen and not just a style value.
-	under := func(p highlight.BasePair) *image.RGBA {
-		noteCodeBases = p
+	under := func(p highlight.StylePair) *image.RGBA {
+		noteCodeStyles = p
 		return window(t, light)
 	}
-	if golden.PixelDiff(under(want), under(highlight.DefaultBases())) == 0 {
-		t.Error("the window drew the same pixels under two different syntax bases")
+	if golden.PixelDiff(under(want), under(highlight.DefaultStyles())) == 0 {
+		t.Error("the window drew the same pixels under two different syntax styles")
 	}
 }
 
 // restoreCodeBases puts the process-wide pair back after a test has moved it.
-func restoreCodeBases(p highlight.BasePair) { noteCodeBases = p }
+func restoreCodeBases(p highlight.StylePair) { noteCodeStyles = p }
 
 // TestAnUnknownKeptBaseFallsBackToTheDefault: a theme naming a style this
 // build cannot resolve — one whose file has left the styles folder — colours
@@ -174,23 +174,23 @@ func restoreCodeBases(p highlight.BasePair) { noteCodeBases = p }
 //
 // The last case is one name with no appearance attached, arriving in both
 // members. The appearance it was fitted to keeps it and the other falls
-// back, so a note opens in the base that was chosen under the light the
+// back, so a note opens in the style that was chosen under the light the
 // person chose it in.
 func TestAnUnknownKeptBaseFallsBackToTheDefault(t *testing.T) {
-	defer restoreCodeBases(noteCodeBases)
-	d := highlight.DefaultBases()
+	defer restoreCodeBases(noteCodeStyles)
+	d := highlight.DefaultStyles()
 	for _, tc := range []struct {
 		name string
-		kept brand.BasePair
-		want highlight.BasePair
+		kept brand.StylePair
+		want highlight.StylePair
 	}{
-		{"nothing kept", brand.BasePair{}, d},
-		{"names nothing resolves", brand.BasePair{Light: "a-style-nobody-wrote", Dark: "another"}, d},
-		{"one dark base, no appearance attached", brand.BasePair{Light: "monokai", Dark: "monokai"},
-			highlight.BasePair{Light: d.Light, Dark: "monokai"}},
+		{"nothing kept", brand.StylePair{}, d},
+		{"names nothing resolves", brand.StylePair{Light: "a-style-nobody-wrote", Dark: "another"}, d},
+		{"one dark style, no appearance attached", brand.StylePair{Light: "monokai", Dark: "monokai"},
+			highlight.StylePair{Light: d.Light, Dark: "monokai"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := adoptCodeBases(brand.Brand{ThemeColor: harbourRed, Base: tc.kept}); got != tc.want {
+			if got := adoptCodeStyles(brand.Brand{ThemeColor: harbourRed, Style: tc.kept}); got != tc.want {
 				t.Errorf("a kept %+v was adopted as %+v, want %+v", tc.kept, got, tc.want)
 			}
 		})

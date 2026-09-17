@@ -71,21 +71,23 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   document-centric navigation — a history stack, a nesting tree, and the
   shell's aside slot in use. See its [README](./vaultview/README.md).
 - **[`themer/`](./themer)** — the chooser for the theme colour and for
-  what a theme says about code, laid out as one column of titled groups in
+  what a theme says about code, laid out as a column of titled groups in
   reading order: the picture and the colours it gave, the theme colour, the
-  code face, the syntax base. The platform's own accent colour leads the
-  swatches as the default; drop an image anywhere on the window and the
-  colours it is made of come back beside it, vivid ones first; or write the
-  colour into the field. The two code groups offer Roboto Mono and JetBrains
-  Mono, and a column of syntax bases — the half fitted to the appearance the
-  switch on that group shows — beside the fence they land on. Under the
-  choices stands the preview: a picture of an application in the platform's
-  colour set with the chosen colour standing in where the platform uses its
-  accent, drawn twice side by side, one appearance each. Under that, the
-  window's one default button keeps the theme to the shared file every
-  application reads. Also the reference for an OS file drop — a window-wide
-  drop zone with its hover highlight, delivered into the MVU loop as
-  messages.
+  code face. The platform's own accent colour leads the swatches as the
+  default; drop an image anywhere on the window and the colours it is made
+  of come back beside it, vivid ones first; or write the colour into the
+  field. Under the choices stands the row they are judged in: a scrolling
+  list of every syntax highlighter style fitted to the appearance on screen,
+  and beside it the preview — one picture of an application in the
+  platform's colour set with the chosen colour standing in where the
+  platform uses its accent, carrying a sidebar with the selection pill, a
+  toolbar with the platform's window controls, a heading with a badge,
+  prose, a fenced code block in the chosen face and style, a text field and
+  two push buttons. One appearance at a time, and one switch at the top of
+  the window that moves the whole of it. Under that, the window's one
+  default button keeps the theme to the shared file every application reads.
+  Also the reference for an OS file drop — a window-wide drop zone with its
+  hover highlight, delivered into the MVU loop as messages.
 - **[`mindchat/`](./mindchat)** — an OpenAI chat client and the most
   feature-complete app: streaming completions routed through the MVU
   command loop, a resizable/collapsible split-pane shell, trash-backed

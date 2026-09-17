@@ -720,9 +720,11 @@ the theme colour FOLLOWS THE SYSTEM ("followSystem": true), which is what a
 machine left on the platform's own accent keeps; such a file carries no
 colour at all. The same file may name a code face as "mono": "JetBrains
 Mono" or omitted/empty/unknown, which is Roboto Mono — the same fallback
-"base" already uses. workbench/themer is what writes it: the colour, the
-"base" pair and "mono" together, with every other key read back and written
-out untouched.
+"style" already uses. "style" is the syntax highlighter style, one name per
+appearance; a file written before the key was renamed spells it "base", and
+that key is read for one release and never written. workbench/themer is what
+writes the file: the colour, the "style" pair and "mono" together, with every
+other key read back and written out untouched.
 Adopting it is one line —
 
   ```go
@@ -1192,21 +1194,23 @@ viewport would fight the outer one.
     and CodeSize from the Typography Code style (Roboto Mono by default;
     JetBrains Mono when the kept "mono" names it), on the platform's box
     fill with horizontal overflow
-    scroll. Syntax colours are opt-in: style.Highlight =
-    highlight.Adapt(highlight.DefaultBase, colors) (markdown/highlight,
-    chroma) — one base name for both appearances, which member of the pair
-    is derived from follows the tokens. Adapt DERIVES a style rather than
-    wearing one: each entry keeps its hue and chroma and takes the
-    lightness that clears WCAG AA against the fill your theme puts under a
-    fence, with one bold/italic policy across the pair and the plain runs
-    still falling back to Style.CodeColor. DefaultBase is catppuccin-latte
-    (counterpart catppuccin-mocha); pass any name chroma's registry holds.
-    Derive once per theme, not once per frame. highlight.New(name) still
-    wears a stock style verbatim — stock styles are never mutated, and a
-    style fitted to a near-white page will measure short on the platform's
-    box fill (github's keyword red reads 3.61:1 there). If you supply a custom
-    Typography, set Style.Mono and CodeSize from its Code role after
-    FromTokens.
+    scroll. Syntax colours are opt-in: highlight.Wear(&style,
+    highlight.DefaultStyle, colors) (markdown/highlight, chroma) — one
+    style name for both appearances, and which member of the pair is worn
+    follows the tokens. Wear puts the whole style on the block, as the
+    author who wrote it drew it: their own background under the fence,
+    their colours in the runs they coloured and their body colour in the
+    runs they left plain, with a hairline where that background stands too
+    near your page.
+    DefaultStyle is catppuccin-latte (counterpart catppuccin-mocha); pass
+    any name chroma's registry holds, or highlight.WearPair for a style
+    per appearance. Dress the Style once per theme, not once per frame.
+    highlight.New(name) takes a style for its colours alone, leaving the
+    fence on your own fill — which is not the fill their author drew them
+    on, so a style fitted to a near-white page can measure short on the
+    platform's box fill (github's keyword red reads 3.61:1 there). If you
+    supply a custom Typography, set Style.Mono and CodeSize from its Code
+    role after FromTokens.
   - Images: paragraph-sole ![alt](url) blocks only; the library performs NO
     I/O. Set style.Images to an ImageProvider (raster pixels) and/or a
     WidgetImageProvider (vector art as a layout.Widget); markdown/svgimage
@@ -1490,32 +1494,35 @@ settings PANEL it opens, whose two preferences apply live under it
 ### themer/
 
 The chooser for the theme colour and for the two things a theme says about
-code. The window is one column of titled groups in the order somebody
-settling a theme works through them — the picture and the colours it gave,
-the theme colour, the code face, the syntax base — then the preview, then a
+code. The window is a column of titled groups in the order somebody settling
+a theme works through them — the picture and the colours it gave, the theme
+colour, the code face — then the row those choices are judged in, and a
 footer holding the window's one default button. Each group is the platform's
 grouped box, the rhythm measured off System Settings' Appearance pane. The
 platform's own accent colour leads the swatches as the default; an image
 dropped anywhere on the window comes back as swatches of the colours it is
 made of — clustered and ranked by theme/imagecolor — and a field takes a
-colour written as a hex triplet. The code groups offer two faces (Roboto
-Mono, JetBrains Mono) and a scrolled column of markdown/highlight's syntax
-bases — the half fitted to the appearance the switch on that group's title
-row shows — beside the fenced sample they colour, so a name is chosen in
-front of what it changes. A base is a pair, one member per appearance, and
-the switch moves the list, the marked row and the sample's plate together.
-What the window previews is a picture of an application in the platform's
-set with the chosen colour standing in for the accent, drawn twice side by
-side, one appearance each, at a fixed size: the handful of places the colour
-lands — the rail's pill, the default button, the focus ring — seen on both
-appearances at once. The set itself, name by name, is the gallery's colour
-board and is not repeated here. The window follows the desktop's setting
-like every other app. The reference for OS file drops (mvu/desktop's
-ZoneGroup + DropTarget merged into the loop as messages, a window-wide zone,
-hover highlight). A path argument takes the same path a drop does. Keep
-writes the colour, the base pair and the code face through theme/brand,
-which is where the other apps read them from — and leaves every other key in
-that file as it found it
+colour written as a hex triplet. The code choices are two faces (Roboto
+Mono, JetBrains Mono) and, in the last row, a scrolling list of
+markdown/highlight's syntax highlighter styles — every one fitted to the
+appearance on screen, at the platform's own list row height with the
+platform's scrollbar beside it. A style is a pair, one member per
+appearance, and the appearance switch moves the list, the marked row and the
+preview together. Beside that list stands the preview: one picture of an
+application in the platform's set with the chosen colour standing in for the
+accent — a sidebar with the selection pill, a toolbar with the platform's
+window controls, a heading with a badge, prose, a fenced code block in the
+chosen face and style, a text field and two push buttons — so every choice
+above it moves something in it. The colour set itself, name by name, is the
+gallery's colour board and is not repeated here. One appearance at a time,
+and one switch at the top of the window to change it: it moves the window's
+own plane and everything on it, opening on the desktop's setting and taking
+the window's own answer from then on. The reference for OS file drops
+(mvu/desktop's ZoneGroup + DropTarget merged into the loop as messages, a
+window-wide zone, hover highlight). A path argument takes the same path a
+drop does. Keep writes the colour, the style pair and the code face through
+theme/brand, which is where the other apps read them from — and leaves every
+other key in that file as it found it
 
 ### sitedocs/
 

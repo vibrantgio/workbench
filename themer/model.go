@@ -24,7 +24,7 @@ type Model struct {
 	// Preview is the dropped picture shrunk to something a window can
 	// paint every frame; nil until an image loads.
 	Preview *image.NRGBA
-	// Name is the dropped file's base name, shown beside the picture.
+	// Name is the dropped file's style name, shown beside the picture.
 	Name string
 	// Candidates are the colours the picture offers, most prominent first.
 	Candidates []imagecolor.Candidate
@@ -42,14 +42,13 @@ type Model struct {
 	// DragOver is true while a file drag hovers over the window, and is
 	// what the drop zone highlights on.
 	DragOver bool
-	// Scheme is which side of the platform's pair the syntax base group is
-	// offering names for. FollowOS until the switch is pressed, and the
-	// window's own answer from then on: a base is fitted to a background, so
-	// the two appearances of one theme are two choices and a person settling
-	// a theme has to reach both without waiting for the desktop to change
-	// its mind. It moves that group alone — the preview shows both
-	// appearances at once, and the window itself follows the desktop's
-	// setting like every other application.
+	// Scheme is which appearance the window is on. FollowOS until the switch
+	// at the top of the window is pressed, and the window's own answer from
+	// then on: the two appearances of one theme are two sets of choices, and
+	// a person settling a theme has to reach both without waiting for the
+	// desktop to change its mind. It moves the whole window — its own plane
+	// and every group on it, the style list, and the picture of an
+	// application in the preview.
 	Scheme Scheme
 	// Problem describes the last thing that did not work — a drop that
 	// became no colours (an unreadable file, a format nothing here decodes,
@@ -74,24 +73,24 @@ type Model struct {
 	// KeptFollows is that file saying the theme colour follows the system,
 	// which is the one thing it can hold that is not a colour.
 	KeptFollows bool
-	// Bases are the syntax palettes a fence can be coloured from — the ones
-	// that ship embedded and the ones read out of the styles folder — in the
-	// order the chooser lists them.
-	Bases []BaseOption
-	// LightAt and DarkAt index Bases, one per appearance: the palette code is
+	// Styles are the syntax highlighter styles a fence can be coloured from —
+	// the ones that ship embedded and the ones read out of the styles folder —
+	// in the order the chooser lists them.
+	Styles []StyleOption
+	// LightAt and DarkAt index Styles, one per appearance: the style code is
 	// coloured from under the sun, and the one it is coloured from under the
 	// moon. They start on whatever was kept.
 	//
-	// Two of them because a syntax palette is fitted to a background, so the
-	// two appearances of one theme are two choices. Picking under the sun
-	// moves one and picking under the moon the other; the scheme switch moves
+	// Two of them because a style is fitted to a background, so the two
+	// appearances of one theme are two choices. Picking under the sun moves
+	// one and picking under the moon the other; the appearance switch moves
 	// neither, and switches which is on offer.
 	LightAt, DarkAt int
-	// KeptBases are the syntax bases that file currently holds, one per
+	// KeptStyles are the syntax styles that file currently holds, one per
 	// appearance, resolved the same way the applied pair is. They sit beside
 	// Kept because the keep affordance confirms when everything on screen is
-	// what is on disk, and the bases are part of everything.
-	KeptBases highlight.BasePair
+	// what is on disk, and the styles are part of everything.
+	KeptStyles highlight.StylePair
 	// Mono is the typeface fenced code wears. Empty is Roboto Mono, the
 	// default; the one other name this window applies is "JetBrains Mono".
 	Mono string
@@ -101,12 +100,12 @@ type Model struct {
 	KeptMono string
 }
 
-// BaseOption is one row of the base chooser: a syntax palette's name, whether
+// StyleOption is one row of the style chooser: a style's name, whether
 // it came out of the styles folder rather than shipping embedded, and which
 // appearances it is offered under. Where a style came from changes nothing
 // about how it is used; it is worth showing because it is the difference
 // between a name somebody recognises and one they put there themselves.
-type BaseOption struct {
+type StyleOption struct {
 	Name  string
 	Added bool
 	// Light and Dark are measured off the style's own background, once, when
@@ -118,55 +117,55 @@ type BaseOption struct {
 	Dark  bool
 }
 
-// Suits reports whether this base is one to offer under the appearance on
+// Suits reports whether this style is one to offer under the appearance on
 // screen.
-func (o BaseOption) Suits(dark bool) bool {
+func (o StyleOption) Suits(dark bool) bool {
 	if dark {
 		return o.Dark
 	}
 	return o.Light
 }
 
-// BaseAt is the row of Bases the given appearance is coloured from.
-func (m Model) BaseAt(dark bool) int {
+// StyleAt is the row of Styles the given appearance is coloured from.
+func (m Model) StyleAt(dark bool) int {
 	if dark {
 		return m.DarkAt
 	}
 	return m.LightAt
 }
 
-// Base is the syntax palette code is coloured from under one appearance. An
+// Style is the highlighter style code is coloured from under one appearance. An
 // index out of range — no styles at all, which no build has — falls back to
 // the highlighter's own default for that appearance, because there is always
-// a base.
-func (m Model) Base(dark bool) string {
-	at := m.BaseAt(dark)
-	if at < 0 || at >= len(m.Bases) {
-		return highlight.DefaultBases().Base(dark)
+// a style.
+func (m Model) Style(dark bool) string {
+	at := m.StyleAt(dark)
+	if at < 0 || at >= len(m.Styles) {
+		return highlight.DefaultStyles().Style(dark)
 	}
-	return m.Bases[at].Name
+	return m.Styles[at].Name
 }
 
-// AppliedBases is the pair on screen: what code is coloured from under each
+// AppliedStyles is the pair on screen: what code is coloured from under each
 // appearance. It is what the sample is drawn through, what is kept, and what
 // is compared with the file to say whether what is on screen is what is on
 // disk.
-func (m Model) AppliedBases() highlight.BasePair {
-	return highlight.BasePair{Light: m.Base(false), Dark: m.Base(true)}
+func (m Model) AppliedStyles() highlight.StylePair {
+	return highlight.StylePair{Light: m.Style(false), Dark: m.Style(true)}
 }
 
-// VisibleBases are the rows the chooser lists under the appearance on screen,
-// as indices into Bases: every base fitted to that appearance, and nothing
+// VisibleStyles are the rows the chooser lists under the appearance on screen,
+// as indices into Styles: every style fitted to that appearance, and nothing
 // else.
 //
-// The applied base is always among them. Each appearance has its own choice,
+// The applied style is always among them. Each appearance has its own choice,
 // picked from its own list, so the list a person is looking at always holds
 // the name their code is coloured with — flipping the scheme swaps the list
-// and the applied base together, in one frame, rather than leaving a name
+// and the applied style together, in one frame, rather than leaving a name
 // marked on the half it was not fitted for.
-func (m Model) VisibleBases(dark bool) []int {
-	out := make([]int, 0, len(m.Bases))
-	for i, b := range m.Bases {
+func (m Model) VisibleStyles(dark bool) []int {
+	out := make([]int, 0, len(m.Styles))
+	for i, b := range m.Styles {
 		if b.Suits(dark) {
 			out = append(out, i)
 		}
@@ -193,7 +192,7 @@ func (m Model) keepMono() string {
 	return ""
 }
 
-// styleNames is every syntax palette there is, in the order this window lists
+// styleNames is every highlighter style there is, in the order this window lists
 // them: by name, the way somebody scanning for one reads names.
 //
 // It is not the byte order the names arrive in, and the difference is not
@@ -205,7 +204,7 @@ func (m Model) keepMono() string {
 // entirely and the raw name breaks the tie, which keeps the order total and
 // the list the same list on every machine.
 func styleNames() []string {
-	names := highlight.Bases()
+	names := highlight.Styles()
 	slices.SortStableFunc(names, func(a, b string) int {
 		if c := strings.Compare(lookupKey(a), lookupKey(b)); c != 0 {
 			return c
@@ -228,34 +227,34 @@ func lookupKey(name string) string {
 	return b.String()
 }
 
-// baseOptions is every syntax palette on offer, in the order the window lists
+// styleOptions is every highlighter style on offer, in the order the window lists
 // them, marked with where each came from and which appearance it was fitted
 // to.
-func baseOptions() []BaseOption {
+func styleOptions() []StyleOption {
 	names := styleNames()
-	out := make([]BaseOption, len(names))
+	out := make([]StyleOption, len(names))
 	for i, n := range names {
-		out[i] = BaseOption{
+		out[i] = StyleOption{
 			Name:  n,
 			Added: highlight.Loaded(n),
-			Light: highlight.BaseSuits(n, false),
-			Dark:  highlight.BaseSuits(n, true),
+			Light: highlight.StyleSuits(n, false),
+			Dark:  highlight.StyleSuits(n, true),
 		}
 	}
 	return out
 }
 
-// baseIndex finds a base by name, and falls back to the position of the
+// styleIndex finds a style by name, and falls back to the position of the
 // appearance's own default rather than to zero: position zero is whatever
 // sorted first, which is a style nobody chose.
-func baseIndex(bases []BaseOption, name string, dark bool) int {
-	for i, b := range bases {
+func styleIndex(styles []StyleOption, name string, dark bool) int {
+	for i, b := range styles {
 		if b.Name == name {
 			return i
 		}
 	}
-	fallback := highlight.DefaultBases().Base(dark)
-	for i, b := range bases {
+	fallback := highlight.DefaultStyles().Style(dark)
+	for i, b := range styles {
 		if b.Name == fallback {
 			return i
 		}
@@ -309,7 +308,7 @@ func (m Model) Color() (stdcolor.NRGBA, bool) {
 	return m.Platform, m.Platform.A != 0
 }
 
-// Scheme names which side of the platform's pair the syntax base group is
+// Scheme names which side of the platform's pair the syntax style group is
 // offering names for, and whether that is the window's decision or the
 // desktop's.
 type Scheme int
@@ -322,7 +321,7 @@ const (
 	ShowDark
 )
 
-// Dark reports which side the syntax base group is set for, given the
+// Dark reports which side the syntax style group is set for, given the
 // platform set the window itself is wearing. The desktop decides until the
 // switch is pressed.
 func (m Model) Dark(live tokens.PlatformColors) bool {
@@ -337,15 +336,15 @@ func (m Model) Dark(live tokens.PlatformColors) bool {
 
 // IsKept reports whether what is on screen is what is already in the
 // kept-theme file — the colour, or the standing instruction to follow the
-// system, and both syntax bases and the code face besides, since all of them
+// system, and both syntax styles and the code face besides, since all of them
 // are written and all of them come back. It is the difference between an
 // affordance offering something and one confirming it.
 //
 // Both members of the pair count, including the one the appearance on screen
-// is not showing: the file holds the pair, so a base picked under the moon
+// is not showing: the file holds the pair, so a style picked under the moon
 // and then left behind a flip to the sun is still an unkept change.
 func (m Model) IsKept() bool {
-	if m.KeptBases != m.AppliedBases() || m.KeptMono != m.keepMono() {
+	if m.KeptStyles != m.AppliedStyles() || m.KeptMono != m.keepMono() {
 		return false
 	}
 	if m.Follows() {
@@ -378,7 +377,7 @@ func Init() (Model, mvu.Command) {
 			m.Problem = skippedSentence(skipped)
 		}
 	}
-	m.Bases = baseOptions()
+	m.Styles = styleOptions()
 	kept := brand.Brand{}
 	if path, err := brand.Path(); err == nil {
 		m.KeepPath = path
@@ -397,14 +396,14 @@ func Init() (Model, mvu.Command) {
 }
 
 // adoptKept folds what is already in the kept-theme file into the model: the
-// colour it holds, the syntax bases it names resolved against what this build
+// colour it holds, the syntax styles it names resolved against what this build
 // can actually draw, and the code face it names.
 //
-// A base name nothing resolves — a style whose file has left the folder, one
+// A style name nothing resolves — a style whose file has left the folder, one
 // written by a build that had it — opens the window on the default rather
 // than on whatever sorted first, because the default is what everything else
 // showing that file's theme will use. So does a name fitted to the appearance
-// it is not kept for, which is what a file naming one base with no appearance
+// it is not kept for, which is what a file naming one style with no appearance
 // attached comes back as: the name stands on the half it was measured to
 // belong on, and the other half opens on its own default.
 //
@@ -412,9 +411,9 @@ func Init() (Model, mvu.Command) {
 // Mono is a selection this window can restore.
 func (m Model) adoptKept(kept brand.Brand) Model {
 	m.Kept, m.KeptFollows = kept.ThemeColor, kept.FollowSystem
-	m.KeptBases = highlight.BasesOrDefault(kept.Base.Names())
-	m.LightAt = baseIndex(m.Bases, m.KeptBases.Light, false)
-	m.DarkAt = baseIndex(m.Bases, m.KeptBases.Dark, true)
+	m.KeptStyles = highlight.StylesOrDefault(kept.Style.Names())
+	m.LightAt = styleIndex(m.Styles, m.KeptStyles.Light, false)
+	m.DarkAt = styleIndex(m.Styles, m.KeptStyles.Dark, true)
 	m.Mono = ""
 	if kept.Mono == tokens.CodeFaceJetBrains {
 		m.Mono = tokens.CodeFaceJetBrains

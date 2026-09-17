@@ -14,6 +14,11 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
+// FaceRowH is one name's height. It is a chip standing beside its
+// alternative rather than a row of a list, so it keeps the taller height the
+// two names had before the style list went to the platform's list row.
+const FaceRowH unit.Dp = 26
+
 // FaceChipW is one name's width. It is a fixed width rather than a share of
 // the row because the two names are a pair of alternatives and not a table:
 // the longer name sets the size and the shorter one takes it, so neither reads
@@ -36,7 +41,7 @@ type faceChooser struct {
 func newFaceChooser() *faceChooser { return &faceChooser{} }
 
 // FaceChoices draws the two names side by side in the group's box, the chosen
-// one marked the way a base row is.
+// one marked the way a style row is.
 func FaceChoices(p Palette, ty Type, m Model, faces *faceChooser) layout.Widget {
 	if faces == nil {
 		faces = newFaceChooser()
@@ -61,7 +66,7 @@ func FaceChoices(p Palette, ty Type, m Model, faces *faceChooser) layout.Widget 
 
 // FaceRow draws one of the two names and makes it clickable.
 func FaceRow(gtx layout.Context, p Palette, ty Type, name string, chosen bool, click *gesture.Click) layout.Dimensions {
-	dims := ChoiceRow(gtx, p, ty, name, "", chosen, click)
+	dims := ChoiceRow(gtx, p, ty, name, "", FaceRowH, chosen, click)
 	for {
 		e, ok := click.Update(gtx.Source)
 		if !ok {

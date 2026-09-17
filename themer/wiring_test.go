@@ -26,11 +26,11 @@ import (
 // the count moved the moment the embedded page grew a tab strip with a palette
 // and a selection of its own.
 func TestModelObsConsumerCountMatchesConst(t *testing.T) {
-	base := rx.Of(judging()) // cold; replays the seed to each subscription
+	models := rx.Of(judging()) // cold; replays the seed to each subscription
 	var n int32
 	counting := rx.Observable[Model](func(observe rx.Observer[Model], sched rx.Scheduler, sub rx.Subscriber) {
 		atomic.AddInt32(&n, 1)
-		base(observe, sched, sub)
+		models(observe, sched, sub)
 	})
 
 	var got int32

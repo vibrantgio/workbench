@@ -100,14 +100,14 @@ func run() {
 	kept := brand.Kept()
 	// The platform's own light set opens the window. The colour set is the
 	// platform's on every appearance now, so nothing a brand file holds
-	// pins it; what the file still pins is the type and the syntax palette
-	// below.
+	// pins it; what the file still pins is the type and the syntax
+	// highlighter style below.
 	opening := tokens.PlatformLight
-	// The same file names the syntax base a fence is coloured from, one per
+	// The same file names the highlighter style a fence is coloured from, one per
 	// appearance, so the code in a note wears the theme that was chosen for it
 	// rather than the one this build happens to default to — and follows the
 	// desktop between the two the way everything else in the window does.
-	noteCodeBases = adoptCodeBases(kept)
+	noteCodeStyles = adoptCodeStyles(kept)
 
 	w := specwin.New(mvuWin, specsystem.LiveTheme(5*time.Second, kept.Options()...))
 

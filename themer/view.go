@@ -75,14 +75,13 @@ const (
 	BoxPad unit.Dp = 10
 )
 
-// The boxes' heights, and the footer's. The preview's box is what is left,
-// which is what makes the column close at whatever height the window opens
-// at.
+// The boxes' heights, and the footer's. The last row's two boxes — the style
+// list and the preview beside it — take what is left, which is what makes the
+// column close at whatever height the window opens at.
 const (
 	PictureBoxH unit.Dp = 84
 	ColourBoxH  unit.Dp = 48
 	FaceBoxH    unit.Dp = 46
-	BaseBoxH    unit.Dp = 154
 	FooterH     unit.Dp = 28
 )
 
@@ -165,15 +164,16 @@ func TitleLead() unit.Dp {
 func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
-			BackdropLayer(th),
+			BackdropLayer(th, modelObs),
 			ContentLayer(th, modelObs, zones),
 		}
 	}
 }
 
-// themed carries one emission's platform colours and typography — the set the
-// window itself wears, which is the platform's live reading of the appearance
-// the desktop is on.
+// themed carries one emission's platform colours and typography — the
+// platform's live reading of the appearance the desktop is on. What the
+// window actually draws in is [WindowSet] of it, which is this set while the
+// switch agrees with the desktop and the other side's when it does not.
 type themed struct {
 	col tokens.PlatformColors
 	typ Type
@@ -196,23 +196,28 @@ func (t themed) codeType(m Model) (tokens.Typography, *text.Shaper) {
 	return applied, applied.Shaper()
 }
 
-// BackdropLayer fills the window. It follows the platform alone: this window
-// wears the theme the desktop is set to, like every other application, and
-// what a chosen colour changes is the preview inside it.
-func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
+// BackdropLayer fills the window, in the appearance the switch at the top of
+// the window is on.
+//
+// It follows the desktop until that switch is pressed and the window's own
+// answer from then on, which is the whole of what the switch does: the theme
+// being chosen has two appearances, and a person settling one has to see both
+// without waiting for the desktop to change its mind.
+func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
 		return t.Platform
 	})
-	return rx.Map(colors, func(c tokens.PlatformColors) layout.Widget {
-		return backdrop.Widget(c.WindowBackground)
-	})
+	return rx.Map(rx.CombineLatest2(colors, modelObs),
+		func(n rx.Tuple2[tokens.PlatformColors, Model]) layout.Widget {
+			return backdrop.Widget(WindowSet(n.First, n.Second).WindowBackground)
+		})
 }
 
-// ContentLayer renders the page: one column of titled groups, the choices in
-// reading order, and under them the preview of the platform's set with the
-// chosen colour standing in for the accent.
+// ContentLayer renders the page: the titled groups in reading order, and
+// under them the list of highlighter styles beside the preview of the
+// platform's set with the chosen colour standing in for the accent.
 //
-// The click handlers, the colour field and the base column's scroll position
+// The click handlers, the colour field and the style column's scroll position
 // live at subscription scope, outside the per-emission Map. A gesture handler
 // reconstructed every emission loses the press it is in the middle of, and
 // every selection re-emits. There is one click handler per swatch slot, not
@@ -241,8 +246,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 }
 
 // topClicks are the handlers of the controls the page keeps outside its
-// boxes: the keep affordance in the footer and the two halves of the scheme
-// switch on the syntax base group's title row. They are one value rather than
+// boxes: the keep affordance in the footer and the two halves of the
+// appearance switch in the title row. They are one value rather than
 // two parameters because they have one lifetime — subscription scope, so a
 // press in flight survives an emission.
 type topClicks struct {
@@ -252,20 +257,27 @@ type topClicks struct {
 
 // Page lays the window out and registers it, whole, as the drop zone.
 //
-// One column, top to bottom: the title row, then four titled groups — the
-// picture and the colours it gave, the theme colour in force, the code face,
-// the syntax base — then the preview, which gets the room left over because
-// it is the thing being judged, and a footer holding the one default button
-// this window has.
+// One column, top to bottom: the title row, carrying the window's name and
+// the appearance switch that moves the whole window; three titled groups —
+// the picture and the colours it gave, the theme colour in force, the code
+// face; then the row those choices are judged in, the list of highlighter
+// styles beside the preview, which take the room left over because they are
+// what is being judged; and a footer holding the one default button this
+// window has.
+//
+// The style list and the preview stand side by side because the list is a
+// column of names and the preview is a picture of a window: a full-width list
+// would be a column of names in a field of nothing, and a preview under a
+// keyhole of five names is what this page had before. Both take the whole run
+// from the last choice to the footer, so the list is as long as the window
+// allows and the picture as large.
 func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, code *codeState, hex layout.Widget) layout.Widget {
-	p := PaletteFrom(t.col)
 	dark := m.Dark(t.col)
-	light, night := PreviewSet(t.col, m, false), PreviewSet(t.col, m, true)
-	shown := light
-	if dark {
-		shown = night
-	}
+	win := WindowSet(t.col, m)
+	p := PaletteFrom(win)
+	shown := PreviewSet(t.col, m, dark)
 	typo, shaper := t.codeType(m)
+	docStyle := CodeStyle(shown, typo, shown.ControlBackground, m.AppliedStyles())
 	var picture paint.ImageOp
 	if m.Preview != nil {
 		picture = paint.NewImageOp(m.Preview)
@@ -285,7 +297,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 		// row starts past them.
 		layout.UniformInset(Pad).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-				rigid(reserve(TitleLead()-Pad, TitleRow(p, t.typ, bar))),
+				rigid(reserve(TitleLead()-Pad, TitleRow(p, t.typ, SchemeToggle(win, dark, &bar.scheme)))),
 				spacer(Gap),
 
 				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, PictureLabel, RowHintFor(m), nil))),
@@ -303,18 +315,13 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 				rigid(fixedH(FaceBoxH, GroupBox(p, FaceChoices(p, t.typ, m, code.faces)))),
 				spacer(GroupAbove),
 
-				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, BaseLabel, BaseHintFor(m, dark, len(m.VisibleBases(dark))),
-					SchemeToggle(t.col, dark, &bar.scheme)))),
-				spacer(GroupBelow),
-				rigid(fixedH(BaseBoxH, GroupBox(p, BaseChoices(p, t.col, shown, t.typ, typo, shaper, m, dark, code)))),
+				layout.Flexed(1, JudgingRow(
+					TitledBox(p, t.typ, StyleLabel, StyleHint, StylePanel(p, win, t.typ, m, dark, code.styles)),
+					TitledBox(p, t.typ, PreviewLabel, PreviewHint,
+						Preview(shown, t.typ, typo, shaper, code.doc, docStyle)))),
 				spacer(GroupAbove),
 
-				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, PreviewLabel, PreviewHint, nil))),
-				spacer(GroupBelow),
-				layout.Flexed(1, GroupBox(p, Preview(light, night, t.typ))),
-				spacer(GroupAbove),
-
-				rigid(fixedH(FooterH, Footer(p, t.col, t.typ, m, &bar.keep))),
+				rigid(fixedH(FooterH, Footer(p, win, t.typ, m, &bar.keep))),
 			)
 		})
 
@@ -327,8 +334,33 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	}
 }
 
+// JudgingRow is the run under the choices: the style list at its leading edge
+// at the list's own width, and the preview taking everything else. Both are
+// whole titled groups and both are as tall as the row.
+func JudgingRow(list, preview layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+			rigid(fixedW(StyleW, list)),
+			layout.Rigid(layout.Spacer{Width: Gap}.Layout),
+			layout.Flexed(1, preview),
+		)
+	}
+}
+
+// TitledBox is one titled group taking the whole height it is given: the
+// title row, the run under it, and the box with everything left over.
+func TitledBox(p Palette, ty Type, title, hint string, inner layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			rigid(fixedH(GroupTitleH, GroupTitle(p, ty, title, hint, nil))),
+			spacer(GroupBelow),
+			layout.Flexed(1, GroupBox(p, inner)),
+		)
+	}
+}
+
 // ColourHint and FaceHint say what the group under them settles, beside its
-// title. The picture's and the syntax base's are answers about the state on
+// title. The picture's and the syntax style's are answers about the state on
 // screen and are worked out per emission. Every one of them is a sentence:
 // read cold, the lowercase fragments this row used to carry were called "a
 // note to the implementer, not to a user".
@@ -384,7 +416,14 @@ func GroupBox(p Palette, inner layout.Widget) layout.Widget {
 }
 
 // TitleRow is the row across the top of the window: what the window is, at
-// its leading edge, on one centre line.
+// its leading edge, and the appearance switch at its trailing one, on one
+// centre line.
+//
+// The switch stands here because what it moves is the window. Every choice
+// below it is made for one appearance at a time — the theme colour is judged
+// on the plane it lands on, and a highlighter style is fitted to a background
+// — so the window shows one appearance, and the control that says which is
+// above everything it governs rather than beside one of the groups.
 //
 // It is a title row and not a bar. Nothing here is drawn on a fill of its own
 // and nothing is ruled off from what follows: the row stands on the window's
@@ -396,8 +435,11 @@ func GroupBox(p Palette, inner layout.Widget) layout.Widget {
 // centre line, with the row starting past them — and the run of it that holds
 // nothing is what the window is dragged by, the press that would have gone to
 // a title bar having nowhere else to go.
-func TitleRow(p Palette, ty Type, bar *topClicks) layout.Widget {
+func TitleRow(p Palette, ty Type, control layout.Widget) layout.Widget {
 	slots := []slot{{leading, 0, AppTitle(p, ty)}}
+	if control != nil {
+		slots = append(slots, slot{at: trailing, w: control})
+	}
 	return func(gtx layout.Context) layout.Dimensions {
 		dims, free := centreRowFree(gtx, gtx.Dp(TitleH), gtx.Dp(Gap), slots...)
 		desktop.DragBand(gtx, free)
@@ -531,6 +573,17 @@ func fixedH(h unit.Dp, inner layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Max.Y = min(gtx.Constraints.Max.Y, gtx.Dp(h))
 		gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
+		return inner(gtx)
+	}
+}
+
+// fixedW gives a row's child a width of its own and asks it to fill that
+// width, which is what a titled group standing beside another one needs: a
+// child left to ask for its own width would report the widest word in it.
+func fixedW(w unit.Dp, inner layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(w))
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return inner(gtx)
 	}
 }
@@ -761,20 +814,20 @@ func centreRowFree(gtx layout.Context, h, gap int, slots ...slot) (layout.Dimens
 
 // SchemeToggle is the light/dark control: a sun and a moon, the one on screen
 // filled. The segments are the ones the inventory's own pages carry, so the
-// control that changes scheme looks the same wherever the inventory is shown;
-// what is added here is the press.
+// control that changes appearance looks the same wherever the inventory is
+// shown; what is added here is the press.
 //
-// It stands on the syntax base group's title row because that is the one
-// choice in this window that is made per appearance: a palette somebody
-// balanced against a near-white page is not the one they would balance against
-// a near-black one, so the control says which of the two the column is
-// offering names for. The preview under it shows both appearances at once and
-// asks the switch nothing.
+// One switch, at the top of the window, moving everything under it: the
+// window's own plane and every group on it, the list of highlighter styles,
+// and the picture of an application in the preview. A theme has two
+// appearances and this window shows one of them at a time, which is what
+// makes the preview a look rather than two looks and a memory.
 //
-// A target per segment, not one over the pair. Each half names a scheme and
-// the message it sends says which — pointing at the moon asks for dark from
-// either side, and pointing at the half already filled asks for the scheme
-// that is already on, which the update treats as the no-op it is.
+// A target per segment, not one over the pair. Each half names an appearance
+// and the message it sends says which — pointing at the moon asks for dark
+// from either side, and pointing at the half already filled asks for the
+// appearance that is already on, which the update treats as the no-op it
+// is.
 func SchemeToggle(c tokens.PlatformColors, dark bool, clicks *[2]gesture.Click) layout.Widget {
 	segment := func(i int, wantDark bool) layout.FlexChild {
 		draw := inventory.SchemeSegment(c, wantDark, dark == wantDark)

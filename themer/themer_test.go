@@ -57,26 +57,26 @@ func dropped(t *testing.T) Model {
 	if len(candidates) < 3 {
 		t.Fatalf("the fixture scene yielded %d candidates, want a row to test", len(candidates))
 	}
-	m := withBases()
+	m := withStyles()
 	m.Preview, m.Name = preview(img), "scene.png"
 	m.Candidates, m.From = candidates, FromImage
 	m.Platform = fixturePlatform
 	return m
 }
 
-// withBases is the model as the window starts it, as far as the syntax bases
-// and the code face go: every base on offer, sitting on the pair and the face
+// withStyles is the model as the window starts it, as far as the syntax styles
+// and the code face go: every style on offer, sitting on the pair and the face
 // a file holding neither opens on.
-func withBases() Model {
-	m := Model{Bases: baseOptions()}
+func withStyles() Model {
+	m := Model{Styles: styleOptions()}
 	return m.adoptKept(brand.Brand{})
 }
 
 // judging is the model a window is in while somebody is looking at a colour:
-// nothing dropped, every base on offer, and a platform reporting a colour of
+// nothing dropped, every style on offer, and a platform reporting a colour of
 // its own.
 func judging() Model {
-	m := withBases()
+	m := withStyles()
 	m.Platform = fixturePlatform
 	return m
 }
@@ -211,21 +211,43 @@ func TestAFailedDropKeepsWhatIsOnScreen(t *testing.T) {
 	}
 }
 
-// TestTheSchemeSwitchMovesTheSyntaxBaseGroupAlone: the window wears the theme
-// the desktop is set to, like every other application; what the switch moves
-// is which appearance the syntax base group is offering names for.
-func TestTheSchemeSwitchMovesTheSyntaxBaseGroupAlone(t *testing.T) {
-	m := ReduceModel(judging(), SetScheme{Dark: true})
-	if !m.Dark(tokens.PlatformLight) {
-		t.Error("the switch was pressed for dark and the group stayed light")
+// TestTheSwitchMovesTheWholeWindow: one switch, at the top of the window,
+// and what it moves is everything — the window's own set, and with it every
+// group on the page, the style list and the picture in the preview. The
+// desktop decides until it is pressed, and the window decides from then on.
+func TestTheSwitchMovesTheWholeWindow(t *testing.T) {
+	m := judging()
+	for _, live := range []tokens.PlatformColors{tokens.PlatformLight, tokens.PlatformDark} {
+		if got := WindowSet(live, m); got.WindowBackground != live.WindowBackground {
+			t.Errorf("before the switch is pressed the window wears %v on a desktop set to %v",
+				got.WindowBackground, live.WindowBackground)
+		}
 	}
-	if m.Dark(tokens.PlatformDark) != true {
-		t.Error("the group is not dark on a dark desktop after the switch")
-	}
-	// The window's own colours are the live set's, whatever the switch says.
-	p := PaletteFrom(tokens.PlatformLight)
-	if p.Backdrop != tokens.PlatformLight.WindowBackground {
-		t.Errorf("the window's plane is %v, want the platform's %v", p.Backdrop, tokens.PlatformLight.WindowBackground)
+	for _, tc := range []struct {
+		name string
+		dark bool
+		want tokens.PlatformColors
+	}{{"pressed for dark", true, tokens.PlatformDark}, {"pressed for light", false, tokens.PlatformLight}} {
+		t.Run(tc.name, func(t *testing.T) {
+			on := ReduceModel(m, SetScheme{Dark: tc.dark})
+			for _, live := range []tokens.PlatformColors{tokens.PlatformLight, tokens.PlatformDark} {
+				if on.Dark(live) != tc.dark {
+					t.Errorf("the switch was pressed and the window answers %v on a desktop set the other way", on.Dark(live))
+				}
+				got := WindowSet(live, on)
+				if got.WindowBackground != tc.want.WindowBackground {
+					t.Errorf("the window's plane is %v on a %v desktop, want %v",
+						got.WindowBackground, live.WindowBackground, tc.want.WindowBackground)
+				}
+				// The accent stays the one the machine is actually set to:
+				// flipping the appearance is not a change of accent.
+				if got.ControlAccent.R != live.ControlAccent.R ||
+					got.ControlAccent.G != live.ControlAccent.G ||
+					got.ControlAccent.B != live.ControlAccent.B {
+					t.Errorf("the window's accent became %v, want the live %v", got.ControlAccent, live.ControlAccent)
+				}
+			}
+		})
 	}
 }
 
@@ -238,31 +260,31 @@ func TestThePreviewStandsTheColourInForTheAccent(t *testing.T) {
 	if want := (stdcolor.NRGBA{R: 0xe8, G: 0x11, B: 0x2d, A: 0xff}); got.ControlAccent != want {
 		t.Errorf("the previewed accent is %v, want the theme colour %v", got.ControlAccent, want)
 	}
-	base := tokens.PlatformLight
+	style := tokens.PlatformLight
 	for _, row := range []struct {
 		name      string
 		got, want stdcolor.NRGBA
 	}{
-		{"the window's plane", got.WindowBackground, base.WindowBackground},
-		{"the content's fill", got.ControlBackground, base.ControlBackground},
-		{"the chrome material", got.SidebarMaterial, base.SidebarMaterial},
-		{"a seam", got.Separator, base.Separator},
-		{"the label", got.Label, base.Label},
-		{"the error colour", got.SystemRed, base.SystemRed},
-		{"a link", got.Link, base.Link},
+		{"the window's plane", got.WindowBackground, style.WindowBackground},
+		{"the content's fill", got.ControlBackground, style.ControlBackground},
+		{"the chrome material", got.SidebarMaterial, style.SidebarMaterial},
+		{"a seam", got.Separator, style.Separator},
+		{"the label", got.Label, style.Label},
+		{"the error colour", got.SystemRed, style.SystemRed},
+		{"a link", got.Link, style.Link},
 	} {
 		if row.got != row.want {
 			t.Errorf("%s moved to %v when the theme colour was chosen, want %v", row.name, row.got, row.want)
 		}
 	}
-	if got.SelectedContentBackground == base.SelectedContentBackground {
+	if got.SelectedContentBackground == style.SelectedContentBackground {
 		t.Error("the selection did not follow the theme colour")
 	}
 }
 
 // TestThePreviewedSideIsTheRecordedOneWhenItIsNotTheDesktops: the live reader
 // answers for the appearance the desktop is on and no other, so the other
-// side of the preview is the recorded set.
+// side is the recorded set.
 func TestThePreviewedSideIsTheRecordedOneWhenItIsNotTheDesktops(t *testing.T) {
 	m := Model{}
 	if got := PreviewSet(tokens.PlatformLight, m, true); got.WindowBackground != tokens.PlatformDark.WindowBackground {
@@ -317,7 +339,7 @@ func TestTheWindowsColoursAreThePlatformsNames(t *testing.T) {
 func TestKeepWritesTheColour(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
 	want := stdcolor.NRGBA{R: 0xe8, G: 0x11, B: 0x2d, A: 0xff}
-	msg := keepTheme(path, want, false, highlight.DefaultBases(), "", "scene.png")
+	msg := keepTheme(path, want, false, highlight.DefaultStyles(), "", "scene.png")
 	kept, ok := msg.(ColorKept)
 	if !ok {
 		t.Fatalf("keeping answered %#v, want the colour kept", msg)
@@ -339,7 +361,7 @@ func TestKeepWritesTheColour(t *testing.T) {
 // and changes after the file is written.
 func TestKeepingTheSystemsColourWritesNoColour(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
-	if _, ok := keepTheme(path, stdcolor.NRGBA{}, true, highlight.DefaultBases(), "", "").(ColorKept); !ok {
+	if _, ok := keepTheme(path, stdcolor.NRGBA{}, true, highlight.DefaultStyles(), "", "").(ColorKept); !ok {
 		t.Fatal("keeping the system's colour failed")
 	}
 	back := brand.KeptFrom(path)
@@ -367,13 +389,13 @@ func TestKeepingTheColourKeepsTheCodeChoicesTheWindowOpenedOn(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
 	before := brand.Brand{
 		ThemeColor: stdcolor.NRGBA{R: 0x11, G: 0x22, B: 0x33, A: 0xff},
-		Base:       brand.BasePair{Light: "catppuccin-latte", Dark: "catppuccin-mocha"},
+		Style:      brand.StylePair{Light: "catppuccin-latte", Dark: "catppuccin-mocha"},
 		Mono:       tokens.CodeFaceJetBrains,
 	}
 	if err := brand.SaveTo(path, before); err != nil {
 		t.Fatal(err)
 	}
-	m := withBases().adoptKept(brand.KeptFrom(path))
+	m := withStyles().adoptKept(brand.KeptFrom(path))
 	m.KeepPath = path
 	want := stdcolor.NRGBA{R: 0xe8, G: 0x11, B: 0x2d, A: 0xff}
 	m = ReduceModel(m, HexTyped{Text: "#e8112d"})
@@ -387,8 +409,8 @@ func TestKeepingTheColourKeepsTheCodeChoicesTheWindowOpenedOn(t *testing.T) {
 	if back.ThemeColor != want {
 		t.Errorf("the colour is %v, want %v", back.ThemeColor, want)
 	}
-	if back.Base != before.Base {
-		t.Errorf("the syntax bases came back as %v, want the %v that were there", back.Base, before.Base)
+	if back.Style != before.Style {
+		t.Errorf("the syntax styles came back as %v, want the %v that were there", back.Style, before.Style)
 	}
 	if back.Mono != before.Mono {
 		t.Errorf("the code face came back as %q, want the %q that was there", back.Mono, before.Mono)
@@ -402,7 +424,7 @@ func TestKeepingTheColourKeepsTheCodeChoicesTheWindowOpenedOn(t *testing.T) {
 // reason to refuse to start, so the one thing the window cannot do says so
 // when it is asked.
 func TestKeepingSaysWhereItCouldNot(t *testing.T) {
-	msg := keepTheme("", fixturePlatform, false, highlight.DefaultBases(), "", "")
+	msg := keepTheme("", fixturePlatform, false, highlight.DefaultStyles(), "", "")
 	failed, ok := msg.(KeepFailed)
 	if !ok {
 		t.Fatalf("keeping with nowhere to write answered %#v, want a refusal", msg)
@@ -420,7 +442,7 @@ func TestTheAffordanceConfirmsOnlyWhatIsOnDisk(t *testing.T) {
 		t.Error("a colour nothing has written confirms as kept")
 	}
 	col, _ := m.Color()
-	kept := ColorKept{ThemeColor: col, Bases: m.AppliedBases(), Mono: m.keepMono()}
+	kept := ColorKept{ThemeColor: col, Styles: m.AppliedStyles(), Mono: m.keepMono()}
 	m = ReduceModel(m, kept)
 	if !m.IsKept() {
 		t.Error("the colour just written does not confirm as kept")

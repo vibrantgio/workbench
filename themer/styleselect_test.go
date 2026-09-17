@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/vibrantgio/components/golden"
@@ -16,27 +15,28 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// pick applies the named base under one appearance, the way a click on that
+// pick applies the named style under one appearance, the way a click on that
 // appearance's own list does.
 func pick(m Model, name string, dark bool) Model {
-	return ReduceModel(m, SelectBase{Index: baseIndex(m.Bases, name, dark), Dark: dark})
+	return ReduceModel(m, SelectStyle{Index: styleIndex(m.Styles, name, dark), Dark: dark})
 }
 
 // wearPair is a fresh document style dressed in one pair under one set: the
 // plate the sample is drawn with, to measure the pixels against.
-func wearPair(p highlight.BasePair, c tokens.PlatformColors) markdown.Style {
-	return CodeStyle(c, tokens.DefaultTypography, p)
+func wearPair(p highlight.StylePair, c tokens.PlatformColors) markdown.Style {
+	return CodeStyle(c, tokens.DefaultTypography, c.ControlBackground, p)
 }
 
 // wearAlone is [wearPair] for one name under both appearances: what somebody
-// who chose that base and nothing else would be looking at.
+// who chose that style and nothing else would be looking at.
 func wearAlone(name string, c tokens.PlatformColors) markdown.Style {
-	return wearPair(highlight.BasePair{Light: name, Dark: name}, c)
+	return wearPair(highlight.StylePair{Light: name, Dark: name}, c)
 }
 
-// The column's geometry in window pixels, worked out from the same constants
-// the page lays out with: a title row, then five groups, each a title row and
-// a box under it, then the footer.
+// The page's geometry in window pixels, worked out from the same constants
+// the page lays out with: a title row, then three groups, each a title row
+// and a box under it, then the row the style list and the preview share, then
+// the footer.
 func pictureTitleTop() int { return int(Pad) + int(TitleH) + int(Gap) }
 
 func boxTopAfter(titleTop int) int { return titleTop + int(GroupTitleH) + int(GroupBelow) }
@@ -51,63 +51,73 @@ func faceTitleTop() int { return colourBoxTop() + int(ColourBoxH) + int(GroupAbo
 
 func faceBoxTop() int { return boxTopAfter(faceTitleTop()) }
 
-func baseTitleTop() int { return faceBoxTop() + int(FaceBoxH) + int(GroupAbove) }
+// judgingTitleTop heads the last row — the style list and the preview — and
+// judgingBoxTop is where both of their boxes begin.
+func judgingTitleTop() int { return faceBoxTop() + int(FaceBoxH) + int(GroupAbove) }
 
-func baseBoxTop() int { return boxTopAfter(baseTitleTop()) }
+func judgingBoxTop() int { return boxTopAfter(judgingTitleTop()) }
 
-func previewTitleTop() int { return baseBoxTop() + int(BaseBoxH) + int(GroupAbove) }
-
-func previewBoxTop() int { return boxTopAfter(previewTitleTop()) }
-
-// footerTop is where the footer's row begins, and previewBoxBottom the edge
-// the preview's box is cut at: the footer is pinned to the page's bottom
-// margin and the preview takes what is left.
+// footerTop is where the footer's row begins, and judgingBoxBottom the edge
+// both boxes in that row are cut at: the footer is pinned to the page's
+// bottom margin and the row above it takes what is left.
 func footerTop() int { return windowH - int(Pad) - int(FooterH) }
 
-func previewBoxBottom() int { return footerTop() - int(GroupAbove) }
+func judgingBoxBottom() int { return footerTop() - int(GroupAbove) }
 
-// boxLead is the leading edge of what stands in a box, and boxTrail the
-// trailing one.
+// boxLead is the leading edge of what stands in a box on the page's own
+// margin, and boxTrail the trailing one.
 func boxLead() int { return int(Pad) + int(BoxInset) }
 
 func boxTrail() int { return windowW - int(Pad) - int(BoxInset) }
+
+// previewBoxLead is the leading edge of the preview's own box, which begins
+// where the style list's box ends.
+func previewBoxLead() int { return int(Pad) + int(StyleW) + int(Gap) }
 
 // faceChipX is the leading edge of the nth code face's row, faceMarkX the x
 // of the marker a chosen one carries, and faceFillX a point clear of both the
 // marker and the name, where the row's own fill can be read.
 func faceChipX(i int) int { return boxLead() + i*(int(FaceChipW)+int(CellGap)) }
 
-func faceMarkX(i int) int { return faceChipX(i) + int(BaseMark)/2 }
+func faceMarkX(i int) int { return faceChipX(i) + int(StyleIndent)/2 }
 
-func faceFillX(i int) int { return faceChipX(i) + int(BaseMark) + 4 }
+func faceFillX(i int) int { return faceChipX(i) + int(StyleIndent) + 4 }
 
 // faceRowY is the centre line the two code faces stand on: the box's content
 // is one row tall, so both are on it.
-func faceRowY() int { return faceBoxTop() + int(BoxPad) + int(BaseRow)/2 }
+func faceRowY() int { return faceBoxTop() + int(BoxPad) + int(FaceRowH)/2 }
 
-// baseListTop is the leading edge of the first name in the column: the box's
-// own air above its content.
-func baseListTop() int { return baseBoxTop() + int(BoxPad) }
+// styleListTop is the leading edge of the first name in the column, and
+// styleListBottom where the column runs out: the box's own air above and
+// below its content.
+func styleListTop() int { return judgingBoxTop() + int(BoxPad) }
 
-// baseListBottom is where the column runs out: the box's own air below its
-// content.
-func baseListBottom() int { return baseBoxTop() + int(BaseBoxH) - int(BoxPad) }
+func styleListBottom() int { return judgingBoxBottom() - int(BoxPad) }
 
-// baseRowY is the centre of visible row i, and baseMarkX the x of the marker
-// a chosen row carries.
-func baseRowY(i int) int { return baseListTop() + i*int(BaseRow) + int(BaseRow)/2 }
+// styleRowY is the centre of visible row i, and styleMarkX the x of the
+// marker a chosen row carries.
+func styleRowY(i int) int { return styleListTop() + i*int(StyleRowH) + int(StyleRowH)/2 }
 
-func baseMarkX() int { return boxLead() + int(BaseMark)/2 }
+func styleMarkX() int { return boxLead() + int(StyleIndent)/2 }
 
 // rowFillX is a point in a chooser row clear of both its marker and the name
 // it carries, which is where a row's own fill can be read.
-func rowFillX() int { return boxLead() + int(BaseMark) + 4 }
+func rowFillX() int { return boxLead() + int(StyleIndent) + 4 }
 
-// codePlate is the region the sample is drawn in: what is left of the syntax
-// base group's box after the column of names.
+// sampleRect is the picture of a window the preview draws: the preview box's
+// own content, less the run the sample's shadow is given to fall in.
+func sampleRect() image.Rectangle {
+	reach := int(SampleShadow)
+	return image.Rect(
+		previewBoxLead()+int(BoxInset)+reach, judgingBoxTop()+int(BoxPad)+reach,
+		boxTrail()-reach, judgingBoxBottom()-int(BoxPad)-reach)
+}
+
+// codePlate is the region the fence is drawn in: the content pane of that
+// picture, which is everything past the sidebar and under the toolbar.
 func codePlate() image.Rectangle {
-	return image.Rect(boxLead()+int(BaseW)+int(Gap), baseListTop(),
-		boxTrail(), baseListBottom())
+	win := sampleRect()
+	return image.Rect(win.Min.X+int(SampleRailW), win.Min.Y+int(SampleToolbarH), win.Max.X, win.Max.Y)
 }
 
 // pixelJitter is how far apart two channel values may be and still count as
@@ -157,11 +167,11 @@ func exactly(img *image.RGBA, c stdcolor.NRGBA) int {
 }
 
 // settled is a chooser that will not move itself: the column brings the
-// applied base into view when the list it is in is new, and a test that reads
+// applied style into view when the list it is in is new, and a test that reads
 // rows by position needs the rows where it left them.
 func settled(dark bool) *codeState {
 	cs := newCodeState()
-	cs.bases.shown, cs.bases.dark = true, dark
+	cs.styles.shown, cs.styles.dark = true, dark
 	return cs
 }
 
@@ -172,35 +182,35 @@ func pageWith(t *testing.T, m Model, c tokens.PlatformColors, cs *codeState) *im
 	return pageState(t, m, c, image.Pt(windowW, windowH), cs)
 }
 
-// TestEveryBaseIsOnOffer: the column is built from the highlighting package's
-// own list, so a base that exists is a base that can be chosen. A chooser
+// TestEveryStyleIsOnOffer: the column is built from the highlighting package's
+// own list, so a style that exists is a style that can be chosen. A chooser
 // showing a subset would be a window that cannot reach half of what it claims
 // to.
 //
 // The two are compared as sets. Which order the column lists them in is the
 // window's own decision and is asserted where that decision is made; what is
 // asserted here is that nothing went missing on the way.
-func TestEveryBaseIsOnOffer(t *testing.T) {
-	got := baseOptions()
+func TestEveryStyleIsOnOffer(t *testing.T) {
+	got := styleOptions()
 	names := make([]string, len(got))
 	for i, b := range got {
 		names[i] = b.Name
 	}
-	want := highlight.Bases()
+	want := highlight.Styles()
 	if offered := slices.Sorted(slices.Values(names)); !slices.Equal(offered, want) {
 		t.Errorf("the chooser offers %d names, the highlighting package has %d", len(offered), len(want))
 	}
 	if len(names) < 70 {
-		t.Errorf("only %d bases on offer — the embedded set alone is larger than that", len(names))
+		t.Errorf("only %d styles on offer — the embedded set alone is larger than that", len(names))
 	}
-	if !slices.Contains(names, highlight.DefaultBase) {
-		t.Errorf("the default base %q is not on offer", highlight.DefaultBase)
+	if !slices.Contains(names, highlight.DefaultStyle) {
+		t.Errorf("the default style %q is not on offer", highlight.DefaultStyle)
 	}
 }
 
 // TestAStyleFromTheFolderJoinsTheColumn: a style somebody wrote themselves is
 // choosable beside the ones that ship, and says which it is. The mark is the
-// only difference — a loaded base is worn exactly like an embedded one — and
+// only difference — a loaded style is worn exactly like an embedded one — and
 // it is there because "did my file load" is the first question anybody who
 // dropped one in has.
 func TestAStyleFromTheFolderJoinsTheColumn(t *testing.T) {
@@ -217,8 +227,8 @@ func TestAStyleFromTheFolderJoinsTheColumn(t *testing.T) {
 	if names, skipped := highlight.LoadDir(dir); len(names) != 1 || len(skipped) != 0 {
 		t.Fatalf("loaded %v and skipped %v, want the one style", names, skipped)
 	}
-	var found *BaseOption
-	for _, b := range baseOptions() {
+	var found *StyleOption
+	for _, b := range styleOptions() {
 		if b.Name == "quayside-day" {
 			found = &b
 		}
@@ -229,61 +239,61 @@ func TestAStyleFromTheFolderJoinsTheColumn(t *testing.T) {
 	if !found.Added {
 		t.Error("a style read from the folder is not marked as one — it reads as something that ships")
 	}
-	for _, b := range baseOptions() {
-		if b.Name == highlight.DefaultBase && b.Added {
+	for _, b := range styleOptions() {
+		if b.Name == highlight.DefaultStyle && b.Added {
 			t.Error("an embedded style is marked as added")
 		}
 	}
 }
 
-// TestTheWindowOpensOnTheKeptBases, one per appearance, and on that
+// TestTheWindowOpensOnTheKeptStyles, one per appearance, and on that
 // appearance's default when what was kept is a name this build cannot resolve
 // — a style whose file has left the folder, or one written by a build that had
 // it. Neither is a reason to open on whatever sorted first.
 //
-// The last cases are the file that predates the pair. It names one base with
+// The last cases are the file that predates the pair. It names one style with
 // no appearance attached, and it arrives with that name in both members: the
 // window keeps it for the appearance it was measured to be fitted to, and
-// opens the other on the default rather than putting a palette balanced for a
+// opens the other on the default rather than putting a style balanced for a
 // light page on a near-black slab.
-func TestTheWindowOpensOnTheKeptBases(t *testing.T) {
-	m := withBases()
-	d := highlight.DefaultBases()
+func TestTheWindowOpensOnTheKeptStyles(t *testing.T) {
+	m := withStyles()
+	d := highlight.DefaultStyles()
 	for _, tc := range []struct {
 		name        string
-		kept        brand.BasePair
+		kept        brand.StylePair
 		light, dark string
 	}{
-		{"a pair that resolves", brand.BasePair{Light: "github", Dark: "dracula"}, "github", "dracula"},
-		{"names that do not", brand.BasePair{Light: "a-style-nobody-wrote", Dark: "another"}, d.Light, d.Dark},
-		{"nothing kept", brand.BasePair{}, d.Light, d.Dark},
-		{"one dark base from a file that predates the pair", brand.BasePair{Light: "dracula", Dark: "dracula"}, d.Light, "dracula"},
-		{"one light base from a file that predates the pair", brand.BasePair{Light: "github", Dark: "github"}, "github", d.Dark},
+		{"a pair that resolves", brand.StylePair{Light: "github", Dark: "dracula"}, "github", "dracula"},
+		{"names that do not", brand.StylePair{Light: "a-style-nobody-wrote", Dark: "another"}, d.Light, d.Dark},
+		{"nothing kept", brand.StylePair{}, d.Light, d.Dark},
+		{"one dark style from a file that predates the pair", brand.StylePair{Light: "dracula", Dark: "dracula"}, d.Light, "dracula"},
+		{"one light style from a file that predates the pair", brand.StylePair{Light: "github", Dark: "github"}, "github", d.Dark},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := m.adoptKept(brand.Brand{ThemeColor: sceneAccent, Base: tc.kept})
-			if got.Base(false) != tc.light || got.Base(true) != tc.dark {
+			got := m.adoptKept(brand.Brand{ThemeColor: sceneAccent, Style: tc.kept})
+			if got.Style(false) != tc.light || got.Style(true) != tc.dark {
 				t.Errorf("opened on %q under the sun and %q under the moon, want %q and %q",
-					got.Base(false), got.Base(true), tc.light, tc.dark)
+					got.Style(false), got.Style(true), tc.light, tc.dark)
 			}
-			if want := (highlight.BasePair{Light: tc.light, Dark: tc.dark}); got.KeptBases != want {
-				t.Errorf("the kept bases read %+v, want %+v", got.KeptBases, want)
+			if want := (highlight.StylePair{Light: tc.light, Dark: tc.dark}); got.KeptStyles != want {
+				t.Errorf("the kept styles read %+v, want %+v", got.KeptStyles, want)
 			}
 			// And each member is on the list of the appearance it applies to,
 			// so the window opens with the applied row marked on both halves.
-			if !slices.Contains(got.VisibleBases(false), got.LightAt) ||
-				!slices.Contains(got.VisibleBases(true), got.DarkAt) {
-				t.Error("an applied base is missing from the list of the appearance it colours")
+			if !slices.Contains(got.VisibleStyles(false), got.LightAt) ||
+				!slices.Contains(got.VisibleStyles(true), got.DarkAt) {
+				t.Error("an applied style is missing from the list of the appearance it colours")
 			}
 		})
 	}
 }
 
-// TestChoosingABaseRecoloursTheCode is the chooser's whole claim: the names
+// TestChoosingAStyleRecoloursTheCode is the chooser's whole claim: the names
 // are not a list of styles, they are what the code beside them is coloured
 // with. What is counted is the sample's own plate alone, so a marked row
 // moving in the column cannot pass for a recolour.
-func TestChoosingABaseRecoloursTheCode(t *testing.T) {
+func TestChoosingAStyleRecoloursTheCode(t *testing.T) {
 	for _, tc := range []struct {
 		scheme    string
 		dark      bool
@@ -296,34 +306,34 @@ func TestChoosingABaseRecoloursTheCode(t *testing.T) {
 		t.Run(tc.scheme, func(t *testing.T) {
 			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
 			for _, name := range []string{tc.one, tc.then} {
-				if !m.Bases[baseIndex(m.Bases, name, tc.dark)].Suits(tc.dark) {
+				if !m.Styles[styleIndex(m.Styles, name, tc.dark)].Suits(tc.dark) {
 					t.Fatalf("%q is not on the list this scheme shows", name)
 				}
 			}
 			first := pageWith(t, pick(m, tc.one, tc.dark), tc.set, settled(tc.dark))
 			second := pageWith(t, pick(m, tc.then, tc.dark), tc.set, settled(tc.dark))
 			if n := movedIn(first, second, codePlate()); n == 0 {
-				t.Error("switching the syntax base changed no pixel of the sample — the code is not following the choice")
+				t.Error("switching the syntax style changed no pixel of the sample — the code is not following the choice")
 			} else {
-				t.Logf("switching the base moved %d pixels of the sample", n)
+				t.Logf("switching the style moved %d pixels of the sample", n)
 			}
 		})
 	}
 }
 
-// TestTheChosenBaseIsMarked: one row carries the choice, and it is the one
+// TestTheChosenStyleIsMarked: one row carries the choice, and it is the one
 // that was chosen. Asserted inside a single render, so a window that repaints
 // wholesale cannot pass by accident.
-func TestTheChosenBaseIsMarked(t *testing.T) {
+func TestTheChosenStyleIsMarked(t *testing.T) {
 	m := judging()
-	visible := m.VisibleBases(false)
+	visible := m.VisibleStyles(false)
 	if len(visible) < 3 {
-		t.Fatalf("the light half holds %d bases — too few to tell a marked row from its neighbours", len(visible))
+		t.Fatalf("the light half holds %d styles — too few to tell a marked row from its neighbours", len(visible))
 	}
 	for _, row := range []int{0, 1, 2} {
-		img := pageWith(t, ReduceModel(m, SelectBase{Index: visible[row], Dark: false}),
+		img := pageWith(t, ReduceModel(m, SelectStyle{Index: visible[row], Dark: false}),
 			tokens.PlatformLight, settled(false))
-		at := func(r int) stdcolor.RGBA { return img.RGBAAt(baseMarkX(), baseRowY(r)) }
+		at := func(r int) stdcolor.RGBA { return img.RGBAAt(styleMarkX(), styleRowY(r)) }
 		for _, other := range []int{0, 1, 2} {
 			if other == row {
 				continue
@@ -338,25 +348,29 @@ func TestTheChosenBaseIsMarked(t *testing.T) {
 	}
 }
 
-// TestTheChooserStandsBesideTheSample: the names and the fence they colour
-// are on screen at the same time, in one row — the column at the group box's
-// leading edge, the sample's plate beside it. A name chosen from behind the
-// thing it changes is chosen blind.
-func TestTheChooserStandsBesideTheSample(t *testing.T) {
+// TestTheListStandsBesideThePreview: the names and the picture the chosen one
+// colours are on screen at the same time, in one row — the list at the page's
+// leading margin at its own width, the preview taking everything else. A name
+// chosen from behind the thing it changes is chosen blind.
+func TestTheListStandsBesideThePreview(t *testing.T) {
 	c := tokens.PlatformLight
 	img := pageWith(t, judging(), c, settled(false))
 	p := PaletteFrom(c)
-	// The run between the column and the plate, where the group's box shows
-	// through: the box is the platform's box on the window's plane, and the
-	// column draws no plate of its own inside it.
-	if got := img.RGBAAt(boxLead()+int(BaseW)+int(Gap)/2, baseRowY(0)); !is(got, p.Surface) {
-		t.Errorf("the run between the column and the sample drew %v, want the group's box %v", got, p.Surface)
+	// The run between the two boxes, where the page's own plane shows
+	// through: they are two groups and not one, and nothing is drawn between
+	// them.
+	gapX := int(Pad) + int(StyleW) + int(Gap)/2
+	if got := img.RGBAAt(gapX, styleRowY(0)); !is(got, p.Backdrop) {
+		t.Errorf("the run between the list and the preview drew %v, want the window's plane %v", got, p.Backdrop)
 	}
-	// And the sample's plate is where the row leaves it, on the previewed
-	// set's own plane.
-	plate := codePlate()
-	if got := img.RGBAAt(plate.Min.X+int(BasePad)/2, plate.Min.Y+plate.Dy()/2); !is(got, c.WindowBackground) {
-		t.Errorf("the sample's plate drew %v, want the previewed set's plane %v", got, c.WindowBackground)
+	// The list's own box is on one side of it and the preview's picture on
+	// the other.
+	if got := img.RGBAAt(int(Pad)+int(StyleW)-1, styleRowY(0)); !is(got, p.Surface) {
+		t.Errorf("the trailing edge of the list's box drew %v, want the group's box %v", got, p.Surface)
+	}
+	pane := codePlate()
+	if got := img.RGBAAt(pane.Min.X+4, pane.Min.Y+4); !is(got, c.ControlBackground) {
+		t.Errorf("the preview's content pane drew %v, want the content's fill %v", got, c.ControlBackground)
 	}
 }
 
@@ -372,37 +386,37 @@ func TestTheColumnScrollsToEveryNameOnIt(t *testing.T) {
 	}{{"sun", false, tokens.PlatformLight}, {"moon", true, tokens.PlatformDark}} {
 		t.Run(tc.name, func(t *testing.T) {
 			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
-			visible := m.VisibleBases(tc.dark)
+			visible := m.VisibleStyles(tc.dark)
 			n := len(visible)
 			if n < 3 {
-				t.Fatalf("the %s lists %d bases — too few to scroll", tc.name, n)
+				t.Fatalf("the %s lists %d styles — too few to scroll", tc.name, n)
 			}
-			shows := baseListBottom() - baseListTop()
+			shows := styleListBottom() - styleListTop()
 			cs := settled(tc.dark)
 			pageWith(t, m, tc.set, cs)
-			if got := cs.bases.st.Viewport(); got > shows {
+			if got := cs.styles.st.Viewport(); got > shows {
 				t.Errorf("the column lays out in %d points where the window shows %d of it — %d names sit under the fold with no scroll that reaches them",
-					got, shows, (got-shows)/int(BaseRow))
+					got, shows, (got-shows)/int(StyleRowH))
 			}
-			t.Logf("the %s lists %d names and the window shows %d points of the column", tc.name, n, cs.bases.st.Viewport())
+			t.Logf("the %s lists %d names and the window shows %d points of the column", tc.name, n, cs.styles.st.Viewport())
 
 			// And the last name on the list is one the column can be scrolled
 			// to. It is the applied one, so the marker is what says it arrived.
-			on := ReduceModel(m, SelectBase{Index: visible[n-1], Dark: tc.dark})
+			on := ReduceModel(m, SelectStyle{Index: visible[n-1], Dark: tc.dark})
 			end := settled(tc.dark)
 			pageWith(t, on, tc.set, end)
-			end.bases.st.ScrollToEnd(n)
+			end.styles.st.ScrollToEnd(n)
 			img := pageWith(t, on, tc.set, end)
-			q := end.bases.st.Position()
+			q := end.styles.st.Position()
 			if last := q.First + q.Count; last < n {
 				t.Fatalf("scrolled to its end the column shows names %d to %d of %d — the last %d cannot be reached",
 					q.First+1, last, n, n-last)
 			}
-			y := baseRowY(n-1-q.First) - q.Offset
-			if y >= baseListBottom() {
-				t.Fatalf("the last name is laid out at y=%d, past the box's bottom edge at y=%d", y, baseListBottom())
+			y := styleRowY(n-1-q.First) - q.Offset
+			if y >= styleListBottom() {
+				t.Fatalf("the last name is laid out at y=%d, past the box's bottom edge at y=%d", y, styleListBottom())
 			}
-			if mark, plain := img.RGBAAt(baseMarkX(), y), img.RGBAAt(baseMarkX(), baseRowY(0)-q.Offset); mark == plain {
+			if mark, plain := img.RGBAAt(styleMarkX(), y), img.RGBAAt(styleMarkX(), styleRowY(0)-q.Offset); mark == plain {
 				t.Errorf("the last name is applied and its row at y=%d is drawn %v, exactly like an unmarked row — nothing on screen says the column reached it",
 					y, mark)
 			}
@@ -410,35 +424,35 @@ func TestTheColumnScrollsToEveryNameOnIt(t *testing.T) {
 	}
 }
 
-// TestTheColumnFollowsTheSchemeSwitch: the sun's list is the light bases and
+// TestTheColumnFollowsTheSchemeSwitch: the sun's list is the light styles and
 // the moon's the dark ones, and it is the one switch at the top of the window
 // that says which. A second control could be set to disagree with the
 // appearance on screen; this is the assertion that there is no second control.
 func TestTheColumnFollowsTheSchemeSwitch(t *testing.T) {
 	m := judging()
-	light := ReduceModel(m, SetScheme{Dark: false}).VisibleBases(false)
-	dark := ReduceModel(m, SetScheme{Dark: true}).VisibleBases(true)
-	t.Logf("the sun lists %d bases and the moon %d, out of %d", len(light), len(dark), len(m.Bases))
+	light := ReduceModel(m, SetScheme{Dark: false}).VisibleStyles(false)
+	dark := ReduceModel(m, SetScheme{Dark: true}).VisibleStyles(true)
+	t.Logf("the sun lists %d styles and the moon %d, out of %d", len(light), len(dark), len(m.Styles))
 	if len(light) == 0 || len(dark) == 0 {
 		t.Fatalf("one half of the list came out empty: %d light, %d dark", len(light), len(dark))
 	}
-	if len(light) == len(m.Bases) || len(dark) == len(m.Bases) {
+	if len(light) == len(m.Styles) || len(dark) == len(m.Styles) {
 		t.Error("a half of the list is the whole list — nothing is being filtered")
 	}
 	for _, i := range light {
-		if b := m.Bases[i]; !b.Light {
+		if b := m.Styles[i]; !b.Light {
 			t.Errorf("the sun lists %q, which was fitted to a dark background", b.Name)
 		}
 	}
 	for _, i := range dark {
-		if b := m.Bases[i]; !b.Dark {
+		if b := m.Styles[i]; !b.Dark {
 			t.Errorf("the moon lists %q, which was fitted to a light background", b.Name)
 		}
 	}
 	// And the two lists are drawn, not just computed.
 	sun := pageWith(t, ReduceModel(m, SetScheme{Dark: false}), tokens.PlatformLight, settled(false))
 	moon := pageWith(t, ReduceModel(m, SetScheme{Dark: true}), tokens.PlatformLight, settled(true))
-	column := image.Rect(int(Pad), baseListTop(), int(Pad)+int(BaseW), baseRowY(4))
+	column := image.Rect(int(Pad), styleListTop(), int(Pad)+int(StyleW), styleRowY(4))
 	if movedIn(sun, moon, column) == 0 {
 		t.Error("the column drew the same pixels under both schemes — the list is not following the switch")
 	}
@@ -451,34 +465,34 @@ const (
 	pairDark  = "dracula"
 )
 
-// paired is the model with a distinct base under each appearance: what the
+// paired is the model with a distinct style under each appearance: what the
 // window holds once somebody has chosen twice.
 func paired(t *testing.T) Model {
 	t.Helper()
 	m := pick(pick(judging(), pairLight, false), pairDark, true)
-	if m.Base(false) != pairLight || m.Base(true) != pairDark {
-		t.Fatalf("the model applied %q and %q, want %q and %q", m.Base(false), m.Base(true), pairLight, pairDark)
+	if m.Style(false) != pairLight || m.Style(true) != pairDark {
+		t.Fatalf("the model applied %q and %q, want %q and %q", m.Style(false), m.Style(true), pairLight, pairDark)
 	}
 	return m
 }
 
-// TestFlippingTheSchemeSwitchesTheAppliedBase is the pair's whole point. The
-// window holds a base per appearance, and the scheme switch moves between
+// TestFlippingTheSwitchChangesTheAppliedStyle is the pair's whole point. The
+// window holds a style per appearance, and the scheme switch moves between
 // them: the code takes the other member's plate and the column marks that
 // member's row, in the frame the switch is pressed, without either choice
 // being edited.
-func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
+func TestFlippingTheSwitchChangesTheAppliedStyle(t *testing.T) {
 	m := paired(t)
 	sun := ReduceModel(m, SetScheme{Dark: false})
 	moon := ReduceModel(m, SetScheme{Dark: true})
-	if sun.AppliedBases() != moon.AppliedBases() {
-		t.Errorf("flipping the scheme edited the pair: %+v became %+v", sun.AppliedBases(), moon.AppliedBases())
+	if sun.AppliedStyles() != moon.AppliedStyles() {
+		t.Errorf("flipping the scheme edited the pair: %+v became %+v", sun.AppliedStyles(), moon.AppliedStyles())
 	}
-	if got := BaseHintFor(sun, false, len(sun.VisibleBases(false))); !strings.HasPrefix(got, pairLight+", ") {
-		t.Errorf("under the sun the group says %q, want it naming %q", got, pairLight)
+	if got := sun.Style(false); got != pairLight {
+		t.Errorf("under the sun the applied style is %q, want %q", got, pairLight)
 	}
-	if got := BaseHintFor(moon, true, len(moon.VisibleBases(true))); !strings.HasPrefix(got, pairDark+", ") {
-		t.Errorf("under the moon the group says %q, want it naming %q", got, pairDark)
+	if got := moon.Style(true); got != pairDark {
+		t.Errorf("under the moon the applied style is %q, want %q", got, pairDark)
 	}
 
 	// The plate the sample is drawn on, background and foreground: under each
@@ -495,10 +509,10 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 		{"under the moon", true, tokens.PlatformDark},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			applied := m.Base(tc.dark)
-			got := wearPair(m.AppliedBases(), tc.set)
+			applied := m.Style(tc.dark)
+			got := wearPair(m.AppliedStyles(), tc.set)
 			want := wearAlone(applied, tc.set)
-			other := wearAlone(m.Base(!tc.dark), tc.set)
+			other := wearAlone(m.Style(!tc.dark), tc.set)
 			gotRuns, wantRuns := got.Highlight("go", src), want.Highlight("go", src)
 			otherRuns := other.Highlight("go", src)
 			if len(gotRuns) == 0 || len(gotRuns) != len(wantRuns) {
@@ -536,7 +550,7 @@ func TestFlippingTheSchemeSwitchesTheAppliedBase(t *testing.T) {
 // same scroll — the only thing that moves between the two renders is one
 // member of the pair.
 func TestEachSchemeRendersThroughItsOwnMember(t *testing.T) {
-	base := paired(t)
+	style := paired(t)
 	for _, tc := range []struct {
 		name    string
 		dark    bool
@@ -548,7 +562,7 @@ func TestEachSchemeRendersThroughItsOwnMember(t *testing.T) {
 		{"under the moon", true, tokens.PlatformDark, "solarized-light", "monokai"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			on := ReduceModel(base, SetScheme{Dark: tc.dark})
+			on := ReduceModel(style, SetScheme{Dark: tc.dark})
 			was := pageWith(t, on, tc.set, settled(tc.dark))
 			hidden := pick(on, tc.other, !tc.dark)
 			got := pageWith(t, hidden, tc.set, settled(tc.dark))
@@ -567,7 +581,7 @@ func TestEachSchemeRendersThroughItsOwnMember(t *testing.T) {
 // hardest for a sample to pass and the plainest thing it is for. One family's
 // three dark flavours are the same colours at the same strengths on three
 // different backgrounds: tell a reader they are the same picture and the
-// reader is right. The sample shows each base's own background, so the
+// reader is right. The sample shows each style's own background, so the
 // difference between them is on screen and choosing between them is a choice
 // somebody can see they made.
 func TestThreeFlavoursOfOneFamilyAreThreeDifferentSamples(t *testing.T) {
@@ -606,15 +620,15 @@ func TestThreeFlavoursOfOneFamilyAreThreeDifferentSamples(t *testing.T) {
 }
 
 // TestAPressIsForTheAppearanceItWasMadeUnder: the sun's list sets the light
-// base and the moon's the dark one, and neither reaches across.
+// style and the moon's the dark one, and neither reaches across.
 func TestAPressIsForTheAppearanceItWasMadeUnder(t *testing.T) {
-	m := withBases()
-	d := highlight.DefaultBases()
-	if under := pick(m, "solarized-light", false); under.Base(false) != "solarized-light" || under.Base(true) != d.Dark {
-		t.Errorf("a press under the sun left the pair %+v, want the light member alone moved", under.AppliedBases())
+	m := withStyles()
+	d := highlight.DefaultStyles()
+	if under := pick(m, "solarized-light", false); under.Style(false) != "solarized-light" || under.Style(true) != d.Dark {
+		t.Errorf("a press under the sun left the pair %+v, want the light member alone moved", under.AppliedStyles())
 	}
-	if under := pick(m, "monokai", true); under.Base(true) != "monokai" || under.Base(false) != d.Light {
-		t.Errorf("a press under the moon left the pair %+v, want the dark member alone moved", under.AppliedBases())
+	if under := pick(m, "monokai", true); under.Style(true) != "monokai" || under.Style(false) != d.Light {
+		t.Errorf("a press under the moon left the pair %+v, want the dark member alone moved", under.AppliedStyles())
 	}
 }
 
@@ -642,25 +656,25 @@ func TestBothMembersOfThePairAreKept(t *testing.T) {
 			}
 			m = ReduceModel(m, msg)
 			kept := brand.KeptFrom(path)
-			if kept.Base.Light != pairLight || kept.Base.Dark != pairDark {
-				t.Errorf("the file holds %+v, want %q under the sun and %q under the moon", kept.Base, pairLight, pairDark)
+			if kept.Style.Light != pairLight || kept.Style.Dark != pairDark {
+				t.Errorf("the file holds %+v, want %q under the sun and %q under the moon", kept.Style, pairLight, pairDark)
 			}
 			if !m.IsKept() {
 				t.Error("the window does not report the kept choice as kept")
 			}
-			back := withBases().adoptKept(kept)
-			if back.Base(false) != pairLight || back.Base(true) != pairDark {
-				t.Errorf("a window opening on the kept file landed on %q and %q", back.Base(false), back.Base(true))
+			back := withStyles().adoptKept(kept)
+			if back.Style(false) != pairLight || back.Style(true) != pairDark {
+				t.Errorf("a window opening on the kept file landed on %q and %q", back.Style(false), back.Style(true))
 			}
 		})
 	}
 }
 
-// TestKeepingWritesTheBasesBesideTheColour: the choices are one theme, so
+// TestKeepingWritesTheStylesBesideTheColour: the choices are one theme, so
 // they go into the file together and come back together — including a change
 // to the member the window is not showing, which is still a change to what is
 // kept.
-func TestKeepingWritesTheBasesBesideTheColour(t *testing.T) {
+func TestKeepingWritesTheStylesBesideTheColour(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
 	m := ReduceModel(judging(), HexTyped{Text: "#e8112d"})
 	m.KeepPath = path
@@ -672,8 +686,8 @@ func TestKeepingWritesTheBasesBesideTheColour(t *testing.T) {
 	}
 	m = ReduceModel(m, msg)
 	kept := brand.KeptFrom(path)
-	if kept.Base.Dark != "monokai" || kept.Base.Light != highlight.DefaultBase {
-		t.Errorf("the file holds %+v, want monokai under the moon and the default under the sun", kept.Base)
+	if kept.Style.Dark != "monokai" || kept.Style.Light != highlight.DefaultStyle {
+		t.Errorf("the file holds %+v, want monokai under the moon and the default under the sun", kept.Style)
 	}
 	if col, _ := m.Color(); kept.ThemeColor != col {
 		t.Errorf("the file holds the colour %v, want %v", kept.ThemeColor, col)
@@ -685,10 +699,10 @@ func TestKeepingWritesTheBasesBesideTheColour(t *testing.T) {
 	// has to go back to offering rather than confirming — including the member
 	// of the pair that is not on screen.
 	if pick(m, "dracula", true).IsKept() {
-		t.Error("choosing another base left the window claiming the theme on screen was kept")
+		t.Error("choosing another style left the window claiming the theme on screen was kept")
 	}
 	if pick(m, "solarized-light", false).IsKept() {
-		t.Error("choosing a base for the other appearance left the window claiming the theme on screen was kept")
+		t.Error("choosing a style for the other appearance left the window claiming the theme on screen was kept")
 	}
 }
 

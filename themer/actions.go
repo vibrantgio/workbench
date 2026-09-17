@@ -59,14 +59,14 @@ type HexTyped struct {
 	Text string
 }
 
-// SelectBase chooses the syntax palette code is coloured from, by its
+// SelectStyle chooses the highlighter style code is coloured from, by its
 // position in the chooser's list. Emitted by a click on one of its rows.
 //
 // It carries the appearance the row was clicked under, because that is what
-// the choice is for: the sun's list sets the light palette and the moon's the
+// the choice is for: the sun's list sets the light style and the moon's the
 // dark one. The row knows which list it is on; the reducer, which never sees
-// a palette, does not.
-type SelectBase struct {
+// a style, does not.
+type SelectStyle struct {
 	Index int
 	Dark  bool
 }
@@ -83,13 +83,13 @@ type SelectMono struct {
 // looks for one. Emitted by a click on the keep affordance.
 type KeepColor struct{}
 
-// ColorKept reports what is now in that file: the colour, the syntax bases and
+// ColorKept reports what is now in that file: the colour, the syntax styles and
 // the code face. Follows is the file holding the instruction to follow the
 // system rather than a colour, in which case ThemeColor is the zero colour.
 type ColorKept struct {
 	ThemeColor stdcolor.NRGBA
 	Follows    bool
-	Bases      highlight.BasePair
+	Styles     highlight.StylePair
 	Mono       string
 }
 
@@ -101,7 +101,7 @@ type KeepFailed struct {
 	Reason string
 }
 
-// SetScheme puts the syntax base group on one side of the platform's pair and
+// SetScheme puts the syntax style group on one side of the platform's pair and
 // keeps it there. It carries the side to move to rather than a "flip it"
 // instruction, because which side is showing depends on a set the reducer
 // never sees: the switch knows what it is drawn on, so it says where to go.

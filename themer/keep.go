@@ -15,13 +15,13 @@ import (
 // window is still worth looking at afterwards.
 //
 // What is written is names, not the colours they stand for: the theme colour
-// or the standing instruction to follow the system, the base code is coloured
-// from under each appearance, and the typeface a fence wears. A base is a
+// or the standing instruction to follow the system, the style code is coloured
+// from under each appearance, and the typeface a fence wears. A style is a
 // registry entry read exactly as it was written, so the name is the whole
-// choice — recording the colours beside it would freeze a palette that is
-// still entitled to improve.
+// choice — recording the colours beside it would freeze a set somebody else
+// is still entitled to improve.
 //
-// Both bases go, not the one the window happens to be showing. The pair is
+// Both styles go, not the one the window happens to be showing. The pair is
 // the choice; keeping half of it would leave the other appearance on a
 // default nobody picked the moment somebody flipped the scheme.
 //
@@ -35,21 +35,21 @@ import (
 // reports instead of anything on disk. The colour and the source go unwritten
 // with it, because neither is true of a colour the platform is still free to
 // change.
-func KeepTheme(path string, col stdcolor.NRGBA, follows bool, bases highlight.BasePair, mono, source string) mvu.Command {
+func KeepTheme(path string, col stdcolor.NRGBA, follows bool, styles highlight.StylePair, mono, source string) mvu.Command {
 	return mvu.Do(func() (mvu.Message, error) {
-		return keepTheme(path, col, follows, bases, mono, source), nil
+		return keepTheme(path, col, follows, styles, mono, source), nil
 	})
 }
 
 // keepTheme is KeepTheme's body as a plain function, so the whole path from a
 // press to a file is testable without a message loop.
-func keepTheme(path string, col stdcolor.NRGBA, follows bool, bases highlight.BasePair, mono, source string) mvu.Message {
+func keepTheme(path string, col stdcolor.NRGBA, follows bool, styles highlight.StylePair, mono, source string) mvu.Message {
 	if path == "" {
 		return KeepFailed{Reason: "nowhere to keep it: this machine has no config directory"}
 	}
 	kept := brand.KeptFrom(path)
 	kept.ThemeColor, kept.FollowSystem, kept.Source = col, follows, source
-	kept.Base = brand.BasePair{Light: bases.Light, Dark: bases.Dark}
+	kept.Style = brand.StylePair{Light: styles.Light, Dark: styles.Dark}
 	kept.Mono = mono
 	// A keep is a new writing of the file, so the timestamp is this one's
 	// rather than the one the file came with.
@@ -57,7 +57,7 @@ func keepTheme(path string, col stdcolor.NRGBA, follows bool, bases highlight.Ba
 	if err := brand.SaveTo(path, kept); err != nil {
 		return KeepFailed{Reason: "could not keep " + keptName(col, follows) + ": " + err.Error()}
 	}
-	return ColorKept{ThemeColor: col, Follows: follows, Bases: bases, Mono: mono}
+	return ColorKept{ThemeColor: col, Follows: follows, Styles: styles, Mono: mono}
 }
 
 // keptName is what a failure calls the theme it could not write: the colour,

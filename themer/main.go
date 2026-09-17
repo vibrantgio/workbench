@@ -1,6 +1,6 @@
 // Command themer chooses the theme colour, and the two things a theme says
-// about code: the syntax palette a fence is coloured from and the typeface it
-// is set in.
+// about code: the syntax highlighter style a fence is coloured from and the
+// typeface it is set in.
 //
 // The theme colour is the one colour a person may choose. On macOS it is the
 // accent colour from the system's Appearance settings unless it is chosen
@@ -16,27 +16,33 @@
 // that adopts a brand reads — which holds choices this window does not make,
 // and they are written back untouched.
 //
-// The window is one column of titled groups, in the order somebody settling a
+// The window is a column of titled groups, in the order somebody settling a
 // theme works through them: the picture and the colours it gave, the theme
-// colour in force, the code face, and the syntax base. Under them stands the
-// preview, and under that the one default button this window has.
+// colour in force, and the code face. Under them stands the row the choices
+// are judged in — the list of highlighter styles beside the preview — and
+// under that the one default button this window has.
 //
-// The last two groups are what a theme says about code: two code faces, and a
-// column of syntax bases — the half of them fitted to the appearance the
-// switch on that group's title row is showing — with the fence they land on
-// beside the column. A base is a pair, one member per appearance, so the
-// switch swaps the list, the marked row and the colours under the code
-// together. Keeping writes both beside the colour.
+// The style list holds every style chroma ships that is fitted to the
+// appearance on screen, at the platform's own list row height with the
+// platform's scrollbar beside it. A style is a pair, one member per
+// appearance, so a flip of the appearance swaps the list, the marked row and
+// the colours under the code together. Keeping writes both beside the colour
+// and the code face.
 //
 // What is previewed is a picture of an application in the platform's set with
-// the chosen colour standing in for the accent, drawn twice side by side, once
-// per appearance — because a colour has to be seen on both, and a switch
-// showing one at a time makes that two looks and a memory instead of one look.
-// The set itself, every name the platform answers for beside its value, is
-// what the gallery's colour board is for and is not repeated here.
+// the chosen colour standing in for the accent: a sidebar with the selection
+// pill, a toolbar with the platform's window controls, a heading with a badge
+// beside it, prose, a fenced code block in the chosen face and style, a text
+// field and two push buttons. Every choice above it moves something in it.
+// The colour set itself, every name the platform answers for beside its
+// value, is what the gallery's colour board is for and is not repeated here.
 //
-// The window itself follows the desktop's setting, like every other
-// application here.
+// One appearance at a time, and one switch to change it, at the top of the
+// window: it moves the window's own plane, every group on it, the style list
+// and the preview together. The window opens on the appearance the desktop is
+// set to and is the window's own answer from then on — a theme has two
+// appearances and both have to be settled, which cannot wait for the desktop
+// to change its mind.
 //
 // The whole window is the drop target: file drops arrive as ordinary messages
 // through mvu/desktop, resolved against a single zone covering the window,
@@ -76,19 +82,20 @@ func main() {
 	app.Main()
 }
 
-// modelObsConsumers: how many streams subscribe the model. One, the content
-// layer — the backdrop follows the platform alone, this window wearing the
-// theme the desktop is set to. Publish() multicasts without replay, so this
-// count gates when the seed emitted by mvu.Loop flows, and a subscriber more
-// than it names is a subscriber that misses the first one.
-const modelObsConsumers = 1
+// modelObsConsumers: how many streams subscribe the model. Two, the backdrop
+// and the content — the backdrop reads the model because the appearance
+// switch at the top of the window moves the window's own plane along with
+// everything on it. Publish() multicasts without replay, so this count gates
+// when the seed emitted by mvu.Loop flows, and a subscriber more than it
+// names is a subscriber that misses the first one.
+const modelObsConsumers = 2
 
-// Window size: wide enough for the swatch row to lay out without wrapping,
-// for the base column to stand beside its sample, and for the two sample
-// windows to stand side by side; tall enough for the whole column of choices,
-// the preview and the footer to close without the window scrolling. The
-// column is laid out to that height exactly — see the box heights in view.go —
-// so a change to either wants the other checked.
+// Window size: wide enough for the swatch row to lay out without wrapping and
+// for the style list to stand beside a picture of a window rather than beside
+// a strip; tall enough for the choices, the list, the preview and the footer
+// to close without the window scrolling. The column is laid out to that height
+// exactly — see the box heights in view.go — so a change to either wants the
+// other checked.
 const (
 	windowW = 1200
 	windowH = 900

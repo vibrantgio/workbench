@@ -18,36 +18,55 @@ func isDark(c tokens.PlatformColors) bool {
 	return vgcolor.RelativeLuminance(c.WindowBackground) < 0.5
 }
 
-// PreviewSet is what the window previews: the platform's set with the theme
+// SchemeColors is the platform's set for one appearance: the live set where
+// the appearance asked for is the one the desktop is on, and the recorded set
+// for the other side, which cannot be read live while the desktop is on this
+// one — and which is what every platform but macOS carries anyway.
+//
+// The recorded set is given the live accent, so a window flipped to the
+// appearance the desktop is not on keeps the accent colour the machine is
+// actually set to rather than falling back to the one that was recorded.
+func SchemeColors(live tokens.PlatformColors, dark bool) tokens.PlatformColors {
+	if dark == isDark(live) {
+		return live
+	}
+	recorded := tokens.PlatformLight
+	if dark {
+		recorded = tokens.PlatformDark
+	}
+	return recorded.WithAccent(live.ControlAccent)
+}
+
+// WindowSet is what this window itself wears: the platform's set for the
+// appearance the switch at the top of the window is on.
+//
+// The window draws in the appearance being chosen and not in the desktop's.
+// Every choice below the switch is made for one appearance — a theme colour is
+// judged on the plane it lands on, a highlighter style is fitted to a
+// background — so the window shows the one being settled, and the switch moves
+// the whole of it.
+func WindowSet(live tokens.PlatformColors, m Model) tokens.PlatformColors {
+	return SchemeColors(live, m.Dark(live))
+}
+
+// PreviewSet is what the window previews: [SchemeColors] with the theme
 // colour standing in where the platform uses its accent — the default button,
 // the selection, the focus ring. With nothing chosen, and on a desktop that
 // reports no accent, it is the platform's set as it stands.
-//
-// live is the set the window itself is wearing, which is the platform's own
-// reading of the appearance the desktop is on. The other side cannot be read
-// live while the desktop is on this one, so it is the recorded set — which is
-// what every platform but macOS carries anyway.
 func PreviewSet(live tokens.PlatformColors, m Model, dark bool) tokens.PlatformColors {
-	base := live
-	if dark != isDark(live) {
-		base = tokens.PlatformLight
-		if dark {
-			base = tokens.PlatformDark
-		}
-	}
+	set := SchemeColors(live, dark)
 	if col, ok := m.Color(); ok {
-		return base.WithAccent(col)
+		return set.WithAccent(col)
 	}
-	return base
+	return set
 }
 
 // Palette is the window's own colours: the platform's name for what each one
 // draws, flattened onto the fill it lands on.
 //
-// The window draws in the platform's live set and follows the desktop's
-// setting like every other application. What the scheme switch moves is the
-// preview, which is a picture of a theme rather than the theme this window
-// is wearing.
+// The window draws in [WindowSet] — the platform's set for the appearance the
+// switch at the top of the window is on — so the page a reader is looking at
+// is the appearance they are settling.
 type Palette struct {
 	Backdrop         stdcolor.NRGBA // the window's own plane, and the picture's mat
 	Surface          stdcolor.NRGBA // a group's box

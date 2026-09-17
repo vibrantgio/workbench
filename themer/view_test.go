@@ -58,8 +58,9 @@ func pageState(t *testing.T, m Model, c tokens.PlatformColors, size image.Point,
 		})
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		// The backdrop is its own layer at runtime; here it is one fill under
-		// the page, resolved the same way that layer resolves it.
-		fillRect(gtx, image.Rectangle{Max: size}, c.WindowBackground)
+		// the page, resolved the same way that layer resolves it — through
+		// the appearance the switch is on, not the desktop's.
+		fillRect(gtx, image.Rectangle{Max: size}, WindowSet(c, m).WindowBackground)
 		return w(gtx)
 	})
 }
@@ -84,8 +85,8 @@ func cellCentre(n, i int) image.Point {
 }
 
 // TestTheWindowStandsOnThePlatformsPlane: the window's own fill is
-// windowBackground in both appearances, because this window follows the
-// desktop's setting like every other application.
+// windowBackground in both appearances, because the plane a window stands on
+// is the platform's name for it whichever appearance it is on.
 func TestTheWindowStandsOnThePlatformsPlane(t *testing.T) {
 	for _, c := range []tokens.PlatformColors{tokens.PlatformLight, tokens.PlatformDark} {
 		img := page(t, judging(), c)
@@ -169,17 +170,21 @@ func TestThePreviewCarriesTheThemeColour(t *testing.T) {
 	}
 }
 
-// TestThePreviewSwitchesSides: the dark preview draws the dark set's plane
-// while the window around it stays light, which is what a window that follows
-// the desktop's setting and previews the other side looks like.
-func TestThePreviewSwitchesSides(t *testing.T) {
+// TestTheWindowSwitchesSides: pressing the switch for the appearance the
+// desktop is not on moves the whole window to it — the margin the page stands
+// on and the picture in the preview both — which is what makes the preview
+// the theme rather than a picture of one.
+func TestTheWindowSwitchesSides(t *testing.T) {
 	m := ReduceModel(judging(), SetScheme{Dark: true})
 	img := page(t, m, tokens.PlatformLight)
-	if !found(img, tokens.PlatformDark.WindowBackground) {
-		t.Error("the dark preview did not draw the dark set's plane")
+	if got := img.RGBAAt(windowW/2, int(Pad)/2); !is(got, tokens.PlatformDark.WindowBackground) {
+		t.Errorf("the window's own margin drew %v on a light desktop switched to dark, want the dark set's plane %v",
+			got, tokens.PlatformDark.WindowBackground)
 	}
-	if got := img.RGBAAt(windowW/2, int(Pad)/2); !is(got, tokens.PlatformLight.WindowBackground) {
-		t.Errorf("the window around the preview drew %v, want the light set's plane", got)
+	win := sampleRect()
+	if got := img.RGBAAt(win.Min.X+win.Dx()/4, win.Min.Y+int(SampleToolbarH)/2); !is(got, tokens.PlatformDark.SidebarMaterial) {
+		t.Errorf("the sample's toolbar drew %v, want the dark set's chrome material %v",
+			got, tokens.PlatformDark.SidebarMaterial)
 	}
 }
 
@@ -198,7 +203,7 @@ func found(img *image.RGBA, want stdcolor.NRGBA) bool {
 
 // TestTheTwoCodeChoicesAreOnScreen: the window carries both choices it makes
 // about code, under either appearance — the face plate with the chosen name
-// marked, the base column with the applied base marked, and beside them the
+// marked, the style column with the applied style marked, and beside them the
 // fence wearing that appearance's own member of the pair.
 //
 // It is the assertion that the section is on screen at all. Every other test
@@ -231,119 +236,135 @@ func TestTheTwoCodeChoicesAreOnScreen(t *testing.T) {
 				t.Error("both faces are marked — the group is not saying which one is applied")
 			}
 
-			// The base column: the applied base is brought into view and
+			// The style column: the applied style is brought into view and
 			// marked, which is where the chooser's own reveal puts it.
-			visible := m.VisibleBases(tc.dark)
-			row := slices.Index(visible, m.BaseAt(tc.dark))
+			visible := m.VisibleStyles(tc.dark)
+			row := slices.Index(visible, m.StyleAt(tc.dark))
 			if row < 0 {
-				t.Fatalf("the applied base is not on the list this appearance shows")
+				t.Fatalf("the applied style is not on the list this appearance shows")
 			}
-			on := row - max(0, row-baseLead)
-			if got := img.RGBAAt(rowFillX(), baseRowY(on)); !is(got, p.Selection) {
-				t.Errorf("the applied base's row drew %v, want the platform's selection %v", got, p.Selection)
+			on := row - max(0, row-styleLead)
+			if got := img.RGBAAt(rowFillX(), styleRowY(on)); !is(got, p.Selection) {
+				t.Errorf("the applied style's row drew %v, want the platform's selection %v", got, p.Selection)
 			}
 
 			// And the fence beside them wears that appearance's own member.
-			fence := CodeStyle(PreviewSet(tc.set, m, tc.dark), tokens.DefaultTypography, m.AppliedBases()).CodeBackground
+			shown := PreviewSet(tc.set, m, tc.dark)
+			fence := CodeStyle(shown, tokens.DefaultTypography, shown.ControlBackground, m.AppliedStyles()).CodeBackground
 			if !found(img, fence) {
-				t.Errorf("the fence's own background %v (from %q) is nowhere in the window", fence, m.Base(tc.dark))
+				t.Errorf("the fence's own background %v (from %q) is nowhere in the window", fence, m.Style(tc.dark))
 			}
 		})
 	}
 }
 
 // columnRigid is every part of the page's column that states its own height:
-// everything but the preview's box, which takes what is left over.
+// everything but the last row's two boxes, which take what is left over.
 func columnRigid() int {
 	group := func(box int) int {
 		return int(GroupTitleH) + int(GroupBelow) + box + int(GroupAbove)
 	}
 	return int(TitleH) + int(Gap) +
 		group(int(PictureBoxH)) + group(int(ColourBoxH)) +
-		group(int(FaceBoxH)) + group(int(BaseBoxH)) +
-		group(0) + int(FooterH)
+		group(int(FaceBoxH)) + group(0) + int(FooterH)
 }
 
-// sampleOrigin is the top-leading corner of the nth sample window in the
-// preview's box, worked out the way [Preview] centres the pair in whatever
-// room the box has.
-func sampleOrigin(i int) image.Point {
-	roomX := boxTrail() - boxLead()
-	roomY := previewBoxBottom() - previewBoxTop() - 2*int(BoxPad)
-	both := 2*int(SampleW) + int(Gap)
-	return image.Pt(
-		boxLead()+max(0, (roomX-both)/2)+i*(int(SampleW)+int(Gap)),
-		previewBoxTop()+int(BoxPad)+max(0, (roomY-int(SampleH))/2),
-	)
-}
-
-// TestTheWholeColumnFitsTheWindow: every choice, the preview and the footer
-// stand in the window the application opens, with no scroller anywhere in the
-// page. The column is a stack of stated heights with one flexed box in it, so
-// what has to be checked is that the flexed box is still big enough for the
-// thing it holds: a box smaller than the sample would crop the preview rather
-// than report anything.
+// TestTheWholeColumnFitsTheWindow: every choice, the style list, the preview
+// and the footer stand in the window the application opens, with no scroller
+// anywhere in the page. The column is a stack of stated heights with one
+// flexed row in it, so what has to be checked is that the flexed row is still
+// big enough for what it holds: a box shorter than the picture of a window
+// would crop the preview rather than report anything.
 func TestTheWholeColumnFitsTheWindow(t *testing.T) {
 	left := windowH - 2*int(Pad) - columnRigid()
-	if want := int(SampleH) + 2*int(BoxPad); left < want {
-		t.Fatalf("the column's stated parts leave %d points for the preview's box and the sample wants %d — the page no longer closes in a %d by %d window",
+	// The row has to hold a picture of a window with its toolbar, its
+	// sidebar's rows and a content pane with a heading, a document and a row
+	// of controls under it — and the shadow it stands in.
+	want := int(SampleToolbarH) + int(SampleHeadH) + int(SampleFieldH) +
+		2*int(SampleInset) + 2*int(SampleStep) + 2*int(SampleShadow) + 2*int(BoxPad)
+	if left < want {
+		t.Fatalf("the column's stated parts leave %d points for the last row and the picture wants %d — the page no longer closes in a %d by %d window",
 			left, want, windowW, windowH)
 	}
-	if got := previewBoxBottom() - previewBoxTop(); got != left {
-		t.Errorf("the preview's box measures %d points and the column leaves %d", got, left)
+	if got := judgingBoxBottom() - judgingBoxTop(); got != left {
+		t.Errorf("the last row's boxes measure %d points and the column leaves %d", got, left)
 	}
-	t.Logf("the preview's box is %d points tall and the sample is %d", left, int(SampleH))
+	rows := (styleListBottom() - styleListTop()) / int(StyleRowH)
+	if rows < 12 {
+		t.Errorf("the style list shows %d names at the window's opening size — a list that short is a keyhole", rows)
+	}
+	t.Logf("the last row is %d points tall; the style list shows %d names and the picture is %v",
+		left, rows, sampleRect().Size())
 }
 
-// TestBothAppearancesStandSideBySide: the preview draws the sample twice, the
-// light set leading and the dark one beside it, each at its own fixed size.
-// One appearance at a time behind a switch makes judging a colour on both two
-// looks and a memory; this makes it one look.
-func TestBothAppearancesStandSideBySide(t *testing.T) {
-	img := page(t, judging(), tokens.PlatformLight)
-	for i, want := range []tokens.PlatformColors{tokens.PlatformLight, tokens.PlatformDark} {
-		o := sampleOrigin(i)
-		// A point in the sample's own title band, clear of the word centred
-		// in it: the band is the chrome material of the set being previewed.
-		got := img.RGBAAt(o.X+int(SampleW)/4, o.Y+int(SampleTitleH)/2)
-		if !is(got, want.SidebarMaterial) {
-			t.Errorf("sample %d drew %v in its title band, want the %s set's chrome material %v",
-				i, got, [2]string{"light", "dark"}[i], want.SidebarMaterial)
-		}
+// TestOneSampleInTheAppearanceOnScreen: the preview draws one picture of an
+// application, in the appearance the switch at the top of the window is on,
+// and nothing beside it. Two samples side by side were a window showing a
+// theme it was not wearing; one sample in a window that switches is the
+// theme itself.
+func TestOneSampleInTheAppearanceOnScreen(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		dark bool
+		set  tokens.PlatformColors
+	}{{"under the sun", false, tokens.PlatformLight}, {"under the moon", true, tokens.PlatformDark}} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
+			img := page(t, m, tc.set)
+			win := sampleRect()
+			// A point in the sample's own toolbar, clear of the word centred
+			// in it and of the control buttons at its leading end: the band
+			// is the chrome material of the set being previewed.
+			got := img.RGBAAt(win.Min.X+win.Dx()/4, win.Min.Y+int(SampleToolbarH)/2)
+			if !is(got, tc.set.SidebarMaterial) {
+				t.Errorf("the sample's toolbar drew %v, want the chrome material %v", got, tc.set.SidebarMaterial)
+			}
+			// And the one picture reaches both ends of the box: a second
+			// sample beside it would have to take half the room, so a
+			// picture whose own chrome is at both ends is the only one
+			// there is.
+			far := img.RGBAAt(win.Max.X-win.Dx()/3, win.Min.Y+int(SampleToolbarH)/2)
+			if !is(far, tc.set.SidebarMaterial) {
+				t.Errorf("the trailing quarter of the preview box drew %v in the toolbar's band, want the chrome material %v — the picture does not fill the box",
+					far, tc.set.SidebarMaterial)
+			}
+		})
 	}
 }
 
-// TestTheSamplesOneSelectionIsTheRailsPill: the picture of an application
-// carries one selection and it is the platform's sidebar pill — the rail's
-// open entry, inset from the rail's edges and rounded. The content list
-// beside it carries none: a full-width bar in the theme colour read as a slab
+// TestTheSamplesOneSelectionIsTheSidebarsPill: the picture of an application
+// carries one selection and it is the platform's sidebar pill — the open
+// entry, inset from the sidebar's edges and rounded. The content pane beside
+// it carries none: a full-width bar in the theme colour read as a slab
 // dropped on the page, and two marks together said the colour lands in more
 // places than it does.
-func TestTheSamplesOneSelectionIsTheRailsPill(t *testing.T) {
+func TestTheSamplesOneSelectionIsTheSidebarsPill(t *testing.T) {
 	const themeColor = "#3d5f57"
 	m := ReduceModel(judging(), HexTyped{Text: themeColor})
 	img := page(t, m, tokens.PlatformLight)
 	set := PreviewSet(tokens.PlatformLight, m, false)
 	pill := sidebar.SelectionFill(set, false)
-	o := sampleOrigin(0)
+	win := sampleRect()
 
-	// The pill is inset from the rail's leading edge: the rail's own
+	// The pill is inset from the sidebar's leading edge: the sidebar's own
 	// chrome material shows beside it at the selected row's centre line.
-	rowY := o.Y + int(SampleTitleH) + int(SampleRowH) + int(SampleRowH)/2
-	if got := img.RGBAAt(o.X+int(sidebar.SelectionInset)/2, rowY); !is(got, set.SidebarMaterial) {
-		t.Errorf("the rail drew %v inside the pill's own inset, want the chrome material %v — the mark is not inset",
+	rowY := win.Min.Y + int(SampleToolbarH) + int(SampleStep) +
+		sampleSelected*int(SampleRowH) + int(SampleRowH)/2
+	if got := img.RGBAAt(win.Min.X+int(sidebar.SelectionInset)/2, rowY); !is(got, set.SidebarMaterial) {
+		t.Errorf("the sidebar drew %v inside the pill's own inset, want the chrome material %v — the mark is not inset",
 			got, set.SidebarMaterial)
 	}
-	if got := img.RGBAAt(o.X+int(SampleRailW)/2, rowY); !is(got, pill) {
-		t.Errorf("the rail's open entry drew %v, want the platform's sidebar pill %v", got, pill)
+	if got := img.RGBAAt(win.Min.X+int(SampleRailW)/2, rowY); !is(got, pill) {
+		t.Errorf("the sidebar's open entry drew %v, want the platform's sidebar pill %v", got, pill)
 	}
 
-	// And nothing in the sample wears the content list's emphasized
+	// And nothing in the sample's content pane wears the emphasized
 	// selection, which is the fill the theme colour used to land in as a
 	// full-width box beside the pill.
 	box := set.SelectedContentBackground
-	for y := o.Y; y < o.Y+int(SampleH); y++ {
-		for x := o.X + int(SampleRailW); x < o.X+int(SampleW); x++ {
+	pane := codePlate()
+	for y := pane.Min.Y; y < pane.Max.Y; y++ {
+		for x := pane.Min.X; x < pane.Max.X; x++ {
 			if is(img.RGBAAt(x, y), box) {
 				t.Fatalf("the sample's content pane draws the emphasized selection %v at (%d,%d) — the green box is back", box, x, y)
 			}
@@ -351,29 +372,28 @@ func TestTheSamplesOneSelectionIsTheRailsPill(t *testing.T) {
 	}
 }
 
-// goldenBases is the list of syntax palettes the stored window shows, written
-// down here rather than read off the highlighting package's registry. Another
-// test in this package loads a style out of a folder into that registry, and a
-// stored image must not depend on which tests ran before it. Every name is one
-// that ships embedded, so the fence they colour resolves the same way the
-// window's own list resolves it.
-var goldenBases = []string{"borland", "bw", "catppuccin-latte", "catppuccin-mocha", "colorful", "dracula", "emacs", "monokai"}
-
 // goldenModel is the window as the stored image shows it: a picture dropped
-// and its colours extracted, on the fixed base list above.
+// and its colours extracted, on the embedded style set alone.
+//
+// Embedded alone, and not whatever the chooser happens to be offering:
+// another test in this package loads a style out of a folder into the
+// highlighting package's registry, and a stored image must not depend on
+// which tests ran before it. Every style that ships is on the list either way,
+// so this is the list the application shows on a machine nobody has added a
+// style to.
 func goldenModel(t *testing.T, dark bool) Model {
 	t.Helper()
 	m := dropped(t)
-	m.Bases = make([]BaseOption, len(goldenBases))
-	for i, name := range goldenBases {
-		m.Bases[i] = BaseOption{
-			Name:  name,
-			Light: highlight.BaseSuits(name, false),
-			Dark:  highlight.BaseSuits(name, true),
+	m.Styles = nil
+	for _, o := range styleOptions() {
+		if o.Added {
+			continue
 		}
+		m.Styles = append(m.Styles, o)
 	}
-	m.LightAt = baseIndex(m.Bases, highlight.DefaultBases().Light, false)
-	m.DarkAt = baseIndex(m.Bases, highlight.DefaultBases().Dark, true)
+	d := highlight.DefaultStyles()
+	m.LightAt = styleIndex(m.Styles, d.Light, false)
+	m.DarkAt = styleIndex(m.Styles, d.Dark, true)
 	return ReduceModel(m, SetScheme{Dark: dark})
 }
 

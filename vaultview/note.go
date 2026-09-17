@@ -176,46 +176,47 @@ const (
 	propMarkDp    = markSmallDp
 )
 
-// noteCodeBases are the syntax palettes a note's fences are drawn in, one per
-// appearance: the ones the kept theme names when it names ones this build can
-// resolve, and the highlighter's own defaults otherwise — a theme with no base
-// in it, or one naming a style file that has since left the styles folder,
-// draws code exactly as it did for somebody who never chose.
+// noteCodeStyles are the syntax highlighter styles a note's fences are drawn
+// in, one per appearance: the ones the kept theme names when it names ones
+// this build can resolve, and the highlighter's own defaults otherwise — a
+// theme with no style in it, or one naming a style file that has since left
+// the styles folder, draws code exactly as it did for somebody who never
+// chose.
 //
-// A pair and not a name because a syntax palette is fitted to a background:
+// A pair and not a name because a style is fitted to a background:
 // the set of colours balanced against a near-white page is not the set
 // anybody would balance against a near-black one. So the light appearance and
 // the dark one each wear their own member, background and all, and a desktop
 // switching between them switches the code's plate with everything else.
 //
-// They are set once, at startup, from the same kept theme the palette comes
+// They are set once, at startup, from the same kept theme the colours come
 // from, and read from then on. The choice is a preference and not a mode:
 // there is no affordance in this window to change it, because the window
 // that chooses a theme is the one that keeps it.
-var noteCodeBases = highlight.DefaultBases()
+var noteCodeStyles = highlight.DefaultStyles()
 
-// adoptCodeBases resolves the syntax bases a kept theme asks for. The styles
-// folder is read first, since a kept base may name a style somebody wrote
-// themselves; a name that cannot be resolved, or one fitted to the appearance
+// adoptCodeStyles resolves the highlighter styles a kept theme asks for. The
+// styles folder is read first, since a kept name may be a style somebody
+// wrote themselves; a name that cannot be resolved, or one fitted to the appearance
 // it is not kept for, falls back to that appearance's default rather than
 // failing. What the folder could not read is not surfaced here — this window
 // shows notes, and the place a style file gets fixed is the window that
 // offered it.
-func adoptCodeBases(kept brand.Brand) highlight.BasePair {
+func adoptCodeStyles(kept brand.Brand) highlight.StylePair {
 	if dir, err := brand.StylesDir(); err == nil {
 		highlight.LoadDir(dir)
 	}
-	return highlight.BasesOrDefault(kept.Base.Names())
+	return highlight.StylesOrDefault(kept.Style.Names())
 }
 
 // noteStyle derives the markdown document style for the current tokens: the
 // token-themed defaults, the reading typeface for code, and a fenced block
-// wearing the chosen syntax base. The link hook is attached per frame in
-// layoutNotePage, where the model is at hand.
+// wearing the chosen syntax highlighter style. The link hook is attached per
+// frame in layoutNotePage, where the model is at hand.
 //
-// The base is worn rather than re-fitted. A fence takes the background the
+// The style is worn rather than re-fitted. A fence takes the background the
 // author drew their colours on and those colours as they were drawn, so a
-// block in a note is the palette itself and not a rendering of it; the page
+// block in a note is the style itself and not a rendering of it; the page
 // around it — the prose, the chip an inline span sits on, the bar a wide
 // block scrolls under — stays this theme's. Which member of the pair reaches
 // the fence follows the tokens, so a change of appearance is a change of
@@ -227,7 +228,7 @@ func noteStyle(c tokens.PlatformColors, typ tokens.Typography) markdown.Style {
 	st := markdown.FromTokens(c, typ, c.TextBackground)
 	st.Mono = font.Typeface(typ.Code.Typeface)
 	st.CodeSize = unit.Sp(typ.Code.Size)
-	highlight.WearPair(&st, noteCodeBases, c)
+	highlight.WearPair(&st, noteCodeStyles, c)
 	return st
 }
 
