@@ -239,10 +239,20 @@ func WindowTheme(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) r
 // HexField is the field the theme colour is written into: the published live
 // text field, built on [WindowTheme] so its own fill and foreground follow
 // the appearance switch along with the page around it.
+//
+// It stands in the theme colour group's box, so the box's fill is what it
+// says it stands on: the platform draws a field as a hairline around the
+// surface beneath it rather than as a box of its own, which the save
+// dialog's field measures in both appearances
+// (reference/macos/save-dialog-light.png and -dark.png: the field's interior
+// is the sheet's own fill). Left unsaid the field would fill with
+// TextBackground, the window's content plane, which is not the plane this
+// one stands on.
 func HexField(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	return input.TextField(WindowTheme(th, modelObs), input.TextFieldProps{
 		Placeholder: HexPlaceholder,
 		Description: "Theme colour, written as a hex triplet",
+		Surface:     func(c tokens.PlatformColors) stdcolor.NRGBA { return PaletteFrom(c).Surface },
 		OnChange: func(gtx layout.Context, txt string) {
 			mvu.MessageOp{Message: HexTyped{Text: txt}}.Add(gtx.Ops)
 		},

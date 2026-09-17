@@ -148,7 +148,11 @@ func fieldFill(t *testing.T, live tokens.PlatformColors, m Model) stdcolor.RGBA 
 // and the theme this window hands it is [WindowTheme] — the platform's set
 // for the appearance the switch at the top of the window is on. So with the
 // desktop set one way and the switch the other, the field's interior is the
-// other side's text background, not the desktop's, in both directions.
+// other side's colours, not the desktop's, in both directions.
+//
+// The interior is the group box's fill and not the text background: the field
+// stands in the theme colour group's box, and the platform fills a field with
+// the surface it stands on inside its edge.
 func TestTheColourFieldWearsTheAppearanceTheSwitchIsOn(t *testing.T) {
 	for _, c := range []struct {
 		name   string
@@ -162,12 +166,12 @@ func TestTheColourFieldWearsTheAppearanceTheSwitchIsOn(t *testing.T) {
 			m := judging()
 			m.Scheme = c.scheme
 			got := fieldFill(t, c.live, m)
-			want := WindowSet(c.live, m).TextBackground
+			want := PaletteFrom(WindowSet(c.live, m)).Surface
 			if !is(got, want) {
-				t.Fatalf("the colour field's interior is %v; the appearance the switch is on paints it %v — the field is reading the desktop's set instead of the window's", got, want)
+				t.Fatalf("the colour field's interior is %v; the box it stands in is filled %v in the appearance the switch is on — the field is reading the desktop's set, or the content plane's fill, instead of the box's", got, want)
 			}
-			if is(got, c.live.TextBackground) {
-				t.Fatalf("the colour field's interior is the desktop's %v — the switch moved the window and left the field behind", c.live.TextBackground)
+			if is(got, PaletteFrom(c.live).Surface) {
+				t.Fatalf("the colour field's interior is the desktop's %v — the switch moved the window and left the field behind", PaletteFrom(c.live).Surface)
 			}
 		})
 	}
