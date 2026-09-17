@@ -517,16 +517,17 @@ func TestPaneFootNamesItsActions(t *testing.T) {
 	}
 }
 
-// TestPaneFootAnswersThePointer asserts the foot's actions look like
-// controls when a pointer is on them: a bare label says nothing about
-// being pressable until something answers, so the hit area fills under the
-// pointer. The assertion is pixels — the fill is the whole point, and
-// dimensions cannot see it.
+// TestPaneFootAnswersThePress asserts the foot's actions are controls the
+// pointer reaches and that answer being held down: the platform does not
+// tint a push button under the pointer — what says this one is pressable is
+// that it is drawn as a button — but it does take the press overlay while a
+// hand is on it. The assertion is pixels, since the overlay is the whole
+// point and dimensions cannot see it.
 //
-// The hover is delivered through the frame's own input router at a point
+// The pointer is delivered through the frame's own input router at a point
 // beside the label rather than on it, which also says the hit area is
 // bigger than the glyphs it holds.
-func TestPaneFootAnswersThePointer(t *testing.T) {
+func TestPaneFootAnswersThePress(t *testing.T) {
 	tok := goldenTokens()
 	size := image.Pt(treeWidthDp, 700)
 	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
@@ -552,8 +553,16 @@ func TestPaneFootAnswersThePointer(t *testing.T) {
 		t.Fatalf("a pointer at %v is not on the rescan action; its hit area is the label's glyphs alone", at)
 	}
 
-	// Captured after the hover has landed: the clickable holds the state,
-	// so the stored frame is the hovered one.
+	r.Queue(pointer.Event{Kind: pointer.Press, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary})
+	ops.Reset()
+	v.layout(gtx, goldenModel(), tok, nil)
+	r.Frame(&ops)
+	if !v.rescanClick.Pressed() {
+		t.Fatalf("a press at %v did not reach the rescan action", at)
+	}
+
+	// Captured after the press has landed: the clickable holds the state,
+	// so the stored frame is the held one.
 	plain := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
 	shot := func(v *treeView) *image.RGBA {
 		return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
@@ -561,6 +570,6 @@ func TestPaneFootAnswersThePointer(t *testing.T) {
 		})
 	}
 	if n := golden.PixelDiff(shot(plain), shot(v)); n == 0 {
-		t.Error("the foot's action draws the same under the pointer as away from it; nothing marks it as pressable")
+		t.Error("the foot's action draws the same held down as at rest; nothing answers the hand on it")
 	}
 }

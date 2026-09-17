@@ -81,6 +81,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"path"
 	"strings"
 
@@ -102,6 +103,7 @@ import (
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/splitter"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -840,7 +842,7 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 		label = "Show the folder rail"
 	}
 	return f.toggleClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return railToggleMark(gtx, tok, label)
+		return railToggleMark(gtx, tok, tok.col.TextBackground, label)
 	})
 }
 
@@ -849,6 +851,12 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 // list lines the host platform puts in the leading column. The set
 // resolves that per platform, so a Mac user sees the figure they know
 // and everyone else sees the neutral one, from the same name here.
+//
+// It is the platform's secondary label and not its text colour: the mark
+// says what the control is, not what the reader wrote, and patterns/sidebar
+// draws its own collapse mark in that same name. Drawn in the text colour it
+// is the darkest thing in the rail — darker than every label under it — and
+// the eye lands on the toggle before it lands on the open note.
 //
 // It is one drawing that never morphs, as on the platform: a mark that
 // changes leaves the reader guessing whether it shows the present state or
@@ -859,7 +867,11 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 // Both of the window's sidebar controls take it — the one in the pane's
 // top strip and the one the chrome row shows once the pane is gone — so
 // that the two halves of the same switch are one figure and not two.
-func railToggleMark(gtx layout.Context, tok themeTokens, label string) layout.Dimensions {
+// standsOn is the fill the mark is drawn over: the rail's own where the
+// pane's strip carries it, the content's where the chrome row does. The
+// mark's colour carries a coverage, so it is flattened onto that fill and
+// Gio is handed an opaque colour.
+func railToggleMark(gtx layout.Context, tok themeTokens, standsOn color.NRGBA, label string) layout.Dimensions {
 	semantic.LabelOp(label).Add(gtx.Ops)
 	semantic.EnabledOp(true).Add(gtx.Ops)
 	pointer.CursorPointer.Add(gtx.Ops)
@@ -868,7 +880,7 @@ func railToggleMark(gtx layout.Context, tok themeTokens, label string) layout.Di
 	// row it stands in is pressable rather than the mark alone.
 	boxH := max(gtx.Constraints.Max.Y, w)
 	st := op.Offset(image.Pt(0, (boxH-w)/2)).Push(gtx.Ops)
-	drawMark(gtx, icons.Sidebar, railToggleMarkDp, tok.col.Text)
+	drawMark(gtx, icons.Sidebar, railToggleMarkDp, vgcolor.Flatten(tok.col.SecondaryLabel, standsOn))
 	st.Pop()
 	return layout.Dimensions{Size: image.Pt(w, boxH)}
 }

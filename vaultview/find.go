@@ -14,6 +14,7 @@ import (
 	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/layout"
+	"gioui.org/unit"
 
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/markdown"
@@ -215,7 +216,7 @@ func layoutFindBar(gtx layout.Context, tok themeTokens, find *pageFind, fieldW l
 	}
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			w := min(gtx.Dp(findFieldDp), gtx.Constraints.Max.X)
+			w := min(gtx.Dp(unit.Dp(findFieldDp)), gtx.Constraints.Max.X)
 			gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 			if fieldW == nil {
 				return layout.Dimensions{Size: image.Pt(w, 0)}

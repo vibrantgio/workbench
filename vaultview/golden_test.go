@@ -638,12 +638,14 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 				t.Fatal("the column drew no hairline between its panes")
 			}
 
-			// A pixel of slack on each edge. The mark is a stadium — its
-			// fill is as tall as the row less the pad either side and its
-			// corner radius is half of that — so its leading and trailing
-			// edges are tangent points, antialiased on every row, and the
-			// hairline beside it is a plain rectangle that is not.
-			if want := asideX + asideInsetDp; abs(pillLo-want) > 1 || abs(ruleLo-want) > 1 {
+			// A pixel of slack on each edge. The mark is the sidebar
+			// pattern's pill, cornered at its measured radius, so its
+			// leading and trailing edges are tangent points antialiased on
+			// every row, where the hairline beside it is a plain rectangle
+			// that is not. Both stand on the column's one lane — the
+			// pattern's own selection inset, which is what makes an
+			// inspector's list select the way the rail's does.
+			if want := asideX + int(asideLaneDp); abs(pillLo-want) > 1 || abs(ruleLo-want) > 1 {
 				t.Errorf("the column leads with the mark at %d and the hairline at %d; one margin, at %d",
 					pillLo, ruleLo, want)
 			}
@@ -659,8 +661,13 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			if barLo < 0 {
 				t.Fatal("an outline with more entries than its pane can show drew no bar")
 			}
-			if got := barLo - pillHi - 1; abs(got-railMarginDp) > 1 {
-				t.Errorf("the bar stands %d px off the mark beside it, want %d", got, railMarginDp)
+			// What stands between the mark and the bar is the column's own
+			// lane and then the air the bar keeps inside its lane: the
+			// panes stop a lane short of the bar's band, and the bar stands
+			// off the window's edge by what the note's stands off this
+			// column's.
+			if want := int(asideLaneDp) + railMarginDp; abs(barLo-pillHi-1-want) > 1 {
+				t.Errorf("the bar stands %d px off the mark beside it, want %d", barLo-pillHi-1, want)
 			}
 			// The note's own bar, in the margin its column keeps: the only
 			// thing drawn out there past the prose, which stops a whole page inset

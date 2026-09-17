@@ -47,6 +47,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
@@ -71,14 +72,24 @@ const (
 	treeIndentDp      = 14          // additional inset per depth level
 	treeDiscloseDp    = markSmallDp // the disclosure mark's own square
 	treeDiscloseColDp = 20          // fixed column holding it, so names align per level
-	treeFieldPadDp    = 8           // breathing room around the find field
-	treePillRadiusDp  = 8           // corner radius of the foot action's own fill
-	treeHideBoxDp     = 24          // the pane's own hide control: a square hit area
-	treeFootPadDp     = 10          // breathing room above and below the foot's actions
-	treeFootGapDp     = 4           // gap between the foot's two hit areas
-	treeFootHPadDp    = 8           // an action's hit area either side of its label
-	treeFootVPadDp    = 4           // an action's hit area above and below its label
+	// treeFieldPadDp is the air around the find field. It is the row pills'
+	// own inset, so the field's edges and every pill's stand on one pair of
+	// lines down the rail — which is the whole of what makes the field read
+	// as part of the column rather than as a panel set into it.
+	treeFieldPadDp = treeRowInsetDp
+	treeHideBoxDp  = 24 // the pane's own hide control: a square hit area
+	treeFootPadDp  = 10 // breathing room above and below the foot's actions
+	treeFootGapDp  = 8  // gap between the foot's two controls
 )
+
+// treeFootDensity is the density the foot's two controls draw at: the
+// platform's SMALL push button, 19 dp, where the rest of the window draws at
+// the density the reader chose. It is the offset from the control height the
+// Language's density entry allows a component to state — these two act on the
+// vault rather than on the document, and the platform stands that kind of
+// control small at the foot of a column. The number is the small push
+// button's in reference/macos/controls.md.
+var treeFootDensity = tokens.Compact
 
 // treeFieldSurface is the fill the find field stands on: the rail pane,
 // which is chrome and wears the platform's chrome material. The live rail
@@ -283,6 +294,11 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 		Placeholder: "Find a note…",
 		Description: "filter notes by name",
 		FocusTag:    func(tag event.Tag) { fieldTag = tag },
+		// The field stands on the rail's own fill and is filled with it:
+		// the platform draws a field as a hairline around the surface
+		// beneath it, so a box of the content's white here would read as a
+		// second panel set into the rail rather than as a field on it.
+		Surface: treeFieldSurface,
 		OnChange: func(gtx layout.Context, text string) {
 			mvu.MessageOp{Message: SetFilter{Text: text}}.Add(gtx.Ops)
 		},
@@ -420,15 +436,25 @@ func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			h := max(gtx.Dp(unit.Dp(1)), 1)
 			w := gtx.Constraints.Min.X
+			// The rule stands on the rail's own lane, the one the field's
+			// edges and every pill's stand on, so it parts the rows from
+			// the foot without cutting the column in two. MEASURED:
+			// chatgpt-window-light.png draws its sidebar's foot rule
+			// #dfdfdf from x 76 to 291 inside a rail whose fill spans x 65
+			// to 302 — inset eleven from each edge, on the lane its
+			// selected row's pill is inset to.
+			inset := gtx.Dp(unit.Dp(treeRowInsetDp))
+			line := image.Rect(inset, 0, max(w-inset, inset), h)
 			paint.FillShape(gtx.Ops, vgcolor.Flatten(tok.col.Separator, chromeSurface(tok.col)),
-				clip.Rect{Max: image.Pt(w, h)}.Op())
+				clip.Rect(line).Op())
 			return layout.Dimensions{Size: image.Pt(w, h)}
 		}),
 		layout.Rigid(complayout.VSpacer(treeFootPadDp)),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				// The hit areas start on the row pills' own edge, which
-				// puts their labels on the row names' own text margin.
+				// The controls start on the row pills' own edge, so the
+				// foot stands on the one pair of edges the rail's field
+				// and its rows stand on.
 				layout.Rigid(complayout.HSpacer(treeRowInsetDp)),
 				layout.Rigid(footAction(&v.rescanClick, "Rescan", tok)),
 				layout.Rigid(complayout.HSpacer(treeFootGapDp)),
@@ -443,48 +469,37 @@ func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	)
 }
 
-// footAction renders one of the foot's affordances: a pressable label,
-// named for the screen reader and drawn in the platform's own label colour,
-// since a fainter one reads as a disabled control rather than a live one.
+// footAction renders one of the foot's two actions: the platform's small
+// push button — its measured fill inside the platform's hairline, its
+// control text on it — standing on the rail's own fill.
 //
-// The label sits in a hit area of its own, and that area fills under the
-// pointer and darkens while it is held: a bare label says nothing about
-// being pressable until something answers the pointer. These are the one
-// place in this rail the platform tints, being toolbar buttons rather than
-// rows.
+// It takes the width its own label asks for and no more. A push button laid
+// out under an open constraint fills it, and these two stand beside each
+// other at the foot of a column, so the label is measured first and the
+// control constrained to what it came to.
 func footAction(click *widget.Clickable, label string, tok themeTokens) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp(label).Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
-			hp, vp := gtx.Dp(treeFootHPadDp), gtx.Dp(treeFootVPadDp)
 			macro := op.Record(gtx.Ops)
-			igtx := gtx
-			igtx.Constraints.Min = image.Point{}
-			dims := drawLabel(igtx, tok.shaper, label, tok.typ.LabelLarge,
-				vgcolor.Flatten(tok.col.Label, chromeSurface(tok.col)))
-			call := macro.Stop()
-			size := image.Pt(dims.Size.X+2*hp, dims.Size.Y+2*vp)
-			// The foot's actions are the one place in this rail the
-			// platform tints under the pointer: they are toolbar buttons,
-			// not rows, and a toolbar button is where the measured hover
-			// and press overlays were read.
-			var fill color.NRGBA
-			switch {
-			case click.Pressed():
-				fill = vgcolor.Flatten(tok.col.PressOverlay, chromeSurface(tok.col))
-			case click.Hovered():
-				fill = vgcolor.Flatten(tok.col.HoverOverlay, chromeSurface(tok.col))
-			}
-			if fill.A > 0 {
-				r := gtx.Dp(unit.Dp(treePillRadiusDp))
-				pill := clip.RRect{Rect: image.Rectangle{Max: size}, NE: r, NW: r, SE: r, SW: r}
-				paint.FillShape(gtx.Ops, fill, pill.Op(gtx.Ops))
-			}
-			defer op.Offset(image.Pt(hp, vp)).Push(gtx.Ops).Pop()
-			call.Add(gtx.Ops)
-			return layout.Dimensions{Size: size, Baseline: dims.Baseline + vp}
+			mgtx := gtx
+			mgtx.Constraints.Min = image.Point{}
+			dims := drawLabel(mgtx, tok.shaper, label, tok.typ.LabelLarge, tok.col.Label)
+			macro.Stop()
+			w := dims.Size.X + 2*gtx.Dp(unit.Dp(treeFootDensity.PaddingX))
+			bgtx := gtx
+			bgtx.Constraints.Min = image.Point{}
+			bgtx.Constraints.Max.X = min(w, gtx.Constraints.Max.X)
+			return button.Render(tok.shaper, label, tok.col, tok.sp, tokens.Radius,
+				tok.typ.LabelLarge, treeFootDensity, button.RenderState{
+					Emphasis: button.Tonal,
+					Surface:  chromeSurface(tok.col),
+					Hovered:  click.Hovered(),
+					Pressed:  click.Pressed(),
+					Focused:  gtx.Focused(click),
+				})(bgtx)
 		})
 	}
 }
@@ -521,7 +536,7 @@ func (v *treeView) hideControl(gtx layout.Context, tok themeTokens) layout.Dimen
 		cgtx := gtx
 		cgtx.Constraints = layout.Exact(image.Pt(box, max(gtx.Constraints.Max.Y, box)))
 		return layout.Center.Layout(cgtx, func(gtx layout.Context) layout.Dimensions {
-			return railToggleMark(gtx, tok, "Hide the folder rail")
+			return railToggleMark(gtx, tok, chromeSurface(tok.col), "Hide the folder rail")
 		})
 	})
 }

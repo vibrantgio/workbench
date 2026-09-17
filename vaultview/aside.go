@@ -48,6 +48,10 @@ import (
 
 // Aside layout constants.
 const (
+	// asideInsetDp is the column's top and bottom inset — what it keeps
+	// clear of the window's own edges. It is not spent across: the lane
+	// below is what the column keeps clear leading, and the bar's own band
+	// what it keeps clear trailing.
 	asideInsetDp     = 16
 	asideHeaderGapDp = 8
 	// asideRowPadDp holds a row's own text off its fill's edge. It is the
@@ -61,13 +65,10 @@ const (
 	//
 	// asideRowInsetDp is the air a row keeps around its text on the vertical
 	// — half of it above and below a heading's line, the whole of it around
-	// the line a citation centres in. It is not spent horizontally: the
-	// rail's pill stands off a drawn, rounded pane edge and these panes have
-	// none, so a fill held inboard would line up with nothing. The fill
-	// takes the one line the column does draw — the headings, the citations'
-	// head and the hairline between them — as its own leading edge, and the
-	// pad is the whole of what stands between the fill and the text it is
-	// behind.
+	// the line a citation centres in. Across, the pad stands inside the
+	// pill and the pill inside the column's lane, so a row's text is the
+	// two of them in from the column's own edge, which is what the rail's
+	// names are in from the rail's.
 	asideRowInsetDp = 8
 	asideRowPadDp   = 8
 	// asideGroupGapDp is what stands either side of the rule between the
@@ -81,11 +82,13 @@ const (
 	// small enough that six levels of it still leave a title room to be read
 	// in a column this narrow.
 	asideIndentDp = asideRowPadDp
-	// The row fills are the sidebar's pill, in the sidebar's geometry, so
-	// one window has one language for a row being spoken for and the two
-	// colours mean in this column what they mean in that one.
-	asidePillVPadDp   = 2
-	asidePillRadiusDp = 8
+	// asideLaneDp is the column's one leading lane: where its two headings
+	// stand, where the rule between them starts, and the edge every row's
+	// pill is inset to. It is the sidebar pattern's measured selection
+	// inset, because this column is an inspector — chrome beside the
+	// content, whose list selects the way the rail's does — so the pill
+	// drawn here is the pill the platform draws there.
+	asideLaneDp = sidebar.SelectionInset
 )
 
 // asideBacklinkCap is how many rows the backlinks pane may stand tall. The
@@ -255,11 +258,14 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 	entries := v.headings(m)
 	rows := v.backlinks(m)
 	size := gtx.Constraints.Max
-	// Three sides of the column's inset, and the trailing one spent inside
-	// the panes instead: the bar's lane runs to the window's own edge the
-	// way the note's runs to its column's, and what the panes draw stops a
-	// lane short of it.
-	layout.Inset{Top: asideInsetDp, Bottom: asideInsetDp, Left: asideInsetDp}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	// The column's inset is its top and bottom alone. Across, every row runs
+	// the column's own width so that its pill is inset from the column's
+	// edges the way the rail's is from the rail's, and what does not wear a
+	// pill — the two headings, the rule between them — stands on the lane
+	// that inset leaves. The trailing side is spent inside the panes: the
+	// bar's lane runs to the window's own edge the way the note's runs to
+	// its column's, and what the panes draw stops a lane short of it.
+	layout.Inset{Top: asideInsetDp, Bottom: asideInsetDp}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		inner := gtx.Constraints.Max
 		rowH := gtx.Dp(list.RowHeight(tok.den))
 		// The backlinks pane: its rows up to the cap, and one row for the
@@ -324,30 +330,12 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 		off := gtx.Dp(unit.Dp(asideInsetDp))
 		backTop := above + outlineH + group - backRows
 		v.geom = asideGeom{
-			outline:   image.Rect(off, off+above, off+inner.X, off+above+outlineH),
-			backlinks: image.Rect(off, off+backTop, off+inner.X, off+backTop+backRows),
+			outline:   image.Rect(0, off+above, inner.X, off+above+outlineH),
+			backlinks: image.Rect(0, off+backTop, inner.X, off+backTop+backRows),
 		}
 		return layout.Dimensions{Size: inner}
 	})
 	return layout.Dimensions{Size: size}
-}
-
-// asidePill fills a row's mark: a rounded pill on the column's own text
-// margin, running the band the pane's headings and its hairline run and no
-// further. Its two colours are the sidebar pattern's, so one window has one
-// way of saying a row is spoken for; where it stands is this column's own,
-// because this column's panes have no drawn edge of their own for a fill to
-// stand off, and its rows are list rows rather than the pattern's 32 dp
-// chrome rows.
-func asidePill(gtx layout.Context, size image.Point, fill color.NRGBA) {
-	vp := gtx.Dp(unit.Dp(asidePillVPadDp))
-	r := gtx.Dp(unit.Dp(asidePillRadiusDp))
-	rect := image.Rect(0, vp, size.X, size.Y-vp)
-	if rect.Empty() {
-		return
-	}
-	pill := clip.RRect{Rect: rect, NE: r, NW: r, SE: r, SW: r}
-	paint.FillShape(gtx.Ops, fill, pill.Op(gtx.Ops))
 }
 
 // asideBacklinkHeader is the lower pane's heading, with the number of
@@ -419,7 +407,7 @@ func asideBarLane(tok themeTokens) unit.Dp { return asideIndicator(tok).Width() 
 // what it draws on the column's own trailing edge.
 func asideTrailing(tok themeTokens, w layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		return layout.Inset{Right: asideBarLane(tok)}.Layout(gtx, w)
+		return layout.Inset{Left: asideLaneDp, Right: asideBarLane(tok) + asideLaneDp}.Layout(gtx, w)
 	}
 }
 
@@ -435,8 +423,8 @@ func asideTrailing(tok themeTokens, w layout.Widget) layout.Widget {
 // it rather than one constant standing for both.
 func asideEmptyLine(gtx layout.Context, tok themeTokens, line string, top unit.Dp) layout.Dimensions {
 	return layout.Inset{
-		Top: top, Left: asideRowPadDp,
-		Right: asideBarLane(tok) + asideRowPadDp,
+		Top: top, Left: asideLaneDp + asideRowPadDp,
+		Right: asideBarLane(tok) + asideLaneDp + asideRowPadDp,
 	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return drawText(gtx, tok.shaper, line, tok.typ.BodyMedium, asideForegrounds(tok).faint)
 	})
@@ -539,7 +527,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 				marked := e.Idx == v.marked
 				filled := marked || selected
 				if filled {
-					asidePill(gtx, size, sidebar.SelectionFill(tok.col, !marked))
+					sidebar.PaintSelection(gtx, size, tok.col, !marked)
 				}
 				semantic.LabelOp(e.Title).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
@@ -549,9 +537,9 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 				// each level below it steps in from there. The pad is on
 				// the trailing edge too, so a title long enough to be cut
 				// is cut inside the pill rather than at it.
-				lead := asideRowPadDp + max(e.Level-1, 0)*asideIndentDp
+				lead := asideLaneDp + unit.Dp(asideRowPadDp+max(e.Level-1, 0)*asideIndentDp)
 				layout.Inset{
-					Left: unit.Dp(lead), Right: asideRowPadDp,
+					Left: lead, Right: asideLaneDp + asideRowPadDp,
 					Top: asideRowInsetDp / 2, Bottom: asideRowInsetDp / 2,
 				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					// A first-level heading is the note's own title level
@@ -623,13 +611,13 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
 				if selected {
-					asidePill(gtx, size, sidebar.SelectionFill(tok.col, false))
+					sidebar.PaintSelection(gtx, size, tok.col, false)
 				}
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
 				// The rows below the rule take the same pad the rows above
 				// it do, for the same reason: they wear the same pill.
-				complayout.InsetXY(asideRowPadDp, asideRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				complayout.InsetXY(float32(asideLaneDp)+asideRowPadDp, asideRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							title := foregrounds.reading
