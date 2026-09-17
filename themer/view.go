@@ -213,6 +213,42 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 		})
 }
 
+// WindowTheme is the theme a published component in this window draws
+// through: the live theme with its platform set replaced by [WindowSet] of
+// it, so a component that reads its own colours off the theme wears the
+// appearance the switch at the top of the window is on rather than the
+// desktop's. Everything else the theme carries — typography, density, the
+// scales — is the live theme's unchanged.
+//
+// A component flattens the theme, so it re-subscribes what the set is
+// combined with every time the theme re-emits. The model stream this reads
+// is [mvu.Loop]'s, which carries the current model to a subscriber whenever
+// it attaches; a stream without that replay would leave the component with
+// no colours until the next message.
+func WindowTheme(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[theme.Theme] {
+	return rx.Map(th, func(t theme.Theme) theme.Theme {
+		live := t.Platform
+		t.Platform = rx.Map(rx.CombineLatest2(live, modelObs),
+			func(n rx.Tuple2[tokens.PlatformColors, Model]) tokens.PlatformColors {
+				return WindowSet(n.First, n.Second)
+			})
+		return t
+	})
+}
+
+// HexField is the field the theme colour is written into: the published live
+// text field, built on [WindowTheme] so its own fill and foreground follow
+// the appearance switch along with the page around it.
+func HexField(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+	return input.TextField(WindowTheme(th, modelObs), input.TextFieldProps{
+		Placeholder: HexPlaceholder,
+		Description: "Theme colour, written as a hex triplet",
+		OnChange: func(gtx layout.Context, txt string) {
+			mvu.MessageOp{Message: HexTyped{Text: txt}}.Add(gtx.Ops)
+		},
+	})
+}
+
 // ContentLayer renders the page: the titled groups in reading order, and
 // under them the list of highlighter styles beside the preview of the
 // platform's set with the chosen colour standing in for the accent.
@@ -226,13 +262,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	clicks := make([]gesture.Click, rowSlots)
 	bar := new(topClicks)
 	code := newCodeState()
-	hex := input.TextField(th, input.TextFieldProps{
-		Placeholder: HexPlaceholder,
-		Description: "Theme colour, written as a hex triplet",
-		OnChange: func(gtx layout.Context, txt string) {
-			mvu.MessageOp{Message: HexTyped{Text: txt}}.Add(gtx.Ops)
-		},
-	})
+	hex := HexField(th, modelObs)
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
 			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {

@@ -82,14 +82,6 @@ func main() {
 	app.Main()
 }
 
-// modelObsConsumers: how many streams subscribe the model. Two, the backdrop
-// and the content — the backdrop reads the model because the appearance
-// switch at the top of the window moves the window's own plane along with
-// everything on it. Publish() multicasts without replay, so this count gates
-// when the seed emitted by mvu.Loop flows, and a subscriber more than it
-// names is a subscriber that misses the first one.
-const modelObsConsumers = 2
-
 // Window size: wide enough for the swatch row to lay out without wrapping and
 // for the style list to stand beside a picture of a window rather than beside
 // a strip; tall enough for the choices, the list, the preview and the footer
@@ -158,11 +150,17 @@ func run() {
 	// same one-line adoption every other application makes.
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second, brand.Kept().Options()...))
 
+	// The model stream is subscribed by the backdrop, by the content, and
+	// again by the colour field's own theme whenever the live theme re-emits
+	// — the backdrop and the field both read the model because the switch at
+	// the top of the window moves the window's plane and everything drawn on
+	// it. mvu.Loop carries the current model to every one of those
+	// subscriptions whenever it attaches, so there is no consumer count here
+	// to keep right.
 	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), drops.Messages(), platformColors(time.Second)), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
-	if err := w.Render(buildLayers(modelObs, zones)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models, zones)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "themer:", err)
 		os.Exit(1)
 	}
