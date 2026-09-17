@@ -871,9 +871,8 @@ func centreRowFree(gtx layout.Context, h, gap int, slots ...slot) (layout.Dimens
 func SchemeToggle(c tokens.PlatformColors, dark bool, clicks *[2]gesture.Click) layout.Widget {
 	segment := func(i int, wantDark bool) layout.FlexChild {
 		draw := inventory.SchemeSegment(c, wantDark, dark == wantDark)
-		// The press area is the one the control hands out and not the one it
-		// draws. Its track is cut to the scale of the strip it stands in, and
-		// the height that came off it is given back as slop above and below.
+		// The press area is the track the segment draws: this control's
+		// pointer target is the control.
 		press := func(gtx layout.Context, w layout.Widget) layout.Dimensions {
 			dims := w(gtx)
 			area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
@@ -891,7 +890,7 @@ func SchemeToggle(c tokens.PlatformColors, dark bool, clicks *[2]gesture.Click) 
 			return dims
 		}
 		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return inventory.SchemeTarget(gtx, press, draw)
+			return press(gtx, draw)
 		})
 	}
 	return func(gtx layout.Context) layout.Dimensions {

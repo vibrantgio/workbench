@@ -770,12 +770,13 @@ Compact swaps the field on the stream:
   })
   ```
 
-The WCAG 2.5.5 pointer target (44 dp) is deliberately NOT part of Density:
-Density.MinHitTarget() is a constant, and components extend their pointer
-area beyond the drawn control to meet it — Compact shrinks the pixels,
-never the clickable area. Don't fight this: a 19 dp Compact button really
-does accept clicks several dp outside its bounds, and neighbouring controls'
-slop overlapping is by design (the topmost input area wins).
+A control's pointer target is the control: what it draws at
+Density.ControlHeight is what a pointer has to land on, so Compact moves the
+target with the pixels. Don't fight this: a 19 dp Compact button accepts
+clicks inside its 19 dp bounds and nowhere else, which is what keeps two
+controls side by side from contending for the same press. A stacked row is
+its own target at Density.RowHeight, and a checkbox's is the footprint its
+16 dp glyph is centred in, never the glyph.
 
 ## Level: the five positions in a window's depth
 

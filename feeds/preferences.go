@@ -35,9 +35,9 @@ import (
 	"github.com/vibrantgio/theme/theme"
 )
 
-// Geometry of the panel body's two preference rows. The row height is the
-// 44 dp pointer floor components/button guarantees at every emphasis, so a
-// ghost control's hit area never reaches into the row above or below it.
+// Geometry of the panel body's two preference rows. The row is taller than the
+// control it carries, so a ghost control — which draws no fill at rest — has
+// clear air above and below it rather than sitting against the next row.
 const (
 	prefsRowHDp     = 44
 	prefsRowGapDp   = 12

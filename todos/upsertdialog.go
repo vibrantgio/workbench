@@ -157,8 +157,8 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 				}(gtx)
 
 				// Cancel / submit row along the dialog's bottom edge, tall
-				// enough for the buttons' 44 dp pointer target around the
-				// 36 dp Comfortable control height.
+				// enough for the buttons it carries with air above and
+				// below them.
 				rect = image.Rect(0, max.Y-gtx.Dp(48), max.X, max.Y)
 				cs := op.Offset(rect.Min).Push(gtx.Ops)
 				gtx.Constraints = layout.Exact(rect.Size())
