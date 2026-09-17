@@ -295,7 +295,7 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 	// the keyboard in it.
 	var fieldTag event.Tag
 	field := input.SearchField(th, input.SearchFieldProps{
-		Placeholder: "Find a note…",
+		Placeholder: "Search",
 		Description: "filter notes by name",
 		FocusTag:    func(tag event.Tag) { fieldTag = tag },
 		// A search field standing on chrome is the platform's flat recess
@@ -760,7 +760,7 @@ func renderTree(
 ) layout.Widget {
 	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return leading }}
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
-	fieldW := input.RenderSearch(shaper, "Find a note…", colors, sp, rad, typo.BodyLarge, den,
+	fieldW := input.RenderSearch(shaper, "Search", colors, sp, rad, typo.BodyLarge, den,
 		input.RenderState{Text: m.Filter, Surface: treeFieldSurface(colors), Variant: input.Chrome})
 	return func(gtx layout.Context) layout.Dimensions {
 		return v.layout(gtx, m, tok, fieldW)

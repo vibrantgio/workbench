@@ -476,7 +476,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	// hands over its focus tag and its clearing: the shortcut that opens the
 	// field puts the keyboard in it, and Escape takes the query back out.
 	field := input.SearchField(th, input.SearchFieldProps{
-		Placeholder: "Find in note…",
+		Placeholder: "Search",
 		Description: "find in this note",
 		Surface:     findFieldSurface,
 		FocusTag:    func(tag event.Tag) { find.tag = tag },
@@ -737,7 +737,7 @@ func renderNotePageInto(
 	// worked from.
 	var fieldW layout.Widget
 	if find.open {
-		fieldW = input.RenderSearch(shaper, "Find in note…", colors, sp, tokens.Radius, typo.BodyLarge, den,
+		fieldW = input.RenderSearch(shaper, "Search", colors, sp, tokens.Radius, typo.BodyLarge, den,
 			input.RenderState{Text: find.query, Focused: true, Surface: findFieldSurface(tok.col)})
 	}
 	// The page is drawn showing the note the model has current, so that is
