@@ -94,6 +94,10 @@ var treeFootDensity = tokens.Compact
 // treeFieldSurface is the fill the find field stands on: the rail pane,
 // which is chrome and wears the platform's chrome material. The live rail
 // and the goldens' static rail both name it here so they cannot drift apart.
+//
+// The field takes the chrome variant, so the surface is not what fills its
+// interior — that is the platform's recess — but it is still what the focus
+// ring composites onto.
 func treeFieldSurface(c tokens.PlatformColors) color.NRGBA { return chromeSurface(c) }
 
 // TreeRow is one visible row of the folder tree.
@@ -294,10 +298,11 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 		Placeholder: "Find a note…",
 		Description: "filter notes by name",
 		FocusTag:    func(tag event.Tag) { fieldTag = tag },
-		// The field stands on the rail's own fill and is filled with it:
-		// the platform draws a field as a hairline around the surface
-		// beneath it, so a box of the content's white here would read as a
-		// second panel set into the rail rather than as a field on it.
+		// A search field standing on chrome is the platform's flat recess
+		// there: no edge, ends fully rounded, a fill of its own a shade off
+		// the chrome material — measured off the field at the top of System
+		// Settings' sidebar. The rail is chrome, so this field is that one.
+		Variant: input.Chrome,
 		Surface: treeFieldSurface,
 		OnChange: func(gtx layout.Context, text string) {
 			mvu.MessageOp{Message: SetFilter{Text: text}}.Add(gtx.Ops)
@@ -756,7 +761,7 @@ func renderTree(
 	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return leading }}
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	fieldW := input.RenderSearch(shaper, "Find a note…", colors, sp, rad, typo.BodyLarge, den,
-		input.RenderState{Text: m.Filter, Surface: treeFieldSurface(colors)})
+		input.RenderState{Text: m.Filter, Surface: treeFieldSurface(colors), Variant: input.Chrome})
 	return func(gtx layout.Context) layout.Dimensions {
 		return v.layout(gtx, m, tok, fieldW)
 	}
