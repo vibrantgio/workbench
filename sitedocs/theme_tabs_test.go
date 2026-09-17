@@ -137,7 +137,7 @@ func TestTypeScaleKeepsTheInventorysWords(t *testing.T) {
 // without an edit to this window. The board reads the set by reflection, and
 // this asserts the count against the set itself.
 func TestTheBoardShowsEveryPlatformName(t *testing.T) {
-	rows := inventory.PlatformRows()
+	rows := inventory.PlatformColorRows()
 	if len(rows) == 0 {
 		t.Fatal("the platform set publishes no rows; the board would be empty")
 	}
