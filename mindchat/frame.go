@@ -17,8 +17,8 @@
 // is away the chrome row carries the same two figures, at the same mark
 // size, on the same line. They are the two halves of one switch rather
 // than duplicates of one control. New chat is this application's
-// primary action and is reachable in both states for that reason, and Cmd-N
-// reaches it in either.
+// primary action and can be operated in both states for that reason, and
+// Cmd-N operates it in either.
 //
 // Settings does not stand in that pair. It sits at the foot of the pane and
 // on Cmd-comma: it acts on the application rather than on the conversation,
