@@ -478,6 +478,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	field := input.SearchField(th, input.SearchFieldProps{
 		Placeholder: "Find in note…",
 		Description: "find in this note",
+		Surface:     findFieldSurface,
 		FocusTag:    func(tag event.Tag) { find.tag = tag },
 		Clear:       func(clear func()) { find.clear = clear },
 		OnChange:    func(_ layout.Context, text string) { find.typed(text) },

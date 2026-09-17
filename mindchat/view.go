@@ -182,6 +182,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	prompt := input.TextField(th, input.TextFieldProps{
 		Placeholder:   "Send a message",
 		Description:   "chat prompt",
+		Surface:       promptFieldSurface,
 		Submit:        true,
 		SubmitMessage: func(text string) any { return Prompt{Content: text} },
 	})

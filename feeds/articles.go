@@ -152,6 +152,11 @@ func pageCountFor(arts []article, size int) int {
 	return n
 }
 
+// filterFieldSurface is the fill the article filter field stands on: the
+// articles pane's own, ControlBackground, the same fill articlesLayout
+// paints the pane with.
+func filterFieldSurface(c tokens.PlatformColors) color.NRGBA { return c.ControlBackground }
+
 // articlesMain composes the textfield filter, articles table, and pagination
 // row into an rx.Observable[layout.Widget] suitable for folding onto the
 // shell's sidebar-driven stream. Selection (selectedFeedObs), paging
@@ -274,6 +279,7 @@ func articlesMain(
 	filterFieldObs := input.TextField(th, input.TextFieldProps{
 		Placeholder: "Filter articles",
 		Description: "Filter articles by title or author",
+		Surface:     filterFieldSurface,
 		OnChange: func(gtx layout.Context, s string) {
 			// One message carries both halves: the reducer stores the text
 			// and resets to page 1, because narrowing the filter shrinks the

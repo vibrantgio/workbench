@@ -112,6 +112,11 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 	}
 }
 
+// promptFieldSurface is the fill the prompt field stands on: the
+// transcript's own, ControlBackground, stated rather than left to coincide
+// with the field's platform default.
+func promptFieldSurface(c tokens.PlatformColors) color.NRGBA { return c.ControlBackground }
+
 // roleFont converts a theme Typography role into the gio font it shapes
 // with: typeface and weight come from the theme (a zero weight means
 // unset, per tokens.FontWeight's convention).
