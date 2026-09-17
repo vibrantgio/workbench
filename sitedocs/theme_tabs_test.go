@@ -6,39 +6,59 @@ import (
 	"strings"
 	"testing"
 
+	"gioui.org/layout"
+	"gioui.org/text"
+
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/gallery/palette"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// themeFrameSize is the Theme tab's content area at the app's default
+// themeFrameSize is a theme-cut tab's content area at the app's default
 // window, which is what the goldens pin.
 var themeFrameSize = image.Pt(1180, 760)
 
-// TestThemeTabGolden pins the Theme tab in both appearances: the colour
-// board — every name the platform answers for, its swatch in each appearance
-// and the value written out — and the type scale under it.
-func TestThemeTabGolden(t *testing.T) {
+// themeTabCases is the pair of tabs the theme is cut into, each with the
+// golden it is pinned under and the static renderer that draws it.
+var themeTabCases = []struct {
+	page   string
+	render func(*text.Shaper, tokens.PlatformColors, tokens.Typography) layout.Widget
+}{
+	{pageColours, renderColourTab},
+	{pageTypography, renderTypographyTab},
+}
+
+// TestThemeTabGoldens pins both theme-cut tabs in both appearances: the
+// Colours tab's board — every name the platform answers for, its swatch in
+// each appearance and the value written out — and the Typography tab's
+// scale.
+func TestThemeTabGoldens(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
-	for _, tc := range schemeCases {
-		t.Run(tc.name, func(t *testing.T) {
-			w := renderThemeTab(shaper, tc.colors, tokens.DefaultTypography)
-			golden.Render(t, "theme-tab-"+tc.name, themeFrameSize, scene(w, tc.bg))
-		})
+	for _, tab := range themeTabCases {
+		for _, tc := range schemeCases {
+			t.Run(tab.page+"/"+tc.name, func(t *testing.T) {
+				w := tab.render(shaper, tc.colors, tokens.DefaultTypography)
+				golden.Render(t, tab.page+"-tab-"+tc.name, themeFrameSize, scene(w, tc.bg))
+			})
+		}
 	}
 }
 
-// TestThemeTabFollowsScheme is the standing hunt for a Theme surface drawn
-// from something other than the set it was handed: the same section in the
-// two appearances must not come out the same bytes.
-func TestThemeTabFollowsScheme(t *testing.T) {
+// TestThemeTabsFollowScheme is the standing hunt for a theme surface drawn
+// from something other than the set it was handed: the same tab in the two
+// appearances must not come out the same bytes.
+func TestThemeTabsFollowScheme(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	a := golden.Capture(t, themeFrameSize, scene(renderThemeTab(shaper, tokens.PlatformLight, tokens.DefaultTypography), bg))
-	b := golden.Capture(t, themeFrameSize, scene(renderThemeTab(shaper, tokens.PlatformDark, tokens.DefaultTypography), bg))
-	if golden.PixelDiff(a, b) == 0 {
-		t.Fatal("theme tab renders identically in light and dark — the section is not following the set it was handed")
+	for _, tab := range themeTabCases {
+		t.Run(tab.page, func(t *testing.T) {
+			a := golden.Capture(t, themeFrameSize, scene(tab.render(shaper, tokens.PlatformLight, tokens.DefaultTypography), bg))
+			b := golden.Capture(t, themeFrameSize, scene(tab.render(shaper, tokens.PlatformDark, tokens.DefaultTypography), bg))
+			if golden.PixelDiff(a, b) == 0 {
+				t.Fatalf("the %s tab renders identically in light and dark — it is not following the set it was handed", tab.page)
+			}
+		})
 	}
 }
 
@@ -52,10 +72,12 @@ func TestPaletteSectionRowsIsTheRowCount(t *testing.T) {
 	}
 }
 
-// TestTypeScaleFollowsTheBoard pins the order: the Theme tab borrows the
-// inventory's type scale as two rows — this tab's own heading band and the
-// section's body — and they come after the board's rows, not before them.
-func TestTypeScaleFollowsTheBoard(t *testing.T) {
+// TestEachThemeTabHoldsItsOwnSection is the split itself, stated as
+// arithmetic: the Typography tab is the inventory's type scale and nothing
+// else — a heading band and a body — and the board is not in it. A board row
+// that leaked back onto the scale's tab, or a scale row left on the board's,
+// fails here before a golden has to be looked at.
+func TestEachThemeTabHoldsItsOwnSection(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	typo := tokens.DefaultTypography
 	inv := inventory.NewForOS(shaper, "darwin")
@@ -65,10 +87,11 @@ func TestTypeScaleFollowsTheBoard(t *testing.T) {
 	if len(scale) != 2 {
 		t.Fatalf("the type scale is %d rows, want 2 (a heading band and a body)", len(scale))
 	}
-	rows := themeTabRows(inv, shaper, typo, c)
-	if len(rows) != PaletteSectionRows+len(scale) {
-		t.Fatalf("the Theme column is %d rows, want the board's %d plus the scale's %d",
-			len(rows), PaletteSectionRows, len(scale))
+	if got := len(typeScaleRows(inv, shaper, typo, c)); got != len(scale) {
+		t.Errorf("the Typography column is %d rows, want the scale's %d and nothing else", got, len(scale))
+	}
+	if got := len(PaletteRows(c, TypeFrom(shaper, typo))); got != PaletteSectionRows {
+		t.Errorf("the Colours column is %d rows, want the board's %d and nothing else", got, PaletteSectionRows)
 	}
 }
 
@@ -83,7 +106,7 @@ const (
 )
 
 // TestTypeScaleKeepsTheInventorysWords is the guard on the one place
-// this tab could quietly invent copy: the borrowed band's label and
+// the Typography tab could quietly invent copy: the borrowed band's label and
 // caption are the inventory's own title, split at its separator and
 // nothing else. A title reworded upstream has to arrive here reworded.
 func TestTypeScaleKeepsTheInventorysWords(t *testing.T) {
@@ -98,7 +121,7 @@ func TestTypeScaleKeepsTheInventorysWords(t *testing.T) {
 		}
 	}
 	if title == "" {
-		t.Fatalf("the inventory publishes no section named %q — the Theme tab's type scale is empty", typeSection)
+		t.Fatalf("the inventory publishes no section named %q — the Typography tab is empty", typeSection)
 	}
 	label, hint, _ := strings.Cut(title, sectionTitleSep)
 	if label == "" {

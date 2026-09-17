@@ -100,22 +100,21 @@ func TestGroupTabDropsTheBanner(t *testing.T) {
 
 // TestNoInventorySectionIsLost checks the arithmetic: every section the
 // published inventory builds is on exactly one tab, save the colour section
-// the Theme tab tells with the shared board instead. A section added upstream
-// lands on a tab or fails here; it does not quietly vanish because sitedocs
-// picks its groups by name.
+// the Colours tab tells with the shared board instead. A section added
+// upstream lands on a tab or fails here; it does not quietly vanish because
+// sitedocs picks its groups by name.
 func TestNoInventorySectionIsLost(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	inv := inventory.NewForOS(shaper, "darwin")
 	c := tokens.PlatformLight
 
 	// dropped names the sections sitedocs does not show: the inventory's own
-	// board of the platform's set, which the Theme tab draws from the shared
-	// section instead, so a reader meets those names once.
+	// board of the platform's set, which the Colours tab draws from the
+	// shared section instead, so a reader meets those names once.
 	dropped := map[string]bool{"foundations-platform": true}
 
 	// shown counts the sections each surface accounts for: the three group
-	// tabs by their groups, the Theme tab by the one section the colour
-	// board borrows for its type scale.
+	// tabs by their groups, and the Typography tab by the one section it is.
 	shown := map[string]int{typeSection: 1}
 	for page, group := range tabGroups {
 		found := false

@@ -208,7 +208,7 @@ func TestStripOrderIsLabelled(t *testing.T) {
 	if len(tabLabels) != len(tabPages) {
 		t.Fatalf("%d labels for %d tabs", len(tabLabels), len(tabPages))
 	}
-	want := []string{"Docs", "Theme", "Components", "Patterns", "Markdown"}
+	want := []string{"Docs", "Colours", "Typography", "Components", "Patterns", "Markdown"}
 	for i, w := range want {
 		if tabLabels[i] != w {
 			t.Errorf("tab %d is labelled %q, want %q", i, tabLabels[i], w)

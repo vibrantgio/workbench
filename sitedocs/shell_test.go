@@ -22,7 +22,7 @@ var shellFrameSize = image.Pt(windowW, windowH)
 // the shell's content slot leaves a band of bare panel fill between the
 // strip's underline and the content's first row, so the underline reads as a
 // line rather than as the top edge of the content. The slot is shared, so all
-// five tabs are checked.
+// six tabs are checked.
 //
 // Both reference colours are sampled rather than named from the set: the
 // capture round-trips through the GPU, and a sampled reference makes the

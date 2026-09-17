@@ -11,8 +11,8 @@
 // cell clicked to reach it, closing line included. What this window decides
 // is which groups get a tab.
 //
-// The Foundations group is on no tab: its colour section and its type scale
-// are the Theme tab's telling.
+// The Foundations group is on no tab of its own: its colour section is the
+// Colours tab's telling, and its type scale the Typography tab's.
 //
 // Each tab's inventory is built once, on the first theme emission, and
 // outlives every appearance after it — a theme change is a new set of row
@@ -49,8 +49,8 @@ const (
 )
 
 // tabGroups maps each inventory tab's route identifier to the group it
-// shows. The Docs and Theme tabs are not in it: they are not cut from the
-// inventory.
+// shows. The Docs, Colours and Typography tabs are not in it: they are not
+// cut from the inventory's groups.
 var tabGroups = map[string]string{
 	pageComponents: groupComponents,
 	pagePatterns:   groupPatterns,
@@ -86,8 +86,9 @@ func groupTabLayer(th rx.Observable[theme.Theme], group string) rx.Observable[la
 	})
 }
 
-// scrollingColumn is the scrolling column every inventory-fed tab shows —
-// the three group tabs and the Theme tab both: the rows in a virtual list
+// scrollingColumn is the scrolling column every tab of rows shows — the
+// three group tabs, the Colours tab and the Typography tab alike: the rows
+// in a virtual list
 // — only what shows is laid out — with an overlay scrollbar drawn from the
 // same set the rows are, floating over the rows rather than cutting a
 // gutter out of families shown at their own widths.

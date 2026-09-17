@@ -1519,13 +1519,15 @@ that file as it found it
 
 ### sitedocs/
 
-The documentation app, five tabs over patterns/tabs: Docs — this guide
+The documentation app, six tabs over patterns/tabs: Docs — this guide
 (llms.txt) rendered whole by vibrantgio/markdown, its ##/### outline as
-a tree whose rows scroll the document (ScrollToBlock); Theme — the
-platform's colour set, name by name with each value in both appearances,
-and the type scale, following the live theme; then Components, Patterns
-and Markdown, one per group of the components/gallery/inventory
-catalogue, as live controls. A tab showing a single group drops that
+a tree whose rows scroll the document (ScrollToBlock); Colours — the
+platform's colour set, name by name with each value in both appearances;
+Typography — the type scale, every role a surface reads in; both
+following the live theme; then Components, Patterns and Markdown, one
+per group of the components/gallery/inventory catalogue, as live
+controls. A strip cell names one kind of thing, which is why the colour
+set and the type scale are two cells and not one. A tab showing a single group drops that
 group's banner — the inventory module is untouched, the app chooses which
 of its sections to lay out. The reference for a tabbed shell and for an
 outline tree over one long document

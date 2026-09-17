@@ -53,12 +53,12 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   Material Design icons the apps draw from: type to filter the scrolling
   grid live, every glyph captioned with the name to import. Also the
   reference for components `TextField` + per-keystroke MVU updates.
-- **[`sitedocs/`](./sitedocs)** — the documentation app, five tabs over
+- **[`sitedocs/`](./sitedocs)** — the documentation app, six tabs over
   `patterns/tabs`: **Docs** renders the application guide (`llms.txt`) as
   one markdown document with a `##`/`###` outline tree that scrolls it;
-  **Theme** shows the whole theme — the platform's colour set, name by
-  name with each value in both appearances, and the type scale — following
-  the live one; **Components**, **Patterns** and
+  **Colours** shows the platform's colour set, name by name with each
+  value in both appearances, and **Typography** the type scale, both
+  following the live theme; **Components**, **Patterns** and
   **Markdown** are the component inventory's own groups, one per tab, as
   live, clickable controls.
 - **[`feeds/`](./feeds)** — an RSS reading-list app: sortable/filterable/

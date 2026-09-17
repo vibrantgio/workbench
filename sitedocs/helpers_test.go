@@ -36,8 +36,10 @@ func staticTabs(
 		switch page {
 		case pageDocs:
 			content = renderDocsTab(shaper, guide, st, c, typo)
-		case pageTheme:
-			content = renderThemeTab(shaper, c, typo)
+		case pageColours:
+			content = renderColourTab(shaper, c, typo)
+		case pageTypography:
+			content = renderTypographyTab(shaper, c, typo)
 		default:
 			content = renderGroupTab(shaper, tabGroups[page], c, typo)
 		}

@@ -3,21 +3,22 @@
 // the canonical MVU Model/Update/Messages loop; MessageOp emissions fire
 // within the same frame that originated the click.
 //
-// The window is a patterns/tabs shell with five pages, all built once
+// The window is a patterns/tabs shell with six pages, all built once
 // and kept subscribed so scroll positions survive switching:
 //
 //   - Docs       → the application guide (the workbench root's llms.txt)
 //     as one markdown document, its ##/### outline tree in a leading
 //     column.
-//   - Theme      → the shared colour board — every name the platform
-//     answers for — and the inventory's type scale, following the live
-//     theme (theme_tab.go).
+//   - Colours    → the shared colour board, every name the platform
+//     answers for, following the live theme (theme_tabs.go).
+//   - Typography → the inventory's type scale, every role a surface
+//     reads in, following the live theme (theme_tabs.go).
 //   - Components → components/gallery/inventory's Components group as
 //     live controls in one scrolling column (inventory_tabs.go).
 //   - Patterns   → the same for the inventory's Patterns group.
 //   - Markdown   → the same for the inventory's Markdown group.
 //
-// tabbedShellLayer folds the five content streams into the tab shell on
+// tabbedShellLayer folds the six content streams into the tab shell on
 // every emission.
 
 package main
@@ -233,12 +234,13 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 }
 
-// tabbedShellLayer composes the window: a patterns/tabs strip whose five
-// pages are Docs, Theme, Components, Patterns and Markdown. The content
+// tabbedShellLayer composes the window: a patterns/tabs strip whose six
+// pages are Docs, Colours, Typography, Components, Patterns and Markdown.
+// The content
 // streams are built once and kept subscribed, so scroll positions — one
 // per tab — and outline state survive switching tabs in both directions.
 //
-// tabs.Props.Tabs carries static content slots, while the five pages
+// tabs.Props.Tabs carries static content slots, while the six pages
 // are streams (theme changes restyle them; model changes move the docs
 // outline). So each Tab.Content reads an atomic cell at frame time, and
 // the combined map below stores every stream's latest layout.Widget into its
@@ -250,7 +252,7 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // than through a CombineLatestN tuple: rx tops out at five sources and
 // the shell needs the strip plus one per page. Combining the pages by
 // tabPages order and pairing that slice with the strip has no ceiling, so
-// a sixth tab is a line in tabPages and nothing here.
+// another tab is a line in tabPages and nothing here.
 func tabbedShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
@@ -273,8 +275,10 @@ func tabbedShellLayer(
 		switch page {
 		case pageDocs:
 			pages[i] = docsTabFrom(th, modelObs, loadGuide())
-		case pageTheme:
-			pages[i] = themeTabLayer(th)
+		case pageColours:
+			pages[i] = colourTabLayer(th)
+		case pageTypography:
+			pages[i] = typographyTabLayer(th)
 		default:
 			pages[i] = groupTabLayer(th, tabGroups[page])
 		}
@@ -320,7 +324,7 @@ var contentGap = unit.Dp(tokens.Spacing.S4)
 // currently opens on such a band is an accident of the present content and
 // not a contract, and a gap that appeared only on the tab of the day would
 // shift every page's first line as the user switches tabs. One slot for all
-// five keeps the strip a fixed band and costs each page 8 dp.
+// six keeps the strip a fixed band and costs each page 8 dp.
 //
 // Applied by tabbedShellLayer to the live tabs and by the review capture
 // to the static ones, so the camera photographs the composition the app

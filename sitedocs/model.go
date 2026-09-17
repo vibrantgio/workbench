@@ -3,7 +3,8 @@
 //
 // Messages:
 //   - SetRoute{Page string}      — select a tab by its page identifier
-//     (pageDocs, pageTheme, pageComponents, pagePatterns, pageMarkdown)
+//     (pageDocs, pageColours, pageTypography, pageComponents, pagePatterns,
+//     pageMarkdown)
 //   - ToggleOutline{Idx int}     — flip the disclosure of the Idx-th ## section
 //     of the docs outline; sections disclose independently
 //   - SelectHeading{Block int}   — mark the outline row for the heading at
