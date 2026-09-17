@@ -18,8 +18,8 @@ const (
 	pageColours = "colours"
 
 	// pageTypography is the Typography tab: the inventory's type scale,
-	// every role a surface reads in, following the live theme
-	// (theme_tabs.go).
+	// every typography role with its name and size, following the live
+	// theme (theme_tabs.go).
 	pageTypography = "typography"
 
 	// pageComponents, pagePatterns and pageMarkdown are the three tabs cut

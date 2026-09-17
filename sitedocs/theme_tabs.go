@@ -1,8 +1,8 @@
 // theme_tabs.go composes the two tabs the theme is cut into: Colours — the
 // shared colour board, every name the platform answers for with the value it
 // carries in each appearance — and Typography — the inventory's type scale,
-// every role a surface reads in. Both follow the live theme, and both scroll
-// in the same frame the group tabs use.
+// every typography role with its name and size. Both follow the live theme,
+// and both scroll in the same frame the group tabs use.
 //
 // They are two tabs rather than one because a strip cell names what its tab
 // holds, and a colour set and a type scale are two different kinds of thing:
