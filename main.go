@@ -33,12 +33,6 @@ func main() {
 	app.Main()
 }
 
-// modelObsConsumers is the number of layers subscribing to modelObs: the
-// content layer only, since the backdrop and field layers are theme-only.
-// Publish() multicasts without replay, so this count gates when the seed
-// emitted by mvu.Loop flows.
-const modelObsConsumers = 1
-
 func run() {
 	// On macOS FullSizeContent extends the content behind a transparent title
 	// bar so the background fill and the field reach the window's top edge; on every
@@ -59,9 +53,8 @@ func run() {
 
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
-	if err := w.Render(buildLayers(mvuWin.Window(), modelObs)).Wait(); err != nil {
+	if err := w.Render(buildLayers(mvuWin.Window(), models)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "workbench:", err)
 		os.Exit(1)
 	}

@@ -1,127 +1,74 @@
 package main
 
 import (
-	"image"
-	"sync/atomic"
 	"testing"
 	"time"
-
-	"gioui.org/layout"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/theme/theme"
 )
 
-// TestModelObsConsumerCountMatchesConst measures the EXACT number of cold
-// subscriptions feedsShellLayer makes to modelObs when subscribed once (as
-// theme/window does) and asserts it equals modelObsConsumers. rx.Publish()
-// does not replay, so Publish().AutoConnect(modelObsConsumers) connects the
-// upstream — and lets the seed flow — only when the count-th subscriber
-// attaches; if this count drifts from the wiring, late consumers miss the seed
-// on launch (too low) or the app freezes (too high).
-func TestModelObsConsumerCountMatchesConst(t *testing.T) {
-	base := rx.Of(initialModel()) // cold; replays the seed to each subscription
-	var n int32
-	counting := rx.Observable[Model](func(observe rx.Observer[Model], sched rx.Scheduler, sub rx.Subscriber) {
-		atomic.AddInt32(&n, 1)
-		base(observe, sched, sub)
-	})
-
-	layer := feedsShellLayer(rx.Of(theme.Default()), counting)
-	sub := layer.Subscribe(rx.GoroutineContext(), func(layout.Widget, error, bool) {})
-	defer sub.Unsubscribe()
-
-	// Poll until the count stabilises (the graph attaches asynchronously on
-	// rx.Goroutine), then assert it matches the declared constant.
-	deadline := time.Now().Add(time.Second)
-	var got int32
-	for time.Now().Before(deadline) {
-		got = atomic.LoadInt32(&n)
-		if int(got) == modelObsConsumers {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if int(got) != modelObsConsumers {
-		t.Fatalf("modelObs cold subscription count = %d; modelObsConsumers = %d. "+
-			"AutoConnect(N) needs N to equal the real count exactly — update the "+
-			"constant (and its comment) to %d.", got, modelObsConsumers, got)
-	}
-}
-
-// TestRealAutoConnectPathDeliversSeedAndReEmits exercises the PRODUCTION seam
-// that run() builds — mvu.Loop(messages) → Publish().AutoConnect(
-// modelObsConsumers) → feedsShellLayer — rather than the rx.Subject shortcut
-// the re-emission test uses. It proves two things:
-//  1. the layer emits a (seed-derived) layout.Widget once all consumers have
-//     attached and Connect has fired — i.e. modelObsConsumers is not too high
-//     (no freeze) and the seed actually reaches every consumer (not too low);
-//  2. a message pushed through the real message channel re-emits the layer with
-//     the updated model — the same-frame repaint driver.
-func TestRealAutoConnectPathDeliversSeedAndReEmits(t *testing.T) {
-	// Mirror mvuWin.Messages(): a buffered channel drained by rx.Recv. This is
-	// exactly the source run() scans over.
-	msgCh := make(chan mvu.Message, 16)
-	messages := rx.Recv(msgCh)
-
+// TestALateSubscriberReadsTheModelInForce drives the production seam — this
+// app's own reducer under mvu.Loop, over the message channel run() scans —
+// and subscribes it a second time only after a message has moved the model.
+//
+// This is the invariant an AutoConnect count used to stand for, and it holds
+// without one: feedsShellLayer derives a couple of dozen streams from the
+// model and several of them are subscribed more than once, and a stream that
+// flattens an observable of observables re-subscribes what it combines the
+// inner one with on every outer emission, so no fixed count could be right. A
+// stream without replay leaves such a subscriber with no model — and so the
+// table and the pagination with nothing to draw — until the next message.
+func TestALateSubscriberReadsTheModelInForce(t *testing.T) {
+	messages := make(chan mvu.Message, 1)
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
-	// The command runner is leaked along with the layer subscription below
-	// (see the teardown note).
-	models, _ := mvu.Loop(messages, init, Update)
-	modelObs := models.Publish().AutoConnect(modelObsConsumers)
+	models, runner := mvu.Loop(rx.Recv(messages), init, Update)
+	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
-	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
-
-	emissions := make(chan layout.Widget, 32)
-	// No defer sub.Unsubscribe()/close(msgCh): unsubscribing the AutoConnect
-	// chain triggers rx's Multicast.remove() on the unsubscribe path, which
-	// mutates its channel slice without holding the lock the observer send loop
-	// holds — a race INSIDE reactivego/rx (multicast.go:68/100 vs :28), not in
-	// this app. This test asserts seed-delivery + re-emit, both of which happen
-	// before any teardown; letting the chain leak (it parks on a local channel,
-	// touches no shared state) keeps the test -race-clean. Steady-state message
-	// delivery is race-free; production only unsubscribes at DestroyEvent.
-	_ = layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
-		if !done && w != nil {
+	// One early subscriber, so the loop is connected and draining.
+	early := make(chan Model, 8)
+	first := models.Subscribe(rx.GoroutineContext(), func(m Model, err error, done bool) {
+		if err == nil && !done {
 			select {
-			case emissions <- w:
+			case early <- m:
 			default:
 			}
 		}
 	})
+	defer first.Unsubscribe()
+	await(t, early, func(m Model) bool { return m.selectedFeed == defaultFeedID() }, "the seed")
 
-	await := func(what string) layout.Widget {
-		deadline := time.Now().Add(2 * time.Second)
-		for time.Now().Before(deadline) {
+	messages <- SelectFeed{Feed: "bbc"}
+	await(t, early, func(m Model) bool { return m.selectedFeed == "bbc" }, "the model the message left")
+
+	// The late subscriber attaches with the feed already switched.
+	late := make(chan Model, 8)
+	second := models.Subscribe(rx.GoroutineContext(), func(m Model, err error, done bool) {
+		if err == nil && !done {
 			select {
-			case w := <-emissions:
-				return w
-			case <-time.After(10 * time.Millisecond):
+			case late <- m:
+			default:
 			}
 		}
-		t.Fatalf("layer did not emit after %s (AutoConnect N likely wrong: "+
-			"Connect never fired or the seed was missed)", what)
-		return nil
-	}
+	})
+	defer second.Unsubscribe()
+	await(t, late, func(m Model) bool { return m.selectedFeed == "bbc" }, "the model in force at a late subscription")
+}
 
-	// 1. Seed must reach every consumer so the layer renders on launch.
-	if w := await("seed (AutoConnect Connect + StartWith)"); w != nil {
-		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
-	}
+// await polls values until one satisfies cond, and fails naming what was
+// waited for.
+func await(t *testing.T, values <-chan Model, cond func(Model) bool, what string) {
+	t.Helper()
+	deadline := time.After(2 * time.Second)
 	for {
 		select {
-		case <-emissions:
-			continue
-		default:
+		case m := <-values:
+			if cond(m) {
+				return
+			}
+		case <-deadline:
+			t.Fatalf("the model stream never carried %s", what)
 		}
-		break
-	}
-
-	// 2. A real message through the channel must re-emit the layer.
-	msgCh <- SelectFeed{Feed: "bbc"}
-	if w := await("SelectFeed via real channel"); w != nil {
-		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 }

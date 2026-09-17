@@ -24,13 +24,6 @@ func main() {
 	app.Main()
 }
 
-// modelObsConsumers is the number of cold subscriptions that reach modelObs
-// when the layers are subscribed once. Publish() multicasts without replay, so
-// AutoConnect must fire — letting the seed emitted by mvu.Loop flow — only
-// when every consumer is attached. Here the content layer is the single
-// consumer; the backdrop layer is theme-only.
-const modelObsConsumers = 1
-
 // The size the window opens at, named because the whole-window render test
 // draws the composition at exactly this size.
 const (
@@ -59,9 +52,8 @@ func run() {
 
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
-	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "todos:", err)
 		os.Exit(1)
 	}

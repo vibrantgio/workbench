@@ -147,9 +147,9 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 	}
 }
 
-// ContentLayer renders the page. modelObs is subscribed exactly three times
-// — the CombineLatest4 below, the tab strip's Selected, and the override
-// modal's Open — which is what modelObsConsumers in main.go counts.
+// ContentLayer renders the page. It subscribes modelObs three times — the
+// CombineLatest4 below, the tab strip's Selected, and the override modal's
+// Open — and each subscription reads the model in force when it attaches.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	// The frame-time snapshot (stored by the final combine below); declared
 	// up here because the hand-rolled controls read it.

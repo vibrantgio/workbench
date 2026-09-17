@@ -53,19 +53,15 @@ func run() {
 	// frame; Loop also runs the commands Update returns and emits the seed
 	// model first.
 	//
-	// mvuWin.Messages() drains a channel via rx.Recv, so each emitted message
-	// reaches exactly one subscriber. feedsShellLayer derives several cold
-	// streams from modelObs; without multicast each cold subscription would
-	// re-drain the channel and split the messages between them.
-	// Publish().AutoConnect(N) shares one upstream subscription across exactly
-	// those N consumers. The N here is load-bearing and must match the consumer
-	// count documented on modelObsConsumers.
+	// feedsShellLayer derives a couple of dozen streams from the model, and
+	// mvu.Loop's models observable is a replay-latest multicast: they all
+	// share one upstream subscription, and each reads the model in force when
+	// it attaches, whenever that is.
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
 	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
-	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

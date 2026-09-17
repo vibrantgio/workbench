@@ -40,44 +40,6 @@ import (
 	"github.com/vibrantgio/theme/typeset"
 )
 
-// modelObsConsumers is the EXACT number of cold subscriptions that reach
-// modelObs when feedsShellLayer is subscribed once (as theme/window does).
-// It is LOAD-BEARING and must be measured, not hand-counted: mvuWin.Messages()
-// drains a channel and rx.Publish() multicasts WITHOUT replay, so
-// Publish().AutoConnect(modelObsConsumers) in run() connects the loop's
-// upstream scan — and lets the seed emitted by mvu.Loop flow — only once the
-// count-th subscription attaches. Too low and the consumers that attach after
-// Connect miss the seed (the launch table/pagination render blank until the
-// first real message); too high and Connect never fires (the app is frozen).
-//
-// The count is NOT the rx.Map(modelObs, …) variable count: each derived
-// stream is cold and fans out to multiple downstream subscribers, so the real
-// total is larger. A stream read by both the pipeline that applies it and the
-// panel that displays it is subscribed on both sides, and `filtered` is itself
-// subscribed twice (by paged and by pageCountObs), so a stream feeding it
-// counts double. The derivations and their fan-out:
-//  1. openSectionsObs    → accordion Open                                 (1)
-//  2. selectedFeedObs    → filtered (paged + pageCountObs) + the sidebar  (3)
-//  3. currentPageObs     → paged + the pagination CombineLatest           (2)
-//  4. sortObs            → sortCell mirror + table Sort prop + filtered×2 (4)
-//  5. selectedArticleObs → the detail-pane CombineLatest + the table mark (2)
-//  6. selectedTabObs     → tabs Selected prop                             (1)
-//  7. shareOpenObs       → popover Open prop                              (1)
-//  8. splitRatioObs      → shell SplitPane SplitRatio prop                (1)
-//  9. feedsObs           → sidebar CombineLatest                          (1)
-//
-// 10. addFeedOpenObs     → modal Open prop                                (1)
-// 11. addFeedErrorObs    → modal errorCell mirror                         (1)
-// 12. prefsOpenObs       → Preferences panel Open prop                    (1)
-// 13. rowsPerPageObs     → paged + pageCountObs + the panel's buttons     (3)
-// 14. unreadOnlyObs      → filtered×2 + the panel's buttons               (3)
-// 15. notesObs           → notifications.Column Notifications prop       (1)
-// 16. filterObs          → filtered, subscribed by paged + pageCountObs   (2)
-//
-// Total = 28, confirmed empirically by TestModelObsConsumerCountMatchesConst,
-// which fails if a future edit changes the topology without updating this.
-const modelObsConsumers = 28
-
 // themeTokens is the colour/typography snapshot the app's own drawing code
 // reads at frame time. The shaper is the theme's cached Typography shaper: the
 // app builds none of its own, so the typeface — Roboto, plus the Roboto Mono
@@ -172,8 +134,9 @@ func feedsShellLayer(
 	tipArb := tooltip.NewArbiter()
 	modalArb := modal.NewArbiter()
 
-	// The cold derivations of modelObs. Their count is mirrored by
-	// modelObsConsumers above — keep them in sync.
+	// The cold derivations of modelObs. Each is subscribed by the consumers
+	// below — several of them more than once — and every subscription reads
+	// the model in force the moment it attaches.
 	openSectionsObs := rx.Map(modelObs, func(m Model) map[int]bool { return m.openSections })
 	feedsObs := rx.Map(modelObs, func(m Model) []feedGroup { return m.feeds })
 	selectedFeedObs := rx.Map(modelObs, func(m Model) FeedID { return m.selectedFeed })

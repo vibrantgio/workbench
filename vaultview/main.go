@@ -111,17 +111,15 @@ func run() {
 
 	w := specwin.New(mvuWin, specsystem.LiveTheme(5*time.Second, kept.Options()...))
 
-	// mvuWin.Messages() drains a channel, so each message reaches exactly
-	// one subscriber. Exactly three streams derive from modelObs — the
-	// routed layer's CombineLatest, the chooser layer's open flag, and the
-	// toast layer's queue map — so AutoConnect(3) shares the single
-	// upstream subscription. NOTE: the count is load-bearing; adding
-	// another modelObs consumer requires bumping it.
+	// mvu.Loop's models observable is a replay-latest multicast: the three
+	// streams that derive from it — the routed layer's CombineLatest, the
+	// chooser layer's open flag, and the toast layer's queue map — share one
+	// upstream subscription, and each reads the model in force when it
+	// attaches.
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(3)
 
-	renderErr := w.Render(buildLayers(modelObs, opening, kept.Typography(), widths)).Wait()
+	renderErr := w.Render(buildLayers(models, opening, kept.Typography(), widths)).Wait()
 	// Render returns once the window is destroyed, which is the last moment
 	// a width moved inside the write delay can still be kept — and the
 	// change the reader most expects to find again is the one they made

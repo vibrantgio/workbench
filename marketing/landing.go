@@ -54,9 +54,9 @@ const contentMaxWidthDp = 1100
 const pricingSection = 2
 
 // pageLayer is the runtime page: the four pattern streams stacked in a
-// shell-less vertical list, re-emitting on theme change. modelObs is consumed
-// so AutoConnect in main stays balanced, though the model has no fields the
-// page reads. Scroll position lives in this subscription.
+// shell-less vertical list, re-emitting on theme change. modelObs is combined
+// in so that a field the page later reads arrives without rewiring, though
+// today the model has none. Scroll position lives in this subscription.
 func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		state := list.NewState()

@@ -257,8 +257,8 @@ External pins: gioui.org v0.10.2, github.com/reactivego/rx v0.3.0, go 1.25.1
 ## Application bootstrap (the canonical skeleton)
 
 Every Vibrant Gio app follows this shape (todos/main.go is the minimal live
-version; mindchat/main.go the production-sized one — the same shape, with
-its AutoConnect count documented consumer by consumer):
+version; mindchat/main.go the production-sized one — the same shape at
+production scale):
 
   ```go
   package main
@@ -293,13 +293,13 @@ its AutoConnect count documented consumer by consumer):
 
       // Model observable: mvu.Loop scans Update over the window's
       // message stream merged with the messages emitted by the commands
-      // Update returns (I/O, streams). Loop emits the seed model first;
-      // multicast it to your layer topology with AutoConnect(nConsumers).
+      // Update returns (I/O, streams). models is a replay-latest
+      // multicast — hand it straight to your layer topology and
+      // subscribe it as often as the topology needs.
       models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
       defer func() { runner.Unsubscribe(); runner.Wait() }()
-      modelObs := models.Publish().AutoConnect(nConsumers)
 
-      if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+      if err := w.Render(buildLayers(models)).Wait(); err != nil {
           // handle
       }
   }
@@ -385,18 +385,19 @@ to the content (see mindchat's rename modal for the full recipe).
 Props.HideClose is DEPRECATED; say Props.Decision instead — see the
 dialog grammar in §Layers.
 
-### 4. Publish().AutoConnect(N) counts are load-bearing
+### 4. Subscribe the model observable, never gate it
 
-The model observable is multicast WITHOUT replay; AutoConnect(N) connects
-the upstream scan only when the N-th subscriber attaches, which is what
-lets the seed model (emitted first by mvu.Loop) reach everyone. N must
-equal the exact number of cold subscriptions your layer topology makes —
-too low and late consumers miss the seed (blank UI), too high and the app
-freezes. Keep N static: never subscribe the model observable inside a
-keyed/per-row Defer (it attaches after the seed fired — the row sees a
-zero Model). Instead let the parent layer subscribe one eager mirror and
-share it as a `func() Model`. Write a test that measures the subscription
-count (see feeds/wiring_test.go).
+mvu.Loop's models observable is a replay-latest multicast: it carries the
+model in force and hands it to every subscriber the moment it attaches,
+however late and however many. So subscribe it directly, as often as the
+topology needs — including inside a keyed/per-row Defer, which attaches
+long after the seed. Do not wrap it in a Publish().AutoConnect(N) of your
+own: the gate buys nothing the observable does not already give, and its
+arithmetic is a hazard — N below the real subscription count leaves the
+consumers that attach after it with no model (blank UI), N above it never
+connects at all (the app freezes), and neither failure logs anything.
+Write a test that subscribes the loop a second time after a message has
+moved the model (see feeds/wiring_test.go).
 
 ### 5. Animation self-schedules and idles
 
@@ -1486,8 +1487,8 @@ instead
 
 Table-heavy app: sort/filter/pagination, tabs, split pane, modal forms,
 toasts; app.go's mirrorTokens is the reference theme-to-frame-time
-adapter (§Layers), and wiring_test.go shows how to test the AutoConnect
-count. Also the reference implementation of the dialog grammar's
+adapter (§Layers), and wiring_test.go shows how to test that a late
+subscriber reads the model in force. Also the reference implementation of the dialog grammar's
 invocation half: shortcut.go binds ⌘,/Ctrl-, and preferences.go is the
 settings PANEL it opens, whose two preferences apply live under it
 

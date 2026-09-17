@@ -24,9 +24,10 @@ func buildLayers(win *app.Window, modelObs rx.Observable[Model]) func(th rx.Obse
 	}
 }
 
-// ContentLayer is the single modelObs consumer counted by modelObsConsumers
-// in main.go. The page is inset by desktop.TopInset() so the Hero sits
-// below the traffic lights; that inset is 0 off macOS and in goldens.
+// ContentLayer is the window's only consumer of the model stream; the
+// backdrop and field layers are theme-only. The page is inset by
+// desktop.TopInset() so the Hero sits below the traffic lights; that inset is
+// 0 off macOS and in goldens.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	return underTitleBar(pageLayer(th, modelObs))
 }

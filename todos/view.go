@@ -39,8 +39,8 @@ type themed struct {
 }
 
 // ContentLayer renders the page: the latest theme snapshot combined with the
-// latest Model, mapped to a layout.Widget. This is the single modelObs
-// consumer counted by modelObsConsumers in main.go.
+// latest Model, mapped to a layout.Widget. This is the window's only consumer
+// of the model stream; the backdrop layer is theme-only.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),

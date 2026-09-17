@@ -118,7 +118,8 @@ type themed struct {
 }
 
 // ContentLayer is the page, held down past the native title-bar strip. It is
-// the single modelObs consumer counted by modelObsConsumers in main.go.
+// this window's only consumer of the model stream; the backdrop and field
+// layers are theme-only.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	return underTitleBar(pageLayer(th, modelObs))
 }

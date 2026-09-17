@@ -32,22 +32,6 @@ func main() {
 	app.Main()
 }
 
-// modelObsConsumers is the number of cold subscriptions that reach modelObs
-// when the layers are subscribed once. Publish() multicasts WITHOUT replay,
-// so AutoConnect must fire — letting the seed emitted by mvu.Loop flow —
-// only when every consumer is attached. The consumers: the content layer's
-// CombineLatest (1), the rename modal's open and edit derivations (2), the
-// settings modal's open, field and body derivations (3), the model menu's
-// open, data and chip-key derivations (3), and the settings dropdown's open
-// derivation (1); the backdrop layer is theme-only. The split pane is not a
-// consumer: its state is a flip the frame reads at frame time, not a number a
-// shell subscribes to. Two of the header picker's three are keys, because
-// components/picker takes its value and its options as static props: the
-// picker derives a deduplicated key for each from the Model and subscribes a
-// new control when one changes. Measured by
-// TestModelObsConsumerCountMatchesConst.
-const modelObsConsumers = 10
-
 // MindChat drives the MindChat window; one function per window, so further
 // windows get sibling functions with their own theme and loop.
 func MindChat() {
@@ -91,9 +75,8 @@ func MindChat() {
 
 	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), menu.Messages()), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
-	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "mindchat:", err)
 		os.Exit(1)
 	}

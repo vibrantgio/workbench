@@ -27,12 +27,6 @@ func main() {
 	app.Main()
 }
 
-// modelObsConsumers is the number of layers subscribing to modelObs: the
-// content layer only, since the backdrop layer is theme-only. Publish()
-// multicasts without replay, so this count gates when the seed emitted by
-// mvu.Loop flows.
-const modelObsConsumers = 1
-
 // The size the window opens at: wide enough for six catalogue cells across,
 // tall enough that the first screenful of the Material grid stands under both
 // section labels. Named rather than written into the app.Size call so a render
@@ -64,9 +58,8 @@ func run() {
 
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
-	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "iconbrowser:", err)
 		os.Exit(1)
 	}

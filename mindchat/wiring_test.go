@@ -1,55 +1,75 @@
 package main
 
 import (
-	"sync/atomic"
 	"testing"
 	"time"
 
-	"gioui.org/layout"
-
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/mvu"
 )
 
-// TestModelObsConsumerCountMatchesConst measures the EXACT number of cold
-// subscriptions the layers make to modelObs when subscribed once (as
-// theme/window does) and asserts it equals modelObsConsumers.
-// Publish().AutoConnect(N) connects the upstream — and lets the seed flow —
-// only when the N-th subscriber attaches; if the count drifts from the
-// wiring, late consumers miss the seed (too low) or the app freezes (too
-// high).
-func TestModelObsConsumerCountMatchesConst(t *testing.T) {
-	base := rx.Of(Model{}) // cold; replays the seed to each subscription
-	var n int32
-	counting := rx.Observable[Model](func(observe rx.Observer[Model], sched rx.Scheduler, sub rx.Subscriber) {
-		atomic.AddInt32(&n, 1)
-		base(observe, sched, sub)
+// TestALateSubscriberReadsTheModelInForce drives the production seam — this
+// window's own reducer under mvu.Loop, over the message stream MindChat
+// merges — and subscribes it a second time only after a message has moved the
+// model.
+//
+// This is the invariant an AutoConnect count used to stand for, and it holds
+// without one: the header's model picker takes its value and its options as
+// static props, so it derives a key for each and subscribes a new control
+// whenever one changes, and the modals subscribe their open flags as they are
+// built. A stream without replay leaves a subscriber attaching after the seed
+// with no model at all — a picker on an empty catalogue, a modal that never
+// opens — until the next message.
+func TestALateSubscriberReadsTheModelInForce(t *testing.T) {
+	messages := make(chan mvu.Message, 1)
+	init := func() (Model, mvu.Command) { return Model{DataDir: t.TempDir()}, mvu.DoNothing() }
+	models, runner := mvu.Loop(rx.Recv(messages), init, Update)
+	defer func() { runner.Unsubscribe(); runner.Wait() }()
+
+	// One early subscriber, so the loop is connected and draining.
+	early := make(chan Model, 8)
+	first := models.Subscribe(rx.GoroutineContext(), func(m Model, err error, done bool) {
+		if err == nil && !done {
+			select {
+			case early <- m:
+			default:
+			}
+		}
 	})
+	defer first.Unsubscribe()
+	await(t, early, func(m Model) bool { return !m.ModelMenu }, "the seed")
 
-	layers := buildLayers(counting)(rx.Of(theme.Default()))
-	subs := make([]rx.Subscription, 0, len(layers))
-	for _, layer := range layers {
-		subs = append(subs, layer.Subscribe(rx.GoroutineContext(), func(layout.Widget, error, bool) {}))
-	}
-	defer func() {
-		for _, sub := range subs {
-			sub.Unsubscribe()
-		}
-	}()
+	messages <- OpenModelMenu{}
+	await(t, early, func(m Model) bool { return m.ModelMenu }, "the model the message left")
 
-	deadline := time.Now().Add(time.Second)
-	var got int32
-	for time.Now().Before(deadline) {
-		got = atomic.LoadInt32(&n)
-		if int(got) == modelObsConsumers {
-			break
+	// The late subscriber attaches with the menu already open.
+	late := make(chan Model, 8)
+	second := models.Subscribe(rx.GoroutineContext(), func(m Model, err error, done bool) {
+		if err == nil && !done {
+			select {
+			case late <- m:
+			default:
+			}
 		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if int(got) != modelObsConsumers {
-		t.Fatalf("modelObs cold subscription count = %d; modelObsConsumers = %d. "+
-			"AutoConnect(N) needs N to equal the real count exactly — update the "+
-			"constant (and its comment) to %d.", got, modelObsConsumers, got)
+	})
+	defer second.Unsubscribe()
+	await(t, late, func(m Model) bool { return m.ModelMenu }, "the model in force at a late subscription")
+}
+
+// await polls values until one satisfies cond, and fails naming what was
+// waited for.
+func await(t *testing.T, values <-chan Model, cond func(Model) bool, what string) {
+	t.Helper()
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case m := <-values:
+			if cond(m) {
+				return
+			}
+		case <-deadline:
+			t.Fatalf("the model stream never carried %s", what)
+		}
 	}
 }

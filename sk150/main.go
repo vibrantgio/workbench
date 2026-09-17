@@ -24,12 +24,6 @@ func main() {
 	app.Main()
 }
 
-// modelObsConsumers is the number of cold subscriptions that reach modelObs
-// when the layers are subscribed once: the content layer's CombineLatest4,
-// the tab strip's Selected observable, and the LVP override modal's Open.
-// The backdrop layer is theme-only.
-const modelObsConsumers = 3
-
 const (
 	winW unit.Dp = 720
 	winH unit.Dp = 760
@@ -66,9 +60,8 @@ func run() {
 
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(modelObsConsumers)
 
-	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "sk150:", err)
 		os.Exit(1)
 	}

@@ -108,20 +108,14 @@ func run() {
 	// calls made during layout are collected and delivered here on the same
 	// frame.
 	//
-	// mvuWin.Messages() drains a channel via rx.Recv, so each emitted message
-	// reaches exactly one subscriber. Two streams derive from modelObs —
-	// the tab strip's selected-index stream plus the docs outline-state
-	// stream — so without multicast those cold subscriptions would each
-	// re-drain the channel and split the messages between them.
-	// Publish().AutoConnect(2) shares one upstream subscription across
-	// exactly those two consumers. NOTE: the count 2 is load-bearing —
-	// adding another modelObs consumer requires bumping it.
+	// mvu.Loop's models observable is a replay-latest multicast: it shares one
+	// upstream subscription however many streams derive from it, and hands
+	// each of them the model in force the moment it attaches.
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
 	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
-	modelObs := models.Publish().AutoConnect(2)
 
-	if err := w.Render(buildLayers(modelObs)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
