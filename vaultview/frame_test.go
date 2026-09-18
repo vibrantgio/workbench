@@ -517,9 +517,17 @@ func TestTheRailKeepsOneSeamAndNothingElse(t *testing.T) {
 			}
 			seamColor := paneSeam(tc.colors)
 			fill := chromeSurface(tc.colors)
-			// A row clear of the toggle and of every row's own text — the
-			// middle of the rail's own top strip.
-			y := rail.Min.Y + paneStripDp/2
+			// The first row under the toolbar band, which is where the seam
+			// starts: the band is one across the window's columns, so no
+			// line is drawn across it and the rail's own fill runs to its
+			// trailing edge for every row of it.
+			for _, bandY := range []int{rail.Min.Y, rail.Min.Y + paneStripDp/2, rail.Min.Y + paneStripDp - 1} {
+				if got := img.RGBAAt(rail.Max.X-seamDp, bandY); !sameColor(got, fill) {
+					t.Errorf("the rail's trailing edge at y=%d draws %v, want the chrome level %v — no seam is drawn across the toolbar band",
+						bandY, got, fill)
+				}
+			}
+			y := rail.Min.Y + paneStripDp
 			if got := img.RGBAAt(rail.Max.X-seamDp, y); !sameColor(got, seamColor) {
 				t.Errorf("the rail's trailing edge draws %v, want the seam %v", got, seamColor)
 			}
@@ -728,7 +736,8 @@ func TestTheNoteKeepsItsMinimumBetweenTheTwoBoundaries(t *testing.T) {
 // TestTheRailEdgeDrawsNoSecondLine verifies what the leading splitter
 // draws at rest: nothing the pane did not already draw. The boundary
 // there is the pane's own hairline, and a splitter drawing its own line
-// beside it would put two edges a pixel apart down the whole pane.
+// beside it would put two edges a pixel apart down the whole pane — or
+// through the toolbar band, where the pane draws no line at all.
 func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
@@ -742,10 +751,18 @@ func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
 			if p.Empty() {
 				t.Fatal("the window laid out no pane to read")
 			}
-			// The whole of the trailing edge, top to bottom: one hairline
-			// of the rail's own seam colour, and the note's surface the
-			// pixel after it.
-			for y := p.Min.Y; y < p.Max.Y; y++ {
+			// The band's own rows carry the rail's fill at that edge: the
+			// splitter stops where the seam it is drawn over stops.
+			for y := p.Min.Y; y < p.Min.Y+paneStripDp; y++ {
+				if got := img.RGBAAt(p.Max.X-seamDp, y); !sameColor(got, chromeSurface(tc.colors)) {
+					t.Fatalf("the pane's trailing edge at y=%d draws %v, want the chrome level %v — the splitter draws a line across the toolbar band",
+						y, got, chromeSurface(tc.colors))
+				}
+			}
+			// The rest of the trailing edge, band's foot to the window's:
+			// one hairline of the rail's own seam colour, and the note's
+			// surface the pixel after it.
+			for y := p.Min.Y + paneStripDp; y < p.Max.Y; y++ {
 				if got := img.RGBAAt(p.Max.X-seamDp, y); !sameColor(got, paneSeam(tc.colors)) {
 					t.Fatalf("the pane's trailing edge at y=%d draws %v, want its own edge %v", y, got, paneSeam(tc.colors))
 				}

@@ -48,13 +48,16 @@
 // Both boundaries are the reader's to move, and both are the same
 // pattern: the seam between two regions made operable, thickening and
 // taking a firmer colour while a hand is in the band it is taken by,
-// which is the one thing a resting edge cannot say. Both run the window's
-// whole height, band and status bar included: the platform does not exempt
-// its top band from a split seam, and a seam that stopped at a band would
-// say the window is divided in one place and joined in another. Leading,
-// the line is the rail's own seam, so the splitter draws over it in the
-// rail's own colour rather than beside it in a second — a resting window is
-// the same window whether or not that edge can be taken hold of.
+// which is the one thing a resting edge cannot say. Leading, the line is
+// the rail's own seam, so the splitter draws over it in the rail's own
+// colour rather than beside it in a second — a resting window is the same
+// window whether or not that edge can be taken hold of — and it therefore
+// runs exactly where that seam runs: from the toolbar band's lower edge to
+// the window's foot, status bar included. The band itself carries no line
+// on that boundary, because the platform's band is one across the window's
+// columns and the fill change alone says where the rail's column runs
+// through it. The trailing boundary keeps the whole height it has until
+// what a content-side boundary is painted with is ruled.
 //
 // The two boundaries answer to the note column between them: neither is
 // dragged past the point where the note would be left with less than a
@@ -579,17 +582,24 @@ func (f *frameState) railProps(gtx layout.Context, tok themeTokens, size image.P
 }
 
 // layoutRailSplitter draws that hand-hold over the rail's trailing edge,
-// the whole height of the window. The rail runs to the window's top and
-// bottom edges and its seam runs with it, so the hand-hold does too: a
-// boundary a reader may take hold of along part of its length reads as two
-// boundaries, one live and one not.
+// from the toolbar band's lower edge to the window's foot. The line this
+// splitter draws IS the rail's seam, so it runs exactly where the seam runs
+// and stops where the seam stops: the band is one across the window's
+// columns and no line crosses it, which pane.SeamTop is the row of. Below
+// it the hand-hold runs the rest of the window, status bar included — a
+// boundary a reader may take hold of along part of the length it is DRAWN
+// at reads as two boundaries, one live and one not.
 func (f *frameState) layoutRailSplitter(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) {
-	if g.pane.Dy() <= 0 {
+	top := pane.SeamTop(gtx, g.pane)
+	h := g.pane.Max.Y - top
+	if g.pane.Dy() <= 0 || h <= 0 {
 		return
 	}
+	st := op.Offset(image.Pt(0, top)).Push(gtx.Ops)
 	sgtx := gtx
-	sgtx.Constraints = layout.Exact(image.Pt(size.X, g.pane.Dy()))
+	sgtx.Constraints = layout.Exact(image.Pt(size.X, h))
 	f.railSplitter.Layout(sgtx, f.railProps(gtx, tok, size, g))
+	st.Pop()
 }
 
 // asideProps states the splitter on the trailing column's leading edge.
