@@ -1,8 +1,14 @@
-// find.go is find in the page: the search field the note column opens over
-// the note on screen, the keys that open it and step through what it finds,
-// and the row it is drawn in. What is marked — in the prose and on the
+// find.go is find in the page: the search field the window opens in its
+// toolbar band, the keys that open it and step through what it finds, and
+// what the band carries beside it. What is marked — in the prose and on the
 // scrollbar — is the document's; this file holds the query and which match
 // the reader is on, and hands both to the document every frame.
+//
+// The field stands in the band and not over the page because the toolbar is
+// the strip holding the controls that act on the document, and a window's
+// search is one of them: mail-window.png and voicememos-window.png both keep
+// a search recess at the trailing end of the band, and finder-window-light.png
+// keeps a magnifier capsule there that expands into one.
 
 package main
 
@@ -16,7 +22,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/unit"
 
-	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/markdown"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -30,9 +36,12 @@ const (
 	// shortcut with Shift, the platform's place for the wider of two finds.
 	findKey key.Name = "F"
 
-	// findFieldDp is how wide the page's find field lays out: the width the
+	// findFieldDp is how wide the band's find field lays out: the width the
 	// rail's own find field takes, so a search field is one size in this
-	// window.
+	// window. The platform's own toolbar recess measures 325 px in both
+	// stored captures that hold one (voicememos-window.png,
+	// mail-window.png), which is wider than this window's trailing column;
+	// what is kept here is the window's one size for a search field.
 	findFieldDp = treeWidthDp - 2*treeFieldPadDp
 
 	// findCountGapDp is the air between the field and what it says it has
@@ -41,9 +50,9 @@ const (
 	findCountGapDp = treeFieldPadDp
 )
 
-// findFieldSurface is the fill the find field stands on: the note page's
-// own, which is the platform's text background.
-func findFieldSurface(c tokens.PlatformColors) color.NRGBA { return c.TextBackground }
+// findFieldSurface is the fill the find field stands on: the trailing end of
+// the toolbar band, which is the trailing column's fill risen into it.
+func findFieldSurface(c tokens.PlatformColors) color.NRGBA { return bandSurface(c) }
 
 // pageFind is find in the page: the query the reader is looking for in the
 // note on screen, which of its matches they are on, and whether the field is
@@ -53,8 +62,8 @@ func findFieldSurface(c tokens.PlatformColors) color.NRGBA { return c.TextBackgr
 // the vault knows nothing about it, it dies with the field, and nothing here
 // is remembered from one launch to the next.
 type pageFind struct {
-	// open is whether the field is over the page. Closing it takes the query
-	// with it, so nothing is marked while it is shut.
+	// open is whether the field stands in the band. Closing it takes the
+	// query with it, so nothing is marked while it is shut.
 	open bool
 	// query is what the reader has typed and current indexes the matches of
 	// it, counting from zero.
@@ -78,7 +87,7 @@ type pageFind struct {
 }
 
 // keys drains the frame's find keys: the platform's find shortcut opens the
-// field over the page and takes the keyboard, Enter and Shift+Enter step
+// field in the band and takes the keyboard, Enter and Shift+Enter step
 // through the matches, and Escape closes the field and hands the keyboard
 // back to the document.
 //
@@ -203,35 +212,69 @@ func (f *pageFind) label() string {
 	}
 }
 
-// layoutFindBar draws the row the find field stands in: the field at the
-// width the window's other one takes, and beside it what the query has found.
-// It also carries out a pending request for the keyboard, which is how the
+// findChildren is what the band carries at its trailing end: the find. Shut,
+// it is the bordered toolbar control finder-window-light.png keeps there — a
+// magnifier capsule 37 px wide at x 955-991, eight clear of the window's own
+// trailing edge — which opens the field and takes the keyboard, so the
+// shortcut has an affordance a hand can reach. Open, it is the platform's
+// toolbar search recess, with what the query has found standing leading of
+// it: the recess keeps the trailing end the captures give it, so the count
+// stands before it rather than after.
+func (f *frameState) findChildren(m Model, tok themeTokens) []layout.FlexChild {
+	find := f.band.find
+	// Nothing to search until a note is open: the column drains the find's
+	// keys only while it is showing one, so a field standing over an empty
+	// page would answer neither Escape nor Enter.
+	if m.CurrentNote() == nil {
+		return nil
+	}
+	if find == nil || !find.open {
+		return []layout.FlexChild{layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return f.layoutFindOpener(gtx, tok)
+		})}
+	}
+	return []layout.FlexChild{
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			// The count says how much of the query is left to walk rather
+			// than anything about the note, so it reads under the note's own
+			// text at the platform's secondary strength.
+			return drawLabel(gtx, tok.shaper, find.label(), tok.typ.BodyMedium,
+				vgcolor.Flatten(tok.col.SecondaryLabel, bandSurface(tok.col)))
+		}),
+		// The count belongs to the field beside it and to nothing else, so it
+		// stands one stop of the scale from it rather than a band gap away.
+		layout.Rigid(dragSpacer(unit.Dp(findCountGapDp))),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return f.layoutFindField(gtx, find)
+		}),
+	}
+}
+
+// layoutFindOpener draws the magnifier capsule the band keeps while the find
+// is shut. It opens the field and asks for the keyboard, which is what the
+// shortcut does.
+func (f *frameState) layoutFindOpener(gtx layout.Context, tok themeTokens) layout.Dimensions {
+	if f.findClick.Clicked(gtx) && f.band.find != nil {
+		f.band.find.open = true
+		f.band.find.focus = true
+	}
+	return chromeControl(gtx, tok, &f.findClick, icons.Search, "Find in this note")
+}
+
+// layoutFindField lays the search field out at the window's one field width
+// and carries out a pending request for the keyboard, which is how the
 // shortcut that opened the field puts the reader in it.
-func layoutFindBar(gtx layout.Context, tok themeTokens, find *pageFind, fieldW layout.Widget) layout.Dimensions {
+func (f *frameState) layoutFindField(gtx layout.Context, find *pageFind) layout.Dimensions {
 	if find.focus {
 		find.focus = false
 		if find.tag != nil {
 			gtx.Execute(key.FocusCmd{Tag: find.tag})
 		}
 	}
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			w := min(gtx.Dp(unit.Dp(findFieldDp)), gtx.Constraints.Max.X)
-			gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
-			if fieldW == nil {
-				return layout.Dimensions{Size: image.Pt(w, 0)}
-			}
-			return fieldW(gtx)
-		}),
-		// The count belongs to the field beside it and to nothing else, so it
-		// stands one stop of the scale from it rather than a page gap away.
-		layout.Rigid(complayout.HSpacer(findCountGapDp)),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			// The count says how much of the query is left to walk rather
-			// than anything about the note, so it reads under the note's own
-			// text at the platform's secondary strength.
-			return drawLabel(gtx, tok.shaper, find.label(), tok.typ.BodyMedium,
-				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground))
-		}),
-	)
+	w := min(gtx.Dp(unit.Dp(findFieldDp)), gtx.Constraints.Max.X)
+	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+	if f.band.field == nil {
+		return layout.Dimensions{Size: image.Pt(w, 0)}
+	}
+	return f.band.field(gtx)
 }

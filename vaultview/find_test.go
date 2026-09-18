@@ -16,8 +16,9 @@ import (
 	"gioui.org/unit"
 )
 
-// findPad is a note pad with the find field open over the page and the
-// keyboard in it: the state every key below is pressed in. The field itself
+// findPad is a note pad with the find open and the keyboard in it: the
+// state every key below is pressed in. The field stands in the window's
+// toolbar band and this pad lays out the column alone, so the field itself
 // draws nothing — what these tests are about is the keys, the query and the
 // marks, and the rival tag holds the keyboard exactly as the field's editor
 // does in the running window.
@@ -40,10 +41,9 @@ func typeQuery(p *notePad, query string) {
 	p.frame()
 }
 
-// TestTheFindShortcutOpensTheFieldOverThePage is the invocation: the
-// platform's find shortcut opens the field, and nothing was open before it
-// was pressed.
-func TestTheFindShortcutOpensTheFieldOverThePage(t *testing.T) {
+// TestTheFindShortcutOpensTheField is the invocation: the platform's find
+// shortcut opens the field, and nothing was open before it was pressed.
+func TestTheFindShortcutOpensTheField(t *testing.T) {
 	p := newNotePad(t, findModel(-1))
 	p.frame()
 	if p.find.open {

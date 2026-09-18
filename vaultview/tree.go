@@ -11,12 +11,6 @@
 // annotation. It is a filter over the names the scan already collected —
 // it reads no file and searches no prose.
 //
-// At the foot of the pane stand the two actions that are the vault's and
-// not the document's: rescanning it, and leaving it for another. A
-// control that acts on the whole vault belongs to the vault's own column,
-// so with the pane put away they go with it; the chrome row's toggle
-// brings the pane and them back together.
-//
 // The column claims a fixed rail width. The shell lets its sidebar slot
 // size itself, so a tree that answered with the constraint it was handed
 // would take the whole window and leave the note nothing.
@@ -47,7 +41,6 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
@@ -77,18 +70,7 @@ const (
 	// lines down the rail — which is the whole of what makes the field read
 	// as part of the column rather than as a panel set into it.
 	treeFieldPadDp = treeRowInsetDp
-	treeFootPadDp  = 10 // breathing room above and below the foot's actions
-	treeFootGapDp  = 8  // gap between the foot's two controls
 )
-
-// treeFootDensity is the density the foot's two controls draw at: the
-// platform's SMALL push button, 19 dp, where the rest of the window draws at
-// the density the reader chose. It is the offset from the control height the
-// Language's density entry allows a component to state — these two act on the
-// vault rather than on the document, and the platform stands that kind of
-// control small at the foot of a column. The number is the small push
-// button's in reference/macos/controls.md.
-var treeFootDensity = tokens.Compact
 
 // treeFieldSurface is the fill the find field stands on: the rail pane,
 // which is chrome and wears the platform's chrome material. The live rail
@@ -245,11 +227,9 @@ func sortByName[T any](s []T, name func(T) string) {
 // treeView is the tree's own view state: the list scroll/selection state
 // and per-row clickables (pointer-stable across frames).
 type treeView struct {
-	list        *list.State
-	hideClick   widget.Clickable
-	rescanClick widget.Clickable
-	switchClick widget.Clickable
-	rowClicks   []*widget.Clickable
+	list      *list.State
+	hideClick widget.Clickable
+	rowClicks []*widget.Clickable
 
 	// leading pins the window buttons' trailing edge instead of measuring
 	// it: the measurement is a live window's, and a stored image may not
@@ -263,12 +243,11 @@ type treeView struct {
 }
 
 // paneGeom is the pane's internal stacking as one layout arranged it: the
-// band the scrolling rows occupy, and the foot's band under them. The two
-// meet and do not overlap — that is what keeps the rows' scroll the rows'
-// own, with the foot standing outside it rather than riding down with it.
+// band the scrolling rows occupy. The rows run from under the rail's own
+// find field to the pane's foot, with nothing standing below them — the
+// vault's two actions stand in the window's toolbar band.
 type paneGeom struct {
 	rows image.Rectangle
-	foot image.Rectangle
 }
 
 // buttonEdge is where the pane's own top strip may start drawing: past the
@@ -342,18 +321,17 @@ func focusFindField(gtx layout.Context, tag event.Tag) {
 	}
 }
 
-// layout draws the rail: its own top strip, the find field under that,
-// the rows the model asks for — the filter's matches while it is typed
-// in, the folder tree otherwise — and the vault's own actions at the
-// foot. The returned width is the width the slot states, and the rail's
-// own where the slot states none — never an open constraint's whole
-// extent.
+// layout draws the rail: its own top strip, the find field under that, and
+// the rows the model asks for — the filter's matches while it is typed in,
+// the folder tree otherwise. The returned width is the width the slot
+// states, and the rail's own where the slot states none — never an open
+// constraint's whole extent.
 //
-// The rows are the flex's only flexed child, so the foot takes its own
-// height off the pane before the rows are given what is left. That is
-// what keeps the two apart: the rows scroll inside a band that stops
-// where the foot begins, and no length of vault can push an action off
-// the bottom of the window.
+// The rows are the flex's only flexed child and nothing stands below them,
+// so they run from under the field to the pane's own foot. The vault's two
+// actions stand in the window's toolbar band: the toolbar is the strip
+// holding the controls that act on the document, and a control drawn there
+// is the platform's bordered toolbar control.
 //
 // The strip is reserved by the flex and drawn afterwards, which is a
 // statement about the keyboard and not about paint. Focus follows the
@@ -385,7 +363,7 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW l
 	if stripH > size.Y {
 		stripH = size.Y
 	}
-	var fieldH, rowsH, footH int
+	var fieldH, rowsH int
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: image.Pt(size.X, stripH)}
@@ -405,109 +383,13 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW l
 			rowsH = dims.Size.Y
 			return dims
 		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			dims := v.foot(gtx, tok)
-			footH = dims.Size.Y
-			return dims
-		}),
 	)
 	rowsTop := min(stripH+fieldH, size.Y)
-	v.geom = paneGeom{
-		rows: image.Rect(0, rowsTop, size.X, min(rowsTop+rowsH, size.Y)),
-		foot: image.Rect(0, max(size.Y-footH, 0), size.X, size.Y),
-	}
+	v.geom = paneGeom{rows: image.Rect(0, rowsTop, size.X, min(rowsTop+rowsH, size.Y))}
 	sgtx := gtx
 	sgtx.Constraints = layout.Exact(image.Pt(size.X, stripH))
 	v.topStrip(sgtx, tok)
 	return layout.Dimensions{Size: size}
-}
-
-// foot is the pane's bottom band: a hairline off the rows, and under it
-// the two actions that belong to the vault rather than to the note —
-// rescan it, or leave it for another. They stand on the same text margin
-// the rows' names do, so the pane reads as one column and not as a bar
-// bolted under one.
-//
-// The rule above them is a hairline: with the foot on the pane's own
-// surface there are no two fills to part, only a seam saying the
-// scrolling stops here.
-func (v *treeView) foot(gtx layout.Context, tok themeTokens) layout.Dimensions {
-	if v.rescanClick.Clicked(gtx) {
-		mvu.MessageOp{Message: Rescan{}}.Add(gtx.Ops)
-	}
-	if v.switchClick.Clicked(gtx) {
-		mvu.MessageOp{Message: SwitchVault{}}.Add(gtx.Ops)
-	}
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			h := max(gtx.Dp(unit.Dp(1)), 1)
-			w := gtx.Constraints.Min.X
-			// The rule stands on the rail's own lane, the one the field's
-			// edges and every pill's stand on, so it parts the rows from
-			// the foot without cutting the column in two. MEASURED:
-			// chatgpt-window-light.png draws its sidebar's foot rule
-			// #dfdfdf from x 76 to 291 inside a rail whose fill spans x 65
-			// to 302 — inset eleven from each edge, on the lane its
-			// selected row's pill is inset to.
-			inset := gtx.Dp(unit.Dp(treeRowInsetDp))
-			line := image.Rect(inset, 0, max(w-inset, inset), h)
-			paint.FillShape(gtx.Ops, vgcolor.Flatten(tok.col.Separator, chromeSurface(tok.col)),
-				clip.Rect(line).Op())
-			return layout.Dimensions{Size: image.Pt(w, h)}
-		}),
-		layout.Rigid(complayout.VSpacer(treeFootPadDp)),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				// The controls start on the row pills' own edge, so the
-				// foot stands on the one pair of edges the rail's field
-				// and its rows stand on.
-				layout.Rigid(complayout.HSpacer(treeRowInsetDp)),
-				layout.Rigid(footAction(&v.rescanClick, "Rescan", tok)),
-				layout.Rigid(complayout.HSpacer(treeFootGapDp)),
-				// Title case, which is what the platform's own controls use.
-				layout.Rigid(footAction(&v.switchClick, "Switch Vault", tok)),
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
-				}),
-			)
-		}),
-		layout.Rigid(complayout.VSpacer(treeFootPadDp)),
-	)
-}
-
-// footAction renders one of the foot's two actions: the platform's small
-// push button — its measured fill inside the platform's hairline, its
-// control text on it — standing on the rail's own fill.
-//
-// It takes the width its own label asks for and no more. A push button laid
-// out under an open constraint fills it, and these two stand beside each
-// other at the foot of a column, so the label is measured first and the
-// control constrained to what it came to.
-func footAction(click *widget.Clickable, label string, tok themeTokens) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			semantic.LabelOp(label).Add(gtx.Ops)
-			semantic.EnabledOp(true).Add(gtx.Ops)
-			pointer.CursorPointer.Add(gtx.Ops)
-			macro := op.Record(gtx.Ops)
-			mgtx := gtx
-			mgtx.Constraints.Min = image.Point{}
-			dims := drawLabel(mgtx, tok.shaper, label, tok.typ.LabelLarge, tok.col.Label)
-			macro.Stop()
-			w := dims.Size.X + 2*gtx.Dp(unit.Dp(treeFootDensity.PaddingX))
-			bgtx := gtx
-			bgtx.Constraints.Min = image.Point{}
-			bgtx.Constraints.Max.X = min(w, gtx.Constraints.Max.X)
-			return button.Render(tok.shaper, label, tok.col, tok.sp, tokens.Radius,
-				tok.typ.LabelLarge, treeFootDensity, button.RenderState{
-					Emphasis: button.Tonal,
-					Surface:  chromeSurface(tok.col),
-					Hovered:  click.Hovered(),
-					Pressed:  click.Pressed(),
-					Focused:  gtx.Focused(click),
-				})(bgtx)
-		})
-	}
 }
 
 // topStrip is the band the pane keeps clear under the window's control

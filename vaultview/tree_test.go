@@ -6,16 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"gioui.org/f32"
-	"gioui.org/io/input"
-	"gioui.org/io/key"
-	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
-	"gioui.org/widget"
 
-	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -380,16 +374,14 @@ func TestTreeFillsTheWidthTheSlotStates(t *testing.T) {
 	}
 }
 
-// TestPaneFootStandsOutsideTheRows asserts the arrangement that keeps the
-// vault's actions where a reader can always operate them: the foot takes
-// its band off the pane's bottom, the rows end exactly where it begins,
-// and the rows still get the bulk of the pane. The rows scroll inside
-// their own band, so no number of notes can push the actions off the
-// window and no scroll position can scroll them away.
+// TestPaneRowsRunToThePaneFoot asserts the arrangement the rail keeps now
+// that the vault's actions stand in the window's toolbar band: the rows run
+// from under the rail's own find field to the pane's bottom edge, with
+// nothing standing below them to take a band off it.
 //
 // It is asserted off what the pane laid out rather than recomputed from
 // the constants that placed it.
-func TestPaneFootStandsOutsideTheRows(t *testing.T) {
+func TestPaneRowsRunToThePaneFoot(t *testing.T) {
 	tok := goldenTokens()
 	const paneH = 700
 	for _, c := range []struct {
@@ -410,166 +402,12 @@ func TestPaneFootStandsOutsideTheRows(t *testing.T) {
 			v.layout(gtx, c.model, tok, nil)
 
 			g := v.geom
-			if g.foot.Empty() {
-				t.Fatal("the pane laid out no foot; the vault's actions have nowhere to stand")
+			if g.rows.Empty() {
+				t.Fatal("the pane laid out no rows")
 			}
-			if g.foot.Max.Y != paneH {
-				t.Errorf("the foot ends at y=%d, want the pane's own bottom edge %d", g.foot.Max.Y, paneH)
-			}
-			if g.rows.Max.Y != g.foot.Min.Y {
-				t.Errorf("the rows end at y=%d and the foot begins at y=%d; the two must meet and not overlap",
-					g.rows.Max.Y, g.foot.Min.Y)
-			}
-			if g.rows.Dy() <= g.foot.Dy() {
-				t.Errorf("the rows get %d dp against the foot's %d; the pane is for the notes", g.rows.Dy(), g.foot.Dy())
+			if g.rows.Max.Y != paneH {
+				t.Errorf("the rows end at y=%d, want the pane's own bottom edge %d", g.rows.Max.Y, paneH)
 			}
 		})
-	}
-}
-
-// TestPaneFootActionsAnswerTheKeyboard drives the foot the way a reader
-// without a pointer does: Tab to each action and activate it, through the
-// frame's own input router. Both must report a press. What the press then
-// means — a rescan that counts what it found, a switch that returns to the
-// picker — is asserted at the model; this covers only whether the keyboard
-// can get there at all.
-func TestPaneFootActionsAnswerTheKeyboard(t *testing.T) {
-	tok := goldenTokens()
-	for _, c := range []struct {
-		name  string
-		click func(v *treeView) *widget.Clickable
-	}{
-		{"rescan", func(v *treeView) *widget.Clickable { return &v.rescanClick }},
-		{"switch vault", func(v *treeView) *widget.Clickable { return &v.switchClick }},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			var r input.Router
-			v := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
-			frame := func() {
-				var ops op.Ops
-				gtx := layout.Context{
-					Constraints: layout.Exact(image.Pt(treeWidthDp, 700)),
-					Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
-					Source:      r.Source(),
-					Ops:         &ops,
-				}
-				v.layout(gtx, goldenModel(), tok, nil)
-				r.Frame(&ops)
-			}
-			frame()
-
-			target := c.click(v)
-			src := r.Source()
-			reached := false
-			for range 64 {
-				r.MoveFocus(key.FocusForward)
-				if src.Focused(target) {
-					reached = true
-					break
-				}
-			}
-			if !reached {
-				t.Fatalf("Tab never reaches the foot's %s action", c.name)
-			}
-			r.ClickFocus()
-
-			var ops op.Ops
-			gtx := layout.Context{
-				Constraints: layout.Exact(image.Pt(treeWidthDp, 700)),
-				Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
-				Source:      r.Source(),
-				Ops:         &ops,
-			}
-			if !target.Clicked(gtx) {
-				t.Errorf("activating the foot's %s action from the keyboard produced no press", c.name)
-			}
-		})
-	}
-}
-
-// TestPaneFootNamesItsActions asserts the foot's two affordances are in
-// the pane's semantic tree under the names a screen reader speaks. The
-// drawn label and the spoken one are set separately, and a control the
-// keyboard reaches but nothing names is a control only a sighted reader
-// has.
-func TestPaneFootNamesItsActions(t *testing.T) {
-	tok := goldenTokens()
-	var r input.Router
-	var ops op.Ops
-	gtx := layout.Context{
-		Constraints: layout.Exact(image.Pt(treeWidthDp, 700)),
-		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
-		Source:      r.Source(),
-		Ops:         &ops,
-	}
-	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
-	v.layout(gtx, goldenModel(), tok, nil)
-	r.Frame(&ops)
-
-	spoken := map[string]bool{}
-	for _, n := range r.AppendSemantics(nil) {
-		spoken[n.Desc.Label] = true
-	}
-	for _, want := range []string{"Rescan", "Switch Vault"} {
-		if !spoken[want] {
-			t.Errorf("the pane's semantic tree does not name %q", want)
-		}
-	}
-}
-
-// TestPaneFootAnswersThePress asserts the foot's actions are controls the
-// pointer reaches and that answer being held down: the platform does not
-// tint a push button under the pointer — what says this one is pressable is
-// that it is drawn as a button — but it does take the press overlay while a
-// hand is on it. The assertion is pixels, since the overlay is the whole
-// point and dimensions cannot see it.
-//
-// The pointer is delivered through the frame's own input router at a point
-// beside the label rather than on it, which also says the hit area is
-// bigger than the glyphs it holds.
-func TestPaneFootAnswersThePress(t *testing.T) {
-	tok := goldenTokens()
-	size := image.Pt(treeWidthDp, 700)
-	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
-	var r input.Router
-	var ops op.Ops
-	gtx := layout.Context{
-		Constraints: layout.Exact(size),
-		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
-		Source:      r.Source(),
-		Ops:         &ops,
-	}
-	v.layout(gtx, goldenModel(), tok, nil)
-	r.Frame(&ops)
-
-	foot := v.geom.foot
-	at := f32.Pt(float32(treeRowInsetDp+2), float32(foot.Min.Y+foot.Max.Y)/2)
-	r.Queue(pointer.Event{Kind: pointer.Move, Position: at, Source: pointer.Mouse})
-
-	ops.Reset()
-	v.layout(gtx, goldenModel(), tok, nil)
-	r.Frame(&ops)
-	if !v.rescanClick.Hovered() {
-		t.Fatalf("a pointer at %v is not on the rescan action; its hit area is the label's glyphs alone", at)
-	}
-
-	r.Queue(pointer.Event{Kind: pointer.Press, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary})
-	ops.Reset()
-	v.layout(gtx, goldenModel(), tok, nil)
-	r.Frame(&ops)
-	if !v.rescanClick.Pressed() {
-		t.Fatalf("a press at %v did not reach the rescan action", at)
-	}
-
-	// Captured after the press has landed: the clickable holds the state,
-	// so the stored frame is the held one.
-	plain := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
-	shot := func(v *treeView) *image.RGBA {
-		return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
-			return v.layout(gtx, goldenModel(), tok, nil)
-		})
-	}
-	if n := golden.PixelDiff(shot(plain), shot(v)); n == 0 {
-		t.Error("the foot's action draws the same held down as at rest; nothing answers the hand on it")
 	}
 }

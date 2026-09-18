@@ -475,25 +475,32 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	// subscription scope so what was typed survives every emission, and it
 	// hands over its focus tag and its clearing: the shortcut that opens the
 	// field puts the keyboard in it, and Escape takes the query back out.
+	//
+	// It stands in the window's toolbar band, so it is the platform's toolbar
+	// search RECESS and not the sidebar's field — the two are different
+	// controls and the reference measures them apart — and it is handed to
+	// the frame rather than to the page.
 	field := input.SearchField(th, input.SearchFieldProps{
 		Placeholder: "Search",
 		Description: "find in this note",
+		Variant:     input.Chrome,
+		Region:      input.Toolbar,
 		Surface:     findFieldSurface,
 		FocusTag:    func(tag event.Tag) { find.tag = tag },
 		Clear:       func(clear func()) { find.clear = clear },
 		OnChange:    func(_ layout.Context, text string) { find.typed(text) },
 	})
-	mainSlot := rx.Map(rx.CombineLatest2(breadcrumb.Trail(th, breadcrumb.TrailProps{Chevron: trailChevronDp}), field),
-		func(next rx.Tuple2[breadcrumb.TrailLayout, layout.Widget]) layout.Widget {
-			trail, fieldW := next.First, next.Second
+	mainSlot := rx.Map(breadcrumb.Trail(th, breadcrumb.TrailProps{Chevron: trailChevronDp}),
+		func(trail breadcrumb.TrailLayout) layout.Widget {
 			return func(gtx layout.Context) layout.Dimensions {
-				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor, &find, fieldW)
+				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor, &find)
 			}
 		})
-	return vaultFrame(loadModel, loadTok, widths,
+	return vaultFrame(loadModel, loadTok, widths, &find,
 		treeSidebar(th, loadModel, loadTok),
 		asideColumn(cur, loadModel, loadTok),
 		mainSlot,
+		field,
 	)
 }
 
@@ -511,7 +518,6 @@ func layoutNotePage(
 	cur *docCursor,
 	docFor func(Model, *Note) *markdown.Document,
 	find *pageFind,
-	fieldW layout.Widget,
 ) layout.Dimensions {
 	note := m.CurrentNote()
 	// The reading column lies on the platform's text background, the fill a
@@ -649,17 +655,6 @@ func layoutNotePage(
 				})),
 			)
 		}
-		if find.open && scrolling {
-			// The field stands between the page's own rows and the
-			// document it searches, so it is the row the document's
-			// viewport begins under.
-			children = append(children,
-				layout.Rigid(complayout.VSpacer(noteGapDp)),
-				layout.Rigid(trailing(func(gtx layout.Context) layout.Dimensions {
-					return layoutFindBar(gtx, tok, find, fieldW)
-				})),
-			)
-		}
 		// The page puts no gap above the document: its viewport begins on
 		// the lower edge of whatever row stands over it — the breadcrumb, or
 		// the properties panel when the note carries one — so a line
@@ -702,7 +697,7 @@ func renderNotePage(
 	typo tokens.Typography,
 	den tokens.Density,
 ) layout.Widget {
-	return renderNotePageInto(&docCursor{}, shaper, m, colors, sp, typo, den, pageFind{})
+	return renderNotePageInto(&docCursor{}, shaper, m, colors, sp, typo, den, &pageFind{})
 }
 
 // renderNotePageInto is renderNotePage with the document cursor supplied,
@@ -716,7 +711,7 @@ func renderNotePageInto(
 	sp tokens.SpacingScale,
 	typo tokens.Typography,
 	den tokens.Density,
-	find pageFind,
+	find *pageFind,
 ) layout.Widget {
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	// The trail is built here rather than inside the frame closure: it owns
@@ -731,15 +726,6 @@ func renderNotePageInto(
 		read      reader
 		arr       arrival
 	)
-	// The find field is the static search field in the state the query
-	// leaves it: no editor, no events, the query drawn where the reader
-	// typed it and the field focused, which is where a find in the page is
-	// worked from.
-	var fieldW layout.Widget
-	if find.open {
-		fieldW = input.RenderSearch(shaper, "Search", colors, sp, tokens.Radius, typo.BodyLarge, den,
-			input.RenderState{Text: find.query, Focused: true, Surface: findFieldSurface(tok.col)})
-	}
 	// The page is drawn showing the note the model has current, so that is
 	// the note the query is being marked in: a static render has no earlier
 	// frame for the column to have noticed it on.
@@ -758,7 +744,7 @@ func renderNotePageInto(
 		return d
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor, &find, fieldW)
+		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor, find)
 	}
 }
 

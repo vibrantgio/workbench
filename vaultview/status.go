@@ -28,8 +28,7 @@
 // other end of the same column — and everything above it stops at its top
 // edge, so the document and the trailing panel end on one line. The
 // sidebar rail is not under it and does not shorten: the rail runs to the
-// window's own bottom edge and keeps its own foot, which is the vault's
-// actions.
+// window's own bottom edge and its rows run with it.
 //
 // It stands on the window's own fill, which is the note's surface, and paints
 // nothing: no fill and no rule — the treatment the chrome row at the head
@@ -42,14 +41,11 @@
 // where editors on this platform put their counts, is the panel of
 // citations here rather than the document.
 //
-// The bar does not share a line with the vault's actions at the foot of
-// the sidebar: those stand at the foot of the rail's own column, which
-// spends a rule and its own padding above them,
-// so a band on the window's own foot would have to be twice as deep as the
-// line it carries to put its baseline on theirs — depth that comes out of
-// the document. What the two share is measured, on the window as it opens:
-// the count's baseline rests level with the card's own bottom edge, a row
-// under it.
+// The bar does not share a line with the vault's actions: those stand in the
+// toolbar band across the window's top, where the platform keeps the
+// controls that act on the document. What the bar shares with the trailing
+// column is measured, on the window as it opens: the count's baseline rests
+// level with the card's own bottom edge, a row under it.
 //
 // # What it says
 //

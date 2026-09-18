@@ -311,26 +311,28 @@ func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
 // page with the one the reader is on in the middle of it.
 const findAnchor = 14
 
-// TestNoteFindGolden records the note page being searched: the field open
-// over the page with the query in it and what it found beside it, three
-// matches marked in the prose with the current one stronger, and the places
-// of all three on the scrollbar. Both schemes.
+// TestNoteFindGolden records the note page being searched: three matches
+// marked in the prose with the current one stronger, and the places of all
+// three on the scrollbar. The field itself stands in the window's toolbar
+// band, so this picture of the column alone holds the marks and not the
+// query. Both schemes.
 func TestNoteFindGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := findModel(findAnchor)
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
+			pf := findState()
 			w := renderNotePageInto(&docCursor{}, shaper, m, tc.colors, tokens.Spacing,
-				tokens.DefaultTypography, tokens.Comfortable, findState())
+				tokens.DefaultTypography, tokens.Comfortable, &pf)
 			golden.Render(t, "note-find-"+tc.name, noteFrameSize, scene(w, tc.bg))
 		})
 	}
 }
 
 // TestVaultWindowFindGolden records the whole window while the page is being
-// searched, which is the only picture that can show the find field against
-// the rail's own find field and the marks against everything else the window
-// draws.
+// searched, which is the only picture that can show the band's search recess
+// against the rail's own find field and the marks against everything else
+// the window draws.
 func TestVaultWindowFindGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := findModel(findAnchor)
@@ -588,7 +590,14 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 
 			asideX := windowW - frameAsideDp
 			lane := int(asideBarLane(tok))
-			top, bot := st.geom.rowTop, st.geom.footTop
+			// The scan starts below the reach of the band's own drop
+			// shadows. The band runs across the window's columns and its
+			// trailing controls stand over this one, and the platform's
+			// toolbar shadow is not cut off at the band's lower edge —
+			// finder-window-light.png still reads 249 at y=59 under a band
+			// ending at y=51 — so the rows immediately under the band carry
+			// the shadow and not the column's own fill.
+			top, bot := st.geom.rowTop+toolbarShadowReachDp, st.geom.footTop
 			is := func(c color.RGBA, want color.NRGBA) bool {
 				return c.R == want.R && c.G == want.G && c.B == want.B
 			}
@@ -790,7 +799,7 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 				sb := renderTree(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 					tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
 				main := renderNotePageInto(cur, shaper, m, tc.colors, tokens.Spacing,
-					tokens.DefaultTypography, tokens.Comfortable, pageFind{})
+					tokens.DefaultTypography, tokens.Comfortable, &pageFind{})
 				as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
 				w := func(gtx layout.Context) layout.Dimensions { return f.layout(gtx, m, tok, sb, as, main) }
 				return golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))

@@ -91,7 +91,7 @@
 // and forward through the history keeps what was already on screen,
 // scroll position included. Notes appearing, disappearing or being
 // renamed change the vault's shape rather than one note's content, and
-// the Rescan affordance at the foot of the folder rail re-walks the
+// the Rescan control in the window's toolbar band re-walks the
 // vault for those.
 //
 // # What it does not do
