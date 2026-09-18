@@ -172,7 +172,7 @@ func SampleWindow(c tokens.PlatformColors, ty Type, typ tokens.Typography, shape
 		radius := gtx.Dp(SampleRadius)
 		// A floating surface is told by its shadow on this platform, which
 		// is the one thing under a window that is not a fill.
-		shadow(gtx, win, radius, c.FloatingShadow, gtx.Dp(SampleShadow))
+		shadow(gtx, win, radius, c.FloatingShadow.Peak, gtx.Dp(SampleShadow))
 		fillRRect(gtx, win, radius, c.WindowBackground)
 
 		// The picture is a window and has to read as one. Its own chrome material

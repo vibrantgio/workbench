@@ -171,12 +171,6 @@ const (
 	// in one 976 wide.
 	bandTrailingDp = 8
 
-	// toolbarShadowReachDp is how far the drop shadow a bordered toolbar
-	// control casts carries past it in the light appearance.
-	// components/button draws it and owns the measurement; the number is
-	// named here because the window's own assertions read the band around a
-	// control and have to know what the control reaches.
-	toolbarShadowReachDp = 23
 
 	// railMarginDp is the window's small edge margin: the inset the rail's
 	// panel stands off the window's leading, top and bottom edges, the air
@@ -225,6 +219,19 @@ const (
 // from the inset above by the rule the platform's own windows follow. Every
 // number in it is the window's: no rail state, no screen and no pane enters
 // into any of them.
+// toolbarShadowReachDp is how far the drop shadow a bordered toolbar control
+// casts carries past it in the light appearance. The measurement is
+// tokens.PlatformLight.ToolbarControlShadow's own; it is read from there
+// because the window's own assertions read the band around a control and have
+// to know what the control reaches.
+var toolbarShadowReachDp = int(tokens.PlatformLight.ToolbarControlShadow.Reach)
+
+// paneShadowReachDp is how far the shadow the sidebar panel casts carries
+// past it. The measurement is tokens.PlatformLight.PaneShadow's own, which
+// patterns/pane spreads; it is read from there because the window's own
+// assertions read the plane around the panel.
+var paneShadowReachDp = int(tokens.PlatformLight.PaneShadow.Reach)
+
 var windowButtons = pane.Buttons
 
 // toolbarHeight is the chrome row's depth: the platform's toolbar band, 52

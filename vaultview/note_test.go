@@ -20,7 +20,6 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
-	"github.com/vibrantgio/patterns/pane"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -578,7 +577,7 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 			// document's own first column stands at the note's leading
 			// inset, which is the same number, so nothing of the page is
 			// read out with it.
-			scanLo := regionLo + int(pane.ShadowReachDp)
+			scanLo := regionLo + paneShadowReachDp
 			// The rows read are the document's own: below the reach of the
 			// band's drop shadows — the band's controls stand over this
 			// column at both ends and cast onto it, which the platform does

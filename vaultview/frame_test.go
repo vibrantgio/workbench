@@ -573,7 +573,7 @@ func TestTheRailIsAnInsetPanel(t *testing.T) {
 			// panel's shadow, which only darkens it and recovers outward.
 			v0 := img.RGBAAt(rail.Max.X, midY)
 			v1 := img.RGBAAt(rail.Max.X+1, midY)
-			far := img.RGBAAt(rail.Max.X+int(pane.ShadowReachDp), midY)
+			far := img.RGBAAt(rail.Max.X+paneShadowReachDp, midY)
 			if v0.R > tc.colors.TextBackground.R || v0.R > v1.R {
 				t.Errorf("past the panel's trailing rim the note's surface reads %v then %v against its own %v — a second line stands beside the panel's own",
 					v0, v1, tc.colors.TextBackground)
@@ -815,7 +815,7 @@ func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
 			// second line down the panel, so its rows are read out: a row
 			// carrying a hundred columns of the seam's own colour well clear
 			// of the panel's shadow is that seam and nothing else.
-			pinned := pinnedSeamRows(img, tc.colors, p.Max.X+int(pane.ShadowReachDp), windowW-frameAsideDp, top, bottom)
+			pinned := pinnedSeamRows(img, tc.colors, p.Max.X+paneShadowReachDp, windowW-frameAsideDp, top, bottom)
 			for y := top; y < bottom; y++ {
 				if pinned[y] {
 					continue

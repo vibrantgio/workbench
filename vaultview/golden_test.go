@@ -14,7 +14,6 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
-	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -695,7 +694,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			// short of the columns scanned.
 			// The note column's own pinned seam crosses its trailing gutter,
 			// so the bar's columns are read with the seam's rows left out.
-			seamRows := pinnedSeamRows(img, tc.colors, st.geom.contentX+int(pane.ShadowReachDp), asideX, top, bot)
+			seamRows := pinnedSeamRows(img, tc.colors, st.geom.contentX+paneShadowReachDp, asideX, top, bot)
 			noteLo, noteHi := -1, -1
 			for y := top; y < bot; y++ {
 				if seamRows[y] {
@@ -836,7 +835,7 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 	// column's leading inset is the same number, so the reading stops
 	// exactly where the note's first column of text begins and no glyph is
 	// read as a shadow.
-	past := min(int(pane.ShadowReachDp), noteInsetDp)
+	past := min(paneShadowReachDp, noteInsetDp)
 
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -869,7 +868,7 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 				// because a boundary between two flush regions runs the whole
 				// width of the region above it. Its rows are read out: it is
 				// a row and not a second line down the panel.
-				seamRows := pinnedSeamRows(img, tc.colors, edge+int(pane.ShadowReachDp), windowW-frameAsideDp,
+				seamRows := pinnedSeamRows(img, tc.colors, edge+paneShadowReachDp, windowW-frameAsideDp,
 					f.geom.rowTop, f.geom.footTop)
 				for y := f.geom.rowTop + noteInsetDp; y < f.geom.footTop; y++ {
 					if seamRows[y] {
