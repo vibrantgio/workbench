@@ -474,9 +474,12 @@ func TestVaultWindowArrivalGolden(t *testing.T) {
 // the placement call is given, and the one a live capture was measured
 // against.
 //
-// The two toggle marks must occupy exactly the same rows: they are the two
+// The two toggle controls must occupy exactly the same rows: they are the two
 // halves of one switch, and working the pane back and forth must leave one
-// mark standing still.
+// control standing still. Their own fill is what is read, not everything that
+// is not the surface: a bordered toolbar control casts the platform's drop
+// shadow outside its box, and that shadow is deeper below the control than
+// above it.
 //
 // A dp of slack, and no more: the label is a line box centred on the
 // line, and a line box reserves room under the baseline for descenders
@@ -495,7 +498,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 				return golden.Capture(t, windowFrameSize, windowScene(w, tc.colors)), st
 			}
-			level := func(what string, top, bot int) {
+			level := func(what string, top, bot int, slack float64) {
 				t.Helper()
 				if top < 0 {
 					t.Fatalf("%s paints nothing in the window's top band", what)
@@ -503,11 +506,17 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 				// Painted rows are counted inclusive, so the middle of a span
 				// is half a row past its last row's top edge.
 				line := float64(windowButtons.Center)
-				if c := float64(top+bot+1) / 2; c < line-1 || c > line+1 {
+				if c := float64(top+bot+1) / 2; c < line-slack || c > line+slack {
 					t.Errorf("%s centres on %.1f, the window buttons on %.1f — the top of the window is not one line",
 						what, c, line)
 				}
 			}
+			// A mark is its own drawing and centres on the line. A label is a
+			// line box that reserves room under its baseline for descenders
+			// the name does not spend, so its cap band stands a row and a half
+			// high of the line the box itself centres on: typography, not
+			// placement, and not this window's to move.
+			const markSlack, labelSlack = 1, 2
 
 			img, st := shot(shown)
 			// The note's first painted row is a full margin below the chrome row,
@@ -516,37 +525,36 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// its own assertion elsewhere.
 			band := st.geom.rowTop + noteInsetDp
 			nameX := st.geom.contentX + noteInsetDp
-			top, bot := drawnRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
-			level("the vault's name", top, bot)
+			top, bot := markedRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
+			level("the vault's name", top, bot, labelSlack)
 
-			// The pane's own toggle stands on the pane's surface, in the
-			// square at the trailing end of its strip. The last few columns
-			// of that square are left out: the pane's rounded corner is
-			// there, and the surface showing round it is not the toggle. The
-			// pane's own edge is left out the same way — its first row is
-			// the internal hairline that says the pane is an object, a line on
-			// the pane's fill and not a mark this is measuring.
+			// The pane's own toggle stands on the pane's surface, at the
+			// leading end of its strip: the bordered toolbar control, whose
+			// own fill is what is read here against the pane's. The pane's
+			// first row is left out — the internal hairline that says the
+			// pane is an object, a line on the pane's fill and not a mark
+			// this is measuring.
 			strip := st.geom.pane.Min.Y + paneStripDp
-			toggleX := st.geom.pane.Max.X - railMarginDp - treeHideBoxDp
-			paneTop, paneBot := drawnRows(img, chromeSurface(tc.colors), toggleX, toggleX+treeHideBoxDp-4,
+			toggleX := st.geom.pane.Min.X + goldenLeading
+			paneTop, paneBot := markedRows(img, tc.colors.ToolbarControlFill, toggleX+2, toggleX+railToggleWidthDp-2,
 				st.geom.pane.Min.Y+seamDp, strip)
-			level("the pane's toggle", paneTop, paneBot)
+			level("the pane's toggle", paneTop, paneBot, markSlack)
 
 			img, st = shot(hidden)
 			// With the pane away the row leads with the toggle, in the
 			// span between the window buttons' measured edge and the
 			// vault's name.
-			markX := goldenLeading + frameGapDp
-			rowTop, rowBot := drawnRows(img, tc.colors.TextBackground, markX, markX+railToggleMarkDp, 0, band)
-			level("the chrome row's toggle", rowTop, rowBot)
+			markX := goldenLeading
+			rowTop, rowBot := markedRows(img, tc.colors.ToolbarControlFill, markX+2, markX+railToggleWidthDp-2, 0, band)
+			level("the chrome row's toggle", rowTop, rowBot, markSlack)
 			if rowTop != paneTop || rowBot != paneBot {
 				t.Errorf("the chrome row's toggle marks rows %d..%d and the pane's %d..%d; one switch, one line",
 					rowTop, rowBot, paneTop, paneBot)
 			}
 
-			nameX = markX + railToggleMarkDp + int(tokens.Spacing.S3)
-			top, bot = drawnRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
-			level("the vault's name with the pane away", top, bot)
+			nameX = markX + railToggleWidthDp + int(tokens.Spacing.S3)
+			top, bot = markedRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
+			level("the vault's name with the pane away", top, bot, labelSlack)
 		})
 	}
 }
@@ -693,6 +701,42 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 // anything other than the surface colour, or -1, -1 for a box of bare
 // surface. Alpha is left out of the comparison: what is drawn over the
 // surface is opaque by the time it is captured.
+// markedRows is drawnRows with a threshold: the first and last row in the
+// column range carrying a pixel that stands more than markFloor levels off
+// the surface.
+//
+// The threshold is what a drop shadow costs a reading. A bordered toolbar
+// control casts the platform's own — MEASURED at eleven 255ths at its
+// deepest, and asymmetric, reaching further below the control than above —
+// so "anything that is not the surface" now measures a shadow along with
+// whatever cast it, and a neighbour's shadow along with a label. A mark and a
+// glyph stand a hundred and more levels off what they are drawn on, so the
+// two are never confused at this floor.
+const markFloor = 32
+
+func markedRows(img *image.RGBA, surface color.NRGBA, x0, x1, y0, y1 int) (int, int) {
+	off := func(a, b uint8) int {
+		if a > b {
+			return int(a) - int(b)
+		}
+		return int(b) - int(a)
+	}
+	top, bot := -1, -1
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			c := img.RGBAAt(x, y)
+			if off(c.R, surface.R) > markFloor || off(c.G, surface.G) > markFloor || off(c.B, surface.B) > markFloor {
+				if top < 0 {
+					top = y
+				}
+				bot = y
+				break
+			}
+		}
+	}
+	return top, bot
+}
+
 func drawnRows(img *image.RGBA, surface color.NRGBA, x0, x1, y0, y1 int) (int, int) {
 	top, bot := -1, -1
 	for y := y0; y < y1; y++ {

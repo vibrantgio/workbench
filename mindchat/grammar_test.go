@@ -287,7 +287,7 @@ func TestChromeRowClearsTheWindowControlsOnlyWhenThePaneIsAway(t *testing.T) {
 	if got := chromeLead(false, measuredEnd); got != chromeInsetDp {
 		t.Errorf("with the pane standing the row leads at %v, want the transcript's own inset %v — the buttons are inside the pane", got, chromeInsetDp)
 	}
-	if got, want := chromeLead(true, measuredEnd), measuredEnd+chromeGapDp; got != want {
+	if got, want := chromeLead(true, measuredEnd), measuredEnd+pane.ButtonGapDp; got != want {
 		t.Errorf("with the pane away the row leads at %v, want %v — the measurement carries no air of its own", got, want)
 	}
 	if chromeLead(true, measuredEnd) <= measuredEnd {

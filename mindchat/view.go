@@ -839,12 +839,17 @@ func SidebarPane(t themed, chats ChatList, current string, streaming map[string]
 // control belongs to the thing it dismisses; new chat
 // rides here because it is the application's primary action and the list
 // under it is what it adds to. Both stand again in the chrome row once the
-// pane is gone, at the same size and on the same line — they are two halves
-// of one switch each, not two controls that happen to look alike.
+// pane is gone, at the same size, on the same line AND in the same window
+// column — they are two halves of one switch each, and a control that moved
+// when the pane went would be a control that moves under the pointer. Both
+// bands lead past the same buttons by the same measured air, which is what
+// lands them on one column.
 func SidebarStrip(gtx layout.Context, t themed, toggle, newChat *widget.Clickable) layout.Dimensions {
-	return pane.Strip(gtx, windowButtonsEnd(),
+	return pane.Strip(gtx, stripLead(windowButtonsEnd()),
 		func(gtx layout.Context) layout.Dimensions {
-			return sidebarToggle(gtx, t, toggle, "Hide the conversations")
+			// The pane stands wherever this half of the switch stands, and
+			// the control says so.
+			return sidebarToggle(gtx, t, toggle, "Hide the conversations", true)
 		},
 		func(gtx layout.Context) layout.Dimensions {
 			return desktop.DragRun(gtx, gtx.Dp(controlGapDp))
@@ -935,9 +940,19 @@ func IconButton(gtx layout.Context, click *widget.Clickable, size unit.Dp, draw 
 // for through it is TWO pixels at one pixel per dp — a third heavier than the
 // 1.1 to 1.4 px the platform's own toolbar symbols measure — so the weight
 // multiplies by the metric instead and draws 1.5 px.
+//
+// It is drawn on the box's own coordinates, with nothing nudging it off them:
+// a chrome figure's band is replicated as the capture shows it and the
+// measurement wins over crispness (ruling of 2026-09-18). What that costs is
+// recorded rather than argued: at 24 px, black on white, the leading band of
+// this outline reads 137, 138 across two columns where the half-pixel nudge
+// CG5.3f spent read 225, 2, 225 across three, and the platform's own compose
+// symbol reads one column at its colour and 0.40 of the next
+// (notes-toolbar.png, mail-window.png). A stroke centred on the box's edge
+// cannot land that profile in either position; a band stated by its two edges
+// can, which is what components/icons draws its marks by.
 func PanelGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
 	stroke := markStroke(gtx)
-	defer op.Affine(f32.Affine2D{}.Offset(f32.Pt(markPhase, markPhase))).Push(gtx.Ops).Pop()
 	// The path runs 18 of the 24 units across and 13.5 down; the band it is
 	// stroked with spreads three quarters of a pixel past it on each side, so
 	// what is covered is the measured 19 × 15.
@@ -956,8 +971,8 @@ func PanelGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
 	}.Op())
 }
 
-// line is one straight segment as a path, the shape both chrome figures stroke
-// their bands as.
+// line is one straight segment as a path, the shape this window's chrome
+// figure strokes its seam as.
 func line(gtx layout.Context, a, b f32.Point) clip.PathSpec {
 	var p clip.Path
 	p.Begin(gtx.Ops)
@@ -966,53 +981,12 @@ func line(gtx layout.Context, a, b f32.Point) clip.PathSpec {
 	return p.End()
 }
 
-// markStroke is the weight both of this window's chrome figures are drawn at:
+// markStroke is the weight this window's own chrome figure is drawn at:
 // 1.5 px spent through the metric rather than through gtx.Dp, which would
-// round it up to two. See PanelGlyph.
+// round it up to two. See PanelGlyph. The new-chat figure is the design
+// system's own mark and takes the set's weight instead.
 func markStroke(gtx layout.Context) float32 {
 	return 1.5 * gtx.Metric.PxPerDp
-}
-
-// markPhase is how far a figure is nudged off whole coordinates so that the
-// band it is stroked with covers a whole pixel: half of one, which puts the
-// band's own centreline down a pixel's middle.
-//
-// It matters because this backend composites in LINEAR light. A band centred
-// on a whole coordinate straddles two pixels and reaches the mark's own colour
-// on neither — three quarters of a pixel's area comes out at about 55% of the
-// colour here — so the figure reads grey beside a label drawn in the same
-// colour. Centred on a pixel instead, a 1.5 px band covers that pixel whole
-// and a quarter of each neighbour: a figure with a core in the colour it was
-// given, which is what the platform's own symbols carry (Finder's list glyph
-// bottoms out at 77 on a #ffffff fill, controlText undiluted, where an
-// unphased band here bottoms out at 141).
-//
-// The nudge is spent on the leading edges and the far edges are drawn one
-// pixel short of the box, so the two land the same way and the figure still
-// centres where it was asked to stand: a nudge spent on every edge would put
-// the whole figure half a pixel low, which reads as a mark sitting under the
-// control's own middle.
-const markPhase = 0.5
-
-// PlusGlyph draws the new-chat figure: a plain cross of two bars on the
-// mark's own centre, at the weight PanelGlyph beside it is drawn at, so the
-// two controls of the sidebar switch's line carry one stroke.
-//
-// It is a painter rather than a prebuilt raster because it stands in a
-// control whose fill moves under the pointer: the foreground is flattened
-// onto that fill on the frame it is drawn, which a raster built once per
-// theme could not do.
-func PlusGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
-	stroke := markStroke(gtx)
-	defer op.Affine(f32.Affine2D{}.Offset(f32.Pt(markPhase, markPhase))).Push(gtx.Ops).Pop()
-	// The arms run to the keyline the design system's own set draws a square
-	// form to: three units in from every edge of a 24-unit grid, which is the
-	// 18 px a toolbar symbol's square form measures at 1x.
-	inset := float32(sizePx * 3 / 24)
-	end := float32(sizePx-1) - inset
-	mid := float32(sizePx)/2 - markPhase
-	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: line(gtx, f32.Pt(inset, mid), f32.Pt(end, mid)), Width: stroke}.Op())
-	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: line(gtx, f32.Pt(mid, inset), f32.Pt(mid, end)), Width: stroke}.Op())
 }
 
 // UndoBar renders the transient bottom-centre undo affordance while a

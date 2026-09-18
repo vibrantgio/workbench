@@ -61,6 +61,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
@@ -259,7 +260,18 @@ func chromeLead(hidden bool, buttonsEnd unit.Dp) unit.Dp {
 	if !hidden {
 		return chromeInsetDp
 	}
-	return desktop.BandLeadFrom(buttonsEnd, chromeGapDp, chromeInsetDp)
+	return stripLead(buttonsEnd)
+}
+
+// stripLead is where a band standing over the window's control buttons may
+// begin: their reported trailing edge plus the air the platform leaves after
+// them, and the row's own inset where the window has no such buttons.
+//
+// Both of this window's bands lead from it — the pane's strip while the pane
+// stands, the chrome row once it is away — so the two halves of each switch
+// stand in one window column whichever way the pane goes.
+func stripLead(buttonsEnd unit.Dp) unit.Dp {
+	return desktop.BandLeadFrom(buttonsEnd, pane.ButtonGapDp, chromeInsetDp)
 }
 
 // chatTitle draws the conversation the window is showing, which is the
@@ -317,7 +329,9 @@ func chatTitleText(name string) (string, titleVerdict) {
 // line, because the two are one switch.
 func (f *windowFrame) toggleControl(t themed) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		return sidebarToggle(gtx, t, &f.rowToggle, "Show the conversations")
+		// The pane is away wherever this half of the switch stands, which is
+		// the state the control draws: off.
+		return sidebarToggle(gtx, t, &f.rowToggle, "Show the conversations", false)
 	}
 }
 
@@ -330,18 +344,26 @@ func (f *windowFrame) newChatControl(t themed) layout.Widget {
 	}
 }
 
-// sidebarToggle draws one half of the sidebar switch: the [|] figure in a
-// square hit area, centred on the line of the row it stands in.
+// sidebarToggle draws one half of the sidebar switch: the [|] figure in the
+// platform's bordered toolbar control, centred on the line of the row it
+// stands in.
 //
 // The figure never morphs. What the control is about to do is in the label
 // it carries, which the screen reader speaks; a mark that changed with the
 // state would leave a reader guessing whether it shows the present state or
 // the next one, and the platform does not change this one either.
-func sidebarToggle(gtx layout.Context, t themed, click *widget.Clickable, label string) layout.Dimensions {
+//
+// What DOES say which way the switch stands is the control around the
+// figure: standing is the pane's own state, and a control that records a
+// state draws it as the platform draws the chosen segment of a segmented
+// control — a lighter patch inside the control's own box. So the reader sees
+// that the pane is on without the figure having to change into a second
+// drawing.
+func sidebarToggle(gtx layout.Context, t themed, click *widget.Clickable, label string, standing bool) layout.Dimensions {
 	for click.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
 	}
-	return controlBox(gtx, t, click, label, PanelGlyph)
+	return controlBox(gtx, t, click, label, PanelGlyph, standing)
 }
 
 // newChatMark draws one half of the new-chat action: the same plus figure
@@ -350,7 +372,8 @@ func newChatMark(gtx layout.Context, t themed, click *widget.Clickable) layout.D
 	for click.Clicked(gtx) {
 		mvu.MessageOp{Message: NewChat{}}.Add(gtx.Ops)
 	}
-	return controlBox(gtx, t, click, "New chat", PlusGlyph)
+	// New chat adds something; it records nothing, so it is never drawn on.
+	return controlBox(gtx, t, click, "New chat", icons.Mark(icons.Plus), false)
 }
 
 // controlBox stands one chrome mark in the platform's BORDERED TOOLBAR
@@ -364,11 +387,12 @@ func newChatMark(gtx layout.Context, t themed, click *widget.Clickable) layout.D
 // The box is what makes the two halves of a switch the same size: the pane's
 // strip and the chrome row both come through here, so the toggle is one
 // control wherever it stands.
-func controlBox(gtx layout.Context, t themed, click *widget.Clickable, label string, mark func(gtx layout.Context, sizePx int, col color.NRGBA)) layout.Dimensions {
+func controlBox(gtx layout.Context, t themed, click *widget.Clickable, label string, mark func(gtx layout.Context, sizePx int, col color.NRGBA), on bool) layout.Dimensions {
 	state := button.RenderState{
 		Hovered: click.Hovered(),
 		Pressed: click.Pressed(),
 		Focused: gtx.Focused(click),
+		Checked: on,
 	}
 	face := button.ChromeFace(mark, t.col, t.den, state)
 	// The shadow is cast AROUND the clickable rather than inside it: it falls

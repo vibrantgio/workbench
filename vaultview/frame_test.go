@@ -56,7 +56,7 @@ func goldenTokens() themeTokens {
 func TestToolbarDeclaresWindowDrag(t *testing.T) {
 	tok := goldenTokens()
 	rowW := 1100
-	rowH := int(toolbarHeight(tok))
+	rowH := int(toolbarHeight())
 
 	// The hidden row lays out past the buttons, which stand at the
 	// window's own inset in both rail states — so the probe pins the one
@@ -77,7 +77,7 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 		{
 			name: "rail hidden", hidden: true, lead: lead,
 			controls: []int{
-				lead + frameGapDp + railToggleMarkDp/2, // the show toggle
+				lead + railToggleWidthDp/2, // the show toggle
 			},
 		},
 	} {
@@ -303,7 +303,11 @@ func TestPaneStripClaimsInsideTheRail(t *testing.T) {
 	pane := f.geom.pane
 	stripY := float32(pane.Min.Y) + float32(paneStripDp)/2
 	middle := f32.Pt(float32(pane.Min.X+120), stripY)
-	toggle := f32.Pt(float32(pane.Max.X-railMarginDp-treeHideBoxDp/2), stripY)
+	// The toggle stands at the leading end of the band, directly after the
+	// window's control buttons, where the platform keeps it and where the
+	// chrome row keeps its own half of the switch — so the two halves are one
+	// window column apart from each other in no state at all.
+	toggle := f32.Pt(float32(goldenLeading)+float32(railToggleWidthDp)/2, stripY)
 
 	if a, ok := r.ActionAt(middle); !ok || a != system.ActionMove {
 		t.Errorf("no window-move action at %v; the strip's empty middle is the pane's drag handle", middle)
@@ -340,7 +344,7 @@ func TestTheRowRecallsTheHiddenPane(t *testing.T) {
 			var ops op.Ops
 			var r input.Router
 			gtx := layout.Context{
-				Constraints: layout.Exact(image.Pt(860, int(toolbarHeight(tok)))),
+				Constraints: layout.Exact(image.Pt(860, int(toolbarHeight()))),
 				Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 				Source:      r.Source(),
 				Ops:         &ops,
@@ -367,9 +371,11 @@ func TestTheRowRecallsTheHiddenPane(t *testing.T) {
 }
 
 // chromeBudgetDp is what the vault window may spend between its top edge
-// and its first row of content. Forty leaves the single chrome row its full
+// and its first row of content. It is the platform's toolbar band and
+// nothing more: 52, the depth every stored toolbar capture measures and the
+// depth patterns/pane cuts its strip to — the single chrome row's full
 // height and no room for a second thing above it.
-const chromeBudgetDp = 40
+const chromeBudgetDp = paneStripDp
 
 // TestChromeBudget holds the vault window's chrome to that budget, by
 // laying the whole window out at the size it opens at and asking the frame
@@ -378,7 +384,7 @@ const chromeBudgetDp = 40
 //
 // The chrome row belongs to the content area rather than spanning the
 // window, so the measurement is stated per column. The content area spends
-// the row's own height above its first document row (twenty-eight dp) and
+// the row's own height above its first document row — the band's 52 dp — and
 // no more. The sidebar column spends nothing at all: it starts at the
 // window's own top edge, and the assertion pins that so a band cannot creep
 // in above it.
@@ -391,7 +397,7 @@ func TestChromeBudget(t *testing.T) {
 	shown := goldenModel()
 	hidden := shown
 	hidden.SidebarHidden = true
-	row := int(toolbarHeight(goldenTokens()))
+	row := int(toolbarHeight())
 
 	for _, c := range []struct {
 		name  string
@@ -430,7 +436,7 @@ func TestChromeBudget(t *testing.T) {
 // a toast lands on the vault's own controls or floats a band below them,
 // which is the same class of defect as the band itself.
 func TestChromeHeightMatchesTheRow(t *testing.T) {
-	row := toolbarHeight(goldenTokens())
+	row := toolbarHeight()
 	// What the vault screen states on every emission that selects it: the
 	// chrome band is the row's height, and the buttons sit at the window's
 	// own inset.
@@ -547,8 +553,20 @@ func TestTheRailKeepsOneSeamAndNothingElse(t *testing.T) {
 						got, y, fill)
 				}
 			}
+			// The top edge is read past what the toolbar control standing in
+			// the band reaches: that control casts the platform's own drop
+			// shadow, and MEASURED (finder-window-light.png) the platform's
+			// band is still two 255ths down at the window's own top edge
+			// above one. The shadow is the control's and not a line between
+			// the rail and the window, so the columns it darkens are read
+			// out here and the rest of the edge is read whole.
+			shadowFrom := goldenLeading - toolbarShadowReachDp
+			shadowTo := goldenLeading + railToggleWidthDp + toolbarShadowReachDp
 			for x := 0; x < rail.Max.X-seamDp; x++ {
 				for _, y := range []int{0, windowH - 1} {
+					if y == 0 && x >= shadowFrom && x < shadowTo {
+						continue
+					}
 					if got := img.RGBAAt(x, y); !sameColor(got, fill) {
 						t.Fatalf("the rail draws %v at (%d,%d), want the chrome level %v — nothing stands between the rail and the window's top or bottom edge",
 							got, x, y, fill)
@@ -561,9 +579,9 @@ func TestTheRailKeepsOneSeamAndNothingElse(t *testing.T) {
 
 // TestTheAsideKeepsAPlainSeam reads the trailing column's boundary off the
 // same window: one hairline of the seam's own colour, on the column's
-// leading edge, running the window's full height — over the chrome row at
-// the top and the status bar at the foot, because the platform's split
-// seams are not interrupted by a band either.
+// leading edge, running from the toolbar band's lower edge to the window's
+// foot — the status bar included, which is not a band the window's columns
+// stop at, and the toolbar band excluded, which is.
 //
 // And the column is NOT outlined: it is integral chrome, fixed and
 // flush, so it has no edge of its own on the three sides it shares with
@@ -580,9 +598,18 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 			asideX := windowW - frameAsideDp
 			floor := chromeSurface(tc.colors)
 
-			for y := 0; y < windowH; y++ {
+			// The band is one across all three columns, so this boundary
+			// stops at its lower edge the way the rail's does: above that
+			// row the column's own fill runs on, and the seam starts under
+			// it.
+			for y := 0; y < paneStripDp; y++ {
+				if got := img.RGBAAt(asideX, y); sameColor(got, splitter.SeamColor(tc.colors, color.NRGBA{})) {
+					t.Fatalf("the column's seam is drawn at y=%d, inside the toolbar band — the band is one across the window's columns and no line crosses it", y)
+				}
+			}
+			for y := paneStripDp; y < windowH; y++ {
 				if got := img.RGBAAt(asideX, y); !sameColor(got, splitter.SeamColor(tc.colors, color.NRGBA{})) {
-					t.Fatalf("the column's seam at y=%d draws %v, want the seam %v — the seam stops where a band crosses it",
+					t.Fatalf("the column's seam at y=%d draws %v, want the seam %v — the seam runs from the band's foot to the window's",
 						y, got, splitter.SeamColor(tc.colors, color.NRGBA{}))
 				}
 				if got := img.RGBAAt(windowW-1, y); !sameColor(got, floor) {

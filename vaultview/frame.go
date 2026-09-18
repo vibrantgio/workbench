@@ -78,7 +78,6 @@ package main
 
 import (
 	"image"
-	"image/color"
 	"path"
 	"strings"
 
@@ -94,13 +93,13 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/icons"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/splitter"
-	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -121,10 +120,20 @@ const (
 	frameMinAsideDp = 160
 	frameMaxAsideDp = 640
 
-	// railToggleMarkDp is the square the sidebar control's mark takes.
-	// Both of the window's sidebar controls measure by it, so the two
-	// halves of one switch are the same size as well as the same figure.
-	railToggleMarkDp = markLargeDp
+	// railToggleWidthDp is the width the platform's bordered toolbar control
+	// takes around one symbol, which is what both halves of this window's
+	// sidebar switch are drawn as: the 24 dp mark box with the platform's
+	// measured 7 dp of clear band on each side. components/button draws it
+	// and owns the measurement; the number is named here because the window
+	// reasons about where its controls stand and what is beside them.
+	railToggleWidthDp = markLargeDp + 2*7
+
+	// toolbarShadowReachDp is how far the drop shadow a bordered toolbar
+	// control casts carries past it in the light appearance.
+	// components/button draws it and owns the measurement; the number is
+	// named here because the window's own assertions read the band around a
+	// control and have to know what the control reaches.
+	toolbarShadowReachDp = 23
 
 	// railMarginDp is the window's small edge margin: the air the rail's own
 	// top strip keeps between its toggle and the rail's trailing edge, and
@@ -172,12 +181,16 @@ const (
 // into any of them.
 var windowButtons = pane.Buttons
 
-// toolbarHeight is the chrome row's height: one LabelLarge line box with
-// the smallest spacing step above and below. It takes no control padding —
-// this is a title row, not a row of controls, and every dp it spends is a
-// dp the document does not get.
-func toolbarHeight(tok themeTokens) unit.Dp {
-	return unit.Dp(tok.typ.LabelLarge.LineHeight + 2*tok.sp.S1)
+// toolbarHeight is the chrome row's depth: the platform's toolbar band, 52
+// dp — a 36 dp control with 8 above it and 8 below — which is the depth every
+// stored toolbar capture measures and the depth patterns/pane cuts its own
+// top strip to. The row is what this window puts IN that band, so the band
+// settles its depth and the text standing in it does not.
+//
+// It takes no tokens: the band is the window's and the same in every density,
+// as the pane's strip beside it is.
+func toolbarHeight() unit.Dp {
+	return unit.Dp(paneStripDp)
 }
 
 // frameState is the vault frame's per-subscription state: the toolbar's
@@ -372,7 +385,7 @@ func frameGeometry(gtx layout.Context, size image.Point, railW unit.Dp, barH, fo
 // the ring can stop on.
 func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as, main layout.Widget) layout.Dimensions {
 	size := gtx.Constraints.Max
-	barH := gtx.Dp(toolbarHeight(tok))
+	barH := gtx.Dp(toolbarHeight())
 	if barH > size.Y {
 		barH = size.Y
 	}
@@ -439,19 +452,9 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 
 	if main != nil && g.rowH > 0 {
 		st := op.Offset(image.Pt(g.contentX, g.rowTop)).Push(gtx.Ops)
-		// What the chrome row's content hangs below the row is clipped out
-		// of the note, which is drawn after the row and would otherwise
-		// repaint the hanging part away with its own fill. Nothing is
-		// lost by the clip: that fill is the window's own surface, already
-		// painted under everything, and the note's first painted row is a full
-		// margin below the row — the band the clip takes is bare either
-		// way.
-		over := min(buttonLineDrop(gtx, barH), g.rowH)
-		clipped := clip.Rect(image.Rect(0, over, mainW, g.rowH)).Push(gtx.Ops)
 		mgtx := gtx
 		mgtx.Constraints = layout.Exact(image.Pt(mainW, g.rowH))
 		main(mgtx)
-		clipped.Pop()
 		st.Pop()
 	}
 
@@ -482,7 +485,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		f.layoutRailSplitter(gtx, tok, size, g)
 	}
 	if asidePx > 0 {
-		f.asideSplitter.Layout(gtx, f.asideProps(gtx, tok, size, g))
+		f.layoutAsideSplitter(gtx, tok, size, g)
 	}
 
 	// What this frame arranged, offered to the memory that keeps it —
@@ -602,6 +605,28 @@ func (f *frameState) layoutRailSplitter(gtx layout.Context, tok themeTokens, siz
 	st.Pop()
 }
 
+// layoutAsideSplitter draws the trailing boundary from the toolbar band's
+// lower edge to the window's foot. The band is one across the window's
+// columns and no line crosses it — pane.SeamTop is the row it stops on — so
+// the trailing boundary stops there as the rail's does, and the band reads as
+// one across all three columns.
+func (f *frameState) layoutAsideSplitter(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) {
+	top := pane.SeamTop(gtx, image.Rectangle{Max: size})
+	h := size.Y - top
+	if h <= 0 {
+		return
+	}
+	props := f.asideProps(gtx, tok, size, g)
+	// The hand-hold is stated in window rows and this splitter is laid out
+	// from the band's foot, so the span moves with the origin.
+	props.HitSpan = splitter.Span{Min: g.rowTop - top, Max: g.rowTop + g.rowH - top}
+	st := op.Offset(image.Pt(0, top)).Push(gtx.Ops)
+	sgtx := gtx
+	sgtx.Constraints = layout.Exact(image.Pt(size.X, h))
+	f.asideSplitter.Layout(sgtx, props)
+	st.Pop()
+}
+
 // asideProps states the splitter on the trailing column's leading edge.
 //
 // That column is INTEGRAL CHROME — fixed, flush, with no toggle and no
@@ -621,10 +646,11 @@ func (f *frameState) layoutRailSplitter(gtx layout.Context, tok themeTokens, siz
 // Voice Memos' two panes are the SAME fill and the seam is the whole of
 // what parts them.
 //
-// The line runs the window's whole height and the hand-hold does not. The
-// bands above and below the columns are the window's own — one carries
-// the window's drag, the other reports on the document — and neither is
-// resized by this boundary, so the hold is the document row alone.
+// The line runs from the toolbar band's lower edge to the window's foot, and
+// the hand-hold is shorter still. The bands above and below the columns are
+// the window's own — one carries the window's drag, the other reports on the
+// document — and neither is resized by this boundary, so the hold is the
+// document row alone.
 //
 // The bounds are the aside's own, and the note's floor over them.
 func (f *frameState) asideProps(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) splitter.Props {
@@ -690,11 +716,11 @@ func clampAside(w unit.Dp) unit.Dp {
 func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens, lead unit.Dp) layout.Dimensions {
 	children := make([]layout.FlexChild, 0, 10)
 	if lead > 0 {
-		// The window controls' own space is left alone: a move action
-		// declared over the buttons would fight them for the press.
-		children = append(children,
-			layout.Rigid(complayout.HSpacer(float32(lead))),
-			layout.Rigid(dragSpacer(frameGapDp)))
+		// The window controls' own space is left alone, and so is the air
+		// the platform leaves after them, which the lead already carries: a
+		// move action declared over the buttons would fight them for the
+		// press.
+		children = append(children, layout.Rigid(complayout.HSpacer(float32(lead))))
 	} else {
 		// The row's own edge inset is the note column's, not a smaller one
 		// of its own, so the vault's name stands directly over the
@@ -704,72 +730,38 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 	if m.SidebarHidden {
 		children = append(children,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return onButtonLine(gtx, func(gtx layout.Context) layout.Dimensions {
-					return f.layoutRailToggle(gtx, m, tok)
-				})
+				return f.layoutRailToggle(gtx, m, tok)
 			}),
 			layout.Rigid(dragSpacer(unit.Dp(tok.sp.S3))))
 	}
 	children = append(children,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return onButtonLine(gtx, func(gtx layout.Context) layout.Dimensions {
-				return f.layoutVaultName(gtx, m, tok)
-			})
+			return f.layoutVaultName(gtx, m, tok)
 		}),
 		layout.Flexed(1, dragFill),
 		// The trailing inset is the backlinks column's own: the row ends
 		// where the column under it ends.
 		layout.Rigid(dragSpacer(asideInsetDp)))
-	// Each child places itself down the row rather than the row placing
-	// them all: the drag spans take the row's own height, and what the
-	// reader can see stands on the window buttons' line, which is lower.
-	// A row that centred its children on one another would drag whichever
-	// is shorter off that line.
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Start}.Layout(gtx, children...)
+	// The row centres what it holds. Its depth IS the band's, and the band
+	// puts the window buttons on its own middle, so a control centred in the
+	// row stands on the buttons' line without being told to: the 8 dp the
+	// platform leaves above a toolbar control and the 8 below it fall out of
+	// the arithmetic. Nothing hangs past the row's foot any more, which is
+	// what the note column below it used to be clipped for.
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
 }
 
-// onButtonLine stands w in a row-deep box whose middle is the window
-// buttons' centre line, rather than the chrome row's own middle.
+// toolbarLeading is where the band's own content may start: the trailing
+// edge of the window's control buttons plus the air the platform leaves
+// after them, and the ordinary edge inset where the window has no such
+// buttons.
 //
-// Everything in the row that draws anything takes it. The row is one line box
-// deep and the buttons centre below that, so content centred on the row
-// itself would stand a dozen dp above the buttons beside it — and would
-// move the sidebar mark by those same dozen every time the pane came and
-// went, the pane's own toggle being on the buttons' line already.
-//
-// The box keeps the row's depth, so what stands in it stays as pressable;
-// only where that depth sits changes. It ends below the row's foot: the
-// row's height is what the content area puts above its first document row,
-// and moving what stands in the row may not spend more of it.
-func onButtonLine(gtx layout.Context, w layout.Widget) layout.Dimensions {
-	h := gtx.Constraints.Max.Y
-	cgtx := gtx
-	cgtx.Constraints.Min.Y, cgtx.Constraints.Max.Y = h, h
-	mac := op.Record(gtx.Ops)
-	dims := w(cgtx)
-	call := mac.Stop()
-	top := buttonLineDrop(gtx, h)
-	defer op.Offset(image.Pt(0, top)).Push(gtx.Ops).Pop()
-	call.Add(gtx.Ops)
-	return layout.Dimensions{Size: image.Pt(dims.Size.X, top+max(dims.Size.Y, h))}
-}
-
-// buttonLineDrop is how far the chrome row's content stands below where
-// the row's own middle would have put it: from that middle down to the
-// window buttons' centre line. The box the content stands in is as deep
-// as the row, so the same number is how far the content hangs past the
-// row's foot.
-func buttonLineDrop(gtx layout.Context, rowH int) int {
-	return max(gtx.Dp(windowButtons.Center)-rowH/2, 0)
-}
-
-// toolbarLeading is where the row's own content may start: the trailing
-// edge of the window's control buttons where the platform puts them in
-// the content area, and the ordinary edge inset where it does not. The
-// row asks for no air past the buttons — it holds its things at the edge
-// inset it holds everything at, and the buttons are one of its things.
+// Both halves of the window's sidebar switch lead from it — the pane's strip
+// while the rail stands, the chrome row once it is away — so the control
+// lands on one window column whichever way the rail goes. A control that
+// moved when the rail went would be a control that moves under the pointer.
 func toolbarLeading() unit.Dp {
-	return desktop.BandLead(0, frameEdgeDp)
+	return desktop.BandLead(pane.ButtonGapDp, frameEdgeDp)
 }
 
 // dragSpacer is a fixed-width gap in the chrome row that moves the window
@@ -817,7 +809,7 @@ func vaultName(m Model) string {
 }
 
 // layoutRailToggle draws the chrome row's show control, which stands only
-// while the rail is away: the same mark the pane wears.
+// while the rail is away: the same control the pane wears.
 func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
 	if f.toggleClick.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
@@ -826,9 +818,7 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 	if m.SidebarHidden {
 		label = "Show the folder rail"
 	}
-	return f.toggleClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return railToggleMark(gtx, tok, tok.col.TextBackground, label)
-	})
+	return railToggleControl(gtx, tok, &f.toggleClick, label)
 }
 
 // railToggleMark draws the sidebar control's figure, taken from the
@@ -852,20 +842,30 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 // Both of the window's sidebar controls take it — the one in the pane's
 // top strip and the one the chrome row shows once the pane is gone — so
 // that the two halves of the same switch are one figure and not two.
-// standsOn is the fill the mark is drawn over: the rail's own where the
-// pane's strip carries it, the content's where the chrome row does. The
-// mark's colour carries a coverage, so it is flattened onto that fill and
-// Gio is handed an opaque colour.
-func railToggleMark(gtx layout.Context, tok themeTokens, standsOn color.NRGBA, label string) layout.Dimensions {
-	semantic.LabelOp(label).Add(gtx.Ops)
-	semantic.EnabledOp(true).Add(gtx.Ops)
-	pointer.CursorPointer.Add(gtx.Ops)
-	w := gtx.Dp(unit.Dp(railToggleMarkDp))
-	// The mark is centred in a row-tall box, so the whole height of the
-	// row it stands in is pressable rather than the mark alone.
-	boxH := max(gtx.Constraints.Max.Y, w)
-	st := op.Offset(image.Pt(0, (boxH-w)/2)).Push(gtx.Ops)
-	drawMark(gtx, icons.Sidebar, railToggleMarkDp, vgcolor.Flatten(tok.col.SecondaryLabel, standsOn))
-	st.Pop()
-	return layout.Dimensions{Size: image.Pt(w, boxH)}
+//
+// The figure stands in the platform's BORDERED TOOLBAR CONTROL: a capsule at
+// the toolbar control's measured height with the mark centred in it, its
+// fill, its rim where the platform draws one, and the drop shadow it casts on
+// the band. Every mark standing in this window's band is that control, the
+// sidebar-side one included — `notes-window.png` and `reminders-window.png`
+// draw their sidebar-side marks bare and `voicememos-window.png` draws its
+// sidebar toggle in a full capsule, and where the platform's own windows
+// split the library draws the bordered one.
+func railToggleControl(gtx layout.Context, tok themeTokens, click *widget.Clickable, label string) layout.Dimensions {
+	state := button.RenderState{
+		Hovered: click.Hovered(),
+		Pressed: click.Pressed(),
+		Focused: gtx.Focused(click),
+	}
+	face := button.ChromeFace(icons.Mark(icons.Sidebar), tok.col, tok.den, state)
+	// The shadow is cast AROUND the clickable: it falls outside the control's
+	// own box, and a clickable clips what it wraps to the box it reports.
+	return button.ChromeShadow(gtx, tok.col, state, func(gtx layout.Context) layout.Dimensions {
+		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			semantic.ClassOp(semantic.Button).Add(gtx.Ops)
+			semantic.LabelOp(label).Add(gtx.Ops)
+			semantic.EnabledOp(true).Add(gtx.Ops)
+			return face(gtx)
+		})
+	})
 }

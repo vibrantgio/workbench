@@ -263,7 +263,7 @@ func routedLayer(
 			placeWindowButtons(buttonPlacementFor(m))
 			return t.Second
 		}
-		row := toolbarHeight(loadTok())
+		row := toolbarHeight()
 		topBand.Store(row)
 		placeWindowButtons(buttonPlacementFor(m))
 		return t.Third

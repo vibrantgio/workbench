@@ -77,7 +77,6 @@ const (
 	// lines down the rail — which is the whole of what makes the field read
 	// as part of the column rather than as a panel set into it.
 	treeFieldPadDp = treeRowInsetDp
-	treeHideBoxDp  = 24 // the pane's own hide control: a square hit area
 	treeFootPadDp  = 10 // breathing room above and below the foot's actions
 	treeFootGapDp  = 8  // gap between the foot's two controls
 )
@@ -272,8 +271,10 @@ type paneGeom struct {
 	foot image.Rectangle
 }
 
-// buttonEdge is where the pane's own top strip may start drawing: past
-// the window buttons that now stand inside it.
+// buttonEdge is where the pane's own top strip may start drawing: past the
+// window buttons that now stand inside it, and past the air the platform
+// leaves after them. It is the chrome row's own lead, so the two halves of
+// the window's sidebar switch stand in one column.
 func (v *treeView) buttonEdge() unit.Dp {
 	if v.leading != nil {
 		return v.leading()
@@ -511,39 +512,34 @@ func footAction(click *widget.Clickable, label string, tok themeTokens) layout.W
 
 // topStrip is the band the pane keeps clear under the window's control
 // buttons now that the top of the window is the pane's: their space at
-// the leading end, left untouched, the pane's own toggle at the trailing
-// corner, and between the two a stretch that moves the window. Under the
+// the leading end, left untouched, this pane's own toggle directly after
+// it, and a stretch that moves the window filling the rest. Under the
 // full-size-content treatment the native title bar hands over no drag, so
 // a pane that owns the top of the window owes the reader one.
 func (v *treeView) topStrip(gtx layout.Context, tok themeTokens) layout.Dimensions {
-	// The band is the pattern's: the buttons' span skipped at the leading
-	// end (a move action over them would fight them for the press), the
-	// window's drag across the middle, and this pane's one control at the
-	// trailing corner. What the rail supplies is the measurement of where
-	// the buttons end — a window fact — and the control itself.
+	// The band is the pattern's: the leading run skipped (a move action over
+	// the buttons would fight them for the press), this pane's one control
+	// standing at the leading end of the band where the platform keeps it,
+	// and the window's drag after it. What the rail supplies is the
+	// measurement of where that run ends — a window fact — and the control
+	// itself.
 	return pane.Strip(gtx, v.buttonEdge(), func(gtx layout.Context) layout.Dimensions {
 		return v.hideControl(gtx, tok)
 	})
 }
 
-// hideControl is the pane's own way to put itself away, at the pane's
-// top-right corner — where the platform's own sidebars keep it. The
-// chrome row's toggle is what brings the pane back once it is gone: a
-// control that travels with the pane cannot be the one that recalls it,
-// so the two are the two halves of one switch rather than duplicates of
-// one control, and they wear one figure to say so.
+// hideControl is the pane's own way to put itself away, at the leading end
+// of the band — where voicememos-window.png keeps its sidebar toggle, and the
+// one window column the chrome row's own half of the switch stands in once
+// the pane is gone. The chrome row's toggle is what brings the pane back: a
+// control that travels with the pane cannot be the one that recalls it, so
+// the two are the two halves of one switch rather than duplicates of one
+// control, and they wear one figure, one control and one column to say so.
 func (v *treeView) hideControl(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	if v.hideClick.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
 	}
-	return v.hideClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		box := gtx.Dp(treeHideBoxDp)
-		cgtx := gtx
-		cgtx.Constraints = layout.Exact(image.Pt(box, max(gtx.Constraints.Max.Y, box)))
-		return layout.Center.Layout(cgtx, func(gtx layout.Context) layout.Dimensions {
-			return railToggleMark(gtx, tok, chromeSurface(tok.col), "Hide the folder rail")
-		})
-	})
+	return railToggleControl(gtx, tok, &v.hideClick, "Hide the folder rail")
 }
 
 // rows lays out the row region below the find field.
