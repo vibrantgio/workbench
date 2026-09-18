@@ -12,7 +12,6 @@ import (
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
-	"gioui.org/f32"
 	"gioui.org/font"
 	"gioui.org/io/event"
 	"gioui.org/layout"
@@ -924,69 +923,6 @@ func IconButton(gtx layout.Context, click *widget.Clickable, size unit.Dp, draw 
 		draw(gtx, sz)
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	})
-}
-
-// PanelGlyph draws the [|] sidebar-toggle figure with clip paths (the
-// patterns convention for chrome glyphs): a rounded outline with a seam a
-// third of the way in.
-//
-// MEASURED at 1x, voicememos-window.png, the sidebar toggle standing in that
-// window's toolbar: its covered extent is 19 × 15 px inside a control 36 px
-// tall — the drawing fills 18 of the 24 units its box is handed across, which
-// is the keyline the design system's own set draws a square form to, and 15
-// of them down.
-//
-// The band is spent in pixels. gtx.Dp rounds to a whole one, so 1.5 dp asked
-// for through it is TWO pixels at one pixel per dp — a third heavier than the
-// 1.1 to 1.4 px the platform's own toolbar symbols measure — so the weight
-// multiplies by the metric instead and draws 1.5 px.
-//
-// It is drawn on the box's own coordinates, with nothing nudging it off them:
-// a chrome figure's band is replicated as the capture shows it and the
-// measurement wins over crispness (ruling of 2026-09-18). What that costs is
-// recorded rather than argued: at 24 px, black on white, the leading band of
-// this outline reads 137, 138 across two columns where the half-pixel nudge
-// CG5.3f spent read 225, 2, 225 across three, and the platform's own compose
-// symbol reads one column at its colour and 0.40 of the next
-// (notes-toolbar.png, mail-window.png). A stroke centred on the box's edge
-// cannot land that profile in either position; a band stated by its two edges
-// can, which is what components/icons draws its marks by.
-func PanelGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
-	stroke := markStroke(gtx)
-	// The path runs 18 of the 24 units across and 13.5 down; the band it is
-	// stroked with spreads three quarters of a pixel past it on each side, so
-	// what is covered is the measured 19 × 15.
-	inset := sizePx * 3 / 24
-	vin := sizePx * 52 / 240
-	r := image.Rect(inset, vin, sizePx-inset-1, sizePx-vin-1)
-	rr := clip.RRect{Rect: r, NW: sizePx / 6, NE: sizePx / 6, SW: sizePx / 6, SE: sizePx / 6}
-	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: rr.Path(gtx.Ops), Width: stroke}.Op())
-	// The seam is stroked rather than filled as a rectangle, so it comes out
-	// at the same 1.5 px the outline does: a whole-pixel rectangle beside a
-	// 1.5 px outline reads as two weights in one figure.
-	x := float32(r.Min.X) + float32(r.Dx())/3
-	paint.FillShape(gtx.Ops, col, clip.Stroke{
-		Path:  line(gtx, f32.Pt(x, float32(r.Min.Y)), f32.Pt(x, float32(r.Max.Y))),
-		Width: stroke,
-	}.Op())
-}
-
-// line is one straight segment as a path, the shape this window's chrome
-// figure strokes its seam as.
-func line(gtx layout.Context, a, b f32.Point) clip.PathSpec {
-	var p clip.Path
-	p.Begin(gtx.Ops)
-	p.MoveTo(a)
-	p.LineTo(b)
-	return p.End()
-}
-
-// markStroke is the weight this window's own chrome figure is drawn at:
-// 1.5 px spent through the metric rather than through gtx.Dp, which would
-// round it up to two. See PanelGlyph. The new-chat figure is the design
-// system's own mark and takes the set's weight instead.
-func markStroke(gtx layout.Context) float32 {
-	return 1.5 * gtx.Metric.PxPerDp
 }
 
 // UndoBar renders the transient bottom-centre undo affordance while a

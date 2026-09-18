@@ -344,9 +344,15 @@ func (f *windowFrame) newChatControl(t themed) layout.Widget {
 	}
 }
 
-// sidebarToggle draws one half of the sidebar switch: the [|] figure in the
-// platform's bordered toolbar control, centred on the line of the row it
-// stands in.
+// sidebarToggle draws one half of the sidebar switch: the design system's own
+// sidebar mark in the platform's bordered toolbar control, centred on the line
+// of the row it stands in.
+//
+// The mark comes from components/icons under the name of the control it
+// belongs to, so a Mac user sees the pane and list lines that platform draws
+// and every other platform sees the neutral pane, from one name here. Both
+// halves of the switch come through this function, so the name is asked for
+// once and the two stand as one figure.
 //
 // The figure never morphs. What the control is about to do is in the label
 // it carries, which the screen reader speaks; a mark that changed with the
@@ -363,7 +369,7 @@ func sidebarToggle(gtx layout.Context, t themed, click *widget.Clickable, label 
 	for click.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
 	}
-	return controlBox(gtx, t, click, label, PanelGlyph, standing)
+	return controlBox(gtx, t, click, label, icons.Mark(icons.Sidebar), standing)
 }
 
 // newChatMark draws one half of the new-chat action: the same plus figure

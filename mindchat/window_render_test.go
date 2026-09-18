@@ -25,6 +25,7 @@ import (
 	"flag"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -430,4 +431,52 @@ func TestTheRailRunsToTheWindowsEdges(t *testing.T) {
 			}
 		})
 	}
+}
+
+// switchBand is the run of the toolbar band the sidebar switch stands in: the
+// window's control buttons and the two controls that follow them, at the
+// band's full height. It is the leading end of the band in either pane state,
+// which is the point — the two halves of the switch stand in one window
+// column whichever way the pane goes.
+var switchBand = image.Rect(0, 0, 200, 52)
+
+// TestTheSidebarSwitchGolden pins the sidebar switch itself: the control that
+// puts the pane away and the control that brings it back, drawn at the same
+// size on the same line in the same window column, in both schemes.
+//
+// It is a crop of the whole-window frame rather than a render of the control
+// alone, because what is being pinned is the switch in its band — the mark
+// centred in the platform's bordered toolbar control, the chosen segment's
+// patch that says the pane stands, and the air the control leaves after the
+// window's buttons. The whole-window frames above are compositions for a pair
+// of eyes and store nothing; this stores the one run of them a change to the
+// switch has to move.
+func TestTheSidebarSwitchGolden(t *testing.T) {
+	saved := windowButtonsEnd
+	defer func() { windowButtonsEnd = saved }()
+	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
+
+	for _, tc := range schemes {
+		for _, st := range []struct {
+			name   string
+			hidden bool
+		}{{"pane", false}, {"hidden", true}} {
+			name := "switch-" + tc.name + "-" + st.name
+			t.Run(name, func(t *testing.T) {
+				m := demoModel()
+				m.SidebarHidden = st.hidden
+				full := dumpFrame(t, "", withWindowControls(frame(t, tc.c, m)))
+				golden.Compare(t, name, crop(full, switchBand))
+			})
+		}
+	}
+}
+
+// crop copies r out of img into an image of its own, at the origin: a golden
+// is compared by its bounds as well as its pixels, and a sub-image carries the
+// offset it was cut at.
+func crop(img *image.RGBA, r image.Rectangle) *image.RGBA {
+	out := image.NewRGBA(image.Rectangle{Max: r.Size()})
+	draw.Draw(out, out.Bounds(), img, r.Min, draw.Src)
+	return out
 }
