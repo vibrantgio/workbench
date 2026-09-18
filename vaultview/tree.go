@@ -601,10 +601,11 @@ func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, siz
 		name = icons.Folder
 	}
 	// The mark fills the square the row keeps for it, so the drawing comes
-	// out at the platform's own weight: the set's axis-aligned keyline is 18
-	// of 24 against the folder symbol's measured 20 across, and its band 1.5
-	// against the measured 1.37 to 1.50. A mark drawn at the size a mark
-	// beside text takes would come out 12 across on a hairline.
+	// out at the platform's own weight: the set's square keyline is 19 of 24
+	// against the folder symbol's measured 20 across, and its one measured
+	// band of 1.4 stands inside that symbol's own 1.37 to 1.50. A mark drawn
+	// at the size a mark beside text takes would come out 12 across on a
+	// hairline.
 	box := gtx.Dp(sidebar.SymbolBox)
 	fg := vgcolor.Flatten(tok.col.Label, surface)
 	if filled {

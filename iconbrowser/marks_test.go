@@ -128,16 +128,27 @@ func drawnCount(mask []bool) int {
 	return n
 }
 
-// agreement is the fraction of the two masks' cells that decide alike. Both
-// must describe a square of side n.
-func agreement(a, b []bool, n int) float64 {
-	same := 0
+// agreement is how much of the two masks' DRAWN cells decide alike: the cells
+// both set, over the cells either sets. Counting the empty square with them
+// would make any two sparse drawings agree — the icon set's one measured band
+// puts a chevron at 24 dp on a little over a dozen cells of five hundred and
+// seventy-six, so emptiness alone would answer 96 per cent for two marks that
+// share nothing.
+func agreement(a, b []bool, _ int) float64 {
+	both, either := 0, 0
 	for i := range a {
-		if a[i] == b[i] {
-			same++
+		switch {
+		case a[i] && b[i]:
+			both++
+			either++
+		case a[i] || b[i]:
+			either++
 		}
 	}
-	return float64(same) / float64(n*n)
+	if either == 0 {
+		return 0
+	}
+	return float64(both) / float64(either)
 }
 
 // turnedClockwise is the mask a quarter turn about the square's centre produces:
@@ -180,6 +191,12 @@ func drawnColumns(img *image.RGBA, r image.Rectangle, fill, glyph color.NRGBA) (
 // a mark that came out the same either way would make the first half vacuous.
 func TestTheTurnedCellDrawsTheOpenRendition(t *testing.T) {
 	n := int(MarkBand)
+	// The floor is "the cell drew the mark at all", not a count the drawing
+	// owes. A chevron at 24 dp is two arms a little over nine units long at
+	// the icon set's one measured band of 1.4 units, so the pixels standing
+	// past half way from the fill to the glyph are a little over a dozen;
+	// half the square's side is well under that and well over nothing.
+	drawn := n / 2
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := markCellFrame(t, tc.c, TurnedMark)
@@ -187,10 +204,10 @@ func TestTheTurnedCellDrawsTheOpenRendition(t *testing.T) {
 
 			closed := drawnMask(img, squareAt(true, len(MarkSizes)-1), p.Backdrop, p.Icon)
 			turned := drawnMask(img, squareAt(true, len(MarkSizes)), p.Backdrop, p.Icon)
-			if got := drawnCount(closed); got < n {
+			if got := drawnCount(closed); got < drawn {
 				t.Fatalf("the closed drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
 			}
-			if got := drawnCount(turned); got < n {
+			if got := drawnCount(turned); got < drawn {
 				t.Fatalf("the turned drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
 			}
 			if got := agreement(turnedClockwise(closed, n), turned, n); got < 0.95 {
