@@ -108,7 +108,6 @@ import (
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/splitter"
-	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -1146,10 +1145,13 @@ func railToggleControl(gtx layout.Context, tok themeTokens, click *widget.Clicka
 //
 // The foreground is the same name the bordered control's mark reads in, so
 // the two halves of one switch are one figure in one colour whichever side
-// of the window they stand on.
+// of the window they stand on: what a toolbar draws its own glyphs in.
+// MEASURED, voicememos-multi-folder-2026-09-18.png: the panel's own bare
+// marks reach #4b4b4b at their darkest, a floor a 1 px stroke at 1x cannot
+// pass, against the #4d4d4d the band's own glyphs plateau at.
 func paneMark(gtx layout.Context, tok themeTokens, click *widget.Clickable, name icons.Name, label string) layout.Dimensions {
 	box := gtx.Dp(unit.Dp(markLargeDp))
-	fg := vgcolor.Flatten(tok.col.ControlText, chromeSurface(tok.col))
+	fg := tok.col.ToolbarLabel
 	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		semantic.ClassOp(semantic.Button).Add(gtx.Ops)
 		semantic.LabelOp(label).Add(gtx.Ops)

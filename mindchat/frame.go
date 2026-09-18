@@ -70,7 +70,6 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
-	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/typeset"
 )
 
@@ -411,15 +410,15 @@ func newChatMark(gtx layout.Context, t themed, click *widget.Clickable) layout.D
 //
 // The foreground is the same name [controlBox] reads its mark in, so the two
 // halves of one switch are one figure in one colour whichever side of the
-// window they stand on. The panel's half records no state: it stands only
-// while the panel does, and a mark with nothing around it has nowhere to
-// draw the chosen patch.
+// window they stand on: what a toolbar draws its own glyphs in. The panel's
+// half records no state: it stands only while the panel does, and a mark with
+// nothing around it has nowhere to draw the chosen patch.
 func paneMark(gtx layout.Context, t themed, click *widget.Clickable, name icons.Name, label string, msg any) layout.Dimensions {
 	for click.Clicked(gtx) {
 		mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 	}
 	box := gtx.Dp(paneMarkDp)
-	fg := vgcolor.Flatten(t.col.ControlText, pane.Surface(t.col))
+	fg := t.col.ToolbarLabel
 	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		semantic.ClassOp(semantic.Button).Add(gtx.Ops)
 		semantic.LabelOp(label).Add(gtx.Ops)
