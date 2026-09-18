@@ -40,8 +40,8 @@ type notePad struct {
 	ops  op.Ops
 	size image.Point
 
-	propClick, backClick, fwdClick widget.Clickable
-	trail                          breadcrumb.TrailLayout
+	propClick widget.Clickable
+	trail     breadcrumb.TrailLayout
 
 	// rival is a second focusable target standing for the find field and the
 	// folder rail: anything else in the window that can hold the keyboard.
@@ -88,7 +88,7 @@ func (p *notePad) frame() {
 		Ops:         &p.ops,
 		Source:      p.r.Source(),
 	}
-	layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, p.trail, &p.read,
+	layoutNotePage(gtx, p.m, p.tok, &p.propClick, p.trail, &p.read,
 		&p.arr, &p.cur, func(Model, *Note) *markdown.Document { return p.doc }, &p.find)
 	// The rival is registered over nothing, in the corner: it exists to hold
 	// the keyboard, not to be seen.
@@ -129,7 +129,7 @@ func (p *notePad) clickInDocument() {
 func (p *notePad) shot(t *testing.T) *image.RGBA {
 	t.Helper()
 	return golden.Capture(t, p.size, func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.backClick, &p.fwdClick, p.trail, &p.read,
+		return layoutNotePage(gtx, p.m, p.tok, &p.propClick, p.trail, &p.read,
 			&p.arr, &p.cur, func(Model, *Note) *markdown.Document { return p.doc }, &p.find)
 	})
 }
@@ -166,10 +166,14 @@ func (p *notePad) blankHead(img *image.RGBA) int {
 		}
 		return false
 	}
+	// The row's own edge is the pinned seam under it, which is the last
+	// thing the column pins and the line the document's viewport begins on.
 	y := 0
-	for ; y < p.size.Y && !drawn(y); y++ { // the page above the row
-	}
-	for ; y < p.size.Y && drawn(y); y++ { // the row's own paint
+	for seam := pinnedSeamRows(img, p.tok.col, 0, p.size.X, 0, p.size.Y); y < p.size.Y; y++ {
+		if seam[y] {
+			y++
+			break
+		}
 	}
 	n := 0
 	for ; y < p.size.Y && !drawn(y); y++ {
@@ -575,8 +579,20 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 			// inset, which is the same number, so nothing of the page is
 			// read out with it.
 			scanLo := regionLo + int(pane.ShadowReachDp)
+			// The rows read are the document's own: below the reach of the
+			// band's drop shadows — the band's controls stand over this
+			// column at both ends and cast onto it, which the platform does
+			// not cut off at the band's foot — and above the status bar.
+			// The column's own pinned seam runs its whole width, which is
+			// wider than any block in the document, so its rows are read out
+			// too.
+			scanTop, scanBot := st.geom.rowTop+toolbarShadowReachDp, st.geom.footTop
+			seamRows := pinnedSeamRows(img, tc.colors, scanLo, regionHi+1, scanTop, scanBot)
 			blockLo, blockHi := -1, -1
-			for y := 0; y < size.Y; y++ {
+			for y := scanTop; y < scanBot; y++ {
+				if seamRows[y] {
+					continue
+				}
 				lo, hi := -1, -1
 				for x := scanLo; x <= regionHi; x++ {
 					if img.RGBAAt(x, y) != rgba(page) {

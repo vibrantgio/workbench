@@ -8,7 +8,9 @@
 // the strip holding the controls that act on the document, and a window's
 // search is one of them: mail-window.png and voicememos-window.png both keep
 // a search recess at the trailing end of the band, and finder-window-light.png
-// keeps a magnifier capsule there that expands into one.
+// keeps a magnifier capsule there that expands into one. The band keeps the
+// expanded width whichever state the find is in, so the recess grows leftward
+// from a fixed trailing end and no control in front of it moves.
 
 package main
 
@@ -24,7 +26,6 @@ import (
 
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/markdown"
-	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -36,18 +37,15 @@ const (
 	// shortcut with Shift, the platform's place for the wider of two finds.
 	findKey key.Name = "F"
 
-	// findFieldDp is how wide the band's find field lays out: the width the
+	// findFieldDp is how wide the band's find field lays out, and so how wide
+	// the band's find SLOT is whether the find is open or shut: the width the
 	// rail's own find field takes, so a search field is one size in this
-	// window. The platform's own toolbar recess measures 325 px in both
-	// stored captures that hold one (voicememos-window.png,
-	// mail-window.png), which is wider than this window's trailing column;
-	// what is kept here is the window's one size for a search field.
+	// window. It is within three of the 223 px
+	// finder-window-untinted-dark.png measures its own expanded field at
+	// (x 1100-1322). The platform's own resting toolbar recess measures 325
+	// in both stored captures that hold one (voicememos-window.png,
+	// mail-window.png), which is wider than this window's trailing column.
 	findFieldDp = treeWidthDp - 2*treeFieldPadDp
-
-	// findCountGapDp is the air between the field and what it says it has
-	// found: the pad the rail keeps around its own find field, which is the
-	// tightest stop of the scale this window spends beside a control.
-	findCountGapDp = treeFieldPadDp
 )
 
 // findFieldSurface is the fill the find field stands on: the trailing end of
@@ -198,9 +196,16 @@ func (f *pageFind) apply(doc *markdown.Document, note string) []float32 {
 	return places
 }
 
-// label is what the field says about the query beside it: which match the
+// label is what the field says about the query it holds: which match the
 // reader is on out of how many there are, and that there are none when the
 // note holds none. A field with nothing typed in it says nothing.
+//
+// It stands INSIDE the field at its trailing end, leading of the clear mark,
+// which is where a search field on this platform reports what it has found:
+// voicememos-multi-folder-search-2026-09-18.png draws the clear mark's disc
+// at x 996-1009 in a field whose fill runs x 700-1023, fourteen clear of the
+// field's trailing edge against the magnifier's thirteen at its leading one,
+// and what the field reports stands in that same trailing end.
 func (f *pageFind) label() string {
 	switch {
 	case f.query == "":
@@ -212,14 +217,25 @@ func (f *pageFind) label() string {
 	}
 }
 
-// findChildren is what the band carries at its trailing end: the find. Shut,
-// it is the bordered toolbar control finder-window-light.png keeps there — a
-// magnifier capsule 37 px wide at x 955-991, eight clear of the window's own
-// trailing edge — which opens the field and takes the keyboard, so the
-// shortcut has an affordance a hand can reach. Open, it is the platform's
-// toolbar search recess, with what the query has found standing leading of
-// it: the recess keeps the trailing end the captures give it, so the count
-// stands before it rather than after.
+// findChildren is what the band carries at its trailing end: the find, in a
+// slot ONE width whether it is open or shut.
+//
+// The slot's trailing end is fixed at the measured eight from the window's
+// edge, and the recess grows leftward inside it, which is what Finder's does
+// when it expands — finder-window-light.png keeps a magnifier capsule at
+// x 955-991 in a window 1000 wide and finder-window-untinted-dark.png an
+// expanded field at x 1100-1322 in one 1331 wide, both ending eight clear of
+// the window. Reserving the open width is what makes that true of this band:
+// a slot that grew when the find opened would walk every control before it
+// leftward, and a control that moves under the pointer is the defect this
+// composition exists to close.
+//
+// Shut, the slot holds the bordered toolbar control at its trailing end —
+// the capsule that opens the field and takes the keyboard, so the shortcut
+// has an affordance a hand can reach — and band the window is dragged by in
+// front of it. Open, it holds the platform's toolbar search recess, with
+// what the query has found standing INSIDE the field at its own trailing
+// end.
 func (f *frameState) findChildren(m Model, tok themeTokens) []layout.FlexChild {
 	find := f.band.find
 	// Nothing to search until a note is open: the column drains the find's
@@ -228,26 +244,20 @@ func (f *frameState) findChildren(m Model, tok themeTokens) []layout.FlexChild {
 	if m.CurrentNote() == nil {
 		return nil
 	}
-	if find == nil || !find.open {
-		return []layout.FlexChild{layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return f.layoutFindOpener(gtx, tok)
-		})}
-	}
-	return []layout.FlexChild{
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			// The count says how much of the query is left to walk rather
-			// than anything about the note, so it reads under the note's own
-			// text at the platform's secondary strength.
-			return drawLabel(gtx, tok.shaper, find.label(), tok.typ.BodyMedium,
-				vgcolor.Flatten(tok.col.SecondaryLabel, bandSurface(tok.col)))
-		}),
-		// The count belongs to the field beside it and to nothing else, so it
-		// stands one stop of the scale from it rather than a band gap away.
-		layout.Rigid(dragSpacer(unit.Dp(findCountGapDp))),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+	open := find != nil && find.open
+	return []layout.FlexChild{layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		w := min(gtx.Dp(unit.Dp(findFieldDp)), gtx.Constraints.Max.X)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		if open {
 			return f.layoutFindField(gtx, find)
-		}),
-	}
+		}
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Flexed(1, dragFill),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return f.layoutFindOpener(gtx, tok)
+			}),
+		)
+	})}
 }
 
 // layoutFindOpener draws the magnifier capsule the band keeps while the find
@@ -271,10 +281,8 @@ func (f *frameState) layoutFindField(gtx layout.Context, find *pageFind) layout.
 			gtx.Execute(key.FocusCmd{Tag: find.tag})
 		}
 	}
-	w := min(gtx.Dp(unit.Dp(findFieldDp)), gtx.Constraints.Max.X)
-	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	if f.band.field == nil {
-		return layout.Dimensions{Size: image.Pt(w, 0)}
+		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
 	}
 	return f.band.field(gtx)
 }

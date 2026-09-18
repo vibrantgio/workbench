@@ -139,7 +139,11 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			m := goldenModel()
+			// A note short enough that the rows above the band are bare
+			// page: the document's viewport runs to the band's own top edge,
+			// so a longer note paints there itself and the probe below could
+			// not tell that from the bar reaching back into the note.
+			m := plainNoteModel()
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))

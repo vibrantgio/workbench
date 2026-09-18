@@ -131,11 +131,12 @@ const (
 
 	// railToggleWidthDp is the width the platform's bordered toolbar control
 	// takes around one symbol, which is what every control standing in this
-	// window's band is drawn as — both halves of the sidebar switch, the
-	// vault's two actions and the search: the 24 dp mark box with the
-	// platform's measured 7 dp of clear band on each side. components/button
-	// draws it and owns the measurement; the number is named here because the
-	// window reasons about where its controls stand and what is beside them.
+	// window's band is drawn as — both halves of the sidebar switch, each
+	// segment of the window's navigation, the vault's two actions and the
+	// search: the 24 dp mark box with the platform's measured 7 dp of clear
+	// band on each side. components/button draws it and owns the measurement;
+	// the number is named here because the window reasons about where its
+	// controls stand and what is beside them.
 	railToggleWidthDp = markLargeDp + 2*7
 
 	// bandGapDp is the room the band leaves between two bordered controls
@@ -151,6 +152,16 @@ const (
 	// ruling names and the one already recorded in
 	// reference/macos/controls.md.
 	bandGapDp = 16
+
+	// bandNameGapDp is the room the band leaves between the navigation and
+	// the document's name beside it. MEASURED at 1x: in
+	// finder-window-light.png the back/forward pair's fill ends at x=398 and
+	// the title's first painted column stands at x=413, and in
+	// finder-window-untinted-dark.png the same pair ends at x=398 with its
+	// title's first painted column at x=412 — fourteen clear columns, read twice,
+	// and the same fourteen notes-toolbar.png leaves between two bordered
+	// controls.
+	bandNameGapDp = 14
 
 	// bandTrailingDp is what the band leaves between its last control and
 	// the window's own trailing edge. MEASURED at 1x, all four stored
@@ -250,7 +261,12 @@ type bandFind struct {
 // touched only on the frame goroutine.
 type frameState struct {
 	toggleClick widget.Clickable
-	vaultClick  widget.Clickable
+
+	// The window's navigation, which stands in the band as Finder keeps it:
+	// the segmented pair at the leading end of the content column's share,
+	// with the document's name bare beside it.
+	backClick widget.Clickable
+	fwdClick  widget.Clickable
 
 	// The band's document actions, and the control that opens the find in
 	// the page where the platform's own band keeps its search: Finder draws
@@ -403,12 +419,19 @@ func renderWindowFinding(
 	// it and the field focused, which is where a find in the page is worked
 	// from. It is the toolbar's recess and not the sidebar's field.
 	if find.open {
-		st.band.field = input.RenderSearch(shaper, "Search", colors, sp, rad, typo.BodyLarge, den,
-			input.RenderState{
-				Text: find.query, Focused: true,
-				Variant: input.Chrome, Region: input.Toolbar,
-				Surface: bandSurface(colors),
-			})
+		// Built per frame rather than once, for the count alone: what the
+		// query has found is the document's answer, and the document lays
+		// out before the band does. A field built here and reused would
+		// carry the count the page had before it was searched.
+		st.band.field = func(gtx layout.Context) layout.Dimensions {
+			return input.RenderSearch(shaper, "Search", colors, sp, rad, typo.BodyLarge, den,
+				input.RenderState{
+					Text: pf.query, Focused: true,
+					Count:   pf.label(),
+					Variant: input.Chrome, Region: input.Toolbar,
+					Surface: bandSurface(colors),
+				})(gtx)
+		}
 	}
 	st.band.find = pf
 	main := renderNotePageInto(cur, shaper, m, colors, sp, typo, den, pf)
@@ -829,16 +852,18 @@ func clampAside(w unit.Dp) unit.Dp {
 //
 // Composed as the stored bands compose theirs. The sidebar toggle stands at
 // the leading end, and only while the rail is away — the pane's own toggle
-// went with the pane and something has to recall it. The vault's name stands
-// beside it as what the window is showing, which is where
-// finder-window-light.png keeps "Applications" and voicememos-window.png "All
-// Recordings", both bare in the band rather than in a control. The document
-// actions cluster at the TRAILING end of the band, and the search stands last
-// of all, which is the order all four stored windows read: Finder's view
-// pop-up, group pull-down and share/tag/more trio run x 694-936 with its
-// search capsule at 955-991 in a window 1000 wide; Mail's compose, reply
-// trio, mailbox trio, folder pull-down and flag pair run x 404-838 with its
-// search recess at 867-1191 in one 1200 wide.
+// went with the pane and something has to recall it. Then the window's
+// navigation and, bare beside it, the name of the document the window is
+// showing: both Finder captures compose their content column's share that way
+// — the segmented back/forward pair at x 326-398 with the title's own columns
+// beginning fourteen clear of it — and voicememos-window.png keeps "All
+// Recordings" bare in the same manner. The document actions cluster at the
+// TRAILING end of the band, and the search stands last of all, which is the
+// order all four stored windows read: Finder's view pop-up, group pull-down
+// and share/tag/more trio run x 694-936 with its search capsule at 955-991 in
+// a window 1000 wide; Mail's compose, reply trio, mailbox trio, folder
+// pull-down and flag pair run x 404-838 with its search recess at 867-1191 in
+// one 1200 wide.
 //
 // The band runs across the window's columns and the fill change alone says
 // where a column's edge is, so a control at the band's trailing end stands
@@ -851,11 +876,6 @@ func clampAside(w unit.Dp) unit.Dp {
 // glass. With the pane standing the buttons are inside it, the row starts
 // where the pane ends, and lead is zero. Where the window has no such
 // controls the measurement falls back to the ordinary edge inset.
-//
-// The vault's name is the row's own affordance rather than a breadcrumb
-// segment: it is window state, and a crumb would promise a parent to climb
-// to that a vault does not have. Pressing it returns the folder tree to its
-// root.
 func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens, lead unit.Dp) layout.Dimensions {
 	children := make([]layout.FlexChild, 0, 12)
 	if lead > 0 {
@@ -866,8 +886,10 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 		children = append(children, layout.Rigid(complayout.HSpacer(float32(lead))))
 	} else {
 		// The row's own edge inset is the note column's, not a smaller one
-		// of its own, so the vault's name stands directly over the
-		// breadcrumb below it and the window keeps one grid.
+		// of its own, so the band's leading control stands directly over the
+		// trail below it and the window keeps one grid. Finder puts its own
+		// pair eight clear of the content column's first pixel, which is the
+		// platform's number and not this window's grid.
 		children = append(children, layout.Rigid(dragSpacer(noteInsetDp)))
 	}
 	if m.SidebarHidden {
@@ -878,8 +900,15 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 			layout.Rigid(dragSpacer(unit.Dp(tok.sp.S3))))
 	}
 	children = append(children,
+		// The window's navigation and the name of what it is showing, in
+		// Finder's own order: the segmented pair at the leading end of the
+		// content column's share, the name bare beside it.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return f.layoutVaultName(gtx, m, tok)
+			return f.layoutNavigation(gtx, m, tok)
+		}),
+		layout.Rigid(dragSpacer(bandNameGapDp)),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return f.layoutNoteName(gtx, m, tok)
 		}),
 		layout.Flexed(1, dragFill),
 		// The two vault actions, in the order the rail's foot held them.
@@ -893,7 +922,9 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 	)
 	// The find carries the gap that stands it off the action before it, so a
 	// window with no note open — where there is nothing to search — ends the
-	// band at the vault switch and not at a gap after it.
+	// band at the vault switch and not at a gap after it. The slot itself is
+	// one width whether the find is open or shut, which is what keeps every
+	// control before it standing still when it opens.
 	if find := f.findChildren(m, tok); len(find) > 0 {
 		children = append(children, layout.Rigid(dragSpacer(bandGapDp)))
 		children = append(children, find...)
@@ -959,32 +990,103 @@ func dragSpacer(w unit.Dp) layout.Widget {
 	}
 }
 
-// dragFill is the row's flexible middle: the whole gap between the vault
-// name and the trailing actions, draggable end to end.
+// dragFill is the row's flexible middle: the whole gap between the
+// document's name and the trailing actions, draggable end to end.
 func dragFill(gtx layout.Context) layout.Dimensions {
 	return desktop.DragRun(gtx, gtx.Constraints.Min.X)
 }
 
-// layoutVaultName draws the open vault's folder name, pressable, in the
-// row's own weight.
-func (f *frameState) layoutVaultName(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
-	name := vaultName(m)
-	if name == "" {
-		return layout.Dimensions{}
+// layoutNavigation draws the window's history as the platform's segmented
+// toolbar control: back and forward in one capsule parted by the control's
+// own hairline, each half inert at its end of the stack.
+//
+// The window has a history and the model drives it: every Navigate pushes an
+// entry and moves the cursor, GoBack and GoForward move the cursor along it,
+// and the two halves are live exactly while there is somewhere to go. It
+// stands in the band because it is the WINDOW's navigation and not the
+// document's — finder-window-light.png keeps its pair at the leading end of
+// the content column's share, and finder-window-untinted-dark.png keeps the
+// same pair at the same columns.
+func (f *frameState) layoutNavigation(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
+	back := m.Cursor > 0
+	fwd := m.Cursor+1 < len(m.History)
+	if f.backClick.Clicked(gtx) && back {
+		mvu.MessageOp{Message: GoBack{}}.Add(gtx.Ops)
 	}
-	if f.vaultClick.Clicked(gtx) {
-		mvu.MessageOp{Message: RootTree{}}.Add(gtx.Ops)
+	if f.fwdClick.Clicked(gtx) && fwd {
+		mvu.MessageOp{Message: GoForward{}}.Add(gtx.Ops)
 	}
-	return f.vaultClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		semantic.LabelOp(name).Add(gtx.Ops)
-		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointer.CursorPointer.Add(gtx.Ops)
-		return drawLabel(gtx, tok.shaper, name, tok.typ.TitleSmall, tok.col.Text)
+	segs := []button.ChromeSegment{
+		navSegment(&f.backClick, icons.HistoryBack, "Back", back),
+		navSegment(&f.fwdClick, icons.HistoryForward, "Forward", fwd),
+	}
+	// The shadow is cast AROUND the control, the way every bordered control
+	// in this band casts its own: it falls outside the box the control
+	// reports.
+	return button.ChromeShadow(gtx, tok.col, button.RenderState{}, func(gtx layout.Context) layout.Dimensions {
+		return button.ChromeSegments(gtx, tok.col, tok.den, segs)
 	})
 }
 
-// vaultName is the open vault's folder name — what the window is
-// showing — empty before a vault is open.
+// navSegment is one half of that pair: the set's mark for the direction, the
+// state the stack leaves it in, and the clickable that takes the press over
+// the segment's own box.
+func navSegment(click *widget.Clickable, mark icons.Name, label string, enabled bool) button.ChromeSegment {
+	return button.ChromeSegment{
+		Icon:  icons.Mark(mark),
+		State: button.RenderState{Hovered: click.Hovered(), Pressed: click.Pressed(), Disabled: !enabled},
+		Target: func(gtx layout.Context) layout.Dimensions {
+			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				semantic.ClassOp(semantic.Button).Add(gtx.Ops)
+				semantic.LabelOp(label).Add(gtx.Ops)
+				semantic.EnabledOp(enabled).Add(gtx.Ops)
+				if enabled {
+					pointer.CursorPointer.Add(gtx.Ops)
+				}
+				return layout.Dimensions{Size: gtx.Constraints.Min}
+			})
+		},
+	}
+}
+
+// layoutNoteName draws the name of the document the window is showing, bare
+// in the band beside the navigation, in the row's own weight.
+//
+// Bare and in no control at all, which is how both stored windows that carry
+// a title keep it: "Applications" in finder-window-light.png and "All
+// Recordings" in voicememos-window.png stand on the band itself. It is a
+// label and not an affordance — there is nothing for a press on the window's
+// own name to do — and the place a reader climbs from is the trail under it.
+func (f *frameState) layoutNoteName(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
+	name := noteName(m)
+	if name == "" {
+		return layout.Dimensions{}
+	}
+	// The label is drawn into an area of its own so that what a reader who
+	// cannot see it is told is the window's name and not the band around it:
+	// a semantic op with no area under it lands on whatever area is in force.
+	macro := op.Record(gtx.Ops)
+	dims := drawLabel(gtx, tok.shaper, name, tok.typ.TitleSmall, tok.col.Text)
+	call := macro.Stop()
+	area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+	semantic.LabelOp(name).Add(gtx.Ops)
+	call.Add(gtx.Ops)
+	area.Pop()
+	return dims
+}
+
+// noteName is the open note's title — what the window is showing — empty
+// while no note is open.
+func noteName(m Model) string {
+	if n := m.CurrentNote(); n != nil {
+		return n.Title
+	}
+	return ""
+}
+
+// vaultName is the open vault's folder name. It heads the note's trail,
+// where it is the place a reader climbs back to; the band carries the name
+// of the document instead.
 func vaultName(m Model) string {
 	if m.Vault == "" {
 		return ""

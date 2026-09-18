@@ -1,8 +1,9 @@
 // note.go is the vault screen's note column — the main slot of the
 // composition frame.go builds, with the folder tree leading and the
-// backlinks panel trailing. The column renders the current note: a header row
-// with back/forward and the breadcrumb, a collapsible properties panel fed by
-// the frontmatter split,
+// backlinks panel trailing. The column renders the current note: a pinned
+// head — the trail of the places the note stands in, and a collapsible
+// properties panel fed by the frontmatter split — parted from the scrolled
+// document below it by a seam,
 // and the parsed body as a markdown Document. Wikilink clicks resolve
 // against the index and navigate; a task checkbox writes its marker in
 // the file before the click returns; web links open the system browser;
@@ -37,7 +38,6 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/breadcrumb"
-	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
@@ -164,16 +164,13 @@ const (
 	// label helper this window draws with sets no tracking.
 	propHeadWeight = tokens.WeightBold
 
-	// noteNavMarkDp sizes the two history controls and propMarkDp the
-	// properties panel's disclosure; both take the size a mark takes next
-	// to a line of text. The history controls sit in the head row beside
-	// the breadcrumb, so that is the size they belong at: a chevron is a
-	// diagonal spanning the whole of its square, and at the size a mark
-	// takes as a control in its own right its stroke stands half again over
-	// the caps of the label it serves. The row centres its children, so
-	// the smaller square costs the row no height and moves nothing else.
-	noteNavMarkDp = markSmallDp
-	propMarkDp    = markSmallDp
+	// propMarkDp sizes the properties panel's disclosure: the size a mark
+	// takes next to a line of text. A chevron is a diagonal spanning the
+	// whole of its square, and at the size a mark takes as a control in its
+	// own right its stroke stands half again over the caps of the label it
+	// serves. The row centres its children, so the smaller square costs the
+	// row no height and moves nothing else.
+	propMarkDp = markSmallDp
 )
 
 // noteCodeStyles are the syntax highlighter styles a note's fences are drawn
@@ -438,8 +435,6 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		docsVault string
 		seatedSeq int
 		propClick widget.Clickable
-		backClick widget.Clickable
-		fwdClick  widget.Clickable
 		read      reader
 		arr       arrival
 		find      pageFind
@@ -489,11 +484,16 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		FocusTag:    func(tag event.Tag) { find.tag = tag },
 		Clear:       func(clear func()) { find.clear = clear },
 		OnChange:    func(_ layout.Context, text string) { find.typed(text) },
+		// What the query has found, standing inside the field at its
+		// trailing end. It is asked every frame because the count is the
+		// document's answer and changes with the note under the query, not
+		// with the theme the field was built under.
+		Count: find.label,
 	})
 	mainSlot := rx.Map(breadcrumb.Trail(th, breadcrumb.TrailProps{Chevron: trailChevronDp}),
 		func(trail breadcrumb.TrailLayout) layout.Widget {
 			return func(gtx layout.Context) layout.Dimensions {
-				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor, &find)
+				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, trail, &read, &arr, cur, docFor, &find)
 			}
 		})
 	return vaultFrame(loadModel, loadTok, widths, &find,
@@ -504,14 +504,18 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 	)
 }
 
-// layoutNotePage lays out the main slot: the header row (back/forward
-// and the breadcrumb), properties panel, document — or the
-// scanning/error/empty message standing in for them.
+// layoutNotePage lays out the main slot: the pinned head — the breadcrumb
+// trail and the properties panel — the seam under it, and the document, or
+// the scanning/error/empty message standing in for them.
+//
+// The window's navigation and the document's own name are NOT here: both
+// stand in the toolbar band, where the platform keeps a window's history and
+// its title.
 func layoutNotePage(
 	gtx layout.Context,
 	m Model,
 	tok themeTokens,
-	propClick, backClick, fwdClick *widget.Clickable,
+	propClick *widget.Clickable,
 	trail breadcrumb.TrailLayout,
 	read *reader,
 	arr *arrival,
@@ -631,19 +635,7 @@ func layoutNotePage(
 		}
 
 		header := func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return navButton(gtx, tok, backClick, icons.HistoryBack, "Back", m.Cursor > 0, GoBack{})
-				}),
-				layout.Rigid(complayout.HSpacer(8)),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return navButton(gtx, tok, fwdClick, icons.HistoryForward, "Forward", m.Cursor+1 < len(m.History), GoForward{})
-				}),
-				layout.Rigid(complayout.HSpacer(noteGapDp)),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return trail(gtx, crumbs)
-				}),
-			)
+			return trail(gtx, crumbs)
 		}
 
 		children := []layout.FlexChild{layout.Rigid(trailing(header))}
@@ -656,16 +648,21 @@ func layoutNotePage(
 			)
 		}
 		// The page puts no gap above the document: its viewport begins on
-		// the lower edge of whatever row stands over it — the breadcrumb, or
-		// the properties panel when the note carries one — so a line
-		// scrolling out of the top is cut by that edge and disappears under
-		// it. The reading gap is not lost, it is spent inside the document
-		// as its start space, where it is the note's resting position rather
-		// than a margin held back on every frame; held back out here it would
-		// leave a strip of bare page over every half-cut line. A standing
-		// message owns no viewport and takes the gap like any other row.
-		if !scrolling {
-			children = append(children, layout.Rigid(complayout.VSpacer(noteGapDp)))
+		// the seam under the pinned head — the breadcrumb, or the properties
+		// panel when the note carries one — so a line scrolling out of the
+		// top is cut by that seam and disappears under it. The reading gap is
+		// not lost, it is spent inside the document as its start space, where
+		// it is the note's resting position rather than a margin held back on
+		// every frame; held back out here it would leave a strip of bare page
+		// over every half-cut line. What the gap here buys is the pinned
+		// head's own foot: the air it keeps above the seam is the air it
+		// keeps between its rows. A standing message owns no viewport, so
+		// nothing scrolls under it and there is no boundary to draw.
+		children = append(children, layout.Rigid(complayout.VSpacer(noteGapDp)))
+		if scrolling {
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return pinnedSeam(gtx, tok)
+			}))
 		}
 		children = append(children, body)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
@@ -721,8 +718,6 @@ func renderNotePageInto(
 		colors, sp, typo.TitleSmall)
 	var (
 		propClick widget.Clickable
-		backClick widget.Clickable
-		fwdClick  widget.Clickable
 		read      reader
 		arr       arrival
 	)
@@ -744,34 +739,29 @@ func renderNotePageInto(
 		return d
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, m, tok, &propClick, &backClick, &fwdClick, trail, &read, &arr, cur, docFor, find)
+		return layoutNotePage(gtx, m, tok, &propClick, trail, &read, &arr, cur, docFor, find)
 	}
 }
 
-// navButton renders one history affordance: the set's mark for that
-// direction, emitting its message on click while enabled, and drawn
-// dimmed and inert at the stack's end.
-func navButton(
-	gtx layout.Context,
-	tok themeTokens,
-	click *widget.Clickable,
-	mark icons.Name,
-	label string,
-	enabled bool,
-	msg mvu.Message,
-) layout.Dimensions {
-	if click.Clicked(gtx) && enabled {
-		mvu.MessageOp{Message: msg}.Add(gtx.Ops)
-	}
-	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		semantic.LabelOp(label).Add(gtx.Ops)
-		c := vgcolor.Flatten(tok.col.TertiaryLabel, tok.col.TextBackground)
-		if enabled {
-			c = vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground)
-			pointer.CursorPointer.Add(gtx.Ops)
-		}
-		return drawMark(gtx, mark, noteNavMarkDp, c)
-	})
+// pinnedSeam draws the boundary between the column's pinned head and the
+// document that scrolls under it: the hairline the Language gives two flush
+// regions, the platform's separator laid over the surface beneath it, drawn
+// once by the region above.
+//
+// It runs the note column's whole width and not the head's: the page's own
+// leading inset is spent outside this row, and a boundary that stopped where
+// the text starts would read as a rule under the breadcrumb rather than as
+// the edge of a region. The column's trailing margin is the document's own
+// gutter, which the seam runs to for the same reason.
+func pinnedSeam(gtx layout.Context, tok themeTokens) layout.Dimensions {
+	h := max(gtx.Dp(unit.Dp(seamDp)), 1)
+	w := gtx.Constraints.Max.X
+	lead := gtx.Dp(unit.Dp(noteInsetDp))
+	st := op.Offset(image.Pt(-lead, 0)).Push(gtx.Ops)
+	paint.FillShape(gtx.Ops, vgcolor.Flatten(tok.col.Separator, tok.col.TextBackground),
+		clip.Rect(image.Rect(0, 0, w+lead, h)).Op())
+	st.Pop()
+	return layout.Dimensions{Size: image.Pt(w, h)}
 }
 
 // linkClicked dispatches one link activation: wikilinks (embeds included
@@ -829,22 +819,29 @@ func messageChild(tok themeTokens, msg string) layout.FlexChild {
 	})
 }
 
-// notePlaces builds the trail's places: one per folder on the current
-// note's path inside the vault, then the note itself. Each folder reveals
-// itself in the tree when clicked; the note is where you already are and
-// stays inert. The vault is not a place here — it names the window from
-// the chrome row, and as a crumb it would promise a parent to climb to
-// that a vault does not have.
+// notePlaces builds the trail's places: the vault, then one per folder on
+// the current note's path inside it. Each place reveals itself in the tree
+// when clicked, and the last is the folder the note is in, which is where the
+// reader already is.
+//
+// The note itself is NOT a place here: its name is what the window is
+// showing, so it stands in the toolbar band as Finder's "Applications" and
+// Voice Memos' "All Recordings" do, and a trail that repeated it would say
+// the same thing twice. The vault heads the trail in its stead: it is the
+// root the tree returns to, which is a place to climb to and not a promise of
+// one.
 //
 // The places carry in-vault paths, so a folder and a note of the same name
 // in different branches are different places and a click on one is never
-// delivered to the other.
+// delivered to the other; the vault's own path is empty, which is the tree's
+// root.
 func notePlaces(m Model) []place {
 	var places []place
 	note := m.CurrentNote()
 	if note == nil {
 		return places
 	}
+	places = append(places, place{label: vaultName(m)})
 	if dir := path.Dir(note.Path); dir != "." {
 		cum := ""
 		for _, seg := range strings.Split(dir, "/") {
@@ -856,13 +853,18 @@ func notePlaces(m Model) []place {
 			places = append(places, place{label: seg, path: cum})
 		}
 	}
-	return append(places, place{label: note.Title, path: note.Path})
+	return places
 }
 
-// revealFolder is the click a folder in the note's trail carries: the tree
-// opens the whole way down to it.
+// revealFolder is the click a place in the note's trail carries: the tree
+// opens the whole way down to it, and the vault at the trail's head returns
+// the tree to its root.
 func revealFolder(dir string) func(gtx layout.Context) {
 	return func(gtx layout.Context) {
+		if dir == "" {
+			mvu.MessageOp{Message: RootTree{}}.Add(gtx.Ops)
+			return
+		}
 		mvu.MessageOp{Message: RevealFolder{Dir: dir}}.Add(gtx.Ops)
 	}
 }

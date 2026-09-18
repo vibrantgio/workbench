@@ -49,3 +49,6 @@
 # The SK150 app's copy of the manufacturer's manual: a reference, not
 # source, and not ours to redistribute.
 /sk150/*.pdf
+
+# Agent worktrees: scratch clones an agent made beside the repo, never source.
+/.claude/worktrees/

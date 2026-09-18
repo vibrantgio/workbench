@@ -71,13 +71,16 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 	}{
 		{
 			name: "rail shown", hidden: false, lead: 0,
-			// With the pane standing the row starts at its own edge
-			// inset and the vault's name is its first and only control.
+			// With the pane standing the row starts at its own edge inset
+			// and the window's navigation is its first control. The find's
+			// slot keeps its open width whether the find is open or shut, so
+			// every control before it is measured from that width and not
+			// from the capsule standing in it.
 			controls: []int{
-				noteInsetDp + 8,
-				rowW - bandTrailingDp - railToggleWidthDp/2,                                     // the find
-				rowW - bandTrailingDp - railToggleWidthDp - bandGapDp - railToggleWidthDp/2,     // the vault switch
-				rowW - bandTrailingDp - 2*railToggleWidthDp - 2*bandGapDp - railToggleWidthDp/2, // the rescan
+				noteInsetDp + railToggleWidthDp/2,                                                                          // the back segment
+				rowW - bandTrailingDp - railToggleWidthDp/2,                                                                // the find's capsule
+				rowW - bandTrailingDp - int(findFieldDp) - bandGapDp - railToggleWidthDp/2,                                 // the vault switch
+				rowW - bandTrailingDp - int(findFieldDp) - bandGapDp - railToggleWidthDp - bandGapDp - railToggleWidthDp/2, // the rescan
 			},
 		},
 		{
@@ -115,8 +118,11 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 			// for. The gaps inside the cluster and the band's own trailing
 			// inset move the window too, so the probe ends on the row's
 			// last dp.
-			cluster := rowW - bandTrailingDp - 3*railToggleWidthDp - 2*bandGapDp
-			for _, x := range []int{rowW / 3, rowW / 2, cluster - 20, rowW - 1} {
+			cluster := rowW - bandTrailingDp - int(findFieldDp) - 2*bandGapDp - 2*railToggleWidthDp
+			// The reserved room inside the find's own slot moves the window
+			// too: shut, the slot is band with a capsule at its trailing end.
+			slack := rowW - bandTrailingDp - railToggleWidthDp - 20
+			for _, x := range []int{rowW / 3, cluster - 20, slack, rowW - 1} {
 				if !moveAt(x) {
 					t.Errorf("no window-move action at x=%d; the row holds no control there, so it must move the window", x)
 				}
@@ -616,7 +622,13 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 					t.Fatalf("the column's seam is drawn at y=%d, inside the toolbar band — the band is one across the window's columns and no line crosses it", y)
 				}
 			}
-			for y := bandDp; y < windowH; y++ {
+			// The scan starts clear of the band's own drop shadows. A
+			// bordered toolbar control casts onto whatever lies below it and
+			// the platform does not cut that off at the band's lower edge
+			// (reference/macos/controls.md), and the band's action cluster
+			// now stands over this boundary: the rows immediately under the
+			// band carry the shadow and not the seam's own colour.
+			for y := bandDp + toolbarShadowReachDp; y < windowH; y++ {
 				if got := img.RGBAAt(asideX, y); !sameColor(got, splitter.SeamColor(tc.colors, color.NRGBA{})) {
 					t.Fatalf("the column's seam at y=%d draws %v, want the seam %v — the seam runs from the band's foot to the window's",
 						y, got, splitter.SeamColor(tc.colors, color.NRGBA{}))
@@ -796,7 +808,18 @@ func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
 			// At one pixel per dp the panel's corner radius is the span's
 			// own inset at both ends.
 			top, bottom := p.Min.Y+pane.RadiusDp, p.Max.Y-pane.RadiusDp
+			// The note column's own pinned seam — the hairline between its
+			// pinned head and the document scrolling under it — crosses this
+			// edge, because a boundary between two flush regions runs the
+			// whole width of the region above it. It is a ROW and not a
+			// second line down the panel, so its rows are read out: a row
+			// carrying a hundred columns of the seam's own colour well clear
+			// of the panel's shadow is that seam and nothing else.
+			pinned := pinnedSeamRows(img, tc.colors, p.Max.X+int(pane.ShadowReachDp), windowW-frameAsideDp, top, bottom)
 			for y := top; y < bottom; y++ {
+				if pinned[y] {
+					continue
+				}
 				if got := img.RGBAAt(p.Max.X-seamDp, y); !sameColor(got, paneRim(tc.colors)) {
 					t.Fatalf("the panel's trailing edge at y=%d draws %v, want its own rim %v", y, got, paneRim(tc.colors))
 				}
@@ -845,6 +868,25 @@ func (b *bandFrame) frame() {
 	b.r.Frame(&b.ops)
 }
 
+// span is one control's own columns, found by walking the band's centre line
+// and asking which control the pointer is on. Both leading and trailing are
+// inclusive; a control the band does not hold answers -1, -1.
+func (b *bandFrame) span(c *widget.Clickable) (int, int) {
+	lo, hi := -1, -1
+	for x := 0; x < windowW; x++ {
+		b.r.Queue(pointer.Event{Kind: pointer.Move, Position: f32.Pt(float32(x), float32(paneStripDp)/2), Source: pointer.Mouse})
+		b.frame()
+		if !c.Hovered() {
+			continue
+		}
+		if lo < 0 {
+			lo = x
+		}
+		hi = x
+	}
+	return lo, hi
+}
+
 // TestBandActionsAnswerTheKeyboard drives the band the way a reader without
 // a pointer does: Tab to each of the vault's two actions and activate it.
 // Both must report a press. What the press then means — a rescan that counts
@@ -889,6 +931,8 @@ func TestBandActionsAnswerTheKeyboard(t *testing.T) {
 // semantic tree under the names a screen reader speaks. These controls carry
 // a symbol and no word at all — which is what every document action in every
 // stored toolbar band carries — so the spoken name is the only name there is.
+// The document's own name is in there too: it is drawn as bare text, which a
+// reader who cannot see it would otherwise never be told.
 func TestBandNamesItsActions(t *testing.T) {
 	b := newBandFrame()
 	b.frame()
@@ -897,7 +941,7 @@ func TestBandNamesItsActions(t *testing.T) {
 	for _, n := range b.r.AppendSemantics(nil) {
 		spoken[n.Desc.Label] = true
 	}
-	for _, want := range []string{"Rescan", "Switch Vault", "Find in this note"} {
+	for _, want := range []string{"Rescan", "Switch Vault", "Find in this note", "Back", "Forward", "Reading list"} {
 		if !spoken[want] {
 			t.Errorf("the window's semantic tree does not name %q", want)
 		}
@@ -912,11 +956,11 @@ func TestBandActionsAnswerThePress(t *testing.T) {
 	b.frame()
 	b.frame()
 
-	// The rescan control stands in the band's trailing cluster: the find
-	// capsule is last, the vault switch before it, the rescan before that.
-	// Its centre is one control and one gap in from each.
+	// The rescan control stands in the band's trailing cluster: the find's
+	// slot is last, the vault switch before it, the rescan before that. The
+	// slot keeps its open width whichever state the find is in.
 	const ctrl = railToggleWidthDp
-	x := float32(windowW - bandTrailingDp - 3*ctrl - 2*bandGapDp + ctrl/2)
+	x := float32(windowW - bandTrailingDp - int(findFieldDp) - 2*bandGapDp - 2*ctrl + ctrl/2)
 	at := f32.Pt(x, float32(paneStripDp)/2)
 	b.r.Queue(pointer.Event{Kind: pointer.Move, Position: at, Source: pointer.Mouse})
 	b.frame()
@@ -967,26 +1011,11 @@ func TestTheBandComposesLikeTheStoredWindows(t *testing.T) {
 	b.frame()
 	b.frame()
 
-	// Each control's own span, found by walking the band's centre line and
-	// asking which control the pointer is on.
-	span := func(c *widget.Clickable) (int, int) {
-		lo, hi := -1, -1
-		for x := 0; x < windowW; x++ {
-			b.r.Queue(pointer.Event{Kind: pointer.Move, Position: f32.Pt(float32(x), float32(paneStripDp)/2), Source: pointer.Mouse})
-			b.frame()
-			if !c.Hovered() {
-				continue
-			}
-			if lo < 0 {
-				lo = x
-			}
-			hi = x
-		}
-		return lo, hi
-	}
-	rescanLo, rescanHi := span(&b.f.rescanClick)
-	switchLo, switchHi := span(&b.f.switchClick)
-	findLo, findHi := span(&b.f.findClick)
+	rescanLo, rescanHi := b.span(&b.f.rescanClick)
+	switchLo, switchHi := b.span(&b.f.switchClick)
+	findLo, findHi := b.span(&b.f.findClick)
+	navLo, _ := b.span(&b.f.backClick)
+	_, fwdHi := b.span(&b.f.fwdClick)
 
 	for _, c := range []struct {
 		name   string
@@ -1003,18 +1032,80 @@ func TestTheBandComposesLikeTheStoredWindows(t *testing.T) {
 			t.Errorf("%s is %d dp wide, want the bordered toolbar control's %d", c.name, w, railToggleWidthDp)
 		}
 	}
-	if !(rescanHi < switchLo && switchHi < findLo) {
-		t.Errorf("the band runs rescan %d-%d, switch %d-%d, search %d-%d; the search stands last in every stored band",
-			rescanLo, rescanHi, switchLo, switchHi, findLo, findHi)
+	if !(navLo < rescanLo && rescanHi < switchLo && switchHi < findLo) {
+		t.Errorf("the band runs navigation from %d, rescan %d-%d, switch %d-%d, search %d-%d; the navigation leads and the search stands last in every stored band",
+			navLo, rescanLo, rescanHi, switchLo, switchHi, findLo, findHi)
 	}
 	if got := switchLo - rescanHi - 1; got != bandGapDp {
 		t.Errorf("rescan and the vault switch stand %d dp apart, want the measured %d", got, bandGapDp)
 	}
-	if got := findLo - switchHi - 1; got != bandGapDp {
-		t.Errorf("the vault switch and the search stand %d dp apart, want the measured %d", got, bandGapDp)
+	// The vault switch stands one measured gap off the find's SLOT, whose
+	// leading edge is its own trailing end less the width the open recess
+	// takes: what the switch is measured against is the room the find keeps,
+	// not the capsule standing in the trailing end of it.
+	slotLo := windowW - bandTrailingDp - int(findFieldDp)
+	if got := slotLo - switchHi - 1; got != bandGapDp {
+		t.Errorf("the vault switch and the find's slot stand %d dp apart, want the measured %d", got, bandGapDp)
 	}
 	if got := windowW - findHi - 1; got != bandTrailingDp {
 		t.Errorf("the band's last control ends %d dp from the window's trailing edge, want the measured %d",
 			got, bandTrailingDp)
+	}
+	// The navigation is the segmented pair Finder keeps at the leading end of
+	// the content column's share: two segments of the bordered control's own
+	// width with one hairline between them, the whole standing on the note
+	// column's own edge inset.
+	if want := int(b.f.geom.contentX) + noteInsetDp; navLo != want {
+		t.Errorf("the navigation leads at %d, want the content column's own edge inset at %d", navLo, want)
+	}
+	if got, want := fwdHi-navLo+1, 2*railToggleWidthDp+1; got != want {
+		t.Errorf("the navigation is %d dp wide, want two segments and a hairline: %d", got, want)
+	}
+}
+
+// TestNothingInTheBandWalksWhenTheFindOpens is the whole point of reserving
+// the find's room: the recess grows leftward from a fixed trailing end, the
+// way Finder's does when it expands, so a reader who presses the shortcut —
+// or the capsule itself — finds every other control exactly where it was.
+//
+// The columns are read off the laid-out frame with the find shut and again
+// with it open, through the same pointer walk the composition test uses.
+func TestNothingInTheBandWalksWhenTheFindOpens(t *testing.T) {
+	b := newBandFrame()
+	b.frame()
+	b.frame()
+
+	type column struct{ lo, hi int }
+	controls := []struct {
+		name  string
+		click *widget.Clickable
+	}{
+		{"the navigation's back segment", &b.f.backClick},
+		{"the navigation's forward segment", &b.f.fwdClick},
+		{"rescan", &b.f.rescanClick},
+		{"the vault switch", &b.f.switchClick},
+	}
+	read := func() []column {
+		cols := make([]column, len(controls))
+		for i, c := range controls {
+			lo, hi := b.span(c.click)
+			cols[i] = column{lo, hi}
+		}
+		return cols
+	}
+	shut := read()
+	b.find.open = true
+	b.frame()
+	b.frame()
+	open := read()
+
+	for i, c := range controls {
+		if shut[i].lo < 0 {
+			t.Fatalf("%s stands nowhere in the band with the find shut", c.name)
+		}
+		if open[i] != shut[i] {
+			t.Errorf("%s stands at %d-%d with the find shut and at %d-%d with it open; the find grows from a fixed trailing end and nothing else moves",
+				c.name, shut[i].lo, shut[i].hi, open[i].lo, open[i].hi)
+		}
 	}
 }

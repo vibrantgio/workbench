@@ -693,9 +693,24 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			// The note's own bar, in the margin its column keeps: the only
 			// thing drawn out there past the prose, which stops a whole page inset
 			// short of the columns scanned.
-			noteLo, noteHi := span(asideX-noteInsetDp, asideX, func(c color.RGBA) bool {
-				return !is(c, tc.colors.TextBackground)
-			})
+			// The note column's own pinned seam crosses its trailing gutter,
+			// so the bar's columns are read with the seam's rows left out.
+			seamRows := pinnedSeamRows(img, tc.colors, st.geom.contentX+int(pane.ShadowReachDp), asideX, top, bot)
+			noteLo, noteHi := -1, -1
+			for y := top; y < bot; y++ {
+				if seamRows[y] {
+					continue
+				}
+				for x := asideX - noteInsetDp; x < asideX; x++ {
+					if is(img.RGBAAt(x, y), tc.colors.TextBackground) {
+						continue
+					}
+					if noteLo < 0 {
+						noteLo = x
+					}
+					noteLo, noteHi = min(noteLo, x), max(noteHi, x)
+				}
+			}
 			if noteLo < 0 {
 				t.Fatal("the note column drew no bar to measure against")
 			}
@@ -708,6 +723,36 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			}
 		})
 	}
+}
+
+// pinnedSeamRows answers which rows inside the given box carry the note
+// column's pinned seam: the hairline between the column's pinned head — the
+// breadcrumb trail, and the properties panel when the note has one — and the
+// document scrolling under it.
+//
+// It runs the column's whole width, which is what a boundary between two
+// flush regions does, so it crosses every scan taken down that column and
+// every such scan has to read it out. A row carrying an unbroken run of two
+// hundred columns of the seam's own colour is that seam: no glyph, no fill
+// and no shadow in this window paints one.
+func pinnedSeamRows(img *image.RGBA, c tokens.PlatformColors, x0, x1, y0, y1 int) map[int]bool {
+	seam := rgba(vgcolor.Flatten(c.Separator, c.TextBackground))
+	rows := map[int]bool{}
+	for y := y0; y < y1; y++ {
+		run := 0
+		for x := x0; x < x1; x++ {
+			if img.RGBAAt(x, y) == seam {
+				run++
+				if run >= 200 {
+					rows[y] = true
+					break
+				}
+				continue
+			}
+			run = 0
+		}
+	}
+	return rows
 }
 
 // drawnRows answers the first and last row inside the given box that carry
@@ -819,8 +864,17 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 					t.Fatalf("%s: the panel has no trailing edge to read", when)
 				}
 				// Read below the band and above the status bar, where the
-				// note column is its own flat surface all the way across.
+				// note column is its own flat surface all the way across —
+				// except for its own pinned seam, which crosses this edge
+				// because a boundary between two flush regions runs the whole
+				// width of the region above it. Its rows are read out: it is
+				// a row and not a second line down the panel.
+				seamRows := pinnedSeamRows(img, tc.colors, edge+int(pane.ShadowReachDp), windowW-frameAsideDp,
+					f.geom.rowTop, f.geom.footTop)
 				for y := f.geom.rowTop + noteInsetDp; y < f.geom.footTop; y++ {
+					if seamRows[y] {
+						continue
+					}
 					prev := -1
 					for x := edge; x < edge+past && x < windowW; x++ {
 						c := img.RGBAAt(x, y)
@@ -962,9 +1016,12 @@ func TestTheBandsShadowsRunTheSameLengthOverEveryColumn(t *testing.T) {
 	// against a column of its own region that no control stands above, so
 	// the depth is the shadow's and not the column's own fill.
 	const (
-		leadingX   = 96
-		leadingBg  = 400
-		trailingX  = 965
+		leadingX  = 96
+		leadingBg = 400
+		// The find's slot keeps the open recess's width whether the find is
+		// open or shut, so the capsule standing in it is at the slot's
+		// trailing end and the band's bare run is in front of it.
+		trailingX  = windowW - bandTrailingDp - railToggleWidthDp/2
 		trailingBg = 900
 	)
 	for _, tc := range themeCases {

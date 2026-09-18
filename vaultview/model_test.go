@@ -567,9 +567,10 @@ func TestSetFilterCarriesTheQuery(t *testing.T) {
 	}
 }
 
-// TestNotePlacesTrail: the trail carries the in-vault path only — one place
-// per folder and the note last, each addressed by its own path, and the
-// vault is not a place: it names the window from the chrome row instead.
+// TestNotePlacesTrail: the trail carries where the note stands — the vault at
+// its head, then one place per folder, each addressed by its own path. The
+// note itself is not a place: its name is what the window is showing, so it
+// stands bare in the toolbar band as Finder's title does.
 func TestNotePlacesTrail(t *testing.T) {
 	model := Model{Screen: screenVault, Vault: "/home/rene/Second Brain", CurAnchor: -1}
 	model = cacheNote(model, &Note{Path: "a/b/note.md", Title: "note"})
@@ -577,9 +578,9 @@ func TestNotePlacesTrail(t *testing.T) {
 
 	got := notePlaces(model)
 	want := []place{
+		{label: "Second Brain"},
 		{label: "a", path: "a"},
 		{label: "b", path: "a/b"},
-		{label: "note", path: "a/b/note.md"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("notePlaces = %+v, want %+v", got, want)
@@ -591,8 +592,8 @@ func TestNotePlacesTrail(t *testing.T) {
 		t.Errorf("notePlaces without a note = %+v, want an empty trail", c)
 	}
 
-	// The vault's own name is the chrome row's, and it survives a note
-	// at the vault root having no folder places of its own.
+	// The vault's own name heads the trail, and it survives a note at the
+	// vault root having no folder places of its own.
 	if n := vaultName(model); n != "Second Brain" {
 		t.Errorf("vaultName = %q, want the vault folder's name", n)
 	}
