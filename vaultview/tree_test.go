@@ -411,3 +411,71 @@ func TestPaneRowsRunToThePaneFoot(t *testing.T) {
 		})
 	}
 }
+
+// TestTreeHeadsTheVaultsTwoRuns pins which groups the rail heads: the vault's
+// folders and the notes standing loose beside them, headed only where the
+// vault has both. A top-level folder is a row with a disclosure, never a
+// heading — which is what makes the heading a question about the two runs and
+// not about the folders.
+func TestTreeHeadsTheVaultsTwoRuns(t *testing.T) {
+	heads := func(rows []TreeRow) map[string]string {
+		out := map[string]string{}
+		for _, r := range rows {
+			if r.Section != "" {
+				out[r.Path] = r.Section
+			}
+		}
+		return out
+	}
+
+	both := TreeRows(treeIndex("Design/a.md", "Design/deep/b.md", "loose.md"), map[string]bool{"Design": true})
+	got := heads(both)
+	if len(got) != 2 || got["Design"] != "Folders" || got["loose.md"] != "Notes" {
+		t.Errorf("a vault with folders and loose notes heads %v, want the first folder under Folders and the first loose note under Notes", got)
+	}
+	// The heading marks where a run starts, and a folder's own subtree is
+	// emitted between its row and the next top-level folder's, so nothing
+	// inside a folder carries one.
+	for _, r := range both {
+		if r.Depth > 0 && r.Section != "" {
+			t.Errorf("%s is at depth %d and carries the heading %q; a heading marks a run at the vault's own level", r.Path, r.Depth, r.Section)
+		}
+	}
+
+	if got := heads(TreeRows(treeIndex("Design/a.md"), nil)); len(got) != 0 {
+		t.Errorf("a vault of folders alone heads %v, want nothing: a heading over the whole list names nothing the reader cannot see", got)
+	}
+	if got := heads(TreeRows(treeIndex("a.md", "b.md"), nil)); len(got) != 0 {
+		t.Errorf("a vault of loose notes alone heads %v, want nothing", got)
+	}
+	if got := heads(MatchRows(treeIndex("Design/a.md", "loose.md"), "a")); len(got) != 0 {
+		t.Errorf("the find's flat answer heads %v, want nothing: one run takes no heading", got)
+	}
+}
+
+// TestTreeIndentIsOnePerDepth holds the rail's one indent rule: a row's parts
+// begin one indent further in per depth, the step is the same at every depth,
+// and the find's flat answer puts every row back at depth 0 — so a name never
+// shifts sideways for a reason the reader did not give.
+func TestTreeIndentIsOnePerDepth(t *testing.T) {
+	step := treeRowLead(1) - treeRowLead(0)
+	for d := 1; d < 8; d++ {
+		if got := treeRowLead(d) - treeRowLead(d-1); got != step {
+			t.Errorf("depth %d stands %v past depth %d, where depth 1 stands %v past depth 0", d, got, d-1, step)
+		}
+	}
+	if got, want := treeRowLead(0), float32(treeDiscloseColDp); got != want {
+		t.Errorf("the vault's own level stands %v in on top of the sidebar's columns, want the one disclosure column %v: a disclosure drawn before the rail's first column would stand outside the pill", got, want)
+	}
+
+	m := treeModel()
+	m.Folds = map[string]bool{"guide": true, "guide/deep": true}
+	if rows := TreeRows(m.Index, m.Folds); len(rows) < 3 {
+		t.Fatalf("the folder tree draws %d rows, too few to read a depth off", len(rows))
+	}
+	for _, r := range MatchRows(m.Index, "n") {
+		if r.Depth != 0 {
+			t.Errorf("the find answers %s at depth %d; a flat answer is one level, and a row that moved sideways under the find would move under the reader", r.Path, r.Depth)
+		}
+	}
+}

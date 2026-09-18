@@ -12,6 +12,8 @@ import (
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
+	vgicons "github.com/vibrantgio/components/icons"
+
 	"gioui.org/font"
 	"gioui.org/io/event"
 	"gioui.org/layout"
@@ -1042,7 +1044,16 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 		// same number.
 		gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, gtx.Dp(sidebar.RowHeight)))
 		m := op.Record(gtx.Ops)
-		dims := layout.Inset{Left: unit.Dp(20), Right: unit.Dp(12)}.Layout(gtx,
+		// The rail lists conversations, so its rows stand in the sidebar's
+		// own columns: the document mark at SymbolInset — a conversation is
+		// a file in this window's own folder, named by its own title — and
+		// the name at LabelInset. Nothing stands at the count's column: a
+		// conversation holds no count, and what is at the trailing end here
+		// is the row's own two controls.
+		symbol := op.Record(gtx.Ops)
+		drawChatSymbol(gtx, t, textColor)
+		symbolCall := symbol.Stop()
+		dims := layout.Inset{Left: unit.Dp(sidebar.LabelInset), Right: unit.Dp(12)}.Layout(gtx,
 			func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -1097,9 +1108,27 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 		if selected {
 			sidebar.PaintSelection(gtx, dims.Size, t.col, false)
 		}
+		symbolCall.Add(gtx.Ops)
 		foreground.Add(gtx.Ops)
 		return dims
 	})
+}
+
+// drawChatSymbol paints a conversation row's symbol in the square the
+// sidebar's rows keep for one, at the column the platform draws it in. The
+// mark is the document: a conversation is one piece of content, the way a
+// note is.
+func drawChatSymbol(gtx layout.Context, t themed, fg color.NRGBA) {
+	mark := vgicons.Mark(vgicons.Document)
+	if mark == nil {
+		return
+	}
+	// The mark fills the square the row keeps for it, which is what brings it
+	// out at the platform's own weight beside the name.
+	box := gtx.Dp(sidebar.SymbolBox)
+	h := gtx.Dp(sidebar.RowHeight)
+	defer op.Offset(image.Pt(gtx.Dp(sidebar.SymbolInset), (h-box)/2)).Push(gtx.Ops).Pop()
+	mark(gtx, box, fg)
 }
 
 // motionPhase returns where the frame's instant sits in a cycle of the given

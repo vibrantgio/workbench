@@ -61,11 +61,18 @@ const (
 	// treeRowInsetDp is the shared horizontal inset: the find field and the
 	// row pills sit on one pair of edges. It is the sidebar pattern's own
 	// measured inset, so a pill drawn here is the pill the platform draws.
-	treeRowInsetDp    = float32(sidebar.SelectionInset)
-	treeRowPadDp      = 8           // breathing room between a fill's edge and its text
-	treeIndentDp      = 14          // additional inset per depth level
-	treeDiscloseDp    = markSmallDp // the disclosure mark's own square
-	treeDiscloseColDp = 20          // fixed column holding it, so names align per level
+	treeRowInsetDp = float32(sidebar.SelectionInset)
+	treeRowPadDp   = 8  // breathing room between a fill's edge and its text
+	treeIndentDp   = 14 // additional inset per depth level
+	// treeDiscloseDp is the disclosure mark's square and treeDiscloseColDp
+	// the column it stands in. A tree row carries a part the platform's plain
+	// sidebar row does not, so the row's first column holds the disclosure
+	// and the symbol and the name stand one column further in — which is why
+	// the whole tree is indented one level: a disclosure drawn in the room
+	// before the sidebar's own first column would stand outside the selection
+	// pill, and no row of the reference draws anything there.
+	treeDiscloseColDp = treeIndentDp
+	treeDiscloseDp    = 12
 	// treeFieldPadDp is the air around the find field. It is the row pills'
 	// own inset, so the field's edges and every pill's stand on one pair of
 	// lines down the rail — which is the whole of what makes the field read
@@ -84,13 +91,14 @@ func treeFieldSurface(c tokens.PlatformColors) color.NRGBA { return chromeSurfac
 
 // TreeRow is one visible row of the folder tree.
 type TreeRow struct {
-	Idx    int    // position in the flattened row slice
-	Path   string // vault-relative; the folder path or the note path
-	Name   string // display name; the note title for note rows
-	Detail string // faint trailing annotation; the folder on a filtered row
-	Depth  int    // nesting depth, 0 at the vault root
-	IsDir  bool   // a folder row, carrying a disclosure toggle
-	Open   bool   // folder rows only: the fold is open
+	Idx     int    // position in the flattened row slice
+	Path    string // vault-relative; the folder path or the note path
+	Name    string // display name; the note title for note rows
+	Detail  string // faint trailing annotation; the folder on a filtered row
+	Section string // the heading this row begins a run under, where it begins one
+	Depth   int    // nesting depth, 0 at the vault root
+	IsDir   bool   // a folder row, carrying a disclosure toggle
+	Open    bool   // folder rows only: the fold is open
 }
 
 // treeNode is the intermediate nested shape TreeRows flattens from.
@@ -103,6 +111,15 @@ type treeNode struct {
 // visible rows: at each level the folders in name order then the notes in
 // title order (both case-insensitive), a closed folder hiding its whole
 // subtree, and any path with a dot-directory segment hidden outright.
+//
+// The vault's own two runs are headed. At the root the walk emits the
+// folders and then the notes that sit loose beside them, so those are the
+// two runs the rail shows, and the first row of each carries the heading
+// the sidebar draws above it. A vault holding only one of the two is left
+// unheaded: a heading over the whole list names nothing the reader cannot
+// already see. The vault's top-level folders are NOT the sections — a
+// folder is a row, with a disclosure that opens it, and a heading is
+// neither.
 func TreeRows(idx *Index, folds map[string]bool) []TreeRow {
 	if idx == nil {
 		return nil
@@ -153,10 +170,38 @@ func TreeRows(idx *Index, folds map[string]bool) []TreeRow {
 		}
 	}
 	walk(root, "", 0)
+	headRuns(out)
 	for i := range out {
 		out[i].Idx = i
 	}
 	return out
+}
+
+// headRuns heads the vault's two runs where it has both: the first top-level
+// folder and the first note standing loose beside them. A folder's own
+// subtree is emitted between its row and the next top-level folder's, so the
+// run is not contiguous in the flattened slice; what the heading marks is
+// where each run starts, which is what the reader sees.
+func headRuns(rows []TreeRow) {
+	dir, note := -1, -1
+	for i := range rows {
+		if rows[i].Depth != 0 {
+			continue
+		}
+		if rows[i].IsDir {
+			if dir < 0 {
+				dir = i
+			}
+			continue
+		}
+		if note < 0 {
+			note = i
+		}
+	}
+	if dir < 0 || note < 0 {
+		return
+	}
+	rows[dir].Section, rows[note].Section = "Folders", "Notes"
 }
 
 // MatchRows is the find field's answer: the notes whose name contains
@@ -466,8 +511,10 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
 	// A tree rail is chrome, so its rows take the sidebar's own row height
-	// rather than the platform's list row.
+	// and the sidebar's own columns: the symbol, the name after it and the
+	// trailing end, each where the platform draws it.
 	rowH := gtx.Dp(sidebar.RowHeight)
+	section := sidebar.SectionStyle(tok.typ)
 	return list.LayoutSelectable(gtx, v.list, rows,
 		func(gtx layout.Context, row TreeRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
@@ -475,8 +522,21 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 				v.list.Select(row.Idx)
 				activateTreeRow(gtx, row)
 			}
-			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowH))
-			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			width := gtx.Constraints.Max.X
+			// A row that begins a run stands under its heading, in a block
+			// the sidebar pattern measures. The heading is not a row: it
+			// takes no click and the keyboard steps over it.
+			head := 0
+			if row.Section != "" {
+				head = gtx.Dp(sidebar.SectionHeight)
+				hGtx := gtx
+				hGtx.Constraints = layout.Exact(image.Pt(width, head))
+				sidebar.PaintSection(hGtx, tok.shaper, row.Section, section, image.Pt(width, head),
+					vgcolor.Flatten(sidebar.SectionForeground(tok.col), chromeSurface(tok.col)))
+			}
+			defer op.Offset(image.Pt(0, head)).Push(gtx.Ops).Pop()
+			gtx.Constraints = layout.Exact(image.Pt(width, rowH))
+			click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
 				active := !row.IsDir && row.Path == m.Current
 				// The pill is the sidebar pattern's — its inset, its corner
@@ -489,55 +549,99 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 					sidebar.PaintSelection(gtx, size, tok.col, !active)
 					surface = sidebar.SelectionFill(tok.col, !active)
 				}
-				// The find mark is the platform's own, and the words it
-				// covers keep their colour.
-				hl := tok.col.FindHighlight
 				semantic.LabelOp(row.Name).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(complayout.HSpacer(treeRowInsetDp+treeRowPadDp+float32(row.Depth)*treeIndentDp)),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						// The column is held whether or not the row has a
-						// mark to put in it, so names line up per level.
-						// It is wider than the mark because the mark turns:
-						// closed, the mark is narrow and its square has
-						// room to spare either side; open, it lies across
-						// the full width of that square and would otherwise
-						// end where the name begins.
-						mark := gtx.Dp(treeDiscloseDp)
-						if row.IsDir {
-							drawDisclosure(gtx, row.Open, treeDiscloseDp,
-								vgcolor.Flatten(tok.col.SecondaryLabel, surface))
-						}
-						return layout.Dimensions{Size: image.Pt(gtx.Dp(treeDiscloseColDp), mark)}
-					}),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						name := tok.col.Label
-						if filled {
-							name = sidebar.SelectionLabel(tok.col, !active)
-						}
-						return drawFound(gtx, tok.shaper, row.Name, tok.typ.BodyMedium,
-							vgcolor.Flatten(name, surface), hl, query)
-					}),
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
-					}),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						if row.Detail == "" {
-							return layout.Dimensions{}
-						}
-						detail := tok.col.SecondaryLabel
-						if filled {
-							detail = sidebar.SelectionLabel(tok.col, !active)
-						}
-						return drawFound(gtx, tok.shaper, row.Detail, tok.typ.BodySmall,
-							vgcolor.Flatten(detail, surface), hl, query)
-					}),
-					layout.Rigid(complayout.HSpacer(treeRowInsetDp+treeRowPadDp)),
-				)
+				v.drawRow(gtx, row, tok, size, surface, filled, active, query)
 				return layout.Dimensions{Size: size}
 			})
+			return layout.Dimensions{Size: image.Pt(width, rowH+head)}
 		})
+}
+
+// treeRowLead is how far a row's own symbol and name stand in from the
+// sidebar's measured columns: one indent per depth, the same step at every
+// depth, and one more for the disclosure column every row's first column is.
+// A row's disclosure stands one indent back from that, at the rail's own
+// first column — where the section headings begin, which is where the
+// reference puts the first thing on a row.
+func treeRowLead(depth int) float32 { return float32(depth+1) * treeIndentDp }
+
+// drawRow paints one tree row's parts into the columns the sidebar pattern
+// measures, each shifted by one indent per depth: the disclosure in the
+// rail's own leading inset where the row is a folder, the symbol at
+// SymbolInset, the name at LabelInset, and the row's trailing annotation
+// ending CountInset in from the rail's trailing edge.
+//
+// The indent moves the whole row and nothing inside it, so a name at depth 2
+// stands exactly two indents right of a name at depth 0 and a row keeps its
+// columns when the find flattens the tree.
+func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, size image.Point, surface color.NRGBA, filled, active bool, query string) {
+	indent := gtx.Dp(unit.Dp(treeRowLead(row.Depth)))
+	// The find mark is the platform's own, and the words it covers keep
+	// their colour.
+	hl := tok.col.FindHighlight
+	secondaryLabel := vgcolor.Flatten(tok.col.SecondaryLabel, surface)
+	if filled {
+		secondaryLabel = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, !active), surface)
+	}
+
+	if row.IsDir {
+		col := gtx.Dp(unit.Dp(treeDiscloseColDp))
+		mark := gtx.Dp(unit.Dp(treeDiscloseDp))
+		back := indent - col + gtx.Dp(sidebar.SymbolInset)
+		stk := op.Offset(image.Pt(back+(col-mark)/2, (size.Y-mark)/2)).Push(gtx.Ops)
+		drawDisclosure(gtx, row.Open, treeDiscloseDp, secondaryLabel)
+		stk.Pop()
+	}
+
+	// A folder row draws the folder, a note row the document: the mark names
+	// the thing the row stands for.
+	name := icons.Document
+	if row.IsDir {
+		name = icons.Folder
+	}
+	// The mark fills the square the row keeps for it, so the drawing comes
+	// out at the platform's own weight: the set's axis-aligned keyline is 18
+	// of 24 against the folder symbol's measured 20 across, and its band 1.5
+	// against the measured 1.37 to 1.50. A mark drawn at the size a mark
+	// beside text takes would come out 12 across on a hairline.
+	box := gtx.Dp(sidebar.SymbolBox)
+	fg := vgcolor.Flatten(tok.col.Label, surface)
+	if filled {
+		fg = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, !active), surface)
+	}
+	stk := op.Offset(image.Pt(indent+gtx.Dp(sidebar.SymbolInset), (size.Y-box)/2)).Push(gtx.Ops)
+	drawMark(gtx, name, sidebar.SymbolBox, fg)
+	stk.Pop()
+
+	trail := gtx.Dp(sidebar.CountInset)
+	tailW := 0
+	if row.Detail != "" {
+		dGtx := gtx
+		dGtx.Constraints = layout.Constraints{Max: image.Pt(size.X, size.Y)}
+		rec := op.Record(gtx.Ops)
+		dims := drawFound(dGtx, tok.shaper, row.Detail, tok.typ.BodySmall, secondaryLabel, hl, query)
+		call := rec.Stop()
+		tailW = dims.Size.X
+		stk := op.Offset(image.Pt(max(0, size.X-trail-tailW), (size.Y-dims.Size.Y)/2)).Push(gtx.Ops)
+		call.Add(gtx.Ops)
+		stk.Pop()
+		tailW += gtx.Dp(unit.Dp(treeRowPadDp))
+	}
+
+	lead := indent + gtx.Dp(sidebar.LabelInset)
+	room := size.X - lead - trail - tailW
+	if room <= 0 {
+		return
+	}
+	lGtx := gtx
+	lGtx.Constraints = layout.Constraints{Max: image.Pt(room, size.Y)}
+	rec := op.Record(gtx.Ops)
+	dims := drawFound(lGtx, tok.shaper, row.Name, tok.typ.BodyMedium, fg, hl, query)
+	call := rec.Stop()
+	stk = op.Offset(image.Pt(lead, (size.Y-dims.Size.Y)/2)).Push(gtx.Ops)
+	call.Add(gtx.Ops)
+	stk.Pop()
 }
 
 // drawFound draws one of a row's words with the run the query matched marked
