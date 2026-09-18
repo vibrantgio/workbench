@@ -23,7 +23,6 @@ package main
 
 import (
 	"image"
-	"image/color"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -38,7 +37,6 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/theme/theme"
-	"github.com/vibrantgio/theme/tokens"
 )
 
 // menuEntry is one pickable row: what it says and what picking it sets. An
@@ -85,20 +83,13 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 	// when that data changes. That is why each key is deduplicated first —
 	// Model emits on every streamed token, and a subscription per token is not
 	// a rate a component was built for.
-	planeObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	anchorObs := rx.Map(rx.SwitchMap(
-		rx.Map(rx.CombineLatest2(modelObs, planeObs), func(n rx.Tuple2[Model, tokens.PlatformColors]) anchorKey {
-			return anchorKeyOf(n.First, n.Second.ControlBackground)
-		}).Pipe(rx.DistinctUntilChanged(func(a, b anchorKey) bool { return a == b })),
+		rx.Map(modelObs, anchorKeyOf).
+			Pipe(rx.DistinctUntilChanged(func(a, b anchorKey) bool { return a == b })),
 		func(k anchorKey) rx.Observable[layout.Widget] {
 			return picker.Toolbar(th, picker.ToolbarProps{
 				Value:       k.label,
 				Description: "Model for this chat",
-				// The anchor stands in the chrome row, which this window
-				// paints with the transcript's own fill: the platform's
-				// content plane, not the chrome material the trigger assumes
-				// when it is told nothing.
-				Surface: k.standsOn,
 				// The anchor reports the shape it drew and nothing wider: the
 				// popover aims its tail at that rect, and a control that
 				// widened its report to reach the trailing edge would be
@@ -183,13 +174,13 @@ func menuSurface(menu layout.Widget, width unit.Dp) layout.Widget {
 // anchorKey is everything the header anchor is a function of, which is the
 // label alone: the mark is the component's and does not move, so the open
 // state is not in here and opening the menu does not rebuild the control.
+//
+// The fill the anchor stands on is not in here either. The platform gives its
+// toolbar control a fill of its own, so the trigger's paint no longer depends
+// on what it is drawn over and a scheme change reaches it through the theme it
+// is already subscribed to.
 type anchorKey struct {
 	label string
-	// standsOn is the opaque fill the trigger is drawn on. It is part of the
-	// key because the trigger takes it once per subscription and the fill
-	// changes with the appearance: a key without it would leave a trigger
-	// flattening the platform's coverages onto the other scheme's plane.
-	standsOn color.NRGBA
 }
 
 // anchorKeyOf reads the effective model out of the Model and names it:
@@ -198,12 +189,12 @@ type anchorKey struct {
 // came from the chat's own override or from the global default. Where it came
 // from is a different question, it is asked rarely, and the menu answers it in
 // full: the Default row is there, selected exactly when no override is set.
-func anchorKeyOf(m Model, standsOn color.NRGBA) anchorKey {
+func anchorKeyOf(m Model) anchorKey {
 	label := "No model configured"
 	if provider, id, ok := m.EffectiveModel(); ok {
 		label = provider.Name + " · " + id
 	}
-	return anchorKey{label: label, standsOn: standsOn}
+	return anchorKey{label: label}
 }
 
 // menuKey is the option list and the row standing on the inverse plane, with
