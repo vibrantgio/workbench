@@ -193,17 +193,16 @@ const (
 	UndoBarRadius    unit.Dp = 6
 	UndoBarMargin    unit.Dp = 24
 
-	// SidebarWidth is what the conversation pane takes while it stands. It
-	// is a width and not a ratio: the pane is an object floating in the
-	// window rather than one half of a split, so it does not grow with the
-	// window and the transcript takes everything it does not.
+	// SidebarWidth is what the conversation panel takes while it stands. It
+	// is a width and not a ratio: the panel is an object set into the window
+	// rather than one half of a split, so it does not grow with the window
+	// and the transcript takes everything it does not.
 	SidebarWidth unit.Dp = 240
 
 	// PaneMargin is the air the chrome row and the input bar keep off the
-	// window's edges, and the air the rail's own top strip keeps at its
-	// trailing end. The rail itself stands off nothing — it runs to the
-	// window's leading, top and bottom edges — so this is nowhere a
-	// region's own inset. The number is the pattern's strip margin.
+	// window's edges, the inset the rail's panel stands off the window's
+	// leading, top and bottom edges, and the air its own top strip keeps at
+	// its trailing end. The number is the pane pattern's own margin.
 	PaneMargin = pane.MarginDp
 
 	FooterIconSize     unit.Dp = 18

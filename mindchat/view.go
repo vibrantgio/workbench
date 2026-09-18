@@ -830,31 +830,33 @@ func SidebarPane(t themed, chats ChatList, current string, streaming map[string]
 	}
 }
 
-// SidebarStrip is the band across the top of the pane: the window control
+// SidebarStrip is the band across the top of the panel: the window control
 // buttons' span skipped at the leading end, a stretch that moves the window
-// across the middle, and the pane's two controls at the trailing corner.
+// across the middle, and the panel's two controls BARE at its top trailing
+// corner, which is where
+// voicememos-multi-folder-2026-09-18.png keeps a sidebar panel's own marks.
 //
-// The toggle rides here because it puts the pane away and a dismiss
+// The toggle rides here because it puts the panel away and a dismiss
 // control belongs to the thing it dismisses; new chat
 // rides here because it is the application's primary action and the list
 // under it is what it adds to. Both stand again in the chrome row once the
-// pane is gone, at the same size, on the same line AND in the same window
-// column — they are two halves of one switch each, and a control that moved
-// when the pane went would be a control that moves under the pointer. Both
-// bands lead past the same buttons by the same measured air, which is what
-// lands them on one column.
+// panel is gone, at the same size and on the same line — they are two halves
+// of one switch each, and they wear one figure to say so. What differs is
+// what the figure stands in: a mark in the BAND is the platform's bordered
+// toolbar control and a mark on the PANEL is bare, which is a property of
+// what each stands on and not of the switch.
 func SidebarStrip(gtx layout.Context, t themed, toggle, newChat *widget.Clickable) layout.Dimensions {
 	return pane.Strip(gtx, stripLead(windowButtonsEnd()),
 		func(gtx layout.Context) layout.Dimensions {
 			// The pane stands wherever this half of the switch stands, and
 			// the control says so.
-			return sidebarToggle(gtx, t, toggle, "Hide the conversations", true)
+			return paneToggle(gtx, t, toggle, "Hide the conversations")
 		},
 		func(gtx layout.Context) layout.Dimensions {
-			return desktop.DragRun(gtx, gtx.Dp(controlGapDp))
+			return desktop.DragRun(gtx, gtx.Dp(unit.Dp(pane.MarkGapDp)))
 		},
 		func(gtx layout.Context) layout.Dimensions {
-			return newChatMark(gtx, t, newChat)
+			return paneNewChat(gtx, t, newChat)
 		})
 }
 

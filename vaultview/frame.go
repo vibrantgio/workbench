@@ -12,13 +12,16 @@
 // boundaries, the op order that makes Tab follow the reading order — is
 // the shell's arrangement.
 //
-// The sidebar is the window's leading chrome column: it runs to the
-// window's leading, top and bottom edges with nothing between it and any
-// of them, and parts from the note by one seam down its trailing edge. The
-// run, the seam, the strip's arithmetic, the hidden-takes-no-width contract
-// and the recall convention are patterns/pane's; what is left here is the
-// column that stands in it. No band crosses above the rail. Its toggle sits
-// at its top-right corner with the strip's empty middle moving the window.
+// The sidebar is the window's leading chrome column, set into the window as
+// a PANE: an inset rounded panel one margin in from the window's leading,
+// top and bottom edges with the window's own plane showing in those
+// margins, flush against the note on the fourth side, bounded by its own rim
+// and the shadow it casts and by no seam anywhere. The inset, the rim, the
+// shadow, the strip's arithmetic, the hidden-takes-no-width contract and the
+// recall convention are patterns/pane's; what is left here is the column
+// that stands in it. No band crosses above the panel. Its toggle stands bare
+// at its top trailing corner with the strip's empty middle moving the
+// window.
 // The vault's own actions stand in the toolbar band. Hidden, the rail takes
 // no width at all and the note column reflows from the window's leading
 // edge, so the chrome row carries the toggle that brings the rail back — a
@@ -39,28 +42,28 @@
 // vault's two actions and the find, each the platform's bordered toolbar
 // control, in the order and at the spacing the stored bands read.
 //
-// The window's fill is the same surface the note column lies on, so the
-// note draws no edge of its own and the chrome row sits on the document
+// The content area's fill is the same surface the note column lies on, so
+// the note draws no edge of its own and the chrome row sits on the document
 // rather than on a band above it. Both of the window's side columns are
 // chrome drawn at the same level, a measured step under the content in
-// either scheme, and both are FLUSH: each runs to the window's own edges
-// and is parted from the document by one seam. What differs is only that a
-// button slides the leading one out of the window and nothing dismisses the
-// trailing one.
+// either scheme, and there they part: the leading one is a PANE, set into
+// the window's plane and bounded by its rim, because a button slides it out
+// of the window; the trailing one is FLUSH, running to the window's own
+// edges and parted from the document by one seam, because nothing dismisses
+// it.
 //
 // Both boundaries are the reader's to move, and both are the same
 // pattern: the seam between two regions made operable, thickening and
 // taking a firmer colour while a hand is in the band it is taken by,
 // which is the one thing a resting edge cannot say. Leading, the line is
-// the rail's own seam, so the splitter draws over it in the rail's own
+// the panel's own rim, so the splitter draws over it in the rim's own
 // colour rather than beside it in a second — a resting window is the same
 // window whether or not that edge can be taken hold of — and it therefore
-// runs exactly where that seam runs: from the toolbar band's lower edge to
-// the window's foot, status bar included. The band itself carries no line
-// on that boundary, because the platform's band is one across the window's
-// columns and the fill change alone says where the rail's column runs
-// through it. The trailing boundary keeps the whole height it has until
-// what a content-side boundary is painted with is ruled.
+// runs exactly where that rim runs straight: from where the panel's top
+// corner lets go to where its bottom corner begins, the toolbar band's rows
+// included, since the panel is one object from its top edge to its foot. The
+// trailing boundary keeps the whole height it has until what a content-side
+// boundary is painted with is ruled.
 //
 // The two boundaries answer to the note column between them: neither is
 // dragged past the point where the note would be left with less than a
@@ -105,6 +108,7 @@ import (
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/splitter"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -164,24 +168,21 @@ const (
 	// control and have to know what the control reaches.
 	toolbarShadowReachDp = 23
 
-	// railMarginDp is the window's small edge margin: the air the rail's own
-	// top strip keeps between its toggle and the rail's trailing edge, and
-	// the air the trailing column leaves either side of its scrollbar —
-	// which is what stands that bar off the window's edge by what the
-	// note's stands off this column's. No region is set into anything here,
-	// so it is nowhere a region's own inset; it is the pane pattern's strip
-	// margin, named here because the window spends it in two places the
-	// pattern knows nothing about.
+	// railMarginDp is the window's small edge margin: the inset the rail's
+	// panel stands off the window's leading, top and bottom edges, the air
+	// its own top strip keeps between its toggle and the panel's trailing
+	// edge, and the air the trailing column leaves either side of its
+	// scrollbar. It is the pane pattern's own margin, named here because the
+	// window spends it in places the pattern knows nothing about.
 	railMarginDp = pane.MarginDp
 
 	// seamDp is what any chrome boundary in this window paints: a hairline,
-	// the width the platform's own splitters take. It is both the
-	// pane's internal outline and the flush column's seam, so that a window
-	// whose two vertical boundaries are drawn for different reasons still
-	// draws them at one weight. A seam runs the window's whole height, band
-	// included, so its width is the width of the scar it leaves across every
-	// band it crosses.
-	seamDp = pane.SeamDp
+	// the width the platform's own splitters take. It is both the panel's
+	// rim and the flush column's seam, so that a window whose two vertical
+	// boundaries are drawn for different reasons still draws them at one
+	// weight. A seam runs the window's whole height, band included, so its
+	// width is the width of the scar it leaves across every band it crosses.
+	seamDp = splitter.SeamDp
 
 	// buttonInsetDp is how far the window control buttons sit in from the
 	// window's own top and leading edges — the drawn circles' own edges,
@@ -195,13 +196,19 @@ const (
 	// number by the platform's own rule, which the pattern applies.
 	buttonInsetDp = pane.ButtonInsetDp
 
-	// paneStripDp is the pane's own top strip: deep enough to hold the
+	// paneStripDp is the panel's own top strip: deep enough to hold the
 	// buttons where the window puts them with the same air below them as
 	// above. The buttons' inset is measured from the glass and the strip
-	// from the pane's own edge, so the strip owes the difference back, which
-	// lands the buttons' centre line on the strip's own middle — the line
-	// the pane's toggle centres on, so the two sit level.
+	// from the panel's own edge, so the strip owes the margin back at both
+	// ends, which lands the buttons' centre line on the strip's own middle —
+	// the line the panel's toggle centres on, so the two sit level.
 	paneStripDp = pane.StripDp
+
+	// bandDp is the toolbar band the content column carries beside the
+	// panel: the deeper number, since the panel is set one margin into it.
+	// The buttons stand on its middle line too, so a control centred in the
+	// band and one centred in the panel's strip sit level.
+	bandDp = pane.BandDp
 )
 
 // windowButtons is where this window's three control buttons stand, derived
@@ -212,14 +219,14 @@ var windowButtons = pane.Buttons
 
 // toolbarHeight is the chrome row's depth: the platform's toolbar band, 52
 // dp — a 36 dp control with 8 above it and 8 below — which is the depth every
-// stored toolbar capture measures and the depth patterns/pane cuts its own
-// top strip to. The row is what this window puts IN that band, so the band
+// stored toolbar capture measures and the band the panel beside it is set one
+// margin into. The row is what this window puts IN that band, so the band
 // settles its depth and the text standing in it does not.
 //
 // It takes no tokens: the band is the window's and the same in every density,
 // as the pane's strip beside it is.
 func toolbarHeight() unit.Dp {
-	return unit.Dp(paneStripDp)
+	return unit.Dp(bandDp)
 }
 
 // bandSurface is the fill a control standing at the TRAILING end of this
@@ -433,9 +440,10 @@ type frameGeom struct {
 
 // frameGeometry measures the pane and the content area. It is separate
 // from the drawing so the arrangement can be asserted without a frame:
-// that the rail runs to the window's leading, top and bottom edges, that
-// the content reflows to the window's own edge when the rail goes, and that
-// the content area's columns run between its two bands and no further.
+// that the rail's panel stands one margin inside the window's leading, top
+// and bottom edges, that the content reflows to the window's own edge when
+// the rail goes, and that the content area's columns run between its two
+// bands and no further.
 //
 // The bands are taken in the order they matter when there is no room for
 // either: the chrome row first, because it carries the control that brings
@@ -446,11 +454,11 @@ func frameGeometry(gtx layout.Context, size image.Point, railW unit.Dp, barH, fo
 	barH = min(max(barH, 0), h)
 	footH = min(max(footH, 0), h-barH)
 	g := frameGeom{rowTop: barH, rowH: h - barH - footH, footTop: h - footH}
-	// The run is the pattern's: the window's leading, top and bottom edges,
-	// never more than half the window wide, and empty in every state where
-	// there is no rail to draw — hidden above all, where the emptiness IS
-	// the contract and the content beside it reflows to the window's own
-	// edge.
+	// The run is the pattern's: one margin inside the window's leading, top
+	// and bottom edges, never more than half the window wide, and empty in
+	// every state where there is no rail to draw — hidden above all, where
+	// the emptiness IS the contract and the content beside it reflows to the
+	// window's own edge.
 	g.pane = pane.Bounds(gtx, size, railW, hidden)
 	if !g.pane.Empty() {
 		g.contentX = g.pane.Max.X
@@ -484,19 +492,28 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	f.asideSplitter.Update(gtx, f.asideProps(gtx, tok, size, g))
 	f.geom = g
 
+	// The window's own plane, under everything: the rail's panel is set into
+	// it and the plane is what shows in the margins around it. MEASURED,
+	// voicememos-multi-folder-2026-09-18.png and
+	// finder-window-untinted-light.png: the eight pixels either side of the
+	// panel carry the window background and nothing else.
+	paint.FillShape(gtx.Ops, tok.col.WindowBackground, clip.Rect(image.Rectangle{Max: size}).Op())
+
 	// The content area stands on the note's own surface: the document is what
-	// the window is. It starts where the rail stops, and with the rail gone
-	// it starts at the window's own leading edge — nothing of the window's
-	// plane is left showing anywhere, because no region here is set into it.
+	// the window is. It starts where the rail's panel stops — flush against
+	// it, which is the one side the panel is not set in from — and with the
+	// rail gone it starts at the window's own leading edge.
 	paint.FillShape(gtx.Ops, tok.col.TextBackground,
 		clip.Rect(image.Rect(g.contentX, 0, size.X, size.Y)).Op())
 
-	// The rail is the vocabulary's PANE and nothing here draws it: the run
-	// to the window's leading, top and bottom edges, the chrome fill, the
-	// one seam down its trailing edge and the clip that keeps a scrolled row
-	// off it are all the pattern's. What is left to this window is which
-	// column stands in it.
+	// The rail is the vocabulary's PANE and nothing here draws it: the inset
+	// rounded panel, its rim, the shadow it casts, the chrome fill and the
+	// clip that keeps a scrolled row off its edge are all the pattern's.
+	// What is left to this window is which column stands in it, and what
+	// stands behind the two corners the panel rounds away from on its flush
+	// side — the document, not the plane.
 	if !g.pane.Empty() {
+		pane.FillTrailingCorners(gtx, tok.col.TextBackground, g.pane)
 		pane.Layout(gtx, tok.col, g.pane, sb)
 	}
 
@@ -575,6 +592,16 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 		st.Pop()
 	}
 
+	// The shadow the rail's panel casts, after every column has painted its
+	// own surface: the note column paints its own rows after the pane has
+	// laid out — the pane comes first because it comes first in the reading
+	// order — and would cover the ramp the panel cast on it. The pattern
+	// cuts the panel's own box out of the drawing, so painting it here lands
+	// what painting it under the panel landed.
+	if !g.pane.Empty() {
+		pane.PaintShadow(gtx, tok.col, g.pane)
+	}
+
 	// The window's two boundaries, last of everything, so that neither the
 	// columns' rows nor the two bands crossing over them can cover a line
 	// and so that a press this close to a boundary reaches the boundary.
@@ -636,62 +663,66 @@ func noteFloor(gtx layout.Context, note int) int {
 	return min(gtx.Dp(unit.Dp(noteMinWidthDp)), note)
 }
 
-// railProps states the splitter on the rail's trailing edge, where the note
-// stands flush against it and the rail's own seam IS the boundary between
-// the two.
+// railProps states the splitter on the rail panel's trailing edge, where the
+// note stands flush against it and the panel's own RIM is the boundary
+// between the two.
 //
-// So the line this splitter draws is that seam: the same pixel, in the
-// rail's own seam colour rather than the Seam token, drawn over it rather
-// than beside it. A resting window is unchanged by the splitter being
-// there; what the reader gains is a band to take the edge by and a
-// thickening under the hand that takes it. A second line three dp off the
-// first would read as a stray edge, and a line of the region's own colour
-// would recolour the rail's one boundary down its length.
+// So the line this splitter draws at rest is that rim: the same pixel, in
+// the panel's own rim colour, drawn over it rather than beside it. A resting
+// window is unchanged by the splitter being there; what the reader gains is
+// a band to take the edge by and a thickening under the hand that takes it.
+// A second line three dp off the first would read as a stray edge, and the
+// seam colour here would lay a hairline of a different colour down the one
+// boundary the panel already draws.
 //
-// The boundary is the seam's own leading edge and not the rail's trailing
+// The boundary is the rim's own leading edge and not the panel's trailing
 // one, which is the pixel after it: the splitter draws from the boundary
-// outward, so the rail's edge as the boundary would put the line in the
-// note column instead of on the rail.
+// outward, so the panel's edge as the boundary would put the line in the
+// note column instead of on the panel.
 //
 // The bounds are the rail's own, and the note's floor over them: the rail
 // stops where widening it further would take the note under the narrowest
-// column of prose it may be. The rail starts at the window's own leading
-// edge, so its width and its trailing edge are one number.
+// column of prose it may be. The panel stands one margin inside the window's
+// leading edge, so its width and its trailing edge differ by that margin,
+// which is what the boundary carries and the report takes back off.
 func (f *frameState) railProps(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) splitter.Props {
 	seamPx := splitter.SeamWidth(gtx)
+	marginPx := gtx.Dp(unit.Dp(railMarginDp))
 	gap := max(gtx.Dp(unit.Dp(frameSplitterDp)), 1)
 	c := contentColumns(gtx, size, g.contentX, f.asideW)
 
 	lo := gtx.Dp(railMinWidthDp)
-	hi := max(min(gtx.Dp(railMaxWidthDp), size.X-gap-c.aside-noteFloor(gtx, c.note)), lo)
+	hi := max(min(gtx.Dp(railMaxWidthDp), size.X-marginPx-gap-c.aside-noteFloor(gtx, c.note)), lo)
 
 	scale := pxPerDp(gtx)
 	return splitter.Props{
 		Axis:     layout.Horizontal,
 		Boundary: float32(g.pane.Max.X - seamPx),
-		Min:      float32(lo - seamPx),
-		Max:      float32(hi - seamPx),
+		Min:      float32(marginPx + lo - seamPx),
+		Max:      float32(marginPx + hi - seamPx),
 		Colors:   tok.col,
-		// The line stands on the rail's own fill, which is what the seam it
-		// is drawn over is flattened onto.
+		// At rest the line IS the panel's rim, so it draws the rim's own
+		// colour; under a hand it firms as every other boundary in this
+		// window does, which is the seam over the rail's own fill.
+		Rest:    pane.RimColor(tok.col),
 		Surface: chromeSurface(tok.col),
 		OnChange: func(at float32) {
-			f.railW = clampRail(unit.Dp((at + float32(seamPx)) / scale))
+			f.railW = clampRail(unit.Dp((at + float32(seamPx-marginPx)) / scale))
 		},
 	}
 }
 
-// layoutRailSplitter draws that hand-hold over the rail's trailing edge,
-// from the toolbar band's lower edge to the window's foot. The line this
-// splitter draws IS the rail's seam, so it runs exactly where the seam runs
-// and stops where the seam stops: the band is one across the window's
-// columns and no line crosses it, which pane.SeamTop is the row of. Below
-// it the hand-hold runs the rest of the window, status bar included — a
-// boundary a reader may take hold of along part of the length it is DRAWN
-// at reads as two boundaries, one live and one not.
+// layoutRailSplitter draws that hand-hold over the rail panel's trailing
+// edge, along the rows that edge runs straight: the line this splitter draws
+// IS the panel's rim, so it runs exactly where the rim runs and stops where
+// the rim curves away, which pane.EdgeSpan is the span of. A line carried
+// through a rounded corner would leave a pixel of itself out on the window's
+// plane. The hand-hold runs the same rows as the line — a boundary a reader
+// may take hold of along part of the length it is DRAWN at reads as two
+// boundaries, one live and one not.
 func (f *frameState) layoutRailSplitter(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) {
-	top := pane.SeamTop(gtx, g.pane)
-	h := g.pane.Max.Y - top
+	top, bottom := pane.EdgeSpan(gtx, g.pane)
+	h := bottom - top
 	if g.pane.Dy() <= 0 || h <= 0 {
 		return
 	}
@@ -992,20 +1023,39 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 // control is about to do is in the label it carries, which the screen
 // reader speaks and the tooltip shows.
 //
-// Both of the window's sidebar controls take it — the one in the pane's
-// top strip and the one the chrome row shows once the pane is gone — so
-// that the two halves of the same switch are one figure and not two.
-//
-// The figure stands in the platform's BORDERED TOOLBAR CONTROL: a capsule at
-// the toolbar control's measured height with the mark centred in it, its
-// fill, its rim where the platform draws one, and the drop shadow it casts on
-// the band. Every mark standing in this window's band is that control, the
-// sidebar-side one included — `notes-window.png` and `reminders-window.png`
-// draw their sidebar-side marks bare and `voicememos-window.png` draws its
-// sidebar toggle in a full capsule, and where the platform's own windows
-// split the library draws the bordered one.
+// Both of the window's sidebar controls take it — the one in the panel's
+// top trailing corner and the one the chrome row shows once the panel is
+// gone — so that the two halves of the same switch are one figure and not
+// two. What differs is what the figure stands in, and that is a property of
+// where it stands rather than of the switch: a mark in the BAND is the
+// platform's bordered toolbar control, and a mark on the sidebar PANEL is
+// bare. MEASURED, voicememos-multi-folder-2026-09-18.png: the panel's two
+// marks carry no capsule, no fill and no rim, while every mark in the band
+// beside them does.
 func railToggleControl(gtx layout.Context, tok themeTokens, click *widget.Clickable, label string) layout.Dimensions {
 	return chromeControl(gtx, tok, click, icons.Sidebar, label)
+}
+
+// paneMark draws one BARE chrome mark — the figure alone, at the mark box
+// every chrome mark in this window is drawn at, in the platform's control
+// text over the fill it stands on. It is what the sidebar panel's own
+// controls are drawn as: the panel is not a band, so nothing standing on it
+// wears the band's capsule.
+//
+// The foreground is the same name the bordered control's mark reads in, so
+// the two halves of one switch are one figure in one colour whichever side
+// of the window they stand on.
+func paneMark(gtx layout.Context, tok themeTokens, click *widget.Clickable, name icons.Name, label string) layout.Dimensions {
+	box := gtx.Dp(unit.Dp(markLargeDp))
+	fg := vgcolor.Flatten(tok.col.ControlText, chromeSurface(tok.col))
+	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		semantic.ClassOp(semantic.Button).Add(gtx.Ops)
+		semantic.LabelOp(label).Add(gtx.Ops)
+		semantic.EnabledOp(true).Add(gtx.Ops)
+		pointer.CursorPointer.Add(gtx.Ops)
+		icons.Mark(name)(gtx, box, fg)
+		return layout.Dimensions{Size: image.Pt(box, box)}
+	})
 }
 
 // chromeControl draws one bordered toolbar control: the set's mark for name

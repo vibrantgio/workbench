@@ -20,6 +20,7 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/patterns/pane"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -566,10 +567,18 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 			// The widest run of painted pixels anywhere in the document is
 			// the block that reaches the measure — here the fenced code
 			// block, which fills its whole width.
+			//
+			// The scan starts past the rail panel's shadow: the ramp the
+			// panel casts falls on the note's surface for its whole reach,
+			// and it is the panel's drawing and not the document's. The
+			// document's own first column stands at the note's leading
+			// inset, which is the same number, so nothing of the page is
+			// read out with it.
+			scanLo := regionLo + int(pane.ShadowReachDp)
 			blockLo, blockHi := -1, -1
 			for y := 0; y < size.Y; y++ {
 				lo, hi := -1, -1
-				for x := regionLo; x <= regionHi; x++ {
+				for x := scanLo; x <= regionHi; x++ {
 					if img.RGBAAt(x, y) != rgba(page) {
 						if lo < 0 {
 							lo = x

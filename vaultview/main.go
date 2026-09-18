@@ -156,12 +156,11 @@ func chromeSurface(c tokens.PlatformColors) color.NRGBA {
 	return pane.Surface(c)
 }
 
-// paneSeam is the colour of the rail pane's own edge: the platform's
-// separator over the rail's own fill, which is the pattern's own
-// answer. It is named here so this window's own tests can read the colour
-// the window actually draws.
-func paneSeam(c tokens.PlatformColors) color.NRGBA {
-	return pane.SeamColor(c)
+// paneRim is the colour of the rail panel's own rim: the platform's measured
+// value, which is the pattern's own answer. It is named here so this
+// window's own tests can read the colour the window actually draws.
+func paneRim(c tokens.PlatformColors) color.NRGBA {
+	return pane.RimColor(c)
 }
 
 // surfaceBackdrop is the opaque fill the window's backdrop resolves to: the

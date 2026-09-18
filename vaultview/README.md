@@ -34,7 +34,7 @@ The window is a sidebar down the leading edge and two columns beside it.
   click, the note you are reading marked. Above it, a find field:
   type and the hierarchy gives way to the notes whose name matches,
   each with its folder as a less pronounced annotation. The sidebar is a
-  rounded pane floating just inside the window's edge — the window's own buttons
+  rounded pane set just inside the window's edge — the window's own buttons
   show through its top strip, where the platform puts them and where they
   stay — and its toggle sits at its top-right corner, on their line. Put
   the pane away and the toggle that brings it back appears at the leading

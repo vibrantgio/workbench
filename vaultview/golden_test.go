@@ -14,6 +14,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -530,17 +531,16 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			top, bot := markedRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
 			level("the vault's name", top, bot, labelSlack)
 
-			// The pane's own toggle stands on the pane's surface, at the
-			// leading end of its strip: the bordered toolbar control, whose
-			// own fill is what is read here against the pane's. The pane's
-			// first row is left out — the internal hairline that says the
-			// pane is an object, a line on the pane's fill and not a mark
-			// this is measuring.
+			// The panel's own toggle stands BARE on the panel's surface, at
+			// its top trailing corner: the figure alone, which is what is
+			// read here against the panel's own fill. The panel's first row
+			// is left out — the rim that says the panel is an object, a line
+			// on the panel's fill and not a mark this is measuring.
 			strip := st.geom.pane.Min.Y + paneStripDp
-			toggleX := st.geom.pane.Min.X + goldenLeading
-			paneTop, paneBot := markedRows(img, tc.colors.ToolbarControlFill, toggleX+2, toggleX+railToggleWidthDp-2,
+			toggleX := st.geom.pane.Max.X - railMarginDp - markLargeDp
+			paneTop, paneBot := markedRows(img, chromeSurface(tc.colors), toggleX+2, toggleX+markLargeDp-2,
 				st.geom.pane.Min.Y+seamDp, strip)
-			level("the pane's toggle", paneTop, paneBot, markSlack)
+			level("the panel's toggle", paneTop, paneBot, markSlack)
 
 			img, st = shot(hidden)
 			// With the pane away the row leads with the toggle, in the
@@ -549,9 +549,13 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			markX := goldenLeading
 			rowTop, rowBot := markedRows(img, tc.colors.ToolbarControlFill, markX+2, markX+railToggleWidthDp-2, 0, band)
 			level("the chrome row's toggle", rowTop, rowBot, markSlack)
-			if rowTop != paneTop || rowBot != paneBot {
-				t.Errorf("the chrome row's toggle marks rows %d..%d and the pane's %d..%d; one switch, one line",
-					rowTop, rowBot, paneTop, paneBot)
+			// The two halves stand on one line. They do not mark the same
+			// rows: the band's half is the platform's bordered control and
+			// the panel's is a bare figure, and a capsule is taller than the
+			// mark inside it. What one switch owes the reader is the line,
+			// which is what the two centres are held to.
+			if rowC, paneC := float64(rowTop+rowBot+1)/2, float64(paneTop+paneBot+1)/2; rowC != paneC {
+				t.Errorf("the chrome row's toggle centres on %.1f and the panel's on %.1f; one switch, one line", rowC, paneC)
 			}
 
 			nameX = markX + railToggleWidthDp + int(tokens.Spacing.S3)
@@ -762,28 +766,32 @@ func drawnRows(img *image.RGBA, surface color.NRGBA, x0, x1, y0, y1 int) (int, i
 	return top, bot
 }
 
-// TestThePaneEdgeIsCleanBesideTheToggle reads the pixels immediately
-// past the pane's trailing edge and requires every one of them to be the
-// backdrop the window is painted on. Nothing the pane draws — its tint,
-// its shadow, its strip or the toggle at the end of that strip — may
-// leave a mark outside the pane's own fill.
+// TestThePaneEdgeCarriesOnlyItsShadow reads the pixels immediately past the
+// panel's trailing rim and requires them to be the note's own surface under
+// the panel's shadow and nothing else: a neutral ramp that only darkens
+// toward the panel and is spent by the shadow's measured reach. Nothing the
+// panel draws — its fill, its rim, its strip or the toggle at its trailing
+// corner — may leave a second mark out there.
 //
 // The whole column is read rather than a band of it, which catches both
-// halves: paint where there should be none, and paint that stops where nothing
-// changes.
+// halves: paint where there should be none, and paint that stops where
+// nothing changes.
 //
-// Both appearances, because a shadow is an alpha over whatever is under it
-// and shows in one before the other; and either side of a round trip
-// through the hidden state, because the pane the toggle brings back has to
-// be the pane that left.
-func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
+// Both appearances, because a shadow is a coverage over whatever is under it
+// and shows in one before the other; and either side of a round trip through
+// the hidden state, because the panel the toggle brings back has to be the
+// panel that left.
+func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	shown := goldenModel()
 	hidden := shown
 	hidden.SidebarHidden = true
-	// Three pixels is the reach of the elevation this rail stands at,
-	// which is as far as anything it draws could carry.
-	const past = 3
+	// How far out the reading carries: the shadow's own reach, which at the
+	// panel's middle rows is measured from its trailing edge. The note
+	// column's leading inset is the same number, so the reading stops
+	// exactly where the note's first column of text begins and no glyph is
+	// read as a shadow.
+	past := min(int(pane.ShadowReachDp), noteInsetDp)
 
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -808,22 +816,42 @@ func TestThePaneEdgeIsCleanBesideTheToggle(t *testing.T) {
 			check := func(when string, img *image.RGBA) {
 				edge := f.geom.pane.Max.X
 				if edge <= 0 {
-					t.Fatalf("%s: the pane has no trailing edge to read", when)
+					t.Fatalf("%s: the panel has no trailing edge to read", when)
 				}
-				for x := edge; x < edge+past && x < windowW; x++ {
-					for y := 0; y < windowH; y++ {
+				// Read below the band and above the status bar, where the
+				// note column is its own flat surface all the way across.
+				for y := f.geom.rowTop + noteInsetDp; y < f.geom.footTop; y++ {
+					prev := -1
+					for x := edge; x < edge+past && x < windowW; x++ {
+						c := img.RGBAAt(x, y)
+						if c.R != c.G || c.G != c.B {
+							t.Errorf("%s: (%d,%d) is %v; the panel's shadow is a neutral coverage", when, x, y, c)
+							return
+						}
+						if int(c.R) > int(background.R) {
+							t.Errorf("%s: (%d,%d) is %v, lighter than the note's surface %v; a shadow only darkens", when, x, y, c, background)
+							return
+						}
+						if prev >= 0 && int(c.R) < prev {
+							t.Errorf("%s: (%d,%d) is %v after %d; the ramp only recovers outward, so this is a second line beside the panel's own",
+								when, x, y, c, prev)
+							return
+						}
+						prev = int(c.R)
+					}
+					if x := edge + past - 1; x < windowW {
 						if c := img.RGBAAt(x, y); c.R != background.R || c.G != background.G || c.B != background.B {
-							t.Errorf("%s: (%d,%d) is %v, one column past the pane's edge at x=%d; want the backdrop %v",
-								when, x, y, c, edge, background)
+							t.Errorf("%s: (%d,%d) is %v, %d columns past the panel's edge at x=%d; want the note's surface %v — the shadow is spent by its reach",
+								when, x, y, c, past-1, edge, background)
 							return
 						}
 					}
 				}
 			}
 
-			check("with the pane shown", shot(shown))
+			check("with the panel shown", shot(shown))
 			shot(hidden)
-			check("with the pane brought back", shot(shown))
+			check("with the panel brought back", shot(shown))
 		})
 	}
 }
