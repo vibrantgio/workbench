@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
+	"gioui.org/f32"
 	"gioui.org/font"
 	"gioui.org/io/event"
 	"gioui.org/layout"
@@ -94,6 +95,11 @@ type themed struct {
 	// Roboto Mono for code) come from the theme.
 	typ    tokens.Typography
 	shaper *text.Shaper
+	// den is the theme's Density: the control heights the components
+	// composed into this window are drawn to, the chrome row's bordered
+	// controls included. Read off the theme rather than written down here,
+	// so a window at another density moves its controls with it.
+	den tokens.Density
 	// sp and rad are what the patterns and components composed into the
 	// transcript are handed: the user's card and the failed turn's alert
 	// resolve their insets, gaps and corners from the theme's own scales
@@ -188,7 +194,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	})
 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest5(t.Platform, t.Typography, t.Motion, t.Spacing, t.Radius), func(ct rx.Tuple5[tokens.PlatformColors, tokens.Typography, tokens.MotionScale, tokens.SpacingScale, tokens.RadiusScale]) themed {
+		// Six scales, and rx combines five at a time, so the density rides
+		// beside the other five rather than among them.
+		scales := rx.CombineLatest5(t.Platform, t.Typography, t.Motion, t.Spacing, t.Radius)
+		return rx.Map(rx.CombineLatest2(scales, t.Density), func(n rx.Tuple2[rx.Tuple5[tokens.PlatformColors, tokens.Typography, tokens.MotionScale, tokens.SpacingScale, tokens.RadiusScale], tokens.Density]) themed {
+			ct, den := n.First, n.Second
 			c, typ, motion, sp, rad := ct.First, ct.Second, ct.Third, ct.Fourth, ct.Fifth
 			p := PaletteFrom(c)
 			avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
@@ -223,7 +233,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				panic(err)
 			}
 			md := messageMarkdownStyle(c, typ)
-			return themed{palette: p, col: c, bar: scrollbar.FromTokens(c, c.ControlBackground), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad}
+			return themed{palette: p, col: c, bar: scrollbar.FromTokens(c, c.ControlBackground), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad, den: den}
 		})
 	})
 
@@ -911,18 +921,98 @@ func IconButton(gtx layout.Context, click *widget.Clickable, size unit.Dp, draw 
 	})
 }
 
-// PanelGlyph draws the [|] sidebar-toggle icon with clip paths (the
-// patterns convention for chrome glyphs): a rounded outline with a seam
-// a third of the way in.
+// PanelGlyph draws the [|] sidebar-toggle figure with clip paths (the
+// patterns convention for chrome glyphs): a rounded outline with a seam a
+// third of the way in.
+//
+// MEASURED at 1x, voicememos-window.png, the sidebar toggle standing in that
+// window's toolbar: its covered extent is 19 × 15 px inside a control 36 px
+// tall — the drawing fills 18 of the 24 units its box is handed across, which
+// is the keyline the design system's own set draws a square form to, and 15
+// of them down.
+//
+// The band is spent in pixels. gtx.Dp rounds to a whole one, so 1.5 dp asked
+// for through it is TWO pixels at one pixel per dp — a third heavier than the
+// 1.1 to 1.4 px the platform's own toolbar symbols measure — so the weight
+// multiplies by the metric instead and draws 1.5 px.
 func PanelGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
-	stroke := float32(gtx.Dp(unit.Dp(1.5)))
-	inset := gtx.Dp(unit.Dp(1))
-	r := image.Rect(inset, inset+sizePx/8, sizePx-inset, sizePx-inset-sizePx/8)
+	stroke := markStroke(gtx)
+	defer op.Affine(f32.Affine2D{}.Offset(f32.Pt(markPhase, markPhase))).Push(gtx.Ops).Pop()
+	// The path runs 18 of the 24 units across and 13.5 down; the band it is
+	// stroked with spreads three quarters of a pixel past it on each side, so
+	// what is covered is the measured 19 × 15.
+	inset := sizePx * 3 / 24
+	vin := sizePx * 52 / 240
+	r := image.Rect(inset, vin, sizePx-inset-1, sizePx-vin-1)
 	rr := clip.RRect{Rect: r, NW: sizePx / 6, NE: sizePx / 6, SW: sizePx / 6, SE: sizePx / 6}
 	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: rr.Path(gtx.Ops), Width: stroke}.Op())
-	x := r.Min.X + r.Dx()/3
-	bar := image.Rect(x, r.Min.Y, x+int(stroke), r.Max.Y)
-	paint.FillShape(gtx.Ops, col, clip.Rect(bar).Op())
+	// The seam is stroked rather than filled as a rectangle, so it comes out
+	// at the same 1.5 px the outline does: a whole-pixel rectangle beside a
+	// 1.5 px outline reads as two weights in one figure.
+	x := float32(r.Min.X) + float32(r.Dx())/3
+	paint.FillShape(gtx.Ops, col, clip.Stroke{
+		Path:  line(gtx, f32.Pt(x, float32(r.Min.Y)), f32.Pt(x, float32(r.Max.Y))),
+		Width: stroke,
+	}.Op())
+}
+
+// line is one straight segment as a path, the shape both chrome figures stroke
+// their bands as.
+func line(gtx layout.Context, a, b f32.Point) clip.PathSpec {
+	var p clip.Path
+	p.Begin(gtx.Ops)
+	p.MoveTo(a)
+	p.LineTo(b)
+	return p.End()
+}
+
+// markStroke is the weight both of this window's chrome figures are drawn at:
+// 1.5 px spent through the metric rather than through gtx.Dp, which would
+// round it up to two. See PanelGlyph.
+func markStroke(gtx layout.Context) float32 {
+	return 1.5 * gtx.Metric.PxPerDp
+}
+
+// markPhase is how far a figure is nudged off whole coordinates so that the
+// band it is stroked with covers a whole pixel: half of one, which puts the
+// band's own centreline down a pixel's middle.
+//
+// It matters because this backend composites in LINEAR light. A band centred
+// on a whole coordinate straddles two pixels and reaches the mark's own colour
+// on neither — three quarters of a pixel's area comes out at about 55% of the
+// colour here — so the figure reads grey beside a label drawn in the same
+// colour. Centred on a pixel instead, a 1.5 px band covers that pixel whole
+// and a quarter of each neighbour: a figure with a core in the colour it was
+// given, which is what the platform's own symbols carry (Finder's list glyph
+// bottoms out at 77 on a #ffffff fill, controlText undiluted, where an
+// unphased band here bottoms out at 141).
+//
+// The nudge is spent on the leading edges and the far edges are drawn one
+// pixel short of the box, so the two land the same way and the figure still
+// centres where it was asked to stand: a nudge spent on every edge would put
+// the whole figure half a pixel low, which reads as a mark sitting under the
+// control's own middle.
+const markPhase = 0.5
+
+// PlusGlyph draws the new-chat figure: a plain cross of two bars on the
+// mark's own centre, at the weight PanelGlyph beside it is drawn at, so the
+// two controls of the sidebar switch's line carry one stroke.
+//
+// It is a painter rather than a prebuilt raster because it stands in a
+// control whose fill moves under the pointer: the foreground is flattened
+// onto that fill on the frame it is drawn, which a raster built once per
+// theme could not do.
+func PlusGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
+	stroke := markStroke(gtx)
+	defer op.Affine(f32.Affine2D{}.Offset(f32.Pt(markPhase, markPhase))).Push(gtx.Ops).Pop()
+	// The arms run to the keyline the design system's own set draws a square
+	// form to: three units in from every edge of a 24-unit grid, which is the
+	// 18 px a toolbar symbol's square form measures at 1x.
+	inset := float32(sizePx * 3 / 24)
+	end := float32(sizePx-1) - inset
+	mid := float32(sizePx)/2 - markPhase
+	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: line(gtx, f32.Pt(inset, mid), f32.Pt(end, mid)), Width: stroke}.Op())
+	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: line(gtx, f32.Pt(mid, inset), f32.Pt(mid, end)), Width: stroke}.Op())
 }
 
 // UndoBar renders the transient bottom-centre undo affordance while a

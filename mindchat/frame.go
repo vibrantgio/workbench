@@ -49,10 +49,10 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"path/filepath"
 	"strings"
 
-	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -60,6 +60,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
@@ -80,15 +81,17 @@ const (
 	// carries no breathing room of its own.
 	chromeGapDp unit.Dp = 12
 
-	// controlGapDp is the closer air between the two halves of the sidebar
-	// switch's line: the toggle and new chat are one group of controls and
-	// are set tighter than the group is set from anything else.
-	controlGapDp unit.Dp = 4
-
-	// controlBoxDp is the square hit area a chrome control takes around its
-	// mark. Both the pane's strip and the chrome row use it, so the two
-	// halves of one switch are one size as well as one figure.
-	controlBoxDp unit.Dp = 28
+	// controlGapDp is the air between the two halves of the sidebar switch's
+	// line: the toggle and new chat stand side by side, each in the
+	// platform's bordered toolbar control, and this is the room the platform
+	// leaves between two such controls standing apart.
+	//
+	// MEASURED at 1x: notes-toolbar.png leaves 14 px between its compose
+	// capsule (x 8–44) and the group beside it (from x=58), and
+	// finder-window-light.png 16 between its view pop-up (to x=742) and the
+	// group pull-down (from x=759). Fourteen is the closer of the two, which
+	// is what a pair belonging together takes.
+	controlGapDp unit.Dp = 14
 
 	// titleMaxDp is the widest the conversation's title may run before it
 	// is truncated: far enough that a real name fits whole, near enough
@@ -139,19 +142,28 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, mai
 	}
 
 	rowH := min(gtx.Dp(ChromeRowHeight), size.Y)
-	if rowH > 0 {
-		st := op.Offset(image.Pt(contentX, 0)).Push(gtx.Ops)
-		rgtx := gtx
-		rgtx.Constraints = layout.Exact(image.Pt(contentW, rowH))
-		f.chromeRow(rgtx, m, t)
-		st.Pop()
-	}
-
 	if main != nil && size.Y-rowH > 0 {
 		st := op.Offset(image.Pt(contentX, rowH)).Push(gtx.Ops)
 		mgtx := gtx
 		mgtx.Constraints = layout.Exact(image.Pt(contentW, size.Y-rowH))
 		main(mgtx)
+		st.Pop()
+	}
+
+	// The row after the transcript, not before it. What a bordered toolbar
+	// control casts on its band reaches past the row's own foot — MEASURED,
+	// finder-window-light.png, where the shadow under a control is still
+	// darkening the document 38 rows down — and a transcript drawn over it
+	// cuts it off at the row's edge with a ruled line, which is the one thing
+	// a cast shadow may not have. The pane's own strip already stands last in
+	// its column for the same reason. Nothing moves in the hit test: the row's
+	// pointer areas lie inside the row, and the transcript's inside the
+	// transcript.
+	if rowH > 0 {
+		st := op.Offset(image.Pt(contentX, 0)).Push(gtx.Ops)
+		rgtx := gtx
+		rgtx.Constraints = layout.Exact(image.Pt(contentW, rowH))
+		f.chromeRow(rgtx, m, t)
 		st.Pop()
 	}
 
@@ -329,9 +341,7 @@ func sidebarToggle(gtx layout.Context, t themed, click *widget.Clickable, label 
 	for click.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
 	}
-	return controlBox(gtx, click, label, func(gtx layout.Context, sz int) {
-		PanelGlyph(gtx, sz, t.palette.Heading)
-	})
+	return controlBox(gtx, t, click, label, PanelGlyph)
 }
 
 // newChatMark draws one half of the new-chat action: the same plus figure
@@ -340,31 +350,37 @@ func newChatMark(gtx layout.Context, t themed, click *widget.Clickable) layout.D
 	for click.Clicked(gtx) {
 		mvu.MessageOp{Message: NewChat{}}.Add(gtx.Ops)
 	}
-	return controlBox(gtx, click, "New chat", func(gtx layout.Context, sz int) {
-		icon := gtx
-		icon.Constraints = layout.Exact(image.Pt(sz, sz))
-		t.add(icon)
-	})
+	return controlBox(gtx, t, click, "New chat", PlusGlyph)
 }
 
-// controlBox stands one chrome mark in a square hit area, named for the
-// screen reader and answering the pointer. The box is what makes the two
-// halves of a switch the same size: the mark is [ToggleIconSize] and the
-// area around it is [controlBoxDp], in the pane's strip and in the chrome
-// row alike.
-func controlBox(gtx layout.Context, click *widget.Clickable, label string, draw func(layout.Context, int)) layout.Dimensions {
-	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		semantic.LabelOp(label).Add(gtx.Ops)
-		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointer.CursorPointer.Add(gtx.Ops)
-		box := gtx.Dp(controlBoxDp)
-		mark := gtx.Dp(ToggleIconSize)
-		off := op.Offset(image.Pt((box-mark)/2, (box-mark)/2)).Push(gtx.Ops)
-		mgtx := gtx
-		mgtx.Constraints = layout.Exact(image.Pt(mark, mark))
-		draw(mgtx, mark)
-		off.Pop()
-		return layout.Dimensions{Size: image.Pt(box, box)}
+// controlBox stands one chrome mark in the platform's BORDERED TOOLBAR
+// CONTROL: a capsule at the toolbar control's measured height with the mark
+// centred in it, its fill, its rim where the platform draws one, and the drop
+// shadow it casts on the band it stands on. components/button's chrome
+// variant is the control, drawn through the same internal seam the picker's
+// chrome trigger is drawn through, so every symbol standing in this window's
+// chrome is one control and not a bare figure on a band.
+//
+// The box is what makes the two halves of a switch the same size: the pane's
+// strip and the chrome row both come through here, so the toggle is one
+// control wherever it stands.
+func controlBox(gtx layout.Context, t themed, click *widget.Clickable, label string, mark func(gtx layout.Context, sizePx int, col color.NRGBA)) layout.Dimensions {
+	state := button.RenderState{
+		Hovered: click.Hovered(),
+		Pressed: click.Pressed(),
+		Focused: gtx.Focused(click),
+	}
+	face := button.ChromeFace(mark, t.col, t.den, state)
+	// The shadow is cast AROUND the clickable rather than inside it: it falls
+	// outside the control's own box, and a clickable clips what it wraps to
+	// the box its layout.Widget reports.
+	return button.ChromeShadow(gtx, t.col, state, func(gtx layout.Context) layout.Dimensions {
+		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			semantic.ClassOp(semantic.Button).Add(gtx.Ops)
+			semantic.LabelOp(label).Add(gtx.Ops)
+			semantic.EnabledOp(true).Add(gtx.Ops)
+			return face(gtx)
+		})
 	})
 }
 

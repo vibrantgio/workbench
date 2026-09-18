@@ -206,7 +206,6 @@ const (
 	// region's own inset. The number is the pattern's strip margin.
 	PaneMargin = pane.MarginDp
 
-	ToggleIconSize     unit.Dp = 20
 	FooterIconSize     unit.Dp = 18
 	FooterRowHeight    unit.Dp = 46
 	StreamDotSize      unit.Dp = 7
