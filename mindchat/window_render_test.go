@@ -472,6 +472,31 @@ func TestTheSidebarSwitchGolden(t *testing.T) {
 	}
 }
 
+// TestTheWholeWindowGolden stores the composed window itself, in both
+// schemes: the pane standing, the transcript under the chrome row, the prompt
+// field at the foot. The four frames TestWholeWindowRender draws are for a
+// pair of eyes and store nothing; this is the one composition a change
+// anywhere in the layer stack has to move, and it is kept in the shape
+// vaultview keeps its own window in — one render at the size the window opens
+// at, compared whole.
+//
+// The switch crop above stays beside it. A crop pins one run of the band at
+// the byte where a whole-window image would drown it; the window pins what
+// only a composition carries — the band's controls against the columns under
+// them, the shadows they cast on those columns included.
+func TestTheWholeWindowGolden(t *testing.T) {
+	saved := windowButtonsEnd
+	defer func() { windowButtonsEnd = saved }()
+	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
+
+	for _, tc := range schemes {
+		name := "window-" + tc.name
+		t.Run(name, func(t *testing.T) {
+			golden.Render(t, name, windowSize, withWindowControls(frame(t, tc.c, demoModel())))
+		})
+	}
+}
+
 // crop copies r out of img into an image of its own, at the origin: a golden
 // is compared by its bounds as well as its pixels, and a sub-image carries the
 // offset it was cut at.

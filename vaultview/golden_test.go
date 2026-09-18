@@ -909,3 +909,63 @@ func abs(n int) int {
 	}
 	return n
 }
+
+// TestTheBandsShadowsRunTheSameLengthOverEveryColumn is the band pass read
+// off the whole window: the controls standing in the chrome row cast one
+// shadow, and it is painted after every column has laid out, so the reach
+// past the band's lower edge is the same over the note column as over the
+// trailing chrome one.
+//
+// The rail is away for it, which is the state that puts a control of the
+// band over the note column: the toggle that brings the rail back stands at
+// the leading end of the row, with the document under it, while the vault's
+// own actions stand at the trailing end over the aside. Painted inside the
+// row, as they were until CG5.3m, the leading one's shadow stopped at the
+// band's foot where the note column's own fill began and the trailing one's
+// ran its whole length — one band, two lengths.
+func TestTheBandsShadowsRunTheSameLengthOverEveryColumn(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := goldenModel()
+	m.SidebarHidden = true
+
+	// The two columns the band's controls stand over, at each control's own
+	// middle: the rail toggle at the leading end, with the document under
+	// it, and the find at the trailing one, over the aside. Each is read
+	// against a column of its own region that no control stands above, so
+	// the depth is the shadow's and not the column's own fill.
+	const (
+		leadingX   = 96
+		leadingBg  = 400
+		trailingX  = 965
+		trailingBg = 900
+	)
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
+				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
+			foot := st.geom.rowTop
+			depth := func(x, bg, y int) int {
+				return int(img.RGBAAt(bg, y).R) - int(img.RGBAAt(x, y).R)
+			}
+			// The rows the light appearance's shadow reaches past the band's
+			// foot. The dark appearance's stops above it, and the pair has to
+			// agree there too: one band, one reading.
+			deepest := 0
+			for y := foot; y < foot+4; y++ {
+				lead, trail := depth(leadingX, leadingBg, y), depth(trailingX, trailingBg, y)
+				if lead != trail {
+					t.Errorf("row %d: the shadow stands %d deep over the note column and %d over the trailing one; one band casts one shadow",
+						y, lead, trail)
+				}
+				deepest = max(deepest, lead)
+			}
+			// Light, the reach carries past the band and the column may not
+			// erase it; dark, the shadow is two pixels of reach sunk six and
+			// there is nothing left to carry.
+			if light := tc.colors.ToolbarControlFill.R == 0xff; light && deepest <= 0 {
+				t.Error("no row under the band is darkened over the note column; the column covered the band's shadow")
+			}
+		})
+	}
+}
