@@ -243,11 +243,23 @@ func feedEntryListBody(
 			}
 		}
 
+		// Which of the platform's two pills the open feed wears: the
+		// accent one while the rail holds the keyboard, the grey one while
+		// it does not. The rail's rows are its focusables, so the keys are
+		// on the rail exactly while one of them holds them.
+		unemphasized := true
+		for _, e := range entries {
+			if gtx.Focused(rowClicks.For(e.ID)) {
+				unemphasized = false
+				break
+			}
+		}
+
 		for i, e := range entries {
 			stk := op.Offset(image.Pt(0, i*rowH)).Push(gtx.Ops)
 			rowGtx := gtx
 			rowGtx.Constraints = layout.Exact(image.Pt(size.X, rowH))
-			drawFeedEntryRow(rowGtx, s, e, e.ID == selected, rowClicks.For(e.ID),
+			drawFeedEntryRow(rowGtx, s, e, e.ID == selected, unemphasized, rowClicks.For(e.ID),
 				hovers.For(e.ID), popovers.For(e.ID), trashW)
 			stk.Pop()
 		}
@@ -277,6 +289,7 @@ func drawFeedEntryRow(
 	tok themeTokens,
 	e feedEntry,
 	selected bool,
+	unemphasized bool,
 	click *widget.Clickable,
 	hover *gesture.Hover,
 	dc *deleteConfirm,
@@ -294,15 +307,15 @@ func drawFeedEntryRow(
 
 	surface := tok.col.SidebarMaterial
 	if selected {
-		patsidebar.PaintSelection(gtx, size, tok.col, false)
-		surface = patsidebar.SelectionFill(tok.col, false)
+		patsidebar.PaintSelection(gtx, size, tok.col, unemphasized)
+		surface = patsidebar.SelectionFill(tok.col, unemphasized)
 	}
 
 	// The row's parts stand in the rail's own columns, measured off the
 	// platform's panel, not against the pill: the symbol at SymbolInset, the
 	// name at LabelInset and the count CountInset in from the trailing edge.
 	drawFeedSymbol(gtx, size,
-		vgcolor.Flatten(patsidebar.SymbolForeground(tok.col, selected, false), surface))
+		vgcolor.Flatten(patsidebar.SymbolForeground(tok.col, selected, unemphasized), surface))
 
 	trail := gtx.Dp(patsidebar.CountInset)
 	tailW := 0
@@ -322,7 +335,7 @@ func drawFeedEntryRow(
 	case e.Unread > 0:
 		tailW = patsidebar.PaintCount(gtx, tok.shaper, strconv.Itoa(e.Unread),
 			tok.typ.BodySmall, size,
-			vgcolor.Flatten(patsidebar.CountForeground(tok.col, selected, false), surface))
+			vgcolor.Flatten(patsidebar.CountForeground(tok.col, selected, unemphasized), surface))
 	}
 
 	// The name, and with it the SelectFeed click target: it runs from the
@@ -338,7 +351,7 @@ func drawFeedEntryRow(
 	}
 	labelGtx := gtx
 	labelGtx.Constraints = layout.Exact(image.Pt(labelW, size.Y))
-	drawFeedEntry(labelGtx, tok, e.Label, selected, click)
+	drawFeedEntry(labelGtx, tok, e.Label, selected, unemphasized, click)
 
 	return layout.Dimensions{Size: size}
 }
@@ -360,9 +373,9 @@ func drawFeedSymbol(gtx layout.Context, size image.Point, fg color.NRGBA) {
 // platform pairs with the selection pill on the open feed, and the ordinary
 // label on the chrome material everywhere else. Both are flattened onto the
 // fill they actually land on.
-func feedRowForeground(c tokens.PlatformColors, selected bool) color.NRGBA {
+func feedRowForeground(c tokens.PlatformColors, selected, unemphasized bool) color.NRGBA {
 	if selected {
-		return vgcolor.Flatten(patsidebar.SelectionLabel(c, false), patsidebar.SelectionFill(c, false))
+		return vgcolor.Flatten(patsidebar.SelectionLabel(c, unemphasized), patsidebar.SelectionFill(c, unemphasized))
 	}
 	return vgcolor.Flatten(c.Label, c.SidebarMaterial)
 }
@@ -374,6 +387,7 @@ func drawFeedEntry(
 	tok themeTokens,
 	label string,
 	selected bool,
+	unemphasized bool,
 	click *widget.Clickable,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
@@ -387,7 +401,7 @@ func drawFeedEntry(
 		labelGtx.Constraints.Min = image.Point{}
 		labelGtx.Constraints.Max = image.Pt(room, size.Y)
 		mLabel := op.Record(gtx.Ops)
-		labelDims := drawLabel(labelGtx, tok.shaper, label, tok.typ.BodySmall, feedRowForeground(tok.col, selected))
+		labelDims := drawLabel(labelGtx, tok.shaper, label, tok.typ.BodySmall, feedRowForeground(tok.col, selected, unemphasized))
 		labelCall := mLabel.Stop()
 		offY := (size.Y - labelDims.Size.Y) / 2
 		if offY < 0 {
@@ -448,7 +462,7 @@ func newDeleteConfirm(
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointer.CursorPointer.Add(gtx.Ops)
 			sz := gtx.Constraints.Max
-			drawTrashIcon(gtx, sz, feedRowForeground(s.col, false))
+			drawTrashIcon(gtx, sz, feedRowForeground(s.col, false, false))
 			return layout.Dimensions{Size: sz}
 		})
 	}

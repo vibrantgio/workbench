@@ -356,7 +356,16 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
-	return list.Halo(gtx, v.list, tok.col, standsOn, tok.col.SelectedContentBackground, func(gtx layout.Context) layout.Dimensions {
+	// The browser fills the selected row and nothing else — its rows take
+	// no fill under the pointer — so that is the one fill the band's over
+	// half lands on besides the surface the list stands on.
+	rowFill := func(i int) color.NRGBA {
+		if i == v.list.Selected() {
+			return tok.col.SelectedContentBackground
+		}
+		return color.NRGBA{}
+	}
+	return list.Halo(gtx, v.list, tok.col, standsOn, rowFill, func(gtx layout.Context) layout.Dimensions {
 		return v.selectableRows(gtx, tok, entries, standsOn, rowInset, rowH)
 	})
 }

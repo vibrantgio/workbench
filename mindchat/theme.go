@@ -45,7 +45,14 @@ type Palette struct {
 	// that only measure against it. A sidebar row does NOT tint under the
 	// pointer on this platform, so there is no hovered fill beside it.
 	RowSelected color.NRGBA
-	Accent      color.NRGBA // the in-flight dot and the waiting indicator
+	// RowSelectedUnfocused and RowActiveUnfocused are the platform's other
+	// pill: the grey fill and the accent foreground a sidebar row wears
+	// while its rail does not hold the keyboard. Both are measured, and
+	// patterns/sidebar draws them; the values are kept here for the rows
+	// that measure against them.
+	RowSelectedUnfocused color.NRGBA
+	RowActiveUnfocused   color.NRGBA
+	Accent               color.NRGBA // the in-flight dot and the waiting indicator
 	// Transcript is the transcript's fill: the content plane, which is what
 	// the platform gives a window's document area.
 	Transcript color.NRGBA
@@ -91,13 +98,16 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 	content := c.ControlBackground
 	floating := c.WindowBackground
 	return Palette{
-		Sidebar:         chrome,
-		Separator:       vgcolor.Flatten(c.Separator, chrome),
-		Heading:         vgcolor.Flatten(c.SecondaryLabel, chrome),
-		Row:             vgcolor.Flatten(c.Label, chrome),
-		RowActive:       vgcolor.Flatten(sidebar.SelectionLabel(c, false), sidebar.SelectionFill(c, false)),
-		RowSymbol:       vgcolor.Flatten(sidebar.SymbolForeground(c, false, false), chrome),
-		RowSelected:     sidebar.SelectionFill(c, false),
+		Sidebar:              chrome,
+		Separator:            vgcolor.Flatten(c.Separator, chrome),
+		Heading:              vgcolor.Flatten(c.SecondaryLabel, chrome),
+		Row:                  vgcolor.Flatten(c.Label, chrome),
+		RowActive:            vgcolor.Flatten(sidebar.SelectionLabel(c, false), sidebar.SelectionFill(c, false)),
+		RowSymbol:            vgcolor.Flatten(sidebar.SymbolForeground(c, false, false), chrome),
+		RowSelected:          sidebar.SelectionFill(c, false),
+		RowSelectedUnfocused: sidebar.SelectionFill(c, true),
+		RowActiveUnfocused: vgcolor.Flatten(
+			sidebar.SelectionLabel(c, true), sidebar.SelectionFill(c, true)),
 		Accent:          c.ControlAccent,
 		Transcript:      content,
 		TurnText:        vgcolor.Flatten(c.Label, content),

@@ -267,7 +267,7 @@ func TestWindowRegionsWearThePlatformNames(t *testing.T) {
 // its own region's fill.
 //
 // The three marks are three different names on this platform, which is the
-// point of asserting them together: a sidebar row's pill follows the accent,
+// point of asserting them together: a sidebar row's pill is the rail's own,
 // a content list's current row wears the emphasized selection, and the pager
 // fills the page it is on with the accent under the foreground the platform
 // pairs with it. Both schemes are sampled, because a window may not answer
@@ -281,7 +281,9 @@ func TestChosenItemsWearThePlatformsSelection(t *testing.T) {
 				at   image.Point
 				want color.NRGBA
 			}{
-				{"open feed", atOpenFeed, patsidebar.SelectionFill(tc.c, false)},
+				// The rail holds no keyboard in a still render, so the open
+				// feed wears the platform's other pill: the grey one.
+				{"open feed", atOpenFeed, patsidebar.SelectionFill(tc.c, true)},
 				{"open article row", atOpenRow, tc.c.SelectedContentBackground},
 				{"current page", atCurrentPage, tc.c.ControlAccent},
 			} {

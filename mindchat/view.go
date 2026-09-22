@@ -819,9 +819,21 @@ func SidebarPane(t themed, chats ChatList, current string, streaming map[string]
 				return layout.Dimensions{Size: image.Pt(size.X, stripH)}
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				// Which of the platform's two pills the open conversation
+				// wears: the accent one while the rail holds the keyboard,
+				// the grey one while it does not. The rail's rows are its
+				// focusables, so the keys are on the rail exactly while one
+				// of them holds them.
+				unemphasized := true
+				for _, c := range rowClicks {
+					if gtx.Focused(c) {
+						unemphasized = false
+						break
+					}
+				}
 				return list.LayoutScrollbar(gtx, rows, t.bar, list.Overlay, chats,
 					func(gtx layout.Context, name string) layout.Dimensions {
-						return ChatRow(gtx, t, name, name == current, streaming[name], rowClicks[name], renameClicks[name], deleteClicks[name])
+						return ChatRow(gtx, t, name, name == current, unemphasized, streaming[name], rowClicks[name], renameClicks[name], deleteClicks[name])
 					})
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -998,7 +1010,13 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 // ChatRow renders a single chat entry in the sidebar with hover and
 // selection states, and rename/delete icons revealed while the row is
 // active.
-func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool, row, ren, del *widget.Clickable) layout.Dimensions {
+//
+// unemphasized picks which of the platform's two pills the open
+// conversation wears: the grey one while the rail does not hold the
+// keyboard, the accent one while it does. On the grey pill the row's own
+// two marks keep the chrome's ordinary label — the grey stands a few of 255
+// off the rail it is on, so what reads on the rail reads on the pill.
+func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, streaming bool, row, ren, del *widget.Clickable) layout.Dimensions {
 	p := t.palette
 
 	// Drain pending clicks before Layout — Layout's internal update loop
@@ -1035,6 +1053,9 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 	textColor := p.Row
 	if selected {
 		textColor = p.RowActive
+		if unemphasized {
+			textColor = p.RowActiveUnfocused
+		}
 	}
 
 	label := roleLabel(t.typ.BodyMedium, 1)
@@ -1056,7 +1077,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 		// is the row's own two controls.
 		symbolColor := p.RowSymbol
 		if selected {
-			symbolColor = p.RowActive
+			symbolColor = textColor
 		}
 		symbol := op.Record(gtx.Ops)
 		drawChatSymbol(gtx, t, symbolColor)
@@ -1093,7 +1114,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 						gtx.Constraints = layout.Exact(size)
 						if selected || hovered {
 							editMark, removeMark := t.edit, t.remove
-							if selected {
+							if selected && !unemphasized {
 								editMark, removeMark = t.editOn, t.removeOn
 							}
 							icon := gtx
@@ -1114,7 +1135,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 		// patterns/sidebar draws — inset from the rail's edges and rounded —
 		// so this window paints no selection of its own.
 		if selected {
-			sidebar.PaintSelection(gtx, dims.Size, t.col, false)
+			sidebar.PaintSelection(gtx, dims.Size, t.col, unemphasized)
 		}
 		symbolCall.Add(gtx.Ops)
 		foreground.Add(gtx.Ops)

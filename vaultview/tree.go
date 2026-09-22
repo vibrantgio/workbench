@@ -515,11 +515,21 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	// trailing end, each where the platform draws it.
 	rowH := gtx.Dp(sidebar.RowHeight)
 	section := sidebar.SectionStyle(tok.typ)
+	// Which of the platform's two pills a filled row wears. The emphasized
+	// one is the row the keyboard stands on while the rail has the keys;
+	// every other filled row, and every row while the keys are elsewhere,
+	// wears the grey pill with its label in the accent.
+	holdsKeyboard := gtx.Focused(v.list.Focus())
 	return list.LayoutSelectable(gtx, v.list, rows,
 		func(gtx layout.Context, row TreeRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
 			if click.Clicked(gtx) {
 				v.list.Select(row.Idx)
+				// A click on a rail row hands the rail the keyboard, as it
+				// does in patterns/sidebar and as it does on the platform:
+				// the arrows then move down the rail, and the row the
+				// reader landed on wears the emphasized pill.
+				gtx.Execute(key.FocusCmd{Tag: v.list.Focus()})
 				activateTreeRow(gtx, row)
 			}
 			width := gtx.Constraints.Max.X
@@ -541,17 +551,21 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 				active := !row.IsDir && row.Path == m.Current
 				// The pill is the sidebar pattern's — its inset, its corner
 				// and its two colours — so a rail in this window is a rail
-				// on this platform. The open note wears the emphasized fill
-				// and a row merely arrowed onto the unemphasized one.
+				// on this platform. The accent pill goes where the platform
+				// puts it: on the row the keyboard stands on, while the
+				// rail holds the keyboard. The open note keeps its own pill
+				// in the grey state, which is what the rail shows while the
+				// keys are in the note beside it.
 				filled := active || selected
+				unemphasized := !(selected && holdsKeyboard)
 				surface := chromeSurface(tok.col)
 				if filled {
-					sidebar.PaintSelection(gtx, size, tok.col, !active)
-					surface = sidebar.SelectionFill(tok.col, !active)
+					sidebar.PaintSelection(gtx, size, tok.col, unemphasized)
+					surface = sidebar.SelectionFill(tok.col, unemphasized)
 				}
 				semantic.LabelOp(row.Name).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				v.drawRow(gtx, row, tok, size, surface, filled, active, query)
+				v.drawRow(gtx, row, tok, size, surface, filled, unemphasized, query)
 				return layout.Dimensions{Size: size}
 			})
 			return layout.Dimensions{Size: image.Pt(width, rowH+head)}
@@ -581,14 +595,14 @@ func treeRowLead(depth int) float32 { return float32(depth+1) * treeIndentDp }
 // The indent moves the whole row and nothing inside it, so a name at depth 2
 // stands exactly two indents right of a name at depth 0 and a row keeps its
 // columns when the find flattens the tree.
-func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, size image.Point, surface color.NRGBA, filled, active bool, query string) {
+func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, size image.Point, surface color.NRGBA, filled, unemphasized bool, query string) {
 	indent := gtx.Dp(unit.Dp(treeRowLead(row.Depth)))
 	// The find mark is the platform's own, and the words it covers keep
 	// their colour.
 	hl := tok.col.FindHighlight
 	secondaryLabel := vgcolor.Flatten(tok.col.SecondaryLabel, surface)
 	if filled {
-		secondaryLabel = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, !active), surface)
+		secondaryLabel = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, unemphasized), surface)
 	}
 
 	if row.IsDir {
@@ -608,7 +622,7 @@ func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, siz
 	}
 	fg := vgcolor.Flatten(tok.col.Label, surface)
 	if filled {
-		fg = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, !active), surface)
+		fg = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, unemphasized), surface)
 	}
 	// The symbol is drawn the strength the platform draws one, which is
 	// stronger than the name beside it: the sidebar's own measured value.
@@ -619,7 +633,7 @@ func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, siz
 	// that symbol's own 1.37 to 1.50. The offset arithmetic is stated once,
 	// in patterns/sidebar; the indent is pushed under it because the indent
 	// moves the whole row and nothing inside it.
-	symbolFG := vgcolor.Flatten(sidebar.SymbolForeground(tok.col, filled, !active), surface)
+	symbolFG := vgcolor.Flatten(sidebar.SymbolForeground(tok.col, filled, unemphasized), surface)
 	stk := op.Offset(image.Pt(indent, 0)).Push(gtx.Ops)
 	sidebar.PaintSymbol(gtx, icons.Mark(name), image.Pt(size.X-indent, size.Y), symbolFG)
 	stk.Pop()

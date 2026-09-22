@@ -10,6 +10,7 @@ package main
 import (
 	"fmt"
 	"image"
+	"image/color"
 
 	"gioui.org/io/event"
 	"gioui.org/io/key"
@@ -110,7 +111,17 @@ func chooserLayer(
 			layout.Rigid(complayout.VSpacer(chooserGapDp)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowsPx))
-				return list.Halo(gtx, rows, tok.col, tok.col.WindowBackground, tok.col.SelectedContentBackground, func(gtx layout.Context) layout.Dimensions {
+				// Every fill a row paints under the band, not the
+				// selection's alone: a row under the pointer wears the same
+				// selection fill here, and the band's sides must land on
+				// whichever of them the row they cross actually paints.
+				rowFill := func(i int) color.NRGBA {
+					if i == rows.Selected() || (i < len(rowClicks) && rowClicks[i].Hovered()) {
+						return tok.col.SelectedContentBackground
+					}
+					return color.NRGBA{}
+				}
+				return list.Halo(gtx, rows, tok.col, tok.col.WindowBackground, rowFill, func(gtx layout.Context) layout.Dimensions {
 					return list.LayoutSelectable(gtx, rows, idx,
 						func(gtx layout.Context, i int, selected bool) layout.Dimensions {
 							return chooserRow(gtx, tok, m.ChooserCandidates[i], rowClicks[i], rows, i, selected, choose)

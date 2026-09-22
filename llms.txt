@@ -661,7 +661,12 @@ from it: nothing is derived, no palette, no second hue.
   a sidebar's open entry  patterns/sidebar's pill — SelectionFill,
                           SelectionLabel, PaintSelection: inset from the
                           rail's edges, rounded, never edge to edge and
-                          never the list's selection
+                          never the list's selection. Two states, both
+                          measured: the accent pill under a white label
+                          while the rail's list holds the keyboard, the
+                          grey pill under the label in the accent while it
+                          does not. A rail says where the keyboard is in
+                          the pill's colour and draws no focus ring
   every seam              Separator over whatever is beneath it; Grid for a
                           table's own rules
   text, four strengths    Label, SecondaryLabel, TertiaryLabel,
