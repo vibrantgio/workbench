@@ -356,7 +356,7 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
-	return list.Halo(gtx, v.list, tok.col, standsOn, func(gtx layout.Context) layout.Dimensions {
+	return list.Halo(gtx, v.list, tok.col, standsOn, tok.col.SelectedContentBackground, func(gtx layout.Context) layout.Dimensions {
 		return v.selectableRows(gtx, tok, entries, standsOn, rowInset, rowH)
 	})
 }

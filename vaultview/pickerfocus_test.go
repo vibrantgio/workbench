@@ -139,7 +139,38 @@ func colorBox(img *image.RGBA, col color.NRGBA) image.Rectangle {
 // plane: the platform's keyboard focus indicator flattened onto the window
 // background every floating surface here takes.
 func haloRing(c tokens.PlatformColors) color.NRGBA {
-	return vgcolor.Flatten(c.KeyboardFocusIndicator, c.WindowBackground)
+	return haloOverFill(c, c.WindowBackground)
+}
+
+// haloOverFill is the colour the halo lands as where it lies on fill: the
+// platform's keyboard focus indicator at its own coverage over that fill,
+// composited in encoded sRGB as the platform composites it.
+func haloOverFill(c tokens.PlatformColors, fill color.NRGBA) color.NRGBA {
+	return vgcolor.Flatten(c.KeyboardFocusIndicator, fill)
+}
+
+// readsBandOverFills is the reading both dialogs take on their opened frame:
+// the band's over half composites over the fill each of its pixels stands on
+// — the selection's fill down the selected first row, and the surface the
+// list stands on down the row under it. The column read is the first one
+// over the list's own box, which every row reaches: a row is the full width
+// of the list.
+func readsBandOverFills(t *testing.T, img *image.RGBA, c tokens.PlatformColors, halo, row image.Rectangle, rowH int) {
+	t.Helper()
+	x := halo.Min.X + haloOutside
+	for _, r := range []struct {
+		what string
+		y    int
+		want color.NRGBA
+	}{
+		{"the selected first row", row.Min.Y + 1, haloOverFill(c, c.SelectedContentBackground)},
+		{"the row under it", row.Max.Y + rowH/2, haloRing(c)},
+	} {
+		if at := img.RGBAAt(x, r.y); !sameColor(at, r.want) {
+			t.Errorf("the band's over half on %s (x=%d, y=%d) = %v, want %v: the band does not composite over what it stands on",
+				r.what, x, r.y, at, r.want)
+		}
+	}
 }
 
 // haloOutside is how far past a control's own box the band reaches at the
@@ -192,6 +223,8 @@ func TestTheSwitchDialogOpensOnTheBrowserWearingItsHalo(t *testing.T) {
 				t.Errorf("the halo stands %d px tall; the list's box is %d rows and the band %d px past it on each side",
 					got, vaultPickerRows, haloOutside)
 			}
+
+			readsBandOverFills(t, opened, tc.colors, halo, row, int(tokens.Comfortable.ControlHeight))
 
 			// The foot of the fill rather than its top: the opening row sits
 			// at the list's top edge, where the half of the band lying over

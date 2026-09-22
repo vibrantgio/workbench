@@ -110,7 +110,7 @@ func chooserLayer(
 			layout.Rigid(complayout.VSpacer(chooserGapDp)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowsPx))
-				return list.Halo(gtx, rows, tok.col, tok.col.WindowBackground, func(gtx layout.Context) layout.Dimensions {
+				return list.Halo(gtx, rows, tok.col, tok.col.WindowBackground, tok.col.SelectedContentBackground, func(gtx layout.Context) layout.Dimensions {
 					return list.LayoutSelectable(gtx, rows, idx,
 						func(gtx layout.Context, i int, selected bool) layout.Dimensions {
 							return chooserRow(gtx, tok, m.ChooserCandidates[i], rowClicks[i], rows, i, selected, choose)

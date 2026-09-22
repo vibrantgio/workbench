@@ -79,6 +79,8 @@ func TestTheChooserOpensOnItsListAndNotOnTheCloseMark(t *testing.T) {
 					got, rows, chooserRowHDp, haloOutside)
 			}
 
+			readsBandOverFills(t, opened, tc.colors, halo, row, chooserRowHDp)
+
 			walked := settledDialog(t, liveChooser(t, m, tc.colors, shaper), tc.colors, down)
 			moved := colorBox(walked, cursor)
 			if moved.Max.Y != row.Max.Y+chooserRowHDp {
