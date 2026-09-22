@@ -104,7 +104,7 @@ func TestTrailClicksReachThePlaceClicked(t *testing.T) {
 		name   string
 		places []place
 	}{
-		{"picker directory trail", dirPlaces("/vaults/Second Brain/guide")},
+		{"picker directory trail", dirPlaces("/vaults/Second Brain/guide", place{label: "Macintosh HD", path: "/"})},
 		{"note path trail", notePlaces(note)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

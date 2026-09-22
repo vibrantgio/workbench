@@ -606,22 +606,22 @@ func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, siz
 	if row.IsDir {
 		name = icons.Folder
 	}
-	// The mark fills the square the row keeps for it, so the drawing comes
-	// out at the platform's own weight: the set's square keyline is 19 of 24
-	// against the folder symbol's measured 20 across, and its one measured
-	// band of 1.4 stands inside that symbol's own 1.37 to 1.50. A mark drawn
-	// at the size a mark beside text takes would come out 12 across on a
-	// hairline.
-	box := gtx.Dp(sidebar.SymbolBox)
 	fg := vgcolor.Flatten(tok.col.Label, surface)
 	if filled {
 		fg = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, !active), surface)
 	}
 	// The symbol is drawn the strength the platform draws one, which is
 	// stronger than the name beside it: the sidebar's own measured value.
+	// The rail's own painter puts it in the rail's own column and fills the
+	// square with the mark, so it comes out at the platform's own weight:
+	// the set's square keyline is 19 of 24 against the folder symbol's
+	// measured 20 across, and its one measured band of 1.4 stands inside
+	// that symbol's own 1.37 to 1.50. The offset arithmetic is stated once,
+	// in patterns/sidebar; the indent is pushed under it because the indent
+	// moves the whole row and nothing inside it.
 	symbolFG := vgcolor.Flatten(sidebar.SymbolForeground(tok.col, filled, !active), surface)
-	stk := op.Offset(image.Pt(indent+gtx.Dp(sidebar.SymbolInset), (size.Y-box)/2)).Push(gtx.Ops)
-	drawMark(gtx, name, sidebar.SymbolBox, symbolFG)
+	stk := op.Offset(image.Pt(indent, 0)).Push(gtx.Ops)
+	sidebar.PaintSymbol(gtx, icons.Mark(name), image.Pt(size.X-indent, size.Y), symbolFG)
 	stk.Pop()
 
 	trail := gtx.Dp(sidebar.CountInset)

@@ -47,8 +47,14 @@ type Model struct {
 	// the reader still has open, and Cancel has to leave it exactly as it
 	// was. The first launch with no vault takes the full-screen picker
 	// instead (Screen), there being no window for a dialog to stand over.
-	PickerOpen    bool
-	PickerDir     string
+	PickerOpen bool
+	PickerDir  string
+	// PickerRoot is the place the browser's trail starts at — the home
+	// directory when PickerDir is inside it, the startup volume otherwise.
+	// It is model state rather than something the view works out because
+	// naming it reads the filesystem, and a view that reads the filesystem
+	// draws a different picture on every machine.
+	PickerRoot    place
 	PickerEntries []DirEntry
 
 	// Vault state.
@@ -288,7 +294,7 @@ func Init() (Model, mvu.Command) {
 		return Model{Screen: screenVault, Vault: v, Scanning: true, PropsOpen: true, CurAnchor: -1}, openVaultCmd(v)
 	}
 	dir := startDir()
-	return Model{Screen: screenPicker, PickerDir: dir, CurAnchor: -1}, listDirCmd(dir)
+	return Model{Screen: screenPicker, PickerDir: dir, PickerRoot: trailRoot(dir), CurAnchor: -1}, listDirCmd(dir)
 }
 
 // startDir is where the folder browser begins: the home directory, or the
@@ -326,6 +332,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 	switch m := msg.(type) {
 	case BrowseTo:
 		model.PickerDir = m.Dir
+		model.PickerRoot = trailRoot(m.Dir)
 		model.PickerEntries = nil
 		return model, listDirCmd(m.Dir)
 	case pickerListed:
@@ -427,6 +434,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		}
 		model.PickerOpen = true
 		model.PickerDir = dir
+		model.PickerRoot = trailRoot(dir)
 		model.PickerEntries = nil
 		return model, listDirCmd(dir)
 	case CancelSwitch:

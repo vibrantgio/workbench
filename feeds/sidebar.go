@@ -349,15 +349,11 @@ func drawFeedEntryRow(
 // The mark is the document: the icon set carries no mark that says a feed,
 // and a feed is one piece of content this window lists, the way a note is.
 func drawFeedSymbol(gtx layout.Context, size image.Point, fg color.NRGBA) {
-	mark := icons.Mark(icons.Document)
-	if mark == nil {
-		return
-	}
-	// The mark fills the square the row keeps for it, which is what brings it
-	// out at the platform's own weight beside the name.
-	box := gtx.Dp(patsidebar.SymbolBox)
-	defer op.Offset(image.Pt(gtx.Dp(patsidebar.SymbolInset), (size.Y-box)/2)).Push(gtx.Ops).Pop()
-	mark(gtx, box, fg)
+	// The rail's own painter puts the mark in the rail's own column and fills
+	// the square with it, which is what brings it out at the platform's own
+	// weight beside the name. The offset arithmetic is stated once, in
+	// patterns/sidebar.
+	patsidebar.PaintSymbol(gtx, icons.Mark(icons.Document), size, fg)
 }
 
 // feedRowForeground is what a feed row's marks wear: the foreground the

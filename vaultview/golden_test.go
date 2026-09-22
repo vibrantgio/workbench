@@ -430,14 +430,17 @@ func TestVaultWindowGolden(t *testing.T) {
 // switchGoldenModel is the golden window with the vault-switch dialog
 // raised over it: the browser seated in the open vault, listing more
 // folders than the dialog shows, so the list is in the state it scrolls
-// from and the annotations a vault and a folder of notes carry are both on
-// the picture.
+// from and both kinds of row — a vault and a folder of notes — are on the
+// picture.
 func switchGoldenModel() Model {
 	m := goldenModel()
 	m.PickerOpen = true
 	m.PickerDir = m.Vault
+	// The trail's root is stated rather than read off the machine the image
+	// is taken on: the name below is what the platform calls a startup
+	// volume, the one /Volumes holds a link to, when nothing has renamed it.
+	m.PickerRoot = place{label: "Macintosh HD", path: "/"}
 	m.PickerEntries = []DirEntry{
-		{Name: "..", Path: "/vaults", Up: true},
 		{Name: "Archive", Path: "/vaults/Second Brain/Archive", MDCount: 142},
 		{Name: "Design", Path: "/vaults/Second Brain/Design", MDCount: 18},
 		{Name: "Inbox", Path: "/vaults/Second Brain/Inbox", MDCount: 3},

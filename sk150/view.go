@@ -296,8 +296,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	// which is the window's plane — the button's own default — so neither
 	// states a surface.
 	var lvpCancelClick, lvpConfirmClick widget.Clickable
+	// Cancel is the ordinary push button the platform draws in a sheet's
+	// footer — the push button's own fill under controlText, which is the
+	// Tonal emphasis — beside the accent-filled answer.
 	reg.add("lvp.cancel", button.Button(th, button.Props{
-		Label: "Cancel", Emphasis: button.Ghost,
+		Label: "Cancel", Emphasis: button.Tonal,
 		Clickable: &lvpCancelClick, Message: DismissLVP{},
 	}))
 	reg.add("lvp.confirm", button.Button(th, button.Props{

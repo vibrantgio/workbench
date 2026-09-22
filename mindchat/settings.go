@@ -245,12 +245,15 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	// zero value of the button's Surface, so neither action is told anything.
 	//
 	// One filled action per surface: Save is what this dialog is for, so it
-	// keeps the Filled emphasis and Cancel takes the least pronounced one
-	// beside it. Cancel undoes an interruption rather than performing the
-	// dialog's work, and this platform draws that action plain.
+	// keeps the Filled emphasis and Cancel stands beside it as the ordinary
+	// push button the platform draws there. MEASURED,
+	// save-dialog-{light,dark}.png: the sheet's "Cancel" at x 359-432 carries
+	// the push button's own fill, #ececec light and #333a3f dark, under
+	// controlText — the Tonal emphasis — where the default "Save" beside it
+	// is filled with the accent. Nothing on that sheet is drawn borderless.
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
-		Emphasis:  button.Ghost,
+		Emphasis:  button.Tonal,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
 	})

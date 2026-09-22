@@ -1,9 +1,16 @@
 // picker.go is the vault picker: an in-app folder browser composed from
 // the vocabulary — a breadcrumb for the current directory, a
 // components/list of child directories (dot-directories hidden), each row
-// carrying the folder mark at the sidebar row's measured column and
-// annotated when it holds a .obsidian marker or with its *.md count,
-// and a filled "Open this vault" action on the current directory.
+// carrying the folder mark, the directory's name, what kind of directory it
+// is and how many notes it holds, and a filled "Open this vault" action on
+// the current directory.
+//
+// It browses the way the platform's own open panel does. A directory is
+// named and never spelled: the trail carries the place names from the home
+// directory or the startup volume down to the one on show, and going up is
+// done by clicking an ancestor in it rather than by a row standing for the
+// parent. So there is no ".." row and no literal separator anywhere on
+// screen.
 //
 // This is the FULL-SCREEN picker, which the first launch with no vault
 // opens: there is no window for a dialog to stand over then. Switching the
@@ -16,11 +23,11 @@
 package main
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gioui.org/io/key"
@@ -50,21 +57,20 @@ import (
 // DirEntry is one row of the folder browser.
 type DirEntry struct {
 	Idx     int    // position in the row slice
-	Name    string // display name; ".." for the parent row
+	Name    string // the directory's own name
 	Path    string // absolute path the row navigates to
 	IsVault bool   // the directory holds a .obsidian marker
 	MDCount int    // direct *.md children
-	Up      bool   // the parent row
 }
 
-// ListDir returns the folder browser's rows for a directory: a parent
-// row when one exists, then the child directories in name order with
-// dot-directories hidden.
+// ListDir returns the folder browser's rows for a directory: its child
+// directories in name order with dot-directories hidden.
+//
+// The parent is not among them. The trail above the rows is how one goes
+// up — that is what the platform's open panel does, and a row standing for
+// the parent would be a second way of saying it that carries no name.
 func ListDir(dir string) []DirEntry {
 	var out []DirEntry
-	if parent := filepath.Dir(dir); parent != dir {
-		out = append(out, DirEntry{Name: "..", Path: parent, Up: true})
-	}
 	if ents, err := os.ReadDir(dir); err == nil {
 		for _, e := range ents {
 			if strings.HasPrefix(e.Name(), ".") {
@@ -95,7 +101,7 @@ func symlinkToDir(e os.DirEntry, path string) bool {
 	return err == nil && fi.IsDir()
 }
 
-// vaultMarks probes a directory for the row annotations: whether it
+// vaultMarks probes a directory for what its row says about it: whether it
 // holds a .obsidian marker directory, and how many direct *.md children
 // it has.
 func vaultMarks(dir string) (isVault bool, mdCount int) {
@@ -117,20 +123,25 @@ func vaultMarks(dir string) (isVault bool, mdCount int) {
 	return isVault, mdCount
 }
 
-// annotation is the row's trailing text: the vault marker, or the note
-// count, or nothing.
-func (d DirEntry) annotation() string {
-	switch {
-	case d.Up:
-		return ""
-	case d.IsVault:
-		return ".obsidian vault"
-	case d.MDCount == 1:
-		return "1 note"
-	case d.MDCount > 1:
-		return fmt.Sprintf("%d notes", d.MDCount)
+// kind is what the row's directory IS, drawn after its name: a directory
+// holding a .obsidian marker is a vault and every other one is a folder.
+// It is the open panel's Kind column, which names the thing rather than
+// counting anything in it.
+func (d DirEntry) kind() string {
+	if d.IsVault {
+		return "Vault"
 	}
-	return ""
+	return "Folder"
+}
+
+// count is how many notes the row's directory holds directly, drawn in the
+// row's trailing column. A directory holding none draws no count, the way a
+// chrome rail's row without one does: the column does not move for it.
+func (d DirEntry) count() string {
+	if d.MDCount == 0 {
+		return ""
+	}
+	return strconv.Itoa(d.MDCount)
 }
 
 // Picker layout constants.
@@ -310,7 +321,7 @@ func (v *pickerView) browser(
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return trail(gtx, trailSegments(dirPlaces(m.PickerDir), browseTo))
+			return trail(gtx, trailSegments(dirPlaces(m.PickerDir, m.PickerRoot), browseTo))
 		}),
 		layout.Rigid(complayout.VSpacer(pickerGapDp)),
 		listChild,
@@ -346,37 +357,10 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 				// row is the list's own height — one control height — and a
 				// BodyLarge line box very nearly fills it, so vertical air
 				// here would push the label out of the row and the list's
-				// clip would cut it in half. What centres the label is the
-				// flex's Middle alignment over the row's full height.
+				// clip would cut it in half. What centres each part is the
+				// row's own height, which every painter below is handed.
 				complayout.InsetXY(rowInset, 0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return folderSymbol(gtx, tok, selected, surface)
-						}),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							name := tok.col.Label
-							if selected {
-								name = tok.col.AlternateSelectedControlText
-							}
-							return drawLabel(gtx, tok.shaper, item.Name, tok.typ.BodyLarge,
-								vgcolor.Flatten(name, surface))
-						}),
-						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-							return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
-						}),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							a := item.annotation()
-							if a == "" {
-								return layout.Dimensions{}
-							}
-							ann := tok.col.SecondaryLabel
-							if selected {
-								ann = tok.col.AlternateSelectedControlText
-							}
-							return drawLabel(gtx, tok.shaper, a, tok.typ.BodySmall,
-								vgcolor.Flatten(ann, surface))
-						}),
-					)
+					drawBrowserRow(gtx, tok, item, selected, surface)
 					return layout.Dimensions{Size: gtx.Constraints.Max}
 				})
 				return layout.Dimensions{Size: size}
@@ -384,32 +368,75 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 		})
 }
 
-// folderSymbol paints the folder mark at the leading end of a browser row
-// and reports the column it stands in, so the name beside it begins where a
-// sidebar row's name begins.
+// drawBrowserRow paints one browser row's four parts into the block it is
+// handed: the folder symbol, the directory's name, what kind of directory it
+// is after the name, and how many notes it holds at the trailing end.
 //
-// Every row of this browser is a directory — the parent row included — so
-// every row carries the one mark: the symbol names the KIND of entry, and
-// rows of one kind share it.
+// The columns are the sidebar row's measured ones — [sidebar.PaintSymbol]
+// puts the mark 17 in, the name begins at [sidebar.LabelInset] 48, and
+// [sidebar.PaintCount] lands the count's last covered column
+// [sidebar.CountInset] 17 in from the trailing edge. They stand in because no
+// stored capture holds the platform's own open panel; the panel's own columns
+// replace them when one does (on the capture list).
 //
-// The column is the sidebar row's measured one, which is the only reading
-// the reference holds for a symbol beside a name: a [sidebar.SymbolBox]
-// square set [sidebar.SymbolInset] in, with the name beginning at
-// [sidebar.LabelInset]. The colour is NOT the sidebar's measured symbol
-// value: that value was read off a chrome rail, where the platform draws the
-// symbol 38 of 255 stronger than the name beside it, and this browser is
-// content standing on a content surface. Nothing measures a content row's
-// symbol apart from its name, so it takes the name's own foreground.
-func folderSymbol(gtx layout.Context, tok themeTokens, selected bool, standsOn color.NRGBA) layout.Dimensions {
-	fg := tok.col.Label
+// Every row of this browser is a directory, so every row carries the one
+// mark: the symbol names the KIND of entry, and rows of one kind share it.
+// The kind is spelled out beside the name because the mark cannot tell a
+// vault from a plain folder, and it is set in the secondary label to keep the
+// name itself the more pronounced half — where the annotation stood before
+// it. The symbol's colour is NOT the sidebar's measured symbol value: that
+// value was read off a chrome rail, where the platform draws the symbol 38 of
+// 255 stronger than the name beside it, and this browser is content standing
+// on a content surface. Nothing measures a content row's symbol apart from
+// its name, so it takes the name's own foreground.
+func drawBrowserRow(gtx layout.Context, tok themeTokens, item DirEntry, selected bool, standsOn color.NRGBA) {
+	size := gtx.Constraints.Max
+	nameFG := vgcolor.Flatten(tok.col.Label, standsOn)
+	secondaryLabel := vgcolor.Flatten(tok.col.SecondaryLabel, standsOn)
 	if selected {
-		fg = tok.col.AlternateSelectedControlText
+		sel := vgcolor.Flatten(tok.col.AlternateSelectedControlText, standsOn)
+		nameFG, secondaryLabel = sel, sel
 	}
-	box := gtx.Dp(sidebar.SymbolBox)
-	stk := op.Offset(image.Pt(gtx.Dp(sidebar.SymbolInset), (gtx.Constraints.Max.Y-box)/2)).Push(gtx.Ops)
-	drawMark(gtx, icons.Folder, sidebar.SymbolBox, vgcolor.Flatten(fg, standsOn))
+
+	sidebar.PaintSymbol(gtx, icons.Mark(icons.Folder), size, nameFG)
+
+	trail := gtx.Dp(sidebar.CountInset)
+	if c := item.count(); c != "" {
+		trail += sidebar.PaintCount(gtx, tok.shaper, c, tok.typ.BodySmall, size, secondaryLabel)
+	}
+
+	lead := gtx.Dp(sidebar.LabelInset)
+	room := size.X - lead - trail
+	if room <= 0 {
+		return
+	}
+	lGtx := gtx
+	lGtx.Constraints = layout.Constraints{Max: image.Pt(room, size.Y)}
+	rec := op.Record(gtx.Ops)
+	dims := drawLabel(lGtx, tok.shaper, item.Name, tok.typ.BodyLarge, nameFG)
+	call := rec.Stop()
+	stk := op.Offset(image.Pt(lead, (size.Y-dims.Size.Y)/2)).Push(gtx.Ops)
+	call.Add(gtx.Ops)
 	stk.Pop()
-	return layout.Dimensions{Size: image.Pt(gtx.Dp(sidebar.LabelInset), gtx.Constraints.Max.Y)}
+
+	// The kind follows the name one spacing step along and takes whatever
+	// the name left: a row whose name fills the browser says what it is by
+	// its own name already. No capture holds the platform's open panel, so
+	// the gap is the system's own step rather than a reading.
+	gap := gtx.Dp(unit.Dp(tok.sp.S2))
+	x := lead + dims.Size.X + gap
+	left := size.X - trail - x
+	if left <= 0 {
+		return
+	}
+	kGtx := gtx
+	kGtx.Constraints = layout.Constraints{Max: image.Pt(left, size.Y)}
+	rec = op.Record(gtx.Ops)
+	kDims := drawLabel(kGtx, tok.shaper, item.kind(), tok.typ.BodySmall, secondaryLabel)
+	call = rec.Stop()
+	stk = op.Offset(image.Pt(x, (size.Y-kDims.Size.Y)/2)).Push(gtx.Ops)
+	call.Add(gtx.Ops)
+	stk.Pop()
 }
 
 // browseTo is the click an ancestor in the picker's trail carries: the
@@ -420,22 +447,74 @@ func browseTo(dir string) func(gtx layout.Context) {
 	}
 }
 
-// dirPlaces splits an absolute directory into the trail's places, the
-// filesystem root first.
-func dirPlaces(dir string) []place {
+// dirPlaces splits an absolute directory into the trail's places, each named
+// the way the platform names a place: by its own name, never by its path.
+// [trailRoot] gives the root the split starts from.
+//
+// The Finder sidebar is where that reading comes from
+// (finder-window-untinted-dark.png): its Locations run carries the home
+// directory under the account's own name beside a house — "rene", not
+// "/Users/rene" — and the startup volume under the name the filesystem knows
+// it by. So the trail's root is a name too, and a literal separator stands
+// nowhere on screen.
+//
+// A root with no label is one nothing on the filesystem names: the trail then
+// starts at the first named segment below it, which is what a path with
+// nothing to name its root is.
+func dirPlaces(dir string, root place) []place {
 	dir = filepath.Clean(dir)
 	sep := string(filepath.Separator)
-	segs := []place{{label: sep, path: sep}}
-	if dir == sep || dir == "." {
-		return segs
+	cum := filepath.Clean(root.path)
+	if root.path == "" {
+		cum = sep
 	}
-	cum := ""
-	for _, part := range strings.Split(strings.TrimPrefix(dir, sep), sep) {
+	var segs []place
+	if root.label != "" {
+		segs = append(segs, place{label: root.label, path: cum})
+	}
+	rest := strings.TrimPrefix(dir, cum)
+	for _, part := range strings.Split(rest, sep) {
 		if part == "" {
 			continue
 		}
-		cum = cum + sep + part
+		cum = strings.TrimSuffix(cum, sep) + sep + part
 		segs = append(segs, place{label: part, path: cum})
 	}
 	return segs
+}
+
+// trailRoot reports the place a browser trail starts at for dir: the home
+// directory when dir is inside it, and the startup volume otherwise.
+//
+// It reads the filesystem, so it is called where the model is reduced and
+// never where it is drawn: the trail a stored image carries is the one its
+// model states, on whatever machine the image is taken.
+func trailRoot(dir string) place {
+	sep := string(filepath.Separator)
+	dir = filepath.Clean(dir)
+	if home, err := os.UserHomeDir(); err == nil {
+		home = filepath.Clean(home)
+		if home != sep && (dir == home || strings.HasPrefix(dir, home+sep)) {
+			return place{label: filepath.Base(home), path: home}
+		}
+	}
+	return place{label: volumeName(), path: sep}
+}
+
+// volumeName reports what the startup volume is called, or "" when nothing
+// on the filesystem says. macOS keeps a symlink to the startup volume in
+// /Volumes under the name the platform shows for it, which is the one place
+// the name can be read from without asking the window system.
+func volumeName() string {
+	ents, err := os.ReadDir("/Volumes")
+	if err != nil {
+		return ""
+	}
+	for _, e := range ents {
+		p := filepath.Join("/Volumes", e.Name())
+		if target, err := filepath.EvalSymlinks(p); err == nil && target == string(filepath.Separator) {
+			return e.Name()
+		}
+	}
+	return ""
 }

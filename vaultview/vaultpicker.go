@@ -85,13 +85,17 @@ func vaultPickerLayer(
 		cancel, openVault := vaultPickerAnswers(loadModel, postMessage)
 
 		// One filled action per surface: Open is what this dialog is for, so
-		// it keeps the Filled emphasis and Cancel takes the least pronounced
-		// one beside it. Both stand on the window's own plane, which is the
-		// fill a floating surface takes on this platform and the zero value
-		// of the button's Surface, so neither is told anything.
+		// it keeps the Filled emphasis and Cancel stands beside it as the
+		// ordinary push button the platform draws there. MEASURED,
+		// save-dialog-{light,dark}.png: that sheet's "Cancel" at x 359-432
+		// carries the push button's fill, #ececec light and #333a3f dark,
+		// under controlText — the Tonal emphasis — against the accent-filled
+		// default beside it. Both stand on the window's own plane, which is
+		// the fill a floating surface takes on this platform and the zero
+		// value of the button's Surface, so neither is told anything.
 		cancelObs := button.Button(th, button.Props{
 			Label:     "Cancel",
-			Emphasis:  button.Ghost,
+			Emphasis:  button.Tonal,
 			Clickable: &cancelClick,
 			OnClick:   cancel,
 		})
@@ -242,7 +246,7 @@ func renderVaultPicker(
 		Title: "Open Vault",
 		Body:  body,
 		Actions: []layout.Widget{
-			action("Cancel", button.Ghost),
+			action("Cancel", button.Tonal),
 			action("Open", button.Filled),
 		},
 		Decision: &modal.Decision{},

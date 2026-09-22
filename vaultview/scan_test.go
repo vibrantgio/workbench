@@ -148,13 +148,17 @@ func TestListDir(t *testing.T) {
 	touch("stray.md")
 
 	got := ListDir(root)
-	if len(got) != 3 {
-		t.Fatalf("ListDir returned %d rows, want 3 (parent, plain, vault): %v", len(got), got)
+	if len(got) != 2 {
+		t.Fatalf("ListDir returned %d rows, want 2 (plain, vault): %v", len(got), got)
 	}
-	if !got[0].Up || got[0].Name != ".." {
-		t.Errorf("first row = %+v, want the parent row", got[0])
+	// The parent is NOT a row: the trail above the browser is how one goes
+	// up, which is what the platform's open panel does.
+	for _, e := range got {
+		if e.Name == ".." {
+			t.Errorf("ListDir returned a parent row %+v; the trail is how one goes up", e)
+		}
 	}
-	plain, vault := got[1], got[2]
+	plain, vault := got[0], got[1]
 	if plain.Name != "plain" || plain.IsVault || plain.MDCount != 2 {
 		t.Errorf("plain row = %+v, want 2 notes and no vault marker", plain)
 	}
@@ -231,10 +235,10 @@ func TestListDirShowsSymlinkedFolders(t *testing.T) {
 	}
 
 	got := ListDir(root)
-	if len(got) != 2 {
-		t.Fatalf("ListDir returned %d rows, want 2 (parent, Diarizer): %v", len(got), got)
+	if len(got) != 1 {
+		t.Fatalf("ListDir returned %d rows, want 1 (Diarizer): %v", len(got), got)
 	}
-	row := got[1]
+	row := got[0]
 	if row.Name != "Diarizer" || !row.IsVault {
 		t.Errorf("symlinked vault row = %+v, want the .obsidian marker under its link name", row)
 	}

@@ -185,7 +185,7 @@ func TestTheSwitchDialogShowsEightRows(t *testing.T) {
 
 	var ops op.Ops
 	gtx := newGtx(&ops)
-	trailH := trailFor()(gtx, trailSegments(dirPlaces("/vaults/Second Brain"), browseTo)).Size.Y
+	trailH := trailFor()(gtx, trailSegments(dirPlaces("/vaults/Second Brain", place{label: "Macintosh HD", path: "/"}), browseTo)).Size.Y
 	want := trailH + pickerGapDp + vaultPickerRows*int(tokens.Comfortable.ControlHeight)
 
 	if got := bodyHeight(10); got != want {

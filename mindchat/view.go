@@ -430,8 +430,15 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 	// The rename dialog stands on the window's own plane — the fill a
 	// floating surface takes on this platform — which is the zero value of
 	// the button's Surface, so neither action is told anything.
+	//
+	// Rename is what this dialog is for, so it keeps the Filled emphasis and
+	// Cancel stands beside it as the ordinary push button the platform draws
+	// there: the save dialog's own "Cancel" wears the push button's fill
+	// under controlText, which is the Tonal emphasis, while the default
+	// answer beside it is the filled one.
 	cancelObs := button.Button(th, button.Props{
 		Label:     "Cancel",
+		Emphasis:  button.Tonal,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
 	})
