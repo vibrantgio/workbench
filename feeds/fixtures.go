@@ -14,6 +14,10 @@ type ArticleID string
 type feedEntry struct {
 	ID    FeedID
 	Label string
+	// Unread is how many of the feed's articles have not been read. It is
+	// what stands at the trailing end of the feed's row, and a feed with
+	// none draws no count there.
+	Unread int
 }
 
 type feedGroup struct {
@@ -31,9 +35,12 @@ type article struct {
 }
 
 // hardCodedGroups returns the static feed tree used while persistence is
-// not yet implemented.
+// not yet implemented. Each entry's unread count is counted off the article
+// fixture, so the number on a row is the number of unread articles the table
+// shows when that row is opened.
 func hardCodedGroups() []feedGroup {
-	return []feedGroup{
+	unread := unreadByFeed()
+	groups := []feedGroup{
 		{
 			Title: "Tech",
 			Entries: []feedEntry{
@@ -56,6 +63,23 @@ func hardCodedGroups() []feedGroup {
 			},
 		},
 	}
+	for gi := range groups {
+		for ei := range groups[gi].Entries {
+			groups[gi].Entries[ei].Unread = unread[groups[gi].Entries[ei].ID]
+		}
+	}
+	return groups
+}
+
+// unreadByFeed counts the fixture's unread articles per feed.
+func unreadByFeed() map[FeedID]int {
+	out := map[FeedID]int{}
+	for _, a := range hardCodedArticles() {
+		if a.Unread {
+			out[a.FeedID]++
+		}
+	}
+	return out
 }
 
 // defaultFeedID returns the first feed of the first group. Used to seed

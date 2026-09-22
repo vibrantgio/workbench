@@ -171,7 +171,6 @@ const (
 	// in one 976 wide.
 	bandTrailingDp = 8
 
-
 	// railMarginDp is the window's small edge margin: the inset the rail's
 	// panel stands off the window's leading, top and bottom edges, the air
 	// its own top strip keeps between its toggle and the panel's trailing
@@ -969,7 +968,7 @@ func (f *frameState) layoutSwitchVault(gtx layout.Context, tok themeTokens) layo
 		mvu.MessageOp{Message: SwitchVault{}}.Add(gtx.Ops)
 	}
 	// Title case, which is what the platform's own controls use.
-	return chromeControl(gtx, tok, &f.switchClick, icons.OpenFolder, "Switch Vault")
+	return chromeControl(gtx, tok, &f.switchClick, icons.Folder, "Switch Vault")
 }
 
 // toolbarLeading is where the band's own content may start: the trailing

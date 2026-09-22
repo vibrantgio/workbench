@@ -205,16 +205,19 @@ var windowBand = int(windowBandDp(tokens.Comfortable))
 // region paints its own fill where it draws, so the frame is the only place
 // the question has an answer.
 var (
-	atSidebar     = image.Pt(96, 10)             // the sidebar's own band, above the accordion
-	atNavbar      = image.Pt(600, 12)            // navbar, between the brand and the actions
-	atListPane    = image.Pt(494, 640)           // articles pane, under the last row
-	atListRow     = image.Pt(760, 153)           // a body row the stripe skips, past the glyph
-	atReadingPane = image.Pt(1000, 600)          // reading pane, below the article body
-	atPaneHead    = image.Pt(900, 60)            // reading pane, beside the article title
-	atTabStrip    = image.Pt(1100, 114)          // the tab strip band, past the last label
-	atOpenFeed    = image.Pt(100, windowBand+63) // the open feed's pill, under the band
-	atRestingFeed = image.Pt(100, windowBand+95) // the feed under it, unchosen
-	atOpenRow     = image.Pt(760, 113)           // the open article's row, past the glyph
+	atSidebar     = image.Pt(96, 10)    // the sidebar's own band, above the accordion
+	atNavbar      = image.Pt(600, 12)   // navbar, between the brand and the actions
+	atListPane    = image.Pt(494, 640)  // articles pane, under the last row
+	atListRow     = image.Pt(760, 153)  // a body row the stripe skips, past the glyph
+	atReadingPane = image.Pt(1000, 600) // reading pane, below the article body
+	atPaneHead    = image.Pt(900, 60)   // reading pane, beside the article title
+	atTabStrip    = image.Pt(1100, 114) // the tab strip band, past the last label
+	// Both feed samples are taken in the air between the row's symbol box
+	// and the column its name starts in, which every row keeps clear
+	// whatever it is called.
+	atOpenFeed    = image.Pt(44, windowBand+63) // the open feed's pill, under the band
+	atRestingFeed = image.Pt(44, windowBand+95) // the feed under it, unchosen
+	atOpenRow     = image.Pt(760, 113)          // the open article's row, past the glyph
 
 	// The pager, under the table: a leading chevron and then one square per
 	// page. Only the page the table is showing is filled; the others carry

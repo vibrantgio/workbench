@@ -94,7 +94,7 @@ type TreeRow struct {
 	Idx     int    // position in the flattened row slice
 	Path    string // vault-relative; the folder path or the note path
 	Name    string // display name; the note title for note rows
-	Detail  string // faint trailing annotation; the folder on a filtered row
+	Detail  string // the folder a found note is in, read after its name
 	Section string // the heading this row begins a run under, where it begins one
 	Depth   int    // nesting depth, 0 at the vault root
 	IsDir   bool   // a folder row, carrying a disclosure toggle
@@ -206,8 +206,8 @@ func headRuns(rows []TreeRow) {
 
 // MatchRows is the find field's answer: the notes whose name contains
 // the query, case-insensitively, as flat rows in title order — the folder
-// carried as each row's faint annotation, since two vaults' worth of
-// notes may share a title. A note whose title does not match still
+// carried after each row's name, since two vaults' worth of notes may
+// share a title. A note whose title does not match still
 // matches on its folder path, so "meetings/" narrows to a folder.
 //
 // It is a filter over the scanned names and nothing else: no file is
@@ -569,8 +569,14 @@ func treeRowLead(depth int) float32 { return float32(depth+1) * treeIndentDp }
 // drawRow paints one tree row's parts into the columns the sidebar pattern
 // measures, each shifted by one indent per depth: the disclosure in the
 // rail's own leading inset where the row is a folder, the symbol at
-// SymbolInset, the name at LabelInset, and the row's trailing annotation
-// ending CountInset in from the rail's trailing edge.
+// SymbolInset and the name at LabelInset.
+//
+// A found row's folder stands in the name's own run, after the name: the
+// column at the trailing end is the count's, and what the Language puts
+// there is how many things the entry holds. The folder is not that — it says
+// where the note is, which is part of naming it, so it is read as part of
+// the name and set in the secondary label to keep the name itself the more
+// pronounced half.
 //
 // The indent moves the whole row and nothing inside it, so a name at depth 2
 // stands exactly two indents right of a name at depth 0 and a row keeps its
@@ -611,27 +617,16 @@ func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, siz
 	if filled {
 		fg = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, !active), surface)
 	}
+	// The symbol is drawn the strength the platform draws one, which is
+	// stronger than the name beside it: the sidebar's own measured value.
+	symbolFG := vgcolor.Flatten(sidebar.SymbolForeground(tok.col, filled, !active), surface)
 	stk := op.Offset(image.Pt(indent+gtx.Dp(sidebar.SymbolInset), (size.Y-box)/2)).Push(gtx.Ops)
-	drawMark(gtx, name, sidebar.SymbolBox, fg)
+	drawMark(gtx, name, sidebar.SymbolBox, symbolFG)
 	stk.Pop()
 
 	trail := gtx.Dp(sidebar.CountInset)
-	tailW := 0
-	if row.Detail != "" {
-		dGtx := gtx
-		dGtx.Constraints = layout.Constraints{Max: image.Pt(size.X, size.Y)}
-		rec := op.Record(gtx.Ops)
-		dims := drawFound(dGtx, tok.shaper, row.Detail, tok.typ.BodySmall, secondaryLabel, hl, query)
-		call := rec.Stop()
-		tailW = dims.Size.X
-		stk := op.Offset(image.Pt(max(0, size.X-trail-tailW), (size.Y-dims.Size.Y)/2)).Push(gtx.Ops)
-		call.Add(gtx.Ops)
-		stk.Pop()
-		tailW += gtx.Dp(unit.Dp(treeRowPadDp))
-	}
-
 	lead := indent + gtx.Dp(sidebar.LabelInset)
-	room := size.X - lead - trail - tailW
+	room := size.X - lead - trail
 	if room <= 0 {
 		return
 	}
@@ -641,6 +636,27 @@ func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, siz
 	dims := drawFound(lGtx, tok.shaper, row.Name, tok.typ.BodyMedium, fg, hl, query)
 	call := rec.Stop()
 	stk = op.Offset(image.Pt(lead, (size.Y-dims.Size.Y)/2)).Push(gtx.Ops)
+	call.Add(gtx.Ops)
+	stk.Pop()
+
+	if row.Detail == "" {
+		return
+	}
+	// The folder follows the name in the same run, a gap after it, and takes
+	// whatever the name left: a found row whose name fills the rail says
+	// where it is by its own name already.
+	gap := gtx.Dp(unit.Dp(treeRowPadDp))
+	x := lead + dims.Size.X + gap
+	left := size.X - trail - x
+	if left <= 0 {
+		return
+	}
+	dGtx := gtx
+	dGtx.Constraints = layout.Constraints{Max: image.Pt(left, size.Y)}
+	rec = op.Record(gtx.Ops)
+	dDims := drawFound(dGtx, tok.shaper, row.Detail, tok.typ.BodySmall, secondaryLabel, hl, query)
+	call = rec.Stop()
+	stk = op.Offset(image.Pt(x, (size.Y-dDims.Size.Y)/2)).Push(gtx.Ops)
 	call.Add(gtx.Ops)
 	stk.Pop()
 }

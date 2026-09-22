@@ -1050,8 +1050,12 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, streaming bool
 		// the name at LabelInset. Nothing stands at the count's column: a
 		// conversation holds no count, and what is at the trailing end here
 		// is the row's own two controls.
+		symbolColor := p.RowSymbol
+		if selected {
+			symbolColor = p.RowActive
+		}
 		symbol := op.Record(gtx.Ops)
-		drawChatSymbol(gtx, t, textColor)
+		drawChatSymbol(gtx, t, symbolColor)
 		symbolCall := symbol.Stop()
 		dims := layout.Inset{Left: unit.Dp(sidebar.LabelInset), Right: unit.Dp(12)}.Layout(gtx,
 			func(gtx layout.Context) layout.Dimensions {

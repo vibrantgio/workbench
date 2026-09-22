@@ -35,6 +35,10 @@ type Palette struct {
 	Heading   color.NRGBA // pane heading and chrome glyphs
 	Row       color.NRGBA // chat-row text on the chrome
 	RowActive color.NRGBA // text on the selected row's pill
+	// RowSymbol is what a chat row's mark is drawn in: the sidebar's own
+	// measured symbol value, which stands stronger than the name beside it.
+	// On the selected row the mark takes RowActive with the name.
+	RowSymbol color.NRGBA
 	// RowSelected is the fill under the conversation the window is showing.
 	// It is the platform's sidebar pill, which patterns/sidebar draws and
 	// this app does not paint itself; the colour is kept here for the rows
@@ -92,6 +96,7 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		Heading:         vgcolor.Flatten(c.SecondaryLabel, chrome),
 		Row:             vgcolor.Flatten(c.Label, chrome),
 		RowActive:       vgcolor.Flatten(sidebar.SelectionLabel(c, false), sidebar.SelectionFill(c, false)),
+		RowSymbol:       vgcolor.Flatten(sidebar.SymbolForeground(c, false, false), chrome),
 		RowSelected:     sidebar.SelectionFill(c, false),
 		Accent:          c.ControlAccent,
 		Transcript:      content,

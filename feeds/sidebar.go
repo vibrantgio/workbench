@@ -3,6 +3,7 @@ package main
 import (
 	"image"
 	"image/color"
+	"strconv"
 	"sync/atomic"
 
 	"gioui.org/gesture"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/mvu"
@@ -34,12 +36,13 @@ const (
 	trashColWDp         = 24 // trailing trash-icon hit area, hover-revealed
 )
 
-// feedsRowLabelPadDp is the gap between the pill's leading edge and the
-// label's first mark: a pill whose text starts on its own left edge is a bar
-// with a rounded corner. The row's height, the pill's inset from the rail's
-// edges and its corner are patterns/sidebar's — a list of feeds is a chrome
-// rail, so its rows are the sidebar's rows and not the platform's list rows.
-const feedsRowLabelPadDp = 8
+// feedsRowTailGapDp is the air a row keeps between the end of its name and
+// whatever stands at its trailing end, so a long name never runs into the
+// count. The row's height, its three columns, the pill's inset from the
+// rail's edges and its corner are all patterns/sidebar's — a list of feeds
+// is a chrome rail, so its rows are the sidebar's rows and not the
+// platform's list rows.
+const feedsRowTailGapDp = 8
 
 // feedsSidebar returns the accordion-grouped feeds sidebar observable.
 // openSectionsObs streams the current open-section map from the MVU model;
@@ -253,10 +256,17 @@ func feedEntryListBody(
 }
 
 // drawFeedEntryRow paints one feed row: the selected feed's pill (under
-// everything), the label (left) and a hover-revealed trash icon +
-// delete-confirm popover (right). hover holds the row's pointer hover state;
-// the trash icon paints only while hovered (or while its confirm popover is
-// open, so the popover never floats over an un-hovered row).
+// everything), then the three parts the platform draws a sidebar row from —
+// the symbol, the name, and at the trailing end the count of the feed's
+// unread articles. A hover-revealed trash icon and its delete-confirm
+// popover take that trailing column while the pointer is on the row; hover
+// holds the row's pointer state, and the icon paints only while hovered (or
+// while its confirm popover is open, so the popover never floats over an
+// un-hovered row).
+//
+// The count and the trash never stand together: one thing stands at a row's
+// trailing end, and while the pointer is on the row the thing it can operate
+// is the one worth showing.
 //
 // Only the open feed — the one whose articles the table is listing — takes a
 // fill, and it is patterns/sidebar's pill. A sidebar row does not tint under
@@ -282,43 +292,72 @@ func drawFeedEntryRow(
 	hover.Add(gtx.Ops)
 	hoverClip.Pop()
 
+	surface := tok.col.SidebarMaterial
 	if selected {
 		patsidebar.PaintSelection(gtx, size, tok.col, false)
+		surface = patsidebar.SelectionFill(tok.col, false)
 	}
 
-	// Everything the row draws lives between the pill's two edges: the label
-	// padded in from the leading one, the trash gutter measured back from the
-	// trailing one. Laying either out against the ROW's edges instead puts a
-	// label flush on a fill and an icon half off it.
-	inset := gtx.Dp(patsidebar.SelectionInset)
-	pad := inset + gtx.Dp(unit.Dp(feedsRowLabelPadDp))
-	trail := inset
+	// The row's parts stand in the rail's own columns, measured off the
+	// platform's panel, not against the pill: the symbol at SymbolInset, the
+	// name at LabelInset and the count CountInset in from the trailing edge.
+	drawFeedSymbol(gtx, size,
+		vgcolor.Flatten(patsidebar.SymbolForeground(tok.col, selected, false), surface))
 
-	// Label fills the pill minus the trash gutter; the label area is the
-	// SelectFeed click target. It wears the foreground the platform pairs
-	// with whatever the row is filled with, in the theme's BodySmall role.
-	labelW := size.X - trail - trashW - pad
+	trail := gtx.Dp(patsidebar.CountInset)
+	tailW := 0
+	switch {
+	case hovered:
+		// Trash gutter + confirm popover, in the count's own column.
+		trX := size.X - trail - trashW
+		if trX < 0 {
+			trX = 0
+		}
+		trStk := op.Offset(image.Pt(trX, 0)).Push(gtx.Ops)
+		trGtx := gtx
+		trGtx.Constraints = layout.Exact(image.Pt(trashW, size.Y))
+		dc.layout(trGtx, true)
+		trStk.Pop()
+		tailW = trashW
+	case e.Unread > 0:
+		tailW = patsidebar.PaintCount(gtx, tok.shaper, strconv.Itoa(e.Unread),
+			tok.typ.BodySmall, size,
+			vgcolor.Flatten(patsidebar.CountForeground(tok.col, selected, false), surface))
+	}
+
+	// The name, and with it the SelectFeed click target: it runs from the
+	// row's leading edge to whatever the trailing end is spending, so the
+	// symbol is part of what the reader clicks.
+	gap := 0
+	if tailW > 0 {
+		gap = gtx.Dp(unit.Dp(feedsRowTailGapDp))
+	}
+	labelW := size.X - trail - tailW - gap
 	if labelW < 0 {
 		labelW = 0
 	}
-	lbStk := op.Offset(image.Pt(pad, 0)).Push(gtx.Ops)
 	labelGtx := gtx
 	labelGtx.Constraints = layout.Exact(image.Pt(labelW, size.Y))
 	drawFeedEntry(labelGtx, tok, e.Label, selected, click)
-	lbStk.Pop()
-
-	// Trash gutter + confirm popover, against the pill's trailing edge.
-	trX := size.X - trail - trashW
-	if trX < 0 {
-		trX = 0
-	}
-	trStk := op.Offset(image.Pt(trX, 0)).Push(gtx.Ops)
-	trGtx := gtx
-	trGtx.Constraints = layout.Exact(image.Pt(trashW, size.Y))
-	dc.layout(trGtx, hovered)
-	trStk.Pop()
 
 	return layout.Dimensions{Size: size}
+}
+
+// drawFeedSymbol paints a feed row's symbol in the square the sidebar's rows
+// keep for one, at the column the platform draws it in.
+//
+// The mark is the document: the icon set carries no mark that says a feed,
+// and a feed is one piece of content this window lists, the way a note is.
+func drawFeedSymbol(gtx layout.Context, size image.Point, fg color.NRGBA) {
+	mark := icons.Mark(icons.Document)
+	if mark == nil {
+		return
+	}
+	// The mark fills the square the row keeps for it, which is what brings it
+	// out at the platform's own weight beside the name.
+	box := gtx.Dp(patsidebar.SymbolBox)
+	defer op.Offset(image.Pt(gtx.Dp(patsidebar.SymbolInset), (size.Y-box)/2)).Push(gtx.Ops).Pop()
+	mark(gtx, box, fg)
 }
 
 // feedRowForeground is what a feed row's marks wear: the foreground the
@@ -332,6 +371,8 @@ func feedRowForeground(c tokens.PlatformColors, selected bool) color.NRGBA {
 	return vgcolor.Flatten(c.Label, c.SidebarMaterial)
 }
 
+// drawFeedEntry lays the row's own click target out and draws the feed's
+// name in it, starting at the rail's measured label column.
 func drawFeedEntry(
 	gtx layout.Context,
 	tok themeTokens,
@@ -341,9 +382,14 @@ func drawFeedEntry(
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	inner := func(gtx layout.Context) layout.Dimensions {
+		lead := gtx.Dp(patsidebar.LabelInset)
+		room := size.X - lead
+		if room < 0 {
+			room = 0
+		}
 		labelGtx := gtx
 		labelGtx.Constraints.Min = image.Point{}
-		labelGtx.Constraints.Max = size
+		labelGtx.Constraints.Max = image.Pt(room, size.Y)
 		mLabel := op.Record(gtx.Ops)
 		labelDims := drawLabel(labelGtx, tok.shaper, label, tok.typ.BodySmall, feedRowForeground(tok.col, selected))
 		labelCall := mLabel.Stop()
@@ -351,7 +397,7 @@ func drawFeedEntry(
 		if offY < 0 {
 			offY = 0
 		}
-		stk := op.Offset(image.Pt(0, offY)).Push(gtx.Ops)
+		stk := op.Offset(image.Pt(lead, offY)).Push(gtx.Ops)
 		labelCall.Add(gtx.Ops)
 		stk.Pop()
 		return layout.Dimensions{Size: size}
