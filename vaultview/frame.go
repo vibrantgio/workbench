@@ -38,9 +38,10 @@
 // between them. The row is cut to the same depth as that strip, so a control
 // centred in it stands on the buttons' line without being told to.
 //
-// What the row carries at its trailing end is what acts on the document: the
-// vault's two actions and the find, each the platform's bordered toolbar
-// control, in the order and at the spacing the stored bands read.
+// What the row carries is what acts on the document: the vault's two actions
+// after the document's name at the leading end of the content column's
+// share, and the find at the trailing end, each the platform's bordered
+// toolbar control, in the order and at the spacing the stored bands read.
 //
 // The content area's fill is the same surface the note column lies on, so
 // the note draws no edge of its own and the chrome row sits on the document
@@ -152,14 +153,19 @@ const (
 	// reference/macos/controls.md.
 	bandGapDp = 16
 
-	// bandNameGapDp is the room the band leaves between the navigation and
-	// the document's name beside it. MEASURED at 1x: in
+	// bandNameGapDp is the room the band leaves on either side of the
+	// document's name: between the navigation and the name, and between the
+	// name and the first action after it. MEASURED at 1x: in
 	// finder-window-light.png the back/forward pair's fill ends at x=398 and
 	// the title's first painted column stands at x=413, and in
 	// finder-window-untinted-dark.png the same pair ends at x=398 with its
-	// title's first painted column at x=412 — fourteen clear columns, read twice,
-	// and the same fourteen notes-toolbar.png leaves between two bordered
-	// controls.
+	// title's first painted column at x=412 — fourteen clear columns, read twice.
+	// It is the only measured room between a bare title and a bordered
+	// control in any stored band: neither Finder window puts a control after
+	// its title at all, both leaving bare band there, so the boundary is
+	// read on the side the captures do hold it and spent on both. The same
+	// fourteen is what notes-toolbar.png leaves between two bordered
+	// controls standing apart.
 	bandNameGapDp = 14
 
 	// bandTrailingDp is what the band leaves between its last control and
@@ -862,13 +868,22 @@ func clampAside(w unit.Dp) unit.Dp {
 // showing: both Finder captures compose their content column's share that way
 // — the segmented back/forward pair at x 326-398 with the title's own columns
 // beginning fourteen clear of it — and voicememos-window.png keeps "All
-// Recordings" bare in the same manner. The document actions cluster at the
-// TRAILING end of the band, and the search stands last of all, which is the
-// order all four stored windows read: Finder's view pop-up, group pull-down
-// and share/tag/more trio run x 694-936 with its search capsule at 955-991 in
-// a window 1000 wide; Mail's compose, reply trio, mailbox trio, folder
-// pull-down and flag pair run x 404-838 with its search recess at 867-1191 in
-// one 1200 wide.
+// Recordings" bare in the same manner. The document's actions follow the
+// name in that same leading cluster, which is where the stored bands put
+// the controls that act on the document: mail-window.png stands its compose
+// capsule at x 404-440, twelve clear of the seam at x=392 and so at the
+// reading pane's own leading end, and runs its reply trio from x=469
+// straight on from it. Two gaps carry the cluster — the fourteen the
+// platform leaves between a bare title and a bordered control, read in
+// finder-window-light.png from the navigation pair's last column at x=398
+// to the title's first painted one at x=413, and the sixteen Finder leaves
+// between its view pop-up at x=742 and the group pull-down at x=759.
+//
+// The search stands last of all, at the trailing end, which is the order all
+// five stored bands read. What lies between the actions and it is bare band:
+// finder-window-light.png reads 255 at every column of its band clear of a
+// control, so the run carries no fill and no control and is the row's
+// flexible middle.
 //
 // The band runs across the window's columns and the fill change alone says
 // where a column's edge is, so a control at the band's trailing end stands
@@ -911,12 +926,23 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return f.layoutNavigation(gtx, m, tok)
 		}),
+	)
+	// Then the document's actions, in the order the rail's foot held them,
+	// standing after the name in the same leading cluster. The gap before
+	// the first of them is the room the platform leaves between a bare
+	// title and a bordered control, and with no name to stand after the
+	// cluster closes up and the actions follow the navigation on that same
+	// gap.
+	if noteName(m) != "" {
+		children = append(children,
+			layout.Rigid(dragSpacer(bandNameGapDp)),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return f.layoutNoteName(gtx, m, tok)
+			}),
+		)
+	}
+	children = append(children,
 		layout.Rigid(dragSpacer(bandNameGapDp)),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return f.layoutNoteName(gtx, m, tok)
-		}),
-		layout.Flexed(1, dragFill),
-		// The two vault actions, in the order the rail's foot held them.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return f.layoutRescan(gtx, tok)
 		}),
@@ -924,16 +950,16 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return f.layoutSwitchVault(gtx, tok)
 		}),
+		// The bare band between the actions and the find is the platform's
+		// own and carries nothing: finder-window-light.png reads 255 at
+		// every column of its band clear of a control. It is the row's
+		// flexible middle, so the find's slot keeps its fixed trailing end
+		// while the cluster before it keeps its leading one.
+		layout.Flexed(1, dragFill),
 	)
-	// The find carries the gap that stands it off the action before it, so a
-	// window with no note open — where there is nothing to search — ends the
-	// band at the vault switch and not at a gap after it. The slot itself is
-	// one width whether the find is open or shut, which is what keeps every
-	// control before it standing still when it opens.
-	if find := f.findChildren(m, tok); len(find) > 0 {
-		children = append(children, layout.Rigid(dragSpacer(bandGapDp)))
-		children = append(children, find...)
-	}
+	// The slot itself is one width whether the find is open or shut, which
+	// is what keeps every control before it standing still when it opens.
+	children = append(children, f.findChildren(m, tok)...)
 	// The trailing inset is the measured band's, not the trailing column's:
 	// what stands here is a toolbar control and the platform stands its last
 	// one eight from the window's edge in every stored window.

@@ -63,10 +63,18 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 	// window's own inset in both rail states — so the probe pins the one
 	// measurement there is.
 	const lead = goldenLeading
+	// The band's leading cluster: the navigation, the document's name and
+	// the two actions after it, each gap the measured one. The row lays out
+	// from its own edge inset with the pane standing, and from the buttons'
+	// reported edge with the pane away, where the show toggle stands first.
+	nameW := bandNameWidth(newFrameState(defaultWidths()), goldenModel(), goldenTokens())
+	const ctrl = railToggleWidthDp
+	nav := 2*ctrl + 1
 	for _, c := range []struct {
 		name     string
 		hidden   bool
 		lead     unit.Dp
+		start    int
 		controls []int
 	}{
 		{
@@ -74,19 +82,21 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 			// With the pane standing the row starts at its own edge inset
 			// and the window's navigation is its first control. The find's
 			// slot keeps its open width whether the find is open or shut, so
-			// every control before it is measured from that width and not
-			// from the capsule standing in it.
+			// the capsule in it is at the slot's trailing end.
+			start: noteInsetDp,
 			controls: []int{
-				noteInsetDp + railToggleWidthDp/2,                                                                          // the back segment
-				rowW - bandTrailingDp - railToggleWidthDp/2,                                                                // the find's capsule
-				rowW - bandTrailingDp - int(findFieldDp) - bandGapDp - railToggleWidthDp/2,                                 // the vault switch
-				rowW - bandTrailingDp - int(findFieldDp) - bandGapDp - railToggleWidthDp - bandGapDp - railToggleWidthDp/2, // the rescan
+				noteInsetDp + ctrl/2,           // the back segment
+				rowW - bandTrailingDp - ctrl/2, // the find's capsule
+				noteInsetDp + nav + bandNameGapDp + nameW + bandNameGapDp + ctrl/2,                    // the rescan
+				noteInsetDp + nav + bandNameGapDp + nameW + bandNameGapDp + ctrl + bandGapDp + ctrl/2, // the vault switch
 			},
 		},
 		{
 			name: "rail hidden", hidden: true, lead: lead,
+			// The show toggle stands first, then the same cluster after it.
+			start: lead + ctrl + int(goldenTokens().sp.S3),
 			controls: []int{
-				lead + railToggleWidthDp/2, // the show toggle
+				lead + ctrl/2, // the show toggle
 			},
 		},
 	} {
@@ -113,16 +123,18 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 				return ok && a == system.ActionMove
 			}
 
-			// The stretch between the vault's name and the band's trailing
-			// cluster is the largest empty one, and the one a hand reaches
-			// for. The gaps inside the cluster and the band's own trailing
-			// inset move the window too, so the probe ends on the row's
-			// last dp.
-			cluster := rowW - bandTrailingDp - int(findFieldDp) - 2*bandGapDp - 2*railToggleWidthDp
+			// The bare band between the document's actions and the find's
+			// slot is the largest empty stretch, and the one a hand reaches
+			// for. Its own two ends are probed: the column after the vault
+			// switch and the one before the find's slot begins. The band's
+			// trailing inset moves the window too, so the probe ends on the
+			// row's last dp.
+			clusterEnd := c.start + nav + bandNameGapDp + nameW + bandNameGapDp + ctrl + bandGapDp + ctrl
+			slotLo := rowW - bandTrailingDp - int(findFieldDp)
 			// The reserved room inside the find's own slot moves the window
 			// too: shut, the slot is band with a capsule at its trailing end.
 			slack := rowW - bandTrailingDp - railToggleWidthDp - 20
-			for _, x := range []int{rowW / 3, cluster - 20, slack, rowW - 1} {
+			for _, x := range []int{clusterEnd + 20, slotLo - 20, slack, rowW - 1} {
 				if !moveAt(x) {
 					t.Errorf("no window-move action at x=%d; the row holds no control there, so it must move the window", x)
 				}
@@ -887,6 +899,29 @@ func (b *bandFrame) span(c *widget.Clickable) (int, int) {
 	return lo, hi
 }
 
+// bandRescanLeading is where the band's first document action stands by the
+// composition alone: the note column's own edge inset, the navigation pair,
+// the measured name gap, the document's name as it lays out, and that same
+// gap again.
+func (b *bandFrame) bandRescanLeading() int {
+	name := bandNameWidth(b.f, goldenModel(), goldenTokens())
+	nav := 2*railToggleWidthDp + 1
+	return int(b.f.geom.contentX) + noteInsetDp + nav + bandNameGapDp + name + bandNameGapDp
+}
+
+// bandNameWidth is how wide the document's name lays out in the band. It is
+// the one part of the leading cluster that is not a measurement, so the
+// columns after it are read against what the name actually takes.
+func bandNameWidth(f *frameState, m Model, tok themeTokens) int {
+	var ops op.Ops
+	gtx := layout.Context{
+		Constraints: layout.Constraints{Max: image.Pt(windowW, int(toolbarHeight()))},
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Ops:         &ops,
+	}
+	return f.layoutNoteName(gtx, m, tok).Size.X
+}
+
 // TestBandActionsAnswerTheKeyboard drives the band the way a reader without
 // a pointer does: Tab to each of the vault's two actions and activate it.
 // Both must report a press. What the press then means — a rescan that counts
@@ -956,11 +991,12 @@ func TestBandActionsAnswerThePress(t *testing.T) {
 	b.frame()
 	b.frame()
 
-	// The rescan control stands in the band's trailing cluster: the find's
-	// slot is last, the vault switch before it, the rescan before that. The
-	// slot keeps its open width whichever state the find is in.
+	// The rescan control stands in the band's leading cluster: the
+	// navigation, the document's name, then the two actions. The slot at the
+	// trailing end keeps its open width whichever state the find is in and
+	// nothing here is measured from it.
 	const ctrl = railToggleWidthDp
-	x := float32(windowW - bandTrailingDp - int(findFieldDp) - 2*bandGapDp - 2*ctrl + ctrl/2)
+	x := float32(b.bandRescanLeading() + ctrl/2)
 	at := f32.Pt(x, float32(paneStripDp)/2)
 	b.r.Queue(pointer.Event{Kind: pointer.Move, Position: at, Source: pointer.Mouse})
 	b.frame()
@@ -997,15 +1033,21 @@ func TestTheBandOpensTheFind(t *testing.T) {
 }
 
 // TestTheBandComposesLikeTheStoredWindows reads the band's own arrangement
-// back off a laid-out frame: the document actions cluster at the trailing
-// end with the search last of all, one measured gap between each pair, and
-// the last control eight clear of the window's trailing edge.
+// back off a laid-out frame: the navigation, the document's name and the two
+// document actions in one cluster at the leading end of the content column's
+// share, one measured gap between each pair, the search last of all, and the
+// last control eight clear of the window's trailing edge.
 //
 // MEASURED, reference/macos/controls.md under "What the toolbar band's
-// composition measures": the search stands last in all five stored bands,
-// finder-window-light.png leaves 16 between its view pop-up and the group
-// pull-down beside it, and the last control in all four full windows ends 8
-// px from the window's own trailing edge.
+// composition measures" and "What the band's segmented control measures":
+// the search stands last in all five stored bands, the document's actions
+// cluster at the leading end of the content column's share in
+// mail-window.png (compose at x 404-440, twelve clear of the seam at x=392,
+// its reply trio from x=469), finder-window-light.png leaves 14 between its
+// navigation pair's last column at x=398 and its title's first painted one
+// at x=413 and 16 between its view pop-up at x=742 and the group pull-down
+// at x=759, and the last control in all four full windows ends 8 px from the
+// window's own trailing edge.
 func TestTheBandComposesLikeTheStoredWindows(t *testing.T) {
 	b := newBandFrame()
 	b.frame()
@@ -1033,19 +1075,28 @@ func TestTheBandComposesLikeTheStoredWindows(t *testing.T) {
 		}
 	}
 	if !(navLo < rescanLo && rescanHi < switchLo && switchHi < findLo) {
-		t.Errorf("the band runs navigation from %d, rescan %d-%d, switch %d-%d, search %d-%d; the navigation leads and the search stands last in every stored band",
+		t.Errorf("the band runs navigation from %d, rescan %d-%d, switch %d-%d, search %d-%d; the navigation leads, the actions follow the name and the search stands last in every stored band",
 			navLo, rescanLo, rescanHi, switchLo, switchHi, findLo, findHi)
+	}
+	// The first action stands one measured name gap after the document's
+	// name, which itself stands one after the navigation: the whole cluster
+	// is at the leading end of the content column's share and nothing in it
+	// is measured from the window's trailing edge.
+	if want := b.bandRescanLeading(); rescanLo != want {
+		t.Errorf("rescan leads at %d, want the document's name and the measured %d dp after it: %d",
+			rescanLo, bandNameGapDp, want)
 	}
 	if got := switchLo - rescanHi - 1; got != bandGapDp {
 		t.Errorf("rescan and the vault switch stand %d dp apart, want the measured %d", got, bandGapDp)
 	}
-	// The vault switch stands one measured gap off the find's SLOT, whose
-	// leading edge is its own trailing end less the width the open recess
-	// takes: what the switch is measured against is the room the find keeps,
-	// not the capsule standing in the trailing end of it.
+	// What lies between the vault switch and the find's SLOT is bare band,
+	// the run the row flexes: the slot's leading edge is its own fixed
+	// trailing end less the width the open recess takes, and the actions do
+	// not reach it.
 	slotLo := windowW - bandTrailingDp - int(findFieldDp)
-	if got := slotLo - switchHi - 1; got != bandGapDp {
-		t.Errorf("the vault switch and the find's slot stand %d dp apart, want the measured %d", got, bandGapDp)
+	if switchHi >= slotLo {
+		t.Errorf("the vault switch runs to %d and the find's slot begins at %d; the actions stand clear of the slot",
+			switchHi, slotLo)
 	}
 	if got := windowW - findHi - 1; got != bandTrailingDp {
 		t.Errorf("the band's last control ends %d dp from the window's trailing edge, want the measured %d",

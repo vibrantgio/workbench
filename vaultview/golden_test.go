@@ -999,11 +999,11 @@ func abs(n int) int {
 //
 // The rail is away for it, which is the state that puts a control of the
 // band over the note column: the toggle that brings the rail back stands at
-// the leading end of the row, with the document under it, while the vault's
-// own actions stand at the trailing end over the aside. Painted inside the
-// row, as they were until CG5.3m, the leading one's shadow stopped at the
-// band's foot where the note column's own fill began and the trailing one's
-// ran its whole length — one band, two lengths.
+// the leading end of the row, with the document under it, while the find
+// stands at the trailing end over the aside. Painted inside the row, as they
+// were until CG5.3m, the leading one's shadow stopped at the band's foot
+// where the note column's own fill began and the trailing one's ran its
+// whole length — one band, two lengths.
 func TestTheBandsShadowsRunTheSameLengthOverEveryColumn(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
@@ -1015,8 +1015,11 @@ func TestTheBandsShadowsRunTheSameLengthOverEveryColumn(t *testing.T) {
 	// against a column of its own region that no control stands above, so
 	// the depth is the shadow's and not the column's own fill.
 	const (
-		leadingX  = 96
-		leadingBg = 400
+		leadingX = 96
+		// The band's bare run, between the document's actions and the find's
+		// slot, is the stretch of the note column no control stands above
+		// or casts onto.
+		leadingBg = 600
 		// The find's slot keeps the open recess's width whether the find is
 		// open or shut, so the capsule standing in it is at the slot's
 		// trailing end and the band's bare run is in front of it.
