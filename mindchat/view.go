@@ -466,14 +466,10 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 		slot(&fieldCell)(cg)
 		return layout.Dimensions{Size: cg.Constraints.Max}
 	}
-	// components text buttons fill their available width, so each footer action
-	// gets a fixed-size box.
-	action := func(cell *atomic.Value) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(RenameButtonWidth), gtx.Dp(RenameButtonHeight)))
-			return slot(cell)(gtx)
-		}
-	}
+	// The footer states no size of its own: the dialog's footer owns the save
+	// dialog's measured push button width and lays every action out in it,
+	// and the button's height is the density's control height.
+	action := slot
 
 	modalObs := modal.Modal(th, modal.Props{
 		Open:    openObs,
@@ -481,9 +477,10 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 		Body:    body,
 		Arbiter: modalArb,
 		Actions: []layout.Widget{action(&cancelCell), action(&submitCell)},
-		// The field leads the Tab cycle — and, being first, receives focus
-		// when the modal opens, so typing starts immediately. Its tag is
-		// dynamic: each open rebuilds the field (new editor, new tag).
+		// The body declares its own focusable: the field. Being the body's
+		// first, it is what the dialog opens with the keyboard on, so typing
+		// starts immediately. Its tag is dynamic — each open rebuilds the
+		// field (new editor, new tag).
 		DynamicFocusTags: func() []event.Tag {
 			if tag, ok := fieldTagCell.Load().(event.Tag); ok && tag != nil {
 				return []event.Tag{tag}

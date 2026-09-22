@@ -143,7 +143,8 @@ func preferencesPanel(
 		},
 		// The preference controls live in the Body, not the (absent) footer,
 		// so they join the Tab cycle through DynamicFocusTags. The close X
-		// still leads it and takes initial focus on open.
+		// still leads that cycle; the panel OPENS with the keyboard on the
+		// first of these, the body's own first control, as a dialog does.
 		DynamicFocusTags: func() []event.Tag {
 			tags := make([]event.Tag, 0, len(sizeClicks)+1)
 			for i := range sizeClicks {

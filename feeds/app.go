@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"gioui.org/font"
+	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
@@ -449,12 +450,18 @@ func addFeedModal(
 	var urlCell atomic.Value
 	urlCell.Store("")
 
+	// fieldTag holds the field's own focus tag, which the panel declares to
+	// the modal: it is the body's first focusable, so it is what the dialog
+	// opens with the keyboard on.
+	var fieldTag atomic.Value
+
 	field := input.TextField(th, input.TextFieldProps{
 		Placeholder: "https://example.com/feed.xml",
 		Description: "Feed URL",
 		// Surface is left unsaid: a dialog's plane is WindowBackground, which
 		// is what the field falls back to, so the edge it flattens its
 		// hairline onto is already the fill it stands on.
+		FocusTag: func(tag event.Tag) { fieldTag.Store(tag) },
 		OnChange: func(_ layout.Context, txt string) {
 			urlCell.Store(txt)
 		},
@@ -553,6 +560,17 @@ func addFeedModal(
 		Arbiter: modalArb,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseAddFeed{}}.Add(gtx.Ops)
+		},
+		// The body's own focusables, in the order it lays them out: the URL
+		// field first, then the submit button under it. The field being first
+		// is what the panel opens with the keyboard on, so a reader can type
+		// a feed's address the moment the dialog is up.
+		DynamicFocusTags: func() []event.Tag {
+			var tags []event.Tag
+			if tag, ok := fieldTag.Load().(event.Tag); ok && tag != nil {
+				tags = append(tags, tag)
+			}
+			return append(tags, &submitClick)
 		},
 	})
 

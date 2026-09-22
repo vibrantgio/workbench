@@ -36,12 +36,6 @@ import (
 // `.github/reference/macos/save-dialog-{light,dark}.png`, whose footer is
 // the one this footer is drawn after. Both appearances agree to the pixel.
 const (
-	// dialogButtonWDp is the width of a push button in that footer: Cancel
-	// spans x 359–432 and Save x 441–514, 74 px apiece. It is the platform's
-	// minimum for a dialog button, which is what both of those labels are
-	// under, so the two stand equal.
-	dialogButtonWDp unit.Dp = 74
-
 	// vaultPickerRows is how many folder rows the dialog opens showing. No
 	// stored capture holds the platform's own open panel, so its width and
 	// height have no reading; the dialog states this instead and takes its
@@ -51,12 +45,13 @@ const (
 	vaultPickerRows = 8
 )
 
-// The footer's gap and inset are the modal pattern's own and are already the
-// save dialog's: `SpacingScale.S2` is 8 dp against the 8 clear px between
-// that footer's two buttons (x 433–440), and the surface inset `S5` is 20 dp
-// against the 20 px from the trailing button's edge to the sheet's inner
-// edge (x 514 to x 533) and the 20 from its last row to the sheet's foot
-// (y 524 to y 544). Nothing here restates them.
+// The footer's width, gap and inset are the modal pattern's own and are
+// already the save dialog's: each action is laid out in that footer's
+// measured 74 px (x 359–432 and x 441–514), `SpacingScale.S2` is 8 dp
+// against the 8 clear px between those two buttons (x 433–440), and the
+// surface inset `S5` is 20 dp against the 20 px from the trailing button's
+// edge to the sheet's inner edge (x 514 to x 533) and the 20 from its last
+// row to the sheet's foot (y 524 to y 544). Nothing here restates them.
 
 // vaultPickerLayer builds the vault-switch dialog's stream. The open state,
 // the directory on show and its rows all live in the model; the dialog is
@@ -199,14 +194,13 @@ func vaultPickerBody(
 	return v.browser(gtx, m, tok, trail, tok.col.WindowBackground, 0, rowsPx)
 }
 
-// dialogAction pins one footer button to the save dialog's measured push
-// button width and hands it the cell its live layout.Widget arrives in. The
-// height is the button's own: the density's control height is the same 24 px
-// that footer's buttons measure.
+// dialogAction hands one footer button the cell its live layout.Widget
+// arrives in. It states no width: the dialog's footer owns the save dialog's
+// measured push button width and lays every action out in it. The height is
+// the button's own — the density's control height is the same 24 px that
+// footer's buttons measure.
 func dialogAction(cell *atomic.Value) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints.Min = image.Point{}
-		gtx.Constraints.Max.X = gtx.Dp(dialogButtonWDp)
 		if w, ok := cell.Load().(layout.Widget); ok && w != nil {
 			return w(gtx)
 		}
@@ -234,13 +228,8 @@ func renderVaultPicker(
 		return vaultPickerBody(gtx, v, m, tok, trail)
 	}
 	action := func(label string, emphasis button.Emphasis) layout.Widget {
-		w := button.Render(shaper, label, colors, sp, rad, typo.LabelLarge, den,
+		return button.Render(shaper, label, colors, sp, rad, typo.LabelLarge, den,
 			button.RenderState{Emphasis: emphasis})
-		return func(gtx layout.Context) layout.Dimensions {
-			gtx.Constraints.Min = image.Point{}
-			gtx.Constraints.Max.X = gtx.Dp(dialogButtonWDp)
-			return w(gtx)
-		}
 	}
 	return modal.Render(shaper, modal.Props{
 		Title: "Open Vault",

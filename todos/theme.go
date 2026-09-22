@@ -86,9 +86,18 @@ func textStyle(ts tokens.TextStyle) textdraw.TextStyle {
 
 // Static layout dimensions; these do not vary with the colour scheme.
 const (
-	ModalWidth   unit.Dp = 650
-	ModalHeight  unit.Dp = 200
-	BorderRadius unit.Dp = 5
-	BorderWidth  unit.Dp = 2
-	Padding      unit.Dp = 12
+	ModalWidth  unit.Dp = 650
+	ModalHeight unit.Dp = 200
+
+	// The footer's two answers, as the platform's own sheet draws them.
+	// MEASURED, .github/reference/macos/save-dialog-{light,dark}.png: its
+	// "Cancel" spans x 359-432 and its "Save" x 441-514 — 74 px apiece with
+	// 8 between them, both appearances agreeing to the pixel. The width is
+	// the platform's minimum for a dialog button, which every label in this
+	// dialog is under, so the two stand equal.
+	DialogButtonWidth unit.Dp = 74
+	DialogButtonGap   unit.Dp = 8
+	BorderRadius      unit.Dp = 5
+	BorderWidth       unit.Dp = 2
+	Padding           unit.Dp = 12
 )

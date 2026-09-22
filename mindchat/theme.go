@@ -210,15 +210,13 @@ const (
 	// its trailing end. The number is the pane pattern's own margin.
 	PaneMargin = pane.MarginDp
 
-	FooterIconSize     unit.Dp = 18
-	FooterRowHeight    unit.Dp = 46
-	StreamDotSize      unit.Dp = 7
-	StreamDotSlot      unit.Dp = 15
-	WaitingDotGap      unit.Dp = 6
-	WaitingDotCount            = 3
-	RenameFieldHeight  unit.Dp = 48
-	RenameButtonHeight unit.Dp = 44
-	RenameButtonWidth  unit.Dp = 100
+	FooterIconSize    unit.Dp = 18
+	FooterRowHeight   unit.Dp = 46
+	StreamDotSize     unit.Dp = 7
+	StreamDotSlot     unit.Dp = 15
+	WaitingDotGap     unit.Dp = 6
+	WaitingDotCount           = 3
+	RenameFieldHeight unit.Dp = 48
 
 	// Settings modal geometry.
 	SettingsBodyHeight  unit.Dp = 300

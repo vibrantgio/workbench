@@ -44,7 +44,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 
 	// Components buttons fill the width they are given and stand at the theme
 	// density's control height (36 dp Comfortable), so each one is laid out
-	// inside a fixed-width box.
+	// inside a box the footer's own width.
 	sized := func(w unit.Dp, widget layout.Widget) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = 0
@@ -163,9 +163,9 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 				cs := op.Offset(rect.Min).Push(gtx.Ops)
 				gtx.Constraints = layout.Exact(rect.Size())
 				layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceStart, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(sized(100, cancelBtn)),
-					layout.Rigid(layout.Spacer{Width: Padding}.Layout),
-					layout.Rigid(sized(100, submitBtn)))
+					layout.Rigid(sized(DialogButtonWidth, cancelBtn)),
+					layout.Rigid(layout.Spacer{Width: DialogButtonGap}.Layout),
+					layout.Rigid(sized(DialogButtonWidth, submitBtn)))
 				cs.Pop()
 
 				return layout.Dimensions{Size: max}

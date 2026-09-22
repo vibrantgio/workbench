@@ -347,9 +347,13 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		Open:  rx.Map(modelObs, func(m Model) bool { return m.LVPConfirmOpen }),
 		Title: "Input cutoff above live input",
 		Body:  lvpBody,
+		// Neither action states a width: the dialog's footer owns the save
+		// dialog's measured push button width and lays both out in it, and
+		// "Set anyway" — the one label in this window wider than that — takes
+		// the width its own label measures.
 		Actions: []layout.Widget{
-			fixed(100, slotW("lvp.cancel")),
-			fixed(130, slotW("lvp.confirm")),
+			slotW("lvp.cancel"),
+			slotW("lvp.confirm"),
 		},
 		ActionFocusTags: []event.Tag{&lvpCancelClick, &lvpConfirmClick},
 		Decision: &modal.Decision{

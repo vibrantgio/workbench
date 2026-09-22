@@ -545,7 +545,12 @@ right-aligned footer Actions, Return on Decision.DefaultAction, Escape on
 Cancel, no X, and an inert backdrop. A footer with Save/Cancel means you have
 a decision, not a panel with HideClose (deprecated). Return never reaches a
 destructive default action: Decision derives the default from
-Confirm+Destructive, so there is no field with which to bind it wrongly. THE ACCELERATOR IS NOT THE
+Confirm+Destructive, so there is no field with which to bind it wrongly. Hand
+the footer an action and not a width: it lays every action out in the
+platform's measured dialog button width, and a label too wide for that box
+widens its own button. A dialog opens with the keyboard on its body's first
+focusable, which the body declares through Props.DynamicFocusTags — the first
+tag it returns. THE ACCELERATOR IS NOT THE
 MODAL'S: ⌘,/Ctrl-, must be live when no dialog exists, so bind it in app
 chrome with Gio's key.ModShortcut (never a GOOS test) over a window-wide
 pointer.PassOp key area, landing a message that opens the panel. Reference

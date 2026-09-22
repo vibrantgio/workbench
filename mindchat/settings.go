@@ -280,12 +280,10 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		slot(&bodyCell)(cg)
 		return layout.Dimensions{Size: cg.Constraints.Max}
 	}
-	action := func(cell *atomic.Value) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(RenameButtonWidth), gtx.Dp(RenameButtonHeight)))
-			return slot(cell)(gtx)
-		}
-	}
+	// The footer states no size of its own: the dialog's footer owns the save
+	// dialog's measured push button width and lays every action out in it,
+	// and the button's height is the density's control height.
+	action := slot
 
 	modalObs := modal.Modal(th, modal.Props{
 		Open:    openObs,
@@ -293,8 +291,10 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		Body:    body,
 		Arbiter: modalArb,
 		Actions: []layout.Widget{action(&cancelCell), action(&saveCell)},
-		// The provider fields lead the Tab cycle; their tags are dynamic
-		// (each epoch rebuilds the fields — new editors, new tags).
+		// The provider fields are the body's own focusables, in the order it
+		// lays them out, so the dialog opens with the keyboard on the first
+		// of them — the Name field. Their tags are dynamic: each epoch
+		// rebuilds the fields (new editors, new tags).
 		DynamicFocusTags: func() []event.Tag {
 			var tags []event.Tag
 			for _, cell := range []*atomic.Value{&nameTag, &urlTag, &keyTag} {
