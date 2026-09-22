@@ -165,6 +165,17 @@ type pickerView struct {
 	// has never seen must not open part way down because the listing before
 	// it was scrolled.
 	dir string
+	// arrived records that the listing for dir has been laid out at least
+	// once with rows in it. The rows arrive a frame or more after the
+	// directory does — the listing is read off the filesystem by a command —
+	// and a selection set against an empty slice is dropped by the list, so
+	// onArrival is applied on the first frame that actually has rows.
+	arrived bool
+	// onArrival answers the row a listing opens selected on, or -1 for none.
+	// A list at the front of a dialog is a focusable and shows a selected
+	// row the moment it takes the keyboard; the full-screen picker's list
+	// opens with nothing picked, so it leaves this nil.
+	onArrival func(m Model) int
 }
 
 // pickerLayer builds the picker screen. The frame closure reads the
@@ -276,8 +287,8 @@ func (v *pickerView) layout(
 }
 
 // browser lays out the folder browser itself — the trail over the list of
-// child directories — with the list scrolling inside the room below the
-// trail. It is the whole of what the vault-switch dialog shows, and the
+// child directories — with the list scrolling inside the available room
+// below the trail. It is the whole of what the vault-switch dialog shows, and the
 // middle of what the full-screen picker shows: one composition, so the two
 // browse identically.
 //
@@ -306,8 +317,18 @@ func (v *pickerView) browser(
 ) layout.Dimensions {
 	if v.dir != m.PickerDir {
 		v.dir = m.PickerDir
+		v.arrived = false
 		v.list.Select(-1)
 		v.list.Reveal(0)
+	}
+	if !v.arrived && len(m.PickerEntries) > 0 {
+		v.arrived = true
+		if v.onArrival != nil {
+			if sel := v.onArrival(m); sel >= 0 {
+				v.list.Select(sel)
+				v.list.Reveal(sel)
+			}
+		}
 	}
 	rows := func(gtx layout.Context) layout.Dimensions {
 		return v.rows(gtx, tok, m.PickerEntries, surface, rowInset)
@@ -335,6 +356,14 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
+	return list.Halo(gtx, v.list, tok.col, standsOn, func(gtx layout.Context) layout.Dimensions {
+		return v.selectableRows(gtx, tok, entries, standsOn, rowInset, rowH)
+	})
+}
+
+// selectableRows is the list itself, inside the band [list.Halo] draws on its
+// box.
+func (v *pickerView) selectableRows(gtx layout.Context, tok themeTokens, entries []DirEntry, standsOn color.NRGBA, rowInset float32, rowH int) layout.Dimensions {
 	return list.LayoutSelectable(gtx, v.list, entries,
 		func(gtx layout.Context, item DirEntry, selected bool) layout.Dimensions {
 			click := v.rowClicks[item.Idx]

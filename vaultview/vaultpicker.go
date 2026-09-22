@@ -13,6 +13,7 @@ package main
 
 import (
 	"image"
+	"path/filepath"
 	"sync/atomic"
 
 	"gioui.org/io/event"
@@ -74,7 +75,7 @@ func vaultPickerLayer(
 	trailObs := breadcrumb.Trail(th, breadcrumb.TrailProps{Chevron: trailChevronDp})
 
 	return rx.Defer(func() rx.Observable[layout.Widget] {
-		v := &pickerView{list: list.NewState()}
+		v := &pickerView{list: list.NewState(), onArrival: vaultPickerArrival}
 		var cancelClick, openClick widget.Clickable
 
 		cancel, openVault := vaultPickerAnswers(loadModel, postMessage)
@@ -175,6 +176,24 @@ func vaultPickerDecision(cancel, openVault func(gtx layout.Context)) *modal.Deci
 	return &modal.Decision{Confirm: openVault, Cancel: cancel}
 }
 
+// vaultPickerArrival answers the row the dialog's browser opens a listing
+// selected on: the current vault's own folder where the browser stands in
+// the vault's parent, and the listing's first row everywhere else.
+//
+// The dialog itself opens standing IN the vault, so what it opens selected
+// is that listing's first row; the vault's own folder is what the selection
+// lands on once the reader climbs the trail to the directory holding it.
+func vaultPickerArrival(m Model) int {
+	if m.Vault != "" && filepath.Dir(filepath.Clean(m.Vault)) == filepath.Clean(m.PickerDir) {
+		for _, e := range m.PickerEntries {
+			if filepath.Clean(e.Path) == filepath.Clean(m.Vault) {
+				return e.Idx
+			}
+		}
+	}
+	return 0
+}
+
 // vaultPickerBody lays the folder browser out as the dialog's body: the
 // trail over exactly vaultPickerRows rows, so the dialog hugs a stated
 // height. The list scrolls inside that height — a directory with more
@@ -221,7 +240,7 @@ func renderVaultPicker(
 	den tokens.Density,
 ) layout.Widget {
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
-	v := &pickerView{list: list.NewState()}
+	v := &pickerView{list: list.NewState(), onArrival: vaultPickerArrival}
 	trail := breadcrumb.NewTrail(shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
 		colors, sp, typo.TitleSmall)
 	body := func(gtx layout.Context) layout.Dimensions {

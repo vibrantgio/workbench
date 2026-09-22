@@ -4,8 +4,8 @@ package main
 // rendered frame. The Modal entry binds: the first field holds the keyboard
 // focus when a dialog opens, as the platform's sheet shows. This dialog's
 // body is a folder browser rather than a field, so its first control is the
-// browser's list — and what has to be true either way is that the keyboard
-// does NOT open on one of the two answers in the footer.
+// browser's list — and a list at the front of a dialog is a focusable like a
+// field: it wears the halo on its own box and shows a selected row.
 
 import (
 	"image"
@@ -28,17 +28,28 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// livePicker builds the switch dialog's own layer over model m, live: a real
-// theme stream, a real modal, a real browser list. It is the one path a
-// keyboard reaches — the stored window image is a static render, which holds
-// no focus at all.
-func livePicker(t *testing.T, m Model, c tokens.PlatformColors, shaper *text.Shaper) layout.Widget {
+// dialogLayer is the shape both of this application's modal layers are
+// built in: a theme stream, the model behind the dialog, the two snapshot
+// loaders and the arbiter the dialog declares itself to.
+type dialogLayer func(
+	th rx.Observable[theme.Theme],
+	modelObs rx.Observable[Model],
+	loadModel func() Model,
+	loadTok func() themeTokens,
+	arb *modal.Arbiter,
+) rx.Observable[layout.Widget]
+
+// liveDialog builds one dialog's own layer over model m, live: a real theme
+// stream, a real modal, real focus tags. It is the one path a keyboard
+// reaches — a stored window image is a static render, which holds no focus
+// at all.
+func liveDialog(t *testing.T, build dialogLayer, m Model, c tokens.PlatformColors, shaper *text.Shaper) layout.Widget {
 	t.Helper()
 	th := theme.Default()
 	th.Platform = rx.Of(c)
 	tok := themeTokens{col: c, typ: tokens.DefaultTypography, sp: tokens.Spacing,
 		den: tokens.Comfortable, shaper: shaper}
-	layer := vaultPickerLayer(rx.Of(th), rx.Of(m),
+	layer := build(rx.Of(th), rx.Of(m),
 		func() Model { return m }, func() themeTokens { return tok }, modal.NewArbiter())
 	var w layout.Widget
 	if err := layer.Subscribe(rx.GoroutineContext(), func(next layout.Widget, _ error, done bool) {
@@ -46,18 +57,24 @@ func livePicker(t *testing.T, m Model, c tokens.PlatformColors, shaper *text.Sha
 			w = next
 		}
 	}).Wait(); err != nil {
-		t.Fatalf("the switch dialog's layer: %v", err)
+		t.Fatalf("the dialog's layer: %v", err)
 	}
 	if w == nil {
-		t.Fatal("the switch dialog's layer emitted no layout.Widget")
+		t.Fatal("the dialog's layer emitted no layout.Widget")
 	}
 	return w
 }
 
-// settledPicker drives w through the frames a live focus command needs — one
+// livePicker is the switch dialog's layer.
+func livePicker(t *testing.T, m Model, c tokens.PlatformColors, shaper *text.Shaper) layout.Widget {
+	t.Helper()
+	return liveDialog(t, vaultPickerLayer, m, c, shaper)
+}
+
+// settledDialog drives w through the frames a live focus command needs — one
 // to register the tags, one for the router to act on the command — with keys
 // queued after, and captures the frame those keys left behind.
-func settledPicker(t *testing.T, w layout.Widget, c tokens.PlatformColors, keys ...key.Event) *image.RGBA {
+func settledDialog(t *testing.T, w layout.Widget, c tokens.PlatformColors, keys ...key.Event) *image.RGBA {
 	t.Helper()
 	r := new(gioinput.Router)
 	drive := func() {
@@ -96,43 +113,107 @@ func countColor(img *image.RGBA, col color.NRGBA) int {
 	return n
 }
 
-// TestTheSwitchDialogOpensOnTheBrowserAndNotOnAnAnswer reads the opening
+// colorBox returns the bounding box of every pixel drawn in col, or the
+// empty rectangle when the frame carries none.
+func colorBox(img *image.RGBA, col color.NRGBA) image.Rectangle {
+	var box image.Rectangle
+	b := img.Bounds()
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			p := img.RGBAAt(x, y)
+			if p.R != col.R || p.G != col.G || p.B != col.B || p.A != col.A {
+				continue
+			}
+			r := image.Rect(x, y, x+1, y+1)
+			if box.Empty() {
+				box = r
+			} else {
+				box = box.Union(r)
+			}
+		}
+	}
+	return box
+}
+
+// haloRing is the colour the halo's outer half lands as on a dialog's own
+// plane: the platform's keyboard focus indicator flattened onto the window
+// background every floating surface here takes.
+func haloRing(c tokens.PlatformColors) color.NRGBA {
+	return vgcolor.Flatten(c.KeyboardFocusIndicator, c.WindowBackground)
+}
+
+// haloOutside is how far past a control's own box the band reaches at the
+// metric these frames are driven at: half of the halo's measured 4 dp.
+const haloOutside = 2
+
+// TestTheSwitchDialogOpensOnTheBrowserWearingItsHalo reads the opening
 // keyboard off the live dialog, in both schemes.
 //
-// Three readings. As it opens, no halo stands anywhere: neither answer holds
-// the keyboard, and the browser's list draws no band of its own. One Down
-// then moves the browser's cursor onto its first row — which only a list
-// holding the keyboard does — and a Shift+Tab from the same opening state
-// wraps the keyboard onto the last answer, where the halo appears. So the
+// Four readings. As it opens, the halo stands around the browser's list and
+// nowhere else, and the list's first row — the listing's first, the dialog
+// standing IN the vault rather than in its parent — wears the selection
+// fill. One Down moves that selection one row on, which only a list holding
+// the keyboard does. One Tab carries the halo off the list and onto the
+// footer's first answer, leaving the selection where it stood. So the
 // keyboard opens in the body and the footer is a Tab away, not the other way
 // round.
-func TestTheSwitchDialogOpensOnTheBrowserAndNotOnAnAnswer(t *testing.T) {
+func TestTheSwitchDialogOpensOnTheBrowserWearingItsHalo(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := switchGoldenModel()
 	down := key.Event{Name: key.NameDownArrow, State: key.Press}
-	shiftTab := key.Event{Name: key.NameTab, Modifiers: key.ModShift, State: key.Press}
+	tab := key.Event{Name: key.NameTab, State: key.Press}
 
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ring := vgcolor.Flatten(tc.colors.KeyboardFocusIndicator, tc.colors.WindowBackground)
+			ring := haloRing(tc.colors)
 			cursor := tc.colors.SelectedContentBackground
 
-			opened := settledPicker(t, livePicker(t, m, tc.colors, shaper), tc.colors)
-			if n := countColor(opened, ring); n != 0 {
-				t.Errorf("%d halo pixels stand in the frame as the dialog opens: an answer took the keyboard the body should have", n)
+			opened := settledDialog(t, livePicker(t, m, tc.colors, shaper), tc.colors)
+			halo := colorBox(opened, ring)
+			if halo.Empty() {
+				t.Fatal("the switch dialog opened with no halo anywhere in the window: nothing holds the keyboard")
 			}
-			if n := countColor(opened, cursor); n != 0 {
-				t.Errorf("the browser opens with %d pixels of its cursor row painted; it opens with no row picked", n)
+			row := colorBox(opened, cursor)
+			if row.Empty() {
+				t.Fatal("the browser opened with no row selected: a list holding the keyboard shows which row it stands on")
+			}
+			// The band straddles the list's box, so it runs haloOutside past
+			// the rows on every side, and the first row sits at the box's own
+			// top edge under the half of the band lying over it.
+			if halo.Min.X != row.Min.X-2*haloOutside || halo.Max.X != row.Max.X+2*haloOutside {
+				t.Errorf("the halo runs x %d-%d and the selected row x %d-%d: the band is not on the list's own box",
+					halo.Min.X, halo.Max.X, row.Min.X, row.Max.X)
+			}
+			if halo.Min.Y != row.Min.Y-2*haloOutside {
+				t.Errorf("the halo starts at y %d and the selected row at y %d: the first row is not at the list's top edge",
+					halo.Min.Y, row.Min.Y)
+			}
+			if got, want := halo.Dy(), haloOutside+vaultPickerRows*int(tokens.Comfortable.ControlHeight)+haloOutside; got != want {
+				t.Errorf("the halo stands %d px tall; the list's box is %d rows and the band %d px past it on each side",
+					got, vaultPickerRows, haloOutside)
 			}
 
-			walked := settledPicker(t, livePicker(t, m, tc.colors, shaper), tc.colors, down)
-			if n := countColor(walked, cursor); n == 0 {
-				t.Error("one Down moved nothing in the browser: the dialog did not open with the keyboard on its list")
+			// The foot of the fill rather than its top: the opening row sits
+			// at the list's top edge, where the half of the band lying over
+			// the box covers its first haloOutside rows.
+			walked := settledDialog(t, livePicker(t, m, tc.colors, shaper), tc.colors, down)
+			moved := colorBox(walked, cursor)
+			if moved.Max.Y != row.Max.Y+int(tokens.Comfortable.ControlHeight) {
+				t.Errorf("one Down left the selection ending at y %d, from y %d: the arrows do not move the browser's selection one row",
+					moved.Max.Y, row.Max.Y)
 			}
 
-			tabbed := settledPicker(t, livePicker(t, m, tc.colors, shaper), tc.colors, shiftTab)
-			if n := countColor(tabbed, ring); n == 0 {
-				t.Error("Shift+Tab put no halo on an answer: the footer is not in the dialog's keyboard cycle")
+			tabbed := settledDialog(t, livePicker(t, m, tc.colors, shaper), tc.colors, tab)
+			next := colorBox(tabbed, ring)
+			if next.Empty() {
+				t.Fatal("Tab left no halo in the window: the footer is not in the dialog's keyboard cycle")
+			}
+			if next.Min.Y < halo.Max.Y {
+				t.Errorf("Tab left the halo at y %d-%d, still over the list at y %d-%d: it did not move off the list",
+					next.Min.Y, next.Max.Y, halo.Min.Y, halo.Max.Y)
+			}
+			if n := countColor(tabbed, cursor); n == 0 {
+				t.Error("Tab cleared the browser's selection: the selection is the list's, not the keyboard's")
 			}
 		})
 	}
