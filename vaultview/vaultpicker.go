@@ -189,9 +189,9 @@ func vaultPickerBody(
 ) layout.Dimensions {
 	rowsPx := vaultPickerRows * gtx.Dp(list.RowHeight(tok.den))
 	// No inset of the row's own: the surface has already spent 20 dp on
-	// every side, so a folder's name leads on the same column the header
-	// and the breadcrumb do and its annotation ends on the column the Open
-	// button ends on.
+	// every side, so a row's symbol stands in the sidebar row's measured
+	// column from the same edge the header and the breadcrumb lead on, and
+	// its annotation ends on the column the Open button ends on.
 	return v.browser(gtx, m, tok, trail, tok.col.WindowBackground, 0, rowsPx)
 }
 

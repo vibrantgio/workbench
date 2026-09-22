@@ -1,7 +1,8 @@
 // picker.go is the vault picker: an in-app folder browser composed from
 // the vocabulary — a breadcrumb for the current directory, a
-// components/list of child directories (dot-directories hidden), each
-// row annotated when it holds a .obsidian marker or with its *.md count,
+// components/list of child directories (dot-directories hidden), each row
+// carrying the folder mark at the sidebar row's measured column and
+// annotated when it holds a .obsidian marker or with its *.md count,
 // and a filled "Open this vault" action on the current directory.
 //
 // This is the FULL-SCREEN picker, which the first launch with no vault
@@ -36,10 +37,12 @@ import (
 
 	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/icons"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 )
@@ -271,10 +274,11 @@ func (v *pickerView) layout(
 // chrome material, the dialog's window background — which is what an
 // unselected row's foreground flattens against and what it repaints with.
 //
-// rowInset is the leading and trailing air a row spends. A screen that
-// lays the browser out itself gives its rows their own, and a dialog gives
-// none: the surface has already inset the body, so a row that inset itself
-// again would stand its names in from the header and the footer beside it.
+// rowInset is the leading and trailing air a row spends, ahead of the
+// symbol and label columns inside it. A screen that lays the browser out
+// itself gives its rows their own, and a dialog gives none: the surface has
+// already inset the body, so a row that inset itself again would stand its
+// symbols in from the header and the footer beside it.
 //
 // rowsPx is how tall the list stands: zero gives it every pixel left under
 // the trail, which is what a screen taking the window entire wants, and a
@@ -347,6 +351,9 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 				complayout.InsetXY(rowInset, 0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return folderSymbol(gtx, tok, selected, surface)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							name := tok.col.Label
 							if selected {
 								name = tok.col.AlternateSelectedControlText
@@ -375,6 +382,34 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 				return layout.Dimensions{Size: size}
 			})
 		})
+}
+
+// folderSymbol paints the folder mark at the leading end of a browser row
+// and reports the column it stands in, so the name beside it begins where a
+// sidebar row's name begins.
+//
+// Every row of this browser is a directory — the parent row included — so
+// every row carries the one mark: the symbol names the KIND of entry, and
+// rows of one kind share it.
+//
+// The column is the sidebar row's measured one, which is the only reading
+// the reference holds for a symbol beside a name: a [sidebar.SymbolBox]
+// square set [sidebar.SymbolInset] in, with the name beginning at
+// [sidebar.LabelInset]. The colour is NOT the sidebar's measured symbol
+// value: that value was read off a chrome rail, where the platform draws the
+// symbol 38 of 255 stronger than the name beside it, and this browser is
+// content standing on a content surface. Nothing measures a content row's
+// symbol apart from its name, so it takes the name's own foreground.
+func folderSymbol(gtx layout.Context, tok themeTokens, selected bool, standsOn color.NRGBA) layout.Dimensions {
+	fg := tok.col.Label
+	if selected {
+		fg = tok.col.AlternateSelectedControlText
+	}
+	box := gtx.Dp(sidebar.SymbolBox)
+	stk := op.Offset(image.Pt(gtx.Dp(sidebar.SymbolInset), (gtx.Constraints.Max.Y-box)/2)).Push(gtx.Ops)
+	drawMark(gtx, icons.Folder, sidebar.SymbolBox, vgcolor.Flatten(fg, standsOn))
+	stk.Pop()
+	return layout.Dimensions{Size: image.Pt(gtx.Dp(sidebar.LabelInset), gtx.Constraints.Max.Y)}
 }
 
 // browseTo is the click an ancestor in the picker's trail carries: the
