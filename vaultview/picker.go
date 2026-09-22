@@ -4,6 +4,11 @@
 // row annotated when it holds a .obsidian marker or with its *.md count,
 // and a filled "Open this vault" action on the current directory.
 //
+// This is the FULL-SCREEN picker, which the first launch with no vault
+// opens: there is no window for a dialog to stand over then. Switching the
+// vault from an open one raises the dialog in vaultpicker.go instead, which
+// reuses the browser below as its body.
+//
 // Keyboard: the list holds focus, arrows move the selection, Return
 // descends into the selected folder, and the action button opens.
 
@@ -12,6 +17,7 @@ package main
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
@@ -140,6 +146,11 @@ type pickerView struct {
 	list      *list.State
 	rowClicks []*widget.Clickable
 	focused   bool
+	// dir is the directory the list was last laid out for, so a move to
+	// another one puts the list back at its first row: a listing the reader
+	// has never seen must not open part way down because the listing before
+	// it was scrolled.
+	dir string
 }
 
 // pickerLayer builds the picker screen. The frame closure reads the
@@ -240,12 +251,8 @@ func (v *pickerView) layout(
 				return drawLabel(gtx, tok.shaper, "Choose a vault", tok.typ.HeadlineSmall, tok.col.Text)
 			}),
 			layout.Rigid(complayout.VSpacer(pickerGapDp)),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return trail(gtx, trailSegments(dirPlaces(m.PickerDir), browseTo))
-			}),
-			layout.Rigid(complayout.VSpacer(pickerGapDp)),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return v.rows(gtx, tok, m.PickerEntries)
+				return v.browser(gtx, m, tok, trail, chromeSurface(tok.col), pickerRowInsetDp, 0)
 			}),
 			layout.Rigid(complayout.VSpacer(pickerGapDp)),
 			layout.Rigid(btn),
@@ -254,8 +261,61 @@ func (v *pickerView) layout(
 	return layout.Dimensions{Size: size}
 }
 
-// rows lays out the folder list with keyboard traversal.
-func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntry) layout.Dimensions {
+// browser lays out the folder browser itself — the trail over the list of
+// child directories — with the list scrolling inside the room below the
+// trail. It is the whole of what the vault-switch dialog shows, and the
+// middle of what the full-screen picker shows: one composition, so the two
+// browse identically.
+//
+// surface is the opaque fill the browser stands on — the picker screen's
+// chrome material, the dialog's window background — which is what an
+// unselected row's foreground flattens against and what it repaints with.
+//
+// rowInset is the leading and trailing air a row spends. A screen that
+// lays the browser out itself gives its rows their own, and a dialog gives
+// none: the surface has already inset the body, so a row that inset itself
+// again would stand its names in from the header and the footer beside it.
+//
+// rowsPx is how tall the list stands: zero gives it every pixel left under
+// the trail, which is what a screen taking the window entire wants, and a
+// positive value pins it so the browser hugs a stated number of rows, which
+// is what a dialog sized to show them wants.
+func (v *pickerView) browser(
+	gtx layout.Context,
+	m Model,
+	tok themeTokens,
+	trail breadcrumb.TrailLayout,
+	surface color.NRGBA,
+	rowInset float32,
+	rowsPx int,
+) layout.Dimensions {
+	if v.dir != m.PickerDir {
+		v.dir = m.PickerDir
+		v.list.Select(-1)
+		v.list.Reveal(0)
+	}
+	rows := func(gtx layout.Context) layout.Dimensions {
+		return v.rows(gtx, tok, m.PickerEntries, surface, rowInset)
+	}
+	listChild := layout.Flexed(1, rows)
+	if rowsPx > 0 {
+		listChild = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowsPx))
+			return rows(gtx)
+		})
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return trail(gtx, trailSegments(dirPlaces(m.PickerDir), browseTo))
+		}),
+		layout.Rigid(complayout.VSpacer(pickerGapDp)),
+		listChild,
+	)
+}
+
+// rows lays out the folder list with keyboard traversal, on the surface
+// the browser stands on.
+func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntry, standsOn color.NRGBA, rowInset float32) layout.Dimensions {
 	for len(v.rowClicks) < len(entries) {
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
@@ -271,14 +331,20 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowH))
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
-				surface := chromeSurface(tok.col)
+				surface := standsOn
 				if selected {
 					surface = tok.col.SelectedContentBackground
 					paint.FillShape(gtx.Ops, surface, clip.Rect{Max: size}.Op())
 				}
 				semantic.LabelOp(item.Name).Add(gtx.Ops)
 				pointer.CursorPointer.Add(gtx.Ops)
-				complayout.Inset(pickerRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				// The inset is the row's leading and trailing air ALONE. A
+				// row is the list's own height — one control height — and a
+				// BodyLarge line box very nearly fills it, so vertical air
+				// here would push the label out of the row and the list's
+				// clip would cut it in half. What centres the label is the
+				// flex's Middle alignment over the row's full height.
+				complayout.InsetXY(rowInset, 0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							name := tok.col.Label

@@ -275,9 +275,10 @@ func TestChooserDismissal(t *testing.T) {
 	}
 }
 
-// TestSwitchVaultReRootsAndFollowsTheStore walks a vault switch: the model
-// returns to the picker seated at the open vault's parent; opening another
-// vault rewrites the store and re-roots the tree on the new index.
+// TestSwitchVaultReRootsAndFollowsTheStore walks a vault switch: the dialog
+// opens over the vault on screen, seated at the vault itself; opening
+// another vault closes it, rewrites the store and re-roots the tree on the
+// new index.
 func TestSwitchVaultReRootsAndFollowsTheStore(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
@@ -296,16 +297,22 @@ func TestSwitchVaultReRootsAndFollowsTheStore(t *testing.T) {
 	model.Folds = map[string]bool{"old-folder": true}
 
 	model, _ = Update(model, SwitchVault{})
-	if model.Screen != screenPicker {
-		t.Fatal("SwitchVault did not return to the picker")
+	if !model.PickerOpen {
+		t.Fatal("SwitchVault did not open the dialog")
 	}
-	if model.PickerDir != root {
-		t.Errorf("picker seated at %q, want the open vault's parent %q", model.PickerDir, root)
+	if model.Screen != screenVault {
+		t.Error("SwitchVault left the vault screen; the dialog stands over it")
+	}
+	if model.PickerDir != oldVault {
+		t.Errorf("browser seated at %q, want the open vault itself %q", model.PickerDir, oldVault)
 	}
 
 	model, cmd := Update(model, OpenVault{Path: newVault})
 	if model.Screen != screenVault || model.Vault != newVault {
 		t.Fatalf("OpenVault left screen=%v vault=%q", model.Screen, model.Vault)
+	}
+	if model.PickerOpen {
+		t.Error("OpenVault left the dialog open")
 	}
 	if model.Index != nil || model.Folds != nil || model.Current != "" || len(model.History) != 0 {
 		t.Error("OpenVault did not clear the previous vault's state")

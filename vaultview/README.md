@@ -21,6 +21,12 @@ you are, the child folders as rows, each annotated with the `.obsidian`
 marker or its note count, and an **Open this vault** action. Arrows move,
 Return descends.
 
+Switching vault from an open one raises that same browser as a dialog
+over the window, starting inside the vault on screen: **Open** switches
+the whole window to the folder the browser is in, and **Cancel** or
+Escape leaves with nothing changed. Where the platform offers an open
+panel of its own, that panel is what asks.
+
 Every successful open is remembered, so the next launch needs no
 argument. The remembered path is one line of text in `vaultview/vault`
 under `$XDG_CONFIG_HOME`, or under `~/.config` when that variable is

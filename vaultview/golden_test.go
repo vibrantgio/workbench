@@ -11,6 +11,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
@@ -423,6 +424,64 @@ func TestVaultWindowGolden(t *testing.T) {
 				golden.Render(t, name, windowFrameSize, windowScene(w, tc.colors))
 			})
 		}
+	}
+}
+
+// switchGoldenModel is the golden window with the vault-switch dialog
+// raised over it: the browser seated in the open vault, listing more
+// folders than the dialog shows, so the list is in the state it scrolls
+// from and the annotations a vault and a folder of notes carry are both on
+// the picture.
+func switchGoldenModel() Model {
+	m := goldenModel()
+	m.PickerOpen = true
+	m.PickerDir = m.Vault
+	m.PickerEntries = []DirEntry{
+		{Name: "..", Path: "/vaults", Up: true},
+		{Name: "Archive", Path: "/vaults/Second Brain/Archive", MDCount: 142},
+		{Name: "Design", Path: "/vaults/Second Brain/Design", MDCount: 18},
+		{Name: "Inbox", Path: "/vaults/Second Brain/Inbox", MDCount: 3},
+		{Name: "Journal", Path: "/vaults/Second Brain/Journal", MDCount: 1},
+		{Name: "Projects", Path: "/vaults/Second Brain/Projects"},
+		{Name: "Reading", Path: "/vaults/Second Brain/Reading", MDCount: 27},
+		{Name: "Scratch", Path: "/vaults/Second Brain/Scratch", IsVault: true},
+		{Name: "Sources", Path: "/vaults/Second Brain/Sources", MDCount: 9},
+		{Name: "Templates", Path: "/vaults/Second Brain/Templates", MDCount: 6},
+	}
+	for i := range m.PickerEntries {
+		m.PickerEntries[i].Idx = i
+	}
+	return m
+}
+
+// renderSwitchWindow composes the picture the dialog is read in: the vault
+// window it stands over, and the dialog over it. The modal defers its own
+// painting to the floating level, so it lands above every operation the
+// window recorded whatever order the two are laid out in.
+func renderSwitchWindow(shaper *text.Shaper, m Model, colors tokens.PlatformColors) layout.Widget {
+	win, _ := renderWindow(shaper, m, colors, tokens.Spacing, goldenRadius,
+		tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
+	dlg := renderVaultPicker(shaper, m, colors, tokens.Spacing, goldenRadius,
+		tokens.DefaultTypography, tokens.Comfortable)
+	return func(gtx layout.Context) layout.Dimensions {
+		win(gtx)
+		return dlg(gtx)
+	}
+}
+
+// TestVaultSwitchDialogGolden records the vault-switch dialog open over the
+// window it interrupts, in both schemes: the header, the folder browser as
+// its body, and the footer of Cancel and Open at its trailing end. It is
+// the only picture that can show the dialog against the window it dims.
+func TestVaultSwitchDialogGolden(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := switchGoldenModel()
+	for _, tc := range themeCases {
+		name := "window-switch-" + tc.name
+		t.Run(name, func(t *testing.T) {
+			golden.Render(t, name, windowFrameSize,
+				windowScene(renderSwitchWindow(shaper, m, tc.colors), tc.colors))
+		})
 	}
 }
 

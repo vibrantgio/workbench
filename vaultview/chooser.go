@@ -44,6 +44,7 @@ func chooserLayer(
 	modelObs rx.Observable[Model],
 	loadModel func() Model,
 	loadTok func() themeTokens,
+	arb *modal.Arbiter,
 ) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.ChooserOpen() }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
@@ -109,9 +110,10 @@ func chooserLayer(
 	}
 
 	return modal.Modal(th, modal.Props{
-		Open:  openObs,
-		Title: "Choose a note",
-		Body:  body,
+		Open:    openObs,
+		Title:   "Choose a note",
+		Body:    body,
+		Arbiter: arb,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseChooser{}}.Add(gtx.Ops)
 		},

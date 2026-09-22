@@ -41,6 +41,13 @@ type Model struct {
 	Screen screen
 
 	// Picker state: the directory the folder browser shows and its rows.
+	//
+	// PickerOpen is the vault-switch dialog's open state, and it is a field
+	// rather than a screen: the window the dialog stands over is the vault
+	// the reader still has open, and Cancel has to leave it exactly as it
+	// was. The first launch with no vault takes the full-screen picker
+	// instead (Screen), there being no window for a dialog to stand over.
+	PickerOpen    bool
 	PickerDir     string
 	PickerEntries []DirEntry
 
@@ -191,10 +198,14 @@ type ChooseCandidate struct{ Path string }
 // CloseChooser dismisses the chooser without navigating.
 type CloseChooser struct{}
 
-// SwitchVault leaves the vault screen for the folder-browser picker, so
+// SwitchVault raises the vault-switch dialog over the vault on screen, so
 // another vault can be opened. The vault state itself is untouched until
 // an OpenVault lands.
 type SwitchVault struct{}
+
+// CancelSwitch dismisses the vault-switch dialog with nothing changed: the
+// vault on screen stays open and every piece of its state stands.
+type CancelSwitch struct{}
 
 // RevealFolder opens every fold on the way to a folder, the folder
 // itself included, so its contents are visible in the tree.
@@ -324,6 +335,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		}
 	case OpenVault:
 		model.Screen = screenVault
+		model.PickerOpen = false
 		model.Vault = m.Path
 		model.Scanning = true
 		model.ScanErr = ""
@@ -398,14 +410,19 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.ChooserBody = ""
 		model.ChooserCandidates = nil
 	case SwitchVault:
-		model.Screen = screenPicker
+		// The browser starts AT the open vault, not at its parent: Open with
+		// nothing changed has to reopen the vault the reader is already in,
+		// which is what makes Cancel and Open the two safe answers.
+		model.PickerOpen = true
 		dir := startDir()
 		if model.Vault != "" {
-			dir = filepath.Dir(model.Vault)
+			dir = model.Vault
 		}
 		model.PickerDir = dir
 		model.PickerEntries = nil
 		return model, listDirCmd(dir)
+	case CancelSwitch:
+		model.PickerOpen = false
 	case ToggleTask:
 		path := m.Path
 		if path == "" {

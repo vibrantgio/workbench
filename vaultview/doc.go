@@ -11,10 +11,17 @@
 //
 // A vault path given on the command line wins. Without one the last
 // vault opened is used, and on a first run — or when the remembered path
-// has stopped being a directory — an in-app folder browser asks. Every
+// has stopped being a directory — an in-app folder browser asks, taking
+// the window entire: there is no vault open for it to stand over. Every
 // successful open is remembered, so the next launch needs no argument.
 // The remembered path is one line of text in vaultview/vault under
 // $XDG_CONFIG_HOME, or under ~/.config when that variable is unset.
+//
+// Switching vault from an open one raises that same browser as a dialog
+// over the window instead, starting inside the vault on screen. Open
+// switches the whole window to the folder the browser is in; Cancel and
+// Escape leave with nothing changed. Where the platform offers an open
+// panel of its own, that panel is what asks.
 //
 // # What a link means
 //

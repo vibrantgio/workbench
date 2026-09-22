@@ -34,6 +34,7 @@ import (
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/theme/brand"
@@ -204,8 +205,8 @@ func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.PlatformColors, 
 }
 
 // buildLayers returns the rendering layers, back to front: a backdrop,
-// the routed screen (picker or vault), the ambiguity chooser, and the
-// toast stack over everything.
+// the routed screen (picker or vault), the ambiguity chooser, the
+// vault-switch dialog, and the toast stack over everything.
 //
 // The model cell and the token mirror are built here and shared by every
 // layer's frame-time closures, so the chooser reads the same snapshot the
@@ -229,10 +230,21 @@ func buildLayers(modelObs rx.Observable[Model], opening tokens.PlatformColors, t
 		loadModel := func() Model { return modelCell.Load().(Model) }
 
 		notesObs := rx.Map(modelObs, func(m Model) []notifications.Notification { return m.Notifications.Items() })
+		// One stack for the window's dialogs: whichever is in front takes
+		// the input and the one under it stays painted and inert. Both can
+		// stand at once — the chooser leaves the chrome row live above its
+		// own scrim, and Switch Vault stands in that row — so the two share
+		// a stack rather than each getting one of its own.
+		dialogs := modal.NewArbiter()
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
 			routedLayer(th, modelObs, &modelCell, loadModel, loadTok, widths),
-			underChrome(chooserLayer(th, modelObs, loadModel, loadTok)),
+			underChrome(chooserLayer(th, modelObs, loadModel, loadTok, dialogs)),
+			// The vault switch takes the window entire rather than standing
+			// under the chrome row: it is a decision, and a decision's
+			// backdrop has to be inert over every control in the window —
+			// the Switch Vault control that raised it included.
+			vaultPickerLayer(th, modelObs, loadModel, loadTok, dialogs),
 			underChrome(notifications.Column(th, notifications.Props{Position: notifications.BottomCenter, Notifications: notesObs})),
 		}
 	}
