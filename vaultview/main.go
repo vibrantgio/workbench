@@ -89,6 +89,10 @@ func run() {
 	// rebuild; ShowWindowButtons registers the re-assertion on the mvu
 	// OnConfigure seam.
 	desktop.ShowWindowButtons(mvuWin)
+	// The window's platform view, which is what the platform's own open
+	// panel puts its sheet on. Subscribed before Render, so the attach
+	// event Gio sends ahead of the first frame is read rather than evicted.
+	watchNativeView(mvuWin)
 
 	// The brand this user kept, if they kept one. It pins the palette the
 	// theme stream flips between; which side shows is the desktop's live

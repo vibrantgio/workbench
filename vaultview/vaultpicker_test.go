@@ -19,9 +19,13 @@ import (
 )
 
 // switchedModel is a vault on screen with the switch dialog raised over it,
-// as SwitchVault leaves things.
+// as SwitchVault leaves things where the platform offers no panel of its
+// own. Every test of the dialog stands on that, not on the platform the
+// test run happens to be on: the dialog is the fallback, and on macOS
+// Switch Vault raises the platform's panel instead.
 func switchedModel(t *testing.T) Model {
 	t.Helper()
+	withoutPlatformPanel(t)
 	m := Model{Screen: screenVault, Vault: "/vaults/Second Brain", CurAnchor: -1, PropsOpen: true}
 	m.Index = treeIndex("Sources.md", "guide/Reading list.md")
 	m.Current = "guide/Reading list.md"

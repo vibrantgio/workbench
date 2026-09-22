@@ -410,14 +410,22 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.ChooserBody = ""
 		model.ChooserCandidates = nil
 	case SwitchVault:
-		// The browser starts AT the open vault, not at its parent: Open with
+		// The chooser starts AT the open vault, not at its parent: Open with
 		// nothing changed has to reopen the vault the reader is already in,
 		// which is what makes Cancel and Open the two safe answers.
-		model.PickerOpen = true
 		dir := startDir()
 		if model.Vault != "" {
 			dir = model.Vault
 		}
+		// The platform's own panel where the platform has one, so the reader
+		// gets the chooser every other application on this system opens. The
+		// window is left exactly as it stands while the panel is up: the
+		// panel is the platform's window, not a screen of this one, and a
+		// cancel has nothing to undo.
+		if platformPanel.available() {
+			return model, choosePanelCmd(dir)
+		}
+		model.PickerOpen = true
 		model.PickerDir = dir
 		model.PickerEntries = nil
 		return model, listDirCmd(dir)
@@ -659,6 +667,18 @@ func unchangedOnDisk(vault string, n *Note) bool {
 func listDirCmd(dir string) mvu.Command {
 	return mvu.Do(func() (mvu.Message, error) {
 		return pickerListed{dir: dir, entries: ListDir(dir)}, nil
+	})
+}
+
+// choosePanelCmd presents the platform's own folder chooser off the update
+// and posts what it answers: OpenVault for a path, and no message at all
+// for a cancel, which leaves the window as the panel found it.
+func choosePanelCmd(dir string) mvu.Command {
+	return mvu.Do(func() (mvu.Message, error) {
+		if path, ok := platformPanel.choose(dir); ok {
+			return OpenVault{Path: path}, nil
+		}
+		return nil, nil
 	})
 }
 

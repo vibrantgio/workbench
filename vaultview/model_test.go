@@ -278,8 +278,11 @@ func TestChooserDismissal(t *testing.T) {
 // TestSwitchVaultReRootsAndFollowsTheStore walks a vault switch: the dialog
 // opens over the vault on screen, seated at the vault itself; opening
 // another vault closes it, rewrites the store and re-roots the tree on the
-// new index.
+// new index. The dialog is the chooser where the platform offers no panel
+// of its own, which is the platform this stands on; the far side of the
+// switch — OpenVault onwards — is the same on both.
 func TestSwitchVaultReRootsAndFollowsTheStore(t *testing.T) {
+	withoutPlatformPanel(t)
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
 	oldVault := filepath.Join(root, "old")
