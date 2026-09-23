@@ -582,7 +582,7 @@ func providerSegments(gtx layout.Context, t settingsThemed, prov Provider, tplCl
 	// The row hands over the fields' column exactly, and a segmented control
 	// divides the width it is asked for evenly, so the four segments span
 	// that column as a field spans it.
-	return button.ChromeSegments(gtx, t.shaper, t.colors, t.typ.LabelMedium, tokens.Comfortable, segs)
+	return button.ChromeSegments(gtx, t.shaper, t.colors, tokens.Radius, t.typ.LabelMedium, tokens.Comfortable, segs)
 }
 
 // matchingTemplate is the template the edited provider already stands for —
@@ -799,13 +799,14 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 // two unrelated things; the bordered pair says one list is being edited.
 //
 // It is the segmented control standing in a BODY, so it draws at the dialog
-// control's measured height ([SettingsAddRemoveHeight]) and casts no shadow —
-// the shadow is the chrome variant's and was measured on a band. The seam and
-// the rim are the ones `components/button` reads off Finder's back/forward
-// pair. The platform's own pair under a list is a smaller control than a
-// toolbar's and no stored capture holds one, so its segment width and its
-// mark's proportion are unmeasured; the capture is on the list and this
-// geometry stands until it.
+// control's measured height ([SettingsAddRemoveHeight]) in the form's own
+// shape — the push button's rounded rectangle — with each mark in the room
+// the Save dialog's pop-up leaves its own, and it casts no shadow: the shadow
+// is the chrome variant's and was measured on a band. The seam and the rim
+// are the ones components/button reads off Finder's back/forward pair. The
+// platform's own pair under a list is a smaller control than a toolbar's and
+// no stored capture holds one, so its segment WIDTH is unmeasured; the
+// capture is on the list and that number stands until it.
 //
 // Neither segment is ever Checked: a momentary segment performs an action and
 // records no state, which is what tells this pair from the templates' control
@@ -837,7 +838,7 @@ func addRemovePair(gtx layout.Context, t settingsThemed, addClick, removeClick *
 	cg := gtx
 	cg.Constraints.Min = image.Point{}
 	cg.Constraints.Max.Y = gtx.Dp(SettingsAddRemoveHeight)
-	return button.ChromeSegments(cg, t.shaper, t.colors, t.typ.LabelMedium, tokens.Comfortable, segs)
+	return button.ChromeSegments(cg, t.shaper, t.colors, tokens.Radius, t.typ.LabelMedium, tokens.Comfortable, segs)
 }
 
 // providerRow is one selectable provider entry, in the sidebar row idiom

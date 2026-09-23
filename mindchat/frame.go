@@ -72,6 +72,7 @@ import (
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/shell"
+	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
 )
 
@@ -462,7 +463,7 @@ func controlBox(gtx layout.Context, t themed, click *widget.Clickable, label str
 		Focused: gtx.Focused(click),
 		Checked: on,
 	}
-	face := button.ChromeFace(mark, t.col, t.den, state)
+	face := button.ChromeFace(mark, t.col, tokens.Radius, t.den, state)
 	// The shadow is cast AROUND the clickable rather than inside it: it falls
 	// outside the control's own box, and a clickable clips what it wraps to
 	// the box its layout.Widget reports.

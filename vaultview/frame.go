@@ -1057,7 +1057,7 @@ func (f *frameState) layoutNavigation(gtx layout.Context, m Model, tok themeToke
 		// The pair is drawn at its own width: the band hands a control room
 		// and not a width, so the shared control divides nothing here.
 		gtx.Constraints.Min = image.Point{}
-		return button.ChromeSegments(gtx, tok.shaper, tok.col, tok.typ.LabelLarge, tok.den, segs)
+		return button.ChromeSegments(gtx, tok.shaper, tok.col, tokens.Radius, tok.typ.LabelLarge, tok.den, segs)
 	})
 }
 
@@ -1206,7 +1206,7 @@ func chromeControl(gtx layout.Context, tok themeTokens, click *widget.Clickable,
 		Pressed: click.Pressed(),
 		Focused: gtx.Focused(click),
 	}
-	face := button.ChromeFace(icons.Mark(name), tok.col, tok.den, state)
+	face := button.ChromeFace(icons.Mark(name), tok.col, tokens.Radius, tok.den, state)
 	// The shadow is cast AROUND the clickable: it falls outside the control's
 	// own box, and a clickable clips what it wraps to the box it reports.
 	return button.ChromeShadow(gtx, tok.col, state, func(gtx layout.Context) layout.Dimensions {
