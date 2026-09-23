@@ -413,13 +413,14 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layo
 					)
 				}
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					// The templates stand across the form rather than on its
-					// field column: four provider names do not fit that
-					// column at this dialog's width, and a segmented control
-					// divides whatever width it is asked for.
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					// The templates stand on the fields' column, as every
+					// other row of this form does: the sheet lays one column
+					// of labels against one column of controls, and a
+					// segmented control divides whatever width that column
+					// gives it.
+					layout.Rigid(formRow(t, cols, "", SettingsSegmentsHeight, func(gtx layout.Context) layout.Dimensions {
 						return providerSegments(gtx, t, selected, tplClicks)
-					}),
+					})),
 					rowGap,
 					layout.Rigid(formRow(t, cols, "Name:", SettingsFieldHeight, fieldSlot(nameCell))),
 					rowGap,
@@ -557,6 +558,7 @@ func providerSegments(gtx layout.Context, t settingsThemed, prov Provider, tplCl
 		segs[i] = button.ChromeSegment{
 			Label: ProviderTemplates[i].Name,
 			State: button.RenderState{
+				Place:   button.Body,
 				Hovered: click.Hovered(),
 				Pressed: click.Pressed(),
 				Checked: index == chosen,
@@ -573,13 +575,14 @@ func providerSegments(gtx layout.Context, t settingsThemed, prov Provider, tplCl
 			},
 		}
 	}
-	// The control's own drop shadow, as every bordered control in a band
-	// casts one: the platform's toolbar control fill is #ffffff in the light
-	// appearance, so on this dialog's own white a segmented control is told
-	// from what it stands on by its shadow and by nothing else.
-	return button.ChromeShadow(gtx, t.colors, button.RenderState{}, func(gtx layout.Context) layout.Dimensions {
-		return button.ChromeSegments(gtx, t.shaper, t.colors, t.typ.LabelMedium, tokens.Comfortable, segs)
-	})
+	// No drop shadow: it is the chrome variant's, measured on a band, and
+	// this control stands in the sheet's body. What tells it from the sheet
+	// is its rim and the patch on the segment in force.
+	//
+	// The row hands over the fields' column exactly, and a segmented control
+	// divides the width it is asked for evenly, so the four segments span
+	// that column as a field spans it.
+	return button.ChromeSegments(gtx, t.shaper, t.colors, t.typ.LabelMedium, tokens.Comfortable, segs)
 }
 
 // matchingTemplate is the template the edited provider already stands for —
@@ -795,13 +798,14 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 // momentary segments, not two bare glyphs. Two detached marks on the panel say
 // two unrelated things; the bordered pair says one list is being edited.
 //
-// It is the toolbar's segmented control standing in a body, drawn at the
-// geometry the reference measures it at — the control's own 36 px, the set's
-// 19-unit keyline inside it, the seam and the rim `components/button` reads off
-// Finder's back/forward pair. The platform's own pair under a list is a
-// smaller control than a toolbar's and no stored capture holds one, so its
-// size, its segment width and its mark's proportion are unmeasured; the
-// capture is on the list and this geometry stands until it.
+// It is the segmented control standing in a BODY, so it draws at the dialog
+// control's measured height ([SettingsAddRemoveHeight]) and casts no shadow —
+// the shadow is the chrome variant's and was measured on a band. The seam and
+// the rim are the ones `components/button` reads off Finder's back/forward
+// pair. The platform's own pair under a list is a smaller control than a
+// toolbar's and no stored capture holds one, so its segment width and its
+// mark's proportion are unmeasured; the capture is on the list and this
+// geometry stands until it.
 //
 // Neither segment is ever Checked: a momentary segment performs an action and
 // records no state, which is what tells this pair from the templates' control
@@ -811,6 +815,7 @@ func addRemovePair(gtx layout.Context, t settingsThemed, addClick, removeClick *
 		return button.ChromeSegment{
 			Icon: mark,
 			State: button.RenderState{
+				Place:   button.Body,
 				Hovered: click.Hovered(),
 				Pressed: click.Pressed(),
 			},
@@ -832,14 +837,6 @@ func addRemovePair(gtx layout.Context, t settingsThemed, addClick, removeClick *
 	cg := gtx
 	cg.Constraints.Min = image.Point{}
 	cg.Constraints.Max.Y = gtx.Dp(SettingsAddRemoveHeight)
-	// No drop shadow, where the templates' control above carries one. The
-	// shadow a bordered control casts is measured on a TOOLBAR BAND, and the
-	// reason the templates' control spends it is that its fill is the light
-	// appearance's #ffffff on the sheet's own #ffffff, so nothing else tells
-	// it from what it stands on. This pair stands on the well's panel, which
-	// is a fill of its own, and a shadow cast here reaches past the panel's
-	// foot onto the sheet beneath it — a smudge on the sheet cast by a
-	// control standing wholly inside another surface.
 	return button.ChromeSegments(cg, t.shaper, t.colors, t.typ.LabelMedium, tokens.Comfortable, segs)
 }
 

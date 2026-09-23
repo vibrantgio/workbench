@@ -235,15 +235,18 @@ const (
 	// Settings modal geometry.
 
 	// SettingsSegmentsHeight is the height the templates' segmented control
-	// draws at: the platform's bordered control in a band, which is the only
-	// segmented control the reference measures.
-	SettingsSegmentsHeight = unit.Dp(tokens.ComfortableToolbarControlHeight)
+	// draws at: a bordered control standing in a SHEET'S BODY, which the
+	// platform draws at the dialog control's height and not the band's.
+	// MEASURED, save-dialog-{light,dark}.png: every control on that sheet —
+	// the push buttons and both pop-ups — runs 24 px, where every bordered
+	// control in the five stored toolbar bands runs 36.
+	SettingsSegmentsHeight = unit.Dp(tokens.ComfortableControlHeight)
 	// SettingsAddRemoveHeight is the height the well's +/− pair draws at: the
-	// same bordered control, so the mark inside it keeps the proportion the
-	// reference measured it at — the set's 19-unit keyline in a control 36 px
-	// tall. The platform's own pair under a list is smaller than a toolbar's
-	// control and no stored capture holds one; the capture is on the list and
-	// the measured geometry stands until it.
+	// same bordered control in the same body, so the same 24. What the
+	// platform insets the MARK inside a control that small by is unmeasured —
+	// no stored capture holds its own pair under a list — so the mark keeps
+	// the set's own 24-unit box, whose symbol draws 19 of those units. The
+	// capture is on the list and this geometry stands until it.
 	SettingsAddRemoveHeight = SettingsSegmentsHeight
 	// SettingsBodyHeight is the dialog body's height: the form's rows and the
 	// measured air between them, summed. It is the sum and not a number of

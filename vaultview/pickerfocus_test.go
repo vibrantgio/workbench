@@ -157,7 +157,11 @@ func haloOverFill(c tokens.PlatformColors, fill color.NRGBA) color.NRGBA {
 // of the list.
 func readsBandOverFills(t *testing.T, img *image.RGBA, c tokens.PlatformColors, halo, row image.Rectangle, rowH int) {
 	t.Helper()
-	x := halo.Min.X + haloOutside
+	// One column inside the over half rather than its first: the column on
+	// the box's own outline carries the rasteriser's partial coverage of the
+	// band's inner edge, and reads a level off the flat composite on some
+	// rows and not others. The reading is the flat one.
+	x := halo.Min.X + haloOutside + 1
 	for _, r := range []struct {
 		what string
 		y    int
