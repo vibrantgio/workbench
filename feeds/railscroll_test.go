@@ -45,7 +45,7 @@ func TestRailScrollsToItsFoot(t *testing.T) {
 
 	// Short: the strip, one heading and a few rows. Every section stands
 	// open, so the column is several times this.
-	size := image.Pt(int(feedsSidebarWidthDp), int(pane.StripDp)+120)
+	size := image.Pt(int(patsidebar.ExpandedWidth), int(pane.StripDp)+120)
 
 	r := new(gioinput.Router)
 	frame := func() {

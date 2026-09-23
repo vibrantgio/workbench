@@ -36,20 +36,16 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// feedsSidebarWidthDp is the rail's panel, rim to rim. MEASURED,
-// voicememos-multi-folder-2026-09-18.png at 1x: the panel spans x 64-283
-// inside a window standing at x 56-1031 — 220 columns. reference/macos/
-// controls.md carries the reading under "What the sidebar panel measures",
-// and patterns/sidebar spends the same number for its own column.
-//
 // feedsPaneColumnDp is what the rail claims of the window: the panel plus the
 // margin of the window's own plane standing to its leading side. The content
 // beside it begins at the panel's trailing rim with no gap, which is the one
 // side a pane is not set in from.
+//
+// The panel's own width is patsidebar.ExpandedWidth and not a number of this
+// application's: patterns/sidebar took the reading and owns it.
 const (
-	feedsSidebarWidthDp = 220
-	feedsPaneColumnDp   = pane.MarginDp + feedsSidebarWidthDp
-	trashColWDp         = 24 // trailing trash-icon hit area, hover-revealed
+	feedsPaneColumnDp = pane.MarginDp + patsidebar.ExpandedWidth
+	trashColWDp       = 24 // trailing trash-icon hit area, hover-revealed
 )
 
 // feedsRowTailGapDp is the air a row keeps between the end of its name and

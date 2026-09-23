@@ -35,6 +35,7 @@ import (
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/patterns/shell"
+	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/patterns/table"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
@@ -634,7 +635,7 @@ func drawLabel(
 // none.
 func drawFeedsFrame(gtx layout.Context, c tokens.PlatformColors, railW, navbarW, mainW layout.Widget) layout.Dimensions {
 	return shell.PaneFrame{
-		Width:       unit.Dp(feedsSidebarWidthDp),
+		Width:       patsidebar.ExpandedWidth,
 		ContentFill: c.ControlBackground,
 		BandFill:    c.SidebarMaterial,
 		Sidebar:     railW,

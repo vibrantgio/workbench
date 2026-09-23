@@ -212,7 +212,11 @@ const (
 	// is a width and not a ratio: the panel is an object set into the window
 	// rather than one half of a split, so it does not grow with the window
 	// and the transcript takes everything it does not.
-	SidebarWidth unit.Dp = 240
+	//
+	// The number is patterns/sidebar's ExpandedWidth and not this
+	// application's: the panel holds that pattern's rows, so its column is
+	// that pattern's column, and the reading has one owner.
+	SidebarWidth = sidebar.ExpandedWidth
 
 	// PaneMargin is the air the chrome row and the input bar keep off the
 	// window's edges, the inset the rail's panel stands off the window's
