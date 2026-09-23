@@ -28,10 +28,9 @@ import (
 	"sort"
 	"strings"
 
+	"gioui.org/gesture"
 	"gioui.org/io/event"
 	"gioui.org/io/key"
-	"gioui.org/io/pointer"
-	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -46,7 +45,6 @@ import (
 	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
-	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -244,7 +242,10 @@ func sortByName[T any](s []T, name func(T) string) {
 type treeView struct {
 	list      *list.State
 	hideClick widget.Clickable
-	rowClicks []*widget.Clickable
+	// rowClicks are the rows' pointer targets. They are gesture.Clicks and
+	// not widget.Clickables because the rail is ONE focus target: see
+	// sidebar.RowTarget.
+	rowClicks []*gesture.Click
 
 	// leading pins the window buttons' trailing edge instead of measuring
 	// it: the measurement is a live window's, and a stored image may not
@@ -477,7 +478,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 		}
 	}
 	for len(v.rowClicks) < len(rows) {
-		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
+		v.rowClicks = append(v.rowClicks, &gesture.Click{})
 	}
 	// A tree rail is chrome, so its rows take the sidebar's own row height
 	// and the sidebar's own columns: the symbol, the name after it and the
@@ -491,7 +492,14 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	return list.LayoutSelectable(gtx, v.list, rows,
 		func(gtx layout.Context, row TreeRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
-			if click.Clicked(gtx) {
+			for {
+				e, ok := click.Update(gtx.Source)
+				if !ok {
+					break
+				}
+				if e.Kind != gesture.KindClick {
+					continue
+				}
 				v.list.Select(row.Idx)
 				// A click on a rail row hands the rail the keyboard, as it
 				// does in patterns/sidebar and as it does on the platform:
@@ -501,30 +509,26 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 				activateTreeRow(gtx, row)
 			}
 			width := gtx.Constraints.Max.X
-			gtx.Constraints = layout.Exact(image.Pt(width, rowH))
-			click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				size := gtx.Constraints.Max
-				active := !row.IsDir && row.Path == m.Current
-				// The pill is the sidebar pattern's — its inset, its corner
-				// and its two colours — so a rail in this window is a rail
-				// on this platform. The accent pill goes where the platform
-				// puts it: on the row the keyboard stands on, while the
-				// rail holds the keyboard. The open note keeps its own pill
-				// in the grey state, which is what the rail shows while the
-				// keys are in the note beside it.
-				filled := active || selected
-				unemphasized := !(selected && holdsKeyboard)
-				surface := chromeSurface(tok.col)
-				if filled {
-					sidebar.PaintSelection(gtx, size, tok.col, unemphasized)
-					surface = sidebar.SelectionFill(tok.col, unemphasized)
-				}
-				semantic.LabelOp(row.Name).Add(gtx.Ops)
-				pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
-				v.drawRow(gtx, row, tok, size, surface, filled, unemphasized, query)
-				return layout.Dimensions{Size: size}
-			})
-			return layout.Dimensions{Size: image.Pt(width, rowH)}
+			size := image.Pt(width, rowH)
+			gtx.Constraints = layout.Exact(size)
+			active := !row.IsDir && row.Path == m.Current
+			// The pill is the sidebar pattern's — its inset, its corner and
+			// its two colours — so a rail in this window is a rail on this
+			// platform. The accent pill goes where the platform puts it: on
+			// the row the keyboard stands on, while the rail holds the
+			// keyboard. The open note keeps its own pill in the grey state,
+			// which is what the rail shows while the keys are in the note
+			// beside it.
+			filled := active || selected
+			unemphasized := !(selected && holdsKeyboard)
+			surface := chromeSurface(tok.col)
+			if filled {
+				sidebar.PaintSelection(gtx, size, tok.col, unemphasized)
+				surface = sidebar.SelectionFill(tok.col, unemphasized)
+			}
+			v.drawRow(gtx, row, tok, size, surface, filled, unemphasized, query)
+			sidebar.RowTarget(gtx, click, size, row.Name)
+			return layout.Dimensions{Size: size}
 		})
 }
 

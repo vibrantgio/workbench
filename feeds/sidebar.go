@@ -135,9 +135,9 @@ func feedsSidebar(
 		}
 	}
 
-	// The heading clickables, one per section, built once: the section count
-	// never changes, so a plain slice is stable across every emission.
-	headings := make([]widget.Clickable, len(groups))
+	// The heading click targets, one per section, built once: the section
+	// count never changes, so a plain slice is stable across every emission.
+	headings := make([]gesture.Click, len(groups))
 
 	// The rail's scroll position. A rail taller than the window would
 	// otherwise lose its foot, so its column is a scroll area: the state is
@@ -366,7 +366,7 @@ func drawRailColumn(
 	colors tokens.PlatformColors,
 	typ tokens.Typography,
 	sections []railSection,
-	headings []widget.Clickable,
+	headings []gesture.Click,
 	open map[int]bool,
 	scroll *list.State,
 	kb railKeyboard,
@@ -376,8 +376,14 @@ func drawRailColumn(
 	// area: a section scrolled out of view lays out no block at all, and a
 	// click it has already taken would be dropped with it.
 	for i := range headings {
-		if headings[i].Clicked(gtx) {
-			mvu.MessageOp{Message: ToggleSection{Idx: i}}.Add(gtx.Ops)
+		for {
+			e, ok := headings[i].Update(gtx.Source)
+			if !ok {
+				break
+			}
+			if e.Kind == gesture.KindClick {
+				mvu.MessageOp{Message: ToggleSection{Idx: i}}.Add(gtx.Ops)
+			}
 		}
 	}
 	// The rail's own keys, drained here for the same reason: a row scrolled
@@ -405,8 +411,9 @@ func drawRailColumn(
 	event.Op(gtx.Ops, kb.Keys.Focus())
 	area.Pop()
 	if kb.Keys.moved {
-		revealRailRow(scroll, blocks, kb.Rows, kb.Keys.cursor,
-			headH, gtx.Dp(patsidebar.RowHeight), size.Y-strip)
+		if at, ok := railRowBlock(blocks, kb.Rows, kb.Keys.cursor); ok {
+			scroll.Reveal(at)
+		}
 	}
 	list.LayoutScrollbar(cgtx, scroll, bar, list.Overlay, blocks,
 		func(gtx layout.Context, b railBlock) layout.Dimensions {
@@ -446,73 +453,25 @@ func railBlocks(sections []railSection, open map[int]bool) []railBlock {
 	return blocks
 }
 
-// revealRailRow moves the rail's column far enough that the row the arrows
-// landed on stands inside it, and leaves it where it is when the row already
-// does. The column scrolls by BLOCKS — a section's whole run of rows is one —
-// so the row's own place down the column is measured here, from the blocks
-// above it and the rows above it inside its own section.
-func revealRailRow(
-	scroll *list.State,
-	blocks []railBlock,
-	rows []railRow,
-	cursor FeedID,
-	headH, rowH, viewH int,
-) {
-	top, ok := railRowTop(blocks, rows, cursor, headH, rowH)
-	if !ok || viewH <= 0 {
-		return
+// railRowBlock answers which block of the rail's column holds the row the
+// cursor stands on, and whether the column holds that row at all.
+//
+// The column scrolls by BLOCKS — a section's whole run of rows is one — so
+// bringing the cursor's row into view is bringing its section's run into
+// view, which is what components/list is handed and what it then measures in
+// pixels of its own.
+func railRowBlock(blocks []railBlock, rows []railRow, cursor FeedID) (int, bool) {
+	at := runIndex(rows, cursor)
+	if at < 0 {
+		return 0, false
 	}
-	view := railViewTop(blocks, rows, scroll.Position(), headH, rowH)
-	switch {
-	case top < view:
-		scroll.ScrollPixels(top - view)
-	case top+rowH > view+viewH:
-		scroll.ScrollPixels(top + rowH - view - viewH)
-	}
-}
-
-// railRowTop answers where the row the cursor stands on begins down the
-// rail's column, measured from the column's own head, and whether the column
-// holds that row at all.
-func railRowTop(blocks []railBlock, rows []railRow, cursor FeedID, headH, rowH int) (int, bool) {
-	y := 0
-	for _, b := range blocks {
-		if !b.Rows {
-			y += headH
-			continue
-		}
-		for _, r := range rows {
-			if r.Section != b.Section {
-				continue
-			}
-			if r.ID == cursor {
-				return y, true
-			}
-			y += rowH
+	section := rows[at].Section
+	for i, b := range blocks {
+		if b.Rows && b.Section == section {
+			return i, true
 		}
 	}
 	return 0, false
-}
-
-// railViewTop answers how far down its own column the viewport's leading edge
-// sits, off the scroll position the last layout resolved.
-func railViewTop(blocks []railBlock, rows []railRow, pos layout.Position, headH, rowH int) int {
-	y := pos.Offset
-	for i, b := range blocks {
-		if i >= pos.First {
-			break
-		}
-		if !b.Rows {
-			y += headH
-			continue
-		}
-		for _, r := range rows {
-			if r.Section == b.Section {
-				y += rowH
-			}
-		}
-	}
-	return y
 }
 
 // drawRailHeading draws one section's heading: the group's name as a small
@@ -524,32 +483,29 @@ func railViewTop(blocks []railBlock, rows []railRow, pos layout.Position, headH,
 //
 // The block is not a row. It takes no pill, the rail's selection never rests
 // on it, and no line parts it from the rows below — the platform parts a
-// section from what stands above it by air alone. It is still a control, so
-// the keyboard can operate it as it operates the rows.
+// section from what stands above it by air alone. Its target is a pointer
+// gesture like a row's, so the rail stays one focus target and Tab steps past
+// the whole column rather than through its headings.
 func drawRailHeading(
 	gtx layout.Context,
 	colors tokens.PlatformColors,
 	typ tokens.Typography,
 	title string,
 	open bool,
-	click *widget.Clickable,
+	click *gesture.Click,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	fg := vgcolor.Flatten(patsidebar.SectionForeground(colors), pane.Surface(colors))
-	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		semantic.LabelOp(title).Add(gtx.Ops)
-		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
-		mark := patsidebar.PaintDisclosure(gtx, open, size,
-			vgcolor.Flatten(patsidebar.DisclosureForeground(colors), pane.Surface(colors)))
-		room := size.X - mark.Size.X
-		if room < 0 {
-			room = 0
-		}
-		patsidebar.PaintSection(gtx, typ.Shaper(), title, patsidebar.SectionStyle(typ),
-			image.Pt(room, size.Y), fg)
-		return layout.Dimensions{Size: size}
-	})
+	mark := patsidebar.PaintDisclosure(gtx, open, size,
+		vgcolor.Flatten(patsidebar.DisclosureForeground(colors), pane.Surface(colors)))
+	room := size.X - mark.Size.X
+	if room < 0 {
+		room = 0
+	}
+	patsidebar.PaintSection(gtx, typ.Shaper(), title, patsidebar.SectionStyle(typ),
+		image.Pt(room, size.Y), fg)
+	patsidebar.RowTarget(gtx, click, size, title)
+	return layout.Dimensions{Size: size}
 }
 
 // feedEntryListBody returns the run of rows one rail section holds.
@@ -571,7 +527,7 @@ func feedEntryListBody(
 	loadTok := mirrorTokens(th)
 
 	// Per-FeedID view state, stable across list mutation.
-	rowClicks := keyed.Defer(func(FeedID) *widget.Clickable { return &widget.Clickable{} })
+	rowClicks := keyed.Defer(func(FeedID) *gesture.Click { return &gesture.Click{} })
 	trashClicks := keyed.Defer(func(FeedID) *widget.Clickable { return &widget.Clickable{} })
 	confirmClicks := keyed.Defer(func(FeedID) *widget.Clickable { return &widget.Clickable{} })
 	// hover is per-row pointer hover state; ephemeral, lives in the closure.
@@ -598,10 +554,17 @@ func feedEntryListBody(
 
 		for _, e := range entries {
 			rc := rowClicks.For(e.ID)
-			if rc.Clicked(gtx) {
+			for {
+				ev, ok := rc.Update(gtx.Source)
+				if !ok {
+					break
+				}
+				if ev.Kind != gesture.KindClick {
+					continue
+				}
 				keys.Select(e.ID)
-				// A gioui.org/widget.Clickable does not take the keyboard
-				// when it is clicked, so the row asks for it: the arrows
+				// A row's target is a pointer gesture and takes no keyboard
+				// of its own, so the click asks for the rail's: the arrows
 				// then walk the rail from the row the reader landed on, and
 				// that row wears the accent pill.
 				gtx.Execute(key.FocusCmd{Tag: keys.Focus()})
@@ -610,19 +573,9 @@ func feedEntryListBody(
 		}
 
 		// Whether the rail holds the keyboard, which is what picks between
-		// the platform's two pills. The rail's own tag is where the keys
-		// rest once a click or a focus move has put them there; a row's
-		// click target is a focusable of its own, so a focus move that lands
-		// on one has the keys on the rail too.
+		// the platform's two pills. The rail is one focus target, so its own
+		// tag is the whole answer.
 		holds := gtx.Focused(keys.Focus())
-		if !holds {
-			for _, e := range entries {
-				if gtx.Focused(rowClicks.For(e.ID)) {
-					holds = true
-					break
-				}
-			}
-		}
 		cursor := keys.cursor
 
 		drawn := 0
@@ -675,7 +628,7 @@ func drawFeedEntryRow(
 	e feedEntry,
 	filled bool,
 	unemphasized bool,
-	click *widget.Clickable,
+	click *gesture.Click,
 	hover *gesture.Hover,
 	dc *deleteConfirm,
 	trashW int,
@@ -773,7 +726,7 @@ func drawFeedEntry(
 	label string,
 	selected bool,
 	unemphasized bool,
-	click *widget.Clickable,
+	click *gesture.Click,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	inner := func(gtx layout.Context) layout.Dimensions {
@@ -798,12 +751,9 @@ func drawFeedEntry(
 		return layout.Dimensions{Size: size}
 	}
 	gtx.Constraints = layout.Exact(size)
-	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		semantic.LabelOp(label).Add(gtx.Ops)
-		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
-		return inner(gtx)
-	})
+	inner(gtx)
+	patsidebar.RowTarget(gtx, click, size, label)
+	return layout.Dimensions{Size: size}
 }
 
 // deleteConfirm owns one feed row's delete-confirm popover: the trash-icon

@@ -7,12 +7,14 @@ import (
 
 	"gioui.org/f32"
 	"gioui.org/io/input"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -117,5 +119,104 @@ func TestTheRailDrawsThePlatformsTwoPills(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// treeTabFrame lays the folder rail out against a real router and answers
+// where the keyboard is after each frame. The control that puts the panel
+// away stands last in the rail's own reading order, so it is what Tab must
+// reach once the rows let go.
+type treeTabFrame struct {
+	v      *treeView
+	model  Model
+	tok    themeTokens
+	router *input.Router
+
+	onRail  bool
+	onAfter bool
+}
+
+func newTreeTabFrame() *treeTabFrame {
+	m := treeModel()
+	m.Folds = map[string]bool{}
+	return &treeTabFrame{
+		v:      &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }},
+		model:  m,
+		tok:    goldenTokens(),
+		router: new(input.Router),
+	}
+}
+
+func (f *treeTabFrame) frame() {
+	ops := new(op.Ops)
+	gtx := layout.Context{
+		Constraints: layout.Exact(image.Pt(treeWidthDp, 700)),
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Ops:         ops,
+		Source:      f.router.Source(),
+	}
+	f.v.layout(gtx, f.model, f.tok, nil)
+	f.onRail = gtx.Focused(f.v.list.Focus())
+	f.onAfter = gtx.Focused(&f.v.hideClick)
+	f.router.Frame(ops)
+}
+
+func (f *treeTabFrame) tab() {
+	f.router.MoveFocus(key.FocusForward)
+	f.frame()
+}
+
+// treeTabStops is how many forward focus moves the rail is given to reach the
+// rows. The bound is loose so a focusable added in front of them fails the
+// assertion rather than this loop.
+const treeTabStops = 20
+
+// TestTabLeavesTheRailForTheNextFocusable drives forward focus moves through
+// a real input.Router over the folder rail.
+//
+// A list is one focusable wherever it stands: the rail takes the keys on the
+// list's one tag, and the very next move hands them to the control after it,
+// as the platform's sidebar does. A focus filter per row — which is what a
+// widget.Clickable registers — would instead walk Tab through the rows one by
+// one, and the arrows would go dead the moment it did.
+func TestTabLeavesTheRailForTheNextFocusable(t *testing.T) {
+	f := newTreeTabFrame()
+	f.frame() // registers the tags
+
+	for moves := 0; !f.onRail; moves++ {
+		if moves == treeTabStops {
+			t.Fatalf("no forward focus move inside %d put the keyboard on the rail", treeTabStops)
+		}
+		f.tab()
+	}
+
+	f.tab()
+	if f.onRail {
+		t.Error("one move on from the rail the keys are still on it: the rail is more than one focus target, so Tab walks its rows")
+	}
+	if !f.onAfter {
+		t.Error("the control after the rows did not take the keys: the move landed on a row")
+	}
+}
+
+// TestTheRowsArrowsWalkAfterTabLeaves reads the other half: the rows are
+// walked by the arrows and not by Tab, so a rail the keys have come back to
+// still answers them.
+func TestTheRowsArrowsWalkAfterTabLeaves(t *testing.T) {
+	f := newTreeTabFrame()
+	f.frame()
+	for !f.onRail {
+		f.tab()
+	}
+	f.tab() // away
+	f.router.MoveFocus(key.FocusBackward)
+	f.frame()
+	if !f.onRail {
+		t.Fatal("a backward move did not bring the keys back to the rail")
+	}
+	f.router.Queue(key.Event{Name: key.NameDownArrow, State: key.Press})
+	f.frame()
+	if got := f.v.list.Selected(); got != 0 {
+		t.Errorf("Down put the selection on row %d, want the first row: the arrows no longer walk the rail", got)
 	}
 }

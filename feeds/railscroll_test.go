@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"gioui.org/f32"
+	"gioui.org/gesture"
 	gioinput "gioui.org/io/input"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
-	"gioui.org/widget"
 
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/patterns/pane"
@@ -38,7 +38,7 @@ func TestRailScrollsToItsFoot(t *testing.T) {
 		{Title: "Tech", Rows: railRows(12)},
 		{Title: "Long reads", Rows: railRows(12)},
 	}
-	headings := make([]widget.Clickable, len(sections))
+	headings := make([]gesture.Click, len(sections))
 	open := map[int]bool{0: true, 1: true, 2: true}
 	blocks := len(railBlocks(sections, open))
 	scroll := list.NewState()
