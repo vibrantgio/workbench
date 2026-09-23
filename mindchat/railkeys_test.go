@@ -158,6 +158,30 @@ func TestTheRailsArrowsWalkItsConversationsAndReturnOpensOne(t *testing.T) {
 	}
 }
 
+// TestTheRailIgnoresTheOutlineKeys reads what this rail does not answer. Its
+// conversations stand in one run with nothing above them to open or close, so
+// the platform's outline keys have nothing to act on: they move neither the
+// cursor nor anything else, and the rail posts nothing for them.
+func TestTheRailIgnoresTheOutlineKeys(t *testing.T) {
+	f := newRailFrame(t)
+	f.focusRail()
+	f.press(key.NameDownArrow)
+	if f.rail.cursor != railKeyChats[1] {
+		t.Fatalf("the walk left the cursor on %q, want %q", f.rail.cursor, railKeyChats[1])
+	}
+
+	f.posted = nil
+	for _, name := range []key.Name{key.NameLeftArrow, key.NameRightArrow} {
+		f.press(name)
+		if f.rail.cursor != railKeyChats[1] {
+			t.Errorf("%v moved the cursor to %q; a rail with no groups answers neither outline key", name, f.rail.cursor)
+		}
+	}
+	if len(f.posted) != 0 {
+		t.Errorf("the outline keys posted %v; a rail with no groups answers neither", f.posted)
+	}
+}
+
 // TestAClickOnAConversationRowHandsTheRailTheKeys reads the other half of the
 // rail's keyboard: a row's target is a pointer gesture and takes no keyboard
 // of its own, so the click asks for the rail's — without which the arrows

@@ -256,6 +256,20 @@ type treeView struct {
 	// stacking can be measured after the fact rather than recomputed from
 	// the constants that placed it.
 	geom paneGeom
+
+	// post is where a key's answer goes: the live rail's is the frame's
+	// message op, which is what a nil leaves, and a test's is a recorder —
+	// the fold keys are read back without a window to post them to.
+	post func(gtx layout.Context, msg mvu.Message)
+}
+
+// send hands one message on to whatever is collecting this frame's.
+func (v *treeView) send(gtx layout.Context, msg mvu.Message) {
+	if v.post != nil {
+		v.post(gtx, msg)
+		return
+	}
+	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 }
 
 // paneGeom is the pane's internal stacking as one layout arranged it: the
@@ -477,6 +491,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 			}
 		}
 	}
+	v.foldKeys(gtx, rows)
 	for len(v.rowClicks) < len(rows) {
 		v.rowClicks = append(v.rowClicks, &gesture.Click{})
 	}
@@ -530,6 +545,97 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 			sidebar.RowTarget(gtx, click, size, row.Name)
 			return layout.Dimensions{Size: size}
 		})
+}
+
+// foldKeys drains the platform's outline keys over the tree's visible rows
+// and acts on the fold each one names.
+//
+// components/list walks the run and takes no part in the folds, so the tree
+// answers these two itself, filtered on the list's own focus tag. A fold
+// changes only rows BELOW the one the cursor lands on, so the row's place in
+// the run is the same before and after and the selection can be set straight
+// away.
+//
+// A flipped fold leaves a run this frame does not have, so one fold a frame
+// is all these keys can honestly answer: a second would be answered against
+// the run the first replaced.
+func (v *treeView) foldKeys(gtx layout.Context, rows []TreeRow) {
+	folded := false
+	for _, name := range []key.Name{key.NameLeftArrow, key.NameRightArrow} {
+		for {
+			e, ok := gtx.Event(key.Filter{Focus: v.list.Focus(), Name: name})
+			if !ok {
+				break
+			}
+			ke, isKey := e.(key.Event)
+			if !isKey || ke.State != key.Press || folded {
+				continue
+			}
+			fold, folds, cursor := treeFoldKey(rows, v.list.Selected(), ke.Name)
+			if folds {
+				v.send(gtx, ToggleFold{Dir: fold})
+				folded = true
+			}
+			if cursor >= 0 {
+				v.list.Select(cursor)
+				v.list.Reveal(cursor)
+			}
+		}
+	}
+}
+
+// treeFoldKey answers one of the platform's outline keys over the tree's
+// visible rows: the folder whose fold it flips, whether it flips one at all,
+// and the row the cursor lands on, -1 when the cursor does not move.
+//
+// Left closes the folder the cursor stands in and lands on that folder's own
+// row; on a collapsed folder there is nothing left to close, so it moves to
+// the parent instead, and at the root it stays. Right opens a collapsed
+// folder under the cursor and steps into an open one. A note answers what its
+// parent folder does.
+func treeFoldKey(rows []TreeRow, at int, name key.Name) (fold string, folds bool, cursor int) {
+	if at < 0 || at >= len(rows) {
+		return "", false, -1
+	}
+	row := rows[at]
+	switch name {
+	case key.NameLeftArrow:
+		if row.IsDir && row.Open {
+			return row.Path, true, at
+		}
+		parent := treeParentRow(rows, at)
+		if parent < 0 {
+			return "", false, -1
+		}
+		if row.IsDir {
+			return "", false, parent
+		}
+		return rows[parent].Path, true, parent
+	case key.NameRightArrow:
+		if !row.IsDir {
+			return "", false, -1
+		}
+		if !row.Open {
+			return row.Path, true, at
+		}
+		if at+1 < len(rows) && rows[at+1].Depth == row.Depth+1 {
+			return "", false, at + 1
+		}
+	}
+	return "", false, -1
+}
+
+// treeParentRow answers where the folder holding the given row stands in the
+// run, or -1 when the row stands at the vault's root. The run is the tree
+// flattened in reading order, so the parent is the nearest row above it one
+// depth shallower.
+func treeParentRow(rows []TreeRow, at int) int {
+	for i := at - 1; i >= 0; i-- {
+		if rows[i].Depth == rows[at].Depth-1 {
+			return i
+		}
+	}
+	return -1
 }
 
 // treeRowLead is how far a row's own symbol and name stand in from the
