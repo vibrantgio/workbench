@@ -35,10 +35,11 @@ var railKeyFrameSize = image.Pt(200, 400)
 // through a real input.Router and reads the row they stand on.
 //
 // A list is a focusable wherever it stands, so the rail takes the keyboard on
-// one tag of its own and the arrows walk its rows across the sections that
-// stand open — the second section is collapsed here, so the walk carries its
-// heading and none of its rows. Return does not move: it answers the feed the
-// cursor stands on, which is what the column turns into a SelectFeed.
+// one tag of its own and the arrows walk its feed rows across the sections
+// that stand open — the second section is collapsed here, so the walk carries
+// none of its rows, and no section's heading is a stop. Return does not move:
+// it answers the feed the cursor stands on, which is what the column turns
+// into a SelectFeed.
 func TestTheRailsArrowsWalkItsRowsAndReturnOpensOne(t *testing.T) {
 	groups := hardCodedGroups()
 	open := map[int]bool{0: true, 2: true}
@@ -47,15 +48,15 @@ func TestTheRailsArrowsWalkItsRowsAndReturnOpensOne(t *testing.T) {
 		t.Fatalf("the fixture's open sections carry %d rows; the walk below needs three", len(run))
 	}
 	for _, r := range run {
-		if r.Section == 1 && r.Index >= 0 {
+		if r.Section == 1 {
 			t.Fatalf("the run carries %q from the collapsed section; the arrows would walk a row the rail does not draw", r.ID)
+		}
+		if r.ID == "" {
+			t.Fatalf("the run carries a row for no feed: section %d's heading is a stop of the walk", r.Section)
 		}
 	}
 	if run[0].Section == run[len(run)-1].Section {
-		t.Fatalf("every row in the run stands in section %d; the walk never crosses a heading", run[0].Section)
-	}
-	if run[0].Index >= 0 {
-		t.Fatalf("the run opens on a feed row; a section's heading is the first thing the arrows reach")
+		t.Fatalf("every row in the run stands in section %d; the walk never crosses a section", run[0].Section)
 	}
 
 	keys := newRailKeys()
@@ -77,7 +78,7 @@ func TestTheRailsArrowsWalkItsRowsAndReturnOpensOne(t *testing.T) {
 			gtx.Execute(key.FocusCmd{Tag: keys.Focus()})
 			focused = true
 		}
-		answer = keys.update(gtx, run, open, "")
+		answer = keys.update(gtx, run, "")
 		r.Frame(ops)
 	}
 	press := func(name key.Name) {
@@ -92,18 +93,18 @@ func TestTheRailsArrowsWalkItsRowsAndReturnOpensOne(t *testing.T) {
 		name key.Name
 		want railRow
 	}{
-		{"Down with nothing walked to lands on the first row", key.NameDownArrow, run[0]},
+		{"Down with nothing walked to lands on the first feed row", key.NameDownArrow, run[0]},
 		{"Down again walks one row on", key.NameDownArrow, run[1]},
 		{"End lands on the last row, past the collapsed section's rows", key.NameEnd, run[len(run)-1]},
 		{"Down at the last row stays there, as nothing wraps", key.NameDownArrow, run[len(run)-1]},
 		{"Up walks back one row", key.NameUpArrow, run[len(run)-2]},
-		{"Home lands on the first row", key.NameHome, run[0]},
+		{"Home lands on the first feed row", key.NameHome, run[0]},
 		{"Up at the first row stays there", key.NameUpArrow, run[0]},
-		{"Down lands on the first feed under the heading", key.NameDownArrow, run[1]},
+		{"Down walks one row on again", key.NameDownArrow, run[1]},
 	} {
 		press(c.name)
-		if keys.cursor != cursorOf(c.want) {
-			t.Errorf("%s: the cursor reads %+v, want %+v", c.what, keys.cursor, cursorOf(c.want))
+		if keys.cursor != c.want.ID {
+			t.Errorf("%s: the cursor reads %q, want %q", c.what, keys.cursor, c.want.ID)
 		}
 	}
 
@@ -114,8 +115,8 @@ func TestTheRailsArrowsWalkItsRowsAndReturnOpensOne(t *testing.T) {
 	if answer.Feed != run[1].ID {
 		t.Errorf("Return opened %q, want the row the cursor stands on, %q", answer.Feed, run[1].ID)
 	}
-	if keys.cursor != cursorOf(run[1]) {
-		t.Errorf("Return moved the cursor to %+v; opening a feed does not walk the rail", keys.cursor)
+	if keys.cursor != run[1].ID {
+		t.Errorf("Return moved the cursor to %q; opening a feed does not walk the rail", keys.cursor)
 	}
 }
 
@@ -166,7 +167,7 @@ func (f *railFoldFrame) frame() {
 		gtx.Execute(key.FocusCmd{Tag: f.keys.Focus()})
 		f.focused = true
 	}
-	f.answer = f.keys.update(gtx, f.run, f.open, "")
+	f.answer = f.keys.update(gtx, f.run, "")
 	if f.answer.Section >= 0 {
 		f.open[f.answer.Section] = !f.open[f.answer.Section]
 		f.run = railRowRun(len(f.groups), f.groups, f.open)
@@ -187,22 +188,28 @@ func (f *railFoldFrame) press(name key.Name) {
 	f.frame()
 }
 
-// heading is the cursor standing on the given section's heading.
-func heading(section int) railCursor { return railCursor{Section: section} }
-
 // firstFeed is the first feed the given section carries.
-func (f *railFoldFrame) firstFeed(section int) railCursor {
+func (f *railFoldFrame) firstFeed(section int) FeedID {
 	f.t.Helper()
 	if section >= len(f.groups) || len(f.groups[section].Entries) == 0 {
 		f.t.Fatalf("section %d carries no feed for the walk to land on", section)
 	}
-	return railCursor{Section: section, ID: f.groups[section].Entries[0].ID}
+	return f.groups[section].Entries[0].ID
 }
 
-func (f *railFoldFrame) readsCursor(what string, want railCursor) {
+// lastFeed is the last feed the given section carries.
+func (f *railFoldFrame) lastFeed(section int) FeedID {
+	f.t.Helper()
+	if section >= len(f.groups) || len(f.groups[section].Entries) == 0 {
+		f.t.Fatalf("section %d carries no feed for the walk to land on", section)
+	}
+	return f.groups[section].Entries[len(f.groups[section].Entries)-1].ID
+}
+
+func (f *railFoldFrame) readsCursor(what string, want FeedID) {
 	f.t.Helper()
 	if f.keys.cursor != want {
-		f.t.Errorf("%s: the cursor reads %+v, want %+v", what, f.keys.cursor, want)
+		f.t.Errorf("%s: the cursor reads %q, want %q", what, f.keys.cursor, want)
 	}
 }
 
@@ -213,65 +220,113 @@ func (f *railFoldFrame) readsOpen(what string, section int, want bool) {
 	}
 }
 
-// TestLeftAndRightCloseAndOpenTheRailsSections drives the platform's outline
-// keys over the rail through a real input.Router and reads the sections'
-// disclosure and the cursor after each.
+// TestLeftCollapsesARailSectionAndLandsOnTheNearestRow drives the platform's
+// sidebar keys over the rail through a real input.Router and reads the
+// sections' disclosure and the cursor after each.
 //
-// A rail's sections open and close on their own, so what these two keys move
-// is one section's disclosure and the cursor: Left closes the section the
-// cursor stands in and lands on its heading, Right opens a collapsed one and
-// steps into an open one. Nothing else in the rail answers either key.
-func TestLeftAndRightCloseAndOpenTheRailsSections(t *testing.T) {
+// The platform's sidebar never stops its arrows on a section's heading, so
+// there is nothing under the cursor for Right to open: Left collapses the
+// section the cursor stands in and lands on the nearest row the rail still
+// shows, and a section a pointer collapsed is reopened by a pointer alone.
+func TestLeftCollapsesARailSectionAndLandsOnTheNearestRow(t *testing.T) {
 	f := newRailFoldFrame(t)
 	f.focus()
 
-	f.press(key.NameDownArrow) // the first heading
-	f.press(key.NameDownArrow) // the first feed under it
-	f.readsCursor("Down twice from nothing", f.firstFeed(0))
+	f.press(key.NameDownArrow)
+	f.readsCursor("Down once from nothing", f.firstFeed(0))
 
+	// The first section's rows stand at the head of the run, so there is no
+	// row above them: the cursor lands on the row below instead, which is
+	// the next open section's first.
 	f.press(key.NameLeftArrow)
-	f.readsOpen("Left on a row inside an open section", 0, false)
-	f.readsCursor("Left on a row inside an open section", heading(0))
+	f.readsOpen("Left on a row of the first open section", 0, false)
+	f.readsCursor("Left on a row of the first open section", f.firstFeed(1))
 	for _, r := range f.run {
-		if r.Section == 0 && r.Index >= 0 {
-			t.Fatalf("the run still carries %q from the section Left closed", r.ID)
+		if r.Section == 0 {
+			t.Fatalf("the run still carries %q from the section Left collapsed", r.ID)
 		}
 	}
 
 	f.press(key.NameLeftArrow)
-	f.readsOpen("Left again on the collapsed section's heading", 0, false)
-	f.readsCursor("Left again on the collapsed section's heading", heading(0))
+	f.readsOpen("Left again, the run now heading the second section", 1, false)
+	f.readsCursor("Left again, the run now heading the second section", f.firstFeed(2))
 
-	f.press(key.NameRightArrow)
-	f.readsOpen("Right on a collapsed section's heading", 0, true)
-	f.readsCursor("Right on a collapsed section's heading", heading(0))
+	// The last open section: nothing stands above its rows and nothing
+	// below, so the cursor stands nowhere.
+	f.press(key.NameLeftArrow)
+	f.readsOpen("Left on the rail's last open section", 2, false)
+	f.readsCursor("Left on the rail's last open section", "")
+	if len(f.run) != 0 {
+		t.Fatalf("the run carries %d rows with every section collapsed", len(f.run))
+	}
 
-	f.press(key.NameRightArrow)
-	f.readsOpen("Right on an open section's heading", 0, true)
-	f.readsCursor("Right on an open section's heading", f.firstFeed(0))
+	// No key reopens a section: the rail's disclosures are the pointer's.
+	for _, name := range []key.Name{key.NameRightArrow, key.NameDownArrow, key.NameReturn} {
+		f.press(name)
+		f.readsOpen("a key pressed over a rail with every section collapsed", 0, false)
+		f.readsCursor("a key pressed over a rail with every section collapsed", "")
+	}
+}
+
+// TestLeftLandsOnTheRowAboveTheCollapsedSection reads the other landing: a
+// section with rows above it in the run hands the cursor the last of them,
+// which is the nearest row the rail still shows.
+func TestLeftLandsOnTheRowAboveTheCollapsedSection(t *testing.T) {
+	f := newRailFoldFrame(t)
+	f.focus()
+
+	for range len(f.groups[0].Entries) + 1 {
+		f.press(key.NameDownArrow)
+	}
+	f.readsCursor("Down past the first section's rows", f.firstFeed(1))
+
+	f.press(key.NameLeftArrow)
+	f.readsOpen("Left on a row of the second section", 1, false)
+	f.readsOpen("Left on a row of the second section", 0, true)
+	f.readsCursor("Left on a row of the second section", f.lastFeed(0))
+}
+
+// TestRightOnARailRowIsIgnored reads what Right no longer does. A row holds
+// nothing to open — the rail's only disclosures are its headings', and the
+// arrows never stop on one — so the key leaves the rail exactly as it was.
+func TestRightOnARailRowIsIgnored(t *testing.T) {
+	f := newRailFoldFrame(t)
+	f.focus()
+
+	f.press(key.NameDownArrow)
+	f.readsCursor("Down once from nothing", f.firstFeed(0))
+	rows := len(f.run)
 
 	f.press(key.NameRightArrow)
 	f.readsCursor("Right on a feed row", f.firstFeed(0))
-	f.readsOpen("Right on a feed row", 0, true)
-
-	f.press(key.NameUpArrow)
-	f.press(key.NameLeftArrow)
-	f.readsOpen("Left on an open section's heading", 0, false)
-	f.readsCursor("Left on an open section's heading", heading(0))
-
-	// A collapsed section's rows are out of the walk, so Down from its
-	// heading reaches the next section's.
-	f.press(key.NameDownArrow)
-	f.readsCursor("Down from a collapsed section's heading", heading(1))
-
-	// Return on a heading is what a click on it is: the section's disclosure
-	// and nothing else.
-	f.press(key.NameReturn)
-	if f.answer.Opened {
-		t.Errorf("Return on a heading opened feed %q; a heading opens no feed", f.answer.Feed)
+	for i := range f.groups {
+		f.readsOpen("Right on a feed row", i, true)
 	}
-	f.readsOpen("Return on an open section's heading", 1, false)
-	f.readsCursor("Return on an open section's heading", heading(1))
+	if len(f.run) != rows {
+		t.Errorf("Right left the run at %d rows, want the %d it walked on", len(f.run), rows)
+	}
+	if f.answer.Opened {
+		t.Errorf("Right opened feed %q; it answers nothing", f.answer.Feed)
+	}
+}
+
+// TestReturnOnARailRowOpensItsFeed reads Return over the rail: every stop of
+// the walk is a feed row, so Return always goes with the stop and never
+// flips a section's disclosure.
+func TestReturnOnARailRowOpensItsFeed(t *testing.T) {
+	f := newRailFoldFrame(t)
+	f.focus()
+
+	f.press(key.NameDownArrow)
+	f.press(key.NameReturn)
+	if !f.answer.Opened {
+		t.Fatal("Return opened no feed; the rail's stops are its feed rows")
+	}
+	if f.answer.Feed != f.firstFeed(0) {
+		t.Errorf("Return opened %q, want the row the cursor stands on, %q", f.answer.Feed, f.firstFeed(0))
+	}
+	f.readsOpen("Return on a feed row", 0, true)
+	f.readsCursor("Return on a feed row", f.firstFeed(0))
 }
 
 // TestAClickOnARailRowHandsTheRailTheKeys reads the composed window in both
@@ -483,8 +538,8 @@ func TestTheArrowsStillWalkAfterTabLeaves(t *testing.T) {
 	}
 	f.router.Queue(key.Event{Name: key.NameDownArrow, State: key.Press})
 	f.frame()
-	if f.keys.cursor != cursorOf(f.kb.Rows[0]) {
-		t.Errorf("Down put the cursor on %+v, want the first row %+v: the arrows no longer walk the rail", f.keys.cursor, cursorOf(f.kb.Rows[0]))
+	if f.keys.cursor != f.kb.Rows[0].ID {
+		t.Errorf("Down put the cursor on %q, want the first row %q: the arrows no longer walk the rail", f.keys.cursor, f.kb.Rows[0].ID)
 	}
 }
 

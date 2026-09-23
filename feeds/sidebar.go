@@ -164,9 +164,8 @@ func feedsSidebar(
 				}
 			}
 			// The run the arrows walk, rebuilt on every emission: a
-			// collapsed section contributes its heading alone, so the arrows
-			// step straight past its rows and Right on the heading is what
-			// brings them back.
+			// collapsed section contributes nothing, so the arrows step
+			// straight past it and the pointer alone brings its rows back.
 			kb := railKeyboard{Keys: keys, Rows: railRowRun(len(sections), feeds, open), Listing: n.Fourth}
 			return func(gtx layout.Context) layout.Dimensions {
 				return drawRailColumn(gtx, c, typ, sections, headings, open, railScroll, kb)
@@ -201,30 +200,29 @@ type railRowSet struct {
 	Drain func(gtx layout.Context)
 }
 
-// railRow is one row of the rail as its keyboard walks them: a section's
-// heading, or one feed row standing under an open section.
+// railRow is one row of the rail as its keyboard walks them: one feed
+// standing under an open section.
 //
-// A heading is a row of the walk because it is the only thing that can hold
-// the cursor while its section stands collapsed, and a collapsed section no
-// key can reach is a section the keyboard can never open.
+// A section's heading is not a row of the walk. The platform's sidebar never
+// stops the arrows on one, so a heading is operated by the pointer alone and
+// a section a click collapsed is reopened by a click.
 type railRow struct {
 	Section int
-	// Index is where in its section the row stands, or -1 when the row is
-	// the section's heading, which is railBlock's own convention.
+	// Index is where in its section the row stands, which is railBlock's own
+	// convention for the blocks the column scrolls.
 	Index int
-	// ID is the feed the row opens, empty on a heading.
+	// ID is the feed the row opens.
 	ID FeedID
 }
 
 // railRowRun is the rail's rows in reading order across its sections, which
-// is the order the arrows walk them in: every section's heading, each
-// followed by its feeds while the section stands open. sections is how many
-// the rail draws; a collapsed one contributes its heading alone, and so does
-// a section the feed tree no longer carries.
+// is the order the arrows walk them in: the feeds of every open section, one
+// section after another. sections is how many the rail draws; a collapsed
+// one contributes nothing, and so does a section the feed tree no longer
+// carries.
 func railRowRun(sections int, feeds []feedGroup, open map[int]bool) []railRow {
-	run := make([]railRow, 0, sections+len(feeds))
+	run := make([]railRow, 0, len(feeds))
 	for i := range sections {
-		run = append(run, railRow{Section: i, Index: -1})
 		if !open[i] || i >= len(feeds) {
 			continue
 		}
@@ -245,34 +243,14 @@ type railKeyboard struct {
 	Listing FeedID
 }
 
-// railCursor is where the rail's keys stand: one feed, named by the feed
-// itself wherever the run carries it, or one section's heading, named by the
-// section. A cursor naming neither stands nowhere.
-type railCursor struct {
-	Section int
-	ID      FeedID
-}
-
-// railNowhere is the cursor of a rail the keys have not landed on.
-var railNowhere = railCursor{Section: -1}
-
 // railAnswer is what the rail's keys ask of the window: the feed a key
-// opened, and the section whose disclosure a key flipped.
+// opened, and the section a key collapsed.
 type railAnswer struct {
 	Feed FeedID
 	// Opened says Feed carries a feed to open.
 	Opened bool
-	// Section is the section a key opened or collapsed, -1 when no key
-	// touched one.
+	// Section is the section a key collapsed, -1 when no key touched one.
 	Section int
-}
-
-// cursorOf is the cursor standing on the given row.
-func cursorOf(r railRow) railCursor {
-	if r.Index < 0 {
-		return railCursor{Section: r.Section}
-	}
-	return railCursor{Section: r.Section, ID: r.ID}
 }
 
 // railKeys is the rail's keyboard: the one focus tag the whole rail takes and
@@ -284,21 +262,22 @@ func cursorOf(r railRow) railCursor {
 // is that list's shape with the rail's heading blocks kept: the blocks are
 // what the column scrolls, the rows are what the keys walk.
 //
-// The cursor is held by the feed's own identity rather than by a position, so
-// collapsing a section, adding a feed or deleting one never leaves it on a
-// row the reader did not walk to.
+// The cursor is the feed itself rather than a position, so collapsing a
+// section, adding a feed or deleting one never leaves it on a row the reader
+// did not walk to. The empty feed is the cursor of a rail the keys have not
+// landed on.
 type railKeys struct {
 	// tag's address is the rail's event tag. The field carries a byte because
 	// a zero-size field can share an address with its neighbour, which would
 	// break tag identity.
 	tag    struct{ _ byte }
-	cursor railCursor
+	cursor FeedID
 	// moved says the last update walked the cursor, which is when the column
 	// scrolls to bring the row into view. A wheel is otherwise left alone.
 	moved bool
 }
 
-func newRailKeys() *railKeys { return &railKeys{cursor: railNowhere} }
+func newRailKeys() *railKeys { return &railKeys{} }
 
 // Focus is the rail's keyboard focus tag: the tag a click on a row hands the
 // keys to, and the tag the traversal keys are filtered on.
@@ -307,48 +286,43 @@ func (k *railKeys) Focus() event.Tag { return &k.tag }
 // Select puts the cursor on the feed a click landed on, wherever the run
 // carries it. The column does not move: the row was visible enough to be
 // clicked.
-func (k *railKeys) Select(id FeedID) { k.cursor = railCursor{Section: -1, ID: id} }
+func (k *railKeys) Select(id FeedID) { k.cursor = id }
 
 // settle keeps the cursor on a row the rail actually shows: the row it
 // stands on while the run still carries it, and otherwise the feed the table
 // is listing — a reader who puts the keys on the rail without having moved
 // them starts from the feed in front of them.
 func (k *railKeys) settle(rows []railRow, listing FeedID) {
-	if at := runIndex(rows, k.cursor); at >= 0 {
-		k.cursor = cursorOf(rows[at])
+	if runIndex(rows, k.cursor) >= 0 {
 		return
 	}
-	if at := runIndex(rows, railCursor{Section: -1, ID: listing}); at >= 0 {
-		k.cursor = cursorOf(rows[at])
+	if runIndex(rows, listing) >= 0 {
+		k.cursor = listing
 		return
 	}
-	k.cursor = railNowhere
+	k.cursor = ""
 }
 
-// step walks the cursor to the given row and records whether the column must
-// bring it into view.
-func (k *railKeys) step(c railCursor) {
-	if c != k.cursor {
+// step walks the cursor to the given feed and records whether the column must
+// bring its row into view.
+func (k *railKeys) step(id FeedID) {
+	if id != k.cursor {
 		k.moved = true
 	}
-	k.cursor = c
+	k.cursor = id
 }
 
 // update drains the rail's traversal keys and answers what they ask of the
-// window. The arrows and Home/End walk the cursor over the headings and the
-// rows the open sections show, and nothing wraps, as nothing wraps in a
-// platform list.
+// window. The arrows and Home/End walk the cursor over the rows the open
+// sections show, and nothing wraps, as nothing wraps in a platform list.
 //
-// Left and Right are the platform's outline keys: Left collapses the section
-// the cursor stands in and lands on its heading, Right opens a collapsed
-// section under the cursor and steps into an open one. A section's
-// disclosure is model state and opening a feed is the caller's semantics, so
-// both are answered here rather than acted on.
-//
-// open is the sections' disclosure state, which the run alone cannot carry:
-// a section standing open with no feeds left in it contributes no row to
-// tell it apart from a collapsed one.
-func (k *railKeys) update(gtx layout.Context, rows []railRow, open map[int]bool, listing FeedID) railAnswer {
+// Left is the platform's sidebar key: it collapses the section the cursor
+// stands in and lands on the nearest row still visible. Right answers
+// nothing — a section a pointer collapsed is reopened by a pointer, which is
+// what the platform's sidebar does. A section's disclosure is model state and
+// opening a feed is the caller's semantics, so both are answered here rather
+// than acted on.
+func (k *railKeys) update(gtx layout.Context, rows []railRow, listing FeedID) railAnswer {
 	k.settle(rows, listing)
 	k.moved = false
 	tag := k.Focus()
@@ -363,7 +337,6 @@ func (k *railKeys) update(gtx layout.Context, rows []railRow, open map[int]bool,
 			key.Filter{Focus: tag, Name: key.NameUpArrow},
 			key.Filter{Focus: tag, Name: key.NameDownArrow},
 			key.Filter{Focus: tag, Name: key.NameLeftArrow},
-			key.Filter{Focus: tag, Name: key.NameRightArrow},
 			key.Filter{Focus: tag, Name: key.NameHome},
 			key.Filter{Focus: tag, Name: key.NameEnd},
 			key.Filter{Focus: tag, Name: key.NameReturn},
@@ -400,37 +373,11 @@ func (k *railKeys) update(gtx layout.Context, rows []railRow, open map[int]bool,
 			if at < 0 || folded {
 				continue
 			}
-			row := rows[at]
-			if row.Index >= 0 {
-				answer.Section, folded = row.Section, true
-				k.step(railCursor{Section: row.Section})
-				continue
-			}
-			if open[row.Section] {
-				answer.Section, folded = row.Section, true
-			}
+			answer.Section, folded = rows[at].Section, true
+			k.step(railLanding(rows, rows[at].Section))
 			continue
-		case key.NameRightArrow:
-			if at < 0 || folded || rows[at].Index >= 0 {
-				continue
-			}
-			section := rows[at].Section
-			if !open[section] {
-				answer.Section, folded = section, true
-				continue
-			}
-			if at+1 >= len(rows) || rows[at+1].Section != section || rows[at+1].Index < 0 {
-				continue
-			}
-			at++
 		case key.NameReturn, key.NameEnter:
 			if at < 0 {
-				continue
-			}
-			if rows[at].Index < 0 {
-				if !folded {
-					answer.Section, folded = rows[at].Section, true
-				}
 				continue
 			}
 			answer.Feed, answer.Opened = rows[at].ID, true
@@ -438,22 +385,41 @@ func (k *railKeys) update(gtx layout.Context, rows []railRow, open map[int]bool,
 		default:
 			continue
 		}
-		k.step(cursorOf(rows[at]))
+		k.step(rows[at].ID)
 	}
 }
 
-// runIndex answers where in the run the cursor stands, or -1 when the run
-// does not carry it. A feed is matched by its own identity wherever the run
-// carries it, a heading by its section.
-func runIndex(rows []railRow, c railCursor) int {
+// railLanding is the feed the cursor lands on when the given section
+// collapses: the nearest row the rail still shows, which is the row standing
+// above the section's own rows, or the row below them when the section
+// stands first. A rail whose only rows were that section's leaves the cursor
+// nowhere.
+func railLanding(rows []railRow, section int) FeedID {
 	for i, r := range rows {
-		if c.ID != "" {
-			if r.ID == c.ID {
-				return i
-			}
+		if r.Section != section {
 			continue
 		}
-		if c.Section >= 0 && r.Index < 0 && r.Section == c.Section {
+		if i > 0 {
+			return rows[i-1].ID
+		}
+		for _, below := range rows[i:] {
+			if below.Section != section {
+				return below.ID
+			}
+		}
+		return ""
+	}
+	return ""
+}
+
+// runIndex answers where in the run the given feed stands, or -1 when the run
+// does not carry it. The empty feed stands nowhere.
+func runIndex(rows []railRow, id FeedID) int {
+	if id == "" {
+		return -1
+	}
+	for i, r := range rows {
+		if r.ID == id {
 			return i
 		}
 	}
@@ -508,7 +474,7 @@ func drawRailColumn(
 	// The rail's own keys, drained here for the same reason: a row scrolled
 	// out of view is not laid out, and the keys are the rail's and not any
 	// one row's.
-	answer := kb.Keys.update(gtx, kb.Rows, open, kb.Listing)
+	answer := kb.Keys.update(gtx, kb.Rows, kb.Listing)
 	if answer.Opened {
 		mvu.MessageOp{Message: SelectFeed{Feed: answer.Feed}}.Add(gtx.Ops)
 	}
@@ -598,7 +564,7 @@ func railBlocks(sections []railSection, open map[int]bool) []railBlock {
 
 // railRowBlock answers which block of the rail's column IS the row the cursor
 // stands on, and whether the column holds that row at all.
-func railRowBlock(blocks []railBlock, rows []railRow, cursor railCursor) (int, bool) {
+func railRowBlock(blocks []railBlock, rows []railRow, cursor FeedID) (int, bool) {
 	at := runIndex(rows, cursor)
 	if at < 0 {
 		return 0, false
@@ -719,7 +685,7 @@ func feedEntryRows(
 			// the grey state, which is what the rail shows while the keys are
 			// in the table beside it. The rail is one focus target, so its own
 			// tag is the whole answer to which of the two a row wears.
-			onCursor := gtx.Focused(keys.Focus()) && e.ID == keys.cursor.ID
+			onCursor := gtx.Focused(keys.Focus()) && e.ID == keys.cursor
 			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowH))
 			return drawFeedEntryRow(gtx, loadTok(), e, e.ID == selectedFn() || onCursor, !onCursor,
 				rowClicks.For(e.ID), hovers.For(e.ID), popovers.For(e.ID),

@@ -588,11 +588,11 @@ func (v *treeView) foldKeys(gtx layout.Context, rows []TreeRow) {
 // visible rows: the folder whose fold it flips, whether it flips one at all,
 // and the row the cursor lands on, -1 when the cursor does not move.
 //
-// Left closes the folder the cursor stands in and lands on that folder's own
-// row; on a collapsed folder there is nothing left to close, so it moves to
-// the parent instead, and at the root it stays. Right opens a collapsed
-// folder under the cursor and steps into an open one. A note answers what its
-// parent folder does.
+// Left closes the open folder the cursor stands on and stays there. On
+// anything else — a note, a collapsed folder — there is nothing under the
+// cursor to close, so it walks to the parent folder's row and a second Left
+// closes that; at the root it stays. Right opens a collapsed folder under the
+// cursor and steps into an open one.
 func treeFoldKey(rows []TreeRow, at int, name key.Name) (fold string, folds bool, cursor int) {
 	if at < 0 || at >= len(rows) {
 		return "", false, -1
@@ -607,10 +607,7 @@ func treeFoldKey(rows []TreeRow, at int, name key.Name) (fold string, folds bool
 		if parent < 0 {
 			return "", false, -1
 		}
-		if row.IsDir {
-			return "", false, parent
-		}
-		return rows[parent].Path, true, parent
+		return "", false, parent
 	case key.NameRightArrow:
 		if !row.IsDir {
 			return "", false, -1

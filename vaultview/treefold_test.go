@@ -120,15 +120,16 @@ func (f *treeFoldFrame) readsFold(what, dir string, want bool) {
 	}
 }
 
-// TestLeftAndRightCloseAndOpenTheTreesFolders drives the platform's outline
-// keys over the folder rail through a real input.Router and reads the fold
-// state and the cursor after each.
+// TestLeftWalksToTheParentBeforeClosingIt drives the platform's outline keys
+// over the folder rail through a real input.Router and reads the fold state
+// and the cursor after each.
 //
-// Left closes the folder the cursor stands in and lands on that folder's own
-// row; on a collapsed folder it moves to the parent, and at the root it
-// stays. Right opens a collapsed folder under the cursor and steps into an
-// open one. A note answers what its parent folder does.
-func TestLeftAndRightCloseAndOpenTheTreesFolders(t *testing.T) {
+// Left closes only what stands under the cursor: on an open folder it closes
+// that folder and stays. On a note or a collapsed folder there is nothing
+// under the cursor to close, so it walks to the parent's row and leaves the
+// fold alone; a second Left is what closes that parent. At the root it stays.
+// Right opens a collapsed folder under the cursor and steps into an open one.
+func TestLeftWalksToTheParentBeforeClosingIt(t *testing.T) {
 	f := newTreeFoldFrame(t)
 	f.focus()
 
@@ -139,12 +140,19 @@ func TestLeftAndRightCloseAndOpenTheTreesFolders(t *testing.T) {
 	}
 	f.readsCursor("Down three times from nothing", "guide/deep/n.md")
 
-	f.press(key.NameLeftArrow)
-	f.readsFold("Left on a note", "guide/deep", false)
+	if posted := f.press(key.NameLeftArrow); len(posted) != 0 {
+		t.Errorf("Left on a note posted %v; it walks to the parent and closes nothing", posted)
+	}
+	f.readsFold("Left on a note", "guide/deep", true)
 	f.readsCursor("Left on a note", "guide/deep")
 
 	f.press(key.NameLeftArrow)
-	f.readsFold("Left on a collapsed folder", "guide/deep", false)
+	f.readsFold("Left again, on the open parent it walked to", "guide/deep", false)
+	f.readsCursor("Left again, on the open parent it walked to", "guide/deep")
+
+	if posted := f.press(key.NameLeftArrow); len(posted) != 0 {
+		t.Errorf("Left on a collapsed folder posted %v; it walks to the parent and closes nothing", posted)
+	}
 	f.readsFold("Left on a collapsed folder", "guide", true)
 	f.readsCursor("Left on a collapsed folder", "guide")
 
@@ -153,7 +161,7 @@ func TestLeftAndRightCloseAndOpenTheTreesFolders(t *testing.T) {
 	f.readsCursor("Left on an open folder", "guide")
 
 	if posted := f.press(key.NameLeftArrow); len(posted) != 0 {
-		t.Errorf("Left on a collapsed folder at the root posted %v; there is no parent to close", posted)
+		t.Errorf("Left on a collapsed folder at the root posted %v; there is no parent to walk to", posted)
 	}
 	f.readsCursor("Left on a collapsed folder at the root", "guide")
 

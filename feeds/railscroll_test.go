@@ -168,8 +168,8 @@ func TestTheRailRevealsTheCursorsOwnRow(t *testing.T) {
 	r.Queue(key.Event{Name: key.NameEnd, State: key.Press})
 	frame() // the keys move the cursor and ask for the reveal
 	frame() // the reveal lands
-	if keys.cursor != cursorOf(run[len(run)-1]) {
-		t.Fatalf("End put the cursor on %+v, want the last row %+v", keys.cursor, cursorOf(run[len(run)-1]))
+	if keys.cursor != run[len(run)-1].ID {
+		t.Fatalf("End put the cursor on %q, want the last row %q", keys.cursor, run[len(run)-1].ID)
 	}
 
 	// The last row is the column's last block, the heading standing first
