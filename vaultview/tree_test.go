@@ -45,8 +45,8 @@ func rowSigs(rows []TreeRow) []string {
 }
 
 // TestTreeRows table-tests the flattening: visible rows from index plus
-// fold state — depth per level, folders before notes in name order,
-// hidden dot-directories, a closed fold hiding its whole subtree.
+// fold state — depth per level, folders and notes in one run in name
+// order, hidden dot-directories, a closed fold hiding its whole subtree.
 func TestTreeRows(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -69,12 +69,12 @@ func TestTreeRows(t *testing.T) {
 			},
 		},
 		{
-			name: "folders precede notes and sort among themselves",
-			idx:  treeIndex("zeta.md", "beta/x.md", "Alpha/y.md"),
+			name: "folders and notes stand in one name-ordered run",
+			idx:  treeIndex("beta.md", "Alpha/y.md", "zeta/x.md"),
 			want: []string{
 				"0 dir-closed Alpha",
-				"0 dir-closed beta",
-				"0 note zeta.md",
+				"0 note beta.md",
+				"0 dir-closed zeta",
 			},
 		},
 		{
@@ -412,44 +412,40 @@ func TestPaneRowsRunToThePaneFoot(t *testing.T) {
 	}
 }
 
-// TestTreeHeadsTheVaultsTwoRuns pins which groups the rail heads: the vault's
-// folders and the notes standing loose beside them, headed only where the
-// vault has both. A top-level folder is a row with a disclosure, never a
-// heading — which is what makes the heading a question about the two runs and
-// not about the folders.
-func TestTreeHeadsTheVaultsTwoRuns(t *testing.T) {
-	heads := func(rows []TreeRow) map[string]string {
-		out := map[string]string{}
-		for _, r := range rows {
-			if r.Section != "" {
-				out[r.Path] = r.Section
-			}
-		}
-		return out
+// TestTreeIsOneRunInNameOrder pins the rail's run: a folder is one
+// collection, so its entries stand in one name-ordered run with the folders
+// and the notes interleaved, and no row carries a heading. A section parts
+// collections an application keeps apart, never one collection sorted by
+// kind, and this vault has one.
+func TestTreeIsOneRunInNameOrder(t *testing.T) {
+	// Names chosen so a folders-first order and a name order disagree at
+	// both levels: alpha.md stands before the Design folder, and Aims.md
+	// before the notes folder inside it.
+	idx := treeIndex(
+		"zebra.md",
+		"alpha.md",
+		"Design/Aims.md",
+		"Design/notes/deep.md",
+		"Mixed.md",
+	)
+	got := rowSigs(TreeRows(idx, map[string]bool{"Design": true}))
+	want := []string{
+		"0 note alpha.md",
+		"0 dir-open Design",
+		"1 note Design/Aims.md",
+		"1 dir-closed Design/notes",
+		"0 note Mixed.md",
+		"0 note zebra.md",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("rows:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 
-	both := TreeRows(treeIndex("Design/a.md", "Design/deep/b.md", "loose.md"), map[string]bool{"Design": true})
-	got := heads(both)
-	if len(got) != 2 || got["Design"] != "Folders" || got["loose.md"] != "Notes" {
-		t.Errorf("a vault with folders and loose notes heads %v, want the first folder under Folders and the first loose note under Notes", got)
-	}
-	// The heading marks where a run starts, and a folder's own subtree is
-	// emitted between its row and the next top-level folder's, so nothing
-	// inside a folder carries one.
-	for _, r := range both {
-		if r.Depth > 0 && r.Section != "" {
-			t.Errorf("%s is at depth %d and carries the heading %q; a heading marks a run at the vault's own level", r.Path, r.Depth, r.Section)
-		}
-	}
-
-	if got := heads(TreeRows(treeIndex("Design/a.md"), nil)); len(got) != 0 {
-		t.Errorf("a vault of folders alone heads %v, want nothing: a heading over the whole list names nothing the reader cannot see", got)
-	}
-	if got := heads(TreeRows(treeIndex("a.md", "b.md"), nil)); len(got) != 0 {
-		t.Errorf("a vault of loose notes alone heads %v, want nothing", got)
-	}
-	if got := heads(MatchRows(treeIndex("Design/a.md", "loose.md"), "a")); len(got) != 0 {
-		t.Errorf("the find's flat answer heads %v, want nothing: one run takes no heading", got)
+	// A folder and a note of one name leave the folder first, so the order
+	// is total and a frame cannot draw the pair two ways.
+	twice := rowSigs(TreeRows(treeIndex("Ideas/a.md", "Ideas.md"), nil))
+	if len(twice) != 2 || twice[0] != "0 dir-closed Ideas" || twice[1] != "0 note Ideas.md" {
+		t.Errorf("a folder and a note named Ideas stand %v, want the folder first", twice)
 	}
 }
 

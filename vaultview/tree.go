@@ -2,9 +2,10 @@
 // components/list in the shell's sidebar slot — the design system's
 // sidebar pattern is flat, so nesting is this app's own. TreeRows
 // flattens the scanned index and the model's fold state into the visible
-// rows (folders first, then notes, name order, indent per depth,
-// dot-directories hidden); the view renders them with disclosure toggles
-// on folder rows, the current note active, and click-to-open on note rows.
+// rows (one run per folder in name order, folders and notes interleaved,
+// indent per depth, dot-directories hidden); the view renders them with
+// disclosure toggles on folder rows, the current note active, and
+// click-to-open on note rows.
 //
 // Above the rows sits the find field: typing filters the tree to the
 // notes whose name matches, as a flat list with the folder as the faint
@@ -68,9 +69,9 @@ const (
 	// the column it stands in. A tree row carries a part the platform's plain
 	// sidebar row does not, so the row's first column holds the disclosure
 	// and the symbol and the name stand one column further in — which is why
-	// the whole tree is indented one level: a disclosure drawn in the room
-	// before the sidebar's own first column would stand outside the selection
-	// pill, and no row of the reference draws anything there.
+	// the whole tree is indented one level: a disclosure drawn before the
+	// sidebar's own first column would stand outside the selection pill, and
+	// no row of the reference draws anything there.
 	treeDiscloseColDp = treeIndentDp
 	treeDiscloseDp    = 12
 	// treeFieldPadDp is the air around the find field. It is the row pills'
@@ -91,14 +92,13 @@ func treeFieldSurface(c tokens.PlatformColors) color.NRGBA { return chromeSurfac
 
 // TreeRow is one visible row of the folder tree.
 type TreeRow struct {
-	Idx     int    // position in the flattened row slice
-	Path    string // vault-relative; the folder path or the note path
-	Name    string // display name; the note title for note rows
-	Detail  string // the folder a found note is in, read after its name
-	Section string // the heading this row begins a run under, where it begins one
-	Depth   int    // nesting depth, 0 at the vault root
-	IsDir   bool   // a folder row, carrying a disclosure toggle
-	Open    bool   // folder rows only: the fold is open
+	Idx    int    // position in the flattened row slice
+	Path   string // vault-relative; the folder path or the note path
+	Name   string // display name; the note title for note rows
+	Detail string // the folder a found note is in, read after its name
+	Depth  int    // nesting depth, 0 at the vault root
+	IsDir  bool   // a folder row, carrying a disclosure toggle
+	Open   bool   // folder rows only: the fold is open
 }
 
 // treeNode is the intermediate nested shape TreeRows flattens from.
@@ -108,18 +108,15 @@ type treeNode struct {
 }
 
 // TreeRows flattens the scanned index and the fold state into the tree's
-// visible rows: at each level the folders in name order then the notes in
-// title order (both case-insensitive), a closed folder hiding its whole
-// subtree, and any path with a dot-directory segment hidden outright.
+// visible rows: at each level the folders and the notes in one run, name
+// order, case-insensitively, a folder sorting under its own name and a note
+// under its title; a closed folder hides its whole subtree and any path
+// with a dot-directory segment is hidden outright. A folder and a note of
+// one name leave the folder first.
 //
-// The vault's own two runs are headed. At the root the walk emits the
-// folders and then the notes that sit loose beside them, so those are the
-// two runs the rail shows, and the first row of each carries the heading
-// the sidebar draws above it. A vault holding only one of the two is left
-// unheaded: a heading over the whole list names nothing the reader cannot
-// already see. The vault's top-level folders are NOT the sections — a
-// folder is a row, with a disclosure that opens it, and a heading is
-// neither.
+// The run is not headed. A section parts collections the application keeps
+// apart, never one collection sorted by kind (DOMAIN, Sidebar), and a
+// folder — the vault's root included — is one collection.
 func TreeRows(idx *Index, folds map[string]bool) []TreeRow {
 	if idx == nil {
 		return nil
@@ -146,62 +143,33 @@ func TreeRows(idx *Index, folds map[string]bool) []TreeRow {
 	var out []TreeRow
 	var walk func(n *treeNode, prefix string, depth int)
 	walk = func(n *treeNode, prefix string, depth int) {
-		names := make([]string, 0, len(n.dirs))
+		// The folders are gathered before the notes, so the stable sort
+		// leaves the folder first where a folder and a note share a name.
+		entries := make([]TreeRow, 0, len(n.dirs)+len(n.notes))
 		for name := range n.dirs {
-			names = append(names, name)
-		}
-		sortByName(names, func(s string) string { return s })
-		for _, name := range names {
 			dirPath := name
 			if prefix != "" {
 				dirPath = prefix + "/" + name
 			}
-			open := folds[dirPath]
-			out = append(out, TreeRow{Path: dirPath, Name: name, Depth: depth, IsDir: true, Open: open})
-			if open {
-				walk(n.dirs[name], dirPath, depth+1)
-			}
+			entries = append(entries, TreeRow{Path: dirPath, Name: name, Depth: depth, IsDir: true, Open: folds[dirPath]})
 		}
-		notes := append([]TreeRow(nil), n.notes...)
-		sortByName(notes, func(r TreeRow) string { return r.Name })
-		for _, r := range notes {
+		for _, r := range n.notes {
 			r.Depth = depth
+			entries = append(entries, r)
+		}
+		sortByName(entries, func(r TreeRow) string { return r.Name })
+		for _, r := range entries {
 			out = append(out, r)
+			if r.IsDir && r.Open {
+				walk(n.dirs[r.Name], r.Path, depth+1)
+			}
 		}
 	}
 	walk(root, "", 0)
-	headRuns(out)
 	for i := range out {
 		out[i].Idx = i
 	}
 	return out
-}
-
-// headRuns heads the vault's two runs where it has both: the first top-level
-// folder and the first note standing loose beside them. A folder's own
-// subtree is emitted between its row and the next top-level folder's, so the
-// run is not contiguous in the flattened slice; what the heading marks is
-// where each run starts, which is what the reader sees.
-func headRuns(rows []TreeRow) {
-	dir, note := -1, -1
-	for i := range rows {
-		if rows[i].Depth != 0 {
-			continue
-		}
-		if rows[i].IsDir {
-			if dir < 0 {
-				dir = i
-			}
-			continue
-		}
-		if note < 0 {
-			note = i
-		}
-	}
-	if dir < 0 || note < 0 {
-		return
-	}
-	rows[dir].Section, rows[note].Section = "Folders", "Notes"
 }
 
 // MatchRows is the find field's answer: the notes whose name contains
@@ -514,7 +482,6 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	// and the sidebar's own columns: the symbol, the name after it and the
 	// trailing end, each where the platform draws it.
 	rowH := gtx.Dp(sidebar.RowHeight)
-	section := sidebar.SectionStyle(tok.typ)
 	// Which of the platform's two pills a filled row wears. The emphasized
 	// one is the row the keyboard stands on while the rail has the keys;
 	// every other filled row, and every row while the keys are elsewhere,
@@ -533,18 +500,6 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 				activateTreeRow(gtx, row)
 			}
 			width := gtx.Constraints.Max.X
-			// A row that begins a run stands under its heading, in a block
-			// the sidebar pattern measures. The heading is not a row: it
-			// takes no click and the keyboard steps over it.
-			head := 0
-			if row.Section != "" {
-				head = gtx.Dp(sidebar.SectionHeight)
-				hGtx := gtx
-				hGtx.Constraints = layout.Exact(image.Pt(width, head))
-				sidebar.PaintSection(hGtx, tok.shaper, row.Section, section, image.Pt(width, head),
-					vgcolor.Flatten(sidebar.SectionForeground(tok.col), chromeSurface(tok.col)))
-			}
-			defer op.Offset(image.Pt(0, head)).Push(gtx.Ops).Pop()
 			gtx.Constraints = layout.Exact(image.Pt(width, rowH))
 			click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
@@ -568,7 +523,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 				v.drawRow(gtx, row, tok, size, surface, filled, unemphasized, query)
 				return layout.Dimensions{Size: size}
 			})
-			return layout.Dimensions{Size: image.Pt(width, rowH+head)}
+			return layout.Dimensions{Size: image.Pt(width, rowH)}
 		})
 }
 
@@ -576,8 +531,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 // sidebar's measured columns: one indent per depth, the same step at every
 // depth, and one more for the disclosure column every row's first column is.
 // A row's disclosure stands one indent back from that, at the rail's own
-// first column — where the section headings begin, which is where the
-// reference puts the first thing on a row.
+// first column, which is where the reference puts the first thing on a row.
 func treeRowLead(depth int) float32 { return float32(depth+1) * treeIndentDp }
 
 // drawRow paints one tree row's parts into the columns the sidebar pattern
