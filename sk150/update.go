@@ -56,6 +56,14 @@ func statusOnline(m Model) string {
 func Update(m Model, message mvu.Message) (Model, mvu.Command) {
 	switch msg := message.(type) {
 	case SetScreen:
+		// Leaving the preset editor by any route cancels it, so the
+		// Presets tab always opens on the list of memory slots. The
+		// editor is reached only from Edit on a slot or Set on the
+		// Monitor.
+		if m.EditPreset != noEdit {
+			m.EditPreset = noEdit
+			m.EditClears++ // cancelled: drop what was typed
+		}
 		m.Screen = msg.Screen
 		return m, mvu.DoNothing()
 

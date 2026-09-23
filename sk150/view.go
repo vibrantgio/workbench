@@ -393,16 +393,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if idx < 0 || idx >= len(tabScreens) {
 				return
 			}
-			screen := tabScreens[idx]
-			// Clicking Presets again while the editor is open returns to
-			// the list, discarding what was typed — the tab is the editor's
-			// cancel.
-			if st, ok := loadState(); ok && screen == "presets" && st.m.Screen == "presets" &&
-				st.m.EditPreset != noEdit {
-				mvu.MessageOp{Message: EditPreset{N: noEdit}}.Add(gtx.Ops)
-				return
-			}
-			mvu.MessageOp{Message: SetScreen{Screen: screen}}.Add(gtx.Ops)
+			mvu.MessageOp{Message: SetScreen{Screen: tabScreens[idx]}}.Add(gtx.Ops)
 		},
 	})
 
