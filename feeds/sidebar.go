@@ -21,6 +21,7 @@ import (
 
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/keyed"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/accordion"
@@ -430,7 +431,7 @@ func drawFeedEntry(
 	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		semantic.LabelOp(label).Add(gtx.Ops)
 		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointer.CursorPointer.Add(gtx.Ops)
+		pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
 		return inner(gtx)
 	})
 }
@@ -474,8 +475,8 @@ func newDeleteConfirm(
 			s := loadTok()
 			semantic.LabelOp("Delete feed").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
-			pointer.CursorPointer.Add(gtx.Ops)
 			sz := gtx.Constraints.Max
+			pointershape.OverSize(gtx.Ops, sz, pointer.CursorPointer)
 			drawTrashIcon(gtx, sz, feedRowForeground(s.col, false, false))
 			return layout.Dimensions{Size: sz}
 		})
@@ -502,7 +503,7 @@ func newDeleteConfirm(
 		confirmClick.Layout(btnGtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp("Confirm delete").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
-			pointer.CursorPointer.Add(gtx.Ops)
+			pointershape.OverSize(gtx.Ops, image.Pt(w, btnH), pointer.CursorPointer)
 			drawLabel(gtx, s.shaper, "Delete", s.typ.LabelLarge, s.col.SystemRed)
 			return layout.Dimensions{Size: image.Pt(w, btnH)}
 		})

@@ -39,6 +39,7 @@ import (
 
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
@@ -530,7 +531,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 					sidebar.PaintSelection(gtx, size, tok.col, !marked)
 				}
 				semantic.LabelOp(e.Title).Add(gtx.Ops)
-				pointer.CursorPointer.Add(gtx.Ops)
+				pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
 				// The pill's edge, then the pad, then the heading's own
 				// depth: a top-level heading stands a pad inside its own
 				// fill the way every filled row in this window does, and
@@ -614,7 +615,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 					sidebar.PaintSelection(gtx, size, tok.col, false)
 				}
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
-				pointer.CursorPointer.Add(gtx.Ops)
+				pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
 				// The rows below the rule take the same pad the rows above
 				// it do, for the same reason: they wear the same pill.
 				complayout.InsetXY(float32(asideLaneDp)+asideRowPadDp, asideRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {

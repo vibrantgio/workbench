@@ -19,6 +19,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/pointershape"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 
 	"github.com/vibrantgio/components/button"
@@ -529,7 +530,7 @@ func powerButton(load func() (pageState, bool), click *widget.Clickable) layout.
 			// area, so a bare Add binds the cursor to exactly that area —
 			// the same mechanism the library buttons use. A second nested
 			// input area here would occlude the clickable underneath it.
-			pointer.CursorPointer.Add(gtx.Ops)
+			pointershape.Over(gtx.Ops, box, pointer.CursorPointer)
 			tr := op.Offset(image.Pt(pad, pad)).Push(gtx.Ops)
 			icon := st.t.ic.PowerOff
 			if st.m.R.On {
@@ -566,7 +567,7 @@ func switchWidget(load func() (pageState, bool), click *widget.Clickable, s Swit
 			if over := pointerFill(p, click); over != (color.NRGBA{}) {
 				paint.FillShape(gtx.Ops, over, clip.UniformRRect(box, box.Max.Y/2).Op(gtx.Ops))
 			}
-			pointer.CursorPointer.Add(gtx.Ops)
+			pointershape.Over(gtx.Ops, box, pointer.CursorPointer)
 			track := image.Rect(pad, pad, pad+w, pad+h)
 			trackCol, knobCol := p.Seam, p.SecondaryLabel
 			knobX := track.Min.X + gtx.Dp(3)

@@ -38,6 +38,7 @@ import (
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/picker"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
@@ -464,7 +465,7 @@ func templateBar(gtx layout.Context, t settingsThemed, tplClicks []*widget.Click
 			}
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				sz := image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Max.Y)
-				pointer.CursorPointer.Add(gtx.Ops)
+				pointershape.OverSize(gtx.Ops, sz, pointer.CursorPointer)
 				// A chip wears the fill an ordinary push button wears on
 				// this platform, and a push button does not tint under the
 				// pointer here, so the chip keeps one fill however the
@@ -572,7 +573,7 @@ func webSearchRow(gtx layout.Context, t settingsThemed, on bool, click *widget.C
 	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SettingsCaptionRow))
 	gtx.Constraints = layout.Exact(size)
 	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		pointer.CursorPointer.Add(gtx.Ops)
+		pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
 		sz := gtx.Dp(SettingsIconBtn)
 		func() {
 			defer op.Offset(image.Pt(0, (size.Y-sz)/2)).Push(gtx.Ops).Pop()

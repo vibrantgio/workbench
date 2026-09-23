@@ -52,3 +52,8 @@
 
 # Agent worktrees: scratch clones an agent made beside the repo, never source.
 /.claude/worktrees/
+
+# ...and except Windows cross-builds: `GOOS=windows go build ./...` writes one
+# beside each app. The rule comes last, with the one above it, so it outranks
+# the app allowlist.
+**/*.exe

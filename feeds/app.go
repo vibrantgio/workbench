@@ -24,6 +24,7 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/composite"
 	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
@@ -317,8 +318,9 @@ func feedsNavbarProps(loadTok func() themeTokens, shareSlot layout.Widget) navba
 		return addClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp("Add feed").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
-			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, s.shaper, "Add feed", s.typ.LabelLarge, s.col.ControlAccent)
+			dims := drawLabel(gtx, s.shaper, "Add feed", s.typ.LabelLarge, s.col.ControlAccent)
+			pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
+			return dims
 		})
 	}
 	share := func(gtx layout.Context) layout.Dimensions {
@@ -366,8 +368,9 @@ func sharePopover(
 		return anchorClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp("Share").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
-			pointer.CursorPointer.Add(gtx.Ops)
-			return drawLabel(gtx, s.shaper, "Share", s.typ.LabelLarge, s.col.ControlAccent)
+			dims := drawLabel(gtx, s.shaper, "Share", s.typ.LabelLarge, s.col.ControlAccent)
+			pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
+			return dims
 		})
 	}
 
@@ -389,7 +392,7 @@ func sharePopover(
 			destClicks[i].Layout(rowGtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.LabelOp(dest).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
-				pointer.CursorPointer.Add(gtx.Ops)
+				pointershape.OverSize(gtx.Ops, image.Pt(listW, rowH), pointer.CursorPointer)
 				return drawLabel(gtx, s.shaper, dest, s.typ.BodyMedium,
 					vgcolor.Flatten(s.col.Label, s.col.WindowBackground))
 			})

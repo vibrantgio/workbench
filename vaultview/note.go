@@ -41,6 +41,7 @@ import (
 	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/markdown"
@@ -890,7 +891,7 @@ func layoutProperties(
 	header := func(gtx layout.Context) layout.Dimensions {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp("Properties").Add(gtx.Ops)
-			pointer.CursorPointer.Add(gtx.Ops)
+			pointershape.OverSize(gtx.Ops, gtx.Constraints.Max, pointer.CursorPointer)
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return drawDisclosure(gtx, open, propMarkDp, foreground)

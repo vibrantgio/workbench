@@ -67,6 +67,7 @@ import (
 
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/icons"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
@@ -423,7 +424,7 @@ func paneMark(gtx layout.Context, t themed, click *widget.Clickable, name icons.
 		semantic.ClassOp(semantic.Button).Add(gtx.Ops)
 		semantic.LabelOp(label).Add(gtx.Ops)
 		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointer.CursorPointer.Add(gtx.Ops)
+		pointershape.OverSize(gtx.Ops, image.Pt(box, box), pointer.CursorPointer)
 		icons.Mark(name)(gtx, box, fg)
 		return layout.Dimensions{Size: image.Pt(box, box)}
 	})

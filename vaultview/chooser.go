@@ -25,6 +25,7 @@ import (
 
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/modal"
 	vgcolor "github.com/vibrantgio/theme/color"
@@ -178,7 +179,7 @@ func chooserRow(
 			paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
 		}
 		semantic.LabelOp(cand).Add(gtx.Ops)
-		pointer.CursorPointer.Add(gtx.Ops)
+		pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
 		complayout.Inset(chooserRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {

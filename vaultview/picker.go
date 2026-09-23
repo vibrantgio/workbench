@@ -48,6 +48,7 @@ import (
 	"github.com/vibrantgio/components/icons"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -397,7 +398,7 @@ func (v *pickerView) selectableRows(gtx layout.Context, tok themeTokens, entries
 					paint.FillShape(gtx.Ops, surface, clip.Rect{Max: size}.Op())
 				}
 				semantic.LabelOp(item.Name).Add(gtx.Ops)
-				pointer.CursorPointer.Add(gtx.Ops)
+				pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
 				// The inset is the row's leading and trailing air ALONE. A
 				// row is the list's own height — one control height — and a
 				// BodyLarge line box very nearly fills it, so vertical air

@@ -46,6 +46,7 @@ import (
 	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -519,7 +520,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 					surface = sidebar.SelectionFill(tok.col, unemphasized)
 				}
 				semantic.LabelOp(row.Name).Add(gtx.Ops)
-				pointer.CursorPointer.Add(gtx.Ops)
+				pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
 				v.drawRow(gtx, row, tok, size, surface, filled, unemphasized, query)
 				return layout.Dimensions{Size: size}
 			})

@@ -12,6 +12,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/unit"
 
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/textdraw"
 )
@@ -189,9 +190,9 @@ func Cell(gtx layout.Context, p Palette, ty Type, c cell, click *gesture.Click, 
 	// The clickable area is the card, registered after the paint so the hover
 	// state read above is the one the previous frame recorded.
 	area := clip.UniformRRect(card, gtx.Dp(InnerR)).Push(gtx.Ops)
-	pointer.CursorPointer.Add(gtx.Ops)
 	click.Add(gtx.Ops)
 	area.Pop()
+	pointershape.Over(gtx.Ops, card, pointer.CursorPointer)
 	for {
 		e, ok := click.Update(gtx.Source)
 		if !ok {

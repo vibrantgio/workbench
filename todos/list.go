@@ -13,6 +13,7 @@ import (
 
 	"github.com/vibrantgio/components/input"
 	complist "github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/pointershape"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/textdraw"
@@ -68,7 +69,7 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 			return layout.Dimensions{Size: size}
 		})
 		if editClick.Hovered() {
-			pointer.CursorPointer.Add(gtx.Ops)
+			pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
 		}
 		return dims
 	}
@@ -92,7 +93,7 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 					return layout.Center.Layout(gtx, clearIcon)
 				})
 				if deleteClick.Hovered() {
-					pointer.CursorPointer.Add(gtx.Ops)
+					pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
 				}
 				return dims
 			}),

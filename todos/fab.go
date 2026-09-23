@@ -9,6 +9,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/workbench/todos/internal/place"
 )
 
@@ -26,7 +27,7 @@ func Fab(icon layout.Widget, ax, ay float32, dx, dy unit.Dp, focus bool, cb func
 			cb(gtx)
 		}
 		if clickable.Hovered() {
-			pointer.CursorPointer.Add(gtx.Ops)
+			pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
 		}
 		dims.Size = dims.Size.Add(r.Min)
 		return dims

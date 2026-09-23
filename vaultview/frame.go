@@ -105,6 +105,7 @@ import (
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
@@ -1072,7 +1073,7 @@ func navSegment(click *widget.Clickable, mark icons.Name, label string, enabled 
 				semantic.LabelOp(label).Add(gtx.Ops)
 				semantic.EnabledOp(enabled).Add(gtx.Ops)
 				if enabled {
-					pointer.CursorPointer.Add(gtx.Ops)
+					pointershape.OverSize(gtx.Ops, gtx.Constraints.Min, pointer.CursorPointer)
 				}
 				return layout.Dimensions{Size: gtx.Constraints.Min}
 			})
@@ -1188,7 +1189,7 @@ func paneMark(gtx layout.Context, tok themeTokens, click *widget.Clickable, name
 		semantic.ClassOp(semantic.Button).Add(gtx.Ops)
 		semantic.LabelOp(label).Add(gtx.Ops)
 		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointer.CursorPointer.Add(gtx.Ops)
+		pointershape.OverSize(gtx.Ops, image.Pt(box, box), pointer.CursorPointer)
 		icons.Mark(name)(gtx, box, fg)
 		return layout.Dimensions{Size: image.Pt(box, box)}
 	})

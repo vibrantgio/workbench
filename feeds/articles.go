@@ -21,10 +21,12 @@ import (
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/components/pagination"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/table"
 	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/system/naming"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -85,11 +87,15 @@ func filterAndSortArticles(all []article, feed FeedID, query string, sk table.So
 	}
 	switch sk.Column {
 	case colTitle:
+		// Titles are names, and a name-ordered list orders the way the
+		// platform's own file lists do: the platform's collation, which puts
+		// digits in numeric order and folds case and accents as the reader
+		// expects, rather than a byte comparison of lowered strings.
 		sort.SliceStable(out, func(i, j int) bool {
 			if sk.Asc {
-				return strings.ToLower(out[i].Title) < strings.ToLower(out[j].Title)
+				return naming.Less(out[i].Title, out[j].Title)
 			}
-			return strings.ToLower(out[i].Title) > strings.ToLower(out[j].Title)
+			return naming.Less(out[j].Title, out[i].Title)
 		})
 	case colPublished:
 		sort.SliceStable(out, func(i, j int) bool {
@@ -395,8 +401,9 @@ func articleColumns(
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.LabelOp(a.Title).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
-				pointer.CursorPointer.Add(gtx.Ops)
-				return body(gtx)
+				dims := body(gtx)
+				pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
+				return dims
 			})
 		}
 	}

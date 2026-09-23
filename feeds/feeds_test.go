@@ -508,6 +508,37 @@ func TestFilterAndSortArticlesSortsByTitle(t *testing.T) {
 	}
 }
 
+// TestTheTitleColumnSortsNamesAsTheFileBrowserDoes holds the table's Title
+// column in the one order every name-ordered list in the library sorts by
+// (theme/system/naming): a run of digits reads as the number it spells, and
+// case does not part a title from its neighbours. Descending is the same
+// order read backwards, not a second rule.
+func TestTheTitleColumnSortsNamesAsTheFileBrowserDoes(t *testing.T) {
+	all := []article{
+		{ID: "a", FeedID: "f", Title: "Release 10"},
+		{ID: "b", FeedID: "f", Title: "release 2"},
+		{ID: "c", FeedID: "f", Title: "Zeta"},
+		{ID: "d", FeedID: "f", Title: "apple"},
+	}
+	titles := func(arts []article) []string {
+		out := make([]string, 0, len(arts))
+		for _, a := range arts {
+			out = append(out, a.Title)
+		}
+		return out
+	}
+	asc := titles(filterAndSortArticles(all, "f", "", table.Sort{Column: colTitle, Asc: true}))
+	want := []string{"apple", "release 2", "Release 10", "Zeta"}
+	if strings.Join(asc, " | ") != strings.Join(want, " | ") {
+		t.Errorf("title ascending is %v, want %v", asc, want)
+	}
+	desc := titles(filterAndSortArticles(all, "f", "", table.Sort{Column: colTitle, Asc: false}))
+	wantDesc := []string{"Zeta", "Release 10", "release 2", "apple"}
+	if strings.Join(desc, " | ") != strings.Join(wantDesc, " | ") {
+		t.Errorf("title descending is %v, want %v", desc, wantDesc)
+	}
+}
+
 // TestPageSliceBounds covers the three page-slice cases: in-range,
 // past-the-end (returns nil), and partial last page.
 func TestPageSliceBounds(t *testing.T) {

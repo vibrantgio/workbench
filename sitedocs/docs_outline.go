@@ -30,6 +30,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/icons"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -220,7 +221,7 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 				return disc.Layout(dgtx, func(gtx layout.Context) layout.Dimensions {
 					semantic.LabelOp("disclose " + row.Title).Add(gtx.Ops)
 					semantic.EnabledOp(true).Add(gtx.Ops)
-					pointer.CursorPointer.Add(gtx.Ops)
+					pointershape.OverSize(gtx.Ops, image.Pt(col, mark), pointer.CursorPointer)
 					drawOutlineDisclosure(gtx, row.Open, unit.Dp(docsOutlineMarkDp), discloseMark)
 					return layout.Dimensions{Size: image.Pt(col, mark)}
 				})
@@ -232,8 +233,9 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
-				pointer.CursorPointer.Add(gtx.Ops)
-				return drawOutlineLabel(gtx, tok.shaper, row.Title, style, title)
+				dims := drawOutlineLabel(gtx, tok.shaper, row.Title, style, title)
+				pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
+				return dims
 			})
 		}),
 		layout.Rigid(hSpacer(docsOutlineInsetDp)),
