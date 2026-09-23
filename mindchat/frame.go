@@ -458,16 +458,17 @@ func paneNewChat(gtx layout.Context, t themed, click *widget.Clickable) layout.D
 // on, not of the switch it belongs to.
 func controlBox(gtx layout.Context, t themed, click *widget.Clickable, label string, mark func(gtx layout.Context, sizePx int, col color.NRGBA), on bool) layout.Dimensions {
 	state := button.RenderState{
+		Variant: button.Chrome,
 		Hovered: click.Hovered(),
 		Pressed: click.Pressed(),
 		Focused: gtx.Focused(click),
 		Checked: on,
 	}
-	face := button.ChromeFace(mark, t.col, tokens.Radius, t.den, state)
+	face := button.BorderedFace(mark, t.col, tokens.Radius, t.den, state)
 	// The shadow is cast AROUND the clickable rather than inside it: it falls
 	// outside the control's own box, and a clickable clips what it wraps to
 	// the box its layout.Widget reports.
-	return button.ChromeShadow(gtx, t.col, state, func(gtx layout.Context) layout.Dimensions {
+	return button.BorderedShadow(gtx, t.col, state, func(gtx layout.Context) layout.Dimensions {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.ClassOp(semantic.Button).Add(gtx.Ops)
 			semantic.LabelOp(label).Add(gtx.Ops)

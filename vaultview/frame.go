@@ -1046,28 +1046,28 @@ func (f *frameState) layoutNavigation(gtx layout.Context, m Model, tok themeToke
 	if f.fwdClick.Clicked(gtx) && fwd {
 		mvu.MessageOp{Message: GoForward{}}.Add(gtx.Ops)
 	}
-	segs := []button.ChromeSegment{
+	segs := []button.BorderedSegment{
 		navSegment(&f.backClick, icons.HistoryBack, "Back", back),
 		navSegment(&f.fwdClick, icons.HistoryForward, "Forward", fwd),
 	}
 	// The shadow is cast AROUND the control, the way every bordered control
 	// in this band casts its own: it falls outside the box the control
 	// reports.
-	return button.ChromeShadow(gtx, tok.col, button.RenderState{}, func(gtx layout.Context) layout.Dimensions {
+	return button.BorderedShadow(gtx, tok.col, button.RenderState{Variant: button.Chrome}, func(gtx layout.Context) layout.Dimensions {
 		// The pair is drawn at its own width: the band hands a control room
 		// and not a width, so the shared control divides nothing here.
 		gtx.Constraints.Min = image.Point{}
-		return button.ChromeSegments(gtx, tok.shaper, tok.col, tokens.Radius, tok.typ.LabelLarge, tok.den, segs)
+		return button.BorderedSegments(gtx, tok.shaper, tok.col, tokens.Radius, tok.typ.LabelLarge, tok.den, segs)
 	})
 }
 
 // navSegment is one half of that pair: the set's mark for the direction, the
 // state the stack leaves it in, and the clickable that takes the press over
 // the segment's own box.
-func navSegment(click *widget.Clickable, mark icons.Name, label string, enabled bool) button.ChromeSegment {
-	return button.ChromeSegment{
+func navSegment(click *widget.Clickable, mark icons.Name, label string, enabled bool) button.BorderedSegment {
+	return button.BorderedSegment{
 		Icon:  icons.Mark(mark),
-		State: button.RenderState{Hovered: click.Hovered(), Pressed: click.Pressed(), Disabled: !enabled},
+		State: button.RenderState{Variant: button.Chrome, Hovered: click.Hovered(), Pressed: click.Pressed(), Disabled: !enabled},
 		Target: func(gtx layout.Context) layout.Dimensions {
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.ClassOp(semantic.Button).Add(gtx.Ops)
@@ -1202,14 +1202,15 @@ func paneMark(gtx layout.Context, tok themeTokens, click *widget.Clickable, name
 // band is drawn through here, so the band holds one control drawn one way.
 func chromeControl(gtx layout.Context, tok themeTokens, click *widget.Clickable, name icons.Name, label string) layout.Dimensions {
 	state := button.RenderState{
+		Variant: button.Chrome,
 		Hovered: click.Hovered(),
 		Pressed: click.Pressed(),
 		Focused: gtx.Focused(click),
 	}
-	face := button.ChromeFace(icons.Mark(name), tok.col, tokens.Radius, tok.den, state)
+	face := button.BorderedFace(icons.Mark(name), tok.col, tokens.Radius, tok.den, state)
 	// The shadow is cast AROUND the clickable: it falls outside the control's
 	// own box, and a clickable clips what it wraps to the box it reports.
-	return button.ChromeShadow(gtx, tok.col, state, func(gtx layout.Context) layout.Dimensions {
+	return button.BorderedShadow(gtx, tok.col, state, func(gtx layout.Context) layout.Dimensions {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.ClassOp(semantic.Button).Add(gtx.Ops)
 			semantic.LabelOp(label).Add(gtx.Ops)

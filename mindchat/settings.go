@@ -548,17 +548,17 @@ func blankRow(gtx layout.Context) layout.Dimensions {
 // the patch the platform fills it with, measured off Finder's view control.
 func providerSegments(gtx layout.Context, t settingsThemed, prov Provider, tplClicks []*widget.Clickable) layout.Dimensions {
 	chosen := matchingTemplate(prov)
-	segs := make([]button.ChromeSegment, len(ProviderTemplates))
+	segs := make([]button.BorderedSegment, len(ProviderTemplates))
 	for i := range ProviderTemplates {
 		index := i
 		click := tplClicks[i]
 		for click.Clicked(gtx) {
 			mvu.MessageOp{Message: ApplyTemplate{Index: index}}.Add(gtx.Ops)
 		}
-		segs[i] = button.ChromeSegment{
+		segs[i] = button.BorderedSegment{
 			Label: ProviderTemplates[i].Name,
 			State: button.RenderState{
-				Place:   button.Body,
+				Variant: button.Form,
 				Hovered: click.Hovered(),
 				Pressed: click.Pressed(),
 				Checked: index == chosen,
@@ -582,7 +582,7 @@ func providerSegments(gtx layout.Context, t settingsThemed, prov Provider, tplCl
 	// The row hands over the fields' column exactly, and a segmented control
 	// divides the width it is asked for evenly, so the four segments span
 	// that column as a field spans it.
-	return button.ChromeSegments(gtx, t.shaper, t.colors, tokens.Radius, t.typ.LabelMedium, tokens.Comfortable, segs)
+	return button.BorderedSegments(gtx, t.shaper, t.colors, tokens.Radius, t.typ.LabelMedium, tokens.Comfortable, segs)
 }
 
 // matchingTemplate is the template the edited provider already stands for —
@@ -812,11 +812,11 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 // records no state, which is what tells this pair from the templates' control
 // above, where one of four is always in force.
 func addRemovePair(gtx layout.Context, t settingsThemed, addClick, removeClick *widget.Clickable) layout.Dimensions {
-	seg := func(click *widget.Clickable, mark marks.Painter, label string) button.ChromeSegment {
-		return button.ChromeSegment{
+	seg := func(click *widget.Clickable, mark marks.Painter, label string) button.BorderedSegment {
+		return button.BorderedSegment{
 			Icon: mark,
 			State: button.RenderState{
-				Place:   button.Body,
+				Variant: button.Form,
 				Hovered: click.Hovered(),
 				Pressed: click.Pressed(),
 			},
@@ -831,14 +831,14 @@ func addRemovePair(gtx layout.Context, t settingsThemed, addClick, removeClick *
 			},
 		}
 	}
-	segs := []button.ChromeSegment{
+	segs := []button.BorderedSegment{
 		seg(addClick, t.add, "Add provider"),
 		seg(removeClick, t.remove, "Remove provider"),
 	}
 	cg := gtx
 	cg.Constraints.Min = image.Point{}
 	cg.Constraints.Max.Y = gtx.Dp(SettingsAddRemoveHeight)
-	return button.ChromeSegments(cg, t.shaper, t.colors, tokens.Radius, t.typ.LabelMedium, tokens.Comfortable, segs)
+	return button.BorderedSegments(cg, t.shaper, t.colors, tokens.Radius, t.typ.LabelMedium, tokens.Comfortable, segs)
 }
 
 // providerRow is one selectable provider entry, in the sidebar row idiom
