@@ -38,6 +38,7 @@ import (
 	"github.com/reactivego/rx"
 	"github.com/vibrantgio/components/badge"
 	"github.com/vibrantgio/components/button"
+	marks "github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/picker"
@@ -59,12 +60,16 @@ type settingsThemed struct {
 	// colors is the platform's own set, kept beside the palette because the
 	// shared controls the body reaches for — the segmented control — are
 	// handed the platform's names rather than this app's derivations.
-	colors  tokens.PlatformColors
-	bar     scrollbar.Style
-	typ     tokens.Typography
-	shaper  *text.Shaper
-	add     layout.Widget
-	remove  layout.Widget
+	colors tokens.PlatformColors
+	bar    scrollbar.Style
+	typ    tokens.Typography
+	shaper *text.Shaper
+	// add and remove are the design system's own marks rather than
+	// prebuilt rasterisations: the bordered pair they stand in colours its
+	// own mark from the fill each segment ends up at, and a rasterisation
+	// built with a colour cannot take another.
+	add     marks.Painter
+	remove  marks.Painter
 	refresh layout.Widget
 	boxOn   layout.Widget
 	boxOff  layout.Widget
@@ -162,8 +167,8 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				bar:        scrollbar.FromTokens(c, c.WindowBackground),
 				typ:        typ,
 				shaper:     typ.Shaper(),
-				add:        mk(icons.ContentAdd, p.FloatingHeading),
-				remove:     mk(icons.ContentRemove, p.FloatingHeading),
+				add:        marks.Mark(marks.Plus),
+				remove:     marks.Mark(marks.Minus),
 				refresh:    mk(icons.NavigationRefresh, p.FloatingHeading),
 				boxOn:      mk(icons.ToggleCheckBox, p.Accent),
 				boxOff:     mk(icons.ToggleCheckBoxOutlineBlank, p.FloatingHeading),
@@ -431,11 +436,13 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layo
 					layout.Rigid(formRow(t, cols, "", SettingsCaptionRow, func(gtx layout.Context) layout.Dimensions {
 						return webSearchRow(gtx, t, selected.WebSearch, webClick)
 					})),
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						return layout.Dimensions{Size: gtx.Constraints.Max}
-					}),
+					rowGap,
 					// The row the picker below is drawn into: its label, and
-					// the height the trigger takes.
+					// the height the trigger takes. It follows the row above
+					// it at the same measured air every other row does: the
+					// body is the sum of its rows ([SettingsBodyHeight]), so
+					// nothing pins this row to a foot it would otherwise
+					// stand clear of.
 					layout.Rigid(formRow(t, cols, "Default model:", SelectRowHeight, blankRow)),
 				)
 			}),
@@ -619,9 +626,9 @@ func keyRow(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider
 	}
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 		layout.Flexed(1, field),
-		layout.Rigid(layout.Spacer{Width: 8}.Layout),
+		layout.Rigid(layout.Spacer{Width: SettingsControlGap}.Layout),
 		layout.Rigid(verdict),
-		layout.Rigid(layout.Spacer{Width: 8}.Layout),
+		layout.Rigid(layout.Spacer{Width: SettingsControlGap}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return IconButton(gtx, refreshClick, SettingsIconBtn, func(gtx layout.Context, sz int) {
 				t.refresh(gtx)
@@ -735,7 +742,7 @@ func defaultPickerKeyOf(m Model) defaultPickerKey {
 	}
 }
 
-// providerColumn is the providers well: the PROVIDERS caption, the
+// providerColumn is the providers well: the "Providers" caption, the
 // selectable provider rows, and the add/remove pair standing on the well's
 // last row — on its own shaded panel so the catalogue reads as a distinct
 // surface from the form beside it. It runs the body's whole height, so the
@@ -761,7 +768,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			r := image.Rect(0, 0, gtx.Constraints.Max.X, gtx.Dp(SettingsCaptionRow))
-			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), r, 0, 0.5, p.FloatingHeading, "PROVIDERS")
+			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), r, 0, 0.5, p.FloatingHeading, "Providers")
 			return layout.Dimensions{Size: r.Max}
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -771,31 +778,69 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 				})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			btn := func(click *widget.Clickable, icon layout.Widget) layout.Widget {
-				return func(gtx layout.Context) layout.Dimensions {
-					return IconButton(gtx, click, SettingsIconBtn, func(gtx layout.Context, sz int) {
-						icon := icon
-						ig := gtx
-						ig.Constraints = layout.Exact(image.Pt(sz, sz))
-						icon(ig)
-					})
-				}
-			}
 			// The well's last row. Its box ends on the panel's own inner
 			// foot, so the air under it is the same SettingsPanelInset the
 			// caption at the head stands off the top by, and the well's ends
-			// are square to the rows between them. Only the icon's own
-			// margin inside its 18 dp box stands under the glyph.
+			// are square to the rows between them.
 			return layout.Inset{Top: SettingsPanelInset}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-					layout.Rigid(btn(addClick, t.add)),
-					layout.Rigid(layout.Spacer{Width: 10}.Layout),
-					layout.Rigid(btn(removeClick, t.remove)),
-				)
+				return addRemovePair(gtx, t, addClick, removeClick)
 			})
 		}),
 	)
 	return layout.Dimensions{Size: size}
+}
+
+// addRemovePair draws the well's add and remove controls as the platform
+// draws them under a list it lets the reader edit: ONE bordered control of two
+// momentary segments, not two bare glyphs. Two detached marks on the panel say
+// two unrelated things; the bordered pair says one list is being edited.
+//
+// It is the toolbar's segmented control standing in a body, drawn at the
+// geometry the reference measures it at — the control's own 36 px, the set's
+// 19-unit keyline inside it, the seam and the rim `components/button` reads off
+// Finder's back/forward pair. The platform's own pair under a list is a
+// smaller control than a toolbar's and no stored capture holds one, so its
+// size, its segment width and its mark's proportion are unmeasured; the
+// capture is on the list and this geometry stands until it.
+//
+// Neither segment is ever Checked: a momentary segment performs an action and
+// records no state, which is what tells this pair from the templates' control
+// above, where one of four is always in force.
+func addRemovePair(gtx layout.Context, t settingsThemed, addClick, removeClick *widget.Clickable) layout.Dimensions {
+	seg := func(click *widget.Clickable, mark marks.Painter, label string) button.ChromeSegment {
+		return button.ChromeSegment{
+			Icon: mark,
+			State: button.RenderState{
+				Hovered: click.Hovered(),
+				Pressed: click.Pressed(),
+			},
+			Target: func(gtx layout.Context) layout.Dimensions {
+				return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					size := gtx.Constraints.Max
+					pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
+					semantic.ClassOp(semantic.Button).Add(gtx.Ops)
+					semantic.LabelOp(label).Add(gtx.Ops)
+					return layout.Dimensions{Size: size}
+				})
+			},
+		}
+	}
+	segs := []button.ChromeSegment{
+		seg(addClick, t.add, "Add provider"),
+		seg(removeClick, t.remove, "Remove provider"),
+	}
+	cg := gtx
+	cg.Constraints.Min = image.Point{}
+	cg.Constraints.Max.Y = gtx.Dp(SettingsAddRemoveHeight)
+	// No drop shadow, where the templates' control above carries one. The
+	// shadow a bordered control casts is measured on a TOOLBAR BAND, and the
+	// reason the templates' control spends it is that its fill is the light
+	// appearance's #ffffff on the sheet's own #ffffff, so nothing else tells
+	// it from what it stands on. This pair stands on the well's panel, which
+	// is a fill of its own, and a shadow cast here reaches past the panel's
+	// foot onto the sheet beneath it — a smudge on the sheet cast by a
+	// control standing wholly inside another surface.
+	return button.ChromeSegments(cg, t.shaper, t.colors, t.typ.LabelMedium, tokens.Comfortable, segs)
 }
 
 // providerRow is one selectable provider entry, in the sidebar row idiom

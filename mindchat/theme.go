@@ -233,9 +233,31 @@ const (
 	RenameFieldHeight unit.Dp = 48
 
 	// Settings modal geometry.
-	SettingsBodyHeight unit.Dp = 300
-	SettingsListWidth  unit.Dp = 150
-	SettingsRowHeight  unit.Dp = 28
+
+	// SettingsSegmentsHeight is the height the templates' segmented control
+	// draws at: the platform's bordered control in a band, which is the only
+	// segmented control the reference measures.
+	SettingsSegmentsHeight = unit.Dp(tokens.ComfortableToolbarControlHeight)
+	// SettingsAddRemoveHeight is the height the well's +/− pair draws at: the
+	// same bordered control, so the mark inside it keeps the proportion the
+	// reference measured it at — the set's 19-unit keyline in a control 36 px
+	// tall. The platform's own pair under a list is smaller than a toolbar's
+	// control and no stored capture holds one; the capture is on the list and
+	// the measured geometry stands until it.
+	SettingsAddRemoveHeight = SettingsSegmentsHeight
+	// SettingsBodyHeight is the dialog body's height: the form's rows and the
+	// measured air between them, summed. It is the sum and not a number of
+	// its own so that the body carries no slack — the providers well runs the
+	// body's whole height, so any room the form does not spend stands as a
+	// void above the form's last row and the two columns stop finishing
+	// together.
+	SettingsBodyHeight = SettingsSegmentsHeight +
+		4*SettingsRowGap +
+		3*SettingsFieldHeight +
+		2*SettingsCaptionRow +
+		SelectRowHeight
+	SettingsListWidth unit.Dp = 150
+	SettingsRowHeight unit.Dp = 28
 	// SettingsFieldHeight is one form row of the dialog: the height a text
 	// field draws itself at, so the row is the control and no slack.
 	// MEASURED, save-dialog-{light,dark}.png: the "Tags:" field's box runs y
@@ -256,6 +278,13 @@ const (
 	// x=255 whatever their length, and every field and pop-up beside them
 	// begins its box at x=264.
 	SettingsLabelGap unit.Dp = 8
+	// SettingsControlGap is the air between two controls standing side by
+	// side in one row — the API-key field, its verdict and the re-check
+	// control. MEASURED, save-dialog-{light,dark}.png: the sheet's two
+	// answers run x 359-432 and x 441-514, eight clear columns between them,
+	// in both appearances. It is the same eight the label column leaves
+	// before the field column, read between two controls instead.
+	SettingsControlGap unit.Dp = 8
 	// SettingsWellGap is the air between the providers well and the form
 	// beside it.
 	SettingsWellGap    unit.Dp = 12

@@ -207,10 +207,10 @@ const (
 // stands in this window: the dialog is 560 dp wide and centred, the trigger
 // runs from the form's field column to the body's trailing edge, and its row
 // is the last one in the form. Read off the rendered frame rather than
-// recomputed from the modal's internals — x 514-771, y 510-533 in
+// recomputed from the modal's internals — x 514-771, y 474-497 in
 // window-settings-light.png — and asserted by the open capture differing from
 // the closed one.
-var defaultPickerCentre = f32.Pt(642, 521)
+var defaultPickerCentre = f32.Pt(642, 485)
 
 var buttonHues = []color.NRGBA{
 	{R: 0xff, G: 0x5f, B: 0x57, A: 0xff},

@@ -88,7 +88,7 @@ func FieldLayer(win *app.Window, th rx.Observable[theme.Theme]) rx.Observable[la
 // HeroProps is the page's title block, stated once so a render made outside
 // the running window puts the same words on the page as the window does.
 var HeroProps = hero.Props{
-	Eyebrow: "VIBRANTGIO",
+	Eyebrow: "Vibrant Gio",
 	Title:   "Workbench",
 	// The subtitle names no count of the apps: a number written here is one
 	// nobody updates when an app is added.
