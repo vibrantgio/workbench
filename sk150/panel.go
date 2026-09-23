@@ -98,11 +98,98 @@ func wattRow(t themed, r Reading) layout.Widget {
 	return panelRow(t, t.palette.DisplayWatt, fmt.Sprintf("%.3f", r.Power), "W", "", color.NRGBA{})
 }
 
+// setLimitLine is one of the two small lines the panel's second area shows:
+// the caption the device gives the pair, and the pair's two values with
+// their units.
+type setLimitLine struct {
+	Caption string
+	Volts   string
+	Amps    string
+}
+
+// The stand-ins shown while the live group has not been read: one dash per
+// digit, so the lines hold the width the values will take.
+const (
+	dashVolts = "--.-- V"
+	dashAmps  = "-.--- A"
+)
+
+// setLimitLines is what the second area holds: the live group's two
+// setpoints, and the two protections that cut the output.
+func setLimitLines(m Model) [2]setLimitLine {
+	if !m.HaveS {
+		return [2]setLimitLine{{"Set", dashVolts, dashAmps}, {"Limit", dashVolts, dashAmps}}
+	}
+	return [2]setLimitLine{
+		{"Set", fmt.Sprintf(FVSet.spec().Format, m.S.Value(FVSet)), fmt.Sprintf(FISet.spec().Format, m.S.Value(FISet))},
+		{"Limit", fmt.Sprintf(FOVP.spec().Format, m.S.Value(FOVP)), fmt.Sprintf(FOCP.spec().Format, m.S.Value(FOCP))},
+	}
+}
+
+// displayRule is the line between the panel's two areas — what the OWON
+// draws as a border around its Set and Limit boxes. It spans the panel's lit
+// width, so the two areas read as two areas and not as a fourth reading
+// under three.
+func displayRule(t themed) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := image.Pt(gtx.Constraints.Max.X, max(1, gtx.Dp(1)))
+		paint.FillShape(gtx.Ops, t.palette.DisplayCaption, clip.Rect{Max: size}.Op())
+		return layout.Dimensions{Size: size}
+	}
+}
+
+// setLimitBlock is the readout panel's second area, under the rule and
+// inside the same black: the caption at the left, then the volts and then
+// the amps, each right-aligned in a column wide enough for both lines, so
+// the two lines' digits stand in one column the way the readings above them
+// do. The caller hangs the block's right edge on the readouts' column, so
+// the two areas share one right margin.
+//
+// The volts take the volt line's green and the amps the amp line's yellow,
+// the two the readings above are lit in, so a value on these lines is the
+// same colour as the reading it governs. The captions are words rather than
+// values and carry no hue at all: the display has three lit colours and no
+// fourth, so spending one of them on a heading would break the code the
+// readings teach.
+//
+// The block draws at its natural size and reads nothing off the
+// constraints, so the same two lines are the same pixels wherever they are
+// placed.
+func setLimitBlock(t themed, lines [2]setLimitLine) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		p, typ := t.palette, t.typ
+		measure := func(s string) image.Point {
+			return textdraw.MeasureText(gtx, typ.Shaper, typ.Set, s)
+		}
+		capW, voltW, ampW := 0, 0, 0
+		for _, l := range lines {
+			capW = max(capW, measure(l.Caption).X)
+			voltW = max(voltW, measure(l.Volts).X)
+			ampW = max(ampW, measure(l.Amps).X)
+		}
+		h := measure("0").Y
+		capGap, colGap, rowGap := gtx.Dp(18), gtx.Dp(18), gtx.Dp(2)
+		voltX := capW + capGap
+		ampX := voltX + voltW + colGap
+		w := ampX + ampW
+		for i, l := range lines {
+			y := i * (h + rowGap)
+			textdraw.FillText(gtx, typ.Shaper, typ.Set,
+				image.Rect(0, y, capW, y+h), 0, 0.5, p.DisplayCaption, l.Caption)
+			textdraw.FillText(gtx, typ.Shaper, typ.Set,
+				image.Rect(voltX, y, voltX+voltW, y+h), 1, 0.5, p.DisplayVolt, l.Volts)
+			textdraw.FillText(gtx, typ.Shaper, typ.Set,
+				image.Rect(ampX, y, ampX+ampW, y+h), 1, 0.5, p.DisplayAmp, l.Amps)
+		}
+		return layout.Dimensions{Size: image.Pt(w, 2*h+rowGap)}
+	}
+}
+
 // readoutPanelInset is the unlit margin the panel keeps on every side of its
 // segments.
 const readoutPanelInset unit.Dp = 12
 
-// readoutPanel is the device's display: the three readout lines lit on the
+// readoutPanel is the device's display: the readout lines lit on the
 // panel's black. It is the same in both colour schemes because the meter has
 // one panel — the window around it is the platform's.
 func readoutPanel(t themed, rowGap unit.Dp, rows ...layout.Widget) layout.Widget {

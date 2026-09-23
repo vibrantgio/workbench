@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/text"
 
 	"github.com/reactivego/rx"
@@ -69,8 +71,11 @@ func staticTheme(c tokens.PlatformColors) theme.Theme {
 // goldenReading is the device as the photograph in the plan's
 // reference/sk150-display.png shows it: 21 V out at 7 A, 147 W, regulating on
 // voltage with the output on — the state the readout panel is reviewed in.
+// The setpoints are not on the photograph: the output holds 21 V exactly, so
+// the voltage sits at its setpoint, and the current stands under its limit,
+// which is what regulating on voltage means.
 var goldenReading = Reading{
-	VSet: 21, ISet: 7,
+	VSet: 21, ISet: 7.1,
 	VOut: 21, IOut: 7, Power: 147,
 	VIn:     24.6,
 	MilliAh: 1240, MilliWh: 26800,
@@ -97,6 +102,15 @@ func goldenHistory() []Sample {
 	return out
 }
 
+// goldenSettings is the live group behind that reading: the two setpoints
+// the output is regulating to, and the two protections that would cut it.
+// Each protection stands above the setpoint it guards, as the app's own
+// write path requires.
+var goldenSettings = Settings{
+	VSet: 21, ISet: 7.1,
+	LVP: 10.5, OVP: 24, OCP: 7.2, OPP: 150, OTP: 80,
+}
+
 // goldenModel is the window as the stored images show it: online against the
 // simulated device, on the Monitor tab, with the reading above.
 func goldenModel() Model {
@@ -108,6 +122,8 @@ func goldenModel() Model {
 		PollCount:  60,
 		R:          goldenReading,
 		HaveR:      true,
+		S:          goldenSettings,
+		HaveS:      true,
 		History:    goldenHistory(),
 		EditPreset: noEdit,
 	}
@@ -225,5 +241,133 @@ func TestReadoutPanelIsTheMetersOwnDisplay(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// goldenThemed is the palette and the typography the window draws with in one
+// scheme: what a layout.Widget rendered on its own, outside the window, needs
+// to land the same pixels.
+func goldenThemed(c tokens.PlatformColors) themed {
+	return themed{palette: PaletteFrom(c), typ: TypeFrom(tokens.DefaultTypography)}
+}
+
+// renderPatch draws one layout.Widget at its natural size on the readout
+// panel's black and returns the smallest image holding every pixel that is
+// not that black — the patch as it stands in the window, where the same
+// layout.Widget is placed at whole-pixel offsets on the same fill.
+func renderPatch(t *testing.T, th themed, w layout.Widget) *image.RGBA {
+	t.Helper()
+	size := image.Pt(640, 240)
+	img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+		paint.FillShape(gtx.Ops, th.palette.DisplayPanel, clip.Rect{Max: size}.Op())
+		return w(gtx)
+	})
+	box := image.Rectangle{Min: size, Max: image.Point{}}
+	for y := 0; y < size.Y; y++ {
+		for x := 0; x < size.X; x++ {
+			if at(img, x, y) == th.palette.DisplayPanel {
+				continue
+			}
+			box.Min.X, box.Min.Y = min(box.Min.X, x), min(box.Min.Y, y)
+			box.Max.X, box.Max.Y = max(box.Max.X, x+1), max(box.Max.Y, y+1)
+		}
+	}
+	if box.Empty() {
+		t.Fatal("the block drew nothing on the panel's black")
+	}
+	return img.SubImage(box).(*image.RGBA)
+}
+
+// patchTolerance is how far one channel of a matched pixel may stand from the
+// patch's: the same glyphs rasterised under a different clip round one or two
+// steps apart, which is not a difference in what the frame says.
+const patchTolerance = 4
+
+// near reports whether two pixels are the same within that tolerance.
+func near(a, b color.NRGBA) bool {
+	d := func(x, y uint8) int { return int(x) - int(y) }
+	return abs(d(a.R, b.R)) <= patchTolerance && abs(d(a.G, b.G)) <= patchTolerance && abs(d(a.B, b.B)) <= patchTolerance
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+// findPatch reports whether patch stands somewhere in img. The search is
+// anchored on the patch's first lit pixel, so only the handful of frame
+// pixels wearing that colour are compared in full.
+func findPatch(img, patch *image.RGBA) bool {
+	pb, ib := patch.Bounds(), img.Bounds()
+	w, h := pb.Dx(), pb.Dy()
+	ax, ay, anchor := 0, 0, color.NRGBA{}
+	for y := 0; y < h && anchor == (color.NRGBA{}); y++ {
+		for x := 0; x < w; x++ {
+			if c := at(patch, pb.Min.X+x, pb.Min.Y+y); c != displayPanel {
+				ax, ay, anchor = x, y, c
+				break
+			}
+		}
+	}
+	for y := ib.Min.Y; y <= ib.Max.Y-h; y++ {
+	candidate:
+		for x := ib.Min.X; x <= ib.Max.X-w; x++ {
+			if !near(at(img, x+ax, y+ay), anchor) {
+				continue
+			}
+			for py := 0; py < h; py++ {
+				for px := 0; px < w; px++ {
+					if !near(at(img, x+px, y+py), at(patch, pb.Min.X+px, pb.Min.Y+py)) {
+						continue candidate
+					}
+				}
+			}
+			return true
+		}
+	}
+	return false
+}
+
+// TestTheSetAndLimitLinesAreOnTheFrame reads the live group's four values off
+// the rendered window: the two setpoints and the two protections, drawn as
+// the panel's second area draws them, are found in the frame in both
+// schemes — the panel is the meter's own display and does not change with
+// the window's appearance.
+func TestTheSetAndLimitLinesAreOnTheFrame(t *testing.T) {
+	want := [2]setLimitLine{
+		{"Set", "21.00 V", "7.100 A"},
+		{"Limit", "24.00 V", "7.200 A"},
+	}
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			th := goldenThemed(tc.c)
+			patch := renderPatch(t, th, setLimitBlock(th, want))
+			if !findPatch(renderWindow(t, tc.c), patch) {
+				t.Errorf("the Set and Limit lines %v are nowhere in the %s frame", want, tc.name)
+			}
+		})
+	}
+}
+
+// TestTheSetAndLimitLinesDashWithoutTheLiveGroup: before the first read of
+// the live group there is nothing to show, so the lines stand at the width
+// the values will take with a dash per digit.
+func TestTheSetAndLimitLinesDashWithoutTheLiveGroup(t *testing.T) {
+	m := goldenModel()
+	m.S, m.HaveS = Settings{}, false
+	if got, want := setLimitLines(m), ([2]setLimitLine{
+		{"Set", dashVolts, dashAmps},
+		{"Limit", dashVolts, dashAmps},
+	}); got != want {
+		t.Errorf("without the live group the lines are %v, want %v", got, want)
+	}
+	th := goldenThemed(tokens.PlatformLight)
+	dashed := renderPatch(t, th, setLimitBlock(th, setLimitLines(m)))
+	valued := renderPatch(t, th, setLimitBlock(th, setLimitLines(goldenModel())))
+	if dashed.Bounds().Dx() != valued.Bounds().Dx() {
+		t.Errorf("the dashed lines are %d px wide, the valued lines %d px: the dashes do not hold the digits' width",
+			dashed.Bounds().Dx(), valued.Bounds().Dx())
 	}
 }

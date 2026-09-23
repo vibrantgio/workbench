@@ -21,6 +21,15 @@ var (
 	displayAmp   = color.NRGBA{R: 0xfe, G: 0xfb, B: 0x43, A: 0xff}
 	displayWatt  = color.NRGBA{R: 0xf9, G: 0x28, B: 0xfa, A: 0xff}
 	displayPanel = color.NRGBA{R: 0x09, G: 0x09, B: 0x05, A: 0xff}
+
+	// The panel's captions and the rule between its two areas carry no
+	// hue. Over the photograph's lit area every lit
+	// pixel falls in the green, the yellow or the magenta above, and six
+	// pixels in twenty-one thousand are unsaturated, so the display has no
+	// fourth colour to spend on a word. This is the panel's own black
+	// lifted two fifths of the way to white, a brightness rather than a
+	// colour, which leaves the three-hue code the readings teach intact.
+	displayCaption = color.NRGBA{R: 0x6b, G: 0x6b, B: 0x69, A: 0xff}
 )
 
 // Palette is the app's view of the platform's colour set, resolved fresh on
@@ -55,6 +64,10 @@ type Palette struct {
 	DisplayAmp   color.NRGBA // the current readout, its unit, the CC badge and the ON badge
 	DisplayWatt  color.NRGBA // the power readout and its unit
 	DisplayPanel color.NRGBA // the panel the readouts are lit on, and the label cut out of a lit badge
+
+	// DisplayCaption is what the panel writes a word with: the Set and
+	// Limit captions, and the rule between the panel's two areas.
+	DisplayCaption color.NRGBA
 }
 
 // PaletteFrom reads the page off the platform's set and hands the readout
@@ -90,6 +103,8 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		DisplayAmp:   displayAmp,
 		DisplayWatt:  displayWatt,
 		DisplayPanel: displayPanel,
+
+		DisplayCaption: displayCaption,
 	}
 }
 
@@ -101,6 +116,7 @@ type Type struct {
 	Shaper *text.Shaper
 	Digits textdraw.TextStyle // the V/A/W readouts: Code face at 56 sp
 	Unit   textdraw.TextStyle // the unit letters: half the digit size
+	Set    textdraw.TextStyle // the Set and Limit lines under the readouts
 	Stack  textdraw.TextStyle // the CV/CC and ON/OFF badge labels
 	Title  textdraw.TextStyle // section headings and the header title
 	Body   textdraw.TextStyle // status lines and field captions
@@ -122,6 +138,13 @@ func TypeFrom(t tokens.Typography) Type {
 	unit := t.Code
 	unit.Size = 24
 	unit.Weight = 700
+	// Off the OWON photograph the set and limit digits stand about a fifth
+	// of the reading digits' height (80 px against 426 px). A fifth of 56 sp
+	// is 11 sp, under what this window reads at 1x, so the two lines take
+	// 16 sp — a little over a quarter of the readings.
+	set := t.Code
+	set.Size = 16
+	set.Weight = 700
 	stack := t.Code
 	stack.Size = 14
 	stack.Weight = 700
@@ -131,6 +154,7 @@ func TypeFrom(t tokens.Typography) Type {
 		Shaper: appShaper(t),
 		Digits: textStyle(digits),
 		Unit:   textStyle(unit),
+		Set:    textStyle(set),
 		Stack:  textStyle(stack),
 		Title:  textStyle(t.TitleLarge),
 		Body:   textStyle(t.BodyLarge),
