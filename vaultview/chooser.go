@@ -12,22 +12,20 @@ import (
 	"image"
 	"image/color"
 
+	"gioui.org/gesture"
 	"gioui.org/io/event"
 	"gioui.org/io/key"
-	"gioui.org/io/pointer"
-	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
-	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 )
@@ -54,9 +52,14 @@ func chooserLayer(
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.ChooserOpen() }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 
-	// Per-candidate clickables, pointer-stable across frames; the slice
-	// grows to the widest candidate list seen.
-	var rowClicks []*widget.Clickable
+	// Per-candidate pointer targets, stable across frames; the slice grows to
+	// the widest candidate list seen. A row is a gesture.Click and not a
+	// widget.Clickable because a Clickable registers a focus filter of its
+	// own, and a list is ONE focus target: with a filter per row Tab walks
+	// the rows one by one and never reaches what stands after the list. The
+	// keys reach a row through the list's own tag, which a click hands them
+	// to.
+	var rowClicks []*gesture.Click
 
 	// The candidates are a components/list, so the chooser's rows are the
 	// dialog's focusable: the list takes the keyboard when the chooser
@@ -71,7 +74,7 @@ func chooserLayer(
 		m := loadModel()
 		tok := loadTok()
 		for len(rowClicks) < len(m.ChooserCandidates) {
-			rowClicks = append(rowClicks, &widget.Clickable{})
+			rowClicks = append(rowClicks, &gesture.Click{})
 		}
 		if shown != m.ChooserBody && len(m.ChooserCandidates) > 0 {
 			shown = m.ChooserBody
@@ -153,46 +156,49 @@ func chooserRow(
 	gtx layout.Context,
 	tok themeTokens,
 	cand string,
-	click *widget.Clickable,
+	click *gesture.Click,
 	rows *list.State,
 	i int,
 	selected bool,
 	choose func(gtx layout.Context, i int),
 ) layout.Dimensions {
-	if click.Clicked(gtx) {
+	for {
+		e, ok := click.Update(gtx.Source)
+		if !ok {
+			break
+		}
+		if e.Kind != gesture.KindClick {
+			continue
+		}
 		rows.Select(i)
 		gtx.Execute(key.FocusCmd{Tag: rows.Focus()})
 		choose(gtx, i)
 	}
 	gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, gtx.Dp(chooserRowHDp)))
-	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
-		// A pick list answers the pointer the way the platform's
-		// menus do — the row under it wears the selection colour
-		// — rather than with an overlay tint, which the platform
-		// draws on a toolbar button and nowhere else. The row the
-		// keyboard stands on wears the same fill: one selection,
-		// whichever hand moved it.
-		fill := tok.col.WindowBackground
-		if selected || click.Hovered() {
-			fill = tok.col.SelectedContentBackground
-			paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
-		}
-		semantic.LabelOp(cand).Add(gtx.Ops)
-		pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
-		complayout.Inset(chooserRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					label := tok.col.Label
-					if selected || click.Hovered() {
-						label = tok.col.AlternateSelectedControlText
-					}
-					return drawLabel(gtx, tok.shaper, cand, tok.typ.BodyMedium,
-						vgcolor.Flatten(label, fill))
-				}),
-			)
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		})
-		return layout.Dimensions{Size: size}
+	size := gtx.Constraints.Max
+	// A pick list answers the pointer the way the platform's menus do — the
+	// row under it wears the selection colour — rather than with an overlay
+	// fill, which the platform draws on a toolbar button and nowhere else.
+	// The row the keyboard stands on wears the same fill: one selection,
+	// whichever hand moved it.
+	fill := tok.col.WindowBackground
+	if selected || click.Hovered() {
+		fill = tok.col.SelectedContentBackground
+		paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
+	}
+	complayout.Inset(chooserRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				label := tok.col.Label
+				if selected || click.Hovered() {
+					label = tok.col.AlternateSelectedControlText
+				}
+				return drawLabel(gtx, tok.shaper, cand, tok.typ.BodyMedium,
+					vgcolor.Flatten(label, fill))
+			}),
+		)
+		return layout.Dimensions{Size: gtx.Constraints.Max}
 	})
+	sidebar.RowTarget(gtx, click, size, cand)
+	return layout.Dimensions{Size: size}
 }

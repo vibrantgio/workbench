@@ -31,15 +31,13 @@ import (
 	"strconv"
 	"strings"
 
+	"gioui.org/gesture"
 	"gioui.org/io/key"
-	"gioui.org/io/pointer"
-	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
-	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
@@ -48,7 +46,6 @@ import (
 	"github.com/vibrantgio/components/icons"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
-	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -165,8 +162,15 @@ const (
 // one-shot initial focus. The directory trail keeps its own state, in the
 // row the theme stream hands this screen every frame.
 type pickerView struct {
-	list      *list.State
-	rowClicks []*widget.Clickable
+	list *list.State
+	// rowClicks are the rows' pointer targets. A row is a gesture.Click and
+	// not a widget.Clickable because a Clickable registers a focus filter of
+	// its own, and a list is ONE focus target: with a filter per row Tab
+	// walks the rows one by one and never reaches what stands after the
+	// list, where the platform hands Tab straight on to the next control.
+	// The keys reach a row through the list's own tag, which a click hands
+	// them to.
+	rowClicks []*gesture.Click
 	focused   bool
 	// dir is the directory the list was last laid out for, so a move to
 	// another one puts the list back at its first row: a listing the reader
@@ -361,7 +365,7 @@ func (v *pickerView) browser(
 // the browser stands on.
 func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntry, standsOn color.NRGBA, rowInset float32) layout.Dimensions {
 	for len(v.rowClicks) < len(entries) {
-		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
+		v.rowClicks = append(v.rowClicks, &gesture.Click{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
 	// The browser fills the selected row and nothing else — its rows take
@@ -384,33 +388,37 @@ func (v *pickerView) selectableRows(gtx layout.Context, tok themeTokens, entries
 	return list.LayoutSelectable(gtx, v.list, entries,
 		func(gtx layout.Context, item DirEntry, selected bool) layout.Dimensions {
 			click := v.rowClicks[item.Idx]
-			if click.Clicked(gtx) {
+			for {
+				e, ok := click.Update(gtx.Source)
+				if !ok {
+					break
+				}
+				if e.Kind != gesture.KindClick {
+					continue
+				}
 				v.list.Select(item.Idx)
 				gtx.Execute(key.FocusCmd{Tag: v.list.Focus()})
 				mvu.MessageOp{Message: BrowseTo{Dir: item.Path}}.Add(gtx.Ops)
 			}
 			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowH))
-			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				size := gtx.Constraints.Max
-				surface := standsOn
-				if selected {
-					surface = tok.col.SelectedContentBackground
-					paint.FillShape(gtx.Ops, surface, clip.Rect{Max: size}.Op())
-				}
-				semantic.LabelOp(item.Name).Add(gtx.Ops)
-				pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
-				// The inset is the row's leading and trailing air ALONE. A
-				// row is the list's own height — one control height — and a
-				// BodyLarge line box very nearly fills it, so vertical air
-				// here would push the label out of the row and the list's
-				// clip would cut it in half. What centres each part is the
-				// row's own height, which every painter below is handed.
-				complayout.InsetXY(rowInset, 0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					drawBrowserRow(gtx, tok, item, selected, surface)
-					return layout.Dimensions{Size: gtx.Constraints.Max}
-				})
-				return layout.Dimensions{Size: size}
+			size := gtx.Constraints.Max
+			surface := standsOn
+			if selected {
+				surface = tok.col.SelectedContentBackground
+				paint.FillShape(gtx.Ops, surface, clip.Rect{Max: size}.Op())
+			}
+			// The inset is the row's leading and trailing air ALONE. A row is
+			// the list's own height — one control height — and a BodyLarge
+			// line box very nearly fills it, so vertical air here would push
+			// the label out of the row and the list's clip would cut it in
+			// half. What centres each part is the row's own height, which
+			// every painter below is handed.
+			complayout.InsetXY(rowInset, 0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				drawBrowserRow(gtx, tok, item, selected, surface)
+				return layout.Dimensions{Size: gtx.Constraints.Max}
 			})
+			sidebar.RowTarget(gtx, click, size, item.Name)
+			return layout.Dimensions{Size: size}
 		})
 }
 

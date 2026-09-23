@@ -71,32 +71,69 @@ func livePicker(t *testing.T, m Model, c tokens.PlatformColors, shaper *text.Sha
 	return liveDialog(t, vaultPickerLayer, m, c, shaper)
 }
 
-// settledDialog drives w through the frames a live focus command needs — one
-// to register the tags, one for the router to act on the command — with keys
-// queued after, and captures the frame those keys left behind.
+// dialogDriver drives one live dialog through a real router: frames on
+// demand, keys and focus moves between them, and a capture of the frame the
+// last of them left behind.
+type dialogDriver struct {
+	t *testing.T
+	w layout.Widget
+	c tokens.PlatformColors
+	r *gioinput.Router
+}
+
+// newDialogDriver opens the dialog and settles it: one frame to register the
+// tags, one for the router to act on the opening focus command.
+func newDialogDriver(t *testing.T, w layout.Widget, c tokens.PlatformColors) *dialogDriver {
+	t.Helper()
+	d := &dialogDriver{t: t, w: w, c: c, r: new(gioinput.Router)}
+	d.frame()
+	d.frame()
+	return d
+}
+
+func (d *dialogDriver) frame() {
+	var ops op.Ops
+	d.w(layout.Context{
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: layout.Exact(windowFrameSize),
+		Ops:         &ops,
+		Source:      d.r.Source(),
+	})
+	d.r.Frame(&ops)
+}
+
+func (d *dialogDriver) press(k key.Event) {
+	d.r.Queue(k)
+	d.frame()
+}
+
+// moveForward asks the router for one forward focus move: the move Tab makes,
+// taken over the window's own focus targets rather than through the modal's
+// declared Tab cycle. The modal traps the Tab key and hands it round the tags
+// it declares, so a Tab key says nothing about how many focus targets the
+// body registered; this move does.
+func (d *dialogDriver) moveForward() {
+	d.r.MoveFocus(key.FocusForward)
+	d.frame()
+}
+
+func (d *dialogDriver) capture() *image.RGBA {
+	d.t.Helper()
+	return golden.Capture(d.t, windowFrameSize, windowScene(func(gtx layout.Context) layout.Dimensions {
+		gtx.Source = d.r.Source()
+		return d.w(gtx)
+	}, d.c))
+}
+
+// settledDialog drives w through the frames a live focus command needs, with
+// keys queued after, and captures the frame those keys left behind.
 func settledDialog(t *testing.T, w layout.Widget, c tokens.PlatformColors, keys ...key.Event) *image.RGBA {
 	t.Helper()
-	r := new(gioinput.Router)
-	drive := func() {
-		var ops op.Ops
-		w(layout.Context{
-			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
-			Constraints: layout.Exact(windowFrameSize),
-			Ops:         &ops,
-			Source:      r.Source(),
-		})
-		r.Frame(&ops)
-	}
-	drive()
-	drive()
+	d := newDialogDriver(t, w, c)
 	for _, k := range keys {
-		r.Queue(k)
-		drive()
+		d.press(k)
 	}
-	return golden.Capture(t, windowFrameSize, windowScene(func(gtx layout.Context) layout.Dimensions {
-		gtx.Source = r.Source()
-		return w(gtx)
-	}, c))
+	return d.capture()
 }
 
 // countColor reports how many pixels of the frame carry exactly col.
@@ -251,6 +288,46 @@ func TestTheSwitchDialogOpensOnTheBrowserWearingItsHalo(t *testing.T) {
 			}
 			if n := countColor(tabbed, cursor); n == 0 {
 				t.Error("Tab cleared the browser's selection: the selection is the list's, not the keyboard's")
+			}
+		})
+	}
+}
+
+// TestTheSwitchDialogsBrowserIsOneFocusTarget reads whether the browser's
+// list registers a focus filter per row, by asking the router for the one
+// move Tab makes and seeing where the halo lands.
+//
+// A list is ONE focusable wherever it stands, so the move carries the
+// keyboard out of the list and onto the footer, which stands below it. A
+// focus filter per row — which is what a widget.Clickable registers — would
+// hand the move to a row of the list instead, where nothing draws a halo at
+// all, and the arrows would go dead the moment it did.
+func TestTheSwitchDialogsBrowserIsOneFocusTarget(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := switchGoldenModel()
+
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ring := haloRing(tc.colors)
+
+			d := newDialogDriver(t, livePicker(t, m, tc.colors, shaper), tc.colors)
+			opened := d.capture()
+			if opened == nil {
+				return // headless unavailable; Capture called t.Skip
+			}
+			halo := colorBox(opened, ring)
+			if halo.Empty() {
+				t.Fatal("the switch dialog opened with no halo anywhere in the window: nothing holds the keyboard")
+			}
+
+			d.moveForward()
+			next := colorBox(d.capture(), ring)
+			if next.Empty() {
+				t.Fatal("one forward focus move left no halo in the window: the move landed on a row of the list, so the list is more than one focus target")
+			}
+			if next.Min.Y < halo.Max.Y {
+				t.Errorf("one forward focus move left the halo at y %d-%d, still over the list at y %d-%d: the list is more than one focus target",
+					next.Min.Y, next.Max.Y, halo.Min.Y, halo.Max.Y)
 			}
 		})
 	}

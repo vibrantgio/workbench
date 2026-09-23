@@ -126,7 +126,7 @@ func feedsSidebar(
 		cell := &sectionCells[i]
 		sections[i] = railSection{
 			Title: g.Title,
-			Rows: feedEntryListBody(th, func() []feedEntry {
+			Rows: feedEntryRows(th, func() []feedEntry {
 				if e, ok := cell.Load().([]feedEntry); ok {
 					return e
 				}
@@ -175,16 +175,36 @@ func feedsSidebar(
 }
 
 // railSection is one group as the rail draws it: the heading's name and the
-// run of rows that stands under it while the section is open.
+// rows that stand under it while the section is open.
 type railSection struct {
 	Title string
-	Rows  layout.Widget
+	Rows  railRowSet
+}
+
+// railRowSet is one section's rows as the rail's scrolling column draws
+// them: how many the section currently holds, the drawing of one of them,
+// and the drain of every row's pointer click.
+//
+// The rows are handed over one at a time rather than as one layout.Widget
+// for the whole run because each is a ROW of the scrolling column: the column
+// then brings the cursor's row into view by that row rather than by its
+// section, which is the difference between a reader seeing the row the
+// arrows walked to and seeing the head of the section holding it.
+//
+// Drain stands apart from Row for the reason the headings' clicks do: a row
+// scrolled out of view lays out nothing, and a click it has already taken
+// would be dropped with it.
+type railRowSet struct {
+	Count func() int
+	Row   func(gtx layout.Context, i int) layout.Dimensions
+	Drain func(gtx layout.Context)
 }
 
 // railRow is one feed row as the rail's keyboard walks them: the section the
-// row stands in and the feed it opens.
+// row stands in, where it stands within that section, and the feed it opens.
 type railRow struct {
 	Section int
+	Index   int
 	ID      FeedID
 }
 
@@ -198,8 +218,8 @@ func railRowRun(sections int, feeds []feedGroup, open map[int]bool) []railRow {
 		if !open[i] || i >= len(feeds) {
 			continue
 		}
-		for _, e := range feeds[i].Entries {
-			run = append(run, railRow{Section: i, ID: e.ID})
+		for j, e := range feeds[i].Entries {
+			run = append(run, railRow{Section: i, Index: j, ID: e.ID})
 		}
 	}
 	return run
@@ -392,6 +412,14 @@ func drawRailColumn(
 	if id, ok := kb.Keys.update(gtx, kb.Rows, kb.Open); ok {
 		mvu.MessageOp{Message: SelectFeed{Feed: id}}.Add(gtx.Ops)
 	}
+	// And every row's click, for the third time the same reason: a row the
+	// column scrolled past lays out nothing this frame, and a click it took
+	// before it went would be dropped with it.
+	for i := range sections {
+		if sections[i].Rows.Drain != nil {
+			sections[i].Rows.Drain(gtx)
+		}
+	}
 	strip := min(gtx.Dp(unit.Dp(pane.StripDp)), size.Y)
 	if strip >= size.Y {
 		return layout.Dimensions{Size: size}
@@ -417,11 +445,11 @@ func drawRailColumn(
 	}
 	list.LayoutScrollbar(cgtx, scroll, bar, list.Overlay, blocks,
 		func(gtx layout.Context, b railBlock) layout.Dimensions {
-			if b.Rows {
-				if sections[b.Section].Rows == nil {
+			if b.Row >= 0 {
+				if sections[b.Section].Rows.Row == nil {
 					return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
 				}
-				return sections[b.Section].Rows(gtx)
+				return sections[b.Section].Rows.Row(gtx, b.Row)
 			}
 			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, headH))
 			return drawRailHeading(gtx, colors, typ, sections[b.Section].Title,
@@ -432,42 +460,49 @@ func drawRailColumn(
 }
 
 // railBlock is one block of the rail's scrolling column: a section's heading,
-// or the run of rows standing under an open one. The two are separate blocks
-// so that a long section's rows and the heading above them scroll as one
-// column while each still reports its own height.
+// or one row standing under an open one.
+//
+// A row is a block of its own, not part of a block holding its section's whole
+// run, because the column scrolls by blocks: a run-sized block brings a
+// section's HEAD into view when the cursor walks to a row at its foot, which
+// is a row the reader cannot see. One block per row makes the cursor's row
+// the very thing components/list is asked to reveal, and leaves the rail's
+// composition where it was — the blocks stack in the same order at the same
+// heights, so the column draws the same pixels.
 type railBlock struct {
 	Section int
-	Rows    bool
+	// Row is where in its section the row stands, or -1 when the block is
+	// the section's heading.
+	Row int
 }
 
 // railBlocks is the column the rail scrolls, in reading order: every
-// section's heading, each followed by its rows while the section stands open.
+// section's heading, each followed by one block per row while the section
+// stands open.
 func railBlocks(sections []railSection, open map[int]bool) []railBlock {
 	blocks := make([]railBlock, 0, 2*len(sections))
 	for i := range sections {
-		blocks = append(blocks, railBlock{Section: i})
-		if open[i] {
-			blocks = append(blocks, railBlock{Section: i, Rows: true})
+		blocks = append(blocks, railBlock{Section: i, Row: -1})
+		if !open[i] || sections[i].Rows.Count == nil {
+			continue
+		}
+		for r := range sections[i].Rows.Count() {
+			blocks = append(blocks, railBlock{Section: i, Row: r})
 		}
 	}
 	return blocks
 }
 
-// railRowBlock answers which block of the rail's column holds the row the
-// cursor stands on, and whether the column holds that row at all.
-//
-// The column scrolls by BLOCKS — a section's whole run of rows is one — so
-// bringing the cursor's row into view is bringing its section's run into
-// view, which is what components/list is handed and what it then measures in
-// pixels of its own.
+// railRowBlock answers which block of the rail's column IS the row the cursor
+// stands on, and whether the column holds that row at all.
 func railRowBlock(blocks []railBlock, rows []railRow, cursor FeedID) (int, bool) {
 	at := runIndex(rows, cursor)
 	if at < 0 {
 		return 0, false
 	}
-	section := rows[at].Section
+	row := rows[at]
 	for i, b := range blocks {
-		if b.Rows && b.Section == section {
+		if b.Row == row.Index && b.Section == row.Section {
 			return i, true
 		}
 	}
@@ -508,22 +543,23 @@ func drawRailHeading(
 	return layout.Dimensions{Size: size}
 }
 
-// feedEntryListBody returns the run of rows one rail section holds.
-// entriesFn yields the section's CURRENT entries each frame (read from the
-// per-section model cell). Entry clicks emit SelectFeed; hovering a row
-// reveals a trash icon whose click toggles a per-row delete-confirm popover,
-// whose confirm fires ConfirmDelete + a "Feed deleted" toast.
+// feedEntryRows returns the rows one rail section holds, each drawn as a row
+// of the rail's own scrolling column. entriesFn yields the section's CURRENT
+// entries each frame (read from the per-section model cell). Entry clicks
+// emit SelectFeed; hovering a row reveals a trash icon whose click toggles a
+// per-row delete-confirm popover, whose confirm fires ConfirmDelete + a
+// "Feed deleted" toast.
 //
-// All per-entry view state (the row clickable, the trash clickable, the
-// confirm clickable, the per-row open flag) is keyed by FeedID so add/delete
-// never re-binds state to the wrong row.
-func feedEntryListBody(
+// All per-entry view state (the row's pointer target, the trash clickable,
+// the confirm clickable, the per-row open flag) is keyed by FeedID so
+// add/delete never re-binds state to the wrong row.
+func feedEntryRows(
 	th rx.Observable[theme.Theme],
 	entriesFn func() []feedEntry,
 	selectedFn func() FeedID,
 	keys *railKeys,
 	popArb *popover.Arbiter,
-) layout.Widget {
+) railRowSet {
 	loadTok := mirrorTokens(th)
 
 	// Per-FeedID view state, stable across list mutation.
@@ -544,63 +580,48 @@ func feedEntryListBody(
 		return newDeleteConfirm(th, id, trashClicks.For(id), confirmClicks.For(id), popArb)
 	})
 
-	return func(gtx layout.Context) layout.Dimensions {
-		s := loadTok()
-		entries := entriesFn()
-		selected := selectedFn()
-		size := gtx.Constraints.Max
-		rowH := gtx.Dp(patsidebar.RowHeight)
-		trashW := gtx.Dp(unit.Dp(trashColWDp))
-
-		for _, e := range entries {
-			rc := rowClicks.For(e.ID)
-			for {
-				ev, ok := rc.Update(gtx.Source)
-				if !ok {
-					break
+	return railRowSet{
+		Count: func() int { return len(entriesFn()) },
+		Drain: func(gtx layout.Context) {
+			for _, e := range entriesFn() {
+				rc := rowClicks.For(e.ID)
+				for {
+					ev, ok := rc.Update(gtx.Source)
+					if !ok {
+						break
+					}
+					if ev.Kind != gesture.KindClick {
+						continue
+					}
+					keys.Select(e.ID)
+					// A row's target is a pointer gesture and takes no
+					// keyboard of its own, so the click asks for the rail's:
+					// the arrows then walk the rail from the row the reader
+					// landed on, and that row wears the accent pill.
+					gtx.Execute(key.FocusCmd{Tag: keys.Focus()})
+					mvu.MessageOp{Message: SelectFeed{Feed: e.ID}}.Add(gtx.Ops)
 				}
-				if ev.Kind != gesture.KindClick {
-					continue
-				}
-				keys.Select(e.ID)
-				// A row's target is a pointer gesture and takes no keyboard
-				// of its own, so the click asks for the rail's: the arrows
-				// then walk the rail from the row the reader landed on, and
-				// that row wears the accent pill.
-				gtx.Execute(key.FocusCmd{Tag: keys.Focus()})
-				mvu.MessageOp{Message: SelectFeed{Feed: e.ID}}.Add(gtx.Ops)
 			}
-		}
-
-		// Whether the rail holds the keyboard, which is what picks between
-		// the platform's two pills. The rail is one focus target, so its own
-		// tag is the whole answer.
-		holds := gtx.Focused(keys.Focus())
-		cursor := keys.cursor
-
-		drawn := 0
-		for i, e := range entries {
-			top := i * rowH
-			if top+rowH > size.Y {
-				break
+		},
+		Row: func(gtx layout.Context, i int) layout.Dimensions {
+			entries := entriesFn()
+			rowH := gtx.Dp(patsidebar.RowHeight)
+			if i < 0 || i >= len(entries) {
+				return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
 			}
-			// The accent pill goes where the platform puts it: on the row
-			// the keys stand on, while the rail holds them. The open feed —
-			// the one whose articles the table is listing — keeps its own
-			// pill in the grey state, which is what the rail shows while the
-			// keys are in the table beside it.
-			onCursor := holds && e.ID == cursor
-			stk := op.Offset(image.Pt(0, top)).Push(gtx.Ops)
-			rowGtx := gtx
-			rowGtx.Constraints = layout.Exact(image.Pt(size.X, rowH))
-			drawFeedEntryRow(rowGtx, s, e, e.ID == selected || onCursor, !onCursor, rowClicks.For(e.ID),
-				hovers.For(e.ID), popovers.For(e.ID), trashW)
-			stk.Pop()
-			drawn++
-		}
-		// What the rows actually took, not the room they were offered: the
-		// section under this one begins where these end.
-		return layout.Dimensions{Size: image.Pt(size.X, drawn*rowH)}
+			e := entries[i]
+			// The accent pill goes where the platform puts it: on the row the
+			// keys stand on, while the rail holds them. The open feed — the
+			// one whose articles the table is listing — keeps its own pill in
+			// the grey state, which is what the rail shows while the keys are
+			// in the table beside it. The rail is one focus target, so its own
+			// tag is the whole answer to which of the two a row wears.
+			onCursor := gtx.Focused(keys.Focus()) && e.ID == keys.cursor
+			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowH))
+			return drawFeedEntryRow(gtx, loadTok(), e, e.ID == selectedFn() || onCursor, !onCursor,
+				rowClicks.For(e.ID), hovers.For(e.ID), popovers.For(e.ID),
+				gtx.Dp(unit.Dp(trashColWDp)))
+		},
 	}
 }
 

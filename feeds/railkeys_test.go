@@ -220,7 +220,7 @@ func newRailTabFrame(t *testing.T) *railTabFrame {
 		entries := g.Entries
 		sections[i] = railSection{
 			Title: g.Title,
-			Rows: feedEntryListBody(th, func() []feedEntry { return entries },
+			Rows: feedEntryRows(th, func() []feedEntry { return entries },
 				func() FeedID { return "" }, keys, popover.NewArbiter()),
 		}
 	}

@@ -15,7 +15,10 @@ import (
 	vgicons "github.com/vibrantgio/components/icons"
 
 	"gioui.org/font"
+	"gioui.org/gesture"
 	"gioui.org/io/event"
+	"gioui.org/io/key"
+	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -180,11 +183,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	modalArb := modal.NewArbiter()
 
 	histList := list.NewState()
-	chatList := list.NewState()
 	msgDocs := newDocCache()
-	rowClicks := map[string]*widget.Clickable{}
-	deleteClicks := map[string]*widget.Clickable{}
-	renameClicks := map[string]*widget.Clickable{}
+	// The rail's keyboard and its rows' pointer targets, allocated once per
+	// window — this function body is the window — and read on every frame.
+	rail := newRailState()
 
 	prompt := input.TextField(th, input.TextFieldProps{
 		Placeholder:   "Send a message",
@@ -273,7 +275,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			for _, s := range model.Streams {
 				streaming[s.Chat] = true
 			}
-			sidebar := SidebarPane(t, model.ChatList, model.CurrentChat.Name, streaming, chatList, rowClicks, deleteClicks, renameClicks, &paneNewChat, &paneToggle, &settingsClick)
+			sidebar := SidebarPane(t, model.ChatList, model.CurrentChat.Name, streaming, rail, &paneNewChat, &paneToggle, &settingsClick)
 			main := ChatPane(t, msgDocs.Rows(visibleHistory(model)), histList, promptW)
 			frameCell.Store(layout.Widget(func(gtx layout.Context) layout.Dimensions {
 				return frame.layout(gtx, model, t, sidebar, main, menuSlot)
@@ -776,6 +778,161 @@ func systemNote(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	return rowHeight(gtx, dims.Size.Y)
 }
 
+// railState is the rail's keyboard and its rows' pointer targets, allocated
+// once per window and read on every frame.
+//
+// The rail is ONE focus target. A list is a focusable wherever it stands, so
+// the column takes the keys on the list's own tag, the arrows walk the
+// conversations, Return opens the one the cursor stands on and a click hands
+// the rail the keys. A row's target is a gesture.Click and not a
+// widget.Clickable because a Clickable registers a focus filter of its own:
+// with a filter per row Tab walks the rows one by one and the arrows go dead
+// the moment it does, where the platform's sidebar takes the keys once and
+// hands Tab on to what stands after it. The row's own two marks are
+// gestures for the same reason.
+//
+// The cursor is held by the conversation's NAME rather than by a position,
+// so deleting or renaming one never leaves the keys on a row the reader did
+// not walk to.
+type railState struct {
+	list   *list.State
+	cursor string
+	rows   map[string]*gesture.Click
+	rename map[string]*gesture.Click
+	remove map[string]*gesture.Click
+}
+
+func newRailState() *railState {
+	return &railState{
+		list:   list.NewState(),
+		rows:   map[string]*gesture.Click{},
+		rename: map[string]*gesture.Click{},
+		remove: map[string]*gesture.Click{},
+	}
+}
+
+// clickFor is one row's pointer target, kept by name across frames so adding
+// or deleting a conversation never re-binds a target to the wrong row.
+func clickFor(m map[string]*gesture.Click, name string) *gesture.Click {
+	c, ok := m[name]
+	if !ok {
+		c = &gesture.Click{}
+		m[name] = c
+	}
+	return c
+}
+
+// settle puts the cursor on a conversation the rail actually shows: the one
+// it stands on while the list still carries it, and otherwise the
+// conversation on screen — a reader who puts the keys on the rail without
+// having walked them starts from the conversation in front of them.
+func (s *railState) settle(chats ChatList, current string) {
+	at := chatIndex(chats, s.cursor)
+	if at < 0 {
+		at = chatIndex(chats, current)
+		s.cursor = ""
+		if at >= 0 {
+			s.cursor = chats[at]
+		}
+	}
+	s.list.Select(at)
+}
+
+// record writes back where the keys left the cursor, by name: the list moves
+// an index, and the index is only meaningful against the list it moved in.
+func (s *railState) record(chats ChatList) {
+	if at := s.list.Selected(); at >= 0 && at < len(chats) {
+		s.cursor = chats[at]
+	}
+}
+
+// chatIndex answers where a conversation stands in the rail, or -1 when the
+// rail no longer carries it.
+func chatIndex(chats ChatList, name string) int {
+	if name == "" {
+		return -1
+	}
+	for i, c := range chats {
+		if c == name {
+			return i
+		}
+	}
+	return -1
+}
+
+// keys drains the rail's Return and answers the conversation it opened, if
+// any. The list consumes the arrows and Home/End; opening a conversation is
+// this window's semantics and not the list's, so it is filtered on the
+// list's own tag and answered here rather than acted on.
+func (s *railState) keys(gtx layout.Context, chats ChatList) (string, bool) {
+	opened, activated := "", false
+	for _, name := range []key.Name{key.NameReturn, key.NameEnter} {
+		for {
+			e, ok := gtx.Event(key.Filter{Focus: s.list.Focus(), Name: name})
+			if !ok {
+				break
+			}
+			ke, isKey := e.(key.Event)
+			if !isKey || ke.State != key.Press {
+				continue
+			}
+			if at := s.list.Selected(); at >= 0 && at < len(chats) {
+				opened, activated = chats[at], true
+			}
+		}
+	}
+	return opened, activated
+}
+
+// layout lays the rail's conversations out and answers its keys.
+//
+// post is where an answer goes: the live rail's is the message op, and a
+// test's is a recorder, which is how the keys' and the rows' bindings are
+// read back without a window to post them to.
+func (s *railState) layout(
+	gtx layout.Context,
+	t themed,
+	chats ChatList,
+	current string,
+	streaming map[string]bool,
+	post func(gtx layout.Context, msg mvu.Message),
+) layout.Dimensions {
+	s.settle(chats, current)
+	if name, ok := s.keys(gtx, chats); ok {
+		post(gtx, SelectChat{Name: name})
+	}
+	// Which of the platform's two pills a row wears: the accent one on the
+	// row the keys stand on while the rail holds them, the grey one on the
+	// conversation on screen while the keys are elsewhere. The rail is one
+	// focus target, so its own tag is the whole answer.
+	holds := gtx.Focused(s.list.Focus())
+	dims := list.LayoutSelectableScrollbar(gtx, s.list, t.bar, list.Overlay, chats,
+		func(gtx layout.Context, name string, selected bool) layout.Dimensions {
+			onCursor := holds && selected
+			at := chatIndex(chats, name)
+			open := func(gtx layout.Context) {
+				s.list.Select(at)
+				s.cursor = name
+				// A row's target is a pointer gesture and takes no keyboard
+				// of its own, so the click asks for the rail's: the arrows
+				// then walk from the row the reader landed on, and that row
+				// wears the accent pill.
+				gtx.Execute(key.FocusCmd{Tag: s.list.Focus()})
+				post(gtx, SelectChat{Name: name})
+			}
+			return ChatRow(gtx, t, name, name == current || onCursor, !onCursor, streaming[name],
+				clickFor(s.rows, name), clickFor(s.rename, name), clickFor(s.remove, name), open, post)
+		})
+	s.record(chats)
+	return dims
+}
+
+// postMessage is the live sink: an answer reaches the loop as this frame's
+// message op.
+func postMessage(gtx layout.Context, msg mvu.Message) {
+	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
+}
+
 // SidebarPane renders the column that stands inside the rail: the
 // top strip the window's control buttons pass through, the conversation
 // list, and the settings row at the foot.
@@ -790,20 +947,7 @@ func systemNote(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 // conversations, then the settings that act on all of them, then the pane's
 // own controls — a reader who tabs into the pane means to reach a
 // conversation, not to put the pane away.
-func SidebarPane(t themed, chats ChatList, current string, streaming map[string]bool, rows *list.State, rowClicks, deleteClicks, renameClicks map[string]*widget.Clickable, newChat, toggle, settings *widget.Clickable) layout.Widget {
-	// Ensure every chat has persistent Clickables for hover/click state.
-	for _, name := range chats {
-		if _, ok := rowClicks[name]; !ok {
-			rowClicks[name] = new(widget.Clickable)
-		}
-		if _, ok := deleteClicks[name]; !ok {
-			deleteClicks[name] = new(widget.Clickable)
-		}
-		if _, ok := renameClicks[name]; !ok {
-			renameClicks[name] = new(widget.Clickable)
-		}
-	}
-
+func SidebarPane(t themed, chats ChatList, current string, streaming map[string]bool, rail *railState, newChat, toggle, settings *widget.Clickable) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
@@ -819,22 +963,7 @@ func SidebarPane(t themed, chats ChatList, current string, streaming map[string]
 				return layout.Dimensions{Size: image.Pt(size.X, stripH)}
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				// Which of the platform's two pills the open conversation
-				// wears: the accent one while the rail holds the keyboard,
-				// the grey one while it does not. The rail's rows are its
-				// focusables, so the keys are on the rail exactly while one
-				// of them holds them.
-				unemphasized := true
-				for _, c := range rowClicks {
-					if gtx.Focused(c) {
-						unemphasized = false
-						break
-					}
-				}
-				return list.LayoutScrollbar(gtx, rows, t.bar, list.Overlay, chats,
-					func(gtx layout.Context, name string) layout.Dimensions {
-						return ChatRow(gtx, t, name, name == current, unemphasized, streaming[name], rowClicks[name], renameClicks[name], deleteClicks[name])
-					})
+				return rail.layout(gtx, t, chats, current, streaming, postMessage)
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return SidebarFooter(gtx, t, settings)
@@ -1009,32 +1138,53 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 
 // ChatRow renders a single chat entry in the sidebar with hover and
 // selection states, and rename/delete icons revealed while the row is
-// active.
+// active. open is what a click on the row does: it hands the rail the keys
+// and opens the conversation; post is where the two marks' answers go.
 //
-// unemphasized picks which of the platform's two pills the open
-// conversation wears: the grey one while the rail does not hold the
-// keyboard, the accent one while it does. On the grey pill the row's own
-// two marks keep the chrome's ordinary label — the grey stands a few of 255
-// off the rail it is on, so what reads on the rail reads on the pill.
-func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, streaming bool, row, ren, del *widget.Clickable) layout.Dimensions {
+// unemphasized picks which of the platform's two pills the row wears: the
+// grey one while the rail does not hold the keyboard, the accent one while
+// it does. On the grey pill the row's own two marks keep the chrome's
+// ordinary label — the grey stands a few of 255 off the rail it is on, so
+// what reads on the rail reads on the pill.
+func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, streaming bool, row, ren, del *gesture.Click, open func(gtx layout.Context), post func(gtx layout.Context, msg mvu.Message)) layout.Dimensions {
 	p := t.palette
 
-	// Drain pending clicks before Layout — Layout's internal update loop
-	// consumes click events and discards them, so Clicked must run first.
-	// The icons sit on top of the row, so an icon click suppresses any
-	// row-select click registered on the same press.
+	// The row's marks sit over the row's own target, so both take the same
+	// press: a mark's click suppresses the row's, which is what keeps
+	// deleting a conversation from also opening it.
 	iconClicked := false
-	for del.Clicked(gtx) {
+	for {
+		e, ok := del.Update(gtx.Source)
+		if !ok {
+			break
+		}
+		if e.Kind != gesture.KindClick {
+			continue
+		}
 		iconClicked = true
-		mvu.MessageOp{Message: DeleteChat{Name: name}}.Add(gtx.Ops)
+		post(gtx, DeleteChat{Name: name})
 	}
-	for ren.Clicked(gtx) {
+	for {
+		e, ok := ren.Update(gtx.Source)
+		if !ok {
+			break
+		}
+		if e.Kind != gesture.KindClick {
+			continue
+		}
 		iconClicked = true
-		mvu.MessageOp{Message: OpenRename{Name: name}}.Add(gtx.Ops)
+		post(gtx, OpenRename{Name: name})
 	}
-	for row.Clicked(gtx) {
-		if !iconClicked {
-			mvu.MessageOp{Message: SelectChat{Name: name}}.Add(gtx.Ops)
+	for {
+		e, ok := row.Update(gtx.Source)
+		if !ok {
+			break
+		}
+		if e.Kind != gesture.KindClick {
+			continue
+		}
+		if !iconClicked && open != nil {
+			open(gtx)
 		}
 	}
 
@@ -1061,13 +1211,13 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 	label := roleLabel(t.typ.BodyMedium, 1)
 	label.Alignment, label.Truncator = text.Start, "…"
 
-	return row.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		textMaterial := Material(gtx.Ops, textColor)
+	textMaterial := Material(gtx.Ops, textColor)
 
-		// The rail draws the platform's sidebar row, which patterns/sidebar
-		// measures at 32 dp — taller than a content list's row and not the
-		// same number.
-		gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, gtx.Dp(sidebar.RowHeight)))
+	// The rail draws the platform's sidebar row, which patterns/sidebar
+	// measures at 32 dp — taller than a content list's row and not the
+	// same number.
+	gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, gtx.Dp(sidebar.RowHeight)))
+	{
 		m := op.Record(gtx.Ops)
 		// The rail lists conversations, so its rows stand in the sidebar's
 		// own columns: the document mark at SymbolInset — a conversation is
@@ -1106,7 +1256,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						// The slots are always reserved so revealing the
 						// icons never shifts the layout; the glyphs and
-						// their click areas exist only while the row is
+						// their pointer targets exist only while the row is
 						// active.
 						iconSize := gtx.Dp(DeleteIconSize)
 						gap := gtx.Dp(6)
@@ -1119,9 +1269,9 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 							}
 							icon := gtx
 							icon.Constraints = layout.Exact(image.Pt(iconSize, iconSize))
-							ren.Layout(icon, editMark)
+							rowMark(icon, ren, editMark)
 							defer op.Offset(image.Pt(iconSize+gap, 0)).Push(gtx.Ops).Pop()
-							del.Layout(icon, removeMark)
+							rowMark(icon, del, removeMark)
 						}
 						return layout.Dimensions{Size: size}
 					}),
@@ -1139,8 +1289,22 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 		}
 		symbolCall.Add(gtx.Ops)
 		foreground.Add(gtx.Ops)
+		sidebar.RowTarget(gtx, row, dims.Size, name)
 		return dims
-	})
+	}
+}
+
+// rowMark draws one of a row's trailing marks and registers its pointer
+// target over the box it fills. The target is a gesture and not a clickable
+// for the reason the row's own is: the rail is one focus target, and a
+// clickable here would stand a Tab stop inside it.
+func rowMark(gtx layout.Context, click *gesture.Click, draw layout.Widget) layout.Dimensions {
+	dims := draw(gtx)
+	area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+	semantic.EnabledOp(true).Add(gtx.Ops)
+	click.Add(gtx.Ops)
+	area.Pop()
+	return dims
 }
 
 // drawChatSymbol paints a conversation row's symbol in the square the

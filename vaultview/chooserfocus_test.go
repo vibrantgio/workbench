@@ -100,3 +100,43 @@ func TestTheChooserOpensOnItsListAndNotOnTheCloseMark(t *testing.T) {
 		})
 	}
 }
+
+// TestTheChoosersListIsOneFocusTarget reads whether the candidate list
+// registers a focus filter per row, by asking the router for the one move Tab
+// makes and seeing where the halo lands.
+//
+// A list is ONE focusable wherever it stands, so the move carries the
+// keyboard out of the list and onto the header's close mark, which stands
+// above it. A focus filter per row — which is what a widget.Clickable
+// registers — would hand the move to a row of the list instead, where nothing
+// draws a halo at all.
+func TestTheChoosersListIsOneFocusTarget(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	m := chooserFocusModel()
+
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ring := haloRing(tc.colors)
+
+			d := newDialogDriver(t, liveChooser(t, m, tc.colors, shaper), tc.colors)
+			opened := d.capture()
+			if opened == nil {
+				return // headless unavailable; Capture called t.Skip
+			}
+			halo := colorBox(opened, ring)
+			if halo.Empty() {
+				t.Fatal("the chooser opened with no halo anywhere in the window: nothing holds the keyboard")
+			}
+
+			d.moveForward()
+			next := colorBox(d.capture(), ring)
+			if next.Empty() {
+				t.Fatal("one forward focus move left no halo in the window: the move landed on a row of the list, so the list is more than one focus target")
+			}
+			if next.Max.Y > halo.Min.Y {
+				t.Errorf("one forward focus move left the halo at y %d-%d rather than above the list at y %d-%d: the list is more than one focus target",
+					next.Min.Y, next.Max.Y, halo.Min.Y, halo.Max.Y)
+			}
+		})
+	}
+}

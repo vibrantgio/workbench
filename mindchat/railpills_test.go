@@ -13,7 +13,6 @@ import (
 	"gioui.org/widget"
 
 	"github.com/vibrantgio/components/golden"
-	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -55,21 +54,18 @@ var railPillSize = image.Pt(240, 320)
 // rail holds the keyboard, and the grey pill under the label in the accent
 // colour while it does not.
 //
-// The rail's rows are its focusables, so what hands it the keyboard is the
-// keyboard landing on one of them — which is what the frame below does
-// through a real router, so gtx.Focused answers as the window would.
+// The rail is ONE focusable, so what hands it the keyboard is the keyboard
+// landing on its own tag — which is what the frame below does through a real
+// router, so gtx.Focused answers as the window would.
 func TestTheRailDrawsThePlatformsTwoPills(t *testing.T) {
 	const open = "Reading list.md"
 	for _, sc := range schemes {
 		t.Run(sc.name, func(t *testing.T) {
 			th := railThemed(t, sc.c)
 			chats := ChatList{open, "Sources.md"}
-			rowClicks := map[string]*widget.Clickable{}
-			delClicks := map[string]*widget.Clickable{}
-			renClicks := map[string]*widget.Clickable{}
-			rows := list.NewState()
+			rail := newRailState()
 			var newChat, toggle, settings widget.Clickable
-			pane := SidebarPane(th, chats, open, nil, rows, rowClicks, delClicks, renClicks, &newChat, &toggle, &settings)
+			pane := SidebarPane(th, chats, open, nil, rail, &newChat, &toggle, &settings)
 
 			r := new(input.Router)
 			ops := new(op.Ops)
@@ -77,10 +73,8 @@ func TestTheRailDrawsThePlatformsTwoPills(t *testing.T) {
 			w := func(gtx layout.Context) layout.Dimensions {
 				dims := pane(gtx)
 				if take {
-					if c, ok := rowClicks[open]; ok {
-						gtx.Execute(key.FocusCmd{Tag: c})
-						take = false
-					}
+					gtx.Execute(key.FocusCmd{Tag: rail.list.Focus()})
+					take = false
 				}
 				return dims
 			}
