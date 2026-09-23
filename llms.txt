@@ -487,7 +487,10 @@ stack — one or more rx.Observable[layout.Widget] values, stacked
 back-to-front (background first). A typical app has a backdrop layer and a
 content layer built from a patterns/shell:
 
-  - patterns/shell: application shells in four variants — SidebarHeaderMain,
+  - patterns/shell: application shells in four variants — SidebarHeaderMain
+    (the sidebar set into the window as a pane, the band beside it; the
+    composition is shell.PaneFrame, which a window arranging its own
+    columns spends half of through PaneFrame.Under),
     SplitPane (draggable splitter, either axis), ThreeColumn (resizable
     aside), StackedPage (pinned navbar over a shell-owned section scroll,
     for marketing pages; sections are layout.Widget streams, ContentMaxWidth
@@ -915,8 +918,10 @@ backwards.
   - ONE BAND HEIGHT ACROSS A SPLIT. Where the strip crosses a seam —
     chrome on one side of it, content on the other — the two sides wear
     their own fills but hold one height between them. That height is
-    shell.NavbarHeight(density): ask for it rather than restating a number,
-    and the two sides cannot drift. Two depths across one strip read as a
+    shell.NavbarHeight(): ask for it rather than restating a number, and
+    the two sides cannot drift. It takes no density — the band is the
+    platform's 52 dp, the depth that holds the window's control buttons
+    centred. Two depths across one strip read as a
     step in the window's top edge, which is the edge a reader measures
     every other alignment against. The seam itself paints a
     hairline, band included, and grabs a band several times that width;

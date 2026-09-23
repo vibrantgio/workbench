@@ -428,7 +428,7 @@ func TestTheWindowsTopStripIsOneBand(t *testing.T) {
 // TestTheBandIsThePlatformsAndNotADensitys states the arithmetic the frames
 // above measure, so a failure says which of the two is wrong.
 //
-// The band is 52, which is not a density's bar height and cannot be: the
+// The band is 52, and no density settles it: the
 // three window control buttons stand a MEASURED nineteen dp in from the
 // window's own glass on both axes, so the band that holds them centred is
 // nineteen above a fourteen dp circle and nineteen below it. patterns/pane
@@ -451,10 +451,10 @@ func TestTheBandIsThePlatformsAndNotADensitys(t *testing.T) {
 		t.Errorf("the panel's strip centres on %v and the band on %v; the two halves of the window's top edge stand on different lines",
 			strip, windowButtonRun.Center)
 	}
-	for _, dc := range densities {
-		if got := shell.NavbarHeight(dc.d); got == windowBandDp {
-			t.Errorf("%s: the density's bar height is %v, which is the band; this test can no longer tell the two apart", dc.name, got)
-		}
+	// patterns/shell pins its own band to the same measurement and takes no
+	// density for it, which is the claim above read from the other side.
+	if got := shell.NavbarHeight(); got != windowBandDp {
+		t.Errorf("the shell's band is %v and this window's %v; one top edge stands at two depths", got, windowBandDp)
 	}
 }
 

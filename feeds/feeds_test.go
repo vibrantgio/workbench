@@ -101,27 +101,32 @@ func TestUpdateSetPageAndSort(t *testing.T) {
 	}
 }
 
-// TestUpdateToggleSectionSingleOpen verifies the single-open reducer policy:
-// opening a section replaces the open set with just that index, and clicking
-// the already-open section collapses it.
-func TestUpdateToggleSectionSingleOpen(t *testing.T) {
+// TestUpdateToggleSectionsStandOnTheirOwn pins two sections open at once.
+// Each section opens and closes on its own, as the platform's mail and file
+// windows do, so opening one closes none of the others and any number may
+// stand open.
+func TestUpdateToggleSectionsStandOnTheirOwn(t *testing.T) {
 	m := initialModel() // section 0 is open
 	if !m.openSections[0] {
 		t.Fatal("precondition: section 0 must start open")
 	}
 	m, _ = Update(m, ToggleSection{Idx: 1})
-	if !m.openSections[1] {
-		t.Error("after ToggleSection(1): section 1 should be open")
+	if !m.openSections[0] || !m.openSections[1] {
+		t.Errorf("after ToggleSection(1): want sections 0 and 1 both open; got %v", m.openSections)
 	}
-	if m.openSections[0] {
-		t.Error("after ToggleSection(1): section 0 should have closed (single-open)")
+	m, _ = Update(m, ToggleSection{Idx: 2})
+	for _, i := range []int{0, 1, 2} {
+		if !m.openSections[i] {
+			t.Errorf("after ToggleSection(2): section %d should still stand open; got %v", i, m.openSections)
+		}
 	}
+	// Closing one leaves the others where the reader put them.
 	m, _ = Update(m, ToggleSection{Idx: 1})
 	if m.openSections[1] {
-		t.Error("after second ToggleSection(1): section 1 should be closed")
+		t.Error("after a second ToggleSection(1): section 1 should be closed")
 	}
-	if len(m.openSections) != 0 {
-		t.Errorf("expected all sections closed; got %v", m.openSections)
+	if !m.openSections[0] || !m.openSections[2] {
+		t.Errorf("closing section 1 disturbed the others; got %v", m.openSections)
 	}
 }
 

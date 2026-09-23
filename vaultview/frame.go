@@ -4,13 +4,12 @@
 // under it parted by a splitter, and one status bar across its
 // foot. What the foot band carries is in status.go.
 //
-// The composition is app-local rather than the vocabulary's three-column
-// shell because that shell pins its top slot to a full navbar band
-// (ControlHeight plus twice the vertical control padding, 52 dp at the
-// comfortable density) and this window's chrome is a single tight row.
-// Everything else here — a splitter on each of the window's two
-// boundaries, the op order that makes Tab follow the reading order — is
-// the shell's arrangement.
+// What stands under those columns is patterns/shell's pane frame, spent
+// here through shell.PaneFrame.Under: the window's plane, the note's
+// surface, the panel and the column in it. The arrangement above it is this
+// window's own and stays here — a trailing aside the note shares its width
+// with, a status bar across the foot, a splitter on each of the window's two
+// boundaries, and the op order that makes Tab follow the reading order.
 //
 // The sidebar is the window's leading chrome column, set into the window as
 // a PANE: an inset rounded panel one margin in from the window's leading,
@@ -109,6 +108,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/splitter"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -527,30 +527,28 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	f.asideSplitter.Update(gtx, f.asideProps(gtx, tok, size, g))
 	f.geom = g
 
-	// The window's own plane, under everything: the rail's panel is set into
-	// it and the plane is what shows in the margins around it. MEASURED,
-	// voicememos-multi-folder-2026-09-18.png and
+	// What stands under this window's columns is patterns/shell's pane frame
+	// and nothing here draws it: the window's own plane, the note's surface
+	// beside the panel, the two corners the panel rounds away from on its
+	// flush side, and the panel itself with its rim and the column standing
+	// in it. MEASURED, voicememos-multi-folder-2026-09-18.png and
 	// finder-window-untinted-light.png: the eight pixels either side of the
 	// panel carry the window background and nothing else.
-	paint.FillShape(gtx.Ops, tok.col.WindowBackground, clip.Rect(image.Rectangle{Max: size}).Op())
-
+	//
+	// The window keeps the arrangement above it — a trailing aside, a status
+	// bar along its foot, the note column laid out before the band over it —
+	// so it spends the frame's under half here and casts the panel's shadow
+	// itself once its own columns have painted.
+	//
 	// The content area stands on the note's own surface: the document is what
 	// the window is. It starts where the rail's panel stops — flush against
 	// it, which is the one side the panel is not set in from — and with the
 	// rail gone it starts at the window's own leading edge.
-	paint.FillShape(gtx.Ops, tok.col.TextBackground,
-		clip.Rect(image.Rect(g.contentX, 0, size.X, size.Y)).Op())
-
-	// The rail is the vocabulary's PANE and nothing here draws it: the inset
-	// rounded panel, its rim, the shadow it casts, the chrome fill and the
-	// clip that keeps a scrolled row off its edge are all the pattern's.
-	// What is left to this window is which column stands in it, and what
-	// stands behind the two corners the panel rounds away from on its flush
-	// side — the document, not the plane.
-	if !g.pane.Empty() {
-		pane.FillTrailingCorners(gtx, tok.col.TextBackground, g.pane)
-		pane.Layout(gtx, tok.col, g.pane, sb)
-	}
+	shell.PaneFrame{
+		Plane:       tok.col.WindowBackground,
+		ContentFill: tok.col.TextBackground,
+		Sidebar:     sb,
+	}.Under(gtx, tok.col, size, g.pane)
 
 	c := contentColumns(gtx, size, g.contentX, f.asideW)
 	asidePx, mainW, asideX := c.aside, c.note, c.asideX

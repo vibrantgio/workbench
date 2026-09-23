@@ -8,7 +8,7 @@
 //   - SelectArticle{Article ArticleID} — record the row-clicked article (drives the detail pane)
 //   - SetPage{Page int}              — navigate the articles table to a 1-indexed page
 //   - SetSort{Sort table.Sort}       — set the table sort key/direction
-//   - ToggleSection{Idx int}         — single-open toggle for rail section Idx
+//   - ToggleSection{Idx int}         — opens or closes rail section Idx
 //   - SelectTab{Idx int}             — switch the detail pane's Reader/Raw/Comments tab
 //   - ToggleShare{}                  — toggle the navbar Share popover
 //   - CloseShare{}                   — close the Share popover (destination click, outside press)
@@ -112,11 +112,12 @@ type SetFilter struct{ Text string }
 // SetSort sets the table sort key and direction.
 type SetSort struct{ Sort table.Sort }
 
-// ToggleSection applies the single-open policy for rail section Idx:
-// opening Idx closes every other section, and clicking an already-open Idx
-// collapses it. A heading emits exactly one ToggleSection per click, so this
-// reducer owns the single-open invariant and the rail owns nothing but the
-// drawing.
+// ToggleSection opens rail section Idx if it stands closed and closes it if
+// it stands open. Each section opens and closes on its own, as the
+// platform's mail and file windows do, so any number may stand open at once
+// and opening one closes none of the others. A heading emits exactly one
+// ToggleSection per click, so this reducer owns the open set and the rail
+// owns nothing but the drawing.
 type ToggleSection struct{ Idx int }
 
 // SelectTab switches the detail pane's tab strip (0 Reader, 1 Raw,
@@ -210,13 +211,20 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 	case SetSort:
 		model.sort = m.Sort
 	case ToggleSection:
-		// Single-open policy: opening a section replaces the open set with
-		// just that index; clicking the already-open section collapses it.
-		if model.openSections[m.Idx] {
-			model.openSections = map[int]bool{}
-		} else {
-			model.openSections = map[int]bool{m.Idx: true}
+		// Each section stands on its own: the clicked one flips and every
+		// other is left where the reader put it. The map is copied rather
+		// than written through, because the model is a value every frame
+		// reads and a map shared with the last one would change under it.
+		next := make(map[int]bool, len(model.openSections)+1)
+		for i, on := range model.openSections {
+			if on && i != m.Idx {
+				next[i] = true
+			}
 		}
+		if !model.openSections[m.Idx] {
+			next[m.Idx] = true
+		}
+		model.openSections = next
 	case SelectTab:
 		model.selectedTab = m.Idx
 	case ToggleShare:

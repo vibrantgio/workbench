@@ -71,6 +71,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/typeset"
 )
 
@@ -126,27 +127,28 @@ type windowFrame struct {
 // pane draws its own strip last for the same reason, inside itself.
 func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, main, menu layout.Widget) layout.Dimensions {
 	size := gtx.Constraints.Max
-	bounds := pane.Bounds(gtx, size, SidebarWidth, m.SidebarHidden)
-	contentX := 0
-	if !bounds.Empty() {
-		contentX = bounds.Max.X
-	}
-	// The window's own plane, under everything, and the content area on the
-	// transcript's own surface. The rail's panel is set into the plane and
-	// the plane is what shows in the margins around it: MEASURED,
-	// voicememos-multi-folder-2026-09-18.png and
-	// finder-window-untinted-light.png, the eight pixels either side of the
+	// What stands under this window's columns is patterns/shell's pane
+	// frame: the window's own plane, the transcript's surface beside the
+	// panel, the two corners the panel rounds away from on its flush side,
+	// and the panel itself with its rim and the column standing in it.
+	// MEASURED, voicememos-multi-folder-2026-09-18.png and
+	// finder-window-untinted-light.png: the eight pixels either side of the
 	// panel carry the window background and nothing else.
-	FillRect(gtx, image.Rectangle{Max: size}, 0, t.col.WindowBackground)
-	FillRect(gtx, image.Rect(contentX, 0, size.X, size.Y), 0, t.palette.Transcript)
-
-	// The inset rounded panel, its rim, the shadow it casts, the chrome fill
-	// and the clip that keeps a scrolled row off its edge are all the
-	// pattern's. What is left here is which column stands in it, and what
-	// stands behind the two corners the panel rounds away from on its flush
-	// side — the transcript, not the plane.
-	pane.FillTrailingCorners(gtx, t.palette.Transcript, bounds)
-	pane.Layout(gtx, t.col, bounds, sidebar)
+	//
+	// The window keeps the arrangement above it — the transcript laid out
+	// before the row over it, the picker's surface last of all — so it
+	// spends the frame's under half here and casts the panel's shadow itself
+	// once its own columns have painted.
+	frame := shell.PaneFrame{
+		Width:       SidebarWidth,
+		Hidden:      m.SidebarHidden,
+		Plane:       t.col.WindowBackground,
+		ContentFill: t.palette.Transcript,
+		Sidebar:     sidebar,
+	}
+	bounds := frame.Bounds(gtx, size)
+	contentX := shell.ContentX(bounds)
+	frame.Under(gtx, t.col, size, bounds)
 
 	contentW := size.X - contentX
 	if contentW <= 0 {

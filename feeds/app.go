@@ -12,7 +12,6 @@ import (
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
@@ -34,7 +33,6 @@ import (
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/navbar"
 	"github.com/vibrantgio/patterns/notifications"
-	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/table"
@@ -111,10 +109,9 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 // open, the detail tab, the Share popover and the split position are all
 // derived from modelObs; theme tokens flow independently through th.
 //
-// The window's columns are composed here rather than through a shell layout,
-// for the reason drawFeedsFrame states: the band across this window's top
-// edge is the platform's measured one and patterns/shell pins its navbar slot
-// to the density's bar height instead.
+// The columns are handed to patterns/shell's pane frame, which is the
+// composition every window with a pane shares; what is composed here is the
+// three slots that stand in it and the streams behind them.
 //
 // patterns/shell exposes SplitPane's Left/Right, and navbar Actions, as
 // static layout.Widget slots. So every live layout.Widget stream is folded
@@ -202,19 +199,14 @@ func feedsShellLayer(
 		},
 	})
 
-	// The platform set, for the two things this composition paints itself:
-	// the content column's own surface and the shadow the rail's panel casts
-	// over it. It is read through the same layer-boundary cell the navbar's
-	// own labels use.
+	// The platform set the frame is drawn from, read through the same
+	// layer-boundary cell the navbar's own labels use.
 	loadFrameTok := mirrorTokens(th)
 
-	// The navbar is composed here rather than through a shell layout, because
-	// this window's top band is the PLATFORM's and not a density's: the three
-	// control buttons stand a measured inset in from the window's glass and
-	// the band that holds them centred is windowBandDp. patterns/shell pins
-	// its own navbar slot to the density's bar height, which is shallower
-	// than the buttons standing in it — so the band is this window's to hold
-	// open, and the bar is laid into it as a component.
+	// The navbar is built here and handed to the frame as its band slot:
+	// the band's depth is the frame's — the platform's measured windowBandDp,
+	// which holds the window's three control buttons centred — and what
+	// stands in it is this window's.
 	navbarObs := navbar.Navbar(th, feedsNavbarProps(mirrorTokens(th), slot(&shareCell)))
 
 	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, selectedFeedObs, popArb)
@@ -628,61 +620,25 @@ func drawLabel(
 // THE RAIL IS SET INTO THE WINDOW, NOT A HALF OF IT. It is the vocabulary's
 // PANE: an inset rounded panel one margin in from the window's leading, top
 // and bottom edges, flush against the content on the fourth side, bounded by
-// its own rim and the shadow it casts and by no seam. None of that geometry
-// is drawn here — it is patterns/pane's, spent by the rail itself — and what
-// is left to this function is the column that stands beside the panel.
+// its own rim and the shadow it casts and by no seam. None of that is drawn
+// here — the composition is patterns/shell's [shell.PaneFrame], which is the
+// one every window with a pane shares: the panel and its shadow,
+// the fills standing either side of it, and the band's own depth.
 //
-// The order is the reading order and so the focus ring's: the rail first,
-// then the band above the content, then the content itself.
+// What is left to this window is the three slots and the two fills it names.
+// The content column stands on the platform's ControlBackground; the band
+// standing over it is the navbar, which paints the chrome material across the
+// whole column, so THAT is what stands behind the panel's top corner while
+// the column's own fill stands behind the bottom one. The window's plane is
+// the backdrop layer's and is not named here, which is why the frame paints
+// none.
 func drawFeedsFrame(gtx layout.Context, c tokens.PlatformColors, railW, navbarW, mainW layout.Widget) layout.Dimensions {
-	size := gtx.Constraints.Max
-	bounds := railPaneBounds(gtx, size)
-	contentX := 0
-	if !bounds.Empty() {
-		contentX = bounds.Max.X
-	}
-
-	// The content column's own surface, painted before the band and running
-	// the window's full height: the band is laid over it, and the two corners
-	// the panel rounds away from on its flush side stand on what the rail
-	// paints behind them rather than on the window's plane. The plane itself
-	// is the backdrop layer's and shows in the margins alone.
-	if contentX < size.X {
-		paint.FillShape(gtx.Ops, c.ControlBackground,
-			clip.Rect(image.Rect(contentX, 0, size.X, size.Y)).Op())
-	}
-
-	if railW != nil {
-		railW(gtx)
-	}
-
-	contentW := size.X - contentX
-	if contentW <= 0 {
-		return layout.Dimensions{Size: size}
-	}
-	band := min(gtx.Dp(windowBandDp), size.Y)
-	if navbarW != nil && band > 0 {
-		st := op.Offset(image.Pt(contentX, 0)).Push(gtx.Ops)
-		ngtx := gtx
-		ngtx.Constraints = layout.Exact(image.Pt(contentW, band))
-		navbarW(ngtx)
-		st.Pop()
-	}
-	if mainW != nil && size.Y-band > 0 {
-		st := op.Offset(image.Pt(contentX, band)).Push(gtx.Ops)
-		mgtx := gtx
-		mgtx.Constraints = layout.Exact(image.Pt(contentW, size.Y-band))
-		mainW(mgtx)
-		st.Pop()
-	}
-
-	// The shadow the panel casts, after every column has painted its own
-	// surface: the content column paints its own fill before the rail lays
-	// out, and its rows after — the rail comes first because it comes first
-	// in the reading order — and either would cover the ramp the panel cast
-	// on it. patterns/pane cuts the panel's own box out of the drawing, so
-	// painting it here lands what painting it under the panel landed.
-	pane.PaintShadow(gtx, c, bounds)
-
-	return layout.Dimensions{Size: size}
+	return shell.PaneFrame{
+		Width:       unit.Dp(feedsSidebarWidthDp),
+		ContentFill: c.ControlBackground,
+		BandFill:    c.SidebarMaterial,
+		Sidebar:     railW,
+		Band:        navbarW,
+		Main:        mainW,
+	}.Layout(gtx, c)
 }

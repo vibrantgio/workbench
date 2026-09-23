@@ -21,7 +21,9 @@ import (
 
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/keyed"
+	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/pointershape"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/notifications"
@@ -134,6 +136,12 @@ func feedsSidebar(
 	// never changes, so a plain slice is stable across every emission.
 	headings := make([]widget.Clickable, len(groups))
 
+	// The rail's scroll position. A rail taller than the window would
+	// otherwise lose its foot, so its column is a scroll area: the state is
+	// allocated once per subscription — this function body is the window —
+	// and read on every frame.
+	railScroll := list.NewState()
+
 	colorsObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
 		return t.Platform
 	})
@@ -153,7 +161,7 @@ func feedsSidebar(
 				}
 			}
 			return func(gtx layout.Context) layout.Dimensions {
-				return drawFeedsSidebar(gtx, c, typ, sections, headings, open)
+				return drawRailColumn(gtx, c, typ, sections, headings, open, railScroll)
 			}
 		},
 	)
@@ -166,74 +174,26 @@ type railSection struct {
 	Rows  layout.Widget
 }
 
-// railPaneBounds is the rail's panel in the coordinates of a window of the
-// given size: patterns/pane's own run, one margin inside the window's
-// leading, top and bottom edges. It is stated once and read twice — by the
-// rail, which draws inside it, and by the window, which casts the panel's
-// shadow over the columns after they have painted their own surfaces.
-//
-// This window has no control that sends the rail away, so the panel is never
-// hidden: the feeds are the only way into the articles beside them.
-func railPaneBounds(gtx layout.Context, size image.Point) image.Rectangle {
-	return pane.Bounds(gtx, size, unit.Dp(feedsSidebarWidthDp), false)
-}
-
-// drawFeedsSidebar draws the rail as the vocabulary's PANE and lays its
-// sections out inside it.
-//
-// Nothing here draws the panel: the inset, the rounded corners, the
-// platform's rim, the chrome fill and the clip that keeps a scrolled row off
-// its edge are all patterns/pane's, and the shadow it casts is the window's
-// to spend once its columns have painted (see feedsShellLayer). What is left
-// here is which column stands in the panel, and what stands behind the two
-// corners the panel rounds away from on its flush side — the navbar's own
-// chrome above the band's foot and the articles pane's fill below it, never
-// the window's plane, which shows on the other three sides alone.
-//
-// No seam parts the rail from the content beside it. An inset object needs
-// none: the rim and the plane around it do that work.
-//
-// Nothing is drawn in the panel's own top strip. The window's name is already
-// the navbar's brand on the other side of the panel, and this window has
-// neither a control that sends the rail away nor an action of the rail's own,
-// so the strip stands empty under the window's three control buttons.
-func drawFeedsSidebar(
-	gtx layout.Context,
-	colors tokens.PlatformColors,
-	typ tokens.Typography,
-	sections []railSection,
-	headings []widget.Clickable,
-	open map[int]bool,
-) layout.Dimensions {
-	size := gtx.Constraints.Max
-	bounds := railPaneBounds(gtx, size)
-	if bounds.Empty() {
-		return layout.Dimensions{Size: image.Pt(0, size.Y)}
-	}
-	// The two corners on the flush side, filled in what stands beside them
-	// rather than in the plane: the navbar's chrome across the band, the
-	// articles pane's own fill under it.
-	band := min(max(gtx.Dp(windowBandDp), bounds.Min.Y), bounds.Max.Y)
-	top := bounds
-	top.Max.Y = band
-	rest := bounds
-	rest.Min.Y = band
-	pane.FillTrailingCorners(gtx, colors.SidebarMaterial, top)
-	pane.FillTrailingCorners(gtx, colors.ControlBackground, rest)
-
-	pane.Layout(gtx, colors, bounds, func(gtx layout.Context) layout.Dimensions {
-		return drawRailColumn(gtx, colors, typ, sections, headings, open)
-	})
-	return layout.Dimensions{Size: image.Pt(bounds.Max.X, size.Y)}
-}
-
-// drawRailColumn lays the panel's own column out: its top strip, then one
-// section after another — each a heading block and, while the section is
-// open, the rows beneath it.
+// drawRailColumn lays the panel's own column out: its top strip, and under
+// it the sections — each a heading block and, while the section is open, the
+// rows beneath it — in a scroll area with the platform's overlay scrollbar.
 //
 // The strip is the panel's own and not the content's band: it is cut to clear
-// the window's control buttons where the window keeps them, which is the
-// pattern's arithmetic and not this window's.
+// the window's control buttons where the window keeps them, which is
+// patterns/pane's arithmetic and not this window's. It stands outside the
+// scroll area, since the buttons it clears do not move when the reader
+// scrolls.
+//
+// The sections scroll because a rail with every section open is taller than
+// the window it stands in, and a column whose foot never comes into view has
+// entries the reader cannot open. The bar OVERLAYS rather than reserving a
+// gutter: the rail's rows run the panel's full width and the platform floats
+// a sidebar's bar over them.
+//
+// Nothing is drawn in the strip. The window's name is already the navbar's
+// brand on the other side of the panel, and this window has neither a
+// control that sends the rail away nor an action of the rail's own, so the
+// strip stands empty under the window's three control buttons.
 func drawRailColumn(
 	gtx layout.Context,
 	colors tokens.PlatformColors,
@@ -241,33 +201,66 @@ func drawRailColumn(
 	sections []railSection,
 	headings []widget.Clickable,
 	open map[int]bool,
+	scroll *list.State,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
-	y := min(gtx.Dp(unit.Dp(pane.StripDp)), size.Y)
-	headH := gtx.Dp(patsidebar.SectionHeight)
-	for i := range sections {
-		if y >= size.Y {
-			break
-		}
+	// Every heading answers its click here rather than inside the scroll
+	// area: a section scrolled out of view lays out no block at all, and a
+	// click it has already taken would be dropped with it.
+	for i := range headings {
 		if headings[i].Clicked(gtx) {
 			mvu.MessageOp{Message: ToggleSection{Idx: i}}.Add(gtx.Ops)
 		}
-		hStk := op.Offset(image.Pt(0, y)).Push(gtx.Ops)
-		hGtx := gtx
-		hGtx.Constraints = layout.Exact(image.Pt(size.X, min(headH, size.Y-y)))
-		drawRailHeading(hGtx, colors, typ, sections[i].Title, open[i], &headings[i])
-		hStk.Pop()
-		y += headH
-		if !open[i] || sections[i].Rows == nil || y >= size.Y {
-			continue
-		}
-		rStk := op.Offset(image.Pt(0, y)).Push(gtx.Ops)
-		rGtx := gtx
-		rGtx.Constraints = layout.Exact(image.Pt(size.X, size.Y-y))
-		y += sections[i].Rows(rGtx).Size.Y
-		rStk.Pop()
 	}
+	strip := min(gtx.Dp(unit.Dp(pane.StripDp)), size.Y)
+	if strip >= size.Y {
+		return layout.Dimensions{Size: size}
+	}
+	headH := gtx.Dp(patsidebar.SectionHeight)
+	blocks := railBlocks(sections, open)
+	// The bar rides the panel's own fill, which is what shows through an
+	// overlay thumb.
+	bar := scrollbar.FromTokens(colors, pane.Surface(colors))
+
+	stk := op.Offset(image.Pt(0, strip)).Push(gtx.Ops)
+	cgtx := gtx
+	cgtx.Constraints = layout.Exact(image.Pt(size.X, size.Y-strip))
+	list.LayoutScrollbar(cgtx, scroll, bar, list.Overlay, blocks,
+		func(gtx layout.Context, b railBlock) layout.Dimensions {
+			if b.Rows {
+				if sections[b.Section].Rows == nil {
+					return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
+				}
+				return sections[b.Section].Rows(gtx)
+			}
+			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, headH))
+			return drawRailHeading(gtx, colors, typ, sections[b.Section].Title,
+				open[b.Section], &headings[b.Section])
+		})
+	stk.Pop()
 	return layout.Dimensions{Size: size}
+}
+
+// railBlock is one block of the rail's scrolling column: a section's heading,
+// or the run of rows standing under an open one. The two are separate blocks
+// so that a long section's rows and the heading above them scroll as one
+// column while each still reports its own height.
+type railBlock struct {
+	Section int
+	Rows    bool
+}
+
+// railBlocks is the column the rail scrolls, in reading order: every
+// section's heading, each followed by its rows while the section stands open.
+func railBlocks(sections []railSection, open map[int]bool) []railBlock {
+	blocks := make([]railBlock, 0, 2*len(sections))
+	for i := range sections {
+		blocks = append(blocks, railBlock{Section: i})
+		if open[i] {
+			blocks = append(blocks, railBlock{Section: i, Rows: true})
+		}
+	}
+	return blocks
 }
 
 // drawRailHeading draws one section's heading: the group's name as a small
