@@ -475,3 +475,30 @@ func TestTreeIndentIsOnePerDepth(t *testing.T) {
 		}
 	}
 }
+
+// TestTreeSortsNamesAsTheFileBrowserDoes holds the rail's order against the
+// one every name-ordered list in the library sorts by (theme/system/naming):
+// a run of digits reads as the number it spells, so note 2 stands before note
+// 10; case does not part a name from its neighbours; and where a folder and a
+// note carry one name the folder stands first, which is this caller's tie
+// rule and not the comparison's.
+func TestTreeSortsNamesAsTheFileBrowserDoes(t *testing.T) {
+	idx := treeIndex(
+		"note 10.md", "note 2.md", "note 1.md",
+		"Note 3.md", "NOTE 4.md",
+		"Ideas/a.md", "Ideas.md",
+	)
+	got := rowSigs(TreeRows(idx, nil))
+	want := []string{
+		"0 dir-closed Ideas",
+		"0 note Ideas.md",
+		"0 note note 1.md",
+		"0 note note 2.md",
+		"0 note Note 3.md",
+		"0 note NOTE 4.md",
+		"0 note note 10.md",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("rows:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}

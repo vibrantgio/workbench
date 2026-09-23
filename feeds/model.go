@@ -265,11 +265,12 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 	return model, mvu.DoNothing()
 }
 
-// appendFeed synthesises a feed entry from a submitted URL and appends it to
-// the first group; the group set is fixed, so new feeds join an existing group
-// rather than spawning a section. The label is the URL itself and the FeedID
-// is derived from it so the entry is addressable. groups is copied before
-// mutation so the previous Model's slice is never aliased.
+// appendFeed synthesises a feed entry from a submitted URL and puts it in the
+// first group, where the rail's name order places it; the group set is fixed,
+// so new feeds join an existing group rather than spawning a section. The
+// label is the URL itself and the FeedID is derived from it so the entry is
+// addressable. groups is copied before mutation so the previous Model's slice
+// is never aliased.
 func appendFeed(groups []feedGroup, url string) []feedGroup {
 	url = strings.TrimSpace(url)
 	out := cloneGroups(groups)
@@ -278,6 +279,7 @@ func appendFeed(groups []feedGroup, url string) []feedGroup {
 	}
 	entry := feedEntry{ID: FeedID("added:" + url), Label: url}
 	out[0].Entries = append(append([]feedEntry(nil), out[0].Entries...), entry)
+	sortRailEntries(out)
 	return out
 }
 

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -241,5 +242,27 @@ func TestListDirShowsSymlinkedFolders(t *testing.T) {
 	row := got[0]
 	if row.Name != "Diarizer" || !row.IsVault {
 		t.Errorf("symlinked vault row = %+v, want the .obsidian marker under its link name", row)
+	}
+}
+
+// TestListDirSortsNamesAsTheFileBrowserDoes holds the browser's listing in
+// the one order every name-ordered list in the library sorts by
+// (theme/system/naming), rather than the byte order os.ReadDir answers in: a
+// run of digits reads as the number it spells, and case does not part a name
+// from its neighbours.
+func TestListDirSortsNamesAsTheFileBrowserDoes(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"Vault 10", "vault 2", "vault 1", "Vault 3", "apples"} {
+		if err := os.MkdirAll(filepath.Join(root, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var got []string
+	for _, e := range ListDir(root) {
+		got = append(got, e.Name)
+	}
+	want := []string{"apples", "vault 1", "vault 2", "Vault 3", "Vault 10"}
+	if strings.Join(got, " | ") != strings.Join(want, " | ") {
+		t.Errorf("listing is %v, want %v", got, want)
 	}
 }

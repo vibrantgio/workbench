@@ -27,6 +27,7 @@ import (
 	"image/color"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -51,6 +52,7 @@ import (
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/system/naming"
 	"github.com/vibrantgio/theme/theme"
 )
 
@@ -64,7 +66,11 @@ type DirEntry struct {
 }
 
 // ListDir returns the folder browser's rows for a directory: its child
-// directories in name order with dot-directories hidden.
+// directories in the order the platform's file browser sorts names
+// (theme/system/naming), with dot-directories hidden. The order is the
+// browser's own and not the filesystem's: os.ReadDir answers in byte order,
+// which puts "Vault 10" before "Vault 2" and every capital before every
+// lower case.
 //
 // The parent is not among them. The trail above the rows is how one goes
 // up — that is what the platform's open panel does, and a row standing for
@@ -85,6 +91,7 @@ func ListDir(dir string) []DirEntry {
 			out = append(out, d)
 		}
 	}
+	sort.SliceStable(out, func(i, j int) bool { return naming.Less(out[i].Name, out[j].Name) })
 	for i := range out {
 		out[i].Idx = i
 	}

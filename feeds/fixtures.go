@@ -68,6 +68,7 @@ func hardCodedGroups() []feedGroup {
 			groups[gi].Entries[ei].Unread = unread[groups[gi].Entries[ei].ID]
 		}
 	}
+	sortRailEntries(groups)
 	return groups
 }
 

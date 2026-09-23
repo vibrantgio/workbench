@@ -3,6 +3,7 @@ package main
 import (
 	"image"
 	"image/color"
+	"sort"
 	"strconv"
 	"sync/atomic"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/vibrantgio/patterns/popover"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/system/naming"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -43,6 +45,18 @@ const (
 // is a chrome rail, so its rows are the sidebar's rows and not the
 // platform's list rows.
 const feedsRowTailGapDp = 8
+
+// sortRailEntries puts each group's feeds in the order the platform's file
+// browser sorts names, so a feed added during the session stands where its
+// name puts it rather than at the end of its group.
+func sortRailEntries(groups []feedGroup) {
+	for gi := range groups {
+		entries := groups[gi].Entries
+		sort.SliceStable(entries, func(i, j int) bool {
+			return naming.Less(entries[i].Label, entries[j].Label)
+		})
+	}
+}
 
 // feedsSidebar returns the accordion-grouped feeds sidebar observable.
 // openSectionsObs streams the current open-section map from the MVU model;

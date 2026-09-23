@@ -195,7 +195,8 @@ func TestG52dCrudStatesHeadless(t *testing.T) {
 	if !hasFeed(m, FeedID("added:https://added.test/feed.xml")) {
 		t.Fatal("non-empty submit did not append the feed to the model")
 	}
-	// The new entry lands in the first (open) group, so the sidebar pixels change.
+	// The new entry lands in the first (open) group, where its name puts it,
+	// so the sidebar pixels change.
 	if n := regionDiff(closed, added, sidebarRegion); n <= 0 {
 		t.Errorf("sidebar unchanged after add (diff=%d); feed entry did not appear", n)
 	}

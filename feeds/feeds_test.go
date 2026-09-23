@@ -1029,3 +1029,25 @@ func TestRowConfirmIsFrameStateAndArbitrates(t *testing.T) {
 		t.Error("row B's confirm closed itself while claiming top")
 	}
 }
+
+// TestRailSortsNamesAsTheFileBrowserDoes holds the rail in the one order
+// every name-ordered list in the library sorts by (theme/system/naming): a
+// feed added during the session stands where its name puts it, a run of
+// digits reads as the number it spells, and case does not part a feed from
+// its neighbours.
+func TestRailSortsNamesAsTheFileBrowserDoes(t *testing.T) {
+	groups := []feedGroup{{Title: "Tech", Entries: []feedEntry{
+		{ID: "a", Label: "Feed 10"},
+		{ID: "b", Label: "feed 2"},
+		{ID: "c", Label: "Zeta"},
+	}}}
+	got := appendFeed(groups, "https://added.test/feed.xml")
+	var labels []string
+	for _, e := range got[0].Entries {
+		labels = append(labels, e.Label)
+	}
+	want := []string{"feed 2", "Feed 10", "https://added.test/feed.xml", "Zeta"}
+	if strings.Join(labels, " | ") != strings.Join(want, " | ") {
+		t.Errorf("rail is %v, want %v", labels, want)
+	}
+}

@@ -50,6 +50,7 @@ import (
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/system/naming"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -108,11 +109,12 @@ type treeNode struct {
 }
 
 // TreeRows flattens the scanned index and the fold state into the tree's
-// visible rows: at each level the folders and the notes in one run, name
-// order, case-insensitively, a folder sorting under its own name and a note
-// under its title; a closed folder hides its whole subtree and any path
-// with a dot-directory segment is hidden outright. A folder and a note of
-// one name leave the folder first.
+// visible rows: at each level the folders and the notes in one run, in the
+// order the platform's file browser sorts names (theme/system/naming), a
+// folder sorting under its own name and a note under its title; a closed
+// folder hides its whole subtree and any path with a dot-directory segment
+// is hidden outright. A folder and a note of one name leave the folder
+// first.
 //
 // The run is not headed. A section parts collections the application keeps
 // apart, never one collection sorted by kind (DOMAIN, Sidebar), and a
@@ -225,16 +227,14 @@ func hasDotSegment(segs []string) bool {
 	return false
 }
 
-// sortByName sorts stably and case-insensitively by the extracted name,
-// with the exact spelling as the tiebreak.
+// sortByName sorts stably by the extracted name, in the order the platform's
+// file browser sorts: case-insensitive, with a run of digits read as the
+// number it spells. The sort is stable because theme/system/naming answers
+// zero only for names that are equal, which is what leaves a folder before a
+// note of the same name — the caller gathered the folders first.
 func sortByName[T any](s []T, name func(T) string) {
 	sort.SliceStable(s, func(i, j int) bool {
-		a, b := name(s[i]), name(s[j])
-		la, lb := strings.ToLower(a), strings.ToLower(b)
-		if la != lb {
-			return la < lb
-		}
-		return a < b
+		return naming.Less(name(s[i]), name(s[j]))
 	})
 }
 
