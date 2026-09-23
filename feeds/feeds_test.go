@@ -45,7 +45,7 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 }
 
 // TestInitialModelSeeds verifies the seed state: the default feed selected,
-// page 1, Published-desc sort, and the first accordion section open.
+// page 1, Published-desc sort, and the first rail section open.
 func TestInitialModelSeeds(t *testing.T) {
 	m := initialModel()
 	if m.selectedFeed != defaultFeedID() {

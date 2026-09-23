@@ -363,8 +363,9 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 
 // shellPrefsScrimRegion samples the middle of the FULL shell frame, where an
 // open preferences panel paints its scrim and surface over the split pane.
-// The shell's sidebar is 192 dp and its navbar 64 px, so a centred sample of
-// the 1200×800 frame lies wholly inside the region the panel covers.
+// The rail's column and the band are both at the leading and top edges, so a
+// centred sample of the 1200×800 frame lies wholly inside the region the
+// panel covers.
 var shellPrefsScrimRegion = image.Rect(shellFrameW/2-260, shellFrameH/2-120, shellFrameW/2+260, shellFrameH/2+120)
 
 // TestPreferencesPanelInShellLive asserts the half

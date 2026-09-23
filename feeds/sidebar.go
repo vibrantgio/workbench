@@ -24,8 +24,8 @@ import (
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/accordion"
 	"github.com/vibrantgio/patterns/notifications"
+	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
@@ -34,8 +34,19 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
+// feedsSidebarWidthDp is the rail's panel, rim to rim. MEASURED,
+// voicememos-multi-folder-2026-09-18.png at 1x: the panel spans x 64-283
+// inside a window standing at x 56-1031 — 220 columns. reference/macos/
+// controls.md carries the reading under "What the sidebar panel measures",
+// and patterns/sidebar spends the same number for its own column.
+//
+// feedsPaneColumnDp is what the rail claims of the window: the panel plus the
+// margin of the window's own plane standing to its leading side. The content
+// beside it begins at the panel's trailing rim with no gap, which is the one
+// side a pane is not set in from.
 const (
-	feedsSidebarWidthDp = 192
+	feedsSidebarWidthDp = 220
+	feedsPaneColumnDp   = pane.MarginDp + feedsSidebarWidthDp
 	trashColWDp         = 24 // trailing trash-icon hit area, hover-revealed
 )
 
@@ -59,15 +70,19 @@ func sortRailEntries(groups []feedGroup) {
 	}
 }
 
-// feedsSidebar returns the accordion-grouped feeds sidebar observable.
+// feedsSidebar returns the rail observable: the window's leading chrome
+// column, set into the window as a PANE, holding one section per feed group
+// and the group's feeds under it.
+//
 // openSectionsObs streams the current open-section map from the MVU model;
-// feedsObs streams the current (mutable) feed tree. The accordion section
-// count is fixed — added feeds join an existing group and deletions leave the
-// (possibly empty) section in place — so Sections is built once and each
-// section's Body renders the CURRENT entries from a per-section atomic cell
-// updated by every feedsObs emission. OnToggle emits a ToggleSection message;
-// entry clicks emit SelectFeed; the hover-revealed trash icon opens a
-// per-row delete-confirm popover whose confirm fires ConfirmDelete + a toast.
+// feedsObs streams the current (mutable) feed tree. The section count is
+// fixed — added feeds join an existing group and deletions leave the
+// (possibly empty) section in place — so the per-section view state is built
+// once and each section renders the CURRENT entries from a per-section atomic
+// cell updated by every feedsObs emission. A heading click emits a
+// ToggleSection message; entry clicks emit SelectFeed; the hover-revealed
+// trash icon opens a per-row delete-confirm popover whose confirm fires
+// ConfirmDelete + a toast.
 //
 // The feed tree lives in the Model, so add/delete mutate it; feedEntryListBody
 // reads the live slice each frame and keys its per-entry view state by
@@ -88,9 +103,9 @@ func feedsSidebar(
 		sectionCells[i].Store(groups[i].Entries)
 	}
 
-	// The open feed, mirrored for the section bodies. accordion.Section.Body
-	// is a static layout.Widget slot, so the entry rows cannot be handed the
-	// selection in-band; they read it from this cell at frame time, the same
+	// The open feed, mirrored for the section bodies. A section's rows are a
+	// static layout.Widget slot, so they cannot be handed the selection
+	// in-band; they read it from this cell at frame time, the same
 	// layer-boundary hand-off the entry list already uses for its entries.
 	// The cell is written in the fold below, BEFORE the emitted layout.Widget
 	// can be laid out, so no frame paints last selection's pill.
@@ -101,12 +116,12 @@ func feedsSidebar(
 		return id
 	}
 
-	accSections := make([]accordion.Section, len(groups))
+	sections := make([]railSection, len(groups))
 	for i, g := range groups {
 		cell := &sectionCells[i]
-		accSections[i] = accordion.Section{
+		sections[i] = railSection{
 			Title: g.Title,
-			Body: feedEntryListBody(th, func() []feedEntry {
+			Rows: feedEntryListBody(th, func() []feedEntry {
 				if e, ok := cell.Load().([]feedEntry); ok {
 					return e
 				}
@@ -115,39 +130,20 @@ func feedsSidebar(
 		}
 	}
 
-	// SingleOpen is false: the patterns accordion emits exactly one
-	// ToggleSection per click, and feeds.Update owns the single-open invariant
-	// (opening a section closes its peers). One message per click keeps the
-	// model update — and the same-frame repaint it drives — to a single hop,
-	// rather than the N+1 OnToggle calls SingleOpen mode fires.
-	accObs := accordion.Accordion(th, accordion.Props{
-		Sections: accSections,
-		Open:     openSectionsObs,
-		OnToggle: func(gtx layout.Context, idx int) {
-			mvu.MessageOp{Message: ToggleSection{Idx: idx}}.Add(gtx.Ops)
-		},
-		SingleOpen: false,
-	})
+	// The heading clickables, one per section, built once: the section count
+	// never changes, so a plain slice is stable across every emission.
+	headings := make([]widget.Clickable, len(groups))
 
-	// Fold the accordion, the live feed tree, and a theme token together. The
-	// feeds emission updates the per-section cells (read by the bodies above)
-	// before the accordion's layout.Widget is returned, so a delete/add re-emits
-	// this layer — driving theme/window's Invalidate() and the same-frame
-	// repaint, the same way the open-section map drives it.
 	colorsObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
 		return t.Platform
 	})
-	// The density is here for the band alone: it is what the navbar's height
-	// on the other side of the window's top edge is pinned to, and therefore
-	// what the sidebar has to hold open on this side (see windowBandDp).
-	densityObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Density] {
-		return t.Density
+	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] {
+		return t.Typography
 	})
 	return rx.Map(
-		rx.CombineLatest5(accObs, feedsObs, colorsObs, selectedFeedObs, densityObs),
-		func(n rx.Tuple5[layout.Widget, []feedGroup, tokens.PlatformColors, FeedID, tokens.Density]) layout.Widget {
-			accW, feeds, c := n.First, n.Second, n.Third
-			band := windowBandDp(n.Fifth)
+		rx.CombineLatest5(openSectionsObs, feedsObs, colorsObs, selectedFeedObs, typObs),
+		func(n rx.Tuple5[map[int]bool, []feedGroup, tokens.PlatformColors, FeedID, tokens.Typography]) layout.Widget {
+			open, feeds, c, typ := n.First, n.Second, n.Third, n.Fifth
 			selectedCell.Store(n.Fourth)
 			for i := range sectionCells {
 				if i < len(feeds) {
@@ -157,58 +153,161 @@ func feedsSidebar(
 				}
 			}
 			return func(gtx layout.Context) layout.Dimensions {
-				return drawFeedsSidebar(gtx, accW, c, band)
+				return drawFeedsSidebar(gtx, c, typ, sections, headings, open)
 			}
 		},
 	)
 }
 
-// drawFeedsSidebar fills the sidebar's column and lays the accordion out
-// below the window's title band.
+// railSection is one group as the rail draws it: the heading's name and the
+// run of rows that stands under it while the section is open.
+type railSection struct {
+	Title string
+	Rows  layout.Widget
+}
+
+// railPaneBounds is the rail's panel in the coordinates of a window of the
+// given size: patterns/pane's own run, one margin inside the window's
+// leading, top and bottom edges. It is stated once and read twice — by the
+// rail, which draws inside it, and by the window, which casts the panel's
+// shadow over the columns after they have painted their own surfaces.
 //
-// The band is the sidebar's own top rows rather than something drawn over
-// them: this window paints its own title bar, so the sidebar reaches the
-// window's top edge and the platform's three control buttons stand in its
-// top-leading corner. The fill therefore runs the whole column, band
-// included — the band wears the fill of the region it caps, which here is
-// the sidebar's own chrome fill — and only the accordion starts below it,
-// clear of the buttons.
+// This window has no control that sends the rail away, so the panel is never
+// hidden: the feeds are the only way into the articles beside them.
+func railPaneBounds(gtx layout.Context, size image.Point) image.Rectangle {
+	return pane.Bounds(gtx, size, unit.Dp(feedsSidebarWidthDp), false)
+}
+
+// drawFeedsSidebar draws the rail as the vocabulary's PANE and lays its
+// sections out inside it.
 //
-// Nothing is drawn in the band on this side. The window's name is already the
-// navbar's brand on the other side of the seam, and a second copy of it under
-// the buttons would be the same word twice across one strip.
+// Nothing here draws the panel: the inset, the rounded corners, the
+// platform's rim, the chrome fill and the clip that keeps a scrolled row off
+// its edge are all patterns/pane's, and the shadow it casts is the window's
+// to spend once its columns have painted (see feedsShellLayer). What is left
+// here is which column stands in the panel, and what stands behind the two
+// corners the panel rounds away from on its flush side — the navbar's own
+// chrome above the band's foot and the articles pane's fill below it, never
+// the window's plane, which shows on the other three sides alone.
+//
+// No seam parts the rail from the content beside it. An inset object needs
+// none: the rim and the plane around it do that work.
+//
+// Nothing is drawn in the panel's own top strip. The window's name is already
+// the navbar's brand on the other side of the panel, and this window has
+// neither a control that sends the rail away nor an action of the rail's own,
+// so the strip stands empty under the window's three control buttons.
 func drawFeedsSidebar(
 	gtx layout.Context,
-	accW layout.Widget,
 	colors tokens.PlatformColors,
-	band unit.Dp,
+	typ tokens.Typography,
+	sections []railSection,
+	headings []widget.Clickable,
+	open map[int]bool,
 ) layout.Dimensions {
-	w := gtx.Dp(unit.Dp(feedsSidebarWidthDp))
-	h := gtx.Constraints.Max.Y
-	size := image.Pt(w, h)
-	// A sidebar is chrome, so it wears the platform's chrome material —
-	// the fill a sidebar, a toolbar and a status strip share.
-	paint.FillShape(gtx.Ops, colors.SidebarMaterial, clip.Rect{Max: size}.Op())
-	top := min(max(gtx.Dp(band), 0), h)
-	if accW != nil {
-		st := op.Offset(image.Pt(0, top)).Push(gtx.Ops)
-		agtx := gtx
-		agtx.Constraints = layout.Exact(image.Pt(w, h-top))
-		accW(agtx)
-		st.Pop()
+	size := gtx.Constraints.Max
+	bounds := railPaneBounds(gtx, size)
+	if bounds.Empty() {
+		return layout.Dimensions{Size: image.Pt(0, size.Y)}
 	}
-	// The seam parting the sidebar from the content beside it, drawn by the
-	// leading region and last, so nothing the column holds paints over it.
-	// It is the platform's separator over the sidebar's own fill, which is
-	// what this column carries. It starts under the band: across the band the
-	// two halves of the strip are one region, and the navbar draws that seam.
-	seam := max(gtx.Dp(1), 1)
-	paint.FillShape(gtx.Ops, vgcolor.Flatten(colors.Separator, colors.SidebarMaterial),
-		clip.Rect(image.Rect(w-seam, top, w, h)).Op())
+	// The two corners on the flush side, filled in what stands beside them
+	// rather than in the plane: the navbar's chrome across the band, the
+	// articles pane's own fill under it.
+	band := min(max(gtx.Dp(windowBandDp), bounds.Min.Y), bounds.Max.Y)
+	top := bounds
+	top.Max.Y = band
+	rest := bounds
+	rest.Min.Y = band
+	pane.FillTrailingCorners(gtx, colors.SidebarMaterial, top)
+	pane.FillTrailingCorners(gtx, colors.ControlBackground, rest)
+
+	pane.Layout(gtx, colors, bounds, func(gtx layout.Context) layout.Dimensions {
+		return drawRailColumn(gtx, colors, typ, sections, headings, open)
+	})
+	return layout.Dimensions{Size: image.Pt(bounds.Max.X, size.Y)}
+}
+
+// drawRailColumn lays the panel's own column out: its top strip, then one
+// section after another — each a heading block and, while the section is
+// open, the rows beneath it.
+//
+// The strip is the panel's own and not the content's band: it is cut to clear
+// the window's control buttons where the window keeps them, which is the
+// pattern's arithmetic and not this window's.
+func drawRailColumn(
+	gtx layout.Context,
+	colors tokens.PlatformColors,
+	typ tokens.Typography,
+	sections []railSection,
+	headings []widget.Clickable,
+	open map[int]bool,
+) layout.Dimensions {
+	size := gtx.Constraints.Max
+	y := min(gtx.Dp(unit.Dp(pane.StripDp)), size.Y)
+	headH := gtx.Dp(patsidebar.SectionHeight)
+	for i := range sections {
+		if y >= size.Y {
+			break
+		}
+		if headings[i].Clicked(gtx) {
+			mvu.MessageOp{Message: ToggleSection{Idx: i}}.Add(gtx.Ops)
+		}
+		hStk := op.Offset(image.Pt(0, y)).Push(gtx.Ops)
+		hGtx := gtx
+		hGtx.Constraints = layout.Exact(image.Pt(size.X, min(headH, size.Y-y)))
+		drawRailHeading(hGtx, colors, typ, sections[i].Title, open[i], &headings[i])
+		hStk.Pop()
+		y += headH
+		if !open[i] || sections[i].Rows == nil || y >= size.Y {
+			continue
+		}
+		rStk := op.Offset(image.Pt(0, y)).Push(gtx.Ops)
+		rGtx := gtx
+		rGtx.Constraints = layout.Exact(image.Pt(size.X, size.Y-y))
+		y += sections[i].Rows(rGtx).Size.Y
+		rStk.Pop()
+	}
 	return layout.Dimensions{Size: size}
 }
 
-// feedEntryListBody returns the body layout.Widget for one accordion section.
+// drawRailHeading draws one section's heading: the group's name as a small
+// label in the platform's secondary colour, and at the trailing end the
+// control that collapses the rows beneath it. Both are patterns/sidebar's
+// drawing, at the metrics measured off the platform's own panel; the whole
+// block answers the click, because a heading and the control that collapses
+// it are one thing.
+//
+// The block is not a row. It takes no pill, the rail's selection never rests
+// on it, and no line parts it from the rows below — the platform parts a
+// section from what stands above it by air alone. It is still a control, so
+// the keyboard can operate it as it operates the rows.
+func drawRailHeading(
+	gtx layout.Context,
+	colors tokens.PlatformColors,
+	typ tokens.Typography,
+	title string,
+	open bool,
+	click *widget.Clickable,
+) layout.Dimensions {
+	size := gtx.Constraints.Max
+	fg := vgcolor.Flatten(patsidebar.SectionForeground(colors), pane.Surface(colors))
+	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		semantic.LabelOp(title).Add(gtx.Ops)
+		semantic.EnabledOp(true).Add(gtx.Ops)
+		pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
+		mark := patsidebar.PaintDisclosure(gtx, open, size,
+			vgcolor.Flatten(patsidebar.DisclosureForeground(colors), pane.Surface(colors)))
+		room := size.X - mark.Size.X
+		if room < 0 {
+			room = 0
+		}
+		patsidebar.PaintSection(gtx, typ.Shaper(), title, patsidebar.SectionStyle(typ),
+			image.Pt(room, size.Y), fg)
+		return layout.Dimensions{Size: size}
+	})
+}
+
+// feedEntryListBody returns the run of rows one rail section holds.
 // entriesFn yields the section's CURRENT entries each frame (read from the
 // per-section model cell). Entry clicks emit SelectFeed; hovering a row
 // reveals a trash icon whose click toggles a per-row delete-confirm popover,
@@ -270,15 +369,23 @@ func feedEntryListBody(
 			}
 		}
 
+		drawn := 0
 		for i, e := range entries {
-			stk := op.Offset(image.Pt(0, i*rowH)).Push(gtx.Ops)
+			top := i * rowH
+			if top+rowH > size.Y {
+				break
+			}
+			stk := op.Offset(image.Pt(0, top)).Push(gtx.Ops)
 			rowGtx := gtx
 			rowGtx.Constraints = layout.Exact(image.Pt(size.X, rowH))
 			drawFeedEntryRow(rowGtx, s, e, e.ID == selected, unemphasized, rowClicks.For(e.ID),
 				hovers.For(e.ID), popovers.For(e.ID), trashW)
 			stk.Pop()
+			drawn++
 		}
-		return layout.Dimensions{Size: size}
+		// What the rows actually took, not the room they were offered: the
+		// section under this one begins where these end.
+		return layout.Dimensions{Size: image.Pt(size.X, drawn*rowH)}
 	}
 }
 

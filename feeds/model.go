@@ -1,6 +1,6 @@
 // model.go defines the canonical MVU model for the feeds app, plus the
 // message types and the Update function that reduces them. Every interactive
-// callback (sidebar selection, accordion toggle, table sort, pagination) lands
+// callback (sidebar selection, section toggle, table sort, pagination) lands
 // a message that re-emits the layer observable on the same frame as the click.
 //
 // Messages:
@@ -8,7 +8,7 @@
 //   - SelectArticle{Article ArticleID} — record the row-clicked article (drives the detail pane)
 //   - SetPage{Page int}              — navigate the articles table to a 1-indexed page
 //   - SetSort{Sort table.Sort}       — set the table sort key/direction
-//   - ToggleSection{Idx int}         — single-open accordion toggle for sidebar section Idx
+//   - ToggleSection{Idx int}         — single-open toggle for rail section Idx
 //   - SelectTab{Idx int}             — switch the detail pane's Reader/Raw/Comments tab
 //   - ToggleShare{}                  — toggle the navbar Share popover
 //   - CloseShare{}                   — close the Share popover (destination click, outside press)
@@ -71,7 +71,7 @@ type Model struct {
 const initialSplitRatio = 0.6
 
 // initialModel returns the seed state: the default feed selected, the first
-// accordion section open, Published-descending sort, page 1, the Reader tab,
+// rail section open, Published-descending sort, page 1, the Reader tab,
 // the Share popover closed, the default split position, and the default
 // reading preferences (every article, ten to a page).
 func initialModel() Model {
@@ -112,11 +112,11 @@ type SetFilter struct{ Text string }
 // SetSort sets the table sort key and direction.
 type SetSort struct{ Sort table.Sort }
 
-// ToggleSection applies the single-open policy for accordion section Idx:
+// ToggleSection applies the single-open policy for rail section Idx:
 // opening Idx closes every other section, and clicking an already-open Idx
-// collapses it. The patterns accordion runs with SingleOpen=false, so exactly
-// one ToggleSection is emitted per click and this reducer — not N+1 OnToggle
-// calls — owns the single-open invariant.
+// collapses it. A heading emits exactly one ToggleSection per click, so this
+// reducer owns the single-open invariant and the rail owns nothing but the
+// drawing.
 type ToggleSection struct{ Idx int }
 
 // SelectTab switches the detail pane's tab strip (0 Reader, 1 Raw,

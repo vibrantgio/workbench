@@ -5,53 +5,41 @@ package main
 //
 // This window takes the full-size-content treatment (main.go), so the native
 // title bar is gone and the regions underneath reach the window's own top
-// edge. Two of them do, not one: the sidebar caps the leading side and the
-// navbar caps the content region beside it. What follows is the arithmetic
-// that keeps those two halves reading as a single band.
+// edge. Two of them do, not one: the rail's panel is set into the leading
+// side and the navbar caps the content column beside it. What follows is the
+// arithmetic that keeps those two halves reading as one band.
 
 import (
 	"gioui.org/unit"
 
-	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/shell"
-	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/patterns/pane"
 )
 
-// windowBandDp is the depth of that strip, the same on both sides of the
-// sidebar's trailing edge.
+// windowBandDp is the depth of that strip across the CONTENT column.
 //
-// The two halves of a strip that crosses a seam may wear their own fills —
-// here they wear the same one, since both regions are chrome — but not
-// their own depths. A strip 52 dp deep on one side of the seam and 40 on the
-// other is a step in the window's top edge rather than a band with a seam
-// through it.
+// It is the platform's, not a density's. The three control buttons stand a
+// measured nineteen dp in from the window's own glass on both axes, so the
+// band that holds them centred is nineteen above a fourteen dp circle and
+// nineteen below it: 52, which is the band every stored toolbar capture
+// measures — 8 px above a 36 px control and 8 below it. patterns/pane states
+// that arithmetic once, as BandDp, because the panel's own strip is cut from
+// the same inset, and this window reads it rather than restating it.
 //
-// The right half's depth is not this app's to choose. patterns/shell pins the
-// navbar slot to shell.NavbarHeight, so that number IS the band, and the
-// sidebar holds the same depth open on the other side of the seam by calling
-// the same export rather than restating its arithmetic.
-// TestTheWindowsTopStripIsOneBand measures both halves off a rendered frame
-// at both densities, so a drift between them is caught where it would show.
-func windowBandDp(d tokens.Density) unit.Dp {
-	return shell.NavbarHeight(d)
-}
+// The rail's half of the strip is the panel's own [pane.StripDp], which is
+// this number less a margin at each end: the panel stands one margin inside
+// the window's top edge, so the two halves hold one line between them — the
+// buttons' centre — rather than one depth.
+const windowBandDp = unit.Dp(pane.BandDp)
 
 // windowButtonRun is where the platform's three control buttons stand once
 // the native strip is gone: the top-leading corner of the window, which in
-// this layout is the top-leading corner of the sidebar.
+// this layout is the top-leading corner of the rail's panel — the buttons
+// stand INSIDE the pane, as they do in every stored window whose sidebar is
+// one.
 //
-// desktop.ButtonRunIn derives the whole run from the band's height alone —
-// the platform centres the buttons in whatever band a window gives them and
-// sets their leading inset equal to their top inset — so at a 52 dp band that
-// is 19 dp in, 19 dp down, 14 dp across and 79 dp to the far edge of the
-// third circle. Nothing else in this file needs to know those numbers; the
-// sidebar keeps the whole band clear rather than dodging the run, and the
-// drag claim asks the window where the run actually ended.
-//
-// The density is stated rather than read because the placement is a one-off
-// call made before the window's first frame, when no theme emission has
-// arrived yet. Comfortable is what the live theme emits and never stops
-// emitting (theme/system), so it is also what the navbar beside the buttons
-// is pinned at; a window that learned to switch density at runtime would have
-// to re-place them on the change, and this app has no such control.
-var windowButtonRun = desktop.ButtonRunIn(windowBandDp(tokens.Comfortable))
+// The run is patterns/pane's, which states the platform's measured inset
+// once: the circles' own edges nineteen dp in from the window's glass on both
+// axes, read off Finder, Mail, Notes and Voice Memos. The pane's strip is cut
+// to that inset, so the buttons and the strip they stand in cannot drift
+// apart. The drag claim asks the window where the run actually ended.
+var windowButtonRun = pane.Buttons

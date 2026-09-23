@@ -37,8 +37,10 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
-	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -189,13 +191,6 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// windowBand is the depth of the title band these frames are drawn with: the
-// strip the sidebar and the navbar hold open across the window's top edge, at
-// the density staticTheme is given below. The sidebar's sample points are
-// stated from it rather than from the window's top edge, because everything
-// the sidebar draws begins under the band.
-var windowBand = int(windowBandDp(tokens.Comfortable))
-
 // Sample points in the rendered window, in the pixels the frame is drawn at
 // (PxPerDp is 1, so a dp is a pixel). Each names a resting expanse and is
 // chosen well clear of paint: the sidebar below its last feed, the navbar
@@ -205,26 +200,27 @@ var windowBand = int(windowBandDp(tokens.Comfortable))
 // region paints its own fill where it draws, so the frame is the only place
 // the question has an answer.
 var (
-	atSidebar     = image.Pt(96, 10)    // the sidebar's own band, above the accordion
+	atSidebar     = image.Pt(96, 20)    // the panel's own strip, above its first section
 	atNavbar      = image.Pt(600, 12)   // navbar, between the brand and the actions
-	atListPane    = image.Pt(494, 640)  // articles pane, under the last row
-	atListRow     = image.Pt(760, 153)  // a body row the stripe skips, past the glyph
+	atListPane    = image.Pt(500, 640)  // articles pane, under the last row
+	atListRow     = image.Pt(700, 177)  // a body row the stripe skips, past the glyph
 	atReadingPane = image.Pt(1000, 600) // reading pane, below the article body
-	atPaneHead    = image.Pt(900, 60)   // reading pane, beside the article title
-	atTabStrip    = image.Pt(1100, 114) // the tab strip band, past the last label
+	atPaneHead    = image.Pt(1100, 100) // reading pane, beside the article title
+	atTabStrip    = image.Pt(1150, 132) // the tab strip band, past the last label
 	// Both feed samples are taken in the air between the row's symbol box
 	// and the column its name starts in, which every row keeps clear
-	// whatever it is called.
-	atOpenFeed    = image.Pt(44, windowBand+63) // the open feed's pill, under the band
-	atRestingFeed = image.Pt(44, windowBand+95) // the feed under it, unchosen
-	atOpenRow     = image.Pt(760, 113)          // the open article's row, past the glyph
+	// whatever it is called. The rows begin under the panel's own strip and
+	// the first section's heading block, not under the window's band.
+	atOpenFeed    = image.Pt(52, 100)  // the open feed's pill
+	atRestingFeed = image.Pt(52, 132)  // the feed under it, unchosen
+	atOpenRow     = image.Pt(700, 137) // the open article's row, past the glyph
 
 	// The pager, under the table: a leading chevron and then one square per
 	// page. Only the page the table is showing is filled; the others carry
 	// the pane's own fill, so the resting sample is taken in the gap between
 	// two squares.
-	atCurrentPage = image.Pt(247, 762) // the page the table is showing
-	atRestingPage = image.Pt(280, 762) // the pager beside it, unfilled
+	atCurrentPage = image.Pt(280, 765) // the page the table is showing
+	atRestingPage = image.Pt(310, 771) // the pager beside it, unfilled
 )
 
 // TestWindowRegionsWearThePlatformNames reads off the frame that every
@@ -293,11 +289,11 @@ func TestChosenItemsWearThePlatformsSelection(t *testing.T) {
 			}
 			// A resting row takes no fill of its own: the platform tints
 			// neither a sidebar row nor a list row, so each shows whatever
-			// its region already painted. patterns/accordion paints the
-			// rail's body, which is why the resting feed reads the content's
-			// fill rather than the chrome the sidebar's own band wears.
-			if got, want := at(img, atRestingFeed.X, atRestingFeed.Y), tc.c.ControlBackground; got != want {
-				t.Errorf("resting feed at %v = %v, want the fill under it %v", atRestingFeed, got, want)
+			// its region already painted. The rail's rows stand on the
+			// panel's own chrome material and on nothing else — no section's
+			// body paints the content's fill over them.
+			if got, want := at(img, atRestingFeed.X, atRestingFeed.Y), tc.c.SidebarMaterial; got != want {
+				t.Errorf("resting feed at %v = %v, want the panel's own fill under it %v", atRestingFeed, got, want)
 			}
 			if got, want := at(img, atRestingPage.X, atRestingPage.Y), tc.c.ControlBackground; got != want {
 				t.Errorf("the pager beside the current page at %v = %v, want the pane's own fill %v", atRestingPage, got, want)
@@ -322,85 +318,82 @@ func topmostDrawnIn(img *image.RGBA, surface color.NRGBA, x0, x1, y0, y1 int) in
 	return -1
 }
 
-// TestTheSidebarClearsTheWindowButtons: with the native strip gone, the
+// TestTheRailsStripClearsTheWindowButtons: with the native strip gone, the
 // platform's three control buttons float over the top-leading corner of
-// whatever the application drew there, and in this layout that corner belongs
-// to the sidebar.
+// whatever the application drew there, and in this layout that corner is
+// INSIDE the rail's panel. The panel's own top strip is cut to hold them
+// where the window puts them, and this window draws nothing in it at all.
 //
-// Measured off this window's frames without the band: the first accordion
-// section's header paints from row 17 and the sidebar's own content runs the
-// band's whole depth, while the buttons in a 52 dp band run rows 19 to 33 and
-// reach 79 dp along (desktop.ButtonRunIn(52): leading 19, centre 26, trailing
-// 79) — 184 pixels of the header's caret and name inside the run. The band is
-// the whole of the clearance the corner has; nothing in the sidebar is centred
-// out of the buttons' way.
+// The clearance is read inside the panel rather than over the whole window,
+// because the panel's rim and the plane around it are drawing the buttons
+// stand over by design: the buttons are the window's and the panel slid in
+// under them. What must be clear is the panel's INTERIOR — everything from
+// its fill inward — across the strip's whole depth.
 //
-// The run is desktop's derivation of the platform's rule rather than a guess
-// at where the circles are, and the clearance is asserted off the frame rather
-// than trusted to the arithmetic that produced it.
-func TestTheSidebarClearsTheWindowButtons(t *testing.T) {
-	run := desktop.ButtonRunIn(windowBandDp(tokens.Comfortable))
-	bottom := int(run.Leading + run.Diameter)
+// The run is patterns/pane's statement of the platform's measured inset
+// rather than a guess at where the circles are, and the clearance is asserted
+// off the frame rather than trusted to the arithmetic that produced it.
+func TestTheRailsStripClearsTheWindowButtons(t *testing.T) {
+	margin := int(pane.MarginDp)
+	rim := int(pane.RimDp)
+	strip := margin + int(pane.StripDp)
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
 			surface := tc.c.SidebarMaterial
-			for y := 0; y <= bottom; y++ {
-				for x := 0; x <= int(run.Trailing); x++ {
+			// The straight run of the panel's own edges: the four corners are
+			// arcs, and the plane outside one is not paint of the panel's.
+			x0, x1 := margin+int(pane.RadiusDp), int(feedsPaneColumnDp)-int(pane.RadiusDp)
+			for y := margin + rim; y < strip; y++ {
+				for x := x0; x < x1; x++ {
 					if got := at(img, x, y); got != surface {
-						t.Fatalf("sidebar paint %v at (%d,%d), inside the window buttons' run (leading %v, trailing %v, centre %v)",
-							got, x, y, run.Leading, run.Trailing, run.Center)
+						t.Fatalf("the panel paints %v at (%d,%d), inside a strip that runs to row %d and holds nothing but the window's buttons",
+							got, x, y, strip)
 					}
 				}
 			}
-			top := topmostDrawnIn(img, surface, 0, feedsSidebarWidthDp, 0, windowSize.Y)
+			top := topmostDrawnIn(img, surface, x0, x1, margin+rim, windowSize.Y)
 			if top < 0 {
-				t.Fatalf("the sidebar draws nothing at all; the clearance below the buttons cannot be judged")
+				t.Fatalf("the panel draws nothing at all; the clearance below the buttons cannot be judged")
 			}
-			if top <= bottom {
-				t.Errorf("the sidebar's topmost paint is row %d and the buttons end at row %d; the sidebar has no clearance under them", top, bottom)
+			if top < strip {
+				t.Errorf("the panel's topmost paint is row %d and its strip runs to row %d; the strip is not clear", top, strip)
 			}
-			t.Logf("sidebar's topmost paint is row %d; the buttons run rows %v to %d", top, run.Leading, bottom)
+			t.Logf("the panel's topmost paint is row %d; its strip runs rows %d to %d", top, margin+rim, strip)
 		})
 	}
 }
 
 // TestTheWindowsTopStripIsOneBand covers a top edge crossed by two regions,
-// not one. The sidebar caps the leading side and the navbar caps the content
-// region beside it, and the two wear their own fills but hold one depth
-// between them — a strip deeper on one side of the seam than the other is a
-// step in the window's top edge rather than a band with a seam in it.
+// not one. The rail's panel caps the leading side and the navbar caps the
+// content column beside it, and the two hold one LINE between them rather
+// than one depth: the panel stands one margin inside the window's top edge,
+// so its own strip is the band less a margin at each end and the buttons'
+// centre falls on the middle of both.
 //
 // Each half is measured off the frame, and neither is asked to agree with a
 // number written down in this test:
 //
 //   - The trailing half declares its own depth, because the navbar's chrome
-//     ends where the content region begins. patterns/navbar closes its band
+//     ends where the content column begins. patterns/navbar closes its band
 //     with a seam along its own foot, so the last row of flat chrome is the
-//     one above that line and the edge lands at band-1. That is what proves
-//     this app's restatement of patterns/shell's navbar pin has not drifted
-//     from the pin itself.
-//   - The leading half declares nothing, because the sidebar's own fill runs
-//     the whole column under the accordion. What can be seen there is where
-//     the sidebar starts drawing, which must be at or below the band's foot —
-//     the band is held open, and wears the sidebar's own fill while it is.
+//     one above that line and the edge lands at band-1.
+//   - The leading half declares nothing, because the panel's own fill runs
+//     the whole column under the strip. What can be seen there is where the
+//     panel starts drawing, which must be at or below the strip's foot.
 //
-// Both densities are checked because the depth is the density's, not this
-// app's: a band that only ever met Comfortable would pass while hard-coding
-// its depth. Checking two also turns the leading half's loose bound into an exact
-// one. The accordion's own lead — the padding above its first section's caret
-// — is the same at both densities, so the gap between the band's foot and the
-// sidebar's first paint has to be the same at both as well. A sidebar that
-// reserved anything other than the band would open a different gap at 52 than
-// at 40 and be caught here, without this test ever having to know what the
-// accordion's lead is.
+// Both densities are checked because the band is NOT the density's: this
+// window's strip is the platform's measured one, so a density change must
+// move neither half. A band that had drifted back onto a density's bar height
+// would open a different navbar foot at one density than at the other and be
+// caught here.
 func TestTheWindowsTopStripIsOneBand(t *testing.T) {
+	band := int(windowBandDp)
+	strip := int(pane.MarginDp) + int(pane.StripDp)
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
-			leads := make([]int, len(densities))
-			for i, dc := range densities {
+			for _, dc := range densities {
 				img := renderWindowAt(t, tc.c, dc.d)
-				band := int(windowBandDp(dc.d))
 				surface := tc.c.SidebarMaterial
 
 				depth := -1
@@ -411,50 +404,182 @@ func TestTheWindowsTopStripIsOneBand(t *testing.T) {
 					}
 				}
 				if depth != band-1 {
-					t.Errorf("%s: the navbar's flat chrome ends at row %d at x=%d, want the row above the seam that closes a %d dp band; the two halves of the window's top edge stand at different depths",
+					t.Errorf("%s: the navbar's flat chrome ends at row %d at x=%d, want the row above the seam that closes a %d dp band",
 						dc.name, depth, atNavbar.X, band)
 				}
 
-				top := topmostDrawnIn(img, surface, 0, feedsSidebarWidthDp, 0, windowSize.Y)
+				top := topmostDrawnIn(img, surface,
+					int(pane.MarginDp)+int(pane.RadiusDp), int(feedsPaneColumnDp)-int(pane.RadiusDp),
+					int(pane.MarginDp)+int(pane.RimDp), windowSize.Y)
 				if top < 0 {
-					t.Fatalf("%s: the sidebar draws nothing at all; its half of the strip cannot be judged", dc.name)
+					t.Fatalf("%s: the panel draws nothing at all; its half of the strip cannot be judged", dc.name)
 				}
-				if top < band {
-					t.Errorf("%s: the sidebar paints row %d, inside a band %d dp deep; its half of the strip is shallower than the navbar's beside it",
-						dc.name, top, band)
+				if top < strip {
+					t.Errorf("%s: the panel paints row %d, inside a strip %d dp deep; its half of the window's top edge is shallower than the navbar's",
+						dc.name, top, strip)
 				}
-				leads[i] = top - band
-				t.Logf("%s: band %d dp, navbar's fill ends at row %d, sidebar's first paint is row %d (%d dp below the band)",
-					dc.name, band, depth, top, leads[i])
+				t.Logf("%s: band %d, navbar's fill ends at row %d, the panel's strip ends at row %d and its first paint is row %d",
+					dc.name, band, depth, strip, top)
 			}
-			for i := 1; i < len(leads); i++ {
-				if leads[i] != leads[0] {
-					t.Errorf("the sidebar starts drawing %d dp below a %s band and %d dp below a %s one; the depth it holds open is not the band's",
-						leads[0], densities[0].name, leads[i], densities[i].name)
+		})
+	}
+}
+
+// TestTheBandIsThePlatformsAndNotADensitys states the arithmetic the frames
+// above measure, so a failure says which of the two is wrong.
+//
+// The band is 52, which is not a density's bar height and cannot be: the
+// three window control buttons stand a MEASURED nineteen dp in from the
+// window's own glass on both axes, so the band that holds them centred is
+// nineteen above a fourteen dp circle and nineteen below it. patterns/pane
+// states that once and this window reads it. The rail's half of the strip is
+// the panel's own, which the panel's margin cuts from the same inset, so the
+// two halves hold one LINE between them — the buttons' centre — rather than
+// one depth.
+func TestTheBandIsThePlatformsAndNotADensitys(t *testing.T) {
+	if got, want := windowBandDp, unit.Dp(pane.BandDp); got != want {
+		t.Errorf("band = %v, want the platform's measured band %v", got, want)
+	}
+	if windowButtonRun != pane.Buttons {
+		t.Errorf("the window buttons are placed at %+v, want the pane's own run %+v", windowButtonRun, pane.Buttons)
+	}
+	if windowButtonRun.Center != windowBandDp/2 {
+		t.Errorf("the buttons' centre line is %v in a band %v deep; they are not centred in the band they stand in",
+			windowButtonRun.Center, windowBandDp)
+	}
+	if strip := unit.Dp(pane.MarginDp) + unit.Dp(pane.StripDp)/2; strip != windowButtonRun.Center {
+		t.Errorf("the panel's strip centres on %v and the band on %v; the two halves of the window's top edge stand on different lines",
+			strip, windowButtonRun.Center)
+	}
+	for _, dc := range densities {
+		if got := shell.NavbarHeight(dc.d); got == windowBandDp {
+			t.Errorf("%s: the density's bar height is %v, which is the band; this test can no longer tell the two apart", dc.name, got)
+		}
+	}
+}
+
+// TestFeedsWindowGolden stores the composed window in both appearances: the
+// rail's panel set into the window's plane, one section open and the two
+// below it collapsed, the band across the content and the articles/detail
+// split under it.
+//
+// A picture of a slot cannot show a defect that lives in the composition —
+// a nick of plane behind a rounded corner, a shadow painted before the column
+// it falls on, a band standing at two depths across one top edge — so the
+// composition gets a picture of its own. The panel's corners are anti-aliased
+// and the golden carries those pixels: the sharp-radius trick the slot
+// goldens use covers a component's own radius, not the rounded box the frame
+// draws.
+//
+// It is taken through the LIVE layers, where every other golden in this
+// package is taken through a static render path with the pinned shaper. This
+// window has no static path — its layers are the only composition of it that
+// exists — so the frames are shaped with the theme's own shaper. Everything
+// drawn here is Latin and the embedded Roboto leads the collection, so no run
+// in this window ever reaches the platform's fonts; a window that grew a rune
+// Roboto does not carry would need the static path before it could be stored.
+func TestFeedsWindowGolden(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			golden.Compare(t, "window-"+tc.name, renderWindow(t, tc.c))
+		})
+	}
+}
+
+// TestTheRailIsAPaneAndDrawsNoSeam reads the rail's two boundaries off the
+// frame. An inset object needs no seam — the rim and the plane around it do
+// that work — so what must stand down the panel's trailing edge is the
+// platform's rim and not a separator, and what must stand on the leading side
+// is the window's own plane.
+//
+// It also reads that no line runs across the rail at all. The rail's groups
+// used to be headed by a row with a full-width hairline under it; the
+// platform parts a section from what stands above it by air alone, and a row
+// of one colour spanning the panel's interior is what that defect looks like
+// in a frame.
+func TestTheRailIsAPaneAndDrawsNoSeam(t *testing.T) {
+	margin, rim := int(pane.MarginDp), int(pane.RimDp)
+	radius := int(pane.RadiusDp)
+	edge := int(feedsPaneColumnDp) - rim
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderWindow(t, tc.c)
+			seam := vgcolor.Flatten(tc.c.Separator, tc.c.SidebarMaterial)
+			for _, y := range []int{margin + radius, windowSize.Y / 2, windowSize.Y - margin - radius - 1} {
+				if got := at(img, edge, y); got != tc.c.PaneRim {
+					t.Errorf("the panel's trailing edge at (%d,%d) = %v, want the platform's rim %v", edge, y, got, tc.c.PaneRim)
+				}
+				if got := at(img, edge, y); got == seam {
+					t.Errorf("the panel's trailing edge at (%d,%d) wears the separator; an inset object parts from nothing with a line", edge, y)
+				}
+				if got := at(img, 0, y); got == tc.c.SidebarMaterial {
+					t.Errorf("the window's leading margin at (0,%d) wears the panel's own fill; the plane does not show around it", y)
+				}
+			}
+			// No line across the rail: inside the panel, below its strip, no
+			// row is one colour other than the panel's own fill. The scan
+			// runs the panel's WHOLE interior, so the selection pill — inset
+			// ten from each of the panel's edges — never reads as one.
+			x0, x1 := margin+rim, edge
+			for y := margin + int(pane.StripDp); y < windowSize.Y-margin-radius; y++ {
+				first := at(img, x0, y)
+				if first == tc.c.SidebarMaterial {
+					continue
+				}
+				flat := true
+				for x := x0; x < x1; x++ {
+					if at(img, x, y) != first {
+						flat = false
+						break
+					}
+				}
+				if flat {
+					t.Fatalf("row %d runs %v across the whole rail; nothing in a sidebar is parted by a line", y, first)
 				}
 			}
 		})
 	}
 }
 
-// TestTheBandIsTheDensitysBarHeight states the arithmetic the frames above
-// measure, so a failure says which of the two is wrong. The band is the
-// density's bar height — ControlHeight + 2·PaddingY — which is what
-// patterns/shell pins its navbar slot to, and the window buttons' whole
-// geometry falls out of that one number through the platform's centring rule.
-func TestTheBandIsTheDensitysBarHeight(t *testing.T) {
-	for _, dc := range densities {
-		want := unit.Dp(dc.d.ControlHeight + 2*dc.d.PaddingY)
-		if got := windowBandDp(dc.d); got != want {
-			t.Errorf("%s band = %v, want the density's bar height %v", dc.name, got, want)
-		}
-	}
-	run := desktop.ButtonRunIn(windowBandDp(tokens.Comfortable))
-	if windowButtonRun != run {
-		t.Errorf("the window buttons are placed at %+v, want the run derived from the band %+v", windowButtonRun, run)
-	}
-	if windowButtonRun.Center != windowBandDp(tokens.Comfortable)/2 {
-		t.Errorf("the buttons' centre line is %v in a band %v deep; they are not centred in the band they stand in",
-			windowButtonRun.Center, windowBandDp(tokens.Comfortable))
+// TestAHeadingCollapsesTheRowsBeneathIt reads the section's own behaviour off
+// two frames: with the group open its feeds stand under the heading, and with
+// it collapsed the panel's own fill stands there instead. The heading itself
+// does not move — it is a heading and not a row, so collapsing a section
+// takes its rows away and leaves its name where it was.
+func TestAHeadingCollapsesTheRowsBeneathIt(t *testing.T) {
+	// Where the first group's rows stand: under the panel's strip and the
+	// first heading's block.
+	rowsTop := int(pane.MarginDp) + int(pane.StripDp) + int(patsidebar.SectionHeight)
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			open := settledModel()
+			shut, _ := Update(open, ToggleSection{Idx: 0})
+			if shut.openSections[0] {
+				t.Fatal("ToggleSection left the first section open; the frames below would be the same")
+			}
+			a := golden.Capture(t, windowSize, windowFrame(t, tc.c, tokens.Comfortable, open))
+			b := golden.Capture(t, windowSize, windowFrame(t, tc.c, tokens.Comfortable, shut))
+			if a == nil || b == nil {
+				t.Skip("no capture backend")
+			}
+			if got := at(a, atOpenFeed.X, atOpenFeed.Y); got == tc.c.SidebarMaterial {
+				t.Fatalf("with the group open its first row reads the panel's own fill at %v; nothing was drawn there", atOpenFeed)
+			}
+			if got := at(b, atOpenFeed.X, atOpenFeed.Y); got != tc.c.SidebarMaterial {
+				t.Errorf("with the group collapsed %v still reads %v; the rows beneath the heading did not go", atOpenFeed, got)
+			}
+			// The heading's own name is untouched: the two frames agree
+			// across the block's leading side, where the label stands. Its
+			// trailing side is the control's, which turns a quarter — that is
+			// the whole of what collapsing a section changes about a heading.
+			nameEnd := int(feedsPaneColumnDp) - int(patsidebar.DisclosureInset) - int(patsidebar.DisclosureBox)
+			for y := int(pane.MarginDp) + int(pane.StripDp); y < rowsTop; y++ {
+				for x := int(pane.MarginDp) + int(pane.RadiusDp); x < nameEnd; x++ {
+					if at(a, x, y) != at(b, x, y) {
+						t.Fatalf("the heading's block differs at (%d,%d) between the open and collapsed frames; a heading is not a row and does not move with its rows", x, y)
+					}
+				}
+			}
+		})
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
@@ -33,6 +34,7 @@ import (
 	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/navbar"
 	"github.com/vibrantgio/patterns/notifications"
+	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/table"
@@ -76,8 +78,8 @@ func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 }
 
 // buildLayers returns the theme/window build function. The model
-// observable drives selection, paging, sort, and accordion open state; the
-// theme observable flows in independently per window.
+// observable drives selection, paging, sort, and which rail sections are
+// open; the theme observable flows in independently per window.
 func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
@@ -103,23 +105,25 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	)
 }
 
-// feedsShellLayer composes the feeds sidebar, navbar (with the Share
-// popover), and a nested SplitPane — articles table on the left, article
-// detail on the right — into a SidebarHeaderMain shell. Selection, paging,
-// sort, accordion open state, the detail tab, the Share popover, and the
-// split position are all derived from modelObs; theme tokens flow
-// independently through th.
+// feedsShellLayer composes the rail's pane, the navbar and a nested
+// SplitPane — articles table on the left, article detail on the right — into
+// this window's own frame. Selection, paging, sort, which rail sections are
+// open, the detail tab, the Share popover and the split position are all
+// derived from modelObs; theme tokens flow independently through th.
 //
-// patterns/shell exposes Sidebar as an rx.Observable[layout.Widget] but Main
-// (and SplitPane's Left/Right, and navbar Actions) as static layout.Widget
-// slots, and Shell re-emits (driving theme/window's Invalidate) only when
-// its Sidebar or Navbar stream emits. So every live layout.Widget stream is
-// folded onto the sidebar-driving observable, and the latest one of each is
-// published into an atomic cell — a layer-boundary adapter read by the
-// corresponding static slot at frame time. Any model change therefore
-// re-emits the sidebar stream, which makes Shell re-emit and the window
-// repaint on the same frame; state held outside the layer chain would leave a
-// click unpainted until the next unrelated input event.
+// The window's columns are composed here rather than through a shell layout,
+// for the reason drawFeedsFrame states: the band across this window's top
+// edge is the platform's measured one and patterns/shell pins its navbar slot
+// to the density's bar height instead.
+//
+// patterns/shell exposes SplitPane's Left/Right, and navbar Actions, as
+// static layout.Widget slots. So every live layout.Widget stream is folded
+// onto the rail-driving observable, and the latest one of each is published
+// into an atomic cell — a layer-boundary adapter read by the corresponding
+// static slot at frame time. Any model change therefore re-emits the rail's
+// stream, which makes the frame re-emit and the window repaint on the same
+// frame; state held outside the layer chain would leave a click unpainted
+// until the next unrelated input event.
 func feedsShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
@@ -198,13 +202,20 @@ func feedsShellLayer(
 		},
 	})
 
-	// The density, for the window's title band alone: patterns/shell pins the
-	// navbar to the density's bar height, so that is the depth the band holds
-	// across the whole top edge. It is read off the theme rather than the
-	// model, so it costs nothing on the modelObs ledger above.
-	densityObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Density] {
-		return t.Density
-	})
+	// The platform set, for the two things this composition paints itself:
+	// the content column's own surface and the shadow the rail's panel casts
+	// over it. It is read through the same layer-boundary cell the navbar's
+	// own labels use.
+	loadFrameTok := mirrorTokens(th)
+
+	// The navbar is composed here rather than through a shell layout, because
+	// this window's top band is the PLATFORM's and not a density's: the three
+	// control buttons stand a measured inset in from the window's glass and
+	// the band that holds them centred is windowBandDp. patterns/shell pins
+	// its own navbar slot to the density's bar height, which is shallower
+	// than the buttons standing in it — so the band is this window's to hold
+	// open, and the bar is laid into it as a component.
+	navbarObs := navbar.Navbar(th, feedsNavbarProps(mirrorTokens(th), slot(&shareCell)))
 
 	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, selectedFeedObs, popArb)
 	sidebarDriven := rx.Map(
@@ -218,12 +229,15 @@ func feedsShellLayer(
 		},
 	)
 
-	shellObs := shell.Shell(th, shell.Props{
-		Layout:  shell.SidebarHeaderMain,
-		Sidebar: sidebarDriven,
-		Navbar:  feedsNavbarProps(mirrorTokens(th), slot(&shareCell)),
-		Main:    slot(&splitCell),
-	})
+	shellObs := rx.Map(
+		rx.CombineLatest2(sidebarDriven, navbarObs),
+		func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
+			railW, navbarW := n.First, n.Second
+			return func(gtx layout.Context) layout.Dimensions {
+				return drawFeedsFrame(gtx, loadFrameTok().col, railW, navbarW, slot(&splitCell))
+			}
+		},
+	)
 
 	// Overlay composition: the Add-feed modal, the Preferences panel and the
 	// toast stack draw OVER the whole window. They are folded onto the shell
@@ -237,11 +251,10 @@ func feedsShellLayer(
 	// content, and an open modal's own scrim should shadow it the way it
 	// shadows the rest of the app.
 	return rx.Map(
-		rx.CombineLatest5(shellObs, modalObs, prefsObs, notesColumnObs, densityObs),
-		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, tokens.Density]) layout.Widget {
+		rx.CombineLatest4(shellObs, modalObs, prefsObs, notesColumnObs),
+		func(n rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 			shellW, modalW, prefsW, toastW := n.First, n.Second, n.Third, n.Fourth
-			band := windowBandDp(n.Fifth)
-			bandHeight := func() unit.Dp { return band }
+			bandHeight := func() unit.Dp { return windowBandDp }
 			return func(gtx layout.Context) layout.Dimensions {
 				// The window's own plane, declared before anything is
 				// offset, so a modal's scrim composites over the frame
@@ -606,4 +619,70 @@ func drawLabel(
 	material := mat.Stop()
 	return typeset.Layout(gtx, shaper, typeset.Label(style, 1),
 		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
+}
+
+// drawFeedsFrame composes the window: the rail's panel down the leading edge,
+// and beside it the content column — the band across its top and the
+// articles/detail split under it.
+//
+// THE RAIL IS SET INTO THE WINDOW, NOT A HALF OF IT. It is the vocabulary's
+// PANE: an inset rounded panel one margin in from the window's leading, top
+// and bottom edges, flush against the content on the fourth side, bounded by
+// its own rim and the shadow it casts and by no seam. None of that geometry
+// is drawn here — it is patterns/pane's, spent by the rail itself — and what
+// is left to this function is the column that stands beside the panel.
+//
+// The order is the reading order and so the focus ring's: the rail first,
+// then the band above the content, then the content itself.
+func drawFeedsFrame(gtx layout.Context, c tokens.PlatformColors, railW, navbarW, mainW layout.Widget) layout.Dimensions {
+	size := gtx.Constraints.Max
+	bounds := railPaneBounds(gtx, size)
+	contentX := 0
+	if !bounds.Empty() {
+		contentX = bounds.Max.X
+	}
+
+	// The content column's own surface, painted before the band and running
+	// the window's full height: the band is laid over it, and the two corners
+	// the panel rounds away from on its flush side stand on what the rail
+	// paints behind them rather than on the window's plane. The plane itself
+	// is the backdrop layer's and shows in the margins alone.
+	if contentX < size.X {
+		paint.FillShape(gtx.Ops, c.ControlBackground,
+			clip.Rect(image.Rect(contentX, 0, size.X, size.Y)).Op())
+	}
+
+	if railW != nil {
+		railW(gtx)
+	}
+
+	contentW := size.X - contentX
+	if contentW <= 0 {
+		return layout.Dimensions{Size: size}
+	}
+	band := min(gtx.Dp(windowBandDp), size.Y)
+	if navbarW != nil && band > 0 {
+		st := op.Offset(image.Pt(contentX, 0)).Push(gtx.Ops)
+		ngtx := gtx
+		ngtx.Constraints = layout.Exact(image.Pt(contentW, band))
+		navbarW(ngtx)
+		st.Pop()
+	}
+	if mainW != nil && size.Y-band > 0 {
+		st := op.Offset(image.Pt(contentX, band)).Push(gtx.Ops)
+		mgtx := gtx
+		mgtx.Constraints = layout.Exact(image.Pt(contentW, size.Y-band))
+		mainW(mgtx)
+		st.Pop()
+	}
+
+	// The shadow the panel casts, after every column has painted its own
+	// surface: the content column paints its own fill before the rail lays
+	// out, and its rows after — the rail comes first because it comes first
+	// in the reading order — and either would cover the ramp the panel cast
+	// on it. patterns/pane cuts the panel's own box out of the drawing, so
+	// painting it here lands what painting it under the panel landed.
+	pane.PaintShadow(gtx, c, bounds)
+
+	return layout.Dimensions{Size: size}
 }

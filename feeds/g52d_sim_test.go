@@ -126,9 +126,9 @@ func TestAddFeedModalGolden(t *testing.T) {
 	}
 }
 
-// sidebarRegion is a window over the sidebar area (the leading 192 dp at
-// PxPerDp 1), below the navbar, where feed entries render.
-var sidebarRegion = image.Rect(0, 80, feedsSidebarWidthDp, shellFrameH-20)
+// sidebarRegion is a window over the rail's panel (the leading
+// feedsPaneColumnDp at PxPerDp 1), below the band, where feed entries render.
+var sidebarRegion = image.Rect(0, 100, int(feedsPaneColumnDp), shellFrameH-20)
 
 // scrimRegion samples the centre of the window, where an open modal paints its
 // scrim + surface over the shell.

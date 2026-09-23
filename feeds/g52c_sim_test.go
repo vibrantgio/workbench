@@ -87,11 +87,11 @@ func regionDiff(a, b *image.RGBA, r image.Rectangle) int {
 	return n
 }
 
-// rightPaneRegion is a conservative window inside the detail pane: the main
-// area starts after the 192 dp sidebar, the split sits at ratio 0.6 of the
-// remaining 1008 px (≈ x 799 at PxPerDp 1), and the navbar occupies the top
-// 64 px.
-var rightPaneRegion = image.Rect(810, 80, shellFrameW-10, shellFrameH-20)
+// rightPaneRegion is a conservative window inside the detail pane: the
+// content column starts at the rail panel's trailing rim (the margin plus the
+// panel's own width), the split sits at ratio 0.6 of what is left, and the
+// band occupies the top windowBandDp.
+var rightPaneRegion = image.Rect(840, 100, shellFrameW-10, shellFrameH-20)
 
 // TestG52cDetailPopoverStatesHeadless renders the real shell at six model
 // states and asserts the pixel-level deltas between them.
