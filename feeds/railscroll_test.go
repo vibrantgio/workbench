@@ -57,7 +57,7 @@ func TestRailScrollsToItsFoot(t *testing.T) {
 			Source:      r.Source(),
 		}
 		drawRailColumn(gtx, tokens.PlatformLight, tokens.DefaultTypography,
-			sections, headings, open, scroll)
+			sections, headings, open, scroll, railKeyboard{Keys: newRailKeys()})
 		r.Frame(ops)
 	}
 

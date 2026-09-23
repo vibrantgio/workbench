@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 
 	"gioui.org/gesture"
+	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
@@ -114,6 +116,11 @@ func feedsSidebar(
 		return id
 	}
 
+	// The rail's keyboard, allocated once per subscription — this function
+	// body is the window — and read on every frame. Its cursor is what the
+	// rows read to say which of them the arrows stand on.
+	keys := newRailKeys()
+
 	sections := make([]railSection, len(groups))
 	for i, g := range groups {
 		cell := &sectionCells[i]
@@ -124,7 +131,7 @@ func feedsSidebar(
 					return e
 				}
 				return nil
-			}, loadSelected, popArb),
+			}, loadSelected, keys, popArb),
 		}
 	}
 
@@ -156,8 +163,12 @@ func feedsSidebar(
 					sectionCells[i].Store([]feedEntry(nil))
 				}
 			}
+			// The run the arrows walk, rebuilt on every emission: a
+			// collapsed section contributes none of its rows, so the arrows
+			// step straight past it.
+			kb := railKeyboard{Keys: keys, Rows: railRowRun(len(sections), feeds, open), Open: n.Fourth}
 			return func(gtx layout.Context) layout.Dimensions {
-				return drawRailColumn(gtx, c, typ, sections, headings, open, railScroll)
+				return drawRailColumn(gtx, c, typ, sections, headings, open, railScroll, kb)
 			}
 		},
 	)
@@ -169,6 +180,166 @@ type railSection struct {
 	Title string
 	Rows  layout.Widget
 }
+
+// railRow is one feed row as the rail's keyboard walks them: the section the
+// row stands in and the feed it opens.
+type railRow struct {
+	Section int
+	ID      FeedID
+}
+
+// railRowRun is the rail's rows in reading order across its sections, which
+// is the order the arrows walk them in. sections is how many the rail draws;
+// a collapsed one contributes nothing, and neither does a section the feed
+// tree no longer carries.
+func railRowRun(sections int, feeds []feedGroup, open map[int]bool) []railRow {
+	run := make([]railRow, 0, len(feeds))
+	for i := range sections {
+		if !open[i] || i >= len(feeds) {
+			continue
+		}
+		for _, e := range feeds[i].Entries {
+			run = append(run, railRow{Section: i, ID: e.ID})
+		}
+	}
+	return run
+}
+
+// railKeyboard is what the rail's column answers the keys with: the rail's
+// own tag and cursor, which live as long as the window; the run of rows the
+// arrows walk, rebuilt on every emission; and the feed the table is listing,
+// which is where a reader who has not moved the keys yet starts from.
+type railKeyboard struct {
+	Keys *railKeys
+	Rows []railRow
+	Open FeedID
+}
+
+// railKeys is the rail's keyboard: the one focus tag the whole rail takes and
+// the row the arrows stand on.
+//
+// One tag for the rail, never one per row — a row a collapsed section does
+// not draw has no tag to focus, so per-row tags can only ever reach what is
+// on screen. components/list takes a single tag for the same reason, and this
+// is that list's shape with the rail's heading blocks kept: the blocks are
+// what the column scrolls, the rows are what the keys walk.
+//
+// The cursor is held by the feed's own identity rather than by a position, so
+// collapsing a section, adding a feed or deleting one never leaves it on a
+// row the reader did not walk to.
+type railKeys struct {
+	// tag's address is the rail's event tag. The field carries a byte because
+	// a zero-size field can share an address with its neighbour, which would
+	// break tag identity.
+	tag    struct{ _ byte }
+	cursor FeedID
+	// moved says the last update walked the cursor, which is when the column
+	// scrolls to bring the row into view. A wheel is otherwise left alone.
+	moved bool
+}
+
+func newRailKeys() *railKeys { return &railKeys{} }
+
+// Focus is the rail's keyboard focus tag: the tag a click on a row hands the
+// keys to, and the tag the traversal keys are filtered on.
+func (k *railKeys) Focus() event.Tag { return &k.tag }
+
+// Select puts the cursor on the feed a click landed on. The column does not
+// move: the row was visible enough to be clicked.
+func (k *railKeys) Select(id FeedID) { k.cursor = id }
+
+// settle keeps the cursor on a row the rail actually shows: the feed it
+// stands on while the run still carries it, and otherwise the feed the table
+// is listing — a reader who puts the keys on the rail without having moved
+// them starts from the feed in front of them.
+func (k *railKeys) settle(rows []railRow, open FeedID) {
+	switch {
+	case runHolds(rows, k.cursor):
+	case runHolds(rows, open):
+		k.cursor = open
+	default:
+		k.cursor = ""
+	}
+}
+
+// update drains the rail's traversal keys and answers the feed Return opened,
+// if any. The arrows and Home/End walk the cursor over the rows the open
+// sections show and nothing wraps, as nothing wraps in a platform list.
+// Opening a feed is the caller's semantics and not the traversal's, so it is
+// answered here rather than acted on.
+func (k *railKeys) update(gtx layout.Context, rows []railRow, open FeedID) (FeedID, bool) {
+	k.settle(rows, open)
+	k.moved = false
+	tag := k.Focus()
+	opened, activated := FeedID(""), false
+	for {
+		e, ok := gtx.Event(
+			key.FocusFilter{Target: tag},
+			key.Filter{Focus: tag, Name: key.NameUpArrow},
+			key.Filter{Focus: tag, Name: key.NameDownArrow},
+			key.Filter{Focus: tag, Name: key.NameHome},
+			key.Filter{Focus: tag, Name: key.NameEnd},
+			key.Filter{Focus: tag, Name: key.NameReturn},
+			key.Filter{Focus: tag, Name: key.NameEnter},
+		)
+		if !ok {
+			return opened, activated
+		}
+		ke, isKey := e.(key.Event)
+		if !isKey || ke.State != key.Press || len(rows) == 0 {
+			continue
+		}
+		at := runIndex(rows, k.cursor)
+		switch ke.Name {
+		case key.NameUpArrow:
+			switch {
+			case at < 0:
+				at = len(rows) - 1
+			case at > 0:
+				at--
+			}
+		case key.NameDownArrow:
+			switch {
+			case at < 0:
+				at = 0
+			case at < len(rows)-1:
+				at++
+			}
+		case key.NameHome:
+			at = 0
+		case key.NameEnd:
+			at = len(rows) - 1
+		case key.NameReturn, key.NameEnter:
+			if at >= 0 {
+				opened, activated = rows[at].ID, true
+			}
+			continue
+		default:
+			continue
+		}
+		if rows[at].ID != k.cursor {
+			k.moved = true
+		}
+		k.cursor = rows[at].ID
+	}
+}
+
+// runIndex answers where in the run the given feed stands, or -1 when the run
+// does not carry it.
+func runIndex(rows []railRow, id FeedID) int {
+	if id == "" {
+		return -1
+	}
+	for i, r := range rows {
+		if r.ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// runHolds answers whether the run carries the given feed.
+func runHolds(rows []railRow, id FeedID) bool { return runIndex(rows, id) >= 0 }
 
 // drawRailColumn lays the panel's own column out: its top strip, and under
 // it the sections — each a heading block and, while the section is open, the
@@ -198,6 +369,7 @@ func drawRailColumn(
 	headings []widget.Clickable,
 	open map[int]bool,
 	scroll *list.State,
+	kb railKeyboard,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	// Every heading answers its click here rather than inside the scroll
@@ -207,6 +379,12 @@ func drawRailColumn(
 		if headings[i].Clicked(gtx) {
 			mvu.MessageOp{Message: ToggleSection{Idx: i}}.Add(gtx.Ops)
 		}
+	}
+	// The rail's own keys, drained here for the same reason: a row scrolled
+	// out of view is not laid out, and the keys are the rail's and not any
+	// one row's.
+	if id, ok := kb.Keys.update(gtx, kb.Rows, kb.Open); ok {
+		mvu.MessageOp{Message: SelectFeed{Feed: id}}.Add(gtx.Ops)
 	}
 	strip := min(gtx.Dp(unit.Dp(pane.StripDp)), size.Y)
 	if strip >= size.Y {
@@ -221,6 +399,15 @@ func drawRailColumn(
 	stk := op.Offset(image.Pt(0, strip)).Push(gtx.Ops)
 	cgtx := gtx
 	cgtx.Constraints = layout.Exact(image.Pt(size.X, size.Y-strip))
+	// The rail's focus target covers the scrolling column, registered UNDER
+	// the rows so a row's own pointer target keeps priority over it.
+	area := clip.Rect{Max: cgtx.Constraints.Max}.Push(gtx.Ops)
+	event.Op(gtx.Ops, kb.Keys.Focus())
+	area.Pop()
+	if kb.Keys.moved {
+		revealRailRow(scroll, blocks, kb.Rows, kb.Keys.cursor,
+			headH, gtx.Dp(patsidebar.RowHeight), size.Y-strip)
+	}
 	list.LayoutScrollbar(cgtx, scroll, bar, list.Overlay, blocks,
 		func(gtx layout.Context, b railBlock) layout.Dimensions {
 			if b.Rows {
@@ -257,6 +444,75 @@ func railBlocks(sections []railSection, open map[int]bool) []railBlock {
 		}
 	}
 	return blocks
+}
+
+// revealRailRow moves the rail's column far enough that the row the arrows
+// landed on stands inside it, and leaves it where it is when the row already
+// does. The column scrolls by BLOCKS — a section's whole run of rows is one —
+// so the row's own place down the column is measured here, from the blocks
+// above it and the rows above it inside its own section.
+func revealRailRow(
+	scroll *list.State,
+	blocks []railBlock,
+	rows []railRow,
+	cursor FeedID,
+	headH, rowH, viewH int,
+) {
+	top, ok := railRowTop(blocks, rows, cursor, headH, rowH)
+	if !ok || viewH <= 0 {
+		return
+	}
+	view := railViewTop(blocks, rows, scroll.Position(), headH, rowH)
+	switch {
+	case top < view:
+		scroll.ScrollPixels(top - view)
+	case top+rowH > view+viewH:
+		scroll.ScrollPixels(top + rowH - view - viewH)
+	}
+}
+
+// railRowTop answers where the row the cursor stands on begins down the
+// rail's column, measured from the column's own head, and whether the column
+// holds that row at all.
+func railRowTop(blocks []railBlock, rows []railRow, cursor FeedID, headH, rowH int) (int, bool) {
+	y := 0
+	for _, b := range blocks {
+		if !b.Rows {
+			y += headH
+			continue
+		}
+		for _, r := range rows {
+			if r.Section != b.Section {
+				continue
+			}
+			if r.ID == cursor {
+				return y, true
+			}
+			y += rowH
+		}
+	}
+	return 0, false
+}
+
+// railViewTop answers how far down its own column the viewport's leading edge
+// sits, off the scroll position the last layout resolved.
+func railViewTop(blocks []railBlock, rows []railRow, pos layout.Position, headH, rowH int) int {
+	y := pos.Offset
+	for i, b := range blocks {
+		if i >= pos.First {
+			break
+		}
+		if !b.Rows {
+			y += headH
+			continue
+		}
+		for _, r := range rows {
+			if r.Section == b.Section {
+				y += rowH
+			}
+		}
+	}
+	return y
 }
 
 // drawRailHeading draws one section's heading: the group's name as a small
@@ -309,6 +565,7 @@ func feedEntryListBody(
 	th rx.Observable[theme.Theme],
 	entriesFn func() []feedEntry,
 	selectedFn func() FeedID,
+	keys *railKeys,
 	popArb *popover.Arbiter,
 ) layout.Widget {
 	loadTok := mirrorTokens(th)
@@ -342,21 +599,31 @@ func feedEntryListBody(
 		for _, e := range entries {
 			rc := rowClicks.For(e.ID)
 			if rc.Clicked(gtx) {
+				keys.Select(e.ID)
+				// A gioui.org/widget.Clickable does not take the keyboard
+				// when it is clicked, so the row asks for it: the arrows
+				// then walk the rail from the row the reader landed on, and
+				// that row wears the accent pill.
+				gtx.Execute(key.FocusCmd{Tag: keys.Focus()})
 				mvu.MessageOp{Message: SelectFeed{Feed: e.ID}}.Add(gtx.Ops)
 			}
 		}
 
-		// Which of the platform's two pills the open feed wears: the
-		// accent one while the rail holds the keyboard, the grey one while
-		// it does not. The rail's rows are its focusables, so the keys are
-		// on the rail exactly while one of them holds them.
-		unemphasized := true
-		for _, e := range entries {
-			if gtx.Focused(rowClicks.For(e.ID)) {
-				unemphasized = false
-				break
+		// Whether the rail holds the keyboard, which is what picks between
+		// the platform's two pills. The rail's own tag is where the keys
+		// rest once a click or a focus move has put them there; a row's
+		// click target is a focusable of its own, so a focus move that lands
+		// on one has the keys on the rail too.
+		holds := gtx.Focused(keys.Focus())
+		if !holds {
+			for _, e := range entries {
+				if gtx.Focused(rowClicks.For(e.ID)) {
+					holds = true
+					break
+				}
 			}
 		}
+		cursor := keys.cursor
 
 		drawn := 0
 		for i, e := range entries {
@@ -364,10 +631,16 @@ func feedEntryListBody(
 			if top+rowH > size.Y {
 				break
 			}
+			// The accent pill goes where the platform puts it: on the row
+			// the keys stand on, while the rail holds them. The open feed —
+			// the one whose articles the table is listing — keeps its own
+			// pill in the grey state, which is what the rail shows while the
+			// keys are in the table beside it.
+			onCursor := holds && e.ID == cursor
 			stk := op.Offset(image.Pt(0, top)).Push(gtx.Ops)
 			rowGtx := gtx
 			rowGtx.Constraints = layout.Exact(image.Pt(size.X, rowH))
-			drawFeedEntryRow(rowGtx, s, e, e.ID == selected, unemphasized, rowClicks.For(e.ID),
+			drawFeedEntryRow(rowGtx, s, e, e.ID == selected || onCursor, !onCursor, rowClicks.For(e.ID),
 				hovers.For(e.ID), popovers.For(e.ID), trashW)
 			stk.Pop()
 			drawn++
@@ -391,15 +664,16 @@ func feedEntryListBody(
 // trailing end, and while the pointer is on the row the thing it can operate
 // is the one worth showing.
 //
-// Only the open feed — the one whose articles the table is listing — takes a
-// fill, and it is patterns/sidebar's pill. A sidebar row does not tint under
-// the pointer on this platform, which the stored reference captures measure,
-// so the hover state reveals the trash gutter and paints nothing.
+// A row takes a fill when it is the open feed — the one whose articles the
+// table is listing — or the row the rail's keys stand on, and the fill is
+// patterns/sidebar's pill. A sidebar row does not change under the pointer on
+// this platform, which the stored reference captures measure, so the hover
+// state reveals the trash gutter and paints nothing.
 func drawFeedEntryRow(
 	gtx layout.Context,
 	tok themeTokens,
 	e feedEntry,
-	selected bool,
+	filled bool,
 	unemphasized bool,
 	click *widget.Clickable,
 	hover *gesture.Hover,
@@ -417,7 +691,7 @@ func drawFeedEntryRow(
 	hoverClip.Pop()
 
 	surface := tok.col.SidebarMaterial
-	if selected {
+	if filled {
 		patsidebar.PaintSelection(gtx, size, tok.col, unemphasized)
 		surface = patsidebar.SelectionFill(tok.col, unemphasized)
 	}
@@ -426,7 +700,7 @@ func drawFeedEntryRow(
 	// platform's panel, not against the pill: the symbol at SymbolInset, the
 	// name at LabelInset and the count CountInset in from the trailing edge.
 	drawFeedSymbol(gtx, size,
-		vgcolor.Flatten(patsidebar.SymbolForeground(tok.col, selected, unemphasized), surface))
+		vgcolor.Flatten(patsidebar.SymbolForeground(tok.col, filled, unemphasized), surface))
 
 	trail := gtx.Dp(patsidebar.CountInset)
 	tailW := 0
@@ -446,7 +720,7 @@ func drawFeedEntryRow(
 	case e.Unread > 0:
 		tailW = patsidebar.PaintCount(gtx, tok.shaper, strconv.Itoa(e.Unread),
 			tok.typ.BodySmall, size,
-			vgcolor.Flatten(patsidebar.CountForeground(tok.col, selected, unemphasized), surface))
+			vgcolor.Flatten(patsidebar.CountForeground(tok.col, filled, unemphasized), surface))
 	}
 
 	// The name, and with it the SelectFeed click target: it runs from the
@@ -462,7 +736,7 @@ func drawFeedEntryRow(
 	}
 	labelGtx := gtx
 	labelGtx.Constraints = layout.Exact(image.Pt(labelW, size.Y))
-	drawFeedEntry(labelGtx, tok, e.Label, selected, unemphasized, click)
+	drawFeedEntry(labelGtx, tok, e.Label, filled, unemphasized, click)
 
 	return layout.Dimensions{Size: size}
 }
