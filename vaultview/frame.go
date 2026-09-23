@@ -1056,7 +1056,10 @@ func (f *frameState) layoutNavigation(gtx layout.Context, m Model, tok themeToke
 	// in this band casts its own: it falls outside the box the control
 	// reports.
 	return button.ChromeShadow(gtx, tok.col, button.RenderState{}, func(gtx layout.Context) layout.Dimensions {
-		return button.ChromeSegments(gtx, tok.col, tok.den, segs)
+		// The pair is drawn at its own width: the band hands a control room
+		// and not a width, so the shared control divides nothing here.
+		gtx.Constraints.Min = image.Point{}
+		return button.ChromeSegments(gtx, tok.shaper, tok.col, tok.typ.LabelLarge, tok.den, segs)
 	})
 }
 

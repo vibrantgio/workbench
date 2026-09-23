@@ -204,11 +204,13 @@ const (
 )
 
 // defaultPickerCentre is where the settings dialog's default-model trigger
-// stands in this window: the dialog is 560 dp wide and centred, its body's
-// trailing edge is the picker's, and the row is the last one in the body.
-// Read off the rendered frame rather than recomputed from the modal's
-// internals, and asserted by the open capture differing from the closed one.
-var defaultPickerCentre = f32.Pt(642, 508)
+// stands in this window: the dialog is 560 dp wide and centred, the trigger
+// runs from the form's field column to the body's trailing edge, and its row
+// is the last one in the form. Read off the rendered frame rather than
+// recomputed from the modal's internals — x 514-771, y 510-533 in
+// window-settings-light.png — and asserted by the open capture differing from
+// the closed one.
+var defaultPickerCentre = f32.Pt(642, 521)
 
 var buttonHues = []color.NRGBA{
 	{R: 0xff, G: 0x5f, B: 0x57, A: 0xff},
@@ -516,4 +518,31 @@ func crop(img *image.RGBA, r image.Rectangle) *image.RGBA {
 	out := image.NewRGBA(image.Rectangle{Max: r.Size()})
 	draw.Draw(out, out.Bounds(), img, r.Min, draw.Src)
 	return out
+}
+
+// TestTheSettingsDialogGolden records the settings dialog standing open over
+// the window it interrupts, in both schemes. It is the only stored picture of
+// the dialog as a composition — the providers well beside the form, the
+// labels in their column, the templates as one control and the default-model
+// row at the foot — and the only one that can show the sheet against the
+// window it stands on. It is kept in the shape vaultview keeps its own
+// vault-switch dialog in: one render at the size the window opens at,
+// compared whole.
+//
+// The catalogue is posed with the selected provider's key already answered
+// for, because the verdict disc is part of what the composition is judged on
+// and a dialog opened on a keyless catalogue reserves its box and leaves it
+// empty.
+func TestTheSettingsDialogGolden(t *testing.T) {
+	saved := windowButtonsEnd
+	defer func() { windowButtonsEnd = saved }()
+	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
+
+	m := settingsWithKey("")
+	for _, tc := range schemes {
+		name := "window-settings-" + tc.name
+		t.Run(name, func(t *testing.T) {
+			golden.Render(t, name, windowSize, withWindowControls(frame(t, tc.c, m)))
+		})
+	}
 }

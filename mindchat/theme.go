@@ -229,23 +229,43 @@ const (
 	RenameFieldHeight unit.Dp = 48
 
 	// Settings modal geometry.
-	SettingsBodyHeight  unit.Dp = 300
-	SettingsListWidth   unit.Dp = 150
-	SettingsRowHeight   unit.Dp = 28
-	SettingsFieldHeight unit.Dp = 42
-	SettingsCaptionRow  unit.Dp = 22
-	SettingsIconBtn     unit.Dp = 18
-	SettingsPanelInset  unit.Dp = 6
-	TemplateRowHeight   unit.Dp = 26
-	// SelectRowHeight is the DEFAULT MODEL row, and it is the height the
-	// picker field standing in it draws at: one BodyLarge line box over the
-	// comfortable density's vertical padding. The caption and the closed
-	// control share the line, so the row cannot be shorter than the control.
-	SelectRowHeight unit.Dp = 40
-	// DefaultPickerWidth is the width of the settings dialog's default-model
-	// field, and so of the menu it drops: a field's menu is as wide as the
-	// field.
-	DefaultPickerWidth unit.Dp = 260
+	SettingsBodyHeight unit.Dp = 300
+	SettingsListWidth  unit.Dp = 150
+	SettingsRowHeight  unit.Dp = 28
+	// SettingsFieldHeight is one form row of the dialog: the height a text
+	// field draws itself at, so the row is the control and no slack.
+	// MEASURED, save-dialog-{light,dark}.png: the "Tags:" field's box runs y
+	// 243-269, 27 px, its edge rows included, in both appearances. The
+	// density's own field height is that 27 and the BodyLarge line box over
+	// the comfortable padding raises the drawn box to 28.
+	SettingsFieldHeight unit.Dp = 28
+	// SettingsRowGap is the clear air between one form row's control box and
+	// the next's. MEASURED, save-dialog-{light,dark}.png: the focused "Save
+	// As:" field's box ends at y=232 and the "Tags:" box below it begins at
+	// y=243, ten clear rows; eleven stand under "Tags:" before the "Where:"
+	// pop-up, so the air is the constant and the control's height varies.
+	SettingsRowGap unit.Dp = 10
+	// SettingsLabelGap is the air between the label column's trailing edge
+	// and the column the fields begin on. MEASURED,
+	// save-dialog-{light,dark}.png, identical in both appearances: the
+	// sheet's row labels "Save As:", "Tags:" and "Where:" all end at column
+	// x=255 whatever their length, and every field and pop-up beside them
+	// begins its box at x=264.
+	SettingsLabelGap unit.Dp = 8
+	// SettingsWellGap is the air between the providers well and the form
+	// beside it.
+	SettingsWellGap    unit.Dp = 12
+	SettingsCaptionRow unit.Dp = 22
+	SettingsIconBtn    unit.Dp = 18
+	SettingsPanelInset unit.Dp = 6
+	// SelectRowHeight is the settings dialog's default-model row: the height
+	// the closed picker trigger standing in it draws at, and no more, so the
+	// label beside it centres on the control and not on slack under it.
+	// MEASURED, save-dialog-{light,dark}.png: the "Where:" and "File
+	// Format:" pop-up boxes run y 281-304 and y 336-359, 24 px in both
+	// appearances. The field's own width is the form's field column, and so
+	// is the width of the menu it drops.
+	SelectRowHeight unit.Dp = 24
 	// ToolbarWidth is the widest the header picker may grow, not the width it
 	// draws at — the trigger is sized to its label and clamped to this.
 	ToolbarWidth unit.Dp = 230

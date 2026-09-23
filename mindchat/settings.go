@@ -1,9 +1,11 @@
 // settings.go owns the settings modal the pane's foot opens — and, with the
 // pane away, Cmd-comma, which is where this platform keeps it: the provider
-// catalogue editor (list with +/− , Name/BaseURL/APIKey fields, where the
-// key is auto-checked by a debounced /models fetch and its verdict shown
-// beside the field) and the GLOBAL default-model row spanning the modal's
-// bottom, whose upward-dropping picker field offers every provider's models.
+// catalogue editor (the providers well with +/− beside a form of Name, Base
+// URL and API key rows, where the key is auto-checked by a debounced /models
+// fetch and its verdict shown beside the field) and the GLOBAL default-model
+// row at the form's foot, whose upward-dropping picker field offers every
+// provider's models. Every row carries its label beside it in one
+// right-aligned column, as the platform's own save sheet lays its rows out.
 // It follows the rename-modal recipe (patterns/modal + epoch-rebuilt
 // uncontrolled components fields + cell hand-offs into the modal's static
 // slots); all edits reduce into Model.Settings.Draft per keystroke and apply
@@ -22,6 +24,7 @@ import (
 	"gioui.org/f32"
 	"gioui.org/io/event"
 	"gioui.org/io/pointer"
+	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -53,6 +56,10 @@ import (
 // the theme's Typography and its cached shaper for the body's own text.
 type settingsThemed struct {
 	palette Palette
+	// colors is the platform's own set, kept beside the palette because the
+	// shared controls the body reaches for — the segmented control — are
+	// handed the platform's names rather than this app's derivations.
+	colors  tokens.PlatformColors
 	bar     scrollbar.Style
 	typ     tokens.Typography
 	shaper  *text.Shaper
@@ -151,6 +158,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 			}
 			return settingsThemed{
 				palette:    p,
+				colors:     c,
 				bar:        scrollbar.FromTokens(c, c.WindowBackground),
 				typ:        typ,
 				shaper:     typ.Shaper(),
@@ -180,8 +188,9 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	// The global default-model picker is the form variant — a
 	// components/picker field, the same control the Name and BaseURL fields
 	// beside it are. It drops UPWARD because the field is the dialog's last
-	// row: the room beneath the trigger belongs to the action row and to the
-	// window's own edge, so the menu takes the room above instead.
+	// row: the available room beneath the trigger belongs to the action row
+	// and to the window's own edge, so the menu takes what stands above it
+	// instead.
 	//
 	// The field takes its props once per subscription and keeps its own open
 	// state, so the subscription is keyed: on the option list and the pick, so
@@ -203,7 +212,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				Selected:    k.selected,
 				Drop:        picker.DropUp,
 				// A real provider catalogue is forty to sixty rows, and what
-				// bounds the menu is the room the body has rather than a
+				// bounds the menu is the available room the body has rather than a
 				// number this app picks: the picker caps the plane to what
 				// the side it drops on leaves and scrolls the rows inside it.
 				AvailableRoom: func(layout.Context) (int, int) { return above, below },
@@ -374,110 +383,209 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layo
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
-		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		cols := formColumns(gtx, t)
+		wellW := gtx.Dp(SettingsListWidth)
+		wellGap := gtx.Dp(SettingsWellGap)
+		pickerRow := gtx.Dp(SelectRowHeight)
+		rowGap := layout.Rigid(layout.Spacer{Height: SettingsRowGap}.Layout)
+
+		layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints = layout.Exact(image.Pt(wellW, gtx.Constraints.Max.Y))
+				return providerColumn(gtx, t, s, provClicks, addClick, removeClick, provList)
+			}),
+			layout.Rigid(layout.Spacer{Width: SettingsWellGap}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(SettingsListWidth), gtx.Constraints.Max.Y))
-						return providerColumn(gtx, t, s, provClicks, addClick, removeClick, provList)
-					}),
-					layout.Rigid(layout.Spacer{Width: 12}.Layout),
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						if !hasProvider {
+				if !hasProvider {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium),
 								image.Rectangle{Max: gtx.Constraints.Max}, 0.5, 0.5, p.FloatingText,
 								"No providers — add one with +")
 							return layout.Dimensions{Size: gtx.Constraints.Max}
-						}
-						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return templateBar(gtx, t, tplClicks)
-							}),
-							layout.Rigid(layout.Spacer{Height: 8}.Layout),
-							layout.Rigid(fieldSlot(nameCell)),
-							layout.Rigid(layout.Spacer{Height: 8}.Layout),
-							layout.Rigid(fieldSlot(urlCell)),
-							layout.Rigid(layout.Spacer{Height: 8}.Layout),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return keyRow(gtx, t, s, selected, fieldSlot(keyCell), refreshClick)
-							}),
-							layout.Rigid(layout.Spacer{Height: 4}.Layout),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return webSearchRow(gtx, t, selected.WebSearch, webClick)
-							}),
-							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-								return layout.Dimensions{Size: gtx.Constraints.Max}
-							}),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return statusLine(gtx, t, s, selected)
-							}),
-						)
+						}),
+						layout.Rigid(formRow(t, cols, "Default model:", SelectRowHeight, blankRow)),
+					)
+				}
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					// The templates stand across the form rather than on its
+					// field column: four provider names do not fit that
+					// column at this dialog's width, and a segmented control
+					// divides whatever width it is asked for.
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return providerSegments(gtx, t, selected, tplClicks)
 					}),
+					rowGap,
+					layout.Rigid(formRow(t, cols, "Name:", SettingsFieldHeight, fieldSlot(nameCell))),
+					rowGap,
+					layout.Rigid(formRow(t, cols, "Base URL:", SettingsFieldHeight, fieldSlot(urlCell))),
+					rowGap,
+					layout.Rigid(formRow(t, cols, "API key:", SettingsFieldHeight, func(gtx layout.Context) layout.Dimensions {
+						return keyRow(gtx, t, s, selected, fieldSlot(keyCell), refreshClick)
+					})),
+					// The key check's own sentence, directly under the row it
+					// reports on.
+					layout.Rigid(formRow(t, cols, "", SettingsCaptionRow, func(gtx layout.Context) layout.Dimensions {
+						return statusLine(gtx, t, s, selected)
+					})),
+					layout.Rigid(formRow(t, cols, "", SettingsCaptionRow, func(gtx layout.Context) layout.Dimensions {
+						return webSearchRow(gtx, t, selected.WebSearch, webClick)
+					})),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return layout.Dimensions{Size: gtx.Constraints.Max}
+					}),
+					// The row the picker below is drawn into: its label, and
+					// the height the trigger takes.
+					layout.Rigid(formRow(t, cols, "Default model:", SelectRowHeight, blankRow)),
 				)
-			}),
-			layout.Rigid(layout.Spacer{Height: 8}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return defaultModelRow(gtx, t)
 			}),
 		)
 
 		// The picker reports its TRIGGER, open or closed — the menu it drops
-		// floats and takes no room — so it stands in the body's trailing
-		// bottom corner, in the row's own height: the trigger fills
-		// SelectRowHeight exactly, so the closed control and its caption sit
-		// on one line.
+		// floats and takes no room — so it is drawn last, over the row the
+		// form reserved for it: on the fields' own column, in the row's own
+		// height, so the closed control stands where every field above it
+		// stands.
 		//
-		// That corner is also the whole of what the field has to be told
-		// about the available room. Everything above the trigger is the
-		// body's and the menu may take it; below the trigger there is the
-		// body's own bottom edge and nothing else, so the upward menu is
-		// capped by the body and scrolls inside it rather than standing off
-		// the top of the dialog.
-		fieldW := gtx.Dp(DefaultPickerWidth)
-		if max := size.X - gtx.Dp(130); fieldW > max {
-			fieldW = max
+		// That row is also the whole of what the field has to be told about
+		// the available room. Everything above the trigger is the body's and
+		// the menu may take it; below the trigger there is the body's own
+		// bottom edge and nothing else, so the upward menu is capped by the
+		// body and scrolls inside it rather than standing off the top of the
+		// dialog.
+		fieldX := wellW + wellGap + cols.label + cols.gap
+		fieldW := size.X - fieldX
+		if fieldW < 0 {
+			fieldW = 0
 		}
-		rowH := gtx.Dp(SelectRowHeight)
 		dg := gtx
-		dg.Constraints = layout.Exact(image.Pt(fieldW, rowH))
-		defer op.Offset(image.Pt(size.X-fieldW, size.Y-rowH)).Push(gtx.Ops).Pop()
-		defaultPicker(dg, size.Y-rowH, 0)
+		dg.Constraints = layout.Exact(image.Pt(fieldW, pickerRow))
+		defer op.Offset(image.Pt(fieldX, size.Y-pickerRow)).Push(gtx.Ops).Pop()
+		defaultPicker(dg, size.Y-pickerRow, 0)
 		return layout.Dimensions{Size: size}
 	}
 }
 
-// templateBar renders one chip per ProviderTemplates entry; clicking a
-// chip prefills the selected provider's Name and BaseURL.
-func templateBar(gtx layout.Context, t settingsThemed, tplClicks []*widget.Clickable) layout.Dimensions {
-	p := t.palette
-	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(TemplateRowHeight))
-	gtx.Constraints = layout.Exact(size)
-	children := make([]layout.FlexChild, 0, 2*len(ProviderTemplates))
-	for i := range ProviderTemplates {
-		if i > 0 {
-			children = append(children, layout.Rigid(layout.Spacer{Width: 6}.Layout))
+// settingsRowLabels are the form's labels, written as the platform writes a
+// row label: a noun and a colon. They are listed together because the label
+// column is as wide as the widest of them and every row shares it.
+var settingsRowLabels = []string{"Name:", "Base URL:", "API key:", "Default model:"}
+
+// settingsColumns is the two columns the dialog's form stands in, as the save
+// dialog's rows do: the labels right-aligned in one column, the fields
+// beginning on one column beside it.
+//
+// MEASURED at 1x, save-dialog-{light,dark}.png, identical in both
+// appearances: the sheet's row labels "Save As:", "Tags:" and "Where:" all
+// end at column x=255 whatever their length, and every field and pop-up
+// beside them begins its box at x=264 — eight clear columns between the two.
+// The label column is as wide as its widest label needs, which is what the
+// sheet's own column is: "File Format:" reaches x=185 where "Tags:" reaches
+// only x=225.
+type settingsColumns struct{ label, gap int }
+
+// formColumns measures that pair for one frame.
+func formColumns(gtx layout.Context, t settingsThemed) settingsColumns {
+	mg := gtx
+	mg.Constraints = layout.Constraints{Max: image.Pt(1<<20, 1<<20)}
+	widest := 0
+	for _, label := range settingsRowLabels {
+		if w := textdraw.MeasureText(mg, t.shaper, roleText(t.typ.BodyMedium), label).X; w > widest {
+			widest = w
 		}
+	}
+	return settingsColumns{label: widest, gap: gtx.Dp(SettingsLabelGap)}
+}
+
+// formRow lays one row of the form: the label right-aligned in the label
+// column, its cap band centred on the control's box, and the content
+// beginning on the field column beside it. MEASURED,
+// save-dialog-{light,dark}.png: the "Save As:" label's cap band runs y
+// 215-224 in a field box running y 207-232, so the two centres are the same
+// row. An empty label is the content alone on the field column, which is
+// where the sheet stands its "Options:" checkboxes.
+func formRow(t settingsThemed, cols settingsColumns, label string, height unit.Dp, content layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(height))
+		if label != "" {
+			textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium),
+				image.Rect(0, 0, cols.label, size.Y), 1, 0.5, t.palette.FloatingHeading, label)
+		}
+		x := cols.label + cols.gap
+		cg := gtx
+		cg.Constraints = layout.Exact(image.Pt(max(size.X-x, 0), size.Y))
+		func() {
+			defer op.Offset(image.Pt(x, 0)).Push(gtx.Ops).Pop()
+			content(cg)
+		}()
+		return layout.Dimensions{Size: size}
+	}
+}
+
+// blankRow reserves the height a row asks for and draws nothing: the
+// default-model row's trigger is painted over it, after the body, because
+// the menu it drops floats.
+func blankRow(gtx layout.Context) layout.Dimensions {
+	return layout.Dimensions{Size: gtx.Constraints.Max}
+}
+
+// providerSegments draws the four provider templates as the platform's
+// segmented control, with the template the edited provider already matches
+// drawn as the chosen segment. Clicking a segment prefills that provider's
+// Name and Base URL.
+//
+// It is one control and not four push buttons: four detached pills carrying
+// the fill "Cancel" carries say four things are about to happen, where a
+// segmented control says one of four is in force. The chosen segment wears
+// the patch the platform fills it with, measured off Finder's view control.
+func providerSegments(gtx layout.Context, t settingsThemed, prov Provider, tplClicks []*widget.Clickable) layout.Dimensions {
+	chosen := matchingTemplate(prov)
+	segs := make([]button.ChromeSegment, len(ProviderTemplates))
+	for i := range ProviderTemplates {
 		index := i
 		click := tplClicks[i]
-		children = append(children, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			for click.Clicked(gtx) {
-				mvu.MessageOp{Message: ApplyTemplate{Index: index}}.Add(gtx.Ops)
-			}
-			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				sz := image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Max.Y)
-				pointershape.OverSize(gtx.Ops, sz, pointer.CursorPointer)
-				// A chip wears the fill an ordinary push button wears on
-				// this platform, and a push button does not tint under the
-				// pointer here, so the chip keeps one fill however the
-				// pointer moves.
-				FillRect(gtx, image.Rectangle{Max: sz}, sz.Y/2, p.ModalChip)
-				textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelMedium), image.Rectangle{Max: sz}, 0.5, 0.5, p.ChipText, ProviderTemplates[index].Name)
-				return layout.Dimensions{Size: sz}
-			})
-		}))
+		for click.Clicked(gtx) {
+			mvu.MessageOp{Message: ApplyTemplate{Index: index}}.Add(gtx.Ops)
+		}
+		segs[i] = button.ChromeSegment{
+			Label: ProviderTemplates[i].Name,
+			State: button.RenderState{
+				Hovered: click.Hovered(),
+				Pressed: click.Pressed(),
+				Checked: index == chosen,
+			},
+			Target: func(gtx layout.Context) layout.Dimensions {
+				return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					size := gtx.Constraints.Max
+					pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
+					semantic.ClassOp(semantic.Button).Add(gtx.Ops)
+					semantic.LabelOp(ProviderTemplates[index].Name).Add(gtx.Ops)
+					semantic.SelectedOp(index == chosen).Add(gtx.Ops)
+					return layout.Dimensions{Size: size}
+				})
+			},
+		}
 	}
-	layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
-	return layout.Dimensions{Size: size}
+	// The control's own drop shadow, as every bordered control in a band
+	// casts one: the platform's toolbar control fill is #ffffff in the light
+	// appearance, so on this dialog's own white a segmented control is told
+	// from what it stands on by its shadow and by nothing else.
+	return button.ChromeShadow(gtx, t.colors, button.RenderState{}, func(gtx layout.Context) layout.Dimensions {
+		return button.ChromeSegments(gtx, t.shaper, t.colors, t.typ.LabelMedium, tokens.Comfortable, segs)
+	})
+}
+
+// matchingTemplate is the template the edited provider already stands for —
+// the segment drawn as chosen — or -1 while it stands for none of them. A
+// template is its name and its base URL together, which is what applying one
+// writes.
+func matchingTemplate(prov Provider) int {
+	for i, tpl := range ProviderTemplates {
+		if tpl.Name == prov.Name && tpl.BaseURL == prov.BaseURL {
+			return i
+		}
+	}
+	return -1
 }
 
 // keyRow is the API-key line: the key field, the key-check verdict badge
@@ -586,18 +694,9 @@ func webSearchRow(gtx layout.Context, t settingsThemed, on bool, click *widget.C
 			}
 		}()
 		r := image.Rect(sz+gtx.Dp(8), 0, size.X, size.Y)
-		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodySmall), r, 0, 0.5, t.palette.FloatingText, "Web search tool (server-side; xAI and OpenAI)")
+		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodySmall), r, 0, 0.5, t.palette.FloatingText, "Server-side web search (xAI, OpenAI)")
 		return layout.Dimensions{Size: size}
 	})
-}
-
-// defaultModelRow is the modal-wide DEFAULT MODEL row under both panes:
-// the caption of the GLOBAL default picker whose dropdown chip settingsBody
-// overlays at the row's right edge.
-func defaultModelRow(gtx layout.Context, t settingsThemed) layout.Dimensions {
-	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SelectRowHeight))
-	textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), image.Rectangle{Max: size}, 0, 0.5, t.palette.FloatingHeading, "DEFAULT MODEL")
-	return layout.Dimensions{Size: size}
 }
 
 // defaultPickerKey is what the modal's default-model field is a function of:
@@ -636,10 +735,11 @@ func defaultPickerKeyOf(m Model) defaultPickerKey {
 	}
 }
 
-// providerColumn is the left pane: the PROVIDERS caption, the selectable
-// provider rows, and the add/remove buttons underneath — on its own
-// shaded panel so the catalogue reads as a distinct surface from the
-// editing pane beside it.
+// providerColumn is the providers well: the PROVIDERS caption, the
+// selectable provider rows, and the add/remove pair standing on the well's
+// last row — on its own shaded panel so the catalogue reads as a distinct
+// surface from the form beside it. It runs the body's whole height, so the
+// form's own foot is the only thing under it.
 func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 	provClicks map[int]*widget.Clickable, addClick, removeClick *widget.Clickable, rows *list.State,
 ) layout.Dimensions {
@@ -681,7 +781,12 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 					})
 				}
 			}
-			return layout.Inset{Top: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			// The well's last row. Its box ends on the panel's own inner
+			// foot, so the air under it is the same SettingsPanelInset the
+			// caption at the head stands off the top by, and the well's ends
+			// are square to the rows between them. Only the icon's own
+			// margin inside its 18 dp box stands under the glyph.
+			return layout.Inset{Top: SettingsPanelInset}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 					layout.Rigid(btn(addClick, t.add)),
 					layout.Rigid(layout.Spacer{Width: 10}.Layout),
@@ -726,7 +831,11 @@ func providerRow(gtx layout.Context, t settingsThemed, prov Provider, selected b
 func statusLine(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider) layout.Dimensions {
 	p := t.palette
 	size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SettingsCaptionRow))
-	text, col := "", p.FloatingText
+	// A status caption, not a field's own text: the platform sets a sheet's
+	// captions in secondaryLabelColor, the same name the row labels beside
+	// them take. A failed check is the one that leaves it, for the system's
+	// red.
+	text, col := "", p.FloatingHeading
 	switch s.KeyStatus(prov) {
 	case KeyBad:
 		text, col = s.Errors[prov.Name], p.Error
