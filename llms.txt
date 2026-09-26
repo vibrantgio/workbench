@@ -1424,7 +1424,7 @@ paths on purpose (golden determinism); leave those alone.
   ```
 
 These are the released tags — the same ones §Modules lists, and the same ones
-all eight workbench apps are pinned to. Typography and colour need no module
+all nine workbench apps are pinned to. Typography and colour need no module
 of their own: both travel on the theme, which comes with theme; do NOT add
 the frozen style module to a new app. textdraw is a direct requirement as soon as you
 draw text yourself with textdraw.Text/Label — todos does.
