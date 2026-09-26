@@ -22,14 +22,32 @@ var (
 	displayWatt  = color.NRGBA{R: 0xf9, G: 0x28, B: 0xfa, A: 0xff}
 	displayPanel = color.NRGBA{R: 0x09, G: 0x09, B: 0x05, A: 0xff}
 
-	// The panel's captions and the rule between its two areas carry no
-	// hue. Over the photograph's lit area every lit
-	// pixel falls in the green, the yellow or the magenta above, and six
-	// pixels in twenty-one thousand are unsaturated, so the display has no
-	// fourth colour to spend on a word. This is the panel's own black
-	// lifted two fifths of the way to white, a brightness rather than a
-	// colour, which leaves the three-hue code the readings teach intact.
+	// The panel's titles carry no hue. Over the photograph's lit area
+	// every lit pixel falls in the green, the yellow or the magenta above,
+	// and six pixels in twenty-one thousand are unsaturated, so the
+	// display has no fourth colour to spend on a word. This is the panel's
+	// own black lifted two fifths of the way to white, a brightness rather
+	// than a colour, which leaves the three-hue code the readings teach
+	// intact. The OWON photograph the boxes come from writes its own box
+	// titles in a light blue, #80C6F6 over 337 glyph-core pixels at
+	// x 660-1000 and x 1680-1990, y 1835-1905, upright, with the blown
+	// pixels dropped — that device's fourth colour, and not one this
+	// display holds.
 	displayCaption = color.NRGBA{R: 0x6b, G: 0x6b, B: 0x69, A: 0xff}
+
+	// displayRim draws the edges of the two boxes at the panel's foot. It
+	// is the one value the panel takes from the OWON SPE6103 photograph
+	// the boxes themselves come from, reference/sk150-display-2026-09-23.jpeg
+	// read upright: the median of 41139 pixels on both boxes' four edges
+	// with every pixel the camera blew out dropped — the left box's left
+	// edge at x 378-394 y 1930-2030, its bottom at y 2042-2052, the right
+	// box's right edge at x 2222-2238 and its bottom, and the two top
+	// edges. The photograph's exposure falls off across the display, so
+	// the same edge reads #2B83EF at the bright left and #303BB1 at the
+	// dim right; the median stands between them. The edge is a line and
+	// not a lit value, so the three-hue code the readings teach is
+	// untouched.
+	displayRim = color.NRGBA{R: 0x1d, G: 0x58, B: 0xe9, A: 0xff}
 )
 
 // Palette is the app's view of the platform's colour set, resolved fresh on
@@ -66,8 +84,10 @@ type Palette struct {
 	DisplayPanel color.NRGBA // the panel the readouts are lit on, and the label cut out of a lit badge
 
 	// DisplayCaption is what the panel writes a word with: the Set and
-	// Limit captions, and the rule between the panel's two areas.
+	// Limit titles inside the two boxes at its foot.
 	DisplayCaption color.NRGBA
+	// DisplayRim is the edge of each of those two boxes.
+	DisplayRim color.NRGBA
 }
 
 // PaletteFrom reads the page off the platform's set and hands the readout
@@ -105,6 +125,7 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		DisplayPanel: displayPanel,
 
 		DisplayCaption: displayCaption,
+		DisplayRim:     displayRim,
 	}
 }
 

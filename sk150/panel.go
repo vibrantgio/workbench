@@ -98,9 +98,9 @@ func wattRow(t themed, r Reading) layout.Widget {
 	return panelRow(t, t.palette.DisplayWatt, fmt.Sprintf("%.3f", r.Power), "W", "", color.NRGBA{})
 }
 
-// setLimitLine is one of the two small lines the panel's second area shows:
-// the caption the device gives the pair, and the pair's two values with
-// their units.
+// setLimitLine is what one of the two boxes at the panel's foot holds: the
+// title the device gives the pair, and the pair's two values with their
+// units.
 type setLimitLine struct {
 	Caption string
 	Volts   string
@@ -114,7 +114,7 @@ const (
 	dashAmps  = "-.--- A"
 )
 
-// setLimitLines is what the second area holds: the live group's two
+// setLimitLines is what the two boxes hold: the live group's two
 // setpoints, and the two protections that cut the output.
 func setLimitLines(m Model) [2]setLimitLine {
 	if !m.HaveS {
@@ -126,62 +126,82 @@ func setLimitLines(m Model) [2]setLimitLine {
 	}
 }
 
-// displayRule is the line between the panel's two areas — what the OWON
-// draws as a border around its Set and Limit boxes. It spans the panel's lit
-// width, so the two areas read as two areas and not as a fourth reading
-// under three.
-func displayRule(t themed) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		size := image.Pt(gtx.Constraints.Max.X, max(1, gtx.Dp(1)))
-		paint.FillShape(gtx.Ops, t.palette.DisplayCaption, clip.Rect{Max: size}.Op())
-		return layout.Dimensions{Size: size}
-	}
-}
-
-// setLimitBlock is the readout panel's second area, under the rule and
-// inside the same black: the caption at the left, then the volts and then
-// the amps, each right-aligned in a column wide enough for both lines, so
-// the two lines' digits stand in one column the way the readings above them
-// do. The caller hangs the block's right edge on the readouts' column, so
-// the two areas share one right margin.
+// setLimitBoxes is the panel's bottom block: the two bordered boxes the
+// OWON SPE6103 carries across the foot of its display, Set at the left and
+// Limit at the right, read off reference/sk150-display-2026-09-23.jpeg
+// upright. Each box holds its title on the first line and its volts and its
+// amps side by side on the second, so a box is read as one setting of the
+// supply and not as four loose numbers.
+//
+// The geometry is the photograph's, in its own proportions:
+//
+//   - The boxes take equal halves of the width they are given. On the
+//     photograph they are 929 px and 930 px wide inside a display 2250 px
+//     across, so they fill it edge to edge.
+//   - The gap between them is 8 px there against a 929 px box, under a
+//     hundredth of the box; at this panel's width that rounds to a crack
+//     between two hairlines, so the gap is 8 dp — the panel's own gap
+//     between a digit column and its unit letter, the smallest separation
+//     the panel already reads as a gap.
+//   - The box edges are square on the photograph and the recessed value
+//     area inside them is chamfered by about 5 px on a 929 px box. The two
+//     shapes are drawn here as one, so the corner takes that chamfer: 2 dp,
+//     barely rounded.
+//   - The titles are centred over their boxes, as the photograph centres
+//     Set and Limit over theirs, and not left-aligned: a title centred over
+//     a box names the whole box, which is what a two-value box needs.
+//   - Each value is centred in its half of the box. On the photograph the
+//     left box's volts centre 6 px from the centre of its half and its amps
+//     15 px from the centre of theirs, on a 929 px box. Both boxes are the
+//     same width, so the four values stand at the same two offsets inside
+//     their boxes and line up between them.
+//   - Nothing pads the lines away from the rims: the mono face's own
+//     leading stands 5 px above the capitals at this size against the
+//     photograph's 5.4 px scaled to it, and the box is exactly as tall as
+//     the two lines and its two rims.
 //
 // The volts take the volt line's green and the amps the amp line's yellow,
-// the two the readings above are lit in, so a value on these lines is the
-// same colour as the reading it governs. The captions are words rather than
-// values and carry no hue at all: the display has three lit colours and no
-// fourth, so spending one of them on a heading would break the code the
-// readings teach.
-//
-// The block draws at its natural size and reads nothing off the
-// constraints, so the same two lines are the same pixels wherever they are
-// placed.
-func setLimitBlock(t themed, lines [2]setLimitLine) layout.Widget {
+// the two the readings above are lit in, so a value in a box is the same
+// colour as the reading it governs. The photograph lights both its own
+// values in one yellow-green, #BDE45E over 22982 glyph-core pixels at
+// x 420-1260 and x 1380-2200, y 1945-2015 upright; that is the OWON's
+// colour for the pair and not this display's, which has a colour per
+// quantity. The titles are words rather than values and carry no hue.
+func setLimitBoxes(t themed, lines [2]setLimitLine) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		p, typ := t.palette, t.typ
-		measure := func(s string) image.Point {
-			return textdraw.MeasureText(gtx, typ.Shaper, typ.Set, s)
-		}
-		capW, voltW, ampW := 0, 0, 0
-		for _, l := range lines {
-			capW = max(capW, measure(l.Caption).X)
-			voltW = max(voltW, measure(l.Volts).X)
-			ampW = max(ampW, measure(l.Amps).X)
-		}
-		h := measure("0").Y
-		capGap, colGap, rowGap := gtx.Dp(18), gtx.Dp(18), gtx.Dp(2)
-		voltX := capW + capGap
-		ampX := voltX + voltW + colGap
-		w := ampX + ampW
+		rim := max(1, gtx.Dp(1))
+		h := textdraw.MeasureText(gtx, typ.Shaper, typ.Set, "0").Y
+		boxH := 2*h + 2*rim
+		room := gtx.Constraints.Max.X
+		gap := gtx.Dp(8)
+		boxW := (room - gap) / 2
+		padH := gtx.Dp(6)
+		radius := gtx.Dp(2)
+
 		for i, l := range lines {
-			y := i * (h + rowGap)
+			x := 0
+			if i == 1 {
+				x = room - boxW
+			}
+			box := image.Rect(x, 0, x+boxW, boxH)
+			// The rim is the box's shape with the panel's black cut back
+			// inside it, so the edge is exactly rim wide on every side —
+			// which a stroke centred on a whole-pixel path is not.
+			paint.FillShape(gtx.Ops, p.DisplayRim, clip.UniformRRect(box, radius).Op(gtx.Ops))
+			paint.FillShape(gtx.Ops, p.DisplayPanel,
+				clip.UniformRRect(box.Inset(rim), max(0, radius-rim)).Op(gtx.Ops))
+
+			in := image.Rect(box.Min.X+rim+padH, box.Min.Y+rim, box.Max.X-rim-padH, box.Max.Y-rim)
 			textdraw.FillText(gtx, typ.Shaper, typ.Set,
-				image.Rect(0, y, capW, y+h), 0, 0.5, p.DisplayCaption, l.Caption)
+				image.Rect(in.Min.X, in.Min.Y, in.Max.X, in.Min.Y+h), 0.5, 0.5, p.DisplayCaption, l.Caption)
+			half := in.Dx() / 2
 			textdraw.FillText(gtx, typ.Shaper, typ.Set,
-				image.Rect(voltX, y, voltX+voltW, y+h), 1, 0.5, p.DisplayVolt, l.Volts)
+				image.Rect(in.Min.X, in.Min.Y+h, in.Min.X+half, in.Min.Y+2*h), 0.5, 0.5, p.DisplayVolt, l.Volts)
 			textdraw.FillText(gtx, typ.Shaper, typ.Set,
-				image.Rect(ampX, y, ampX+ampW, y+h), 1, 0.5, p.DisplayAmp, l.Amps)
+				image.Rect(in.Max.X-half, in.Min.Y+h, in.Max.X, in.Min.Y+2*h), 0.5, 0.5, p.DisplayAmp, l.Amps)
 		}
-		return layout.Dimensions{Size: image.Pt(w, 2*h+rowGap)}
+		return layout.Dimensions{Size: image.Pt(room, boxH)}
 	}
 }
 

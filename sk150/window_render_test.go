@@ -27,6 +27,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -330,24 +331,94 @@ func findPatch(img, patch *image.RGBA) bool {
 	return false
 }
 
-// TestTheSetAndLimitLinesAreOnTheFrame reads the live group's four values off
-// the rendered window: the two setpoints and the two protections, drawn as
-// the panel's second area draws them, are found in the frame in both
-// schemes — the panel is the meter's own display and does not change with
-// the window's appearance.
-func TestTheSetAndLimitLinesAreOnTheFrame(t *testing.T) {
-	want := [2]setLimitLine{
-		{"Set", "21.00 V", "7.100 A"},
-		{"Limit", "24.00 V", "7.200 A"},
+// linePatch draws one line of the boxes' text at its natural size, which is
+// what the boxes draw inside them at whole-pixel offsets on the same black.
+func linePatch(th themed, fill color.NRGBA, str string) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		sz := textdraw.MeasureText(gtx, th.typ.Shaper, th.typ.Set, str)
+		textdraw.FillText(gtx, th.typ.Shaper, th.typ.Set, image.Rectangle{Max: sz}, 0, 0, fill, str)
+		return layout.Dimensions{Size: sz}
 	}
+}
+
+// TestTheSetAndLimitBoxesAreOnTheFrame reads the live group off the rendered
+// window: the two titles and the four values — the two setpoints and the two
+// protections — are drawn as the boxes at the panel's foot draw them, each in
+// its own colour, and each is found in the frame in both schemes. The panel
+// is the meter's own display and does not change with the window's
+// appearance.
+func TestTheSetAndLimitBoxesAreOnTheFrame(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			th := goldenThemed(tc.c)
-			patch := renderPatch(t, th, setLimitBlock(th, want))
-			if !findPatch(renderWindow(t, tc.c), patch) {
-				t.Errorf("the Set and Limit lines %v are nowhere in the %s frame", want, tc.name)
+			p := th.palette
+			frame := renderWindow(t, tc.c)
+			for _, want := range []struct {
+				fill color.NRGBA
+				str  string
+			}{
+				{p.DisplayCaption, "Set"},
+				{p.DisplayVolt, "21.00 V"},
+				{p.DisplayAmp, "7.100 A"},
+				{p.DisplayCaption, "Limit"},
+				{p.DisplayVolt, "24.00 V"},
+				{p.DisplayAmp, "7.200 A"},
+			} {
+				if !findPatch(frame, renderPatch(t, th, linePatch(th, want.fill, want.str))) {
+					t.Errorf("%q in %v is nowhere in the %s frame", want.str, want.fill, tc.name)
+				}
 			}
 		})
+	}
+}
+
+// TestTheSetAndLimitBoxesStandSideBySide reads the block's own geometry: two
+// boxes of the same width with a gap between them, Set at the left and Limit
+// at the right, together spanning every pixel of the width the panel gives
+// the block.
+func TestTheSetAndLimitBoxesStandSideBySide(t *testing.T) {
+	th := goldenThemed(tokens.PlatformLight)
+	const room = 420
+	size := image.Pt(room, 120)
+	img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+		paint.FillShape(gtx.Ops, th.palette.DisplayPanel, clip.Rect{Max: size}.Op())
+		gtx.Constraints = layout.Exact(image.Pt(room, 120))
+		return setLimitBoxes(th, setLimitLines(goldenModel()))(gtx)
+	})
+	// A row across the middle of the block cuts the four upright edges: the
+	// left and right edge of each box.
+	row := 0
+	for y := 0; y < size.Y; y++ {
+		if at(img, 0, y) == th.palette.DisplayRim {
+			row = y
+		}
+	}
+	row /= 2
+	var runs [][2]int
+	for x, in := 0, false; x < room; x++ {
+		lit := at(img, x, row) == th.palette.DisplayRim
+		switch {
+		case lit && !in:
+			runs, in = append(runs, [2]int{x, x + 1}), true
+		case lit:
+			runs[len(runs)-1][1] = x + 1
+		default:
+			in = false
+		}
+	}
+	if len(runs) != 4 {
+		t.Fatalf("row %d of the block holds %d runs of the rim colour, want two boxes' four edges: %v", row, len(runs), runs)
+	}
+	left := [2]int{runs[0][0], runs[1][1]}
+	right := [2]int{runs[2][0], runs[3][1]}
+	if got, want := right[1]-right[0], left[1]-left[0]; got != want {
+		t.Errorf("the boxes are %d px and %d px wide; the four values line up only if they are equal", want, got)
+	}
+	if left[0] != 0 || right[1] != room {
+		t.Errorf("the boxes run x %d..%d inside a block %d px wide, want them across its whole width", left[0], right[1], room)
+	}
+	if gap := right[0] - left[1]; gap <= 0 {
+		t.Errorf("the two boxes stand %d px apart, want a gap between them", gap)
 	}
 }
 
@@ -364,10 +435,16 @@ func TestTheSetAndLimitLinesDashWithoutTheLiveGroup(t *testing.T) {
 		t.Errorf("without the live group the lines are %v, want %v", got, want)
 	}
 	th := goldenThemed(tokens.PlatformLight)
-	dashed := renderPatch(t, th, setLimitBlock(th, setLimitLines(m)))
-	valued := renderPatch(t, th, setLimitBlock(th, setLimitLines(goldenModel())))
-	if dashed.Bounds().Dx() != valued.Bounds().Dx() {
-		t.Errorf("the dashed lines are %d px wide, the valued lines %d px: the dashes do not hold the digits' width",
-			dashed.Bounds().Dx(), valued.Bounds().Dx())
-	}
+	golden.Capture(t, image.Pt(8, 8), func(gtx layout.Context) layout.Dimensions {
+		measure := func(str string) int {
+			return textdraw.MeasureText(gtx, th.typ.Shaper, th.typ.Set, str).X
+		}
+		live, dead := setLimitLines(goldenModel()), setLimitLines(m)
+		for i := range live {
+			if got, want := measure(dead[i].Volts), measure(live[i].Volts); got != want {
+				t.Errorf("the dashed volts are %d px wide, the valued volts %d px: the dashes do not hold the digits' width", got, want)
+			}
+		}
+		return layout.Dimensions{Size: image.Pt(8, 8)}
+	})
 }

@@ -715,26 +715,6 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 		col := min(statDims.Size.X, gtx.Constraints.Max.X)
 
 		readW := min(readoutWidth(gtx, t, r), col-2*gtx.Dp(readoutPanelInset))
-		// The second area draws at its own width and hangs on the readouts'
-		// column's right edge, where the unit letters end, so the panel's
-		// two areas share one right margin. Narrower than its own width the
-		// panel cuts it off rather than let a lit line run out over the
-		// page: the black is the display's edge.
-		inColumn := func(w layout.Widget) layout.Widget {
-			return func(gtx layout.Context) layout.Dimensions {
-				room := gtx.Constraints.Max.X
-				gtx.Constraints.Min.X = 0
-				macro := op.Record(gtx.Ops)
-				dims := w(gtx)
-				call := macro.Stop()
-				size := image.Pt(room, dims.Size.Y)
-				x := min((room+readW)/2-dims.Size.X, room-dims.Size.X)
-				defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
-				defer op.Offset(image.Pt(max(0, x), 0)).Push(gtx.Ops).Pop()
-				call.Add(gtx.Ops)
-				return layout.Dimensions{Size: size}
-			}
-		}
 		centered := func(w layout.Widget) layout.Widget {
 			return func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -758,10 +738,13 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 				centered(voltRow(t, r)),
 				centered(ampRow(t, r)),
 				centered(wattRow(t, r)),
-				vspace(16),
-				displayRule(t),
-				vspace(26),
-				inColumn(setLimitBlock(t, setLimitLines(m))),
+				// The boxes stand exactly where the two-line table they
+				// replace stood: the hairline that fenced the table off and
+				// the two margins around it collapse into this one gap,
+				// because a box's own rim does the fencing. The panel keeps
+				// its height and nothing below it moves.
+				vspace(47),
+				setLimitBoxes(t, setLimitLines(m)),
 				vspace(12))),
 			vgap(14),
 			layout.Rigid(statW),
