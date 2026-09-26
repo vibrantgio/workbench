@@ -24,9 +24,20 @@ func main() {
 	app.Main()
 }
 
+// The size the window opens at, and the size it refuses to go below. The two
+// history charts under the Monitor tab take whatever height is left under the
+// header, the tab strip and the readout panel, so the height is set by them:
+// 110 dp each is the least at which both read as charts, and the native
+// title-bar strip caps 32 dp off the top before any of the page is laid out
+// (desktop.TopInset measures 32 on current macOS). 471 is the narrowest width
+// that still holds the readout panel at its own 431 dp between the page's
+// 20 dp insets. The window opens at its least height: shorter than this the
+// charts are crushed.
 const (
 	winW unit.Dp = 720
-	winH unit.Dp = 760
+	winH unit.Dp = 903
+	minW unit.Dp = 471
+	minH unit.Dp = 903
 )
 
 func run() {
@@ -53,6 +64,7 @@ func run() {
 	mvuWin := mvu.NewWindow(append(desktop.FullSizeContent(),
 		app.Title("SK150 Control"),
 		app.Size(winW, winH),
+		app.MinSize(minW, minH),
 	)...)
 	desktop.ShowWindowButtons(mvuWin)
 
