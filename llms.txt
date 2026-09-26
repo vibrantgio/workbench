@@ -31,14 +31,14 @@ platform's own colour set, which the theme carries).
 All modules live under github.com/vibrantgio/<name>. Current tags:
 
   ```
-  mvu       v1.0.1   MVU runtime: NewWindow, Loop/Run, Message/Command,
+  mvu       v1.1.0   MVU runtime: NewWindow, Loop/Run, Message/Command,
                      MessageOp; Window.Option + OnConfigure, the re-assert
                      seam the nested desktop module builds on (§Nested
                      modules); Window.ViewEvents, the per-window stream of
                      Gio view events the desktop module's drop target rides;
                      subpackage stream (Value, the one sanctioned
                      observable for state several consumers watch)
-  font      v0.4.2   Roboto, six weights, regular and italic — plus Roboto
+  font      v0.4.3   Roboto, six weights, regular and italic — plus Roboto
                      Mono, normal and bold each with italics, all OFL; TTFs
                      embedded here, not eliasnaur.com/font. The default
                      typography's faces. Also jetbrainsmono, the same
@@ -55,15 +55,15 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      DefaultTypography.Faces — 9.9 MB, and Gio's system
                      fallback does not supply one. The live stream wears it
                      via Typography.WithEmoji / EmojiTypography
-  textdraw  v0.0.5   low-level glyph text drawing
-  backdrop  v0.0.4   solid colour fill component
-  gradient  v0.0.4   linear gradient fill component
-  circle    v0.0.5   precise circle via Bezier
-  style     v0.0.7   FROZEN: the old MD2 type scale and FontFaces();
+  textdraw  v0.0.6   low-level glyph text drawing
+  backdrop  v0.0.5   solid colour fill component
+  gradient  v0.0.5   linear gradient fill component
+  circle    v0.0.6   precise circle via Bezier
+  style     v0.0.8   FROZEN: the old MD2 type scale and FontFaces();
                      superseded by theme/tokens Typography (§Typography)
                      — never add it to a new app
 
-  theme     v1.3.3   the theme runtime and every design token: tokens
+  theme     v1.4.0   the theme runtime and every design token: tokens
                      (the platform's colour set, Typography, Density,
                      Motion, spacing/radius), color (APCA and the sRGB
                      flatten), theme (Theme, the token observables),
@@ -76,7 +76,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      wears Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  components  v1.3.3 alert (the status signal for a situation — a banner on
+  components  v1.4.0 alert (the status signal for a situation — a banner on
                      the content's fill inside a Separator hairline, its
                      status carried by the leading glyph in the platform's
                      system colour for it, standing in the page flow until
@@ -111,26 +111,26 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      keyed, initial, cache, bench (coordination
                      is DEPRECATED — use mvu/stream.Value)
 
-  effects   v0.2.5   blur (Gaussian kernel, cached blur, backdrop
+  effects   v0.3.0   blur (Gaussian kernel, cached blur, backdrop
                      pipeline), depth, glow, motion, spring, springbutton,
                      transition, tween, conductor
 
-  patterns  v1.2.1   patterns: shell, navbar, sidebar, pane, table,
+  patterns  v1.3.0   patterns: shell, navbar, sidebar, pane, table,
                      tabs, modal, popover,
                      notifications, card, group, accordion, hero,
                      feature, pricing, testimonial
-  markdown  v0.7.2   GFM document rendering on library components (subpackages:
+  markdown  v0.8.0   GFM document rendering on library components (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
                      images via vibrantgio/svg; obsidian — the Obsidian
                      dialect: frontmatter, wikilinks, block anchors)
 
-  seen      v0.0.9   3D scene graph rendered to SVG or Gio
-  traer     v0.0.9   particle physics (springs, attractions, Verlet)
-  svg       v0.1.0   SVG parse + render
-  ivg       v0.1.8   IconVG icons, Material icons bundled
-  noise     v0.0.4   Perlin and Simplex noise, 2D/3D
-  kiwi      v0.0.7   Cassowary constraint solver
-  csg       v0.0.2   constructive solid geometry on meshes (BSP trees)
+  seen      v0.1.0   3D scene graph rendered to SVG or Gio
+  traer     v0.1.0   particle physics (springs, attractions, Verlet)
+  svg       v0.1.1   SVG parse + render
+  ivg       v0.1.9   IconVG icons, Material icons bundled
+  noise     v0.0.5   Perlin and Simplex noise, 2D/3D
+  kiwi      v0.0.8   Cassowary constraint solver
+  csg       v0.0.3   constructive solid geometry on meshes (BSP trees)
   ```
 
 workbench (the reference apps) and design (the published token bundle) carry
@@ -190,22 +190,22 @@ repo path plus the subdirectory, and — this is the part that trips up
 ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
 
   ```
-  github.com/vibrantgio/ivg/raster/gio        v0.1.8   Gio rasterizer +
+  github.com/vibrantgio/ivg/raster/gio        v0.1.9   Gio rasterizer +
                                                        gio.Widget() for IconVG
-  github.com/vibrantgio/svg/driver/gio        v0.1.0   SVG -> Gio ops,
+  github.com/vibrantgio/svg/driver/gio        v0.1.1   SVG -> Gio ops,
                                                        IconWidget()
-  github.com/vibrantgio/svg/driver/raster     v0.1.0   SVG -> raster image
-  github.com/vibrantgio/svg/driver/pdf        v0.0.7   SVG -> PDF
-  github.com/vibrantgio/svg/driver/seen       v0.1.0   SVG -> seen scene
-  github.com/vibrantgio/seen/context/gio      v0.0.9   Gio drawing context
+  github.com/vibrantgio/svg/driver/raster     v0.1.1   SVG -> raster image
+  github.com/vibrantgio/svg/driver/pdf        v0.1.1   SVG -> PDF
+  github.com/vibrantgio/svg/driver/seen       v0.1.1   SVG -> seen scene
+  github.com/vibrantgio/seen/context/gio      v0.1.0   Gio drawing context
                                                        and gio.Widget() for seen
-  github.com/vibrantgio/traer/gio             v0.0.9   Gio examples/render
+  github.com/vibrantgio/traer/gio             v0.1.0   Gio examples/render
                                                        for traer physics
-  github.com/vibrantgio/kiwi/gio              v0.0.7   Gio layout on the
+  github.com/vibrantgio/kiwi/gio              v0.0.8   Gio layout on the
                                                        kiwi solver
-  github.com/vibrantgio/components/gallery    v1.3.3   the components gallery
+  github.com/vibrantgio/components/gallery    v1.4.0   the components gallery
                                                        app
-  github.com/vibrantgio/mvu/desktop           v1.0.1   native macOS window
+  github.com/vibrantgio/mvu/desktop           v1.1.0   native macOS window
                                                        chrome (FullSizeContent,
                                                        traffic-light unhide,
                                                        queried top inset) on
@@ -223,7 +223,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        paths arriving in
                                                        Update as ordinary
                                                        messages)
-  github.com/vibrantgio/mvu/example           v1.0.0   numbered mvu examples,
+  github.com/vibrantgio/mvu/example           v1.1.0   numbered mvu examples,
                                                        00-reference upward
   ```
 
@@ -1415,11 +1415,11 @@ paths on purpose (golden determinism); leave those alone.
   require (
       gioui.org v0.10.2
       github.com/reactivego/rx v0.3.0
-      github.com/vibrantgio/patterns v1.2.1
-      github.com/vibrantgio/mvu v1.0.1
-      github.com/vibrantgio/components v1.3.3
-      github.com/vibrantgio/theme v1.3.3
-      github.com/vibrantgio/textdraw v0.0.5
+      github.com/vibrantgio/patterns v1.3.0
+      github.com/vibrantgio/mvu v1.1.0
+      github.com/vibrantgio/components v1.4.0
+      github.com/vibrantgio/theme v1.4.0
+      github.com/vibrantgio/textdraw v0.0.6
   )
   ```
 
