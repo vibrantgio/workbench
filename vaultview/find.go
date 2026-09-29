@@ -82,12 +82,17 @@ type pageFind struct {
 	// the document to bring the current match into view.
 	focus bool
 	seek  bool
+	// returnTo is the focus target that held the keyboard when the shortcut
+	// opened the field, and where dismissing the field hands it back. A field
+	// opened by any other means records nothing and the document takes the
+	// keyboard back.
+	returnTo event.Tag
 }
 
 // keys drains the frame's find keys: the platform's find shortcut opens the
 // field in the band and takes the keyboard, Enter and Shift+Enter step
 // through the matches, and Escape closes the field and hands the keyboard
-// back to the document.
+// back to where the shortcut took it from.
 //
 // The stepping keys are filtered on the field's own focus tag, so they mean
 // the next match only while the reader is in the field; the editor under them
@@ -115,6 +120,7 @@ func (f *pageFind) keys(gtx layout.Context, read *reader) {
 		case findKey:
 			f.open = true
 			f.focus = true
+			f.returnTo = keyboardHolder(gtx, read)
 		case key.NameEscape:
 			f.dismiss(gtx, read)
 		case key.NameReturn, key.NameEnter:
@@ -149,16 +155,42 @@ func (f *pageFind) step(back bool) {
 	f.seek = true
 }
 
+// keyboardHolder answers which target holds the keyboard as the find shortcut
+// arrives: the rail's rows while they have it, the document otherwise.
+//
+// A focus command reaches the router at the end of the frame that executes
+// it, so what this reads during the frame the shortcut is delivered on is
+// where the keyboard stood when the reader pressed it, whichever column laid
+// out first.
+func keyboardHolder(gtx layout.Context, read *reader) event.Tag {
+	if read == nil {
+		return nil
+	}
+	if read.rail.holds(gtx) {
+		return read.rail.focus()
+	}
+	return &read.tag
+}
+
 // dismiss closes the field, takes the query and every mark with it, and hands
-// the keyboard back to the document the reader was reading.
+// the keyboard back to the target the shortcut took it from.
 func (f *pageFind) dismiss(gtx layout.Context, read *reader) {
+	back := f.returnTo
 	*f = pageFind{tag: f.tag, clear: f.clear, note: f.note}
 	if f.clear != nil {
 		f.clear()
 	}
-	if read != nil {
-		gtx.Execute(key.FocusCmd{Tag: &read.tag})
+	if read == nil {
+		return
 	}
+	// Only the rail's rows are handed the keyboard back, and only while the
+	// tag recorded is still the one they hold: a rail rebuilt since the field
+	// opened publishes another tag, and a target no longer in the window
+	// would take the keyboard out of every focusable there is.
+	if back == nil || back != read.rail.focus() {
+		back = &read.tag
+	}
+	gtx.Execute(key.FocusCmd{Tag: back})
 }
 
 // apply puts the query on the document that is about to lay out and takes

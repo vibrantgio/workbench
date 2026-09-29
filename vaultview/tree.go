@@ -302,10 +302,16 @@ type railFocus struct{ tag event.Tag }
 
 // holds reports whether the rail's rows hold the keyboard this frame.
 func (f *railFocus) holds(gtx layout.Context) bool {
-	if f == nil || f.tag == nil {
-		return false
+	return f.focus() != nil && gtx.Focused(f.tag)
+}
+
+// focus is the tag the rail's rows take the keyboard on, nil where there is
+// no rail and where its list has not been built yet.
+func (f *railFocus) focus() event.Tag {
+	if f == nil {
+		return nil
 	}
-	return gtx.Focused(f.tag)
+	return f.tag
 }
 
 // treeSidebar builds the sidebar slot's layout.Widget stream: the find field

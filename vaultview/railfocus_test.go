@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"gioui.org/f32"
+	"gioui.org/io/event"
 	"gioui.org/io/input"
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
@@ -55,9 +57,19 @@ type railFocusFrame struct {
 	docs   map[string]*markdown.Document
 	size   image.Point
 
-	onRail bool
-	inNote bool
+	// find is the page's own find and fieldTag stands for its field's editor:
+	// the field itself lays out in the window's toolbar band, which this
+	// frame does not draw, so what is kept here is the state the band would
+	// drive and a target that takes the keyboard exactly as the editor does.
+	find     pageFind
+	fieldTag findFieldTag
+
+	onRail  bool
+	inNote  bool
+	inField bool
 }
+
+type findFieldTag struct{ _ byte }
 
 func newRailFocusFrame(t *testing.T) *railFocusFrame {
 	t.Helper()
@@ -72,6 +84,7 @@ func newRailFocusFrame(t *testing.T) *railFocusFrame {
 		size:   image.Pt(treeWidthDp+400, 700),
 	}
 	f.read.rail = &railFocus{tag: v.list.Focus()}
+	f.find.tag = &f.fieldTag
 	f.v.post = func(_ layout.Context, msg mvu.Message) { f.posted = append(f.posted, msg) }
 	return f
 }
@@ -103,6 +116,7 @@ func (f *railFocusFrame) frame() {
 	f.columns(gtx)
 	f.onRail = gtx.Focused(f.v.list.Focus())
 	f.inNote = gtx.Focused(&f.read.tag)
+	f.inField = gtx.Focused(&f.fieldTag)
 	f.router.Frame(ops)
 	for _, msg := range f.posted {
 		f.model, _ = Update(f.model, msg)
@@ -120,9 +134,34 @@ func (f *railFocusFrame) columns(gtx layout.Context) {
 	note := gtx
 	note.Constraints = layout.Exact(image.Pt(f.size.X-treeWidthDp, f.size.Y))
 	f.read.layout(note, f.doc(), func(gtx layout.Context) layout.Dimensions {
+		// The find's keys are drained where the note page drains them: inside
+		// the column, under the reading area, and only while a note is open.
+		if f.model.CurrentNote() != nil {
+			f.find.keys(gtx, &f.read)
+		}
+		f.findField(gtx)
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	})
 	off.Pop()
+}
+
+// findField stands in for the field the band lays out: it carries out a
+// pending request for the keyboard, as the band's field does, and registers a
+// target that can hold it. It is registered over one pixel and draws nothing —
+// it exists to hold the keyboard, not to be seen.
+func (f *railFocusFrame) findField(gtx layout.Context) {
+	for {
+		if _, ok := gtx.Event(key.FocusFilter{Target: &f.fieldTag}); !ok {
+			break
+		}
+	}
+	area := clip.Rect{Max: image.Pt(1, 1)}.Push(gtx.Ops)
+	event.Op(gtx.Ops, &f.fieldTag)
+	area.Pop()
+	if f.find.open && f.find.focus {
+		f.find.focus = false
+		gtx.Execute(key.FocusCmd{Tag: f.find.tag})
+	}
 }
 
 // railRowHeight is the height of one rail row in this frame's pixels, which
@@ -155,7 +194,12 @@ func (f *railFocusFrame) clickInNote() {
 
 func (f *railFocusFrame) press(name key.Name) {
 	f.t.Helper()
-	f.router.Queue(key.Event{Name: name, State: key.Press})
+	f.pressMod(name, 0)
+}
+
+func (f *railFocusFrame) pressMod(name key.Name, mods key.Modifiers) {
+	f.t.Helper()
+	f.router.Queue(key.Event{Name: name, Modifiers: mods, State: key.Press})
 	f.frame()
 }
 
