@@ -257,9 +257,10 @@ type treeView struct {
 	// the constants that placed it.
 	geom paneGeom
 
-	// post is where a key's answer goes: the live rail's is the frame's
-	// message op, which is what a nil leaves, and a test's is a recorder —
-	// the fold keys are read back without a window to post them to.
+	// post is where a row's answer goes — what its keys and its clicks
+	// send: the live rail's is the frame's message op, which is what a nil
+	// leaves, and a test's is a recorder, so a rail laid out without a
+	// window to post to can still be read back.
 	post func(gtx layout.Context, msg mvu.Message)
 }
 
@@ -291,6 +292,22 @@ func (v *treeView) buttonEdge() unit.Dp {
 	return toolbarLeading()
 }
 
+// railFocus carries the focus tag of the rail's rows to the note column
+// beside them. The rail's list is built when the sidebar's stream is
+// subscribed, which happens after the column that reads the tag is built, so
+// the tag travels through this holder rather than as a value. A nil holder,
+// and one whose tag has not arrived, answer for a composition with no rail:
+// there, the rail holds nothing.
+type railFocus struct{ tag event.Tag }
+
+// holds reports whether the rail's rows hold the keyboard this frame.
+func (f *railFocus) holds(gtx layout.Context) bool {
+	if f == nil || f.tag == nil {
+		return false
+	}
+	return gtx.Focused(f.tag)
+}
+
 // treeSidebar builds the sidebar slot's layout.Widget stream: the find field
 // above the rows. The field is a components SearchField built once at
 // subscription scope, so its editor keeps what was typed across
@@ -300,7 +317,10 @@ func (v *treeView) buttonEdge() unit.Dp {
 // the match marks off the rows with it.
 // The frame closure reads the model and token snapshots at frame time;
 // repaints on model change are driven by the routed layer's re-emission.
-func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
+//
+// The rail publishes its rows' focus tag into rail, which is how the note
+// column beside it can ask whether the keyboard is in the rail.
+func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens, rail *railFocus) rx.Observable[layout.Widget] {
 	// The field's own focus tag, so the shortcut this rail answers can put
 	// the keyboard in it.
 	var fieldTag event.Tag
@@ -320,6 +340,9 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 	})
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		v := &treeView{list: list.NewState()}
+		if rail != nil {
+			rail.tag = v.list.Focus()
+		}
 		return rx.Map(field, func(fieldW layout.Widget) layout.Widget {
 			return func(gtx layout.Context) layout.Dimensions {
 				focusFindField(gtx, fieldTag)
@@ -486,7 +509,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 			}
 			if ke, ok := e.(key.Event); ok && ke.State == key.Press {
 				if sel := v.list.Selected(); sel >= 0 && sel < len(rows) {
-					activateTreeRow(gtx, rows[sel])
+					v.activate(gtx, rows[sel])
 				}
 			}
 		}
@@ -521,7 +544,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 				// the arrows then move down the rail, and the row the
 				// reader landed on wears the emphasized pill.
 				gtx.Execute(key.FocusCmd{Tag: v.list.Focus()})
-				activateTreeRow(gtx, row)
+				v.activate(gtx, row)
 			}
 			width := gtx.Constraints.Max.X
 			size := image.Pt(width, rowH)
@@ -844,12 +867,13 @@ func renderTree(
 	}
 }
 
-// activateTreeRow performs one row's action: a folder toggles its fold,
-// a note navigates.
-func activateTreeRow(gtx layout.Context, row TreeRow) {
+// activate performs one row's action: a folder toggles its fold, a note
+// navigates. It goes out the same way the keys' answers do, so a rail laid
+// out without a window to post to can be read back.
+func (v *treeView) activate(gtx layout.Context, row TreeRow) {
 	if row.IsDir {
-		mvu.MessageOp{Message: ToggleFold{Dir: row.Path}}.Add(gtx.Ops)
+		v.send(gtx, ToggleFold{Dir: row.Path})
 		return
 	}
-	mvu.MessageOp{Message: Navigate{Path: row.Path}}.Add(gtx.Ops)
+	v.send(gtx, Navigate{Path: row.Path})
 }

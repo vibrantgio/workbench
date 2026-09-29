@@ -330,14 +330,18 @@ type readerTag struct{ _ byte }
 // Filtered on this tag, the keys move the document only while the document
 // holds the keyboard, and the field and the rail keep theirs untouched.
 //
-// The column takes the keyboard whenever a note arrives — the first one it
-// shows, and every one opened after it — so a note can be read the moment it
-// is opened rather than after finding somewhere to click. Choosing a note
-// from the rail or following a link is a request to read it, and the keys
-// that read it are the document's; filtering the rail opens nothing and so
-// takes nothing away from the field being typed in.
+// The column takes the keyboard when a note arrives while the rail's rows do
+// not hold it — the first note it shows, a followed link, back and forward —
+// so a note can be read the moment it is opened rather than after finding
+// somewhere to click. A note opened from the rail is the one arrival that
+// leaves the keyboard where it is: the platform's sidebars keep it after a
+// click on a row, and the arrows there go on walking the rows. Filtering the
+// rail opens nothing and so takes nothing away from the field being typed in.
 type reader struct {
 	tag readerTag
+	// rail is where the rail publishes its focus tag, nil in a composition
+	// that has no rail.
+	rail *railFocus
 	// shown is the document the column last laid out. A different pointer
 	// means a different note is on screen, which is the moment to claim the
 	// keyboard.
@@ -356,7 +360,9 @@ func (r *reader) layout(gtx layout.Context, doc *markdown.Document, w layout.Wid
 	r.process(gtx, doc)
 	if r.shown != doc {
 		r.shown = doc
-		gtx.Execute(key.FocusCmd{Tag: &r.tag})
+		if !r.rail.holds(gtx) {
+			gtx.Execute(key.FocusCmd{Tag: &r.tag})
+		}
 	}
 	dims := w(gtx)
 	pass := pointer.PassOp{}.Push(gtx.Ops)
@@ -419,6 +425,9 @@ func (r *reader) process(gtx layout.Context, doc *markdown.Document) {
 // snapshots at frame time; repaints on model change are driven by the
 // routed layer's re-emission.
 func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens, widths *columnMemory) rx.Observable[layout.Widget] {
+	// The rail fills this in when its own stream is subscribed, and the note
+	// column reads it: a note opened from the rail leaves the keyboard there.
+	rail := &railFocus{}
 	// Documents are cached per note path and reused on every frame, so
 	// each note's scroll position and paragraph interaction state survive
 	// revisiting. A landing that carries an anchor (NavSeq moved and
@@ -436,7 +445,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		docsVault string
 		seatedSeq int
 		propClick widget.Clickable
-		read      reader
+		read      = reader{rail: rail}
 		arr       arrival
 		find      pageFind
 	)
@@ -498,7 +507,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 			}
 		})
 	return vaultFrame(loadModel, loadTok, widths, &find,
-		treeSidebar(th, loadModel, loadTok),
+		treeSidebar(th, loadModel, loadTok, rail),
 		asideColumn(cur, loadModel, loadTok),
 		mainSlot,
 		field,

@@ -53,7 +53,7 @@ func newPointerWindow(t *testing.T, col tokens.PlatformColors) *pointerWindow {
 	// carries is the live text field, which is the region that was leaving
 	// its shape on the list under it.
 	w.sb = materializeWidget(t, treeSidebar(rx.Of(theme.Default()),
-		func() Model { return w.m }, func() themeTokens { return w.tok }))
+		func() Model { return w.m }, func() themeTokens { return w.tok }, nil))
 	w.main = renderNotePageInto(cur, shaper, m, col, tokens.Spacing,
 		tokens.DefaultTypography, tokens.Comfortable, &pageFind{})
 	w.as = func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, w.m, w.tok) }
