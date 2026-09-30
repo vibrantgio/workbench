@@ -506,7 +506,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 				return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, trail, &read, &arr, cur, docFor, &find)
 			}
 		})
-	return vaultFrame(loadModel, loadTok, widths, &find,
+	return vaultFrame(loadModel, loadTok, widths, &find, &read,
 		treeSidebar(th, loadModel, loadTok, rail),
 		asideColumn(cur, loadModel, loadTok),
 		mainSlot,

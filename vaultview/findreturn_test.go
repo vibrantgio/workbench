@@ -83,3 +83,49 @@ func TestAClosedFindFieldLeavesTheKeyboardInTheNote(t *testing.T) {
 		t.Error("Escape put the keyboard in the rail, which is not where the field took it from")
 	}
 }
+
+// TestTheBandsMagnifierGivesTheKeyboardBackToTheRail is the same reader
+// reaching for the capsule in the toolbar band rather than the shortcut. The
+// capsule is laid out by the frame the band belongs to, so this drives the
+// window's own control; the two ways to the field record the same holder, and
+// Escape hands the keyboard back to the rows either way.
+func TestTheBandsMagnifierGivesTheKeyboardBackToTheRail(t *testing.T) {
+	f := newRailFocusFrame(t)
+	f.frame() // registers the tags and measures the rows and the capsule
+
+	f.clickRailRow(0)
+	f.frame() // the frame the opened note's document arrives on
+	f.frame() // and the frame that reads back what that one did with the keys
+	if !f.onRail {
+		t.Fatal("the rail does not hold the keyboard after a click on a row; there is nothing to give back")
+	}
+
+	f.clickCapsule()
+	if !f.find.open {
+		t.Fatal("the band's magnifier capsule did not open the field")
+	}
+	if f.find.returnTo != f.read.rail.focus() {
+		t.Fatal("the capsule-opened field did not record the rail as the keyboard's holder")
+	}
+	f.frame()
+	if !f.inField {
+		t.Fatal("the find field does not hold the keyboard after the capsule opened it")
+	}
+
+	f.press(key.NameEscape)
+	f.frame()
+	if !f.onRail {
+		t.Fatal("Escape left the rail without the keyboard; the capsule-opened field did not give it back to where it came from")
+	}
+	if f.inNote {
+		t.Error("Escape put the keyboard in the note, which is not where the capsule took it from")
+	}
+
+	f.press(key.NameDownArrow)
+	if got := f.v.list.Selected(); got != 1 {
+		t.Errorf("Down left the rail's selection on row %d, want the second row: the arrows are dead after the field closed", got)
+	}
+	if !f.onRail {
+		t.Error("the rail does not hold the keyboard after Down")
+	}
+}

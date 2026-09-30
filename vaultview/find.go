@@ -82,17 +82,17 @@ type pageFind struct {
 	// the document to bring the current match into view.
 	focus bool
 	seek  bool
-	// returnTo is the focus target that held the keyboard when the shortcut
-	// opened the field, and where dismissing the field hands it back. A field
-	// opened by any other means records nothing and the document takes the
-	// keyboard back.
+	// returnTo is the focus target that held the keyboard when the field was
+	// opened, and where dismissing the field hands it back. A field opened
+	// where no holder could be read records nothing and the document takes
+	// the keyboard back.
 	returnTo event.Tag
 }
 
 // keys drains the frame's find keys: the platform's find shortcut opens the
 // field in the band and takes the keyboard, Enter and Shift+Enter step
 // through the matches, and Escape closes the field and hands the keyboard
-// back to where the shortcut took it from.
+// back to where the field took it from.
 //
 // The stepping keys are filtered on the field's own focus tag, so they mean
 // the next match only while the reader is in the field; the editor under them
@@ -118,15 +118,24 @@ func (f *pageFind) keys(gtx layout.Context, read *reader) {
 		}
 		switch ke.Name {
 		case findKey:
-			f.open = true
-			f.focus = true
-			f.returnTo = keyboardHolder(gtx, read)
+			f.openField(gtx, read)
 		case key.NameEscape:
 			f.dismiss(gtx, read)
 		case key.NameReturn, key.NameEnter:
 			f.step(ke.Modifiers.Contain(key.ModShift))
 		}
 	}
+}
+
+// openField opens the field in the band, asks this frame for the keyboard,
+// and records which target held it, so dismissing the field hands it back
+// there. Both ways of opening the find run through here — the shortcut and
+// the band's magnifier capsule — so the record is made in one place and a
+// field opened either way gives the keyboard back to the same target.
+func (f *pageFind) openField(gtx layout.Context, read *reader) {
+	f.open = true
+	f.focus = true
+	f.returnTo = keyboardHolder(gtx, read)
 }
 
 // typed takes what the reader has in the field. A changed query is a new
@@ -155,13 +164,14 @@ func (f *pageFind) step(back bool) {
 	f.seek = true
 }
 
-// keyboardHolder answers which target holds the keyboard as the find shortcut
-// arrives: the rail's rows while they have it, the document otherwise.
+// keyboardHolder answers which target holds the keyboard as the find is
+// opened: the rail's rows while they have it, the document otherwise. A
+// composition with no note column reads nothing and records nothing.
 //
 // A focus command reaches the router at the end of the frame that executes
-// it, so what this reads during the frame the shortcut is delivered on is
-// where the keyboard stood when the reader pressed it, whichever column laid
-// out first.
+// it, so what this reads during the frame the press or the click is delivered
+// on is where the keyboard stood when the reader acted, whichever column or
+// band laid out first.
 func keyboardHolder(gtx layout.Context, read *reader) event.Tag {
 	if read == nil {
 		return nil
@@ -173,7 +183,7 @@ func keyboardHolder(gtx layout.Context, read *reader) event.Tag {
 }
 
 // dismiss closes the field, takes the query and every mark with it, and hands
-// the keyboard back to the target the shortcut took it from.
+// the keyboard back to the target the field took it from.
 func (f *pageFind) dismiss(gtx layout.Context, read *reader) {
 	back := f.returnTo
 	*f = pageFind{tag: f.tag, clear: f.clear, note: f.note}
@@ -293,12 +303,13 @@ func (f *frameState) findChildren(m Model, tok themeTokens) []layout.FlexChild {
 }
 
 // layoutFindOpener draws the magnifier capsule the band keeps while the find
-// is shut. It opens the field and asks for the keyboard, which is what the
-// shortcut does.
+// is shut. It opens the field, asks for the keyboard and records which target
+// held it, which is what the shortcut does: the capsule and the shortcut are
+// two ways to the same control, so dismissing the field gives the keyboard
+// back to the same target whichever opened it.
 func (f *frameState) layoutFindOpener(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	if f.findClick.Clicked(gtx) && f.band.find != nil {
-		f.band.find.open = true
-		f.band.find.focus = true
+		f.band.find.openField(gtx, f.band.read)
 	}
 	return chromeControl(gtx, tok, &f.findClick, icons.Search, "Find in this note")
 }

@@ -261,11 +261,17 @@ func toolbarHeight() unit.Dp {
 func bandSurface(c tokens.PlatformColors) color.NRGBA { return chromeSurface(c) }
 
 // bandFind is the find in the page as the chrome row carries it: the state
-// the query left it in, and the search field instance drawing it. A frame
-// laid out for measurement carries neither and the band shows no find at all.
+// the query left it in, the search field instance drawing it, and the note
+// column's keyboard target. A frame laid out for measurement carries none of
+// them and the band shows no find at all.
 type bandFind struct {
 	find  *pageFind
 	field layout.Widget
+	// read is what the band's magnifier capsule reads the keyboard's holder
+	// from when it opens the field, so the field records the holder whichever
+	// way it was opened. It is nil wherever no note column was built, and a
+	// field opened there records nothing.
+	read *reader
 }
 
 // frameState is the vault frame's per-subscription state: the toolbar's
@@ -356,6 +362,7 @@ func vaultFrame(
 	loadTok func() themeTokens,
 	widths *columnMemory,
 	find *pageFind,
+	read *reader,
 	sidebar, aside, main, search rx.Observable[layout.Widget],
 ) rx.Observable[layout.Widget] {
 	columns := rx.CombineLatest4(sidebar, aside, main, search)
@@ -365,7 +372,7 @@ func vaultFrame(
 		return rx.Map(columns, func(next rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 			sbW, asW, mainW, fieldW := next.First, next.Second, next.Third, next.Fourth
 			return func(gtx layout.Context) layout.Dimensions {
-				st.band = bandFind{find: find, field: fieldW}
+				st.band = bandFind{find: find, field: fieldW, read: read}
 				return st.layout(gtx, loadModel(), loadTok(), sbW, asW, mainW)
 			}
 		})

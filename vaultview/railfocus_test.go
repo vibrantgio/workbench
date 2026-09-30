@@ -64,6 +64,14 @@ type railFocusFrame struct {
 	find     pageFind
 	fieldTag findFieldTag
 
+	// band is the frame the toolbar's own controls belong to, carrying the
+	// page's find and the note column's keyboard target as the window hands
+	// them over. The magnifier capsule below is that frame's, so a click on
+	// it runs the code the live band runs; capsule is the room it took, which
+	// is where a click on it lands.
+	band    *frameState
+	capsule image.Point
+
 	onRail  bool
 	inNote  bool
 	inField bool
@@ -85,6 +93,8 @@ func newRailFocusFrame(t *testing.T) *railFocusFrame {
 	}
 	f.read.rail = &railFocus{tag: v.list.Focus()}
 	f.find.tag = &f.fieldTag
+	f.band = newFrameState(defaultWidths())
+	f.band.band = bandFind{find: &f.find, read: &f.read}
 	f.v.post = func(_ layout.Context, msg mvu.Message) { f.posted = append(f.posted, msg) }
 	return f
 }
@@ -124,15 +134,18 @@ func (f *railFocusFrame) frame() {
 	f.posted = nil
 }
 
-// columns lays the rail out at its own width and the note column beside it,
-// which is the arrangement the window's frame makes of the two.
+// columns lays the rail out at its own width, the band stand-in across the
+// top of the content, and the note column under it, which is the arrangement
+// the window's frame makes of the three.
 func (f *railFocusFrame) columns(gtx layout.Context) {
 	rail := gtx
 	rail.Constraints = layout.Exact(image.Pt(treeWidthDp, f.size.Y))
 	f.v.layout(rail, f.model, f.tok, nil)
 	off := op.Offset(image.Pt(treeWidthDp, 0)).Push(gtx.Ops)
+	f.findOpener(gtx)
+	under := op.Offset(image.Pt(0, railFocusBandDp)).Push(gtx.Ops)
 	note := gtx
-	note.Constraints = layout.Exact(image.Pt(f.size.X-treeWidthDp, f.size.Y))
+	note.Constraints = layout.Exact(image.Pt(f.size.X-treeWidthDp, f.size.Y-railFocusBandDp))
 	f.read.layout(note, f.doc(), func(gtx layout.Context) layout.Dimensions {
 		// The find's keys are drained where the note page drains them: inside
 		// the column, under the reading area, and only while a note is open.
@@ -142,7 +155,29 @@ func (f *railFocusFrame) columns(gtx layout.Context) {
 		f.findField(gtx)
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	})
+	under.Pop()
 	off.Pop()
+}
+
+// railFocusBandDp is the depth of the strip this frame keeps above the note
+// column for the band's magnifier capsule. The capsule has to stand OUTSIDE
+// the reading area: the area passes presses through to the document, so a
+// click landing on both would hand the note the keyboard and say nothing
+// about what the capsule did with it.
+const railFocusBandDp = 40
+
+// findOpener lays the band's magnifier capsule out in that strip. It is the
+// window's own control, drawn by the frame the band belongs to, so a click on
+// it runs exactly what a click on the live capsule runs; the band draws it
+// only while the find is shut and a note is open, and so does this.
+func (f *railFocusFrame) findOpener(gtx layout.Context) {
+	if f.find.open || f.model.CurrentNote() == nil {
+		f.capsule = image.Point{}
+		return
+	}
+	band := gtx
+	band.Constraints = layout.Constraints{Max: image.Pt(f.size.X-treeWidthDp, railFocusBandDp)}
+	f.capsule = f.band.layoutFindOpener(band, f.tok).Size
 }
 
 // findField stands in for the field the band lays out: it carries out a
@@ -190,6 +225,16 @@ func (f *railFocusFrame) clickRailRow(i int) {
 func (f *railFocusFrame) clickInNote() {
 	f.t.Helper()
 	f.click(f32.Pt(float32(treeWidthDp+(f.size.X-treeWidthDp)/2), float32(f.size.Y)/2))
+}
+
+// clickCapsule presses the middle of the band's magnifier capsule, which is
+// the other way a reader opens the find in the page.
+func (f *railFocusFrame) clickCapsule() {
+	f.t.Helper()
+	if f.capsule.X == 0 || f.capsule.Y == 0 {
+		f.t.Fatal("the band drew no magnifier capsule to press")
+	}
+	f.click(f32.Pt(float32(treeWidthDp+f.capsule.X/2), float32(f.capsule.Y/2)))
 }
 
 func (f *railFocusFrame) press(name key.Name) {
