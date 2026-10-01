@@ -32,7 +32,7 @@ import (
 type Palette struct {
 	Sidebar   color.NRGBA // conversation-pane fill — the chrome material
 	Separator color.NRGBA // the pane header's seam, over the chrome
-	Heading   color.NRGBA // pane heading and chrome glyphs
+	Heading   color.NRGBA // pane heading and chrome symbols
 	Row       color.NRGBA // chat-row text on the chrome
 	RowActive color.NRGBA // text on the selected row's pill
 	// RowSymbol is what a chat row's mark is drawn in: the sidebar's own
@@ -88,7 +88,7 @@ type Palette struct {
 	// a sidebar's are two different colours on this platform.
 	ListSelected     color.NRGBA
 	ListSelectedText color.NRGBA
-	Icon             color.NRGBA // assistant avatar glyph
+	Icon             color.NRGBA // assistant avatar symbol
 	Error            color.NRGBA // settings fetch-error text
 }
 

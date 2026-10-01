@@ -203,7 +203,7 @@ var (
 	atSidebar     = image.Pt(96, 20)    // the panel's own strip, above its first section
 	atNavbar      = image.Pt(600, 12)   // navbar, between the brand and the actions
 	atListPane    = image.Pt(500, 640)  // articles pane, under the last row
-	atListRow     = image.Pt(700, 177)  // a body row the stripe skips, past the glyph
+	atListRow     = image.Pt(700, 177)  // a body row the stripe skips, past the symbol
 	atReadingPane = image.Pt(1000, 600) // reading pane, below the article body
 	atPaneHead    = image.Pt(1100, 100) // reading pane, beside the article title
 	atTabStrip    = image.Pt(1150, 132) // the tab strip band, past the last label
@@ -213,7 +213,7 @@ var (
 	// the first section's heading block, not under the window's band.
 	atOpenFeed    = image.Pt(52, 100)  // the open feed's pill
 	atRestingFeed = image.Pt(52, 132)  // the feed under it, unchosen
-	atOpenRow     = image.Pt(700, 137) // the open article's row, past the glyph
+	atOpenRow     = image.Pt(700, 137) // the open article's row, past the symbol
 
 	// The pager, under the table: a leading chevron and then one square per
 	// page. Only the page the table is showing is filled; the others carry

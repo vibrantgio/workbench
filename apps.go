@@ -29,7 +29,7 @@ var Apps = []App{
 		Dir:   "todos",
 		Blurb: "The minimal canonical MVU app: pure reducers, library components, live light/dark theming.",
 		// A filled clipboard rather than ActionDone's bare check: every card's
-		// icon depicts its app's subject, and a check is this set's glyph for a
+		// icon depicts its app's subject, and a check is this set's symbol for a
 		// completed thing, not for an app about them.
 		Icon: icons.ActionAssignmentTurnedIn,
 	},
@@ -63,7 +63,7 @@ var Apps = []App{
 		Name:  "Themer",
 		Dir:   "themer",
 		Blurb: "The theme colour: the platform's accent, a colour out of a picture, or one written in.",
-		// An eyedropper: ImageColorLens, the obvious name, draws the same glyph
+		// An eyedropper: ImageColorLens, the obvious name, draws the same symbol
 		// as Icon Browser's ImagePalette.
 		Icon: icons.ImageColorize,
 	},

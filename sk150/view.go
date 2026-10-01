@@ -44,7 +44,7 @@ type themed struct {
 	ic      statIcons
 }
 
-// statIcons are the dashboard's glyphs, rasterised once per theme emission
+// statIcons are the dashboard's symbols, rasterised once per theme emission
 // in the colour they are drawn with.
 type statIcons struct {
 	Bolt     layout.Widget // input voltage
@@ -55,8 +55,8 @@ type statIcons struct {
 	Battery  layout.Widget // accumulated charge
 	Flare    layout.Widget // accumulated energy
 	Clock    layout.Widget // output-on time
-	PowerOn  layout.Widget // the header's toggle glyph while the output is on
-	PowerOff layout.Widget // the header's toggle glyph while it is off
+	PowerOn  layout.Widget // the header's toggle symbol while the output is on
+	PowerOff layout.Widget // the header's toggle symbol while it is off
 }
 
 // pointerFill is the overlay the platform lays over a toolbar button's own
@@ -72,7 +72,7 @@ func pointerFill(p Palette, click *widget.Clickable) color.NRGBA {
 	return color.NRGBA{}
 }
 
-// statIconDp is the drawn glyph size of a dashboard stat.
+// statIconDp is the drawn symbol size of a dashboard stat.
 const statIconDp = 20
 
 func iconsFrom(p Palette) statIcons {
@@ -492,12 +492,12 @@ func listContent(load func() (pageState, bool), list *layout.List, build func(th
 	}
 }
 
-// powerButton is the header's output toggle: the power glyph, lit in the
+// powerButton is the header's output toggle: the power symbol, lit in the
 // accent colour while the output is on, emitting ToggleOutput on click. The
 // clickable lives at subscription scope; state and colours arrive through
 // the frame-time snapshot. Affordance is the standard recipe: a pointer
 // cursor over the target, the platform's hover and press overlays in a
-// circle, and padding that grows the hit area past the glyph.
+// circle, and padding that grows the hit area past the symbol.
 func powerButton(load func() (pageState, bool), click *widget.Clickable) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
@@ -1072,7 +1072,7 @@ func switchRow(t themed, label string, on bool, sw layout.Widget) layout.Widget 
 	}
 }
 
-// statItem is one dashboard stat: a glyph beside its value — the icon
+// statItem is one dashboard stat: a symbol beside its value — the icon
 // carries the meaning, no caption.
 func statItem(typ Type, icon layout.Widget, value string, valCol color.NRGBA, gap unit.Dp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {

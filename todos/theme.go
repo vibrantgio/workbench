@@ -26,7 +26,7 @@ type Palette struct {
 	Editing        color.NRGBA // the editor's text, on the field
 	Placeholder    color.NRGBA // the empty field's prompt
 	Selection      color.NRGBA // the fill behind selected text
-	Icon           color.NRGBA // the add and delete glyphs
+	Icon           color.NRGBA // the add and delete symbols
 	Cover          color.NRGBA // the dim over the page the modal interrupts
 }
 

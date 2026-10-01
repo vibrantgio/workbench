@@ -32,7 +32,7 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 }
 
 // themed carries one theme emission's palette and typography plus the 961
-// icons prebuilt in that theme's glyph colour. Prebuilding is cheap —
+// icons prebuilt in that theme's symbol colour. Prebuilding is cheap —
 // `raster.Widget` only decodes the viewBox up front and rasterises lazily,
 // caching per size — and it means a keystroke re-filters prebuilt icons
 // instead of reconstructing them.
@@ -123,7 +123,7 @@ const (
 // Page stacks the search field over the two labelled sets: the design system's
 // own marks, then the grid of Material icons matching the query. The marks
 // section is dropped whole when the query matches none of them, so a search
-// for a Material glyph is not padded by an empty row.
+// for a Material symbol is not padded by an empty row.
 func Page(t themed, search layout.Widget, model Model, grid *layout.List) layout.Widget {
 	visible := FilterIcons(model.Query)
 	names := FilterMarks(model.Query)
@@ -161,7 +161,7 @@ func Page(t themed, search layout.Widget, model Model, grid *layout.List) layout
 
 // Grid lays the visible icons out in rows of as many fixed-size cells as fit
 // the width, scrolled by the subscription-scoped list state. Each cell shows
-// the glyph with its exported name captioned underneath.
+// the symbol with its exported name captioned underneath.
 func Grid(t themed, visible []int, query string, grid *layout.List) layout.Widget {
 	p := t.palette
 	return func(gtx layout.Context) layout.Dimensions {
@@ -189,14 +189,14 @@ func Grid(t themed, visible []int, query string, grid *layout.List) layout.Widge
 
 				cl := clip.Rect(cell).Push(gtx.Ops)
 
-				// Glyph centred in the cell's upper part.
+				// Symbol centred in the cell's upper part.
 				off := op.Offset(image.Pt(cell.Min.X+(cellW-iconPx)/2, gtx.Dp(8))).Push(gtx.Ops)
 				cgtx := gtx
 				cgtx.Constraints = layout.Exact(image.Pt(iconPx, iconPx))
 				t.icons[icon](cgtx)
 				off.Pop()
 
-				// Name captioned below the glyph.
+				// Name captioned below the symbol.
 				captionRect := image.Rect(cell.Min.X, gtx.Dp(8)+iconPx+gtx.Dp(4), cell.Max.X, cellH)
 				textdraw.FillText(gtx, t.typ.Shaper, t.typ.Caption, captionRect, 0.5, 0.0, p.Text, IconTable[icon].Name)
 

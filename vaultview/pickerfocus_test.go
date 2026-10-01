@@ -5,7 +5,7 @@ package main
 // focus when a dialog opens, as the platform's sheet shows. This dialog's
 // body is a folder browser rather than a field, so its first control is the
 // browser's list — and a list at the front of a dialog is a focusable like a
-// field: it wears the halo on its own box and shows a selected row.
+// field: it wears the ring on its own box and shows a selected row.
 
 import (
 	"image"
@@ -172,17 +172,17 @@ func colorBox(img *image.RGBA, col color.NRGBA) image.Rectangle {
 	return box
 }
 
-// haloRing is the colour the halo's outer half lands as on a dialog's own
+// ringOnPlane is the colour the ring's outer half lands as on a dialog's own
 // plane: the platform's keyboard focus indicator flattened onto the window
 // background every floating surface here takes.
-func haloRing(c tokens.PlatformColors) color.NRGBA {
-	return haloOverFill(c, c.WindowBackground)
+func ringOnPlane(c tokens.PlatformColors) color.NRGBA {
+	return ringOverFill(c, c.WindowBackground)
 }
 
-// haloOverFill is the colour the halo lands as where it lies on fill: the
+// ringOverFill is the colour the ring lands as where it lies on fill: the
 // platform's keyboard focus indicator at its own coverage over that fill,
 // composited in encoded sRGB as the platform composites it.
-func haloOverFill(c tokens.PlatformColors, fill color.NRGBA) color.NRGBA {
+func ringOverFill(c tokens.PlatformColors, fill color.NRGBA) color.NRGBA {
 	return vgcolor.Flatten(c.KeyboardFocusIndicator, fill)
 }
 
@@ -192,20 +192,20 @@ func haloOverFill(c tokens.PlatformColors, fill color.NRGBA) color.NRGBA {
 // list stands on down the row under it. The column read is the first one
 // over the list's own box, which every row reaches: a row is the full width
 // of the list.
-func readsBandOverFills(t *testing.T, img *image.RGBA, c tokens.PlatformColors, halo, row image.Rectangle, rowH int) {
+func readsBandOverFills(t *testing.T, img *image.RGBA, c tokens.PlatformColors, ring, row image.Rectangle, rowH int) {
 	t.Helper()
 	// One column inside the over half rather than its first: the column on
 	// the box's own outline carries the rasteriser's partial coverage of the
 	// band's inner edge, and reads a level off the flat composite on some
 	// rows and not others. The reading is the flat one.
-	x := halo.Min.X + haloOutside + 1
+	x := ring.Min.X + ringOutside + 1
 	for _, r := range []struct {
 		what string
 		y    int
 		want color.NRGBA
 	}{
-		{"the selected first row", row.Min.Y + 1, haloOverFill(c, c.SelectedContentBackground)},
-		{"the row under it", row.Max.Y + rowH/2, haloRing(c)},
+		{"the selected first row", row.Min.Y + 1, ringOverFill(c, c.SelectedContentBackground)},
+		{"the row under it", row.Max.Y + rowH/2, ringOnPlane(c)},
 	} {
 		if at := img.RGBAAt(x, r.y); !sameColor(at, r.want) {
 			t.Errorf("the band's over half on %s (x=%d, y=%d) = %v, want %v: the band does not composite over what it stands on",
@@ -214,22 +214,22 @@ func readsBandOverFills(t *testing.T, img *image.RGBA, c tokens.PlatformColors, 
 	}
 }
 
-// haloOutside is how far past a control's own box the band reaches at the
-// metric these frames are driven at: half of the halo's measured 4 dp.
-const haloOutside = 2
+// ringOutside is how far past a control's own box the band reaches at the
+// metric these frames are driven at: half of the ring's measured 4 dp.
+const ringOutside = 2
 
-// TestTheSwitchDialogOpensOnTheBrowserWearingItsHalo reads the opening
+// TestTheSwitchDialogOpensOnTheBrowserWearingItsRing reads the opening
 // keyboard off the live dialog, in both schemes.
 //
-// Four readings. As it opens, the halo stands around the browser's list and
+// Four readings. As it opens, the ring stands around the browser's list and
 // nowhere else, and the list's first row — the listing's first, the dialog
 // standing IN the vault rather than in its parent — wears the selection
 // fill. One Down moves that selection one row on, which only a list holding
-// the keyboard does. One Tab carries the halo off the list and onto the
+// the keyboard does. One Tab carries the ring off the list and onto the
 // footer's first answer, leaving the selection where it stood. So the
 // keyboard opens in the body and the footer is a Tab away, not the other way
 // round.
-func TestTheSwitchDialogOpensOnTheBrowserWearingItsHalo(t *testing.T) {
+func TestTheSwitchDialogOpensOnTheBrowserWearingItsRing(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := switchGoldenModel()
 	down := key.Event{Name: key.NameDownArrow, State: key.Press}
@@ -237,39 +237,39 @@ func TestTheSwitchDialogOpensOnTheBrowserWearingItsHalo(t *testing.T) {
 
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ring := haloRing(tc.colors)
+			band := ringOnPlane(tc.colors)
 			cursor := tc.colors.SelectedContentBackground
 
 			opened := settledDialog(t, livePicker(t, m, tc.colors, shaper), tc.colors)
-			halo := colorBox(opened, ring)
-			if halo.Empty() {
-				t.Fatal("the switch dialog opened with no halo anywhere in the window: nothing holds the keyboard")
+			ring := colorBox(opened, band)
+			if ring.Empty() {
+				t.Fatal("the switch dialog opened with no ring anywhere in the window: nothing holds the keyboard")
 			}
 			row := colorBox(opened, cursor)
 			if row.Empty() {
 				t.Fatal("the browser opened with no row selected: a list holding the keyboard shows which row it stands on")
 			}
-			// The band straddles the list's box, so it runs haloOutside past
+			// The band straddles the list's box, so it runs ringOutside past
 			// the rows on every side, and the first row sits at the box's own
 			// top edge under the half of the band lying over it.
-			if halo.Min.X != row.Min.X-2*haloOutside || halo.Max.X != row.Max.X+2*haloOutside {
-				t.Errorf("the halo runs x %d-%d and the selected row x %d-%d: the band is not on the list's own box",
-					halo.Min.X, halo.Max.X, row.Min.X, row.Max.X)
+			if ring.Min.X != row.Min.X-2*ringOutside || ring.Max.X != row.Max.X+2*ringOutside {
+				t.Errorf("the ring runs x %d-%d and the selected row x %d-%d: the band is not on the list's own box",
+					ring.Min.X, ring.Max.X, row.Min.X, row.Max.X)
 			}
-			if halo.Min.Y != row.Min.Y-2*haloOutside {
-				t.Errorf("the halo starts at y %d and the selected row at y %d: the first row is not at the list's top edge",
-					halo.Min.Y, row.Min.Y)
+			if ring.Min.Y != row.Min.Y-2*ringOutside {
+				t.Errorf("the ring starts at y %d and the selected row at y %d: the first row is not at the list's top edge",
+					ring.Min.Y, row.Min.Y)
 			}
-			if got, want := halo.Dy(), haloOutside+vaultPickerRows*int(tokens.Comfortable.ControlHeight)+haloOutside; got != want {
-				t.Errorf("the halo stands %d px tall; the list's box is %d rows and the band %d px past it on each side",
-					got, vaultPickerRows, haloOutside)
+			if got, want := ring.Dy(), ringOutside+vaultPickerRows*int(tokens.Comfortable.ControlHeight)+ringOutside; got != want {
+				t.Errorf("the ring stands %d px tall; the list's box is %d rows and the band %d px past it on each side",
+					got, vaultPickerRows, ringOutside)
 			}
 
-			readsBandOverFills(t, opened, tc.colors, halo, row, int(tokens.Comfortable.ControlHeight))
+			readsBandOverFills(t, opened, tc.colors, ring, row, int(tokens.Comfortable.ControlHeight))
 
 			// The foot of the fill rather than its top: the opening row sits
 			// at the list's top edge, where the half of the band lying over
-			// the box covers its first haloOutside rows.
+			// the box covers its first ringOutside rows.
 			walked := settledDialog(t, livePicker(t, m, tc.colors, shaper), tc.colors, down)
 			moved := colorBox(walked, cursor)
 			if moved.Max.Y != row.Max.Y+int(tokens.Comfortable.ControlHeight) {
@@ -278,13 +278,13 @@ func TestTheSwitchDialogOpensOnTheBrowserWearingItsHalo(t *testing.T) {
 			}
 
 			tabbed := settledDialog(t, livePicker(t, m, tc.colors, shaper), tc.colors, tab)
-			next := colorBox(tabbed, ring)
+			next := colorBox(tabbed, band)
 			if next.Empty() {
-				t.Fatal("Tab left no halo in the window: the footer is not in the dialog's keyboard cycle")
+				t.Fatal("Tab left no ring in the window: the footer is not in the dialog's keyboard cycle")
 			}
-			if next.Min.Y < halo.Max.Y {
-				t.Errorf("Tab left the halo at y %d-%d, still over the list at y %d-%d: it did not move off the list",
-					next.Min.Y, next.Max.Y, halo.Min.Y, halo.Max.Y)
+			if next.Min.Y < ring.Max.Y {
+				t.Errorf("Tab left the ring at y %d-%d, still over the list at y %d-%d: it did not move off the list",
+					next.Min.Y, next.Max.Y, ring.Min.Y, ring.Max.Y)
 			}
 			if n := countColor(tabbed, cursor); n == 0 {
 				t.Error("Tab cleared the browser's selection: the selection is the list's, not the keyboard's")
@@ -295,12 +295,12 @@ func TestTheSwitchDialogOpensOnTheBrowserWearingItsHalo(t *testing.T) {
 
 // TestTheSwitchDialogsBrowserIsOneFocusTarget reads whether the browser's
 // list registers a focus filter per row, by asking the router for the one
-// move Tab makes and seeing where the halo lands.
+// move Tab makes and seeing where the ring lands.
 //
 // A list is ONE focusable wherever it stands, so the move carries the
 // keyboard out of the list and onto the footer, which stands below it. A
 // focus filter per row — which is what a widget.Clickable registers — would
-// hand the move to a row of the list instead, where nothing draws a halo at
+// hand the move to a row of the list instead, where nothing draws a ring at
 // all, and the arrows would go dead the moment it did.
 func TestTheSwitchDialogsBrowserIsOneFocusTarget(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
@@ -308,26 +308,26 @@ func TestTheSwitchDialogsBrowserIsOneFocusTarget(t *testing.T) {
 
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ring := haloRing(tc.colors)
+			band := ringOnPlane(tc.colors)
 
 			d := newDialogDriver(t, livePicker(t, m, tc.colors, shaper), tc.colors)
 			opened := d.capture()
 			if opened == nil {
 				return // headless unavailable; Capture called t.Skip
 			}
-			halo := colorBox(opened, ring)
-			if halo.Empty() {
-				t.Fatal("the switch dialog opened with no halo anywhere in the window: nothing holds the keyboard")
+			ring := colorBox(opened, band)
+			if ring.Empty() {
+				t.Fatal("the switch dialog opened with no ring anywhere in the window: nothing holds the keyboard")
 			}
 
 			d.moveForward()
-			next := colorBox(d.capture(), ring)
+			next := colorBox(d.capture(), band)
 			if next.Empty() {
-				t.Fatal("one forward focus move left no halo in the window: the move landed on a row of the list, so the list is more than one focus target")
+				t.Fatal("one forward focus move left no ring in the window: the move landed on a row of the list, so the list is more than one focus target")
 			}
-			if next.Min.Y < halo.Max.Y {
-				t.Errorf("one forward focus move left the halo at y %d-%d, still over the list at y %d-%d: the list is more than one focus target",
-					next.Min.Y, next.Max.Y, halo.Min.Y, halo.Max.Y)
+			if next.Min.Y < ring.Max.Y {
+				t.Errorf("one forward focus move left the ring at y %d-%d, still over the list at y %d-%d: the list is more than one focus target",
+					next.Min.Y, next.Max.Y, ring.Min.Y, ring.Max.Y)
 			}
 		})
 	}

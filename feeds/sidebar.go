@@ -965,9 +965,9 @@ const (
 	deleteConfirmRowHDp = 28
 )
 
-// drawTrashIcon paints a minimal trash glyph (a lid line + a body box) into a
+// drawTrashIcon paints a minimal trash symbol (a lid line + a body box) into a
 // square the size of the gutter, centred, in colour col. clip.Path/Stroke
-// only, so it stays golden-deterministic like the other feeds glyphs.
+// only, so it stays golden-deterministic like the other feeds symbols.
 func drawTrashIcon(gtx layout.Context, box image.Point, col color.NRGBA) {
 	side := box.X
 	if box.Y < side {

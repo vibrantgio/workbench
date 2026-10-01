@@ -63,7 +63,7 @@ func chooserLayer(
 
 	// The candidates are a components/list, so the chooser's rows are the
 	// dialog's focusable: the list takes the keyboard when the chooser
-	// opens, wears the halo on its own box and opens with its first row
+	// opens, wears the ring on its own box and opens with its first row
 	// selected. shown is the refused body the list on screen was built for,
 	// so a second ambiguous link opens on its own first row rather than on
 	// the row the reader left behind.
@@ -125,7 +125,7 @@ func chooserLayer(
 					}
 					return color.NRGBA{}
 				}
-				return list.Halo(gtx, rows, tok.col, tok.col.WindowBackground, rowFill, func(gtx layout.Context) layout.Dimensions {
+				return list.FocusRing(gtx, rows, tok.col, tok.col.WindowBackground, rowFill, func(gtx layout.Context) layout.Dimensions {
 					return list.LayoutSelectable(gtx, rows, idx,
 						func(gtx layout.Context, i int, selected bool) layout.Dimensions {
 							return chooserRow(gtx, tok, m.ChooserCandidates[i], rowClicks[i], rows, i, selected, choose)

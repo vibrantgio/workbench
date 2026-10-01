@@ -88,12 +88,12 @@ func sizesPx() []int {
 	return px
 }
 
-// drawnMask reads r as a grid of glyph-or-fill decisions, row-major. A pixel
-// counts as glyph when it has travelled more than half the way from the fill
-// to the glyph colour, which is what puts an anti-aliased edge on one side or
+// drawnMask reads r as a grid of symbol-or-fill decisions, row-major. A pixel
+// counts as symbol when it has travelled more than half the way from the fill
+// to the symbol colour, which is what puts an anti-aliased edge on one side or
 // the other without a per-scheme threshold.
-func drawnMask(img *image.RGBA, r image.Rectangle, fill, glyph color.NRGBA) []bool {
-	full := channelDistance(glyph, fill)
+func drawnMask(img *image.RGBA, r image.Rectangle, fill, symbol color.NRGBA) []bool {
+	full := channelDistance(symbol, fill)
 	mask := make([]bool, 0, r.Dx()*r.Dy())
 	for y := r.Min.Y; y < r.Max.Y; y++ {
 		for x := r.Min.X; x < r.Max.X; x++ {
@@ -104,7 +104,7 @@ func drawnMask(img *image.RGBA, r image.Rectangle, fill, glyph color.NRGBA) []bo
 }
 
 // channelDistance is the summed per-channel distance between two opaque
-// colours: a scale on which "half way from the fill to the glyph" means the
+// colours: a scale on which "half way from the fill to the symbol" means the
 // same thing in either scheme.
 func channelDistance(a, b color.NRGBA) int {
 	d := 0
@@ -166,12 +166,12 @@ func turnedClockwise(mask []bool, n int) []bool {
 	return out
 }
 
-// drawnColumns reports the first and last column of r carrying glyph pixels.
-func drawnColumns(img *image.RGBA, r image.Rectangle, fill, glyph color.NRGBA) (first, last int) {
+// drawnColumns reports the first and last column of r carrying symbol pixels.
+func drawnColumns(img *image.RGBA, r image.Rectangle, fill, symbol color.NRGBA) (first, last int) {
 	first, last = -1, -1
 	for x := r.Min.X; x < r.Max.X; x++ {
 		col := image.Rect(x, r.Min.Y, x+1, r.Max.Y)
-		if drawnCount(drawnMask(img, col, fill, glyph)) > 0 {
+		if drawnCount(drawnMask(img, col, fill, symbol)) > 0 {
 			if first < 0 {
 				first = x
 			}
@@ -194,7 +194,7 @@ func TestTheTurnedCellDrawsTheOpenRendition(t *testing.T) {
 	// The floor is "the cell drew the mark at all", not a count the drawing
 	// owes. A chevron at 24 dp is two arms a little over nine units long at
 	// the icon set's one measured band of 1.4 units, so the pixels standing
-	// past half way from the fill to the glyph are a little over a dozen;
+	// past half way from the fill to the symbol are a little over a dozen;
 	// half the square's side is well under that and well over nothing.
 	drawn := n / 2
 	for _, tc := range windowSchemes {

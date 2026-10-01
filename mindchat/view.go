@@ -69,7 +69,7 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 }
 
 // themed pairs one theme emission's palette with the icons prebuilt in that
-// theme's glyph colours (rebuilding the rasters per frame would discard
+// theme's symbol colours (rebuilding the rasters per frame would discard
 // their rasterisation cache).
 type themed struct {
 	palette Palette
@@ -1255,7 +1255,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						// The slots are always reserved so revealing the
-						// icons never shifts the layout; the glyphs and
+						// icons never shifts the layout; the symbols and
 						// their pointer targets exist only while the row is
 						// active.
 						iconSize := gtx.Dp(DeleteIconSize)

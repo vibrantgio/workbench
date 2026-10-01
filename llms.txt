@@ -78,10 +78,10 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
 
   components  v1.4.0 alert (the status signal for a situation — a banner on
                      the content's fill inside a Separator hairline, its
-                     status carried by the leading glyph in the platform's
+                     status carried by the leading symbol in the platform's
                      system colour for it, standing in the page flow until
                      the situation resolves), badge (the system's own word
-                     about a thing — a word, a count or a glyph, filled with
+                     about a thing — a word, a count or a symbol, filled with
                      the platform's system colour for its status under a
                      white foreground, plus an optional close mark that
                      dismisses the label),
@@ -789,7 +789,7 @@ target with the pixels. Don't fight this: a 19 dp Compact button accepts
 clicks inside its 19 dp bounds and nowhere else, which is what keeps two
 controls side by side from contending for the same press. A stacked row is
 its own target at Density.RowHeight, and a checkbox's is the footprint its
-16 dp glyph is centred in, never the glyph.
+16 dp symbol is centred in, never the symbol.
 
 ## Level: the five positions in a window's depth
 
@@ -1333,7 +1333,7 @@ is a measurement, not a preference.
 
 ### The Material Design icon catalogue
 
-For a glyph outside the standard controls (a settings button, play/record
+For a symbol outside the standard controls (a settings button, play/record
 controls, a close X), use the Material Design icons published as IconVG
 data in golang.org/x/exp/shiny/materialdesign/icons (961 icons, frozen 2016
 Material Design icons set) and render them with ivg/raster/gio:
@@ -1351,10 +1351,10 @@ Material Design icons set) and render them with ivg/raster/gio:
 
 Names are Category+Name: ActionSettings, AVPlayArrow, AVStop, AVPause,
 AVFiberManualRecord, ContentAddCircle, ContentClear, NavigationClose, ...
-Colour the glyph from the theme's tokens — ControlAccent for an accent
-glyph, a label weight otherwise, flattened onto the fill it lands on —
+Colour the symbol from the theme's tokens — ControlAccent for an accent
+symbol, a label weight otherwise, flattened onto the fill it lands on —
 never a hard-coded colour, and that holds for a mark as much as for a
-catalogue glyph.
+catalogue symbol.
 Run `go run ./iconbrowser/` (in the workbench repo) to see both sets: the
 marks at the sizes controls draw them, over the searchable Material Design icons grid.
 
@@ -1370,7 +1370,7 @@ mindchat/assets.go for the embedded-asset pattern).
 
 Reach for the set first where it carries the mark, and use the
 Material Design icons catalogue freely everywhere else: an icon that may be replaced
-later beats no icon, and one of its glyphs swaps out behind the same call site when the set
+later beats no icon, and one of its symbols swaps out behind the same call site when the set
 grows a mark for it. Do not plumb shiny icons into components/button
 Props.Icon — that field wants the painter func(gtx, sizePx, col) the set
 returns, not a layout.Widget; keep IVG icons in your own clickable until an

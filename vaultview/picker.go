@@ -377,13 +377,13 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 		}
 		return color.NRGBA{}
 	}
-	return list.Halo(gtx, v.list, tok.col, standsOn, rowFill, func(gtx layout.Context) layout.Dimensions {
+	return list.FocusRing(gtx, v.list, tok.col, standsOn, rowFill, func(gtx layout.Context) layout.Dimensions {
 		return v.selectableRows(gtx, tok, entries, standsOn, rowInset, rowH)
 	})
 }
 
-// selectableRows is the list itself, inside the band [list.Halo] draws on its
-// box.
+// selectableRows is the list itself, inside the band [list.FocusRing] draws
+// on its box.
 func (v *pickerView) selectableRows(gtx layout.Context, tok themeTokens, entries []DirEntry, standsOn color.NRGBA, rowInset float32, rowH int) layout.Dimensions {
 	return list.LayoutSelectable(gtx, v.list, entries,
 		func(gtx layout.Context, item DirEntry, selected bool) layout.Dimensions {

@@ -62,9 +62,9 @@ type Palette struct {
 	Backdrop       color.NRGBA // the window's own plane
 	Label          color.NRGBA // body text
 	SecondaryLabel color.NRGBA // captions and text at the second strength
-	Dim            color.NRGBA // a disabled glyph and an idle badge's label
+	Dim            color.NRGBA // a disabled symbol and an idle badge's label
 	// Accent is every on-and-active mark outside the readout panel: the lit
-	// bolt, the power glyph, a closed switch, the active memory group and the
+	// bolt, the power symbol, a closed switch, the active memory group and the
 	// preset badge.
 	Accent     color.NRGBA
 	VoltSeries color.NRGBA // the output-voltage history's stroke

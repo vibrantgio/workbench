@@ -414,7 +414,7 @@ func newChatMark(gtx layout.Context, t themed, click *widget.Clickable) layout.D
 //
 // The foreground is the same name [controlBox] reads its mark in, so the two
 // halves of one switch are one figure in one colour whichever side of the
-// window they stand on: what a toolbar draws its own glyphs in. The panel's
+// window they stand on: what a toolbar draws its own symbols in. The panel's
 // half records no state: it stands only while the panel does, and a mark with
 // nothing around it has nowhere to draw the chosen patch.
 func paneMark(gtx layout.Context, t themed, click *widget.Clickable, name icons.Name, label string, msg any) layout.Dimensions {

@@ -1186,10 +1186,10 @@ func railToggleControl(gtx layout.Context, tok themeTokens, click *widget.Clicka
 //
 // The foreground is the same name the bordered control's mark reads in, so
 // the two halves of one switch are one figure in one colour whichever side
-// of the window they stand on: what a toolbar draws its own glyphs in.
+// of the window they stand on: what a toolbar draws its own symbols in.
 // MEASURED, voicememos-multi-folder-2026-09-18.png: the panel's own bare
 // marks reach #4b4b4b at their darkest, a floor a 1 px stroke at 1x cannot
-// pass, against the #4d4d4d the band's own glyphs plateau at.
+// pass, against the #4d4d4d the band's own symbols plateau at.
 func paneMark(gtx layout.Context, tok themeTokens, click *widget.Clickable, name icons.Name, label string) layout.Dimensions {
 	box := gtx.Dp(unit.Dp(markLargeDp))
 	fg := tok.col.ToolbarLabel

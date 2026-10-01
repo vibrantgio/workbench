@@ -1,11 +1,11 @@
-// Command iconbrowser is a browsable catalogue of the glyphs the Vibrant Gio
+// Command iconbrowser is a browsable catalogue of the symbols the Vibrant Gio
 // apps draw from, in two labelled sets: the design system's own marks
 // (components/icons, each shown at the sizes a control draws it at) above the
 // Material Design icons everything else comes from
 // (golang.org/x/exp/shiny/materialdesign/icons, rendered through
 // ivg/raster/gio). The system's own set comes first so an author sees which
 // marks already exist before drawing another. A search field filters both
-// live; every glyph is captioned with the name to write.
+// live; every symbol is captioned with the name to write.
 package main
 
 import (

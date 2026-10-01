@@ -88,10 +88,10 @@ func staticTypo(typo tokens.Typography) Type {
 
 // staticThemed is the snapshot ContentLayer's own themes stream builds per
 // emission, built once per scheme here instead: the palette, the pinned
-// typography, and the whole icon table prebuilt in the palette's glyph colour.
+// typography, and the whole icon table prebuilt in the palette's symbol colour.
 // The prebuild is the app's own — `raster.Widget` decodes a viewBox up front and
 // rasterises lazily — and it is cached across frames so that four renders of a
-// 961-glyph catalogue cost one pass over it.
+// 961-symbol catalogue cost one pass over it.
 func staticThemed(t *testing.T, c tokens.PlatformColors) themed {
 	t.Helper()
 	p := PaletteFrom(c)
@@ -110,7 +110,7 @@ func staticThemed(t *testing.T, c tokens.PlatformColors) themed {
 	return themed{palette: p, typ: staticTypo(tokens.DefaultTypography), icons: widgets}
 }
 
-// prebuilt caches the icons per glyph colour, which is the only thing
+// prebuilt caches the icons per symbol colour, which is the only thing
 // about a scheme they depend on.
 var prebuilt = map[color.NRGBA][]layout.Widget{}
 
@@ -248,7 +248,7 @@ func TestWholeWindowRender(t *testing.T) {
 // TestTheGridRestsOnTheWindowsPlane reads the window's fill off the frame:
 // the catalogue draws straight onto the window's own plane, so the plane is
 // what most of the frame is. Nothing here is a second fill — the catalogue's
-// paint is a glyph and a caption centred in each cell, never a tile.
+// paint is a symbol and a caption centred in each cell, never a tile.
 func TestTheGridRestsOnTheWindowsPlane(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {

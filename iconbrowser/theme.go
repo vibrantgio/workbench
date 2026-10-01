@@ -27,7 +27,7 @@ type Palette struct {
 	Backdrop color.NRGBA // the window's own plane, full-bleed
 	Text     color.NRGBA // icon captions and section labels
 	Muted    color.NRGBA // section notes and the "no icons match" notice
-	Icon     color.NRGBA // the glyphs themselves
+	Icon     color.NRGBA // the symbols themselves
 }
 
 // PaletteFrom resolves the window's places from the platform's set.
@@ -73,15 +73,15 @@ func textStyle(ts tokens.TextStyle) textdraw.TextStyle {
 // Static layout dimensions; these do not vary with the colour scheme.
 const (
 	Padding  unit.Dp = 12
-	CellW    unit.Dp = 160 // grid cell width: glyph + caption both fit
-	CellH    unit.Dp = 84  // 40 dp glyph, gap, one caption line, padding
+	CellW    unit.Dp = 160 // grid cell width: symbol + caption both fit
+	CellH    unit.Dp = 84  // 40 dp symbol, gap, one caption line, padding
 	IconSize unit.Dp = 40
 
 	// A mark is shown at the sizes a control draws it at, so its cell is
 	// shorter than a Material cell rather than blowing the marks up to
 	// match: the band is the largest of those sizes, and every size in it
 	// is centred on the band's own line.
-	MarkBand  unit.Dp = 24 // glyph band: the largest size a mark is shown at
+	MarkBand  unit.Dp = 24 // symbol band: the largest size a mark is shown at
 	MarkCellH unit.Dp = 60 // band, gap, one caption line, padding
 	MarkGap   unit.Dp = 12 // between the sizes one mark is shown at
 	HeadingH  unit.Dp = 28 // one section label on its own line

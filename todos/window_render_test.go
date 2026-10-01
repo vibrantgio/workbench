@@ -207,7 +207,7 @@ func TestWholeWindowRender(t *testing.T) {
 // TestTheListStandsOnTheWindowsOwnPlane reads the window's fills off the
 // frame: the middle and the edge are the platform's window background, and
 // that fill is most of what the window is. The list paints nothing of its
-// own, so anything else in the frame is text, a checkbox or a glyph.
+// own, so anything else in the frame is text, a checkbox or a symbol.
 //
 // It renders the route with no dialog on it, because the claim is about the
 // window at rest: a modal lays a scrim over everything.

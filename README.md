@@ -51,7 +51,7 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   bootstrap every other app follows.
 - **[`iconbrowser/`](./iconbrowser)** — a searchable catalogue of the 961
   Material Design icons the apps draw from: type to filter the scrolling
-  grid live, every glyph captioned with the name to import. Also the
+  grid live, every symbol captioned with the name to import. Also the
   reference for components `TextField` + per-keystroke MVU updates.
 - **[`sitedocs/`](./sitedocs)** — the documentation app, six tabs over
   `patterns/tabs`: **Docs** renders the application guide (`llms.txt`) as

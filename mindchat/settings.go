@@ -74,7 +74,7 @@ type settingsThemed struct {
 	boxOn   layout.Widget
 	boxOff  layout.Widget
 
-	// The key-check verdict, as the two glyph badges it is: a disc in the
+	// The key-check verdict, as the two symbol badges it is: a disc in the
 	// system colour the status names, with the sign centred in it. Both are
 	// the badge's own, resolved against the plane it stands on.
 	// badgeStyle is the type role behind them, kept so the row can reserve
@@ -153,8 +153,8 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				return w
 			}
 			style := badge.Style(typ, tokens.Comfortable)
-			verdict := func(g badge.Glyph, status badge.Status) layout.Widget {
-				// A glyph badge — no label — standing as a disc: the system
+			verdict := func(g badge.Symbol, status badge.Status) layout.Widget {
+				// A symbol badge — no label — standing as a disc: the system
 				// colour the status names fills a circle the line box across,
 				// with the sign centred in it. The dialog stands on the
 				// window's own plane, which is the badge's zero Surface.
@@ -173,8 +173,8 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 				boxOn:      mk(icons.ToggleCheckBox, p.Accent),
 				boxOff:     mk(icons.ToggleCheckBoxOutlineBlank, p.FloatingHeading),
 				badgeStyle: style,
-				verdictOK:  verdict(keyCheckGlyph, badge.Success),
-				verdictBad: verdict(keyCrossGlyph, badge.Error),
+				verdictOK:  verdict(keyCheckSymbol, badge.Success),
+				verdictBad: verdict(keyCrossSymbol, badge.Error),
 			}
 		})
 	})
@@ -640,27 +640,27 @@ func keyRow(gtx layout.Context, t settingsThemed, s SettingsState, prov Provider
 	)
 }
 
-// keyCheckGlyph and keyCrossGlyph are the two verdict signs the key-check
+// keyCheckSymbol and keyCrossSymbol are the two verdict signs the key-check
 // badge speaks with, stroked as vectors rather than rasterised from the icon
-// set: a Glyph is handed the colour the badge derived for its variant, and a
+// set: a Symbol is handed the colour the badge derived for its variant, and a
 // pre-coloured rasterisation cannot take a colour it was not built with.
 //
 // Each spans most of the square it is handed and is centred on it, which is
-// what the Glyph contract asks — the badge reserves the box, and a sign that
+// what the Symbol contract asks — the badge reserves the box, and a sign that
 // under-fills it reads as a gap in the line. Both span the same 0.16 to 0.84
 // of that square, so the pair reads as one shape varying rather than as two
 // icon sets.
-func keyCheckGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
+func keyCheckSymbol(gtx layout.Context, sizePx int, col color.NRGBA) {
 	w := float32(sizePx)
 	var p clip.Path
 	p.Begin(gtx.Ops)
 	p.MoveTo(f32.Pt(w*0.16, w*0.52))
 	p.LineTo(f32.Pt(w*0.42, w*0.76))
 	p.LineTo(f32.Pt(w*0.84, w*0.24))
-	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: p.End(), Width: glyphStroke(gtx)}.Op())
+	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: p.End(), Width: symbolStroke(gtx)}.Op())
 }
 
-func keyCrossGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
+func keyCrossSymbol(gtx layout.Context, sizePx int, col color.NRGBA) {
 	w := float32(sizePx)
 	var p clip.Path
 	p.Begin(gtx.Ops)
@@ -668,12 +668,12 @@ func keyCrossGlyph(gtx layout.Context, sizePx int, col color.NRGBA) {
 	p.LineTo(f32.Pt(w*0.84, w*0.84))
 	p.MoveTo(f32.Pt(w*0.84, w*0.16))
 	p.LineTo(f32.Pt(w*0.16, w*0.84))
-	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: p.End(), Width: glyphStroke(gtx)}.Op())
+	paint.FillShape(gtx.Ops, col, clip.Stroke{Path: p.End(), Width: symbolStroke(gtx)}.Op())
 }
 
-// glyphStroke is the verdict signs' stroke width in pixels, floored at one:
+// symbolStroke is the verdict signs' stroke width in pixels, floored at one:
 // a sub-pixel stroke leaves a smear rather than a sign.
-func glyphStroke(gtx layout.Context) float32 {
+func symbolStroke(gtx layout.Context) float32 {
 	if s := float32(gtx.Dp(unit.Dp(1.5))); s >= 1 {
 		return s
 	}
@@ -795,7 +795,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 
 // addRemovePair draws the well's add and remove controls as the platform
 // draws them under a list it lets the reader edit: ONE bordered control of two
-// momentary segments, not two bare glyphs. Two detached marks on the panel say
+// momentary segments, not two bare symbols. Two detached marks on the panel say
 // two unrelated things; the bordered pair says one list is being edited.
 //
 // It is the segmented control standing in a BODY, so it draws at the dialog

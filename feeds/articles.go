@@ -413,7 +413,7 @@ func articleColumns(
 		{Header: "Published", Width: unit.Dp(140), Sortable: true, Cell: cellText(func(a article) string {
 			return a.Published.Format("Jan 2 2006")
 		})},
-		// Icon-only header: the bullet mirrors the cell glyph; the
+		// Icon-only header: the bullet mirrors the cell symbol; the
 		// column's meaning is carried by the hover tooltip ("Unread")
 		// overlaid in articlesLayout.
 		{Header: "•", Width: unit.Dp(unreadColWDp), Cell: cellText(func(a article) string {
