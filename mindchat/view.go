@@ -757,17 +757,13 @@ func failedTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 func systemNote(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	col := columnOf(gtx)
 	at, width := col.body(gtx, true)
-	// The explicit form, not typeset.Text: the note stands centred across the
-	// column of text, which is widget.Label's Alignment.
 	st := t.typ.LabelLarge
-	label := typeset.Label(st, 1)
-	label.Alignment = text.Middle
 
 	body := gtx
 	body.Constraints.Max.X = width
 	body.Constraints.Min.X = width
 	stack := op.Offset(at).Push(gtx.Ops)
-	dims := typeset.Layout(body, t.shaper, label, roleFont(st), unit.Sp(st.Size), msg.Content, Material(gtx.Ops, t.palette.Note))
+	dims := typeset.TextAligned(body, t.shaper, msg.Content, st, t.palette.Note, 1, font.Normal, text.Middle)
 	stack.Pop()
 
 	return rowHeight(gtx, dims.Size.Y)
