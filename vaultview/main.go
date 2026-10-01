@@ -417,7 +417,7 @@ type place struct {
 func trailSegments(places []place, click func(path string) func(gtx layout.Context)) []breadcrumb.Segment {
 	segs := make([]breadcrumb.Segment, len(places))
 	for i, p := range places {
-		segs[i] = breadcrumb.Segment{Key: p.path, Label: p.label}
+		segs[i] = breadcrumb.Segment{Key: p.path, Title: p.label}
 		if i < len(places)-1 {
 			segs[i].OnClick = click(p.path)
 		}

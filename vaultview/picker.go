@@ -195,7 +195,7 @@ type pickerView struct {
 // driven by the routed layer's re-emission.
 func pickerLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens) rx.Observable[layout.Widget] {
 	openBtn := button.Button(th, button.Props{
-		Label: "Open this vault",
+		Title: "Open this vault",
 		OnClick: func(gtx layout.Context) {
 			mvu.MessageOp{Message: OpenVault{Path: loadModel().PickerDir}}.Add(gtx.Ops)
 		},

@@ -267,13 +267,13 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	// controlText — the Tonal emphasis — where the default "Save" beside it
 	// is filled with the accent. Nothing on that sheet is drawn borderless.
 	cancelObs := button.Button(th, button.Props{
-		Label:     "Cancel",
+		Title:     "Cancel",
 		Emphasis:  button.Tonal,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
 	})
 	saveObs := button.Button(th, button.Props{
-		Label:     "Save",
+		Title:     "Save",
 		Clickable: &saveClick,
 		OnClick:   save,
 	})
@@ -556,7 +556,7 @@ func providerSegments(gtx layout.Context, t settingsThemed, prov Provider, tplCl
 			mvu.MessageOp{Message: ApplyTemplate{Index: index}}.Add(gtx.Ops)
 		}
 		segs[i] = button.BorderedSegment{
-			Label: ProviderTemplates[i].Name,
+			Title: ProviderTemplates[i].Name,
 			State: button.RenderState{
 				Variant: button.Form,
 				Hovered: click.Hovered(),

@@ -209,7 +209,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	}
 	setButton := func(key string, mk func(string) any) {
 		reg.add(key+".set", button.Button(th, button.Props{
-			Label:    "Set",
+			Title:    "Set",
 			Emphasis: button.Tonal,
 			OnClick: func(gtx layout.Context) {
 				mvu.MessageOp{Message: mk(text(key))}.Add(gtx.Ops)
@@ -219,7 +219,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 
 	// The Monitor's Set button: opens the active preset in the editor.
 	reg.add("set.active", button.Button(th, button.Props{
-		Label: "Set", Emphasis: button.Tonal, Message: EditActivePreset{},
+		Title: "Set", Emphasis: button.Tonal, Message: EditActivePreset{},
 	}))
 	// Device fields.
 	for _, f := range deviceFields {
@@ -263,14 +263,14 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		}
 	}
 	reg.add("p.save", button.Button(th, button.Props{
-		Label: "Save", OnClick: func(gtx layout.Context) { savePreset(gtx, false) },
+		Title: "Save", OnClick: func(gtx layout.Context) { savePreset(gtx, false) },
 	}))
 	for i := 0; i <= 9; i++ {
 		reg.add(fmt.Sprintf("edit.%d", i), button.Button(th, button.Props{
-			Label: "Edit", Emphasis: button.Ghost, Message: EditPreset{N: i},
+			Title: "Edit", Emphasis: button.Ghost, Message: EditPreset{N: i},
 		}))
 		reg.add(fmt.Sprintf("recall.%d", i), button.Button(th, button.Props{
-			Label: "Recall", Emphasis: button.Tonal, Message: RecallPreset{N: i},
+			Title: "Recall", Emphasis: button.Tonal, Message: RecallPreset{N: i},
 		}))
 	}
 
@@ -286,10 +286,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	}
 
 	reg.add("clear", button.Button(th, button.Props{
-		Label: "Clear", Emphasis: button.Tonal, Message: ClearProtection{},
+		Title: "Clear", Emphasis: button.Tonal, Message: ClearProtection{},
 	}))
 	reg.add("demo", button.Button(th, button.Props{
-		Label: "Try demo mode", Emphasis: button.Tonal, Message: EnterDemo{},
+		Title: "Try demo mode", Emphasis: button.Tonal, Message: EnterDemo{},
 	}))
 
 	// The override dialog's footer actions. Caller-owned clickables put
@@ -301,11 +301,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	// footer — the push button's own fill under controlText, which is the
 	// Tonal emphasis — beside the accent-filled answer.
 	reg.add("lvp.cancel", button.Button(th, button.Props{
-		Label: "Cancel", Emphasis: button.Tonal,
+		Title: "Cancel", Emphasis: button.Tonal,
 		Clickable: &lvpCancelClick, Message: DismissLVP{},
 	}))
 	reg.add("lvp.confirm", button.Button(th, button.Props{
-		Label:     "Set anyway",
+		Title:     "Set anyway",
 		Clickable: &lvpConfirmClick, Message: ConfirmLVP{},
 	}))
 	widgets := rx.CombineLatest(reg.obs...)
@@ -374,12 +374,12 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
-			{Label: "Monitor", Content: monitorContent(loadState, hov)},
-			{Label: "Presets", Content: listContent(loadState, presetsList, func(t themed, m Model, slots slotSet) []layout.Widget {
+			{Title: "Monitor", Content: monitorContent(loadState, hov)},
+			{Title: "Presets", Content: listContent(loadState, presetsList, func(t themed, m Model, slots slotSet) []layout.Widget {
 				clearPresetFields(m)
 				return presetsRows(t, m, slots, tp)
 			})},
-			{Label: "Device", Content: deviceContent(loadState, deviceList)},
+			{Title: "Device", Content: deviceContent(loadState, deviceList)},
 		},
 		Selected: rx.Map(modelObs, func(m Model) int {
 			for i, s := range tabScreens {

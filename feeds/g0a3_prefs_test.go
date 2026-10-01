@@ -237,8 +237,8 @@ func TestPreferencesPaneGolden(t *testing.T) {
 				Body:   staticPreferencesBody(shaper, tc.colors),
 				Shaper: shaper,
 			}
-			if props.Purpose() != modal.PurposePanel {
-				t.Fatalf("Preferences modal purpose = %v, want %v", props.Purpose(), modal.PurposePanel)
+			if props.Purpose() != modal.PurposePane {
+				t.Fatalf("Preferences modal purpose = %v, want %v", props.Purpose(), modal.PurposePane)
 			}
 			m := modal.Render(shaper, props, true, tc.colors, tokens.Spacing, modalSharpRadius,
 				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)

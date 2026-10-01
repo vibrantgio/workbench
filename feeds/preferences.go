@@ -85,7 +85,7 @@ func preferencesPane(
 			for i, n := range rowsPerPageChoices {
 				n := n
 				built = append(built, button.Button(th, button.Props{
-					Label:     strconv.Itoa(n),
+					Title:     strconv.Itoa(n),
 					Emphasis:  emphasis(n == rows),
 					Clickable: &sizeClicks[i],
 					OnClick: func(gtx layout.Context) {
@@ -98,7 +98,7 @@ func preferencesPane(
 				label = "On"
 			}
 			built = append(built, button.Button(th, button.Props{
-				Label:     label,
+				Title:     label,
 				Emphasis:  emphasis(unread),
 				Clickable: &unreadClick,
 				OnClick: func(gtx layout.Context) {

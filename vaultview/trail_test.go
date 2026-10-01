@@ -64,7 +64,7 @@ func (p *trailPad) clickAt(x int, segs []breadcrumb.Segment) {
 func trailWidth(shaper *text.Shaper, labels ...string) int {
 	segs := make([]breadcrumb.Segment, len(labels))
 	for i, l := range labels {
-		segs[i] = breadcrumb.Segment{Key: l, Label: l}
+		segs[i] = breadcrumb.Segment{Key: l, Title: l}
 	}
 	row := breadcrumb.NewTrail(shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
 		tokens.PlatformLight, tokens.Spacing, tokens.DefaultTypography.TitleSmall)

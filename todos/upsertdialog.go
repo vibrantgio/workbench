@@ -60,7 +60,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 	// The platform fills one action in a sheet with the accent — the default
 	// one — and draws the other as an ordinary push button.
 	cancelBtn, _ := button.Button(th, button.Props{
-		Label:    "Cancel",
+		Title:    "Cancel",
 		Emphasis: button.Tonal,
 		Message:  SetRoute{},
 		Surface:  p.Dialog,
@@ -72,7 +72,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 	}
 	var submitClicked bool
 	submitWidget, _ := button.Button(th, button.Props{
-		Label:   label,
+		Title:   label,
 		OnClick: func(_ layout.Context) { submitClicked = true },
 		Surface: p.Dialog,
 	}).First()

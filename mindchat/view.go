@@ -439,13 +439,13 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 	// under controlText, which is the Tonal emphasis, while the default
 	// answer beside it is the filled one.
 	cancelObs := button.Button(th, button.Props{
-		Label:     "Cancel",
+		Title:     "Cancel",
 		Emphasis:  button.Tonal,
 		Clickable: &cancelClick,
 		OnClick:   cancel,
 	})
 	submitObs := button.Button(th, button.Props{
-		Label:     "Rename",
+		Title:     "Rename",
 		Clickable: &submitClick,
 		OnClick:   rename,
 	})

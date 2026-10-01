@@ -306,7 +306,7 @@ func launchButton(th rx.Observable[theme.Theme], shaper *text.Shaper, app App, c
 	}
 	// th is a static snapshot (rx.Of), so First() resolves synchronously.
 	btn, _ := button.Button(th, button.Props{
-		Label:       txt,
+		Title:       txt,
 		Description: "Launch " + app.Name,
 		Disabled:    rx.Of(busy),
 		Clickable:   click,

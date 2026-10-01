@@ -13,7 +13,7 @@ type ArticleID string
 
 type feedEntry struct {
 	ID    FeedID
-	Label string
+	Title string
 	// Unread is how many of the feed's articles have not been read. It is
 	// what stands at the trailing end of the feed's row, and a feed with
 	// none draws no count there.
@@ -44,22 +44,22 @@ func hardCodedGroups() []feedGroup {
 		{
 			Title: "Tech",
 			Entries: []feedEntry{
-				{ID: "go-blog", Label: "Go Blog"},
-				{ID: "hn", Label: "Hacker News"},
-				{ID: "lobsters", Label: "Lobste.rs"},
+				{ID: "go-blog", Title: "Go Blog"},
+				{ID: "hn", Title: "Hacker News"},
+				{ID: "lobsters", Title: "Lobste.rs"},
 			},
 		},
 		{
 			Title: "News",
 			Entries: []feedEntry{
-				{ID: "bbc", Label: "BBC World"},
-				{ID: "reuters", Label: "Reuters"},
+				{ID: "bbc", Title: "BBC World"},
+				{ID: "reuters", Title: "Reuters"},
 			},
 		},
 		{
 			Title: "Personal",
 			Entries: []feedEntry{
-				{ID: "my-journal", Label: "My Journal"},
+				{ID: "my-journal", Title: "My Journal"},
 			},
 		},
 	}

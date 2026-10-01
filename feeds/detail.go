@@ -77,9 +77,9 @@ func detailPane(
 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
-			{Label: "Reader", Content: readerTab(loadTokens, loadArticle)},
-			{Label: "Raw", Content: rawTab(loadTokens, loadArticle)},
-			{Label: "Comments", Content: commentsTab(loadTokens)},
+			{Title: "Reader", Content: readerTab(loadTokens, loadArticle)},
+			{Title: "Raw", Content: rawTab(loadTokens, loadArticle)},
+			{Title: "Comments", Content: commentsTab(loadTokens)},
 		},
 		Selected: selectedTabObs,
 		OnSelect: func(gtx layout.Context, idx int) {

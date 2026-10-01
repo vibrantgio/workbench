@@ -478,7 +478,7 @@ func addFeedModal(
 
 	var submitClick widget.Clickable
 	submit := button.Button(th, button.Props{
-		Label:     "Add",
+		Title:     "Add",
 		Clickable: &submitClick,
 		OnClick: func(gtx layout.Context) {
 			url, _ := urlCell.Load().(string)
@@ -630,7 +630,7 @@ func drawLabel(
 // The content column stands on the platform's ControlBackground; the band
 // standing over it is the navbar, which paints the chrome material across the
 // whole column, so THAT is what stands behind the pane's top corner while
-// the column's own fill stands behind the bottom one. The window's plane is
+// the column's own fill stands behind the bottom one. The window's surface is
 // the backdrop layer's and is not named here, which is why the frame paints
 // none.
 func drawFeedsFrame(gtx layout.Context, c tokens.PlatformColors, railW, navbarW, mainW layout.Widget) layout.Dimensions {

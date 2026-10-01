@@ -285,7 +285,7 @@ func appendFeed(groups []feedGroup, url string) []feedGroup {
 	if len(out) == 0 {
 		out = []feedGroup{{Title: "Feeds"}}
 	}
-	entry := feedEntry{ID: FeedID("added:" + url), Label: url}
+	entry := feedEntry{ID: FeedID("added:" + url), Title: url}
 	out[0].Entries = append(append([]feedEntry(nil), out[0].Entries...), entry)
 	sortRailEntries(out)
 	return out

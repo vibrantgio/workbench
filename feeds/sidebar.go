@@ -65,7 +65,7 @@ func sortRailEntries(groups []feedGroup) {
 	for gi := range groups {
 		entries := groups[gi].Entries
 		sort.SliceStable(entries, func(i, j int) bool {
-			return naming.Less(entries[i].Label, entries[j].Label)
+			return naming.Less(entries[i].Title, entries[j].Title)
 		})
 	}
 }
@@ -779,7 +779,7 @@ func drawFeedEntryRow(
 	}
 	labelGtx := gtx
 	labelGtx.Constraints = layout.Exact(image.Pt(labelW, size.Y))
-	drawFeedEntry(labelGtx, tok, e.Label, filled, unemphasized, click)
+	drawFeedEntry(labelGtx, tok, e.Title, filled, unemphasized, click)
 
 	return layout.Dimensions{Size: size}
 }

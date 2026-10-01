@@ -5,7 +5,7 @@
 // foot. What the foot band carries is in status.go.
 //
 // What stands under those columns is patterns/shell's pane frame, spent
-// here through shell.PaneFrame.Under: the window's plane, the note's
+// here through shell.PaneFrame.Under: the window's surface, the note's
 // surface, the pane and the column in it. The arrangement above it is this
 // window's own and stays here — a trailing aside the note shares its width
 // with, a status bar across the foot, a splitter on each of the window's two
@@ -552,7 +552,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as
 	// it, which is the one side the pane is not set in from — and with the
 	// rail gone it starts at the window's own leading edge.
 	shell.PaneFrame{
-		Plane:       tok.col.WindowBackground,
+		Surface:     tok.col.WindowBackground,
 		ContentFill: tok.col.TextBackground,
 		Sidebar:     sb,
 	}.Under(gtx, tok.col, size, g.pane)

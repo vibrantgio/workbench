@@ -1073,14 +1073,14 @@ func TestRowConfirmIsFrameStateAndArbitrates(t *testing.T) {
 // its neighbours.
 func TestRailSortsNamesAsTheFileBrowserDoes(t *testing.T) {
 	groups := []feedGroup{{Title: "Tech", Entries: []feedEntry{
-		{ID: "a", Label: "Feed 10"},
-		{ID: "b", Label: "feed 2"},
-		{ID: "c", Label: "Zeta"},
+		{ID: "a", Title: "Feed 10"},
+		{ID: "b", Title: "feed 2"},
+		{ID: "c", Title: "Zeta"},
 	}}}
 	got := appendFeed(groups, "https://added.test/feed.xml")
 	var labels []string
 	for _, e := range got[0].Entries {
-		labels = append(labels, e.Label)
+		labels = append(labels, e.Title)
 	}
 	want := []string{"feed 2", "Feed 10", "https://added.test/feed.xml", "Zeta"}
 	if strings.Join(labels, " | ") != strings.Join(want, " | ") {

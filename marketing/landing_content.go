@@ -19,8 +19,8 @@ func heroContent(seePlans func(gtx layout.Context)) hero.Props {
 	return hero.Props{
 		Title:        "SimpleApps",
 		Subtitle:     "Where did this sentence come from? Who wrote it, and was it generated? The trail stays in the file.",
-		PrimaryCTA:   &hero.CTA{Label: "See plans", OnClick: seePlans},
-		SecondaryCTA: &hero.CTA{Label: "Learn more"},
+		PrimaryCTA:   &hero.CTA{Title: "See plans", OnClick: seePlans},
+		SecondaryCTA: &hero.CTA{Title: "Learn more"},
 	}
 }
 
@@ -56,7 +56,7 @@ func pricingContent() pricing.Props {
 					"Manual source cards",
 					"No ads, no sign-in",
 				},
-				CTA: &pricing.CTA{Label: "Start free"},
+				CTA: &pricing.CTA{Title: "Start free"},
 			},
 			{
 				Name:        "Pro",
@@ -69,7 +69,7 @@ func pricingContent() pricing.Props {
 					"Phone and desktop, one platform",
 					"Import from the browser",
 				},
-				CTA: &pricing.CTA{Label: "Buy Pro"},
+				CTA: &pricing.CTA{Title: "Buy Pro"},
 			},
 			{
 				Name:    "Studio",
@@ -81,7 +81,7 @@ func pricingContent() pricing.Props {
 					"Attestation keys",
 					"Priority mail",
 				},
-				CTA: &pricing.CTA{Label: "Contact us"},
+				CTA: &pricing.CTA{Title: "Contact us"},
 			},
 		},
 	}

@@ -143,7 +143,7 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, mai
 	frame := shell.PaneFrame{
 		Width:       SidebarWidth,
 		Hidden:      m.SidebarHidden,
-		Plane:       t.col.WindowBackground,
+		Surface:     t.col.WindowBackground,
 		ContentFill: t.palette.Transcript,
 		Sidebar:     sidebar,
 	}

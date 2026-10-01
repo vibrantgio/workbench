@@ -198,10 +198,10 @@ func TestSimpleAppsCopy(t *testing.T) {
 	if hp.Subtitle != "Where did this sentence come from? Who wrote it, and was it generated? The trail stays in the file." {
 		t.Errorf("hero subtitle = %q", hp.Subtitle)
 	}
-	if hp.PrimaryCTA == nil || hp.PrimaryCTA.Label != "See plans" {
+	if hp.PrimaryCTA == nil || hp.PrimaryCTA.Title != "See plans" {
 		t.Errorf("hero primary CTA = %+v", hp.PrimaryCTA)
 	}
-	if hp.SecondaryCTA == nil || hp.SecondaryCTA.Label != "Learn more" || hp.SecondaryCTA.OnClick != nil {
+	if hp.SecondaryCTA == nil || hp.SecondaryCTA.Title != "Learn more" || hp.SecondaryCTA.OnClick != nil {
 		t.Errorf("hero secondary CTA = %+v", hp.SecondaryCTA)
 	}
 
@@ -265,10 +265,10 @@ func TestLandingCopyHasNoEmDash(t *testing.T) {
 	check("title", hp.Title)
 	check("subtitle", hp.Subtitle)
 	if hp.PrimaryCTA != nil {
-		check("primary CTA", hp.PrimaryCTA.Label)
+		check("primary CTA", hp.PrimaryCTA.Title)
 	}
 	if hp.SecondaryCTA != nil {
-		check("secondary CTA", hp.SecondaryCTA.Label)
+		check("secondary CTA", hp.SecondaryCTA.Title)
 	}
 	for _, item := range featureContent().Items {
 		check("feature title", item.Title)
@@ -282,7 +282,7 @@ func TestLandingCopyHasNoEmDash(t *testing.T) {
 			check("tier feature", f)
 		}
 		if tier.CTA != nil {
-			check("tier CTA", tier.CTA.Label)
+			check("tier CTA", tier.CTA.Title)
 		}
 	}
 	for _, item := range testimonialContent().Items {
@@ -317,8 +317,8 @@ func runtimeSections(shaper *text.Shaper, colors tokens.PlatformColors) []layout
 func structuralHeroProps(shaper *text.Shaper) hero.Props {
 	return hero.Props{
 		Eyebrow:      " ",
-		PrimaryCTA:   &hero.CTA{Label: ""},
-		SecondaryCTA: &hero.CTA{Label: ""},
+		PrimaryCTA:   &hero.CTA{Title: ""},
+		SecondaryCTA: &hero.CTA{Title: ""},
 		Shaper:       shaper,
 	}
 }
@@ -341,7 +341,7 @@ func structuralPricingProps(shaper *text.Shaper) pricing.Props {
 	tier := func(recommended bool) pricing.Tier {
 		return pricing.Tier{
 			Features:    []string{"", "", ""},
-			CTA:         &pricing.CTA{Label: ""},
+			CTA:         &pricing.CTA{Title: ""},
 			Recommended: recommended,
 		}
 	}

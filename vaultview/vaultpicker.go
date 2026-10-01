@@ -90,13 +90,13 @@ func vaultPickerLayer(
 		// the fill a floating surface takes on this platform and the zero
 		// value of the button's Surface, so neither is told anything.
 		cancelObs := button.Button(th, button.Props{
-			Label:     "Cancel",
+			Title:     "Cancel",
 			Emphasis:  button.Tonal,
 			Clickable: &cancelClick,
 			OnClick:   cancel,
 		})
 		openBtnObs := button.Button(th, button.Props{
-			Label:     "Open",
+			Title:     "Open",
 			Clickable: &openClick,
 			OnClick:   openVault,
 		})

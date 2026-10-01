@@ -1040,7 +1040,7 @@ correct type:
   import "github.com/vibrantgio/components/button"
 
   // th is the theme/theme.Theme the app passes to every component.
-  btn := button.Button(th, button.Props{Label: "Save"}) // renders Roboto
+  btn := button.Button(th, button.Props{Title: "Save"}) // renders Roboto
   ```
 
 The contract lives in theme/tokens.Typography: one tokens.TextStyle per
