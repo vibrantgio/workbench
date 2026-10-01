@@ -5,7 +5,6 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/unit"
-	"gioui.org/widget"
 
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -137,14 +136,6 @@ func promptFieldSurface(c tokens.PlatformColors) color.NRGBA { return c.ControlB
 // unset, per tokens.FontWeight's convention).
 func roleFont(role tokens.TextStyle) font.Font {
 	return typeset.Font(role, font.Normal)
-}
-
-// roleLabel builds the widget.Label for a role with the role's line box
-// installed, capped at maxLines. Set Alignment or Truncator on the result,
-// then draw it with typeset.Layout — never with widget.Label.Layout, which
-// spends the line height on a gap a capped label does not have.
-func roleLabel(role tokens.TextStyle, maxLines int) widget.Label {
-	return typeset.Label(role, maxLines)
 }
 
 // roleText converts a theme Typography role into the textdraw TextStyle the

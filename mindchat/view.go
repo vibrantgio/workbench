@@ -701,11 +701,8 @@ func userTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	col := columnOf(gtx)
 	at, width := col.body(gtx, false)
 	pad := gtx.Dp(unit.Dp(t.sp.S4))
-	st := t.typ.BodyLarge
-	label := roleLabel(st, 0)
-	label.Alignment, label.Truncator = text.Start, "…"
 	words := func(gtx layout.Context) layout.Dimensions {
-		return typeset.Layout(gtx, t.shaper, label, roleFont(st), unit.Sp(st.Size), msg.Content, Material(gtx.Ops, t.palette.TurnText))
+		return typeset.Text(gtx, t.shaper, msg.Content, t.typ.BodyLarge, t.palette.TurnText, 0)
 	}
 
 	// Measured first, so the card can be handed the exact box its words
@@ -733,10 +730,6 @@ func userTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 func failedTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	col := columnOf(gtx)
 	at, width := col.body(gtx, true)
-	st := t.typ.BodyLarge
-	label := roleLabel(st, 0)
-	label.Alignment, label.Truncator = text.Start, "…"
-
 	banner := gtx
 	banner.Constraints.Max.X = width
 	banner.Constraints.Min = image.Point{}
@@ -744,7 +737,7 @@ func failedTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	dims := alert.Render(t.shaper, alert.Props{
 		Status: alert.Error,
 		Body: func(gtx layout.Context) layout.Dimensions {
-			return typeset.Layout(gtx, t.shaper, label, roleFont(st), unit.Sp(st.Size), msg.Content, Material(gtx.Ops, t.col.Text))
+			return typeset.Text(gtx, t.shaper, msg.Content, t.typ.BodyLarge, t.col.Text, 0)
 		},
 		Shaper: t.shaper,
 	}, t.col, t.sp, t.rad, t.typ.TitleMedium)(banner)
@@ -764,9 +757,11 @@ func failedTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 func systemNote(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	col := columnOf(gtx)
 	at, width := col.body(gtx, true)
+	// The explicit form, not typeset.Text: the note stands centred across the
+	// column of text, which is widget.Label's Alignment.
 	st := t.typ.LabelLarge
-	label := roleLabel(st, 1)
-	label.Alignment, label.Truncator = text.Middle, "…"
+	label := typeset.Label(st, 1)
+	label.Alignment = text.Middle
 
 	body := gtx
 	body.Constraints.Max.X = width
@@ -1106,17 +1101,17 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 			body, action, caption := t.typ.BodyMedium, t.typ.LabelLarge, t.typ.BodySmall
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return typeset.Layout(gtx, t.shaper, roleLabel(body, 1), roleFont(body), unit.Sp(body.Size), msg, Material(gtx.Ops, vgcolor.Flatten(t.col.Label, p.Toast)))
+					return typeset.Text(gtx, t.shaper, msg, body, vgcolor.Flatten(t.col.Label, p.Toast), 1)
 				}),
 				layout.Rigid(layout.Spacer{Width: 16}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return undo.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return typeset.Layout(gtx, t.shaper, roleLabel(action, 1), roleFont(action), unit.Sp(action.Size), "Undo", Material(gtx.Ops, p.Accent))
+						return typeset.Text(gtx, t.shaper, "Undo", action, p.Accent, 1)
 					})
 				}),
 				layout.Rigid(layout.Spacer{Width: 8}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return typeset.Layout(gtx, t.shaper, roleLabel(caption, 1), roleFont(caption), unit.Sp(caption.Size), hint, Material(gtx.Ops, vgcolor.Flatten(t.col.SecondaryLabel, p.Toast)))
+					return typeset.Text(gtx, t.shaper, hint, caption, vgcolor.Flatten(t.col.SecondaryLabel, p.Toast), 1)
 				}),
 			)
 		})
@@ -1208,11 +1203,6 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 		}
 	}
 
-	label := roleLabel(t.typ.BodyMedium, 1)
-	label.Alignment, label.Truncator = text.Start, "…"
-
-	textMaterial := Material(gtx.Ops, textColor)
-
 	// The rail draws the platform's sidebar row, which patterns/sidebar
 	// measures at 32 dp — taller than a content list's row and not the
 	// same number.
@@ -1236,8 +1226,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 			func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						rowStyle := t.typ.BodyMedium
-						dims := typeset.Layout(gtx, t.shaper, label, roleFont(rowStyle), unit.Sp(rowStyle.Size), displayName, textMaterial)
+						dims := typeset.Text(gtx, t.shaper, displayName, t.typ.BodyMedium, textColor, 1)
 						// Claim the full flex share so the icon sits at
 						// the row's right edge, not after the text.
 						dims.Size.X = gtx.Constraints.Max.X

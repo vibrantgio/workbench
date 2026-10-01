@@ -61,7 +61,6 @@ import (
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
-	gotext "gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -310,9 +309,6 @@ func chatTitle(gtx layout.Context, m Model, t themed) layout.Dimensions {
 		colour = t.palette.Note
 	}
 	semantic.LabelOp(text).Add(gtx.Ops)
-	st := t.typ.TitleSmall
-	label := roleLabel(st, 1)
-	label.Alignment, label.Truncator = gotext.Start, "…"
 	// The title takes its own width and no more, so the drag between it and
 	// the picker is as long as the name is short — capped, so that a long
 	// name runs out of room before it runs into the chip.
@@ -321,7 +317,7 @@ func chatTitle(gtx layout.Context, m Model, t themed) layout.Dimensions {
 	if gtx.Constraints.Max.X <= 0 {
 		return layout.Dimensions{}
 	}
-	return typeset.Layout(gtx, t.shaper, label, roleFont(st), unit.Sp(st.Size), text, Material(gtx.Ops, colour))
+	return typeset.Text(gtx, t.shaper, text, t.typ.TitleSmall, colour, 1)
 }
 
 // titleVerdict distinguishes a chat that has a name from one that does not, so
