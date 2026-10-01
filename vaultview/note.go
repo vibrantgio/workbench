@@ -168,7 +168,7 @@ const (
 	// propMarkDp sizes the properties pane's disclosure: the size a mark
 	// takes next to a line of text. A chevron is a diagonal spanning the
 	// whole of its square, and at the size a mark takes as a control in its
-	// own right its stroke stands half again over the caps of the label it
+	// own right its stroke stands half again over the caps of the text it
 	// serves. The row centres its children, so the smaller square costs the
 	// row no height and moves nothing else.
 	propMarkDp = markSmallDp

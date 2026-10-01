@@ -790,7 +790,7 @@ func drawFound(gtx layout.Context, shaper *text.Shaper, msg string, style tokens
 	call := macro.Stop()
 	x0, x1 := runWidth(gtx, shaper, style, msg[:start]), runWidth(gtx, shaper, style, msg[:end])
 	// The mark is the role's own line box tall, centred in whatever box the
-	// row gave the label — which is the row's full height, and taller. A
+	// row gave the text — which is the row's full height, and taller. A
 	// mark cut to that box would run edge to edge and the marks on two
 	// neighbouring rows would meet in one unbroken stripe.
 	h := gtx.Sp(unit.Sp(style.LineHeight))

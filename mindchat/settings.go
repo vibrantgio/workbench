@@ -438,7 +438,7 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layo
 						return webSearchRow(gtx, t, selected.WebSearch, webClick)
 					})),
 					rowGap,
-					// The row the picker below is drawn into: its label, and
+					// The row the picker below is drawn into: its form label, and
 					// the height the trigger takes. It follows the row above
 					// it at the same measured air every other row does: the
 					// body is the sum of its rows ([SettingsBodyHeight]), so
@@ -812,7 +812,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 // records no state, which is what tells this pair from the templates' control
 // above, where one of four is always in force.
 func addRemovePair(gtx layout.Context, t settingsThemed, addClick, removeClick *widget.Clickable) layout.Dimensions {
-	seg := func(click *widget.Clickable, mark marks.Painter, label string) button.BorderedSegment {
+	seg := func(click *widget.Clickable, mark marks.Painter, title string) button.BorderedSegment {
 		return button.BorderedSegment{
 			Icon: mark,
 			State: button.RenderState{
@@ -825,7 +825,7 @@ func addRemovePair(gtx layout.Context, t settingsThemed, addClick, removeClick *
 					size := gtx.Constraints.Max
 					pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
 					semantic.ClassOp(semantic.Button).Add(gtx.Ops)
-					semantic.LabelOp(label).Add(gtx.Ops)
+					semantic.LabelOp(title).Add(gtx.Ops)
 					return layout.Dimensions{Size: size}
 				})
 			},

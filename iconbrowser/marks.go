@@ -53,15 +53,15 @@ func MarkSizeNote(names []marks.Name) string {
 	return note
 }
 
-// Heading draws one section label on its own line, with a muted note against
+// Heading draws one section heading on its own line, with a muted note against
 // the far edge — what the section is on the left, what it holds on the right.
 // The note is the only place either section says what its cells are showing,
 // so a row of one mark at three sizes does not read as three marks.
-func Heading(t themed, label, note string) layout.Widget {
+func Heading(t themed, heading, note string) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(HeadingH))
 		rect := image.Rectangle{Max: size}
-		textdraw.FillText(gtx, t.typ.Shaper, t.typ.Section, rect, 0.0, 0.5, t.palette.Text, label)
+		textdraw.FillText(gtx, t.typ.Shaper, t.typ.Section, rect, 0.0, 0.5, t.palette.Text, heading)
 		textdraw.FillText(gtx, t.typ.Shaper, t.typ.Caption, rect, 1.0, 0.5, t.palette.Muted, note)
 		return layout.Dimensions{Size: size}
 	}

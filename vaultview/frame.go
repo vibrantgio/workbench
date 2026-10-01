@@ -1071,14 +1071,14 @@ func (f *frameState) layoutNavigation(gtx layout.Context, m Model, tok themeToke
 // navSegment is one half of that pair: the set's mark for the direction, the
 // state the stack leaves it in, and the clickable that takes the press over
 // the segment's own box.
-func navSegment(click *widget.Clickable, mark icons.Name, label string, enabled bool) button.BorderedSegment {
+func navSegment(click *widget.Clickable, mark icons.Name, title string, enabled bool) button.BorderedSegment {
 	return button.BorderedSegment{
 		Icon:  icons.Mark(mark),
 		State: button.RenderState{Variant: button.Chrome, Hovered: click.Hovered(), Pressed: click.Pressed(), Disabled: !enabled},
 		Target: func(gtx layout.Context) layout.Dimensions {
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.ClassOp(semantic.Button).Add(gtx.Ops)
-				semantic.LabelOp(label).Add(gtx.Ops)
+				semantic.LabelOp(title).Add(gtx.Ops)
 				semantic.EnabledOp(enabled).Add(gtx.Ops)
 				if enabled {
 					pointershape.OverSize(gtx.Ops, gtx.Constraints.Min, pointer.CursorPointer)
@@ -1140,11 +1140,11 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 	if f.toggleClick.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
 	}
-	label := "Hide the folder rail"
+	title := "Hide the folder rail"
 	if m.SidebarHidden {
-		label = "Show the folder rail"
+		title = "Show the folder rail"
 	}
-	return railToggleControl(gtx, tok, &f.toggleClick, label)
+	return railToggleControl(gtx, tok, &f.toggleClick, title)
 }
 
 // railToggleMark draws the sidebar control's figure, taken from the
@@ -1162,7 +1162,7 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 // It is one drawing that never morphs, as on the platform: a mark that
 // changes leaves the reader guessing whether it shows the present state or
 // the next one, and a hollowed variant reads as an unchecked box. What the
-// control is about to do is in the label it carries, which the screen
+// control is about to do is in the title it carries, which the screen
 // reader speaks and the tooltip shows.
 //
 // Both of the window's sidebar controls take it — the one in the pane's
@@ -1174,8 +1174,8 @@ func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeToke
 // bare. MEASURED, voicememos-multi-folder-2026-09-18.png: the pane's two
 // marks carry no capsule, no fill and no rim, while every mark in the band
 // beside them does.
-func railToggleControl(gtx layout.Context, tok themeTokens, click *widget.Clickable, label string) layout.Dimensions {
-	return chromeControl(gtx, tok, click, icons.Sidebar, label)
+func railToggleControl(gtx layout.Context, tok themeTokens, click *widget.Clickable, title string) layout.Dimensions {
+	return chromeControl(gtx, tok, click, icons.Sidebar, title)
 }
 
 // paneMark draws one BARE chrome mark — the figure alone, at the mark box
@@ -1190,12 +1190,12 @@ func railToggleControl(gtx layout.Context, tok themeTokens, click *widget.Clicka
 // MEASURED, voicememos-multi-folder-2026-09-18.png: the pane's own bare
 // marks reach #4b4b4b at their darkest, a floor a 1 px stroke at 1x cannot
 // pass, against the #4d4d4d the band's own symbols plateau at.
-func paneMark(gtx layout.Context, tok themeTokens, click *widget.Clickable, name icons.Name, label string) layout.Dimensions {
+func paneMark(gtx layout.Context, tok themeTokens, click *widget.Clickable, name icons.Name, title string) layout.Dimensions {
 	box := gtx.Dp(unit.Dp(markLargeDp))
 	fg := tok.col.ToolbarLabel
 	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		semantic.ClassOp(semantic.Button).Add(gtx.Ops)
-		semantic.LabelOp(label).Add(gtx.Ops)
+		semantic.LabelOp(title).Add(gtx.Ops)
 		semantic.EnabledOp(true).Add(gtx.Ops)
 		pointershape.OverSize(gtx.Ops, image.Pt(box, box), pointer.CursorPointer)
 		icons.Mark(name)(gtx, box, fg)
@@ -1207,7 +1207,7 @@ func paneMark(gtx layout.Context, tok themeTokens, click *widget.Clickable, name
 // centred in the platform's capsule, the capsule's own fill and rim, and the
 // drop shadow it casts on the band. Every control standing in this window's
 // band is drawn through here, so the band holds one control drawn one way.
-func chromeControl(gtx layout.Context, tok themeTokens, click *widget.Clickable, name icons.Name, label string) layout.Dimensions {
+func chromeControl(gtx layout.Context, tok themeTokens, click *widget.Clickable, name icons.Name, title string) layout.Dimensions {
 	state := button.RenderState{
 		Variant: button.Chrome,
 		Hovered: click.Hovered(),
@@ -1220,7 +1220,7 @@ func chromeControl(gtx layout.Context, tok themeTokens, click *widget.Clickable,
 	return button.BorderedShadow(gtx, tok.col, state, func(gtx layout.Context) layout.Dimensions {
 		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.ClassOp(semantic.Button).Add(gtx.Ops)
-			semantic.LabelOp(label).Add(gtx.Ops)
+			semantic.LabelOp(title).Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			return face(gtx)
 		})

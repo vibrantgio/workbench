@@ -65,7 +65,7 @@ const (
 	// leading edge 9 rows down, a continuous corner a hair wider than the
 	// circle of that radius. BoxInset is the run from the box's edge to
 	// what stands in it — the seam between two rows spans x 253–692 inside
-	// a box spanning 243–702, and a row's label starts on the same line.
+	// a box spanning 243–702, and a row's leading text starts on the same line.
 	BoxRadius unit.Dp = 10
 	BoxInset  unit.Dp = 10
 	// BoxPad is the air above and below a box's content. The platform's own
@@ -109,8 +109,8 @@ const (
 // What the keep affordance says: an offer while the colour on screen is not
 // the one on disk, a confirmation the moment it is.
 const (
-	KeepLabel = "Keep this theme"
-	KeptLabel = "Kept"
+	KeepTitle = "Keep this theme"
+	KeptTitle = "Kept"
 )
 
 // HexPlaceholder is what the colour field says when it is empty: the spelling
@@ -553,13 +553,13 @@ func PictureRow(p Palette, ty Type, m Model, src paint.ImageOp, clicks []gesture
 }
 
 // ColourRow is what stands in the theme colour group's box: the row's own
-// label, then the colour in force and where it came from, and at the trailing
+// name, then the colour in force and where it came from, and at the trailing
 // end the two things that can replace it — the colour itself, and the field
 // it can be written into.
 //
-// The label leads because that is where the platform puts one. Read cold
-// without it, the row went value, then provenance, then control — "the
-// platform's order with the label deleted".
+// The name leads because that is where the platform puts one. Read cold
+// without it, the row went value, then provenance, then control: the
+// platform's order with the name deleted.
 func ColourRow(p Palette, ty Type, m Model, hex layout.Widget) layout.Widget {
 	name, hint, hintColor := IdentityName(m), IdentityHint(m), p.CardMuted
 	if m.Problem != "" {
@@ -647,9 +647,9 @@ func fixed(w unit.Dp, inner layout.Widget) layout.Widget {
 // changes with the answer: an offer while the choice on screen is not the one
 // on disk, a confirmation the moment it is.
 func KeepButton(c tokens.PlatformColors, ty Type, m Model, click *gesture.Click) layout.Widget {
-	title, emphasis := KeepLabel, button.Filled
+	title, emphasis := KeepTitle, button.Filled
 	if m.IsKept() {
-		title, emphasis = KeptLabel, button.Tonal
+		title, emphasis = KeptTitle, button.Tonal
 	}
 	draw := button.Render(ty.Shaper, title, c, tokens.Spacing, tokens.Radius, ty.Role, tokens.Comfortable,
 		button.RenderState{Emphasis: emphasis, Hovered: click.Hovered(), Pressed: click.Pressed(),

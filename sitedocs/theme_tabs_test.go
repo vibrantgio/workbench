@@ -106,8 +106,8 @@ const (
 )
 
 // TestTypeScaleKeepsTheInventorysWords is the guard on the one place
-// the Typography tab could quietly invent copy: the borrowed band's label and
-// caption are the inventory's own title, split at its separator and
+// the Typography tab could quietly invent copy: the borrowed band's heading
+// and caption are the inventory's own title, split at its separator and
 // nothing else. A title reworded upstream has to arrive here reworded.
 func TestTypeScaleKeepsTheInventorysWords(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
@@ -123,11 +123,11 @@ func TestTypeScaleKeepsTheInventorysWords(t *testing.T) {
 	if title == "" {
 		t.Fatalf("the inventory publishes no section named %q — the Typography tab is empty", typeSection)
 	}
-	label, hint, _ := strings.Cut(title, sectionTitleSep)
-	if label == "" {
-		t.Errorf("splitting %q leaves no label for the band", title)
+	heading, hint, _ := strings.Cut(title, sectionTitleSep)
+	if heading == "" {
+		t.Errorf("splitting %q leaves no heading for the band", title)
 	}
-	if rejoined := label + sectionTitleSep + hint; rejoined != title {
+	if rejoined := heading + sectionTitleSep + hint; rejoined != title {
 		t.Errorf("the band says %q, the inventory says %q", rejoined, title)
 	}
 }
