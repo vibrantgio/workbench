@@ -85,7 +85,7 @@ func TestEveryRegionWearsItsPlatformFill(t *testing.T) {
 				{"the transcript", p.Transcript, c.ControlBackground},
 				{"the conversation pane", p.Sidebar, c.SidebarMaterial},
 				{"a floating surface", p.Toast, c.WindowBackground},
-				{"a dialog's inset panel", p.Panel, c.CardFill},
+				{"a dialog's inset pane", p.Pane, c.CardFill},
 				{"a dialog's chip", p.ModalChip, c.PushButtonFill},
 				{"the open conversation's pill", p.RowSelected, sidebar.SelectionFill(c, false)},
 				{"a content list's selected row", p.ListSelected, c.SelectedContentBackground},
@@ -266,19 +266,19 @@ func TestWindowButtonsAreMeasuredFromTheWindowsGlass(t *testing.T) {
 // two different heights makes the mark jump out from under the pointer that
 // just clicked it — the defect the collapsed rail had.
 //
-// The panel's strip centres its controls on the buttons' line by the
-// pattern's own arithmetic, from the panel's own top edge; the chrome row
+// The pane's strip centres its controls on the buttons' line by the
+// pattern's own arithmetic, from the pane's own top edge; the chrome row
 // centres its controls on its own middle. The two are the same line only if
 // the row is exactly twice the buttons' centre, which is how ChromeRowHeight
 // is derived and what this checks.
 func TestBothHalvesOfTheSidebarSwitchStandOnOneLine(t *testing.T) {
-	// Where a control standing in the panel's strip centres, in WINDOW
-	// coordinates: the panel is set one margin inside the window's top edge,
+	// Where a control standing in the pane's strip centres, in WINDOW
+	// coordinates: the pane is set one margin inside the window's top edge,
 	// so the strip's own middle is that margin plus half its depth.
 	strip := unit.Dp(PaneMargin) + unit.Dp(pane.StripDp)/2
 	row := ChromeRowHeight / 2
 	if strip != row {
-		t.Errorf("the panel's strip centres its controls at %v and the chrome row at %v; a switch whose halves stand at two heights makes the mark jump", strip, row)
+		t.Errorf("the pane's strip centres its controls at %v and the chrome row at %v; a switch whose halves stand at two heights makes the mark jump", strip, row)
 	}
 	if got := unit.Dp(WindowButtonCenter); got != row {
 		t.Errorf("the chrome row centres at %v, want the window buttons' own line %v", row, got)

@@ -27,7 +27,7 @@ const (
 	noteFrameW = 1100 - treeWidthDp - frameSplitterDp - frameAsideDp
 	// noteFrameH is the golden viewport height. The document scrolls, so
 	// the goldens capture the top of the note — header row, properties
-	// panel, headings, prose with its wikilinks, list and code block.
+	// pane, headings, prose with its wikilinks, list and code block.
 	noteFrameH = 700
 	// treeFrameH gives the rail the same height as the note viewport.
 	treeFrameH = 700
@@ -62,7 +62,7 @@ var (
 )
 
 // goldenNoteSource is the note the goldens render: frontmatter for the
-// properties panel, a heading hierarchy, prose carrying a plain and an
+// properties pane, a heading hierarchy, prose carrying a plain and an
 // aliased wikilink, a list, a fenced code block whose wikilink must NOT
 // become a link, and a block-id tail that must not show.
 const goldenNoteSource = `---
@@ -127,7 +127,7 @@ var themeCases = []struct {
 
 // TestNotePageGolden records or diffs the rendered note in light and
 // dark, through the same composition the runtime main slot lays out:
-// header row, breadcrumb trail, properties panel from the frontmatter
+// header row, breadcrumb trail, properties pane from the frontmatter
 // split, and the parsed body as a markdown document with chroma
 // highlighting. Rendering pins DeterministicShaper — Roboto and Roboto
 // Mono, system fonts off — so the rasterisation cannot depend on which
@@ -270,7 +270,7 @@ func TestNoteScrollbarGolden(t *testing.T) {
 // rather than dimensions, because the gutter is reserved either way — that
 // is what stops the prose reflowing when the bar fades.
 //
-// The note that fits is the plain one: the golden note's frontmatter panel,
+// The note that fits is the plain one: the golden note's frontmatter pane,
 // headings and code block do not fit a 700 dp viewport, so it says nothing
 // about a note that does not scroll.
 //
@@ -491,7 +491,7 @@ func TestVaultSwitchDialogGolden(t *testing.T) {
 // arrivalModel is the golden note reached by following a link that named a
 // block: the viewport seated on the block the link pointed at, the landing
 // recorded as an arrival so the column marks the content it brought the
-// reader to. The properties panel is closed, so the picture is of the note
+// reader to. The properties pane is closed, so the picture is of the note
 // and the marking on it rather than of its frontmatter.
 func arrivalModel(t *testing.T) Model {
 	t.Helper()
@@ -592,16 +592,16 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			top, bot := markedRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
 			level("the vault's name", top, bot, labelSlack)
 
-			// The panel's own toggle stands BARE on the panel's surface, at
+			// The pane's own toggle stands BARE on the pane's surface, at
 			// its top trailing corner: the figure alone, which is what is
-			// read here against the panel's own fill. The panel's first row
-			// is left out — the rim that says the panel is an object, a line
-			// on the panel's fill and not a mark this is measuring.
+			// read here against the pane's own fill. The pane's first row
+			// is left out — the rim that says the pane is an object, a line
+			// on the pane's fill and not a mark this is measuring.
 			strip := st.geom.pane.Min.Y + paneStripDp
 			toggleX := st.geom.pane.Max.X - railMarginDp - markLargeDp
 			paneTop, paneBot := markedRows(img, chromeSurface(tc.colors), toggleX+2, toggleX+markLargeDp-2,
 				st.geom.pane.Min.Y+seamDp, strip)
-			level("the panel's toggle", paneTop, paneBot, markSlack)
+			level("the pane's toggle", paneTop, paneBot, markSlack)
 
 			img, st = shot(hidden)
 			// With the pane away the row leads with the toggle, in the
@@ -612,11 +612,11 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			level("the chrome row's toggle", rowTop, rowBot, markSlack)
 			// The two halves stand on one line. They do not mark the same
 			// rows: the band's half is the platform's bordered control and
-			// the panel's is a bare figure, and a capsule is taller than the
+			// the pane's is a bare figure, and a capsule is taller than the
 			// mark inside it. What one switch owes the reader is the line,
 			// which is what the two centres are held to.
 			if rowC, paneC := float64(rowTop+rowBot+1)/2, float64(paneTop+paneBot+1)/2; rowC != paneC {
-				t.Errorf("the chrome row's toggle centres on %.1f and the panel's on %.1f; one switch, one line", rowC, paneC)
+				t.Errorf("the chrome row's toggle centres on %.1f and the pane's on %.1f; one switch, one line", rowC, paneC)
 			}
 
 			nameX = markX + railToggleWidthDp + int(tokens.Spacing.S3)
@@ -788,7 +788,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 
 // pinnedSeamRows answers which rows inside the given box carry the note
 // column's pinned seam: the hairline between the column's pinned head — the
-// breadcrumb trail, and the properties panel when the note has one — and the
+// breadcrumb trail, and the properties pane when the note has one — and the
 // document scrolling under it.
 //
 // It runs the column's whole width, which is what a boundary between two
@@ -873,10 +873,10 @@ func drawnRows(img *image.RGBA, surface color.NRGBA, x0, x1, y0, y1 int) (int, i
 }
 
 // TestThePaneEdgeCarriesOnlyItsShadow reads the pixels immediately past the
-// panel's trailing rim and requires them to be the note's own surface under
-// the panel's shadow and nothing else: a neutral ramp that only darkens
-// toward the panel and is spent by the shadow's measured reach. Nothing the
-// panel draws — its fill, its rim, its strip or the toggle at its trailing
+// pane's trailing rim and requires them to be the note's own surface under
+// the pane's shadow and nothing else: a neutral ramp that only darkens
+// toward the pane and is spent by the shadow's measured reach. Nothing the
+// pane draws — its fill, its rim, its strip or the toggle at its trailing
 // corner — may leave a second mark out there.
 //
 // The whole column is read rather than a band of it, which catches both
@@ -885,15 +885,15 @@ func drawnRows(img *image.RGBA, surface color.NRGBA, x0, x1, y0, y1 int) (int, i
 //
 // Both appearances, because a shadow is a coverage over whatever is under it
 // and shows in one before the other; and either side of a round trip through
-// the hidden state, because the panel the toggle brings back has to be the
-// panel that left.
+// the hidden state, because the pane the toggle brings back has to be the
+// pane that left.
 func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	shown := goldenModel()
 	hidden := shown
 	hidden.SidebarHidden = true
 	// How far out the reading carries: the shadow's own reach, which at the
-	// panel's middle rows is measured from its trailing edge. The note
+	// pane's middle rows is measured from its trailing edge. The note
 	// column's leading inset is the same number, so the reading stops
 	// exactly where the note's first column of text begins and no glyph is
 	// read as a shadow.
@@ -922,14 +922,14 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 			check := func(when string, img *image.RGBA) {
 				edge := f.geom.pane.Max.X
 				if edge <= 0 {
-					t.Fatalf("%s: the panel has no trailing edge to read", when)
+					t.Fatalf("%s: the pane has no trailing edge to read", when)
 				}
 				// Read below the band and above the status bar, where the
 				// note column is its own flat surface all the way across —
 				// except for its own pinned seam, which crosses this edge
 				// because a boundary between two flush regions runs the whole
 				// width of the region above it. Its rows are read out: it is
-				// a row and not a second line down the panel.
+				// a row and not a second line down the pane.
 				seamRows := pinnedSeamRows(img, tc.colors, edge+paneShadowReachDp, windowW-frameAsideDp,
 					f.geom.rowTop, f.geom.footTop)
 				for y := f.geom.rowTop + noteInsetDp; y < f.geom.footTop; y++ {
@@ -940,7 +940,7 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 					for x := edge; x < edge+past && x < windowW; x++ {
 						c := img.RGBAAt(x, y)
 						if c.R != c.G || c.G != c.B {
-							t.Errorf("%s: (%d,%d) is %v; the panel's shadow is a neutral coverage", when, x, y, c)
+							t.Errorf("%s: (%d,%d) is %v; the pane's shadow is a neutral coverage", when, x, y, c)
 							return
 						}
 						if int(c.R) > int(background.R) {
@@ -948,7 +948,7 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 							return
 						}
 						if prev >= 0 && int(c.R) < prev {
-							t.Errorf("%s: (%d,%d) is %v after %d; the ramp only recovers outward, so this is a second line beside the panel's own",
+							t.Errorf("%s: (%d,%d) is %v after %d; the ramp only recovers outward, so this is a second line beside the pane's own",
 								when, x, y, c, prev)
 							return
 						}
@@ -956,7 +956,7 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 					}
 					if x := edge + past - 1; x < windowW {
 						if c := img.RGBAAt(x, y); c.R != background.R || c.G != background.G || c.B != background.B {
-							t.Errorf("%s: (%d,%d) is %v, %d columns past the panel's edge at x=%d; want the note's surface %v — the shadow is spent by its reach",
+							t.Errorf("%s: (%d,%d) is %v, %d columns past the pane's edge at x=%d; want the note's surface %v — the shadow is spent by its reach",
 								when, x, y, c, past-1, edge, background)
 							return
 						}
@@ -964,9 +964,9 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 				}
 			}
 
-			check("with the panel shown", shot(shown))
+			check("with the pane shown", shot(shown))
 			shot(hidden)
-			check("with the panel brought back", shot(shown))
+			check("with the pane brought back", shot(shown))
 		})
 	}
 }

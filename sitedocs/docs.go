@@ -29,7 +29,7 @@ import (
 
 // Page layout constants.
 const (
-	// docsOuterInsetDp is the blank the document keeps from the panel
+	// docsOuterInsetDp is the blank the document keeps from the pane
 	// edges (S6 = 24 dp).
 	docsOuterInsetDp = 24
 	// docsMeasureDp caps the guide document's line length to a readable
@@ -51,7 +51,7 @@ var (
 // opening in the system browser.
 //
 // The document is read on the content plane, which is what the tab shell
-// fills its panel with and what this column therefore stands on. Every
+// fills its pane with and what this column therefore stands on. Every
 // coverage the style carries is composited onto it there.
 //
 // Mono and CodeSize are re-resolved from the theme's Code role: FromTokens

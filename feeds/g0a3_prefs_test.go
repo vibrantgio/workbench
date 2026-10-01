@@ -1,14 +1,14 @@
 // g0a3_prefs_test.go covers the two halves of the settings pattern: the
 // ACCELERATOR the app chrome binds (⌘,/Ctrl-,, via key.ModShortcut) and the
-// PANEL it opens — a patterns/modal with a nil Props.Decision, so its close X,
+// PANE it opens — a patterns/modal with a nil Props.Decision, so its close X,
 // Escape and backdrop dismissal all come from the purpose rather than from
 // flags.
 //
 // The reducer half is asserted directly; the accelerator is driven through a
 // real gioui input.Router so the modifier requirement is proven rather than
-// read; the panel is pinned as a golden, driven live over the articles table
+// read; the pane is pinned as a golden, driven live over the articles table
 // it edits, and driven again through the real composed shell in
-// TestPreferencesPanelInShellLive.
+// TestPreferencesPaneInShellLive.
 package main
 
 import (
@@ -82,7 +82,7 @@ func TestPrefsAcceleratorFiresOnShortcutModifier(t *testing.T) {
 
 // TestPrefsAcceleratorIgnoresBareComma is the other half of the same claim: a
 // comma typed with no modifier is text, not an accelerator. Without
-// Filter.Required the panel would open every time someone typed a comma into
+// Filter.Required the pane would open every time someone typed a comma into
 // the article filter.
 func TestPrefsAcceleratorIgnoresBareComma(t *testing.T) {
 	if n := driveShortcut(t, key.Event{
@@ -93,7 +93,7 @@ func TestPrefsAcceleratorIgnoresBareComma(t *testing.T) {
 	}
 }
 
-// TestPrefsAcceleratorIgnoresRelease guards against the panel toggling twice
+// TestPrefsAcceleratorIgnoresRelease guards against the pane toggling twice
 // per keypress: only the Press edge counts.
 func TestPrefsAcceleratorIgnoresRelease(t *testing.T) {
 	if n := driveShortcut(t, key.Event{
@@ -105,28 +105,28 @@ func TestPrefsAcceleratorIgnoresRelease(t *testing.T) {
 	}
 }
 
-// --- the reducer (what the panel edits) ----------------------------------
+// --- the reducer (what the pane edits) ----------------------------------
 
 func TestUpdateOpenClosePreferences(t *testing.T) {
 	m := initialModel()
 	if m.prefsOpen {
-		t.Fatal("seed model has the Preferences panel open")
+		t.Fatal("seed model has the Preferences pane open")
 	}
 	m, _ = Update(m, OpenPreferences{})
 	if !m.prefsOpen {
-		t.Fatal("OpenPreferences did not open the panel")
+		t.Fatal("OpenPreferences did not open the pane")
 	}
-	// Every one of the panel's three exits — the ghost X, Escape and a
+	// Every one of the pane's three exits — the ghost X, Escape and a
 	// backdrop press — routes through modal.Props.OnClose to this one message.
 	m, _ = Update(m, ClosePreferences{})
 	if m.prefsOpen {
-		t.Fatal("ClosePreferences did not close the panel")
+		t.Fatal("ClosePreferences did not close the pane")
 	}
 }
 
 // TestUpdateSetRowsPerPageAppliesLiveAndResetsPage pins the behaviour that
-// makes this surface a panel rather than a decision: the preference lands on
-// the model immediately, with no Save and with the panel still open.
+// makes this surface a pane rather than a decision: the preference lands on
+// the model immediately, with no Save and with the pane still open.
 func TestUpdateSetRowsPerPageAppliesLiveAndResetsPage(t *testing.T) {
 	m := initialModel()
 	if m.rowsPerPage != defaultRowsPerPage {
@@ -142,7 +142,7 @@ func TestUpdateSetRowsPerPageAppliesLiveAndResetsPage(t *testing.T) {
 		t.Errorf("currentPage = %d, want 1 (a bigger page size shrinks the page count)", m.currentPage)
 	}
 	if !m.prefsOpen {
-		t.Error("changing a preference closed the panel; a panel's preferences apply under it")
+		t.Error("changing a preference closed the pane; a pane's preferences apply under it")
 	}
 }
 
@@ -188,10 +188,10 @@ func TestUnreadOnlyArticlesFilters(t *testing.T) {
 	}
 }
 
-// --- the panel (dismissal, and the emphasis axis at work) -----------------
+// --- the pane (dismissal, and the emphasis axis at work) -----------------
 
-// staticPreferencesBody assembles the panel body from the STATIC Render paths
-// of the same components/button calls preferencesPanel composes, at the
+// staticPreferencesBody assembles the pane body from the STATIC Render paths
+// of the same components/button calls preferencesPane composes, at the
 // default preferences: 10 rows per page (tonal) with 5 and 25 ghost beside it,
 // and unread-only off (ghost). Sharp radii keep the golden deterministic.
 func staticPreferencesBody(shaper *text.Shaper, colors tokens.PlatformColors) layout.Widget {
@@ -217,18 +217,18 @@ func staticPreferencesBody(shaper *text.Shaper, colors tokens.PlatformColors) la
 	}
 }
 
-// TestPreferencesPanelGolden records the panel purpose: a ghost close X in the
+// TestPreferencesPaneGolden records the pane purpose: a ghost close X in the
 // header (no footer, because there is nothing to confirm) over preference
 // controls at the tonal and ghost emphasis.
-func TestPreferencesPanelGolden(t *testing.T) {
+func TestPreferencesPaneGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	cases := []struct {
 		name   string
 		colors tokens.PlatformColors
 		bg     color.NRGBA
 	}{
-		{"preferences-panel-light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-		{"preferences-panel-dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
+		{"preferences-pane-light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
+		{"preferences-pane-dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -247,7 +247,7 @@ func TestPreferencesPanelGolden(t *testing.T) {
 	}
 }
 
-// The frame size for the live panel-over-articles composition below. At 1000
+// The frame size for the live pane-over-articles composition below. At 1000
 // dp the modal surface is its 560 dp maximum, centred, so it spans
 // x∈[220,780) and leaves a clean strip of table either side.
 const (
@@ -255,30 +255,30 @@ const (
 	prefsFrameH = 700
 )
 
-// prefsArticlesRegion is the strip of articles table LEFT of the open panel's
-// surface. Excluding the surface is the whole point of the region: the panel's
+// prefsArticlesRegion is the strip of articles table LEFT of the open pane's
+// surface. Excluding the surface is the whole point of the region: the pane's
 // own buttons change emphasis when a preference changes, so a sample that
 // overlapped it would pass without the table having moved. Here the only thing
 // that can differ is the table — go-blog holds 14 articles, so ten to a page
 // fills these rows and five to a page empties them.
 var prefsArticlesRegion = image.Rect(20, 60, 216, prefsFrameH-20)
 
-// prefsScrimRegion samples the middle of the frame, where an open panel
+// prefsScrimRegion samples the middle of the frame, where an open pane
 // paints its scrim and surface over the table.
 var prefsScrimRegion = image.Rect(prefsFrameW/2-260, prefsFrameH/2-120, prefsFrameW/2+260, prefsFrameH/2+120)
 
-// TestPreferencesPanelOverArticlesLive drives the REAL panel — the live
+// TestPreferencesPaneOverArticlesLive drives the REAL pane — the live
 // modal.Modal path, the live components/button emphasis, the live articles
 // pipeline — over the surface it edits, and asserts the three claims that
-// make it a panel: OpenPreferences paints the scrim, a preference changed
+// make it a pane: OpenPreferences paints the scrim, a preference changed
 // while it is open repaints the TABLE underneath with no Save, and closing it
 // puts the frame back.
 //
-// It composes preferencesPanel over articlesMain rather than subscribing
+// It composes preferencesPane over articlesMain rather than subscribing
 // feedsShellLayer, which keeps the frame tight enough for the two regions
 // above to mean what they say. The shell-level half of the pattern is
-// TestPreferencesPanelInShellLive below.
-func TestPreferencesPanelOverArticlesLive(t *testing.T) {
+// TestPreferencesPaneInShellLive below.
+func TestPreferencesPaneOverArticlesLive(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	th := rx.Of(theme.Default())
 
@@ -292,7 +292,7 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 		rx.Map(modelObs, func(m Model) string { return m.filter }),
 		tooltip.NewArbiter(),
 	)
-	prefsObs := preferencesPanel(th,
+	prefsObs := preferencesPane(th,
 		rx.Map(modelObs, func(m Model) bool { return m.prefsOpen }),
 		rx.Map(modelObs, func(m Model) int { return m.rowsPerPage }),
 		rx.Map(modelObs, func(m Model) bool { return m.unreadOnly }),
@@ -300,11 +300,11 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 	)
 	composed := rx.Map(rx.CombineLatest2(articlesObs, prefsObs),
 		func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
-			articlesW, panelW := n.First, n.Second
+			articlesW, paneW := n.First, n.Second
 			return func(gtx layout.Context) layout.Dimensions {
 				dims := articlesW(gtx)
-				if panelW != nil {
-					panelW(gtx)
+				if paneW != nil {
+					paneW(gtx)
 				}
 				return dims
 			}
@@ -336,46 +336,46 @@ func TestPreferencesPanelOverArticlesLive(t *testing.T) {
 	send.Next(m)
 	open := snap("OpenPreferences")
 	if n := regionDiff(closed, open, prefsScrimRegion); n <= 0 {
-		t.Errorf("frame unchanged after OpenPreferences (diff=%d in the scrim region); the panel did not open", n)
+		t.Errorf("frame unchanged after OpenPreferences (diff=%d in the scrim region); the pane did not open", n)
 	}
 
-	// The preference applies live: the table behind the panel repaginates
-	// with no Save and with the panel still on screen.
+	// The preference applies live: the table behind the pane repaginates
+	// with no Save and with the pane still on screen.
 	m, _ = Update(m, SetRowsPerPage{Rows: 5})
 	send.Next(m)
 	resized := snap("SetRowsPerPage{5}")
 	if !m.prefsOpen {
-		t.Fatal("SetRowsPerPage closed the panel")
+		t.Fatal("SetRowsPerPage closed the pane")
 	}
 	if n := regionDiff(open, resized, prefsArticlesRegion); n <= 0 {
-		t.Errorf("table unchanged beside the open panel after SetRowsPerPage{5} (diff=%d); the preference did not apply live", n)
+		t.Errorf("table unchanged beside the open pane after SetRowsPerPage{5} (diff=%d); the preference did not apply live", n)
 	}
 
-	// And the panel leaves: OnClose is what the ghost X, Escape and a
+	// And the pane leaves: OnClose is what the ghost X, Escape and a
 	// backdrop press all reach.
 	m, _ = Update(m, ClosePreferences{})
 	send.Next(m)
 	dismissed := snap("ClosePreferences")
 	if n := regionDiff(open, dismissed, prefsScrimRegion); n <= 0 {
-		t.Errorf("scrim still painted after ClosePreferences (diff=%d); the panel did not dismiss", n)
+		t.Errorf("scrim still painted after ClosePreferences (diff=%d); the pane did not dismiss", n)
 	}
 }
 
 // shellPrefsScrimRegion samples the middle of the FULL shell frame, where an
-// open preferences panel paints its scrim and surface over the split pane.
+// open preferences pane paints its scrim and surface over the split pane.
 // The rail's column and the band are both at the leading and top edges, so a
 // centred sample of the 1200×800 frame lies wholly inside the region the
-// panel covers.
+// pane covers.
 var shellPrefsScrimRegion = image.Rect(shellFrameW/2-260, shellFrameH/2-120, shellFrameW/2+260, shellFrameH/2+120)
 
-// TestPreferencesPanelInShellLive asserts the half
-// TestPreferencesPanelOverArticlesLive cannot: that the panel reaches the
+// TestPreferencesPaneInShellLive asserts the half
+// TestPreferencesPaneOverArticlesLive cannot: that the pane reaches the
 // frame through the REAL composed shell — navbar, sidebar, split pane, toast
 // stack and all — rather than through a two-layer composition built for the
 // test. Opening it must change the middle of the shell; closing it must put
 // the shell back exactly, because every layer here is a pure function of
 // model and theme.
-func TestPreferencesPanelInShellLive(t *testing.T) {
+func TestPreferencesPaneInShellLive(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
 	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
 
@@ -407,17 +407,17 @@ func TestPreferencesPanelInShellLive(t *testing.T) {
 	m, _ = Update(m, OpenPreferences{})
 	send.Next(m)
 	if !m.prefsOpen {
-		t.Fatal("OpenPreferences did not open the panel in the model")
+		t.Fatal("OpenPreferences did not open the pane in the model")
 	}
 	open := snap("OpenPreferences")
 	if n := regionDiff(closed, open, shellPrefsScrimRegion); n <= 0 {
-		t.Errorf("shell frame unchanged after OpenPreferences (diff=%d in the scrim region); the panel never reached the composed shell", n)
+		t.Errorf("shell frame unchanged after OpenPreferences (diff=%d in the scrim region); the pane never reached the composed shell", n)
 	}
 
 	m, _ = Update(m, ClosePreferences{})
 	send.Next(m)
 	dismissed := snap("ClosePreferences")
 	if n := golden.PixelDiff(closed, dismissed); n != 0 {
-		t.Errorf("shell after ClosePreferences differs from the pre-open shell by %d pixel(s); the panel did not dismiss cleanly", n)
+		t.Errorf("shell after ClosePreferences differs from the pre-open shell by %d pixel(s); the pane did not dismiss cleanly", n)
 	}
 }

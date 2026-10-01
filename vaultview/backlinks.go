@@ -1,4 +1,4 @@
-// backlinks.go computes the reverse link edges the aside panel lists.
+// backlinks.go computes the reverse link edges the aside pane lists.
 // A backlink is earned by RESOLUTION, not by string match: each note's
 // raw outgoing wikilink bodies run through the resolver, and a link
 // counts only when it actually resolves to the current note — a link

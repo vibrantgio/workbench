@@ -126,7 +126,7 @@ func (b *styleChooser) reveal(dark bool, row int) {
 	}
 }
 
-// StylePanel draws the chooser: the names in a scrolling column with the
+// StylePane draws the chooser: the names in a scrolling column with the
 // chosen one marked, filling the group's box.
 //
 // Only the half of the list the appearance switch is showing — see
@@ -137,7 +137,7 @@ func (b *styleChooser) reveal(dark bool, row int) {
 //
 // The column draws no plate of its own and no heading. The group's box is the
 // plate and the group's title row is the heading.
-func StylePanel(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, sel *styleChooser) layout.Widget {
+func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, sel *styleChooser) layout.Widget {
 	if sel == nil {
 		sel = newStyleChooser()
 	}

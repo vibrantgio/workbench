@@ -75,9 +75,9 @@ type Palette struct {
 	// settings dialog alike. It is the window's own plane, which is what the
 	// platform fills a floating surface with; its shadow is the caller's.
 	Toast color.NRGBA
-	// Panel is the platform's grouped box: the fill a small inset region
+	// Pane is the platform's grouped box: the fill a small inset region
 	// takes inside a dialog. It carries no hairline and no shadow.
-	Panel color.NRGBA
+	Pane color.NRGBA
 	// FloatingText and FloatingHeading are the two text strengths over a
 	// floating surface, flattened onto the plane it fills with — which is not
 	// the chrome Row and Heading are flattened onto.
@@ -115,7 +115,7 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		ChipText:        vgcolor.Flatten(c.Label, c.PushButtonFill),
 		ModalChip:       c.PushButtonFill,
 		Toast:           floating,
-		Panel:           c.CardFill,
+		Pane:           c.CardFill,
 		FloatingText:    vgcolor.Flatten(c.Label, floating),
 		FloatingHeading: vgcolor.Flatten(c.SecondaryLabel, floating),
 
@@ -208,18 +208,18 @@ const (
 	UndoBarRadius    unit.Dp = 6
 	UndoBarMargin    unit.Dp = 24
 
-	// SidebarWidth is what the conversation panel takes while it stands. It
-	// is a width and not a ratio: the panel is an object set into the window
+	// SidebarWidth is what the conversation pane takes while it stands. It
+	// is a width and not a ratio: the pane is an object set into the window
 	// rather than one half of a split, so it does not grow with the window
 	// and the transcript takes everything it does not.
 	//
 	// The number is patterns/sidebar's ExpandedWidth and not this
-	// application's: the panel holds that pattern's rows, so its column is
+	// application's: the pane holds that pattern's rows, so its column is
 	// that pattern's column, and the reading has one owner.
 	SidebarWidth = sidebar.ExpandedWidth
 
 	// PaneMargin is the air the chrome row and the input bar keep off the
-	// window's edges, the inset the rail's panel stands off the window's
+	// window's edges, the inset the rail's pane stands off the window's
 	// leading, top and bottom edges, and the air its own top strip keeps at
 	// its trailing end. The number is the pane pattern's own margin.
 	PaneMargin = pane.MarginDp
@@ -293,7 +293,7 @@ const (
 	SettingsWellGap    unit.Dp = 12
 	SettingsCaptionRow unit.Dp = 22
 	SettingsIconBtn    unit.Dp = 18
-	SettingsPanelInset unit.Dp = 6
+	SettingsPaneInset unit.Dp = 6
 	// SelectRowHeight is the settings dialog's default-model row: the height
 	// the closed picker trigger standing in it draws at, and no more, so the
 	// label beside it centres on the control and not on slack under it.

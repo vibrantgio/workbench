@@ -26,7 +26,7 @@ type outlineEntry struct {
 }
 
 // noteOutline lists the note's top-level headings in document order. A
-// note with no headings yields nothing, which is a state the panel shows
+// note with no headings yields nothing, which is a state the pane shows
 // rather than a case it hides: an outline that vanished would take the
 // backlinks with it up the column.
 //

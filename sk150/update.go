@@ -88,7 +88,7 @@ func Update(m Model, message mvu.Message) (Model, mvu.Command) {
 		m.Online = true
 		m.Status = statusOnline(m)
 		m.PollCount++
-		// Slow refresh of what the panel can change behind the app's back:
+		// Slow refresh of what the pane can change behind the app's back:
 		// the active profile and device block every ~4 s, all presets
 		// every ~16 s (ten reads — kept rare to leave the bus to polling).
 		cmds := []mvu.Command{pollCmd(pollInterval)}

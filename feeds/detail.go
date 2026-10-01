@@ -142,7 +142,7 @@ func drawDetail(
 	return layout.Dimensions{Size: size}
 }
 
-// The tab panel needs no fill of its own: patterns/tabs draws its panel on
+// The tab pane needs no fill of its own: patterns/tabs draws its pane on
 // ControlBackground and its strip on the chrome material, which is the pair
 // this pane already stands on.
 

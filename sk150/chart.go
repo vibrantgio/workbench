@@ -1,9 +1,9 @@
 package main
 
 // The monitor's history strip: output voltage and output current over time, as two
-// stacked panels sharing the time axis — deliberately NOT one dual-axis
+// stacked panes sharing the time axis — deliberately NOT one dual-axis
 // chart (two y-scales on one plot is the classic chart defect; two measures
-// of different scale get two panels). One series per panel, so the panel
+// of different scale get two panes). One series per pane, so the pane
 // title carries identity and no legend is needed; the series colour is the
 // same theme-derived colour the monitor readout wears, axis text stays in
 // text tokens, and the grid is a recessive hairline.
@@ -27,16 +27,16 @@ import (
 // hoverState is the crosshair's cross-frame state. It lives at subscription
 // scope in ContentLayer and is read and written only during layout (the one
 // frame goroutine), llms.txt rule 2. It doubles as the pointer event tag,
-// shared by both panels so the crosshair tracks in sync.
+// shared by both panes so the crosshair tracks in sync.
 type hoverState struct {
 	active bool
 	frac   float64 // cursor position as a fraction of the plot width
 }
 
-// chartPanels is the monitor's history strip under the readout block:
-// the two stacked panels sharing the height they are given, or a waiting
+// chartPanes is the monitor's history strip under the readout block:
+// the two stacked panes sharing the height they are given, or a waiting
 // line until there is a history to draw.
-func chartPanels(t themed, m Model, hov *hoverState) layout.Widget {
+func chartPanes(t themed, m Model, hov *hoverState) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if len(m.History) < 2 {
 			return textLine(t.typ, t.typ.Body, t.palette.SecondaryLabel, "collecting samples…")(gtx)
@@ -44,21 +44,21 @@ func chartPanels(t themed, m Model, hov *hoverState) layout.Widget {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, "Output voltage (V)")),
 			vgap(6),
-			layout.Flexed(1, chartPanel(t, m.History,
+			layout.Flexed(1, chartPane(t, m.History,
 				func(s Sample) float64 { return s.V }, t.palette.VoltSeries, "%.2f V", 0.05, hov)),
 			vgap(12),
 			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, "Output current (A)")),
 			vgap(6),
-			layout.Flexed(1, chartPanel(t, m.History,
+			layout.Flexed(1, chartPane(t, m.History,
 				func(s Sample) float64 { return s.I }, t.palette.AmpSeries, "%.3f A", 0.02, hov)),
 		)
 	}
 }
 
-// chartPanel draws one series over the shared time window: the platform's
+// chartPane draws one series over the shared time window: the platform's
 // box fill, three recessive gridlines, the 2 dp series stroke, min/max
 // labels at the secondary strength, and the synced hover crosshair.
-func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
+func chartPane(t themed, samples []Sample, sel func(Sample) float64,
 	foreground color.NRGBA, valFmt string, minSpan float64, hov *hoverState) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		p, typ := t.palette, t.typ
@@ -92,10 +92,10 @@ func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 			}
 		}
 
-		// The panel's fill. The platform's box carries no hairline and no
+		// The pane's fill. The platform's box carries no hairline and no
 		// shadow: its edge is where the plane gives way to the fill.
 		rr := clip.UniformRRect(image.Rectangle{Max: size}, gtx.Dp(6))
-		paint.FillShape(gtx.Ops, p.ChartPanel, rr.Op(gtx.Ops))
+		paint.FillShape(gtx.Ops, p.ChartPane, rr.Op(gtx.Ops))
 
 		// The pointer area for the crosshair.
 		area := clip.Rect(image.Rectangle{Max: size}).Push(gtx.Ops)
@@ -112,7 +112,7 @@ func chartPanel(t themed, samples []Sample, sel func(Sample) float64,
 		// Scales. X is time from the oldest to the newest sample; Y is the
 		// padded data range, floored at zero (both measures are physical
 		// non-negatives) and held open to minSpan so a flat line sits
-		// mid-panel instead of hugging an edge.
+		// mid-pane instead of hugging an edge.
 		lo, hi := rangeOf(samples, sel, minSpan)
 		t0 := samples[0].At
 		span := samples[len(samples)-1].At.Sub(t0)
@@ -224,7 +224,7 @@ func absDur(d time.Duration) time.Duration {
 	return d
 }
 
-// fmtAge renders a duration the way an instrument panel would: 42s, 3m07s,
+// fmtAge renders a duration the way an instrument pane would: 42s, 3m07s,
 // 1h04m.
 func fmtAge(d time.Duration) string {
 	d = d.Round(time.Second)

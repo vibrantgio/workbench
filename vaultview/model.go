@@ -106,7 +106,7 @@ type Model struct {
 	// runs.
 	SidebarHidden bool
 
-	PropsOpen     bool                // the properties panel is expanded
+	PropsOpen     bool                // the properties pane is expanded
 	Notifications notifications.Queue // transient notifications, oldest first
 
 	// Chooser state: an ambiguous wikilink's raw body and the candidate
@@ -167,7 +167,7 @@ type BrowseTo struct{ Dir string }
 // default and the scan command starts.
 type OpenVault struct{ Path string }
 
-// ToggleProperties expands or collapses the properties panel.
+// ToggleProperties expands or collapses the properties pane.
 type ToggleProperties struct{}
 
 // ToggleFold opens or closes one folder row of the left tree.
@@ -424,13 +424,13 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		if model.Vault != "" {
 			dir = model.Vault
 		}
-		// The platform's own panel where the platform has one, so the reader
-		// gets the chooser every other application on this system opens. The
-		// window is left exactly as it stands while the panel is up: the
-		// panel is the platform's window, not a screen of this one, and a
+		// The platform's own open panel where the platform has one, so the
+		// reader gets the chooser every other application on this system
+		// opens. The window is left exactly as it stands while the open panel
+		// is up: it is the platform's window, not a screen of this one, and a
 		// cancel has nothing to undo.
-		if platformPanel.available() {
-			return model, choosePanelCmd(dir)
+		if platformOpenPanel.available() {
+			return model, chooseOpenPanelCmd(dir)
 		}
 		model.PickerOpen = true
 		model.PickerDir = dir
@@ -678,12 +678,12 @@ func listDirCmd(dir string) mvu.Command {
 	})
 }
 
-// choosePanelCmd presents the platform's own folder chooser off the update
-// and posts what it answers: OpenVault for a path, and no message at all
-// for a cancel, which leaves the window as the panel found it.
-func choosePanelCmd(dir string) mvu.Command {
+// chooseOpenPanelCmd presents the platform's own folder chooser off the
+// update and posts what it answers: OpenVault for a path, and no message at
+// all for a cancel, which leaves the window as the open panel found it.
+func chooseOpenPanelCmd(dir string) mvu.Command {
 	return mvu.Do(func() (mvu.Message, error) {
-		if path, ok := platformPanel.choose(dir); ok {
+		if path, ok := platformOpenPanel.choose(dir); ok {
 			return OpenVault{Path: path}, nil
 		}
 		return nil, nil

@@ -126,7 +126,7 @@ func TestAddFeedModalGolden(t *testing.T) {
 	}
 }
 
-// sidebarRegion is a window over the rail's panel (the leading
+// sidebarRegion is a window over the rail's pane (the leading
 // feedsPaneColumnDp at PxPerDp 1), below the band, where feed entries render.
 var sidebarRegion = image.Rect(0, 100, int(feedsPaneColumnDp), shellFrameH-20)
 

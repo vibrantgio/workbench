@@ -1,7 +1,7 @@
 // shortcut.go holds the app's keyboard accelerators — the INVOCATION half of
 // the dialog grammar.
 //
-// A modal cannot own how you arrived. patterns/modal owns dismissal (a panel's
+// A modal cannot own how you arrived. patterns/modal owns dismissal (a pane's
 // ghost X, Escape, the backdrop; a decision's Escape-to-Cancel and
 // Return-to-default) because those are affordances the dialog itself draws or
 // traps while it is on screen. Arrival is app chrome: the accelerator has to
@@ -26,7 +26,7 @@ import (
 
 // prefsAccelerator is the settings accelerator every desktop app on both
 // platforms binds: ⌘, on macOS, Ctrl-, elsewhere. It opens the Preferences
-// panel and nothing else — closing it is the panel's job.
+// pane and nothing else — closing it is the pane's job.
 const prefsAccelerator = ","
 
 // shortcutArea returns a layout.Widget that invokes cb on every press of name

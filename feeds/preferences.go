@@ -1,9 +1,9 @@
-// preferences.go composes the Preferences PANEL — the panel half of the
+// preferences.go composes the Preferences PANE — the pane half of the
 // dialog grammar, and the other end of the accelerator shortcut.go binds.
 //
-// It is a panel because of what its contents ARE, not because of a flag:
+// It is a pane because of what its contents ARE, not because of a flag:
 // rows-per-page and unread-only apply the instant they change, the table
-// repaginates underneath the open panel, and there is consequently nothing to
+// repaginates underneath the open pane, and there is consequently nothing to
 // confirm and nothing to cancel. Leaving costs nothing, so every cheap exit is
 // offered — and all three of them (the ghost X, Escape, a backdrop click) come
 // from patterns/modal for free, because Props.Decision is nil. That single
@@ -12,7 +12,7 @@
 //
 // The body puts components/button's emphasis axis to work as a state display:
 // the selected page size is TONAL and the rest are GHOST. Nothing here is
-// Filled — a panel of preferences is about no one action.
+// Filled — a pane of preferences is about no one action.
 package main
 
 import (
@@ -35,7 +35,7 @@ import (
 	"github.com/vibrantgio/theme/theme"
 )
 
-// Geometry of the panel body's two preference rows. The row is taller than the
+// Geometry of the pane body's two preference rows. The row is taller than the
 // control it carries, so a ghost control — which draws no fill at rest — has
 // clear air above and below it rather than sitting against the next row.
 const (
@@ -46,10 +46,10 @@ const (
 	prefsToggleBtnW = 72
 )
 
-// preferencesPanel builds the Preferences panel stream. Open state and both
-// preferences are model-derived, so the panel is pure view over them and the
+// preferencesPane builds the Preferences pane stream. Open state and both
+// preferences are model-derived, so the pane is pure view over them and the
 // reducer owns every transition — including the one the accelerator lands.
-func preferencesPanel(
+func preferencesPane(
 	th rx.Observable[theme.Theme],
 	prefsOpenObs rx.Observable[bool],
 	rowsPerPageObs rx.Observable[int],
@@ -131,10 +131,10 @@ func preferencesPanel(
 		Open:  prefsOpenObs,
 		Title: "Preferences",
 		Body:  body,
-		// This window's modal stack: the panel and the Add-feed modal share
+		// This window's modal stack: the pane and the Add-feed modal share
 		// it, so whichever is opened last is the one that takes input.
 		Arbiter: modalArb,
-		// Props.Decision stays nil. That is the panel purpose, and with it come
+		// Props.Decision stays nil. That is the pane purpose, and with it come
 		// the ghost close X, the dismissing backdrop, and Escape — none of
 		// which is configured here because none of them is this app's choice
 		// to make once it has said what kind of dialog this is.
@@ -143,7 +143,7 @@ func preferencesPanel(
 		},
 		// The preference controls live in the Body, not the (absent) footer,
 		// so they join the Tab cycle through DynamicFocusTags. The close X
-		// still leads that cycle; the panel OPENS with the keyboard on the
+		// still leads that cycle; the pane OPENS with the keyboard on the
 		// first of these, the body's own first control, as a dialog does.
 		DynamicFocusTags: func() []event.Tag {
 			tags := make([]event.Tag, 0, len(sizeClicks)+1)

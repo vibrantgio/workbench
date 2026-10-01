@@ -50,7 +50,7 @@ The window is a sidebar down the leading edge and two columns beside it.
   one, and find in the note on screen.
 - **Middle — the note.** Back and forward, then the trail — vault name,
   folders, note title. The frontmatter is lifted out of the prose into a
-  collapsible **Properties** panel; what a plain line-split can read
+  collapsible **Properties** pane; what a plain line-split can read
   shows as key and value, anything it cannot is shown raw. Then the note
   itself: headings, lists, tables, quotes, and code blocks with syntax
   highlighting.

@@ -162,7 +162,7 @@ func feedsShellLayer(
 	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
 	shareObs := sharePopover(th, shareOpenObs, popArb)
 	modalObs := addFeedModal(th, addFeedOpenObs, addFeedErrorObs, modalArb)
-	prefsObs := preferencesPanel(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs, modalArb)
+	prefsObs := preferencesPane(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs, modalArb)
 	notesColumnObs := notifications.Column(th, notifications.Props{Position: notifications.TopRight, Notifications: notesObs})
 
 	// The settings accelerator — ⌘, on macOS, Ctrl-, elsewhere. It is app
@@ -232,7 +232,7 @@ func feedsShellLayer(
 		},
 	)
 
-	// Overlay composition: the Add-feed modal, the Preferences panel and the
+	// Overlay composition: the Add-feed modal, the Preferences pane and the
 	// toast stack draw OVER the whole window. They are folded onto the shell
 	// stream and drawn after the shell inside the returned layout.Widget, which
 	// reports the shell's dims, rather than becoming a third buildLayers
@@ -459,7 +459,7 @@ func addFeedModal(
 	var urlCell atomic.Value
 	urlCell.Store("")
 
-	// fieldTag holds the field's own focus tag, which the panel declares to
+	// fieldTag holds the field's own focus tag, which the pane declares to
 	// the modal: it is the body's first focusable, so it is what the dialog
 	// opens with the keyboard on.
 	var fieldTag atomic.Value
@@ -572,7 +572,7 @@ func addFeedModal(
 		},
 		// The body's own focusables, in the order it lays them out: the URL
 		// field first, then the submit button under it. The field being first
-		// is what the panel opens with the keyboard on, so a reader can type
+		// is what the pane opens with the keyboard on, so a reader can type
 		// a feed's address the moment the dialog is up.
 		DynamicFocusTags: func() []event.Tag {
 			var tags []event.Tag
@@ -614,22 +614,22 @@ func drawLabel(
 		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
 }
 
-// drawFeedsFrame composes the window: the rail's panel down the leading edge,
+// drawFeedsFrame composes the window: the rail's pane down the leading edge,
 // and beside it the content column — the band across its top and the
 // articles/detail split under it.
 //
 // THE RAIL IS SET INTO THE WINDOW, NOT A HALF OF IT. It is the vocabulary's
-// PANE: an inset rounded panel one margin in from the window's leading, top
+// PANE: an inset rounded pane one margin in from the window's leading, top
 // and bottom edges, flush against the content on the fourth side, bounded by
 // its own rim and the shadow it casts and by no seam. None of that is drawn
 // here — the composition is patterns/shell's [shell.PaneFrame], which is the
-// one every window with a pane shares: the panel and its shadow,
+// one every window with a pane shares: the pane and its shadow,
 // the fills standing either side of it, and the band's own depth.
 //
 // What is left to this window is the three slots and the two fills it names.
 // The content column stands on the platform's ControlBackground; the band
 // standing over it is the navbar, which paints the chrome material across the
-// whole column, so THAT is what stands behind the panel's top corner while
+// whole column, so THAT is what stands behind the pane's top corner while
 // the column's own fill stands behind the bottom one. The window's plane is
 // the backdrop layer's and is not named here, which is why the frame paints
 // none.

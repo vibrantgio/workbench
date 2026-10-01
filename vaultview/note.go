@@ -1,8 +1,8 @@
 // note.go is the vault screen's note column — the main slot of the
 // composition frame.go builds, with the folder tree leading and the
-// backlinks panel trailing. The column renders the current note: a pinned
+// backlinks pane trailing. The column renders the current note: a pinned
 // head — the trail of the places the note stands in, and a collapsible
-// properties panel fed by the frontmatter split — parted from the scrolled
+// properties pane fed by the frontmatter split — parted from the scrolled
 // document below it by a seam,
 // and the parsed body as a markdown Document. Wikilink clicks resolve
 // against the index and navigate; a task checkbox writes its marker in
@@ -120,14 +120,14 @@ const (
 	// the document's room, not a small window from opening.
 	noteMinWidthDp = noteMinMeasureDp + 2*noteInsetDp
 
-	// The properties panel's rhythm: the gap between one metadata row and
+	// The properties pane's rhythm: the gap between one metadata row and
 	// the next — and between the disclosure head and the box under it — the
 	// pad inside that box, and the gap between the key column and the
 	// values.
 	//
 	// The row gap is measured against the reading app this viewer is judged
 	// beside, which sets its metadata on a twenty-one px line box and spends
-	// eleven px between rows; this panel sets on a twenty px box, already
+	// eleven px between rows; this pane sets on a twenty px box, already
 	// tighter than the thing being copied. Four is one stop down the spacing
 	// scale — six is not a stop on the scale at all — and lands the pitch at
 	// twenty-four against the reference's thirty-two.
@@ -137,8 +137,8 @@ const (
 	// is the pad the note's code fences take, which is a screenful of code
 	// and not three lines of key and value. Eight is one stop under it.
 	//
-	// Measured off the rendered page, this rhythm holds a three-field panel
-	// to eighty-four px — fourteen less than the same panel one stop up the
+	// Measured off the rendered page, this rhythm holds a three-field pane
+	// to eighty-four px — fourteen less than the same pane one stop up the
 	// scale, which stands ninety-six and pushes the note's title from row 189
 	// of a seven hundred px viewport down to row 203, twenty-seven per cent
 	// of the window against twenty-nine.
@@ -146,12 +146,12 @@ const (
 	propPadDp    = 8
 	propKeyGapDp = 16
 
-	// propEdgeDp is the panel's hairline. The panel is a group: it takes the
+	// propEdgeDp is the pane's hairline. The pane is a group: it takes the
 	// page for its own fill and draws the platform's separator at its edge,
 	// which is the whole of the channel it has.
 	propEdgeDp = 1
 
-	// propHeadWeight is what tells the panel's disclosure head from the
+	// propHeadWeight is what tells the pane's disclosure head from the
 	// field keys under it.
 	//
 	// At the keys' own step, size and weight the head reads as one more
@@ -165,7 +165,7 @@ const (
 	// label helper this window draws with sets no tracking.
 	propHeadWeight = tokens.WeightBold
 
-	// propMarkDp sizes the properties panel's disclosure: the size a mark
+	// propMarkDp sizes the properties pane's disclosure: the size a mark
 	// takes next to a line of text. A chevron is a diagonal spanning the
 	// whole of its square, and at the size a mark takes as a control in its
 	// own right its stroke stands half again over the caps of the label it
@@ -420,7 +420,7 @@ func (r *reader) process(gtx layout.Context, doc *markdown.Document) {
 }
 
 // vaultLayer composes the vault screen: the window frame with the folder
-// tree in the leading column, the backlinks panel in the trailing one,
+// tree in the leading column, the backlinks pane in the trailing one,
 // and the note between them. The note column reads the model and token
 // snapshots at frame time; repaints on model change are driven by the
 // routed layer's re-emission.
@@ -515,7 +515,7 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 }
 
 // layoutNotePage lays out the main slot: the pinned head — the breadcrumb
-// trail and the properties panel — the seam under it, and the document, or
+// trail and the properties pane — the seam under it, and the document, or
 // the scanning/error/empty message standing in for them.
 //
 // The window's navigation and the document's own name are NOT here: both
@@ -535,7 +535,7 @@ func layoutNotePage(
 ) layout.Dimensions {
 	note := m.CurrentNote()
 	// The reading column lies on the platform's text background, the fill a
-	// document is read on. The properties panel and the code fills below are
+	// document is read on. The properties pane and the code fills below are
 	// read against this surface rather than against the chrome the rail and
 	// the trailing column wear.
 	paint.FillShape(gtx.Ops, tok.col.TextBackground, clip.Rect{Max: gtx.Constraints.Max}.Op())
@@ -547,7 +547,7 @@ func layoutNotePage(
 	// The margins are not lost — the document keeps its own reading measure
 	// through the style's gutter, and comes to rest a foot margin above the
 	// bottom edge through its end space. Everything that is not the document
-	// — the header row, the properties panel, the standing messages — puts
+	// — the header row, the properties pane, the standing messages — puts
 	// the trailing margin back itself.
 	inset := layout.Inset{Top: noteInsetDp, Left: noteInsetDp}
 	trailing := func(w layout.Widget) layout.Widget {
@@ -659,7 +659,7 @@ func layoutNotePage(
 		}
 		// The page puts no gap above the document: its viewport begins on
 		// the seam under the pinned head — the breadcrumb, or the properties
-		// panel when the note carries one — so a line scrolling out of the
+		// pane when the note carries one — so a line scrolling out of the
 		// top is cut by that seam and disappears under it. The reading gap is
 		// not lost, it is spent inside the document as its start space, where
 		// it is the note's resting position rather than a margin held back on
@@ -879,7 +879,7 @@ func revealFolder(dir string) func(gtx layout.Context) {
 	}
 }
 
-// layoutProperties renders the collapsible properties panel: a header
+// layoutProperties renders the collapsible properties pane: a header
 // row toggling the fold, then either the key/value pairs the trivial
 // split could read, or the raw block in a code style.
 func layoutProperties(
@@ -892,7 +892,7 @@ func layoutProperties(
 	if click.Clicked(gtx) {
 		mvu.MessageOp{Message: ToggleProperties{}}.Add(gtx.Ops)
 	}
-	// The head is the panel's control: the same faint step the keys below it
+	// The head is the pane's control: the same faint step the keys below it
 	// take, at the weight that says a row can be worked rather than read.
 	foreground := vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground)
 	headStyle := tok.typ.TitleSmall
@@ -924,7 +924,7 @@ func layoutProperties(
 	)
 }
 
-// propertiesBody is the expanded panel: pairs when the trivial split read
+// propertiesBody is the expanded pane: pairs when the trivial split read
 // them, the raw block in code style otherwise. Both stand on the note's own
 // surface — the base of the surface story, the same level the column
 // itself is laid on — inside a rounded hairline.
@@ -933,22 +933,22 @@ func layoutProperties(
 // carries rather than against the scale in the abstract. Neither fill the
 // scale offers can be spent here: measured off a page at 246, the
 // separator's tint sits at 212 and the next fill up at 232, while both code
-// blocks under the panel sit at 239–245 — so either would make the metadata
+// blocks under the pane sit at 239–245 — so either would make the metadata
 // darker than the code and the first thing the eye lands on, ahead of the
 // note's own title, and 232 is the exact fill the window's rail and aside
 // wear, which reads as a slab of chrome dropped onto the page. The dark
 // scheme measures the same shape: page 24, code 30, the two candidate
 // fills 46 and 34.
 //
-// So the panel takes no fill of its own and wears the page's existing idiom
+// So the pane takes no fill of its own and wears the page's existing idiom
 // for a bounded block of low prominence — as the code blocks do, a
 // hairline around a fill one step off the page. The outline is the whole
-// of the panel's budget: the hair takes the step past the separator's, for
+// of the pane's budget: the hair takes the step past the separator's, for
 // the measurement in propEdgeStep, since a line that dissolves is not an
 // outline. The corners are the code blocks', so the page has one shape for
 // a bounded box rather than two.
 func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter) layout.Dimensions {
-	// The panel names its own fill rather than inheriting whatever it is
+	// The pane names its own fill rather than inheriting whatever it is
 	// dropped on, so the hairline always has the surface it was judged
 	// against inside it.
 	fill := tok.col.TextBackground
@@ -969,7 +969,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			// them are the order the reader sees.
 			//
 			// A weight difference outvotes the colour: with the key in the
-			// heavier label role, measured off the rendered panel, the
+			// heavier label role, measured off the rendered pane, the
 			// value's darkest pixels reach 78 against the key's 92 on a 246
 			// page — the twenty-six levels the two steps are apart collapse
 			// to fourteen — and in the dark scheme the key's brightest
@@ -981,7 +981,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			keyForeground := vgcolor.Flatten(tok.col.SecondaryLabel, fill)
 			// The key column is as wide as the longest key plus a fixed
 			// gap: each key is measured into a discarded recording, and
-			// the widest of them wins, capped at half the panel so a runaway
+			// the widest of them wins, capped at half the pane so a runaway
 			// key cannot squeeze the values out.
 			keyW := 0
 			mg := gtx
@@ -1028,10 +1028,10 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 	// The hairline is drawn as the whole box in the edge's colour with the
 	// fill inset over it, rather than as a stroke on the path: a stroke is
 	// centred on its path and would spend half its width outside the box the
-	// panel was measured at, and at one hair every pixel of it would be a
+	// pane was measured at, and at one hair every pixel of it would be a
 	// blend of the two colours instead of either. Inset the same way the
 	// page's other bounded blocks are drawn, the line is the colour it says
-	// it is and the panel occupies exactly the space it asked for.
+	// it is and the pane occupies exactly the space it asked for.
 	macro := op.Record(gtx.Ops)
 	dims := rec(gtx)
 	call := macro.Stop()

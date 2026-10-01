@@ -52,11 +52,11 @@ type Model struct {
 	addFeedOpen     bool    // "Add feed" modal visibility
 	addFeedError    bool    // empty-URL submit raised the modal alert
 
-	// The Preferences PANEL (⌘,/Ctrl-,) and the two reading preferences it
+	// The Preferences PANE (⌘,/Ctrl-,) and the two reading preferences it
 	// edits. Both apply the moment they change — nothing here is a draft and
 	// there is nothing to confirm, which is why the surface that edits them is
-	// a panel and not a decision dialog.
-	prefsOpen   bool // "Preferences" panel visibility
+	// a pane and not a decision dialog.
+	prefsOpen   bool // "Preferences" pane visibility
 	rowsPerPage int  // articles table page size
 	unreadOnly  bool // restrict the table to unread articles
 
@@ -161,14 +161,14 @@ type SubmitFeed struct{ URL string }
 // table resets to page 1, since the old slice no longer applies).
 type ConfirmDelete struct{ Feed FeedID }
 
-// OpenPreferences shows the Preferences panel. Landed by the ⌘,/Ctrl-,
+// OpenPreferences shows the Preferences pane. Landed by the ⌘,/Ctrl-,
 // accelerator the app chrome binds — arrival is the app's business, not the
 // modal's. Idempotent when already open.
 type OpenPreferences struct{}
 
-// ClosePreferences hides the Preferences panel. Landed by the panel's ghost
+// ClosePreferences hides the Preferences pane. Landed by the pane's ghost
 // close X, an Escape press, and a backdrop click — all three of which the
-// modal routes to Props.OnClose because the panel purpose says every cheap
+// modal routes to Props.OnClose because the pane purpose says every cheap
 // exit is offered. Idempotent when already closed.
 type ClosePreferences struct{}
 
@@ -261,7 +261,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.prefsOpen = false
 	case SetRowsPerPage:
 		// Applied live, with no Save: the table repaginates on the next
-		// frame, underneath the still-open panel.
+		// frame, underneath the still-open pane.
 		if m.Rows > 0 {
 			model.rowsPerPage = m.Rows
 			model.currentPage = 1

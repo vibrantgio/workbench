@@ -1,4 +1,4 @@
-// chooser.go is the ambiguous-link chooser: a patterns/modal panel that
+// chooser.go is the ambiguous-link chooser: a patterns/modal pane that
 // opens when a wikilink's file part matches more than one note. The
 // resolver already refused with the candidate list; this surface only
 // asks which one was meant. Choosing navigates there (carrying the

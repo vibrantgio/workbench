@@ -26,7 +26,7 @@ type Model struct {
 
 	// PollCount counts successful polls; the slower re-reads of the
 	// profile, device settings and presets hang off it so edits made on
-	// the unit's own panel show up in the app.
+	// the unit's own pane show up in the app.
 	PollCount int
 
 	// Demo is true while the app talks to the simulated device instead of

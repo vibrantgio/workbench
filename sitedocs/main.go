@@ -307,8 +307,8 @@ func tabbedShellLayer(
 var contentGap = unit.Dp(tokens.Spacing.S4)
 
 // contentSlot is the tab shell's content slot: a tab's content, pushed
-// down by contentGap. The gap exposes the panel's own fill — the platform's
-// content plane, which is what patterns/tabs fills its panel with — so the
+// down by contentGap. The gap exposes the pane's own fill — the platform's
+// content surface, which is what patterns/tabs fills its pane with — so the
 // active tab's underline has plain fill on both sides and reads as a line
 // rather than as the top edge of whatever begins below it.
 //

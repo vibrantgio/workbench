@@ -446,21 +446,21 @@ func TestTheKeyboardLandsOnTheRestingPosition(t *testing.T) {
 	}
 }
 
-// TestThePropertiesSlabStandsOnThePage holds the panel to the page it is read
-// on: the note's own surface for a fill, inside one hair of the panel's own
+// TestThePropertiesSlabStandsOnThePage holds the pane to the page it is read
+// on: the note's own surface for a fill, inside one hair of the pane's own
 // neutral step, which is the treatment the page's other bounded blocks wear.
 //
-// The panel is found in the pixels rather than asserted at. Its top edge is
+// The pane is found in the pixels rather than asserted at. Its top edge is
 // the first row down the page carrying the hairline's tint across most of the
 // column's measure — the disclosure row above it draws no fills, so nothing
 // else can be first — and its foot is the next such row. What is asserted is
-// that the two are far enough apart to be a panel, and that between them the
+// that the two are far enough apart to be a pane, and that between them the
 // page is bare: no band of any other fill, which is what a slab would be.
 func TestThePropertiesSlabStandsOnThePage(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
 	if !m.PropsOpen {
-		t.Fatal("the model under test folds its properties away; the panel has to be open to be measured")
+		t.Fatal("the model under test folds its properties away; the pane has to be open to be measured")
 	}
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -494,19 +494,19 @@ func TestThePropertiesSlabStandsOnThePage(t *testing.T) {
 				}
 			}
 			if len(edges) < 2 {
-				t.Fatalf("the panel drew %d hairline edges; a bounded block has a head and a foot", len(edges))
+				t.Fatalf("the pane drew %d hairline edges; a bounded block has a head and a foot", len(edges))
 			}
 			top, bot := edges[0], edges[1]
 			if h := bot - top; h < 40 {
-				t.Errorf("the panel's edges stand %d px apart; it holds several rows of pairs and cannot be that thin", h)
+				t.Errorf("the pane's edges stand %d px apart; it holds several rows of pairs and cannot be that thin", h)
 			}
 			// Nothing to check here for a band of the chrome material: on
 			// this platform that chrome material IS the content's white in the
-			// light appearance, so a band of it inside the panel is a band
-			// of the page. What the panel stands on is read below instead.
+			// light appearance, so a band of it inside the pane is a band
+			// of the page. What the pane stands on is read below instead.
 			// The rows between the pairs carry nothing across the measure, so
-			// on the page's own fill most of the panel's height is a band of it.
-			// A filled panel would have none.
+			// on the page's own fill most of the pane's height is a band of it.
+			// A filled pane would have none.
 			page := 0
 			for y := top + 2; y < bot-1; y++ {
 				if banded(y, tc.colors.TextBackground) {
@@ -514,7 +514,7 @@ func TestThePropertiesSlabStandsOnThePage(t *testing.T) {
 				}
 			}
 			if page < (bot-top)/4 {
-				t.Errorf("only %d of the panel's %d rows are the note's page; the panel is filled with something else", page, bot-top)
+				t.Errorf("only %d of the pane's %d rows are the note's page; the pane is filled with something else", page, bot-top)
 			}
 		})
 	}
@@ -546,7 +546,7 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 	size := image.Pt(1600, 900)
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// The properties panel is a row of the page rather than a
+			// The properties pane is a row of the page rather than a
 			// block of the document, so it spans the column whatever the
 			// document does; closed, the widest thing painted in the
 			// region is the document itself.
@@ -571,9 +571,9 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 			// the block that reaches the measure — here the fenced code
 			// block, which fills its whole width.
 			//
-			// The scan starts past the rail panel's shadow: the ramp the
-			// panel casts falls on the note's surface for its whole reach,
-			// and it is the panel's drawing and not the document's. The
+			// The scan starts past the rail pane's shadow: the ramp the
+			// pane casts falls on the note's surface for its whole reach,
+			// and it is the pane's drawing and not the document's. The
 			// document's own first column stands at the note's leading
 			// inset, which is the same number, so nothing of the page is
 			// read out with it.

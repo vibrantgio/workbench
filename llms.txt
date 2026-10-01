@@ -540,13 +540,13 @@ alternatives.
 
 ### The dialog grammar
 
-A modal is a PANEL or a DECISION, and you say which by
+A modal is a PANE or a DECISION, and you say which by
 leaving patterns/modal's Props.Decision nil or setting it — never by setting
-affordances one at a time. A panel (nil) applies its changes live and gets a
+affordances one at a time. A pane (nil) applies its changes live and gets a
 ghost close X, a dismissing backdrop and Escape; a decision (non-nil) gets
 right-aligned footer Actions, Return on Decision.DefaultAction, Escape on
 Cancel, no X, and an inert backdrop. A footer with Save/Cancel means you have
-a decision, not a panel with HideClose (deprecated). Return never reaches a
+a decision, not a pane with HideClose (deprecated). Return never reaches a
 destructive default action: Decision derives the default from
 Confirm+Destructive, so there is no field with which to bind it wrongly. Hand
 the footer an action and not a width: it lays every action out in the
@@ -556,7 +556,7 @@ focusable, which the body declares through Props.DynamicFocusTags — the first
 tag it returns. THE ACCELERATOR IS NOT THE
 MODAL'S: ⌘,/Ctrl-, must be live when no dialog exists, so bind it in app
 chrome with Gio's key.ModShortcut (never a GOOS test) over a window-wide
-pointer.PassOp key area, landing a message that opens the panel. Reference
+pointer.PassOp key area, landing a message that opens the pane. Reference
 implementation: workbench/feeds shortcut.go + preferences.go.
 
 ### The theme carries the whole look
@@ -1025,8 +1025,8 @@ Animated glows. This was prototyped, measured and
 rejected (the evidence is in effects/glow's package doc): an animating
 blur-glow costs 0.2–0.8 ms of events-thread CPU plus an allocation and
 texture upload per glow per frame, against ~0.5 µs for glow's
-eight-gradient halo, and no cache holds while the radius or intensity
-animates. Use effects/glow for halos; a correct approximation beats a
+eight-gradient spread, and no cache holds while the radius or intensity
+animates. Use effects/glow for spreads; a correct approximation beats a
 slow exact answer.
 
 ## Typography
@@ -1506,7 +1506,7 @@ toasts; app.go's mirrorTokens is the reference theme-to-frame-time
 adapter (§Layers), and wiring_test.go shows how to test that a late
 subscriber reads the model in force. Also the reference implementation of the dialog grammar's
 invocation half: shortcut.go binds ⌘,/Ctrl-, and preferences.go is the
-settings PANEL it opens, whose two preferences apply live under it
+settings PANE it opens, whose two preferences apply live under it
 
 ### themer/
 
@@ -1569,7 +1569,7 @@ the Obsidian style. The genre no other app covers — open-ended user
 content rather than an owned data model — so it is where the navigation
 vocabulary lives: a disclosure file tree over components/list with a
 name-filter field, a back/forward history stack, breadcrumbs, and the
-patterns/shell aside slot finally in use as a backlinks panel. Notes
+patterns/shell aside slot finally in use as a backlinks pane. Notes
 render through vibrantgio/markdown with markdown/obsidian around it
 (frontmatter split off, wikilink spans, block anchors); resolving what a
 wikilink names is app-local and pure — one index built by an mvu.Do scan

@@ -409,12 +409,12 @@ func dumpFrame(t *testing.T, name string, w layout.Widget) *image.RGBA {
 }
 
 // TestTheRailIsSetIntoTheWindow reads the composed window down its leading
-// edge: the rail is a panel set one margin in from the window's leading, top
+// edge: the rail is a pane set one margin in from the window's leading, top
 // and bottom edges, with the window's own plane showing in the margin and
-// the panel's rim at the end of it. MEASURED,
+// the pane's rim at the end of it. MEASURED,
 // voicememos-multi-folder-2026-09-18.png and
 // finder-window-untinted-dark.png: eight pixels of the window's plane stand
-// between the window's bound and the panel on those three sides.
+// between the window's bound and the pane on those three sides.
 func TestTheRailIsSetIntoTheWindow(t *testing.T) {
 	saved := windowButtonsEnd
 	defer func() { windowButtonsEnd = saved }()
@@ -423,12 +423,12 @@ func TestTheRailIsSetIntoTheWindow(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := dumpFrame(t, "", frame(t, tc.c, demoModel()))
-			// The window's middle row, clear of the panel's rounded corners.
+			// The window's middle row, clear of the pane's rounded corners.
 			y := windowSize.Y / 2
 			fill := tc.c.SidebarMaterial
-			// The margin carries the window's own plane under the panel's
+			// The margin carries the window's own surface under the pane's
 			// shadow, so it is never lighter than the plane. It is not told
-			// from the panel's fill here: in the dark appearance the
+			// from the pane's fill here: in the dark appearance the
 			// platform's chrome material and its shadowed plane are two of
 			// 255 apart, which is why the boundary is the rim below.
 			plane := tc.c.WindowBackground
@@ -439,10 +439,10 @@ func TestTheRailIsSetIntoTheWindow(t *testing.T) {
 			}
 			rim := tc.c.PaneRim
 			if got := img.RGBAAt(PaneMargin, y); got.R != rim.R || got.G != rim.G || got.B != rim.B {
-				t.Fatalf("the panel's leading edge at (%d,%d) draws %v, want the platform's rim %v", PaneMargin, y, got, rim)
+				t.Fatalf("the pane's leading edge at (%d,%d) draws %v, want the platform's rim %v", PaneMargin, y, got, rim)
 			}
 			if got := img.RGBAAt(PaneMargin+1, y); got.R != fill.R || got.G != fill.G || got.B != fill.B {
-				t.Fatalf("one pixel inside the panel's leading rim draws %v, want the chrome material %v", got, fill)
+				t.Fatalf("one pixel inside the pane's leading rim draws %v, want the chrome material %v", got, fill)
 			}
 		})
 	}
@@ -450,17 +450,17 @@ func TestTheRailIsSetIntoTheWindow(t *testing.T) {
 
 // switchBand is the run of the window's top band the sidebar switch stands
 // in, at the band's full height and wide enough to hold both placements: the
-// panel's own marks at its top trailing corner while it stands, and the
+// pane's own marks at its top trailing corner while it stands, and the
 // chrome row's two controls after the window's buttons once it is away.
 var switchBand = image.Rect(0, 0, 320, 52)
 
 // TestTheSidebarSwitchGolden pins the sidebar switch itself: the control that
-// puts the panel away and the control that brings it back, drawn at the same
+// puts the pane away and the control that brings it back, drawn at the same
 // size on the same line, in both schemes.
 //
 // It is a crop of the whole-window frame rather than a render of the control
 // alone, because what is being pinned is each half where it stands — the
-// panel's half bare at the panel's top trailing corner, the row's half in
+// pane's half bare at the pane's top trailing corner, the row's half in
 // the platform's bordered toolbar control, and the air each leaves around
 // it. The whole-window frames above are compositions for a pair
 // of eyes and store nothing; this stores the one run of them a change to the

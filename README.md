@@ -66,7 +66,7 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   forms with alerts and toasts, popovers and tooltips.
 - **[`vaultview/`](./vaultview)** — a read-only viewer for a folder of
   Obsidian-style markdown notes: a disclosing file tree, frontmatter as a
-  properties panel, `[[wikilinks]]` that resolve and navigate, history
+  properties pane, `[[wikilinks]]` that resolve and navigate, history
   with back/forward, and a backlinks aside. Also the reference for
   document-centric navigation — a history stack, a nesting tree, and the
   shell's aside slot in use. See its [README](./vaultview/README.md).
@@ -97,7 +97,7 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   outline field: one full-screen page for provenance and authenticity
   tools, with macOS full-size-content chrome so the traffic lights sit
   on the page.
-- **[`sk150/`](./sk150)** — a control panel for the XY-SK150 buck-boost
+- **[`sk150/`](./sk150)** — a controller for the XY-SK150 buck-boost
   converter over Modbus RTU: a live monitor with charts, a presets tab
   over the device's memory slots, and a device tab for its settings; runs
   against a simulated device with `sk150 demo`.

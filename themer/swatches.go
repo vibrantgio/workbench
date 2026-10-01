@@ -20,7 +20,7 @@ import (
 // The swatch row's dimensions. The cards SHARE the row's width rather than
 // each taking a fixed slice of it, so a full row reaches the same trailing
 // edge as the box it stands in instead of stopping short of it. The bounds
-// keep a row of two from becoming two enormous panels and a row on a narrow
+// keep a row of two from becoming two enormous panes and a row on a narrow
 // window from becoming unreadable slivers.
 const (
 	CellMinW unit.Dp = 108 // narrower than this and the hex no longer fits

@@ -356,7 +356,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 				spacer(GroupAbove),
 
 				layout.Flexed(1, JudgingRow(
-					TitledBox(p, t.typ, StyleLabel, StyleHint, StylePanel(p, win, t.typ, m, dark, code.styles)),
+					TitledBox(p, t.typ, StyleLabel, StyleHint, StylePane(p, win, t.typ, m, dark, code.styles)),
 					TitledBox(p, t.typ, PreviewLabel, PreviewHint,
 						Preview(shown, t.typ, typo, shaper, code.doc, docStyle)))),
 				spacer(GroupAbove),
@@ -365,7 +365,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 			)
 		})
 
-		// The drag highlight rings the window itself, not a panel inside it,
+		// The drag highlight rings the window itself, not a pane inside it,
 		// because the window itself is what accepts the drop.
 		if m.DragOver {
 			strokeRRect(gtx, image.Rectangle{Max: size}, gtx.Dp(Radius+Pad/2), gtx.Dp(Ring+1), p.Accent)

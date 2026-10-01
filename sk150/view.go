@@ -428,7 +428,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 }
 
 // Page lays the whole window: the header band, the tab strip with its
-// content panel taking the remaining height, and the notice line under it.
+// content pane taking the remaining height, and the notice line under it.
 func Page(t themed, m Model, slots slotSet, tabsW layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.UniformInset(Padding).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -468,7 +468,7 @@ func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widge
 				vgap(10),
 				layout.Rigid(monitorBlock(t, m, slots)),
 				vgap(16),
-				layout.Flexed(1, chartPanels(t, m, hov)),
+				layout.Flexed(1, chartPanes(t, m, hov)),
 			)
 		})
 	}
@@ -666,7 +666,7 @@ func monitorFallback(t themed, m Model, slots slotSet) []layout.FlexChild {
 // monitorBlock is the live readout block: one column as wide as the stat
 // line (input, temperature, charge, energy, on-time), centered in the tab's
 // content. The active-preset badge and the Set button share the top line at
-// the column's edges, the three readouts stand on the device's own panel
+// the column's edges, the three readouts stand on the device's own pane
 // beneath it at their natural width, and the stat line closes the block.
 func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 	p, typ := t.palette, t.typ
@@ -714,7 +714,7 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 		}
 		col := min(statDims.Size.X, gtx.Constraints.Max.X)
 
-		readW := min(readoutWidth(gtx, t, r), col-2*gtx.Dp(readoutPanelInset))
+		readW := min(readoutWidth(gtx, t, r), col-2*gtx.Dp(readoutPaneInset))
 		centered := func(w layout.Widget) layout.Widget {
 			return func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -734,14 +734,14 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 				)
 			}),
 			vgap(8),
-			layout.Rigid(readoutPanel(t, 2,
+			layout.Rigid(readoutPane(t, 2,
 				centered(voltRow(t, r)),
 				centered(ampRow(t, r)),
 				centered(wattRow(t, r)),
 				// The boxes stand exactly where the two-line table they
 				// replace stood: the hairline that fenced the table off and
 				// the two margins around it collapse into this one gap,
-				// because a box's own rim does the fencing. The panel keeps
+				// because a box's own rim does the fencing. The pane keeps
 				// its height and nothing below it moves.
 				vspace(47),
 				setLimitBoxes(t, setLimitLines(m)),
@@ -749,7 +749,7 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 			vgap(14),
 			layout.Rigid(statW),
 		}
-		// Centered in the panel at the column's width.
+		// Centered in the pane at the column's width.
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.N.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = col
@@ -864,7 +864,7 @@ func presetTableRow(n int, p Preset) string {
 }
 
 // deviceRows is the Device tab: the device-wide settings as a two-column
-// grid in the panel's own names — input and charging on the left, panel
+// grid in the pane's own names — input and charging on the left, pane
 // behaviour on the right — each numeric cell with its own Set.
 func deviceRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 	p, typ := t.palette, t.typ
@@ -890,7 +890,7 @@ func deviceRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Title, p.Label, "Input and charging"))),
 				hgap(compactGap),
-				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Title, p.Label, "Panel"))),
+				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Title, p.Label, "Pane"))),
 			)
 		},
 		vspace(8),
@@ -900,7 +900,7 @@ func deviceRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 }
 
 // hints are the explanations behind every settings cell, keyed by the
-// control's slot key — what the panel's terse name stands for and what
+// control's slot key — what the pane's terse name stands for and what
 // the value does.
 var hints = map[string]string{
 	// Memory group fields.
@@ -918,14 +918,14 @@ var hints = map[string]string{
 	"sw.pini": "Power-on state — whether the output comes on by itself at power-up while this preset is active",
 	"sw.ini":  "Power-on state — whether the output comes on by itself at power-up",
 	// Device-wide settings.
-	"sw.mppt": "MPPT — solar tracking: holds the input at a share of the panel's open-circuit voltage",
+	"sw.mppt": "MPPT — solar tracking: holds the input at a share of the solar array's open-circuit voltage",
 	"mppt":    "MPPT set point — the share of open-circuit voltage to hold the input at",
 	"batcut":  "Battery-full cutoff — output off once charge current drops below this; 0 = off",
 	"sw.cp":   "Constant power — caps the output power, folding the current back instead of tripping",
 	"cpw":     "Constant power set point — the wattage the output is held to",
 	"sw.beep": "Beeper — key clicks and the alarm on a protection trip",
 	"sw.fahr": "Show temperatures in °F instead of °C",
-	"sw.lock": "Key lock — the panel buttons ignore presses",
+	"sw.lock": "Key lock — the pane buttons ignore presses",
 	"bled":    "Backlight level, 0–5",
 	"sleep":   "Screen sleep — blank the display after this many minutes; 0 = never",
 }

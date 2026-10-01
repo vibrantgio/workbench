@@ -19,13 +19,13 @@ import (
 )
 
 // switchedModel is a vault on screen with the switch dialog raised over it,
-// as SwitchVault leaves things where the platform offers no panel of its
-// own. Every test of the dialog stands on that, not on the platform the
+// as SwitchVault leaves things where the platform offers no open panel of
+// its own. Every test of the dialog stands on that, not on the platform the
 // test run happens to be on: the dialog is the fallback, and on macOS
-// Switch Vault raises the platform's panel instead.
+// Switch Vault raises the platform's open panel instead.
 func switchedModel(t *testing.T) Model {
 	t.Helper()
-	withoutPlatformPanel(t)
+	withoutPlatformOpenPanel(t)
 	m := Model{Screen: screenVault, Vault: "/vaults/Second Brain", CurAnchor: -1, PropsOpen: true}
 	m.Index = treeIndex("Sources.md", "guide/Reading list.md")
 	m.Current = "guide/Reading list.md"
@@ -102,7 +102,7 @@ func TestTheSwitchDialogAnswersWithCancelAndOpen(t *testing.T) {
 
 	if got := props.Purpose(); got != modal.PurposeDecision {
 		t.Errorf("the dialog is a %v; a switch with Cancel and Open is a decision — "+
-			"a panel would keep a close X and a backdrop that dismisses it", got)
+			"a pane would keep a close X and a backdrop that dismisses it", got)
 	}
 	if props.Decision.Cancel == nil {
 		t.Fatal("the decision names no Cancel, so Escape has nothing to invoke")

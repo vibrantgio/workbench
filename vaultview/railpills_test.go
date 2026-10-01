@@ -123,7 +123,7 @@ func TestTheRailDrawsThePlatformsTwoPills(t *testing.T) {
 }
 
 // treeTabFrame lays the folder rail out against a real router and answers
-// where the keyboard is after each frame. The control that puts the panel
+// where the keyboard is after each frame. The control that puts the pane
 // away stands last in the rail's own reading order, so it is what Tab must
 // reach once the rows let go.
 type treeTabFrame struct {

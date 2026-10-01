@@ -77,7 +77,7 @@ const (
 	// treeFieldPadDp is the air around the find field. It is the row pills'
 	// own inset, so the field's edges and every pill's stand on one pair of
 	// lines down the rail — which is the whole of what makes the field read
-	// as part of the column rather than as a panel set into it.
+	// as part of the column rather than as a pane set into it.
 	treeFieldPadDp = treeRowInsetDp
 )
 
@@ -451,16 +451,16 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW l
 	return layout.Dimensions{Size: size}
 }
 
-// topStrip is the band the panel keeps clear under the window's control
+// topStrip is the band the pane keeps clear under the window's control
 // buttons, which stand inside it: their space at the leading end, left
 // untouched, a stretch that moves the window across the middle, and this
-// panel's own toggle bare at its top trailing corner. Under the
+// pane's own toggle bare at its top trailing corner. Under the
 // full-size-content treatment the native title bar hands over no drag, so
 // a pane that owns the top of the window owes the reader one.
 func (v *treeView) topStrip(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	// The band is the pattern's: the leading run skipped (a move action over
 	// the buttons would fight them for the press), the window's drag across
-	// the middle, and this panel's one control at its top trailing corner
+	// the middle, and this pane's one control at its top trailing corner
 	// where the platform keeps it. What the rail supplies is the measurement
 	// of where that run ends — a window fact — and the control itself.
 	return pane.Strip(gtx, v.buttonEdge(), func(gtx layout.Context) layout.Dimensions {
@@ -468,11 +468,11 @@ func (v *treeView) topStrip(gtx layout.Context, tok themeTokens) layout.Dimensio
 	})
 }
 
-// hideControl is the panel's own way to put itself away, standing bare in
-// the panel's top trailing corner — where
+// hideControl is the pane's own way to put itself away, standing bare in
+// the pane's top trailing corner — where
 // voicememos-multi-folder-2026-09-18.png keeps its sidebar toggle. The
-// chrome row's toggle is what brings the panel back: a control that travels
-// with the panel cannot be the one that recalls it, so the two are the two
+// chrome row's toggle is what brings the pane back: a control that travels
+// with the pane cannot be the one that recalls it, so the two are the two
 // halves of one switch rather than duplicates of one control, and they wear
 // one figure to say so. The band's half wears the platform's bordered
 // control and this one wears nothing, because that is a property of what

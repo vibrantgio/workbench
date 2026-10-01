@@ -1,5 +1,5 @@
-// Command sk150 is a desktop control panel for the XY-SK150 buck-boost
-// converter over Modbus RTU: a monitor screen with the panel's live
+// Command sk150 is a desktop controller for the XY-SK150 buck-boost
+// converter over Modbus RTU: a monitor screen with the meter's live
 // voltage/current/power readouts and setpoint controls, and a setup screen
 // for the protection registers the device's own limited menu does not
 // reach. It follows the canonical Vibrant Gio bootstrap (see todos/).
@@ -26,11 +26,11 @@ func main() {
 
 // The size the window opens at, and the size it refuses to go below. The two
 // history charts under the Monitor tab take whatever height is left under the
-// header, the tab strip and the readout panel, so the height is set by them:
+// header, the tab strip and the readout pane, so the height is set by them:
 // 110 dp each is the least at which both read as charts, and the native
 // title-bar strip caps 32 dp off the top before any of the page is laid out
 // (desktop.TopInset measures 32 on current macOS). 471 is the narrowest width
-// that still holds the readout panel at its own 431 dp between the page's
+// that still holds the readout pane at its own 431 dp between the page's
 // 20 dp insets. The window opens at its least height: shorter than this the
 // charts are crushed.
 const (

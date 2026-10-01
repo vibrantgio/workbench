@@ -38,7 +38,7 @@ var windowSize = image.Pt(int(winW), int(winH))
 
 // sharpRadius keeps the renders comparable between machines: anti-aliased
 // rounded corners vary slightly between GPU contexts, which is enough to fail
-// a pixel-exact diff on a window of panels, pills and buttons.
+// a pixel-exact diff on a window of panes, pills and buttons.
 var sharpRadius = tokens.RadiusScale{}
 
 // schemes is the pair every frame below is drawn in.
@@ -71,7 +71,7 @@ func staticTheme(c tokens.PlatformColors) theme.Theme {
 
 // goldenReading is the device as the photograph in the plan's
 // reference/sk150-display.png shows it: 21 V out at 7 A, 147 W, regulating on
-// voltage with the output on — the state the readout panel is reviewed in.
+// voltage with the output on — the state the readout pane is reviewed in.
 // The setpoints are not on the photograph: the output holds 21 V exactly, so
 // the voltage sits at its setpoint, and the current stands under its limit,
 // which is what regulating on voltage means.
@@ -214,10 +214,10 @@ func TestTheWholeWindow(t *testing.T) {
 	}
 }
 
-// TestReadoutPanelIsTheMetersOwnDisplay reads the device's values off the
-// rendered frame: the panel's black behind the readouts, and the three lit
-// colours on it, the same in both schemes because the meter has one panel.
-func TestReadoutPanelIsTheMetersOwnDisplay(t *testing.T) {
+// TestReadoutPaneIsTheMetersOwnDisplay reads the device's values off the
+// rendered frame: the pane's black behind the readouts, and the three lit
+// colours on it, the same in both schemes because the meter has one pane.
+func TestReadoutPaneIsTheMetersOwnDisplay(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
@@ -232,7 +232,7 @@ func TestReadoutPanelIsTheMetersOwnDisplay(t *testing.T) {
 				name string
 				c    color.NRGBA
 			}{
-				{"the panel's black", displayPanel},
+				{"the pane's black", displayPane},
 				{"the volt line's green", displayVolt},
 				{"the amp line's yellow", displayAmp},
 				{"the watt line's magenta", displayWatt},
@@ -253,20 +253,20 @@ func goldenThemed(c tokens.PlatformColors) themed {
 }
 
 // renderPatch draws one layout.Widget at its natural size on the readout
-// panel's black and returns the smallest image holding every pixel that is
+// pane's black and returns the smallest image holding every pixel that is
 // not that black — the patch as it stands in the window, where the same
 // layout.Widget is placed at whole-pixel offsets on the same fill.
 func renderPatch(t *testing.T, th themed, w layout.Widget) *image.RGBA {
 	t.Helper()
 	size := image.Pt(640, 240)
 	img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
-		paint.FillShape(gtx.Ops, th.palette.DisplayPanel, clip.Rect{Max: size}.Op())
+		paint.FillShape(gtx.Ops, th.palette.DisplayPane, clip.Rect{Max: size}.Op())
 		return w(gtx)
 	})
 	box := image.Rectangle{Min: size, Max: image.Point{}}
 	for y := 0; y < size.Y; y++ {
 		for x := 0; x < size.X; x++ {
-			if at(img, x, y) == th.palette.DisplayPanel {
+			if at(img, x, y) == th.palette.DisplayPane {
 				continue
 			}
 			box.Min.X, box.Min.Y = min(box.Min.X, x), min(box.Min.Y, y)
@@ -274,7 +274,7 @@ func renderPatch(t *testing.T, th themed, w layout.Widget) *image.RGBA {
 		}
 	}
 	if box.Empty() {
-		t.Fatal("the block drew nothing on the panel's black")
+		t.Fatal("the block drew nothing on the pane's black")
 	}
 	return img.SubImage(box).(*image.RGBA)
 }
@@ -306,7 +306,7 @@ func findPatch(img, patch *image.RGBA) bool {
 	ax, ay, anchor := 0, 0, color.NRGBA{}
 	for y := 0; y < h && anchor == (color.NRGBA{}); y++ {
 		for x := 0; x < w; x++ {
-			if c := at(patch, pb.Min.X+x, pb.Min.Y+y); c != displayPanel {
+			if c := at(patch, pb.Min.X+x, pb.Min.Y+y); c != displayPane {
 				ax, ay, anchor = x, y, c
 				break
 			}
@@ -343,8 +343,8 @@ func linePatch(th themed, fill color.NRGBA, str string) layout.Widget {
 
 // TestTheSetAndLimitBoxesAreOnTheFrame reads the live group off the rendered
 // window: the two titles and the four values — the two setpoints and the two
-// protections — are drawn as the boxes at the panel's foot draw them, each in
-// its own colour, and each is found in the frame in both schemes. The panel
+// protections — are drawn as the boxes at the pane's foot draw them, each in
+// its own colour, and each is found in the frame in both schemes. The pane
 // is the meter's own display and does not change with the window's
 // appearance.
 func TestTheSetAndLimitBoxesAreOnTheFrame(t *testing.T) {
@@ -374,14 +374,14 @@ func TestTheSetAndLimitBoxesAreOnTheFrame(t *testing.T) {
 
 // TestTheSetAndLimitBoxesStandSideBySide reads the block's own geometry: two
 // boxes of the same width with a gap between them, Set at the left and Limit
-// at the right, together spanning every pixel of the width the panel gives
+// at the right, together spanning every pixel of the width the pane gives
 // the block.
 func TestTheSetAndLimitBoxesStandSideBySide(t *testing.T) {
 	th := goldenThemed(tokens.PlatformLight)
 	const room = 420
 	size := image.Pt(room, 120)
 	img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
-		paint.FillShape(gtx.Ops, th.palette.DisplayPanel, clip.Rect{Max: size}.Op())
+		paint.FillShape(gtx.Ops, th.palette.DisplayPane, clip.Rect{Max: size}.Op())
 		gtx.Constraints = layout.Exact(image.Pt(room, 120))
 		return setLimitBoxes(th, setLimitLines(goldenModel()))(gtx)
 	})

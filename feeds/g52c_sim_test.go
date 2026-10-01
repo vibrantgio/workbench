@@ -88,8 +88,8 @@ func regionDiff(a, b *image.RGBA, r image.Rectangle) int {
 }
 
 // rightPaneRegion is a conservative window inside the detail pane: the
-// content column starts at the rail panel's trailing rim (the margin plus the
-// panel's own width), the split sits at ratio 0.6 of what is left, and the
+// content column starts at the rail pane's trailing rim (the margin plus the
+// pane's own width), the split sits at ratio 0.6 of what is left, and the
 // band occupies the top windowBandDp.
 var rightPaneRegion = image.Rect(840, 100, shellFrameW-10, shellFrameH-20)
 

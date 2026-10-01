@@ -161,7 +161,7 @@ func chromeSurface(c tokens.PlatformColors) color.NRGBA {
 	return pane.Surface(c)
 }
 
-// paneRim is the colour of the rail panel's own rim: the platform's measured
+// paneRim is the colour of the rail pane's own rim: the platform's measured
 // value, which is the pattern's own answer. It is named here so this
 // window's own tests can read the colour the window actually draws.
 func paneRim(c tokens.PlatformColors) color.NRGBA {
@@ -221,7 +221,7 @@ func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.PlatformColors, 
 // reader is looking, since what a rescan reports confirms something they
 // just did. At the width this window opens, the column the stack is wide
 // falls entirely inside the reading column: the sidebar and the actions at
-// its foot end well to the leading side of it, and the backlinks panel
+// its foot end well to the leading side of it, and the backlinks pane
 // begins well to the trailing side, so nothing live is under a toast. The
 // chrome inset bounds the stack from above, so a queue tall enough to climb
 // the window stops at the chrome row's foot rather than covering the

@@ -1,16 +1,16 @@
-// frame.go is this window's composition: the conversation panel set in down
+// frame.go is this window's composition: the conversation pane set in down
 // the leading edge, and beside it the content area — one chrome row across
 // its top and the transcript with its input bar underneath.
 //
 // THE PANE IS SET INTO THE WINDOW, NOT A HALF OF IT. It is the vocabulary's
-// PANE: an inset rounded panel one margin in from the window's leading, top
+// PANE: an inset rounded pane one margin in from the window's leading, top
 // and bottom edges with the window's own plane showing in those margins,
 // flush against the transcript on the fourth side, bounded by its own rim
 // and the shadow it casts and by no seam. Hidden, it takes no width at all
 // and the transcript reflows from the window's own leading edge. None of
 // that geometry is drawn here — the inset, the rim, the shadow, the strip
 // arithmetic and the hidden-takes-no-width contract are patterns/pane's,
-// and what is left to this file is the column that stands in the panel and
+// and what is left to this file is the column that stands in the pane and
 // the window that stands around it.
 //
 // THE CONTROLS OBEY THE RECALL CONVENTION. A control that travels with the
@@ -20,7 +20,7 @@
 // size, on the same line. They are the two halves of one switch rather
 // than duplicates of one control; what differs is what each figure stands
 // in, which is a property of the place and not of the switch — bare on the
-// panel, in the platform's bordered toolbar control in the band. New chat is this application's
+// pane, in the platform's bordered toolbar control in the band. New chat is this application's
 // primary action and can be operated in both states for that reason, and
 // Cmd-N operates it in either.
 //
@@ -101,7 +101,7 @@ const (
 	// is what a pair belonging together takes.
 	controlGapDp unit.Dp = 14
 
-	// paneMarkDp is the box a BARE mark on the sidebar panel is drawn in:
+	// paneMarkDp is the box a BARE mark on the sidebar pane is drawn in:
 	// the same 24 dp box the bordered toolbar control centres its own mark
 	// in, so one figure is one size wherever it stands.
 	paneMarkDp unit.Dp = 24
@@ -130,15 +130,15 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, mai
 	size := gtx.Constraints.Max
 	// What stands under this window's columns is patterns/shell's pane
 	// frame: the window's own plane, the transcript's surface beside the
-	// panel, the two corners the panel rounds away from on its flush side,
-	// and the panel itself with its rim and the column standing in it.
+	// pane, the two corners the pane rounds away from on its flush side,
+	// and the pane itself with its rim and the column standing in it.
 	// MEASURED, voicememos-multi-folder-2026-09-18.png and
 	// finder-window-untinted-light.png: the eight pixels either side of the
-	// panel carry the window background and nothing else.
+	// pane carry the window background and nothing else.
 	//
 	// The window keeps the arrangement above it — the transcript laid out
 	// before the row over it, the picker's surface last of all — so it
-	// spends the frame's under half here and casts the panel's shadow itself
+	// spends the frame's under half here and casts the pane's shadow itself
 	// once its own columns have painted.
 	frame := shell.PaneFrame{
 		Width:       SidebarWidth,
@@ -186,12 +186,12 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, mai
 	// over the transcript when it is open.
 	layoutPicker(gtx, menu, contentX, contentW, rowH)
 
-	// The shadow the panel casts, after every column has painted its own
+	// The shadow the pane casts, after every column has painted its own
 	// surface: the transcript paints its own rows after the pane has laid
 	// out — the pane comes first because it comes first in the reading order
-	// — and would cover the ramp the panel cast on it. The pattern cuts the
-	// panel's own box out of the drawing, so painting it here lands what
-	// painting it under the panel landed.
+	// — and would cover the ramp the pane cast on it. The pattern cuts the
+	// pane's own box out of the drawing, so painting it here lands what
+	// painting it under the pane landed.
 	pane.PaintShadow(gtx, t.col, bounds)
 
 	return layout.Dimensions{Size: size}
@@ -406,16 +406,16 @@ func newChatMark(gtx layout.Context, t themed, click *widget.Clickable) layout.D
 
 // paneMark stands one chrome mark BARE — the figure alone, at the same box
 // [controlBox] centres its figure in, in the platform's control text over
-// the fill it stands on. It is what the sidebar panel's own controls are
-// drawn as: the panel is not a band, and MEASURED,
+// the fill it stands on. It is what the sidebar pane's own controls are
+// drawn as: the pane is not a band, and MEASURED,
 // voicememos-multi-folder-2026-09-18.png, the two marks in a sidebar
-// panel's top trailing corner carry no capsule, no fill and no rim while
+// pane's top trailing corner carry no capsule, no fill and no rim while
 // every mark in the band beside them does.
 //
 // The foreground is the same name [controlBox] reads its mark in, so the two
 // halves of one switch are one figure in one colour whichever side of the
-// window they stand on: what a toolbar draws its own symbols in. The panel's
-// half records no state: it stands only while the panel does, and a mark with
+// window they stand on: what a toolbar draws its own symbols in. The pane's
+// half records no state: it stands only while the pane does, and a mark with
 // nothing around it has nowhere to draw the chosen patch.
 func paneMark(gtx layout.Context, t themed, click *widget.Clickable, name icons.Name, label string, msg any) layout.Dimensions {
 	for click.Clicked(gtx) {
@@ -433,9 +433,9 @@ func paneMark(gtx layout.Context, t themed, click *widget.Clickable, name icons.
 	})
 }
 
-// paneToggle and paneNewChat are the panel's two halves, drawn bare through
+// paneToggle and paneNewChat are the pane's two halves, drawn bare through
 // [paneMark]. They are named here rather than called through with an icon
-// name because the sidebar's own file draws the panel and reaches for a
+// name because the sidebar's own file draws the pane and reaches for a
 // different icons package.
 func paneToggle(gtx layout.Context, t themed, click *widget.Clickable, label string) layout.Dimensions {
 	return paneMark(gtx, t, click, icons.Sidebar, label, ToggleSidebar{})
@@ -453,7 +453,7 @@ func paneNewChat(gtx layout.Context, t themed, click *widget.Clickable) layout.D
 // chrome trigger is drawn through, so every symbol standing in this window's
 // chrome is one control and not a bare figure on a band.
 //
-// It is the CHROME ROW's drawing. The panel's own marks stand bare through
+// It is the CHROME ROW's drawing. The pane's own marks stand bare through
 // [paneMark]: which of the two a mark takes is a property of what it stands
 // on, not of the switch it belongs to.
 func controlBox(gtx layout.Context, t themed, click *widget.Clickable, label string, mark func(gtx layout.Context, sizePx int, col color.NRGBA), on bool) layout.Dimensions {

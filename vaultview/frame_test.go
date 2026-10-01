@@ -325,14 +325,14 @@ func TestPaneStripClaimsInsideTheRail(t *testing.T) {
 	}
 	frame()
 
-	panel := f.geom.pane
-	stripY := float32(panel.Min.Y) + float32(paneStripDp)/2
-	middle := f32.Pt(float32(panel.Min.X+120), stripY)
-	// The toggle stands BARE at the panel's top trailing corner, one margin
+	pane := f.geom.pane
+	stripY := float32(pane.Min.Y) + float32(paneStripDp)/2
+	middle := f32.Pt(float32(pane.Min.X+120), stripY)
+	// The toggle stands BARE at the pane's top trailing corner, one margin
 	// in from its trailing edge, where
-	// voicememos-multi-folder-2026-09-18.png keeps a sidebar panel's own
+	// voicememos-multi-folder-2026-09-18.png keeps a sidebar pane's own
 	// marks.
-	toggle := f32.Pt(float32(panel.Max.X-railMarginDp-markLargeDp/2), stripY)
+	toggle := f32.Pt(float32(pane.Max.X-railMarginDp-markLargeDp/2), stripY)
 
 	if a, ok := r.ActionAt(middle); !ok || a != system.ActionMove {
 		t.Errorf("no window-move action at %v; the strip's empty middle is the pane's drag handle", middle)
@@ -398,7 +398,7 @@ func TestTheRowRecallsTheHiddenPane(t *testing.T) {
 // chromeBudgetDp is what the vault window may spend between its top edge
 // and its first row of content. It is the platform's toolbar band and
 // nothing more: 52, the depth every stored toolbar capture measures and the
-// band the rail's panel is set one margin into — the single chrome row's
+// band the rail's pane is set one margin into — the single chrome row's
 // full height and no room for a second thing above it.
 const chromeBudgetDp = bandDp
 
@@ -411,7 +411,7 @@ const chromeBudgetDp = bandDp
 // window, so the measurement is stated per column. The content area spends
 // the row's own height above its first document row — the band's 52 dp — and
 // no more. The sidebar column spends its own margin and nothing else: its
-// panel starts one margin below the window's top edge, and the assertion
+// pane starts one margin below the window's top edge, and the assertion
 // pins that so a band cannot creep in above it.
 //
 // Both rail states are measured. Hiding the rail rebuilds the whole
@@ -445,9 +445,9 @@ func TestChromeBudget(t *testing.T) {
 					st.geom.rowTop, row)
 			}
 			// The sidebar's own budget: its margin and nothing else.
-			// Anything more above the panel would be a chrome band.
+			// Anything more above the pane would be a chrome band.
 			if !st.geom.pane.Empty() && st.geom.pane.Min.Y != railMarginDp {
-				t.Errorf("the sidebar's panel starts at y=%d, want its own margin %d and nothing above it but the window's plane", st.geom.pane.Min.Y, railMarginDp)
+				t.Errorf("the sidebar's pane starts at y=%d, want its own margin %d and nothing above it but the window's surface", st.geom.pane.Min.Y, railMarginDp)
 			}
 		})
 	}
@@ -501,38 +501,38 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 		t.Errorf("with the pane away the buttons are placed at %+v, want %+v — dismissing the pane moved a control that is not the pane's", got, want)
 	}
 
-	// The buttons' band in the PANEL's own coordinates, which the panel's
-	// strip is cut in: the panel stands one margin inside the window's top
+	// The buttons' band in the PANE's own coordinates, which the pane's
+	// strip is cut in: the pane stands one margin inside the window's top
 	// edge and the buttons are measured from the window's glass, so the
 	// strip owes that margin back at both ends.
 	buttonsTop := buttonInsetDp - railMarginDp
 	buttonsBottom := buttonsTop + desktop.WindowButtonDiameter
 	stripTop, stripBottom := 0, paneStripDp
 	if stripTop > buttonsTop {
-		t.Errorf("the panel's strip begins at y=%d, below the buttons' top edge at y=%d — the panel's content would start under them", stripTop, buttonsTop)
+		t.Errorf("the pane's strip begins at y=%d, below the buttons' top edge at y=%d — the pane's content would start under them", stripTop, buttonsTop)
 	}
 	if stripBottom < buttonsBottom {
-		t.Errorf("the panel's strip ends at y=%d, above the buttons' bottom edge at y=%d — the panel's content would run under them", stripBottom, buttonsBottom)
+		t.Errorf("the pane's strip ends at y=%d, above the buttons' bottom edge at y=%d — the pane's content would run under them", stripBottom, buttonsBottom)
 	}
 	if mid := railMarginDp + paneStripDp/2; unit.Dp(mid) != windowButtons.Center {
-		t.Errorf("the strip's middle line is y=%d in the window and the buttons' is y=%v; the panel's toggle centres on the strip and would sit off their line", mid, windowButtons.Center)
+		t.Errorf("the strip's middle line is y=%d in the window and the buttons' is y=%v; the pane's toggle centres on the strip and would sit off their line", mid, windowButtons.Center)
 	}
 	if mid := bandDp / 2; unit.Dp(mid) != windowButtons.Center {
 		t.Errorf("the band's middle line is y=%d and the buttons' is y=%v; a control centred in the band would sit off their line", mid, windowButtons.Center)
 	}
 }
 
-// TestTheRailIsAnInsetPanel reads the composed window: the rail is a panel
+// TestTheRailIsAnInsetPane reads the composed window: the rail is a pane
 // set one margin in from the window's leading, top and bottom edges, flush
 // with the note on the fourth, carrying the platform's rim on every one of
 // its four sides and no seam anywhere — the toolbar band's rows included,
-// since the panel is one object from its top edge to its foot.
+// since the pane is one object from its top edge to its foot.
 //
 // MEASURED, voicememos-multi-folder-2026-09-18.png and
-// finder-window-untinted-dark.png: the panel stands eight pixels inside the
+// finder-window-untinted-dark.png: the pane stands eight pixels inside the
 // window on three sides with the window's own plane showing in them, and the
 // content begins at the fourth with no gap.
-func TestTheRailIsAnInsetPanel(t *testing.T) {
+func TestTheRailIsAnInsetPane(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
 
@@ -555,7 +555,7 @@ func TestTheRailIsAnInsetPanel(t *testing.T) {
 
 			// Every one of the four edges, read mid-run where the corners'
 			// arcs have let go — the band's own rows among them, because no
-			// line crosses the band and the panel passes straight through it.
+			// line crosses the band and the pane passes straight through it.
 			midY := (rail.Min.Y + rail.Max.Y) / 2
 			midX := (rail.Min.X + rail.Max.X) / 2
 			for _, probe := range []struct {
@@ -570,35 +570,35 @@ func TestTheRailIsAnInsetPanel(t *testing.T) {
 				{"bottom", midX, rail.Max.Y - 1, 0, -1},
 			} {
 				if got := img.RGBAAt(probe.x, probe.y); !sameColor(got, rim) {
-					t.Errorf("the panel's %s edge at (%d,%d) draws %v, want the platform's rim %v", probe.what, probe.x, probe.y, got, rim)
+					t.Errorf("the pane's %s edge at (%d,%d) draws %v, want the platform's rim %v", probe.what, probe.x, probe.y, got, rim)
 				}
 				if got := img.RGBAAt(probe.x+probe.inX, probe.y+probe.inY); !sameColor(got, fill) {
-					t.Errorf("one pixel inside the panel's %s edge draws %v, want the chrome level %v — the rim is wider than a hairline", probe.what, got, fill)
+					t.Errorf("one pixel inside the pane's %s edge draws %v, want the chrome level %v — the rim is wider than a hairline", probe.what, got, fill)
 				}
 				if rim != seam {
 					if got := img.RGBAAt(probe.x, probe.y); sameColor(got, seam) {
-						t.Errorf("the panel's %s edge draws the seam %v; an inset panel is bounded by its rim", probe.what, seam)
+						t.Errorf("the pane's %s edge draws the seam %v; an inset pane is bounded by its rim", probe.what, seam)
 					}
 				}
 			}
 			// Past the trailing rim stands the note's own surface under the
-			// panel's shadow, which only darkens it and recovers outward.
+			// pane's shadow, which only darkens it and recovers outward.
 			v0 := img.RGBAAt(rail.Max.X, midY)
 			v1 := img.RGBAAt(rail.Max.X+1, midY)
 			far := img.RGBAAt(rail.Max.X+paneShadowReachDp, midY)
 			if v0.R > tc.colors.TextBackground.R || v0.R > v1.R {
-				t.Errorf("past the panel's trailing rim the note's surface reads %v then %v against its own %v — a second line stands beside the panel's own",
+				t.Errorf("past the pane's trailing rim the note's surface reads %v then %v against its own %v — a second line stands beside the pane's own",
 					v0, v1, tc.colors.TextBackground)
 			}
 			if !sameColor(far, tc.colors.TextBackground) {
-				t.Errorf("a reach past the panel's trailing rim the note's surface draws %v, want its own %v — the shadow is spent by its reach",
+				t.Errorf("a reach past the pane's trailing rim the note's surface draws %v, want its own %v — the shadow is spent by its reach",
 					far, tc.colors.TextBackground)
 			}
-			// The window's own plane shows in the margin beside the panel,
-			// and the panel casts its shadow on it: neither the bare plane
-			// nor the panel's own fill is what stands there.
+			// The window's own surface shows in the margin beside the pane,
+			// and the pane casts its shadow on it: neither the bare surface
+			// nor the pane's own fill is what stands there.
 			if got := img.RGBAAt(rail.Min.X-1, midY); sameColor(got, tc.colors.WindowBackground) {
-				t.Errorf("the column beside the panel's leading rim draws the bare plane %v; the panel casts a shadow on it", tc.colors.WindowBackground)
+				t.Errorf("the column beside the pane's leading rim draws the bare surface %v; the pane casts a shadow on it", tc.colors.WindowBackground)
 			}
 		})
 	}
@@ -782,7 +782,7 @@ func TestTheNoteKeepsItsMinimumBetweenTheTwoBoundaries(t *testing.T) {
 	rail := newDragFrame(size, defaultWidths())
 	rail.frame()
 	rail.drag(float32(rail.f.geom.pane.Max.X-seamDp), 400)
-	// The panel's own margin comes off what is left for the three columns:
+	// The pane's own margin comes off what is left for the three columns:
 	// it stands one margin inside the window's leading edge.
 	if got, want := int(rail.f.railW), windowW-railMarginDp-gap-frameAsideDp-noteMinWidthDp; got != want {
 		t.Errorf("the rail dragged past the note's minimum stopped at %d dp, want %d", got, want)
@@ -796,9 +796,9 @@ func TestTheNoteKeepsItsMinimumBetweenTheTwoBoundaries(t *testing.T) {
 }
 
 // TestTheRailEdgeDrawsNoSecondLine verifies what the leading splitter
-// draws at rest: nothing the panel did not already draw. The boundary there
-// is the panel's own rim, and a splitter drawing a line of its own beside it
-// would put two edges a pixel apart down the whole panel.
+// draws at rest: nothing the pane did not already draw. The boundary there
+// is the pane's own rim, and a splitter drawing a line of its own beside it
+// would put two edges a pixel apart down the whole pane.
 func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
@@ -813,34 +813,34 @@ func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
 				t.Fatal("the window laid out no pane to read")
 			}
 			// The whole straight run of the trailing edge, the band's own
-			// rows included: one hairline of the panel's own rim, and the
+			// rows included: one hairline of the pane's own rim, and the
 			// note's surface the pixel after it. The corners' arcs are read
 			// out, because the edge is not straight there and the splitter
 			// does not draw over them.
-			// At one pixel per dp the panel's corner radius is the span's
+			// At one pixel per dp the pane's corner radius is the span's
 			// own inset at both ends.
 			top, bottom := p.Min.Y+pane.RadiusDp, p.Max.Y-pane.RadiusDp
 			// The note column's own pinned seam — the hairline between its
 			// pinned head and the document scrolling under it — crosses this
 			// edge, because a boundary between two flush regions runs the
 			// whole width of the region above it. It is a ROW and not a
-			// second line down the panel, so its rows are read out: a row
+			// second line down the pane, so its rows are read out: a row
 			// carrying a hundred columns of the seam's own colour well clear
-			// of the panel's shadow is that seam and nothing else.
+			// of the pane's shadow is that seam and nothing else.
 			pinned := pinnedSeamRows(img, tc.colors, p.Max.X+paneShadowReachDp, windowW-frameAsideDp, top, bottom)
 			for y := top; y < bottom; y++ {
 				if pinned[y] {
 					continue
 				}
 				if got := img.RGBAAt(p.Max.X-seamDp, y); !sameColor(got, paneRim(tc.colors)) {
-					t.Fatalf("the panel's trailing edge at y=%d draws %v, want its own rim %v", y, got, paneRim(tc.colors))
+					t.Fatalf("the pane's trailing edge at y=%d draws %v, want its own rim %v", y, got, paneRim(tc.colors))
 				}
-				// Past the rim stands the note's surface under the panel's
+				// Past the rim stands the note's surface under the pane's
 				// shadow, which only recovers outward: a second line would
 				// be a column darker than the one beyond it.
 				v0, v1, v2 := img.RGBAAt(p.Max.X, y).R, img.RGBAAt(p.Max.X+1, y).R, img.RGBAAt(p.Max.X+2, y).R
 				if v0 > v1 || v1 > v2 || v2 > tc.colors.TextBackground.R {
-					t.Fatalf("past the panel's trailing edge at y=%d the note's surface reads %d, %d, %d against its own %d — a second line stands beside the panel's own",
+					t.Fatalf("past the pane's trailing edge at y=%d the note's surface reads %d, %d, %d against its own %d — a second line stands beside the pane's own",
 						y, v0, v1, v2, tc.colors.TextBackground.R)
 				}
 			}

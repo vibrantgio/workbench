@@ -28,19 +28,20 @@ type folderChooser struct {
 	choose    func(dir string) (path string, ok bool)
 }
 
-// platformPanel is the chooser Switch Vault asks first. It is a variable
+// platformOpenPanel is the chooser Switch Vault asks first. It is a variable
 // because both sides of that branch have to be readable with no window and
-// no reader: a test reports no panel to walk the fallback, and records the
-// directory the call is reached with to read the other side.
-var platformPanel = folderChooser{
+// no reader: a test reports no open panel to walk the fallback, and
+// records the directory the call is reached with to read the other side.
+var platformOpenPanel = folderChooser{
 	available: openpanel.Available,
 	choose:    chooseVaultFolder,
 }
 
 // nativeView is the handle of the window's platform view, which is what the
-// platform's panel attaches its sheet to. Gio hands it out as a view event;
-// an invalid event means the view left its window, so the handle is dropped
-// and a panel raised before another arrives stands on its own.
+// platform's open panel attaches its sheet to. Gio hands it out as a view
+// event; an invalid event means the view left its window, so the handle is
+// dropped and an open panel raised before another arrives stands on its
+// own.
 var nativeView atomic.Uintptr
 
 // watchNativeView keeps nativeView on the window's current view. It is the
@@ -55,9 +56,9 @@ func watchNativeView(w *mvu.Window) {
 	})
 }
 
-// chooseVaultFolder presents the platform's panel on this window. It blocks
-// until the reader answers it, which is why it runs as a command rather
-// than in an update.
+// chooseVaultFolder presents the platform's open panel on this window. It
+// blocks until the reader answers it, which is why it runs as a command
+// rather than in an update.
 func chooseVaultFolder(dir string) (string, bool) {
 	return openpanel.ChooseDirectory(nativeView.Load(), dir)
 }

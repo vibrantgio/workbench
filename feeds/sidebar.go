@@ -38,12 +38,12 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// feedsPaneColumnDp is what the rail claims of the window: the panel plus the
+// feedsPaneColumnDp is what the rail claims of the window: the pane plus the
 // margin of the window's own plane standing to its leading side. The content
-// beside it begins at the panel's trailing rim with no gap, which is the one
+// beside it begins at the pane's trailing rim with no gap, which is the one
 // side a pane is not set in from.
 //
-// The panel's own width is patsidebar.ExpandedWidth and not a number of this
+// The pane's own width is patsidebar.ExpandedWidth and not a number of this
 // application's: patterns/sidebar took the reading and owns it.
 const (
 	feedsPaneColumnDp = pane.MarginDp + patsidebar.ExpandedWidth
@@ -426,11 +426,11 @@ func runIndex(rows []railRow, id FeedID) int {
 	return -1
 }
 
-// drawRailColumn lays the panel's own column out: its top strip, and under
+// drawRailColumn lays the pane's own column out: its top strip, and under
 // it the sections — each a heading block and, while the section is open, the
 // rows beneath it — in a scroll area with the platform's overlay scrollbar.
 //
-// The strip is the panel's own and not the content's band: it is cut to clear
+// The strip is the pane's own and not the content's band: it is cut to clear
 // the window's control buttons where the window keeps them, which is
 // patterns/pane's arithmetic and not this window's. It stands outside the
 // scroll area, since the buttons it clears do not move when the reader
@@ -439,11 +439,11 @@ func runIndex(rows []railRow, id FeedID) int {
 // The sections scroll because a rail with every section open is taller than
 // the window it stands in, and a column whose foot never comes into view has
 // entries the reader cannot open. The bar OVERLAYS rather than reserving a
-// gutter: the rail's rows run the panel's full width and the platform floats
+// gutter: the rail's rows run the pane's full width and the platform floats
 // a sidebar's bar over them.
 //
 // Nothing is drawn in the strip. The window's name is already the navbar's
-// brand on the other side of the panel, and this window has neither a
+// brand on the other side of the pane, and this window has neither a
 // control that sends the rail away nor an action of the rail's own, so the
 // strip stands empty under the window's three control buttons.
 func drawRailColumn(
@@ -495,7 +495,7 @@ func drawRailColumn(
 	}
 	headH := gtx.Dp(patsidebar.SectionHeight)
 	blocks := railBlocks(sections, open)
-	// The bar rides the panel's own fill, which is what shows through an
+	// The bar rides the pane's own fill, which is what shows through an
 	// overlay thumb.
 	bar := scrollbar.FromTokens(colors, pane.Surface(colors))
 
@@ -581,7 +581,7 @@ func railRowBlock(blocks []railBlock, rows []railRow, cursor FeedID) (int, bool)
 // drawRailHeading draws one section's heading: the group's name as a small
 // label in the platform's secondary colour, and at the trailing end the
 // control that collapses the rows beneath it. Both are patterns/sidebar's
-// drawing, at the metrics measured off the platform's own panel; the whole
+// drawing, at the metrics measured off the platform's own pane; the whole
 // block answers the click, because a heading and the control that collapses
 // it are one thing.
 //
@@ -740,7 +740,7 @@ func drawFeedEntryRow(
 	}
 
 	// The row's parts stand in the rail's own columns, measured off the
-	// platform's panel, not against the pill: the symbol at SymbolInset, the
+	// platform's pane, not against the pill: the symbol at SymbolInset, the
 	// name at LabelInset and the count CountInset in from the trailing edge.
 	drawFeedSymbol(gtx, size,
 		vgcolor.Flatten(patsidebar.SymbolForeground(tok.col, filled, unemphasized), surface))

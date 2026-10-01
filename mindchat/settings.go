@@ -320,7 +320,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 			return tags
 		},
 		ActionFocusTags: []event.Tag{&cancelClick, &saveClick},
-		// A DECISION, not a panel. The catalogue is edited as a draft and
+		// A DECISION, not a pane. The catalogue is edited as a draft and
 		// committed by Save, so the two footer buttons are the only two
 		// answers — declaring that removes the close X, makes the backdrop
 		// inert, binds Escape to Cancel and Return to Save.
@@ -354,7 +354,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 }
 
 // settingsBody lays the modal body for one (theme, settings) emission: the
-// provider column (its own shaded panel: list + add/remove) beside the
+// provider column (its own shaded pane: list + add/remove) beside the
 // selected provider's pane — the template bar, the Name/BaseURL fields,
 // the API-key row (field + check verdict + refresh) and a status line
 // spelling the check out — with the GLOBAL default-model row spanning the
@@ -747,7 +747,7 @@ func defaultPickerKeyOf(m Model) defaultPickerKey {
 
 // providerColumn is the providers well: the "Providers" caption, the
 // selectable provider rows, and the add/remove pair standing on the well's
-// last row — on its own shaded panel so the catalogue reads as a distinct
+// last row — on its own shaded pane so the catalogue reads as a distinct
 // surface from the form beside it. It runs the body's whole height, so the
 // form's own foot is the only thing under it.
 func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
@@ -761,9 +761,9 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 		mvu.MessageOp{Message: RemoveProvider{}}.Add(gtx.Ops)
 	}
 	size := gtx.Constraints.Max
-	FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(SettingsPanelInset), p.Panel)
-	defer op.Offset(image.Pt(gtx.Dp(SettingsPanelInset), gtx.Dp(SettingsPanelInset))).Push(gtx.Ops).Pop()
-	gtx.Constraints = layout.Exact(image.Pt(size.X-2*gtx.Dp(SettingsPanelInset), size.Y-2*gtx.Dp(SettingsPanelInset)))
+	FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(SettingsPaneInset), p.Pane)
+	defer op.Offset(image.Pt(gtx.Dp(SettingsPaneInset), gtx.Dp(SettingsPaneInset))).Push(gtx.Ops).Pop()
+	gtx.Constraints = layout.Exact(image.Pt(size.X-2*gtx.Dp(SettingsPaneInset), size.Y-2*gtx.Dp(SettingsPaneInset)))
 	indices := make([]int, len(s.Draft))
 	for i := range indices {
 		indices[i] = i
@@ -781,11 +781,11 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 				})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			// The well's last row. Its box ends on the panel's own inner
-			// foot, so the air under it is the same SettingsPanelInset the
+			// The well's last row. Its box ends on the pane's own inner
+			// foot, so the air under it is the same SettingsPaneInset the
 			// caption at the head stands off the top by, and the well's ends
 			// are square to the rows between them.
-			return layout.Inset{Top: SettingsPanelInset}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: SettingsPaneInset}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return addRemovePair(gtx, t, addClick, removeClick)
 			})
 		}),
@@ -795,7 +795,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 
 // addRemovePair draws the well's add and remove controls as the platform
 // draws them under a list it lets the reader edit: ONE bordered control of two
-// momentary segments, not two bare symbols. Two detached marks on the panel say
+// momentary segments, not two bare symbols. Two detached marks on the pane say
 // two unrelated things; the bordered pair says one list is being edited.
 //
 // It is the segmented control standing in a BODY, so it draws at the dialog

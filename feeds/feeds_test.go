@@ -792,11 +792,11 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	}
 	drain()
 
-	// The Preferences panel is folded into this same composed layer, so the
+	// The Preferences pane is folded into this same composed layer, so the
 	// accelerator's message and the live preference it edits must re-emit it
-	// like every message above. This is the shell-level half of the panel's
+	// like every message above. This is the shell-level half of the pane's
 	// coverage; the pixel-level half is in g0a3_prefs_test.go, which composes
-	// the panel without the shell.
+	// the pane without the shell.
 	m, _ = Update(m, OpenPreferences{})
 	send.Next(m)
 	if w := await("OpenPreferences"); w != nil {

@@ -19,15 +19,15 @@ import (
 var shellFrameSize = image.Pt(windowW, windowH)
 
 // TestStripUnderlineKeepsItsOwnLine guards the seam: whatever a tab draws,
-// the shell's content slot leaves a band of bare panel fill between the
+// the shell's content slot leaves a band of bare pane fill between the
 // strip's underline and the content's first row, so the underline reads as a
 // line rather than as the top edge of the content. The slot is shared, so all
 // six tabs are checked.
 //
 // Both reference colours are sampled rather than named from the set: the
 // capture round-trips through the GPU, and a sampled reference makes the
-// assertions about "the colour the strip's foot is" and "the colour the panel
-// is" instead of about colour-space arithmetic. The panel's reference comes
+// assertions about "the colour the strip's foot is" and "the colour the pane
+// is" instead of about colour-space arithmetic. The pane's reference comes
 // from a frame rendered with no tab selected at all, so it is bare pattern
 // fill and nothing else — a reference taken from the gap band itself would be
 // satisfied by any content that filled the band uniformly, which is exactly
@@ -71,12 +71,12 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 			return golden.Capture(t, shellFrameSize, w)
 		}
 
-		// An out-of-range selection draws no content, so the whole panel is
+		// An out-of-range selection draws no content, so the whole pane is
 		// the pattern's own fill and the strip carries no underline: its foot
 		// is the seam and nothing else.
 		bare := render(-1)
 		seam := sample(bare, shellFrameSize.X-1, stripH-1)
-		panelFill := sample(bare, shellFrameSize.X-1, stripH+gap/2)
+		paneFill := sample(bare, shellFrameSize.X-1, stripH+gap/2)
 
 		for i, tabName := range tabPages {
 			t.Run(sc.name+"/"+tabName, func(t *testing.T) {
@@ -100,9 +100,9 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 				// And the gap band below it must be nothing but the page.
 				for y := stripH; y < stripH+gap; y++ {
 					for x := 0; x < shellFrameSize.X; x++ {
-						if got := at(x, y); got != panelFill {
-							t.Fatalf("content reaches into the strip gap at (%d,%d): got %v, want the panel's %v",
-								x, y, got, panelFill)
+						if got := at(x, y); got != paneFill {
+							t.Fatalf("content reaches into the strip gap at (%d,%d): got %v, want the pane's %v",
+								x, y, got, paneFill)
 						}
 					}
 				}
@@ -112,10 +112,10 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 }
 
 // TestContentSlotPushesContentDown is the arithmetic half of the seam,
-// free of the GPU: the slot reports the panel's full height and lays its
+// free of the GPU: the slot reports the pane's full height and lays its
 // child out one gap lower and shorter.
 func TestContentSlotPushesContentDown(t *testing.T) {
-	panel := image.Pt(400, 300)
+	pane := image.Pt(400, 300)
 	gap := int(contentGap)
 
 	var gotConstraints layout.Constraints
@@ -123,17 +123,17 @@ func TestContentSlotPushesContentDown(t *testing.T) {
 		gotConstraints = gtx.Constraints
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	})
-	dims := drawOnce(t, panel, slot)
+	dims := drawOnce(t, pane, slot)
 
-	if dims.Size != panel {
-		t.Errorf("slot reported %v, want the whole panel %v", dims.Size, panel)
+	if dims.Size != pane {
+		t.Errorf("slot reported %v, want the whole pane %v", dims.Size, pane)
 	}
-	if want := panel.Y - gap; gotConstraints.Max.Y != want {
-		t.Errorf("child got %d px of height, want %d (panel minus the %d dp gap)",
+	if want := pane.Y - gap; gotConstraints.Max.Y != want {
+		t.Errorf("child got %d px of height, want %d (pane minus the %d dp gap)",
 			gotConstraints.Max.Y, want, gap)
 	}
-	if gotConstraints.Max.X != panel.X {
+	if gotConstraints.Max.X != pane.X {
 		t.Errorf("child got %d px of width, want the full %d — the gap is vertical only",
-			gotConstraints.Max.X, panel.X)
+			gotConstraints.Max.X, pane.X)
 	}
 }

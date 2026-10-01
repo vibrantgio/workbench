@@ -41,7 +41,7 @@ const (
 	// stored capture holds the platform's own open panel, so its width and
 	// height have no reading; the dialog states this instead and takes its
 	// height from it. Eight rows is what the list needs to read as a list
-	// rather than as a preview, and the panel's own numbers replace it when
+	// rather than as a preview, and the open panel's own numbers replace it when
 	// a capture holds one.
 	vaultPickerRows = 8
 )
@@ -166,7 +166,7 @@ func postMessage(gtx layout.Context, msg mvu.Message) {
 	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 }
 
-// vaultPickerDecision makes this dialog a DECISION rather than a panel: the
+// vaultPickerDecision makes this dialog a DECISION rather than a pane: the
 // two footer buttons are the only two answers, which removes the close X,
 // makes the backdrop inert and binds Escape to Cancel and Return to Open.
 //

@@ -14,18 +14,18 @@ import (
 
 // The meter's own display, measured off the brightest lit-segment pixels of
 // the photograph in the plan's reference/sk150-display.png. These are the
-// device's values, not the platform's: the readout panel is a picture of the
-// meter, so it is the same in both colour schemes — the meter has one panel.
+// device's values, not the platform's: the readout pane is a picture of the
+// meter, so it is the same in both colour schemes — the meter has one display.
 var (
 	displayVolt  = color.NRGBA{R: 0x2b, G: 0xf4, B: 0x2f, A: 0xff}
 	displayAmp   = color.NRGBA{R: 0xfe, G: 0xfb, B: 0x43, A: 0xff}
 	displayWatt  = color.NRGBA{R: 0xf9, G: 0x28, B: 0xfa, A: 0xff}
-	displayPanel = color.NRGBA{R: 0x09, G: 0x09, B: 0x05, A: 0xff}
+	displayPane = color.NRGBA{R: 0x09, G: 0x09, B: 0x05, A: 0xff}
 
-	// The panel's titles carry no hue. Over the photograph's lit area
+	// The pane's titles carry no hue. Over the photograph's lit area
 	// every lit pixel falls in the green, the yellow or the magenta above,
 	// and six pixels in twenty-one thousand are unsaturated, so the
-	// display has no fourth colour to spend on a word. This is the panel's
+	// display has no fourth colour to spend on a word. This is the pane's
 	// own black lifted two fifths of the way to white, a brightness rather
 	// than a colour, which leaves the three-hue code the readings teach
 	// intact. The OWON photograph the boxes come from writes its own box
@@ -35,8 +35,8 @@ var (
 	// display holds.
 	displayCaption = color.NRGBA{R: 0x6b, G: 0x6b, B: 0x69, A: 0xff}
 
-	// displayRim draws the edges of the two boxes at the panel's foot. It
-	// is the one value the panel takes from the OWON SPE6103 photograph
+	// displayRim draws the edges of the two boxes at the pane's foot. It
+	// is the one value the pane takes from the OWON SPE6103 photograph
 	// the boxes themselves come from, reference/sk150-display-2026-09-23.jpeg
 	// read upright: the median of 41139 pixels on both boxes' four edges
 	// with every pixel the camera blew out dropped — the left box's left
@@ -52,9 +52,9 @@ var (
 
 // Palette is the app's view of the platform's colour set, resolved fresh on
 // every theme emission so an appearance switch restyles the whole app, plus
-// the four device values the readout panel is lit in. The page stands on the
-// window's own plane and paints no fill of its own; the readout panel and the
-// chart panels are the things standing on it.
+// the four device values the readout pane is lit in. The page stands on the
+// window's own surface and paints no fill of its own; the readout pane and
+// the chart panes are the things standing on it.
 //
 // Every alpha-carrying platform name is flattened onto the fill it lands on
 // here, so what reaches Gio is opaque.
@@ -63,7 +63,7 @@ type Palette struct {
 	Label          color.NRGBA // body text
 	SecondaryLabel color.NRGBA // captions and text at the second strength
 	Dim            color.NRGBA // a disabled symbol and an idle badge's label
-	// Accent is every on-and-active mark outside the readout panel: the lit
+	// Accent is every on-and-active mark outside the readout pane: the lit
 	// bolt, the power symbol, a closed switch, the active memory group and the
 	// preset badge.
 	Accent     color.NRGBA
@@ -71,19 +71,19 @@ type Palette struct {
 	AmpSeries  color.NRGBA // the output-current history's stroke
 	Danger     color.NRGBA // protection trips and errors
 	FilledText color.NRGBA // a label drawn on a platform fill
-	ChartPanel color.NRGBA // a chart panel's fill
+	ChartPane color.NRGBA // a chart pane's fill
 	Grid       color.NRGBA // the chart's recessive grid lines
 	Seam       color.NRGBA // a switch's track while it is off
 	Hover      color.NRGBA // a header button under the pointer
 	Press      color.NRGBA // a header button held down
 
-	// The readout panel, off the photograph and the same in both schemes.
+	// The readout pane, off the photograph and the same in both schemes.
 	DisplayVolt  color.NRGBA // the voltage readout, its unit and the CV badge
 	DisplayAmp   color.NRGBA // the current readout, its unit, the CC badge and the ON badge
 	DisplayWatt  color.NRGBA // the power readout and its unit
-	DisplayPanel color.NRGBA // the panel the readouts are lit on, and the label cut out of a lit badge
+	DisplayPane color.NRGBA // the pane the readouts are lit on, and the label cut out of a lit badge
 
-	// DisplayCaption is what the panel writes a word with: the Set and
+	// DisplayCaption is what the pane writes a word with: the Set and
 	// Limit titles inside the two boxes at its foot.
 	DisplayCaption color.NRGBA
 	// DisplayRim is the edge of each of those two boxes.
@@ -91,13 +91,13 @@ type Palette struct {
 }
 
 // PaletteFrom reads the page off the platform's set and hands the readout
-// panel the meter's own values.
+// pane the meter's own values.
 //
 // The window's chrome, its controls and its labels are the platform's
 // throughout. The three readouts are not: the owner asked for the colours of
 // the device's display, so the voltage line is its green, the current line
 // and the ON badge its yellow, the power line its magenta, all lit on its
-// black. The two history charts stand outside that panel and keep the
+// black. The two history charts stand outside that pane and keep the
 // platform's names — the voltage series takes the accent, the current series
 // one more of the platform's named colours, neither of them one of the four
 // the platform reserves for a status, so a series can never be mistaken for a
@@ -113,7 +113,7 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		AmpSeries:      c.SystemTeal,
 		Danger:         c.SystemRed,
 		FilledText:     c.AlternateSelectedControlText,
-		ChartPanel:     c.CardFill,
+		ChartPane:     c.CardFill,
 		Grid:           c.Grid,
 		Seam:           vgcolor.Flatten(c.Separator, c.WindowBackground),
 		Hover:          vgcolor.Flatten(c.HoverOverlay, c.WindowBackground),
@@ -122,7 +122,7 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		DisplayVolt:  displayVolt,
 		DisplayAmp:   displayAmp,
 		DisplayWatt:  displayWatt,
-		DisplayPanel: displayPanel,
+		DisplayPane: displayPane,
 
 		DisplayCaption: displayCaption,
 		DisplayRim:     displayRim,
@@ -131,8 +131,8 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 
 // Type is the app's view of the theme's Typography: the roles the app draws
 // directly with textdraw, plus the theme's cached shaper. Digits is the Code
-// role blown up to panel size — the mono face keeps the three readouts'
-// digit columns aligned, the way the device's own seven-segment panel does.
+// role blown up to pane size — the mono face keeps the three readouts'
+// digit columns aligned, the way the device's own seven-segment pane does.
 type Type struct {
 	Shaper *text.Shaper
 	Digits textdraw.TextStyle // the V/A/W readouts: Code face at 56 sp

@@ -19,14 +19,14 @@
 // It is taken once, off the bytes the read returned, and kept on the note
 // beside the stamp saying when that read happened. Nothing the window does
 // can move it: not the width the prose wraps at, not the pane coming and
-// going, not the properties panel folding away.
+// going, not the properties pane folding away.
 //
 // # Where the bar stands
 //
 // It takes the content area's foot: it begins where the sidebar pane ends
 // and runs to the window's trailing edge — the chrome row's span, at the
 // other end of the same column — and everything above it stops at its top
-// edge, so the document and the trailing panel end on one line. The
+// edge, so the document and the trailing pane end on one line. The
 // sidebar rail is not under it and does not shorten: the rail runs to the
 // window's own bottom edge and its rows run with it.
 //
@@ -38,7 +38,7 @@
 // The count stands on the note column's own reading margin, under the
 // breadcrumb and under the vault's name above that: one column of text down
 // the leading edge of the content area, top to bottom. The trailing end,
-// where editors on this platform put their counts, is the panel of
+// where editors on this platform put their counts, is the pane of
 // citations here rather than the document.
 //
 // The bar does not share a line with the vault's actions: those stand in the
@@ -51,7 +51,7 @@
 //
 // One fact, in one line: how long the note is. The bar is as deep as that
 // line and no deeper, and it is the faint foreground this window gives what
-// annotates rather than states — the same step the properties panel's keys
+// annotates rather than states — the same step the properties pane's keys
 // and the standing messages take.
 //
 // The line is set a step under the window's other labels, the size the

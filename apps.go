@@ -82,7 +82,7 @@ var Apps = []App{
 	{
 		Name:  "SK150 Control",
 		Dir:   "sk150",
-		Blurb: "Control panel for the XY-SK150 buck-boost converter: live monitor, presets, device settings.",
+		Blurb: "Controller for the XY-SK150 buck-boost converter: live monitor, presets, device settings.",
 		Icon:  icons.HardwareDeveloperBoard,
 	},
 }
