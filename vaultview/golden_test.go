@@ -439,7 +439,7 @@ func switchGoldenModel() Model {
 	// The trail's root is stated rather than read off the machine the image
 	// is taken on: the name below is what the platform calls a startup
 	// volume, the one /Volumes holds a link to, when nothing has renamed it.
-	m.PickerRoot = place{label: "Macintosh HD", path: "/"}
+	m.PickerRoot = place{title: "Macintosh HD", path: "/"}
 	m.PickerEntries = []DirEntry{
 		{Name: "Archive", Path: "/vaults/Second Brain/Archive", MDCount: 142},
 		{Name: "Design", Path: "/vaults/Second Brain/Design", MDCount: 18},
@@ -545,7 +545,7 @@ func TestVaultWindowArrivalGolden(t *testing.T) {
 // shadow outside its box, and that shadow is deeper below the control than
 // above it.
 //
-// A dp of slack, and no more: the label is a line box centred on the
+// A dp of slack, and no more: the title is a line box centred on the
 // line, and a line box reserves room under the baseline for descenders
 // that "Second Brain" does not spend, which puts its glyphs one row high of
 // the marks beside it.
@@ -575,12 +575,12 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 						what, c, line)
 				}
 			}
-			// A mark is its own drawing and centres on the line. A label is a
+			// A mark is its own drawing and centres on the line. A title is a
 			// line box that reserves room under its baseline for descenders
 			// the name does not spend, so its cap band stands a row and a half
 			// high of the line the box itself centres on: typography, not
 			// placement, and not this window's to move.
-			const markSlack, labelSlack = 1, 2
+			const markSlack, titleSlack = 1, 2
 
 			img, st := shot(shown)
 			// The note's first painted row is a full margin below the chrome row,
@@ -590,7 +590,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			band := st.geom.rowTop + noteInsetDp
 			nameX := st.geom.contentX + noteInsetDp
 			top, bot := markedRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
-			level("the vault's name", top, bot, labelSlack)
+			level("the vault's name", top, bot, titleSlack)
 
 			// The pane's own toggle stands BARE on the pane's surface, at
 			// its top trailing corner: the figure alone, which is what is
@@ -621,7 +621,7 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 
 			nameX = markX + railToggleWidthDp + int(tokens.Spacing.S3)
 			top, bot = markedRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
-			level("the vault's name with the pane away", top, bot, labelSlack)
+			level("the vault's name with the pane away", top, bot, titleSlack)
 		})
 	}
 }

@@ -206,7 +206,7 @@ var (
 	atListRow     = image.Pt(700, 177)  // a body row the stripe skips, past the symbol
 	atReadingPane = image.Pt(1000, 600) // reading pane, below the article body
 	atPaneHead    = image.Pt(1100, 100) // reading pane, beside the article title
-	atTabStrip    = image.Pt(1150, 132) // the tab strip band, past the last label
+	atTabStrip    = image.Pt(1150, 132) // the tab strip band, past the last title
 	// Both feed samples are taken in the air between the row's symbol box
 	// and the column its name starts in, which every row keeps clear
 	// whatever it is called. The rows begin under the pane's own strip and

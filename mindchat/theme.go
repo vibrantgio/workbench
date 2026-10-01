@@ -64,7 +64,7 @@ type Palette struct {
 	// Note is the system note's foreground: a line that carries no status of
 	// its own takes the platform's secondary label over the transcript.
 	Note color.NRGBA
-	// ChipText is the label over the dialog's own template chips, which stand
+	// ChipText is the title over the dialog's own template chips, which stand
 	// on the dialog's plane.
 	ChipText color.NRGBA
 	// ModalChip is a chip inside the settings dialog: the fill an ordinary
@@ -115,7 +115,7 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		ChipText:        vgcolor.Flatten(c.Label, c.PushButtonFill),
 		ModalChip:       c.PushButtonFill,
 		Toast:           floating,
-		Pane:           c.CardFill,
+		Pane:            c.CardFill,
 		FloatingText:    vgcolor.Flatten(c.Label, floating),
 		FloatingHeading: vgcolor.Flatten(c.SecondaryLabel, floating),
 
@@ -293,7 +293,7 @@ const (
 	SettingsWellGap    unit.Dp = 12
 	SettingsCaptionRow unit.Dp = 22
 	SettingsIconBtn    unit.Dp = 18
-	SettingsPaneInset unit.Dp = 6
+	SettingsPaneInset  unit.Dp = 6
 	// SelectRowHeight is the settings dialog's default-model row: the height
 	// the closed picker trigger standing in it draws at, and no more, so the
 	// label beside it centres on the control and not on slack under it.
@@ -303,7 +303,7 @@ const (
 	// is the width of the menu it drops.
 	SelectRowHeight unit.Dp = 24
 	// ToolbarWidth is the widest the header picker may grow, not the width it
-	// draws at — the trigger is sized to its label and clamped to this.
+	// draws at — the trigger is sized to its title and clamped to this.
 	ToolbarWidth unit.Dp = 230
 	// MenuWidth is the width of the header picker's floating surface.
 	MenuWidth unit.Dp = 260

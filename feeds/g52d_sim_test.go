@@ -215,8 +215,8 @@ func TestG52dCrudStatesHeadless(t *testing.T) {
 
 // TestHoverGutterDoesNotSwallowSelectPress guards the sidebar row layout: a
 // gesture.Hover area spans the whole feed row (to reveal the trash icon) and
-// is registered UNDER a label-area widget.Clickable (the SelectFeed target).
-// gesture.Hover filters only Enter/Leave/Cancel, so a press inside the label
+// is registered UNDER a title-area widget.Clickable (the SelectFeed target).
+// gesture.Hover filters only Enter/Leave/Cancel, so a press inside the title
 // must still reach the clickable — click-to-select must survive the hover
 // gutter. This drives a real input.Router exactly as drawFeedEntryRow composes
 // the two, and asserts the underlying clickable registered the click.
@@ -229,7 +229,7 @@ func TestHoverGutterDoesNotSwallowSelectPress(t *testing.T) {
 	// row composes exactly as drawFeedEntryRow does: Clicked() is checked
 	// FIRST (the app loops over rows calling Clicked before laying them out —
 	// widget.Clickable.Layout drains the same events, so the order matters),
-	// then the hover area is registered under the label-area clickable.
+	// then the hover area is registered under the title-area clickable.
 	row := func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		if click.Clicked(gtx) {
@@ -261,14 +261,14 @@ func TestHoverGutterDoesNotSwallowSelectPress(t *testing.T) {
 	}
 
 	frame() // register tags
-	// Press + release inside the LABEL area (well left of the trash gutter).
+	// Press + release inside the TITLE area (well left of the trash gutter).
 	at := f32.Pt(40, h/2)
 	r.Queue(pointer.Event{Kind: pointer.Press, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary})
 	frame()
 	r.Queue(pointer.Event{Kind: pointer.Release, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary})
 	frame() // drains the click
 	if !got {
-		t.Error("press in the label area did not reach the select clickable; the hover gutter swallowed it")
+		t.Error("press in the title area did not reach the select clickable; the hover gutter swallowed it")
 	}
 }
 

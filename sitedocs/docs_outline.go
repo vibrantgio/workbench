@@ -233,7 +233,7 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
-				dims := drawOutlineLabel(gtx, tok.shaper, row.Title, style, title)
+				dims := drawOutlineTitle(gtx, tok.shaper, row.Title, style, title)
 				pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
 				return dims
 			})
@@ -251,12 +251,12 @@ func hSpacer(dp float32) layout.Widget {
 	}
 }
 
-// drawOutlineLabel paints a one-line, middle-aligned row title; what does
+// drawOutlineTitle paints a one-line, middle-aligned row title; what does
 // not fit the row truncates.
-func drawOutlineLabel(
+func drawOutlineTitle(
 	gtx layout.Context,
 	shaper *text.Shaper,
-	label string,
+	title string,
 	style tokens.TextStyle,
 	fg color.NRGBA,
 ) layout.Dimensions {
@@ -265,20 +265,20 @@ func drawOutlineLabel(
 	paint.ColorOp{Color: fg}.Add(gtx.Ops)
 	material := mColor.Stop()
 
-	labelGtx := gtx
-	labelGtx.Constraints.Min = image.Point{}
+	titleGtx := gtx
+	titleGtx.Constraints.Min = image.Point{}
 
-	mLabel := op.Record(gtx.Ops)
-	labelDims := typeset.Layout(labelGtx, shaper, typeset.Label(style, 1),
-		typeset.Font(style, font.Normal), unit.Sp(style.Size), label, material)
-	labelCall := mLabel.Stop()
+	mTitle := op.Record(gtx.Ops)
+	titleDims := typeset.Layout(titleGtx, shaper, typeset.Label(style, 1),
+		typeset.Font(style, font.Normal), unit.Sp(style.Size), title, material)
+	titleCall := mTitle.Stop()
 
-	offY := (size.Y - labelDims.Size.Y) / 2
+	offY := (size.Y - titleDims.Size.Y) / 2
 	if offY < 0 {
 		offY = 0
 	}
 	stk := op.Offset(image.Pt(0, offY)).Push(gtx.Ops)
-	labelCall.Add(gtx.Ops)
+	titleCall.Add(gtx.Ops)
 	stk.Pop()
 	return layout.Dimensions{Size: size}
 }

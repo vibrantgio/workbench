@@ -20,7 +20,7 @@ type Chord struct {
 }
 
 // MenuCommand is a chord the application menu carries as well: the same key
-// and the same message, under a label in a named menu. The two are one
+// and the same message, under a title in a named menu. The two are one
 // declaration: an item that posts a different message from the chord printed
 // beside it is unwriteable.
 type MenuCommand struct {
@@ -30,7 +30,7 @@ type MenuCommand struct {
 	// application's own.
 	Menu string
 
-	// Title is the item's label in the menu.
+	// Title is the item's own text in the menu.
 	Title string
 }
 

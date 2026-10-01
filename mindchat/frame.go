@@ -333,7 +333,7 @@ const (
 	titleMuted
 )
 
-// chatTitleText is the chrome row's label for a chat file name, and the
+// chatTitleText is the chrome row's title for a chat file name, and the
 // verdict on whether it is a name at all. The untitled chats are the ones
 // the application itself named — new.jsonl and its numbered siblings — and
 // they show the placeholder until the conversation earns something better.

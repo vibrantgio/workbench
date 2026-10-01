@@ -111,14 +111,14 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 //
 // Four tiers, and they differ from each other in size as well as in weight:
 // the window's own name, a group's title, a row's words, a caption. The
-// platform sets a group's heading in semibold where a row's label is regular,
+// platform sets a group's heading in semibold where a row's words are regular,
 // and reading this window cold against it found our two — one role at medium
 // and one at regular, both 14 — did not separate: "the headings are not
 // headings", one tier where the platform has three.
 type Type struct {
 	Shaper *text.Shaper
 	Head   textdraw.TextStyle // TitleLarge: the window's own name in the title row
-	Label  textdraw.TextStyle // TitleMedium: a group's title
+	Title  textdraw.TextStyle // TitleMedium: a group's title
 	Body   textdraw.TextStyle // BodyMedium: a row's own words
 	Small  textdraw.TextStyle // BodySmall: hints, hex values and shares
 	// Role is LabelLarge as the theme states it, for the controls here drawn
@@ -131,7 +131,7 @@ func TypeFrom(t tokens.Typography) Type {
 	return Type{
 		Shaper: t.Shaper(),
 		Head:   textStyle(t.TitleLarge),
-		Label:  textStyle(t.TitleMedium),
+		Title:  textStyle(t.TitleMedium),
 		Body:   textStyle(t.BodyMedium),
 		Small:  textStyle(t.BodySmall),
 		Role:   t.LabelLarge,

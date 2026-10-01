@@ -276,7 +276,7 @@ func tabbedShellLayer(
 		default:
 			pages[i] = groupTabLayer(th, tabGroups[page])
 		}
-		strip[i] = tabs.Tab{Title: tabLabels[i], Content: fromCell(&cells[i])}
+		strip[i] = tabs.Tab{Title: tabTitles[i], Content: fromCell(&cells[i])}
 	}
 
 	shell := tabs.Tabs(th, tabs.Props{

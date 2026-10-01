@@ -400,13 +400,13 @@ func drawLabel(gtx layout.Context, shaper *text.Shaper, msg string, style tokens
 		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
 }
 
-// place is one stop on a breadcrumb trail: the label the row draws and the
+// place is one stop on a breadcrumb trail: the title the row draws and the
 // path clicking it goes to. The path is the segment's identity as well as
 // its destination, which is what keeps a click addressed to the place it was
 // made on when the trail is reshaped between the frame that drew it and the
 // frame that reports it.
 type place struct {
-	label string
+	title string
 	path  string
 }
 
@@ -417,7 +417,7 @@ type place struct {
 func trailSegments(places []place, click func(path string) func(gtx layout.Context)) []breadcrumb.Segment {
 	segs := make([]breadcrumb.Segment, len(places))
 	for i, p := range places {
-		segs[i] = breadcrumb.Segment{Key: p.path, Title: p.label}
+		segs[i] = breadcrumb.Segment{Key: p.path, Title: p.title}
 		if i < len(places)-1 {
 			segs[i].OnClick = click(p.path)
 		}
@@ -427,11 +427,11 @@ func trailSegments(places []place, click func(path string) func(gtx layout.Conte
 
 // trailChevronDp is the square the trail's separator is drawn in.
 //
-// The separator is punctuation, not a control: it stands between the labels
+// The separator is punctuation, not a control: it stands between the titles
 // rather than beside them, so it is the smallest mark in its row and has to
 // stay under the caps of the text it divides. The size is measured, not
 // chosen. The separator's stroke fills its square's full height, so the square
-// is the stroke height: at eight dp it stands four fifths of the labels' caps,
+// is the stroke height: at eight dp it stands four fifths of the titles' caps,
 // and under the history controls at the row's head in both height and weight,
 // which is the order the row reads in. A mark's size here would put a solid
 // stroke a fifth over those caps.
@@ -446,7 +446,7 @@ const trailChevronDp = 8
 // site here asks for one of those and none for a size in between.
 const (
 	// markSmallDp is the size a mark takes beside a line of text: the
-	// disclosure marks, which stand next to a fourteen-point label, and
+	// disclosure marks, which stand next to a fourteen-point title, and
 	// the history controls, which stand next to the breadcrumb.
 	markSmallDp = 16
 	// markMediumDp is the size a mark takes as a control in its own

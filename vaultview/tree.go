@@ -531,7 +531,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	// Which of the platform's two pills a filled row wears. The emphasized
 	// one is the row the keyboard stands on while the rail has the keys;
 	// every other filled row, and every row while the keys are elsewhere,
-	// wears the grey pill with its label in the accent.
+	// wears the grey pill with its title in the accent.
 	holdsKeyboard := gtx.Focused(v.list.Focus())
 	return list.LayoutSelectable(gtx, v.list, rows,
 		func(gtx layout.Context, row TreeRow, selected bool) layout.Dimensions {

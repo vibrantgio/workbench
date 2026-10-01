@@ -14,7 +14,7 @@
 // area's insets (frame.go), because that room is what the open menu may
 // use and the popover keeps its surface inside it. Two things follow. The
 // trigger is stood at that room's trailing edge by the popover, so the
-// control lands on the content column's edge whatever the label says; and
+// control lands on the content column's edge whatever the title says; and
 // because the room is the row rather than the control, the two things that
 // are NOT entitled to all of it cap themselves — the trigger at [ToolbarWidth],
 // the surface at [MenuWidth] — over the constraints the popover offers, which
@@ -42,7 +42,7 @@ import (
 // menuEntry is one pickable row: what it says and what picking it sets. An
 // empty provider and model is the Default entry, which clears the override.
 type menuEntry struct {
-	label    string
+	title    string
 	provider string
 	model    string
 }
@@ -88,7 +88,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 			Pipe(rx.DistinctUntilChanged(func(a, b anchorKey) bool { return a == b })),
 		func(k anchorKey) rx.Observable[layout.Widget] {
 			return picker.Toolbar(th, picker.ToolbarProps{
-				Value:       k.label,
+				Value:       k.title,
 				Description: "Model for this chat",
 				// The anchor reports the shape it drew and nothing wider: the
 				// popover aims its tail at that rect, and a control that
@@ -114,7 +114,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 		func(k menuKey) rx.Observable[layout.Widget] {
 			entries := k.entries
 			return rx.Map(picker.Menu(th, picker.MenuProps{
-				Options:  labelsOf(entries),
+				Options:  titlesOf(entries),
 				Selected: k.selected,
 				// The header's catalogue is the same forty to sixty rows as
 				// the settings dialog's, and the popover that places this
@@ -150,7 +150,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 	})
 }
 
-// anchorBox caps how far the header control may run before its label is
+// anchorBox caps how far the header control may run before its title is
 // truncated. The popover offers the anchor the whole room it has, and the
 // name of a model is not entitled to the width of the chrome row.
 func anchorBox(anchor layout.Widget, width unit.Dp) layout.Widget {
@@ -172,7 +172,7 @@ func menuSurface(menu layout.Widget, width unit.Dp) layout.Widget {
 }
 
 // anchorKey is everything the header anchor is a function of, which is the
-// label alone: the mark is the component's and does not move, so the open
+// title alone: the mark is the component's and does not move, so the open
 // state is not in here and opening the menu does not rebuild the control.
 //
 // The fill the anchor stands on is not in here either. The platform gives its
@@ -180,7 +180,7 @@ func menuSurface(menu layout.Widget, width unit.Dp) layout.Widget {
 // on what it is drawn over and a scheme change reaches it through the theme it
 // is already subscribed to.
 type anchorKey struct {
-	label string
+	title string
 }
 
 // anchorKeyOf reads the effective model out of the Model and names it:
@@ -190,11 +190,11 @@ type anchorKey struct {
 // from is a different question, it is asked rarely, and the menu answers it in
 // full: the Default row is there, selected exactly when no override is set.
 func anchorKeyOf(m Model) anchorKey {
-	label := "No model configured"
+	title := "No model configured"
 	if provider, id, ok := m.EffectiveModel(); ok {
-		label = provider.Name + " · " + id
+		title = provider.Name + " · " + id
 	}
-	return anchorKey{label: label}
+	return anchorKey{title: title}
 }
 
 // menuKey is the option list and the row standing on the inverse plane, with
@@ -211,11 +211,11 @@ type menuKey struct {
 // because the surface is a flat option list and which provider a model belongs
 // to is part of what the row has to say.
 func menuKeyOf(m Model) menuKey {
-	defaultLabel := "Default"
+	defaultTitle := "Default"
 	if p, ok := m.ProviderNamed(m.DefaultProvider); ok {
-		defaultLabel = "Default (" + p.Name + " · " + m.DefaultModel + ")"
+		defaultTitle = "Default (" + p.Name + " · " + m.DefaultModel + ")"
 	}
-	entries := []menuEntry{{label: defaultLabel}}
+	entries := []menuEntry{{title: defaultTitle}}
 	selected := 0
 	if m.CurrentChat.Provider != "" {
 		selected = -1
@@ -226,7 +226,7 @@ func menuKeyOf(m Model) menuKey {
 				selected = len(entries)
 			}
 			entries = append(entries, menuEntry{
-				label:    p.Name + " · " + id,
+				title:    p.Name + " · " + id,
 				provider: p.Name,
 				model:    id,
 			})
@@ -235,12 +235,12 @@ func menuKeyOf(m Model) menuKey {
 	return menuKey{id: identityOf(entries, selected), entries: entries, selected: selected}
 }
 
-// labelsOf is the option list a picker menu takes: the entries' labels in the
+// titlesOf is the option list a picker menu takes: the entries' titles in the
 // order they are drawn.
-func labelsOf(entries []menuEntry) []string {
+func titlesOf(entries []menuEntry) []string {
 	out := make([]string, len(entries))
 	for i, e := range entries {
-		out[i] = e.label
+		out[i] = e.title
 	}
 	return out
 }
@@ -251,7 +251,7 @@ func labelsOf(entries []menuEntry) []string {
 func identityOf(entries []menuEntry, selected int) string {
 	var b strings.Builder
 	for _, e := range entries {
-		b.WriteString(e.label)
+		b.WriteString(e.title)
 		b.WriteByte(0)
 	}
 	b.WriteString(strconv.Itoa(selected))

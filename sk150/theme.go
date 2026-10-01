@@ -17,9 +17,9 @@ import (
 // device's values, not the platform's: the readout pane is a picture of the
 // meter, so it is the same in both colour schemes — the meter has one display.
 var (
-	displayVolt  = color.NRGBA{R: 0x2b, G: 0xf4, B: 0x2f, A: 0xff}
-	displayAmp   = color.NRGBA{R: 0xfe, G: 0xfb, B: 0x43, A: 0xff}
-	displayWatt  = color.NRGBA{R: 0xf9, G: 0x28, B: 0xfa, A: 0xff}
+	displayVolt = color.NRGBA{R: 0x2b, G: 0xf4, B: 0x2f, A: 0xff}
+	displayAmp  = color.NRGBA{R: 0xfe, G: 0xfb, B: 0x43, A: 0xff}
+	displayWatt = color.NRGBA{R: 0xf9, G: 0x28, B: 0xfa, A: 0xff}
 	displayPane = color.NRGBA{R: 0x09, G: 0x09, B: 0x05, A: 0xff}
 
 	// The pane's titles carry no hue. Over the photograph's lit area
@@ -62,7 +62,7 @@ type Palette struct {
 	Backdrop       color.NRGBA // the window's own plane
 	Label          color.NRGBA // body text
 	SecondaryLabel color.NRGBA // captions and text at the second strength
-	Dim            color.NRGBA // a disabled symbol and an idle badge's label
+	Dim            color.NRGBA // a disabled symbol and an idle badge's title
 	// Accent is every on-and-active mark outside the readout pane: the lit
 	// bolt, the power symbol, a closed switch, the active memory group and the
 	// preset badge.
@@ -70,18 +70,18 @@ type Palette struct {
 	VoltSeries color.NRGBA // the output-voltage history's stroke
 	AmpSeries  color.NRGBA // the output-current history's stroke
 	Danger     color.NRGBA // protection trips and errors
-	FilledText color.NRGBA // a label drawn on a platform fill
-	ChartPane color.NRGBA // a chart pane's fill
+	FilledText color.NRGBA // text drawn on a platform fill
+	ChartPane  color.NRGBA // a chart pane's fill
 	Grid       color.NRGBA // the chart's recessive grid lines
 	Seam       color.NRGBA // a switch's track while it is off
 	Hover      color.NRGBA // a header button under the pointer
 	Press      color.NRGBA // a header button held down
 
 	// The readout pane, off the photograph and the same in both schemes.
-	DisplayVolt  color.NRGBA // the voltage readout, its unit and the CV badge
-	DisplayAmp   color.NRGBA // the current readout, its unit, the CC badge and the ON badge
-	DisplayWatt  color.NRGBA // the power readout and its unit
-	DisplayPane color.NRGBA // the pane the readouts are lit on, and the label cut out of a lit badge
+	DisplayVolt color.NRGBA // the voltage readout, its unit and the CV badge
+	DisplayAmp  color.NRGBA // the current readout, its unit, the CC badge and the ON badge
+	DisplayWatt color.NRGBA // the power readout and its unit
+	DisplayPane color.NRGBA // the pane the readouts are lit on, and the title cut out of a lit badge
 
 	// DisplayCaption is what the pane writes a word with: the Set and
 	// Limit titles inside the two boxes at its foot.
@@ -113,15 +113,15 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		AmpSeries:      c.SystemTeal,
 		Danger:         c.SystemRed,
 		FilledText:     c.AlternateSelectedControlText,
-		ChartPane:     c.CardFill,
+		ChartPane:      c.CardFill,
 		Grid:           c.Grid,
 		Seam:           vgcolor.Flatten(c.Separator, c.WindowBackground),
 		Hover:          vgcolor.Flatten(c.HoverOverlay, c.WindowBackground),
 		Press:          vgcolor.Flatten(c.PressOverlay, c.WindowBackground),
 
-		DisplayVolt:  displayVolt,
-		DisplayAmp:   displayAmp,
-		DisplayWatt:  displayWatt,
+		DisplayVolt: displayVolt,
+		DisplayAmp:  displayAmp,
+		DisplayWatt: displayWatt,
 		DisplayPane: displayPane,
 
 		DisplayCaption: displayCaption,
@@ -138,7 +138,7 @@ type Type struct {
 	Digits textdraw.TextStyle // the V/A/W readouts: Code face at 56 sp
 	Unit   textdraw.TextStyle // the unit letters: half the digit size
 	Set    textdraw.TextStyle // the Set and Limit lines under the readouts
-	Stack  textdraw.TextStyle // the CV/CC and ON/OFF badge labels
+	Stack  textdraw.TextStyle // the CV/CC and ON/OFF badge titles
 	Title  textdraw.TextStyle // section headings and the header title
 	Body   textdraw.TextStyle // status lines and field captions
 	Small  textdraw.TextStyle // the notice and connection lines

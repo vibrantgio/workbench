@@ -727,7 +727,7 @@ func drawFeedEntryRow(
 
 	// Hover tracking spans the whole row but registers hover Enter/Leave only
 	// (gesture.Hover), so it never claims the select press. Register the hover
-	// area first so it sits under the label/trash content.
+	// area first so it sits under the title/trash content.
 	hovered := hover.Update(gtx.Source) || dc.open
 	hoverClip := clip.Rect{Max: size}.Push(gtx.Ops)
 	hover.Add(gtx.Ops)
@@ -809,11 +809,11 @@ func feedRowForeground(c tokens.PlatformColors, selected, unemphasized bool) col
 }
 
 // drawFeedEntry lays the row's own click target out and draws the feed's
-// name in it, starting at the rail's measured label column.
+// name in it, starting at the rail's measured title column.
 func drawFeedEntry(
 	gtx layout.Context,
 	tok themeTokens,
-	label string,
+	title string,
 	selected bool,
 	unemphasized bool,
 	click *gesture.Click,
@@ -825,24 +825,24 @@ func drawFeedEntry(
 		if room < 0 {
 			room = 0
 		}
-		labelGtx := gtx
-		labelGtx.Constraints.Min = image.Point{}
-		labelGtx.Constraints.Max = image.Pt(room, size.Y)
-		mLabel := op.Record(gtx.Ops)
-		labelDims := drawLabel(labelGtx, tok.shaper, label, tok.typ.BodySmall, feedRowForeground(tok.col, selected, unemphasized))
-		labelCall := mLabel.Stop()
-		offY := (size.Y - labelDims.Size.Y) / 2
+		titleGtx := gtx
+		titleGtx.Constraints.Min = image.Point{}
+		titleGtx.Constraints.Max = image.Pt(room, size.Y)
+		mTitle := op.Record(gtx.Ops)
+		titleDims := drawLabel(titleGtx, tok.shaper, title, tok.typ.BodySmall, feedRowForeground(tok.col, selected, unemphasized))
+		titleCall := mTitle.Stop()
+		offY := (size.Y - titleDims.Size.Y) / 2
 		if offY < 0 {
 			offY = 0
 		}
 		stk := op.Offset(image.Pt(lead, offY)).Push(gtx.Ops)
-		labelCall.Add(gtx.Ops)
+		titleCall.Add(gtx.Ops)
 		stk.Pop()
 		return layout.Dimensions{Size: size}
 	}
 	gtx.Constraints = layout.Exact(size)
 	inner(gtx)
-	patsidebar.RowTarget(gtx, click, size, label)
+	patsidebar.RowTarget(gtx, click, size, title)
 	return layout.Dimensions{Size: size}
 }
 

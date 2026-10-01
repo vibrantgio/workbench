@@ -851,7 +851,7 @@ func notePlaces(m Model) []place {
 	if note == nil {
 		return places
 	}
-	places = append(places, place{label: vaultName(m)})
+	places = append(places, place{title: vaultName(m)})
 	if dir := path.Dir(note.Path); dir != "." {
 		cum := ""
 		for _, seg := range strings.Split(dir, "/") {
@@ -860,7 +860,7 @@ func notePlaces(m Model) []place {
 			} else {
 				cum += "/" + seg
 			}
-			places = append(places, place{label: seg, path: cum})
+			places = append(places, place{title: seg, path: cum})
 		}
 	}
 	return places

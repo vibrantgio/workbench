@@ -43,7 +43,7 @@ func staticTabs(
 		default:
 			content = renderGroupTab(shaper, tabGroups[page], c, typo)
 		}
-		out[i] = tabs.Tab{Title: tabLabels[i], Content: contentSlot(content)}
+		out[i] = tabs.Tab{Title: tabTitles[i], Content: contentSlot(content)}
 	}
 	return out
 }

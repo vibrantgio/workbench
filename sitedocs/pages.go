@@ -43,8 +43,8 @@ const (
 // are two different kinds of thing, and a strip cell names one kind.
 var tabPages = []string{pageDocs, pageColours, pageTypography, pageComponents, pagePatterns, pageMarkdown}
 
-// tabLabels is what the strip writes on each cell, in tabPages order.
-var tabLabels = []string{"Docs", "Colours", "Typography", "Components", "Patterns", "Markdown"}
+// tabTitles is what the strip writes on each cell, in tabPages order.
+var tabTitles = []string{"Docs", "Colours", "Typography", "Components", "Patterns", "Markdown"}
 
 // tabIndex maps a route identifier to its strip position. An
 // unrecognised identifier lands on the Docs tab, the app's home surface.

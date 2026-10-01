@@ -1078,12 +1078,12 @@ func TestRailSortsNamesAsTheFileBrowserDoes(t *testing.T) {
 		{ID: "c", Title: "Zeta"},
 	}}}
 	got := appendFeed(groups, "https://added.test/feed.xml")
-	var labels []string
+	var titles []string
 	for _, e := range got[0].Entries {
-		labels = append(labels, e.Title)
+		titles = append(titles, e.Title)
 	}
 	want := []string{"feed 2", "Feed 10", "https://added.test/feed.xml", "Zeta"}
-	if strings.Join(labels, " | ") != strings.Join(want, " | ") {
-		t.Errorf("rail is %v, want %v", labels, want)
+	if strings.Join(titles, " | ") != strings.Join(want, " | ") {
+		t.Errorf("rail is %v, want %v", titles, want)
 	}
 }

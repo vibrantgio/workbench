@@ -201,17 +201,17 @@ func collectOne(obs rx.Observable[layout.Widget]) (layout.Widget, error) {
 	return got, err
 }
 
-// TestStripOrderIsLabelled pins the two lists the strip is built from
-// against each other: every route identifier has a label, in the order
+// TestStripOrderIsTitled pins the two lists the strip is built from
+// against each other: every route identifier has a title, in the order
 // the cells are drawn.
-func TestStripOrderIsLabelled(t *testing.T) {
-	if len(tabLabels) != len(tabPages) {
-		t.Fatalf("%d labels for %d tabs", len(tabLabels), len(tabPages))
+func TestStripOrderIsTitled(t *testing.T) {
+	if len(tabTitles) != len(tabPages) {
+		t.Fatalf("%d titles for %d tabs", len(tabTitles), len(tabPages))
 	}
 	want := []string{"Docs", "Colours", "Typography", "Components", "Patterns", "Markdown"}
 	for i, w := range want {
-		if tabLabels[i] != w {
-			t.Errorf("tab %d is labelled %q, want %q", i, tabLabels[i], w)
+		if tabTitles[i] != w {
+			t.Errorf("tab %d is titled %q, want %q", i, tabTitles[i], w)
 		}
 	}
 }

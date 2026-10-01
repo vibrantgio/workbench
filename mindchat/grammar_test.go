@@ -115,7 +115,7 @@ func TestEveryForegroundIsFlattenedOntoWhatItStandsOn(t *testing.T) {
 				got  color.NRGBA
 				want color.NRGBA
 			}{
-				{"a chat row's label", p.Row, vgcolor.Flatten(c.Label, c.SidebarMaterial)},
+				{"a chat row's title", p.Row, vgcolor.Flatten(c.Label, c.SidebarMaterial)},
 				{"the pane's heading", p.Heading, vgcolor.Flatten(c.SecondaryLabel, c.SidebarMaterial)},
 				{"the pane's seam", p.Separator, vgcolor.Flatten(c.Separator, c.SidebarMaterial)},
 				{"a turn's prose", p.TurnText, vgcolor.Flatten(c.Label, c.ControlBackground)},
@@ -218,7 +218,7 @@ func TestTheOpenConversationWearsThePlatformsPill(t *testing.T) {
 				t.Errorf("the open conversation's fill = %v, the content list's selection; a sidebar row and a list row are two different fills here", p.RowSelected)
 			}
 			if p.RowActive != vgcolor.Flatten(sidebar.SelectionLabel(c, false), sidebar.SelectionFill(c, false)) {
-				t.Errorf("the open conversation's label = %v, want the foreground the platform pairs with its pill", p.RowActive)
+				t.Errorf("the open conversation's title = %v, want the foreground the platform pairs with its pill", p.RowActive)
 			}
 			// The platform's other pill, for the rail that does not hold
 			// the keyboard: the same pattern's answer, not a second one.
@@ -226,7 +226,7 @@ func TestTheOpenConversationWearsThePlatformsPill(t *testing.T) {
 				t.Errorf("the open conversation's fill with the keys off the rail = %v, want the pattern's grey pill %v", p.RowSelectedUnfocused, want)
 			}
 			if want := vgcolor.Flatten(sidebar.SelectionLabel(c, true), sidebar.SelectionFill(c, true)); p.RowActiveUnfocused != want {
-				t.Errorf("its label there = %v, want the foreground the platform pairs with that pill %v", p.RowActiveUnfocused, want)
+				t.Errorf("its title there = %v, want the foreground the platform pairs with that pill %v", p.RowActiveUnfocused, want)
 			}
 			if p.RowSelectedUnfocused == p.RowSelected {
 				t.Errorf("both pills are %v: the rail says where the keyboard is in the pill's colour, so the two states cannot be one colour", p.RowSelected)

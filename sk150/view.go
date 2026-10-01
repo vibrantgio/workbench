@@ -350,8 +350,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		Body:  lvpBody,
 		// Neither action states a width: the dialog's footer owns the save
 		// dialog's measured push button width and lays both out in it, and
-		// "Set anyway" — the one label in this window wider than that — takes
-		// the width its own label measures.
+		// "Set anyway" — the one title in this window wider than that — takes
+		// the width its own title measures.
 		Actions: []layout.Widget{
 			slotW("lvp.cancel"),
 			slotW("lvp.confirm"),

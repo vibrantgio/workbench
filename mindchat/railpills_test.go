@@ -50,8 +50,8 @@ func railThemed(t *testing.T, c tokens.PlatformColors) themed {
 var railPillSize = image.Pt(240, 320)
 
 // TestTheRailDrawsThePlatformsTwoPills reads both pill states off a rendered
-// rail in both appearances: the accent pill under a white label while the
-// rail holds the keyboard, and the grey pill under the label in the accent
+// rail in both appearances: the accent pill under a white title while the
+// rail holds the keyboard, and the grey pill under the title in the accent
 // colour while it does not.
 //
 // The rail is ONE focusable, so what hands it the keyboard is the keyboard

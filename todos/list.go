@@ -50,14 +50,14 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 		Message:     ToggleTodo{Id: item.Id},
 	}).First()
 
-	// The text is a plain clickable label, not a button: a completed todo
+	// The text is plain and clickable, not a button: a completed todo
 	// drops to the second strength.
 	var editClick widget.Clickable
 	textColor := p.Label
 	if item.Completed {
 		textColor = p.SecondaryLabel
 	}
-	label := func(gtx layout.Context) layout.Dimensions {
+	title := func(gtx layout.Context) layout.Dimensions {
 		if editClick.Clicked(gtx) {
 			mvu.MessageOp{Message: SelectTodo{Id: item.Id}}.Add(gtx.Ops)
 			mvu.MessageOp{Message: SetRoute{Route: "edit.todo"}}.Add(gtx.Ops)
@@ -84,7 +84,7 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 		return row.Layout(gtx,
 			layout.Rigid(cb),
 			layout.Rigid(layout.Spacer{Width: Padding}.Layout),
-			layout.Flexed(1, label),
+			layout.Flexed(1, title),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				if deleteClick.Clicked(gtx) {
 					mvu.MessageOp{Message: DeleteTodo{Id: item.Id}}.Add(gtx.Ops)

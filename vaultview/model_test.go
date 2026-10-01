@@ -588,9 +588,9 @@ func TestNotePlacesTrail(t *testing.T) {
 
 	got := notePlaces(model)
 	want := []place{
-		{label: "Second Brain"},
-		{label: "a", path: "a"},
-		{label: "b", path: "a/b"},
+		{title: "Second Brain"},
+		{title: "a", path: "a"},
+		{title: "b", path: "a/b"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("notePlaces = %+v, want %+v", got, want)

@@ -258,7 +258,7 @@ func SampleWindow(c tokens.PlatformColors, ty Type, typ tokens.Typography, shape
 		// The heading row: what the pane is about, and the badge that says
 		// what state it is in, at the trailing end.
 		head := image.Rect(pane.Min.X, field.Max.Y+step, pane.Max.X, field.Max.Y+step+gtx.Dp(SampleHeadH))
-		textdraw.FillText(gtx, ty.Shaper, ty.Label, head, 0, 0.5, label, SampleHeading)
+		textdraw.FillText(gtx, ty.Shaper, ty.Title, head, 0, 0.5, label, SampleHeading)
 		at(gtx, head.Min, func(gtx layout.Context) {
 			gtx.Constraints = layout.Constraints{Max: head.Size()}
 			trailingIn(gtx, head.Dx(), mark)

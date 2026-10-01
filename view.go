@@ -32,7 +32,7 @@ import (
 const (
 	CellW    unit.Dp = 300 // one app group
 	CellH    unit.Dp = 190
-	ButtonW  unit.Dp = 110 // fixed launch-button width, so labels don't resize it
+	ButtonW  unit.Dp = 110 // fixed launch-button width, so titles don't resize it
 	IconSize unit.Dp = 28
 	RowGap   float32 = 16 // dp between groups, and between the rows
 	perRow           = 4  // groups per grid row; the last row holds the rest
@@ -266,7 +266,7 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 	}
 
 	// The app's own name is already the first row, so the group takes no
-	// label of its own: a second copy of it above the icon would name the
+	// title of its own: a second copy of it above the icon would name the
 	// group twice.
 	//
 	// The group paints nothing inside itself, so the fill its hairline is

@@ -201,7 +201,7 @@ func feedsShellLayer(
 	})
 
 	// The platform set the frame is drawn from, read through the same
-	// layer-boundary cell the navbar's own labels use.
+	// layer-boundary cell the navbar's own titles use.
 	loadFrameTok := mirrorTokens(th)
 
 	// The navbar is built here and handed to the frame as its band slot:
@@ -300,7 +300,7 @@ const (
 )
 
 // feedsNavbarProps builds the navbar with the brand, the (decorative) Add
-// feed action, and the Share popover slot. Brand and action labels are the
+// feed action, and the Share popover slot. Brand and action titles are the
 // app's own text, so they read the theme snapshot from loadTok at frame
 // time: both stand on the chrome material the navbar wears, the brand in
 // TitleMedium on the platform's label and the Add feed action in LabelLarge
@@ -356,7 +356,7 @@ const (
 // The destination list overrides its incoming constraints: patterns/popover
 // measures Content against half the space it is given, and that space here is
 // the button-sized Exact wrapper from feedsNavbarProps — half a button could
-// not fit one label. The content sizes itself and returns its own dims, which
+// not fit one title. The content sizes itself and returns its own dims, which
 // popover then pads into the surface rect.
 func sharePopover(
 	th rx.Observable[theme.Theme],

@@ -420,9 +420,9 @@ const (
 // the words it belongs to — made every section a zigzag: title far leading,
 // caption far trailing, the value back at the leading edge inside the box,
 // the control at the trailing edge again. The platform never separates the
-// two: its own captions stand inside the box under the label they explain.
+// two: its own captions stand inside the box under the title they explain.
 func GroupTitle(p Palette, ty Type, title, hint string, control layout.Widget) layout.Widget {
-	slots := []slot{{leading, 0, Line(ty, ty.Label, p.Text, title)}}
+	slots := []slot{{leading, 0, Line(ty, ty.Title, p.Text, title)}}
 	if control != nil {
 		slots = append(slots, slot{at: trailing, w: control})
 	}
@@ -647,11 +647,11 @@ func fixed(w unit.Dp, inner layout.Widget) layout.Widget {
 // changes with the answer: an offer while the choice on screen is not the one
 // on disk, a confirmation the moment it is.
 func KeepButton(c tokens.PlatformColors, ty Type, m Model, click *gesture.Click) layout.Widget {
-	label, emphasis := KeepLabel, button.Filled
+	title, emphasis := KeepLabel, button.Filled
 	if m.IsKept() {
-		label, emphasis = KeptLabel, button.Tonal
+		title, emphasis = KeptLabel, button.Tonal
 	}
-	draw := button.Render(ty.Shaper, label, c, tokens.Spacing, tokens.Radius, ty.Role, tokens.Comfortable,
+	draw := button.Render(ty.Shaper, title, c, tokens.Spacing, tokens.Radius, ty.Role, tokens.Comfortable,
 		button.RenderState{Emphasis: emphasis, Hovered: click.Hovered(), Pressed: click.Pressed(),
 			Surface: c.WindowBackground})
 	return func(gtx layout.Context) layout.Dimensions {

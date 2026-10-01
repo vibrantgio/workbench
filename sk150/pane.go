@@ -279,7 +279,7 @@ func paneRow(t themed, foreground color.NRGBA, digits, unit, badgeTxt string, ba
 }
 
 // tripBadge is the header's protection flag: the latest trip, the badge
-// labels' style on the danger colour. Empty while nothing is tripped.
+// titles' style on the danger colour. Empty while nothing is tripped.
 func tripBadge(t themed, r Reading) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if r.Protect == 0 {
@@ -324,16 +324,16 @@ func outputCluster(t themed, r Reading) layout.Widget {
 	}
 }
 
-// badgeBox paints one badge: the label centered in the box — on the state
+// badgeBox paints one badge: the title centered in the box — on the state
 // colour in the foreground given when active, in the platform's disabled
 // control text with no fill when idle. A badge lit in one of the display's
-// colours reads its label in the pane's black, as the device's own cut-out
+// colours reads its title in the pane's black, as the device's own cut-out
 // segments do; a badge on a platform fill reads the platform's foreground.
 func badgeBox(gtx layout.Context, t themed, txt string, fill, foreground color.NRGBA, active bool, r image.Rectangle) {
 	badgeBoxStyled(gtx, t, t.typ.Stack, txt, fill, foreground, active, r)
 }
 
-// badgeBoxStyled is badgeBox with the label's text style chosen.
+// badgeBoxStyled is badgeBox with the title's text style chosen.
 func badgeBoxStyled(gtx layout.Context, t themed, style textdraw.TextStyle, txt string, fill, foreground color.NRGBA, active bool, r image.Rectangle) {
 	if active {
 		paint.FillShape(gtx.Ops, fill, clip.UniformRRect(r, gtx.Dp(4)).Op(gtx.Ops))

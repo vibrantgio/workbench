@@ -246,8 +246,8 @@ func renderVaultPicker(
 	body := func(gtx layout.Context) layout.Dimensions {
 		return vaultPickerBody(gtx, v, m, tok, trail)
 	}
-	action := func(label string, emphasis button.Emphasis) layout.Widget {
-		return button.Render(shaper, label, colors, sp, rad, typo.LabelLarge, den,
+	action := func(title string, emphasis button.Emphasis) layout.Widget {
+		return button.Render(shaper, title, colors, sp, rad, typo.LabelLarge, den,
 			button.RenderState{Emphasis: emphasis})
 	}
 	return modal.Render(shaper, modal.Props{

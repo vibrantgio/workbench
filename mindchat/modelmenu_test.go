@@ -17,14 +17,14 @@ func TestAnchorLabelNamesTheModelOnly(t *testing.T) {
 	}
 
 	fromDefault := anchorKeyOf(base)
-	if fromDefault.label != "OpenAI · gpt-5.5" {
-		t.Fatalf("default label = %q, want %q", fromDefault.label, "OpenAI · gpt-5.5")
+	if fromDefault.title != "OpenAI · gpt-5.5" {
+		t.Fatalf("default title = %q, want %q", fromDefault.title, "OpenAI · gpt-5.5")
 	}
 
 	override := base
 	override.CurrentChat.Provider, override.CurrentChat.Model = "xAI", "grok-4"
-	if got := anchorKeyOf(override).label; got != "xAI · grok-4" {
-		t.Fatalf("override label = %q, want %q", got, "xAI · grok-4")
+	if got := anchorKeyOf(override).title; got != "xAI · grok-4" {
+		t.Fatalf("override title = %q, want %q", got, "xAI · grok-4")
 	}
 
 	// Picking the model that already was the default says the same thing, so
@@ -47,7 +47,7 @@ func TestAnchorLabelNamesTheModelOnly(t *testing.T) {
 		t.Fatalf("open menu key = %+v, want the closed menu's %+v: the anchor's mark does not move when the menu stands",
 			anchorKeyOf(open), fromDefault)
 	}
-	if got := anchorKeyOf(Model{}).label; got != "No model configured" {
-		t.Fatalf("empty label = %q, want %q", got, "No model configured")
+	if got := anchorKeyOf(Model{}).title; got != "No model configured" {
+		t.Fatalf("empty title = %q, want %q", got, "No model configured")
 	}
 }

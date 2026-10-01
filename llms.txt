@@ -84,7 +84,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      about a thing — a word, a count or a symbol, filled with
                      the platform's system colour for its status under a
                      white foreground, plus an optional close mark that
-                     dismisses the label),
+                     dismisses the badge),
                      button, chip (the small control content sprouts,
                      defined by one of four purposes — Assist, Filter,
                      Input, Suggestion), input, picker (pick one from many
@@ -152,7 +152,7 @@ older answer, they are gone, not deprecated:
   - the level argument. A component that draws an alpha name onto what it
     stands on takes a Surface colour instead, and one standing on its own
     opaque fill takes nothing;
-  - patterns/tag entirely, with no alias. The status label is
+  - patterns/tag entirely, with no alias. The status badge is
     components/badge (the roster above); a dismissible user-entered token
     is the Input chip's;
   - tokens.TypeScale entirely. The static `Render(…)` signatures on components,
@@ -512,13 +512,13 @@ small control content sprouts, and Props.Purpose names which of the four it is.
 Assist offers a contextual action; Filter narrows a set and is the only one
 that toggles; Input is a token the reader entered and carries a dismiss mark;
 Suggestion is a generated prompt. One structure under all four —
-[mark] label [dismiss], both brackets decided by the purpose rather than by a
+[mark] title [dismiss], both brackets decided by the purpose rather than by a
 flag — one silhouette, one height (Density.ChipHeight, the density's control
 height less 4 dp).
 
 A chip is not a button at low prominence. A button is a fixture the developer
 places, always there, always offering the same action; a chip appears out of
-content and context, and a button's label stays a verb. MARKING A CHOICE IS
+content and context, and a button's title stays a verb. MARKING A CHOICE IS
 THE FILTER CHIP'S JOB AND NO BUTTON'S, whatever the button's emphasis: the
 button's Filled/Tonal/Ghost variants are a colour axis and record no state.
 
@@ -550,7 +550,7 @@ a decision, not a pane with HideClose (deprecated). Return never reaches a
 destructive default action: Decision derives the default from
 Confirm+Destructive, so there is no field with which to bind it wrongly. Hand
 the footer an action and not a width: it lays every action out in the
-platform's measured dialog button width, and a label too wide for that box
+platform's measured dialog button width, and a title too wide for that box
 widens its own button. A dialog opens with the keyboard on its body's first
 focusable, which the body declares through Props.DynamicFocusTags — the first
 tag it returns. THE ACCELERATOR IS NOT THE
@@ -665,9 +665,9 @@ from it: nothing is derived, no palette, no second hue.
                           SelectionLabel, PaintSelection: inset from the
                           rail's edges, rounded, never edge to edge and
                           never the list's selection. Two states, both
-                          measured: the accent pill under a white label
+                          measured: the accent pill under a white title
                           while the rail's list holds the keyboard, the
-                          grey pill under the label in the accent while it
+                          grey pill under the title in the accent while it
                           does not. A rail says where the keyboard is in
                           the pill's colour and draws no focus ring
   every seam              Separator over whatever is beneath it; Grid for a

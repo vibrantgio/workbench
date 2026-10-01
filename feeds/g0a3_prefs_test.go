@@ -195,8 +195,8 @@ func TestUnreadOnlyArticlesFilters(t *testing.T) {
 // default preferences: 10 rows per page (tonal) with 5 and 25 ghost beside it,
 // and unread-only off (ghost). Sharp radii keep the golden deterministic.
 func staticPreferencesBody(shaper *text.Shaper, colors tokens.PlatformColors) layout.Widget {
-	render := func(label string, emph button.Emphasis) layout.Widget {
-		return button.Render(shaper, label, colors, tokens.Spacing, modalSharpRadius,
+	render := func(title string, emph button.Emphasis) layout.Widget {
+		return button.Render(shaper, title, colors, tokens.Spacing, modalSharpRadius,
 			tokens.DefaultTypography.LabelLarge, tokens.Comfortable,
 			button.RenderState{Emphasis: emph})
 	}

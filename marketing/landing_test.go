@@ -43,8 +43,8 @@ var (
 // TestPageGolden records or diffs the page composition in light and dark
 // themes: the window's plane, rest-pose wireframe field, then the landing
 // column.
-// Text labels are deliberately blank or a single space, so the visual
-// difference is driven by structure alone.
+// Titles and body text are deliberately blank or a single space, so the
+// visual difference is driven by structure alone.
 func TestPageGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 

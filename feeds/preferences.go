@@ -93,12 +93,12 @@ func preferencesPane(
 					},
 				}))
 			}
-			label := "Off"
+			title := "Off"
 			if unread {
-				label = "On"
+				title = "On"
 			}
 			built = append(built, button.Button(th, button.Props{
-				Title:     label,
+				Title:     title,
 				Emphasis:  emphasis(unread),
 				Clickable: &unreadClick,
 				OnClick: func(gtx layout.Context) {

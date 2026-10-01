@@ -309,7 +309,7 @@ func (v *pickerView) layout(
 // unselected row's foreground flattens against and what it repaints with.
 //
 // rowInset is the leading and trailing air a row spends, ahead of the
-// symbol and label columns inside it. A screen that lays the browser out
+// symbol and title columns inside it. A screen that lays the browser out
 // itself gives its rows their own, and a dialog gives none: the surface has
 // already inset the body, so a row that inset itself again would stand its
 // symbols in from the header and the footer beside it.
@@ -410,7 +410,7 @@ func (v *pickerView) selectableRows(gtx layout.Context, tok themeTokens, entries
 			// The inset is the row's leading and trailing air ALONE. A row is
 			// the list's own height — one control height — and a BodyLarge
 			// line box very nearly fills it, so vertical air here would push
-			// the label out of the row and the list's clip would cut it in
+			// the title out of the row and the list's clip would cut it in
 			// half. What centres each part is the row's own height, which
 			// every painter below is handed.
 			complayout.InsetXY(rowInset, 0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -512,7 +512,7 @@ func browseTo(dir string) func(gtx layout.Context) {
 // it by. So the trail's root is a name too, and a literal separator stands
 // nowhere on screen.
 //
-// A root with no label is one nothing on the filesystem names: the trail then
+// A root with no title is one nothing on the filesystem names: the trail then
 // starts at the first named segment below it, which is what a path with
 // nothing to name its root is.
 func dirPlaces(dir string, root place) []place {
@@ -523,8 +523,8 @@ func dirPlaces(dir string, root place) []place {
 		cum = sep
 	}
 	var segs []place
-	if root.label != "" {
-		segs = append(segs, place{label: root.label, path: cum})
+	if root.title != "" {
+		segs = append(segs, place{title: root.title, path: cum})
 	}
 	rest := strings.TrimPrefix(dir, cum)
 	for _, part := range strings.Split(rest, sep) {
@@ -532,7 +532,7 @@ func dirPlaces(dir string, root place) []place {
 			continue
 		}
 		cum = strings.TrimSuffix(cum, sep) + sep + part
-		segs = append(segs, place{label: part, path: cum})
+		segs = append(segs, place{title: part, path: cum})
 	}
 	return segs
 }
@@ -549,10 +549,10 @@ func trailRoot(dir string) place {
 	if home, err := os.UserHomeDir(); err == nil {
 		home = filepath.Clean(home)
 		if home != sep && (dir == home || strings.HasPrefix(dir, home+sep)) {
-			return place{label: filepath.Base(home), path: home}
+			return place{title: filepath.Base(home), path: home}
 		}
 	}
-	return place{label: volumeName(), path: sep}
+	return place{title: volumeName(), path: sep}
 }
 
 // volumeName reports what the startup volume is called, or "" when nothing

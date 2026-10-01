@@ -154,7 +154,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 			}
 			style := badge.Style(typ, tokens.Comfortable)
 			verdict := func(g badge.Symbol, status badge.Status) layout.Widget {
-				// A symbol badge — no label — standing as a disc: the system
+				// A symbol badge — no title — standing as a disc: the system
 				// colour the status names fills a circle the line box across,
 				// with the sign centred in it. The dialog stands on the
 				// window's own plane, which is the badge's zero Surface.
@@ -213,7 +213,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 			var above, below int
 			field := picker.Field(th, picker.FieldProps{
 				Description: "Default model",
-				Options:     labelsOf(entries),
+				Options:     titlesOf(entries),
 				Selected:    k.selected,
 				Drop:        picker.DropUp,
 				// A real provider catalogue is forty to sixty rows, and what
@@ -732,7 +732,7 @@ func defaultPickerKeyOf(m Model) defaultPickerKey {
 				selected = len(entries)
 			}
 			entries = append(entries, menuEntry{
-				label:    prov.Name + " · " + id,
+				title:    prov.Name + " · " + id,
 				provider: prov.Name,
 				model:    id,
 			})

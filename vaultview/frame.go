@@ -1095,14 +1095,14 @@ func navSegment(click *widget.Clickable, mark icons.Name, label string, enabled 
 // Bare and in no control at all, which is how both stored windows that carry
 // a title keep it: "Applications" in finder-window-light.png and "All
 // Recordings" in voicememos-window.png stand on the band itself. It is a
-// label and not an affordance — there is nothing for a press on the window's
+// title and not an affordance — there is nothing for a press on the window's
 // own name to do — and the place a reader climbs from is the trail under it.
 func (f *frameState) layoutNoteName(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
 	name := noteName(m)
 	if name == "" {
 		return layout.Dimensions{}
 	}
-	// The label is drawn into an area of its own so that what a reader who
+	// The title is drawn into an area of its own so that what a reader who
 	// cannot see it is told is the window's name and not the band around it:
 	// a semantic op with no area under it lands on whatever area is in force.
 	macro := op.Record(gtx.Ops)

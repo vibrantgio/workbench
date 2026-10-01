@@ -66,13 +66,13 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 		Surface:  p.Dialog,
 	}).First()
 
-	label := "Save"
+	title := "Save"
 	if item.Id == -1 {
-		label = "Add"
+		title = "Add"
 	}
 	var submitClicked bool
 	submitWidget, _ := button.Button(th, button.Props{
-		Title:   label,
+		Title:   title,
 		OnClick: func(_ layout.Context) { submitClicked = true },
 		Surface: p.Dialog,
 	}).First()

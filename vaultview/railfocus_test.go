@@ -260,7 +260,7 @@ func (f *railFocusFrame) navigate(path string) {
 
 // emphasizedPillRow answers which rail row wears the emphasized pill, and -1
 // when no row does. It reads the pill's fill near the rail's trailing edge,
-// past where a row's label reaches, so only the pill itself is scanned.
+// past where a row's title reaches, so only the pill itself is scanned.
 func (f *railFocusFrame) emphasizedPillRow(t *testing.T) int {
 	t.Helper()
 	img := golden.Capture(t, image.Pt(treeWidthDp, f.size.Y), scene(func(gtx layout.Context) layout.Dimensions {

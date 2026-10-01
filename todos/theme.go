@@ -93,7 +93,7 @@ const (
 	// MEASURED, .github/reference/macos/save-dialog-{light,dark}.png: its
 	// "Cancel" spans x 359-432 and its "Save" x 441-514 — 74 px apiece with
 	// 8 between them, both appearances agreeing to the pixel. The width is
-	// the platform's minimum for a dialog button, which every label in this
+	// the platform's minimum for a dialog button, which every title in this
 	// dialog is under, so the two stand equal.
 	DialogButtonWidth unit.Dp = 74
 	DialogButtonGap   unit.Dp = 8

@@ -1020,7 +1020,7 @@ func SidebarStrip(gtx layout.Context, t themed, toggle, newChat *widget.Clickabl
 var windowButtonsEnd = desktop.LeadingInset
 
 // SidebarFooter is the pane's foot: a hairline off the rows and, under it,
-// the settings affordance — gear and label sharing one vertical centre on
+// the settings affordance — gear and title sharing one vertical centre on
 // the rows' own gutter.
 //
 // Settings stands here and nowhere else in the window's chrome. It acts on
@@ -1057,8 +1057,8 @@ func SidebarFooter(gtx layout.Context, t themed, settings *widget.Clickable) lay
 		t.gear(icon)
 		off.Pop()
 
-		labelRect := image.Rect(left+iconSz+gtx.Dp(10), 0, gtx.Constraints.Max.X-gtx.Dp(12), rowH)
-		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium), labelRect, 0, 0.5, textColor, "Settings")
+		titleRect := image.Rect(left+iconSz+gtx.Dp(10), 0, gtx.Constraints.Max.X-gtx.Dp(12), rowH)
+		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium), titleRect, 0, 0.5, textColor, "Settings")
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	})
 	return layout.Dimensions{Size: image.Pt(width, rowH+sep)}

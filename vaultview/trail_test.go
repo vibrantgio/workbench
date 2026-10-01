@@ -59,11 +59,11 @@ func (p *trailPad) clickAt(x int, segs []breadcrumb.Segment) {
 	p.frame(segs)
 }
 
-// trailWidth measures the natural width of a row of these labels: loose
+// trailWidth measures the natural width of a row of these titles: loose
 // constraints, so the answer is the row's own and not the window's.
-func trailWidth(shaper *text.Shaper, labels ...string) int {
-	segs := make([]breadcrumb.Segment, len(labels))
-	for i, l := range labels {
+func trailWidth(shaper *text.Shaper, titles ...string) int {
+	segs := make([]breadcrumb.Segment, len(titles))
+	for i, l := range titles {
 		segs[i] = breadcrumb.Segment{Key: l, Title: l}
 	}
 	row := breadcrumb.NewTrail(shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
@@ -78,14 +78,14 @@ func trailWidth(shaper *text.Shaper, labels ...string) int {
 
 // centreOf answers where the middle of segment i of this trail is, derived
 // from measured widths rather than from restated spacing: the separator
-// costs whatever two labels cost beyond the two labels alone.
+// costs whatever two titles cost beyond the two titles alone.
 func centreOf(shaper *text.Shaper, i int, places []place) int {
 	sep := trailWidth(shaper, "x", "x") - 2*trailWidth(shaper, "x")
 	x := 0
 	for j := 0; j < i; j++ {
-		x += trailWidth(shaper, places[j].label) + sep
+		x += trailWidth(shaper, places[j].title) + sep
 	}
-	return x + trailWidth(shaper, places[i].label)/2
+	return x + trailWidth(shaper, places[i].title)/2
 }
 
 // TestTrailClicksReachThePlaceClicked drives both of the window's trails —
@@ -104,7 +104,7 @@ func TestTrailClicksReachThePlaceClicked(t *testing.T) {
 		name   string
 		places []place
 	}{
-		{"picker directory trail", dirPlaces("/vaults/Second Brain/guide", place{label: "Macintosh HD", path: "/"})},
+		{"picker directory trail", dirPlaces("/vaults/Second Brain/guide", place{title: "Macintosh HD", path: "/"})},
 		{"note path trail", notePlaces(note)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -126,12 +126,12 @@ func TestTrailClicksReachThePlaceClicked(t *testing.T) {
 				if i == len(tc.places)-1 {
 					if clicked != "" {
 						t.Errorf("the current location %q navigated to %q; it is where the reader already is",
-							want.label, clicked)
+							want.title, clicked)
 					}
 					continue
 				}
 				if clicked != want.path {
-					t.Errorf("a click on %q went to %q, want %q", want.label, clicked, want.path)
+					t.Errorf("a click on %q went to %q, want %q", want.title, clicked, want.path)
 				}
 			}
 		})
@@ -149,18 +149,18 @@ func TestTrailClickFollowsItsPlaceAcrossAReshuffle(t *testing.T) {
 		return func(gtx layout.Context) { clicked = path }
 	}
 
-	before := []place{{label: "guide", path: "guide"}, {label: "notes", path: "guide/notes"},
-		{label: "Reading list", path: "guide/notes/Reading list.md"}}
+	before := []place{{title: "guide", path: "guide"}, {title: "notes", path: "guide/notes"},
+		{title: "Reading list", path: "guide/notes/Reading list.md"}}
 	// The reader clicked "notes" and the model moved on: another branch now
 	// stands in the position "notes" stood in.
-	after := []place{{label: "guide", path: "guide"}, {label: "drafts", path: "guide/drafts"},
-		{label: "Sketch", path: "guide/drafts/Sketch.md"}}
+	after := []place{{title: "guide", path: "guide"}, {title: "drafts", path: "guide/drafts"},
+		{title: "Sketch", path: "guide/drafts/Sketch.md"}}
 
 	pad := newTrailPad(shaper, tokens.PlatformLight)
 	pad.frame(trailSegments(before, click))
 	pad.clickAt(centreOf(shaper, 1, before), trailSegments(after, click))
 
 	if clicked != "guide/notes" {
-		t.Errorf("the click on %q opened %q, want %q", before[1].label, clicked, before[1].path)
+		t.Errorf("the click on %q opened %q, want %q", before[1].title, clicked, before[1].path)
 	}
 }
