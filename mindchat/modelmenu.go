@@ -88,7 +88,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 			Pipe(rx.DistinctUntilChanged(func(a, b anchorKey) bool { return a == b })),
 		func(k anchorKey) rx.Observable[layout.Widget] {
 			return picker.Toolbar(th, picker.ToolbarProps{
-				Value:       k.title,
+				Title:       k.title,
 				Description: "Model for this chat",
 				// The anchor reports the shape it drew and nothing wider: the
 				// popover aims its tail at that rect, and a control that
