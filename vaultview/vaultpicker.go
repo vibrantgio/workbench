@@ -47,7 +47,7 @@ const (
 )
 
 // The footer's width, gap and inset are the modal pattern's own and are
-// already the save dialog's: each action is laid out in that footer's
+// already the save panel's: each action is laid out in that footer's
 // measured 74 px (x 359–432 and x 441–514), `SpacingScale.S2` is 8 dp
 // against the 8 clear px between those two buttons (x 433–440), and the
 // surface inset `S5` is 20 dp against the 20 px from the trailing button's
@@ -214,7 +214,7 @@ func vaultPickerBody(
 }
 
 // dialogAction hands one footer button the cell its live layout.Widget
-// arrives in. It states no width: the dialog's footer owns the save dialog's
+// arrives in. It states no width: the dialog's footer owns the save panel's
 // measured push button width and lays every action out in it. The height is
 // the button's own — the density's control height is the same 24 px that
 // footer's buttons measure.

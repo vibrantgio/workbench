@@ -741,7 +741,7 @@ func drawFeedEntryRow(
 
 	// The row's parts stand in the rail's own columns, measured off the
 	// platform's pane, not against the pill: the symbol at SymbolInset, the
-	// name at LabelInset and the count CountInset in from the trailing edge.
+	// name at TitleInset and the count CountInset in from the trailing edge.
 	drawFeedSymbol(gtx, size,
 		vgcolor.Flatten(patsidebar.SymbolForeground(tok.col, filled, unemphasized), surface))
 
@@ -820,7 +820,7 @@ func drawFeedEntry(
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	inner := func(gtx layout.Context) layout.Dimensions {
-		lead := gtx.Dp(patsidebar.LabelInset)
+		lead := gtx.Dp(patsidebar.TitleInset)
 		room := size.X - lead
 		if room < 0 {
 			room = 0

@@ -801,7 +801,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 // It is the segmented control standing in a BODY, so it draws at the dialog
 // control's measured height ([SettingsAddRemoveHeight]) in the form's own
 // shape — the push button's rounded rectangle — with each mark in the room
-// the Save dialog's pop-up leaves its own, and it casts no shadow: the shadow
+// the Save panel's pop-up leaves its own, and it casts no shadow: the shadow
 // is the chrome variant's and was measured on a band. The seam and the rim
 // are the ones components/button reads off Finder's back/forward pair. The
 // platform's own pair under a list is a smaller control than a toolbar's and

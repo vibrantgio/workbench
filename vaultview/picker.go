@@ -427,7 +427,7 @@ func (v *pickerView) selectableRows(gtx layout.Context, tok themeTokens, entries
 // is after the name, and how many notes it holds at the trailing end.
 //
 // The columns are the sidebar row's measured ones — [sidebar.PaintSymbol]
-// puts the mark 17 in, the name begins at [sidebar.LabelInset] 48, and
+// puts the mark 17 in, the name begins at [sidebar.TitleInset] 48, and
 // [sidebar.PaintCount] lands the count's last covered column
 // [sidebar.CountInset] 17 in from the trailing edge. They stand in because no
 // stored capture holds the platform's own open panel; the panel's own columns
@@ -459,7 +459,7 @@ func drawBrowserRow(gtx layout.Context, tok themeTokens, item DirEntry, selected
 		trail += sidebar.PaintCount(gtx, tok.shaper, c, tok.typ.BodySmall, size, secondaryLabel)
 	}
 
-	lead := gtx.Dp(sidebar.LabelInset)
+	lead := gtx.Dp(sidebar.TitleInset)
 	room := size.X - lead - trail
 	if room <= 0 {
 		return

@@ -763,7 +763,7 @@ carries the drawn control height and inner padding:
   ```
 
 The numbers are MEASURED off the platform, and measured beats published:
-the save dialog captured into the organization's macOS reference draws its
+the save panel captured into the organization's macOS reference draws its
 regular push button and pop-up at 24 pt and its text field at 27, where the
 guideline publishes 22 and 13, and its checkbox at 16. A text field has a
 height of its own, taller than the control height, and a checkbox its own,

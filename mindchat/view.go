@@ -435,7 +435,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 	//
 	// Rename is what this dialog is for, so it keeps the Filled emphasis and
 	// Cancel stands beside it as the ordinary push button the platform draws
-	// there: the save dialog's own "Cancel" wears the push button's fill
+	// there: the save panel's own "Cancel" wears the push button's fill
 	// under controlText, which is the Tonal emphasis, while the default
 	// answer beside it is the filled one.
 	cancelObs := button.Button(th, button.Props{
@@ -1222,7 +1222,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 		// The rail lists conversations, so its rows stand in the sidebar's
 		// own columns: the document mark at SymbolInset — a conversation is
 		// a file in this window's own folder, named by its own title — and
-		// the name at LabelInset. Nothing stands at the count's column: a
+		// the name at TitleInset. Nothing stands at the count's column: a
 		// conversation holds no count, and what is at the trailing end here
 		// is the row's own two controls.
 		symbolColor := p.RowSymbol
@@ -1232,7 +1232,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 		symbol := op.Record(gtx.Ops)
 		drawChatSymbol(gtx, t, symbolColor)
 		symbolCall := symbol.Stop()
-		dims := layout.Inset{Left: unit.Dp(sidebar.LabelInset), Right: unit.Dp(12)}.Layout(gtx,
+		dims := layout.Inset{Left: unit.Dp(sidebar.TitleInset), Right: unit.Dp(12)}.Layout(gtx,
 			func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {

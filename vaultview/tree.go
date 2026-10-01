@@ -674,7 +674,7 @@ func treeRowLead(depth int) float32 { return float32(depth+1) * treeIndentDp }
 // drawRow paints one tree row's parts into the columns the sidebar pattern
 // measures, each shifted by one indent per depth: the disclosure in the
 // rail's own leading inset where the row is a folder, the symbol at
-// SymbolInset and the name at LabelInset.
+// SymbolInset and the name at TitleInset.
 //
 // A found row's folder stands in the name's own run, after the name: the
 // column at the trailing end is the count's, and what the Language puts
@@ -730,7 +730,7 @@ func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, siz
 	stk.Pop()
 
 	trail := gtx.Dp(sidebar.CountInset)
-	lead := indent + gtx.Dp(sidebar.LabelInset)
+	lead := indent + gtx.Dp(sidebar.TitleInset)
 	room := size.X - lead - trail
 	if room <= 0 {
 		return
