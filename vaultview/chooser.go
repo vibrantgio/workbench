@@ -28,6 +28,7 @@ import (
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // Chooser layout constants.
@@ -109,8 +110,8 @@ func chooserLayer(
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				lead := fmt.Sprintf("%q matches %d notes:", ref.File, len(m.ChooserCandidates))
-				return drawText(gtx, tok.shaper, lead, tok.typ.BodyMedium,
-					vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.WindowBackground))
+				return typeset.Text(gtx, tok.shaper, lead, tok.typ.BodyMedium,
+					vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.WindowBackground), 0)
 			}),
 			layout.Rigid(complayout.VSpacer(chooserGapDp)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -193,8 +194,8 @@ func chooserRow(
 				if selected || click.Hovered() {
 					label = tok.col.AlternateSelectedControlText
 				}
-				return drawLabel(gtx, tok.shaper, cand, tok.typ.BodyMedium,
-					vgcolor.Flatten(label, fill))
+				return typeset.Text(gtx, tok.shaper, cand, tok.typ.BodyMedium,
+					vgcolor.Flatten(label, fill), 1)
 			}),
 		)
 		return layout.Dimensions{Size: gtx.Constraints.Max}

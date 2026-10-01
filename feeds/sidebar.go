@@ -36,6 +36,7 @@ import (
 	"github.com/vibrantgio/theme/system/naming"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // feedsPaneColumnDp is what the rail claims of the window: the pane plus the
@@ -829,7 +830,7 @@ func drawFeedEntry(
 		titleGtx.Constraints.Min = image.Point{}
 		titleGtx.Constraints.Max = image.Pt(room, size.Y)
 		mTitle := op.Record(gtx.Ops)
-		titleDims := drawLabel(titleGtx, tok.shaper, title, tok.typ.BodySmall, feedRowForeground(tok.col, selected, unemphasized))
+		titleDims := typeset.Text(titleGtx, tok.shaper, title, tok.typ.BodySmall, feedRowForeground(tok.col, selected, unemphasized), 1)
 		titleCall := mTitle.Stop()
 		offY := (size.Y - titleDims.Size.Y) / 2
 		if offY < 0 {
@@ -905,8 +906,8 @@ func newDeleteConfirm(
 		w := gtx.Dp(unit.Dp(deleteConfirmWDp))
 		promptH := gtx.Dp(unit.Dp(deleteConfirmRowHDp))
 		btnH := gtx.Dp(unit.Dp(deleteConfirmRowHDp))
-		drawLabel(gtx, s.shaper, "Delete this feed?", s.typ.BodyMedium,
-			vgcolor.Flatten(s.col.Label, s.col.WindowBackground))
+		typeset.Text(gtx, s.shaper, "Delete this feed?", s.typ.BodyMedium,
+			vgcolor.Flatten(s.col.Label, s.col.WindowBackground), 1)
 		btnStk := op.Offset(image.Pt(0, promptH)).Push(gtx.Ops)
 		btnGtx := gtx
 		btnGtx.Constraints = layout.Exact(image.Pt(w, btnH))
@@ -914,7 +915,7 @@ func newDeleteConfirm(
 			semantic.LabelOp("Confirm delete").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointershape.OverSize(gtx.Ops, image.Pt(w, btnH), pointer.CursorPointer)
-			drawLabel(gtx, s.shaper, "Delete", s.typ.LabelLarge, s.col.SystemRed)
+			typeset.Text(gtx, s.shaper, "Delete", s.typ.LabelLarge, s.col.SystemRed, 1)
 			return layout.Dimensions{Size: image.Pt(w, btnH)}
 		})
 		btnStk.Pop()

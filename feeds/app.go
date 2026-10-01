@@ -2,17 +2,14 @@ package main
 
 import (
 	"image"
-	"image/color"
 	"strings"
 	"sync/atomic"
 
-	"gioui.org/font"
 	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -312,8 +309,8 @@ const (
 func feedsNavbarProps(loadTok func() themeTokens, shareSlot layout.Widget) navbar.Props {
 	brand := func(gtx layout.Context) layout.Dimensions {
 		s := loadTok()
-		return drawLabel(gtx, s.shaper, "Feeds", s.typ.TitleMedium,
-			vgcolor.Flatten(s.col.Label, s.col.SidebarMaterial))
+		return typeset.Text(gtx, s.shaper, "Feeds", s.typ.TitleMedium,
+			vgcolor.Flatten(s.col.Label, s.col.SidebarMaterial), 1)
 	}
 	var addClick widget.Clickable
 	addFeed := func(gtx layout.Context) layout.Dimensions {
@@ -324,7 +321,7 @@ func feedsNavbarProps(loadTok func() themeTokens, shareSlot layout.Widget) navba
 		return addClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp("Add feed").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
-			dims := drawLabel(gtx, s.shaper, "Add feed", s.typ.LabelLarge, s.col.ControlAccent)
+			dims := typeset.Text(gtx, s.shaper, "Add feed", s.typ.LabelLarge, s.col.ControlAccent, 1)
 			pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
 			return dims
 		})
@@ -374,7 +371,7 @@ func sharePopover(
 		return anchorClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			semantic.LabelOp("Share").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
-			dims := drawLabel(gtx, s.shaper, "Share", s.typ.LabelLarge, s.col.ControlAccent)
+			dims := typeset.Text(gtx, s.shaper, "Share", s.typ.LabelLarge, s.col.ControlAccent, 1)
 			pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
 			return dims
 		})
@@ -399,8 +396,8 @@ func sharePopover(
 				semantic.LabelOp(dest).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
 				pointershape.OverSize(gtx.Ops, image.Pt(listW, rowH), pointer.CursorPointer)
-				return drawLabel(gtx, s.shaper, dest, s.typ.BodyMedium,
-					vgcolor.Flatten(s.col.Label, s.col.WindowBackground))
+				return typeset.Text(gtx, s.shaper, dest, s.typ.BodyMedium,
+					vgcolor.Flatten(s.col.Label, s.col.WindowBackground), 1)
 			})
 			off.Pop()
 		}
@@ -596,22 +593,6 @@ func addFeedModal(
 			return n.First
 		},
 	)
-}
-
-// drawLabel renders a single-line label in one Typography role — typeface,
-// weight, size and line height all come from the theme's TextStyle.
-func drawLabel(
-	gtx layout.Context,
-	shaper *text.Shaper,
-	msg string,
-	style tokens.TextStyle,
-	c color.NRGBA,
-) layout.Dimensions {
-	mat := op.Record(gtx.Ops)
-	paint.ColorOp{Color: c}.Add(gtx.Ops)
-	material := mat.Stop()
-	return typeset.Layout(gtx, shaper, typeset.Label(style, 1),
-		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
 }
 
 // drawFeedsFrame composes the window: the rail's pane down the leading edge,

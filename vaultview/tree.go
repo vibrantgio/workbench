@@ -52,6 +52,7 @@ import (
 	"github.com/vibrantgio/theme/system/naming"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // Tree layout constants. treeRowInsetDp is the rail's one horizontal
@@ -498,8 +499,8 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	if len(rows) == 0 {
 		if filtering {
 			complayout.Inset(treeRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, tok.shaper, "No note by that name.", tok.typ.BodyMedium,
-					vgcolor.Flatten(tok.col.SecondaryLabel, chromeSurface(tok.col)))
+				return typeset.Text(gtx, tok.shaper, "No note by that name.", tok.typ.BodyMedium,
+					vgcolor.Flatten(tok.col.SecondaryLabel, chromeSurface(tok.col)), 1)
 			})
 		}
 		return layout.Dimensions{Size: gtx.Constraints.Max}
@@ -783,10 +784,10 @@ func (v *treeView) drawRow(gtx layout.Context, row TreeRow, tok themeTokens, siz
 func drawFound(gtx layout.Context, shaper *text.Shaper, msg string, style tokens.TextStyle, fg, hl color.NRGBA, query string) layout.Dimensions {
 	start, end, ok := foundRun(msg, query)
 	if !ok {
-		return drawLabel(gtx, shaper, msg, style, fg)
+		return typeset.Text(gtx, shaper, msg, style, fg, 1)
 	}
 	macro := op.Record(gtx.Ops)
-	dims := drawLabel(gtx, shaper, msg, style, fg)
+	dims := typeset.Text(gtx, shaper, msg, style, fg, 1)
 	call := macro.Stop()
 	x0, x1 := runWidth(gtx, shaper, style, msg[:start]), runWidth(gtx, shaper, style, msg[:end])
 	// The mark is the role's own line box tall, centred in whatever box the
@@ -837,7 +838,7 @@ func runWidth(gtx layout.Context, shaper *text.Shaper, style tokens.TextStyle, s
 	m := gtx
 	m.Constraints = layout.Constraints{Max: image.Pt(1<<20, 1<<20)}
 	rec := op.Record(m.Ops)
-	dims := drawLabel(m, shaper, s, style, color.NRGBA{})
+	dims := typeset.Text(m, shaper, s, style, color.NRGBA{}, 1)
 	rec.Stop()
 	return dims.Size.X
 }

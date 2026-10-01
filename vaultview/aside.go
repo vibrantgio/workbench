@@ -45,6 +45,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // Aside layout constants.
@@ -297,7 +298,7 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 		}
 		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			rigid(&above, asideTrailing(tok, func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, tok.shaper, "Outline", tok.typ.TitleSmall, asideForegrounds(tok).faint)
+				return typeset.Text(gtx, tok.shaper, "Outline", tok.typ.TitleSmall, asideForegrounds(tok).faint, 1)
 			})),
 			rigid(&above, complayout.VSpacer(asideHeaderGapDp)),
 			// Whatever the group below has left over, and never less than
@@ -350,7 +351,7 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dimensions {
 	foreground := asideForegrounds(tok).faint
 	title := func(gtx layout.Context) layout.Dimensions {
-		return drawLabel(gtx, tok.shaper, "Backlinks", tok.typ.TitleSmall, foreground)
+		return typeset.Text(gtx, tok.shaper, "Backlinks", tok.typ.TitleSmall, foreground, 1)
 	}
 	if n == 0 {
 		// The pane's own line already says none; a nought beside the
@@ -363,7 +364,7 @@ func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dime
 			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return drawLabel(gtx, tok.shaper, strconv.Itoa(n), tok.typ.TitleSmall, foreground)
+			return typeset.Text(gtx, tok.shaper, strconv.Itoa(n), tok.typ.TitleSmall, foreground, 1)
 		}),
 	)
 }
@@ -427,7 +428,7 @@ func asideEmptyLine(gtx layout.Context, tok themeTokens, line string, top unit.D
 		Top: top, Left: asideLaneDp + asideRowPadDp,
 		Right: asideBarLane(tok) + asideLaneDp + asideRowPadDp,
 	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return drawText(gtx, tok.shaper, line, tok.typ.BodyMedium, asideForegrounds(tok).faint)
+		return typeset.Text(gtx, tok.shaper, line, tok.typ.BodyMedium, asideForegrounds(tok).faint, 0)
 	})
 }
 
@@ -554,7 +555,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 						fill := sidebar.SelectionFill(tok.col, !marked)
 						foreground = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, !marked), fill)
 					}
-					return drawLabel(gtx, tok.shaper, e.Title, style, foreground)
+					return typeset.Text(gtx, tok.shaper, e.Title, style, foreground, 1)
 				})
 				return layout.Dimensions{Size: size}
 			})
@@ -626,7 +627,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 								fill := sidebar.SelectionFill(tok.col, false)
 								title = vgcolor.Flatten(sidebar.SelectionLabel(tok.col, false), fill)
 							}
-							return drawLabel(gtx, tok.shaper, row.Title, tok.typ.BodyMedium, title)
+							return typeset.Text(gtx, tok.shaper, row.Title, tok.typ.BodyMedium, title, 1)
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
@@ -635,7 +636,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 							if row.Folder == "" {
 								return layout.Dimensions{}
 							}
-							return drawLabel(gtx, tok.shaper, row.Folder, tok.typ.BodySmall, foregrounds.faint)
+							return typeset.Text(gtx, tok.shaper, row.Folder, tok.typ.BodySmall, foregrounds.faint, 1)
 						}),
 					)
 					return layout.Dimensions{Size: gtx.Constraints.Max}

@@ -70,6 +70,7 @@ import (
 	"gioui.org/unit"
 
 	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // statusBarHeight is the band's depth: one LabelMedium line box with the
@@ -138,7 +139,7 @@ func layoutStatusBar(gtx layout.Context, m Model, tok themeTokens) layout.Dimens
 	defer op.Offset(image.Pt(inset, gtx.Dp(unit.Dp(tok.sp.S1)))).Push(gtx.Ops).Pop()
 	// The bar annotates the document rather than being it, so it reads at
 	// the platform's secondary strength over the page it runs along.
-	drawLabel(lgtx, tok.shaper, line, tok.typ.LabelMedium,
-		vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground))
+	typeset.Text(lgtx, tok.shaper, line, tok.typ.LabelMedium,
+		vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground), 1)
 	return layout.Dimensions{Size: size}
 }

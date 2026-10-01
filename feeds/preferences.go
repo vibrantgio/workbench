@@ -33,6 +33,7 @@ import (
 	"github.com/vibrantgio/patterns/modal"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // Geometry of the pane body's two preference rows. The row is taller than the
@@ -177,8 +178,8 @@ func prefsRow(
 	labelGtx.Constraints.Min = image.Point{}
 	labelGtx.Constraints.Max = image.Pt(w, rowH)
 	rec := op.Record(gtx.Ops)
-	dims := drawLabel(labelGtx, tok.shaper, caption, tok.typ.BodyMedium,
-		vgcolor.Flatten(tok.col.Label, tok.col.WindowBackground))
+	dims := typeset.Text(labelGtx, tok.shaper, caption, tok.typ.BodyMedium,
+		vgcolor.Flatten(tok.col.Label, tok.col.WindowBackground), 1)
 	call := rec.Stop()
 	off := op.Offset(image.Pt(0, y+(rowH-dims.Size.Y)/2)).Push(gtx.Ops)
 	call.Add(gtx.Ops)

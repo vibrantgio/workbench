@@ -20,7 +20,6 @@ import (
 
 	"gioui.org/app"
 	"gioui.org/f32"
-	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -42,7 +41,6 @@ import (
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
-	"github.com/vibrantgio/theme/typeset"
 	specwin "github.com/vibrantgio/theme/window"
 )
 
@@ -390,16 +388,6 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 }
 
-// drawLabel paints a single-line text label at the current offset in the
-// given Typography role, truncated with an ellipsis when it overflows.
-func drawLabel(gtx layout.Context, shaper *text.Shaper, msg string, style tokens.TextStyle, c color.NRGBA) layout.Dimensions {
-	mat := op.Record(gtx.Ops)
-	paint.ColorOp{Color: c}.Add(gtx.Ops)
-	material := mat.Stop()
-	return typeset.Layout(gtx, shaper, typeset.Label(style, 1),
-		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
-}
-
 // place is one stop on a breadcrumb trail: the title the row draws and the
 // path clicking it goes to. The path is the segment's identity as well as
 // its destination, which is what keeps a click addressed to the place it was
@@ -490,15 +478,4 @@ func drawDisclosure(gtx layout.Context, open bool, sizeDp unit.Dp, c color.NRGBA
 		defer op.Affine(f32.Affine2D{}.Rotate(f32.Pt(half, half), math.Pi/2)).Push(gtx.Ops).Pop()
 	}
 	return drawMark(gtx, icons.Disclosure, sizeDp, c)
-}
-
-// drawText paints multi-line wrapped text in the given Typography role.
-func drawText(gtx layout.Context, shaper *text.Shaper, msg string, style tokens.TextStyle, c color.NRGBA) layout.Dimensions {
-	mat := op.Record(gtx.Ops)
-	paint.ColorOp{Color: c}.Add(gtx.Ops)
-	material := mat.Stop()
-	wl := typeset.Label(style, 0)
-	wl.Alignment = text.Start
-	return typeset.Layout(gtx, shaper, wl,
-		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
 }

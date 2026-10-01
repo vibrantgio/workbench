@@ -16,7 +16,6 @@ import (
 	"math"
 
 	"gioui.org/f32"
-	"gioui.org/font"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
@@ -233,7 +232,9 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 			return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
-				dims := drawOutlineTitle(gtx, tok.shaper, row.Title, style, title)
+				// The row's constraints are exact here, so the one line
+				// centres in the row's own height.
+				dims := typeset.Text(gtx, tok.shaper, row.Title, style, title, 1)
 				pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
 				return dims
 			})
@@ -249,38 +250,6 @@ func hSpacer(dp float32) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: image.Pt(gtx.Dp(unit.Dp(dp)), 0)}
 	}
-}
-
-// drawOutlineTitle paints a one-line, middle-aligned row title; what does
-// not fit the row truncates.
-func drawOutlineTitle(
-	gtx layout.Context,
-	shaper *text.Shaper,
-	title string,
-	style tokens.TextStyle,
-	fg color.NRGBA,
-) layout.Dimensions {
-	size := gtx.Constraints.Max
-	mColor := op.Record(gtx.Ops)
-	paint.ColorOp{Color: fg}.Add(gtx.Ops)
-	material := mColor.Stop()
-
-	titleGtx := gtx
-	titleGtx.Constraints.Min = image.Point{}
-
-	mTitle := op.Record(gtx.Ops)
-	titleDims := typeset.Layout(titleGtx, shaper, typeset.Label(style, 1),
-		typeset.Font(style, font.Normal), unit.Sp(style.Size), title, material)
-	titleCall := mTitle.Stop()
-
-	offY := (size.Y - titleDims.Size.Y) / 2
-	if offY < 0 {
-		offY = 0
-	}
-	stk := op.Offset(image.Pt(0, offY)).Push(gtx.Ops)
-	titleCall.Add(gtx.Ops)
-	stk.Pop()
-	return layout.Dimensions{Size: size}
 }
 
 // drawOutlineDisclosure draws the disclosure triangle: the shared icon

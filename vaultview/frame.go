@@ -111,6 +111,7 @@ import (
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/splitter"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // Frame layout constants. The aside bounds follow the three-column
@@ -1106,7 +1107,7 @@ func (f *frameState) layoutNoteName(gtx layout.Context, m Model, tok themeTokens
 	// cannot see it is told is the window's name and not the band around it:
 	// a semantic op with no area under it lands on whatever area is in force.
 	macro := op.Record(gtx.Ops)
-	dims := drawLabel(gtx, tok.shaper, name, tok.typ.TitleSmall, tok.col.Text)
+	dims := typeset.Text(gtx, tok.shaper, name, tok.typ.TitleSmall, tok.col.Text, 1)
 	call := macro.Stop()
 	area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
 	semantic.LabelOp(name).Add(gtx.Ops)

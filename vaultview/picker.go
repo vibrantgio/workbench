@@ -52,6 +52,7 @@ import (
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/system/naming"
 	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // DirEntry is one row of the folder browser.
@@ -285,7 +286,7 @@ func (v *pickerView) layout(
 	inset.Layout(cgtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, tok.shaper, "Choose a vault", tok.typ.HeadlineSmall, tok.col.Text)
+				return typeset.Text(gtx, tok.shaper, "Choose a vault", tok.typ.HeadlineSmall, tok.col.Text, 1)
 			}),
 			layout.Rigid(complayout.VSpacer(pickerGapDp)),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -467,7 +468,7 @@ func drawBrowserRow(gtx layout.Context, tok themeTokens, item DirEntry, selected
 	lGtx := gtx
 	lGtx.Constraints = layout.Constraints{Max: image.Pt(room, size.Y)}
 	rec := op.Record(gtx.Ops)
-	dims := drawLabel(lGtx, tok.shaper, item.Name, tok.typ.BodyLarge, nameFG)
+	dims := typeset.Text(lGtx, tok.shaper, item.Name, tok.typ.BodyLarge, nameFG, 1)
 	call := rec.Stop()
 	stk := op.Offset(image.Pt(lead, (size.Y-dims.Size.Y)/2)).Push(gtx.Ops)
 	call.Add(gtx.Ops)
@@ -486,7 +487,7 @@ func drawBrowserRow(gtx layout.Context, tok themeTokens, item DirEntry, selected
 	kGtx := gtx
 	kGtx.Constraints = layout.Constraints{Max: image.Pt(left, size.Y)}
 	rec = op.Record(gtx.Ops)
-	kDims := drawLabel(kGtx, tok.shaper, item.kind(), tok.typ.BodySmall, secondaryLabel)
+	kDims := typeset.Text(kGtx, tok.shaper, item.kind(), tok.typ.BodySmall, secondaryLabel, 1)
 	call = rec.Stop()
 	stk = op.Offset(image.Pt(x, (size.Y-kDims.Size.Y)/2)).Push(gtx.Ops)
 	call.Add(gtx.Ops)

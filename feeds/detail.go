@@ -17,9 +17,7 @@ import (
 	"image/color"
 	"sync/atomic"
 
-	"gioui.org/font"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
@@ -119,21 +117,21 @@ func drawDetail(
 	paint.FillShape(gtx.Ops, tok.col.ControlBackground, clip.Rect{Max: size}.Op())
 	if !sel.ok {
 		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return drawLabel(gtx, tok.shaper, "Select an article", tok.typ.BodyLarge,
-				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground))
+			return typeset.Text(gtx, tok.shaper, "Select an article", tok.typ.BodyLarge,
+				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground), 1)
 		})
 	}
 	layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return drawLabel(gtx, tok.shaper, sel.a.Title, tok.typ.TitleLarge,
-					vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground))
+				return typeset.Text(gtx, tok.shaper, sel.a.Title, tok.typ.TitleLarge,
+					vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground), 1)
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				meta := sel.a.Author + " · " + sel.a.Published.Format("Jan 2 2006")
-				return drawLabel(gtx, tok.shaper, meta, tok.typ.BodySmall,
-					vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground))
+				return typeset.Text(gtx, tok.shaper, meta, tok.typ.BodySmall,
+					vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground), 1)
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
 			layout.Flexed(1, tabsW),
@@ -193,8 +191,8 @@ func commentsTab(loadTokens func() themeTokens) layout.Widget {
 				c := c
 				children = append(children,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return drawLabel(gtx, tok.shaper, c.Author, tok.typ.LabelLarge,
-							vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground))
+						return typeset.Text(gtx, tok.shaper, c.Author, tok.typ.LabelLarge,
+							vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground), 1)
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return drawWrappedText(gtx, tok.shaper, c.Text, tok.typ.BodyMedium,
@@ -209,9 +207,9 @@ func commentsTab(loadTokens func() themeTokens) layout.Widget {
 	}
 }
 
-// drawWrappedText lays a multi-line label (MaxLines 0 = unlimited) in one
-// Typography role, wrapped at the current Max.X. The single-line drawLabel in
-// app.go truncates instead.
+// drawWrappedText lays text out in one Typography role wrapped at the current
+// Max.X, on as many lines as it takes. The minimum is relaxed first, so the
+// result is the text's own size rather than the slot it was offered.
 func drawWrappedText(
 	gtx layout.Context,
 	shaper *text.Shaper,
@@ -219,10 +217,6 @@ func drawWrappedText(
 	style tokens.TextStyle,
 	c color.NRGBA,
 ) layout.Dimensions {
-	mat := op.Record(gtx.Ops)
-	paint.ColorOp{Color: c}.Add(gtx.Ops)
-	material := mat.Stop()
 	gtx.Constraints.Min = image.Point{}
-	return typeset.Layout(gtx, shaper, typeset.Label(style, 0),
-		typeset.Font(style, font.Normal), unit.Sp(style.Size), msg, material)
+	return typeset.Text(gtx, shaper, msg, style, c, 0)
 }

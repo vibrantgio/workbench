@@ -29,6 +29,7 @@ import (
 	"github.com/vibrantgio/theme/system/naming"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // defaultRowsPerPage is the seed row count per pagination page.
@@ -348,7 +349,7 @@ func themedTextCell(tok themeTokens, s string, current bool) layout.Widget {
 		labelGtx.Constraints.Max.Y = size.Y
 
 		mLabel := op.Record(gtx.Ops)
-		labelDims := drawLabel(labelGtx, tok.shaper, s, tok.typ.BodyMedium, cellForeground(tok.col, current))
+		labelDims := typeset.Text(labelGtx, tok.shaper, s, tok.typ.BodyMedium, cellForeground(tok.col, current), 1)
 		labelCall := mLabel.Stop()
 
 		offY := (size.Y - labelDims.Size.Y) / 2

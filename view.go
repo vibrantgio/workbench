@@ -5,10 +5,7 @@ import (
 	"image/color"
 
 	"gioui.org/app"
-	"gioui.org/font"
 	"gioui.org/layout"
-	"gioui.org/op"
-	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -253,10 +250,10 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(icon),
 			layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
-			layout.Rigid(label(tok.shaper, app.Name, tok.typ.TitleMedium, vgcolor.Flatten(tok.color.Label, plane), 1)),
+			layout.Rigid(textWidget(tok.shaper, app.Name, tok.typ.TitleMedium, vgcolor.Flatten(tok.color.Label, plane), 1)),
 		)
 	}
-	blurb := label(tok.shaper, app.Blurb, tok.typ.BodySmall, vgcolor.Flatten(tok.color.SecondaryLabel, plane), 3)
+	blurb := textWidget(tok.shaper, app.Blurb, tok.typ.BodySmall, vgcolor.Flatten(tok.color.SecondaryLabel, plane), 3)
 	launchRow := func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(launchButton(thObs, tok.shaper, app, click, status, plane)),
@@ -337,22 +334,16 @@ func statusLine(tok themed, status Status) layout.Widget {
 	if txt == "" {
 		return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
 	}
-	return label(tok.shaper, txt, tok.typ.LabelMedium, col, 2)
+	return textWidget(tok.shaper, txt, tok.typ.LabelMedium, col, 2)
 }
 
-// label renders a colour-materialised label in one Typography role —
-// typeface, weight, size and line height all come from the theme — capped at
-// maxLines. It draws through theme/typeset so the role's LineHeight is the
-// height of the line box, which widget.Label alone does not give a capped
-// label.
-func label(shaper *text.Shaper, txt string, style tokens.TextStyle, col color.NRGBA, maxLines int) layout.Widget {
-	f := typeset.Font(style, font.Normal)
-	wl := typeset.Label(style, maxLines)
+// textWidget defers a run of text in one Typography role, capped at maxLines,
+// as the layout.Widget every row of this window is assembled from. The minimum
+// is relaxed before the draw, so what comes back is the text's own size rather
+// than the slot it was offered.
+func textWidget(shaper *text.Shaper, txt string, style tokens.TextStyle, col color.NRGBA, maxLines int) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		m := op.Record(gtx.Ops)
-		paint.ColorOp{Color: col}.Add(gtx.Ops)
-		material := m.Stop()
 		gtx.Constraints.Min = image.Point{}
-		return typeset.Layout(gtx, shaper, wl, f, unit.Sp(style.Size), txt, material)
+		return typeset.Text(gtx, shaper, txt, style, col, maxLines)
 	}
 }

@@ -53,6 +53,7 @@ import (
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // Note-page layout constants.
@@ -822,8 +823,8 @@ func openBrowser(url string) {
 func messageChild(tok themeTokens, msg string) layout.FlexChild {
 	return layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Right: noteInsetDp}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			drawLabel(gtx, tok.shaper, msg, tok.typ.BodyLarge,
-				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground))
+			typeset.Text(gtx, tok.shaper, msg, tok.typ.BodyLarge,
+				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground), 1)
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		})
 	})
@@ -907,7 +908,7 @@ func layoutProperties(
 				}),
 				layout.Rigid(complayout.HSpacer(6)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return drawLabel(gtx, tok.shaper, "Properties", headStyle, foreground)
+					return typeset.Text(gtx, tok.shaper, "Properties", headStyle, foreground, 1)
 				}),
 			)
 		})
@@ -960,8 +961,8 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 				if raw == "" {
 					raw = "(empty)"
 				}
-				return drawText(gtx, tok.shaper, raw, tok.typ.Code,
-					vgcolor.Flatten(tok.col.SecondaryLabel, fill))
+				return typeset.Text(gtx, tok.shaper, raw, tok.typ.Code,
+					vgcolor.Flatten(tok.col.SecondaryLabel, fill), 0)
 			}
 			// Key and value are one face at one weight, told apart by colour
 			// alone — the arrangement the reading app this viewer is judged
@@ -988,7 +989,7 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 			mg.Constraints.Min = image.Point{}
 			for _, f := range fm.Fields {
 				macro := op.Record(mg.Ops)
-				d := drawLabel(mg, tok.shaper, f.Key, keyStyle, keyForeground)
+				d := typeset.Text(mg, tok.shaper, f.Key, keyStyle, keyForeground, 1)
 				macro.Stop()
 				if d.Size.X > keyW {
 					keyW = d.Size.X
@@ -1011,12 +1012,12 @@ func propertiesBody(gtx layout.Context, tok themeTokens, fm obsidian.FrontMatter
 							if g.Constraints.Max.X > keyW {
 								g.Constraints.Max.X = keyW
 							}
-							dims := drawLabel(g, tok.shaper, f.Key, keyStyle, keyForeground)
+							dims := typeset.Text(g, tok.shaper, f.Key, keyStyle, keyForeground, 1)
 							return layout.Dimensions{Size: image.Pt(keyW+keyGap, dims.Size.Y), Baseline: dims.Baseline}
 						}),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-							return drawText(gtx, tok.shaper, fieldValue(f), tok.typ.BodyMedium,
-								vgcolor.Flatten(tok.col.Label, fill))
+							return typeset.Text(gtx, tok.shaper, fieldValue(f), tok.typ.BodyMedium,
+								vgcolor.Flatten(tok.col.Label, fill), 0)
 						}),
 					)
 				}))
