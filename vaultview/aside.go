@@ -58,21 +58,17 @@ const (
 	asideHeaderGapDp = 8
 	// asideRowPadDp holds a row's own text off its fill's edge. It is the
 	// sidebar's treeRowPadDp under this column's name, because the pill
-	// drawn here is the pill drawn there.
+	// drawn here is the pill drawn there. The pad stands inside the pill
+	// and the pill inside the column's lane, so a row's text is the two of
+	// them in from the column's own edge, which is what the rail's names
+	// are in from the rail's. It is spent across alone: down, a row is the
+	// sidebar's own row height and its text centres in that.
 	//
 	// The rail reserves a fixed leading column for its disclosure mark so
 	// names line up per level; this column has no such mark and reserves no
 	// column for one, so what a row here spends beyond the pad is its
 	// heading's own depth and nothing else.
-	//
-	// asideRowInsetDp is the air a row keeps around its text on the vertical
-	// — half of it above and below a heading's line, the whole of it around
-	// the line a citation centres in. Across, the pad stands inside the
-	// pill and the pill inside the column's lane, so a row's text is the
-	// two of them in from the column's own edge, which is what the rail's
-	// names are in from the rail's.
-	asideRowInsetDp = 8
-	asideRowPadDp   = 8
+	asideRowPadDp = 8
 	// asideGroupGapDp is what stands either side of the rule between the
 	// two panes: enough that the rule reads as parting them rather than as
 	// underlining the pane above it.
@@ -269,7 +265,10 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 	// its column's, and what the panes draw stops a lane short of it.
 	layout.Inset{Top: asideInsetDp, Bottom: asideInsetDp}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		inner := gtx.Constraints.Max
-		rowH := gtx.Dp(list.RowHeight(tok.den))
+		// Both panes' rows stand at the sidebar's own row height, as the
+		// rail's rows do, because they wear the rail's pill; a row's text
+		// is centred in that height rather than inset into it.
+		rowH := gtx.Dp(sidebar.RowHeight)
 		// The backlinks pane: its rows up to the cap, and one row for the
 		// line that stands in for them when the note is cited by nothing —
 		// an empty pane reserving four rows is a shape this column does not
@@ -419,15 +418,15 @@ func asideTrailing(tok themeTokens, w layout.Widget) layout.Widget {
 // so that one leading edge runs down the column and the line reads as the
 // pane's own answer rather than as an annotation on the heading above it.
 // Across: a row's own pad inboard of the column's text margin, the bar's
-// lane and a pad again at its trailing end. Down: the air the pane's own
-// rows keep above their text, which the two panes do not spend alike — the
-// outline halves it, the citations spend it outright — so the caller states
-// it rather than one constant standing for both.
-func asideEmptyLine(gtx layout.Context, tok themeTokens, line string, top unit.Dp) layout.Dimensions {
+// lane and a pad again at its trailing end. Down: in a row's own height,
+// which centres the line where a row centres its text.
+func asideEmptyLine(gtx layout.Context, tok themeTokens, line string, rowH int) layout.Dimensions {
 	return layout.Inset{
-		Top: top, Left: asideLaneDp + asideRowPadDp,
+		Left:  asideLaneDp + asideRowPadDp,
 		Right: asideBarLane(tok) + asideLaneDp + asideRowPadDp,
 	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.Y = rowH
+		gtx.Constraints.Max.Y = max(gtx.Constraints.Max.Y, rowH)
 		return typeset.Text(gtx, tok.shaper, line, tok.typ.BodyMedium, asideForegrounds(tok).faint, 0)
 	})
 }
@@ -461,6 +460,7 @@ func asideRule(gtx layout.Context, tok themeTokens) layout.Dimensions {
 // headings of a note — the document runs out before they reach the top —
 // and an entry that cannot be marked is an entry that cannot be chosen.
 func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []outlineEntry) layout.Dimensions {
+	rowH := gtx.Dp(sidebar.RowHeight)
 	if len(entries) == 0 {
 		// Released from the region's minimum height, so the line sits under
 		// its own heading rather than in the middle of the room the region
@@ -469,7 +469,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 		// backlinks on the column's foot.
 		gtx.Constraints.Min.Y = 0
 		region := gtx.Constraints.Max
-		asideEmptyLine(gtx, tok, "This note has no headings.", asideRowInsetDp/2)
+		asideEmptyLine(gtx, tok, "This note has no headings.", rowH)
 		return layout.Dimensions{Size: region}
 	}
 	if doc := v.cur.document(); doc != nil {
@@ -508,7 +508,6 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 	for len(v.outlineClick) < len(entries) {
 		v.outlineClick = append(v.outlineClick, &widget.Clickable{})
 	}
-	rowH := gtx.Dp(list.RowHeight(tok.den))
 	foregrounds := asideForegrounds(tok)
 	return list.LayoutSelectableScrollbar(gtx, v.outlineList, asideIndicator(tok), list.Occupy, entries,
 		func(gtx layout.Context, e outlineEntry, selected bool) layout.Dimensions {
@@ -539,10 +538,13 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 				// each level below it steps in from there. The pad is on
 				// the trailing edge too, so a title long enough to be cut
 				// is cut inside the pill rather than at it.
+				//
+				// Nothing is spent down the row: the line box is handed the
+				// row's whole height and centres in it, which is what keeps
+				// a title whole at the height the pill stands.
 				lead := asideLaneDp + unit.Dp(asideRowPadDp+max(e.Level-1, 0)*asideIndentDp)
 				layout.Inset{
 					Left: lead, Right: asideLaneDp + asideRowPadDp,
-					Top: asideRowInsetDp / 2, Bottom: asideRowInsetDp / 2,
 				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					// A first-level heading is the note's own title level
 					// and is set apart from what hangs under it.
@@ -588,19 +590,19 @@ func (v *asideView) seek(gtx layout.Context, e outlineEntry) {
 // backlinkPane lays out the citing notes: the note title leading, its
 // folder as the faint trailing annotation when it has one.
 func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []backlinkRow) layout.Dimensions {
+	rowH := gtx.Dp(sidebar.RowHeight)
 	if len(rows) == 0 {
 		// Released from the flex child's minimum height, so the line sits
 		// under its own header rather than centred in the whole empty
 		// column, where it would belong to nothing.
 		gtx.Constraints.Min.Y = 0
 		region := gtx.Constraints.Max
-		asideEmptyLine(gtx, tok, "No notes link here.", asideRowInsetDp)
+		asideEmptyLine(gtx, tok, "No notes link here.", rowH)
 		return layout.Dimensions{Size: region}
 	}
 	for len(v.rowClicks) < len(rows) {
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
-	rowH := gtx.Dp(list.RowHeight(tok.den))
 	foregrounds := asideForegrounds(tok)
 	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), list.Occupy, rows,
 		func(gtx layout.Context, row backlinkRow, selected bool) layout.Dimensions {
@@ -618,8 +620,9 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 				semantic.LabelOp(row.Title).Add(gtx.Ops)
 				pointershape.OverSize(gtx.Ops, size, pointer.CursorPointer)
 				// The rows below the rule take the same pad the rows above
-				// it do, for the same reason: they wear the same pill.
-				complayout.InsetXY(float32(asideLaneDp)+asideRowPadDp, asideRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				// it do, and spend it across alone for the same reason:
+				// they wear the same pill.
+				complayout.InsetXY(float32(asideLaneDp)+asideRowPadDp, 0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							title := foregrounds.reading

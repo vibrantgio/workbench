@@ -18,9 +18,10 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
-	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // outlineSource is the fixture the outline tests share: a note whose
@@ -325,7 +326,7 @@ func TestAHeadingThatCannotLeadTheViewportIsStillChosen(t *testing.T) {
 		t.Fatalf("fixture outline has %d entries, want 5", len(entries))
 	}
 	tail := entries[len(entries)-1]
-	rowH := asideRowPx(p.tok)
+	rowH := asideRowPx()
 	g := p.v.geom
 	if want := len(entries) * rowH; g.outline.Dy() < want {
 		t.Fatalf("the outline's region is %d px for %d rows; every row must stand in it",
@@ -398,7 +399,7 @@ func TestEveryEntryCanBeChosen(t *testing.T) {
 	p.frame()
 
 	entries := noteOutline(m.CurrentNote())
-	rowH := asideRowPx(p.tok)
+	rowH := asideRowPx()
 	g := p.v.geom
 	for _, e := range entries {
 		p.clickAt(g.outline.Min.Y + e.Idx*rowH + rowH/2)
@@ -487,7 +488,7 @@ func TestBothPanesStandInEitherState(t *testing.T) {
 			if g.outline.Max.Y > g.backlinks.Min.Y {
 				t.Errorf("the panes overlap: outline %v, backlinks %v", g.outline, g.backlinks)
 			}
-			if ceiling := asideBacklinkCap * asideRowPx(p.tok); g.backlinks.Dy() > ceiling {
+			if ceiling := asideBacklinkCap * asideRowPx(); g.backlinks.Dy() > ceiling {
 				t.Errorf("the backlinks pane is %d tall; the cap is %d", g.backlinks.Dy(), ceiling)
 			}
 			// The pane stands on the column's foot, one inset off the
@@ -550,8 +551,9 @@ func TestTheOutlineHoldsTheColumnsSlack(t *testing.T) {
 }
 
 // asideRowPx is a pane row's height in the pixels these tests measure in,
-// where one dp is one pixel.
-func asideRowPx(tok themeTokens) int { return int(list.RowHeight(tok.den)) }
+// where one dp is one pixel. Both panes' rows stand at the sidebar's own
+// row height, which no density moves.
+func asideRowPx() int { return int(sidebar.RowHeight) }
 
 // citedModel makes a note current and gives it cites citing notes, so the
 // backlinks pane has exactly that many rows to size itself to. src is the
@@ -583,7 +585,7 @@ func citedModel(notePath, src string, cites int) Model {
 // gains exactly the three rows the backlinks gave up.
 func TestTheBacklinksPaneIsAsTallAsItsRows(t *testing.T) {
 	const colH = 700
-	rowH := asideRowPx(goldenTokens())
+	rowH := asideRowPx()
 	outlineDy := map[string]int{}
 	for _, tc := range []struct {
 		name  string
@@ -748,7 +750,7 @@ func TestThePanesKeepTheirNavigationWhenResized(t *testing.T) {
 	p.frame()
 
 	entries := noteOutline(m.CurrentNote())
-	rowH := asideRowPx(p.tok)
+	rowH := asideRowPx()
 	// The third row of each pane: far enough down that a press landing on
 	// the pane's first row by accident would be caught.
 	const row = 2
@@ -805,7 +807,7 @@ func TestThePanesFindTheirRowsWithRoomToSpare(t *testing.T) {
 	if len(entries) != 4 {
 		t.Fatalf("fixture outline has %d entries, want 4", len(entries))
 	}
-	rowH := asideRowPx(p.tok)
+	rowH := asideRowPx()
 	g := p.v.geom
 	if want := (len(entries) + 2) * rowH; g.outline.Dy() < want {
 		t.Fatalf("the outline's region is %d px for %d rows; the fixture is meant to leave room to spare",
@@ -1000,15 +1002,6 @@ func asideShotFrom(t *testing.T, m Model, col tokens.PlatformColors, h int, atEn
 	return golden.Capture(t, size, scene(w, chromeSurface(col))), v
 }
 
-// asideDrawnAt answers where the paint between two rows of the captured
-// column starts — its leading column and its first row, or -1, -1 for a
-// band of bare surface. over is the fill lying under that band: the chrome
-// chrome material where the rows are bare, one of the pattern's two selection
-// fills where a row is spoken for. Both it and the chrome are read as
-// surface, and so is any blend of the two, because a pill's rounded corner
-// ramps from one to the other over two or three pixels and the emphasized
-// pill is the accent, far enough from the chrome that a blend of the two is
-// near neither.
 // absGap is the distance between two eight-bit channels.
 func absGap(a, b uint8) int {
 	if a > b {
@@ -1017,34 +1010,21 @@ func absGap(a, b uint8) int {
 	return int(b) - int(a)
 }
 
+// asideDrawnAt answers where the paint between two rows of the captured
+// column starts — its leading column and its first row, or -1, -1 for a
+// band of bare surface. over is the fill lying under that band: the
+// chrome material where the rows are bare, one of the pattern's two
+// selection fills where a row is spoken for. Both it and the chrome read as
+// surface, and so is any blend of the two, because a pill's rounded corner
+// ramps from one to the other over two or three pixels and the emphasized
+// pill is the accent, far enough from the chrome that a blend of the two is
+// near neither.
 func asideDrawnAt(img *image.RGBA, col tokens.PlatformColors, y0, y1 int, over, foreground color.NRGBA) (int, int) {
-	// Half the distance between the surface and the foreground drawn on it:
-	// past that a pixel carries more than half a glyph's coverage. It is
-	// derived per band rather than written down because the platform's label
-	// strengths are coverages of very different depth, and a fixed threshold
-	// would find a strong title at a tenth of a glyph and a faint line only
-	// at three quarters of one — which reads as a placement difference that
-	// is not there.
-	surf := chromeSurface(col)
-	slack := float64(max(absGap(foreground.R, surf.R),
-		max(absGap(foreground.G, surf.G), absGap(foreground.B, surf.B)))) / 2
-	a, b := surf, over
-	ax, ay, az := float64(a.R), float64(a.G), float64(a.B)
-	dx, dy, dz := float64(b.R)-ax, float64(b.G)-ay, float64(b.B)-az
-	den := dx*dx + dy*dy + dz*dz
-	surface := func(c color.RGBA) bool {
-		t := 0.0
-		if den > 0 {
-			t = ((float64(c.R)-ax)*dx + (float64(c.G)-ay)*dy + (float64(c.B)-az)*dz) / den
-			t = min(max(t, 0), 1)
-		}
-		return max(math.Abs(float64(c.R)-(ax+t*dx)),
-			max(math.Abs(float64(c.G)-(ay+t*dy)), math.Abs(float64(c.B)-(az+t*dz)))) < slack
-	}
+	bare := asideBare(col, over, foreground)
 	lead, top := -1, -1
 	for y := max(y0, img.Bounds().Min.Y); y < min(y1, img.Bounds().Max.Y); y++ {
 		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
-			if surface(img.RGBAAt(x, y)) {
+			if bare(img.RGBAAt(x, y)) {
 				continue
 			}
 			if top < 0 {
@@ -1059,6 +1039,58 @@ func asideDrawnAt(img *image.RGBA, col tokens.PlatformColors, y0, y1 int, over, 
 	return lead, top
 }
 
+// asideDrawnSpan answers the first and last row of the same band that carry
+// paint, or -1, -1 for a band of bare surface. It reads the picture the way
+// [asideDrawnAt] does and differs only in the axis it reports: where that
+// one answers where paint starts, this one answers how far down the band it
+// reaches, which is what says whether a line of text stands whole inside it.
+func asideDrawnSpan(img *image.RGBA, col tokens.PlatformColors, y0, y1 int, over, foreground color.NRGBA) (int, int) {
+	bare := asideBare(col, over, foreground)
+	top, bottom := -1, -1
+	for y := max(y0, img.Bounds().Min.Y); y < min(y1, img.Bounds().Max.Y); y++ {
+		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
+			if bare(img.RGBAAt(x, y)) {
+				continue
+			}
+			if top < 0 {
+				top = y
+			}
+			bottom = y
+			break
+		}
+	}
+	return top, bottom
+}
+
+// asideBare reports whether a captured pixel is bare surface rather than
+// paint: the chrome material, the fill lying over it where a row is spoken
+// for, or any blend of the two.
+func asideBare(col tokens.PlatformColors, over, foreground color.NRGBA) func(color.RGBA) bool {
+	// Half the distance between the surface and the foreground drawn on it:
+	// past that a pixel carries more than half a glyph's coverage. It is
+	// derived per band rather than written down because the platform's label
+	// strengths are coverages of very different depth, and a fixed threshold
+	// would find a strong title at a tenth of a glyph and a faint line only
+	// at three quarters of one — which reads as a placement difference that
+	// is not there.
+	surf := chromeSurface(col)
+	slack := float64(max(absGap(foreground.R, surf.R),
+		max(absGap(foreground.G, surf.G), absGap(foreground.B, surf.B)))) / 2
+	a, b := surf, over
+	ax, ay, az := float64(a.R), float64(a.G), float64(a.B)
+	dx, dy, dz := float64(b.R)-ax, float64(b.G)-ay, float64(b.B)-az
+	den := dx*dx + dy*dy + dz*dz
+	return func(c color.RGBA) bool {
+		t := 0.0
+		if den > 0 {
+			t = ((float64(c.R)-ax)*dx + (float64(c.G)-ay)*dy + (float64(c.B)-az)*dz) / den
+			t = min(max(t, 0), 1)
+		}
+		return max(math.Abs(float64(c.R)-(ax+t*dx)),
+			max(math.Abs(float64(c.G)-(ay+t*dy)), math.Abs(float64(c.B)-(az+t*dz)))) < slack
+	}
+}
+
 // TestTheOutlineStepsOnTheColumnsRhythm measures one heading level's step
 // off the picture: the leading edge of a level-two title against a
 // level-one's, and a level-three's against the level-two's. The column moves
@@ -1066,7 +1098,7 @@ func asideDrawnAt(img *image.RGBA, col tokens.PlatformColors, y0, y1 int, over, 
 // fill, the lane its bar stands in — so the outline's step is that same eight
 // and not a second rhythm down one narrow list.
 func TestTheOutlineStepsOnTheColumnsRhythm(t *testing.T) {
-	rowH := asideRowPx(goldenTokens())
+	rowH := asideRowPx()
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// The document is placed at its end, so the mark is on the last
@@ -1104,7 +1136,7 @@ func TestTheOutlineStepsOnTheColumnsRhythm(t *testing.T) {
 // heading above it — a pad outboard of every row in the column reads as an
 // annotation on the heading rather than as the pane's own answer.
 func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
-	rowH := asideRowPx(goldenTokens())
+	rowH := asideRowPx()
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// A note with headings and citations, and one with neither: the
@@ -1157,4 +1189,86 @@ func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
 			}
 		})
 	}
+}
+
+// asideDescenderSource is a note whose headings drop below the baseline,
+// which is what a row too short for its line box takes off first.
+const asideDescenderSource = `# Typography
+
+Prose under the title.
+
+## Paragraphs
+
+More prose.
+`
+
+// TestBothPanesRowsHoldTheirWholeText reads a row's text off the picture and
+// requires all of it to stand inside the row, centred there by the row
+// itself: the letters paint every row they paint with nothing cutting them,
+// and they paint them where a line box centred in the row would put them.
+// A row shorter than its own line box clips the text helper's box, and what
+// goes first is the part of the letters below the baseline — which is a row
+// that looks right in a list of capitals and loses letters in the next note.
+func TestBothPanesRowsHoldTheirWholeText(t *testing.T) {
+	rowH := asideRowPx()
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// The document is placed at its end, so the mark is on the last
+			// entry and the first row of each pane is bare.
+			img, v := asideShotFrom(t, citedModel("guide/Typography.md", asideDescenderSource, 2), tc.colors, 700, true)
+			tok := goldenTokens()
+			tok.col = tc.colors
+			foreground := asideForegrounds(tok).reading
+			for _, c := range []struct {
+				pane  string
+				at    image.Rectangle
+				title string
+			}{
+				{"outline", v.geom.outline, "Typography"},
+				{"backlinks", v.geom.backlinks, "Citing 00"},
+			} {
+				box, first, last := asideLineBox(t, tok, c.title, foreground)
+				if box > rowH {
+					t.Errorf("the %s pane's line box is %d tall in a row of %d; the row holds the box", c.pane, box, rowH)
+					continue
+				}
+				top, bottom := asideDrawnSpan(img, tc.colors, c.at.Min.Y, c.at.Min.Y+rowH, chromeSurface(tc.colors), foreground)
+				if top < 0 {
+					t.Fatalf("the %s pane's first row drew no text to measure", c.pane)
+				}
+				// What the row has over the box is shared above and below
+				// it, half each and the odd pixel above the text, which is
+				// how the text helper centres a line in a floor.
+				boxTop := c.at.Min.Y + (rowH-box)/2
+				if top != boxTop+first || bottom != boxTop+last {
+					t.Errorf("the %s pane's %q paints rows %d to %d, and whole in a line box centred in its row it would paint %d to %d",
+						c.pane, c.title, top, bottom, boxTop+first, boxTop+last)
+				}
+			}
+		})
+	}
+}
+
+// asideLineBox measures one line of a row's text with nothing cutting it:
+// the height the text helper gives the line box, and the first and last row
+// of paint the letters cover, counted from the box's own top. A row that
+// cuts its text, or stands it anywhere but centred, paints elsewhere.
+func asideLineBox(t *testing.T, tok themeTokens, title string, foreground color.NRGBA) (box, first, last int) {
+	t.Helper()
+	var dims layout.Dimensions
+	w := func(gtx layout.Context) layout.Dimensions {
+		// Released from the capture's own floor, so the box stands at the
+		// picture's top edge and the helper reports the box itself rather
+		// than the picture.
+		gtx.Constraints.Min.Y = 0
+		dims = typeset.Text(gtx, tok.shaper, title, tok.typ.BodyMedium, foreground, 1)
+		return dims
+	}
+	size := image.Pt(frameAsideDp, 64)
+	img := golden.Capture(t, size, scene(w, chromeSurface(tok.col)))
+	top, bottom := asideDrawnSpan(img, tok.col, 0, size.Y, chromeSurface(tok.col), foreground)
+	if top < 0 {
+		t.Fatalf("the measurement drew no %q to read", title)
+	}
+	return dims.Size.Y, top, bottom
 }
