@@ -59,9 +59,9 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
   backdrop  v0.0.5   solid colour fill component
   gradient  v0.0.5   linear gradient fill component
   circle    v0.0.6   precise circle via Bezier
-  style     v0.0.8   FROZEN: the old MD2 type scale and FontFaces();
-                     superseded by theme/tokens Typography (§Typography)
-                     — never add it to a new app
+  style     v0.0.8   FROZEN: an MD2 type scale and FontFaces(); type in a
+                     new app comes from theme/tokens Typography
+                     (§Typography) — never add style to one
 
   theme     v1.4.0   the theme runtime and every design token: tokens
                      (the platform's colour set, Typography, Density,
@@ -135,53 +135,6 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
 
 workbench (the reference apps) and design (the published token bundle) carry
 no tags; consume them from the branch tip.
-
-### Already deleted
-
-These do not exist in the tags above. If you find them in older code or an
-older answer, they are gone, not deprecated:
-
-  - the alias packages prism/tokens, prism/theme and prism/a11y (import the
-    theme/... path they used to forward to) and spectrum/transition
-    (import effects/transition — that is where the colour-token tween lives,
-    and it is why theme no longer depends on effects at all);
-  - the generated colour set and every derivation behind it. A component
-    takes tokens.PlatformColors and reads a name; there is no set to
-    generate, no colour to walk toward and no foreground to resolve.
-    §Colour has the vocabulary that replaced it;
-  - the level argument. A component that draws an alpha name onto what it
-    stands on takes a Surface colour instead, and one standing on its own
-    opaque fill takes nothing;
-  - patterns/tag entirely, with no alias. The status badge is
-    components/badge (the roster above); a dismissible user-entered token
-    is the Input chip's;
-  - tokens.TypeScale entirely. The static `Render(…)` signatures on components,
-    patterns and markdown take a role's `tokens.TextStyle` instead — or the
-    whole `tokens.Typography` where a component spends several roles — plus
-    a `tokens.Density` wherever a control is sized. Drive components through
-    their theme-driven entry points (button.Button, table.Table, …) and the
-    theme supplies all of it for you;
-  - every cross-component coordination bus cadence used to export:
-    `popover.Arbitration`, `popover.ArbitrationSnapshot`,
-    `tooltip.Arbitration`, `tooltip.ArbitrationSnapshot`, `modal.Stack`,
-    `modal.StackSnapshot` and `toast.Notifications`. The raise-by-message
-    call still exists as
-    notifications.Notify and takes a layout.Context first — the compile
-    error names the fix. See §Coordination.
-
-### Renamed
-
-If you find these in older code, require the new path:
-
-  - github.com/vibrantgio/spectrum → theme
-  - github.com/vibrantgio/prism → components
-  - github.com/vibrantgio/pulse → effects
-  - github.com/vibrantgio/cadence → patterns
-  - patterns/toast → the column is patterns/notifications, the single toast
-    it presents is components/toast
-  - `patterns/modal` → `patterns/dialog`, and `modal.Modal` → `dialog.Dialog`.
-    Modal is the mode a dialog puts the window in; the pattern is the
-    dialog. Every other exported name in the package is unchanged.
 
 ## Nested modules
 
@@ -611,7 +564,7 @@ what that element IS on the platform.
 ### Where the values come from
 
 macOS answers for them live: theme/system asks AppKit for every name in the
-set under both appearances, on the same cadence as the accent key, so the
+set under both appearances, at the same interval as the accent key, so the
 user's accent setting and future platform changes come through. Windows and
 Linux carry the recorded sets with the accent rows rebuilt from the colour
 their desktop reports (PlatformColors.WithAccent). The catalogue was read
@@ -739,10 +692,9 @@ machine left on the platform's own accent keeps; such a file carries no
 colour at all. The same file may name a code face as "mono": "JetBrains
 Mono" or omitted/empty/unknown, which is Roboto Mono — the same fallback
 "style" already uses. "style" is the syntax highlighter style, one name per
-appearance; a file written before the key was renamed spells it "base", and
-that key is read for one release and never written. workbench/themer is what
-writes the file: the colour, the "style" pair and "mono" together, with every
-other key read back and written out untouched.
+appearance. workbench/themer is what writes the file: the colour, the "style"
+pair and "mono" together, with every other key read back and written out
+untouched.
 Adopting it is one line —
 
   ```go
@@ -830,10 +782,9 @@ chrome material as the same white, so THE SEAM IS WHAT SEPARATES THEM — a
 Separator hairline over whatever is beneath. In the dark appearance the
 chrome material reads on its own.
 
-There is no level argument left in the system. A component that draws an
-alpha name onto what it stands on is told the FILL it stands on instead —
-a Surface colour on its Props or RenderState — and a component standing on
-its own opaque fill is told nothing.
+A component that draws an alpha name onto what it stands on is told the
+FILL it stands on — a Surface colour on its Props or RenderState — and a
+component standing on its own opaque fill is told nothing.
 
 ### Shadows
 
@@ -852,8 +803,7 @@ Do not add a shadow to a card.
 ## Window structure: which region wears which name
 
 Level says how high a surface stands. This says WHICH PART OF A WINDOW
-STANDS WHERE — the assignment every app used to re-derive, some of them
-backwards.
+STANDS WHERE, so an app assigns each region rather than deriving it.
 
   - THE CONTENT IS THE LARGEST RESTING EXPANSE — the document, the
     transcript, the list, the table — and it fills with ControlBackground,
@@ -1104,10 +1054,9 @@ th.Typography, take metrics from a role and the shaper from typ.Shaper().
 The positional-shaper APIs — markdown's doc.Layout(gtx, shaper, style),
 components/paragraph's Layout and Render, patterns/shell's golden
 Render/RenderThreeColumn/RenderStackedPage — want that same typ.Shaper()
-value. There is no second, size-only type source any more: theme.Theme.Type
-and tokens.TypeScale are deleted, and markdown.FromTokens takes the whole
-Typography like every other multi-role consumer. The Typography roles carry
-the full metrics and are the only source of truth (see §Modules).
+value. markdown.FromTokens takes the whole Typography, like every other
+multi-role consumer. The Typography roles carry the full metrics and are the
+only source of truth (see §Modules).
 
 ### The rules
 
@@ -1119,7 +1068,7 @@ the full metrics and are the only source of truth (see §Modules).
   - Props.Shaper is a DELIBERATE override only. The prop survives on the
     text-drawing components for the rare call site that must shape with a
     different collection; leave it nil everywhere else. If you find
-    yourself passing it routinely, you are reimplementing the old defect.
+    yourself passing it routinely, the theme's shaper is what you want.
   - A GOLDEN TEST PINS ITS FACES; APPLICATION CODE DOES NOT. Typography
     has two shaper constructors and they are not interchangeable.
     Shaper() is the application one: Faces first, then the platform's own
