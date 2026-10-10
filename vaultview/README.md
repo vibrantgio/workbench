@@ -123,8 +123,8 @@ layers — over the design system's vocabulary:
 | --- | --- |
 | Loop, commands, click-to-message | `mvu`, `mvu/desktop` |
 | Live OS theme, tokens, type | `theme` |
-| List, text field, layout, goldens | `components` |
-| Breadcrumb, dialog, toast | `patterns` |
+| List, text field, layout, goldens, breadcrumb, toast | `components` |
+| Dialog | `patterns` |
 | Parsing, rendering, highlighting | `markdown`, `markdown/highlight` |
 | Frontmatter, wikilink spans, block ids | `markdown/obsidian` |
 
