@@ -33,7 +33,7 @@ import (
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/theme/brand"
@@ -237,7 +237,7 @@ func buildLayers(modelObs rx.Observable[Model], opening tokens.PlatformColors, t
 		// stand at once — the chooser leaves the chrome row live above its
 		// own scrim, and Switch Vault stands in that row — so the two share
 		// a stack rather than each getting one of its own.
-		dialogs := modal.NewArbiter()
+		dialogs := dialog.NewArbiter()
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
 			routedLayer(th, modelObs, &modelCell, loadModel, loadTok, widths),

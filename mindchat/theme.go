@@ -66,10 +66,10 @@ type Palette struct {
 	// ChipText is the title over the dialog's own template chips, which stand
 	// on the dialog's plane.
 	ChipText color.NRGBA
-	// ModalChip is a chip inside the settings dialog: the fill an ordinary
+	// DialogChip is a chip inside the settings dialog: the fill an ordinary
 	// push button wears on this platform, which is what the reference
 	// measures a resting chip at. It does not tint under the pointer.
-	ModalChip color.NRGBA
+	DialogChip color.NRGBA
 	// Toast is a surface that appears and leaves — the undo bar and the
 	// settings dialog alike. It is the window's own plane, which is what the
 	// platform fills a floating surface with; its shadow is the caller's.
@@ -112,7 +112,7 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		TurnText:        vgcolor.Flatten(c.Label, content),
 		Note:            vgcolor.Flatten(c.SecondaryLabel, content),
 		ChipText:        vgcolor.Flatten(c.Label, c.PushButtonFill),
-		ModalChip:       c.PushButtonFill,
+		DialogChip:      c.PushButtonFill,
 		Toast:           floating,
 		Pane:            c.CardFill,
 		FloatingText:    vgcolor.Flatten(c.Label, floating),
@@ -223,7 +223,7 @@ const (
 	WaitingDotCount           = 3
 	RenameFieldHeight unit.Dp = 48
 
-	// Settings modal geometry.
+	// Settings dialog geometry.
 
 	// SettingsSegmentsHeight is the height the templates' segmented control
 	// draws at: a bordered control standing in a SHEET'S BODY, which the

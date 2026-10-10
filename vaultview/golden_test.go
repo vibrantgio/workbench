@@ -458,7 +458,7 @@ func switchGoldenModel() Model {
 }
 
 // renderSwitchWindow composes the picture the dialog is read in: the vault
-// window it stands over, and the dialog over it. The modal defers its own
+// window it stands over, and the dialog over it. The dialog defers its own
 // painting to the floating level, so it lands above every operation the
 // window recorded whatever order the two are laid out in.
 func renderSwitchWindow(shaper *text.Shaper, m Model, colors tokens.PlatformColors) layout.Widget {

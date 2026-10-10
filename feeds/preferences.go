@@ -6,7 +6,7 @@
 // repaginates underneath the open pane, and there is consequently nothing to
 // confirm and nothing to cancel. Leaving costs nothing, so every cheap exit is
 // offered — and all three of them (the ghost X, Escape, a backdrop click) come
-// from patterns/modal for free, because Props.Decision is nil. That single
+// from patterns/dialog for free, because Props.Decision is nil. That single
 // absence is the whole declaration: no HideClose, no dismiss-on-scrim boolean,
 // no Return binding.
 //
@@ -30,7 +30,7 @@ import (
 
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/dialog"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/typeset"
@@ -55,7 +55,7 @@ func preferencesPane(
 	prefsOpenObs rx.Observable[bool],
 	rowsPerPageObs rx.Observable[int],
 	unreadOnlyObs rx.Observable[bool],
-	modalArb *modal.Arbiter,
+	dialogArb *dialog.Arbiter,
 ) rx.Observable[layout.Widget] {
 	loadTok := mirrorTokens(th)
 
@@ -110,7 +110,7 @@ func preferencesPane(
 		},
 	)
 
-	// Layer-boundary cell: modal.Props.Body is a static slot, the buttons are
+	// Layer-boundary cell: dialog.Props.Body is a static slot, the buttons are
 	// observables.
 	var buttonCell atomic.Value
 	body := func(gtx layout.Context) layout.Dimensions {
@@ -128,13 +128,13 @@ func preferencesPane(
 		return layout.Dimensions{Size: image.Pt(w, y)}
 	}
 
-	modalObs := modal.Modal(th, modal.Props{
+	dialogObs := dialog.Dialog(th, dialog.Props{
 		Open:  prefsOpenObs,
 		Title: "Preferences",
 		Body:  body,
-		// This window's modal stack: the pane and the Add-feed modal share
+		// This window's dialog stack: the pane and the Add-feed dialog share
 		// it, so whichever is opened last is the one that takes input.
-		Arbiter: modalArb,
+		Arbiter: dialogArb,
 		// Props.Decision stays nil. That is the pane purpose, and with it come
 		// the ghost close X, the dismissing backdrop, and Escape — none of
 		// which is configured here because none of them is this app's choice
@@ -155,7 +155,7 @@ func preferencesPane(
 		},
 	})
 
-	return rx.Map(rx.CombineLatest2(modalObs, buttonsObs),
+	return rx.Map(rx.CombineLatest2(dialogObs, buttonsObs),
 		func(n rx.Tuple2[layout.Widget, []layout.Widget]) layout.Widget {
 			buttonCell.Store(n.Second)
 			return n.First

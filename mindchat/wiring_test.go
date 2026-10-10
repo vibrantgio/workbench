@@ -17,9 +17,9 @@ import (
 // This is the invariant an AutoConnect count used to stand for, and it holds
 // without one: the header's model picker takes its value and its options as
 // static props, so it derives a key for each and subscribes a new control
-// whenever one changes, and the modals subscribe their open flags as they are
+// whenever one changes, and the dialogs subscribe their open flags as they are
 // built. A stream without replay leaves a subscriber attaching after the seed
-// with no model at all — a picker on an empty catalogue, a modal that never
+// with no model at all — a picker on an empty catalogue, a dialog that never
 // opens — until the next message.
 func TestALateSubscriberReadsTheModelInForce(t *testing.T) {
 	messages := make(chan mvu.Message, 1)

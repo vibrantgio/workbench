@@ -18,7 +18,7 @@ import (
 // re-emits the set and restyles the whole app with no imperative wiring.
 type Palette struct {
 	Backdrop       color.NRGBA // the window's own plane
-	Dialog         color.NRGBA // the modal's own plane
+	Dialog         color.NRGBA // the dialog's own plane
 	Field          color.NRGBA // the dialog's text-entry fill
 	FieldEdge      color.NRGBA // the hairline a field draws around itself
 	Label          color.NRGBA // a todo's text
@@ -27,13 +27,13 @@ type Palette struct {
 	Placeholder    color.NRGBA // the empty field's prompt
 	Selection      color.NRGBA // the fill behind selected text
 	Icon           color.NRGBA // the add and delete symbols
-	Cover          color.NRGBA // the dim over the page the modal interrupts
+	Cover          color.NRGBA // the dim over the page the dialog interrupts
 }
 
 // PaletteFrom reads this window's fills and foregrounds off the platform's
 // set. The list is what the window exists to show and stands on the window's
 // own plane, painting no fill of its own. The only fills over it belong to
-// the modal, which is a floating surface: the window's plane again, told
+// the dialog, which is a floating surface: the window's plane again, told
 // apart by the dim its scrim lays over everything it interrupts. Its
 // text-entry field is the platform's text plane inside the hairline a field
 // draws around itself.
@@ -86,8 +86,8 @@ func textStyle(ts tokens.TextStyle) textdraw.TextStyle {
 
 // Static layout dimensions; these do not vary with the colour scheme.
 const (
-	ModalWidth  unit.Dp = 650
-	ModalHeight unit.Dp = 200
+	DialogWidth  unit.Dp = 650
+	DialogHeight unit.Dp = 200
 
 	// The footer's two answers, as the platform's own sheet draws them.
 	// MEASURED, .github/reference/macos/save-dialog-{light,dark}.png: its

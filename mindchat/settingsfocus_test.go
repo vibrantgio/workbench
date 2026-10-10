@@ -1,7 +1,7 @@
 package main
 
 // The keyboard's landing place when a dialog opens, read off the rendered
-// frame. The Modal entry binds: the first field holds the keyboard focus
+// frame. The Dialog entry binds: the first field holds the keyboard focus
 // when a dialog opens, as the platform's sheet shows — its "Save As:" field
 // is the focused one, wearing the ring, and neither answer in the footer is.
 // So this reads the ring rather than the focus tag: what a reader is told is

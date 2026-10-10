@@ -438,7 +438,7 @@ func TestUpdateRenameChatRenamesCurrentInPlace(t *testing.T) {
 		t.Fatalf("rename must not touch the loaded history")
 	}
 	if next.Rename.Target != "" {
-		t.Fatalf("modal still open: %+v", next.Rename)
+		t.Fatalf("dialog still open: %+v", next.Rename)
 	}
 }
 
@@ -455,12 +455,12 @@ func TestUpdateRenameChatRejectsInvalidNames(t *testing.T) {
 
 	dup, _ := Update(opened, RenameChat{To: "beta"})
 	if dup.ChatList[0] != "alpha.jsonl" || dup.Rename.Target == "" {
-		t.Fatalf("duplicate name must be rejected with the modal kept open: %+v", dup.Rename)
+		t.Fatalf("duplicate name must be rejected with the dialog kept open: %+v", dup.Rename)
 	}
 
 	sep, _ := Update(opened, RenameChat{To: "a/b"})
 	if sep.ChatList[0] != "alpha.jsonl" || sep.Rename.Target == "" {
-		t.Fatalf("path separators must be rejected with the modal kept open: %+v", sep.Rename)
+		t.Fatalf("path separators must be rejected with the dialog kept open: %+v", sep.Rename)
 	}
 
 	empty, _ := Update(opened, RenameChat{To: "  "})

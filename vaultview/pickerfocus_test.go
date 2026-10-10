@@ -1,7 +1,7 @@
 package main
 
 // Where the keyboard lands when the switch dialog opens, read off the
-// rendered frame. The Modal entry binds: the first field holds the keyboard
+// rendered frame. The Dialog entry binds: the first field holds the keyboard
 // focus when a dialog opens, as the platform's sheet shows. This dialog's
 // body is a folder browser rather than a field, so its first control is the
 // browser's list — and a list at the front of a dialog is a focusable like a
@@ -22,13 +22,13 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
-	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/dialog"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// dialogLayer is the shape both of this application's modal layers are
+// dialogLayer is the shape both of this application's dialog layers are
 // built in: a theme stream, the model behind the dialog, the two snapshot
 // loaders and the arbiter the dialog declares itself to.
 type dialogLayer func(
@@ -36,11 +36,11 @@ type dialogLayer func(
 	modelObs rx.Observable[Model],
 	loadModel func() Model,
 	loadTok func() themeTokens,
-	arb *modal.Arbiter,
+	arb *dialog.Arbiter,
 ) rx.Observable[layout.Widget]
 
 // liveDialog builds one dialog's own layer over model m, live: a real theme
-// stream, a real modal, real focus tags. It is the one path a keyboard
+// stream, a real dialog, real focus tags. It is the one path a keyboard
 // reaches — a stored window image is a static render, which holds no focus
 // at all.
 func liveDialog(t *testing.T, build dialogLayer, m Model, c tokens.PlatformColors, shaper *text.Shaper) layout.Widget {
@@ -50,7 +50,7 @@ func liveDialog(t *testing.T, build dialogLayer, m Model, c tokens.PlatformColor
 	tok := themeTokens{col: c, typ: tokens.DefaultTypography, sp: tokens.Spacing,
 		den: tokens.Comfortable, shaper: shaper}
 	layer := build(rx.Of(th), rx.Of(m),
-		func() Model { return m }, func() themeTokens { return tok }, modal.NewArbiter())
+		func() Model { return m }, func() themeTokens { return tok }, dialog.NewArbiter())
 	var w layout.Widget
 	if err := layer.Subscribe(rx.GoroutineContext(), func(next layout.Widget, _ error, done bool) {
 		if !done && next != nil {
@@ -108,8 +108,8 @@ func (d *dialogDriver) press(k key.Event) {
 }
 
 // moveForward asks the router for one forward focus move: the move Tab makes,
-// taken over the window's own focus targets rather than through the modal's
-// declared Tab cycle. The modal traps the Tab key and hands it round the tags
+// taken over the window's own focus targets rather than through the dialog's
+// declared Tab cycle. The dialog traps the Tab key and hands it round the tags
 // it declares, so a Tab key says nothing about how many focus targets the
 // body registered; this move does.
 func (d *dialogDriver) moveForward() {

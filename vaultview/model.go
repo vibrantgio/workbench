@@ -110,13 +110,13 @@ type Model struct {
 	Notifications notifications.Queue // transient notifications, oldest first
 
 	// Chooser state: an ambiguous wikilink's raw body and the candidate
-	// paths the resolver refused to pick between. The chooser modal is
+	// paths the resolver refused to pick between. The chooser dialog is
 	// open exactly while ChooserCandidates is non-empty.
 	ChooserBody       string
 	ChooserCandidates []string
 }
 
-// ChooserOpen reports whether the ambiguity chooser modal is up.
+// ChooserOpen reports whether the ambiguity chooser dialog is up.
 func (m Model) ChooserOpen() bool { return len(m.ChooserCandidates) > 0 }
 
 // HistEntry is one visited note: its path and the anchor block index the

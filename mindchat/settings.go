@@ -1,4 +1,4 @@
-// settings.go owns the settings modal the pane's foot opens — and, with the
+// settings.go owns the settings dialog the pane's foot opens — and, with the
 // pane away, Cmd-comma, which is where this platform keeps it: the provider
 // catalogue editor (the providers well with +/− beside a form of Name, Base
 // URL and API key rows, where the key is auto-checked by a debounced /models
@@ -6,8 +6,8 @@
 // row at the form's foot, whose upward-dropping picker field offers every
 // provider's models. Every row carries its label beside it in one
 // right-aligned column, as the platform's own save sheet lays its rows out.
-// It follows the rename-modal recipe (patterns/modal + epoch-rebuilt
-// uncontrolled components fields + cell hand-offs into the modal's static
+// It follows the rename-dialog recipe (patterns/dialog + epoch-rebuilt
+// uncontrolled components fields + cell hand-offs into the dialog's static
 // slots); all edits reduce into Model.Settings.Draft per keystroke and apply
 // on Save.
 package main
@@ -46,14 +46,14 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
 // settingsThemed pairs one theme emission's palette with the icons
-// the modal body draws (prebuilt per emission, like view.go's themed), plus
+// the dialog body draws (prebuilt per emission, like view.go's themed), plus
 // the theme's Typography and its cached shaper for the body's own text.
 type settingsThemed struct {
 	palette Palette
@@ -101,10 +101,10 @@ type settingsFields struct {
 	name, url, key layout.Widget
 }
 
-// SettingsModal builds the settings modal stream. Open state, the draft
-// being edited, and fetch errors all live in Model.Settings; the modal is
+// SettingsDialog builds the settings dialog stream. Open state, the draft
+// being edited, and fetch errors all live in Model.Settings; the dialog is
 // pure view over them.
-func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], modalArb *modal.Arbiter) rx.Observable[layout.Widget] {
+func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], dialogArb *dialog.Arbiter) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.Settings.Open }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 
@@ -116,7 +116,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		return t
 	}).Pipe(rx.DistinctUntilChanged(func(a, b settingsTarget) bool { return a.epoch == b.epoch }))
 
-	// The fields' focus tags, in Tab order, for the modal's focus cycle.
+	// The fields' focus tags, in Tab order, for the dialog's focus cycle.
 	var nameTag, urlTag, keyTag atomic.Value
 
 	fieldsObs := rx.SwitchMap(targetObs, func(t settingsTarget) rx.Observable[settingsFields] {
@@ -200,7 +200,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	// The field takes its props once per subscription and keeps its own open
 	// state, so the subscription is keyed: on the option list and the pick, so
 	// a fetch that lands while the dialog stands is offered, and on the
-	// dialog's epoch, so a settings modal that opens again opens closed.
+	// dialog's epoch, so a settings dialog that opens again opens closed.
 	defaultPickerObs := rx.SwitchMap(
 		rx.Map(modelObs, defaultPickerKeyOf).Pipe(rx.DistinctUntilChanged(func(a, b defaultPickerKey) bool { return a.id == b.id })),
 		func(k defaultPickerKey) rx.Observable[func(gtx layout.Context, above, below int) layout.Dimensions] {
@@ -247,7 +247,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	})
 
 	// The two answers this dialog accepts. Each is both a footer button's
-	// OnClick and one half of modal.Decision, because the footer and the
+	// OnClick and one half of dialog.Decision, because the footer and the
 	// keyboard must answer identically — Escape is Cancel, Return is Save.
 	cancel := func(gtx layout.Context) {
 		mvu.MessageOp{Message: CloseSettings{}}.Add(gtx.Ops)
@@ -278,7 +278,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		OnClick:   save,
 	})
 
-	// The modal body and actions are static slots; the live streams reach
+	// The dialog body and actions are static slots; the live streams reach
 	// them through cells (the observable-over-static-slot hand-off).
 	var bodyCell, cancelCell, saveCell atomic.Value
 	slot := func(cell *atomic.Value) layout.Widget {
@@ -300,11 +300,11 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 	// and the button's height is the density's control height.
 	action := slot
 
-	modalObs := modal.Modal(th, modal.Props{
+	dialogObs := dialog.Dialog(th, dialog.Props{
 		Open:    openObs,
 		Title:   "Settings",
 		Body:    body,
-		Arbiter: modalArb,
+		Arbiter: dialogArb,
 		Actions: []layout.Widget{action(&cancelCell), action(&saveCell)},
 		// The provider fields are the body's own focusables, in the order it
 		// lays them out, so the dialog opens with the keyboard on the first
@@ -336,12 +336,12 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		// button and happens before Save is reached. Marking Save
 		// destructive would move Return to Cancel, and Return-discards-the-
 		// form is the accident the inert backdrop is here to prevent.
-		Decision: &modal.Decision{Confirm: save, Cancel: cancel},
+		Decision: &dialog.Decision{Confirm: save, Cancel: cancel},
 	})
 
-	// Fold the live body/field/button streams onto the modal stream so
+	// Fold the live body/field/button streams onto the dialog stream so
 	// their emissions repaint it.
-	return rx.Map(rx.CombineLatest5(modalObs, fieldsObs, bodyObs, cancelObs, saveObs),
+	return rx.Map(rx.CombineLatest5(dialogObs, fieldsObs, bodyObs, cancelObs, saveObs),
 		func(next rx.Tuple5[layout.Widget, settingsFields, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 			fieldCells.name.Store(next.Second.name)
 			fieldCells.url.Store(next.Second.url)
@@ -353,7 +353,7 @@ func SettingsModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model],
 		})
 }
 
-// settingsBody lays the modal body for one (theme, settings) emission: the
+// settingsBody lays the dialog body for one (theme, settings) emission: the
 // provider column (its own shaded pane: list + add/remove) beside the
 // selected provider's pane — the template bar, the Name/BaseURL fields,
 // the API-key row (field + check verdict + refresh) and a status line
@@ -709,7 +709,7 @@ func webSearchRow(gtx layout.Context, t settingsThemed, on bool, click *widget.C
 	})
 }
 
-// defaultPickerKey is what the modal's default-model field is a function of:
+// defaultPickerKey is what the dialog's default-model field is a function of:
 // the option list, the pick, and the dialog epoch the field belongs to — with
 // the identity the deduplication compares on, so a Model emission that changes
 // none of the three does not rebuild a running field under the pointer.

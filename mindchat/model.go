@@ -18,13 +18,13 @@ type Model struct {
 
 	// Providers is the live API endpoint catalogue; DefaultProvider and
 	// DefaultModel name the model prompts use unless the chat overrides
-	// them. The settings modal edits a DRAFT copy (Settings.Draft) that
+	// them. The settings dialog edits a DRAFT copy (Settings.Draft) that
 	// only replaces these on SaveSettings.
 	Providers       []Provider
 	DefaultProvider string
 	DefaultModel    string
 
-	// Settings drives the settings modal; the zero value means closed.
+	// Settings drives the settings dialog; the zero value means closed.
 	Settings SettingsState
 
 	// ModelMenu is whether the chat header's model picker is open.
@@ -43,7 +43,7 @@ type Model struct {
 	// later one that reused its slot.
 	DeleteGen int
 
-	// Rename is the chat whose rename modal is open; the zero value means
+	// Rename is the chat whose rename dialog is open; the zero value means
 	// closed.
 	Rename RenameState
 
@@ -74,7 +74,7 @@ func (model Model) Config() Config {
 	}
 }
 
-// SettingsState drives the settings modal. Draft is the provider catalogue
+// SettingsState drives the settings dialog. Draft is the provider catalogue
 // being edited (applied to the live config only on SaveSettings); Selected
 // indexes the provider the text fields show. Epoch keys the rebuild of the
 // uncontrolled fields — bumped on open and on provider add/remove/select/
@@ -186,9 +186,9 @@ type StreamState struct {
 	History  []Message
 }
 
-// RenameState drives the rename modal: Target is the chat filename being
-// renamed ("" = modal closed); Epoch is bumped on every open and keys the
-// rebuild of the modal's uncontrolled text field, so reopening — even for
+// RenameState drives the rename dialog: Target is the chat filename being
+// renamed ("" = dialog closed); Epoch is bumped on every open and keys the
+// rebuild of the dialog's uncontrolled text field, so reopening — even for
 // the same chat — reseeds it.
 type RenameState struct {
 	Target string

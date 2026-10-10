@@ -24,7 +24,7 @@ The design system is layered — each layer only depends on the ones below it:
 
 | Layer | Module | Role |
 |---|---|---|
-| Patterns | [`patterns`](https://github.com/vibrantgio/patterns) | Prebuilt application patterns: shells, tables, modals, popovers, tabs, notifications, navbars, sidebars, pagination, marketing sections |
+| Patterns | [`patterns`](https://github.com/vibrantgio/patterns) | Prebuilt application patterns: shells, tables, dialogs, popovers, tabs, notifications, navbars, sidebars, pagination, marketing sections |
 | Effects | [`effects`](https://github.com/vibrantgio/effects) | Motion & vibrancy: tweens, spring physics, glow, depth, a shared animation conductor |
 | Theme runtime | [`theme`](https://github.com/vibrantgio/theme) | Reactive theming: live OS dark-mode/accent tracking, preference persistence, animated theme transitions, window integration |
 | Foundation | [`components`](https://github.com/vibrantgio/components) | Component catalogue: buttons, inputs, lists, icons, toasts, layout, focus/a11y, tokens, theme contract, keyed identity, coordination |
@@ -62,7 +62,7 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
   **Markdown** are the component inventory's own groups, one per tab, as
   live, clickable controls.
 - **[`feeds/`](./feeds)** — an RSS reading-list app: sortable/filterable/
-  paginated article table, tabbed detail view in a split pane, modal CRUD
+  paginated article table, tabbed detail view in a split pane, dialog CRUD
   forms with alerts and toasts, popovers and tooltips.
 - **[`vaultview/`](./vaultview)** — a read-only viewer for a folder of
   Obsidian-style markdown notes: a disclosing file tree, frontmatter as a

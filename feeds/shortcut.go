@@ -1,11 +1,11 @@
 // shortcut.go holds the app's keyboard accelerators — the INVOCATION half of
 // the dialog grammar.
 //
-// A modal cannot own how you arrived. patterns/modal owns dismissal (a pane's
+// A dialog cannot own how you arrived. patterns/dialog owns dismissal (a pane's
 // ghost X, Escape, the backdrop; a decision's Escape-to-Cancel and
 // Return-to-default) because those are affordances the dialog itself draws or
 // traps while it is on screen. Arrival is app chrome: the accelerator has to
-// be live when NO dialog exists, which is precisely the state the modal is not
+// be live when NO dialog exists, which is precisely the state the dialog is not
 // in. So the binding lives here, one function, and patterns carries no notion
 // of it.
 //

@@ -1,6 +1,6 @@
 // g52d_sim_test.go verifies the CRUD behaviours: a deterministic golden of the
-// Add-feed modal (light + dark, with the empty-URL alert banner), plus
-// headless pixel checks against the REAL composed shell — the modal opens on
+// Add-feed dialog (light + dark, with the empty-URL alert banner), plus
+// headless pixel checks against the REAL composed shell — the dialog opens on
 // OpenAddFeed, the alert appears on an empty SubmitFeed, a submitted feed
 // appears in the sidebar, and ConfirmDelete removes a sidebar entry. The mvu
 // message loop (click → MessageOp → collector → Update) is proven elsewhere;
@@ -32,27 +32,27 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/toast"
+	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/group"
-	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// modalFrameW/H size the frame the Add-feed modal golden draws into.
+// dialogFrameW/H size the frame the Add-feed dialog golden draws into.
 const (
-	modalFrameW = 600
-	modalFrameH = 480
+	dialogFrameW = 600
+	dialogFrameH = 480
 )
 
-var modalSharpRadius = tokens.RadiusScale{}
+var dialogSharpRadius = tokens.RadiusScale{}
 
-// staticAddFeedModalBody assembles the modal Body from the static Render paths
-// of the same components the live addFeedModal composes: a group holding the
+// staticAddFeedDialogBody assembles the dialog Body from the static Render paths
+// of the same components the live addFeedDialog composes: a group holding the
 // error alert (shown to capture the empty-submit state in the golden), the URL
 // textfield, and the Add button. Sharp radii + the static Render paths keep
 // the golden deterministic.
-func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.PlatformColors) layout.Widget {
+func staticAddFeedDialogBody(shaper *text.Shaper, colors tokens.PlatformColors) layout.Widget {
 	body := func(gtx layout.Context) layout.Dimensions {
 		w := gtx.Constraints.Max.X
 		gap := gtx.Dp(unit.Dp(addFeedGapDp))
@@ -62,7 +62,7 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.PlatformColors) l
 		y := 0
 
 		al := alert.Render(shaper, alert.Props{Status: alert.Error, Title: "Feed URL required"},
-			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.TitleMedium)
+			colors, tokens.Spacing, dialogSharpRadius, tokens.DefaultTypography.TitleMedium)
 		s := op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		ag := gtx
 		ag.Constraints = layout.Exact(image.Pt(w, alertH))
@@ -73,7 +73,7 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.PlatformColors) l
 		// The field stands on the dialog's own plane, which is
 		// WindowBackground — the fill its edge is flattened onto.
 		fld := input.Render(shaper, "https://example.com/feed.xml",
-			colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.BodyLarge,
+			colors, tokens.Spacing, dialogSharpRadius, tokens.DefaultTypography.BodyLarge,
 			tokens.Comfortable, input.RenderState{Surface: colors.WindowBackground})
 		s = op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		fg := gtx
@@ -82,7 +82,7 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.PlatformColors) l
 		s.Pop()
 		y += fieldH + gap
 
-		btn := button.Render(shaper, "Add", colors, tokens.Spacing, modalSharpRadius,
+		btn := button.Render(shaper, "Add", colors, tokens.Spacing, dialogSharpRadius,
 			tokens.DefaultTypography.LabelLarge, tokens.Comfortable, button.RenderState{})
 		s = op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		bg := gtx
@@ -98,30 +98,30 @@ func staticAddFeedModalBody(shaper *text.Shaper, colors tokens.PlatformColors) l
 		g := group.Render(shaper, group.Props{
 			Content: []layout.Widget{body},
 			Surface: colors.WindowBackground,
-		}, colors, tokens.Spacing, modalSharpRadius, tokens.DefaultTypography.LabelLarge)
+		}, colors, tokens.Spacing, dialogSharpRadius, tokens.DefaultTypography.LabelLarge)
 		return g(gtx)
 	}
 }
 
-// TestAddFeedModalGolden renders the Add-feed modal (open, with the alert
+// TestAddFeedDialogGolden renders the Add-feed dialog (open, with the alert
 // banner) in light and dark token sets.
-func TestAddFeedModalGolden(t *testing.T) {
+func TestAddFeedDialogGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	cases := []struct {
 		name   string
 		colors tokens.PlatformColors
 		bg     color.NRGBA
 	}{
-		{"add-feed-modal-light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-		{"add-feed-modal-dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
+		{"add-feed-dialog-light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
+		{"add-feed-dialog-dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			body := staticAddFeedModalBody(shaper, tc.colors)
-			m := modal.Render(shaper, modal.Props{Title: "Add feed", Body: body, Shaper: shaper},
-				true, tc.colors, tokens.Spacing, modalSharpRadius,
+			body := staticAddFeedDialogBody(shaper, tc.colors)
+			m := dialog.Render(shaper, dialog.Props{Title: "Add feed", Body: body, Shaper: shaper},
+				true, tc.colors, tokens.Spacing, dialogSharpRadius,
 				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
-			golden.Render(t, tc.name, image.Pt(modalFrameW, modalFrameH), scene(m, tc.bg))
+			golden.Render(t, tc.name, image.Pt(dialogFrameW, dialogFrameH), scene(m, tc.bg))
 		})
 	}
 }
@@ -130,12 +130,12 @@ func TestAddFeedModalGolden(t *testing.T) {
 // feedsPaneColumnDp at PxPerDp 1), below the band, where feed entries render.
 var sidebarRegion = image.Rect(0, 100, int(feedsPaneColumnDp), shellFrameH-20)
 
-// scrimRegion samples the centre of the window, where an open modal paints its
+// scrimRegion samples the centre of the window, where an open dialog paints its
 // scrim + surface over the shell.
 var scrimRegion = image.Rect(shellFrameW/2-200, shellFrameH/2-150, shellFrameW/2+200, shellFrameH/2+150)
 
 // TestG52dCrudStatesHeadless renders the real shell at the CRUD model states
-// and asserts the pixel-level deltas: OpenAddFeed paints the modal scrim; an
+// and asserts the pixel-level deltas: OpenAddFeed paints the dialog scrim; an
 // empty SubmitFeed paints the alert; a non-empty SubmitFeed adds a sidebar
 // entry; ConfirmDelete removes one.
 func TestG52dCrudStatesHeadless(t *testing.T) {
@@ -165,26 +165,26 @@ func TestG52dCrudStatesHeadless(t *testing.T) {
 	send.Next(m)
 	closed := snap("initial model")
 
-	// OpenAddFeed paints the modal scrim + surface over the whole window.
+	// OpenAddFeed paints the dialog scrim + surface over the whole window.
 	m, _ = Update(m, OpenAddFeed{})
 	send.Next(m)
-	modalOpen := snap("OpenAddFeed")
-	if n := regionDiff(closed, modalOpen, scrimRegion); n <= 0 {
-		t.Errorf("window unchanged after OpenAddFeed (diff=%d in scrim region); modal did not open", n)
+	dialogOpen := snap("OpenAddFeed")
+	if n := regionDiff(closed, dialogOpen, scrimRegion); n <= 0 {
+		t.Errorf("window unchanged after OpenAddFeed (diff=%d in scrim region); dialog did not open", n)
 	}
 
-	// Empty SubmitFeed raises the alert band inside the modal.
+	// Empty SubmitFeed raises the alert band inside the dialog.
 	m, _ = Update(m, SubmitFeed{URL: ""})
 	send.Next(m)
 	withAlert := snap("SubmitFeed(empty)")
 	if !m.addFeedError {
 		t.Fatal("empty submit did not set addFeedError")
 	}
-	if n := regionDiff(modalOpen, withAlert, scrimRegion); n <= 0 {
-		t.Errorf("modal unchanged after empty submit (diff=%d); alert did not appear", n)
+	if n := regionDiff(dialogOpen, withAlert, scrimRegion); n <= 0 {
+		t.Errorf("dialog unchanged after empty submit (diff=%d); alert did not appear", n)
 	}
 
-	// Close the modal (back to a baseline) and add a feed.
+	// Close the dialog (back to a baseline) and add a feed.
 	m, _ = Update(m, CloseAddFeed{})
 	send.Next(m)
 	_ = snap("CloseAddFeed")

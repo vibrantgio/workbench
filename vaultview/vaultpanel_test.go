@@ -8,8 +8,8 @@ import (
 )
 
 // withoutPlatformOpenPanel puts the app on a platform that offers no open
-// panel of its own, which is where the library's modal is the chooser. The
-// tests of that modal stand on this rather than on the platform they run on.
+// panel of its own, which is where the library's dialog is the chooser. The
+// tests of that dialog stand on this rather than on the platform they run on.
 func withoutPlatformOpenPanel(t *testing.T) {
 	t.Helper()
 	usePlatformOpenPanel(t, folderChooser{
@@ -30,11 +30,11 @@ func usePlatformOpenPanel(t *testing.T, c folderChooser) {
 	t.Cleanup(func() { platformOpenPanel = prev })
 }
 
-// TestWithNoOpenPanelSwitchVaultOpensTheModal is the fallback: on a platform
+// TestWithNoOpenPanelSwitchVaultOpensTheDialog is the fallback: on a platform
 // that reports no open panel, Switch Vault raises the library's own dialog,
 // seated at the vault on screen, exactly as it did before the platform was
 // asked at all.
-func TestWithNoOpenPanelSwitchVaultOpensTheModal(t *testing.T) {
+func TestWithNoOpenPanelSwitchVaultOpensTheDialog(t *testing.T) {
 	withoutPlatformOpenPanel(t)
 
 	m := Model{Screen: screenVault, Vault: "/vaults/Second Brain"}
@@ -77,7 +77,7 @@ func TestWithAnOpenPanelSwitchVaultAsksItAtTheOpenVault(t *testing.T) {
 	m, cmd := Update(before, SwitchVault{})
 
 	if m.PickerOpen {
-		t.Error("the platform has an open panel and the library raised its modal as well")
+		t.Error("the platform has an open panel and the library raised its dialog as well")
 	}
 	if !reflect.DeepEqual(m, before) {
 		t.Error("Switch Vault changed the window before the reader answered the open panel")
@@ -115,7 +115,7 @@ func TestCancellingTheOpenPanelPostsNothing(t *testing.T) {
 
 // TestTheAppAsksTheRealOpenPanel pins the wiring itself: what Switch Vault
 // asks is the platform's own chooser, not a stand-in that answers no
-// everywhere and quietly leaves macOS on the library's modal.
+// everywhere and quietly leaves macOS on the library's dialog.
 func TestTheAppAsksTheRealOpenPanel(t *testing.T) {
 	if got, want := platformOpenPanel.available(), openpanel.Available(); got != want {
 		t.Errorf("Switch Vault reports an open panel = %v, the platform reports %v", got, want)

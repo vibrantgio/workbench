@@ -3,7 +3,7 @@
 //
 // Choosing a folder is the platform's open panel where the platform offers
 // one — on macOS a sheet on this window, with the Finder's own sidebar,
-// search and shortcuts in it — and vaultpicker.go's modal where it does
+// search and shortcuts in it — and vaultpicker.go's dialog where it does
 // not. Both answer the same way: a path opens the vault and the whole
 // window follows, and nothing leaves the vault on screen as it was.
 

@@ -208,7 +208,7 @@ func hasFeed(m Model, id FeedID) bool {
 	return false
 }
 
-// TestUpdateOpenCloseAddFeed verifies the modal open flag and that opening
+// TestUpdateOpenCloseAddFeed verifies the dialog open flag and that opening
 // clears a stale alert.
 func TestUpdateOpenCloseAddFeed(t *testing.T) {
 	m := initialModel()
@@ -232,8 +232,8 @@ func TestUpdateOpenCloseAddFeed(t *testing.T) {
 	}
 }
 
-// TestUpdateSubmitFeedEmptyRaisesAlert verifies an empty URL raises the modal
-// alert, appends nothing, and leaves the modal open.
+// TestUpdateSubmitFeedEmptyRaisesAlert verifies an empty URL raises the dialog
+// alert, appends nothing, and leaves the dialog open.
 func TestUpdateSubmitFeedEmptyRaisesAlert(t *testing.T) {
 	m := initialModel()
 	m, _ = Update(m, OpenAddFeed{})
@@ -243,7 +243,7 @@ func TestUpdateSubmitFeedEmptyRaisesAlert(t *testing.T) {
 		t.Error("empty submit did not set addFeedError")
 	}
 	if !m.addFeedOpen {
-		t.Error("empty submit closed the modal; it should stay open")
+		t.Error("empty submit closed the dialog; it should stay open")
 	}
 	if got := feedCount(m); got != before {
 		t.Errorf("empty submit changed feed count %d -> %d; want unchanged", before, got)
@@ -251,7 +251,7 @@ func TestUpdateSubmitFeedEmptyRaisesAlert(t *testing.T) {
 }
 
 // TestUpdateSubmitFeedNonEmptyAppends verifies a non-empty URL appends a feed,
-// clears the alert, and closes the modal.
+// clears the alert, and closes the dialog.
 func TestUpdateSubmitFeedNonEmptyAppends(t *testing.T) {
 	m := initialModel()
 	m, _ = Update(m, OpenAddFeed{})
@@ -261,7 +261,7 @@ func TestUpdateSubmitFeedNonEmptyAppends(t *testing.T) {
 		t.Errorf("non-empty submit feed count %d -> %d; want +1", before, got)
 	}
 	if m.addFeedOpen {
-		t.Error("non-empty submit left the modal open; it should close")
+		t.Error("non-empty submit left the dialog open; it should close")
 	}
 	if m.addFeedError {
 		t.Error("non-empty submit left addFeedError set")

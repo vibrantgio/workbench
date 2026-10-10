@@ -125,7 +125,7 @@ type Config struct {
 	// SidebarHidden remembers across launches whether the conversation
 	// pane has been sent away.
 	SidebarHidden bool
-	// Providers is the API endpoint catalogue the settings modal edits;
+	// Providers is the API endpoint catalogue the settings dialog edits;
 	// DefaultProvider/DefaultModel name the model new prompts use unless
 	// the chat carries its own override.
 	Providers       []Provider
@@ -166,30 +166,30 @@ type ConfirmDelete struct {
 // NewChat starts a fresh, empty chat and selects it.
 type NewChat struct{}
 
-// OpenRename opens the rename modal for the named chat.
+// OpenRename opens the rename dialog for the named chat.
 type OpenRename struct {
 	Name string
 }
 
-// CloseRename dismisses the rename modal without renaming.
+// CloseRename dismisses the rename dialog without renaming.
 type CloseRename struct{}
 
-// RenameChat renames the modal's target chat to the given name (extension
-// optional). The reducer validates; an invalid name leaves the modal open.
+// RenameChat renames the dialog's target chat to the given name (extension
+// optional). The reducer validates; an invalid name leaves the dialog open.
 type RenameChat struct {
 	To string
 }
 
-// OpenSettings opens the settings modal seeded with a draft copy of the
+// OpenSettings opens the settings dialog seeded with a draft copy of the
 // live provider configuration, and kicks off a /models fetch per keyed
 // provider so the model lists are fresh.
 type OpenSettings struct{}
 
-// CloseSettings dismisses the settings modal, discarding the draft.
+// CloseSettings dismisses the settings dialog, discarding the draft.
 type CloseSettings struct{}
 
 // SaveSettings applies the draft to the live configuration, persists it,
-// and closes the modal.
+// and closes the dialog.
 type SaveSettings struct{}
 
 // AddProvider appends a blank provider to the draft and selects it.
@@ -249,7 +249,7 @@ type ProviderEditSettled struct {
 
 // ModelsFetched reports a /models call for the named provider: the model
 // ids on success, or Err. It updates the live cache (persisted) and, while
-// the settings modal is open, the draft and its error line.
+// the settings dialog is open, the draft and its error line.
 type ModelsFetched struct {
 	Provider string
 	Models   []string

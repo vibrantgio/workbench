@@ -307,12 +307,12 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		}
 		to := strings.TrimSpace(message.To)
 		if to == "" {
-			// Empty submit keeps the old name and just closes the modal.
+			// Empty submit keeps the old name and just closes the dialog.
 			model.Rename.Target = ""
 			return model, mvu.DoNothing()
 		}
 		if strings.ContainsAny(to, `/\`) {
-			// Names are filenames; path separators are invalid. The modal
+			// Names are filenames; path separators are invalid. The dialog
 			// stays open for another attempt.
 			return model, mvu.DoNothing()
 		}
@@ -331,12 +331,12 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		}
 		index := slices.Index(model.ChatList, target)
 		if index < 0 {
-			// The target was deleted while the modal was open.
+			// The target was deleted while the dialog was open.
 			model.Rename.Target = ""
 			return model, mvu.DoNothing()
 		}
 		if slices.Contains(model.TakenNames(), newName) {
-			// Name taken (listed or still undoable in the trash); the modal
+			// Name taken (listed or still undoable in the trash); the dialog
 			// stays open for another attempt.
 			return model, mvu.DoNothing()
 		}
@@ -383,7 +383,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			Errors:          map[string]string{},
 		}
 		// Refresh every keyed provider's model list so the pickers are
-		// current; cached lists keep the modal usable until results land.
+		// current; cached lists keep the dialog usable until results land.
 		var commands []mvu.Command
 		for _, p := range model.Providers {
 			if p.APIKey != "" {
@@ -552,7 +552,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		command := mvu.DoNothing()
 		if message.Err == "" {
 			// Cache into the LIVE catalogue (persisted) so pickers have
-			// entries offline; the draft updates too while the modal is
+			// entries offline; the draft updates too while the dialog is
 			// open. Matching is by name; a renamed provider drops the
 			// stale result.
 			if i := slices.IndexFunc(model.Providers, func(p Provider) bool { return p.Name == message.Provider }); i >= 0 {

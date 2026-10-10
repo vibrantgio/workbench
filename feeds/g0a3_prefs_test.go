@@ -1,6 +1,6 @@
 // g0a3_prefs_test.go covers the two halves of the settings pattern: the
 // ACCELERATOR the app chrome binds (⌘,/Ctrl-,, via key.ModShortcut) and the
-// PANE it opens — a patterns/modal with a nil Props.Decision, so its close X,
+// PANE it opens — a patterns/dialog with a nil Props.Decision, so its close X,
 // Escape and backdrop dismissal all come from the purpose rather than from
 // flags.
 //
@@ -28,7 +28,7 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/tooltip"
-	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -117,7 +117,7 @@ func TestUpdateOpenClosePreferences(t *testing.T) {
 		t.Fatal("OpenPreferences did not open the pane")
 	}
 	// Every one of the pane's three exits — the ghost X, Escape and a
-	// backdrop press — routes through modal.Props.OnClose to this one message.
+	// backdrop press — routes through dialog.Props.OnClose to this one message.
 	m, _ = Update(m, ClosePreferences{})
 	if m.prefsOpen {
 		t.Fatal("ClosePreferences did not close the pane")
@@ -196,7 +196,7 @@ func TestUnreadOnlyArticlesFilters(t *testing.T) {
 // and unread-only off (ghost). Sharp radii keep the golden deterministic.
 func staticPreferencesBody(shaper *text.Shaper, colors tokens.PlatformColors) layout.Widget {
 	render := func(title string, emph button.Emphasis) layout.Widget {
-		return button.Render(shaper, title, colors, tokens.Spacing, modalSharpRadius,
+		return button.Render(shaper, title, colors, tokens.Spacing, dialogSharpRadius,
 			tokens.DefaultTypography.LabelLarge, tokens.Comfortable,
 			button.RenderState{Emphasis: emph})
 	}
@@ -232,23 +232,23 @@ func TestPreferencesPaneGolden(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			props := modal.Props{
+			props := dialog.Props{
 				Title:  "Preferences",
 				Body:   staticPreferencesBody(shaper, tc.colors),
 				Shaper: shaper,
 			}
-			if props.Purpose() != modal.PurposePane {
-				t.Fatalf("Preferences modal purpose = %v, want %v", props.Purpose(), modal.PurposePane)
+			if props.Purpose() != dialog.PurposePane {
+				t.Fatalf("Preferences dialog purpose = %v, want %v", props.Purpose(), dialog.PurposePane)
 			}
-			m := modal.Render(shaper, props, true, tc.colors, tokens.Spacing, modalSharpRadius,
+			m := dialog.Render(shaper, props, true, tc.colors, tokens.Spacing, dialogSharpRadius,
 				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
-			golden.Render(t, tc.name, image.Pt(modalFrameW, modalFrameH), scene(m, tc.bg))
+			golden.Render(t, tc.name, image.Pt(dialogFrameW, dialogFrameH), scene(m, tc.bg))
 		})
 	}
 }
 
 // The frame size for the live pane-over-articles composition below. At 1000
-// dp the modal surface is its 560 dp maximum, centred, so it spans
+// dp the dialog surface is its 560 dp maximum, centred, so it spans
 // x∈[220,780) and leaves a clean strip of table either side.
 const (
 	prefsFrameW = 1000
@@ -268,7 +268,7 @@ var prefsArticlesRegion = image.Rect(20, 60, 216, prefsFrameH-20)
 var prefsScrimRegion = image.Rect(prefsFrameW/2-260, prefsFrameH/2-120, prefsFrameW/2+260, prefsFrameH/2+120)
 
 // TestPreferencesPaneOverArticlesLive drives the REAL pane — the live
-// modal.Modal path, the live components/button emphasis, the live articles
+// dialog.Dialog path, the live components/button emphasis, the live articles
 // pipeline — over the surface it edits, and asserts the three claims that
 // make it a pane: OpenPreferences paints the scrim, a preference changed
 // while it is open repaints the TABLE underneath with no Save, and closing it
@@ -296,7 +296,7 @@ func TestPreferencesPaneOverArticlesLive(t *testing.T) {
 		rx.Map(modelObs, func(m Model) bool { return m.prefsOpen }),
 		rx.Map(modelObs, func(m Model) int { return m.rowsPerPage }),
 		rx.Map(modelObs, func(m Model) bool { return m.unreadOnly }),
-		modal.NewArbiter(),
+		dialog.NewArbiter(),
 	)
 	composed := rx.Map(rx.CombineLatest2(articlesObs, prefsObs),
 		func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {

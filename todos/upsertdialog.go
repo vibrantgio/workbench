@@ -20,7 +20,7 @@ import (
 	"github.com/vibrantgio/workbench/todos/internal/place"
 )
 
-// UpsertDialog is the modal used for both adding (item.Id == -1) and editing
+// UpsertDialog is the dialog used for both adding (item.Id == -1) and editing
 // a todo. It shows a single-line editor over a scrim; Escape cancels, Enter
 // or the Add/Save button submits. Submission emits AddTodo or UpdateTodo —
 // the reducer assigns new Ids — followed by SetRoute home.
@@ -94,9 +94,10 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 
 		escape(gtx)
 
-		// Dialog modal fullscreen scrim over the disabled page behind it,
-		// composited over what that page drew: the page is mixed content, so
-		// there is no one fill to flatten the scrim onto.
+		// The dialog's modal scrim, over the whole window and over the
+		// disabled page behind it, composited over what that page drew: the
+		// page is mixed content, so there is no one fill to flatten the
+		// scrim onto.
 		composite.Flatten(gtx, image.Rectangle{Max: max}, p.Cover)
 
 		// Allow the dialog to be smaller than max.
@@ -115,7 +116,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 			// platform is the window's own plane. What tells it from the page
 			// is the dim its scrim lays over everything behind it, so it
 			// needs no colour and no ring of its own.
-			size := image.Pt(gtx.Dp(ModalWidth), gtx.Dp(ModalHeight))
+			size := image.Pt(gtx.Dp(DialogWidth), gtx.Dp(DialogHeight))
 			max := gtx.Constraints.Constrain(size)
 			rect := place.Place(image.Rectangle{Max: gtx.Constraints.Max}, max, 0.5, 0.5)
 			Pane(gtx, rect, gtx.Dp(BorderRadius), p.Dialog)

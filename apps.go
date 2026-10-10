@@ -50,7 +50,7 @@ var Apps = []App{
 	{
 		Name:  "Feeds",
 		Dir:   "feeds",
-		Blurb: "RSS reading list: sortable article table, tabbed detail split pane, modal CRUD, toasts.",
+		Blurb: "RSS reading list: sortable article table, tabbed detail split pane, dialog CRUD, toasts.",
 		Icon:  icons.ActionViewList,
 	},
 	{

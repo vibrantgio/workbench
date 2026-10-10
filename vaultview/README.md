@@ -124,7 +124,7 @@ layers — over the design system's vocabulary:
 | Loop, commands, click-to-message | `mvu`, `mvu/desktop` |
 | Live OS theme, tokens, type | `theme` |
 | List, text field, layout, goldens | `components` |
-| Breadcrumb, modal, toast | `patterns` |
+| Breadcrumb, dialog, toast | `patterns` |
 | Parsing, rendering, highlighting | `markdown`, `markdown/highlight` |
 | Frontmatter, wikilink spans, block ids | `markdown/obsidian` |
 

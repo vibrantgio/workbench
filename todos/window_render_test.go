@@ -210,7 +210,7 @@ func TestWholeWindowRender(t *testing.T) {
 // own, so anything else in the frame is text, a checkbox or a symbol.
 //
 // It renders the route with no dialog on it, because the claim is about the
-// window at rest: a modal lays a scrim over everything.
+// window at rest: a dialog lays a scrim over everything.
 func TestTheListStandsOnTheWindowsOwnPlane(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -244,12 +244,12 @@ func TestTheListStandsOnTheWindowsOwnPlane(t *testing.T) {
 
 // dialogRect is where UpsertDialog puts its surface, derived from the same
 // constants the layout uses rather than measured off the frame: the page's
-// uniform Padding inset, then a ModalWidth by ModalHeight box constrained to
+// uniform Padding inset, then a DialogWidth by DialogHeight box constrained to
 // that inset area and centred in it.
 func dialogRect() image.Rectangle {
 	pad := int(Padding)
 	inner := image.Rect(pad, pad, windowSize.X-pad, windowSize.Y-pad)
-	w, h := int(ModalWidth), int(ModalHeight)
+	w, h := int(DialogWidth), int(DialogHeight)
 	if w > inner.Dx() {
 		w = inner.Dx()
 	}
@@ -261,7 +261,7 @@ func dialogRect() image.Rectangle {
 	return image.Rect(x, y, x+w, y+h)
 }
 
-// TestTheDialogAndItsFieldWearThePlatformsFills reads the modal's two fills
+// TestTheDialogAndItsFieldWearThePlatformsFills reads the dialog's two fills
 // off the frame. A floating surface is the window's own plane on this
 // platform, and the field inside it is the platform's text plane inside the
 // hairline a field draws around itself — the two fills are the same value,
@@ -385,13 +385,13 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 	}
 }
 
-// TestTheModalCoversTheStripToo is the exception the page makes for what is
+// TestTheDialogCoversTheStripToo is the exception the page makes for what is
 // transient. The resting page starts below the strip; the scrim does not,
 // because a cover with a strip-shaped hole in its top edge isolates nothing —
 // the un-dimmed band would read as a seam across the window's top edge. The
 // dialog and its cover are therefore laid out in the window's own
 // coordinates.
-func TestTheModalCoversTheStripToo(t *testing.T) {
+func TestTheDialogCoversTheStripToo(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			resting := renderWindow(t, tc.c, "", titleBandDp)
@@ -400,7 +400,7 @@ func TestTheModalCoversTheStripToo(t *testing.T) {
 				for _, y := range []int{0, int(titleBandDp) / 2, int(titleBandDp) - 1} {
 					at := image.Pt(x, y)
 					if pixelAt(covered, at) == pixelAt(resting, at) {
-						t.Errorf("the strip at %v is unchanged with the modal open; the scrim stops at the page's top edge", at)
+						t.Errorf("the strip at %v is unchanged with the dialog open; the scrim stops at the page's top edge", at)
 					}
 				}
 			}

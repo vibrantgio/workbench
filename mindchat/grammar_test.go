@@ -86,7 +86,7 @@ func TestEveryRegionWearsItsPlatformFill(t *testing.T) {
 				{"the conversation pane", p.Sidebar, c.SidebarMaterial},
 				{"a floating surface", p.Toast, c.WindowBackground},
 				{"a dialog's inset pane", p.Pane, c.CardFill},
-				{"a dialog's chip", p.ModalChip, c.PushButtonFill},
+				{"a dialog's chip", p.DialogChip, c.PushButtonFill},
 				{"the open conversation's pill", p.RowSelected, sidebar.SelectionFill(c, false)},
 				{"a content list's selected row", p.ListSelected, c.SelectedContentBackground},
 				{"the in-flight dot", p.Accent, c.ControlAccent},

@@ -26,8 +26,8 @@ import (
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/group"
-	"github.com/vibrantgio/patterns/modal"
 	"github.com/vibrantgio/patterns/navbar"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/popover"
@@ -127,13 +127,13 @@ func feedsShellLayer(
 	// synchronisation, so the scope they are created at is the scope they are
 	// safe at: theme/window calls the build function once per window and this
 	// layer is composed exactly once inside it, which makes this function body
-	// the window. Every popover, tooltip and modal below is handed one of
+	// the window. Every popover, tooltip and dialog below is handed one of
 	// these — a second arbitrable LAYER would have to take them as parameters
 	// instead, because it would be composed beside this one rather than within
 	// it.
 	popArb := popover.NewArbiter()
 	tipArb := tooltip.NewArbiter()
-	modalArb := modal.NewArbiter()
+	dialogArb := dialog.NewArbiter()
 
 	// The cold derivations of modelObs. Each is subscribed by the consumers
 	// below — several of them more than once — and every subscription reads
@@ -158,12 +158,12 @@ func feedsShellLayer(
 	articlesObs := articlesMain(th, selectedFeedObs, selectedArticleObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, filterObs, tipArb)
 	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
 	shareObs := sharePopover(th, shareOpenObs, popArb)
-	modalObs := addFeedModal(th, addFeedOpenObs, addFeedErrorObs, modalArb)
-	prefsObs := preferencesPane(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs, modalArb)
+	dialogObs := addFeedDialog(th, addFeedOpenObs, addFeedErrorObs, dialogArb)
+	prefsObs := preferencesPane(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs, dialogArb)
 	notesColumnObs := notifications.Column(th, notifications.Props{Position: notifications.TopRight, Notifications: notesObs})
 
 	// The settings accelerator — ⌘, on macOS, Ctrl-, elsewhere. It is app
-	// chrome, laid out under everything else: the modal owns dismissal, the
+	// chrome, laid out under everything else: the dialog owns dismissal, the
 	// app owns arrival, and the two halves never meet in one component.
 	prefsShortcut := shortcutArea(prefsAccelerator, func(gtx layout.Context) {
 		mvu.MessageOp{Message: OpenPreferences{}}.Add(gtx.Ops)
@@ -229,7 +229,7 @@ func feedsShellLayer(
 		},
 	)
 
-	// Overlay composition: the Add-feed modal, the Preferences pane and the
+	// Overlay composition: the Add-feed dialog, the Preferences pane and the
 	// toast stack draw OVER the whole window. They are folded onto the shell
 	// stream and drawn after the shell inside the returned layout.Widget, which
 	// reports the shell's dims, rather than becoming a third buildLayers
@@ -238,16 +238,16 @@ func feedsShellLayer(
 	//
 	// The accelerator's key area goes FIRST, at the bottom of the hit stack:
 	// a key area occludes pointer events, so it must never sit over the
-	// content, and an open modal's own scrim should shadow it the way it
+	// content, and an open dialog's own scrim should shadow it the way it
 	// shadows the rest of the app.
 	return rx.Map(
-		rx.CombineLatest4(shellObs, modalObs, prefsObs, notesColumnObs),
+		rx.CombineLatest4(shellObs, dialogObs, prefsObs, notesColumnObs),
 		func(n rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
-			shellW, modalW, prefsW, toastW := n.First, n.Second, n.Third, n.Fourth
+			shellW, dialogW, prefsW, toastW := n.First, n.Second, n.Third, n.Fourth
 			bandHeight := func() unit.Dp { return windowBandDp }
 			return func(gtx layout.Context) layout.Dimensions {
 				// The window's own plane, declared before anything is
-				// offset, so a modal's scrim composites over the frame
+				// offset, so a dialog's scrim composites over the frame
 				// beneath it rather than blending with it.
 				composite.Frame(gtx)
 				prefsShortcut(gtx)
@@ -269,8 +269,8 @@ func feedsShellLayer(
 				// afterwards and keeps its own presses.
 				desktop.DragTop(gtx, bandHeight)
 				dims := shellW(gtx)
-				if modalW != nil {
-					modalW(gtx)
+				if dialogW != nil {
+					dialogW(gtx)
 				}
 				if prefsW != nil {
 					prefsW(gtx)
@@ -426,18 +426,18 @@ const (
 	addFeedGapDp    = 12
 )
 
-// addFeedModal composes the "Add feed" modal: a patterns/modal whose Body is a
+// addFeedDialog composes the "Add feed" dialog: a patterns/dialog whose Body is a
 // patterns/group holding (optionally) a components/alert, a components/input/textfield
-// for the URL, and a components/button submit. addFeedOpenObs drives the modal's
+// for the URL, and a components/button submit. addFeedOpenObs drives the dialog's
 // Open; addFeedErrorObs drives whether the empty-URL alert shows.
 //
-// A group and not a card: the modal's body is one section of a form, so the
+// A group and not a card: the dialog's body is one section of a form, so the
 // hairline parts the dialog and nothing inside it is being singled out. The
 // hairline is the platform's separator flattened onto the fill the group
 // stands on, which here is the dialog's own plane.
 //
 // Component-prop shapes:
-//   - modal.Props.Body and group.Props.* are STATIC layout.Widget slots, but
+//   - dialog.Props.Body and group.Props.* are STATIC layout.Widget slots, but
 //     textfield/button/alert/group are rx.Observable[layout.Widget]. Each is
 //     bridged through an atomic layer-boundary cell read by the static slot at
 //     frame time — the same pattern the navbar Share popover uses.
@@ -446,18 +446,18 @@ const (
 //     components/button (not Enter), so the button has no handle to clear the
 //     editor. The latest text is mirrored into urlCell via OnChange and read by
 //     the button's OnClick; the reducer cannot clear the visible field.
-func addFeedModal(
+func addFeedDialog(
 	th rx.Observable[theme.Theme],
 	addFeedOpenObs rx.Observable[bool],
 	addFeedErrorObs rx.Observable[bool],
-	modalArb *modal.Arbiter,
+	dialogArb *dialog.Arbiter,
 ) rx.Observable[layout.Widget] {
 	// urlCell holds the latest editor text (textfield is uncontrolled).
 	var urlCell atomic.Value
 	urlCell.Store("")
 
 	// fieldTag holds the field's own focus tag, which the pane declares to
-	// the modal: it is the body's first focusable, so it is what the dialog
+	// the dialog: it is the body's first focusable, so it is what the dialog
 	// opens with the keyboard on.
 	var fieldTag atomic.Value
 
@@ -483,7 +483,7 @@ func addFeedModal(
 				// The toast is a second message off the same click, landed on
 				// the same ops queue as SubmitFeed below: the reducer queues
 				// it and owns the append/close. Empty submit raises no toast —
-				// the reducer raises the modal alert instead.
+				// the reducer raises the dialog alert instead.
 				notifications.Notify(gtx, toast.Success, "Feed added")
 			}
 			mvu.MessageOp{Message: SubmitFeed{URL: url}}.Add(gtx.Ops)
@@ -495,7 +495,7 @@ func addFeedModal(
 		Title:  "Feed URL required",
 	})
 
-	// Layer-boundary cells for the static modal/group slots.
+	// Layer-boundary cells for the static dialog/group slots.
 	var fieldCell, submitCell, alertCell atomic.Value
 	cellSlot := func(c *atomic.Value) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
@@ -552,18 +552,18 @@ func addFeedModal(
 		Content: []layout.Widget{groupBody},
 	})
 	var groupCell atomic.Value
-	modalBody := func(gtx layout.Context) layout.Dimensions {
+	dialogBody := func(gtx layout.Context) layout.Dimensions {
 		if w, ok := groupCell.Load().(layout.Widget); ok && w != nil {
 			return w(gtx)
 		}
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
 
-	modalObs := modal.Modal(th, modal.Props{
+	dialogObs := dialog.Dialog(th, dialog.Props{
 		Open:    addFeedOpenObs,
 		Title:   "Add feed",
-		Body:    modalBody,
-		Arbiter: modalArb,
+		Body:    dialogBody,
+		Arbiter: dialogArb,
 		OnClose: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseAddFeed{}}.Add(gtx.Ops)
 		},
@@ -580,11 +580,11 @@ func addFeedModal(
 		},
 	})
 
-	// Fold every live component stream into the modal stream so the modal
+	// Fold every live component stream into the dialog stream so the dialog
 	// re-emits when any of them re-emits, and store the latest into its cell.
-	// Positions: modalObs, groupObs, field, submit, alertObs.
+	// Positions: dialogObs, groupObs, field, submit, alertObs.
 	return rx.Map(
-		rx.CombineLatest5(modalObs, groupObs, field, submit, alertObs),
+		rx.CombineLatest5(dialogObs, groupObs, field, submit, alertObs),
 		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 			groupCell.Store(n.Second)
 			fieldCell.Store(n.Third)

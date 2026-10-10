@@ -14,7 +14,7 @@ import (
 	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -90,7 +90,7 @@ func TestCancellingTheSwitchChangesNothing(t *testing.T) {
 // bindings back off the props it is built with: Escape invokes
 // Decision.Cancel and Return invokes Decision.DefaultAction, so what those
 // two send is what those two keys do. The keys themselves are
-// patterns/modal's to deliver and are tested there.
+// patterns/dialog's to deliver and are tested there.
 func TestTheSwitchDialogAnswersWithCancelAndOpen(t *testing.T) {
 	m := switchedModel(t)
 	m, _ = Update(m, BrowseTo{Dir: "/vaults/Other"})
@@ -98,9 +98,9 @@ func TestTheSwitchDialogAnswersWithCancelAndOpen(t *testing.T) {
 	var sent []mvu.Message
 	post := func(_ layout.Context, msg mvu.Message) { sent = append(sent, msg) }
 	cancel, openVault := vaultPickerAnswers(func() Model { return m }, post)
-	props := modal.Props{Decision: vaultPickerDecision(cancel, openVault)}
+	props := dialog.Props{Decision: vaultPickerDecision(cancel, openVault)}
 
-	if got := props.Purpose(); got != modal.PurposeDecision {
+	if got := props.Purpose(); got != dialog.PurposeDecision {
 		t.Errorf("the dialog is a %v; a switch with Cancel and Open is a decision — "+
 			"a pane would keep a close X and a backdrop that dismisses it", got)
 	}
@@ -151,7 +151,7 @@ func TestTheSwitchDialogShowsEightRows(t *testing.T) {
 	tok := themeTokens{col: tokens.PlatformLight, typ: tokens.DefaultTypography,
 		sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
 
-	// The room the modal gives its body: 560 dp of surface less the 20 dp
+	// The room the dialog gives its body: 560 dp of surface less the 20 dp
 	// inset on each side, and a height it cannot reach.
 	room := image.Pt(520, 1000)
 	newGtx := func(ops *op.Ops) layout.Context {

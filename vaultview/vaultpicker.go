@@ -1,6 +1,6 @@
 // vaultpicker.go is the vault-switch dialog: the folder browser raised as a
-// patterns/modal decision over the vault on screen, which is what Switch
-// Vault opens once a vault is open. It is the library's own modal, for the
+// patterns/dialog decision over the vault on screen, which is what Switch
+// Vault opens once a vault is open. It is the library's own dialog, for the
 // platforms that offer no open panel of their own.
 //
 // Its body is picker.go's browser — the same breadcrumb, the same rows and
@@ -28,7 +28,7 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -46,7 +46,7 @@ const (
 	vaultPickerRows = 8
 )
 
-// The footer's width, gap and inset are the modal pattern's own and are
+// The footer's width, gap and inset are the dialog pattern's own and are
 // already the save panel's: each action is laid out in that footer's
 // measured 74 px (x 359–432 and x 441–514), `SpacingScale.S2` is 8 dp
 // against the 8 clear px between those two buttons (x 433–440), and the
@@ -63,7 +63,7 @@ func vaultPickerLayer(
 	modelObs rx.Observable[Model],
 	loadModel func() Model,
 	loadTok func() themeTokens,
-	arb *modal.Arbiter,
+	arb *dialog.Arbiter,
 ) rx.Observable[layout.Widget] {
 	isOpen := rx.Map(modelObs, func(m Model) bool { return m.PickerOpen }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
@@ -113,7 +113,7 @@ func vaultPickerLayer(
 			return vaultPickerBody(gtx, v, loadModel(), loadTok(), trail)
 		}
 
-		modalObs := modal.Modal(th, modal.Props{
+		dialogObs := dialog.Dialog(th, dialog.Props{
 			Open:    isOpen,
 			Title:   "Open Vault",
 			Body:    body,
@@ -129,7 +129,7 @@ func vaultPickerLayer(
 			Decision:         vaultPickerDecision(cancel, openVault),
 		})
 
-		return rx.Map(rx.CombineLatest4(modalObs, trailObs, cancelObs, openBtnObs),
+		return rx.Map(rx.CombineLatest4(dialogObs, trailObs, cancelObs, openBtnObs),
 			func(next rx.Tuple4[layout.Widget, breadcrumb.TrailLayout, layout.Widget, layout.Widget]) layout.Widget {
 				trailCell.Store(next.Second)
 				cancelCell.Store(next.Third)
@@ -172,8 +172,8 @@ func postMessage(gtx layout.Context, msg mvu.Message) {
 //
 // Open is not destructive — it opens a vault and destroys nothing the
 // reader cannot get back by switching again — so Return reaches it.
-func vaultPickerDecision(cancel, openVault func(gtx layout.Context)) *modal.Decision {
-	return &modal.Decision{Confirm: openVault, Cancel: cancel}
+func vaultPickerDecision(cancel, openVault func(gtx layout.Context)) *dialog.Decision {
+	return &dialog.Decision{Confirm: openVault, Cancel: cancel}
 }
 
 // vaultPickerArrival answers the row the dialog's browser opens a listing
@@ -229,7 +229,7 @@ func dialogAction(cell *atomic.Value) layout.Widget {
 
 // renderVaultPicker draws the dialog with pre-resolved tokens and no event
 // handling, which is how a stored image is taken of it. The composition is
-// the live one: the same modal, the same body, the same two actions.
+// the live one: the same dialog, the same body, the same two actions.
 func renderVaultPicker(
 	shaper *text.Shaper,
 	m Model,
@@ -250,13 +250,13 @@ func renderVaultPicker(
 		return button.Render(shaper, title, colors, sp, rad, typo.LabelLarge, den,
 			button.RenderState{Emphasis: emphasis})
 	}
-	return modal.Render(shaper, modal.Props{
+	return dialog.Render(shaper, dialog.Props{
 		Title: "Open Vault",
 		Body:  body,
 		Actions: []layout.Widget{
 			action("Cancel", button.Tonal),
 			action("Open", button.Filled),
 		},
-		Decision: &modal.Decision{},
+		Decision: &dialog.Decision{},
 	}, true, colors, sp, rad, typo.TitleMedium, den)
 }

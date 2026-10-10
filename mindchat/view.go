@@ -44,7 +44,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	cardpattern "github.com/vibrantgio/patterns/card"
-	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -163,7 +163,7 @@ func messageMarkdownStyle(c tokens.PlatformColors, typ tokens.Typography) markdo
 
 // ContentLayer renders the page: the window's frame — the floating
 // conversation pane, the chrome row and the transcript beside them — with
-// the modals and the undo bar over it. The composition itself is frame.go's;
+// the dialogs and the undo bar over it. The composition itself is frame.go's;
 // this is the wiring. The view state lives at subscription scope,
 // OUTSIDE the per-emission Map: the two scroll positions,
 // the sidebar clickables, and the prompt TextField, whose editor state is
@@ -175,12 +175,12 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	// with no synchronisation, so the scope they are created at is the scope
 	// they are safe at: theme/window calls the build function once per
 	// window and this layer is composed exactly once inside it, which makes
-	// this function body the window. Every popover and modal below is handed
+	// this function body the window. Every popover and dialog below is handed
 	// one of these — a second arbitrable LAYER would have to take them as
 	// parameters instead, because it would be composed beside this one rather
 	// than within it.
 	popArb := popover.NewArbiter()
-	modalArb := modal.NewArbiter()
+	dialogArb := dialog.NewArbiter()
 
 	histList := list.NewState()
 	msgDocs := newDocCache()
@@ -284,8 +284,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			return 0
 		})
 
-	renameObs := RenameModal(th, modelObs, modalArb)
-	settingsObs := SettingsModal(th, modelObs, modalArb)
+	renameObs := RenameDialog(th, modelObs, dialogArb)
+	settingsObs := SettingsDialog(th, modelObs, dialogArb)
 	menuObs := ModelMenu(th, modelObs, popArb)
 
 	// The window's chords, each the one its platform already spends on that
@@ -303,8 +303,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 	})
 
-	// Overlays: the undo bar and the modals draw over the frame (the
-	// settings modal last — its scrim covers everything). partsObs joins
+	// Overlays: the undo bar and the dialogs draw over the frame (the
+	// settings dialog last — its scrim covers everything). partsObs joins
 	// the combine so every model emission re-emits the top layer; menuObs
 	// joins so the picker's chip and surface stay current.
 	return rx.Map(rx.CombineLatest4(renameObs, settingsObs, menuObs, partsObs),
@@ -313,7 +313,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			menuCell.Store(next.Third)
 			return func(gtx layout.Context) layout.Dimensions {
 				// The window's own plane, declared before anything is
-				// offset, so a modal's scrim composites over the frame
+				// offset, so a dialog's scrim composites over the frame
 				// beneath it rather than blending with it.
 				composite.Frame(gtx)
 				// Key areas first, at the BOTTOM of the hit stack — they must
@@ -371,20 +371,20 @@ func visibleHistory(model Model) []Message {
 	return history
 }
 
-// renameTarget keys the rebuild of the rename modal's uncontrolled text
+// renameTarget keys the rebuild of the rename dialog's uncontrolled text
 // field: a new epoch means a fresh field seeded with the target's name.
 type renameTarget struct {
 	epoch int
 	seed  string // current name without extension
 }
 
-// RenameModal builds the rename-chat modal stream: a patterns/modal DECISION
+// RenameDialog builds the rename-chat dialog stream: a patterns/dialog DECISION
 // whose body is an epoch-rebuilt components TextField and whose two answers are
 // Cancel and Rename. Validation is the reducer's job — an invalid RenameChat
-// is rejected and the modal stays open; a valid one, or Escape, closes it.
+// is rejected and the dialog stays open; a valid one, or Escape, closes it.
 // Both model derivations are DistinctUntilChanged so completion-stream deltas
 // cannot rebuild the field mid-typing.
-func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], modalArb *modal.Arbiter) rx.Observable[layout.Widget] {
+func RenameDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], dialogArb *dialog.Arbiter) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.Rename.Target != "" }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 	editObs := rx.Map(modelObs, func(m Model) renameTarget {
@@ -397,13 +397,13 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 	// nameCell mirrors the field text (the field is uncontrolled), reseeded
 	// on each open so an untouched field submits the unchanged name.
 	// fieldTagCell carries the current field instance's focus tag (new per
-	// epoch) into the modal's Tab cycle.
+	// epoch) into the dialog's Tab cycle.
 	var nameCell, fieldTagCell atomic.Value
 	nameCell.Store("")
 
 	fieldObs := rx.SwitchMap(editObs, func(e renameTarget) rx.Observable[layout.Widget] {
 		nameCell.Store(e.seed)
-		// No editor Submit: the modal is a decision and claims Return for
+		// No editor Submit: the dialog is a decision and claims Return for
 		// its default action before the field is laid out, so an editor
 		// submit binding here could never fire. The decision's Confirm
 		// renames with the same text, from nameCell.
@@ -417,7 +417,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 	})
 
 	// The two answers this dialog accepts, each wired to both a footer
-	// button and one half of modal.Decision so the keyboard and the footer
+	// button and one half of dialog.Decision so the keyboard and the footer
 	// answer identically. Their clickables join the Tab cycle via
 	// ActionFocusTags.
 	var cancelClick, submitClick widget.Clickable
@@ -450,7 +450,7 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 		OnClick:   rename,
 	})
 
-	// The modal body and actions are static slots; the live field/button
+	// The dialog body and actions are static slots; the live field/button
 	// streams reach them through cells (the observable-over-static-slot
 	// hand-off).
 	var fieldCell, cancelCell, submitCell atomic.Value
@@ -473,11 +473,11 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 	// and the button's height is the density's control height.
 	action := slot
 
-	modalObs := modal.Modal(th, modal.Props{
+	dialogObs := dialog.Dialog(th, dialog.Props{
 		Open:    openObs,
 		Title:   "Rename chat",
 		Body:    body,
-		Arbiter: modalArb,
+		Arbiter: dialogArb,
 		Actions: []layout.Widget{action(&cancelCell), action(&submitCell)},
 		// The body declares its own focusable: the field. Being the body's
 		// first, it is what the dialog opens with the keyboard on, so typing
@@ -499,12 +499,12 @@ func RenameModal(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], m
 		// Rename is not Destructive: it moves a history file to a new name,
 		// keeps its contents, and is undone by renaming back. Return
 		// therefore stays on the primary action.
-		Decision: &modal.Decision{Confirm: rename, Cancel: cancel},
+		Decision: &dialog.Decision{Confirm: rename, Cancel: cancel},
 	})
 
-	// Fold the live field/button streams onto the modal stream so their
+	// Fold the live field/button streams onto the dialog stream so their
 	// emissions repaint it.
-	return rx.Map(rx.CombineLatest4(modalObs, fieldObs, cancelObs, submitObs),
+	return rx.Map(rx.CombineLatest4(dialogObs, fieldObs, cancelObs, submitObs),
 		func(next rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 			fieldCell.Store(next.Second)
 			cancelCell.Store(next.Third)

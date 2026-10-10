@@ -49,8 +49,8 @@ type Model struct {
 	shareOpen       bool    // navbar Share popover visibility
 	filter          string  // articles-table filter text
 	splitRatio      float32 // articles/detail SplitPane splitter position
-	addFeedOpen     bool    // "Add feed" modal visibility
-	addFeedError    bool    // empty-URL submit raised the modal alert
+	addFeedOpen     bool    // "Add feed" dialog visibility
+	addFeedError    bool    // empty-URL submit raised the dialog alert
 
 	// The Preferences PANE (⌘,/Ctrl-,) and the two reading preferences it
 	// edits. Both apply the moment they change — nothing here is a draft and
@@ -141,17 +141,17 @@ type CloseShare struct{}
 // splitter back to the constant fed into Props.SplitRatio).
 type SetSplitRatio struct{ Ratio float32 }
 
-// OpenAddFeed shows the "Add feed" modal. It clears any stale alert flag so
+// OpenAddFeed shows the "Add feed" dialog. It clears any stale alert flag so
 // a fresh open never starts with the empty-URL banner showing.
 type OpenAddFeed struct{}
 
-// CloseAddFeed hides the "Add feed" modal (close button, backdrop press,
+// CloseAddFeed hides the "Add feed" dialog (close button, backdrop press,
 // Escape, or a successful submit). Idempotent when already closed.
 type CloseAddFeed struct{}
 
-// SubmitFeed reduces the modal's submit. An empty URL raises the modal alert
+// SubmitFeed reduces the dialog's submit. An empty URL raises the dialog alert
 // and appends nothing; a non-empty URL synthesises a feed entry, appends it
-// to the first group, clears the alert, and closes the modal. The success
+// to the first group, clears the alert, and closes the dialog. The success
 // toast is fired from the click callback (the reducer is pure); the reducer
 // owns the append/alert/close policy.
 type SubmitFeed struct{ URL string }
@@ -163,12 +163,12 @@ type ConfirmDelete struct{ Feed FeedID }
 
 // OpenPreferences shows the Preferences pane. Landed by the ⌘,/Ctrl-,
 // accelerator the app chrome binds — arrival is the app's business, not the
-// modal's. Idempotent when already open.
+// dialog's. Idempotent when already open.
 type OpenPreferences struct{}
 
 // ClosePreferences hides the Preferences pane. Landed by the pane's ghost
 // close X, an Escape press, and a backdrop click — all three of which the
-// modal routes to Props.OnClose because the pane purpose says every cheap
+// dialog routes to Props.OnClose because the pane purpose says every cheap
 // exit is offered. Idempotent when already closed.
 type ClosePreferences struct{}
 
@@ -241,7 +241,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.addFeedError = false
 	case SubmitFeed:
 		if strings.TrimSpace(m.URL) == "" {
-			// Empty submit: raise the alert, keep the modal open, append
+			// Empty submit: raise the alert, keep the dialog open, append
 			// nothing. URL validation beyond non-empty is out of scope.
 			model.addFeedError = true
 			break

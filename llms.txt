@@ -116,7 +116,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      transition, tween, conductor
 
   patterns  v1.3.0   patterns: shell, navbar, sidebar, pane, table,
-                     tabs, modal, popover,
+                     tabs, dialog, popover,
                      notifications, card, group, accordion, hero,
                      feature, pricing, testimonial
   markdown  v0.8.0   GFM document rendering on library components (subpackages:
@@ -162,9 +162,10 @@ older answer, they are gone, not deprecated:
     their theme-driven entry points (button.Button, table.Table, …) and the
     theme supplies all of it for you;
   - every cross-component coordination bus cadence used to export:
-    popover.Arbitration, popover.ArbitrationSnapshot, tooltip.Arbitration,
-    tooltip.ArbitrationSnapshot, modal.Stack, modal.StackSnapshot and
-    toast.Notifications. The raise-by-message call still exists as
+    `popover.Arbitration`, `popover.ArbitrationSnapshot`,
+    `tooltip.Arbitration`, `tooltip.ArbitrationSnapshot`, `modal.Stack`,
+    `modal.StackSnapshot` and `toast.Notifications`. The raise-by-message
+    call still exists as
     notifications.Notify and takes a layout.Context first — the compile
     error names the fix. See §Coordination.
 
@@ -178,6 +179,9 @@ If you find these in older code, require the new path:
   - github.com/vibrantgio/cadence → patterns
   - patterns/toast → the column is patterns/notifications, the single toast
     it presents is components/toast
+  - `patterns/modal` → `patterns/dialog`, and `modal.Modal` → `dialog.Dialog`.
+    Modal is the mode a dialog puts the window in; the pattern is the
+    dialog. Every other exported name in the package is unchanged.
 
 ## Nested modules
 
@@ -376,12 +380,12 @@ purpose. This is the bridge between components and MVU, and it is the
 answer for anything a test, a model dump or a command goroutine would
 want to see — never a side channel out of the layout pass
 (§Coordination).
-Modal forms: components input.TextFieldProps.Seed pre-fills an uncontrolled
+Dialog forms: components input.TextFieldProps.Seed pre-fills an uncontrolled
 field so an existing value can be EDITED (rebuild the field keyed on an
 epoch to reseed); TextFieldProps.FocusTag exposes the editor's focus
-tag, and patterns/modal's DynamicFocusTags puts it in the Tab cycle
-(first tag gets initial focus on open). patterns/modal sizes its surface
-to the content (see mindchat's rename modal for the full recipe).
+tag, and patterns/dialog's DynamicFocusTags puts it in the Tab cycle
+(first tag gets initial focus on open). patterns/dialog sizes its surface
+to the content (see mindchat's rename dialog for the full recipe).
 Props.HideClose is DEPRECATED; say Props.Decision instead — see the
 dialog grammar in §Layers.
 
@@ -418,7 +422,7 @@ and the preference costs you nothing (§Motion).
 
 ## Coordination between components
 
-Two components that must agree — which popover is open, which modal is in
+Two components that must agree — which popover is open, which dialog is in
 front, what the filter says, that a toast should appear — have exactly three
 places to do it, and `rx.Subject` is not one of them. Pick by asking who
 needs to know, not by how important it feels:
@@ -431,7 +435,7 @@ needs to know, not by how important it feels:
 2. ONLY THIS FRAME NEEDS TO KNOW → A PLAIN VALUE THE FRAME OWNS, written
    and read during layout. No mutex, no atomics, no observable: Gio runs one
    frame on one goroutine, so the hazard a synchronised bus guards against
-   cannot arise. Popover, tooltip and modal arbitration; per-row open flags.
+   cannot arise. Popover, tooltip and dialog arbitration; per-row open flags.
 3. SEVERAL CONSUMERS WATCH ONE CURRENT VALUE → AN OBSERVABLE, and exactly
    one primitive: `mvu/stream.Value[T](seed)`, which returns the observer
    and the observable. The theme, the OS preferences, the user's saved
@@ -447,7 +451,7 @@ scope:
   ```go
   popArb := popover.NewArbiter()      // one per WINDOW, in the build fn
   tipArb := tooltip.NewArbiter()
-  mdlArb := modal.NewArbiter()
+  dlgArb := dialog.NewArbiter()
   popover.Popover(th, popover.Props{Arbiter: popArb, ...})
   ```
 
@@ -498,7 +502,7 @@ content layer built from a patterns/shell:
   - patterns/navbar + patterns/sidebar fill the shell's slots.
   - Content composes patterns/table (sortable/filterable/virtualised),
     patterns/tabs, patterns/card, patterns/group, components/pagination, ...
-  - Overlays: patterns/modal (focus trap, escape), patterns/popover (anchored),
+  - Overlays: patterns/dialog (focus trap, escape), patterns/popover (anchored),
     patterns/notifications (the column of toasts).
   - Signals in the page flow: components/alert (the banner a situation
     stands behind until it resolves). components/toast is the third status
@@ -540,8 +544,8 @@ alternatives.
 
 ### The dialog grammar
 
-A modal is a PANE or a DECISION, and you say which by
-leaving patterns/modal's Props.Decision nil or setting it — never by setting
+A dialog is a PANE or a DECISION, and you say which by
+leaving patterns/dialog's Props.Decision nil or setting it — never by setting
 affordances one at a time. A pane (nil) applies its changes live and gets a
 ghost close X, a dismissing backdrop and Escape; a decision (non-nil) gets
 right-aligned footer Actions, Return on Decision.DefaultAction, Escape on
@@ -554,7 +558,7 @@ platform's measured dialog button width, and a title too wide for that box
 widens its own button. A dialog opens with the keyboard on its body's first
 focusable, which the body declares through Props.DynamicFocusTags — the first
 tag it returns. THE ACCELERATOR IS NOT THE
-MODAL'S: ⌘,/Ctrl-, must be live when no dialog exists, so bind it in app
+DIALOG'S: ⌘,/Ctrl-, must be live when no dialog exists, so bind it in app
 chrome with Gio's key.ModShortcut (never a GOOS test) over a window-wide
 pointer.PassOp key area, landing a message that opens the pane. Reference
 implementation: workbench/feeds shortcut.go + preferences.go.
@@ -631,7 +635,7 @@ platform composites in:
   ```
 
 Handing Gio the coverage instead blends in linear light and misses the
-platform's byte. Scrim is the one exception: a modal's dim covers whatever
+platform's byte. Scrim is the one exception: a dialog's dim covers whatever
 the window happens to be showing, so there is no one surface to flatten it
 onto.
 
@@ -1479,7 +1483,7 @@ when dismissed, with the chrome row beside it carrying the conversation's
 title and the model picker — and, once the pane is away, the same two
 controls the pane's own strip carried, at the same height and figure.
 Also: trash-backed session-wide undo (Cmd/Ctrl-Z), Cmd/Ctrl-N, Cmd/Ctrl-,
-and Cmd/Ctrl-\ accelerators, the modal-form recipe
+and Cmd/Ctrl-\ accelerators, the dialog-form recipe
 (Seed/FocusTag/DynamicFocusTags), list scrollbars, and a global-shortcut
 key area done right. Chatting
 needs OPENAI_API_KEY in the environment (or .env) on first run to seed
@@ -1501,7 +1505,7 @@ instead
 
 ### feeds/
 
-Table-heavy app: sort/filter/pagination, tabs, split pane, modal forms,
+Table-heavy app: sort/filter/pagination, tabs, split pane, dialog forms,
 toasts; app.go's mirrorTokens is the reference theme-to-frame-time
 adapter (§Layers), and wiring_test.go shows how to test that a late
 subscriber reads the model in force. Also the reference implementation of the dialog grammar's

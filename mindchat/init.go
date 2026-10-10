@@ -18,7 +18,7 @@ func Init() (Model, mvu.Command) {
 		os.Exit(1)
 	}
 	// OPENAI_API_KEY is optional — providers are configured in the settings
-	// modal — and when present it seeds the first provider.
+	// dialog — and when present it seeds the first provider.
 	return InitIn(datadir, os.Getenv("OPENAI_API_KEY"))
 }
 

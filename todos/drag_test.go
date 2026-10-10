@@ -14,12 +14,12 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// TestTheStripStaysDraggableUnderTheModal: the modal covers the strip, and the
-// strip's drag claim has to outlive it. The modal's Escape catcher is a
+// TestTheStripStaysDraggableUnderTheDialog: the dialog covers the strip, and the
+// strip's drag claim has to outlive it. The dialog's Escape catcher is a
 // whole-window input region recorded after the band, so it shadows the claim
 // unless View gives the strip back on top of the dialog. No frame would show
 // this.
-func TestTheStripStaysDraggableUnderTheModal(t *testing.T) {
+func TestTheStripStaysDraggableUnderTheDialog(t *testing.T) {
 	const width, height = 650, 600
 	const stripH = int(titleBandDp)
 
@@ -38,6 +38,6 @@ func TestTheStripStaysDraggableUnderTheModal(t *testing.T) {
 	r.Frame(&ops)
 	at := f32.Pt(float32(width/2), float32(stripH/2))
 	if a, ok := r.ActionAt(at); !ok || a != system.ActionMove {
-		t.Errorf("no window-move action at %v with the modal open; the scrim has taken the window's own drag band", at)
+		t.Errorf("no window-move action at %v with the dialog open; the scrim has taken the window's own drag band", at)
 	}
 }

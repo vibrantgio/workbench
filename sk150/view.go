@@ -26,7 +26,7 @@ import (
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
@@ -149,7 +149,7 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 }
 
 // ContentLayer renders the page. It subscribes modelObs three times — the
-// CombineLatest4 below, the tab strip's Selected, and the override modal's
+// CombineLatest4 below, the tab strip's Selected, and the override dialog's
 // Open — and each subscription reads the model in force when it attaches.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	// The frame-time snapshot (stored by the final combine below); declared
@@ -293,7 +293,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	}))
 
 	// The override dialog's footer actions. Caller-owned clickables put
-	// them in the modal's Tab cycle. Both stand on the dialog's own fill,
+	// them in the dialog's Tab cycle. Both stand on the dialog's own fill,
 	// which is the window's plane — the button's own default — so neither
 	// states a surface.
 	var lvpCancelClick, lvpConfirmClick widget.Clickable
@@ -313,7 +313,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 
 	hov := &hoverState{}
 
-	// slotW hands a slot to a static component slot (the modal's Actions),
+	// slotW hands a slot to a static component slot (the dialog's Actions),
 	// read from the frame-time snapshot.
 	slotW := func(key string) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
@@ -344,7 +344,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				"Writing it trips LVP protection as soon as the output runs, cutting it off.")),
 		)
 	}
-	lvpModal := modal.Modal(th, modal.Props{
+	lvpDialog := dialog.Dialog(th, dialog.Props{
 		Open:  rx.Map(modelObs, func(m Model) bool { return m.LVPConfirmOpen }),
 		Title: "Input cutoff above live input",
 		Body:  lvpBody,
@@ -357,7 +357,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			slotW("lvp.confirm"),
 		},
 		ActionFocusTags: []event.Tag{&lvpCancelClick, &lvpConfirmClick},
-		Decision: &modal.Decision{
+		Decision: &dialog.Decision{
 			Destructive: true,
 			Confirm: func(gtx layout.Context) {
 				mvu.MessageOp{Message: ConfirmLVP{}}.Add(gtx.Ops)
@@ -405,9 +405,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			})
 	})
 
-	// The two overlay layers: the tab strip (content) and the modal above
+	// The two overlay layers: the tab strip (content) and the dialog above
 	// it. Same element type, so one variadic combine carries both.
-	overlays := rx.CombineLatest(tabsObs, lvpModal)
+	overlays := rx.CombineLatest(tabsObs, lvpDialog)
 
 	return rx.Map(rx.CombineLatest4(themes, modelObs, widgets, overlays),
 		func(n rx.Tuple4[themed, Model, []layout.Widget, []layout.Widget]) layout.Widget {

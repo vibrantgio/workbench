@@ -1,4 +1,4 @@
-// chooser.go is the ambiguous-link chooser: a patterns/modal pane that
+// chooser.go is the ambiguous-link chooser: a patterns/dialog pane that
 // opens when a wikilink's file part matches more than one note. The
 // resolver already refused with the candidate list; this surface only
 // asks which one was meant. Choosing navigates there (carrying the
@@ -24,7 +24,7 @@ import (
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/modal"
+	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
@@ -38,8 +38,8 @@ const (
 	chooserGapDp      = 8
 )
 
-// chooserLayer builds the chooser modal stream. Open state and the
-// candidate list live in the model; the modal is pure view over them.
+// chooserLayer builds the chooser dialog stream. Open state and the
+// candidate list live in the model; the dialog is pure view over them.
 // The body reads the model and token snapshots at frame time; repaints
 // on model change are driven by the open observable's re-emission and
 // the frames the routed layer requests.
@@ -48,7 +48,7 @@ func chooserLayer(
 	modelObs rx.Observable[Model],
 	loadModel func() Model,
 	loadTok func() themeTokens,
-	arb *modal.Arbiter,
+	arb *dialog.Arbiter,
 ) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.ChooserOpen() }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
@@ -136,7 +136,7 @@ func chooserLayer(
 		)
 	}
 
-	return modal.Modal(th, modal.Props{
+	return dialog.Dialog(th, dialog.Props{
 		Open:    openObs,
 		Title:   "Choose a note",
 		Body:    body,

@@ -71,7 +71,7 @@ func View(th themed, model Model) layout.Widget {
 // top edge without anything being painted twice. Only the resting page has to
 // stay clear of the strip.
 //
-// The modal does not. A scrim with a strip-shaped hole in its top edge
+// The dialog does not. A scrim with a strip-shaped hole in its top edge
 // isolates nothing, so the dialog and its cover are laid out in the window's
 // own coordinates: transient surfaces lie over the resting window rather than
 // in it.
@@ -130,7 +130,7 @@ func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 			capped(gtx.Disabled())
 			dialog(gtx)
 			// The strip is given back its drag on top of what was just drawn
-			// over it. The modal's Escape catcher spans the whole window so
+			// over it. The dialog's Escape catcher spans the whole window so
 			// Escape closes the dialog wherever the pointer is, and a
 			// whole-window input region recorded after the band would shadow
 			// the drag claim, leaving a window that cannot be moved while a
