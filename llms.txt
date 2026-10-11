@@ -366,6 +366,14 @@ next frame only while active:
   if activity > 0.01 { gtx.Execute(op.InvalidateCmd{}) }
   ```
 
+Ask the window for a frame directly only for state the model has no
+business holding — an animation's next frame, a pending focus request. A
+click or key that changes anything else posts a message and lets the model
+carry it: the loop re-emits the layers and invalidates the window, so the
+change is drawn on the frame the click asked for, where a flag a view
+flipped during the frame is read past by everything laid out above the
+handler and a click's release is the last event there is.
+
 Invalidation is window-global (every component re-lays-out), so expensive
 components should cache ops when inputs are unchanged (components/cache).
 Respect reduced motion: while the OS preference is on, the theme's

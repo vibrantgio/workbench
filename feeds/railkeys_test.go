@@ -434,7 +434,8 @@ func newRailTabFrame(t *testing.T) *railTabFrame {
 		sections[i] = railSection{
 			Title: g.Title,
 			Rows: feedEntryRows(th, func() []feedEntry { return entries },
-				func() FeedID { return "" }, keys, popover.NewArbiter()),
+				func() FeedID { return "" }, func() FeedID { return "" },
+				keys, popover.NewArbiter(), postMessage),
 		}
 	}
 	f := &railTabFrame{

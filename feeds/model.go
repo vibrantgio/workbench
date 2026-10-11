@@ -12,6 +12,8 @@
 //   - SelectTab{Idx int}             — switch the detail pane's Reader/Raw/Comments tab
 //   - ToggleShare{}                  — toggle the navbar Share popover
 //   - CloseShare{}                   — close the Share popover (destination click, outside press)
+//   - ToggleDeleteConfirm{Feed FeedID} — open a rail row's delete-confirm popover, or close it
+//   - CloseDeleteConfirm{}           — close the delete-confirm popover (outside press)
 //   - SetSplitRatio{Ratio float32}   — record the articles/detail splitter position
 //   - SetFilter{Text string}         — set the articles-table filter text (resets to page 1)
 //
@@ -47,6 +49,7 @@ type Model struct {
 	openSections    map[int]bool
 	selectedTab     int     // detail pane tab: 0 Reader, 1 Raw, 2 Comments
 	shareOpen       bool    // navbar Share popover visibility
+	confirmDelete   FeedID  // the rail row whose delete-confirm popover stands open
 	filter          string  // articles-table filter text
 	splitRatio      float32 // articles/detail SplitPane splitter position
 	addFeedOpen     bool    // "Add feed" dialog visibility
@@ -134,6 +137,22 @@ type ToggleShare struct{}
 // the popover's OnDismiss (outside press / arbitration). Idempotent when the
 // popover is already closed.
 type CloseShare struct{}
+
+// ToggleDeleteConfirm opens the named feed row's delete-confirm popover, or
+// closes it when that row's confirm already stands open. Which row's confirm
+// is open is window state — what the reader sees — so the model holds it and
+// the rail reads it, rather than the row holding a flag the frame that takes
+// the click has already read past.
+//
+// One row at a time: the field names a single feed, which is the same answer
+// the popover arbiter gives, and opening one row's confirm closes whichever
+// row had it.
+type ToggleDeleteConfirm struct{ Feed FeedID }
+
+// CloseDeleteConfirm closes the delete-confirm popover. Emitted by the
+// popover's OnDismiss (outside press / arbitration). Idempotent when no
+// row's confirm is open.
+type CloseDeleteConfirm struct{}
 
 // SetSplitRatio records the articles/detail SplitPane splitter position as a
 // fraction in [0, 1]. Emitted by shell.Props.OnSplitChange during drags so
@@ -231,6 +250,14 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.shareOpen = !model.shareOpen
 	case CloseShare:
 		model.shareOpen = false
+	case ToggleDeleteConfirm:
+		if model.confirmDelete == m.Feed {
+			model.confirmDelete = ""
+			break
+		}
+		model.confirmDelete = m.Feed
+	case CloseDeleteConfirm:
+		model.confirmDelete = ""
 	case SetSplitRatio:
 		model.splitRatio = m.Ratio
 	case OpenAddFeed:
@@ -251,6 +278,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.addFeedError = false
 	case ConfirmDelete:
 		model.feeds = deleteFeed(model.feeds, m.Feed)
+		model.confirmDelete = ""
 		if model.selectedFeed == m.Feed {
 			model.selectedFeed = firstFeedID(model.feeds)
 			model.currentPage = 1

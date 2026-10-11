@@ -50,6 +50,14 @@ type themeTokens struct {
 	shaper *text.Shaper
 }
 
+// postMessage is the live sink for an answer a control gives: the message
+// reaches the loop as this frame's message op. It is a parameter wherever a
+// control takes it so a test can drive the very control the window lays out
+// and read back what it posted.
+func postMessage(gtx layout.Context, msg mvu.Message) {
+	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
+}
+
 // mirrorTokens subscribes the theme's Platform and Typography streams into an
 // atomic cell and returns a frame-time loader. It is the layer-boundary
 // adapter for closures that run outside any rx scope (static component
@@ -146,6 +154,7 @@ func feedsShellLayer(
 	selectedArticleObs := rx.Map(modelObs, func(m Model) ArticleID { return m.selectedArticle })
 	selectedTabObs := rx.Map(modelObs, func(m Model) int { return m.selectedTab })
 	shareOpenObs := rx.Map(modelObs, func(m Model) bool { return m.shareOpen })
+	confirmDeleteObs := rx.Map(modelObs, func(m Model) FeedID { return m.confirmDelete })
 	splitRatioObs := rx.Map(modelObs, func(m Model) float32 { return m.splitRatio })
 	addFeedOpenObs := rx.Map(modelObs, func(m Model) bool { return m.addFeedOpen })
 	addFeedErrorObs := rx.Map(modelObs, func(m Model) bool { return m.addFeedError })
@@ -207,7 +216,7 @@ func feedsShellLayer(
 	// stands in it is this window's.
 	navbarObs := navbar.Navbar(th, feedsNavbarProps(mirrorTokens(th), slot(&shareCell)))
 
-	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, selectedFeedObs, popArb)
+	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, selectedFeedObs, confirmDeleteObs, popArb, postMessage)
 	sidebarDriven := rx.Map(
 		rx.CombineLatest5(sidebarObs, articlesObs, detailObs, splitObs, shareObs),
 		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {

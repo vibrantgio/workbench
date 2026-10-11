@@ -53,6 +53,20 @@ const contentMaxWidthDp = 1100
 // (hero, features, pricing, testimonials). Primary CTA scrolls here.
 const pricingSection = 2
 
+// scrollToSection is what a control that takes the reader to a section of
+// this page does: it moves the list to that section and asks the window for
+// the frame that draws the move. The move takes effect on the next layout,
+// and the click's release is the last event there is, so without the request
+// the page would stand still until something else caused a frame. A scroll
+// position is not state the model holds — it belongs to this page's own
+// subscription — so the request is the window's rather than a message.
+func scrollToSection(state *list.State, section int) func(layout.Context) {
+	return func(gtx layout.Context) {
+		state.ScrollTo(section)
+		gtx.Execute(op.InvalidateCmd{})
+	}
+}
+
 // pageLayer is the runtime page: the four pattern streams stacked in a
 // shell-less vertical list, re-emitting on theme change. modelObs is combined
 // in so that a field the page later reads arrives without rewiring, though
@@ -60,9 +74,7 @@ const pricingSection = 2
 func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		state := list.NewState()
-		seePlans := func(layout.Context) {
-			state.ScrollTo(pricingSection)
-		}
+		seePlans := scrollToSection(state, pricingSection)
 		sections := rx.Map(
 			rx.CombineLatest4(
 				hero.Hero(th, heroContent(seePlans)),
