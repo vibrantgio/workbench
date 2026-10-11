@@ -3,6 +3,7 @@ package main
 import (
 	"image"
 	"image/color"
+	"reflect"
 	"testing"
 
 	"gioui.org/f32"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/splitter"
@@ -63,10 +65,10 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 	// window's own inset in both rail states — so the probe pins the one
 	// measurement there is.
 	const lead = goldenLeading
-	// The band's leading cluster: the navigation, the document's name and
-	// the two actions after it, each gap the measured one. The row lays out
-	// from its own edge inset with the pane standing, and from the buttons'
-	// reported edge with the pane away, where the show toggle stands first.
+	// The band's leading cluster: the navigation and the document's name
+	// one measured gap after it. The row lays out from its own edge inset
+	// with the pane standing, and from the buttons' reported edge with the
+	// pane away, where the show toggle stands first.
 	nameW := bandTrailWidth(newFrameState(defaultWidths()), goldenModel(), goldenTokens(), rowW)
 	const ctrl = railToggleWidthDp
 	nav := 2*ctrl + 1
@@ -87,8 +89,6 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 			controls: []int{
 				noteInsetDp + ctrl/2,           // the back segment
 				rowW - bandTrailingDp - ctrl/2, // the find's capsule
-				noteInsetDp + nav + bandNameGapDp + nameW + bandNameGapDp + ctrl/2,                    // the rescan
-				noteInsetDp + nav + bandNameGapDp + nameW + bandNameGapDp + ctrl + bandGapDp + ctrl/2, // the vault switch
 			},
 		},
 		{
@@ -123,13 +123,13 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 				return ok && a == system.ActionMove
 			}
 
-			// The bare band between the document's actions and the find's
-			// slot is the largest empty stretch, and the one a hand reaches
-			// for. Its own two ends are probed: the column after the vault
-			// switch and the one before the find's slot begins. The band's
-			// trailing inset moves the window too, so the probe ends on the
-			// row's last dp.
-			clusterEnd := c.start + nav + bandNameGapDp + nameW + bandNameGapDp + ctrl + bandGapDp + ctrl
+			// The bare band between the document's name and the find's slot
+			// is the largest empty stretch, and the one a hand reaches for.
+			// Its own two ends are probed: the column after the trail and
+			// the one before the find's slot begins. The band's trailing
+			// inset moves the window too, so the probe ends on the row's
+			// last dp.
+			clusterEnd := c.start + nav + bandNameGapDp + nameW
 			slotLo := rowW - bandTrailingDp - int(findFieldDp)
 			// The reserved room inside the find's own slot moves the window
 			// too: shut, the slot is band with a capsule at its trailing end.
@@ -225,16 +225,17 @@ func TestRailRunsToTheWindowTop(t *testing.T) {
 
 // TestPaneFocusOrder walks the focus ring the way Tab does and asserts
 // the order it visits the sidebar in: the find field, then the rows, and
-// only after both of them the pane's own toggle. What is asserted is the order, not the reachability:
-// laid out where it is drawn — the pane's top-right corner — the toggle would
-// stand between the field and the rows, and Tab then Return from the field
-// would put the whole pane away instead of opening the note the reader had
-// just filtered for.
+// only after both of them the pane's own three marks, in the order they
+// stand. What is asserted is the order, not the reachability:
+// laid out where they are drawn — the pane's top trailing corner — the
+// marks would stand between the field and the rows, and Tab then Return
+// from the field would put the whole pane away instead of opening the note
+// the reader had just filtered for.
 //
-// The foot sits after the rows and before the toggle because it acts on
-// what the pane shows rather than on the pane. The toggle stays last: it is
-// the pane talking about itself, and nothing the pane is for may stand
-// behind it.
+// The foot sits after the rows and before the marks because it acts on
+// what the pane shows rather than on the pane. The toggle stays last of
+// them: it is the pane talking about itself, and nothing the pane is for
+// may stand behind it.
 //
 // The field's slot takes a stand-in with a focus tag of its own: the live
 // field is a component whose static render path processes no events, and
@@ -266,6 +267,8 @@ func TestPaneFocusOrder(t *testing.T) {
 	}{
 		{"the find field", &field},
 		{"the rail's rows", v.list.Focus()},
+		{"the pane's rescan", &v.rescanClick},
+		{"the pane's vault switch", &v.switchClick},
 		{"the pane's own toggle", &v.hideClick},
 	}
 	first := map[string]int{}
@@ -347,6 +350,275 @@ func TestPaneStripClaimsInsideTheRail(t *testing.T) {
 	if !v.hideClick.Hovered() {
 		t.Errorf("a pointer at %v does not reach the pane's toggle through the inset and the rounded clip", toggle)
 	}
+}
+
+// paneStripFrame lays the whole window out with a live folder rail in it and
+// collects what the pane's own marks post. Everything is read through the
+// frame's inset and the pane's rounded clip, which is the geometry a real
+// press crosses, and through the frame's own input router, which is what
+// delivers one.
+type paneStripFrame struct {
+	v      *treeView
+	f      *frameState
+	gtx    layout.Context
+	ops    op.Ops
+	r      input.Router
+	m      Model
+	posted []mvu.Message
+}
+
+func newPaneStripFrame(hidden bool) *paneStripFrame {
+	p := &paneStripFrame{
+		v: &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }},
+		f: newFrameState(defaultWidths()),
+		m: goldenModel(),
+	}
+	p.m.SidebarHidden = hidden
+	p.f.leading = func() unit.Dp { return goldenLeading }
+	p.v.post = func(_ layout.Context, msg mvu.Message) { p.posted = append(p.posted, msg) }
+	p.gtx = layout.Context{
+		Constraints: layout.Exact(image.Pt(windowW, windowH)),
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Source:      p.r.Source(),
+		Ops:         &p.ops,
+	}
+	return p
+}
+
+func (p *paneStripFrame) frame() {
+	tok := goldenTokens()
+	p.ops.Reset()
+	sb := func(gtx layout.Context) layout.Dimensions { return p.v.layout(gtx, p.m, tok, nil) }
+	p.f.layout(p.gtx, p.m, tok, sb, nil, nil)
+	p.r.Frame(&p.ops)
+}
+
+// spanIn is one control's own columns between x0 and x1 on the line y, found
+// by walking the line and asking which control the pointer is on. Both ends
+// are inclusive; a control standing nowhere in the run answers -1, -1.
+func (p *paneStripFrame) spanIn(x0, x1, y int, c *widget.Clickable) (int, int) {
+	lo, hi := -1, -1
+	for x := x0; x < x1; x++ {
+		p.r.Queue(pointer.Event{Kind: pointer.Move, Position: f32.Pt(float32(x), float32(y)), Source: pointer.Mouse})
+		p.frame()
+		if !c.Hovered() {
+			continue
+		}
+		if lo < 0 {
+			lo = x
+		}
+		hi = x
+	}
+	return lo, hi
+}
+
+// paneMarkStride is what one mark and the gap after it spend: the mark box
+// every chrome mark in this window is drawn at and the pattern's measured
+// band between two bare marks, which together are the 42 dp between drawn
+// centres read off voicememos-multi-folder-2026-09-18.png.
+const paneMarkStride = markLargeDp + pane.MarkGapDp
+
+// TestThePaneStripStandsItsMarksBeforeTheToggle reads the pane's top strip
+// off a composed window: three marks at its trailing corner, in reading
+// order rescan, switch vault, toggle, each the bare mark box wide, each
+// pair's drawn centres the measured 42 dp apart, and the toggle's own box
+// one margin in from the pane's trailing edge where the Pane pattern keeps
+// it.
+//
+// The two that act on the vault stand nowhere in the chrome row beside the
+// pane: a control that acts on the pane's collection waits for the pane, so
+// the band is walked end to end and must answer neither.
+func TestThePaneStripStandsItsMarksBeforeTheToggle(t *testing.T) {
+	p := newPaneStripFrame(false)
+	p.frame()
+	p.frame()
+
+	region := p.f.geom.pane
+	stripY := region.Min.Y + paneStripDp/2
+	rescanLo, rescanHi := p.spanIn(region.Min.X, region.Max.X, stripY, &p.v.rescanClick)
+	switchLo, switchHi := p.spanIn(region.Min.X, region.Max.X, stripY, &p.v.switchClick)
+	hideLo, hideHi := p.spanIn(region.Min.X, region.Max.X, stripY, &p.v.hideClick)
+
+	for _, c := range []struct {
+		name   string
+		lo, hi int
+	}{
+		{"rescan", rescanLo, rescanHi},
+		{"the vault switch", switchLo, switchHi},
+		{"the toggle", hideLo, hideHi},
+	} {
+		if c.lo < 0 {
+			t.Fatalf("%s stands nowhere in the pane's strip", c.name)
+		}
+		if w := c.hi - c.lo + 1; w != markLargeDp {
+			t.Errorf("%s is %d dp wide, want the bare mark box's %d", c.name, w, markLargeDp)
+		}
+	}
+	if !(rescanHi < switchLo && switchHi < hideLo) {
+		t.Errorf("the strip runs rescan %d-%d, switch %d-%d, toggle %d-%d; it reads rescan, switch vault, then the toggle",
+			rescanLo, rescanHi, switchLo, switchHi, hideLo, hideHi)
+	}
+	for _, c := range []struct {
+		name   string
+		lo, hi int
+	}{
+		{"rescan and the vault switch", rescanLo, switchLo},
+		{"the vault switch and the toggle", switchLo, hideLo},
+	} {
+		if got := c.hi - c.lo; got != paneMarkStride {
+			t.Errorf("%s stand %d dp between centres, want the measured %d", c.name, got, paneMarkStride)
+		}
+	}
+	if got, want := region.Max.X-hideHi-1, railMarginDp; got != want {
+		t.Errorf("the toggle ends %d dp from the pane's trailing edge, want the pattern's margin of %d", got, want)
+	}
+
+	// The band beside the pane, walked end to end on the line its own
+	// controls stand on.
+	for _, c := range []struct {
+		name  string
+		click *widget.Clickable
+	}{
+		{"rescan", &p.v.rescanClick},
+		{"the vault switch", &p.v.switchClick},
+	} {
+		if lo, hi := p.spanIn(region.Max.X, windowW, int(windowButtons.Center), c.click); lo >= 0 {
+			t.Errorf("%s answers the band at %d-%d; it stands on the pane and nowhere else", c.name, lo, hi)
+		}
+	}
+}
+
+// TestThePaneMarksPostTheVaultsActions presses each of the pane's own two
+// vault actions where the strip stands it and reads back what the pane
+// posted. Where each stands is stated from the pane's trailing edge rather
+// than read off the layout: the toggle one margin in, and each mark before
+// it one stride further.
+func TestThePaneMarksPostTheVaultsActions(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		back int
+		want mvu.Message
+	}{
+		{"rescan", 2, Rescan{}},
+		{"the vault switch", 1, SwitchVault{}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			p := newPaneStripFrame(false)
+			p.frame()
+			p.frame()
+
+			region := p.f.geom.pane
+			x := float32(region.Max.X - railMarginDp - markLargeDp/2 - c.back*paneMarkStride)
+			at := f32.Pt(x, float32(region.Min.Y)+float32(paneStripDp)/2)
+			p.posted = nil
+			p.r.Queue(
+				pointer.Event{Kind: pointer.Press, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary},
+				pointer.Event{Kind: pointer.Release, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary},
+			)
+			p.frame()
+			p.frame()
+			if !postedOneOf(p.posted, c.want) {
+				t.Errorf("a press on %s at %v posted %v, want %T", c.name, at, p.posted, c.want)
+			}
+		})
+	}
+}
+
+// TestThePaneMarksAnswerTheKeyboard drives the pane's two vault actions the
+// way a reader without a pointer does: Tab to each and activate it. A
+// control only a pointer can operate is a control half the window's users
+// cannot operate.
+func TestThePaneMarksAnswerTheKeyboard(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		click func(v *treeView) *widget.Clickable
+		want  mvu.Message
+	}{
+		{"rescan", func(v *treeView) *widget.Clickable { return &v.rescanClick }, Rescan{}},
+		{"the vault switch", func(v *treeView) *widget.Clickable { return &v.switchClick }, SwitchVault{}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			p := newPaneStripFrame(false)
+			p.frame()
+
+			target := c.click(p.v)
+			src := p.r.Source()
+			reached := false
+			for range 64 {
+				p.r.MoveFocus(key.FocusForward)
+				p.frame()
+				if src.Focused(target) {
+					reached = true
+					break
+				}
+			}
+			if !reached {
+				t.Fatalf("Tab never reaches %s in the pane's strip", c.name)
+			}
+			p.r.ClickFocus()
+			p.posted = nil
+			p.frame()
+			p.frame()
+			if !postedOneOf(p.posted, c.want) {
+				t.Errorf("activating %s from the keyboard posted %v, want %T", c.name, p.posted, c.want)
+			}
+		})
+	}
+}
+
+// TestWithThePaneAwayTheRowHoldsTheToggleAlone reads the chrome row in the
+// collapsed state: the toggle that brings the pane back at its leading end,
+// and not one stand-in for the two controls that went with the pane. Only
+// the toggle travels, which is what this platform's own sidebars do — so
+// while the pane is away the window offers the vault's actions nowhere, and
+// a screen reader is told of neither.
+func TestWithThePaneAwayTheRowHoldsTheToggleAlone(t *testing.T) {
+	p := newPaneStripFrame(true)
+	p.frame()
+	p.frame()
+
+	y := int(windowButtons.Center)
+	lo, hi := p.spanIn(0, windowW, y, &p.f.toggleClick)
+	if lo < 0 {
+		t.Fatal("the chrome row holds no toggle to bring the pane back")
+	}
+	if lo != goldenLeading {
+		t.Errorf("the row's toggle leads at %d, want the leading end at the window buttons' measured edge of %d", lo, goldenLeading)
+	}
+	if w := hi - lo + 1; w != railToggleWidthDp {
+		t.Errorf("the row's toggle is %d dp wide, want the bordered toolbar control's %d", w, railToggleWidthDp)
+	}
+	for _, c := range []struct {
+		name  string
+		click *widget.Clickable
+	}{
+		{"rescan", &p.v.rescanClick},
+		{"the vault switch", &p.v.switchClick},
+	} {
+		if clo, chi := p.spanIn(0, windowW, y, c.click); clo >= 0 {
+			t.Errorf("%s answers the window at %d-%d with the pane away; it went with the pane", c.name, clo, chi)
+		}
+	}
+	spoken := map[string]bool{}
+	for _, n := range p.r.AppendSemantics(nil) {
+		spoken[n.Desc.Label] = true
+	}
+	for _, gone := range []string{"Rescan", "Switch Vault"} {
+		if spoken[gone] {
+			t.Errorf("the window names %q with the pane away; the control it names is not there", gone)
+		}
+	}
+}
+
+// postedOneOf reports whether a message of want's own kind is among what the
+// pane posted.
+func postedOneOf(got []mvu.Message, want mvu.Message) bool {
+	for _, m := range got {
+		if reflect.TypeOf(m) == reflect.TypeOf(want) {
+			return true
+		}
+	}
+	return false
 }
 
 // TestTheRowRecallsTheHiddenPane asserts the one thing the pane's own
@@ -899,16 +1171,6 @@ func (b *bandFrame) span(c *widget.Clickable) (int, int) {
 	return lo, hi
 }
 
-// bandRescanLeading is where the band's first document action stands by the
-// composition alone: the note column's own edge inset, the navigation pair,
-// the measured name gap, the trail of places as it lays out, and that same
-// gap again.
-func (b *bandFrame) bandRescanLeading() int {
-	trail := bandTrailWidth(b.f, goldenModel(), goldenTokens(), windowW-int(b.f.geom.contentX))
-	nav := 2*railToggleWidthDp + 1
-	return int(b.f.geom.contentX) + noteInsetDp + nav + bandNameGapDp + trail + bandNameGapDp
-}
-
 // bandTrailWidth is how wide the band's trail of places lays out. It is the
 // one part of the leading cluster that is not a measurement, so the columns
 // after it are read against what the trail actually takes.
@@ -930,53 +1192,17 @@ func bandTrailWidth(f *frameState, m Model, tok themeTokens, rowW int) int {
 	return f.layoutBandTrail(gtx, m, tok).Size.X
 }
 
-// TestBandActionsAnswerTheKeyboard drives the band the way a reader without
-// a pointer does: Tab to each of the vault's two actions and activate it.
-// Both must report a press. What the press then means — a rescan that counts
-// what it found, a switch that returns to the picker — is asserted at the
-// model; this covers only whether the keyboard can get there at all.
-func TestBandActionsAnswerTheKeyboard(t *testing.T) {
-	for _, c := range []struct {
-		name  string
-		click func(f *frameState) *widget.Clickable
-	}{
-		{"rescan", func(f *frameState) *widget.Clickable { return &f.rescanClick }},
-		{"switch vault", func(f *frameState) *widget.Clickable { return &f.switchClick }},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			b := newBandFrame()
-			b.frame()
-
-			target := c.click(b.f)
-			src := b.r.Source()
-			reached := false
-			for range 64 {
-				b.r.MoveFocus(key.FocusForward)
-				if src.Focused(target) {
-					reached = true
-					break
-				}
-			}
-			if !reached {
-				t.Fatalf("Tab never reaches the band's %s action", c.name)
-			}
-			b.r.ClickFocus()
-
-			b.ops.Reset()
-			if !target.Clicked(b.gtx) {
-				t.Errorf("activating the band's %s action from the keyboard produced no press", c.name)
-			}
-		})
-	}
-}
-
-// TestBandNamesItsActions asserts the band's affordances are in the window's
-// semantic tree under the names a screen reader speaks. These controls carry
-// a symbol and no word at all — which is what every document action in every
-// stored toolbar band carries — so the spoken name is the only name there is.
-// The document's own name is in there too: it is drawn as bare text, which a
-// reader who cannot see it would otherwise never be told.
-func TestBandNamesItsActions(t *testing.T) {
+// TestBandNamesItsControls asserts the band's affordances are in the
+// window's semantic tree under the names a screen reader speaks. These
+// controls carry a symbol and no word at all — which is what every document
+// action in every stored toolbar band carries — so the spoken name is the
+// only name there is. The document's own name is in there too: it is drawn
+// as bare text, which a reader who cannot see it would otherwise never be
+// told.
+//
+// The vault's two actions are not among them: they stand on the pane, and
+// the band this frame lays out carries no pane.
+func TestBandNamesItsControls(t *testing.T) {
 	b := newBandFrame()
 	b.frame()
 
@@ -984,38 +1210,15 @@ func TestBandNamesItsActions(t *testing.T) {
 	for _, n := range b.r.AppendSemantics(nil) {
 		spoken[n.Desc.Label] = true
 	}
-	for _, want := range []string{"Rescan", "Switch Vault", "Find in this note", "Back", "Forward", "Reading list"} {
+	for _, want := range []string{"Find in this note", "Back", "Forward", "Reading list"} {
 		if !spoken[want] {
 			t.Errorf("the window's semantic tree does not name %q", want)
 		}
 	}
-}
-
-// TestBandActionsAnswerThePress asserts the band's actions are controls the
-// pointer reaches and that answer being held down. The pointer is delivered
-// through the frame's own input router.
-func TestBandActionsAnswerThePress(t *testing.T) {
-	b := newBandFrame()
-	b.frame()
-	b.frame()
-
-	// The rescan control stands in the band's leading cluster: the
-	// navigation, the document's name, then the two actions. The slot at the
-	// trailing end keeps its open width whichever state the find is in and
-	// nothing here is measured from it.
-	const ctrl = railToggleWidthDp
-	x := float32(b.bandRescanLeading() + ctrl/2)
-	at := f32.Pt(x, float32(paneStripDp)/2)
-	b.r.Queue(pointer.Event{Kind: pointer.Move, Position: at, Source: pointer.Mouse})
-	b.frame()
-	if !b.f.rescanClick.Hovered() {
-		t.Fatalf("a pointer at %v is not on the band's rescan control", at)
-	}
-
-	b.r.Queue(pointer.Event{Kind: pointer.Press, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary})
-	b.frame()
-	if !b.f.rescanClick.Pressed() {
-		t.Fatalf("a press at %v did not reach the band's rescan control", at)
+	for _, gone := range []string{"Rescan", "Switch Vault"} {
+		if spoken[gone] {
+			t.Errorf("the band names %q; the vault's actions stand on the pane", gone)
+		}
 	}
 }
 
@@ -1041,70 +1244,48 @@ func TestTheBandOpensTheFind(t *testing.T) {
 }
 
 // TestTheBandComposesLikeTheStoredWindows reads the band's own arrangement
-// back off a laid-out frame: the navigation, the document's name and the two
-// document actions in one cluster at the leading end of the content column's
-// share, one measured gap between each pair, the search last of all, and the
-// last control eight clear of the window's trailing edge.
+// back off a laid-out frame: the navigation at the leading end of the
+// content column's share with the document's name one measured gap after
+// it, the search last of all, and the last control eight clear of the
+// window's trailing edge. The vault's own two actions stand on the pane and
+// so stand nowhere in this row.
 //
 // MEASURED, reference/macos/controls.md under "What the toolbar band's
 // composition measures" and "What the band's segmented control measures":
-// the search stands last in all five stored bands, the document's actions
-// cluster at the leading end of the content column's share in
-// mail-window.png (compose at x 404-440, twelve clear of the seam at x=392,
-// its reply trio from x=469), finder-window-light.png leaves 14 between its
-// navigation pair's last column at x=398 and its title's first painted one
-// at x=413 and 16 between its view pop-up at x=742 and the group pull-down
-// at x=759, and the last control in all four full windows ends 8 px from the
-// window's own trailing edge.
+// the search stands last in all five stored bands,
+// finder-window-light.png leaves 14 between its navigation pair's last
+// column at x=398 and its title's first painted one at x=413, and the last
+// control in all four full windows ends 8 px from the window's own trailing
+// edge.
 func TestTheBandComposesLikeTheStoredWindows(t *testing.T) {
 	b := newBandFrame()
 	b.frame()
 	b.frame()
 
-	rescanLo, rescanHi := b.span(&b.f.rescanClick)
-	switchLo, switchHi := b.span(&b.f.switchClick)
 	findLo, findHi := b.span(&b.f.findClick)
 	navLo, _ := b.span(&b.f.backClick)
 	_, fwdHi := b.span(&b.f.fwdClick)
 
-	for _, c := range []struct {
-		name   string
-		lo, hi int
-	}{
-		{"rescan", rescanLo, rescanHi},
-		{"the vault switch", switchLo, switchHi},
-		{"the search", findLo, findHi},
-	} {
-		if c.lo < 0 {
-			t.Fatalf("%s stands nowhere in the band", c.name)
-		}
-		if w := c.hi - c.lo + 1; w != railToggleWidthDp {
-			t.Errorf("%s is %d dp wide, want the bordered toolbar control's %d", c.name, w, railToggleWidthDp)
-		}
+	if findLo < 0 {
+		t.Fatal("the search stands nowhere in the band")
 	}
-	if !(navLo < rescanLo && rescanHi < switchLo && switchHi < findLo) {
-		t.Errorf("the band runs navigation from %d, rescan %d-%d, switch %d-%d, search %d-%d; the navigation leads, the actions follow the name and the search stands last in every stored band",
-			navLo, rescanLo, rescanHi, switchLo, switchHi, findLo, findHi)
+	if w := findHi - findLo + 1; w != railToggleWidthDp {
+		t.Errorf("the search is %d dp wide, want the bordered toolbar control's %d", w, railToggleWidthDp)
 	}
-	// The first action stands one measured name gap after the document's
-	// name, which itself stands one after the navigation: the whole cluster
-	// is at the leading end of the content column's share and nothing in it
-	// is measured from the window's trailing edge.
-	if want := b.bandRescanLeading(); rescanLo != want {
-		t.Errorf("rescan leads at %d, want the document's name and the measured %d dp after it: %d",
-			rescanLo, bandNameGapDp, want)
+	if !(navLo < findLo) {
+		t.Errorf("the band runs navigation from %d and the search %d-%d; the navigation leads and the search stands last in every stored band",
+			navLo, findLo, findHi)
 	}
-	if got := switchLo - rescanHi - 1; got != bandGapDp {
-		t.Errorf("rescan and the vault switch stand %d dp apart, want the measured %d", got, bandGapDp)
-	}
-	// What lies between the vault switch and the find's SLOT is bare band,
-	// the run the row flexes: the slot's leading edge is its own fixed
-	// trailing end less the width the open recess takes, and the actions do
-	// not reach it.
+	// What lies between the document's name and the find's SLOT is bare
+	// band, the run the row flexes: the slot's leading edge is its own
+	// fixed trailing end less the width the open recess takes, and the
+	// cluster before it does not reach it.
+	trail := bandTrailWidth(b.f, goldenModel(), goldenTokens(), windowW-int(b.f.geom.contentX))
+	nameEnd := int(b.f.geom.contentX) + noteInsetDp + 2*railToggleWidthDp + 1 + bandNameGapDp + trail
 	slotLo := windowW - bandTrailingDp - int(findFieldDp)
-	if switchHi >= slotLo {
-		t.Errorf("the vault switch runs to %d and the find's slot begins at %d; the actions stand clear of the slot",
-			switchHi, slotLo)
+	if nameEnd >= slotLo {
+		t.Errorf("the document's name runs to %d and the find's slot begins at %d; the cluster stands clear of the slot",
+			nameEnd, slotLo)
 	}
 	if got := windowW - findHi - 1; got != bandTrailingDp {
 		t.Errorf("the band's last control ends %d dp from the window's trailing edge, want the measured %d",
@@ -1141,8 +1322,6 @@ func TestNothingInTheBandWalksWhenTheFindOpens(t *testing.T) {
 	}{
 		{"the navigation's back segment", &b.f.backClick},
 		{"the navigation's forward segment", &b.f.fwdClick},
-		{"rescan", &b.f.rescanClick},
-		{"the vault switch", &b.f.switchClick},
 	}
 	read := func() []column {
 		cols := make([]column, len(controls))

@@ -266,8 +266,16 @@ func sortByName[T any](s []T, name func(T) string) {
 // treeView is the tree's own view state: the list scroll/selection state
 // and per-row clickables (pointer-stable across frames).
 type treeView struct {
-	list      *list.State
-	hideClick widget.Clickable
+	list *list.State
+	// The pane's own marks, in the order they stand in its top strip: the
+	// two that act on the vault the pane is showing, then the toggle that
+	// puts the pane away. Their state is the pane's rather than the frame's
+	// because the controls stand nowhere else — a control that acts on a
+	// pane's collection waits for the pane, so nothing outside this view
+	// draws them or reads their presses.
+	rescanClick widget.Clickable
+	switchClick widget.Clickable
+	hideClick   widget.Clickable
 	// rowClicks are the rows' pointer targets. They are gesture.Clicks and
 	// not widget.Clickables because the rail is ONE focus target: see
 	// sidebar.RowTarget.
@@ -480,18 +488,60 @@ func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW l
 // topStrip is the band the pane keeps clear under the window's control
 // buttons, which stand inside it: their space at the leading end, left
 // untouched, a stretch that moves the window across the middle, and this
-// pane's own toggle bare at its top trailing corner. Under the
+// pane's own three marks bare at its top trailing corner. Under the
 // full-size-content treatment the native title bar hands over no drag, so
 // a pane that owns the top of the window owes the reader one.
+//
+// The marks read rescan, switch vault, toggle: the two that act on the
+// vault the pane is showing first, the toggle last, because a pane's own
+// toggle is the pane talking about itself and nothing the pane is for may
+// stand behind it. The gap between each pair is the pattern's measured
+// [pane.MarkGapDp], and it moves the window like the rest of the band's
+// empty space.
 func (v *treeView) topStrip(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	// The band is the pattern's: the leading run skipped (a move action over
 	// the buttons would fight them for the press), the window's drag across
-	// the middle, and this pane's one control at its top trailing corner
-	// where the platform keeps it. What the rail supplies is the measurement
-	// of where that run ends — a window fact — and the control itself.
-	return pane.Strip(gtx, v.buttonEdge(), func(gtx layout.Context) layout.Dimensions {
-		return v.hideControl(gtx, tok)
-	})
+	// the middle, and this pane's own controls at its top trailing corner
+	// where the platform keeps them. What the rail supplies is the
+	// measurement of where that run ends — a window fact — and the controls
+	// themselves.
+	gap := pane.DragSpacer(pane.MarkGapDp)
+	return pane.Strip(gtx, v.buttonEdge(),
+		func(gtx layout.Context) layout.Dimensions {
+			return v.rescanControl(gtx, tok)
+		},
+		gap,
+		func(gtx layout.Context) layout.Dimensions {
+			return v.switchVaultControl(gtx, tok)
+		},
+		gap,
+		func(gtx layout.Context) layout.Dimensions {
+			return v.hideControl(gtx, tok)
+		})
+}
+
+// rescanControl re-walks the vault and switchVaultControl leaves it for
+// another. Both act on the collection the pane is showing, which is why they
+// stand on the pane and travel with it: once the pane is away the window
+// offers neither, and expanding it is how they are reached again.
+//
+// Each carries one symbol and no word, which is what every document action
+// in every stored band carries — Finder's view, group, share and tag,
+// Mail's compose, reply and archive, Notes' format and table — and their
+// spoken titles are the only names they have.
+func (v *treeView) rescanControl(gtx layout.Context, tok themeTokens) layout.Dimensions {
+	if v.rescanClick.Clicked(gtx) {
+		v.send(gtx, Rescan{})
+	}
+	return paneMark(gtx, tok, &v.rescanClick, icons.Refresh, "Rescan")
+}
+
+func (v *treeView) switchVaultControl(gtx layout.Context, tok themeTokens) layout.Dimensions {
+	if v.switchClick.Clicked(gtx) {
+		v.send(gtx, SwitchVault{})
+	}
+	// Title case, which is what the platform's own controls use.
+	return paneMark(gtx, tok, &v.switchClick, icons.Folder, "Switch Vault")
 }
 
 // hideControl is the pane's own way to put itself away, standing bare in

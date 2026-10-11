@@ -133,41 +133,20 @@ const (
 
 	// railToggleWidthDp is the width the platform's bordered toolbar control
 	// takes around one symbol, which is what every control standing in this
-	// window's band is drawn as — both halves of the sidebar switch, each
-	// segment of the window's navigation, the vault's two actions and the
-	// search: the 24 dp mark box with the platform's measured 7 dp of clear
-	// band on each side. components/button draws it and owns the measurement;
-	// the number is named here because the window reasons about where its
-	// controls stand and what is beside them.
+	// window's band is drawn as — the toggle that recalls the pane, each
+	// segment of the window's navigation and the search: the 24 dp mark box
+	// with the platform's measured 7 dp of clear band on each side.
+	// components/button draws it and owns the measurement; the number is
+	// named here because the window reasons about where its controls stand
+	// and what is beside them.
 	railToggleWidthDp = markLargeDp + 2*7
 
-	// bandGapDp is the room the band leaves between two bordered controls
-	// standing apart. MEASURED at 1x: finder-window-light.png leaves 16 px
-	// between its view pop-up (ending x=742) and the group pull-down beside
-	// it (from x=759), and the same window's dark capture leaves 16 between
-	// its view control and the pull-down after it. The platform's own spread
-	// across the stored bands runs 8 (mail-window.png, inside one cluster of
-	// three), 14 (notes-toolbar.png, compose to the group beside it), 16 and
-	// 18 (finder-window-light.png: 16 between its two pull-downs, 18 from the
-	// second to the trio and from the trio to the search) and 28
-	// (mail-window.png, between clusters). Finder's 16 is the reading the
-	// ruling names and the one already recorded in
-	// reference/macos/controls.md.
-	bandGapDp = 16
-
-	// bandNameGapDp is the room the band leaves on either side of the
-	// document's name: between the navigation and the name, and between the
-	// name and the first action after it. MEASURED at 1x: in
+	// bandNameGapDp is the room the band leaves between the navigation and
+	// the document's name beside it. MEASURED at 1x: in
 	// finder-window-light.png the back/forward pair's fill ends at x=398 and
 	// the title's first painted column stands at x=413, and in
 	// finder-window-untinted-dark.png the same pair ends at x=398 with its
 	// title's first painted column at x=412 — fourteen clear columns, read twice.
-	// It is the only measured room between a bare title and a bordered
-	// control in any stored band: neither Finder window puts a control after
-	// its title at all, both leaving bare band there, so the boundary is
-	// read on the side the captures do hold it and spent on both. The same
-	// fourteen is what notes-toolbar.png leaves between two bordered
-	// controls standing apart.
 	bandNameGapDp = 14
 
 	// bandTrailingDp is what the band leaves between its last control and
@@ -287,14 +266,11 @@ type frameState struct {
 	backClick widget.Clickable
 	fwdClick  widget.Clickable
 
-	// The band's document actions, and the control that opens the find in
-	// the page where the platform's own band keeps its search: Finder draws
-	// a magnifier capsule at the trailing end of its band and expands it
-	// into a field, which is what this window's shortcut now has an
-	// affordance for.
-	rescanClick widget.Clickable
-	switchClick widget.Clickable
-	findClick   widget.Clickable
+	// The control that opens the find in the page where the platform's own
+	// band keeps its search: Finder draws a magnifier capsule at the
+	// trailing end of its band and expands it into a field, which is what
+	// this window's shortcut now has an affordance for.
+	findClick widget.Clickable
 
 	// post is where the band's own answers go — what a press on a place in
 	// its trail sends: the live frame's is the frame's message op, which is
@@ -890,19 +866,19 @@ func clampAside(w unit.Dp) unit.Dp {
 // showing: both Finder captures compose their content column's share that way
 // — the segmented back/forward pair at x 326-398 with the title's own columns
 // beginning fourteen clear of it — and voicememos-window.png keeps "All
-// Recordings" bare in the same manner. The document's actions follow the
-// name in that same leading cluster, which is where the stored bands put
-// the controls that act on the document: mail-window.png stands its compose
-// capsule at x 404-440, twelve clear of the seam at x=392 and so at the
-// reading pane's own leading end, and runs its reply trio from x=469
-// straight on from it. Two gaps carry the cluster — the fourteen the
-// platform leaves between a bare title and a bordered control, read in
-// finder-window-light.png from the navigation pair's last column at x=398
-// to the title's first painted one at x=413, and the sixteen Finder leaves
-// between its view pop-up at x=742 and the group pull-down at x=759.
+// Recordings" bare in the same manner. The fourteen is the room the
+// platform leaves between the navigation and the name, read in
+// finder-window-light.png from the pair's last column at x=398 to the
+// title's first painted one at x=413.
+//
+// The vault's own two actions stand in the rail pane's top strip and not
+// here: they act on the collection the pane shows, and a control that acts
+// on a pane's collection waits for the pane. Nor does the row stand in for
+// them while the pane is away — only the toggle travels, as this platform's
+// sidebars do.
 //
 // The search stands last of all, at the trailing end, which is the order all
-// five stored bands read. What lies between the actions and it is bare band:
+// five stored bands read. What lies between the trail and it is bare band:
 // finder-window-light.png reads 255 at every column of its band clear of a
 // control, so the run carries no fill and no control and is the row's
 // flexible middle.
@@ -949,12 +925,8 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 			return f.layoutNavigation(gtx, m, tok)
 		}),
 	)
-	// Then the document's actions, in the order the rail's foot held them,
-	// standing after the trail in the same leading cluster. The gap before
-	// the first of them is the room the platform leaves between a bare
-	// title and a bordered control, and with no trail to stand after the
-	// cluster closes up and the actions follow the navigation on that same
-	// gap.
+	// Then the trail of places the window is showing, one measured gap after
+	// the navigation.
 	if len(notePlaces(m)) > 0 {
 		children = append(children,
 			layout.Rigid(dragSpacer(bandNameGapDp)),
@@ -964,15 +936,7 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 		)
 	}
 	children = append(children,
-		layout.Rigid(dragSpacer(bandNameGapDp)),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return f.layoutRescan(gtx, tok)
-		}),
-		layout.Rigid(dragSpacer(bandGapDp)),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return f.layoutSwitchVault(gtx, tok)
-		}),
-		// The bare band between the actions and the find is the platform's
+		// The bare band between the trail and the find is the platform's
 		// own and carries nothing: finder-window-light.png reads 255 at
 		// every column of its band clear of a control. It is the row's
 		// flexible middle, so the find's slot keeps its fixed trailing end
@@ -994,29 +958,6 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 	// shadow its controls cast, which the platform does not cut off at the
 	// band's lower edge either.
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
-}
-
-// layoutRescan draws the control that re-walks the vault, and layoutSwitchVault
-// the one that leaves it for another. Both act on what the window is showing,
-// so both stand in the band; both are the platform's bordered toolbar control
-// carrying one symbol, because every document action in every stored band is
-// one — Finder's view, group, share, tag and more, Mail's compose, reply,
-// archive and mailbox, Notes' format, table and share — and not one of them
-// carries a word. components/button draws the chrome variant on the symbol
-// path alone for that same reason.
-func (f *frameState) layoutRescan(gtx layout.Context, tok themeTokens) layout.Dimensions {
-	if f.rescanClick.Clicked(gtx) {
-		mvu.MessageOp{Message: Rescan{}}.Add(gtx.Ops)
-	}
-	return chromeControl(gtx, tok, &f.rescanClick, icons.Refresh, "Rescan")
-}
-
-func (f *frameState) layoutSwitchVault(gtx layout.Context, tok themeTokens) layout.Dimensions {
-	if f.switchClick.Clicked(gtx) {
-		mvu.MessageOp{Message: SwitchVault{}}.Add(gtx.Ops)
-	}
-	// Title case, which is what the platform's own controls use.
-	return chromeControl(gtx, tok, &f.switchClick, icons.Folder, "Switch Vault")
 }
 
 // toolbarLeading is where the band's own content may start: the trailing
@@ -1177,12 +1118,11 @@ func (f *frameState) bandTrail(tok themeTokens) breadcrumb.TrailLayout {
 
 // bandTrailRoom is how much of the row the trail may take: what the flex has
 // left it, less what the band still owes the controls standing after it —
-// the gap, the vault's two actions with the band's own gap between them, the
-// find's slot, which keeps one width open or shut, and the trailing inset.
-// The trail is laid out before any of them, so the room they need is stated
-// here rather than read off a layout that has not happened yet.
+// the find's slot, which keeps one width open or shut, and the trailing
+// inset. The trail is laid out before either of them, so the room they need
+// is stated here rather than read off a layout that has not happened yet.
 func (f *frameState) bandTrailRoom(gtx layout.Context, m Model) int {
-	after := unit.Dp(bandNameGapDp + railToggleWidthDp + bandGapDp + railToggleWidthDp + bandTrailingDp)
+	after := unit.Dp(bandTrailingDp)
 	if m.CurrentNote() != nil {
 		after += unit.Dp(findFieldDp)
 	}

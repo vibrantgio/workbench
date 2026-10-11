@@ -170,7 +170,9 @@ func (f *treeTabFrame) frame() {
 	}
 	f.v.layout(gtx, f.model, f.tok, nil)
 	f.onRail = gtx.Focused(f.v.list.Focus())
-	f.onAfter = gtx.Focused(&f.v.hideClick)
+	// The first of the pane's own marks: the strip reads rescan, switch
+	// vault, toggle, so the control after the rows is the rescan.
+	f.onAfter = gtx.Focused(&f.v.rescanClick)
 	f.router.Frame(ops)
 }
 
