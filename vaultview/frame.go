@@ -404,7 +404,9 @@ func renderWindow(
 
 // renderWindowFinding is renderWindow with the page's find in the state a
 // query has left it, which is the only way a still image can be taken of a
-// note being searched.
+// note being searched. Whether the field stands in the band is the model's,
+// so a model with the find shut shows the magnifier whatever query is
+// handed over here.
 func renderWindowFinding(
 	shaper *text.Shaper,
 	m Model,
@@ -429,7 +431,7 @@ func renderWindowFinding(
 	// leaves it: no editor, no events, the query drawn where the reader typed
 	// it and the field focused, which is where a find in the page is worked
 	// from. It is the toolbar's recess and not the sidebar's field.
-	if find.open {
+	if m.FindOpen {
 		// Built per frame rather than once, for the count alone: what the
 		// query has found is the document's answer, and the document lays
 		// out before the band does. A field built here and reused would

@@ -1127,16 +1127,23 @@ func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
 type bandFrame struct {
 	f    *frameState
 	find pageFind
+	m    Model
 	gtx  layout.Context
 	ops  op.Ops
 	r    input.Router
 	size image.Point
+
+	// posted is what the band put on this frame for the loop, reduced into
+	// the frame's own model at the end of it: whether the find stands open
+	// is the model's, so the band's magnifier asks for it by message.
+	posted []mvu.Message
 }
 
 func newBandFrame() *bandFrame {
-	b := &bandFrame{f: newFrameState(defaultWidths()), size: image.Pt(windowW, windowH)}
+	b := &bandFrame{f: newFrameState(defaultWidths()), m: goldenModel(), size: image.Pt(windowW, windowH)}
 	b.f.leading = func() unit.Dp { return goldenLeading }
 	b.f.band = bandFind{find: &b.find}
+	b.find.post = func(_ layout.Context, msg mvu.Message) { b.posted = append(b.posted, msg) }
 	b.gtx = layout.Context{
 		Constraints: layout.Exact(b.size),
 		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
@@ -1148,8 +1155,12 @@ func newBandFrame() *bandFrame {
 
 func (b *bandFrame) frame() {
 	b.ops.Reset()
-	b.f.layout(b.gtx, goldenModel(), goldenTokens(), nil, nil, nil)
+	b.f.layout(b.gtx, b.m, goldenTokens(), nil, nil, nil)
 	b.r.Frame(&b.ops)
+	for _, msg := range b.posted {
+		b.m, _ = Update(b.m, msg)
+	}
+	b.posted = nil
 }
 
 // span is one control's own columns, found by walking the band's centre line
@@ -1238,7 +1249,7 @@ func TestTheBandOpensTheFind(t *testing.T) {
 		pointer.Event{Kind: pointer.Release, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary},
 	)
 	b.frame()
-	if !b.find.open {
+	if !b.m.FindOpen {
 		t.Error("pressing the band's search control did not open the find")
 	}
 }
@@ -1280,7 +1291,7 @@ func TestTheBandComposesLikeTheStoredWindows(t *testing.T) {
 	// band, the run the row flexes: the slot's leading edge is its own
 	// fixed trailing end less the width the open recess takes, and the
 	// cluster before it does not reach it.
-	trail := bandTrailWidth(b.f, goldenModel(), goldenTokens(), windowW-int(b.f.geom.contentX))
+	trail := bandTrailWidth(b.f, b.m, goldenTokens(), windowW-int(b.f.geom.contentX))
 	nameEnd := int(b.f.geom.contentX) + noteInsetDp + 2*railToggleWidthDp + 1 + bandNameGapDp + trail
 	slotLo := windowW - bandTrailingDp - int(findFieldDp)
 	if nameEnd >= slotLo {
@@ -1332,7 +1343,7 @@ func TestNothingInTheBandWalksWhenTheFindOpens(t *testing.T) {
 		return cols
 	}
 	shut := read()
-	b.find.open = true
+	b.m.FindOpen = true
 	b.frame()
 	b.frame()
 	open := read()

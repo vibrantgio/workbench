@@ -109,6 +109,16 @@ type Model struct {
 	// runs.
 	SidebarHidden bool
 
+	// FindOpen is whether the find in the page stands open in the toolbar
+	// band. It is window state for the same reason the rail's visibility
+	// is, and it is the model's rather than the view's so that opening the
+	// field goes through the loop: a view that flips its own state asks
+	// the window for nothing, and the field would stand in the band only
+	// from whatever later frame the next pointer move or key press caused.
+	// What the reader typed is NOT here — the query is the field's, dies
+	// with it, and the vault knows nothing about it.
+	FindOpen bool
+
 	PropsOpen     bool                // the properties pane is expanded
 	Notifications notifications.Queue // transient notifications, oldest first
 
@@ -225,6 +235,15 @@ type RootTree struct{}
 
 // ToggleSidebar shows or hides the folder rail.
 type ToggleSidebar struct{}
+
+// OpenFind opens the find in the page, which stands the search field in the
+// toolbar band. Both ways of asking for it send this: the band's magnifier
+// capsule and the platform's find shortcut.
+type OpenFind struct{}
+
+// CloseFind shuts the field. What the reader typed goes with it, and so does
+// every mark the query made — both the field's own, not the model's.
+type CloseFind struct{}
 
 // SetFilter carries the note-name filter typed above the tree, one
 // message per keystroke.
@@ -507,6 +526,10 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.Folds = nil
 	case ToggleSidebar:
 		model.SidebarHidden = !model.SidebarHidden
+	case OpenFind:
+		model.FindOpen = true
+	case CloseFind:
+		model.FindOpen = false
 	case ToggleProperties:
 		model.PropsOpen = !model.PropsOpen
 	case ToggleFold:

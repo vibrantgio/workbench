@@ -574,7 +574,7 @@ func layoutNotePage(
 			doc := docFor(m, note)
 			// The find keys are drained before anything lays out, so a step
 			// asked for on this frame is a step this frame's document makes.
-			find.keys(gtx, read)
+			find.keys(gtx, m, read)
 			// The aside's outline reads and moves this document. It lays
 			// out after this column does, so what it reads is this frame's
 			// position and what it moves shows on the next.
@@ -624,7 +624,7 @@ func layoutNotePage(
 			// marking is, and the places it finds go on the bar: one query
 			// marks the prose and the bar alike, and one dismissal takes
 			// both.
-			bar.Matches = find.apply(doc, note.Path)
+			bar.Matches = find.apply(m, doc)
 			bar.Current = find.current
 			style.Gutter = max(noteInsetDp-bar.Width(), 0)
 			style.Measure = noteMeasureDp

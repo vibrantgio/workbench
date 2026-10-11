@@ -11,6 +11,11 @@ import (
 // against one router, as the rail-focus tests do, and read where the keys are
 // on the frame after each press: a focus command reaches the router at the
 // end of the frame that executed it.
+//
+// Opening the field costs one frame of its own. Whether the field stands in
+// the band is the model's, so the opening is a message: the frame that saw
+// the press or the click posts it, the next frame draws the field and asks
+// for the keyboard, and the one after that reads where the keyboard went.
 
 // TestAClosedFindFieldGivesTheKeyboardBackToTheRail is the reader who was
 // walking the rail: the shortcut takes them into the field, Escape puts them
@@ -27,10 +32,11 @@ func TestAClosedFindFieldGivesTheKeyboardBackToTheRail(t *testing.T) {
 	}
 
 	f.pressMod(findKey, key.ModShortcut)
-	if !f.find.open {
+	if !f.model.FindOpen {
 		t.Fatal("the platform's find shortcut did not open the field")
 	}
-	f.frame()
+	f.frame() // the frame the opened field is drawn on, which asks for the keys
+	f.frame() // and the frame that reads back where they went
 	if !f.inField {
 		t.Fatal("the find field does not hold the keyboard after the shortcut opened it")
 	}
@@ -66,10 +72,11 @@ func TestAClosedFindFieldLeavesTheKeyboardInTheNote(t *testing.T) {
 	}
 
 	f.pressMod(findKey, key.ModShortcut)
-	if !f.find.open {
+	if !f.model.FindOpen {
 		t.Fatal("the platform's find shortcut did not open the field")
 	}
-	f.frame()
+	f.frame() // the frame the opened field is drawn on, which asks for the keys
+	f.frame() // and the frame that reads back where they went
 	if !f.inField {
 		t.Fatal("the find field does not hold the keyboard after the shortcut opened it")
 	}
@@ -101,13 +108,14 @@ func TestTheBandsMagnifierGivesTheKeyboardBackToTheRail(t *testing.T) {
 	}
 
 	f.clickCapsule()
-	if !f.find.open {
+	if !f.model.FindOpen {
 		t.Fatal("the band's magnifier capsule did not open the field")
 	}
 	if f.find.returnTo != f.read.rail.focus() {
 		t.Fatal("the capsule-opened field did not record the rail as the keyboard's holder")
 	}
-	f.frame()
+	f.frame() // the frame the opened field is drawn on, which asks for the keys
+	f.frame() // and the frame that reads back where they went
 	if !f.inField {
 		t.Fatal("the find field does not hold the keyboard after the capsule opened it")
 	}

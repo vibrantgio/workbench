@@ -26,6 +26,7 @@ import (
 
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -53,16 +54,16 @@ const (
 func findFieldSurface(c tokens.PlatformColors) color.NRGBA { return bandSurface(c) }
 
 // pageFind is find in the page: the query the reader is looking for in the
-// note on screen, which of its matches they are on, and whether the field is
-// open at all.
+// note on screen, and which of its matches they are on.
 //
 // It is view state and not model state for the reason the arrival marking is:
 // the vault knows nothing about it, it dies with the field, and nothing here
-// is remembered from one launch to the next.
+// is remembered from one launch to the next. Whether the field stands in the
+// band at all is the one piece that is NOT here: that is window state, and
+// it is the model's, in Model.FindOpen, so that opening the field goes
+// through the loop and the window is asked for the frame that draws it.
+// Nothing here is marked while the model says the find is shut.
 type pageFind struct {
-	// open is whether the field stands in the band. Closing it takes the
-	// query with it, so nothing is marked while it is shut.
-	open bool
 	// query is what the reader has typed and current indexes the matches of
 	// it, counting from zero.
 	query   string
@@ -87,6 +88,21 @@ type pageFind struct {
 	// where no holder could be read records nothing and the document takes
 	// the keyboard back.
 	returnTo event.Tag
+	// post is where the find's two answers go — the opening and the
+	// shutting, which are the model's: the live window's is the frame's
+	// message op, which is what a nil leaves, and a test's is a recorder,
+	// so a find driven without a window to post to can still be read back.
+	post func(gtx layout.Context, msg mvu.Message)
+}
+
+// send hands one of the find's answers on to whatever is collecting this
+// frame's messages.
+func (f *pageFind) send(gtx layout.Context, msg mvu.Message) {
+	if f.post != nil {
+		f.post(gtx, msg)
+		return
+	}
+	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 }
 
 // keys drains the frame's find keys: the platform's find shortcut opens the
@@ -98,9 +114,9 @@ type pageFind struct {
 // the next match only while the reader is in the field; the editor under them
 // never sees them, because a key event is taken by the first target that asks
 // for it and this runs before the field lays out.
-func (f *pageFind) keys(gtx layout.Context, read *reader) {
+func (f *pageFind) keys(gtx layout.Context, m Model, read *reader) {
 	filters := []event.Filter{key.Filter{Name: findKey, Required: key.ModShortcut}}
-	if f.open && f.tag != nil {
+	if m.FindOpen && f.tag != nil {
 		filters = append(filters,
 			key.Filter{Focus: f.tag, Name: key.NameReturn, Optional: key.ModShift},
 			key.Filter{Focus: f.tag, Name: key.NameEnter, Optional: key.ModShift},
@@ -127,13 +143,20 @@ func (f *pageFind) keys(gtx layout.Context, read *reader) {
 	}
 }
 
-// openField opens the field in the band, asks this frame for the keyboard,
-// and records which target held it, so dismissing the field hands it back
-// there. Both ways of opening the find run through here — the shortcut and
-// the band's magnifier capsule — so the record is made in one place and a
-// field opened either way gives the keyboard back to the same target.
+// openField opens the field in the band, asks for the keyboard, and records
+// which target held it, so dismissing the field hands it back there. Both
+// ways of opening the find run through here — the shortcut and the band's
+// magnifier capsule — so the record is made in one place and a field opened
+// either way gives the keyboard back to the same target.
+//
+// The opening is a message because the field standing in the band is the
+// model's: the loop reduces it, re-emits the window and invalidates it, so
+// the frame that draws the field is a frame the reader's one click asked
+// for. The keyboard request is not a message — a pending focus command has
+// no business in the model — and it is carried out by the frame that draws
+// the field, so the field comes up with the keys already in it.
 func (f *pageFind) openField(gtx layout.Context, read *reader) {
-	f.open = true
+	f.send(gtx, OpenFind{})
 	f.focus = true
 	f.returnTo = keyboardHolder(gtx, read)
 }
@@ -186,7 +209,8 @@ func keyboardHolder(gtx layout.Context, read *reader) event.Tag {
 // the keyboard back to the target the field took it from.
 func (f *pageFind) dismiss(gtx layout.Context, read *reader) {
 	back := f.returnTo
-	*f = pageFind{tag: f.tag, clear: f.clear, note: f.note}
+	f.send(gtx, CloseFind{})
+	*f = pageFind{tag: f.tag, clear: f.clear, note: f.note, post: f.post}
 	if f.clear != nil {
 		f.clear()
 	}
@@ -213,13 +237,13 @@ func (f *pageFind) dismiss(gtx layout.Context, read *reader) {
 // Arriving at a note moves nobody — a link lands where the link said, and the
 // reader steps from there — so the new note's matches are marked where they
 // lie and the page stays where the arrival put it.
-func (f *pageFind) apply(doc *markdown.Document, note string) []float32 {
-	if f.note != note {
-		f.note = note
+func (f *pageFind) apply(m Model, doc *markdown.Document) []float32 {
+	if f.note != m.Current {
+		f.note = m.Current
 		f.current = 0
 		f.seek = false
 	}
-	if !f.open || f.query == "" {
+	if !m.FindOpen || f.query == "" {
 		doc.ClearFind()
 		f.count = 0
 		return nil
@@ -286,11 +310,13 @@ func (f *frameState) findChildren(m Model, tok themeTokens) []layout.FlexChild {
 	if m.CurrentNote() == nil {
 		return nil
 	}
-	open := find != nil && find.open
 	return []layout.FlexChild{layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		w := min(gtx.Dp(unit.Dp(findFieldDp)), gtx.Constraints.Max.X)
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
-		if open {
+		// Read at layout time, off the model this frame is drawn from: the
+		// state the child draws by is the state the frame was given, not a
+		// value this list carried in from before its children ran.
+		if find != nil && m.FindOpen {
 			return f.layoutFindField(gtx, find)
 		}
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,

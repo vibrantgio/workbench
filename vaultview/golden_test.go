@@ -319,7 +319,7 @@ const findAnchor = 14
 // query. Both schemes.
 func TestNoteFindGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
-	m := findModel(findAnchor)
+	m := findingModel(findAnchor)
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			pf := findState()
@@ -336,7 +336,7 @@ func TestNoteFindGolden(t *testing.T) {
 // the window draws.
 func TestVaultWindowFindGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
-	m := findModel(findAnchor)
+	m := findingModel(findAnchor)
 	for _, tc := range themeCases {
 		name := "window-find-" + tc.name
 		t.Run(name, func(t *testing.T) {

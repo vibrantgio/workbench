@@ -96,6 +96,10 @@ func newRailFocusFrame(t *testing.T) *railFocusFrame {
 	f.band = newFrameState(defaultWidths())
 	f.band.band = bandFind{find: &f.find, read: &f.read}
 	f.v.post = func(_ layout.Context, msg mvu.Message) { f.posted = append(f.posted, msg) }
+	// The find's own two answers go the same way: whether the field stands
+	// in the band is the model's, so opening and shutting it are messages
+	// this frame reduces between one layout and the next.
+	f.find.post = func(_ layout.Context, msg mvu.Message) { f.posted = append(f.posted, msg) }
 	return f
 }
 
@@ -150,7 +154,7 @@ func (f *railFocusFrame) columns(gtx layout.Context) {
 		// The find's keys are drained where the note page drains them: inside
 		// the column, under the reading area, and only while a note is open.
 		if f.model.CurrentNote() != nil {
-			f.find.keys(gtx, &f.read)
+			f.find.keys(gtx, f.model, &f.read)
 		}
 		f.findField(gtx)
 		return layout.Dimensions{Size: gtx.Constraints.Max}
@@ -171,7 +175,7 @@ const railFocusBandDp = 40
 // it runs exactly what a click on the live capsule runs; the band draws it
 // only while the find is shut and a note is open, and so does this.
 func (f *railFocusFrame) findOpener(gtx layout.Context) {
-	if f.find.open || f.model.CurrentNote() == nil {
+	if f.model.FindOpen || f.model.CurrentNote() == nil {
 		f.capsule = image.Point{}
 		return
 	}
@@ -193,7 +197,7 @@ func (f *railFocusFrame) findField(gtx layout.Context) {
 	area := clip.Rect{Max: image.Pt(1, 1)}.Push(gtx.Ops)
 	event.Op(gtx.Ops, &f.fieldTag)
 	area.Pop()
-	if f.find.open && f.find.focus {
+	if f.model.FindOpen && f.find.focus {
 		f.find.focus = false
 		gtx.Execute(key.FocusCmd{Tag: f.find.tag})
 	}

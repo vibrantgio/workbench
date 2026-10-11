@@ -19,6 +19,7 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/mvu"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -50,6 +51,11 @@ type notePad struct {
 	// nothing and reserves the field's width.
 	find   pageFind
 	fieldW layout.Widget
+
+	// posted is what the page put on this frame for the loop, reduced into
+	// the pad's own model at the end of it, as the window's loop reduces it
+	// between two frames. Whether the find stands open is the model's.
+	posted []mvu.Message
 }
 
 type rivalTag struct{ _ byte }
@@ -72,6 +78,7 @@ func newNotePad(t *testing.T, m Model) *notePad {
 		t.Fatal("the fixture model has no current note")
 	}
 	p.doc = markdown.NewDocument(note.Blocks)
+	p.find.post = func(_ layout.Context, msg mvu.Message) { p.posted = append(p.posted, msg) }
 	return p
 }
 
@@ -100,6 +107,10 @@ func (p *notePad) frame() {
 		gtx.Execute(key.FocusCmd{Tag: &p.rival})
 	}
 	p.r.Frame(&p.ops)
+	for _, msg := range p.posted {
+		p.m, _ = Update(p.m, msg)
+	}
+	p.posted = nil
 }
 
 func (p *notePad) press(name key.Name, mods key.Modifiers) {

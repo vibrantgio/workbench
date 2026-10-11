@@ -46,11 +46,11 @@ func typeQuery(p *notePad, query string) {
 func TestTheFindShortcutOpensTheField(t *testing.T) {
 	p := newNotePad(t, findModel(-1))
 	p.frame()
-	if p.find.open {
+	if p.m.FindOpen {
 		t.Fatal("the find field was open before anybody asked for it")
 	}
 	p.press(findKey, key.ModShortcut)
-	if !p.find.open {
+	if !p.m.FindOpen {
 		t.Error("the platform's find shortcut did not open the find field")
 	}
 }
@@ -117,7 +117,7 @@ func TestEscapeClearsTheFieldAndTheMarksAndGivesThePageBackTheKeyboard(t *testin
 
 	p.press(key.NameEscape, 0)
 	p.frame()
-	if p.find.open || p.find.query != "" {
+	if p.m.FindOpen || p.find.query != "" {
 		t.Errorf("Escape left the field %#v; it closes the field and takes the query with it", p.find)
 	}
 	if n := len(p.doc.Matches()); n != 0 {
@@ -232,10 +232,19 @@ func findModel(first int) Model {
 	return m
 }
 
-// findState is the find the still images are taken in: the field open, the
-// query typed, and the reader on the middle of its three matches.
+// findingModel is findModel with the find standing open, which is half of
+// the state the still images are taken in: whether the field stands in the
+// band is the model's, and what the reader typed is the field's.
+func findingModel(first int) Model {
+	m := findModel(first)
+	m.FindOpen = true
+	return m
+}
+
+// findState is the find the still images are taken in: the query typed, and
+// the reader on the middle of its three matches.
 func findState() pageFind {
-	return pageFind{open: true, query: findQuery, current: 1}
+	return pageFind{query: findQuery, current: 1}
 }
 
 // TestTheRailsFindAnswersItsOwnShortcut is the other half of the pair: the
