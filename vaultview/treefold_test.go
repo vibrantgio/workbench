@@ -4,14 +4,17 @@ import (
 	"image"
 	"testing"
 
+	"gioui.org/f32"
 	"gioui.org/io/input"
 	"gioui.org/io/key"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/sidebar"
 )
 
 // treeFoldModel is a vault over a nest two folders deep, every fold open:
@@ -93,7 +96,9 @@ func (f *treeFoldFrame) press(name key.Name) []mvu.Message {
 }
 
 // rows is the run the rail currently draws.
-func (f *treeFoldFrame) rows() []TreeRow { return TreeRows(f.model.Index, f.model.Folds) }
+func (f *treeFoldFrame) rows() []TreeRow {
+	return TreeRows(f.model.Index, f.model.Folds, vaultName(f.model))
+}
 
 // cursorPath is the path of the row the keys stand on, empty when they stand
 // on none.
@@ -127,18 +132,21 @@ func (f *treeFoldFrame) readsFold(what, dir string, want bool) {
 // Left closes only what stands under the cursor: on an open folder it closes
 // that folder and stays. On a note or a collapsed folder there is nothing
 // under the cursor to close, so it walks to the parent's row and leaves the
-// fold alone; a second Left is what closes that parent. At the root it stays.
-// Right opens a collapsed folder under the cursor and steps into an open one.
+// fold alone; a second Left is what closes that parent. The vault's own row
+// is the walk's end — it is a folder row like any other, so Left closes it
+// and everything it holds leaves the list, and a Left on the closed vault
+// stays where it is, there being no parent above it. Right opens a collapsed
+// folder under the cursor and steps into an open one.
 func TestLeftWalksToTheParentBeforeClosingIt(t *testing.T) {
 	f := newTreeFoldFrame(t)
 	f.focus()
 
-	// Down three times: the two folders on the way in, then the note they
-	// hold.
-	for range 3 {
+	// Down four times: the vault, the two folders on the way in, then the
+	// note they hold.
+	for range 4 {
 		f.press(key.NameDownArrow)
 	}
-	f.readsCursor("Down three times from nothing", "guide/deep/n.md")
+	f.readsCursor("Down four times from nothing", "guide/deep/n.md")
 
 	if posted := f.press(key.NameLeftArrow); len(posted) != 0 {
 		t.Errorf("Left on a note posted %v; it walks to the parent and closes nothing", posted)
@@ -161,9 +169,30 @@ func TestLeftWalksToTheParentBeforeClosingIt(t *testing.T) {
 	f.readsCursor("Left on an open folder", "guide")
 
 	if posted := f.press(key.NameLeftArrow); len(posted) != 0 {
-		t.Errorf("Left on a collapsed folder at the root posted %v; there is no parent to walk to", posted)
+		t.Errorf("Left on a collapsed folder under the vault posted %v; it walks to the vault's own row and closes nothing", posted)
 	}
-	f.readsCursor("Left on a collapsed folder at the root", "guide")
+	f.readsCursor("Left on a collapsed folder under the vault", treeRootPath)
+
+	f.press(key.NameLeftArrow)
+	if rows := f.rows(); len(rows) != 1 || rows[0].Path != treeRootPath || rows[0].Open {
+		t.Errorf("Left on the open vault left the run %v; the vault closes and everything it holds leaves the list",
+			rowSigs(rows))
+	}
+	f.readsCursor("Left on the open vault", treeRootPath)
+
+	if posted := f.press(key.NameLeftArrow); len(posted) != 0 {
+		t.Errorf("Left on the closed vault posted %v; there is no parent above it to walk to", posted)
+	}
+	f.readsCursor("Left on the closed vault", treeRootPath)
+
+	f.press(key.NameRightArrow)
+	if rows := f.rows(); len(rows) < 2 || !rows[0].Open {
+		t.Errorf("Right on the closed vault left the run %v; it opens again", rowSigs(f.rows()))
+	}
+	f.readsCursor("Right on the closed vault", treeRootPath)
+
+	f.press(key.NameRightArrow)
+	f.readsCursor("Right on the open vault", "guide")
 
 	f.press(key.NameRightArrow)
 	f.readsFold("Right on a collapsed folder", "guide", true)
@@ -192,7 +221,7 @@ func TestLeftWalksToTheParentBeforeClosingIt(t *testing.T) {
 func TestTheOutlineKeysNeverOpenANote(t *testing.T) {
 	f := newTreeFoldFrame(t)
 	f.focus()
-	for range 3 {
+	for range 4 {
 		f.press(key.NameDownArrow)
 	}
 	for _, name := range []key.Name{key.NameLeftArrow, key.NameRightArrow, key.NameLeftArrow} {
@@ -204,5 +233,52 @@ func TestTheOutlineKeysNeverOpenANote(t *testing.T) {
 	}
 	if f.model.Current != "" {
 		t.Errorf("the outline keys left the vault on note %q; they open none", f.model.Current)
+	}
+}
+
+// clickRow presses the middle of the run's row at i and answers what the
+// rail posted for it. The press is reported on the frame after the one that
+// drew the row, which is the frame this draws second.
+func (f *treeFoldFrame) clickRow(i int) []mvu.Message {
+	f.t.Helper()
+	// Cleared before the frame that draws, as press does before the frame
+	// that reports: the frame reduces what stands in posted, and a message
+	// left there from the last press would be reduced a second time.
+	f.posted = nil
+	f.frame()
+	h := unit.Metric{PxPerDp: 1, PxPerSp: 1}.Dp(sidebar.RowHeight)
+	at := f32.Pt(float32(treeWidthDp)/2, float32(f.v.geom.rows.Min.Y+i*h+h/2))
+	f.posted = nil
+	f.router.Queue(
+		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: at},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: at},
+	)
+	f.frame()
+	return f.posted
+}
+
+// TestAClickOnTheVaultRowClosesItLikeAFolder reads the vault's row under the
+// pointer: it is a folder row like any other, so a click on it toggles its
+// fold rather than opening anything, and the run it leaves is the vault
+// alone.
+func TestAClickOnTheVaultRowClosesItLikeAFolder(t *testing.T) {
+	f := newTreeFoldFrame(t)
+	if rows := f.rows(); len(rows) < 2 || rows[0].Path != treeRootPath || !rows[0].Open {
+		t.Fatalf("the run opens as %v; the vault's row stands first and open", rowSigs(f.rows()))
+	}
+
+	posted := f.clickRow(0)
+	if len(posted) != 1 || posted[0] != (ToggleFold{Dir: treeRootPath}) {
+		t.Fatalf("a click on the vault's row posted %v, want the fold toggled", posted)
+	}
+	if rows := f.rows(); len(rows) != 1 || rows[0].Open {
+		t.Errorf("after the click the run is %v; the closed vault holds everything under it", rowSigs(f.rows()))
+	}
+
+	if posted := f.clickRow(0); len(posted) != 1 || posted[0] != (ToggleFold{Dir: treeRootPath}) {
+		t.Fatalf("a second click posted %v, want the fold toggled back", posted)
+	}
+	if rows := f.rows(); len(rows) < 2 || !rows[0].Open {
+		t.Errorf("after the second click the run is %v; the vault opens again", rowSigs(f.rows()))
 	}
 }

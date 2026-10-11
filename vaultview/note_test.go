@@ -16,7 +16,6 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
-	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
@@ -40,7 +39,6 @@ type notePad struct {
 	size image.Point
 
 	propClick widget.Clickable
-	trail     breadcrumb.TrailLayout
 
 	// rival is a second focusable target standing for the find field and the
 	// folder rail: anything else in the window that can hold the keyboard.
@@ -69,8 +67,6 @@ func newNotePad(t *testing.T, m Model) *notePad {
 			shaper: tokens.DefaultTypography.DeterministicShaper(),
 		},
 	}
-	p.trail = breadcrumb.NewTrail(p.tok.shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
-		p.tok.col, p.tok.sp, p.tok.typ.TitleSmall)
 	note := m.CurrentNote()
 	if note == nil {
 		t.Fatal("the fixture model has no current note")
@@ -87,7 +83,7 @@ func (p *notePad) frame() {
 		Ops:         &p.ops,
 		Source:      p.r.Source(),
 	}
-	layoutNotePage(gtx, p.m, p.tok, &p.propClick, p.trail, &p.read,
+	layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.read,
 		&p.arr, &p.cur, func(Model, *Note) *markdown.Document { return p.doc }, &p.find)
 	// The rival is registered over nothing, in the corner: it exists to hold
 	// the keyboard, not to be seen.
@@ -128,7 +124,7 @@ func (p *notePad) clickInDocument() {
 func (p *notePad) shot(t *testing.T) *image.RGBA {
 	t.Helper()
 	return golden.Capture(t, p.size, func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, p.m, p.tok, &p.propClick, p.trail, &p.read,
+		return layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.read,
 			&p.arr, &p.cur, func(Model, *Note) *markdown.Document { return p.doc }, &p.find)
 	})
 }
@@ -149,12 +145,12 @@ func (p *notePad) blankFoot(img *image.RGBA) int {
 	return p.size.Y
 }
 
-// blankHead returns how many rows of bare page stand between the row above
-// the document — the breadcrumb row, in the models these tests use — and the
-// document's first painted row. It reads the image the way the reader does:
-// the first band of paint from the top is that row, and what follows it is the
-// page the document's viewport begins on. The trailing gutter is left out of
-// the scan for the reason blankFoot leaves it out.
+// blankHead returns how many rows of bare page stand between the edge the
+// document's viewport begins on and its first painted row. That edge is the
+// pinned seam where the page has a pinned head — the properties pane — and
+// the page's own top inset where it has none, which is every note without
+// frontmatter now the trail stands in the band. The trailing gutter is left
+// out of the scan for the reason blankFoot leaves it out.
 func (p *notePad) blankHead(img *image.RGBA) int {
 	background := p.tok.col.TextBackground
 	drawn := func(y int) bool {
@@ -165,12 +161,10 @@ func (p *notePad) blankHead(img *image.RGBA) int {
 		}
 		return false
 	}
-	// The row's own edge is the pinned seam under it, which is the last
-	// thing the column pins and the line the document's viewport begins on.
-	y := 0
-	for seam := pinnedSeamRows(img, p.tok.col, 0, p.size.X, 0, p.size.Y); y < p.size.Y; y++ {
-		if seam[y] {
-			y++
+	y := noteInsetDp
+	for seam, at := pinnedSeamRows(img, p.tok.col, 0, p.size.X, 0, p.size.Y), 0; at < p.size.Y; at++ {
+		if seam[at] {
+			y = at + 1
 			break
 		}
 	}
@@ -349,6 +343,11 @@ func TestOnlyTheNotesEndSpendsTheFootMargin(t *testing.T) {
 	p := newNotePad(t, longNoteModel(-1))
 	p.frame()
 
+	// One line box of slack, for the reason noteHeadSlack gives at the other
+	// end: where the window's edge cuts inside a line, the rows below that
+	// line's glyphs are its descent and its leading. More than a whole line
+	// of bare page is a line that would have fitted and was held back.
+	slack := int(p.tok.typ.BodyLarge.LineHeight)
 	full := false
 	for page := 1; page <= 4 && !p.atEnd(); page++ {
 		p.press(key.NamePageDown, 0)
@@ -356,14 +355,14 @@ func TestOnlyTheNotesEndSpendsTheFootMargin(t *testing.T) {
 			break
 		}
 		switch got := p.blankFoot(p.shot(t)); {
-		case got == 0:
+		case got <= slack:
 			full = true
 		case got >= noteEndSpaceDp:
 			t.Fatalf("page %d down the note left %d px of bare page at the foot; the margin belongs to the note's end, not to every screen", page, got)
 		}
 	}
 	if !full {
-		t.Error("no screen part way down the note reached the window's bottom edge; the column is not using its full height")
+		t.Error("no screen part way down the note came within a line of the window's bottom edge; the column is not using its full height")
 	}
 }
 

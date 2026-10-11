@@ -36,20 +36,23 @@ unset. Deleting that file is how you forget a vault.
 
 The window is a sidebar down the leading edge and two columns beside it.
 
-- **Left — the tree.** Every note in the vault, folders disclosing on
-  click, the note you are reading marked. Above it, a find field:
+- **Left — the tree.** The vault at the head of the outline and every note
+  in it nested under it, folders disclosing on click, the note you are
+  reading marked. Above it, a find field:
   type and the hierarchy gives way to the notes whose name matches,
   each with its folder as a less pronounced annotation. The sidebar is a
   rounded pane set just inside the window's edge — the window's own buttons
   show through its top strip, where the platform puts them and where they
   stay — and its toggle sits at its top-right corner, on their line. Put
   the pane away and the toggle that brings it back appears at the leading
-  end of the toolbar band, on that same line, beside the vault's name which
-  is on it too; the buttons do not budge. The band's trailing end carries
+  end of the toolbar band, on that same line, beside the trail which is on
+  it too; the buttons do not budge. The band's trailing end carries
   what acts on what the window is showing: rescan the vault, open another
   one, and find in the note on screen.
 - **Middle — the note.** Back and forward, then the trail — vault name,
-  folders, note title. The frontmatter is lifted out of the prose into a
+  folders, note title — standing in the band's centre where the platform
+  shows a document's place, the earlier places opening their folder in the
+  outline. The frontmatter is lifted out of the prose into a
   collapsible **Properties** pane; what a plain line-split can read
   shows as key and value, anything it cannot is shown raw. Then the note
   itself: headings, lists, tables, quotes, and code blocks with syntax

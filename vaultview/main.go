@@ -413,6 +413,80 @@ func trailSegments(places []place, click func(path string) func(gtx layout.Conte
 	return segs
 }
 
+// bandTrailSegments is the row of places the band draws for this model, cut
+// to the room the band has for it: every place while the whole trail fits,
+// and the middle places elided behind one ellipsis when it does not.
+//
+// The elision is the application's and not the component's: the trail draws
+// every segment it is handed, in one row, and a row deeper than its
+// constraint is clipped rather than collapsed (components/breadcrumb). What
+// the platform's path bar does instead is drop the places in the middle and
+// keep the first and the last, so that is done here, where the room the band
+// has is known.
+func bandTrailSegments(gtx layout.Context, tok themeTokens, m Model, room int,
+	click func(path string) func(gtx layout.Context)) []breadcrumb.Segment {
+	return elideTrail(trailSegments(notePlaces(m), click), room, trailMeasure(gtx, tok))
+}
+
+// elideTrail answers the deepest row of these places that fits in room: the
+// whole trail where it fits, and otherwise the first place, an ellipsis
+// standing for what was dropped, and as many of the last places as the room
+// takes. The places nearest the first go first, which is what the platform's
+// path bar drops first and what leaves the reader the two that say most —
+// where the trail starts and where they are.
+//
+// The ellipsis answers nothing. It stands for several places at once and
+// there is no one place for a press on it to go to.
+//
+// A row that cannot be elided any further is handed back at its full width
+// and cut off by the room it is drawn in: two places are the fewest a trail
+// can say anything with.
+func elideTrail(segs []breadcrumb.Segment, room int, width func([]breadcrumb.Segment) int) []breadcrumb.Segment {
+	if len(segs) < 3 || width(segs) <= room {
+		return segs
+	}
+	var elided []breadcrumb.Segment
+	for drop := 1; drop <= len(segs)-2; drop++ {
+		elided = append([]breadcrumb.Segment{segs[0], {Key: trailElidedKey, Title: trailEllipsis}},
+			segs[1+drop:]...)
+		if width(elided) <= room {
+			return elided
+		}
+	}
+	return elided
+}
+
+// trailMeasure answers how wide a row of segments lays out, by laying it out
+// into ops that are thrown away. The row it measures with is its own and
+// inert — the segments go in with no press to answer, so nothing is drawn
+// into the frame and no event is taken from it — and it is built once per
+// call, since eliding measures the same row several times over.
+func trailMeasure(gtx layout.Context, tok themeTokens) func([]breadcrumb.Segment) int {
+	row := breadcrumb.NewTrail(tok.shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
+		tok.col, tok.sp, tok.typ.TitleSmall)
+	mgtx := gtx
+	mgtx.Ops = new(op.Ops)
+	// Loose constraints, so the answer is the row's own width and not the
+	// window's.
+	mgtx.Constraints = layout.Constraints{Max: image.Pt(1<<20, 1<<20)}
+	return func(segs []breadcrumb.Segment) int {
+		inert := make([]breadcrumb.Segment, len(segs))
+		for i, seg := range segs {
+			seg.OnClick = nil
+			inert[i] = seg
+		}
+		return row(mgtx, inert).Size.X
+	}
+}
+
+// trailEllipsis is what the row draws for the places it dropped, and
+// trailElidedKey the identity it draws them under: no place's own path,
+// since the segment stands for several and goes to none.
+const (
+	trailEllipsis  = "…"
+	trailElidedKey = "\x00elided"
+)
+
 // trailChevronDp is the square the trail's separator is drawn in.
 //
 // The separator is punctuation, not a control: it stands between the titles
@@ -424,9 +498,10 @@ func trailSegments(places []place, click func(path string) func(gtx layout.Conte
 // which is the order the row reads in. A mark's size here would put a solid
 // stroke a fifth over those caps.
 //
-// Eight is also the gap the row leaves either side of it, so the separator
-// and its air are one square wide apiece, and it lands on whole device
-// pixels at every scale this window is read at.
+// Eight lands on whole device pixels at every scale this window is read at.
+// The air either side of the mark is the component's own and not this
+// number's: the row leaves the drawn figure the platform's eight whatever
+// square it is given.
 const trailChevronDp = 8
 
 // Mark sizes. The set the marks come from was drawn and weight-matched

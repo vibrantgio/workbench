@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"reflect"
 	"testing"
 
 	"gioui.org/f32"
@@ -13,6 +14,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/breadcrumb"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -163,4 +165,173 @@ func TestTrailClickFollowsItsPlaceAcrossAReshuffle(t *testing.T) {
 	if clicked != "guide/notes" {
 		t.Errorf("the click on %q opened %q, want %q", before[1].title, clicked, before[1].path)
 	}
+}
+
+// bandFrame lays the window's chrome row out against a real input.Router and
+// records what the row posts, so a press on a place in the band's trail is
+// read back as the message the running window would reduce. The row is the
+// window's own — layoutToolbar, at the width the band has beside a standing
+// rail — so what answers the press is the composition and not a row built to
+// be pressed.
+type bandTrailFrame struct {
+	t      *testing.T
+	f      *frameState
+	r      input.Router
+	ops    op.Ops
+	m      Model
+	tok    themeTokens
+	rowW   int
+	posted []mvu.Message
+}
+
+func newBandTrailFrame(t *testing.T, m Model, rowW int) *bandTrailFrame {
+	t.Helper()
+	b := &bandTrailFrame{t: t, f: newFrameState(defaultWidths()), m: m, tok: goldenTokens(), rowW: rowW}
+	b.f.leading = func() unit.Dp { return goldenLeading }
+	b.f.post = func(_ layout.Context, msg mvu.Message) { b.posted = append(b.posted, msg) }
+	return b
+}
+
+func (b *bandTrailFrame) frame() {
+	b.ops.Reset()
+	gtx := layout.Context{
+		Constraints: layout.Exact(image.Pt(b.rowW, int(toolbarHeight()))),
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Ops:         &b.ops,
+		Source:      b.r.Source(),
+	}
+	b.f.layoutToolbar(gtx, b.m, b.tok, 0)
+	b.r.Frame(&b.ops)
+}
+
+// bandTrailLeading is where the band's trail begins: the row's own edge
+// inset, the window's navigation pair and the measured gap after it.
+const bandTrailLeading = noteInsetDp + 2*railToggleWidthDp + 1 + bandNameGapDp
+
+// pressPlace presses the middle of the trail's i-th place and answers what
+// the row posted for it. The press is reported on the frame after the one
+// that drew the place, which is the frame this draws second.
+func (b *bandTrailFrame) pressPlace(i int, places []place) []mvu.Message {
+	b.t.Helper()
+	b.frame()
+	at := f32.Pt(float32(bandTrailLeading+centreOf(b.tok.shaper, i, places)), float32(toolbarHeight())/2)
+	b.posted = nil
+	b.r.Queue(
+		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: at},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: at},
+	)
+	b.frame()
+	return b.posted
+}
+
+// bandTrailModel is the golden window's model with a note two folders deep,
+// so the band's trail carries a vault, two folders and the note itself.
+func bandTrailModel() Model {
+	m := goldenModel()
+	m = cacheNote(m, noteFromSource("Design/notes/Colour.md", "# Colour\n\nprose\n"))
+	m.Current = "Design/notes/Colour.md"
+	return m
+}
+
+// TestTheBandsTrailRevealsThePlacePressed drives the chrome row's trail: the
+// vault at its head returns the outline to its root, each folder after it
+// opens the way down to itself, and the note at the end answers nothing,
+// being where the reader already is.
+func TestTheBandsTrailRevealsThePlacePressed(t *testing.T) {
+	m := bandTrailModel()
+	places := notePlaces(m)
+	if len(places) != 4 {
+		t.Fatalf("the trail carries %d places: %+v; this model is meant to be two folders deep", len(places), places)
+	}
+	for i, c := range []struct {
+		what string
+		want mvu.Message
+	}{
+		{"the vault", RootTree{}},
+		{"the first folder", RevealFolder{Dir: "Design"}},
+		{"the second folder", RevealFolder{Dir: "Design/notes"}},
+		{"the note itself", nil},
+	} {
+		t.Run(c.what, func(t *testing.T) {
+			b := newBandTrailFrame(t, m, windowW)
+			posted := b.pressPlace(i, places)
+			if c.want == nil {
+				if len(posted) != 0 {
+					t.Errorf("a press on %s posted %v; it is where the reader already is", c.what, posted)
+				}
+				return
+			}
+			if len(posted) != 1 || posted[0] != c.want {
+				t.Errorf("a press on %s posted %v, want %v", c.what, posted, c.want)
+			}
+		})
+	}
+}
+
+// TestTheBandsTrailElidesTheMiddleWhenNarrow holds the path bar's rule at a
+// band too narrow for the whole trail: the first place and the last stand,
+// the places between them are dropped behind one ellipsis, and the row fits
+// the room the band has for it. The ellipsis answers nothing — it stands for
+// several places and there is no one place to go to.
+func TestTheBandsTrailElidesTheMiddleWhenNarrow(t *testing.T) {
+	m := bandTrailModel()
+	places := notePlaces(m)
+	tok := goldenTokens()
+	f := newFrameState(defaultWidths())
+
+	var ops op.Ops
+	gtx := layout.Context{
+		Constraints: layout.Exact(image.Pt(windowW, int(toolbarHeight()))),
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Ops:         &ops,
+	}
+	// The whole trail stands while the band has room for it.
+	wide := bandTrailSegments(gtx, tok, m, 1<<14, f.revealPlace)
+	if len(wide) != len(places) {
+		t.Fatalf("a band with room to spare drew %d of %d places: %v", len(wide), len(places), titlesOf(wide))
+	}
+
+	// Then a band one pixel too narrow for the whole trail, read off the
+	// row itself: the room the window's own arithmetic leaves the trail
+	// there is what the trail is cut to.
+	measure := trailMeasure(gtx, tok)
+	loose := gtx
+	loose.Constraints = layout.Constraints{Max: image.Pt(1<<14, int(toolbarHeight()))}
+	// What the band owes the controls standing after the trail, read as the
+	// row reads it rather than restated here.
+	after := 1<<14 - f.bandTrailRoom(loose, m)
+	rowW := bandTrailLeading + after + measure(wide) - 1
+
+	child := gtx
+	child.Constraints = layout.Constraints{Max: image.Pt(rowW-bandTrailLeading, int(toolbarHeight()))}
+	room := f.bandTrailRoom(child, m)
+	got := bandTrailSegments(child, tok, m, room, f.revealPlace)
+	if reflect.DeepEqual(titlesOf(got), titlesOf(wide)) {
+		t.Fatalf("a band %d px wide, a pixel short of the whole trail, still drew every place: %v",
+			rowW, titlesOf(got))
+	}
+	// One place was dropped and one ellipsis stands for it, the first place
+	// and the last still standing.
+	want := []string{places[0].title, trailEllipsis, places[2].title, places[3].title}
+	if !reflect.DeepEqual(titlesOf(got), want) {
+		t.Fatalf("at a band %d px wide the trail drew %v, want %v", rowW, titlesOf(got), want)
+	}
+	if w := measure(got); w > room {
+		t.Errorf("the elided trail lays out %d px wide in %d px of band", w, room)
+	}
+	if got[1].OnClick != nil {
+		t.Error("the ellipsis answers a press; it stands for several places and goes to none")
+	}
+	if got[0].OnClick == nil || got[len(got)-1].OnClick != nil {
+		t.Error("the elided trail did not keep its first place answering and its last plain")
+	}
+}
+
+// titlesOf reads the titles a row of segments draws, in order.
+func titlesOf(segs []breadcrumb.Segment) []string {
+	out := make([]string, len(segs))
+	for i, s := range segs {
+		out[i] = s.Title
+	}
+	return out
 }

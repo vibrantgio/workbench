@@ -337,8 +337,8 @@ func TestSwitchVaultReRootsAndFollowsTheStore(t *testing.T) {
 	if model.Current != "sub/n.md" {
 		t.Fatalf("landed on %q, want the new vault's first note", model.Current)
 	}
-	got := rowSigs(TreeRows(model.Index, model.Folds))
-	want := []string{"0 dir-open sub", "1 note sub/n.md"}
+	got := rowSigs(TreeRows(model.Index, model.Folds, vaultName(model)))
+	want := []string{"0 dir-open new", "1 dir-open sub", "2 note sub/n.md"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("tree rows = %v, want %v — the tree did not re-root on the new vault", got, want)
 	}
@@ -578,9 +578,9 @@ func TestSetFilterCarriesTheQuery(t *testing.T) {
 }
 
 // TestNotePlacesTrail: the trail carries where the note stands — the vault at
-// its head, then one place per folder, each addressed by its own path. The
-// note itself is not a place: its name is what the window is showing, so it
-// stands bare in the toolbar band as Finder's title does.
+// its head, then one place per folder, then the note itself, each addressed
+// by its own path. The note is last because the trail stands in the band,
+// where the platform shows the document's place.
 func TestNotePlacesTrail(t *testing.T) {
 	model := Model{Screen: screenVault, Vault: "/home/rene/Second Brain", CurAnchor: -1}
 	model = cacheNote(model, &Note{Path: "a/b/note.md", Title: "note"})
@@ -591,6 +591,7 @@ func TestNotePlacesTrail(t *testing.T) {
 		{title: "Second Brain"},
 		{title: "a", path: "a"},
 		{title: "b", path: "a/b"},
+		{title: "note", path: "a/b/note.md"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("notePlaces = %+v, want %+v", got, want)
@@ -642,21 +643,21 @@ func TestToggleSidebar(t *testing.T) {
 }
 
 // TestRevealAndRootTree: the two disclosure messages move the tree — a
-// folder crumb opens the whole way down to its folder, the chrome row's
-// vault name closes everything.
+// place in the trail opens the whole way down to its folder, the trail's
+// vault closes everything under it.
 func TestRevealAndRootTree(t *testing.T) {
 	model := Model{Screen: screenVault, Index: treeIndex("a/b/note.md", "top.md")}
 
 	model, _ = Update(model, RevealFolder{Dir: "a/b"})
-	got := rowSigs(TreeRows(model.Index, model.Folds))
-	want := []string{"0 dir-open a", "1 dir-open a/b", "2 note a/b/note.md", "0 note top.md"}
+	got := rowSigs(TreeRows(model.Index, model.Folds, vaultName(model)))
+	want := []string{"0 dir-open ", "1 dir-open a", "2 dir-open a/b", "3 note a/b/note.md", "1 note top.md"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("after RevealFolder: %v, want %v", got, want)
 	}
 
 	model, _ = Update(model, RootTree{})
-	got = rowSigs(TreeRows(model.Index, model.Folds))
-	want = []string{"0 dir-closed a", "0 note top.md"}
+	got = rowSigs(TreeRows(model.Index, model.Folds, vaultName(model)))
+	want = []string{"0 dir-open ", "1 dir-closed a", "1 note top.md"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("after RootTree: %v, want %v", got, want)
 	}

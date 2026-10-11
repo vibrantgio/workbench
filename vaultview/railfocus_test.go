@@ -213,6 +213,11 @@ func (f *railFocusFrame) click(at f32.Point) {
 	f.frame()
 }
 
+// railFocusFirstNote is where the first of the model's notes stands in the
+// run: the vault heads the outline, so its own row is the run's first and
+// every note in this model is nested one level under it.
+const railFocusFirstNote = 1
+
 // clickRailRow presses the middle of the rail row at i. The rows run from the
 // band the last layout arranged, one row height apart.
 func (f *railFocusFrame) clickRailRow(i int) {
@@ -298,9 +303,9 @@ func TestARailClickLeavesTheKeyboardInTheRail(t *testing.T) {
 	f := newRailFocusFrame(t)
 	f.frame() // registers the tags and measures the rows
 
-	f.clickRailRow(0)
+	f.clickRailRow(railFocusFirstNote)
 	if f.model.Current != railFocusPaths[0] {
-		t.Fatalf("the click opened %q, want %q: it did not land on the first row",
+		t.Fatalf("the click opened %q, want %q: it did not land on the first note's row",
 			f.model.Current, railFocusPaths[0])
 	}
 	f.frame() // the frame the opened note's document arrives on
@@ -313,14 +318,14 @@ func TestARailClickLeavesTheKeyboardInTheRail(t *testing.T) {
 	}
 
 	f.press(key.NameDownArrow)
-	if got := f.v.list.Selected(); got != 1 {
-		t.Fatalf("Down left the rail's selection on row %d, want the second row: the arrows no longer move it", got)
+	if got, want := f.v.list.Selected(), railFocusFirstNote+1; got != want {
+		t.Fatalf("Down left the rail's selection on row %d, want row %d: the arrows no longer move it", got, want)
 	}
 	if !f.onRail {
 		t.Fatal("the rail does not hold the keyboard after Down")
 	}
-	if got := f.emphasizedPillRow(t); got != 1 {
-		t.Errorf("the emphasized pill stands on row %d, want the row Down landed on", got)
+	if got, want := f.emphasizedPillRow(t), railFocusFirstNote+1; got != want {
+		t.Errorf("the emphasized pill stands on row %d, want the row Down landed on, %d", got, want)
 	}
 }
 

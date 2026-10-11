@@ -65,18 +65,31 @@ func railPillFrames(t *testing.T, colors tokens.PlatformColors, bg color.NRGBA) 
 }
 
 // railRowMidY finds the middle row of the filled pill in a rendered rail:
-// the rows the grey pill covers, halved.
+// the longest unbroken run of the grey pill's own fill down the rail's
+// middle, halved.
+//
+// The run has to be the longest and not the first: a row's text is drawn
+// over the rail's own chrome, and in the dark appearance a step of that
+// anti-aliasing lands on the pill's fill exactly, so a scan that took the
+// first match would read a row of letters as the pill.
 func railRowMidY(img *image.RGBA, colors tokens.PlatformColors) int {
 	want := sidebar.SelectionFill(colors, true)
-	lo, hi := -1, -1
 	x := treeWidthDp / 2
-	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
-		c := img.RGBAAt(x, y)
-		if c.R == want.R && c.G == want.G && c.B == want.B {
-			if lo < 0 {
-				lo = y
+	lo, hi, runFrom := -1, -1, -1
+	for y := img.Bounds().Min.Y; y <= img.Bounds().Max.Y; y++ {
+		on := false
+		if y < img.Bounds().Max.Y {
+			c := img.RGBAAt(x, y)
+			on = c.R == want.R && c.G == want.G && c.B == want.B
+		}
+		switch {
+		case on && runFrom < 0:
+			runFrom = y
+		case !on && runFrom >= 0:
+			if y-runFrom > hi-lo {
+				lo, hi = runFrom, y-1
 			}
-			hi = y
+			runFrom = -1
 		}
 	}
 	if lo < 0 {

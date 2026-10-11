@@ -24,7 +24,8 @@ func treeIndex(paths ...string) *Index {
 	return idx
 }
 
-// rowSig renders one row compactly for comparison: depth, kind, path.
+// rowSig renders one row compactly for comparison: depth, kind, path — and
+// the vault's own row by the name it draws, its path being the empty one.
 func rowSig(r TreeRow) string {
 	kind := "note"
 	if r.IsDir {
@@ -33,8 +34,19 @@ func rowSig(r TreeRow) string {
 			kind = "dir-open"
 		}
 	}
-	return fmt.Sprintf("%d %s %s", r.Depth, kind, r.Path)
+	id := r.Path
+	if id == "" {
+		id = r.Name
+	}
+	return fmt.Sprintf("%d %s %s", r.Depth, kind, id)
 }
+
+// treeVaultName is the folder name of the vault treeIndex builds an index
+// for, which is the row standing at the head of every folder run.
+const treeVaultName = "v"
+
+// vaultRowSig is that row's signature: the vault, open, at the top.
+const vaultRowSig = "0 dir-open " + treeVaultName
 
 func rowSigs(rows []TreeRow) []string {
 	out := make([]string, len(rows))
@@ -45,8 +57,9 @@ func rowSigs(rows []TreeRow) []string {
 }
 
 // TestTreeRows table-tests the flattening: visible rows from index plus
-// fold state — depth per level, folders and notes in one run in name
-// order, hidden dot-directories, a closed fold hiding its whole subtree.
+// fold state — the vault at the head of the run, depth per level under it,
+// folders and notes in one run in name order, hidden dot-directories, a
+// closed fold hiding its whole subtree.
 func TestTreeRows(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -63,26 +76,29 @@ func TestTreeRows(t *testing.T) {
 			name: "root notes sort by title, case-insensitively",
 			idx:  treeIndex("b.md", "A.md", "c.md"),
 			want: []string{
-				"0 note A.md",
-				"0 note b.md",
-				"0 note c.md",
+				vaultRowSig,
+				"1 note A.md",
+				"1 note b.md",
+				"1 note c.md",
 			},
 		},
 		{
 			name: "folders and notes stand in one name-ordered run",
 			idx:  treeIndex("beta.md", "Alpha/y.md", "zeta/x.md"),
 			want: []string{
-				"0 dir-closed Alpha",
-				"0 note beta.md",
-				"0 dir-closed zeta",
+				vaultRowSig,
+				"1 dir-closed Alpha",
+				"1 note beta.md",
+				"1 dir-closed zeta",
 			},
 		},
 		{
 			name: "closed folds hide every descendant",
 			idx:  treeIndex("guide/deep/x.md", "guide/top.md", "readme.md"),
 			want: []string{
-				"0 dir-closed guide",
-				"0 note readme.md",
+				vaultRowSig,
+				"1 dir-closed guide",
+				"1 note readme.md",
 			},
 		},
 		{
@@ -90,10 +106,11 @@ func TestTreeRows(t *testing.T) {
 			idx:   treeIndex("guide/deep/x.md", "guide/top.md", "readme.md"),
 			folds: map[string]bool{"guide": true},
 			want: []string{
-				"0 dir-open guide",
-				"1 dir-closed guide/deep",
-				"1 note guide/top.md",
-				"0 note readme.md",
+				vaultRowSig,
+				"1 dir-open guide",
+				"2 dir-closed guide/deep",
+				"2 note guide/top.md",
+				"1 note readme.md",
 			},
 		},
 		{
@@ -101,11 +118,12 @@ func TestTreeRows(t *testing.T) {
 			idx:   treeIndex("guide/deep/x.md", "guide/top.md", "readme.md"),
 			folds: map[string]bool{"guide": true, "guide/deep": true},
 			want: []string{
-				"0 dir-open guide",
-				"1 dir-open guide/deep",
-				"2 note guide/deep/x.md",
-				"1 note guide/top.md",
-				"0 note readme.md",
+				vaultRowSig,
+				"1 dir-open guide",
+				"2 dir-open guide/deep",
+				"3 note guide/deep/x.md",
+				"2 note guide/top.md",
+				"1 note readme.md",
 			},
 		},
 		{
@@ -113,8 +131,9 @@ func TestTreeRows(t *testing.T) {
 			idx:   treeIndex("guide/deep/x.md", "readme.md"),
 			folds: map[string]bool{"guide": false, "guide/deep": true},
 			want: []string{
-				"0 dir-closed guide",
-				"0 note readme.md",
+				vaultRowSig,
+				"1 dir-closed guide",
+				"1 note readme.md",
 			},
 		},
 		{
@@ -124,14 +143,15 @@ func TestTreeRows(t *testing.T) {
 				"guide": true, ".obsidian": true, "guide/.trash": true,
 			},
 			want: []string{
-				"0 dir-open guide",
-				"1 note guide/kept.md",
+				vaultRowSig,
+				"1 dir-open guide",
+				"2 note guide/kept.md",
 			},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := rowSigs(TreeRows(tc.idx, tc.folds))
+			got := rowSigs(TreeRows(tc.idx, tc.folds, treeVaultName))
 			if strings.Join(got, "\n") != strings.Join(tc.want, "\n") {
 				t.Errorf("rows:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(tc.want, "\n"))
 			}
@@ -157,7 +177,7 @@ func treeModel() Model {
 // visibleNoteRow returns the tree row for a note path, or nil when the
 // flattening does not show it.
 func visibleNoteRow(m Model, p string) *TreeRow {
-	for _, r := range TreeRows(m.Index, m.Folds) {
+	for _, r := range TreeRows(m.Index, m.Folds, vaultName(m)) {
 		if !r.IsDir && r.Path == p {
 			r := r
 			return &r
@@ -428,14 +448,15 @@ func TestTreeIsOneRunInNameOrder(t *testing.T) {
 		"Design/notes/deep.md",
 		"Mixed.md",
 	)
-	got := rowSigs(TreeRows(idx, map[string]bool{"Design": true}))
+	got := rowSigs(TreeRows(idx, map[string]bool{"Design": true}, treeVaultName))
 	want := []string{
-		"0 note alpha.md",
-		"0 dir-open Design",
-		"1 note Design/Aims.md",
-		"1 dir-closed Design/notes",
-		"0 note Mixed.md",
-		"0 note zebra.md",
+		vaultRowSig,
+		"1 note alpha.md",
+		"1 dir-open Design",
+		"2 note Design/Aims.md",
+		"2 dir-closed Design/notes",
+		"1 note Mixed.md",
+		"1 note zebra.md",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("rows:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -443,9 +464,9 @@ func TestTreeIsOneRunInNameOrder(t *testing.T) {
 
 	// A folder and a note of one name leave the folder first, so the order
 	// is total and a frame cannot draw the pair two ways.
-	twice := rowSigs(TreeRows(treeIndex("Ideas/a.md", "Ideas.md"), nil))
-	if len(twice) != 2 || twice[0] != "0 dir-closed Ideas" || twice[1] != "0 note Ideas.md" {
-		t.Errorf("a folder and a note named Ideas stand %v, want the folder first", twice)
+	twice := rowSigs(TreeRows(treeIndex("Ideas/a.md", "Ideas.md"), nil, treeVaultName))
+	if len(twice) != 3 || twice[1] != "1 dir-closed Ideas" || twice[2] != "1 note Ideas.md" {
+		t.Errorf("a folder and a note named Ideas stand %v under the vault, want the folder first", twice)
 	}
 }
 
@@ -466,7 +487,7 @@ func TestTreeIndentIsOnePerDepth(t *testing.T) {
 
 	m := treeModel()
 	m.Folds = map[string]bool{"guide": true, "guide/deep": true}
-	if rows := TreeRows(m.Index, m.Folds); len(rows) < 3 {
+	if rows := TreeRows(m.Index, m.Folds, vaultName(m)); len(rows) < 3 {
 		t.Fatalf("the folder tree draws %d rows, too few to read a depth off", len(rows))
 	}
 	for _, r := range MatchRows(m.Index, "n") {
@@ -488,15 +509,16 @@ func TestTreeSortsNamesAsTheFileBrowserDoes(t *testing.T) {
 		"Note 3.md", "NOTE 4.md",
 		"Ideas/a.md", "Ideas.md",
 	)
-	got := rowSigs(TreeRows(idx, nil))
+	got := rowSigs(TreeRows(idx, nil, treeVaultName))
 	want := []string{
-		"0 dir-closed Ideas",
-		"0 note Ideas.md",
-		"0 note note 1.md",
-		"0 note note 2.md",
-		"0 note Note 3.md",
-		"0 note NOTE 4.md",
-		"0 note note 10.md",
+		vaultRowSig,
+		"1 dir-closed Ideas",
+		"1 note Ideas.md",
+		"1 note note 1.md",
+		"1 note note 2.md",
+		"1 note Note 3.md",
+		"1 note NOTE 4.md",
+		"1 note note 10.md",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("rows:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))

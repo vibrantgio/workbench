@@ -90,8 +90,11 @@ type Model struct {
 	Cursor  int
 
 	// Folds is the left tree's disclosure state: vault-relative folder
-	// path → open. A missing entry means closed. The map is replaced,
-	// never mutated, when a fold toggles, so no model aliases another.
+	// path → open. A missing entry means closed, and the vault's own row
+	// — the empty path, the run's first — is the one entry read the other
+	// way round, since it stands open until the reader closes it
+	// (tree.go, rootOpen). The map is replaced, never mutated, when a fold
+	// toggles, so no model aliases another.
 	Folds map[string]bool
 
 	// Filter is the note-name filter typed above the tree. While it is
@@ -565,32 +568,36 @@ func landOn(model Model, nav Navigate, note *Note) Model {
 	return revealCurrent(model)
 }
 
-// revealCurrent opens every folder on the current note's path, so the
-// tree row marking it is visible however the landing happened — link,
-// history or tree click. The fold map is replaced, not mutated, so no
-// model aliases another's disclosure state.
+// revealCurrent opens every folder on the current note's path, the vault's
+// own row included, so the tree row marking it is visible however the
+// landing happened — link, history or tree click. The fold map is
+// replaced, not mutated, so no model aliases another's disclosure state.
 func revealCurrent(model Model) Model {
 	if model.Current == "" {
 		return model
 	}
-	dir := path.Dir(model.Current)
-	if dir == "." {
-		return model
-	}
-	model.Folds = openFolds(model.Folds, dir)
+	model.Folds = openFolds(model.Folds, path.Dir(model.Current))
 	return model
 }
 
 // openFolds returns the fold map with every folder on the way to dir
-// opened, dir itself included. The map is replaced, not mutated, so no
-// model aliases another's disclosure state; "" and "." open nothing.
+// opened, dir itself included. The vault's own row is on every such way,
+// so it is opened too — a folder revealed under a closed vault is a folder
+// in no visible run. The map is replaced, not mutated, so no model aliases
+// another's disclosure state; "" and "." name the vault and open that
+// alone.
 func openFolds(prev map[string]bool, dir string) map[string]bool {
-	if dir == "" || dir == "." {
+	if rootOpen(prev) && (dir == "" || dir == ".") {
 		return prev
 	}
 	folds := make(map[string]bool, len(prev)+2)
 	for k, v := range prev {
 		folds[k] = v
+	}
+	// The vault's row is the entry read the other way round: false is open.
+	delete(folds, treeRootPath)
+	if dir == "" || dir == "." {
+		return folds
 	}
 	cum := ""
 	for _, seg := range strings.Split(dir, "/") {

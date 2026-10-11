@@ -19,7 +19,7 @@ func TestAClosedFindFieldGivesTheKeyboardBackToTheRail(t *testing.T) {
 	f := newRailFocusFrame(t)
 	f.frame() // registers the tags and measures the rows
 
-	f.clickRailRow(0)
+	f.clickRailRow(railFocusFirstNote)
 	f.frame() // the frame the opened note's document arrives on
 	f.frame() // and the frame that reads back what that one did with the keys
 	if !f.onRail {
@@ -45,8 +45,8 @@ func TestAClosedFindFieldGivesTheKeyboardBackToTheRail(t *testing.T) {
 	}
 
 	f.press(key.NameDownArrow)
-	if got := f.v.list.Selected(); got != 1 {
-		t.Errorf("Down left the rail's selection on row %d, want the second row: the arrows are dead after the field closed", got)
+	if got, want := f.v.list.Selected(), railFocusFirstNote+1; got != want {
+		t.Errorf("Down left the rail's selection on row %d, want row %d: the arrows are dead after the field closed", got, want)
 	}
 	if !f.onRail {
 		t.Error("the rail does not hold the keyboard after Down")
@@ -93,7 +93,7 @@ func TestTheBandsMagnifierGivesTheKeyboardBackToTheRail(t *testing.T) {
 	f := newRailFocusFrame(t)
 	f.frame() // registers the tags and measures the rows and the capsule
 
-	f.clickRailRow(0)
+	f.clickRailRow(railFocusFirstNote)
 	f.frame() // the frame the opened note's document arrives on
 	f.frame() // and the frame that reads back what that one did with the keys
 	if !f.onRail {
@@ -122,8 +122,8 @@ func TestTheBandsMagnifierGivesTheKeyboardBackToTheRail(t *testing.T) {
 	}
 
 	f.press(key.NameDownArrow)
-	if got := f.v.list.Selected(); got != 1 {
-		t.Errorf("Down left the rail's selection on row %d, want the second row: the arrows are dead after the field closed", got)
+	if got, want := f.v.list.Selected(), railFocusFirstNote+1; got != want {
+		t.Errorf("Down left the rail's selection on row %d, want row %d: the arrows are dead after the field closed", got, want)
 	}
 	if !f.onRail {
 		t.Error("the rail does not hold the keyboard after Down")

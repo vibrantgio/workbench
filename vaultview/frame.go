@@ -100,6 +100,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/input"
@@ -111,7 +112,6 @@ import (
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/splitter"
 	"github.com/vibrantgio/theme/tokens"
-	"github.com/vibrantgio/theme/typeset"
 )
 
 // Frame layout constants. The aside bounds follow the three-column
@@ -296,6 +296,19 @@ type frameState struct {
 	switchClick widget.Clickable
 	findClick   widget.Clickable
 
+	// post is where the band's own answers go — what a press on a place in
+	// its trail sends: the live frame's is the frame's message op, which is
+	// what a nil leaves, and a test's is a recorder, so a band laid out
+	// without a window to post to can still be read back.
+	post func(gtx layout.Context, msg mvu.Message)
+
+	// trail is the row of places the band draws in its centre: the one the
+	// theme stream built, which holds the row's clickables across frames.
+	// It is handed over per frame, as the band's find field is, because it
+	// belongs to the stream and not to this state. A frame with none — a
+	// static render, a measurement — builds its own from its own tokens.
+	trail breadcrumb.TrailLayout
+
 	// band is the find in the page as the chrome row carries it: the state
 	// the query left it in, and the search field instance that draws it.
 	// Both belong to the note column — the query is marked in the note's own
@@ -365,15 +378,17 @@ func vaultFrame(
 	find *pageFind,
 	read *reader,
 	sidebar, aside, main, search rx.Observable[layout.Widget],
+	trail rx.Observable[breadcrumb.TrailLayout],
 ) rx.Observable[layout.Widget] {
-	columns := rx.CombineLatest4(sidebar, aside, main, search)
+	columns := rx.CombineLatest5(sidebar, aside, main, search, trail)
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		st := newFrameState(widths.widths())
 		st.widths = widths
-		return rx.Map(columns, func(next rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
+		return rx.Map(columns, func(next rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, breadcrumb.TrailLayout]) layout.Widget {
 			sbW, asW, mainW, fieldW := next.First, next.Second, next.Third, next.Fourth
 			return func(gtx layout.Context) layout.Dimensions {
 				st.band = bandFind{find: find, field: fieldW, read: read}
+				st.trail = next.Fifth
 				return st.layout(gtx, loadModel(), loadTok(), sbW, asW, mainW)
 			}
 		})
@@ -935,16 +950,16 @@ func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens,
 		}),
 	)
 	// Then the document's actions, in the order the rail's foot held them,
-	// standing after the name in the same leading cluster. The gap before
+	// standing after the trail in the same leading cluster. The gap before
 	// the first of them is the room the platform leaves between a bare
-	// title and a bordered control, and with no name to stand after the
+	// title and a bordered control, and with no trail to stand after the
 	// cluster closes up and the actions follow the navigation on that same
 	// gap.
-	if noteName(m) != "" {
+	if len(notePlaces(m)) > 0 {
 		children = append(children,
 			layout.Rigid(dragSpacer(bandNameGapDp)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return f.layoutNoteName(gtx, m, tok)
+				return f.layoutBandTrail(gtx, m, tok)
 			}),
 		)
 	}
@@ -1090,30 +1105,88 @@ func navSegment(click *widget.Clickable, mark icons.Name, title string, enabled 
 	}
 }
 
-// layoutNoteName draws the name of the document the window is showing, bare
-// in the band beside the navigation, in the row's own weight.
+// layoutBandTrail draws where the note stands, bare in the band beside the
+// navigation: the vault, the folders on the note's way and the note itself,
+// parted by the set's chevron.
 //
-// Bare and in no control at all, which is how both stored windows that carry
-// a title keep it: "Applications" in finder-window-light.png and "All
-// Recordings" in voicememos-window.png stand on the band itself. It is a
-// title and not an affordance — there is nothing for a press on the window's
-// own name to do — and the place a reader climbs from is the trail under it.
-func (f *frameState) layoutNoteName(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
-	name := noteName(m)
-	if name == "" {
+// It stands where the window's title stood, which is where the platform
+// shows a document's place — "Applications" in finder-window-light.png and
+// "All Recordings" in voicememos-window.png stand bare on the band in that
+// same column, and Finder's own path bar draws the same row of places. Each
+// earlier place answers a press by revealing its folder in the outline; the
+// note itself is last and answers nothing, being where the reader already
+// is.
+//
+// The row is elided rather than cut where the band is too narrow for it:
+// see [bandTrailPlaces].
+func (f *frameState) layoutBandTrail(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
+	segs := bandTrailSegments(gtx, tok, m, f.bandTrailRoom(gtx, m), f.revealPlace)
+	if len(segs) == 0 {
 		return layout.Dimensions{}
 	}
-	// The title is drawn into an area of its own so that what a reader who
-	// cannot see it is told is the window's name and not the band around it:
-	// a semantic op with no area under it lands on whatever area is in force.
-	macro := op.Record(gtx.Ops)
-	dims := typeset.Text(gtx, tok.shaper, name, tok.typ.TitleSmall, tok.col.Text, 1)
-	call := macro.Stop()
-	area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
-	semantic.LabelOp(name).Add(gtx.Ops)
-	call.Add(gtx.Ops)
-	area.Pop()
-	return dims
+	// The row is held to the room the band has for it, so a trail that
+	// cannot be elided any further is cut off rather than walking the
+	// controls after it off the window's edge.
+	if room := f.bandTrailRoom(gtx, m); room < gtx.Constraints.Max.X {
+		gtx.Constraints.Max.X = max(room, 0)
+	}
+	return f.bandTrail(tok)(gtx, segs)
+}
+
+// revealPlace is the press a place in the band's trail answers: the outline
+// opens the whole way down to that folder, and the vault at the trail's head
+// returns the outline to its root — every fold under the vault closed and
+// the vault itself open.
+//
+// The note at the trail's end carries none of this: it is where the reader
+// already is.
+func (f *frameState) revealPlace(dir string) func(gtx layout.Context) {
+	return func(gtx layout.Context) {
+		if dir == treeRootPath {
+			f.send(gtx, RootTree{})
+			return
+		}
+		f.send(gtx, RevealFolder{Dir: dir})
+	}
+}
+
+// send hands one of the band's answers on to whatever is collecting this
+// frame's messages: the frame's own message op, which is what a nil post
+// leaves, and a recorder where a band is laid out without a window to post
+// to.
+func (f *frameState) send(gtx layout.Context, msg mvu.Message) {
+	if f.post != nil {
+		f.post(gtx, msg)
+		return
+	}
+	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
+}
+
+// bandTrail is the row the band draws its places with: the one the theme
+// stream handed over, and one of this frame's own where no stream did — a
+// static render, or a measurement of the composition. The row owns its
+// clickables and has to outlive the frame it draws, so the one built here
+// is kept.
+func (f *frameState) bandTrail(tok themeTokens) breadcrumb.TrailLayout {
+	if f.trail == nil {
+		f.trail = breadcrumb.NewTrail(tok.shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
+			tok.col, tok.sp, tok.typ.TitleSmall)
+	}
+	return f.trail
+}
+
+// bandTrailRoom is how much of the row the trail may take: what the flex has
+// left it, less what the band still owes the controls standing after it —
+// the gap, the vault's two actions with the band's own gap between them, the
+// find's slot, which keeps one width open or shut, and the trailing inset.
+// The trail is laid out before any of them, so the room they need is stated
+// here rather than read off a layout that has not happened yet.
+func (f *frameState) bandTrailRoom(gtx layout.Context, m Model) int {
+	after := unit.Dp(bandNameGapDp + railToggleWidthDp + bandGapDp + railToggleWidthDp + bandTrailingDp)
+	if m.CurrentNote() != nil {
+		after += unit.Dp(findFieldDp)
+	}
+	return gtx.Constraints.Max.X - gtx.Dp(after)
 }
 
 // noteName is the open note's title — what the window is showing — empty

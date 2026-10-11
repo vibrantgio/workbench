@@ -67,7 +67,7 @@ func TestToolbarDeclaresWindowDrag(t *testing.T) {
 	// the two actions after it, each gap the measured one. The row lays out
 	// from its own edge inset with the pane standing, and from the buttons'
 	// reported edge with the pane away, where the show toggle stands first.
-	nameW := bandNameWidth(newFrameState(defaultWidths()), goldenModel(), goldenTokens())
+	nameW := bandTrailWidth(newFrameState(defaultWidths()), goldenModel(), goldenTokens(), rowW)
 	const ctrl = railToggleWidthDp
 	nav := 2*ctrl + 1
 	for _, c := range []struct {
@@ -901,25 +901,33 @@ func (b *bandFrame) span(c *widget.Clickable) (int, int) {
 
 // bandRescanLeading is where the band's first document action stands by the
 // composition alone: the note column's own edge inset, the navigation pair,
-// the measured name gap, the document's name as it lays out, and that same
+// the measured name gap, the trail of places as it lays out, and that same
 // gap again.
 func (b *bandFrame) bandRescanLeading() int {
-	name := bandNameWidth(b.f, goldenModel(), goldenTokens())
+	trail := bandTrailWidth(b.f, goldenModel(), goldenTokens(), windowW-int(b.f.geom.contentX))
 	nav := 2*railToggleWidthDp + 1
-	return int(b.f.geom.contentX) + noteInsetDp + nav + bandNameGapDp + name + bandNameGapDp
+	return int(b.f.geom.contentX) + noteInsetDp + nav + bandNameGapDp + trail + bandNameGapDp
 }
 
-// bandNameWidth is how wide the document's name lays out in the band. It is
-// the one part of the leading cluster that is not a measurement, so the
-// columns after it are read against what the name actually takes.
-func bandNameWidth(f *frameState, m Model, tok themeTokens) int {
+// bandTrailWidth is how wide the band's trail of places lays out. It is the
+// one part of the leading cluster that is not a measurement, so the columns
+// after it are read against what the trail actually takes.
+//
+// It is measured in the window the band stands in — the row's own width,
+// with the room the controls after it need — because that room is what
+// decides whether the trail is elided.
+func bandTrailWidth(f *frameState, m Model, tok themeTokens, rowW int) int {
 	var ops op.Ops
+	// The room the row's flex hands the trail: the row less what stands
+	// before it, with Min zero, which is what a Rigid child is laid out
+	// under and what lets the trail report its own width.
+	room := rowW - noteInsetDp - (2*railToggleWidthDp + 1) - bandNameGapDp
 	gtx := layout.Context{
-		Constraints: layout.Constraints{Max: image.Pt(windowW, int(toolbarHeight()))},
+		Constraints: layout.Constraints{Max: image.Pt(room, int(toolbarHeight()))},
 		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 		Ops:         &ops,
 	}
-	return f.layoutNoteName(gtx, m, tok).Size.X
+	return f.layoutBandTrail(gtx, m, tok).Size.X
 }
 
 // TestBandActionsAnswerTheKeyboard drives the band the way a reader without

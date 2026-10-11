@@ -102,6 +102,22 @@ type TreeRow struct {
 	Open   bool   // folder rows only: the fold is open
 }
 
+// treeRootPath is the vault's own row in the rail's vault-relative
+// addressing: the empty path, which is the path every other row's path is
+// relative to and the one RootTree returns the tree to.
+const treeRootPath = ""
+
+// rootOpen answers whether the vault's row stands open.
+//
+// It is the one entry the fold map states the other way round, and it has
+// to be: a map of path to open has one default, a folder under the vault is
+// closed until something opens it, and the vault's own row is open until
+// the reader closes it. A separate field would carry the same one bit while
+// costing every place that toggles, remembers, reveals or walks the folds a
+// second case to get right — the keys, the click, the reveal and the row
+// run all address the vault by its path alone as it is.
+func rootOpen(folds map[string]bool) bool { return !folds[treeRootPath] }
+
 // treeNode is the intermediate nested shape TreeRows flattens from.
 type treeNode struct {
 	dirs  map[string]*treeNode
@@ -109,17 +125,24 @@ type treeNode struct {
 }
 
 // TreeRows flattens the scanned index and the fold state into the tree's
-// visible rows: at each level the folders and the notes in one run, in the
-// order the platform's file browser sorts names (theme/system/naming), a
-// folder sorting under its own name and a note under its title; a closed
-// folder hides its whole subtree and any path with a dot-directory segment
-// is hidden outright. A folder and a note of one name leave the folder
-// first.
+// visible rows: the vault itself as the run's first row, and under it, at
+// each level, the folders and the notes in one run, in the order the
+// platform's file browser sorts names (theme/system/naming), a folder
+// sorting under its own name and a note under its title; a closed folder
+// hides its whole subtree and any path with a dot-directory segment is
+// hidden outright. A folder and a note of one name leave the folder first.
+//
+// The vault heads the outline as the platform's file browsers head theirs,
+// and it is a folder row like any other: it carries the folder symbol, it
+// opens and closes, and everything the vault holds is nested one level
+// under it. vault is the name it draws — the vault's own folder name — and
+// its path is the empty one, which is what the rail's vault-relative
+// addressing calls the vault.
 //
 // The run is not headed. A section parts collections the application keeps
 // apart, never one collection sorted by kind (DOMAIN, Sidebar), and a
 // folder — the vault's root included — is one collection.
-func TreeRows(idx *Index, folds map[string]bool) []TreeRow {
+func TreeRows(idx *Index, folds map[string]bool, vault string) []TreeRow {
 	if idx == nil {
 		return nil
 	}
@@ -142,7 +165,7 @@ func TreeRows(idx *Index, folds map[string]bool) []TreeRow {
 		title := base[:len(base)-len(path.Ext(base))]
 		cur.notes = append(cur.notes, TreeRow{Path: f.Path, Name: title})
 	}
-	var out []TreeRow
+	out := []TreeRow{{Path: treeRootPath, Name: vault, Depth: 0, IsDir: true, Open: rootOpen(folds)}}
 	var walk func(n *treeNode, prefix string, depth int)
 	walk = func(n *treeNode, prefix string, depth int) {
 		// The folders are gathered before the notes, so the stable sort
@@ -167,7 +190,9 @@ func TreeRows(idx *Index, folds map[string]bool) []TreeRow {
 			}
 		}
 	}
-	walk(root, "", 0)
+	if rootOpen(folds) {
+		walk(root, "", 1)
+	}
 	for i := range out {
 		out[i].Idx = i
 	}
@@ -487,7 +512,7 @@ func (v *treeView) hideControl(gtx layout.Context, tok themeTokens) layout.Dimen
 
 // rows lays out the row region below the find field.
 func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
-	rows := TreeRows(m.Index, m.Folds)
+	rows := TreeRows(m.Index, m.Folds, vaultName(m))
 	// The query is empty exactly while the rail shows the folder tree, and
 	// then nothing on a row is marked: a highlight lives as long as the
 	// search that caused it and no longer.
