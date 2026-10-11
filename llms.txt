@@ -31,7 +31,7 @@ platform's own colour set, which the theme carries).
 All modules live under github.com/vibrantgio/<name>. Current tags:
 
   ```
-  mvu       v1.1.1   MVU runtime: NewWindow, Loop/Run, Message/Command,
+  mvu       v1.1.2   MVU runtime: NewWindow, Loop/Run, Message/Command,
                      MessageOp; Window.Option + OnConfigure, the re-assert
                      seam the nested desktop module builds on (§Nested
                      modules); Window.ViewEvents, the per-window stream of
@@ -162,7 +162,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        kiwi solver
   github.com/vibrantgio/components/gallery    v1.5.0   the components gallery
                                                        app
-  github.com/vibrantgio/mvu/desktop           v1.1.1   native macOS window
+  github.com/vibrantgio/mvu/desktop           v1.1.2   native macOS window
                                                        chrome (FullSizeContent,
                                                        traffic-light unhide,
                                                        queried top inset) on
@@ -180,7 +180,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        paths arriving in
                                                        Update as ordinary
                                                        messages)
-  github.com/vibrantgio/mvu/example           v1.1.1   numbered mvu examples,
+  github.com/vibrantgio/mvu/example           v1.1.2   numbered mvu examples,
                                                        00-reference upward
   ```
 
@@ -1369,7 +1369,7 @@ paths on purpose (golden determinism); leave those alone.
       gioui.org v0.10.2
       github.com/reactivego/rx v0.3.0
       github.com/vibrantgio/patterns v1.4.0
-      github.com/vibrantgio/mvu v1.1.1
+      github.com/vibrantgio/mvu v1.1.2
       github.com/vibrantgio/components v1.5.0
       github.com/vibrantgio/theme v1.5.0
       github.com/vibrantgio/textdraw v0.0.7
