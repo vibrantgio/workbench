@@ -252,15 +252,16 @@ func hSpacer(dp float32) layout.Widget {
 	}
 }
 
-// drawOutlineDisclosure draws the disclosure triangle: the shared icon
-// mark pointing along the row when closed, rotated a quarter turn open.
+// drawOutlineDisclosure draws a row's disclosure: the shared set's
+// right-pointing chevron, pointing along the row when closed and rotated a
+// quarter turn open.
 func drawOutlineDisclosure(gtx layout.Context, open bool, sizeDp unit.Dp, c color.NRGBA) layout.Dimensions {
 	px := gtx.Dp(sizeDp)
 	if open {
 		half := float32(px) / 2
 		defer op.Affine(f32.Affine2D{}.Rotate(f32.Pt(half, half), math.Pi/2)).Push(gtx.Ops).Pop()
 	}
-	if mark := icons.Mark(icons.Disclosure); mark != nil {
+	if mark := icons.Mark(icons.ChevronRight); mark != nil {
 		mark(gtx, px, c)
 	}
 	return layout.Dimensions{Size: image.Pt(px, px)}

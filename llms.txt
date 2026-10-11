@@ -1241,11 +1241,15 @@ a goldmark document around it.
 
 The Vibrant Gio iconset is components/icons
 (github.com/vibrantgio/components/icons): the marks the standard controls
-need, drawn on one grid at one weight. It carries four — sidebar,
-disclosure, history-back, history-forward. A name says what the control
-does, never what the picture contains, because the drawing behind a name
-differs between platforms and does change, while the name is the part call
-sites store.
+need, drawn on one grid at one weight — sidebar, search, clear, plus, minus,
+refresh, folder, folder-plus, document, check, chevron-right, chevron-left,
+chevron-down and chevron-pair. A name says what the mark depicts, never what
+a control does with it, so one picture carries one name however many actions
+it serves: the right-pointing chevron is a row's disclosure, a breadcrumb's
+separator and a history pair's forward half, and all three ask for
+chevron-right. What each control does is its title's to say. The drawing
+behind a name differs between platforms and does change, while the name is
+the part call sites store.
 
   ```go
   import "github.com/vibrantgio/components/icons"

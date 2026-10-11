@@ -541,16 +541,15 @@ func drawMark(gtx layout.Context, name icons.Name, sizeDp unit.Dp, c color.NRGBA
 	return layout.Dimensions{Size: image.Pt(px, px)}
 }
 
-// drawDisclosure paints the disclosure mark for a row that is open or
-// closed. There is one drawing, not two: the set draws it as the row
-// stands closed, and an open row turns it a quarter turn — which is what
-// the platform does, and what keeps the mark recognisable through the
-// turn. The mark occupies the whole square, so the turn is about the
-// square's own centre.
+// drawDisclosure paints a row's disclosure: the set's right-pointing
+// chevron, drawn as the row stands closed, and an open row turns it a
+// quarter turn — which is what the platform does, and what keeps the mark
+// recognisable through the turn. There is one drawing, not two. The mark
+// occupies the whole square, so the turn is about the square's own centre.
 func drawDisclosure(gtx layout.Context, open bool, sizeDp unit.Dp, c color.NRGBA) layout.Dimensions {
 	if open {
 		half := float32(gtx.Dp(sizeDp)) / 2
 		defer op.Affine(f32.Affine2D{}.Rotate(f32.Pt(half, half), math.Pi/2)).Push(gtx.Ops).Pop()
 	}
-	return drawMark(gtx, icons.Disclosure, sizeDp, c)
+	return drawMark(gtx, icons.ChevronRight, sizeDp, c)
 }

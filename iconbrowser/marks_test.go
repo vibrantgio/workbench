@@ -272,7 +272,7 @@ func TestPlainMarkCellsAreUnchanged(t *testing.T) {
 // of four names has to be accounted for there. Otherwise the turned drawing
 // reads as a mark called "open", a name no call site can write.
 func TestTheNoteSaysWhatTheTurnedDrawingIs(t *testing.T) {
-	plain := MarkSizeNote([]marks.Name{marks.HistoryBack, marks.HistoryForward})
+	plain := MarkSizeNote([]marks.Name{marks.ChevronLeft, marks.ChevronDown})
 	if strings.Contains(plain, "turned") {
 		t.Errorf("a section with no turn on screen notes one: %q", plain)
 	}

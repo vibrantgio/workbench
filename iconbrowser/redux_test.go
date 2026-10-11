@@ -70,13 +70,13 @@ func TestFilterMarksMatchesTheSetsOwnNames(t *testing.T) {
 	if got := len(FilterMarks("   ")); got != len(all) {
 		t.Fatalf("whitespace query matches = %d, want %d", got, len(all))
 	}
-	for _, query := range []string{"history", "HISTORY"} {
+	for _, query := range []string{"chevron", "CHEVRON"} {
 		matches := FilterMarks(query)
 		if len(matches) == 0 {
 			t.Fatalf("query %q matched no mark", query)
 		}
 		for _, name := range matches {
-			if !strings.Contains(string(name), "history") {
+			if !strings.Contains(string(name), "chevron") {
 				t.Fatalf("query %q matched %q", query, name)
 			}
 		}

@@ -1070,8 +1070,8 @@ func (f *frameState) layoutNavigation(gtx layout.Context, m Model, tok themeToke
 		mvu.MessageOp{Message: GoForward{}}.Add(gtx.Ops)
 	}
 	segs := []button.BorderedSegment{
-		navSegment(&f.backClick, icons.HistoryBack, "Back", back),
-		navSegment(&f.fwdClick, icons.HistoryForward, "Forward", fwd),
+		navSegment(&f.backClick, icons.ChevronLeft, "Back", back),
+		navSegment(&f.fwdClick, icons.ChevronRight, "Forward", fwd),
 	}
 	// The shadow is cast AROUND the control, the way every bordered control
 	// in this band casts its own: it falls outside the box the control
