@@ -88,18 +88,6 @@ const (
 	// carries no breathing room of its own.
 	chromeGapDp unit.Dp = 12
 
-	// controlGapDp is the air between the two halves of the sidebar switch's
-	// line: the toggle and new chat stand side by side, each in the
-	// platform's bordered toolbar control, and this is the room the platform
-	// leaves between two such controls standing apart.
-	//
-	// MEASURED at 1x: notes-toolbar.png leaves 14 px between its compose
-	// capsule (x 8–44) and the group beside it (from x=58), and
-	// finder-window-light.png 16 between its view pop-up (to x=742) and the
-	// group pull-down (from x=759). Fourteen is the closer of the two, which
-	// is what a pair belonging together takes.
-	controlGapDp unit.Dp = 14
-
 	// paneMarkDp is the box a BARE mark on the sidebar pane is drawn in:
 	// the same 24 dp box the bordered toolbar control centres its own mark
 	// in, so one figure is one size wherever it stands.
@@ -111,12 +99,11 @@ const (
 	titleMaxDp unit.Dp = 360
 )
 
-// windowFrame is the window's per-subscription state: the clickables of the
-// controls that stand in the chrome row, kept apart from the pane's own
+// windowFrame is the window's per-subscription state: the clickable of the
+// one control that stands in the chrome row, kept apart from the pane's own
 // (a control and its recalling half are two clickables, not one shared one).
 type windowFrame struct {
-	rowToggle  widget.Clickable
-	rowNewChat widget.Clickable
+	rowToggle widget.Clickable
 }
 
 // layout composes the window: the pane, then the content area's chrome row
@@ -197,8 +184,12 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, mai
 }
 
 // chromeRow lays out the content area's title row: the conversation's name
-// leading and the model picker's reserved cap trailing, with the two halves
-// of the sidebar switch standing before the name while the pane is away.
+// leading and the model picker's reserved cap trailing, with the toggle that
+// brings the pane back standing before the name while the pane is away.
+//
+// It is the toggle alone. A pane's own marks go with the pane, so what the
+// row gains when the pane leaves is the recalling half of the switch and
+// nothing else: new chat adds to the list the pane shows and waits for it.
 //
 // The leading inset is a measurement in exactly one state. With the pane
 // standing, the window's buttons are inside the pane and the row owes them
@@ -217,8 +208,6 @@ func (f *windowFrame) chromeRow(gtx layout.Context, m Model, t themed) layout.Di
 	if m.SidebarHidden {
 		children = append(children,
 			layout.Rigid(f.toggleControl(t)),
-			layout.Rigid(dragSpacer(controlGapDp)),
-			layout.Rigid(f.newChatControl(t)),
 			layout.Rigid(dragSpacer(chromeGapDp)))
 	}
 	children = append(children,
@@ -353,15 +342,6 @@ func (f *windowFrame) toggleControl(t themed) layout.Widget {
 	}
 }
 
-// newChatControl is the chrome row's half of the new-chat action: this
-// application's primary action, which is why it survives the pane going
-// away rather than travelling with it.
-func (f *windowFrame) newChatControl(t themed) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		return newChatMark(gtx, t, &f.rowNewChat)
-	}
-}
-
 // sidebarToggle draws one half of the sidebar switch: the design system's own
 // sidebar mark in the platform's bordered toolbar control, centred on the line
 // of the row it stands in.
@@ -390,16 +370,6 @@ func sidebarToggle(gtx layout.Context, t themed, click *widget.Clickable, label 
 	return controlBox(gtx, t, click, label, icons.Mark(icons.Sidebar), standing)
 }
 
-// newChatMark draws one half of the new-chat action: the same plus figure
-// in the same square, wherever it stands.
-func newChatMark(gtx layout.Context, t themed, click *widget.Clickable) layout.Dimensions {
-	for click.Clicked(gtx) {
-		mvu.MessageOp{Message: NewChat{}}.Add(gtx.Ops)
-	}
-	// New chat adds something; it records nothing, so it is never drawn on.
-	return controlBox(gtx, t, click, "New chat", icons.Mark(icons.Plus), false)
-}
-
 // paneMark stands one chrome mark BARE — the figure alone, at the same box
 // [controlBox] centres its figure in, in the platform's control text over
 // the fill it stands on. It is what the sidebar pane's own controls are
@@ -413,9 +383,9 @@ func newChatMark(gtx layout.Context, t themed, click *widget.Clickable) layout.D
 // window they stand on: what a toolbar draws its own symbols in. The pane's
 // half records no state: it stands only while the pane does, and a mark with
 // nothing around it has nowhere to draw the chosen patch.
-func paneMark(gtx layout.Context, t themed, click *widget.Clickable, name icons.Name, label string, msg any) layout.Dimensions {
+func paneMark(gtx layout.Context, t themed, click *widget.Clickable, name icons.Name, label string, msg mvu.Message, post func(layout.Context, mvu.Message)) layout.Dimensions {
 	for click.Clicked(gtx) {
-		mvu.MessageOp{Message: msg}.Add(gtx.Ops)
+		post(gtx, msg)
 	}
 	box := gtx.Dp(paneMarkDp)
 	fg := t.col.ToolbarLabel
@@ -429,16 +399,16 @@ func paneMark(gtx layout.Context, t themed, click *widget.Clickable, name icons.
 	})
 }
 
-// paneToggle and paneNewChat are the pane's two halves, drawn bare through
-// [paneMark]. They are named here rather than called through with an icon
-// name because the sidebar's own file draws the pane and reaches for a
-// different icons package.
-func paneToggle(gtx layout.Context, t themed, click *widget.Clickable, label string) layout.Dimensions {
-	return paneMark(gtx, t, click, icons.Sidebar, label, ToggleSidebar{})
+// paneToggle and paneNewChat are the pane's own two marks, drawn bare
+// through [paneMark]. They are named here rather than called through with
+// an icon name because the sidebar's own file draws the pane and reaches
+// for a different icons package.
+func paneToggle(gtx layout.Context, t themed, click *widget.Clickable, label string, post func(layout.Context, mvu.Message)) layout.Dimensions {
+	return paneMark(gtx, t, click, icons.Sidebar, label, ToggleSidebar{}, post)
 }
 
-func paneNewChat(gtx layout.Context, t themed, click *widget.Clickable) layout.Dimensions {
-	return paneMark(gtx, t, click, icons.Plus, "New chat", NewChat{})
+func paneNewChat(gtx layout.Context, t themed, click *widget.Clickable, post func(layout.Context, mvu.Message)) layout.Dimensions {
+	return paneMark(gtx, t, click, icons.Plus, "New chat", NewChat{}, post)
 }
 
 // controlBox stands one chrome mark in the platform's BORDERED TOOLBAR

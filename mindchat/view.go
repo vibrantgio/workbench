@@ -275,7 +275,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			for _, s := range model.Streams {
 				streaming[s.Chat] = true
 			}
-			sidebar := SidebarPane(t, model.ChatList, model.CurrentChat.Name, streaming, rail, &paneNewChat, &paneToggle, &settingsClick)
+			sidebar := SidebarPane(t, model.ChatList, model.CurrentChat.Name, streaming, rail, &paneNewChat, &paneToggle, &settingsClick, postMessage)
 			main := ChatPane(t, msgDocs.Rows(visibleHistory(model)), histList, promptW)
 			frameCell.Store(layout.Widget(func(gtx layout.Context) layout.Dimensions {
 				return frame.layout(gtx, model, t, sidebar, main, menuSlot)
@@ -938,7 +938,10 @@ func postMessage(gtx layout.Context, msg mvu.Message) {
 // conversations, then the settings that act on all of them, then the pane's
 // own controls — a reader who tabs into the pane means to reach a
 // conversation, not to put the pane away.
-func SidebarPane(t themed, chats ChatList, current string, streaming map[string]bool, rail *railState, newChat, toggle, settings *widget.Clickable) layout.Widget {
+//
+// Everything the pane can answer — a row, the footer's settings, the strip's
+// own marks — answers through post, the one sink the caller hands it.
+func SidebarPane(t themed, chats ChatList, current string, streaming map[string]bool, rail *railState, newChat, toggle, settings *widget.Clickable, post func(layout.Context, mvu.Message)) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
@@ -954,7 +957,7 @@ func SidebarPane(t themed, chats ChatList, current string, streaming map[string]
 				return layout.Dimensions{Size: image.Pt(size.X, stripH)}
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return rail.layout(gtx, t, chats, current, streaming, postMessage)
+				return rail.layout(gtx, t, chats, current, streaming, post)
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return SidebarFooter(gtx, t, settings)
@@ -963,38 +966,45 @@ func SidebarPane(t themed, chats ChatList, current string, streaming map[string]
 
 		sgtx := gtx
 		sgtx.Constraints = layout.Exact(image.Pt(size.X, stripH))
-		SidebarStrip(sgtx, t, toggle, newChat)
+		SidebarStrip(sgtx, t, toggle, newChat, post)
 		return layout.Dimensions{Size: size}
 	}
 }
 
 // SidebarStrip is the band across the top of the pane: the window control
 // buttons' span skipped at the leading end, a stretch that moves the window
-// across the middle, and the pane's two controls BARE at its top trailing
+// across the middle, and the pane's own marks BARE at its top trailing
 // corner, which is where
 // voicememos-multi-folder-2026-09-18.png keeps a sidebar pane's own marks.
 //
-// The toggle rides here because it puts the pane away and a dismiss
-// control belongs to the thing it dismisses; new chat
-// rides here because it is the application's primary action and the list
-// under it is what it adds to. Both stand again in the chrome row once the
-// pane is gone, at the same size and on the same line — they are two halves
-// of one switch each, and they wear one figure to say so. What differs is
-// what the figure stands in: a mark in the BAND is the platform's bordered
-// toolbar control and a mark on the PANE is bare, which is a property of
-// what each stands on and not of the switch.
-func SidebarStrip(gtx layout.Context, t themed, toggle, newChat *widget.Clickable) layout.Dimensions {
+// It reads new chat, then the toggle at the trailing corner, the pattern's
+// measured [pane.MarkGapDp] between them — the order the same capture
+// stands its new-folder mark and its sidebar toggle in. A pane's own toggle
+// is the pane talking about itself, and nothing the pane is for stands
+// behind it.
+//
+// Both marks go with the pane. New chat adds to the list the pane shows, so
+// it waits for the pane: while the pane is away the window offers it
+// nowhere and only the toggle travels, as this platform's sidebars do. The
+// toggle's other half stands at the chrome row's leading end in the
+// platform's bordered toolbar control — one figure at one size on one line,
+// differing only in what it stands in, which is a property of the band or
+// the pane and not of the switch.
+//
+// The marks answer through the sink the caller hands them, which is the
+// seam the rail's own rows and the window's chords answer through.
+func SidebarStrip(gtx layout.Context, t themed, toggle, newChat *widget.Clickable, post func(layout.Context, mvu.Message)) layout.Dimensions {
 	return pane.Strip(gtx, stripLead(windowButtonsEnd()),
 		func(gtx layout.Context) layout.Dimensions {
-			// The pane stands wherever this half of the switch stands, and
-			// the control says so.
-			return paneToggle(gtx, t, toggle, "Hide the conversations")
+			return paneNewChat(gtx, t, newChat, post)
 		},
 		func(gtx layout.Context) layout.Dimensions {
 			return desktop.DragRun(gtx, gtx.Dp(unit.Dp(pane.MarkGapDp)))
 		},
 		func(gtx layout.Context) layout.Dimensions {
-			return paneNewChat(gtx, t, newChat)
+			// The pane stands wherever this half of the switch stands, and
+			// the control says so.
+			return paneToggle(gtx, t, toggle, "Hide the conversations", post)
 		})
 }
 

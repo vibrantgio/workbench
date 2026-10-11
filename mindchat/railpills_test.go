@@ -65,7 +65,7 @@ func TestTheRailDrawsThePlatformsTwoPills(t *testing.T) {
 			chats := ChatList{open, "Sources.md"}
 			rail := newRailState()
 			var newChat, toggle, settings widget.Clickable
-			pane := SidebarPane(th, chats, open, nil, rail, &newChat, &toggle, &settings)
+			pane := SidebarPane(th, chats, open, nil, rail, &newChat, &toggle, &settings, postMessage)
 
 			r := new(input.Router)
 			ops := new(op.Ops)
