@@ -75,10 +75,12 @@ type fieldPalette struct {
 func paletteFrom(c tokens.PlatformColors) fieldPalette {
 	hue, _, _ := rgbToHSL(c.ControlAccent)
 	_, _, backLit := rgbToHSL(c.WindowBackground)
+	// sat 0.55 dark, 0.70 light are the owner's choice (2026-10-21);
+	// saturation is the whole knob, lightness is untouched.
 	if backLit < 0.5 {
-		return fieldPalette{hue: hue, spread: 0.10, sat: 0.38, lit: 0.30}
+		return fieldPalette{hue: hue, spread: 0.10, sat: 0.55, lit: 0.30}
 	}
-	return fieldPalette{hue: hue, spread: 0.10, sat: 0.45, lit: 0.80}
+	return fieldPalette{hue: hue, spread: 0.10, sat: 0.70, lit: 0.80}
 }
 
 // Field owns one seen scene and its animation. All fields except pending are
