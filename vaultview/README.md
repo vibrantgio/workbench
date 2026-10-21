@@ -136,9 +136,9 @@ app-local composition over `components/list` — the design system's
 sidebar is deliberately flat, and one nesting sidebar is not yet a
 pattern. The **window frame** — the sidebar column, and one tight chrome
 row and one less pronounced status bar bracketing the two columns beside it
-— is an app-local arrangement rather than the three-column shell, because that
-shell pins its top slot to a full navbar band and this window spends as
-little height on chrome as it can. The **resolver** is vault semantics
+— is an app-local arrangement over the shell's two-column one, because the
+window carries a third column and spends as little height on chrome as it
+can. The **resolver** is vault semantics
 rather than rendering: pure functions over the scanned index,
 table-tested rule by rule.
 

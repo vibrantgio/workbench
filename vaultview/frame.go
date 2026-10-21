@@ -43,8 +43,7 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// Frame layout constants. The aside bounds follow the three-column
-// shell's, so the two compositions resize alike.
+// Frame layout constants.
 const (
 	// frameEdgeDp is the leading inset the toolbar and the pane's strip lead
 	// from where the window has no control buttons to clear — away from the

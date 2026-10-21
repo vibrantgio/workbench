@@ -452,14 +452,15 @@ stack — one or more rx.Observable[layout.Widget] values, stacked
 back-to-front (background first). A typical app has a backdrop layer and a
 content layer built from a patterns/shell:
 
-  - patterns/shell: application shells in four variants — SidebarHeaderMain
-    (the sidebar set into the window as a pane, the band beside it; the
-    composition is shell.PaneFrame, which a window arranging its own
-    columns spends half of through PaneFrame.Under),
-    SplitPane (draggable splitter, either axis), ThreeColumn (resizable
-    aside), StackedPage (pinned navbar over a shell-owned section scroll,
-    for marketing pages; sections are layout.Widget streams, ContentMaxWidth
-    caps the column).
+  - patterns/shell: shell.TwoColumn is the two-column arrangement — the
+    pane down the leading edge, the toolbar over the content column
+    beside it, an optional inspector down the trailing edge, a footer
+    under each column and a splitter on each boundary; a window
+    arranging its own columns spends shell.PaneFrame.Under instead.
+    shell.Props.Layout picks between SplitPane (draggable splitter,
+    either axis) and StackedPage (pinned navbar over a shell-owned
+    section scroll, for marketing pages; sections are layout.Widget
+    streams, ContentMaxWidth caps the column).
   - patterns/navbar + patterns/sidebar fill the shell's slots.
   - Content composes patterns/table (sortable/filterable/virtualised),
     patterns/tabs, patterns/card, patterns/group, components/pagination, ...
@@ -1061,7 +1062,7 @@ It follows the same source: subscribe
 th.Typography, take metrics from a role and the shaper from typ.Shaper().
 The positional-shaper APIs — markdown's doc.Layout(gtx, shaper, style),
 components/paragraph's Layout and Render, patterns/shell's golden
-Render/RenderThreeColumn/RenderStackedPage — want that same typ.Shaper()
+Render/RenderStackedPage — want that same typ.Shaper()
 value. markdown.FromTokens takes the whole Typography, like every other
 multi-role consumer. The Typography roles carry the full metrics and are the
 only source of truth (see §Modules).
