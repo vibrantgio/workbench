@@ -89,14 +89,14 @@ func TestTheBarSaysTheAddressUnderThePointer(t *testing.T) {
 		t.Fatalf("the line declares %d link runs, want the wikilink and the web link: %v", len(runs), runs)
 	}
 	move(size.X-1, y)
-	style.Text.OnLinkHover = record
+	style.Text.OnLink = record
 	addresses = nil
 
 	mid := func(run [2]int) int { return (run[0] + run[1]) / 2 }
 	bar := func() string {
 		m2 := m
 		for _, a := range addresses {
-			m2, _ = Update(m2, HoverLink{URL: a})
+			m2, _ = Update(m2, LinkUnder{URL: a})
 		}
 		return statusLine(m2)
 	}
@@ -129,13 +129,13 @@ func TestALandingTakesTheAddressOffTheBar(t *testing.T) {
 	m := scannedModel(t)
 	m.Index = treeIndex("x.md", "f.md")
 	m = cacheNote(m, fNote())
-	m, _ = Update(m, HoverLink{URL: "f.md"})
+	m, _ = Update(m, LinkUnder{URL: "f.md"})
 	if got := statusLine(m); got != "f.md" {
 		t.Fatalf("the bar says %q while the pointer is on the link, want %q", got, "f.md")
 	}
 	m, _ = Update(m, Navigate{Path: "f.md"})
-	if m.HoveredLink != "" {
-		t.Errorf("the landing kept the address %q on the model", m.HoveredLink)
+	if m.LinkUnder != "" {
+		t.Errorf("the landing kept the address %q on the model", m.LinkUnder)
 	}
 	if got, want := statusLine(m), lineCountLabel(m.CurrentNote().Lines); got != want {
 		t.Errorf("after the landing the bar says %q, want %q", got, want)
@@ -160,7 +160,7 @@ func TestTheBarSaysTheAddressTheKeyboardIsOn(t *testing.T) {
 	doc := markdown.NewDocument(note.Blocks)
 	style := noteStyle(col, tokens.DefaultTypography)
 	var addresses []string
-	style.Text.OnLinkHover = func(_ layout.Context, url string) {
+	style.Text.OnLink = func(_ layout.Context, url string) {
 		addresses = append(addresses, linkAddress(m, url))
 	}
 
@@ -190,7 +190,7 @@ func TestTheBarSaysTheAddressTheKeyboardIsOn(t *testing.T) {
 	bar := func() string {
 		m2 := m
 		for _, a := range addresses {
-			m2, _ = Update(m2, HoverLink{URL: a})
+			m2, _ = Update(m2, LinkUnder{URL: a})
 		}
 		return statusLine(m2)
 	}
@@ -236,7 +236,7 @@ func TestTheBarElidesAnAddressWiderThanItself(t *testing.T) {
 	m := goldenModel()
 	m = cacheNote(m, noteFromSource("guide/Hover.md", hoverNoteSource))
 	m.Current = "guide/Hover.md"
-	m, _ = Update(m, HoverLink{URL: long})
+	m, _ = Update(m, LinkUnder{URL: long})
 
 	// The same bar at two widths. Narrow, the line cannot be the whole
 	// address; wide, it is.
@@ -254,7 +254,7 @@ func TestTheBarElidesAnAddressWiderThanItself(t *testing.T) {
 	// The end of the address survives: two addresses sharing everything but
 	// their last characters draw different bars at the narrow width.
 	m2 := m
-	m2, _ = Update(m2, HoverLink{URL: long[:len(long)-len("page.html")] + "other.htm"})
+	m2, _ = Update(m2, LinkUnder{URL: long[:len(long)-len("page.html")] + "other.htm"})
 	other := golden.Capture(t, image.Pt(260, 24), func(gtx layout.Context) layout.Dimensions {
 		return layoutStatusBar(gtx, m2, tok)
 	})

@@ -128,12 +128,12 @@ type Model struct {
 	ChooserBody       string
 	ChooserCandidates []string
 
-	// HoveredLink is the address of the link the pointer is on, empty when
+	// LinkUnder is the address of the link the pointer is on, empty when
 	// it is on none: the resolved vault path of a wikilink, the URL of an
 	// external link. The status bar says it while it stands. It is cleared
 	// on every landing, since a note that leaves the screen takes the link
 	// the pointer was on with it.
-	HoveredLink string
+	LinkUnder string
 }
 
 // ChooserOpen reports whether the ambiguity chooser dialog is up.
@@ -261,11 +261,11 @@ type SetFilter struct{ Text string }
 // notes added, renamed or removed while the app was open.
 type Rescan struct{}
 
-// HoverLink carries the address of the link the reader moved onto — by
+// LinkUnder carries the address of the link the reader moved onto — by
 // pointing at it or by giving it the keyboard — and the empty string when
 // they moved off one. One message per change: the document reports the link
 // the reader is on when it changes and at no other time.
-type HoverLink struct{ URL string }
+type LinkUnder struct{ URL string }
 
 // ToggleTask is a click on a GFM task checkbox. Item is the *ListItem
 // Parse produced — the same pointer OnTaskClick received — and Path is
@@ -392,7 +392,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.PropsOpen = true
 		model.ChooserBody = ""
 		model.ChooserCandidates = nil
-		model.HoveredLink = ""
+		model.LinkUnder = ""
 		return model, openVaultCmd(m.Path)
 	case vaultScanned:
 		if m.vault != model.Vault {
@@ -410,8 +410,8 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			model.Cursor = 0
 			model = revealCurrent(model)
 		}
-	case HoverLink:
-		model.HoveredLink = m.URL
+	case LinkUnder:
+		model.LinkUnder = m.URL
 	case Navigate:
 		// Landing re-stats the target: a note edited outside the app since
 		// it was cached is read again, everything else is served from the
@@ -594,7 +594,7 @@ func landOn(model Model, nav Navigate, note *Note) Model {
 	}
 	model.Current = note.Path
 	model.CurAnchor = anchor
-	model.HoveredLink = ""
+	model.LinkUnder = ""
 	model.NavSeq++
 	model.Arrival = model.NavSeq
 	keep := model.History

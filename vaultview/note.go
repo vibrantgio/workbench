@@ -515,7 +515,7 @@ func vaultLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], lo
 	tip := &linkTip{}
 	tips := tooltip.NewArbiter()
 	tipSlot := rx.SwitchMap(
-		rx.Map(modelObs, func(m Model) string { return m.HoveredLink }).
+		rx.Map(modelObs, func(m Model) string { return m.LinkUnder }).
 			DistinctUntilChanged(func(a, b string) bool { return a == b }),
 		func(address string) rx.Observable[layout.Widget] {
 			if address == "" {
@@ -683,8 +683,8 @@ func layoutNotePage(
 			style.Text.OnLinkClick = func(gtx layout.Context, url string) {
 				linkClicked(gtx, m, url)
 			}
-			style.Text.OnLinkHover = func(gtx layout.Context, url string) {
-				mvu.MessageOp{Message: HoverLink{URL: linkAddress(m, url)}}.Add(gtx.Ops)
+			style.Text.OnLink = func(gtx layout.Context, url string) {
+				mvu.MessageOp{Message: LinkUnder{URL: linkAddress(m, url)}}.Add(gtx.Ops)
 			}
 			style.OnTaskClick = func(gtx layout.Context, item *markdown.ListItem) {
 				mvu.MessageOp{Message: ToggleTask{Path: note.Path, Item: item}}.Add(gtx.Ops)

@@ -118,8 +118,8 @@ func sourceLines(src []byte) int {
 // while the vault is still being scanned would state a fact it does not
 // have.
 func statusLine(m Model) string {
-	if m.HoveredLink != "" {
-		return m.HoveredLink
+	if m.LinkUnder != "" {
+		return m.LinkUnder
 	}
 	note := m.CurrentNote()
 	if note == nil {
