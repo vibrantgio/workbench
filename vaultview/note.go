@@ -94,25 +94,25 @@ const (
 	// document rather than longer lines, and the run of blocks is centred in
 	// what is left.
 	//
-	// The number is measured, not chosen. The reading surface this viewer is
-	// judged beside sets a sixteen px body, and in the stored capture of it
-	// its longest line of prose measures 540 px between its first and last
-	// painted pixel — x 91 to x 630, one pixel per dp on that display —
-	// with its lines falling between 66 and 75 characters. BodyLarge sets at
-	// that same sixteen, and shaping those same lines in it measures an
-	// average advance of 7.19 dp a character, so 540 dp is 75 characters of
-	// this system's body text: the top of the 60–75 characters a line that
-	// typography has long held a reader can walk back along without losing
-	// the next one.
-	noteMeasureDp = 540
+	// It is 90 characters of this system's body text. BodyLarge sets at
+	// sixteen px, and shaping prose in it measures an average advance of
+	// 7.19 dp a character, so 90 characters is 647 dp. Ninety is the
+	// owner's choice, taken against an A4 page: at 15 mm margins such a
+	// page carries 85 to 100 characters a line at book sizes.
+	//
+	// The reading surface this viewer is judged beside sets a shorter
+	// line. In the stored capture of it its longest line of prose measures
+	// 540 px between its first and last painted pixel — x 91 to x 630, one
+	// pixel per dp on that display — which is 75 characters at that same
+	// advance, its lines falling between 66 and 75. That is what that
+	// surface sets.
+	noteMeasureDp = 647
 
 	// noteMinMeasureDp is the narrowest a line of this note may lay out
-	// at, and it comes off the same measurement the measure does: the
-	// band typography has long held a reader can walk back along is 60 to
-	// 75 characters, [noteMeasureDp] is the top of it — 75 characters at
-	// the 7.19 dp an average character of this body advances — and this is
-	// its bottom, 60 of them. Narrower than this the column is no longer a
-	// column of prose.
+	// at: 60 characters at that same 7.19 dp advance. Sixty is the bottom
+	// of the band typography has long held a reader can walk back along
+	// without losing the next line. Narrower than this the column is no
+	// longer a column of prose.
 	noteMinMeasureDp = 431
 
 	// noteMinWidthDp is the narrowest the note column may be dragged to:
