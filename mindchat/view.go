@@ -45,8 +45,8 @@ import (
 	"github.com/vibrantgio/mvu/desktop"
 	cardpattern "github.com/vibrantgio/patterns/card"
 	"github.com/vibrantgio/patterns/dialog"
-	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
@@ -58,11 +58,15 @@ import (
 
 // buildLayers returns the layer-builder the theme window renders: a
 // backdrop layer and a content layer, both reacting to the live theme.
-func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+//
+// widths is the memory the arrangement keeps the pane's width and shown
+// state in. A nil memory is a working one — the window opens on the
+// defaults and keeps nothing — which is what a still render wants.
+func buildLayers(modelObs rx.Observable[Model], widths *shell.ArrangementMemory) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			BackdropLayer(th),
-			ContentLayer(th, modelObs),
+			ContentLayer(th, modelObs, widths),
 		}
 	}
 }
@@ -98,7 +102,7 @@ type themed struct {
 	typ    tokens.Typography
 	shaper *text.Shaper
 	// den is the theme's Density: the control heights the components
-	// composed into this window are drawn to, the chrome row's bordered
+	// composed into this window are drawn to, the toolbar's bordered
 	// controls included. Read off the theme rather than written down here,
 	// so a window at another density moves its controls with it.
 	den tokens.Density
@@ -160,7 +164,7 @@ func messageMarkdownStyle(c tokens.PlatformColors, typ tokens.Typography) markdo
 }
 
 // ContentLayer renders the page: the window's frame — the floating
-// conversation pane, the chrome row and the transcript beside them — with
+// conversation pane, the toolbar and the transcript beside them — with
 // the dialogs and the undo bar over it. The composition itself is frame.go's;
 // this is the wiring. The view state lives at subscription scope,
 // OUTSIDE the per-emission Map: the two scroll positions,
@@ -168,7 +172,7 @@ func messageMarkdownStyle(c tokens.PlatformColors, typ tokens.Typography) markdo
 // Defer-scoped inside the component and subscribed exactly once by the
 // CombineLatest3 below. Constructing any of them per emission would reset
 // scroll or typing on every completion-stream delta.
-func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], widths *shell.ArrangementMemory) rx.Observable[layout.Widget] {
 	// This window's arbiters. They are plain values
 	// with no synchronisation, so the scope they are created at is the scope
 	// they are safe at: theme/window calls the build function once per
@@ -234,16 +238,14 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		})
 	})
 
-	// The window's own frame: the rail, the chrome row and the
-	// content area beside them.
-	frame := &windowFrame{}
+	// The window's own frame: the arrangement the shell draws, seated on
+	// the pane width this reader last left.
+	frame := newWindowFrame(widths)
 
 	var undoClick widget.Clickable
-	// The pane's own controls and the chrome row's are separate clickables:
-	// the toggle that rides the pane and the one that recalls it are the two
-	// halves of one switch, never one clickable standing in two places, and
-	// only one of the two is laid out in any frame.
-	var paneToggle, paneNewChat widget.Clickable
+	// The pane's own mark, held across frames beside the Toggle Sidebar
+	// button's one clickable, which the frame holds.
+	var paneNewChat widget.Clickable
 
 	// The frame and the undo bar are composed per emission and read at
 	// frame time through atomic cells — the observable-over-static-slot
@@ -252,8 +254,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	var frameCell, undoCell atomic.Value
 
 	// The model-menu popover (the picker chip + its surface) reaches
-	// the chrome row through a cell; its stream joins the final combine
-	// below so menu updates repaint.
+	// the arrangement's overlay slot through a cell; its stream joins the
+	// final combine below so menu updates repaint.
 	var menuCell atomic.Value
 	menuSlot := func(gtx layout.Context) layout.Dimensions {
 		if w, ok := menuCell.Load().(layout.Widget); ok && w != nil {
@@ -269,7 +271,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			for _, s := range model.Streams {
 				streaming[s.Chat] = true
 			}
-			sidebar := SidebarPane(t, model.ChatList, model.CurrentChat.Name, streaming, rail, &paneNewChat, &paneToggle, postMessage)
+			sidebar := SidebarPane(t, model.ChatList, model.CurrentChat.Name, streaming, rail, &paneNewChat, postMessage)
 			main := ChatPane(t, msgDocs.Rows(visibleHistory(model)), histList, promptW)
 			frameCell.Store(layout.Widget(func(gtx layout.Context) layout.Dimensions {
 				return frame.layout(gtx, model, t, sidebar, main, menuSlot)
@@ -508,7 +510,7 @@ func RenameDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 }
 
 // ChatPane stacks the scrolling message history and the prompt field. The
-// model picker stands in the window's chrome row, beside the conversation's
+// model picker stands in the window's toolbar, beside the conversation's
 // title, so the pane begins at the transcript.
 //
 // The input bar is the last thing in the pane and so owns the window's
@@ -516,21 +518,13 @@ func RenameDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 // beside it: a bottom rhythm invented on one side of a window and answered
 // on neither is what a reader reads as two applications.
 //
-// The pane paints its own fill before any of that, and it has to: the
-// shell fills the whole split — both halves — with the chrome fill, so
-// anything the pane does not paint over shows chrome where the
-// transcript should be. The message rows paint their own fill, so the
-// bleed only appears where the transcript is SHORTER than the window, which
-// no whole-window golden in this package is ever in: the demo conversation
-// the headless frame renders fills the viewport. The transcript's fill is
-// the header band, the turns AND the space around them, and one fill states
-// all three.
-//
-// It is painted at the SLOT's width, before the pane clamps itself to its
-// reading measure: on a window wider than ChatPaneWidth plus the sidebar,
-// the strip the pane declines to occupy is still the pane's half of the
-// split, and a band of chrome down the trailing edge of the content
-// region is the same defect at a few pixels wide.
+// It paints the transcript's own fill across the whole slot before any of
+// that. The arrangement already fills the content column with the same
+// colour, so this states it rather than repairing it: the transcript's fill
+// is the space around the turns as much as the turns themselves, and the
+// column goes on carrying it at any width the slot is given — including the
+// strip beyond ChatPaneWidth that the reading measure declines to occupy on
+// a wide window.
 func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		FillRect(gtx, image.Rectangle{Max: gtx.Constraints.Max}, 0, t.palette.Transcript)
@@ -918,84 +912,34 @@ func postMessage(gtx layout.Context, msg mvu.Message) {
 	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 }
 
-// SidebarPane renders the column that stands inside the rail: the
-// top strip the window's control buttons pass through, and the
-// conversation list running to the pane's foot.
+// SidebarPane is what the conversation rail hands the shell's pane: the one
+// mark that acts on the list the pane is showing, and the conversations
+// under it. The strip the mark stands in, the Toggle Sidebar button last of
+// it and the pane's own width are the arrangement's.
 //
 // There is no wordmark and no section heading: the menu bar and the Dock
 // carry this application's identity, and a list with exactly one section does
-// not announce itself.
+// not announce itself. There is no head slot either — this pane has no field
+// above its rows — and no footer, so the rows run from under the strip to
+// the pane's own foot.
 //
-// The strip is reserved by the flex and DRAWN AFTERWARDS, which is a
-// statement about the keyboard rather than about paint. Focus follows the
-// order the ops are written in, and the reading order of this pane is the
-// conversations, then the pane's own controls — a reader who tabs into the
-// pane means to reach a conversation, not to put the pane away.
+// New chat goes with the pane: it adds to the list the pane shows, so it
+// waits for the pane, and while the pane is away the window offers it
+// nowhere. Only the toggle travels, as this platform's sidebars do.
 //
-// Everything the pane can answer — a row, the strip's own marks — answers
+// Everything the pane can answer — a row, the strip's own mark — answers
 // through post, the one sink the caller hands it.
-func SidebarPane(t themed, chats ChatList, current string, streaming map[string]bool, rail *railState, newChat, toggle *widget.Clickable, post func(layout.Context, mvu.Message)) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
-		gtx.Constraints = layout.Exact(size)
-
-		// The pane's own strip: cut deep enough to hold the window's
-		// control buttons where the window keeps them, with the same air
-		// below them as above, by the pattern's arithmetic. The pane fills
-		// itself, so nothing here paints a fill.
-		stripH := min(gtx.Dp(unit.Dp(pane.StripDp)), size.Y)
-
-		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Dimensions{Size: image.Pt(size.X, stripH)}
-			}),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return rail.layout(gtx, t, chats, current, streaming, post)
-			}),
-		)
-
-		sgtx := gtx
-		sgtx.Constraints = layout.Exact(image.Pt(size.X, stripH))
-		SidebarStrip(sgtx, t, toggle, newChat, post)
-		return layout.Dimensions{Size: size}
+func SidebarPane(t themed, chats ChatList, current string, streaming map[string]bool, rail *railState, newChat *widget.Clickable, post func(layout.Context, mvu.Message)) shell.PaneColumn {
+	return shell.PaneColumn{
+		Marks: []layout.Widget{
+			func(gtx layout.Context) layout.Dimensions {
+				return paneNewChat(gtx, t, newChat, post)
+			},
+		},
+		Rows: func(gtx layout.Context) layout.Dimensions {
+			return rail.layout(gtx, t, chats, current, streaming, post)
+		},
 	}
-}
-
-// SidebarStrip is the band across the top of the pane: the window control
-// buttons' span skipped at the leading end, a stretch that moves the window
-// across the middle, and the pane's own marks BARE at its top trailing
-// corner, which is where
-// voicememos-multi-folder-2026-09-18.png keeps a sidebar pane's own marks.
-//
-// It reads new chat, then the toggle at the trailing corner, the pattern's
-// measured [pane.MarkGapDp] between them — the order the same capture
-// stands its new-folder mark and its sidebar toggle in. A pane's own toggle
-// is the pane talking about itself, and nothing the pane is for stands
-// behind it.
-//
-// Both marks go with the pane. New chat adds to the list the pane shows, so
-// it waits for the pane: while the pane is away the window offers it
-// nowhere and only the toggle travels, as this platform's sidebars do. The
-// toggle's other half stands at the chrome row's leading end in the
-// platform's bordered toolbar control — one figure at one size on one line,
-// differing only in what it stands in, which is a property of the band or
-// the pane and not of the switch.
-//
-// The marks answer through the sink the caller hands them, which is the
-// seam the rail's own rows and the window's chords answer through.
-func SidebarStrip(gtx layout.Context, t themed, toggle, newChat *widget.Clickable, post func(layout.Context, mvu.Message)) layout.Dimensions {
-	return pane.Strip(gtx, stripLead(windowButtonsEnd()),
-		func(gtx layout.Context) layout.Dimensions {
-			return paneNewChat(gtx, t, newChat, post)
-		},
-		func(gtx layout.Context) layout.Dimensions {
-			return desktop.DragRun(gtx, gtx.Dp(unit.Dp(pane.MarkGapDp)))
-		},
-		func(gtx layout.Context) layout.Dimensions {
-			// The pane stands wherever this half of the switch stands, and
-			// the control says so.
-			return paneToggle(gtx, t, toggle, "Hide the conversations", post)
-		})
 }
 
 // windowButtonsEnd reports the trailing edge of the window's three control

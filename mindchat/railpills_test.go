@@ -63,8 +63,16 @@ func TestTheRailDrawsThePlatformsTwoPills(t *testing.T) {
 			th := railThemed(t, sc.c)
 			chats := ChatList{open, "Sources.md"}
 			rail := newRailState()
-			var newChat, toggle widget.Clickable
-			pane := SidebarPane(th, chats, open, nil, rail, &newChat, &toggle, postMessage)
+			var newChat widget.Clickable
+			col := SidebarPane(th, chats, open, nil, rail, &newChat, postMessage)
+			// The pane's column laid out on its own, as the arrangement
+			// lays it out inside the pane: the lead the strip's content may
+			// start at, and the Toggle Sidebar button the arrangement draws
+			// last of the marks.
+			pane := func(gtx layout.Context) layout.Dimensions {
+				dims, _ := col.Layout(gtx, sc.c, transcriptInsetDp, nil)
+				return dims
+			}
 
 			r := new(input.Router)
 			ops := new(op.Ops)

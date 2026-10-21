@@ -122,9 +122,6 @@ type Provider struct {
 
 type Config struct {
 	LastChat string
-	// SidebarHidden remembers across launches whether the conversation
-	// pane has been sent away.
-	SidebarHidden bool
 	// Providers is the API endpoint catalogue the settings dialog edits;
 	// DefaultProvider/DefaultModel name the model new prompts use unless
 	// the chat carries its own override.
@@ -135,7 +132,7 @@ type Config struct {
 
 // ToggleSidebar sends the conversation pane away or brings it back. Both
 // halves of the switch send it: the control in the pane's own top strip,
-// and the one the chrome row stands in the same place once the pane is
+// and the one the toolbar stands in the same place once the pane is
 // gone — a control that travels with the pane cannot be the one that
 // recalls it.
 type ToggleSidebar struct{}

@@ -9,10 +9,19 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+// appOrg and appName are where this application keeps its own files: the
+// organisation's folder in the OS directory and the application's folder
+// inside it. The chats and config.json stand there, and so does the file
+// the shell keeps the window's arrangement in.
+const (
+	appOrg  = "nl.simpleapps"
+	appName = "mindchat"
+)
+
 // Init returns the seed Model the message scan starts from and the startup
 // command that loads the last-used chat from the config file.
 func Init() (Model, mvu.Command) {
-	datadir, err := DataDir("nl.simpleapps", "mindchat")
+	datadir, err := DataDir(appOrg, appName)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "mindchat: data dir:", err)
 		os.Exit(1)

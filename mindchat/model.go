@@ -57,9 +57,13 @@ type Model struct {
 	NextStream int
 
 	// SidebarHidden is whether the conversation pane has been sent away.
-	// There is no third state and no ratio: the pane is a FLOATING PANE of
-	// a fixed width, and hidden it takes no width at all — the transcript
-	// reflows from the window's own leading edge.
+	// There is no third state and no ratio: the pane is a PANE set into the
+	// window, and hidden it takes no width at all — the transcript reflows
+	// from the window's own leading edge.
+	//
+	// It is kept across launches in the arrangement the shell writes, not
+	// in config.json: the pane's width and whether it stands are one
+	// arrangement and are kept in one place.
 	SidebarHidden bool
 }
 
@@ -67,7 +71,6 @@ type Model struct {
 func (model Model) Config() Config {
 	return Config{
 		LastChat:        model.CurrentChat.Name,
-		SidebarHidden:   model.SidebarHidden,
 		Providers:       model.Providers,
 		DefaultProvider: model.DefaultProvider,
 		DefaultModel:    model.DefaultModel,

@@ -1,297 +1,257 @@
-// frame.go is this window's composition: the conversation pane set in down
-// the leading edge, and beside it the content area — one chrome row across
-// its top and the transcript with its input bar underneath.
+// frame.go is what this window hands patterns/shell's two-column
+// arrangement, and nothing else: the shell owns the geometry — the
+// conversation pane down the leading edge with the splitter on its trailing
+// edge, the content column beside it with one toolbar across its top, the
+// shadow cast last — and this window states what stands in each slot.
 //
-// THE PANE IS SET INTO THE WINDOW, NOT A HALF OF IT. It is the vocabulary's
-// PANE: an inset rounded pane one margin in from the window's leading, top
-// and bottom edges with the window's own plane showing in those margins,
-// flush against the transcript on the fourth side, bounded by its own rim
-// and the shadow it casts and by no seam. Hidden, it takes no width at all
-// and the transcript reflows from the window's own leading edge. None of
-// that geometry is drawn here — the inset, the rim, the shadow, the strip
-// arithmetic and the hidden-takes-no-width contract are patterns/pane's,
-// and what is left to this file is the column that stands in the pane and
-// the window that stands around it.
+// What the window hands over: the pane's column (view.go), the transcript
+// with its input bar (view.go), and the toolbar's two groups — the chat's
+// title in the centre, the model picker's reserved cap at the trailing end.
+// The pane's own width and the bounds it moves between are the window's as
+// well, kept across launches by the shell's own arrangement memory.
 //
-// THE CONTROLS OBEY THE RECALL CONVENTION. A control that travels with the
-// pane cannot be the one that recalls it. The pane's toggle and the
-// new-chat action ride the pane's top strip while the pane stands; once it
-// is away the chrome row carries the same two figures, at the same mark
-// size, on the same line. They are the two halves of one switch rather
-// than duplicates of one control; what differs is what each figure stands
-// in, which is a property of the place and not of the switch — bare on the
-// pane, in the platform's bordered toolbar control in the band. New chat is this application's
-// primary action and can be operated in both states for that reason, and
-// Cmd-N operates it in either.
+// What is left here is the title the toolbar carries, the room the picker's
+// surface hangs in, and the bounds the pane's splitter moves between.
 //
-// Settings does not stand in that pair, and it has no control in the
-// window at all. It acts on the application rather than on the
-// conversation, so it stands in the application menu on Cmd-comma, which
-// is where this platform keeps it.
-//
-// THE WINDOW BUTTONS ARE MEASURED FROM THE GLASS. The three control
-// buttons stand a fixed inset in from the window's own top and leading
-// edges and stay there whatever the application draws beneath them. The
-// pane happens to stand under them while it is up, so its strip is cut
-// deep enough to hold them; when the pane goes, nothing about them
-// changes. That fixed line is what both halves of the sidebar switch stand
-// on: [ChromeRowHeight] is twice it, so a row that centres its content
-// centres it exactly where the pane's strip does, and no mark changes step
-// in either direction.
-//
-// THE CHROME ROW IS A TITLE ROW. The current conversation's name stands at
-// its leading end in both pane states — the window's one orientation cue
-// once the pane is away — with the model picker at its trailing end. A
-// chat that has not earned a name shows a muted placeholder rather than a
-// filename. The row carries no section label: the strip's line is for
-// controls and identities, and a category is neither.
-//
-// Under the full-size-content treatment the native title bar hands over no
-// window drag, so the chrome row and the pane's strip claim it back over
-// the parts of themselves that hold no control.
+// There is no inspector and no footer. Settings acts on the application
+// rather than on the conversation, so it stands in the application menu on
+// Cmd-comma, which is where this platform keeps it, and the pane carries no
+// footer for it.
 
 package main
 
 import (
 	"image"
-	"image/color"
 	"path/filepath"
 	"strings"
 
-	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
-	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/icons"
-	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/shell"
+	"github.com/vibrantgio/patterns/splitter"
 	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
 )
 
 const (
-	// chromeInsetDp is where the chrome row's own content begins while the
-	// pane stands: the transcript's row inset, so the conversation's title
-	// stands over the first glyphs of the messages under it rather than on a
-	// grid of its own.
-	chromeInsetDp unit.Dp = 12
-
-	// chromeGapDp is the air between two things standing in the chrome row
-	// or the pane's strip — including the air the row owes the window's
-	// control buttons, whose reported trailing edge is bare glass and
-	// carries no breathing room of its own.
-	chromeGapDp unit.Dp = 12
-
-	// paneMarkDp is the box a BARE mark on the sidebar pane is drawn in:
-	// the same 24 dp box the bordered toolbar control centres its own mark
-	// in, so one figure is one size wherever it stands.
-	paneMarkDp unit.Dp = 24
+	// transcriptInsetDp is the content column's own row inset, and so the
+	// toolbar's leading gutter: the conversation's title stands over the
+	// first glyphs of the messages under it rather than on a grid of its
+	// own. The shell has no default for it — the number is the column's,
+	// not the toolbar's.
+	//
+	// It is also the leading inset the toolbar and the pane's strip lead
+	// from where the window has no control buttons to clear: away from the
+	// full-size-content treatment, in headless rendering, and on every
+	// platform that keeps its own decorations.
+	transcriptInsetDp unit.Dp = 12
 
 	// titleMaxDp is the widest the conversation's title may run before it
 	// is truncated: far enough that a real name fits whole, near enough
 	// that no name can crowd the picker at the row's other end.
 	titleMaxDp unit.Dp = 360
+
+	// paneMinWidthDp and paneMaxWidthDp are the bounds the pane's splitter
+	// moves between. Below the minimum a conversation's name is nothing but
+	// an ellipsis; above the maximum the pane is no longer a column beside
+	// the transcript but a second one competing with it. The stored
+	// platform reference carries no reading for how narrow a sidebar may be
+	// dragged, so these are the window's own.
+	paneMinWidthDp = 160
+	paneMaxWidthDp = 480
+
+	// transcriptMinWidthDp is the narrowest the content column may be
+	// squeezed to by a drag of that splitter: sixty characters of this
+	// system's body text and the air a turn keeps either side of itself.
+	// The sixty is [UserCardMeasure]'s own — the bottom of the band
+	// [TurnMeasure] sits at the top of — and narrower than it the
+	// transcript is no longer a column of prose.
+	//
+	// It bounds the splitter and nothing else, so a window is free to be
+	// narrower than it: what it stops is a boundary taking the last of the
+	// conversation's room, not a small window from opening.
+	transcriptMinWidthDp = 432 + 2*TurnInset
 )
 
-// windowFrame is the window's per-subscription state: the clickable of the
-// one control that stands in the chrome row, kept apart from the pane's own
-// (a control and its recalling half are two clickables, not one shared one).
-type windowFrame struct {
-	rowToggle widget.Clickable
+// frameLimits are the bounds the window states for the one width the shell
+// keeps for it. There is no inspector in this window, so the inspector's
+// clamp stays empty.
+var frameLimits = shell.Limits{
+	Pane: shell.Clamp{Min: paneMinWidthDp, Max: paneMaxWidthDp},
 }
 
-// layout composes the window: the pane, then the content area's chrome row
-// and the transcript under it.
-//
-// The order is the reading order and so the focus ring's: the pane's column
-// first, then the row above the transcript, then the transcript itself. The
-// pane draws its own strip last for the same reason, inside itself.
-func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, sidebar, main, menu layout.Widget) layout.Dimensions {
-	size := gtx.Constraints.Max
-	// What stands under this window's columns is patterns/shell's pane
-	// frame: the window's own plane, the transcript's surface beside the
-	// pane, the two corners the pane rounds away from on its flush side,
-	// and the pane itself with its rim and the column standing in it.
-	// MEASURED, voicememos-multi-folder-2026-09-18.png and
-	// finder-window-untinted-light.png: the eight pixels either side of the
-	// pane carry the window background and nothing else.
-	//
-	// The window keeps the arrangement above it — the transcript laid out
-	// before the row over it, the picker's surface last of all — so it
-	// spends the frame's under half here and casts the pane's shadow itself
-	// once its own columns have painted.
-	frame := shell.PaneFrame{
-		Width:       SidebarWidth,
-		Hidden:      m.SidebarHidden,
+// defaultArrangement is what the window opens with when nothing was kept:
+// the pane at the sidebar's own column, standing.
+func defaultArrangement() shell.Arrangement {
+	return shell.Arrangement{PaneWidth: SidebarWidth, PaneShown: true}
+}
+
+// windowFrame is the window's per-subscription state: the one gesture source
+// behind the Toggle Sidebar button, the pane splitter's hand, the width it
+// moves, and the memory that keeps that width across launches.
+type windowFrame struct {
+	// toggleClick is the ONE gesture source behind the Toggle Sidebar
+	// button, which the arrangement draws bare at the pane's trailing
+	// corner while the pane stands and bordered at the toolbar's leading
+	// end once it is away. The two places are one control, so they are one
+	// clickable and one message.
+	toggleClick widget.Clickable
+
+	// paneSplitter is the hand on the pane's trailing edge across frames,
+	// and paneW the width it moves.
+	paneSplitter splitter.State
+	paneW        unit.Dp
+
+	// widths keeps that width and the pane's shown state across launches.
+	// It is nil wherever a frame is laid out for measurement rather than
+	// for a reader, so a stored render arranges a window nobody is sitting
+	// at without writing over what a real one kept.
+	widths *shell.ArrangementMemory
+
+	// geom is the arrangement the last frame laid out, kept so the
+	// composition can be measured after the fact rather than recomputed
+	// from the tokens that placed it.
+	geom shell.PaneLayout
+
+	// post is where the frame's own answers go: the frame's message op,
+	// which is what a nil leaves, and a recorder where a frame is laid out
+	// without a window to post to.
+	post func(gtx layout.Context, msg mvu.Message)
+}
+
+// newWindowFrame seats a frame on the arrangement it opens with.
+func newWindowFrame(widths *shell.ArrangementMemory) *windowFrame {
+	a := defaultArrangement()
+	if widths != nil {
+		a = widths.Arrangement()
+	}
+	return &windowFrame{paneW: a.PaneWidth, widths: widths}
+}
+
+// send hands one of the frame's answers on to whatever is collecting this
+// frame's messages.
+func (f *windowFrame) send(gtx layout.Context, msg mvu.Message) {
+	if f.post != nil {
+		f.post(gtx, msg)
+		return
+	}
+	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
+}
+
+// layout hands the shell what this window puts in each of its slots and
+// draws the frame it arranges.
+func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, col shell.PaneColumn, main, menu layout.Widget) layout.Dimensions {
+	two := shell.TwoColumn{
+		PaneWidth:  f.paneW,
+		PaneHidden: m.SidebarHidden,
+		Pane:       col,
+		PaneResize: &shell.PaneResize{
+			State: &f.paneSplitter,
+			Min:   frameLimits.Pane.Min, Max: frameLimits.Pane.Max,
+			Floor:    transcriptMinWidthDp,
+			OnChange: func(w unit.Dp) { f.paneW = w },
+		},
+		// The content column stands on the transcript's own surface: the
+		// conversation is what the window is. The pane is chrome and wears
+		// the platform's chrome material, which patterns/pane resolves.
 		Surface:     t.col.WindowBackground,
 		ContentFill: t.palette.Transcript,
-		Sidebar:     sidebar,
+		Toolbar:     f.toolbar(m, t),
+		Toggle: &shell.ToggleSidebar{
+			Click:        &f.toggleClick,
+			Mark:         icons.Mark(icons.Sidebar),
+			PaneTitle:    "Hide the conversations",
+			ToolbarTitle: "Show the conversations",
+			OnPress:      func(gtx layout.Context) { f.send(gtx, ToggleSidebar{}) },
+		},
+		Radius:           tokens.Radius,
+		Density:          t.den,
+		Main:             main,
+		Over:             f.picker(menu),
+		WindowButtonsEnd: windowButtonsEnd,
+		Memory:           f.widths,
+		Report:           func(g shell.PaneLayout) { f.geom = g },
 	}
-	bounds := frame.Bounds(gtx, size)
-	contentX := shell.ContentX(bounds)
-	frame.Under(gtx, t.col, size, bounds)
-
-	contentW := size.X - contentX
-	if contentW <= 0 {
-		return layout.Dimensions{Size: size}
-	}
-
-	rowH := min(gtx.Dp(ChromeRowHeight), size.Y)
-	if main != nil && size.Y-rowH > 0 {
-		st := op.Offset(image.Pt(contentX, rowH)).Push(gtx.Ops)
-		mgtx := gtx
-		mgtx.Constraints = layout.Exact(image.Pt(contentW, size.Y-rowH))
-		main(mgtx)
-		st.Pop()
-	}
-
-	// The row after the transcript, not before it. What a bordered toolbar
-	// control casts on its band reaches past the row's own foot — MEASURED,
-	// finder-window-light.png, where the shadow under a control is still
-	// darkening the document 38 rows down — and a transcript drawn over it
-	// cuts it off at the row's edge with a ruled line, which is the one thing
-	// a cast shadow may not have. The pane's own strip already stands last in
-	// its column for the same reason. Nothing moves in the hit test: the row's
-	// pointer areas lie inside the row, and the transcript's inside the
-	// transcript.
-	if rowH > 0 {
-		st := op.Offset(image.Pt(contentX, 0)).Push(gtx.Ops)
-		rgtx := gtx
-		rgtx.Constraints = layout.Exact(image.Pt(contentW, rowH))
-		f.chromeRow(rgtx, m, t)
-		st.Pop()
-	}
-
-	// Last, into the cap the row reserved: the picker, whose surface hangs
-	// over the transcript when it is open.
-	layoutPicker(gtx, menu, contentX, contentW, rowH)
-
-	// The shadow the pane casts, after every column has painted its own
-	// surface: the transcript paints its own rows after the pane has laid
-	// out — the pane comes first because it comes first in the reading order
-	// — and would cover the ramp the pane cast on it. The pattern cuts the
-	// pane's own box out of the drawing, so painting it here lands what
-	// painting it under the pane landed.
-	pane.PaintShadow(gtx, t.col, bounds)
-
-	return layout.Dimensions{Size: size}
+	dims, _ := two.Layout(gtx, t.col)
+	return dims
 }
 
-// chromeRow lays out the content area's title row: the conversation's name
-// leading and the model picker's reserved cap trailing, with the toggle that
-// brings the pane back standing before the name while the pane is away.
+// toolbar is what the content column carries across its top: the
+// conversation's name in the centre, which is the window's one orientation
+// cue once the pane is away, and the model picker's reserved cap at the
+// trailing end.
 //
-// It is the toggle alone. A pane's own marks go with the pane, so what the
-// row gains when the pane leaves is the recalling half of the switch and
-// nothing else: new chat adds to the list the pane shows and waits for it.
+// The leading group is empty. A pane's own marks go with the pane, so what
+// the toolbar gains when the pane leaves is the Toggle Sidebar button and
+// nothing else — and the arrangement is what puts it there. New chat adds to
+// the list the pane shows and waits for it.
 //
-// The leading inset is a measurement in exactly one state. With the pane
-// standing, the window's buttons are inside the pane and the row owes them
-// nothing, so it starts at the transcript's own inset; with the pane away
-// the whole top strip is the row's and it starts past the buttons' reported
-// trailing edge, plus the air that edge does not carry.
-//
-// Every child stands on the row's own middle, which is the window buttons'
-// centre line by [ChromeRowHeight]'s arithmetic — so what the row shows
-// while the pane is away is level with what the pane's strip showed before
-// it went.
-func (f *windowFrame) chromeRow(gtx layout.Context, m Model, t themed) layout.Dimensions {
-	lead := chromeLead(m.SidebarHidden, windowButtonsEnd())
-	children := make([]layout.FlexChild, 0, 8)
-	children = append(children, layout.Rigid(dragSpacer(lead)))
-	if m.SidebarHidden {
-		children = append(children,
-			layout.Rigid(f.toggleControl(t)),
-			layout.Rigid(dragSpacer(chromeGapDp)))
-	}
-	children = append(children,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+// The row carries no section label: the strip's line is for controls and
+// identities, and a category is neither.
+func (f *windowFrame) toolbar(m Model, t themed) shell.Toolbar {
+	return shell.Toolbar{
+		ButtonFallback: transcriptInsetDp,
+		Lead:           transcriptInsetDp,
+		Center: func(gtx layout.Context) layout.Dimensions {
 			return chatTitle(gtx, m, t)
-		}),
-		layout.Flexed(1, dragFill),
+		},
 		// The picker's cap is RESERVED here and drawn afterwards, over the
-		// transcript — a popover's surface hangs below its anchor and has
-		// to win the paint and the hit test against everything it hangs
-		// over, so the one thing in this row that opens is the one thing
-		// laid out after the document. What the row spends on it is the
-		// space, which is why the reservation stands in the flex: the drag
-		// the row claims across its middle must stop before the control, since
-		// a move action swallows the press before any control beneath it
-		// sees one.
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		// transcript: a popover's surface hangs below its anchor and has to
+		// win the paint and the hit test against everything it hangs over,
+		// so the one thing in this toolbar that opens is the one thing laid
+		// out after the document. What the toolbar spends on it is the
+		// room, which is why the reservation stands in the group — the drag
+		// the toolbar claims across its middle must stop before the
+		// control, since a move action swallows the press before any
+		// control beneath it sees one.
+		Trailing: []layout.Widget{func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: image.Pt(gtx.Dp(ToolbarWidth), gtx.Constraints.Max.Y)}
-		}),
-		layout.Rigid(dragSpacer(chromeInsetDp)))
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
+		}},
+	}
 }
 
-// layoutPicker draws the model picker into the chrome row, and what it hands
-// it is the WHOLE row inside the content area's insets rather than a box cut
-// to the control. That box is patterns/popover's statement of the room the
-// open menu may use: the surface hangs off the anchor and the popover keeps
-// it inside what it was given, so a box cut to the control would leave the
-// menu running off the window's trailing edge with nothing to clamp against.
-// Where the control stands in that room is the popover's trailing alignment
-// (modelmenu.go), which is why it lands on the content column's edge and not
-// a few pixels inboard of it whatever the model is called.
-func layoutPicker(gtx layout.Context, menu layout.Widget, contentX, contentW, rowH int) {
-	if menu == nil || rowH <= 0 {
-		return
+// picker is the model picker as the arrangement's own overlay slot, and what
+// it is handed is the WHOLE toolbar row inside the content column's gutters
+// rather than a box cut to the control. That box is patterns/popover's
+// statement of the room the open menu may use: the surface hangs off the
+// anchor and the popover keeps it inside what it was given, so a box cut to
+// the control would leave the menu running off the window's trailing edge
+// with nothing to clamp against. Where the control stands in that room is
+// the popover's trailing alignment (modelmenu.go), which is why it lands on
+// the toolbar's own trailing gutter and not a few pixels inboard of it
+// whatever the model is called.
+func (f *windowFrame) picker(menu layout.Widget) layout.Widget {
+	if menu == nil {
+		return nil
 	}
-	inset := gtx.Dp(chromeInsetDp)
-	room := contentW - 2*inset
-	if room <= 0 {
-		return
+	return func(gtx layout.Context) layout.Dimensions {
+		lead, trail := gtx.Dp(transcriptInsetDp), gtx.Dp(shell.PlatformToolbar.Trail)
+		depth := min(gtx.Dp(shell.ToolbarDepth), gtx.Constraints.Max.Y)
+		room := gtx.Constraints.Max.X - lead - trail
+		if room <= 0 || depth <= 0 {
+			return layout.Dimensions{}
+		}
+		defer op.Offset(image.Pt(lead, 0)).Push(gtx.Ops).Pop()
+		mgtx := gtx
+		mgtx.Constraints = layout.Constraints{Max: image.Pt(room, depth)}
+		return menu(mgtx)
 	}
-	defer op.Offset(image.Pt(contentX+inset, 0)).Push(gtx.Ops).Pop()
-	mgtx := gtx
-	mgtx.Constraints = layout.Constraints{Max: image.Pt(room, rowH)}
-	menu(mgtx)
-}
-
-// chromeLead is where the chrome row's own content begins, in dp in from
-// the leading edge of the content area.
-//
-// It is a measurement in exactly one state. With the pane standing, the
-// window's control buttons are inside the pane and the row owes them
-// nothing: it starts at the transcript's own inset, so the conversation's
-// title stands over the first glyphs of the messages under it. With the pane
-// away the whole top strip is the row's, and the row starts past the
-// buttons' reported trailing edge plus the air that bare edge does not
-// carry. Where the platform draws no such buttons the measurement is zero
-// and the row falls back to the same inset it uses beside the pane.
-func chromeLead(hidden bool, buttonsEnd unit.Dp) unit.Dp {
-	if !hidden {
-		return chromeInsetDp
-	}
-	return stripLead(buttonsEnd)
-}
-
-// stripLead is where a band standing over the window's control buttons may
-// begin: their reported trailing edge plus the air the platform leaves after
-// them, and the row's own inset where the window has no such buttons.
-//
-// Both of this window's bands lead from it — the pane's strip while the pane
-// stands, the chrome row once it is away — so the two halves of each switch
-// stand in one window column whichever way the pane goes.
-func stripLead(buttonsEnd unit.Dp) unit.Dp {
-	return desktop.BandLeadFrom(buttonsEnd, pane.ButtonGapDp, chromeInsetDp)
 }
 
 // chatTitle draws the conversation the window is showing, which is the
 // window's one orientation cue once the pane is away. A chat that has not
 // earned a name yet shows a muted placeholder rather than the filename it
-// is stored under: the row says what is open, and "new.jsonl" is not that.
+// is stored under: the toolbar says what is open, and "new.jsonl" is not
+// that.
 func chatTitle(gtx layout.Context, m Model, t themed) layout.Dimensions {
 	text, verdict := chatTitleText(m.CurrentChat.Name)
-	// The chrome row stands over the transcript, so its title is the
+	// The toolbar stands over the transcript, so its title is the
 	// platform's label over that content. The sidebar's selected-row
 	// foreground is white, and on the light content it paints nothing.
 	colour := t.palette.TurnText
@@ -319,7 +279,7 @@ const (
 	titleMuted
 )
 
-// chatTitleText is the chrome row's title for a chat file name, and the
+// chatTitleText is the toolbar's title for a chat file name, and the
 // verdict on whether it is a name at all. The untitled chats are the ones
 // the application itself named — new.jsonl and its numbered siblings — and
 // they show the placeholder until the conversation earns something better.
@@ -331,133 +291,14 @@ func chatTitleText(name string) (string, titleVerdict) {
 	return strings.ToUpper(base[:1]) + base[1:], titleNamed
 }
 
-// toggleControl is the chrome row's half of the sidebar switch: the control
-// that brings the pane back, standing only while it is away. It wears the
-// figure the pane's own control wears, at the same size and on the same
-// line, because the two are one switch.
-func (f *windowFrame) toggleControl(t themed) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		// The pane is away wherever this half of the switch stands, which is
-		// the state the control draws: off.
-		return sidebarToggle(gtx, t, &f.rowToggle, "Show the conversations", false)
-	}
-}
-
-// sidebarToggle draws one half of the sidebar switch: the design system's own
-// sidebar mark in the platform's bordered toolbar control, centred on the line
-// of the row it stands in.
-//
-// The mark comes from components/icons under the name of the control it
-// belongs to, so a Mac user sees the pane and list lines that platform draws
-// and every other platform sees the neutral pane, from one name here. Both
-// halves of the switch come through this function, so the name is asked for
-// once and the two stand as one figure.
-//
-// The figure never morphs. What the control is about to do is in the label
-// it carries, which the screen reader speaks; a mark that changed with the
-// state would leave a reader guessing whether it shows the present state or
-// the next one, and the platform does not change this one either.
-//
-// What DOES say which way the switch stands is the control around the
-// figure: standing is the pane's own state, and a control that records a
-// state draws it as the platform draws the chosen segment of a segmented
-// control — a lighter patch inside the control's own box. So the reader sees
-// that the pane is on without the figure having to change into a second
-// drawing.
-func sidebarToggle(gtx layout.Context, t themed, click *widget.Clickable, label string, standing bool) layout.Dimensions {
-	for click.Clicked(gtx) {
-		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
-	}
-	return controlBox(gtx, t, click, label, icons.Mark(icons.Sidebar), standing)
-}
-
-// paneMark stands one chrome mark BARE — the figure alone, at the same box
-// [controlBox] centres its figure in, in the platform's control text over
-// the fill it stands on. It is what the sidebar pane's own controls are
-// drawn as: the pane is not a band, and MEASURED,
-// voicememos-multi-folder-2026-09-18.png, the two marks in a sidebar
-// pane's top trailing corner carry no capsule, no fill and no rim while
-// every mark in the band beside them does.
-//
-// The foreground is the same name [controlBox] reads its mark in, so the two
-// halves of one switch are one figure in one colour whichever side of the
-// window they stand on: what a toolbar draws its own symbols in. The pane's
-// half records no state: it stands only while the pane does, and a mark with
-// nothing around it has nowhere to draw the chosen patch.
-func paneMark(gtx layout.Context, t themed, click *widget.Clickable, name icons.Name, label string, msg mvu.Message, post func(layout.Context, mvu.Message)) layout.Dimensions {
-	for click.Clicked(gtx) {
-		post(gtx, msg)
-	}
-	box := gtx.Dp(paneMarkDp)
-	fg := t.col.ToolbarLabel
-	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		semantic.ClassOp(semantic.Button).Add(gtx.Ops)
-		semantic.LabelOp(label).Add(gtx.Ops)
-		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointershape.OverSize(gtx.Ops, image.Pt(box, box), pointer.CursorPointer)
-		icons.Mark(name)(gtx, box, fg)
-		return layout.Dimensions{Size: image.Pt(box, box)}
-	})
-}
-
-// paneToggle and paneNewChat are the pane's own two marks, drawn bare
-// through [paneMark]. They are named here rather than called through with
-// an icon name because the sidebar's own file draws the pane and reaches
-// for a different icons package.
-func paneToggle(gtx layout.Context, t themed, click *widget.Clickable, label string, post func(layout.Context, mvu.Message)) layout.Dimensions {
-	return paneMark(gtx, t, click, icons.Sidebar, label, ToggleSidebar{}, post)
-}
-
+// paneNewChat is the pane's own mark, drawn bare in the pane's own strip —
+// before the Toggle Sidebar button, which the arrangement puts last. It is
+// the application's primary action and Cmd-N operates it in either pane
+// state; the mark itself goes with the pane, because new chat adds to the
+// list the pane shows and waits for it.
 func paneNewChat(gtx layout.Context, t themed, click *widget.Clickable, post func(layout.Context, mvu.Message)) layout.Dimensions {
-	return paneMark(gtx, t, click, icons.Plus, "New chat", NewChat{}, post)
-}
-
-// controlBox stands one chrome mark in the platform's BORDERED TOOLBAR
-// CONTROL: a capsule at the toolbar control's measured height with the mark
-// centred in it, its fill, its rim where the platform draws one, and the drop
-// shadow it casts on the band it stands on. components/button's chrome
-// variant is the control, drawn through the same internal seam the picker's
-// chrome trigger is drawn through, so every symbol standing in this window's
-// chrome is one control and not a bare figure on a band.
-//
-// It is the CHROME ROW's drawing. The pane's own marks stand bare through
-// [paneMark]: which of the two a mark takes is a property of what it stands
-// on, not of the switch it belongs to.
-func controlBox(gtx layout.Context, t themed, click *widget.Clickable, label string, mark func(gtx layout.Context, sizePx int, col color.NRGBA), on bool) layout.Dimensions {
-	state := button.RenderState{
-		Variant: button.Chrome,
-		Hovered: click.Hovered(),
-		Pressed: click.Pressed(),
-		Focused: gtx.Focused(click),
-		Checked: on,
+	for click.Clicked(gtx) {
+		post(gtx, NewChat{})
 	}
-	face := button.BorderedFace(mark, t.col, tokens.Radius, t.den, state)
-	// The shadow is cast AROUND the clickable rather than inside it: it falls
-	// outside the control's own box, and a clickable clips what it wraps to
-	// the box its layout.Widget reports.
-	return button.BorderedShadow(gtx, t.col, state, func(gtx layout.Context) layout.Dimensions {
-		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			semantic.ClassOp(semantic.Button).Add(gtx.Ops)
-			semantic.LabelOp(label).Add(gtx.Ops)
-			semantic.EnabledOp(true).Add(gtx.Ops)
-			return face(gtx)
-		})
-	})
-}
-
-// dragSpacer is a fixed-width gap that moves the window when it is dragged.
-// A row standing in the strip the native title bar would otherwise own says
-// where the window may be picked up, and it says so over its empty space
-// alone — a move action swallows the press before any control beneath it
-// sees one.
-func dragSpacer(w unit.Dp) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		return desktop.DragRun(gtx, gtx.Dp(w))
-	}
-}
-
-// dragFill is a row's flexible middle: everything between what stands at
-// its two ends, draggable end to end.
-func dragFill(gtx layout.Context) layout.Dimensions {
-	return desktop.DragRun(gtx, gtx.Constraints.Min.X)
+	return shell.PaneMark(gtx, t.col, click, icons.Mark(icons.Plus), "New chat")
 }

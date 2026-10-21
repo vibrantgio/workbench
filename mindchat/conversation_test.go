@@ -5,7 +5,7 @@ package main
 //
 // The column is captured on its own rather than inside the whole window
 // because that is what CA2.1 shaped — a picture of the window would carry
-// the pane, the chrome row and the composer through every future diff and
+// the pane, the toolbar and the composer through every future diff and
 // bury a moved card in them. The whole window still has its render, and it
 // is a smoke test rather than a stored image (window_render_test.go).
 

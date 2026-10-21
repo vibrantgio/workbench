@@ -10,15 +10,15 @@
 // than inside the component: the trigger is the popover's anchor slot and the
 // menu its content slot.
 //
-// The room the popover gets is the whole chrome row inside the content
-// area's insets (frame.go), because that room is what the open menu may
+// The room the popover gets is the whole toolbar row inside the content
+// column's gutters (frame.go), because that room is what the open menu may
 // use and the popover keeps its surface inside it. Two things follow. The
 // trigger is stood at that room's trailing edge by the popover, so the
-// control lands on the content column's edge whatever the title says; and
-// because the room is the row rather than the control, the two things that
-// are NOT entitled to all of it cap themselves — the trigger at [ToolbarWidth],
-// the surface at [MenuWidth] — over the constraints the popover offers, which
-// for content is half that room.
+// control lands on the toolbar's own trailing gutter whatever the title
+// says; and because the room is the row rather than the control, the two
+// things that are NOT entitled to all of it cap themselves — the trigger at
+// [ToolbarWidth], the surface at [MenuWidth] — over the constraints the
+// popover offers, which for content is half that room.
 package main
 
 import (
@@ -152,7 +152,7 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 
 // anchorBox caps how far the header control may run before its title is
 // truncated. The popover offers the anchor the whole room it has, and the
-// name of a model is not entitled to the width of the chrome row.
+// name of a model is not entitled to the width of the toolbar.
 func anchorBox(anchor layout.Widget, width unit.Dp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Max.X = min(gtx.Constraints.Max.X, gtx.Dp(width))
@@ -163,7 +163,7 @@ func anchorBox(anchor layout.Widget, width unit.Dp) layout.Widget {
 // menuSurface gives a picker menu the width this app's floating surfaces are
 // drawn at and room to stack every row it has. Both halves are needed: the
 // popover measures its content at half the room it was handed, and half a
-// chrome row is neither this width nor tall enough for a catalogue.
+// toolbar is neither this width nor tall enough for a catalogue.
 func menuSurface(menu layout.Widget, width unit.Dp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(width), 1<<20)}

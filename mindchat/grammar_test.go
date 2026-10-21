@@ -25,6 +25,7 @@ import (
 	"github.com/vibrantgio/components/golden"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -267,51 +268,65 @@ func TestWindowButtonsAreMeasuredFromTheWindowsGlass(t *testing.T) {
 // just clicked it — the defect the collapsed rail had.
 //
 // The pane's strip centres its controls on the buttons' line by the
-// pattern's own arithmetic, from the pane's own top edge; the chrome row
+// pattern's own arithmetic, from the pane's own top edge; the toolbar
 // centres its controls on its own middle. The two are the same line only if
-// the row is exactly twice the buttons' centre, which is how ChromeRowHeight
-// is derived and what this checks.
+// the toolbar is exactly twice the buttons' centre, which this window reads
+// off the shell rather than stating itself.
 func TestBothHalvesOfTheSidebarSwitchStandOnOneLine(t *testing.T) {
 	// Where a control standing in the pane's strip centres, in WINDOW
 	// coordinates: the pane is set one margin inside the window's top edge,
 	// so the strip's own middle is that margin plus half its depth.
 	strip := unit.Dp(PaneMargin) + unit.Dp(pane.StripDp)/2
-	row := ChromeRowHeight / 2
+	row := unit.Dp(shell.ToolbarDepth) / 2
 	if strip != row {
-		t.Errorf("the pane's strip centres its controls at %v and the chrome row at %v; a switch whose halves stand at two heights makes the mark jump", strip, row)
+		t.Errorf("the pane's strip centres its controls at %v and the toolbar at %v; a switch whose halves stand at two heights makes the mark jump", strip, row)
 	}
 	if got := unit.Dp(WindowButtonCenter); got != row {
-		t.Errorf("the chrome row centres at %v, want the window buttons' own line %v", row, got)
+		t.Errorf("the toolbar centres at %v, want the window buttons' own line %v", row, got)
 	}
 }
 
-// TestChromeRowClearsTheWindowControlsOnlyWhenThePaneIsAway checks the one
-// state in which the row owes the buttons anything. With the pane standing
-// the buttons are inside it, so the row starts at the transcript's inset and
-// its title stands over the messages below; with the pane away the row
-// inherits the whole top strip and has to start past them.
-func TestChromeRowClearsTheWindowControlsOnlyWhenThePaneIsAway(t *testing.T) {
+// TestTheToolbarClearsTheWindowControlsOnlyWhenThePaneIsAway checks the one
+// state in which the toolbar owes the buttons anything. With the pane
+// standing the buttons are inside it, so the toolbar starts at the
+// transcript's inset and its title stands over the messages below; with the
+// pane away the toolbar inherits the whole top strip and has to start past
+// them.
+//
+// The rule is the shell's — [shell.ToolbarLead], the larger of the toolbar's
+// own gutter and the inset past the buttons, both in window columns — and
+// what this window states is the gutter. So the reading is taken off the
+// shell at this window's two content origins.
+func TestTheToolbarClearsTheWindowControlsOnlyWhenThePaneIsAway(t *testing.T) {
 	// The measured edge on this platform: the third circle's trailing side,
 	// which is the leading inset plus a diameter plus two pitches.
 	const measuredEnd = unit.Dp(19 + 14 + 2*23)
 
-	if got := chromeLead(false, measuredEnd); got != chromeInsetDp {
-		t.Errorf("with the pane standing the row leads at %v, want the transcript's own inset %v — the buttons are inside the pane", got, chromeInsetDp)
+	gtx := layout.Context{Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}}
+	lead := func(contentX int, buttonsEnd unit.Dp) int {
+		buttons, gutter := shell.ToolbarLead(gtx, contentX, transcriptInsetDp, buttonsEnd, transcriptInsetDp)
+		return buttons + gutter
 	}
-	if got, want := chromeLead(true, measuredEnd), measuredEnd+pane.ButtonGapDp; got != want {
-		t.Errorf("with the pane away the row leads at %v, want %v — the measurement carries no air of its own", got, want)
+	// With the pane standing the content column begins past the pane, which
+	// is already clear of the buttons.
+	standing := int(PaneMargin) + int(SidebarWidth)
+	if got, want := lead(standing, measuredEnd), int(transcriptInsetDp); got != want {
+		t.Errorf("with the pane standing the toolbar leads at %d, want the transcript's own inset %d — the buttons are inside the pane", got, want)
 	}
-	if chromeLead(true, measuredEnd) <= measuredEnd {
-		t.Errorf("the row leads at %v, which is on top of the controls ending at %v", chromeLead(true, measuredEnd), measuredEnd)
+	if got, want := lead(0, measuredEnd), int(measuredEnd+pane.ButtonGapDp); got != want {
+		t.Errorf("with the pane away the toolbar leads at %d, want %d — the measurement carries no air of its own", got, want)
+	}
+	if got := lead(0, measuredEnd); got <= int(measuredEnd) {
+		t.Errorf("the toolbar leads at %d, which is on top of the controls ending at %v", got, measuredEnd)
 	}
 	// Every platform that keeps its own decorations reports no buttons at
-	// all, and there the row has nothing to clear.
-	if got := chromeLead(true, 0); got != chromeInsetDp {
-		t.Errorf("with no window controls the row leads at %v, want %v", got, chromeInsetDp)
+	// all, and there the toolbar has nothing to clear.
+	if got, want := lead(0, 0), int(transcriptInsetDp); got != want {
+		t.Errorf("with no window controls the toolbar leads at %d, want %d", got, want)
 	}
 }
 
-// TestChatTitleShowsThePlaceholderUntilAChatEarnsAName holds the chrome row
+// TestChatTitleShowsThePlaceholderUntilAChatEarnsAName holds the toolbar
 // to showing what is open rather than what it is stored as. A chat the
 // application named itself has not been named at all, and a filename is not
 // an orientation cue.

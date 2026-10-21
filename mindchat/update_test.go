@@ -1,7 +1,11 @@
 package main
 
 import (
+	"reflect"
 	"testing"
+
+	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/shell"
 )
 
 // The Update reducer is a pure function from (Model, message) to Model — the
@@ -476,15 +480,11 @@ func TestUpdateRenameChatRejectsInvalidNames(t *testing.T) {
 
 // TestUpdateToggleSidebarSendsThePaneAwayAndBringsItBack covers the whole of
 // the pane's state: there is no ratio and no third state, so the toggle is a
-// flip and nothing else. It persists because a reader who put the pane away
-// meant it to stay away.
+// flip and nothing else.
 func TestUpdateToggleSidebarSendsThePaneAwayAndBringsItBack(t *testing.T) {
 	hidden, _ := Update(testModel(), ToggleSidebar{})
 	if !hidden.SidebarHidden {
 		t.Fatalf("SidebarHidden = false, want true after the toggle")
-	}
-	if !hidden.Config().SidebarHidden {
-		t.Fatalf("the pane's state must reach the config the toggle saves")
 	}
 	restored, _ := Update(hidden, ToggleSidebar{})
 	if restored.SidebarHidden {
@@ -492,10 +492,24 @@ func TestUpdateToggleSidebarSendsThePaneAwayAndBringsItBack(t *testing.T) {
 	}
 }
 
-func TestUpdateConfigAdoptsSidebarState(t *testing.T) {
-	next, _ := Update(testModel(), Config{LastChat: "alpha.jsonl", SidebarHidden: true})
-	if !next.SidebarHidden {
-		t.Fatalf("sidebar state not adopted from config: %+v", next)
+// TestTheWindowOpensOnTheKeptPaneState holds the pane's shown state to the
+// arrangement the shell keeps rather than to config.json: a reader who sent
+// the pane away finds it away on the next launch, and the width it stands
+// at and whether it stands at all are kept in one place.
+func TestTheWindowOpensOnTheKeptPaneState(t *testing.T) {
+	seed := func() (Model, mvu.Command) { return testModel(), mvu.DoNothing() }
+	away, _ := opensOn(seed, shell.Arrangement{PaneWidth: SidebarWidth, PaneShown: false})()
+	if !away.SidebarHidden {
+		t.Fatalf("the window opened with the pane standing after the reader sent it away")
+	}
+	standing, _ := opensOn(seed, shell.Arrangement{PaneWidth: SidebarWidth, PaneShown: true})()
+	if standing.SidebarHidden {
+		t.Fatalf("the window opened with the pane away after the reader left it standing")
+	}
+	m := testModel()
+	m.SidebarHidden = true
+	if !reflect.DeepEqual(m.Config(), testModel().Config()) {
+		t.Fatal("the pane's state still reaches config.json; the arrangement keeps it")
 	}
 }
 

@@ -208,10 +208,10 @@ const (
 	// that pattern's column, and the reading has one owner.
 	SidebarWidth = sidebar.ExpandedWidth
 
-	// PaneMargin is the air the chrome row and the input bar keep off the
-	// window's edges, the inset the rail's pane stands off the window's
-	// leading, top and bottom edges, and the air its own top strip keeps at
-	// its trailing end. The number is the pane pattern's own margin.
+	// PaneMargin is the air the input bar keeps off the window's edges,
+	// the inset the conversation pane stands off the window's leading, top
+	// and bottom edges, and the air its own top strip keeps at its trailing
+	// end. The number is the pane pattern's own margin.
 	PaneMargin = pane.MarginDp
 
 	StreamDotSize     unit.Dp = 7
@@ -317,21 +317,6 @@ const (
 // platform's own sidebar apps draw at: 19 in from both edges, 14 across,
 // 23 between centres.
 var windowButtonRun = pane.Buttons
-
-// ChromeRowHeight is the depth of the window's chrome row — the title row
-// across the top of the content area, beside the pane while it stands and
-// across the whole window once it is gone.
-//
-// It is twice the window buttons' centre line and nothing else, which is
-// the whole of how the two pane states hold one line. The buttons never
-// move; the pane's strip is cut deep enough to hold them and centres its
-// controls on their line by the pattern's own arithmetic; a row twice that
-// depth centres ITS controls on the same line. So the toggle and the
-// new-chat mark stand at one height whether they ride the pane or stand in
-// the row that recalls it, and neither drops a step as the pane comes and
-// goes. That jump — the control just clicked leaving from under the
-// pointer — is the defect this composition exists to kill.
-var ChromeRowHeight = 2 * windowButtonRun.Center
 
 // WindowButtonDiameter, WindowButtonInset and WindowButtonCenter are
 // windowButtonRun's fields, named for the call sites that already expect

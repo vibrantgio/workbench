@@ -18,7 +18,7 @@ package main
 // the pane away have to hold one line between them, and a picture of either
 // alone cannot show that. Without the flag it still renders all four every
 // run, which makes it a smoke test of the whole layer stack: a panic anywhere
-// in the pane, the transcript, the chrome row's picker or the prompt field
+// in the pane, the transcript, the toolbar's picker or the prompt field
 // fails it.
 
 import (
@@ -43,6 +43,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -127,9 +128,13 @@ func streamingModel() Model {
 // layout.Widget, through the library's whole-window renderer: the layer stack
 // mindchat builds for its window, over a frozen theme, laid out as the window
 // stacks it.
+//
+// The arrangement memory is nil, which is a working one: a frame laid out
+// for a picture rather than for a reader opens on this window's defaults and
+// writes over nothing a real window kept.
 func frame(t *testing.T, c tokens.PlatformColors, model Model) layout.Widget {
 	t.Helper()
-	return golden.Layers(t, buildLayers(rx.Of(model))(rx.Of(golden.StaticTheme(c)))...)
+	return golden.Layers(t, buildLayers(rx.Of(model), nil)(rx.Of(golden.StaticTheme(c)))...)
 }
 
 // The macOS window controls, as this window will actually carry them: the
@@ -397,11 +402,12 @@ func TestTheRailIsSetIntoTheWindow(t *testing.T) {
 	}
 }
 
-// switchBand is the run of the window's top band the sidebar switch stands
-// in, at the band's full height and wide enough to hold both placements: the
-// pane's own marks at its top trailing corner while it stands, and the
-// chrome row's two controls after the window's buttons once it is away.
-var switchBand = image.Rect(0, 0, 320, 52)
+// switchBand is the run of the window's top strip the sidebar switch stands
+// in, at the toolbar's own depth and wide enough to hold both placements:
+// the pane's own marks at its top trailing corner while it stands, and the
+// toolbar's own control after the window's buttons once it is away. The
+// depth is the arrangement's rather than a number written down here.
+var switchBand = image.Rect(0, 0, 320, int(shell.ToolbarDepth))
 
 // TestTheSidebarSwitchGolden pins the sidebar switch itself: the control that
 // puts the pane away and the control that brings it back, drawn at the same
@@ -436,7 +442,7 @@ func TestTheSidebarSwitchGolden(t *testing.T) {
 }
 
 // TestTheWholeWindowGolden stores the composed window itself, in both
-// schemes: the pane standing, the transcript under the chrome row, the prompt
+// schemes: the pane standing, the transcript under the toolbar, the prompt
 // field at the foot. The four frames TestWholeWindowRender draws are for a
 // pair of eyes and store nothing; this is the one composition a change
 // anywhere in the layer stack has to move, and it is kept in the shape

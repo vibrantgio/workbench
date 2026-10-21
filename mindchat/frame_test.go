@@ -1,9 +1,11 @@
 package main
 
 import (
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"gioui.org/f32"
 	gioinput "gioui.org/io/input"
@@ -14,18 +16,20 @@ import (
 	"gioui.org/widget"
 
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/tokens"
 )
 
 // paneStripFrame drives the composed window through a real input.Router: the
-// frame, the pane with its own top strip, and the chrome row beside it. It
-// holds the clickables the window's two halves stand on, so a test can ask
+// arrangement, the pane with its own top strip, and the toolbar beside it.
+// It holds the clickables the window's controls stand on, so a test can ask
 // where each one answers and read back what a press on it posted.
 //
 // The window is composed rather than the strip laid out alone, because what
 // is under test is where a mark stands in the window and which of the two
-// bands it stands in — neither of which a strip laid out by itself can show.
+// strips it stands in — neither of which a strip laid out by itself can show.
 type paneStripFrame struct {
 	ops    op.Ops
 	gtx    layout.Context
@@ -36,20 +40,21 @@ type paneStripFrame struct {
 	m      Model
 	posted []mvu.Message
 
-	// The pane's own marks and the chrome row's recalling half are separate
-	// clickables, as the window keeps them.
-	newChat, toggle widget.Clickable
+	// newChat is the pane's own mark. The Toggle Sidebar button is ONE
+	// clickable in two places and the frame holds it.
+	newChat widget.Clickable
 }
 
 func newPaneStripFrame(t *testing.T, hidden bool) *paneStripFrame {
 	t.Helper()
 	p := &paneStripFrame{
-		f:    &windowFrame{},
+		f:    newWindowFrame(nil),
 		rail: newRailState(),
 		th:   railThemed(t, tokens.PlatformLight),
 		m:    demoModel(),
 	}
-	// The chrome row's control is drawn at the density's own toolbar-control
+	p.f.post = func(_ layout.Context, msg mvu.Message) { p.posted = append(p.posted, msg) }
+	// The toolbar's control is drawn at the density's own toolbar-control
 	// height, which the live window reads off the theme.
 	p.th.den = tokens.Comfortable
 	p.th.motion = tokens.Motion
@@ -66,7 +71,7 @@ func newPaneStripFrame(t *testing.T, hidden bool) *paneStripFrame {
 func (p *paneStripFrame) frame() {
 	p.ops.Reset()
 	sidebar := SidebarPane(p.th, p.m.ChatList, p.m.CurrentChat.Name, nil, p.rail,
-		&p.newChat, &p.toggle,
+		&p.newChat,
 		func(_ layout.Context, msg mvu.Message) { p.posted = append(p.posted, msg) })
 	p.f.layout(p.gtx, p.m, p.th, sidebar, nil, nil)
 	p.r.Frame(&p.ops)
@@ -95,7 +100,7 @@ func (p *paneStripFrame) spanIn(x0, x1, y int, c *widget.Clickable) (int, int) {
 // chrome mark in this window is drawn at and the pattern's measured band
 // between two bare marks, which together are the 42 dp between drawn centres
 // read off voicememos-multi-folder-2026-09-18.png.
-const paneMarkStride = int(paneMarkDp) + pane.MarkGapDp
+const paneMarkStride = int(shell.MarkDp) + pane.MarkGapDp
 
 // TestThePaneStripStandsNewChatBeforeTheToggle reads the pane's top strip off
 // a composed window: new chat, then the toggle at the trailing corner, each
@@ -118,9 +123,9 @@ func TestThePaneStripStandsNewChatBeforeTheToggle(t *testing.T) {
 	region := pane.Bounds(p.gtx, windowSize, SidebarWidth, false)
 	stripY := region.Min.Y + p.gtx.Dp(unit.Dp(pane.StripDp))/2
 	newLo, newHi := p.spanIn(region.Min.X, region.Max.X, stripY, &p.newChat)
-	togLo, togHi := p.spanIn(region.Min.X, region.Max.X, stripY, &p.toggle)
+	togLo, togHi := p.spanIn(region.Min.X, region.Max.X, stripY, &p.f.toggleClick)
 
-	box := p.gtx.Dp(paneMarkDp)
+	box := p.gtx.Dp(unit.Dp(shell.MarkDp))
 	for _, c := range []struct {
 		name   string
 		lo, hi int
@@ -167,7 +172,7 @@ func TestThePaneMarkPostsANewChat(t *testing.T) {
 	p.frame()
 
 	region := pane.Bounds(p.gtx, windowSize, SidebarWidth, false)
-	box := p.gtx.Dp(paneMarkDp)
+	box := p.gtx.Dp(unit.Dp(shell.MarkDp))
 	x := float32(region.Max.X - PaneMargin - box/2 - paneMarkStride)
 	at := f32.Pt(x, float32(region.Min.Y+p.gtx.Dp(unit.Dp(pane.StripDp))/2))
 	p.posted = nil
@@ -193,7 +198,7 @@ func postedOneOf(got []mvu.Message, want mvu.Message) bool {
 	return false
 }
 
-// TestWithThePaneAwayTheRowHoldsTheToggleAlone reads the chrome row in the
+// TestWithThePaneAwayTheRowHoldsTheToggleAlone reads the toolbar in the
 // collapsed state: the toggle that brings the pane back at its leading end,
 // and not one stand-in for the mark that went with the pane. Only the toggle
 // travels, which is what this platform's own sidebars do — so while the pane
@@ -209,12 +214,12 @@ func TestWithThePaneAwayTheRowHoldsTheToggleAlone(t *testing.T) {
 	p.frame()
 
 	y := int(WindowButtonCenter)
-	lo, _ := p.spanIn(0, windowSize.X, y, &p.f.rowToggle)
+	lo, _ := p.spanIn(0, windowSize.X, y, &p.f.toggleClick)
 	if lo < 0 {
-		t.Fatal("the chrome row holds no toggle to bring the pane back")
+		t.Fatal("the toolbar holds no toggle to bring the pane back")
 	}
-	if want := int(stripLead(buttonsEndDp)); lo != want {
-		t.Errorf("the row's toggle leads at %d, want the leading end past the window buttons at %d", lo, want)
+	if want := int(desktop.BandLeadFrom(buttonsEndDp, pane.ButtonGapDp, transcriptInsetDp)); lo != want {
+		t.Errorf("the toolbar's toggle leads at %d, want the leading end past the window buttons at %d", lo, want)
 	}
 	if clo, chi := p.spanIn(0, windowSize.X, y, &p.newChat); clo >= 0 {
 		t.Errorf("new chat answers the window at %d-%d with the pane away; it went with the pane", clo, chi)
@@ -291,5 +296,79 @@ func TestThePaneOffersNoSettingsControlAndTheMenusMessageOpensIt(t *testing.T) {
 	next, _ := Update(demoModel(), item.Msg)
 	if !next.Settings.Open {
 		t.Error("the menu's message left the settings dialog closed")
+	}
+}
+
+// TestThePanesTrailingEdgeIsASplitterTheReaderCanDrag is the owner's finding:
+// a window with a sidebar has a splitter on the pane's trailing edge, and
+// this one had none. The boundary is taken hold of where the pane's rim
+// stands and dragged along the row; the pane follows the hand, the content
+// column reflows from where it ends, and the width the drag left is what the
+// window keeps.
+//
+// The arrangement is read back through the shell's own report rather than
+// recomputed from the tokens that placed it: what is asserted is the frame
+// that was drawn.
+func TestThePanesTrailingEdgeIsASplitterTheReaderCanDrag(t *testing.T) {
+	saved := windowButtonsEnd
+	defer func() { windowButtonsEnd = saved }()
+	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
+
+	p := newPaneStripFrame(t, false)
+	p.frame()
+	p.frame()
+
+	opened := p.f.geom.Pane.Max.X
+	if got, want := opened, int(PaneMargin)+int(SidebarWidth); got != want {
+		t.Fatalf("the pane's trailing edge stands at %d, want the sidebar's own column at %d", got, want)
+	}
+
+	// The hand takes the boundary where it is drawn and carries it sixty
+	// columns out.
+	const by = 60
+	y := float32(windowSize.Y / 2)
+	at := f32.Pt(float32(opened)-0.5, y)
+	p.r.Queue(pointer.Event{Kind: pointer.Press, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary})
+	p.frame()
+	p.r.Queue(pointer.Event{Kind: pointer.Move, Position: f32.Pt(at.X+by, y), Source: pointer.Mouse, Buttons: pointer.ButtonPrimary})
+	p.frame()
+	p.r.Queue(pointer.Event{Kind: pointer.Release, Position: f32.Pt(at.X+by, y), Source: pointer.Mouse, Buttons: pointer.ButtonPrimary})
+	p.frame()
+
+	if got, want := int(p.f.paneW), int(SidebarWidth)+by; got != want {
+		t.Fatalf("the drag left the pane %d dp wide, want %d", got, want)
+	}
+	if got, want := p.f.geom.Pane.Max.X, opened+by; got != want {
+		t.Errorf("the frame reports the pane's trailing edge at %d, want %d", got, want)
+	}
+	if got, want := p.f.geom.ContentX, opened+by; got != want {
+		t.Errorf("the content column begins at %d, want the pane's trailing edge at %d", got, want)
+	}
+}
+
+// TestTheWindowKeepsThePanesWidthAndShownState holds the arrangement to one
+// file: the width the reader dragged the pane to and whether it stands at
+// all are written where the shell keeps them, and a window opened on that
+// file arranges itself the way it was left.
+func TestTheWindowKeepsThePanesWidthAndShownState(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "layout.json")
+	widths := shell.OpenArrangement(path, time.Millisecond, defaultArrangement(), frameLimits)
+
+	if got, want := widths.Arrangement().PaneWidth, SidebarWidth; got != want {
+		t.Fatalf("a window with nothing kept opens its pane at %v, want %v", got, want)
+	}
+	// The first report is what the window opened with and is never news;
+	// the second is the reader's change.
+	widths.Record(widths.Arrangement())
+	widths.Record(shell.Arrangement{PaneWidth: 300, PaneShown: false})
+	widths.Stop()
+
+	reopened := shell.OpenArrangement(path, time.Millisecond, defaultArrangement(), frameLimits)
+	if got := reopened.Arrangement(); got.PaneWidth != 300 || got.PaneShown {
+		t.Fatalf("the reopened window arranges itself at %+v, want the 300 dp pane sent away", got)
+	}
+	m, _ := opensOn(func() (Model, mvu.Command) { return demoModel(), mvu.DoNothing() }, reopened.Arrangement())()
+	if !m.SidebarHidden {
+		t.Error("the window opened with the pane standing after the reader sent it away")
 	}
 }

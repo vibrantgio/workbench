@@ -22,7 +22,6 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 			last = strings.TrimSuffix(last, ".json") + ".jsonl"
 		}
 		model.CurrentChat.Name = last
-		model.SidebarHidden = message.SidebarHidden
 		model.Providers = message.Providers
 		// Model caches persisted before a nonChatMarkers change (or by an
 		// older build) are re-filtered on the way in.
@@ -363,8 +362,11 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		return model, mvu.DoConcurrent(commands...)
 
 	case ToggleSidebar:
+		// The shell's arrangement memory keeps the pane's shown state, and
+		// every frame reports it there, so the toggle writes nothing of its
+		// own.
 		model.SidebarHidden = !model.SidebarHidden
-		return model, SaveConfig(model.ConfigFile(), model.Config()).Trace("Save Config")
+		return model, mvu.DoNothing()
 
 	case OpenSettings:
 		selected := 0
