@@ -48,7 +48,6 @@ import (
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/patterns/sidebar"
-	"github.com/vibrantgio/textdraw"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -82,7 +81,6 @@ type themed struct {
 	removeOn layout.Widget
 	editOn   layout.Widget
 	add      layout.Widget
-	gear     layout.Widget
 	// md is the message-body markdown style: token defaults plus the app's
 	// opt-ins — chroma highlighting matched to the appearance, and links
 	// opening in the system browser. MessageRow sets the foreground the
@@ -231,12 +229,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			if err != nil {
 				panic(err)
 			}
-			gear, err := raster.Widget(icons.ActionSettings, SettingsIconSize, SettingsIconSize, raster.WithColors(p.Heading))
-			if err != nil {
-				panic(err)
-			}
 			md := messageMarkdownStyle(c, typ)
-			return themed{palette: p, col: c, bar: scrollbar.FromTokens(c, c.ControlBackground), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, gear: gear, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad, den: den}
+			return themed{palette: p, col: c, bar: scrollbar.FromTokens(c, c.ControlBackground), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad, den: den}
 		})
 	})
 
@@ -249,7 +243,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 	// the toggle that rides the pane and the one that recalls it are the two
 	// halves of one switch, never one clickable standing in two places, and
 	// only one of the two is laid out in any frame.
-	var paneToggle, paneNewChat, settingsClick widget.Clickable
+	var paneToggle, paneNewChat widget.Clickable
 
 	// The frame and the undo bar are composed per emission and read at
 	// frame time through atomic cells — the observable-over-static-slot
@@ -275,7 +269,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			for _, s := range model.Streams {
 				streaming[s.Chat] = true
 			}
-			sidebar := SidebarPane(t, model.ChatList, model.CurrentChat.Name, streaming, rail, &paneNewChat, &paneToggle, &settingsClick, postMessage)
+			sidebar := SidebarPane(t, model.ChatList, model.CurrentChat.Name, streaming, rail, &paneNewChat, &paneToggle, postMessage)
 			main := ChatPane(t, msgDocs.Rows(visibleHistory(model)), histList, promptW)
 			frameCell.Store(layout.Widget(func(gtx layout.Context) layout.Dimensions {
 				return frame.layout(gtx, model, t, sidebar, main, menuSlot)
@@ -925,8 +919,8 @@ func postMessage(gtx layout.Context, msg mvu.Message) {
 }
 
 // SidebarPane renders the column that stands inside the rail: the
-// top strip the window's control buttons pass through, the conversation
-// list, and the settings row at the foot.
+// top strip the window's control buttons pass through, and the
+// conversation list running to the pane's foot.
 //
 // There is no wordmark and no section heading: the menu bar and the Dock
 // carry this application's identity, and a list with exactly one section does
@@ -935,13 +929,12 @@ func postMessage(gtx layout.Context, msg mvu.Message) {
 // The strip is reserved by the flex and DRAWN AFTERWARDS, which is a
 // statement about the keyboard rather than about paint. Focus follows the
 // order the ops are written in, and the reading order of this pane is the
-// conversations, then the settings that act on all of them, then the pane's
-// own controls — a reader who tabs into the pane means to reach a
-// conversation, not to put the pane away.
+// conversations, then the pane's own controls — a reader who tabs into the
+// pane means to reach a conversation, not to put the pane away.
 //
-// Everything the pane can answer — a row, the footer's settings, the strip's
-// own marks — answers through post, the one sink the caller hands it.
-func SidebarPane(t themed, chats ChatList, current string, streaming map[string]bool, rail *railState, newChat, toggle, settings *widget.Clickable, post func(layout.Context, mvu.Message)) layout.Widget {
+// Everything the pane can answer — a row, the strip's own marks — answers
+// through post, the one sink the caller hands it.
+func SidebarPane(t themed, chats ChatList, current string, streaming map[string]bool, rail *railState, newChat, toggle *widget.Clickable, post func(layout.Context, mvu.Message)) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
@@ -958,9 +951,6 @@ func SidebarPane(t themed, chats ChatList, current string, streaming map[string]
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return rail.layout(gtx, t, chats, current, streaming, post)
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return SidebarFooter(gtx, t, settings)
 			}),
 		)
 
@@ -1019,51 +1009,6 @@ func SidebarStrip(gtx layout.Context, t themed, toggle, newChat *widget.Clickabl
 // there are no such buttons to clear. It is a variable so that a test can
 // state a measurement it has no window to take.
 var windowButtonsEnd = desktop.LeadingInset
-
-// SidebarFooter is the pane's foot: a hairline off the rows and, under it,
-// the settings affordance — gear and title sharing one vertical centre on
-// the rows' own gutter.
-//
-// Settings stands here and nowhere else in the window's chrome. It acts on
-// the application rather than on the conversation, so it earns no standing
-// place in a window whose pane is away; Cmd-comma is how it is reached then,
-// which is where this platform keeps it anyway.
-//
-// The hairline is the pane's OWN, drawn inside its outline and running only
-// the pane's width — it says the scrolling stops here, which is a fact
-// about this column and not a band across the window.
-func SidebarFooter(gtx layout.Context, t themed, settings *widget.Clickable) layout.Dimensions {
-	for settings.Clicked(gtx) {
-		mvu.MessageOp{Message: OpenSettings{}}.Add(gtx.Ops)
-	}
-	p := t.palette
-	width := gtx.Constraints.Max.X
-	sep := gtx.Dp(1)
-	rowH := gtx.Dp(FooterRowHeight)
-
-	FillRect(gtx, image.Rectangle{Min: image.Pt(gtx.Dp(12), 0), Max: image.Pt(width-gtx.Dp(12), sep)}, 0, p.Separator)
-
-	defer op.Offset(image.Pt(0, sep)).Push(gtx.Ops).Pop()
-	gtx.Constraints = layout.Exact(image.Pt(width, rowH))
-	settings.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		// A sidebar row does not tint under the pointer on this platform,
-		// which the reference captures measure, so the footer's row does not
-		// either: it keeps one foreground however the pointer moves.
-		textColor := p.Row
-		left := gtx.Dp(16)
-		iconSz := gtx.Dp(FooterIconSize)
-		off := op.Offset(image.Pt(left, (rowH-iconSz)/2)).Push(gtx.Ops)
-		icon := gtx
-		icon.Constraints = layout.Exact(image.Pt(iconSz, iconSz))
-		t.gear(icon)
-		off.Pop()
-
-		titleRect := image.Rect(left+iconSz+gtx.Dp(10), 0, gtx.Constraints.Max.X-gtx.Dp(12), rowH)
-		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium), titleRect, 0, 0.5, textColor, "Settings")
-		return layout.Dimensions{Size: gtx.Constraints.Max}
-	})
-	return layout.Dimensions{Size: image.Pt(width, rowH+sep)}
-}
 
 // IconButton lays a square icon inside a clickable with a pointer cursor.
 func IconButton(gtx layout.Context, click *widget.Clickable, size unit.Dp, draw func(gtx layout.Context, sizePx int)) layout.Dimensions {

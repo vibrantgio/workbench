@@ -1,5 +1,5 @@
-// settings.go owns the settings dialog the pane's foot opens — and, with the
-// pane away, Cmd-comma, which is where this platform keeps it: the provider
+// settings.go owns the settings dialog the application menu's Settings… and
+// its Cmd-comma open, which is where this platform keeps it: the provider
 // catalogue editor (the providers well with +/− beside a form of Name, Base
 // URL and API key rows, where the key is auto-checked by a debounced /models
 // fetch and its verdict shown beside the field) and the GLOBAL default-model

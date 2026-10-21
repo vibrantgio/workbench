@@ -24,9 +24,10 @@
 // primary action and can be operated in both states for that reason, and
 // Cmd-N operates it in either.
 //
-// Settings does not stand in that pair. It sits at the foot of the pane and
-// on Cmd-comma: it acts on the application rather than on the conversation,
-// and it earns no standing place in a window whose pane is away.
+// Settings does not stand in that pair, and it has no control in the
+// window at all. It acts on the application rather than on the
+// conversation, so it stands in the application menu on Cmd-comma, which
+// is where this platform keeps it.
 //
 // THE WINDOW BUTTONS ARE MEASURED FROM THE GLASS. The three control
 // buttons stand a fixed inset in from the window's own top and leading

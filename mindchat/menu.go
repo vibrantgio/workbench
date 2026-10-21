@@ -40,9 +40,9 @@ type MenuCommand struct {
 // a menu key equivalent is taken before the key reaches the window, so
 // whatever has focus never sees these.
 //
-// Settings is the one that must be here. With the conversations pane away it
-// has no control anywhere in the window — it lives at the pane's foot — so
-// the menu is where a reader on this platform goes to look for it.
+// Settings is the one that must be here. It has no control anywhere in the
+// window, so the menu is the only place a reader on this platform looks for
+// it — and the place this platform keeps it.
 var MenuCommands = []MenuCommand{
 	// The application's primary action, operable whether the pane is
 	// standing or away.
@@ -50,8 +50,8 @@ var MenuCommands = []MenuCommand{
 	// Sends the pane away and brings it back, so the switch is operable
 	// from the keyboard and the menu in both of its states.
 	{Chord: Chord{Key: "\\", Msg: ToggleSidebar{}}, Menu: "View", Title: "Hide/Show Conversations"},
-	// Where this platform keeps settings, which is the whole reason the gear
-	// could retreat into the pane's foot.
+	// Where this platform keeps settings, and the only place the
+	// application offers them.
 	{Chord: Chord{Key: ",", Msg: OpenSettings{}}, Menu: desktop.ApplicationMenu, Title: "Settings…"},
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"gioui.org/f32"
@@ -37,7 +38,7 @@ type paneStripFrame struct {
 
 	// The pane's own marks and the chrome row's recalling half are separate
 	// clickables, as the window keeps them.
-	newChat, toggle, settings widget.Clickable
+	newChat, toggle widget.Clickable
 }
 
 func newPaneStripFrame(t *testing.T, hidden bool) *paneStripFrame {
@@ -65,7 +66,7 @@ func newPaneStripFrame(t *testing.T, hidden bool) *paneStripFrame {
 func (p *paneStripFrame) frame() {
 	p.ops.Reset()
 	sidebar := SidebarPane(p.th, p.m.ChatList, p.m.CurrentChat.Name, nil, p.rail,
-		&p.newChat, &p.toggle, &p.settings,
+		&p.newChat, &p.toggle,
 		func(_ layout.Context, msg mvu.Message) { p.posted = append(p.posted, msg) })
 	p.f.layout(p.gtx, p.m, p.th, sidebar, nil, nil)
 	p.r.Frame(&p.ops)
@@ -222,5 +223,73 @@ func TestWithThePaneAwayTheRowHoldsTheToggleAlone(t *testing.T) {
 		if n.Desc.Label == "New chat" {
 			t.Errorf("the window names %q with the pane away; the control it names is not there", n.Desc.Label)
 		}
+	}
+}
+
+// settingsFootBand is how deep a band at the pane's foot the sweep below
+// walks. It is wider than the row the footer used to stand in, so a control
+// left behind anywhere near the pane's foot is caught.
+const settingsFootBand = 64
+
+// TestThePaneOffersNoSettingsControlAndTheMenusMessageOpensIt reads the
+// composed window through a real input.Router.
+//
+// Settings acts on the application and not on the conversation, so it has no
+// control in the window at all: the pane's semantic tree names none, and a
+// press anywhere in the band at the pane's foot — where its footer used to
+// stand — posts nothing that opens the dialog. The menu's own item carries
+// the message instead, and that message still opens the dialog through
+// Update, which is the whole of what moved.
+func TestThePaneOffersNoSettingsControlAndTheMenusMessageOpensIt(t *testing.T) {
+	saved := windowButtonsEnd
+	defer func() { windowButtonsEnd = saved }()
+	windowButtonsEnd = func() unit.Dp { return buttonsEndDp }
+
+	p := newPaneStripFrame(t, false)
+	p.frame()
+	p.frame()
+
+	for _, n := range p.r.AppendSemantics(nil) {
+		if strings.Contains(n.Desc.Label, "Settings") {
+			t.Errorf("the window names %q; settings stands in the application menu and has no control here", n.Desc.Label)
+		}
+	}
+
+	region := pane.Bounds(p.gtx, windowSize, SidebarWidth, false)
+	p.posted = nil
+	x := float32(region.Min.X+region.Max.X) / 2
+	for y := region.Max.Y - settingsFootBand; y < region.Max.Y; y++ {
+		for _, kind := range []pointer.Kind{pointer.Press, pointer.Release} {
+			p.r.Queue(pointer.Event{
+				Kind:     kind,
+				Source:   pointer.Mouse,
+				Position: f32.Pt(x, float32(y)),
+				Buttons:  pointer.ButtonPrimary,
+			})
+			p.frame()
+		}
+	}
+	if postedOneOf(p.posted, OpenSettings{}) {
+		t.Error("a press at the pane's foot opened settings; the footer's control is gone")
+	}
+
+	var item MenuCommand
+	for _, c := range MenuCommands {
+		if c.Title == "Settings…" {
+			item = c
+		}
+	}
+	if item.Title == "" {
+		t.Fatal("the application menu no longer carries Settings…")
+	}
+	if item.Key != "," {
+		t.Errorf("Settings… stands on %q, want the platform's comma", item.Key)
+	}
+	if _, ok := item.Msg.(OpenSettings); !ok {
+		t.Fatalf("Settings… posts %#v, want main.OpenSettings", item.Msg)
+	}
+	next, _ := Update(demoModel(), item.Msg)
+	if !next.Settings.Open {
+		t.Error("the menu's message left the settings dialog closed")
 	}
 }

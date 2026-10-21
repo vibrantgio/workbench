@@ -192,12 +192,11 @@ const (
 	// answer beside it is indented past.
 	AvatarGutter unit.Dp = 50
 
-	AvatarSize       unit.Dp = 40
-	DeleteIconSize   unit.Dp = 16
-	AddIconSize      unit.Dp = 18
-	SettingsIconSize unit.Dp = 22
-	UndoBarRadius    unit.Dp = 6
-	UndoBarMargin    unit.Dp = 24
+	AvatarSize     unit.Dp = 40
+	DeleteIconSize unit.Dp = 16
+	AddIconSize    unit.Dp = 18
+	UndoBarRadius  unit.Dp = 6
+	UndoBarMargin  unit.Dp = 24
 
 	// SidebarWidth is what the conversation pane takes while it stands. It
 	// is a width and not a ratio: the pane is an object set into the window
@@ -215,8 +214,6 @@ const (
 	// its trailing end. The number is the pane pattern's own margin.
 	PaneMargin = pane.MarginDp
 
-	FooterIconSize    unit.Dp = 18
-	FooterRowHeight   unit.Dp = 46
 	StreamDotSize     unit.Dp = 7
 	StreamDotSlot     unit.Dp = 15
 	WaitingDotGap     unit.Dp = 6

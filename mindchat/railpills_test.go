@@ -21,8 +21,8 @@ import (
 )
 
 // railThemed is the token snapshot a rail needs: the palette's own colours
-// plus every mark a row and the footer draw, rastered the way the live
-// pipeline rasters them.
+// plus every mark a row draws, rastered the way the live pipeline rasters
+// them.
 func railThemed(t *testing.T, c tokens.PlatformColors) themed {
 	t.Helper()
 	th := schemeThemed(t, c)
@@ -40,13 +40,12 @@ func railThemed(t *testing.T, c tokens.PlatformColors) themed {
 	th.removeOn = mark(icons.ContentClear, DeleteIconSize, p.RowActive)
 	th.editOn = mark(icons.EditorModeEdit, DeleteIconSize, p.RowActive)
 	th.add = mark(icons.ContentAdd, AddIconSize, p.Heading)
-	th.gear = mark(icons.ActionSettings, SettingsIconSize, p.Heading)
 	return th
 }
 
 // railPillSize is the rail the reading below is taken from: the pane's own
-// width at the window's opening size, tall enough for its strip, a few rows
-// and the footer.
+// width at the window's opening size, tall enough for its strip and a few
+// rows.
 var railPillSize = image.Pt(240, 320)
 
 // TestTheRailDrawsThePlatformsTwoPills reads both pill states off a rendered
@@ -64,8 +63,8 @@ func TestTheRailDrawsThePlatformsTwoPills(t *testing.T) {
 			th := railThemed(t, sc.c)
 			chats := ChatList{open, "Sources.md"}
 			rail := newRailState()
-			var newChat, toggle, settings widget.Clickable
-			pane := SidebarPane(th, chats, open, nil, rail, &newChat, &toggle, &settings, postMessage)
+			var newChat, toggle widget.Clickable
+			pane := SidebarPane(th, chats, open, nil, rail, &newChat, &toggle, postMessage)
 
 			r := new(input.Router)
 			ops := new(op.Ops)
