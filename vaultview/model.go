@@ -10,6 +10,14 @@
 // Freshness without a file watcher: a landing re-stats the note it is
 // opening and reads it again when the file moved on, while Rescan
 // re-walks the vault for the changes one file cannot show.
+//
+// A scan is one command emitting several times: the listing, then the
+// note the reader is to see, then the contents in batches, then its
+// completion. Every one of those messages carries the generation the
+// scan was started under, and Update drops a message whose generation is
+// not the model's — which is how a vault switch cancels the scan the
+// previous vault started, since the loop subscribes every command it is
+// given and unsubscribes none of them when the next one arrives.
 
 package main
 
@@ -19,7 +27,10 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
+
+	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/markdown"
@@ -61,7 +72,23 @@ type Model struct {
 	Vault    string // absolute path of the open vault
 	Scanning bool   // the scan command is in flight
 	ScanErr  string // non-empty when the scan or the note read failed
-	Index    *Index // the scanned vault index; nil until scanned
+	Index    *Index // the scanned vault index; nil until the listing lands
+
+	// ScanGen counts the scans this window has started. Every message a
+	// scan command emits carries the generation it was started under, and
+	// Update drops the ones that are not the model's: that is what makes
+	// opening another vault, or starting a rescan, cancel the scan already
+	// running rather than letting its batches fold into the new vault.
+	ScanGen int
+	// ScanRead is how many notes the contents phase has delivered since
+	// the listing, which is what the status bar counts off against the
+	// listing's own length.
+	ScanRead int
+	// scanStop is the flag the scan command in flight reads between two
+	// notes. Dropping its messages stops them being believed; raising
+	// this stops them being read, which on a vault held in the cloud is
+	// the expensive half.
+	scanStop *atomic.Bool
 
 	// Navigation state. Notes caches every note loaded this session,
 	// keyed by vault-relative path; the map is replaced, never mutated,
@@ -283,23 +310,48 @@ type pickerListed struct {
 	entries []DirEntry
 }
 
-// vaultScanned delivers the scan command's result: the index and the
-// first note found, or the error that stopped either.
+// vaultListed delivers the scan's first phase: every note's path, with
+// not one file read. It is what lets the tree and the first note stand
+// on screen while the contents are still being read.
+type vaultListed struct {
+	vault string
+	gen   int
+	index *Index
+}
+
+// vaultNoteRead delivers the note the scan read for the reader: the one
+// already on screen, re-read, or the vault's first when none is open. It
+// disturbs nothing else — the history, the folds and the reader's place
+// stay where they were — and it is not an arrival: nobody followed a
+// link to it.
+type vaultNoteRead struct {
+	vault string
+	gen   int
+	note  *Note
+}
+
+// vaultRead delivers one batch of the contents phase: the notes read
+// since the last batch, each folded into the index at its own path.
+type vaultRead struct {
+	vault string
+	gen   int
+	files []FileScan
+}
+
+// vaultScanned ends the scan an opened vault started, with the error
+// that stopped the walk when one did.
 type vaultScanned struct {
 	vault string
-	index *Index
-	note  *Note
+	gen   int
 	err   string
 }
 
-// vaultRescanned delivers a rescan's result: the fresh index and a fresh
-// read of the note on screen, or the error that stopped either. Unlike
-// vaultScanned it disturbs nothing else — the history, the folds and the
-// note being read stay exactly where they were.
+// vaultRescanned ends the scan a Rescan started. It differs from
+// vaultScanned in one thing: a rescan that changed nothing must still
+// say it happened, so this one reports itself.
 type vaultRescanned struct {
 	vault string
-	index *Index
-	note  *Note
+	gen   int
 	err   string
 }
 
@@ -326,7 +378,9 @@ type taskToggled struct {
 // and returns the seed model with its startup command.
 func Init() (Model, mvu.Command) {
 	if v, ok := resolveVault(os.Args); ok {
-		return Model{Screen: screenVault, Vault: v, Scanning: true, PropsOpen: true, CurAnchor: -1}, openVaultCmd(v)
+		model := Model{Screen: screenVault, Vault: v, Scanning: true, PropsOpen: true, CurAnchor: -1}
+		gen, stop := model.nextScan()
+		return model, openVaultCmd(v, gen, stop)
 	}
 	dir := startDir()
 	return Model{Screen: screenPicker, PickerDir: dir, PickerRoot: trailRoot(dir), CurAnchor: -1}, listDirCmd(dir)
@@ -393,16 +447,27 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.ChooserBody = ""
 		model.ChooserCandidates = nil
 		model.LinkUnder = ""
-		return model, openVaultCmd(m.Path)
-	case vaultScanned:
-		if m.vault != model.Vault {
-			break // a scan of a vault no longer open
+		model.ScanRead = 0
+		gen, stop := model.nextScan()
+		return model, openVaultCmd(m.Path, gen, stop)
+	case vaultListed:
+		if !model.scanIsCurrent(m.vault, m.gen) {
+			break
 		}
-		model.Scanning = false
 		model.Index = m.index
-		model.ScanErr = m.err
-		if m.note != nil {
+		model.ScanErr = ""
+		model.ScanRead = 0
+	case vaultNoteRead:
+		if !model.scanIsCurrent(m.vault, m.gen) || m.note == nil {
+			break
+		}
+		// A note the scan found unchanged keeps its cached value, so the
+		// reader's scroll position survives a scan that had nothing to say
+		// about the note on screen.
+		if cur := model.Notes[m.note.Path]; cur == nil || cur.Size != m.note.Size || !cur.Mod.Equal(m.note.Mod) {
 			model = cacheNote(model, m.note)
+		}
+		if model.Current == "" {
 			model.Current = m.note.Path
 			model.CurAnchor = -1
 			model.NavSeq++
@@ -410,6 +475,18 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			model.Cursor = 0
 			model = revealCurrent(model)
 		}
+	case vaultRead:
+		if !model.scanIsCurrent(m.vault, m.gen) {
+			break
+		}
+		model.Index = mergeScans(model.Index, m.files)
+		model.ScanRead += len(m.files)
+	case vaultScanned:
+		if !model.scanIsCurrent(m.vault, m.gen) {
+			break
+		}
+		model.Scanning = false
+		model.ScanErr = m.err
 	case LinkUnder:
 		model.LinkUnder = m.URL
 	case Navigate:
@@ -506,34 +583,19 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			break
 		}
 		model.Scanning = true
-		return model, rescanCmd(model.Vault, model.Current)
+		model.ScanRead = 0
+		gen, stop := model.nextScan()
+		return model, rescanCmd(model.Vault, model.Current, gen, stop)
 	case vaultRescanned:
-		if m.vault != model.Vault {
-			break // a rescan of a vault no longer open
+		if !model.scanIsCurrent(m.vault, m.gen) {
+			break
 		}
 		model.Scanning = false
 		if m.err != "" {
 			return raiseNotification(model, notifications.Request(toast.Warning, m.err))
 		}
-		model.Index = m.index
 		model.ScanErr = ""
-		if m.note != nil {
-			// A note the rescan found unchanged keeps its cached value, so
-			// the reader's scroll position survives a rescan that had
-			// nothing to say about the note on screen.
-			if cur := model.Notes[m.note.Path]; cur == nil || cur.Size != m.note.Size || !cur.Mod.Equal(m.note.Mod) {
-				model = cacheNote(model, m.note)
-			}
-			if model.Current == "" {
-				model.Current = m.note.Path
-				model.CurAnchor = -1
-				model.NavSeq++
-				model.History = []HistEntry{{Path: m.note.Path, Anchor: -1}}
-				model.Cursor = 0
-				model = revealCurrent(model)
-			}
-		}
-		return raiseNotification(model, notifications.Request(toast.Info, rescanSummary(m.index)))
+		return raiseNotification(model, notifications.Request(toast.Info, rescanSummary(model.Index)))
 	case SetFilter:
 		model.Filter = m.Text
 	case RevealFolder:
@@ -663,30 +725,116 @@ func loadNoteCmd(vault string, nav Navigate) mvu.Command {
 	})
 }
 
+// nextScan stops the scan in flight, if there is one, and gives the
+// model the generation and the stop flag the next scan command runs
+// under. Both halves matter: the generation is what Update matches a
+// message against, so nothing a stale scan says is believed, and the
+// flag is what the command reads between two notes, so a stale scan
+// stops reading a vault nobody is in rather than finishing its walk.
+func (m *Model) nextScan() (int, *atomic.Bool) {
+	if m.scanStop != nil {
+		m.scanStop.Store(true)
+	}
+	m.ScanGen++
+	m.scanStop = new(atomic.Bool)
+	return m.ScanGen, m.scanStop
+}
+
+// scanIsCurrent reports whether a scan message is about the vault the
+// reader is in and the scan the model is waiting on.
+func (m Model) scanIsCurrent(vault string, gen int) bool {
+	return vault == m.Vault && gen == m.ScanGen
+}
+
 // rescanCmd re-walks the vault off the render goroutine and re-reads the
 // note on screen (or the first note found, when none is), so a rescan
 // picks up an edit to the open note as well as the vault's new shape.
-func rescanCmd(vault, current string) mvu.Command {
-	return mvu.Do(func() (mvu.Message, error) {
-		idx, err := ScanVault(vault)
-		if err != nil {
-			return vaultRescanned{vault: vault, err: err.Error()}, nil
-		}
-		rel := current
-		if rel == "" && len(idx.Files) > 0 {
-			rel = idx.Files[0].Path
-		}
-		if rel == "" {
-			return vaultRescanned{vault: vault, index: idx}, nil
-		}
-		n, err := LoadNote(vault, rel)
-		if err != nil {
-			// The index is good even when the note has gone; keep it and
-			// let the refusal speak for the note alone.
-			return vaultRescanned{vault: vault, index: idx}, nil
-		}
-		return vaultRescanned{vault: vault, index: idx, note: n}, nil
+func rescanCmd(vault, current string, gen int, stop *atomic.Bool) mvu.Command {
+	return scanCmd(vault, current, gen, stop, func(err string) mvu.Message {
+		return vaultRescanned{vault: vault, gen: gen, err: err}
 	})
+}
+
+// scanCmd is the vault scan: one command, four kinds of message.
+//
+// It lists the vault first — directory entries alone, no file read — and
+// delivers that index, which is every path the tree draws. It then reads
+// the one note the reader is to see, so a window opens on a note rather
+// than on a wait. Only then does it read the contents, scanStreams notes
+// at a time in the order the listing put them in, delivering them in
+// batches the Update folds into the index as they arrive. Its last
+// message is the one finish words, whether the walk succeeded or not.
+//
+// The phases are concatenated, so each begins only when the one before
+// it has ended and sees what it left behind.
+func scanCmd(vault, current string, gen int, stop *atomic.Bool, finish func(err string) mvu.Message) mvu.Command {
+	var (
+		listing *Index
+		jobs    []scanJob
+		failed  string
+	)
+	list := rx.Create[mvu.Message](func(index int) (mvu.Message, error, bool) {
+		if index > 0 {
+			return nil, nil, true
+		}
+		idx, order, err := ListVault(vault)
+		if err != nil {
+			// A walk that cannot start is reported by the last message,
+			// the one phase this command always has.
+			failed = err.Error()
+			return nil, nil, true
+		}
+		listing, jobs = idx, order
+		return vaultListed{vault: vault, gen: gen, index: idx}, nil, false
+	})
+	note := rx.Defer(func() rx.Observable[mvu.Message] {
+		rel := current
+		if rel == "" {
+			rel = firstReadable(listing)
+		}
+		if failed != "" || rel == "" || stop.Load() {
+			return rx.Empty[mvu.Message]()
+		}
+		return rx.Create[mvu.Message](func(index int) (mvu.Message, error, bool) {
+			if index > 0 {
+				return nil, nil, true
+			}
+			n, err := LoadNote(vault, rel)
+			if err != nil {
+				// The vault is good even when one note has gone; the scan
+				// carries on and the reader is told nothing about it.
+				return nil, nil, true
+			}
+			return vaultNoteRead{vault: vault, gen: gen, note: n}, nil, false
+		})
+	})
+	contents := rx.Defer(func() rx.Observable[mvu.Message] {
+		if failed != "" || len(jobs) == 0 || stop.Load() {
+			return rx.Empty[mvu.Message]()
+		}
+		return rx.Map(readBatches(vault, jobs, stop), func(files []FileScan) mvu.Message {
+			return vaultRead{vault: vault, gen: gen, files: files}
+		})
+	})
+	end := rx.Defer(func() rx.Observable[mvu.Message] {
+		return rx.Of(finish(failed))
+	})
+	return mvu.Command{Observable: rx.Concat(list, note, contents, end)}
+}
+
+// firstReadable is the note a vault opens on when the reader has none:
+// the first the listing found that is actually on disk, since a vault
+// whose first note iCloud still holds would otherwise open on nothing.
+func firstReadable(idx *Index) string {
+	if idx == nil {
+		return ""
+	}
+	for i := range idx.Files {
+		if !idx.Files[i].Placeholder {
+			return idx.Files[i].Path
+		}
+	}
+	return ""
 }
 
 // rescanSummary is the line a finished rescan reports, since a rescan
@@ -737,28 +885,20 @@ func chooseOpenPanelCmd(dir string) mvu.Command {
 	})
 }
 
-// openVaultCmd writes the vault back to the store, scans the vault, and
-// loads the first note found — one command, one message back.
-func openVaultCmd(path string) mvu.Command {
-	return mvu.Do(func() (mvu.Message, error) {
-		if err := SaveStoredVault(path); err != nil {
+// openVaultCmd writes the vault back to the store and scans it.
+func openVaultCmd(vault string, gen int, stop *atomic.Bool) mvu.Command {
+	store := mvu.Do(func() (mvu.Message, error) {
+		if err := SaveStoredVault(vault); err != nil {
 			// The store is a convenience; failing to remember the vault
 			// must not block opening it.
 			fmt.Fprintln(os.Stderr, "vaultview: store:", err)
 		}
-		idx, err := ScanVault(path)
-		if err != nil {
-			return vaultScanned{vault: path, err: err.Error()}, nil
-		}
-		var note *Note
-		if len(idx.Files) > 0 {
-			note, err = LoadNote(path, idx.Files[0].Path)
-			if err != nil {
-				return vaultScanned{vault: path, index: idx, err: err.Error()}, nil
-			}
-		}
-		return vaultScanned{vault: path, index: idx, note: note}, nil
+		return nil, nil
 	})
+	scan := scanCmd(vault, "", gen, stop, func(err string) mvu.Message {
+		return vaultScanned{vault: vault, gen: gen, err: err}
+	})
+	return mvu.DoSequence(store, scan)
 }
 
 // LoadNote reads one note from the vault and prepares it for rendering:

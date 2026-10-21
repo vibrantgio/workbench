@@ -135,12 +135,7 @@ func resolveFile(idx *Index, from, file string) (string, *ResolveErr) {
 	if !strings.EqualFold(path.Ext(base), ".md") {
 		base += ".md"
 	}
-	var hits []string
-	for i := range idx.Files {
-		if path.Base(idx.Files[i].Path) == base {
-			hits = append(hits, idx.Files[i].Path)
-		}
-	}
+	hits := idx.named(base)
 	switch len(hits) {
 	case 1:
 		return hits[0], nil
@@ -187,12 +182,12 @@ func checkHeadingPath(f *FileScan, titles []string) *ResolveErr {
 }
 
 // file returns the scan record for a vault-relative path, nil when the
-// path is not in the vault.
+// path is not in the vault. A record the contents phase has not reached
+// yet is a record all the same: it resolves as a note with no headings
+// and no block ids, which is what it is known to be so far.
 func (idx *Index) file(rel string) *FileScan {
-	for i := range idx.Files {
-		if idx.Files[i].Path == rel {
-			return &idx.Files[i]
-		}
+	if i, ok := idx.slotOf(rel); ok {
+		return &idx.Files[i]
 	}
 	return nil
 }

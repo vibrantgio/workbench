@@ -321,19 +321,13 @@ func TestSwitchVaultReRootsAndFollowsTheStore(t *testing.T) {
 		t.Error("OpenVault did not clear the previous vault's state")
 	}
 
-	msg, err := cmd.First()
-	if err != nil {
-		t.Fatalf("open command: %v", err)
-	}
-	scanned, ok := msg.(vaultScanned)
-	if !ok {
-		t.Fatalf("open command returned %T, want vaultScanned", msg)
-	}
+	model = foldScan(t, model, cmd)
 	if got := LoadStoredVault(); got != newVault {
 		t.Errorf("stored vault = %q, want %q — the store did not follow the switch", got, newVault)
 	}
-
-	model, _ = Update(model, scanned)
+	if model.Scanning {
+		t.Error("the scan left the in-flight flag raised")
+	}
 	if model.Current != "sub/n.md" {
 		t.Fatalf("landed on %q, want the new vault's first note", model.Current)
 	}
@@ -484,16 +478,7 @@ func TestRescanRefreshesIndexKeepingPlace(t *testing.T) {
 	if !model.Scanning {
 		t.Error("Rescan did not put a scan in flight")
 	}
-	msg, err := cmd.First()
-	if err != nil {
-		t.Fatalf("rescan command: %v", err)
-	}
-	rescanned, ok := msg.(vaultRescanned)
-	if !ok {
-		t.Fatalf("rescan command returned %T, want vaultRescanned", msg)
-	}
-
-	model, _ = Update(model, rescanned)
+	model = foldScan(t, model, cmd)
 	if model.Scanning {
 		t.Error("the rescan result did not clear the in-flight flag")
 	}
@@ -514,17 +499,13 @@ func TestRescanRefreshesIndexKeepingPlace(t *testing.T) {
 	// reader's scroll position is not thrown away for no reason.
 	held := model.CurrentNote()
 	model, cmd = Update(model, Rescan{})
-	msg, err = cmd.First()
-	if err != nil {
-		t.Fatalf("second rescan command: %v", err)
-	}
-	model, _ = Update(model, msg)
+	model = foldScan(t, model, cmd)
 	if model.CurrentNote() != held {
 		t.Error("a rescan that found no change replaced the note on screen")
 	}
 
 	// A rescan of a vault no longer open is ignored.
-	stale := vaultRescanned{vault: filepath.Join(root, "elsewhere"), index: &Index{}}
+	stale := vaultRead{vault: filepath.Join(root, "elsewhere"), files: []FileScan{{Path: "x.md"}}}
 	if after, _ := Update(model, stale); after.Index != model.Index {
 		t.Error("a rescan result for another vault replaced the index")
 	}

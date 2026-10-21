@@ -146,6 +146,11 @@ The vault scan is a fence-aware line scanner — never a full parse — run
 off the render goroutine; a note is parsed only when it is opened. Where
 a link lands inside a note is computed from the parsed note, never from
 the scan, so the scroll position and the rendered text cannot disagree.
+It runs in two phases, because a large vault held in the cloud cannot be
+read before the window opens: a listing walk over the directory entries
+alone delivers every path at once, and the contents stream in behind it
+eight notes at a time, newest folder first, in batches folded into the
+index as they arrive.
 
 No dependency outside the design system's own stack enters here: no YAML
 library, no file watcher, no wikilink library.

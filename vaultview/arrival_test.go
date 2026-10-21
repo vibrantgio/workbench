@@ -21,7 +21,8 @@ func TestOnlyAFollowedLinkArmsTheArrival(t *testing.T) {
 	model := scannedModel(t)
 	model.Arrival = 0
 	idx := treeIndex("x.md", "f.md")
-	opened, _ := Update(model, vaultScanned{vault: "/v", index: idx, note: model.Notes["x.md"]})
+	opened, _ := Update(model, vaultListed{vault: "/v", index: idx})
+	opened, _ = Update(opened, vaultNoteRead{vault: "/v", note: model.Notes["x.md"]})
 	if opened.Arrival != 0 {
 		t.Errorf("the note the vault opened on armed the marking (Arrival=%d); it was not sought", opened.Arrival)
 	}

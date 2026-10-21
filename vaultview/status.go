@@ -112,20 +112,38 @@ func sourceLines(src []byte) int {
 	return n
 }
 
-// statusLine is what the bar says about the model: the address of the link
-// under the pointer while there is one, the open note's length otherwise,
-// and nothing at all before a note is open — a bar reporting zero lines
-// while the vault is still being scanned would state a fact it does not
+// statusLine is what the bar says about the model: the address of the
+// link under the pointer while there is one, how far the scan has got
+// while it is still reading the vault, the open note's length otherwise,
+// and nothing at all before any of those — a bar reporting zero lines
+// while the vault is still being listed would state a fact it does not
 // have.
+//
+// The scan's progress stands here rather than over the document, because
+// by the time it is said the reader already has a note to read: the
+// listing gave the tree its rows and the first note its text, and what
+// is still arriving is the headings, block ids and links of the notes
+// the reader is not looking at.
 func statusLine(m Model) string {
 	if m.LinkUnder != "" {
 		return m.LinkUnder
+	}
+	if m.Scanning && m.Index != nil {
+		return scanProgressLabel(m.ScanRead, len(m.Index.Files))
 	}
 	note := m.CurrentNote()
 	if note == nil {
 		return ""
 	}
 	return lineCountLabel(note.Lines)
+}
+
+// scanProgressLabel words how far the contents phase has got.
+func scanProgressLabel(read, total int) string {
+	if total == 1 {
+		return "Reading 1 note…"
+	}
+	return "Reading " + strconv.Itoa(read) + " of " + strconv.Itoa(total) + " notes…"
 }
 
 // lineCountLabel words a line count, the number leading.

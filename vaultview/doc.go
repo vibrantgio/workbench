@@ -90,6 +90,25 @@
 // and nothing brings it back: leaving the note ends the marking, and a
 // note redrawn under the reader is not marked a second time.
 //
+// # How a vault is scanned
+//
+// A vault of ten thousand notes held in the cloud cannot be read before
+// the window opens, so the scan is two phases of one command. The
+// listing walks the directory entries alone and reads no file: it
+// answers every path, which is all the tree needs and enough to open
+// the first note on. The contents follow behind it, eight notes read at
+// a time in folder order newest modification first, delivered in
+// batches that are folded into the index as they arrive — so the
+// outline, the backlinks and link resolution fill in while the reader
+// is already reading. A note iCloud has not handed over is listed under
+// the name the vault shows and read after every note that is on disk.
+// The status bar counts the contents off against the listing and gives
+// the note's line count back when the scan ends.
+//
+// Opening another vault, or starting a rescan, cancels the scan in
+// flight: every message a scan emits carries the generation it was
+// started under, and one that is not the window's is dropped.
+//
 // # Freshness
 //
 // The viewer watches no files. Instead, following a link checks the

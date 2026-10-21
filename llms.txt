@@ -1537,9 +1537,12 @@ name-filter field, a back/forward history stack, breadcrumbs, and the
 patterns/shell aside slot finally in use as a backlinks pane. Notes
 render through vibrantgio/markdown with markdown/obsidian around it
 (frontmatter split off, wikilink spans, block anchors); resolving what a
-wikilink names is app-local and pure — one index built by an mvu.Do scan
+wikilink names is app-local and pure — one index a scan command builds
 off the render goroutine, pure functions over it, every rule pinned by a
-test. Read doc.go first: it states the link contract the tests enforce.
+test. That command is also the reference for a long side effect that
+reports as it goes: a Command is an observable of messages, so the scan
+emits its listing, then the reader's note, then the contents in batches,
+and Update folds each one in. Read doc.go first: it states the link contract the tests enforce.
 The one write is a GFM task marker: OnTaskClick splices `[ ]` ↔ `[x]` in
 the file before the handler returns, and nothing else is writable. Also
 the reference for adopting a kept theme colour: one theme.LiveTheme option,
