@@ -53,7 +53,7 @@ func buildLayers(win *app.Window, modelObs rx.Observable[Model]) func(th rx.Obse
 // BackdropLayer fills the window with its own plane; it is the bottom layer
 // and re-emits whenever the OS colour scheme changes.
 //
-// The launcher is one plane edge to edge — the page of app groups stands
+// The workbench is one plane edge to edge — the page of app groups stands
 // straight on it, with the field between — so the fill is the window's own
 // and no region paints a band of its own over it.
 func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
@@ -93,7 +93,7 @@ var HeroProps = hero.Props{
 }
 
 // windowPlane is the fill this window's page stands on: the window's own
-// plane, which the launcher carries edge to edge — the title-bar strip
+// plane, which the workbench carries edge to edge — the title-bar strip
 // included — since nothing here paints a band of its own. Every
 // alpha-carrying platform name the page draws is flattened onto it before it
 // reaches Gio.
@@ -234,7 +234,7 @@ func gridRow(cells []layout.Widget) layout.Widget {
 // strength, both flattened onto the window's plane.
 //
 // A group and not a card, because the roster is the page dividing itself:
-// every app on the launcher is a peer of every other, and nothing here is
+// every app on the workbench is a peer of every other, and nothing here is
 // singled out. The grid raises nothing off the plane it stands on — the
 // hairline is the whole of what chunks one app from the next.
 func appGroup(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {

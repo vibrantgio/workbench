@@ -1,6 +1,6 @@
 package main
 
-// A whole-window render, headless, of the launcher as its layers actually
+// A whole-window render, headless, of the workbench as its layers actually
 // stack: the window's own plane, and the page held down past the title-bar
 // strip a full-size-content window opens the top of itself into. Every layer
 // the window stacks is a plain layout.Widget over pre-resolved tokens, so
@@ -145,7 +145,7 @@ type namedFill struct {
 	value color.NRGBA
 }
 
-// pageFills is the table a cell is read against: the plane the launcher's page
+// pageFills is the table a cell is read against: the plane the workbench's page
 // stands on, and the fill the platform's box carries. Those are the two
 // answers the claim below is between — a group takes the plane it is in, where
 // a card would raise a box off it — and the two are further apart than
@@ -357,7 +357,7 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 	}
 }
 
-// TestTheAppGroupsTakeThePagesOwnFill reads off the frame that the launcher's
+// TestTheAppGroupsTakeThePagesOwnFill reads off the frame that the workbench's
 // roster divides the page rather than standing over it: every cell is a
 // group, so its inside is the window's own plane, byte for byte, and the
 // hairline at its edge is the whole of what says where one app ends and the

@@ -24,7 +24,7 @@ func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 }
 
-// FieldLayer is the launcher triangle field drawn as a single-colour
+// FieldLayer is the workbench triangle field drawn as a single-colour
 // wireframe. The Field is subscription-scoped state, so it lives in an
 // rx.Defer factory; each theme emission re-keys the one stroke colour
 // in place — the field itself is built exactly once per subscription.

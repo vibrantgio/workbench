@@ -1464,7 +1464,7 @@ a patterns group per app over it, and one streaming mvu.Command per
 launched app (Started, then Exited when the process ends). The roster
 divides the page rather than singling anything out, which is why each
 app is a group; the launch button in one runs that app's own latest
-release, and a launcher built from the checkout runs the copy next door
+release, and a workbench built from the checkout runs the copy next door
 instead
 
 ### feeds/

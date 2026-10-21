@@ -60,7 +60,7 @@ func TestReleasedLaunchNamesTheAppsOwnRelease(t *testing.T) {
 				t.Errorf("args = %q, want %q", inv.Args, want)
 			}
 			if inv.Dir != "" {
-				t.Errorf("dir = %q, want the launcher's own", inv.Dir)
+				t.Errorf("dir = %q, want the workbench's own", inv.Dir)
 			}
 		})
 	}

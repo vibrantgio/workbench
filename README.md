@@ -7,14 +7,14 @@ Reactive Programming application model on top of
 [reactivego/rx](https://github.com/reactivego/rx).
 
 This repository is the **workbench**: eight complete example applications
-that exercise the design system end-to-end, and the launcher that opens
+that exercise the design system end-to-end, and the workbench window that opens
 them.
 
 ```sh
 go run github.com/vibrantgio/workbench@latest
 ```
 
-That is the launcher: the package at this repository's root, with the apps
+That is the workbench window: the package at this repository's root, with the apps
 as cards on a live 3D field. Each card fetches and runs that app's own
 latest release, because each app is a separate product on its own tags.
 
@@ -108,10 +108,10 @@ Each app is its own Go module, so run it from inside its directory:
 cd todos && go run .
 ```
 
-Or open the launcher — `go run .` at this repository's root — and start
+Or open the workbench — `go run .` at this repository's root — and start
 them from there.
 
-The launcher itself is the root module's `main` package. It is the
+The workbench itself is the root module's `main` package. It is the
 reference for compositing a [`seen`](https://github.com/vibrantgio/seen)
 3D scene as an mvu background layer — a noise-animated triangle field,
 colour-keyed to the live theme — and for a single streaming `mvu.Command`
