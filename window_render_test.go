@@ -76,6 +76,7 @@ func renderWindow(t *testing.T, colors tokens.PlatformColors, band unit.Dp) *ima
 func roundedThemed(colors tokens.PlatformColors) themed {
 	tok := staticThemed(colors)
 	tok.components.Radius = rx.Of(tokens.Radius)
+	tok.radius = tokens.Radius
 	return tok
 }
 
@@ -359,9 +360,17 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 
 // TestTheAppGroupsTakeThePagesOwnFill reads off the frame that the workbench's
 // roster divides the page rather than standing over it: every cell is a
-// group, so its inside is the window's own plane, byte for byte, and the
-// hairline at its edge is the whole of what says where one app ends and the
-// next begins. Checked in both schemes, because neither is the reference one.
+// group standing on the tile's material, and that material is the window's
+// own plane at a coverage, so the hairline at its edge is the whole of what
+// says where one app ends and the next begins. Checked in both schemes,
+// because neither is the reference one.
+//
+// The frame read here is the static stand-in, which stands the plane in for
+// the window's painted backdrop. Over that one backdrop the material is the
+// plane byte for byte, which is why the cell reads the plane throughout.
+// The live window paints the animated field as its backdrop instead, and
+// over that painted backdrop the material reads lighter in light and darker
+// in dark. Nothing below reads the live window.
 //
 // The claim is read against the platform's own names. The cell is measured
 // against [pageFills] — the window's own plane against the fill the

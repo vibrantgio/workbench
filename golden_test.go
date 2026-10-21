@@ -33,6 +33,7 @@ func staticThemed(colors tokens.PlatformColors) themed {
 		components: golden.StaticTheme(colors, golden.WithRadius(sharpRadius)),
 		color:      colors,
 		spacing:    tokens.Spacing,
+		radius:     sharpRadius,
 		typ:        typ,
 		shaper:     typ.DeterministicShaper(),
 	}

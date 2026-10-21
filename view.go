@@ -6,6 +6,8 @@ import (
 
 	"gioui.org/app"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -102,6 +104,21 @@ var HeroProps = hero.Props{
 // can name the same fill the window draws.
 func windowPlane(c tokens.PlatformColors) color.NRGBA { return c.WindowBackground }
 
+// tileMaterial is the fill a cell of the grid stands on: the window
+// background colour at the platform's measured coverage, which is what the
+// platform paints over a painted backdrop so what is behind shows through.
+// Here that is the animated field, and it shows through lighter in the light
+// appearance and darker in the dark one.
+//
+// The coverage handed to the rasterizer is the linear-light fit, because Gio
+// mixes a translucent fill in linear light where the platform mixes the
+// encoded byte. What the tile's material tends toward is windowPlane, and
+// every foreground on the cell is flattened onto that, which is why nothing
+// on the cell changes colour when the fill arrives under it.
+func tileMaterial(c tokens.PlatformColors) color.NRGBA {
+	return vgcolor.Fade(windowPlane(c), vgcolor.LinearCoverage(tokens.BackdropMaterialCoverage))
+}
+
 // themed is one theme emission resolved to the token snapshot the view
 // consumes, alongside the emission itself: the snapshot's fields are all
 // rx.Of, so the theme-driven components built from components resolve
@@ -110,6 +127,7 @@ type themed struct {
 	components theme.Theme
 	color      tokens.PlatformColors
 	spacing    tokens.SpacingScale
+	radius     tokens.RadiusScale
 	typ        tokens.Typography
 	shaper     *text.Shaper // the theme's cached shaper (Typography.Shaper())
 }
@@ -147,10 +165,10 @@ func underTitleBar(pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Wi
 func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
 	resolved := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(
-			rx.CombineLatest3(t.Platform, t.Spacing, t.Typography),
-			func(n rx.Tuple3[tokens.PlatformColors, tokens.SpacingScale, tokens.Typography]) themed {
-				typ := n.Third
-				return themed{components: t, color: n.First, spacing: n.Second, typ: typ, shaper: typ.Shaper()}
+			rx.CombineLatest4(t.Platform, t.Spacing, t.Radius, t.Typography),
+			func(n rx.Tuple4[tokens.PlatformColors, tokens.SpacingScale, tokens.RadiusScale, tokens.Typography]) themed {
+				typ := n.Fourth
+				return themed{components: t, color: n.First, spacing: n.Second, radius: n.Third, typ: typ, shaper: typ.Shaper()}
 			},
 		)
 	})
@@ -227,16 +245,18 @@ func gridRow(cells []layout.Widget) layout.Widget {
 	}
 }
 
-// appGroup is one launchable app as a patterns group: icon + name row, blurb,
-// and a row holding the launch button and a status line. The group and
-// button are theme-driven components built from the emission's static
-// snapshot; the name is the platform's label and the blurb its secondary
-// strength, both flattened onto the window's plane.
+// appGroup is one launchable app as a patterns group standing on the tile's
+// material over the painted backdrop: icon + name row, blurb, and a row
+// holding the launch button and a status line. The group and button are
+// theme-driven components built from the emission's static snapshot; the
+// name is the platform's label and the blurb its secondary strength, both
+// flattened onto what that fill tends toward, the window's own plane.
 //
 // A group and not a card, because the roster is the page dividing itself:
 // every app on the workbench is a peer of every other, and nothing here is
-// singled out. The grid raises nothing off the plane it stands on — the
-// hairline is the whole of what chunks one app from the next.
+// singled out. A translucent material raises nothing — it is the window's
+// own plane at a coverage — and the hairline stays the whole of what chunks
+// one app from the next.
 func appGroup(tok themed, app App, click *widget.Clickable, status Status) layout.Widget {
 	thObs := rx.Of(tok.components)
 	plane := windowPlane(tok.color)
@@ -267,16 +287,24 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 	// group twice.
 	//
 	// The group paints nothing inside itself, so the fill its hairline is
-	// flattened onto is the plane the page stands on rather than anything
-	// the cell carries.
+	// flattened onto is what the cell carries under it — the tile's
+	// material, whose own colour is the plane the page stands on.
 	//
 	// thObs is a static snapshot (rx.Of), so First() resolves synchronously.
 	inner, _ := group.Group(thObs, group.Props{
 		Content: []layout.Widget{nameRow, blurb, launchRow},
 		Surface: plane,
 	}).First()
+	material := tileMaterial(tok.color)
+	radius := tok.radius.Lg
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(CellW), gtx.Dp(CellH)))
+		// The tile's material goes down first, at the group's own radius,
+		// so the hairline the group draws lands on its edge rather than
+		// beside it.
+		r := gtx.Dp(unit.Dp(radius))
+		rrect := clip.RRect{Rect: image.Rectangle{Max: gtx.Constraints.Max}, SE: r, SW: r, NE: r, NW: r}
+		paint.FillShape(gtx.Ops, material, rrect.Op(gtx.Ops))
 		return inner(gtx)
 	}
 }
