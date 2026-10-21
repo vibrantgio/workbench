@@ -429,11 +429,10 @@ func focusFindField(gtx layout.Context, tag event.Tag) {
 // The strip is reserved by the flex and drawn afterwards, which is a
 // statement about the keyboard and not about paint. Focus follows the
 // order the ops are written in, and the reading order of this pane is the
-// field, the rows, then the vault's actions: a reader who tabs out of the
+// field, the rows, then the strip's marks: a reader who tabs out of the
 // find field means to reach the notes they just filtered for. Drawn last,
-// the pane's own control comes after everything the pane is for —
-// including the foot, which acts on the vault the pane shows rather than
-// on the pane itself.
+// the strip's marks come after everything the pane is for; among them the
+// vault's own acts stand before the pane's toggle.
 func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW layout.Widget) layout.Dimensions {
 	// The rail is as wide as the slot says where the slot says: the pane
 	// lays its column out at exactly the width the reader dragged the
