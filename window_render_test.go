@@ -54,7 +54,7 @@ const titleBandDp = 32
 // band is the strip height to render under; 0 draws the window as every
 // platform but macOS shows it, with the page at the window's own top edge.
 func windowFrame(tok themed, model Model, band unit.Dp) layout.Widget {
-	return stack(backdrop.Widget(windowPlane(tok.color)), cappedPage(tok, model, band))
+	return golden.Stack(backdrop.Widget(windowPlane(tok.color)), cappedPage(tok, model, band))
 }
 
 // cappedPage is the window's content layer as buildLayers wraps it: the page
@@ -62,19 +62,6 @@ func windowFrame(tok themed, model Model, band unit.Dp) layout.Widget {
 // the window's drag.
 func cappedPage(tok themed, model Model, band unit.Dp) layout.Widget {
 	return desktop.CapTop(func() unit.Dp { return band }, pageContent(tok, model))
-}
-
-// stack draws the given layers back to front into one layout.Widget and
-// reports the frontmost one's dimensions, which is what theme/window's own
-// layer stack does with the observables buildLayers hands it.
-func stack(layers ...layout.Widget) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		var dims layout.Dimensions
-		for _, w := range layers {
-			dims = w(gtx)
-		}
-		return dims
-	}
 }
 
 func renderWindow(t *testing.T, colors tokens.PlatformColors, band unit.Dp) *image.RGBA {
@@ -106,7 +93,7 @@ func livingWindowFrame(tok themed, model Model, band unit.Dp) layout.Widget {
 	field := NewField(new(app.Window), winW, winH)
 	field.SetColors(tok.color)
 	field.applyPending()
-	return stack(backdrop.Widget(windowPlane(tok.color)), field.Widget(), cappedPage(tok, model, band))
+	return golden.Stack(backdrop.Widget(windowPlane(tok.color)), field.Widget(), cappedPage(tok, model, band))
 }
 
 // windowSchemes is the pair every rule below is checked against.

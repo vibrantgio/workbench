@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"image"
 	"testing"
 	"time"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/theme"
 )
 
@@ -26,7 +26,7 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 		t.Fatalf("buildLayers returned %d layers; want 2 (backdrop, shell)", len(layers))
 	}
 	for i, layer := range layers {
-		got, err := collectOne(layer)
+		got, err := golden.Resolve(layer)
 		if err != nil {
 			t.Errorf("layer %d subscribe: %v", i, err)
 			continue
@@ -187,18 +187,6 @@ func drainEmissions(ch chan layout.Widget) {
 			return
 		}
 	}
-}
-
-// collectOne subscribes to obs, returns the first emitted value (if any)
-// and the subscription's terminal error.
-func collectOne(obs rx.Observable[layout.Widget]) (layout.Widget, error) {
-	var got layout.Widget
-	err := obs.Subscribe(context.Background(), func(v layout.Widget, _ error, done bool) {
-		if !done && got == nil {
-			got = v
-		}
-	}).Wait()
-	return got, err
 }
 
 // TestStripOrderIsTitled pins the two lists the strip is built from

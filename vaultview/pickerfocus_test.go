@@ -45,22 +45,13 @@ type dialogLayer func(
 // at all.
 func liveDialog(t *testing.T, build dialogLayer, m Model, c tokens.PlatformColors, shaper *text.Shaper) layout.Widget {
 	t.Helper()
-	th := theme.Default()
-	th.Platform = rx.Of(c)
 	tok := themeTokens{col: c, typ: tokens.DefaultTypography, sp: tokens.Spacing,
 		den: tokens.Comfortable, shaper: shaper}
-	layer := build(rx.Of(th), rx.Of(m),
+	layer := build(rx.Of(golden.StaticTheme(c)), rx.Of(m),
 		func() Model { return m }, func() themeTokens { return tok }, dialog.NewArbiter())
-	var w layout.Widget
-	if err := layer.Subscribe(rx.GoroutineContext(), func(next layout.Widget, _ error, done bool) {
-		if !done && next != nil {
-			w = next
-		}
-	}).Wait(); err != nil {
+	w, err := golden.Resolve(layer)
+	if err != nil {
 		t.Fatalf("the dialog's layer: %v", err)
-	}
-	if w == nil {
-		t.Fatal("the dialog's layer emitted no layout.Widget")
 	}
 	return w
 }

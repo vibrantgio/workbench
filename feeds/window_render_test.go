@@ -41,7 +41,6 @@ import (
 	"github.com/vibrantgio/patterns/shell"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
-	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -72,20 +71,6 @@ var densities = []struct {
 	{"compact", tokens.Compact},
 }
 
-// staticTheme freezes one colour scheme into a Theme whose every field emits
-// once — the shape theme/window feeds the layers, minus the live OS poll.
-func staticTheme(c tokens.PlatformColors, d tokens.Density) theme.Theme {
-	return theme.Theme{
-		Platform:   rx.Of(c),
-		Typography: rx.Of(tokens.DefaultTypography),
-		Density:    rx.Of(d),
-		Motion:     rx.Of(tokens.Motion),
-		Spacing:    rx.Of(tokens.Spacing),
-		Radius:     rx.Of(tokens.Radius),
-		Elevation:  rx.Of(tokens.Elevation),
-	}
-}
-
 // settledModel is the window as a reader leaves it: a feed chosen in the
 // sidebar and one of its articles open in the detail pane. The chosen-item
 // fill has nothing to paint until something is chosen.
@@ -108,27 +93,13 @@ var settledArticle = func() ArticleID {
 }()
 
 // windowFrame composes the window's layers for one scheme into a single
-// layout.Widget: the backdrop first, the shell over it, exactly as
-// theme/window stacks them.
+// layout.Widget, through the library's whole-window renderer: the layer stack
+// feeds builds for its window, over a frozen theme, laid out as the window
+// stacks it.
 func windowFrame(t *testing.T, c tokens.PlatformColors, d tokens.Density, model Model) layout.Widget {
 	t.Helper()
-	layers := buildLayers(rx.Of(model))(rx.Of(staticTheme(c, d)))
-
-	widgets := make([]layout.Widget, len(layers))
-	for i, layer := range layers {
-		w, err := collectOne(layer)
-		if err != nil {
-			t.Fatalf("layer %d never emitted a layout.Widget: %v", i, err)
-		}
-		widgets[i] = w
-	}
-
-	return func(gtx layout.Context) layout.Dimensions {
-		for _, w := range widgets {
-			w(gtx)
-		}
-		return layout.Dimensions{Size: gtx.Constraints.Max}
-	}
+	th := rx.Of(golden.StaticTheme(c, golden.WithDensity(d)))
+	return golden.Layers(t, buildLayers(rx.Of(model))(th)...)
 }
 
 // renderWindow draws the settled window in one scheme. Two frames are drawn

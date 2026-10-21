@@ -12,7 +12,6 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/patterns/hero"
-	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -31,19 +30,11 @@ var sharpRadius = tokens.RadiusScale{}
 func staticThemed(colors tokens.PlatformColors) themed {
 	typ := tokens.DefaultTypography
 	return themed{
-		components: theme.Theme{
-			Platform:   rx.Of(colors),
-			Typography: rx.Of(typ),
-			Density:    rx.Of(tokens.Comfortable),
-			Motion:     rx.Of(tokens.Motion),
-			Spacing:    rx.Of(tokens.Spacing),
-			Radius:     rx.Of(sharpRadius),
-			Elevation:  rx.Of(tokens.Elevation),
-		},
-		color:   colors,
-		spacing: tokens.Spacing,
-		typ:     typ,
-		shaper:  typ.DeterministicShaper(),
+		components: golden.StaticTheme(colors, golden.WithRadius(sharpRadius)),
+		color:      colors,
+		spacing:    tokens.Spacing,
+		typ:        typ,
+		shaper:     typ.DeterministicShaper(),
 	}
 }
 
@@ -52,12 +43,7 @@ func staticThemed(colors tokens.PlatformColors) themed {
 // floats these on is driven by the clock, so it has no one frame to store and
 // is omitted; the plane it is keyed to stands in for it.
 func page(tok themed, model Model) layout.Widget {
-	back := backdrop.Widget(windowPlane(tok.color))
-	content := pageContent(tok, model)
-	return func(gtx layout.Context) layout.Dimensions {
-		back(gtx)
-		return content(gtx)
-	}
+	return golden.Stack(backdrop.Widget(windowPlane(tok.color)), pageContent(tok, model))
 }
 
 // pageContent is the window's content layer alone — the hero over the app

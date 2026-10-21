@@ -31,7 +31,7 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 		t.Fatalf("buildLayers returned %d layers; want 2 (backdrop, shell)", len(layers))
 	}
 	for i, layer := range layers {
-		got, err := collectOne(layer)
+		got, err := golden.Resolve(layer)
 		if err != nil {
 			t.Errorf("layer %d subscribe: %v", i, err)
 			continue
@@ -918,76 +918,6 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 }
 
 // ----- headless test helpers -----
-
-// collectOne subscribes to obs and returns its first emitted layout.Widget.
-// The feeds shell layer folds live patterns streams (table, pagination,
-// textfield) onto its output, so it never completes — a .Wait()-until-done
-// would block forever. Instead the first non-nil emission is captured on a
-// goroutine subscription that is then unsubscribed, with a timeout guarding
-// against a layer that never emits at all.
-//
-// The completion case must DRAIN the value channel before it believes the
-// completion. A cold chain — backdropLayer over rx.Of tokens — delivers its
-// value and its completion back to back on the subscription goroutine, so by
-// the time this goroutine reaches the select both channels are ready, and Go
-// picks a ready case uniformly at random. Taking errChan there discards a
-// value that arrived normally.
-//
-// Measured: a bare rx.Of mapped to a layout.Widget, with no theme, components
-// or patterns code in the chain at all, took errChan with the value already
-// buffered in 95 of 200 iterations. Retries cannot fix a coin flip; they cover
-// only the case below, a subscription that delivers nothing at all inside the
-// window.
-func collectOne(obs rx.Observable[layout.Widget]) (layout.Widget, error) {
-	const (
-		attempts = 3
-		window   = 2 * time.Second
-	)
-	for i := 0; ; i++ {
-		gotChan := make(chan layout.Widget, 1)
-		errChan := make(chan error, 1)
-		sub := obs.Subscribe(rx.GoroutineContext(), func(v layout.Widget, err error, done bool) {
-			if done {
-				select {
-				case errChan <- err:
-				default:
-				}
-				return
-			}
-			if v != nil {
-				select {
-				case gotChan <- v:
-				default:
-				}
-			}
-		})
-		select {
-		case w := <-gotChan:
-			sub.Unsubscribe()
-			return w, nil
-		case err := <-errChan:
-			sub.Unsubscribe()
-			// Both channels can be ready at once; prefer the value.
-			select {
-			case w := <-gotChan:
-				return w, nil
-			default:
-			}
-			if err != nil {
-				return nil, err
-			}
-			// Completed with no value at all: nothing a retry can recover,
-			// since the chain is cold and has already run to completion.
-			return nil, nil
-		case <-time.After(window):
-			sub.Unsubscribe()
-			if i == attempts-1 {
-				return nil, nil
-			}
-			// Wedged subscription: retry with a fresh one.
-		}
-	}
-}
 
 func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {

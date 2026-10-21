@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"testing"
 
 	"gioui.org/f32"
@@ -12,6 +11,8 @@ import (
 	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
+
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -52,29 +53,17 @@ func newPointerWindow(t *testing.T, col tokens.PlatformColors) *pointerWindow {
 	// The rail is the live one, built from its own stream: the find field it
 	// carries is the live text field, which is the region that was leaving
 	// its shape on the list under it.
-	w.sb = materializeWidget(t, treeSidebar(rx.Of(theme.Default()),
+	sb, err := golden.Resolve(treeSidebar(rx.Of(theme.Default()),
 		func() Model { return w.m }, func() themeTokens { return w.tok }, nil))
+	if err != nil {
+		t.Fatalf("the rail's layer: %v", err)
+	}
+	w.sb = sb
 	w.main = renderNotePageInto(cur, shaper, m, col, tokens.Spacing,
 		tokens.DefaultTypography, tokens.Comfortable, &pageFind{})
 	w.as = func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, w.m, w.tok) }
 	w.frame()
 	w.frame()
-	return w
-}
-
-func materializeWidget(t *testing.T, obs rx.Observable[layout.Widget]) layout.Widget {
-	t.Helper()
-	var w layout.Widget
-	if err := obs.Subscribe(context.Background(), func(next layout.Widget, _ error, done bool) {
-		if !done && next != nil {
-			w = next
-		}
-	}).Wait(); err != nil {
-		t.Fatalf("subscribe: %v", err)
-	}
-	if w == nil {
-		t.Fatal("the rail emitted no layout.Widget")
-	}
 	return w
 }
 

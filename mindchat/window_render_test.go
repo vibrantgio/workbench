@@ -29,9 +29,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
-	"sync/atomic"
 	"testing"
-	"time"
 
 	"gioui.org/f32"
 	gioinput "gioui.org/io/input"
@@ -45,7 +43,6 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
-	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -55,20 +52,6 @@ var windowDump = flag.String("window.dump", "", "directory to write whole-window
 // size these frames are drawn at: a composition is worth looking at where
 // somebody actually looks at it.
 var windowSize = image.Pt(1024, 768)
-
-// staticTheme freezes one colour scheme into a Theme whose every field emits
-// once — the shape theme/window feeds the layers, minus the live OS poll.
-func staticTheme(c tokens.PlatformColors) theme.Theme {
-	return theme.Theme{
-		Platform:   rx.Of(c),
-		Typography: rx.Of(tokens.DefaultTypography),
-		Density:    rx.Of(tokens.Comfortable),
-		Motion:     rx.Of(tokens.Motion),
-		Spacing:    rx.Of(tokens.Spacing),
-		Radius:     rx.Of(tokens.Radius),
-		Elevation:  rx.Of(tokens.Elevation),
-	}
-}
 
 // demoModel is a settled conversation with the shapes a transcript actually
 // grows: a couple of exchanges, a fenced code block, an inline code span, a
@@ -141,46 +124,12 @@ func streamingModel() Model {
 }
 
 // frame composes the window's layers for one scheme into a single
-// layout.Widget: the backdrop first, the content over it, exactly as
-// theme/window stacks them.
+// layout.Widget, through the library's whole-window renderer: the layer stack
+// mindchat builds for its window, over a frozen theme, laid out as the window
+// stacks it.
 func frame(t *testing.T, c tokens.PlatformColors, model Model) layout.Widget {
 	t.Helper()
-	layers := buildLayers(rx.Of(model))(rx.Of(staticTheme(c)))
-
-	widgets := make([]layout.Widget, len(layers))
-	for i, layer := range layers {
-		// The callback runs on rx's own goroutine, not this one, so the
-		// handoff goes through an atomic cell rather than a bare variable —
-		// the same bridge theme/window's own layers use to cross from a
-		// live stream onto a slot read at frame time (view.go, settings.go).
-		var cell atomic.Value
-		sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, err error, done bool) {
-			if !done && err == nil {
-				cell.Store(w)
-			}
-		})
-		var latest layout.Widget
-		deadline := time.Now().Add(2 * time.Second)
-		for time.Now().Before(deadline) {
-			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
-				latest = w
-				break
-			}
-			time.Sleep(5 * time.Millisecond)
-		}
-		sub.Unsubscribe()
-		if latest == nil {
-			t.Fatalf("layer %d never emitted a layout.Widget", i)
-		}
-		widgets[i] = latest
-	}
-
-	return func(gtx layout.Context) layout.Dimensions {
-		for _, w := range widgets {
-			w(gtx)
-		}
-		return layout.Dimensions{Size: gtx.Constraints.Max}
-	}
+	return golden.Layers(t, buildLayers(rx.Of(model))(rx.Of(golden.StaticTheme(c)))...)
 }
 
 // The macOS window controls, as this window will actually carry them: the

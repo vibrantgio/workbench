@@ -183,7 +183,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		},
 	})
-	tip, err := collectOne(tipObs)
+	tip, err := golden.Resolve(tipObs)
 	if err != nil || tip == nil {
 		t.Fatalf("tooltip layout.Widget: %v", err)
 	}
@@ -231,7 +231,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	}
 	hovered := renderAt(tShown.Add(time.Millisecond), r.Source(), overlay)
 
-	freshTip, err := collectOne(tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
+	freshTip, err := golden.Resolve(tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
 		Text:      "Unread",
 		Shaper:    tokens.DefaultTypography.DeterministicShaper(),
 		Placement: tooltip.Bottom,

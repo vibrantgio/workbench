@@ -426,7 +426,7 @@ func newRailTabFrame(t *testing.T) *railTabFrame {
 	for i := range groups {
 		open[i] = true
 	}
-	th := rx.Of(staticTheme(tokens.PlatformLight, tokens.Comfortable))
+	th := rx.Of(golden.StaticTheme(tokens.PlatformLight))
 	keys := newRailKeys()
 	sections := make([]railSection, len(groups))
 	for i, g := range groups {
