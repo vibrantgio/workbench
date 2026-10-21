@@ -388,7 +388,7 @@ func focusFindField(gtx layout.Context, tag event.Tag) {
 }
 
 // column is what the rail hands the shell's pane: the two marks that act on
-// the vault the pane is showing, the find field as the head slot, and the
+// the vault the pane is showing, the find field as the header slot, and the
 // rows under it. The strip the marks stand in, the toggle last of them and
 // the pane's own width are the arrangement's.
 //
@@ -406,7 +406,7 @@ func (v *treeView) column(loadModel func() Model, loadTok func() themeTokens, fi
 		// field's edges and every pill's stand on one pair of lines down the
 		// rail — which is the whole of what makes the field read as part of
 		// the column rather than as a pane set into it.
-		Head: func(gtx layout.Context) layout.Dimensions {
+		Header: func(gtx layout.Context) layout.Dimensions {
 			return complayout.Inset(treeFieldPadDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				if fieldW == nil {
 					return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
