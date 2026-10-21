@@ -50,8 +50,12 @@ github.com/vibrantgio/markdown v0.8.2 h1:IkzMR5XK6LabNCQS3djbFpCPmv9vOQEu1NvCJen
 github.com/vibrantgio/markdown v0.8.2/go.mod h1:oyDC+3Mpbx79zAPzW4hMxLkZkvDXTXoqUgaBc4cwVtY=
 github.com/vibrantgio/mvu v1.1.1 h1:kjYNnI5L0rX/VqUjmAfCpDYml1iwJxvya7S2gfUdowM=
 github.com/vibrantgio/mvu v1.1.1/go.mod h1:JnRAUuuD8MFkViuHyRlbK8re/XLnTjz/yq7OWERYnvw=
+github.com/vibrantgio/mvu v1.1.4 h1:3fuToowee1DI/KjDyL1qQLlcFEoNPrzMoEtYdp3SBLk=
+github.com/vibrantgio/mvu v1.1.4/go.mod h1:JnRAUuuD8MFkViuHyRlbK8re/XLnTjz/yq7OWERYnvw=
 github.com/vibrantgio/mvu/desktop v1.1.1 h1:EwwLGdlsuOquxo1C4eTKjpYo/LAeLGKvYoFINb0mRrA=
 github.com/vibrantgio/mvu/desktop v1.1.1/go.mod h1:SN2fR7An2DbciVwXYacBVHUQMdcSfMecBCNBlZdRXN0=
+github.com/vibrantgio/mvu/desktop v1.1.4 h1:0TiRKo1gS0r4m+H0Z67N7zN/4GD6NWecd5U1p+bE8co=
+github.com/vibrantgio/mvu/desktop v1.1.4/go.mod h1:z1BZKHOiXgsP8RlbBUdkcXyQRO69ZSiiBXHnjF3kq60=
 github.com/vibrantgio/patterns v1.4.0 h1:lc4uyLSsX/W80Jmtd8MB7FFfDMAEW51uhyqkl88Ptcs=
 github.com/vibrantgio/patterns v1.4.0/go.mod h1:yT1skxAYv2DCLfHDPib2T+lE4YrniVd8ur+NSLPmhu4=
 github.com/vibrantgio/patterns v1.4.1 h1:Q5GvRJc0yKhtQa5ngsZBe7a/vtX+cilOaoMfgGHc5AI=

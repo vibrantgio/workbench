@@ -7,8 +7,8 @@ require (
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.6
 	github.com/vibrantgio/components v1.6.0
-	github.com/vibrantgio/mvu v1.1.1
-	github.com/vibrantgio/mvu/desktop v1.1.1
+	github.com/vibrantgio/mvu v1.1.4
+	github.com/vibrantgio/mvu/desktop v1.1.4
 	github.com/vibrantgio/noise v0.0.6
 	github.com/vibrantgio/patterns v1.4.1
 	github.com/vibrantgio/seen v0.1.1

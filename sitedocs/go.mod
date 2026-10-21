@@ -9,8 +9,8 @@ require (
 	github.com/vibrantgio/components v1.6.0
 	github.com/vibrantgio/components/gallery v1.6.0
 	github.com/vibrantgio/markdown v0.8.2
-	github.com/vibrantgio/mvu v1.1.1
-	github.com/vibrantgio/mvu/desktop v1.1.1
+	github.com/vibrantgio/mvu v1.1.4
+	github.com/vibrantgio/mvu/desktop v1.1.4
 	github.com/vibrantgio/patterns v1.4.1
 	github.com/vibrantgio/textdraw v0.0.7
 	github.com/vibrantgio/theme v1.5.0
