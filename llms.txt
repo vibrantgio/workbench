@@ -76,7 +76,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      wears Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  components  v1.5.1 alert (the status signal for a situation — a banner on
+  components  v1.6.0 alert (the status signal for a situation — a banner on
                      the content's fill inside a Separator hairline, its
                      status carried by the leading symbol in the platform's
                      system colour for it, standing in the page flow until
@@ -111,15 +111,15 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      keyed, initial, cache, bench (coordination
                      is DEPRECATED — use mvu/stream.Value)
 
-  effects   v0.4.0   blur (Gaussian kernel, cached blur, backdrop
+  effects   v0.4.1   blur (Gaussian kernel, cached blur, backdrop
                      pipeline), depth, glow, motion, spring, springbutton,
                      transition, tween, conductor
 
-  patterns  v1.4.0   patterns: shell, navbar, sidebar, pane, table,
+  patterns  v1.4.1   patterns: shell, navbar, sidebar, pane, table,
                      tabs, dialog, popover,
                      notifications, card, group, accordion, hero,
                      feature, pricing, testimonial
-  markdown  v0.8.1   GFM document rendering on library components (subpackages:
+  markdown  v0.8.2   GFM document rendering on library components (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
                      images via vibrantgio/svg; obsidian — the Obsidian
                      dialect: frontmatter, wikilinks, block anchors)
@@ -160,7 +160,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        for traer physics
   github.com/vibrantgio/kiwi/gio              v0.0.9   Gio layout on the
                                                        kiwi solver
-  github.com/vibrantgio/components/gallery    v1.5.1   the components gallery
+  github.com/vibrantgio/components/gallery    v1.6.0   the components gallery
                                                        app
   github.com/vibrantgio/mvu/desktop           v1.1.3   native macOS window
                                                        chrome (FullSizeContent,
@@ -1380,9 +1380,9 @@ paths on purpose (golden determinism); leave those alone.
   require (
       gioui.org v0.10.2
       github.com/reactivego/rx v0.3.0
-      github.com/vibrantgio/patterns v1.4.0
+      github.com/vibrantgio/patterns v1.4.1
       github.com/vibrantgio/mvu v1.1.3
-      github.com/vibrantgio/components v1.5.1
+      github.com/vibrantgio/components v1.6.0
       github.com/vibrantgio/theme v1.5.0
       github.com/vibrantgio/textdraw v0.0.7
   )

@@ -6,11 +6,11 @@ require (
 	gioui.org v0.10.2
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.6
-	github.com/vibrantgio/components v1.5.1
+	github.com/vibrantgio/components v1.6.0
 	github.com/vibrantgio/ivg/raster/gio v0.2.0
 	github.com/vibrantgio/mvu v1.1.1
 	github.com/vibrantgio/mvu/desktop v1.1.1
-	github.com/vibrantgio/patterns v1.4.0
+	github.com/vibrantgio/patterns v1.4.1
 	github.com/vibrantgio/textdraw v0.0.7
 	github.com/vibrantgio/theme v1.5.0
 	go.bug.st/serial v1.6.2
@@ -22,7 +22,7 @@ require (
 	github.com/creack/goselect v0.1.2 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/reactivego/scheduler v0.2.0 // indirect
-	github.com/vibrantgio/effects v0.4.0 // indirect
+	github.com/vibrantgio/effects v0.4.1 // indirect
 	github.com/vibrantgio/font v0.4.4 // indirect
 	github.com/vibrantgio/ivg v0.2.0 // indirect
 	github.com/vibrantgio/svg v0.1.2 // indirect
