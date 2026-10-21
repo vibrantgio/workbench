@@ -592,6 +592,9 @@ func layoutNotePage(
 			style.Text.OnLinkClick = func(gtx layout.Context, url string) {
 				linkClicked(gtx, m, url)
 			}
+			style.Text.OnLinkHover = func(gtx layout.Context, url string) {
+				mvu.MessageOp{Message: HoverLink{URL: linkAddress(m, url)}}.Add(gtx.Ops)
+			}
 			style.OnTaskClick = func(gtx layout.Context, item *markdown.ListItem) {
 				mvu.MessageOp{Message: ToggleTask{Path: note.Path, Item: item}}.Add(gtx.Ops)
 			}
@@ -772,6 +775,31 @@ func pinnedSeam(gtx layout.Context, tok themeTokens) layout.Dimensions {
 		clip.Rect(image.Rect(0, 0, w+lead, h)).Op())
 	st.Pop()
 	return layout.Dimensions{Size: image.Pt(w, h)}
+}
+
+// linkAddress is what the window says a link goes to while the pointer is on
+// it: a wikilink the vault-relative path of the note it lands on — the same
+// resolution a click makes, so the reader is told where the click will take
+// them — and a web link its URL as written. A wikilink the index cannot
+// resolve, or one matching several notes, shows the body as written: that is
+// all the reader has asked for and all the vault can say about it.
+func linkAddress(m Model, url string) string {
+	switch {
+	case url == "":
+		return ""
+	case strings.HasPrefix(url, "wiki:"), strings.HasPrefix(url, "wikiembed:"):
+		body := strings.TrimPrefix(strings.TrimPrefix(url, "wikiembed:"), "wiki:")
+		if m.Index == nil {
+			return body
+		}
+		res, rerr := Resolve(m.Index, m.Current, body)
+		if rerr != nil {
+			return body
+		}
+		return res.Path
+	default:
+		return url
+	}
 }
 
 // linkClicked dispatches one link activation: wikilinks (embeds included

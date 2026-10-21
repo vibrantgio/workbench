@@ -49,10 +49,18 @@
 //
 // # What it says
 //
-// One fact, in one line: how long the note is. The bar is as deep as that
-// line and no deeper, and it is the faint foreground this window gives what
-// annotates rather than states — the same step the properties pane's keys
-// and the standing messages take.
+// One fact, in one line. How long the note is, and — while the pointer is
+// on a link — where that link goes instead: the address takes the count's
+// own place for as long as the pointer is on the link and gives it back
+// when it leaves, which is what the platform's browsers do at the foot of
+// their windows. A wikilink says the vault-relative path of the note it
+// lands on, an external link its URL. No stored capture in the reference
+// shows a browser's own status text, so the address is said in this bar's
+// own treatment rather than one measured off the platform.
+//
+// The bar is as deep as that line and no deeper, and it is the faint
+// foreground this window gives what annotates rather than states — the
+// same step the properties pane's keys and the standing messages take.
 //
 // The line is set a step under the window's other labels, the size the
 // platform's own status lines take. That is also what keeps a grey label at
@@ -98,11 +106,15 @@ func sourceLines(src []byte) int {
 	return n
 }
 
-// statusLine is what the bar says about the model: the open note's length,
+// statusLine is what the bar says about the model: the address of the link
+// under the pointer while there is one, the open note's length otherwise,
 // and nothing at all before a note is open — a bar reporting zero lines
 // while the vault is still being scanned would state a fact it does not
 // have.
 func statusLine(m Model) string {
+	if m.HoveredLink != "" {
+		return m.HoveredLink
+	}
 	note := m.CurrentNote()
 	if note == nil {
 		return ""
