@@ -112,12 +112,23 @@ func sourceLines(src []byte) int {
 	return n
 }
 
-// statusLine is what the bar says about the model: the address of the
-// link under the pointer while there is one, how far the scan has got
-// while it is still reading the vault, the open note's length otherwise,
-// and nothing at all before any of those — a bar reporting zero lines
-// while the vault is still being listed would state a fact it does not
-// have.
+// downloadingLabel is what the window says while the platform fetches a
+// note out of the cloud: the note column stands it in place of the note
+// and the bar says it under them both, so the wait is named in the place
+// the note would be and in the place the window reports from.
+const downloadingLabel = "Downloading…"
+
+// statusLine is what the bar says about the model: the note being
+// fetched out of the cloud while one is, the address of the link under
+// the pointer while there is one, how far the scan has got while it is
+// still reading the vault, the open note's length otherwise, and nothing
+// at all before any of those — a bar reporting zero lines while the
+// vault is still being listed would state a fact it does not have.
+//
+// The fetch leads because it is the one thing the window is waiting on:
+// the column it would report the length of is standing empty for the
+// same reason, and an address under the pointer is the reader's last
+// move rather than what the window is doing.
 //
 // The scan's progress stands here rather than over the document, because
 // by the time it is said the reader already has a note to read: the
@@ -125,6 +136,9 @@ func sourceLines(src []byte) int {
 // is still arriving is the headings, block ids and links of the notes
 // the reader is not looking at.
 func statusLine(m Model) string {
+	if m.Downloading != "" {
+		return downloadingLabel
+	}
 	if m.LinkUnder != "" {
 		return m.LinkUnder
 	}

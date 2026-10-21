@@ -1,12 +1,68 @@
 package main
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+// ScanVault is the one-call synchronous walk: every *.md below root,
+// read and scanned in one pass. The application does not scan a vault
+// this way — it lists first and streams the contents in batches
+// (scan.go) — and this stands here because that is the only thing left
+// that wants it: it is the single-walk answer the streaming scan's
+// result is measured against, note for note.
+//
+// Unreadable subtrees and files are skipped rather than failing the
+// scan; only an unreadable root is an error. The hidden iCloud
+// placeholders are dot-files and are skipped with the rest of them,
+// where the listing phase lists them under the name the vault shows.
+func ScanVault(root string) (*Index, error) {
+	idx := &Index{Root: root}
+	// A vault given as a symlink walks as its target — WalkDir would
+	// otherwise see the root as a non-directory and find nothing. The
+	// index keeps the path as given; the notes resolve through the link.
+	walkRoot := root
+	if r, err := filepath.EvalSymlinks(root); err == nil {
+		walkRoot = r
+	}
+	err := filepath.WalkDir(walkRoot, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			if path == walkRoot {
+				return walkErr
+			}
+			return nil
+		}
+		if d.IsDir() {
+			if path != walkRoot && strings.HasPrefix(d.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasPrefix(d.Name(), ".") || !strings.EqualFold(filepath.Ext(d.Name()), ".md") {
+			return nil
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		rel, err := filepath.Rel(walkRoot, path)
+		if err != nil {
+			return nil
+		}
+		f := ScanSource(src)
+		f.Path = filepath.ToSlash(rel)
+		idx.add(f)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return idx, nil
+}
 
 func TestScanSource(t *testing.T) {
 	tests := []struct {

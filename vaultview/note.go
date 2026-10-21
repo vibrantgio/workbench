@@ -651,6 +651,13 @@ func layoutNotePage(
 		// message, which is what decides the gap above it.
 		scrolling := false
 		switch {
+		case m.Downloading != "":
+			// The note the reader asked for is in the cloud and nothing
+			// is at its path yet. The column says so in place of the
+			// note it is going to show, including over the note the
+			// reader was on, which is no longer the one they asked for.
+			cur.show(nil)
+			body = messageChild(tok, downloadingLabel)
 		case m.Scanning && note == nil:
 			cur.show(nil)
 			body = messageChild(tok, "Scanning vault…")

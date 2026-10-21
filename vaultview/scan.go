@@ -13,8 +13,9 @@
 // the folders newest modification first, so the notes worked on most
 // recently fill in first. The contents then stream in behind it,
 // scanStreams notes at a time, and are folded into the index in
-// batches. ScanVault stays the one-call synchronous walk, which is what
-// the tests measure the streaming result against.
+// batches. The one-call synchronous walk the tests measure the
+// streaming result against is ScanVault, which lives beside them in
+// scan_test.go: nothing the application runs calls it.
 
 package main
 
@@ -77,53 +78,6 @@ type Index struct {
 	// and is searched one entry at a time.
 	slot map[string]int
 	base map[string][]int
-}
-
-// ScanVault walks *.md files below root, skipping dot-directories, and
-// scans each one. Unreadable subtrees and files are skipped rather than
-// failing the scan; only an unreadable root is an error.
-func ScanVault(root string) (*Index, error) {
-	idx := &Index{Root: root}
-	// A vault given as a symlink walks as its target — WalkDir would
-	// otherwise see the root as a non-directory and find nothing. The
-	// index keeps the path as given; the notes resolve through the link.
-	walkRoot := root
-	if r, err := filepath.EvalSymlinks(root); err == nil {
-		walkRoot = r
-	}
-	err := filepath.WalkDir(walkRoot, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			if path == walkRoot {
-				return walkErr
-			}
-			return nil
-		}
-		if d.IsDir() {
-			if path != walkRoot && strings.HasPrefix(d.Name(), ".") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if strings.HasPrefix(d.Name(), ".") || !strings.EqualFold(filepath.Ext(d.Name()), ".md") {
-			return nil
-		}
-		src, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		rel, err := filepath.Rel(walkRoot, path)
-		if err != nil {
-			return nil
-		}
-		f := ScanSource(src)
-		f.Path = filepath.ToSlash(rel)
-		idx.add(f)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return idx, nil
 }
 
 // add appends a record and records where it sits, by path and by name.
@@ -283,9 +237,9 @@ type scanJob struct {
 // taken off the directory entries the walk already has, so the folders
 // whose notes were written most recently are read first.
 //
-// Dot-directories and dot-files are skipped exactly as ScanVault skips
-// them, the hidden iCloud placeholders excepted: those are listed under
-// the name the vault shows.
+// Dot-directories and dot-files are skipped, the hidden iCloud
+// placeholders excepted: those are listed under the name the vault
+// shows.
 func ListVault(root string) (*Index, []scanJob, error) {
 	idx := &Index{Root: root}
 	walkRoot := root
@@ -393,6 +347,23 @@ func mergeScans(idx *Index, files []FileScan) *Index {
 			next.Files[i] = f
 		}
 	}
+	return next
+}
+
+// downloaded returns the index with the placeholder flag taken off one
+// note: the platform has written the file, so it is a note on disk like
+// any other. The result is a new index over a new Files slice, for the
+// reason mergeScans builds one.
+func downloaded(idx *Index, rel string) *Index {
+	if idx == nil {
+		return nil
+	}
+	i, ok := idx.slotOf(rel)
+	if !ok || !idx.Files[i].Placeholder {
+		return idx
+	}
+	next := &Index{Root: idx.Root, Files: slices.Clone(idx.Files), slot: idx.slot, base: idx.base}
+	next.Files[i].Placeholder = false
 	return next
 }
 

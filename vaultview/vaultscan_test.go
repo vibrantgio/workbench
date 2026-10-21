@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -188,6 +189,7 @@ func TestScanDeliversTheListingBeforeAnyContents(t *testing.T) {
 	}))
 
 	listed, batches, ends := 0, 0, 0
+	opened := ""
 	var delivered []string
 	for i, msg := range msgs {
 		switch m := msg.(type) {
@@ -205,6 +207,14 @@ func TestScanDeliversTheListingBeforeAnyContents(t *testing.T) {
 			}
 			if batches > 0 {
 				t.Error("the reader's note arrived after the contents had started")
+			}
+			opened = m.note.Path
+			// The note the window opens on carries its own index record,
+			// scanned off the bytes the read returned.
+			if m.scan == nil {
+				t.Error("the reader's note arrived without its index record")
+			} else if m.scan.Path != m.note.Path || len(m.scan.Headings) == 0 {
+				t.Errorf("the reader's note carried %+v, want its own scan", m.scan)
 			}
 		case vaultRead:
 			if listed == 0 {
@@ -229,8 +239,17 @@ func TestScanDeliversTheListingBeforeAnyContents(t *testing.T) {
 	if batches < 2 {
 		t.Errorf("192 notes arrived in %d batches; the contents are meant to be delivered as they are read", batches)
 	}
-	if len(delivered) != 3*64 {
-		t.Errorf("the batches carried %d notes, want %d", len(delivered), 3*64)
+	// The note the window opens on is read once: it came with its own
+	// record and the contents phase struck it off its order, so the
+	// batches carry every note but that one.
+	if len(delivered) != 3*64-1 {
+		t.Errorf("the batches carried %d notes, want %d — every note but the one the window opened on", len(delivered), 3*64-1)
+	}
+	if opened == "" {
+		t.Fatal("the scan opened the window on no note")
+	}
+	if slices.Contains(delivered, opened) {
+		t.Errorf("%s was read for the reader and read again in a batch", opened)
 	}
 
 	// Newest folder first, held where no race can decide it: the oldest

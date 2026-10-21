@@ -26,6 +26,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -36,6 +37,7 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/obsidian"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/notifications"
 )
 
@@ -89,6 +91,15 @@ type Model struct {
 	// this stops them being read, which on a vault held in the cloud is
 	// the expensive half.
 	scanStop *atomic.Bool
+
+	// Downloading is the vault-relative path of the note the platform is
+	// fetching out of the cloud, empty when it is fetching none. The note
+	// column stands a message in place of the note while it is set, and
+	// the status bar says the same; downloadNav is the navigation that
+	// asked, held so the landing seats on the heading or block the link
+	// named once the file is here.
+	Downloading string
+	downloadNav Navigate
 
 	// Navigation state. Notes caches every note loaded this session,
 	// keyed by vault-relative path; the map is replaced, never mutated,
@@ -324,10 +335,17 @@ type vaultListed struct {
 // disturbs nothing else — the history, the folds and the reader's place
 // stay where they were — and it is not an arrival: nobody followed a
 // link to it.
+//
+// It carries that note's index record too, scanned off the bytes the read
+// returned. The note the window opens on is therefore read once: the
+// contents phase strikes it off its own order rather than fetching the
+// same file a second time, which on a vault held in the cloud is a round
+// trip saved on every open.
 type vaultNoteRead struct {
 	vault string
 	gen   int
 	note  *Note
+	scan  *FileScan
 }
 
 // vaultRead delivers one batch of the contents phase: the notes read
@@ -467,6 +485,13 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		if cur := model.Notes[m.note.Path]; cur == nil || cur.Size != m.note.Size || !cur.Mod.Equal(m.note.Mod) {
 			model = cacheNote(model, m.note)
 		}
+		// The note's index record came with it, so it counts towards the
+		// contents the status bar counts off: the contents phase is not
+		// going to read this one.
+		if m.scan != nil {
+			model.Index = mergeScans(model.Index, []FileScan{*m.scan})
+			model.ScanRead++
+		}
 		if model.Current == "" {
 			model.Current = m.note.Path
 			model.CurAnchor = -1
@@ -496,7 +521,32 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		if note := model.Notes[m.Path]; note != nil && unchangedOnDisk(model.Vault, note) {
 			return landOn(model, m, note), mvu.DoNothing()
 		}
+		// A note the platform keeps in the cloud has nothing at its own
+		// path to read, so it is asked for first and loaded when it
+		// lands. The window says what it is waiting for meanwhile; the
+		// address under the pointer goes, the navigation having begun.
+		if model.isPlaceholder(m.Path) {
+			model.Downloading = m.Path
+			model.downloadNav = m
+			model.LinkUnder = ""
+			return model, downloadNoteCmd(model.Vault, m.Path)
+		}
 		return model, loadNoteCmd(model.Vault, m)
+	case desktop.Downloaded:
+		rel := model.Downloading
+		if rel == "" || m.Path != notePath(model.Vault, rel) {
+			break // an answer for a note the reader left, or another vault
+		}
+		nav := model.downloadNav
+		model.Downloading = ""
+		model.downloadNav = Navigate{}
+		if m.Err != "" {
+			return raiseNotification(model, notifications.Request(toast.Error, m.Err))
+		}
+		// The file is on disk now, so the listing stops calling it one the
+		// cloud holds, and the note loads as any navigation loads one.
+		model.Index = downloaded(model.Index, rel)
+		return model, loadNoteCmd(model.Vault, nav)
 	case noteLoaded:
 		if m.vault != model.Vault {
 			break // a load for a vault no longer open
@@ -725,6 +775,36 @@ func loadNoteCmd(vault string, nav Navigate) mvu.Command {
 	})
 }
 
+// platformDownload asks the platform to fetch a file it keeps in the
+// cloud. It is a variable for the reason the open panel is one: both
+// sides of the branch have to be drivable with no cloud and no reader,
+// so a test stands a command of its own here and reads what the window
+// does with each answer.
+var platformDownload = desktop.Download
+
+// downloadNoteCmd asks for the note at a vault-relative path. The command
+// answers one message whatever happens — the file written, the platform's
+// refusal, a download that ran past its own bound — so the window always
+// has the message that takes its waiting state down.
+func downloadNoteCmd(vault, rel string) mvu.Command {
+	return platformDownload(notePath(vault, rel))
+}
+
+// notePath is the file a vault-relative note path names.
+func notePath(vault, rel string) string {
+	return filepath.Join(vault, filepath.FromSlash(rel))
+}
+
+// isPlaceholder reports whether the listing holds the note as one the
+// platform keeps in the cloud, with nothing at its own path to read.
+func (m Model) isPlaceholder(rel string) bool {
+	if m.Index == nil {
+		return false
+	}
+	i, ok := m.Index.slotOf(rel)
+	return ok && m.Index.Files[i].Placeholder
+}
+
 // nextScan stops the scan in flight, if there is one, and gives the
 // model the generation and the stop flag the next scan command runs
 // under. Both halves matter: the generation is what Update matches a
@@ -805,7 +885,13 @@ func scanCmd(vault, current string, gen int, stop *atomic.Bool, finish func(err 
 				// carries on and the reader is told nothing about it.
 				return nil, nil, true
 			}
-			return vaultNoteRead{vault: vault, gen: gen, note: n}, nil, false
+			// Scanned off the bytes this read returned, and struck off
+			// the contents phase's order: the note the window opens on
+			// is read once rather than here and again in a batch.
+			f := ScanSource(n.Src)
+			f.Path = rel
+			jobs = slices.DeleteFunc(jobs, func(j scanJob) bool { return j.path == rel })
+			return vaultNoteRead{vault: vault, gen: gen, note: n, scan: &f}, nil, false
 		})
 	})
 	contents := rx.Defer(func() rx.Observable[mvu.Message] {
@@ -858,7 +944,7 @@ func unchangedOnDisk(vault string, n *Note) bool {
 	if vault == "" || n == nil {
 		return true
 	}
-	fi, err := os.Stat(filepath.Join(vault, filepath.FromSlash(n.Path)))
+	fi, err := os.Stat(notePath(vault, n.Path))
 	if err != nil {
 		return true
 	}
@@ -908,7 +994,7 @@ func openVaultCmd(vault string, gen int, stop *atomic.Bool) mvu.Command {
 // own lines are counted here, off the bytes that were read, because this
 // is the only place that has them.
 func LoadNote(root, rel string) (*Note, error) {
-	full := filepath.Join(root, filepath.FromSlash(rel))
+	full := notePath(root, rel)
 	src, err := os.ReadFile(full)
 	if err != nil {
 		return nil, err
