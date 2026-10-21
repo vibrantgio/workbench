@@ -1,0 +1,295 @@
+package main
+
+import (
+	"context"
+	"image"
+	"testing"
+	"time"
+
+	"gioui.org/f32"
+	"gioui.org/io/event"
+	"gioui.org/io/input"
+	"gioui.org/io/pointer"
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/unit"
+	"gioui.org/widget"
+
+	"github.com/reactivego/rx"
+
+	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/tooltip"
+	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
+)
+
+// tipNoteSource is the note the tooltip tests read: one line of prose
+// carrying one external link, so there is exactly one place the pointer can
+// stand on and one address to be said about it.
+const tipNoteSource = "Read [the site](https://example.test/page) for more.\n"
+
+// tipPad drives the note column with the link tooltip the window gives it,
+// at an instant the test chooses: the annotation appears after a dwell, so
+// nothing about it can be read from a frame clock the test does not hold.
+type tipPad struct {
+	t    *testing.T
+	m    Model
+	tok  themeTokens
+	doc  *markdown.Document
+	tip  *linkTip
+	size image.Point
+	now  time.Time
+
+	propClick widget.Clickable
+	read      reader
+	arr       arrival
+	find      pageFind
+	r         input.Router
+	ops       op.Ops
+}
+
+func newTipPad(t *testing.T, address string) *tipPad {
+	t.Helper()
+	m := goldenModel()
+	source := "Read [the site](" + address + ") for more.\n"
+	m = cacheNote(m, noteFromSource("guide/Tip.md", source))
+	m.Current = "guide/Tip.md"
+	if m.CurrentNote() == nil {
+		t.Fatal("the fixture model has no current note")
+	}
+	p := &tipPad{
+		t:    t,
+		m:    m,
+		size: image.Pt(760, 520),
+		now:  time.Date(2026, 10, 21, 9, 0, 0, 0, time.UTC),
+		tok: themeTokens{
+			col:    tokens.PlatformLight,
+			typ:    tokens.DefaultTypography,
+			sp:     tokens.Spacing,
+			den:    tokens.Comfortable,
+			shaper: tokens.DefaultTypography.DeterministicShaper(),
+		},
+	}
+	p.doc = markdown.NewDocument(m.CurrentNote().Blocks)
+	p.tip = &linkTip{}
+	p.tip.layer = tipWidget(t, address, p.tip)
+	return p
+}
+
+// tipWidget is the one tooltip the window builds for an address, built here
+// exactly as vaultLayer builds it.
+func tipWidget(t *testing.T, address string, tip *linkTip) layout.Widget {
+	t.Helper()
+	var w layout.Widget
+	obs := tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
+		Text:      address,
+		Placement: tooltip.Bottom,
+		Arbiter:   tooltip.NewArbiter(),
+		Anchor:    tip.anchor,
+		Shaper:    tokens.DefaultTypography.DeterministicShaper(),
+	})
+	if err := obs.Subscribe(context.Background(), func(next layout.Widget, _ error, done bool) {
+		if !done && next != nil {
+			w = next
+		}
+	}).Wait(); err != nil {
+		t.Fatalf("subscribe to the tooltip: %v", err)
+	}
+	if w == nil {
+		t.Fatal("the tooltip emitted no layout.Widget")
+	}
+	return w
+}
+
+func (p *tipPad) page(gtx layout.Context) layout.Dimensions {
+	return layoutNotePage(gtx, p.m, p.tok, &p.propClick, &p.read, &p.arr,
+		&docCursor{}, func(Model, *Note) *markdown.Document { return p.doc }, &p.find, p.tip)
+}
+
+func (p *tipPad) frame(evs ...event.Event) {
+	p.r.Queue(evs...)
+	p.ops.Reset()
+	gtx := layout.Context{
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: layout.Exact(p.size),
+		Now:         p.now,
+		Ops:         &p.ops,
+		Source:      p.r.Source(),
+	}
+	p.page(gtx)
+	p.r.Frame(&p.ops)
+}
+
+func (p *tipPad) move(x, y int) {
+	p.frame(pointer.Event{Kind: pointer.Move, Position: f32.Pt(float32(x), float32(y)), Source: pointer.Mouse})
+}
+
+// shot renders the column as it stands at the pad's own instant, which is
+// what the annotation's dwell is measured against.
+func (p *tipPad) shot() *image.RGBA {
+	p.t.Helper()
+	src := p.r.Source()
+	now := p.now
+	return golden.Capture(p.t, p.size, func(gtx layout.Context) layout.Dimensions {
+		gtx.Now = now
+		gtx.Source = src
+		return p.page(gtx)
+	})
+}
+
+// onLink is where the pointer stands on the note's one link, found from the
+// shape the frame declares rather than from widths the faces decide, with
+// the rows the link occupies.
+func (p *tipPad) onLink() (at image.Point, top, bottom int) {
+	p.t.Helper()
+	for y := 1; y < p.size.Y; y += 2 {
+		for x := 1; x < p.size.X; x += 3 {
+			p.move(x, y)
+			if p.r.Cursor() == pointer.CursorPointer {
+				at = image.Pt(x, y)
+				break
+			}
+		}
+		if at != (image.Point{}) {
+			break
+		}
+	}
+	if at == (image.Point{}) {
+		p.t.Fatal("the note declares no link anywhere in the column")
+	}
+	top, bottom = at.Y, at.Y
+	for y := at.Y; y >= 0; y-- {
+		p.move(at.X, y)
+		if p.r.Cursor() != pointer.CursorPointer {
+			break
+		}
+		top = y
+	}
+	for y := at.Y; y < p.size.Y; y++ {
+		p.move(at.X, y)
+		if p.r.Cursor() != pointer.CursorPointer {
+			break
+		}
+		bottom = y
+	}
+	return at, top, bottom
+}
+
+// differingRows returns the first and last row the two images differ at, and
+// the leading and trailing column of the difference; -1 for an image pair
+// that is the same everywhere.
+func differingRows(a, b *image.RGBA) (top, bottom, left, right int) {
+	top, bottom, left, right = -1, -1, -1, -1
+	bounds := a.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			if a.RGBAAt(x, y) == b.RGBAAt(x, y) {
+				continue
+			}
+			if top < 0 {
+				top = y
+			}
+			bottom = y
+			if left < 0 || x < left {
+				left = x
+			}
+			if x > right {
+				right = x
+			}
+		}
+	}
+	return top, bottom, left, right
+}
+
+// TestTheLinkTooltipStandsBesideTheLinkAfterTheDelay hovers the note's one
+// link and reads the column: nothing beside the link before the tooltip's
+// own delay has run out, the annotation beside it after, and the column back
+// as it was once the pointer leaves.
+func TestTheLinkTooltipStandsBesideTheLinkAfterTheDelay(t *testing.T) {
+	p := newTipPad(t, "https://example.test/page")
+
+	p.frame()
+	p.frame()
+	at, _, bottom := p.onLink()
+	// Off the link again: the column at rest, which the departure has to
+	// bring back.
+	p.move(p.size.X-2, at.Y)
+	p.now = p.now.Add(time.Second)
+	p.frame()
+	rest := p.shot()
+
+	// Onto the link. The first frames at the instant of entry are what the
+	// document reports the link on and what the annotation's own hit area
+	// appears in, so the dwell starts at this instant and not before it.
+	entered := p.now
+	p.move(at.X, at.Y)
+	p.frame()
+	p.frame()
+	p.now = entered.Add(tooltip.DefaultDelay - 10*time.Millisecond)
+	p.frame()
+	waiting := p.shot()
+	if top, _, _, _ := differingRows(rest, waiting); top >= 0 && top > bottom {
+		t.Errorf("the column changed at row %d, under the link, before the delay had run out; the annotation showed too early", top)
+	}
+
+	// Past the delay.
+	p.now = entered.Add(tooltip.DefaultDelay + 10*time.Millisecond)
+	p.frame()
+	shown := p.shot()
+	top, _, left, right := differingRows(waiting, shown)
+	if top < 0 {
+		t.Fatal("the delay ran out and nothing was drawn")
+	}
+	if top <= bottom {
+		t.Errorf("the annotation starts at row %d, which is not under the link's last row %d; it is not beside the link", top, bottom)
+	}
+	if at.X < left || at.X > right {
+		t.Errorf("the annotation spans columns %d..%d, which does not hold the link at column %d", left, right, at.X)
+	}
+
+	// And away: the pointer leaves and takes the annotation with it.
+	p.move(p.size.X-2, at.Y)
+	p.now = p.now.Add(time.Second)
+	p.frame()
+	left1, _, _, _ := differingRows(rest, p.shot())
+	if left1 >= 0 {
+		t.Errorf("the pointer left the link and the column differs from its resting state at row %d", left1)
+	}
+}
+
+// TestTheLinkTooltipSaysTheAddress stands on the same link in two notes
+// whose addresses differ in length and compares what was drawn: the
+// annotation is as wide as the address it says, so a longer address draws a
+// wider one. A bubble of a fixed size would pass every placement check above
+// without ever saying where the link goes.
+func TestTheLinkTooltipSaysTheAddress(t *testing.T) {
+	width := func(address string) int {
+		p := newTipPad(t, address)
+		p.frame()
+		p.frame()
+		at, _, _ := p.onLink()
+		p.move(p.size.X-2, at.Y)
+		p.now = p.now.Add(time.Second)
+		p.frame()
+		entered := p.now
+		p.move(at.X, at.Y)
+		p.frame()
+		p.frame()
+		p.now = entered.Add(tooltip.DefaultDelay - 10*time.Millisecond)
+		p.frame()
+		waiting := p.shot()
+		p.now = entered.Add(tooltip.DefaultDelay + 10*time.Millisecond)
+		p.frame()
+		top, _, l, r := differingRows(waiting, p.shot())
+		if top < 0 {
+			t.Fatalf("no annotation was drawn for %q", address)
+		}
+		return r - l
+	}
+	short := width("https://a.test/x")
+	long := width("https://a.test/a-considerably-longer-path-than-the-other-one")
+	if long <= short {
+		t.Errorf("the annotation is %d wide for a short address and %d for a long one; it does not say the address", short, long)
+	}
+}

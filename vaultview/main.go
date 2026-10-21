@@ -265,7 +265,7 @@ func routedLayer(
 	widths *columnMemory,
 ) rx.Observable[layout.Widget] {
 	picker := pickerLayer(th, loadModel, loadTok)
-	vault := vaultLayer(th, loadModel, loadTok, widths)
+	vault := vaultLayer(th, modelObs, loadModel, loadTok, widths)
 
 	combined := rx.CombineLatest3(modelObs, picker, vault)
 	return rx.Map(combined, func(t rx.Tuple3[Model, layout.Widget, layout.Widget]) layout.Widget {

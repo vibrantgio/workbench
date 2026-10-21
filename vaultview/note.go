@@ -43,6 +43,7 @@ import (
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/components/toast"
+	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/markdown/obsidian"
@@ -424,7 +425,12 @@ func (r *reader) process(gtx layout.Context, doc *markdown.Document) {
 // and the note between them. The note column reads the model and token
 // snapshots at frame time; repaints on model change are driven by the
 // routed layer's re-emission.
-func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens, widths *columnMemory) rx.Observable[layout.Widget] {
+//
+// modelObs is the same replay-latest models stream the routed layer reads,
+// taken here for the one thing a frame-time snapshot cannot serve: the
+// tooltip beside a hovered link takes its text when it is built, so the
+// column needs an emission per address and not a value per frame.
+func vaultLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], loadModel func() Model, loadTok func() themeTokens, widths *columnMemory) rx.Observable[layout.Widget] {
 	// The rail fills this in when its own stream is subscribed, and the note
 	// column reads it: a note opened from the rail leaves the keyboard there.
 	rail := &railFocus{}
@@ -495,9 +501,45 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		// with the theme the field was built under.
 		Count: find.label,
 	})
-	mainSlot := rx.Map(th, func(_ theme.Theme) layout.Widget {
+	// The tooltip that says where the link under the pointer goes. The
+	// window has one, and it is rebuilt for each address rather than told
+	// one: the component takes its text when it is built, and a fresh
+	// address is a fresh dwell anyway — the reader who crosses onto another
+	// link waits for it as they waited for the first. The arbiter is this
+	// window's, so this tooltip and any other in the window cannot both
+	// stand.
+	//
+	// The empty address — the pointer is on no link — builds nothing at
+	// all, and the column lays nothing out.
+	tip := &linkTip{}
+	tips := tooltip.NewArbiter()
+	tipSlot := rx.SwitchMap(
+		rx.Map(modelObs, func(m Model) string { return m.HoveredLink }).
+			DistinctUntilChanged(func(a, b string) bool { return a == b }),
+		func(address string) rx.Observable[layout.Widget] {
+			if address == "" {
+				return rx.Of(layout.Widget(nil))
+			}
+			return tooltip.Tooltip(th, tooltip.Props{
+				Text: address,
+				// Below the link, which is where this platform puts an
+				// annotation about a word in prose; the component takes
+				// the side above when the link sits too near the foot of
+				// the column for the annotation to fit under it.
+				Placement: tooltip.Bottom,
+				Arbiter:   tips,
+				Anchor:    tip.anchor,
+			})
+		},
+	)
+	mainSlot := rx.Map(rx.CombineLatest2(th, tipSlot), func(next rx.Tuple2[theme.Theme, layout.Widget]) layout.Widget {
+		layer := next.Second
 		return func(gtx layout.Context) layout.Dimensions {
-			return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &read, &arr, cur, docFor, &find)
+			// Taken from the emission inside the frame, as the frame takes
+			// its own slots: an emission arrives on the stream's goroutine
+			// and everything the column touches is the frame's.
+			tip.layer = layer
+			return layoutNotePage(gtx, loadModel(), loadTok(), &propClick, &read, &arr, cur, docFor, &find, tip)
 		}
 	})
 	// The trail comes off the theme stream, as the two side columns do, so a
@@ -512,6 +554,56 @@ func vaultLayer(th rx.Observable[theme.Theme], loadModel func() Model, loadTok f
 		field,
 		breadcrumb.Trail(th, breadcrumb.TrailProps{Chevron: trailChevronDp}),
 	)
+}
+
+// linkTip is the annotation standing beside the link the pointer is on: the
+// tooltip the window built for the address the model carries, and the box
+// the document last drew that link at.
+//
+// The box is the tooltip's anchor, written here before the tooltip lays out
+// and read back by it through Props.Anchor. Both happen on the frame
+// goroutine, in that order. The tooltip is given the whole viewport as its
+// frame, which is what it measures the address against and what it reads
+// from which side of the link has room for the annotation.
+type linkTip struct {
+	layer layout.Widget
+	box   image.Rectangle
+}
+
+// anchor is where the tooltip's trigger stands: the link the pointer is on,
+// as the document reported it this frame. The tooltip draws no trigger of
+// its own — the link is already on the page — and registers its hover over
+// this box, which is what starts the dwell the annotation appears after.
+func (t *linkTip) anchor(layout.Context) image.Rectangle { return t.box }
+
+// beside lays the tooltip over the link the document reports the pointer on,
+// in the plane the document was just drawn into — this column's own, since
+// the box the document reports is in its viewport. It draws nothing when the
+// pointer is on no link, and nothing at all before the window has an address
+// to say.
+//
+// The annotation itself is deferred by the component, so it paints over
+// everything the window lays out after this column and is clipped by
+// nothing: a tooltip standing beside a link near the column's edge is the
+// one thing here that may cross it.
+//
+// The anchor's hit area stands over the link that raised it and is
+// registered pass-through: an area that blocked the link's own hover would
+// take away the hover the annotation is standing on, and the link and the
+// tooltip would trade the pointer every frame.
+func (t *linkTip) beside(gtx layout.Context, doc *markdown.Document) {
+	if t == nil || t.layer == nil {
+		return
+	}
+	box, ok := doc.HoveredLinkBox()
+	if !ok || box.Empty() {
+		t.box = image.Rectangle{}
+		return
+	}
+	t.box = box
+	pass := pointer.PassOp{}.Push(gtx.Ops)
+	t.layer(gtx)
+	pass.Pop()
 }
 
 // layoutNotePage lays out the main slot: the pinned head — the properties
@@ -531,6 +623,7 @@ func layoutNotePage(
 	cur *docCursor,
 	docFor func(Model, *Note) *markdown.Document,
 	find *pageFind,
+	tip *linkTip,
 ) layout.Dimensions {
 	note := m.CurrentNote()
 	// The reading column lies on the platform's text background, the fill a
@@ -639,7 +732,14 @@ func layoutNotePage(
 				// keyboard — never out from under the find field or the
 				// folder rail.
 				return read.layout(gtx, doc, func(gtx layout.Context) layout.Dimensions {
-					return doc.LayoutScrollbar(gtx, tok.shaper, style, bar, list.Occupy)
+					dims := doc.LayoutScrollbar(gtx, tok.shaper, style, bar, list.Occupy)
+					// The address is said twice: at the window's foot while
+					// the pointer is on the link, and beside the link once
+					// the pointer has stood on it for the tooltip's own
+					// delay. This is the second of them, laid over the
+					// document it names.
+					tip.beside(gtx, doc)
+					return dims
 				})
 			})
 		}
@@ -752,7 +852,9 @@ func renderNotePageInto(
 		return d
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return layoutNotePage(gtx, m, tok, &propClick, &read, &arr, cur, docFor, find)
+		// No tooltip in a still image: it appears after a dwell, and a
+		// render that processes no events has nobody standing anywhere.
+		return layoutNotePage(gtx, m, tok, &propClick, &read, &arr, cur, docFor, find, nil)
 	}
 }
 
