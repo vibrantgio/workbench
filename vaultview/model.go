@@ -261,9 +261,10 @@ type SetFilter struct{ Text string }
 // notes added, renamed or removed while the app was open.
 type Rescan struct{}
 
-// HoverLink carries the address of the link the pointer moved onto, and the
-// empty string when it moved off one. One message per change: the document
-// reports the link under the pointer when it changes and at no other time.
+// HoverLink carries the address of the link the reader moved onto — by
+// pointing at it or by giving it the keyboard — and the empty string when
+// they moved off one. One message per change: the document reports the link
+// the reader is on when it changes and at no other time.
 type HoverLink struct{ URL string }
 
 // ToggleTask is a click on a GFM task checkbox. Item is the *ListItem

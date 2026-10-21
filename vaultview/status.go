@@ -49,14 +49,19 @@
 //
 // # What it says
 //
-// One fact, in one line. How long the note is, and — while the pointer is
-// on a link — where that link goes instead: the address takes the count's
-// own place for as long as the pointer is on the link and gives it back
-// when it leaves, which is what the platform's browsers do at the foot of
-// their windows. A wikilink says the vault-relative path of the note it
-// lands on, an external link its URL. No stored capture in the reference
-// shows a browser's own status text, so the address is said in this bar's
-// own treatment rather than one measured off the platform.
+// One fact, in one line. How long the note is, and — while the reader is on
+// a link — where that link goes instead: the address takes the count's own
+// place for as long as the pointer is on the link or the link holds the
+// keyboard, and gives it back when neither does, which is what the
+// platform's browsers do at the foot of their windows. A wikilink says the
+// vault-relative path of the note it lands on, an external link its URL. No
+// stored capture in the reference shows a browser's own status text, so the
+// address is said in this bar's own treatment rather than one measured off
+// the platform.
+//
+// An address wider than the bar is elided in its middle, the start and the
+// end standing on either side of one ellipsis, as the platform elides a path
+// too long for the place it is said in.
 //
 // The bar is as deep as that line and no deeper, and it is the faint
 // foreground this window gives what annotates rather than states — the
@@ -77,6 +82,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 
+	"github.com/vibrantgio/components/elide"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/typeset"
 )
@@ -149,6 +155,10 @@ func layoutStatusBar(gtx layout.Context, m Model, tok themeTokens) layout.Dimens
 	lgtx.Constraints.Min = image.Point{}
 	lgtx.Constraints.Max.X = max(size.X-2*inset, 0)
 	defer op.Offset(image.Pt(inset, gtx.Dp(unit.Dp(tok.sp.S1)))).Push(gtx.Ops).Pop()
+	// An address longer than the bar loses its middle rather than its end:
+	// what a reader is looking for is the host at one end and the leaf at
+	// the other, and the platform elides an address between them.
+	line = elide.Middle(lgtx, tok.shaper, line, tok.typ.LabelMedium, lgtx.Constraints.Max.X)
 	// The bar annotates the document rather than being it, so it reads at
 	// the platform's secondary strength over the page it runs along.
 	typeset.Text(lgtx, tok.shaper, line, tok.typ.LabelMedium,

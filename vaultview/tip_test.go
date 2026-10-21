@@ -9,6 +9,7 @@ import (
 	"gioui.org/f32"
 	"gioui.org/io/event"
 	"gioui.org/io/input"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -291,5 +292,165 @@ func TestTheLinkTooltipSaysTheAddress(t *testing.T) {
 	long := width("https://a.test/a-considerably-longer-path-than-the-other-one")
 	if long <= short {
 		t.Errorf("the annotation is %d wide for a short address and %d for a long one; it does not say the address", short, long)
+	}
+}
+
+// tab moves the keyboard on one stop and draws the frame that follows it.
+func (p *tipPad) tab() {
+	p.r.MoveFocus(key.FocusForward)
+	p.frame()
+}
+
+// onLinkByKeyboard tabs until the note's one link holds the keyboard, which
+// the column says by reporting a box for the tooltip to stand against, and
+// returns how many stops that took.
+func (p *tipPad) onLinkByKeyboard() int {
+	p.t.Helper()
+	for i := 1; i <= 12; i++ {
+		p.tab()
+		if !p.tip.box.Empty() {
+			return i
+		}
+	}
+	p.t.Fatal("the keyboard never reached the note's link")
+	return 0
+}
+
+// TestTheLinkTooltipFollowsTheKeyboard tabs onto the note's one link and
+// reads the column: nothing beside the link before the tooltip's own delay
+// has run out, the annotation beside it after, and the column back as it was
+// once the keyboard moves on. A link holding the keyboard says its address
+// as a hovered one does.
+func TestTheLinkTooltipFollowsTheKeyboard(t *testing.T) {
+	p := newTipPad(t, "https://example.test/page")
+
+	p.frame()
+	p.frame()
+	rest := p.shot()
+
+	entered := p.now
+	stops := p.onLinkByKeyboard()
+	p.now = entered.Add(tooltip.DefaultDelay - 10*time.Millisecond)
+	p.frame()
+	waiting := p.shot()
+
+	p.now = entered.Add(tooltip.DefaultDelay + 10*time.Millisecond)
+	p.frame()
+	shown := p.shot()
+	top, _, _, _ := differingRows(waiting, shown)
+	if top < 0 {
+		t.Fatal("the link held the keyboard, the delay ran out and nothing was drawn")
+	}
+
+	// And on: the keyboard leaves the link and takes the annotation with it.
+	// The focus ring the link drew while it held the keyboard goes with it
+	// too, so the column is back at rest.
+	for i := 0; i < stops; i++ {
+		p.now = p.now.Add(time.Second)
+		p.tab()
+		if p.tip.box.Empty() {
+			break
+		}
+	}
+	p.now = p.now.Add(time.Second)
+	p.frame()
+	if row, _, _, _ := differingRows(rest, p.shot()); row >= 0 {
+		t.Errorf("the keyboard left the link and the column differs from its resting state at row %d", row)
+	}
+}
+
+// TestTheLinkTooltipStaysInsideANarrowWindow says a long address in a window
+// narrower than it and reads the columns the annotation covers: both of its
+// edges stand inside the window, because a reader cannot read what is
+// outside it.
+func TestTheLinkTooltipStaysInsideANarrowWindow(t *testing.T) {
+	p := newTipPad(t, "https://example.test/a/considerably/longer/path/than/the/window/page.html")
+	p.size = image.Pt(360, 420)
+
+	p.frame()
+	p.frame()
+	at, _, _ := p.onLink()
+	p.move(p.size.X-2, at.Y)
+	p.now = p.now.Add(time.Second)
+	p.frame()
+
+	entered := p.now
+	p.move(at.X, at.Y)
+	p.frame()
+	p.frame()
+	p.now = entered.Add(tooltip.DefaultDelay - 10*time.Millisecond)
+	p.frame()
+	waiting := p.shot()
+	p.now = entered.Add(tooltip.DefaultDelay + 10*time.Millisecond)
+	p.frame()
+	top, _, left, right := differingRows(waiting, p.shot())
+	if top < 0 {
+		t.Fatal("the delay ran out and nothing was drawn")
+	}
+	if left < 1 || right > p.size.X-2 {
+		t.Errorf("the annotation spans columns %d..%d in a window %d wide; it is cut by the window's own edge", left, right, p.size.X)
+	}
+}
+
+// TestTheLinkTooltipStandsUnderThePointedRun points at the first line of a
+// link carried onto two lines and then at its last, and compares where the
+// annotation landed: it stands under the line being pointed at, which is
+// where the reader is looking, and not under the block around the whole
+// link.
+func TestTheLinkTooltipStandsUnderThePointedRun(t *testing.T) {
+	p := newTipPad(t, "https://example.test/page")
+	// A link whose own text is long enough to be carried onto a second line
+	// in a column this narrow.
+	m := goldenModel()
+	m = cacheNote(m, noteFromSource("guide/Tip.md",
+		"Read [the site with a considerably longer label than one line of this column can hold](https://example.test/page) for more.\n"))
+	m.Current = "guide/Tip.md"
+	p.m = m
+	p.doc = markdown.NewDocument(m.CurrentNote().Blocks)
+	p.size = image.Pt(420, 420)
+
+	p.frame()
+	p.frame()
+
+	// Every row the link reaches at one column near the note's leading
+	// margin: the first and the last of them are on different lines of it.
+	at, _, _ := p.onLink()
+	var rows []int
+	for y := 0; y < p.size.Y; y++ {
+		p.move(at.X, y)
+		if p.r.Cursor() == pointer.CursorPointer {
+			rows = append(rows, y)
+		}
+	}
+	if len(rows) == 0 {
+		t.Fatal("the note declares no link at the column the probe walked")
+	}
+	first, last := rows[0], rows[len(rows)-1]
+
+	annotation := func(y int) int {
+		p.t.Helper()
+		p.move(p.size.X-2, y)
+		p.now = p.now.Add(time.Second)
+		p.frame()
+		entered := p.now
+		p.move(at.X, y)
+		p.frame()
+		p.frame()
+		p.now = entered.Add(tooltip.DefaultDelay - 10*time.Millisecond)
+		p.frame()
+		waiting := p.shot()
+		p.now = entered.Add(tooltip.DefaultDelay + 10*time.Millisecond)
+		p.frame()
+		top, _, _, _ := differingRows(waiting, p.shot())
+		if top < 0 {
+			p.t.Fatalf("no annotation was drawn for the link at row %d", y)
+		}
+		return top
+	}
+
+	onFirst := annotation(first)
+	onLast := annotation(last)
+	if onFirst >= onLast {
+		t.Errorf("the annotation stands at row %d for the link's first line and at row %d for its last; it is placed against the block around the link rather than the line pointed at", onFirst, onLast)
 	}
 }

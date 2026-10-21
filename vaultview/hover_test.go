@@ -7,11 +7,13 @@ import (
 	"gioui.org/f32"
 	"gioui.org/io/event"
 	"gioui.org/io/input"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
 
+	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -138,4 +140,142 @@ func TestALandingTakesTheAddressOffTheBar(t *testing.T) {
 	if got, want := statusLine(m), lineCountLabel(m.CurrentNote().Lines); got != want {
 		t.Errorf("after the landing the bar says %q, want %q", got, want)
 	}
+}
+
+// TestTheBarSaysTheAddressTheKeyboardIsOn moves the keyboard through the
+// same note and reads the bar: a link reached by Tab says its address where
+// a hovered one says it, and the count comes back when the keyboard leaves
+// the links — which is what the platform's browsers do.
+func TestTheBarSaysTheAddressTheKeyboardIsOn(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	col := tokens.PlatformLight
+	m := goldenModel()
+	m = cacheNote(m, noteFromSource("guide/Hover.md", hoverNoteSource))
+	m.Current = "guide/Hover.md"
+	note := m.CurrentNote()
+	if note == nil {
+		t.Fatal("the fixture model has no current note")
+	}
+
+	doc := markdown.NewDocument(note.Blocks)
+	style := noteStyle(col, tokens.DefaultTypography)
+	var addresses []string
+	style.Text.OnLinkHover = func(_ layout.Context, url string) {
+		addresses = append(addresses, linkAddress(m, url))
+	}
+
+	size := image.Pt(560, 200)
+	r := new(input.Router)
+	ops := new(op.Ops)
+	// A focusable beyond the note, so the keyboard has somewhere to go after
+	// the last link instead of wrapping back onto the first.
+	var beyond int
+	frame := func() {
+		ops.Reset()
+		gtx := layout.Context{
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Constraints: layout.Exact(size),
+			Ops:         ops,
+			Source:      r.Source(),
+		}
+		doc.Layout(gtx, shaper, style)
+		for {
+			if _, ok := gtx.Event(key.FocusFilter{Target: &beyond}); !ok {
+				break
+			}
+		}
+		event.Op(gtx.Ops, &beyond)
+		r.Frame(ops)
+	}
+	bar := func() string {
+		m2 := m
+		for _, a := range addresses {
+			m2, _ = Update(m2, HoverLink{URL: a})
+		}
+		return statusLine(m2)
+	}
+
+	frame()
+	frame()
+	if got, want := bar(), lineCountLabel(note.Lines); got != want {
+		t.Fatalf("with the keyboard on no link the bar says %q, want %q", got, want)
+	}
+
+	r.MoveFocus(key.FocusForward)
+	frame()
+	if got, want := bar(), "Sources.md"; got != want {
+		t.Errorf("with the keyboard on the wikilink the bar says %q, want the note's vault path %q (reports: %v)", got, want, addresses)
+	}
+
+	r.MoveFocus(key.FocusForward)
+	frame()
+	if got, want := bar(), "https://example.test/page"; got != want {
+		t.Errorf("with the keyboard on the web link the bar says %q, want its URL %q (reports: %v)", got, want, addresses)
+	}
+
+	r.MoveFocus(key.FocusForward)
+	frame()
+	if got, want := bar(), lineCountLabel(note.Lines); got != want {
+		t.Errorf("with the keyboard off the links the bar says %q, want the count %q (reports: %v)", got, want, addresses)
+	}
+}
+
+// TestTheBarElidesAnAddressWiderThanItself narrows the bar under an address
+// far wider than it and reads what was drawn: the line is shortened in its
+// middle rather than at its end, so the start and the end of the address
+// both stand.
+func TestTheBarElidesAnAddressWiderThanItself(t *testing.T) {
+	tok := themeTokens{
+		col:    tokens.PlatformLight,
+		typ:    tokens.DefaultTypography,
+		sp:     tokens.Spacing,
+		den:    tokens.Comfortable,
+		shaper: tokens.DefaultTypography.DeterministicShaper(),
+	}
+	const long = "https://example.test/a/considerably/longer/path/than/the/bar/can/hold/page.html"
+	m := goldenModel()
+	m = cacheNote(m, noteFromSource("guide/Hover.md", hoverNoteSource))
+	m.Current = "guide/Hover.md"
+	m, _ = Update(m, HoverLink{URL: long})
+
+	// The same bar at two widths. Narrow, the line cannot be the whole
+	// address; wide, it is.
+	draw := func(width int) *image.RGBA {
+		return golden.Capture(t, image.Pt(width, 24), func(gtx layout.Context) layout.Dimensions {
+			return layoutStatusBar(gtx, m, tok)
+		})
+	}
+	wide := draw(900)
+	narrow := draw(260)
+	if sameImage(wide, narrow) {
+		t.Fatal("the bar drew the same line at 900 and at 260 wide")
+	}
+
+	// The end of the address survives: two addresses sharing everything but
+	// their last characters draw different bars at the narrow width.
+	m2 := m
+	m2, _ = Update(m2, HoverLink{URL: long[:len(long)-len("page.html")] + "other.htm"})
+	other := golden.Capture(t, image.Pt(260, 24), func(gtx layout.Context) layout.Dimensions {
+		return layoutStatusBar(gtx, m2, tok)
+	})
+	if sameImage(narrow, other) {
+		t.Error("two addresses differing only at their ends drew the same bar; the end was cut rather than the middle")
+	}
+}
+
+// sameImage reports whether two captures of the same size hold the same
+// pixels everywhere.
+func sameImage(a, b *image.RGBA) bool {
+	bounds := a.Bounds()
+	if bounds != b.Bounds() {
+		return false
+	}
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			if a.RGBAAt(x, y) != b.RGBAAt(x, y) {
+				return false
+			}
+		}
+	}
+	return true
 }

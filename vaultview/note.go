@@ -501,15 +501,16 @@ func vaultLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], lo
 		// with the theme the field was built under.
 		Count: find.label,
 	})
-	// The tooltip that says where the link under the pointer goes. The
-	// window has one, and it is rebuilt for each address rather than told
-	// one: the component takes its text when it is built, and a fresh
-	// address is a fresh dwell anyway — the reader who crosses onto another
-	// link waits for it as they waited for the first. The arbiter is this
-	// window's, so this tooltip and any other in the window cannot both
-	// stand.
+	// The tooltip that says where the link the reader is on goes — the one
+	// under the pointer or the one holding the keyboard, as the status bar
+	// says it. The window has one, and it is rebuilt for each address
+	// rather than told one: the component takes its text when it is built,
+	// and a fresh address is a fresh dwell anyway — the reader who crosses
+	// onto another link waits for it as they waited for the first. The
+	// arbiter is this window's, so this tooltip and any other in the window
+	// cannot both stand.
 	//
-	// The empty address — the pointer is on no link — builds nothing at
+	// The empty address — the reader is on no link — builds nothing at
 	// all, and the column lays nothing out.
 	tip := &linkTip{}
 	tips := tooltip.NewArbiter()
@@ -556,54 +557,51 @@ func vaultLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], lo
 	)
 }
 
-// linkTip is the annotation standing beside the link the pointer is on: the
-// tooltip the window built for the address the model carries, and the box
-// the document last drew that link at.
+// linkTip is the annotation standing beside the link the reader is on — the
+// one under the pointer or the one holding the keyboard: the tooltip the
+// window built for the address the model carries, and the box the document
+// last drew that link at.
 //
 // The box is the tooltip's anchor, written here before the tooltip lays out
 // and read back by it through Props.Anchor. Both happen on the frame
 // goroutine, in that order. The tooltip is given the whole viewport as its
-// frame, which is what it measures the address against and what it reads
-// from which side of the link has room for the annotation.
+// frame, which is what it measures the address against, what it reads from
+// which side of the link has room for the annotation, and what it keeps the
+// annotation inside the sides of.
 type linkTip struct {
 	layer layout.Widget
 	box   image.Rectangle
 }
 
-// anchor is where the tooltip's trigger stands: the link the pointer is on,
-// as the document reported it this frame. The tooltip draws no trigger of
-// its own — the link is already on the page — and registers its hover over
-// this box, which is what starts the dwell the annotation appears after.
+// anchor is where the tooltip's trigger stands: the link the reader is on,
+// as the document reported it this frame, and the empty rectangle when the
+// document reports none. The tooltip draws no trigger of its own — the link
+// is already on the page, hit-tested and in the window's Tab order — so the
+// anchor is the whole of what it knows: a box standing is the link standing,
+// and the dwell the annotation appears after runs while it does.
 func (t *linkTip) anchor(layout.Context) image.Rectangle { return t.box }
 
-// beside lays the tooltip over the link the document reports the pointer on,
+// beside lays the tooltip over the link the document reports the reader on,
 // in the plane the document was just drawn into — this column's own, since
-// the box the document reports is in its viewport. It draws nothing when the
-// pointer is on no link, and nothing at all before the window has an address
-// to say.
+// the box the document reports is in its viewport. It is laid out whether or
+// not there is a box, because the empty anchor is how the annotation is told
+// the link has gone; it draws nothing at all before the window has an
+// address to say.
 //
 // The annotation itself is deferred by the component, so it paints over
 // everything the window lays out after this column and is clipped by
 // nothing: a tooltip standing beside a link near the column's edge is the
 // one thing here that may cross it.
-//
-// The anchor's hit area stands over the link that raised it and is
-// registered pass-through: an area that blocked the link's own hover would
-// take away the hover the annotation is standing on, and the link and the
-// tooltip would trade the pointer every frame.
 func (t *linkTip) beside(gtx layout.Context, doc *markdown.Document) {
 	if t == nil || t.layer == nil {
 		return
 	}
-	box, ok := doc.HoveredLinkBox()
-	if !ok || box.Empty() {
+	if box, ok := doc.LinkBox(); ok && !box.Empty() {
+		t.box = box
+	} else {
 		t.box = image.Rectangle{}
-		return
 	}
-	t.box = box
-	pass := pointer.PassOp{}.Push(gtx.Ops)
 	t.layer(gtx)
-	pass.Pop()
 }
 
 // layoutNotePage lays out the main slot: the pinned head — the properties
