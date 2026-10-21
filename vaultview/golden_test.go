@@ -15,6 +15,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/shell"
@@ -453,6 +454,57 @@ func TestVaultWindowGolden(t *testing.T) {
 					windowLayers(t, c.model, tc.colors, newStill())...)
 			})
 		}
+	}
+}
+
+// downloadingModel is the window waiting on a note the cloud holds. The
+// reader is on the golden note and asks for one iCloud has not handed
+// over; the navigation asks the platform for the file and a stand-in that
+// never answers holds the window in the wait. The state in the picture is
+// therefore the state the application reaches, not one set by hand.
+func downloadingModel(t *testing.T) Model {
+	t.Helper()
+	standInDownload(t, func(string) mvu.Command { return mvu.DoNothing() })
+	m := goldenModel()
+	m.Index = treeIndex(
+		"Sources.md",
+		"Design/Principles.md",
+		"Design/notes/Colour.md",
+		"guide/Cloudy.md",
+		"guide/Reading list.md",
+	)
+	for i := range m.Index.Files {
+		if m.Index.Files[i].Path == "guide/Cloudy.md" {
+			m.Index.Files[i].Placeholder = true
+		}
+	}
+	m, _ = Update(m, Navigate{Path: "guide/Cloudy.md"})
+	if m.Downloading != "guide/Cloudy.md" {
+		t.Fatalf("the window is waiting on %q, want the note the cloud holds", m.Downloading)
+	}
+	return m
+}
+
+// TestVaultWindowDownloadingGolden records the whole window while the
+// platform fetches a note out of the cloud, in both schemes: the note
+// column standing the wait text where the note would be, and the status
+// bar saying the same under it.
+//
+// The text stands alone. The platform's own wait was captured for this —
+// a file evicted from iCloud Drive and opened in TextEdit, in both
+// appearances, stored as `textedit-download-wait-light.png` and
+// `-dark.png` in the measured macOS reference — and TextEdit draws no
+// window at all while the file is absent: no message, no indeterminate
+// indicator, no progress bar. A wait of this length gets no indicator
+// here either.
+func TestVaultWindowDownloadingGolden(t *testing.T) {
+	m := downloadingModel(t)
+	for _, tc := range themeCases {
+		name := "window-downloading-" + tc.name
+		t.Run(name, func(t *testing.T) {
+			golden.WindowGolden(t, name, windowFrameSize,
+				windowLayers(t, m, tc.colors, newStill())...)
+		})
 	}
 }
 
