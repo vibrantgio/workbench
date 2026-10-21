@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"gioui.org/unit"
-
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
@@ -235,9 +233,8 @@ func TestWithNothingKeptTheWindowIsTheOneItAlwaysWas(t *testing.T) {
 // runtime and is not baked into the application.
 func window(t *testing.T, colors tokens.PlatformColors) *image.RGBA {
 	t.Helper()
-	w, _ := renderWindow(tokens.DefaultTypography.DeterministicShaper(), goldenModel(), colors,
-		tokens.Spacing, goldenRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-	return golden.Capture(t, windowFrameSize, windowScene(w, colors))
+	img, _ := windowShot(t, goldenModel(), colors)
+	return img
 }
 
 // pixels counts how many pixels of img are exactly c, alpha ignored: a

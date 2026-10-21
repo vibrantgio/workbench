@@ -27,7 +27,6 @@ import (
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -36,7 +35,6 @@ import (
 	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/icons"
-	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/pane"
@@ -203,8 +201,8 @@ type frameState struct {
 	// trail is the row of places the toolbar draws in its centre: the one the
 	// theme stream built, which holds the row's clickables across frames.
 	// It is handed over per frame, as the find field is, because it belongs
-	// to the stream and not to this state. A frame with none — a static
-	// render, a measurement — builds its own from its own tokens.
+	// to the stream and not to this state. A frame with none — a frame laid
+	// out to be measured — builds its own from its own tokens.
 	trail breadcrumb.TrailLayout
 
 	// band is the find in the page as the toolbar carries it: the state
@@ -233,9 +231,8 @@ type frameState struct {
 	// leading pins the trailing edge of the window's control buttons instead
 	// of measuring it. The measurement is a live window's: off a frame it
 	// reports zero, and on one it reports whatever this machine's macOS puts
-	// the buttons at. Neither is a number a stored image may depend on, so
-	// the static render path states one. The live path leaves this nil and
-	// measures.
+	// the buttons at. Neither is a number a stored image may depend on, so a
+	// still render states one. The live path leaves this nil and measures.
 	leading func() unit.Dp
 
 	// geom is the arrangement the last frame laid out, kept so the
@@ -243,6 +240,38 @@ type frameState struct {
 	// property of what was drawn, and recomputing it from the tokens would
 	// assert the arithmetic rather than the frame.
 	geom shell.PaneLayout
+
+	// still is the still render this frame is part of, and nil in a
+	// window. See [stillWindow].
+	still *stillWindow
+}
+
+// stillWindow is what a frame rendered to a still image rather than shown
+// in a window is given in place of what a window answers, and what it
+// reports back through. A live window passes nil: it measures its own
+// control buttons, and nothing in it reads an arrangement back once the
+// frame carrying it has been drawn.
+type stillWindow struct {
+	// ButtonsEnd is the trailing edge of the window's control buttons. The
+	// measurement is a live window's — off a frame it reports zero, and on
+	// one it reports whatever this machine's macOS puts the buttons at —
+	// and neither is a number a stored image may depend on, so a still
+	// render states the number instead.
+	ButtonsEnd unit.Dp
+
+	// Arrangement is what the last frame of this render laid out, written
+	// on every frame: a composition is measured off the one the image
+	// stored, not off a second one built to be measured.
+	Arrangement shell.PaneLayout
+}
+
+// record keeps what this frame arranged, for the frame itself and for a
+// still render reading its composition back.
+func (f *frameState) record(g shell.PaneLayout) {
+	f.geom = g
+	if f.still != nil {
+		f.still.Arrangement = g
+	}
 }
 
 // newFrameState seats a frame on the arrangement it opens with. Both
@@ -275,10 +304,14 @@ func railToggle(click *widget.Clickable, press func(gtx layout.Context)) *shell.
 // The two side columns open at the widths the memory hands over — what the
 // reader last left, or the defaults — and that same memory is what every
 // frame reports its arrangement back to.
+//
+// still is nil in a window and states what a window would have answered
+// where the frame is being rendered to an image instead; see [stillWindow].
 func vaultFrame(
 	loadModel func() Model,
 	loadTok func() themeTokens,
 	widths *shell.ArrangementMemory,
+	still *stillWindow,
 	find *pageFind,
 	read *reader,
 	sidebar rx.Observable[shell.PaneColumn],
@@ -289,6 +322,10 @@ func vaultFrame(
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		st := newFrameState(widths.Arrangement())
 		st.widths = widths
+		if still != nil {
+			st.still = still
+			st.leading = func() unit.Dp { return still.ButtonsEnd }
+		}
 		return rx.Map(columns, func(next rx.Tuple5[shell.PaneColumn, layout.Widget, layout.Widget, layout.Widget, breadcrumb.TrailLayout]) layout.Widget {
 			col, asW, mainW, fieldW := next.First, next.Second, next.Third, next.Fourth
 			return func(gtx layout.Context) layout.Dimensions {
@@ -298,90 +335,6 @@ func vaultFrame(
 			}
 		})
 	})
-}
-
-// renderWindow is the static counterpart of the whole vault window, used
-// by the window golden: the toolbar over the rail pane, the note
-// column and the backlinks aside, all with fresh widget.Clickable state, laid
-// out once from pre-resolved tokens and processing no events. It is the only
-// renderer in this package that composes rather than filling one slot.
-//
-// It opens at the default column widths and keeps no memory of its own: a
-// stored image may not depend on an arrangement whoever runs it happens to
-// have left behind, and may not write over one either.
-//
-// The window buttons' trailing edge is a parameter and not a measurement
-// here, for the reason [frameState.leading] gives: the value the live
-// toolbar lays out from belongs to a window this render does not have.
-//
-// The frame is returned beside the layout.Widget so that what a render
-// arranged can be read back once it has run — the chrome budget is measured
-// off the same composition the golden stores, not off a second one built to
-// be measured.
-func renderWindow(
-	shaper *text.Shaper,
-	m Model,
-	colors tokens.PlatformColors,
-	sp tokens.SpacingScale,
-	rad tokens.RadiusScale,
-	typo tokens.Typography,
-	den tokens.Density,
-	leading unit.Dp,
-) (layout.Widget, *frameState) {
-	return renderWindowFinding(shaper, m, colors, sp, rad, typo, den, leading, pageFind{})
-}
-
-// renderWindowFinding is renderWindow with the page's find in the state a
-// query has left it, which is the only way a still image can be taken of a
-// note being searched. Whether the field stands in the toolbar is the
-// model's, so a model with the find shut shows the magnifier whatever query
-// is handed over here.
-func renderWindowFinding(
-	shaper *text.Shaper,
-	m Model,
-	colors tokens.PlatformColors,
-	sp tokens.SpacingScale,
-	rad tokens.RadiusScale,
-	typo tokens.Typography,
-	den tokens.Density,
-	leading unit.Dp,
-	find pageFind,
-) (layout.Widget, *frameState) {
-	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
-	st := newFrameState(defaultArrangement())
-	st.leading = func() unit.Dp { return leading }
-	cur := &docCursor{}
-	sb := renderTree(shaper, m, colors, sp, rad, typo, den)
-	// The toolbar and the page share one find: the field stands in the
-	// toolbar and the matches are marked in the page, and a still image of a
-	// note being searched has to show the one query in both places.
-	pf := &find
-	// The find field is the static search field in the state the query
-	// leaves it: no editor, no events, the query drawn where the reader typed
-	// it and the field focused, which is where a find in the page is worked
-	// from. It is the toolbar's recess and not the sidebar's field.
-	if m.FindOpen {
-		// Built per frame rather than once, for the count alone: what the
-		// query has found is the document's answer, and the document lays
-		// out before the toolbar does. A field built here and reused would
-		// carry the count the page had before it was searched.
-		st.band.field = func(gtx layout.Context) layout.Dimensions {
-			return input.RenderSearch(shaper, "Search", colors, sp, rad, typo.BodyLarge, den,
-				input.RenderState{
-					Text: pf.query, Focused: true,
-					Count:   pf.label(),
-					Variant: input.Chrome, Region: input.Toolbar,
-					Surface: findFieldSurface(colors),
-				})(gtx)
-		}
-	}
-	st.band.find = pf
-	main := renderNotePageInto(cur, shaper, m, colors, sp, typo, den, pf)
-	av := newAsideView(cur)
-	as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
-	return func(gtx layout.Context) layout.Dimensions {
-		return st.layout(gtx, m, tok, sb, as, main)
-	}, st
 }
 
 // layout hands the shell what this window puts in each of its slots and
@@ -427,7 +380,7 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, col sh
 		},
 		WindowButtonsEnd: f.leading,
 		Memory:           f.widths,
-		Report:           func(g shell.PaneLayout) { f.geom = g },
+		Report:           f.record,
 	}
 	dims, _ := two.Layout(gtx, tok.col)
 	return dims
@@ -587,9 +540,8 @@ func (f *frameState) send(gtx layout.Context, msg mvu.Message) {
 
 // bandTrail is the row the toolbar draws its places with: the one the theme
 // stream handed over, and one of this frame's own where no stream did — a
-// static render, or a measurement of the composition. The row owns its
-// clickables and has to outlive the frame it draws, so the one built here
-// is kept.
+// frame laid out to be measured. The row owns its clickables and has to
+// outlive the frame it draws, so the one built here is kept.
 func (f *frameState) bandTrail(tok themeTokens) breadcrumb.TrailLayout {
 	if f.trail == nil {
 		f.trail = breadcrumb.NewTrail(tok.shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
@@ -609,15 +561,6 @@ func (f *frameState) bandTrailRoom(gtx layout.Context, m Model) int {
 		after += unit.Dp(findFieldDp)
 	}
 	return gtx.Constraints.Max.X - gtx.Dp(after)
-}
-
-// noteName is the open note's title — what the window is showing — empty
-// while no note is open.
-func noteName(m Model) string {
-	if n := m.CurrentNote(); n != nil {
-		return n.Title
-	}
-	return ""
 }
 
 // vaultName is the open vault's folder name. It heads the note's trail,

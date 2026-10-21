@@ -40,9 +40,8 @@ type dialogLayer func(
 ) rx.Observable[layout.Widget]
 
 // liveDialog builds one dialog's own layer over model m, live: a real theme
-// stream, a real dialog, real focus tags. It is the one path a keyboard
-// reaches — a stored window image is a static render, which holds no focus
-// at all.
+// stream, a real dialog, real focus tags. It is the dialog on its own,
+// without the window under it, which is what these readings are about.
 func liveDialog(t *testing.T, build dialogLayer, m Model, c tokens.PlatformColors, shaper *text.Shaper) layout.Widget {
 	t.Helper()
 	tok := themeTokens{col: c, typ: tokens.DefaultTypography, sp: tokens.Spacing,

@@ -120,7 +120,7 @@ func run() {
 	// chooser layer's open flag, and the toast layer's queue map — share one
 	// upstream subscription, and each reads the model in force when it
 	// attaches.
-	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
+	models, runner := mvu.Loop(mvuWin.Messages(), opensOn(Init, widths.Arrangement()), Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
 	renderErr := w.Render(buildLayers(models, opening, kept.Typography(), widths)).Wait()
@@ -134,6 +134,22 @@ func run() {
 		os.Exit(1)
 	}
 	os.Exit(0)
+}
+
+// opensOn seats the window's first model on the arrangement that was kept:
+// the pane stands where the reader left it, which is what the kept shown
+// state is for — a reader who sent the rail away and found it back on the
+// next launch would be reading a defect.
+//
+// The widths are the shell's own to apply and are not the model's; the
+// shown state is the model's, because the rail is sent away by a message
+// and nothing but the model may say whether it stands.
+func opensOn(init func() (Model, mvu.Command), a shell.Arrangement) func() (Model, mvu.Command) {
+	return func() (Model, mvu.Command) {
+		m, cmd := init()
+		m.SidebarHidden = !a.PaneShown
+		return m, cmd
+	}
 }
 
 // themeTokens is the colour/typography/spacing/density snapshot the app's
@@ -266,7 +282,9 @@ func routedLayer(
 	widths *shell.ArrangementMemory,
 ) rx.Observable[layout.Widget] {
 	picker := pickerLayer(th, loadModel, loadTok)
-	vault := vaultLayer(th, modelObs, loadModel, loadTok, widths)
+	// A window measures its own control buttons and reads no arrangement
+	// back, so it states no still render.
+	vault := vaultLayer(th, modelObs, loadModel, loadTok, widths, nil)
 
 	combined := rx.CombineLatest3(modelObs, picker, vault)
 	return rx.Map(combined, func(t rx.Tuple3[Model, layout.Widget, layout.Widget]) layout.Widget {

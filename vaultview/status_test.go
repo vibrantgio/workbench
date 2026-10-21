@@ -5,9 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"gioui.org/unit"
-
-	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -47,7 +44,6 @@ func TestSourceLinesCountsTheFilesOwnLines(t *testing.T) {
 // the column wraps it into — at the width the window opens at and at a
 // third of it.
 func TestTheCountIsTheFilesLinesAndNotTheWindows(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
 	m = cacheNote(m, noteFromSource("guide/Wide.md", strings.Repeat("word ", 400)+"\n"))
 	m.Current = "guide/Wide.md"
@@ -57,10 +53,9 @@ func TestTheCountIsTheFilesLinesAndNotTheWindows(t *testing.T) {
 	}
 	for _, w := range []int{windowW, windowW / 3} {
 		size := image.Pt(w, windowH)
-		widget, st := renderWindow(shaper, m, tokens.PlatformLight, tokens.Spacing, goldenRadius,
-			tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-		drawOnce(t, size, widget)
-		if st.geom.FootTop >= size.Y {
+		still := newStill()
+		drawOnce(t, size, windowFrame(t, m, tokens.PlatformLight, still))
+		if still.Arrangement.FootTop >= size.Y {
 			t.Errorf("no status bar in a %d dp window", w)
 		}
 		if got, want := statusLine(m), "1 line"; got != want {
@@ -136,7 +131,6 @@ func TestTheBarSaysNothingBeforeAnyNoteIsOpen(t *testing.T) {
 // Measured off the picture: a bar that agrees with the arithmetic that
 // placed it and not with the pixels is the defect worth catching.
 func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// A note short enough that the rows above the band are bare
@@ -144,15 +138,13 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 			// so a longer note paints there itself and the probe below could
 			// not tell that from the bar reaching back into the note.
 			m := plainNoteModel()
-			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
+			img, g := windowShot(t, m, tc.colors)
 
-			foot := st.geom.FootTop
+			foot := g.FootTop
 			if foot >= windowH {
 				t.Fatal("the frame reserved no foot for the status bar")
 			}
-			x0 := st.geom.ContentX + noteInsetDp
+			x0 := g.ContentX + noteInsetDp
 			top, bot := drawnRows(img, tc.colors.TextBackground, x0, x0+200, foot, windowH)
 			if top < 0 {
 				t.Fatalf("nothing painted on the reading margin between y=%d and the window's foot; the count is not being drawn", foot)
@@ -174,7 +166,6 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 // showing two notes of different lengths must not paint the same foot, so
 // the string reaches the glass and not only the model.
 func TestTheFootRedrawsOnANoteSwitch(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	first := goldenModel()
 	second := cacheNote(first, noteFromSource("Sources.md", plainNoteSource))
 	second.Current = "Sources.md"
@@ -183,9 +174,8 @@ func TestTheFootRedrawsOnANoteSwitch(t *testing.T) {
 	}
 
 	shot := func(m Model) *image.RGBA {
-		w, _ := renderWindow(shaper, m, tokens.PlatformLight, tokens.Spacing, goldenRadius,
-			tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-		return golden.Capture(t, windowFrameSize, windowScene(w, themeCases[0].colors))
+		img, _ := windowShot(t, m, tokens.PlatformLight)
+		return img
 	}
 	a, b := shot(first), shot(second)
 

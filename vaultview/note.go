@@ -431,7 +431,7 @@ func (r *reader) process(gtx layout.Context, doc *markdown.Document) {
 // taken here for the one thing a frame-time snapshot cannot serve: the
 // tooltip beside a hovered link takes its text when it is built, so the
 // column needs an emission per address and not a value per frame.
-func vaultLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], loadModel func() Model, loadTok func() themeTokens, widths *shell.ArrangementMemory) rx.Observable[layout.Widget] {
+func vaultLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], loadModel func() Model, loadTok func() themeTokens, widths *shell.ArrangementMemory, still *stillWindow) rx.Observable[layout.Widget] {
 	// The rail fills this in when its own stream is subscribed, and the note
 	// column reads it: a note opened from the rail leaves the keyboard there.
 	rail := &railFocus{}
@@ -549,7 +549,7 @@ func vaultLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], lo
 	// not the frame's, so a click survives the theme changing under the
 	// pointer. It is handed to the frame: the trail stands in the band,
 	// where the platform shows the document's place.
-	return vaultFrame(loadModel, loadTok, widths, &find, &read,
+	return vaultFrame(loadModel, loadTok, widths, still, &find, &read,
 		treeSidebar(th, loadModel, loadTok, rail),
 		asideColumn(cur, loadModel, loadTok),
 		mainSlot,

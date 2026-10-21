@@ -11,7 +11,6 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -36,7 +35,7 @@ const (
 	// treeFrameH gives the rail the same height as the note viewport.
 	treeFrameH = 700
 
-	// goldenLeading is the window-button trailing edge the static renders
+	// goldenLeading is the window-button trailing edge the still renders
 	// lay out from. The live pane measures this from the window; a stored
 	// image may not, because off a frame the measurement is zero and on
 	// one it is whatever this machine's macOS answers — two different
@@ -58,7 +57,7 @@ var (
 	toolbarTitleGapDp   = int(shell.PlatformToolbar.TitleGap)
 	toolbarControlGapDp = int(shell.PlatformToolbar.ControlGap)
 
-	// goldenToolbarLead is where a static render's toolbar and its pane's
+	// goldenToolbarLead is where a still render's toolbar and its pane's
 	// strip lead from: the shell's own rule applied to the pinned buttons'
 	// edge, which is the one rule the live window leads from too.
 	goldenToolbarLead = desktop.BandLeadFrom(goldenLeading, pane.ButtonGapDp, frameEdgeDp)
@@ -71,7 +70,7 @@ var (
 	// goldens are recorded there and nowhere else: a composition is only
 	// worth a picture at a size somebody actually looks at it in.
 	windowFrameSize = image.Pt(windowW, windowH)
-	// goldenRadius is the radius scale every static render lays out from,
+	// goldenRadius is the radius scale every still render lays out from,
 	// and it is the shipped one, so the golden carries the field the live
 	// rail wears. The parameter reaches exactly one component, the rail's find
 	// field; everything else rounded in this window reads a module-local
@@ -188,6 +187,11 @@ func longNoteModel(first int) Model {
 	m = cacheNote(m, noteFromSource("guide/Long note.md", longNoteSource()))
 	m.Current = "guide/Long note.md"
 	m.CurAnchor = first
+	// The landing that seated the viewport there. A note column seats a
+	// document on the block the model names when a navigation moved, so a
+	// model claiming a seated viewport carries the navigation that seated
+	// it; no arrival is recorded, so nothing is marked.
+	m.NavSeq = 1
 	return m
 }
 
@@ -352,15 +356,19 @@ func TestNoteFindGolden(t *testing.T) {
 // searched, which is the only picture that can show the band's search recess
 // against the rail's own find field and the marks against everything else
 // the window draws.
+//
+// The query is typed into the window's own field rather than stated: the
+// field holds what the reader typed, and the page goes to the match they
+// stepped onto, so the state this pictures is one no model carries and only
+// the keys produce.
 func TestVaultWindowFindGolden(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := findingModel(findAnchor)
 	for _, tc := range themeCases {
 		name := "window-find-" + tc.name
 		t.Run(name, func(t *testing.T) {
-			w, _ := renderWindowFinding(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading), findState())
-			golden.Render(t, name, windowFrameSize, windowScene(w, tc.colors))
+			d := newWindowDriver(t, m, tc.colors)
+			d.typeFind(findQuery)
+			golden.Compare(t, name, d.capture())
 		})
 	}
 }
@@ -412,7 +420,6 @@ func TestTreeGolden(t *testing.T) {
 // the sharp-radius trick the slot goldens use covers the components' own
 // radii, not a rounded clip the frame draws itself.
 func TestVaultWindowGolden(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	shown := goldenModel()
 	hidden := shown
 	hidden.SidebarHidden = true
@@ -442,9 +449,8 @@ func TestVaultWindowGolden(t *testing.T) {
 				// One leading pin for every case, the way the live
 				// measurement is one: the buttons stand at the window's own
 				// inset whether the pane is under them or not.
-				w, _ := renderWindow(shaper, c.model, tc.colors, tokens.Spacing, goldenRadius,
-					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-				golden.Render(t, name, windowFrameSize, windowScene(w, tc.colors))
+				golden.WindowGolden(t, name, windowFrameSize,
+					windowLayers(t, c.model, tc.colors, newStill())...)
 			})
 		}
 	}
@@ -480,33 +486,17 @@ func switchGoldenModel() Model {
 	return m
 }
 
-// renderSwitchWindow composes the picture the dialog is read in: the vault
-// window it stands over, and the dialog over it. The dialog defers its own
-// painting to the floating level, so it lands above every operation the
-// window recorded whatever order the two are laid out in.
-func renderSwitchWindow(shaper *text.Shaper, m Model, colors tokens.PlatformColors) layout.Widget {
-	win, _ := renderWindow(shaper, m, colors, tokens.Spacing, goldenRadius,
-		tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-	dlg := renderVaultPicker(shaper, m, colors, tokens.Spacing, goldenRadius,
-		tokens.DefaultTypography, tokens.Comfortable)
-	return func(gtx layout.Context) layout.Dimensions {
-		win(gtx)
-		return dlg(gtx)
-	}
-}
-
 // TestVaultSwitchDialogGolden records the vault-switch dialog open over the
 // window it interrupts, in both schemes: the header, the folder browser as
 // its body, and the footer of Cancel and Open at its trailing end. It is
 // the only picture that can show the dialog against the window it dims.
 func TestVaultSwitchDialogGolden(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := switchGoldenModel()
 	for _, tc := range themeCases {
 		name := "window-switch-" + tc.name
 		t.Run(name, func(t *testing.T) {
-			golden.Render(t, name, windowFrameSize,
-				windowScene(renderSwitchWindow(shaper, m, tc.colors), tc.colors))
+			golden.WindowGolden(t, name, windowFrameSize,
+				switchLayers(t, m, tc.colors, newStill())...)
 		})
 	}
 }
@@ -533,17 +523,15 @@ func arrivalModel(t *testing.T) Model {
 // TestVaultWindowArrivalGolden records the whole window at the moment a
 // followed link lands: the block the link named marked with the highlight
 // fill, at full strength, which is the first frame of the marking's life.
-// The static render arms the marking on the frame it draws, so the stored
-// image is that first frame and not a sample part way through the fade.
+// The marking is armed on the frame that draws it, so the stored image is
+// that first frame and not a sample part way through the fade.
 func TestVaultWindowArrivalGolden(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := arrivalModel(t)
 	for _, tc := range themeCases {
 		name := "window-arrival-" + tc.name
 		t.Run(name, func(t *testing.T) {
-			w, _ := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			golden.Render(t, name, windowFrameSize, windowScene(w, tc.colors))
+			golden.WindowGolden(t, name, windowFrameSize,
+				windowLayers(t, m, tc.colors, newStill())...)
 		})
 	}
 }
@@ -573,17 +561,14 @@ func TestVaultWindowArrivalGolden(t *testing.T) {
 // that "Second Brain" does not spend, which puts its glyphs one row high of
 // the marks beside it.
 func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	shown := goldenModel()
 	hidden := shown
 	hidden.SidebarHidden = true
 
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			shot := func(m Model) (*image.RGBA, *frameState) {
-				w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-					tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-				return golden.Capture(t, windowFrameSize, windowScene(w, tc.colors)), st
+			shot := func(m Model) (*image.RGBA, shell.PaneLayout) {
+				return windowShot(t, m, tc.colors)
 			}
 			level := func(what string, top, bot int, slack float64) {
 				t.Helper()
@@ -605,13 +590,13 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// placement, and not this window's to move.
 			const markSlack, titleSlack = 1, 2
 
-			img, st := shot(shown)
+			img, g := shot(shown)
 			// The note's first painted row is a full margin below the chrome row,
 			// so the band above that is the row's alone to have marked. The
 			// row starts at the same place in both rail states, which is
 			// its own assertion elsewhere.
-			band := st.geom.RowTop + noteInsetDp
-			nameX := st.geom.ContentX + noteInsetDp
+			band := g.RowTop + noteInsetDp
+			nameX := g.ContentX + noteInsetDp
 			top, bot := markedRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
 			level("the vault's name", top, bot, titleSlack)
 
@@ -620,13 +605,13 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// read here against the pane's own fill. The pane's first row
 			// is left out — the rim that says the pane is an object, a line
 			// on the pane's fill and not a mark this is measuring.
-			strip := st.geom.Pane.Min.Y + paneStripDp
-			toggleX := st.geom.Pane.Max.X - railMarginDp - markLargeDp
+			strip := g.Pane.Min.Y + paneStripDp
+			toggleX := g.Pane.Max.X - railMarginDp - markLargeDp
 			paneTop, paneBot := markedRows(img, chromeSurface(tc.colors), toggleX+2, toggleX+markLargeDp-2,
-				st.geom.Pane.Min.Y+seamDp, strip)
+				g.Pane.Min.Y+seamDp, strip)
 			level("the pane's toggle", paneTop, paneBot, markSlack)
 
-			img, st = shot(hidden)
+			img, g = shot(hidden)
 			// With the pane away the row leads with the toggle, in the
 			// span between the window buttons' measured edge and the
 			// vault's name.
@@ -672,9 +657,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tok := themeTokens{col: tc.colors, typ: tokens.DefaultTypography,
 				sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
-			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
+			img, g := windowShot(t, m, tc.colors)
 
 			asideX := windowW - frameAsideDp
 			lane := int(asideBarLane(tok))
@@ -685,7 +668,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			// finder-window-light.png still reads 249 at y=59 under a band
 			// ending at y=51 — so the rows immediately under the band carry
 			// the shadow and not the column's own fill.
-			top, bot := st.geom.RowTop+toolbarShadowReachDp, st.geom.FootTop
+			top, bot := g.RowTop+toolbarShadowReachDp, g.FootTop
 			is := func(c color.RGBA, want color.NRGBA) bool {
 				return c.R == want.R && c.G == want.G && c.B == want.B
 			}
@@ -779,7 +762,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			// short of the columns scanned.
 			// The note column's own pinned seam crosses its trailing gutter,
 			// so the bar's columns are read with the seam's rows left out.
-			seamRows := pinnedSeamRows(img, tc.colors, st.geom.ContentX+paneShadowReachDp, asideX, top, bot)
+			seamRows := pinnedSeamRows(img, tc.colors, g.ContentX+paneShadowReachDp, asideX, top, bot)
 			noteLo, noteHi := -1, -1
 			for y := top; y < bot; y++ {
 				if seamRows[y] {
@@ -1090,7 +1073,6 @@ func abs(n int) int {
 // where the note column's own fill began and the trailing one's ran its
 // whole length — one band, two lengths.
 func TestTheBandsShadowsRunTheSameLengthOverEveryColumn(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
 	m.SidebarHidden = true
 
@@ -1115,10 +1097,8 @@ func TestTheBandsShadowsRunTheSameLengthOverEveryColumn(t *testing.T) {
 	)
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
-			foot := st.geom.RowTop
+			img, g := windowShot(t, m, tc.colors)
+			foot := g.RowTop
 			depth := func(x, bg, y int) int {
 				return int(img.RGBAAt(bg, y).R) - int(img.RGBAAt(x, y).R)
 			}

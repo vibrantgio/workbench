@@ -18,7 +18,6 @@ import (
 
 	"gioui.org/io/event"
 	"gioui.org/layout"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -225,38 +224,4 @@ func dialogAction(cell *atomic.Value) layout.Widget {
 		}
 		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(unit.Dp(tokens.Comfortable.ControlHeight)))}
 	}
-}
-
-// renderVaultPicker draws the dialog with pre-resolved tokens and no event
-// handling, which is how a stored image is taken of it. The composition is
-// the live one: the same dialog, the same body, the same two actions.
-func renderVaultPicker(
-	shaper *text.Shaper,
-	m Model,
-	colors tokens.PlatformColors,
-	sp tokens.SpacingScale,
-	rad tokens.RadiusScale,
-	typo tokens.Typography,
-	den tokens.Density,
-) layout.Widget {
-	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
-	v := &pickerView{list: list.NewState(), onArrival: vaultPickerArrival}
-	trail := breadcrumb.NewTrail(shaper, breadcrumb.TrailProps{Chevron: trailChevronDp},
-		colors, sp, typo.TitleSmall)
-	body := func(gtx layout.Context) layout.Dimensions {
-		return vaultPickerBody(gtx, v, m, tok, trail)
-	}
-	action := func(title string, emphasis button.Emphasis) layout.Widget {
-		return button.Render(shaper, title, colors, sp, rad, typo.LabelLarge, den,
-			button.RenderState{Emphasis: emphasis})
-	}
-	return dialog.Render(shaper, dialog.Props{
-		Title: "Open Vault",
-		Body:  body,
-		Actions: []layout.Widget{
-			action("Cancel", button.Tonal),
-			action("Open", button.Filled),
-		},
-		Decision: &dialog.Decision{},
-	}, true, colors, sp, rad, typo.TitleMedium, den)
 }

@@ -228,6 +228,8 @@ func findModel(first int) Model {
 	m = cacheNote(m, noteFromSource("guide/Reading room.md", findNoteSource()))
 	m.Current = "guide/Reading room.md"
 	m.CurAnchor = first
+	// The landing that seated the viewport there; see [longNoteModel].
+	m.NavSeq = 1
 	m.PropsOpen = false
 	return m
 }

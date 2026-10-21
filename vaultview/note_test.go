@@ -552,7 +552,6 @@ func TestThePropertiesSlabStandsOnThePage(t *testing.T) {
 // end. Half of it, and half of the splitter's grab strip, is how far the
 // column sits from the middle. The slack below is that width and no more.
 func TestTheNoteReadsAtItsMeasure(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	size := image.Pt(1600, 900)
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -562,9 +561,7 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 			// region is the document itself.
 			m := goldenModel()
 			m.PropsOpen = false
-			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, size, windowScene(w, tc.colors))
+			img, g := windowShotAt(t, m, tc.colors, size)
 			page := tc.colors.TextBackground
 
 			// The region the note has to itself, taken from the frame's own
@@ -572,7 +569,7 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 			// the chrome material IS the content's white in the light
 			// appearance, so a run of the page's fill along the window's
 			// foot would take in the rail and the trailing column too.
-			regionLo, regionHi := st.geom.ContentX, size.X-frameAsideDp-1
+			regionLo, regionHi := g.ContentX, size.X-frameAsideDp-1
 			if regionLo >= regionHi {
 				t.Fatal("the note page has no region of its own between the rail and the trailing column")
 			}
@@ -595,7 +592,7 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 			// The column's own pinned seam runs its whole width, which is
 			// wider than any block in the document, so its rows are read out
 			// too.
-			scanTop, scanBot := st.geom.RowTop+toolbarShadowReachDp, st.geom.FootTop
+			scanTop, scanBot := g.RowTop+toolbarShadowReachDp, g.FootTop
 			seamRows := pinnedSeamRows(img, tc.colors, scanLo, regionHi+1, scanTop, scanBot)
 			blockLo, blockHi := -1, -1
 			for y := scanTop; y < scanBot; y++ {

@@ -3,8 +3,10 @@ package main
 import (
 	"image"
 	"image/color"
+	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"gioui.org/f32"
 	"gioui.org/io/event"
@@ -734,7 +736,6 @@ var chromeBudgetDp = toolbarDepthDp
 // composition, and a budget that only holds in one of them holds in
 // neither.
 func TestChromeBudget(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	shown := goldenModel()
 	hidden := shown
 	hidden.SidebarHidden = true
@@ -748,22 +749,22 @@ func TestChromeBudget(t *testing.T) {
 		{"rail hidden", hidden},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			w, st := renderWindow(shaper, c.model, tokens.PlatformLight, tokens.Spacing,
-				goldenRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			drawOnce(t, windowFrameSize, w)
+			still := newStill()
+			drawOnce(t, windowFrameSize, windowFrame(t, c.model, tokens.PlatformLight, still))
+			g := still.Arrangement
 
-			if st.geom.RowTop > chromeBudgetDp {
+			if g.RowTop > chromeBudgetDp {
 				t.Errorf("the content area spends %d dp above its first document row, over the %d dp budget — a band has come back",
-					st.geom.RowTop, chromeBudgetDp)
+					g.RowTop, chromeBudgetDp)
 			}
-			if st.geom.RowTop != row {
+			if g.RowTop != row {
 				t.Errorf("the content area spends %d dp above its first document row, want the chrome row's own %d dp — nothing else may stand there",
-					st.geom.RowTop, row)
+					g.RowTop, row)
 			}
 			// The sidebar's own budget: its margin and nothing else.
 			// Anything more above the pane would be a chrome band.
-			if !st.geom.Pane.Empty() && st.geom.Pane.Min.Y != railMarginDp {
-				t.Errorf("the sidebar's pane starts at y=%d, want its own margin %d and nothing above it but the window's surface", st.geom.Pane.Min.Y, railMarginDp)
+			if !g.Pane.Empty() && g.Pane.Min.Y != railMarginDp {
+				t.Errorf("the sidebar's pane starts at y=%d, want its own margin %d and nothing above it but the window's surface", g.Pane.Min.Y, railMarginDp)
 			}
 		})
 	}
@@ -847,15 +848,12 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 // window on three sides with the window's own plane showing in them, and the
 // content begins at the fourth with no gap.
 func TestTheRailIsAnInsetPane(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
 
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
-			rail := st.geom.Pane
+			img, g := windowShot(t, m, tc.colors)
+			rail := g.Pane
 			if rail.Empty() {
 				t.Fatal("the window laid out no rail to read")
 			}
@@ -928,14 +926,11 @@ func TestTheRailIsAnInsetPane(t *testing.T) {
 // flush, so it has no edge of its own on the three sides it shares with
 // the window. The trailing column of pixels is read for that.
 func TestTheAsideKeepsAPlainSeam(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
 
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
+			img, g := windowShot(t, m, tc.colors)
 			asideX := windowW - frameAsideDp
 			floor := chromeSurface(tc.colors)
 
@@ -965,7 +960,7 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 				}
 			}
 			// One pixel wide: the column's own fill starts immediately.
-			if got := img.RGBAAt(asideX+seamDp, st.geom.FootTop-1); !sameColor(got, floor) {
+			if got := img.RGBAAt(asideX+seamDp, g.FootTop-1); !sameColor(got, floor) {
 				t.Errorf("one pixel past the seam draws %v, want the column's floor %v", got, floor)
 			}
 		})
@@ -1110,15 +1105,12 @@ func TestTheNoteKeepsItsMinimumBetweenTheTwoBoundaries(t *testing.T) {
 // is the pane's own rim, and a splitter drawing a line of its own beside it
 // would put two edges a pixel apart down the whole pane.
 func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := goldenModel()
 
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
-			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
-			p := st.geom.Pane
+			img, g := windowShot(t, m, tc.colors)
+			p := g.Pane
 			if p.Empty() {
 				t.Fatal("the window laid out no pane to read")
 			}
@@ -1394,5 +1386,39 @@ func TestNothingInTheBandWalksWhenTheFindOpens(t *testing.T) {
 			t.Errorf("%s stands at %d-%d with the find shut and at %d-%d with it open; the find grows from a fixed trailing end and nothing else moves",
 				c.name, shut[i].lo, shut[i].hi, open[i].lo, open[i].hi)
 		}
+	}
+}
+
+// TestTheWindowOpensOnThePaneItWasLeft is the kept shown state end to end:
+// a reader sends the rail away, the window closes, and the next launch
+// finds the rail away. The Pane entry holds the rule — the shown state is
+// kept across launches — and the file this window writes is the one it is
+// read back from, so a state written under one name and read under another
+// fails here.
+func TestTheWindowOpensOnThePaneItWasLeft(t *testing.T) {
+	seed := func() (Model, mvu.Command) { return Model{Screen: screenVault}, mvu.Command{} }
+	for _, c := range []struct {
+		name  string
+		shown bool
+	}{{"left standing", true}, {"sent away", false}} {
+		t.Run(c.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "layout.json")
+			// The window the reader worked: it opens on the defaults,
+			// reports them, and then reports the pane in the state they
+			// left it in. The write follows the arrangement standing
+			// still, which closing the window is.
+			kept := shell.OpenArrangement(path, time.Millisecond, defaultArrangement(), frameLimits)
+			kept.Record(defaultArrangement())
+			left := defaultArrangement()
+			left.PaneShown = c.shown
+			kept.Record(left)
+			kept.Stop()
+
+			// The next launch, which reads the same file.
+			m, _ := opensOn(seed, shell.OpenArrangement(path, time.Millisecond, defaultArrangement(), frameLimits).Arrangement())()
+			if m.SidebarHidden == c.shown {
+				t.Errorf("the pane was %s and the window opened with SidebarHidden=%v", c.name, m.SidebarHidden)
+			}
+		})
 	}
 }
