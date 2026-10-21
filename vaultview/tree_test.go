@@ -11,7 +11,6 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/list"
-	"github.com/vibrantgio/theme/tokens"
 )
 
 // treeIndex builds an index carrying just the file paths, the only part
@@ -318,19 +317,13 @@ func TestMatchRows(t *testing.T) {
 	}
 }
 
-// TestTreeClaimsOnlyItsRail: a slot that leaves the width open lets its
-// sidebar size itself and gives the main column whatever is left, so a
-// rail answering with the constraint it was handed would take the whole
-// window and leave the note nothing. Every state must answer the rail's
-// own width — with rows, filtered to none, and before the scan lands.
+// TestTreeClaimsOnlyItsRail: the rail stands in the arrangement's pane and
+// the note column takes whatever is left, so the rail is the width the pane
+// was given and never the whole window. Every state is read — with rows,
+// filtered to none, and before the scan lands — because a column that
+// answered with the constraint it was handed would leave the note nothing.
 func TestTreeClaimsOnlyItsRail(t *testing.T) {
-	tok := themeTokens{
-		col:    tokens.PlatformLight,
-		typ:    tokens.DefaultTypography,
-		sp:     tokens.Spacing,
-		den:    tokens.Comfortable,
-		shaper: tokens.DefaultTypography.DeterministicShaper(),
-	}
+	tok := goldenTokens()
 	filled := treeModel()
 	filled.Folds = map[string]bool{"guide": true, "guide/deep": true}
 	filtered := filled
@@ -349,35 +342,31 @@ func TestTreeClaimsOnlyItsRail(t *testing.T) {
 			v := &treeView{list: list.NewState()}
 			var ops op.Ops
 			gtx := layout.Context{
-				Constraints: layout.Constraints{Max: image.Pt(1100, 700)},
+				Constraints: layout.Exact(image.Pt(1100, 700)),
 				Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 				Ops:         &ops,
 			}
-			dims := v.layout(gtx, tc.model, tok, nil)
-			if dims.Size.X != treeWidthDp {
+			f := newFrameState(defaultArrangement())
+			col := v.column(func() Model { return tc.model }, func() themeTokens { return tok }, nil)
+			f.layout(gtx, tc.model, tok, col, fillSlot, nil)
+
+			if got := f.geom.Pane.Dx(); got != treeWidthDp {
 				t.Errorf("rail width = %d dp, want %d — the main column would get %d",
-					dims.Size.X, treeWidthDp, 1100-dims.Size.X)
+					got, treeWidthDp, 1100-got)
 			}
-			if dims.Size.Y != 700 {
-				t.Errorf("rail height = %d, want the full row height 700", dims.Size.Y)
+			if got, want := f.geom.Column.Rows.Max.Y, f.geom.Pane.Max.Y; got != want {
+				t.Errorf("the rail's rows end at y=%d, want the pane's own foot %d", got, want)
 			}
 		})
 	}
 }
 
-// TestTreeFillsTheWidthTheSlotStates verifies the other half of the rule
-// above: where the slot states a width — which is what the pane does,
-// laying its column out at exactly the width the reader dragged the
-// pane's edge to — the rail is that wide. A rail that held its own 240 dp
-// inside a pane dragged wider would widen into nothing.
-func TestTreeFillsTheWidthTheSlotStates(t *testing.T) {
-	tok := themeTokens{
-		col:    tokens.PlatformLight,
-		typ:    tokens.DefaultTypography,
-		sp:     tokens.Spacing,
-		den:    tokens.Comfortable,
-		shaper: tokens.DefaultTypography.DeterministicShaper(),
-	}
+// TestTreeFillsTheWidthThePaneStates verifies the other half of the rule
+// above: the pane lays its column out at exactly the width the reader
+// dragged the pane's edge to, and the column is that wide. A rail that held
+// its own 240 dp inside a pane dragged wider would widen into nothing.
+func TestTreeFillsTheWidthThePaneStates(t *testing.T) {
+	tok := goldenTokens()
 	filled := treeModel()
 	filled.Folds = map[string]bool{"guide": true}
 	for _, w := range []int{treeWidthDp - 60, treeWidthDp + 140} {
@@ -388,8 +377,9 @@ func TestTreeFillsTheWidthTheSlotStates(t *testing.T) {
 			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 			Ops:         &ops,
 		}
-		if got := v.layout(gtx, filled, tok, nil).Size.X; got != w {
-			t.Errorf("in a %d dp slot the rail lays out %d dp wide, want the slot's own width", w, got)
+		dims, _ := railColumn(gtx, v, filled, tok, nil, nil)
+		if got := dims.Size.X; got != w {
+			t.Errorf("in a %d dp pane the rail lays out %d dp wide, want the pane's own width", w, got)
 		}
 	}
 }
@@ -412,21 +402,19 @@ func TestPaneRowsRunToThePaneFoot(t *testing.T) {
 		{"an empty vault", Model{Screen: screenVault, Vault: "/v", Index: &Index{}}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			v := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
+			v := &treeView{list: list.NewState()}
 			var ops op.Ops
 			gtx := layout.Context{
 				Constraints: layout.Exact(image.Pt(treeWidthDp, paneH)),
 				Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 				Ops:         &ops,
 			}
-			v.layout(gtx, c.model, tok, nil)
-
-			g := v.geom
-			if g.rows.Empty() {
+			_, g := railColumn(gtx, v, c.model, tok, nil, nil)
+			if g.Rows.Empty() {
 				t.Fatal("the pane laid out no rows")
 			}
-			if g.rows.Max.Y != paneH {
-				t.Errorf("the rows end at y=%d, want the pane's own bottom edge %d", g.rows.Max.Y, paneH)
+			if g.Rows.Max.Y != paneH {
+				t.Errorf("the rows end at y=%d, want the pane's own bottom edge %d", g.Rows.Max.Y, paneH)
 			}
 		})
 	}

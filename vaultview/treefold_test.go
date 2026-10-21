@@ -14,6 +14,7 @@ import (
 
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/sidebar"
 )
 
@@ -40,6 +41,10 @@ type treeFoldFrame struct {
 	router *input.Router
 	posted []mvu.Message
 
+	// geom is what the rail's column arranged on the last frame, in the
+	// column's own coordinates.
+	geom shell.PaneColumnLayout
+
 	onRail bool
 }
 
@@ -47,7 +52,7 @@ func newTreeFoldFrame(t *testing.T) *treeFoldFrame {
 	t.Helper()
 	f := &treeFoldFrame{
 		t:      t,
-		v:      &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }},
+		v:      &treeView{list: list.NewState()},
 		model:  treeFoldModel(),
 		tok:    goldenTokens(),
 		router: new(input.Router),
@@ -64,7 +69,7 @@ func (f *treeFoldFrame) frame() {
 		Ops:         ops,
 		Source:      f.router.Source(),
 	}
-	f.v.layout(gtx, f.model, f.tok, nil)
+	_, f.geom = railColumn(gtx, f.v, f.model, f.tok, nil, nil)
 	f.onRail = gtx.Focused(f.v.list.Focus())
 	f.router.Frame(ops)
 	for _, msg := range f.posted {
@@ -247,7 +252,7 @@ func (f *treeFoldFrame) clickRow(i int) []mvu.Message {
 	f.posted = nil
 	f.frame()
 	h := unit.Metric{PxPerDp: 1, PxPerSp: 1}.Dp(sidebar.RowHeight)
-	at := f32.Pt(float32(treeWidthDp)/2, float32(f.v.geom.rows.Min.Y+i*h+h/2))
+	at := f32.Pt(float32(treeWidthDp)/2, float32(f.geom.Rows.Min.Y+i*h+h/2))
 	f.posted = nil
 	f.router.Queue(
 		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: at},

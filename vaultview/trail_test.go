@@ -167,12 +167,11 @@ func TestTrailClickFollowsItsPlaceAcrossAReshuffle(t *testing.T) {
 	}
 }
 
-// bandFrame lays the window's chrome row out against a real input.Router and
-// records what the row posts, so a press on a place in the band's trail is
-// read back as the message the running window would reduce. The row is the
-// window's own — layoutToolbar, at the width the band has beside a standing
-// rail — so what answers the press is the composition and not a row built to
-// be pressed.
+// bandTrailFrame lays the whole window out against a real input.Router and
+// records what the toolbar posts, so a press on a place in its trail is read
+// back as the message the running window would reduce. The toolbar is the
+// window's own, at the width it has beside a standing rail, so what answers
+// the press is the composition and not a row built to be pressed.
 type bandTrailFrame struct {
 	t      *testing.T
 	f      *frameState
@@ -186,7 +185,7 @@ type bandTrailFrame struct {
 
 func newBandTrailFrame(t *testing.T, m Model, rowW int) *bandTrailFrame {
 	t.Helper()
-	b := &bandTrailFrame{t: t, f: newFrameState(defaultWidths()), m: m, tok: goldenTokens(), rowW: rowW}
+	b := &bandTrailFrame{t: t, f: newFrameState(defaultArrangement()), m: m, tok: goldenTokens(), rowW: rowW}
 	b.f.leading = func() unit.Dp { return goldenLeading }
 	b.f.post = func(_ layout.Context, msg mvu.Message) { b.posted = append(b.posted, msg) }
 	return b
@@ -195,18 +194,19 @@ func newBandTrailFrame(t *testing.T, m Model, rowW int) *bandTrailFrame {
 func (b *bandTrailFrame) frame() {
 	b.ops.Reset()
 	gtx := layout.Context{
-		Constraints: layout.Exact(image.Pt(b.rowW, int(toolbarHeight()))),
+		Constraints: layout.Exact(image.Pt(b.rowW, windowH)),
 		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 		Ops:         &b.ops,
 		Source:      b.r.Source(),
 	}
-	b.f.layoutToolbar(gtx, b.m, b.tok, 0)
+	b.f.layout(gtx, b.m, b.tok, paneSlot(nil), fillSlot, nil)
 	b.r.Frame(&b.ops)
 }
 
-// bandTrailLeading is where the band's trail begins: the row's own edge
-// inset, the window's navigation pair and the measured gap after it.
-const bandTrailLeading = noteInsetDp + 2*railToggleWidthDp + 1 + bandNameGapDp
+// bandTrailLeading is where the toolbar's trail begins inside the content
+// column: the column's own edge inset, the window's navigation pair and the
+// measured gap after it.
+var bandTrailLeading = noteInsetDp + 2*railToggleWidthDp + 1 + toolbarTitleGapDp
 
 // pressPlace presses the middle of the trail's i-th place and answers what
 // the row posted for it. The press is reported on the frame after the one
@@ -214,7 +214,7 @@ const bandTrailLeading = noteInsetDp + 2*railToggleWidthDp + 1 + bandNameGapDp
 func (b *bandTrailFrame) pressPlace(i int, places []place) []mvu.Message {
 	b.t.Helper()
 	b.frame()
-	at := f32.Pt(float32(bandTrailLeading+centreOf(b.tok.shaper, i, places)), float32(toolbarHeight())/2)
+	at := f32.Pt(float32(b.f.geom.ContentX+bandTrailLeading+centreOf(b.tok.shaper, i, places)), float32(toolbarDepthDp)/2)
 	b.posted = nil
 	b.r.Queue(
 		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: at},
@@ -277,11 +277,11 @@ func TestTheBandsTrailElidesTheMiddleWhenNarrow(t *testing.T) {
 	m := bandTrailModel()
 	places := notePlaces(m)
 	tok := goldenTokens()
-	f := newFrameState(defaultWidths())
+	f := newFrameState(defaultArrangement())
 
 	var ops op.Ops
 	gtx := layout.Context{
-		Constraints: layout.Exact(image.Pt(windowW, int(toolbarHeight()))),
+		Constraints: layout.Exact(image.Pt(windowW, toolbarDepthDp)),
 		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 		Ops:         &ops,
 	}
@@ -296,14 +296,14 @@ func TestTheBandsTrailElidesTheMiddleWhenNarrow(t *testing.T) {
 	// there is what the trail is cut to.
 	measure := trailMeasure(gtx, tok)
 	loose := gtx
-	loose.Constraints = layout.Constraints{Max: image.Pt(1<<14, int(toolbarHeight()))}
+	loose.Constraints = layout.Constraints{Max: image.Pt(1<<14, toolbarDepthDp)}
 	// What the band owes the controls standing after the trail, read as the
 	// row reads it rather than restated here.
 	after := 1<<14 - f.bandTrailRoom(loose, m)
 	rowW := bandTrailLeading + after + measure(wide) - 1
 
 	child := gtx
-	child.Constraints = layout.Constraints{Max: image.Pt(rowW-bandTrailLeading, int(toolbarHeight()))}
+	child.Constraints = layout.Constraints{Max: image.Pt(rowW-bandTrailLeading, toolbarDepthDp)}
 	room := f.bandTrailRoom(child, m)
 	got := bandTrailSegments(child, tok, m, room, f.revealPlace)
 	if reflect.DeepEqual(titlesOf(got), titlesOf(wide)) {

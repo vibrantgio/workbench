@@ -45,7 +45,7 @@ type findOpenFrame struct {
 
 func newFindOpenFrame(t *testing.T) *findOpenFrame {
 	t.Helper()
-	b := &findOpenFrame{t: t, f: newFrameState(defaultWidths()), m: goldenModel(), tok: goldenTokens()}
+	b := &findOpenFrame{t: t, f: newFrameState(defaultArrangement()), m: goldenModel(), tok: goldenTokens()}
 	b.f.leading = func() unit.Dp { return goldenLeading }
 	// Every message this frame posts, from the band's own controls and from
 	// the find alike: the loop collects them all, reduces them, and the
@@ -82,7 +82,7 @@ func (b *findOpenFrame) frame() {
 		Source:      b.r.Source(),
 		Ops:         &b.ops,
 	}
-	b.f.layout(gtx, b.m, b.tok, nil, nil, nil)
+	b.f.layout(gtx, b.m, b.tok, paneSlot(nil), fillSlot, nil)
 	b.r.Frame(&b.ops)
 	// What the window itself consults after a frame: a pending event or a
 	// command's own request for the next one.
@@ -108,7 +108,7 @@ func (b *findOpenFrame) follow() {
 // band, which is where the composition test reads it.
 func (b *findOpenFrame) clickCapsule() {
 	b.t.Helper()
-	at := f32.Pt(float32(windowW-bandTrailingDp-railToggleWidthDp/2), float32(paneStripDp)/2)
+	at := f32.Pt(float32(windowW-toolbarTrailDp-railToggleWidthDp/2), float32(paneStripDp)/2)
 	b.r.Queue(
 		pointer.Event{Kind: pointer.Press, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary},
 		pointer.Event{Kind: pointer.Release, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary},

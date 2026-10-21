@@ -27,6 +27,8 @@ import (
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -50,8 +52,11 @@ const (
 )
 
 // findFieldSurface is the fill the find field stands on: the trailing end of
-// the toolbar band, which is the trailing column's fill risen into it.
-func findFieldSurface(c tokens.PlatformColors) color.NRGBA { return bandSurface(c) }
+// the toolbar, which is the trailing column's fill risen into it. A toolbar
+// carries no fill of its own — it is the fill of whatever region lies under
+// it, continued upward (reference/macos/controls.md) — and the trailing end
+// of this window's toolbar lies over the inspector.
+func findFieldSurface(c tokens.PlatformColors) color.NRGBA { return chromeSurface(c) }
 
 // pageFind is find in the page: the query the reader is looking for in the
 // note on screen, and which of its matches they are on.
@@ -283,26 +288,26 @@ func (f *pageFind) label() string {
 	}
 }
 
-// findChildren is what the band carries at its trailing end: the find, in a
-// slot ONE width whether it is open or shut.
+// findTrailing is what the toolbar carries at its trailing end: the find, in
+// a slot ONE width whether it is open or shut.
 //
 // The slot's trailing end is fixed at the measured eight from the window's
 // edge, and the recess grows leftward inside it, which is what Finder's does
 // when it expands — finder-window-light.png keeps a magnifier capsule at
 // x 955-991 in a window 1000 wide and finder-window-untinted-dark.png an
 // expanded field at x 1100-1322 in one 1331 wide, both ending eight clear of
-// the window. Reserving the open width is what makes that true of this band:
-// a slot that grew when the find opened would walk every control before it
-// leftward, and a control that moves under the pointer is the defect this
-// composition exists to close.
+// the window. Reserving the open width is what makes that true of this
+// toolbar: a slot that grew when the find opened would walk every control
+// before it leftward, and a control that moves under the pointer is the
+// defect this composition exists to close.
 //
 // Shut, the slot holds the bordered toolbar control at its trailing end —
 // the capsule that opens the field and takes the keyboard, so the shortcut
-// has an affordance a hand can reach — and band the window is dragged by in
+// has an affordance a hand can reach — and room the window is dragged by in
 // front of it. Open, it holds the platform's toolbar search recess, with
 // what the query has found standing INSIDE the field at its own trailing
 // end.
-func (f *frameState) findChildren(m Model, tok themeTokens) []layout.FlexChild {
+func (f *frameState) findTrailing(m Model, tok themeTokens) layout.Widget {
 	find := f.band.find
 	// Nothing to search until a note is open: the column drains the find's
 	// keys only while it is showing one, so a field standing over an empty
@@ -310,7 +315,7 @@ func (f *frameState) findChildren(m Model, tok themeTokens) []layout.FlexChild {
 	if m.CurrentNote() == nil {
 		return nil
 	}
-	return []layout.FlexChild{layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+	return func(gtx layout.Context) layout.Dimensions {
 		w := min(gtx.Dp(unit.Dp(findFieldDp)), gtx.Constraints.Max.X)
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 		// Read at layout time, off the model this frame is drawn from: the
@@ -320,12 +325,12 @@ func (f *frameState) findChildren(m Model, tok themeTokens) []layout.FlexChild {
 			return f.layoutFindField(gtx, find)
 		}
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Flexed(1, dragFill),
+			layout.Flexed(1, pane.DragFill),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return f.layoutFindOpener(gtx, tok)
 			}),
 		)
-	})}
+	}
 }
 
 // layoutFindOpener draws the magnifier capsule the band keeps while the find
@@ -337,7 +342,8 @@ func (f *frameState) layoutFindOpener(gtx layout.Context, tok themeTokens) layou
 	if f.findClick.Clicked(gtx) && f.band.find != nil {
 		f.band.find.openField(gtx, f.band.read)
 	}
-	return chromeControl(gtx, tok, &f.findClick, icons.Search, "Find in this note")
+	return shell.ToolbarControl(gtx, tok.col, tokens.Radius, tok.den, &f.findClick,
+		icons.Mark(icons.Search), "Find in this note", false)
 }
 
 // layoutFindField lays the search field out at the window's one field width

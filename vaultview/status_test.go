@@ -60,7 +60,7 @@ func TestTheCountIsTheFilesLinesAndNotTheWindows(t *testing.T) {
 		widget, st := renderWindow(shaper, m, tokens.PlatformLight, tokens.Spacing, goldenRadius,
 			tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 		drawOnce(t, size, widget)
-		if st.geom.footTop >= size.Y {
+		if st.geom.FootTop >= size.Y {
 			t.Errorf("no status bar in a %d dp window", w)
 		}
 		if got, want := statusLine(m), "1 line"; got != want {
@@ -148,11 +148,11 @@ func TestTheBarStandsInTheFootItWasGiven(t *testing.T) {
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
 
-			foot := st.geom.footTop
+			foot := st.geom.FootTop
 			if foot >= windowH {
 				t.Fatal("the frame reserved no foot for the status bar")
 			}
-			x0 := st.geom.contentX + noteInsetDp
+			x0 := st.geom.ContentX + noteInsetDp
 			top, bot := drawnRows(img, tc.colors.TextBackground, x0, x0+200, foot, windowH)
 			if top < 0 {
 				t.Fatalf("nothing painted on the reading margin between y=%d and the window's foot; the count is not being drawn", foot)

@@ -36,6 +36,7 @@ import (
 	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/brand"
 	vgcolor "github.com/vibrantgio/theme/color"
 	specsystem "github.com/vibrantgio/theme/system"
@@ -60,10 +61,10 @@ func main() {
 }
 
 func run() {
-	// mvu/desktop's full-size-content treatment: on macOS the content
-	// extends behind a transparent title bar; elsewhere FullSizeContent
-	// returns no options and the window keeps its decorations.
-	mvuWin := mvu.NewWindow(append(desktop.FullSizeContent(),
+	// The shell's pane-window treatment: on macOS the content extends
+	// behind a transparent title bar; elsewhere it returns no options of
+	// its own and the window keeps its decorations.
+	mvuWin := mvu.NewWindow(shell.PaneWindow(
 		app.Title("Vault View"),
 		app.Size(unit.Dp(windowW), unit.Dp(windowH)),
 	)...)
@@ -79,14 +80,14 @@ func run() {
 	// The arrangement inside the window is this application's own to keep:
 	// how wide the rail pane and the aside stand. A nil memory is a working
 	// one — the window opens on the defaults and keeps nothing.
-	widths, err := rememberWidths(appName)
+	widths, err := shell.RememberArrangement(appName, defaultArrangement(), frameLimits)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "vaultview: the window will not remember its columns:", err)
 	}
 	// Gio re-hides the standard window buttons on every configuration
-	// rebuild; ShowWindowButtons registers the re-assertion on the mvu
-	// OnConfigure seam.
-	desktop.ShowWindowButtons(mvuWin)
+	// rebuild; the shell registers the re-assertion on the mvu OnConfigure
+	// seam and places them where the pane's own strip keeps them.
+	shell.StandWindowButtons(mvuWin, nil)
 	// The window's platform view, which is what the platform's own open
 	// panel puts its sheet on. Subscribed before Render, so the attach
 	// event Gio sends ahead of the first frame is read rather than evicted.
@@ -127,7 +128,7 @@ func run() {
 	// a width moved inside the write delay can still be kept — and the
 	// change the reader most expects to find again is the one they made
 	// just before quitting.
-	widths.stop()
+	widths.Stop()
 	if renderErr != nil {
 		fmt.Fprintln(os.Stderr, "vaultview:", renderErr)
 		os.Exit(1)
@@ -224,7 +225,7 @@ func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.PlatformColors, 
 // chrome inset bounds the stack from above, so a queue tall enough to climb
 // the window stops at the chrome row's foot rather than covering the
 // controls standing in it.
-func buildLayers(modelObs rx.Observable[Model], opening tokens.PlatformColors, typo tokens.Typography, widths *columnMemory) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], opening tokens.PlatformColors, typo tokens.Typography, widths *shell.ArrangementMemory) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		loadTok := mirrorTokens(th, opening, typo)
 		var modelCell atomic.Value
@@ -262,7 +263,7 @@ func routedLayer(
 	modelCell *atomic.Value,
 	loadModel func() Model,
 	loadTok func() themeTokens,
-	widths *columnMemory,
+	widths *shell.ArrangementMemory,
 ) rx.Observable[layout.Widget] {
 	picker := pickerLayer(th, loadModel, loadTok)
 	vault := vaultLayer(th, modelObs, loadModel, loadTok, widths)
@@ -273,48 +274,30 @@ func routedLayer(
 		modelCell.Store(m)
 		if m.Screen == screenPicker {
 			topBand.Store(unit.Dp(0))
-			placeWindowButtons(buttonPlacementFor(m))
+			shell.PlaceWindowButtons(standsInTheStrip(m))
 			return t.Second
 		}
-		row := toolbarHeight()
-		topBand.Store(row)
-		placeWindowButtons(buttonPlacementFor(m))
+		topBand.Store(unit.Dp(shell.ToolbarDepth))
+		shell.PlaceWindowButtons(standsInTheStrip(m))
 		return t.Third
 	})
 }
 
-// buttonPlacement is a full placement request for the window buttons:
-// where their leading edge sits and the line they are centred on, both in
-// dp from the window's top-leading corner, zero per axis meaning the
-// platform's own geometry there.
-type buttonPlacement struct {
-	leading, center unit.Dp
-}
-
-// buttonPlacementFor answers where the screen on show puts the window's
-// control buttons.
+// standsInTheStrip answers whether the screen on show lays out in the strip
+// across the window's top at all, which is what decides where the window's
+// control buttons stand.
 //
-// The vault screen states one placement and states it from the window's
-// own top and leading edges. The buttons are part of the window, seen
-// through whatever the application draws under them, so nothing the
-// application draws may move them: not the pane arriving, and not the
-// pane leaving. No rail state enters this answer — the pane is what
-// moves, not the buttons.
+// The vault screen takes that strip and states the placement from the
+// window's own top and leading edges. The buttons are part of the window,
+// seen through whatever the application draws under them, so nothing the
+// application draws may move them: not the pane arriving, and not the pane
+// leaving. No rail state enters this answer — the pane is what moves, not
+// the buttons.
 //
-// The picker asks for no placement at all. It claims no band of its own
-// and lays its content out below the native strip, so the whole strip is
-// the platform's there — the buttons included, at whatever geometry the
-// platform keeps them.
-func buttonPlacementFor(m Model) buttonPlacement {
-	if m.Screen == screenPicker {
-		return buttonPlacement{}
-	}
-	return buttonPlacement{leading: windowButtons.Leading, center: windowButtons.Center}
-}
-
-// buttonPlace remembers the placement the window buttons were last asked
-// for, so the request is sent when it changes and not on every emission.
-var buttonPlace atomic.Value
+// The picker claims no strip of its own and lays its content out below the
+// native one, so the whole strip is the platform's there — the buttons
+// included, at whatever geometry the platform keeps them.
+func standsInTheStrip(m Model) bool { return m.Screen != screenPicker }
 
 // topBand remembers how tall the band at the top of the window is that
 // the screen on show lays out itself: the vault screen's chrome row, and
@@ -323,49 +306,23 @@ var buttonPlace atomic.Value
 // much is not document.
 var topBand atomic.Value
 
-// placeWindowButtons asks the window to place its control buttons where
-// the screen on show says, and sends the request only when the answer
-// changes — which, once the vault screen is up, is never again.
-//
-// Screen by screen rather than once at startup, because the two screens
-// answer differently: the vault screen takes the top of the window and
-// states the placement, and the picker leaves the strip to the platform.
-func placeWindowButtons(p buttonPlacement) {
-	if prev, ok := buttonPlace.Load().(buttonPlacement); ok && prev == p {
-		return
-	}
-	buttonPlace.Store(p)
-	desktop.PlaceWindowButtonsAt(p.leading, p.center)
-}
-
 // underChrome pads a layer down past everything at the top of the window
 // that is not document: the native strip where it still stands, and the
-// chrome row's own height where the row has taken the strip instead. It
+// toolbar's own depth where the screen has taken the strip instead. It
 // is what the overlays use, because a toast or a dialog landing on the
-// chrome row would cover controls that are live under it.
+// toolbar would cover controls that are live under it.
 func underChrome(content rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
-	return insetTop(content, chromeHeight)
+	return rx.Map(content, func(w layout.Widget) layout.Widget {
+		return desktop.InsetTop(chromeHeight, w)
+	})
 }
 
-// chromeHeight is the window's top band that belongs to chrome rather
-// than to the document: the band the screen lays out itself, and the
-// native strip where that is taller — with the rail hidden the buttons
-// are back on the platform's own line, and the strip they stand in can
-// reach below a row shorter than it. An overlay clears the larger of the
-// two, since either would put a toast on top of a live control.
+// chromeHeight is the window's top strip that belongs to chrome rather than
+// to the document: what the screen on show lays out itself, and the native
+// strip where that is deeper.
 func chromeHeight() unit.Dp {
 	band, _ := topBand.Load().(unit.Dp)
-	if inset := desktop.TopInset(); inset > band {
-		return inset
-	}
-	return band
-}
-
-// insetTop offsets a layer down by a height measured afresh each frame.
-func insetTop(content rx.Observable[layout.Widget], height func() unit.Dp) rx.Observable[layout.Widget] {
-	return rx.Map(content, func(w layout.Widget) layout.Widget {
-		return desktop.InsetTop(height, w)
-	})
+	return shell.ChromeTop(band)
 }
 
 // backdropLayer paints the window's own plane, at the backdrop level and

@@ -13,8 +13,12 @@ import (
 	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
+	"gioui.org/widget"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -44,6 +48,20 @@ const (
 	// itself has one: the buttons are anchored to the window's own edges
 	// and nothing the application draws under them moves them.
 	goldenLeading = 79
+)
+
+// What the toolbar spends, read off patterns/shell's own platform reading
+// rather than restated here.
+var (
+	toolbarDepthDp      = int(shell.ToolbarDepth)
+	toolbarTrailDp      = int(shell.PlatformToolbar.Trail)
+	toolbarTitleGapDp   = int(shell.PlatformToolbar.TitleGap)
+	toolbarControlGapDp = int(shell.PlatformToolbar.ControlGap)
+
+	// goldenToolbarLead is where a static render's toolbar and its pane's
+	// strip lead from: the shell's own rule applied to the pinned buttons'
+	// edge, which is the one rule the live window leads from too.
+	goldenToolbarLead = desktop.BandLeadFrom(goldenLeading, pane.ButtonGapDp, frameEdgeDp)
 )
 
 var (
@@ -368,7 +386,12 @@ func TestTreeGolden(t *testing.T) {
 		for _, tc := range themeCases {
 			name := c.name + "-" + tc.name
 			t.Run(name, func(t *testing.T) {
-				w := renderTree(shaper, c.model, tc.colors, tokens.Spacing, goldenRadius, tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
+				col := renderTree(shaper, c.model, tc.colors, tokens.Spacing, goldenRadius, tokens.DefaultTypography, tokens.Comfortable)
+				toggle := railToggle(new(widget.Clickable), nil)
+				w := func(gtx layout.Context) layout.Dimensions {
+					dims, _ := col.Layout(gtx, tc.colors, goldenToolbarLead, toggle)
+					return dims
+				}
 				golden.Render(t, name, treeFrameSize, scene(w, tc.bg))
 			})
 		}
@@ -587,8 +610,8 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// so the band above that is the row's alone to have marked. The
 			// row starts at the same place in both rail states, which is
 			// its own assertion elsewhere.
-			band := st.geom.rowTop + noteInsetDp
-			nameX := st.geom.contentX + noteInsetDp
+			band := st.geom.RowTop + noteInsetDp
+			nameX := st.geom.ContentX + noteInsetDp
 			top, bot := markedRows(img, tc.colors.TextBackground, nameX, nameX+400, 0, band)
 			level("the vault's name", top, bot, titleSlack)
 
@@ -597,10 +620,10 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 			// read here against the pane's own fill. The pane's first row
 			// is left out — the rim that says the pane is an object, a line
 			// on the pane's fill and not a mark this is measuring.
-			strip := st.geom.pane.Min.Y + paneStripDp
-			toggleX := st.geom.pane.Max.X - railMarginDp - markLargeDp
+			strip := st.geom.Pane.Min.Y + paneStripDp
+			toggleX := st.geom.Pane.Max.X - railMarginDp - markLargeDp
 			paneTop, paneBot := markedRows(img, chromeSurface(tc.colors), toggleX+2, toggleX+markLargeDp-2,
-				st.geom.pane.Min.Y+seamDp, strip)
+				st.geom.Pane.Min.Y+seamDp, strip)
 			level("the pane's toggle", paneTop, paneBot, markSlack)
 
 			img, st = shot(hidden)
@@ -662,7 +685,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			// finder-window-light.png still reads 249 at y=59 under a band
 			// ending at y=51 — so the rows immediately under the band carry
 			// the shadow and not the column's own fill.
-			top, bot := st.geom.rowTop+toolbarShadowReachDp, st.geom.footTop
+			top, bot := st.geom.RowTop+toolbarShadowReachDp, st.geom.FootTop
 			is := func(c color.RGBA, want color.NRGBA) bool {
 				return c.R == want.R && c.G == want.G && c.B == want.B
 			}
@@ -756,7 +779,7 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			// short of the columns scanned.
 			// The note column's own pinned seam crosses its trailing gutter,
 			// so the bar's columns are read with the seam's rows left out.
-			seamRows := pinnedSeamRows(img, tc.colors, st.geom.contentX+paneShadowReachDp, asideX, top, bot)
+			seamRows := pinnedSeamRows(img, tc.colors, st.geom.ContentX+paneShadowReachDp, asideX, top, bot)
 			noteLo, noteHi := -1, -1
 			for y := top; y < bot; y++ {
 				if seamRows[y] {
@@ -905,13 +928,13 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 				sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
 			// One frame state across the three frames, the way the running
 			// window keeps one while the streams re-emit around it.
-			f := newFrameState(defaultWidths())
+			f := newFrameState(defaultArrangement())
 			f.leading = func() unit.Dp { return goldenLeading }
 			cur := &docCursor{}
 			av := newAsideView(cur)
 			shot := func(m Model) *image.RGBA {
 				sb := renderTree(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
-					tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
+					tokens.DefaultTypography, tokens.Comfortable)
 				main := renderNotePageInto(cur, shaper, m, tc.colors, tokens.Spacing,
 					tokens.DefaultTypography, tokens.Comfortable, &pageFind{})
 				as := func(gtx layout.Context) layout.Dimensions { return av.layout(gtx, m, tok) }
@@ -920,7 +943,7 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 			}
 			background := tc.colors.TextBackground
 			check := func(when string, img *image.RGBA) {
-				edge := f.geom.pane.Max.X
+				edge := f.geom.Pane.Max.X
 				if edge <= 0 {
 					t.Fatalf("%s: the pane has no trailing edge to read", when)
 				}
@@ -931,8 +954,8 @@ func TestThePaneEdgeCarriesOnlyItsShadow(t *testing.T) {
 				// width of the region above it. Its rows are read out: it is
 				// a row and not a second line down the pane.
 				seamRows := pinnedSeamRows(img, tc.colors, edge+paneShadowReachDp, windowW-frameAsideDp,
-					f.geom.rowTop, f.geom.footTop)
-				for y := f.geom.rowTop + noteInsetDp; y < f.geom.footTop; y++ {
+					f.geom.RowTop, f.geom.FootTop)
+				for y := f.geom.RowTop + noteInsetDp; y < f.geom.FootTop; y++ {
 					if seamRows[y] {
 						continue
 					}
@@ -1076,16 +1099,18 @@ func TestTheBandsShadowsRunTheSameLengthOverEveryColumn(t *testing.T) {
 	// it, and the find at the trailing one, over the aside. Each is read
 	// against a column of its own region that no control stands above, so
 	// the depth is the shadow's and not the column's own fill.
-	const (
-		leadingX = 96
-		// The band's bare run, between the document's actions and the find's
-		// slot, is the stretch of the note column no control stands above
-		// or casts onto.
+	var (
+		// The toggle that brings the rail back stands at the toolbar's
+		// leading end, which is where the shell's leading rule puts it.
+		leadingX = int(goldenToolbarLead) + railToggleWidthDp/2
+		// The toolbar's bare run, between the document's actions and the
+		// find's slot, is the stretch of the note column no control stands
+		// above or casts onto.
 		leadingBg = 600
 		// The find's slot keeps the open recess's width whether the find is
 		// open or shut, so the capsule standing in it is at the slot's
-		// trailing end and the band's bare run is in front of it.
-		trailingX  = windowW - bandTrailingDp - railToggleWidthDp/2
+		// trailing end and the toolbar's bare run is in front of it.
+		trailingX  = windowW - toolbarTrailDp - railToggleWidthDp/2
 		trailingBg = 900
 	)
 	for _, tc := range themeCases {
@@ -1093,7 +1118,7 @@ func TestTheBandsShadowsRunTheSameLengthOverEveryColumn(t *testing.T) {
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
-			foot := st.geom.rowTop
+			foot := st.geom.RowTop
 			depth := func(x, bg, y int) int {
 				return int(img.RGBAAt(bg, y).R) - int(img.RGBAAt(x, y).R)
 			}

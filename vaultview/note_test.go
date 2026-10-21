@@ -572,7 +572,7 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 			// the chrome material IS the content's white in the light
 			// appearance, so a run of the page's fill along the window's
 			// foot would take in the rail and the trailing column too.
-			regionLo, regionHi := st.geom.contentX, size.X-frameAsideDp-1
+			regionLo, regionHi := st.geom.ContentX, size.X-frameAsideDp-1
 			if regionLo >= regionHi {
 				t.Fatal("the note page has no region of its own between the rail and the trailing column")
 			}
@@ -595,7 +595,7 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 			// The column's own pinned seam runs its whole width, which is
 			// wider than any block in the document, so its rows are read out
 			// too.
-			scanTop, scanBot := st.geom.rowTop+toolbarShadowReachDp, st.geom.footTop
+			scanTop, scanBot := st.geom.RowTop+toolbarShadowReachDp, st.geom.FootTop
 			seamRows := pinnedSeamRows(img, tc.colors, scanLo, regionHi+1, scanTop, scanBot)
 			blockLo, blockHi := -1, -1
 			for y := scanTop; y < scanBot; y++ {

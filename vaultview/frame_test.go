@@ -17,11 +17,14 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/reactivego/rx"
+
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/splitter"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -37,6 +40,45 @@ func goldenTokens() themeTokens {
 		den:    tokens.Comfortable,
 		shaper: tokens.DefaultTypography.DeterministicShaper(),
 	}
+}
+
+// fillSlot is a slot that takes everything it is given and paints nothing,
+// so a measurement is of the arrangement and not of a payload.
+func fillSlot(gtx layout.Context) layout.Dimensions {
+	return layout.Dimensions{Size: gtx.Constraints.Max}
+}
+
+// railColumn lays the rail's own column out at the size the context gives,
+// the way the pane does: the strip reserved and drawn last, the find field
+// under it, the rows under that, and the window's Toggle Sidebar button
+// bare at the strip's trailing corner.
+func railColumn(gtx layout.Context, v *treeView, m Model, tok themeTokens,
+	fieldW layout.Widget, toggle *shell.ToggleSidebar) (layout.Dimensions, shell.PaneColumnLayout) {
+	col := v.column(func() Model { return m }, func() themeTokens { return tok }, fieldW)
+	return col.Layout(gtx, tok.col, goldenToolbarLead, toggle)
+}
+
+// resolveColumn pulls the first pane column a sidebar stream emits, the way
+// components/golden pulls the first value a slot stream emits.
+func resolveColumn(obs rx.Observable[shell.PaneColumn]) (shell.PaneColumn, error) {
+	var col shell.PaneColumn
+	_, err := golden.Resolve(rx.Map(obs, func(c shell.PaneColumn) layout.Widget {
+		col = c
+		return fillSlot
+	}))
+	return col, err
+}
+
+// paneSlot is a pane column of the same shape, recording the width the pane
+// handed its rows — which is the only place a caller can read that back
+// from.
+func paneSlot(w *int) shell.PaneColumn {
+	return shell.PaneColumn{Rows: func(gtx layout.Context) layout.Dimensions {
+		if w != nil {
+			*w = gtx.Constraints.Max.X
+		}
+		return layout.Dimensions{Size: gtx.Constraints.Max}
+	}}
 }
 
 // TestToolbarDeclaresWindowDrag asserts what the chrome row declares to
@@ -58,96 +100,80 @@ func goldenTokens() themeTokens {
 // composed row rather than the ops in isolation.
 func TestToolbarDeclaresWindowDrag(t *testing.T) {
 	tok := goldenTokens()
-	rowW := 1100
-	rowH := int(toolbarHeight())
-
-	// The hidden row lays out past the buttons, which stand at the
-	// window's own inset in both rail states — so the probe pins the one
-	// measurement there is.
-	const lead = goldenLeading
-	// The band's leading cluster: the navigation and the document's name
-	// one measured gap after it. The row lays out from its own edge inset
-	// with the pane standing, and from the buttons' reported edge with the
-	// pane away, where the show toggle stands first.
-	nameW := bandTrailWidth(newFrameState(defaultWidths()), goldenModel(), goldenTokens(), rowW)
 	const ctrl = railToggleWidthDp
 	nav := 2*ctrl + 1
+
 	for _, c := range []struct {
-		name     string
-		hidden   bool
-		lead     unit.Dp
-		start    int
-		controls []int
+		name   string
+		hidden bool
 	}{
-		{
-			name: "rail shown", hidden: false, lead: 0,
-			// With the pane standing the row starts at its own edge inset
-			// and the window's navigation is its first control. The find's
-			// slot keeps its open width whether the find is open or shut, so
-			// the capsule in it is at the slot's trailing end.
-			start: noteInsetDp,
-			controls: []int{
-				noteInsetDp + ctrl/2,           // the back segment
-				rowW - bandTrailingDp - ctrl/2, // the find's capsule
-			},
-		},
-		{
-			name: "rail hidden", hidden: true, lead: lead,
-			// The show toggle stands first, then the same cluster after it.
-			start: lead + ctrl + int(goldenTokens().sp.S3),
-			controls: []int{
-				lead + ctrl/2, // the show toggle
-			},
-		},
+		{name: "rail shown", hidden: false},
+		{name: "rail hidden", hidden: true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			var ops op.Ops
 			gtx := layout.Context{
-				Constraints: layout.Exact(image.Pt(rowW, rowH)),
+				Constraints: layout.Exact(image.Pt(windowW, windowH)),
 				Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 				Ops:         &ops,
 			}
 			m := goldenModel()
 			m.SidebarHidden = c.hidden
-			f := newFrameState(defaultWidths())
-			f.layoutToolbar(gtx, m, tok, c.lead)
+			f := newFrameState(defaultArrangement())
+			f.leading = func() unit.Dp { return goldenLeading }
+			f.layout(gtx, m, tok, paneSlot(nil), fillSlot, nil)
 
 			var r input.Router
 			r.Frame(&ops)
 			// Probed on the window buttons' own centre line, which is
-			// where the row's controls stand: a probe on the row's middle
-			// would ask about a control from above it and be told, quite
-			// correctly, that nothing is there.
+			// where the toolbar's controls stand: a probe on the row's
+			// middle would ask about a control from above it and be told,
+			// quite correctly, that nothing is there.
 			moveAt := func(x int) bool {
 				a, ok := r.ActionAt(f32.Pt(float32(x), float32(windowButtons.Center)))
 				return ok && a == system.ActionMove
 			}
 
-			// The bare band between the document's name and the find's slot
+			// Where the leading cluster starts: the content column's own
+			// edge inset with the pane standing, and past the window
+			// buttons with it away, where the show toggle stands first.
+			contentX := f.geom.ContentX
+			start := contentX + noteInsetDp
+			lead := 0
+			if c.hidden {
+				lead = int(goldenToolbarLead)
+				start = lead + ctrl + toolbarControlGapDp
+			}
+			nameW := bandTrailWidth(f, m, tok, windowW-contentX)
+
+			// The bare run between the document's name and the find's slot
 			// is the largest empty stretch, and the one a hand reaches for.
 			// Its own two ends are probed: the column after the trail and
-			// the one before the find's slot begins. The band's trailing
-			// inset moves the window too, so the probe ends on the row's
-			// last dp.
-			clusterEnd := c.start + nav + bandNameGapDp + nameW
-			slotLo := rowW - bandTrailingDp - int(findFieldDp)
+			// the one before the find's slot begins. The trailing gutter
+			// moves the window too, so the probe ends on the row's last dp.
+			clusterEnd := start + nav + toolbarTitleGapDp + nameW
+			slotLo := windowW - toolbarTrailDp - int(findFieldDp)
 			// The reserved room inside the find's own slot moves the window
-			// too: shut, the slot is band with a capsule at its trailing end.
-			slack := rowW - bandTrailingDp - railToggleWidthDp - 20
-			for _, x := range []int{clusterEnd + 20, slotLo - 20, slack, rowW - 1} {
+			// too: shut, the slot is bare with a capsule at its trailing end.
+			slack := windowW - toolbarTrailDp - railToggleWidthDp - 20
+			for _, x := range []int{clusterEnd + 20, slotLo - 20, slack, windowW - 1} {
 				if !moveAt(x) {
-					t.Errorf("no window-move action at x=%d; the row holds no control there, so it must move the window", x)
+					t.Errorf("no window-move action at x=%d; the toolbar holds no control there, so it must move the window", x)
 				}
 			}
 			// Every control's own span belongs to the control.
-			for _, x := range c.controls {
+			controls := []int{start + ctrl/2, windowW - toolbarTrailDp - ctrl/2}
+			if c.hidden {
+				controls = append(controls, lead+ctrl/2)
+			}
+			for _, x := range controls {
 				if moveAt(x) {
 					t.Errorf("window-move action at x=%d; a control's own span must not move the window", x)
 				}
 			}
 			// The window buttons' own span is nobody's to claim: a move
 			// action there would fight them for the press.
-			if c.lead > 0 && moveAt(int(c.lead)/2) {
+			if c.hidden && moveAt(lead/2) {
 				t.Error("window-move action over the window buttons' own span")
 			}
 		})
@@ -173,43 +199,54 @@ func TestRailRunsToTheWindowTop(t *testing.T) {
 	const barH = 28
 	const footH = 24
 
-	shown := frameGeometry(gtx, size, treeWidthDp, barH, footH, false)
-	if shown.pane.Empty() {
+	measure := func(hidden bool) shell.PaneLayout {
+		return shell.TwoColumn{
+			PaneWidth:   treeWidthDp,
+			PaneHidden:  hidden,
+			Toolbar:     shell.Toolbar{Metrics: shell.ToolbarMetrics{Depth: barH}},
+			Main:        fillSlot,
+			Footer:      fillSlot,
+			FooterDepth: footH,
+		}.Measure(gtx, size)
+	}
+
+	shown := measure(false)
+	if shown.Pane.Empty() {
 		t.Fatal("no rail pane with the rail shown")
 	}
-	if want := (image.Pt(railMarginDp, railMarginDp)); shown.pane.Min != want {
-		t.Errorf("pane starts at %v, want %v — one margin inside the window's top-leading corner, with the window's own plane above it", shown.pane.Min, want)
+	if want := (image.Pt(railMarginDp, railMarginDp)); shown.Pane.Min != want {
+		t.Errorf("pane starts at %v, want %v — one margin inside the window's top-leading corner, with the window's own plane above it", shown.Pane.Min, want)
 	}
-	if want := size.Y - railMarginDp; shown.pane.Max.Y != want {
-		t.Errorf("pane bottom at y=%d, want %d — one margin above the window's bottom edge", shown.pane.Max.Y, want)
+	if want := size.Y - railMarginDp; shown.Pane.Max.Y != want {
+		t.Errorf("pane bottom at y=%d, want %d — one margin above the window's bottom edge", shown.Pane.Max.Y, want)
 	}
-	if w := shown.pane.Dx(); w != treeWidthDp {
+	if w := shown.Pane.Dx(); w != treeWidthDp {
 		t.Errorf("pane width %d, want the rail's own %d", w, treeWidthDp)
 	}
-	if shown.contentX != shown.pane.Max.X {
-		t.Errorf("content area starts at x=%d, want the pane's trailing edge %d", shown.contentX, shown.pane.Max.X)
+	if shown.ContentX != shown.Pane.Max.X {
+		t.Errorf("content area starts at x=%d, want the pane's trailing edge %d", shown.ContentX, shown.Pane.Max.X)
 	}
-	if shown.rowTop != barH {
-		t.Errorf("the content area's first document row starts at y=%d, want %d — below its own chrome row and nothing else", shown.rowTop, barH)
+	if shown.RowTop != barH {
+		t.Errorf("the content area's first document row starts at y=%d, want %d — below its own toolbar and nothing else", shown.RowTop, barH)
 	}
 	// The status bar is the content area's own foot and the rail is not
 	// measured against it: the rail runs to the window's bottom edge
 	// whatever the content area spends down there.
-	if want := size.Y - footH; shown.footTop != want {
-		t.Errorf("the status bar starts at y=%d, want %d — one bar above the window's bottom edge", shown.footTop, want)
+	if want := size.Y - footH; shown.FootTop != want {
+		t.Errorf("the status bar starts at y=%d, want %d — one bar above the window's bottom edge", shown.FootTop, want)
 	}
-	if got := shown.rowTop + shown.rowH; got != shown.footTop {
-		t.Errorf("the content area's columns end at y=%d and the status bar starts at y=%d; they must meet", got, shown.footTop)
+	if got := shown.RowTop + shown.RowH; got != shown.FootTop {
+		t.Errorf("the content area's columns end at y=%d and the status bar starts at y=%d; they must meet", got, shown.FootTop)
 	}
 
-	hidden := frameGeometry(gtx, size, treeWidthDp, barH, footH, true)
-	if !hidden.pane.Empty() {
-		t.Errorf("rail pane %v with the rail hidden, want none", hidden.pane)
+	hidden := measure(true)
+	if !hidden.Pane.Empty() {
+		t.Errorf("rail pane %v with the rail hidden, want none", hidden.Pane)
 	}
-	if hidden.contentX != 0 {
-		t.Errorf("note column starts at x=%d with the rail hidden, want the window's own edge", hidden.contentX)
+	if hidden.ContentX != 0 {
+		t.Errorf("note column starts at x=%d with the rail hidden, want the window's own edge", hidden.ContentX)
 	}
-	if hidden.rowH != shown.rowH || hidden.rowTop != shown.rowTop || hidden.footTop != shown.footTop {
+	if hidden.RowH != shown.RowH || hidden.RowTop != shown.RowTop || hidden.FootTop != shown.FootTop {
 		t.Errorf("hiding the rail moved the content row: %+v vs %+v", hidden, shown)
 	}
 
@@ -218,8 +255,8 @@ func TestRailRunsToTheWindowTop(t *testing.T) {
 	narrow := image.Pt(200, 800)
 	ngtx := gtx
 	ngtx.Constraints = layout.Exact(narrow)
-	if g := frameGeometry(ngtx, narrow, treeWidthDp, barH, footH, false); g.pane.Dx() > narrow.X/2 {
-		t.Errorf("pane %v takes more than half of a %d dp window", g.pane, narrow.X)
+	if g := (shell.TwoColumn{PaneWidth: treeWidthDp, Main: fillSlot}).Measure(ngtx, narrow); g.Pane.Dx() > narrow.X/2 {
+		t.Errorf("pane %v takes more than half of a %d dp window", g.Pane, narrow.X)
 	}
 }
 
@@ -250,14 +287,14 @@ func TestPaneFocusOrder(t *testing.T) {
 		Source:      r.Source(),
 		Ops:         &ops,
 	}
-	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
-	var field widget.Clickable
+	v := &treeView{list: list.NewState()}
+	var field, hide widget.Clickable
 	fieldW := func(gtx layout.Context) layout.Dimensions {
 		return field.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 24)}
 		})
 	}
-	v.layout(gtx, goldenModel(), tok, fieldW)
+	railColumn(gtx, v, goldenModel(), tok, fieldW, railToggle(&hide, nil))
 
 	r.Frame(&ops)
 	src := r.Source()
@@ -269,7 +306,7 @@ func TestPaneFocusOrder(t *testing.T) {
 		{"the rail's rows", v.list.Focus()},
 		{"the pane's rescan", &v.rescanClick},
 		{"the pane's vault switch", &v.switchClick},
-		{"the pane's own toggle", &v.hideClick},
+		{"the pane's own toggle", &hide},
 	}
 	first := map[string]int{}
 	for i := range 64 {
@@ -316,19 +353,18 @@ func TestPaneStripClaimsInsideTheRail(t *testing.T) {
 		Source:      r.Source(),
 		Ops:         &ops,
 	}
-	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
-	sb := func(gtx layout.Context) layout.Dimensions {
-		return v.layout(gtx, goldenModel(), tok, nil)
-	}
-	f := newFrameState(defaultWidths())
+	v := &treeView{list: list.NewState()}
+	f := newFrameState(defaultArrangement())
 	f.leading = func() unit.Dp { return goldenLeading }
+	m := goldenModel()
+	col := v.column(func() Model { return m }, func() themeTokens { return tok }, nil)
 	frame := func() {
-		f.layout(gtx, goldenModel(), tok, sb, nil, nil)
+		f.layout(gtx, m, tok, col, fillSlot, nil)
 		r.Frame(&ops)
 	}
 	frame()
 
-	pane := f.geom.pane
+	pane := f.geom.Pane
 	stripY := float32(pane.Min.Y) + float32(paneStripDp)/2
 	middle := f32.Pt(float32(pane.Min.X+120), stripY)
 	// The toggle stands BARE at the pane's top trailing corner, one margin
@@ -347,7 +383,7 @@ func TestPaneStripClaimsInsideTheRail(t *testing.T) {
 	r.Queue(pointer.Event{Kind: pointer.Move, Position: toggle, Source: pointer.Mouse})
 	ops.Reset()
 	frame()
-	if !v.hideClick.Hovered() {
+	if !f.toggleClick.Hovered() {
 		t.Errorf("a pointer at %v does not reach the pane's toggle through the inset and the rounded clip", toggle)
 	}
 }
@@ -369,8 +405,8 @@ type paneStripFrame struct {
 
 func newPaneStripFrame(hidden bool) *paneStripFrame {
 	p := &paneStripFrame{
-		v: &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }},
-		f: newFrameState(defaultWidths()),
+		v: &treeView{list: list.NewState()},
+		f: newFrameState(defaultArrangement()),
 		m: goldenModel(),
 	}
 	p.m.SidebarHidden = hidden
@@ -388,8 +424,8 @@ func newPaneStripFrame(hidden bool) *paneStripFrame {
 func (p *paneStripFrame) frame() {
 	tok := goldenTokens()
 	p.ops.Reset()
-	sb := func(gtx layout.Context) layout.Dimensions { return p.v.layout(gtx, p.m, tok, nil) }
-	p.f.layout(p.gtx, p.m, tok, sb, nil, nil)
+	col := p.v.column(func() Model { return p.m }, func() themeTokens { return tok }, nil)
+	p.f.layout(p.gtx, p.m, tok, col, fillSlot, nil)
 	p.r.Frame(&p.ops)
 }
 
@@ -433,11 +469,11 @@ func TestThePaneStripStandsItsMarksBeforeTheToggle(t *testing.T) {
 	p.frame()
 	p.frame()
 
-	region := p.f.geom.pane
+	region := p.f.geom.Pane
 	stripY := region.Min.Y + paneStripDp/2
 	rescanLo, rescanHi := p.spanIn(region.Min.X, region.Max.X, stripY, &p.v.rescanClick)
 	switchLo, switchHi := p.spanIn(region.Min.X, region.Max.X, stripY, &p.v.switchClick)
-	hideLo, hideHi := p.spanIn(region.Min.X, region.Max.X, stripY, &p.v.hideClick)
+	hideLo, hideHi := p.spanIn(region.Min.X, region.Max.X, stripY, &p.f.toggleClick)
 
 	for _, c := range []struct {
 		name   string
@@ -507,7 +543,7 @@ func TestThePaneMarksPostTheVaultsActions(t *testing.T) {
 			p.frame()
 			p.frame()
 
-			region := p.f.geom.pane
+			region := p.f.geom.Pane
 			x := float32(region.Max.X - railMarginDp - markLargeDp/2 - c.back*paneMarkStride)
 			at := f32.Pt(x, float32(region.Min.Y)+float32(paneStripDp)/2)
 			p.posted = nil
@@ -582,8 +618,8 @@ func TestWithThePaneAwayTheRowHoldsTheToggleAlone(t *testing.T) {
 	if lo < 0 {
 		t.Fatal("the chrome row holds no toggle to bring the pane back")
 	}
-	if lo != goldenLeading {
-		t.Errorf("the row's toggle leads at %d, want the leading end at the window buttons' measured edge of %d", lo, goldenLeading)
+	if want := int(goldenToolbarLead); lo != want {
+		t.Errorf("the toolbar's toggle leads at %d, want the shell's leading rule over the window buttons' measured edge, %d", lo, want)
 	}
 	if w := hi - lo + 1; w != railToggleWidthDp {
 		t.Errorf("the row's toggle is %d dp wide, want the bordered toolbar control's %d", w, railToggleWidthDp)
@@ -622,34 +658,34 @@ func postedOneOf(got []mvu.Message, want mvu.Message) bool {
 }
 
 // TestTheRowRecallsTheHiddenPane asserts the one thing the pane's own
-// toggle cannot do: bring the pane back. With the rail hidden the chrome
-// row carries a toggle of its own, and the keyboard reaches it — a pane
-// only a pointer can recall is a pane half the window's users cannot
-// recall. With the rail shown the row carries no such control, because
-// the pane's own is right there.
+// corner cannot do: bring the pane back. The Toggle Sidebar button is one
+// control with two places — bare at the pane's trailing corner while the
+// rail stands, bordered at the toolbar's leading end once it is away — and
+// the keyboard reaches it in both, since a pane only a pointer can recall
+// is a pane half the window's users cannot recall.
 func TestTheRowRecallsTheHiddenPane(t *testing.T) {
 	tok := goldenTokens()
 	for _, c := range []struct {
 		name   string
 		hidden bool
-		want   bool
 	}{
-		{"rail hidden", true, true},
-		{"rail shown", false, false},
+		{"rail hidden", true},
+		{"rail shown", false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			var ops op.Ops
 			var r input.Router
 			gtx := layout.Context{
-				Constraints: layout.Exact(image.Pt(860, int(toolbarHeight()))),
+				Constraints: layout.Exact(image.Pt(windowW, windowH)),
 				Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 				Source:      r.Source(),
 				Ops:         &ops,
 			}
 			m := goldenModel()
 			m.SidebarHidden = c.hidden
-			f := newFrameState(defaultWidths())
-			f.layoutToolbar(gtx, m, tok, 0)
+			f := newFrameState(defaultArrangement())
+			f.leading = func() unit.Dp { return goldenLeading }
+			f.layout(gtx, m, tok, paneSlot(nil), fillSlot, nil)
 
 			r.Frame(&ops)
 			src := r.Source()
@@ -660,8 +696,16 @@ func TestTheRowRecallsTheHiddenPane(t *testing.T) {
 					seen = true
 				}
 			}
-			if seen != c.want {
-				t.Errorf("the chrome row's rail toggle operable=%v, want %v", seen, c.want)
+			if !seen {
+				t.Error("the keyboard never reaches the Toggle Sidebar button; a pane only a pointer can recall is half a pane")
+			}
+			// And it stands in one place per state: on the pane while the
+			// rail is there, in the toolbar once it is away.
+			if c.hidden && !f.geom.Pane.Empty() {
+				t.Error("the pane still stands with the rail hidden")
+			}
+			if !c.hidden && f.geom.Pane.Empty() {
+				t.Error("the pane is gone with the rail shown")
 			}
 		})
 	}
@@ -672,7 +716,7 @@ func TestTheRowRecallsTheHiddenPane(t *testing.T) {
 // nothing more: 52, the depth every stored toolbar capture measures and the
 // band the rail's pane is set one margin into — the single chrome row's
 // full height and no room for a second thing above it.
-const chromeBudgetDp = bandDp
+var chromeBudgetDp = toolbarDepthDp
 
 // TestChromeBudget holds the vault window's chrome to that budget, by
 // laying the whole window out at the size it opens at and asking the frame
@@ -694,7 +738,7 @@ func TestChromeBudget(t *testing.T) {
 	shown := goldenModel()
 	hidden := shown
 	hidden.SidebarHidden = true
-	row := int(toolbarHeight())
+	row := toolbarDepthDp
 
 	for _, c := range []struct {
 		name  string
@@ -708,18 +752,18 @@ func TestChromeBudget(t *testing.T) {
 				goldenRadius, tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			drawOnce(t, windowFrameSize, w)
 
-			if st.geom.rowTop > chromeBudgetDp {
+			if st.geom.RowTop > chromeBudgetDp {
 				t.Errorf("the content area spends %d dp above its first document row, over the %d dp budget — a band has come back",
-					st.geom.rowTop, chromeBudgetDp)
+					st.geom.RowTop, chromeBudgetDp)
 			}
-			if st.geom.rowTop != row {
+			if st.geom.RowTop != row {
 				t.Errorf("the content area spends %d dp above its first document row, want the chrome row's own %d dp — nothing else may stand there",
-					st.geom.rowTop, row)
+					st.geom.RowTop, row)
 			}
 			// The sidebar's own budget: its margin and nothing else.
 			// Anything more above the pane would be a chrome band.
-			if !st.geom.pane.Empty() && st.geom.pane.Min.Y != railMarginDp {
-				t.Errorf("the sidebar's pane starts at y=%d, want its own margin %d and nothing above it but the window's surface", st.geom.pane.Min.Y, railMarginDp)
+			if !st.geom.Pane.Empty() && st.geom.Pane.Min.Y != railMarginDp {
+				t.Errorf("the sidebar's pane starts at y=%d, want its own margin %d and nothing above it but the window's surface", st.geom.Pane.Min.Y, railMarginDp)
 			}
 		})
 	}
@@ -733,17 +777,16 @@ func TestChromeBudget(t *testing.T) {
 // a toast lands on the vault's own controls or floats a band below them,
 // which is the same class of defect as the band itself.
 func TestChromeHeightMatchesTheRow(t *testing.T) {
-	row := toolbarHeight()
+	row := unit.Dp(shell.ToolbarDepth)
 	// What the vault screen states on every emission that selects it: the
 	// chrome band is the row's height, and the buttons sit at the window's
 	// own inset.
 	topBand.Store(row)
-	placeWindowButtons(buttonPlacementFor(goldenModel()))
 	if got := chromeHeight(); got != row {
 		t.Errorf("the overlays are inset by %v dp while the content row starts at %v dp", got, row)
 	}
-	if row > chromeBudgetDp {
-		t.Errorf("the chrome row alone is %v dp, over the %d dp budget", row, chromeBudgetDp)
+	if int(row) > chromeBudgetDp {
+		t.Errorf("the toolbar alone is %v dp, over the %d dp budget", row, chromeBudgetDp)
 	}
 }
 
@@ -765,12 +808,11 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 	hidden := shown
 	hidden.SidebarHidden = true
 
-	want := buttonPlacement{leading: windowButtons.Leading, center: windowButtons.Center}
-	if got := buttonPlacementFor(shown); got != want {
-		t.Errorf("with the pane standing the buttons are placed at %+v, want %+v — the window's own inset", got, want)
+	if !standsInTheStrip(shown) {
+		t.Error("with the pane standing the window asks for no placement of its own; the buttons stand at the window's own inset")
 	}
-	if got := buttonPlacementFor(hidden); got != want {
-		t.Errorf("with the pane away the buttons are placed at %+v, want %+v — dismissing the pane moved a control that is not the pane's", got, want)
+	if !standsInTheStrip(hidden) {
+		t.Error("with the pane away the window asks for no placement; dismissing the pane moved a control that is not the pane's")
 	}
 
 	// The buttons' band in the PANE's own coordinates, which the pane's
@@ -789,7 +831,7 @@ func TestWindowButtonsStandStillWhenThePaneGoes(t *testing.T) {
 	if mid := railMarginDp + paneStripDp/2; unit.Dp(mid) != windowButtons.Center {
 		t.Errorf("the strip's middle line is y=%d in the window and the buttons' is y=%v; the pane's toggle centres on the strip and would sit off their line", mid, windowButtons.Center)
 	}
-	if mid := bandDp / 2; unit.Dp(mid) != windowButtons.Center {
+	if mid := toolbarDepthDp / 2; unit.Dp(mid) != windowButtons.Center {
 		t.Errorf("the band's middle line is y=%d and the buttons' is y=%v; a control centred in the band would sit off their line", mid, windowButtons.Center)
 	}
 }
@@ -813,7 +855,7 @@ func TestTheRailIsAnInsetPane(t *testing.T) {
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
-			rail := st.geom.pane
+			rail := st.geom.Pane
 			if rail.Empty() {
 				t.Fatal("the window laid out no rail to read")
 			}
@@ -901,7 +943,7 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 			// stops at its lower edge the way the rail's does: above that
 			// row the column's own fill runs on, and the seam starts under
 			// it.
-			for y := 0; y < bandDp; y++ {
+			for y := 0; y < toolbarDepthDp; y++ {
 				if got := img.RGBAAt(asideX, y); sameColor(got, splitter.SeamColor(tc.colors, color.NRGBA{})) {
 					t.Fatalf("the column's seam is drawn at y=%d, inside the toolbar band — the band is one across the window's columns and no line crosses it", y)
 				}
@@ -912,7 +954,7 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 			// (reference/macos/controls.md), and the band's action cluster
 			// now stands over this boundary: the rows immediately under the
 			// band carry the shadow and not the seam's own colour.
-			for y := bandDp + toolbarShadowReachDp; y < windowH; y++ {
+			for y := toolbarDepthDp + toolbarShadowReachDp; y < windowH; y++ {
 				if got := img.RGBAAt(asideX, y); !sameColor(got, splitter.SeamColor(tc.colors, color.NRGBA{})) {
 					t.Fatalf("the column's seam at y=%d draws %v, want the seam %v — the seam runs from the band's foot to the window's",
 						y, got, splitter.SeamColor(tc.colors, color.NRGBA{}))
@@ -923,7 +965,7 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 				}
 			}
 			// One pixel wide: the column's own fill starts immediately.
-			if got := img.RGBAAt(asideX+seamDp, st.geom.footTop-1); !sameColor(got, floor) {
+			if got := img.RGBAAt(asideX+seamDp, st.geom.FootTop-1); !sameColor(got, floor) {
 				t.Errorf("one pixel past the seam draws %v, want the column's floor %v", got, floor)
 			}
 		})
@@ -950,8 +992,8 @@ type dragFrame struct {
 	slot int
 }
 
-func newDragFrame(size image.Point, w columnWidths) *dragFrame {
-	d := &dragFrame{f: newFrameState(w), size: size}
+func newDragFrame(size image.Point, a shell.Arrangement) *dragFrame {
+	d := &dragFrame{f: newFrameState(a), size: size}
 	d.f.leading = func() unit.Dp { return goldenLeading }
 	d.gtx = layout.Context{
 		Constraints: layout.Exact(size),
@@ -964,11 +1006,7 @@ func newDragFrame(size image.Point, w columnWidths) *dragFrame {
 
 func (d *dragFrame) frame() {
 	d.ops.Reset()
-	sb := func(gtx layout.Context) layout.Dimensions {
-		d.slot = gtx.Constraints.Max.X
-		return layout.Dimensions{Size: gtx.Constraints.Max}
-	}
-	d.f.layout(d.gtx, goldenModel(), goldenTokens(), sb, nil, nil)
+	d.f.layout(d.gtx, goldenModel(), goldenTokens(), paneSlot(&d.slot), fillSlot, nil)
 	d.r.Frame(&d.ops)
 }
 
@@ -978,7 +1016,7 @@ func (d *dragFrame) frame() {
 func (d *dragFrame) drag(x, by float32) {
 	d.frame()
 	d.frame()
-	y := float32(d.f.geom.rowTop + d.f.geom.rowH/2)
+	y := float32(d.f.geom.RowTop + d.f.geom.RowH/2)
 	d.r.Queue(
 		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x, y)},
 		pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x+by, y)},
@@ -994,15 +1032,15 @@ func (d *dragFrame) drag(x, by float32) {
 // column would be a rail widened into nothing.
 func TestTheRailEdgeIsDraggedAndItsColumnFollows(t *testing.T) {
 	const pull = 40
-	d := newDragFrame(image.Pt(windowW, windowH), defaultWidths())
+	d := newDragFrame(image.Pt(windowW, windowH), defaultArrangement())
 	d.frame()
-	edge := d.f.geom.pane.Max.X
+	edge := d.f.geom.Pane.Max.X
 	d.drag(float32(edge-seamDp), pull)
 
 	if got, want := d.f.railW, unit.Dp(treeWidthDp+pull); got != want {
 		t.Fatalf("the drag left the rail at %v dp, want %v", got, want)
 	}
-	if got, want := d.f.geom.pane.Dx(), treeWidthDp+pull; got != want {
+	if got, want := d.f.geom.Pane.Dx(), treeWidthDp+pull; got != want {
 		t.Errorf("the pane draws %d px wide, want %d — the pane is not where its own edge was dragged to", got, want)
 	}
 	if got, want := d.slot, treeWidthDp+pull; got != want {
@@ -1019,13 +1057,13 @@ func TestTheAsideEdgeIsDraggedByTheRowAlone(t *testing.T) {
 	const pull = 40
 	size := image.Pt(windowW, windowH)
 
-	over := newDragFrame(size, defaultWidths())
+	over := newDragFrame(size, defaultArrangement())
 	over.frame()
 	over.frame()
 	x := float32(size.X - frameAsideDp)
 	// The chrome row's own middle, on the seam's line: over the seam, and
 	// over a band the boundary does not part.
-	y := float32(over.f.geom.rowTop / 2)
+	y := float32(over.f.geom.RowTop / 2)
 	over.r.Queue(
 		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x, y)},
 		pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x-pull, y)},
@@ -1036,7 +1074,7 @@ func TestTheAsideEdgeIsDraggedByTheRowAlone(t *testing.T) {
 		t.Errorf("a drag begun in the chrome row left the aside at %v dp, want the untouched %v", got, unit.Dp(frameAsideDp))
 	}
 
-	in := newDragFrame(size, defaultWidths())
+	in := newDragFrame(size, defaultArrangement())
 	in.drag(x, -pull)
 	if got, want := in.f.asideW, unit.Dp(frameAsideDp+pull); got != want {
 		t.Errorf("a drag begun in the document row left the aside at %v dp, want %v", got, want)
@@ -1051,16 +1089,16 @@ func TestTheNoteKeepsItsMinimumBetweenTheTwoBoundaries(t *testing.T) {
 	size := image.Pt(windowW, windowH)
 	gap := frameSplitterDp
 
-	rail := newDragFrame(size, defaultWidths())
+	rail := newDragFrame(size, defaultArrangement())
 	rail.frame()
-	rail.drag(float32(rail.f.geom.pane.Max.X-seamDp), 400)
+	rail.drag(float32(rail.f.geom.Pane.Max.X-seamDp), 400)
 	// The pane's own margin comes off what is left for the three columns:
 	// it stands one margin inside the window's leading edge.
 	if got, want := int(rail.f.railW), windowW-railMarginDp-gap-frameAsideDp-noteMinWidthDp; got != want {
 		t.Errorf("the rail dragged past the note's minimum stopped at %d dp, want %d", got, want)
 	}
 
-	aside := newDragFrame(size, defaultWidths())
+	aside := newDragFrame(size, defaultArrangement())
 	aside.drag(float32(size.X-frameAsideDp), -400)
 	if got, want := int(aside.f.asideW), windowW-railMarginDp-treeWidthDp-gap-noteMinWidthDp; got != want {
 		t.Errorf("the aside dragged past the note's minimum stopped at %d dp, want %d", got, want)
@@ -1080,7 +1118,7 @@ func TestTheRailEdgeDrawsNoSecondLine(t *testing.T) {
 			w, st := renderWindow(shaper, m, tc.colors, tokens.Spacing, goldenRadius,
 				tokens.DefaultTypography, tokens.Comfortable, unit.Dp(goldenLeading))
 			img := golden.Capture(t, windowFrameSize, windowScene(w, tc.colors))
-			p := st.geom.pane
+			p := st.geom.Pane
 			if p.Empty() {
 				t.Fatal("the window laid out no pane to read")
 			}
@@ -1140,7 +1178,7 @@ type bandFrame struct {
 }
 
 func newBandFrame() *bandFrame {
-	b := &bandFrame{f: newFrameState(defaultWidths()), m: goldenModel(), size: image.Pt(windowW, windowH)}
+	b := &bandFrame{f: newFrameState(defaultArrangement()), m: goldenModel(), size: image.Pt(windowW, windowH)}
 	b.f.leading = func() unit.Dp { return goldenLeading }
 	b.f.band = bandFind{find: &b.find}
 	b.find.post = func(_ layout.Context, msg mvu.Message) { b.posted = append(b.posted, msg) }
@@ -1155,7 +1193,7 @@ func newBandFrame() *bandFrame {
 
 func (b *bandFrame) frame() {
 	b.ops.Reset()
-	b.f.layout(b.gtx, b.m, goldenTokens(), nil, nil, nil)
+	b.f.layout(b.gtx, b.m, goldenTokens(), paneSlot(nil), fillSlot, nil)
 	b.r.Frame(&b.ops)
 	for _, msg := range b.posted {
 		b.m, _ = Update(b.m, msg)
@@ -1194,9 +1232,9 @@ func bandTrailWidth(f *frameState, m Model, tok themeTokens, rowW int) int {
 	// The room the row's flex hands the trail: the row less what stands
 	// before it, with Min zero, which is what a Rigid child is laid out
 	// under and what lets the trail report its own width.
-	room := rowW - noteInsetDp - (2*railToggleWidthDp + 1) - bandNameGapDp
+	room := rowW - noteInsetDp - (2*railToggleWidthDp + 1) - toolbarTitleGapDp
 	gtx := layout.Context{
-		Constraints: layout.Constraints{Max: image.Pt(room, int(toolbarHeight()))},
+		Constraints: layout.Constraints{Max: image.Pt(max(room, 0), toolbarDepthDp)},
 		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 		Ops:         &ops,
 	}
@@ -1243,7 +1281,7 @@ func TestTheBandOpensTheFind(t *testing.T) {
 	b.frame()
 
 	const ctrl = railToggleWidthDp
-	at := f32.Pt(float32(windowW-bandTrailingDp-ctrl/2), float32(paneStripDp)/2)
+	at := f32.Pt(float32(windowW-toolbarTrailDp-ctrl/2), float32(paneStripDp)/2)
 	b.r.Queue(
 		pointer.Event{Kind: pointer.Press, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary},
 		pointer.Event{Kind: pointer.Release, Position: at, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary},
@@ -1291,22 +1329,22 @@ func TestTheBandComposesLikeTheStoredWindows(t *testing.T) {
 	// band, the run the row flexes: the slot's leading edge is its own
 	// fixed trailing end less the width the open recess takes, and the
 	// cluster before it does not reach it.
-	trail := bandTrailWidth(b.f, b.m, goldenTokens(), windowW-int(b.f.geom.contentX))
-	nameEnd := int(b.f.geom.contentX) + noteInsetDp + 2*railToggleWidthDp + 1 + bandNameGapDp + trail
-	slotLo := windowW - bandTrailingDp - int(findFieldDp)
+	trail := bandTrailWidth(b.f, b.m, goldenTokens(), windowW-int(b.f.geom.ContentX))
+	nameEnd := int(b.f.geom.ContentX) + noteInsetDp + 2*railToggleWidthDp + 1 + toolbarTitleGapDp + trail
+	slotLo := windowW - toolbarTrailDp - int(findFieldDp)
 	if nameEnd >= slotLo {
 		t.Errorf("the document's name runs to %d and the find's slot begins at %d; the cluster stands clear of the slot",
 			nameEnd, slotLo)
 	}
-	if got := windowW - findHi - 1; got != bandTrailingDp {
+	if got := windowW - findHi - 1; got != toolbarTrailDp {
 		t.Errorf("the band's last control ends %d dp from the window's trailing edge, want the measured %d",
-			got, bandTrailingDp)
+			got, toolbarTrailDp)
 	}
 	// The navigation is the segmented pair Finder keeps at the leading end of
 	// the content column's share: two segments of the bordered control's own
 	// width with one hairline between them, the whole standing on the note
 	// column's own edge inset.
-	if want := int(b.f.geom.contentX) + noteInsetDp; navLo != want {
+	if want := int(b.f.geom.ContentX) + noteInsetDp; navLo != want {
 		t.Errorf("the navigation leads at %d, want the content column's own edge inset at %d", navLo, want)
 	}
 	if got, want := fwdHi-navLo+1, 2*railToggleWidthDp+1; got != want {

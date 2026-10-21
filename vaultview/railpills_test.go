@@ -12,6 +12,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
+	"gioui.org/widget"
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
@@ -29,8 +30,13 @@ import (
 func railPillFrames(t *testing.T, colors tokens.PlatformColors, bg color.NRGBA) (bare, held *image.RGBA) {
 	t.Helper()
 	shaper := tokens.DefaultTypography.DeterministicShaper()
-	w := renderTree(shaper, goldenModel(), colors, tokens.Spacing, goldenRadius,
-		tokens.DefaultTypography, tokens.Comfortable, goldenLeading)
+	col := renderTree(shaper, goldenModel(), colors, tokens.Spacing, goldenRadius,
+		tokens.DefaultTypography, tokens.Comfortable)
+	toggle := railToggle(new(widget.Clickable), nil)
+	w := func(gtx layout.Context) layout.Dimensions {
+		dims, _ := col.Layout(gtx, colors, goldenToolbarLead, toggle)
+		return dims
+	}
 	r := new(input.Router)
 	ops := new(op.Ops)
 	drive := func() {
@@ -153,7 +159,7 @@ func newTreeTabFrame() *treeTabFrame {
 	m := treeModel()
 	m.Folds = map[string]bool{}
 	return &treeTabFrame{
-		v:      &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }},
+		v:      &treeView{list: list.NewState()},
 		model:  m,
 		tok:    goldenTokens(),
 		router: new(input.Router),
@@ -168,7 +174,7 @@ func (f *treeTabFrame) frame() {
 		Ops:         ops,
 		Source:      f.router.Source(),
 	}
-	f.v.layout(gtx, f.model, f.tok, nil)
+	railColumn(gtx, f.v, f.model, f.tok, nil, nil)
 	f.onRail = gtx.Focused(f.v.list.Focus())
 	// The first of the pane's own marks: the strip reads rescan, switch
 	// vault, toggle, so the control after the rows is the rescan.

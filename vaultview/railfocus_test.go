@@ -18,6 +18,7 @@ import (
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/sidebar"
 )
 
@@ -57,6 +58,11 @@ type railFocusFrame struct {
 	docs   map[string]*markdown.Document
 	size   image.Point
 
+	// geom is what the rail's column arranged on the last frame, in the
+	// column's own coordinates, kept so a row can be pressed where it
+	// stands rather than where the constants would put it.
+	geom shell.PaneColumnLayout
+
 	// find is the page's own find and fieldTag stands for its field's editor:
 	// the field itself lays out in the window's toolbar band, which this
 	// frame does not draw, so what is kept here is the state the band would
@@ -81,7 +87,7 @@ type findFieldTag struct{ _ byte }
 
 func newRailFocusFrame(t *testing.T) *railFocusFrame {
 	t.Helper()
-	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return goldenLeading }}
+	v := &treeView{list: list.NewState()}
 	f := &railFocusFrame{
 		t:      t,
 		v:      v,
@@ -93,7 +99,7 @@ func newRailFocusFrame(t *testing.T) *railFocusFrame {
 	}
 	f.read.rail = &railFocus{tag: v.list.Focus()}
 	f.find.tag = &f.fieldTag
-	f.band = newFrameState(defaultWidths())
+	f.band = newFrameState(defaultArrangement())
 	f.band.band = bandFind{find: &f.find, read: &f.read}
 	f.v.post = func(_ layout.Context, msg mvu.Message) { f.posted = append(f.posted, msg) }
 	// The find's own two answers go the same way: whether the field stands
@@ -144,7 +150,7 @@ func (f *railFocusFrame) frame() {
 func (f *railFocusFrame) columns(gtx layout.Context) {
 	rail := gtx
 	rail.Constraints = layout.Exact(image.Pt(treeWidthDp, f.size.Y))
-	f.v.layout(rail, f.model, f.tok, nil)
+	_, f.geom = railColumn(rail, f.v, f.model, f.tok, nil, nil)
 	off := op.Offset(image.Pt(treeWidthDp, 0)).Push(gtx.Ops)
 	f.findOpener(gtx)
 	under := op.Offset(image.Pt(0, railFocusBandDp)).Push(gtx.Ops)
@@ -227,7 +233,7 @@ const railFocusFirstNote = 1
 func (f *railFocusFrame) clickRailRow(i int) {
 	f.t.Helper()
 	h := railRowHeight()
-	f.click(f32.Pt(float32(treeWidthDp)/2, float32(f.v.geom.rows.Min.Y+i*h+h/2)))
+	f.click(f32.Pt(float32(treeWidthDp)/2, float32(f.geom.Rows.Min.Y+i*h+h/2)))
 }
 
 // clickInNote presses the middle of the note column, where the document is.
@@ -274,7 +280,8 @@ func (f *railFocusFrame) emphasizedPillRow(t *testing.T) int {
 	t.Helper()
 	img := golden.Capture(t, image.Pt(treeWidthDp, f.size.Y), scene(func(gtx layout.Context) layout.Dimensions {
 		gtx.Source = f.router.Source()
-		return f.v.layout(gtx, f.model, f.tok, nil)
+		dims, _ := railColumn(gtx, f.v, f.model, f.tok, nil, nil)
+		return dims
 	}, themeCases[0].bg))
 	want := sidebar.SelectionFill(f.tok.col, false)
 	x := treeWidthDp - int(sidebar.SelectionInset) - 4
@@ -291,7 +298,7 @@ func (f *railFocusFrame) emphasizedPillRow(t *testing.T) int {
 	if lo < 0 {
 		return -1
 	}
-	return ((lo+hi)/2 - f.v.geom.rows.Min.Y) / railRowHeight()
+	return ((lo+hi)/2 - f.geom.Rows.Min.Y) / railRowHeight()
 }
 
 // TestARailClickLeavesTheKeyboardInTheRail drives a click on a note row

@@ -12,9 +12,8 @@
 // annotation. It is a filter over the names the scan already collected —
 // it reads no file and searches no prose.
 //
-// The column claims a fixed rail width. The shell lets its sidebar slot
-// size itself, so a tree that answered with the constraint it was handed
-// would take the whole window and leave the note nothing.
+// The column fills the pane it stands in: patterns/shell lays it out at
+// exactly the width the reader dragged the pane's edge to.
 //
 // Keyboard: the list's arrows move the selection; Return activates the
 // selected row — a folder toggles its fold, a note navigates.
@@ -46,7 +45,7 @@ import (
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/system/naming"
@@ -59,7 +58,7 @@ import (
 // inset system: the find field and the row fills share it, so the
 // selection pill's edges line up with the field's own.
 const (
-	treeWidthDp = 240 // the rail's own width where the slot states none
+	treeWidthDp = 240 // the pane's width where nothing was kept
 	// treeRowInsetDp is the shared horizontal inset: the find field and the
 	// row pills sit on one pair of edges. It is the sidebar pattern's own
 	// measured inset, so a pill drawn here is the pill the platform draws.
@@ -268,28 +267,18 @@ func sortByName[T any](s []T, name func(T) string) {
 type treeView struct {
 	list *list.State
 	// The pane's own marks, in the order they stand in its top strip: the
-	// two that act on the vault the pane is showing, then the toggle that
-	// puts the pane away. Their state is the pane's rather than the frame's
+	// two that act on the vault the pane is showing. The toggle that puts
+	// the pane away stands after them and is the window's, which the
+	// arrangement adds. Their state is the pane's rather than the frame's
 	// because the controls stand nowhere else — a control that acts on a
 	// pane's collection waits for the pane, so nothing outside this view
 	// draws them or reads their presses.
 	rescanClick widget.Clickable
 	switchClick widget.Clickable
-	hideClick   widget.Clickable
 	// rowClicks are the rows' pointer targets. They are gesture.Clicks and
 	// not widget.Clickables because the rail is ONE focus target: see
 	// sidebar.RowTarget.
 	rowClicks []*gesture.Click
-
-	// leading pins the window buttons' trailing edge instead of measuring
-	// it: the measurement is a live window's, and a stored image may not
-	// depend on one. The live rail leaves this nil and measures.
-	leading func() unit.Dp
-
-	// geom is what the last layout arranged, kept so the pane's own
-	// stacking can be measured after the fact rather than recomputed from
-	// the constants that placed it.
-	geom paneGeom
 
 	// post is where a row's answer goes — what its keys and its clicks
 	// send: the live rail's is the frame's message op, which is what a nil
@@ -305,25 +294,6 @@ func (v *treeView) send(gtx layout.Context, msg mvu.Message) {
 		return
 	}
 	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
-}
-
-// paneGeom is the pane's internal stacking as one layout arranged it: the
-// band the scrolling rows occupy. The rows run from under the rail's own
-// find field to the pane's foot, with nothing standing below them — the
-// vault's two actions stand in the window's toolbar band.
-type paneGeom struct {
-	rows image.Rectangle
-}
-
-// buttonEdge is where the pane's own top strip may start drawing: past the
-// window buttons that now stand inside it, and past the air the platform
-// leaves after them. It is the chrome row's own lead, so the two halves of
-// the window's sidebar switch stand in one column.
-func (v *treeView) buttonEdge() unit.Dp {
-	if v.leading != nil {
-		return v.leading()
-	}
-	return toolbarLeading()
 }
 
 // railFocus carries the focus tag of the rail's rows to the note column
@@ -360,7 +330,7 @@ func (f *railFocus) focus() event.Tag {
 //
 // The rail publishes its rows' focus tag into rail, which is how the note
 // column beside it can ask whether the keyboard is in the rail.
-func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens, rail *railFocus) rx.Observable[layout.Widget] {
+func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok func() themeTokens, rail *railFocus) rx.Observable[shell.PaneColumn] {
 	// The field's own focus tag, so the shortcut this rail answers can put
 	// the keyboard in it.
 	var fieldTag event.Tag
@@ -378,16 +348,19 @@ func treeSidebar(th rx.Observable[theme.Theme], loadModel func() Model, loadTok 
 			mvu.MessageOp{Message: SetFilter{Text: text}}.Add(gtx.Ops)
 		},
 	})
-	return rx.Defer(func() rx.Observable[layout.Widget] {
+	return rx.Defer(func() rx.Observable[shell.PaneColumn] {
 		v := &treeView{list: list.NewState()}
 		if rail != nil {
 			rail.tag = v.list.Focus()
 		}
-		return rx.Map(field, func(fieldW layout.Widget) layout.Widget {
-			return func(gtx layout.Context) layout.Dimensions {
+		return rx.Map(field, func(fieldW layout.Widget) shell.PaneColumn {
+			return v.column(loadModel, loadTok, func(gtx layout.Context) layout.Dimensions {
 				focusFindField(gtx, fieldTag)
-				return v.layout(gtx, loadModel(), loadTok(), fieldW)
-			}
+				if fieldW == nil {
+					return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
+				}
+				return fieldW(gtx)
+			})
 		})
 	})
 }
@@ -414,109 +387,35 @@ func focusFindField(gtx layout.Context, tag event.Tag) {
 	}
 }
 
-// layout draws the rail: its own top strip, the find field under that, and
-// the rows the model asks for — the filter's matches while it is typed in,
-// the folder tree otherwise. The returned width is the width the slot
-// states, and the rail's own where the slot states none — never an open
-// constraint's whole extent.
+// column is what the rail hands the shell's pane: the two marks that act on
+// the vault the pane is showing, the find field as the head slot, and the
+// rows under it. The strip the marks stand in, the toggle last of them and
+// the pane's own width are the arrangement's.
 //
-// The rows are the flex's only flexed child and nothing stands below them,
-// so they run from under the field to the pane's own foot. The vault's two
-// actions stand in the window's toolbar band: the toolbar is the strip
-// holding the controls that act on the document, and a control drawn there
-// is the platform's bordered toolbar control.
-//
-// The strip is reserved by the flex and drawn afterwards, which is a
-// statement about the keyboard and not about paint. Focus follows the
-// order the ops are written in, and the reading order of this pane is the
-// field, the rows, then the strip's marks: a reader who tabs out of the
-// find field means to reach the notes they just filtered for. Drawn last,
-// the strip's marks come after everything the pane is for; among them the
-// vault's own acts stand before the pane's toggle.
-func (v *treeView) layout(gtx layout.Context, m Model, tok themeTokens, fieldW layout.Widget) layout.Dimensions {
-	// The rail is as wide as the slot says where the slot says: the pane
-	// lays its column out at exactly the width the reader dragged the
-	// pane's edge to, and the column standing in it is that width or the
-	// pane holds a 240 dp strip with a gap beside it. Where the slot
-	// leaves the width open — a rail measured on its own, or drawn for a
-	// stored image — the rail states its own.
-	railW := gtx.Constraints.Min.X
-	if railW <= 0 {
-		railW = min(gtx.Dp(treeWidthDp), gtx.Constraints.Max.X)
-	}
-	size := image.Pt(railW, gtx.Constraints.Max.Y)
-	gtx.Constraints = layout.Exact(size)
-	// The strip is the pane's own, not the chrome row's: it is cut to
-	// clear the window's control buttons where the window keeps them,
-	// which is deeper than the content area's row spends, and the two owe
-	// each other nothing — the chrome budget is the content column's, and
-	// this band is inside the pane.
-	stripH := gtx.Dp(unit.Dp(paneStripDp))
-	if stripH > size.Y {
-		stripH = size.Y
-	}
-	var fieldH, rowsH int
-	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: image.Pt(size.X, stripH)}
-		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			dims := complayout.Inset(treeFieldPadDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+// The rows are the column's only stretching slot and nothing stands below
+// them, so they run from under the field to the pane's own foot. The
+// vault's two actions stand on the pane rather than in the toolbar: a
+// control that acts on a pane's collection waits for the pane.
+func (v *treeView) column(loadModel func() Model, loadTok func() themeTokens, fieldW layout.Widget) shell.PaneColumn {
+	return shell.PaneColumn{
+		Marks: []layout.Widget{
+			func(gtx layout.Context) layout.Dimensions { return v.rescanControl(gtx, loadTok()) },
+			func(gtx layout.Context) layout.Dimensions { return v.switchVaultControl(gtx, loadTok()) },
+		},
+		// The air around the find field is the row pills' own inset, so the
+		// field's edges and every pill's stand on one pair of lines down the
+		// rail — which is the whole of what makes the field read as part of
+		// the column rather than as a pane set into it.
+		Head: func(gtx layout.Context) layout.Dimensions {
+			return complayout.Inset(treeFieldPadDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				if fieldW == nil {
 					return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 0)}
 				}
 				return fieldW(gtx)
 			})
-			fieldH = dims.Size.Y
-			return dims
-		}),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			dims := v.rows(gtx, m, tok)
-			rowsH = dims.Size.Y
-			return dims
-		}),
-	)
-	rowsTop := min(stripH+fieldH, size.Y)
-	v.geom = paneGeom{rows: image.Rect(0, rowsTop, size.X, min(rowsTop+rowsH, size.Y))}
-	sgtx := gtx
-	sgtx.Constraints = layout.Exact(image.Pt(size.X, stripH))
-	v.topStrip(sgtx, tok)
-	return layout.Dimensions{Size: size}
-}
-
-// topStrip is the band the pane keeps clear under the window's control
-// buttons, which stand inside it: their space at the leading end, left
-// untouched, a stretch that moves the window across the middle, and this
-// pane's own three marks bare at its top trailing corner. Under the
-// full-size-content treatment the native title bar hands over no drag, so
-// a pane that owns the top of the window owes the reader one.
-//
-// The marks read rescan, switch vault, toggle: the two that act on the
-// vault the pane is showing first, the toggle last, because a pane's own
-// toggle is the pane talking about itself and nothing the pane is for may
-// stand behind it. The gap between each pair is the pattern's measured
-// [pane.MarkGapDp], and it moves the window like the rest of the band's
-// empty space.
-func (v *treeView) topStrip(gtx layout.Context, tok themeTokens) layout.Dimensions {
-	// The band is the pattern's: the leading run skipped (a move action over
-	// the buttons would fight them for the press), the window's drag across
-	// the middle, and this pane's own controls at its top trailing corner
-	// where the platform keeps them. What the rail supplies is the
-	// measurement of where that run ends — a window fact — and the controls
-	// themselves.
-	gap := pane.DragSpacer(pane.MarkGapDp)
-	return pane.Strip(gtx, v.buttonEdge(),
-		func(gtx layout.Context) layout.Dimensions {
-			return v.rescanControl(gtx, tok)
 		},
-		gap,
-		func(gtx layout.Context) layout.Dimensions {
-			return v.switchVaultControl(gtx, tok)
-		},
-		gap,
-		func(gtx layout.Context) layout.Dimensions {
-			return v.hideControl(gtx, tok)
-		})
+		Rows: func(gtx layout.Context) layout.Dimensions { return v.rows(gtx, loadModel(), loadTok()) },
+	}
 }
 
 // rescanControl re-walks the vault and switchVaultControl leaves it for
@@ -532,7 +431,7 @@ func (v *treeView) rescanControl(gtx layout.Context, tok themeTokens) layout.Dim
 	if v.rescanClick.Clicked(gtx) {
 		v.send(gtx, Rescan{})
 	}
-	return paneMark(gtx, tok, &v.rescanClick, icons.Refresh, "Rescan")
+	return shell.PaneMark(gtx, tok.col, &v.rescanClick, icons.Mark(icons.Refresh), "Rescan")
 }
 
 func (v *treeView) switchVaultControl(gtx layout.Context, tok themeTokens) layout.Dimensions {
@@ -540,23 +439,7 @@ func (v *treeView) switchVaultControl(gtx layout.Context, tok themeTokens) layou
 		v.send(gtx, SwitchVault{})
 	}
 	// Title case, which is what the platform's own controls use.
-	return paneMark(gtx, tok, &v.switchClick, icons.Folder, "Switch Vault")
-}
-
-// hideControl is the pane's own way to put itself away, standing bare in
-// the pane's top trailing corner — where
-// voicememos-multi-folder-2026-09-18.png keeps its sidebar toggle. The
-// chrome row's toggle is what brings the pane back: a control that travels
-// with the pane cannot be the one that recalls it, so the two are the two
-// halves of one switch rather than duplicates of one control, and they wear
-// one figure to say so. The band's half wears the platform's bordered
-// control and this one wears nothing, because that is a property of what
-// each stands on.
-func (v *treeView) hideControl(gtx layout.Context, tok themeTokens) layout.Dimensions {
-	if v.hideClick.Clicked(gtx) {
-		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
-	}
-	return paneMark(gtx, tok, &v.hideClick, icons.Sidebar, "Hide the folder rail")
+	return shell.PaneMark(gtx, tok.col, &v.switchClick, icons.Mark(icons.Folder), "Switch Vault")
 }
 
 // rows lays out the row region below the find field.
@@ -918,12 +801,10 @@ func runWidth(gtx layout.Context, shaper *text.Shaper, style tokens.TextStyle, s
 }
 
 // renderTree is the static counterpart of treeSidebar used by goldens: a
-// fresh rail with fresh widget.Clickable state, laid out once from
-// pre-resolved tokens and processing no events. The find field is drawn
-// through the component's own static path, so the golden carries the same
-// field the live rail wears. The window buttons' trailing edge is a parameter
-// and a measurement in the live pane, since a stored image may not depend
-// on a live window's measurement.
+// fresh rail with fresh widget.Clickable state, built from pre-resolved
+// tokens and processing no events. The find field is drawn through the
+// component's own static path, so the golden carries the same field the live
+// rail wears.
 //
 // The surface the field is rendered on is named here as well as in
 // [treeSidebar], and it must be the same one: a golden that pictures a
@@ -937,15 +818,12 @@ func renderTree(
 	rad tokens.RadiusScale,
 	typo tokens.Typography,
 	den tokens.Density,
-	leading unit.Dp,
-) layout.Widget {
-	v := &treeView{list: list.NewState(), leading: func() unit.Dp { return leading }}
+) shell.PaneColumn {
+	v := &treeView{list: list.NewState()}
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
 	fieldW := input.RenderSearch(shaper, "Search", colors, sp, rad, typo.BodyLarge, den,
 		input.RenderState{Text: m.Filter, Surface: treeFieldSurface(colors), Variant: input.Chrome})
-	return func(gtx layout.Context) layout.Dimensions {
-		return v.layout(gtx, m, tok, fieldW)
-	}
+	return v.column(func() Model { return m }, func() themeTokens { return tok }, fieldW)
 }
 
 // activate performs one row's action: a folder toggles its fold, a note

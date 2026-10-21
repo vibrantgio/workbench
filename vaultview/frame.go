@@ -1,99 +1,32 @@
-// frame.go is the vault window's chrome and its column composition: the
-// sidebar pane down the leading edge, and beside it the content area —
-// one chrome row across its top, the note column and the backlinks aside
-// under it parted by a splitter, and one status bar across its
-// foot. What the foot band carries is in status.go.
+// frame.go is what the vault window hands patterns/shell's two-column
+// arrangement, and nothing else: the shell owns the geometry — the sidebar
+// pane down the leading edge, the content column beside it with one toolbar
+// across its top, the backlinks aside down the trailing edge behind its
+// seam, the status bar under the content column, a splitter on each
+// boundary and the shadow cast last — and this window states what stands in
+// each slot.
 //
-// What stands under those columns is patterns/shell's pane frame, spent
-// here through shell.PaneFrame.Under: the window's surface, the note's
-// surface, the pane and the column in it. The arrangement above it is this
-// window's own and stays here — a trailing aside the note shares its width
-// with, a status bar across the foot, a splitter on each of the window's two
-// boundaries, and the op order that makes Tab follow the reading order.
+// What the window hands over: the pane's column (tree.go), the note column
+// (note.go), the backlinks aside (aside.go), the status bar (status.go),
+// and the toolbar's three groups — the window's navigation and the note's
+// place at the leading end, the find in the page at the trailing one. The
+// two column widths and the limits they move between are the window's as
+// well, kept across launches by the shell's own arrangement memory.
 //
-// The sidebar is the window's leading chrome column, set into the window as
-// a PANE: an inset rounded pane one margin in from the window's leading,
-// top and bottom edges with the window's own plane showing in those
-// margins, flush against the note on the fourth side, bounded by its own rim
-// and the shadow it casts and by no seam anywhere. The inset, the rim, the
-// shadow, the strip's arithmetic, the hidden-takes-no-width contract and the
-// recall convention are patterns/pane's; what is left here is the column
-// that stands in it. No band crosses above the pane. Its toggle stands bare
-// at its top trailing corner with the strip's empty middle moving the
-// window.
-// The vault's own actions stand in the toolbar band. Hidden, the rail takes
-// no width at all and the note column reflows from the window's leading
-// edge, so the chrome row carries the toggle that brings the rail back — a
-// control that travels with the rail cannot be the one that recalls it.
-//
-// The window control buttons are measured from the window's own top and
-// leading glass and from nothing drawn under them: they stay put whatever
-// the application puts beneath, so the pane arriving or leaving may not
-// move them. The pane's top strip is therefore cut deep enough to hold them
-// with air to spare, and its toggle centres on their line. That line is
-// what everything else at the top of the window stands on: the pane's
-// toggle, the vault's name, and the toggle the chrome row shows once the
-// pane is away, so the two halves of the sidebar switch hold one height
-// between them. The row is cut to the same depth as that strip, so a control
-// centred in it stands on the buttons' line without being told to.
-//
-// What the row carries is what acts on the document: the vault's two actions
-// after the document's name at the leading end of the content column's
-// share, and the find at the trailing end, each the platform's bordered
-// toolbar control, in the order and at the spacing the stored bands read.
-//
-// The content area's fill is the same surface the note column lies on, so
-// the note draws no edge of its own and the chrome row sits on the document
-// rather than on a band above it. Both of the window's side columns are
-// chrome drawn at the same level, a measured step under the content in
-// either scheme, and there they part: the leading one is a PANE, set into
-// the window's plane and bounded by its rim, because a button slides it out
-// of the window; the trailing one is FLUSH, running to the window's own
-// edges and parted from the document by one seam, because nothing dismisses
-// it.
-//
-// Both boundaries are the reader's to move, and both are the same
-// pattern: the seam between two regions made operable, thickening and
-// taking a firmer colour while a hand is in the band it is taken by,
-// which is the one thing a resting edge cannot say. Leading, the line is
-// the pane's own rim, so the splitter draws over it in the rim's own
-// colour rather than beside it in a second — a resting window is the same
-// window whether or not that edge can be taken hold of — and it therefore
-// runs exactly where that rim runs straight: from where the pane's top
-// corner lets go to where its bottom corner begins, the toolbar band's rows
-// included, since the pane is one object from its top edge to its foot. The
-// trailing boundary keeps the whole height it has until what a content-side
-// boundary is painted with is ruled.
-//
-// The two boundaries answer to the note column between them: neither is
-// dragged past the point where the note would be left with less than a
-// column of prose.
-//
-// Under the full-size-content treatment the content extends behind the
-// native title bar, so the top strip is the application's to lay out in.
-// The chrome row takes the content area's share of it and never crosses
-// above the sidebar. The strip is not the system's to click in under this
-// treatment, so the row's controls are pressable where they stand; what the
-// strip does not hand over is the window drag, which the row and the pane's
-// strip claim back by declaring a move action over the parts of themselves
-// that hold no control. Away from the treatment the measurements report
-// zero, the buttons stay where their platform puts them, and the row lays
-// out from its own edge inset.
+// What is left here is the toolbar's own content: the segmented
+// back/forward pair, the trail of places the note stands in, and the room
+// the trail is elided to.
 
 package main
 
 import (
 	"image"
-	"image/color"
 	"path"
 	"strings"
 
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
-	"gioui.org/op"
-	"gioui.org/op/clip"
-	"gioui.org/op/paint"
 	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -104,10 +37,8 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/input"
-	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/splitter"
@@ -117,14 +48,18 @@ import (
 // Frame layout constants. The aside bounds follow the three-column
 // shell's, so the two compositions resize alike.
 const (
+	// frameEdgeDp is the leading inset the toolbar and the pane's strip lead
+	// from where the window has no control buttons to clear — away from the
+	// full-size-content treatment, in headless rendering, and on every
+	// platform that keeps its own decorations. The shell has no default for
+	// it: the number is the window's.
 	frameEdgeDp = 12
-	frameGapDp  = 16
 
-	// frameGapDp's counterpart at the trailing boundary: the air the
-	// content area keeps between the note column's edge and the seam the
-	// aside stands behind. The splitter's own band is wider than the line
-	// and reaches into both columns, so this gap is not the band — it is
-	// what stops the note's last pixel standing hard against the seam.
+	// frameSplitterDp is the air the content area keeps between the note
+	// column's edge and the seam the aside stands behind. The splitter's own
+	// band is wider than the line and reaches into both columns, so this gap
+	// is not the band — it is what stops the note's last pixel standing hard
+	// against the seam.
 	frameSplitterDp = 6
 
 	frameAsideDp    = 320
@@ -133,30 +68,13 @@ const (
 
 	// railToggleWidthDp is the width the platform's bordered toolbar control
 	// takes around one symbol, which is what every control standing in this
-	// window's band is drawn as — the toggle that recalls the pane, each
+	// window's toolbar is drawn as — the toggle that recalls the pane, each
 	// segment of the window's navigation and the search: the 24 dp mark box
-	// with the platform's measured 7 dp of clear band on each side.
+	// with the platform's measured 7 dp of clear toolbar on each side.
 	// components/button draws it and owns the measurement; the number is
 	// named here because the window reasons about where its controls stand
 	// and what is beside them.
 	railToggleWidthDp = markLargeDp + 2*7
-
-	// bandNameGapDp is the room the band leaves between the navigation and
-	// the document's name beside it. MEASURED at 1x: in
-	// finder-window-light.png the back/forward pair's fill ends at x=398 and
-	// the title's first painted column stands at x=413, and in
-	// finder-window-untinted-dark.png the same pair ends at x=398 with its
-	// title's first painted column at x=412 — fourteen clear columns, read twice.
-	bandNameGapDp = 14
-
-	// bandTrailingDp is what the band leaves between its last control and
-	// the window's own trailing edge. MEASURED at 1x, all four stored
-	// toolbar windows agree on eight: finder-window-light.png's search
-	// capsule ends x=991 in a window 1000 wide, finder-window-untinted-dark's
-	// search field ends 1322 in one 1331 wide, mail-window.png's search
-	// recess ends 1191 in one 1200 wide and voicememos-window.png's ends 967
-	// in one 976 wide.
-	bandTrailingDp = 8
 
 	// railMarginDp is the window's small edge margin: the inset the rail's
 	// pane stands off the window's leading, top and bottom edges, the air
@@ -170,8 +88,8 @@ const (
 	// the width the platform's own splitters take. It is both the pane's
 	// rim and the flush column's seam, so that a window whose two vertical
 	// boundaries are drawn for different reasons still draws them at one
-	// weight. A seam runs the window's whole height, band included, so its
-	// width is the width of the scar it leaves across every band it crosses.
+	// weight. A seam runs the window's whole height, toolbar included, so its
+	// width is the width of the scar it leaves across every strip it crosses.
 	seamDp = splitter.SeamDp
 
 	// buttonInsetDp is how far the window control buttons sit in from the
@@ -193,22 +111,12 @@ const (
 	// ends, which lands the buttons' centre line on the strip's own middle —
 	// the line the pane's toggle centres on, so the two sit level.
 	paneStripDp = pane.StripDp
-
-	// bandDp is the toolbar band the content column carries beside the
-	// pane: the deeper number, since the pane is set one margin into it.
-	// The buttons stand on its middle line too, so a control centred in the
-	// band and one centred in the pane's strip sit level.
-	bandDp = pane.BandDp
 )
 
-// windowButtons is where this window's three control buttons stand, derived
-// from the inset above by the rule the platform's own windows follow. Every
-// number in it is the window's: no rail state, no screen and no pane enters
-// into any of them.
 // toolbarShadowReachDp is how far the drop shadow a bordered toolbar control
 // casts carries past it in the light appearance. The measurement is
 // tokens.PlatformLight.ToolbarControlShadow's own; it is read from there
-// because the window's own assertions read the band around a control and have
+// because the window's own assertions read the area around a control and have
 // to know what the control reaches.
 var toolbarShadowReachDp = int(tokens.PlatformLight.ToolbarControlShadow.Reach)
 
@@ -218,36 +126,46 @@ var toolbarShadowReachDp = int(tokens.PlatformLight.ToolbarControlShadow.Reach)
 // assertions read the surface around the pane.
 var paneShadowReachDp = int(tokens.PlatformLight.PaneShadow.Reach)
 
+// windowButtons is where this window's three control buttons stand, derived
+// from the inset above by the rule the platform's own windows follow. Every
+// number in it is the window's: no rail state, no screen and no pane enters
+// into any of them.
 var windowButtons = pane.Buttons
 
-// toolbarHeight is the chrome row's depth: the platform's toolbar band, 52
-// dp — a 36 dp control with 8 above it and 8 below — which is the depth every
-// stored toolbar capture measures and the band the pane beside it is set one
-// margin into. The row is what this window puts IN that band, so the band
-// settles its depth and the text standing in it does not.
+// frameLimits are the bounds the window states for the two widths the shell
+// keeps for it: the rail's own, and the aside's.
 //
-// It takes no tokens: the band is the window's and the same in every density,
-// as the pane's strip beside it is.
-func toolbarHeight() unit.Dp {
-	return unit.Dp(bandDp)
+// Below the rail's minimum the column is narrower than an indented folder
+// name, so the tree it holds shows as ellipses; above the maximum the rail
+// is no longer a rail beside the note but a second column competing with it.
+// What is left of the window is not these bounds' business — a rail wider
+// than half the window is cut to half by the pane pattern, whatever they
+// allow.
+var frameLimits = shell.Limits{
+	Pane:      shell.Clamp{Min: railMinWidthDp, Max: railMaxWidthDp},
+	Inspector: shell.Clamp{Min: frameMinAsideDp, Max: frameMaxAsideDp},
 }
 
-// bandSurface is the fill a control standing at the TRAILING end of this
-// window's band stands on: the trailing column's, which runs the window's
-// full height and rises into the band. The band carries no fill of its own —
-// it is the fill of whatever region lies under it, continued upward
-// (reference/macos/controls.md, "a toolbar band carries no fill of its own")
-// — and the trailing end of this window's band lies over the inspector.
-func bandSurface(c tokens.PlatformColors) color.NRGBA { return chromeSurface(c) }
+// The rail's bounds, the counterpart of the aside's.
+const (
+	railMinWidthDp = 160
+	railMaxWidthDp = 480
+)
 
-// bandFind is the find in the page as the chrome row carries it: the state
+// defaultArrangement is what a window opens with when nothing was kept,
+// which is what this window laid out before it kept anything.
+func defaultArrangement() shell.Arrangement {
+	return shell.Arrangement{PaneWidth: treeWidthDp, InspectorWidth: frameAsideDp, PaneShown: true}
+}
+
+// bandFind is the find in the page as the toolbar carries it: the state
 // the query left it in, the search field instance drawing it, and the note
 // column's keyboard target. A frame laid out for measurement carries none of
-// them and the band shows no find at all.
+// them and the toolbar shows no find at all.
 type bandFind struct {
 	find  *pageFind
 	field layout.Widget
-	// read is what the band's magnifier capsule reads the keyboard's holder
+	// read is what the toolbar's magnifier capsule reads the keyboard's holder
 	// from when it opens the field, so the field records the holder whichever
 	// way it was opened. It is nil wherever no note column was built, and a
 	// field opened there records nothing.
@@ -258,44 +176,48 @@ type bandFind struct {
 // clickables, the two splitters' hands and the widths they move. It is
 // touched only on the frame goroutine.
 type frameState struct {
+	// toggleClick is the one gesture source behind the Toggle Sidebar
+	// button, which the arrangement draws bare at the pane's trailing corner
+	// while the rail stands and bordered at the toolbar's leading end once
+	// it is away.
 	toggleClick widget.Clickable
 
-	// The window's navigation, which stands in the band as Finder keeps it:
-	// the segmented pair at the leading end of the content column's share,
-	// with the document's name bare beside it.
+	// The window's navigation, which stands in the toolbar as Finder keeps
+	// it: the segmented pair at the leading end of the content column's
+	// share, with the document's name bare beside it.
 	backClick widget.Clickable
 	fwdClick  widget.Clickable
 
 	// The control that opens the find in the page where the platform's own
-	// band keeps its search: Finder draws a magnifier capsule at the
-	// trailing end of its band and expands it into a field, which is what
+	// toolbar keeps its search: Finder draws a magnifier capsule at the
+	// trailing end of its toolbar and expands it into a field, which is what
 	// this window's shortcut now has an affordance for.
 	findClick widget.Clickable
 
-	// post is where the band's own answers go — what a press on a place in
+	// post is where the toolbar's own answers go — what a press on a place in
 	// its trail sends: the live frame's is the frame's message op, which is
-	// what a nil leaves, and a test's is a recorder, so a band laid out
+	// what a nil leaves, and a test's is a recorder, so a toolbar laid out
 	// without a window to post to can still be read back.
 	post func(gtx layout.Context, msg mvu.Message)
 
-	// trail is the row of places the band draws in its centre: the one the
+	// trail is the row of places the toolbar draws in its centre: the one the
 	// theme stream built, which holds the row's clickables across frames.
-	// It is handed over per frame, as the band's find field is, because it
-	// belongs to the stream and not to this state. A frame with none — a
-	// static render, a measurement — builds its own from its own tokens.
+	// It is handed over per frame, as the find field is, because it belongs
+	// to the stream and not to this state. A frame with none — a static
+	// render, a measurement — builds its own from its own tokens.
 	trail breadcrumb.TrailLayout
 
-	// band is the find in the page as the chrome row carries it: the state
+	// band is the find in the page as the toolbar carries it: the state
 	// the query left it in, and the search field instance that draws it.
 	// Both belong to the note column — the query is marked in the note's own
-	// document — and the band borrows them, because the toolbar is where the
-	// platform keeps a window's search.
+	// document — and the toolbar borrows them, because the toolbar is where
+	// the platform keeps a window's search.
 	band bandFind
 
 	// The window's two boundaries, each the seam between two regions made
-	// operable. Both are the same pattern; what differs is the edge each
-	// stands on — the pane's own hairline leading, the flush column's
-	// plain seam trailing — and how much of that edge a hand may take.
+	// operable. The shell draws both; what differs is the edge each stands
+	// on — the pane's own hairline leading, the flush column's plain seam
+	// trailing — and how much of that edge a hand may take.
 	railSplitter  splitter.State
 	asideSplitter splitter.State
 
@@ -306,43 +228,49 @@ type frameState struct {
 	// nil wherever a frame is laid out for measurement rather than for a
 	// reader, so a stored render arranges a window nobody is sitting at
 	// without writing over what a real one kept.
-	widths *columnMemory
+	widths *shell.ArrangementMemory
 
-	// leading pins the row's leading inset instead of measuring it. The
-	// measurement is a live window's: off a frame it reports zero, and on
-	// one it reports whatever this machine's macOS puts the control buttons
-	// at. Neither is a number a stored image may depend on, so the static
-	// render path states one. The live path leaves this nil and measures.
+	// leading pins the trailing edge of the window's control buttons instead
+	// of measuring it. The measurement is a live window's: off a frame it
+	// reports zero, and on one it reports whatever this machine's macOS puts
+	// the buttons at. Neither is a number a stored image may depend on, so
+	// the static render path states one. The live path leaves this nil and
+	// measures.
 	leading func() unit.Dp
 
 	// geom is the arrangement the last frame laid out, kept so the
 	// composition can be measured after the fact: the chrome budget is a
 	// property of what was drawn, and recomputing it from the tokens would
 	// assert the arithmetic rather than the frame.
-	geom frameGeom
+	geom shell.PaneLayout
 }
 
 // newFrameState seats a frame on the arrangement it opens with. Both
 // column widths are state rather than constants because both boundaries
 // belong to the reader: each is a splitter's to move and the memory's to
 // keep.
-func newFrameState(w columnWidths) *frameState {
-	return &frameState{railW: w.Rail, asideW: w.Aside}
+func newFrameState(a shell.Arrangement) *frameState {
+	return &frameState{railW: a.PaneWidth, asideW: a.InspectorWidth}
 }
 
-// toolbarLeading answers where this frame's row may start: the pinned
-// value where one was given, and the platform measurement otherwise.
-func (f *frameState) toolbarLeading() unit.Dp {
-	if f.leading != nil {
-		return f.leading()
+// railToggle is the one button that sends the rail away and brings it back.
+// It has two places and not two controls, and the arrangement decides which
+// one this frame shows.
+func railToggle(click *widget.Clickable, press func(gtx layout.Context)) *shell.ToggleSidebar {
+	return &shell.ToggleSidebar{
+		Click:        click,
+		Mark:         icons.Mark(icons.Sidebar),
+		PaneTitle:    "Hide the folder rail",
+		ToolbarTitle: "Show the folder rail",
+		OnPress:      press,
 	}
-	return toolbarLeading()
 }
 
 // vaultFrame composes the vault screen from its three column streams and
-// the model: a toolbar row over the columns. All three columns arrive as
-// layout.Widget streams so a theme change re-renders them; the toolbar reads
-// the token and model snapshots at frame time.
+// the model: the shell's two-column arrangement with the rail in the pane,
+// the note in the content column and the backlinks aside beside it. All
+// three arrive as streams so a theme change re-renders them; the toolbar
+// reads the token and model snapshots at frame time.
 //
 // The two side columns open at the widths the memory hands over — what the
 // reader last left, or the defaults — and that same memory is what every
@@ -350,29 +278,30 @@ func (f *frameState) toolbarLeading() unit.Dp {
 func vaultFrame(
 	loadModel func() Model,
 	loadTok func() themeTokens,
-	widths *columnMemory,
+	widths *shell.ArrangementMemory,
 	find *pageFind,
 	read *reader,
-	sidebar, aside, main, search rx.Observable[layout.Widget],
+	sidebar rx.Observable[shell.PaneColumn],
+	aside, main, search rx.Observable[layout.Widget],
 	trail rx.Observable[breadcrumb.TrailLayout],
 ) rx.Observable[layout.Widget] {
 	columns := rx.CombineLatest5(sidebar, aside, main, search, trail)
 	return rx.Defer(func() rx.Observable[layout.Widget] {
-		st := newFrameState(widths.widths())
+		st := newFrameState(widths.Arrangement())
 		st.widths = widths
-		return rx.Map(columns, func(next rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, breadcrumb.TrailLayout]) layout.Widget {
-			sbW, asW, mainW, fieldW := next.First, next.Second, next.Third, next.Fourth
+		return rx.Map(columns, func(next rx.Tuple5[shell.PaneColumn, layout.Widget, layout.Widget, layout.Widget, breadcrumb.TrailLayout]) layout.Widget {
+			col, asW, mainW, fieldW := next.First, next.Second, next.Third, next.Fourth
 			return func(gtx layout.Context) layout.Dimensions {
 				st.band = bandFind{find: find, field: fieldW, read: read}
 				st.trail = next.Fifth
-				return st.layout(gtx, loadModel(), loadTok(), sbW, asW, mainW)
+				return st.layout(gtx, loadModel(), loadTok(), col, asW, mainW)
 			}
 		})
 	})
 }
 
 // renderWindow is the static counterpart of the whole vault window, used
-// by the window golden: the chrome row over the rail pane, the note
+// by the window golden: the toolbar over the rail pane, the note
 // column and the backlinks aside, all with fresh widget.Clickable state, laid
 // out once from pre-resolved tokens and processing no events. It is the only
 // renderer in this package that composes rather than filling one slot.
@@ -381,9 +310,9 @@ func vaultFrame(
 // stored image may not depend on an arrangement whoever runs it happens to
 // have left behind, and may not write over one either.
 //
-// The leading inset is a parameter and not a measurement here, for the
-// reason [frameState.leading] gives: the value the live row lays out
-// from belongs to a window this render does not have.
+// The window buttons' trailing edge is a parameter and not a measurement
+// here, for the reason [frameState.leading] gives: the value the live
+// toolbar lays out from belongs to a window this render does not have.
 //
 // The frame is returned beside the layout.Widget so that what a render
 // arranged can be read back once it has run — the chrome budget is measured
@@ -404,9 +333,9 @@ func renderWindow(
 
 // renderWindowFinding is renderWindow with the page's find in the state a
 // query has left it, which is the only way a still image can be taken of a
-// note being searched. Whether the field stands in the band is the model's,
-// so a model with the find shut shows the magnifier whatever query is
-// handed over here.
+// note being searched. Whether the field stands in the toolbar is the
+// model's, so a model with the find shut shows the magnifier whatever query
+// is handed over here.
 func renderWindowFinding(
 	shaper *text.Shaper,
 	m Model,
@@ -419,22 +348,22 @@ func renderWindowFinding(
 	find pageFind,
 ) (layout.Widget, *frameState) {
 	tok := themeTokens{col: colors, typ: typo, sp: sp, den: den, shaper: shaper}
-	st := newFrameState(defaultWidths())
+	st := newFrameState(defaultArrangement())
 	st.leading = func() unit.Dp { return leading }
 	cur := &docCursor{}
-	sb := renderTree(shaper, m, colors, sp, rad, typo, den, leading)
-	// The band and the page share one find: the field stands in the band and
-	// the matches are marked in the page, and a still image of a note being
-	// searched has to show the one query in both places.
+	sb := renderTree(shaper, m, colors, sp, rad, typo, den)
+	// The toolbar and the page share one find: the field stands in the
+	// toolbar and the matches are marked in the page, and a still image of a
+	// note being searched has to show the one query in both places.
 	pf := &find
-	// The band's find field is the static search field in the state the query
+	// The find field is the static search field in the state the query
 	// leaves it: no editor, no events, the query drawn where the reader typed
 	// it and the field focused, which is where a find in the page is worked
 	// from. It is the toolbar's recess and not the sidebar's field.
 	if m.FindOpen {
 		// Built per frame rather than once, for the count alone: what the
 		// query has found is the document's answer, and the document lays
-		// out before the band does. A field built here and reused would
+		// out before the toolbar does. A field built here and reused would
 		// carry the count the page had before it was searched.
 		st.band.field = func(gtx layout.Context) layout.Dimensions {
 			return input.RenderSearch(shaper, "Search", colors, sp, rad, typo.BodyLarge, den,
@@ -442,7 +371,7 @@ func renderWindowFinding(
 					Text: pf.query, Focused: true,
 					Count:   pf.label(),
 					Variant: input.Chrome, Region: input.Toolbar,
-					Surface: bandSurface(colors),
+					Surface: findFieldSurface(colors),
 				})(gtx)
 		}
 	}
@@ -455,541 +384,92 @@ func renderWindowFinding(
 	}, st
 }
 
-// frameGeom is the arrangement one frame laid out: the sidebar pane's
-// rectangle in frame coordinates, empty when the rail is hidden or the
-// window has no room for it; the leading edge the content area starts
-// from — past the pane when the rail stands, the window's own edge when
-// it does not — the top and height of the content area's first document
-// row, which the chrome row stands above, and the line that row stops on,
-// which is where the status bar begins.
-//
-// Only the content area has a chrome row and a status bar. The rail runs to
-// the window's top and bottom edges, so there is nothing above it and
-// nothing below it: no band at either end, and nothing else to measure.
-type frameGeom struct {
-	pane     image.Rectangle
-	contentX int
-	rowTop   int
-	rowH     int
-	footTop  int
-}
-
-// frameGeometry measures the pane and the content area. It is separate
-// from the drawing so the arrangement can be asserted without a frame:
-// that the rail's pane stands one margin inside the window's leading, top
-// and bottom edges, that the content reflows to the window's own edge when
-// the rail goes, and that the content area's columns run between its two
-// bands and no further.
-//
-// The bands are taken in the order they matter when there is no room for
-// either: the chrome row first, because it carries the control that brings
-// a dismissed pane back, and the status bar out of what is left, because a
-// window with no height for a document has nothing to report about one.
-func frameGeometry(gtx layout.Context, size image.Point, railW unit.Dp, barH, footH int, hidden bool) frameGeom {
-	h := max(size.Y, 0)
-	barH = min(max(barH, 0), h)
-	footH = min(max(footH, 0), h-barH)
-	g := frameGeom{rowTop: barH, rowH: h - barH - footH, footTop: h - footH}
-	// The run is the pattern's: one margin inside the window's leading, top
-	// and bottom edges, never more than half the window wide, and empty in
-	// every state where there is no rail to draw — hidden above all, where
-	// the emptiness IS the contract and the content beside it reflows to the
-	// window's own edge.
-	g.pane = pane.Bounds(gtx, size, railW, hidden)
-	if !g.pane.Empty() {
-		g.contentX = g.pane.Max.X
-	}
-	return g
-}
-
-// layout draws the sidebar pane, then the content area's chrome row and
-// the columns below it, in the order they read: rail, chrome row, note,
-// splitter, aside — and last the status bar under all of them. That order
-// is the focus ring's too, and the bar is last in it by holding nothing
-// the ring can stop on.
-func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, sb, as, main layout.Widget) layout.Dimensions {
-	size := gtx.Constraints.Max
-	barH := gtx.Dp(toolbarHeight())
-	if barH > size.Y {
-		barH = size.Y
-	}
-
-	// Both boundaries are taken hold of before anything is laid out, so
-	// that the whole frame is drawn where this frame's drag left them
-	// rather than where the last one did. The rail's goes first: the
-	// aside's bounds are measured from where the pane ends, and a rail
-	// that moved in this same frame has already moved that.
-	footH := gtx.Dp(statusBarHeight(tok))
-	g := frameGeometry(gtx, size, f.railW, barH, footH, m.SidebarHidden)
-	if !g.pane.Empty() {
-		f.railSplitter.Update(gtx, f.railProps(gtx, tok, size, g))
-		g = frameGeometry(gtx, size, f.railW, barH, footH, m.SidebarHidden)
-	}
-	f.asideSplitter.Update(gtx, f.asideProps(gtx, tok, size, g))
-	f.geom = g
-
-	// What stands under this window's columns is patterns/shell's pane frame
-	// and nothing here draws it: the window's own plane, the note's surface
-	// beside the pane, the two corners the pane rounds away from on its
-	// flush side, and the pane itself with its rim and the column standing
-	// in it. MEASURED, voicememos-multi-folder-2026-09-18.png and
-	// finder-window-untinted-light.png: the eight pixels either side of the
-	// pane carry the window background and nothing else.
-	//
-	// The window keeps the arrangement above it — a trailing aside, a status
-	// bar along its foot, the note column laid out before the band over it —
-	// so it spends the frame's under half here and casts the pane's shadow
-	// itself once its own columns have painted.
-	//
-	// The content area stands on the note's own surface: the document is what
-	// the window is. It starts where the rail's pane stops — flush against
-	// it, which is the one side the pane is not set in from — and with the
-	// rail gone it starts at the window's own leading edge.
-	shell.PaneFrame{
-		Surface:     tok.col.WindowBackground,
-		ContentFill: tok.col.TextBackground,
-		Sidebar:     sb,
-	}.Under(gtx, tok.col, size, g.pane)
-
-	c := contentColumns(gtx, size, g.contentX, f.asideW)
-	asidePx, mainW, asideX := c.aside, c.note, c.asideX
-
-	// The trailing column's own surface, painted before the chrome row and
-	// running the window's full height: the outline and the backlinks are
-	// chrome, so the column wears the platform's chrome material. Full
-	// height, so the surface does not read as a block hanging off the chrome
-	// row and the two columns are the same shape, one down each edge, with
-	// the document between them.
-	if asidePx > 0 {
-		paint.FillShape(gtx.Ops, chromeSurface(tok.col),
-			clip.Rect(image.Rect(asideX, 0, size.X, size.Y)).Op())
-	}
-
-	// The note column is laid out BEFORE the chrome row above it and
-	// replayed after, so the row's ops still stand ahead of the column's in
-	// the reading order while the column's code has already run. The band
-	// carries the find, and the find's keys and the count it reports are the
-	// column's to settle: drawn the other way round the band would show the
-	// query's previous count and open a frame after the shortcut was pressed.
-	var (
-		mainCall op.CallOp
-		hasMain  bool
-	)
-	if main != nil && g.rowH > 0 {
-		macro := op.Record(gtx.Ops)
-		mgtx := gtx
-		mgtx.Constraints = layout.Exact(image.Pt(mainW, g.rowH))
-		main(mgtx)
-		mainCall = macro.Stop()
-		hasMain = true
-	}
-
-	// The chrome row belongs to the content area alone. With the pane
-	// standing, the window buttons are inside it and the row owes them no
-	// leading space; with the pane away, the row starts after their
-	// measured trailing edge, as the whole top strip is then its own.
-	if rowW := size.X - g.contentX; rowW > 0 && barH > 0 {
-		lead := unit.Dp(0)
-		if g.pane.Empty() {
-			lead = f.toolbarLeading()
-		}
-		bst := op.Offset(image.Pt(g.contentX, 0)).Push(gtx.Ops)
-		bgtx := gtx
-		bgtx.Constraints = layout.Exact(image.Pt(rowW, barH))
-		f.layoutToolbar(bgtx, m, tok, lead)
-		bst.Pop()
-	}
-
-	if hasMain {
-		st := op.Offset(image.Pt(g.contentX, g.rowTop)).Push(gtx.Ops)
-		mainCall.Add(gtx.Ops)
-		st.Pop()
-	}
-
-	if as != nil && g.rowH > 0 {
-		st := op.Offset(image.Pt(asideX, g.rowTop)).Push(gtx.Ops)
-		agtx := gtx
-		agtx.Constraints = layout.Exact(image.Pt(asidePx, g.rowH))
-		as(agtx)
-		st.Pop()
-	}
-
-	// The status bar goes last: it is the content area's foot, nothing
-	// stands on it, and it holds nothing the keyboard can reach — so the
-	// reading order the ops above set down ends with the document's own
-	// columns rather than with a line about them.
-	if rowW := size.X - g.contentX; rowW > 0 && g.footTop < size.Y {
-		st := op.Offset(image.Pt(g.contentX, g.footTop)).Push(gtx.Ops)
-		fgtx := gtx
-		fgtx.Constraints = layout.Exact(image.Pt(rowW, size.Y-g.footTop))
-		layoutStatusBar(fgtx, m, tok)
-		st.Pop()
-	}
-
-	// The shadow the rail's pane casts, after every column has painted its
-	// own surface: the note column paints its own rows after the pane has
-	// laid out — the pane comes first because it comes first in the reading
-	// order — and would cover the ramp the pane cast on it. The pattern
-	// cuts the pane's own box out of the drawing, so painting it here lands
-	// what painting it under the pane landed.
-	if !g.pane.Empty() {
-		pane.PaintShadow(gtx, tok.col, g.pane)
-	}
-
-	// The window's two boundaries, last of everything, so that neither the
-	// columns' rows nor the two bands crossing over them can cover a line
-	// and so that a press this close to a boundary reaches the boundary.
-	if !g.pane.Empty() {
-		f.layoutRailSplitter(gtx, tok, size, g)
-	}
-	if asidePx > 0 {
-		f.layoutAsideSplitter(gtx, tok, size, g)
-	}
-
-	// What this frame arranged, offered to the memory that keeps it —
-	// last, so a boundary the hand moved earlier in this same frame is
-	// reported at where it ended up rather than at where it was found.
-	// Every frame reports and the memory drops what says nothing new,
-	// since a boundary can move in any frame and no frame says whether
-	// one did.
-	f.widths.record(columnWidths{Rail: f.railW, Aside: f.asideW})
-
-	return layout.Dimensions{Size: size}
-}
-
-// columns is the content area's horizontal arrangement for one frame:
-// what the trailing column takes, what is left for the note, and where
-// the boundary between them stands.
-type columns struct {
-	aside  int
-	note   int
-	asideX int
-}
-
-// contentColumns measures the content area beside the pane: the aside at
-// the width it is kept at, cut to what the window has for it; the note
-// column taking the rest; and the boundary one gap trailing of the note.
-//
-// The aside keeps an absolute width, so a window resize leaves it alone
-// and the note column absorbs the change.
-func contentColumns(gtx layout.Context, size image.Point, contentX int, asideW unit.Dp) columns {
-	gap := max(gtx.Dp(unit.Dp(frameSplitterDp)), 1)
-	aside := gtx.Dp(asideW)
-	if avail := size.X - contentX - gap; aside > avail {
-		aside = avail
-	}
-	aside = max(aside, 0)
-	note := max(size.X-contentX-gap-aside, 0)
-	return columns{aside: aside, note: note, asideX: contentX + note + gap}
-}
-
-// noteFloor is the room the note column is not squeezed out of: the
-// narrowest measure it may lay out at and the insets either side of it,
-// or what it already has where the window is too narrow for that much.
-//
-// A boundary may always be dragged the way that gives the note room and
-// never the way that takes more of it away. That is why the floor gives
-// way to what the column already has: at a window narrower than all three
-// columns' minimums together the note is under its measure before anyone
-// touches a boundary, and a bound that cut in front of where a boundary
-// already stands would jump it out from under the hand taking hold of it.
-func noteFloor(gtx layout.Context, note int) int {
-	return min(gtx.Dp(unit.Dp(noteMinWidthDp)), note)
-}
-
-// railProps states the splitter on the rail pane's trailing edge, where the
-// note stands flush against it and the pane's own RIM is the boundary
-// between the two.
-//
-// So the line this splitter draws at rest is that rim: the same pixel, in
-// the pane's own rim colour, drawn over it rather than beside it. A resting
-// window is unchanged by the splitter being there; what the reader gains is
-// a band to take the edge by and a thickening under the hand that takes it.
-// A second line three dp off the first would read as a stray edge, and the
-// seam colour here would lay a hairline of a different colour down the one
-// boundary the pane already draws.
-//
-// The boundary is the rim's own leading edge and not the pane's trailing
-// one, which is the pixel after it: the splitter draws from the boundary
-// outward, so the pane's edge as the boundary would put the line in the
-// note column instead of on the pane.
-//
-// The bounds are the rail's own, and the note's floor over them: the rail
-// stops where widening it further would take the note under the narrowest
-// column of prose it may be. The pane stands one margin inside the window's
-// leading edge, so its width and its trailing edge differ by that margin,
-// which is what the boundary carries and the report takes back off.
-func (f *frameState) railProps(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) splitter.Props {
-	seamPx := splitter.SeamWidth(gtx)
-	marginPx := gtx.Dp(unit.Dp(railMarginDp))
-	gap := max(gtx.Dp(unit.Dp(frameSplitterDp)), 1)
-	c := contentColumns(gtx, size, g.contentX, f.asideW)
-
-	lo := gtx.Dp(railMinWidthDp)
-	hi := max(min(gtx.Dp(railMaxWidthDp), size.X-marginPx-gap-c.aside-noteFloor(gtx, c.note)), lo)
-
-	scale := pxPerDp(gtx)
-	return splitter.Props{
-		Axis:     layout.Horizontal,
-		Boundary: float32(g.pane.Max.X - seamPx),
-		Min:      float32(marginPx + lo - seamPx),
-		Max:      float32(marginPx + hi - seamPx),
-		Colors:   tok.col,
-		// At rest the line IS the pane's rim, so it draws the rim's own
-		// colour; under a hand it firms as every other boundary in this
-		// window does, which is the seam over the rail's own fill.
-		Rest:    pane.RimColor(tok.col),
-		Surface: chromeSurface(tok.col),
-		OnChange: func(at float32) {
-			f.railW = clampRail(unit.Dp((at + float32(seamPx-marginPx)) / scale))
+// layout hands the shell what this window puts in each of its slots and
+// draws the frame it arranges.
+func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, col shell.PaneColumn, as, main layout.Widget) layout.Dimensions {
+	two := shell.TwoColumn{
+		PaneWidth:  f.railW,
+		PaneHidden: m.SidebarHidden,
+		Pane:       col,
+		PaneResize: &shell.PaneResize{
+			State: &f.railSplitter,
+			Min:   frameLimits.Pane.Min, Max: frameLimits.Pane.Max,
+			Floor:    noteMinWidthDp,
+			OnChange: func(w unit.Dp) { f.railW = w },
 		},
-	}
-}
-
-// layoutRailSplitter draws that hand-hold over the rail pane's trailing
-// edge, along the rows that edge runs straight: the line this splitter draws
-// IS the pane's rim, so it runs exactly where the rim runs and stops where
-// the rim curves away, which pane.EdgeSpan is the span of. A line carried
-// through a rounded corner would leave a pixel of itself out on the window's
-// plane. The hand-hold runs the same rows as the line — a boundary a reader
-// may take hold of along part of the length it is DRAWN at reads as two
-// boundaries, one live and one not.
-func (f *frameState) layoutRailSplitter(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) {
-	top, bottom := pane.EdgeSpan(gtx, g.pane)
-	h := bottom - top
-	if g.pane.Dy() <= 0 || h <= 0 {
-		return
-	}
-	st := op.Offset(image.Pt(0, top)).Push(gtx.Ops)
-	sgtx := gtx
-	sgtx.Constraints = layout.Exact(image.Pt(size.X, h))
-	f.railSplitter.Layout(sgtx, f.railProps(gtx, tok, size, g))
-	st.Pop()
-}
-
-// layoutAsideSplitter draws the trailing boundary from the toolbar band's
-// lower edge to the window's foot. The band is one across the window's
-// columns and no line crosses it — pane.SeamTop is the row it stops on — so
-// the trailing boundary stops there as the rail's does, and the band reads as
-// one across all three columns.
-func (f *frameState) layoutAsideSplitter(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) {
-	top := pane.SeamTop(gtx, image.Rectangle{Max: size})
-	h := size.Y - top
-	if h <= 0 {
-		return
-	}
-	props := f.asideProps(gtx, tok, size, g)
-	// The hand-hold is stated in window rows and this splitter is laid out
-	// from the band's foot, so the span moves with the origin.
-	props.HitSpan = splitter.Span{Min: g.rowTop - top, Max: g.rowTop + g.rowH - top}
-	st := op.Offset(image.Pt(0, top)).Push(gtx.Ops)
-	sgtx := gtx
-	sgtx.Constraints = layout.Exact(image.Pt(size.X, h))
-	f.asideSplitter.Layout(sgtx, props)
-	st.Pop()
-}
-
-// asideProps states the splitter on the trailing column's leading edge.
-//
-// That column is INTEGRAL CHROME — fixed, flush, with no toggle and no
-// way to leave — so it is not outlined the way the rail is. What it takes
-// instead is the plain seam the platform gives its own flush side:
-// Voice Memos carries no outline there at all and parts its panes with
-// a one-pixel seam running from the window's top edge to its bottom,
-// band included, and Notes does the same between its list and its note.
-// So the line here is the Seam token's, not the pane's edge colour:
-// an object's edge circles a pane at the platform's measured whisper,
-// and a region's seam is the line between two surfaces. One weight, two
-// colours.
-//
-// A line is drawn here at all because the step it divides is small, and in
-// the light appearance the chrome material IS the content's fill, so there
-// is no step at all. The platform's answer at a whisper is a line:
-// Voice Memos' two panes are the SAME fill and the seam is the whole of
-// what parts them.
-//
-// The line runs from the toolbar band's lower edge to the window's foot, and
-// the hand-hold is shorter still. The bands above and below the columns are
-// the window's own — one carries the window's drag, the other reports on the
-// document — and neither is resized by this boundary, so the hold is the
-// document row alone.
-//
-// The bounds are the aside's own, and the note's floor over them.
-func (f *frameState) asideProps(gtx layout.Context, tok themeTokens, size image.Point, g frameGeom) splitter.Props {
-	gap := max(gtx.Dp(unit.Dp(frameSplitterDp)), 1)
-	c := contentColumns(gtx, size, g.contentX, f.asideW)
-
-	lo := gtx.Dp(frameMinAsideDp)
-	hi := max(min(gtx.Dp(frameMaxAsideDp), size.X-g.contentX-gap-noteFloor(gtx, c.note)), lo)
-
-	scale := pxPerDp(gtx)
-	return splitter.Props{
-		Axis:     layout.Horizontal,
-		Boundary: float32(c.asideX),
-		Min:      float32(size.X - hi),
-		Max:      float32(size.X - lo),
-		Colors:   tok.col,
-		HitSpan:  splitter.Span{Min: g.rowTop, Max: g.rowTop + g.rowH},
-		OnChange: func(at float32) {
-			f.asideW = clampAside(unit.Dp((float32(size.X) - at) / scale))
+		// The content area stands on the note's own surface: the document is
+		// what the window is. The two side columns are chrome and wear the
+		// platform's chrome material.
+		Surface:       tok.col.WindowBackground,
+		ContentFill:   tok.col.TextBackground,
+		InspectorFill: chromeSurface(tok.col),
+		Toolbar:       f.toolbar(m, tok),
+		Toggle: railToggle(&f.toggleClick, func(gtx layout.Context) {
+			f.send(gtx, ToggleSidebar{})
+		}),
+		Radius:  tokens.Radius,
+		Density: tok.den,
+		Main:    main,
+		// The note column is laid out BEFORE the toolbar above it and
+		// replayed after: the toolbar carries the find, and the find's keys
+		// and the count it reports are the column's to settle.
+		MainFirst:      true,
+		Footer:         func(gtx layout.Context) layout.Dimensions { return layoutStatusBar(gtx, m, tok) },
+		FooterDepth:    statusBarHeight(tok),
+		Inspector:      as,
+		InspectorWidth: f.asideW,
+		InspectorGap:   frameSplitterDp,
+		InspectorResize: &shell.InspectorResize{
+			State: &f.asideSplitter,
+			Min:   frameLimits.Inspector.Min, Max: frameLimits.Inspector.Max,
+			Floor:    noteMinWidthDp,
+			OnChange: func(w unit.Dp) { f.asideW = w },
 		},
+		WindowButtonsEnd: f.leading,
+		Memory:           f.widths,
+		Report:           func(g shell.PaneLayout) { f.geom = g },
 	}
+	dims, _ := two.Layout(gtx, tok.col)
+	return dims
 }
 
-// pxPerDp is the metric a boundary reported in pixels is carried back to
-// dp by, never zero: a width kept in dp is the same physical measure on a
-// screen of a different pixel density, which is the whole reason the two
-// widths are kept in dp rather than in what a drag reports.
-func pxPerDp(gtx layout.Context) float32 {
-	if gtx.Metric.PxPerDp <= 0 {
-		return 1
-	}
-	return gtx.Metric.PxPerDp
-}
-
-func clampAside(w unit.Dp) unit.Dp {
-	if w < frameMinAsideDp {
-		return frameMinAsideDp
-	}
-	if w > frameMaxAsideDp {
-		return frameMaxAsideDp
-	}
-	return w
-}
-
-// layoutToolbar draws the content area's chrome row: the platform's toolbar
-// band, the strip along the window's top holding the controls that act on the
-// document.
+// toolbar is what the content column carries across its top: the window's
+// navigation at the leading end, the trail of places the note stands in
+// beside it, and the find in the page at the trailing one.
 //
-// Composed as the stored bands compose theirs. The sidebar toggle stands at
-// the leading end, and only while the rail is away — the pane's own toggle
-// went with the pane and something has to recall it. Then the window's
-// navigation and, bare beside it, the name of the document the window is
-// showing: both Finder captures compose their content column's share that way
-// — the segmented back/forward pair at x 326-398 with the title's own columns
-// beginning fourteen clear of it — and voicememos-window.png keeps "All
-// Recordings" bare in the same manner. The fourteen is the room the
-// platform leaves between the navigation and the name, read in
-// finder-window-light.png from the pair's last column at x=398 to the
-// title's first painted one at x=413.
+// Composed as the stored toolbars compose theirs. Both Finder captures put
+// the segmented back/forward pair at the leading end of the content
+// column's share with the title's own columns beginning fourteen clear of
+// it, and voicememos-window.png keeps "All Recordings" bare in the same
+// manner. The search stands last of all, which is the order all five stored
+// toolbars read.
 //
 // The vault's own two actions stand in the rail pane's top strip and not
 // here: they act on the collection the pane shows, and a control that acts
-// on a pane's collection waits for the pane. Nor does the row stand in for
-// them while the pane is away — only the toggle travels, as this platform's
-// sidebars do.
+// on a pane's collection waits for the pane. Nor does the toolbar stand in
+// for them while the pane is away — only the toggle travels, as this
+// platform's sidebars do, and the arrangement is what puts it there.
 //
-// The search stands last of all, at the trailing end, which is the order all
-// five stored bands read. What lies between the trail and it is bare band:
-// finder-window-light.png reads 255 at every column of its band clear of a
-// control, so the run carries no fill and no control and is the row's
-// flexible middle.
-//
-// The band runs across the window's columns and the fill change alone says
-// where a column's edge is, so a control at the band's trailing end stands
-// over the trailing column's fill. The inspector carries no control of its
-// own, so what stands there is the find.
-//
-// The leading space is a measurement, not a constant, and only the hidden
-// state spends it: the window controls report where they end, and the row
-// adds its own gap after that, because the reported edge is the bare
-// glass. With the pane standing the buttons are inside it, the row starts
-// where the pane ends, and lead is zero. Where the window has no such
-// controls the measurement falls back to the ordinary edge inset.
-func (f *frameState) layoutToolbar(gtx layout.Context, m Model, tok themeTokens, lead unit.Dp) layout.Dimensions {
-	children := make([]layout.FlexChild, 0, 12)
-	if lead > 0 {
-		// The window controls' own space is left alone, and so is the air
-		// the platform leaves after them, which the lead already carries: a
-		// move action declared over the buttons would fight them for the
-		// press.
-		children = append(children, layout.Rigid(complayout.HSpacer(float32(lead))))
-	} else {
-		// The row's own edge inset is the note column's, not a smaller one
-		// of its own, so the band's leading control stands directly over the
-		// trail below it and the window keeps one grid. Finder puts its own
-		// pair eight clear of the content column's first pixel, which is the
-		// platform's number and not this window's grid.
-		children = append(children, layout.Rigid(dragSpacer(noteInsetDp)))
-	}
-	if m.SidebarHidden {
-		children = append(children,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return f.layoutRailToggle(gtx, m, tok)
-			}),
-			layout.Rigid(dragSpacer(unit.Dp(tok.sp.S3))))
-	}
-	children = append(children,
-		// The window's navigation and the name of what it is showing, in
-		// Finder's own order: the segmented pair at the leading end of the
-		// content column's share, the name bare beside it.
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+// The leading gutter is the note column's own inset, so the toolbar's
+// leading control stands directly over the trail below it and the window
+// keeps one grid.
+func (f *frameState) toolbar(m Model, tok themeTokens) shell.Toolbar {
+	t := shell.Toolbar{
+		ButtonFallback: frameEdgeDp,
+		Lead:           noteInsetDp,
+		Leading: []layout.Widget{func(gtx layout.Context) layout.Dimensions {
 			return f.layoutNavigation(gtx, m, tok)
-		}),
-	)
-	// Then the trail of places the window is showing, one measured gap after
-	// the navigation.
+		}},
+	}
 	if len(notePlaces(m)) > 0 {
-		children = append(children,
-			layout.Rigid(dragSpacer(bandNameGapDp)),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return f.layoutBandTrail(gtx, m, tok)
-			}),
-		)
+		t.Center = func(gtx layout.Context) layout.Dimensions {
+			return f.layoutBandTrail(gtx, m, tok)
+		}
 	}
-	children = append(children,
-		// The bare band between the trail and the find is the platform's
-		// own and carries nothing: finder-window-light.png reads 255 at
-		// every column of its band clear of a control. It is the row's
-		// flexible middle, so the find's slot keeps its fixed trailing end
-		// while the cluster before it keeps its leading one.
-		layout.Flexed(1, dragFill),
-	)
-	// The slot itself is one width whether the find is open or shut, which
-	// is what keeps every control before it standing still when it opens.
-	children = append(children, f.findChildren(m, tok)...)
-	// The trailing inset is the measured band's, not the trailing column's:
-	// what stands here is a toolbar control and the platform stands its last
-	// one eight from the window's edge in every stored window.
-	children = append(children, layout.Rigid(dragSpacer(bandTrailingDp)))
-	// The row centres what it holds. Its depth IS the band's, and the band
-	// puts the window buttons on its own middle, so a control centred in the
-	// row stands on the buttons' line without being told to: the 8 dp the
-	// platform leaves above a toolbar control and the 8 below it fall out of
-	// the arithmetic. What still reaches past the row's foot is the drop
-	// shadow its controls cast, which the platform does not cut off at the
-	// band's lower edge either.
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
-}
-
-// toolbarLeading is where the band's own content may start: the trailing
-// edge of the window's control buttons plus the air the platform leaves
-// after them, and the ordinary edge inset where the window has no such
-// buttons.
-//
-// Both halves of the window's sidebar switch lead from it — the pane's strip
-// while the rail stands, the chrome row once it is away — so the control
-// lands on one window column whichever way the rail goes. A control that
-// moved when the rail went would be a control that moves under the pointer.
-func toolbarLeading() unit.Dp {
-	return desktop.BandLead(pane.ButtonGapDp, frameEdgeDp)
-}
-
-// dragSpacer is a fixed-width gap in the chrome row that moves the window
-// when it is dragged. The row stands in the strip the native title bar
-// would otherwise own, so the window's top edge is only a handle where
-// the row says it is — and it says so over its empty space alone, since a
-// move action swallows the press before any control beneath it sees one.
-func dragSpacer(w unit.Dp) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		return desktop.DragRun(gtx, gtx.Dp(w))
+	if w := f.findTrailing(m, tok); w != nil {
+		t.Trailing = []layout.Widget{w}
 	}
-}
-
-// dragFill is the row's flexible middle: the whole gap between the
-// document's name and the trailing actions, draggable end to end.
-func dragFill(gtx layout.Context) layout.Dimensions {
-	return desktop.DragRun(gtx, gtx.Constraints.Min.X)
+	return t
 }
 
 // layoutNavigation draws the window's history as the platform's segmented
@@ -999,7 +479,7 @@ func dragFill(gtx layout.Context) layout.Dimensions {
 // The window has a history and the model drives it: every Navigate pushes an
 // entry and moves the cursor, GoBack and GoForward move the cursor along it,
 // and the two halves are live exactly while there is somewhere to go. It
-// stands in the band because it is the WINDOW's navigation and not the
+// stands in the toolbar because it is the WINDOW's navigation and not the
 // document's — finder-window-light.png keeps its pair at the leading end of
 // the content column's share, and finder-window-untinted-dark.png keeps the
 // same pair at the same columns.
@@ -1017,10 +497,10 @@ func (f *frameState) layoutNavigation(gtx layout.Context, m Model, tok themeToke
 		navSegment(&f.fwdClick, icons.ChevronRight, "Forward", fwd),
 	}
 	// The shadow is cast AROUND the control, the way every bordered control
-	// in this band casts its own: it falls outside the box the control
+	// in this toolbar casts its own: it falls outside the box the control
 	// reports.
 	return button.BorderedShadow(gtx, tok.col, button.RenderState{Variant: button.Chrome}, func(gtx layout.Context) layout.Dimensions {
-		// The pair is drawn at its own width: the band hands a control room
+		// The pair is drawn at its own width: the toolbar hands a control room
 		// and not a width, so the shared control divides nothing here.
 		gtx.Constraints.Min = image.Point{}
 		return button.BorderedSegments(gtx, tok.shaper, tok.col, tokens.Radius, tok.typ.LabelLarge, tok.den, segs)
@@ -1048,26 +528,26 @@ func navSegment(click *widget.Clickable, mark icons.Name, title string, enabled 
 	}
 }
 
-// layoutBandTrail draws where the note stands, bare in the band beside the
+// layoutBandTrail draws where the note stands, bare in the toolbar beside the
 // navigation: the vault, the folders on the note's way and the note itself,
 // parted by the set's chevron.
 //
 // It stands where the window's title stood, which is where the platform
 // shows a document's place — "Applications" in finder-window-light.png and
-// "All Recordings" in voicememos-window.png stand bare on the band in that
+// "All Recordings" in voicememos-window.png stand bare on the toolbar in that
 // same column, and Finder's own path bar draws the same row of places. Each
 // earlier place answers a press by revealing its folder in the outline; the
 // note itself is last and answers nothing, being where the reader already
 // is.
 //
-// The row is elided rather than cut where the band is too narrow for it:
-// see [bandTrailPlaces].
+// The row is elided rather than cut where the toolbar is too narrow for it:
+// see [bandTrailSegments].
 func (f *frameState) layoutBandTrail(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
 	segs := bandTrailSegments(gtx, tok, m, f.bandTrailRoom(gtx, m), f.revealPlace)
 	if len(segs) == 0 {
 		return layout.Dimensions{}
 	}
-	// The row is held to the room the band has for it, so a trail that
+	// The row is held to the room the toolbar has for it, so a trail that
 	// cannot be elided any further is cut off rather than walking the
 	// controls after it off the window's edge.
 	if room := f.bandTrailRoom(gtx, m); room < gtx.Constraints.Max.X {
@@ -1076,7 +556,7 @@ func (f *frameState) layoutBandTrail(gtx layout.Context, m Model, tok themeToken
 	return f.bandTrail(tok)(gtx, segs)
 }
 
-// revealPlace is the press a place in the band's trail answers: the outline
+// revealPlace is the press a place in the toolbar's trail answers: the outline
 // opens the whole way down to that folder, and the vault at the trail's head
 // returns the outline to its root — every fold under the vault closed and
 // the vault itself open.
@@ -1093,9 +573,9 @@ func (f *frameState) revealPlace(dir string) func(gtx layout.Context) {
 	}
 }
 
-// send hands one of the band's answers on to whatever is collecting this
+// send hands one of the frame's answers on to whatever is collecting this
 // frame's messages: the frame's own message op, which is what a nil post
-// leaves, and a recorder where a band is laid out without a window to post
+// leaves, and a recorder where a frame is laid out without a window to post
 // to.
 func (f *frameState) send(gtx layout.Context, msg mvu.Message) {
 	if f.post != nil {
@@ -1105,7 +585,7 @@ func (f *frameState) send(gtx layout.Context, msg mvu.Message) {
 	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 }
 
-// bandTrail is the row the band draws its places with: the one the theme
+// bandTrail is the row the toolbar draws its places with: the one the theme
 // stream handed over, and one of this frame's own where no stream did — a
 // static render, or a measurement of the composition. The row owns its
 // clickables and has to outlive the frame it draws, so the one built here
@@ -1119,12 +599,12 @@ func (f *frameState) bandTrail(tok themeTokens) breadcrumb.TrailLayout {
 }
 
 // bandTrailRoom is how much of the row the trail may take: what the flex has
-// left it, less what the band still owes the controls standing after it —
+// left it, less what the toolbar still owes the controls standing after it —
 // the find's slot, which keeps one width open or shut, and the trailing
-// inset. The trail is laid out before either of them, so the room they need
+// gutter. The trail is laid out before either of them, so the room they need
 // is stated here rather than read off a layout that has not happened yet.
 func (f *frameState) bandTrailRoom(gtx layout.Context, m Model) int {
-	after := unit.Dp(bandTrailingDp)
+	after := shell.PlatformToolbar.Trail
 	if m.CurrentNote() != nil {
 		after += unit.Dp(findFieldDp)
 	}
@@ -1141,104 +621,11 @@ func noteName(m Model) string {
 }
 
 // vaultName is the open vault's folder name. It heads the note's trail,
-// where it is the place a reader climbs back to; the band carries the name
+// where it is the place a reader climbs back to; the toolbar carries the name
 // of the document instead.
 func vaultName(m Model) string {
 	if m.Vault == "" {
 		return ""
 	}
 	return path.Base(strings.TrimRight(m.Vault, "/"))
-}
-
-// layoutRailToggle draws the chrome row's show control, which stands only
-// while the rail is away: the same control the pane wears.
-func (f *frameState) layoutRailToggle(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
-	if f.toggleClick.Clicked(gtx) {
-		mvu.MessageOp{Message: ToggleSidebar{}}.Add(gtx.Ops)
-	}
-	title := "Hide the folder rail"
-	if m.SidebarHidden {
-		title = "Show the folder rail"
-	}
-	return railToggleControl(gtx, tok, &f.toggleClick, title)
-}
-
-// railToggleMark draws the sidebar control's figure, taken from the
-// design system's own set: a pane in outline, divided, with the faint
-// list lines the host platform puts in the leading column. The set
-// resolves that per platform, so a Mac user sees the figure they know
-// and everyone else sees the neutral one, from the same name here.
-//
-// It is the platform's secondary label and not its text colour: the mark
-// says what the control is, not what the reader wrote, and patterns/sidebar
-// draws its own collapse mark in that same name. Drawn in the text colour it
-// is the darkest thing in the rail — darker than every label under it — and
-// the eye lands on the toggle before it lands on the open note.
-//
-// It is one drawing that never morphs, as on the platform: a mark that
-// changes leaves the reader guessing whether it shows the present state or
-// the next one, and a hollowed variant reads as an unchecked box. What the
-// control is about to do is in the title it carries, which the screen
-// reader speaks and the tooltip shows.
-//
-// Both of the window's sidebar controls take it — the one in the pane's
-// top trailing corner and the one the chrome row shows once the pane is
-// gone — so that the two halves of the same switch are one figure and not
-// two. What differs is what the figure stands in, and that is a property of
-// where it stands rather than of the switch: a mark in the BAND is the
-// platform's bordered toolbar control, and a mark on the sidebar PANE is
-// bare. MEASURED, voicememos-multi-folder-2026-09-18.png: the pane's two
-// marks carry no capsule, no fill and no rim, while every mark in the band
-// beside them does.
-func railToggleControl(gtx layout.Context, tok themeTokens, click *widget.Clickable, title string) layout.Dimensions {
-	return chromeControl(gtx, tok, click, icons.Sidebar, title)
-}
-
-// paneMark draws one BARE chrome mark — the figure alone, at the mark box
-// every chrome mark in this window is drawn at, in the platform's control
-// text over the fill it stands on. It is what the sidebar pane's own
-// controls are drawn as: the pane is not a band, so nothing standing on it
-// wears the band's capsule.
-//
-// The foreground is the same name the bordered control's mark reads in, so
-// the two halves of one switch are one figure in one colour whichever side
-// of the window they stand on: what a toolbar draws its own symbols in.
-// MEASURED, voicememos-multi-folder-2026-09-18.png: the pane's own bare
-// marks reach #4b4b4b at their darkest, a floor a 1 px stroke at 1x cannot
-// pass, against the #4d4d4d the band's own symbols plateau at.
-func paneMark(gtx layout.Context, tok themeTokens, click *widget.Clickable, name icons.Name, title string) layout.Dimensions {
-	box := gtx.Dp(unit.Dp(markLargeDp))
-	fg := tok.col.ToolbarLabel
-	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		semantic.ClassOp(semantic.Button).Add(gtx.Ops)
-		semantic.LabelOp(title).Add(gtx.Ops)
-		semantic.EnabledOp(true).Add(gtx.Ops)
-		pointershape.OverSize(gtx.Ops, image.Pt(box, box), pointer.CursorPointer)
-		icons.Mark(name)(gtx, box, fg)
-		return layout.Dimensions{Size: image.Pt(box, box)}
-	})
-}
-
-// chromeControl draws one bordered toolbar control: the set's mark for name
-// centred in the platform's capsule, the capsule's own fill and rim, and the
-// drop shadow it casts on the band. Every control standing in this window's
-// band is drawn through here, so the band holds one control drawn one way.
-func chromeControl(gtx layout.Context, tok themeTokens, click *widget.Clickable, name icons.Name, title string) layout.Dimensions {
-	state := button.RenderState{
-		Variant: button.Chrome,
-		Hovered: click.Hovered(),
-		Pressed: click.Pressed(),
-		Focused: gtx.Focused(click),
-	}
-	face := button.BorderedFace(icons.Mark(name), tok.col, tokens.Radius, tok.den, state)
-	// The shadow is cast AROUND the clickable: it falls outside the control's
-	// own box, and a clickable clips what it wraps to the box it reports.
-	return button.BorderedShadow(gtx, tok.col, state, func(gtx layout.Context) layout.Dimensions {
-		return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			semantic.ClassOp(semantic.Button).Add(gtx.Ops)
-			semantic.LabelOp(title).Add(gtx.Ops)
-			semantic.EnabledOp(true).Add(gtx.Ops)
-			return face(gtx)
-		})
-	})
 }

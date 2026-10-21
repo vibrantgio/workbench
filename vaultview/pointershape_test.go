@@ -12,7 +12,7 @@ import (
 
 	"github.com/reactivego/rx"
 
-	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -33,7 +33,7 @@ type pointerWindow struct {
 	ops  op.Ops
 	m    Model
 	tok  themeTokens
-	sb   layout.Widget
+	sb   shell.PaneColumn
 	main layout.Widget
 	as   layout.Widget
 }
@@ -46,14 +46,14 @@ func newPointerWindow(t *testing.T, col tokens.PlatformColors) *pointerWindow {
 	m = cacheNote(m, noteFromSource("guide/Reading list.md", pointerNoteSource))
 	tok := themeTokens{col: col, typ: tokens.DefaultTypography, sp: tokens.Spacing,
 		den: tokens.Comfortable, shaper: shaper}
-	w := &pointerWindow{t: t, f: newFrameState(defaultWidths()), m: m, tok: tok}
+	w := &pointerWindow{t: t, f: newFrameState(defaultArrangement()), m: m, tok: tok}
 	w.f.leading = func() unit.Dp { return goldenLeading }
 	cur := &docCursor{}
 	av := newAsideView(cur)
 	// The rail is the live one, built from its own stream: the find field it
 	// carries is the live text field, which is the region that was leaving
 	// its shape on the list under it.
-	sb, err := golden.Resolve(treeSidebar(rx.Of(theme.Default()),
+	sb, err := resolveColumn(treeSidebar(rx.Of(theme.Default()),
 		func() Model { return w.m }, func() themeTokens { return w.tok }, nil))
 	if err != nil {
 		t.Fatalf("the rail's layer: %v", err)
@@ -95,7 +95,7 @@ func TestTheRailsListKeepsTheArrowWhenTheFindFieldIsLeft(t *testing.T) {
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := newPointerWindow(t, tc.colors)
-			pane := w.f.geom.pane
+			pane := w.f.geom.Pane
 			mid := (pane.Min.X + pane.Max.X) / 2
 			// The find field, found by reading down the rail rather than by
 			// pinning a height the density decides.
@@ -168,9 +168,9 @@ const linkProseGapDp = 6
 // column's pinned head runs its whole width, so requiring prose on both sides
 // is what tells a link in a line from a row standing across one.
 func (w *pointerWindow) findLinkRun() (from, to, y int, ok bool) {
-	colFrom := w.f.geom.contentX + noteColumnInsetPx
-	colTo := w.f.geom.pane.Max.X + w.noteColumnWidth() - noteColumnInsetPx
-	for y := w.f.geom.rowTop; y < w.f.geom.rowTop+w.f.geom.rowH; y += 3 {
+	colFrom := w.f.geom.ContentX + noteColumnInsetPx
+	colTo := w.f.geom.Pane.Max.X + w.noteColumnWidth() - noteColumnInsetPx
+	for y := w.f.geom.RowTop; y < w.f.geom.RowTop+w.f.geom.RowH; y += 3 {
 		first, last := -1, -1
 		for x := colFrom; x < colTo; x += 4 {
 			if w.at(x, y) == pointer.CursorPointer {
@@ -190,7 +190,7 @@ func (w *pointerWindow) findLinkRun() (from, to, y int, ok bool) {
 // noteColumnWidth is how wide the note column lays out in this window: the
 // content area less the aside beside it.
 func (w *pointerWindow) noteColumnWidth() int {
-	return windowFrameSize.X - w.f.geom.contentX
+	return windowFrameSize.X - w.f.geom.ContentX
 }
 
 // noteColumnInsetPx keeps the reading off the column's own edges, where the
