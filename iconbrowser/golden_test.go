@@ -24,8 +24,8 @@ var goldenQueries = []struct {
 // query state, as window-{state}-{scheme}.png under testdata/golden. The
 // frames are the ones the whole-window render draws: the backdrop, the page
 // held down past the 32 dp title-bar strip, and the search field and grid
-// shaped with the pinned shaper. The icon grid has no scroll bar, so no
-// scroll bar setting is passed.
+// shaped with the pinned shaper. No scroll bar setting is passed, so the
+// grid's bar fades and a resting frame draws none.
 //
 // Record or refresh them with:
 //

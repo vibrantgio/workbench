@@ -258,9 +258,7 @@ func pageOver(t themed, search layout.Widget, model Model, count int, gridWidget
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return sides.Layout(gtx, catalogueHeading)
 			}),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Left: Padding, Right: Padding, Bottom: Padding}.Layout(gtx, gridWidget)
-			}),
+			layout.Flexed(1, gridWidget),
 		)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	}
@@ -270,12 +268,20 @@ func pageOver(t themed, search layout.Widget, model Model, count int, gridWidget
 // the width, scrolled by the subscription-scoped list state, with the
 // window's bar along the trailing edge. Each cell shows the symbol with its
 // exported name captioned underneath.
+//
+// The region that scrolls is the page's column, the window's full width
+// down to its bottom edge, and the page's Padding is inside it: the cells
+// are drawn Padding in from the column's leading and trailing edges, and a
+// last row of Padding's height follows them. The bar is drawn at the
+// column's trailing edge, which is the window's, never inset by the
+// Padding.
 func Grid(t themed, visible []int, query string, grid *list.State) layout.Widget {
 	p := t.palette
 	bar := gridBar(t)
 	anchor := shell.BarAnchor(bar)
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
+		pad := gtx.Dp(Padding)
 
 		if len(visible) == 0 {
 			// The grid is the page's content region, so what is drawn in
@@ -289,21 +295,31 @@ func Grid(t themed, visible []int, query string, grid *list.State) layout.Widget
 			return layout.Dimensions{Size: size}
 		}
 
-		// The cells fill the width the rows are given, which a standing
-		// bar's lane is taken off.
-		width := size.X
+		// The cells fill the width inside the Padding, which a standing
+		// bar's lane is also taken off.
+		width := size.X - 2*pad
 		if anchor == list.Occupy {
-			width = max(width-gtx.Dp(bar.Width()), 0)
+			width -= gtx.Dp(bar.Width())
 		}
 		cellW, cellH := gtx.Dp(CellW), gtx.Dp(CellH)
 		iconPx := gtx.Dp(IconSize)
 		cols := max(1, width/cellW)
-		rows := make([]int, (len(visible)+cols-1)/cols)
-		for i := range rows {
+		// One row index per row of cells, and padRow for the last row,
+		// which is the column's bottom Padding.
+		const padRow = -1
+		n := (len(visible) + cols - 1) / cols
+		rows := make([]int, n+1)
+		for i := range n {
 			rows[i] = i
 		}
+		rows[n] = padRow
 
 		return list.LayoutScrollbar(gtx, grid, bar, anchor, rows, func(gtx layout.Context, row int) layout.Dimensions {
+			if row == padRow {
+				return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, pad)}
+			}
+			lead := op.Offset(image.Pt(pad, 0)).Push(gtx.Ops)
+			defer lead.Pop()
 			for col := 0; col < cols; col++ {
 				i := row*cols + col
 				if i >= len(visible) {

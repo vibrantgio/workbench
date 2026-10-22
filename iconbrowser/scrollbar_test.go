@@ -13,6 +13,9 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/unit"
+
+	"github.com/vibrantgio/backdrop"
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
@@ -30,21 +33,23 @@ func gridAt(t *testing.T, c tokens.PlatformColors, bars desktop.ScrollBarSetting
 
 // TestTheGridDrawsTheWindowsBar lays the whole catalogue out in a frame far
 // shorter than it, once per setting, on a frame nothing has scrolled. The
-// frame is three cells and half a lane wide, so three columns fit where no
-// lane is taken and two where one is.
+// frame is three cells and half a lane wide inside the page's Padding on
+// each side, so three columns fit where no lane is taken and two where one
+// is.
 //
 // At Always the thumb is drawn at rest in the trailing lane, inside the
 // lane's padding, and the cells end before the lane: two columns are drawn,
 // since a third cell would end inside it. Where the
-// bar fades the cells take the whole width: a third column is drawn.
+// bar fades the cells take the whole width inside the Padding: a third
+// column is drawn.
 func TestTheGridDrawsTheWindowsBar(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			standing := gridAt(t, tc.c, desktop.ScrollBarsAlways)
 			bar := gridBar(standing)
 			lane, pad := int(bar.Width()), int(bar.TrackPadding)
-			cellW := int(CellW)
-			size := image.Pt(3*cellW+lane/2, 300)
+			cellW, padding := int(CellW), int(Padding)
+			size := image.Pt(3*cellW+lane/2+2*padding, 300)
 			fill := standing.palette.Backdrop
 			render := func(tok themed) *image.RGBA {
 				grid := Grid(tok, FilterIcons(""), "", list.NewState())
@@ -77,9 +82,9 @@ func TestTheGridDrawsTheWindowsBar(t *testing.T) {
 			// A third cell would end at three cells' width, inside the lane,
 			// so the rows end before the lane exactly when two columns are
 			// drawn.
-			if rowsEnd > 2*cellW || rowsEnd > laneMin {
+			if rowsEnd > padding+2*cellW || rowsEnd > laneMin {
 				t.Errorf("at Always the cells draw to x %d, want two columns, ending by x %d, before the %d px lane at x %d",
-					rowsEnd, 2*cellW, lane, laneMin)
+					rowsEnd, padding+2*cellW, lane, laneMin)
 			}
 
 			img = render(gridAt(t, tc.c, desktop.ScrollBarsWhenScrolling))
@@ -91,8 +96,49 @@ func TestTheGridDrawsTheWindowsBar(t *testing.T) {
 					}
 				}
 			}
-			if fadingEnd <= 2*cellW {
-				t.Errorf("at WhenScrolling the cells draw to x %d, want a third column past x %d", fadingEnd, 2*cellW)
+			if fadingEnd <= padding+2*cellW {
+				t.Errorf("at WhenScrolling the cells draw to x %d, want a third column past x %d", fadingEnd, padding+2*cellW)
+			}
+		})
+	}
+}
+
+// TestTheBarIsDrawnAgainstTheWindowsTrailingEdge composes the whole window
+// at Always over the whole catalogue. The region that scrolls is the page's
+// column with the Padding inside it, so the resting thumb is drawn in the
+// lane at the window's trailing edge, inside the lane's padding, and not
+// Padding in from it.
+func TestTheBarIsDrawnAgainstTheWindowsTrailingEdge(t *testing.T) {
+	for _, tc := range windowSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			tok := gridAt(t, tc.c, desktop.ScrollBarsAlways)
+			bar := gridBar(tok)
+			lane, pad := int(bar.Width()), int(bar.TrackPadding)
+			page := desktop.CapTop(func() unit.Dp { return titleBandDp },
+				Page(tok, staticSearch(t, tc.c, ""), Model{}, list.NewState()))
+			paintBackdrop := backdrop.Widget(tok.palette.Backdrop)
+			img := golden.Capture(t, windowSize, func(gtx layout.Context) layout.Dimensions {
+				paintBackdrop(gtx)
+				return page(gtx)
+			})
+			fill := opaque(tok.palette.Backdrop)
+			// The thumb at rest starts at the column's top, below the field,
+			// the marks and the catalogue's heading; its bounds are read off
+			// the column's picture over the window's trailing lane and the
+			// Padding beside it.
+			column := gridFrame(t, tc.c, Model{})
+			lanes := image.Rect(windowSize.X-lane-int(Padding), column.Min.Y, windowSize.X, windowSize.Y)
+			thumb := gridTextBox(img, lanes, fill)
+			if thumb.Empty() {
+				t.Fatalf("at Always no thumb is drawn within %d px of the window's trailing edge", lane+int(Padding))
+			}
+			if want := windowSize.X - pad; thumb.Max.X != want {
+				t.Errorf("at Always the thumb is drawn to x %d, want %d, the lane's padding in from the window's trailing edge at %d",
+					thumb.Max.X, want, windowSize.X)
+			}
+			if want := windowSize.X - lane + pad; thumb.Min.X != want {
+				t.Errorf("at Always the thumb is drawn from x %d, want %d, inside the lane at the window's trailing edge",
+					thumb.Min.X, want)
 			}
 		})
 	}
