@@ -26,7 +26,7 @@ import (
 type Palette struct {
 	Backdrop color.NRGBA // the window's own plane, full-bleed
 	Text     color.NRGBA // icon captions and section labels
-	Muted    color.NRGBA // section notes and the "no icons match" notice
+	Muted    color.NRGBA // section notes
 	Icon     color.NRGBA // the symbols themselves
 }
 
@@ -49,7 +49,6 @@ type Type struct {
 	Shaper  *text.Shaper
 	Caption textdraw.TextStyle // BodySmall: icon captions
 	Section textdraw.TextStyle // TitleSmall: the labels over the two sets
-	Notice  textdraw.TextStyle // TitleLarge: the "no icons match" notice
 }
 
 func TypeFrom(t tokens.Typography) Type {
@@ -57,7 +56,6 @@ func TypeFrom(t tokens.Typography) Type {
 		Shaper:  t.Shaper(),
 		Caption: textStyle(t.BodySmall),
 		Section: textStyle(t.TitleSmall),
-		Notice:  textStyle(t.TitleLarge),
 	}
 }
 

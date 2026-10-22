@@ -82,7 +82,6 @@ func staticTypo(typo tokens.Typography) Type {
 		Shaper:  typo.DeterministicShaper(),
 		Caption: textStyle(typo.BodySmall),
 		Section: textStyle(typo.TitleSmall),
-		Notice:  textStyle(typo.TitleLarge),
 	}
 }
 
@@ -96,7 +95,7 @@ func staticThemed(t *testing.T, c tokens.PlatformColors) themed {
 	t.Helper()
 	p := PaletteFrom(c)
 	if cached, ok := prebuilt[p.Icon]; ok {
-		return themed{palette: p, typ: staticTypo(tokens.DefaultTypography), icons: cached}
+		return staticSnapshot(c, p, cached)
 	}
 	widgets := make([]layout.Widget, len(IconTable))
 	for i, icon := range IconTable {
@@ -107,7 +106,15 @@ func staticThemed(t *testing.T, c tokens.PlatformColors) themed {
 		widgets[i] = w
 	}
 	prebuilt[p.Icon] = widgets
-	return themed{palette: p, typ: staticTypo(tokens.DefaultTypography), icons: widgets}
+	return staticSnapshot(c, p, widgets)
+}
+
+// staticSnapshot is one theme emission as the view sees it, over the pinned
+// typography a render made outside the window has to name.
+func staticSnapshot(c tokens.PlatformColors, p Palette, icons []layout.Widget) themed {
+	typo := tokens.DefaultTypography
+	return themed{palette: p, typ: staticTypo(typo), icons: icons,
+		platform: c, typography: typo}
 }
 
 // prebuilt caches the icons per symbol colour, which is the only thing

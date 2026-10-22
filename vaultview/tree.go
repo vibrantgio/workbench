@@ -455,10 +455,11 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	}
 	if len(rows) == 0 {
 		if filtering {
-			complayout.Inset(treeRowInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return typeset.Text(gtx, tok.shaper, "No note by that name.", tok.typ.BodyMedium,
-					vgcolor.Flatten(tok.col.SecondaryLabel, chromeSurface(tok.col)), 1)
-			})
+			// The row region is the section with nothing in it, so the
+			// line is its empty state: centred in that frame at the size
+			// the rows it stands for are set at.
+			return shell.EmptyState(gtx, tok.shaper, tok.col, tok.typ, chromeSurface(tok.col),
+				shell.EmptyStateProps{Line: "No note by that name.", LineStyle: tok.typ.BodyMedium})
 		}
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}

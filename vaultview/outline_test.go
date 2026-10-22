@@ -959,7 +959,7 @@ More prose.
 Yet more prose.
 `
 
-// asideShot lays a note's document out and then the trailing column on
+// asideShotFrom lays a note's document out and then the trailing column on
 // its own, on the surface the frame paints under the column, and captures
 // the column. The document goes into a recording that is thrown away: the
 // outline reads the position it resolves, and none of the note's own text
@@ -967,17 +967,13 @@ Yet more prose.
 //
 // Two frames, because the mark is written from the position the first one
 // resolves and drawn by the one after it.
-func asideShot(t *testing.T, m Model, col tokens.PlatformColors, h int) (*image.RGBA, *asideView) {
-	t.Helper()
-	return asideShotFrom(t, m, col, h, false)
-}
-
-// asideShotFrom is [asideShot] with the document placed: at its start, or at
-// its end, which puts the mark on the column's last entry and leaves every
-// row above it bare. A measurement that reads a row's own leading edge needs
-// a bare row in the light appearance, where the label the platform pairs
-// with a selection is white and the chrome material is white too, so no
-// instrument can find a marked row's text on its pill.
+//
+// The document is placed at its start, or at its end, which puts the mark
+// on the column's last entry and leaves every row above it bare. A
+// measurement that reads a row's own leading edge needs a bare row in the
+// light appearance, where the label the platform pairs with a selection is
+// white and the chrome material is white too, so no instrument can find a
+// marked row's text on its pill.
 func asideShotFrom(t *testing.T, m Model, col tokens.PlatformColors, h int, atEnd bool) (*image.RGBA, *asideView) {
 	t.Helper()
 	tok := goldenTokens()
@@ -1130,66 +1126,6 @@ func TestTheOutlineStepsOnTheColumnsRhythm(t *testing.T) {
 				if got := lead[i] - lead[i-1]; got != asideRowPadDp {
 					t.Errorf("a level-%d title stands %d px in from the level-%d title above it, want %d — one column, one rhythm",
 						i+1, got, i, asideRowPadDp)
-				}
-			}
-		})
-	}
-}
-
-// TestAnEmptyPaneStandsOnItsRowsAxis requires the line a pane shows instead
-// of rows to lead where those rows would have led, and not on the axis of the
-// heading above it — a pad outboard of every row in the column reads as an
-// annotation on the heading rather than as the pane's own answer.
-func TestAnEmptyPaneStandsOnItsRowsAxis(t *testing.T) {
-	rowH := asideRowPx()
-	for _, tc := range themeCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// A note with headings and citations, and one with neither: the
-			// rows, and the lines standing in for them, in the same panes.
-			full, fv := asideShotFrom(t, citedModel("guide/Rhythm.md", rhythmSource, 2), tc.colors, 700, true)
-			bare, bv := asideShot(t, citedModel("Sources.md", plainNoteSource, 0), tc.colors, 700)
-
-			tok := goldenTokens()
-			tok.col = tc.colors
-			fg := asideForegrounds(tok)
-			head, _ := asideDrawnAt(bare, tc.colors, 0, bv.geom.outline.Min.Y, chromeSurface(tc.colors), fg.faint)
-			if head < 0 {
-				t.Fatal("the column drew no heading to measure against")
-			}
-			for _, c := range []struct {
-				pane      string
-				row, line image.Rectangle
-				fill      color.NRGBA
-			}{
-				// The outline's first row is the one the reader is inside,
-				// so it wears the emphasized pill; the backlinks' first row
-				// is unselected and wears the column's own fill.
-				{"outline", fv.geom.outline, bv.geom.outline, chromeSurface(tc.colors)},
-				{"backlinks", fv.geom.backlinks, bv.geom.backlinks, chromeSurface(tc.colors)},
-			} {
-				rowX, rowY := asideDrawnAt(full, tc.colors, c.row.Min.Y, c.row.Min.Y+rowH, c.fill, fg.reading)
-				lineX, lineY := asideDrawnAt(bare, tc.colors, c.line.Min.Y, c.line.Min.Y+rowH, chromeSurface(tc.colors), fg.faint)
-				if rowX < 0 || lineX < 0 {
-					t.Fatalf("the %s pane drew nothing to measure: row at %d, line at %d", c.pane, rowX, lineX)
-				}
-				// A pixel of slack on each axis, and no more: the line and
-				// the row start on different letters, and a letter's own
-				// bearings are not the column's placement of it.
-				if d := rowX - lineX; d < -1 || d > 1 {
-					t.Errorf("the %s pane's rows lead at x=%d and the line standing in for them at x=%d; one leading edge",
-						c.pane, rowX, lineX)
-				}
-				// Down the column, each measured from its own pane's top:
-				// the two panes stand at different heights in the two
-				// pictures, because a pane is as tall as the rows it has.
-				rowDown, lineDown := rowY-c.row.Min.Y, lineY-c.line.Min.Y
-				if d := rowDown - lineDown; d < -1 || d > 1 {
-					t.Errorf("the %s pane's first row paints %d px down its pane and the line standing in for it %d; the line stands where the row would",
-						c.pane, rowDown, lineDown)
-				}
-				if lineX-head <= 1 {
-					t.Errorf("the %s pane's line leads at %d and the heading above it at %d; the line stands where its rows do, not where the head does",
-						c.pane, lineX, head)
 				}
 			}
 		})
@@ -1396,21 +1332,5 @@ func TestAnOutlineRowHoldsItsTitleWhenSelected(t *testing.T) {
 		if on != off {
 			t.Errorf("row %d leads at x=%d marked and x=%d bare; the pill is a fill and moves no title", i, on, off)
 		}
-	}
-
-	// The line a pane with no rows shows stands where its rows stand, not
-	// at a fourth edge of its own.
-	empty, ev := asideShot(t, citedModel("Sources.md", plainNoteSource, 0), col, 700)
-	line, _ := asideDrawnAt(empty, col, ev.geom.outline.Min.Y, ev.geom.outline.Min.Y+rowH,
-		chromeSurface(col), fg.faint)
-	row, _ := asideDrawnAt(bare, col, bv.geom.outline.Min.Y, bv.geom.outline.Min.Y+rowH,
-		chromeSurface(col), fg.reading)
-	if line < 0 || row < 0 {
-		t.Fatalf("nothing to measure: the empty-state line at %d, the first row at %d", line, row)
-	}
-	// A pixel of slack and no more: the line and the row start on different
-	// letters, and a letter's own bearings are not the column's placement.
-	if d := line - row; d < -1 || d > 1 {
-		t.Errorf("the empty-state line leads at x=%d and a row's title at x=%d; the line stands at the rows' edge", line, row)
 	}
 }

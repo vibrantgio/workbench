@@ -14,6 +14,7 @@ import (
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -40,6 +41,13 @@ type themed struct {
 	palette Palette
 	typ     Type
 	icons   []layout.Widget
+
+	// The platform's own set and the whole type set, carried beside the
+	// app's view of them because patterns/shell reads them directly: the
+	// grid's empty state is the pattern's, and it resolves its colour and
+	// its line's typeface from these.
+	platform   tokens.PlatformColors
+	typography tokens.Typography
 }
 
 // ContentLayer renders the page: search field over the filtered icon grid,
@@ -74,7 +82,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 					}
 					widgets[i] = w
 				}
-				return themed{palette: p, typ: TypeFrom(n.Second), icons: widgets}
+				return themed{palette: p, typ: TypeFrom(n.Second), icons: widgets,
+					platform: n.First, typography: n.Second}
 			})
 	})
 
@@ -126,11 +135,18 @@ const (
 // for a Material symbol is not padded by an empty row.
 func Page(t themed, search layout.Widget, model Model, grid *layout.List) layout.Widget {
 	visible := FilterIcons(model.Query)
+	return pageOver(t, search, model, len(visible), Grid(t, visible, model.Query, grid))
+}
+
+// pageOver is the page over a given content region: the stacking Page is,
+// with the region that stretches handed in. Page hands it the icon grid; a
+// render that has to know the frame that region is given hands in a probe
+// reporting it.
+func pageOver(t themed, search layout.Widget, model Model, count int, gridWidget layout.Widget) layout.Widget {
 	names := FilterMarks(model.Query)
-	gridWidget := Grid(t, visible, model.Query, grid)
 	markWidget := MarkGrid(t, names)
 	marksHeading := Heading(t, MarksHeading, MarkSizeNote(names))
-	catalogueHeading := Heading(t, CatalogueHeading, fmt.Sprintf("%d icons", len(visible)))
+	catalogueHeading := Heading(t, CatalogueHeading, fmt.Sprintf("%d icons", count))
 	sides := layout.Inset{Left: Padding, Right: Padding}
 	return func(gtx layout.Context) layout.Dimensions {
 		children := make([]layout.FlexChild, 0, 5)
@@ -168,9 +184,11 @@ func Grid(t themed, visible []int, query string, grid *layout.List) layout.Widge
 		size := gtx.Constraints.Max
 
 		if len(visible) == 0 {
-			notice := fmt.Sprintf("No icons match %q", query)
-			textdraw.FillText(gtx, t.typ.Shaper, t.typ.Notice, image.Rectangle{Max: size}, 0.5, 0.5, p.Muted, notice)
-			return layout.Dimensions{Size: size}
+			// The grid is the page's content region, so what stands in for
+			// the icons is the content column's empty state: the line
+			// centred in the grid's own frame at the measured size.
+			return shell.EmptyState(gtx, t.typ.Shaper, t.platform, t.typography, p.Backdrop,
+				shell.EmptyStateProps{Line: fmt.Sprintf("No icons match %q", query)})
 		}
 
 		cellW, cellH := gtx.Dp(CellW), gtx.Dp(CellH)

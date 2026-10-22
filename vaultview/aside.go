@@ -44,6 +44,7 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/typeset"
@@ -449,23 +450,12 @@ func asideTrailing(tok themeTokens, w layout.Widget) layout.Widget {
 	}
 }
 
-// asideEmptyLine is what a pane says instead of rows when it has none.
-//
-// It stands where the first of those rows would have stood, on both axes,
-// so that one leading edge runs down the column and the line reads as the
-// pane's own answer rather than as an annotation on the heading above it.
-// Across: a row's own pad inboard of the column's text margin, the bar's
-// lane and a pad again at its trailing end. Down: in a row's own height,
-// which centres the line where a row centres its text.
-func asideEmptyLine(gtx layout.Context, tok themeTokens, line string, rowH int) layout.Dimensions {
-	return layout.Inset{
-		Left:  asideLaneDp + asideRowPadDp,
-		Right: asideBarLane(tok) + asideLaneDp + asideRowPadDp,
-	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints.Min.Y = rowH
-		gtx.Constraints.Max.Y = max(gtx.Constraints.Max.Y, rowH)
-		return typeset.Text(gtx, tok.shaper, line, tok.typ.BodyMedium, asideForegrounds(tok).faint, 0)
-	})
+// asideEmptyLine is what a pane says instead of rows when it has none: the
+// empty state of that section, centred in the section's own frame at the
+// size the rows it stands for are set at.
+func asideEmptyLine(gtx layout.Context, tok themeTokens, line string) layout.Dimensions {
+	return shell.EmptyState(gtx, tok.shaper, tok.col, tok.typ, chromeSurface(tok.col),
+		shell.EmptyStateProps{Line: line, LineStyle: tok.typ.BodyMedium})
 }
 
 // asideRule is the hairline parting the two panes. It is a hairline for
@@ -499,15 +489,9 @@ func asideRule(gtx layout.Context, tok themeTokens) layout.Dimensions {
 func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []outlineEntry) layout.Dimensions {
 	rowH := gtx.Dp(sidebar.RowHeight)
 	if len(entries) == 0 {
-		// Released from the region's minimum height, so the line sits under
-		// its own heading rather than in the middle of the room the region
-		// holds. The region is still returned whole: the room below the
-		// line is the outline's to stand empty in, which is what keeps the
-		// backlinks on the column's foot.
-		gtx.Constraints.Min.Y = 0
-		region := gtx.Constraints.Max
-		asideEmptyLine(gtx, tok, "This note has no headings.", rowH)
-		return layout.Dimensions{Size: region}
+		// The region is still the outline's whole: the room the line
+		// centres in is what keeps the backlinks on the column's foot.
+		return asideEmptyLine(gtx, tok, "This note has no headings.")
 	}
 	if doc := v.cur.document(); doc != nil {
 		first := doc.Position().First
@@ -629,13 +613,7 @@ func (v *asideView) seek(gtx layout.Context, e outlineEntry) {
 func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []backlinkRow) layout.Dimensions {
 	rowH := gtx.Dp(sidebar.RowHeight)
 	if len(rows) == 0 {
-		// Released from the flex child's minimum height, so the line sits
-		// under its own header rather than centred in the whole empty
-		// column, where it would belong to nothing.
-		gtx.Constraints.Min.Y = 0
-		region := gtx.Constraints.Max
-		asideEmptyLine(gtx, tok, "No notes link here.", rowH)
-		return layout.Dimensions{Size: region}
+		return asideEmptyLine(gtx, tok, "No notes link here.")
 	}
 	for len(v.rowClicks) < len(rows) {
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
