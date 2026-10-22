@@ -1029,7 +1029,8 @@ func noteEmptyState(gtx layout.Context, tok themeTokens, msg string) layout.Dime
 	full := gtx
 	full.Constraints = layout.Exact(image.Pt(row.X, row.Y+bar))
 	defer op.Offset(image.Pt(0, -bar)).Push(gtx.Ops).Pop()
-	shell.EmptyState(full, tok.shaper, tok.col, tok.typ, tok.col.TextBackground, msg)
+	shell.EmptyState(full, tok.shaper, tok.col, tok.typ, tok.col.TextBackground,
+		shell.EmptyStateProps{Line: msg})
 	return layout.Dimensions{Size: row}
 }
 

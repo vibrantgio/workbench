@@ -183,7 +183,8 @@ func detailEmptyState(gtx layout.Context, tok themeTokens, msg string) layout.Di
 	full := gtx
 	full.Constraints = layout.Exact(image.Pt(row.X, row.Y+bar))
 	defer op.Offset(image.Pt(0, -bar)).Push(gtx.Ops).Pop()
-	shell.EmptyState(full, tok.shaper, tok.col, tok.typ, tok.col.ControlBackground, msg)
+	shell.EmptyState(full, tok.shaper, tok.col, tok.typ, tok.col.ControlBackground,
+		shell.EmptyStateProps{Line: msg})
 	return layout.Dimensions{Size: row}
 }
 
