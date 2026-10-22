@@ -66,31 +66,24 @@ func captureWithPointer(t *testing.T, size image.Point, draw layout.Widget, at *
 }
 
 // accentBox is the bounding box of the pixels in the frame's trailing band
-// that are nearer the accent than the window's plane, the band being the 60
-// columns at the window's trailing edge above the add button's band.
+// that are more than 20 levels off the window's plane, summed over the
+// channels, which is how the reference reads a mark's extent. The band is the
+// 60 columns at the window's trailing edge above the add button's band.
 func accentBox(img *image.RGBA, th themed) image.Rectangle {
-	accent, plane := th.palette.Icon, th.palette.Backdrop
-	dist := func(a, b [3]int) int {
-		d := 0
-		for i := range a {
-			if a[i] > b[i] {
-				d += a[i] - b[i]
-			} else {
-				d += b[i] - a[i]
-			}
+	plane := th.palette.Backdrop
+	abs := func(a, b uint8) int {
+		if a > b {
+			return int(a - b)
 		}
-		return d
+		return int(b - a)
 	}
-	ac := [3]int{int(accent.R), int(accent.G), int(accent.B)}
-	pl := [3]int{int(plane.R), int(plane.G), int(plane.B)}
 	var box image.Rectangle
 	size := img.Bounds().Size()
 	bottom := size.Y - int(fabSize+2*Padding)
 	for y := 0; y < bottom; y++ {
 		for x := size.X - 60; x < size.X; x++ {
 			c := pixelAt(img, image.Pt(x, y))
-			px := [3]int{int(c.R), int(c.G), int(c.B)}
-			if dist(px, ac) < dist(px, pl) {
+			if abs(c.R, plane.R)+abs(c.G, plane.G)+abs(c.B, plane.B) > 20 {
 				box = box.Union(image.Rect(x, y, x+1, y+1))
 			}
 		}
@@ -109,7 +102,7 @@ func TestTheDeleteMarkIsDrawnUnderThePointerOnly(t *testing.T) {
 			th := staticThemed(tc.c)
 			rest := renderWithPointer(t, tc.c, nil)
 			if box := accentBox(rest, th); !box.Empty() {
-				t.Fatalf("at rest the accent is drawn at %v in the trailing band; no row draws its mark at rest", box)
+				t.Fatalf("at rest a mark is drawn at %v in the trailing band; no row draws its mark at rest", box)
 			}
 
 			// The second row's middle: the row under the pointer is found
@@ -131,11 +124,11 @@ func TestTheDeleteMarkIsDrawnUnderThePointerOnly(t *testing.T) {
 				t.Fatalf("with the pointer over the second row no mark is drawn")
 			}
 			t.Logf("rows at %v, mark at %v", ys, box)
-			if w, h := box.Dx(), box.Dy(); w < 17 || w > 19 || h < 17 || h > 19 {
-				t.Errorf("the mark's drawn extent is %d x %d, want 18 x 18 within a pixel", w, h)
+			if w, h := box.Dx(), box.Dy(); w != 18 || h != 18 {
+				t.Errorf("the mark's drawn extent is %d x %d, want 18 x 18", w, h)
 			}
-			if gap := windowSize.X - box.Max.X; gap < 15 || gap > 17 {
-				t.Errorf("the mark ends %d px inside the window's trailing edge, want 16 within a pixel", gap)
+			if gap := windowSize.X - box.Max.X; gap != 16 {
+				t.Errorf("the mark ends %d px inside the window's trailing edge, want 16", gap)
 			}
 			if mid := (box.Min.Y + box.Max.Y) / 2; mid < ys[0]+(ys[1]-ys[0])/2 || mid > ys[1]+(ys[2]-ys[1])/2 {
 				t.Errorf("the mark's middle row is %d, outside the second row around %d", mid, ys[1])

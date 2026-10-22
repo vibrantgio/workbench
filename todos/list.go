@@ -102,17 +102,15 @@ func EmptyList(gtx layout.Context, th themed) layout.Dimensions {
 // on the selected row and on no row at rest. The list selects no row, so the
 // mark is drawn on the row under the pointer only.
 const (
-	// rowControlExtent is the mark's drawn extent.
-	rowControlExtent unit.Dp = 18
-	// rowControlBox is the symbol's square: a Material symbol draws 20 of its
-	// 24 units, so the box is the extent's 24/20.
-	rowControlBox = rowControlExtent * 24 / 20
-	// rowControlInset is the mark's drawn extent's distance from the row's
+	// rowControlBox is the symbol's square. The reference reads a mark's
+	// extent as the pixels more than 20 levels off the fill, and the circled
+	// symbol in a 20 dp box reads 18 px by that measure, its ring's
+	// antialiased edge included.
+	rowControlBox unit.Dp = 20
+	// rowTrailingInset is the rows' trailing inset: the box's trailing column
+	// is the drawn extent's, so the mark's extent ends 16 px inside the row's
 	// trailing edge, which is the window's trailing edge.
-	rowControlInset unit.Dp = 16
-	// rowTrailingInset is the rows' trailing inset: the mark's inset less the
-	// part of the box that is not drawn.
-	rowTrailingInset = rowControlInset - (rowControlBox-rowControlExtent)/2
+	rowTrailingInset unit.Dp = 15
 )
 
 // Row is one todo line: a components checkbox toggling completion, the todo text
