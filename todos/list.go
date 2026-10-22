@@ -17,6 +17,7 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 )
@@ -57,6 +58,27 @@ func List(typ Type, th rx.Observable[theme.Theme], p Palette, bar scrollbar.Styl
 			return in.Layout(gtx, rows[i])
 		})
 	}
+}
+
+// emptyListLine is the list's empty state: the line drawn where the rows
+// would be when there is no todo.
+const emptyListLine = "No todos."
+
+// EmptyList draws the list's empty state over the frame gtx gives: the line
+// centred both ways at [shell.EmptyStateSizeSp], in the tertiary label colour
+// over the window's own plane.
+//
+// The list is the window's one column, so the frame is the window's full
+// frame, the title-bar strip included, as a column's frame includes the
+// toolbar's share. It is passed through [shell.EmptyStateFrame] with the bar
+// the list draws, so a standing bar's lane is outside it.
+func EmptyList(gtx layout.Context, th themed) layout.Dimensions {
+	size := gtx.Constraints.Max
+	egtx := gtx
+	egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, th.listBar()))
+	shell.EmptyState(egtx, th.typ.Shaper, th.platform, th.typography, th.palette.Backdrop,
+		shell.EmptyStateProps{Line: emptyListLine})
+	return layout.Dimensions{Size: size}
 }
 
 // Row is one todo line: a components checkbox toggling completion, the todo text

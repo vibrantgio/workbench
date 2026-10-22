@@ -42,6 +42,9 @@ type themed struct {
 	palette    Palette
 	typ        Type
 	platform   tokens.PlatformColors
+	// typography is the theme's type set, which the list's empty state is
+	// set from.
+	typography tokens.Typography
 	// scrollBars is the platform's "Show scroll bars" setting, read once
 	// when the window is composed and passed here, so that no frame asks
 	// the platform and no still render depends on the machine it runs on.
@@ -73,7 +76,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
 			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
 				return themed{components: t, palette: PaletteFrom(n.First), typ: TypeFrom(n.Second),
-					platform: n.First, scrollBars: bars}
+					platform: n.First, typography: n.Second, scrollBars: bars}
 			})
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
@@ -155,6 +158,12 @@ func view(th themed, model Model, listState *complist.State, strip func() unit.D
 		// dialog's scrim composites over the page rather than blending with
 		// it. The backdrop layer beneath has already painted into these ops.
 		composite.Frame(gtx)
+
+		// A list with nothing in it draws its empty state under the page,
+		// so the dialog's scrim covers it as it covers the rows.
+		if len(model.List) == 0 {
+			EmptyList(gtx, th)
+		}
 
 		if route == "" {
 			capped(gtx)

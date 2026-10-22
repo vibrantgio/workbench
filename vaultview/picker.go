@@ -49,6 +49,7 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/system/naming"
@@ -345,7 +346,7 @@ func (v *pickerView) browser(
 		}
 	}
 	rows := func(gtx layout.Context) layout.Dimensions {
-		return v.rows(gtx, tok, m.PickerEntries, surface, rowInset)
+		return v.listRegion(gtx, m, tok, surface, rowInset)
 	}
 	listChild := layout.Flexed(1, rows)
 	if rowsPx > 0 {
@@ -361,6 +362,35 @@ func (v *pickerView) browser(
 		layout.Rigid(complayout.VSpacer(pickerGapDp)),
 		listChild,
 	)
+}
+
+// pickerNoFoldersLine is the folder browser's empty state: the line drawn
+// where the rows would be for a folder that holds no folders.
+const pickerNoFoldersLine = "This folder holds no folders."
+
+// listRegion lays out the region under the trail: the rows, and over them
+// the region's empty state once the listing is read and holds no folder.
+//
+// The list is laid out even with no rows, so its focus tag stays registered
+// and the keyboard stays on it while the reader moves on through the trail.
+//
+// The empty state is centred both ways in the frame the rows would occupy,
+// passed through [shell.EmptyStateFrame] with the bar the rows are drawn
+// with, so a standing bar's lane is outside it. The line is set at the size
+// the rows are, because the list is a field of the dialog and of the picker
+// screen, not a column of the window.
+func (v *pickerView) listRegion(gtx layout.Context, m Model, tok themeTokens, standsOn color.NRGBA, rowInset float32) layout.Dimensions {
+	dims := v.rows(gtx, tok, m.PickerEntries, standsOn, rowInset)
+	if !m.PickerListed || len(m.PickerEntries) > 0 {
+		return dims
+	}
+	size := gtx.Constraints.Max
+	bar := scrollBarStyle(scrollbar.FromTokens(tok.col, standsOn), tok.scrollBars)
+	egtx := gtx
+	egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, bar))
+	shell.EmptyState(egtx, tok.shaper, tok.col, tok.typ, standsOn,
+		shell.EmptyStateProps{Line: pickerNoFoldersLine, LineStyle: tok.typ.BodyLarge})
+	return layout.Dimensions{Size: size}
 }
 
 // rows lays out the folder list with keyboard traversal, on the surface

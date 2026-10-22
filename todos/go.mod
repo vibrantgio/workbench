@@ -10,6 +10,7 @@ require (
 	github.com/vibrantgio/ivg/raster/gio v0.2.0
 	github.com/vibrantgio/mvu v1.1.4
 	github.com/vibrantgio/mvu/desktop v1.1.4
+	github.com/vibrantgio/patterns v1.4.1
 	github.com/vibrantgio/textdraw v0.0.7
 	github.com/vibrantgio/theme v1.5.0
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743
@@ -19,6 +20,7 @@ require (
 	gioui.org/shader v1.0.9 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/reactivego/scheduler v0.2.0 // indirect
+	github.com/vibrantgio/effects v0.4.0 // indirect
 	github.com/vibrantgio/font v0.4.4 // indirect
 	github.com/vibrantgio/ivg v0.2.0 // indirect
 	github.com/vibrantgio/svg v0.1.2 // indirect

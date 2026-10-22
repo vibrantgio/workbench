@@ -69,6 +69,10 @@ type Model struct {
 	// draws a different picture on every machine.
 	PickerRoot    place
 	PickerEntries []DirEntry
+	// PickerListed is true once the listing for PickerDir has been read, so
+	// a directory with no child directories is told apart from one whose
+	// listing is still being read: only the first draws the empty state.
+	PickerListed bool
 
 	// Vault state.
 	Vault    string // absolute path of the open vault
@@ -451,11 +455,13 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.PickerDir = m.Dir
 		model.PickerRoot = trailRoot(m.Dir)
 		model.PickerEntries = nil
+		model.PickerListed = false
 		return model, listDirCmd(m.Dir)
 	case pickerListed:
 		// A listing for a directory the browser has already left is stale.
 		if m.dir == model.PickerDir {
 			model.PickerEntries = m.entries
+			model.PickerListed = true
 		}
 	case OpenVault:
 		model.Screen = screenVault
@@ -649,6 +655,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.PickerDir = dir
 		model.PickerRoot = trailRoot(dir)
 		model.PickerEntries = nil
+		model.PickerListed = false
 		return model, listDirCmd(dir)
 	case CancelSwitch:
 		model.PickerOpen = false

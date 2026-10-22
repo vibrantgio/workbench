@@ -26,6 +26,8 @@ github.com/vibrantgio/components v1.5.1 h1:20bNHhX1j7ZdR6naD7DGcqf828KSvuJuFsd+a
 github.com/vibrantgio/components v1.5.1/go.mod h1:8dCDB4dzeC5WFJjV3FaaSv0Tw5tJmdYgm5WpJAa8qCo=
 github.com/vibrantgio/components v1.6.0 h1:pCLLmukO/1OcwJQSn5ZtCzfxqo2oFWxVGEuZdeTTd+A=
 github.com/vibrantgio/components v1.6.0/go.mod h1:8dCDB4dzeC5WFJjV3FaaSv0Tw5tJmdYgm5WpJAa8qCo=
+github.com/vibrantgio/effects v0.4.0 h1:MyK2as4WDKmKjjL/o6V9WKWZShcaEma9Ln9+WDz9oP0=
+github.com/vibrantgio/effects v0.4.0/go.mod h1:yb+4OaF2Wq4eVM4my2iIcICCZWLORs5UggSW53PUlt0=
 github.com/vibrantgio/font v0.4.4 h1:tbRi3nhRpMCbch/LIcWEkTAx4t6XXHS2jTWmxT0pnGM=
 github.com/vibrantgio/font v0.4.4/go.mod h1:yN2a8768lukWgabD2a5pypVD+uvciEYkWkZfYDvJEoA=
 github.com/vibrantgio/ivg v0.2.0 h1:cHvKcbEmLEXJg3rwaY2TwNgYD03ES4o57deUJ72iHy8=
@@ -40,6 +42,8 @@ github.com/vibrantgio/mvu/desktop v1.1.1 h1:EwwLGdlsuOquxo1C4eTKjpYo/LAeLGKvYoFI
 github.com/vibrantgio/mvu/desktop v1.1.1/go.mod h1:SN2fR7An2DbciVwXYacBVHUQMdcSfMecBCNBlZdRXN0=
 github.com/vibrantgio/mvu/desktop v1.1.4 h1:0TiRKo1gS0r4m+H0Z67N7zN/4GD6NWecd5U1p+bE8co=
 github.com/vibrantgio/mvu/desktop v1.1.4/go.mod h1:z1BZKHOiXgsP8RlbBUdkcXyQRO69ZSiiBXHnjF3kq60=
+github.com/vibrantgio/patterns v1.4.1 h1:Q5GvRJc0yKhtQa5ngsZBe7a/vtX+cilOaoMfgGHc5AI=
+github.com/vibrantgio/patterns v1.4.1/go.mod h1:7+dEZJHEfdcjJybRrhPyPsLSS9xDZY5kLItTPULGoPI=
 github.com/vibrantgio/style v0.0.9 h1:BdXM59mIvr0d08hAng8uRUq61Gtm2aockN5cu3EH8OQ=
 github.com/vibrantgio/style v0.0.9/go.mod h1:r8B3p212+CO3Wz27S4LuEBqU4pzwuaJKSvvtfY9GjeI=
 github.com/vibrantgio/svg v0.1.2 h1:0vx5iDpy69+kKy3wozKWO7xPJgGe/7hmMXSWTu+WuaM=

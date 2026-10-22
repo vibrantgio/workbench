@@ -76,8 +76,9 @@ func staticThemed(p tokens.PlatformColors) themed {
 			Radius:     rx.Of(tokens.Radius),
 			Elevation:  rx.Of(tokens.Elevation),
 		},
-		palette:  PaletteFrom(p),
-		platform: p,
+		palette:    PaletteFrom(p),
+		platform:   p,
+		typography: typo,
 		typ: Type{
 			Shaper:   typo.DeterministicShaper(),
 			Headline: textStyle(typo.HeadlineSmall),
