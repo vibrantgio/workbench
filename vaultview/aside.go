@@ -432,15 +432,6 @@ func asideBarLane(tok themeTokens) unit.Dp {
 	return asideIndicator(tok).Width()
 }
 
-// asideBarAnchor is how a pane spends the bar's width: a standing bar takes
-// a gutter out of the rows, and a fading one floats over their trailing end.
-func asideBarAnchor(tok themeTokens) list.Anchor {
-	if tok.scrollBars == desktop.ScrollBarsAlways {
-		return list.Occupy
-	}
-	return list.Overlay
-}
-
 // asideTrailing insets a layout.Widget by the bar's lane and the column's
 // own, which is what puts what it draws on the column's trailing edge. With
 // no bar standing there is no bar lane, and the two lanes the column keeps
@@ -538,7 +529,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 		v.outlineClick = append(v.outlineClick, &widget.Clickable{})
 	}
 	foregrounds := asideForegrounds(tok)
-	return list.LayoutSelectableScrollbar(gtx, v.outlineList, asideIndicator(tok), asideBarAnchor(tok), entries,
+	return list.LayoutSelectableScrollbar(gtx, v.outlineList, asideIndicator(tok), shell.BarAnchor(asideIndicator(tok)), entries,
 		func(gtx layout.Context, e outlineEntry, selected bool) layout.Dimensions {
 			click := v.outlineClick[e.Idx]
 			if click.Clicked(gtx) {
@@ -627,7 +618,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
 	foregrounds := asideForegrounds(tok)
-	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), asideBarAnchor(tok), rows,
+	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), shell.BarAnchor(asideIndicator(tok)), rows,
 		func(gtx layout.Context, row backlinkRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
 			if click.Clicked(gtx) {

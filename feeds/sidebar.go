@@ -32,6 +32,7 @@ import (
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
+	"github.com/vibrantgio/patterns/shell"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/system/naming"
@@ -450,7 +451,7 @@ func runIndex(rows []railRow, id FeedID) int {
 
 // drawRailColumn lays the rail out: the sections — each a heading block
 // and, while the section is open, the rows beneath it — in a scroll area
-// with the platform's overlay scrollbar.
+// with the window's scrollbar.
 //
 // It is the pane column's ROWS slot and nothing else. The strip above it,
 // cut to clear the window's control buttons, is the arrangement's and is
@@ -459,9 +460,10 @@ func runIndex(rows []railRow, id FeedID) int {
 //
 // The sections scroll because a rail with every section open is taller than
 // the window it stands in, and a column whose foot never comes into view has
-// entries the reader cannot open. The bar OVERLAYS rather than reserving a
-// gutter: the rail's rows run the pane's full width and the platform floats
-// a sidebar's bar over them.
+// entries the reader cannot open. The bar's anchor is [shell.BarAnchor]'s:
+// a standing bar takes a lane of its own and the rows stop short of it, and
+// a fading bar lies over the rows' trailing edge, as the platform's sidebar
+// bar does, and the rows run the pane's full width.
 func drawRailColumn(
 	gtx layout.Context,
 	colors tokens.PlatformColors,
@@ -511,9 +513,9 @@ func drawRailColumn(
 	}
 	headH := gtx.Dp(patsidebar.SectionHeight)
 	blocks := railBlocks(sections, open)
-	// The bar rides the pane's own fill, which is what shows through an
-	// overlay thumb, and stands without fading where the reader asked for
-	// scroll bars always.
+	// The bar is drawn over the pane's own fill, which is what shows
+	// through a fading thumb, and stands without fading where the reader
+	// asked for scroll bars always.
 	bar := scrollBarStyle(scrollbar.FromTokens(colors, pane.Surface(colors)), bars)
 
 	cgtx := gtx
@@ -528,7 +530,7 @@ func drawRailColumn(
 			scroll.Reveal(at)
 		}
 	}
-	list.LayoutScrollbar(cgtx, scroll, bar, list.Overlay, blocks,
+	list.LayoutScrollbar(cgtx, scroll, bar, shell.BarAnchor(bar), blocks,
 		func(gtx layout.Context, b railBlock) layout.Dimensions {
 			if b.Row >= 0 {
 				if sections[b.Section].Rows.Row == nil {

@@ -74,16 +74,6 @@ func gridBar(t themed) scrollbar.Style {
 	return scrollBarStyle(scrollbar.FromTokens(t.platform, t.palette.Backdrop), t.scrollBars)
 }
 
-// gridBarAnchor is how the grid spends the bar's width: a standing bar takes
-// a lane of its own off the grid's trailing side, and a fading one lies over
-// the rows' trailing end.
-func gridBarAnchor(t themed) list.Anchor {
-	if t.scrollBars == desktop.ScrollBarsAlways {
-		return list.Occupy
-	}
-	return list.Overlay
-}
-
 // ContentLayer renders the page: search field over the filtered icon grid,
 // held down past the native title-bar strip the window opens the top of itself
 // into.
@@ -216,7 +206,7 @@ func pageOver(t themed, search layout.Widget, model Model, count int, gridWidget
 func Grid(t themed, visible []int, query string, grid *list.State) layout.Widget {
 	p := t.palette
 	bar := gridBar(t)
-	anchor := gridBarAnchor(t)
+	anchor := shell.BarAnchor(bar)
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 

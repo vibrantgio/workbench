@@ -21,7 +21,6 @@ import (
 	"github.com/reactivego/rx"
 
 	complayout "github.com/vibrantgio/components/layout"
-	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
@@ -121,11 +120,11 @@ func openURL(url string) {
 //
 // The bar is passed in rather than built here because it is the window's
 // bar, spent against the setting read once where the window was composed;
-// see columnBar. It floats over the column's trailing edge
-// ([list.Overlay]) as every other tab's bar does: a reserved gutter would
-// stay empty on every frame the fading bar is away, and it is the
-// document's own scrollbar entry point that draws it, because the viewport
-// being scrolled is the document's own list.
+// see columnBar. Its anchor is [shell.BarAnchor]'s, as every other tab's
+// bar's is: a standing bar takes a lane of its own and the text stops short
+// of it, and a fading bar lies over the column's trailing edge and takes no
+// lane. It is the document's own scrollbar entry point that draws it,
+// because the viewport being scrolled is the document's own list.
 func drawGuideDoc(
 	gtx layout.Context,
 	doc *markdown.Document,
@@ -137,7 +136,7 @@ func drawGuideDoc(
 	style.Gutter = docsOuterInsetDp
 	style.StartSpace = docsOuterInsetDp
 	style.EndSpace = docsOuterInsetDp
-	return doc.LayoutScrollbar(gtx, shaper, style, bar, list.Overlay)
+	return doc.LayoutScrollbar(gtx, shaper, style, bar, shell.BarAnchor(bar))
 }
 
 // drawGuideUnavailable draws the Docs column with no guide in it: this

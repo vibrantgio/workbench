@@ -34,6 +34,7 @@ import (
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -113,9 +114,10 @@ func columnBar(c tokens.PlatformColors, bars desktop.ScrollBarSetting) scrollbar
 // scrollingColumn is the scrolling column every tab of rows shows — the
 // three group tabs, the Colours tab and the Typography tab alike: the rows
 // in a virtual list
-// — only what shows is laid out — with an overlay scrollbar drawn from the
-// same set the rows are, floating over the rows rather than cutting a
-// gutter out of families shown at their own widths.
+// — only what shows is laid out — with a scrollbar drawn from the same set
+// the rows are. Its anchor is [shell.BarAnchor]'s: a standing bar takes a
+// lane of its own and the rows stop short of it, and a fading bar lies over
+// the rows' trailing edge and takes no lane.
 //
 // The bar's thumb is a coverage, so it is told the fill it rides on: the
 // content plane, which is what the sections under it fill with.
@@ -123,7 +125,8 @@ func scrollingColumn(st *list.State, c tokens.PlatformColors, bars desktop.Scrol
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
-		list.LayoutScrollbar(gtx, st, columnBar(c, bars), list.Overlay, items,
+		bar := columnBar(c, bars)
+		list.LayoutScrollbar(gtx, st, bar, shell.BarAnchor(bar), items,
 			func(gtx layout.Context, w layout.Widget) layout.Dimensions {
 				return w(gtx)
 			})

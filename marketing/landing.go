@@ -19,6 +19,7 @@ import (
 	"github.com/vibrantgio/patterns/feature"
 	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/patterns/pricing"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/testimonial"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -110,9 +111,11 @@ func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.
 }
 
 // scrollingPage lays sections in a vertical list, clamping each child
-// to contentMaxWidthDp and centering it. An overlay scrollbar (not
-// Occupy) sits on the trailing edge so the 1100 dp column does not
-// jump when the bar appears. The window's plane and the wireframe
+// to contentMaxWidthDp and centering it in the width the rows are given.
+// The bar's anchor is [shell.BarAnchor]'s: a standing bar takes a lane of
+// its own and the rows, and the column centred in them, stop short of it;
+// a fading bar lies over the trailing edge and takes no lane, so the
+// column does not move when the bar appears. The window's plane and the wireframe
 // field live in layers behind this one, so the page does not paint a
 // fill of its own — which is also the fill the scrollbar's knob is
 // composited onto, the bar riding over the page rather than a band of
@@ -131,13 +134,17 @@ func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.Pl
 		if len(children) == 0 {
 			return layout.Dimensions{Size: size}
 		}
-		contentW := size.X
-		if px := gtx.Dp(contentMaxWidthDp); px > 0 && px < contentW {
-			contentW = px
-		}
-		margin := (size.X - contentW) / 2
-		list.LayoutScrollbar(gtx, state, scrollBarStyle(scrollbar.FromTokens(colors, colors.WindowBackground), bars), list.Overlay, children,
+		bar := scrollBarStyle(scrollbar.FromTokens(colors, colors.WindowBackground), bars)
+		list.LayoutScrollbar(gtx, state, bar, shell.BarAnchor(bar), children,
 			func(gtx layout.Context, w layout.Widget) layout.Dimensions {
+				// The rows' width is the frame's, less the lane a standing
+				// bar takes.
+				rowsW := gtx.Constraints.Max.X
+				contentW := rowsW
+				if px := gtx.Dp(contentMaxWidthDp); px > 0 && px < contentW {
+					contentW = px
+				}
+				margin := (rowsW - contentW) / 2
 				if margin == 0 {
 					return w(gtx)
 				}
@@ -148,7 +155,7 @@ func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.Pl
 				dims := w(cgtx)
 				off.Pop()
 				return layout.Dimensions{
-					Size:     image.Pt(size.X, dims.Size.Y),
+					Size:     image.Pt(rowsW, dims.Size.Y),
 					Baseline: dims.Baseline,
 				}
 			})
