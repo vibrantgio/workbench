@@ -25,7 +25,9 @@ import (
 // the thumb is never drawn beside them.
 func TestPresetsColumnHeadsStayAboveTheRows(t *testing.T) {
 	size := image.Pt(int(winW), 300)
-	frameRight := size.X - int(Padding)
+	// The page's column runs to the window's trailing edge; the tab strip
+	// above it is inset by the page's Padding.
+	frameRight, stripRight := size.X, size.X-int(Padding)
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			m := goldenModel()
@@ -63,8 +65,10 @@ func TestPresetsColumnHeadsStayAboveTheRows(t *testing.T) {
 			thumbMin, thumbMax := laneMin+int(bar.TrackPadding), frameRight-int(bar.TrackPadding)
 
 			// The first slot is the first line the Recall button is drawn
-			// on: the column heads leave the buttons' columns empty.
-			recallMin, recallMax := laneMin-4-76+10, laneMin-4-10
+			// on: the column heads leave the buttons' columns empty. The
+			// rows end the page's Padding and the tab's 4 dp before the lane.
+			rowsEnd := laneMin - int(Padding) - 4
+			recallMin, recallMax := rowsEnd-76+10, rowsEnd-10
 			lineDrawn := func(img *image.RGBA, y, x0, x1 int) bool {
 				for x := x0; x < x1; x++ {
 					if drawn(img, x, y) {
@@ -78,7 +82,7 @@ func TestPresetsColumnHeadsStayAboveTheRows(t *testing.T) {
 			strip := -1
 			for y := 0; y < size.Y && strip < 0; y++ {
 				across := true
-				for x := int(Padding) + 20; x < frameRight-20 && across; x++ {
+				for x := int(Padding) + 20; x < stripRight-20 && across; x++ {
 					across = drawn(rest, x, y)
 				}
 				if across {

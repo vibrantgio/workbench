@@ -12,15 +12,16 @@ import (
 // on the Device tab, in both schemes, in a frame shorter than either tab's
 // rows, once per setting, on a frame nothing has scrolled.
 //
-// At Always the bar is drawn at rest in a lane at the tab's trailing edge,
-// which is the page's padding in from the window's, the thumb inside the
+// At Always the bar is drawn at rest in a lane at the column's trailing
+// edge, which is the window's, the thumb inside the
 // lane's padding, and the rows stop short of the lane: below the tab strip
 // nothing but the thumb is drawn in the lane. Where the bar fades a resting
 // frame draws no thumb, and the Presets tab's rows, whose buttons are drawn
-// against their trailing end, run on into where the lane was.
+// against their trailing end, end the page's Padding and the tab's 4 dp
+// before the window's trailing edge: they run on by the lane's width.
 func TestTheListTabsDrawTheWindowsBar(t *testing.T) {
 	size := image.Pt(int(winW), 300)
-	frameRight := size.X - int(Padding)
+	frameRight := size.X
 	for _, tc := range schemes {
 		for _, screen := range []string{"presets", "device"} {
 			t.Run(tc.name+"-"+screen, func(t *testing.T) {
@@ -53,7 +54,7 @@ func TestTheListTabsDrawTheWindowsBar(t *testing.T) {
 					}
 				}
 				if top < 0 {
-					t.Fatalf("at Always a resting frame drew no thumb in the lane x %d–%d at the tab's trailing edge", thumbMin, thumbMax)
+					t.Fatalf("at Always a resting frame drew no thumb in the lane x %d–%d at the window's trailing edge", thumbMin, thumbMax)
 				}
 				for y := top; y < size.Y; y++ {
 					for x := laneMin; x < frameRight; x++ {
@@ -71,9 +72,10 @@ func TestTheListTabsDrawTheWindowsBar(t *testing.T) {
 					}
 				}
 				if screen == "presets" {
+					inset := int(Padding) + 4
 					reaches := false
 					for y := top; y < size.Y && !reaches; y++ {
-						for x := laneMin; x < frameRight; x++ {
+						for x := laneMin - inset; x < frameRight-inset; x++ {
 							if drawn(fading, x, y) {
 								reaches = true
 								break
@@ -81,7 +83,7 @@ func TestTheListTabsDrawTheWindowsBar(t *testing.T) {
 						}
 					}
 					if !reaches {
-						t.Errorf("at WhenScrolling the Presets rows draw nothing in x %d–%d; with no lane they run the tab's full width", laneMin, frameRight)
+						t.Errorf("at WhenScrolling the Presets rows draw nothing in x %d–%d; with no lane they run the lane's width further", laneMin-inset, frameRight-inset)
 					}
 				}
 			})

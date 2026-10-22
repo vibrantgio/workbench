@@ -420,7 +420,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
 			{Title: "Monitor", Content: monitorContent(loadState, hov)},
-			{Title: "Presets", Content: listContent(loadState, presetsList, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
+			{Title: "Presets", Content: listContent(loadState, presetsList, func(m Model) unit.Dp { return 4 + pageFoot(m) }, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
 				clearPresetFields(m)
 				return presetsRows(t, m, slots, tp)
 			})},
@@ -488,20 +488,59 @@ func pageFill(c tokens.PlatformColors) color.NRGBA { return PaletteFrom(c).Backd
 
 // Page lays the whole window: the header band, the tab strip with its
 // content pane taking the remaining height, and the notice line under it.
+//
+// The header and the tab strip are inset by the page's Padding. The tab's
+// content runs to the window's bottom edge when no notice is shown, with
+// the page's bottom Padding inside it (see [pageFoot]); a notice line is
+// drawn below the content with the bottom Padding under it. A list-shaped
+// tab's column runs further, to the window's leading and trailing edges
+// (see [pageColumn]).
 func Page(t themed, m Model, slots slotSet, tabsW layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		return layout.UniformInset(Padding).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			rows := []layout.FlexChild{
-				layout.Rigid(headerRow(t, m, slots)),
-				vgap(12),
-				layout.Flexed(1, tabsW),
-			}
-			if m.Notice != "" {
-				rows = append(rows, vgap(8),
-					layout.Rigid(textLine(t.typ, t.typ.Small, t.palette.SecondaryLabel, m.Notice)))
-			}
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
-		})
+		rows := []layout.FlexChild{
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: Padding, Left: Padding, Right: Padding}.Layout(gtx, headerRow(t, m, slots))
+			}),
+			vgap(12),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Left: Padding, Right: Padding}.Layout(gtx, tabsW)
+			}),
+		}
+		if m.Notice != "" {
+			rows = append(rows, vgap(8),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Left: Padding, Right: Padding, Bottom: Padding}.Layout(gtx,
+						textLine(t.typ, t.typ.Small, t.palette.SecondaryLabel, m.Notice))
+				}))
+		}
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
+	}
+}
+
+// pageFoot is the page's bottom Padding that is inside the tab's content:
+// the whole Padding when the content runs to the window's bottom edge, none
+// when a notice line is drawn below the content with the Padding under it.
+func pageFoot(m Model) unit.Dp {
+	if m.Notice != "" {
+		return 0
+	}
+	return Padding
+}
+
+// pageColumn lays w as the page's column: the tab's content frame widened by
+// the page's Padding on both sides, so that it runs to the window's leading
+// and trailing edges. w puts the Padding inside the column itself, and the
+// bar of a column that scrolls is drawn at the window's trailing edge.
+func pageColumn(w layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		pad := gtx.Dp(Padding)
+		off := image.Pt(-pad, 0)
+		defer op.Offset(off).Push(gtx.Ops).Pop()
+		gtx = shell.AvailableRoomAt(gtx, off)
+		gtx.Constraints = layout.Exact(image.Pt(size.X+2*pad, size.Y))
+		w(gtx)
+		return layout.Dimensions{Size: size}
 	}
 }
 
@@ -514,6 +553,15 @@ func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widge
 		if !ok {
 			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}
+		return layout.Inset{Bottom: pageFoot(st.m)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return monitorPane(st, hov)(gtx)
+		})
+	}
+}
+
+// monitorPane is the Monitor tab inside the page's bottom Padding.
+func monitorPane(st pageState, hov *hoverState) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
 		t, m, slots := st.t, st.m, st.slots
 		if !m.HaveR {
 			// The empty state takes the tab's whole content frame, the
@@ -536,29 +584,32 @@ func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widge
 // rows flow through a list whose scroll state the caller keeps at
 // subscription scope, with the window's bar drawn at its trailing edge.
 //
-// The builder returns a head and the rows. The head is drawn above the list
-// at the tab's full width and does not scroll; the lane starts under it, and
-// only the rows scroll. The list is the region that scrolls and takes the
-// rest of the tab's content frame: the tab's 4 dp padding is inside it,
-// around each row at the sides and below the last row, and above the first
-// row when there is no head, so the bar is at the frame's trailing edge and
-// never inset by the padding. The anchor is what [list.AnchorFor] returns
-// for the bar: at Always the bar has a lane of its own and the rows stop
-// short of it, otherwise it lies over the rows' trailing edge.
-func listContent(load func() (pageState, bool), state *list.State, build func(themed, Model, slotSet) (head, rows []layout.Widget)) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
+// The list is laid out as the page's column ([pageColumn]), which runs to
+// the window's leading and trailing edges. The builder returns a head and
+// the rows. The head is drawn above the list at the column's full width and
+// does not scroll; the lane starts under it, and only the rows scroll. The
+// list is the region that scrolls and takes the rest of the column: the
+// page's Padding and the tab's 4 dp padding are inside it, around each row
+// at the sides, below the last row (foot answers how much) and above the
+// first row when there is no head, so the bar is drawn at the window's
+// trailing edge and never inset by the padding. The anchor is what
+// [list.AnchorFor] returns for the bar: at Always the bar has a lane of its
+// own and the rows stop short of it, otherwise it lies over the rows'
+// trailing edge.
+func listContent(load func() (pageState, bool), state *list.State, foot func(Model) unit.Dp, build func(themed, Model, slotSet) (head, rows []layout.Widget)) layout.Widget {
+	return pageColumn(func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
 		if !ok {
 			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}
 		head, body := build(st.t, st.m, st.slots)
-		side := layout.Inset{Left: unit.Dp(4), Right: unit.Dp(4)}
+		side := layout.Inset{Left: Padding + 4, Right: Padding + 4}
 		top := vspace(4 + 10)
 		var rows []layout.Widget
 		if len(head) == 0 {
 			rows = append(rows, top)
 		}
-		rows = append(append(rows, body...), vspace(4))
+		rows = append(append(rows, body...), vspace(foot(st.m)))
 		bar := st.t.listBar()
 		scroll := func(gtx layout.Context) layout.Dimensions {
 			return list.LayoutScrollbar(gtx, state, bar, list.AnchorFor(bar), rows,
@@ -577,7 +628,7 @@ func listContent(load func() (pageState, bool), state *list.State, build func(th
 		}
 		children = append(children, layout.Flexed(1, scroll))
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
-	}
+	})
 }
 
 // powerButton is the header's output toggle: the power symbol, lit in the
@@ -1029,7 +1080,9 @@ func deviceFooter(t themed, m Model) layout.Widget {
 // deviceContent is the Device tab: the scrolling settings grid with the
 // status footer pinned beneath it.
 func deviceContent(load func() (pageState, bool), state *list.State) layout.Widget {
-	grid := listContent(load, state, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
+	// The footer is below the list, and the page's bottom Padding is under
+	// the footer; the list keeps the tab's 4 dp below its last row.
+	grid := listContent(load, state, func(Model) unit.Dp { return 4 }, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
 		st, _ := load()
 		return nil, deviceRows(t, m, slots, st.tp)
 	})
@@ -1041,7 +1094,7 @@ func deviceContent(load func() (pageState, bool), state *list.State) layout.Widg
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Flexed(1, grid),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Left: unit.Dp(4), Right: unit.Dp(4), Bottom: unit.Dp(4)}.Layout(gtx,
+				return layout.Inset{Left: unit.Dp(4), Right: unit.Dp(4), Bottom: 4 + pageFoot(st.m)}.Layout(gtx,
 					deviceFooter(st.t, st.m))
 			}),
 		)
