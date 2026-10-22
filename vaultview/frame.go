@@ -328,6 +328,10 @@ func vaultFrame(
 		return rx.Map(columns, func(next rx.Tuple5[shell.PaneColumn, layout.Widget, layout.Widget, layout.Widget, breadcrumb.TrailLayout]) layout.Widget {
 			col, asW, mainW, fieldW := next.First, next.Second, next.Third, next.Fourth
 			return func(gtx layout.Context) layout.Dimensions {
+				// The window's content area is the available room every
+				// tooltip below is placed in; each layer between here and
+				// a tooltip moves it by the offset it places its child at.
+				gtx = shell.WithAvailableRoom(gtx, image.Rectangle{Max: gtx.Constraints.Max})
 				st.band = bandFind{find: find, field: fieldW, read: read}
 				st.trail = next.Fifth
 				return st.layout(gtx, loadModel(), loadTok(), col, asW, mainW)

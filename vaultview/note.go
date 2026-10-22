@@ -522,16 +522,7 @@ func vaultLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], lo
 			if address == "" {
 				return rx.Of(layout.Widget(nil))
 			}
-			return tooltip.Tooltip(th, tooltip.Props{
-				Text: address,
-				// Below the link, which is where this platform puts an
-				// annotation about a word in prose; the component takes
-				// the side above when the link sits too near the foot of
-				// the column for the annotation to fit under it.
-				Placement: tooltip.Bottom,
-				Arbiter:   tips,
-				Anchor:    tip.anchor,
-			})
+			return tooltip.Tooltip(th, linkTipProps(address, tips, tip))
 		},
 	)
 	mainSlot := rx.Map(rx.CombineLatest2(th, tipSlot), func(next rx.Tuple2[theme.Theme, layout.Widget]) layout.Widget {
@@ -558,6 +549,23 @@ func vaultLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], lo
 	)
 }
 
+// linkTipProps is the tooltip the window builds for the link the reader is
+// on: address is its text, tips the window's arbiter, and tip the anchor
+// the document writes the link's box to.
+func linkTipProps(address string, tips *tooltip.Arbiter, tip *linkTip) tooltip.Props {
+	return tooltip.Props{
+		Text: address,
+		// Below the link, which is where this platform puts an annotation
+		// about a word in prose; the component takes the side above when
+		// the link is too near the foot of the available room for the
+		// annotation to fit under it.
+		Placement:     tooltip.Bottom,
+		Arbiter:       tips,
+		Anchor:        tip.anchor,
+		AvailableRoom: shell.AvailableRoom,
+	}
+}
+
 // linkTip is the annotation standing beside the link the reader is on — the
 // one under the pointer or the one holding the keyboard: the tooltip the
 // window built for the address the model carries, and the box the document
@@ -565,10 +573,11 @@ func vaultLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], lo
 //
 // The box is the tooltip's anchor, written here before the tooltip lays out
 // and read back by it through Props.Anchor. Both happen on the frame
-// goroutine, in that order. The tooltip is given the whole viewport as its
-// frame, which is what it measures the address against, what it reads from
-// which side of the link has room for the annotation, and what it keeps the
-// annotation inside the sides of.
+// goroutine, in that order. The tooltip is passed the window's available
+// room, moved by every layer between the window's root and the document:
+// it measures the address against that area, takes the side of the link
+// with room for the annotation in it, and keeps the annotation inside its
+// sides.
 type linkTip struct {
 	layer layout.Widget
 	box   image.Rectangle
@@ -666,7 +675,12 @@ func layoutNotePage(
 			return layout.Dimensions{Size: image.Pt(full, dims.Size.Y)}
 		}
 	}
+	// The inset pushes its leading and top amounts as an offset before it
+	// lays the page out, so the page is given the available room moved by
+	// that offset.
+	insetAt := image.Pt(gtx.Dp(inset.Left), gtx.Dp(inset.Top))
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx = shell.AvailableRoomAt(gtx, insetAt)
 		doc := docFor(m, note)
 		// The find keys are drained before anything lays out, so a step
 		// asked for on this frame is a step this frame's document makes.
@@ -735,7 +749,19 @@ func layoutNotePage(
 		style.Measure = noteMeasureDp
 		style.StartSpace = noteGapDp
 		style.EndSpace = noteEndSpaceDp
+		// The flex lays every row above the document out before it and
+		// places the document under them, so the document's offset is
+		// their depth, known by the time it is laid out.
+		var headH int
+		head := func(w layout.Widget) layout.FlexChild {
+			return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				dims := w(gtx)
+				headH += dims.Size.Y
+				return dims
+			})
+		}
 		body := layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			gtx = shell.AvailableRoomAt(gtx, image.Pt(0, headH))
 			// The reading keys are filtered on the column's own focus
 			// tag, so they move the document only while it holds the
 			// keyboard — never out from under the find field or the
@@ -743,6 +769,7 @@ func layoutNotePage(
 			return read.layout(gtx, doc, func(gtx layout.Context) layout.Dimensions {
 				pad := gtx.Dp(style.Gutter)
 				defer op.Offset(image.Pt(-pad, 0)).Push(gtx.Ops).Pop()
+				gtx = shell.AvailableRoomAt(gtx, image.Pt(-pad, 0))
 				gtx.Constraints.Max.X += pad
 				if gtx.Constraints.Min.X > 0 {
 					gtx.Constraints.Min.X += pad
@@ -768,7 +795,7 @@ func layoutNotePage(
 		var children []layout.FlexChild
 		if note != nil && note.FM.Present {
 			children = append(children,
-				layout.Rigid(onMeasure(func(gtx layout.Context) layout.Dimensions {
+				head(onMeasure(func(gtx layout.Context) layout.Dimensions {
 					return layoutProperties(gtx, tok, note.FM, m.PropsOpen, propClick)
 				})),
 			)
@@ -789,8 +816,8 @@ func layoutNotePage(
 		// region boundary to draw: the document begins at the page's own top
 		// inset, which is where the trail began.
 		if len(children) > 0 {
-			children = append(children, layout.Rigid(complayout.VSpacer(noteGapDp)))
-			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			children = append(children, head(complayout.VSpacer(noteGapDp)))
+			children = append(children, head(func(gtx layout.Context) layout.Dimensions {
 				return pinnedSeam(gtx, tok)
 			}))
 		}

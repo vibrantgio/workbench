@@ -22,6 +22,7 @@ import (
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/table"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/system/naming"
@@ -337,9 +338,10 @@ func articlesMain(
 	// table draws its headers internally and offers no layout.Widget slot
 	// there.
 	unreadTipObs := tooltip.Tooltip(th, tooltip.Props{
-		Text:      "Unread",
-		Placement: tooltip.Bottom,
-		Arbiter:   tipArb,
+		Text:          "Unread",
+		Placement:     tooltip.Bottom,
+		Arbiter:       tipArb,
+		AvailableRoom: shell.AvailableRoom,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		},
@@ -498,6 +500,10 @@ func articleColumns(
 // hit area inside that region and paints its surface below it, over the
 // table body. Positioning is arithmetic over unreadColWDp/tableHeaderHDp
 // because patterns/table exposes no per-header layout.Widget slot.
+//
+// The region's offset is known before the tooltip is laid out, so the
+// available room is moved by it: the surface is then placed against the
+// window's edges and not against the region's.
 func overlayUnreadTooltip(table, tip layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		dims := table(gtx)
@@ -509,8 +515,9 @@ func overlayUnreadTooltip(table, tip layout.Widget) layout.Widget {
 		if h > dims.Size.Y {
 			h = dims.Size.Y
 		}
-		st := op.Offset(image.Pt(dims.Size.X-w, 0)).Push(gtx.Ops)
-		tipGtx := gtx
+		off := image.Pt(dims.Size.X-w, 0)
+		st := op.Offset(off).Push(gtx.Ops)
+		tipGtx := shell.AvailableRoomAt(gtx, off)
 		tipGtx.Constraints = layout.Exact(image.Pt(w, h))
 		tip(tipGtx)
 		st.Pop()

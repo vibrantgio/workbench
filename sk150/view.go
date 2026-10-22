@@ -331,11 +331,12 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 		}),
 		func(demo layout.Widget) rx.Observable[layout.Widget] {
 			return tooltip.Tooltip(th, tooltip.Props{
-				Text:       demoTooltip,
-				Trigger:    fixed(160, demo),
-				Placement:  tooltip.Bottom,
-				Arbiter:    tooltip.NewArbiter(),
-				TriggerTag: &demoClick,
+				Text:          demoTooltip,
+				Trigger:       fixed(160, demo),
+				Placement:     tooltip.Bottom,
+				Arbiter:       tooltip.NewArbiter(),
+				TriggerTag:    &demoClick,
+				AvailableRoom: shell.AvailableRoom,
 			})
 		},
 	))
@@ -465,11 +466,21 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 		func(n rx.Tuple4[themed, Model, []layout.Widget, []layout.Widget]) layout.Widget {
 			slots := slotSet{list: n.Third, index: index}
 			stateCell.Store(pageState{t: n.First, m: n.Second, slots: slots, tp: tp})
-			content := desktop.CapTop(desktop.TopInset, Page(n.First, n.Second, slots, n.Fourth[0]))
+			page := Page(n.First, n.Second, slots, n.Fourth[0])
+			// The cap pushes the top inset as an offset before it lays the
+			// page out, so the page is given the available room moved by
+			// that offset.
+			content := desktop.CapTop(desktop.TopInset, func(gtx layout.Context) layout.Dimensions {
+				return page(shell.AvailableRoomAt(gtx, image.Pt(0, gtx.Dp(desktop.TopInset()))))
+			})
 			dialog := n.Fourth[1]
 			return func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
 				tp.winW = size.X
+				// The window's content area is the available room every
+				// tooltip below is placed in; each layer between here and
+				// a tooltip moves it by the offset it places its child at.
+				gtx = shell.WithAvailableRoom(gtx, image.Rectangle{Max: size})
 				content(gtx)
 				// The dialog and its scrim lie over the whole window,
 				// strip included — a scrim with a hole isolates nothing.
@@ -498,15 +509,27 @@ func pageFill(c tokens.PlatformColors) color.NRGBA { return PaletteFrom(c).Backd
 // drawn below the content with the bottom Padding under it. A list-shaped
 // tab's column runs further, to the window's leading and trailing edges
 // (see [pageColumn]).
+//
+// The flex lays the header and the gap out before the tab strip and places
+// the strip under them, so the strip's offset is their depth, known by the
+// time the strip is laid out; the strip is given the available room moved
+// by that offset and by the inset's.
 func Page(t themed, m Model, slots slotSet, tabsW layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
+		var headH int
+		gapH := gtx.Dp(12)
 		rows := []layout.FlexChild{
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Top: Padding, Left: Padding, Right: Padding}.Layout(gtx, headerRow(t, m, slots))
+				dims := layout.Inset{Top: Padding, Left: Padding, Right: Padding}.Layout(gtx, headerRow(t, m, slots))
+				headH = dims.Size.Y
+				return dims
 			}),
 			vgap(12),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Left: Padding, Right: Padding}.Layout(gtx, tabsW)
+				gtx = shell.AvailableRoomAt(gtx, image.Pt(0, headH+gapH))
+				return layout.Inset{Left: Padding, Right: Padding}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return tabsW(shell.AvailableRoomAt(gtx, image.Pt(gtx.Dp(Padding), 0)))
+				})
 			}),
 		}
 		if m.Notice != "" {

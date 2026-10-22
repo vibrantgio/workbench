@@ -250,6 +250,10 @@ func feedsShellLayer(
 		func(n rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 			shellW, dialogW, prefsW, toastW := n.First, n.Second, n.Third, n.Fourth
 			return func(gtx layout.Context) layout.Dimensions {
+				// The window's content area is the available room every
+				// tooltip below is placed in; each layer between here and
+				// a tooltip moves it by the offset it places its child at.
+				gtx = shell.WithAvailableRoom(gtx, image.Rectangle{Max: gtx.Constraints.Max})
 				// The window's own plane, declared before anything is
 				// offset, so a dialog's scrim composites over the frame
 				// beneath it rather than blending with it.

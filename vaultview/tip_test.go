@@ -21,6 +21,7 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -41,6 +42,10 @@ type tipPad struct {
 	tip  *linkTip
 	size image.Point
 	now  time.Time
+
+	// pageW is the note column's width, laid against the window's
+	// trailing edge; zero lays the column across the whole window.
+	pageW int
 
 	propClick widget.Clickable
 	read      reader
@@ -78,18 +83,14 @@ func newTipPad(t *testing.T, address string) *tipPad {
 	return p
 }
 
-// tipWidget is the one tooltip the window builds for an address, built here
-// exactly as vaultLayer builds it.
+// tipWidget is the one tooltip the window builds for an address, from the
+// props vaultLayer builds it from, with the pinned shaper.
 func tipWidget(t *testing.T, address string, tip *linkTip) layout.Widget {
 	t.Helper()
 	var w layout.Widget
-	obs := tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
-		Text:      address,
-		Placement: tooltip.Bottom,
-		Arbiter:   tooltip.NewArbiter(),
-		Anchor:    tip.anchor,
-		Shaper:    tokens.DefaultTypography.DeterministicShaper(),
-	})
+	props := linkTipProps(address, tooltip.NewArbiter(), tip)
+	props.Shaper = tokens.DefaultTypography.DeterministicShaper()
+	obs := tooltip.Tooltip(rx.Of(theme.Default()), props)
 	if err := obs.Subscribe(context.Background(), func(next layout.Widget, _ error, done bool) {
 		if !done && next != nil {
 			w = next
@@ -108,6 +109,22 @@ func (p *tipPad) page(gtx layout.Context) layout.Dimensions {
 		&docCursor{}, func(Model, *Note) *markdown.Document { return p.doc }, &p.find, p.tip)
 }
 
+// window lays the note column out as the window does: the window's content
+// area set as the available room at the root, and the column placed at its
+// offset with the area moved by it.
+func (p *tipPad) window(gtx layout.Context) layout.Dimensions {
+	gtx = shell.WithAvailableRoom(gtx, image.Rectangle{Max: gtx.Constraints.Max})
+	if p.pageW <= 0 {
+		return p.page(gtx)
+	}
+	off := image.Pt(p.size.X-p.pageW, 0)
+	defer op.Offset(off).Push(gtx.Ops).Pop()
+	gtx = shell.AvailableRoomAt(gtx, off)
+	gtx.Constraints = layout.Exact(image.Pt(p.pageW, p.size.Y))
+	p.page(gtx)
+	return layout.Dimensions{Size: p.size}
+}
+
 func (p *tipPad) frame(evs ...event.Event) {
 	p.r.Queue(evs...)
 	p.ops.Reset()
@@ -118,7 +135,7 @@ func (p *tipPad) frame(evs ...event.Event) {
 		Ops:         &p.ops,
 		Source:      p.r.Source(),
 	}
-	p.page(gtx)
+	p.window(gtx)
 	p.r.Frame(&p.ops)
 }
 
@@ -135,7 +152,7 @@ func (p *tipPad) shot() *image.RGBA {
 	return golden.Capture(p.t, p.size, func(gtx layout.Context) layout.Dimensions {
 		gtx.Now = now
 		gtx.Source = src
-		return p.page(gtx)
+		return p.window(gtx)
 	})
 }
 
@@ -452,5 +469,46 @@ func TestTheLinkTooltipStandsUnderThePointedRun(t *testing.T) {
 	onLast := annotation(last)
 	if onFirst >= onLast {
 		t.Errorf("the annotation stands at row %d for the link's first line and at row %d for its last; it is placed against the block around the link rather than the line pointed at", onFirst, onLast)
+	}
+}
+
+// TestTheLinkTooltipIsDrawnWholeAtTheWindowsTrailingEdge lays the note
+// column against the window's trailing edge, narrower than the address its
+// one link opens, and rests the pointer on the link. The annotation is
+// placed in the window's available room and not in the column: it extends
+// past the column's leading edge to say the address whole, and it is drawn
+// whole inside the window, short of its trailing edge.
+func TestTheLinkTooltipIsDrawnWholeAtTheWindowsTrailingEdge(t *testing.T) {
+	p := newTipPad(t, "https://example.test/a/considerably/longer/path/to/the/page/than/the/note/column/holds/on/one/line/of/its/own.html")
+	p.size = image.Pt(900, 420)
+	p.pageW = 300
+	pageX := p.size.X - p.pageW
+
+	p.frame()
+	p.frame()
+	at, _, _ := p.onLink()
+	p.move(pageX-10, at.Y)
+	p.now = p.now.Add(time.Second)
+	p.frame()
+
+	entered := p.now
+	p.move(at.X, at.Y)
+	p.frame()
+	p.frame()
+	p.now = entered.Add(tooltip.DefaultDelay - 10*time.Millisecond)
+	p.frame()
+	waiting := p.shot()
+	p.now = entered.Add(tooltip.DefaultDelay + 10*time.Millisecond)
+	p.frame()
+	top, _, left, right := differingRows(waiting, p.shot())
+	if top < 0 {
+		t.Fatal("the delay ran out and nothing was drawn")
+	}
+	if left < 1 || right > p.size.X-2 {
+		t.Errorf("the annotation spans columns %d..%d in a window %d wide; it is cut off by the window's edges", left, right, p.size.X)
+	}
+	if left >= pageX {
+		t.Errorf("the annotation spans columns %d..%d inside the note column at %d..%d; it is placed in the column and not in the window's available room",
+			left, right, pageX, p.size.X-1)
 	}
 }

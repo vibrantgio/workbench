@@ -48,6 +48,12 @@ func renderUnconnected(t *testing.T, c tokens.PlatformColors) *image.RGBA {
 // no notice stands under them.
 func monitorFrame(t *testing.T, img *image.RGBA, c tokens.PlatformColors) image.Rectangle {
 	t.Helper()
+	return monitorFrameIn(t, img, c, windowSize)
+}
+
+// monitorFrameIn is [monitorFrame] in a window of the given size.
+func monitorFrameIn(t *testing.T, img *image.RGBA, c tokens.PlatformColors, windowSize image.Point) image.Rectangle {
+	t.Helper()
 	fill := pageFill(c)
 	trim := vgcolor.Flatten(c.Separator, fill)
 	mid := windowSize.X / 2
@@ -324,5 +330,79 @@ func TestMonitorEmptyStateDemoButtonTooltip(t *testing.T) {
 	frame()
 	if !painted() {
 		t.Errorf("after the tooltip's delay the band under the demo button %v is bare, want the tooltip's surface", below)
+	}
+}
+
+// TestMonitorEmptyStateDemoTooltipIsDrawnWholeInANarrowWindow narrows the
+// window until the demo button extends to its trailing padding and rests the
+// pointer on the button. The tooltip's surface with its text whole is wider
+// than the window; it is drawn whole inside the window, because the
+// window's content area is set as the available room at the root and moved
+// by every layer down to the empty state.
+func TestMonitorEmptyStateDemoTooltipIsDrawnWholeInANarrowWindow(t *testing.T) {
+	c := tokens.PlatformLight
+	size := image.Pt(180, windowSize.Y)
+	fill := pageFill(c)
+	w := windowFrame(t, c, unconnectedModel())
+	golden.Capture(t, size, w)
+	img := golden.Capture(t, size, w)
+	runs := paintedRuns(img, monitorFrameIn(t, img, c, size), fill)
+	if len(runs) != 2 {
+		t.Fatalf("the tab's frame holds %d runs of painted rows, want the line and the button", len(runs))
+	}
+	button := runs[1]
+
+	var (
+		ops op.Ops
+		r   gioinput.Router
+	)
+	start := time.Unix(1_700_000_000, 0)
+	now := start
+	frame := func() {
+		ops.Reset()
+		w(layout.Context{
+			Constraints: layout.Exact(size),
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Ops:         &ops,
+			Source:      r.Source(),
+			Now:         now,
+		})
+		r.Frame(&ops)
+	}
+	shot := func() *image.RGBA {
+		return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+			gtx.Source = r.Source()
+			gtx.Now = now
+			return w(gtx)
+		})
+	}
+
+	frame()
+	frame()
+	mid := f32.Pt(float32(button.Min.X+button.Max.X)/2, float32(button.Min.Y+button.Max.Y)/2)
+	r.Queue(pointer.Event{Kind: pointer.Move, Position: mid, Source: pointer.Mouse})
+	frame()
+	frame()
+	now = start.Add(tooltip.DefaultDelay - 10*time.Millisecond)
+	frame()
+	waiting := shot()
+	now = start.Add(tooltip.DefaultDelay + 10*time.Millisecond)
+	frame()
+	shown := shot()
+
+	box := image.Rectangle{}
+	for y := button.Max.Y; y < size.Y; y++ {
+		for x := 0; x < size.X; x++ {
+			if waiting.RGBAAt(x, y) != shown.RGBAAt(x, y) {
+				box = box.Union(image.Rect(x, y, x+1, y+1))
+			}
+		}
+	}
+	if box.Empty() {
+		t.Fatal("the delay ran out and no tooltip was drawn under the demo button")
+	}
+	if box.Min.X < 1 || box.Max.X > size.X-1 {
+		t.Errorf("the demo button's tooltip spans columns %d..%d in a window %d wide; it is cut off by the window's edges",
+			box.Min.X, box.Max.X-1, size.X)
 	}
 }
