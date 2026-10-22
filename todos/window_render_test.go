@@ -35,6 +35,7 @@ import (
 
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
+	complist "github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
@@ -111,7 +112,7 @@ func fixtureModel(route string) Model {
 func windowFrame(p tokens.PlatformColors, model Model, band unit.Dp) layout.Widget {
 	th := staticThemed(p)
 	paintBackdrop := backdrop.Widget(th.palette.Backdrop)
-	page := view(th, model, func() unit.Dp { return band })
+	page := view(th, model, complist.NewState(), func() unit.Dp { return band })
 	return func(gtx layout.Context) layout.Dimensions {
 		paintBackdrop(gtx)
 		return page(gtx)

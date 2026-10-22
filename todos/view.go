@@ -9,6 +9,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/composite"
+	complist "github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
@@ -62,7 +63,12 @@ func (t themed) listBar() scrollbar.Style {
 // ContentLayer renders the page: the latest theme snapshot combined with the
 // latest Model, mapped to a layout.Widget. This is the window's only consumer
 // of the model stream; the backdrop layer is theme-only.
+//
+// The list's scroll state is kept here, at subscription scope, and passed to
+// the page each emission builds, so the list keeps its scroll position across
+// changes to a todo and to the theme.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
+	listState := complist.NewState()
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
 			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
@@ -72,17 +78,18 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
 		func(next rx.Tuple2[themed, Model]) layout.Widget {
-			return View(next.First, next.Second)
+			return View(next.First, next.Second, listState)
 		})
 }
 
 // View builds the page's layout.Widget for one (theme, model) pair, held down
 // past the native title-bar strip the full-size-content window opens the top
-// of itself into. Everything here is reconstructed per emission;
-// per-interaction state (the editor, the clickables) lives inside the
-// controls for exactly one route's lifetime.
-func View(th themed, model Model) layout.Widget {
-	return view(th, model, desktop.TopInset)
+// of itself into. Everything here is reconstructed per emission except the
+// list's scroll state, which is passed in; per-interaction state (the editor,
+// the clickables) is kept inside the controls for exactly one route's
+// lifetime.
+func View(th themed, model Model, listState *complist.State) layout.Widget {
+	return view(th, model, listState, desktop.TopInset)
 }
 
 // view is View over a stated strip height rather than the window's own, so a
@@ -97,7 +104,7 @@ func View(th themed, model Model) layout.Widget {
 // isolates nothing, so the dialog and its cover are laid out in the window's
 // own coordinates: transient surfaces lie over the resting window rather than
 // in it.
-func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
+func view(th themed, model Model, listState *complist.State, strip func() unit.Dp) layout.Widget {
 	thObs := rx.Of(th.components)
 	p := th.palette
 
@@ -108,7 +115,7 @@ func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 	fab := Fab(add, 1.0, 1.0, 48, 48, true, func(gtx layout.Context) {
 		mvu.MessageOp{Message: SetRoute{Route: "add.todo"}}.Add(gtx.Ops)
 	})
-	list := List(th.typ, thObs, p, th.listBar(), model)
+	list := List(th.typ, thObs, p, th.listBar(), listState, model)
 
 	// The dialogs are constructed HERE, once per emission, and reused across
 	// frames: the editor's text and caret live inside the dialog closure, so

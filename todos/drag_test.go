@@ -11,6 +11,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 
+	complist "github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -24,7 +25,7 @@ func TestTheStripStaysDraggableUnderTheDialog(t *testing.T) {
 	const stripH = int(titleBandDp)
 
 	th := staticThemed(tokens.PlatformLight)
-	w := view(th, fixtureModel("add.todo"), func() unit.Dp { return titleBandDp })
+	w := view(th, fixtureModel("add.todo"), complist.NewState(), func() unit.Dp { return titleBandDp })
 
 	var ops op.Ops
 	gtx := layout.Context{

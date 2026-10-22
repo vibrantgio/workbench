@@ -33,8 +33,10 @@ import (
 // [complist.AnchorFor] returns for bar: at Always the bar has a lane of its
 // own and the rows stop short of it, otherwise it lies over the rows'
 // trailing edge.
-func List(typ Type, th rx.Observable[theme.Theme], p Palette, bar scrollbar.Style, model Model) layout.Widget {
-	listState := complist.NewState()
+//
+// state is the list's scroll position, kept at subscription scope and passed
+// to every layout, so a change to a todo keeps the rows the reader scrolled to.
+func List(typ Type, th rx.Observable[theme.Theme], p Palette, bar scrollbar.Style, state *complist.State, model Model) layout.Widget {
 	rows := make([]layout.Widget, len(model.List))
 	for i := range model.List {
 		rows[i] = Row(typ, th, p, model.List[i])
@@ -44,7 +46,7 @@ func List(typ Type, th rx.Observable[theme.Theme], p Palette, bar scrollbar.Styl
 		idx[i] = i
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return complist.LayoutScrollbar(gtx, listState, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int) layout.Dimensions {
+		return complist.LayoutScrollbar(gtx, state, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int) layout.Dimensions {
 			in := layout.Inset{Top: Padding, Bottom: Padding, Left: 2 * Padding, Right: 2 * Padding}
 			if i == 0 {
 				in.Top += Padding
