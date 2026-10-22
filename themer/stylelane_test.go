@@ -74,3 +74,42 @@ func TestTheStyleColumnsRowsReachTheTrailingEdgeWhereTheBarFades(t *testing.T) {
 		})
 	}
 }
+
+// TestTheStyleBarIsDrawnAgainstTheBoxsTrailingEdge composes the window at
+// Always and reads the standing thumb in the style box: the region that
+// scrolls is the box's column with the box's padding inside it, so the thumb
+// is drawn the track's own padding in from the box's trailing edge, never
+// the box's padding further in.
+func TestTheStyleBarIsDrawnAgainstTheBoxsTrailingEdge(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		c    tokens.PlatformColors
+		dark bool
+	}{{"light", tokens.PlatformLight, false}, {"dark", tokens.PlatformDark, true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := PaletteFrom(tc.c)
+			img := pageBars(t, goldenModel(t, tc.dark), tc.c, image.Pt(windowW, windowH), newCodeState(), desktop.ScrollBarsAlways)
+			standing := scrollBarStyle(scrollbar.FromTokens(tc.c, p.Surface), desktop.ScrollBarsAlways)
+			lane, pad := int(standing.Width()), int(standing.TrackPadding)
+			trail := int(Pad) + int(StyleW)
+			// Every pixel the bar draws in the lane, read down the middle of
+			// the box clear of its rounded corners.
+			lead, end := trail, 0
+			for y := judgingBoxTop() + int(BoxRadius); y < judgingBoxBottom()-int(BoxRadius); y++ {
+				for x := trail - lane - int(BoxInset); x < trail; x++ {
+					if c := img.RGBAAt(x, y); c.R != p.Surface.R || c.G != p.Surface.G || c.B != p.Surface.B {
+						lead, end = min(lead, x), max(end, x+1)
+					}
+				}
+			}
+			if end == 0 {
+				t.Fatalf("no bar is drawn in the style box at Always")
+			}
+			t.Logf("at Always the bar is drawn at x %d-%d against the box's trailing edge at x %d", lead, end, trail)
+			if end != trail-pad {
+				t.Errorf("at Always the bar is drawn at x %d-%d, want it to end at x %d, %d px in from the box's trailing edge at x %d",
+					lead, end, trail-pad, pad, trail)
+			}
+		})
+	}
+}

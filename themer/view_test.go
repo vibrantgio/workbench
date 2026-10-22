@@ -51,11 +51,17 @@ func pageAt(t *testing.T, m Model, c tokens.PlatformColors, size image.Point) *i
 // hands, so a test can read the column where it left it.
 func pageState(t *testing.T, m Model, c tokens.PlatformColors, size image.Point, code *codeState) *image.RGBA {
 	t.Helper()
-	clicks := make([]gesture.Click, rowSlots)
 	// The scroll bar setting is stated, not read off the platform: a still
 	// picture holds the overlay bar every desktop platform draws, whatever
 	// the machine running the test asked for.
-	w := Page(themed{col: c, typ: pinned(), pinned: true, scrollBars: desktop.ScrollBarsWhenScrolling}, m, &desktop.ZoneGroup{}, clicks, new(topClicks),
+	return pageBars(t, m, c, size, code, desktop.ScrollBarsWhenScrolling)
+}
+
+// pageBars renders the whole window at one scroll bar setting.
+func pageBars(t *testing.T, m Model, c tokens.PlatformColors, size image.Point, code *codeState, bars desktop.ScrollBarSetting) *image.RGBA {
+	t.Helper()
+	clicks := make([]gesture.Click, rowSlots)
+	w := Page(themed{col: c, typ: pinned(), pinned: true, scrollBars: bars}, m, &desktop.ZoneGroup{}, clicks, new(topClicks),
 		code, func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(SampleFieldH))}
 		})
@@ -246,8 +252,7 @@ func TestTheTwoCodeChoicesAreOnScreen(t *testing.T) {
 			if row < 0 {
 				t.Fatalf("the applied style is not on the list this appearance shows")
 			}
-			on := row - max(0, row-styleLead)
-			if got := img.RGBAAt(rowFillX(), styleRowY(on)); !is(got, p.Selection) {
+			if got := img.RGBAAt(rowFillX(), styleNameY(row, code.styles.st.Position())); !is(got, p.Selection) {
 				t.Errorf("the applied style's row drew %v, want the platform's selection %v", got, p.Selection)
 			}
 

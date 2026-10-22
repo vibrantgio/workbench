@@ -8,6 +8,8 @@ import (
 	"slices"
 	"testing"
 
+	"gioui.org/layout"
+
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
@@ -97,6 +99,19 @@ func styleListBottom() int { return judgingBoxBottom() - int(BoxPad) }
 // styleRowY is the centre of visible row i, and styleMarkX the x of the
 // marker a chosen row carries.
 func styleRowY(i int) int { return styleListTop() + i*int(StyleRowH) + int(StyleRowH)/2 }
+
+// styleNameY is the centre of name k with the column scrolled to q. The
+// column's first item is its top padding row, so name k is item k+1, and the
+// box's padding scrolls with the names.
+func styleNameY(k int, q layout.Position) int {
+	top := func(item int) int {
+		if item == 0 {
+			return 0
+		}
+		return int(BoxPad) + (item-1)*int(StyleRowH)
+	}
+	return judgingBoxTop() + top(k+1) - top(q.First) - q.Offset + int(StyleRowH)/2
+}
 
 func styleMarkX() int { return boxLead() + int(StyleIndent)/2 }
 
@@ -391,7 +406,8 @@ func TestTheColumnScrollsToEveryNameOnIt(t *testing.T) {
 			if n < 3 {
 				t.Fatalf("the %s lists %d styles — too few to scroll", tc.name, n)
 			}
-			shows := styleListBottom() - styleListTop()
+			// The column is the box's full height, its padding inside it.
+			shows := judgingBoxBottom() - judgingBoxTop()
 			cs := settled(tc.dark)
 			pageWith(t, m, tc.set, cs)
 			if got := cs.styles.st.Viewport(); got > shows {
@@ -405,18 +421,20 @@ func TestTheColumnScrollsToEveryNameOnIt(t *testing.T) {
 			on := ReduceModel(m, SelectStyle{Index: visible[n-1], Dark: tc.dark})
 			end := settled(tc.dark)
 			pageWith(t, on, tc.set, end)
-			end.styles.st.ScrollToEnd(n)
+			// The column's items are the names and a padding row above and
+			// below them.
+			end.styles.st.ScrollToEnd(n + 2)
 			img := pageWith(t, on, tc.set, end)
 			q := end.styles.st.Position()
-			if last := q.First + q.Count; last < n {
-				t.Fatalf("scrolled to its end the column shows names %d to %d of %d — the last %d cannot be reached",
-					q.First+1, last, n, n-last)
+			if last := q.First + q.Count; last < n+2 {
+				t.Fatalf("scrolled to its end the column shows items %d to %d of %d — the last %d cannot be reached",
+					q.First+1, last, n+2, n+2-last)
 			}
-			y := styleRowY(n-1-q.First) - q.Offset
+			y := styleNameY(n-1, q)
 			if y >= styleListBottom() {
-				t.Fatalf("the last name is laid out at y=%d, past the box's bottom edge at y=%d", y, styleListBottom())
+				t.Fatalf("the last name is laid out at y=%d, past the box's bottom padding at y=%d", y, styleListBottom())
 			}
-			if mark, plain := img.RGBAAt(styleMarkX(), y), img.RGBAAt(styleMarkX(), styleRowY(0)-q.Offset); mark == plain {
+			if mark, plain := img.RGBAAt(styleMarkX(), y), img.RGBAAt(styleMarkX(), styleNameY(n-2, q)); mark == plain {
 				t.Errorf("the last name is applied and its row at y=%d is drawn %v, exactly like an unmarked row — nothing on screen says the column reached it",
 					y, mark)
 			}

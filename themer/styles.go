@@ -30,7 +30,7 @@
 // row's shape and holds six, and a menu drawing its full height would run off
 // the bottom of the window long before it ran out of names. So the names are
 // a column of list rows at the platform's own row height, with the platform's
-// scrollbar in a gutter beside them, filling the group's box from the top of
+// scrollbar in a lane beside them, filling the group's box from the top of
 // the choices to the footer.
 package main
 
@@ -39,6 +39,7 @@ import (
 
 	"gioui.org/gesture"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/unit"
 
@@ -138,28 +139,54 @@ func (b *styleChooser) reveal(dark bool, row int) {
 //
 // The column draws no plate of its own and no heading. The group's box is the
 // plate and the group's title row is the heading.
+//
+// The region that scrolls is the column, the box's full size, and the box's
+// padding is inside it: the rows are drawn BoxInset in from the column's
+// leading and trailing edges, a first and a last row of BoxPad's height
+// precede and follow them, and the bar is drawn at the column's trailing
+// edge, which is the box's. At Always the bar's lane is taken off the rows'
+// width as well.
 func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, sel *styleChooser, bars desktop.ScrollBarSetting) layout.Widget {
 	if sel == nil {
 		sel = newStyleChooser()
 	}
 	visible := m.VisibleStyles(dark)
 	clicks := sel.handlers(len(m.Styles))
-	rows := make([]layout.Widget, len(visible))
+	// The column's items are the first padding row, one row per name, and
+	// the last padding row, so name row r is item r+1.
+	rows := make([]layout.Widget, len(visible)+2)
+	rows[0], rows[len(rows)-1] = stylePadRow, stylePadRow
 	applied := -1
 	chosen := m.StyleAt(dark)
 	for row, i := range visible {
 		if i == chosen {
 			applied = row
 		}
-		rows[row] = func(gtx layout.Context) layout.Dimensions {
-			return StyleRowWidget(gtx, p, ty, m.Styles[i], i, dark, i == chosen, &clicks[i])
+		rows[row+1] = func(gtx layout.Context) layout.Dimensions {
+			inset := gtx.Dp(BoxInset)
+			gtx.Constraints.Max.X = max(gtx.Constraints.Max.X-2*inset, 0)
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			lead := op.Offset(image.Pt(inset, 0)).Push(gtx.Ops)
+			dims := StyleRowWidget(gtx, p, ty, m.Styles[i], i, dark, i == chosen, &clicks[i])
+			lead.Pop()
+			dims.Size.X += 2 * inset
+			return dims
 		}
 	}
 	st := sel.st
 	// The window opens on the style that was kept, which may be sixty names
 	// down a sorted list, and a flip of the appearance replaces the list under
 	// it.
-	sel.reveal(dark, applied)
+	// The names start at item 1, and a column scrolled to its first name is
+	// a column at its start, its top padding row in view.
+	item := -1
+	if applied >= 0 {
+		item = applied + 1
+		if item-styleLead <= 1 {
+			item = styleLead
+		}
+	}
+	sel.reveal(dark, item)
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
@@ -170,6 +197,12 @@ func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, 
 			})
 		return layout.Dimensions{Size: size}
 	}
+}
+
+// stylePadRow is the column's first and last row: the box's padding above and
+// below the names, inside the region that scrolls.
+func stylePadRow(gtx layout.Context) layout.Dimensions {
+	return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(BoxPad))}
 }
 
 // StyleRowWidget draws one name and makes it clickable.

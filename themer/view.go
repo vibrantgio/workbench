@@ -376,9 +376,10 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 				spacer(GroupAbove),
 
 				layout.Flexed(1, JudgingRow(
-					TitledBox(p, t.typ, StyleLabel, StyleHint, StylePane(p, win, t.typ, m, dark, code.styles, t.scrollBars)),
+					TitledBox(p, t.typ, StyleLabel, StyleHint,
+						ColumnBox(p, StylePane(p, win, t.typ, m, dark, code.styles, t.scrollBars))),
 					TitledBox(p, t.typ, PreviewLabel, PreviewHint,
-						Preview(shown, t.typ, typo, shaper, code.doc, docStyle)))),
+						GroupBox(p, Preview(shown, t.typ, typo, shaper, code.doc, docStyle))))),
 				spacer(GroupAbove),
 
 				rigid(fixedH(FooterH, Footer(p, win, t.typ, m, &bar.keep))),
@@ -409,12 +410,12 @@ func JudgingRow(list, preview layout.Widget) layout.Widget {
 
 // TitledBox is one titled group taking the whole height it is given: the
 // title row, the run under it, and the box with everything left over.
-func TitledBox(p Palette, ty Type, title, hint string, inner layout.Widget) layout.Widget {
+func TitledBox(p Palette, ty Type, title, hint string, box layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			rigid(fixedH(GroupTitleH, GroupTitle(p, ty, title, hint, nil))),
 			spacer(GroupBelow),
-			layout.Flexed(1, GroupBox(p, inner)),
+			layout.Flexed(1, box),
 		)
 	}
 }
@@ -472,6 +473,22 @@ func GroupBox(p Palette, inner layout.Widget) layout.Widget {
 			inner(gtx)
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		})
+	}
+}
+
+// ColumnBox is the grouped box whose content is a column that scrolls. The
+// column is the box's full size and draws the box's padding inside itself,
+// so its bar is drawn at the box's trailing edge, never inset by the padding.
+// What the column draws is clipped to the box's rounded corners.
+func ColumnBox(p Palette, column layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		r := image.Rectangle{Max: size}
+		fillRRect(gtx, r, gtx.Dp(BoxRadius), p.Surface)
+		defer clip.UniformRRect(r, gtx.Dp(BoxRadius)).Push(gtx.Ops).Pop()
+		gtx.Constraints = layout.Exact(size)
+		column(gtx)
+		return layout.Dimensions{Size: size}
 	}
 }
 
