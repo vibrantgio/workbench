@@ -6,12 +6,12 @@
 // a share each, and the shadow cast last — and this window states what
 // stands in each slot.
 //
-// What the window hands over: the rail's column (sidebar.go), the table and
-// its pager (articles.go), the article with its tabs (detail.go), and the
-// toolbar's two shares — the open feed's name and the filter field over the
-// list, Add feed and Share over the article. The pane's and the list
-// column's widths are the window's as well, kept across launches by the
-// shell's own arrangement memory.
+// What the window hands over: the rail's column (sidebar.go) with Add feed
+// as the pane's own mark, the table and its pager (articles.go), the article
+// with its tabs (detail.go), and the toolbar's two shares — the open feed's
+// name and the filter field over the list, Share over the article. The
+// pane's and the list column's widths are the window's as well, kept across
+// launches by the shell's own arrangement memory.
 //
 // There is no footer under the content column: this window reports nothing
 // about the article it is showing, so it has no status bar.
@@ -21,14 +21,11 @@ package main
 import (
 	"image"
 
-	"gioui.org/io/pointer"
-	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
 	"github.com/vibrantgio/components/icons"
-	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
@@ -115,8 +112,8 @@ type windowFrame struct {
 	// list's share of the toolbar once it is away.
 	toggleClick widget.Clickable
 
-	// addClick is the gesture source behind Add feed, which stands in the
-	// toolbar's share over the content column.
+	// addClick is the gesture source behind Add feed, which stands bare in
+	// the pane's own strip before the Toggle Sidebar button.
 	addClick widget.Clickable
 
 	// paneSplitter and listSplitter are the hands on the two boundaries
@@ -136,6 +133,11 @@ type windowFrame struct {
 	// composition can be measured after the fact rather than recomputed
 	// from the tokens that placed it.
 	geom shell.ThreeColumnLayout
+
+	// post is where the frame's own answers go: the frame's message op,
+	// which is what a nil leaves, and a recorder where a frame is laid out
+	// without a window to post to.
+	post func(gtx layout.Context, msg mvu.Message)
 }
 
 // newWindowFrame seats a frame on the arrangement it opens with.
@@ -145,6 +147,16 @@ func newWindowFrame(widths *shell.ArrangementMemory) *windowFrame {
 		a = widths.Arrangement()
 	}
 	return &windowFrame{paneW: a.PaneWidth, listW: a.ListWidth, widths: widths}
+}
+
+// send hands one of the frame's answers on to whatever is collecting this
+// frame's messages.
+func (f *windowFrame) send(gtx layout.Context, msg mvu.Message) {
+	if f.post != nil {
+		f.post(gtx, msg)
+		return
+	}
+	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 }
 
 // openedOn seats the window's first model on the arrangement that was kept:
@@ -176,10 +188,16 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, tok themeTokens, s fra
 	three := shell.ThreeColumn{
 		PaneWidth:  f.paneW,
 		PaneHidden: m.sidebarHidden,
-		// The rail carries no marks of its own: this window's one action,
-		// Add feed, acts on the collection the pane shows but is reached
-		// from the toolbar, and there is nothing else the pane does.
-		Pane: shell.PaneColumn{Rows: s.Rail},
+		// Add feed is the pane's own mark: it adds to the collection the
+		// pane lists, so it waits for the pane and goes away with it.
+		Pane: shell.PaneColumn{
+			Marks: []layout.Widget{
+				func(gtx layout.Context) layout.Dimensions {
+					return f.paneAddFeed(gtx, tok)
+				},
+			},
+			Rows: s.Rail,
+		},
 		PaneResize: &shell.PaneResize{
 			State: &f.paneSplitter,
 			Min:   frameLimits.Pane.Min, Max: frameLimits.Pane.Max,
@@ -202,13 +220,13 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, tok themeTokens, s fra
 		// reading and what this window already drew.
 		ContentFill: tok.col.ControlBackground,
 		ListToolbar: f.listShare(m, tok, s.Filter),
-		Toolbar:     f.contentShare(tok),
+		Toolbar:     f.contentShare(),
 		Toggle: &shell.ToggleSidebar{
 			Click:        &f.toggleClick,
 			Mark:         icons.Mark(icons.Sidebar),
 			PaneTitle:    "Hide the feeds",
 			ToolbarTitle: "Show the feeds",
-			OnPress:      func(gtx layout.Context) { postMessage(gtx, ToggleSidebar{}) },
+			OnPress:      func(gtx layout.Context) { f.send(gtx, ToggleSidebar{}) },
 		},
 		Radius:           tokens.Radius,
 		Density:          tok.den,
@@ -257,9 +275,10 @@ func filterRoom(gtx layout.Context, w layout.Widget) layout.Dimensions {
 	return layout.Dimensions{Size: image.Pt(box, dims.Size.Y)}
 }
 
-// contentShare is the toolbar's share over the content column: this
-// window's two acts at its trailing end, which is where the stored toolbars
-// stand the acts on a document.
+// contentShare is the toolbar's share over the content column: the Share
+// anchor at its trailing end, which is where the stored toolbars stand the
+// acts on a document. Add feed is not among them — it acts on the feeds the
+// pane lists rather than on the article, so it stands on the pane.
 //
 // It carries no title. The article's own name is the first thing the
 // document draws, and a toolbar that repeated it would say the same thing
@@ -272,14 +291,11 @@ func filterRoom(gtx layout.Context, w layout.Widget) layout.Dimensions {
 // document. The drag the toolbar claims across its middle must stop before
 // it, since a move action swallows the press before any control beneath it
 // sees one.
-func (f *windowFrame) contentShare(tok themeTokens) shell.Toolbar {
+func (f *windowFrame) contentShare() shell.Toolbar {
 	return shell.Toolbar{
 		ButtonFallback: articleInsetDp,
 		Lead:           articleInsetDp,
 		Trailing: []layout.Widget{
-			func(gtx layout.Context) layout.Dimensions {
-				return addFeed(gtx, tok, &f.addClick)
-			},
 			func(gtx layout.Context) layout.Dimensions {
 				return layout.Dimensions{Size: image.Pt(gtx.Dp(unit.Dp(shareCapDp)), 0)}
 			},
@@ -287,20 +303,15 @@ func (f *windowFrame) contentShare(tok themeTokens) shell.Toolbar {
 	}
 }
 
-// addFeed is this window's one act on the collection: the control that
-// opens the Add feed dialog. It is the word in the accent, which is what it
-// wore in the bar this toolbar replaced.
-func addFeed(gtx layout.Context, tok themeTokens, click *widget.Clickable) layout.Dimensions {
-	if click.Clicked(gtx) {
-		postMessage(gtx, OpenAddFeed{})
+// paneAddFeed is the pane's own mark, drawn bare in the pane's own strip
+// before the Toggle Sidebar button, which the arrangement puts last. The
+// mark goes with the pane, because Add feed adds to the feed list the pane
+// shows and waits for it.
+func (f *windowFrame) paneAddFeed(gtx layout.Context, tok themeTokens) layout.Dimensions {
+	if f.addClick.Clicked(gtx) {
+		f.send(gtx, OpenAddFeed{})
 	}
-	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		semantic.LabelOp("Add feed").Add(gtx.Ops)
-		semantic.EnabledOp(true).Add(gtx.Ops)
-		dims := typeset.Text(gtx, tok.shaper, "Add feed", tok.typ.LabelLarge, tok.col.ControlAccent, 1)
-		pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
-		return dims
-	})
+	return shell.PaneMark(gtx, tok.col, &f.addClick, icons.Mark(icons.Plus), "Add feed")
 }
 
 // overlay is the Share popover as the arrangement's own overlay slot. What
