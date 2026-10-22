@@ -127,6 +127,42 @@ func TestAddFeedDialogGolden(t *testing.T) {
 	}
 }
 
+// The dialog's default button is the one blue this application draws outside
+// the window's own frame, and the sixth of its palette: the platform's own
+// fill for the button a sheet binds Return to, which follows the reader's
+// accent like every other blue here. Read off the rendered dialog, which is
+// where that button actually stands.
+func TestTheDialogsDefaultButtonWearsThePlatformsDefaultFill(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	cases := []struct {
+		name   string
+		colors tokens.PlatformColors
+		bg     color.NRGBA
+	}{
+		{"light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
+		{"dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := staticAddFeedDialogBody(shaper, tc.colors)
+			m := dialog.Render(shaper, dialog.Props{Title: "Add feed", Body: body, Shaper: shaper},
+				true, tc.colors, tokens.Spacing, dialogSharpRadius,
+				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
+			img := golden.Capture(t, image.Pt(dialogFrameW, dialogFrameH), scene(m, tc.bg))
+			if img == nil {
+				t.Skip("no capture backend")
+			}
+			got, ok := boldestBlue(img, img.Bounds())
+			if !ok {
+				t.Fatal("the dialog draws no blue at all; its default button is filled with one")
+			}
+			if want := tc.colors.DefaultButtonFill; got != want {
+				t.Errorf("the dialog's default button reads %v, want the platform's %v", got, want)
+			}
+		})
+	}
+}
+
 // sidebarRegion is a window over the rail's pane (the leading
 // feedsPaneColumnDp at PxPerDp 1), below the band, where feed entries render.
 var sidebarRegion = image.Rect(0, 100, int(feedsPaneColumnDp), shellFrameH-20)

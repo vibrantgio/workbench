@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
@@ -141,8 +143,8 @@ func filterAndSortArticles(all []article, feed FeedID, query string, sk table.So
 // preference is on, and returns arts untouched when it is off. It is a
 // separate pass rather than a fifth parameter to filterAndSortArticles
 // because it is a PREFERENCE, applied to whatever that query-and-sort
-// transform produced, and the two have different lifetimes: the filter text
-// is per-keystroke UI state, the preference outlives the session.
+// transform produced, and the two have different lifetimes: the query is
+// per-keystroke UI state, the preference outlives the session.
 func unreadOnlyArticles(arts []article, unreadOnly bool) []article {
 	if !unreadOnly {
 		return arts
@@ -187,11 +189,12 @@ func pageCountFor(arts []article, size int) int {
 	return n
 }
 
-// filterFieldSurface is the fill the article filter field stands on: the
+// searchFieldSurface is the fill the article search field stands on: the
 // list column's own, ControlBackground, which the arrangement paints the
 // column's whole height — the toolbar's share over the column stands on it
-// too, so the field's edge flattens onto the fill it actually lands on.
-func filterFieldSurface(c tokens.PlatformColors) color.NRGBA { return c.ControlBackground }
+// too, so the field's marks and its focus ring composite onto the fill it
+// actually lands on.
+func searchFieldSurface(c tokens.PlatformColors) color.NRGBA { return c.ControlBackground }
 
 // articleSlots are the two slots the list column is filled from: the table
 // it shows and the pager under it. They travel together because one
@@ -199,28 +202,74 @@ func filterFieldSurface(c tokens.PlatformColors) color.NRGBA { return c.ControlB
 // run's, which is the very run the table pages through.
 type articleSlots struct{ Rows, Pager layout.Widget }
 
-// articlesFilter is the filter field as the toolbar's share over the list
-// column carries it, which is where this platform keeps a list's filter.
-// It holds no model state of its own: every keystroke lands a SetFilter and
-// the text comes back through the table's own pipeline.
-func articlesFilter(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
-	return input.TextField(th, input.TextFieldProps{
-		Placeholder: "Filter articles",
-		Description: "Filter articles by title or author",
-		Surface:     filterFieldSurface,
+// articlesSearch is the search field the toolbar's share over the list
+// column carries, which is where this platform keeps the control that
+// narrows a list. It is the platform's own search field standing on chrome:
+// the looking glass names it, the clear mark takes the query back, and the
+// recess is the one measured for a toolbar band rather than for a sidebar.
+//
+// It holds no model state of its own: every keystroke lands a SetQuery and
+// the text comes back through the table's own pipeline. post is where that
+// message goes, and it is a parameter so a test can drive the very field the
+// window lays out and read back what it posted.
+func articlesSearch(th rx.Observable[theme.Theme], post func(gtx layout.Context, msg mvu.Message)) rx.Observable[layout.Widget] {
+	var (
+		fieldTag event.Tag
+		clear    func()
+	)
+	field := input.SearchField(th, input.SearchFieldProps{
+		Placeholder: "Search",
+		Description: "search articles by title or author",
+		Variant:     input.Chrome,
+		Region:      input.Toolbar,
+		Surface:     searchFieldSurface,
+		FocusTag:    func(tag event.Tag) { fieldTag = tag },
+		Clear:       func(c func()) { clear = c },
 		OnChange: func(gtx layout.Context, s string) {
-			// One message carries both halves: the reducer stores the text
-			// and resets to page 1, because narrowing the filter shrinks the
+			// One message carries both halves: the reducer stores the query
+			// and resets to page 1, because narrowing the run shrinks the
 			// result set and would otherwise strand the user on an
 			// out-of-range slice.
-			mvu.MessageOp{Message: SetFilter{Text: s}}.Add(gtx.Ops)
+			post(gtx, SetQuery{Text: s})
 		},
 	})
+	return rx.Map(field, func(w layout.Widget) layout.Widget {
+		return func(gtx layout.Context) layout.Dimensions {
+			clearOnEscape(gtx, fieldTag, clear)
+			if w == nil {
+				return layout.Dimensions{}
+			}
+			return w(gtx)
+		}
+	})
+}
+
+// clearOnEscape empties the search field on an Escape press and leaves the
+// keyboard where it is. A search field standing on chrome has nothing to
+// close, so Escape does what the clear mark does and no more. Emptying the
+// field reports the empty query through the field's own OnChange, like any
+// other edit, which is what brings the table back to its whole run.
+//
+// It is drained before the field lays out, so the key is taken here rather
+// than by the editor beneath it.
+func clearOnEscape(gtx layout.Context, tag event.Tag, clear func()) {
+	if tag == nil || clear == nil {
+		return
+	}
+	for {
+		e, ok := gtx.Event(key.Filter{Focus: tag, Name: key.NameEscape})
+		if !ok {
+			return
+		}
+		if ke, ok := e.(key.Event); ok && ke.State == key.Press {
+			clear()
+		}
+	}
 }
 
 // articlesMain composes the articles table and the pagination row into the
 // two slots the list column stands them in. Selection (selectedFeedObs),
-// paging (currentPageObs), sort (sortObs) and the filter text (filterObs)
+// paging (currentPageObs), sort (sortObs) and the query (queryObs)
 // are all derived from the MVU model; every interactive callback lands an
 // mvu.MessageOp so a click re-emits this layer — and the shell — on the same
 // frame.
@@ -235,7 +284,7 @@ func articlesMain(
 	sortObs rx.Observable[table.Sort],
 	rowsPerPageObs rx.Observable[int],
 	unreadOnlyObs rx.Observable[bool],
-	filterObs rx.Observable[string],
+	queryObs rx.Observable[string],
 	tipArb *tooltip.Arbiter,
 ) rx.Observable[articleSlots] {
 	all := hardCodedArticles()
@@ -304,7 +353,7 @@ func articlesMain(
 	// the Preferences pane repaginates the table on the same frame, with the
 	// pane still open over it, so the pane needs no Save.
 	filtered := rx.Map(
-		rx.CombineLatest4(selectedFeedObs, filterObs, sortObs, unreadOnlyObs),
+		rx.CombineLatest4(selectedFeedObs, queryObs, sortObs, unreadOnlyObs),
 		func(t rx.Tuple4[FeedID, string, table.Sort, bool]) []article {
 			return unreadOnlyArticles(filterAndSortArticles(all, t.First, t.Second, t.Third), t.Fourth)
 		},

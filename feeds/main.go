@@ -8,6 +8,8 @@ import (
 	"gioui.org/app"
 	"gioui.org/unit"
 
+	"github.com/reactivego/rx"
+
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
@@ -54,6 +56,14 @@ func run() {
 		fmt.Fprintln(os.Stderr, "feeds: the window will not remember its columns:", err)
 	}
 
+	// The application menu carries what this window does: Add Feed…, which
+	// the pane's own mark takes away with it when the pane is sent away, and
+	// Preferences…, which has no control anywhere in the window. The items
+	// post the same messages as the window's own chords, from the same table
+	// (menu.go); away from macOS the declaration is inert and the chords
+	// carry the actions alone.
+	menu := desktop.NewMenuBar(mvuWin, MenuItems()...)
+
 	// The platform's "Show scroll bars" setting, read once here and handed
 	// to the composition: a window asks the platform when it is built,
 	// never on a frame.
@@ -72,7 +82,7 @@ func run() {
 	// share one upstream subscription, and each reads the model in force when
 	// it attaches, whenever that is.
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
-	models, runner := mvu.Loop(mvuWin.Messages(), openedOn(init, widths.Arrangement()), Update)
+	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), menu.Messages()), openedOn(init, widths.Arrangement()), Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
 	renderErr := w.Render(buildLayers(models, widths, bars)).Wait()

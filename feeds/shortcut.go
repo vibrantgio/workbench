@@ -1,17 +1,6 @@
-// shortcut.go holds the app's keyboard accelerators — the INVOCATION half of
-// the dialog grammar.
-//
-// A dialog cannot own how you arrived. patterns/dialog owns dismissal (a pane's
-// ghost X, Escape, the backdrop; a decision's Escape-to-Cancel and
-// Return-to-default) because those are affordances the dialog itself draws or
-// traps while it is on screen. Arrival is app chrome: the accelerator has to
-// be live when NO dialog exists, which is precisely the state the dialog is not
-// in. So the binding lives here, one function, and patterns carries no notion
-// of it.
-//
-// The platform-correct modifier is Gio's, not ours: key.ModShortcut is Cmd on
-// darwin and Ctrl everywhere else. Testing runtime.GOOS here would be a
-// second copy of a decision the toolkit already made.
+// shortcut.go is the key area one accelerator is laid out as. Which
+// accelerators the window answers, and what each of them posts, is menu.go's
+// table.
 package main
 
 import (
@@ -23,11 +12,6 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 )
-
-// prefsAccelerator is the settings accelerator every desktop app on both
-// platforms binds: ⌘, on macOS, Ctrl-, elsewhere. It opens the Preferences
-// pane and nothing else — closing it is the pane's job.
-const prefsAccelerator = ","
 
 // shortcutArea returns a layout.Widget that invokes cb on every press of name
 // the platform shortcut modifier held. Lay it out over the area the shortcut

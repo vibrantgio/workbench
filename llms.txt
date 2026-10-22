@@ -1481,10 +1481,12 @@ three-column arrangement (frame.go): the feed rail is a PANE down the
 leading edge, the articles table is the list column beside it at the
 platform's own width with the pager as its footer, and the article with
 its tabs takes the rest — one toolbar across the two columns, the open
-feed's name and the filter field over the list, Add feed and Share over
-the article. Also the reference implementation of the dialog grammar's
-invocation half: shortcut.go binds ⌘,/Ctrl-, and preferences.go is the
-settings PANE it opens, whose two preferences apply live under it
+feed's name and the search field over the list, Share over the article,
+and Add feed as the pane's own mark. Also the reference implementation of
+the dialog grammar's invocation half: menu.go declares each accelerator
+once as the chord the window lays out and the item the application menu
+carries (mvu/desktop's menu bar), and preferences.go is the settings PANE
+⌘,/Ctrl-, opens, whose two preferences apply live under it
 
 ### themer/
 

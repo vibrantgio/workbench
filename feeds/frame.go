@@ -9,7 +9,7 @@
 // What the window hands over: the rail's column (sidebar.go) with Add feed
 // as the pane's own mark, the table and its pager (articles.go), the article
 // with its tabs (detail.go), and the toolbar's two shares — the open feed's
-// name and the filter field over the list, Share over the article. The
+// name and the search field over the list, Share over the article. The
 // pane's and the list column's widths are the window's as well, kept across
 // launches by the shell's own arrangement memory.
 //
@@ -56,11 +56,11 @@ const (
 	paneMinWidthDp = 160
 	paneMaxWidthDp = 480
 
-	// filterFieldWDp is the room the filter field takes in the toolbar's
-	// share over the list. Wide enough for the placeholder it carries
-	// ("Filter articles", 83 wide at 1x) with air either side, near enough
-	// that the open feed's name keeps the leading half of the share.
-	filterFieldWDp = 180
+	// searchFieldWDp is the room the search field takes in the toolbar's
+	// share over the list: wide enough for a query of a few words between
+	// the looking glass and the clear mark, and narrow enough that the open
+	// feed's name keeps the leading half of the share.
+	searchFieldWDp = 180
 
 	// shareCapDp is the room RESERVED in the toolbar's share over the
 	// content for the Share anchor, which is drawn afterwards over the
@@ -69,7 +69,7 @@ const (
 
 	// titleMaxDp is the widest the open feed's name may run in the list's
 	// share before it is truncated, so a long name runs out of room before
-	// it runs into the filter field.
+	// it runs into the search field.
 	titleMaxDp unit.Dp = 220
 )
 
@@ -177,7 +177,7 @@ type frameSlots struct {
 	Rail   layout.Widget
 	Rows   layout.Widget
 	Pager  layout.Widget
-	Filter layout.Widget
+	Search layout.Widget
 	Main   layout.Widget
 	Share  layout.Widget
 }
@@ -219,7 +219,7 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, tok themeTokens, s fra
 		// are one reading surface parted by the seam, which is Mail's
 		// reading and what this window already drew.
 		ContentFill: tok.col.ControlBackground,
-		ListToolbar: f.listShare(m, tok, s.Filter),
+		ListToolbar: f.listShare(m, tok, s.Search),
 		Toolbar:     f.contentShare(),
 		Toggle: &shell.ToggleSidebar{
 			Click:        &f.toggleClick,
@@ -241,14 +241,14 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, tok themeTokens, s fra
 }
 
 // listShare is the toolbar's share over the list column: the open feed's
-// name at the leading end and the filter field at the trailing one, which is
+// name at the leading end and the search field at the trailing one, which is
 // what Mail puts over its own list — the mailbox's name and the control that
 // narrows it.
 //
 // The name stands in Center rather than in the leading group: it is what the
 // share SAYS the column is showing, not a control, and with no leading group
 // in front of it the two lay out in the same window column.
-func (f *windowFrame) listShare(m Model, tok themeTokens, filter layout.Widget) shell.Toolbar {
+func (f *windowFrame) listShare(m Model, tok themeTokens, search layout.Widget) shell.Toolbar {
 	return shell.Toolbar{
 		ButtonFallback: listInsetDp,
 		Lead:           listInsetDp,
@@ -256,15 +256,15 @@ func (f *windowFrame) listShare(m Model, tok themeTokens, filter layout.Widget) 
 			return feedTitle(gtx, m, tok)
 		},
 		Trailing: []layout.Widget{func(gtx layout.Context) layout.Dimensions {
-			return filterRoom(gtx, filter)
+			return searchRoom(gtx, search)
 		}},
 	}
 }
 
-// filterRoom lays the filter field out at the width the share gives it,
+// searchRoom lays the search field out at the width the share gives it,
 // letting the field report its own depth so the row centres it.
-func filterRoom(gtx layout.Context, w layout.Widget) layout.Dimensions {
-	box := gtx.Dp(unit.Dp(filterFieldWDp))
+func searchRoom(gtx layout.Context, w layout.Widget) layout.Dimensions {
+	box := gtx.Dp(unit.Dp(searchFieldWDp))
 	if w == nil {
 		return layout.Dimensions{Size: image.Pt(box, 0)}
 	}

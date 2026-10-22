@@ -40,7 +40,20 @@ const (
 	tabComments
 )
 
+// detailPadDp is the content column's own inset, and so the one leading
+// edge everything the column draws stands on: the headline, the byline, the
+// tab strip's first title and the prose under it.
 const detailPadDp = 16
+
+// tabTitlePadDp is the padding patterns/tabs lays either side of a tab's
+// title inside its cell, which is the spacing scale's S3; tabStripOutdentDp
+// is what the strip's own box therefore stands leading of the column's
+// inset, so that the first title lands on it. Insetting the tab pane's
+// content by tabTitlePadDp brings the prose back to the same edge.
+var (
+	tabTitlePadDp     = unit.Dp(tokens.Spacing.S3)
+	tabStripOutdentDp = unit.Dp(detailPadDp) - tabTitlePadDp
+)
 
 // detailArticle is the selected-article snapshot stored in the article cell.
 // ok=false renders the "select an article" placeholder.
@@ -120,28 +133,55 @@ func drawDetail(
 				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground), 1)
 		})
 	}
-	layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+	// The column's parts are inset one by one rather than together, because
+	// the tab strip's own cell padding stands its first title further in
+	// than the box it is laid out in: the strip takes the column's inset
+	// less that padding, and the four parts then share one leading edge.
+	column := layout.Inset{Left: unit.Dp(detailPadDp), Right: unit.Dp(detailPadDp)}
+	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(layout.Spacer{Height: unit.Dp(detailPadDp)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return column.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return typeset.Text(gtx, tok.shaper, sel.a.Title, tok.typ.TitleLarge,
 					vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground), 1)
-			}),
-			layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			})
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return column.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				meta := sel.a.Author + " · " + sel.a.Published.Format("Jan 2 2006")
 				return typeset.Text(gtx, tok.shaper, meta, tok.typ.BodySmall,
 					vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground), 1)
-			}),
-			layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
-			layout.Flexed(1, tabsW),
-		)
-	})
+			})
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{
+				Left:   tabStripOutdentDp,
+				Right:  tabStripOutdentDp,
+				Bottom: unit.Dp(detailPadDp),
+			}.Layout(gtx, tabsW)
+		}),
+	)
 	return layout.Dimensions{Size: size}
 }
 
 // The tab pane needs no fill of its own: patterns/tabs draws its pane on
 // ControlBackground and its strip on the chrome material, which is the pair
 // this pane already stands on.
+
+// tabPaneInset is what a tab's content is inset by inside the pane. Across
+// the leading and trailing edges it is the column's own inset less what the
+// strip is outdented by, so the prose lands on the same leading edge as the
+// headline above it; top and bottom are the column's inset itself.
+func tabPaneInset() layout.Inset {
+	return layout.Inset{
+		Top:    unit.Dp(detailPadDp),
+		Bottom: unit.Dp(detailPadDp),
+		Left:   tabTitlePadDp,
+		Right:  tabTitlePadDp,
+	}
+}
 
 // readerTab renders the article body paragraph-wrapped in the theme's
 // BodyMedium role. The closure is static (tabs captures it once) and reads
@@ -169,7 +209,7 @@ func bodyTab(loadTokens func() themeTokens, loadArticle func() detailArticle, pi
 		if !sel.ok {
 			return layout.Dimensions{Size: size}
 		}
-		layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		tabPaneInset().Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return drawWrappedText(gtx, tok.shaper, hardCodedBody(sel.a), pick(tok.typ),
 				vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground))
 		})
@@ -184,7 +224,7 @@ func commentsTab(loadTokens func() themeTokens) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		tok := loadTokens()
-		layout.UniformInset(unit.Dp(detailPadDp)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		tabPaneInset().Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			children := make([]layout.FlexChild, 0, 2*len(comments))
 			for _, c := range comments {
 				c := c

@@ -37,6 +37,11 @@ import (
 
 // --- the accelerator (arrival) -------------------------------------------
 
+// prefsAccelerator is the key the Preferences… command carries, read out of
+// menu.go's table rather than restated here: the chord the window binds and
+// the chord this test drives have to be the one declaration.
+var prefsAccelerator = commandKey(OpenPreferences{})
+
 // driveShortcut lays shortcutArea out through a real input.Router, queues the
 // given key events between frames, and reports how many times the callback
 // fired.
@@ -84,7 +89,7 @@ func TestPrefsAcceleratorFiresOnShortcutModifier(t *testing.T) {
 // TestPrefsAcceleratorIgnoresBareComma is the other half of the same claim: a
 // comma typed with no modifier is text, not an accelerator. Without
 // Filter.Required the pane would open every time someone typed a comma into
-// the article filter.
+// the article search field.
 func TestPrefsAcceleratorIgnoresBareComma(t *testing.T) {
 	if n := driveShortcut(t, key.Event{
 		Name:  prefsAccelerator,
@@ -290,7 +295,7 @@ func TestPreferencesPaneOverArticlesLive(t *testing.T) {
 		rx.Map(modelObs, func(m Model) table.Sort { return m.sort }),
 		rx.Map(modelObs, func(m Model) int { return m.rowsPerPage }),
 		rx.Map(modelObs, func(m Model) bool { return m.unreadOnly }),
-		rx.Map(modelObs, func(m Model) string { return m.filter }),
+		rx.Map(modelObs, func(m Model) string { return m.query }),
 		tooltip.NewArbiter(),
 	)
 	prefsObs := preferencesPane(th,

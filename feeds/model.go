@@ -15,7 +15,7 @@
 //   - ToggleDeleteConfirm{Feed FeedID} — open a rail row's delete-confirm popover, or close it
 //   - CloseDeleteConfirm{}           — close the delete-confirm popover (outside press)
 //   - ToggleSidebar{}                — show or hide the rail's pane
-//   - SetFilter{Text string}         — set the articles-table filter text (resets to page 1)
+//   - SetQuery{Text string}          — set the articles-table search query (resets to page 1)
 //
 // Two of the messages are patterns', not this app's: notifications.Requested and
 // notifications.Expired. A toast request is an ordinary event that becomes an ordinary
@@ -50,7 +50,7 @@ type Model struct {
 	selectedTab     int    // detail pane tab: 0 Reader, 1 Raw, 2 Comments
 	shareOpen       bool   // the toolbar's Share popover visibility
 	confirmDelete   FeedID // the rail row whose delete-confirm popover stands open
-	filter          string // articles-table filter text
+	query           string // the articles table's search query
 	addFeedOpen     bool   // "Add feed" dialog visibility
 	addFeedError    bool   // empty-URL submit raised the dialog alert
 
@@ -102,15 +102,17 @@ type SelectArticle struct{ Article ArticleID }
 // SetPage navigates the articles table to the given 1-indexed page.
 type SetPage struct{ Page int }
 
-// SetFilter sets the articles-table filter text and resets to page 1 —
-// narrowing the filter shrinks the result set, so the current page can fall
-// out of range. The textfield lands one of these per keystroke.
+// SetQuery sets the articles table's search query and resets to page 1 —
+// narrowing the run shrinks the result set, so the current page can fall out
+// of range. The search field lands one of these per keystroke, and one
+// carrying the empty text when its clear mark or Escape takes the query
+// back.
 //
-// The filter is model state rather than frame state because two things
+// The query is model state rather than frame state because two things
 // outside the frame need it: it is half of what the table shows, so a test
 // driving this app through messages could not otherwise see or set the
 // visible article set, and the page reset it forces is a model edit.
-type SetFilter struct{ Text string }
+type SetQuery struct{ Text string }
 
 // SetSort sets the table sort key and direction.
 type SetSort struct{ Sort table.Sort }
@@ -223,8 +225,8 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.selectedArticle = m.Article
 	case SetPage:
 		model.currentPage = m.Page
-	case SetFilter:
-		model.filter = m.Text
+	case SetQuery:
+		model.query = m.Text
 		model.currentPage = 1
 	case SetSort:
 		model.sort = m.Sort

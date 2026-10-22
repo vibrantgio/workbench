@@ -178,22 +178,23 @@ func feedsShellLayer(
 	rowsPerPageObs := rx.Map(modelObs, func(m Model) int { return m.rowsPerPage })
 	unreadOnlyObs := rx.Map(modelObs, func(m Model) bool { return m.unreadOnly })
 	notesObs := rx.Map(modelObs, func(m Model) []notifications.Notification { return m.notes.Items() })
-	filterObs := rx.Map(modelObs, func(m Model) string { return m.filter })
+	queryObs := rx.Map(modelObs, func(m Model) string { return m.query })
 
-	articlesObs := articlesMain(th, selectedFeedObs, selectedArticleObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, filterObs, tipArb)
-	filterFieldObs := articlesFilter(th)
+	articlesObs := articlesMain(th, selectedFeedObs, selectedArticleObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, queryObs, tipArb)
+	searchFieldObs := articlesSearch(th, postMessage)
 	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
 	shareObs := sharePopover(th, shareOpenObs, popArb)
 	dialogObs := addFeedDialog(th, addFeedOpenObs, addFeedErrorObs, dialogArb)
 	prefsObs := preferencesPane(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs, dialogArb)
 	notesColumnObs := notifications.Column(th, notifications.Props{Position: notifications.TopRight, Notifications: notesObs})
 
-	// The settings accelerator — ⌘, on macOS, Ctrl-, elsewhere. It is app
-	// chrome, laid out under everything else: the dialog owns dismissal, the
-	// app owns arrival, and the two halves never meet in one component.
-	prefsShortcut := shortcutArea(prefsAccelerator, func(gtx layout.Context) {
-		mvu.MessageOp{Message: OpenPreferences{}}.Add(gtx.Ops)
-	})
+	// The window's accelerators, one key area per chord of menu.go's table —
+	// ⌘N and ⌘, on macOS, Ctrl-N and Ctrl-, elsewhere. They are app chrome,
+	// laid out under everything else: the dialog owns dismissal, the app owns
+	// arrival, and the two halves never meet in one component. Where the menu
+	// bar carries the same chord the bar answers it first and these never
+	// fire; away from macOS the bar is inert and these are the only route.
+	chords := ChordAreas(postMessage)
 
 	// The window's own frame: the arrangement the shell draws, seated on
 	// the two widths this reader last left.
@@ -209,14 +210,14 @@ func feedsShellLayer(
 	// model change re-emits the whole composition — which is the same-frame
 	// repaint.
 	slotsObs := rx.Map(
-		rx.CombineLatest5(sidebarObs, articlesObs, detailObs, filterFieldObs, shareObs),
+		rx.CombineLatest5(sidebarObs, articlesObs, detailObs, searchFieldObs, shareObs),
 		func(n rx.Tuple5[layout.Widget, articleSlots, layout.Widget, layout.Widget, layout.Widget]) frameSlots {
 			return frameSlots{
 				Rail:   n.First,
 				Rows:   n.Second.Rows,
 				Pager:  n.Second.Pager,
 				Main:   n.Third,
-				Filter: n.Fourth,
+				Search: n.Fourth,
 				Share:  n.Fifth,
 			}
 		},
@@ -239,7 +240,7 @@ func feedsShellLayer(
 	// layer. Every model change still re-emits this stream — driving the
 	// same-frame repaint.
 	//
-	// The accelerator's key area goes FIRST, at the bottom of the hit stack:
+	// The accelerators' key areas go FIRST, at the bottom of the hit stack:
 	// a key area occludes pointer events, so it must never sit over the
 	// content, and an open dialog's own scrim should shadow it the way it
 	// shadows the rest of the app.
@@ -252,7 +253,9 @@ func feedsShellLayer(
 				// offset, so a dialog's scrim composites over the frame
 				// beneath it rather than blending with it.
 				composite.Frame(gtx)
-				prefsShortcut(gtx)
+				for _, area := range chords {
+					area(gtx)
+				}
 				// The window's own drag is the arrangement's: the pane's
 				// strip and the toolbar's two shares claim it over every run
 				// of themselves that holds no control, which is what a

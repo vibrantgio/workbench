@@ -585,3 +585,171 @@ func TestAHeadingCollapsesTheRowsBeneathIt(t *testing.T) {
 		})
 	}
 }
+
+// articleParts are the four things the content column draws down its own
+// leading edge, each named with the band of rows its first line is drawn in
+// in the settled window. They are drawn by three different pieces of code — this
+// window's header, patterns/tabs' strip, and the tab's own pane — which is
+// why the frame is the only place they can be seen agreeing.
+var articleParts = []struct {
+	name     string
+	from, to int
+}{
+	{"the headline", 72, 90},
+	{"the byline", 103, 115},
+	{"the tab strip's first title", 132, 144},
+	{"the prose", 171, 185},
+}
+
+// leadingDrawn answers the leading-most column the rows from..to draw
+// anything in, read against each row's own resting fill at the column's
+// trailing end. It answers -1 where the band draws nothing, which fails the
+// caller rather than passing quietly.
+func leadingDrawn(img *image.RGBA, from, to, colX int) int {
+	lead := -1
+	for y := from; y < to; y++ {
+		rest := at(img, windowSize.X-10, y)
+		for x := colX; x < windowSize.X-10; x++ {
+			c := at(img, x, y)
+			if abs(int(c.R)-int(rest.R))+abs(int(c.G)-int(rest.G))+abs(int(c.B)-int(rest.B)) > 24 {
+				if lead < 0 || x < lead {
+					lead = x
+				}
+				break
+			}
+		}
+	}
+	return lead
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+// TestTheArticlesPartsStandOnOneLeadingEdge reads off the frame that the
+// headline, the byline, the tab strip's first title and the prose all begin
+// at the content column's own inset. Content inside one region aligns on one
+// leading edge unless an entry indents it, and nothing here is indented.
+//
+// What is read is the leading-most column each part's band draws anything
+// in. A glyph carries its own left side bearing, so two parts whose boxes
+// start on the same column can be drawn one pixel apart; the allowance below
+// is that bearing and nothing else.
+func TestTheArticlesPartsStandOnOneLeadingEdge(t *testing.T) {
+	g := layoutFrame(t, settledModel())
+	want := g.ContentX + detailPadDp
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderWindow(t, tc.c)
+			if img == nil {
+				t.Skip("no capture backend")
+			}
+			for _, p := range articleParts {
+				lead := leadingDrawn(img, p.from, p.to, g.ContentX)
+				if lead < 0 {
+					t.Errorf("%s drew nothing in rows %d..%d", p.name, p.from, p.to)
+					continue
+				}
+				if lead < want || lead > want+1 {
+					t.Errorf("%s begins at x=%d, want the column's own inset %d (its glyph may bear one pixel further in)",
+						p.name, lead, want)
+				}
+			}
+		})
+	}
+}
+
+// blueBoxes are the places this window draws blue, with the platform's name
+// for each: the Share anchor and the pager's current page in the accent
+// itself, the chosen row and the chosen tab's mark in the platform's
+// selection colour, and the open feed's name and symbol on the rail's grey
+// pill in the colour the platform draws those in. Every one of them follows
+// the one accent the reader chose — none is derived here and none is a
+// literal — and the test below reads that off the frame AND checks that the
+// window draws blue nowhere else.
+var blueBoxes = []struct {
+	name string
+	box  image.Rectangle
+	want func(tokens.PlatformColors) color.NRGBA
+}{
+	{"the Share anchor", image.Rect(1150, 14, 1196, 34), func(c tokens.PlatformColors) color.NRGBA { return c.ControlAccent }},
+	{"the open article's row", image.Rect(220, 70, 675, 92), func(c tokens.PlatformColors) color.NRGBA { return c.SelectedContentBackground }},
+	{"the open feed's name on the pill", image.Rect(20, 92, 220, 115), func(c tokens.PlatformColors) color.NRGBA {
+		return c.SidebarSelectionUnemphasizedLabel
+	}},
+	{"the open tab's mark", image.Rect(676, 146, 800, 156), func(c tokens.PlatformColors) color.NRGBA { return c.SelectedContentBackground }},
+	{"the page the table is showing", image.Rect(268, 764, 324, 795), func(c tokens.PlatformColors) color.NRGBA { return c.ControlAccent }},
+}
+
+// isBlue answers whether a pixel is plainly a blue rather than a neutral or
+// a blend too faint to read as one.
+func isBlue(c color.NRGBA) bool {
+	return int(c.B) > int(c.R)+40 && int(c.B) > int(c.G)+30
+}
+
+// boldestBlue answers the most saturated blue a box holds. Antialiasing and
+// a shadow only ever carry a drawn colour toward the fill under it, so the
+// most saturated reading in a region is the colour that region was drawn
+// with.
+func boldestBlue(img *image.RGBA, box image.Rectangle) (color.NRGBA, bool) {
+	var best color.NRGBA
+	sat := -1
+	for y := box.Min.Y; y < box.Max.Y; y++ {
+		for x := box.Min.X; x < box.Max.X; x++ {
+			c := at(img, x, y)
+			if !isBlue(c) {
+				continue
+			}
+			if s := int(c.B) - min(int(c.R), int(c.G)); s > sat {
+				sat, best = s, c
+			}
+		}
+	}
+	return best, sat >= 0
+}
+
+// TestEveryBlueThisWindowDrawsIsTheOneAccent enumerates this window's blues
+// off the frame: each of the five places it draws one wears the platform's
+// own name for that place, and no sixth blue stands anywhere else. A second
+// blue of this window's own making — derived from the accent, or written as
+// a literal — would fail both halves.
+func TestEveryBlueThisWindowDrawsIsTheOneAccent(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderWindow(t, tc.c)
+			if img == nil {
+				t.Skip("no capture backend")
+			}
+			for _, b := range blueBoxes {
+				got, ok := boldestBlue(img, b.box)
+				if !ok {
+					t.Errorf("%s draws no blue at all in %v", b.name, b.box)
+					continue
+				}
+				if want := b.want(tc.c); got != want {
+					t.Errorf("%s reads %v, want the platform's %v", b.name, got, want)
+				}
+			}
+			for y := 0; y < windowSize.Y; y++ {
+				for x := 0; x < windowSize.X; x++ {
+					if !isBlue(at(img, x, y)) {
+						continue
+					}
+					named := false
+					for _, b := range blueBoxes {
+						if (image.Point{X: x, Y: y}).In(b.box) {
+							named = true
+							break
+						}
+					}
+					if !named {
+						t.Fatalf("the window draws %v at (%d,%d), which is outside every place it has a blue to draw", at(img, x, y), x, y)
+					}
+				}
+			}
+		})
+	}
+}
