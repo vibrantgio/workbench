@@ -1,14 +1,15 @@
 package main
 
 // The Monitor tab before the first reading: one empty state in the tab's
-// content frame — the line, the connection status under it and the demo
-// button under that, centred as one group — read off a render of the whole
-// window, because the frame the group centres in is the arrangement's.
+// content frame — the line and the demo button under it, centred as one
+// group — read off a render of the whole window, because the frame the group
+// centres in is the arrangement's.
 
 import (
 	"image"
 	"image/color"
 	"testing"
+	"time"
 
 	"gioui.org/f32"
 	gioinput "gioui.org/io/input"
@@ -18,6 +19,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -75,8 +77,8 @@ func monitorFrame(t *testing.T, img *image.RGBA, c tokens.PlatformColors) image.
 func sameColour(a, b color.NRGBA) bool { return a.R == b.R && a.G == b.G && a.B == b.B }
 
 // paintedRuns are the runs of rows inside the frame that hold any pixel not of
-// the fill, top to bottom: the line, the description and the button, in
-// that order, because the gaps between the group's parts are bare rows.
+// the fill, top to bottom: the line and the button, in that order, because
+// the gap between the group's parts is bare rows.
 func paintedRuns(img *image.RGBA, frame image.Rectangle, fill color.NRGBA) []image.Rectangle {
 	var runs []image.Rectangle
 	open := false
@@ -106,8 +108,8 @@ func paintedRuns(img *image.RGBA, frame image.Rectangle, fill color.NRGBA) []ima
 }
 
 // TestMonitorEmptyStateCentresInTheTabsFrame holds the group's placement:
-// the line, the description and the button stand as three parts, and the
-// block they make centres across and down in the tab's content frame.
+// the line and the button stand as two parts, and the block they make
+// centres across and down in the tab's content frame.
 //
 // The block's top is the line's glyphs and not its line box, so the block
 // read off the pixels stands a few pixels lower than the group the pattern
@@ -119,10 +121,10 @@ func TestMonitorEmptyStateCentresInTheTabsFrame(t *testing.T) {
 			img := renderUnconnected(t, tc.c)
 			frame := monitorFrame(t, img, tc.c)
 			runs := paintedRuns(img, frame, pageFill(tc.c))
-			if len(runs) != 3 {
-				t.Fatalf("the tab's frame %v holds %d runs of painted rows %v, want the line, the description and the button", frame, len(runs), runs)
+			if len(runs) != 2 {
+				t.Fatalf("the tab's frame %v holds %d runs of painted rows %v, want the line and the button", frame, len(runs), runs)
 			}
-			block := runs[0].Union(runs[1]).Union(runs[2])
+			block := runs[0].Union(runs[1])
 			if got, want := block.Min.X+block.Max.X, frame.Min.X+frame.Max.X; abs(got-want) > 2 {
 				t.Errorf("the group centres at %.1f across, want the tab frame's %.1f", float64(got)/2, float64(want)/2)
 			}
@@ -178,10 +180,10 @@ func TestMonitorEmptyStateDemoButtonPostsEnterDemo(t *testing.T) {
 	c := tokens.PlatformLight
 	img := renderUnconnected(t, c)
 	runs := paintedRuns(img, monitorFrame(t, img, c), pageFill(c))
-	if len(runs) != 3 {
-		t.Fatalf("the tab's frame holds %d runs of painted rows, want the line, the description and the button", len(runs))
+	if len(runs) != 2 {
+		t.Fatalf("the tab's frame holds %d runs of painted rows, want the line and the button", len(runs))
 	}
-	button := runs[2]
+	button := runs[1]
 
 	var posted []mvu.Message
 	w := windowFramePosting(t, c, unconnectedModel(), func(_ layout.Context, msg mvu.Message) {
@@ -234,5 +236,93 @@ func TestMonitorEmptyStateWaitsWithoutActions(t *testing.T) {
 			t.Errorf("online %v demo %v: the empty state is %q / %q with %d actions, want the waiting line alone",
 				m.Online, m.Demo, p.Line, p.Description, len(p.Actions))
 		}
+	}
+}
+
+// TestMonitorEmptyStateHasNoDescription holds the empty state while no
+// device is connected: the line and the demo button, and no description,
+// because the header's status line already shows the connection status.
+func TestMonitorEmptyStateHasNoDescription(t *testing.T) {
+	m := unconnectedModel()
+	p := monitorEmptyState(m, slotSet{})
+	if p.Line != "No SK150 connected" || p.Description != "" || len(p.Actions) != 1 {
+		t.Errorf("with the status %q the empty state is %q / %q with %d actions, want the line, no description and the demo button",
+			m.Status, p.Line, p.Description, len(p.Actions))
+	}
+}
+
+// TestMonitorEmptyStateDemoButtonTooltip holds the demo button's tooltip:
+// its text is the sentence, and a pointer resting on the button through a
+// real input.Router shows the tooltip's surface under the button once the
+// tooltip's delay has passed, and not before.
+func TestMonitorEmptyStateDemoButtonTooltip(t *testing.T) {
+	if demoTooltip != "Shows demo readings until you quit" {
+		t.Errorf("the demo button's tooltip text is %q, want %q", demoTooltip, "Shows demo readings until you quit")
+	}
+	c := tokens.PlatformLight
+	fill := pageFill(c)
+	img := renderUnconnected(t, c)
+	runs := paintedRuns(img, monitorFrame(t, img, c), fill)
+	if len(runs) != 2 {
+		t.Fatalf("the tab's frame holds %d runs of painted rows, want the line and the button", len(runs))
+	}
+	button := runs[1]
+
+	w := windowFrame(t, c, unconnectedModel())
+	var (
+		ops op.Ops
+		r   gioinput.Router
+	)
+	start := time.Unix(1_700_000_000, 0)
+	now := start
+	ctx := func(ops *op.Ops) layout.Context {
+		return layout.Context{
+			Constraints: layout.Exact(windowSize),
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Ops:         ops,
+			Source:      r.Source(),
+			Now:         now,
+		}
+	}
+	frame := func() {
+		ops.Reset()
+		w(ctx(&ops))
+		r.Frame(&ops)
+	}
+	// below is the band under the button the surface takes: the rows
+	// between the button's foot and the foot of the tab's frame, across the
+	// button's width.
+	below := image.Rect(button.Min.X, button.Max.Y+1, button.Max.X, button.Max.Y+40)
+	painted := func() bool {
+		shot := golden.Capture(t, windowSize, func(gtx layout.Context) layout.Dimensions {
+			gtx.Source = r.Source()
+			gtx.Now = now
+			return w(gtx)
+		})
+		for y := below.Min.Y; y < below.Max.Y; y++ {
+			for x := below.Min.X; x < below.Max.X; x++ {
+				if !sameColour(at(shot, x, y), fill) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	frame()
+	frame()
+	mid := f32.Pt(float32(button.Min.X+button.Max.X)/2, float32(button.Min.Y+button.Max.Y)/2)
+	r.Queue(pointer.Event{Kind: pointer.Move, Position: mid, Source: pointer.Mouse})
+	frame()
+	frame()
+	now = start.Add(tooltip.DefaultDelay - 10*time.Millisecond)
+	frame()
+	if painted() {
+		t.Errorf("before the tooltip's delay the band under the demo button %v holds painted pixels, want it bare", below)
+	}
+	now = start.Add(tooltip.DefaultDelay + 10*time.Millisecond)
+	frame()
+	if !painted() {
+		t.Errorf("after the tooltip's delay the band under the demo button %v is bare, want the tooltip's surface", below)
 	}
 }

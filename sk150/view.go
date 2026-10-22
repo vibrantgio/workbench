@@ -24,6 +24,7 @@ import (
 
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
@@ -295,9 +296,22 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	reg.add("clear", button.Button(th, button.Props{
 		Title: "Clear", Emphasis: button.Tonal, Message: ClearProtection{},
 	}))
-	reg.add("demo", button.Button(th, button.Props{
-		Title: "Try demo mode", Emphasis: button.Tonal,
-		OnClick: func(gtx layout.Context) { post(gtx, EnterDemo{}) },
+	// The demo button and the tooltip that says how long the demo runs. The
+	// arbiter is this window's; the demo button's tooltip is its only member.
+	demoTrigger := &recordedTrigger{}
+	reg.add("demo", rx.Map(rx.CombineLatest2(
+		button.Button(th, button.Props{
+			Title: "Try demo mode", Emphasis: button.Tonal,
+			OnClick: func(gtx layout.Context) { post(gtx, EnterDemo{}) },
+		}),
+		tooltip.Tooltip(th, tooltip.Props{
+			Text:      demoTooltip,
+			Trigger:   demoTrigger.replay,
+			Placement: tooltip.Bottom,
+			Arbiter:   tooltip.NewArbiter(),
+		}),
+	), func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
+		return demoTrigger.wrap(fixed(160, n.First), n.Second)
 	}))
 
 	// The override dialog's footer actions. Caller-owned clickables put
@@ -669,10 +683,11 @@ func headerRow(t themed, m Model, slots slotSet) layout.Widget {
 // device or the demo answers, the tab waits for its first reading.
 func monitorEmptyState(m Model, slots slotSet) shell.EmptyStateProps {
 	if !m.Online && !m.Demo {
+		// No description: the header's status line already shows the
+		// connection status.
 		return shell.EmptyStateProps{
-			Line:        "No SK150 connected",
-			Description: m.Status,
-			Actions:     []layout.Widget{fixed(160, slots.get("demo"))},
+			Line:    "No SK150 connected",
+			Actions: []layout.Widget{slots.get("demo")},
 		}
 	}
 	return shell.EmptyStateProps{Line: "Waiting for the first reading…"}
@@ -1112,6 +1127,51 @@ func textLine(typ Type, style textdraw.TextStyle, col color.NRGBA, txt string) l
 
 // fixed pins a child to a width in dp (clamped to the space available), so
 // fill-width components sit in columns.
+// demoTooltip is the demo button's tooltip text: the demo runs until the
+// application quits.
+const demoTooltip = "Shows demo readings until you quit"
+
+// recordedTrigger lays a control out together with the tooltip that names
+// it. The tooltip takes the whole of the frame it is given, centres its
+// trigger in that frame and keeps its surface inside it, so it is given a
+// frame centred on the control: as wide as the room the control is offered
+// and tall enough for the surface above or below it. The tooltip's trigger
+// is the control as recorded this frame, so the control is laid out once and
+// drawn at its own place. The control's own size is returned, so the frame
+// takes no room from the layout around it.
+type recordedTrigger struct {
+	call op.CallOp
+	dims layout.Dimensions
+}
+
+// replay is the tooltip's trigger: the control recorded by wrap this frame.
+// The control's areas are replayed pass-through: the tooltip registers its
+// hover area under the trigger, and a button's own area laid over it would
+// otherwise take every pointer event and the tooltip would never show.
+func (r *recordedTrigger) replay(gtx layout.Context) layout.Dimensions {
+	pass := pointer.PassOp{}.Push(gtx.Ops)
+	r.call.Add(gtx.Ops)
+	pass.Pop()
+	return r.dims
+}
+
+// wrap lays control out, then tip in a frame centred on it.
+func (r *recordedTrigger) wrap(control, tip layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		rec := op.Record(gtx.Ops)
+		r.dims = control(gtx)
+		r.call = rec.Stop()
+		size := r.dims.Size
+		frame := image.Pt(max(size.X, gtx.Constraints.Max.X), size.Y+2*gtx.Dp(64))
+		off := op.Offset(image.Pt(-(frame.X-size.X)/2, -(frame.Y-size.Y)/2)).Push(gtx.Ops)
+		tgtx := gtx
+		tgtx.Constraints = layout.Exact(frame)
+		tip(tgtx)
+		off.Pop()
+		return r.dims
+	}
+}
+
 func fixed(dp unit.Dp, w layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		width := min(gtx.Dp(dp), gtx.Constraints.Max.X)
