@@ -55,9 +55,9 @@ var windowSize = image.Pt(int(winW), int(winH))
 const titleBandDp unit.Dp = 32
 
 // The frames carry the theme's real radius scale rather than a pinned-sharp
-// one: nothing here is stored, so nothing needs corners that survive a
-// pixel-exact diff between GPU contexts, and every assertion below counts
-// pixels with room to spare for a few anti-aliased ones.
+// one, so the stored window goldens hold the search field's anti-aliased
+// corners as the window draws them, and every assertion below counts pixels
+// with room to spare for a few anti-aliased ones.
 
 // staticTheme is one theme emission as a snapshot: every stream is rx.Of, so
 // the components built from it — the search field is the only one here —
