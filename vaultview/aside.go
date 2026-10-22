@@ -192,10 +192,19 @@ type asideView struct {
 // backlinks returns the citing-note rows for the model, recomputing only
 // when the index or the current note moved.
 func (v *asideView) backlinks(m Model) []backlinkRow {
-	if m.Index != v.memoIdx || m.Current != v.memoCur {
+	// A note being fetched out of the cloud is current before the window
+	// has it, and the column says nothing about it until it is here: the
+	// outline cannot be drawn from a note that has not been read, and a
+	// pane listing citations beside an empty outline would describe half
+	// a note.
+	cur := m.Current
+	if m.Downloading != "" {
+		cur = ""
+	}
+	if m.Index != v.memoIdx || cur != v.memoCur {
 		v.memoIdx = m.Index
-		v.memoCur = m.Current
-		paths := Backlinks(m.Index, m.Current)
+		v.memoCur = cur
+		paths := Backlinks(m.Index, cur)
 		v.memo = make([]backlinkRow, len(paths))
 		for i, p := range paths {
 			folder := path.Dir(p)

@@ -93,13 +93,23 @@ type Model struct {
 	scanStop *atomic.Bool
 
 	// Downloading is the vault-relative path of the note the platform is
-	// fetching out of the cloud, empty when it is fetching none. The note
-	// column stands a message in place of the note while it is set, and
-	// the status bar says the same; downloadNav is the navigation that
-	// asked, held so the landing seats on the heading or block the link
-	// named once the file is here.
+	// fetching out of the cloud, empty when it is fetching none. The
+	// window moves to that note at once — it is Current while the fetch
+	// runs, so the trail names it and the tree marks its row — and the
+	// note column stands a message in place of the note it does not have
+	// yet, the status bar saying the same. downloadNav is the navigation
+	// that asked, held so the landing seats on the heading or block the
+	// link named once the file is here.
 	Downloading string
 	downloadNav Navigate
+	// downloadFrom is the note the reader was on when the window moved
+	// ahead to one it does not have. It is what the window goes back to
+	// when the note never arrives — the platform refusing the download,
+	// or the file landing and not reading — and it is dropped the moment
+	// a note is seated. The history is not touched until then: an entry
+	// pushed before the note arrived would have to be taken off again on
+	// a failure, and with it a forward tail the push had truncated.
+	downloadFrom string
 
 	// Navigation state. Notes caches every note loaded this session,
 	// keyed by vault-relative path; the map is replaced, never mutated,
@@ -519,32 +529,46 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		// it was cached is read again, everything else is served from the
 		// cache with its scroll position and link state intact.
 		if note := model.Notes[m.Path]; note != nil && unchangedOnDisk(model.Vault, note) {
-			return landOn(model, m, note), mvu.DoNothing()
+			return landOn(leaveDownload(model), m, note), mvu.DoNothing()
 		}
 		// A note the platform keeps in the cloud has nothing at its own
 		// path to read, so it is asked for first and loaded when it
-		// lands. The window says what it is waiting for meanwhile; the
-		// address under the pointer goes, the navigation having begun.
+		// lands. The window goes to it at once all the same: it is the
+		// note the reader asked for, so the trail names it, the tree
+		// marks its row, and the column says what it is waiting for in
+		// place of a note it does not have. The address under the
+		// pointer goes, the navigation having begun.
 		if model.isPlaceholder(m.Path) {
+			model = leaveDownload(model)
+			model.downloadFrom = model.Current
 			model.Downloading = m.Path
 			model.downloadNav = m
+			model.Current = m.Path
+			model.CurAnchor = -1
 			model.LinkUnder = ""
-			return model, downloadNoteCmd(model.Vault, m.Path)
+			return revealCurrent(model), downloadNoteCmd(model.Vault, m.Path)
 		}
-		return model, loadNoteCmd(model.Vault, m)
+		return leaveDownload(model), loadNoteCmd(model.Vault, m)
 	case desktop.Downloaded:
 		rel := model.Downloading
 		if rel == "" || m.Path != notePath(model.Vault, rel) {
 			break // an answer for a note the reader left, or another vault
 		}
+		if m.Err != "" {
+			// Nothing arrived, so the window goes back to the note the
+			// reader was on — the trail, the tree's mark and the column
+			// with it — and says why in a toast.
+			return raiseNotification(leaveDownload(model),
+				notifications.Request(toast.Error, m.Err))
+		}
 		nav := model.downloadNav
 		model.Downloading = ""
 		model.downloadNav = Navigate{}
-		if m.Err != "" {
-			return raiseNotification(model, notifications.Request(toast.Error, m.Err))
-		}
 		// The file is on disk now, so the listing stops calling it one the
-		// cloud holds, and the note loads as any navigation loads one.
+		// cloud holds, and the note loads as any navigation loads one. The
+		// window stays on the target while it is read, and downloadFrom
+		// stays with it: a read that fails has to put the reader back the
+		// way a refused download does.
 		model.Index = downloaded(model.Index, rel)
 		return model, loadNoteCmd(model.Vault, nav)
 	case noteLoaded:
@@ -552,11 +576,25 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			break // a load for a vault no longer open
 		}
 		if m.err != "" {
+			// The window may already stand on this note without having
+			// it — that is where a fetch out of the cloud leaves it — and
+			// then there is nothing on screen for the failure to stand
+			// over, so the reader goes back to the note they were on.
+			if model.CurrentNote() == nil {
+				model = returnFromFetch(model)
+			}
 			return raiseNotification(model, notifications.Request(toast.Error, m.err))
 		}
 		model = cacheNote(model, m.note)
 		return landOn(model, m.nav, m.note), mvu.DoNothing()
 	case GoBack:
+		// The note being fetched is no history entry, so the way back
+		// from it is the note the reader was on rather than a step along
+		// the stack: the fetch is left behind and the window returns.
+		if model.Downloading != "" {
+			model = leaveDownload(model)
+			break
+		}
 		if model.Cursor > 0 {
 			model.Cursor--
 			model.Current = model.History[model.Cursor].Path
@@ -564,6 +602,9 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 			model = revealCurrent(model)
 		}
 	case GoForward:
+		if model.Downloading != "" {
+			break // nothing stands after a note the window has not reached
+		}
 		if model.Cursor+1 < len(model.History) {
 			model.Cursor++
 			model.Current = model.History[model.Cursor].Path
@@ -707,6 +748,7 @@ func landOn(model Model, nav Navigate, note *Note) Model {
 	model.Current = note.Path
 	model.CurAnchor = anchor
 	model.LinkUnder = ""
+	model.downloadFrom = "" // the window has the note; there is nothing to go back to
 	model.NavSeq++
 	model.Arrival = model.NavSeq
 	keep := model.History
@@ -718,6 +760,53 @@ func landOn(model Model, nav Navigate, note *Note) Model {
 	model.History = append(hist, HistEntry{Path: note.Path, Anchor: anchor})
 	model.Cursor = len(model.History) - 1
 	return revealCurrent(model)
+}
+
+// leaveDownload takes the window out of a wait on the cloud: the answer
+// to the fetch in flight is dropped when it comes (the guard on the
+// vault-relative path it was started for), and the window goes back to
+// the note the reader was on, since it is standing on one it does not
+// have. A caller going somewhere else states where after this.
+func leaveDownload(model Model) Model {
+	if model.Downloading == "" {
+		return model
+	}
+	model.Downloading = ""
+	model.downloadNav = Navigate{}
+	return returnFromFetch(model)
+}
+
+// returnFromFetch puts the window back on the note the reader was on
+// before it moved ahead to one it does not have. The history was never
+// touched by the move, so there is nothing to unwind: the current path
+// and the tree's disclosure are all that go back.
+func returnFromFetch(model Model) Model {
+	model.Current = model.downloadFrom
+	model.CurAnchor = -1 // the cached document keeps its scroll
+	model.downloadFrom = ""
+	return revealCurrent(model)
+}
+
+// CanGoBack and CanGoForward report where the window's history can take
+// it from where it stands, which is what makes each half of the toolbar's
+// navigation live. While a note is being fetched the window stands at
+// that note, and it is no history entry yet: the way back is the note the
+// reader was on, and nothing stands ahead of a note the window has not
+// reached.
+func (m Model) CanGoBack() bool {
+	if m.Downloading != "" {
+		return m.downloadFrom != "" // nothing to return to before the first note
+	}
+	return m.Cursor > 0
+}
+
+// CanGoForward reports whether the history has an entry after the one the
+// window stands on.
+func (m Model) CanGoForward() bool {
+	if m.Downloading != "" {
+		return false
+	}
+	return m.Cursor+1 < len(m.History)
 }
 
 // revealCurrent opens every folder on the current note's path, the vault's

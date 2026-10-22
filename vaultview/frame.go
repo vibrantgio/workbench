@@ -436,8 +436,8 @@ func (f *frameState) toolbar(m Model, tok themeTokens) shell.Toolbar {
 // the content column's share, and finder-window-untinted-dark.png keeps the
 // same pair at the same columns.
 func (f *frameState) layoutNavigation(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
-	back := m.Cursor > 0
-	fwd := m.Cursor+1 < len(m.History)
+	back := m.CanGoBack()
+	fwd := m.CanGoForward()
 	if f.backClick.Clicked(gtx) && back {
 		mvu.MessageOp{Message: GoBack{}}.Add(gtx.Ops)
 	}

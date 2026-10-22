@@ -981,12 +981,16 @@ func messageChild(tok themeTokens, msg string) layout.FlexChild {
 // root.
 func notePlaces(m Model) []place {
 	var places []place
-	note := m.CurrentNote()
-	if note == nil {
+	// The trail is built from the path the window stands on rather than
+	// from a loaded note: a note being fetched out of the cloud is the
+	// note the reader asked for and the trail names it, file or no file.
+	// A loaded note's title is this same basename without its extension.
+	rel := m.Current
+	if rel == "" {
 		return places
 	}
 	places = append(places, place{title: vaultName(m)})
-	if dir := path.Dir(note.Path); dir != "." {
+	if dir := path.Dir(rel); dir != "." {
 		cum := ""
 		for _, seg := range strings.Split(dir, "/") {
 			if cum == "" {
@@ -997,7 +1001,7 @@ func notePlaces(m Model) []place {
 			places = append(places, place{title: seg, path: cum})
 		}
 	}
-	return append(places, place{title: note.Title, path: note.Path})
+	return append(places, place{title: noteTitle(rel), path: rel})
 }
 
 // layoutProperties renders the collapsible properties pane: a header

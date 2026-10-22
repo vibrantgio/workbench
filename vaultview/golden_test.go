@@ -486,9 +486,12 @@ func downloadingModel(t *testing.T) Model {
 }
 
 // TestVaultWindowDownloadingGolden records the whole window while the
-// platform fetches a note out of the cloud, in both schemes: the note
-// column standing the wait text where the note would be, and the status
-// bar saying the same under it.
+// platform fetches a note out of the cloud, in both schemes: the window
+// stands at the note it is fetching, so the trail names it and the tree
+// marks its row, and it has none of the note, so there is no properties
+// block and the inspector draws its empty lines. The note column stands
+// the wait text where the note would be and the status bar says the same
+// under it.
 //
 // The text stands alone. The platform's own wait was captured for this —
 // a file evicted from iCloud Drive and opened in TextEdit, in both

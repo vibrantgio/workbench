@@ -120,6 +120,14 @@
 // the Rescan control in the folder rail's own top strip re-walks the
 // vault for those.
 //
+// Opening a note iCloud has not handed over asks the platform for the
+// file. The window goes to that note while it waits — the trail names
+// it, the tree marks its row — and shows none of it: there is no
+// properties block, the outline and the backlinks stand empty, and the
+// column says what it is waiting for. The note takes its place in the
+// history when it arrives; if it never does, the window returns to the
+// note the reader was on and says why.
+//
 // # What it does not do
 //
 // There is no editor, no graph view, and no full-text search. The find
