@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"gioui.org/io/event"
-	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
@@ -213,18 +211,12 @@ type articleSlots struct{ Rows, Pager layout.Widget }
 // message goes, and it is a parameter so a test can drive the very field the
 // window lays out and read back what it posted.
 func articlesSearch(th rx.Observable[theme.Theme], post func(gtx layout.Context, msg mvu.Message)) rx.Observable[layout.Widget] {
-	var (
-		fieldTag event.Tag
-		clear    func()
-	)
-	field := input.SearchField(th, input.SearchFieldProps{
+	return input.SearchField(th, input.SearchFieldProps{
 		Placeholder: "Search",
 		Description: "search articles by title or author",
 		Variant:     input.Chrome,
 		Region:      input.Toolbar,
 		Surface:     searchFieldSurface,
-		FocusTag:    func(tag event.Tag) { fieldTag = tag },
-		Clear:       func(c func()) { clear = c },
 		OnChange: func(gtx layout.Context, s string) {
 			// One message carries both halves: the reducer stores the query
 			// and resets to page 1, because narrowing the run shrinks the
@@ -233,38 +225,6 @@ func articlesSearch(th rx.Observable[theme.Theme], post func(gtx layout.Context,
 			post(gtx, SetQuery{Text: s})
 		},
 	})
-	return rx.Map(field, func(w layout.Widget) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			clearOnEscape(gtx, fieldTag, clear)
-			if w == nil {
-				return layout.Dimensions{}
-			}
-			return w(gtx)
-		}
-	})
-}
-
-// clearOnEscape empties the search field on an Escape press and leaves the
-// keyboard where it is. A search field standing on chrome has nothing to
-// close, so Escape does what the clear mark does and no more. Emptying the
-// field reports the empty query through the field's own OnChange, like any
-// other edit, which is what brings the table back to its whole run.
-//
-// It is drained before the field lays out, so the key is taken here rather
-// than by the editor beneath it.
-func clearOnEscape(gtx layout.Context, tag event.Tag, clear func()) {
-	if tag == nil || clear == nil {
-		return
-	}
-	for {
-		e, ok := gtx.Event(key.Filter{Focus: tag, Name: key.NameEscape})
-		if !ok {
-			return
-		}
-		if ke, ok := e.(key.Event); ok && ke.State == key.Press {
-			clear()
-		}
-	}
 }
 
 // articlesMain composes the articles table and the pagination row into the

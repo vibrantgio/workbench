@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"image"
 
-	"gioui.org/io/event"
-	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -131,57 +129,15 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 // Shaper, a FocusTag of its own. The rest of the props are set here, so the
 // static render and the live window build one field.
 func searchField(th rx.Observable[theme.Theme], extra input.SearchFieldProps, post func(layout.Context, SetQuery)) rx.Observable[layout.Widget] {
-	var (
-		fieldTag event.Tag
-		clear    func()
-	)
 	props := extra
 	props.Placeholder = "Search"
 	props.Description = "search icons by name"
 	props.Variant = input.Chrome
 	props.Region = input.Sidebar
-	props.FocusTag = func(tag event.Tag) {
-		fieldTag = tag
-		if extra.FocusTag != nil {
-			extra.FocusTag(tag)
-		}
-	}
-	props.Clear = func(c func()) { clear = c }
 	props.OnChange = func(gtx layout.Context, text string) {
 		post(gtx, SetQuery{Text: text})
 	}
-	return rx.Map(input.SearchField(th, props), func(w layout.Widget) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			clearOnEscape(gtx, fieldTag, clear)
-			if w == nil {
-				return layout.Dimensions{}
-			}
-			return w(gtx)
-		}
-	})
-}
-
-// clearOnEscape empties the search field on an Escape press and leaves the
-// keyboard in the field. A search field on this page has nothing to close,
-// so Escape does what the clear mark does and no more. Emptying the field
-// reports the empty query through the field's own OnChange, like any other
-// edit, which brings the whole catalogue back.
-//
-// It is drained before the field lays out, so the key is taken here rather
-// than by the editor beneath it.
-func clearOnEscape(gtx layout.Context, tag event.Tag, clear func()) {
-	if tag == nil || clear == nil {
-		return
-	}
-	for {
-		e, ok := gtx.Event(key.Filter{Focus: tag, Name: key.NameEscape})
-		if !ok {
-			return
-		}
-		if ke, ok := e.(key.Event); ok && ke.State == key.Press {
-			clear()
-		}
-	}
+	return input.SearchField(th, props)
 }
 
 // underTitleBar holds the page down past the native title-bar strip the
