@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"testing"
 
 	"github.com/vibrantgio/components/golden"
@@ -15,7 +16,8 @@ import (
 // At Always the bar is drawn at rest in a lane at the column's trailing
 // edge, which is the window's, the thumb inside the
 // lane's padding, and the rows stop short of the lane: below the tab strip
-// nothing but the thumb is drawn in the lane. Where the bar fades a resting
+// nothing but the thumb is drawn in the lane, apart from the seam at a
+// grid's foot, which runs the window's whole width. Where the bar fades a resting
 // frame draws no thumb, and the Presets tab's rows, whose buttons are drawn
 // against their trailing end, end the page's Padding and the tab's 4 dp
 // before the window's trailing edge: they run on by the lane's width.
@@ -56,7 +58,12 @@ func TestTheListTabsDrawTheWindowsBar(t *testing.T) {
 				if top < 0 {
 					t.Fatalf("at Always a resting frame drew no thumb in the lane x %d–%d at the window's trailing edge", thumbMin, thumbMax)
 				}
+				seam := tc.c.Seam
+				seam.A = 0xff
 				for y := top; y < size.Y; y++ {
+					if isSeamRow(standing, y, seam) {
+						continue
+					}
 					for x := laneMin; x < frameRight; x++ {
 						if x >= thumbMin && x < thumbMax {
 							continue
@@ -89,4 +96,15 @@ func TestTheListTabsDrawTheWindowsBar(t *testing.T) {
 			})
 		}
 	}
+}
+
+// isSeamRow reports whether row y is drawn in the seam colour across the
+// whole width of img: the hairline at a grid's foot.
+func isSeamRow(img *image.RGBA, y int, seam color.NRGBA) bool {
+	for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
+		if at(img, x, y) != seam {
+			return false
+		}
+	}
+	return true
 }
