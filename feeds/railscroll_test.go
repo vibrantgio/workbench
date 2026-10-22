@@ -15,6 +15,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/mvu/desktop"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -61,7 +62,7 @@ func TestRailScrollsToItsFoot(t *testing.T) {
 			Ops:         ops,
 			Source:      r.Source(),
 		}
-		drawRailColumn(gtx, tokens.PlatformLight, tokens.DefaultTypography,
+		drawRailColumn(gtx, tokens.PlatformLight, tokens.DefaultTypography, desktop.ScrollBarsWhenScrolling,
 			sections, headings, open, scroll, railKeyboard{Keys: newRailKeys()})
 		r.Frame(ops)
 	}
@@ -144,7 +145,7 @@ func TestTheRailRevealsTheCursorsOwnRow(t *testing.T) {
 			Ops:         ops,
 			Source:      r.Source(),
 		}
-		drawRailColumn(gtx, tokens.PlatformLight, tokens.DefaultTypography,
+		drawRailColumn(gtx, tokens.PlatformLight, tokens.DefaultTypography, desktop.ScrollBarsWhenScrolling,
 			sections, headings, open, scroll, kb)
 		if !focused {
 			gtx.Execute(key.FocusCmd{Tag: keys.Focus()})

@@ -842,8 +842,13 @@ func TestThePanesFindTheirRowsWithRoomToSpare(t *testing.T) {
 // than it can show draws the indicator in its own trailing gutter, and a pane
 // whose rows all fit draws nothing there. Both panes, one column — the outline
 // scrolling and the backlinks capped past their cap.
+//
+// The reading is taken with the reader's "always" setting on the snapshot,
+// which is the one that puts a bar on a resting frame at all; what the
+// other settings draw at rest is read in
+// [TestTheColumnSpendsTheScrollBarSetting].
 func TestEachScrollingPaneShowsItsIndicator(t *testing.T) {
-	tok := goldenTokens()
+	tok := standingBars(goldenTokens())
 	surface := chromeSurface(tok.col)
 	shot := func(m Model, colH int) (*image.RGBA, asideGeom) {
 		v := newAsideView(&docCursor{})
@@ -1271,4 +1276,86 @@ func asideLineBox(t *testing.T, tok themeTokens, title string, foreground color.
 		t.Fatalf("the measurement drew no %q to read", title)
 	}
 	return dims.Size.Y, top, bottom
+}
+
+// TestTheColumnSpendsTheScrollBarSetting reads the inspector at both
+// settings, in pixels, off one model whose outline is longer than its pane.
+//
+// With the reader's "always" setting the bar is a standing scroller in a
+// lane of its own: the thumb is there on a resting frame, and the rows stop
+// short of the lane. With the setting the platform decides for itself the
+// bar fades, so a resting frame holds no thumb at all — and the lane goes
+// with it, the marked row running to the column's own trailing lane, the
+// width it keeps on the leading side.
+func TestTheColumnSpendsTheScrollBarSetting(t *testing.T) {
+	fading := goldenTokens()
+	standing := standingBars(fading)
+	surface := chromeSurface(fading.col)
+	m := citedModel("guide/Long note.md", longNoteSource(), 20)
+	size := image.Pt(frameAsideDp, 700)
+	// A row of the outline is marked, because the mark's own fill is what
+	// the reading measures the rows' trailing edge by: it is one colour laid
+	// down as a fill, where a row's text is antialiased glyphs.
+	shot := func(tok themeTokens) (*image.RGBA, asideGeom) {
+		v := newAsideView(&docCursor{})
+		v.outlineList.Select(1)
+		img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+			paint.FillShape(gtx.Ops, surface, clip.Rect{Max: size}.Op())
+			return v.layout(gtx, m, tok)
+		})
+		return img, v.geom
+	}
+	// The band the bar's thumb stands in, which nothing else in the column
+	// is drawn in while a lane is reserved for it.
+	bar := asideIndicator(standing)
+	band := image.Rect(size.X-gtx1Dp(bar.Width()-bar.TrackPadding), 0,
+		size.X-gtx1Dp(bar.TrackPadding), size.Y)
+	// The thumb is counted by its own colour rather than as "not the
+	// surface": with no lane reserved the rows run into the band the thumb
+	// would have stood in, and a marked row there is not a bar.
+	thumb := func(img *image.RGBA, box image.Rectangle) int {
+		n := 0
+		for y := box.Min.Y; y < box.Max.Y; y++ {
+			for x := box.Min.X; x < box.Max.X; x++ {
+				if c := img.RGBAAt(x, y); c.R == bar.ThumbColor.R && c.G == bar.ThumbColor.G && c.B == bar.ThumbColor.B {
+					n++
+				}
+			}
+		}
+		return n
+	}
+	// The trailing column of the marked row's own fill, which is what says
+	// where the rows stop.
+	markEnd := func(img *image.RGBA, box image.Rectangle) int {
+		hi := -1
+		fill := sidebar.SelectionFill(fading.col, true)
+		for y := box.Min.Y; y < box.Max.Y; y++ {
+			for x := box.Min.X; x < box.Max.X; x++ {
+				c := img.RGBAAt(x, y)
+				if c.R == fill.R && c.G == fill.G && c.B == fill.B {
+					hi = max(hi, x)
+				}
+			}
+		}
+		return hi
+	}
+
+	stand, sg := shot(standing)
+	if n := thumb(stand, band.Intersect(sg.outline)); n == 0 {
+		t.Error("a standing bar drew no thumb on a resting frame")
+	}
+	if got, want := markEnd(stand, sg.outline), size.X-gtx1Dp(asideBarLane(standing)+asideLaneDp)-1; abs(got-want) > 1 {
+		t.Errorf("with the bar standing the outline's mark ends at %d, want %d — a lane short of the bar's own", got, want)
+	}
+
+	fade, fg := shot(fading)
+	if n := thumb(fade, band.Intersect(fg.outline)); n != 0 {
+		t.Errorf("a fading bar drew %d thumb pixels on a resting frame, want none", n)
+	}
+	if got := asideBarLane(fading); got != 0 {
+		t.Errorf("a fading bar was handed a lane of %v, want none", got)
+	}
+	if got, want := markEnd(fade, fg.outline), size.X-gtx1Dp(asideLaneDp)-1; abs(got-want) > 1 {
+		t.Errorf("with the bar away the outline's mark ends at %d, want %d — the column's own trailing lane", got, want)
+	}
 }

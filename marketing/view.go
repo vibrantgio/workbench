@@ -14,12 +14,12 @@ import (
 // to front: the Background pin, the wireframe triangle field, and the
 // marketing page. The field is full-bleed, including under the title-bar
 // strip; only the page is inset.
-func buildLayers(win *app.Window, modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(win *app.Window, modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			BackdropLayer(th),
 			FieldLayer(win, th),
-			ContentLayer(th, modelObs),
+			ContentLayer(th, modelObs, bars),
 		}
 	}
 }
@@ -28,8 +28,8 @@ func buildLayers(win *app.Window, modelObs rx.Observable[Model]) func(th rx.Obse
 // backdrop and field layers are theme-only. The page is inset by
 // desktop.TopInset() so the Hero sits below the traffic lights; that inset is
 // 0 off macOS and in goldens.
-func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
-	return underTitleBar(pageLayer(th, modelObs))
+func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
+	return underTitleBar(pageLayer(th, modelObs, bars))
 }
 
 // underTitleBar pads the page down by the native title-bar strip's measured

@@ -9,6 +9,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	specsystem "github.com/vibrantgio/theme/system"
 	specwin "github.com/vibrantgio/theme/window"
@@ -53,6 +54,11 @@ func run() {
 		fmt.Fprintln(os.Stderr, "feeds: the window will not remember its columns:", err)
 	}
 
+	// The platform's "Show scroll bars" setting, read once here and handed
+	// to the composition: a window asks the platform when it is built,
+	// never on a frame.
+	bars := desktop.ScrollBars()
+
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
 
 	// Build the model observable with mvu.Loop over mvu messages. The
@@ -69,7 +75,7 @@ func run() {
 	models, runner := mvu.Loop(mvuWin.Messages(), openedOn(init, widths.Arrangement()), Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
-	renderErr := w.Render(buildLayers(models, widths)).Wait()
+	renderErr := w.Render(buildLayers(models, widths, bars)).Wait()
 	// Render returns once the window is destroyed, which is the last moment
 	// a width moved inside the write delay can still be kept — and the
 	// change the reader most expects to find again is the one they made

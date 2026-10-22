@@ -28,6 +28,7 @@ import (
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/gallery/palette"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -36,10 +37,10 @@ import (
 // colour board on every token emission, over one long-lived scroll state.
 // It asks the inventory for nothing — the board is the shared section and
 // reads the set it is handed — so this tab builds none.
-func colourTabLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
+func colourTabLayer(th rx.Observable[theme.Theme], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	st := list.NewState()
 	return rx.Map(themeTokenStream(th), func(t themeTokens) layout.Widget {
-		return scrollingColumn(st, t.col, ColourRows(t.col, TypeFrom(t.shaper, t.typ)))
+		return scrollingColumn(st, t.col, bars, ColourRows(t.col, TypeFrom(t.shaper, t.typ)))
 	})
 }
 
@@ -48,7 +49,7 @@ func colourTabLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] 
 // state and one long-lived inventory. The scale is the inventory's own
 // section, drawn in the frame this window resolved for the board beside it,
 // so the two tabs read as one theme told in two parts.
-func typographyTabLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
+func typographyTabLayer(th rx.Observable[theme.Theme], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	st := list.NewState()
 	var inv *inventory.Inventory
 	return rx.Map(themeTokenStream(th), func(t themeTokens) layout.Widget {
@@ -58,7 +59,7 @@ func typographyTabLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widg
 			inv.SetShaper(t.shaper)
 		}
 		inv.SetTypography(t.typ)
-		return scrollingColumn(st, t.col, typeScaleRows(inv, t.shaper, t.typ, t.col))
+		return scrollingColumn(st, t.col, bars, typeScaleRows(inv, t.shaper, t.typ, t.col))
 	})
 }
 
@@ -82,9 +83,11 @@ func typeScaleRows(inv *inventory.Inventory, shaper *text.Shaper, typo tokens.Ty
 
 // renderColourTab is the static counterpart of the Colours tab's content
 // used by goldens and review captures: a fresh top-scrolled column laid
-// out once from pre-resolved tokens with no event processing.
+// out once from pre-resolved tokens with no event processing, at the
+// scroll bar setting a still picture states — the overlay bar every
+// desktop platform draws, whatever the machine running it asked for.
 func renderColourTab(shaper *text.Shaper, colors tokens.PlatformColors, typo tokens.Typography) layout.Widget {
-	return scrollingColumn(list.NewState(), colors, ColourRows(colors, TypeFrom(shaper, typo)))
+	return scrollingColumn(list.NewState(), colors, desktop.ScrollBarsWhenScrolling, ColourRows(colors, TypeFrom(shaper, typo)))
 }
 
 // renderTypographyTab is the static counterpart of the Typography tab's
@@ -93,5 +96,5 @@ func renderColourTab(shaper *text.Shaper, colors tokens.PlatformColors, typo tok
 func renderTypographyTab(shaper *text.Shaper, colors tokens.PlatformColors, typo tokens.Typography) layout.Widget {
 	inv := inventory.NewForOS(shaper, "darwin")
 	inv.SetTypography(typo)
-	return scrollingColumn(list.NewState(), colors, typeScaleRows(inv, shaper, typo, colors))
+	return scrollingColumn(list.NewState(), colors, desktop.ScrollBarsWhenScrolling, typeScaleRows(inv, shaper, typo, colors))
 }

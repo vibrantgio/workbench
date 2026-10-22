@@ -52,7 +52,10 @@ func pageAt(t *testing.T, m Model, c tokens.PlatformColors, size image.Point) *i
 func pageState(t *testing.T, m Model, c tokens.PlatformColors, size image.Point, code *codeState) *image.RGBA {
 	t.Helper()
 	clicks := make([]gesture.Click, rowSlots)
-	w := Page(themed{col: c, typ: pinned(), pinned: true}, m, &desktop.ZoneGroup{}, clicks, new(topClicks),
+	// The scroll bar setting is stated, not read off the platform: a still
+	// picture holds the overlay bar every desktop platform draws, whatever
+	// the machine running the test asked for.
+	w := Page(themed{col: c, typ: pinned(), pinned: true, scrollBars: desktop.ScrollBarsWhenScrolling}, m, &desktop.ZoneGroup{}, clicks, new(topClicks),
 		code, func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(SampleFieldH))}
 		})

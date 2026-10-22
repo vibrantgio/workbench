@@ -28,6 +28,7 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
@@ -97,6 +98,7 @@ func feedsSidebar(
 	confirmDeleteObs rx.Observable[FeedID],
 	popArb *popover.Arbiter,
 	post func(layout.Context, mvu.Message),
+	bars desktop.ScrollBarSetting,
 ) rx.Observable[layout.Widget] {
 	// The fixed section count drives the per-section entry cells. The set of
 	// groups (titles, count) never changes; only their Entries do.
@@ -188,7 +190,7 @@ func feedsSidebar(
 			// straight past it and the pointer alone brings its rows back.
 			kb := railKeyboard{Keys: keys, Rows: railRowRun(len(sections), feeds, open), Listing: listing}
 			return func(gtx layout.Context) layout.Dimensions {
-				return drawRailColumn(gtx, c, typ, sections, headings, open, railScroll, kb)
+				return drawRailColumn(gtx, c, typ, bars, sections, headings, open, railScroll, kb)
 			}
 		},
 	)
@@ -464,6 +466,7 @@ func drawRailColumn(
 	gtx layout.Context,
 	colors tokens.PlatformColors,
 	typ tokens.Typography,
+	bars desktop.ScrollBarSetting,
 	sections []railSection,
 	headings []gesture.Click,
 	open map[int]bool,
@@ -509,8 +512,9 @@ func drawRailColumn(
 	headH := gtx.Dp(patsidebar.SectionHeight)
 	blocks := railBlocks(sections, open)
 	// The bar rides the pane's own fill, which is what shows through an
-	// overlay thumb.
-	bar := scrollbar.FromTokens(colors, pane.Surface(colors))
+	// overlay thumb, and stands without fading where the reader asked for
+	// scroll bars always.
+	bar := scrollBarStyle(scrollbar.FromTokens(colors, pane.Surface(colors)), bars)
 
 	cgtx := gtx
 	cgtx.Constraints = layout.Exact(size)

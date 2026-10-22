@@ -33,6 +33,7 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/tooltip"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -97,7 +98,7 @@ var rightPaneRegion = image.Rect(840, 100, shellFrameW-10, shellFrameH-20)
 // states and asserts the pixel-level deltas between them.
 func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil, desktop.ScrollBarsWhenScrolling)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

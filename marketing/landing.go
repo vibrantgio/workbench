@@ -15,6 +15,7 @@ import (
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/feature"
 	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/patterns/pricing"
@@ -71,7 +72,7 @@ func scrollToSection(state *list.State, section int) func(layout.Context) {
 // shell-less vertical list, re-emitting on theme change. modelObs is combined
 // in so that a field the page later reads arrives without rewiring, though
 // today the model has none. Scroll position lives in this subscription.
-func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	return rx.Defer(func() rx.Observable[layout.Widget] {
 		state := list.NewState()
 		seePlans := scrollToSection(state, pricingSection)
@@ -91,9 +92,21 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 		})
 		return rx.Map(rx.CombineLatest3(sections, modelObs, colors),
 			func(next rx.Tuple3[[]layout.Widget, Model, tokens.PlatformColors]) layout.Widget {
-				return scrollingPage(next.First, state, next.Third)
+				return scrollingPage(next.First, state, next.Third, bars)
 			})
 	})
+}
+
+// scrollBarStyle is the page's bar: the fading overlay bar the colours
+// alone give, standing without fading where the reader asked for scroll
+// bars always. The setting is read once where the window is composed, so no
+// frame asks the platform and no still render depends on the machine it
+// runs on.
+func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.Style {
+	if bars == desktop.ScrollBarsAlways {
+		return s.Always()
+	}
+	return s
 }
 
 // scrollingPage lays sections in a vertical list, clamping each child
@@ -104,7 +117,7 @@ func pageLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.
 // fill of its own — which is also the fill the scrollbar's knob is
 // composited onto, the bar riding over the page rather than a band of
 // its own.
-func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.PlatformColors) layout.Widget {
+func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.PlatformColors, bars desktop.ScrollBarSetting) layout.Widget {
 	children := make([]layout.Widget, 0, len(sections)+1)
 	for i, s := range sections {
 		if i < len(sections)-1 {
@@ -123,7 +136,7 @@ func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.Pl
 			contentW = px
 		}
 		margin := (size.X - contentW) / 2
-		list.LayoutScrollbar(gtx, state, scrollbar.FromTokens(colors, colors.WindowBackground), list.Overlay, children,
+		list.LayoutScrollbar(gtx, state, scrollBarStyle(scrollbar.FromTokens(colors, colors.WindowBackground), bars), list.Overlay, children,
 			func(gtx layout.Context, w layout.Widget) layout.Dimensions {
 				if margin == 0 {
 					return w(gtx)

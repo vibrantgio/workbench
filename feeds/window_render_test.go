@@ -37,6 +37,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/shell"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
@@ -103,7 +104,7 @@ var settledArticle = func() ArticleID {
 func frame(t *testing.T, c tokens.PlatformColors, d tokens.Density, model Model) layout.Widget {
 	t.Helper()
 	th := rx.Of(golden.StaticTheme(c, golden.WithDensity(d)))
-	return golden.Layers(t, buildLayers(rx.Of(model), nil)(th)...)
+	return golden.Layers(t, buildLayers(rx.Of(model), nil, desktop.ScrollBarsWhenScrolling)(th)...)
 }
 
 // The macOS window controls, as this window will actually carry them: the

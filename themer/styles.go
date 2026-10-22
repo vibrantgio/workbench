@@ -45,6 +45,7 @@ import (
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -137,7 +138,7 @@ func (b *styleChooser) reveal(dark bool, row int) {
 //
 // The column draws no plate of its own and no heading. The group's box is the
 // plate and the group's title row is the heading.
-func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, sel *styleChooser) layout.Widget {
+func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, sel *styleChooser, bars desktop.ScrollBarSetting) layout.Widget {
 	if sel == nil {
 		sel = newStyleChooser()
 	}
@@ -167,7 +168,7 @@ func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, 
 		// buys the one thing an overlay cannot on a list this dense: the
 		// marked row ends where the row ends rather than running under the
 		// track.
-		list.LayoutScrollbar(gtx, st, scrollbar.FromTokens(c, p.Surface), list.Occupy, rows,
+		list.LayoutScrollbar(gtx, st, scrollBarStyle(scrollbar.FromTokens(c, p.Surface), bars), list.Occupy, rows,
 			func(gtx layout.Context, row layout.Widget) layout.Dimensions {
 				return row(gtx)
 			})

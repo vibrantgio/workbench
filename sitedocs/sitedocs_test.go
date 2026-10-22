@@ -10,6 +10,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/theme"
 )
 
@@ -21,7 +22,7 @@ import (
 func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 	start := initialModel()
 	modelObs := rx.Of(start)
-	layers := buildLayers(modelObs)(rx.Of(theme.Default()))
+	layers := buildLayers(modelObs, desktop.ScrollBarsWhenScrolling)(rx.Of(theme.Default()))
 	if len(layers) != 2 {
 		t.Fatalf("buildLayers returned %d layers; want 2 (backdrop, shell)", len(layers))
 	}

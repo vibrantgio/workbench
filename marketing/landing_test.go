@@ -19,6 +19,7 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/feature"
 	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/patterns/pricing"
@@ -84,7 +85,7 @@ func TestRuntimePageGolden(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			w := scrollingPage(runtimeSections(shaper, tc.colors), list.NewState(), tc.colors)
+			w := scrollingPage(runtimeSections(shaper, tc.colors), list.NewState(), tc.colors, desktop.ScrollBarsWhenScrolling)
 			golden.Render(t, tc.name, size, scene(w, tc.colors, size))
 		})
 	}
@@ -173,7 +174,7 @@ func TestPageLightDarkDiffer(t *testing.T) {
 // the four pattern observables in a scrolling column — wires up and
 // emits a usable layout.Widget.
 func TestContentLayerConstructs(t *testing.T) {
-	obs := ContentLayer(rx.Of(theme.Default()), rx.Of(Model{}))
+	obs := ContentLayer(rx.Of(theme.Default()), rx.Of(Model{}), desktop.ScrollBarsWhenScrolling)
 	w, err := collectOne(obs)
 	if err != nil {
 		t.Fatalf("ContentLayer subscribe: %v", err)

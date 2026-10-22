@@ -22,9 +22,11 @@ import (
 	"github.com/vibrantgio/components/composite"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/pointershape"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/notifications"
@@ -86,13 +88,25 @@ func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 // open; the theme observable flows in independently per window. widths is
 // the memory the shell keeps the window's two column widths in, nil for a
 // frame laid out for measurement rather than for a reader.
-func buildLayers(modelObs rx.Observable[Model], widths *shell.ArrangementMemory) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], widths *shell.ArrangementMemory, bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			feedsShellLayer(th, modelObs, widths),
+			feedsShellLayer(th, modelObs, widths, bars),
 		}
 	}
+}
+
+// scrollBarStyle is every bar in this window: the fading overlay bar the
+// colours alone give, standing without fading where the reader asked for
+// scroll bars always. The setting is read once where the window is
+// composed, so no frame asks the platform and no still render depends on
+// the machine it runs on.
+func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.Style {
+	if bars == desktop.ScrollBarsAlways {
+		return s.Always()
+	}
+	return s
 }
 
 // backdropLayer paints the window's own plane under everything else:
@@ -132,6 +146,7 @@ func feedsShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 	widths *shell.ArrangementMemory,
+	bars desktop.ScrollBarSetting,
 ) rx.Observable[layout.Widget] {
 	// This window's arbiters. They are plain values with no
 	// synchronisation, so the scope they are created at is the scope they are
@@ -188,7 +203,7 @@ func feedsShellLayer(
 	// layer-boundary cell the toolbar's own titles use.
 	loadFrameTok := mirrorTokens(th)
 
-	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, selectedFeedObs, confirmDeleteObs, popArb, postMessage)
+	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, selectedFeedObs, confirmDeleteObs, popArb, postMessage, bars)
 
 	// The slots the arrangement is handed, folded onto one stream so a
 	// model change re-emits the whole composition — which is the same-frame

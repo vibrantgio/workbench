@@ -86,7 +86,7 @@ func await(t *testing.T, values <-chan Model, cond func(Model) bool, what string
 // at all — what it draws is asserted everywhere else in this package, on pixels.
 func TestTheContentLayerDraws(t *testing.T) {
 	got := make(chan layout.Widget, 1)
-	sub := ContentLayer(rx.Of(theme.Default()), rx.Of(judging()), &desktop.ZoneGroup{}).
+	sub := ContentLayer(rx.Of(theme.Default()), rx.Of(judging()), &desktop.ZoneGroup{}, desktop.ScrollBarsWhenScrolling).
 		Subscribe(rx.GoroutineContext(), func(w layout.Widget, err error, done bool) {
 			if done || err != nil || w == nil {
 				return

@@ -102,6 +102,11 @@ func run() {
 	// is the type and the theme colour that stands in where the platform
 	// uses its accent. The colour set itself is the platform's under either
 	// appearance, so nothing kept pins that.
+	// The platform's "Show scroll bars" setting, read once here and handed
+	// to the composition: a window asks the platform when it is built,
+	// never on a frame.
+	bars := desktop.ScrollBars()
+
 	w := specwin.New(mvuWin, themeObservable(brand.Kept()))
 
 	// The window's collector registers on each FrameEvent so MessageOp.Add(gtx.Ops)
@@ -115,7 +120,7 @@ func run() {
 	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
-	if err := w.Render(buildLayers(models)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models, bars)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -146,11 +151,11 @@ type themeTokens struct {
 // per-window theme to. It returns the two rendering layers: a backdrop and
 // the tabbed shell. The model observable drives tab selection and the
 // docs outline state.
-func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			underTitleBar(th, tabbedShellLayer(th, modelObs)),
+			underTitleBar(th, tabbedShellLayer(th, modelObs, bars)),
 		}
 	}
 }
@@ -250,6 +255,7 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 func tabbedShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
+	bars desktop.ScrollBarSetting,
 ) rx.Observable[layout.Widget] {
 	selectedObs := rx.Map(modelObs, func(m Model) int { return tabIndex(m.currentPage) })
 
@@ -270,11 +276,11 @@ func tabbedShellLayer(
 		case pageDocs:
 			pages[i] = docsTabFrom(th, modelObs, loadGuide())
 		case pageColours:
-			pages[i] = colourTabLayer(th)
+			pages[i] = colourTabLayer(th, bars)
 		case pageTypography:
-			pages[i] = typographyTabLayer(th)
+			pages[i] = typographyTabLayer(th, bars)
 		default:
-			pages[i] = groupTabLayer(th, tabGroups[page])
+			pages[i] = groupTabLayer(th, tabGroups[page], bars)
 		}
 		strip[i] = tabs.Tab{Title: tabTitles[i], Content: fromCell(&cells[i])}
 	}

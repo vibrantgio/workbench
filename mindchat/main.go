@@ -74,12 +74,17 @@ func MindChat() {
 	// chords carry the actions alone.
 	menu := desktop.NewMenuBar(mvuWin, MenuItems()...)
 
+	// The platform's "Show scroll bars" setting, read once here and handed
+	// to the composition: a window asks the platform when it is built,
+	// never on a frame.
+	bars := desktop.ScrollBars()
+
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second, brand.Kept().Options()...))
 
 	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), menu.Messages()), opensOn(Init, widths.Arrangement()), Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
-	renderErr := w.Render(buildLayers(models, widths)).Wait()
+	renderErr := w.Render(buildLayers(models, widths, bars)).Wait()
 	// Render returns once the window is destroyed, which is the last moment
 	// a width moved inside the write delay can still be kept — and the
 	// change the reader most expects to find again is the one they made

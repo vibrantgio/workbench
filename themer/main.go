@@ -148,6 +148,11 @@ func run() {
 
 	// The window opens in the theme that was kept, if one was: this is the
 	// same one-line adoption every other application makes.
+	// The platform's "Show scroll bars" setting, read once here and carried
+	// in the theme snapshot: a window asks the platform when it is built,
+	// never on a frame.
+	bars := desktop.ScrollBars()
+
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second, brand.Kept().Options()...))
 
 	// The model stream is subscribed by the backdrop, by the content, and
@@ -160,7 +165,7 @@ func run() {
 	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), drops.Messages(), platformColors(time.Second)), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
-	if err := w.Render(buildLayers(models, zones)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models, zones, bars)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "themer:", err)
 		os.Exit(1)
 	}

@@ -46,12 +46,17 @@ func run() {
 	// mvuWin.Window().Option — or the buttons vanish.
 	desktop.ShowWindowButtons(mvuWin)
 
+	// The platform's "Show scroll bars" setting, read once here and handed
+	// to the composition: a window asks the platform when it is built,
+	// never on a frame.
+	bars := desktop.ScrollBars()
+
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second, brand.Kept().Options()...))
 
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
-	if err := w.Render(buildLayers(mvuWin.Window(), models)).Wait(); err != nil {
+	if err := w.Render(buildLayers(mvuWin.Window(), models, bars)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "marketing:", err)
 		os.Exit(1)
 	}

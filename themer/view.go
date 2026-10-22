@@ -20,6 +20,7 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
@@ -161,11 +162,11 @@ func TitleLead() unit.Dp {
 }
 
 // buildLayers returns the layer-builder the theme window renders.
-func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup, bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			BackdropLayer(th, modelObs),
-			ContentLayer(th, modelObs, zones),
+			ContentLayer(th, modelObs, zones, bars),
 		}
 	}
 }
@@ -179,6 +180,22 @@ type themed struct {
 	typ Type
 	// pinned says the faces are the test suite's rather than the machine's.
 	pinned bool
+	// scrollBars is the platform's "Show scroll bars" setting, read once
+	// when the window is composed and carried here so that no frame asks
+	// the platform and no still render depends on the machine it runs on.
+	// The zero value is the platform's Automatic, the fading bar, which is
+	// what a still picture holds.
+	scrollBars desktop.ScrollBarSetting
+}
+
+// scrollBarStyle is every bar in this window: the fading overlay bar the
+// colours alone give, standing without fading where the reader asked for
+// scroll bars always.
+func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.Style {
+	if bars == desktop.ScrollBarsAlways {
+		return s.Always()
+	}
+	return s
 }
 
 // codeType is the typography the code sample draws through: the chosen code
@@ -268,7 +285,7 @@ func HexField(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.O
 // reconstructed every emission loses the press it is in the middle of, and
 // every selection re-emits. There is one click handler per swatch slot, not
 // per colour, so the handlers outlive a picture being replaced by another.
-func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup) rx.Observable[layout.Widget] {
+func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup, bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, rowSlots)
 	bar := new(topClicks)
 	code := newCodeState()
@@ -276,7 +293,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
 			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
-				return themed{col: n.First, typ: TypeFrom(n.Second)}
+				return themed{col: n.First, typ: TypeFrom(n.Second), scrollBars: bars}
 			})
 	})
 	return rx.Map(rx.CombineLatest3(themes, modelObs, hex),
@@ -356,7 +373,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 				spacer(GroupAbove),
 
 				layout.Flexed(1, JudgingRow(
-					TitledBox(p, t.typ, StyleLabel, StyleHint, StylePane(p, win, t.typ, m, dark, code.styles)),
+					TitledBox(p, t.typ, StyleLabel, StyleHint, StylePane(p, win, t.typ, m, dark, code.styles, t.scrollBars)),
 					TitledBox(p, t.typ, PreviewLabel, PreviewHint,
 						Preview(shown, t.typ, typo, shaper, code.doc, docStyle)))),
 				spacer(GroupAbove),

@@ -33,15 +33,26 @@ import (
 
 // goldenTokens is the token snapshot the frame tests lay out from: the
 // shipped light set on a deterministic shaper, so a measurement cannot
-// depend on which faces the host carries.
+// depend on which faces the host carries. The scroll bar setting is stated
+// for the same reason — the overlay bar every desktop platform draws, and
+// not whatever the machine running the test asked for.
 func goldenTokens() themeTokens {
 	return themeTokens{
-		col:    tokens.PlatformLight,
-		typ:    tokens.DefaultTypography,
-		sp:     tokens.Spacing,
-		den:    tokens.Comfortable,
-		shaper: tokens.DefaultTypography.DeterministicShaper(),
+		col:        tokens.PlatformLight,
+		typ:        tokens.DefaultTypography,
+		sp:         tokens.Spacing,
+		den:        tokens.Comfortable,
+		shaper:     tokens.DefaultTypography.DeterministicShaper(),
+		scrollBars: desktop.ScrollBarsWhenScrolling,
 	}
+}
+
+// standingBars is goldenTokens with the reader's "always" setting on it:
+// the bar stands for as long as the content overflows, and the column that
+// gives one a lane of its own keeps that lane.
+func standingBars(tok themeTokens) themeTokens {
+	tok.scrollBars = desktop.ScrollBarsAlways
+	return tok
 }
 
 // fillSlot is a slot that takes everything it is given and paints nothing,

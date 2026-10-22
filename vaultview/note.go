@@ -704,7 +704,8 @@ func layoutNotePage(
 			// it floats over. It draws nothing at all while the whole
 			// note fits, and fades out a second after the note stops
 			// moving — both the treatment's own behaviour, not the
-			// app's.
+			// app's — unless the reader asked for scroll bars always,
+			// which is the setting the snapshot carries.
 			//
 			// The document is the one row that runs to the column's edge,
 			// where the bar belongs. The reading margin the other rows get
@@ -720,7 +721,7 @@ func layoutNotePage(
 			// page moves and the bar's track account for them; held back
 			// outside the viewport either would leave a dead strip beside
 			// every half-cut line the reader scrolls past.
-			bar := scrollbar.FromTokens(tok.col, tok.col.TextBackground)
+			bar := scrollBarStyle(scrollbar.FromTokens(tok.col, tok.col.TextBackground), tok.scrollBars)
 			// The query is put on the document every frame it is alive and
 			// taken off it on the first frame it is not, the way the arrival
 			// marking is, and the places it finds go on the bar: one query

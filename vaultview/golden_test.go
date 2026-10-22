@@ -701,13 +701,12 @@ func TestTheTopBandStandsOnTheButtonLine(t *testing.T) {
 // constants that placed them, so that edges agreeing with their own
 // arithmetic but not with each other fail here.
 //
-// The bar is measured against the note's, which is the same bar: the two
-// stand at the trailing edge of the two columns a reader reads between and
-// keep one distance from the surface each stands on — the note's content
-// surface gives way to this column's surface, and this column's surface
-// gives way to the window's own edge.
+// The window is rendered at the setting a still picture states — the fading
+// overlay bar — so the column is handed no lane and its drawing runs to its
+// own trailing lane, the width it keeps on the leading side. The lane the
+// standing bar is given is read beside it, in
+// [TestTheColumnSpendsTheScrollBarSetting].
 func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
 	// A long note read part way down: the outline holds the mark and more
 	// entries than its pane can show, so the fill and the bar are both on
 	// screen to be measured against each other.
@@ -715,12 +714,9 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 
 	for _, tc := range themeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tok := themeTokens{col: tc.colors, typ: tokens.DefaultTypography,
-				sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
 			img, g := windowShot(t, m, tc.colors)
 
 			asideX := windowW - frameAsideDp
-			lane := int(asideBarLane(tok))
 			// The scan starts below the reach of the band's own drop
 			// shadows. The band runs across the window's columns and its
 			// trailing controls stand over this one, and the platform's
@@ -801,32 +797,16 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 				t.Errorf("the mark ends at %d and the hairline at %d; the column keeps one right edge", pillHi, ruleHi)
 			}
 
-			// The bar's lane, and nothing else in the column: the rows and
-			// the hairline stop where it starts.
-			barLo, barHi := span(windowW-lane, windowW, func(c color.RGBA) bool {
-				return !is(c, chromeSurface(tc.colors))
-			})
-			if barLo < 0 {
-				t.Fatal("an outline with more entries than its pane can show drew no bar")
+			// With no lane reserved, the column's drawing ends on the lane
+			// it keeps on both sides — the pattern's selection inset — and
+			// the window's edge is what it ends against.
+			if got, want := windowW-pillHi-1, int(asideLaneDp); abs(got-want) > 1 {
+				t.Errorf("the column's mark stands %d px off the window's edge, want %d", got, want)
 			}
-			// What stands between the mark and the bar is the column's own
-			// lane and then the air the bar keeps inside its lane: the
-			// panes stop a lane short of the bar's band, and the bar stands
-			// off the window's edge by what the note's stands off this
-			// column's.
-			if want := int(asideLaneDp) + railMarginDp; abs(barLo-pillHi-1-want) > 1 {
-				t.Errorf("the bar stands %d px off the mark beside it, want %d", barLo-pillHi-1, want)
-			}
-			// And it stands off the window's own edge by the air it keeps
-			// inside its lane, which is the other half of that band.
-			if got, want := windowW-barHi-1, int(railMarginDp); abs(got-want) > 1 {
-				t.Errorf("the column's bar stands %d px off the window's edge, want %d", got, want)
-			}
-			// The note's own bar is an OVERLAY bar: it is drawn while the
-			// note moves under it and under the pointer, so a resting frame
-			// holds none of it and there is nothing out there to scan. That
-			// the two are one bar is compared where it is decided instead,
-			// on the thumb's own width.
+			// Neither bar is drawn on a resting frame: both fade, and a
+			// still picture of a window nobody is scrolling holds no thumb.
+			// That the two are one bar is compared where it is decided
+			// instead, on the thumb's own width.
 			noteBar := scrollbar.FromTokens(tc.colors, tc.colors.TextBackground)
 			colBar := asideIndicator(themeTokens{col: tc.colors})
 			if a, b := colBar.ThumbMinorWidth, noteBar.ThumbMinorWidth; a != b {

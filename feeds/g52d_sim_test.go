@@ -32,6 +32,7 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/toast"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/notifications"
@@ -140,7 +141,7 @@ var scrimRegion = image.Rect(shellFrameW/2-200, shellFrameH/2-150, shellFrameW/2
 // entry; ConfirmDelete removes one.
 func TestG52dCrudStatesHeadless(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil, desktop.ScrollBarsWhenScrolling)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
@@ -277,7 +278,7 @@ func TestHoverGutterDoesNotSwallowSelectPress(t *testing.T) {
 // earlier message set is checked against.
 func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil, desktop.ScrollBarsWhenScrolling)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

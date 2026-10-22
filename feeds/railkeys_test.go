@@ -20,6 +20,7 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/popover"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/theme/tokens"
@@ -457,7 +458,7 @@ func (f *railTabFrame) frame() {
 		Ops:         ops,
 		Source:      f.router.Source(),
 	}
-	drawRailColumn(gtx, tokens.PlatformLight, tokens.DefaultTypography,
+	drawRailColumn(gtx, tokens.PlatformLight, tokens.DefaultTypography, desktop.ScrollBarsWhenScrolling,
 		f.sections, f.headings, f.open, f.scroll, f.kb)
 	// The next focusable after the rail, standing where the window's own
 	// next control stands: what Tab must reach once the rail lets go.

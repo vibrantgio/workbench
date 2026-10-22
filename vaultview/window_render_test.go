@@ -25,6 +25,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/theme"
@@ -42,14 +43,17 @@ func windowTheme(c tokens.PlatformColors) rx.Observable[theme.Theme] {
 // windowTokens is the snapshot the window's own frame-time closures read,
 // the counterpart of the live token mirror: the same scheme the theme
 // above emits, and the pinned shaper, so the rasterisation cannot depend on
-// which faces the host carries.
+// which faces the host carries. The scroll bar setting is stated here for
+// that same reason — a still picture of this window holds the overlay bar
+// every desktop platform draws, whatever the machine running it asked for.
 func windowTokens(c tokens.PlatformColors) themeTokens {
 	return themeTokens{
-		col:    c,
-		typ:    tokens.DefaultTypography,
-		sp:     tokens.Spacing,
-		den:    tokens.Comfortable,
-		shaper: tokens.DefaultTypography.DeterministicShaper(),
+		col:        c,
+		typ:        tokens.DefaultTypography,
+		sp:         tokens.Spacing,
+		den:        tokens.Comfortable,
+		shaper:     tokens.DefaultTypography.DeterministicShaper(),
+		scrollBars: desktop.ScrollBarsWhenScrolling,
 	}
 }
 

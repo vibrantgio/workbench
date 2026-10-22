@@ -33,6 +33,7 @@ import (
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -60,7 +61,7 @@ var tabGroups = map[string]string{
 // groupTabLayer is one inventory tab's content stream: the freshly themed
 // column of that group's sections on every token emission, over the one
 // long-lived inventory and scroll state.
-func groupTabLayer(th rx.Observable[theme.Theme], group string) rx.Observable[layout.Widget] {
+func groupTabLayer(th rx.Observable[theme.Theme], group string, bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	// Built on the first emission and kept: the inventory holds the parsed
 	// reading sample and its sections' scroll state, st the column's own
 	// scroll position. A change to the platform's colours rebuilds row
@@ -83,8 +84,20 @@ func groupTabLayer(th rx.Observable[theme.Theme], group string) rx.Observable[la
 			inv.SetShaper(shaper)
 		}
 		inv.SetTypography(typ)
-		return scrollingColumn(st, col, inv.TabItems(col, group))
+		return scrollingColumn(st, col, bars, inv.TabItems(col, group))
 	})
+}
+
+// scrollBarStyle is every bar in this window: the fading overlay bar the
+// colours alone give, standing without fading where the reader asked for
+// scroll bars always. The setting is read once where the window is
+// composed, so no frame asks the platform and no still render depends on
+// the machine it runs on.
+func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.Style {
+	if bars == desktop.ScrollBarsAlways {
+		return s.Always()
+	}
+	return s
 }
 
 // scrollingColumn is the scrolling column every tab of rows shows — the
@@ -96,11 +109,11 @@ func groupTabLayer(th rx.Observable[theme.Theme], group string) rx.Observable[la
 //
 // The bar's thumb is a coverage, so it is told the fill it rides on: the
 // content plane, which is what the sections under it fill with.
-func scrollingColumn(st *list.State, c tokens.PlatformColors, items []layout.Widget) layout.Widget {
+func scrollingColumn(st *list.State, c tokens.PlatformColors, bars desktop.ScrollBarSetting, items []layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
-		list.LayoutScrollbar(gtx, st, scrollbar.FromTokens(c, c.ControlBackground), list.Overlay, items,
+		list.LayoutScrollbar(gtx, st, scrollBarStyle(scrollbar.FromTokens(c, c.ControlBackground), bars), list.Overlay, items,
 			func(gtx layout.Context, w layout.Widget) layout.Dimensions {
 				return w(gtx)
 			})
@@ -111,9 +124,11 @@ func scrollingColumn(st *list.State, c tokens.PlatformColors, items []layout.Wid
 // renderGroupTab is the static counterpart of an inventory tab's content
 // used by goldens and review captures: a fresh top-scrolled column laid
 // out once from pre-resolved tokens, with the control marks pinned to one
-// platform so the same bytes come out on any machine.
+// platform so the same bytes come out on any machine. The scroll bar
+// setting is stated here for that same reason — the overlay bar every
+// desktop platform draws, whatever the machine running it asked for.
 func renderGroupTab(shaper *text.Shaper, group string, colors tokens.PlatformColors, typo tokens.Typography) layout.Widget {
 	inv := inventory.NewForOS(shaper, "darwin")
 	inv.SetTypography(typo)
-	return scrollingColumn(list.NewState(), colors, inv.TabItems(colors, group))
+	return scrollingColumn(list.NewState(), colors, desktop.ScrollBarsWhenScrolling, inv.TabItems(colors, group))
 }

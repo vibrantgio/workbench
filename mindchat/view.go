@@ -62,13 +62,25 @@ import (
 // widths is the memory the arrangement keeps the pane's width and shown
 // state in. A nil memory is a working one — the window opens on the
 // defaults and keeps nothing — which is what a still render wants.
-func buildLayers(modelObs rx.Observable[Model], widths *shell.ArrangementMemory) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], widths *shell.ArrangementMemory, bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			BackdropLayer(th),
-			ContentLayer(th, modelObs, widths),
+			ContentLayer(th, modelObs, widths, bars),
 		}
 	}
+}
+
+// scrollBarStyle is every bar in this window: the fading overlay bar the
+// colours alone give, standing without fading where the reader asked for
+// scroll bars always. The setting is read once where the window is
+// composed, so no frame asks the platform and no still render depends on
+// the machine it runs on.
+func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.Style {
+	if bars == desktop.ScrollBarsAlways {
+		return s.Always()
+	}
+	return s
 }
 
 // themed pairs one theme emission's palette with the icons prebuilt in that
@@ -172,7 +184,7 @@ func messageMarkdownStyle(c tokens.PlatformColors, typ tokens.Typography) markdo
 // Defer-scoped inside the component and subscribed exactly once by the
 // CombineLatest3 below. Constructing any of them per emission would reset
 // scroll or typing on every completion-stream delta.
-func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], widths *shell.ArrangementMemory) rx.Observable[layout.Widget] {
+func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], widths *shell.ArrangementMemory, bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	// This window's arbiters. They are plain values
 	// with no synchronisation, so the scope they are created at is the scope
 	// they are safe at: theme/window calls the build function once per
@@ -234,7 +246,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 				panic(err)
 			}
 			md := messageMarkdownStyle(c, typ)
-			return themed{palette: p, col: c, bar: scrollbar.FromTokens(c, c.ControlBackground), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad, den: den}
+			return themed{palette: p, col: c, bar: scrollBarStyle(scrollbar.FromTokens(c, c.ControlBackground), bars), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad, den: den}
 		})
 	})
 
@@ -281,7 +293,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 		})
 
 	renameObs := RenameDialog(th, modelObs, dialogArb)
-	settingsObs := SettingsDialog(th, modelObs, dialogArb)
+	settingsObs := SettingsDialog(th, modelObs, dialogArb, bars)
 	menuObs := ModelMenu(th, modelObs, popArb)
 
 	// The window's chords, each the one its platform already spends on that

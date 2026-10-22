@@ -46,6 +46,7 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
@@ -104,7 +105,7 @@ type settingsFields struct {
 // SettingsDialog builds the settings dialog stream. Open state, the draft
 // being edited, and fetch errors all live in Model.Settings; the dialog is
 // pure view over them.
-func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], dialogArb *dialog.Arbiter) rx.Observable[layout.Widget] {
+func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], dialogArb *dialog.Arbiter, bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	openObs := rx.Map(modelObs, func(m Model) bool { return m.Settings.Open }).
 		Pipe(rx.DistinctUntilChanged(func(a, b bool) bool { return a == b }))
 
@@ -164,7 +165,7 @@ func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]
 			return settingsThemed{
 				palette:    p,
 				colors:     c,
-				bar:        scrollbar.FromTokens(c, c.WindowBackground),
+				bar:        scrollBarStyle(scrollbar.FromTokens(c, c.WindowBackground), bars),
 				typ:        typ,
 				shaper:     typ.Shaper(),
 				add:        marks.Mark(marks.Plus),

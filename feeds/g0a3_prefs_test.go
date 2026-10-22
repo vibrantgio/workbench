@@ -28,6 +28,7 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/tooltip"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/theme/theme"
@@ -378,7 +379,7 @@ var shellPrefsScrimRegion = image.Rect(shellFrameW/2-260, shellFrameH/2-120, she
 // model and theme.
 func TestPreferencesPaneInShellLive(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil, desktop.ScrollBarsWhenScrolling)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, err error, done bool) {

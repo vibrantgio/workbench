@@ -31,6 +31,7 @@ import (
 
 	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/icons"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
@@ -113,6 +114,11 @@ func run() {
 	// desktop between the two the way everything else in the window does.
 	noteCodeStyles = adoptCodeStyles(kept)
 
+	// The platform's "Show scroll bars" setting, read once here and carried
+	// in the token snapshot: a window asks the platform when it is composed,
+	// never on a frame.
+	bars := desktop.ScrollBars()
+
 	w := specwin.New(mvuWin, specsystem.LiveTheme(5*time.Second, kept.Options()...))
 
 	// mvu.Loop's models observable is a replay-latest multicast: the three
@@ -123,7 +129,7 @@ func run() {
 	models, runner := mvu.Loop(mvuWin.Messages(), opensOn(Init, widths.Arrangement()), Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
-	renderErr := w.Render(buildLayers(models, opening, kept.Typography(), widths)).Wait()
+	renderErr := w.Render(buildLayers(models, opening, kept.Typography(), widths, bars)).Wait()
 	// Render returns once the window is destroyed, which is the last moment
 	// a width moved inside the write delay can still be kept — and the
 	// change the reader most expects to find again is the one they made
@@ -161,6 +167,20 @@ type themeTokens struct {
 	sp     tokens.SpacingScale
 	den    tokens.Density
 	shaper *text.Shaper
+	// scrollBars is the platform's "Show scroll bars" setting, read once
+	// when the window is composed and carried here so that no frame asks
+	// the platform and no still render depends on the machine it runs on.
+	scrollBars desktop.ScrollBarSetting
+}
+
+// scrollBarStyle is every bar in this window: the fading overlay bar the
+// colours alone give, standing without fading where the reader asked for
+// scroll bars always.
+func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.Style {
+	if bars == desktop.ScrollBarsAlways {
+		return s.Always()
+	}
+	return s
 }
 
 // chromeSurface is the fill every piece of this window's chrome wears: the
@@ -200,14 +220,15 @@ func surfaceBackdrop(c tokens.PlatformColors) color.NRGBA {
 // the caller is the one that knows which palette this run is in: a window
 // that seeds it with the package default while its stream is about to emit
 // something else opens on a colour nobody chose.
-func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.PlatformColors, typo tokens.Typography) func() themeTokens {
+func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.PlatformColors, typo tokens.Typography, bars desktop.ScrollBarSetting) func() themeTokens {
 	var cell atomic.Value
 	cell.Store(themeTokens{
-		col:    opening,
-		typ:    typo,
-		sp:     tokens.Spacing,
-		den:    tokens.Comfortable,
-		shaper: typo.Shaper(),
+		col:        opening,
+		typ:        typo,
+		sp:         tokens.Spacing,
+		den:        tokens.Comfortable,
+		shaper:     typo.Shaper(),
+		scrollBars: bars,
 	})
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
@@ -217,7 +238,7 @@ func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.PlatformColors, 
 		func(t rx.Tuple4[tokens.PlatformColors, tokens.Typography, tokens.SpacingScale, tokens.Density], _ error, done bool) {
 			if !done {
 				typ := t.Second
-				cell.Store(themeTokens{col: t.First, typ: typ, sp: t.Third, den: t.Fourth, shaper: typ.Shaper()})
+				cell.Store(themeTokens{col: t.First, typ: typ, sp: t.Third, den: t.Fourth, shaper: typ.Shaper(), scrollBars: bars})
 			}
 		})
 	return func() themeTokens { return cell.Load().(themeTokens) }
@@ -241,9 +262,9 @@ func mirrorTokens(th rx.Observable[theme.Theme], opening tokens.PlatformColors, 
 // chrome inset bounds the stack from above, so a queue tall enough to climb
 // the window stops at the chrome row's foot rather than covering the
 // controls standing in it.
-func buildLayers(modelObs rx.Observable[Model], opening tokens.PlatformColors, typo tokens.Typography, widths *shell.ArrangementMemory) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], opening tokens.PlatformColors, typo tokens.Typography, widths *shell.ArrangementMemory, bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
-		loadTok := mirrorTokens(th, opening, typo)
+		loadTok := mirrorTokens(th, opening, typo, bars)
 		var modelCell atomic.Value
 		modelCell.Store(Model{})
 		loadModel := func() Model { return modelCell.Load().(Model) }

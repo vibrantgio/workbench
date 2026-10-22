@@ -18,6 +18,7 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/theme/theme"
@@ -28,7 +29,7 @@ import (
 // and a single-shot theme observable, collects one layout.Widget emission from each
 // layer, and fails if any subscription panics or completes with an error.
 func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
-	layers := buildLayers(rx.Of(initialModel()), nil)(rx.Of(theme.Default()))
+	layers := buildLayers(rx.Of(initialModel()), nil, desktop.ScrollBarsWhenScrolling)(rx.Of(theme.Default()))
 	if len(layers) != 2 {
 		t.Fatalf("buildLayers returned %d layers; want 2 (backdrop, shell)", len(layers))
 	}
@@ -711,7 +712,7 @@ const (
 // OS frame timing.
 func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	shellLayer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil)
+	shellLayer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil, desktop.ScrollBarsWhenScrolling)
 
 	emissions := make(chan layout.Widget, 16)
 	sub := shellLayer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

@@ -43,6 +43,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -132,9 +133,13 @@ func streamingModel() Model {
 // The arrangement memory is nil, which is a working one: a frame laid out
 // for a picture rather than for a reader opens on this window's defaults and
 // writes over nothing a real window kept.
+//
+// The scroll bar setting is stated rather than read off the platform: a
+// still picture holds the overlay bar every desktop platform draws, whatever
+// the machine running the test asked for.
 func frame(t *testing.T, c tokens.PlatformColors, model Model) layout.Widget {
 	t.Helper()
-	return golden.Layers(t, buildLayers(rx.Of(model), nil)(rx.Of(golden.StaticTheme(c)))...)
+	return golden.Layers(t, buildLayers(rx.Of(model), nil, desktop.ScrollBarsWhenScrolling)(rx.Of(golden.StaticTheme(c)))...)
 }
 
 // The macOS window controls, as this window will actually carry them: the

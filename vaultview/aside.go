@@ -43,6 +43,7 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/typeset"
@@ -269,9 +270,11 @@ func (v *asideView) layout(gtx layout.Context, m Model, tok themeTokens) layout.
 	// the column's own width so that its pill is inset from the column's
 	// edges the way the rail's is from the rail's, and what does not wear a
 	// pill — the two headings, the rule between them — stands on the lane
-	// that inset leaves. The trailing side is spent inside the panes: the
-	// bar's lane runs to the window's own edge the way the note's runs to
-	// its column's, and what the panes draw stops a lane short of it.
+	// that inset leaves. The trailing side is spent inside the panes: a
+	// standing bar's lane runs to the window's own edge the way the note's
+	// runs to its column's, and what the panes draw stops a lane short of
+	// it; a fading bar is handed no lane, and the column's drawing runs to
+	// its own trailing edge.
 	layout.Inset{Top: asideInsetDp, Bottom: asideInsetDp}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		inner := gtx.Constraints.Max
 		// Both panes' rows stand at the sidebar's own row height, as the
@@ -396,29 +399,50 @@ func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dime
 // The track padding is what is stated, because padding either side of the
 // thumb is what a lane is; the thumb itself is untouched.
 //
-// Occupy rather than Overlay follows from that: the lane is the column's
-// trailing margin, so the rows stop where it starts and nothing is drawn
-// under a bar.
-// The indicator does not fade, where the note column's bar does: it is given
-// a lane of its own, and the rows, their marks and the hairline between the
-// panes all stop where that lane starts. A reserved lane standing empty is a
-// margin with no reason, so this bar is the one a standing scroller draws.
+// Whether the bar stands at all is the reader's setting, carried in the
+// snapshot: where they asked for scroll bars always, this bar is the
+// standing scroller the note's is, and the lane is a lane. Where they left
+// the platform to decide, the bar fades as the note's does, and a lane
+// reserved for a bar that is away would be a margin with no reason — so
+// [asideBarLane] gives it none and the panes float it over their rows
+// instead.
 func asideIndicator(tok themeTokens) scrollbar.Style {
-	s := scrollbar.FromTokens(tok.col, chromeSurface(tok.col)).Always()
+	s := scrollBarStyle(scrollbar.FromTokens(tok.col, chromeSurface(tok.col)), tok.scrollBars)
 	s.TrackPadding = railMarginDp
 	return s
 }
 
-// asideBarLane is the trailing band a pane hands its scrollbar: the
-// thumb's own width and the air either side of it. It is what the rows
-// stop short of, and what everything else the column draws — the two
-// headings, the citation count, the hairline between the panes — takes as
-// its own trailing inset, so that one right edge runs down the column
-// whether a pane is scrolling or not.
-func asideBarLane(tok themeTokens) unit.Dp { return asideIndicator(tok).Width() }
+// asideBarLane is the trailing band a standing bar is handed: the thumb's
+// own width and the air either side of it. It is what the rows stop short
+// of, and what everything else the column draws — the two headings, the
+// citation count, the hairline between the panes — takes as its own
+// trailing inset, so that one right edge runs down the column whether a
+// pane is scrolling or not.
+//
+// A fading bar is handed nothing: it is away on the frames that matter, and
+// the column's drawing runs to its own trailing lane the way it runs to the
+// leading one. The bar still stands where it stood when it shows — the
+// padding above is the style's, not the lane's.
+func asideBarLane(tok themeTokens) unit.Dp {
+	if tok.scrollBars != desktop.ScrollBarsAlways {
+		return 0
+	}
+	return asideIndicator(tok).Width()
+}
 
-// asideTrailing insets a layout.Widget by the bar's lane, which is what puts
-// what it draws on the column's own trailing edge.
+// asideBarAnchor is how a pane spends the bar's width: a standing bar takes
+// a gutter out of the rows, and a fading one floats over their trailing end.
+func asideBarAnchor(tok themeTokens) list.Anchor {
+	if tok.scrollBars == desktop.ScrollBarsAlways {
+		return list.Occupy
+	}
+	return list.Overlay
+}
+
+// asideTrailing insets a layout.Widget by the bar's lane and the column's
+// own, which is what puts what it draws on the column's trailing edge. With
+// no bar standing there is no bar lane, and the two lanes the column keeps
+// are then the same width.
 func asideTrailing(tok themeTokens, w layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Left: asideLaneDp, Right: asideBarLane(tok) + asideLaneDp}.Layout(gtx, w)
@@ -522,7 +546,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 		v.outlineClick = append(v.outlineClick, &widget.Clickable{})
 	}
 	foregrounds := asideForegrounds(tok)
-	return list.LayoutSelectableScrollbar(gtx, v.outlineList, asideIndicator(tok), list.Occupy, entries,
+	return list.LayoutSelectableScrollbar(gtx, v.outlineList, asideIndicator(tok), asideBarAnchor(tok), entries,
 		func(gtx layout.Context, e outlineEntry, selected bool) layout.Dimensions {
 			click := v.outlineClick[e.Idx]
 			if click.Clicked(gtx) {
@@ -617,7 +641,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
 	foregrounds := asideForegrounds(tok)
-	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), list.Occupy, rows,
+	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), asideBarAnchor(tok), rows,
 		func(gtx layout.Context, row backlinkRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
 			if click.Clicked(gtx) {

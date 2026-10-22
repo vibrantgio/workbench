@@ -16,6 +16,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -65,7 +66,7 @@ func newSeePlansFrame(t *testing.T) *seePlansFrame {
 	blank := func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(seePlansSectionH))}
 	}
-	b.page = scrollingPage([]layout.Widget{trigger, blank, blank, blank}, b.state, tokens.PlatformLight)
+	b.page = scrollingPage([]layout.Widget{trigger, blank, blank, blank}, b.state, tokens.PlatformLight, desktop.ScrollBarsWhenScrolling)
 	return b
 }
 
