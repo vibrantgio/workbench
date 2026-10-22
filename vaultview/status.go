@@ -66,7 +66,7 @@
 //
 // The bar is as deep as that line and no deeper, and it is the faint
 // foreground this window gives what annotates rather than states — the
-// same step the properties pane's keys and the standing messages take.
+// same step the properties pane's keys take.
 //
 // The line is set a step under the window's other labels, the size the
 // platform's own status lines take. That is also what keeps a grey label at
@@ -114,9 +114,9 @@ func sourceLines(src []byte) int {
 }
 
 // downloadingLabel is what the window says while the platform fetches a
-// note out of the cloud: the note column stands it in place of the note
-// and the bar says it under them both, so the wait is named in the place
-// the note would be and in the place the window reports from.
+// note out of the cloud: the note column stands it as its empty state and
+// the bar says it under them both, so the wait is named in the place the
+// note would be and in the place the window reports from.
 const downloadingLabel = "Downloading…"
 
 // statusLine is what the bar says about the model: the note being

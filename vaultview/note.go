@@ -630,6 +630,14 @@ func layoutNotePage(
 	// read against this surface rather than against the chrome the rail and
 	// the trailing column wear.
 	paint.FillShape(gtx.Ops, tok.col.TextBackground, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	// A column with nothing to show draws the platform's empty state in
+	// place of the page: one line saying why, centred in the column. It is
+	// not content and stands on no measure, so it is drawn before the page's
+	// own reading inset is spent and the page is not laid out at all.
+	if msg := emptyStateLine(m); msg != "" {
+		cur.show(nil)
+		return noteEmptyState(gtx, tok, msg)
+	}
 	// The page's trailing and bottom margins are spent inside the document
 	// rather than by the page, so the document's viewport reaches the
 	// column's own edges the way the platform's reading surfaces do: the
@@ -638,8 +646,8 @@ func layoutNotePage(
 	// The margins are not lost — the document keeps its own reading measure
 	// through the style's gutter, and comes to rest a foot margin above the
 	// bottom edge through its end space. Everything that is not the document
-	// — the header row, the properties pane, the standing messages — puts
-	// the trailing margin back itself.
+	// — the header row, the properties pane — puts the trailing margin back
+	// itself.
 	inset := layout.Inset{Top: noteInsetDp, Left: noteInsetDp}
 	// Where the column's text stands, the properties pane included: the
 	// document seats its blocks on the measure and centres them in a column
@@ -659,109 +667,85 @@ func layoutNotePage(
 		}
 	}
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		var body layout.FlexChild
-		// scrolling records whether the body is the document or a standing
-		// message, which is what decides the gap above it.
-		scrolling := false
-		switch {
-		case m.Downloading != "":
-			// The note the reader asked for is in the cloud and nothing
-			// is at its path yet. The column says so in place of the
-			// note it is going to show, including over the note the
-			// reader was on, which is no longer the one they asked for.
-			cur.show(nil)
-			body = messageChild(tok, downloadingLabel)
-		case m.Scanning && note == nil:
-			cur.show(nil)
-			body = messageChild(tok, "Scanning vault…")
-		case m.ScanErr != "":
-			cur.show(nil)
-			body = messageChild(tok, m.ScanErr)
-		case note == nil:
-			cur.show(nil)
-			body = messageChild(tok, "No notes in this vault.")
-		default:
-			scrolling = true
-			doc := docFor(m, note)
-			// The find keys are drained before anything lays out, so a step
-			// asked for on this frame is a step this frame's document makes.
-			find.keys(gtx, m, read)
-			// The aside's outline reads and moves this document. It lays
-			// out after this column does, so what it reads is this frame's
-			// position and what it moves shows on the next.
-			cur.show(doc)
-			style := noteStyle(tok.col, tok.typ)
-			// The followed-link marking is set on the document every frame
-			// it is alive and taken off it on the first frame it is not:
-			// documents are cached across frames, so a marking left behind
-			// would outlive the arrival that caused it.
-			if block, fill, ok := arr.mark(gtx, m, style.ArrivalFill); ok {
-				doc.Highlight(block, fill)
-			} else {
-				doc.ClearHighlight()
-			}
-			style.Text.OnLinkClick = func(gtx layout.Context, url string) {
-				linkClicked(gtx, m, url)
-			}
-			style.Text.OnLink = func(gtx layout.Context, url string) {
-				mvu.MessageOp{Message: LinkUnder{URL: linkAddress(m, url)}}.Add(gtx.Ops)
-			}
-			style.OnTaskClick = func(gtx layout.Context, item *markdown.ListItem) {
-				mvu.MessageOp{Message: ToggleTask{Path: note.Path, Item: item}}.Add(gtx.Ops)
-			}
-			// The bar is the design system's, taking the same colour
-			// tokens the document's style did. Occupy rather than
-			// Overlay: the gutter costs the prose ten dp of measure
-			// once, where an overlay bar lands on the ends of the lines
-			// it floats over. It draws nothing at all while the whole
-			// note fits, and fades out a second after the note stops
-			// moving — both the treatment's own behaviour, not the
-			// app's — unless the reader asked for scroll bars always,
-			// which is the setting the snapshot carries.
-			//
-			// The document is the one row that runs to the column's edge,
-			// where the bar belongs. The reading margin the other rows get
-			// from the page inset it takes as its own gutter, less the
-			// width the bar already reserves, so the prose ends level with
-			// the breadcrumb above it.
-			//
-			// The two spaces are the vertical half of the same bargain, one
-			// at each end: the column runs from the row above it to the
-			// status bar below it, and the note still rests a gap below the
-			// row at its start and a foot margin above that bar at its end.
-			// Both are the document's own content, so the scroll bounds, the
-			// page moves and the bar's track account for them; held back
-			// outside the viewport either would leave a dead strip beside
-			// every half-cut line the reader scrolls past.
-			bar := noteScrollBar(tok)
-			// The query is put on the document every frame it is alive and
-			// taken off it on the first frame it is not, the way the arrival
-			// marking is, and the places it finds go on the bar: one query
-			// marks the prose and the bar alike, and one dismissal takes
-			// both.
-			bar.Matches = find.apply(m, doc)
-			bar.Current = find.current
-			style.Gutter = max(noteInsetDp-bar.Width(), 0)
-			style.Measure = noteMeasureDp
-			style.StartSpace = noteGapDp
-			style.EndSpace = noteEndSpaceDp
-			body = layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				// The reading keys are filtered on the column's own focus
-				// tag, so they move the document only while it holds the
-				// keyboard — never out from under the find field or the
-				// folder rail.
-				return read.layout(gtx, doc, func(gtx layout.Context) layout.Dimensions {
-					dims := doc.LayoutScrollbar(gtx, tok.shaper, style, bar, list.Occupy)
-					// The address is said twice: at the window's foot while
-					// the pointer is on the link, and beside the link once
-					// the pointer has stood on it for the tooltip's own
-					// delay. This is the second of them, laid over the
-					// document it names.
-					tip.beside(gtx, doc)
-					return dims
-				})
-			})
+		doc := docFor(m, note)
+		// The find keys are drained before anything lays out, so a step
+		// asked for on this frame is a step this frame's document makes.
+		find.keys(gtx, m, read)
+		// The aside's outline reads and moves this document. It lays
+		// out after this column does, so what it reads is this frame's
+		// position and what it moves shows on the next.
+		cur.show(doc)
+		style := noteStyle(tok.col, tok.typ)
+		// The followed-link marking is set on the document every frame
+		// it is alive and taken off it on the first frame it is not:
+		// documents are cached across frames, so a marking left behind
+		// would outlive the arrival that caused it.
+		if block, fill, ok := arr.mark(gtx, m, style.ArrivalFill); ok {
+			doc.Highlight(block, fill)
+		} else {
+			doc.ClearHighlight()
 		}
+		style.Text.OnLinkClick = func(gtx layout.Context, url string) {
+			linkClicked(gtx, m, url)
+		}
+		style.Text.OnLink = func(gtx layout.Context, url string) {
+			mvu.MessageOp{Message: LinkUnder{URL: linkAddress(m, url)}}.Add(gtx.Ops)
+		}
+		style.OnTaskClick = func(gtx layout.Context, item *markdown.ListItem) {
+			mvu.MessageOp{Message: ToggleTask{Path: note.Path, Item: item}}.Add(gtx.Ops)
+		}
+		// The bar is the design system's, taking the same colour
+		// tokens the document's style did. Occupy rather than
+		// Overlay: the gutter costs the prose ten dp of measure
+		// once, where an overlay bar lands on the ends of the lines
+		// it floats over. It draws nothing at all while the whole
+		// note fits, and fades out a second after the note stops
+		// moving — both the treatment's own behaviour, not the
+		// app's — unless the reader asked for scroll bars always,
+		// which is the setting the snapshot carries.
+		//
+		// The document is the one row that runs to the column's edge,
+		// where the bar belongs. The reading margin the other rows get
+		// from the page inset it takes as its own gutter, less the
+		// width the bar already reserves, so the prose ends level with
+		// the breadcrumb above it.
+		//
+		// The two spaces are the vertical half of the same bargain, one
+		// at each end: the column runs from the row above it to the
+		// status bar below it, and the note still rests a gap below the
+		// row at its start and a foot margin above that bar at its end.
+		// Both are the document's own content, so the scroll bounds, the
+		// page moves and the bar's track account for them; held back
+		// outside the viewport either would leave a dead strip beside
+		// every half-cut line the reader scrolls past.
+		bar := noteScrollBar(tok)
+		// The query is put on the document every frame it is alive and
+		// taken off it on the first frame it is not, the way the arrival
+		// marking is, and the places it finds go on the bar: one query
+		// marks the prose and the bar alike, and one dismissal takes
+		// both.
+		bar.Matches = find.apply(m, doc)
+		bar.Current = find.current
+		style.Gutter = max(noteInsetDp-bar.Width(), 0)
+		style.Measure = noteMeasureDp
+		style.StartSpace = noteGapDp
+		style.EndSpace = noteEndSpaceDp
+		body := layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			// The reading keys are filtered on the column's own focus
+			// tag, so they move the document only while it holds the
+			// keyboard — never out from under the find field or the
+			// folder rail.
+			return read.layout(gtx, doc, func(gtx layout.Context) layout.Dimensions {
+				dims := doc.LayoutScrollbar(gtx, tok.shaper, style, bar, list.Occupy)
+				// The address is said twice: at the window's foot while
+				// the pointer is on the link, and beside the link once
+				// the pointer has stood on it for the tooltip's own
+				// delay. This is the second of them, laid over the
+				// document it names.
+				tip.beside(gtx, doc)
+				return dims
+			})
+		})
 
 		// The page's own top inset is where it was: the trail that stood
 		// in this strip moved into the band, and what followed it moves up
@@ -786,20 +770,17 @@ func layoutNotePage(
 		// every frame; held back out here it would leave a strip of bare page
 		// over every half-cut line. What the gap here buys is the pinned
 		// head's own foot: the air it keeps above the seam is the air it
-		// keeps between its rows. A standing message owns no viewport, so
-		// nothing scrolls under it and there is no boundary to draw.
+		// keeps between its rows.
 		//
 		// A note with no frontmatter has no pinned head at all now the trail
 		// stands in the band, and then there is neither a foot to keep nor a
 		// region boundary to draw: the document begins at the page's own top
 		// inset, which is where the trail began.
-		if head := len(children) > 0; head {
+		if len(children) > 0 {
 			children = append(children, layout.Rigid(complayout.VSpacer(noteGapDp)))
-			if scrolling {
-				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return pinnedSeam(gtx, tok)
-				}))
-			}
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return pinnedSeam(gtx, tok)
+			}))
 		}
 		children = append(children, body)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
@@ -1003,17 +984,45 @@ func openBrowser(url string) {
 	_ = cmd.Start()
 }
 
-// messageChild renders a status line in place of the document. It takes the
-// trailing margin itself, the page inset having handed that job to its rows
-// so the document can run to the column's edge.
-func messageChild(tok themeTokens, msg string) layout.FlexChild {
-	return layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-		return layout.Inset{Right: noteInsetDp}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			typeset.Text(gtx, tok.shaper, msg, tok.typ.BodyLarge,
-				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.TextBackground), 1)
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		})
-	})
+// emptyStateLine is what the note column has to say when it has no note to
+// show, and the empty string when it has one: the fetch the window is
+// waiting on, the first reading of the vault, a reading that failed, or a
+// vault holding nothing to read.
+//
+// The fetch leads. The note the reader asked for is in the cloud and
+// nothing is at its path yet, so the column says so in place of the note it
+// is going to show — including over the note the reader was on, which is no
+// longer the one they asked for.
+func emptyStateLine(m Model) string {
+	switch {
+	case m.Downloading != "":
+		return downloadingLabel
+	case m.Scanning && m.CurrentNote() == nil:
+		return "Scanning vault…"
+	case m.ScanErr != "":
+		return m.ScanErr
+	case m.CurrentNote() == nil:
+		return "No notes in this vault."
+	}
+	return ""
+}
+
+// noteEmptyState draws the platform's empty state in the content column's
+// FULL frame: the main slot's own box grown upward by the toolbar's share,
+// which is the frame the line centres in rather than the row below the
+// toolbar. The pattern carries the reading.
+//
+// The slot is recorded and replayed under the toolbar's own ops — the
+// window hands the shell MainFirst — so the toolbar paints over the strip
+// this frame reaches up into.
+func noteEmptyState(gtx layout.Context, tok themeTokens, msg string) layout.Dimensions {
+	row := gtx.Constraints.Max
+	bar := gtx.Dp(unit.Dp(shell.ToolbarDepth))
+	full := gtx
+	full.Constraints = layout.Exact(image.Pt(row.X, row.Y+bar))
+	defer op.Offset(image.Pt(0, -bar)).Push(gtx.Ops).Pop()
+	shell.EmptyState(full, tok.shaper, tok.col, tok.typ, tok.col.TextBackground, msg)
+	return layout.Dimensions{Size: row}
 }
 
 // notePlaces builds the trail's places: the vault, then one per folder on
