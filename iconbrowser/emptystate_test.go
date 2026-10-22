@@ -107,7 +107,7 @@ func gridFrame(t *testing.T, c tokens.PlatformColors, model Model) image.Rectang
 		return layout.Dimensions{Size: size}
 	}
 	page := desktop.CapTop(func() unit.Dp { return titleBandDp },
-		pageOver(tok, staticSearch(t, c), model, len(FilterIcons(model.Query)), probe))
+		pageOver(tok, staticSearch(t, c, model.Query), model, len(FilterIcons(model.Query)), probe))
 	paintBackdrop := backdrop.Widget(tok.palette.Backdrop)
 	img := golden.Capture(t, windowSize, func(gtx layout.Context) layout.Dimensions {
 		paintBackdrop(gtx)

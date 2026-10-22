@@ -28,8 +28,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"gioui.org/io/event"
 	"gioui.org/layout"
 	"gioui.org/unit"
+	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
@@ -125,18 +127,40 @@ var prebuilt = map[color.NRGBA][]layout.Widget{}
 // snapshot: the same components TextField ContentLayer subscribes to, with the
 // pinned shaper a render made outside the window has to name. It is the
 // window's topmost paint, so it is the thing the clearance assertions are about.
-func staticSearch(t *testing.T, c tokens.PlatformColors) layout.Widget {
+//
+// The field's text is set to the query, as the running window's field holds
+// the text the user typed and passes it to the model as the query. A render
+// that set the query on the model alone would draw the filtered grid under an
+// empty field with its placeholder, a frame the window never shows.
+func staticSearch(t *testing.T, c tokens.PlatformColors, query string) layout.Widget {
+	t.Helper()
+	w, _ := staticSearchEditor(t, c, query)
+	return w
+}
+
+// staticSearchEditor is staticSearch with the field's editor, which the field
+// passes to FocusTag when it is created, so a test can read the text the
+// field holds.
+func staticSearchEditor(t *testing.T, c tokens.PlatformColors, query string) (layout.Widget, *widget.Editor) {
 	t.Helper()
 	typo := tokens.DefaultTypography
+	var editor *widget.Editor
 	w, err := input.TextField(rx.Of(staticTheme(c, typo)), input.TextFieldProps{
 		Placeholder: "Search icons…",
 		Description: "search icons by name",
-		Shaper:      typo.DeterministicShaper(),
+		Seed:        query,
+		FocusTag: func(tag event.Tag) {
+			editor, _ = tag.(*widget.Editor)
+		},
+		Shaper: typo.DeterministicShaper(),
 	}).First()
 	if err != nil {
 		t.Fatalf("search field: %v", err)
 	}
-	return w
+	if editor == nil {
+		t.Fatal("search field: FocusTag was not given the field's editor")
+	}
+	return w, editor
 }
 
 // windowFrame composes the window exactly as buildLayers stacks it: the
@@ -152,7 +176,7 @@ func windowFrame(t *testing.T, c tokens.PlatformColors, model Model, band unit.D
 	paintBackdrop := backdrop.Widget(tok.palette.Backdrop)
 	page := desktop.CapTop(
 		func() unit.Dp { return band },
-		Page(tok, staticSearch(t, c), model, &layout.List{Axis: layout.Vertical}),
+		Page(tok, staticSearch(t, c, model.Query), model, &layout.List{Axis: layout.Vertical}),
 	)
 	return func(gtx layout.Context) layout.Dimensions {
 		paintBackdrop(gtx)
@@ -208,17 +232,18 @@ var windowSchemes = []struct {
 	{"dark", tokens.PlatformDark},
 }
 
-// windowQueries are the three shapes the page takes: the whole catalogue under
-// both section labels, a query that keeps some of each set, and a query that
-// matches nothing — which drops the marks section whole and puts the notice in
-// the middle of the grid.
+// windowQueries are the three shapes the page takes, at the queries the
+// window goldens are taken at: no query, which shows the whole catalogue under
+// both section labels; "folder", which matches two marks and five icons of
+// the grid; and "zzzz", which matches nothing, so the marks section is dropped
+// whole and the grid draws the empty state's line.
 var windowQueries = []struct {
 	name  string
 	query string
 }{
 	{"all", ""},
-	{"filtered", "history"},
-	{"nomatch", "zzzz"},
+	{"filtered", "folder"},
+	{"nomatch", noMatchQuery},
 }
 
 // TestWholeWindowRender draws the composed window in both schemes on every

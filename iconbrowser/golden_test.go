@@ -1,6 +1,7 @@
 package main
 
 import (
+	"image"
 	"testing"
 
 	"github.com/vibrantgio/components/golden"
@@ -35,6 +36,35 @@ func TestWindowGolden(t *testing.T) {
 			t.Run(q.name+"-"+tc.name, func(t *testing.T) {
 				golden.Compare(t, "window-"+q.name+"-"+tc.name,
 					renderWindow(t, tc.c, q.query, titleBandDp))
+			})
+		}
+	}
+}
+
+// TestTheGoldensShowTheQueryInTheField pins that every window golden draws the
+// search field holding the query it was taken at, as the running window does:
+// the field's text equals the query after the field is drawn, and a field
+// holding a query draws differently from an empty one, which shows its
+// placeholder.
+func TestTheGoldensShowTheQueryInTheField(t *testing.T) {
+	fieldSize := image.Pt(windowSize.X, 64)
+	for _, tc := range windowSchemes {
+		empty, _ := staticSearchEditor(t, tc.c, "")
+		emptyImg := golden.Capture(t, fieldSize, empty)
+		for _, q := range goldenQueries {
+			t.Run(q.name+"-"+tc.name, func(t *testing.T) {
+				w, editor := staticSearchEditor(t, tc.c, q.query)
+				img := golden.Capture(t, fieldSize, w)
+				if got := editor.Text(); got != q.query {
+					t.Errorf("the field's text = %q, want the query %q", got, q.query)
+				}
+				n := golden.PixelDiff(img, emptyImg)
+				if q.query == "" && n != 0 {
+					t.Errorf("the field with no query differs from the empty field in %d pixels", n)
+				}
+				if q.query != "" && n == 0 {
+					t.Errorf("the field holding %q draws the same as the empty field", q.query)
+				}
 			})
 		}
 	}
