@@ -146,10 +146,13 @@ func TestLoadGuidePrefersCheckoutFile(t *testing.T) {
 	if err := os.WriteFile(p, []byte("# From the checkout\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got := loadGuideFrom([]string{filepath.Join(dir, "missing.txt"), p}, func() ([]byte, error) {
+	got, fail := loadGuideFrom([]string{filepath.Join(dir, "missing.txt"), p}, func() ([]byte, error) {
 		t.Fatal("fetch called although a checkout file exists")
 		return nil, nil
 	})
+	if fail != nil {
+		t.Fatalf("loadGuideFrom reported %+v for a readable checkout file", fail)
+	}
 	if string(got) != "# From the checkout\n" {
 		t.Errorf("loadGuideFrom = %q, want the checkout file", got)
 	}
@@ -159,22 +162,14 @@ func TestLoadGuidePrefersCheckoutFile(t *testing.T) {
 // candidate path the fetch answers, and its bytes are what the app keeps
 // in memory.
 func TestLoadGuideFallsBackToFetch(t *testing.T) {
-	got := loadGuideFrom([]string{filepath.Join(t.TempDir(), "missing.txt")}, func() ([]byte, error) {
+	got, fail := loadGuideFrom([]string{filepath.Join(t.TempDir(), "missing.txt")}, func() ([]byte, error) {
 		return []byte("# Fetched\n"), nil
 	})
+	if fail != nil {
+		t.Fatalf("loadGuideFrom reported %+v although the fetch answered", fail)
+	}
 	if string(got) != "# Fetched\n" {
 		t.Errorf("loadGuideFrom = %q, want the fetched bytes", got)
-	}
-}
-
-// TestLoadGuideNoticeStillADocument pins the last resort: no file, no
-// network — the in-memory notice must itself parse into a document with
-// an outline, so the app never opens on a blank pane.
-func TestLoadGuideNoticeStillADocument(t *testing.T) {
-	got := loadGuideFrom([]string{filepath.Join(t.TempDir(), "missing.txt")}, nil)
-	entries := guideOutline(markdown.Parse(got))
-	if len(entries) == 0 {
-		t.Error("the unavailable notice has no ## outline; the tree would be empty")
 	}
 }
 

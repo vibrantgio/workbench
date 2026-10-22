@@ -19,6 +19,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -37,43 +38,75 @@ func guidePaths() []string {
 	return []string{"../llms.txt", "llms.txt"}
 }
 
-// guideUnavailable is the in-memory stand-in shown when neither a checkout
-// file nor the network can produce the guide, so the app still opens with
-// a document rather than a blank pane.
-const guideUnavailable = `# Vibrant Gio — application guide
+// guideUnavailableLine is what the Docs column says when neither source
+// answered. It is this app's own sentence about what is missing, it names
+// no control, and it carries nothing the system said.
+const guideUnavailableLine = "This guide can't be loaded."
 
-The guide could not be loaded.
-
-## Where it lives
-
-This app renders llms.txt from the workbench repository: in a checkout it
-sits next to the sitedocs directory, and otherwise it is fetched from
-` + guideCanonicalURL + `. Neither source answered — check the checkout
-location or the network connection and relaunch.
-`
+// guideFailure is a guide that could not be read: the location it was
+// looked for at, which the column stands under its line, and the system's
+// own text saying why the last attempt failed, which goes to the log and
+// nowhere else.
+type guideFailure struct {
+	Path string
+	Err  string
+}
 
 // loadGuide returns the guide's markdown source: the checkout file if one
-// is beside the process, the canonical raw URL otherwise, and the
-// in-memory notice if both fail.
-func loadGuide() []byte {
+// is beside the process, the canonical raw URL otherwise. With neither
+// answering it returns no source and the failure the column shows.
+func loadGuide() ([]byte, *guideFailure) {
 	return loadGuideFrom(guidePaths(), fetchGuide)
 }
 
 // loadGuideFrom is loadGuide's testable core: paths are tried in order,
-// then fetch, then the unavailable notice. A nil fetch skips the network
-// leg, which is how tests guarantee no request is ever made.
-func loadGuideFrom(paths []string, fetch func() ([]byte, error)) []byte {
+// then fetch. A nil fetch skips the network leg, which is how tests
+// guarantee no request is ever made.
+//
+// The cause of a failed read is written to the log here, with the
+// location, because it is the only place that holds both and because the
+// window never shows it.
+func loadGuideFrom(paths []string, fetch func() ([]byte, error)) ([]byte, *guideFailure) {
+	cause := "no source to read"
 	for _, p := range paths {
-		if b, err := os.ReadFile(p); err == nil && len(b) > 0 {
-			return b
+		b, err := os.ReadFile(p)
+		switch {
+		case err != nil:
+			cause = err.Error()
+		case len(b) == 0:
+			cause = fmt.Sprintf("read %s: the file is empty", p)
+		default:
+			return b, nil
 		}
 	}
 	if fetch != nil {
-		if b, err := fetch(); err == nil && len(b) > 0 {
-			return b
+		b, err := fetch()
+		switch {
+		case err != nil:
+			cause = err.Error()
+		case len(b) == 0:
+			cause = fmt.Sprintf("fetch %s: the response is empty", guideCanonicalURL)
+		default:
+			return b, nil
 		}
 	}
-	return []byte(guideUnavailable)
+	fail := &guideFailure{Path: guideLocation(paths), Err: cause}
+	fmt.Fprintf(os.Stderr, "sitedocs: the guide at %s could not be loaded: %s\n", fail.Path, fail.Err)
+	return nil, fail
+}
+
+// guideLocation is the location the column names and the log repeats:
+// where the guide sits in a checkout, resolved against the process's own
+// directory so the reader is told a place rather than a relative step.
+// With no candidate path the canonical URL is the only location there is.
+func guideLocation(paths []string) string {
+	if len(paths) == 0 {
+		return guideCanonicalURL
+	}
+	if abs, err := filepath.Abs(paths[0]); err == nil {
+		return abs
+	}
+	return paths[0]
 }
 
 // fetchGuide downloads the canonical raw guide. The bytes live in process

@@ -48,6 +48,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -371,7 +372,6 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layo
 	provList *list.State,
 	nameCell, urlCell, keyCell *atomic.Value,
 ) layout.Widget {
-	p := t.palette
 	selected, hasProvider := s.SelectedProvider()
 	for i := range s.Draft {
 		if _, ok := provClicks[i]; !ok {
@@ -407,13 +407,13 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layo
 			layout.Rigid(layout.Spacer{Width: SettingsWellGap}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				if !hasProvider {
+					// Nothing is selected because the catalogue is empty, and
+					// what the catalogue is missing is said in the well beside
+					// this side, where the rows would stand. So the form side
+					// says nothing of its own and keeps only the row the
+					// default-model picker is drawn over.
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-							textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium),
-								image.Rectangle{Max: gtx.Constraints.Max}, 0.5, 0.5, p.FloatingText,
-								"No providers — add one with +")
-							return layout.Dimensions{Size: gtx.Constraints.Max}
-						}),
+						layout.Flexed(1, blankRow),
 						layout.Rigid(formRow(t, cols, "Default model:", SelectRowHeight, blankRow)),
 					)
 				}
@@ -780,6 +780,9 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 			return layout.Dimensions{Size: r.Max}
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			if len(indices) == 0 {
+				return providerWellEmpty(gtx, t)
+			}
 			return list.LayoutScrollbar(gtx, rows, t.bar, list.Overlay, indices,
 				func(gtx layout.Context, i int) layout.Dimensions {
 					return providerRow(gtx, t, s.Draft[i], i == s.Selected, i, provClicks[i])
@@ -796,6 +799,27 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 		}),
 	)
 	return layout.Dimensions{Size: size}
+}
+
+// settingsNoProvidersLine is what the providers well says when the
+// catalogue holds nothing. It is the sheet's own sentence and names no
+// control: the add segment under the well is the action, and a line
+// spelling that control out would name a thing the reader can already see.
+const settingsNoProvidersLine = "No providers"
+
+// providerWellEmpty draws the well's empty state in the frame the rows
+// would have occupied — not the well's whole box, which carries the
+// caption above those rows and the add/remove pair below them — at the
+// size the rows are set at, which is the sheet's reading rather than a
+// content column's.
+//
+// Actions stay empty. The pair under the well is the platform's own
+// control for editing this list and it stands there whether the list has
+// rows or not, so an add button handed to the empty state as well would
+// draw the same control twice in one field.
+func providerWellEmpty(gtx layout.Context, t settingsThemed) layout.Dimensions {
+	return shell.EmptyState(gtx, t.shaper, t.colors, t.typ, t.palette.Pane,
+		shell.EmptyStateProps{Line: settingsNoProvidersLine, LineStyle: t.typ.BodyMedium})
 }
 
 // addRemovePair draws the well's add and remove controls as the platform

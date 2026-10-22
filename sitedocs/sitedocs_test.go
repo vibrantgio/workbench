@@ -132,7 +132,7 @@ func TestUpdateSelectHeading(t *testing.T) {
 // frame timing.
 func TestDocsTabReEmitsOnModelChange(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1)
-	tab := docsTabFrom(rx.Of(theme.Default()), modelObs, guideFixture(t), desktop.ScrollBarsWhenScrolling)
+	tab := docsTabFrom(rx.Of(theme.Default()), modelObs, guideFixture(t), nil, desktop.ScrollBarsWhenScrolling)
 
 	emissions := make(chan layout.Widget, 16)
 	sub := tab.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

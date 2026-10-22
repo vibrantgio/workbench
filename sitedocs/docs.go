@@ -26,6 +26,7 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -131,6 +132,50 @@ func drawGuideDoc(
 			}
 		}
 		return doc.LayoutScrollbar(gtx, shaper, style, bar, list.Overlay)
+	})
+}
+
+// drawGuideUnavailable draws the Docs column with no guide in it: this
+// app's own sentence saying the guide cannot be loaded, and under it the
+// location it was looked for at. The system's own text is not here — it
+// went to the log where the read failed.
+//
+// It is handed the column's whole frame, which is what the group centres
+// in, and it is held off the pane's edges by the same blank the document
+// keeps so a long location does not run into them; that inset is even on
+// every side, so the centre it centres on is the column's own. The
+// document's reading measure is not applied: an empty state is not
+// content and stands on no measure.
+func drawGuideUnavailable(
+	gtx layout.Context,
+	shaper *text.Shaper,
+	c tokens.PlatformColors,
+	typ tokens.Typography,
+	fail *guideFailure,
+) layout.Dimensions {
+	frame := gtx.Constraints.Max
+	complayout.Inset(docsOuterInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return shell.EmptyState(gtx, shaper, c, typ, shellFill(c), shell.EmptyStateProps{
+			Line:        guideUnavailableLine,
+			Description: fail.Path,
+		})
+	})
+	return layout.Dimensions{Size: frame}
+}
+
+// guideUnavailableObservable is the Docs page when there is no guide to
+// render: the column's empty state, restyled per theme change. The
+// failure is read once at startup and does not change while the window
+// is open, so nothing but the theme drives this stream.
+func guideUnavailableObservable(th rx.Observable[theme.Theme], fail *guideFailure) rx.Observable[layout.Widget] {
+	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
+	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
+	return rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.PlatformColors, tokens.Typography]) layout.Widget {
+		c, typ := t.First, t.Second
+		shaper := typ.Shaper()
+		return func(gtx layout.Context) layout.Dimensions {
+			return drawGuideUnavailable(gtx, shaper, c, typ, fail)
+		}
 	})
 }
 

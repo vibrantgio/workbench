@@ -278,10 +278,11 @@ func tabbedShellLayer(
 
 	pages := make([]rx.Observable[layout.Widget], len(tabPages))
 	strip := make([]tabs.Tab, len(tabPages))
+	guide, guideFail := loadGuide()
 	for i, page := range tabPages {
 		switch page {
 		case pageDocs:
-			pages[i] = docsTabFrom(th, modelObs, loadGuide(), bars)
+			pages[i] = docsTabFrom(th, modelObs, guide, guideFail, bars)
 		case pageColours:
 			pages[i] = colourTabLayer(th, bars)
 		case pageTypography:
@@ -354,12 +355,21 @@ func contentSlot(w layout.Widget) layout.Widget {
 // outline stream carries the model's disclosure and selection, so a
 // ToggleOutline or SelectHeading message re-emits the combined layer and
 // the window repaints on the same frame.
+//
+// A failure instead of a source makes the page one column with nothing in
+// it, holding the empty state: a guide that could not be read has no
+// headings either, so there is no outline to stand beside it and no
+// leading column to stand it in.
 func docsTabFrom(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 	source []byte,
+	fail *guideFailure,
 	bars desktop.ScrollBarSetting,
 ) rx.Observable[layout.Widget] {
+	if fail != nil {
+		return guideUnavailableObservable(th, fail)
+	}
 	blocks := markdown.Parse(source)
 	doc := markdown.NewDocument(blocks)
 	entries := guideOutline(blocks)
