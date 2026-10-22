@@ -33,7 +33,7 @@ import (
 )
 
 // The dialog's own measurements, read off
-// `.github/reference/macos/save-dialog-{light,dark}.png`, whose footer is
+// `organisation/reference/macos/save-dialog-{light,dark}.png`, whose footer is
 // the one this footer is drawn after. Both appearances agree to the pixel.
 const (
 	// vaultPickerRows is how many folder rows the dialog opens showing. No

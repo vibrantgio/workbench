@@ -130,8 +130,8 @@ that reports one launched process (Started → Exited).
   applications against the Vibrant Gio packages. It is maintained once, at the
   root of [vibrantgio/.github](https://github.com/vibrantgio/.github), and
   this repository links it rather than keeping a copy or a pointer file.
-- Development planning lives once, in
-  [vibrantgio/.github](https://github.com/vibrantgio/.github), not here. The
+- Development planning is in one place,
+  [vibrantgio/organisation](https://github.com/vibrantgio/organisation), not here. The
   finished plan this repository was built against, its performance baselines
   and its feedback notes were removed once that became true; they survive in
   this repository's git log.

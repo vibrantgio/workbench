@@ -90,7 +90,7 @@ const (
 	DialogHeight unit.Dp = 200
 
 	// The footer's two answers, as the platform's own sheet draws them.
-	// MEASURED, .github/reference/macos/save-dialog-{light,dark}.png: its
+	// MEASURED, organisation/reference/macos/save-dialog-{light,dark}.png: its
 	// "Cancel" spans x 359-432 and its "Save" x 441-514 — 74 px apiece with
 	// 8 between them, both appearances agreeing to the pixel. The width is
 	// the platform's minimum for a dialog button, which every title in this
