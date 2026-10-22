@@ -13,6 +13,7 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -94,11 +95,12 @@ func TestDocsCodeShapesInMonoFace(t *testing.T) {
 	monoDoc := markdown.NewDocument(markdown.Parse([]byte(monoProofSource)))
 	propDoc := markdown.NewDocument(markdown.Parse([]byte(monoProofSource)))
 	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
+	bar := columnBar(tokens.PlatformLight, desktop.ScrollBarsWhenScrolling)
 	a := golden.Capture(t, docsFrameSize, scene(func(gtx layout.Context) layout.Dimensions {
-		return drawGuideDoc(gtx, monoDoc, shaper, style)
+		return drawGuideDoc(gtx, monoDoc, shaper, style, bar)
 	}, bg))
 	b := golden.Capture(t, docsFrameSize, scene(func(gtx layout.Context) layout.Dimensions {
-		return drawGuideDoc(gtx, propDoc, shaper, propStyle)
+		return drawGuideDoc(gtx, propDoc, shaper, propStyle, bar)
 	}, bg))
 	if n := golden.PixelDiff(a, b); n <= 0 {
 		t.Errorf("guide document renders identically with Mono forced to Roboto (%d pixels differ); code is not shaping in the mono face", n)

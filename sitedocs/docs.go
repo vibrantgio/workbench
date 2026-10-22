@@ -21,6 +21,8 @@ import (
 	"github.com/reactivego/rx"
 
 	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu/desktop"
@@ -98,14 +100,24 @@ func openURL(url string) {
 
 // drawGuideDoc lays out the one guide document as the Docs tab's main
 // column: the shared outer inset, then the document as its own scrolling
-// viewport. The document is long-lived — scroll position and interaction
-// state belong to it, so ScrollToBlock from an outline row moves the same
-// reader rather than rebuilding the page.
+// viewport with bar along its trailing edge. The document is long-lived —
+// scroll position and interaction state belong to it, so ScrollToBlock
+// from an outline row moves the same reader rather than rebuilding the
+// page.
+//
+// The bar comes in rather than being built here because it is the window's
+// bar, spent against the setting read once where the window was composed;
+// see columnBar. It floats over the column's trailing edge
+// ([list.Overlay]) as every other tab's bar does: a reserved gutter would
+// stand empty on every frame the fading bar is away, and it is the
+// document's own scrollbar entry point that draws it, because the viewport
+// being scrolled is the document's own list.
 func drawGuideDoc(
 	gtx layout.Context,
 	doc *markdown.Document,
 	shaper *text.Shaper,
 	style markdown.Style,
+	bar scrollbar.Style,
 ) layout.Dimensions {
 	inset := complayout.Inset(docsOuterInsetDp)
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -118,7 +130,7 @@ func drawGuideDoc(
 				gtx.Constraints.Min.X = cap
 			}
 		}
-		return doc.Layout(gtx, shaper, style)
+		return doc.LayoutScrollbar(gtx, shaper, style, bar, list.Overlay)
 	})
 }
 
@@ -139,9 +151,10 @@ func guideDocObservable(
 		// The bar inside an overflowing fence follows the reader's "Show
 		// scroll bars" setting, as every column in this window does.
 		style.CodeScrollbar = scrollBarStyle(style.CodeScrollbar, bars)
+		bar := columnBar(t.First, bars)
 		shaper := typ.Shaper()
 		return func(gtx layout.Context) layout.Dimensions {
-			return drawGuideDoc(gtx, doc, shaper, style)
+			return drawGuideDoc(gtx, doc, shaper, style, bar)
 		}
 	})
 }

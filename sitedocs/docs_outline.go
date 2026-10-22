@@ -32,6 +32,7 @@ import (
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
@@ -296,7 +297,10 @@ func docsOutline(
 // renderDocsTab is the static counterpart of the Docs shell's content row
 // used by goldens and review captures: the outline tree in the leading
 // column and a fresh top-scrolled document filling the rest, laid out
-// once from pre-resolved tokens with no event processing.
+// once from pre-resolved tokens with no event processing. The scroll bar
+// setting is stated here, as it is for every other tab's static render —
+// the overlay bar, which a resting frame holds nothing of, so the same
+// bytes come out on any machine whatever its reader asked for.
 func renderDocsTab(
 	shaper *text.Shaper,
 	source []byte,
@@ -317,13 +321,14 @@ func renderDocsTab(
 	v := newOutlineView(guideOutline(blocks), doc.ScrollToBlock)
 	tok := themeTokens{col: colors, typ: typo, shaper: shaper}
 	style := docsMarkdownStyle(colors, typo)
+	bar := columnBar(colors, desktop.ScrollBarsWhenScrolling)
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return v.layout(gtx, st, tok)
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return drawGuideDoc(gtx, doc, shaper, style)
+				return drawGuideDoc(gtx, doc, shaper, style, bar)
 			}),
 		)
 	}

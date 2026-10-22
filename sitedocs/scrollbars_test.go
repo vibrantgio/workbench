@@ -8,6 +8,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/scrollbar"
+	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -64,5 +66,61 @@ func TestTheWindowSpendsTheScrollBarSetting(t *testing.T) {
 		if n := restingPixels(bars); n != 0 {
 			t.Errorf("at %v, a resting frame drew %d thumb pixels, want none", bars, n)
 		}
+	}
+}
+
+// TestTheDocsColumnStandsABar renders the Docs tab's document column at
+// the two settings and reads the bar off the pixels. The guide is the
+// longest content this window holds, so the column that shows it overflows
+// and has a bar to draw.
+//
+// With the reader's "always" setting the thumb stands on a resting frame,
+// and it stands in the column's trailing gutter — the trailing edge of the
+// reading measure, which is where the document's own viewport ends — and
+// nowhere else. With "when scrolling" the frame is the frame the Docs
+// golden holds: nothing of the bar is on it, which is what keeps that
+// golden byte-identical.
+func TestTheDocsColumnStandsABar(t *testing.T) {
+	c := tokens.PlatformLight
+	typo := tokens.DefaultTypography
+	shaper := typo.DeterministicShaper()
+	style := docsMarkdownStyle(c, typo)
+	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
+
+	// At PxPerDp 1 the column runs from the outer inset to the capped
+	// reading measure, and the bar rides the last Width() dp of it.
+	measureEnd := docsOuterInsetDp + docsMeasureDp
+	gutterStart := measureEnd - int(columnBar(c, desktop.ScrollBarsAlways).Width())
+
+	frame := func(bars desktop.ScrollBarSetting) *image.RGBA {
+		doc := markdown.NewDocument(markdown.Parse(guideFixture(t)))
+		bar := columnBar(c, bars)
+		return golden.Capture(t, docsFrameSize, scene(func(gtx layout.Context) layout.Dimensions {
+			return drawGuideDoc(gtx, doc, shaper, style, bar)
+		}, bg))
+	}
+
+	always, fading := frame(desktop.ScrollBarsAlways), frame(desktop.ScrollBarsWhenScrolling)
+	if golden.PixelDiff(always, fading) == 0 {
+		t.Fatal("the Docs column renders identically with scroll bars always and when scrolling; it stands no bar")
+	}
+	outside, inside := 0, 0
+	for y := range docsFrameH {
+		for x := range docsFrameW {
+			if always.RGBAAt(x, y) == fading.RGBAAt(x, y) {
+				continue
+			}
+			if x >= gutterStart && x < measureEnd {
+				inside++
+			} else {
+				outside++
+			}
+		}
+	}
+	if inside == 0 {
+		t.Errorf("no thumb pixel between x=%d and x=%d; the standing bar is not in the column's trailing gutter", gutterStart, measureEnd)
+	}
+	if outside != 0 {
+		t.Errorf("%d pixels outside the trailing gutter moved when the bar stood; asking for the bar moved the prose", outside)
 	}
 }

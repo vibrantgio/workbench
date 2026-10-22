@@ -100,6 +100,16 @@ func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.
 	return s
 }
 
+// columnBar is the bar every scrolling column in this window draws: built
+// from the same colour set the column's content is, told the content plane
+// it rides, and spent against the setting the window read when it was
+// composed. The tabs of rows ask for it through scrollingColumn and the
+// Docs tab's document through markdown's own scrollbar entry point, so a
+// reader meets one bar across the whole window.
+func columnBar(c tokens.PlatformColors, bars desktop.ScrollBarSetting) scrollbar.Style {
+	return scrollBarStyle(scrollbar.FromTokens(c, c.ControlBackground), bars)
+}
+
 // scrollingColumn is the scrolling column every tab of rows shows — the
 // three group tabs, the Colours tab and the Typography tab alike: the rows
 // in a virtual list
@@ -113,7 +123,7 @@ func scrollingColumn(st *list.State, c tokens.PlatformColors, bars desktop.Scrol
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
-		list.LayoutScrollbar(gtx, st, scrollBarStyle(scrollbar.FromTokens(c, c.ControlBackground), bars), list.Overlay, items,
+		list.LayoutScrollbar(gtx, st, columnBar(c, bars), list.Overlay, items,
 			func(gtx layout.Context, w layout.Widget) layout.Dimensions {
 				return w(gtx)
 			})
