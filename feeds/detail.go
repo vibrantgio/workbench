@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
@@ -26,6 +27,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/tabs"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
@@ -56,7 +58,7 @@ var (
 )
 
 // detailArticle is the selected-article snapshot stored in the article cell.
-// ok=false renders the "select an article" placeholder.
+// ok=false draws the column's empty state instead of a document.
 type detailArticle struct {
 	a  article
 	ok bool
@@ -111,10 +113,11 @@ func detailPane(
 	)
 }
 
-// drawDetail lays the pane: placeholder when nothing is selected, otherwise
-// title + meta header above the tab strip, which flexes to the remaining
-// height. The title and the body are the platform's label; the meta line and
-// the placeholder are its secondary label.
+// drawDetail lays the pane: the column's empty state when nothing is
+// selected, otherwise title + meta header above the tab strip, which flexes
+// to the remaining height. The title and the body are the platform's label
+// and the meta line its secondary label; the empty state spends what
+// patterns/shell reads off the platform.
 //
 // The column paints its OWN fill first. It is the reading surface, so it
 // wears ControlBackground — the same fill the arrangement paints the column
@@ -128,10 +131,7 @@ func drawDetail(
 	size := gtx.Constraints.Max
 	paint.FillShape(gtx.Ops, tok.col.ControlBackground, clip.Rect{Max: size}.Op())
 	if !sel.ok {
-		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return typeset.Text(gtx, tok.shaper, "Select an article", tok.typ.BodyLarge,
-				vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground), 1)
-		})
+		return detailEmptyState(gtx, tok, "Select an article")
 	}
 	// The column's parts are inset one by one rather than together, because
 	// the tab strip's own cell padding stands its first title further in
@@ -164,6 +164,24 @@ func drawDetail(
 		}),
 	)
 	return layout.Dimensions{Size: size}
+}
+
+// detailEmptyState draws the platform's empty state in the content column's
+// FULL frame: the main slot's own box grown upward by the toolbar's share,
+// which is the frame the line centres in rather than the row below the
+// toolbar. The pattern carries the reading; the fill is the column's own.
+//
+// The slot is recorded and replayed under the toolbar's own ops — the window
+// hands the arrangement MainFirst — so what stands in the toolbar paints
+// over the strip this frame reaches up into.
+func detailEmptyState(gtx layout.Context, tok themeTokens, msg string) layout.Dimensions {
+	row := gtx.Constraints.Max
+	bar := gtx.Dp(unit.Dp(shell.ToolbarDepth))
+	full := gtx
+	full.Constraints = layout.Exact(image.Pt(row.X, row.Y+bar))
+	defer op.Offset(image.Pt(0, -bar)).Push(gtx.Ops).Pop()
+	shell.EmptyState(full, tok.shaper, tok.col, tok.typ, tok.col.ControlBackground, msg)
+	return layout.Dimensions{Size: row}
 }
 
 // The tab pane needs no fill of its own: patterns/tabs draws its pane on

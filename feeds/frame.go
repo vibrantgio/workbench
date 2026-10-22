@@ -228,9 +228,15 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, tok themeTokens, s fra
 			ToolbarTitle: "Show the feeds",
 			OnPress:      func(gtx layout.Context) { f.send(gtx, ToggleSidebar{}) },
 		},
-		Radius:           tokens.Radius,
-		Density:          tok.den,
-		Main:             s.Main,
+		Radius:  tokens.Radius,
+		Density: tok.den,
+		Main:    s.Main,
+		// The content column's empty state centres in the column's FULL
+		// frame, so it is laid out in a box reaching a toolbar's share
+		// above the slot. Recording the slot and replaying it under the
+		// toolbar's ops leaves what stands in the toolbar painting over
+		// that strip.
+		MainFirst:        true,
 		Over:             f.overlay(s.Share),
 		WindowButtonsEnd: windowButtonsEnd,
 		Memory:           f.widths,
