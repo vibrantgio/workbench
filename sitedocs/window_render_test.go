@@ -161,9 +161,10 @@ func TestWholeWindowRender(t *testing.T) {
 
 // TestWindowRegionsWearThePlatformsFills reads the assignment off the frame:
 // the guide document — the thing this window exists to show — on the
-// platform's content plane, the outline rail indexing it in the chrome
-// chrome material a sidebar wears, and the tab strip capping the pane in that
-// same chrome material.
+// platform's content plane, the outline rail indexing it in the
+// chrome material a sidebar wears, and the tab strip capping the pane on
+// that same content plane, because a tab strip has no fill of its own and
+// stands on the fill of the column it is in.
 //
 // It is read off the rendered frame rather than off the set, because those
 // three are painted by three different pieces of code (this app, backdrop,
@@ -180,10 +181,10 @@ func TestWindowRegionsWearThePlatformsFills(t *testing.T) {
 			}{
 				{"document plane", atDocument, tc.c.ControlBackground},
 				{"outline rail", atRail, tc.c.SidebarMaterial},
-				{"tab strip", atTabStrip, tc.c.SidebarMaterial},
+				{"tab strip", atTabStrip, tc.c.ControlBackground},
 				// The band wears the fill of the region under it, which here
 				// is the tab strip rather than the document.
-				{"title band", atTitleBand, tc.c.SidebarMaterial},
+				{"title band", atTitleBand, tc.c.ControlBackground},
 			} {
 				if got := pixelAt(img, r.at); got != r.want {
 					t.Errorf("%s at %v = %v, want %v", r.name, r.at, got, r.want)
@@ -198,10 +199,9 @@ func TestWindowRegionsWearThePlatformsFills(t *testing.T) {
 // wherever the fill under both of them moves to.
 //
 // Only the agreement is asserted, and not that the band differs from the
-// document: the chrome material the strip carries is the content's own fill
-// exactly in the light appearance, so on this platform those two are one
-// colour there and a test demanding a step would be demanding a colour the
-// platform does not draw.
+// document: the strip stands on the column's own fill, so the band, the
+// strip and the document under them are one colour and a test demanding a
+// step would be demanding a colour this window does not draw.
 func TestTheBandAgreesWithTheStripItCaps(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {

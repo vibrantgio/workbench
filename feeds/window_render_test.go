@@ -223,10 +223,10 @@ var (
 
 // TestWindowRegionsWearThePlatformNames reads off the frame that every
 // resting expanse of this window wears the platform's name for what it is:
-// the document regions ControlBackground — the toolbar's two shares
-// included, since a toolbar carries no fill and what stands in it stands on
-// the column underneath — and the chrome regions, the pane and the
-// article's tab strip, the chrome material.
+// the document regions ControlBackground — the toolbar's two shares and the
+// article's tab strip included, since neither a toolbar nor a tab strip
+// carries a fill and what stands in one stands on the column underneath —
+// and the chrome region, the pane, the chrome material.
 //
 // It is read off the frame rather than off the token set because the
 // regions are painted by different pieces of code (this app's rail,
@@ -247,8 +247,8 @@ func TestWindowRegionsWearThePlatformNames(t *testing.T) {
 				{"the toolbar's share over the article", atToolbar, tc.c.ControlBackground},
 				{"reading pane", atReadingPane, tc.c.ControlBackground},
 				{"reading pane header", atPaneHead, tc.c.ControlBackground},
+				{"tab strip", atTabStrip, tc.c.ControlBackground},
 				{"sidebar", atSidebar, tc.c.SidebarMaterial},
-				{"tab strip", atTabStrip, tc.c.SidebarMaterial},
 			} {
 				if got := at(img, r.at.X, r.at.Y); got != r.want {
 					t.Errorf("%s at %v = %v, want %v", r.name, r.at, got, r.want)

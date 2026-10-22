@@ -172,10 +172,10 @@ func buildLayers(modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) f
 // The strip draws nothing of its own, so what it shows is whatever was
 // painted there, and the window's own plane is not it: the agreement has to
 // be made rather than inherited. The region this band caps is the tab strip,
-// which patterns/tabs fills with the platform's chrome material. What is
-// required is the region's fill at the window's top edge, not the region's
-// layout reaching it — which is what lets the shell stay inset off the
-// buttons.
+// which has no fill of its own and stands on the fill of the column it is
+// in. What is required is the region's fill at the window's top edge, not
+// the region's layout reaching it — which is what lets the shell stay inset
+// off the buttons.
 //
 // The cap claims that same strip for the window's own drag: without that
 // claim the window could not be moved by its top edge at all.
@@ -189,13 +189,20 @@ func underTitleBar(th rx.Observable[theme.Theme], shellObs rx.Observable[layout.
 }
 
 // titleBandFill is the fill the title-bar strip wears. The region it caps is
-// the tab strip, and patterns/tabs fills that strip with the platform's
-// chrome material — the fill a toolbar, a navbar and a sidebar carry, which
-// is what a band across the top of a window is. Named once because two
-// callers have to agree on it — the window, and the whole-window render that
-// photographs the window.
+// the tab strip, which has no fill of its own and stands on the fill of the
+// column it is in — this window's one content column, the platform's content
+// plane ([shellFill]). Named once because two callers have to agree on it —
+// the window, and the whole-window render that photographs the window.
 func titleBandFill(c tokens.PlatformColors) stdcolor.NRGBA {
-	return c.SidebarMaterial
+	return shellFill(c)
+}
+
+// shellFill is the fill the tab shell stands on: this window's one content
+// column, which is the platform's content plane. The strip takes it from
+// here and patterns/tabs paints its pane with the same plane, so the window
+// is one column from its top edge down.
+func shellFill(c tokens.PlatformColors) stdcolor.NRGBA {
+	return c.ControlBackground
 }
 
 // bandedCap is desktop.CapTop with a fill under it: the strip is painted, and
@@ -288,6 +295,7 @@ func tabbedShellLayer(
 	shell := tabs.Tabs(th, tabs.Props{
 		Tabs:     strip,
 		Selected: selectedObs,
+		Fill:     shellFill,
 		OnSelect: func(gtx layout.Context, idx int) {
 			mvu.MessageOp{Message: SetRoute{Page: tabPages[idx]}}.Add(gtx.Ops)
 		},

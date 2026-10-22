@@ -395,6 +395,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			}
 			mvu.MessageOp{Message: SetScreen{Screen: tabScreens[idx]}}.Add(gtx.Ops)
 		},
+		// The strip has no fill of its own: it stands on the window's own
+		// plane, which the backdrop layer paints and the page is laid out on.
+		Fill: pageFill,
 	})
 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
@@ -426,6 +429,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 			}
 		})
 }
+
+// pageFill is the fill the page stands on, for the scheme being drawn: the
+// window's own plane, which [BackdropLayer] paints under everything.
+func pageFill(c tokens.PlatformColors) color.NRGBA { return PaletteFrom(c).Backdrop }
 
 // Page lays the whole window: the header band, the tab strip with its
 // content pane taking the remaining height, and the notice line under it.

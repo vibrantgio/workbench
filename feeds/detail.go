@@ -98,6 +98,9 @@ func detailPane(
 		OnSelect: func(gtx layout.Context, idx int) {
 			mvu.MessageOp{Message: SelectTab{Idx: idx}}.Add(gtx.Ops)
 		},
+		// The strip has no fill of its own: it stands on the fill this
+		// column paints, which drawDetail states below.
+		Fill: detailFill,
 	})
 
 	return rx.Map(
@@ -184,9 +187,13 @@ func detailEmptyState(gtx layout.Context, tok themeTokens, msg string) layout.Di
 	return layout.Dimensions{Size: row}
 }
 
-// The tab pane needs no fill of its own: patterns/tabs draws its pane on
-// ControlBackground and its strip on the chrome material, which is the pair
-// this pane already stands on.
+// detailFill is the content column's own fill, for the scheme being drawn:
+// the reading surface this column paints and everything laid out in it
+// stands on, the tab strip included.
+func detailFill(c tokens.PlatformColors) color.NRGBA { return c.ControlBackground }
+
+// The tab pane needs no fill of its own: patterns/tabs draws its pane on the
+// content fill, which is the fill this column already paints.
 
 // tabPaneInset is what a tab's content is inset by inside the pane. Across
 // the leading and trailing edges it is the column's own inset less what the
