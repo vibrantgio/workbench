@@ -44,8 +44,8 @@ func TestTheSearchFieldKeepsItsOwnPresses(t *testing.T) {
 	}
 
 	// The search field's own middle: the strip, then the page's Padding, then
-	// half a comfortable control height into the field.
-	field := f32.Pt(float32(windowSize.X/2), float32(int(titleBandDp)+int(Padding)+int(tokens.Comfortable.ControlHeight)/2))
+	// half a comfortable field height into the field.
+	field := f32.Pt(float32(windowSize.X/2), float32(int(titleBandDp)+int(Padding)+int(tokens.Comfortable.FieldHeight)/2))
 	if a, ok := r.ActionAt(field); ok && a == system.ActionMove {
 		t.Errorf("window-move action at %v, in the search field; a band over a control eats that control's press", field)
 	}

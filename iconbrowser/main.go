@@ -4,8 +4,8 @@
 // Material Design icons everything else comes from
 // (golang.org/x/exp/shiny/materialdesign/icons, rendered through
 // ivg/raster/gio). The system's own set comes first so an author sees which
-// marks already exist before drawing another. A search field filters both
-// live; every symbol is captioned with the name to write.
+// marks already exist before drawing another. A search field narrows both
+// as the reader types; every symbol is captioned with the name to write.
 package main
 
 import (

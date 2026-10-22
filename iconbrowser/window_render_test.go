@@ -125,8 +125,8 @@ func staticSnapshot(c tokens.PlatformColors, p Palette, icons []layout.Widget) t
 var prebuilt = map[color.NRGBA][]layout.Widget{}
 
 // staticSearch is the page's search field, resolved off a static theme
-// snapshot: the same components TextField ContentLayer subscribes to, with the
-// pinned shaper a render made outside the window has to name. It is the
+// snapshot: the field searchField builds for ContentLayer, with the pinned
+// shaper a render made outside the window has to name. It is the
 // window's topmost paint, so it is the thing the clearance assertions are about.
 //
 // The field's text is set to the query, as the running window's field holds
@@ -146,15 +146,13 @@ func staticSearchEditor(t *testing.T, c tokens.PlatformColors, query string) (la
 	t.Helper()
 	typo := tokens.DefaultTypography
 	var editor *widget.Editor
-	w, err := input.TextField(rx.Of(staticTheme(c, typo)), input.TextFieldProps{
-		Placeholder: "Search icons…",
-		Description: "search icons by name",
-		Seed:        query,
+	w, err := searchField(rx.Of(staticTheme(c, typo)), input.SearchFieldProps{
+		Seed: query,
 		FocusTag: func(tag event.Tag) {
 			editor, _ = tag.(*widget.Editor)
 		},
 		Shaper: typo.DeterministicShaper(),
-	}).First()
+	}, func(layout.Context, SetQuery) {}).First()
 	if err != nil {
 		t.Fatalf("search field: %v", err)
 	}
@@ -364,7 +362,7 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 // run, so the inset is the whole of the 21 dp of clearance it has.
 //
 // It is checked on every query state, because the field is the first row of all
-// three and a page that reflowed under a filter would still have to keep it
+// three and a page that reflowed under a query would still have to keep it
 // clear.
 func TestThePageClearsTheWindowButtons(t *testing.T) {
 	run := desktop.ButtonRunIn(titleBandDp)

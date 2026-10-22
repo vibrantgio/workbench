@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"image"
 
+	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -37,8 +39,8 @@ func buildLayers(modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) f
 // themed carries one theme emission's palette and typography plus the 961
 // icons prebuilt in that theme's symbol colour. Prebuilding is cheap —
 // `raster.Widget` only decodes the viewBox up front and rasterises lazily,
-// caching per size — and it means a keystroke re-filters prebuilt icons
-// instead of reconstructing them.
+// caching per size — and it means a keystroke narrows the grid to prebuilt
+// icons instead of reconstructing them.
 type themed struct {
 	palette Palette
 	typ     Type
@@ -74,24 +76,20 @@ func gridBar(t themed) scrollbar.Style {
 	return scrollBarStyle(scrollbar.FromTokens(t.platform, t.palette.Backdrop), t.scrollBars)
 }
 
-// ContentLayer renders the page: search field over the filtered icon grid,
-// held down past the native title-bar strip the window opens the top of itself
-// into.
+// ContentLayer renders the page: the search field over the icon grid the
+// query narrows, held down past the native title-bar strip the window opens
+// the top of itself into.
 //
-// The two pieces of view state live at subscription scope, outside the
-// per-emission Map: the grid's scroll position, and the search field — a
-// components TextField whose editor state is Defer-scoped inside the component,
-// subscribed exactly once by the CombineLatest3 below. Constructing either per
-// emission would reset scroll or typing on every keystroke.
+// The two pieces of view state are kept at subscription scope, outside the
+// per-emission Map: the grid's scroll position, and the search field, whose
+// editor state is Defer-scoped inside the component and subscribed exactly
+// once by the CombineLatest3 below. Constructing either per emission would
+// reset scroll or typing on every keystroke.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	grid := list.NewState()
 
-	search := input.TextField(th, input.TextFieldProps{
-		Placeholder: "Search icons…",
-		Description: "search icons by name",
-		OnChange: func(gtx layout.Context, text string) {
-			mvu.MessageOp{Message: SetQuery{Text: text}}.Add(gtx.Ops)
-		},
+	search := searchField(th, input.SearchFieldProps{}, func(gtx layout.Context, msg SetQuery) {
+		mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 	})
 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
@@ -117,6 +115,75 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 		}))
 }
 
+// searchField is the page's search field: the platform's search field with
+// its looking glass, the prompt "Search" and the clear mark, posting SetQuery
+// with the field's text on every change, the clear mark's and Escape's
+// emptying included.
+//
+// The field is drawn as the chrome variant's sidebar recess. It stands at the
+// top of the page on the window's own plane, in no toolbar band: the sidebar
+// recess is the flat one, no edge and no shadow, set a shade apart from the
+// fill around it, where the toolbar recess draws the rim and the drop shadow
+// every bordered control in a toolbar band draws. Surface is left nil because
+// the plane the field is drawn on is the window's own.
+//
+// extra states what a render made outside the window has to: the Seed, the
+// Shaper, a FocusTag of its own. The rest of the props are set here, so the
+// static render and the live window build one field.
+func searchField(th rx.Observable[theme.Theme], extra input.SearchFieldProps, post func(layout.Context, SetQuery)) rx.Observable[layout.Widget] {
+	var (
+		fieldTag event.Tag
+		clear    func()
+	)
+	props := extra
+	props.Placeholder = "Search"
+	props.Description = "search icons by name"
+	props.Variant = input.Chrome
+	props.Region = input.Sidebar
+	props.FocusTag = func(tag event.Tag) {
+		fieldTag = tag
+		if extra.FocusTag != nil {
+			extra.FocusTag(tag)
+		}
+	}
+	props.Clear = func(c func()) { clear = c }
+	props.OnChange = func(gtx layout.Context, text string) {
+		post(gtx, SetQuery{Text: text})
+	}
+	return rx.Map(input.SearchField(th, props), func(w layout.Widget) layout.Widget {
+		return func(gtx layout.Context) layout.Dimensions {
+			clearOnEscape(gtx, fieldTag, clear)
+			if w == nil {
+				return layout.Dimensions{}
+			}
+			return w(gtx)
+		}
+	})
+}
+
+// clearOnEscape empties the search field on an Escape press and leaves the
+// keyboard in the field. A search field on this page has nothing to close,
+// so Escape does what the clear mark does and no more. Emptying the field
+// reports the empty query through the field's own OnChange, like any other
+// edit, which brings the whole catalogue back.
+//
+// It is drained before the field lays out, so the key is taken here rather
+// than by the editor beneath it.
+func clearOnEscape(gtx layout.Context, tag event.Tag, clear func()) {
+	if tag == nil || clear == nil {
+		return
+	}
+	for {
+		e, ok := gtx.Event(key.Filter{Focus: tag, Name: key.NameEscape})
+		if !ok {
+			return
+		}
+		if ke, ok := e.(key.Event); ok && ke.State == key.Press {
+			clear()
+		}
+	}
+}
+
 // underTitleBar holds the page down past the native title-bar strip the
 // full-size-content window opens the top of itself into, and claims that same
 // strip for the window's own drag.
@@ -125,10 +192,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 // plane, which BackdropLayer already fills full-bleed, so the fill reaches the
 // top edge without anything being painted twice. Nothing in this window is
 // chrome — the catalogue stands on the window's own plane, the section labels
-// are text on it, and the search field is a control standing on it in the
-// page's own vertical flow. The field could not be lifted into the strip in any case: a components
-// TextField is a Density.ControlHeight box, 36 dp comfortable, and the band the
-// window buttons are centred in is 32.
+// are text on it, and the search field is a control drawn on it in the page's
+// own vertical flow, below the strip rather than in it: the strip is the band
+// the window buttons are centred in, and the field is the page's control, not
+// the title bar's.
 //
 // So what has to clear the platform's three control buttons is the field, and
 // the inset is what buys that clearance, since the field is the page's topmost
