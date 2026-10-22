@@ -400,22 +400,13 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 		v.rowClicks = append(v.rowClicks, &gesture.Click{})
 	}
 	rowH := gtx.Dp(list.RowHeight(tok.den))
-	// The browser fills the selected row and nothing else — its rows take
-	// no fill under the pointer — so that is the one fill the band's over
-	// half lands on besides the surface the list stands on.
-	rowFill := func(i int) color.NRGBA {
-		if i == v.list.Selected() {
-			return tok.col.SelectedContentBackground
-		}
-		return color.NRGBA{}
-	}
-	return list.FocusRing(gtx, v.list, tok.col, standsOn, rowFill, func(gtx layout.Context) layout.Dimensions {
+	return list.FocusRing(gtx, v.list, tok.col, standsOn, func(gtx layout.Context) layout.Dimensions {
 		return v.selectableRows(gtx, tok, entries, standsOn, rowInset, rowH)
 	})
 }
 
-// selectableRows is the list itself, inside the band [list.FocusRing] draws
-// on its box, with the window's bar drawn at the list's trailing edge.
+// selectableRows is the list itself, inside the ring [list.FocusRing] draws
+// around its box, with the window's bar drawn at the list's trailing edge.
 //
 // The list is the region that scrolls: the rows' own leading and trailing
 // padding is inside it, so the bar is at the list's trailing edge and never

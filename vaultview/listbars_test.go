@@ -93,7 +93,7 @@ func TestThePickersRowsDrawTheWindowsBar(t *testing.T) {
 // At Always the bar is drawn at rest in a lane at the list's trailing edge
 // and the selected row's fill stops short of the lane. Where the bar fades
 // a resting frame draws no thumb and the row's fill runs to the list's own
-// trailing edge, under the ring's inner half.
+// trailing edge.
 func TestTheChoosersListDrawsTheWindowsBar(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	var candidates []string
@@ -117,11 +117,11 @@ func TestTheChoosersListDrawsTheWindowsBar(t *testing.T) {
 			if ring.Max.Y > windowH {
 				t.Fatalf("the list's ring ends at y %d, past the window's %d: the list is taller than the room the dialog gives it", ring.Max.Y, windowH)
 			}
-			// The ring's band lies half over the list's box, so a row's
-			// fill shows up to ringOutside short of the list's edge.
-			listRight := full.Max.X + ringOutside
+			// The ring is drawn outside the list's box, so a row's fill
+			// runs to the list's own edge.
+			listRight := full.Max.X
 			laneMin := listRight - lane
-			thumb := image.Rect(laneMin+track, full.Min.Y, listRight-track, ring.Max.Y-2*ringOutside)
+			thumb := image.Rect(laneMin+track, full.Min.Y, listRight-track, ring.Max.Y-ringWidth)
 
 			if thumbIn(standing, thumb, bar) == 0 {
 				t.Errorf("at Always a resting frame drew no thumb in the lane x %d–%d at the list's trailing edge", thumb.Min.X, thumb.Max.X)

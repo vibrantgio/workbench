@@ -65,21 +65,21 @@ func TestTheChooserOpensOnItsListAndNotOnTheCloseMark(t *testing.T) {
 			if row.Empty() {
 				t.Fatal("the chooser opened with no row selected: a list holding the keyboard shows which row it stands on")
 			}
-			if ring.Min.X != row.Min.X-2*ringOutside || ring.Max.X != row.Max.X+2*ringOutside {
-				t.Errorf("the ring runs x %d-%d and the selected row x %d-%d: the band is not on the list's own box",
+			if ring.Min.X != row.Min.X-ringWidth || ring.Max.X != row.Max.X+ringWidth {
+				t.Errorf("the ring runs x %d-%d and the selected row x %d-%d: the ring is not around the list's own box",
 					ring.Min.X, ring.Max.X, row.Min.X, row.Max.X)
 			}
-			if ring.Min.Y != row.Min.Y-2*ringOutside {
+			if ring.Min.Y != row.Min.Y-ringWidth {
 				t.Errorf("the ring starts at y %d and the selected row at y %d: the list did not open on its FIRST row",
 					ring.Min.Y, row.Min.Y)
 			}
 			rows := len(m.ChooserCandidates)
-			if got, want := ring.Dy(), ringOutside+rows*chooserRowHDp+ringOutside; got != want {
-				t.Errorf("the ring stands %d px tall; the list's box is %d rows of %d and the band %d px past it on each side",
-					got, rows, chooserRowHDp, ringOutside)
+			if got, want := ring.Dy(), ringWidth+rows*chooserRowHDp+ringWidth; got != want {
+				t.Errorf("the ring stands %d px tall; the list's box is %d rows of %d and the ring %d px past it on each side",
+					got, rows, chooserRowHDp, ringWidth)
 			}
 
-			readsBandOverFills(t, opened, tc.colors, ring, row, chooserRowHDp)
+			readsRingOutsideBox(t, opened, tc.colors, ring, row, chooserRowHDp)
 
 			walked := settledDialog(t, liveChooser(t, m, tc.colors, shaper), tc.colors, down)
 			moved := colorBox(walked, cursor)

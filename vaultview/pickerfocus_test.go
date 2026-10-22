@@ -184,37 +184,60 @@ func ringOverFill(c tokens.PlatformColors, fill color.NRGBA) color.NRGBA {
 	return vgcolor.Flatten(c.KeyboardFocusIndicator, fill)
 }
 
-// readsBandOverFills is the reading both dialogs take on their opened frame:
-// the band's over half composites over the fill each of its pixels stands on
-// — the selection's fill down the selected first row, and the surface the
-// list stands on down the row under it. The column read is the first one
-// over the list's own box, which every row reaches: a row is the full width
-// of the list.
-func readsBandOverFills(t *testing.T, img *image.RGBA, c tokens.PlatformColors, ring, row image.Rectangle, rowH int) {
+// readsRingOutsideBox is the reading both dialogs take on their opened
+// frame: the ring is drawn around the list's box, outside it. Its inner edge
+// is the box's outer edge, and no pixel inside the box takes the ring's
+// colour over either fill a row there paints — the selection's fill down the
+// selected first row, or the surface the list stands on down the rows under
+// it.
+func readsRingOutsideBox(t *testing.T, img *image.RGBA, c tokens.PlatformColors, ring, row image.Rectangle, rowH int) {
 	t.Helper()
-	// One column inside the over half rather than its first: the column on
-	// the box's own outline carries the rasteriser's partial coverage of the
-	// band's inner edge, and reads a level off the flat composite on some
-	// rows and not others. The reading is the flat one.
-	x := ring.Min.X + ringOutside + 1
+	box := ring.Inset(ringWidth)
 	for _, r := range []struct {
 		what string
 		y    int
 		want color.NRGBA
 	}{
-		{"the selected first row", row.Min.Y + 1, ringOverFill(c, c.SelectedContentBackground)},
-		{"the row under it", row.Max.Y + rowH/2, ringOnPlane(c)},
+		{"the selected first row", row.Min.Y + 1, c.SelectedContentBackground},
+		{"the row under it", row.Max.Y + rowH/2, c.WindowBackground},
 	} {
-		if at := img.RGBAAt(x, r.y); !sameColor(at, r.want) {
-			t.Errorf("the band's over half on %s (x=%d, y=%d) = %v, want %v: the band does not composite over what it stands on",
-				r.what, x, r.y, at, r.want)
+		if at := img.RGBAAt(box.Min.X-1, r.y); !sameColor(at, ringOnPlane(c)) {
+			t.Errorf("the ring's inner column beside %s (x=%d, y=%d) = %v, want %v: the ring's inner edge is not the box's outer edge",
+				r.what, box.Min.X-1, r.y, at, ringOnPlane(c))
+		}
+		if at := img.RGBAAt(box.Min.X, r.y); !sameColor(at, r.want) {
+			t.Errorf("the box's first column on %s (x=%d, y=%d) = %v, want the row's own %v: a ring pixel lies over a row",
+				r.what, box.Min.X, r.y, at, r.want)
+		}
+	}
+	// The ring's outer column and row, midway along each side: the caller's
+	// frame keeps the ring's width clear around the box, so nothing clips
+	// the ring or draws over it.
+	mid := image.Pt((box.Min.X+box.Max.X)/2, (box.Min.Y+box.Max.Y)/2)
+	for _, pt := range []image.Point{
+		{ring.Min.X, mid.Y}, {ring.Max.X - 1, mid.Y}, {mid.X, ring.Min.Y}, {mid.X, ring.Max.Y - 1},
+	} {
+		if at := img.RGBAAt(pt.X, pt.Y); !sameColor(at, ringOnPlane(c)) {
+			t.Errorf("the ring's outer pixel at (x=%d, y=%d) = %v, want %v: the frame around the list clips the ring",
+				pt.X, pt.Y, at, ringOnPlane(c))
+		}
+	}
+	over := []color.NRGBA{ringOverFill(c, c.SelectedContentBackground), ringOnPlane(c)}
+	for y := box.Min.Y; y < box.Max.Y; y++ {
+		for x := box.Min.X; x < box.Max.X; x++ {
+			at := img.RGBAAt(x, y)
+			for _, want := range over {
+				if sameColor(at, want) {
+					t.Fatalf("the list's box at (x=%d, y=%d) is the ring's colour %v: a ring pixel lies over a row", x, y, want)
+				}
+			}
 		}
 	}
 }
 
-// ringOutside is how far past a control's own box the band reaches at the
-// metric these frames are driven at: half of the ring's measured 4 dp.
-const ringOutside = 2
+// ringWidth is how far past a control's own box the list's ring reaches at
+// the metric these frames are driven at: the ring's measured 4 dp.
+const ringWidth = 4
 
 // TestTheSwitchDialogOpensOnTheBrowserWearingItsRing reads the opening
 // keyboard off the live dialog, in both schemes.
@@ -247,27 +270,24 @@ func TestTheSwitchDialogOpensOnTheBrowserWearingItsRing(t *testing.T) {
 			if row.Empty() {
 				t.Fatal("the browser opened with no row selected: a list holding the keyboard shows which row it stands on")
 			}
-			// The band straddles the list's box, so it runs ringOutside past
-			// the rows on every side, and the first row sits at the box's own
-			// top edge under the half of the band lying over it.
-			if ring.Min.X != row.Min.X-2*ringOutside || ring.Max.X != row.Max.X+2*ringOutside {
-				t.Errorf("the ring runs x %d-%d and the selected row x %d-%d: the band is not on the list's own box",
+			// The ring is drawn around the list's box, so it runs ringWidth
+			// past the rows on every side, and the first row is at the box's
+			// own top edge.
+			if ring.Min.X != row.Min.X-ringWidth || ring.Max.X != row.Max.X+ringWidth {
+				t.Errorf("the ring runs x %d-%d and the selected row x %d-%d: the ring is not around the list's own box",
 					ring.Min.X, ring.Max.X, row.Min.X, row.Max.X)
 			}
-			if ring.Min.Y != row.Min.Y-2*ringOutside {
+			if ring.Min.Y != row.Min.Y-ringWidth {
 				t.Errorf("the ring starts at y %d and the selected row at y %d: the first row is not at the list's top edge",
 					ring.Min.Y, row.Min.Y)
 			}
-			if got, want := ring.Dy(), ringOutside+vaultPickerRows*int(tokens.Comfortable.ControlHeight)+ringOutside; got != want {
-				t.Errorf("the ring stands %d px tall; the list's box is %d rows and the band %d px past it on each side",
-					got, vaultPickerRows, ringOutside)
+			if got, want := ring.Dy(), ringWidth+vaultPickerRows*int(tokens.Comfortable.ControlHeight)+ringWidth; got != want {
+				t.Errorf("the ring stands %d px tall; the list's box is %d rows and the ring %d px past it on each side",
+					got, vaultPickerRows, ringWidth)
 			}
 
-			readsBandOverFills(t, opened, tc.colors, ring, row, int(tokens.Comfortable.ControlHeight))
+			readsRingOutsideBox(t, opened, tc.colors, ring, row, int(tokens.Comfortable.ControlHeight))
 
-			// The foot of the fill rather than its top: the opening row sits
-			// at the list's top edge, where the half of the band lying over
-			// the box covers its first ringOutside rows.
 			walked := settledDialog(t, livePicker(t, m, tc.colors, shaper), tc.colors, down)
 			moved := colorBox(walked, cursor)
 			if moved.Max.Y != row.Max.Y+int(tokens.Comfortable.ControlHeight) {
