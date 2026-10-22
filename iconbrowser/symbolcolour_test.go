@@ -101,7 +101,7 @@ func TestAMarkIsDrawnInTheTextColour(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := PaletteFrom(tc.c)
 			img := markCellFrame(t, tc.c, marks.Names()[0])
-			box := squareAt(len(MarkSizes)-1)
+			box := squareAt(len(MarkSizes) - 1)
 			checkSymbolColour(t, img, box, p.Backdrop, p.Text, tc.c.ControlAccent)
 		})
 	}

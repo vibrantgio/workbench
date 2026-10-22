@@ -5,6 +5,7 @@ import (
 	"image"
 	"testing"
 
+	"gioui.org/f32"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -23,6 +24,8 @@ import (
 // At Always the bar is drawn at rest in a lane at the list's trailing edge,
 // the thumb inside the lane's padding, and the rows stop short of the lane:
 // what they draw ends a lane's width further in than where the bar fades.
+// The pointer is over the first row in both frames, so its delete mark is
+// drawn and is what the row draws furthest along.
 // Where the bar fades a resting frame holds no thumb and the rows run the
 // list's full width.
 func TestTheListDrawsTheWindowsBar(t *testing.T) {
@@ -38,12 +41,18 @@ func TestTheListDrawsTheWindowsBar(t *testing.T) {
 				th := staticThemed(tc.c)
 				th.scrollBars = bars
 				list := List(th.typ, rx.Of(th.components), th.palette, th.listBar(), complist.NewState(), model)
-				img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+				draw := func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints = layout.Exact(size)
 					paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
 					return list(gtx)
-				})
-				return img, th
+				}
+				rest := golden.Capture(t, size, draw)
+				ys := rowMiddles(rest, th, 0)
+				if len(ys) == 0 {
+					t.Fatalf("found no row in the rest frame")
+				}
+				at := f32.Pt(float32(size.X/2), float32(ys[0]))
+				return captureWithPointer(t, size, draw, &at), th
 			}
 			drawnIn := func(img *image.RGBA, skip image.Rectangle) (inSkip, end int) {
 				for y := range size.Y {

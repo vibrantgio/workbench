@@ -5,8 +5,12 @@ import (
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
+	"gioui.org/gesture"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/unit"
 	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
@@ -28,7 +32,9 @@ import (
 // standing on it.
 //
 // The list is the region that scrolls, and the page's padding is inside it:
-// each row is inset by the page's Padding and its own, the first row adds the
+// each row is inset on its leading side by the page's Padding and its own, on
+// its trailing side by [rowTrailingInset], and above and below by the page's
+// Padding; the first row adds the
 // page's Padding above, and the last row adds the add button's height and the
 // page's Padding below, so the bar is at the window's trailing edge and never
 // inset by the padding, and the last row ends above the button's band with
@@ -56,7 +62,7 @@ func scrollingList(rows []layout.Widget, bar scrollbar.Style, state *complist.St
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		return complist.LayoutScrollbar(gtx, state, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int) layout.Dimensions {
-			in := layout.Inset{Top: Padding, Bottom: Padding, Left: 2 * Padding, Right: 2 * Padding}
+			in := layout.Inset{Top: Padding, Bottom: Padding, Left: 2 * Padding, Right: rowTrailingInset}
 			if i == 0 {
 				in.Top += Padding
 			}
@@ -89,9 +95,30 @@ func EmptyList(gtx layout.Context, th themed) layout.Dimensions {
 	return layout.Dimensions{Size: size}
 }
 
+// The delete mark is a control inside a row, and is drawn as the platform's
+// lists draw theirs, MEASURED in reference/macos/controls.md under "What a
+// control inside a row measures": an 18 px circled mark, 16 px inside the
+// row's trailing edge, in the accent, drawn on the row under the pointer and
+// on the selected row and on no row at rest. The list selects no row, so the
+// mark is drawn on the row under the pointer only.
+const (
+	// rowControlExtent is the mark's drawn extent.
+	rowControlExtent unit.Dp = 18
+	// rowControlBox is the symbol's square: a Material symbol draws 20 of its
+	// 24 units, so the box is the extent's 24/20.
+	rowControlBox = rowControlExtent * 24 / 20
+	// rowControlInset is the mark's drawn extent's distance from the row's
+	// trailing edge, which is the window's trailing edge.
+	rowControlInset unit.Dp = 16
+	// rowTrailingInset is the rows' trailing inset: the mark's inset less the
+	// part of the box that is not drawn.
+	rowTrailingInset = rowControlInset - (rowControlBox-rowControlExtent)/2
+)
+
 // Row is one todo line: a components checkbox toggling completion, the todo text
-// (clickable — opens the edit dialog), and a delete icon. Every event routes
-// through mvu.MessageOp, so the reducers are the only state writers.
+// (clickable — opens the edit dialog), and a delete mark drawn while the
+// pointer is over the row. Every event routes through mvu.MessageOp, so the
+// reducers are the only state writers.
 func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.Widget {
 	row := layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceBetween, Alignment: layout.Middle}
 
@@ -103,7 +130,7 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 	}).First()
 
 	// The text is plain and clickable, not a button: a completed todo
-	// drops to the second strength.
+	// is drawn at the second strength.
 	var editClick widget.Clickable
 	textColor := p.Label
 	if item.Completed {
@@ -126,14 +153,19 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 		return dims
 	}
 
-	clearIcon, err := raster.Widget(icons.ContentClear, 40, 40, raster.WithColors(p.Icon))
+	deleteMark, err := raster.Widget(icons.ActionHighlightOff, rowControlBox, rowControlBox, raster.WithColors(p.Icon))
 	if err != nil {
 		panic(err)
 	}
 	var deleteClick widget.Clickable
+	// hover reads Enter and Leave only, so it takes no press from the
+	// checkbox, the text or the mark laid out inside its area.
+	var hover gesture.Hover
 
 	return func(gtx layout.Context) layout.Dimensions {
-		return row.Layout(gtx,
+		hovered := hover.Update(gtx.Source)
+		macro := op.Record(gtx.Ops)
+		dims := row.Layout(gtx,
 			layout.Rigid(cb),
 			layout.Rigid(layout.Spacer{Width: Padding}.Layout),
 			layout.Flexed(1, title),
@@ -141,8 +173,15 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 				if deleteClick.Clicked(gtx) {
 					mvu.MessageOp{Message: DeleteTodo{Id: item.Id}}.Add(gtx.Ops)
 				}
+				// The slot is laid out in every state, so the text's width
+				// does not change when the mark is drawn.
 				dims := deleteClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layout.Center.Layout(gtx, clearIcon)
+					size := image.Pt(gtx.Dp(rowControlBox), gtx.Dp(rowControlBox))
+					if hovered {
+						gtx.Constraints = layout.Exact(size)
+						deleteMark(gtx)
+					}
+					return layout.Dimensions{Size: size}
 				})
 				if deleteClick.Hovered() {
 					pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
@@ -150,5 +189,11 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 				return dims
 			}),
 		)
+		content := macro.Stop()
+		area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+		hover.Add(gtx.Ops)
+		content.Add(gtx.Ops)
+		area.Pop()
+		return dims
 	}
 }
