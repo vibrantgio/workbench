@@ -261,16 +261,11 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 	thObs := rx.Of(tok.components)
 	plane := windowPlane(tok.color)
 
-	icon, err := raster.Widget(app.Icon, IconSize, IconSize, raster.WithColors(tok.color.ControlAccent))
-	if err != nil {
-		icon = func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
-	}
-
 	nameRow := func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(icon),
+			layout.Rigid(appIcon(tok, app)),
 			layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
-			layout.Rigid(textWidget(tok.shaper, app.Name, tok.typ.TitleMedium, vgcolor.Flatten(tok.color.Label, plane), 1)),
+			layout.Rigid(textWidget(tok.shaper, app.Name, tok.typ.TitleMedium, textColour(tok.color), 1)),
 		)
 	}
 	blurb := textWidget(tok.shaper, app.Blurb, tok.typ.BodySmall, vgcolor.Flatten(tok.color.SecondaryLabel, plane), 3)
@@ -309,11 +304,33 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 	}
 }
 
+// textColour is the colour the name and the icon on a cell are drawn in:
+// the platform's label flattened onto the window's own plane, the fill the
+// cell's material tends toward.
+func textColour(c tokens.PlatformColors) color.NRGBA {
+	return vgcolor.Flatten(c.Label, windowPlane(c))
+}
+
+// appIcon is an application's icon, drawn in the text colour. The icon is on
+// the content and marks nothing as selected, so it is never drawn in the
+// accent.
+func appIcon(tok themed, app App) layout.Widget {
+	icon, err := raster.Widget(app.Icon, IconSize, IconSize, raster.WithColors(textColour(tok.color)))
+	if err != nil {
+		return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
+	}
+	return icon
+}
+
 // launchButton is the theme-driven components button wired to the caller-owned
 // clickable — so press/hover/focus state survives the per-message view
 // rebuilds — emitting Launch into the MVU loop on activation. While the app is
 // starting or running it renders disabled and emits nothing; the reducer
 // guards again anyway.
+//
+// It is the Filled button, the one action its cell is about: its fill is read
+// from the platform's default button fill token and its title is drawn in the
+// colour that token is paired with, so no fill is pinned here.
 //
 // It shapes with the shaper the rest of the cell uses rather than reaching for
 // the theme's own, so one page has one shaper and a render made outside the
