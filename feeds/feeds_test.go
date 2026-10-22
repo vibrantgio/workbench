@@ -17,6 +17,8 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -26,7 +28,7 @@ import (
 // and a single-shot theme observable, collects one layout.Widget emission from each
 // layer, and fails if any subscription panics or completes with an error.
 func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
-	layers := buildLayers(rx.Of(initialModel()))(rx.Of(theme.Default()))
+	layers := buildLayers(rx.Of(initialModel()), nil)(rx.Of(theme.Default()))
 	if len(layers) != 2 {
 		t.Fatalf("buildLayers returned %d layers; want 2 (backdrop, shell)", len(layers))
 	}
@@ -172,15 +174,37 @@ func TestUpdateShareOpenClose(t *testing.T) {
 	}
 }
 
-// TestUpdateSetSplitRatio verifies the splitter position lands in the model.
-func TestUpdateSetSplitRatio(t *testing.T) {
+// TestUpdateToggleSidebar verifies the pane's shown state flips in the
+// model, which is the one thing about the arrangement the model holds: how
+// wide the two columns stand is the shell's own memory and not state a
+// message moves.
+func TestUpdateToggleSidebar(t *testing.T) {
 	m := initialModel()
-	if m.splitRatio != initialSplitRatio {
-		t.Fatalf("initialModel.splitRatio = %v; want %v", m.splitRatio, initialSplitRatio)
+	if m.sidebarHidden {
+		t.Fatal("initialModel opens with the rail's pane away; it opens with the pane standing")
 	}
-	m, _ = Update(m, SetSplitRatio{Ratio: 0.42})
-	if m.splitRatio != 0.42 {
-		t.Errorf("after SetSplitRatio(0.42): splitRatio = %v; want 0.42", m.splitRatio)
+	m, _ = Update(m, ToggleSidebar{})
+	if !m.sidebarHidden {
+		t.Error("after ToggleSidebar: the pane still stands")
+	}
+	m, _ = Update(m, ToggleSidebar{})
+	if m.sidebarHidden {
+		t.Error("after a second ToggleSidebar: the pane is still away")
+	}
+}
+
+// TestTheWindowOpensOnTheArrangementItKept reads the kept shown state onto
+// the window's first model: a reader who sent the pane away and found it
+// back on the next launch would be reading a defect.
+func TestTheWindowOpensOnTheArrangementItKept(t *testing.T) {
+	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
+	m, _ := openedOn(init, shell.Arrangement{PaneShown: false})()
+	if !m.sidebarHidden {
+		t.Error("the window opened with the pane standing after keeping it away")
+	}
+	m, _ = openedOn(init, shell.Arrangement{PaneShown: true})()
+	if m.sidebarHidden {
+		t.Error("the window opened with the pane away after keeping it standing")
 	}
 }
 
@@ -667,7 +691,8 @@ func TestArticlesPipelineFiltersByFeed(t *testing.T) {
 }
 
 // shellFrameW/H size the frame the regression test draws each emitted shell
-// layout.Widget into, exercising the full layout path (sidebar + navbar + Main).
+// layout.Widget into, exercising the full layout path (the rail, the toolbar's
+// two shares, the list and the article).
 const (
 	shellFrameW = 1200
 	shellFrameH = 800
@@ -686,7 +711,7 @@ const (
 // OS frame timing.
 func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	shellLayer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
+	shellLayer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil)
 
 	emissions := make(chan layout.Widget, 16)
 	sub := shellLayer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
@@ -760,7 +785,7 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	drain()
 
 	// Article selection populates the detail pane, tab switching swaps its
-	// content, ToggleShare opens the navbar popover — each must re-emit the
+	// content, ToggleShare opens the toolbar's popover — each must re-emit the
 	// layer just like the four above.
 	m, _ = Update(m, SelectArticle{Article: "bbc-03"})
 	send.Next(m)
@@ -783,9 +808,16 @@ func TestFeedsShellLayerReEmitsOnModelChange(t *testing.T) {
 	}
 	drain()
 
-	m, _ = Update(m, SetSplitRatio{Ratio: 0.5})
+	m, _ = Update(m, ToggleSidebar{})
 	send.Next(m)
-	if w := await("SetSplitRatio"); w != nil {
+	if w := await("ToggleSidebar"); w != nil {
+		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
+	}
+	drain()
+
+	m, _ = Update(m, ToggleSidebar{})
+	send.Next(m)
+	if w := await("ToggleSidebar back"); w != nil {
 		drawShellOnce(t, image.Pt(shellFrameW, shellFrameH), w)
 	}
 	drain()

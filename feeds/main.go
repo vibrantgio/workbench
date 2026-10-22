@@ -9,10 +9,15 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	specsystem "github.com/vibrantgio/theme/system"
 	specwin "github.com/vibrantgio/theme/window"
 )
+
+// appName is the directory this application keeps its own files in, inside
+// the OS config directory. The arrangement the shell keeps is the first
+// thing in it.
+const appName = "feeds"
 
 func main() {
 	go run()
@@ -21,29 +26,32 @@ func main() {
 
 func run() {
 	// The full-size-content treatment: on macOS the window's content extends
-	// behind a transparent title bar, so the sidebar's surface on the leading
-	// side and the navbar's on the other each reach the window's own top edge
-	// and no native strip stands above either of them. Everywhere else the
+	// behind a transparent title bar, so the rail's pane on the leading side
+	// and the toolbar's two shares beside it each reach the window's own top
+	// edge and no native strip stands above any of them. Everywhere else the
 	// treatment contributes no options and the window keeps the decorations
 	// its platform gives it. The title is passed all the same — the treatment
 	// hides the text, but Mission Control, the Dock and VoiceOver read it.
-	mvuWin := mvu.NewWindow(append(desktop.FullSizeContent(),
+	mvuWin := mvu.NewWindow(shell.PaneWindow(
 		app.Title("Feeds"),
 		app.Size(unit.Dp(1200), unit.Dp(800)),
 	)...)
-	// The treatment hides the three standard window buttons and Gio re-hides
-	// them on every rebuild of the window's configuration, so this registers a
-	// re-assertion rather than a one-off unhide; the placement rides on the
-	// same seam, so stating it once here holds for the window's life.
-	//
-	// The placement is stated rather than defaulted: left alone the buttons
-	// land at the inset the platform's compact windows use, which would put
-	// them high in a band deep enough to centre them. The band this window
-	// gives them is the strip the sidebar and the navbar hold open across its
-	// top, and windowButtonRun is that strip's height read through the
-	// platform's own centring rule.
-	desktop.ShowWindowButtons(mvuWin)
-	desktop.PlaceWindowButtonsAt(windowButtonRun.Leading, windowButtonRun.Center)
+	// Gio re-hides the standard window buttons on every rebuild of the
+	// window's configuration; the shell registers the re-assertion on the
+	// mvu configure seam and places them where the pane's own strip keeps
+	// them, measured from the window's glass and from nothing drawn beneath
+	// them — which is what lets the pane be sent away without the window's
+	// own controls moving.
+	shell.StandWindowButtons(mvuWin, nil)
+
+	// The arrangement inside the window is this application's own to keep:
+	// how wide the rail's pane and the article list stand, and whether the
+	// pane stands at all. A nil memory is a working one — the window opens
+	// on the defaults and keeps nothing.
+	widths, err := shell.RememberArrangement(appName, defaultArrangement(), frameLimits)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "feeds: the window will not remember its columns:", err)
+	}
 
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
 
@@ -58,11 +66,17 @@ func run() {
 	// share one upstream subscription, and each reads the model in force when
 	// it attaches, whenever that is.
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
-	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
+	models, runner := mvu.Loop(mvuWin.Messages(), openedOn(init, widths.Arrangement()), Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
-	if err := w.Render(buildLayers(models)).Wait(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	renderErr := w.Render(buildLayers(models, widths)).Wait()
+	// Render returns once the window is destroyed, which is the last moment
+	// a width moved inside the write delay can still be kept — and the
+	// change the reader most expects to find again is the one they made
+	// just before quitting.
+	widths.Stop()
+	if renderErr != nil {
+		fmt.Fprintln(os.Stderr, renderErr)
 		os.Exit(1)
 	}
 	os.Exit(0)

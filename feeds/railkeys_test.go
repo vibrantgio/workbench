@@ -20,7 +20,6 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/list"
-	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/theme/tokens"
@@ -340,7 +339,7 @@ func TestReturnOnARailRowOpensItsFeed(t *testing.T) {
 func TestAClickOnARailRowHandsTheRailTheKeys(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
-			w := windowFrame(t, tc.c, tokens.Comfortable, settledModel())
+			w := frame(t, tc.c, tokens.Comfortable, settledModel())
 			r := new(gioinput.Router)
 			ops := new(op.Ops)
 			drive := func() {
@@ -551,9 +550,8 @@ func TestARailHeadingAnswersThePointer(t *testing.T) {
 	f := newRailTabFrame(t)
 	f.frame() // registers the tags
 
-	strip := int(pane.StripDp)
 	head := int(patsidebar.SectionHeight)
-	on := f32.Pt(float32(railTabFrameSize.X)/2, float32(strip+head/2))
+	on := f32.Pt(float32(railTabFrameSize.X)/2, float32(head/2))
 	f.router.Queue(pointer.Event{
 		Kind:     pointer.Press,
 		Source:   pointer.Mouse,

@@ -25,14 +25,11 @@ import (
 	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/group"
-	"github.com/vibrantgio/patterns/navbar"
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/patterns/shell"
-	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/patterns/table"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
@@ -47,6 +44,7 @@ import (
 type themeTokens struct {
 	col    tokens.PlatformColors
 	typ    tokens.Typography
+	den    tokens.Density
 	shaper *text.Shaper
 }
 
@@ -61,21 +59,23 @@ func postMessage(gtx layout.Context, msg mvu.Message) {
 // mirrorTokens subscribes the theme's Platform and Typography streams into an
 // atomic cell and returns a frame-time loader. It is the layer-boundary
 // adapter for closures that run outside any rx scope (static component
-// slots, table cell closures, navbar components) — the same hand-off pattern
+// slots, table cell closures, toolbar titles) — the same hand-off pattern
 // the layout.Widget cells in feedsShellLayer use.
 func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 	var cell atomic.Value
 	cell.Store(themeTokens{
 		col:    tokens.PlatformLight,
 		typ:    tokens.DefaultTypography,
+		den:    tokens.Comfortable,
 		shaper: tokens.DefaultTypography.Shaper(),
 	})
 	colorObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
-	_ = rx.CombineLatest2(colorObs, typObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple2[tokens.PlatformColors, tokens.Typography], _ error, done bool) {
+	denObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Density] { return t.Density })
+	_ = rx.CombineLatest3(colorObs, typObs, denObs).Subscribe(rx.GoroutineContext(), func(t rx.Tuple3[tokens.PlatformColors, tokens.Typography, tokens.Density], _ error, done bool) {
 		if !done {
 			typ := t.Second
-			cell.Store(themeTokens{col: t.First, typ: typ, shaper: typ.Shaper()})
+			cell.Store(themeTokens{col: t.First, typ: typ, den: t.Third, shaper: typ.Shaper()})
 		}
 	})
 	return func() themeTokens { return cell.Load().(themeTokens) }
@@ -83,12 +83,14 @@ func mirrorTokens(th rx.Observable[theme.Theme]) func() themeTokens {
 
 // buildLayers returns the theme/window build function. The model
 // observable drives selection, paging, sort, and which rail sections are
-// open; the theme observable flows in independently per window.
-func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+// open; the theme observable flows in independently per window. widths is
+// the memory the shell keeps the window's two column widths in, nil for a
+// frame laid out for measurement rather than for a reader.
+func buildLayers(modelObs rx.Observable[Model], widths *shell.ArrangementMemory) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			feedsShellLayer(th, modelObs),
+			feedsShellLayer(th, modelObs, widths),
 		}
 	}
 }
@@ -109,27 +111,27 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	)
 }
 
-// feedsShellLayer composes the rail's pane, the navbar and a nested
-// SplitPane — articles table on the left, article detail on the right — into
-// this window's own frame. Selection, paging, sort, which rail sections are
-// open, the detail tab, the Share popover and the split position are all
-// derived from modelObs; theme tokens flow independently through th.
+// feedsShellLayer composes what this window stands in patterns/shell's
+// three-column arrangement: the rail's pane down the leading edge, the
+// articles table as the list column beside it, and the article with its
+// tabs as the content column. Selection, paging, sort, which rail sections
+// are open, the detail tab, the Share popover and whether the pane stands
+// at all are derived from modelObs; theme tokens flow independently through
+// th. The geometry is the shell's (frame.go); what is composed here is the
+// slots that stand in it and the streams behind them.
 //
-// The columns are handed to patterns/shell's pane frame, which is the
-// composition every window with a pane shares; what is composed here is the
-// three slots that stand in it and the streams behind them.
-//
-// patterns/shell exposes SplitPane's Left/Right, and navbar Actions, as
-// static layout.Widget slots. So every live layout.Widget stream is folded
-// onto the rail-driving observable, and the latest one of each is published
-// into an atomic cell — a layer-boundary adapter read by the corresponding
-// static slot at frame time. Any model change therefore re-emits the rail's
-// stream, which makes the frame re-emit and the window repaint on the same
-// frame; state held outside the layer chain would leave a click unpainted
-// until the next unrelated input event.
+// The arrangement takes its slots as static layout.Widget values. So every
+// live layout.Widget stream is folded onto the rail-driving observable, and
+// the latest one of each is published into an atomic cell — a
+// layer-boundary adapter read by the corresponding static slot at frame
+// time. Any model change therefore re-emits the rail's stream, which makes
+// the frame re-emit and the window repaint on the same frame; state held
+// outside the layer chain would leave a click unpainted until the next
+// unrelated input event.
 func feedsShellLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
+	widths *shell.ArrangementMemory,
 ) rx.Observable[layout.Widget] {
 	// This window's arbiters. They are plain values with no
 	// synchronisation, so the scope they are created at is the scope they are
@@ -155,7 +157,6 @@ func feedsShellLayer(
 	selectedTabObs := rx.Map(modelObs, func(m Model) int { return m.selectedTab })
 	shareOpenObs := rx.Map(modelObs, func(m Model) bool { return m.shareOpen })
 	confirmDeleteObs := rx.Map(modelObs, func(m Model) FeedID { return m.confirmDelete })
-	splitRatioObs := rx.Map(modelObs, func(m Model) float32 { return m.splitRatio })
 	addFeedOpenObs := rx.Map(modelObs, func(m Model) bool { return m.addFeedOpen })
 	addFeedErrorObs := rx.Map(modelObs, func(m Model) bool { return m.addFeedError })
 	prefsOpenObs := rx.Map(modelObs, func(m Model) bool { return m.prefsOpen })
@@ -165,6 +166,7 @@ func feedsShellLayer(
 	filterObs := rx.Map(modelObs, func(m Model) string { return m.filter })
 
 	articlesObs := articlesMain(th, selectedFeedObs, selectedArticleObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, filterObs, tipArb)
+	filterFieldObs := articlesFilter(th)
 	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
 	shareObs := sharePopover(th, shareOpenObs, popArb)
 	dialogObs := addFeedDialog(th, addFeedOpenObs, addFeedErrorObs, dialogArb)
@@ -178,62 +180,39 @@ func feedsShellLayer(
 		mvu.MessageOp{Message: OpenPreferences{}}.Add(gtx.Ops)
 	})
 
-	// Layer-boundary cells (see the function comment). articlesCell and
-	// detailCell feed the SplitPane's static Left/Right slots; splitCell
-	// feeds the outer shell's static Main slot; shareCell feeds the navbar
-	// Share action slot.
-	var articlesCell, detailCell, splitCell, shareCell atomic.Value
-	slot := func(cell *atomic.Value) layout.Widget {
-		return func(gtx layout.Context) layout.Dimensions {
-			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
-				return w(gtx)
-			}
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		}
-	}
-
-	// The articles/detail split. Splitter drags land SetSplitRatio messages
-	// through OnSplitChange, and the committed position flows back in via
-	// SplitRatio — the splitter survives theme re-emissions and is replayable
-	// like every other piece of model state.
-	splitObs := shell.Shell(th, shell.Props{
-		Layout:     shell.SplitPane,
-		Left:       slot(&articlesCell),
-		Right:      slot(&detailCell),
-		SplitRatio: splitRatioObs,
-		OnSplitChange: func(gtx layout.Context, ratio float32) {
-			mvu.MessageOp{Message: SetSplitRatio{Ratio: ratio}}.Add(gtx.Ops)
-		},
-	})
+	// The window's own frame: the arrangement the shell draws, seated on
+	// the two widths this reader last left.
+	frame := newWindowFrame(widths)
 
 	// The platform set the frame is drawn from, read through the same
-	// layer-boundary cell the navbar's own titles use.
+	// layer-boundary cell the toolbar's own titles use.
 	loadFrameTok := mirrorTokens(th)
 
-	// The navbar is built here and handed to the frame as its band slot:
-	// the band's depth is the frame's — the platform's measured windowBandDp,
-	// which holds the window's three control buttons centred — and what
-	// stands in it is this window's.
-	navbarObs := navbar.Navbar(th, feedsNavbarProps(mirrorTokens(th), slot(&shareCell)))
-
 	sidebarObs := feedsSidebar(th, openSectionsObs, feedsObs, selectedFeedObs, confirmDeleteObs, popArb, postMessage)
-	sidebarDriven := rx.Map(
-		rx.CombineLatest5(sidebarObs, articlesObs, detailObs, splitObs, shareObs),
-		func(n rx.Tuple5[layout.Widget, layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
-			articlesCell.Store(n.Second)
-			detailCell.Store(n.Third)
-			splitCell.Store(n.Fourth)
-			shareCell.Store(n.Fifth)
-			return n.First
+
+	// The slots the arrangement is handed, folded onto one stream so a
+	// model change re-emits the whole composition — which is the same-frame
+	// repaint.
+	slotsObs := rx.Map(
+		rx.CombineLatest5(sidebarObs, articlesObs, detailObs, filterFieldObs, shareObs),
+		func(n rx.Tuple5[layout.Widget, articleSlots, layout.Widget, layout.Widget, layout.Widget]) frameSlots {
+			return frameSlots{
+				Rail:   n.First,
+				Rows:   n.Second.Rows,
+				Pager:  n.Second.Pager,
+				Main:   n.Third,
+				Filter: n.Fourth,
+				Share:  n.Fifth,
+			}
 		},
 	)
 
 	shellObs := rx.Map(
-		rx.CombineLatest2(sidebarDriven, navbarObs),
-		func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
-			railW, navbarW := n.First, n.Second
+		rx.CombineLatest2(slotsObs, modelObs),
+		func(n rx.Tuple2[frameSlots, Model]) layout.Widget {
+			slots, model := n.First, n.Second
 			return func(gtx layout.Context) layout.Dimensions {
-				return drawFeedsFrame(gtx, loadFrameTok().col, railW, navbarW, slot(&splitCell))
+				return frame.layout(gtx, model, loadFrameTok(), slots)
 			}
 		},
 	)
@@ -253,30 +232,17 @@ func feedsShellLayer(
 		rx.CombineLatest4(shellObs, dialogObs, prefsObs, notesColumnObs),
 		func(n rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
 			shellW, dialogW, prefsW, toastW := n.First, n.Second, n.Third, n.Fourth
-			bandHeight := func() unit.Dp { return windowBandDp }
 			return func(gtx layout.Context) layout.Dimensions {
 				// The window's own plane, declared before anything is
 				// offset, so a dialog's scrim composites over the frame
 				// beneath it rather than blending with it.
 				composite.Frame(gtx)
 				prefsShortcut(gtx)
-				// The window's own drag. The full-size-content treatment
-				// takes the native title bar and the drag with it, so the
-				// strip across the top of the window is the only place the
-				// window can be picked up by its top edge.
-				//
-				// desktop.DragTop claims the band's full width past the
-				// trailing edge of the platform's control buttons, whose run
-				// is theirs rather than the band's to give away; it reads that
-				// edge off the window each frame. One claim covers both halves
-				// of the band, because the drag belongs to the window rather
-				// than to the sidebar or the navbar. It is declared before the
-				// shell and therefore sits at the bottom of the hit stack: a
-				// move action swallows a press before any control beneath it
-				// sees one, so everything standing in the band — Add feed and
-				// Share on the trailing side above all — is registered
-				// afterwards and keeps its own presses.
-				desktop.DragTop(gtx, bandHeight)
+				// The window's own drag is the arrangement's: the pane's
+				// strip and the toolbar's two shares claim it over every run
+				// of themselves that holds no control, which is what a
+				// toolbar under the full-size-content treatment has to do
+				// once the native title bar is gone.
 				dims := shellW(gtx)
 				if dialogW != nil {
 					dialogW(gtx)
@@ -293,59 +259,6 @@ func feedsShellLayer(
 	)
 }
 
-// shareSlotWDp and shareSlotHDp size the Exact space handed to the Share
-// popover in the navbar action slot. patterns/popover centres its anchor in
-// that space and sizes its outside-press absorber to it, so the space must
-// be (a) small enough to sit in the navbar's action row and (b) wide enough
-// that the Bottom-placed surface (centred under the anchor) stays on-screen
-// when the action row hugs the window's trailing edge. 160 dp leaves ~55 dp
-// of margin either side of the anchor — enough for the ~130 dp surface.
-const (
-	shareSlotWDp = 160
-	shareSlotHDp = 28
-)
-
-// feedsNavbarProps builds the navbar with the brand, the (decorative) Add
-// feed action, and the Share popover slot. Brand and action titles are the
-// app's own text, so they read the theme snapshot from loadTok at frame
-// time: both stand on the chrome material the navbar wears, the brand in
-// TitleMedium on the platform's label and the Add feed action in LabelLarge
-// on the accent. shareSlot reads the latest popover
-// layout.Widget from its layer-boundary cell; the wrapper pins the popover's
-// space to an Exact size so the anchor centres where the button should sit
-// and the returned dims do not blow up the navbar's Flex row (popover
-// returns the size it was given as its dims).
-func feedsNavbarProps(loadTok func() themeTokens, shareSlot layout.Widget) navbar.Props {
-	brand := func(gtx layout.Context) layout.Dimensions {
-		s := loadTok()
-		return typeset.Text(gtx, s.shaper, "Feeds", s.typ.TitleMedium,
-			vgcolor.Flatten(s.col.Label, s.col.SidebarMaterial), 1)
-	}
-	var addClick widget.Clickable
-	addFeed := func(gtx layout.Context) layout.Dimensions {
-		s := loadTok()
-		if addClick.Clicked(gtx) {
-			mvu.MessageOp{Message: OpenAddFeed{}}.Add(gtx.Ops)
-		}
-		return addClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			semantic.LabelOp("Add feed").Add(gtx.Ops)
-			semantic.EnabledOp(true).Add(gtx.Ops)
-			dims := typeset.Text(gtx, s.shaper, "Add feed", s.typ.LabelLarge, s.col.ControlAccent, 1)
-			pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
-			return dims
-		})
-	}
-	share := func(gtx layout.Context) layout.Dimensions {
-		size := image.Pt(gtx.Dp(unit.Dp(shareSlotWDp)), gtx.Dp(unit.Dp(shareSlotHDp)))
-		gtx.Constraints = layout.Exact(size)
-		return shareSlot(gtx)
-	}
-	return navbar.Props{
-		Brand:   brand,
-		Actions: []layout.Widget{addFeed, share},
-	}
-}
-
 // shareDestinations are the three no-op share targets the popover lists.
 var shareDestinations = []string{"Copy link", "Email", "Mastodon"}
 
@@ -354,7 +267,7 @@ const (
 	shareListWDp = 120
 )
 
-// sharePopover composes the navbar Share button (the popover anchor) and its
+// sharePopover composes the toolbar's Share control (the popover anchor) and its
 // destination-list surface. Open state is model-derived; the anchor click
 // lands ToggleShare, each destination click and OnDismiss land CloseShare —
 // all mvu.MessageOps, so the popover opens/closes on the same frame.
@@ -419,6 +332,10 @@ func sharePopover(
 		Anchor:    anchor,
 		Content:   content,
 		Placement: popover.Bottom,
+		// The anchor stands at the trailing end of the room the toolbar
+		// leaves it, which is where this window's acts stand and where the
+		// share's own reservation in the toolbar is.
+		Align: popover.AlignTrailing,
 		OnDismiss: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseShare{}}.Add(gtx.Ops)
 		},
@@ -449,7 +366,7 @@ const (
 //   - dialog.Props.Body and group.Props.* are STATIC layout.Widget slots, but
 //     textfield/button/alert/group are rx.Observable[layout.Widget]. Each is
 //     bridged through an atomic layer-boundary cell read by the static slot at
-//     frame time — the same pattern the navbar Share popover uses.
+//     frame time — the same pattern the toolbar's Share popover uses.
 //   - components/input/textfield is uncontrolled: its widget.Editor lives in the
 //     component's rx.Defer scope and is never exposed, and the submit is a
 //     components/button (not Enter), so the button has no handle to clear the
@@ -602,34 +519,4 @@ func addFeedDialog(
 			return n.First
 		},
 	)
-}
-
-// drawFeedsFrame composes the window: the rail's pane down the leading edge,
-// and beside it the content column — the band across its top and the
-// articles/detail split under it.
-//
-// THE RAIL IS SET INTO THE WINDOW, NOT A HALF OF IT. It is the vocabulary's
-// PANE: an inset rounded pane one margin in from the window's leading, top
-// and bottom edges, flush against the content on the fourth side, bounded by
-// its own rim and the shadow it casts and by no seam. None of that is drawn
-// here — the composition is patterns/shell's [shell.PaneFrame], which is the
-// one every window with a pane shares: the pane and its shadow,
-// the fills standing either side of it, and the band's own depth.
-//
-// What is left to this window is the three slots and the two fills it names.
-// The content column stands on the platform's ControlBackground; the band
-// standing over it is the navbar, which paints the chrome material across the
-// whole column, so THAT is what stands behind the pane's top corner while
-// the column's own fill stands behind the bottom one. The window's surface is
-// the backdrop layer's and is not named here, which is why the frame paints
-// none.
-func drawFeedsFrame(gtx layout.Context, c tokens.PlatformColors, railW, navbarW, mainW layout.Widget) layout.Dimensions {
-	return shell.PaneFrame{
-		Width:       patsidebar.ExpandedWidth,
-		ContentFill: c.ControlBackground,
-		BandFill:    c.SidebarMaterial,
-		Sidebar:     railW,
-		Band:        navbarW,
-		Main:        mainW,
-	}.Layout(gtx, c)
 }

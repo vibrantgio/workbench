@@ -33,7 +33,7 @@ const railFocusMoves = 12
 func TestTheRailDrawsThePlatformsTwoPills(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
-			w := windowFrame(t, tc.c, tokens.Comfortable, settledModel())
+			w := frame(t, tc.c, tokens.Comfortable, settledModel())
 			r := new(input.Router)
 			ops := new(op.Ops)
 			drive := func() {

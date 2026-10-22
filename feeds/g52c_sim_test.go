@@ -89,15 +89,15 @@ func regionDiff(a, b *image.RGBA, r image.Rectangle) int {
 
 // rightPaneRegion is a conservative window inside the detail pane: the
 // content column starts at the rail pane's trailing rim (the margin plus the
-// pane's own width), the split sits at ratio 0.6 of what is left, and the
-// band occupies the top windowBandDp.
+// pane's own width), the list column takes the platform's own width beside
+// it, and the toolbar occupies the window's top strip.
 var rightPaneRegion = image.Rect(840, 100, shellFrameW-10, shellFrameH-20)
 
 // TestG52cDetailPopoverStatesHeadless renders the real shell at six model
 // states and asserts the pixel-level deltas between them.
 func TestG52cDetailPopoverStatesHeadless(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

@@ -140,7 +140,7 @@ var scrimRegion = image.Rect(shellFrameW/2-200, shellFrameH/2-150, shellFrameW/2
 // entry; ConfirmDelete removes one.
 func TestG52dCrudStatesHeadless(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
@@ -277,7 +277,7 @@ func TestHoverGutterDoesNotSwallowSelectPress(t *testing.T) {
 // earlier message set is checked against.
 func TestG52dShellReEmitsOnCrudMessages(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

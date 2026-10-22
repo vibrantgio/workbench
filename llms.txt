@@ -455,12 +455,16 @@ content layer built from a patterns/shell:
   - patterns/shell: shell.TwoColumn is the two-column arrangement — the
     pane down the leading edge, the toolbar over the content column
     beside it, an optional inspector down the trailing edge, a footer
-    under each column and a splitter on each boundary; a window
-    arranging its own columns spends shell.PaneFrame.Under instead.
-    shell.Props.Layout picks between SplitPane (draggable splitter,
-    either axis) and StackedPage (pinned navbar over a shell-owned
-    section scroll, for marketing pages; sections are layout.Widget
-    streams, ContentMaxWidth caps the column).
+    under each column and a splitter on each boundary.
+    shell.ThreeColumn is the arrangement for a window whose document is
+    chosen from a list — the same pane, a list column of absolute width
+    on a splitter of its own with its rows and its footer, the content
+    column absorbing the rest, and one toolbar across the two with one
+    share per column. A window arranging its own columns spends
+    shell.PaneFrame.Under instead. shell.Shell is the stacked page: a
+    pinned navbar over a shell-owned section scroll, for marketing
+    pages; sections are layout.Widget streams and ContentMaxWidth caps
+    the column.
   - patterns/navbar + patterns/sidebar fill the shell's slots.
   - Content composes patterns/table (sortable/filterable/virtualised),
     patterns/tabs, patterns/card, patterns/group, components/pagination, ...
@@ -884,12 +888,13 @@ STANDS WHERE, so an app assigns each region rather than deriving it.
     shell.NavbarHeight(): ask for it rather than restating a number, and
     the two sides cannot drift. It takes no density — the band is the
     platform's 52 dp, the depth that holds the window's control buttons
-    centred. Two depths across one strip read as a
-    step in the window's top edge, which is the edge a reader measures
-    every other alignment against. The seam itself paints a
+    centred, and shell.ToolbarDepth is the same number for a window
+    carrying a toolbar rather than a navbar. Two depths across one strip
+    read as a step in the window's top edge, which is the edge a reader
+    measures every other alignment against. The seam itself paints a
     hairline, band included, and grabs a band several times that width;
-    patterns/shell's SplitPane already does both, so an app on the shell
-    restates neither.
+    the shell's arrangements already do both, so an app on one restates
+    neither.
   - THE CHECK, IN ONE SENTENCE: EVERY FILL IN THE WINDOW IS A NAME OFF THE
     PLATFORM'S SET, AND EVERY ALPHA IS FLATTENED ONTO WHAT IT LANDS ON.
     Sample a pixel from any resting expanse and it must equal a field of
@@ -1062,8 +1067,7 @@ It follows the same source: subscribe
 th.Typography, take metrics from a role and the shaper from typ.Shaper().
 The positional-shaper APIs — markdown's doc.Layout(gtx, shaper, style),
 components/paragraph's Layout and Render, patterns/shell's golden
-Render/RenderStackedPage — want that same typ.Shaper()
-value. markdown.FromTokens takes the whole Typography, like every other
+RenderStackedPage — want that same typ.Shaper() value. markdown.FromTokens takes the whole Typography, like every other
 multi-role consumer. The Typography roles carry the full metrics and are the
 only source of truth (see §Modules).
 
@@ -1469,10 +1473,16 @@ instead
 
 ### feeds/
 
-Table-heavy app: sort/filter/pagination, tabs, split pane, dialog forms,
-toasts; app.go's mirrorTokens is the reference theme-to-frame-time
-adapter (§Layers), and wiring_test.go shows how to test that a late
-subscriber reads the model in force. Also the reference implementation of the dialog grammar's
+Table-heavy app: sort/filter/pagination, tabs, dialog forms, toasts;
+app.go's mirrorTokens is the reference theme-to-frame-time adapter
+(§Layers), and wiring_test.go shows how to test that a late subscriber
+reads the model in force. Its window stands on patterns/shell's
+three-column arrangement (frame.go): the feed rail is a PANE down the
+leading edge, the articles table is the list column beside it at the
+platform's own width with the pager as its footer, and the article with
+its tabs takes the rest — one toolbar across the two columns, the open
+feed's name and the filter field over the list, Add feed and Share over
+the article. Also the reference implementation of the dialog grammar's
 invocation half: shortcut.go binds ⌘,/Ctrl-, and preferences.go is the
 settings PANE it opens, whose two preferences apply live under it
 

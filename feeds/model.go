@@ -10,11 +10,11 @@
 //   - SetSort{Sort table.Sort}       — set the table sort key/direction
 //   - ToggleSection{Idx int}         — opens or closes rail section Idx
 //   - SelectTab{Idx int}             — switch the detail pane's Reader/Raw/Comments tab
-//   - ToggleShare{}                  — toggle the navbar Share popover
+//   - ToggleShare{}                  — toggle the toolbar's Share popover
 //   - CloseShare{}                   — close the Share popover (destination click, outside press)
 //   - ToggleDeleteConfirm{Feed FeedID} — open a rail row's delete-confirm popover, or close it
 //   - CloseDeleteConfirm{}           — close the delete-confirm popover (outside press)
-//   - SetSplitRatio{Ratio float32}   — record the articles/detail splitter position
+//   - ToggleSidebar{}                — show or hide the rail's pane
 //   - SetFilter{Text string}         — set the articles-table filter text (resets to page 1)
 //
 // Two of the messages are patterns', not this app's: notifications.Requested and
@@ -47,13 +47,18 @@ type Model struct {
 	currentPage     int
 	sort            table.Sort
 	openSections    map[int]bool
-	selectedTab     int     // detail pane tab: 0 Reader, 1 Raw, 2 Comments
-	shareOpen       bool    // navbar Share popover visibility
-	confirmDelete   FeedID  // the rail row whose delete-confirm popover stands open
-	filter          string  // articles-table filter text
-	splitRatio      float32 // articles/detail SplitPane splitter position
-	addFeedOpen     bool    // "Add feed" dialog visibility
-	addFeedError    bool    // empty-URL submit raised the dialog alert
+	selectedTab     int    // detail pane tab: 0 Reader, 1 Raw, 2 Comments
+	shareOpen       bool   // the toolbar's Share popover visibility
+	confirmDelete   FeedID // the rail row whose delete-confirm popover stands open
+	filter          string // articles-table filter text
+	addFeedOpen     bool   // "Add feed" dialog visibility
+	addFeedError    bool   // empty-URL submit raised the dialog alert
+
+	// sidebarHidden says the rail's pane has been sent away. It is the
+	// model's because the pane is dismissed by a message; how WIDE the
+	// pane and the list column stand is the shell's own arrangement and
+	// is not model state.
+	sidebarHidden bool
 
 	// The Preferences PANE (⌘,/Ctrl-,) and the two reading preferences it
 	// edits. Both apply the moment they change — nothing here is a draft and
@@ -69,14 +74,10 @@ type Model struct {
 	notes notifications.Queue
 }
 
-// initialSplitRatio gives the articles table ~3/5 of the main area so the
-// four-column table keeps usable widths next to the detail pane.
-const initialSplitRatio = 0.6
-
 // initialModel returns the seed state: the default feed selected, the first
 // rail section open, Published-descending sort, page 1, the Reader tab,
-// the Share popover closed, the default split position, and the default
-// reading preferences (every article, ten to a page).
+// the Share popover closed, the rail standing, and the default reading
+// preferences (every article, ten to a page).
 func initialModel() Model {
 	return Model{
 		feeds:        hardCodedGroups(),
@@ -85,7 +86,6 @@ func initialModel() Model {
 		sort:         table.Sort{Column: colPublished, Asc: false},
 		openSections: map[int]bool{0: true},
 		selectedTab:  0,
-		splitRatio:   initialSplitRatio,
 		rowsPerPage:  defaultRowsPerPage,
 	}
 }
@@ -128,7 +128,7 @@ type ToggleSection struct{ Idx int }
 // them as "no tab selected", which is its documented contract.
 type SelectTab struct{ Idx int }
 
-// ToggleShare flips the navbar Share popover open/closed. The reducer owns
+// ToggleShare flips the toolbar's Share popover open/closed. The reducer owns
 // the flip so the anchor click callback needs no read-back mirror of the
 // current open state.
 type ToggleShare struct{}
@@ -154,11 +154,10 @@ type ToggleDeleteConfirm struct{ Feed FeedID }
 // row's confirm is open.
 type CloseDeleteConfirm struct{}
 
-// SetSplitRatio records the articles/detail SplitPane splitter position as a
-// fraction in [0, 1]. Emitted by shell.Props.OnSplitChange during drags so
-// the position survives theme re-emissions (which would otherwise snap the
-// splitter back to the constant fed into Props.SplitRatio).
-type SetSplitRatio struct{ Ratio float32 }
+// ToggleSidebar sends the rail's pane away, or brings it back. It is the
+// one answer the shell's Toggle Sidebar button gives, wherever that button
+// stands.
+type ToggleSidebar struct{}
 
 // OpenAddFeed shows the "Add feed" dialog. It clears any stale alert flag so
 // a fresh open never starts with the empty-URL banner showing.
@@ -258,8 +257,8 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.confirmDelete = m.Feed
 	case CloseDeleteConfirm:
 		model.confirmDelete = ""
-	case SetSplitRatio:
-		model.splitRatio = m.Ratio
+	case ToggleSidebar:
+		model.sidebarHidden = !model.sidebarHidden
 	case OpenAddFeed:
 		model.addFeedOpen = true
 		model.addFeedError = false

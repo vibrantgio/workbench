@@ -446,26 +446,20 @@ func runIndex(rows []railRow, id FeedID) int {
 	return -1
 }
 
-// drawRailColumn lays the pane's own column out: its top strip, and under
-// it the sections — each a heading block and, while the section is open, the
-// rows beneath it — in a scroll area with the platform's overlay scrollbar.
+// drawRailColumn lays the rail out: the sections — each a heading block
+// and, while the section is open, the rows beneath it — in a scroll area
+// with the platform's overlay scrollbar.
 //
-// The strip is the pane's own and not the content's band: it is cut to clear
-// the window's control buttons where the window keeps them, which is
-// patterns/pane's arithmetic and not this window's. It stands outside the
-// scroll area, since the buttons it clears do not move when the reader
-// scrolls.
+// It is the pane column's ROWS slot and nothing else. The strip above it,
+// cut to clear the window's control buttons, is the arrangement's and is
+// already taken off what this is handed: the buttons it clears do not move
+// when the reader scrolls, so they stand outside the scroll area.
 //
 // The sections scroll because a rail with every section open is taller than
 // the window it stands in, and a column whose foot never comes into view has
 // entries the reader cannot open. The bar OVERLAYS rather than reserving a
 // gutter: the rail's rows run the pane's full width and the platform floats
 // a sidebar's bar over them.
-//
-// Nothing is drawn in the strip. The window's name is already the navbar's
-// brand on the other side of the pane, and this window has neither a
-// control that sends the rail away nor an action of the rail's own, so the
-// strip stands empty under the window's three control buttons.
 func drawRailColumn(
 	gtx layout.Context,
 	colors tokens.PlatformColors,
@@ -509,8 +503,7 @@ func drawRailColumn(
 			sections[i].Rows.Drain(gtx)
 		}
 	}
-	strip := min(gtx.Dp(unit.Dp(pane.StripDp)), size.Y)
-	if strip >= size.Y {
+	if size.Y <= 0 {
 		return layout.Dimensions{Size: size}
 	}
 	headH := gtx.Dp(patsidebar.SectionHeight)
@@ -519,9 +512,8 @@ func drawRailColumn(
 	// overlay thumb.
 	bar := scrollbar.FromTokens(colors, pane.Surface(colors))
 
-	stk := op.Offset(image.Pt(0, strip)).Push(gtx.Ops)
 	cgtx := gtx
-	cgtx.Constraints = layout.Exact(image.Pt(size.X, size.Y-strip))
+	cgtx.Constraints = layout.Exact(size)
 	// The rail's focus target covers the scrolling column, registered UNDER
 	// the rows so a row's own pointer target keeps priority over it.
 	area := clip.Rect{Max: cgtx.Constraints.Max}.Push(gtx.Ops)
@@ -544,7 +536,6 @@ func drawRailColumn(
 			return drawRailHeading(gtx, colors, typ, sections[b.Section].Title,
 				open[b.Section], &headings[b.Section])
 		})
-	stk.Pop()
 	return layout.Dimensions{Size: size}
 }
 

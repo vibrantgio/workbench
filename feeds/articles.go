@@ -11,8 +11,6 @@ import (
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/op/clip"
-	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -56,7 +54,9 @@ const (
 // internally and exposes no per-header layout.Widget hook, so the tooltip hit
 // area is positioned by arithmetic over these constants.
 const (
-	unreadColWDp = 96
+	// unreadColWDp is both the Unread column's pinned width and the width
+	// of the tooltip's hit area over its header.
+	unreadColWDp = 40
 	// The platform's list row, Density.RowHeight at Comfortable — the
 	// density this overlay's arithmetic is pinned to, as it was when the
 	// header stood at the control height.
@@ -67,6 +67,34 @@ const (
 // mirroring patterns/table's own cell padding so app-built cells sit flush
 // with the table's stock geometry.
 const cellPadDp = 12
+
+// The widths the pinned columns stand at, and the narrowest the flexing
+// Title column reads at. Every one is cellPadDp either side of what the
+// column actually has to show, MEASURED at 1x against the fixture and the
+// header strings in the roles the table draws them in:
+//
+//   - Author: the longest name in the fixture, "BBC Newsroom", is 99 wide in
+//     BodyMedium and the bold "Author" header 43.
+//   - Published: the date "Sep 30 2026" is 78 in BodyMedium; the bold
+//     "Published" header is 63 and the sort chevron it carries while the
+//     table is sorted on it takes 10 more with half a cell pad before it.
+//   - Unread: the bullet is 5 wide and so is the header that mirrors it.
+//     The column is a symbol's width and the padding either side of it;
+//     what names it is the tooltip over its header.
+//   - Title: it flexes and takes whatever the other three leave, so what is
+//     stated is its floor — a 96 dp run of a headline, which is the
+//     shortest run a title still reads as one in.
+const (
+	authorColWDp    = 124
+	publishedColWDp = 112
+	titleColMinWDp  = 2*cellPadDp + 96
+)
+
+// listColMinWDp is the narrowest the list column lays the table out at: the
+// four columns' own minimums side by side. It is what the window states as
+// the list column's floor; the width it OPENS at is the platform's own
+// (shell.PlatformList), which this is comfortably inside.
+const listColMinWDp = titleColMinWDp + authorColWDp + publishedColWDp + unreadColWDp
 
 // filterAndSortArticles is the pure transform composed inside the table's
 // Items pipeline. Filtering matches the lower-cased query against Title and
@@ -160,15 +188,40 @@ func pageCountFor(arts []article, size int) int {
 }
 
 // filterFieldSurface is the fill the article filter field stands on: the
-// articles pane's own, ControlBackground, the same fill articlesLayout
-// paints the pane with.
+// list column's own, ControlBackground, which the arrangement paints the
+// column's whole height — the toolbar's share over the column stands on it
+// too, so the field's edge flattens onto the fill it actually lands on.
 func filterFieldSurface(c tokens.PlatformColors) color.NRGBA { return c.ControlBackground }
 
-// articlesMain composes the textfield filter, articles table, and pagination
-// row into an rx.Observable[layout.Widget] suitable for folding onto the
-// shell's sidebar-driven stream. Selection (selectedFeedObs), paging
-// (currentPageObs), sort (sortObs) and the filter text (filterObs) are all
-// derived from the MVU model; every interactive callback lands an
+// articleSlots are the two slots the list column is filled from: the table
+// it shows and the pager under it. They travel together because one
+// pipeline settles both — the page count the pager draws is the filtered
+// run's, which is the very run the table pages through.
+type articleSlots struct{ Rows, Pager layout.Widget }
+
+// articlesFilter is the filter field as the toolbar's share over the list
+// column carries it, which is where this platform keeps a list's filter.
+// It holds no model state of its own: every keystroke lands a SetFilter and
+// the text comes back through the table's own pipeline.
+func articlesFilter(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
+	return input.TextField(th, input.TextFieldProps{
+		Placeholder: "Filter articles",
+		Description: "Filter articles by title or author",
+		Surface:     filterFieldSurface,
+		OnChange: func(gtx layout.Context, s string) {
+			// One message carries both halves: the reducer stores the text
+			// and resets to page 1, because narrowing the filter shrinks the
+			// result set and would otherwise strand the user on an
+			// out-of-range slice.
+			mvu.MessageOp{Message: SetFilter{Text: s}}.Add(gtx.Ops)
+		},
+	})
+}
+
+// articlesMain composes the articles table and the pagination row into the
+// two slots the list column stands them in. Selection (selectedFeedObs),
+// paging (currentPageObs), sort (sortObs) and the filter text (filterObs)
+// are all derived from the MVU model; every interactive callback lands an
 // mvu.MessageOp so a click re-emits this layer — and the shell — on the same
 // frame.
 //
@@ -184,7 +237,7 @@ func articlesMain(
 	unreadOnlyObs rx.Observable[bool],
 	filterObs rx.Observable[string],
 	tipArb *tooltip.Arbiter,
-) rx.Observable[layout.Widget] {
+) rx.Observable[articleSlots] {
 	all := hardCodedArticles()
 
 	// Token mirror so the table column Cell closures (which run outside any
@@ -283,18 +336,6 @@ func articlesMain(
 		},
 	})
 
-	filterFieldObs := input.TextField(th, input.TextFieldProps{
-		Placeholder: "Filter articles",
-		Description: "Filter articles by title or author",
-		Surface:     filterFieldSurface,
-		OnChange: func(gtx layout.Context, s string) {
-			// One message carries both halves: the reducer stores the text
-			// and resets to page 1, because narrowing the filter shrinks the
-			// result set and would otherwise strand the user on an
-			// out-of-range slice.
-			mvu.MessageOp{Message: SetFilter{Text: s}}.Add(gtx.Ops)
-		},
-	})
 	tableObs := table.Table(th, table.Props[article]{
 		Columns: columns,
 		Items:   paged,
@@ -318,11 +359,27 @@ func articlesMain(
 	)
 
 	return rx.Map(
-		rx.CombineLatest4(filterFieldObs, tableObs, paginationObs, unreadTipObs),
-		func(t rx.Tuple4[layout.Widget, layout.Widget, layout.Widget, layout.Widget]) layout.Widget {
-			return articlesLayout(loadTok, t.First, t.Second, t.Third, t.Fourth)
+		rx.CombineLatest3(tableObs, paginationObs, unreadTipObs),
+		func(t rx.Tuple3[layout.Widget, layout.Widget, layout.Widget]) articleSlots {
+			return articleSlots{
+				Rows:  overlayUnreadTooltip(t.First, t.Third),
+				Pager: pagerRow(t.Second),
+			}
 		},
 	)
+}
+
+// pagerRow is the pagination row as the list column's footer stands it:
+// inset from the column's own edges, at the depth it reports. The hairline
+// above it is the column's, drawn by the arrangement, so nothing is drawn
+// here but the row.
+func pagerRow(pag layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{
+			Left: unit.Dp(cellPadDp), Right: unit.Dp(cellPadDp),
+			Top: unit.Dp(8), Bottom: unit.Dp(8),
+		}.Layout(gtx, pag)
+	}
 }
 
 // themedTextCell renders one line of cell text in the theme's BodyMedium role
@@ -410,8 +467,8 @@ func articleColumns(
 	}
 	return []table.Column[article]{
 		{Header: "Title", Sortable: true, Cell: titleCell},
-		{Header: "Author", Width: unit.Dp(160), Cell: cellText(func(a article) string { return a.Author })},
-		{Header: "Published", Width: unit.Dp(140), Sortable: true, Cell: cellText(func(a article) string {
+		{Header: "Author", Width: unit.Dp(authorColWDp), Cell: cellText(func(a article) string { return a.Author })},
+		{Header: "Published", Width: unit.Dp(publishedColWDp), Sortable: true, Cell: cellText(func(a article) string {
 			return a.Published.Format("Jan 2 2006")
 		})},
 		// Icon-only header: the bullet mirrors the cell symbol; the
@@ -423,32 +480,6 @@ func articleColumns(
 			}
 			return ""
 		})},
-	}
-}
-
-// articlesLayout vertically stacks the three composed rows with a
-// uniform inset and a small gap between rows. The table flexes to
-// consume vertical space the filter and pagination rows leave behind.
-// unreadTip is overlaid on the table's Unread header cell — see
-// overlayUnreadTooltip.
-//
-// The pane paints its own fill before any of that: the article list is the
-// window's content, so it wears ControlBackground, which is the fill the
-// table draws on too — the pane is one unbroken surface from its margin to
-// the last rule.
-func articlesLayout(loadTok func() themeTokens, filter, table, pag, unreadTip layout.Widget) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		paint.FillShape(gtx.Ops, loadTok().col.ControlBackground,
-			clip.Rect{Max: gtx.Constraints.Max}.Op())
-		return layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-				layout.Rigid(filter),
-				layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
-				layout.Flexed(1, overlayUnreadTooltip(table, unreadTip)),
-				layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
-				layout.Rigid(pag),
-			)
-		})
 	}
 }
 

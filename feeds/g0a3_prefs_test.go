@@ -274,9 +274,9 @@ var prefsScrimRegion = image.Rect(prefsFrameW/2-260, prefsFrameH/2-120, prefsFra
 // while it is open repaints the TABLE underneath with no Save, and closing it
 // puts the frame back.
 //
-// It composes preferencesPane over articlesMain rather than subscribing
-// feedsShellLayer, which keeps the frame tight enough for the two regions
-// above to mean what they say. The shell-level half of the pattern is
+// It composes preferencesPane over the table articlesMain builds rather
+// than subscribing feedsShellLayer, which keeps the frame tight enough for
+// the two regions above to mean what they say. The shell-level half of the pattern is
 // TestPreferencesPaneInShellLive below.
 func TestPreferencesPaneOverArticlesLive(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
@@ -299,10 +299,10 @@ func TestPreferencesPaneOverArticlesLive(t *testing.T) {
 		dialog.NewArbiter(),
 	)
 	composed := rx.Map(rx.CombineLatest2(articlesObs, prefsObs),
-		func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
-			articlesW, paneW := n.First, n.Second
+		func(n rx.Tuple2[articleSlots, layout.Widget]) layout.Widget {
+			rowsW, paneW := n.First.Rows, n.Second
 			return func(gtx layout.Context) layout.Dimensions {
-				dims := articlesW(gtx)
+				dims := rowsW(gtx)
 				if paneW != nil {
 					paneW(gtx)
 				}
@@ -362,22 +362,23 @@ func TestPreferencesPaneOverArticlesLive(t *testing.T) {
 }
 
 // shellPrefsScrimRegion samples the middle of the FULL shell frame, where an
-// open preferences pane paints its scrim and surface over the split pane.
-// The rail's column and the band are both at the leading and top edges, so a
+// open preferences pane paints its scrim and surface over the list and the
+// article. The rail's column and the toolbar are both at the leading and
+// top edges, so a
 // centred sample of the 1200×800 frame lies wholly inside the region the
 // pane covers.
 var shellPrefsScrimRegion = image.Rect(shellFrameW/2-260, shellFrameH/2-120, shellFrameW/2+260, shellFrameH/2+120)
 
 // TestPreferencesPaneInShellLive asserts the half
 // TestPreferencesPaneOverArticlesLive cannot: that the pane reaches the
-// frame through the REAL composed shell — navbar, sidebar, split pane, toast
+// frame through the REAL composed shell — the rail, the list, the article, the toast
 // stack and all — rather than through a two-layer composition built for the
 // test. Opening it must change the middle of the shell; closing it must put
 // the shell back exactly, because every layer here is a pure function of
 // model and theme.
 func TestPreferencesPaneInShellLive(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1, 256)
-	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs)
+	layer := feedsShellLayer(rx.Of(theme.Default()), modelObs, nil)
 
 	emissions := make(chan layout.Widget, 64)
 	sub := layer.Subscribe(rx.GoroutineContext(), func(w layout.Widget, err error, done bool) {

@@ -15,7 +15,6 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/list"
-	"github.com/vibrantgio/patterns/pane"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -49,9 +48,9 @@ func TestRailScrollsToItsFoot(t *testing.T) {
 	blocks := len(railBlocks(sections, open))
 	scroll := list.NewState()
 
-	// Short: the strip, one heading and a few rows. Every section stands
-	// open, so the column is several times this.
-	size := image.Pt(int(patsidebar.ExpandedWidth), int(pane.StripDp)+120)
+	// Short: one heading and a few rows. Every section stands open, so the
+	// column is several times this.
+	size := image.Pt(int(patsidebar.ExpandedWidth), 120)
 
 	r := new(gioinput.Router)
 	frame := func() {
@@ -130,10 +129,10 @@ func TestTheRailRevealsTheCursorsOwnRow(t *testing.T) {
 	keys := newRailKeys()
 	kb := railKeyboard{Keys: keys, Rows: run}
 
-	// Short: the strip, the heading and four rows. The section is three
-	// times that, so its foot comes into view only by scrolling.
+	// Short: the heading and four rows. The section is three times that, so
+	// its foot comes into view only by scrolling.
 	size := image.Pt(int(patsidebar.ExpandedWidth),
-		int(pane.StripDp)+int(patsidebar.SectionHeight)+4*int(patsidebar.RowHeight))
+		int(patsidebar.SectionHeight)+4*int(patsidebar.RowHeight))
 
 	r := new(gioinput.Router)
 	var focused bool

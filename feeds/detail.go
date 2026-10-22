@@ -1,8 +1,8 @@
-// detail.go renders the selected article in the right-hand pane of the
-// articles/detail SplitPane. The pane is a header (title + meta) above a
-// patterns/tabs strip with three tabs: Reader (paragraph-wrapped body), Raw
-// (the same body in the theme's Code style — the mono face), and Comments (a
-// static placeholder list).
+// detail.go renders the selected article as the window's content column —
+// the document the list beside it chooses. It is a header (title + meta)
+// above a patterns/tabs strip with three tabs: Reader (paragraph-wrapped
+// body), Raw (the same body in the theme's Code style — the mono face), and
+// Comments (a static placeholder list).
 //
 // The tabs instance is constructed ONCE; its Tab.Content closures are static
 // per patterns/tabs' contract, so they read the selected article and theme
@@ -103,10 +103,9 @@ func detailPane(
 // height. The title and the body are the platform's label; the meta line and
 // the placeholder are its secondary label.
 //
-// The pane paints its OWN fill first. It is the reading surface, so it wears
-// ControlBackground. Painting nothing is not neutral: it lets
-// patterns/shell's SplitPane backstop show through, which would read the
-// article body on the chrome the sidebar wears.
+// The column paints its OWN fill first. It is the reading surface, so it
+// wears ControlBackground — the same fill the arrangement paints the column
+// with, stated here so the document is legible wherever it is laid out.
 func drawDetail(
 	gtx layout.Context,
 	tok themeTokens,
