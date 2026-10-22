@@ -420,7 +420,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
 			{Title: "Monitor", Content: monitorContent(loadState, hov)},
-			{Title: "Presets", Content: listContent(loadState, presetsList, func(t themed, m Model, slots slotSet) []layout.Widget {
+			{Title: "Presets", Content: listContent(loadState, presetsList, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
 				clearPresetFields(m)
 				return presetsRows(t, m, slots, tp)
 			})},
@@ -536,27 +536,47 @@ func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widge
 // rows flow through a list whose scroll state the caller keeps at
 // subscription scope, with the window's bar drawn at its trailing edge.
 //
-// The list is the region that scrolls and takes the tab's content frame
-// entire: the tab's 4 dp padding is inside it, around each row at the sides
-// and above the first row and below the last, so the bar is at the frame's
-// trailing edge and never inset by the padding. The anchor is what
-// [list.AnchorFor] returns for the bar: at Always the bar has a lane of its
-// own and the rows stop short of it, otherwise it lies over the rows'
-// trailing edge.
-func listContent(load func() (pageState, bool), state *list.State, build func(themed, Model, slotSet) []layout.Widget) layout.Widget {
+// The builder returns a head and the rows. The head is drawn above the list
+// at the tab's full width and does not scroll; the lane starts under it, and
+// only the rows scroll. The list is the region that scrolls and takes the
+// rest of the tab's content frame: the tab's 4 dp padding is inside it,
+// around each row at the sides and below the last row, and above the first
+// row when there is no head, so the bar is at the frame's trailing edge and
+// never inset by the padding. The anchor is what [list.AnchorFor] returns
+// for the bar: at Always the bar has a lane of its own and the rows stop
+// short of it, otherwise it lies over the rows' trailing edge.
+func listContent(load func() (pageState, bool), state *list.State, build func(themed, Model, slotSet) (head, rows []layout.Widget)) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
 		if !ok {
 			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}
-		rows := append([]layout.Widget{vspace(4 + 10)}, build(st.t, st.m, st.slots)...)
-		rows = append(rows, vspace(4))
-		bar := st.t.listBar()
+		head, body := build(st.t, st.m, st.slots)
 		side := layout.Inset{Left: unit.Dp(4), Right: unit.Dp(4)}
-		return list.LayoutScrollbar(gtx, state, bar, list.AnchorFor(bar), rows,
-			func(gtx layout.Context, row layout.Widget) layout.Dimensions {
-				return side.Layout(gtx, row)
-			})
+		top := vspace(4 + 10)
+		var rows []layout.Widget
+		if len(head) == 0 {
+			rows = append(rows, top)
+		}
+		rows = append(append(rows, body...), vspace(4))
+		bar := st.t.listBar()
+		scroll := func(gtx layout.Context) layout.Dimensions {
+			return list.LayoutScrollbar(gtx, state, bar, list.AnchorFor(bar), rows,
+				func(gtx layout.Context, row layout.Widget) layout.Dimensions {
+					return side.Layout(gtx, row)
+				})
+		}
+		if len(head) == 0 {
+			return scroll(gtx)
+		}
+		children := []layout.FlexChild{layout.Rigid(top)}
+		for _, h := range head {
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return side.Layout(gtx, h)
+			}))
+		}
+		children = append(children, layout.Flexed(1, scroll))
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	}
 }
 
@@ -823,11 +843,13 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 }
 
 // presetsRows is the memory screen: the nine stored profiles with Edit and
-// Recall, or — while one is open — its editor with every field.
-func presetsRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
+// Recall, or — while one is open — its editor with every field. The list of
+// slots returns its heading, the line under it and the column heads as the
+// head, which is drawn above the region that scrolls; the slots are the rows.
+func presetsRows(t themed, m Model, slots slotSet, tp *tips) (head, rows []layout.Widget) {
 	p, typ := t.palette, t.typ
 	if !m.HavePresets {
-		return []layout.Widget{textLine(typ, typ.Body, p.SecondaryLabel, "reading memory slots…")}
+		return nil, []layout.Widget{textLine(typ, typ.Body, p.SecondaryLabel, "reading memory slots…")}
 	}
 	if n := m.EditPreset; isGroup(n) {
 		pr := m.Presets[n]
@@ -878,9 +900,9 @@ func presetsRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 			}),
 			vspace(10),
 		)
-		return rows
+		return nil, rows
 	}
-	rows := []layout.Widget{
+	head = []layout.Widget{
 		textLine(typ, typ.Title, p.Label, "Memory slots"),
 		vspace(4),
 		textLine(typ, typ.Small, p.SecondaryLabel,
@@ -909,7 +931,7 @@ func presetsRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 			vspace(2),
 		)
 	}
-	return rows
+	return head, rows
 }
 
 // presetTableHeader and presetTableRow lay one memory group out as a
@@ -1007,9 +1029,9 @@ func deviceFooter(t themed, m Model) layout.Widget {
 // deviceContent is the Device tab: the scrolling settings grid with the
 // status footer pinned beneath it.
 func deviceContent(load func() (pageState, bool), state *list.State) layout.Widget {
-	grid := listContent(load, state, func(t themed, m Model, slots slotSet) []layout.Widget {
+	grid := listContent(load, state, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
 		st, _ := load()
-		return deviceRows(t, m, slots, st.tp)
+		return nil, deviceRows(t, m, slots, st.tp)
 	})
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
