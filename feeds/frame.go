@@ -63,9 +63,10 @@ const (
 	searchFieldWDp = 180
 
 	// shareCapDp is the room RESERVED in the toolbar's share over the
-	// content for the Share anchor, which is drawn afterwards over the
-	// article. "Share" is 37 wide at 1x in the role it is drawn in.
-	shareCapDp = 40
+	// content for the Share button, which is drawn afterwards over the
+	// article. It is the toolbar control's own width: the 24 dp mark box
+	// with the platform's measured 7 dp clear on each side.
+	shareCapDp = 38
 
 	// titleMaxDp is the widest the open feed's name may run in the list's
 	// share before it is truncated, so a long name runs out of room before

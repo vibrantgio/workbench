@@ -663,19 +663,21 @@ func TestTheArticlesPartsStandOnOneLeadingEdge(t *testing.T) {
 }
 
 // blueBoxes are the places this window draws blue, with the platform's name
-// for each: the Share anchor and the pager's current page in the accent
-// itself, the chosen row and the chosen tab's mark in the platform's
-// selection colour, and the open feed's name and symbol on the rail's grey
-// pill in the colour the platform draws those in. Every one of them follows
-// the one accent the reader chose — none is derived here and none is a
-// literal — and the test below reads that off the frame AND checks that the
-// window draws blue nowhere else.
+// for each: the pager's current page in the accent itself, the chosen row and
+// the chosen tab's mark in the platform's selection colour, and the open
+// feed's name and symbol on the rail's grey pill in the colour the platform
+// draws those in. Every one of them follows the one accent the reader chose —
+// none is derived here and none is a literal — and the test below reads that
+// off the frame AND checks that the window draws blue nowhere else.
+//
+// The toolbar's Share is not among them: it is a bordered button titled with
+// a symbol in the toolbar's label colour, and share_test.go reads its site for
+// the accent it must not carry.
 var blueBoxes = []struct {
 	name string
 	box  image.Rectangle
 	want func(tokens.PlatformColors) color.NRGBA
 }{
-	{"the Share anchor", image.Rect(1150, 14, 1196, 34), func(c tokens.PlatformColors) color.NRGBA { return c.ControlAccent }},
 	{"the open article's row", image.Rect(220, 70, 675, 92), func(c tokens.PlatformColors) color.NRGBA { return c.SelectedContentBackground }},
 	{"the open feed's name on the pill", image.Rect(20, 92, 220, 115), func(c tokens.PlatformColors) color.NRGBA {
 		return c.SidebarSelectionUnemphasizedLabel
@@ -712,8 +714,8 @@ func boldestBlue(img *image.RGBA, box image.Rectangle) (color.NRGBA, bool) {
 }
 
 // TestEveryBlueThisWindowDrawsIsTheOneAccent enumerates this window's blues
-// off the frame: each of the five places it draws one wears the platform's
-// own name for that place, and no sixth blue stands anywhere else. A second
+// off the frame: each of the four places it draws one wears the platform's
+// own name for that place, and no fifth blue stands anywhere else. A second
 // blue of this window's own making — derived from the accent, or written as
 // a literal — would fail both halves.
 func TestEveryBlueThisWindowDrawsIsTheOneAccent(t *testing.T) {

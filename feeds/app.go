@@ -20,6 +20,7 @@ import (
 	"github.com/vibrantgio/components/alert"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/composite"
+	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/scrollbar"
@@ -183,7 +184,7 @@ func feedsShellLayer(
 	articlesObs := articlesMain(th, selectedFeedObs, selectedArticleObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, queryObs, tipArb)
 	searchFieldObs := articlesSearch(th, postMessage)
 	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
-	shareObs := sharePopover(th, shareOpenObs, popArb)
+	shareObs := sharePopover(th, shareOpenObs, popArb, postMessage)
 	dialogObs := addFeedDialog(th, addFeedOpenObs, addFeedErrorObs, dialogArb)
 	prefsObs := preferencesPane(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs, dialogArb)
 	notesColumnObs := notifications.Column(th, notifications.Props{Position: notifications.TopRight, Notifications: notesObs})
@@ -288,7 +289,15 @@ const (
 // sharePopover composes the toolbar's Share control (the popover anchor) and its
 // destination-list surface. Open state is model-derived; the anchor click
 // lands ToggleShare, each destination click and OnDismiss land CloseShare —
-// all mvu.MessageOps, so the popover opens/closes on the same frame.
+// all mvu.MessageOps, so the popover opens/closes on the same frame. post is
+// where those messages go, and it is a parameter so a test can drive the very
+// button the window lays out and read back what it posted.
+//
+// The anchor is the toolbar's own bordered button, the one the pane toggle
+// and every other control in a toolbar band is drawn as: the capsule, its
+// fill and rim, the shadow it casts, and the share symbol as its title in the
+// toolbar's label colour. A toolbar action is a button, never a word in the
+// accent and never a link.
 //
 // The destination list overrides its incoming constraints: patterns/popover
 // measures Content against half the space it is given, and that space here is
@@ -299,6 +308,7 @@ func sharePopover(
 	th rx.Observable[theme.Theme],
 	shareOpenObs rx.Observable[bool],
 	popArb *popover.Arbiter,
+	post func(gtx layout.Context, msg mvu.Message),
 ) rx.Observable[layout.Widget] {
 	loadTok := mirrorTokens(th)
 
@@ -306,15 +316,10 @@ func sharePopover(
 	anchor := func(gtx layout.Context) layout.Dimensions {
 		s := loadTok()
 		if anchorClick.Clicked(gtx) {
-			mvu.MessageOp{Message: ToggleShare{}}.Add(gtx.Ops)
+			post(gtx, ToggleShare{})
 		}
-		return anchorClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			semantic.LabelOp("Share").Add(gtx.Ops)
-			semantic.EnabledOp(true).Add(gtx.Ops)
-			dims := typeset.Text(gtx, s.shaper, "Share", s.typ.LabelLarge, s.col.ControlAccent, 1)
-			pointershape.OverSize(gtx.Ops, dims.Size, pointer.CursorPointer)
-			return dims
-		})
+		return shell.ToolbarControl(gtx, s.col, tokens.Radius, s.den,
+			&anchorClick, icons.Mark(icons.SquareAndArrowUp), "Share", false)
 	}
 
 	destClicks := make([]widget.Clickable, len(shareDestinations))
@@ -326,7 +331,7 @@ func sharePopover(
 			if destClicks[i].Clicked(gtx) {
 				// No-op destination: sharing is out of scope; the click
 				// just dismisses the popover.
-				mvu.MessageOp{Message: CloseShare{}}.Add(gtx.Ops)
+				post(gtx, CloseShare{})
 			}
 			off := op.Offset(image.Pt(0, i*rowH)).Push(gtx.Ops)
 			rowGtx := gtx
@@ -355,7 +360,7 @@ func sharePopover(
 		// share's own reservation in the toolbar is.
 		Align: popover.AlignTrailing,
 		OnDismiss: func(gtx layout.Context) {
-			mvu.MessageOp{Message: CloseShare{}}.Add(gtx.Ops)
+			post(gtx, CloseShare{})
 		},
 	})
 }

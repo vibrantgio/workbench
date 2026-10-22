@@ -96,7 +96,7 @@ func renderUnchosen(t *testing.T, c tokens.PlatformColors) *image.RGBA {
 
 // scanOf is the part of the content column's frame the line is looked for
 // in: the frame less the toolbar's own strip, which carries this window's
-// Share control and so holds glyphs that are not the empty state's.
+// Share button and so holds a symbol that is not the empty state's.
 func scanOf(full image.Rectangle) image.Rectangle {
 	scan := full
 	scan.Min.Y = full.Min.Y + int(shell.ToolbarDepth)
@@ -104,18 +104,28 @@ func scanOf(full image.Rectangle) image.Rectangle {
 }
 
 // emptyStateGlyphBox is the box the line's glyphs occupy in a render of the
-// unchosen window: every pixel inside the scan region the column's own fill
-// does not account for.
+// unchosen window: every pixel inside the scan region standing at least a
+// fifth of the way from the column's own fill to the colour the glyphs
+// plateau at.
+//
+// It is a share of that plateau and not simply "not the fill" because the
+// Share button casts the toolbar control's own drop shadow, and that shadow
+// reaches past the strip onto the column: MEASURED off this render, it leaves
+// the fill 27 of 765 behind in the scan region against the line's own 198,
+// so a reading that counted every pixel the fill does not account for would
+// take the shadow's ramp for a glyph and put the line's box out by the width
+// of the column. A fifth stands clear of both.
 func emptyStateGlyphBox(t *testing.T, c tokens.PlatformColors, full image.Rectangle) image.Rectangle {
 	t.Helper()
 	img := renderUnchosen(t, c)
 	fill := c.ControlBackground
 	scan := scanOf(full)
+	least := fromFill(emptyStatePlateau(img, fill, scan), fill) / 5
 	box := image.Rectangle{}
 	first := true
 	for y := scan.Min.Y; y < scan.Max.Y; y++ {
 		for x := scan.Min.X; x < scan.Max.X; x++ {
-			if at(img, x, y) == fill {
+			if fromFill(at(img, x, y), fill) < least {
 				continue
 			}
 			if first {
@@ -136,11 +146,17 @@ func emptyStatePlateau(img *image.RGBA, fill color.NRGBA, scan image.Rectangle) 
 	for y := scan.Min.Y; y < scan.Max.Y; y++ {
 		for x := scan.Min.X; x < scan.Max.X; x++ {
 			c := at(img, x, y)
-			d := abs(int(c.R)-int(fill.R)) + abs(int(c.G)-int(fill.G)) + abs(int(c.B)-int(fill.B))
+			d := fromFill(c, fill)
 			if d > far {
 				far, found = d, c
 			}
 		}
 	}
 	return found
+}
+
+// fromFill is how far a painted pixel stands from the fill it was painted
+// over, summed across the three channels.
+func fromFill(c, fill color.NRGBA) int {
+	return abs(int(c.R)-int(fill.R)) + abs(int(c.G)-int(fill.G)) + abs(int(c.B)-int(fill.B))
 }
