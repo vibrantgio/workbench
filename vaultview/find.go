@@ -311,7 +311,10 @@ func (f *frameState) findTrailing(m Model, tok themeTokens) layout.Widget {
 	find := f.band.find
 	// Nothing to search until a note is open: the column drains the find's
 	// keys only while it is showing one, so a field standing over an empty
-	// page would answer neither Escape nor Enter.
+	// page would answer neither Escape nor Enter. A fetch out of the cloud
+	// is one of those states — the window stands on the note it asked for
+	// and has none of it — so the control is away for the length of the
+	// wait and stands again the moment the note lands.
 	if m.CurrentNote() == nil {
 		return nil
 	}

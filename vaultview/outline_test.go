@@ -1359,3 +1359,58 @@ func TestTheColumnSpendsTheScrollBarSetting(t *testing.T) {
 		t.Errorf("with the bar away the outline's mark ends at %d, want %d — the column's own trailing lane", got, want)
 	}
 }
+
+// TestAnOutlineRowHoldsItsTitleWhenSelected requires a row's title to stand
+// at the same leading edge whether the row is selected or not: the pill is
+// the fill behind a selected row and moves nothing. The reading is taken in
+// the dark scheme alone, because the label the platform pairs with a
+// selection is white and so is the light chrome material, which leaves no
+// instrument able to find a marked row's text on its pill.
+func TestAnOutlineRowHoldsItsTitleWhenSelected(t *testing.T) {
+	rowH := asideRowPx()
+	col := tokens.PlatformDark
+	m := citedModel("guide/Reading list.md", goldenNoteSource, 2)
+	// The same column twice: the document at its start, which puts the
+	// mark on the first row, and at its end, which leaves that row bare.
+	marked, mv := asideShotFrom(t, m, col, 700, false)
+	bare, bv := asideShotFrom(t, m, col, 700, true)
+	tok := goldenTokens()
+	tok.col = col
+	fg := asideForegrounds(tok)
+
+	// The first two rows: the note's own title, and the first heading under
+	// it, which stands one level in. Each is read marked and bare.
+	for i := range 2 {
+		title := fg.reading
+		if i > 0 {
+			title = fg.nested
+		}
+		top := mv.geom.outline.Min.Y + i*rowH
+		on, _ := asideDrawnAt(marked, col, top, top+rowH,
+			sidebar.SelectionFill(col, false), sidebar.SelectionLabel(col, false))
+		off, _ := asideDrawnAt(bare, col, bv.geom.outline.Min.Y+i*rowH, bv.geom.outline.Min.Y+(i+1)*rowH,
+			chromeSurface(col), title)
+		if on < 0 || off < 0 {
+			t.Fatalf("row %d drew nothing to measure: marked %d, bare %d", i, on, off)
+		}
+		if on != off {
+			t.Errorf("row %d leads at x=%d marked and x=%d bare; the pill is a fill and moves no title", i, on, off)
+		}
+	}
+
+	// The line a pane with no rows shows stands where its rows stand, not
+	// at a fourth edge of its own.
+	empty, ev := asideShot(t, citedModel("Sources.md", plainNoteSource, 0), col, 700)
+	line, _ := asideDrawnAt(empty, col, ev.geom.outline.Min.Y, ev.geom.outline.Min.Y+rowH,
+		chromeSurface(col), fg.faint)
+	row, _ := asideDrawnAt(bare, col, bv.geom.outline.Min.Y, bv.geom.outline.Min.Y+rowH,
+		chromeSurface(col), fg.reading)
+	if line < 0 || row < 0 {
+		t.Fatalf("nothing to measure: the empty-state line at %d, the first row at %d", line, row)
+	}
+	// A pixel of slack and no more: the line and the row start on different
+	// letters, and a letter's own bearings are not the column's placement.
+	if d := line - row; d < -1 || d > 1 {
+		t.Errorf("the empty-state line leads at x=%d and a row's title at x=%d; the line stands at the rows' edge", line, row)
+	}
+}

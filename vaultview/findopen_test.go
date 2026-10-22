@@ -138,3 +138,33 @@ func TestOneClickOnTheBandsMagnifierOpensTheField(t *testing.T) {
 		t.Error("the field the click opened does not hold the keyboard")
 	}
 }
+
+// TestTheFindLeavesTheBandForTheLengthOfAFetch records the rule rather
+// than a defect: the platform's find acts on a document, and while the
+// window is fetching one out of the cloud it has none — the column says so
+// in place of a note, and the keys the field would answer have nothing to
+// move. So the control is away for as long as the wait, and stands again
+// the moment the note lands.
+func TestTheFindLeavesTheBandForTheLengthOfAFetch(t *testing.T) {
+	f := newFrameState(defaultArrangement())
+	tok := goldenTokens()
+
+	waiting := fetchingWindow(t)
+	if waiting.CurrentNote() != nil {
+		t.Fatal("the window has a note while it is fetching one")
+	}
+	if f.findTrailing(waiting, tok) != nil {
+		t.Error("the band offers a find while the window is fetching the note it would search")
+	}
+
+	// The file lands and is read: the window has a document again, and the
+	// control comes back with it.
+	landed := cacheNote(waiting, noteFromSource(waiting.Current, "# Cloudy\n\nText.\n"))
+	landed.Downloading = ""
+	if landed.CurrentNote() == nil {
+		t.Fatal("the note did not land")
+	}
+	if f.findTrailing(landed, tok) == nil {
+		t.Error("the band keeps the find away from a window that has a note to search")
+	}
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"testing"
@@ -630,4 +631,136 @@ func TestTheNoteReadsAtItsMeasure(t *testing.T) {
 // read back out of a capture.
 func rgba(c color.NRGBA) color.RGBA {
 	return color.RGBAModel.Convert(c).(color.RGBA)
+}
+
+// noteColumnLead answers the leading column of paint in a band of the
+// window, measured off the surface the band stands on: the first x at which
+// any row between y0 and y1 draws something other than that surface.
+func noteColumnLead(img *image.RGBA, surface color.NRGBA, x0, x1, y0, y1 int) int {
+	lead := -1
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1 && (lead < 0 || x < lead); x++ {
+			if c := img.RGBAAt(x, y); c.R != surface.R || c.G != surface.G || c.B != surface.B {
+				lead = x
+				break
+			}
+		}
+	}
+	return lead
+}
+
+// notePinnedRuleRow finds the row the pinned head's rule is drawn on: the
+// one row of the content column drawing the seam's colour at the column's
+// own trailing edge. The properties pane's box draws that colour too, but
+// only across its own width, where the rule runs the column's.
+func notePinnedRuleRow(img *image.RGBA, rule color.NRGBA, x, y0, y1 int) int {
+	for y := y0; y < y1; y++ {
+		if c := img.RGBAAt(x, y); c.R == rule.R && c.G == rule.G && c.B == rule.B {
+			return y
+		}
+	}
+	return -1
+}
+
+// TestThePinnedRuleRunsToTheSeam requires the rule under the column's
+// pinned head to end where the inspector's seam begins. A seam is one
+// continuous line, so a rule that stopped the gap's width short of it would
+// put two edges where the window has one.
+func TestThePinnedRuleRunsToTheSeam(t *testing.T) {
+	for _, tc := range themeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			img, g := windowShot(t, goldenModel(), tc.colors)
+			rule := vgcolor.Flatten(tc.colors.Separator, tc.colors.TextBackground)
+			y := notePinnedRuleRow(img, rule, g.Main.Max.X-1, g.RowTop, g.FootTop)
+			if y < 0 {
+				t.Fatal("no row of the content column carries the pinned head's rule")
+			}
+			end := g.ContentX + paneShadowReachDp
+			for ; end < windowW; end++ {
+				if c := img.RGBAAt(end, y); c.R != rule.R || c.G != rule.G || c.B != rule.B {
+					break
+				}
+			}
+			// The seam wears the same colour as the rule in the light
+			// scheme, which is the point of the reading: the two are one
+			// line. So the rule must cover every column up to the seam, and
+			// stop inside it rather than running on into the inspector.
+			if end < g.Inspector.Min.X {
+				t.Errorf("the rule ends at x=%d and the inspector's seam stands at x=%d; the rule runs to the seam",
+					end, g.Inspector.Min.X)
+			}
+			if end > g.Inspector.Min.X+seamDp {
+				t.Errorf("the rule reaches x=%d, past the seam at x=%d; it ends on the seam", end, g.Inspector.Min.X)
+			}
+		})
+	}
+}
+
+// TestTheContentColumnStandsOnOneLeadingEdge reads the three rows of the
+// content column that carry text — the properties pane, the document's
+// blocks and the count in the foot — and requires all three to begin at the
+// same x, in a column at the width the window opens at and in one wide
+// enough that the document centres its measure. Content inside one region
+// aligns on one leading edge.
+func TestTheContentColumnStandsOnOneLeadingEdge(t *testing.T) {
+	for _, size := range []image.Point{windowFrameSize, {X: 1500, Y: windowH}} {
+		for _, tc := range themeCases {
+			t.Run(fmt.Sprintf("%dx%d/%s", size.X, size.Y, tc.name), func(t *testing.T) {
+				img, g := windowShotAt(t, goldenModel(), tc.colors, size)
+				page := tc.colors.TextBackground
+				rule := vgcolor.Flatten(tc.colors.Separator, page)
+				// The reading starts clear of the pane's shadow, which
+				// reaches across the content column's leading edge.
+				x0 := g.ContentX + paneShadowReachDp
+				ruleY := notePinnedRuleRow(img, rule, g.Main.Max.X-1, g.RowTop, g.FootTop)
+				if ruleY < 0 {
+					t.Fatal("no row of the content column carries the pinned head's rule")
+				}
+				// Below the toolbar's own shadow, which falls across the
+				// whole width of the rows under it.
+				props := noteColumnLead(img, page, x0, g.Main.Max.X, g.RowTop+noteInsetDp, ruleY)
+				doc := noteColumnLead(img, page, x0, g.Main.Max.X, ruleY+1, g.Main.Max.Y)
+				foot := noteColumnLead(img, page, x0, g.Main.Max.X, g.FootTop, size.Y)
+				if props < 0 || doc < 0 || foot < 0 {
+					t.Fatalf("one of the three rows drew nothing to measure: properties %d, document %d, count %d",
+						props, doc, foot)
+				}
+				// A pixel of slack and no more: the three begin on
+				// different letters, and a letter's own bearings are not
+				// the column's placement of it.
+				if d := doc - props; d < -1 || d > 1 {
+					t.Errorf("the properties pane leads at x=%d and the document's blocks at x=%d; one leading edge", props, doc)
+				}
+				if d := foot - props; d < -1 || d > 1 {
+					t.Errorf("the properties pane leads at x=%d and the count in the foot at x=%d; one leading edge", props, foot)
+				}
+			})
+		}
+	}
+}
+
+// TestAWideColumnCentresTheMeasure holds the rule the edge above is one of:
+// a column wider than the reading measure centres the measure in it rather
+// than seating it at the page's inset, and a column no wider gives the
+// blocks the page's inset. The numbers are read off the column's own
+// placement, which is what every row of the column is laid out from.
+func TestAWideColumnCentresTheMeasure(t *testing.T) {
+	gtx := layout.Context{
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: layout.Exact(image.Pt(windowW, windowH)),
+		Ops:         new(op.Ops),
+	}
+	tok := goldenTokens()
+	if lead, width := noteTextBox(gtx, tok, 526); lead != noteInsetDp || width != 526-2*noteInsetDp {
+		t.Errorf("a 526 dp column places its text at x=%d over %d dp; want the page's inset %d over what is left",
+			lead, width, noteInsetDp)
+	}
+	lead, width := noteTextBox(gtx, tok, 774)
+	if width != noteMeasureDp {
+		t.Errorf("a 774 dp column lays its text out over %d dp, want the measure %d", width, noteMeasureDp)
+	}
+	if lead <= noteInsetDp {
+		t.Errorf("a 774 dp column places its text at x=%d; a column wider than the measure centres it past the inset %d",
+			lead, noteInsetDp)
+	}
 }

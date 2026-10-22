@@ -474,3 +474,36 @@ func TestTheWindowStandsOnTheNoteItIsFetching(t *testing.T) {
 		t.Errorf("the history reads %+v at %d, want the note the reader was on", m.History, m.Cursor)
 	}
 }
+
+// TestOpeningAnotherVaultDuringAFetchLeavesTheWaitBehind holds what a
+// vault switch does to a fetch in flight: the wait belongs to the vault
+// being left, so the new vault opens with nothing to wait for and says
+// nothing about one, and the answer to the old fetch changes nothing when
+// it lands.
+func TestOpeningAnotherVaultDuringAFetchLeavesTheWaitBehind(t *testing.T) {
+	m := fetchingWindow(t)
+	was := m.Downloading
+
+	opened, _ := Update(m, OpenVault{Path: "/other"})
+	if opened.Downloading != "" {
+		t.Errorf("the new vault says it is fetching %q, a note of the vault just left", opened.Downloading)
+	}
+	if opened.downloadFrom != "" {
+		t.Errorf("the new vault keeps %q as the note to return to; it belongs to the vault just left", opened.downloadFrom)
+	}
+	if got := statusLine(opened); got != "" {
+		t.Errorf("the new vault's bar says %q, want nothing to report yet", got)
+	}
+	if !opened.Scanning || opened.CurrentNote() != nil {
+		t.Errorf("the new vault opened scanning=%v on note %q; want a scan and no note", opened.Scanning, opened.Current)
+	}
+
+	// The answer to the fetch the old vault started.
+	after, cmd := Update(opened, desktop.Downloaded{Path: filepath.Join("/v", was)})
+	if !reflect.DeepEqual(after, opened) {
+		t.Error("the old vault's fetch answered into the new vault and changed it")
+	}
+	if msgs := runCmd(t, cmd); len(msgs) != 0 {
+		t.Errorf("it started %d commands too", len(msgs))
+	}
+}

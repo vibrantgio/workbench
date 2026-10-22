@@ -35,9 +35,10 @@
 // of the same column has. A surface step under the document would make the
 // content a shape cut out of chrome on three sides.
 //
-// The count stands on the note column's own reading margin, under the
-// breadcrumb and under the vault's name above that: one column of text down
-// the leading edge of the content area, top to bottom. The trailing end,
+// The count stands where the note column's own text stands, under the
+// properties pane and the document: one leading edge down the content
+// column, top to bottom, which in a column wider than the reading measure
+// is the measure's own edge and not the page's inset. The trailing end,
 // where editors on this platform put their counts, is the pane of
 // citations here rather than the document.
 //
@@ -59,7 +60,7 @@
 // address is said in this bar's own treatment rather than one measured off
 // the platform.
 //
-// An address wider than the bar is elided in its middle, the start and the
+// An address wider than that line is elided in its middle, the start and the
 // end standing on either side of one ellipsis, as the platform elides a path
 // too long for the place it is said in.
 //
@@ -169,25 +170,31 @@ func lineCountLabel(n int) string {
 }
 
 // layoutStatusBar draws the bar into the band the frame reserved for it:
-// the count on the note column's reading margin, centred in the band by
+// the count on the note column's own line of text, centred in the band by
 // the spacing step the band's own depth was built from.
+//
+// The band runs from the pane's trailing edge to the window's and is wider
+// than the column it reports on, so colW states the column: the count
+// stands where the column's text stands and runs no further than the
+// column's text runs, which is what keeps it on one leading edge with the
+// properties pane and the document above it.
 //
 // The band is claimed whether or not there is a count to put in it, so the
 // document's height is the same before a note has loaded as after: a
 // column that grew by a bar's depth as the first note arrived would reflow
 // the whole page at that moment.
-func layoutStatusBar(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
+func layoutStatusBar(gtx layout.Context, m Model, tok themeTokens, colW int) layout.Dimensions {
 	size := gtx.Constraints.Max
 	line := statusLine(m)
 	if line == "" || size.X <= 0 || size.Y <= 0 {
 		return layout.Dimensions{Size: size}
 	}
-	inset := gtx.Dp(unit.Dp(noteInsetDp))
+	lead, width := noteTextBox(gtx, tok, colW)
 	lgtx := gtx
 	lgtx.Constraints.Min = image.Point{}
-	lgtx.Constraints.Max.X = max(size.X-2*inset, 0)
-	defer op.Offset(image.Pt(inset, gtx.Dp(unit.Dp(tok.sp.S1)))).Push(gtx.Ops).Pop()
-	// An address longer than the bar loses its middle rather than its end:
+	lgtx.Constraints.Max.X = min(width, max(size.X-lead, 0))
+	defer op.Offset(image.Pt(lead, gtx.Dp(unit.Dp(tok.sp.S1)))).Push(gtx.Ops).Pop()
+	// An address longer than the line loses its middle rather than its end:
 	// what a reader is looking for is the host at one end and the leaf at
 	// the other, and the platform elides an address between them.
 	line = elide.Middle(lgtx, tok.shaper, line, tok.typ.LabelMedium, lgtx.Constraints.Max.X)

@@ -476,6 +476,13 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.ChooserCandidates = nil
 		model.LinkUnder = ""
 		model.ScanRead = 0
+		// A fetch in flight belongs to the vault being left: the answer is
+		// dropped when it arrives, since nothing is waiting on it any more,
+		// and the new vault must not open saying it is waiting for a note
+		// in the old one.
+		model.Downloading = ""
+		model.downloadFrom = ""
+		model.downloadNav = Navigate{}
 		gen, stop := model.nextScan()
 		return model, openVaultCmd(m.Path, gen, stop)
 	case vaultListed:

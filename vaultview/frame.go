@@ -365,8 +365,10 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, col sh
 		// The note column is laid out BEFORE the toolbar above it and
 		// replayed after: the toolbar carries the find, and the find's keys
 		// and the count it reports are the column's to settle.
-		MainFirst:      true,
-		Footer:         func(gtx layout.Context) layout.Dimensions { return layoutStatusBar(gtx, m, tok) },
+		MainFirst: true,
+		Footer: func(gtx layout.Context) layout.Dimensions {
+			return layoutStatusBar(gtx, m, tok, f.contentWidth(gtx))
+		},
 		FooterDepth:    statusBarHeight(tok),
 		Inspector:      as,
 		InspectorWidth: f.asideW,
@@ -383,6 +385,17 @@ func (f *frameState) layout(gtx layout.Context, m Model, tok themeTokens, col sh
 	}
 	dims, _ := two.Layout(gtx, tok.col)
 	return dims
+}
+
+// contentWidth is the content column's width, read off the band the footer
+// was given: that band runs from the pane's trailing edge to the window's,
+// so what it holds over the column is the inspector and the gap in front of
+// it, cut to the band the way the arrangement cuts them.
+func (f *frameState) contentWidth(gtx layout.Context) int {
+	band := gtx.Constraints.Max.X
+	gap := max(gtx.Dp(unit.Dp(frameSplitterDp)), 1)
+	insp := max(min(gtx.Dp(f.asideW), band-gap), 0)
+	return max(band-gap-insp, 0)
 }
 
 // toolbar is what the content column carries across its top: the window's

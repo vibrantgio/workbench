@@ -641,9 +641,21 @@ func layoutNotePage(
 	// — the header row, the properties pane, the standing messages — puts
 	// the trailing margin back itself.
 	inset := layout.Inset{Top: noteInsetDp, Left: noteInsetDp}
-	trailing := func(w layout.Widget) layout.Widget {
+	// Where the column's text stands, the properties pane included: the
+	// document seats its blocks on the measure and centres them in a column
+	// wider than it, so a pane standing at the page's own inset would part
+	// from the prose the moment the column has room to spare.
+	insetPx := gtx.Dp(unit.Dp(noteInsetDp))
+	lead, measure := noteTextBox(gtx, tok, gtx.Constraints.Max.X)
+	onMeasure := func(w layout.Widget) layout.Widget {
 		return func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Right: noteInsetDp}.Layout(gtx, w)
+			full := gtx.Constraints.Max.X
+			mgtx := gtx
+			mgtx.Constraints.Max.X = min(measure, full)
+			mgtx.Constraints.Min.X = min(mgtx.Constraints.Min.X, mgtx.Constraints.Max.X)
+			defer op.Offset(image.Pt(lead-insetPx, 0)).Push(gtx.Ops).Pop()
+			dims := w(mgtx)
+			return layout.Dimensions{Size: image.Pt(full, dims.Size.Y)}
 		}
 	}
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -721,7 +733,7 @@ func layoutNotePage(
 			// page moves and the bar's track account for them; held back
 			// outside the viewport either would leave a dead strip beside
 			// every half-cut line the reader scrolls past.
-			bar := scrollBarStyle(scrollbar.FromTokens(tok.col, tok.col.TextBackground), tok.scrollBars)
+			bar := noteScrollBar(tok)
 			// The query is put on the document every frame it is alive and
 			// taken off it on the first frame it is not, the way the arrival
 			// marking is, and the places it finds go on the bar: one query
@@ -760,7 +772,7 @@ func layoutNotePage(
 		var children []layout.FlexChild
 		if note != nil && note.FM.Present {
 			children = append(children,
-				layout.Rigid(trailing(func(gtx layout.Context) layout.Dimensions {
+				layout.Rigid(onMeasure(func(gtx layout.Context) layout.Dimensions {
 					return layoutProperties(gtx, tok, note.FM, m.PropsOpen, propClick)
 				})),
 			)
@@ -792,6 +804,36 @@ func layoutNotePage(
 		children = append(children, body)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	})
+}
+
+// noteScrollBar is the bar the document rides: the design system's, taking
+// the colour tokens the document's style took, at the standing or fading
+// behaviour the reader's own setting asks for.
+func noteScrollBar(tok themeTokens) scrollbar.Style {
+	return scrollBarStyle(scrollbar.FromTokens(tok.col, tok.col.TextBackground), tok.scrollBars)
+}
+
+// noteTextBox is where a line of this column's text begins and how wide it
+// may run, both measured from the column's own leading edge: the page's
+// reading inset, and the measure centred in what the viewport shows once
+// the bar's lane has come off it.
+//
+// It is the document's own seating rule — [markdown.Style.Measure] over
+// [markdown.Style.Gutter], with the bar occupying its lane — restated here
+// so the rows the page draws around the document stand where the document's
+// blocks stand. A test holds the two together.
+func noteTextBox(gtx layout.Context, tok themeTokens, colW int) (lead, width int) {
+	inset := gtx.Dp(unit.Dp(noteInsetDp))
+	page := max(colW-inset, 0)
+	barW := gtx.Dp(noteScrollBar(tok).Width())
+	view := max(page-barW, 0)
+	gutter := max(inset-barW, 0)
+	avail := max(view-gutter, 0)
+	m := gtx.Dp(unit.Dp(noteMeasureDp))
+	if m <= 0 || m >= avail {
+		return inset, max(page-inset, 0)
+	}
+	return inset + min((view-m)/2, avail-m), m
 }
 
 // rebuildDocument returns a Document for n, seated at prev's viewport
@@ -875,13 +917,21 @@ func renderNotePageInto(
 // the text starts would read as a rule under the breadcrumb rather than as
 // the edge of a region. The column's trailing margin is the document's own
 // gutter, which the seam runs to for the same reason.
+//
+// At the trailing end it runs past the column's own edge to the seam the
+// inspector stands behind, which is [frameSplitterDp] further on: a seam is
+// one continuous line, and a rule stopping a lane short of the line it meets
+// reads as two edges. A page rendered with no inspector beside it paints
+// that last stretch outside the picture, as the leading offset paints
+// outside the page's inset.
 func pinnedSeam(gtx layout.Context, tok themeTokens) layout.Dimensions {
 	h := max(gtx.Dp(unit.Dp(seamDp)), 1)
 	w := gtx.Constraints.Max.X
 	lead := gtx.Dp(unit.Dp(noteInsetDp))
+	toSeam := gtx.Dp(unit.Dp(frameSplitterDp))
 	st := op.Offset(image.Pt(-lead, 0)).Push(gtx.Ops)
 	paint.FillShape(gtx.Ops, vgcolor.Flatten(tok.col.Separator, tok.col.TextBackground),
-		clip.Rect(image.Rect(0, 0, w+lead, h)).Op())
+		clip.Rect(image.Rect(0, 0, w+lead+toSeam, h)).Op())
 	st.Pop()
 	return layout.Dimensions{Size: image.Pt(w, h)}
 }

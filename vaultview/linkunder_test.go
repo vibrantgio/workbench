@@ -242,7 +242,7 @@ func TestTheBarElidesAnAddressWiderThanItself(t *testing.T) {
 	// address; wide, it is.
 	draw := func(width int) *image.RGBA {
 		return golden.Capture(t, image.Pt(width, 24), func(gtx layout.Context) layout.Dimensions {
-			return layoutStatusBar(gtx, m, tok)
+			return layoutStatusBar(gtx, m, tok, width)
 		})
 	}
 	wide := draw(900)
@@ -256,7 +256,7 @@ func TestTheBarElidesAnAddressWiderThanItself(t *testing.T) {
 	m2 := m
 	m2, _ = Update(m2, LinkUnder{URL: long[:len(long)-len("page.html")] + "other.htm"})
 	other := golden.Capture(t, image.Pt(260, 24), func(gtx layout.Context) layout.Dimensions {
-		return layoutStatusBar(gtx, m2, tok)
+		return layoutStatusBar(gtx, m2, tok, 260)
 	})
 	if sameImage(narrow, other) {
 		t.Error("two addresses differing only at their ends drew the same bar; the end was cut rather than the middle")
