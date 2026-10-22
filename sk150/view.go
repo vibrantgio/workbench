@@ -27,6 +27,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
@@ -37,11 +38,14 @@ import (
 var tabScreens = []string{"monitor", "presets", "device"}
 
 // themed pairs one theme emission with the palette, typography and stat
-// icons derived from it.
+// icons derived from it, and keeps the platform's colours and type set the
+// emission carried for the patterns that take them as they are.
 type themed struct {
-	palette Palette
-	typ     Type
-	ic      statIcons
+	palette    Palette
+	typ        Type
+	ic         statIcons
+	platform   tokens.PlatformColors
+	typography tokens.Typography
 }
 
 // statIcons are the dashboard's symbols, rasterised once per theme emission
@@ -139,11 +143,11 @@ type pageState struct {
 
 // buildLayers returns the layer-builder the theme window renders: a backdrop
 // layer and the content layer.
-func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], post func(gtx layout.Context, msg mvu.Message)) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			BackdropLayer(th),
-			ContentLayer(th, modelObs),
+			ContentLayer(th, modelObs, post),
 		}
 	}
 }
@@ -151,7 +155,10 @@ func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Them
 // ContentLayer renders the page. It subscribes modelObs three times — the
 // CombineLatest4 below, the tab strip's Selected, and the override dialog's
 // Open — and each subscription reads the model in force when it attaches.
-func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+//
+// post is where the controls that take it hand their message: the frame's
+// message op in the window, a recorder in a test that drives the control.
+func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], post func(gtx layout.Context, msg mvu.Message)) rx.Observable[layout.Widget] {
 	// The frame-time snapshot (stored by the final combine below); declared
 	// up here because the hand-rolled controls read it.
 	var stateCell atomic.Value
@@ -289,7 +296,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		Title: "Clear", Emphasis: button.Tonal, Message: ClearProtection{},
 	}))
 	reg.add("demo", button.Button(th, button.Props{
-		Title: "Try demo mode", Emphasis: button.Tonal, Message: EnterDemo{},
+		Title: "Try demo mode", Emphasis: button.Tonal,
+		OnClick: func(gtx layout.Context) { post(gtx, EnterDemo{}) },
 	}))
 
 	// The override dialog's footer actions. Caller-owned clickables put
@@ -404,7 +412,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
 			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
 				p := PaletteFrom(n.First)
-				return themed{palette: p, typ: TypeFrom(n.Second), ic: iconsFrom(p)}
+				return themed{palette: p, typ: TypeFrom(n.Second), ic: iconsFrom(p),
+					platform: n.First, typography: n.Second}
 			})
 	})
 
@@ -428,6 +437,12 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 				return layout.Dimensions{Size: size}
 			}
 		})
+}
+
+// postMessage is the window's sink for a control's message: the message
+// reaches the loop as this frame's message op.
+func postMessage(gtx layout.Context, msg mvu.Message) {
+	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 }
 
 // pageFill is the fill the page stands on, for the scheme being drawn: the
@@ -463,14 +478,13 @@ func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widge
 			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}
 		t, m, slots := st.t, st.m, st.slots
+		if !m.HaveR {
+			// The empty state takes the tab's whole content frame, the
+			// frame the readouts would occupy, and centres in it.
+			return shell.EmptyState(gtx, t.typ.Shaper, t.platform, t.typography,
+				pageFill(t.platform), monitorEmptyState(m, slots))
+		}
 		return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			if !m.HaveR {
-				rows := append([]layout.FlexChild{vgap(10)}, monitorFallback(t, m, slots)...)
-				return layout.N.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					gtx.Constraints.Min.X = 0
-					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
-				})
-			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				vgap(10),
 				layout.Rigid(monitorBlock(t, m, slots)),
@@ -649,25 +663,19 @@ func headerRow(t themed, m Model, slots slotSet) layout.Widget {
 	}
 }
 
-// monitorFallback is the Monitor tab before the first reading: the demo
-// offer while no device is reachable, or a waiting line.
-func monitorFallback(t themed, m Model, slots slotSet) []layout.FlexChild {
-	p, typ := t.palette, t.typ
+// monitorEmptyState is the Monitor tab before the first reading. While no
+// device is reachable and the demo is not running, the line says so, the
+// connection status says why, and the demo is the action offered; once a
+// device or the demo answers, the tab waits for its first reading.
+func monitorEmptyState(m Model, slots slotSet) shell.EmptyStateProps {
 	if !m.Online && !m.Demo {
-		return []layout.FlexChild{
-			layout.Rigid(textLine(typ, typ.Title, p.Label, "No SK150 connected")),
-			vgap(6),
-			layout.Rigid(textLine(typ, typ.Body, p.SecondaryLabel, m.Status)),
-			vgap(14),
-			layout.Rigid(fixed(160, slots.get("demo"))),
-			vgap(6),
-			layout.Rigid(textLine(typ, typ.Small, p.SecondaryLabel,
-				"Explore the app with a simulated SK150. Restart the app to use real hardware again.")),
+		return shell.EmptyStateProps{
+			Line:        "No SK150 connected",
+			Description: m.Status,
+			Actions:     []layout.Widget{fixed(160, slots.get("demo"))},
 		}
 	}
-	return []layout.FlexChild{
-		layout.Rigid(textLine(typ, typ.Body, p.SecondaryLabel, "waiting for the first reading…")),
-	}
+	return shell.EmptyStateProps{Line: "Waiting for the first reading…"}
 }
 
 // monitorBlock is the live readout block: one column as wide as the stat

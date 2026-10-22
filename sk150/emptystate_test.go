@@ -1,0 +1,238 @@
+package main
+
+// The Monitor tab before the first reading: one empty state in the tab's
+// content frame — the line, the connection status under it and the demo
+// button under that, centred as one group — read off a render of the whole
+// window, because the frame the group centres in is the arrangement's.
+
+import (
+	"image"
+	"image/color"
+	"testing"
+
+	"gioui.org/f32"
+	gioinput "gioui.org/io/input"
+	"gioui.org/io/pointer"
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/unit"
+
+	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu"
+	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/tokens"
+)
+
+// unconnectedModel is the window as it opens with no device reachable: on
+// the Monitor tab, no reading, the demo not running, the connection status
+// the failed connect left.
+func unconnectedModel() Model {
+	return Model{Screen: "monitor", Status: "no serial adapter found", EditPreset: noEdit}
+}
+
+// renderUnconnected draws the whole window with no device reachable. Two
+// frames are drawn and the second kept, for the reason renderWindow does.
+func renderUnconnected(t *testing.T, c tokens.PlatformColors) *image.RGBA {
+	t.Helper()
+	w := windowFrame(t, c, unconnectedModel())
+	golden.Capture(t, windowSize, w)
+	return golden.Capture(t, windowSize, w)
+}
+
+// monitorFrame is the Monitor tab's content frame, read off the
+// arrangement: it begins on the row under the tab strip's trim, which is
+// the hairline inside the strip's foot, spans the strip's width, and ends
+// at the page's own padding at the window's foot, where the tabs end when
+// no notice stands under them.
+func monitorFrame(t *testing.T, img *image.RGBA, c tokens.PlatformColors) image.Rectangle {
+	t.Helper()
+	fill := pageFill(c)
+	trim := vgcolor.Flatten(c.Separator, fill)
+	mid := windowSize.X / 2
+	row := -1
+	for y := 0; y < windowSize.Y; y++ {
+		if sameColour(at(img, mid, y), trim) {
+			row = y
+			break
+		}
+	}
+	if row < 0 {
+		t.Fatal("no tab strip trim crosses the window's middle column")
+	}
+	left, right := -1, -1
+	for x := 0; x < windowSize.X; x++ {
+		if !sameColour(at(img, x, row), fill) {
+			if left < 0 {
+				left = x
+			}
+			right = x + 1
+		}
+	}
+	return image.Rect(left, row+1, right, windowSize.Y-int(Padding))
+}
+
+// sameColour answers whether two painted colours are the same, alpha aside.
+func sameColour(a, b color.NRGBA) bool { return a.R == b.R && a.G == b.G && a.B == b.B }
+
+// paintedRuns are the runs of rows inside the frame that hold any pixel not of
+// the fill, top to bottom: the line, the description and the button, in
+// that order, because the gaps between the group's parts are bare rows.
+func paintedRuns(img *image.RGBA, frame image.Rectangle, fill color.NRGBA) []image.Rectangle {
+	var runs []image.Rectangle
+	open := false
+	for y := frame.Min.Y; y < frame.Max.Y; y++ {
+		box := image.Rectangle{}
+		for x := frame.Min.X; x < frame.Max.X; x++ {
+			if sameColour(at(img, x, y), fill) {
+				continue
+			}
+			px := image.Rect(x, y, x+1, y+1)
+			if box.Empty() {
+				box = px
+			} else {
+				box = box.Union(px)
+			}
+		}
+		switch {
+		case box.Empty():
+			open = false
+		case open:
+			runs[len(runs)-1] = runs[len(runs)-1].Union(box)
+		default:
+			runs, open = append(runs, box), true
+		}
+	}
+	return runs
+}
+
+// TestMonitorEmptyStateCentresInTheTabsFrame holds the group's placement:
+// the line, the description and the button stand as three parts, and the
+// block they make centres across and down in the tab's content frame.
+//
+// The block's top is the line's glyphs and not its line box, so the block
+// read off the pixels stands a few pixels lower than the group the pattern
+// centres; the old placement, anchored at the tab's top, stood hundreds of
+// pixels higher.
+func TestMonitorEmptyStateCentresInTheTabsFrame(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderUnconnected(t, tc.c)
+			frame := monitorFrame(t, img, tc.c)
+			runs := paintedRuns(img, frame, pageFill(tc.c))
+			if len(runs) != 3 {
+				t.Fatalf("the tab's frame %v holds %d runs of painted rows %v, want the line, the description and the button", frame, len(runs), runs)
+			}
+			block := runs[0].Union(runs[1]).Union(runs[2])
+			if got, want := block.Min.X+block.Max.X, frame.Min.X+frame.Max.X; abs(got-want) > 2 {
+				t.Errorf("the group centres at %.1f across, want the tab frame's %.1f", float64(got)/2, float64(want)/2)
+			}
+			if got, want := block.Min.Y+block.Max.Y, frame.Min.Y+frame.Max.Y; abs(got-want) > 6 {
+				t.Errorf("the group centres at %.1f down, want the tab frame's %.1f", float64(got)/2, float64(want)/2)
+			}
+			for i, r := range runs {
+				if c := r.Min.X + r.Max.X; abs(c-(frame.Min.X+frame.Max.X)) > 2 {
+					t.Errorf("part %d centres at %.1f across, want the frame's %.1f", i, float64(c)/2, float64(frame.Min.X+frame.Max.X)/2)
+				}
+			}
+		})
+	}
+}
+
+// TestMonitorEmptyStateLineSpendsTertiaryLabel pins the colour the line's
+// glyphs plateau at: the platform's tertiary label flattened over the tab's
+// fill, which is the fill the strip stands on. A fully covered pixel is
+// painted the flattened colour exactly.
+func TestMonitorEmptyStateLineSpendsTertiaryLabel(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderUnconnected(t, tc.c)
+			fill := pageFill(tc.c)
+			frame := monitorFrame(t, img, tc.c)
+			runs := paintedRuns(img, frame, fill)
+			if len(runs) == 0 {
+				t.Fatal("the tab's frame is bare, want the empty state's line")
+			}
+			var got color.NRGBA
+			far := -1
+			for y := runs[0].Min.Y; y < runs[0].Max.Y; y++ {
+				for x := runs[0].Min.X; x < runs[0].Max.X; x++ {
+					c := at(img, x, y)
+					if d := abs(int(c.R)-int(fill.R)) + abs(int(c.G)-int(fill.G)) + abs(int(c.B)-int(fill.B)); d > far {
+						far, got = d, c
+					}
+				}
+			}
+			want := vgcolor.Flatten(tc.c.TertiaryLabel, fill)
+			if !sameColour(got, want) {
+				t.Errorf("the line's glyphs plateau at #%02x%02x%02x, want TertiaryLabel over the tab's fill, #%02x%02x%02x",
+					got.R, got.G, got.B, want.R, want.G, want.B)
+			}
+		})
+	}
+}
+
+// TestMonitorEmptyStateDemoButtonPostsEnterDemo drives the live demo button
+// the window lays out through a real input.Router, at the site read off the
+// render, and reads back what the window's post was handed.
+func TestMonitorEmptyStateDemoButtonPostsEnterDemo(t *testing.T) {
+	c := tokens.PlatformLight
+	img := renderUnconnected(t, c)
+	runs := paintedRuns(img, monitorFrame(t, img, c), pageFill(c))
+	if len(runs) != 3 {
+		t.Fatalf("the tab's frame holds %d runs of painted rows, want the line, the description and the button", len(runs))
+	}
+	button := runs[2]
+
+	var posted []mvu.Message
+	w := windowFramePosting(t, c, unconnectedModel(), func(_ layout.Context, msg mvu.Message) {
+		posted = append(posted, msg)
+	})
+	var (
+		ops op.Ops
+		r   gioinput.Router
+	)
+	frame := func() {
+		ops.Reset()
+		w(layout.Context{
+			Constraints: layout.Exact(windowSize),
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Ops:         &ops,
+			Source:      r.Source(),
+		})
+		r.Frame(&ops)
+	}
+	frame()
+	frame()
+	mid := f32.Pt(float32(button.Min.X+button.Max.X)/2, float32(button.Min.Y+button.Max.Y)/2)
+	r.Queue(
+		pointer.Event{Kind: pointer.Press, Position: mid, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary},
+		pointer.Event{Kind: pointer.Release, Position: mid, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary},
+	)
+	frame()
+	frame()
+	found := false
+	for _, msg := range posted {
+		if _, ok := msg.(EnterDemo); ok {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("a press on the demo button at %v posted %v, want a main.EnterDemo", mid, posted)
+	}
+}
+
+// TestMonitorEmptyStateWaitsWithoutActions holds the second state: once a
+// device or the demo answers and no reading has come, the tab stands its
+// own line alone, with no description and no button.
+func TestMonitorEmptyStateWaitsWithoutActions(t *testing.T) {
+	for _, m := range []Model{
+		{Screen: "monitor", Online: true, Status: "connected", EditPreset: noEdit},
+		{Screen: "monitor", Demo: true, Status: "starting demo…", EditPreset: noEdit},
+	} {
+		p := monitorEmptyState(m, slotSet{})
+		if p.Line != "Waiting for the first reading…" || p.Description != "" || len(p.Actions) != 0 {
+			t.Errorf("online %v demo %v: the empty state is %q / %q with %d actions, want the waiting line alone",
+				m.Online, m.Demo, p.Line, p.Description, len(p.Actions))
+		}
+	}
+}

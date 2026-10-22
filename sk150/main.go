@@ -73,7 +73,7 @@ func run() {
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
-	if err := w.Render(buildLayers(models)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models, postMessage)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "sk150:", err)
 		os.Exit(1)
 	}

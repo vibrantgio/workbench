@@ -27,6 +27,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -135,7 +136,15 @@ func goldenModel() Model {
 // theme/window stacks them.
 func windowFrame(t *testing.T, c tokens.PlatformColors, m Model) layout.Widget {
 	t.Helper()
-	layers := buildLayers(rx.Of(m))(rx.Of(staticTheme(c)))
+	return windowFramePosting(t, c, m, postMessage)
+}
+
+// windowFramePosting is windowFrame with the controls' messages handed to
+// post, so a test can drive a control the window lays out and read back
+// what it posted.
+func windowFramePosting(t *testing.T, c tokens.PlatformColors, m Model, post func(gtx layout.Context, msg mvu.Message)) layout.Widget {
+	t.Helper()
+	layers := buildLayers(rx.Of(m), post)(rx.Of(staticTheme(c)))
 	widgets := make([]layout.Widget, len(layers))
 	for i, layer := range layers {
 		w, err := collectOne(layer)
