@@ -34,8 +34,9 @@ import (
 // Page layout constants.
 const (
 	// docsOuterInsetDp is the blank the document keeps above its first
-	// block, below its last and on its trailing side, and the blank the
-	// empty state keeps from the pane edges (S6 = 24 dp).
+	// block and below its last, the padding it keeps on both sides of its
+	// text, and the blank the empty state keeps from the pane edges
+	// (S6 = 24 dp).
 	docsOuterInsetDp = 24
 	// docsMeasureDp caps the guide document's line length to a readable
 	// column; the window is wider than a comfortable measure, and the
@@ -113,8 +114,10 @@ func openURL(url string) {
 //
 // The blank above the first block and below the last is the document's
 // own StartSpace and EndSpace, so it scrolls with the content instead of
-// cutting a still strip out of the viewport. Gutter keeps the same blank on
-// the trailing side when the column is narrower than the measure.
+// cutting a still strip out of the viewport. Gutter is the padding: the
+// same blank is kept on both sides of the text when the column is narrower
+// than the measure and the padding on both sides, and the measure is capped
+// at the width that remains.
 //
 // The bar is passed in rather than built here because it is the window's
 // bar, spent against the setting read once where the window was composed;

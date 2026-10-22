@@ -740,10 +740,11 @@ func TestTheContentColumnStandsOnOneLeadingEdge(t *testing.T) {
 }
 
 // TestAWideColumnCentresTheMeasure holds the rule the edge above is one of:
-// a column wider than the reading measure centres the measure in it rather
-// than seating it at the page's inset, and a column no wider gives the
-// blocks the page's inset. The numbers are read off the column's own
-// placement, which is what every row of the column is laid out from.
+// a column wider than the reading measure and the page's inset on both sides
+// centres the measure between the column's edges, and a narrower column keeps
+// the page's inset on both sides and gives the text what is left. The numbers
+// are read off the column's own placement, which is what every row of the
+// column is laid out from.
 func TestAWideColumnCentresTheMeasure(t *testing.T) {
 	gtx := layout.Context{
 		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
@@ -762,5 +763,15 @@ func TestAWideColumnCentresTheMeasure(t *testing.T) {
 	if lead <= noteInsetDp {
 		t.Errorf("a 774 dp column places its text at x=%d; a column wider than the measure centres it past the inset %d",
 			lead, noteInsetDp)
+	}
+	if trail := 774 - lead - width; trail-lead > 1 || lead-trail > 1 {
+		t.Errorf("a 774 dp column leaves %d dp before its text and %d after it; the measure is centred in the column",
+			lead, trail)
+	}
+	for _, colW := range []int{noteMeasureDp + noteInsetDp, noteMeasureDp + 2*noteInsetDp - 1} {
+		if lead, width := noteTextBox(gtx, tok, colW); lead != noteInsetDp || width != colW-2*noteInsetDp {
+			t.Errorf("a %d dp column places its text at x=%d over %d dp; want the page's inset %d on both sides",
+				colW, lead, width, noteInsetDp)
+		}
 	}
 }
