@@ -3,11 +3,9 @@ package main
 import (
 	"image"
 	"image/color"
-	"math"
 	"strconv"
 	"strings"
 
-	"gioui.org/f32"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
@@ -21,24 +19,18 @@ import (
 // pixel-exact at all three, so the section shows all three rather than one.
 var MarkSizes = []unit.Dp{16, 20, 24}
 
-// TurnedMark is the one mark of the set whose single drawing serves two states.
-// A row's disclosure draws the right-pointing chevron as the row stands closed,
-// and a control showing a row whose disclosure is open draws that same drawing
-// pointing down rather than reaching for a second name, so this cell shows both.
-//
-// It is a name the set carries, not a name of its own: everything the cell adds
-// is drawn by the painter marks.Mark(TurnedMark) returns.
-const TurnedMark = marks.ChevronRight
+// ChevronDownMark is the mark a row whose disclosure is open draws: the set's
+// own chevron-down, named by what it depicts. A closed row draws chevron-right
+// and an open one draws this drawing, because one picture has one name.
+const ChevronDownMark = marks.ChevronDown
 
 // MarkSizeNote says what a cell's row of drawings is, in the sizes themselves,
-// and — only when the turned mark's cell is on screen — what the extra drawing
-// in it is. The clause is conditional because the section is filtered: a query
-// that keeps no turned mark would otherwise be described wrongly.
+// and — only when chevron-down's cell is on screen — what that mark is drawn
+// for. The clause is conditional because the section is filtered: a query
+// that keeps no chevron-down would otherwise be described wrongly.
 //
-// It stays a clause rather than a sentence: the note hangs off the trailing
-// edge of a section label beside a sibling reading "961 icons". Naming the mark
-// as its subject is what keeps the turned drawing from reading as a second mark
-// called "open".
+// It stays a clause rather than a sentence: the note is drawn at the trailing
+// edge of a section label beside a sibling reading "961 icons".
 func MarkSizeNote(names []marks.Name) string {
 	sizes := make([]string, len(MarkSizes))
 	for i, size := range MarkSizes {
@@ -46,8 +38,8 @@ func MarkSizeNote(names []marks.Name) string {
 	}
 	note := "one mark at " + strings.Join(sizes, ", ") + " dp"
 	for _, name := range names {
-		if name == TurnedMark {
-			return note + "; " + string(TurnedMark) + " is also drawn pointing down, for a row whose disclosure is open"
+		if name == ChevronDownMark {
+			return note + "; " + string(ChevronDownMark) + ", for a row whose disclosure is open"
 		}
 	}
 	return note
@@ -70,9 +62,7 @@ func Heading(t themed, heading, note string) layout.Widget {
 // MarkGrid lays the design system's own marks out in the catalogue's cell
 // rhythm, wrapping into as many rows as the width needs. Every cell draws one
 // mark through the icons package at each of MarkSizes and captions it with the
-// name a call site writes. TurnedMark's cell draws that same mark once more,
-// turned; the caption underneath is still the one name, because that is all a
-// call site can write.
+// name a call site writes.
 //
 // Unlike the Material grid this one does not scroll: the set is meant to be
 // seen at a glance.
@@ -92,20 +82,12 @@ func MarkGrid(t themed, names []marks.Name) layout.Widget {
 }
 
 // markCell paints one mark at every size in MarkSizes, ascending, with the
-// name underneath — and for TurnedMark that same mark once more at the band's
-// own size, turned a quarter turn.
+// name underneath.
 //
 // Every size is centred on the band's own line rather than stood on a common
 // foot: a mark is drawn centred in its square, so centring the squares puts
 // every drawing's middle on one line. How far a drawing's paint reaches into
 // its square differs between marks, so a common foot would not align them.
-//
-// The turned drawing is shown once, at MarkBand, rather than beside every size:
-// three sizes doubled with a gap between each is 180 dp against a 160 dp CellW,
-// so a pair per size either overflows the cell or crushes the gutter between
-// cells. It sits at the row's trailing end under the plain MarkGap — widening
-// that gap would narrow the gutter between cells by the same amount, since what
-// is left over centres the row.
 //
 // A painter is a lookup and a closure over the set's shared cache, so building
 // one per frame is cheap. Mark returns nil for a name the set does not carry;
@@ -114,7 +96,6 @@ func MarkGrid(t themed, names []marks.Name) layout.Widget {
 func markCell(gtx layout.Context, t themed, name marks.Name, cell image.Rectangle) {
 	paintMark := marks.Mark(name)
 	gap := gtx.Dp(MarkGap)
-	turn := name == TurnedMark
 
 	row := 0
 	for i, size := range MarkSizes {
@@ -123,42 +104,25 @@ func markCell(gtx layout.Context, t themed, name marks.Name, cell image.Rectangl
 		}
 		row += gtx.Dp(size)
 	}
-	if turn {
-		row += gap + gtx.Dp(MarkBand)
-	}
 
 	band := cell.Min.Y + gtx.Dp(8)
 	middle := band + gtx.Dp(MarkBand)/2
 	x := cell.Min.X + (cell.Dx()-row)/2
 	for _, size := range MarkSizes {
 		px := gtx.Dp(size)
-		paintSquare(gtx, paintMark, image.Pt(x, middle-px/2), px, t.palette.Text, false)
+		paintSquare(gtx, paintMark, image.Pt(x, middle-px/2), px, t.palette.Text)
 		x += px + gap
-	}
-	if turn {
-		px := gtx.Dp(MarkBand)
-		paintSquare(gtx, paintMark, image.Pt(x, middle-px/2), px, t.palette.Text, true)
 	}
 
 	caption := image.Rect(cell.Min.X, band+gtx.Dp(MarkBand)+gtx.Dp(4), cell.Max.X, cell.Max.Y)
 	textdraw.FillText(gtx, t.typ.Shaper, t.typ.Caption, caption, 0.5, 0.0, t.palette.Text, string(name))
 }
 
-// paintSquare draws one mark into a square of px at at, optionally turned a
-// quarter turn about that square's own centre.
-//
-// The turn is a paint-time affine over the one registered drawing, not a second
-// drawing. The mark occupies the whole square, so the centre it turns about is
-// the square's, which keeps the turned drawing on the band's line and inside
-// its own slot.
-func paintSquare(gtx layout.Context, paint marks.Painter, at image.Point, px int, c color.NRGBA, turn bool) {
+// paintSquare draws one mark into a square of px at at.
+func paintSquare(gtx layout.Context, paint marks.Painter, at image.Point, px int, c color.NRGBA) {
 	if paint == nil {
 		return
 	}
 	defer op.Offset(at).Push(gtx.Ops).Pop()
-	if turn {
-		half := float32(px) / 2
-		defer op.Affine(f32.Affine2D{}.Rotate(f32.Pt(half, half), math.Pi/2)).Push(gtx.Ops).Pop()
-	}
 	paint(gtx, px, c)
 }

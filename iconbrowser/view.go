@@ -125,12 +125,14 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 // with the field's text on every change, the clear mark's and Escape's
 // emptying included.
 //
-// The field is drawn as the chrome variant's sidebar recess. It stands at the
-// top of the page on the window's own plane, in no toolbar band: the sidebar
-// recess is the flat one, no edge and no shadow, set a shade apart from the
-// fill around it, where the toolbar recess draws the rim and the drop shadow
-// every bordered control in a toolbar band draws. Surface is left nil because
-// the plane the field is drawn on is the window's own.
+// The field is drawn as the form variant, the platform's search field on
+// content: it stands at the top of the page on the window's own fill, which is
+// content and not chrome, in no sidebar and no toolbar band. The form variant
+// is the field measured off System Settings' "add an input source" sheet: the
+// hairline around the surface it stands on, its ends fully rounded, the
+// looking glass 7 px inside the hairline and the prompt 4 px clear of it.
+// Surface is left nil because the fill the field is drawn on is the window's
+// own.
 //
 // extra states what a render made outside the window has to: the Seed, the
 // Shaper, a FocusTag of its own. The rest of the props are set here, so the
@@ -139,8 +141,7 @@ func searchField(th rx.Observable[theme.Theme], extra input.SearchFieldProps, po
 	props := extra
 	props.Placeholder = "Search"
 	props.Description = "search icons by name"
-	props.Variant = input.Chrome
-	props.Region = input.Sidebar
+	props.Variant = input.Form
 	props.OnChange = func(gtx layout.Context, text string) {
 		post(gtx, SetQuery{Text: text})
 	}

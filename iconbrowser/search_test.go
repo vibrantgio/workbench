@@ -21,7 +21,7 @@ import (
 
 // searchFieldSize is the room the page gives the field in the window it
 // opens as: the window's width less the page's Padding on each side, at the
-// comfortable field height the sidebar recess is drawn at.
+// comfortable field height.
 var searchFieldSize = image.Pt(int(winW-2*Padding), int(tokens.Comfortable.FieldHeight))
 
 // driveSearchField builds the field ContentLayer lays out and returns a frame

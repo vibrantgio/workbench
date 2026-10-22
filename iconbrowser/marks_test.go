@@ -43,17 +43,13 @@ func markCellFrame(t *testing.T, c tokens.PlatformColors, name marks.Name) *imag
 }
 
 // markRow is where markCell puts the row of squares in a cell of CellW: the
-// leading edge of the first square and the row's whole width, with the turned
-// square counted when the cell is the one that shows it.
-func markRow(turn bool) (x0, width int) {
+// leading edge of the first square and the row's whole width.
+func markRow() (x0, width int) {
 	for i, size := range MarkSizes {
 		if i > 0 {
 			width += int(MarkGap)
 		}
 		width += int(size)
-	}
-	if turn {
-		width += int(MarkGap) + int(MarkBand)
 	}
 	return (int(CellW) - width) / 2, width
 }
@@ -61,17 +57,12 @@ func markRow(turn bool) (x0, width int) {
 // bandRows is the vertical span every square is centred in.
 func bandRows() (top, bottom int) { return 8, 8 + int(MarkBand) }
 
-// squareAt is the rectangle of the i'th square of the row, counting the turned
-// one as the last.
-func squareAt(turn bool, i int) image.Rectangle {
-	x, _ := markRow(turn)
+// squareAt is the rectangle of the i'th square of the row.
+func squareAt(i int) image.Rectangle {
+	x, _ := markRow()
 	top, _ := bandRows()
 	middle := top + int(MarkBand)/2
-	sizes := sizesPx()
-	if turn {
-		sizes = append(sizes, int(MarkBand))
-	}
-	for n, px := range sizes {
+	for n, px := range sizesPx() {
 		if n == i {
 			return image.Rect(x, middle-px/2, x+px, middle+px-px/2)
 		}
@@ -153,9 +144,7 @@ func agreement(a, b []bool, _ int) float64 {
 
 // turnedClockwise is the mask a quarter turn about the square's centre produces:
 // the pixel at (x, y) lands at (n-1-y, x). Gio's y axis points down, so the
-// positive rotation markCell applies is the clockwise one on screen — which is
-// the turn that takes a mark pointing at the row it would open into one
-// pointing at the children it has opened.
+// positive rotation is the clockwise one on screen.
 func turnedClockwise(mask []bool, n int) []bool {
 	out := make([]bool, len(mask))
 	for y := 0; y < n; y++ {
@@ -181,106 +170,96 @@ func drawnColumns(img *image.RGBA, r image.Rectangle, fill, symbol color.NRGBA) 
 	return first, last
 }
 
-// TestTheTurnedCellDrawsTheOpenRendition reads off the frame that the cell
-// showing a turn draws, beside its closed row, that same drawing turned a
-// quarter turn about its own square's centre.
+// markAlone paints one mark into an n×n square on the window's own fill, the
+// way the cell paints each of its squares.
+func markAlone(t *testing.T, c tokens.PlatformColors, name marks.Name, n int) *image.RGBA {
+	t.Helper()
+	p := PaletteFrom(c)
+	paintBackdrop := backdrop.Widget(p.Backdrop)
+	paint := marks.Mark(name)
+	if paint == nil {
+		t.Fatalf("the set carries no %s", name)
+	}
+	return golden.Capture(t, image.Pt(n, n), func(gtx layout.Context) layout.Dimensions {
+		paintBackdrop(gtx)
+		paint(gtx, n, p.Text)
+		return layout.Dimensions{Size: image.Pt(n, n)}
+	})
+}
+
+// TestTheChevronDownCellDrawsTheSetsChevronDown reads off the frame that the
+// mark a row whose disclosure is open draws is the set's own chevron-down at
+// the band's size, and not chevron-right turned a quarter turn.
 //
-// It is checked as a rotation rather than as "a fourth drawing appeared",
-// because a second registered mark would satisfy the weaker reading. The masks
-// must agree once the closed one is turned, and must disagree when it is not —
-// a mark that came out the same either way would make the first half vacuous.
-func TestTheTurnedCellDrawsTheOpenRendition(t *testing.T) {
+// It is checked against both drawings rather than as "a down-pointing chevron
+// appeared", because chevron-right turned would satisfy the weaker reading.
+// The masks must agree with chevron-down and disagree with the turned
+// chevron-right; the second half is only a check while the two drawings
+// differ, which the test asserts first.
+func TestTheChevronDownCellDrawsTheSetsChevronDown(t *testing.T) {
 	n := int(MarkBand)
 	// The floor is "the cell drew the mark at all", not a count the drawing
-	// owes. A chevron at 24 dp is two arms a little over nine units long at
-	// the icon set's one measured band of 1.4 units, so the pixels standing
-	// past half way from the fill to the symbol are a little over a dozen;
-	// half the square's side is well under that and well over nothing.
+	// owes: half the square's side is well under the dozen or so pixels a
+	// chevron at 24 dp paints past half way, and well over nothing.
 	drawn := n / 2
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			img := markCellFrame(t, tc.c, TurnedMark)
 			p := PaletteFrom(tc.c)
-
-			closed := drawnMask(img, squareAt(true, len(MarkSizes)-1), p.Backdrop, p.Text)
-			turned := drawnMask(img, squareAt(true, len(MarkSizes)), p.Backdrop, p.Text)
-			if got := drawnCount(closed); got < drawn {
-				t.Fatalf("the closed drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
+			sq := image.Rect(0, 0, n, n)
+			img := markCellFrame(t, tc.c, ChevronDownMark)
+			cell := drawnMask(img, squareAt(len(MarkSizes)-1), p.Backdrop, p.Text)
+			down := drawnMask(markAlone(t, tc.c, marks.ChevronDown, n), sq, p.Backdrop, p.Text)
+			turned := turnedClockwise(drawnMask(markAlone(t, tc.c, marks.ChevronRight, n), sq, p.Backdrop, p.Text), n)
+			if got := drawnCount(cell); got < drawn {
+				t.Fatalf("the cell's drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
 			}
-			if got := drawnCount(turned); got < drawn {
-				t.Fatalf("the turned drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
+			if got := agreement(down, turned, n); got >= 0.95 {
+				t.Fatalf("chevron-down and chevron-right turned agree on %.1f%% of the square; this test cannot tell them apart", got*100)
 			}
-			if got := agreement(turnedClockwise(closed, n), turned, n); got < 0.95 {
-				t.Errorf("the extra drawing agrees with the quarter-turned mark on %.1f%% of its square; it is not that mark turned", got*100)
+			if got := agreement(cell, down, n); got < 0.95 {
+				t.Errorf("the cell's drawing agrees with the set's chevron-down on %.1f%% of its square; it is not that mark", got*100)
 			}
-			if got := agreement(closed, turned, n); got >= 0.95 {
-				t.Errorf("the extra drawing agrees with the unturned mark on %.1f%% of its square; nothing was turned", got*100)
+			if got := agreement(cell, turned, n); got >= 0.95 {
+				t.Errorf("the cell's drawing agrees with chevron-right turned on %.1f%% of its square; it is the turned mark", got*100)
 			}
 		})
 	}
 }
 
-// TestTheTurnedCellKeepsTheCellsGutter pins that the row, grown by a gap and a
-// band, is still centred in the cell and still ends inside it, which is what
-// leaves the gutter between cells wider than any gap inside either.
-func TestTheTurnedCellKeepsTheCellsGutter(t *testing.T) {
-	img := markCellFrame(t, tokens.PlatformLight, TurnedMark)
+// TestEveryMarkCellDrawsItsSizesAndNothingElse: every mark's cell draws its
+// three sizes and nothing else, centred on the row's own arithmetic. No cell
+// draws a second rendition of its mark; a row whose disclosure is open draws
+// chevron-down's own cell.
+func TestEveryMarkCellDrawsItsSizesAndNothingElse(t *testing.T) {
 	p := PaletteFrom(tokens.PlatformLight)
 	top, bottom := bandRows()
-	x0, width := markRow(true)
-
-	first, last := drawnColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Text)
-	if first < x0 || last >= x0+width {
-		t.Errorf("the row paints columns %d..%d, outside the %d..%d it is laid out in", first, last, x0, x0+width-1)
-	}
-	closed := squareAt(true, len(MarkSizes)-1)
-	if last <= closed.Max.X {
-		t.Errorf("the row's last painted column is %d and its closed drawings end at %d; there is no second rendition", last, closed.Max.X)
-	}
-	// The gutter is what is left over on both sides of one cell, and cells
-	// abut: two of those margins is the distance between neighbours.
-	if 2*x0 <= int(MarkGap) {
-		t.Errorf("the turned row leaves %d dp each side of a cell, against the %d dp gap inside it; the turn has eaten the gutter that groups a cell",
-			x0, int(MarkGap))
-	}
-}
-
-// TestPlainMarkCellsAreUnchanged: every other mark's cell draws its three
-// sizes and nothing else, centred on the closed row's own arithmetic. The turn
-// belongs to the one mark whose set doc gives it two states, not to the
-// section.
-func TestPlainMarkCellsAreUnchanged(t *testing.T) {
-	p := PaletteFrom(tokens.PlatformLight)
-	top, bottom := bandRows()
-	x0, width := markRow(false)
+	x0, width := markRow()
 	for _, name := range marks.Names() {
-		if name == TurnedMark {
-			continue
-		}
 		t.Run(string(name), func(t *testing.T) {
 			img := markCellFrame(t, tokens.PlatformLight, name)
 			first, last := drawnColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Text)
 			if first < x0 || last >= x0+width {
-				t.Errorf("%s paints columns %d..%d, outside the closed row's %d..%d", name, first, last, x0, x0+width-1)
+				t.Errorf("%s paints columns %d..%d, outside the row's %d..%d", name, first, last, x0, x0+width-1)
 			}
 		})
 	}
 }
 
-// TestTheNoteSaysWhatTheTurnedDrawingIs: the section's note is the only place
-// either set says what its cells hold, so a cell showing four drawings of a set
-// of four names has to be accounted for there. Otherwise the turned drawing
-// reads as a mark called "open", a name no call site can write.
-func TestTheNoteSaysWhatTheTurnedDrawingIs(t *testing.T) {
-	plain := MarkSizeNote([]marks.Name{marks.ChevronLeft, marks.ChevronDown})
-	if strings.Contains(plain, "pointing down") {
-		t.Errorf("a section with no turn on screen notes one: %q", plain)
+// TestTheNoteSaysWhatChevronDownIsFor: the section's note is the only place
+// either set says what its cells hold, so it says what chevron-down is drawn
+// for whenever that mark's cell is on screen, and says nothing of it when a
+// query keeps no chevron-down.
+func TestTheNoteSaysWhatChevronDownIsFor(t *testing.T) {
+	const clause = "chevron-down, for a row whose disclosure is open"
+	plain := MarkSizeNote([]marks.Name{marks.ChevronLeft, marks.ChevronRight})
+	if strings.Contains(plain, "disclosure") {
+		t.Errorf("a section with no chevron-down on screen notes one: %q", plain)
 	}
 	full := MarkSizeNote(marks.Names())
-	if !strings.Contains(full, "pointing down") || !strings.Contains(full, string(TurnedMark)) {
-		t.Errorf("the note does not say what the turned drawing is: %q", full)
+	if !strings.HasSuffix(full, "; "+clause) {
+		t.Errorf("the note %q does not end with %q", full, clause)
 	}
 	if !strings.HasPrefix(full, plain) || len(full) == len(plain) {
-		t.Errorf("the note %q is no longer the size note %q plus what the turn adds", full, plain)
+		t.Errorf("the note %q is no longer the size note %q plus what chevron-down is for", full, plain)
 	}
 }
