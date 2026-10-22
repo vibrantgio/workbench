@@ -24,6 +24,8 @@ import (
 
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
@@ -47,6 +49,22 @@ type themed struct {
 	ic         statIcons
 	platform   tokens.PlatformColors
 	typography tokens.Typography
+	// scrollBars is the platform's "Show scroll bars" setting, read once
+	// when the window is composed and passed here, so that no frame asks
+	// the platform and no still render depends on the machine it runs on.
+	scrollBars desktop.ScrollBarSetting
+}
+
+// listBar is the bar a list-shaped tab draws at its trailing edge: the
+// fading overlay bar the colours alone give, over the window's own plane the
+// tab is drawn on, standing without fading where the reader asked for scroll
+// bars always.
+func (t themed) listBar() scrollbar.Style {
+	s := scrollbar.FromTokens(t.platform, pageFill(t.platform))
+	if t.scrollBars == desktop.ScrollBarsAlways {
+		return s.Always()
+	}
+	return s
 }
 
 // statIcons are the dashboard's symbols, rasterised once per theme emission
@@ -143,12 +161,13 @@ type pageState struct {
 }
 
 // buildLayers returns the layer-builder the theme window renders: a backdrop
-// layer and the content layer.
-func buildLayers(modelObs rx.Observable[Model], post func(gtx layout.Context, msg mvu.Message)) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+// layer and the content layer. bars is the platform's "Show scroll bars"
+// setting, read once where the window is composed.
+func buildLayers(modelObs rx.Observable[Model], post func(gtx layout.Context, msg mvu.Message), bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			BackdropLayer(th),
-			ContentLayer(th, modelObs, post),
+			ContentLayer(th, modelObs, post, bars),
 		}
 	}
 }
@@ -159,7 +178,7 @@ func buildLayers(modelObs rx.Observable[Model], post func(gtx layout.Context, ms
 //
 // post is where the controls that take it hand their message: the frame's
 // message op in the window, a recorder in a test that drives the control.
-func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], post func(gtx layout.Context, msg mvu.Message)) rx.Observable[layout.Widget] {
+func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], post func(gtx layout.Context, msg mvu.Message), bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	// The frame-time snapshot (stored by the final combine below); declared
 	// up here because the hand-rolled controls read it.
 	var stateCell atomic.Value
@@ -390,8 +409,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 
 	// Scroll state for the list-shaped tabs, one per tab.
-	presetsList := &layout.List{Axis: layout.Vertical}
-	deviceList := &layout.List{Axis: layout.Vertical}
+	presetsList := list.NewState()
+	deviceList := list.NewState()
 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
@@ -426,7 +445,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
 				p := PaletteFrom(n.First)
 				return themed{palette: p, typ: TypeFrom(n.Second), ic: iconsFrom(p),
-					platform: n.First, typography: n.Second}
+					platform: n.First, typography: n.Second, scrollBars: bars}
 			})
 	})
 
@@ -508,21 +527,31 @@ func monitorContent(load func() (pageState, bool), hov *hoverState) layout.Widge
 	}
 }
 
-// listContent adapts a row builder into a scrolling tab Content slot:
-// the rows flow through a layout.List whose scroll state the caller keeps
-// at subscription scope.
-func listContent(load func() (pageState, bool), list *layout.List, build func(themed, Model, slotSet) []layout.Widget) layout.Widget {
+// listContent adapts a row builder into a scrolling tab Content slot: the
+// rows flow through a list whose scroll state the caller keeps at
+// subscription scope, with the window's bar drawn at its trailing edge.
+//
+// The list is the region that scrolls and takes the tab's content frame
+// entire: the tab's 4 dp padding is inside it, around each row at the sides
+// and above the first row and below the last, so the bar is at the frame's
+// trailing edge and never inset by the padding. The anchor is what
+// [list.AnchorFor] returns for the bar: at Always the bar has a lane of its
+// own and the rows stop short of it, otherwise it lies over the rows'
+// trailing edge.
+func listContent(load func() (pageState, bool), state *list.State, build func(themed, Model, slotSet) []layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
 		if !ok {
 			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}
-		rows := append([]layout.Widget{vspace(10)}, build(st.t, st.m, st.slots)...)
-		return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return list.Layout(gtx, len(rows), func(gtx layout.Context, i int) layout.Dimensions {
-				return rows[i](gtx)
+		rows := append([]layout.Widget{vspace(4 + 10)}, build(st.t, st.m, st.slots)...)
+		rows = append(rows, vspace(4))
+		bar := st.t.listBar()
+		side := layout.Inset{Left: unit.Dp(4), Right: unit.Dp(4)}
+		return list.LayoutScrollbar(gtx, state, bar, list.AnchorFor(bar), rows,
+			func(gtx layout.Context, row layout.Widget) layout.Dimensions {
+				return side.Layout(gtx, row)
 			})
-		})
 	}
 }
 
@@ -972,8 +1001,8 @@ func deviceFooter(t themed, m Model) layout.Widget {
 
 // deviceContent is the Device tab: the scrolling settings grid with the
 // status footer pinned beneath it.
-func deviceContent(load func() (pageState, bool), list *layout.List) layout.Widget {
-	grid := listContent(load, list, func(t themed, m Model, slots slotSet) []layout.Widget {
+func deviceContent(load func() (pageState, bool), state *list.State) layout.Widget {
+	grid := listContent(load, state, func(t themed, m Model, slots slotSet) []layout.Widget {
 		st, _ := load()
 		return deviceRows(t, m, slots, st.tp)
 	})

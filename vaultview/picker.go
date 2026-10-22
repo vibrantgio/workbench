@@ -46,6 +46,7 @@ import (
 	"github.com/vibrantgio/components/icons"
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -384,9 +385,16 @@ func (v *pickerView) rows(gtx layout.Context, tok themeTokens, entries []DirEntr
 }
 
 // selectableRows is the list itself, inside the band [list.FocusRing] draws
-// on its box.
+// on its box, with the window's bar drawn at the list's trailing edge.
+//
+// The list is the region that scrolls: the rows' own leading and trailing
+// padding is inside it, so the bar is at the list's trailing edge and never
+// inset by that padding. The anchor is what [list.AnchorFor] returns for the
+// bar: at Always the bar has a lane of its own and the rows stop short of
+// it, otherwise it lies over the rows' trailing edge.
 func (v *pickerView) selectableRows(gtx layout.Context, tok themeTokens, entries []DirEntry, standsOn color.NRGBA, rowInset float32, rowH int) layout.Dimensions {
-	return list.LayoutSelectable(gtx, v.list, entries,
+	bar := scrollBarStyle(scrollbar.FromTokens(tok.col, standsOn), tok.scrollBars)
+	return list.LayoutSelectableScrollbar(gtx, v.list, bar, list.AnchorFor(bar), entries,
 		func(gtx layout.Context, item DirEntry, selected bool) layout.Dimensions {
 			click := v.rowClicks[item.Idx]
 			for {

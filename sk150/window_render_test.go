@@ -28,6 +28,7 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -144,7 +145,14 @@ func windowFrame(t *testing.T, c tokens.PlatformColors, m Model) layout.Widget {
 // what it posted.
 func windowFramePosting(t *testing.T, c tokens.PlatformColors, m Model, post func(gtx layout.Context, msg mvu.Message)) layout.Widget {
 	t.Helper()
-	layers := buildLayers(rx.Of(m), post)(rx.Of(staticTheme(c)))
+	return windowFrameBars(t, c, m, post, desktop.ScrollBarsAutomatic)
+}
+
+// windowFrameBars is windowFramePosting under a stated "Show scroll bars"
+// setting; every other frame is drawn at Automatic, the fading bar.
+func windowFrameBars(t *testing.T, c tokens.PlatformColors, m Model, post func(gtx layout.Context, msg mvu.Message), bars desktop.ScrollBarSetting) layout.Widget {
+	t.Helper()
+	layers := buildLayers(rx.Of(m), post, bars)(rx.Of(staticTheme(c)))
 	widgets := make([]layout.Widget, len(layers))
 	for i, layer := range layers {
 		w, err := collectOne(layer)

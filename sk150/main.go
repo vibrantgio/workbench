@@ -68,12 +68,17 @@ func run() {
 	)...)
 	desktop.ShowWindowButtons(mvuWin)
 
+	// The platform's "Show scroll bars" setting, read once here and passed
+	// to the composition: a window asks the platform when it is built,
+	// never on a frame.
+	bars := desktop.ScrollBars()
+
 	w := themewin.New(mvuWin, themesystem.LiveTheme(time.Second))
 
 	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
-	if err := w.Render(buildLayers(models, postMessage)).Wait(); err != nil {
+	if err := w.Render(buildLayers(models, postMessage, bars)).Wait(); err != nil {
 		fmt.Fprintln(os.Stderr, "sk150:", err)
 		os.Exit(1)
 	}

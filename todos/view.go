@@ -9,6 +9,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/composite"
+	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
@@ -20,11 +21,14 @@ import (
 // backdrop layer and a content layer, both reacting to the live theme. The
 // backdrop is full-bleed, the title-bar strip included; only the resting page
 // starts below it.
-func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+//
+// bars is the platform's "Show scroll bars" setting, read once where the
+// window is composed.
+func buildLayers(modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			BackdropLayer(th),
-			ContentLayer(th, modelObs),
+			ContentLayer(th, modelObs, bars),
 		}
 	}
 }
@@ -36,16 +40,34 @@ type themed struct {
 	components theme.Theme
 	palette    Palette
 	typ        Type
+	platform   tokens.PlatformColors
+	// scrollBars is the platform's "Show scroll bars" setting, read once
+	// when the window is composed and passed here, so that no frame asks
+	// the platform and no still render depends on the machine it runs on.
+	scrollBars desktop.ScrollBarSetting
+}
+
+// listBar is the bar the list draws at its trailing edge: the fading
+// overlay bar the colours alone give, over the window's own plane the list
+// is drawn on, standing without fading where the reader asked for scroll
+// bars always.
+func (t themed) listBar() scrollbar.Style {
+	s := scrollbar.FromTokens(t.platform, t.palette.Backdrop)
+	if t.scrollBars == desktop.ScrollBarsAlways {
+		return s.Always()
+	}
+	return s
 }
 
 // ContentLayer renders the page: the latest theme snapshot combined with the
 // latest Model, mapped to a layout.Widget. This is the window's only consumer
 // of the model stream; the backdrop layer is theme-only.
-func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
 			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
-				return themed{components: t, palette: PaletteFrom(n.First), typ: TypeFrom(n.Second)}
+				return themed{components: t, palette: PaletteFrom(n.First), typ: TypeFrom(n.Second),
+					platform: n.First, scrollBars: bars}
 			})
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
@@ -86,7 +108,7 @@ func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 	fab := Fab(add, 1.0, 1.0, 48, 48, true, func(gtx layout.Context) {
 		mvu.MessageOp{Message: SetRoute{Route: "add.todo"}}.Add(gtx.Ops)
 	})
-	list := List(th.typ, thObs, p, model)
+	list := List(th.typ, thObs, p, th.listBar(), model)
 
 	// The dialogs are constructed HERE, once per emission, and reused across
 	// frames: the editor's text and caret live inside the dialog closure, so
@@ -111,8 +133,11 @@ func view(th themed, model Model, strip func() unit.Dp) layout.Widget {
 	// for the window's own drag. A capped layer reports the size it was given
 	// rather than the inset one, so the button still lands on the window's
 	// bottom-trailing corner and only the top edge moves.
+	//
+	// The list is the region that scrolls and takes the page entire: its
+	// padding is inside it, so its bar is at the window's trailing edge.
 	resting := func(gtx layout.Context) layout.Dimensions {
-		layout.UniformInset(Padding).Layout(gtx, list)
+		list(gtx)
 		return layout.UniformInset(Padding).Layout(gtx, fab)
 	}
 	capped := desktop.CapTop(strip, resting)

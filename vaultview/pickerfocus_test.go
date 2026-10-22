@@ -22,6 +22,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/dialog"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
@@ -44,8 +45,15 @@ type dialogLayer func(
 // without the window under it, which is what these readings are about.
 func liveDialog(t *testing.T, build dialogLayer, m Model, c tokens.PlatformColors, shaper *text.Shaper) layout.Widget {
 	t.Helper()
+	return liveDialogBars(t, build, m, c, shaper, desktop.ScrollBarsAutomatic)
+}
+
+// liveDialogBars is liveDialog under a stated "Show scroll bars" setting;
+// every other dialog is drawn at Automatic, the fading bar.
+func liveDialogBars(t *testing.T, build dialogLayer, m Model, c tokens.PlatformColors, shaper *text.Shaper, bars desktop.ScrollBarSetting) layout.Widget {
+	t.Helper()
 	tok := themeTokens{col: c, typ: tokens.DefaultTypography, sp: tokens.Spacing,
-		den: tokens.Comfortable, shaper: shaper}
+		den: tokens.Comfortable, shaper: shaper, scrollBars: bars}
 	layer := build(rx.Of(golden.StaticTheme(c)), rx.Of(m),
 		func() Model { return m }, func() themeTokens { return tok }, dialog.NewArbiter())
 	w, err := golden.Resolve(layer)

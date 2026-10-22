@@ -14,6 +14,7 @@ import (
 	"github.com/vibrantgio/components/input"
 	complist "github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/pointershape"
+	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/textdraw"
@@ -21,18 +22,37 @@ import (
 )
 
 // List renders the todos on the window's own plane using the components
-// virtual list. It paints no fill of its own: the list is what this window
-// exists to show rather than something standing on it. The rows keep their
-// inset.
-func List(typ Type, th rx.Observable[theme.Theme], p Palette, model Model) layout.Widget {
+// virtual list, with bar drawn at its trailing edge. It paints no fill of its
+// own: the list is what this window exists to show rather than something
+// standing on it.
+//
+// The list is the region that scrolls, and the page's padding is inside it:
+// each row is inset by the page's Padding and its own, and the first and
+// last rows add the page's Padding above and below, so the bar is at the
+// window's trailing edge and never inset by the padding. The anchor is what
+// [complist.AnchorFor] returns for bar: at Always the bar has a lane of its
+// own and the rows stop short of it, otherwise it lies over the rows'
+// trailing edge.
+func List(typ Type, th rx.Observable[theme.Theme], p Palette, bar scrollbar.Style, model Model) layout.Widget {
 	listState := complist.NewState()
 	rows := make([]layout.Widget, len(model.List))
 	for i := range model.List {
 		rows[i] = Row(typ, th, p, model.List[i])
 	}
+	idx := make([]int, len(rows))
+	for i := range idx {
+		idx[i] = i
+	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return complist.Layout(gtx, listState, rows, func(gtx layout.Context, row layout.Widget) layout.Dimensions {
-			return layout.UniformInset(Padding).Layout(gtx, row)
+		return complist.LayoutScrollbar(gtx, listState, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int) layout.Dimensions {
+			in := layout.Inset{Top: Padding, Bottom: Padding, Left: 2 * Padding, Right: 2 * Padding}
+			if i == 0 {
+				in.Top += Padding
+			}
+			if i == len(rows)-1 {
+				in.Bottom += Padding
+			}
+			return in.Layout(gtx, rows[i])
 		})
 	}
 }

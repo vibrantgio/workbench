@@ -23,6 +23,7 @@ import (
 
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/dialog"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -115,7 +116,9 @@ func chooserLayer(
 			}),
 			layout.Rigid(complayout.VSpacer(chooserGapDp)),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowsPx))
+				// The list is as tall as its rows, and no taller than the
+				// room the dialog gives its body: past that it scrolls.
+				gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, min(rowsPx, gtx.Constraints.Max.Y)))
 				// Every fill a row paints under the band, not the
 				// selection's alone: a row under the pointer wears the same
 				// selection fill here, and the band's sides must land on
@@ -126,8 +129,12 @@ func chooserLayer(
 					}
 					return color.NRGBA{}
 				}
+				// The rows draw the window's bar at the list's trailing
+				// edge, over the dialog's own fill: at Always it has a lane
+				// of its own and the rows stop short of it.
+				bar := scrollBarStyle(scrollbar.FromTokens(tok.col, tok.col.WindowBackground), tok.scrollBars)
 				return list.FocusRing(gtx, rows, tok.col, tok.col.WindowBackground, rowFill, func(gtx layout.Context) layout.Dimensions {
-					return list.LayoutSelectable(gtx, rows, idx,
+					return list.LayoutSelectableScrollbar(gtx, rows, bar, list.AnchorFor(bar), idx,
 						func(gtx layout.Context, i int, selected bool) layout.Dimensions {
 							return chooserRow(gtx, tok, m.ChooserCandidates[i], rowClicks[i], rows, i, selected, choose)
 						})
