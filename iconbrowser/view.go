@@ -11,6 +11,8 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
@@ -23,11 +25,11 @@ import (
 // buildLayers returns the layer-builder the theme window renders: the backdrop
 // full-bleed to the window's top edge, the title-bar strip included, and the
 // page over it starting below that strip.
-func buildLayers(modelObs rx.Observable[Model]) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+func buildLayers(modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			BackdropLayer(th),
-			ContentLayer(th, modelObs),
+			ContentLayer(th, modelObs, bars),
 		}
 	}
 }
@@ -48,6 +50,38 @@ type themed struct {
 	// its line's typeface from these.
 	platform   tokens.PlatformColors
 	typography tokens.Typography
+
+	// scrollBars is the platform's "Show scroll bars" setting, read once
+	// when the window is composed and passed here so that no frame asks
+	// the platform and no still render depends on the machine it runs on.
+	scrollBars desktop.ScrollBarSetting
+}
+
+// scrollBarStyle is every bar in this window: the fading overlay bar the
+// colours alone give, standing without fading where the reader asked for
+// scroll bars always.
+func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.Style {
+	if bars == desktop.ScrollBarsAlways {
+		return s.Always()
+	}
+	return s
+}
+
+// gridBar is the bar the icon grid is drawn with: built from the platform's
+// colours over the window's own plane, which is the fill the grid is drawn
+// on, against the reader's setting.
+func gridBar(t themed) scrollbar.Style {
+	return scrollBarStyle(scrollbar.FromTokens(t.platform, t.palette.Backdrop), t.scrollBars)
+}
+
+// gridBarAnchor is how the grid spends the bar's width: a standing bar takes
+// a lane of its own off the grid's trailing side, and a fading one lies over
+// the rows' trailing end.
+func gridBarAnchor(t themed) list.Anchor {
+	if t.scrollBars == desktop.ScrollBarsAlways {
+		return list.Occupy
+	}
+	return list.Overlay
 }
 
 // ContentLayer renders the page: search field over the filtered icon grid,
@@ -59,8 +93,8 @@ type themed struct {
 // components TextField whose editor state is Defer-scoped inside the component,
 // subscribed exactly once by the CombineLatest3 below. Constructing either per
 // emission would reset scroll or typing on every keystroke.
-func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
-	grid := &layout.List{Axis: layout.Vertical}
+func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
+	grid := list.NewState()
 
 	search := input.TextField(th, input.TextFieldProps{
 		Placeholder: "Search icons…",
@@ -83,7 +117,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) 
 					widgets[i] = w
 				}
 				return themed{palette: p, typ: TypeFrom(n.Second), icons: widgets,
-					platform: n.First, typography: n.Second}
+					platform: n.First, typography: n.Second, scrollBars: bars}
 			})
 	})
 
@@ -133,7 +167,7 @@ const (
 // own marks, then the grid of Material icons matching the query. The marks
 // section is dropped whole when the query matches none of them, so a search
 // for a Material symbol is not padded by an empty row.
-func Page(t themed, search layout.Widget, model Model, grid *layout.List) layout.Widget {
+func Page(t themed, search layout.Widget, model Model, grid *list.State) layout.Widget {
 	visible := FilterIcons(model.Query)
 	return pageOver(t, search, model, len(visible), Grid(t, visible, model.Query, grid))
 }
@@ -176,27 +210,43 @@ func pageOver(t themed, search layout.Widget, model Model, count int, gridWidget
 }
 
 // Grid lays the visible icons out in rows of as many fixed-size cells as fit
-// the width, scrolled by the subscription-scoped list state. Each cell shows
-// the symbol with its exported name captioned underneath.
-func Grid(t themed, visible []int, query string, grid *layout.List) layout.Widget {
+// the width, scrolled by the subscription-scoped list state, with the
+// window's bar along the trailing edge. Each cell shows the symbol with its
+// exported name captioned underneath.
+func Grid(t themed, visible []int, query string, grid *list.State) layout.Widget {
 	p := t.palette
+	bar := gridBar(t)
+	anchor := gridBarAnchor(t)
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 
 		if len(visible) == 0 {
-			// The grid is the page's content region, so what stands in for
-			// the icons is the content column's empty state: the line
-			// centred in the grid's own frame at the measured size.
-			return shell.EmptyState(gtx, t.typ.Shaper, t.platform, t.typography, p.Backdrop,
+			// The grid is the page's content region, so what is drawn in
+			// place of the icons is the content column's empty state: the
+			// line centred, at the measured size, in the frame the rows
+			// would occupy, which is short of a standing bar's lane.
+			egtx := gtx
+			egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, bar))
+			shell.EmptyState(egtx, t.typ.Shaper, t.platform, t.typography, p.Backdrop,
 				shell.EmptyStateProps{Line: fmt.Sprintf("No icons match %q", query)})
+			return layout.Dimensions{Size: size}
 		}
 
+		// The cells fill the width the rows are given, which a standing
+		// bar's lane is taken off.
+		width := size.X
+		if anchor == list.Occupy {
+			width = max(width-gtx.Dp(bar.Width()), 0)
+		}
 		cellW, cellH := gtx.Dp(CellW), gtx.Dp(CellH)
 		iconPx := gtx.Dp(IconSize)
-		cols := max(1, size.X/cellW)
-		rows := (len(visible) + cols - 1) / cols
+		cols := max(1, width/cellW)
+		rows := make([]int, (len(visible)+cols-1)/cols)
+		for i := range rows {
+			rows[i] = i
+		}
 
-		return grid.Layout(gtx, rows, func(gtx layout.Context, row int) layout.Dimensions {
+		return list.LayoutScrollbar(gtx, grid, bar, anchor, rows, func(gtx layout.Context, row int) layout.Dimensions {
 			for col := 0; col < cols; col++ {
 				i := row*cols + col
 				if i >= len(visible) {
@@ -220,7 +270,7 @@ func Grid(t themed, visible []int, query string, grid *layout.List) layout.Widge
 
 				cl.Pop()
 			}
-			return layout.Dimensions{Size: image.Pt(size.X, cellH)}
+			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, cellH)}
 		})
 	}
 }

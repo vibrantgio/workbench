@@ -381,9 +381,10 @@ func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dime
 	)
 }
 
-// asideIndicator is the scroll indicator both panes carry, taken from the
-// same colour tokens the note column takes its own from, so that one
-// window has one way of saying "there is more of this below". It draws
+// asideIndicator is the scroll indicator both panes and the rail's rows are
+// drawn with, taken from the same colour tokens the note column takes its
+// own from, so that one window has one way of saying "there is more of
+// this below". It draws
 // nothing at all while a pane's rows fit and fades a second after the pane
 // stops moving; both are the treatment's own behaviour, as is the thumb —
 // six dp of translucent neutral, the note column's bar.

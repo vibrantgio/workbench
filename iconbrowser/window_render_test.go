@@ -38,6 +38,7 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/list"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/theme"
@@ -176,7 +177,7 @@ func windowFrame(t *testing.T, c tokens.PlatformColors, model Model, band unit.D
 	paintBackdrop := backdrop.Widget(tok.palette.Backdrop)
 	page := desktop.CapTop(
 		func() unit.Dp { return band },
-		Page(tok, staticSearch(t, c, model.Query), model, &layout.List{Axis: layout.Vertical}),
+		Page(tok, staticSearch(t, c, model.Query), model, list.NewState()),
 	)
 	return func(gtx layout.Context) layout.Dimensions {
 		paintBackdrop(gtx)

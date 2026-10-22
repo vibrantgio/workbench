@@ -456,10 +456,16 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	if len(rows) == 0 {
 		if filtering {
 			// The row region is the section with nothing in it, so the
-			// line is its empty state: centred in that frame at the size
-			// the rows it stands for are set at.
-			return shell.EmptyState(gtx, tok.shaper, tok.col, tok.typ, chromeSurface(tok.col),
+			// line is its empty state: centred in the frame the rows would
+			// occupy, at the size the rows it stands for are set at. That
+			// frame is short of a standing bar's lane, read off
+			// [asideIndicator], the bar the rows are drawn with.
+			size := gtx.Constraints.Max
+			egtx := gtx
+			egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, asideIndicator(tok)))
+			shell.EmptyState(egtx, tok.shaper, tok.col, tok.typ, chromeSurface(tok.col),
 				shell.EmptyStateProps{Line: "No note by that name.", LineStyle: tok.typ.BodyMedium})
+			return layout.Dimensions{Size: size}
 		}
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
@@ -492,7 +498,12 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	// every other filled row, and every row while the keys are elsewhere,
 	// wears the grey pill with its title in the accent.
 	holdsKeyboard := gtx.Focused(v.list.Focus())
-	return list.LayoutSelectable(gtx, v.list, rows,
+	// The rail's rows are chrome on the chrome surface, as the trailing
+	// column's panes are, so they are drawn with the bar those panes are
+	// drawn with: [asideIndicator] against the reader's setting, taking a
+	// lane of its own where the bar stands and lying over the rows'
+	// trailing end where it fades.
+	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), asideBarAnchor(tok), rows,
 		func(gtx layout.Context, row TreeRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
 			for {

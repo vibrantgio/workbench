@@ -10,6 +10,7 @@ import (
 	"gioui.org/op/paint"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -59,6 +60,17 @@ func TestEmptyStatesStandOutsideAStandingBarsLane(t *testing.T) {
 			draw: func(gtx layout.Context, tok themeTokens) layout.Dimensions {
 				paint.FillShape(gtx.Ops, chromeSurface(tok.col), clip.Rect{Max: gtx.Constraints.Max}.Op())
 				return newAsideView(&docCursor{}).backlinkPane(gtx, tok, nil)
+			},
+		},
+		{
+			name: "the rail rows",
+			size: paneSize,
+			fill: chromeSurface,
+			lane: func(tok themeTokens) int { return int(asideIndicator(tok).Width()) },
+			draw: func(gtx layout.Context, tok themeTokens) layout.Dimensions {
+				paint.FillShape(gtx.Ops, chromeSurface(tok.col), clip.Rect{Max: gtx.Constraints.Max}.Op())
+				v := &treeView{list: list.NewState()}
+				return v.rows(gtx, Model{Screen: screenVault, Filter: "zzzz"}, tok)
 			},
 		},
 	}

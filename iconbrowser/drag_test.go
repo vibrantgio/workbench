@@ -10,6 +10,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 
+	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -21,7 +22,7 @@ import (
 // is laid out below, so the two never overlap — which no frame can show.
 func TestTheSearchFieldKeepsItsOwnPresses(t *testing.T) {
 	tok := staticThemed(t, tokens.PlatformLight)
-	page := Page(tok, staticSearch(t, tokens.PlatformLight, ""), Model{}, &layout.List{Axis: layout.Vertical})
+	page := Page(tok, staticSearch(t, tokens.PlatformLight, ""), Model{}, list.NewState())
 	w := desktop.CapTop(func() unit.Dp { return titleBandDp }, page)
 
 	var ops op.Ops
