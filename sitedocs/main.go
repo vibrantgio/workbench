@@ -356,10 +356,9 @@ func contentSlot(w layout.Widget) layout.Widget {
 // ToggleOutline or SelectHeading message re-emits the combined layer and
 // the window repaints on the same frame.
 //
-// A failure instead of a source makes the page one column with nothing in
-// it, holding the empty state: a guide that could not be read has no
-// headings either, so there is no outline to stand beside it and no
-// leading column to stand it in.
+// A failure instead of a source keeps both columns: the outline column at
+// its width draws its own line, and the content column draws the guide's
+// line and the location it was looked for at.
 func docsTabFrom(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],

@@ -33,6 +33,7 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
@@ -140,13 +141,7 @@ func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeToken
 		w = gtx.Constraints.Max.X
 	}
 	size := image.Pt(w, gtx.Constraints.Max.Y)
-	paint.FillShape(gtx.Ops, tok.col.SidebarMaterial, clip.Rect{Max: size}.Op())
-	// Two flush regions, so the one drawn first says where it ends: the
-	// platform's seam, laid on the chrome material it is drawn inside.
-	hair := max(gtx.Dp(unit.Dp(1)), 1)
-	paint.FillShape(gtx.Ops, vgcolor.Flatten(tok.col.Separator, tok.col.SidebarMaterial), clip.Rect{
-		Min: image.Pt(size.X-hair, 0), Max: size,
-	}.Op())
+	paintOutlineRail(gtx, size, tok.col)
 
 	rows := outlineRows(v.entries, st.open)
 	pad := gtx.Dp(unit.Dp(docsOutlineTopPadDp))
@@ -156,6 +151,50 @@ func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeToken
 		return v.row(gtx, rows[i], st, tok)
 	})
 	return layout.Dimensions{Size: size}
+}
+
+// paintOutlineRail paints the tree column's fill across size and the seam
+// along its trailing edge.
+func paintOutlineRail(gtx layout.Context, size image.Point, col tokens.PlatformColors) {
+	paint.FillShape(gtx.Ops, col.SidebarMaterial, clip.Rect{Max: size}.Op())
+	// Two flush regions, so the one drawn first says where it ends: the
+	// platform's seam, laid on the chrome material it is drawn inside.
+	hair := max(gtx.Dp(unit.Dp(1)), 1)
+	paint.FillShape(gtx.Ops, vgcolor.Flatten(col.Separator, col.SidebarMaterial), clip.Rect{
+		Min: image.Pt(size.X-hair, 0), Max: size,
+	}.Op())
+}
+
+// outlineEmptyLine is the tree column's own sentence when there is no
+// guide to take headings from.
+const outlineEmptyLine = "No headings."
+
+// drawOutlineUnavailable draws the tree column when the guide could not be
+// loaded: the column is kept at its width with its fill and its seam, and
+// its own line is drawn centred in the column's whole frame.
+//
+// The line is set in the style of the column's top-level rows, because it
+// is drawn in place of those rows. The column's list draws no scroll bar,
+// so no bar's lane is taken off the frame.
+func drawOutlineUnavailable(gtx layout.Context, tok themeTokens) layout.Dimensions {
+	w := min(gtx.Dp(unit.Dp(docsOutlineWidthDp)), gtx.Constraints.Max.X)
+	size := image.Pt(w, gtx.Constraints.Max.Y)
+	paintOutlineRail(gtx, size, tok.col)
+	gtx.Constraints = layout.Exact(size)
+	shell.EmptyState(gtx, tok.shaper, tok.col, tok.typ, tok.col.SidebarMaterial, shell.EmptyStateProps{
+		Line:      outlineEmptyLine,
+		LineStyle: outlineRowStyle(tok.typ, false),
+	})
+	return layout.Dimensions{Size: size}
+}
+
+// outlineRowStyle is the text style of a top-level row, or of a ### row
+// when child is set.
+func outlineRowStyle(typ tokens.Typography, child bool) tokens.TextStyle {
+	if child {
+		return typ.BodySmall
+	}
+	return typ.BodyMedium
 }
 
 // row draws one outline row: the selection pill when this row's heading
@@ -189,10 +228,7 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 	if row.Child {
 		indent += docsOutlineIndentDp
 	}
-	style := tok.typ.BodyMedium
-	if row.Child {
-		style = tok.typ.BodySmall
-	}
+	style := outlineRowStyle(tok.typ, row.Child)
 
 	// A row's words and its mark are the platform's label at two strengths,
 	// each composited onto the fill it actually lands on — the material, or

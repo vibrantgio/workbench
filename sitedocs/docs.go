@@ -172,8 +172,22 @@ func drawGuideUnavailable(
 	return layout.Dimensions{Size: frame}
 }
 
+// drawDocsUnavailable draws the Docs page when there is no guide: the
+// outline column is kept at its width with its own line, and the content
+// column beside it draws the guide's line and location in the rest.
+func drawDocsUnavailable(gtx layout.Context, tok themeTokens, bar scrollbar.Style, fail *guideFailure) layout.Dimensions {
+	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return drawOutlineUnavailable(gtx, tok)
+		}),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return drawGuideUnavailable(gtx, tok.shaper, tok.col, tok.typ, bar, fail)
+		}),
+	)
+}
+
 // guideUnavailableObservable is the Docs page when there is no guide to
-// render: the column's empty state, restyled per theme change. The
+// render: both columns' empty states, restyled per theme change. The
 // failure is read once at startup and does not change while the window
 // is open, so nothing but the theme drives this stream.
 func guideUnavailableObservable(th rx.Observable[theme.Theme], fail *guideFailure, bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
@@ -181,10 +195,10 @@ func guideUnavailableObservable(th rx.Observable[theme.Theme], fail *guideFailur
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
 	return rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.PlatformColors, tokens.Typography]) layout.Widget {
 		c, typ := t.First, t.Second
-		shaper := typ.Shaper()
+		tok := themeTokens{col: c, typ: typ, shaper: typ.Shaper()}
 		bar := columnBar(c, bars)
 		return func(gtx layout.Context) layout.Dimensions {
-			return drawGuideUnavailable(gtx, shaper, c, typ, bar, fail)
+			return drawDocsUnavailable(gtx, tok, bar, fail)
 		}
 	})
 }

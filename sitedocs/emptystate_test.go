@@ -179,6 +179,93 @@ func TestTheDocsColumnsEmptyStateStandsOutsideAStandingBarsLane(t *testing.T) {
 	}
 }
 
+// TestAFailedLoadKeepsTheOutlineColumnWithItsOwnLine holds the Docs page
+// when the guide cannot be loaded: the outline column is kept at its
+// width with its fill, and draws "No headings." centred in its own frame
+// at the size of its top-level rows in the tertiary label, while the
+// content column beside it draws the guide's line and location centred in
+// the rest. Each column's drawing is held against that column's empty
+// state drawn alone in that column's frame.
+func TestAFailedLoadKeepsTheOutlineColumnWithItsOwnLine(t *testing.T) {
+	fail := &guideFailure{Path: "/vaults/workbench/llms.txt", Err: "open ../llms.txt: no such file or directory"}
+	typ := tokens.DefaultTypography
+	shaper := typ.DeterministicShaper()
+	outlineW := docsOutlineWidthDp
+
+	for _, tc := range emptyStateSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			fill := shellFill(tc.colors)
+			rail := tc.colors.SidebarMaterial
+			tok := themeTokens{col: tc.colors, typ: typ, shaper: shaper}
+			bar := columnBar(tc.colors, desktop.ScrollBarsWhenScrolling)
+			img := golden.Capture(t, docsColumnSize, scene(func(gtx layout.Context) layout.Dimensions {
+				return drawDocsUnavailable(gtx, tok, bar, fail)
+			}, fill))
+
+			// The column is kept at its width: its fill reaches the last
+			// pixel before the seam, and the seam is the column's last.
+			for _, y := range []int{0, docsColumnSize.Y / 2, docsColumnSize.Y - 1} {
+				if c := img.RGBAAt(outlineW-2, y); c.R != rail.R || c.G != rail.G || c.B != rail.B {
+					t.Errorf("at x %d, y %d the page is #%02x%02x%02x, want the outline column's fill #%02x%02x%02x",
+						outlineW-2, y, c.R, c.G, c.B, rail.R, rail.G, rail.B)
+				}
+			}
+			seam := vgcolor.Flatten(tc.colors.Separator, rail)
+			if c := img.RGBAAt(outlineW-1, docsColumnSize.Y/2); c.R != seam.R || c.G != seam.G || c.B != seam.B {
+				t.Errorf("at x %d the page is #%02x%02x%02x, want the column's seam #%02x%02x%02x",
+					outlineW-1, c.R, c.G, c.B, seam.R, seam.G, seam.B)
+			}
+
+			// The outline column's line, against the pattern drawn alone in
+			// the column's frame at the rows' style.
+			outlineFrame := image.Pt(outlineW, docsColumnSize.Y)
+			region := image.Rect(0, 0, outlineW-1, docsColumnSize.Y)
+			got := emptyStateBox(img, region, rail)
+			if got.Empty() {
+				t.Fatal("the outline column is bare, want its line")
+			}
+			alone := func(style tokens.TextStyle) image.Rectangle {
+				ref := golden.Capture(t, outlineFrame, scene(func(gtx layout.Context) layout.Dimensions {
+					return shell.EmptyState(gtx, shaper, tc.colors, typ, rail,
+						shell.EmptyStateProps{Line: "No headings.", LineStyle: style})
+				}, rail))
+				return emptyStateBox(ref, ref.Bounds(), rail)
+			}
+			if want := alone(typ.BodyMedium); got != want {
+				t.Errorf("the outline column draws %v, want %v — the line at the rows' size", got, want)
+			}
+			if column := alone(tokens.TextStyle{}); got.Dy() >= column.Dy() {
+				t.Errorf("the outline column's line is %d pixels tall, a content column's %d; want the rows' smaller size",
+					got.Dy(), column.Dy())
+			}
+			if c, want := got.Min.X+got.Max.X, outlineW; absInt(c-want) > 4 {
+				t.Errorf("the outline column centres its line at %.1f across, want its frame's %.1f",
+					float64(c)/2, float64(want)/2)
+			}
+			if c, want := got.Min.Y+got.Max.Y, docsColumnSize.Y; absInt(c-want) > 4 {
+				t.Errorf("the outline column centres its line at %.1f down, want its frame's %.1f",
+					float64(c)/2, float64(want)/2)
+			}
+			if pl, want := plateau(img, rail, got), vgcolor.Flatten(tc.colors.TertiaryLabel, rail); pl.R != want.R || pl.G != want.G || pl.B != want.B {
+				t.Errorf("the outline column's line plateaus at #%02x%02x%02x, want #%02x%02x%02x",
+					pl.R, pl.G, pl.B, want.R, want.G, want.B)
+			}
+
+			// The content column's line and location beside it, against
+			// that column drawn alone in the rest of the page.
+			content := image.Rect(outlineW, 0, docsColumnSize.X, docsColumnSize.Y)
+			gotContent := emptyStateBox(img, content, fill)
+			ref := golden.Capture(t, content.Size(), scene(func(gtx layout.Context) layout.Dimensions {
+				return drawGuideUnavailable(gtx, shaper, tc.colors, typ, bar, fail)
+			}, fill))
+			if want := emptyStateBox(ref, ref.Bounds(), fill).Add(image.Pt(outlineW, 0)); gotContent != want {
+				t.Errorf("the content column draws %v, want %v — its own group centred in its own frame",
+					gotContent, want)
+			}
+		})
+	}
+}
+
 // emptyStateSchemes is the appearance pair every reading above is taken
 // twice against.
 var emptyStateSchemes = []struct {
