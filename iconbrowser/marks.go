@@ -23,8 +23,8 @@ var MarkSizes = []unit.Dp{16, 20, 24}
 
 // TurnedMark is the one mark of the set whose single drawing serves two states.
 // A row's disclosure draws the right-pointing chevron as the row stands closed,
-// and a control showing an open row turns that same drawing a quarter turn
-// rather than reaching for a second name, so this cell shows the turn as well.
+// and a control showing a row whose disclosure is open draws that same drawing
+// pointing down rather than reaching for a second name, so this cell shows both.
 //
 // It is a name the set carries, not a name of its own: everything the cell adds
 // is drawn by the painter marks.Mark(TurnedMark) returns.
@@ -47,7 +47,7 @@ func MarkSizeNote(names []marks.Name) string {
 	note := "one mark at " + strings.Join(sizes, ", ") + " dp"
 	for _, name := range names {
 		if name == TurnedMark {
-			return note + "; " + string(TurnedMark) + " also turned, for an open row"
+			return note + "; " + string(TurnedMark) + " is also drawn pointing down, for a row whose disclosure is open"
 		}
 	}
 	return note

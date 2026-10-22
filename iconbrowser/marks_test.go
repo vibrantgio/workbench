@@ -273,11 +273,11 @@ func TestPlainMarkCellsAreUnchanged(t *testing.T) {
 // reads as a mark called "open", a name no call site can write.
 func TestTheNoteSaysWhatTheTurnedDrawingIs(t *testing.T) {
 	plain := MarkSizeNote([]marks.Name{marks.ChevronLeft, marks.ChevronDown})
-	if strings.Contains(plain, "turned") {
+	if strings.Contains(plain, "pointing down") {
 		t.Errorf("a section with no turn on screen notes one: %q", plain)
 	}
 	full := MarkSizeNote(marks.Names())
-	if !strings.Contains(full, "turned") || !strings.Contains(full, string(TurnedMark)) {
+	if !strings.Contains(full, "pointing down") || !strings.Contains(full, string(TurnedMark)) {
 		t.Errorf("the note does not say what the turned drawing is: %q", full)
 	}
 	if !strings.HasPrefix(full, plain) || len(full) == len(plain) {
