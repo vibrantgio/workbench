@@ -278,7 +278,7 @@ func pageOver(t themed, search layout.Widget, model Model, count int, gridWidget
 func Grid(t themed, visible []int, query string, grid *list.State) layout.Widget {
 	p := t.palette
 	bar := gridBar(t)
-	anchor := shell.BarAnchor(bar)
+	anchor := list.AnchorFor(bar)
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		pad := gtx.Dp(Padding)

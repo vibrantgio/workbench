@@ -32,7 +32,6 @@ import (
 	"github.com/vibrantgio/patterns/notifications"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/popover"
-	"github.com/vibrantgio/patterns/shell"
 	patsidebar "github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/system/naming"
@@ -460,7 +459,7 @@ func runIndex(rows []railRow, id FeedID) int {
 //
 // The sections scroll because a rail with every section open is taller than
 // the window it stands in, and a column whose foot never comes into view has
-// entries the reader cannot open. The bar's anchor is [shell.BarAnchor]'s:
+// entries the reader cannot open. The bar's anchor is what [list.AnchorFor] returns:
 // a standing bar takes a lane of its own and the rows stop short of it, and
 // a fading bar lies over the rows' trailing edge, as the platform's sidebar
 // bar does, and the rows run the pane's full width.
@@ -530,7 +529,7 @@ func drawRailColumn(
 			scroll.Reveal(at)
 		}
 	}
-	list.LayoutScrollbar(cgtx, scroll, bar, shell.BarAnchor(bar), blocks,
+	list.LayoutScrollbar(cgtx, scroll, bar, list.AnchorFor(bar), blocks,
 		func(gtx layout.Context, b railBlock) layout.Dimensions {
 			if b.Row >= 0 {
 				if sections[b.Section].Rows.Row == nil {

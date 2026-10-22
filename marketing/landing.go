@@ -19,7 +19,6 @@ import (
 	"github.com/vibrantgio/patterns/feature"
 	"github.com/vibrantgio/patterns/hero"
 	"github.com/vibrantgio/patterns/pricing"
-	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/testimonial"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -112,7 +111,7 @@ func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.
 
 // scrollingPage lays sections in a vertical list, clamping each child
 // to contentMaxWidthDp and centering it in the width the rows are given.
-// The bar's anchor is [shell.BarAnchor]'s: a standing bar takes a lane of
+// The bar's anchor is what [list.AnchorFor] returns: a standing bar takes a lane of
 // its own and the rows, and the column centred in them, stop short of it;
 // a fading bar lies over the trailing edge and takes no lane, so the
 // column does not move when the bar appears. The window's plane and the wireframe
@@ -135,7 +134,7 @@ func scrollingPage(sections []layout.Widget, state *list.State, colors tokens.Pl
 			return layout.Dimensions{Size: size}
 		}
 		bar := scrollBarStyle(scrollbar.FromTokens(colors, colors.WindowBackground), bars)
-		list.LayoutScrollbar(gtx, state, bar, shell.BarAnchor(bar), children,
+		list.LayoutScrollbar(gtx, state, bar, list.AnchorFor(bar), children,
 			func(gtx layout.Context, w layout.Widget) layout.Dimensions {
 				// The rows' width is the frame's, less the lane a standing
 				// bar takes.

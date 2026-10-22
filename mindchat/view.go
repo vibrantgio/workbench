@@ -909,7 +909,7 @@ func (s *railState) layout(
 	// conversation on screen while the keys are elsewhere. The rail is one
 	// focus target, so its own tag is the whole answer.
 	holds := gtx.Focused(s.list.Focus())
-	dims := list.LayoutSelectableScrollbar(gtx, s.list, t.bar, shell.BarAnchor(t.bar), chats,
+	dims := list.LayoutSelectableScrollbar(gtx, s.list, t.bar, list.AnchorFor(t.bar), chats,
 		func(gtx layout.Context, name string, selected bool) layout.Dimensions {
 			onCursor := holds && selected
 			at := chatIndex(chats, name)

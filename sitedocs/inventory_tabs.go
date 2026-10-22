@@ -34,7 +34,6 @@ import (
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -115,7 +114,7 @@ func columnBar(c tokens.PlatformColors, bars desktop.ScrollBarSetting) scrollbar
 // three group tabs, the Colours tab and the Typography tab alike: the rows
 // in a virtual list
 // — only what shows is laid out — with a scrollbar drawn from the same set
-// the rows are. Its anchor is [shell.BarAnchor]'s: a standing bar takes a
+// the rows are. Its anchor is what [list.AnchorFor] returns: a standing bar takes a
 // lane of its own and the rows stop short of it, and a fading bar lies over
 // the rows' trailing edge and takes no lane.
 //
@@ -126,7 +125,7 @@ func scrollingColumn(st *list.State, c tokens.PlatformColors, bars desktop.Scrol
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
 		bar := columnBar(c, bars)
-		list.LayoutScrollbar(gtx, st, bar, shell.BarAnchor(bar), items,
+		list.LayoutScrollbar(gtx, st, bar, list.AnchorFor(bar), items,
 			func(gtx layout.Context, w layout.Widget) layout.Dimensions {
 				return w(gtx)
 			})

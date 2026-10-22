@@ -529,7 +529,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 		v.outlineClick = append(v.outlineClick, &widget.Clickable{})
 	}
 	foregrounds := asideForegrounds(tok)
-	return list.LayoutSelectableScrollbar(gtx, v.outlineList, asideIndicator(tok), shell.BarAnchor(asideIndicator(tok)), entries,
+	return list.LayoutSelectableScrollbar(gtx, v.outlineList, asideIndicator(tok), list.AnchorFor(asideIndicator(tok)), entries,
 		func(gtx layout.Context, e outlineEntry, selected bool) layout.Dimensions {
 			click := v.outlineClick[e.Idx]
 			if click.Clicked(gtx) {
@@ -618,7 +618,7 @@ func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []bac
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})
 	}
 	foregrounds := asideForegrounds(tok)
-	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), shell.BarAnchor(asideIndicator(tok)), rows,
+	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), list.AnchorFor(asideIndicator(tok)), rows,
 		func(gtx layout.Context, row backlinkRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
 			if click.Clicked(gtx) {

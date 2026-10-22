@@ -503,7 +503,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 	// drawn with: [asideIndicator] against the reader's setting, taking a
 	// lane of its own where the bar stands and lying over the rows'
 	// trailing end where it fades.
-	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), shell.BarAnchor(asideIndicator(tok)), rows,
+	return list.LayoutSelectableScrollbar(gtx, v.list, asideIndicator(tok), list.AnchorFor(asideIndicator(tok)), rows,
 		func(gtx layout.Context, row TreeRow, selected bool) layout.Dimensions {
 			click := v.rowClicks[row.Idx]
 			for {

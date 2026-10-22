@@ -783,7 +783,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 			if len(indices) == 0 {
 				return providerWellEmpty(gtx, t)
 			}
-			return list.LayoutScrollbar(gtx, rows, t.bar, shell.BarAnchor(t.bar), indices,
+			return list.LayoutScrollbar(gtx, rows, t.bar, list.AnchorFor(t.bar), indices,
 				func(gtx layout.Context, i int) layout.Dimensions {
 					return providerRow(gtx, t, s.Draft[i], i == s.Selected, i, provClicks[i])
 				})

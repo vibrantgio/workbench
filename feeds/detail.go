@@ -231,7 +231,7 @@ func tabPaneInset() layout.Inset {
 
 // scrollingTab lays content out as the one block of a region that scrolls
 // across the whole box gtx gives, with the column's bar at the region's
-// trailing edge. The bar's anchor is shell.BarAnchor's: a standing bar
+// trailing edge. The bar's anchor is what list.AnchorFor returns: a standing bar
 // takes a lane and the content stops short of it, a fading bar lies over
 // the content's trailing edge. content is inset by tabPaneInset inside the
 // region, and its height is its own, so a tab taller than the region
@@ -239,7 +239,7 @@ func tabPaneInset() layout.Inset {
 func scrollingTab(gtx layout.Context, bar scrollbar.Style, scroll *list.State, content layout.Widget) layout.Dimensions {
 	size := gtx.Constraints.Max
 	gtx.Constraints = layout.Exact(size)
-	list.LayoutScrollbar(gtx, scroll, bar, shell.BarAnchor(bar), []struct{}{{}},
+	list.LayoutScrollbar(gtx, scroll, bar, list.AnchorFor(bar), []struct{}{{}},
 		func(gtx layout.Context, _ struct{}) layout.Dimensions {
 			gtx.Constraints.Min.Y = 0
 			return tabPaneInset().Layout(gtx, content)
