@@ -690,7 +690,10 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		}
 		model.Scanning = false
 		if m.err != "" {
-			return raiseNotification(model, notifications.Request(toast.Warning, m.err))
+			// The vault's content is left as it was, so the failure is
+			// an event and a toast reports it, in the application's
+			// own sentence; scanCmd writes the system's text to the log.
+			return raiseNotification(model, notifications.Request(toast.Warning, rescanFailed))
 		}
 		model.ScanErr = ""
 		return raiseNotification(model, notifications.Request(toast.Info, rescanSummary(model.Index)))
@@ -956,9 +959,10 @@ func scanCmd(vault, current string, gen int, stop *atomic.Bool, finish func(err 
 		idx, order, err := ListVault(vault)
 		if err != nil {
 			// A walk that cannot start is reported by the last message,
-			// the one phase this command always has. The column says so
-			// in the application's own words, so the system's own text
-			// is of use in the log alone.
+			// the one phase this command always has. The column, or for
+			// a rescan the toast, says so in the application's own
+			// words, so the system's own text is written to the log
+			// alone.
 			failed = err.Error()
 			fmt.Fprintf(os.Stderr, "vaultview: scanning %s: %v\n", vault, err)
 			return nil, nil, true
@@ -1021,6 +1025,9 @@ func firstReadable(idx *Index) string {
 	}
 	return ""
 }
+
+// rescanFailed is the toast's text when a rescan cannot walk the vault.
+const rescanFailed = "The vault couldn't be rescanned."
 
 // rescanSummary is the line a finished rescan reports, since a rescan
 // that changed nothing must still say it happened.

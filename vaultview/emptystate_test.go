@@ -15,6 +15,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/toast"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/shell"
@@ -163,6 +164,48 @@ func TestAVaultThatCannotBeReadSaysSoInItsOwnWords(t *testing.T) {
 	}
 	if !strings.Contains(written, vault) {
 		t.Errorf("the log says %q, want the vault's path %q in it", written, vault)
+	}
+}
+
+// TestAFailedRescanSaysSoInItsOwnWords drives a real rescan at a path no
+// vault is at: the toast it raises is a warning whose text is the
+// application's own sentence, and the system's text, which the toast
+// does not show, is written to the log with the vault's path.
+func TestAFailedRescanSaysSoInItsOwnWords(t *testing.T) {
+	vault := filepath.Join(t.TempDir(), "no-vault-here")
+
+	logged := captureStderr(t)
+	model := Model{Screen: screenVault, Vault: vault, CurAnchor: -1}
+	model, cmd := Update(model, Rescan{})
+	if !model.Scanning {
+		t.Fatal("Rescan did not put a scan in flight")
+	}
+	model = foldScan(t, model, cmd)
+	written := logged()
+
+	if model.Notifications.Len() != 1 {
+		t.Fatalf("a failed rescan raised %d notifications, want one", model.Notifications.Len())
+	}
+	got := model.Notifications.Items()[0]
+	const want = "The vault couldn't be rescanned."
+	if got.Text != want {
+		t.Errorf("the toast says %q, want %q", got.Text, want)
+	}
+	if got.Status != toast.Warning {
+		t.Errorf("the toast's status is %v, want a warning", got.Status)
+	}
+	const prefix = "vaultview: scanning "
+	i := strings.Index(written, prefix)
+	if i < 0 {
+		t.Fatalf("the log says %q, want a line about the scan", written)
+	}
+	line, _, _ := strings.Cut(written[i+len(prefix):], "\n")
+	system := strings.TrimPrefix(line, vault+": ")
+	if system == line || system == "" {
+		t.Fatalf("the log line %q does not name the vault's path %q followed by the system's text", line, vault)
+	}
+	if strings.Contains(got.Text, system) {
+		t.Errorf("the toast says %q, which shows the system's text %q", got.Text, system)
 	}
 }
 
