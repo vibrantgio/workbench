@@ -128,7 +128,7 @@ that reports one launched process (Started → Exited).
 - **[llms.txt](https://raw.githubusercontent.com/vibrantgio/workbench/master/llms.txt)**
   — a condensed guide for AI coding assistants (Claude, etc.) to write
   applications against the Vibrant Gio packages. It is maintained once, at the
-  root of [vibrantgio/.github](https://github.com/vibrantgio/.github), and
+  root of [vibrantgio/organisation](https://github.com/vibrantgio/organisation), and
   this repository links it rather than keeping a copy or a pointer file.
 - Development planning is in one place,
   [vibrantgio/organisation](https://github.com/vibrantgio/organisation), not here. The
