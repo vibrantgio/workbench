@@ -700,19 +700,16 @@ func layoutNotePage(
 			mvu.MessageOp{Message: ToggleTask{Path: note.Path, Item: item}}.Add(gtx.Ops)
 		}
 		// The bar is the design system's, taking the same colour
-		// tokens the document's style did. Occupy rather than
-		// Overlay: the gutter costs the prose ten dp of measure
-		// once, where an overlay bar lands on the ends of the lines
-		// it floats over. It draws nothing at all while the whole
-		// note fits, and fades out a second after the note stops
-		// moving — both the treatment's own behaviour, not the
-		// app's — unless the reader asked for scroll bars always,
-		// which is the setting the snapshot carries.
+		// tokens the document's style did. Its anchor is what
+		// [list.AnchorFor] returns: a standing bar takes a lane of its
+		// own and the prose stops short of it, and a fading bar lies
+		// over the column's trailing edge and takes no lane. It draws
+		// nothing at all while the whole note fits.
 		//
 		// The document is the one row that runs to the column's edge,
 		// where the bar belongs. The reading margin the other rows get
 		// from the page inset it takes as its own padding, less the
-		// width the bar already reserves, so the prose ends level with
+		// lane the bar occupies, so the prose ends level with
 		// the breadcrumb above it. The document keeps that padding on
 		// its leading side too, so its viewport begins the same width
 		// before the page's inset: lane and padding then add up to the
@@ -750,7 +747,7 @@ func layoutNotePage(
 				if gtx.Constraints.Min.X > 0 {
 					gtx.Constraints.Min.X += pad
 				}
-				dims := doc.LayoutScrollbar(gtx, tok.shaper, style, bar, list.Occupy)
+				dims := doc.LayoutScrollbar(gtx, tok.shaper, style, bar, list.AnchorFor(bar))
 				dims.Size.X = max(dims.Size.X-pad, 0)
 				// The address is said twice: at the window's foot while
 				// the pointer is on the link, and beside the link once
@@ -813,7 +810,17 @@ func noteScrollBar(tok themeTokens) scrollbar.Style {
 // text: the page's reading inset less the lane the bar occupies, so lane and
 // padding at the trailing edge are the page's inset.
 func notePaddingDp(bar scrollbar.Style) unit.Dp {
-	return max(noteInsetDp-bar.Width(), 0)
+	return max(noteInsetDp-noteLaneDp(bar), 0)
+}
+
+// noteLaneDp is the width of the lane the bar occupies at the column's
+// trailing edge: the bar's width when it stands, none when it fades and lies
+// over the rows.
+func noteLaneDp(bar scrollbar.Style) unit.Dp {
+	if list.AnchorFor(bar) == list.Occupy {
+		return bar.Width()
+	}
+	return 0
 }
 
 // noteTextBox is where a line of this column's text begins and how wide it
@@ -825,10 +832,18 @@ func notePaddingDp(bar scrollbar.Style) unit.Dp {
 func noteTextBox(gtx layout.Context, tok themeTokens, colW int) (lead, width int) {
 	bar := noteScrollBar(tok)
 	style := markdown.Style{Measure: noteMeasureDp, Gutter: notePaddingDp(bar)}
-	start := max(gtx.Dp(unit.Dp(noteInsetDp))-gtx.Dp(style.Gutter), 0)
-	rows := max(colW-start-gtx.Dp(bar.Width()), 0)
+	start, rows := noteRowsBox(gtx, bar, colW)
 	l, t := style.BlockInsets(gtx, rows)
 	return start + l, max(rows-l-t, 0)
+}
+
+// noteRowsBox is where the document's rows begin and how wide they run, both
+// measured from the column's own leading edge: the viewport begins one
+// padding before the page's reading inset, and the rows run to the column's
+// trailing edge less the lane the bar occupies.
+func noteRowsBox(gtx layout.Context, bar scrollbar.Style, colW int) (start, width int) {
+	start = max(gtx.Dp(unit.Dp(noteInsetDp))-gtx.Dp(notePaddingDp(bar)), 0)
+	return start, max(colW-start-gtx.Dp(noteLaneDp(bar)), 0)
 }
 
 // rebuildDocument returns a Document for n, seated at prev's viewport

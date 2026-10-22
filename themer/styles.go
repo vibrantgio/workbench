@@ -163,12 +163,8 @@ func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, 
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		gtx.Constraints = layout.Exact(size)
-		// The bar takes a gutter rather than floating over the names. The
-		// gutter costs a few points of a column that is narrow already and
-		// buys the one thing an overlay cannot on a list this dense: the
-		// marked row ends where the row ends rather than running under the
-		// track.
-		list.LayoutScrollbar(gtx, st, scrollBarStyle(scrollbar.FromTokens(c, p.Surface), bars), list.Occupy, rows,
+		bar := scrollBarStyle(scrollbar.FromTokens(c, p.Surface), bars)
+		list.LayoutScrollbar(gtx, st, bar, list.AnchorFor(bar), rows,
 			func(gtx layout.Context, row layout.Widget) layout.Dimensions {
 				return row(gtx)
 			})

@@ -565,7 +565,7 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) l
 
 		layout.Flex{Axis: layout.Vertical, Spacing: layout.SpaceBetween, Alignment: layout.Middle}.Layout(gtx,
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return list.LayoutScrollbar(gtx, hist, t.bar, list.Occupy, chat,
+				return list.LayoutScrollbar(gtx, hist, t.bar, list.AnchorFor(t.bar), chat,
 					func(gtx layout.Context, row msgRow) layout.Dimensions {
 						return MessageRow(gtx, t, row)
 					})
