@@ -26,7 +26,10 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/tabs"
 	vgcolor "github.com/vibrantgio/theme/color"
@@ -68,11 +71,13 @@ type detailArticle struct {
 // rx.Observable[layout.Widget] suitable for folding onto the shell's
 // sidebar-driven stream. selectedArticleObs and selectedTabObs are derived
 // from the MVU model; the tab-strip click lands a SelectTab mvu.MessageOp so
-// the model — and this layer — advance on the same frame.
+// the model — and this layer — advance on the same frame. bars is the
+// window's "Show scroll bars" setting, which the column's bar is built from.
 func detailPane(
 	th rx.Observable[theme.Theme],
 	selectedArticleObs rx.Observable[ArticleID],
 	selectedTabObs rx.Observable[int],
+	bars desktop.ScrollBarSetting,
 ) rx.Observable[layout.Widget] {
 	// Token mirror for the static tab Content closures and the header, which
 	// run outside any rx.Defer scope.
@@ -90,9 +95,9 @@ func detailPane(
 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
-			{Title: "Reader", Content: readerTab(loadTokens, loadArticle)},
-			{Title: "Raw", Content: rawTab(loadTokens, loadArticle)},
-			{Title: "Comments", Content: commentsTab(loadTokens)},
+			{Title: "Reader", Content: readerTab(loadTokens, loadArticle, bars)},
+			{Title: "Raw", Content: rawTab(loadTokens, loadArticle, bars)},
+			{Title: "Comments", Content: commentsTab(loadTokens, bars)},
 		},
 		Selected: selectedTabObs,
 		OnSelect: func(gtx layout.Context, idx int) {
@@ -110,7 +115,7 @@ func detailPane(
 			articleCell.Store(detailArticle{a: a, ok: ok})
 			tabsW := t.First
 			return func(gtx layout.Context) layout.Dimensions {
-				return drawDetail(gtx, loadTokens(), loadArticle(), tabsW)
+				return drawDetail(gtx, loadTokens(), bars, loadArticle(), tabsW)
 			}
 		},
 	)
@@ -122,19 +127,27 @@ func detailPane(
 // and the meta line its secondary label; the empty state spends what
 // patterns/shell reads off the platform.
 //
+// The headline, the byline and the tab strip stay where they are; the
+// active tab's content below the strip is the region that scrolls. The
+// strip is not content and the active tab's content is, and a header above
+// what scrolls spans the column's full width with no lane beside it. The
+// strip's box therefore runs to the column's trailing edge, so the region
+// under it does too and its bar is at that edge.
+//
 // The column paints its OWN fill first. It is the reading surface, so it
 // wears ControlBackground — the same fill the arrangement paints the column
 // with, stated here so the document is legible wherever it is laid out.
 func drawDetail(
 	gtx layout.Context,
 	tok themeTokens,
+	bars desktop.ScrollBarSetting,
 	sel detailArticle,
 	tabsW layout.Widget,
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	paint.FillShape(gtx.Ops, tok.col.ControlBackground, clip.Rect{Max: size}.Op())
 	if !sel.ok {
-		return detailEmptyState(gtx, tok, "Select an article")
+		return detailEmptyState(gtx, tok, detailBar(tok, bars), "Select an article")
 	}
 	// The column's parts are inset one by one rather than together, because
 	// the tab strip's own cell padding stands its first title further in
@@ -159,11 +172,7 @@ func drawDetail(
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{
-				Left:   tabStripOutdentDp,
-				Right:  tabStripOutdentDp,
-				Bottom: unit.Dp(detailPadDp),
-			}.Layout(gtx, tabsW)
+			return layout.Inset{Left: tabStripOutdentDp}.Layout(gtx, tabsW)
 		}),
 	)
 	return layout.Dimensions{Size: size}
@@ -175,14 +184,16 @@ func drawDetail(
 // toolbar. The pattern carries the reading; the fill is the column's own.
 //
 // The slot is recorded and replayed under the toolbar's own ops — the window
-// hands the arrangement MainFirst — so what stands in the toolbar paints
-// over the strip this frame reaches up into.
-func detailEmptyState(gtx layout.Context, tok themeTokens, msg string) layout.Dimensions {
+// passes the arrangement MainFirst — so what stands in the toolbar paints
+// over the strip this frame reaches up into. The frame is reduced by
+// shell.EmptyStateFrame, so where the column's bar takes a lane the line
+// centres in what the content beside the lane would occupy.
+func detailEmptyState(gtx layout.Context, tok themeTokens, bar scrollbar.Style, msg string) layout.Dimensions {
 	row := gtx.Constraints.Max
-	bar := gtx.Dp(unit.Dp(shell.ToolbarDepth))
+	toolbar := gtx.Dp(unit.Dp(shell.ToolbarDepth))
 	full := gtx
-	full.Constraints = layout.Exact(image.Pt(row.X, row.Y+bar))
-	defer op.Offset(image.Pt(0, -bar)).Push(gtx.Ops).Pop()
+	full.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, image.Pt(row.X, row.Y+toolbar), bar))
+	defer op.Offset(image.Pt(0, -toolbar)).Push(gtx.Ops).Pop()
 	shell.EmptyState(full, tok.shaper, tok.col, tok.typ, tok.col.ControlBackground,
 		shell.EmptyStateProps{Line: msg})
 	return layout.Dimensions{Size: row}
@@ -196,24 +207,51 @@ func detailFill(c tokens.PlatformColors) color.NRGBA { return c.ControlBackgroun
 // The tab pane needs no fill of its own: patterns/tabs draws its pane on the
 // content fill, which is the fill this column already paints.
 
-// tabPaneInset is what a tab's content is inset by inside the pane. Across
-// the leading and trailing edges it is the column's own inset less what the
+// detailBar is the content column's scrollbar: drawn over the column's own
+// fill, and standing without fading where the reader asked for scroll bars
+// always.
+func detailBar(tok themeTokens, bars desktop.ScrollBarSetting) scrollbar.Style {
+	return scrollBarStyle(scrollbar.FromTokens(tok.col, tok.col.ControlBackground), bars)
+}
+
+// tabPaneInset is what a tab's content is inset by inside the region that
+// scrolls. On the leading edge it is the column's own inset less what the
 // strip is outdented by, so the prose lands on the same leading edge as the
-// headline above it; top and bottom are the column's inset itself.
+// headline above it. The region runs to the column's trailing edge, so the
+// trailing inset is the column's own; top and bottom are the column's inset
+// too. The inset is inside the region, so it scrolls with the content.
 func tabPaneInset() layout.Inset {
 	return layout.Inset{
 		Top:    unit.Dp(detailPadDp),
 		Bottom: unit.Dp(detailPadDp),
 		Left:   tabTitlePadDp,
-		Right:  tabTitlePadDp,
+		Right:  unit.Dp(detailPadDp),
 	}
+}
+
+// scrollingTab lays content out as the one block of a region that scrolls
+// across the whole box gtx gives, with the column's bar at the region's
+// trailing edge. The bar's anchor is shell.BarAnchor's: a standing bar
+// takes a lane and the content stops short of it, a fading bar lies over
+// the content's trailing edge. content is inset by tabPaneInset inside the
+// region, and its height is its own, so a tab taller than the region
+// scrolls to its last line.
+func scrollingTab(gtx layout.Context, bar scrollbar.Style, scroll *list.State, content layout.Widget) layout.Dimensions {
+	size := gtx.Constraints.Max
+	gtx.Constraints = layout.Exact(size)
+	list.LayoutScrollbar(gtx, scroll, bar, shell.BarAnchor(bar), []struct{}{{}},
+		func(gtx layout.Context, _ struct{}) layout.Dimensions {
+			gtx.Constraints.Min.Y = 0
+			return tabPaneInset().Layout(gtx, content)
+		})
+	return layout.Dimensions{Size: size}
 }
 
 // readerTab renders the article body paragraph-wrapped in the theme's
 // BodyMedium role. The closure is static (tabs captures it once) and reads
 // the selected article + tokens from the cells at frame time.
-func readerTab(loadTokens func() themeTokens, loadArticle func() detailArticle) layout.Widget {
-	return bodyTab(loadTokens, loadArticle, func(typ tokens.Typography) tokens.TextStyle {
+func readerTab(loadTokens func() themeTokens, loadArticle func() detailArticle, bars desktop.ScrollBarSetting) layout.Widget {
+	return bodyTab(loadTokens, loadArticle, bars, func(typ tokens.Typography) tokens.TextStyle {
 		return typ.BodyMedium
 	})
 }
@@ -221,13 +259,18 @@ func readerTab(loadTokens func() themeTokens, loadArticle func() detailArticle) 
 // rawTab renders the SAME body bytes as readerTab in the theme's Code style
 // — BodyMedium's metrics on the mono face (Roboto Mono). The two tabs differ
 // only in font.
-func rawTab(loadTokens func() themeTokens, loadArticle func() detailArticle) layout.Widget {
-	return bodyTab(loadTokens, loadArticle, func(typ tokens.Typography) tokens.TextStyle {
+func rawTab(loadTokens func() themeTokens, loadArticle func() detailArticle, bars desktop.ScrollBarSetting) layout.Widget {
+	return bodyTab(loadTokens, loadArticle, bars, func(typ tokens.Typography) tokens.TextStyle {
 		return typ.Code
 	})
 }
 
-func bodyTab(loadTokens func() themeTokens, loadArticle func() detailArticle, pick func(tokens.Typography) tokens.TextStyle) layout.Widget {
+// bodyTab is the article's body in one style, in a region that scrolls.
+// Each tab keeps its own scroll position, and a newly chosen article opens
+// at its first line.
+func bodyTab(loadTokens func() themeTokens, loadArticle func() detailArticle, bars desktop.ScrollBarSetting, pick func(tokens.Typography) tokens.TextStyle) layout.Widget {
+	scroll := list.NewState()
+	var shown ArticleID
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		tok := loadTokens()
@@ -235,22 +278,30 @@ func bodyTab(loadTokens func() themeTokens, loadArticle func() detailArticle, pi
 		if !sel.ok {
 			return layout.Dimensions{Size: size}
 		}
-		tabPaneInset().Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return drawWrappedText(gtx, tok.shaper, hardCodedBody(sel.a), pick(tok.typ),
-				vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground))
-		})
-		return layout.Dimensions{Size: size}
+		if sel.a.ID != shown {
+			shown = sel.a.ID
+			scroll.ScrollToStart()
+		}
+		return drawBody(gtx, tok, detailBar(tok, bars), scroll, sel.a, pick(tok.typ))
 	}
 }
 
+// drawBody lays a's body out in style in a region that scrolls under bar.
+func drawBody(gtx layout.Context, tok themeTokens, bar scrollbar.Style, scroll *list.State, a article, style tokens.TextStyle) layout.Dimensions {
+	return scrollingTab(gtx, bar, scroll, func(gtx layout.Context) layout.Dimensions {
+		return drawWrappedText(gtx, tok.shaper, hardCodedBody(a), style,
+			vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground))
+	})
+}
+
 // commentsTab renders the static placeholder comment list. The rows are
-// fixture data shared across all articles.
-func commentsTab(loadTokens func() themeTokens) layout.Widget {
+// fixture data shared across all articles, in a region that scrolls.
+func commentsTab(loadTokens func() themeTokens, bars desktop.ScrollBarSetting) layout.Widget {
 	comments := hardCodedComments()
+	scroll := list.NewState()
 	return func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
 		tok := loadTokens()
-		tabPaneInset().Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return scrollingTab(gtx, detailBar(tok, bars), scroll, func(gtx layout.Context) layout.Dimensions {
 			children := make([]layout.FlexChild, 0, 2*len(comments))
 			for _, c := range comments {
 				c := c
@@ -268,7 +319,6 @@ func commentsTab(loadTokens func() themeTokens) layout.Widget {
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		})
-		return layout.Dimensions{Size: size}
 	}
 }
 

@@ -183,7 +183,7 @@ func feedsShellLayer(
 
 	articlesObs := articlesMain(th, selectedFeedObs, selectedArticleObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, queryObs, tipArb)
 	searchFieldObs := articlesSearch(th, postMessage)
-	detailObs := detailPane(th, selectedArticleObs, selectedTabObs)
+	detailObs := detailPane(th, selectedArticleObs, selectedTabObs, bars)
 	shareObs := sharePopover(th, shareOpenObs, popArb, postMessage)
 	dialogObs := addFeedDialog(th, addFeedOpenObs, addFeedErrorObs, dialogArb)
 	prefsObs := preferencesPane(th, prefsOpenObs, rowsPerPageObs, unreadOnlyObs, dialogArb)
