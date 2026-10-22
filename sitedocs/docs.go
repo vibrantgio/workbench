@@ -33,11 +33,13 @@ import (
 
 // Page layout constants.
 const (
-	// docsOuterInsetDp is the blank the document keeps from the pane
-	// edges (S6 = 24 dp).
+	// docsOuterInsetDp is the blank the document keeps above its first
+	// block, below its last and on its trailing side, and the blank the
+	// empty state keeps from the pane edges (S6 = 24 dp).
 	docsOuterInsetDp = 24
 	// docsMeasureDp caps the guide document's line length to a readable
-	// column; the window is wider than a comfortable measure.
+	// column; the window is wider than a comfortable measure, and the
+	// capped blocks are centred in the column.
 	docsMeasureDp = 720
 )
 
@@ -100,17 +102,25 @@ func openURL(url string) {
 }
 
 // drawGuideDoc lays out the one guide document as the Docs tab's main
-// column: the shared outer inset, then the document as its own scrolling
-// viewport with bar along its trailing edge. The document is long-lived —
+// column: the column's whole frame is the document's scrolling viewport,
+// and the document's blocks are capped at the reading measure and centred
+// in it by markdown's own Style.Measure. The region that scrolls is the
+// whole column, so the bar is at the column's trailing edge, which is the
+// pane's edge, as every other tab's bar is. The document is long-lived —
 // scroll position and interaction state belong to it, so ScrollToBlock
 // from an outline row moves the same reader rather than rebuilding the
 // page.
 //
-// The bar comes in rather than being built here because it is the window's
+// The blank above the first block and below the last is the document's
+// own StartSpace and EndSpace, so it scrolls with the content instead of
+// cutting a still strip out of the viewport. Gutter keeps the same blank on
+// the trailing side when the column is narrower than the measure.
+//
+// The bar is passed in rather than built here because it is the window's
 // bar, spent against the setting read once where the window was composed;
 // see columnBar. It floats over the column's trailing edge
 // ([list.Overlay]) as every other tab's bar does: a reserved gutter would
-// stand empty on every frame the fading bar is away, and it is the
+// stay empty on every frame the fading bar is away, and it is the
 // document's own scrollbar entry point that draws it, because the viewport
 // being scrolled is the document's own list.
 func drawGuideDoc(
@@ -120,19 +130,11 @@ func drawGuideDoc(
 	style markdown.Style,
 	bar scrollbar.Style,
 ) layout.Dimensions {
-	inset := complayout.Inset(docsOuterInsetDp)
-	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		// Cap the reading measure: unbounded, the guide's prose runs the
-		// window's whole width, far past a comfortable line length. The
-		// document keeps its left edge; spare width stays blank.
-		if cap := gtx.Dp(unit.Dp(docsMeasureDp)); gtx.Constraints.Max.X > cap {
-			gtx.Constraints.Max.X = cap
-			if gtx.Constraints.Min.X > cap {
-				gtx.Constraints.Min.X = cap
-			}
-		}
-		return doc.LayoutScrollbar(gtx, shaper, style, bar, list.Overlay)
-	})
+	style.Measure = docsMeasureDp
+	style.Gutter = docsOuterInsetDp
+	style.StartSpace = docsOuterInsetDp
+	style.EndSpace = docsOuterInsetDp
+	return doc.LayoutScrollbar(gtx, shaper, style, bar, list.Overlay)
 }
 
 // drawGuideUnavailable draws the Docs column with no guide in it: this
@@ -141,8 +143,8 @@ func drawGuideDoc(
 // went to the log where the read failed.
 //
 // It is handed the column's whole frame, which is what the group centres
-// in, and it is held off the pane's edges by the same blank the document
-// keeps so a long location does not run into them; that inset is even on
+// in, and it is held off the pane's edges by docsOuterInsetDp so a long
+// location does not run into them; that inset is even on
 // every side, so the centre it centres on is the column's own. The
 // document's reading measure is not applied: an empty state is not
 // content and stands on no measure.

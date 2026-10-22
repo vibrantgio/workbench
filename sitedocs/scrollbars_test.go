@@ -8,7 +8,6 @@ package main
 
 import (
 	"image"
-	"image/color"
 	"testing"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu/desktop"
@@ -70,57 +70,101 @@ func TestTheWindowSpendsTheScrollBarSetting(t *testing.T) {
 }
 
 // TestTheDocsColumnStandsABar renders the Docs tab's document column at
-// the two settings and reads the bar off the pixels. The guide is the
-// longest content this window holds, so the column that shows it overflows
-// and has a bar to draw.
+// the two settings and reads the bar off the pixels, in both schemes. The
+// guide is the longest content this window holds, so the column that shows
+// it overflows and has a bar to draw.
 //
-// With the reader's "always" setting the thumb stands on a resting frame,
-// and it stands in the column's trailing gutter — the trailing edge of the
-// reading measure, which is where the document's own viewport ends — and
-// nowhere else. With "when scrolling" the frame is the frame the Docs
-// golden holds: nothing of the bar is on it, which is what keeps that
-// golden byte-identical.
+// The region that scrolls is the whole column, so with the reader's
+// "always" setting the thumb is on a resting frame at the column's
+// trailing edge: the same x as the bar of a tab of rows laid out in a frame
+// of the same size, and nowhere else. With "when scrolling" the frame is
+// the frame the Docs golden holds: nothing of the bar is on it.
+//
+// The document's blocks are capped at the reading measure and centred in
+// the column: the fenced block, the widest thing on the page, starts at
+// (column - measure)/2 and is the measure wide, each within a pixel.
 func TestTheDocsColumnStandsABar(t *testing.T) {
-	c := tokens.PlatformLight
 	typo := tokens.DefaultTypography
 	shaper := typo.DeterministicShaper()
-	style := docsMarkdownStyle(c, typo)
-	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
+	for _, sc := range []struct {
+		name string
+		c    tokens.PlatformColors
+	}{{"light", tokens.PlatformLight}, {"dark", tokens.PlatformDark}} {
+		t.Run(sc.name, func(t *testing.T) {
+			c := sc.c
+			style := docsMarkdownStyle(c, typo)
+			bg := c.ControlBackground
 
-	// At PxPerDp 1 the column runs from the outer inset to the capped
-	// reading measure, and the bar rides the last Width() dp of it.
-	measureEnd := docsOuterInsetDp + docsMeasureDp
-	gutterStart := measureEnd - int(columnBar(c, desktop.ScrollBarsAlways).Width())
+			// At PxPerDp 1 a bar of a tab of rows is in the trailing
+			// Width() dp of the frame.
+			lane := docsFrameW - int(columnBar(c, desktop.ScrollBarsAlways).Width())
 
-	frame := func(bars desktop.ScrollBarSetting) *image.RGBA {
-		doc := markdown.NewDocument(markdown.Parse(guideFixture(t)))
-		bar := columnBar(c, bars)
-		return golden.Capture(t, docsFrameSize, scene(func(gtx layout.Context) layout.Dimensions {
-			return drawGuideDoc(gtx, doc, shaper, style, bar)
-		}, bg))
-	}
-
-	always, fading := frame(desktop.ScrollBarsAlways), frame(desktop.ScrollBarsWhenScrolling)
-	if golden.PixelDiff(always, fading) == 0 {
-		t.Fatal("the Docs column renders identically with scroll bars always and when scrolling; it stands no bar")
-	}
-	outside, inside := 0, 0
-	for y := range docsFrameH {
-		for x := range docsFrameW {
-			if always.RGBAAt(x, y) == fading.RGBAAt(x, y) {
-				continue
+			// The bar of a tab of rows, read off the same frame size.
+			rows := func(bars desktop.ScrollBarSetting) *image.RGBA {
+				items := make([]layout.Widget, 60)
+				for i := range items {
+					items[i] = func(gtx layout.Context) layout.Dimensions {
+						return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 40)}
+					}
+				}
+				return golden.Capture(t, docsFrameSize, scene(scrollingColumn(list.NewState(), c, bars, items), bg))
 			}
-			if x >= gutterStart && x < measureEnd {
-				inside++
-			} else {
-				outside++
+			barStart, ok := firstDiffX(rows(desktop.ScrollBarsAlways), rows(desktop.ScrollBarsWhenScrolling))
+			if !ok || barStart < lane {
+				t.Fatalf("a tab of rows' bar starts at x=%d (found %v), want it in the lane from x=%d", barStart, ok, lane)
+			}
+
+			frame := func(bars desktop.ScrollBarSetting) *image.RGBA {
+				doc := markdown.NewDocument(markdown.Parse(guideFixture(t)))
+				bar := columnBar(c, bars)
+				return golden.Capture(t, docsFrameSize, scene(func(gtx layout.Context) layout.Dimensions {
+					return drawGuideDoc(gtx, doc, shaper, style, bar)
+				}, bg))
+			}
+			always, fading := frame(desktop.ScrollBarsAlways), frame(desktop.ScrollBarsWhenScrolling)
+			x, ok := firstDiffX(always, fading)
+			if !ok {
+				t.Fatal("the Docs column renders identically with scroll bars always and when scrolling; it has no bar")
+			}
+			if x != barStart {
+				t.Errorf("the Docs column's bar starts at x=%d, want %d, where a tab of rows has its bar", x, barStart)
+			}
+
+			// The widest run of non-background pixels left of the bar's
+			// lane is the fenced block's fill: its start is the lead.
+			lead, width := 0, 0
+			for y := range docsFrameH {
+				l, r := -1, -1
+				for x := range lane {
+					if p := fading.RGBAAt(x, y); p.R != bg.R || p.G != bg.G || p.B != bg.B {
+						if l < 0 {
+							l = x
+						}
+						r = x
+					}
+				}
+				if l >= 0 && r-l+1 > width {
+					lead, width = l, r-l+1
+				}
+			}
+			wantLead := (docsFrameW - docsMeasureDp) / 2
+			if absInt(lead-wantLead) > 1 || absInt(width-docsMeasureDp) > 1 {
+				t.Errorf("the widest block spans x=%d..%d (%d wide), want it to start at %d and be %d wide, centred in the column",
+					lead, lead+width, width, wantLead, docsMeasureDp)
+			}
+		})
+	}
+}
+
+// firstDiffX is the smallest x at which two frames differ.
+func firstDiffX(a, b *image.RGBA) (int, bool) {
+	r := a.Bounds()
+	for x := r.Min.X; x < r.Max.X; x++ {
+		for y := r.Min.Y; y < r.Max.Y; y++ {
+			if a.RGBAAt(x, y) != b.RGBAAt(x, y) {
+				return x, true
 			}
 		}
 	}
-	if inside == 0 {
-		t.Errorf("no thumb pixel between x=%d and x=%d; the standing bar is not in the column's trailing gutter", gutterStart, measureEnd)
-	}
-	if outside != 0 {
-		t.Errorf("%d pixels outside the trailing gutter moved when the bar stood; asking for the bar moved the prose", outside)
-	}
+	return 0, false
 }
