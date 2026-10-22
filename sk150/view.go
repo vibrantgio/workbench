@@ -317,17 +317,22 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	}))
 	// The demo button and the tooltip that says how long the demo runs. The
 	// arbiter is this window's; the demo button's tooltip is its only member.
+	// The button's clickable is its focus tag, and the tooltip reads it to
+	// be shown while the button holds the focus.
+	var demoClick widget.Clickable
 	reg.add("demo", rx.SwitchMap(
 		button.Button(th, button.Props{
 			Title: "Try demo mode", Emphasis: button.Tonal,
-			OnClick: func(gtx layout.Context) { post(gtx, EnterDemo{}) },
+			Clickable: &demoClick,
+			OnClick:   func(gtx layout.Context) { post(gtx, EnterDemo{}) },
 		}),
 		func(demo layout.Widget) rx.Observable[layout.Widget] {
 			return tooltip.Tooltip(th, tooltip.Props{
-				Text:      demoTooltip,
-				Trigger:   fixed(160, demo),
-				Placement: tooltip.Bottom,
-				Arbiter:   tooltip.NewArbiter(),
+				Text:       demoTooltip,
+				Trigger:    fixed(160, demo),
+				Placement:  tooltip.Bottom,
+				Arbiter:    tooltip.NewArbiter(),
+				TriggerTag: &demoClick,
 			})
 		},
 	))
