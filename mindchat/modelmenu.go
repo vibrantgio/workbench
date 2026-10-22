@@ -35,6 +35,7 @@ import (
 
 	"github.com/vibrantgio/components/picker"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/popover"
 	"github.com/vibrantgio/theme/theme"
 )
@@ -50,7 +51,7 @@ type menuEntry struct {
 // ModelMenu builds the chat header picker stream: the layout.Widget it emits
 // is laid out by ChatPane in the header's picker box and draws the anchor
 // (the popover's own anchor) plus, while open, the model list surface.
-func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], popArb *popover.Arbiter) rx.Observable[layout.Widget] {
+func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], popArb *popover.Arbiter, bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	// Whether the menu stands, kept where the anchor's click handler can read
 	// it: the anchor's mark does not flip, so the open state is not part of
 	// what the anchor is a function of and must not rebuild it.
@@ -121,6 +122,9 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 				// menu makes room for whatever it is handed: uncapped, a
 				// full catalogue is taller than the window it floats in.
 				MaxHeight: MenuMaxHeight,
+				// The menu's own bar follows the reader's "Show scroll
+				// bars" setting, as every other bar in this window does.
+				Scrollbar: scrollBarsSpent(bars),
 				OnSelect: func(gtx layout.Context, i int) {
 					e := entries[i]
 					mvu.MessageOp{Message: SetChatModel{Provider: e.provider, Model: e.model}}.Add(gtx.Ops)

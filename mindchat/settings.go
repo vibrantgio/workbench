@@ -222,6 +222,10 @@ func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]
 				// number this app picks: the picker caps the plane to what
 				// the side it drops on leaves and scrolls the rows inside it.
 				AvailableRoom: func(layout.Context) (int, int) { return above, below },
+				// The menu the field drops scrolls inside that room, and
+				// its bar follows the reader's "Show scroll bars" setting
+				// as the dialog's own column does.
+				Scrollbar: scrollBarsSpent(bars),
 				// The two things a trigger with no value can be saying.
 				Placeholder: "Choose model…",
 				NoOptions:   "No models",

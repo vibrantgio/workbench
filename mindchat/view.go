@@ -83,6 +83,14 @@ func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.
 	return s
 }
 
+// scrollBarsSpent is the same answer handed to a component that builds its
+// own bar: components/picker's menu takes the bar it drew from the theme and
+// asks the application what to become, because the setting is read through
+// the platform bridge, which stands above the library.
+func scrollBarsSpent(bars desktop.ScrollBarSetting) func(scrollbar.Style) scrollbar.Style {
+	return func(s scrollbar.Style) scrollbar.Style { return scrollBarStyle(s, bars) }
+}
+
 // themed pairs one theme emission's palette with the icons prebuilt in that
 // theme's symbol colours (rebuilding the rasters per frame would discard
 // their rasterisation cache).
@@ -246,6 +254,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 				panic(err)
 			}
 			md := messageMarkdownStyle(c, typ)
+			// The bar inside an overflowing fence takes the same setting
+			// the transcript's own bar does, so a reader who asked for
+			// scroll bars always finds one standing in a code block too.
+			md.CodeScrollbar = scrollBarStyle(md.CodeScrollbar, bars)
 			return themed{palette: p, col: c, bar: scrollBarStyle(scrollbar.FromTokens(c, c.ControlBackground), bars), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad, den: den}
 		})
 	})
@@ -294,7 +306,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 
 	renameObs := RenameDialog(th, modelObs, dialogArb)
 	settingsObs := SettingsDialog(th, modelObs, dialogArb, bars)
-	menuObs := ModelMenu(th, modelObs, popArb)
+	menuObs := ModelMenu(th, modelObs, popArb, bars)
 
 	// The window's chords, each the one its platform already spends on that
 	// action, laid out from the one table the application menu is built from

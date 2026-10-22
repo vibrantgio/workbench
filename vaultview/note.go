@@ -676,6 +676,11 @@ func layoutNotePage(
 		// position and what it moves shows on the next.
 		cur.show(doc)
 		style := noteStyle(tok.col, tok.typ)
+		// The bar inside an overflowing fence is the reader's as much as
+		// the note column's own is: it takes the setting the snapshot
+		// carries, so a reader who asked for scroll bars always finds one
+		// standing in the fence too.
+		style.CodeScrollbar = scrollBarStyle(style.CodeScrollbar, tok.scrollBars)
 		// The followed-link marking is set on the document every frame
 		// it is alive and taken off it on the first frame it is not:
 		// documents are cached across frames, so a marking left behind

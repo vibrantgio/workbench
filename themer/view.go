@@ -335,6 +335,9 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	shown := PreviewSet(t.col, m, dark)
 	typo, shaper := t.codeType(m)
 	docStyle := CodeStyle(shown, typo, shown.ControlBackground, m.AppliedStyles())
+	// The bar inside an overflowing fence follows the reader's "Show scroll
+	// bars" setting, as the style pane beside it does.
+	docStyle.CodeScrollbar = scrollBarStyle(docStyle.CodeScrollbar, t.scrollBars)
 	var picture paint.ImageOp
 	if m.Preview != nil {
 		picture = paint.NewImageOp(m.Preview)

@@ -23,6 +23,7 @@ import (
 	complayout "github.com/vibrantgio/components/layout"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/markdown/highlight"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -127,6 +128,7 @@ func drawGuideDoc(
 func guideDocObservable(
 	th rx.Observable[theme.Theme],
 	doc *markdown.Document,
+	bars desktop.ScrollBarSetting,
 ) rx.Observable[layout.Widget] {
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
@@ -134,6 +136,9 @@ func guideDocObservable(
 	return rx.Map(tokensObs, func(t rx.Tuple2[tokens.PlatformColors, tokens.Typography]) layout.Widget {
 		typ := t.Second
 		style := docsMarkdownStyle(t.First, typ)
+		// The bar inside an overflowing fence follows the reader's "Show
+		// scroll bars" setting, as every column in this window does.
+		style.CodeScrollbar = scrollBarStyle(style.CodeScrollbar, bars)
 		shaper := typ.Shaper()
 		return func(gtx layout.Context) layout.Dimensions {
 			return drawGuideDoc(gtx, doc, shaper, style)

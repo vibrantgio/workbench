@@ -274,7 +274,7 @@ func tabbedShellLayer(
 	for i, page := range tabPages {
 		switch page {
 		case pageDocs:
-			pages[i] = docsTabFrom(th, modelObs, loadGuide())
+			pages[i] = docsTabFrom(th, modelObs, loadGuide(), bars)
 		case pageColours:
 			pages[i] = colourTabLayer(th, bars)
 		case pageTypography:
@@ -350,6 +350,7 @@ func docsTabFrom(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 	source []byte,
+	bars desktop.ScrollBarSetting,
 ) rx.Observable[layout.Widget] {
 	blocks := markdown.Parse(source)
 	doc := markdown.NewDocument(blocks)
@@ -359,7 +360,7 @@ func docsTabFrom(
 		return outlineState{open: m.outlineOpen, selected: m.selectedHeading}
 	})
 	sidebarObs := docsOutline(th, entries, stateObs, doc.ScrollToBlock)
-	mainObs := guideDocObservable(th, doc)
+	mainObs := guideDocObservable(th, doc, bars)
 
 	return rx.Map(rx.CombineLatest2(sidebarObs, mainObs), func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
 		tree, docW := n.First, n.Second
