@@ -20,14 +20,14 @@ import (
 //
 // Which platform name each place takes is what this window IS on macOS.
 // Nothing here is chrome: the window is one plane with a catalogue drawn on
-// it, so the fill is the window's own and the captions are the platform's
-// label over it. Every alpha-carrying name is flattened onto the fill it
-// lands on, in encoded sRGB, so what Gio is handed is opaque.
+// it, so the fill is the window's own, and the symbols and their captions are
+// drawn in the platform's label colour over it. No symbol here is selected, so
+// none is drawn in the accent. Every alpha-carrying name is flattened onto the fill it
+// lands on, in encoded sRGB, so what is passed to Gio is opaque.
 type Palette struct {
 	Backdrop color.NRGBA // the window's own plane, full-bleed
-	Text     color.NRGBA // icon captions and section labels
+	Text     color.NRGBA // the symbols, their captions and the section labels
 	Muted    color.NRGBA // section notes
-	Icon     color.NRGBA // the symbols themselves
 }
 
 // PaletteFrom resolves the window's places from the platform's set.
@@ -37,7 +37,6 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		Backdrop: plane,
 		Text:     vgcolor.Flatten(c.Label, plane),
 		Muted:    vgcolor.Flatten(c.SecondaryLabel, plane),
-		Icon:     c.ControlAccent,
 	}
 }
 

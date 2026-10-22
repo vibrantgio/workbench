@@ -39,7 +39,6 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
-	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -90,25 +89,18 @@ func staticTypo(typo tokens.Typography) Type {
 
 // staticThemed is the snapshot ContentLayer's own themes stream builds per
 // emission, built once per scheme here instead: the palette, the pinned
-// typography, and the whole icon table prebuilt in the palette's symbol colour.
+// typography, and the whole icon table prebuilt in the palette's text colour.
 // The prebuild is the app's own — `raster.Widget` decodes a viewBox up front and
 // rasterises lazily — and it is cached across frames so that four renders of a
 // 961-symbol catalogue cost one pass over it.
 func staticThemed(t *testing.T, c tokens.PlatformColors) themed {
 	t.Helper()
 	p := PaletteFrom(c)
-	if cached, ok := prebuilt[p.Icon]; ok {
+	if cached, ok := prebuilt[p.Text]; ok {
 		return staticSnapshot(c, p, cached)
 	}
-	widgets := make([]layout.Widget, len(IconTable))
-	for i, icon := range IconTable {
-		w, err := raster.Widget(icon.Data, IconSize, IconSize, raster.WithColors(p.Icon))
-		if err != nil {
-			t.Fatalf("icon %s: %v", icon.Name, err)
-		}
-		widgets[i] = w
-	}
-	prebuilt[p.Icon] = widgets
+	widgets := symbols(p)
+	prebuilt[p.Text] = widgets
 	return staticSnapshot(c, p, widgets)
 }
 
@@ -120,7 +112,7 @@ func staticSnapshot(c tokens.PlatformColors, p Palette, icons []layout.Widget) t
 		platform: c, typography: typo}
 }
 
-// prebuilt caches the icons per symbol colour, which is the only thing
+// prebuilt caches the icons per text colour, which is the only thing
 // about a scheme they depend on.
 var prebuilt = map[color.NRGBA][]layout.Widget{}
 

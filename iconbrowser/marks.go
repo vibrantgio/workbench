@@ -132,12 +132,12 @@ func markCell(gtx layout.Context, t themed, name marks.Name, cell image.Rectangl
 	x := cell.Min.X + (cell.Dx()-row)/2
 	for _, size := range MarkSizes {
 		px := gtx.Dp(size)
-		paintSquare(gtx, paintMark, image.Pt(x, middle-px/2), px, t.palette.Icon, false)
+		paintSquare(gtx, paintMark, image.Pt(x, middle-px/2), px, t.palette.Text, false)
 		x += px + gap
 	}
 	if turn {
 		px := gtx.Dp(MarkBand)
-		paintSquare(gtx, paintMark, image.Pt(x, middle-px/2), px, t.palette.Icon, true)
+		paintSquare(gtx, paintMark, image.Pt(x, middle-px/2), px, t.palette.Text, true)
 	}
 
 	caption := image.Rect(cell.Min.X, band+gtx.Dp(MarkBand)+gtx.Dp(4), cell.Max.X, cell.Max.Y)

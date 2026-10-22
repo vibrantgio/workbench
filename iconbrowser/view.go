@@ -34,8 +34,8 @@ func buildLayers(modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) f
 	}
 }
 
-// themed carries one theme emission's palette and typography plus the 961
-// icons prebuilt in that theme's symbol colour. Prebuilding is cheap —
+// themed holds one theme emission's palette and typography plus the 961
+// icons prebuilt in that theme's text colour. Prebuilding is cheap —
 // `raster.Widget` only decodes the viewBox up front and rasterises lazily,
 // caching per size — and it means a keystroke narrows the grid to prebuilt
 // icons instead of reconstructing them.
@@ -74,6 +74,21 @@ func gridBar(t themed) scrollbar.Style {
 	return scrollBarStyle(scrollbar.FromTokens(t.platform, t.palette.Backdrop), t.scrollBars)
 }
 
+// symbols builds every catalogue symbol in the palette's text colour: an icon
+// on the content is drawn in the text colour, and the accent is passed only
+// to a selected one, which this window has none of.
+func symbols(p Palette) []layout.Widget {
+	widgets := make([]layout.Widget, len(IconTable))
+	for i, icon := range IconTable {
+		w, err := raster.Widget(icon.Data, IconSize, IconSize, raster.WithColors(p.Text))
+		if err != nil {
+			panic(fmt.Sprintf("icon %s: %v", icon.Name, err))
+		}
+		widgets[i] = w
+	}
+	return widgets
+}
+
 // ContentLayer renders the page: the search field over the icon grid the
 // query narrows, held down past the native title-bar strip the window opens
 // the top of itself into.
@@ -94,15 +109,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
 			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
 				p := PaletteFrom(n.First)
-				widgets := make([]layout.Widget, len(IconTable))
-				for i, icon := range IconTable {
-					w, err := raster.Widget(icon.Data, IconSize, IconSize, raster.WithColors(p.Icon))
-					if err != nil {
-						panic(fmt.Sprintf("icon %s: %v", icon.Name, err))
-					}
-					widgets[i] = w
-				}
-				return themed{palette: p, typ: TypeFrom(n.Second), icons: widgets,
+				return themed{palette: p, typ: TypeFrom(n.Second), icons: symbols(p),
 					platform: n.First, typography: n.Second, scrollBars: bars}
 			})
 	})

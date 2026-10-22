@@ -202,8 +202,8 @@ func TestTheTurnedCellDrawsTheOpenRendition(t *testing.T) {
 			img := markCellFrame(t, tc.c, TurnedMark)
 			p := PaletteFrom(tc.c)
 
-			closed := drawnMask(img, squareAt(true, len(MarkSizes)-1), p.Backdrop, p.Icon)
-			turned := drawnMask(img, squareAt(true, len(MarkSizes)), p.Backdrop, p.Icon)
+			closed := drawnMask(img, squareAt(true, len(MarkSizes)-1), p.Backdrop, p.Text)
+			turned := drawnMask(img, squareAt(true, len(MarkSizes)), p.Backdrop, p.Text)
 			if got := drawnCount(closed); got < drawn {
 				t.Fatalf("the closed drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
 			}
@@ -229,7 +229,7 @@ func TestTheTurnedCellKeepsTheCellsGutter(t *testing.T) {
 	top, bottom := bandRows()
 	x0, width := markRow(true)
 
-	first, last := drawnColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Icon)
+	first, last := drawnColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Text)
 	if first < x0 || last >= x0+width {
 		t.Errorf("the row paints columns %d..%d, outside the %d..%d it is laid out in", first, last, x0, x0+width-1)
 	}
@@ -259,7 +259,7 @@ func TestPlainMarkCellsAreUnchanged(t *testing.T) {
 		}
 		t.Run(string(name), func(t *testing.T) {
 			img := markCellFrame(t, tokens.PlatformLight, name)
-			first, last := drawnColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Icon)
+			first, last := drawnColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Text)
 			if first < x0 || last >= x0+width {
 				t.Errorf("%s paints columns %d..%d, outside the closed row's %d..%d", name, first, last, x0, x0+width-1)
 			}
