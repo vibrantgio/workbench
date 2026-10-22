@@ -14,6 +14,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -36,6 +37,7 @@ import (
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	fx "golang.org/x/image/math/fixed"
 )
 
 // tabScreens maps tab indexes to the Model.Screen names, in strip order.
@@ -1100,15 +1102,51 @@ var hints = map[string]string{
 	"sleep":   "Screen sleep — blank the display after this many minutes; 0 = never",
 }
 
-// deviceFooter is the Device tab's status line, pinned at the bottom: the
-// link settings this app leaves alone.
+// deviceFooter is the Device tab's footer of status text: the link
+// settings this app leaves alone.
 func deviceFooter(t themed, m Model) layout.Widget {
-	if !m.HaveD {
-		return vspace(0)
-	}
-	return textLine(t.typ, t.typ.Small, t.palette.SecondaryLabel,
+	return statusFooter(t.typ, t.palette.SecondaryLabel,
 		fmt.Sprintf("Link: %d baud, Modbus address %d — changing either needs a power cycle, so this app leaves them alone.",
 			baudRate, slaveAddr))
+}
+
+// statusFooter draws a footer of status text at the platform's status bar's
+// measures: StatusFooterHeight tall under the seam the region above draws,
+// the text centred across the width, its baseline StatusFooterBaseline under
+// the footer's top, in the Status style and col. The page's own fill shows
+// through, as the status bar's fill is the content's fill.
+func statusFooter(typ Type, col color.NRGBA, txt string) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Constraints.Max.X
+		gtx.Constraints.Min.X = 0
+		sz := textdraw.MeasureText(gtx, typ.Shaper, typ.Status, txt)
+		sz.X = min(sz.X, w)
+		x := (w - sz.X) / 2
+		top := gtx.Dp(StatusFooterBaseline) - firstAscent(gtx, typ.Shaper, typ.Status, txt)
+		rect := image.Rect(x, top, x+sz.X, top+sz.Y)
+		textdraw.FillText(gtx, typ.Shaper, typ.Status, rect, 0, 0, col, txt)
+		return layout.Dimensions{Size: image.Pt(w, gtx.Dp(StatusFooterHeight))}
+	}
+}
+
+// firstAscent is the ascent of txt's first line in style, in pixels rounded
+// up as textdraw.FillText places the first baseline under a rectangle's top.
+func firstAscent(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, txt string) int {
+	shaper.LayoutString(text.Parameters{
+		Font:      style.Font,
+		PxPerEm:   fx.I(gtx.Metric.Sp(style.Size)),
+		MaxLines:  style.MaxLines,
+		Truncator: style.Truncator,
+		MaxWidth:  gtx.Constraints.Max.X,
+		Locale:    gtx.Locale,
+	}, txt)
+	asc := 0
+	for g, ok := shaper.NextGlyph(); ok; g, ok = shaper.NextGlyph() {
+		if asc == 0 {
+			asc = g.Ascent.Ceil()
+		}
+	}
+	return asc
 }
 
 // deviceContent is the Device tab: the scrolling settings grid with the
@@ -1120,8 +1158,9 @@ func deviceFooter(t themed, m Model) layout.Widget {
 // its trailing edge. The rows are clipped above the hairline, so a partly
 // scrolled row ends against the line. The footer draws none.
 func deviceContent(load func() (pageState, bool), state *list.State) layout.Widget {
-	// The footer is below the list, and the page's bottom Padding is under
-	// the footer; the list keeps the tab's 4 dp below its last row.
+	// The footer is below the list and is the page's foot: its own height
+	// gives the room under its text, so the page's bottom Padding is not
+	// added under it. The list keeps the tab's 4 dp below its last row.
 	grid := listContent(load, state, func(Model) unit.Dp { return 4 }, deviceArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
 		st, _ := load()
 		return nil, deviceRows(t, m, slots, st.tp)
@@ -1138,8 +1177,10 @@ func deviceContent(load func() (pageState, bool), state *list.State) layout.Widg
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Flexed(1, above),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Left: unit.Dp(4), Right: unit.Dp(4), Bottom: 4 + pageFoot(st.m)}.Layout(gtx,
-					deviceFooter(st.t, st.m))
+				if !st.m.HaveD {
+					return vspace(4 + pageFoot(st.m))(gtx)
+				}
+				return deviceFooter(st.t, st.m)(gtx)
 			}),
 		)
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"testing"
 
 	"github.com/vibrantgio/components/golden"
@@ -70,4 +71,82 @@ func TestTheDeviceGridEndsInASeamAgainstItsFooter(t *testing.T) {
 			})
 		}
 	}
+}
+
+// TestTheDeviceFooterIsDrawnAtTheStatusBarsMeasures draws the Device tab in
+// both schemes and reads the footer's text off the frame against the
+// platform's status bar, read off Finder's in the reference's "What the
+// status bar measures": 27 px of fill under the 1 px seam to the window's
+// bottom edge, the text's baseline 17 px under the fill's top, so its last
+// row above the baseline is 17 rows under the seam, and the text centred
+// across the window.
+func TestTheDeviceFooterIsDrawnAtTheStatusBarsMeasures(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			size := image.Pt(int(winW), 420)
+			m := goldenModel()
+			m.Screen = "device"
+			m.HavePresets, m.HaveD = true, true
+			m.Notice = ""
+			w := windowFrameBars(t, tc.c, m, postMessage, desktop.ScrollBarsAlways)
+			golden.Capture(t, size, w)
+			img := golden.Capture(t, size, w)
+			fill := pageFill(tc.c)
+			seam := tc.c.Seam
+			seam.A = 0xff
+
+			foot := -1
+			for y := size.Y - 1; y > size.Y/2; y-- {
+				if isSeamRow(img, y, seam) {
+					foot = y
+					break
+				}
+			}
+			if foot < 0 {
+				t.Fatalf("no row in the lower half is drawn in the seam colour %v across the window's width", seam)
+			}
+			if got := size.Y - 1 - foot; got != 27 {
+				t.Errorf("the footer is %d px of fill under the seam at y %d; the platform's status bar is 27", got, foot)
+			}
+			// The text's rows: the pixels off the fill under the seam.
+			textRow := make([]int, size.Y)
+			minX, maxX, peak := size.X, -1, 0
+			for y := foot + 1; y < size.Y; y++ {
+				for x := 0; x < size.X; x++ {
+					if off(at(img, x, y), fill) > 48 {
+						textRow[y]++
+						minX, maxX = min(minX, x), max(maxX, x)
+					}
+				}
+				peak = max(peak, textRow[y])
+			}
+			if maxX < 0 {
+				t.Fatalf("nothing is drawn under the seam at y %d; the footer draws its text there", foot)
+			}
+			// The baseline: the last row holding a quarter of the peak row's
+			// pixels; the descenders under it hold fewer. A pixel is the
+			// text's when it is more than 48 levels off the fill, over a
+			// third of the way to the text's colour, so the glyphs'
+			// antialiased overshoot under the baseline is not counted.
+			last := -1
+			for y := foot + 1; y < size.Y; y++ {
+				if textRow[y]*4 >= peak {
+					last = y
+				}
+			}
+			if got := last - foot; got != 17 {
+				t.Errorf("the text's last row above its baseline is y %d, %d rows under the seam at y %d; the platform's status bar has 17", last, got, foot)
+			}
+			// Centred: the text's middle is within a pixel of the window's.
+			if mid2, want2 := minX+maxX, size.X-1; mid2 < want2-2 || mid2 > want2+2 {
+				t.Errorf("the text is drawn over x %d–%d, its middle at %.1f; it is centred on the window's middle, %.1f", minX, maxX, float64(mid2)/2, float64(want2)/2)
+			}
+		})
+	}
+}
+
+// off is the largest difference between two colours on one channel.
+func off(a, b color.NRGBA) int {
+	d := func(p, q uint8) int { return max(int(p)-int(q), int(q)-int(p)) }
+	return max(d(a.R, b.R), d(a.G, b.G), d(a.B, b.B))
 }

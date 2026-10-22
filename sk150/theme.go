@@ -142,6 +142,7 @@ type Type struct {
 	Title  textdraw.TextStyle // section headings and the header title
 	Body   textdraw.TextStyle // status lines and field captions
 	Small  textdraw.TextStyle // the notice and connection lines
+	Status textdraw.TextStyle // a footer of status text
 	Mono   textdraw.TextStyle // aligned digit columns at body size
 	Table  textdraw.TextStyle // the preset table: compact aligned columns
 }
@@ -171,6 +172,13 @@ func TypeFrom(t tokens.Typography) Type {
 	stack.Weight = 700
 	table := t.Code
 	table.Size = 12
+	// The platform's status bar draws its text at 11 pt in the system font's
+	// regular weight with monospaced digits, read off Finder's in the
+	// reference's "What the status bar measures"; Roboto's default digits
+	// are monospaced.
+	status := t.BodyMedium
+	status.Size = 11
+	status.Weight = tokens.WeightRegular
 	return Type{
 		Shaper: appShaper(t),
 		Digits: textStyle(digits),
@@ -180,6 +188,7 @@ func TypeFrom(t tokens.Typography) Type {
 		Title:  textStyle(t.TitleLarge),
 		Body:   textStyle(t.BodyLarge),
 		Small:  textStyle(t.BodyMedium),
+		Status: textStyle(status),
 		Mono:   textStyle(t.Code),
 		Table:  textStyle(table),
 	}
@@ -200,4 +209,13 @@ const (
 	RowGap     unit.Dp = 8
 	FieldWidth unit.Dp = 140
 	LabelWidth unit.Dp = 190
+)
+
+// A footer of status text has the platform's status bar's measures, read off
+// Finder's in the reference's "What the status bar measures": 27 px of fill
+// under the 1 px seam, the text's baseline 17 px under the fill's top and
+// 10 px above its foot.
+const (
+	StatusFooterHeight   unit.Dp = 27
+	StatusFooterBaseline unit.Dp = 17
 )
