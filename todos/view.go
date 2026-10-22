@@ -95,6 +95,20 @@ func View(th themed, model Model, listState *complist.State) layout.Widget {
 	return view(th, model, listState, desktop.TopInset)
 }
 
+// fabSize is the add button's width and height. The list's last row keeps it
+// and the page's Padding below itself, so it ends above the button.
+const fabSize unit.Dp = 48
+
+// restingPage is the page without a dialog: the list taking the page entire,
+// and the button over it at the page's trailing bottom corner, inset by the
+// page's Padding.
+func restingPage(list, fab layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		list(gtx)
+		return layout.UniformInset(Padding).Layout(gtx, fab)
+	}
+}
+
 // view is View over a stated strip height rather than the window's own, so a
 // test can state a strip it has no window to measure.
 //
@@ -115,7 +129,7 @@ func view(th themed, model Model, listState *complist.State, strip func() unit.D
 	if err != nil {
 		panic(err)
 	}
-	fab := Fab(add, 1.0, 1.0, 48, 48, true, func(gtx layout.Context) {
+	fab := Fab(add, 1.0, 1.0, fabSize, fabSize, true, func(gtx layout.Context) {
 		mvu.MessageOp{Message: SetRoute{Route: "add.todo"}}.Add(gtx.Ops)
 	})
 	list := List(th.typ, thObs, p, th.listBar(), listState, model)
@@ -146,11 +160,7 @@ func view(th themed, model Model, listState *complist.State, strip func() unit.D
 	//
 	// The list is the region that scrolls and takes the page entire: its
 	// padding is inside it, so its bar is at the window's trailing edge.
-	resting := func(gtx layout.Context) layout.Dimensions {
-		list(gtx)
-		return layout.UniformInset(Padding).Layout(gtx, fab)
-	}
-	capped := desktop.CapTop(strip, resting)
+	capped := desktop.CapTop(strip, restingPage(list, fab))
 
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max

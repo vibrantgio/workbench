@@ -28,9 +28,11 @@ import (
 // standing on it.
 //
 // The list is the region that scrolls, and the page's padding is inside it:
-// each row is inset by the page's Padding and its own, and the first and
-// last rows add the page's Padding above and below, so the bar is at the
-// window's trailing edge and never inset by the padding. The anchor is what
+// each row is inset by the page's Padding and its own, the first row adds the
+// page's Padding above, and the last row adds the add button's height and the
+// page's Padding below, so the bar is at the window's trailing edge and never
+// inset by the padding, and the last row ends above the button's band with
+// its delete mark clear of the button. The anchor is what
 // [complist.AnchorFor] returns for bar: at Always the bar has a lane of its
 // own and the rows stop short of it, otherwise it lies over the rows'
 // trailing edge.
@@ -42,6 +44,12 @@ func List(typ Type, th rx.Observable[theme.Theme], p Palette, bar scrollbar.Styl
 	for i := range model.List {
 		rows[i] = Row(typ, th, p, model.List[i])
 	}
+	return scrollingList(rows, bar, state)
+}
+
+// scrollingList lays rows out as the list's region that scrolls, with the
+// insets [List] states.
+func scrollingList(rows []layout.Widget, bar scrollbar.Style, state *complist.State) layout.Widget {
 	idx := make([]int, len(rows))
 	for i := range idx {
 		idx[i] = i
@@ -53,7 +61,7 @@ func List(typ Type, th rx.Observable[theme.Theme], p Palette, bar scrollbar.Styl
 				in.Top += Padding
 			}
 			if i == len(rows)-1 {
-				in.Bottom += Padding
+				in.Bottom += fabSize + Padding
 			}
 			return in.Layout(gtx, rows[i])
 		})
