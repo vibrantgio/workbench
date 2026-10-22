@@ -19,6 +19,7 @@ import (
 	marks "github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -105,6 +106,42 @@ func TestTheEmptyProviderWellCentresItsLineInTheRowsFrame(t *testing.T) {
 			if p := wellPlateau(img, fill, region); p.R != want.R || p.G != want.G || p.B != want.B {
 				t.Errorf("the well's line plateaus at #%02x%02x%02x, want TertiaryLabel over the pane, #%02x%02x%02x",
 					p.R, p.G, p.B, want.R, want.G, want.B)
+			}
+		})
+	}
+}
+
+// TestTheEmptyProviderWellStandsOutsideAStandingBarsLane holds the rows'
+// frame against the reader's setting: where the well's bar stands, the
+// frame the line centres in is the rows' less the bar's lane on the
+// trailing side, so the line's centre stands half a lane further in than
+// where the bar fades; up and down it does not move.
+func TestTheEmptyProviderWellStandsOutsideAStandingBarsLane(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			fading := wellThemed(tc.c)
+			standing := fading
+			standing.bar = scrollBarStyle(fading.bar, desktop.ScrollBarsAlways)
+			fill := fading.palette.Pane
+			region := wellRowsRegion(t, fading)
+			box := func(th settingsThemed) image.Rectangle {
+				img := golden.Capture(t, wellSize, wellScene(th, SettingsState{}, tc.c))
+				b := wellGlyphBox(img, region, fill)
+				if b.Empty() {
+					t.Fatal("the well is bare, want the line the empty state draws")
+				}
+				return b
+			}
+			at, still := box(standing), box(fading)
+			lane := int(standing.bar.Width())
+			moved := (still.Min.X + still.Max.X) - (at.Min.X + at.Max.X)
+			if abs(moved-lane) > 2 {
+				t.Errorf("at Always the line's centre moves %.1f px in, want half the %d px lane, %.1f",
+					float64(moved)/2, lane, float64(lane)/2)
+			}
+			if still.Min.Y != at.Min.Y || still.Max.Y != at.Max.Y {
+				t.Errorf("at Always the line stands at y %d–%d, want %d–%d as where the bar fades",
+					at.Min.Y, at.Max.Y, still.Min.Y, still.Max.Y)
 			}
 		})
 	}

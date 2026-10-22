@@ -817,9 +817,17 @@ const settingsNoProvidersLine = "No providers"
 // control for editing this list and it stands there whether the list has
 // rows or not, so an add button handed to the empty state as well would
 // draw the same control twice in one field.
+//
+// Where the reader's setting makes the well's bar stand, its lane is taken
+// off the rows' frame on the trailing side: the lane is read off t.bar, the
+// bar the rows are drawn with.
 func providerWellEmpty(gtx layout.Context, t settingsThemed) layout.Dimensions {
-	return shell.EmptyState(gtx, t.shaper, t.colors, t.typ, t.palette.Pane,
+	size := gtx.Constraints.Max
+	egtx := gtx
+	egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, t.bar))
+	shell.EmptyState(egtx, t.shaper, t.colors, t.typ, t.palette.Pane,
 		shell.EmptyStateProps{Line: settingsNoProvidersLine, LineStyle: t.typ.BodyMedium})
+	return layout.Dimensions{Size: size}
 }
 
 // addRemovePair draws the well's add and remove controls as the platform

@@ -1023,11 +1023,16 @@ func emptyStateLine(m Model) string {
 // The slot is recorded and replayed under the toolbar's own ops — the
 // window hands the shell MainFirst — so the toolbar paints over the strip
 // this frame reaches up into.
+//
+// The frame is the one the document's rows would occupy, so where the
+// reader's setting makes the document's bar stand, its lane is taken off the
+// trailing side: the lane is read off [noteScrollBar], the bar the document
+// is drawn with.
 func noteEmptyState(gtx layout.Context, tok themeTokens, msg string) layout.Dimensions {
 	row := gtx.Constraints.Max
 	bar := gtx.Dp(unit.Dp(shell.ToolbarDepth))
 	full := gtx
-	full.Constraints = layout.Exact(image.Pt(row.X, row.Y+bar))
+	full.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, image.Pt(row.X, row.Y+bar), noteScrollBar(tok)))
 	defer op.Offset(image.Pt(0, -bar)).Push(gtx.Ops).Pop()
 	shell.EmptyState(full, tok.shaper, tok.col, tok.typ, tok.col.TextBackground,
 		shell.EmptyStateProps{Line: msg})

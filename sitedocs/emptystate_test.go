@@ -17,6 +17,7 @@ import (
 
 	"github.com/vibrantgio/components/golden"
 	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -80,7 +81,7 @@ func TestTheDocsColumnDrawsTheLineAndThePath(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fill := shellFill(tc.colors)
 			img := golden.Capture(t, docsColumnSize, scene(func(gtx layout.Context) layout.Dimensions {
-				return drawGuideUnavailable(gtx, shaper, tc.colors, typ, fail)
+				return drawGuideUnavailable(gtx, shaper, tc.colors, typ, columnBar(tc.colors, desktop.ScrollBarsWhenScrolling), fail)
 			}, fill))
 
 			got := emptyStateBox(img, img.Bounds(), fill)
@@ -135,6 +136,44 @@ func TestTheDocsColumnDrawsTheLineAndThePath(t *testing.T) {
 			if c, want := got.Min.Y+got.Max.Y, docsColumnSize.Y; absInt(c-want) > 4 {
 				t.Errorf("the column centres its group at %.1f down, want the frame's %.1f",
 					float64(c)/2, float64(want)/2)
+			}
+		})
+	}
+}
+
+// TestTheDocsColumnsEmptyStateStandsOutsideAStandingBarsLane holds the
+// frame the column's group centres in against the reader's setting: where
+// the column's bar stands, the frame is the one the document's rows would
+// occupy, short of the bar's lane, so the group's centre stands half a lane
+// further in than where the bar fades; up and down it does not move.
+func TestTheDocsColumnsEmptyStateStandsOutsideAStandingBarsLane(t *testing.T) {
+	fail := &guideFailure{Path: "/vaults/workbench/llms.txt", Err: "open ../llms.txt: no such file or directory"}
+	typ := tokens.DefaultTypography
+	shaper := typ.DeterministicShaper()
+
+	for _, tc := range emptyStateSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			fill := shellFill(tc.colors)
+			box := func(bars desktop.ScrollBarSetting) image.Rectangle {
+				img := golden.Capture(t, docsColumnSize, scene(func(gtx layout.Context) layout.Dimensions {
+					return drawGuideUnavailable(gtx, shaper, tc.colors, typ, columnBar(tc.colors, bars), fail)
+				}, fill))
+				b := emptyStateBox(img, img.Bounds(), fill)
+				if b.Empty() {
+					t.Fatalf("at %v the column is bare, want the group the empty state draws", bars)
+				}
+				return b
+			}
+			fading, standing := box(desktop.ScrollBarsWhenScrolling), box(desktop.ScrollBarsAlways)
+			lane := int(columnBar(tc.colors, desktop.ScrollBarsAlways).Width())
+			moved := (fading.Min.X + fading.Max.X) - (standing.Min.X + standing.Max.X)
+			if absInt(moved-lane) > 2 {
+				t.Errorf("at Always the group's centre moves %.1f px in, want half the %d px lane, %.1f",
+					float64(moved)/2, lane, float64(lane)/2)
+			}
+			if fading.Min.Y != standing.Min.Y || fading.Max.Y != standing.Max.Y {
+				t.Errorf("at Always the group stands at y %d–%d, want %d–%d as where the bar fades",
+					standing.Min.Y, standing.Max.Y, fading.Min.Y, fading.Max.Y)
 			}
 		})
 	}

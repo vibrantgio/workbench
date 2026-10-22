@@ -368,7 +368,7 @@ func docsTabFrom(
 	bars desktop.ScrollBarSetting,
 ) rx.Observable[layout.Widget] {
 	if fail != nil {
-		return guideUnavailableObservable(th, fail)
+		return guideUnavailableObservable(th, fail, bars)
 	}
 	blocks := markdown.Parse(source)
 	doc := markdown.NewDocument(blocks)

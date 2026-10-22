@@ -148,14 +148,21 @@ func drawGuideDoc(
 // every side, so the centre it centres on is the column's own. The
 // document's reading measure is not applied: an empty state is not
 // content and stands on no measure.
+//
+// The column's frame is the one the document's rows would occupy, so where
+// the reader's setting makes the column's bar stand, its lane is taken off
+// the trailing side before the inset is: bar is the [columnBar] the
+// document is drawn with, and its lane is read off it.
 func drawGuideUnavailable(
 	gtx layout.Context,
 	shaper *text.Shaper,
 	c tokens.PlatformColors,
 	typ tokens.Typography,
+	bar scrollbar.Style,
 	fail *guideFailure,
 ) layout.Dimensions {
 	frame := gtx.Constraints.Max
+	gtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, frame, bar))
 	complayout.Inset(docsOuterInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return shell.EmptyState(gtx, shaper, c, typ, shellFill(c), shell.EmptyStateProps{
 			Line:        guideUnavailableLine,
@@ -169,14 +176,15 @@ func drawGuideUnavailable(
 // render: the column's empty state, restyled per theme change. The
 // failure is read once at startup and does not change while the window
 // is open, so nothing but the theme drives this stream.
-func guideUnavailableObservable(th rx.Observable[theme.Theme], fail *guideFailure) rx.Observable[layout.Widget] {
+func guideUnavailableObservable(th rx.Observable[theme.Theme], fail *guideFailure, bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
 	return rx.Map(rx.CombineLatest2(colObs, typObs), func(t rx.Tuple2[tokens.PlatformColors, tokens.Typography]) layout.Widget {
 		c, typ := t.First, t.Second
 		shaper := typ.Shaper()
+		bar := columnBar(c, bars)
 		return func(gtx layout.Context) layout.Dimensions {
-			return drawGuideUnavailable(gtx, shaper, c, typ, fail)
+			return drawGuideUnavailable(gtx, shaper, c, typ, bar, fail)
 		}
 	})
 }

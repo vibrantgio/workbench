@@ -452,10 +452,17 @@ func asideTrailing(tok themeTokens, w layout.Widget) layout.Widget {
 
 // asideEmptyLine is what a pane says instead of rows when it has none: the
 // empty state of that section, centred in the section's own frame at the
-// size the rows it stands for are set at.
+// size the rows it stands for are set at. The section's frame is the one
+// its rows would occupy, so a standing bar's lane is taken off its trailing
+// side; the lane is read off [asideIndicator], the bar the rows are drawn
+// with, and is the [asideBarLane] the rows stop short of.
 func asideEmptyLine(gtx layout.Context, tok themeTokens, line string) layout.Dimensions {
-	return shell.EmptyState(gtx, tok.shaper, tok.col, tok.typ, chromeSurface(tok.col),
+	size := gtx.Constraints.Max
+	egtx := gtx
+	egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, asideIndicator(tok)))
+	shell.EmptyState(egtx, tok.shaper, tok.col, tok.typ, chromeSurface(tok.col),
 		shell.EmptyStateProps{Line: line, LineStyle: tok.typ.BodyMedium})
+	return layout.Dimensions{Size: size}
 }
 
 // asideRule is the hairline parting the two panes. It is a hairline for
