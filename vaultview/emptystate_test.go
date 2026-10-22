@@ -3,6 +3,10 @@ package main
 import (
 	"image"
 	"image/color"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"gioui.org/layout"
@@ -10,6 +14,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -119,4 +124,65 @@ func noteGlyphBox(img *image.RGBA, fill color.NRGBA) image.Rectangle {
 		}
 	}
 	return box
+}
+
+// TestAVaultThatCannotBeReadSaysSoInItsOwnWords drives a real scan at a
+// path no vault stands at and holds both halves of the state: the
+// column's line is the application's own sentence, read off
+// emptyStateLine rather than off the picture, since no picture can be
+// asked what its glyphs spell; and the system's own text, which the
+// line does not carry, reaches the log with the vault's path.
+func TestAVaultThatCannotBeReadSaysSoInItsOwnWords(t *testing.T) {
+	vault := filepath.Join(t.TempDir(), "no-vault-here")
+
+	logged := captureStderr(t)
+	model := Model{Screen: screenVault, Vault: vault, Scanning: true, CurAnchor: -1}
+	gen, stop := model.nextScan()
+	model = foldScan(t, model, scanCmd(vault, "", gen, stop, func(err string) mvu.Message {
+		return vaultScanned{vault: vault, gen: gen, err: err}
+	}))
+	written := logged()
+
+	if model.ScanErr == "" {
+		t.Fatal("scanning a path with no vault at it reported no error")
+	}
+	const want = "This vault can't be read."
+	got := emptyStateLine(model)
+	if got != want {
+		t.Errorf("the column says %q, want %q", got, want)
+	}
+	if strings.Contains(got, model.ScanErr) {
+		t.Errorf("the column says %q, which stands the system's text %q in the empty state", got, model.ScanErr)
+	}
+	if !strings.Contains(written, model.ScanErr) {
+		t.Errorf("the log says %q, want the system's text %q in it", written, model.ScanErr)
+	}
+	if !strings.Contains(written, vault) {
+		t.Errorf("the log says %q, want the vault's path %q in it", written, vault)
+	}
+}
+
+// captureStderr diverts the stream the application writes its diagnostics
+// to and answers the reader that restores it and returns what was written.
+func captureStderr(t *testing.T) func() string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := os.Stderr
+	os.Stderr = w
+	read := make(chan string, 1)
+	go func() {
+		var b strings.Builder
+		_, _ = io.Copy(&b, r)
+		read <- b.String()
+	}()
+	return func() string {
+		os.Stderr = saved
+		w.Close()
+		s := <-read
+		r.Close()
+		return s
+	}
 }

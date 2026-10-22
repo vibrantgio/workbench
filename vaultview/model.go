@@ -73,7 +73,7 @@ type Model struct {
 	// Vault state.
 	Vault    string // absolute path of the open vault
 	Scanning bool   // the scan command is in flight
-	ScanErr  string // non-empty when the scan or the note read failed
+	ScanErr  string // non-empty when the vault could not be read
 	Index    *Index // the scanned vault index; nil until the listing lands
 
 	// ScanGen counts the scans this window has started. Every message a
@@ -956,8 +956,11 @@ func scanCmd(vault, current string, gen int, stop *atomic.Bool, finish func(err 
 		idx, order, err := ListVault(vault)
 		if err != nil {
 			// A walk that cannot start is reported by the last message,
-			// the one phase this command always has.
+			// the one phase this command always has. The column says so
+			// in the application's own words, so the system's own text
+			// is of use in the log alone.
 			failed = err.Error()
+			fmt.Fprintf(os.Stderr, "vaultview: scanning %s: %v\n", vault, err)
 			return nil, nil, true
 		}
 		listing, jobs = idx, order
