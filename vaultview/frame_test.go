@@ -863,7 +863,7 @@ func TestTheRailIsAnInsetPane(t *testing.T) {
 			}
 			rim := paneRim(tc.colors)
 			fill := chromeSurface(tc.colors)
-			seam := splitter.SeamColor(tc.colors, fill)
+			seam := splitter.SeamColor(tc.colors)
 
 			// Every one of the four edges, read mid-run where the corners'
 			// arcs have let go — the band's own rows among them, because no
@@ -918,9 +918,14 @@ func TestTheRailIsAnInsetPane(t *testing.T) {
 
 // TestTheAsideKeepsAPlainSeam reads the trailing column's boundary off the
 // same window: one hairline of the seam's own colour, on the column's
-// leading edge, running from the toolbar band's lower edge to the window's
-// foot — the status bar included, which is not a band the window's columns
-// stop at, and the toolbar band excluded, which is.
+// leading edge, running the window's WHOLE height — the toolbar band and
+// the status bar included, neither of which the window's columns stop at.
+//
+// MEASURED off Mail, whose seam between the list column and the content is
+// one pixel at every row from the window's top edge to its foot
+// (reference/macos/controls.md): the two columns are two regions floor to
+// ceiling and the one toolbar lies across both of them, so the line that
+// says where one ends runs as far as the boundary does.
 //
 // And the column is NOT outlined: it is integral chrome, fixed and
 // flush, so it has no edge of its own on the three sides it shares with
@@ -933,27 +938,22 @@ func TestTheAsideKeepsAPlainSeam(t *testing.T) {
 			img, g := windowShot(t, m, tc.colors)
 			asideX := windowW - frameAsideDp
 			floor := chromeSurface(tc.colors)
+			seam := splitter.SeamColor(tc.colors)
 
-			// The band is one across all three columns, so this boundary
-			// stops at its lower edge the way the rail's does: above that
-			// row the column's own fill runs on, and the seam starts under
-			// it.
-			for y := 0; y < toolbarDepthDp; y++ {
-				if got := img.RGBAAt(asideX, y); sameColor(got, splitter.SeamColor(tc.colors, color.NRGBA{})) {
-					t.Fatalf("the column's seam is drawn at y=%d, inside the toolbar band — the band is one across the window's columns and no line crosses it", y)
+			// Every row of the window, the band's own included: the seam is
+			// drawn after the columns and after the toolbar, so nothing the
+			// band holds and no shadow the band casts stands on it.
+			for y := 0; y < windowH; y++ {
+				if got := img.RGBAAt(asideX, y); !sameColor(got, seam) {
+					t.Fatalf("the column's seam at y=%d draws %v, want the seam %v — it runs the window's whole height",
+						y, got, seam)
 				}
 			}
-			// The scan starts clear of the band's own drop shadows. A
+			// The trailing edge, clear of the band's own drop shadows: a
 			// bordered toolbar control casts onto whatever lies below it and
 			// the platform does not cut that off at the band's lower edge
-			// (reference/macos/controls.md), and the band's action cluster
-			// now stands over this boundary: the rows immediately under the
-			// band carry the shadow and not the seam's own colour.
+			// (reference/macos/controls.md).
 			for y := toolbarDepthDp + toolbarShadowReachDp; y < windowH; y++ {
-				if got := img.RGBAAt(asideX, y); !sameColor(got, splitter.SeamColor(tc.colors, color.NRGBA{})) {
-					t.Fatalf("the column's seam at y=%d draws %v, want the seam %v — the seam runs from the band's foot to the window's",
-						y, got, splitter.SeamColor(tc.colors, color.NRGBA{}))
-				}
 				if got := img.RGBAAt(windowW-1, y); !sameColor(got, floor) {
 					t.Fatalf("the column's trailing edge at y=%d draws %v, want its own floor %v — flush chrome wears no outline",
 						y, got, floor)
