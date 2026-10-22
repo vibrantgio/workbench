@@ -420,7 +420,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
 			{Title: "Monitor", Content: monitorContent(loadState, hov)},
-			{Title: "Presets", Content: listContent(loadState, presetsList, func(m Model) unit.Dp { return 4 + pageFoot(m) }, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
+			{Title: "Presets", Content: listContent(loadState, presetsList, func(m Model) unit.Dp { return 4 + pageFoot(m) }, presetsArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
 				clearPresetFields(m)
 				return presetsRows(t, m, slots, tp)
 			})},
@@ -596,11 +596,25 @@ func monitorPane(st pageState, hov *hoverState) layout.Widget {
 // [list.AnchorFor] returns for the bar: at Always the bar has a lane of its
 // own and the rows stop short of it, otherwise it lies over the rows'
 // trailing edge.
-func listContent(load func() (pageState, bool), state *list.State, foot func(Model) unit.Dp, build func(themed, Model, slotSet) (head, rows []layout.Widget)) layout.Widget {
+//
+// While the tab's content is arriving, arriving returns the application's
+// own sentence for it, and the sentence is drawn as an empty state is
+// placed: centred both ways in the frame the list would occupy, the
+// standing bar's lane excluded, and never as a row of the list. It is
+// removed when arriving returns "".
+func listContent(load func() (pageState, bool), state *list.State, foot func(Model) unit.Dp, arriving func(Model) string, build func(themed, Model, slotSet) (head, rows []layout.Widget)) layout.Widget {
 	return pageColumn(func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
 		if !ok {
 			return layout.Dimensions{Size: gtx.Constraints.Min}
+		}
+		if line := arriving(st.m); line != "" {
+			frame := gtx.Constraints.Max
+			egtx := gtx
+			egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, frame, st.t.listBar()))
+			shell.EmptyState(egtx, st.t.typ.Shaper, st.t.platform, st.t.typography,
+				pageFill(st.t.platform), shell.EmptyStateProps{Line: line})
+			return layout.Dimensions{Size: frame}
 		}
 		head, body := build(st.t, st.m, st.slots)
 		side := layout.Inset{Left: Padding + 4, Right: Padding + 4}
@@ -893,6 +907,25 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 	}
 }
 
+// presetsArriving is the Presets tab's sentence while the memory slots are
+// being read, and "" once they have arrived. The ellipsis is the
+// platform's mark of a task under way, as in the Monitor tab's waiting line.
+func presetsArriving(m Model) string {
+	if m.HavePresets {
+		return ""
+	}
+	return "Reading the memory slots…"
+}
+
+// deviceArriving is the Device tab's sentence while the device settings are
+// being read, and "" once they have arrived.
+func deviceArriving(m Model) string {
+	if m.HaveD {
+		return ""
+	}
+	return "Reading the device settings…"
+}
+
 // presetsRows is the memory screen: the nine stored profiles with Edit and
 // Recall, or — while one is open — its editor with every field. The list of
 // slots returns its heading, the line under it and the column heads as the
@@ -900,7 +933,7 @@ func monitorBlock(t themed, m Model, slots slotSet) layout.Widget {
 func presetsRows(t themed, m Model, slots slotSet, tp *tips) (head, rows []layout.Widget) {
 	p, typ := t.palette, t.typ
 	if !m.HavePresets {
-		return nil, []layout.Widget{textLine(typ, typ.Body, p.SecondaryLabel, "reading memory slots…")}
+		return nil, nil
 	}
 	if n := m.EditPreset; isGroup(n) {
 		pr := m.Presets[n]
@@ -1005,7 +1038,7 @@ func presetTableRow(n int, p Preset) string {
 func deviceRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
 	p, typ := t.palette, t.typ
 	if !m.HaveD {
-		return []layout.Widget{textLine(typ, typ.Body, p.SecondaryLabel, "reading the device settings…")}
+		return nil
 	}
 	sw := func(col int, s Switch, on bool) layout.Widget {
 		spec := switchSpecs[s]
@@ -1082,7 +1115,7 @@ func deviceFooter(t themed, m Model) layout.Widget {
 func deviceContent(load func() (pageState, bool), state *list.State) layout.Widget {
 	// The footer is below the list, and the page's bottom Padding is under
 	// the footer; the list keeps the tab's 4 dp below its last row.
-	grid := listContent(load, state, func(Model) unit.Dp { return 4 }, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
+	grid := listContent(load, state, func(Model) unit.Dp { return 4 }, deviceArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
 		st, _ := load()
 		return nil, deviceRows(t, m, slots, st.tp)
 	})
