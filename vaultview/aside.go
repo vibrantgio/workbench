@@ -399,8 +399,12 @@ func asideBacklinkHeader(gtx layout.Context, tok themeTokens, n int) layout.Dime
 // Occupy rather than Overlay follows from that: the lane is the column's
 // trailing margin, so the rows stop where it starts and nothing is drawn
 // under a bar.
+// The indicator does not fade, where the note column's bar does: it is given
+// a lane of its own, and the rows, their marks and the hairline between the
+// panes all stop where that lane starts. A reserved lane standing empty is a
+// margin with no reason, so this bar is the one a standing scroller draws.
 func asideIndicator(tok themeTokens) scrollbar.Style {
-	s := scrollbar.FromTokens(tok.col, chromeSurface(tok.col))
+	s := scrollbar.FromTokens(tok.col, chromeSurface(tok.col)).Always()
 	s.TrackPadding = railMarginDp
 	return s
 }

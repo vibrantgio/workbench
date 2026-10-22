@@ -15,6 +15,7 @@ import (
 	"gioui.org/widget"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/pane"
@@ -273,9 +274,10 @@ func TestNoteTasksGolden(t *testing.T) {
 }
 
 // TestNoteScrollbarGolden records the note column part way down a long
-// note. The indicator sits in the column's trailing gutter, away from both
-// ends of its track and a fraction of its length — position and proportion,
-// which is the whole of what it is for.
+// note. The frame is a RESTING one — a golden holds no time — so the
+// column's trailing gutter stands empty: the overlay indicator shows while
+// the note moves under it and fades a second after it stops, and what this
+// image pins is the gutter the column keeps for it either way.
 func TestNoteScrollbarGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	m := longNoteModel(30)
@@ -287,11 +289,14 @@ func TestNoteScrollbarGolden(t *testing.T) {
 	}
 }
 
-// TestNoteScrollbarOnlyWhenTheNoteOverflows asserts a long note read at its
-// end draws an indicator at the foot of the column's trailing gutter, and a
-// note that fits, in the same viewport, draws none. The probe is pixels
-// rather than dimensions, because the gutter is reserved either way — that
-// is what stops the prose reflowing when the bar fades.
+// TestNoteIndicatorRestsEmpty asserts the foot of the column's trailing
+// gutter is empty on a resting frame, whether the note overflows the viewport
+// or fits inside it. The overlay indicator shows while the note moves under
+// it and under the pointer, and a still frame of a column nobody is reading
+// is neither; the appearing half of the contract is asserted on the bar
+// itself, in components/scrollbar. The probe is pixels rather than
+// dimensions, because the gutter is reserved either way — that is what stops
+// the prose reflowing when the bar fades.
 //
 // The note that fits is the plain one: the golden note's frontmatter pane,
 // headings and code block do not fit a 700 dp viewport, so it says nothing
@@ -301,7 +306,7 @@ func TestNoteScrollbarGolden(t *testing.T) {
 // the platform puts it, and every other row stops a reading margin short of
 // it — and the probe takes the foot of that strip, which no note's own text
 // can reach.
-func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
+func TestNoteIndicatorRestsEmpty(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 	shot := func(m Model) *image.RGBA {
@@ -322,8 +327,8 @@ func TestNoteScrollbarOnlyWhenTheNoteOverflows(t *testing.T) {
 		return n
 	}
 
-	if n := footPixels(shot(longNoteModel(118))); n == 0 {
-		t.Error("a note taller than the viewport drew no scroll indicator")
+	if n := footPixels(shot(longNoteModel(118))); n != 0 {
+		t.Errorf("a resting note drew %d indicator pixels, want none", n)
 	}
 	if n := footPixels(shot(plainNoteModel())); n != 0 {
 		t.Errorf("a note that fits drew %d indicator pixels, want none", n)
@@ -812,36 +817,20 @@ func TestTheTrailingColumnKeepsOneEdge(t *testing.T) {
 			if want := int(asideLaneDp) + railMarginDp; abs(barLo-pillHi-1-want) > 1 {
 				t.Errorf("the bar stands %d px off the mark beside it, want %d", barLo-pillHi-1, want)
 			}
-			// The note's own bar, in the margin its column keeps: the only
-			// thing drawn out there past the prose, which stops a whole page inset
-			// short of the columns scanned.
-			// The note column's own pinned seam crosses its trailing gutter,
-			// so the bar's columns are read with the seam's rows left out.
-			seamRows := pinnedSeamRows(img, tc.colors, g.ContentX+paneShadowReachDp, asideX, top, bot)
-			noteLo, noteHi := -1, -1
-			for y := top; y < bot; y++ {
-				if seamRows[y] {
-					continue
-				}
-				for x := asideX - noteInsetDp; x < asideX; x++ {
-					if is(img.RGBAAt(x, y), tc.colors.TextBackground) {
-						continue
-					}
-					if noteLo < 0 {
-						noteLo = x
-					}
-					noteLo, noteHi = min(noteLo, x), max(noteHi, x)
-				}
+			// And it stands off the window's own edge by the air it keeps
+			// inside its lane, which is the other half of that band.
+			if got, want := windowW-barHi-1, int(railMarginDp); abs(got-want) > 1 {
+				t.Errorf("the column's bar stands %d px off the window's edge, want %d", got, want)
 			}
-			if noteLo < 0 {
-				t.Fatal("the note column drew no bar to measure against")
-			}
-			if a, b := barHi-barLo, noteHi-noteLo; a != b {
-				t.Errorf("the column's bar is %d px wide and the note's %d; they are the same bar", a+1, b+1)
-			}
-			if a, b := windowW-barHi-1, asideX-noteHi-1; a != b {
-				t.Errorf("the column's bar stands %d px off the window's edge and the note's %d px off this column's; one distance",
-					a, b)
+			// The note's own bar is an OVERLAY bar: it is drawn while the
+			// note moves under it and under the pointer, so a resting frame
+			// holds none of it and there is nothing out there to scan. That
+			// the two are one bar is compared where it is decided instead,
+			// on the thumb's own width.
+			noteBar := scrollbar.FromTokens(tc.colors, tc.colors.TextBackground)
+			colBar := asideIndicator(themeTokens{col: tc.colors})
+			if a, b := colBar.ThumbMinorWidth, noteBar.ThumbMinorWidth; a != b {
+				t.Errorf("the column's thumb is %v wide and the note's %v; they are the same bar", a, b)
 			}
 		})
 	}
