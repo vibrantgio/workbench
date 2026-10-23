@@ -220,9 +220,11 @@ func guideDocObservable(
 	return rx.Map(tokensObs, func(t rx.Tuple2[tokens.PlatformColors, tokens.Typography]) layout.Widget {
 		typ := t.Second
 		style := docsMarkdownStyle(t.First, typ)
-		// The bar inside an overflowing fence follows the reader's "Show
-		// scroll bars" setting, as every column in this window does.
+		// The bar inside an overflowing fence or a wide table follows the
+		// reader's "Show scroll bars" setting, as every column in this
+		// window does.
 		style.CodeScrollbar = scrollBarStyle(style.CodeScrollbar, bars)
+		style.TableScrollbar = scrollBarStyle(style.TableScrollbar, bars)
 		bar := columnBar(t.First, bars)
 		shaper := typ.Shaper()
 		return func(gtx layout.Context) layout.Dimensions {

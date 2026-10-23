@@ -254,10 +254,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 				panic(err)
 			}
 			md := messageMarkdownStyle(c, typ)
-			// The bar inside an overflowing fence takes the same setting
-			// the transcript's own bar does, so a reader who asked for
-			// scroll bars always finds one standing in a code block too.
+			// The bar inside an overflowing fence or a wide table takes the
+			// same setting the transcript's own bar does, so a reader who
+			// asked for scroll bars always finds one standing there too.
 			md.CodeScrollbar = scrollBarStyle(md.CodeScrollbar, bars)
+			md.TableScrollbar = scrollBarStyle(md.TableScrollbar, bars)
 			return themed{palette: p, col: c, bar: scrollBarStyle(scrollbar.FromTokens(c, c.ControlBackground), bars), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad, den: den}
 		})
 	})
