@@ -66,7 +66,7 @@ func FaceChoices(p Palette, ty Type, m Model, faces *faceChooser) layout.Widget 
 
 // FaceRow draws one of the two names and makes it clickable.
 func FaceRow(gtx layout.Context, p Palette, ty Type, name string, chosen bool, click *gesture.Click) layout.Dimensions {
-	dims := ChoiceRow(gtx, p, ty, name, "", FaceRowH, chosen, click)
+	dims := ChoiceRow(gtx, p, ty, name, "", FaceRowH, 0, chosen, click)
 	for {
 		e, ok := click.Update(gtx.Source)
 		if !ok {

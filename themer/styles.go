@@ -39,7 +39,6 @@ import (
 
 	"gioui.org/gesture"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/unit"
 
@@ -64,6 +63,11 @@ const (
 	// rather than as a word against the box's edge.
 	StylePad    unit.Dp = 8
 	StyleIndent unit.Dp = 6
+	// StyleRowInset is a style row's own inset: the run from each of the
+	// row's ends to the selected row's fill. The value is DERIVED from the
+	// sidebar pill's measured 10 px inset from each edge of its pane until
+	// a content list's selected row is captured.
+	StyleRowInset unit.Dp = 10
 )
 
 // styleLead is how many names the column keeps above the applied one when it
@@ -140,13 +144,13 @@ func (b *styleChooser) reveal(dark bool, row int) {
 // The column draws no plate of its own and no heading. The group's box is the
 // plate and the group's title row is the heading.
 //
-// The region that scrolls is the column, the box's full size, and the box's
-// padding is inside it: the rows are drawn BoxInset in from the column's
-// leading edge, a first and a last row of BoxPad's height precede and follow
-// them, and the bar is drawn at the column's trailing edge, which is the
-// box's. A column of rows has no trailing padding of its own: the rows run
-// to the lane at Always and to the box's edge at When scrolling, and each
-// row's own inset keeps its name and its tag from the end.
+// The region that scrolls is the column, the box's full size. A first and a
+// last row of BoxPad's height precede and follow the names, and the bar is
+// drawn at the column's trailing edge, which is the box's. A column of rows
+// has no padding at either end: each row spans the column from the box's
+// leading edge to the lane at Always and to the box's trailing edge at When
+// scrolling. The row's own inset, StyleRowInset, keeps the selected row's
+// fill, the name and the tag from each end.
 func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, sel *styleChooser, bars desktop.ScrollBarSetting) layout.Widget {
 	if sel == nil {
 		sel = newStyleChooser()
@@ -164,14 +168,8 @@ func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, 
 			applied = row
 		}
 		rows[row+1] = func(gtx layout.Context) layout.Dimensions {
-			inset := gtx.Dp(BoxInset)
-			gtx.Constraints.Max.X = max(gtx.Constraints.Max.X-inset, 0)
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
-			lead := op.Offset(image.Pt(inset, 0)).Push(gtx.Ops)
-			dims := StyleRowWidget(gtx, p, ty, m.Styles[i], i, dark, i == chosen, &clicks[i])
-			lead.Pop()
-			dims.Size.X += inset
-			return dims
+			return StyleRowWidget(gtx, p, ty, m.Styles[i], i, dark, i == chosen, &clicks[i])
 		}
 	}
 	st := sel.st
@@ -208,7 +206,7 @@ func stylePadRow(gtx layout.Context) layout.Dimensions {
 
 // StyleRowWidget draws one name and makes it clickable.
 func StyleRowWidget(gtx layout.Context, p Palette, ty Type, opt StyleOption, index int, dark, chosen bool, click *gesture.Click) layout.Dimensions {
-	dims := ChoiceRow(gtx, p, ty, opt.Name, styleTag(opt), StyleRowH, chosen, click)
+	dims := ChoiceRow(gtx, p, ty, opt.Name, styleTag(opt), StyleRowH, StyleRowInset, chosen, click)
 	for {
 		e, ok := click.Update(gtx.Source)
 		if !ok {
@@ -224,7 +222,9 @@ func StyleRowWidget(gtx layout.Context, p Palette, ty Type, opt StyleOption, ind
 // ChoiceRow draws one row of either chooser — a name, an optional word at the
 // far end, and the state it is in — h tall, and hands the row's own area to
 // click. Pumping that handler is the caller's, because what a press means is
-// the caller's.
+// the caller's. The row spans its list edge to edge, and inset is the row's
+// own inset: the selected row's fill, the name and the tag stay that far from
+// each of the row's ends, while the click area is the whole row.
 //
 // The chosen row wears the platform's own selection under the label the
 // platform pairs with it, and nothing else. That is how the platform's own
@@ -240,10 +240,11 @@ func StyleRowWidget(gtx layout.Context, p Palette, ty Type, opt StyleOption, ind
 // choices reads as one live row and four dead ones" — and the platform's own
 // lists carry the label colour on every row, marking the chosen one by
 // inverting it.
-func ChoiceRow(gtx layout.Context, p Palette, ty Type, name, tag string, height unit.Dp, chosen bool, click *gesture.Click) layout.Dimensions {
+func ChoiceRow(gtx layout.Context, p Palette, ty Type, name, tag string, height, inset unit.Dp, chosen bool, click *gesture.Click) layout.Dimensions {
 	h := gtx.Dp(height)
 	size := image.Pt(gtx.Constraints.Max.X, h)
-	r := image.Rectangle{Max: size}
+	in := gtx.Dp(inset)
+	r := image.Rect(in, 0, max(size.X-in, in), h)
 	switch {
 	case chosen:
 		fillRRect(gtx, r, gtx.Dp(InnerR), p.Selection)
@@ -255,13 +256,13 @@ func ChoiceRow(gtx layout.Context, p Palette, ty Type, name, tag string, height 
 	if chosen {
 		foreground = p.AccentForeground
 	}
-	text := image.Rect(pad+gtx.Dp(StyleIndent), 0, size.X-pad, h)
+	text := image.Rect(r.Min.X+pad+gtx.Dp(StyleIndent), 0, r.Max.X-pad, h)
 	// A word at the far end for the two things about a name that are not
 	// obvious from it: that somebody put this style in the folder themselves,
 	// and that this one named no background of its own and is therefore on
 	// the light list and the dark one both.
 	if tag != "" {
-		box := image.Rect(size.X-pad-gtx.Dp(40), 0, size.X-pad, h)
+		box := image.Rect(r.Max.X-pad-gtx.Dp(40), 0, r.Max.X-pad, h)
 		textdraw.FillText(gtx, ty.Shaper, ty.Small, box, 1, 0.5, foreground, tag)
 		text.Max.X = box.Min.X - pad/2
 	}
