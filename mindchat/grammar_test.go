@@ -23,7 +23,6 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
-	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/sidebar"
@@ -37,7 +36,7 @@ func schemeThemed(t *testing.T, c tokens.PlatformColors) themed {
 	t.Helper()
 	p := PaletteFrom(c)
 	typ := tokens.DefaultTypography
-	avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
+	avatar, err := avatarMark(p)
 	if err != nil {
 		t.Fatalf("avatar raster: %v", err)
 	}

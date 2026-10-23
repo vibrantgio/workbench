@@ -58,7 +58,9 @@ type Palette struct {
 	// TurnText is the foreground a turn's words are set in — the assistant's
 	// document on the transcript, and the user's text on the card raised over
 	// it. One colour for both, because both are the conversation's own prose;
-	// what tells the two apart is the card, not a second grey.
+	// what tells the two apart is the card, not a second grey. The
+	// assistant's avatar symbol is drawn in it too: a symbol on the content
+	// is in the text colour.
 	TurnText color.NRGBA
 	// Note is the system note's foreground: a line that carries no status of
 	// its own takes the platform's secondary label over the transcript.
@@ -87,7 +89,6 @@ type Palette struct {
 	// a sidebar's are two different colours on this platform.
 	ListSelected     color.NRGBA
 	ListSelectedText color.NRGBA
-	Icon             color.NRGBA // assistant avatar symbol
 	Error            color.NRGBA // settings fetch-error text
 }
 
@@ -121,7 +122,6 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		ListSelected:     c.SelectedContentBackground,
 		ListSelectedText: vgcolor.Flatten(c.AlternateSelectedControlText, c.SelectedContentBackground),
 
-		Icon:  c.ControlAccent,
 		Error: c.SystemRed,
 	}
 }

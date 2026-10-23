@@ -125,7 +125,9 @@ func view(th themed, model Model, listState *complist.State, strip func() unit.D
 	thObs := rx.Of(th.components)
 	p := th.palette
 
-	add, err := raster.Widget(icons.ContentAddCircle, 40, 40, raster.WithColors(p.Icon))
+	// The add symbol is the button's icon, so it is drawn in the button's
+	// foreground: the label colour.
+	add, err := raster.Widget(icons.ContentAddCircle, 40, 40, raster.WithColors(p.Label))
 	if err != nil {
 		panic(err)
 	}

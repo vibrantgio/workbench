@@ -21,13 +21,15 @@ type Palette struct {
 	Dialog         color.NRGBA // the dialog's own plane
 	Field          color.NRGBA // the dialog's text-entry fill
 	FieldEdge      color.NRGBA // the hairline a field draws around itself
-	Label          color.NRGBA // a todo's text
+	Label          color.NRGBA // a todo's text and the add symbol
 	SecondaryLabel color.NRGBA // a completed todo's text
 	Editing        color.NRGBA // the editor's text, on the field
 	Placeholder    color.NRGBA // the empty field's prompt
 	Selection      color.NRGBA // the fill behind selected text
-	Icon           color.NRGBA // the add and delete symbols
-	Cover          color.NRGBA // the dim over the page the dialog interrupts
+	// RowControl is the delete mark, a control inside a content list's row:
+	// the platform tints it in the accent, measured from Reminders'.
+	RowControl color.NRGBA
+	Cover      color.NRGBA // the dim over the page the dialog interrupts
 }
 
 // PaletteFrom reads this window's fills and foregrounds off the platform's
@@ -52,7 +54,7 @@ func PaletteFrom(p tokens.PlatformColors) Palette {
 		Editing:        vgcolor.Flatten(p.Label, p.TextBackground),
 		Placeholder:    vgcolor.Flatten(p.PlaceholderText, p.TextBackground),
 		Selection:      p.SelectedTextBackground,
-		Icon:           p.ControlAccent,
+		RowControl:     p.ControlAccent,
 		Cover:          p.Scrim,
 	}
 }

@@ -18,7 +18,6 @@ import (
 	"golang.org/x/image/math/fixed"
 
 	"github.com/vibrantgio/components/golden"
-	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -126,7 +125,7 @@ func testThemed(t *testing.T, md markdown.Style) themed {
 	c := tokens.PlatformLight
 	p := PaletteFrom(c)
 	typ := tokens.DefaultTypography
-	avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
+	avatar, err := avatarMark(p)
 	if err != nil {
 		t.Fatalf("avatar raster: %v", err)
 	}

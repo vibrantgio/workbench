@@ -226,7 +226,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			ct, den := n.First, n.Second
 			c, typ, motion, sp, rad := ct.First, ct.Second, ct.Third, ct.Fourth, ct.Fifth
 			p := PaletteFrom(c)
-			avatar, err := raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.Icon))
+			avatar, err := avatarMark(p)
 			if err != nil {
 				panic(err)
 			}
@@ -1307,6 +1307,12 @@ func WaitingDots(gtx layout.Context, t themed) layout.Dimensions {
 		gtx.Execute(op.InvalidateCmd{})
 	}
 	return layout.Dimensions{Size: image.Pt(WaitingDotCount*d+(WaitingDotCount-1)*gap, height)}
+}
+
+// avatarMark is the assistant's avatar symbol. It is a symbol on the
+// content, so it is drawn in the transcript's text colour.
+func avatarMark(p Palette) (layout.Widget, error) {
+	return raster.Widget(ChatGPT, AvatarSize, AvatarSize, raster.WithColors(p.TurnText))
 }
 
 var ChatGPT = func() []byte {

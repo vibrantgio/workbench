@@ -151,7 +151,7 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 		return dims
 	}
 
-	deleteMark, err := raster.Widget(icons.ActionHighlightOff, rowControlBox, rowControlBox, raster.WithColors(p.Icon))
+	deleteMark, err := raster.Widget(icons.ActionHighlightOff, rowControlBox, rowControlBox, raster.WithColors(p.RowControl))
 	if err != nil {
 		panic(err)
 	}
