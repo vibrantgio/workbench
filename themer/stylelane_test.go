@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"testing"
 
 	"gioui.org/layout"
@@ -15,13 +16,12 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// TestTheStyleColumnsRowsReachTheTrailingEdgeWhereTheBarFades lays the
-// style column out once per setting, shorter than its list of names, with
-// the kept style's row marked: the mark runs to the row's trailing end less
-// its own inset. At Always the bar has a lane of its own and the rows end
-// before it, a lane's width further in than at When scrolling, where the bar
-// lies over the rows' trailing edge and takes no lane.
-func TestTheStyleColumnsRowsReachTheTrailingEdgeWhereTheBarFades(t *testing.T) {
+// TestTheStyleColumnsMarkedRowRunsToTheLane lays the style column out once
+// per setting, shorter than its list of names, with the kept style's row
+// marked. A column of rows has no trailing padding of its own: at Always the
+// marked row's fill ends at the bar's lane, and at When scrolling it ends at
+// the box's edge, where the bar lies over the rows and takes no lane.
+func TestTheStyleColumnsMarkedRowRunsToTheLane(t *testing.T) {
 	size := image.Pt(240, 300)
 	for _, tc := range []struct {
 		name string
@@ -46,15 +46,29 @@ func TestTheStyleColumnsRowsReachTheTrailingEdgeWhereTheBarFades(t *testing.T) {
 			standing := scrollBarStyle(scrollbar.FromTokens(tc.c, p.Surface), desktop.ScrollBarsAlways)
 			lane, pad := int(standing.Width()), int(standing.TrackPadding)
 			laneMin := size.X - lane
-			thumb := image.Rect(laneMin+pad, 0, size.X-pad, size.Y)
-			ends := func(img *image.RGBA, skip image.Rectangle) int {
+			// fillEnd is one past the last pixel the marked row draws: across
+			// the band of lines that hold the selection colour, the last pixel
+			// off the surface, its rounded end's edge included. The thumb's
+			// own run in the lane is left out.
+			fillEnd := func(img *image.RGBA) int {
+				is := func(c, want color.NRGBA) bool { return c.R == want.R && c.G == want.G && c.B == want.B }
 				end := 0
 				for y := range size.Y {
+					marked := false
 					for x := range size.X {
-						if image.Pt(x, y).In(skip) {
+						if is(color.NRGBA(img.RGBAAt(x, y)), p.Selection) {
+							marked = true
+							break
+						}
+					}
+					if !marked {
+						continue
+					}
+					for x := range size.X {
+						if x >= laneMin+pad && x < size.X-pad {
 							continue
 						}
-						if c := img.RGBAAt(x, y); c.R != p.Surface.R || c.G != p.Surface.G || c.B != p.Surface.B {
+						if !is(color.NRGBA(img.RGBAAt(x, y)), p.Surface) {
 							end = max(end, x+1)
 						}
 					}
@@ -62,14 +76,11 @@ func TestTheStyleColumnsRowsReachTheTrailingEdgeWhereTheBarFades(t *testing.T) {
 				return end
 			}
 
-			at := ends(render(desktop.ScrollBarsAlways), thumb)
-			still := ends(render(desktop.ScrollBarsWhenScrolling), image.Rectangle{})
-			if at == 0 || at > laneMin {
-				t.Errorf("at Always the rows draw to x %d, want them to end before the %d px lane at x %d", at, lane, laneMin)
+			if at := fillEnd(render(desktop.ScrollBarsAlways)); at != laneMin {
+				t.Errorf("at Always the marked row's fill ends at x %d, want it to end at the lane at x %d", at, laneMin)
 			}
-			if still-at != lane {
-				t.Errorf("at Always the rows end at x %d and at When scrolling at x %d, want them %d px apart, the lane's width",
-					at, still, lane)
+			if still := fillEnd(render(desktop.ScrollBarsWhenScrolling)); still != size.X {
+				t.Errorf("at When scrolling the marked row's fill ends at x %d, want it to end at the box's edge at x %d", still, size.X)
 			}
 		})
 	}
@@ -96,7 +107,7 @@ func TestTheStyleBarIsDrawnAgainstTheBoxsTrailingEdge(t *testing.T) {
 			// the box clear of its rounded corners.
 			lead, end := trail, 0
 			for y := judgingBoxTop() + int(BoxRadius); y < judgingBoxBottom()-int(BoxRadius); y++ {
-				for x := trail - lane - int(BoxInset); x < trail; x++ {
+				for x := trail - lane; x < trail; x++ {
 					if c := img.RGBAAt(x, y); c.R != p.Surface.R || c.G != p.Surface.G || c.B != p.Surface.B {
 						lead, end = min(lead, x), max(end, x+1)
 					}

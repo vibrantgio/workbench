@@ -142,10 +142,11 @@ func (b *styleChooser) reveal(dark bool, row int) {
 //
 // The region that scrolls is the column, the box's full size, and the box's
 // padding is inside it: the rows are drawn BoxInset in from the column's
-// leading and trailing edges, a first and a last row of BoxPad's height
-// precede and follow them, and the bar is drawn at the column's trailing
-// edge, which is the box's. At Always the bar's lane is taken off the rows'
-// width as well.
+// leading edge, a first and a last row of BoxPad's height precede and follow
+// them, and the bar is drawn at the column's trailing edge, which is the
+// box's. A column of rows has no trailing padding of its own: the rows run
+// to the lane at Always and to the box's edge at When scrolling, and each
+// row's own inset keeps its name and its tag from the end.
 func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, sel *styleChooser, bars desktop.ScrollBarSetting) layout.Widget {
 	if sel == nil {
 		sel = newStyleChooser()
@@ -164,12 +165,12 @@ func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, 
 		}
 		rows[row+1] = func(gtx layout.Context) layout.Dimensions {
 			inset := gtx.Dp(BoxInset)
-			gtx.Constraints.Max.X = max(gtx.Constraints.Max.X-2*inset, 0)
+			gtx.Constraints.Max.X = max(gtx.Constraints.Max.X-inset, 0)
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
 			lead := op.Offset(image.Pt(inset, 0)).Push(gtx.Ops)
 			dims := StyleRowWidget(gtx, p, ty, m.Styles[i], i, dark, i == chosen, &clicks[i])
 			lead.Pop()
-			dims.Size.X += 2 * inset
+			dims.Size.X += inset
 			return dims
 		}
 	}
