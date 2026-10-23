@@ -3,9 +3,8 @@ package main
 // What the marks section shows, read off the pixels of one cell.
 //
 // The cell is captured on its own rather than out of the whole-window frame:
-// MarkGrid is handed an exact CellW × MarkCellH frame, so the one cell in it
-// is the frame and every square's position is arithmetic on the layout
-// constants rather than a hunt through 700 rows for a band.
+// MarkGrid is handed an exact CellW × CellH frame, so the one cell in it is
+// the frame. The mark's square is arithmetic on the layout constants.
 
 import (
 	"image"
@@ -36,47 +35,17 @@ func markCellFrame(t *testing.T, c tokens.PlatformColors, name marks.Name) *imag
 	tok := markThemed(c)
 	paintBackdrop := backdrop.Widget(tok.palette.Backdrop)
 	cell := MarkGrid(tok, []marks.Name{name})
-	return golden.Capture(t, image.Pt(int(CellW), int(MarkCellH)), func(gtx layout.Context) layout.Dimensions {
+	return golden.Capture(t, image.Pt(int(CellW), int(CellH)), func(gtx layout.Context) layout.Dimensions {
 		paintBackdrop(gtx)
 		return cell(gtx)
 	})
 }
 
-// markRow is where markCell puts the row of squares in a cell of CellW: the
-// leading edge of the first square and the row's whole width.
-func markRow() (x0, width int) {
-	for i, size := range MarkSizes {
-		if i > 0 {
-			width += int(MarkGap)
-		}
-		width += int(size)
-	}
-	return (int(CellW) - width) / 2, width
-}
-
-// bandRows is the vertical span every square is centred in.
-func bandRows() (top, bottom int) { return 8, 8 + int(MarkBand) }
-
-// squareAt is the rectangle of the i'th square of the row.
-func squareAt(i int) image.Rectangle {
-	x, _ := markRow()
-	top, _ := bandRows()
-	middle := top + int(MarkBand)/2
-	for n, px := range sizesPx() {
-		if n == i {
-			return image.Rect(x, middle-px/2, x+px, middle+px-px/2)
-		}
-		x += px + int(MarkGap)
-	}
-	panic("no such square")
-}
-
-func sizesPx() []int {
-	px := make([]int, len(MarkSizes))
-	for i, size := range MarkSizes {
-		px[i] = int(size)
-	}
-	return px
+// markSquare is the square markCell draws the mark in: IconSize wide,
+// centred across the cell, 8 dp below its top, as a catalogue cell's symbol.
+func markSquare() image.Rectangle {
+	x := (int(CellW) - int(IconSize)) / 2
+	return image.Rect(x, 8, x+int(IconSize), 8+int(IconSize))
 }
 
 // drawnMask reads r as a grid of symbol-or-fill decisions, row-major. A pixel
@@ -189,7 +158,7 @@ func markAlone(t *testing.T, c tokens.PlatformColors, name marks.Name, n int) *i
 
 // TestTheChevronDownCellDrawsTheSetsChevronDown reads off the frame that the
 // mark a row whose disclosure is open draws is the set's own chevron-down at
-// the band's size, and not chevron-right turned a quarter turn.
+// the catalogue's size, and not chevron-right turned a quarter turn.
 //
 // It is checked against both drawings rather than as "a down-pointing chevron
 // appeared", because chevron-right turned would satisfy the weaker reading.
@@ -197,17 +166,17 @@ func markAlone(t *testing.T, c tokens.PlatformColors, name marks.Name, n int) *i
 // chevron-right; the second half is only a check while the two drawings
 // differ, which the test asserts first.
 func TestTheChevronDownCellDrawsTheSetsChevronDown(t *testing.T) {
-	n := int(MarkBand)
+	n := int(IconSize)
 	// The floor is "the cell drew the mark at all", not a count the drawing
-	// owes: half the square's side is well under the dozen or so pixels a
-	// chevron at 24 dp paints past half way, and well over nothing.
+	// owes. Half the square's side is well under what a chevron at 40 dp
+	// paints past half way, and well over nothing.
 	drawn := n / 2
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			p := PaletteFrom(tc.c)
 			sq := image.Rect(0, 0, n, n)
 			img := markCellFrame(t, tc.c, ChevronDownMark)
-			cell := drawnMask(img, squareAt(len(MarkSizes)-1), p.Backdrop, p.Text)
+			cell := drawnMask(img, markSquare(), p.Backdrop, p.Text)
 			down := drawnMask(markAlone(t, tc.c, marks.ChevronDown, n), sq, p.Backdrop, p.Text)
 			turned := turnedClockwise(drawnMask(markAlone(t, tc.c, marks.ChevronRight, n), sq, p.Backdrop, p.Text), n)
 			if got := drawnCount(cell); got < drawn {
@@ -226,29 +195,42 @@ func TestTheChevronDownCellDrawsTheSetsChevronDown(t *testing.T) {
 	}
 }
 
-// TestEveryMarkCellDrawsItsSizesAndNothingElse: every mark's cell draws its
-// three sizes and nothing else, centred on the row's own arithmetic. No cell
-// draws a second rendition of its mark; a row whose disclosure is open draws
-// chevron-down's own cell.
-func TestEveryMarkCellDrawsItsSizesAndNothingElse(t *testing.T) {
+// TestEachMarkIsDrawnOnceAtTheCataloguesCellSize: every mark's cell draws
+// the mark once, in the catalogue's IconSize square. The square agrees with
+// the mark drawn alone at IconSize. The cell paints nothing else above its
+// caption.
+func TestEachMarkIsDrawnOnceAtTheCataloguesCellSize(t *testing.T) {
 	p := PaletteFrom(tokens.PlatformLight)
-	top, bottom := bandRows()
-	x0, width := markRow()
+	n := int(IconSize)
+	sq := markSquare()
+	above := image.Rect(0, 0, int(CellW), sq.Max.Y)
 	for _, name := range marks.Names() {
 		t.Run(string(name), func(t *testing.T) {
 			img := markCellFrame(t, tokens.PlatformLight, name)
-			first, last := drawnColumns(img, image.Rect(0, top, int(CellW), bottom), p.Backdrop, p.Text)
-			if first < x0 || last >= x0+width {
-				t.Errorf("%s paints columns %d..%d, outside the row's %d..%d", name, first, last, x0, x0+width-1)
+			alone := drawnMask(markAlone(t, tokens.PlatformLight, name, n), image.Rect(0, 0, n, n), p.Backdrop, p.Text)
+			cell := drawnMask(img, sq, p.Backdrop, p.Text)
+			if got := agreement(cell, alone, n); got < 0.95 {
+				t.Errorf("the cell's square agrees with %s drawn at %d dp on %.1f%%; it is not that mark at the catalogue's size", name, n, got*100)
+			}
+			if inSquare, all := drawnCount(cell), drawnCount(drawnMask(img, above, p.Backdrop, p.Text)); all != inSquare {
+				t.Errorf("%s paints %d pixels above its caption, %d of them outside its %d dp square", name, all, all-inSquare, n)
 			}
 		})
 	}
 }
 
-// TestTheNoteSaysWhatChevronDownIsFor: the section's note is the only place
-// either set says what its cells hold, so it says what chevron-down is drawn
-// for whenever that mark's cell is on screen, and says nothing of it when a
-// query keeps no chevron-down.
+// TestTheNoteNamesTheShippedSizes: the section's note names the three sizes
+// the set ships each mark at.
+func TestTheNoteNamesTheShippedSizes(t *testing.T) {
+	const want = "the set ships each mark at 16, 20 and 24 dp"
+	if got := MarkSizeNote(nil); got != want {
+		t.Errorf("the note reads %q, want %q", got, want)
+	}
+}
+
+// TestTheNoteSaysWhatChevronDownIsFor: the note says what chevron-down is
+// drawn for whenever that mark's cell is on screen. It says nothing of it
+// when a query keeps no chevron-down.
 func TestTheNoteSaysWhatChevronDownIsFor(t *testing.T) {
 	const clause = "chevron-down, for a row whose disclosure is open"
 	plain := MarkSizeNote([]marks.Name{marks.ChevronLeft, marks.ChevronRight})

@@ -14,29 +14,29 @@ import (
 	"github.com/vibrantgio/textdraw"
 )
 
-// MarkSizes are the sizes every mark is shown at, ascending: the three sizes
-// the library draws an icon at. A mark is drawn on one grid but is not
-// pixel-exact at all three, so the section shows all three rather than one.
-var MarkSizes = []unit.Dp{16, 20, 24}
+// ShippedSizes are the three sizes the set ships each mark at, ascending.
+// The section draws each mark once at the catalogue's IconSize; the note
+// names these sizes.
+var ShippedSizes = []unit.Dp{16, 20, 24}
 
 // ChevronDownMark is the mark a row whose disclosure is open draws: the set's
 // own chevron-down, named by what it depicts. A closed row draws chevron-right
 // and an open one draws this drawing, because one picture has one name.
 const ChevronDownMark = marks.ChevronDown
 
-// MarkSizeNote says what a cell's row of drawings is, in the sizes themselves,
-// and — only when chevron-down's cell is on screen — what that mark is drawn
-// for. The clause is conditional because the section is filtered: a query
-// that keeps no chevron-down would otherwise be described wrongly.
+// MarkSizeNote names the sizes the set ships each mark at. It also says
+// what chevron-down is drawn for, but only when that mark's cell is on
+// screen. The section is filtered, and a query can keep no chevron-down.
 //
-// It stays a clause rather than a sentence: the note is drawn at the trailing
-// edge of a section label beside a sibling reading "961 icons".
+// The note is a clause, not a sentence: it is drawn at the trailing edge of
+// a section label, beside a sibling reading "961 icons".
 func MarkSizeNote(names []marks.Name) string {
-	sizes := make([]string, len(MarkSizes))
-	for i, size := range MarkSizes {
+	sizes := make([]string, len(ShippedSizes))
+	for i, size := range ShippedSizes {
 		sizes[i] = strconv.Itoa(int(size))
 	}
-	note := "one mark at " + strings.Join(sizes, ", ") + " dp"
+	last := len(sizes) - 1
+	note := "the set ships each mark at " + strings.Join(sizes[:last], ", ") + " and " + sizes[last] + " dp"
 	for _, name := range names {
 		if name == ChevronDownMark {
 			return note + "; " + string(ChevronDownMark) + ", for a row whose disclosure is open"
@@ -47,8 +47,6 @@ func MarkSizeNote(names []marks.Name) string {
 
 // Heading draws one section heading on its own line, with a muted note against
 // the far edge — what the section is on the left, what it holds on the right.
-// The note is the only place either section says what its cells are showing,
-// so a row of one mark at three sizes does not read as three marks.
 func Heading(t themed, heading, note string) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(HeadingH))
@@ -59,17 +57,17 @@ func Heading(t themed, heading, note string) layout.Widget {
 	}
 }
 
-// MarkGrid lays the design system's own marks out in the catalogue's cell
-// rhythm, wrapping into as many rows as the width needs. Every cell draws one
-// mark through the icons package at each of MarkSizes and captions it with the
-// name a call site writes.
+// MarkGrid lays the design system's own marks out in the catalogue's cells,
+// wrapping into as many rows as the width needs. Every cell draws its mark
+// once through the icons package and captions it with the name a call site
+// writes.
 //
 // Unlike the Material grid this one does not scroll: the set is meant to be
 // seen at a glance.
 func MarkGrid(t themed, names []marks.Name) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		width := gtx.Constraints.Max.X
-		cellW, cellH := gtx.Dp(CellW), gtx.Dp(MarkCellH)
+		cellW, cellH := gtx.Dp(CellW), gtx.Dp(CellH)
 		cols := max(1, width/cellW)
 		rows := (len(names) + cols - 1) / cols
 
@@ -81,40 +79,17 @@ func MarkGrid(t themed, names []marks.Name) layout.Widget {
 	}
 }
 
-// markCell paints one mark at every size in MarkSizes, ascending, with the
-// name underneath.
+// markCell paints one mark at IconSize with the name underneath, at the
+// positions a catalogue cell uses.
 //
-// Every size is centred on the band's own line rather than stood on a common
-// foot: a mark is drawn centred in its square, so centring the squares puts
-// every drawing's middle on one line. How far a drawing's paint reaches into
-// its square differs between marks, so a common foot would not align them.
-//
-// A painter is a lookup and a closure over the set's shared cache, so building
-// one per frame is cheap. Mark returns nil for a name the set does not carry;
-// the cell then captions the name over empty space rather than drawing somebody
-// else's mark.
+// Mark returns nil for a name the set does not carry. The cell then captions
+// the name over empty space; it never draws another mark.
 func markCell(gtx layout.Context, t themed, name marks.Name, cell image.Rectangle) {
-	paintMark := marks.Mark(name)
-	gap := gtx.Dp(MarkGap)
+	px := gtx.Dp(IconSize)
+	top := cell.Min.Y + gtx.Dp(8)
+	paintSquare(gtx, marks.Mark(name), image.Pt(cell.Min.X+(cell.Dx()-px)/2, top), px, t.palette.Text)
 
-	row := 0
-	for i, size := range MarkSizes {
-		if i > 0 {
-			row += gap
-		}
-		row += gtx.Dp(size)
-	}
-
-	band := cell.Min.Y + gtx.Dp(8)
-	middle := band + gtx.Dp(MarkBand)/2
-	x := cell.Min.X + (cell.Dx()-row)/2
-	for _, size := range MarkSizes {
-		px := gtx.Dp(size)
-		paintSquare(gtx, paintMark, image.Pt(x, middle-px/2), px, t.palette.Text)
-		x += px + gap
-	}
-
-	caption := image.Rect(cell.Min.X, band+gtx.Dp(MarkBand)+gtx.Dp(4), cell.Max.X, cell.Max.Y)
+	caption := image.Rect(cell.Min.X, top+px+gtx.Dp(4), cell.Max.X, cell.Max.Y)
 	textdraw.FillText(gtx, t.typ.Shaper, t.typ.Caption, caption, 0.5, 0.0, t.palette.Text, string(name))
 }
 

@@ -73,13 +73,5 @@ const (
 	CellW    unit.Dp = 160 // grid cell width: symbol + caption both fit
 	CellH    unit.Dp = 84  // 40 dp symbol, gap, one caption line, padding
 	IconSize unit.Dp = 40
-
-	// A mark is shown at the sizes a control draws it at, so its cell is
-	// shorter than a Material cell rather than blowing the marks up to
-	// match: the band is the largest of those sizes, and every size in it
-	// is centred on the band's own line.
-	MarkBand  unit.Dp = 24 // symbol band: the largest size a mark is shown at
-	MarkCellH unit.Dp = 60 // band, gap, one caption line, padding
-	MarkGap   unit.Dp = 12 // between the sizes one mark is shown at
-	HeadingH  unit.Dp = 28 // one section label on its own line
+	HeadingH unit.Dp = 28 // one section label on its own line
 )
