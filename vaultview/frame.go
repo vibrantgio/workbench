@@ -287,7 +287,7 @@ func newFrameState(a shell.Arrangement) *frameState {
 func railToggle(click *widget.Clickable, press func(gtx layout.Context)) *shell.ToggleSidebar {
 	return &shell.ToggleSidebar{
 		Click:        click,
-		Mark:         icons.Mark(icons.Sidebar),
+		Mark:         icons.Mark(icons.SidebarLeft),
 		PaneTitle:    "Hide the folder rail",
 		ToolbarTitle: "Show the folder rail",
 		OnPress:      press,

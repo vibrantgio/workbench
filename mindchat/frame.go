@@ -165,7 +165,7 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, col shell.Pa
 		Toolbar:     f.toolbar(m, t),
 		Toggle: &shell.ToggleSidebar{
 			Click:        &f.toggleClick,
-			Mark:         icons.Mark(icons.Sidebar),
+			Mark:         icons.Mark(icons.SidebarLeft),
 			PaneTitle:    "Hide the conversations",
 			ToolbarTitle: "Show the conversations",
 			OnPress:      func(gtx layout.Context) { f.send(gtx, ToggleSidebar{}) },

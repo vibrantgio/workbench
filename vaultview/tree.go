@@ -431,7 +431,7 @@ func (v *treeView) rescanControl(gtx layout.Context, tok themeTokens) layout.Dim
 	if v.rescanClick.Clicked(gtx) {
 		v.send(gtx, Rescan{})
 	}
-	return shell.PaneMark(gtx, tok.col, &v.rescanClick, icons.Mark(icons.Refresh), "Rescan")
+	return shell.PaneMark(gtx, tok.col, &v.rescanClick, icons.Mark(icons.ArrowClockwise), "Rescan")
 }
 
 func (v *treeView) switchVaultControl(gtx layout.Context, tok themeTokens) layout.Dimensions {

@@ -1267,7 +1267,7 @@ the part call sites store.
   ```go
   import "github.com/vibrantgio/components/icons"
 
-  if mark := icons.Mark(icons.Sidebar); mark != nil {
+  if mark := icons.Mark(icons.SidebarLeft); mark != nil {
       mark(gtx, gtx.Dp(20), c.Text) // colour from the theme's tokens
   }
   ```

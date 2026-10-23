@@ -224,7 +224,7 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, tok themeTokens, s fra
 		Toolbar:     f.contentShare(),
 		Toggle: &shell.ToggleSidebar{
 			Click:        &f.toggleClick,
-			Mark:         icons.Mark(icons.Sidebar),
+			Mark:         icons.Mark(icons.SidebarLeft),
 			PaneTitle:    "Hide the feeds",
 			ToolbarTitle: "Show the feeds",
 			OnPress:      func(gtx layout.Context) { f.send(gtx, ToggleSidebar{}) },

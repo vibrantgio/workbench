@@ -346,7 +346,7 @@ func (f *frameState) layoutFindOpener(gtx layout.Context, tok themeTokens) layou
 		f.band.find.openField(gtx, f.band.read)
 	}
 	return shell.ToolbarControl(gtx, tok.col, tokens.Radius, tok.den, &f.findClick,
-		icons.Mark(icons.Search), "Find in this note", false)
+		icons.Mark(icons.MagnifyingGlass), "Find in this note", false)
 }
 
 // layoutFindField lays the search field out at the window's one field width
