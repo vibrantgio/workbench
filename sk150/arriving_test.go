@@ -1,15 +1,17 @@
 package main
 
 // The Presets and Device tabs while their content is arriving: the
-// application's own sentence is drawn as an empty state is placed, centred
-// both ways in the frame the list would occupy, and no row of the list is
-// drawn; once the content has arrived the sentence is removed.
+// platform's indeterminate indicator stands above the application's own
+// sentence, the two centred as one group in the frame the list would occupy,
+// and no row of the list is drawn; once the content has arrived both are
+// removed.
 
 import (
 	"image"
 	"testing"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/progress"
 	"github.com/vibrantgio/mvu/desktop"
 	vgcolor "github.com/vibrantgio/theme/color"
 )
@@ -53,24 +55,25 @@ func renderTab(t *testing.T, tc int, m Model, bars desktop.ScrollBarSetting) *im
 	return golden.Capture(t, windowSize, w)
 }
 
-// TestThePresetsTabCentresTheArrivingSentence holds the Presets tab while
+// TestThePresetsTabDrawsTheIndicatorAboveTheArrivingSentence holds the Presets tab while
 // the memory slots are arriving; see [checkArrivingSentence].
-func TestThePresetsTabCentresTheArrivingSentence(t *testing.T) {
+func TestThePresetsTabDrawsTheIndicatorAboveTheArrivingSentence(t *testing.T) {
 	checkArrivingSentence(t, arrivingTabs[0])
 }
 
-// TestTheDeviceTabCentresTheArrivingSentence holds the Device tab while the
+// TestTheDeviceTabDrawsTheIndicatorAboveTheArrivingSentence holds the Device tab while the
 // device settings are arriving; see [checkArrivingSentence].
-func TestTheDeviceTabCentresTheArrivingSentence(t *testing.T) {
+func TestTheDeviceTabDrawsTheIndicatorAboveTheArrivingSentence(t *testing.T) {
 	checkArrivingSentence(t, arrivingTabs[1])
 }
 
 // checkArrivingSentence holds one tab while its content is arriving, in
-// both schemes and at both bar settings: the frame
-// the list would occupy holds one run of painted rows, the sentence's line,
-// centred across and down in it, painted in the empty state's tertiary
-// label over the page's fill and not in the secondary label a row of the
-// list is set in. After the content arrives the sentence is removed: the
+// both schemes and at both bar settings: the frame the list would occupy
+// holds two runs of painted rows and no row of the list. The first run is
+// the indicator, 16 px tall and centred across the frame. The second is the
+// sentence's line, its glyphs beginning under the indicator at the DERIVED
+// gap, painted in the label colour over the page's fill. The two centre down
+// the frame as one group. After the content arrives both are removed: the
 // tab's first painted run begins at the list's top, where the rows begin.
 func checkArrivingSentence(t *testing.T, tab arrivingTab) {
 	for i, sc := range schemes {
@@ -90,31 +93,46 @@ func checkArrivingSentence(t *testing.T, tab arrivingTab) {
 					img := renderTab(t, i, m, bars)
 					frame := listFrame(t, img, i, bars, tab.under)
 					runs := paintedRuns(img, frame, fill)
-					if len(runs) != 1 {
-						t.Fatalf("the list's frame %v holds %d runs of painted rows %v, want the sentence's line alone and no row", frame, len(runs), runs)
+					if len(runs) != 2 {
+						t.Fatalf("the list's frame %v holds %d runs of painted rows %v, want the indicator and the sentence's line and no row", frame, len(runs), runs)
 					}
-					line := runs[0]
+					ind, line := runs[0], runs[1]
+					if ind.Dx() != 16 || ind.Dy() != 16 {
+						t.Errorf("the indicator paints %v, want the measured 16 × 16", ind)
+					}
+					if got, want := ind.Min.X+ind.Max.X, frame.Min.X+frame.Max.X; abs(got-want) > 1 {
+						t.Errorf("the indicator centres at %.1f across, want the frame's %.1f", float64(got)/2, float64(want)/2)
+					}
+					// The line box holds a few rows of room above the
+					// glyphs, so the glyphs begin at most that much past
+					// the gap.
+					gap, g := line.Min.Y-ind.Max.Y, int(progress.Gap)
+					if gap < g || gap > g+6 {
+						t.Errorf("the sentence's glyphs begin %d px under the indicator, want the gap %d and at most the line's own 6 px above its glyphs", gap, g)
+					}
 					if got, want := line.Min.X+line.Max.X, frame.Min.X+frame.Max.X; abs(got-want) > 2 {
 						t.Errorf("the sentence centres at %.1f across, want the frame's %.1f", float64(got)/2, float64(want)/2)
 					}
-					if got, want := line.Min.Y+line.Max.Y, frame.Min.Y+frame.Max.Y; abs(got-want) > 6 {
-						t.Errorf("the sentence centres at %.1f down, want the frame's %.1f", float64(got)/2, float64(want)/2)
+					if got, want := ind.Min.Y+line.Max.Y, frame.Min.Y+frame.Max.Y; abs(got-want) > 6 {
+						t.Errorf("the group centres at %.1f down, want the frame's %.1f", float64(got)/2, float64(want)/2)
 					}
-					t.Logf("frame %v centre (%.1f, %.1f); sentence's glyphs %v centre (%.1f, %.1f)", frame,
-						float64(frame.Min.X+frame.Max.X)/2, float64(frame.Min.Y+frame.Max.Y)/2, line,
-						float64(line.Min.X+line.Max.X)/2, float64(line.Min.Y+line.Max.Y)/2)
-					want := vgcolor.Flatten(sc.c.TertiaryLabel, fill)
-					found := false
-					for y := line.Min.Y; y < line.Max.Y && !found; y++ {
+					t.Logf("frame %v centre (%.1f, %.1f); indicator %v; sentence's glyphs %v; gap %d", frame,
+						float64(frame.Min.X+frame.Max.X)/2, float64(frame.Min.Y+frame.Max.Y)/2, ind, line, gap)
+					// A 13 px glyph's stems seldom cover a whole pixel, so
+					// the line is held by the pixel nearest the label
+					// colour: within 16 levels of it, where the secondary
+					// label lies about 80 levels off.
+					want := vgcolor.Flatten(sc.c.Label, fill)
+					nearest := 255
+					for y := line.Min.Y; y < line.Max.Y; y++ {
 						for x := line.Min.X; x < line.Max.X; x++ {
-							if sameColour(at(img, x, y), want) {
-								found = true
-								break
-							}
+							px := at(img, x, y)
+							d := max(abs(int(px.R)-int(want.R)), abs(int(px.G)-int(want.G)), abs(int(px.B)-int(want.B)))
+							nearest = min(nearest, d)
 						}
 					}
-					if !found {
-						t.Errorf("no glyph of the sentence is painted TertiaryLabel over the page's fill, #%02x%02x%02x", want.R, want.G, want.B)
+					if nearest > 16 {
+						t.Errorf("the sentence's nearest glyph pixel lies %d levels off Label over the page's fill, #%02x%02x%02x, want within 16", nearest, want.R, want.G, want.B)
 					}
 
 					tab.arrive(&m)
@@ -129,10 +147,55 @@ func checkArrivingSentence(t *testing.T, tab arrivingTab) {
 					// The list's first row is drawn under the tab's 4 dp and
 					// the 10 dp above the first row.
 					if got := runs[0].Min.Y - frame.Min.Y; got > 4+10+8 {
-						t.Errorf("after the content arrives the first painted run begins %d px under the list's top, want the rows at its top and no centred sentence", got)
+						t.Errorf("after the content arrives the first painted run begins %d px under the list's top, want the rows at its top and no indicator or sentence", got)
 					}
 				})
 			}
 		}
+	}
+}
+
+// TestTheMonitorTabDrawsTheIndicatorAboveCollectingSamples holds the Monitor
+// tab's history strip while the samples are arriving, in both schemes: the
+// last two runs of painted rows in the tab are the indicator, 16 px square
+// and centred across the window, and the phrase under it at the DERIVED gap.
+// Once the history arrives neither is drawn: no run is the 16 px indicator
+// standing over a run of text.
+func TestTheMonitorTabDrawsTheIndicatorAboveCollectingSamples(t *testing.T) {
+	for i, sc := range schemes {
+		t.Run(sc.name, func(t *testing.T) {
+			m := goldenModel()
+			m.History = nil
+			fill := pageFill(sc.c)
+			img := renderTab(t, i, m, desktop.ScrollBarsWhenScrolling)
+			frame := monitorFrame(t, img, sc.c)
+			runs := paintedRuns(img, frame, fill)
+			if len(runs) < 2 {
+				t.Fatalf("the tab holds %d runs of painted rows, want the indicator and the phrase under the readout", len(runs))
+			}
+			ind, line := runs[len(runs)-2], runs[len(runs)-1]
+			if ind.Dx() != 16 || ind.Dy() != 16 {
+				t.Errorf("the indicator paints %v, want the measured 16 × 16", ind)
+			}
+			if got, want := ind.Min.X+ind.Max.X, frame.Min.X+frame.Max.X; abs(got-want) > 1 {
+				t.Errorf("the indicator centres at %.1f across, want the frame's %.1f", float64(got)/2, float64(want)/2)
+			}
+			if got, want := line.Min.X+line.Max.X, frame.Min.X+frame.Max.X; abs(got-want) > 2 {
+				t.Errorf("the phrase centres at %.1f across, want the frame's %.1f", float64(got)/2, float64(want)/2)
+			}
+			gap, g := line.Min.Y-ind.Max.Y, int(progress.Gap)
+			if gap < g || gap > g+6 {
+				t.Errorf("the phrase's glyphs begin %d px under the indicator, want the gap %d and at most the line's own 6 px above its glyphs", gap, g)
+			}
+			t.Logf("frame %v; indicator %v; phrase %v; gap %d", frame, ind, line, gap)
+
+			m.History = goldenHistory()
+			img = renderTab(t, i, m, desktop.ScrollBarsWhenScrolling)
+			for _, r := range paintedRuns(img, frame, fill) {
+				if r.Dx() == 16 && r.Dy() == 16 {
+					t.Errorf("after the history arrives a 16 × 16 run %v is drawn, want the charts and no indicator", r)
+				}
+			}
+		})
 	}
 }

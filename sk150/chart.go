@@ -21,6 +21,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 
+	"github.com/vibrantgio/components/progress"
 	"github.com/vibrantgio/textdraw"
 )
 
@@ -34,12 +35,15 @@ type hoverState struct {
 }
 
 // chartPanes is the monitor's history strip under the readout block:
-// the two stacked panes sharing the height they are given, or a waiting
-// line until there is a history to draw.
+// the two stacked panes sharing the height they are given. Until there is a
+// history to draw, the region's content is still arriving: it draws the
+// indeterminate indicator above the phrase, centred as one group in the
+// height and width the panes would occupy.
 func chartPanes(t themed, m Model, hov *hoverState) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if len(m.History) < 2 {
-			return textLine(t.typ, t.typ.Body, t.palette.SecondaryLabel, "collecting samples…")(gtx)
+			return progress.Region(gtx, progress.Props{Platform: t.platform, Fill: pageFill(t.platform),
+				Text: "Collecting samples…", Shaper: t.typ.Shaper, Typography: t.typography})
 		}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(textLine(t.typ, t.typ.Body, t.palette.Label, "Output voltage (V)")),

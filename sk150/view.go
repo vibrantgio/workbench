@@ -21,6 +21,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/pointershape"
+	"github.com/vibrantgio/components/progress"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 
 	"github.com/vibrantgio/components/button"
@@ -624,10 +625,10 @@ func monitorPane(st pageState, hov *hoverState) layout.Widget {
 // trailing edge.
 //
 // While the tab's content is arriving, arriving returns the application's
-// own sentence for it, and the sentence is drawn as an empty state is
-// placed: centred both ways in the frame the list would occupy, the
-// standing bar's lane excluded, and never as a row of the list. It is
-// removed when arriving returns "".
+// own sentence for it. The tab draws the platform's indeterminate indicator
+// above the sentence, centred both ways as one group in the frame the list
+// would occupy, the standing bar's lane excluded, and never as a row of the
+// list. Both are removed when arriving returns "".
 func listContent(load func() (pageState, bool), state *list.State, foot func(Model) unit.Dp, arriving func(Model) string, build func(themed, Model, slotSet) (head, rows []layout.Widget)) layout.Widget {
 	return pageColumn(func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
@@ -638,8 +639,8 @@ func listContent(load func() (pageState, bool), state *list.State, foot func(Mod
 			frame := gtx.Constraints.Max
 			egtx := gtx
 			egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, frame, st.t.listBar()))
-			shell.EmptyState(egtx, st.t.typ.Shaper, st.t.platform, st.t.typography,
-				pageFill(st.t.platform), shell.EmptyStateProps{Line: line})
+			progress.Region(egtx, progress.Props{Platform: st.t.platform, Fill: pageFill(st.t.platform),
+				Text: line, Shaper: st.t.typ.Shaper, Typography: st.t.typography})
 			return layout.Dimensions{Size: frame}
 		}
 		head, body := build(st.t, st.m, st.slots)
