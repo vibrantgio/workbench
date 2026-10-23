@@ -76,27 +76,32 @@ type DirEntry struct {
 // The parent is not among them. The trail above the rows is how one goes
 // up — that is what the platform's open panel does, and a row standing for
 // the parent would be a second way of saying it that carries no name.
-func ListDir(dir string) []DirEntry {
+//
+// A read that fails returns no rows and the read's error. The browser
+// tells that folder apart from a folder that holds no folders.
+func ListDir(dir string) ([]DirEntry, error) {
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
 	var out []DirEntry
-	if ents, err := os.ReadDir(dir); err == nil {
-		for _, e := range ents {
-			if strings.HasPrefix(e.Name(), ".") {
-				continue
-			}
-			p := filepath.Join(dir, e.Name())
-			if !e.IsDir() && !symlinkToDir(e, p) {
-				continue
-			}
-			d := DirEntry{Name: e.Name(), Path: p}
-			d.IsVault, d.MDCount = vaultMarks(p)
-			out = append(out, d)
+	for _, e := range ents {
+		if strings.HasPrefix(e.Name(), ".") {
+			continue
 		}
+		p := filepath.Join(dir, e.Name())
+		if !e.IsDir() && !symlinkToDir(e, p) {
+			continue
+		}
+		d := DirEntry{Name: e.Name(), Path: p}
+		d.IsVault, d.MDCount = vaultMarks(p)
+		out = append(out, d)
 	}
 	sort.SliceStable(out, func(i, j int) bool { return naming.Less(out[i].Name, out[j].Name) })
 	for i := range out {
 		out[i].Idx = i
 	}
-	return out
+	return out, nil
 }
 
 // symlinkToDir reports whether a listing entry is a symlink whose
@@ -368,8 +373,23 @@ func (v *pickerView) browser(
 // where the rows would be for a folder that holds no folders.
 const pickerNoFoldersLine = "This folder holds no folders."
 
+// pickerReadFailedLine is the folder browser's empty state for a folder
+// whose listing failed to read. The line is the application's own text.
+// The listing command writes the system's text to the log.
+const pickerReadFailedLine = "Folder Could Not Be Read"
+
+// pickerEmptyLine returns the line of the region's empty state for a read
+// listing with no rows.
+func pickerEmptyLine(m Model) string {
+	if m.PickerErr != nil {
+		return pickerReadFailedLine
+	}
+	return pickerNoFoldersLine
+}
+
 // listRegion lays out the region under the trail: the rows, and over them
-// the region's empty state once the listing is read and holds no folder.
+// the region's empty state once the listing is read and holds no folder,
+// or once the read fails.
 //
 // The list is laid out even with no rows, so its focus tag stays registered
 // and the keyboard stays on it while the reader moves on through the trail.
@@ -389,7 +409,7 @@ func (v *pickerView) listRegion(gtx layout.Context, m Model, tok themeTokens, st
 	egtx := gtx
 	egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, bar))
 	shell.EmptyState(egtx, tok.shaper, tok.col, tok.typ, standsOn,
-		shell.EmptyStateProps{Line: pickerNoFoldersLine, LineStyle: tok.typ.BodyLarge})
+		shell.EmptyStateProps{Line: pickerEmptyLine(m), LineStyle: tok.typ.BodyLarge})
 	return layout.Dimensions{Size: size}
 }
 

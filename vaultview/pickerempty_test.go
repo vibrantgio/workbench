@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"image"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gioui.org/layout"
@@ -12,6 +15,7 @@ import (
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -87,5 +91,83 @@ func TestAListingStillBeingReadDrawsNoEmptyState(t *testing.T) {
 	if !listed.PickerListed || len(listed.PickerEntries) != 0 {
 		t.Errorf("the listing for the folder is read as %v with %d rows, want read with none",
 			listed.PickerListed, len(listed.PickerEntries))
+	}
+}
+
+// TestAFolderThatFailsToReadDrawsItsOwnEmptyState lists two real folders
+// and draws the region for each. The folder whose read fails draws the
+// failed-read line. The folder that holds no folders draws the
+// holds-no-folders line. Each region is compared pixel for pixel with the
+// empty state drawn with the line the test expects.
+func TestAFolderThatFailsToReadDrawsItsOwnEmptyState(t *testing.T) {
+	root := t.TempDir()
+	empty := filepath.Join(root, "Empty")
+	unreadable := filepath.Join(root, "Unreadable")
+	for _, d := range []string{empty, filepath.Join(unreadable, "Inside")} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chmod(unreadable, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(unreadable, 0o755) })
+
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	size := image.Pt(360, 240)
+	fill := tokens.PlatformLight.WindowBackground
+	tok := themeTokens{col: tokens.PlatformLight, typ: tokens.DefaultTypography,
+		sp: tokens.Spacing, den: tokens.Comfortable, shaper: shaper}
+	draw := func(region func(gtx layout.Context) layout.Dimensions) *image.RGBA {
+		return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints = layout.Exact(size)
+			paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
+			return region(gtx)
+		})
+	}
+	for _, tc := range []struct {
+		name, dir, line string
+		root            bool
+	}{
+		{name: "unreadable", dir: unreadable, line: pickerReadFailedLine, root: true},
+		{name: "empty", dir: empty, line: pickerNoFoldersLine},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.root && os.Geteuid() == 0 {
+				t.Skip("root reads a folder whatever its permissions")
+			}
+			entries, err := ListDir(tc.dir)
+			if tc.root != (err != nil) {
+				t.Fatalf("ListDir(%s) returned the error %v; an error is expected: %v", tc.dir, err, tc.root)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("ListDir(%s) returned %d rows, want none", tc.dir, len(entries))
+			}
+			m := Model{PickerOpen: true, PickerDir: tc.dir}
+			m, _ = Update(m, pickerListed{dir: tc.dir, entries: entries, err: err})
+			if !m.PickerListed {
+				t.Fatal("the listing is not read after its message, want it read")
+			}
+			v := &pickerView{list: list.NewState()}
+			got := draw(func(gtx layout.Context) layout.Dimensions {
+				return v.listRegion(gtx, m, tok, fill, 0)
+			})
+			want := draw(func(gtx layout.Context) layout.Dimensions {
+				v := &pickerView{list: list.NewState()}
+				dims := v.rows(gtx, tok, nil, fill, 0)
+				bar := scrollBarStyle(scrollbar.FromTokens(tok.col, fill), tok.scrollBars)
+				egtx := gtx
+				egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, bar))
+				shell.EmptyState(egtx, tok.shaper, tok.col, tok.typ, fill,
+					shell.EmptyStateProps{Line: tc.line, LineStyle: tok.typ.BodyLarge})
+				return dims
+			})
+			if box := noteGlyphBox(got, fill); box.Empty() {
+				t.Fatal("the region is bare, want the line the empty state draws")
+			}
+			if !bytes.Equal(got.Pix, want.Pix) {
+				t.Errorf("the region does not draw the line %q", tc.line)
+			}
+		})
 	}
 }

@@ -73,6 +73,9 @@ type Model struct {
 	// a directory with no child directories is told apart from one whose
 	// listing is still being read: only the first draws the empty state.
 	PickerListed bool
+	// PickerErr is the error of the failed read of PickerDir's listing,
+	// or nil. A failed read draws its own empty state.
+	PickerErr error
 
 	// Vault state.
 	Vault    string // absolute path of the open vault
@@ -333,6 +336,7 @@ type ToggleTask struct {
 type pickerListed struct {
 	dir     string
 	entries []DirEntry
+	err     error
 }
 
 // vaultListed delivers the scan's first phase: every note's path, with
@@ -455,12 +459,14 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.PickerDir = m.Dir
 		model.PickerRoot = trailRoot(m.Dir)
 		model.PickerEntries = nil
+		model.PickerErr = nil
 		model.PickerListed = false
 		return model, listDirCmd(m.Dir)
 	case pickerListed:
 		// A listing for a directory the browser has already left is stale.
 		if m.dir == model.PickerDir {
 			model.PickerEntries = m.entries
+			model.PickerErr = m.err
 			model.PickerListed = true
 		}
 	case OpenVault:
@@ -655,6 +661,7 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.PickerDir = dir
 		model.PickerRoot = trailRoot(dir)
 		model.PickerEntries = nil
+		model.PickerErr = nil
 		model.PickerListed = false
 		return model, listDirCmd(dir)
 	case CancelSwitch:
@@ -1065,10 +1072,15 @@ func unchangedOnDisk(vault string, n *Note) bool {
 }
 
 // listDirCmd lists a directory for the folder browser off the render
-// goroutine.
+// goroutine. The browser says a failed read in the application's own
+// line, so the command writes the system's text to the log.
 func listDirCmd(dir string) mvu.Command {
 	return mvu.Do(func() (mvu.Message, error) {
-		return pickerListed{dir: dir, entries: ListDir(dir)}, nil
+		entries, err := ListDir(dir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "vaultview: listing %s: %v\n", dir, err)
+		}
+		return pickerListed{dir: dir, entries: entries, err: err}, nil
 	})
 }
 

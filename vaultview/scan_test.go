@@ -204,7 +204,7 @@ func TestListDir(t *testing.T) {
 	mk(".hidden")
 	touch("stray.md")
 
-	got := ListDir(root)
+	got := mustListDir(t, root)
 	if len(got) != 2 {
 		t.Fatalf("ListDir returned %d rows, want 2 (plain, vault): %v", len(got), got)
 	}
@@ -291,7 +291,7 @@ func TestListDirShowsSymlinkedFolders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := ListDir(root)
+	got := mustListDir(t, root)
 	if len(got) != 1 {
 		t.Fatalf("ListDir returned %d rows, want 1 (Diarizer): %v", len(got), got)
 	}
@@ -314,11 +314,22 @@ func TestListDirSortsNamesAsTheFileBrowserDoes(t *testing.T) {
 		}
 	}
 	var got []string
-	for _, e := range ListDir(root) {
+	for _, e := range mustListDir(t, root) {
 		got = append(got, e.Name)
 	}
 	want := []string{"apples", "vault 1", "vault 2", "Vault 3", "Vault 10"}
 	if strings.Join(got, " | ") != strings.Join(want, " | ") {
 		t.Errorf("listing is %v, want %v", got, want)
 	}
+}
+
+// mustListDir lists a folder for the browser and fails the test when the
+// read fails.
+func mustListDir(t *testing.T, dir string) []DirEntry {
+	t.Helper()
+	entries, err := ListDir(dir)
+	if err != nil {
+		t.Fatalf("ListDir(%s) failed: %v", dir, err)
+	}
+	return entries
 }
