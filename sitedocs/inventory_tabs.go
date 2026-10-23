@@ -84,6 +84,8 @@ func groupTabLayer(th rx.Observable[theme.Theme], group string, bars desktop.Scr
 			inv.SetShaper(shaper)
 		}
 		inv.SetTypography(typ)
+		// The bar inside a fence or under a wide table is this window's bar.
+		inv.SetScrollbar(columnBar(col, bars))
 		return scrollingColumn(st, col, bars, inv.TabItems(col, group))
 	})
 }
@@ -142,5 +144,6 @@ func scrollingColumn(st *list.State, c tokens.PlatformColors, bars desktop.Scrol
 func renderGroupTab(shaper *text.Shaper, group string, colors tokens.PlatformColors, typo tokens.Typography) layout.Widget {
 	inv := inventory.NewForOS(shaper, "darwin")
 	inv.SetTypography(typo)
+	inv.SetScrollbar(columnBar(colors, desktop.ScrollBarsWhenScrolling))
 	return scrollingColumn(list.NewState(), colors, desktop.ScrollBarsWhenScrolling, inv.TabItems(colors, group))
 }

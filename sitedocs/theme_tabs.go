@@ -59,6 +59,7 @@ func typographyTabLayer(th rx.Observable[theme.Theme], bars desktop.ScrollBarSet
 			inv.SetShaper(t.shaper)
 		}
 		inv.SetTypography(t.typ)
+		inv.SetScrollbar(columnBar(t.col, bars))
 		return scrollingColumn(st, t.col, bars, typeScaleRows(inv, t.shaper, t.typ, t.col))
 	})
 }
@@ -96,5 +97,6 @@ func renderColourTab(shaper *text.Shaper, colors tokens.PlatformColors, typo tok
 func renderTypographyTab(shaper *text.Shaper, colors tokens.PlatformColors, typo tokens.Typography) layout.Widget {
 	inv := inventory.NewForOS(shaper, "darwin")
 	inv.SetTypography(typo)
+	inv.SetScrollbar(columnBar(colors, desktop.ScrollBarsWhenScrolling))
 	return scrollingColumn(list.NewState(), colors, desktop.ScrollBarsWhenScrolling, typeScaleRows(inv, shaper, typo, colors))
 }
