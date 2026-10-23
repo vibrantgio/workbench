@@ -352,8 +352,12 @@ func (f *frameState) layoutFindOpener(gtx layout.Context, tok themeTokens) layou
 // layoutFindField lays the search field out at the window's one field width
 // and carries out a pending request for the keyboard, which is how the
 // shortcut that opened the field puts the reader in it.
+//
+// A disabled context leaves the request pending: a layout that measures the
+// field first does so with its events held back, and a disabled context
+// executes no command.
 func (f *frameState) layoutFindField(gtx layout.Context, find *pageFind) layout.Dimensions {
-	if find.focus {
+	if find.focus && gtx.Enabled() {
 		find.focus = false
 		if find.tag != nil {
 			gtx.Execute(key.FocusCmd{Tag: find.tag})
