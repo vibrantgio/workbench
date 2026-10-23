@@ -34,11 +34,9 @@ import (
 // The list is the region that scrolls, and the page's padding is inside it:
 // each row is inset on its leading side by the page's Padding and its own, on
 // its trailing side by [rowTrailingInset], and above and below by the page's
-// Padding; the first row adds the
-// page's Padding above, and the last row adds the add button's height and the
-// page's Padding below, so the bar is at the window's trailing edge and never
-// inset by the padding, and the last row ends above the button's band with
-// its delete mark clear of the button. The anchor is what
+// Padding; the first row adds the page's Padding above, and the last row adds
+// the page's Padding below, so the bar is at the window's trailing edge and
+// never inset by the padding. The anchor is what
 // [complist.AnchorFor] returns for bar: at Always the bar has a lane of its
 // own and the rows stop short of it, otherwise it lies over the rows'
 // trailing edge.
@@ -67,7 +65,7 @@ func scrollingList(rows []layout.Widget, bar scrollbar.Style, state *complist.St
 				in.Top += Padding
 			}
 			if i == len(rows)-1 {
-				in.Bottom += fabSize + Padding
+				in.Bottom += Padding
 			}
 			return in.Layout(gtx, rows[i])
 		})

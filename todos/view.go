@@ -1,19 +1,18 @@
 package main
 
 import (
-	"golang.org/x/exp/shiny/materialdesign/icons"
-
 	"gioui.org/layout"
 	"gioui.org/unit"
+	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/composite"
 	complist "github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
-	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -45,6 +44,9 @@ type themed struct {
 	// typography is the theme's type set, which the list's empty state is
 	// set from.
 	typography tokens.Typography
+	// density is the theme's density, which the toolbar's button is sized
+	// from.
+	density tokens.Density
 	// scrollBars is the platform's "Show scroll bars" setting, read once
 	// when the window is composed and passed here, so that no frame asks
 	// the platform and no still render depends on the machine it runs on.
@@ -73,10 +75,10 @@ func (t themed) listBar() scrollbar.Style {
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	listState := complist.NewState()
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
-			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
+		return rx.Map(rx.CombineLatest3(t.Platform, t.Typography, t.Density),
+			func(n rx.Tuple3[tokens.PlatformColors, tokens.Typography, tokens.Density]) themed {
 				return themed{components: t, palette: PaletteFrom(n.First), typ: TypeFrom(n.Second),
-					platform: n.First, typography: n.Second, scrollBars: bars}
+					platform: n.First, typography: n.Second, density: n.Third, scrollBars: bars}
 			})
 	})
 	return rx.Map(rx.CombineLatest2(themes, modelObs),
@@ -85,55 +87,37 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 		})
 }
 
-// View builds the page's layout.Widget for one (theme, model) pair, held down
-// past the native title-bar strip the full-size-content window opens the top
-// of itself into. Everything here is reconstructed per emission except the
-// list's scroll state, which is passed in; per-interaction state (the editor,
-// the clickables) is kept inside the controls for exactly one route's
-// lifetime.
+// View builds the page's layout.Widget for one (theme, model) pair. The
+// toolbar takes the window's top band, as deep as the platform's toolbar or
+// the native title-bar strip, whichever is deeper, and the list starts below
+// it. Everything here is reconstructed per emission except the list's scroll
+// state, which is passed in; per-interaction state (the editor, the
+// clickables) is kept inside the controls for exactly one route's lifetime.
 func View(th themed, model Model, listState *complist.State) layout.Widget {
-	return view(th, model, listState, desktop.TopInset)
+	return view(th, model, listState, func() unit.Dp { return shell.ChromeTop(shell.ToolbarDepth) })
 }
 
-// fabSize is the add button's width and height. The list's last row keeps it
-// and the page's Padding below itself, so it ends above the button.
-const fabSize unit.Dp = 48
-
-// restingPage is the page without a dialog: the list taking the page entire,
-// and the button over it at the page's trailing bottom corner, inset by the
-// page's Padding.
-func restingPage(list, fab layout.Widget) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		list(gtx)
-		return layout.UniformInset(Padding).Layout(gtx, fab)
-	}
-}
-
-// view is View over a stated strip height rather than the window's own, so a
-// test can state a strip it has no window to measure.
+// view is View over a stated band depth rather than the window's own, so a
+// test can state a band it has no window to measure.
 //
-// The strip carries no fill of its own: the region it caps is the window's own
-// plane, which BackdropLayer already fills full-bleed, so the fill reaches the
-// top edge without anything being painted twice. Only the resting page has to
-// stay clear of the strip.
+// The band is the toolbar's, and it carries no fill of its own: the window's
+// own plane is under it, which BackdropLayer already fills full-bleed, so the
+// fill reaches the top edge without anything being painted twice. Only the
+// list has to stay clear of the band.
 //
 // The dialog does not. A scrim with a strip-shaped hole in its top edge
 // isolates nothing, so the dialog and its cover are laid out in the window's
 // own coordinates: transient surfaces lie over the resting window rather than
 // in it.
-func view(th themed, model Model, listState *complist.State, strip func() unit.Dp) layout.Widget {
+func view(th themed, model Model, listState *complist.State, band func() unit.Dp) layout.Widget {
 	thObs := rx.Of(th.components)
 	p := th.palette
 
-	// The add symbol is the button's icon, so it is drawn in the button's
-	// foreground: the label colour.
-	add, err := raster.Widget(icons.ContentAddCircle, 40, 40, raster.WithColors(p.Label))
-	if err != nil {
-		panic(err)
-	}
-	fab := Fab(add, 1.0, 1.0, fabSize, fabSize, true, func(gtx layout.Context) {
+	add := func(gtx layout.Context) {
 		mvu.MessageOp{Message: SetRoute{Route: "add.todo"}}.Add(gtx.Ops)
-	})
+	}
+	toolbar := Toolbar(th.platform, th.density, new(widget.Clickable), band, add)
+	addKey := OnAddKey(add)
 	list := List(th.typ, thObs, p, th.listBar(), listState, model)
 
 	// The dialogs are constructed HERE, once per emission, and reused across
@@ -154,15 +138,10 @@ func view(th themed, model Model, listState *complist.State, strip func() unit.D
 		}
 	}
 
-	// The resting page — the list on the fill and the button floating over
-	// it — capped by the strip: held down past it, with that same strip claimed
-	// for the window's own drag. A capped layer reports the size it was given
-	// rather than the inset one, so the button still lands on the window's
-	// bottom-trailing corner and only the top edge moves.
-	//
-	// The list is the region that scrolls and takes the page entire: its
-	// padding is inside it, so its bar is at the window's trailing edge.
-	capped := desktop.CapTop(strip, restingPage(list, fab))
+	// The list is the region that scrolls and takes the frame below the
+	// band: its padding is inside it, so its bar is at the window's trailing
+	// edge.
+	page := desktop.InsetTop(band, list)
 
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
@@ -178,18 +157,21 @@ func view(th themed, model Model, listState *complist.State, strip func() unit.D
 		}
 
 		if route == "" {
-			capped(gtx)
+			page(gtx)
+			toolbar(gtx)
+			addKey(gtx)
 		} else {
-			capped(gtx.Disabled())
+			page(gtx.Disabled())
+			toolbar(gtx.Disabled())
 			dialog(gtx)
-			// The strip is given back its drag on top of what was just drawn
+			// The band is given back its drag on top of what was just drawn
 			// over it. The dialog's Escape catcher spans the whole window so
 			// Escape closes the dialog wherever the pointer is, and a
 			// whole-window input region recorded after the band would shadow
 			// the drag claim, leaving a window that cannot be moved while a
 			// text field is open. The dialog is centred and 200 dp tall, so
-			// nothing of its own stands in the strip to be swallowed.
-			desktop.DragTop(gtx, strip)
+			// nothing of its own stands in the band to be swallowed.
+			desktop.DragTop(gtx, band)
 		}
 
 		return layout.Dimensions{Size: size}

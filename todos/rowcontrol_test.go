@@ -22,7 +22,7 @@ import (
 // a router, as [captureWithPointer] states.
 func renderWithPointer(t *testing.T, p tokens.PlatformColors, at *f32.Point) *image.RGBA {
 	t.Helper()
-	return captureWithPointer(t, windowSize, windowFrame(p, fixtureModel(""), titleBandDp), at)
+	return captureWithPointer(t, windowSize, windowFrame(p, fixtureModel(""), bandDp), at)
 }
 
 // captureWithPointer draws draw over size in two frames through a router: the
@@ -68,7 +68,8 @@ func captureWithPointer(t *testing.T, size image.Point, draw layout.Widget, at *
 // accentBox is the bounding box of the pixels in the frame's trailing band
 // that are more than 20 levels off the window's plane, summed over the
 // channels, which is how the reference reads a mark's extent. The band is the
-// 60 columns at the window's trailing edge above the add button's band.
+// 60 columns at the window's trailing edge below the toolbar's band and the
+// shadow its button casts.
 func accentBox(img *image.RGBA, th themed) image.Rectangle {
 	plane := th.palette.Backdrop
 	abs := func(a, b uint8) int {
@@ -79,8 +80,7 @@ func accentBox(img *image.RGBA, th themed) image.Rectangle {
 	}
 	var box image.Rectangle
 	size := img.Bounds().Size()
-	bottom := size.Y - int(fabSize+2*Padding)
-	for y := 0; y < bottom; y++ {
+	for y := int(bandDp) + shadowReach; y < size.Y; y++ {
 		for x := size.X - 60; x < size.X; x++ {
 			c := pixelAt(img, image.Pt(x, y))
 			if abs(c.R, plane.R)+abs(c.G, plane.G)+abs(c.B, plane.B) > 20 {
@@ -107,7 +107,7 @@ func TestTheDeleteMarkIsDrawnUnderThePointerOnly(t *testing.T) {
 
 			// The second row's middle: the row under the pointer is found
 			// from the checkbox column of the rest frame.
-			ys := rowMiddles(rest, th, int(titleBandDp))
+			ys := rowMiddles(rest, th, int(bandDp))
 			if len(ys) < 2 {
 				t.Fatalf("found %d rows in the rest frame, want the fixture's four", len(ys))
 			}
@@ -148,8 +148,7 @@ func rowMiddles(img *image.RGBA, th themed, top int) []int {
 	x0 := int(2 * Padding)
 	var mids []int
 	start := -1
-	bottom := img.Bounds().Dy() - int(fabSize+2*Padding)
-	for y := top; y < bottom; y++ {
+	for y := top; y < img.Bounds().Dy(); y++ {
 		drawn := false
 		for x := x0; x < x0+12; x++ {
 			if pixelAt(img, image.Pt(x, y)) != plane {

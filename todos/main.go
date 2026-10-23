@@ -15,6 +15,7 @@ import (
 
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	specsystem "github.com/vibrantgio/theme/system"
 	specwin "github.com/vibrantgio/theme/window"
 )
@@ -43,10 +44,12 @@ func run() {
 		app.Size(winW, winH),
 	)...)
 	// Gio re-hides the standard window buttons on every configuration rebuild,
-	// so ShowWindowButtons re-asserts them on the mvu OnConfigure seam.
+	// so StandWindowButtons re-asserts them on the mvu OnConfigure seam. It
+	// also centres them on the toolbar's band, which this window's every
+	// screen lays out in.
 	// Post-construction options must go through mvuWin.Option — never
 	// mvuWin.Window().Option — or the buttons vanish.
-	desktop.ShowWindowButtons(mvuWin)
+	shell.StandWindowButtons(mvuWin, nil)
 
 	// The platform's "Show scroll bars" setting, read once here and passed
 	// to the composition: a window asks the platform when it is built,

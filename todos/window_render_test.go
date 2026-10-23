@@ -5,11 +5,11 @@ package main
 // pre-resolved tokens, so composing the same two paints into a headless image
 // at the size the window opens at produces the frame the window would show.
 //
-// The frames are drawn under a stated title-bar strip, because the app takes
-// the full-size-content treatment: its fill runs to the top edge and its page
-// starts below a strip the platform no longer draws. desktop.TopInset reports 0
-// without a live macOS window behind it, so the height is stated rather than
-// measured.
+// The frames are drawn under a stated band, because the app takes the
+// full-size-content treatment: its fill runs to the top edge, its toolbar
+// takes the band at the top, and its list starts below the band.
+// desktop.TopInset reports 0 without a live macOS window behind it, so the
+// depth is stated rather than measured.
 //
 // Run it with -window.dump=<dir> to write the frames out for a pair of eyes:
 //
@@ -17,7 +17,7 @@ package main
 //
 // Without the flag it still renders every scheme and route each run, which
 // makes it a smoke test of the whole view: a panic in the backdrop, the list,
-// the fab or the dialog fails it.
+// the toolbar or the dialog fails it.
 
 import (
 	"flag"
@@ -37,6 +37,7 @@ import (
 	"github.com/vibrantgio/components/golden"
 	complist "github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/shell"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
@@ -49,10 +50,10 @@ var windowDump = flag.String("window.dump", "", "directory to write whole-window
 // figure below is also a pixel figure.
 var windowSize = image.Pt(int(winW), int(winH))
 
-// titleBandDp is the strip desktop.TopInset reports on a full-size-content
-// macOS window. The number is the stored reference's plain title bar band,
-// 32 px.
-const titleBandDp unit.Dp = 32
+// bandDp is the band View lays the toolbar out in on a full-size-content
+// macOS window: the platform's toolbar depth, which is deeper than the native
+// title-bar strip.
+const bandDp unit.Dp = shell.ToolbarDepth
 
 // The frames carry the theme's real radius scale rather than a pinned-sharp
 // one: nothing here is stored, so no pixel-exact diff needs GPU-independent
@@ -79,6 +80,7 @@ func staticThemed(p tokens.PlatformColors) themed {
 		palette:    PaletteFrom(p),
 		platform:   p,
 		typography: typo,
+		density:    tokens.Comfortable,
 		typ: Type{
 			Shaper:   typo.DeterministicShaper(),
 			Headline: textStyle(typo.HeadlineSmall),
@@ -125,12 +127,23 @@ func renderWindow(t *testing.T, p tokens.PlatformColors, route string, band unit
 	return golden.Capture(t, windowSize, windowFrame(p, fixtureModel(route), band))
 }
 
-// topmostDrawn reports the first row of the frame carrying a pixel that is
+// renderModel renders the window showing model under the toolbar's band.
+func renderModel(t *testing.T, p tokens.PlatformColors, model Model) *image.RGBA {
+	t.Helper()
+	return golden.Capture(t, windowSize, windowFrame(p, model, bandDp))
+}
+
+// topmostDrawn reports the first row of the page carrying a pixel that is
 // not the fill it is given, and how many rows were scanned when there is none.
+// The toolbar's drawing in its band is not the page's and is skipped.
 func topmostDrawn(img *image.RGBA, fill color.NRGBA) int {
 	size := img.Bounds().Size()
+	bar := toolbarBox(img, fill)
 	for y := 0; y < size.Y; y++ {
 		for x := 0; x < size.X; x++ {
+			if image.Pt(x, y).In(bar) {
+				continue
+			}
 			if pixelAt(img, image.Pt(x, y)) != fill {
 				return y
 			}
@@ -182,7 +195,7 @@ func TestWholeWindowRender(t *testing.T) {
 	for _, tc := range windowSchemes {
 		for _, r := range windowRoutes {
 			t.Run(tc.name+"-"+r.name, func(t *testing.T) {
-				img := renderWindow(t, tc.c, r.route, titleBandDp)
+				img := renderWindow(t, tc.c, r.route, bandDp)
 				if img.Bounds().Size() != windowSize {
 					t.Fatalf("frame size = %v, want %v", img.Bounds().Size(), windowSize)
 				}
@@ -217,7 +230,7 @@ func TestWholeWindowRender(t *testing.T) {
 func TestTheListStandsOnTheWindowsOwnPlane(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			img := renderWindow(t, tc.c, "", titleBandDp)
+			img := renderWindow(t, tc.c, "", bandDp)
 			frame := image.Rectangle{Max: windowSize}
 			plane := tc.c.WindowBackground
 
@@ -284,7 +297,7 @@ func TestTheDialogAndItsFieldWearThePlatformsFills(t *testing.T) {
 				t.Errorf("field hairline = %v, want the platform's field edge %v", p.FieldEdge, tc.c.FieldEdge)
 			}
 
-			img := renderWindow(t, tc.c, "add.todo", titleBandDp)
+			img := renderWindow(t, tc.c, "add.todo", bandDp)
 			rect := dialogRect()
 
 			// The dialog's own fill, read 6 dp above its bottom edge and
@@ -320,23 +333,25 @@ func TestTheDialogAndItsFieldWearThePlatformsFills(t *testing.T) {
 	}
 }
 
-// TestTheBackdropReachesTheWindowsTopEdge pins that the strip shows the
+// TestTheBackdropReachesTheWindowsTopEdge pins that the band shows the
 // full-bleed backdrop already painted under it rather than a second fill drawn
-// over it, which is why this window paints no band. The strip must be the
-// resting fill and nothing else: no page paint in it, and no unpainted glass.
+// over it, which is why the toolbar paints no fill. Leading of the toolbar's
+// button the band must be the resting fill and nothing else: no page paint in
+// it, and no unpainted glass.
 func TestTheBackdropReachesTheWindowsTopEdge(t *testing.T) {
-	band := int(titleBandDp)
+	band := int(bandDp)
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			img := renderWindow(t, tc.c, "", titleBandDp)
+			img := renderWindow(t, tc.c, "", bandDp)
 			content := tc.c.WindowBackground
 			if got := PaletteFrom(tc.c).Backdrop; got != content {
 				t.Fatalf("the backdrop paints %v and the window's own plane is %v", got, content)
 			}
-			for _, x := range []int{0, windowSize.X / 2, windowSize.X - 1} {
+			bar := toolbarBox(img, content)
+			for _, x := range []int{0, windowSize.X / 2, bar.Min.X - 1} {
 				for _, y := range []int{0, band / 2, band - 1} {
 					if got := pixelAt(img, image.Pt(x, y)); got != content {
-						t.Errorf("strip pixel at (%d,%d) = %v, want the window's own plane %v", x, y, got, content)
+						t.Errorf("band pixel at (%d,%d) = %v, want the window's own plane %v", x, y, got, content)
 					}
 				}
 			}
@@ -350,9 +365,9 @@ func TestTheBackdropReachesTheWindowsTopEdge(t *testing.T) {
 func TestThePageStartsBelowTheStrip(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			img := renderWindow(t, tc.c, "", titleBandDp)
-			if top := topmostDrawn(img, tc.c.WindowBackground); top < int(titleBandDp) {
-				t.Errorf("the page paints row %d, inside the %d dp title-bar strip; only the window fill belongs there", top, int(titleBandDp))
+			img := renderWindow(t, tc.c, "", bandDp)
+			if top := topmostDrawn(img, tc.c.WindowBackground); top < int(bandDp) {
+				t.Errorf("the page paints row %d, inside the %d dp title-bar strip; only the window fill belongs there", top, int(bandDp))
 			}
 		})
 	}
@@ -367,11 +382,11 @@ func TestThePageStartsBelowTheStrip(t *testing.T) {
 // from desktop's derivation of the platform's rule rather than a guess at
 // where the circles are.
 func TestThePageClearsTheWindowButtons(t *testing.T) {
-	run := desktop.ButtonRunIn(titleBandDp)
+	run := desktop.ButtonRunIn(bandDp)
 	bottom := int(run.Leading + run.Diameter)
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			img := renderWindow(t, tc.c, "", titleBandDp)
+			img := renderWindow(t, tc.c, "", bandDp)
 			content := tc.c.WindowBackground
 			for y := 0; y <= bottom; y++ {
 				for x := 0; x <= int(run.Trailing); x++ {
@@ -397,10 +412,10 @@ func TestThePageClearsTheWindowButtons(t *testing.T) {
 func TestTheDialogCoversTheStripToo(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			resting := renderWindow(t, tc.c, "", titleBandDp)
-			covered := renderWindow(t, tc.c, "add.todo", titleBandDp)
+			resting := renderWindow(t, tc.c, "", bandDp)
+			covered := renderWindow(t, tc.c, "add.todo", bandDp)
 			for _, x := range []int{0, windowSize.X / 2, windowSize.X - 1} {
-				for _, y := range []int{0, int(titleBandDp) / 2, int(titleBandDp) - 1} {
+				for _, y := range []int{0, int(bandDp) / 2, int(bandDp) - 1} {
 					at := image.Pt(x, y)
 					if pixelAt(covered, at) == pixelAt(resting, at) {
 						t.Errorf("the strip at %v is unchanged with the dialog open; the scrim stops at the page's top edge", at)
@@ -416,7 +431,7 @@ func TestTheDialogCoversTheStripToo(t *testing.T) {
 // all still pass if the cap stopped insetting anything, since the first
 // row's paint starts below the buttons' run on its own.
 func TestTheStripMovesThePage(t *testing.T) {
-	capped := renderWindow(t, tokens.PlatformLight, "", titleBandDp)
+	capped := renderWindow(t, tokens.PlatformLight, "", bandDp)
 	bare := renderWindow(t, tokens.PlatformLight, "", 0)
 	if n := golden.PixelDiff(capped, bare); n == 0 {
 		t.Error("the window renders identically with and without a title-bar strip; the page is not being inset")

@@ -21,7 +21,7 @@ type Palette struct {
 	Dialog         color.NRGBA // the dialog's own plane
 	Field          color.NRGBA // the dialog's text-entry fill
 	FieldEdge      color.NRGBA // the hairline a field draws around itself
-	Label          color.NRGBA // a todo's text and the add symbol
+	Label          color.NRGBA // a todo's text
 	SecondaryLabel color.NRGBA // a completed todo's text
 	Editing        color.NRGBA // the editor's text, on the field
 	Placeholder    color.NRGBA // the empty field's prompt

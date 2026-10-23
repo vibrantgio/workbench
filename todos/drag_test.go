@@ -22,10 +22,10 @@ import (
 // this.
 func TestTheStripStaysDraggableUnderTheDialog(t *testing.T) {
 	const width, height = 650, 600
-	const stripH = int(titleBandDp)
+	const stripH = int(bandDp)
 
 	th := staticThemed(tokens.PlatformLight)
-	w := view(th, fixtureModel("add.todo"), complist.NewState(), func() unit.Dp { return titleBandDp })
+	w := view(th, fixtureModel("add.todo"), complist.NewState(), func() unit.Dp { return bandDp })
 
 	var ops op.Ops
 	gtx := layout.Context{
