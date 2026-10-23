@@ -371,7 +371,7 @@ func (v *pickerView) browser(
 
 // pickerNoFoldersLine is the folder browser's empty state: the line drawn
 // where the rows would be for a folder that holds no folders.
-const pickerNoFoldersLine = "This folder holds no folders."
+const pickerNoFoldersLine = "No Folders"
 
 // pickerReadFailedLine is the folder browser's empty state for a folder
 // whose listing failed to read. The line is the application's own text.

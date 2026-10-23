@@ -1057,12 +1057,12 @@ func emptyStateLine(m Model) string {
 	case m.Scanning && m.CurrentNote() == nil:
 		return "Scanning vault…"
 	case m.ScanErr != "":
-		// The line is the application's own sentence. The system's text
+		// The line is the application's own text. The system's text
 		// for the failure is written to the log, with the vault's path,
 		// where the scan reports it.
-		return "This vault can't be read."
+		return "Vault Could Not Be Read"
 	case m.CurrentNote() == nil:
-		return "No notes in this vault."
+		return "No Notes"
 	}
 	return ""
 }

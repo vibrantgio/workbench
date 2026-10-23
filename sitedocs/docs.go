@@ -169,7 +169,7 @@ func drawGuideUnavailable(
 	complayout.Inset(docsOuterInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return shell.EmptyState(gtx, shaper, c, typ, shellFill(c), shell.EmptyStateProps{
 			Line:        guideUnavailableLine,
-			Description: fail.Path,
+			Description: guideUnavailableDescription(fail.Path),
 		})
 	})
 	return layout.Dimensions{Size: frame}

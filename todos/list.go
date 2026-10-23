@@ -76,7 +76,7 @@ func scrollingList(rows []layout.Widget, bar scrollbar.Style, state *complist.St
 
 // emptyListLine is the list's empty state: the line drawn where the rows
 // would be when there is no todo.
-const emptyListLine = "No todos."
+const emptyListLine = "No Todos"
 
 // EmptyList draws the list's empty state over the frame gtx gives: the line
 // centred both ways at [shell.EmptyStateSizeSp], in the tertiary label colour

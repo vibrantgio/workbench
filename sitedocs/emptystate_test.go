@@ -90,8 +90,8 @@ func TestTheDocsColumnDrawsTheLineAndThePath(t *testing.T) {
 			}
 
 			ref := emptyStateProbe(t, shaper, tc.colors, typ, fill, shell.EmptyStateProps{
-				Line:        "This guide can't be loaded.",
-				Description: fail.Path,
+				Line:        "Guide Could Not Be Loaded",
+				Description: guideUnavailableDescription(fail.Path),
 			})
 			if want := emptyStateBox(ref, ref.Bounds(), fill); got != want {
 				t.Errorf("the column draws %v, want %v — the line and the path, and nothing else", got, want)
@@ -100,7 +100,7 @@ func TestTheDocsColumnDrawsTheLineAndThePath(t *testing.T) {
 			// A probe of the line alone proves the path is really drawn:
 			// the group is taller with it than without.
 			line := emptyStateProbe(t, shaper, tc.colors, typ, fill,
-				shell.EmptyStateProps{Line: "This guide can't be loaded."})
+				shell.EmptyStateProps{Line: "Guide Could Not Be Loaded"})
 			lineBox := emptyStateBox(line, line.Bounds(), fill)
 			if got.Dy() <= lineBox.Dy() {
 				t.Errorf("the column's group is %d pixels tall, the line alone %d; the path stands under the line",
@@ -181,7 +181,7 @@ func TestTheDocsColumnsEmptyStateStandsOutsideAStandingBarsLane(t *testing.T) {
 
 // TestAFailedLoadKeepsTheOutlineColumnWithItsOwnLine holds the Docs page
 // when the guide cannot be loaded: the outline column is kept at its
-// width with its fill, and draws "No headings." centred in its own frame
+// width with its fill, and draws "No Headings" centred in its own frame
 // at the size of its top-level rows in the tertiary label, while the
 // content column beside it draws the guide's line and location centred in
 // the rest. Each column's drawing is held against that column's empty
@@ -227,7 +227,7 @@ func TestAFailedLoadKeepsTheOutlineColumnWithItsOwnLine(t *testing.T) {
 			alone := func(style tokens.TextStyle) image.Rectangle {
 				ref := golden.Capture(t, outlineFrame, scene(func(gtx layout.Context) layout.Dimensions {
 					return shell.EmptyState(gtx, shaper, tc.colors, typ, rail,
-						shell.EmptyStateProps{Line: "No headings.", LineStyle: style})
+						shell.EmptyStateProps{Line: "No Headings", LineStyle: style})
 				}, rail))
 				return emptyStateBox(ref, ref.Bounds(), rail)
 			}

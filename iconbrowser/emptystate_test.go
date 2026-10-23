@@ -33,7 +33,7 @@ import (
 // grid stands empty in, and noMatchLine what the page then says.
 const noMatchQuery = "zzzz"
 
-var noMatchLine = fmt.Sprintf("No icons match %q", noMatchQuery)
+var noMatchLine = fmt.Sprintf("No Icons Match %q", noMatchQuery)
 
 // TestTheGridsEmptyStateCentresInItsFrame holds the line's placement
 // against the arrangement the window actually laid out: it centres both

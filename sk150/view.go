@@ -830,7 +830,7 @@ func monitorEmptyState(m Model, slots slotSet) shell.EmptyStateProps {
 		// No description: the header's status line already shows the
 		// connection status.
 		return shell.EmptyStateProps{
-			Line:    "No SK150 connected",
+			Line:    "No SK150 Connected",
 			Actions: []layout.Widget{slots.get("demo")},
 		}
 	}

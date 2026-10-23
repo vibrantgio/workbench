@@ -39,9 +39,15 @@ func guidePaths() []string {
 }
 
 // guideUnavailableLine is what the Docs column says when neither source
-// answered. It is this app's own sentence about what is missing, it names
-// no control, and it carries nothing the system said.
-const guideUnavailableLine = "This guide can't be loaded."
+// answered. It is the app's own line. It names no control. It holds
+// nothing the system said.
+const guideUnavailableLine = "Guide Could Not Be Loaded"
+
+// guideUnavailableDescription is the sentence under that line. It names the
+// location the guide was looked for at, and it ends with a period.
+func guideUnavailableDescription(path string) string {
+	return "The guide was looked for at " + path + "."
+}
 
 // guideFailure is a guide that could not be read: the location it was
 // looked for at, which the column stands under its line, and the system's

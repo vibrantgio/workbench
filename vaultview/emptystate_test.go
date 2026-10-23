@@ -151,7 +151,7 @@ func TestAVaultThatCannotBeReadSaysSoInItsOwnWords(t *testing.T) {
 	if model.ScanErr == "" {
 		t.Fatal("scanning a path with no vault at it reported no error")
 	}
-	const want = "This vault can't be read."
+	const want = "Vault Could Not Be Read"
 	got := emptyStateLine(model)
 	if got != want {
 		t.Errorf("the column says %q, want %q", got, want)
@@ -293,9 +293,9 @@ func TestPaneSectionsCentreTheirEmptyState(t *testing.T) {
 				// hairline seam one pixel wide.
 				edge int
 			}{
-				{"the rail's row region", "No note by that name.", f.geom.Column.Rows, pane.RadiusDp},
-				{"the outline pane", "This note has no headings.", av.geom.outline.Add(origin), 1},
-				{"the backlinks pane", "No notes link here.", av.geom.backlinks.Add(origin), 1},
+				{"the rail's row region", "No Note by That Name", f.geom.Column.Rows, pane.RadiusDp},
+				{"the outline pane", "No Headings", av.geom.outline.Add(origin), 1},
+				{"the backlinks pane", "No Notes Link Here", av.geom.backlinks.Add(origin), 1},
 			}
 			for _, s := range sections {
 				t.Run(s.name, func(t *testing.T) {

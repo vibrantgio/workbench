@@ -802,10 +802,10 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 }
 
 // settingsNoProvidersLine is what the providers well says when the
-// catalogue holds nothing. It is the sheet's own sentence and names no
+// catalogue holds nothing. It is the sheet's own line and names no
 // control: the add segment under the well is the action, and a line
 // spelling that control out would name a thing the reader can already see.
-const settingsNoProvidersLine = "No providers"
+const settingsNoProvidersLine = "No Providers"
 
 // providerWellEmpty draws the well's empty state in the frame the rows
 // would have occupied — not the well's whole box, which carries the

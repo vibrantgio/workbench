@@ -147,7 +147,7 @@ func drawDetail(
 	size := gtx.Constraints.Max
 	paint.FillShape(gtx.Ops, tok.col.ControlBackground, clip.Rect{Max: size}.Op())
 	if !sel.ok {
-		return detailEmptyState(gtx, tok, detailBar(tok, bars), "Select an article")
+		return detailEmptyState(gtx, tok, detailBar(tok, bars), "No Article Selected")
 	}
 	// The column's parts are inset one by one rather than together, because
 	// the tab strip's own cell padding stands its first title further in

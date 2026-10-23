@@ -39,7 +39,7 @@ func TestEmptyStatesStandOutsideAStandingBarsLane(t *testing.T) {
 			lane: func(tok themeTokens) int { return int(noteScrollBar(tok).Width()) },
 			draw: func(gtx layout.Context, tok themeTokens) layout.Dimensions {
 				paint.FillShape(gtx.Ops, tok.col.TextBackground, clip.Rect{Max: gtx.Constraints.Max}.Op())
-				return noteEmptyState(gtx, tok, "No notes in this vault.")
+				return noteEmptyState(gtx, tok, "No Notes")
 			},
 		},
 		{

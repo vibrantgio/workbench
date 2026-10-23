@@ -251,7 +251,7 @@ func TestMonitorEmptyStateWaitsWithoutActions(t *testing.T) {
 func TestMonitorEmptyStateHasNoDescription(t *testing.T) {
 	m := unconnectedModel()
 	p := monitorEmptyState(m, slotSet{})
-	if p.Line != "No SK150 connected" || p.Description != "" || len(p.Actions) != 1 {
+	if p.Line != "No SK150 Connected" || p.Description != "" || len(p.Actions) != 1 {
 		t.Errorf("with the status %q the empty state is %q / %q with %d actions, want the line, no description and the demo button",
 			m.Status, p.Line, p.Description, len(p.Actions))
 	}

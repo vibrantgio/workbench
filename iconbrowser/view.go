@@ -255,7 +255,7 @@ func Grid(t themed, visible []int, query string, grid *list.State) layout.Widget
 			egtx := gtx
 			egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, bar))
 			shell.EmptyState(egtx, t.typ.Shaper, t.platform, t.typography, p.Backdrop,
-				shell.EmptyStateProps{Line: fmt.Sprintf("No icons match %q", query)})
+				shell.EmptyStateProps{Line: fmt.Sprintf("No Icons Match %q", query)})
 			return layout.Dimensions{Size: size}
 		}
 

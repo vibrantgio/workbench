@@ -490,7 +490,7 @@ func (v *asideView) outlinePane(gtx layout.Context, tok themeTokens, entries []o
 	if len(entries) == 0 {
 		// The region is still the outline's whole: the room the line
 		// centres in is what keeps the backlinks on the column's foot.
-		return asideEmptyLine(gtx, tok, "This note has no headings.")
+		return asideEmptyLine(gtx, tok, "No Headings")
 	}
 	if doc := v.cur.document(); doc != nil {
 		first := doc.Position().First
@@ -612,7 +612,7 @@ func (v *asideView) seek(gtx layout.Context, e outlineEntry) {
 func (v *asideView) backlinkPane(gtx layout.Context, tok themeTokens, rows []backlinkRow) layout.Dimensions {
 	rowH := gtx.Dp(sidebar.RowHeight)
 	if len(rows) == 0 {
-		return asideEmptyLine(gtx, tok, "No notes link here.")
+		return asideEmptyLine(gtx, tok, "No Notes Link Here")
 	}
 	for len(v.rowClicks) < len(rows) {
 		v.rowClicks = append(v.rowClicks, &widget.Clickable{})

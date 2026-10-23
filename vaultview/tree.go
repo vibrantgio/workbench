@@ -464,7 +464,7 @@ func (v *treeView) rows(gtx layout.Context, m Model, tok themeTokens) layout.Dim
 			egtx := gtx
 			egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, asideIndicator(tok)))
 			shell.EmptyState(egtx, tok.shaper, tok.col, tok.typ, chromeSurface(tok.col),
-				shell.EmptyStateProps{Line: "No note by that name.", LineStyle: tok.typ.BodyMedium})
+				shell.EmptyStateProps{Line: "No Note by That Name", LineStyle: tok.typ.BodyMedium})
 			return layout.Dimensions{Size: size}
 		}
 		return layout.Dimensions{Size: gtx.Constraints.Max}

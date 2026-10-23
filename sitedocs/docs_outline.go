@@ -165,9 +165,9 @@ func paintOutlineRail(gtx layout.Context, size image.Point, col tokens.PlatformC
 	}.Op())
 }
 
-// outlineEmptyLine is the tree column's own sentence when there is no
+// outlineEmptyLine is the tree column's own line when there is no
 // guide to take headings from.
-const outlineEmptyLine = "No headings."
+const outlineEmptyLine = "No Headings"
 
 // drawOutlineUnavailable draws the tree column when the guide could not be
 // loaded: the column is kept at its width with its fill and its seam, and
