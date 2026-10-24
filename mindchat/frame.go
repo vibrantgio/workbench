@@ -31,6 +31,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 
+	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/shell"
@@ -216,16 +217,12 @@ func (f *windowFrame) toolbar(m Model, t themed) shell.Toolbar {
 	}
 }
 
-// picker is the model picker as the arrangement's own overlay slot, and what
-// it is handed is the WHOLE toolbar row inside the content column's gutters
-// rather than a box cut to the control. That box is patterns/popover's
-// statement of the room the open menu may use: the surface hangs off the
-// anchor and the popover keeps it inside what it was given, so a box cut to
-// the control would leave the menu running off the window's trailing edge
-// with nothing to clamp against. Where the control stands in that room is
-// the popover's trailing alignment (modelmenu.go), which is why it lands on
-// the toolbar's own trailing gutter and not a few pixels inboard of it
-// whatever the model is called.
+// picker is the model picker as the arrangement's own overlay slot, handed
+// the whole toolbar row inside the content column's gutters rather than a box
+// cut to the control. The control stands at the popover's trailing alignment
+// (modelmenu.go), so it lands on the toolbar's own trailing gutter whatever
+// the model is called. The menu's surface is placed in the window's
+// available room, which is moved here by the gutter the row is offset by.
 func (f *windowFrame) picker(menu layout.Widget) layout.Widget {
 	if menu == nil {
 		return nil
@@ -238,7 +235,7 @@ func (f *windowFrame) picker(menu layout.Widget) layout.Widget {
 			return layout.Dimensions{}
 		}
 		defer op.Offset(image.Pt(lead, 0)).Push(gtx.Ops).Pop()
-		mgtx := gtx
+		mgtx := attachment.AvailableRoomAt(gtx, image.Pt(lead, 0))
 		mgtx.Constraints = layout.Constraints{Max: image.Pt(room, depth)}
 		return menu(mgtx)
 	}

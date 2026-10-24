@@ -333,6 +333,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			renameW, settingsW := next.First, next.Second
 			menuCell.Store(next.Third)
 			return func(gtx layout.Context) layout.Dimensions {
+				// The window's content area is the available room the model
+				// menu's surface is placed in; each layer between here and
+				// the menu moves it by the offset it places its child at.
+				gtx = shell.WithAvailableRoom(gtx, image.Rectangle{Max: gtx.Constraints.Max})
 				// The window's own plane, declared before anything is
 				// offset, so a dialog's scrim composites over the frame
 				// beneath it rather than blending with it.
