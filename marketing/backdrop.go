@@ -12,7 +12,7 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// BackdropLayer fills the window with the platform's window plane; it is the
+// BackdropLayer fills the window with the platform's window backdrop, level 0; it is the
 // fill under the wireframe field and re-emits whenever the OS colour scheme
 // changes.
 func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {

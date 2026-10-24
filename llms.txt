@@ -508,7 +508,7 @@ A chip is not a button at low prominence. A button is a fixture the developer
 places, always there, always offering the same action; a chip appears out of
 content and context, and a button's title stays a verb. MARKING A CHOICE IS
 THE FILTER CHIP'S JOB AND NO BUTTON'S, whatever the button's emphasis: the
-button's Filled/Tonal/Ghost variants are a colour axis and record no state.
+button's Filled/Tonal/Ghost emphases are a colour axis and record no state.
 
 COLOUR IS THE PLATFORM'S. The resting chip is Control under ControlText
 inside a Separator rim, over the fill you name (Props.Surface); a selected
@@ -855,9 +855,9 @@ STANDS WHERE, so an app assigns each region rather than deriving it.
     document by one seam and never set into a surface of their own. MEASURED,
     finder-window-untinted-{light,dark}.png. Do not re-derive that column
     per window: patterns/pane IS it — the run to the leading, top and bottom
-    edges, one seam down the trailing one, a top strip cut deep enough to
-    hold the window buttons on their own centre line, and a dismissed state
-    that takes no width at all.
+    edges, one seam down the trailing one, a dismissed state that takes no
+    width at all, and StripDp, the depth of its top strip, deep enough to hold
+    the window buttons on their own centre line.
   - A GROUP DIVIDES, A CARD SINGLES OUT. Which of the two a developer
     reaches for answers one question: am I dividing the page, or singling
     something out? A form in sections, a list of articles, a row of tiers —

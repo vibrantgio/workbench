@@ -28,7 +28,7 @@ var Apps = []App{
 		Name:  "Todos",
 		Dir:   "todos",
 		Blurb: "The minimal canonical MVU app: pure reducers, library components, live light/dark theming.",
-		// A filled clipboard rather than ActionDone's bare check: every card's
+		// A filled clipboard rather than ActionDone's bare check: every group's
 		// icon depicts its app's subject, and a check is this set's symbol for a
 		// completed thing, not for an app about them.
 		Icon: icons.ActionAssignmentTurnedIn,
@@ -36,13 +36,13 @@ var Apps = []App{
 	{
 		Name:  "Icon Browser",
 		Dir:   "iconbrowser",
-		Blurb: "Searchable catalogue of the 961 bundled Material icons, filtered live per keystroke.",
+		Blurb: "Searchable marks of components/icons above the Material Design icons.",
 		Icon:  icons.ImagePalette,
 	},
 	{
 		Name: "Site Docs",
 		Dir:  "sitedocs",
-		// Blurbs run to two lines on a card; a third pushes the Launch button
+		// Blurbs run to two lines in a group; a third pushes the Launch button
 		// out of line with the rest of the row.
 		Blurb: "Six-tab docs app: the guide with its outline tree, the theme, the inventory by group.",
 		Icon:  icons.ActionDescription,

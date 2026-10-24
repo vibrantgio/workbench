@@ -10,7 +10,7 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// BackdropLayer fills the window with the window's own plane. It is the
+// BackdropLayer fills the window with the window's own backdrop, level 0. It is the
 // bottom layer, re-emits whenever the OS appearance changes, and is the only
 // fill the resting window has: the list above it stands on this and paints
 // nothing of its own.

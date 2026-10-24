@@ -20,8 +20,8 @@ type invocation struct {
 // module version and the workbench checkout root (used only by the second
 // case).
 //
-// A released build names the app's own latest release: the apps are separate
-// products on separate tags, so what this build was compiled beside says
+// A released build names the app's own latest release: the workbench
+// repository carries no tags, so what this build was compiled beside says
 // nothing about what the app has published since. `go run <module>@latest`
 // also ignores whatever module the user is standing in, so it runs the same
 // from anywhere.
