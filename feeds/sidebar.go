@@ -21,6 +21,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/components/list"
@@ -945,12 +946,13 @@ func newDeleteConfirm(
 	}
 
 	popObs := popover.Popover(th, popover.Props{
-		OpenNow:   dc.open,
-		Anchor:    anchor,
-		Content:   content,
-		Placement: popover.Bottom,
-		Arbiter:   popArb,
-		OnDismiss: func(gtx layout.Context) { post(gtx, CloseDeleteConfirm{}) },
+		OpenNow:       dc.open,
+		Anchor:        anchor,
+		Content:       content,
+		Placement:     popover.Bottom,
+		Arbiter:       popArb,
+		AvailableRoom: attachment.AvailableRoom,
+		OnDismiss:     func(gtx layout.Context) { post(gtx, CloseDeleteConfirm{}) },
 	})
 	dc.cell.Store(layout.Widget(nil))
 	_ = popObs.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

@@ -33,6 +33,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/picker"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
@@ -136,12 +137,13 @@ func ModelMenu(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], pop
 	})
 
 	popObs := popover.Popover(th, popover.Props{
-		Open:      openObs,
-		Anchor:    anchorBox(slot(&anchorCell), ToolbarWidth),
-		Content:   slot(&contentCell),
-		Placement: popover.Bottom,
-		Align:     popover.AlignTrailing,
-		Arbiter:   popArb,
+		Open:          openObs,
+		Anchor:        anchorBox(slot(&anchorCell), ToolbarWidth),
+		Content:       slot(&contentCell),
+		Placement:     popover.Bottom,
+		Align:         popover.AlignTrailing,
+		Arbiter:       popArb,
+		AvailableRoom: attachment.AvailableRoom,
 		OnDismiss: func(gtx layout.Context) {
 			mvu.MessageOp{Message: CloseModelMenu{}}.Add(gtx.Ops)
 		},

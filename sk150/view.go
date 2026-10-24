@@ -24,6 +24,7 @@ import (
 	"github.com/vibrantgio/components/progress"
 	raster "github.com/vibrantgio/ivg/raster/gio"
 
+	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
@@ -346,7 +347,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 				Placement:     tooltip.Bottom,
 				Arbiter:       arb,
 				TriggerTag:    &demoClick,
-				AvailableRoom: tooltip.AvailableRoom,
+				AvailableRoom: attachment.AvailableRoom,
 			})
 		},
 	))
@@ -366,7 +367,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			Anchor:        hc.add(key, tags),
 			Placement:     tooltip.Bottom,
 			Arbiter:       arb,
-			AvailableRoom: tooltip.AvailableRoom,
+			AvailableRoom: attachment.AvailableRoom,
 		}))
 	}
 	for _, f := range presetFields {
@@ -515,7 +516,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			// page out, so the page is given the available room moved by
 			// that offset.
 			content := desktop.CapTop(desktop.TopInset, func(gtx layout.Context) layout.Dimensions {
-				return page(tooltip.AvailableRoomAt(gtx, image.Pt(0, gtx.Dp(desktop.TopInset()))))
+				return page(attachment.AvailableRoomAt(gtx, image.Pt(0, gtx.Dp(desktop.TopInset()))))
 			})
 			dialog := n.Fourth[1]
 			return func(gtx layout.Context) layout.Dimensions {
@@ -569,9 +570,9 @@ func Page(t themed, m Model, slots slotSet, tabsW layout.Widget) layout.Widget {
 			}),
 			vgap(12),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				gtx = tooltip.AvailableRoomAt(gtx, image.Pt(0, headH+gapH))
+				gtx = attachment.AvailableRoomAt(gtx, image.Pt(0, headH+gapH))
 				return layout.Inset{Left: Padding, Right: Padding}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return tabsW(tooltip.AvailableRoomAt(gtx, image.Pt(gtx.Dp(Padding), 0)))
+					return tabsW(attachment.AvailableRoomAt(gtx, image.Pt(gtx.Dp(Padding), 0)))
 				})
 			}),
 		}
@@ -606,7 +607,7 @@ func pageColumn(w layout.Widget) layout.Widget {
 		pad := gtx.Dp(Padding)
 		off := image.Pt(-pad, 0)
 		defer op.Offset(off).Push(gtx.Ops).Pop()
-		gtx = tooltip.AvailableRoomAt(gtx, off)
+		gtx = attachment.AvailableRoomAt(gtx, off)
 		gtx.Constraints = layout.Exact(image.Pt(size.X+2*pad, size.Y))
 		w(gtx)
 		return layout.Dimensions{Size: size}
@@ -701,7 +702,7 @@ func listContent(load func() (pageState, bool), state *list.State, foot func(Mod
 		scroll := func(gtx layout.Context) layout.Dimensions {
 			return list.LayoutScrollbar(gtx, state, bar, list.AnchorFor(bar), rows,
 				func(gtx layout.Context, row layout.Widget) layout.Dimensions {
-					gtx = tooltip.AvailableRoomAt(gtx, image.Pt(gtx.Dp(side.Left), gtx.Dp(side.Top)))
+					gtx = attachment.AvailableRoomAt(gtx, image.Pt(gtx.Dp(side.Left), gtx.Dp(side.Top)))
 					return side.Layout(gtx, row)
 				})
 		}
@@ -726,7 +727,7 @@ func listContent(load func() (pageState, bool), state *list.State, foot func(Mod
 			})))
 		}
 		children = append(children, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return scroll(tooltip.AvailableRoomAt(gtx, image.Pt(0, headH)))
+			return scroll(attachment.AvailableRoomAt(gtx, image.Pt(0, headH)))
 		}))
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	})
@@ -1299,12 +1300,12 @@ func gridRows(colW unit.Dp, left, right []layout.Widget) []layout.Widget {
 				// The flex centres each cell in the row's height, known
 				// only once both are measured, so it places the cells'
 				// tooltip surfaces once it has placed the cells.
-				return tooltip.PlacingFlex(gtx, layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle},
-					tooltip.PlacedRigid(fixed(colW, l)),
-					tooltip.PlacedRigid(func(gtx layout.Context) layout.Dimensions {
+				return attachment.PlacingFlex(gtx, layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle},
+					attachment.PlacedRigid(fixed(colW, l)),
+					attachment.PlacedRigid(func(gtx layout.Context) layout.Dimensions {
 						return layout.Dimensions{Size: image.Pt(gtx.Dp(compactGap), 0)}
 					}),
-					tooltip.PlacedRigid(fixed(colW, r)),
+					attachment.PlacedRigid(fixed(colW, r)),
 				)
 			},
 			vspace(4))

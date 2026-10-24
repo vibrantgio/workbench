@@ -16,6 +16,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/components/pagination"
@@ -340,7 +341,7 @@ func articlesMain(
 		Text:          "Unread",
 		Placement:     tooltip.Bottom,
 		Arbiter:       tipArb,
-		AvailableRoom: tooltip.AvailableRoom,
+		AvailableRoom: attachment.AvailableRoom,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		},
@@ -516,7 +517,7 @@ func overlayUnreadTooltip(table, tip layout.Widget) layout.Widget {
 		}
 		off := image.Pt(dims.Size.X-w, 0)
 		st := op.Offset(off).Push(gtx.Ops)
-		tipGtx := tooltip.AvailableRoomAt(gtx, off)
+		tipGtx := attachment.AvailableRoomAt(gtx, off)
 		tipGtx.Constraints = layout.Exact(image.Pt(w, h))
 		tip(tipGtx)
 		st.Pop()

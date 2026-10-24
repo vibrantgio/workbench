@@ -18,6 +18,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/markdown"
@@ -119,7 +120,7 @@ func (p *tipPad) window(gtx layout.Context) layout.Dimensions {
 	}
 	off := image.Pt(p.size.X-p.pageW, 0)
 	defer op.Offset(off).Push(gtx.Ops).Pop()
-	gtx = tooltip.AvailableRoomAt(gtx, off)
+	gtx = attachment.AvailableRoomAt(gtx, off)
 	gtx.Constraints = layout.Exact(image.Pt(p.pageW, p.size.Y))
 	p.page(gtx)
 	return layout.Dimensions{Size: p.size}

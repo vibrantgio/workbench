@@ -36,6 +36,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/breadcrumb"
 	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
@@ -562,7 +563,7 @@ func linkTipProps(address string, tips *tooltip.Arbiter, tip *linkTip) tooltip.P
 		Placement:     tooltip.Bottom,
 		Arbiter:       tips,
 		Anchor:        tip.anchor,
-		AvailableRoom: tooltip.AvailableRoom,
+		AvailableRoom: attachment.AvailableRoom,
 	}
 }
 
@@ -680,7 +681,7 @@ func layoutNotePage(
 	// that offset.
 	insetAt := image.Pt(gtx.Dp(inset.Left), gtx.Dp(inset.Top))
 	return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		gtx = tooltip.AvailableRoomAt(gtx, insetAt)
+		gtx = attachment.AvailableRoomAt(gtx, insetAt)
 		doc := docFor(m, note)
 		// The find keys are drained before anything lays out, so a step
 		// asked for on this frame is a step this frame's document makes.
@@ -762,7 +763,7 @@ func layoutNotePage(
 			})
 		}
 		body := layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			gtx = tooltip.AvailableRoomAt(gtx, image.Pt(0, headH))
+			gtx = attachment.AvailableRoomAt(gtx, image.Pt(0, headH))
 			// The reading keys are filtered on the column's own focus
 			// tag, so they move the document only while it holds the
 			// keyboard — never out from under the find field or the
@@ -770,7 +771,7 @@ func layoutNotePage(
 			return read.layout(gtx, doc, func(gtx layout.Context) layout.Dimensions {
 				pad := gtx.Dp(style.Gutter)
 				defer op.Offset(image.Pt(-pad, 0)).Push(gtx.Ops).Pop()
-				gtx = tooltip.AvailableRoomAt(gtx, image.Pt(-pad, 0))
+				gtx = attachment.AvailableRoomAt(gtx, image.Pt(-pad, 0))
 				gtx.Constraints.Max.X += pad
 				if gtx.Constraints.Min.X > 0 {
 					gtx.Constraints.Min.X += pad

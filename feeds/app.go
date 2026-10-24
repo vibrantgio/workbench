@@ -18,6 +18,7 @@ import (
 
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/alert"
+	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/composite"
 	"github.com/vibrantgio/components/icons"
@@ -362,7 +363,8 @@ func sharePopover(
 		// The anchor stands at the trailing end of the room the toolbar
 		// leaves it, which is where this window's acts stand and where the
 		// share's own reservation in the toolbar is.
-		Align: popover.AlignTrailing,
+		Align:         popover.AlignTrailing,
+		AvailableRoom: attachment.AvailableRoom,
 		OnDismiss: func(gtx layout.Context) {
 			post(gtx, CloseShare{})
 		},

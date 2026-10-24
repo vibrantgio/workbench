@@ -14,6 +14,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/patterns/shell"
@@ -63,7 +64,7 @@ func TestUnreadTooltipIsDrawnWholeAtTheWindowsTrailingEdge(t *testing.T) {
 	window := func(gtx layout.Context) layout.Dimensions {
 		gtx = shell.WithAvailableRoom(gtx, image.Rectangle{Max: gtx.Constraints.Max})
 		st := op.Offset(colAt).Push(gtx.Ops)
-		cgtx := tooltip.AvailableRoomAt(gtx, colAt)
+		cgtx := attachment.AvailableRoomAt(gtx, colAt)
 		cgtx.Constraints = layout.Exact(image.Pt(colW, size.Y))
 		rows(cgtx)
 		st.Pop()
