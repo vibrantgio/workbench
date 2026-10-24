@@ -161,7 +161,7 @@ type pageState struct {
 	t     themed
 	m     Model
 	slots slotSet
-	tp    *tips
+	hc    hintCells
 }
 
 // buildLayers returns the layer-builder the theme window renders: a backdrop
@@ -209,8 +209,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 		return s
 	}
 
-	tp := newTips()
+	hc := hintCells{}
 	reg := &registry{index: map[string]int{}}
+	// arb is the window's tooltip arbiter: the demo button's tooltip and
+	// every hint cell's are its members, so one shows at a time.
+	arb := tooltip.NewArbiter()
 	// Return in a field submits it through onSubmit (the field's own Set,
 	// or the editor's Save); the component clears the editor afterwards,
 	// so the cell is cleared with it.
@@ -238,10 +241,16 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			},
 		}))
 	}
+	// setClicks are the Set buttons' clickables by field key, the buttons'
+	// focus tags.
+	setClicks := map[string]*widget.Clickable{}
 	setButton := func(key string, mk func(string) any) {
+		click := new(widget.Clickable)
+		setClicks[key] = click
 		reg.add(key+".set", button.Button(th, button.Props{
-			Title:    "Set",
-			Emphasis: button.Tonal,
+			Title:     "Set",
+			Emphasis:  button.Tonal,
+			Clickable: click,
 			OnClick: func(gtx layout.Context) {
 				mvu.MessageOp{Message: mk(text(key))}.Add(gtx.Ops)
 			},
@@ -319,10 +328,10 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	reg.add("clear", button.Button(th, button.Props{
 		Title: "Clear", Emphasis: button.Tonal, Message: ClearProtection{},
 	}))
-	// The demo button and the tooltip that says how long the demo runs. The
-	// arbiter is this window's; the demo button's tooltip is its only member.
-	// The button's clickable is its focus tag, and the tooltip reads it to
-	// be shown while the button holds the focus.
+	// The demo button and the tooltip that says how long the demo runs, a
+	// member of the window's arbiter. The button's clickable is its focus
+	// tag, and the tooltip reads it to be shown while the button holds the
+	// focus.
 	var demoClick widget.Clickable
 	reg.add("demo", rx.SwitchMap(
 		button.Button(th, button.Props{
@@ -335,12 +344,46 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 				Text:          demoTooltip,
 				Trigger:       fixed(160, demo),
 				Placement:     tooltip.Bottom,
-				Arbiter:       tooltip.NewArbiter(),
+				Arbiter:       arb,
 				TriggerTag:    &demoClick,
 				AvailableRoom: shell.AvailableRoom,
 			})
 		},
 	))
+
+	// The hint cells' tooltips: one per settings cell, saying what the
+	// setting is, members of the window's arbiter. Each is anchored to its
+	// cell, which holds the keyboard while one of its controls does.
+	editorTag := func(key string) event.Tag {
+		if e, ok := editors[key]; ok {
+			return e
+		}
+		return nil
+	}
+	hint := func(key, text string, tags func() []event.Tag) {
+		reg.add("hint."+key, tooltip.Tooltip(th, tooltip.Props{
+			Text:          text,
+			Anchor:        hc.add(key, tags),
+			Placement:     tooltip.Bottom,
+			Arbiter:       arb,
+			AvailableRoom: shell.AvailableRoom,
+		}))
+	}
+	for _, f := range presetFields {
+		key := f.spec().Key
+		hint("p."+key, hints[key], func() []event.Tag { return []event.Tag{editorTag("p." + key)} })
+	}
+	for _, f := range deviceFields {
+		key := f.spec().Key
+		hint(key, hints[key], func() []event.Tag { return []event.Tag{editorTag(key), setClicks[key]} })
+	}
+	for s := Switch(0); s < switchCount; s++ {
+		key := switchSpecs[s].Key
+		if text, ok := hints[key]; ok {
+			click := &switchClicks[s]
+			hint(key, text, func() []event.Tag { return []event.Tag{click} })
+		}
+	}
 
 	// The override dialog's footer actions. Caller-owned clickables put
 	// them in the dialog's Tab cycle. Both stand on the dialog's own fill,
@@ -427,7 +470,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			{Title: "Monitor", Content: monitorContent(loadState, hov)},
 			{Title: "Presets", Content: listContent(loadState, presetsList, func(m Model) unit.Dp { return 4 + pageFoot(m) }, presetsArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
 				clearPresetFields(m)
-				return presetsRows(t, m, slots, tp)
+				return presetsRows(t, m, slots, hc)
 			})},
 			{Title: "Device", Content: deviceContent(loadState, deviceList)},
 		},
@@ -466,7 +509,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	return rx.Map(rx.CombineLatest4(themes, modelObs, widgets, overlays),
 		func(n rx.Tuple4[themed, Model, []layout.Widget, []layout.Widget]) layout.Widget {
 			slots := slotSet{list: n.Third, index: index}
-			stateCell.Store(pageState{t: n.First, m: n.Second, slots: slots, tp: tp})
+			stateCell.Store(pageState{t: n.First, m: n.Second, slots: slots, hc: hc})
 			page := Page(n.First, n.Second, slots, n.Fourth[0])
 			// The cap pushes the top inset as an offset before it lays the
 			// page out, so the page is given the available room moved by
@@ -477,7 +520,6 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			dialog := n.Fourth[1]
 			return func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
-				tp.winW = size.X
 				// The window's content area is the available room every
 				// tooltip below is placed in; each layer between here and
 				// a tooltip moves it by the offset it places its child at.
@@ -652,22 +694,43 @@ func listContent(load func() (pageState, bool), state *list.State, foot func(Mod
 		}
 		rows = append(append(rows, body...), vspace(foot(st.m)))
 		bar := st.t.listBar()
+		// The list places its rows only after measuring them, so the rows'
+		// tooltips record their surfaces, and the list adds them to the
+		// Surfaces set here, moved by each row's offset, to be placed in the
+		// available room.
 		scroll := func(gtx layout.Context) layout.Dimensions {
-			return list.LayoutScrollbar(gtx, state, bar, list.AnchorFor(bar), rows,
+			rgtx, s := tooltip.WithSurfaces(gtx)
+			dims := list.LayoutScrollbar(rgtx, state, bar, list.AnchorFor(bar), rows,
 				func(gtx layout.Context, row layout.Widget) layout.Dimensions {
+					gtx = shell.AvailableRoomAt(gtx, image.Pt(gtx.Dp(side.Left), gtx.Dp(side.Top)))
 					return side.Layout(gtx, row)
 				})
+			placeSurfacesAt(gtx, s, image.Point{})
+			return dims
 		}
 		if len(head) == 0 {
 			return scroll(gtx)
 		}
-		children := []layout.FlexChild{layout.Rigid(top)}
-		for _, h := range head {
-			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return side.Layout(gtx, h)
-			}))
+		// The flex lays the head out before the list and places the list
+		// under it, so the list's offset is the head's depth, known by the
+		// time the list is laid out.
+		var headH int
+		measured := func(w layout.Widget) layout.Widget {
+			return func(gtx layout.Context) layout.Dimensions {
+				dims := w(gtx)
+				headH += dims.Size.Y
+				return dims
+			}
 		}
-		children = append(children, layout.Flexed(1, scroll))
+		children := []layout.FlexChild{layout.Rigid(measured(top))}
+		for _, h := range head {
+			children = append(children, layout.Rigid(measured(func(gtx layout.Context) layout.Dimensions {
+				return side.Layout(gtx, h)
+			})))
+		}
+		children = append(children, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return scroll(shell.AvailableRoomAt(gtx, image.Pt(0, headH)))
+		}))
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	})
 }
@@ -957,7 +1020,7 @@ func deviceArriving(m Model) string {
 // Recall, or — while one is open — its editor with every field. The list of
 // slots returns its heading, the line under it and the column heads as the
 // head, which is drawn above the region that scrolls; the slots are the rows.
-func presetsRows(t themed, m Model, slots slotSet, tp *tips) (head, rows []layout.Widget) {
+func presetsRows(t themed, m Model, slots slotSet, hc hintCells) (head, rows []layout.Widget) {
 	p, typ := t.palette, t.typ
 	if !m.HavePresets {
 		return nil, nil
@@ -974,21 +1037,21 @@ func presetsRows(t themed, m Model, slots slotSet, tp *tips) (head, rows []layou
 		// walks the fields in reading order — with the input cutoff and
 		// the power-on switch on lines of their own: the setpoints, then
 		// LVP, then the output protections and budgets, then POn.
-		cell := func(col int, f Field) layout.Widget {
+		cell := func(f Field) layout.Widget {
 			key := f.spec().Key
-			return tp.wrap(t, "p."+key, hints[key], col, presetColWidth,
+			return hc.wrap("p."+key, slots,
 				compactField(t, f, pr.Value(f), slots.get("p."+key+".field")))
 		}
 		pon := switchSpecs[SwPresetPowerOn]
 		blank := vspace(0)
 		cells := []layout.Widget{
-			cell(0, FVSet), cell(1, FISet),
-			cell(0, FLVP), blank,
-			cell(0, FOVP), cell(1, FOCP),
-			cell(0, FOPP), cell(1, FOTP),
-			cell(0, FOHPH), cell(1, FOHPM),
-			cell(0, FOAH), cell(1, FOWH),
-			tp.wrap(t, pon.Key, hints[pon.Key], 0, presetColWidth,
+			cell(FVSet), cell(FISet),
+			cell(FLVP), blank,
+			cell(FOVP), cell(FOCP),
+			cell(FOPP), cell(FOTP),
+			cell(FOHPH), cell(FOHPM),
+			cell(FOAH), cell(FOWH),
+			hc.wrap(pon.Key, slots,
 				compactSwitch(t, textLine(typ, typ.Body, p.Label, pon.Short), pr.PowerOn, slots.get(pon.Key))), blank,
 		}
 		left, right := []layout.Widget{}, []layout.Widget{}
@@ -1062,25 +1125,25 @@ func presetTableRow(n int, p Preset) string {
 // deviceRows is the Device tab: the device-wide settings as a two-column
 // grid in the pane's own names — input and charging on the left, pane
 // behaviour on the right — each numeric cell with its own Set.
-func deviceRows(t themed, m Model, slots slotSet, tp *tips) []layout.Widget {
+func deviceRows(t themed, m Model, slots slotSet, hc hintCells) []layout.Widget {
 	p, typ := t.palette, t.typ
 	if !m.HaveD {
 		return nil
 	}
-	sw := func(col int, s Switch, on bool) layout.Widget {
+	sw := func(s Switch, on bool) layout.Widget {
 		spec := switchSpecs[s]
-		return tp.wrap(t, spec.Key, hints[spec.Key], col, deviceColWidth,
+		return hc.wrap(spec.Key, slots,
 			compactSwitch(t, textLine(typ, typ.Body, p.Label, spec.Short), on, slots.get(spec.Key)))
 	}
-	fr := func(col int, f Field) layout.Widget {
+	fr := func(f Field) layout.Widget {
 		spec := f.spec()
-		return tp.wrap(t, spec.Key, hints[spec.Key], col, deviceColWidth,
+		return hc.wrap(spec.Key, slots,
 			compactCell(t, textLine(typ, typ.Body, p.Label, spec.Short),
 				fmt.Sprintf(spec.Format, m.D.Value(f)), slots.get(spec.Key+".field"), slots.get(spec.Key+".set")))
 	}
 	d := m.D
-	left := []layout.Widget{sw(0, SwMPPT, d.MPPTOn), fr(0, FMPPTPct), fr(0, FBatCutoff), sw(0, SwCP, d.CPOn), fr(0, FCPWatts)}
-	right := []layout.Widget{sw(1, SwBeeper, d.Beeper), sw(1, SwFahrenheit, d.Fahrenheit), sw(1, SwLock, d.KeyLock), fr(1, FBacklight), fr(1, FSleep)}
+	left := []layout.Widget{sw(SwMPPT, d.MPPTOn), fr(FMPPTPct), fr(FBatCutoff), sw(SwCP, d.CPOn), fr(FCPWatts)}
+	right := []layout.Widget{sw(SwBeeper, d.Beeper), sw(SwFahrenheit, d.Fahrenheit), sw(SwLock, d.KeyLock), fr(FBacklight), fr(FSleep)}
 	rows := []layout.Widget{
 		func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -1187,7 +1250,7 @@ func deviceContent(load func() (pageState, bool), state *list.State) layout.Widg
 	// added under it. The list keeps the tab's 4 dp below its last row.
 	grid := listContent(load, state, func(Model) unit.Dp { return 4 }, deviceArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
 		st, _ := load()
-		return nil, deviceRows(t, m, slots, st.tp)
+		return nil, deviceRows(t, m, slots, st.hc)
 	})
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
@@ -1236,15 +1299,46 @@ func gridRows(colW unit.Dp, left, right []layout.Widget) []layout.Widget {
 		l, r := left[i], right[i]
 		rows = append(rows,
 			func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(fixed(colW, l)),
+				// The flex centres each cell in the row's height, known
+				// only once both are measured, so each cell records its
+				// tooltip's surface and the row places it where the cell
+				// was placed.
+				var cells [2]struct {
+					dims     layout.Dimensions
+					surfaces *tooltip.Surfaces
+				}
+				cell := func(i int, w layout.Widget) layout.FlexChild {
+					return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						gtx, cells[i].surfaces = tooltip.WithSurfaces(gtx)
+						cells[i].dims = fixed(colW, w)(gtx)
+						return cells[i].dims
+					})
+				}
+				dims := layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					cell(0, l),
 					hgap(compactGap),
-					layout.Rigid(fixed(colW, r)),
+					cell(1, r),
 				)
+				x := 0
+				for _, c := range cells {
+					placeSurfacesAt(gtx, c.surfaces, image.Pt(x, (dims.Size.Y-c.dims.Size.Y)/2))
+					x += c.dims.Size.X + gtx.Dp(compactGap)
+				}
+				return dims
 			},
 			vspace(4))
 	}
 	return rows
+}
+
+// placeSurfacesAt places the tooltip surfaces s recorded in a child this
+// layer placed at off, in the available room moved by off. Where gtx has a
+// tooltip.Surfaces set, this layer is itself placed only after it is
+// measured, and the surfaces are added to that Surfaces moved by off.
+func placeSurfacesAt(gtx layout.Context, s *tooltip.Surfaces, off image.Point) {
+	defer op.Offset(off).Push(gtx.Ops).Pop()
+	gtx = shell.AvailableRoomAt(gtx, off)
+	tooltip.PlaceSurfaces(gtx, s, shell.AvailableRoom(gtx))
 }
 
 // The compact grid's cell geometry: label, field (with its Set on the
