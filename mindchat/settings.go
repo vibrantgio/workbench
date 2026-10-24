@@ -205,14 +205,14 @@ func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]
 	// dialog's epoch, so a settings dialog that opens again opens closed.
 	defaultPickerObs := rx.SwitchMap(
 		rx.Map(modelObs, defaultPickerKeyOf).Pipe(rx.DistinctUntilChanged(func(a, b defaultPickerKey) bool { return a.id == b.id })),
-		func(k defaultPickerKey) rx.Observable[func(gtx layout.Context, above, below int) layout.Dimensions] {
+		func(k defaultPickerKey) rx.Observable[func(gtx layout.Context, room image.Rectangle) layout.Dimensions] {
 			entries := k.entries
 			// The available room the dialog's body leaves this field's menu.
 			// A component cannot see where its container put it, so the body
 			// says, on every frame, immediately before it lays the field out
 			// — and the field asks back on that same frame, on the one
 			// goroutine a layout tree is walked on.
-			var above, below int
+			var room image.Rectangle
 			field := picker.Field(th, picker.FieldProps{
 				Description: "Default model",
 				Options:     titlesOf(entries),
@@ -222,7 +222,7 @@ func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]
 				// bounds the menu is the available room the body has rather than a
 				// number this app picks: the picker caps the plane to what
 				// the side it drops on leaves and scrolls the rows inside it.
-				AvailableRoom: func(layout.Context) (int, int) { return above, below },
+				AvailableRoom: func(layout.Context) image.Rectangle { return room },
 				// The menu the field drops scrolls inside that room, and
 				// its bar follows the reader's "Show scroll bars" setting
 				// as the dialog's own column does.
@@ -236,16 +236,16 @@ func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]
 					mvu.MessageOp{Message: SetDefaultModel{Provider: e.provider, Model: e.model}}.Add(gtx.Ops)
 				},
 			})
-			return rx.Map(field, func(w layout.Widget) func(layout.Context, int, int) layout.Dimensions {
-				return func(gtx layout.Context, a, b int) layout.Dimensions {
-					above, below = a, b
+			return rx.Map(field, func(w layout.Widget) func(layout.Context, image.Rectangle) layout.Dimensions {
+				return func(gtx layout.Context, r image.Rectangle) layout.Dimensions {
+					room = r
 					return w(gtx)
 				}
 			})
 		})
 
 	var fieldCells struct{ name, url, key atomic.Value }
-	bodyObs := rx.Map(rx.CombineLatest3(themedObs, modelObs, defaultPickerObs), func(next rx.Tuple3[settingsThemed, Model, func(layout.Context, int, int) layout.Dimensions]) layout.Widget {
+	bodyObs := rx.Map(rx.CombineLatest3(themedObs, modelObs, defaultPickerObs), func(next rx.Tuple3[settingsThemed, Model, func(layout.Context, image.Rectangle) layout.Dimensions]) layout.Widget {
 		t, s, defaultPicker := next.First, next.Second.Settings, next.Third
 		return settingsBody(t, s, defaultPicker,
 			provClicks, tplClicks, &addClick, &removeClick, &refreshClick, &webClick,
@@ -366,7 +366,7 @@ func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]
 // spelling the check out — with the GLOBAL default-model row spanning the
 // bottom under both. The default-model picker is drawn LAST, over the body,
 // at the trailing edge of that row.
-func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layout.Context, above, below int) layout.Dimensions,
+func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layout.Context, room image.Rectangle) layout.Dimensions,
 	provClicks map[int]*widget.Clickable, tplClicks []*widget.Clickable,
 	addClick, removeClick, refreshClick, webClick *widget.Clickable,
 	provList *list.State,
@@ -474,7 +474,8 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layo
 		dg := gtx
 		dg.Constraints = layout.Exact(image.Pt(fieldW, pickerRow))
 		defer op.Offset(image.Pt(fieldX, size.Y-pickerRow)).Push(gtx.Ops).Pop()
-		defaultPicker(dg, size.Y-pickerRow, 0)
+		// The body's own rectangle, in the field's coordinates.
+		defaultPicker(dg, image.Rect(-fieldX, pickerRow-size.Y, fieldW, pickerRow))
 		return layout.Dimensions{Size: size}
 	}
 }

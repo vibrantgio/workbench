@@ -63,7 +63,7 @@ func TestUnreadTooltipIsDrawnWholeAtTheWindowsTrailingEdge(t *testing.T) {
 	window := func(gtx layout.Context) layout.Dimensions {
 		gtx = shell.WithAvailableRoom(gtx, image.Rectangle{Max: gtx.Constraints.Max})
 		st := op.Offset(colAt).Push(gtx.Ops)
-		cgtx := shell.AvailableRoomAt(gtx, colAt)
+		cgtx := tooltip.AvailableRoomAt(gtx, colAt)
 		cgtx.Constraints = layout.Exact(image.Pt(colW, size.Y))
 		rows(cgtx)
 		st.Pop()

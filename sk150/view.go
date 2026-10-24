@@ -346,7 +346,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 				Placement:     tooltip.Bottom,
 				Arbiter:       arb,
 				TriggerTag:    &demoClick,
-				AvailableRoom: shell.AvailableRoom,
+				AvailableRoom: tooltip.AvailableRoom,
 			})
 		},
 	))
@@ -366,7 +366,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			Anchor:        hc.add(key, tags),
 			Placement:     tooltip.Bottom,
 			Arbiter:       arb,
-			AvailableRoom: shell.AvailableRoom,
+			AvailableRoom: tooltip.AvailableRoom,
 		}))
 	}
 	for _, f := range presetFields {
@@ -515,7 +515,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			// page out, so the page is given the available room moved by
 			// that offset.
 			content := desktop.CapTop(desktop.TopInset, func(gtx layout.Context) layout.Dimensions {
-				return page(shell.AvailableRoomAt(gtx, image.Pt(0, gtx.Dp(desktop.TopInset()))))
+				return page(tooltip.AvailableRoomAt(gtx, image.Pt(0, gtx.Dp(desktop.TopInset()))))
 			})
 			dialog := n.Fourth[1]
 			return func(gtx layout.Context) layout.Dimensions {
@@ -569,9 +569,9 @@ func Page(t themed, m Model, slots slotSet, tabsW layout.Widget) layout.Widget {
 			}),
 			vgap(12),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				gtx = shell.AvailableRoomAt(gtx, image.Pt(0, headH+gapH))
+				gtx = tooltip.AvailableRoomAt(gtx, image.Pt(0, headH+gapH))
 				return layout.Inset{Left: Padding, Right: Padding}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return tabsW(shell.AvailableRoomAt(gtx, image.Pt(gtx.Dp(Padding), 0)))
+					return tabsW(tooltip.AvailableRoomAt(gtx, image.Pt(gtx.Dp(Padding), 0)))
 				})
 			}),
 		}
@@ -606,7 +606,7 @@ func pageColumn(w layout.Widget) layout.Widget {
 		pad := gtx.Dp(Padding)
 		off := image.Pt(-pad, 0)
 		defer op.Offset(off).Push(gtx.Ops).Pop()
-		gtx = shell.AvailableRoomAt(gtx, off)
+		gtx = tooltip.AvailableRoomAt(gtx, off)
 		gtx.Constraints = layout.Exact(image.Pt(size.X+2*pad, size.Y))
 		w(gtx)
 		return layout.Dimensions{Size: size}
@@ -694,19 +694,16 @@ func listContent(load func() (pageState, bool), state *list.State, foot func(Mod
 		}
 		rows = append(append(rows, body...), vspace(foot(st.m)))
 		bar := st.t.listBar()
-		// The list places its rows only after measuring them, so the rows'
-		// tooltips record their surfaces, and the list adds them to the
-		// Surfaces set here, moved by each row's offset, to be placed in the
-		// available room.
+		// The list places its rows only after measuring them, and places
+		// the rows' tooltip surfaces in the available room moved by each
+		// row's offset; each row moves it on by the inset it places its
+		// content at.
 		scroll := func(gtx layout.Context) layout.Dimensions {
-			rgtx, s := tooltip.WithSurfaces(gtx)
-			dims := list.LayoutScrollbar(rgtx, state, bar, list.AnchorFor(bar), rows,
+			return list.LayoutScrollbar(gtx, state, bar, list.AnchorFor(bar), rows,
 				func(gtx layout.Context, row layout.Widget) layout.Dimensions {
-					gtx = shell.AvailableRoomAt(gtx, image.Pt(gtx.Dp(side.Left), gtx.Dp(side.Top)))
+					gtx = tooltip.AvailableRoomAt(gtx, image.Pt(gtx.Dp(side.Left), gtx.Dp(side.Top)))
 					return side.Layout(gtx, row)
 				})
-			placeSurfacesAt(gtx, s, image.Point{})
-			return dims
 		}
 		if len(head) == 0 {
 			return scroll(gtx)
@@ -729,7 +726,7 @@ func listContent(load func() (pageState, bool), state *list.State, foot func(Mod
 			})))
 		}
 		children = append(children, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return scroll(shell.AvailableRoomAt(gtx, image.Pt(0, headH)))
+			return scroll(tooltip.AvailableRoomAt(gtx, image.Pt(0, headH)))
 		}))
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	})
@@ -1300,45 +1297,19 @@ func gridRows(colW unit.Dp, left, right []layout.Widget) []layout.Widget {
 		rows = append(rows,
 			func(gtx layout.Context) layout.Dimensions {
 				// The flex centres each cell in the row's height, known
-				// only once both are measured, so each cell records its
-				// tooltip's surface and the row places it where the cell
-				// was placed.
-				var cells [2]struct {
-					dims     layout.Dimensions
-					surfaces *tooltip.Surfaces
-				}
-				cell := func(i int, w layout.Widget) layout.FlexChild {
-					return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						gtx, cells[i].surfaces = tooltip.WithSurfaces(gtx)
-						cells[i].dims = fixed(colW, w)(gtx)
-						return cells[i].dims
-					})
-				}
-				dims := layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					cell(0, l),
-					hgap(compactGap),
-					cell(1, r),
+				// only once both are measured, so it places the cells'
+				// tooltip surfaces once it has placed the cells.
+				return tooltip.PlacingFlex(gtx, layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle},
+					tooltip.PlacedRigid(fixed(colW, l)),
+					tooltip.PlacedRigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Dimensions{Size: image.Pt(gtx.Dp(compactGap), 0)}
+					}),
+					tooltip.PlacedRigid(fixed(colW, r)),
 				)
-				x := 0
-				for _, c := range cells {
-					placeSurfacesAt(gtx, c.surfaces, image.Pt(x, (dims.Size.Y-c.dims.Size.Y)/2))
-					x += c.dims.Size.X + gtx.Dp(compactGap)
-				}
-				return dims
 			},
 			vspace(4))
 	}
 	return rows
-}
-
-// placeSurfacesAt places the tooltip surfaces s recorded in a child this
-// layer placed at off, in the available room moved by off. Where gtx has a
-// tooltip.Surfaces set, this layer is itself placed only after it is
-// measured, and the surfaces are added to that Surfaces moved by off.
-func placeSurfacesAt(gtx layout.Context, s *tooltip.Surfaces, off image.Point) {
-	defer op.Offset(off).Push(gtx.Ops).Pop()
-	gtx = shell.AvailableRoomAt(gtx, off)
-	tooltip.PlaceSurfaces(gtx, s, shell.AvailableRoom(gtx))
 }
 
 // The compact grid's cell geometry: label, field (with its Set on the

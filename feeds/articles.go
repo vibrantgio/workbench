@@ -22,7 +22,6 @@ import (
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/table"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/system/naming"
@@ -341,7 +340,7 @@ func articlesMain(
 		Text:          "Unread",
 		Placement:     tooltip.Bottom,
 		Arbiter:       tipArb,
-		AvailableRoom: shell.AvailableRoom,
+		AvailableRoom: tooltip.AvailableRoom,
 		Trigger: func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: gtx.Constraints.Max}
 		},
@@ -517,7 +516,7 @@ func overlayUnreadTooltip(table, tip layout.Widget) layout.Widget {
 		}
 		off := image.Pt(dims.Size.X-w, 0)
 		st := op.Offset(off).Push(gtx.Ops)
-		tipGtx := shell.AvailableRoomAt(gtx, off)
+		tipGtx := tooltip.AvailableRoomAt(gtx, off)
 		tipGtx.Constraints = layout.Exact(image.Pt(w, h))
 		tip(tipGtx)
 		st.Pop()

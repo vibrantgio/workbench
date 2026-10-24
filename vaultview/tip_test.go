@@ -119,7 +119,7 @@ func (p *tipPad) window(gtx layout.Context) layout.Dimensions {
 	}
 	off := image.Pt(p.size.X-p.pageW, 0)
 	defer op.Offset(off).Push(gtx.Ops).Pop()
-	gtx = shell.AvailableRoomAt(gtx, off)
+	gtx = tooltip.AvailableRoomAt(gtx, off)
 	gtx.Constraints = layout.Exact(image.Pt(p.pageW, p.size.Y))
 	p.page(gtx)
 	return layout.Dimensions{Size: p.size}
