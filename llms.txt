@@ -15,7 +15,7 @@ Vibrant Gio is a design system for native desktop apps (macOS/Windows/Linux)
 built on gioui.org, with a Functional Reactive Programming application model
 using github.com/reactivego/rx generics-based observables. This file tells a
 coding assistant everything needed to scaffold and build a correct Vibrant Gio
-application. The full architecture rationale is in DESIGN.md in
+application. The system's architecture is described in DESIGN.md in
 github.com/vibrantgio/design; the apps in workbench (todos/, sitedocs/,
 feeds/, mindchat/, iconbrowser/, themer/, vaultview/, marketing/, sk150/) are the canonical
 usage references — todos/ is the minimal complete app; read it first, and
@@ -107,12 +107,12 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      scrollarea (a horizontal viewport for content that must
                      not be reflowed — a code fence, an over-wide diagram),
                      toast (the status signal for an event — a small
-                     floating surface on the window's plane under the
+                     floating surface on the backdrop under the
                      platform's shadow, its status in the leading edge,
                      drawn without a queue),
                      tooltip (the signal naming a control or explaining
                      another signal on demand — a small floating annotation
-                     beside its trigger, the window's plane inside a
+                     beside its trigger, the window's background inside a
                      Separator hairline, text only, one visible at a time
                      per arbiter),
                      breadcrumb (going back up the hierarchy — each step a
@@ -635,7 +635,7 @@ from it: nothing is derived, no palette, no second hue.
 ### The names, by what they answer for
 
   ```
-  the window's plane      WindowBackground; UnderPageBackground is the
+  the window's surface    WindowBackground; UnderPageBackground is the
                           backdrop showing around an inset object
   the chrome regions      SidebarMaterial — sidebars, toolbars, navbars,
                           inspectors, status bars, panes
@@ -735,7 +735,7 @@ Adopting it is one line —
 — and with no file, or a damaged one, Options() is nil and the stream
 follows the platform's own accent. The chosen colour beats the OS accent; light/dark still
 follows the desktop, live. An app that keeps a pre-emission fallback set (an
-atomic cell read at frame time) seeds it from tokens.PlatformLight or
+atomic cell read at frame time) takes its first value from tokens.PlatformLight or
 PlatformDark, which is what every platform but macOS carries anyway.
 Goldens stay on the recorded sets: adoption is runtime, never baked in.
 
@@ -789,7 +789,7 @@ PLATFORM'S, read off the platform per appearance, never derived from
 another level's; no level is lighter or darker than another by rule.
 
   ```
-  backdrop   nothing: the window's own plane, showing wherever
+  backdrop   nothing: the window's own surface, showing wherever
              nothing stands                        WindowBackground
   chrome     the chrome regions — navbar, toolbar, sidebar,
              inspector, status bar, pane           SidebarMaterial
@@ -812,7 +812,7 @@ thing by its shadow. A field inside a card is raised on the card the same
 way. Cards do not nest: grouping within a card is its structure.
 
 Do not expect the levels to stand far apart. On macOS 26 the light
-appearance draws the window's plane, the content's fill and the
+appearance draws the backdrop, the content's fill and the
 chrome material as the same white, so THE SEAM IS WHAT SEPARATES THEM — a
 Separator hairline over whatever is beneath. In the dark appearance the
 chrome material reads on its own.
@@ -852,7 +852,7 @@ STANDS WHERE, so an app assigns each region rather than deriving it.
   - A CHROME COLUMN RUNS TO THE WINDOW'S EDGES. A sidebar a button slides
     out of the window, an inspector beside the content, both fill with the
     chrome material and both run to the window's own edges, parted from the
-    document by one seam and never set into a plane of their own. MEASURED,
+    document by one seam and never set into a surface of their own. MEASURED,
     finder-window-untinted-{light,dark}.png. Do not re-derive that column
     per window: patterns/pane IS it — the run to the leading, top and bottom
     edges, one seam down the trailing one, a top strip cut deep enough to
@@ -935,9 +935,8 @@ window out on shell.TwoColumn, the tree rail as its pane and the outline
 and backlinks as its Inspector, both filled with the chrome material, the
 pane inside its own rim and the Inspector behind a Separator seam; and
 tree.go marks the open note with the sidebar
-pattern's pill. Why the
-grammar is this shape rather than another is in the design repository's
-rationale document:
+pattern's pill. The levels and the colour model this grammar follows are
+described in the design repository's DESIGN.md:
 
     https://raw.githubusercontent.com/vibrantgio/design/master/DESIGN.md
 
@@ -1394,7 +1393,7 @@ paths on purpose (golden determinism); leave those alone.
   must flow from the Model, not be captured as static ints.
 - Radius tokens: tokens.Radius.Full is a 9999 dp pill sentinel and Gio's
   clip.RRect does not clamp — pass it raw and paint sprays across the
-  window's plane. Use components/layout.Pill, which clamps to min(w,h)/2.
+  window's own surface. Use components/layout.Pill, which clamps to min(w,h)/2.
 - theme/system.LiveTheme polls the OS. The reference apps pass one
   second; the appearance stream is cold today — each subscriber runs its
   own poll loop — so wire LiveTheme once per window and let the theme
@@ -1453,7 +1452,7 @@ testable reducers (redux_test.go), components button/checkbox/list, a
 dialog, live light/dark, and the add action as a toolbar action
 (addaction.go); theme.go is the minimal token-adapter recipe (PaletteFrom
 resolving the window structure above in one function — the list is on the
-window's own plane and paints no fill of its own, the dialog over it is
+window's own surface and paints no fill of its own, the dialog over it is
 WindowBackground, and the field inside the dialog TextBackground inside
 FieldEdge — plus TypeFrom picking Typography roles), and
 window_render_test.go is the smallest example of asserting those fills off
@@ -1487,7 +1486,7 @@ Also: trash-backed session-wide undo (Cmd/Ctrl-Z), Cmd/Ctrl-N, Cmd/Ctrl-,
 and Cmd/Ctrl-\ accelerators, the dialog-form recipe
 (Seed/FocusTag/DynamicFocusTags), list scrollbars, and a global-shortcut
 key area done right. Chatting
-needs OPENAI_API_KEY in the environment (or .env) on first run to seed
+needs OPENAI_API_KEY in the environment (or .env) on first run to fill in
 the config
 
 ### The front door (root)
@@ -1547,7 +1546,7 @@ chosen face and style, a text field and two push buttons — so every choice
 above it moves something in it. The colour set itself, name by name, is the
 gallery's colour board and is not repeated here. One appearance at a time,
 and one switch at the top of the window to change it: it moves the window's
-own plane and everything on it, opening on the desktop's setting and taking
+own surface and everything on it, opening on the desktop's setting and taking
 the window's own answer from then on. The reference for OS file drops
 (mvu/desktop's ZoneGroup + DropTarget merged into the loop as messages, a
 window-wide zone, hover highlight). A path argument takes the same path a
@@ -1595,7 +1594,7 @@ and Update folds each one in. Read doc.go first: it states the link contract the
 The one write is a GFM task marker: OnTaskClick splices `[ ]` ↔ `[x]` in
 the file before the handler returns, and nothing else is writable. Also
 the reference for adopting a kept theme colour: theme/system.LiveTheme
-with brand.Kept().Options(), and the same value seeding mirrorTokens' first
+with brand.Kept().Options(), and the same value filling mirrorTokens' first
 cell. And the window the structure grammar was read off: its backdrop
 UnderPageBackground flattened onto WindowBackground under the
 full-size-content treatment, the rail and the Inspector filled with the
@@ -1617,5 +1616,5 @@ memory group's name (M5) on the command line opens on that tab or that preset.
 Every read and write is an mvu command whose result arrives as a message
 (actions.go)
 
-DESIGN.md lives in github.com/vibrantgio/design if you want the
-architecture rationale. You do not need it to write an app.
+DESIGN.md in github.com/vibrantgio/design describes the system's
+architecture. You do not need it to write an app.
