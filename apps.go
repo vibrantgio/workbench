@@ -44,7 +44,7 @@ var Apps = []App{
 		Dir:  "sitedocs",
 		// Blurbs run to two lines on a card; a third pushes the Launch button
 		// out of line with the rest of the row.
-		Blurb: "Five-tab docs app: the guide with its outline tree, the theme, the inventory by group.",
+		Blurb: "Six-tab docs app: the guide with its outline tree, the theme, the inventory by group.",
 		Icon:  icons.ActionDescription,
 	},
 	{

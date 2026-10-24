@@ -6,7 +6,7 @@ analogous to what a platform's own design system is for that platform, but built
 Reactive Programming application model on top of
 [reactivego/rx](https://github.com/reactivego/rx).
 
-This repository is the **workbench**: eight complete example applications
+This repository is the **workbench**: nine complete example applications
 that exercise the design system end-to-end, and the workbench window that opens
 them.
 
@@ -14,20 +14,24 @@ them.
 go run github.com/vibrantgio/workbench@latest
 ```
 
-That is the workbench window: the package at this repository's root, with the apps
-as cards on a live 3D field. Each card fetches and runs that app's own
-latest release, because each app is a separate product on its own tags.
+That is the workbench window: the package at this repository's root, with
+each app as a group over a live 3D field. A group's launch button runs
+`go run github.com/vibrantgio/workbench/<app>@latest` when the workbench
+itself was installed that way; `workbench` carries no tags, so `@latest`
+is the newest commit on its default branch. Started from a checkout, the
+workbench runs `go run .` in the app's own directory instead.
 
 ## The stack
 
-The design system is layered — each layer only depends on the ones below it:
+The design system is layered — each layer imports only the layers below it
+and the supporting libraries:
 
 | Layer | Module | Role |
 |---|---|---|
-| Patterns | [`patterns`](https://github.com/vibrantgio/patterns) | Prebuilt application patterns: shells, tables, dialogs, popovers, tabs, notifications, navbars, sidebars, pagination, marketing sections |
-| Effects | [`effects`](https://github.com/vibrantgio/effects) | Motion & vibrancy: tweens, spring physics, glow, depth, a shared animation conductor |
-| Theme runtime | [`theme`](https://github.com/vibrantgio/theme) | Reactive theming: live OS dark-mode/accent tracking, preference persistence, animated theme transitions, window integration |
-| Foundation | [`components`](https://github.com/vibrantgio/components) | Component catalogue: buttons, inputs, lists, icons, toasts, layout, focus/a11y, tokens, theme contract, keyed identity, coordination |
+| Patterns | [`patterns`](https://github.com/vibrantgio/patterns) | Application patterns: shells, panes, splitters, tables, dialogs, popovers, tabs, notifications, navbars, sidebars, groups, cards, accordions, marketing sections |
+| Effects | [`effects`](https://github.com/vibrantgio/effects) | Motion: tweens, spring physics, glow, depth, blur, theme transitions, a shared animation conductor |
+| Components | [`components`](https://github.com/vibrantgio/components) | Component catalogue: buttons, inputs, lists, pickers, chips, badges, alerts, toasts, tooltips, pagination, progress, scrollbars, icons, layout, keyed identity, coordination |
+| Theme | [`theme`](https://github.com/vibrantgio/theme) | The theme contract, design tokens, colour, typography, accessibility, live OS appearance and accent tracking, preference persistence, window integration |
 | Runtime | [`mvu`](https://github.com/vibrantgio/mvu) | Model-View-Update runtime for Gio: `NewWindow`, `MessageOp` component protocol, commands |
 
 Supporting libraries: [`seen`](https://github.com/vibrantgio/seen) (3D scenes
@@ -38,21 +42,28 @@ physics), [`svg`](https://github.com/vibrantgio/svg) and
 [`noise`](https://github.com/vibrantgio/noise),
 [`style`](https://github.com/vibrantgio/style),
 [`textdraw`](https://github.com/vibrantgio/textdraw),
-[`font`](https://github.com/vibrantgio/font).
+[`font`](https://github.com/vibrantgio/font),
+[`markdown`](https://github.com/vibrantgio/markdown) (markdown rendering),
+[`kiwi`](https://github.com/vibrantgio/kiwi) (constraint solving),
+[`csg`](https://github.com/vibrantgio/csg),
+[`gradient`](https://github.com/vibrantgio/gradient),
+[`circle`](https://github.com/vibrantgio/circle).
 
 ## The example apps
 
 Each app is a full, runnable product built the way a real Vibrant Gio app is
-meant to be built — MVU state, live theming from theme, patterns patterns:
+meant to be built — MVU state, live theming from theme, layouts from patterns:
 
-- **[`todos/`](./todos)** — **start here**: the minimal canonical MVU app
-  (~700 lines). One window, one Model, pure reducers, library components,
+- **[`todos/`](./todos)** — **start here**: the minimal canonical MVU app.
+  One window, one Model, pure reducers, library components,
   live OS light/dark theming — the smallest complete demonstration of the
   bootstrap every other app follows.
-- **[`iconbrowser/`](./iconbrowser)** — a searchable catalogue of the 961
-  Material Design icons the apps draw from: type to filter the scrolling
-  grid live, every symbol captioned with the name to import. Also the
-  reference for components `TextField` + per-keystroke MVU updates.
+- **[`iconbrowser/`](./iconbrowser)** — a searchable catalogue of the symbols the apps
+  draw from, in two sets: the design system's own marks from
+  `components/icons` above the Material Design icons. Type to filter both
+  live; every symbol is captioned with the name to write. Also the
+  reference for `components/input`'s `SearchField` with per-keystroke MVU
+  updates.
 - **[`sitedocs/`](./sitedocs)** — the documentation app, six tabs over
   `patterns/tabs`: **Docs** renders the application guide (`llms.txt`) as
   one markdown document with a `##`/`###` outline tree that scrolls it;
@@ -67,9 +78,9 @@ meant to be built — MVU state, live theming from theme, patterns patterns:
 - **[`vaultview/`](./vaultview)** — a read-only viewer for a folder of
   Obsidian-style markdown notes: a disclosing file tree, frontmatter as a
   properties pane, `[[wikilinks]]` that resolve and navigate, history
-  with back/forward, and a backlinks aside. Also the reference for
-  document-centric navigation — a history stack, a nesting tree, and the
-  shell's aside slot in use. See its [README](./vaultview/README.md).
+  with back/forward, and the outline and backlinks in an inspector. Also
+  the reference for document-centric navigation — a history stack, a
+  nesting tree, and `shell.TwoColumn`'s inspector column in use. See its [README](./vaultview/README.md).
 - **[`themer/`](./themer)** — the chooser for the theme colour and for
   what a theme says about code, laid out as a column of titled groups in
   reading order: the picture and the colours it gave, the theme colour, the
@@ -120,21 +131,15 @@ that reports one launched process (Started → Exited).
 ## Documentation
 
 - **[DESIGN.md](https://github.com/vibrantgio/design/blob/master/DESIGN.md)**
-  — the design system's architecture and rationale. It lived in this
-  repository until G0E.3 (its pre-move history is in this repo's log) and now
-  sits in [vibrantgio/design](https://github.com/vibrantgio/design) beside
-  the published token bundle, together with its archived first edition
-  `DESIGN-v1.md`.
+  — the design system's architecture and rationale, in
+  [vibrantgio/design](https://github.com/vibrantgio/design) beside the
+  published token bundle.
 - **[llms.txt](https://raw.githubusercontent.com/vibrantgio/workbench/master/llms.txt)**
   — a condensed guide for AI coding assistants (Claude, etc.) to write
-  applications against the Vibrant Gio packages. It is maintained once, at the
-  root of [vibrantgio/organisation](https://github.com/vibrantgio/organisation), and
-  this repository links it rather than keeping a copy or a pointer file.
+  applications against the Vibrant Gio packages. It is kept here, at this
+  repository's root, and the Site Docs app's Docs tab renders it.
 - Development planning is in one place,
-  [vibrantgio/organisation](https://github.com/vibrantgio/organisation), not here. The
-  finished plan this repository was built against, its performance baselines
-  and its feedback notes were removed once that became true; they survive in
-  this repository's git log.
+  [vibrantgio/organisation](https://github.com/vibrantgio/organisation), not here.
 
 ## Requirements
 
