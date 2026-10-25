@@ -75,7 +75,6 @@ func staticThemed(p tokens.PlatformColors) themed {
 			Motion:     rx.Of(tokens.Motion),
 			Spacing:    rx.Of(tokens.Spacing),
 			Radius:     rx.Of(tokens.Radius),
-			Elevation:  rx.Of(tokens.Elevation),
 		},
 		palette:    PaletteFrom(p),
 		platform:   p,

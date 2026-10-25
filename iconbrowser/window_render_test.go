@@ -72,7 +72,6 @@ func staticTheme(c tokens.PlatformColors, typo tokens.Typography) theme.Theme {
 		Motion:     rx.Of(tokens.Motion),
 		Spacing:    rx.Of(tokens.Spacing),
 		Radius:     rx.Of(tokens.Radius),
-		Elevation:  rx.Of(tokens.Elevation),
 	}
 }
 
