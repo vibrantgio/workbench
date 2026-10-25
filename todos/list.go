@@ -77,7 +77,7 @@ func scrollingList(rows []layout.Widget, bar scrollbar.Style, state *complist.St
 const emptyListLine = "No Todos"
 
 // EmptyList draws the list's empty state over the frame gtx gives: the line
-// centred both ways at [shell.EmptyStateSizeSp], in the tertiary label colour
+// centred both ways in the Headline Medium role, in the tertiary label colour
 // over the window's own plane.
 //
 // The list is the window's one column, so the frame is the window's full

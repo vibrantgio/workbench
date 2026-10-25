@@ -144,7 +144,7 @@ type Type struct {
 	Small  textdraw.TextStyle // the notice and connection lines
 	Status textdraw.TextStyle // a footer of status text
 	Mono   textdraw.TextStyle // aligned digit columns at body size
-	Table  textdraw.TextStyle // the preset table: compact aligned columns
+	Table  textdraw.TextStyle // the preset table: aligned columns in the Code role
 }
 
 // appShaper hands the app's typography its shaper. The window draws with the
@@ -168,16 +168,11 @@ func TypeFrom(t tokens.Typography) Type {
 	set.Size = 16
 	set.Weight = 700
 	stack := t.Code
-	stack.Size = 14
 	stack.Weight = 700
-	table := t.Code
-	table.Size = 12
-	// The platform's status bar draws its text at 11 pt in the system font's
-	// regular weight with monospaced digits, read off Finder's in the
-	// reference's "What the status bar measures"; Roboto's default digits
-	// are monospaced.
-	status := t.BodyMedium
-	status.Size = 11
+	// The platform's status bar draws its text in the system font's regular
+	// weight with monospaced digits, read off Finder's in the reference's
+	// "What the status bar measures". Roboto's default digits are monospaced.
+	status := t.LabelSmall
 	status.Weight = tokens.WeightRegular
 	return Type{
 		Shaper: appShaper(t),
@@ -190,7 +185,7 @@ func TypeFrom(t tokens.Typography) Type {
 		Small:  textStyle(t.BodyMedium),
 		Status: textStyle(status),
 		Mono:   textStyle(t.Code),
-		Table:  textStyle(table),
+		Table:  textStyle(t.Code),
 	}
 }
 

@@ -92,12 +92,12 @@ func TestTheEmptyProviderWellCentresItsLineInTheRowsFrame(t *testing.T) {
 			// The size is the rows' own and not the content column's
 			// measured reading, which is twice it.
 			rows := wellLineHeight(t, th, th.typ.BodyMedium)
-			column := th.typ.BodyLarge
-			column.Size, column.LineHeight = shell.EmptyStateSizeSp, 0
+			column := th.typ.HeadlineMedium
+			column.LineHeight = 0
 			if h := got.Dy(); h != rows {
 				t.Errorf("the well sets its line %d pixels tall, want the rows' own %d", h, rows)
 			} else if h == wellLineHeight(t, th, column) {
-				t.Errorf("the well sets its line at the content column's reading, %d sp", shell.EmptyStateSizeSp)
+				t.Errorf("the well sets its line at the content column's reading, %v sp", column.Size)
 			}
 
 			// And it spends the platform's tertiary label over the fill

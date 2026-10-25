@@ -74,13 +74,12 @@ func TestTheGridsEmptyStateCentresInItsFrame(t *testing.T) {
 					float64(c)/2, float64(want)/2)
 			}
 
-			// At the size a content region's empty state is measured at,
-			// which is the one the type set carries no role for.
-			style := tokens.DefaultTypography.BodyLarge
-			style.Size, style.LineHeight = shell.EmptyStateSizeSp, 0
+			// In the role a content region's empty state is set in.
+			style := tokens.DefaultTypography.HeadlineMedium
+			style.LineHeight = 0
 			if h, want := got.Dy(), gridLineHeight(t, tc.c, style); h != want {
 				t.Errorf("the line stands %d pixels tall, want the %d sp reading's %d",
-					h, int(shell.EmptyStateSizeSp), want)
+					h, int(style.Size), want)
 			}
 
 			// And it spends the platform's tertiary label over the plane.
