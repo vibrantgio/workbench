@@ -54,12 +54,6 @@ var Apps = []App{
 		Icon:  icons.ActionViewList,
 	},
 	{
-		Name:  "Vault View",
-		Dir:   "vaultview",
-		Blurb: "Obsidian vault reader: file tree, breadcrumbs, outline and backlinks, markdown notes.",
-		Icon:  icons.ActionBook,
-	},
-	{
 		Name:  "Themer",
 		Dir:   "themer",
 		Blurb: "The theme colour: the platform's accent, a colour out of a picture, or one written in.",

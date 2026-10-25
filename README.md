@@ -6,7 +6,7 @@ analogous to what a platform's own design system is for that platform, but built
 Reactive Programming application model on top of
 [reactivego/rx](https://github.com/reactivego/rx).
 
-This repository is the **workbench**: nine complete example applications
+This repository is the **workbench**: eight complete example applications
 that exercise the design system end-to-end, and the workbench window that opens
 them.
 
@@ -75,12 +75,6 @@ meant to be built — MVU state, live theming from theme, layouts from patterns:
 - **[`feeds/`](./feeds)** — an RSS reading-list app: sortable/filterable/
   paginated article table, tabbed detail view in a split pane, dialog CRUD
   forms with alerts and toasts, popovers and tooltips.
-- **[`vaultview/`](./vaultview)** — a read-only viewer for a folder of
-  Obsidian-style markdown notes: a disclosing file tree, frontmatter as a
-  properties pane, `[[wikilinks]]` that resolve and navigate, history
-  with back/forward, and the outline and backlinks in an inspector. Also
-  the reference for document-centric navigation — a history stack, a
-  nesting tree, and `shell.TwoColumn`'s inspector column in use. See its [README](./vaultview/README.md).
 - **[`themer/`](./themer)** — the chooser for the theme colour and for
   what a theme says about code, laid out as a column of titled groups in
   reading order: the picture and the colours it gave, the theme colour, the

@@ -27,7 +27,6 @@
 !/sitedocs/**
 !/themer/**
 !/todos/**
-!/vaultview/**
 
 # ...except their compiled binaries.
 /feeds/feeds
@@ -38,7 +37,6 @@
 /sitedocs/sitedocs
 /themer/themer
 /todos/todos
-/vaultview/vaultview
 
 # ...and except golden-image failure artifacts: written by a failing test
 # beside the golden it did not match, never a stored comparison. The rule

@@ -450,9 +450,8 @@ func TestTheSidebarSwitchGolden(t *testing.T) {
 // schemes: the pane standing, the transcript under the toolbar, the prompt
 // field at the foot. The four frames TestWholeWindowRender draws are for a
 // pair of eyes and store nothing; this is the one composition a change
-// anywhere in the layer stack has to move, and it is kept in the shape
-// vaultview keeps its own window in — one render at the size the window opens
-// at, compared whole.
+// anywhere in the layer stack has to move: one render at the size the window
+// opens at, compared whole.
 //
 // The switch crop above stays beside it. A crop pins one run of the band at
 // the byte where a whole-window image would drown it; the window pins what
@@ -485,9 +484,8 @@ func crop(img *image.RGBA, r image.Rectangle) *image.RGBA {
 // the dialog as a composition — the providers well beside the form, the
 // labels in their column, the templates as one control and the default-model
 // row at the foot — and the only one that can show the sheet against the
-// window it stands on. It is kept in the shape vaultview keeps its own
-// vault-switch dialog in: one render at the size the window opens at,
-// compared whole.
+// window it stands on: one render at the size the window opens at, compared
+// whole.
 //
 // The catalogue is posed with the selected provider's key already answered
 // for, because the verdict disc is part of what the composition is judged on
