@@ -36,6 +36,7 @@ import (
 	"sync/atomic"
 
 	"github.com/reactivego/rx"
+	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/badge"
 	"github.com/vibrantgio/components/button"
 	marks "github.com/vibrantgio/components/icons"
@@ -194,10 +195,8 @@ func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]
 
 	// The global default-model picker is the form variant — a
 	// components/picker field, the same control the Name and BaseURL fields
-	// beside it are. It drops UPWARD because the field is the dialog's last
-	// row: the available room beneath the trigger belongs to the action row
-	// and to the window's own edge, so the menu takes what stands above it
-	// instead.
+	// beside it are. It prefers to drop UPWARD because the field is the
+	// dialog's last row: the action row stands below the trigger.
 	//
 	// The field takes its props once per subscription and keeps its own open
 	// state, so the subscription is keyed: on the option list and the pick, so
@@ -205,24 +204,18 @@ func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]
 	// dialog's epoch, so a settings dialog that opens again opens closed.
 	defaultPickerObs := rx.SwitchMap(
 		rx.Map(modelObs, defaultPickerKeyOf).Pipe(rx.DistinctUntilChanged(func(a, b defaultPickerKey) bool { return a.id == b.id })),
-		func(k defaultPickerKey) rx.Observable[func(gtx layout.Context, room image.Rectangle) layout.Dimensions] {
+		func(k defaultPickerKey) rx.Observable[layout.Widget] {
 			entries := k.entries
-			// The available room the dialog's body leaves this field's menu.
-			// A component cannot see where its container put it, so the body
-			// says, on every frame, immediately before it lays the field out
-			// — and the field asks back on that same frame, on the one
-			// goroutine a layout tree is walked on.
-			var room image.Rectangle
-			field := picker.Field(th, picker.FieldProps{
+			return picker.Field(th, picker.FieldProps{
 				Description: "Default model",
 				Options:     titlesOf(entries),
 				Selected:    k.selected,
 				Drop:        picker.DropUp,
 				// A real provider catalogue is forty to sixty rows, and what
-				// bounds the menu is the available room the body has rather than a
-				// number this app picks: the picker caps the plane to what
+				// bounds the menu is the window's available room rather than
+				// a number this app picks: the picker caps the plane to what
 				// the side it drops on leaves and scrolls the rows inside it.
-				AvailableRoom: func(layout.Context) image.Rectangle { return room },
+				AvailableRoom: attachment.AvailableRoom,
 				// The menu the field drops scrolls inside that room, and
 				// its bar follows the reader's "Show scroll bars" setting
 				// as the dialog's own column does.
@@ -236,16 +229,10 @@ func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]
 					mvu.MessageOp{Message: SetDefaultModel{Provider: e.provider, Model: e.model}}.Add(gtx.Ops)
 				},
 			})
-			return rx.Map(field, func(w layout.Widget) func(layout.Context, image.Rectangle) layout.Dimensions {
-				return func(gtx layout.Context, r image.Rectangle) layout.Dimensions {
-					room = r
-					return w(gtx)
-				}
-			})
 		})
 
 	var fieldCells struct{ name, url, key atomic.Value }
-	bodyObs := rx.Map(rx.CombineLatest3(themedObs, modelObs, defaultPickerObs), func(next rx.Tuple3[settingsThemed, Model, func(layout.Context, image.Rectangle) layout.Dimensions]) layout.Widget {
+	bodyObs := rx.Map(rx.CombineLatest3(themedObs, modelObs, defaultPickerObs), func(next rx.Tuple3[settingsThemed, Model, layout.Widget]) layout.Widget {
 		t, s, defaultPicker := next.First, next.Second.Settings, next.Third
 		return settingsBody(t, s, defaultPicker,
 			provClicks, tplClicks, &addClick, &removeClick, &refreshClick, &webClick,
@@ -366,7 +353,7 @@ func SettingsDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]
 // spelling the check out — with the GLOBAL default-model row spanning the
 // bottom under both. The default-model picker is drawn LAST, over the body,
 // at the trailing edge of that row.
-func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layout.Context, room image.Rectangle) layout.Dimensions,
+func settingsBody(t settingsThemed, s SettingsState, defaultPicker layout.Widget,
 	provClicks map[int]*widget.Clickable, tplClicks []*widget.Clickable,
 	addClick, removeClick, refreshClick, webClick *widget.Clickable,
 	provList *list.State,
@@ -460,22 +447,20 @@ func settingsBody(t settingsThemed, s SettingsState, defaultPicker func(gtx layo
 		// height, so the closed control stands where every field above it
 		// stands.
 		//
-		// That row is also the whole of what the field has to be told about
-		// the available room. Everything above the trigger is the body's and
-		// the menu may take it; below the trigger there is the body's own
-		// bottom edge and nothing else, so the upward menu is capped by the
-		// body and scrolls inside it rather than standing off the top of the
-		// dialog.
+		// The mover moves the available room and the Surfaces to the
+		// field's offset. The field's menu is placed against the window's
+		// edges, not the body's, and scrolls inside itself where the window
+		// cannot hold it.
 		fieldX := wellW + wellGap + cols.label + cols.gap
 		fieldW := size.X - fieldX
 		if fieldW < 0 {
 			fieldW = 0
 		}
-		dg := gtx
+		at := image.Pt(fieldX, size.Y-pickerRow)
+		defer op.Offset(at).Push(gtx.Ops).Pop()
+		dg := attachment.AvailableRoomAt(gtx, at)
 		dg.Constraints = layout.Exact(image.Pt(fieldW, pickerRow))
-		defer op.Offset(image.Pt(fieldX, size.Y-pickerRow)).Push(gtx.Ops).Pop()
-		// The body's own rectangle, in the field's coordinates.
-		defaultPicker(dg, image.Rect(-fieldX, pickerRow-size.Y, fieldW, pickerRow))
+		defaultPicker(dg)
 		return layout.Dimensions{Size: size}
 	}
 }
