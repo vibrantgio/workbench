@@ -165,7 +165,7 @@ func postMessage(gtx layout.Context, msg mvu.Message) {
 	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 }
 
-// vaultPickerDecision makes this dialog a DECISION rather than a pane: the
+// vaultPickerDecision makes this dialog a DECISION rather than a dismissible dialog: the
 // two footer buttons are the only two answers, which removes the close X,
 // makes the backdrop inert and binds Escape to Cancel and Return to Open.
 //

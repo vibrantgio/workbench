@@ -102,7 +102,7 @@ func TestTheSwitchDialogAnswersWithCancelAndOpen(t *testing.T) {
 
 	if got := props.Purpose(); got != dialog.PurposeDecision {
 		t.Errorf("the dialog is a %v; a switch with Cancel and Open is a decision — "+
-			"a pane would keep a close X and a backdrop that dismisses it", got)
+			"a dismissible dialog would keep a close X and a backdrop that dismisses it", got)
 	}
 	if props.Decision.Cancel == nil {
 		t.Fatal("the decision names no Cancel, so Escape has nothing to invoke")

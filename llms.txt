@@ -528,13 +528,13 @@ alternatives.
 
 ### The dialog grammar
 
-A dialog is a PANE or a DECISION, and you say which by
+A dialog is a DISMISSIBLE DIALOG or a DECISION, and you say which by
 leaving patterns/dialog's Props.Decision nil or setting it — never by setting
-affordances one at a time. A pane (nil) applies its changes live and gets a
+affordances one at a time. A dismissible dialog (nil) applies its changes live and gets a
 ghost close X, a dismissing backdrop and Escape; a decision (non-nil) gets
 right-aligned footer Actions, Return on Decision.DefaultAction, Escape on
 Cancel, no X, and an inert backdrop. A footer with Save/Cancel means you have
-a decision, not a pane with HideClose (deprecated). Return never reaches a
+a decision, not a dismissible dialog with HideClose (deprecated). Return never reaches a
 destructive default action: Decision derives the default from
 Confirm+Destructive, so there is no field with which to bind it wrongly. Hand
 the footer an action and not a width: it lays every action out in the
@@ -1518,7 +1518,7 @@ feed's name and the search field over the list, Share over the article,
 and Add feed as the pane's own mark. Also the reference implementation of
 the dialog grammar's invocation half: menu.go declares each accelerator
 once as the chord the window lays out and the item the application menu
-carries (mvu/desktop's menu bar), and preferences.go is the settings PANE
+carries (mvu/desktop's menu bar), and preferences.go is the settings dialog
 ⌘,/Ctrl-, opens, whose two preferences apply live under it
 
 ### themer/

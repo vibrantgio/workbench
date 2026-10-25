@@ -32,10 +32,10 @@ import (
 )
 
 // defaultRowsPerPage is the seed row count per pagination page.
-// Model.rowsPerPage carries the live value, which the Preferences pane edits.
+// Model.rowsPerPage carries the live value, which the Preferences dialog edits.
 const defaultRowsPerPage = 10
 
-// rowsPerPageChoices are the page sizes the Preferences pane offers. A
+// rowsPerPageChoices are the page sizes the Preferences dialog offers. A
 // short closed set is what makes the preference a row of buttons rather
 // than a number field with a validation story.
 var rowsPerPageChoices = []int{5, 10, 25}
@@ -311,8 +311,8 @@ func articlesMain(
 	// streams: unread-only narrows what `filtered` holds, rows-per-page
 	// resizes the window `paged` cuts out of it and the count the pagination
 	// row draws. Because they are model state like any other, changing one in
-	// the Preferences pane repaginates the table on the same frame, with the
-	// pane still open over it, so the pane needs no Save.
+	// the Preferences dialog repaginates the table on the same frame, with the
+	// dialog still open over it, so the dialog needs no Save.
 	filtered := rx.Map(
 		rx.CombineLatest4(selectedFeedObs, queryObs, sortObs, unreadOnlyObs),
 		func(t rx.Tuple4[FeedID, string, table.Sort, bool]) []article {

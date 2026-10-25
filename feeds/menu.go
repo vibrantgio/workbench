@@ -5,7 +5,7 @@
 // pane.
 //
 // The INVOCATION half of the dialog grammar lives here with them. A dialog
-// cannot own how you arrived: patterns/dialog owns dismissal (a pane's ghost
+// cannot own how you arrived: patterns/dialog owns dismissal (a dismissible dialog's ghost
 // X, Escape, the backdrop; a decision's Escape-to-Cancel and
 // Return-to-default) because those are affordances the dialog draws or traps
 // while it is on screen, and arrival has to be live when NO dialog exists.

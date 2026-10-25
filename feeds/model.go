@@ -60,11 +60,11 @@ type Model struct {
 	// is not model state.
 	sidebarHidden bool
 
-	// The Preferences PANE (⌘,/Ctrl-,) and the two reading preferences it
+	// The Preferences dialog (⌘,/Ctrl-,) and the two reading preferences it
 	// edits. Both apply the moment they change — nothing here is a draft and
 	// there is nothing to confirm, which is why the surface that edits them is
-	// a pane and not a decision dialog.
-	prefsOpen   bool // "Preferences" pane visibility
+	// a dismissible dialog and not a decision dialog.
+	prefsOpen   bool // "Preferences" dialog visibility
 	rowsPerPage int  // articles table page size
 	unreadOnly  bool // restrict the table to unread articles
 
@@ -186,9 +186,9 @@ type ConfirmDelete struct{ Feed FeedID }
 // dialog's. Idempotent when already open.
 type OpenPreferences struct{}
 
-// ClosePreferences hides the Preferences pane. Landed by the pane's ghost
+// ClosePreferences hides the Preferences dialog. Landed by its ghost
 // close X, an Escape press, and a backdrop click — all three of which the
-// dialog routes to Props.OnClose because the pane purpose says every cheap
+// dialog routes to Props.OnClose because the dismissible dialog purpose says every cheap
 // exit is offered. Idempotent when already closed.
 type ClosePreferences struct{}
 

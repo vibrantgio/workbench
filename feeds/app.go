@@ -235,7 +235,7 @@ func feedsShellLayer(
 		},
 	)
 
-	// Overlay composition: the Add-feed dialog, the Preferences pane and the
+	// Overlay composition: the Add-feed dialog, the Preferences dialog and the
 	// toast stack draw OVER the whole window. They are folded onto the shell
 	// stream and drawn after the shell inside the returned layout.Widget, which
 	// reports the shell's dims, rather than becoming a third buildLayers
