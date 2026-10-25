@@ -927,12 +927,12 @@ cannot be dressed from the vocabulary above is a window whose structure is
 wrong, not a colour set that is short.
 
 workbench/mindchat is the window to read for this grammar: main.go opens
-the window with shell.PaneWindow (the full-size-content treatment) over a
-backdrop of WindowBackground; frame.go lays it out on shell.TwoColumn, the
-conversation list as its pane, filled with the chrome material; and the
-conversation the window shows is marked with the sidebar pattern's pill.
-The levels and the colour model this grammar follows are
-described in the design repository's DESIGN.md:
+the window with shell.PaneWindow (the full-size-content treatment); view.go
+lays a backdrop of WindowBackground under the content layer; frame.go lays
+the content out on shell.TwoColumn, the conversation list as its pane,
+filled with the chrome material; and the conversation the window shows is
+marked with the sidebar pattern's pill. The levels and the colour model
+this grammar follows are described in the design repository's DESIGN.md:
 
     https://raw.githubusercontent.com/vibrantgio/design/master/DESIGN.md
 
