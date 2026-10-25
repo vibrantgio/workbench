@@ -132,8 +132,6 @@ that reports one launched process (Started → Exited).
   — a condensed guide for AI coding assistants (Claude, etc.) to write
   applications against the Vibrant Gio packages. It is kept here, at this
   repository's root, and the Site Docs app's Docs tab renders it.
-- Development planning is in one place,
-  [vibrantgio/organisation](https://github.com/vibrantgio/organisation), not here.
 
 ## Requirements
 
