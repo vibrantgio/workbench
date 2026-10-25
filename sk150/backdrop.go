@@ -10,7 +10,7 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// BackdropLayer fills the window with the window's own backdrop, level 0. It is the
+// BackdropLayer fills the window with the window's own backdrop. It is the
 // bottom layer and the only fill the resting window has.
 func BackdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
