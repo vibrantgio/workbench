@@ -185,9 +185,9 @@ const (
 )
 
 // Page stacks the search field over the two labelled sets: the design system's
-// own marks, then the grid of Material icons matching the query. The marks
-// section is dropped whole when the query matches none of them, so a search
-// for a Material symbol is not padded by an empty row.
+// own marks, then the grid of Material icons matching the query. A section the
+// query matches nothing in is removed with its heading and its count. When
+// neither section matches, the region under the field shows one empty state.
 func Page(t themed, search layout.Widget, model Model, grid *list.State) layout.Widget {
 	visible := FilterIcons(model.Query)
 	return pageOver(t, search, model, len(visible), Grid(t, visible, model.Query, grid))
@@ -224,14 +224,29 @@ func pageOver(t themed, search layout.Widget, model Model, count int, gridWidget
 				}),
 			)
 		}
-		children = append(children,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return sides.Layout(gtx, catalogueHeading)
-			}),
-			layout.Flexed(1, gridWidget),
-		)
+		switch {
+		case count > 0:
+			children = append(children,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return sides.Layout(gtx, catalogueHeading)
+				}),
+				layout.Flexed(1, gridWidget),
+			)
+		case len(names) == 0:
+			// Neither section matches: the content region under the field
+			// is given whole to the grid, which draws the one empty state.
+			children = append(children, layout.Flexed(1, gridWidget))
+		}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	}
+}
+
+// NoMatchLine is the empty state's line when no icon matches the query: a
+// few words in title case that state the condition and hold the query, with
+// no period. The query is set between typographic quotes as typed, with no
+// escapes.
+func NoMatchLine(query string) string {
+	return "No Icons Match \u201c" + query + "\u201d"
 }
 
 // Grid lays the visible icons out in rows of as many fixed-size cells as fit
@@ -261,7 +276,7 @@ func Grid(t themed, visible []int, query string, grid *list.State) layout.Widget
 			egtx := gtx
 			egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, bar))
 			shell.EmptyState(egtx, t.typ.Shaper, t.platform, t.typography, p.Backdrop,
-				shell.EmptyStateProps{Line: fmt.Sprintf("No Icons Match %q", query)})
+				shell.EmptyStateProps{Line: NoMatchLine(query)})
 			return layout.Dimensions{Size: size}
 		}
 

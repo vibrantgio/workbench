@@ -10,7 +10,6 @@ package main
 // given, and the picture says where that frame was.
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"testing"
@@ -33,7 +32,71 @@ import (
 // grid stands empty in, and noMatchLine what the page then says.
 const noMatchQuery = "zzzz"
 
-var noMatchLine = fmt.Sprintf("No Icons Match %q", noMatchQuery)
+var noMatchLine = NoMatchLine(noMatchQuery)
+
+// marksOnlyQuery matches four of the design system's marks and no icon of
+// the Material Design icons: their names are Go identifiers with no hyphen.
+const marksOnlyQuery = "chevron-"
+
+// A query that matches only marks removes the Material section with its
+// heading and its count: the page lays out no catalogue region, and every
+// row under the marks section is the window's plane.
+func TestAQueryMatchingOnlyMarksRemovesTheCatalogueSection(t *testing.T) {
+	names := FilterMarks(marksOnlyQuery)
+	if len(FilterIcons(marksOnlyQuery)) != 0 || len(names) == 0 {
+		t.Fatalf("%q matches %d icons and %d marks, want marks only",
+			marksOnlyQuery, len(FilterIcons(marksOnlyQuery)), len(names))
+	}
+	model := Model{Query: marksOnlyQuery}
+	cols := max(1, (windowSize.X-2*int(Padding))/int(CellW))
+	rows := (len(names) + cols - 1) / cols
+	field := int(tokens.Comfortable.SearchFieldHeight)
+	marksEnd := int(titleBandDp) + 2*int(Padding) + field + int(HeadingH) + rows*int(CellH) + int(Padding)
+	for _, tc := range windowSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			if frame := gridFrame(t, tc.c, model); !frame.Empty() {
+				t.Errorf("the page gives the catalogue a region at %v; a section with no match is removed", frame)
+			}
+			img := renderWindow(t, tc.c, marksOnlyQuery, titleBandDp)
+			plane := tc.c.WindowBackground
+			below := image.Rect(0, marksEnd, windowSize.X, windowSize.Y)
+			if box := gridTextBox(img, below, plane); !box.Empty() {
+				t.Errorf("the page paints %v under the marks section, which ends at row %d; the Material Design icons heading and its count are removed",
+					box, marksEnd)
+			}
+			above := image.Rect(0, marksEnd-int(CellH), windowSize.X, marksEnd)
+			if box := gridTextBox(img, above, plane); box.Empty() {
+				t.Errorf("the marks section's last row %v is bare; the row arithmetic does not find the marks", above)
+			}
+		})
+	}
+}
+
+// A query that matches nothing draws one empty state line under the field
+// and nothing else: no section heading, no count, and no second line.
+func TestAQueryMatchingNothingDrawsOneEmptyStateLine(t *testing.T) {
+	top := int(titleBandDp) + 2*int(Padding) + int(tokens.Comfortable.SearchFieldHeight)
+	style := tokens.DefaultTypography.EmptyStateLine
+	style.LineHeight = 0
+	for _, tc := range windowSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderWindow(t, tc.c, noMatchQuery, titleBandDp)
+			plane := tc.c.WindowBackground
+			got := gridTextBox(img, image.Rect(0, top, windowSize.X, windowSize.Y), plane)
+			if got.Empty() {
+				t.Fatal("the page under the field is bare, want the empty state's line")
+			}
+			if h, want := got.Dy(), gridLineHeight(t, tc.c, style); h != want {
+				t.Errorf("the paint under the field stands %d pixels tall at %v, want one line of %d", h, got, want)
+			}
+			frame := gridFrame(t, tc.c, Model{Query: noMatchQuery})
+			ref := gridEmptyStateProbe(t, tc.c, frame.Size())
+			if want := gridTextBox(ref, ref.Bounds(), plane).Add(frame.Min); got != want {
+				t.Errorf("the paint under the field is %v, want the empty state's one line at %v", got, want)
+			}
+		})
+	}
+}
 
 // TestTheGridsEmptyStateCentresInItsFrame holds the line's placement
 // against the arrangement the window actually laid out: it centres both

@@ -222,17 +222,19 @@ var windowSchemes = []struct {
 	{"dark", tokens.PlatformDark},
 }
 
-// windowQueries are the three shapes the page takes, at the queries the
-// window goldens are taken at: no query, which shows the whole catalogue under
-// both section labels; "folder", which matches two marks and five icons of
-// the grid; and "zzzz", which matches nothing, so the marks section is dropped
-// whole and the grid draws the empty state's line.
+// windowQueries are the four shapes the page takes: no query, which shows the
+// whole catalogue under both section labels; "folder", which matches two marks
+// and five icons of the grid; "chevron-", which matches only marks, so the
+// Material section is removed; and "zzzz", which matches nothing, so both
+// sections are removed and the region under the field draws the empty state's
+// line.
 var windowQueries = []struct {
 	name  string
 	query string
 }{
 	{"all", ""},
 	{"filtered", "folder"},
+	{"marksonly", marksOnlyQuery},
 	{"nomatch", noMatchQuery},
 }
 
