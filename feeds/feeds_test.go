@@ -921,7 +921,7 @@ func TestArticlesTableGolden(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			cols := staticArticleColumns(shaper, tc.colors, tokens.DefaultTypography.SystemFont)
 			tbl := table.Render(shaper, cols, rows, table.Sort{Column: colPublished, Asc: false},
-				tc.colors, tokens.Spacing, tokens.DefaultTypography.SystemFont, tokens.Comfortable)
+				tc.colors, tokens.Spacing, tokens.DefaultTypography.SystemFont, tokens.Comfortable, nil)
 			golden.Render(t, tc.name, tableFrameSize, scene(tbl, tc.bg))
 		})
 	}
@@ -940,7 +940,7 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 	render := func(colors tokens.PlatformColors) *image.RGBA {
 		cols := staticArticleColumns(shaper, colors, tokens.DefaultTypography.SystemFont)
 		tbl := table.Render(shaper, cols, rows, table.Sort{Column: colPublished, Asc: false},
-			colors, tokens.Spacing, tokens.DefaultTypography.SystemFont, tokens.Comfortable)
+			colors, tokens.Spacing, tokens.DefaultTypography.SystemFont, tokens.Comfortable, nil)
 		return golden.Capture(t, tableFrameSize, scene(tbl, bg))
 	}
 	light := render(tokens.PlatformLight)
