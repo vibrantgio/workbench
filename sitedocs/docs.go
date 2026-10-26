@@ -152,10 +152,7 @@ func drawGuideDoc(
 // document's reading measure is not applied: an empty state is not
 // content and stands on no measure.
 //
-// The column's frame is the one the document's rows would occupy, so where
-// the reader's setting makes the column's bar stand, its lane is taken off
-// the trailing side before the inset is: bar is the [columnBar] the
-// document is drawn with, and its lane is read off it.
+// A column with no document draws no bar, so the frame takes no lane.
 func drawGuideUnavailable(
 	gtx layout.Context,
 	shaper *text.Shaper,

@@ -56,7 +56,7 @@ func TestThePagesRowsStopShortOfAStandingBarsLane(t *testing.T) {
 		return lead, end
 	}
 	c := tokens.PlatformLight
-	lane := int(scrollbar.FromTokens(c, c.WindowBackground).Width())
+	lane := int(scrollbar.FromTokens(c, c.WindowBackground).Always().Width())
 
 	narrow := image.Pt(800, 300)
 	if lead, end := span(narrow, desktop.ScrollBarsAlways); lead != 0 || end != narrow.X-lane {

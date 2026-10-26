@@ -670,8 +670,8 @@ func monitorPane(st pageState, hov *hoverState) layout.Widget {
 // While the tab's content is arriving, arriving returns the application's
 // own sentence for it. The tab draws the platform's indeterminate indicator
 // above the sentence, centred both ways as one group in the frame the list
-// would occupy, the standing bar's lane excluded, and never as a row of the
-// list. Both are removed when arriving returns "".
+// would occupy, and never as a row of the list. A list with no rows draws
+// no bar, so the frame takes no lane. Both are removed when arriving returns "".
 func listContent(load func() (pageState, bool), state *list.State, foot func(Model) unit.Dp, arriving func(Model) string, build func(themed, Model, slotSet) (head, rows []layout.Widget)) layout.Widget {
 	return pageColumn(func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()

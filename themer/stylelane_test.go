@@ -74,12 +74,12 @@ func TestTheStyleColumnHasNoPaddingAtEitherEnd(t *testing.T) {
 			is := func(c color.RGBA, want color.NRGBA) bool { return c.R == want.R && c.G == want.G && c.B == want.B }
 			// fill reads the marked row: the lines that hold the selection
 			// colour, and across them the first and one past the last pixel
-			// off the surface, its rounded ends' edges included. The thumb's
-			// own run in the lane is left out.
+			// off the surface, its rounded ends' edges included. With a
+			// standing bar the track's own run in the lane is left out.
 			standing := scrollBarStyle(scrollbar.FromTokens(tc.c, p.Surface), desktop.ScrollBarsAlways)
 			lane, pad := int(standing.Width()), int(standing.TrackPadding)
 			laneMin := size.X - lane
-			fill := func(img *image.RGBA) (lead, end, mid int) {
+			fill := func(img *image.RGBA, stands bool) (lead, end, mid int) {
 				lead, top, bottom := size.X, size.Y, 0
 				for y := range size.Y {
 					marked := false
@@ -94,7 +94,7 @@ func TestTheStyleColumnHasNoPaddingAtEitherEnd(t *testing.T) {
 					}
 					top, bottom = min(top, y), max(bottom, y)
 					for x := range size.X {
-						if x >= laneMin+pad && x < size.X-pad {
+						if stands && x >= laneMin+pad && x < size.X-pad {
 							continue
 						}
 						if !is(img.RGBAAt(x, y), p.Surface) {
@@ -121,7 +121,7 @@ func TestTheStyleColumnHasNoPaddingAtEitherEnd(t *testing.T) {
 				{"Always", desktop.ScrollBarsAlways, laneMin, laneMin, "the lane"},
 				{"When scrolling", desktop.ScrollBarsWhenScrolling, size.X, size.X - int(over.Width()), "the bar's area at the box's edge"},
 			} {
-				lead, end, y := fill(render(set.bars))
+				lead, end, y := fill(render(set.bars), set.bars == desktop.ScrollBarsAlways)
 				if end == 0 {
 					t.Fatalf("at %s no row is marked", set.name)
 				}

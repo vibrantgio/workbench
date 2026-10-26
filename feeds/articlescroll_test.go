@@ -21,7 +21,9 @@ import (
 // holds it against the same article laid out tall enough to need no
 // scrolling. The scrolled region shows exactly the foot of the tall one, so
 // the last line is drawn and nothing under it is cut off. At Always the bar
-// is drawn in a lane of its own and the prose ends before the lane.
+// is drawn in a lane of its own and the prose ends before the lane. The tall
+// article fits and draws no bar, so at Always it is laid out a lane narrower,
+// at the width the scrolled region's rows have.
 func TestTheArticleColumnScrollsToTheArticlesEnd(t *testing.T) {
 	tok := themeTokens{
 		col:    tokens.PlatformLight,
@@ -33,9 +35,9 @@ func TestTheArticleColumnScrollsToTheArticlesEnd(t *testing.T) {
 	fill := tok.col.ControlBackground
 	const width, tall, short = 320, 2000, 160
 
-	render := func(bars desktop.ScrollBarSetting, h int, toEnd bool) *image.RGBA {
+	render := func(bars desktop.ScrollBarSetting, w, h int, toEnd bool) *image.RGBA {
 		scroll := list.NewState()
-		size := image.Pt(width, h)
+		size := image.Pt(w, h)
 		frame := func(gtx layout.Context) layout.Dimensions {
 			gtx.Metric = unit.Metric{PxPerDp: 1, PxPerSp: 1}
 			gtx.Constraints = layout.Exact(size)
@@ -58,7 +60,11 @@ func TestTheArticleColumnScrollsToTheArticlesEnd(t *testing.T) {
 
 	for _, bars := range []desktop.ScrollBarSetting{desktop.ScrollBarsWhenScrolling, desktop.ScrollBarsAlways} {
 		t.Run(bars.String(), func(t *testing.T) {
-			full := render(bars, tall, false)
+			fullW := width
+			if bars == desktop.ScrollBarsAlways {
+				fullW = cmpW
+			}
+			full := render(bars, fullW, tall, false)
 			// The tall render's last drawn row: the foot of the article.
 			last := -1
 			for y := range tall {
@@ -71,7 +77,7 @@ func TestTheArticleColumnScrollsToTheArticlesEnd(t *testing.T) {
 			if last < short {
 				t.Fatalf("the article's last line is at y %d, want an article taller than the %d px region", last, short)
 			}
-			got := render(bars, short, true)
+			got := render(bars, width, short, true)
 			// Find where in the tall render the scrolled region's rows start.
 			// Glyph edges are rasterized a few levels apart at different
 			// heights, so two pixels count as one within a small tolerance.

@@ -804,9 +804,7 @@ const settingsNoProvidersLine = "No Providers"
 // rows or not, so an add button handed to the empty state as well would
 // draw the same control twice in one field.
 //
-// Where the reader's setting makes the well's bar stand, its lane is taken
-// off the rows' frame on the trailing side: the lane is read off t.bar, the
-// bar the rows are drawn with.
+// An empty well draws no bar, so the frame takes no lane.
 func providerWellEmpty(gtx layout.Context, t settingsThemed) layout.Dimensions {
 	size := gtx.Constraints.Max
 	egtx := gtx

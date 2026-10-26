@@ -3,9 +3,11 @@ package main
 // The rail's and the provider well's rows against the reader's setting: at
 // Always the bar takes a lane of its own and the rows stop short of it; at
 // When scrolling the bar lies over the rows' trailing edge and the rows run
-// the whole width.
+// the whole width. The rows overflow, because a lane exists only for a bar
+// that is drawn.
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"testing"
@@ -22,6 +24,16 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 )
+
+// overflowChats is more conversations than the rail's frame shows, so the
+// rail's bar is drawn.
+func overflowChats() ChatList {
+	chats := ChatList{}
+	for i := range 60 {
+		chats = append(chats, fmt.Sprintf("Chat %02d.jsonl", i))
+	}
+	return chats
+}
 
 // rowsEndOutside is the x one past the last pixel in region that differs
 // from fill and is not in skip: where the rows' drawing ends.
@@ -58,7 +70,8 @@ func TestTheRailsRowsStopShortOfAStandingBarsLane(t *testing.T) {
 					gtx.Metric = unit.Metric{PxPerDp: 1, PxPerSp: 1}
 					gtx.Constraints = layout.Exact(size)
 					paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
-					return rail.layout(gtx, th, railKeyChats, railKeyChats[0], nil,
+					chats := overflowChats()
+					return rail.layout(gtx, th, chats, chats[0], nil,
 						func(layout.Context, mvu.Message) {})
 				})
 			}
@@ -92,7 +105,11 @@ func TestTheProviderWellsRowsStopShortOfAStandingBarsLane(t *testing.T) {
 			fading.bar = scrollbar.FromTokens(sc.c, sc.c.WindowBackground)
 			standing := fading
 			standing.bar = scrollBarStyle(fading.bar, desktop.ScrollBarsAlways)
-			s := SettingsState{Draft: []Provider{{Name: "OpenAI"}, {Name: "Local"}, {Name: "Mirror"}}, Selected: 0}
+			// More providers than the well shows, so the well's bar is drawn.
+			s := SettingsState{Selected: 0}
+			for i := range 40 {
+				s.Draft = append(s.Draft, Provider{Name: fmt.Sprintf("Provider %02d", i)})
+			}
 			fill := fading.palette.Pane
 			region := wellRowsRegion(t, fading)
 			lane, pad := int(standing.bar.Width()), int(standing.bar.TrackPadding)

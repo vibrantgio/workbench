@@ -144,12 +144,10 @@ func TestTheBarIsDrawnAgainstTheWindowsTrailingEdge(t *testing.T) {
 	}
 }
 
-// TestTheGridsEmptyStateStandsOutsideAStandingBarsLane holds the grid's
-// empty state against the setting: where the bar stands, the frame the line
-// centres in is the one the cells would occupy, short of the lane, so the
-// line's centre is half a lane further in than where the bar fades; up and
-// down it does not move.
-func TestTheGridsEmptyStateStandsOutsideAStandingBarsLane(t *testing.T) {
+// TestTheGridsEmptyStateTakesNoLane holds the grid's empty state against
+// the setting: an empty grid draws no bar, so the line stands where it
+// stands when the bar fades, even where the bar would stand.
+func TestTheGridsEmptyStateTakesNoLane(t *testing.T) {
 	size := image.Pt(600, 300)
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -167,16 +165,8 @@ func TestTheGridsEmptyStateStandsOutsideAStandingBarsLane(t *testing.T) {
 				}
 				return b
 			}
-			fading, standing := box(desktop.ScrollBarsWhenScrolling), box(desktop.ScrollBarsAlways)
-			lane := int(gridBar(gridAt(t, tc.c, desktop.ScrollBarsAlways)).Width())
-			moved := (fading.Min.X + fading.Max.X) - (standing.Min.X + standing.Max.X)
-			if d := moved - lane; d < -2 || d > 2 {
-				t.Errorf("at Always the line's centre moves %.1f px in, want half the %d px lane, %.1f",
-					float64(moved)/2, lane, float64(lane)/2)
-			}
-			if fading.Min.Y != standing.Min.Y || fading.Max.Y != standing.Max.Y {
-				t.Errorf("at Always the line is drawn at y %d–%d, want %d–%d as where the bar fades",
-					standing.Min.Y, standing.Max.Y, fading.Min.Y, fading.Max.Y)
+			if fading, standing := box(desktop.ScrollBarsWhenScrolling), box(desktop.ScrollBarsAlways); standing != fading {
+				t.Errorf("at Always the line is drawn at %v, want %v as where the bar fades", standing, fading)
 			}
 		})
 	}

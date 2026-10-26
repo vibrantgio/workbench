@@ -554,8 +554,11 @@ typography, density and motion all arrive through it, so a
 correct app wires the theme once and styles nothing per component.
 theme/tokens supplies the typed design values (the platform's colour set, a
 4-pt spacing scale, named radius stops); never use string-keyed style maps. components/list can render a visible scrollbar via list.LayoutScrollbar
-(anchor Occupy reserves a right gutter, Overlay floats the bar over the
-trailing edge; default style from scrollbar.FromTokens).
+(anchor Occupy gives the bar a lane at the trailing edge that the rows stop
+short of, only while the rows overflow; Overlay floats the bar over the
+trailing edge; default style from scrollbar.FromTokens). Style.Always() is
+the standing bar: an 11 dp thumb on a pill track, 3 dp inside a 17 dp lane.
+When the content fits, the bar draws nothing and takes no lane.
 
 Effects components are explicit VARIANTS of library components, e.g.
 effects/springbutton wraps components/button with physics-driven press/release —

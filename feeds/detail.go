@@ -185,9 +185,8 @@ func drawDetail(
 //
 // The slot is recorded and replayed under the toolbar's own ops — the window
 // passes the arrangement MainFirst — so what stands in the toolbar paints
-// over the strip this frame reaches up into. The frame is reduced by
-// shell.EmptyStateFrame, so where the column's bar takes a lane the line
-// centres in what the content beside the lane would occupy.
+// over the strip this frame reaches up into. A column with no rows draws no
+// bar, so the frame takes no lane.
 func detailEmptyState(gtx layout.Context, tok themeTokens, bar scrollbar.Style, msg string) layout.Dimensions {
 	row := gtx.Constraints.Max
 	toolbar := gtx.Dp(unit.Dp(shell.ToolbarDepth))

@@ -82,8 +82,7 @@ const emptyListLine = "No Todos"
 //
 // The list is the window's one column, so the frame is the window's full
 // frame, the title-bar strip included, as a column's frame includes the
-// toolbar's share. It is passed through [shell.EmptyStateFrame] with the bar
-// the list draws, so a standing bar's lane is outside it.
+// toolbar's share. An empty list draws no bar, so the frame takes no lane.
 func EmptyList(gtx layout.Context, th themed) layout.Dimensions {
 	size := gtx.Constraints.Max
 	egtx := gtx

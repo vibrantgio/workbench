@@ -111,12 +111,10 @@ func TestTheEmptyProviderWellCentresItsLineInTheRowsFrame(t *testing.T) {
 	}
 }
 
-// TestTheEmptyProviderWellStandsOutsideAStandingBarsLane holds the rows'
-// frame against the reader's setting: where the well's bar stands, the
-// frame the line centres in is the rows' less the bar's lane on the
-// trailing side, so the line's centre stands half a lane further in than
-// where the bar fades; up and down it does not move.
-func TestTheEmptyProviderWellStandsOutsideAStandingBarsLane(t *testing.T) {
+// TestTheEmptyProviderWellTakesNoLane holds the rows' frame against the
+// reader's setting: an empty well draws no bar, so the line stands where it
+// stands when the bar fades, even where the well's bar would stand.
+func TestTheEmptyProviderWellTakesNoLane(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			fading := wellThemed(tc.c)
@@ -132,16 +130,8 @@ func TestTheEmptyProviderWellStandsOutsideAStandingBarsLane(t *testing.T) {
 				}
 				return b
 			}
-			at, still := box(standing), box(fading)
-			lane := int(standing.bar.Width())
-			moved := (still.Min.X + still.Max.X) - (at.Min.X + at.Max.X)
-			if abs(moved-lane) > 2 {
-				t.Errorf("at Always the line's centre moves %.1f px in, want half the %d px lane, %.1f",
-					float64(moved)/2, lane, float64(lane)/2)
-			}
-			if still.Min.Y != at.Min.Y || still.Max.Y != at.Max.Y {
-				t.Errorf("at Always the line stands at y %d–%d, want %d–%d as where the bar fades",
-					at.Min.Y, at.Max.Y, still.Min.Y, still.Max.Y)
+			if at, still := box(standing), box(fading); at != still {
+				t.Errorf("at Always the line stands at %v, want %v as where the bar fades", at, still)
 			}
 		})
 	}

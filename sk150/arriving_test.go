@@ -35,17 +35,12 @@ var arrivingTabs = []arrivingTab{
 
 // listFrame is the frame the tab's list occupies, read off the arrangement:
 // from the row under the tab strip's trim to the list's foot, across the
-// page's column, which runs to the window's edges, less the bar's lane when
-// the bar stands.
-func listFrame(t *testing.T, img *image.RGBA, tc int, bars desktop.ScrollBarSetting, under int) image.Rectangle {
+// page's column, which runs to the window's edges at either setting: a list
+// with no rows draws no bar, so it takes no lane.
+func listFrame(t *testing.T, img *image.RGBA, tc int, under int) image.Rectangle {
 	t.Helper()
-	c := schemes[tc].c
-	top := monitorFrame(t, img, c).Min.Y
-	right := windowSize.X
-	if bars == desktop.ScrollBarsAlways {
-		right -= int(themed{platform: c, scrollBars: bars}.listBar().Width())
-	}
-	return image.Rect(0, top, right, windowSize.Y-under)
+	top := monitorFrame(t, img, schemes[tc].c).Min.Y
+	return image.Rect(0, top, windowSize.X, windowSize.Y-under)
 }
 
 func renderTab(t *testing.T, tc int, m Model, bars desktop.ScrollBarSetting) *image.RGBA {
@@ -91,7 +86,7 @@ func checkArrivingSentence(t *testing.T, tab arrivingTab) {
 					}
 					fill := pageFill(sc.c)
 					img := renderTab(t, i, m, bars)
-					frame := listFrame(t, img, i, bars, tab.under)
+					frame := listFrame(t, img, i, tab.under)
 					runs := paintedRuns(img, frame, fill)
 					if len(runs) != 2 {
 						t.Fatalf("the list's frame %v holds %d runs of painted rows %v, want the indicator and the sentence's line and no row", frame, len(runs), runs)

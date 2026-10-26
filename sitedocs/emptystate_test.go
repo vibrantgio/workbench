@@ -141,12 +141,11 @@ func TestTheDocsColumnDrawsTheLineAndThePath(t *testing.T) {
 	}
 }
 
-// TestTheDocsColumnsEmptyStateStandsOutsideAStandingBarsLane holds the
-// frame the column's group centres in against the reader's setting: where
-// the column's bar stands, the frame is the one the document's rows would
-// occupy, short of the bar's lane, so the group's centre stands half a lane
-// further in than where the bar fades; up and down it does not move.
-func TestTheDocsColumnsEmptyStateStandsOutsideAStandingBarsLane(t *testing.T) {
+// TestTheDocsColumnsEmptyStateTakesNoLane holds the frame the column's
+// group centres in against the reader's setting: a column with no document
+// draws no bar, so the group stands where it stands when the bar fades, even
+// where the column's bar would stand.
+func TestTheDocsColumnsEmptyStateTakesNoLane(t *testing.T) {
 	fail := &guideFailure{Path: "/vaults/workbench/llms.txt", Err: "open ../llms.txt: no such file or directory"}
 	typ := tokens.DefaultTypography
 	shaper := typ.DeterministicShaper()
@@ -164,16 +163,8 @@ func TestTheDocsColumnsEmptyStateStandsOutsideAStandingBarsLane(t *testing.T) {
 				}
 				return b
 			}
-			fading, standing := box(desktop.ScrollBarsWhenScrolling), box(desktop.ScrollBarsAlways)
-			lane := int(columnBar(tc.colors, desktop.ScrollBarsAlways).Width())
-			moved := (fading.Min.X + fading.Max.X) - (standing.Min.X + standing.Max.X)
-			if absInt(moved-lane) > 2 {
-				t.Errorf("at Always the group's centre moves %.1f px in, want half the %d px lane, %.1f",
-					float64(moved)/2, lane, float64(lane)/2)
-			}
-			if fading.Min.Y != standing.Min.Y || fading.Max.Y != standing.Max.Y {
-				t.Errorf("at Always the group stands at y %d–%d, want %d–%d as where the bar fades",
-					standing.Min.Y, standing.Max.Y, fading.Min.Y, fading.Max.Y)
+			if fading, standing := box(desktop.ScrollBarsWhenScrolling), box(desktop.ScrollBarsAlways); standing != fading {
+				t.Errorf("at Always the group stands at %v, want %v as where the bar fades", standing, fading)
 			}
 		})
 	}

@@ -62,7 +62,7 @@ func TestTheRailsRowsStopShortOfAStandingBarsLane(t *testing.T) {
 		return end
 	}
 	c := tokens.PlatformLight
-	lane := int(scrollbar.FromTokens(c, c.WindowBackground).Width())
+	lane := int(scrollbar.FromTokens(c, c.WindowBackground).Always().Width())
 	laneMin := size.X - lane
 	if got := rowsEnd(render(desktop.ScrollBarsAlways)); got != laneMin {
 		t.Errorf("at Always the rows end at x %d, want them to stop short of the %d px lane at x %d", got, lane, laneMin)

@@ -241,6 +241,22 @@ func pageOver(t themed, search layout.Widget, model Model, count int, gridWidget
 	}
 }
 
+// gridColumns returns how many cells of cellW by cellH fit across one row of
+// a column of size, for count cells. The cells fill the width inside pad on
+// both sides. A standing bar's lane of lane pixels is taken off that width
+// only when the rows overflow the column's height, because a lane exists
+// only for a bar that is drawn. The rows are count/cols cells of cellH and a
+// last row of pad. Fewer columns make more rows, so rows that overflow at the
+// full width overflow short of the lane too.
+func gridColumns(size image.Point, pad, lane, cellW, cellH, count int) int {
+	cols := max(1, (size.X-2*pad)/cellW)
+	rows := (count + cols - 1) / cols
+	if lane > 0 && rows*cellH+pad > size.Y {
+		cols = max(1, (size.X-2*pad-lane)/cellW)
+	}
+	return cols
+}
+
 // NoMatchLine is the empty state's line when no icon matches the query: a
 // few words in title case that state the condition and hold the query, with
 // no period. The query is set between typographic quotes as typed, with no
@@ -271,8 +287,8 @@ func Grid(t themed, visible []int, query string, grid *list.State) layout.Widget
 		if len(visible) == 0 {
 			// The grid is the page's content region, so what is drawn in
 			// place of the icons is the content column's empty state: the
-			// line centred, at the measured size, in the frame the rows
-			// would occupy, which is short of a standing bar's lane.
+			// line centred, at the measured size, in the column's full
+			// frame: an empty grid draws no bar, so it takes no lane.
 			egtx := gtx
 			egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, bar))
 			shell.EmptyState(egtx, t.typ.Shaper, t.platform, t.typography, p.Backdrop,
@@ -280,15 +296,13 @@ func Grid(t themed, visible []int, query string, grid *list.State) layout.Widget
 			return layout.Dimensions{Size: size}
 		}
 
-		// The cells fill the width inside the Padding, which a standing
-		// bar's lane is also taken off.
-		width := size.X - 2*pad
-		if anchor == list.Occupy {
-			width -= gtx.Dp(bar.Width())
-		}
 		cellW, cellH := gtx.Dp(CellW), gtx.Dp(CellH)
 		iconPx := gtx.Dp(IconSize)
-		cols := max(1, width/cellW)
+		lane := 0
+		if anchor == list.Occupy {
+			lane = gtx.Dp(bar.Width())
+		}
+		cols := gridColumns(size, pad, lane, cellW, cellH, len(visible))
 		// One row index per row of cells, and padRow for the last row,
 		// which is the column's bottom Padding.
 		const padRow = -1
