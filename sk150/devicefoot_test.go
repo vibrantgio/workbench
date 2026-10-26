@@ -138,9 +138,11 @@ func TestTheDeviceFooterIsDrawnAtTheStatusBarsMeasures(t *testing.T) {
 			if got := last - foot; got != 17 {
 				t.Errorf("the text's last row above its baseline is y %d, %d rows under the seam at y %d; the platform's status bar has 17", last, got, foot)
 			}
-			// Centred: the text's middle is within a pixel of the column's,
-			// which spans the window.
-			if mid2, want2 := minX+maxX, size.X-1; mid2 < want2-2 || mid2 > want2+2 {
+			// Centred: the text's middle is within 3 px of the column's,
+			// which spans the window. The footer centres the text's advance
+			// box, so the drawn text's middle differs by the side bearings of
+			// the first and last glyphs.
+			if mid2, want2 := minX+maxX, size.X-1; mid2 < want2-6 || mid2 > want2+6 {
 				t.Errorf("the text is drawn over x %d–%d, its middle at %.1f; it is centred on the column's middle, %.1f", minX, maxX, float64(mid2)/2, float64(want2)/2)
 			}
 		})
@@ -151,4 +153,14 @@ func TestTheDeviceFooterIsDrawnAtTheStatusBarsMeasures(t *testing.T) {
 func off(a, b color.NRGBA) int {
 	d := func(p, q uint8) int { return max(int(p)-int(q), int(q)-int(p)) }
 	return max(d(a.R, b.R), d(a.G, b.G), d(a.B, b.B))
+}
+
+// TestTheDeviceFooterHoldsTheLinksStatusOnly reads the Device footer's text:
+// the link's baud rate and address, with no explanation after them. A footer
+// of status text holds status only.
+func TestTheDeviceFooterHoldsTheLinksStatusOnly(t *testing.T) {
+	want := "Link: 9600 baud, Modbus address 1"
+	if got := linkStatus(); got != want {
+		t.Errorf("the Device footer's text is %q; it is the link's status only, %q", got, want)
+	}
 }

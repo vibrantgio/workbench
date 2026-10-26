@@ -1211,12 +1211,14 @@ var hints = map[string]string{
 	"sleep":   "Screen sleep — blank the display after this many minutes; 0 = never",
 }
 
-// deviceFooter is the Device tab's footer of status text: the link
-// settings this app leaves alone.
+// linkStatus is the Device footer's text: the link's status only.
+func linkStatus() string {
+	return fmt.Sprintf("Link: %d baud, Modbus address %d", baudRate, slaveAddr)
+}
+
+// deviceFooter is the Device tab's footer of status text: the link's status.
 func deviceFooter(t themed, m Model) layout.Widget {
-	return statusFooter(t.typ, t.palette.SecondaryLabel,
-		fmt.Sprintf("Link: %d baud, Modbus address %d — changing either needs a power cycle, so this app leaves them alone.",
-			baudRate, slaveAddr))
+	return statusFooter(t.typ, t.palette.SecondaryLabel, linkStatus())
 }
 
 // statusFooter draws a footer of status text at the platform's status bar's
