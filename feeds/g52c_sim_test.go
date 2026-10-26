@@ -176,14 +176,16 @@ const (
 // below the header. This is the same overlay composition articlesMain
 // builds (overlayUnreadTooltip + tooltip.Tooltip).
 func TestUnreadTooltipHoverHeadless(t *testing.T) {
-	tipObs := tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
-		Text:      "Unread",
-		Shaper:    tokens.DefaultTypography.DeterministicShaper(),
-		Placement: tooltip.Bottom,
-		Trigger: func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		},
-	})
+	// The props are the window's own; only the shaper is the test's.
+	if got := unreadTipProps(nil).Text; got != "Unread" {
+		t.Errorf("Unread tooltip text = %q, want %q", got, "Unread")
+	}
+	unreadTip := func() tooltip.Props {
+		p := unreadTipProps(tooltip.NewArbiter())
+		p.Shaper = tokens.DefaultTypography.DeterministicShaper()
+		return p
+	}
+	tipObs := tooltip.Tooltip(rx.Of(theme.Default()), unreadTip())
 	tip, err := golden.Resolve(tipObs)
 	if err != nil || tip == nil {
 		t.Fatalf("tooltip layout.Widget: %v", err)
@@ -232,14 +234,7 @@ func TestUnreadTooltipHoverHeadless(t *testing.T) {
 	}
 	hovered := renderAt(tShown.Add(time.Millisecond), r.Source(), overlay)
 
-	freshTip, err := golden.Resolve(tooltip.Tooltip(rx.Of(theme.Default()), tooltip.Props{
-		Text:      "Unread",
-		Shaper:    tokens.DefaultTypography.DeterministicShaper(),
-		Placement: tooltip.Bottom,
-		Trigger: func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		},
-	}))
+	freshTip, err := golden.Resolve(tooltip.Tooltip(rx.Of(theme.Default()), unreadTip()))
 	if err != nil || freshTip == nil {
 		t.Fatalf("baseline tooltip layout.Widget: %v", err)
 	}

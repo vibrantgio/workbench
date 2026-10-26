@@ -342,15 +342,7 @@ func articlesMain(
 	// articlesLayout positions that space over the header cell, since the
 	// table draws its headers internally and offers no layout.Widget slot
 	// there.
-	unreadTipObs := tooltip.Tooltip(th, tooltip.Props{
-		Text:          "Unread",
-		Placement:     tooltip.Bottom,
-		Arbiter:       tipArb,
-		AvailableRoom: attachment.AvailableRoom,
-		Trigger: func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		},
-	})
+	unreadTipObs := tooltip.Tooltip(th, unreadTipProps(tipArb))
 
 	tableObs := table.Table(th, table.Props[article]{
 		Columns: columns,
@@ -499,6 +491,20 @@ func articleColumns(
 			}
 			return ""
 		})},
+	}
+}
+
+// unreadTipProps are the props the window passes to the Unread header
+// tooltip. The headless hover test builds its tooltip from the same props.
+func unreadTipProps(arb *tooltip.Arbiter) tooltip.Props {
+	return tooltip.Props{
+		Text:          "Unread",
+		Placement:     tooltip.Bottom,
+		Arbiter:       arb,
+		AvailableRoom: attachment.AvailableRoom,
+		Trigger: func(gtx layout.Context) layout.Dimensions {
+			return layout.Dimensions{Size: gtx.Constraints.Max}
+		},
 	}
 }
 
