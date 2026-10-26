@@ -10,7 +10,6 @@ import (
 	"github.com/vibrantgio/components/composite"
 	complist "github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
-	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/theme"
@@ -114,10 +113,10 @@ func view(th themed, model Model, listState *complist.State, band func() unit.Dp
 	p := th.palette
 
 	add := func(gtx layout.Context) {
-		mvu.MessageOp{Message: SetRoute{Route: "add.todo"}}.Add(gtx.Ops)
+		postMessage(gtx, SetRoute{Route: "add.todo"})
 	}
 	toolbar := Toolbar(th.platform, th.density, new(widget.Clickable), band, add)
-	addKey := OnAddKey(add)
+	chords := ChordAreas(postMessage)
 	list := List(th.typ, thObs, p, th.density, th.listBar(), listState, model)
 
 	// The dialogs are constructed HERE, once per emission, and reused across
@@ -159,7 +158,9 @@ func view(th themed, model Model, listState *complist.State, band func() unit.Dp
 		if route == "" {
 			page(gtx)
 			toolbar(gtx)
-			addKey(gtx)
+			for _, chord := range chords {
+				chord(gtx)
+			}
 		} else {
 			page(gtx.Disabled())
 			toolbar(gtx.Disabled())

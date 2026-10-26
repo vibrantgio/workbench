@@ -7,7 +7,6 @@ import (
 
 	"gioui.org/f32"
 	"gioui.org/io/input"
-	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -109,19 +108,15 @@ func TestTheToolbarDrawsTheAddButton(t *testing.T) {
 	}
 }
 
-// TestTheAddButtonAndItsKeyAddATodo drives the toolbar through an input
-// router. A click on the button calls the add action, and so does Command-N,
-// the platform's New chord. The bare N calls nothing.
-func TestTheAddButtonAndItsKeyAddATodo(t *testing.T) {
+// TestTheAddButtonAddsATodo drives the toolbar through an input router. A
+// click on the button calls the add action. menu_test.go drives the
+// Command-N chord.
+func TestTheAddButtonAddsATodo(t *testing.T) {
 	added := 0
 	add := func(layout.Context) { added++ }
 	th := staticThemed(tokens.PlatformLight)
 	bar := Toolbar(th.platform, th.density, new(widget.Clickable), func() unit.Dp { return bandDp }, add)
-	keys := OnAddKey(add)
-	w := func(gtx layout.Context) layout.Dimensions {
-		bar(gtx)
-		return keys(gtx)
-	}
+	w := bar
 	var r input.Router
 	var ops op.Ops
 	frame := func() {
@@ -146,17 +141,6 @@ func TestTheAddButtonAndItsKeyAddATodo(t *testing.T) {
 	frame()
 	if added != 1 {
 		t.Fatalf("a click on the add button at %v called the add action %d times, want 1", at, added)
-	}
-
-	r.Queue(key.Event{Name: "N", Modifiers: key.ModShortcut, State: key.Press})
-	frame()
-	if added != 2 {
-		t.Fatalf("Command-N called the add action %d times in all, want 2", added)
-	}
-	r.Queue(key.Event{Name: "N", State: key.Press})
-	frame()
-	if added != 2 {
-		t.Errorf("the bare N called the add action; %d calls in all, want 2", added)
 	}
 }
 

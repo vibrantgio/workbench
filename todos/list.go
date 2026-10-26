@@ -55,10 +55,21 @@ import (
 // to every layout, so a change to a todo keeps the rows the reader scrolled to.
 func List(typ Type, th rx.Observable[theme.Theme], p Palette, den tokens.Density, bar scrollbar.Style, state *complist.State, model Model) layout.Widget {
 	rows := make([]rowLayout, len(model.List))
-	for i := range model.List {
-		rows[i] = Row(typ, th, p, model.List[i])
+	ids := make([]int, len(model.List))
+	selected := -1
+	for i, todo := range model.List {
+		rows[i] = Row(typ, th, p, todo)
+		ids[i] = todo.Id
+		if model.HasSelected && todo.Id == model.Selected {
+			selected = i
+		}
 	}
-	return scrollingList(rows, unit.Dp(den.ContentListRowHeight), p.RowSelection, bar, state)
+	return scrollingList(rows, ids, selected, unit.Dp(den.ContentListRowHeight), p.RowSelection, bar, state, postMessage)
+}
+
+// postMessage adds msg to the frame's messages for the update.
+func postMessage(gtx layout.Context, msg mvu.Message) {
+	mvu.MessageOp{Message: msg}.Add(gtx.Ops)
 }
 
 // rowLayout draws one row of the list. sel tells the row whether it is the
@@ -71,10 +82,6 @@ type rowSelection struct {
 	selected bool
 	// choose selects the row and hands the list the keyboard.
 	choose func(gtx layout.Context)
-	// deleted keeps the selection on the same todo when the row is deleted:
-	// the selection index follows the rows that move up, and a deleted
-	// selected row leaves no row selected.
-	deleted func()
 }
 
 // scrollingList lays rows out as the list's region that scrolls, each row
@@ -85,7 +92,14 @@ type rowSelection struct {
 // A press on a part of a row that holds no control of its own selects the
 // row. The row's checkbox and delete mark keep their own presses, and the
 // row's text selects the row through its own click.
-func scrollingList(rows []rowLayout, rowHeight unit.Dp, fill color.NRGBA, bar scrollbar.Style, state *complist.State) layout.Widget {
+//
+// Model owns the selection, so the update can read it: ids are the rows'
+// todo Ids and selectedRow is the index of Model's selected todo, or -1. The
+// first frame sets state's selection from selectedRow. A selection that the
+// list changes after that, by a press or a key, is posted through post as
+// SelectTodo. The Delete key with no modifier posts DeleteSelected while the
+// list holds the keyboard, so a text field keeps its own Delete key.
+func scrollingList(rows []rowLayout, ids []int, selectedRow int, rowHeight unit.Dp, fill color.NRGBA, bar scrollbar.Style, state *complist.State, post func(gtx layout.Context, msg mvu.Message)) layout.Widget {
 	idx := make([]int, len(rows))
 	for i := range idx {
 		idx[i] = i
@@ -99,15 +113,21 @@ func scrollingList(rows []rowLayout, rowHeight unit.Dp, fill color.NRGBA, bar sc
 		gtx.Execute(key.FocusCmd{Tag: state.Focus()})
 		gtx.Execute(op.InvalidateCmd{})
 	}
-	deleted := func(i int) {
-		switch sel := state.Selected(); {
-		case sel == i:
-			state.Select(-1)
-		case sel > i:
-			state.Select(sel - 1)
-		}
-	}
+	synced := false
 	return func(gtx layout.Context) layout.Dimensions {
+		if !synced {
+			state.Select(selectedRow)
+			synced = true
+		}
+		for {
+			e, ok := gtx.Event(key.Filter{Focus: state.Focus(), Name: deleteKey})
+			if !ok {
+				break
+			}
+			if ke, ok := e.(key.Event); ok && ke.State == key.Press {
+				post(gtx, DeleteSelected{})
+			}
+		}
 		// The presses are read before the rows are laid out, so the frame
 		// that receives a press already draws its row selected.
 		for i := range clicks {
@@ -121,7 +141,7 @@ func scrollingList(rows []rowLayout, rowHeight unit.Dp, fill color.NRGBA, bar sc
 				}
 			}
 		}
-		return complist.LayoutSelectableScrollbar(gtx, state, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int, selected bool) layout.Dimensions {
+		dims := complist.LayoutSelectableScrollbar(gtx, state, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int, selected bool) layout.Dimensions {
 			size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(rowHeight))
 			gtx.Constraints = layout.Exact(size)
 			if selected {
@@ -135,11 +155,15 @@ func scrollingList(rows []rowLayout, rowHeight unit.Dp, fill color.NRGBA, bar sc
 			sel := rowSelection{
 				selected: selected,
 				choose:   func(gtx layout.Context) { choose(gtx, i) },
-				deleted:  func() { deleted(i) },
 			}
 			in := layout.Inset{Left: 2 * Padding, Right: rowTrailingInset}
 			return in.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return rows[i](gtx, sel) })
 		})
+		if i := state.Selected(); i >= 0 && i < len(ids) && i != selectedRow {
+			selectedRow = i
+			post(gtx, SelectTodo{Id: ids[i]})
+		}
+		return dims
 	}
 }
 
@@ -244,7 +268,6 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) rowLayou
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return title(gtx, sel) }),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				if deleteClick.Clicked(gtx) {
-					sel.deleted()
 					mvu.MessageOp{Message: DeleteTodo{Id: item.Id}}.Add(gtx.Ops)
 				}
 				// The slot is laid out in every state, so the text's width

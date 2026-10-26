@@ -7,9 +7,13 @@ type Model struct {
 	// "edit.todo".
 	Route string
 
-	// Selected is the Id of the todo being edited while Route is
-	// "edit.todo".
+	// Selected is the Id of the list's selected todo while HasSelected is
+	// true. The edit dialog edits this todo.
 	Selected int
+
+	// HasSelected is true while the list has a selected todo. Its zero
+	// value is no selection, so a Model literal selects no row.
+	HasSelected bool
 
 	List TodoList
 }

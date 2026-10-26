@@ -23,7 +23,8 @@ type ToggleTodo struct {
 	Id int
 }
 
-// SelectTodo marks the todo with the given Id as the edit target.
+// SelectTodo selects the todo with the given Id in the list. The edit dialog
+// edits the selected todo.
 type SelectTodo struct {
 	Id int
 }
@@ -32,3 +33,8 @@ type SelectTodo struct {
 type DeleteTodo struct {
 	Id int
 }
+
+// DeleteSelected removes the list's selected todo. The update resolves the
+// todo from Model, so a menu item can post this fixed message. It does
+// nothing while no todo is selected or while a dialog is open.
+type DeleteSelected struct{}

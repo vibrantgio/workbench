@@ -162,7 +162,11 @@ func run() {
 	// it. mvu.Loop carries the current model to every one of those
 	// subscriptions whenever it attaches, so there is no consumer count here
 	// to keep right.
-	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), drops.Messages(), platformColors(time.Second)), Init, Update)
+	// The menu bar holds the window's actions (menu.go). Away from macOS the
+	// declaration is inert.
+	menu := desktop.NewMenuBar(mvuWin, MenuItems()...)
+
+	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), drops.Messages(), menu.Messages(), platformColors(time.Second)), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
 	if err := w.Render(buildLayers(models, zones, bars)).Wait(); err != nil {
