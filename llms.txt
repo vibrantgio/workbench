@@ -1101,7 +1101,11 @@ for a text field: the minimum is not a height, and a Comfortable button
 (SystemFont, 16 dp line box) draws its 24 dp minimum, and a
 Comfortable text field (SystemFont, 16 dp line box) draws its 27 dp
 minimum. A control
-standing in the toolbar takes Density.ToolbarControlHeight, 36 dp.
+standing in the toolbar takes Density.ToolbarControlHeight, 36 dp. Its
+width is its own. shell.ToolbarControl draws a symbol in the 38 dp capsule.
+shell.ToolbarTitled lays a control titled with text out at
+shell.ToolbarTitleWidth: the text's width and 8 dp each side. The toolbar
+lays each control out once and does not measure it.
 
 ### Text you draw yourself with textdraw
 
