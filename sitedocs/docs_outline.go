@@ -13,9 +13,7 @@ package main
 import (
 	"image"
 	"image/color"
-	"math"
 
-	"gioui.org/f32"
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
 	"gioui.org/layout"
@@ -287,15 +285,15 @@ func hSpacer(dp float32) layout.Widget {
 }
 
 // drawOutlineDisclosure draws a row's disclosure: the shared set's
-// right-pointing chevron, pointing along the row when closed and rotated a
-// quarter turn open.
+// chevron-right when the row is closed and its chevron-down when the row is
+// open.
 func drawOutlineDisclosure(gtx layout.Context, open bool, sizeDp unit.Dp, c color.NRGBA) layout.Dimensions {
 	px := gtx.Dp(sizeDp)
+	name := icons.ChevronRight
 	if open {
-		half := float32(px) / 2
-		defer op.Affine(f32.Affine2D{}.Rotate(f32.Pt(half, half), math.Pi/2)).Push(gtx.Ops).Pop()
+		name = icons.ChevronDown
 	}
-	if mark := icons.Mark(icons.ChevronRight); mark != nil {
+	if mark := icons.Mark(name); mark != nil {
 		mark(gtx, px, c)
 	}
 	return layout.Dimensions{Size: image.Pt(px, px)}
