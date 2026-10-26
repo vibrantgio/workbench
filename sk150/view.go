@@ -1101,13 +1101,14 @@ func presetsRows(t themed, m Model, slots slotSet, hc hintCells) (head, rows []l
 		textLine(typ, typ.Table, p.SecondaryLabel, presetTableHeader),
 		vspace(3),
 	}
-	// Each slot row is laid out at the standard row height and each gap at
-	// its own, so the heights the list reads are the heights drawn.
+	// Each slot row holds push buttons, so it is a content list row. Each
+	// row and each gap is laid out at its own height, so the heights the
+	// list reads are the heights drawn.
 	add := func(h unit.Dp, w layout.Widget) {
 		rows = append(rows, exactHeight(h, w))
 		heights = append(heights, h)
 	}
-	slotH := list.RowHeight(t.density)
+	slotH := unit.Dp(t.density.ContentListRowHeight)
 	for n := 0; n <= 9; n++ {
 		txt := presetTableRow(n, m.Presets[n])
 		col := p.Label
