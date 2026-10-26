@@ -342,7 +342,7 @@ func TestDocCacheReusesStableRows(t *testing.T) {
 	}
 
 	// Notes render as plain labels, and so does an answer with nothing in
-	// it yet — that row draws the waiting indicator instead.
+	// it yet — that row draws the progress row instead.
 	rows := cache.Rows([]Message{
 		{Kind: KindNote, Content: "Searching…"},
 		{Role: RoleAssistant, Kind: KindArriving},

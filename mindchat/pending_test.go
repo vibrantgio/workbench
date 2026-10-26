@@ -2,14 +2,23 @@ package main
 
 import (
 	"image"
+	"image/color"
+	"strings"
 	"testing"
 	"time"
 
+	"gioui.org/gesture"
 	"gioui.org/io/input"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 
+	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/progress"
+	"github.com/vibrantgio/patterns/sidebar"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -113,16 +122,6 @@ func TestVisibleHistoryShowsWaitingRowUntilTheFirstToken(t *testing.T) {
 	}
 }
 
-// motionThemed is the themed snapshot the indicators read, for one motion
-// scale. Everything else is the default theme.
-func motionThemed(m tokens.MotionScale) themed {
-	return themed{
-		palette: PaletteFrom(tokens.PlatformLight),
-		typ:     tokens.DefaultTypography,
-		motion:  m,
-	}
-}
-
 // drawIndicator lays a layout.Widget out at one instant against a live
 // input.Source and reports its dimensions and whether it asked to be
 // repainted. The wakeup is what op.InvalidateCmd sets, so it answers "does
@@ -143,88 +142,155 @@ func drawIndicator(now time.Time, w func(gtx layout.Context) layout.Dimensions) 
 	return dims, wakeup
 }
 
-// TestWaitingIndicatorsHonourTheThemesMotionScale is the reduced-motion
-// contract for both in-flight indicators, and the reason neither carries a
-// duration of its own. The theme composes the OS preference: while Reduce
-// Motion is on it emits tokens.Motion.Reduced(), every duration stop
-// zero. A zero stop must mean a still indicator that schedules no further
-// frame — not a slower spin, and not the same spin.
-func TestWaitingIndicatorsHonourTheThemesMotionScale(t *testing.T) {
-	// Two instants a third of a second apart: far enough into any cycle
-	// derived from the stops that a moving indicator differs between them.
-	first := time.Unix(0, 0)
-	second := first.Add(333 * time.Millisecond)
-
-	for _, tc := range []struct {
-		name    string
-		scale   tokens.MotionScale
-		animate bool
-	}{
-		{"default scale animates", tokens.Motion, true},
-		{"reduced scale is still", tokens.Motion.Reduced(), false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			th := motionThemed(tc.scale)
-
-			dims, wakeup := drawIndicator(first, func(gtx layout.Context) layout.Dimensions {
-				return WaitingDots(gtx, th)
-			})
-			if wakeup != tc.animate {
-				t.Errorf("WaitingDots requested a repaint = %v, want %v", wakeup, tc.animate)
+// paintedBox is the box of the pixels inside r that differ from fill by
+// more than 8 levels in any channel. An empty box means r is bare.
+func paintedBox(img *image.RGBA, r image.Rectangle, fill color.NRGBA) image.Rectangle {
+	var box image.Rectangle
+	for y := r.Min.Y; y < r.Max.Y; y++ {
+		for x := r.Min.X; x < r.Max.X; x++ {
+			p := img.RGBAAt(x, y)
+			if max(abs(int(p.R)-int(fill.R)), abs(int(p.G)-int(fill.G)), abs(int(p.B)-int(fill.B))) > 8 {
+				box = box.Union(image.Rect(x, y, x+1, y+1))
 			}
-			if dims.Size.X <= 0 || dims.Size.Y <= 0 {
-				t.Fatalf("WaitingDots dimensions = %v, want a drawn row", dims.Size)
+		}
+	}
+	return box
+}
+
+// TestArrivingTextIsOnePhraseEndingInTheEllipsis holds the arriving turn's
+// text to the phrase with the one ellipsis character, never three full stops.
+func TestArrivingTextIsOnePhraseEndingInTheEllipsis(t *testing.T) {
+	if arrivingText != "Thinking\u2026" {
+		t.Errorf("the arriving turn's text is %q, want %q", arrivingText, "Thinking\u2026")
+	}
+	if strings.Contains(arrivingText, "...") {
+		t.Errorf("the arriving turn's text %q ends with three full stops, want U+2026", arrivingText)
+	}
+}
+
+// TestTheArrivingTurnDrawsTheIndicatorAtTheBodysTrailingEnd renders an
+// assistant turn before its first token in both schemes. The body's trailing
+// end holds the indeterminate indicator at its measured 16 × 16, and the
+// body's leading end holds the arriving text in the label colour over the
+// transcript. No pixel is the accent colour. Once the first text arrives,
+// the indicator and the arriving text are removed.
+func TestTheArrivingTurnDrawsTheIndicatorAtTheBodysTrailingEnd(t *testing.T) {
+	size := image.Pt(720, 80)
+	for _, sc := range schemes {
+		t.Run(sc.name, func(t *testing.T) {
+			th := goldenThemed(t, sc.c)
+			fill := th.palette.Transcript
+			gtx := layout.Context{Constraints: layout.Exact(size), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}}
+			at, width := columnOf(gtx).body(gtx, true)
+			end := at.X + width
+			n := int(progress.Size)
+
+			img := golden.Capture(t, size, conversationColumn(th, []Message{{Role: RoleAssistant, Kind: KindArriving}}))
+			ind := paintedBox(img, image.Rect(end-n-2, 0, size.X, size.Y), fill)
+			if ind.Dx() != n || ind.Dy() != n {
+				t.Errorf("the indicator paints %v, want the measured %d × %d", ind, n, n)
+			}
+			if ind.Max.X != end {
+				t.Errorf("the indicator ends at x=%d, want the body's trailing end x=%d", ind.Max.X, end)
+			}
+			line := paintedBox(img, image.Rect(at.X, 0, end-n-int(progress.Gap), size.Y), fill)
+			if line.Empty() {
+				t.Fatal("the body's leading end is bare, want the arriving text")
+			}
+			if lead := line.Min.X - at.X; lead < 0 || lead > 2 {
+				t.Errorf("the arriving text begins %d px past the body's leading end, want at most the glyph's own 2 px", lead)
+			}
+			if got, want := line.Min.Y+line.Max.Y, ind.Min.Y+ind.Max.Y; abs(got-want) > 3 {
+				t.Errorf("the arriving text centres at y=%.1f, want the indicator's y=%.1f", float64(got)/2, float64(want)/2)
+			}
+			want := vgcolor.Flatten(sc.c.Label, fill)
+			nearest := 255
+			for y := line.Min.Y; y < line.Max.Y; y++ {
+				for x := line.Min.X; x < line.Max.X; x++ {
+					p := img.RGBAAt(x, y)
+					nearest = min(nearest, max(abs(int(p.R)-int(want.R)), abs(int(p.G)-int(want.G)), abs(int(p.B)-int(want.B))))
+				}
+			}
+			if nearest > 16 {
+				t.Errorf("the arriving text's nearest pixel lies %d levels off the label colour over the transcript, want within 16", nearest)
+			}
+			accent := th.palette.Accent
+			for y := range size.Y {
+				for x := range size.X {
+					p := img.RGBAAt(x, y)
+					if max(abs(int(p.R)-int(accent.R)), abs(int(p.G)-int(accent.G)), abs(int(p.B)-int(accent.B))) <= 8 {
+						t.Fatalf("pixel (%d, %d) is the accent colour %v, want no accent dot", x, y, p)
+					}
+				}
 			}
 
-			later, _ := drawIndicator(second, func(gtx layout.Context) layout.Dimensions {
-				return WaitingDots(gtx, th)
-			})
-			if later.Size != dims.Size {
-				t.Errorf("WaitingDots size moved between frames: %v then %v; the row must not resize while it waits", dims.Size, later.Size)
-			}
-
-			_, wakeup = drawIndicator(first, func(gtx layout.Context) layout.Dimensions {
-				StreamDot(gtx, th, image.Pt(gtx.Dp(StreamDotSlot), gtx.Dp(DeleteIconSize)))
-				return layout.Dimensions{Size: image.Pt(1, 1)}
-			})
-			if wakeup != tc.animate {
-				t.Errorf("StreamDot requested a repaint = %v, want %v", wakeup, tc.animate)
+			img = golden.Capture(t, size, conversationColumn(th, []Message{{Role: RoleAssistant, Kind: KindArriving, Content: "A monoid"}}))
+			if box := paintedBox(img, image.Rect(end-n-2, 0, size.X, size.Y), fill); !box.Empty() {
+				t.Errorf("after the first text arrives the body's trailing end paints %v, want no indicator", box)
 			}
 		})
 	}
 }
 
-// TestMotionPhaseTravelsAcrossTheDots checks the arithmetic the wave rests
-// on: over one cycle each dot leads the next by exactly one stop, so their
-// phases are evenly spread rather than moving in lockstep — and a zero cycle
-// (the reduced scale) reports that there is no phase at all.
-func TestMotionPhaseTravelsAcrossTheDots(t *testing.T) {
-	stop := tokens.Motion.DurXSlow
-	cycle := WaitingDotCount * stop
-	now := time.Unix(0, 0)
-
-	var phases []float64
-	for i := range WaitingDotCount {
-		p, ok := motionPhase(now, cycle, time.Duration(i)*stop)
-		if !ok {
-			t.Fatalf("dot %d: motionPhase over a %v cycle reported no phase", i, cycle)
-		}
-		if p < 0 || p >= 1 {
-			t.Fatalf("dot %d: phase = %v, want [0,1)", i, p)
-		}
-		phases = append(phases, p)
+// TestTheArrivingTurnAnimatesOnTheFramesClock lays the arriving turn out at a
+// fixed instant and checks that the indicator asks for the next frame.
+func TestTheArrivingTurnAnimatesOnTheFramesClock(t *testing.T) {
+	th := goldenThemed(t, tokens.PlatformLight)
+	rows := newDocCache().Rows([]Message{{Role: RoleAssistant, Kind: KindArriving}})
+	_, wakeup := drawIndicator(time.Unix(0, 0), func(gtx layout.Context) layout.Dimensions {
+		return MessageRow(gtx, th, rows[0])
+	})
+	if !wakeup {
+		t.Error("the arriving turn requested no next frame, want the indicator to step on the frame's clock")
 	}
-	for i := 1; i < len(phases); i++ {
-		gap := phases[i-1] - phases[i]
-		if gap < 0 {
-			gap += 1
-		}
-		if want := 1.0 / float64(WaitingDotCount); gap < want-1e-9 || gap > want+1e-9 {
-			t.Errorf("dots %d and %d are %v of a cycle apart, want %v — the pulse must travel, not blink in unison", i-1, i, gap, want)
-		}
-	}
+}
 
-	if _, ok := motionPhase(now, 0, 0); ok {
-		t.Error("motionPhase over a zero cycle reported a phase; a reduced motion scale must yield no animation at all")
+// TestAnInFlightSidebarRowDrawsTheIndicatorAtItsTrailingEnd renders one
+// sidebar row at rest and selected, in both schemes. While its chat is in
+// flight the row draws the indicator at its measured 16 × 16, at the
+// trailing end of the title's column. That column ends the controls' own
+// 6 dp gap before the row's two reserved controls begin. While the chat is
+// not in flight that place is bare.
+func TestAnInFlightSidebarRowDrawsTheIndicatorAtItsTrailingEnd(t *testing.T) {
+	size := image.Pt(240, int(sidebar.RowHeight))
+	n := int(progress.Size)
+	// The row's trailing inset is 12 dp, and its two controls are two
+	// icons 6 dp apart. The indicator keeps the same 6 dp off them.
+	end := size.X - 12 - (2*int(DeleteIconSize) + 6) - 6
+	for _, sc := range schemes {
+		for _, selected := range []bool{false, true} {
+			name := sc.name + "-rest"
+			if selected {
+				name = sc.name + "-selected"
+			}
+			t.Run(name, func(t *testing.T) {
+				th := railThemed(t, sc.c)
+				fill := th.palette.Sidebar
+				if selected {
+					fill = th.palette.RowSelected
+				}
+				draw := func(streaming bool) *image.RGBA {
+					return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
+						paint.FillShape(gtx.Ops, th.palette.Sidebar, clip.Rect{Max: gtx.Constraints.Max}.Op())
+						return ChatRow(gtx, th, "ab.jsonl", selected, false, streaming,
+							new(gesture.Click), new(gesture.Click), new(gesture.Click), nil, postMessage)
+					})
+				}
+				look := image.Rect(end-n-12, 0, end+2, size.Y)
+				ind := paintedBox(draw(true), look, fill)
+				if ind.Dx() != n || ind.Dy() != n {
+					t.Errorf("the in-flight row's indicator paints %v, want the measured %d × %d", ind, n, n)
+				}
+				if ind.Max.X != end {
+					t.Errorf("the indicator ends at x=%d, want the title column's trailing end x=%d", ind.Max.X, end)
+				}
+				if got, want := ind.Min.Y+ind.Max.Y, size.Y; abs(got-want) > 1 {
+					t.Errorf("the indicator centres at y=%.1f, want the row's middle y=%.1f", float64(got)/2, float64(want)/2)
+				}
+				if box := paintedBox(draw(false), look, fill); !box.Empty() {
+					t.Errorf("a row not in flight paints %v at the indicator's place, want it bare", box)
+				}
+			})
+		}
 	}
 }

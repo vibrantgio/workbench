@@ -57,7 +57,6 @@ func newPaneStripFrame(t *testing.T, hidden bool) *paneStripFrame {
 	// The toolbar's control is drawn at the density's own toolbar-control
 	// height, which the live window reads off the theme.
 	p.th.den = tokens.Comfortable
-	p.th.motion = tokens.Motion
 	p.m.SidebarHidden = hidden
 	p.gtx = layout.Context{
 		Constraints: layout.Exact(windowSize),

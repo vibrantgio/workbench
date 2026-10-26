@@ -89,7 +89,7 @@ func TestEveryRegionWearsItsPlatformFill(t *testing.T) {
 				{"a dialog's chip", p.DialogChip, c.PushButtonFill},
 				{"the open conversation's pill", p.RowSelected, sidebar.SelectionFill(c, false)},
 				{"a content list's selected row", p.ListSelected, c.SelectedContentBackground},
-				{"the in-flight dot", p.Accent, c.ControlAccent},
+				{"the Undo action's text", p.Accent, c.ControlAccent},
 				{"a failed fetch's words", p.Error, c.SystemRed},
 			} {
 				if f.got != f.want {

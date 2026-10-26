@@ -96,8 +96,9 @@ meant to be built — MVU state, live theming from theme, layouts from patterns:
 - **[`mindchat/`](./mindchat)** — an OpenAI chat client and the most
   feature-complete app: streaming completions routed through the MVU
   command loop, a resizable/collapsible split-pane shell, trash-backed
-  undo with Cmd/Ctrl-Z, chat rename/delete/create, and per-chat streaming
-  indicators. Set `OPENAI_API_KEY` to chat.
+  undo with Cmd/Ctrl-Z, chat rename/delete/create, and the platform's
+  indeterminate indicator on a turn still arriving and on each
+  conversation in flight. Set `OPENAI_API_KEY` to chat.
 - **[`marketing/`](./marketing)** — a fictional SimpleApps landing on an
   outline field: one full-screen page for provenance and authenticity
   tools, with macOS full-size-content chrome so the traffic lights sit

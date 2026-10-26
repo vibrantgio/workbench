@@ -48,7 +48,7 @@ func newDocCache() *docCache {
 //
 // An answer still arriving is parsed like any other: it is the same document
 // with less of it. Before the first token there is nothing to parse, and the
-// row draws the waiting indicator in the slot the answer will fill.
+// row draws the progress row that the answer replaces.
 func (c *docCache) Rows(history []Message) []msgRow {
 	next := make(map[string]*markdown.Document, len(history))
 	rows := make([]msgRow, len(history))

@@ -3,12 +3,10 @@ package main
 import (
 	"image"
 	"image/color"
-	"math"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
@@ -33,6 +31,7 @@ import (
 	"github.com/vibrantgio/components/composite"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/progress"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/effects/depth"
 	"github.com/vibrantgio/ivg"
@@ -132,14 +131,6 @@ type themed struct {
 	// rather than from numbers this app would have to keep in step.
 	sp  tokens.SpacingScale
 	rad tokens.RadiusScale
-	// motion is the theme's duration scale, and it is the app's ONLY
-	// reduce-motion signal. The theme already composes the OS preference:
-	// while Reduce Motion is on, LiveTheme emits tokens.Motion.Reduced(),
-	// whose every stop is zero — so a zero stop means "do not animate" and
-	// the waiting indicator and the streaming dot both render static. Reading
-	// theme/a11y here as well would be a second path to the same preference,
-	// and a second poller.
-	motion tokens.MotionScale
 }
 
 // Chroma styles for the two appearance modes; built once, shared by every
@@ -219,12 +210,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		// Six scales, and rx combines five at a time, so the density rides
-		// beside the other five rather than among them.
-		scales := rx.CombineLatest5(t.Platform, t.Typography, t.Motion, t.Spacing, t.Radius)
-		return rx.Map(rx.CombineLatest2(scales, t.Density), func(n rx.Tuple2[rx.Tuple5[tokens.PlatformColors, tokens.Typography, tokens.MotionScale, tokens.SpacingScale, tokens.RadiusScale], tokens.Density]) themed {
-			ct, den := n.First, n.Second
-			c, typ, motion, sp, rad := ct.First, ct.Second, ct.Third, ct.Fourth, ct.Fifth
+		scales := rx.CombineLatest5(t.Platform, t.Typography, t.Spacing, t.Radius, t.Density)
+		return rx.Map(scales, func(ct rx.Tuple5[tokens.PlatformColors, tokens.Typography, tokens.SpacingScale, tokens.RadiusScale, tokens.Density]) themed {
+			c, typ, sp, rad, den := ct.First, ct.Second, ct.Third, ct.Fourth, ct.Fifth
 			p := PaletteFrom(c)
 			avatar, err := avatarMark(p)
 			if err != nil {
@@ -259,7 +247,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			// asked for scroll bars always finds one standing there too.
 			md.CodeScrollbar = scrollBarStyle(md.CodeScrollbar, bars)
 			md.TableScrollbar = scrollBarStyle(md.TableScrollbar, bars)
-			return themed{palette: p, col: c, bar: scrollBarStyle(scrollbar.FromTokens(c, c.ControlBackground), bars), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, md: md, typ: typ, shaper: typ.Shaper(), motion: motion, sp: sp, rad: rad, den: den}
+			return themed{palette: p, col: c, bar: scrollBarStyle(scrollbar.FromTokens(c, c.ControlBackground), bars), avatar: avatar, remove: remove, edit: edit, removeOn: removeOn, editOn: editOn, add: add, md: md, typ: typ, shaper: typ.Shaper(), sp: sp, rad: rad, den: den}
 		})
 	})
 
@@ -388,8 +376,8 @@ func visibleHistory(model Model) []Message {
 		history = append(history, Message{Kind: KindNote, Content: status})
 	}
 	// Tested against the chat's OWN last row, not the appended note:
-	// a tool running after the answer has started must not resurrect the
-	// waiting indicator.
+	// a tool running after the answer has started must not bring the
+	// progress row back.
 	if n := len(own); n == 0 || !own[n-1].IsAssistantTurn() {
 		history = append(history, Message{Role: RoleAssistant, Kind: KindArriving})
 	}
@@ -672,12 +660,16 @@ func rowHeight(gtx layout.Context, contentY int) layout.Dimensions {
 	return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, contentY+2*gtx.Dp(TurnInset))}
 }
 
+// arrivingText names the task of a turn before its first token arrives. It
+// ends with the ellipsis character U+2026, never with three full stops.
+const arrivingText = "Thinking…"
+
 // assistantTurn lays the answer out: a markdown document at the reading
 // measure, standing on the transcript with no card, the assistant's mark in
 // the gutter beside it. An answer still arriving is the same document with
-// what has come back so far; before the first token there is no document at
-// all and the waiting indicator stands in the slot it will fill, so the row
-// does not change shape when the first delta lands.
+// what has come back so far. Before the first token there is no document:
+// the body is a progress row, [arrivingText] at its leading end and the
+// indeterminate indicator at its trailing end. The first delta removes both.
 func assistantTurn(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 	col := columnOf(gtx)
 	at, width := col.body(gtx, true)
@@ -692,7 +684,10 @@ func assistantTurn(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 		md.Text.Color = t.palette.TurnText
 		dims = row.Doc.LayoutColumn(body, t.shaper, md)
 	} else {
-		dims = WaitingDots(body, t)
+		dims = progress.Row(body, progress.Props{
+			Platform: t.col, Fill: t.palette.Transcript,
+			Text: arrivingText, Shaper: t.shaper, Typography: t.typ,
+		})
 	}
 	stack.Pop()
 
@@ -1157,14 +1152,23 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 						return dims
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						// The dot slot is always reserved (no layout
-						// shift); the dot itself shows only while this
-						// chat has an in-flight completion.
-						slot := image.Pt(gtx.Dp(StreamDotSlot), gtx.Dp(DeleteIconSize))
-						if streaming {
-							StreamDot(gtx, t, slot)
+						// The indicator takes room only while this chat has
+						// a completion in flight. While it draws, a long
+						// title is truncated before it. It keeps the gap the
+						// two controls keep between them.
+						if !streaming {
+							return layout.Dimensions{}
 						}
-						return layout.Dimensions{Size: slot}
+						fill := p.Sidebar
+						if selected {
+							fill = p.RowSelected
+							if unemphasized {
+								fill = p.RowSelectedUnfocused
+							}
+						}
+						dims := progress.Indicator(gtx, progress.Props{Platform: t.col, Fill: fill})
+						dims.Size.X += gtx.Dp(6)
+						return dims
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						// The slots are always reserved so revealing the
@@ -1235,83 +1239,6 @@ func drawChatSymbol(gtx layout.Context, t themed, fg color.NRGBA) {
 	h := gtx.Dp(sidebar.RowHeight)
 	defer op.Offset(image.Pt(gtx.Dp(sidebar.SymbolInset), (h-box)/2)).Push(gtx.Ops).Pop()
 	mark(gtx, box, fg)
-}
-
-// motionPhase returns where the frame's instant sits in a cycle of the given
-// length, as a fraction in [0,1), with lead shifting this caller ahead of the
-// others sharing the cycle.
-//
-// A cycle of zero reports ok=false, and that is how both indicators honour
-// reduce-motion: the theme emits tokens.Motion.Reduced() while the preference
-// is on, every stop zero, so a cycle derived from a stop is zero too — no
-// phase, nothing to animate, and no frame to schedule.
-func motionPhase(now time.Time, cycle, lead time.Duration) (float64, bool) {
-	if cycle <= 0 {
-		return 0, false
-	}
-	off := (now.UnixNano() - int64(lead)) % int64(cycle)
-	if off < 0 {
-		off += int64(cycle)
-	}
-	return float64(off) / float64(cycle), true
-}
-
-// dotPulse is the alpha curve both in-flight indicators pulse on: a sine over
-// the phase, floored at 45% of the colour's own alpha so a dot fades but
-// never vanishes.
-func dotPulse(alpha uint8, phase float64) uint8 {
-	return uint8(float64(alpha) * (0.45 + 0.55*(0.5+0.5*math.Sin(2*math.Pi*phase))))
-}
-
-// StreamDot draws the sidebar's in-flight-completion indicator: an accent
-// dot, centred in its slot, gently pulsing over two of the theme's slowest
-// duration stops. It self-schedules the next frame only while visible, and
-// renders static (a plain accent dot) when the theme's motion scale is the
-// reduced one.
-func StreamDot(gtx layout.Context, t themed, slot image.Point) {
-	c := t.palette.Accent
-	if phase, animate := motionPhase(gtx.Now, 2*t.motion.DurXSlow, 0); animate {
-		c.A = dotPulse(c.A, phase)
-		gtx.Execute(op.InvalidateCmd{})
-	}
-	d := gtx.Dp(StreamDotSize)
-	defer op.Offset(image.Pt((slot.X-d)/2, (slot.Y-d)/2)).Push(gtx.Ops).Pop()
-	paint.FillShape(gtx.Ops, c, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
-}
-
-// WaitingDots draws the chat pane's waiting indicator: three accent dots in
-// the slot the answer will fill, pulsing in a wave that travels across them
-// — the cycle is one DurXSlow stop per dot and each dot leads the next by
-// one stop.
-// It occupies exactly the body line box, so the row does not change height
-// when the first delta replaces it with the answer.
-//
-// Under reduce-motion the theme's stops are zero, so the three dots draw once,
-// solid and still, and no further frame is requested. The user still learns
-// that the request is in flight; nothing moves.
-func WaitingDots(gtx layout.Context, t themed) layout.Dimensions {
-	st := t.typ.Body
-	height := gtx.Sp(unit.Sp(st.LineHeight))
-	if height <= 0 {
-		height = gtx.Sp(unit.Sp(st.Size))
-	}
-	d, gap := gtx.Dp(StreamDotSize), gtx.Dp(WaitingDotGap)
-	cycle := WaitingDotCount * t.motion.DurXSlow
-	animate := false
-	for i := range WaitingDotCount {
-		c := t.palette.Accent
-		if phase, ok := motionPhase(gtx.Now, cycle, time.Duration(i)*t.motion.DurXSlow); ok {
-			c.A = dotPulse(c.A, phase)
-			animate = true
-		}
-		stack := op.Offset(image.Pt(i*(d+gap), (height-d)/2)).Push(gtx.Ops)
-		paint.FillShape(gtx.Ops, c, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
-		stack.Pop()
-	}
-	if animate {
-		gtx.Execute(op.InvalidateCmd{})
-	}
-	return layout.Dimensions{Size: image.Pt(WaitingDotCount*d+(WaitingDotCount-1)*gap, height)}
 }
 
 // avatarMark is the assistant's avatar symbol. It is a symbol on the

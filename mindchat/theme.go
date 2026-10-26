@@ -51,7 +51,9 @@ type Palette struct {
 	// that measure against them.
 	RowSelectedUnfocused color.NRGBA
 	RowActiveUnfocused   color.NRGBA
-	Accent               color.NRGBA // the in-flight dot and the waiting indicator
+	// Accent is the platform's control accent: the Undo action's text and
+	// the settings dialog's checked box.
+	Accent color.NRGBA
 	// Transcript is the transcript's fill: the content plane, which is what
 	// the platform gives a window's document area.
 	Transcript color.NRGBA
@@ -214,10 +216,6 @@ const (
 	// end. The number is the pane pattern's own margin.
 	PaneMargin = pane.MarginDp
 
-	StreamDotSize     unit.Dp = 7
-	StreamDotSlot     unit.Dp = 15
-	WaitingDotGap     unit.Dp = 6
-	WaitingDotCount           = 3
 	RenameFieldHeight unit.Dp = 48
 
 	// Settings dialog geometry.

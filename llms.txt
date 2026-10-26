@@ -1486,7 +1486,12 @@ The most feature-complete app: a multi-provider LLM chat client (any
 OpenAI-compatible Responses endpoint; providers configured with their own
 BaseURL/key) whose side effects all run as mvu commands — a completion
 STREAMS dozens of messages back through the loop, routed by stream id so
-switching/renaming/deleting chats mid-stream stays safe. Message bodies
+switching/renaming/deleting chats mid-stream stays safe. A turn before its
+first token is components/progress's row: "Thinking…" at the body's
+leading end and the indeterminate indicator at its trailing end, both
+removed when the first text arrives. A conversation in the list whose
+completion is in flight keeps its title and draws the indicator at the
+title's trailing end. Message bodies
 render as markdown (chroma-highlighted fences with code in the mono face,
 links opening the OS browser, bundled SVG provider icons; markdown.go's
 degrade() + docCache are the chat-consumer recipe). Its window uses
