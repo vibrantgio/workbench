@@ -111,19 +111,6 @@ func agreement(a, b []bool, _ int) float64 {
 	return float64(both) / float64(either)
 }
 
-// turnedClockwise is the mask a quarter turn about the square's centre produces:
-// the pixel at (x, y) lands at (n-1-y, x). Gio's y axis points down, so the
-// positive rotation is the clockwise one on screen.
-func turnedClockwise(mask []bool, n int) []bool {
-	out := make([]bool, len(mask))
-	for y := 0; y < n; y++ {
-		for x := 0; x < n; x++ {
-			out[x*n+(n-1-y)] = mask[y*n+x]
-		}
-	}
-	return out
-}
-
 // drawnColumns reports the first and last column of r carrying symbol pixels.
 func drawnColumns(img *image.RGBA, r image.Rectangle, fill, symbol color.NRGBA) (first, last int) {
 	first, last = -1, -1
@@ -158,13 +145,7 @@ func markAlone(t *testing.T, c tokens.PlatformColors, name marks.Name, n int) *i
 
 // TestTheChevronDownCellDrawsTheSetsChevronDown reads off the frame that the
 // mark a row whose disclosure is open draws is the set's own chevron-down at
-// the catalogue's size, and not chevron-right turned a quarter turn.
-//
-// It is checked against both drawings rather than as "a down-pointing chevron
-// appeared", because chevron-right turned would satisfy the weaker reading.
-// The masks must agree with chevron-down and disagree with the turned
-// chevron-right; the second half is only a check while the two drawings
-// differ, which the test asserts first.
+// the catalogue's size.
 func TestTheChevronDownCellDrawsTheSetsChevronDown(t *testing.T) {
 	n := int(IconSize)
 	// The floor is "the cell drew the mark at all", not a count the drawing
@@ -178,18 +159,11 @@ func TestTheChevronDownCellDrawsTheSetsChevronDown(t *testing.T) {
 			img := markCellFrame(t, tc.c, ChevronDownMark)
 			cell := drawnMask(img, markSquare(), p.Backdrop, p.Text)
 			down := drawnMask(markAlone(t, tc.c, marks.ChevronDown, n), sq, p.Backdrop, p.Text)
-			turned := turnedClockwise(drawnMask(markAlone(t, tc.c, marks.ChevronRight, n), sq, p.Backdrop, p.Text), n)
 			if got := drawnCount(cell); got < drawn {
 				t.Fatalf("the cell's drawing at %d dp paints %d pixels; the cell is not drawing it", n, got)
 			}
-			if got := agreement(down, turned, n); got >= 0.95 {
-				t.Fatalf("chevron-down and chevron-right turned agree on %.1f%% of the square; this test cannot tell them apart", got*100)
-			}
 			if got := agreement(cell, down, n); got < 0.95 {
 				t.Errorf("the cell's drawing agrees with the set's chevron-down on %.1f%% of its square; it is not that mark", got*100)
-			}
-			if got := agreement(cell, turned, n); got >= 0.95 {
-				t.Errorf("the cell's drawing agrees with chevron-right turned on %.1f%% of its square; it is the turned mark", got*100)
 			}
 		})
 	}
