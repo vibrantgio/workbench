@@ -15,8 +15,8 @@ import (
 // foot.
 //
 // The grid's foot against the footer is a seam: the grid draws the hairline
-// in its last pixel row, the measured seam colour across the whole window
-// width, and the row it cuts is clipped above the hairline, so the line is
+// in its last pixel row, the status bar's measured seam across the whole
+// window width, and the row it cuts is clipped above the hairline, so the line is
 // whole and nothing of the row is drawn below it before the footer's text.
 func TestTheDeviceGridEndsInASeamAgainstItsFooter(t *testing.T) {
 	for _, tc := range schemes {
@@ -30,7 +30,7 @@ func TestTheDeviceGridEndsInASeamAgainstItsFooter(t *testing.T) {
 				golden.Capture(t, size, w)
 				img := golden.Capture(t, size, w)
 				fill := pageFill(tc.c)
-				seam := tc.c.Seam
+				seam := tc.c.StatusFooterSeam
 				seam.A = 0xff
 
 				whole := func(y int, col func(x int) bool) bool {
@@ -79,7 +79,8 @@ func TestTheDeviceGridEndsInASeamAgainstItsFooter(t *testing.T) {
 // status bar measures": 27 px of fill under the 1 px seam to the window's
 // bottom edge, the text's baseline 17 px under the fill's top, so its last
 // row above the baseline is 17 rows under the seam, and the text centred
-// across the window.
+// on the column's middle, which is the window's middle in this one-column
+// window.
 func TestTheDeviceFooterIsDrawnAtTheStatusBarsMeasures(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -92,7 +93,7 @@ func TestTheDeviceFooterIsDrawnAtTheStatusBarsMeasures(t *testing.T) {
 			golden.Capture(t, size, w)
 			img := golden.Capture(t, size, w)
 			fill := pageFill(tc.c)
-			seam := tc.c.Seam
+			seam := tc.c.StatusFooterSeam
 			seam.A = 0xff
 
 			foot := -1
@@ -137,9 +138,10 @@ func TestTheDeviceFooterIsDrawnAtTheStatusBarsMeasures(t *testing.T) {
 			if got := last - foot; got != 17 {
 				t.Errorf("the text's last row above its baseline is y %d, %d rows under the seam at y %d; the platform's status bar has 17", last, got, foot)
 			}
-			// Centred: the text's middle is within a pixel of the window's.
+			// Centred: the text's middle is within a pixel of the column's,
+			// which spans the window.
 			if mid2, want2 := minX+maxX, size.X-1; mid2 < want2-2 || mid2 > want2+2 {
-				t.Errorf("the text is drawn over x %d–%d, its middle at %.1f; it is centred on the window's middle, %.1f", minX, maxX, float64(mid2)/2, float64(want2)/2)
+				t.Errorf("the text is drawn over x %d–%d, its middle at %.1f; it is centred on the column's middle, %.1f", minX, maxX, float64(mid2)/2, float64(want2)/2)
 			}
 		})
 	}

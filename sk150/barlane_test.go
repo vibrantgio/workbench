@@ -58,7 +58,7 @@ func TestTheListTabsDrawTheWindowsBar(t *testing.T) {
 				if top < 0 {
 					t.Fatalf("at Always a resting frame drew no thumb in the lane x %d–%d at the window's trailing edge", thumbMin, thumbMax)
 				}
-				seam := tc.c.Seam
+				seam := tc.c.StatusFooterSeam
 				seam.A = 0xff
 				for y := top; y < size.Y; y++ {
 					if isSeamRow(standing, y, seam) {

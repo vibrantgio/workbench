@@ -1221,7 +1221,7 @@ func deviceFooter(t themed, m Model) layout.Widget {
 
 // statusFooter draws a footer of status text at the platform's status bar's
 // measures: StatusFooterHeight tall under the seam the region above draws,
-// the text centred across the width, its baseline StatusFooterBaseline under
+// the text centred on the column's middle, its baseline StatusFooterBaseline under
 // the footer's top, in the Status style and col. The page's own fill shows
 // through, as the status bar's fill is the content's fill.
 func statusFooter(typ Type, col color.NRGBA, txt string) layout.Widget {
@@ -1262,9 +1262,9 @@ func firstAscent(gtx layout.Context, shaper *text.Shaper, style textdraw.TextSty
 // status footer pinned beneath it.
 //
 // The grid's foot against the footer is a seam: the grid is clipped at its
-// foot, and the grid draws the hairline in its last pixel row, the measured
-// seam colour across the page's column from the window's leading edge to
-// its trailing edge. The rows are clipped above the hairline, so a partly
+// foot, and the grid draws the hairline in its last pixel row, the status
+// bar's measured seam across the page's column from the window's leading
+// edge to its trailing edge. The rows are clipped above the hairline, so a partly
 // scrolled row ends against the line. The footer draws none.
 func deviceContent(load func() (pageState, bool), state *list.State) layout.Widget {
 	// The footer is below the list and is the page's foot: its own height
@@ -1296,9 +1296,9 @@ func deviceContent(load func() (pageState, bool), state *list.State) layout.Widg
 }
 
 // seamAtFoot lays the page's column w out clipped at its foot and draws the
-// seam hairline in its last pixel row, across the column from the window's
-// leading edge to its trailing edge. The rows are clipped above the
-// hairline.
+// status footer's seam, [tokens.PlatformColors.StatusFooterSeam], in its
+// last pixel row, across the column from the window's leading edge to its
+// trailing edge. The rows are clipped above the hairline.
 func seamAtFoot(c tokens.PlatformColors, w layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
@@ -1308,7 +1308,7 @@ func seamAtFoot(c tokens.PlatformColors, w layout.Widget) layout.Widget {
 		cl := clip.Rect(image.Rect(-pad, 0, size.X+pad, foot)).Push(gtx.Ops)
 		w(gtx)
 		cl.Pop()
-		paint.FillShape(gtx.Ops, splitter.SeamColor(c), clip.Rect(image.Rect(-pad, foot, size.X+pad, size.Y)).Op())
+		paint.FillShape(gtx.Ops, c.StatusFooterSeam, clip.Rect(image.Rect(-pad, foot, size.X+pad, size.Y)).Op())
 		return layout.Dimensions{Size: size}
 	}
 }
