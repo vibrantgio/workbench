@@ -21,8 +21,8 @@ import (
 
 // searchFieldSize is the room the page gives the field in the window it
 // opens as: the window's width less the page's Padding on each side, at the
-// comfortable field height.
-var searchFieldSize = image.Pt(int(winW-2*Padding), int(tokens.Comfortable.FieldHeight))
+// comfortable search field height.
+var searchFieldSize = image.Pt(int(winW-2*Padding), int(tokens.Comfortable.SearchFieldHeight))
 
 // driveSearchField builds the field ContentLayer lays out and returns a frame
 // driver, the queries it has posted so far, and the router the frames run

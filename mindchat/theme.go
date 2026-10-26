@@ -253,7 +253,7 @@ const (
 	// field draws itself at, so the row is the control and no slack.
 	// MEASURED, save-dialog-{light,dark}.png: the "Tags:" field's box runs y
 	// 243-269, 27 px, its edge rows included, in both appearances. The
-	// density's own field height is that 27, and the System font line box
+	// density's text field height is that 27, and the System font line box
 	// over the comfortable padding stays under it.
 	SettingsFieldHeight unit.Dp = 27
 	// SettingsRowGap is the clear air between one form row's control box and

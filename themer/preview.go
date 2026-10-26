@@ -68,7 +68,7 @@ const (
 	SampleStep  unit.Dp = 10
 	// SampleFieldH is a text field's own height and SampleButtonH a push
 	// button's, both the density scale's.
-	SampleFieldH  unit.Dp = unit.Dp(tokens.ComfortableFieldHeight)
+	SampleFieldH  unit.Dp = unit.Dp(tokens.ComfortableTextFieldHeight)
 	SampleButtonH unit.Dp = unit.Dp(tokens.ComfortableControlHeight)
 	// SampleButtonW is a push button's width and SampleButtonGap the run
 	// between the two.

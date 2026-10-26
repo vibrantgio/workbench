@@ -741,17 +741,24 @@ Goldens stay on the recorded sets: adoption is runtime, never baked in.
 ## Density
 
 Desktop density is a theme token, not a per-component prop. tokens.Density
-carries the control height, the text field height, the row heights, the
+carries the control height, the field heights, the row heights, the
 toolbar control height, the horizontal padding and the symbol size. The
 control and field heights are minimums; what a control draws is
 max(minimum, lineBox), the line centred. The vertical padding is what the
 height leaves around the line. The toolbar control height is exact:
 
   ```
-                minimum: control  field   toolbar   drawn: button  field   symbol
-  Comfortable            24 dp    27 dp   36 dp            24 dp   27 dp   20 dp  (the default)
-  Compact                19 dp    21 dp   36 dp            19 dp   21 dp   19 dp
+                minimum: control  text field  search field  sidebar search  toolbar   symbol
+  Comfortable            24 dp    27 dp       26 dp         28 dp           36 dp     20 dp  (the default)
+  Compact                19 dp    21 dp       21 dp         22 dp           36 dp     19 dp
   ```
+
+A field's height is measured per control and per variant:
+Density.TextFieldHeight for a text field, Density.SearchFieldHeight for a
+search field on the content, Density.SidebarSearchFieldHeight for a search
+field in a sidebar, and a field in a toolbar takes the toolbar control
+height. Each control draws its minimum, because the System font role's
+16 dp line box is under every one of them.
 
 The numbers are MEASURED off the platform, and measured beats published:
 the save panel captured into the organization's macOS reference draws its
@@ -1082,7 +1089,7 @@ maxLines) the widget.Label with the line height installed, and
 typeset.Layout(gtx, shaper, lbl, f, size, txt, material) lays it out and pads
 the result to the line box. That is also
 why a control's drawn height is max(minimum, lineBox), the
-minimum being Density.ControlHeight for a control and Density.FieldHeight
+minimum being Density.ControlHeight for a control and Density.TextFieldHeight
 for a text field: the minimum is not a height, and a Comfortable button
 (SystemFont, 16 dp line box) draws its 24 dp minimum, and a
 Comfortable text field (SystemFont, 16 dp line box) draws its 27 dp
