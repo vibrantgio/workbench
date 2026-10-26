@@ -67,7 +67,7 @@ func TestStripUnderlineKeepsItsOwnLine(t *testing.T) {
 	for _, sc := range schemes {
 		render := func(selected int) *image.RGBA {
 			props := tabs.Props{Tabs: staticTabs(shaper, source, st, sc.colors, typo), Shaper: shaper}
-			w := tabs.Render(shaper, props, selected, sc.colors, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
+			w := tabs.Render(shaper, props, selected, sc.colors, tokens.Spacing, typo.SystemFont, tokens.Comfortable)
 			return golden.Capture(t, shellFrameSize, w)
 		}
 

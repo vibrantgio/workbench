@@ -47,10 +47,10 @@ func colourChrome(c tokens.PlatformColors) palette.Chrome {
 // draws directly, as textdraw styles, plus the shaper it draws them with.
 type Type struct {
 	Shaper *text.Shaper
-	Head   textdraw.TextStyle // TitleSmall: the board's column heads
-	Label  textdraw.TextStyle // LabelLarge: section labels
-	Body   textdraw.TextStyle // BodyMedium: a row's name
-	Small  textdraw.TextStyle // BodySmall: values and captions
+	Head   textdraw.TextStyle // Title3: the board's column heads
+	Label  textdraw.TextStyle // SystemFont: section labels
+	Body   textdraw.TextStyle // SystemFont: a row's name
+	Small  textdraw.TextStyle // Subheadline: values and captions
 }
 
 // TypeFrom resolves the roles from the typography, drawing with the shaper
@@ -59,10 +59,10 @@ type Type struct {
 func TypeFrom(shaper *text.Shaper, t tokens.Typography) Type {
 	return Type{
 		Shaper: shaper,
-		Head:   palTextStyle(t.TitleSmall),
-		Label:  palTextStyle(t.LabelLarge),
-		Body:   palTextStyle(t.BodyMedium),
-		Small:  palTextStyle(t.BodySmall),
+		Head:   palTextStyle(t.Title3),
+		Label:  palTextStyle(t.SystemFont),
+		Body:   palTextStyle(t.SystemFont),
+		Small:  palTextStyle(t.Subheadline),
 	}
 }
 

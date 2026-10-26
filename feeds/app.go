@@ -346,7 +346,7 @@ func sharePopover(
 				semantic.LabelOp(dest).Add(gtx.Ops)
 				semantic.EnabledOp(true).Add(gtx.Ops)
 				pointershape.OverSize(gtx.Ops, image.Pt(listW, rowH), pointer.CursorPointer)
-				return typeset.Text(gtx, s.shaper, dest, s.typ.BodyMedium,
+				return typeset.Text(gtx, s.shaper, dest, s.typ.SystemFont,
 					vgcolor.Flatten(s.col.Label, s.col.WindowBackground), 1)
 			})
 			off.Pop()

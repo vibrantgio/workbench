@@ -109,32 +109,31 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 // draws directly, as textdraw styles, plus the theme's cached shaper. The
 // application builds no shaper and bundles no font of its own.
 //
-// Four tiers, and they differ from each other in size as well as in weight:
-// the window's own name, a group's title, a row's words, a caption. The
-// platform sets a group's heading in semibold where a row's words are regular,
-// and reading this window cold against it found our two — one role at medium
-// and one at regular, both 14 — did not separate: "the headings are not
-// headings", one tier where the platform has three.
+// A window's name in its title row and a group's title both take Headline:
+// the platform sets a group's heading in bold where a row's text is regular.
+// A row's text takes the System font, as a list's and a sidebar's rows do.
 type Type struct {
-	Shaper *text.Shaper
-	Head   textdraw.TextStyle // TitleLarge: the window's own name in the title row
-	Title  textdraw.TextStyle // TitleMedium: a group's title
-	Body   textdraw.TextStyle // BodyMedium: a row's own words
-	Small  textdraw.TextStyle // BodySmall: hints, hex values and shares
-	// Role is LabelLarge as the theme states it, for the controls here drawn
-	// by a published component rather than by this application: the
+	Shaper  *text.Shaper
+	Head    textdraw.TextStyle // Headline: a window's name in its title row
+	Title   textdraw.TextStyle // Headline: a group's title
+	Body    textdraw.TextStyle // SystemFont: a row's text
+	Small   textdraw.TextStyle // Subheadline: hints, a problem line and a style's tag
+	Caption textdraw.TextStyle // Caption1: a swatch's hex value and share
+	// Role is the System font as the theme states it, for the controls here
+	// drawn by a published component rather than by this application: the
 	// component lays the role out itself, in the line box the role names.
 	Role tokens.TextStyle
 }
 
 func TypeFrom(t tokens.Typography) Type {
 	return Type{
-		Shaper: t.Shaper(),
-		Head:   textStyle(t.TitleLarge),
-		Title:  textStyle(t.TitleMedium),
-		Body:   textStyle(t.BodyMedium),
-		Small:  textStyle(t.BodySmall),
-		Role:   t.LabelLarge,
+		Shaper:  t.Shaper(),
+		Head:    textStyle(t.Headline),
+		Title:   textStyle(t.Headline),
+		Body:    textStyle(t.SystemFont),
+		Small:   textStyle(t.Subheadline),
+		Caption: textStyle(t.Caption1),
+		Role:    t.SystemFont,
 	}
 }
 

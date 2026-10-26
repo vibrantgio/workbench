@@ -782,7 +782,7 @@ func drawFeedEntryRow(
 		tailW = trashW
 	case e.Unread > 0:
 		tailW = patsidebar.PaintCount(gtx, tok.shaper, strconv.Itoa(e.Unread),
-			tok.typ.BodySmall, size,
+			tok.typ.SystemFont, size,
 			vgcolor.Flatten(patsidebar.CountForeground(tok.col, filled, unemphasized), surface))
 	}
 
@@ -849,7 +849,7 @@ func drawFeedEntry(
 		titleGtx.Constraints.Min = image.Point{}
 		titleGtx.Constraints.Max = image.Pt(room, size.Y)
 		mTitle := op.Record(gtx.Ops)
-		titleDims := typeset.Text(titleGtx, tok.shaper, title, tok.typ.BodySmall, feedRowForeground(tok.col, selected, unemphasized), 1)
+		titleDims := typeset.Text(titleGtx, tok.shaper, title, tok.typ.SystemFont, feedRowForeground(tok.col, selected, unemphasized), 1)
 		titleCall := mTitle.Stop()
 		offY := (size.Y - titleDims.Size.Y) / 2
 		if offY < 0 {
@@ -929,7 +929,7 @@ func newDeleteConfirm(
 		w := gtx.Dp(unit.Dp(deleteConfirmWDp))
 		promptH := gtx.Dp(unit.Dp(deleteConfirmRowHDp))
 		btnH := gtx.Dp(unit.Dp(deleteConfirmRowHDp))
-		typeset.Text(gtx, s.shaper, "Delete this feed?", s.typ.BodyMedium,
+		typeset.Text(gtx, s.shaper, "Delete this feed?", s.typ.SystemFont,
 			vgcolor.Flatten(s.col.Label, s.col.WindowBackground), 1)
 		btnStk := op.Offset(image.Pt(0, promptH)).Push(gtx.Ops)
 		btnGtx := gtx
@@ -938,7 +938,7 @@ func newDeleteConfirm(
 			semantic.LabelOp("Confirm delete").Add(gtx.Ops)
 			semantic.EnabledOp(true).Add(gtx.Ops)
 			pointershape.OverSize(gtx.Ops, image.Pt(w, btnH), pointer.CursorPointer)
-			typeset.Text(gtx, s.shaper, "Delete", s.typ.LabelLarge, s.col.SystemRed, 1)
+			typeset.Text(gtx, s.shaper, "Delete", s.typ.SystemFont, s.col.SystemRed, 1)
 			return layout.Dimensions{Size: image.Pt(w, btnH)}
 		})
 		btnStk.Pop()

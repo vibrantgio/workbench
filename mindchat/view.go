@@ -719,7 +719,7 @@ func userTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	at, width := col.body(gtx, false)
 	pad := gtx.Dp(unit.Dp(t.sp.S4))
 	words := func(gtx layout.Context) layout.Dimensions {
-		return typeset.Text(gtx, t.shaper, msg.Content, t.typ.BodyLarge, t.palette.TurnText, 0)
+		return typeset.Text(gtx, t.shaper, msg.Content, t.typ.Body, t.palette.TurnText, 0)
 	}
 
 	// Measured first, so the card can be handed the exact box its words
@@ -754,17 +754,17 @@ func failedTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	dims := alert.Render(t.shaper, alert.Props{
 		Status: alert.Error,
 		Body: func(gtx layout.Context) layout.Dimensions {
-			return typeset.Text(gtx, t.shaper, msg.Content, t.typ.BodyLarge, t.col.Text, 0)
+			return typeset.Text(gtx, t.shaper, msg.Content, t.typ.Body, t.col.Text, 0)
 		},
 		Shaper: t.shaper,
-	}, t.col, t.sp, t.rad, t.typ.TitleMedium)(banner)
+	}, t.col, t.sp, t.rad, t.typ.Headline)(banner)
 	stack.Pop()
 
 	return rowHeight(gtx, dims.Size.Y)
 }
 
 // systemNote lays the application's own line about the exchange out: a text
-// label in the Label role, centred across the COLUMN OF TEXT rather than
+// label in the System font role, centred across the COLUMN OF TEXT rather than
 // across the band — the band carries the mark's gutter on its leading side,
 // so a line centred in it lands a half-gutter left of everything above it
 // and reads as a misalignment rather than as a centred line. A text label
@@ -774,7 +774,7 @@ func failedTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 func systemNote(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	col := columnOf(gtx)
 	at, width := col.body(gtx, true)
-	st := t.typ.LabelLarge
+	st := t.typ.SystemFont
 
 	body := gtx
 	body.Constraints.Max.X = width
@@ -1022,7 +1022,7 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 		inner.Constraints = layout.Constraints{Max: max}
 		m := op.Record(gtx.Ops)
 		dims := layout.UniformInset(12).Layout(inner, func(gtx layout.Context) layout.Dimensions {
-			body, action, caption := t.typ.BodyMedium, t.typ.LabelLarge, t.typ.BodySmall
+			body, action, caption := t.typ.SmallSystemFont, t.typ.SmallSystemFont, t.typ.Caption1
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return typeset.Text(gtx, t.shaper, msg, body, vgcolor.Flatten(t.col.Label, p.Toast), 1)
@@ -1150,7 +1150,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 			func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						dims := typeset.Text(gtx, t.shaper, displayName, t.typ.BodyMedium, textColor, 1)
+						dims := typeset.Text(gtx, t.shaper, displayName, t.typ.SystemFont, textColor, 1)
 						// Claim the full flex share so the icon sits at
 						// the row's right edge, not after the text.
 						dims.Size.X = gtx.Constraints.Max.X
@@ -1290,7 +1290,7 @@ func StreamDot(gtx layout.Context, t themed, slot image.Point) {
 // solid and still, and no further frame is requested. The user still learns
 // that the request is in flight; nothing moves.
 func WaitingDots(gtx layout.Context, t themed) layout.Dimensions {
-	st := t.typ.BodyLarge
+	st := t.typ.Body
 	height := gtx.Sp(unit.Sp(st.LineHeight))
 	if height <= 0 {
 		height = gtx.Sp(unit.Sp(st.Size))

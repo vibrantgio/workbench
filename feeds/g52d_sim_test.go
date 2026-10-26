@@ -63,7 +63,7 @@ func staticAddFeedDialogBody(shaper *text.Shaper, colors tokens.PlatformColors) 
 		y := 0
 
 		al := alert.Render(shaper, alert.Props{Status: alert.Error, Title: "Feed URL required"},
-			colors, tokens.Spacing, dialogSharpRadius, tokens.DefaultTypography.TitleMedium)
+			colors, tokens.Spacing, dialogSharpRadius, tokens.DefaultTypography.Headline)
 		s := op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		ag := gtx
 		ag.Constraints = layout.Exact(image.Pt(w, alertH))
@@ -74,7 +74,7 @@ func staticAddFeedDialogBody(shaper *text.Shaper, colors tokens.PlatformColors) 
 		// The field stands on the dialog's own plane, which is
 		// WindowBackground — the fill its edge is flattened onto.
 		fld := input.Render(shaper, "https://example.com/feed.xml",
-			colors, tokens.Spacing, dialogSharpRadius, tokens.DefaultTypography.BodyLarge,
+			colors, tokens.Spacing, dialogSharpRadius, tokens.DefaultTypography.SystemFont,
 			tokens.Comfortable, input.RenderState{Surface: colors.WindowBackground})
 		s = op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		fg := gtx
@@ -84,7 +84,7 @@ func staticAddFeedDialogBody(shaper *text.Shaper, colors tokens.PlatformColors) 
 		y += fieldH + gap
 
 		btn := button.Render(shaper, "Add", colors, tokens.Spacing, dialogSharpRadius,
-			tokens.DefaultTypography.LabelLarge, tokens.Comfortable, button.RenderState{})
+			tokens.DefaultTypography.SystemFont, tokens.Comfortable, button.RenderState{})
 		s = op.Offset(image.Pt(0, y)).Push(gtx.Ops)
 		bg := gtx
 		bg.Constraints = layout.Exact(image.Pt(w, btnH))
@@ -95,11 +95,12 @@ func staticAddFeedDialogBody(shaper *text.Shaper, colors tokens.PlatformColors) 
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		// A group's hairline is the platform's separator flattened onto the
-		// surface it is in, which here is the dialog's plane.
+		// surface it is in, which here is the dialog's plane. The group has
+		// no title, so the title style draws no text.
 		g := group.Render(shaper, group.Props{
 			Content: []layout.Widget{body},
 			Surface: colors.WindowBackground,
-		}, colors, tokens.Spacing, dialogSharpRadius, tokens.DefaultTypography.LabelLarge)
+		}, colors, tokens.Spacing, dialogSharpRadius, tokens.DefaultTypography.SystemFont)
 		return g(gtx)
 	}
 }
@@ -121,7 +122,7 @@ func TestAddFeedDialogGolden(t *testing.T) {
 			body := staticAddFeedDialogBody(shaper, tc.colors)
 			m := dialog.Render(shaper, dialog.Props{Title: "Add feed", Body: body, Shaper: shaper},
 				true, tc.colors, tokens.Spacing, dialogSharpRadius,
-				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
+				tokens.DefaultTypography.Title2, tokens.Comfortable)
 			golden.Render(t, tc.name, image.Pt(dialogFrameW, dialogFrameH), scene(m, tc.bg))
 		})
 	}
@@ -147,7 +148,7 @@ func TestTheDialogsDefaultButtonWearsThePlatformsDefaultFill(t *testing.T) {
 			body := staticAddFeedDialogBody(shaper, tc.colors)
 			m := dialog.Render(shaper, dialog.Props{Title: "Add feed", Body: body, Shaper: shaper},
 				true, tc.colors, tokens.Spacing, dialogSharpRadius,
-				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
+				tokens.DefaultTypography.Title2, tokens.Comfortable)
 			img := golden.Capture(t, image.Pt(dialogFrameW, dialogFrameH), scene(m, tc.bg))
 			if img == nil {
 				t.Skip("no capture backend")

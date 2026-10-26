@@ -178,7 +178,7 @@ func prefsRow(
 	labelGtx.Constraints.Min = image.Point{}
 	labelGtx.Constraints.Max = image.Pt(w, rowH)
 	rec := op.Record(gtx.Ops)
-	dims := typeset.Text(labelGtx, tok.shaper, caption, tok.typ.BodyMedium,
+	dims := typeset.Text(labelGtx, tok.shaper, caption, tok.typ.SystemFont,
 		vgcolor.Flatten(tok.col.Label, tok.col.WindowBackground), 1)
 	call := rec.Stop()
 	off := op.Offset(image.Pt(0, y+(rowH-dims.Size.Y)/2)).Push(gtx.Ops)

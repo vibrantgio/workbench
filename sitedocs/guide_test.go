@@ -204,11 +204,13 @@ func TestOutlineClickScrollsTheDocument(t *testing.T) {
 		pointer.Event{Kind: pointer.Release, Position: hit, Source: pointer.Touch},
 	)
 
-	// One document layout resolves the recorded scroll.
+	// One document layout resolves the recorded scroll. The viewport is
+	// shorter than the fixture's text below the target heading, so the
+	// document can seat that heading at its top edge.
 	style := docsMarkdownStyle(tokens.PlatformLight, typ)
 	var ops op.Ops
 	gtx := layout.Context{
-		Constraints: layout.Exact(image.Pt(600, 400)),
+		Constraints: layout.Exact(image.Pt(600, 200)),
 		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 		Ops:         &ops,
 	}

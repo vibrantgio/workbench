@@ -874,7 +874,7 @@ var tableFrameSize = image.Pt(tableFrameW, tableFrameH)
 
 // staticArticleColumns mirrors articleColumns for the golden-render path
 // (table.Render's documented remit). Tokens are passed in directly; rows are
-// not clickable. The cell role is BodyMedium, the same role themedTextCell
+// not clickable. The cell role is SystemFont, the same role themedTextCell
 // draws with on the runtime path.
 func staticArticleColumns(shaper *text.Shaper, colors tokens.PlatformColors, body tokens.TextStyle) []table.Column[article] {
 	cellText := func(get func(a article) string) func(article) layout.Widget {
@@ -919,9 +919,9 @@ func TestArticlesTableGolden(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			cols := staticArticleColumns(shaper, tc.colors, tokens.DefaultTypography.BodyMedium)
+			cols := staticArticleColumns(shaper, tc.colors, tokens.DefaultTypography.SystemFont)
 			tbl := table.Render(shaper, cols, rows, table.Sort{Column: colPublished, Asc: false},
-				tc.colors, tokens.Spacing, tokens.DefaultTypography.LabelLarge, tokens.Comfortable)
+				tc.colors, tokens.Spacing, tokens.DefaultTypography.SystemFont, tokens.Comfortable)
 			golden.Render(t, tc.name, tableFrameSize, scene(tbl, tc.bg))
 		})
 	}
@@ -938,9 +938,9 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 
 	render := func(colors tokens.PlatformColors) *image.RGBA {
-		cols := staticArticleColumns(shaper, colors, tokens.DefaultTypography.BodyMedium)
+		cols := staticArticleColumns(shaper, colors, tokens.DefaultTypography.SystemFont)
 		tbl := table.Render(shaper, cols, rows, table.Sort{Column: colPublished, Asc: false},
-			colors, tokens.Spacing, tokens.DefaultTypography.LabelLarge, tokens.Comfortable)
+			colors, tokens.Spacing, tokens.DefaultTypography.SystemFont, tokens.Comfortable)
 		return golden.Capture(t, tableFrameSize, scene(tbl, bg))
 	}
 	light := render(tokens.PlatformLight)

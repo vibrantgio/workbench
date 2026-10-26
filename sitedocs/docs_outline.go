@@ -183,18 +183,15 @@ func drawOutlineUnavailable(gtx layout.Context, tok themeTokens) layout.Dimensio
 	gtx.Constraints = layout.Exact(size)
 	shell.EmptyState(gtx, tok.shaper, tok.col, tok.typ, tok.col.SidebarMaterial, shell.EmptyStateProps{
 		Line:      outlineEmptyLine,
-		LineStyle: outlineRowStyle(tok.typ, false),
+		LineStyle: outlineRowStyle(tok.typ),
 	})
 	return layout.Dimensions{Size: size}
 }
 
-// outlineRowStyle is the text style of a top-level row, or of a ### row
-// when child is set.
-func outlineRowStyle(typ tokens.Typography, child bool) tokens.TextStyle {
-	if child {
-		return typ.BodySmall
-	}
-	return typ.BodyMedium
+// outlineRowStyle is the text style of an outline row. A ## row and a ###
+// row are both a sidebar's row text.
+func outlineRowStyle(typ tokens.Typography) tokens.TextStyle {
+	return typ.SystemFont
 }
 
 // row draws one outline row: the selection pill when this row's heading
@@ -228,7 +225,7 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 	if row.Child {
 		indent += docsOutlineIndentDp
 	}
-	style := outlineRowStyle(tok.typ, row.Child)
+	style := outlineRowStyle(tok.typ)
 
 	// A row's words and its mark are the platform's label at two strengths,
 	// each composited onto the fill it actually lands on — the material, or

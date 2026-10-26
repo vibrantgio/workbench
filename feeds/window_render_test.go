@@ -211,7 +211,7 @@ var (
 	// the first section's heading block.
 	atOpenFeed    = image.Pt(52, 100) // the open feed's pill
 	atRestingFeed = image.Pt(52, 132) // the feed under it, unchosen
-	atOpenRow     = image.Pt(460, 81) // the open article's row
+	atOpenRow     = image.Pt(660, 81) // the open article's row, past its last column's text
 
 	// The pager, the list column's own footer: a leading chevron and then
 	// one square per page. Only the page the table is showing is filled;
@@ -596,7 +596,7 @@ var articleParts = []struct {
 	from, to int
 }{
 	{"the headline", 72, 90},
-	{"the byline", 103, 115},
+	{"the byline", 100, 112},
 	{"the tab strip's first title", 132, 144},
 	{"the prose", 171, 185},
 }

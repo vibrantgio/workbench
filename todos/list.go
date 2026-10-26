@@ -77,7 +77,7 @@ func scrollingList(rows []layout.Widget, bar scrollbar.Style, state *complist.St
 const emptyListLine = "No Todos"
 
 // EmptyList draws the list's empty state over the frame gtx gives: the line
-// centred both ways in the Headline Medium role, in the tertiary label colour
+// centred both ways in the empty state line role, in the tertiary label colour
 // over the window's own plane.
 //
 // The list is the window's one column, so the frame is the window's full
@@ -138,9 +138,9 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 			mvu.MessageOp{Message: SetRoute{Route: "edit.todo"}}.Add(gtx.Ops)
 		}
 		dims := editClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			h := textdraw.MeasureText(gtx, typ.Shaper, typ.Title, "W").Y
+			h := textdraw.MeasureText(gtx, typ.Shaper, typ.Row, "W").Y
 			size := image.Pt(gtx.Constraints.Max.X, h+gtx.Dp(Padding))
-			textdraw.FillText(gtx, typ.Shaper, typ.Title, image.Rectangle{Max: size}, 0.0, 0.5, textColor, item.Text)
+			textdraw.FillText(gtx, typ.Shaper, typ.Row, image.Rectangle{Max: size}, 0.0, 0.5, textColor, item.Text)
 			return layout.Dimensions{Size: size}
 		})
 		if editClick.Hovered() {

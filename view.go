@@ -265,10 +265,10 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(appIcon(tok, app)),
 			layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
-			layout.Rigid(textWidget(tok.shaper, app.Name, tok.typ.TitleMedium, textColour(tok.color), 1)),
+			layout.Rigid(textWidget(tok.shaper, app.Name, tok.typ.Title3, textColour(tok.color), 1)),
 		)
 	}
-	blurb := textWidget(tok.shaper, app.Blurb, tok.typ.BodySmall, vgcolor.Flatten(tok.color.SecondaryLabel, plane), 3)
+	blurb := textWidget(tok.shaper, app.Blurb, tok.typ.Subheadline, vgcolor.Flatten(tok.color.SecondaryLabel, plane), 3)
 	launchRow := func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(launchButton(thObs, tok.shaper, app, click, status, plane)),
@@ -379,7 +379,7 @@ func statusLine(tok themed, status Status) layout.Widget {
 	if txt == "" {
 		return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
 	}
-	return textWidget(tok.shaper, txt, tok.typ.LabelMedium, col, 2)
+	return textWidget(tok.shaper, txt, tok.typ.SmallSystemFont, col, 2)
 }
 
 // textWidget defers a run of text in one Typography role, capped at maxLines,

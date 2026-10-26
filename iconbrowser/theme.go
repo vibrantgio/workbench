@@ -46,15 +46,15 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 // through the theme.
 type Type struct {
 	Shaper  *text.Shaper
-	Caption textdraw.TextStyle // BodySmall: icon captions
-	Section textdraw.TextStyle // TitleSmall: the labels over the two sets
+	Caption textdraw.TextStyle // Caption1: icon captions and a heading's note
+	Section textdraw.TextStyle // Title3: the headings over the two sets
 }
 
 func TypeFrom(t tokens.Typography) Type {
 	return Type{
 		Shaper:  t.Shaper(),
-		Caption: textStyle(t.BodySmall),
-		Section: textStyle(t.TitleSmall),
+		Caption: textStyle(t.Caption1),
+		Section: textStyle(t.Title3),
 	}
 }
 

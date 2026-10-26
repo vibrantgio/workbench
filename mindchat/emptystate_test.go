@@ -90,9 +90,9 @@ func TestTheEmptyProviderWellCentresItsLineInTheRowsFrame(t *testing.T) {
 			}
 
 			// The size is the rows' own and not the content column's
-			// measured reading, which is twice it.
-			rows := wellLineHeight(t, th, th.typ.BodyMedium)
-			column := th.typ.HeadlineMedium
+			// measured reading, which is over twice it.
+			rows := wellLineHeight(t, th, th.typ.SystemFont)
+			column := th.typ.EmptyStateLine
 			column.LineHeight = 0
 			if h := got.Dy(); h != rows {
 				t.Errorf("the well sets its line %d pixels tall, want the rows' own %d", h, rows)
@@ -212,7 +212,7 @@ func wellEmptyStateProbe(t *testing.T, th settingsThemed, size image.Point, line
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, fill, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		return shell.EmptyState(gtx, th.shaper, th.colors, th.typ, fill,
-			shell.EmptyStateProps{Line: line, LineStyle: th.typ.BodyMedium})
+			shell.EmptyStateProps{Line: line, LineStyle: th.typ.SystemFont})
 	})
 }
 

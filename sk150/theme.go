@@ -134,17 +134,18 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 // role blown up to pane size — the mono face keeps the three readouts'
 // digit columns aligned, the way the device's own seven-segment pane does.
 type Type struct {
-	Shaper *text.Shaper
-	Digits textdraw.TextStyle // the V/A/W readouts: Code face at 56 sp
-	Unit   textdraw.TextStyle // the unit letters: half the digit size
-	Set    textdraw.TextStyle // the Set and Limit lines under the readouts
-	Stack  textdraw.TextStyle // the CV/CC and ON/OFF badge titles
-	Title  textdraw.TextStyle // section headings and the header title
-	Body   textdraw.TextStyle // status lines and field captions
-	Small  textdraw.TextStyle // the notice and connection lines
-	Status textdraw.TextStyle // a footer of status text
-	Mono   textdraw.TextStyle // aligned digit columns at body size
-	Table  textdraw.TextStyle // the preset table: aligned columns in the Code role
+	Shaper  *text.Shaper
+	Digits  textdraw.TextStyle // the V/A/W readouts: Code face at 56 sp
+	Unit    textdraw.TextStyle // the unit letters: half the digit size
+	Set     textdraw.TextStyle // the Set and Limit lines under the readouts
+	Stack   textdraw.TextStyle // the CV/CC and ON/OFF badge titles
+	Title   textdraw.TextStyle // the header's name of the device
+	Section textdraw.TextStyle // a section's heading
+	Body    textdraw.TextStyle // status lines and field captions
+	Small   textdraw.TextStyle // the notice and connection lines
+	Status  textdraw.TextStyle // a footer of status text
+	Mono    textdraw.TextStyle // aligned digit columns at body size
+	Table   textdraw.TextStyle // the preset table: aligned columns in the Code role
 }
 
 // appShaper hands the app's typography its shaper. The window draws with the
@@ -169,23 +170,23 @@ func TypeFrom(t tokens.Typography) Type {
 	set.Weight = 700
 	stack := t.Code
 	stack.Weight = 700
-	// The platform's status bar draws its text in the system font's regular
-	// weight with monospaced digits, read off Finder's in the reference's
-	// "What the status bar measures". Roboto's default digits are monospaced.
-	status := t.LabelSmall
-	status.Weight = tokens.WeightRegular
+	// The platform's status bar draws its text in the small system font with
+	// monospaced digits, read off Finder's in the reference's "What the
+	// status bar measures". Roboto's default digits are monospaced.
+	status := t.SmallSystemFont
 	return Type{
-		Shaper: appShaper(t),
-		Digits: textStyle(digits),
-		Unit:   textStyle(unit),
-		Set:    textStyle(set),
-		Stack:  textStyle(stack),
-		Title:  textStyle(t.TitleLarge),
-		Body:   textStyle(t.BodyLarge),
-		Small:  textStyle(t.BodyMedium),
-		Status: textStyle(status),
-		Mono:   textStyle(t.Code),
-		Table:  textStyle(t.Code),
+		Shaper:  appShaper(t),
+		Digits:  textStyle(digits),
+		Unit:    textStyle(unit),
+		Set:     textStyle(set),
+		Stack:   textStyle(stack),
+		Title:   textStyle(t.Title1),
+		Section: textStyle(t.Headline),
+		Body:    textStyle(t.SystemFont),
+		Small:   textStyle(t.Callout),
+		Status:  textStyle(status),
+		Mono:    textStyle(t.Code),
+		Table:   textStyle(t.Code),
 	}
 }
 

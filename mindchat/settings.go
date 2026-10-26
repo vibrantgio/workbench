@@ -489,7 +489,7 @@ func formColumns(gtx layout.Context, t settingsThemed) settingsColumns {
 	mg.Constraints = layout.Constraints{Max: image.Pt(1<<20, 1<<20)}
 	widest := 0
 	for _, label := range settingsRowLabels {
-		if w := textdraw.MeasureText(mg, t.shaper, roleText(t.typ.BodyMedium), label).X; w > widest {
+		if w := textdraw.MeasureText(mg, t.shaper, roleText(t.typ.SystemFont), label).X; w > widest {
 			widest = w
 		}
 	}
@@ -507,7 +507,7 @@ func formRow(t settingsThemed, cols settingsColumns, label string, height unit.D
 	return func(gtx layout.Context) layout.Dimensions {
 		size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(height))
 		if label != "" {
-			textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium),
+			textdraw.FillText(gtx, t.shaper, roleText(t.typ.SystemFont),
 				image.Rect(0, 0, cols.label, size.Y), 1, 0.5, t.palette.FloatingHeading, label)
 		}
 		x := cols.label + cols.gap
@@ -573,7 +573,7 @@ func providerSegments(gtx layout.Context, t settingsThemed, prov Provider, tplCl
 	// The row hands over the fields' column exactly, and a segmented control
 	// divides the width it is asked for evenly, so the four segments span
 	// that column as a field spans it.
-	return button.BorderedSegments(gtx, t.shaper, t.colors, tokens.Radius, t.typ.LabelMedium, tokens.Comfortable, segs)
+	return button.BorderedSegments(gtx, t.shaper, t.colors, tokens.Radius, t.typ.SystemFont, tokens.Comfortable, segs)
 }
 
 // matchingTemplate is the template the edited provider already stands for —
@@ -695,7 +695,7 @@ func webSearchRow(gtx layout.Context, t settingsThemed, on bool, click *widget.C
 			}
 		}()
 		r := image.Rect(sz+gtx.Dp(8), 0, size.X, size.Y)
-		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodySmall), r, 0, 0.5, t.palette.FloatingText, "Server-side web search (xAI, OpenAI)")
+		textdraw.FillText(gtx, t.shaper, roleText(t.typ.SystemFont), r, 0, 0.5, t.palette.FloatingText, "Server-side web search (xAI, OpenAI)")
 		return layout.Dimensions{Size: size}
 	})
 }
@@ -762,7 +762,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			r := image.Rect(0, 0, gtx.Constraints.Max.X, gtx.Dp(SettingsCaptionRow))
-			textdraw.FillText(gtx, t.shaper, roleText(t.typ.LabelSmall), r, 0, 0.5, p.FloatingHeading, "Providers")
+			textdraw.FillText(gtx, t.shaper, roleText(t.typ.Caption1), r, 0, 0.5, p.FloatingHeading, "Providers")
 			return layout.Dimensions{Size: r.Max}
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -812,7 +812,7 @@ func providerWellEmpty(gtx layout.Context, t settingsThemed) layout.Dimensions {
 	egtx := gtx
 	egtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, size, t.bar))
 	shell.EmptyState(egtx, t.shaper, t.colors, t.typ, t.palette.Pane,
-		shell.EmptyStateProps{Line: settingsNoProvidersLine, LineStyle: t.typ.BodyMedium})
+		shell.EmptyStateProps{Line: settingsNoProvidersLine, LineStyle: t.typ.SystemFont})
 	return layout.Dimensions{Size: size}
 }
 
@@ -861,7 +861,7 @@ func addRemovePair(gtx layout.Context, t settingsThemed, addClick, removeClick *
 	cg := gtx
 	cg.Constraints.Min = image.Point{}
 	cg.Constraints.Max.Y = gtx.Dp(SettingsAddRemoveHeight)
-	return button.BorderedSegments(cg, t.shaper, t.colors, tokens.Radius, t.typ.LabelMedium, tokens.Comfortable, segs)
+	return button.BorderedSegments(cg, t.shaper, t.colors, tokens.Radius, t.typ.SystemFont, tokens.Comfortable, segs)
 }
 
 // providerRow is one selectable provider entry, in the sidebar row idiom
@@ -886,7 +886,7 @@ func providerRow(gtx layout.Context, t settingsThemed, prov Provider, selected b
 			textColor = p.ListSelectedText
 		}
 		r := image.Rect(gtx.Dp(10), 0, size.X-gtx.Dp(4), size.Y)
-		textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodyMedium), r, 0, 0.5, textColor, name)
+		textdraw.FillText(gtx, t.shaper, roleText(t.typ.SystemFont), r, 0, 0.5, textColor, name)
 		return layout.Dimensions{Size: size}
 	})
 }
@@ -915,6 +915,6 @@ func statusLine(gtx layout.Context, t settingsThemed, s SettingsState, prov Prov
 			text = "Key OK — no chat models listed"
 		}
 	}
-	textdraw.FillText(gtx, t.shaper, roleText(t.typ.BodySmall), image.Rectangle{Max: size}, 0, 0.5, col, text)
+	textdraw.FillText(gtx, t.shaper, roleText(t.typ.SmallSystemFont), image.Rectangle{Max: size}, 0, 0.5, col, text)
 	return layout.Dimensions{Size: size}
 }

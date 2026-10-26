@@ -81,8 +81,8 @@ func staticTheme(c tokens.PlatformColors, typo tokens.Typography) theme.Theme {
 func staticTypo(typo tokens.Typography) Type {
 	return Type{
 		Shaper:  typo.DeterministicShaper(),
-		Caption: textStyle(typo.BodySmall),
-		Section: textStyle(typo.TitleSmall),
+		Caption: textStyle(typo.Caption1),
+		Section: textStyle(typo.Title3),
 	}
 }
 

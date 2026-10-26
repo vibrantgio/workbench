@@ -266,7 +266,7 @@ func ChoiceRow(gtx layout.Context, p Palette, ty Type, name, tag string, height,
 		textdraw.FillText(gtx, ty.Shaper, ty.Small, box, 1, 0.5, foreground, tag)
 		text.Max.X = box.Min.X - pad/2
 	}
-	textdraw.FillText(gtx, ty.Shaper, ty.Small, text, 0, 0.5, foreground, name)
+	textdraw.FillText(gtx, ty.Shaper, ty.Body, text, 0, 0.5, foreground, name)
 
 	area := clip.Rect{Max: size}.Push(gtx.Ops)
 	click.Add(gtx.Ops)

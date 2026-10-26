@@ -127,7 +127,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 
 				b := gtx.Dp(BorderWidth)
 				pad := gtx.Dp(Padding) / 2
-				t := textdraw.MeasureText(gtx, typ.Shaper, typ.Headline, "W").Y
+				t := textdraw.MeasureText(gtx, typ.Shaper, typ.Field, "W").Y
 				r := gtx.Dp(BorderRadius)
 
 				// The text-entry field: the platform's text plane inside the
@@ -149,12 +149,12 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 				}
 
 				if edit.Text() == "" {
-					textdraw.FillText(gtx, typ.Shaper, typ.Title, rect, 0.0, 0.5, p.Placeholder, "What needs to be done?")
+					textdraw.FillText(gtx, typ.Shaper, typ.Field, rect, 0.0, 0.5, p.Placeholder, "What needs to be done?")
 				}
 				func(gtx layout.Context) {
 					defer op.Offset(rect.Min).Push(gtx.Ops).Pop()
 					gtx.Constraints = layout.Exact(rect.Size())
-					edit.Layout(gtx, typ.Shaper, typ.Headline.Font, typ.Headline.Size, textMaterial, selectMaterial)
+					edit.Layout(gtx, typ.Shaper, typ.Field.Font, typ.Field.Size, textMaterial, selectMaterial)
 				}(gtx)
 
 				// Cancel / submit row along the dialog's bottom edge, tall

@@ -1032,15 +1032,19 @@ correct type:
   ```
 
 The contract lives in theme/tokens.Typography: one tokens.TextStyle per
-type role — Display, Headline, Title, Label and Body,
-each Large/Medium/Small, fifteen roles in all — plus Code, a sixteenth
-style outside that grid: BodyMedium's metrics on the mono face, the
-style code renders in (the scale has no code role, so the org added one) — plus
-DocumentHeadings, a tokens.DocumentHeadingScale of six TextStyle stops for
-prose surfaces, stepped off BodyLarge (1.6× body down to 0.875×, bold
-throughout) because the Display and Headline roles size a screen's one
-headline, not a document whose headings recur every few paragraphs; address
-it by heading level with scale.Level(n). A TextStyle carries Typeface,
+type role. The roles are the platform's text styles with the platform's
+names: LargeTitle, Title1, Title2, Title3, Headline, Subheadline, Body,
+Callout, Footnote, Caption1 and Caption2. SystemFont and SmallSystemFont
+are the two system font sizes the platform sets outside its text styles.
+EmptyStateLine sets the line of an empty state. Pick the role by the kind
+of text, never by its size: text on a regular control takes SystemFont,
+a status bar's text takes SmallSystemFont, reading text takes Body. Code
+is Body's metrics on the mono face, the style code renders in. The
+platform has no code style, so the library adds one. DocumentHeadings is
+a tokens.DocumentHeadingScale of six bold TextStyle stops for prose
+surfaces, stepped off Body (1.6× body down to 0.875×). The title roles
+set a screen's one title, not a document whose headings recur every few
+paragraphs. Address the scale by heading level with scale.Level(n). A TextStyle carries Typeface,
 Weight (CSS-style numeric: 400 regular, 500 medium, 700 bold;
 tokens.FontWeight converts to Gio's font.Weight), and Size, LineHeight and
 Tracking in dp. Typography also carries Faces, the font collection, and
@@ -1051,7 +1055,7 @@ The fallback is deliberate: Roboto and Roboto Mono carry no arrow, no
 box-drawing character and no dingbat, so a shaper confined to them draws tofu
 for text a real application genuinely receives. theme/theme.Theme.Typography
 is an rx.Observable[tokens.Typography]; theme.Default() and
-theme.AutoLightDark emit tokens.DefaultTypography, whose fifteen roles
+theme.AutoLightDark emit tokens.DefaultTypography, whose roles
 name "Roboto", whose Code names "Roboto Mono", and whose Faces are
 vibrantgio/font's Roboto faces plus the Roboto Mono faces Code resolves
 against. theme/system's LiveTheme emits tokens.EmojiTypography() —
@@ -1079,9 +1083,9 @@ the result to the line box. That is also
 why a control's drawn height is max(minimum, lineBox + 2*PaddingY), the
 minimum being Density.ControlHeight for a control and Density.FieldHeight
 for a text field: the minimum is not a height, and a Comfortable button
-(LabelLarge, 20 dp line box) draws exactly its 24 dp minimum while a
-Comfortable text field (BodyLarge, 24 dp line box) draws 28 dp against its
-27 dp minimum. A control
+(SystemFont, 16 dp line box) draws its 24 dp minimum, and a
+Comfortable text field (SystemFont, 16 dp line box) draws its 27 dp
+minimum. A control
 standing in the toolbar takes Density.ToolbarControlHeight, 36 dp.
 
 ### Text you draw yourself with textdraw

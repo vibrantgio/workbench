@@ -75,7 +75,7 @@ func TestTheGridsEmptyStateCentresInItsFrame(t *testing.T) {
 			}
 
 			// In the role a content region's empty state is set in.
-			style := tokens.DefaultTypography.HeadlineMedium
+			style := tokens.DefaultTypography.EmptyStateLine
 			style.LineHeight = 0
 			if h, want := got.Dy(), gridLineHeight(t, tc.c, style); h != want {
 				t.Errorf("the line stands %d pixels tall, want the %d sp reading's %d",

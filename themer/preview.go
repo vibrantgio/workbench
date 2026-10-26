@@ -199,7 +199,7 @@ func SampleWindow(c tokens.PlatformColors, ty Type, typ tokens.Typography, shape
 		fillRect(gtx, image.Rect(railW-hair, barH, railW, win.Dy()), seam)
 
 		SampleWindowButtons(gtx, c, barH)
-		textdraw.FillText(gtx, ty.Shaper, ty.Body,
+		textdraw.FillText(gtx, ty.Shaper, ty.Head,
 			image.Rect(0, 0, win.Dx(), barH), 0.5, 0.5,
 			vgcolor.Flatten(c.Label, c.SidebarMaterial), SampleTitle)
 

@@ -64,16 +64,16 @@ func PaletteFrom(p tokens.PlatformColors) Palette {
 // shaper. The app builds no shaper and bundles no font of its own — the
 // typeface arrives through the theme.
 type Type struct {
-	Shaper   *text.Shaper
-	Headline textdraw.TextStyle // HeadlineSmall: the dialog's editor text
-	Title    textdraw.TextStyle // TitleLarge: list rows and placeholder text
+	Shaper *text.Shaper
+	Field  textdraw.TextStyle // SystemFont: the dialog's editor text and its placeholder
+	Row    textdraw.TextStyle // SystemFont: a list row's text
 }
 
 func TypeFrom(t tokens.Typography) Type {
 	return Type{
-		Shaper:   t.Shaper(),
-		Headline: textStyle(t.HeadlineSmall),
-		Title:    textStyle(t.TitleLarge),
+		Shaper: t.Shaper(),
+		Field:  textStyle(t.SystemFont),
+		Row:    textStyle(t.SystemFont),
 	}
 }
 

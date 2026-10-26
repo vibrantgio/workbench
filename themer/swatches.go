@@ -185,7 +185,7 @@ func Cell(gtx layout.Context, p Palette, ty Type, c cell, click *gesture.Click, 
 	// colour it is.
 	fillRRect(gtx, swatch, gtx.Dp(InnerR), c.col)
 	strokeRRect(gtx, swatch, gtx.Dp(InnerR), gtx.Dp(Hairline), p.Edge)
-	textdraw.FillText(gtx, ty.Shaper, ty.Small, caption, 0.5, 0.5, p.CardText, c.label)
+	textdraw.FillText(gtx, ty.Shaper, ty.Caption, caption, 0.5, 0.5, p.CardText, c.label)
 
 	// The clickable area is the card, registered after the paint so the hover
 	// state read above is the one the previous frame recorded.

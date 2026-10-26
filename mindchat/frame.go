@@ -264,7 +264,7 @@ func chatTitle(gtx layout.Context, m Model, t themed) layout.Dimensions {
 	if gtx.Constraints.Max.X <= 0 {
 		return layout.Dimensions{}
 	}
-	return typeset.Text(gtx, t.shaper, text, t.typ.TitleSmall, colour, 1)
+	return typeset.Text(gtx, t.shaper, text, t.typ.Headline, colour, 1)
 }
 
 // titleVerdict distinguishes a chat that has a name from one that does not, so

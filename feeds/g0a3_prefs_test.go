@@ -203,7 +203,7 @@ func TestUnreadOnlyArticlesFilters(t *testing.T) {
 func staticPreferencesBody(shaper *text.Shaper, colors tokens.PlatformColors) layout.Widget {
 	render := func(title string, emph button.Emphasis) layout.Widget {
 		return button.Render(shaper, title, colors, tokens.Spacing, dialogSharpRadius,
-			tokens.DefaultTypography.LabelLarge, tokens.Comfortable,
+			tokens.DefaultTypography.SystemFont, tokens.Comfortable,
 			button.RenderState{Emphasis: emph})
 	}
 	tok := themeTokens{col: colors, typ: tokens.DefaultTypography, shaper: shaper}
@@ -247,7 +247,7 @@ func TestPreferencesPaneGolden(t *testing.T) {
 				t.Fatalf("Preferences dialog purpose = %v, want %v", props.Purpose(), dialog.PurposeDismissible)
 			}
 			m := dialog.Render(shaper, props, true, tc.colors, tokens.Spacing, dialogSharpRadius,
-				tokens.DefaultTypography.TitleMedium, tokens.Comfortable)
+				tokens.DefaultTypography.Title2, tokens.Comfortable)
 			golden.Render(t, tc.name, image.Pt(dialogFrameW, dialogFrameH), scene(m, tc.bg))
 		})
 	}

@@ -70,15 +70,16 @@ const (
 const cellPadDp = 12
 
 // The widths the pinned columns stand at, and the narrowest the flexing
-// Title column reads at. Every one is cellPadDp either side of what the
-// column actually has to show, MEASURED at 1x against the fixture and the
+// Title column reads at. Every one holds at least cellPadDp either side of
+// what the column has to show, MEASURED at 1x against the fixture and the
 // header strings in the roles the table draws them in:
 //
-//   - Author: the longest name in the fixture, "BBC Newsroom", is 99 wide in
-//     BodyMedium and the bold "Author" header 43.
-//   - Published: the date "Sep 30 2026" is 78 in BodyMedium; the bold
-//     "Published" header is 63 and the sort chevron it carries while the
-//     table is sorted on it takes 10 more with half a cell pad before it.
+//   - Author: the longest name in the fixture, "BBC Newsroom", is 92 wide in
+//     SystemFont and the "Author" header 39.
+//   - Published: the date "Sep 30 2026" is 73 in SystemFont; the
+//     "Published" header is 58 and the sort chevron it carries while the
+//     table is sorted on it takes 10 more with half a cell pad before it,
+//     74 in all.
 //   - Unread: the bullet is 5 wide and so is the header that mirrors it.
 //     The column is a symbol's width and the padding either side of it;
 //     what names it is the tooltip over its header.
@@ -393,7 +394,7 @@ func pagerRow(pag layout.Widget) layout.Widget {
 	}
 }
 
-// themedTextCell renders one line of cell text in the theme's BodyMedium role
+// themedTextCell renders one line of cell text in the theme's SystemFont role
 // — typeface, weight, size and line height from the Typography, the shaper the
 // theme's own — within the cell's allocated rectangle, with the table's stock
 // 12 dp horizontal padding. The golden tests use the static
@@ -417,7 +418,7 @@ func themedTextCell(tok themeTokens, s string, current bool) layout.Widget {
 		labelGtx.Constraints.Max.Y = size.Y
 
 		mLabel := op.Record(gtx.Ops)
-		labelDims := typeset.Text(labelGtx, tok.shaper, s, tok.typ.BodyMedium, cellForeground(tok.col, current), 1)
+		labelDims := typeset.Text(labelGtx, tok.shaper, s, tok.typ.SystemFont, cellForeground(tok.col, current), 1)
 		labelCall := mLabel.Stop()
 
 		offY := (size.Y - labelDims.Size.Y) / 2

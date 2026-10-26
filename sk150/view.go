@@ -1075,7 +1075,7 @@ func presetsRows(t themed, m Model, slots slotSet, hc hintCells) (head, rows []l
 		return nil, rows
 	}
 	head = []layout.Widget{
-		textLine(typ, typ.Title, p.Label, "Memory slots"),
+		textLine(typ, typ.Section, p.Label, "Memory slots"),
 		vspace(4),
 		textLine(typ, typ.Small, p.SecondaryLabel,
 			"Recall makes a slot the active profile and switches the output off until you turn it on."),
@@ -1145,9 +1145,9 @@ func deviceRows(t themed, m Model, slots slotSet, hc hintCells) []layout.Widget 
 	rows := []layout.Widget{
 		func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Title, p.Label, "Input and charging"))),
+				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Section, p.Label, "Input and charging"))),
 				hgap(compactGap),
-				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Title, p.Label, "Pane"))),
+				layout.Rigid(fixed(deviceColWidth, textLine(typ, typ.Section, p.Label, "Pane"))),
 			)
 		},
 		vspace(8),

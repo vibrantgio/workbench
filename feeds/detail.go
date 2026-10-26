@@ -158,7 +158,7 @@ func drawDetail(
 		layout.Rigid(layout.Spacer{Height: unit.Dp(detailPadDp)}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return column.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return typeset.Text(gtx, tok.shaper, sel.a.Title, tok.typ.TitleLarge,
+				return typeset.Text(gtx, tok.shaper, sel.a.Title, tok.typ.Title1,
 					vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground), 1)
 			})
 		}),
@@ -166,7 +166,7 @@ func drawDetail(
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return column.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				meta := sel.a.Author + " · " + sel.a.Published.Format("Jan 2 2006")
-				return typeset.Text(gtx, tok.shaper, meta, tok.typ.BodySmall,
+				return typeset.Text(gtx, tok.shaper, meta, tok.typ.Subheadline,
 					vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground), 1)
 			})
 		}),
@@ -248,16 +248,16 @@ func scrollingTab(gtx layout.Context, bar scrollbar.Style, scroll *list.State, c
 }
 
 // readerTab renders the article body paragraph-wrapped in the theme's
-// BodyMedium role. The closure is static (tabs captures it once) and reads
+// Body role. The closure is static (tabs captures it once) and reads
 // the selected article + tokens from the cells at frame time.
 func readerTab(loadTokens func() themeTokens, loadArticle func() detailArticle, bars desktop.ScrollBarSetting) layout.Widget {
 	return bodyTab(loadTokens, loadArticle, bars, func(typ tokens.Typography) tokens.TextStyle {
-		return typ.BodyMedium
+		return typ.Body
 	})
 }
 
 // rawTab renders the SAME body bytes as readerTab in the theme's Code style
-// — BodyMedium's metrics on the mono face (Roboto Mono). The two tabs differ
+// — Body's metrics on the mono face (Roboto Mono). The two tabs differ
 // only in font.
 func rawTab(loadTokens func() themeTokens, loadArticle func() detailArticle, bars desktop.ScrollBarSetting) layout.Widget {
 	return bodyTab(loadTokens, loadArticle, bars, func(typ tokens.Typography) tokens.TextStyle {
@@ -307,11 +307,11 @@ func commentsTab(loadTokens func() themeTokens, bars desktop.ScrollBarSetting) l
 				c := c
 				children = append(children,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return typeset.Text(gtx, tok.shaper, c.Author, tok.typ.LabelLarge,
+						return typeset.Text(gtx, tok.shaper, c.Author, tok.typ.Headline,
 							vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground), 1)
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return drawWrappedText(gtx, tok.shaper, c.Text, tok.typ.BodyMedium,
+						return drawWrappedText(gtx, tok.shaper, c.Text, tok.typ.Callout,
 							vgcolor.Flatten(tok.col.SecondaryLabel, tok.col.ControlBackground))
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),

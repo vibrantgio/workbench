@@ -75,7 +75,7 @@ func windowFrame(
 	band unit.Dp,
 ) layout.Widget {
 	props := tabs.Props{Tabs: staticTabs(shaper, guide, st, c, typo), Shaper: shaper}
-	shell := tabs.Render(shaper, props, selected, c, tokens.Spacing, typo.LabelLarge, tokens.Comfortable)
+	shell := tabs.Render(shaper, props, selected, c, tokens.Spacing, typo.SystemFont, tokens.Comfortable)
 	background := backdrop.Widget(c.WindowBackground)
 	capped := bandedCap(func() unit.Dp { return band }, titleBandFill(c), shell)
 	return func(gtx layout.Context) layout.Dimensions {

@@ -40,7 +40,7 @@ func TestTheArticleColumnScrollsToTheArticlesEnd(t *testing.T) {
 			gtx.Metric = unit.Metric{PxPerDp: 1, PxPerSp: 1}
 			gtx.Constraints = layout.Exact(size)
 			paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
-			return drawBody(gtx, tok, detailBar(tok, bars), scroll, a, tok.typ.BodyMedium)
+			return drawBody(gtx, tok, detailBar(tok, bars), scroll, a, tok.typ.Body)
 		}
 		// The first frame opens the article at its first line; the second
 		// is laid out after the region was asked for its end.

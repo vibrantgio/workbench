@@ -167,11 +167,11 @@ const (
 	// conversation's reading measure. Past it a wider window gives the
 	// reader more of the conversation rather than longer lines.
 	//
-	// The number is measured, not chosen. BodyLarge sets at sixteen, and
-	// shaping prose in it measures an average advance of 7.19 dp a
-	// character, so 540 dp is 75 characters of this system's body text —
-	// the top of the 60 to 75 characters a line that typography has long
-	// held a reader can walk back along without losing the next one.
+	// Body sets at thirteen, and shaping prose in it measures an average
+	// advance of 5.81 dp a character, so 540 dp is 93 characters of this
+	// system's body text. Typography has long held that a reader walks back
+	// along a line of 60 to 75 characters without losing the next one: 349
+	// to 436 dp in Body.
 	TurnMeasure unit.Dp = 540
 
 	// UserCardMeasure is the widest the user's card may grow — the card
@@ -253,9 +253,9 @@ const (
 	// field draws itself at, so the row is the control and no slack.
 	// MEASURED, save-dialog-{light,dark}.png: the "Tags:" field's box runs y
 	// 243-269, 27 px, its edge rows included, in both appearances. The
-	// density's own field height is that 27 and the BodyLarge line box over
-	// the comfortable padding raises the drawn box to 28.
-	SettingsFieldHeight unit.Dp = 28
+	// density's own field height is that 27, and the System font line box
+	// over the comfortable padding stays under it.
+	SettingsFieldHeight unit.Dp = 27
 	// SettingsRowGap is the clear air between one form row's control box and
 	// the next's. MEASURED, save-dialog-{light,dark}.png: the focused "Save
 	// As:" field's box ends at y=232 and the "Tags:" box below it begins at

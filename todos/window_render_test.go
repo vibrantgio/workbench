@@ -81,9 +81,9 @@ func staticThemed(p tokens.PlatformColors) themed {
 		typography: typo,
 		density:    tokens.Comfortable,
 		typ: Type{
-			Shaper:   typo.DeterministicShaper(),
-			Headline: textStyle(typo.HeadlineSmall),
-			Title:    textStyle(typo.TitleLarge),
+			Shaper: typo.DeterministicShaper(),
+			Field:  textStyle(typo.SystemFont),
+			Row:    textStyle(typo.SystemFont),
 		},
 	}
 }

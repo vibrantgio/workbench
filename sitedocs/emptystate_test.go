@@ -231,7 +231,7 @@ func TestAFailedLoadKeepsTheOutlineColumnWithItsOwnLine(t *testing.T) {
 				}, rail))
 				return emptyStateBox(ref, ref.Bounds(), rail)
 			}
-			if want := alone(typ.BodyMedium); got != want {
+			if want := alone(typ.SystemFont); got != want {
 				t.Errorf("the outline column draws %v, want %v — the line at the rows' size", got, want)
 			}
 			if column := alone(tokens.TextStyle{}); got.Dy() >= column.Dy() {
