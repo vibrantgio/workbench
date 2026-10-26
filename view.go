@@ -15,6 +15,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/backdrop"
+	"github.com/vibrantgio/components/badge"
 	"github.com/vibrantgio/components/button"
 	pllayout "github.com/vibrantgio/components/layout"
 	raster "github.com/vibrantgio/ivg/raster/gio"
@@ -246,8 +247,8 @@ func gridRow(cells []layout.Widget) layout.Widget {
 }
 
 // appGroup is one launchable app as a patterns group standing on the tile's
-// material over the painted backdrop: icon + name row, blurb, and a row
-// holding the launch button and a status line. The group and button are
+// material over the painted backdrop: icon + name row, blurb, and the launch
+// button. The group and button are
 // theme-driven components built from the emission's static snapshot; the
 // name is the platform's label and the blurb its secondary strength, both
 // flattened onto what that fill tends toward, the window's own plane.
@@ -261,21 +262,8 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 	thObs := rx.Of(tok.components)
 	plane := windowPlane(tok.color)
 
-	nameRow := func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(appIcon(tok, app)),
-			layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
-			layout.Rigid(textWidget(tok.shaper, app.Name, tok.typ.Title3, textColour(tok.color), 1)),
-		)
-	}
 	blurb := textWidget(tok.shaper, app.Blurb, tok.typ.Subheadline, vgcolor.Flatten(tok.color.SecondaryLabel, plane), 3)
-	launchRow := func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(launchButton(thObs, tok.shaper, app, click, status, plane)),
-			layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
-			layout.Flexed(1, statusLine(tok, status)),
-		)
-	}
+	launchRow := launchButton(thObs, tok.shaper, app, click, status, plane)
 
 	// The app's own name is already the first row, so the group takes no
 	// title of its own: a second copy of it above the icon would name the
@@ -287,7 +275,7 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 	//
 	// thObs is a static snapshot (rx.Of), so First() resolves synchronously.
 	inner, _ := group.Group(thObs, group.Props{
-		Content: []layout.Widget{nameRow, blurb, launchRow},
+		Content: []layout.Widget{nameRow(tok, app, status), blurb, launchRow},
 		Surface: plane,
 	}).First()
 	material := tileMaterial(tok.color)
@@ -363,23 +351,33 @@ func launchButton(th rx.Observable[theme.Theme], shaper *text.Shaper, app App, c
 	}
 }
 
-// statusLine is the small caption beside the launch button: the failure
-// detail in the platform's red, a running app in the accent, and anything
-// else at the secondary strength.
-func statusLine(tok themed, status Status) layout.Widget {
-	txt, col := "", vgcolor.Flatten(tok.color.SecondaryLabel, windowPlane(tok.color))
-	switch status.State {
-	case Starting:
-		txt = "compiling…"
-	case Running:
-		txt, col = "running", tok.color.ControlAccent
-	case Failed:
-		txt, col = status.Detail, tok.color.SystemRed
+// nameRow is the app's icon and name, and while the app runs a Neutral badge
+// with the text "Running" after the name. Running is the system's word about
+// the app while it is true, so it is a badge with no status: the system grey
+// with white text, never the accent, which marks a selection.
+func nameRow(tok themed, app App, status Status) layout.Widget {
+	children := []layout.FlexChild{
+		layout.Rigid(appIcon(tok, app)),
+		layout.Rigid(pllayout.HSpacer(tok.spacing.S3)),
+		layout.Rigid(textWidget(tok.shaper, app.Name, tok.typ.Title3, textColour(tok.color), 1)),
 	}
-	if txt == "" {
-		return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
+	if status.State == Running {
+		// The theme is a static snapshot (rx.Of), so First() resolves
+		// synchronously.
+		running, _ := badge.Badge(rx.Of(tok.components), badge.Props{
+			Text:    "Running",
+			Status:  badge.Neutral,
+			Surface: windowPlane(tok.color),
+			Shaper:  tok.shaper,
+		}).First()
+		children = append(children,
+			layout.Rigid(pllayout.HSpacer(tok.spacing.S2)),
+			layout.Rigid(running),
+		)
 	}
-	return textWidget(tok.shaper, txt, tok.typ.SmallSystemFont, col, 2)
+	return func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
+	}
 }
 
 // textWidget defers a run of text in one Typography role, capped at maxLines,
