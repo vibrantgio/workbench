@@ -54,6 +54,7 @@ type themed struct {
 	ic         statIcons
 	platform   tokens.PlatformColors
 	typography tokens.Typography
+	density    tokens.Density
 	// scrollBars is the platform's "Show scroll bars" setting, read once
 	// when the window is composed and passed here, so that no frame asks
 	// the platform and no still render depends on the machine it runs on.
@@ -469,7 +470,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
 			{Title: "Monitor", Content: monitorContent(loadState, hov)},
-			{Title: "Presets", Content: listContent(loadState, presetsList, func(m Model) unit.Dp { return 4 + pageFoot(m) }, presetsArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
+			{Title: "Presets", Content: listContent(loadState, presetsList, func(m Model) unit.Dp { return 4 + pageFoot(m) }, presetsArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget, []unit.Dp) {
 				clearPresetFields(m)
 				return presetsRows(t, m, slots, hc)
 			})},
@@ -495,11 +496,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
-			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
+		return rx.Map(rx.CombineLatest3(t.Platform, t.Typography, t.Density),
+			func(n rx.Tuple3[tokens.PlatformColors, tokens.Typography, tokens.Density]) themed {
 				p := PaletteFrom(n.First)
 				return themed{palette: p, typ: TypeFrom(n.Second), ic: iconsFrom(p),
-					platform: n.First, typography: n.Second, scrollBars: bars}
+					platform: n.First, typography: n.Second, density: n.Third, scrollBars: bars}
 			})
 	})
 
@@ -667,12 +668,17 @@ func monitorPane(st pageState, hov *hoverState) layout.Widget {
 // own and the rows stop short of it, otherwise it lies over the rows'
 // trailing edge.
 //
+// When build returns heights, heights[i] is the height row i is laid out at,
+// and the list reads the content's length from them before it lays a row
+// out. A build that returns nil heights leaves the list to record the rows'
+// heights as it lays them out.
+//
 // While the tab's content is arriving, arriving returns the application's
 // own sentence for it. The tab draws the platform's indeterminate indicator
 // above the sentence, centred both ways as one group in the frame the list
 // would occupy, and never as a row of the list. A list with no rows draws
 // no bar, so the frame takes no lane. Both are removed when arriving returns "".
-func listContent(load func() (pageState, bool), state *list.State, foot func(Model) unit.Dp, arriving func(Model) string, build func(themed, Model, slotSet) (head, rows []layout.Widget)) layout.Widget {
+func listContent(load func() (pageState, bool), state *list.State, foot func(Model) unit.Dp, arriving func(Model) string, build func(themed, Model, slotSet) (head, rows []layout.Widget, heights []unit.Dp)) layout.Widget {
 	return pageColumn(func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
 		if !ok {
@@ -686,14 +692,26 @@ func listContent(load func() (pageState, bool), state *list.State, foot func(Mod
 				Text: line, Shaper: st.t.typ.Shaper, Typography: st.t.typography})
 			return layout.Dimensions{Size: frame}
 		}
-		head, body := build(st.t, st.m, st.slots)
+		head, body, bodyHeights := build(st.t, st.m, st.slots)
 		side := layout.Inset{Left: Padding + 4, Right: Padding + 4}
-		top := vspace(4 + 10)
-		var rows []layout.Widget
+		const topH unit.Dp = 4 + 10
+		top := vspace(topH)
+		footH := foot(st.m)
+		var (
+			rows    []layout.Widget
+			heights []unit.Dp
+		)
 		if len(head) == 0 {
 			rows = append(rows, top)
+			heights = append(heights, topH)
 		}
-		rows = append(append(rows, body...), vspace(foot(st.m)))
+		rows = append(append(rows, body...), vspace(footH))
+		heights = append(append(heights, bodyHeights...), footH)
+		if bodyHeights == nil {
+			state.SetHeightOfRow(nil)
+		} else {
+			state.SetHeightOfRow(func(m unit.Metric, i int) int { return m.Dp(heights[i]) })
+		}
 		bar := st.t.listBar()
 		// The list places its rows only after measuring them, and places
 		// the rows' tooltip surfaces in the available room moved by each
@@ -1018,10 +1036,10 @@ func deviceArriving(m Model) string {
 // Recall, or — while one is open — its editor with every field. The list of
 // slots returns its heading, the line under it and the column heads as the
 // head, which is drawn above the region that scrolls; the slots are the rows.
-func presetsRows(t themed, m Model, slots slotSet, hc hintCells) (head, rows []layout.Widget) {
+func presetsRows(t themed, m Model, slots slotSet, hc hintCells) (head, rows []layout.Widget, heights []unit.Dp) {
 	p, typ := t.palette, t.typ
 	if !m.HavePresets {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if n := m.EditPreset; isGroup(n) {
 		pr := m.Presets[n]
@@ -1072,7 +1090,7 @@ func presetsRows(t themed, m Model, slots slotSet, hc hintCells) (head, rows []l
 			}),
 			vspace(10),
 		)
-		return nil, rows
+		return nil, rows, nil
 	}
 	head = []layout.Widget{
 		textLine(typ, typ.Section, p.Label, "Memory slots"),
@@ -1083,6 +1101,13 @@ func presetsRows(t themed, m Model, slots slotSet, hc hintCells) (head, rows []l
 		textLine(typ, typ.Table, p.SecondaryLabel, presetTableHeader),
 		vspace(3),
 	}
+	// Each slot row is laid out at the standard row height and each gap at
+	// its own, so the heights the list reads are the heights drawn.
+	add := func(h unit.Dp, w layout.Widget) {
+		rows = append(rows, exactHeight(h, w))
+		heights = append(heights, h)
+	}
+	slotH := list.RowHeight(t.density)
 	for n := 0; n <= 9; n++ {
 		txt := presetTableRow(n, m.Presets[n])
 		col := p.Label
@@ -1090,20 +1115,18 @@ func presetsRows(t themed, m Model, slots slotSet, hc hintCells) (head, rows []l
 			col = p.Accent // the active profile
 		}
 		edit, recall := slots.get(fmt.Sprintf("edit.%d", n)), slots.get(fmt.Sprintf("recall.%d", n))
-		rows = append(rows,
-			func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(textLine(typ, typ.Table, col, txt)),
-					layout.Flexed(1, spacer),
-					layout.Rigid(fixed(58, edit)),
-					hgap(4),
-					layout.Rigid(fixed(76, recall)),
-				)
-			},
-			vspace(2),
-		)
+		add(slotH, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(textLine(typ, typ.Table, col, txt)),
+				layout.Flexed(1, spacer),
+				layout.Rigid(fixed(58, edit)),
+				hgap(4),
+				layout.Rigid(fixed(76, recall)),
+			)
+		})
+		add(2, nil)
 	}
-	return head, rows
+	return head, rows, heights
 }
 
 // presetTableHeader and presetTableRow lay one memory group out as a
@@ -1246,9 +1269,9 @@ func deviceContent(load func() (pageState, bool), state *list.State) layout.Widg
 	// The footer is below the list and is the page's foot: its own height
 	// gives the room under its text, so the page's bottom Padding is not
 	// added under it. The list keeps the tab's 4 dp below its last row.
-	grid := listContent(load, state, func(Model) unit.Dp { return 4 }, deviceArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget) {
+	grid := listContent(load, state, func(Model) unit.Dp { return 4 }, deviceArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget, []unit.Dp) {
 		st, _ := load()
-		return nil, deviceRows(t, m, slots, st.hc)
+		return nil, deviceRows(t, m, slots, st.hc), nil
 	})
 	return func(gtx layout.Context) layout.Dimensions {
 		st, ok := load()
@@ -1445,6 +1468,21 @@ func fixed(dp unit.Dp, w layout.Widget) layout.Widget {
 
 func spacer(gtx layout.Context) layout.Dimensions {
 	return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 0)}
+}
+
+// exactHeight lays w out exactly h tall, so the row's height is h whatever w
+// draws. A nil w is a gap h tall.
+func exactHeight(h unit.Dp, w layout.Widget) layout.Widget {
+	if w == nil {
+		return vspace(h)
+	}
+	return func(gtx layout.Context) layout.Dimensions {
+		px := gtx.Dp(h)
+		gtx.Constraints.Min.Y, gtx.Constraints.Max.Y = px, px
+		dims := w(gtx)
+		dims.Size.Y = px
+		return dims
+	}
 }
 
 // vspace is a vertical gap as a plain layout.Widget, for list rows.

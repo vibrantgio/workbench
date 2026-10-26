@@ -559,6 +559,10 @@ short of, only while the rows overflow; Overlay floats the bar over the
 trailing edge; default style from scrollbar.FromTokens). Style.Always() is
 the standing bar: an 11 dp thumb on a pill track, 3 dp inside a 17 dp lane.
 When the content fits, the bar draws nothing and takes no lane.
+The bar reads the content's length from the heights of the rows laid out.
+For rows of unequal height, State.SetHeightOfRow gives the list each row's
+height in pixels, so the thumb keeps one length and moves in proportion to
+the scroll.
 
 Effects components are explicit VARIANTS of library components, e.g.
 effects/springbutton wraps components/button with physics-driven press/release —
