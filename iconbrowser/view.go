@@ -206,7 +206,13 @@ func pageOver(t themed, search layout.Widget, model Model, count int, gridWidget
 	return func(gtx layout.Context) layout.Dimensions {
 		children := make([]layout.FlexChild, 0, 5)
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.UniformInset(Padding).Layout(gtx, search)
+			return layout.UniformInset(Padding).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				// The field keeps its measured width at the page's
+				// leading edge and never runs the page's full width.
+				w := min(gtx.Dp(SearchFieldWidth), gtx.Constraints.Max.X)
+				gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+				return search(gtx)
+			})
 		}))
 		if len(names) > 0 {
 			children = append(children,

@@ -74,4 +74,10 @@ const (
 	CellH    unit.Dp = 84  // 40 dp symbol, gap, one caption line, padding
 	IconSize unit.Dp = 40
 	HeadingH unit.Dp = 28 // one section label on its own line
+
+	// SearchFieldWidth is the search field's width on the content.
+	// MEASURED, systemsettings-add-input-source-search-{light,dark}.png:
+	// the platform's field on a sheet's own fill runs x 19-227, 209 px
+	// outer edge to outer edge, in both appearances.
+	SearchFieldWidth unit.Dp = 209
 )

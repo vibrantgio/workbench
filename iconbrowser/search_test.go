@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"testing"
 
 	"gioui.org/f32"
@@ -10,19 +11,21 @@ import (
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// searchFieldSize is the room the page gives the field in the window it
-// opens as: the window's width less the page's Padding on each side, at the
-// comfortable search field height.
-var searchFieldSize = image.Pt(int(winW-2*Padding), int(tokens.Comfortable.SearchFieldHeight))
+// searchFieldSize is the room the page gives the field: its measured width,
+// at the comfortable search field height.
+var searchFieldSize = image.Pt(int(SearchFieldWidth), int(tokens.Comfortable.SearchFieldHeight))
 
 // driveSearchField builds the field ContentLayer lays out and returns a frame
 // driver, the queries it has posted so far, and the router the frames run
@@ -119,12 +122,13 @@ func TestEscapeClearsTheSearchFieldAndPostsTheEmptyQuery(t *testing.T) {
 
 // The window drawn with a query in the field draws the clear mark at the
 // field's trailing end, and the window with no query draws none there. The
-// field is the page's first row, Padding in from the window's edges and the
-// page held down past the title-bar strip; the clear mark is drawn inside the
-// last 40 dp of it, where neither query's text reaches.
+// field is the page's first row, Padding in from the window's leading edge at
+// its measured width, and the page is held down past the title-bar strip; the
+// clear mark is drawn inside the last 40 dp of it, where neither query's text
+// reaches.
 func TestTheFilteredWindowDrawsTheClearMark(t *testing.T) {
 	top := int(titleBandDp + Padding)
-	right := windowSize.X - int(Padding)
+	right := int(Padding + SearchFieldWidth)
 	mark := image.Rect(right-40, top, right, top+searchFieldSize.Y)
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -142,6 +146,61 @@ func TestTheFilteredWindowDrawsTheClearMark(t *testing.T) {
 				if n == 0 {
 					t.Errorf("the window with %q in the field draws nothing at the field's trailing end; the clear mark is missing", q)
 				}
+			}
+		})
+	}
+}
+
+// The page gives the search field its measured width at the page's leading
+// Padding, and the field draws across exactly that extent. A probe in the
+// field's place says what the page hands it; the field's own edge, read
+// across its centre row, says that the field draws there and nowhere else.
+func TestTheSearchFieldKeepsTheMeasuredWidth(t *testing.T) {
+	top := int(titleBandDp + Padding)
+	height := int(tokens.Comfortable.SearchFieldHeight)
+	for _, tc := range windowSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			tok := staticThemed(t, tc.c)
+			mark := color.NRGBA{R: 0xff, B: 0xff, A: 0xff}
+			probe := func(gtx layout.Context) layout.Dimensions {
+				size := image.Pt(gtx.Constraints.Max.X, height)
+				paint.FillShape(gtx.Ops, mark, clip.Rect{Max: size}.Op())
+				return layout.Dimensions{Size: size}
+			}
+			model := Model{}
+			page := desktop.CapTop(func() unit.Dp { return titleBandDp },
+				pageOver(tok, probe, model, len(FilterIcons(model.Query)), func(gtx layout.Context) layout.Dimensions {
+					return layout.Dimensions{Size: gtx.Constraints.Max}
+				}))
+			img := golden.Capture(t, windowSize, page)
+			given := image.Rectangle{}
+			for y := 0; y < windowSize.Y; y++ {
+				for x := 0; x < windowSize.X; x++ {
+					if pixelAt(img, image.Pt(x, y)) == mark {
+						given = given.Union(image.Rect(x, y, x+1, y+1))
+					}
+				}
+			}
+			if given.Min.X != int(Padding) || given.Dx() != int(SearchFieldWidth) {
+				t.Errorf("the page gives the field x %d-%d, want %d dp from x %d, the page's leading Padding",
+					given.Min.X, given.Max.X-1, int(SearchFieldWidth), int(Padding))
+			}
+
+			drawn := renderWindow(t, tc.c, "", titleBandDp)
+			plane := tc.c.WindowBackground
+			row := top + height/2
+			first, last := -1, -1
+			for x := 0; x < windowSize.X; x++ {
+				if pixelAt(drawn, image.Pt(x, row)) != plane {
+					if first < 0 {
+						first = x
+					}
+					last = x
+				}
+			}
+			if first != int(Padding) || last-first+1 != int(SearchFieldWidth) {
+				t.Errorf("the field draws x %d-%d across its centre row %d, want %d px from x %d",
+					first, last, row, int(SearchFieldWidth), int(Padding))
 			}
 		})
 	}
