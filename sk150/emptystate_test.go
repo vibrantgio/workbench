@@ -346,11 +346,13 @@ func TestMonitorEmptyStateDemoTooltipIsDrawnWholeInANarrowWindow(t *testing.T) {
 	w := windowFrame(t, c, unconnectedModel())
 	golden.Capture(t, size, w)
 	img := golden.Capture(t, size, w)
+	// The line is set on more lines in a frame this narrow, so the button is
+	// the last run of painted rows and the line is every run above it.
 	runs := paintedRuns(img, monitorFrameIn(t, img, c, size), fill)
-	if len(runs) != 2 {
+	if len(runs) < 2 {
 		t.Fatalf("the tab's frame holds %d runs of painted rows, want the line and the button", len(runs))
 	}
-	button := runs[1]
+	button := runs[len(runs)-1]
 
 	var (
 		ops op.Ops
