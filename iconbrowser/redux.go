@@ -12,6 +12,8 @@ func ReduceModel(m Model, message any) Model {
 	switch msg := message.(type) {
 	case SetQuery:
 		m.Query = msg.Text
+	case Find:
+		m.Finds++
 	}
 	return m
 }

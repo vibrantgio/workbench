@@ -63,6 +63,10 @@ type Notice struct {
 // hardware answers. Restarting the app returns to real hardware.
 type EnterDemo struct{}
 
+// SavePreset asks the preset editor's Save button to save what the editor
+// holds. Posted by the Save item of the menu bar and by its chord.
+type SavePreset struct{}
+
 // EditActivePreset opens the active preset — the settings in force — in
 // the editor (the Monitor's Set button).
 type EditActivePreset struct{}

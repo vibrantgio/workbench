@@ -205,9 +205,19 @@ func Update(m Model, message mvu.Message) (Model, mvu.Command) {
 		return m, writeCmd(fmt.Sprintf("preset M%d recalled — setpoints loaded, output off", msg.N),
 			regExtract, uint16(msg.N), wflags{settings: true, device: true})
 
+	case SavePreset:
+		if m.EditPreset != noEdit {
+			m.Saves++
+		}
+		return m, mvu.DoNothing()
+
 	case EditPreset:
 		if !isGroup(msg.N) {
 			msg.N = noEdit
+		} else {
+			// The editor is drawn on the Presets tab only, and the menu
+			// bar offers Edit from every tab.
+			m.Screen = "presets"
 		}
 		if msg.N == noEdit && m.EditPreset != noEdit {
 			m.EditClears++ // cancelled: drop what was typed

@@ -13,6 +13,8 @@ import (
 	"gioui.org/app"
 	"gioui.org/unit"
 
+	"github.com/reactivego/rx"
+
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/brand"
@@ -53,7 +55,11 @@ func run() {
 
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second, brand.Kept().Options()...))
 
-	models, runner := mvu.Loop(mvuWin.Messages(), Init, Update)
+	// The menu bar holds the window's actions (menu.go). Away from macOS the
+	// declaration is inert.
+	menu := desktop.NewMenuBar(mvuWin, MenuItems()...)
+
+	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), menu.Messages()), Init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
 	if err := w.Render(buildLayers(mvuWin.Window(), models, bars)).Wait(); err != nil {

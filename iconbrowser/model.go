@@ -7,9 +7,14 @@ import (
 	"github.com/vibrantgio/mvu"
 )
 
-// Model is the single application state: the current search query.
+// Model is the single application state: the current search query, and
+// the count of Find requests.
 type Model struct {
 	Query string
+
+	// Finds counts the Find requests. The page gives the keyboard to the
+	// search field on the first frame after the count changes.
+	Finds int
 }
 
 // Init returns the seed Model — no query, all icons visible — and no

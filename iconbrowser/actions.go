@@ -5,3 +5,7 @@ package main
 type SetQuery struct {
 	Text string
 }
+
+// Find gives the keyboard to the search field. Posted by the Find item of
+// the menu bar and by its chord.
+type Find struct{}

@@ -64,6 +64,10 @@ type Model struct {
 	// a save accepted, or the editor closed. The view compares it frame to
 	// frame; the fields' text lives in the view, not here.
 	EditClears int
+	// Saves counts the Save requests made while the editor is open. The
+	// editor's Save button saves on the first frame after the count
+	// changes, because the fields' text lives in the view.
+	Saves int
 
 	// The LVP override decision: setting the input cutoff above the live
 	// input voltage trips protection and cuts the output the moment it is

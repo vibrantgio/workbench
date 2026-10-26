@@ -45,6 +45,9 @@ import (
 // tabScreens maps tab indexes to the Model.Screen names, in strip order.
 var tabScreens = []string{"monitor", "presets", "device"}
 
+// tabTitles is the text of each tab, in tabScreens order.
+var tabTitles = []string{"Monitor", "Presets", "Device"}
+
 // themed pairs one theme emission with the palette, typography and stat
 // icons derived from it, and keeps the platform's colours and type set the
 // emission carried for the patterns that take them as they are.
@@ -282,7 +285,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 		for _, f := range presetFields {
 			texts[f] = text("p." + f.spec().Key)
 		}
-		mvu.MessageOp{Message: SavePresetEdit{N: st.m.EditPreset, Texts: texts, Stay: stay}}.Add(gtx.Ops)
+		post(gtx, SavePresetEdit{N: st.m.EditPreset, Texts: texts, Stay: stay})
 	}
 	for _, f := range presetFields {
 		field("p."+f.spec().Key, f.spec().Unit, func(gtx layout.Context, _ string) { savePreset(gtx, true) })
@@ -304,8 +307,20 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			cell(key).Store("")
 		}
 	}
-	reg.add("p.save", button.Button(th, button.Props{
+	// savesSeen is the Save count the button last answered. The button's
+	// frame reads and writes it, and nothing else does. The editor is open
+	// whenever the count changes, so the button is laid out on that frame.
+	savesSeen := 0
+	reg.add("p.save", rx.Map(button.Button(th, button.Props{
 		Title: "Save", OnClick: func(gtx layout.Context) { savePreset(gtx, false) },
+	}), func(save layout.Widget) layout.Widget {
+		return func(gtx layout.Context) layout.Dimensions {
+			if st, ok := loadState(); ok && st.m.Saves != savesSeen {
+				savesSeen = st.m.Saves
+				savePreset(gtx, false)
+			}
+			return save(gtx)
+		}
 	}))
 	for i := 0; i <= 9; i++ {
 		reg.add(fmt.Sprintf("edit.%d", i), button.Button(th, button.Props{
@@ -469,12 +484,12 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 
 	tabsObs := tabs.Tabs(th, tabs.Props{
 		Tabs: []tabs.Tab{
-			{Title: "Monitor", Content: monitorContent(loadState, hov)},
-			{Title: "Presets", Content: listContent(loadState, presetsList, func(m Model) unit.Dp { return 4 + pageFoot(m) }, presetsArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget, []unit.Dp) {
+			{Title: tabTitles[0], Content: monitorContent(loadState, hov)},
+			{Title: tabTitles[1], Content: listContent(loadState, presetsList, func(m Model) unit.Dp { return 4 + pageFoot(m) }, presetsArriving, func(t themed, m Model, slots slotSet) ([]layout.Widget, []layout.Widget, []unit.Dp) {
 				clearPresetFields(m)
 				return presetsRows(t, m, slots, hc)
 			})},
-			{Title: "Device", Content: deviceContent(loadState, deviceList)},
+			{Title: tabTitles[2], Content: deviceContent(loadState, deviceList)},
 		},
 		Selected: rx.Map(modelObs, func(m Model) int {
 			for i, s := range tabScreens {
@@ -507,6 +522,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	// The two overlay layers: the tab strip (content) and the dialog above
 	// it. Same element type, so one variadic combine carries both.
 	overlays := rx.CombineLatest(tabsObs, lvpDialog)
+	chords := ChordAreas(post)
 
 	return rx.Map(rx.CombineLatest4(themes, modelObs, widgets, overlays),
 		func(n rx.Tuple4[themed, Model, []layout.Widget, []layout.Widget]) layout.Widget {
@@ -522,6 +538,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 				// tooltip below is placed in; each layer between here and
 				// a tooltip moves it by the offset it places its child at.
 				gtx = shell.WithAvailableRoom(gtx, image.Rectangle{Max: size})
+				for _, c := range chords {
+					c(gtx)
+				}
 				content(gtx)
 				// The dialog and its scrim lie over the whole window,
 				// strip included — a scrim with a hole isolates nothing.

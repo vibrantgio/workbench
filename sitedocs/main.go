@@ -117,7 +117,11 @@ func run() {
 	// upstream subscription however many streams derive from it, and hands
 	// each of them the model in force the moment it attaches.
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
-	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
+	// The menu bar holds the window's actions (menu.go). Away from macOS the
+	// declaration is inert.
+	menu := desktop.NewMenuBar(mvuWin, MenuItems()...)
+
+	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), menu.Messages()), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
 	if err := w.Render(buildLayers(models, bars)).Wait(); err != nil {

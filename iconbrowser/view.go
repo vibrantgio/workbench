@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"image"
 
+	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -101,9 +103,16 @@ func symbols(p Palette) []layout.Widget {
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	grid := list.NewState()
 
-	search := searchField(th, input.SearchFieldProps{}, func(gtx layout.Context, msg SetQuery) {
-		mvu.MessageOp{Message: msg}.Add(gtx.Ops)
-	})
+	post := func(gtx layout.Context, msg mvu.Message) { mvu.MessageOp{Message: msg}.Add(gtx.Ops) }
+
+	// field is the search field's focus tag. findsSeen is the Find count
+	// the page last answered. The frame reads and writes both, and nothing
+	// else does.
+	var field event.Tag
+	findsSeen := 0
+	search := searchField(th, input.SearchFieldProps{FocusTag: func(tag event.Tag) { field = tag }},
+		func(gtx layout.Context, msg SetQuery) { post(gtx, msg) })
+	chords := ChordAreas(post)
 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
@@ -116,7 +125,18 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 
 	return underTitleBar(rx.Map(rx.CombineLatest3(themes, search, modelObs),
 		func(next rx.Tuple3[themed, layout.Widget, Model]) layout.Widget {
-			return Page(next.First, next.Second, next.Third, grid)
+			page := Page(next.First, next.Second, next.Third, grid)
+			finds := next.Third.Finds
+			return func(gtx layout.Context) layout.Dimensions {
+				for _, c := range chords {
+					c(gtx)
+				}
+				if finds != findsSeen && field != nil {
+					findsSeen = finds
+					gtx.Execute(key.FocusCmd{Tag: field})
+				}
+				return page(gtx)
+			}
 		}))
 }
 
