@@ -742,14 +742,15 @@ Goldens stay on the recorded sets: adoption is runtime, never baked in.
 
 Desktop density is a theme token, not a per-component prop. tokens.Density
 carries the control height, the text field height, the row heights, the
-toolbar control height and the inner padding. The control and field heights
-are minimums; what a control draws is max(minimum, lineBox + 2×PaddingY).
-The toolbar control height is exact:
+toolbar control height, the horizontal padding and the symbol size. The
+control and field heights are minimums; what a control draws is
+max(minimum, lineBox), the line centred. The vertical padding is what the
+height leaves around the line. The toolbar control height is exact:
 
   ```
-                minimum: control  field   toolbar   drawn: button  field
-  Comfortable            24 dp    27 dp   36 dp            24 dp   28 dp  (the default)
-  Compact                19 dp    21 dp   36 dp            20 dp   24 dp
+                minimum: control  field   toolbar   drawn: button  field   symbol
+  Comfortable            24 dp    27 dp   36 dp            24 dp   27 dp   20 dp  (the default)
+  Compact                19 dp    21 dp   36 dp            19 dp   21 dp   19 dp
   ```
 
 The numbers are MEASURED off the platform, and measured beats published:
@@ -1080,7 +1081,7 @@ typeset.Font(style, fallback) builds the font.Font, typeset.Label(style,
 maxLines) the widget.Label with the line height installed, and
 typeset.Layout(gtx, shaper, lbl, f, size, txt, material) lays it out and pads
 the result to the line box. That is also
-why a control's drawn height is max(minimum, lineBox + 2*PaddingY), the
+why a control's drawn height is max(minimum, lineBox), the
 minimum being Density.ControlHeight for a control and Density.FieldHeight
 for a text field: the minimum is not a height, and a Comfortable button
 (SystemFont, 16 dp line box) draws its 24 dp minimum, and a
