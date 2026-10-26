@@ -513,12 +513,8 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			slots := slotSet{list: n.Third, index: index}
 			stateCell.Store(pageState{t: n.First, m: n.Second, slots: slots, hc: hc})
 			page := Page(n.First, n.Second, slots, n.Fourth[0])
-			// The cap pushes the top inset as an offset before it lays the
-			// page out, so the page is given the available room moved by
-			// that offset.
-			content := desktop.CapTop(desktop.TopInset, func(gtx layout.Context) layout.Dimensions {
-				return page(attachment.AvailableRoomAt(gtx, image.Pt(0, gtx.Dp(desktop.TopInset()))))
-			})
+			// The cap moves the available room by the inset it pushes.
+			content := desktop.CapTop(topInset, page)
 			dialog := n.Fourth[1]
 			return func(gtx layout.Context) layout.Dimensions {
 				size := gtx.Constraints.Max
@@ -534,6 +530,11 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 			}
 		})
 }
+
+// topInset is the height of the native title-bar strip the window caps off
+// the top of the page. A test replaces it to lay the window out under a strip,
+// because the strip measures 0 with no native window.
+var topInset = desktop.TopInset
 
 // postMessage is the window's sink for a control's message: the message
 // reaches the loop as this frame's message op.

@@ -340,8 +340,45 @@ func TestMonitorEmptyStateDemoButtonTooltip(t *testing.T) {
 // window's content area is set as the available room at the root and moved
 // by every layer down to the empty state.
 func TestMonitorEmptyStateDemoTooltipIsDrawnWholeInANarrowWindow(t *testing.T) {
-	c := tokens.PlatformLight
 	size := image.Pt(180, windowSize.Y)
+	_, box := demoTooltipBox(t, size)
+	if box.Min.X < 1 || box.Max.X > size.X-1 {
+		t.Errorf("the demo button's tooltip spans columns %d..%d in a window %d wide; it is cut off by the window's edges",
+			box.Min.X, box.Max.X-1, size.X)
+	}
+}
+
+// TestMonitorEmptyStateDemoTooltipIsDrawnWholeUnderTheStrip lays the window
+// out under a 32 dp title-bar strip, at a height where the tooltip has no
+// room under the demo button. The window sets the available room above the
+// cap and makes no correction for the strip. The tooltip is drawn whole
+// inside the window, because the cap moves the room by the inset it pushes.
+func TestMonitorEmptyStateDemoTooltipIsDrawnWholeUnderTheStrip(t *testing.T) {
+	_, tall := demoTooltipBox(t, image.Pt(180, windowSize.Y))
+
+	defer func(f func() unit.Dp) { topInset = f }(topInset)
+	topInset = func() unit.Dp { return 32 }
+	size := image.Pt(180, 280)
+	button, box := demoTooltipBox(t, size)
+	if box.Dy() != tall.Dy() {
+		t.Errorf("the demo button's tooltip is %d rows high under the strip, want %d: it is cut off", box.Dy(), tall.Dy())
+	}
+	if box.Min.Y < 32 || box.Max.Y > size.Y {
+		t.Errorf("the demo button's tooltip spans rows %d..%d in a window %d high under a 32 dp strip; it is outside the content area",
+			box.Min.Y, box.Max.Y-1, size.Y)
+	}
+	if box.Max.Y > button.Min.Y {
+		t.Errorf("the demo button's tooltip spans rows %d..%d and the button begins at row %d; it has no room under the button, so it is placed above",
+			box.Min.Y, box.Max.Y-1, button.Min.Y)
+	}
+}
+
+// demoTooltipBox lays the unconnected window out at size, rests the pointer
+// on the demo button until the tooltip's delay runs out, and returns the
+// button and the rows and columns the tooltip changed outside the button.
+func demoTooltipBox(t *testing.T, size image.Point) (button, box image.Rectangle) {
+	t.Helper()
+	c := tokens.PlatformLight
 	fill := pageFill(c)
 	w := windowFrame(t, c, unconnectedModel())
 	golden.Capture(t, size, w)
@@ -352,7 +389,7 @@ func TestMonitorEmptyStateDemoTooltipIsDrawnWholeInANarrowWindow(t *testing.T) {
 	if len(runs) < 2 {
 		t.Fatalf("the tab's frame holds %d runs of painted rows, want the line and the button", len(runs))
 	}
-	button := runs[len(runs)-1]
+	button = runs[len(runs)-1]
 
 	var (
 		ops op.Ops
@@ -392,8 +429,12 @@ func TestMonitorEmptyStateDemoTooltipIsDrawnWholeInANarrowWindow(t *testing.T) {
 	frame()
 	shown := shot()
 
-	box := image.Rectangle{}
-	for y := button.Max.Y; y < size.Y; y++ {
+	// The button's own rows are left out: its hover state still changes
+	// between the two shots.
+	for y := 0; y < size.Y; y++ {
+		if y >= button.Min.Y && y < button.Max.Y {
+			continue
+		}
 		for x := 0; x < size.X; x++ {
 			if waiting.RGBAAt(x, y) != shown.RGBAAt(x, y) {
 				box = box.Union(image.Rect(x, y, x+1, y+1))
@@ -401,10 +442,7 @@ func TestMonitorEmptyStateDemoTooltipIsDrawnWholeInANarrowWindow(t *testing.T) {
 		}
 	}
 	if box.Empty() {
-		t.Fatal("the delay ran out and no tooltip was drawn under the demo button")
+		t.Fatal("the delay ran out and no tooltip was drawn by the demo button")
 	}
-	if box.Min.X < 1 || box.Max.X > size.X-1 {
-		t.Errorf("the demo button's tooltip spans columns %d..%d in a window %d wide; it is cut off by the window's edges",
-			box.Min.X, box.Max.X-1, size.X)
-	}
+	return button, box
 }
