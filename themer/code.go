@@ -3,7 +3,7 @@
 //
 // The document is parsed once and restyled per emission. Colour is no part of
 // the parse — the document takes its style at layout time — so choosing
-// another highlighter style re-dresses a document already read rather than
+// another highlighter style is applied to a document already read rather than
 // reading one again.
 package main
 
@@ -54,9 +54,9 @@ func newCodeState() *codeState {
 
 // CodeStyle is the document style the preview's fence is drawn through: the
 // previewed set's own reading colours, the chosen code face, and a fence
-// wearing the chosen highlighter style.
+// with the chosen highlighter style applied.
 //
-// The style is worn rather than re-fitted. A fence takes the background its
+// The style is applied rather than re-fitted. A fence takes the background its
 // author drew their colours on and those colours as they were written, so the
 // block is the style itself and not a rendering of it; everything round it
 // stays the platform's. Which member of the pair reaches the fence follows the
@@ -67,6 +67,6 @@ func newCodeState() *codeState {
 // actually lands on.
 func CodeStyle(c tokens.PlatformColors, typ tokens.Typography, standsOn stdcolor.NRGBA, styles highlight.StylePair) markdown.Style {
 	st := markdown.FromTokens(c, typ, standsOn)
-	highlight.WearPair(&st, styles, c)
+	highlight.ApplyPair(&st, styles, c)
 	return st
 }

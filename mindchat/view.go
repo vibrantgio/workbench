@@ -153,7 +153,7 @@ var (
 // it. The fills a reply can grow, a fenced block and an inline code chip,
 // keep FromTokens' own, which is markdown's business and not this app's.
 //
-// Wearing a whole highlighter style (highlight.Wear) would hand the fence
+// Applying a whole highlighter style (highlight.Apply) would hand the fence
 // that style's own background instead, and a plate fitted to a white page puts a fill
 // lighter than this light scheme's page under the block. So the chroma style
 // is taken for its colours only (highlight.New), matched to the appearance
