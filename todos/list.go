@@ -24,6 +24,7 @@ import (
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/tokens"
 )
 
 // List renders the todos on the window's own plane using the components
@@ -31,42 +32,38 @@ import (
 // own: the list is what this window exists to show rather than something
 // standing on it.
 //
-// The list is the region that scrolls, and the page's padding is inside it:
-// each row is inset on its leading side by the page's Padding and its own, on
-// its trailing side by [rowTrailingInset], and above and below by the page's
-// Padding; the first row adds the page's Padding above, and the last row adds
-// the page's Padding below, so the bar is at the window's trailing edge and
-// never inset by the padding. The anchor is what
+// The list is the region that scrolls. Every row is the density's content
+// list row, edge to edge with its neighbours, and the list has no padding at
+// its ends. A row's content is inset on its leading side by the page's
+// Padding and its own and on its trailing side by [rowTrailingInset], so the
+// bar is at the window's trailing edge. The anchor is what
 // [complist.AnchorFor] returns for bar: at Always the bar has a lane of its
 // own and the rows stop short of it, otherwise it lies over the rows'
 // trailing edge.
 //
 // state is the list's scroll position, kept at subscription scope and passed
 // to every layout, so a change to a todo keeps the rows the reader scrolled to.
-func List(typ Type, th rx.Observable[theme.Theme], p Palette, bar scrollbar.Style, state *complist.State, model Model) layout.Widget {
+func List(typ Type, th rx.Observable[theme.Theme], p Palette, den tokens.Density, bar scrollbar.Style, state *complist.State, model Model) layout.Widget {
 	rows := make([]layout.Widget, len(model.List))
 	for i := range model.List {
 		rows[i] = Row(typ, th, p, model.List[i])
 	}
-	return scrollingList(rows, bar, state)
+	return scrollingList(rows, unit.Dp(den.ContentListRowHeight), bar, state)
 }
 
-// scrollingList lays rows out as the list's region that scrolls, with the
-// insets [List] states.
-func scrollingList(rows []layout.Widget, bar scrollbar.Style, state *complist.State) layout.Widget {
+// scrollingList lays rows out as the list's region that scrolls, each row
+// exactly rowHeight tall, with the insets [List] states. The list's bar
+// counts every row at rowHeight.
+func scrollingList(rows []layout.Widget, rowHeight unit.Dp, bar scrollbar.Style, state *complist.State) layout.Widget {
 	idx := make([]int, len(rows))
 	for i := range idx {
 		idx[i] = i
 	}
+	state.SetHeightOfRow(func(m unit.Metric, _ int) int { return m.Dp(rowHeight) })
 	return func(gtx layout.Context) layout.Dimensions {
 		return complist.LayoutScrollbar(gtx, state, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int) layout.Dimensions {
-			in := layout.Inset{Top: Padding, Bottom: Padding, Left: 2 * Padding, Right: rowTrailingInset}
-			if i == 0 {
-				in.Top += Padding
-			}
-			if i == len(rows)-1 {
-				in.Bottom += Padding
-			}
+			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, gtx.Dp(rowHeight)))
+			in := layout.Inset{Left: 2 * Padding, Right: rowTrailingInset}
 			return in.Layout(gtx, rows[i])
 		})
 	}
@@ -112,7 +109,8 @@ const (
 
 // Row is one todo line: a components checkbox toggling completion, the todo text
 // (clickable — opens the edit dialog), and a delete mark drawn while the
-// pointer is over the row. Every event routes through mvu.MessageOp, so the
+// pointer is over the row. The text fills the row's height and is centred in
+// it, and the checkbox and the mark are centred on the row's middle. Every event routes through mvu.MessageOp, so the
 // reducers are the only state writers.
 func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.Widget {
 	row := layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceBetween, Alignment: layout.Middle}
@@ -137,8 +135,7 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 			mvu.MessageOp{Message: SetRoute{Route: "edit.todo"}}.Add(gtx.Ops)
 		}
 		dims := editClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			h := textdraw.MeasureText(gtx, typ.Shaper, typ.Row, "W").Y
-			size := image.Pt(gtx.Constraints.Max.X, h+gtx.Dp(Padding))
+			size := gtx.Constraints.Max
 			textdraw.FillText(gtx, typ.Shaper, typ.Row, image.Rectangle{Max: size}, 0.0, 0.5, textColor, item.Text)
 			return layout.Dimensions{Size: size}
 		})

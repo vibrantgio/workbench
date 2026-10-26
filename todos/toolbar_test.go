@@ -33,13 +33,19 @@ func drawnBox(img *image.RGBA, r image.Rectangle, fill color.NRGBA) image.Rectan
 
 // shadowReach is how far below the band the scan for the toolbar's drawing
 // runs. The button's drop shadow reaches past the toolbar's foot, as the
-// platform's does, and the first row's paint starts further down.
+// platform's does, into the first row.
 const shadowReach = 24
 
 // toolbarBox is the bounding box of what the toolbar draws in its band: the
-// add button, its drop shadow included.
+// add button, its drop shadow included. Below the band the scan reads only
+// the columns the band draws in, because the first row starts at the band's
+// foot and the shadow is under the button.
 func toolbarBox(img *image.RGBA, fill color.NRGBA) image.Rectangle {
-	return drawnBox(img, image.Rect(0, 0, img.Bounds().Dx(), int(bandDp)+shadowReach), fill)
+	band := drawnBox(img, image.Rect(0, 0, img.Bounds().Dx(), int(bandDp)), fill)
+	if band.Empty() {
+		return band
+	}
+	return band.Union(drawnBox(img, image.Rect(band.Min.X, int(bandDp), band.Max.X, int(bandDp)+shadowReach), fill))
 }
 
 // TestTheToolbarDrawsTheAddButton renders the resting window in both schemes,

@@ -118,7 +118,7 @@ func view(th themed, model Model, listState *complist.State, band func() unit.Dp
 	}
 	toolbar := Toolbar(th.platform, th.density, new(widget.Clickable), band, add)
 	addKey := OnAddKey(add)
-	list := List(th.typ, thObs, p, th.listBar(), listState, model)
+	list := List(th.typ, thObs, p, th.density, th.listBar(), listState, model)
 
 	// The dialogs are constructed HERE, once per emission, and reused across
 	// frames: the editor's text and caret live inside the dialog closure, so

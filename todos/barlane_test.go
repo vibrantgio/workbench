@@ -40,7 +40,7 @@ func TestTheListDrawsTheWindowsBar(t *testing.T) {
 			render := func(bars desktop.ScrollBarSetting) (*image.RGBA, themed) {
 				th := staticThemed(tc.c)
 				th.scrollBars = bars
-				list := List(th.typ, rx.Of(th.components), th.palette, th.listBar(), complist.NewState(), model)
+				list := List(th.typ, rx.Of(th.components), th.palette, th.density, th.listBar(), complist.NewState(), model)
 				draw := func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints = layout.Exact(size)
 					paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
