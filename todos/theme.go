@@ -29,14 +29,18 @@ type Palette struct {
 	// RowControl is the delete mark, a control inside a content list's row:
 	// the platform tints it in the accent, measured from Reminders'.
 	RowControl color.NRGBA
-	Cover      color.NRGBA // the dim over the page the dialog interrupts
+	// RowSelection is the fill under the list's selected row: the content
+	// list selection flattened onto the window's own plane.
+	RowSelection color.NRGBA
+	Cover        color.NRGBA // the dim over the page the dialog interrupts
 }
 
 // PaletteFrom reads this window's fills and foregrounds off the platform's
 // set. The list is what the window exists to show and stands on the window's
-// own plane, painting no fill of its own. The only fills over it belong to
-// the dialog, which is a floating surface: the window's plane again, told
-// apart by the dim its scrim lays over everything it interrupts. Its
+// own plane. The list paints one fill: the content list selection under the
+// selected row. The other fills belong to the dialog, which is a floating
+// surface: the window's plane again, told apart by the dim its scrim lays
+// over everything it interrupts. Its
 // text-entry field is the platform's text plane inside the hairline a field
 // draws around itself.
 //
@@ -55,6 +59,7 @@ func PaletteFrom(p tokens.PlatformColors) Palette {
 		Placeholder:    vgcolor.Flatten(p.PlaceholderText, p.TextBackground),
 		Selection:      p.SelectedTextBackground,
 		RowControl:     p.ControlAccent,
+		RowSelection:   vgcolor.Flatten(p.ContentListSelection, p.WindowBackground),
 		Cover:          p.Scrim,
 	}
 }

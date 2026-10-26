@@ -2,14 +2,17 @@ package main
 
 import (
 	"image"
+	"image/color"
 
 	"golang.org/x/exp/shiny/materialdesign/icons"
 
 	"gioui.org/gesture"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 
@@ -28,9 +31,16 @@ import (
 )
 
 // List renders the todos on the window's own plane using the components
-// virtual list, with bar drawn at its trailing edge. It paints no fill of its
-// own: the list is what this window exists to show rather than something
-// standing on it.
+// virtual list, with bar drawn at its trailing edge. The list is what this
+// window exists to show rather than something standing on it, so the one
+// fill it paints is the content list selection under the selected row.
+//
+// The list selects as the platform's content lists do: a click on a row
+// selects it and hands the list the keyboard, and the arrow keys move the
+// selection. The selected row's fill spans the row's full height and the
+// list's full width with square ends, and the row's text keeps its own
+// colour. state keeps the selection, so no row is selected until the user
+// selects one.
 //
 // The list is the region that scrolls. Every row is the density's content
 // list row, edge to edge with its neighbours, and the list has no padding at
@@ -44,27 +54,91 @@ import (
 // state is the list's scroll position, kept at subscription scope and passed
 // to every layout, so a change to a todo keeps the rows the reader scrolled to.
 func List(typ Type, th rx.Observable[theme.Theme], p Palette, den tokens.Density, bar scrollbar.Style, state *complist.State, model Model) layout.Widget {
-	rows := make([]layout.Widget, len(model.List))
+	rows := make([]rowLayout, len(model.List))
 	for i := range model.List {
 		rows[i] = Row(typ, th, p, model.List[i])
 	}
-	return scrollingList(rows, unit.Dp(den.ContentListRowHeight), bar, state)
+	return scrollingList(rows, unit.Dp(den.ContentListRowHeight), p.RowSelection, bar, state)
+}
+
+// rowLayout draws one row of the list. sel tells the row whether it is the
+// selected one and gives it the actions that change the selection.
+type rowLayout func(gtx layout.Context, sel rowSelection) layout.Dimensions
+
+// rowSelection is what the list tells a row about the selection.
+type rowSelection struct {
+	// selected is true on the list's selected row.
+	selected bool
+	// choose selects the row and hands the list the keyboard.
+	choose func(gtx layout.Context)
+	// deleted keeps the selection on the same todo when the row is deleted:
+	// the selection index follows the rows that move up, and a deleted
+	// selected row leaves no row selected.
+	deleted func()
 }
 
 // scrollingList lays rows out as the list's region that scrolls, each row
 // exactly rowHeight tall, with the insets [List] states. The list's bar
-// counts every row at rowHeight.
-func scrollingList(rows []layout.Widget, rowHeight unit.Dp, bar scrollbar.Style, state *complist.State) layout.Widget {
+// counts every row at rowHeight. The selected row is drawn over fill across
+// the row's full size.
+//
+// A press on a part of a row that holds no control of its own selects the
+// row. The row's checkbox and delete mark keep their own presses, and the
+// row's text selects the row through its own click.
+func scrollingList(rows []rowLayout, rowHeight unit.Dp, fill color.NRGBA, bar scrollbar.Style, state *complist.State) layout.Widget {
 	idx := make([]int, len(rows))
 	for i := range idx {
 		idx[i] = i
 	}
+	clicks := make([]gesture.Click, len(rows))
 	state.SetHeightOfRow(func(m unit.Metric, _ int) int { return m.Dp(rowHeight) })
+	// choose redraws the window, because the row's text selects its row
+	// during the frame that has already drawn the row as not selected.
+	choose := func(gtx layout.Context, i int) {
+		state.Select(i)
+		gtx.Execute(key.FocusCmd{Tag: state.Focus()})
+		gtx.Execute(op.InvalidateCmd{})
+	}
+	deleted := func(i int) {
+		switch sel := state.Selected(); {
+		case sel == i:
+			state.Select(-1)
+		case sel > i:
+			state.Select(sel - 1)
+		}
+	}
 	return func(gtx layout.Context) layout.Dimensions {
-		return complist.LayoutScrollbar(gtx, state, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int) layout.Dimensions {
-			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, gtx.Dp(rowHeight)))
+		// The presses are read before the rows are laid out, so the frame
+		// that receives a press already draws its row selected.
+		for i := range clicks {
+			for {
+				e, ok := clicks[i].Update(gtx.Source)
+				if !ok {
+					break
+				}
+				if e.Kind == gesture.KindPress {
+					choose(gtx, i)
+				}
+			}
+		}
+		return complist.LayoutSelectableScrollbar(gtx, state, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int, selected bool) layout.Dimensions {
+			size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(rowHeight))
+			gtx.Constraints = layout.Exact(size)
+			if selected {
+				paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
+			}
+			// The row's own press area is registered before the row's
+			// content, so a control inside the row takes its press first.
+			area := clip.Rect{Max: size}.Push(gtx.Ops)
+			clicks[i].Add(gtx.Ops)
+			area.Pop()
+			sel := rowSelection{
+				selected: selected,
+				choose:   func(gtx layout.Context) { choose(gtx, i) },
+				deleted:  func() { deleted(i) },
+			}
 			in := layout.Inset{Left: 2 * Padding, Right: rowTrailingInset}
-			return in.Layout(gtx, rows[i])
+			return in.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return rows[i](gtx, sel) })
 		})
 	}
 }
@@ -93,8 +167,7 @@ func EmptyList(gtx layout.Context, th themed) layout.Dimensions {
 // lists draw theirs, MEASURED in reference/macos/controls.md under "What a
 // control inside a row measures": an 18 px circled mark, 16 px inside the
 // row's trailing edge, in the accent, drawn on the row under the pointer and
-// on the selected row and on no row at rest. The list selects no row, so the
-// mark is drawn on the row under the pointer only.
+// on the selected row and on no row at rest.
 const (
 	// rowControlBox is the symbol's square. The reference reads a mark's
 	// extent as the pixels more than 20 levels off the fill, and the circled
@@ -107,12 +180,14 @@ const (
 	rowTrailingInset unit.Dp = 15
 )
 
-// Row is one todo line: a components checkbox toggling completion, the todo text
-// (clickable — opens the edit dialog), and a delete mark drawn while the
-// pointer is over the row. The text fills the row's height and is centred in
-// it, and the checkbox and the mark are centred on the row's middle. Every event routes through mvu.MessageOp, so the
-// reducers are the only state writers.
-func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.Widget {
+// Row is one todo line: a components checkbox toggling completion, the todo
+// text, and a delete mark drawn while the pointer is over the row or the row
+// is selected. A click on the text of a row that is not selected selects the
+// row; a click on the text of the selected row opens the edit dialog. The
+// text fills the row's height and is centred in it, and the checkbox and the
+// mark are centred on the row's middle. Every change to a todo routes through
+// mvu.MessageOp, so the reducers are the only writers of the todos.
+func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) rowLayout {
 	row := layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceBetween, Alignment: layout.Middle}
 
 	// th is a static snapshot (rx.Of), so First() resolves synchronously.
@@ -129,10 +204,14 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 	if item.Completed {
 		textColor = p.SecondaryLabel
 	}
-	title := func(gtx layout.Context) layout.Dimensions {
+	title := func(gtx layout.Context, sel rowSelection) layout.Dimensions {
 		if editClick.Clicked(gtx) {
-			mvu.MessageOp{Message: SelectTodo{Id: item.Id}}.Add(gtx.Ops)
-			mvu.MessageOp{Message: SetRoute{Route: "edit.todo"}}.Add(gtx.Ops)
+			if sel.selected {
+				mvu.MessageOp{Message: SelectTodo{Id: item.Id}}.Add(gtx.Ops)
+				mvu.MessageOp{Message: SetRoute{Route: "edit.todo"}}.Add(gtx.Ops)
+			} else {
+				sel.choose(gtx)
+			}
 		}
 		dims := editClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			size := gtx.Constraints.Max
@@ -151,25 +230,28 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 	}
 	var deleteClick widget.Clickable
 	// hover reads Enter and Leave only, so it takes no press from the
-	// checkbox, the text or the mark laid out inside its area.
+	// checkbox, the text or the mark laid out inside its area. It is
+	// registered to pass presses through, so a press on a part of the row
+	// that holds no control reaches the list's row press beneath it.
 	var hover gesture.Hover
 
-	return func(gtx layout.Context) layout.Dimensions {
+	return func(gtx layout.Context, sel rowSelection) layout.Dimensions {
 		hovered := hover.Update(gtx.Source)
 		macro := op.Record(gtx.Ops)
 		dims := row.Layout(gtx,
 			layout.Rigid(cb),
 			layout.Rigid(layout.Spacer{Width: Padding}.Layout),
-			layout.Flexed(1, title),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return title(gtx, sel) }),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				if deleteClick.Clicked(gtx) {
+					sel.deleted()
 					mvu.MessageOp{Message: DeleteTodo{Id: item.Id}}.Add(gtx.Ops)
 				}
 				// The slot is laid out in every state, so the text's width
 				// does not change when the mark is drawn.
 				dims := deleteClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					size := image.Pt(gtx.Dp(rowControlBox), gtx.Dp(rowControlBox))
-					if hovered {
+					if hovered || sel.selected {
 						gtx.Constraints = layout.Exact(size)
 						deleteMark(gtx)
 					}
@@ -183,7 +265,9 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) layout.W
 		)
 		content := macro.Stop()
 		area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+		pass := pointer.PassOp{}.Push(gtx.Ops)
 		hover.Add(gtx.Ops)
+		pass.Pop()
 		content.Add(gtx.Ops)
 		area.Pop()
 		return dims
