@@ -1522,7 +1522,14 @@ divides the page rather than singling anything out, which is why each
 app is a group; the launch button in one runs `go run` on that app's
 module at @latest, the newest commit on the default branch because
 workbench carries no tags, and a workbench built from the checkout runs
-`go run .` in the app's own directory instead
+`go run .` in the app's own directory instead. A launch that fails puts a
+components/alert with the status Error under the name row of the app's
+group, until the app is launched again. The title is The application
+“<Name>” can’t be opened when the process could not be opened, and
+“<Name>” quit unexpectedly when the process ended with an error, a
+`go run` compile failure or a panic included. The body is the whole
+error text the process wrote, and the group grows to hold it. The
+Relaunch button is below the alert, never inside it
 
 ### feeds/
 

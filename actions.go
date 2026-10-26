@@ -10,8 +10,11 @@ type Started struct {
 	Name string
 }
 
-// Exited reports that the app's process ended. Err is "" for a clean exit.
+// Exited reports that the app's process ended, or that it could not be
+// opened. Err is "" for a clean exit. Ended is true when the process ran, and
+// false when the process could not be opened.
 type Exited struct {
-	Name string
-	Err  string
+	Name  string
+	Ended bool
+	Err   string
 }

@@ -12,8 +12,12 @@ const (
 
 // Status is the per-app slice of the Model.
 type Status struct {
-	State  LaunchState
-	Detail string // failure detail when State is Failed
+	State LaunchState
+	// Ended is true when the process ran and ended with an error, and false
+	// when the process could not be opened. It applies only when State is
+	// Failed.
+	Ended  bool
+	Detail string // the error text as the process gave it, when State is Failed
 }
 
 // Model is the single application state: the status of every launchable app,

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 
 	"gioui.org/app"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
@@ -15,6 +17,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/backdrop"
+	"github.com/vibrantgio/components/alert"
 	"github.com/vibrantgio/components/badge"
 	"github.com/vibrantgio/components/button"
 	pllayout "github.com/vibrantgio/components/layout"
@@ -242,7 +245,9 @@ func gridRow(cells []layout.Widget) layout.Widget {
 		}
 		gtx.Constraints.Min.X = gtx.Dp(GridW)
 		gtx.Constraints.Max.X = gtx.Constraints.Min.X
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
+		// Start: a card that grows under an alert keeps its top edge on the
+		// row's top edge, and so do the cards beside it.
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Start}.Layout(gtx, children...)
 	}
 }
 
@@ -274,14 +279,23 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 	// material, whose own colour is the plane the page stands on.
 	//
 	// thObs is a static snapshot (rx.Of), so First() resolves synchronously.
+	//
+	// The alert of a failed launch is a slot of its own under the name row,
+	// and the launch button is a later slot: the button is never inside the
+	// alert. The group drops a nil slot, so a card with no failure has none.
+	failure := failureAlert(tok, app, status)
 	inner, _ := group.Group(thObs, group.Props{
-		Content: []layout.Widget{nameRow(tok, app, status), blurb, launchRow},
+		Content: []layout.Widget{nameRow(tok, app, status), failure, blurb, launchRow},
 		Surface: plane,
 	}).First()
 	material := tileMaterial(tok.color)
 	radius := tok.radius.Lg
 	return func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(CellW), gtx.Dp(CellH)))
+		height := gtx.Dp(CellH)
+		if failure != nil {
+			height += failureHeight(gtx, tok, failure)
+		}
+		gtx.Constraints = layout.Exact(image.Pt(gtx.Dp(CellW), height))
 		// The tile's material goes down first, at the group's own radius,
 		// so the hairline the group draws lands on its edge rather than
 		// beside it.
@@ -290,6 +304,50 @@ func appGroup(tok themed, app App, click *widget.Clickable, status Status) layou
 		paint.FillShape(gtx.Ops, material, rrect.Op(gtx.Ops))
 		return inner(gtx)
 	}
+}
+
+// failureTitle is the title of the alert on a card whose launch failed, in
+// the platform's wording. The process that could not be opened and the
+// process that ended each have their own wording, and both put the name
+// between the platform's curly quotation marks.
+func failureTitle(app App, status Status) string {
+	if status.Ended {
+		return fmt.Sprintf("“%s” quit unexpectedly.", app.Name)
+	}
+	return fmt.Sprintf("The application “%s” can’t be opened.", app.Name)
+}
+
+// failureAlert is the Error alert of a failed launch, or nil when the last
+// launch did not fail. Its body is the error text as the process gave it, on
+// as many lines as that text takes: no line cap and no ellipsis.
+func failureAlert(tok themed, app App, status Status) layout.Widget {
+	if status.State != Failed {
+		return nil
+	}
+	// The body is on the alert's own fill, so its colour is flattened onto
+	// that fill and not onto the window's plane.
+	body := textWidget(tok.shaper, status.Detail, tok.typ.Subheadline, vgcolor.Flatten(tok.color.Label, tok.color.ControlBackground), 0)
+	// The theme is a static snapshot (rx.Of), so First() resolves
+	// synchronously.
+	w, _ := alert.Alert(rx.Of(tok.components), alert.Props{
+		Status:  alert.Error,
+		Title:   failureTitle(app, status),
+		Body:    body,
+		Shaper:  tok.shaper,
+		Surface: windowPlane(tok.color),
+	}).First()
+	return w
+}
+
+// failureHeight is the height a card adds for its alert: the alert's own
+// depth at the width the group gives its slots, and the group's gap above
+// it. The alert is laid out on scratch ops, so the measure draws nothing.
+func failureHeight(gtx layout.Context, tok themed, failure layout.Widget) int {
+	measure := gtx
+	measure.Ops = new(op.Ops)
+	width := gtx.Dp(CellW) - 2*gtx.Dp(unit.Dp(tok.spacing.S4))
+	measure.Constraints = layout.Constraints{Max: image.Pt(width, 1<<24)}
+	return failure(measure).Size.Y + gtx.Dp(unit.Dp(tok.spacing.S3))
 }
 
 // textColour is the colour the name and the icon on a cell are drawn in:

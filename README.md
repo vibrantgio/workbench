@@ -21,6 +21,13 @@ itself was installed that way; `workbench` carries no tags, so `@latest`
 is the newest commit on its default branch. Started from a checkout, the
 workbench runs `go run .` in the app's own directory instead.
 
+A launch that fails shows an Error alert in the app's group until the app
+is launched again. The title says The application “<Name>” can’t be
+opened when the process could not be opened. It says “<Name>” quit
+unexpectedly when the process ended with an error, which includes a
+`go run` compile failure and a panic. The body is the whole error text the
+process wrote. The Relaunch button is below the alert, never inside it.
+
 ## The stack
 
 The design system is layered — each layer imports only the layers below it

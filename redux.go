@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+	"unicode"
 
 	"github.com/reactivego/rx"
 
@@ -29,7 +29,7 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		return model.withStatus(msg.Name, Status{State: Running}), mvu.DoNothing()
 	case Exited:
 		if msg.Err != "" {
-			return model.withStatus(msg.Name, Status{State: Failed, Detail: msg.Err}), mvu.DoNothing()
+			return model.withStatus(msg.Name, Status{State: Failed, Ended: msg.Ended, Detail: msg.Err}), mvu.DoNothing()
 		}
 		return model.withStatus(msg.Name, Status{}), mvu.DoNothing()
 	}
@@ -51,8 +51,8 @@ func findApp(name string) (App, bool) {
 }
 
 // launchCommand starts app with `go` and streams two messages through the MVU
-// loop: Started once the process spawns, then Exited when it ends. A start
-// failure collapses to a single Exited carrying the error.
+// loop: Started once the process spawns, then Exited with Ended set when it
+// ends. A start failure sends one Exited with Ended clear and the error.
 func launchCommand(app App) mvu.Command {
 	var cmd *exec.Cmd
 	var stderr bytes.Buffer
@@ -78,21 +78,21 @@ func launchCommand(app App) mvu.Command {
 				return nil, nil, true
 			}
 			if err := cmd.Wait(); err != nil {
-				return Exited{Name: app.Name, Err: exitDetail(err, &stderr)}, nil, false
+				return Exited{Name: app.Name, Ended: true, Err: exitDetail(err, &stderr)}, nil, false
 			}
-			return Exited{Name: app.Name}, nil, false
+			return Exited{Name: app.Name, Ended: true}, nil, false
 		}
 		return nil, nil, true
 	})}
 }
 
-// exitDetail folds the last stderr line into the exit error: that line is
-// where both `go run` compile failures and app panics say what went wrong.
+// exitDetail is the error text of a process that ended with an error: all of
+// its stderr as the process wrote it, with only the trailing white space
+// removed. Both `go run` compile failures and app panics write their whole
+// account there. The exit error itself is the text only when stderr is empty.
 func exitDetail(err error, stderr *bytes.Buffer) string {
-	lines := strings.Split(strings.TrimSpace(stderr.String()), "\n")
-	last := strings.TrimSpace(lines[len(lines)-1])
-	if last == "" {
-		return err.Error()
+	if text := strings.TrimRightFunc(stderr.String(), unicode.IsSpace); text != "" {
+		return text
 	}
-	return fmt.Sprintf("%s: %s", err, last)
+	return err.Error()
 }
