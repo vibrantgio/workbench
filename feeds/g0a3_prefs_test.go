@@ -296,7 +296,7 @@ func TestPreferencesPaneOverArticlesLive(t *testing.T) {
 		rx.Map(modelObs, func(m Model) int { return m.rowsPerPage }),
 		rx.Map(modelObs, func(m Model) bool { return m.unreadOnly }),
 		rx.Map(modelObs, func(m Model) string { return m.query }),
-		tooltip.NewArbiter(),
+		tooltip.NewArbiter(), desktop.ScrollBarsWhenScrolling,
 	)
 	prefsObs := preferencesPane(th,
 		rx.Map(modelObs, func(m Model) bool { return m.prefsOpen }),

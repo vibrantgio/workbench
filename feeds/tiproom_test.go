@@ -17,6 +17,7 @@ import (
 	"github.com/vibrantgio/components/attachment"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/tooltip"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/theme/theme"
@@ -51,7 +52,7 @@ func TestUnreadTooltipIsDrawnWholeAtTheWindowsTrailingEdge(t *testing.T) {
 	rowsObs := rx.Map(articlesMain(th,
 		rx.Of(m.selectedFeed), rx.Of(m.selectedArticle), rx.Of(m.currentPage),
 		rx.Of[table.Sort](m.sort), rx.Of(m.rowsPerPage), rx.Of(m.unreadOnly), rx.Of(m.query),
-		tooltip.NewArbiter(),
+		tooltip.NewArbiter(), desktop.ScrollBarsWhenScrolling,
 	), func(s articleSlots) layout.Widget { return s.Rows })
 	rows, err := golden.Resolve(rowsObs)
 	if err != nil || rows == nil {

@@ -182,7 +182,7 @@ func feedsShellLayer(
 	notesObs := rx.Map(modelObs, func(m Model) []notifications.Notification { return m.notes.Items() })
 	queryObs := rx.Map(modelObs, func(m Model) string { return m.query })
 
-	articlesObs := articlesMain(th, selectedFeedObs, selectedArticleObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, queryObs, tipArb)
+	articlesObs := articlesMain(th, selectedFeedObs, selectedArticleObs, currentPageObs, sortObs, rowsPerPageObs, unreadOnlyObs, queryObs, tipArb, bars)
 	searchFieldObs := articlesSearch(th, postMessage)
 	detailObs := detailPane(th, selectedArticleObs, selectedTabObs, bars)
 	shareObs := sharePopover(th, shareOpenObs, popArb, postMessage)

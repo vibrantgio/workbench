@@ -21,8 +21,10 @@ import (
 	"github.com/vibrantgio/components/keyed"
 	"github.com/vibrantgio/components/pagination"
 	"github.com/vibrantgio/components/pointershape"
+	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/components/tooltip"
 	"github.com/vibrantgio/mvu"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/table"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/system/naming"
@@ -237,7 +239,8 @@ func articlesSearch(th rx.Observable[theme.Theme], post func(gtx layout.Context,
 // frame.
 //
 // tipArb is this window's tooltip arbitration set: the Unread header tooltip
-// joins it so that at most one tooltip in the window is up.
+// joins it so that at most one tooltip in the window is up. bars is the
+// platform's Show scroll bars setting, which the table's rows scroll under.
 func articlesMain(
 	th rx.Observable[theme.Theme],
 	selectedFeedObs rx.Observable[FeedID],
@@ -248,6 +251,7 @@ func articlesMain(
 	unreadOnlyObs rx.Observable[bool],
 	queryObs rx.Observable[string],
 	tipArb *tooltip.Arbiter,
+	bars desktop.ScrollBarSetting,
 ) rx.Observable[articleSlots] {
 	all := hardCodedArticles()
 
@@ -354,6 +358,9 @@ func articlesMain(
 		Sort:    sortObs,
 		OnSort:  onSort,
 		Current: func(a article) bool { return isCurrent(a.ID) },
+		Scrollbar: func(s scrollbar.Style) scrollbar.Style {
+			return scrollBarStyle(s, bars)
+		},
 	})
 	// pagination.Props takes Page/PageCount as static ints; CombineLatest holds
 	// the latest page + page count from the model-derived streams and rebuilds
