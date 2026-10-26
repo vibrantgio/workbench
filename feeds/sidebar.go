@@ -685,7 +685,7 @@ func feedEntryRows(
 					// A row's target is a pointer gesture and takes no
 					// keyboard of its own, so the click asks for the rail's:
 					// the arrows then walk the rail from the row the reader
-					// landed on, and that row wears the accent pill.
+					// landed on, and that row has the accent pill.
 					gtx.Execute(key.FocusCmd{Tag: keys.Focus()})
 					mvu.MessageOp{Message: SelectFeed{Feed: e.ID}}.Add(gtx.Ops)
 				}
@@ -703,7 +703,7 @@ func feedEntryRows(
 			// one whose articles the table is listing — keeps its own pill in
 			// the grey state, which is what the rail shows while the keys are
 			// in the table beside it. The rail is one focus target, so its own
-			// tag is the whole answer to which of the two a row wears.
+			// tag is the whole answer to which of the two a row has.
 			onCursor := gtx.Focused(keys.Focus()) && e.ID == keys.cursor
 			gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, rowH))
 			return drawFeedEntryRow(gtx, loadTok(), e, e.ID == selectedFn() || onCursor, !onCursor,
@@ -817,7 +817,7 @@ func drawFeedSymbol(gtx layout.Context, size image.Point, fg color.NRGBA) {
 	patsidebar.PaintSymbol(gtx, icons.Mark(icons.Document), size, fg)
 }
 
-// feedRowForeground is what a feed row's marks wear: the foreground the
+// feedRowForeground is the colour a feed row's marks are drawn in: the foreground the
 // platform pairs with the selection pill on the open feed, and the ordinary
 // label on the chrome material everywhere else. Both are flattened onto the
 // fill they actually land on.

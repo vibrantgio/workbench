@@ -35,7 +35,7 @@ func guideFixture(t *testing.T) []byte {
 // TestGuideOutlineFixture pins the outline extraction: the lone # is
 // skipped, each ## is a top-level entry in document order, ### headings
 // are its children, a #### never appears, and a childless ## still has
-// its entry. Every entry's Block must point at the heading block wearing
+// its entry. Every entry's Block must point at the heading block with
 // that entry's title, which is what ScrollToBlock seats the reader at.
 func TestGuideOutlineFixture(t *testing.T) {
 	blocks := markdown.Parse(guideFixture(t))

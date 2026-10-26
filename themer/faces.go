@@ -1,4 +1,4 @@
-// The code-face chooser: which monospace typeface the sample's fence wears.
+// The code-face chooser: which monospace typeface the sample's fence is drawn in.
 // Two names, not a font picker — Roboto Mono and JetBrains Mono, exactly
 // those, standing side by side in the group that is titled after them.
 package main

@@ -22,7 +22,7 @@ import (
 const railFocusMoves = 12
 
 // TestTheRailDrawsThePlatformsTwoPills reads both pill states off the
-// composed window in both appearances: the open feed wears the grey pill
+// composed window in both appearances: the open feed has the grey pill
 // while nothing has put the keyboard on the rail, and the accent pill once
 // a forward focus move lands there.
 //

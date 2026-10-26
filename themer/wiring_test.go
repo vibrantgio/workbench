@@ -143,7 +143,7 @@ func fieldFill(t *testing.T, live tokens.PlatformColors, m Model) stdcolor.RGBA 
 	return img.RGBAAt(fieldSize.X-14, fieldSize.Y/2)
 }
 
-// TestTheColourFieldWearsTheAppearanceTheSwitchIsOn: the hex field is a
+// TestTheColourFieldIsDrawnInTheAppearanceTheSwitchIsOn: the hex field is a
 // published live component that reads its colours off the theme it is handed,
 // and the theme this window hands it is [WindowTheme] — the platform's set
 // for the appearance the switch at the top of the window is on. So with the
@@ -153,7 +153,7 @@ func fieldFill(t *testing.T, live tokens.PlatformColors, m Model) stdcolor.RGBA 
 // The interior is the group box's fill and not the text background: the field
 // stands in the theme colour group's box, and the platform fills a field with
 // the surface it stands on inside its edge.
-func TestTheColourFieldWearsTheAppearanceTheSwitchIsOn(t *testing.T) {
+func TestTheColourFieldIsDrawnInTheAppearanceTheSwitchIsOn(t *testing.T) {
 	for _, c := range []struct {
 		name   string
 		live   tokens.PlatformColors

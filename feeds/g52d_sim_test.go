@@ -133,7 +133,7 @@ func TestAddFeedDialogGolden(t *testing.T) {
 // fill for the button a sheet binds Return to, which follows the reader's
 // accent like every other blue here. Read off the rendered dialog, which is
 // where that button actually stands.
-func TestTheDialogsDefaultButtonWearsThePlatformsDefaultFill(t *testing.T) {
+func TestTheDialogsDefaultButtonIsDrawnInThePlatformsDefaultFill(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	cases := []struct {
 		name   string

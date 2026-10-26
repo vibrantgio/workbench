@@ -53,7 +53,7 @@ func rowsEndOutside(img *image.RGBA, region, skip image.Rectangle, fill color.NR
 }
 
 // TestTheRailsRowsStopShortOfAStandingBarsLane lays the rail's
-// conversations out with the open one wearing its pill, which runs to the
+// conversations out with the open one drawn with its pill, which runs to the
 // row's trailing end less the pill's own inset, once per setting. At Always
 // the rows end before the bar's lane, a lane's width further in than where
 // the bar fades.

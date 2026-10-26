@@ -21,11 +21,11 @@ import (
 // imperative wiring.
 //
 // Which platform name each place takes is what the window IS on macOS, not
-// this app's invention: the transcript is the content, so it wears
-// ControlBackground; the conversation pane is chrome, so it wears the
+// this app's invention: the transcript is the content, so it is drawn in
+// ControlBackground; the conversation pane is chrome, so it is drawn in the
 // chrome material a sidebar carries; a surface that appears and leaves — the
 // settings dialog, the model menu, the undo bar — is a floating surface and
-// wears the window's own plane under the platform's shadow. Every
+// is drawn in the window's own plane under the platform's shadow. Every
 // alpha-carrying name is flattened onto the fill it lands on, in encoded
 // sRGB, so what Gio is handed is opaque.
 type Palette struct {
@@ -45,7 +45,7 @@ type Palette struct {
 	// pointer on this platform, so there is no hovered fill beside it.
 	RowSelected color.NRGBA
 	// RowSelectedUnfocused and RowActiveUnfocused are the platform's other
-	// pill: the grey fill and the accent foreground a sidebar row wears
+	// pill: the grey fill and the accent foreground a sidebar row is drawn in
 	// while its rail does not hold the keyboard. Both are measured, and
 	// patterns/sidebar draws them; the values are kept here for the rows
 	// that measure against them.
@@ -71,7 +71,7 @@ type Palette struct {
 	// on the dialog's plane.
 	ChipText color.NRGBA
 	// DialogChip is a chip inside the settings dialog: the fill an ordinary
-	// push button wears on this platform, which is what the reference
+	// push button is drawn in on this platform, which is what the reference
 	// measures a resting chip at. It does not tint under the pointer.
 	DialogChip color.NRGBA
 	// Toast is a surface that appears and leaves — the undo bar and the

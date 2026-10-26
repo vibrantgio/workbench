@@ -3,7 +3,7 @@ package main
 // The keyboard's landing place when a dialog opens, read off the rendered
 // frame. The Dialog entry binds: the first field holds the keyboard focus
 // when a dialog opens, as the platform's sheet shows — its "Save As:" field
-// is the focused one, wearing the ring, and neither answer in the footer is.
+// is the focused one, drawn with the ring, and neither answer in the footer is.
 // So this reads the ring rather than the focus tag: what a reader is told is
 // the band, and a tag that holds focus without drawing one tells nobody.
 
@@ -55,7 +55,7 @@ func settled(w layout.Widget, size image.Point, keys ...key.Event) layout.Widget
 // own colour — the platform's keyboard focus indicator flattened onto the
 // dialog's plane, which is the band's outer half, the one that lies on the
 // surface rather than over the control. An empty rectangle means no control
-// in the frame is wearing one.
+// in the frame has one.
 func ringBox(img *image.RGBA, c tokens.PlatformColors) image.Rectangle {
 	band := vgcolor.Flatten(c.KeyboardFocusIndicator, c.WindowBackground)
 	var box image.Rectangle
@@ -119,7 +119,7 @@ func TestTheSettingsDialogOpensWithTheRingOnItsFirstField(t *testing.T) {
 				t.Fatal("Shift+Tab left no ring in the window")
 			}
 			if opened.Max.Y >= footer.Min.Y {
-				t.Errorf("the opening ring runs to y %d and the footer's answer wears one from y %d: the dialog opened on an answer rather than on its first field",
+				t.Errorf("the opening ring runs to y %d and the footer's answer has one from y %d: the dialog opened on an answer rather than on its first field",
 					opened.Max.Y, footer.Min.Y)
 			}
 		})

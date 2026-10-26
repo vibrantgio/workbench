@@ -16,7 +16,7 @@ import (
 //
 // What is written is names, not the colours they stand for: the theme colour
 // or the standing instruction to follow the system, the style code is coloured
-// from under each appearance, and the typeface a fence wears. A style is a
+// from under each appearance, and the typeface a fence is drawn in. A style is a
 // registry entry read exactly as it was written, so the name is the whole
 // choice — recording the colours beside it would freeze a set somebody else
 // is still entitled to improve.

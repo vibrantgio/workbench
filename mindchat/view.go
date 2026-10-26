@@ -100,7 +100,7 @@ type themed struct {
 	remove  layout.Widget
 	edit    layout.Widget
 	// removeOn and editOn are the same two marks in the foreground the
-	// platform pairs with its selection pill, for the row that wears one.
+	// platform pairs with its selection pill, for the row that has one.
 	removeOn layout.Widget
 	editOn   layout.Widget
 	add      layout.Widget
@@ -448,7 +448,7 @@ func RenameDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	//
 	// Rename is what this dialog is for, so it keeps the Filled emphasis and
 	// Cancel stands beside it as the ordinary push button the platform draws
-	// there: the save panel's own "Cancel" wears the push button's fill
+	// there: the save panel's own "Cancel" is drawn in the push button's fill
 	// under controlText, which is the Tonal emphasis, while the default
 	// answer beside it is the filled one.
 	cancelObs := button.Button(th, button.Props{
@@ -738,7 +738,7 @@ func userTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 // failedTurn lays the failure out: an Error alert standing in the flow where
 // the answer would have been, at the answer's own measure. It carries a
 // status icon of its own, so the assistant's mark is not drawn beside it —
-// one line of the conversation wears one leading sign.
+// one line of the conversation has one leading sign.
 func failedTurn(gtx layout.Context, t themed, msg Message) layout.Dimensions {
 	col := columnOf(gtx)
 	at, width := col.body(gtx, true)
@@ -904,7 +904,7 @@ func (s *railState) layout(
 	if name, ok := s.keys(gtx, chats); ok {
 		post(gtx, SelectChat{Name: name})
 	}
-	// Which of the platform's two pills a row wears: the accent one on the
+	// Which of the platform's two pills a row has: the accent one on the
 	// row the keys stand on while the rail holds them, the grey one on the
 	// conversation on screen while the keys are elsewhere. The rail is one
 	// focus target, so its own tag is the whole answer.
@@ -919,7 +919,7 @@ func (s *railState) layout(
 				// A row's target is a pointer gesture and takes no keyboard
 				// of its own, so the click asks for the rail's: the arrows
 				// then walk from the row the reader landed on, and that row
-				// wears the accent pill.
+				// has the accent pill.
 				gtx.Execute(key.FocusCmd{Tag: s.list.Focus()})
 				post(gtx, SelectChat{Name: name})
 			}
@@ -1055,7 +1055,7 @@ func UndoBar(t themed, pending PendingDelete, undo *widget.Clickable) layout.Wid
 // active. open is what a click on the row does: it hands the rail the keys
 // and opens the conversation; post is where the two marks' answers go.
 //
-// unemphasized picks which of the platform's two pills the row wears: the
+// unemphasized picks which of the platform's two pills the row has: the
 // grey one while the rail does not hold the keyboard, the accent one while
 // it does. On the grey pill the row's own two marks keep the chrome's
 // ordinary label — the grey stands a few of 255 off the rail it is on, so
@@ -1198,7 +1198,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 		foreground := m.Stop()
 
 		// The pane's chrome shows through a row at rest; the open
-		// conversation wears the platform's sidebar pill, which
+		// conversation has the platform's sidebar pill, which
 		// patterns/sidebar draws — inset from the rail's edges and rounded —
 		// so this window paints no selection of its own.
 		if selected {

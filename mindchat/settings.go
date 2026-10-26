@@ -535,7 +535,7 @@ func blankRow(gtx layout.Context) layout.Dimensions {
 //
 // It is one control and not four push buttons: four detached pills carrying
 // the fill "Cancel" carries say four things are about to happen, where a
-// segmented control says one of four is in force. The chosen segment wears
+// segmented control says one of four is in force. The chosen segment has
 // the patch the platform fills it with, measured off Finder's view control.
 func providerSegments(gtx layout.Context, t settingsThemed, prov Provider, tplClicks []*widget.Clickable) layout.Dimensions {
 	chosen := matchingTemplate(prov)
@@ -875,7 +875,7 @@ func providerRow(gtx layout.Context, t settingsThemed, prov Provider, selected b
 	}
 	return click.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(SettingsRowHeight))
-		// The provider list is a content list, so its selected row wears the
+		// The provider list is a content list, so its selected row is drawn in the
 		// platform's content selection rather than the sidebar's pill, and no
 		// row tints under the pointer.
 		textColor := p.FloatingText

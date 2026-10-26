@@ -1,11 +1,11 @@
 package main
 
 // Headless confirmations that this window paints the platform's own names:
-// which region of the window wears which fill, and which foreground stands on
-// it. The transcript is the window's content and wears the platform's content
-// plane; the conversation pane is chrome and wears the chrome material a
+// which region of the window is drawn in which fill, and which foreground stands on
+// it. The transcript is the window's content and is drawn in the platform's content
+// plane; the conversation pane is chrome and is drawn in the chrome material a
 // sidebar carries; what appears and leaves — the settings dialog, the model
-// menu, the undo bar — is a floating surface and wears the window's own plane.
+// menu, the undo bar — is a floating surface and is drawn in the window's own plane.
 //
 // These assertions are the app's, not the token set's: they are what the
 // window would fail if somebody filled a resting expanse of it with a fill the
@@ -68,11 +68,11 @@ func luma(c color.NRGBA) float32 {
 	return 0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B)
 }
 
-// TestEveryRegionWearsItsPlatformFill is the table of what this window paints
+// TestEveryRegionIsDrawnInItsPlatformFill is the table of what this window paints
 // and the platform name each fill comes from. It is the one place the mapping
 // is stated, so a region repainted with the wrong name fails here rather than
 // in a golden nobody reads.
-func TestEveryRegionWearsItsPlatformFill(t *testing.T) {
+func TestEveryRegionIsDrawnInItsPlatformFill(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			c := tc.c
@@ -201,12 +201,12 @@ func TestAssistantRowPaintsTheFillItClaims(t *testing.T) {
 	}
 }
 
-// TestTheOpenConversationWearsThePlatformsPill holds the conversation pane to
+// TestTheOpenConversationHasThePlatformsPill holds the conversation pane to
 // the platform's answer for a chosen row: the sidebar pill patterns/sidebar
 // draws, not a fill this window invents and not the content selection a list
-// row wears. The pill is the pattern's to paint, so what is checked here is
+// row is drawn in. The pill is the pattern's to paint, so what is checked here is
 // that the app asks it for the colour rather than deriving one.
-func TestTheOpenConversationWearsThePlatformsPill(t *testing.T) {
+func TestTheOpenConversationHasThePlatformsPill(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			c := tc.c
@@ -343,8 +343,8 @@ func TestChatTitleShowsThePlaceholderUntilAChatEarnsAName(t *testing.T) {
 
 // TestTheUserTurnStandsOnThePlatformsBox is the claim the prompt's card
 // makes: it is the platform's grouped box — a small step of fill, no hairline
-// and no shadow — and emphatically not the accent, which would make a turn of
-// the conversation wear a status it does not have.
+// and no shadow — and emphatically not the accent, which would draw a turn of
+// the conversation in a status it does not have.
 func TestTheUserTurnStandsOnThePlatformsBox(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {

@@ -232,7 +232,7 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 
 // WindowTheme is the theme a published component in this window draws
 // through: the live theme with its platform set replaced by [WindowSet] of
-// it, so a component that reads its own colours off the theme wears the
+// it, so a component that reads its own colours off the theme is drawn in the
 // appearance the switch at the top of the window is on rather than the
 // desktop's. Everything else the theme carries — typography, density, the
 // scales — is the live theme's unchanged.

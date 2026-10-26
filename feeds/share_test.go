@@ -43,11 +43,11 @@ func shareButtonSite() image.Rectangle {
 	return image.Rect(windowSize.X-trail-shareCapDp, top, windowSize.X-trail, top+high)
 }
 
-// TestTheShareButtonWearsTheToolbarsLabelColour reads the symbol off a render
+// TestTheShareButtonIsDrawnInTheToolbarsLabelColour reads the symbol off a render
 // of the window: the colour furthest from the fill the button carries is the
 // toolbar label over that fill, which is what every other symbol in a
 // toolbar control reads in.
-func TestTheShareButtonWearsTheToolbarsLabelColour(t *testing.T) {
+func TestTheShareButtonIsDrawnInTheToolbarsLabelColour(t *testing.T) {
 	site := shareButtonSite()
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {

@@ -38,7 +38,7 @@ const (
 //
 // Colours and Typography come directly after the guide, because the three
 // tabs after them are all drawn in the theme they show: a reader meets the
-// colour set and the type scale before meeting the components wearing them.
+// colour set and the type scale before meeting the components they are applied to.
 // They are two cells rather than one because a colour set and a type scale
 // are two different kinds of thing, and a strip cell names one kind.
 var tabPages = []string{pageDocs, pageColours, pageTypography, pageComponents, pagePatterns, pageMarkdown}

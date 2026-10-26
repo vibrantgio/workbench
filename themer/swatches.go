@@ -79,7 +79,7 @@ func RowHintFor(m Model) string {
 }
 
 // systemSlot is the position the platform's own colour takes in the row: the
-// leading one, because it is the default — the colour an application wears
+// leading one, because it is the default — the colour an application is drawn in
 // having chosen none.
 const systemSlot = 0
 

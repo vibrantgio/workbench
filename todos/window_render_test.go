@@ -276,13 +276,13 @@ func dialogRect() image.Rectangle {
 	return image.Rect(x, y, x+w, y+h)
 }
 
-// TestTheDialogAndItsFieldWearThePlatformsFills reads the dialog's two fills
+// TestTheDialogAndItsFieldAreDrawnInThePlatformsFills reads the dialog's two fills
 // off the frame. A floating surface is the window's own plane on this
 // platform, and the field inside it is the platform's text plane inside the
 // hairline a field draws around itself — the two fills are the same value,
 // which is what the platform's own save sheet draws, so the hairline is the
 // whole of what says where the field is.
-func TestTheDialogAndItsFieldWearThePlatformsFills(t *testing.T) {
+func TestTheDialogAndItsFieldAreDrawnInThePlatformsFills(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			p := PaletteFrom(tc.c)

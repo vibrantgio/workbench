@@ -23,16 +23,16 @@ func pick(m Model, name string, dark bool) Model {
 	return ReduceModel(m, SelectStyle{Index: styleIndex(m.Styles, name, dark), Dark: dark})
 }
 
-// wearPair is a fresh document style dressed in one pair under one set: the
+// applyPair is a fresh document style with one pair applied under one set: the
 // plate the sample is drawn with, to measure the pixels against.
-func wearPair(p highlight.StylePair, c tokens.PlatformColors) markdown.Style {
+func applyPair(p highlight.StylePair, c tokens.PlatformColors) markdown.Style {
 	return CodeStyle(c, tokens.DefaultTypography, c.ControlBackground, p)
 }
 
-// wearAlone is [wearPair] for one name under both appearances: what somebody
+// applyAlone is [applyPair] for one name under both appearances: what somebody
 // who chose that style and nothing else would be looking at.
-func wearAlone(name string, c tokens.PlatformColors) markdown.Style {
-	return wearPair(highlight.StylePair{Light: name, Dark: name}, c)
+func applyAlone(name string, c tokens.PlatformColors) markdown.Style {
+	return applyPair(highlight.StylePair{Light: name, Dark: name}, c)
 }
 
 // The page's geometry in window pixels, worked out from the same constants
@@ -225,7 +225,7 @@ func TestEveryStyleIsOnOffer(t *testing.T) {
 
 // TestAStyleFromTheFolderJoinsTheColumn: a style somebody wrote themselves is
 // choosable beside the ones that ship, and says which it is. The mark is the
-// only difference — a loaded style is worn exactly like an embedded one — and
+// only difference — a loaded style is applied exactly like an embedded one — and
 // it is there because "did my file load" is the first question anybody who
 // dropped one in has.
 func TestAStyleFromTheFolderJoinsTheColumn(t *testing.T) {
@@ -514,7 +514,7 @@ func TestFlippingTheSwitchChangesTheAppliedStyle(t *testing.T) {
 	}
 
 	// The plate the sample is drawn on, background and foreground: under each
-	// appearance it is that appearance's own member, worn alone. This is the
+	// appearance it is that appearance's own member, applied alone. This is the
 	// measurement behind the pixels — a window that had gone on drawing
 	// through the other member would match the other plate here.
 	const src = "// greet.\nfunc greet(name string) string { return name }\n"
@@ -528,9 +528,9 @@ func TestFlippingTheSwitchChangesTheAppliedStyle(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			applied := m.Style(tc.dark)
-			got := wearPair(m.AppliedStyles(), tc.set)
-			want := wearAlone(applied, tc.set)
-			other := wearAlone(m.Style(!tc.dark), tc.set)
+			got := applyPair(m.AppliedStyles(), tc.set)
+			want := applyAlone(applied, tc.set)
+			other := applyAlone(m.Style(!tc.dark), tc.set)
 			gotRuns, wantRuns := got.Highlight("go", src), want.Highlight("go", src)
 			otherRuns := other.Highlight("go", src)
 			if len(gotRuns) == 0 || len(gotRuns) != len(wantRuns) {
@@ -608,7 +608,7 @@ func TestThreeFlavoursOfOneFamilyAreThreeDifferentSamples(t *testing.T) {
 	flavours := []string{"catppuccin-frappe", "catppuccin-macchiato", "catppuccin-mocha"}
 	backgrounds := make([]stdcolor.NRGBA, len(flavours))
 	for i, name := range flavours {
-		backgrounds[i] = wearAlone(name, c).CodeBackground
+		backgrounds[i] = applyAlone(name, c).CodeBackground
 		t.Logf("%s draws its fence on %v", name, backgrounds[i])
 	}
 	for i, a := range flavours {

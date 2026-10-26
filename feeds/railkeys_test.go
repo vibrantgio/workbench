@@ -331,7 +331,7 @@ func TestReturnOnARailRowOpensItsFeed(t *testing.T) {
 
 // TestAClickOnARailRowHandsTheRailTheKeys reads the composed window in both
 // appearances: a click on a feed row puts the keyboard on the rail, so the
-// row the cursor stands on wears the accent pill, and an arrow then walks
+// row the cursor stands on has the accent pill, and an arrow then walks
 // that pill to the row below while the open feed falls back to the grey one.
 //
 // A gioui.org/widget.Clickable does not take the keyboard when it is clicked,

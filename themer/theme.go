@@ -37,7 +37,7 @@ func SchemeColors(live tokens.PlatformColors, dark bool) tokens.PlatformColors {
 	return recorded.WithAccent(live.ControlAccent)
 }
 
-// WindowSet is what this window itself wears: the platform's set for the
+// WindowSet is what this window itself is drawn in: the platform's set for the
 // appearance the switch at the top of the window is on.
 //
 // The window draws in the appearance being chosen and not in the desktop's.
@@ -85,7 +85,7 @@ type Palette struct {
 // PaletteFrom reads the window's colours off the platform's set.
 //
 // A group's box is the platform's box on the window's plane, so it takes the
-// box's fill and a seam for the hairline anything inside it wears. A swatch is
+// box's fill and a seam for the hairline anything inside it has. A swatch is
 // a graphic the pointer operates, which is what the platform lays its hover
 // overlay over; a list row and a push button, which do not tint, are neither.
 func PaletteFrom(c tokens.PlatformColors) Palette {
@@ -137,7 +137,7 @@ func TypeFrom(t tokens.Typography) Type {
 	}
 }
 
-// Ellipsis is the mark a run of text wears when it was cut short: the
+// Ellipsis is the mark a run of text has when it was cut short: the
 // shaper's own truncator, and the one this window appends when it does the
 // cutting itself rather than leaving it to the shaper. One mark, so a reader
 // meets one sign for one fact wherever a line stopped early.

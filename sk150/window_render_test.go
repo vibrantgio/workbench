@@ -315,7 +315,7 @@ func abs(n int) int {
 
 // findPatch reports whether patch stands somewhere in img. The search is
 // anchored on the patch's first lit pixel, so only the handful of frame
-// pixels wearing that colour are compared in full.
+// pixels drawn in that colour are compared in full.
 func findPatch(img, patch *image.RGBA) bool {
 	pb, ib := patch.Bounds(), img.Bounds()
 	w, h := pb.Dx(), pb.Dy()

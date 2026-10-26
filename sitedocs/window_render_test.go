@@ -21,7 +21,7 @@ package main
 // The assertions sample the rendered frame rather than a struct of colours,
 // because this app holds none: each region paints its own fill at the point
 // it draws, and the frame is the only place the question "what is this region
-// wearing" has an answer that sees what was painted rather than what was
+// drawn in" has an answer that sees what was painted rather than what was
 // meant.
 
 import (
@@ -159,10 +159,10 @@ func TestWholeWindowRender(t *testing.T) {
 	}
 }
 
-// TestWindowRegionsWearThePlatformsFills reads the assignment off the frame:
+// TestWindowRegionsAreDrawnInThePlatformsFills reads the assignment off the frame:
 // the guide document — the thing this window exists to show — on the
 // platform's content plane, the outline rail indexing it in the
-// chrome material a sidebar wears, and the tab strip capping the pane on
+// chrome material a sidebar is drawn in, and the tab strip capping the pane on
 // that same content plane, because a tab strip has no fill of its own and
 // stands on the fill of the column it is in.
 //
@@ -170,7 +170,7 @@ func TestWholeWindowRender(t *testing.T) {
 // three are painted by three different pieces of code (this app, backdrop,
 // and patterns/tabs) and the only place they can be seen agreeing is a frame
 // that has all three in it.
-func TestWindowRegionsWearThePlatformsFills(t *testing.T) {
+func TestWindowRegionsAreDrawnInThePlatformsFills(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, titleBandDp)
@@ -182,7 +182,7 @@ func TestWindowRegionsWearThePlatformsFills(t *testing.T) {
 				{"document plane", atDocument, tc.c.ControlBackground},
 				{"outline rail", atRail, tc.c.SidebarMaterial},
 				{"tab strip", atTabStrip, tc.c.ControlBackground},
-				// The band wears the fill of the region under it, which here
+				// The band is drawn in the fill of the region under it, which here
 				// is the tab strip rather than the document.
 				{"title band", atTitleBand, tc.c.ControlBackground},
 			} {

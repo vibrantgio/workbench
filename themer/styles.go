@@ -226,7 +226,7 @@ func StyleRowWidget(gtx layout.Context, p Palette, ty Type, opt StyleOption, ind
 // own inset: the selected row's fill, the name and the tag stay that far from
 // each of the row's ends, while the click area is the whole row.
 //
-// The chosen row wears the platform's own selection under the label the
+// The chosen row is drawn in the platform's own selection under the label the
 // platform pairs with it, and nothing else. That is how the platform's own
 // lists say which row is in force; a second mark inside the fill — a bar at
 // the row's leading edge — read cold as "a flat white square notch stuck to

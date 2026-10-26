@@ -133,12 +133,12 @@ func TestNoCellWhereThePlatformReportsNoColour(t *testing.T) {
 	}
 }
 
-// TestTheChosenSwatchWearsTheAccentRing: the colour the window is standing on
+// TestTheChosenSwatchHasTheAccentRing: the colour the window is standing on
 // is marked the way the platform marks a chosen thumbnail — a ring of the
 // accent round the swatch, a point of the box's fill between them — and by
 // nothing else. The swatch itself does not move and the caption does not
 // change colour.
-func TestTheChosenSwatchWearsTheAccentRing(t *testing.T) {
+func TestTheChosenSwatchHasTheAccentRing(t *testing.T) {
 	plain := dropped(t)
 	m := ReduceModel(plain, SelectCandidate{Index: 1})
 	n := len(m.Candidates) + 1
@@ -175,7 +175,7 @@ func TestThePreviewCarriesTheThemeColour(t *testing.T) {
 	m := ReduceModel(judging(), HexTyped{Text: "#e8112d"})
 	img := page(t, m, tokens.PlatformLight)
 	if !found(img, want) {
-		t.Errorf("the theme colour %v is nowhere in the window — the preview is not wearing it", want)
+		t.Errorf("the theme colour %v is nowhere in the window — the preview is not drawn in it", want)
 	}
 }
 
@@ -213,7 +213,7 @@ func found(img *image.RGBA, want stdcolor.NRGBA) bool {
 // TestTheTwoCodeChoicesAreOnScreen: the window carries both choices it makes
 // about code, under either appearance — the face plate with the chosen name
 // marked, the style column with the applied style marked, and beside them the
-// fence wearing that appearance's own member of the pair.
+// fence with that appearance's own member applied of the pair.
 //
 // It is the assertion that the section is on screen at all. Every other test
 // in the package reads a part of it; this one is the composition, and it is
@@ -231,7 +231,7 @@ func TestTheTwoCodeChoicesAreOnScreen(t *testing.T) {
 			code := newCodeState()
 			img := pageWith(t, m, tc.set, code)
 
-			// The code face group: the applied name wears the platform's
+			// The code face group: the applied name is drawn in the platform's
 			// selection and the other does not.
 			chosen := slices.Index(codeFaces, m.AppliedMono())
 			if chosen < 0 {
@@ -256,7 +256,7 @@ func TestTheTwoCodeChoicesAreOnScreen(t *testing.T) {
 				t.Errorf("the applied style's row drew %v, want the platform's selection %v", got, p.Selection)
 			}
 
-			// And the fence beside them wears that appearance's own member.
+			// And the fence beside them has that appearance's own member applied.
 			shown := PreviewSet(tc.set, m, tc.dark)
 			fence := CodeStyle(shown, tokens.DefaultTypography, shown.ControlBackground, m.AppliedStyles()).CodeBackground
 			if !found(img, fence) {
@@ -308,7 +308,7 @@ func TestTheWholeColumnFitsTheWindow(t *testing.T) {
 // TestOneSampleInTheAppearanceOnScreen: the preview draws one picture of an
 // application, in the appearance the switch at the top of the window is on,
 // and nothing beside it. Two samples side by side were a window showing a
-// theme it was not wearing; one sample in a window that switches is the
+// theme it did not have applied; one sample in a window that switches is the
 // theme itself.
 func TestOneSampleInTheAppearanceOnScreen(t *testing.T) {
 	for _, tc := range []struct {
@@ -366,7 +366,7 @@ func TestTheSamplesOneSelectionIsTheSidebarsPill(t *testing.T) {
 		t.Errorf("the sidebar's open entry drew %v, want the platform's sidebar pill %v", got, pill)
 	}
 
-	// And nothing in the sample's content pane wears the emphasized
+	// And nothing in the sample's content pane is drawn in the emphasized
 	// selection, which is the fill the theme colour used to land in as a
 	// full-width box beside the pill.
 	box := set.SelectedContentBackground

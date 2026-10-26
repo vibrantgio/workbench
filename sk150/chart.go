@@ -5,7 +5,7 @@ package main
 // chart (two y-scales on one plot is the classic chart defect; two measures
 // of different scale get two panes). One series per pane, so the pane
 // title carries identity and no legend is needed; the series colour is the
-// same theme-derived colour the monitor readout wears, axis text stays in
+// same theme-derived colour the monitor readout is drawn in, axis text stays in
 // text tokens, and the grid is a recessive hairline.
 
 import (

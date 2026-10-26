@@ -69,8 +69,8 @@ func run() {
 	// floating over it; on every other platform FullSizeContent returns no
 	// options and the window keeps its normal decorations. app.Title stays
 	// even though the treatment hides the title text — Mission Control, the
-	// Dock and VoiceOver read it all the same. A docs app wears the
-	// treatment as well as any other: underTitleBar paints the title-bar
+	// Dock and VoiceOver read it all the same. The treatment is applied to a docs
+	// app as to any other: underTitleBar paints the title-bar
 	// strip in the tab strip's own fill so the two read as one band, and
 	// keeps the strip itself (and so the Docs tree under it) clear of the
 	// window buttons.
@@ -98,7 +98,7 @@ func run() {
 		}
 	}
 
-	// The kept brand dresses the theme stream: what a brand file still pins
+	// The kept brand is applied to the theme stream: what a brand file still pins
 	// is the type and the theme colour that stands in where the platform
 	// uses its accent. The colour set itself is the platform's under either
 	// appearance, so nothing kept pins that.
@@ -127,7 +127,7 @@ func run() {
 	os.Exit(0)
 }
 
-// themeObservable returns the live system-driven theme stream, dressed in
+// themeObservable returns the live system-driven theme stream, with
 // the brand this user kept if they kept one. The 5 s poll interval is the
 // intended low-CPU default, not a workaround: each darwin Appearance read
 // is a `defaults` fork+exec (~5.5 ms), so 5 s polling costs ~0.1% CPU at
@@ -188,7 +188,7 @@ func underTitleBar(th rx.Observable[theme.Theme], shellObs rx.Observable[layout.
 	})
 }
 
-// titleBandFill is the fill the title-bar strip wears. The region it caps is
+// titleBandFill is the fill the title-bar strip is drawn in. The region it caps is
 // the tab strip, which has no fill of its own and stands on the fill of the
 // column it is in — this window's one content column, the platform's content
 // plane ([shellFill]). Named once because two callers have to agree on it —

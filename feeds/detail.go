@@ -135,7 +135,7 @@ func detailPane(
 // under it does too and its bar is at that edge.
 //
 // The column paints its OWN fill first. It is the reading surface, so it
-// wears ControlBackground — the same fill the arrangement paints the column
+// is drawn in ControlBackground — the same fill the arrangement paints the column
 // with, stated here so the document is legible wherever it is laid out.
 func drawDetail(
 	gtx layout.Context,

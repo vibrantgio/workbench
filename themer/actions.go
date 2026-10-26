@@ -71,7 +71,7 @@ type SelectStyle struct {
 	Dark  bool
 }
 
-// SelectMono chooses the typeface fenced code wears. Emitted by a click on
+// SelectMono chooses the typeface fenced code is drawn in. Emitted by a click on
 // one of the two names beside the sample. The name is one of the two the
 // plate offers; anything else is ignored.
 type SelectMono struct {

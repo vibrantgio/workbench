@@ -52,7 +52,7 @@ import (
 // left over is the pane, so the picture grows with the room the group has
 // rather than standing in the middle of it at a size written down here.
 const (
-	// SampleRadius is the corner a window wears on this platform, and
+	// SampleRadius is the corner a window has on this platform, and
 	// SampleShadow how far its floating shadow reaches. The shadow is also
 	// the run left clear round the picture, since it has to fall somewhere.
 	SampleRadius unit.Dp = 10
@@ -85,7 +85,7 @@ const (
 	// SampleBarPad is the run from the toolbar's trailing edge to the last
 	// button on it.
 	SampleBarPad unit.Dp = 12
-	// SampleFieldR is the corner a field and a push button wear.
+	// SampleFieldR is the corner a field and a push button have.
 	SampleFieldR unit.Dp = 6
 	// SampleRing is how far the focus ring reaches outside the field it is on.
 	SampleRing unit.Dp = 3
@@ -250,7 +250,7 @@ func SampleWindow(c tokens.PlatformColors, ty Type, typ tokens.Typography, shape
 		label := vgcolor.Flatten(c.Label, c.ControlBackground)
 
 		// The find field leads the pane, which is where this platform opens
-		// one, and it wears the focus ring — the one place the theme colour
+		// one, and it has the focus ring — the one place the theme colour
 		// reaches a control that is not filled with it.
 		field := image.Rect(pane.Min.X, pane.Min.Y, pane.Max.X, pane.Min.Y+gtx.Dp(SampleFieldH))
 		SampleFieldAt(gtx, c, ty, field)
@@ -290,7 +290,7 @@ func SampleWindowButtons(gtx layout.Context, c tokens.PlatformColors, barH int) 
 }
 
 // SampleFieldAt draws the sample's text field in r: the platform's own field
-// fill inside its hairline, wearing the focus ring, which is the one place
+// fill inside its hairline, drawn with the focus ring, which is the one place
 // the theme colour reaches a control that is not filled with it.
 func SampleFieldAt(gtx layout.Context, c tokens.PlatformColors, ty Type, r image.Rectangle) {
 	h := min(r.Dy(), gtx.Dp(SampleFieldH))

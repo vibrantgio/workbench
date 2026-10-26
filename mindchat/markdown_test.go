@@ -172,7 +172,7 @@ func mdList(t *testing.T, b markdown.Block) *markdown.List {
 
 // TestListsReachTheDocumentAsLists holds lists to leaving degrade as lists:
 // the document draws the markers, the hanging indent and the item rhythm, so
-// what leaves must still BE a list — not a run of paragraphs wearing marker
+// what leaves must still BE a list — not a run of paragraphs with marker
 // text. A bullet list keeps its items unordered; an ordered one keeps Ordered
 // and the number it starts counting from.
 func TestListsReachTheDocumentAsLists(t *testing.T) {

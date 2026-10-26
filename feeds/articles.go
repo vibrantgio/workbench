@@ -431,7 +431,7 @@ func themedTextCell(tok themeTokens, s string, current bool) layout.Widget {
 	}
 }
 
-// cellForeground is what a table cell's text wears: the foreground the
+// cellForeground is the colour a table cell's text is drawn in: the foreground the
 // platform pairs with a selected row's fill on the current row, and the
 // ordinary label on the content everywhere else. Both are flattened onto the
 // fill they land on.

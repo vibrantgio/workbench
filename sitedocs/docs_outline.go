@@ -1,5 +1,5 @@
 // docs_outline.go is the Docs shell's left tree: the outline of the one
-// guide document. Each ## of llms.txt is a top-level row wearing a
+// guide document. Each ## of llms.txt is a top-level row with a
 // disclosure triangle when it has ### children; disclosed children are
 // the ### rows and nothing deeper is shown. Clicking a row scrolls the
 // markdown document to that heading's block and marks the row selected;
@@ -65,7 +65,7 @@ type outlineRow struct {
 	Block       int  // heading block index in the parsed document
 	Top         int  // index of the owning ## entry
 	Child       bool // a ### row
-	HasChildren bool // ## rows only: wears a disclosure triangle
+	HasChildren bool // ## rows only: has a disclosure triangle
 	Open        bool // ## rows only: the fold is open
 }
 
@@ -129,7 +129,7 @@ func ensureClick(m map[int]*widget.Clickable, key int) *widget.Clickable {
 // rail, the visible rows as a scrolling list under a little top padding.
 //
 // The column is an outline rail, which on this platform is a sidebar, so it
-// wears the chrome material — the fill the platform gives a sidebar, a
+// is drawn in the chrome material — the fill the platform gives a sidebar, a
 // toolbar and an inspector. In the light appearance that chrome material is the
 // content's own white exactly, so the seam along the rail's trailing edge is
 // the whole of what parts the rail from the document there.
@@ -211,7 +211,7 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 
 	// The pill is the sidebar pattern's — its inset, its corner and its two
 	// colours — so a rail in this window is a rail on this platform. The
-	// window drawing it is the frontmost one, so the selected row wears the
+	// window drawing it is the frontmost one, so the selected row is drawn in the
 	// emphasized fill.
 	surface := tok.col.SidebarMaterial
 	if st.selected == row.Block {

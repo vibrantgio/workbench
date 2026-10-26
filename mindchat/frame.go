@@ -159,7 +159,7 @@ func (f *windowFrame) layout(gtx layout.Context, m Model, t themed, col shell.Pa
 			OnChange: func(w unit.Dp) { f.paneW = w },
 		},
 		// The content column stands on the transcript's own surface: the
-		// conversation is what the window is. The pane is chrome and wears
+		// conversation is what the window is. The pane is chrome and is drawn in
 		// the platform's chrome material, which patterns/pane resolves.
 		Surface:     t.col.WindowBackground,
 		ContentFill: t.palette.Transcript,

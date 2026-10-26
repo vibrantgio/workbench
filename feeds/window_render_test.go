@@ -20,7 +20,7 @@ package main
 // The tests below sample the rendered frame rather than the token set,
 // because this app holds no palette: each region paints its own fill at the
 // point it draws. Sampling the frame is therefore the only place the question
-// "which platform name is this region wearing" has an answer.
+// "which platform name is this region drawn in" has an answer.
 
 import (
 	"flag"
@@ -221,8 +221,8 @@ var (
 	atRestingPage = image.Pt(302, 780) // the pager beside it, unfilled
 )
 
-// TestWindowRegionsWearThePlatformNames reads off the frame that every
-// resting expanse of this window wears the platform's name for what it is:
+// TestWindowRegionsAreDrawnInThePlatformNames reads off the frame that every
+// resting expanse of this window is drawn in the colour the platform names for what it is:
 // the document regions ControlBackground — the toolbar's two shares and the
 // article's tab strip included, since neither a toolbar nor a tab strip
 // carries a fill and what stands in one stands on the column underneath —
@@ -232,7 +232,7 @@ var (
 // regions are painted by different pieces of code (this app's rail,
 // patterns/shell's arrangement, patterns/table, patterns/tabs' strip) and a
 // frame with all of them in it is the only place they can be seen agreeing.
-func TestWindowRegionsWearThePlatformNames(t *testing.T) {
+func TestWindowRegionsAreDrawnInThePlatformNames(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
@@ -258,18 +258,18 @@ func TestWindowRegionsWearThePlatformNames(t *testing.T) {
 	}
 }
 
-// TestChosenItemsWearThePlatformsSelection reads off the frame that every
+// TestChosenItemsAreDrawnInThePlatformsSelection reads off the frame that every
 // mark in this window meaning "this is the one you are on" is the platform's
 // own answer for that kind of row, and that a neighbour nobody chose keeps
 // its own region's fill.
 //
 // The three marks are three different names on this platform, which is the
 // point of asserting them together: a sidebar row's pill is the rail's own,
-// a content list's current row wears the emphasized selection, and the pager
+// a content list's current row is drawn in the emphasized selection, and the pager
 // fills the page it is on with the accent under the foreground the platform
 // pairs with it. Both schemes are sampled, because a window may not answer
 // one question in two ways.
-func TestChosenItemsWearThePlatformsSelection(t *testing.T) {
+func TestChosenItemsAreDrawnInThePlatformsSelection(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c)
@@ -279,7 +279,7 @@ func TestChosenItemsWearThePlatformsSelection(t *testing.T) {
 				want color.NRGBA
 			}{
 				// The rail holds no keyboard in a still render, so the open
-				// feed wears the platform's other pill: the grey one.
+				// feed has the platform's other pill: the grey one.
 				{"open feed", atOpenFeed, patsidebar.SelectionFill(tc.c, true)},
 				{"open article row", atOpenRow, tc.c.SelectedContentBackground},
 				{"current page", atCurrentPage, tc.c.ControlAccent},
@@ -512,10 +512,10 @@ func TestTheRailIsAPaneAndDrawsNoSeam(t *testing.T) {
 					t.Errorf("the pane's trailing edge at (%d,%d) = %v, want the platform's rim %v", edge, y, got, tc.c.PaneRim)
 				}
 				if got := at(img, edge, y); got == seam {
-					t.Errorf("the pane's trailing edge at (%d,%d) wears the separator; an inset object parts from nothing with a line", edge, y)
+					t.Errorf("the pane's trailing edge at (%d,%d) is drawn in the separator; an inset object parts from nothing with a line", edge, y)
 				}
 				if got := at(img, 0, y); got == tc.c.SidebarMaterial {
-					t.Errorf("the window's leading margin at (0,%d) wears the pane's own fill; the surface does not show around it", y)
+					t.Errorf("the window's leading margin at (0,%d) is drawn in the pane's own fill; the surface does not show around it", y)
 				}
 			}
 			// No line across the rail: inside the pane, below its strip, no
@@ -714,8 +714,8 @@ func boldestBlue(img *image.RGBA, box image.Rectangle) (color.NRGBA, bool) {
 }
 
 // TestEveryBlueThisWindowDrawsIsTheOneAccent enumerates this window's blues
-// off the frame: each of the four places it draws one wears the platform's
-// own name for that place, and no fifth blue stands anywhere else. A second
+// off the frame: each of the four places it draws one is drawn in the platform's
+// own named colour for that place, and no fifth blue stands anywhere else. A second
 // blue of this window's own making — derived from the accent, or written as
 // a literal — would fail both halves.
 func TestEveryBlueThisWindowDrawsIsTheOneAccent(t *testing.T) {

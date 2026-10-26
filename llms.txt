@@ -58,7 +58,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      Also notocoloremoji, the OPTIONAL color-emoji face
                      (Noto Color Emoji, CBDT/PNG, under the OFL): also not in
                      DefaultTypography.Faces — 9.9 MB, and Gio's system
-                     fallback does not supply one. The live stream wears it
+                     fallback does not supply one. The live stream applies it
                      via Typography.WithEmoji / EmojiTypography
   textdraw  v0.0.7   low-level glyph text drawing
   backdrop  v0.0.6   solid colour fill component
@@ -79,7 +79,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      preferences, brand (the kept theme colour and optional
                      "mono" code face, shared by every app). LiveTheme's default
                      typography is EmojiTypography — the live stream
-                     wears Noto Color Emoji as fallback; goldens stay
+                     applies Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
   components  v1.6.0 alert (the status signal for a situation — a banner on
@@ -723,7 +723,7 @@ own control; interpreting the stored name is the app's job.
 
 theme/brand is the other persisted choice, and it is per USER, not per app:
 the theme colour in one shared file (<config dir>/vibrantgio/theme.json), so
-a colour chosen once is worn by everything. The file may say instead that
+a colour chosen once is applied to everything. The file may say instead that
 the theme colour FOLLOWS THE SYSTEM ("followSystem": true), which is what a
 machine left on the platform's own accent keeps; such a file carries no
 colour at all. The same file may name a code face as "mono": "JetBrains
@@ -849,7 +849,7 @@ c.FloatingShadow:
 
 Do not add a shadow to a card.
 
-## Window structure: which region wears which name
+## Window structure: which region is drawn in which name
 
 Level says how high a surface stands. This says WHICH PART OF A WINDOW
 STANDS WHERE, so an app assigns each region rather than deriving it.
@@ -879,9 +879,9 @@ STANDS WHERE, so an app assigns each region rather than deriving it.
     surface they stand on, raising nothing. The one thing that must stand
     apart — a summary, a preview, the recommended tier — a card: one
     rounded surface filled with CardFill, no hairline and no shadow. A card
-    holds content, never another card, and never wears a role; the
+    holds content, never another card, and is never drawn in a colour role; the
     developer's word about it is a badge in its header.
-  - WHAT IS CHOSEN WEARS THE PLATFORM'S SELECTION. The row the window is
+  - WHAT IS CHOSEN IS DRAWN IN THE PLATFORM'S SELECTION. The row the window is
     currently showing takes SelectedContentBackground under
     AlternateSelectedControlText where the window is frontmost, and
     UnemphasizedSelectedContentBackground where it is not. In a SIDEBAR it
@@ -890,7 +890,7 @@ STANDS WHERE, so an app assigns each region rather than deriving it.
     a sidebar row do not tint under the pointer on this platform, so a
     keyboard cursor in a list is shown by the unemphasized selection rather
     than by a tint of its own.
-  - THE TITLEBAR WEARS THE FILL OF THE REGION IT CAPS. Never leave an
+  - THE TITLEBAR IS DRAWN IN THE FILL OF THE REGION IT CAPS. Never leave an
     unpainted native strip above a painted window. Where the platform allows
     it, take desktop.FullSizeContent() and let the capped region's own fill
     reach the window's top edge; where it does not, paint your own band in
@@ -901,8 +901,8 @@ STANDS WHERE, so an app assigns each region rather than deriving it.
     places its own drag region because it has controls in the band to work
     around. The strip is part of the region below it, not a fourth kind
     of area.
-  - TAKING THE STRIP TAKES ON WHAT CAME WITH IT, and a window dressed to the
-    fill alone gets both halves wrong. The platform's window controls now
+  - TAKING THE STRIP TAKES ON WHAT CAME WITH IT, and a window with only the
+    fill applied gets both halves wrong. The platform's window controls now
     stand inside your layout, so the region reaching the top-leading corner
     owes them their run, reserved from a measurement and never from a guess:
     desktop.ButtonRunIn(band) centres the group in a band of that height,
@@ -919,7 +919,7 @@ STANDS WHERE, so an app assigns each region rather than deriving it.
     rectangle you have measured. A page with no controls in its band needs none
     of the three: CapTop above claims what it insets.
   - ONE BAND HEIGHT ACROSS A SPLIT. Where the strip crosses a seam —
-    chrome on one side of it, content on the other — the two sides wear
+    chrome on one side of it, content on the other — the two sides are drawn in
     their own fills but hold one height between them. That height is
     shell.NavbarHeight(): ask for it rather than restating a number, and
     the two sides cannot drift. It takes no density — the band is the
@@ -938,7 +938,7 @@ STANDS WHERE, so an app assigns each region rather than deriving it.
     pixel that equals nothing in the set is a colour somebody derived.
 
 None of this needs a token that does not already exist. A window that
-cannot be dressed from the vocabulary above is a window whose structure is
+cannot be drawn from the vocabulary above is a window whose structure is
 wrong, not a colour set that is short.
 
 workbench/mindchat is the window to read for this grammar: main.go opens
@@ -1074,7 +1074,7 @@ theme.AutoLightDark emit tokens.DefaultTypography, whose roles
 name "Roboto", whose Code names "Roboto Mono", and whose Faces are
 vibrantgio/font's Roboto faces plus the Roboto Mono faces Code resolves
 against. theme/system's LiveTheme emits tokens.EmojiTypography() —
-DefaultTypography.WithEmoji() — so the live stream wears Noto Color Emoji
+DefaultTypography.WithEmoji() — so the live stream applies Noto Color Emoji
 as fallback. Gio's system fonts do not supply a color-emoji face; without
 that append, 😀 is Roboto's .notdef. Goldens and DeterministicShaper stay
 on DefaultTypography so they do not parse the 9.9 MB face. Roboto is the
@@ -1156,12 +1156,12 @@ the symbol in a golden image: the face serving it is exactly the
 machine-dependent thing goldens exist to avoid, so assert that the shaper
 resolved the rune to a real face and keep it out of the pixels.
 
-### The live stream wears emoji; goldens pin the default
+### The live stream applies emoji; goldens pin the default
 
 font/notocoloremoji is the optional color-emoji face. The same
 DefaultTypography.Faces rule applies — do not add 9.9 MB to every golden
 — but the system fallback does NOT cover emoji, so a live document that
-draws 😀 would tofu without it. That is why the live stream wears it:
+draws 😀 would tofu without it. That is why the live stream applies it:
 Typography.WithEmoji appends the one face (and returns the receiver when
 it is already there); EmojiTypography() is DefaultTypography.WithEmoji(),
 built once. LiveTheme defaults to that value; Brand.Typography() and
@@ -1175,7 +1175,7 @@ The workbench apps embody all of this: none of them builds a shaper,
 imports style or gofont, or passes Props.Shaper — copy any of them.
 Code defaults to Roboto Mono. A kept "mono": "JetBrains Mono" in
 theme.json restyles Typography.Code and appends those four faces; empty,
-absent, or unknown stays on Roboto Mono. The live stream still wears
+absent, or unknown stays on Roboto Mono. The live stream still applies
 emoji on top of whichever code face is kept. Goldens and
 DeterministicShaper pin the default.
 
@@ -1222,17 +1222,17 @@ viewport would fight the outer one.
     and CodeSize from the Typography Code style (Roboto Mono by default;
     JetBrains Mono when the kept "mono" names it), on the platform's box
     fill with horizontal overflow
-    scroll. Syntax colours are opt-in: highlight.Wear(&style,
+    scroll. Syntax colours are opt-in: highlight.Apply(&style,
     highlight.DefaultStyle, colors) (markdown/highlight, chroma) — one
-    style name for both appearances, and which member of the pair is worn
-    follows the tokens. Wear puts the whole style on the block, as the
+    style name for both appearances, and which member of the pair is applied
+    follows the tokens. Apply puts the whole style on the block, as the
     author who wrote it drew it: their own background under the fence,
     their colours in the runs they coloured and their body colour in the
     runs they left plain, with a hairline where that background stands too
     near your page.
     DefaultStyle is catppuccin-latte (counterpart catppuccin-mocha); pass
-    any name chroma's registry holds, or highlight.WearPair for a style
-    per appearance. Dress the Style once per theme, not once per frame.
+    any name chroma's registry holds, or highlight.ApplyPair for a style
+    per appearance. Call Apply once per theme, not once per frame.
     highlight.New(name) takes a style for its colours alone, leaving the
     fence on your own fill — which is not the fill their author drew them
     on, so a style fitted to a near-white page can measure short of the

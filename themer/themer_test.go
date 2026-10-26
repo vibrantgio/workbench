@@ -83,7 +83,7 @@ func judging() Model {
 
 // TestThePlatformsColourIsTheDefault: a window that has been handed nothing
 // is on the platform's own accent colour, which is what an application
-// wearing no brand paints itself with.
+// with no brand applied paints itself with.
 func TestThePlatformsColourIsTheDefault(t *testing.T) {
 	m := ReduceModel(Model{}, PlatformColorChanged{Color: fixturePlatform})
 	if !m.Follows() {
@@ -219,7 +219,7 @@ func TestTheSwitchMovesTheWholeWindow(t *testing.T) {
 	m := judging()
 	for _, live := range []tokens.PlatformColors{tokens.PlatformLight, tokens.PlatformDark} {
 		if got := WindowSet(live, m); got.WindowBackground != live.WindowBackground {
-			t.Errorf("before the switch is pressed the window wears %v on a desktop set to %v",
+			t.Errorf("before the switch is pressed the window is drawn in %v on a desktop set to %v",
 				got.WindowBackground, live.WindowBackground)
 		}
 	}
@@ -383,7 +383,7 @@ func TestKeepingTheSystemsColourWritesNoColour(t *testing.T) {
 
 // TestKeepingTheColourKeepsTheCodeChoicesTheWindowOpenedOn: the kept file is
 // shared by every application that adopts a brand, and a window that opened
-// on it is wearing what it holds. Settling a colour here must write those
+// on it has what it holds applied. Settling a colour here must write those
 // choices back rather than replace them with defaults nobody picked.
 func TestKeepingTheColourKeepsTheCodeChoicesTheWindowOpenedOn(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")

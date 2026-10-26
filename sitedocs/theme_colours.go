@@ -28,7 +28,7 @@ import (
 
 // colourChrome is the board's own frame, drawn in the set the board is
 // describing: the band a section heading fills is chrome capping the content
-// the board's rows stand on, so it wears the chrome material and parts itself
+// the board's rows stand on, so it is drawn in the chrome material and parts itself
 // from what is under it with the platform's seam.
 //
 // The two foregrounds are the platform's labels at two strengths, flattened
@@ -78,7 +78,7 @@ func (t Type) story() palette.Type {
 	}
 }
 
-// Ellipsis is the mark a run of text wears when it was cut short.
+// Ellipsis is the mark a run of text has when it was cut short.
 const Ellipsis = "…"
 
 // palTextStyle converts one Typography role to a single-line textdraw style.

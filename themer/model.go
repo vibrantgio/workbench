@@ -91,7 +91,7 @@ type Model struct {
 	// Kept because the keep affordance confirms when everything on screen is
 	// what is on disk, and the styles are part of everything.
 	KeptStyles highlight.StylePair
-	// Mono is the typeface fenced code wears. Empty is Roboto Mono, the
+	// Mono is the typeface fenced code is drawn in. Empty is Roboto Mono, the
 	// default; the one other name this window applies is "JetBrains Mono".
 	Mono string
 	// KeptMono is the typeface that file currently holds, empty for Roboto
@@ -173,7 +173,7 @@ func (m Model) VisibleStyles(dark bool) []int {
 	return out
 }
 
-// AppliedMono is the typeface name the sample wears: JetBrains Mono when that
+// AppliedMono is the typeface name the sample is drawn in: JetBrains Mono when that
 // is selected, Roboto Mono otherwise.
 func (m Model) AppliedMono() string {
 	if m.Mono == tokens.CodeFaceJetBrains {
@@ -322,7 +322,7 @@ const (
 )
 
 // Dark reports which side the syntax style group is set for, given the
-// platform set the window itself is wearing. The desktop decides until the
+// platform set the window itself is drawn in. The desktop decides until the
 // switch is pressed.
 func (m Model) Dark(live tokens.PlatformColors) bool {
 	switch m.Scheme {
@@ -386,7 +386,7 @@ func Init() (Model, mvu.Command) {
 	m = m.adoptKept(kept)
 	if kept.Chosen() {
 		// A window opens on the colour that was kept, so the first frame
-		// previews the theme every other application is already wearing.
+		// previews the theme every other application already applies.
 		m.From, m.Typed, m.Text = FromHex, kept.ThemeColor, hexOf(kept.ThemeColor)
 	}
 	if len(os.Args) > 1 {

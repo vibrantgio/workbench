@@ -3,7 +3,7 @@ package main
 // The readout block: the SK150's own display, in the device's own colours
 // measured off the photograph of it. Each line is big mono digits with a
 // half-size capital unit letter baseline-aligned in a right column; while the
-// output is regulating, the line of the quantity in control wears the mode
+// output is regulating, the line of the quantity in control has the mode
 // badge above its unit letter — CV on the volt line in the volt colour, CC on
 // the amp line in the amp colour, each a lit pill with the pane's black cut
 // out of it, as the device draws them. Output state lives in the header's
@@ -84,7 +84,7 @@ func readoutWidth(gtx layout.Context, t themed, r Reading) int {
 }
 
 // ampRow is the current line — while the output is current-limited it
-// wears the CC badge above the unit letter.
+// has the CC badge above the unit letter.
 func ampRow(t themed, r Reading) layout.Widget {
 	badgeTxt := ""
 	if r.On && r.CC {
