@@ -140,7 +140,7 @@ type Type struct {
 	Set     textdraw.TextStyle // the Set and Limit lines under the readouts
 	Stack   textdraw.TextStyle // the CV/CC and ON/OFF badge titles
 	Title   textdraw.TextStyle // the header's name of the device
-	Section textdraw.TextStyle // a section's heading
+	Section textdraw.TextStyle // SectionHeading: a section's heading in the main pane
 	Body    textdraw.TextStyle // status lines and field captions
 	Small   textdraw.TextStyle // the notice and connection lines
 	Status  textdraw.TextStyle // a footer of status text
@@ -181,7 +181,7 @@ func TypeFrom(t tokens.Typography) Type {
 		Set:     textStyle(set),
 		Stack:   textStyle(stack),
 		Title:   textStyle(t.Title1),
-		Section: textStyle(t.Headline),
+		Section: textStyle(t.SectionHeading),
 		Body:    textStyle(t.SystemFont),
 		Small:   textStyle(t.Callout),
 		Status:  textStyle(status),

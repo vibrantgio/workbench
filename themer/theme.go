@@ -109,13 +109,13 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 // draws directly, as textdraw styles, plus the theme's cached shaper. The
 // application builds no shaper and bundles no font of its own.
 //
-// A window's name in its title row and a group's title both take Headline:
-// the platform sets a group's heading in bold where a row's text is regular.
-// A row's text takes the System font, as a list's and a sidebar's rows do.
+// A window's name in its title row takes Headline, and a group's title takes
+// SectionHeading. A row's text takes the System font, as a list's and a
+// sidebar's rows do.
 type Type struct {
 	Shaper  *text.Shaper
 	Head    textdraw.TextStyle // Headline: a window's name in its title row
-	Title   textdraw.TextStyle // Headline: a group's title
+	Title   textdraw.TextStyle // SectionHeading: a group's title
 	Body    textdraw.TextStyle // SystemFont: a row's text
 	Small   textdraw.TextStyle // Subheadline: hints, a problem line and a style's tag
 	Caption textdraw.TextStyle // Caption1: a swatch's hex value and share
@@ -129,7 +129,7 @@ func TypeFrom(t tokens.Typography) Type {
 	return Type{
 		Shaper:  t.Shaper(),
 		Head:    textStyle(t.Headline),
-		Title:   textStyle(t.Headline),
+		Title:   textStyle(t.SectionHeading),
 		Body:    textStyle(t.SystemFont),
 		Small:   textStyle(t.Subheadline),
 		Caption: textStyle(t.Caption1),
