@@ -100,6 +100,9 @@ type Model struct {
 	// Tab is the tab the window shows, an index into [tabTitles]. The zero
 	// value is the Colours tab.
 	Tab int
+	// DialogOpen is true while the dialog that says an image can be dropped
+	// is open. A click on the theme colour's swatch opens it.
+	DialogOpen bool
 }
 
 // StyleOption is one row of the style chooser: a style's name, whether

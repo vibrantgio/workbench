@@ -6,6 +6,7 @@ import (
 	stdcolor "image/color"
 
 	"gioui.org/gesture"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -21,6 +22,7 @@ import (
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/list"
+	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
@@ -165,9 +167,11 @@ func TitleLead() unit.Dp {
 // buildLayers returns the layer-builder the theme window renders.
 func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup, bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+		keys := new(keyboardReturn)
 		return []rx.Observable[layout.Widget]{
 			BackdropLayer(th, modelObs),
-			ContentLayer(th, modelObs, zones, bars),
+			contentLayer(th, modelObs, zones, bars, keys),
+			DialogLayer(th, modelObs, keys, closeDialog),
 		}
 	}
 }
@@ -267,6 +271,13 @@ func WindowTheme(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) r
 // TextBackground, the window's content plane, which is not the plane this
 // one stands on.
 func HexField(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.Observable[layout.Widget] {
+	return hexField(th, modelObs, nil)
+}
+
+// hexField is [HexField] that hands the field's focus tag to keys, so the
+// keyboard can go back to the field when the dialog closes. A nil keys
+// keeps the tag to the field.
+func hexField(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], keys *keyboardReturn) rx.Observable[layout.Widget] {
 	return input.TextField(WindowTheme(th, modelObs), input.TextFieldProps{
 		Placeholder: HexPlaceholder,
 		Description: "Theme colour, written as a hex triplet",
@@ -274,6 +285,7 @@ func HexField(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.O
 		OnChange: func(gtx layout.Context, txt string) {
 			mvu.MessageOp{Message: HexTyped{Text: txt}}.Add(gtx.Ops)
 		},
+		FocusTag: keys.watch,
 	})
 }
 
@@ -287,12 +299,18 @@ func HexField(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.O
 // swatch slot, not per colour, so the handlers outlive a picture being
 // replaced by another.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup, bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
+	return contentLayer(th, modelObs, zones, bars, nil)
+}
+
+// contentLayer is [ContentLayer] with the colour field's focus tag handed to
+// keys.
+func contentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup, bars desktop.ScrollBarSetting, keys *keyboardReturn) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, rowSlots)
 	bar := new(topClicks)
 	code := newCodeState()
 	pages := newThemePages()
 	cells := new(tabCells)
-	hex := HexField(th, modelObs)
+	hex := hexField(th, modelObs, keys)
 	strip := TabStrip(th, modelObs, cells)
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
@@ -307,13 +325,14 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 }
 
 // topClicks are the handlers of the controls the page keeps outside its
-// boxes: the keep affordance in the footer and the two halves of the
-// appearance switch in the title row. They are one value rather than
+// boxes: the keep affordance in the footer, the two halves of the
+// appearance switch in the title row, and the theme colour's swatch. They are one value rather than
 // two parameters because they have one lifetime — subscription scope, so a
 // press in flight survives an emission.
 type topClicks struct {
 	keep   gesture.Click
 	scheme [2]gesture.Click
+	swatch gesture.Click
 }
 
 // Page lays the window out and registers it, whole, as the drop zone.
@@ -347,7 +366,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	case TabColours:
 		content = ColoursTab(p, t.typ, m,
 			PictureRow(p, t.typ, m, picture, clicks),
-			ColourRow(p, t.typ, m, hex),
+			ColourRow(p, t.typ, m, hex, &bar.swatch),
 			ColourRows(shown, typo, shaper), pages.colours, j)
 	case TabTypography:
 		content = TypographyTab(p, t.typ,
@@ -643,7 +662,7 @@ func PictureRow(p Palette, ty Type, m Model, src paint.ImageOp, clicks []gesture
 // The name leads because that is where the platform puts one. Read cold
 // without it, the row went value, then provenance, then control: the
 // platform's order with the name deleted.
-func ColourRow(p Palette, ty Type, m Model, hex layout.Widget) layout.Widget {
+func ColourRow(p Palette, ty Type, m Model, hex layout.Widget, swatch *gesture.Click) layout.Widget {
 	name, hint, hintColor := IdentityName(m), IdentityHint(m), p.CardMuted
 	if m.Problem != "" {
 		hint, hintColor = m.Problem, p.Problem
@@ -651,7 +670,7 @@ func ColourRow(p Palette, ty Type, m Model, hex layout.Widget) layout.Widget {
 	slots := []slot{
 		{leading, 0, Line(ty, ty.Body, p.CardText, ColourRowLabel)},
 		{trailing, 0, fixed(HexW, hex)},
-		{trailing, 0, Chip(p, m)},
+		{trailing, 0, Chip(p, m, swatch)},
 		{leading, 0, Line(ty, ty.Body, p.CardText, name)},
 		{leading, 0, Line(ty, ty.Small, hintColor, hint)},
 	}
@@ -664,7 +683,10 @@ func ColourRow(p Palette, ty Type, m Model, hex layout.Widget) layout.Widget {
 // carries a hairline of its own for the same reason a swatch does: a picture's
 // palest colour is a legal choice, and a near-white chip on a near-white box
 // with no boundary reads as a box that failed to draw.
-func Chip(p Palette, m Model) layout.Widget {
+//
+// A click on it sends [OpenDialog]: the dialog says how a picture gives the
+// window its colour.
+func Chip(p Palette, m Model, click *gesture.Click) layout.Widget {
 	col, ok := m.Color()
 	return func(gtx layout.Context) layout.Dimensions {
 		if !ok {
@@ -674,6 +696,22 @@ func Chip(p Palette, m Model) layout.Widget {
 		r := image.Rectangle{Max: size}
 		fillRRect(gtx, r, gtx.Dp(InnerR), col)
 		strokeRRect(gtx, r, gtx.Dp(InnerR), gtx.Dp(Hairline), p.Edge)
+		// The press target is the chip's whole rectangle. A rounded clip
+		// is a path, and with that path the text drawn after it on the
+		// Colours tab is antialiased one or two levels differently.
+		area := clip.Rect(r).Push(gtx.Ops)
+		click.Add(gtx.Ops)
+		area.Pop()
+		pointershape.Over(gtx.Ops, r, pointer.CursorPointer)
+		for {
+			e, ok := click.Update(gtx.Source)
+			if !ok {
+				break
+			}
+			if e.Kind == gesture.KindClick {
+				mvu.MessageOp{Message: OpenDialog{}}.Add(gtx.Ops)
+			}
+		}
 		return layout.Dimensions{Size: size}
 	}
 }

@@ -107,6 +107,14 @@ type KeepFailed struct {
 	Reason string
 }
 
+// OpenDialog opens the dialog that says an image can be dropped on the
+// window. Emitted by a click on the theme colour's swatch.
+type OpenDialog struct{}
+
+// CloseDialog closes that dialog. Emitted by its close, by Escape and by a
+// click outside it.
+type CloseDialog struct{}
+
 // SetScheme puts the syntax style group on one side of the platform's pair and
 // keeps it there. It carries the side to move to rather than a "flip it"
 // instruction, because which side is showing depends on a set the reducer

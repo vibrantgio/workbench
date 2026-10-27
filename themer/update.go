@@ -32,7 +32,9 @@ func Update(model Model, message mvu.Message) (Model, mvu.Command) {
 		return model, KeepTheme(model.KeepPath, col, false,
 			model.AppliedStyles(), model.keepMono(), model.KeepSource())
 	case desktop.FilesDropped:
-		model.DragOver = false
+		// A drop is the answer the dialog asks for, so the dialog closes on
+		// it, whether or not the file becomes a colour.
+		model.DragOver, model.DialogOpen = false, false
 		if len(msg.Paths) == 0 {
 			return model, mvu.DoNothing()
 		}
@@ -123,6 +125,10 @@ func ReduceModel(m Model, message any) Model {
 		m.Problem = ""
 	case KeepFailed:
 		m.Problem = msg.Reason
+	case OpenDialog:
+		m.DialogOpen = true
+	case CloseDialog:
+		m.DialogOpen = false
 	case SetScheme:
 		m.Scheme = ShowLight
 		if msg.Dark {
