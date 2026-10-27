@@ -75,13 +75,18 @@ func pageBars(t *testing.T, m Model, c tokens.PlatformColors, size image.Point, 
 // drawn by the pattern's still render at the model's tab. The colour field is
 // the empty box it draws before a key is pressed.
 func staticPage(m Model, c tokens.PlatformColors, code *codeState, bars desktop.ScrollBarSetting, bar *topClicks) layout.Widget {
+	return staticPages(m, c, code, newThemePages(), bars, bar)
+}
+
+// staticPages is staticPage with the moved tabs' state in the caller's hands.
+func staticPages(m Model, c tokens.PlatformColors, code *codeState, pages *themePages, bars desktop.ScrollBarSetting, bar *topClicks) layout.Widget {
 	clicks := make([]gesture.Click, rowSlots)
 	cells := new(tabCells)
 	ty := pinned()
 	strip := tabs.Render(ty.Shaper, tabs.Props{Tabs: cells.tabs(), Fill: tabFill}, m.Tab,
 		WindowSet(c, m), tokens.Spacing, tokens.DefaultTypography.SystemFont, tokens.Comfortable)
 	return Page(themed{col: c, typ: ty, pinned: true, scrollBars: bars}, m, &desktop.ZoneGroup{}, clicks, bar,
-		code, func(gtx layout.Context) layout.Dimensions {
+		code, pages, func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(SampleFieldH))}
 		}, cells, strip)
 }
@@ -449,7 +454,10 @@ func TestTheWholeWindow(t *testing.T) {
 		dark bool
 	}{{"light", tokens.PlatformLight, false}, {"dark", tokens.PlatformDark, true}} {
 		t.Run(tc.name, func(t *testing.T) {
-			for tab, name := range [tabCount]string{TabColours: "colours", TabCode: "code"} {
+			for tab, name := range [tabCount]string{
+				TabColours: "colours", TabTypography: "typography", TabComponents: "components",
+				TabPatterns: "patterns", TabCode: "code", TabMarkdown: "markdown",
+			} {
 				m := goldenModel(t, tc.dark)
 				m.Tab = tab
 				golden.Compare(t, name+"-"+tc.name, pageWith(t, m, tc.set, newCodeState()))

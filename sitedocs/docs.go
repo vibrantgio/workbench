@@ -121,9 +121,8 @@ func openURL(url string) {
 //
 // The bar is passed in rather than built here because it is the window's
 // bar, spent against the setting read once where the window was composed;
-// see columnBar. Its anchor is what [list.AnchorFor] returns, as every other tab's
-// bar's is: a standing bar takes a lane of its own and the text stops short
-// of it, and a fading bar lies over the column's trailing edge and takes no
+// see columnBar. Its anchor is what [list.AnchorFor] returns: a standing
+// bar takes a lane of its own and the text stops short of it, and a fading bar lies over the column's trailing edge and takes no
 // lane. It is the document's own scrollbar entry point that draws it,
 // because the viewport being scrolled is the document's own list.
 func drawGuideDoc(

@@ -8,7 +8,6 @@ package main
 
 import (
 	"image"
-	"image/color"
 	"testing"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
-	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu/desktop"
@@ -33,8 +31,7 @@ import (
 // platform's overlay bar, which a resting frame holds nothing of.
 func TestTheWindowSpendsTheScrollBarSetting(t *testing.T) {
 	c := tokens.PlatformLight
-	// A tab's column rides the content plane, which is what its sections
-	// fill with.
+	// The Docs column is drawn on the content's fill.
 	rides := c.ControlBackground
 	size := image.Pt(24, 400)
 	// The pixels the bar leaves on the fill it rides, on a frame with no
@@ -77,8 +74,7 @@ func TestTheWindowSpendsTheScrollBarSetting(t *testing.T) {
 //
 // The region that scrolls is the whole column. With the reader's "always"
 // setting the thumb is on a resting frame in the lane at the column's
-// trailing edge, the lane a tab of rows' bar is in, and the text stops
-// short of the lane: the document's blocks are centred in the column less
+// trailing edge, and the text stops short of the lane: the document's blocks are centred in the column less
 // the lane. With "when scrolling" the frame is the frame the Docs golden
 // holds: nothing of the bar is on it, and the blocks are centred in the
 // whole column.
@@ -104,21 +100,6 @@ func TestTheDocsColumnStandsABar(t *testing.T) {
 			laneW, pad := int(standing.Width()), int(standing.TrackPadding)
 			laneMin := docsFrameW - laneW
 			thumb := image.Rect(laneMin+pad, 0, docsFrameW-pad, docsFrameH)
-
-			// The bar of a tab of rows, read off the same frame size.
-			rows := func(bars desktop.ScrollBarSetting) *image.RGBA {
-				items := make([]layout.Widget, 60)
-				for i := range items {
-					items[i] = func(gtx layout.Context) layout.Dimensions {
-						return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, 40)}
-					}
-				}
-				return golden.Capture(t, docsFrameSize, scene(scrollingColumn(list.NewState(), c, bars, items), bg))
-			}
-			barStart, ok := firstDiffX(rows(desktop.ScrollBarsAlways), rows(desktop.ScrollBarsWhenScrolling))
-			if !ok || barStart < laneMin {
-				t.Fatalf("a tab of rows' bar starts at x=%d (found %v), want it in the lane from x=%d", barStart, ok, laneMin)
-			}
 
 			frame := func(bars desktop.ScrollBarSetting) *image.RGBA {
 				doc := markdown.NewDocument(markdown.Parse(guideFixture(t)))
@@ -166,7 +147,7 @@ func TestTheDocsColumnStandsABar(t *testing.T) {
 				}
 			}
 			if thumbPixels == 0 {
-				t.Errorf("at Always the Docs column drew no thumb in the lane x %d–%d, where a tab of rows has its bar", thumb.Min.X, thumb.Max.X)
+				t.Errorf("at Always the Docs column drew no thumb in the lane x %d–%d", thumb.Min.X, thumb.Max.X)
 			}
 			if textEnd > laneMin {
 				t.Errorf("at Always the Docs column's text draws to x %d, want it to end before the %d px lane at x %d", textEnd, laneW, laneMin)
@@ -188,63 +169,4 @@ func TestTheDocsColumnStandsABar(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestTheTabsRowsStopShortOfAStandingBarsLane lays a tab of rows out in a
-// frame shorter than they are, once per setting, with each row painting the
-// whole width it is given. At Always the rows end before the bar's lane
-// and the thumb is drawn in it; where the bar fades the rows run the
-// frame's full width under where the bar would be.
-func TestTheTabsRowsStopShortOfAStandingBarsLane(t *testing.T) {
-	c := tokens.PlatformLight
-	bg := c.ControlBackground
-	// An opaque fill no part of the bar draws, so a row pixel reads as itself.
-	rowFill := color.NRGBA{R: 0x20, G: 0x80, B: 0x40, A: 0xff}
-	size := image.Pt(400, 300)
-	render := func(bars desktop.ScrollBarSetting) *image.RGBA {
-		items := make([]layout.Widget, 40)
-		for i := range items {
-			items[i] = func(gtx layout.Context) layout.Dimensions {
-				// A row paints its top half, so the row's own width is in
-				// the pixels and the bar's thumb is not covered by it.
-				w := gtx.Constraints.Max.X
-				paint.FillShape(gtx.Ops, rowFill, clip.Rect{Max: image.Pt(w, 10)}.Op())
-				return layout.Dimensions{Size: image.Pt(w, 20)}
-			}
-		}
-		return golden.Capture(t, size, scene(scrollingColumn(list.NewState(), c, bars, items), bg))
-	}
-	rowsEnd := func(img *image.RGBA) int {
-		end := 0
-		for y := range size.Y {
-			for x := range size.X {
-				p := img.RGBAAt(x, y)
-				if p.R == rowFill.R && p.G == rowFill.G && p.B == rowFill.B {
-					end = max(end, x+1)
-				}
-			}
-		}
-		return end
-	}
-	laneW := int(columnBar(c, desktop.ScrollBarsAlways).Width())
-	laneMin := size.X - laneW
-	if got := rowsEnd(render(desktop.ScrollBarsAlways)); got != laneMin {
-		t.Errorf("at Always the rows end at x %d, want them to stop short of the %d px lane at x %d", got, laneW, laneMin)
-	}
-	if got := rowsEnd(render(desktop.ScrollBarsWhenScrolling)); got != size.X {
-		t.Errorf("at WhenScrolling the rows end at x %d, want the frame's full width %d", got, size.X)
-	}
-}
-
-// firstDiffX is the smallest x at which two frames differ.
-func firstDiffX(a, b *image.RGBA) (int, bool) {
-	r := a.Bounds()
-	for x := r.Min.X; x < r.Max.X; x++ {
-		for y := r.Min.Y; y < r.Max.Y; y++ {
-			if a.RGBAAt(x, y) != b.RGBAAt(x, y) {
-				return x, true
-			}
-		}
-	}
-	return 0, false
 }

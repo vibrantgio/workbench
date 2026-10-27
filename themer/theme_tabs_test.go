@@ -1,97 +1,44 @@
 package main
 
 import (
-	"image"
 	"image/color"
 	"strings"
 	"testing"
 
-	"gioui.org/layout"
-	"gioui.org/text"
-
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/gallery/palette"
-	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/theme/tokens"
 )
-
-// themeFrameSize is a theme-cut tab's content area at the app's default
-// window, which is what the goldens pin.
-var themeFrameSize = image.Pt(1180, 760)
-
-// themeTabCases is the pair of tabs the theme is cut into, each with the
-// golden it is pinned under and the static renderer that draws it.
-var themeTabCases = []struct {
-	page   string
-	render func(*text.Shaper, tokens.PlatformColors, tokens.Typography) layout.Widget
-}{
-	{pageColours, renderColourTab},
-	{pageTypography, renderTypographyTab},
-}
-
-// TestThemeTabGoldens pins both theme-cut tabs in both appearances: the
-// Colours tab's board — every name the platform answers for, its swatch in
-// each appearance and the value written out — and the Typography tab's
-// scale.
-func TestThemeTabGoldens(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
-	for _, tab := range themeTabCases {
-		for _, tc := range schemeCases {
-			t.Run(tab.page+"/"+tc.name, func(t *testing.T) {
-				w := tab.render(shaper, tc.colors, tokens.DefaultTypography)
-				golden.Render(t, tab.page+"-tab-"+tc.name, themeFrameSize, scene(w, tc.bg))
-			})
-		}
-	}
-}
-
-// TestThemeTabsFollowScheme is the standing hunt for a theme surface drawn
-// from something other than the set it was handed: the same tab in the two
-// appearances must not come out the same bytes.
-func TestThemeTabsFollowScheme(t *testing.T) {
-	shaper := tokens.DefaultTypography.DeterministicShaper()
-	bg := color.NRGBA{R: 240, G: 240, B: 240, A: 255}
-	for _, tab := range themeTabCases {
-		t.Run(tab.page, func(t *testing.T) {
-			a := golden.Capture(t, themeFrameSize, scene(tab.render(shaper, tokens.PlatformLight, tokens.DefaultTypography), bg))
-			b := golden.Capture(t, themeFrameSize, scene(tab.render(shaper, tokens.PlatformDark, tokens.DefaultTypography), bg))
-			if golden.PixelDiff(a, b) == 0 {
-				t.Fatalf("the %s tab renders identically in light and dark — it is not following the set it was handed", tab.page)
-			}
-		})
-	}
-}
 
 // TestColourSectionRowsIsTheRowCount asserts the stated row count against
 // the rows themselves: the board is a heading and a body.
 func TestColourSectionRowsIsTheRowCount(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	c := tokens.PlatformLight
-	if got := len(ColourRows(c, TypeFrom(shaper, tokens.DefaultTypography))); got != ColourSectionRows {
+	if got := len(ColourRows(c, tokens.DefaultTypography, shaper)); got != ColourSectionRows {
 		t.Fatalf("ColourRows returns %d rows, ColourSectionRows says %d", got, ColourSectionRows)
 	}
 }
 
 // TestEachThemeTabHoldsItsOwnSection is the split itself, stated as
-// arithmetic: the Typography tab is the inventory's type scale and nothing
-// else — a heading band and a body — and the board is not in it. A board row
-// that leaked back onto the scale's tab, or a scale row left on the board's,
-// fails here before a golden has to be looked at.
+// arithmetic: the type scale on the Typography tab is a heading band and a
+// body, and the board is not in it. The board under the Colours tab's groups
+// is the board's heading and body, and the scale is not in it.
 func TestEachThemeTabHoldsItsOwnSection(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	typo := tokens.DefaultTypography
-	inv := inventory.NewForOS(shaper, "darwin")
 	c := tokens.PlatformLight
+	j := judged{col: c, typ: typo, shaper: shaper, pinned: true}
 
-	scale := palette.TypeScaleRows(inv, colourChrome(c), c, TypeFrom(shaper, typo).story())
+	scale := palette.TypeScaleRows(inventory.NewForOS(shaper, "darwin"), colourChrome(c), c, boardType(shaper, typo))
 	if len(scale) != 2 {
 		t.Fatalf("the type scale is %d rows, want 2 (a heading band and a body)", len(scale))
 	}
-	if got := len(typeScaleRows(inv, shaper, typo, c)); got != len(scale) {
-		t.Errorf("the Typography column is %d rows, want the scale's %d and nothing else", got, len(scale))
+	if got := len(TypeScaleRows(j, newThemePages())); got != len(scale) {
+		t.Errorf("the Typography tab's scale is %d rows, want the scale's %d and nothing else", got, len(scale))
 	}
-	if got := len(ColourRows(c, TypeFrom(shaper, typo))); got != ColourSectionRows {
-		t.Errorf("the Colours column is %d rows, want the board's %d and nothing else", got, ColourSectionRows)
+	if got := len(ColourRows(c, typo, shaper)); got != ColourSectionRows {
+		t.Errorf("the Colours tab's board is %d rows, want the board's %d and nothing else", got, ColourSectionRows)
 	}
 }
 
@@ -157,7 +104,10 @@ func TestTheBoardShowsEveryPlatformName(t *testing.T) {
 // can break silently: every colour this window hands the board is opaque, so
 // nothing composited over a fill it does not stand on ever reaches Gio.
 func TestTheBoardsChromeIsFlattened(t *testing.T) {
-	for _, tc := range schemeCases {
+	for _, tc := range []struct {
+		name   string
+		colors tokens.PlatformColors
+	}{{"light", tokens.PlatformLight}, {"dark", tokens.PlatformDark}} {
 		t.Run(tc.name, func(t *testing.T) {
 			chrome := colourChrome(tc.colors)
 			for _, f := range []struct {

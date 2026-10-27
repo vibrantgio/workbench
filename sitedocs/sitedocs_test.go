@@ -59,9 +59,10 @@ func TestInitialModelOpensOnDocs(t *testing.T) {
 // the model's currentPage field synchronously — no goroutine, no polling.
 func TestUpdateSetRouteAdvancesPage(t *testing.T) {
 	m := initialModel()
-	next, _ := Update(m, SetRoute{Page: pageComponents})
-	if next.currentPage != pageComponents {
-		t.Errorf("after SetRoute: currentPage = %q; want %q", next.currentPage, pageComponents)
+	m.currentPage = "no-such-page"
+	next, _ := Update(m, SetRoute{Page: pageDocs})
+	if next.currentPage != pageDocs {
+		t.Errorf("after SetRoute: currentPage = %q; want %q", next.currentPage, pageDocs)
 	}
 }
 
@@ -197,7 +198,7 @@ func TestStripOrderIsTitled(t *testing.T) {
 	if len(tabTitles) != len(tabPages) {
 		t.Fatalf("%d titles for %d tabs", len(tabTitles), len(tabPages))
 	}
-	want := []string{"Docs", "Colours", "Typography", "Components", "Patterns", "Markdown"}
+	want := []string{"Docs"}
 	for i, w := range want {
 		if tabTitles[i] != w {
 			t.Errorf("tab %d is titled %q, want %q", i, tabTitles[i], w)

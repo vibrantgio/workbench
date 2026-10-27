@@ -15,11 +15,6 @@ func TestTheBarHoldsOneViewItemPerTab(t *testing.T) {
 		msg   mvu.Message
 	}{
 		{"Docs", SetRoute{Page: pageDocs}},
-		{"Colours", SetRoute{Page: pageColours}},
-		{"Typography", SetRoute{Page: pageTypography}},
-		{"Components", SetRoute{Page: pageComponents}},
-		{"Patterns", SetRoute{Page: pagePatterns}},
-		{"Markdown", SetRoute{Page: pageMarkdown}},
 	}
 	items := MenuItems()
 	if len(items) != len(want) {

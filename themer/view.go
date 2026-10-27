@@ -20,6 +20,7 @@ import (
 	"github.com/vibrantgio/components/button"
 	"github.com/vibrantgio/components/gallery/inventory"
 	"github.com/vibrantgio/components/input"
+	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
@@ -279,8 +280,8 @@ func HexField(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.O
 // ContentLayer renders the page: the title row, the tab strip with the
 // selected tab's content under it, and the footer.
 //
-// The click handlers, the colour field, the style column's scroll position
-// and the tab cells are at subscription scope, outside the per-emission Map.
+// The click handlers, the colour field, the scroll positions, the
+// inventories and the tab cells are at subscription scope, outside the per-emission Map.
 // A gesture handler made again on every emission loses the press it is in the
 // middle of, and every selection re-emits. There is one click handler per
 // swatch slot, not per colour, so the handlers outlive a picture being
@@ -289,6 +290,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	clicks := make([]gesture.Click, rowSlots)
 	bar := new(topClicks)
 	code := newCodeState()
+	pages := newThemePages()
 	cells := new(tabCells)
 	hex := HexField(th, modelObs)
 	strip := TabStrip(th, modelObs, cells)
@@ -300,7 +302,7 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	})
 	return rx.Map(rx.CombineLatest4(themes, modelObs, hex, strip),
 		func(n rx.Tuple4[themed, Model, layout.Widget, layout.Widget]) layout.Widget {
-			return Page(n.First, n.Second, zones, clicks, bar, code, n.Third, cells, n.Fourth)
+			return Page(n.First, n.Second, zones, clicks, bar, code, pages, n.Third, cells, n.Fourth)
 		})
 }
 
@@ -322,9 +324,10 @@ type topClicks struct {
 // window has. The title row and the footer are outside the tabs, so the
 // scheme control and the Keep button are at the same place on every tab.
 //
-// Page stores each tab's content in cells, and strip is the tab strip that
-// draws the selected one.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, code *codeState, hex layout.Widget, cells *tabCells, strip layout.Widget) layout.Widget {
+// Page stores the selected tab's content in cells, and strip is the tab strip
+// that draws it. Only the selected tab's content is made, because an
+// inventory tab makes every row of its group.
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, code *codeState, pages *themePages, hex layout.Widget, cells *tabCells, strip layout.Widget) layout.Widget {
 	dark := m.Dark(t.col)
 	win := WindowSet(t.col, m)
 	p := PaletteFrom(win)
@@ -339,15 +342,27 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	if m.Preview != nil {
 		picture = paint.NewImageOp(m.Preview)
 	}
-	cells.store([tabCount]layout.Widget{
-		TabColours: ColoursTab(p, t.typ, m,
+	j := judged{col: shown, typ: typo, shaper: shaper, styles: m.AppliedStyles(), bars: t.scrollBars, pinned: t.pinned}
+	var content layout.Widget
+	switch m.Tab {
+	case TabColours:
+		content = ColoursTab(p, t.typ, m,
 			PictureRow(p, t.typ, m, picture, clicks),
-			ColourRow(p, t.typ, m, hex)),
-		TabCode: CodeTab(p, t.typ,
+			ColourRow(p, t.typ, m, hex),
+			ColourRows(shown, typo, shaper), pages.colours, j)
+	case TabTypography:
+		content = TypographyTab(p, t.typ,
+			FaceChoices(p, t.typ, m, pages.faces),
+			TypeScaleRows(j, pages), pages.typography, j)
+	case TabCode:
+		content = CodeTab(p, t.typ,
 			FaceChoices(p, t.typ, m, code.faces),
 			ColumnBox(p, StylePane(p, win, t.typ, m, dark, code.styles, t.scrollBars)),
-			GroupBox(p, Preview(shown, t.typ, typo, shaper, code.doc, docStyle))),
-	})
+			GroupBox(p, Preview(shown, t.typ, typo, shaper, code.doc, docStyle)))
+	default:
+		content = GroupTab(j, pages.groups[m.Tab], tabGroups[m.Tab])
+	}
+	cells.store(m.Tab, content)
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		// The whole window is the target, recorded once per frame before
@@ -379,21 +394,40 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	}
 }
 
-// ColoursTab is the Colours tab: the Picture group, then the Theme colour
-// group.
-func ColoursTab(p Palette, ty Type, m Model, picture, colour layout.Widget) layout.Widget {
+// ColoursTab is the Colours tab: the Picture group, the Theme colour group,
+// and the colour board under them, in one column that scrolls when it is
+// taller than the window.
+func ColoursTab(p Palette, ty Type, m Model, picture, colour layout.Widget, board []layout.Widget, st *list.State, j judged) layout.Widget {
+	items := []layout.Widget{
+		fixedH(GroupTitleH, GroupTitle(p, ty, PictureLabel, RowHintFor(m), nil)),
+		gapRow(GroupBelow),
+		fixedH(PictureBoxH, GroupBox(p, picture)),
+		gapRow(GroupAbove),
+		fixedH(GroupTitleH, GroupTitle(p, ty, ColourLabel, ColourHint, nil)),
+		gapRow(GroupBelow),
+		fixedH(ColourBoxH, GroupBox(p, colour)),
+		gapRow(GroupAbove),
+	}
+	return scrollingColumn(st, j.col, j.bars, append(items, board...))
+}
+
+// TypographyTab is the Typography tab: the Code face group, and the type
+// scale under it, in one column that scrolls when it is taller than the
+// window. The face group sets the same code face as the Code tab's group.
+func TypographyTab(p Palette, ty Type, faces layout.Widget, scale []layout.Widget, st *list.State, j judged) layout.Widget {
+	items := []layout.Widget{
+		fixedH(GroupTitleH, GroupTitle(p, ty, FaceLabel, FaceHint, nil)),
+		gapRow(GroupBelow),
+		fixedH(FaceBoxH, GroupBox(p, faces)),
+		gapRow(GroupAbove),
+	}
+	return scrollingColumn(st, j.col, j.bars, append(items, scale...))
+}
+
+// gapRow is an empty row of height h in a column.
+func gapRow(h unit.Dp) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
-		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			rigid(fixedH(GroupTitleH, GroupTitle(p, ty, PictureLabel, RowHintFor(m), nil))),
-			spacer(GroupBelow),
-			rigid(fixedH(PictureBoxH, GroupBox(p, picture))),
-			spacer(GroupAbove),
-			rigid(fixedH(GroupTitleH, GroupTitle(p, ty, ColourLabel, ColourHint, nil))),
-			spacer(GroupBelow),
-			rigid(fixedH(ColourBoxH, GroupBox(p, colour))),
-		)
-		return layout.Dimensions{Size: size}
+		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(h))}
 	}
 }
 

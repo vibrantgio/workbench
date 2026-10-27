@@ -71,33 +71,28 @@ meant to be built — MVU state, live theming from theme, layouts from patterns:
   live; every symbol is captioned with the name to write. Also the
   reference for `components/input`'s `SearchField` with per-keystroke MVU
   updates.
-- **[`sitedocs/`](./sitedocs)** — the documentation app, six tabs over
-  `patterns/tabs`: **Docs** renders the application guide (`llms.txt`) as
-  one markdown document with a `##`/`###` outline tree that scrolls it;
-  **Colours** shows the platform's colour set, name by name with each
-  value in both appearances, and **Typography** the type scale, both
-  following the live theme; **Components**, **Patterns** and
-  **Markdown** are the component inventory's own groups, one per tab, as
-  live, clickable controls.
+- **[`sitedocs/`](./sitedocs)** — the documentation app: its **Docs** tab
+  renders the application guide (`llms.txt`) as one markdown document with
+  a `##`/`###` outline tree that scrolls it.
 - **[`feeds/`](./feeds)** — an RSS reading-list app: sortable/filterable/
   paginated article table, tabbed detail view in a split pane, dialog CRUD
   forms with alerts and toasts, popovers and tooltips.
 - **[`themer/`](./themer)** — the chooser for the theme colour and for
-  what a theme says about code, laid out as a column of titled groups in
-  reading order: the picture and the colours it gave, the theme colour, the
-  code face. The platform's own accent colour leads the swatches as the
-  default; drop an image anywhere on the window and the colours it is made
-  of come back beside it, vivid ones first; or write the colour into the
-  field. Under the choices stands the row they are judged in: a scrolling
-  list of every syntax highlighter style fitted to the appearance on screen,
-  and beside it the preview — one picture of an application in the
-  platform's colour set with the chosen colour standing in where the
-  platform uses its accent, carrying a sidebar with the selection pill, a
-  toolbar with the platform's window controls, a heading with a badge,
-  prose, a fenced code block in the chosen face and style, a text field and
-  two push buttons. One appearance at a time, and one switch at the top of
-  the window that moves the whole of it. Under that, the window's one
-  default button keeps the theme to the shared file every application reads.
+  what a theme says about code, in six tabs over `patterns/tabs`.
+  **Colours** holds the picture and the colours it gave, the theme colour,
+  and the platform's colour set name by name. The platform's own accent
+  colour leads the swatches as the default; drop an image anywhere on the
+  window and the colours it is made of come back beside it, vivid ones
+  first; or write the colour into the field. **Typography** holds the code
+  face and the type scale. **Components**, **Patterns** and **Markdown**
+  are the component inventory's own groups, one per tab, as live controls.
+  **Code** holds the code face, a scrolling list of every syntax
+  highlighter style fitted to the appearance on screen, and the preview:
+  one picture of an application with the chosen colour where the platform
+  uses its accent. Every tab is drawn in the theme being chosen. One
+  appearance at a time, and one switch at the top of the window that moves
+  the whole of it. Under the tabs, the window's one default button keeps
+  the theme to the shared file every application reads.
   Also the reference for an OS file drop — a window-wide drop zone with its
   hover highlight, delivered into the MVU loop as messages.
 - **[`mindchat/`](./mindchat)** — an OpenAI chat client and the most

@@ -573,8 +573,8 @@ table cell closures, navbar slots) cannot subscribe the theme lazily —
 they would miss the current emission. The reference apps solve this with a
 small adapter that subscribes the theme's token streams once into an
 atomic cell and hands frame-time code a loader func: see mirrorTokens in
-workbench feeds/app.go; sitedocs
-stores whole tab-content layout.Widgets through the same kind of cell for its
+workbench feeds/app.go; sitedocs and themer
+store whole tab-content layout.Widgets through the same kind of cell for their
 static tab slots.
 
 ## Colour: the platform's set
@@ -1555,49 +1555,39 @@ carries (mvu/desktop's menu bar), and preferences.go is the settings dialog
 ### themer/
 
 The chooser for the theme colour and for the two things a theme says about
-code. The window is a column of titled groups in the order somebody settling
-a theme works through them — the picture and the colours it gave, the theme
-colour, the code face — then the row those choices are judged in, and a
-footer holding the window's one default button. Each group is the platform's
-grouped box, the rhythm measured off System Settings' Appearance pane. The
-platform's own accent colour leads the swatches as the default; an image
-dropped anywhere on the window comes back as swatches of the colours it is
-made of — clustered and ranked by theme/imagecolor — and a field takes a
-colour written as a hex triplet. The code choices are two faces (Roboto
-Mono, JetBrains Mono) and, in the last row, a scrolling list of
-markdown/highlight's syntax highlighter styles — every one fitted to the
-appearance on screen, at the platform's own list row height with the
-platform's scrollbar beside it. A style is a pair, one member per
-appearance, and the appearance switch moves the list, the marked row and the
-preview together. Beside that list stands the preview: one picture of an
-application in the platform's set with the chosen colour standing in for the
-accent — a sidebar with the selection pill, a toolbar with the platform's
-window controls, a heading with a badge, prose, a fenced code block in the
-chosen face and style, a text field and two push buttons — so every choice
-above it moves something in it. The colour set itself, name by name, is the
-gallery's colour board and is not repeated here. One appearance at a time,
-and one switch at the top of the window to change it: it moves the window's
-own surface and everything on it, opening on the desktop's setting and taking
-the window's own answer from then on. The reference for OS file drops
-(mvu/desktop's ZoneGroup + DropTarget merged into the loop as messages, a
-window-wide zone, hover highlight). A path argument takes the same path a
-drop does. Keep writes the colour, the style pair and the code face through
-theme/brand, which is where the other apps read them from — and leaves every
-other key in that file as it found it
+code, in six tabs over patterns/tabs: Colours, Typography, Components,
+Patterns, Code and Markdown. The title row above the tabs holds the
+appearance switch, and the footer under the tabs holds the window's one
+default button. Every tab is drawn in the theme being chosen: the
+platform's set for the appearance on the switch, the chosen colour where
+the platform uses its accent, the chosen code face and highlighter style.
+Colours holds the picture and the colours it gave, the theme colour, and
+under them the gallery's colour board, name by name. The platform's own
+accent colour leads the swatches as the default; an image dropped anywhere
+on the window comes back as swatches of the colours it is made of —
+clustered and ranked by theme/imagecolor — and a field takes a colour
+written as a hex triplet. Typography holds the two code faces (Roboto Mono,
+JetBrains Mono) and the inventory's type scale. Components, Patterns and
+Markdown are one group each of the components/gallery/inventory catalogue,
+as live controls; a tab showing a single group drops that group's banner.
+Code holds the two code faces and a scrolling list of markdown/highlight's
+syntax highlighter styles in one column, and the preview beside them: one
+picture of an application with a sidebar, a toolbar, a heading with a
+badge, prose, a fenced code block in the chosen face and style, a text
+field and two push buttons. A style is a pair, one member per appearance,
+and the appearance switch moves the list, the marked row and the preview
+together. The reference for OS file drops (mvu/desktop's ZoneGroup +
+DropTarget merged into the loop as messages, a window-wide zone, hover
+highlight). A path argument takes the same path a drop does. Keep writes
+the colour, the style pair and the code face through theme/brand, which is
+where the other apps read them from — and leaves every other key in that
+file as it found it
 
 ### sitedocs/
 
-The documentation app, six tabs over patterns/tabs: Docs — this guide
-(llms.txt) rendered whole by vibrantgio/markdown, its ##/### outline as
-a tree whose rows scroll the document (ScrollToBlock); Colours — the
-platform's colour set, name by name with each value in both appearances;
-Typography — the type scale, every role a surface reads in; both
-following the live theme; then Components, Patterns and Markdown, one
-per group of the components/gallery/inventory catalogue, as live
-controls. A strip cell names one kind of thing, which is why the colour
-set and the type scale are two cells and not one. A tab showing a single group drops that
-group's banner — the inventory module is untouched, the app chooses which
-of its sections to lay out. The reference for a tabbed shell and for an
+The documentation app: a Docs tab over patterns/tabs shows this guide
+(llms.txt) rendered whole by vibrantgio/markdown, its ##/### outline as a
+tree whose rows scroll the document (ScrollToBlock). The reference for an
 outline tree over one long document
 
 ### marketing/

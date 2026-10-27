@@ -18,12 +18,16 @@ import (
 // The window's tabs, in the order the strip shows them.
 const (
 	TabColours = iota
+	TabTypography
+	TabComponents
+	TabPatterns
 	TabCode
+	TabMarkdown
 	tabCount
 )
 
 // tabTitles are the strip's titles, in strip order.
-var tabTitles = [tabCount]string{"Colours", "Code"}
+var tabTitles = [tabCount]string{"Colours", "Typography", "Components", "Patterns", "Code", "Markdown"}
 
 // TabGap is the run from the foot of the tab strip to the first row of a
 // tab's content. It is the same run the title row keeps above the strip.
@@ -34,16 +38,15 @@ const TabGap = Gap
 func tabFill(c tokens.PlatformColors) stdcolor.NRGBA { return PaletteFrom(c).Backdrop }
 
 // tabCells hold each tab's content for the strip. The page stores the
-// contents when it is composed, and the strip reads the selected tab's cell
-// when it is laid out. The strip's tabs are fixed when the strip is made, and
-// the contents change with every emission, so the cells join the two.
+// selected tab's content when it is composed, and the strip reads the
+// selected tab's cell when it is laid out. The strip's tabs are fixed when
+// the strip is made, and the contents change with every emission, so the
+// cells join the two.
 type tabCells [tabCount]atomic.Value
 
-// store puts each tab's content in its cell.
-func (c *tabCells) store(content [tabCount]layout.Widget) {
-	for i, w := range content {
-		c[i].Store(w)
-	}
+// store puts one tab's content in its cell.
+func (c *tabCells) store(tab int, w layout.Widget) {
+	c[tab].Store(w)
 }
 
 // tabs is the strip's list of tabs. Each tab's content reads its cell at
