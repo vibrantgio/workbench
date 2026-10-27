@@ -71,7 +71,7 @@ meant to be built — MVU state, live theming from theme, layouts from patterns:
   live; every symbol is captioned with the name to write. Also the
   reference for `components/input`'s `SearchField` with per-keystroke MVU
   updates.
-- **[`sitedocs/`](./sitedocs)** — the documentation app: its **Docs** tab
+- **[`sitedocs/`](./sitedocs)** — the documentation app: its window
   renders the application guide (`llms.txt`) as one markdown document with
   a `##`/`###` outline tree that scrolls it.
 - **[`feeds/`](./feeds)** — an RSS reading-list app: sortable/filterable/
@@ -134,7 +134,7 @@ that reports one launched process (Started → Exited).
 - **[llms.txt](https://raw.githubusercontent.com/vibrantgio/workbench/master/llms.txt)**
   — a condensed guide for AI coding assistants (Claude, etc.) to write
   applications against the Vibrant Gio packages. It is kept here, at this
-  repository's root, and the Site Docs app's Docs tab renders it.
+  repository's root, and the Site Docs app's window renders it.
 
 ## Requirements
 

@@ -573,9 +573,8 @@ table cell closures, navbar slots) cannot subscribe the theme lazily —
 they would miss the current emission. The reference apps solve this with a
 small adapter that subscribes the theme's token streams once into an
 atomic cell and hands frame-time code a loader func: see mirrorTokens in
-workbench feeds/app.go; sitedocs and themer
-store whole tab-content layout.Widgets through the same kind of cell for their
-static tab slots.
+workbench feeds/app.go; themer stores whole tab-content layout.Widgets
+through the same kind of cell for its static tab slots.
 
 ## Colour: the platform's set
 
@@ -1585,9 +1584,9 @@ file as it found it
 
 ### sitedocs/
 
-The documentation app: a Docs tab over patterns/tabs shows this guide
-(llms.txt) rendered whole by vibrantgio/markdown, its ##/### outline as a
-tree whose rows scroll the document (ScrollToBlock). The reference for an
+The documentation app: its window shows this guide (llms.txt) rendered
+whole by vibrantgio/markdown, its ##/### outline as a tree whose rows
+scroll the document (ScrollToBlock). The reference for an
 outline tree over one long document
 
 ### marketing/

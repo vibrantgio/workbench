@@ -11,13 +11,13 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// TestWriteTabReviewCaptures is not a test: it is the offscreen camera for
+// TestWriteReviewCaptures is not a test: it is the offscreen camera for
 // review captures. Set SITEDOCS_CAPTURE_DIR to a directory and run this test
-// to write window-sized captures of all six tabs — strip included, the Docs
-// tab over the real checkout guide — in both schemes; unset (the normal test
+// to write window-sized captures of the window — title band included, the
+// page over the real checkout guide — in both schemes; unset (the normal test
 // run) it skips, so no ordinary run depends on the checkout file. It renders
 // offscreen and touches nothing on the owner's screen.
-func TestWriteTabReviewCaptures(t *testing.T) {
+func TestWriteReviewCaptures(t *testing.T) {
 	dir := os.Getenv("SITEDOCS_CAPTURE_DIR")
 	if dir == "" {
 		t.Skip("set SITEDOCS_CAPTURE_DIR to write review captures")
@@ -30,25 +30,22 @@ func TestWriteTabReviewCaptures(t *testing.T) {
 	typo := tokens.DefaultTypography
 	st := outlineState{open: map[int]bool{0: true}, selected: guideOutline(markdown.Parse(src))[0].Block}
 	for _, tc := range windowSchemes {
-		for i, tabName := range tabPages {
-			// windowFrame is the whole composition — the backdrop, the
-			// title-bar band, and the shell with every cell's content in
-			// the app's own contentSlot — so the camera photographs the
-			// window rather than one layer of it.
-			w := windowFrame(shaper, src, st, tc.c, typo, i, titleBandDp)
-			img := golden.Capture(t, windowSize, w)
-			path := filepath.Join(dir, tabName+"-tab-review-"+tc.name+".png")
-			f, err := os.Create(path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := png.Encode(f, img); err != nil {
-				t.Fatal(err)
-			}
-			if err := f.Close(); err != nil {
-				t.Fatal(err)
-			}
-			t.Logf("wrote %s", path)
+		// windowFrame is the whole composition — the backdrop, the
+		// title-bar band, and the page on its fill — so the camera
+		// photographs the window rather than one layer of it.
+		w := windowFrame(shaper, src, st, tc.c, typo, titleBandDp)
+		img := golden.Capture(t, windowSize, w)
+		path := filepath.Join(dir, "window-review-"+tc.name+".png")
+		f, err := os.Create(path)
+		if err != nil {
+			t.Fatal(err)
 		}
+		if err := png.Encode(f, img); err != nil {
+			t.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("wrote %s", path)
 	}
 }

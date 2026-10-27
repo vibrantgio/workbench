@@ -24,7 +24,7 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 	modelObs := rx.Of(start)
 	layers := buildLayers(modelObs, desktop.ScrollBarsWhenScrolling)(rx.Of(theme.Default()))
 	if len(layers) != 2 {
-		t.Fatalf("buildLayers returned %d layers; want 2 (backdrop, shell)", len(layers))
+		t.Fatalf("buildLayers returned %d layers; want 2 (backdrop, page)", len(layers))
 	}
 	for i, layer := range layers {
 		got, err := golden.Resolve(layer)
@@ -39,44 +39,15 @@ func TestBuildLayersConstructsWithoutPanic(t *testing.T) {
 }
 
 // TestInitialModelOpensOnDocs verifies that initialModel() produces a model
-// with currentPage == pageDocs, the first ## section of the docs outline
-// disclosed (so the Docs tab opens with children showing), and no
-// selected heading.
+// with the first ## section of the docs outline disclosed (so the page opens
+// with children showing), and no selected heading.
 func TestInitialModelOpensOnDocs(t *testing.T) {
 	m := initialModel()
-	if m.currentPage != pageDocs {
-		t.Errorf("initialModel.currentPage = %q; want %q", m.currentPage, pageDocs)
-	}
 	if !m.outlineOpen[0] {
 		t.Errorf("initialModel.outlineOpen[0] = false; want true (first section opens disclosed)")
 	}
 	if m.selectedHeading != -1 {
 		t.Errorf("initialModel.selectedHeading = %d; want -1 (nothing selected)", m.selectedHeading)
-	}
-}
-
-// TestUpdateSetRouteAdvancesPage verifies that a SetRoute message advances
-// the model's currentPage field synchronously — no goroutine, no polling.
-func TestUpdateSetRouteAdvancesPage(t *testing.T) {
-	m := initialModel()
-	m.currentPage = "no-such-page"
-	next, _ := Update(m, SetRoute{Page: pageDocs})
-	if next.currentPage != pageDocs {
-		t.Errorf("after SetRoute: currentPage = %q; want %q", next.currentPage, pageDocs)
-	}
-}
-
-// TestTabIndexRoundTrips pins the strip order against the identifiers: a
-// click's index maps to a page that maps back to the same index, and an
-// unrecognised identifier lands on the Docs tab.
-func TestTabIndexRoundTrips(t *testing.T) {
-	for i, p := range tabPages {
-		if got := tabIndex(p); got != i {
-			t.Errorf("tabIndex(%q) = %d; want %d", p, got, i)
-		}
-	}
-	if got := tabIndex("no-such-page"); got != 0 {
-		t.Errorf("tabIndex(unknown) = %d; want 0 (the Docs tab)", got)
 	}
 }
 
@@ -121,22 +92,22 @@ func TestUpdateSelectHeading(t *testing.T) {
 	}
 }
 
-// TestDocsTabReEmitsOnModelChange guards the same-frame repaint: the docs
+// TestDocsPageReEmitsOnModelChange guards the same-frame repaint: the docs
 // layer observable must re-emit when the model changes, or a click never
 // reaches theme/window's Invalidate() and the window only repaints on the
 // next unrelated input event.
 //
-// Driving the same modelObs the app uses and asserting docsTabFrom's
+// Driving the same modelObs the app uses and asserting docsPageFrom's
 // returned observable emits a fresh layout.Widget on each ToggleOutline /
 // SelectHeading is the seam; a reducer-only test passes without proving the
 // layer re-emits. The unit test proves the necessary re-emission, not the OS
 // frame timing.
-func TestDocsTabReEmitsOnModelChange(t *testing.T) {
+func TestDocsPageReEmitsOnModelChange(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1)
-	tab := docsTabFrom(rx.Of(theme.Default()), modelObs, guideFixture(t), nil, desktop.ScrollBarsWhenScrolling)
+	page := docsPageFrom(rx.Of(theme.Default()), modelObs, guideFixture(t), nil, desktop.ScrollBarsWhenScrolling)
 
 	emissions := make(chan layout.Widget, 16)
-	sub := tab.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
+	sub := page.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {
 		if !done && w != nil {
 			select {
 			case emissions <- w:
@@ -155,7 +126,7 @@ func TestDocsTabReEmitsOnModelChange(t *testing.T) {
 			case <-time.After(10 * time.Millisecond):
 			}
 		}
-		t.Fatalf("shell layer did not re-emit after %s", what)
+		t.Fatalf("page layer did not re-emit after %s", what)
 		return nil
 	}
 
@@ -187,21 +158,6 @@ func drainEmissions(ch chan layout.Widget) {
 		case <-ch:
 		default:
 			return
-		}
-	}
-}
-
-// TestStripOrderIsTitled pins the two lists the strip is built from
-// against each other: every route identifier has a title, in the order
-// the cells are drawn.
-func TestStripOrderIsTitled(t *testing.T) {
-	if len(tabTitles) != len(tabPages) {
-		t.Fatalf("%d titles for %d tabs", len(tabTitles), len(tabPages))
-	}
-	want := []string{"Docs"}
-	for i, w := range want {
-		if tabTitles[i] != w {
-			t.Errorf("tab %d is titled %q, want %q", i, tabTitles[i], w)
 		}
 	}
 }

@@ -20,7 +20,7 @@ func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.
 	return s
 }
 
-// columnBar is the bar of the Docs tab's document column: made from the
+// columnBar is the bar of the page's document column: made from the
 // colour set the column's content is drawn in, on the content's fill, and
 // following the setting the window read when it was composed.
 func columnBar(c tokens.PlatformColors, bars desktop.ScrollBarSetting) scrollbar.Style {

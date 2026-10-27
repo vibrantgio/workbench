@@ -67,7 +67,7 @@ func TestTheWindowSpendsTheScrollBarSetting(t *testing.T) {
 	}
 }
 
-// TestTheDocsColumnStandsABar renders the Docs tab's document column at
+// TestTheDocsColumnStandsABar renders the page's document column at
 // the two settings and reads the bar off the pixels, in both schemes. The
 // guide is the longest content this window holds, so the column that shows
 // it overflows and has a bar to draw.

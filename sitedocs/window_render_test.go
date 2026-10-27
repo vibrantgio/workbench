@@ -7,16 +7,13 @@ package main
 // image at the size the window opens at produces the frame the window would
 // show.
 //
-// The per-tab goldens beside this file render one tab's content onto a frame
-// of their own and cannot see that the document is being read on the same
-// level as the rail indexing it; this can. Run it with -window.dump=<dir> to
-// write the frames out for a pair of eyes:
+// Run it with -window.dump=<dir> to write the frames out for a pair of eyes:
 //
 //	go test ./ -run TestWholeWindowRender -window.dump=/tmp/sitedocs
 //
 // Without the flag it still renders both schemes every run, which makes it a
 // smoke test of the whole stack: a panic anywhere in the backdrop, the title
-// band, the tab strip, the outline rail or the document fails it.
+// band, the outline rail or the document fails it.
 //
 // The assertions sample the rendered frame rather than a struct of colours,
 // because this app holds none: each region paints its own fill at the point
@@ -31,6 +28,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gioui.org/layout"
@@ -40,7 +38,7 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
-	"github.com/vibrantgio/patterns/tabs"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -58,35 +56,33 @@ var windowSize = image.Pt(windowW, windowH)
 const titleBandDp = 32
 
 // windowFrame composes the window for one scheme exactly as buildLayers
-// stacks it: the backdrop first, then the tab shell inset under a title-bar
-// strip painted in the fill of the region it caps. The shell is the static
-// twin the goldens already draw (staticTabs over tabs.Render), so the frame
-// is the app's composition minus the streams.
+// stacks it: the backdrop first, then the page on its fill, inset under a
+// title-bar strip painted in the fills of the columns it caps. The page is
+// the static twin the goldens draw (renderDocsPage), so the frame is the
+// app's composition minus the streams.
 //
 // band is the strip height to render under; 0 draws the window as every
-// platform but macOS shows it, with the shell at the window's own top edge.
+// platform but macOS shows it, with the page at the window's own top edge.
 func windowFrame(
 	shaper *text.Shaper,
 	guide []byte,
 	st outlineState,
 	c tokens.PlatformColors,
 	typo tokens.Typography,
-	selected int,
 	band unit.Dp,
 ) layout.Widget {
-	props := tabs.Props{Tabs: staticTabs(shaper, guide, st, c, typo), Shaper: shaper}
-	shell := tabs.Render(shaper, props, selected, c, tokens.Spacing, typo.SystemFont, tokens.Comfortable)
+	page := onPageFill(c, renderDocsPage(shaper, guide, st, c, typo))
 	background := backdrop.Widget(c.WindowBackground)
-	capped := bandedCap(func() unit.Dp { return band }, titleBandFill(c), shell)
+	capped := bandedCap(func() unit.Dp { return band }, c, page)
 	return func(gtx layout.Context) layout.Dimensions {
 		background(gtx)
 		return capped(gtx)
 	}
 }
 
-// renderWindow draws the settled window — the Docs tab open, its first
-// section disclosed and selected, which is the state a reader leaves this
-// window in — at the app's own size.
+// renderWindow draws the settled window — its first section disclosed and
+// selected, which is the state a reader leaves this window in — at the app's
+// own size.
 func renderWindow(t *testing.T, c tokens.PlatformColors, band unit.Dp) *image.RGBA {
 	t.Helper()
 	shaper := tokens.DefaultTypography.DeterministicShaper()
@@ -94,7 +90,7 @@ func renderWindow(t *testing.T, c tokens.PlatformColors, band unit.Dp) *image.RG
 	guide := guideFixture(t)
 	first := guideOutline(markdown.Parse(guide))[0]
 	st := outlineState{open: map[int]bool{0: true}, selected: first.Block}
-	w := windowFrame(shaper, guide, st, c, typo, tabIndex(pageDocs), band)
+	w := windowFrame(shaper, guide, st, c, typo, band)
 	return golden.Capture(t, windowSize, w)
 }
 
@@ -117,14 +113,17 @@ var windowSchemes = []struct {
 
 // Sample points in the rendered window, in the pixels the frame is drawn at
 // (PxPerDp is 1, so a dp is a pixel). Each names a resting expanse and is
-// chosen clear of paint: the title band right of the window title, the tab
-// strip right of the last cell, and the document plane out past the reading
-// measure the guide is capped to.
+// chosen clear of paint: the title band over the rail and over the document,
+// the rail under its last row, the document plane out past the reading
+// measure the guide is capped to, and the first row under the band on both
+// sides of the rail's seam.
 var (
-	atTitleBand = image.Pt(1100, titleBandDp/2)
-	atTabStrip  = image.Pt(1100, titleBandDp+18)
-	atRail      = image.Pt(150, 700)
-	atDocument  = image.Pt(1100, 700)
+	atBandOverRail     = image.Pt(150, titleBandDp/2)
+	atBandOverDocument = image.Pt(1100, titleBandDp/2)
+	atRail             = image.Pt(150, 700)
+	atRailTop          = image.Pt(150, titleBandDp)
+	atDocument         = image.Pt(1100, 700)
+	atDocumentTop      = image.Pt(1100, titleBandDp)
 )
 
 // TestWholeWindowRender draws the composed window in both schemes, and
@@ -161,15 +160,14 @@ func TestWholeWindowRender(t *testing.T) {
 
 // TestWindowRegionsAreDrawnInThePlatformsFills reads the assignment off the frame:
 // the guide document — the thing this window exists to show — on the
-// platform's content plane, the outline rail indexing it in the
-// chrome material a sidebar is drawn in, and the tab strip capping the pane on
-// that same content plane, because a tab strip has no fill of its own and
-// stands on the fill of the column it is in.
+// platform's content plane, the outline rail indexing it in the fill a
+// sidebar is drawn in, and the title band over each of them in that
+// region's own fill.
 //
 // It is read off the rendered frame rather than off the set, because those
-// three are painted by three different pieces of code (this app, backdrop,
-// and patterns/tabs) and the only place they can be seen agreeing is a frame
-// that has all three in it.
+// regions are painted by different pieces of code (this app and backdrop)
+// and the only place they can be seen agreeing is a frame that has all of
+// them in it.
 func TestWindowRegionsAreDrawnInThePlatformsFills(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -181,10 +179,8 @@ func TestWindowRegionsAreDrawnInThePlatformsFills(t *testing.T) {
 			}{
 				{"document plane", atDocument, tc.c.ControlBackground},
 				{"outline rail", atRail, tc.c.SidebarMaterial},
-				{"tab strip", atTabStrip, tc.c.ControlBackground},
-				// The band is drawn in the fill of the region under it, which here
-				// is the tab strip rather than the document.
-				{"title band", atTitleBand, tc.c.ControlBackground},
+				{"title band over the rail", atBandOverRail, tc.c.SidebarMaterial},
+				{"title band over the document", atBandOverDocument, tc.c.ControlBackground},
 			} {
 				if got := pixelAt(img, r.at); got != r.want {
 					t.Errorf("%s at %v = %v, want %v", r.name, r.at, got, r.want)
@@ -194,25 +190,95 @@ func TestWindowRegionsAreDrawnInThePlatformsFills(t *testing.T) {
 	}
 }
 
-// TestTheBandAgreesWithTheStripItCaps states the agreement directly: the two
-// fills are read off one frame and compared to each other, so the rule holds
-// wherever the fill under both of them moves to.
-//
-// Only the agreement is asserted, and not that the band differs from the
-// document: the strip stands on the column's own fill, so the band, the
-// strip and the document under them are one colour and a test demanding a
-// step would be demanding a colour this window does not draw.
-func TestTheBandAgreesWithTheStripItCaps(t *testing.T) {
+// TestTheBandAgreesWithTheColumnsItCaps states the agreement directly: the
+// band's fill over each column is read off one frame and compared to the
+// column's first row under the band, so the rule holds wherever the fills
+// under it move to. The rail's seam runs through the band as well.
+func TestTheBandAgreesWithTheColumnsItCaps(t *testing.T) {
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := renderWindow(t, tc.c, titleBandDp)
-			band, strip := pixelAt(img, atTitleBand), pixelAt(img, atTabStrip)
-			if band != strip {
-				t.Errorf("title band is %v and the tab strip it caps is %v; a painted window may not step at its own top edge",
-					band, strip)
+			for _, p := range []struct {
+				name        string
+				band, below image.Point
+			}{
+				{"rail", atBandOverRail, atRailTop},
+				{"document", atBandOverDocument, atDocumentTop},
+				{"rail seam", image.Pt(docsOutlineWidthDp-1, titleBandDp/2), image.Pt(docsOutlineWidthDp-1, titleBandDp)},
+			} {
+				if band, below := pixelAt(img, p.band), pixelAt(img, p.below); band != below {
+					t.Errorf("title band over the %s is %v and the %s under it is %v; a painted window may not step at its own top edge",
+						p.name, band, p.name, below)
+				}
 			}
 		})
 	}
+}
+
+// TestTheWindowShowsTheGuideAndNoTabStrip renders the window as every
+// platform but macOS shows it, with the document at its top, and finds the
+// guide's first heading at the window's top edge. The heading's rows are
+// compared with a render of a document that holds that heading alone, in
+// the same column, within the rasterizer's own spread: a strip or any other
+// band above the page moves the heading down and the rows no longer agree. The rail's seam reaching the
+// window's top row says the same for the leading column.
+func TestTheWindowShowsTheGuideAndNoTabStrip(t *testing.T) {
+	shaper := tokens.DefaultTypography.DeterministicShaper()
+	typo := tokens.DefaultTypography
+	guide := guideFixture(t)
+	blocks := markdown.Parse(guide)
+	h, ok := blocks[0].(*markdown.Heading)
+	if !ok {
+		t.Fatalf("the fixture guide opens on %T, want its first heading", blocks[0])
+	}
+	headingOnly := []byte(strings.Repeat("#", h.Level) + " " + headingText(h) + "\n")
+	st := outlineState{open: map[int]bool{0: true}, selected: -1}
+
+	for _, tc := range windowSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			full := golden.Capture(t, windowSize, windowFrame(shaper, guide, st, tc.c, typo, 0))
+			alone := golden.Capture(t, windowSize, windowFrame(shaper, headingOnly, st, tc.c, typo, 0))
+
+			seam := vgcolor.Flatten(tc.c.Separator, tc.c.SidebarMaterial)
+			if got := pixelAt(full, image.Pt(docsOutlineWidthDp-1, 0)); got != seam {
+				t.Errorf("the window's top row at the rail's seam is %v, want the seam %v", got, seam)
+			}
+
+			fill := pageFill(tc.c)
+			drawn := 0
+			for y := 0; y < windowSize.Y; y++ {
+				rowDrawn := false
+				for x := docsOutlineWidthDp; x < windowSize.X; x++ {
+					if pixelAt(alone, image.Pt(x, y)) != fill {
+						rowDrawn = true
+						break
+					}
+				}
+				if !rowDrawn {
+					continue
+				}
+				drawn++
+				for x := docsOutlineWidthDp; x < windowSize.X; x++ {
+					p := image.Pt(x, y)
+					if got, want := pixelAt(full, p), pixelAt(alone, p); !nearColor(got, want) {
+						t.Fatalf("the guide's first heading %q is not at the window's top: at %v the window draws %v, the heading alone %v",
+							headingText(h), p, got, want)
+					}
+				}
+			}
+			if drawn == 0 {
+				t.Fatal("the heading alone drew nothing in the document column; the comparison has no rows")
+			}
+		})
+	}
+}
+
+// nearColor reports whether two pixels agree within the rasterizer's own
+// spread: one glyph's edge, drawn twice, may land a level or two apart. A
+// heading moved by even one row differs by far more at its edges.
+func nearColor(a, b color.NRGBA) bool {
+	d := func(x, y uint8) int { return max(int(x)-int(y), int(y)-int(x)) }
+	return d(a.R, b.R) <= 4 && d(a.G, b.G) <= 4 && d(a.B, b.B) <= 4
 }
 
 // TestAFencedBlockHasAStepToStandOn checks the fence has a fill to stand on.

@@ -1,15 +1,12 @@
 // Command sitedocs is the Vibrant Gio documentation desktop app ("Site
-// Docs"). Tab selection, outline disclosure and heading selection live in
-// the canonical MVU Model/Update/Messages loop; MessageOp emissions fire
-// within the same frame that originated the click.
+// Docs"). Outline disclosure and heading selection live in the canonical
+// MVU Model/Update/Messages loop; MessageOp emissions fire within the same
+// frame that originated the click.
 //
-// The window is a patterns/tabs shell. Its one page, Docs, is the
-// application guide (the workbench root's llms.txt) as one markdown
-// document, its ##/### outline tree in a leading column. The page is built
-// once and kept subscribed.
-//
-// tabbedShellLayer folds the content streams into the tab shell on every
-// emission.
+// The window shows one page: the application guide (the workbench root's
+// llms.txt) as one markdown document, its ##/### outline tree in a leading
+// column. The page is built once and kept subscribed, so its scroll
+// position and outline state stay while the window is open.
 
 package main
 
@@ -19,7 +16,6 @@ import (
 	stdcolor "image/color"
 	"os"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"gioui.org/app"
@@ -35,7 +31,6 @@ import (
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/theme/brand"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/theme"
@@ -59,11 +54,9 @@ func run() {
 	// floating over it; on every other platform FullSizeContent returns no
 	// options and the window keeps its normal decorations. app.Title stays
 	// even though the treatment hides the title text — Mission Control, the
-	// Dock and VoiceOver read it all the same. The treatment is applied to a docs
-	// app as to any other: underTitleBar paints the title-bar
-	// strip in the tab strip's own fill so the two read as one band, and
-	// keeps the strip itself (and so the Docs tree under it) clear of the
-	// window buttons.
+	// Dock and VoiceOver read it all the same. underTitleBar paints the
+	// title-bar strip in the fills of the page's columns under it, and keeps
+	// the page (and so the outline tree) clear of the window buttons.
 	mvuWin := mvu.NewWindow(append(desktop.FullSizeContent(),
 		app.Title("Site Docs"),
 		app.Size(unit.Dp(windowW), unit.Dp(windowH)),
@@ -107,11 +100,9 @@ func run() {
 	// upstream subscription however many streams derive from it, and hands
 	// each of them the model in force the moment it attaches.
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
-	// The menu bar holds the window's actions (menu.go). Away from macOS the
-	// declaration is inert.
-	menu := desktop.NewMenuBar(mvuWin, MenuItems()...)
-
-	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), menu.Messages()), init, Update)
+	// The window has no action outside the page, so it declares no menu bar
+	// items: the bar holds the application menu that Gio supplies.
+	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
 	if err := w.Render(buildLayers(models, bars)).Wait(); err != nil {
@@ -143,79 +134,68 @@ type themeTokens struct {
 
 // buildLayers returns a function that theme/window.Render passes the
 // per-window theme to. It returns the two rendering layers: a backdrop and
-// the tabbed shell. The model observable drives tab selection and the
-// docs outline state.
+// the page. The model observable drives the outline state.
 func buildLayers(modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			underTitleBar(th, tabbedShellLayer(th, modelObs, bars)),
+			underTitleBar(th, pageLayer(th, modelObs, bars)),
 		}
 	}
 }
 
-// underTitleBar pads the tab shell down by the native title-bar strip's
-// measured height on a full-size-content window and paints that strip in the
-// fill of the region it caps. desktop.TopInset is read at frame time: it
-// reports 0 until the window's first frame, in headless tests, and on every
-// platform but macOS, so away from the treatment (goldens included) the
-// wrapper is an exact no-op. Because the whole shell starts below the strip,
-// neither the tab strip nor the Docs tree ever sits under the buttons,
-// leading ~80 dp (the window buttons' territory) included.
-//
-// The strip draws nothing of its own, so what it shows is whatever was
-// painted there, and the window's own plane is not it: the agreement has to
-// be made rather than inherited. The region this band caps is the tab strip,
-// which has no fill of its own and stands on the fill of the column it is
-// in. What is required is the region's fill at the window's top edge, not
-// the region's layout reaching it — which is what lets the shell stay inset
-// off the buttons.
+// underTitleBar pads the page down by the native title-bar strip's measured
+// height on a full-size-content window and paints that strip in the fills of
+// the columns it caps. desktop.TopInset is read at frame time: it reports 0
+// until the window's first frame, in headless tests, and on every platform
+// but macOS, so away from the treatment (goldens included) the wrapper is an
+// exact no-op. Because the whole page starts below the strip, the outline
+// tree never sits under the window buttons.
 //
 // The cap claims that same strip for the window's own drag: without that
 // claim the window could not be moved by its top edge at all.
-func underTitleBar(th rx.Observable[theme.Theme], shellObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
+func underTitleBar(th rx.Observable[theme.Theme], pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
 		return t.Platform
 	})
-	return rx.Map(rx.CombineLatest2(shellObs, colors), func(n rx.Tuple2[layout.Widget, tokens.PlatformColors]) layout.Widget {
-		return bandedCap(desktop.TopInset, titleBandFill(n.Second), n.First)
+	return rx.Map(rx.CombineLatest2(pageObs, colors), func(n rx.Tuple2[layout.Widget, tokens.PlatformColors]) layout.Widget {
+		return bandedCap(desktop.TopInset, n.Second, n.First)
 	})
 }
 
-// titleBandFill is the fill the title-bar strip is drawn in. The region it caps is
-// the tab strip, which has no fill of its own and stands on the fill of the
-// column it is in — this window's one content column, the platform's content
-// plane ([shellFill]). Named once because two callers have to agree on it —
-// the window, and the whole-window render that photographs the window.
-func titleBandFill(c tokens.PlatformColors) stdcolor.NRGBA {
-	return shellFill(c)
+// paintTitleBand paints the title-bar strip across size. The strip draws
+// nothing of its own, so the window paints in it the fill of each region
+// under it, continued upward: the outline rail's fill and seam over the
+// rail's width, and the page's fill over the rest. The stored reference
+// measures the platform's band the same way: it is the sidebar's fill over
+// the sidebar and the content's fill over the content.
+func paintTitleBand(gtx layout.Context, size image.Point, c tokens.PlatformColors) {
+	paint.FillShape(gtx.Ops, pageFill(c), clip.Rect{Max: size}.Op())
+	rail := min(gtx.Dp(unit.Dp(docsOutlineWidthDp)), size.X)
+	paintOutlineRail(gtx, image.Pt(rail, size.Y), c)
 }
 
-// shellFill is the fill the tab shell stands on: this window's one content
-// column, which is the platform's content plane. The strip takes it from
-// here and patterns/tabs paints its pane with the same plane, so the window
-// is one column from its top edge down.
-func shellFill(c tokens.PlatformColors) stdcolor.NRGBA {
+// pageFill is the fill the page stands on: the platform's content plane.
+// The document column and the guide's empty state are drawn on it.
+func pageFill(c tokens.PlatformColors) stdcolor.NRGBA {
 	return c.ControlBackground
 }
 
-// bandedCap is desktop.CapTop with a fill under it: the strip is painted, and
-// then capped as any plain page's strip is — claimed for the window's drag and
-// held open above the page. The fill is this app's half and stays here, since
-// what a band is painted with is a question about colour and the cap answers
-// only in geometry and input; a zero-height strip paints none of it, which is
-// the same no-op the cap itself is at that height.
+// bandedCap is desktop.CapTop with the title band painted under it: the strip
+// is painted, and then capped as any plain page's strip is — claimed for the
+// window's drag and held open above the page. The paint is this app's half
+// and stays here, since what a band is painted with is a question about
+// colour and the cap answers only in geometry and input; a zero-height strip
+// paints nothing, which is the same no-op the cap itself is at that height.
 //
 // The height is stated rather than read from the window — the same split
 // desktop.InsetTop's own height parameter already makes — so a test can state
 // a strip it has no window to measure.
-func bandedCap(height func() unit.Dp, band stdcolor.NRGBA, w layout.Widget) layout.Widget {
+func bandedCap(height func() unit.Dp, c tokens.PlatformColors, w layout.Widget) layout.Widget {
 	capped := desktop.CapTop(height, w)
 	return func(gtx layout.Context) layout.Dimensions {
 		if h := gtx.Dp(height()); h > 0 {
-			paint.FillShape(gtx.Ops, band, clip.Rect{
-				Max: image.Pt(gtx.Constraints.Max.X, h),
-			}.Op())
+			paintTitleBand(gtx, image.Pt(gtx.Constraints.Max.X, h), c)
 		}
 		return capped(gtx)
 	}
@@ -234,108 +214,38 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 }
 
-// tabbedShellLayer composes the window: a patterns/tabs strip over the
-// pages in tabPages. The content streams are built once and kept
-// subscribed, so scroll positions and outline state survive switching
-// tabs.
-//
-// tabs.Props.Tabs carries static content slots, while the pages
-// are streams (theme changes restyle them; model changes move the docs
-// outline). So each Tab.Content reads an atomic cell at frame time, and
-// the combined map below stores every stream's latest layout.Widget into its
-// cell before re-emitting the strip. Any input emitting therefore re-emits
-// this layer, which drives theme/window's Invalidate and the same-frame
-// repaint after a click.
-//
-// The contents are combined as one homogeneous []layout.Widget rather
-// than through a CombineLatestN tuple: rx tops out at five sources and
-// the shell needs the strip plus one per page. Combining the pages by
-// tabPages order and pairing that slice with the strip has no ceiling, so
-// another tab is a line in tabPages and nothing here.
-func tabbedShellLayer(
+// onPageFill lays w out over the page's fill across the whole frame. The
+// document column draws no fill of its own, so the fill past its reading
+// measure is this one.
+func onPageFill(c tokens.PlatformColors, w layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		paint.FillShape(gtx.Ops, pageFill(c), clip.Rect{Max: gtx.Constraints.Max}.Op())
+		return w(gtx)
+	}
+}
+
+// pageLayer composes the window's one page on the page's fill. Any input
+// emitting re-emits this layer, which drives theme/window's Invalidate and
+// the same-frame repaint after a click.
+func pageLayer(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 	bars desktop.ScrollBarSetting,
 ) rx.Observable[layout.Widget] {
-	selectedObs := rx.Map(modelObs, func(m Model) int { return tabIndex(m.currentPage) })
-
-	cells := make([]atomic.Value, len(tabPages))
-	fromCell := func(cell *atomic.Value) layout.Widget {
-		return contentSlot(func(gtx layout.Context) layout.Dimensions {
-			if w, ok := cell.Load().(layout.Widget); ok && w != nil {
-				return w(gtx)
-			}
-			return layout.Dimensions{Size: gtx.Constraints.Max}
-		})
-	}
-
-	pages := make([]rx.Observable[layout.Widget], len(tabPages))
-	strip := make([]tabs.Tab, len(tabPages))
 	guide, guideFail := loadGuide()
-	for i, page := range tabPages {
-		switch page {
-		case pageDocs:
-			pages[i] = docsTabFrom(th, modelObs, guide, guideFail, bars)
-		}
-		strip[i] = tabs.Tab{Title: tabTitles[i], Content: fromCell(&cells[i])}
-	}
-
-	shell := tabs.Tabs(th, tabs.Props{
-		Tabs:     strip,
-		Selected: selectedObs,
-		Fill:     shellFill,
-		OnSelect: func(gtx layout.Context, idx int) {
-			mvu.MessageOp{Message: SetRoute{Page: tabPages[idx]}}.Add(gtx.Ops)
-		},
+	page := docsPageFrom(th, modelObs, guide, guideFail, bars)
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
+		return t.Platform
 	})
-
-	combined := rx.CombineLatest2(shell, rx.CombineLatest(pages...))
-	return rx.Map(combined, func(n rx.Tuple2[layout.Widget, []layout.Widget]) layout.Widget {
-		for i, w := range n.Second {
-			cells[i].Store(w)
-		}
-		return n.First
+	return rx.Map(rx.CombineLatest2(page, colors), func(n rx.Tuple2[layout.Widget, tokens.PlatformColors]) layout.Widget {
+		return onPageFill(n.Second, n.First)
 	})
 }
 
-// contentGap is the air the shell keeps between the tab strip and
-// whatever the selected tab shows: S4, eight times the 2 dp underline it
-// has to separate. S2 — 8 dp, measured — is not enough: the underline reads
-// as camouflaged against a full-width band drawn in the selection colour,
-// the underline's own colour to the byte in both appearances. Such a band
-// cannot move, so the air is the only variable and it is spent generously.
-// sitedocs never overrides the spacing scale — the strip's own cell padding
-// is the theme's S3 — so the value reads the published scale directly.
-var contentGap = unit.Dp(tokens.Spacing.S4)
-
-// contentSlot is the tab shell's content slot: a tab's content, pushed
-// down by contentGap. The gap exposes the pane's own fill — the platform's
-// content surface, which is what patterns/tabs fills its pane with — so the
-// active tab's underline has plain fill on both sides and reads as a line
-// rather than as the top edge of whatever begins below it.
-//
-// The gap lives here, in the shell, rather than in any one tab: the collision
-// is structural. The underline is the strip's bottom two pixels, so any
-// content whose first row is a filled band merges with it. That no tab
-// currently opens on such a band is an accident of the present content and
-// not a contract, and a gap that appeared only on the tab of the day would
-// shift every page's first line as the user switches tabs. One slot for all
-// pages keeps the strip a fixed band and costs each page 8 dp.
-//
-// Applied by tabbedShellLayer to the live tabs and by the review capture
-// to the static ones, so the camera photographs the composition the app
-// actually draws.
-func contentSlot(w layout.Widget) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		return layout.Inset{Top: contentGap}.Layout(gtx, w)
-	}
-}
-
-// docsTabFrom is the Docs page: the outline tree of the one guide
-// document in a leading column, the document itself — llms.txt rendered
-// whole by vibrantgio/markdown — filling the rest. The document and its
-// parse are built once, so scroll position survives tab switches and an
-// outline click's ScrollToBlock moves the same reader.
+// docsPageFrom is the page: the outline tree of the one guide document in a
+// leading column, the document itself — llms.txt rendered whole by
+// vibrantgio/markdown — filling the rest. The document and its parse are
+// built once, so an outline click's ScrollToBlock moves the same reader.
 //
 // The source parameter is the injection seam: tests hand it a fixture
 // so no test run can ever reach the checkout file or the network. The
@@ -346,7 +256,7 @@ func contentSlot(w layout.Widget) layout.Widget {
 // A failure instead of a source keeps both columns: the outline column at
 // its width draws its own line, and the content column draws the guide's
 // line and the location it was looked for at.
-func docsTabFrom(
+func docsPageFrom(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 	source []byte,

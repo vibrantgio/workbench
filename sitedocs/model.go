@@ -2,8 +2,6 @@
 // the message types and the Update function that reduces them.
 //
 // Messages:
-//   - SetRoute{Page string}      — select a tab by its page identifier
-//     (pageDocs)
 //   - ToggleOutline{Idx int}     — flip the disclosure of the Idx-th ## section
 //     of the docs outline; sections disclose independently
 //   - SelectHeading{Block int}   — mark the outline row for the heading at
@@ -19,7 +17,6 @@ import "github.com/vibrantgio/mvu"
 
 // Model is the complete runtime state of the sitedocs app.
 type Model struct {
-	currentPage string
 	// outlineOpen is the docs outline's disclosure state: ## entry index →
 	// disclosed. Sections fold independently — an outline is a map of the
 	// document, not an accordion with a single-open policy.
@@ -29,18 +26,14 @@ type Model struct {
 	selectedHeading int
 }
 
-// initialModel returns the state the app opens on: the Docs tab, the first
-// ## section of the docs outline disclosed, nothing selected.
+// initialModel returns the state the app opens on: the first ## section of
+// the docs outline disclosed, nothing selected.
 func initialModel() Model {
 	return Model{
-		currentPage:     pageDocs,
 		outlineOpen:     map[int]bool{0: true},
 		selectedHeading: -1,
 	}
 }
-
-// SetRoute navigates to the named page.
-type SetRoute struct{ Page string }
 
 // ToggleOutline flips the disclosure of the Idx-th ## section in the docs
 // outline tree. Disclosure is per-section and independent.
@@ -64,8 +57,6 @@ func copyOpenMap(m map[int]bool) map[int]bool {
 // mvu.DoNothing() — sitedocs has no async side-effects.
 func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 	switch m := msg.(type) {
-	case SetRoute:
-		model.currentPage = m.Page
 	case ToggleOutline:
 		next := copyOpenMap(model.outlineOpen)
 		if next[m.Idx] {

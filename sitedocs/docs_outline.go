@@ -325,14 +325,13 @@ func docsOutline(
 	})
 }
 
-// renderDocsTab is the static counterpart of the Docs shell's content row
-// used by goldens and review captures: the outline tree in the leading
-// column and a fresh top-scrolled document filling the rest, laid out
-// once from pre-resolved tokens with no event processing. The scroll bar
-// setting is stated here, as it is for every other tab's static render —
+// renderDocsPage is the static counterpart of the page used by goldens and
+// review captures: the outline tree in the leading column and a fresh
+// top-scrolled document filling the rest, laid out once from pre-resolved
+// tokens with no event processing. The scroll bar setting is stated here as
 // the overlay bar, which a resting frame holds nothing of, so the same
 // bytes come out on any machine whatever its reader asked for.
-func renderDocsTab(
+func renderDocsPage(
 	shaper *text.Shaper,
 	source []byte,
 	st outlineState,

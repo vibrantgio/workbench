@@ -14,10 +14,10 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// bandFill is the fill these drag tests hand the strip. They are about which
-// presses the band claims and not about what it is painted in, so they name
-// the same platform colour the app does rather than one of their own.
-var bandFill = titleBandFill(tokens.PlatformLight)
+// bandColors is the colour set these drag tests hand the strip. They are
+// about which presses the band claims and not about what it is painted in,
+// so they name the platform's set rather than one of their own.
+var bandColors = tokens.PlatformLight
 
 // TestTheStripClaimsTheWindowDrag guards the window's top-edge drag:
 // bandedCap declares desktop.DragTop over the same measured height InsetTop
@@ -33,7 +33,7 @@ func TestTheStripClaimsTheWindowDrag(t *testing.T) {
 	page := func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
-	w := bandedCap(func() unit.Dp { return stripH }, bandFill, page)
+	w := bandedCap(func() unit.Dp { return stripH }, bandColors, page)
 
 	var ops op.Ops
 	gtx := layout.Context{
@@ -79,7 +79,7 @@ func TestTheCapIsANoOpWithNoStrip(t *testing.T) {
 	page := func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
-	w := bandedCap(func() unit.Dp { return 0 }, bandFill, page)
+	w := bandedCap(func() unit.Dp { return 0 }, bandColors, page)
 
 	var ops op.Ops
 	gtx := layout.Context{

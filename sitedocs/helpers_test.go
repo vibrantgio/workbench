@@ -11,36 +11,8 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/unit"
-
-	"github.com/vibrantgio/patterns/tabs"
-	"github.com/vibrantgio/theme/tokens"
 )
-
-// staticTabs builds the whole strip from the per-tab static renderers,
-// each cell's content in the shell's own contentSlot — the composition
-// the app draws, minus the streams. It walks tabPages, so a tab added to
-// the shell and forgotten here does not compile rather than quietly
-// dropping out of the seam test and the review captures.
-func staticTabs(
-	shaper *text.Shaper,
-	guide []byte,
-	st outlineState,
-	c tokens.PlatformColors,
-	typo tokens.Typography,
-) []tabs.Tab {
-	out := make([]tabs.Tab, len(tabPages))
-	for i, page := range tabPages {
-		var content layout.Widget
-		switch page {
-		case pageDocs:
-			content = renderDocsTab(shaper, guide, st, c, typo)
-		}
-		out[i] = tabs.Tab{Title: tabTitles[i], Content: contentSlot(content)}
-	}
-	return out
-}
 
 // scene fills the frame with a background colour and lays the
 // layout.Widget over it, so captures have a deterministic fill.

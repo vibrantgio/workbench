@@ -1,6 +1,6 @@
 package main
 
-// What the Docs tab says when the guide cannot be loaded, and where the
+// What the page says when the guide cannot be loaded, and where the
 // system's own text goes instead.
 
 import (
@@ -23,8 +23,8 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// docsColumnSize is the frame the Docs tab's one column stands in at the
-// size the window opens at, less the tab strip above it.
+// docsColumnSize is the frame these tests draw the page's document column
+// in, alone.
 var docsColumnSize = image.Pt(1180, 700)
 
 // TestAGuideThatCannotBeLoadedSaysSoInItsOwnWords drives a real load at a
@@ -79,7 +79,7 @@ func TestTheDocsColumnDrawsTheLineAndThePath(t *testing.T) {
 
 	for _, tc := range emptyStateSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			fill := shellFill(tc.colors)
+			fill := pageFill(tc.colors)
 			img := golden.Capture(t, docsColumnSize, scene(func(gtx layout.Context) layout.Dimensions {
 				return drawGuideUnavailable(gtx, shaper, tc.colors, typ, columnBar(tc.colors, desktop.ScrollBarsWhenScrolling), fail)
 			}, fill))
@@ -152,7 +152,7 @@ func TestTheDocsColumnsEmptyStateTakesNoLane(t *testing.T) {
 
 	for _, tc := range emptyStateSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			fill := shellFill(tc.colors)
+			fill := pageFill(tc.colors)
 			box := func(bars desktop.ScrollBarSetting) image.Rectangle {
 				img := golden.Capture(t, docsColumnSize, scene(func(gtx layout.Context) layout.Dimensions {
 					return drawGuideUnavailable(gtx, shaper, tc.colors, typ, columnBar(tc.colors, bars), fail)
@@ -185,7 +185,7 @@ func TestAFailedLoadKeepsTheOutlineColumnWithItsOwnLine(t *testing.T) {
 
 	for _, tc := range emptyStateSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			fill := shellFill(tc.colors)
+			fill := pageFill(tc.colors)
 			rail := tc.colors.SidebarMaterial
 			tok := themeTokens{col: tc.colors, typ: typ, shaper: shaper}
 			bar := columnBar(tc.colors, desktop.ScrollBarsWhenScrolling)

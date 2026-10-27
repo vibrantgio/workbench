@@ -247,48 +247,40 @@ func driveWidget(w layout.Widget, size image.Point, evs ...event.Event) {
 	frame()
 }
 
-// TestDocsTabGolden records or diffs the whole Docs tab — outline tree in
-// the leading column, the one document filling the rest — in light and
-// dark, with the first ## open so the children show and its heading
+// TestWindowGolden records or diffs the whole window — the title band, the
+// outline tree in the leading column, the one document filling the rest — in
+// light and dark, with the first ## open so the children show and its heading
 // selected so the selection pill is pinned too. The fixture document
 // keeps the pixels stable: the real llms.txt is prose that moves with
 // every guide edit, and a golden must only move when the composition
 // does.
-func TestDocsTabGolden(t *testing.T) {
+func TestWindowGolden(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	source := guideFixture(t)
 	first := guideOutline(markdown.Parse(source))[0]
 	st := outlineState{open: map[int]bool{0: true}, selected: first.Block}
 
-	cases := []struct {
-		name   string
-		colors tokens.PlatformColors
-		bg     color.NRGBA
-	}{
-		{"light", tokens.PlatformLight, color.NRGBA{R: 240, G: 240, B: 240, A: 255}},
-		{"dark", tokens.PlatformDark, color.NRGBA{R: 20, G: 20, B: 20, A: 255}},
-	}
-	for _, tc := range cases {
+	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			w := renderDocsTab(shaper, source, st, tc.colors, tokens.DefaultTypography)
-			golden.Render(t, "docs-tab-"+tc.name, image.Pt(1180, 760), scene(w, tc.bg))
+			w := windowFrame(shaper, source, st, tc.c, tokens.DefaultTypography, titleBandDp)
+			golden.Render(t, "window-"+tc.name, windowSize, w)
 		})
 	}
 }
 
-// TestDocsTabLightDarkDiffer confirms swapping the appearance's colour set
-// moves the rendered Docs tab's pixels.
-func TestDocsTabLightDarkDiffer(t *testing.T) {
+// TestDocsPageLightDarkDiffer confirms swapping the appearance's colour set
+// moves the rendered page's pixels.
+func TestDocsPageLightDarkDiffer(t *testing.T) {
 	shaper := tokens.DefaultTypography.DeterministicShaper()
 	source := guideFixture(t)
 	st := outlineState{open: map[int]bool{0: true}, selected: -1}
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 	size := image.Pt(1180, 760)
 
-	a := golden.Capture(t, size, scene(renderDocsTab(shaper, source, st, tokens.PlatformLight, tokens.DefaultTypography), bg))
-	b := golden.Capture(t, size, scene(renderDocsTab(shaper, source, st, tokens.PlatformDark, tokens.DefaultTypography), bg))
+	a := golden.Capture(t, size, scene(renderDocsPage(shaper, source, st, tokens.PlatformLight, tokens.DefaultTypography), bg))
+	b := golden.Capture(t, size, scene(renderDocsPage(shaper, source, st, tokens.PlatformDark, tokens.DefaultTypography), bg))
 	if golden.PixelDiff(a, b) == 0 {
-		t.Error("light and dark Docs tab render identically")
+		t.Error("light and dark page render identically")
 	}
 }
 

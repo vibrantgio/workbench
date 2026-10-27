@@ -1,4 +1,4 @@
-// docs.go styles and lays out the Docs tab's one document: the
+// docs.go styles and lays out the page's one document: the
 // application guide rendered by vibrantgio/markdown — type-scale
 // headings, paragraph prose with links, chroma-highlighted code blocks,
 // lists, blockquotes, and tables. The live entry point is
@@ -57,8 +57,8 @@ var (
 // two opt-ins — chroma highlighting matched to the appearance, and links
 // opening in the system browser.
 //
-// The document is read on the content plane, which is what the tab shell
-// fills its pane with and what this column therefore stands on. Every
+// The document is read on the content plane, which is the page's fill and
+// what this column therefore stands on. Every
 // coverage the style carries is composited onto it there.
 //
 // Mono and CodeSize are re-resolved from the theme's Code role: FromTokens
@@ -102,12 +102,12 @@ func openURL(url string) {
 	_ = cmd.Start()
 }
 
-// drawGuideDoc lays out the one guide document as the Docs tab's main
+// drawGuideDoc lays out the one guide document as the page's main
 // column: the column's whole frame is the document's scrolling viewport,
 // and the document's blocks are capped at the reading measure and centred
 // in it by markdown's own Style.Measure. The region that scrolls is the
 // whole column, so the bar is at the column's trailing edge, which is the
-// pane's edge, as every other tab's bar is. The document is long-lived —
+// window's edge. The document is long-lived —
 // scroll position and interaction state belong to it, so ScrollToBlock
 // from an outline row moves the same reader rather than rebuilding the
 // page.
@@ -163,7 +163,7 @@ func drawGuideUnavailable(
 	frame := gtx.Constraints.Max
 	gtx.Constraints = layout.Exact(shell.EmptyStateFrame(gtx, frame, bar))
 	complayout.Inset(docsOuterInsetDp).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return shell.EmptyState(gtx, shaper, c, typ, shellFill(c), shell.EmptyStateProps{
+		return shell.EmptyState(gtx, shaper, c, typ, pageFill(c), shell.EmptyStateProps{
 			Line:        guideUnavailableLine,
 			Description: guideUnavailableDescription(fail.Path),
 		})

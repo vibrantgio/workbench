@@ -30,8 +30,8 @@ var docsFrameSize = image.Pt(docsFrameW, docsFrameH)
 // the mono-face proof below real code pixels to move.
 const monoProofSource = "# Mono proof\n\nProse before the fence.\n\n```go\nfunc main() {\n\twiiim := \"{mono[0] != prose}\"\n\t_ = wiiim\n}\n```\n"
 
-// TestDocsCodeShapesInMonoFace is the headless confirmation that the Docs
-// tab renders code in the mono face. It exercises the exact pieces the
+// TestDocsCodeShapesInMonoFace is the headless confirmation that the page
+// renders code in the mono face. It exercises the exact pieces the
 // runtime path (guideDocObservable) composes for the default theme:
 // docsMarkdownStyle over the theme-emitted set, and the theme's cached
 // Typography shaper that doc.Layout shapes with.
