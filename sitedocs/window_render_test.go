@@ -37,6 +37,7 @@ import (
 
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/markdown"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -63,6 +64,8 @@ const titleBandDp = 32
 //
 // band is the strip height to render under; 0 draws the window as every
 // platform but macOS shows it, with the page at the window's own top edge.
+// find is the find bar's field state; nil draws the window with the bar
+// closed.
 func windowFrame(
 	shaper *text.Shaper,
 	guide []byte,
@@ -70,8 +73,9 @@ func windowFrame(
 	c tokens.PlatformColors,
 	typo tokens.Typography,
 	band unit.Dp,
+	find *input.RenderState,
 ) layout.Widget {
-	page := onPageFill(c, renderDocsPage(shaper, guide, st, c, typo))
+	page := onPageFill(c, renderDocsPage(shaper, guide, st, c, typo, find))
 	background := backdrop.Widget(c.WindowBackground)
 	capped := bandedCap(func() unit.Dp { return band }, c, page)
 	return func(gtx layout.Context) layout.Dimensions {
@@ -90,7 +94,7 @@ func renderWindow(t *testing.T, c tokens.PlatformColors, band unit.Dp) *image.RG
 	guide := guideFixture(t)
 	first := guideOutline(markdown.Parse(guide))[0]
 	st := outlineState{open: map[int]bool{0: true}, selected: first.Block}
-	w := windowFrame(shaper, guide, st, c, typo, band)
+	w := windowFrame(shaper, guide, st, c, typo, band, nil)
 	return golden.Capture(t, windowSize, w)
 }
 
@@ -236,8 +240,8 @@ func TestTheWindowShowsTheGuideAndNoTabStrip(t *testing.T) {
 
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			full := golden.Capture(t, windowSize, windowFrame(shaper, guide, st, tc.c, typo, 0))
-			alone := golden.Capture(t, windowSize, windowFrame(shaper, headingOnly, st, tc.c, typo, 0))
+			full := golden.Capture(t, windowSize, windowFrame(shaper, guide, st, tc.c, typo, 0, nil))
+			alone := golden.Capture(t, windowSize, windowFrame(shaper, headingOnly, st, tc.c, typo, 0, nil))
 
 			seam := vgcolor.Flatten(tc.c.Separator, tc.c.SidebarMaterial)
 			if got := pixelAt(full, image.Pt(docsOutlineWidthDp-1, 0)); got != seam {

@@ -27,6 +27,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/icons"
+	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
@@ -331,12 +332,16 @@ func docsOutline(
 // tokens with no event processing. The scroll bar setting is stated here as
 // the overlay bar, which a resting frame holds nothing of, so the same
 // bytes come out on any machine whatever its reader asked for.
+//
+// find is the find bar's field state; nil draws the page with the bar
+// closed.
 func renderDocsPage(
 	shaper *text.Shaper,
 	source []byte,
 	st outlineState,
 	colors tokens.PlatformColors,
 	typo tokens.Typography,
+	find *input.RenderState,
 ) layout.Widget {
 	blocks := markdown.Parse(source)
 	// A selected heading means the reader is there: the static render
@@ -352,14 +357,18 @@ func renderDocsPage(
 	tok := themeTokens{col: colors, typ: typo, shaper: shaper}
 	style := docsMarkdownStyle(colors, typo)
 	bar := columnBar(colors, desktop.ScrollBarsWhenScrolling)
+	column := func(gtx layout.Context) layout.Dimensions {
+		return drawGuideDoc(gtx, doc, shaper, style, bar)
+	}
+	if find != nil {
+		column = withFindBar(true, renderFindBar(shaper, colors, typo, *find), column)
+	}
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return v.layout(gtx, st, tok)
 			}),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return drawGuideDoc(gtx, doc, shaper, style, bar)
-			}),
+			layout.Flexed(1, column),
 		)
 	}
 }

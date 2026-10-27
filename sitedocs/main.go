@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -100,9 +101,10 @@ func run() {
 	// upstream subscription however many streams derive from it, and hands
 	// each of them the model in force the moment it attaches.
 	init := func() (Model, mvu.Command) { return initialModel(), mvu.DoNothing() }
-	// The window has no action outside the page, so it declares no menu bar
-	// items: the bar holds the application menu that Gio supplies.
-	models, runner := mvu.Loop(mvuWin.Messages(), init, Update)
+	// The menu bar holds the window's actions, from the same table as the
+	// window's chords (menu.go). Away from macOS the declaration is inert.
+	menu := desktop.NewMenuBar(mvuWin, MenuItems()...)
+	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), menu.Messages()), init, Update)
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
 
 	if err := w.Render(buildLayers(models, bars)).Wait(); err != nil {
@@ -266,6 +268,30 @@ func docsPageFrom(
 	if fail != nil {
 		return guideUnavailableObservable(th, fail, bars)
 	}
+	post := func(gtx layout.Context, msg mvu.Message) { mvu.MessageOp{Message: msg}.Add(gtx.Ops) }
+	page, _, _ := docsPage(th, modelObs, source, bars, post)
+	return page
+}
+
+// docsPage is docsPageFrom over a guide that loaded. It also returns the
+// document and the find bar, so a test can read where the keyboard is. post
+// is how the page's chords, Escape and Done post their messages; it is a
+// parameter so a test can read what they post.
+//
+// The find bar stands over the guide column only. The outline rail keeps its
+// fill and its height, and the guide moves down by the bar's height.
+//
+// Edit ▸ Find… (⌘F) opens the bar, and Escape and Done close it. Each open
+// and close request counts in Model.findMoves. On the first frame after the
+// count changes, the page gives the keyboard to the field if the bar is open
+// and to the guide if it is closed.
+func docsPage(
+	th rx.Observable[theme.Theme],
+	modelObs rx.Observable[Model],
+	source []byte,
+	bars desktop.ScrollBarSetting,
+	post func(gtx layout.Context, msg mvu.Message),
+) (rx.Observable[layout.Widget], *markdown.Document, *findBar) {
 	blocks := markdown.Parse(source)
 	doc := markdown.NewDocument(blocks)
 	entries := guideOutline(blocks)
@@ -275,14 +301,44 @@ func docsPageFrom(
 	})
 	sidebarObs := docsOutline(th, entries, stateObs, doc.ScrollToBlock)
 	mainObs := guideDocObservable(th, doc, bars)
+	bar := newFindBar(th, post)
+	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 
-	return rx.Map(rx.CombineLatest2(sidebarObs, mainObs), func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
-		tree, docW := n.First, n.Second
+	chords := ChordAreas(post)
+	escape := OnKey(key.NameEscape, 0, func(gtx layout.Context) { post(gtx, CloseFind{}) })
+	// movesSeen is the find request count the page last answered. The frame
+	// reads and writes it, and nothing else does.
+	movesSeen := 0
+
+	columns := rx.CombineLatest2(sidebarObs, mainObs)
+	full := rx.CombineLatest4(columns, bar.parts, colors, modelObs)
+	return rx.Map(full, func(n rx.Tuple4[rx.Tuple2[layout.Widget, layout.Widget], rx.Tuple3[layout.Widget, layout.Widget, layout.Widget], tokens.PlatformColors, Model]) layout.Widget {
+		tree, docW := n.First.First, n.First.Second
+		field, steps, done := n.Second.First, n.Second.Second, n.Second.Third
+		c, m := n.Third, n.Fourth
+		strip := func(gtx layout.Context) layout.Dimensions {
+			return layoutFindBar(gtx, c, field, steps, done)
+		}
+		column := withFindBar(m.findOpen, strip, docW)
 		return func(gtx layout.Context) layout.Dimensions {
+			for _, a := range chords {
+				a(gtx)
+			}
+			if m.findOpen {
+				escape(gtx)
+			}
+			if m.findMoves != movesSeen {
+				movesSeen = m.findMoves
+				if !m.findOpen {
+					gtx.Execute(key.FocusCmd{Tag: doc.Focus()})
+				} else if bar.field != nil {
+					gtx.Execute(key.FocusCmd{Tag: bar.field})
+				}
+			}
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				layout.Rigid(tree),
-				layout.Flexed(1, docW),
+				layout.Flexed(1, column),
 			)
 		}
-	})
+	}), doc, bar
 }

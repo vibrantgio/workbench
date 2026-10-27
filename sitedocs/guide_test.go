@@ -262,7 +262,7 @@ func TestWindowGolden(t *testing.T) {
 
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			w := windowFrame(shaper, source, st, tc.c, tokens.DefaultTypography, titleBandDp)
+			w := windowFrame(shaper, source, st, tc.c, tokens.DefaultTypography, titleBandDp, nil)
 			golden.Render(t, "window-"+tc.name, windowSize, w)
 		})
 	}
@@ -277,8 +277,8 @@ func TestDocsPageLightDarkDiffer(t *testing.T) {
 	bg := color.NRGBA{R: 128, G: 128, B: 128, A: 255}
 	size := image.Pt(1180, 760)
 
-	a := golden.Capture(t, size, scene(renderDocsPage(shaper, source, st, tokens.PlatformLight, tokens.DefaultTypography), bg))
-	b := golden.Capture(t, size, scene(renderDocsPage(shaper, source, st, tokens.PlatformDark, tokens.DefaultTypography), bg))
+	a := golden.Capture(t, size, scene(renderDocsPage(shaper, source, st, tokens.PlatformLight, tokens.DefaultTypography, nil), bg))
+	b := golden.Capture(t, size, scene(renderDocsPage(shaper, source, st, tokens.PlatformDark, tokens.DefaultTypography, nil), bg))
 	if golden.PixelDiff(a, b) == 0 {
 		t.Error("light and dark page render identically")
 	}

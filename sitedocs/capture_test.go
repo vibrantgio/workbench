@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -33,19 +34,29 @@ func TestWriteReviewCaptures(t *testing.T) {
 		// windowFrame is the whole composition — the backdrop, the
 		// title-bar band, and the page on its fill — so the camera
 		// photographs the window rather than one layer of it.
-		w := windowFrame(shaper, src, st, tc.c, typo, titleBandDp)
-		img := golden.Capture(t, windowSize, w)
-		path := filepath.Join(dir, "window-review-"+tc.name+".png")
-		f, err := os.Create(path)
-		if err != nil {
-			t.Fatal(err)
+		// The second capture is the window with the find bar open and the
+		// keyboard in its field, as Edit ▸ Find… leaves it.
+		for _, shot := range []struct {
+			name string
+			find *input.RenderState
+		}{
+			{"window-review-" + tc.name, nil},
+			{"window-review-find-" + tc.name, &input.RenderState{Focused: true}},
+		} {
+			w := windowFrame(shaper, src, st, tc.c, typo, titleBandDp, shot.find)
+			img := golden.Capture(t, windowSize, w)
+			path := filepath.Join(dir, shot.name+".png")
+			f, err := os.Create(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := png.Encode(f, img); err != nil {
+				t.Fatal(err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("wrote %s", path)
 		}
-		if err := png.Encode(f, img); err != nil {
-			t.Fatal(err)
-		}
-		if err := f.Close(); err != nil {
-			t.Fatal(err)
-		}
-		t.Logf("wrote %s", path)
 	}
 }
