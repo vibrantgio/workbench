@@ -293,8 +293,8 @@ func TestTheTwoCodeChoicesAreOnScreen(t *testing.T) {
 			if row < 0 {
 				t.Fatalf("the applied style is not on the list this appearance shows")
 			}
-			if got := img.RGBAAt(rowFillX(), styleNameY(row, code.styles.st.Position())); !is(got, p.Selection) {
-				t.Errorf("the applied style's row drew %v, want the platform's selection %v", got, p.Selection)
+			if got, want := img.RGBAAt(rowFillX(), styleNameY(row, code.styles.st.Position())), styleFill(p, tc.set); !is(got, want) {
+				t.Errorf("the applied style's row drew %v, want the style column's selected fill %v", got, want)
 			}
 
 			// And the fence beside them has that appearance's own member applied.

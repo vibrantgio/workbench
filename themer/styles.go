@@ -36,6 +36,7 @@ package main
 
 import (
 	"image"
+	stdcolor "image/color"
 
 	"gioui.org/gesture"
 	"gioui.org/layout"
@@ -47,6 +48,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/textdraw"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -66,11 +68,52 @@ const (
 	StylePad    unit.Dp = 8
 	StyleIndent unit.Dp = 6
 	// StyleRowInset is a style row's own inset: the run from each of the
-	// row's ends to the selected row's fill. The value is DERIVED from the
-	// sidebar pill's measured 10 px inset from each edge of its pane until
-	// a content list's selected row is captured.
-	StyleRowInset unit.Dp = 10
+	// row's ends to the selected row's fill, the name and the tag. The
+	// value is MEASURED: System Settings' Preferred Languages list, a list
+	// inside a grouped box, lays its selected fill over the box's full
+	// width (systemsettings-languages-row-selected-{light,dark}.png).
+	StyleRowInset unit.Dp = 0
 )
+
+// styleSelectionLight and styleSelectionDark are the coverage a style row's
+// selected fill lays over the box's fill. The values are MEASURED from
+// systemsettings-languages-row-unfocused-{light,dark}.png: the Preferred
+// Languages list with the keyboard elsewhere lands #dfdfdf over the box's
+// #f7f7f7 light and #5b5b5b over #252525 dark. The style column takes no
+// keyboard focus, so this is the state it is always in.
+var (
+	styleSelectionLight = stdcolor.NRGBA{A: 25}
+	styleSelectionDark  = stdcolor.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 63}
+)
+
+// rowLook is how a chooser draws its chosen row: the fill, the text colour
+// on that fill, the fill's corner radius, and whether a row under the
+// pointer takes the hover fill.
+type rowLook struct {
+	fill, text stdcolor.NRGBA
+	corner     unit.Dp
+	hover      bool
+}
+
+// StyleSelection is a style row's selected fill and the text colour on it.
+// The fill is the measured coverage over the box's fill. The text keeps the
+// row's own label colour, laid over the selected fill.
+func StyleSelection(p Palette, c tokens.PlatformColors) (fill, text stdcolor.NRGBA) {
+	cover := styleSelectionLight
+	if isDark(c) {
+		cover = styleSelectionDark
+	}
+	fill = vgcolor.Flatten(cover, p.Surface)
+	return fill, vgcolor.Flatten(c.Label, fill)
+}
+
+// styleLook is the style column's chosen row: the measured selected fill
+// with square ends, and no fill for a row under the pointer, as the
+// Preferred Languages list draws none.
+func styleLook(p Palette, c tokens.PlatformColors) rowLook {
+	fill, text := StyleSelection(p, c)
+	return rowLook{fill: fill, text: text}
+}
 
 // styleLead is how many names the column keeps above the applied one when it
 // brings it into view. Landing the applied style on the first line would make
@@ -159,6 +202,7 @@ func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, 
 	}
 	visible := m.VisibleStyles(dark)
 	clicks := sel.handlers(len(m.Styles))
+	look := styleLook(p, c)
 	// The column's items are the first padding row, one row per name, and
 	// the last padding row, so name row r is item r+1.
 	rows := make([]layout.Widget, len(visible)+2)
@@ -171,7 +215,7 @@ func StylePane(p Palette, c tokens.PlatformColors, ty Type, m Model, dark bool, 
 		}
 		rows[row+1] = func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
-			return StyleRowWidget(gtx, p, ty, m.Styles[i], i, dark, i == chosen, &clicks[i])
+			return StyleRowWidget(gtx, p, ty, look, m.Styles[i], i, dark, i == chosen, &clicks[i])
 		}
 	}
 	st := sel.st
@@ -207,8 +251,8 @@ func stylePadRow(gtx layout.Context) layout.Dimensions {
 }
 
 // StyleRowWidget draws one name and makes it clickable.
-func StyleRowWidget(gtx layout.Context, p Palette, ty Type, opt StyleOption, index int, dark, chosen bool, click *gesture.Click) layout.Dimensions {
-	dims := ChoiceRow(gtx, p, ty, opt.Name, styleTag(opt), StyleRowH, StyleRowInset, chosen, click)
+func StyleRowWidget(gtx layout.Context, p Palette, ty Type, look rowLook, opt StyleOption, index int, dark, chosen bool, click *gesture.Click) layout.Dimensions {
+	dims := ChoiceRow(gtx, p, ty, look, opt.Name, styleTag(opt), StyleRowH, StyleRowInset, chosen, click)
 	for {
 		e, ok := click.Update(gtx.Source)
 		if !ok {
@@ -228,35 +272,29 @@ func StyleRowWidget(gtx layout.Context, p Palette, ty Type, opt StyleOption, ind
 // own inset: the selected row's fill, the name and the tag stay that far from
 // each of the row's ends, while the click area is the whole row.
 //
-// The chosen row is drawn in the platform's own selection under the label the
-// platform pairs with it, and nothing else. That is how the platform's own
-// lists say which row is in force; a second mark inside the fill — a bar at
-// the row's leading edge — read cold as "a flat white square notch stuck to
-// the left cap, breaking the rounded end", because a marker drawn inside a
-// rounded fill's own corner is a bite out of that corner. Under the pointer
-// a row takes the platform's hover overlay.
+// The chosen row is drawn in look's fill and text colour, and nothing else.
+// A second mark inside the fill, such as a bar at the row's leading edge, is
+// a bite out of a rounded fill's corner. Under the pointer a row takes the
+// platform's hover overlay only when look asks for it.
 //
 // An unchosen row takes the platform's label colour, and not the muted step
-// under it. Read cold, a column of choices set in that muted step read as a
-// column of choices that were not available — "a 36-item list of available
-// choices reads as one live row and four dead ones" — and the platform's own
-// lists carry the label colour on every row, marking the chosen one by
-// inverting it.
-func ChoiceRow(gtx layout.Context, p Palette, ty Type, name, tag string, height, inset unit.Dp, chosen bool, click *gesture.Click) layout.Dimensions {
+// under it: a list in the muted step reads as a list of choices that are not
+// available.
+func ChoiceRow(gtx layout.Context, p Palette, ty Type, look rowLook, name, tag string, height, inset unit.Dp, chosen bool, click *gesture.Click) layout.Dimensions {
 	h := gtx.Dp(height)
 	size := image.Pt(gtx.Constraints.Max.X, h)
 	in := gtx.Dp(inset)
 	r := image.Rect(in, 0, max(size.X-in, in), h)
 	switch {
 	case chosen:
-		fillRRect(gtx, r, gtx.Dp(InnerR), p.Selection)
-	case click.Hovered():
-		fillRRect(gtx, r, gtx.Dp(InnerR), p.Hover)
+		fillRRect(gtx, r, gtx.Dp(look.corner), look.fill)
+	case look.hover && click.Hovered():
+		fillRRect(gtx, r, gtx.Dp(look.corner), p.Hover)
 	}
 	pad := gtx.Dp(StylePad)
 	foreground := p.CardText
 	if chosen {
-		foreground = p.AccentForeground
+		foreground = look.text
 	}
 	text := image.Rect(r.Min.X+pad+gtx.Dp(StyleIndent), 0, r.Max.X-pad, h)
 	// A word at the far end for the two things about a name that are not

@@ -64,9 +64,16 @@ func FaceChoices(p Palette, ty Type, m Model, faces *faceChooser) layout.Widget 
 	}
 }
 
+// faceLook is the code face chooser's chosen name: the platform's selection
+// with the text the platform pairs with it, in a rounded fill, with the
+// hover overlay under the pointer.
+func faceLook(p Palette) rowLook {
+	return rowLook{fill: p.Selection, text: p.AccentForeground, corner: InnerR, hover: true}
+}
+
 // FaceRow draws one of the two names and makes it clickable.
 func FaceRow(gtx layout.Context, p Palette, ty Type, name string, chosen bool, click *gesture.Click) layout.Dimensions {
-	dims := ChoiceRow(gtx, p, ty, name, "", FaceRowH, 0, chosen, click)
+	dims := ChoiceRow(gtx, p, ty, faceLook(p), name, "", FaceRowH, 0, chosen, click)
 	for {
 		e, ok := click.Update(gtx.Source)
 		if !ok {

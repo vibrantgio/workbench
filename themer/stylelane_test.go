@@ -72,24 +72,26 @@ func TestTheStyleColumnHasNoPaddingAtEitherEnd(t *testing.T) {
 				return sel.clicks[chosen].Hovered()
 			}
 			is := func(c color.RGBA, want color.NRGBA) bool { return c.R == want.R && c.G == want.G && c.B == want.B }
-			// fill reads the marked row: the lines that hold the selection
-			// colour, and across them the first and one past the last pixel
-			// off the surface, its rounded ends' edges included. With a
-			// standing bar the track's own run in the lane is left out.
+			// fill reads the marked row: the lines whose pixels are mostly
+			// the selected fill, and across them the first and one past the
+			// last pixel off the surface. A name's edge pixels on an
+			// unmarked row can land on the fill's value, so one pixel does
+			// not mark a line. With a standing bar the track's own run in
+			// the lane is left out.
+			selected, _ := StyleSelection(p, tc.c)
 			standing := scrollBarStyle(scrollbar.FromTokens(tc.c, p.Surface), desktop.ScrollBarsAlways)
 			lane, pad := int(standing.Width()), int(standing.TrackPadding)
 			laneMin := size.X - lane
 			fill := func(img *image.RGBA, stands bool) (lead, end, mid int) {
 				lead, top, bottom := size.X, size.Y, 0
 				for y := range size.Y {
-					marked := false
+					n := 0
 					for x := range size.X {
-						if is(img.RGBAAt(x, y), p.Selection) {
-							marked = true
-							break
+						if is(img.RGBAAt(x, y), selected) {
+							n++
 						}
 					}
-					if !marked {
+					if n < size.X/2 {
 						continue
 					}
 					top, bottom = min(top, y), max(bottom, y)
