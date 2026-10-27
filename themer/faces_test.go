@@ -30,7 +30,7 @@ func TestTheGroupOffersExactlyTwoFaces(t *testing.T) {
 // next frame. What is counted is the sample's own plate, so the marked row
 // moving on the plate cannot pass for a restyle.
 func TestChoosingACodeFaceRestylesTheSample(t *testing.T) {
-	m := judging()
+	m := onCode(judging())
 	first := pageWith(t, m, tokens.PlatformLight, settled(false))
 	second := pageWith(t, pickMono(m, tokens.CodeFaceJetBrains), tokens.PlatformLight, settled(false))
 	if n := movedIn(first, second, codePlate()); n == 0 {
@@ -46,7 +46,7 @@ func TestChoosingACodeFaceRestylesTheSample(t *testing.T) {
 func TestTheTwoFacesMarkTheChosenName(t *testing.T) {
 	want := PaletteFrom(tokens.PlatformLight).Selection
 	for i, name := range codeFaces {
-		img := pageWith(t, pickMono(judging(), name), tokens.PlatformLight, settled(false))
+		img := pageWith(t, pickMono(onCode(judging()), name), tokens.PlatformLight, settled(false))
 		mine := img.RGBAAt(faceMarkX(i), faceRowY())
 		other := img.RGBAAt(faceMarkX(1-i), faceRowY())
 		if mine == other {
@@ -63,8 +63,8 @@ func TestTheTwoFacesMarkTheChosenName(t *testing.T) {
 // stays and is only restyled.
 func TestTheCodeFaceMovesTheShaperAndNotTheSample(t *testing.T) {
 	th := themed{col: tokens.PlatformLight, typ: pinned(), pinned: true}
-	roboto, one := th.codeType(pickMono(judging(), tokens.CodeFaceRoboto))
-	jetbrains, two := th.codeType(pickMono(judging(), tokens.CodeFaceJetBrains))
+	roboto, one := th.codeType(pickMono(onCode(judging()), tokens.CodeFaceRoboto))
+	jetbrains, two := th.codeType(pickMono(onCode(judging()), tokens.CodeFaceJetBrains))
 	if roboto.Code.Typeface != tokens.CodeFaceRoboto || jetbrains.Code.Typeface != tokens.CodeFaceJetBrains {
 		t.Fatalf("the two faces resolved to %q and %q", roboto.Code.Typeface, jetbrains.Code.Typeface)
 	}
@@ -73,7 +73,7 @@ func TestTheCodeFaceMovesTheShaperAndNotTheSample(t *testing.T) {
 	}
 	code := newCodeState()
 	doc := code.doc
-	pageWith(t, pickMono(judging(), tokens.CodeFaceJetBrains), tokens.PlatformLight, code)
+	pageWith(t, pickMono(onCode(judging()), tokens.CodeFaceJetBrains), tokens.PlatformLight, code)
 	if code.doc != doc {
 		t.Error("choosing a code face rebuilt the sample — the document was re-parsed")
 	}
@@ -108,7 +108,7 @@ func TestTheWindowOpensOnTheKeptMono(t *testing.T) {
 // face.
 func TestKeepingWritesTheMonoBesideTheColour(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
-	m := ReduceModel(judging(), HexTyped{Text: "#e8112d"})
+	m := ReduceModel(onCode(judging()), HexTyped{Text: "#e8112d"})
 	m.KeepPath = path
 	m = pickMono(m, tokens.CodeFaceJetBrains)
 	m = keep(t, m)

@@ -81,6 +81,12 @@ func judging() Model {
 	return m
 }
 
+// onCode is m with the Code tab shown.
+func onCode(m Model) Model {
+	m.Tab = TabCode
+	return m
+}
+
 // TestThePlatformsColourIsTheDefault: a window that has been handed nothing
 // is on the platform's own accent colour, which is what an application
 // with no brand applied paints itself with.

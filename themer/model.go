@@ -98,6 +98,9 @@ type Model struct {
 	// Mono, so the keep affordance can say whether the face on screen is the
 	// one on disk.
 	KeptMono string
+	// Tab is the tab the window shows, an index into [tabTitles]. The zero
+	// value is the Colours tab.
+	Tab int
 }
 
 // StyleOption is one row of the style chooser: a style's name, whether

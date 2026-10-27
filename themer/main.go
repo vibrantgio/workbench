@@ -16,11 +16,13 @@
 // that adopts a brand reads — which holds choices this window does not make,
 // and they are written back untouched.
 //
-// The window is a column of titled groups, in the order somebody settling a
-// theme works through them: the picture and the colours it gave, the theme
-// colour in force, and the code face. Under them stands the row the choices
-// are judged in — the list of highlighter styles beside the preview — and
-// under that the one default button this window has.
+// The window is a title row, a tab strip with the selected tab's content
+// under it, and a footer with the one default button this window has. The
+// Colours tab holds the picture and the colours it gave, and the theme colour
+// in force. The Code tab holds the code face and the list of highlighter
+// styles in one column, and the preview to the right of the column. The
+// title row and the footer are outside the tabs and are the same on every
+// tab.
 //
 // The style list holds every style chroma ships that is fitted to the
 // appearance on screen, at the platform's own list row height with the
@@ -33,7 +35,7 @@
 // the chosen colour standing in for the accent: a sidebar with the selection
 // pill, a toolbar with the platform's window controls, a heading with a badge
 // beside it, prose, a fenced code block in the chosen face and style, a text
-// field and two push buttons. Every choice above it moves something in it.
+// field and two push buttons. Every choice in the window moves something in it.
 // The colour set itself, every name the platform answers for beside its
 // value, is what the gallery's colour board is for and is not repeated here.
 //
@@ -82,15 +84,12 @@ func main() {
 	app.Main()
 }
 
-// Window size: wide enough for the swatch row to lay out without wrapping and
-// for the style list to stand beside a picture of a window rather than beside
-// a strip; tall enough for the choices, the list, the preview and the footer
-// to close without the window scrolling. The column is laid out to that height
-// exactly — see the box heights in view.go — so a change to either wants the
-// other checked.
+// Window size: the size of the sitedocs window. The Code tab's style group
+// and preview take the height that is left under the face group, so the tab
+// fills the window without a scroll.
 const (
 	windowW = 1200
-	windowH = 900
+	windowH = 800
 )
 
 // WindowOptions is the window this application opens: the full-size-content

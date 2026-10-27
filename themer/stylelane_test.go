@@ -156,14 +156,14 @@ func TestTheStyleBarIsDrawnAgainstTheBoxsTrailingEdge(t *testing.T) {
 	}{{"light", tokens.PlatformLight, false}, {"dark", tokens.PlatformDark, true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := PaletteFrom(tc.c)
-			img := pageBars(t, goldenModel(t, tc.dark), tc.c, image.Pt(windowW, windowH), newCodeState(), desktop.ScrollBarsAlways)
+			img := pageBars(t, onCode(goldenModel(t, tc.dark)), tc.c, image.Pt(windowW, windowH), newCodeState(), desktop.ScrollBarsAlways)
 			standing := scrollBarStyle(scrollbar.FromTokens(tc.c, p.Surface), desktop.ScrollBarsAlways)
 			lane, pad := int(standing.Width()), int(standing.TrackPadding)
 			trail := int(Pad) + int(StyleW)
 			// Every pixel the bar draws in the lane, read down the middle of
 			// the box clear of its rounded corners.
 			lead, end := trail, 0
-			for y := judgingBoxTop() + int(BoxRadius); y < judgingBoxBottom()-int(BoxRadius); y++ {
+			for y := styleBoxTop() + int(BoxRadius); y < codeBoxBottom()-int(BoxRadius); y++ {
 				for x := trail - lane; x < trail; x++ {
 					if c := img.RGBAAt(x, y); c.R != p.Surface.R || c.G != p.Surface.G || c.B != p.Surface.B {
 						lead, end = min(lead, x), max(end, x+1)

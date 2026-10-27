@@ -13,6 +13,7 @@ import (
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/sidebar"
+	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -60,11 +61,7 @@ func pageState(t *testing.T, m Model, c tokens.PlatformColors, size image.Point,
 // pageBars renders the whole window at one scroll bar setting.
 func pageBars(t *testing.T, m Model, c tokens.PlatformColors, size image.Point, code *codeState, bars desktop.ScrollBarSetting) *image.RGBA {
 	t.Helper()
-	clicks := make([]gesture.Click, rowSlots)
-	w := Page(themed{col: c, typ: pinned(), pinned: true, scrollBars: bars}, m, &desktop.ZoneGroup{}, clicks, new(topClicks),
-		code, func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(SampleFieldH))}
-		})
+	w := staticPage(m, c, code, bars, new(topClicks))
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		// The backdrop is its own layer at runtime; here it is one fill under
 		// the page, resolved the same way that layer resolves it — through
@@ -72,6 +69,21 @@ func pageBars(t *testing.T, m Model, c tokens.PlatformColors, size image.Point, 
 		fillRect(gtx, image.Rectangle{Max: size}, WindowSet(c, m).WindowBackground)
 		return w(gtx)
 	})
+}
+
+// staticPage is the page for a model on one platform set, with the tab strip
+// drawn by the pattern's still render at the model's tab. The colour field is
+// the empty box it draws before a key is pressed.
+func staticPage(m Model, c tokens.PlatformColors, code *codeState, bars desktop.ScrollBarSetting, bar *topClicks) layout.Widget {
+	clicks := make([]gesture.Click, rowSlots)
+	cells := new(tabCells)
+	ty := pinned()
+	strip := tabs.Render(ty.Shaper, tabs.Props{Tabs: cells.tabs(), Fill: tabFill}, m.Tab,
+		WindowSet(c, m), tokens.Spacing, tokens.DefaultTypography.SystemFont, tokens.Comfortable)
+	return Page(themed{col: c, typ: ty, pinned: true, scrollBars: bars}, m, &desktop.ZoneGroup{}, clicks, bar,
+		code, func(gtx layout.Context) layout.Dimensions {
+			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(SampleFieldH))}
+		}, cells, strip)
 }
 
 // is reports whether a captured pixel is the colour named, which is an exact
@@ -169,13 +181,24 @@ func TestTheChosenSwatchHasTheAccentRing(t *testing.T) {
 
 // TestThePreviewCarriesTheThemeColour: the preview's default button is the
 // one control the platform fills with its accent, so the colour chosen is
-// what is standing there.
+// what is standing there. The button draws its fill with a highlight over
+// the accent, so the toolbar band is read for a red pixel rather than for the
+// exact colour.
 func TestThePreviewCarriesTheThemeColour(t *testing.T) {
-	want := stdcolor.NRGBA{R: 0xe8, G: 0x11, B: 0x2d, A: 0xff}
-	m := ReduceModel(judging(), HexTyped{Text: "#e8112d"})
+	m := ReduceModel(onCode(judging()), HexTyped{Text: "#e8112d"})
 	img := page(t, m, tokens.PlatformLight)
-	if !found(img, want) {
-		t.Errorf("the theme colour %v is nowhere in the window — the preview is not drawn in it", want)
+	win := sampleRect()
+	band := image.Rect(win.Min.X, win.Min.Y, win.Max.X, win.Min.Y+int(SampleToolbarH))
+	red := 0
+	for y := band.Min.Y; y < band.Max.Y; y++ {
+		for x := band.Min.X; x < band.Max.X; x++ {
+			if c := img.RGBAAt(x, y); c.R > 200 && c.G < 80 && c.B < 90 {
+				red++
+			}
+		}
+	}
+	if red == 0 {
+		t.Errorf("no red pixel in the preview's toolbar at %v: the default button is not drawn in the theme colour #e8112d", band)
 	}
 }
 
@@ -184,7 +207,7 @@ func TestThePreviewCarriesTheThemeColour(t *testing.T) {
 // on and the picture in the preview both — which is what makes the preview
 // the theme rather than a picture of one.
 func TestTheWindowSwitchesSides(t *testing.T) {
-	m := ReduceModel(judging(), SetScheme{Dark: true})
+	m := ReduceModel(onCode(judging()), SetScheme{Dark: true})
 	img := page(t, m, tokens.PlatformLight)
 	if got := img.RGBAAt(windowW/2, int(Pad)/2); !is(got, tokens.PlatformDark.WindowBackground) {
 		t.Errorf("the window's own margin drew %v on a light desktop switched to dark, want the dark set's plane %v",
@@ -226,7 +249,7 @@ func TestTheTwoCodeChoicesAreOnScreen(t *testing.T) {
 		set  tokens.PlatformColors
 	}{{"under the sun", false, tokens.PlatformLight}, {"under the moon", true, tokens.PlatformDark}} {
 		t.Run(tc.name, func(t *testing.T) {
-			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
+			m := ReduceModel(onCode(judging()), SetScheme{Dark: tc.dark})
 			p := PaletteFrom(tc.set)
 			code := newCodeState()
 			img := pageWith(t, m, tc.set, code)
@@ -266,42 +289,47 @@ func TestTheTwoCodeChoicesAreOnScreen(t *testing.T) {
 	}
 }
 
-// columnRigid is every part of the page's column that states its own height:
-// everything but the last row's two boxes, which take what is left over.
-func columnRigid() int {
+// codeRigid is every part of the Code tab's column, and of the page around
+// the tab, that states its own height: everything but the style group's box,
+// which takes what is left over.
+func codeRigid() int {
 	group := func(box int) int {
 		return int(GroupTitleH) + int(GroupBelow) + box + int(GroupAbove)
 	}
-	return int(TitleH) + int(Gap) +
-		group(int(PictureBoxH)) + group(int(ColourBoxH)) +
+	return int(TitleH) + int(Gap) + stripH() + int(TabGap) +
 		group(int(FaceBoxH)) + group(0) + int(FooterH)
 }
 
-// TestTheWholeColumnFitsTheWindow: every choice, the style list, the preview
-// and the footer stand in the window the application opens, with no scroller
-// anywhere in the page. The column is a stack of stated heights with one
-// flexed row in it, so what has to be checked is that the flexed row is still
-// big enough for what it holds: a box shorter than the picture of a window
-// would crop the preview rather than report anything.
-func TestTheWholeColumnFitsTheWindow(t *testing.T) {
-	left := windowH - 2*int(Pad) - columnRigid()
-	// The row has to hold a picture of a window with its toolbar, its
+// TestEveryTabFitsTheWindow: every choice, the style list, the preview and
+// the footer are in the window the application opens, with no scroll in the
+// page. The Code tab is a stack of stated heights with one flexed box in its
+// column, and the preview beside the column is as tall as the column. So the
+// check is that the preview's box is still big enough for what it holds: a
+// box shorter than the picture of a window crops the preview and reports
+// nothing. The Colours tab states every height, so its check is that its
+// last box ends above the footer.
+func TestEveryTabFitsTheWindow(t *testing.T) {
+	left := windowH - 2*int(Pad) - codeRigid()
+	if got := codeBoxBottom() - styleBoxTop(); got != left {
+		t.Errorf("the style group's box measures %d points and the column leaves %d", got, left)
+	}
+	// The preview has to hold a picture of a window with its toolbar, its
 	// sidebar's rows and a content pane with a heading, a document and a row
-	// of controls under it — and the shadow it stands in.
+	// of controls under it, and the shadow it is drawn in.
 	want := int(SampleToolbarH) + int(SampleHeadH) + int(SampleFieldH) +
 		2*int(SampleInset) + 2*int(SampleStep) + 2*int(SampleShadow) + 2*int(BoxPad)
-	if left < want {
-		t.Fatalf("the column's stated parts leave %d points for the last row and the picture wants %d — the page no longer closes in a %d by %d window",
-			left, want, windowW, windowH)
-	}
-	if got := judgingBoxBottom() - judgingBoxTop(); got != left {
-		t.Errorf("the last row's boxes measure %d points and the column leaves %d", got, left)
+	if got := codeBoxBottom() - previewBoxTop(); got < want {
+		t.Fatalf("the preview's box is %d points tall and the picture wants %d: the Code tab no longer fits a %d by %d window",
+			got, want, windowW, windowH)
 	}
 	rows := (styleListBottom() - styleListTop()) / int(StyleRowH)
 	if rows < 12 {
-		t.Errorf("the style list shows %d names at the window's opening size — a list that short is a keyhole", rows)
+		t.Errorf("the style list shows %d names at the window's opening size: a list that short is a keyhole", rows)
 	}
-	t.Logf("the last row is %d points tall; the style list shows %d names and the picture is %v",
+	if end := colourBoxTop() + int(ColourBoxH); end > codeBoxBottom() {
+		t.Errorf("the Colours tab's last box ends at y %d, under the tabs' foot at y %d", end, codeBoxBottom())
+	}
+	t.Logf("the style group's box is %d points tall; the style list shows %d names and the picture is %v",
 		left, rows, sampleRect().Size())
 }
 
@@ -317,7 +345,7 @@ func TestOneSampleInTheAppearanceOnScreen(t *testing.T) {
 		set  tokens.PlatformColors
 	}{{"under the sun", false, tokens.PlatformLight}, {"under the moon", true, tokens.PlatformDark}} {
 		t.Run(tc.name, func(t *testing.T) {
-			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
+			m := ReduceModel(onCode(judging()), SetScheme{Dark: tc.dark})
 			img := page(t, m, tc.set)
 			win := sampleRect()
 			// A point in the sample's own toolbar, clear of the word centred
@@ -348,7 +376,7 @@ func TestOneSampleInTheAppearanceOnScreen(t *testing.T) {
 // places than it does.
 func TestTheSamplesOneSelectionIsTheSidebarsPill(t *testing.T) {
 	const themeColor = "#3d5f57"
-	m := ReduceModel(judging(), HexTyped{Text: themeColor})
+	m := ReduceModel(onCode(judging()), HexTyped{Text: themeColor})
 	img := page(t, m, tokens.PlatformLight)
 	set := PreviewSet(tokens.PlatformLight, m, false)
 	pill := sidebar.SelectionFill(set, false)
@@ -405,7 +433,7 @@ func goldenModel(t *testing.T, dark bool) Model {
 	return ReduceModel(m, SetScheme{Dark: dark})
 }
 
-// TestTheWholeWindow stores the window as it opens, both appearances, at the
+// TestTheWholeWindow stores the window on each tab, both appearances, at the
 // size it opens at: the composition itself, which is the one thing about this
 // window a pixel assertion cannot state. Every other test in the package
 // reads a part of the page; this stores the whole of it, and a review of a
@@ -421,7 +449,11 @@ func TestTheWholeWindow(t *testing.T) {
 		dark bool
 	}{{"light", tokens.PlatformLight, false}, {"dark", tokens.PlatformDark, true}} {
 		t.Run(tc.name, func(t *testing.T) {
-			golden.Compare(t, "window-"+tc.name, pageWith(t, goldenModel(t, tc.dark), tc.set, newCodeState()))
+			for tab, name := range [tabCount]string{TabColours: "colours", TabCode: "code"} {
+				m := goldenModel(t, tc.dark)
+				m.Tab = tab
+				golden.Compare(t, name+"-"+tc.name, pageWith(t, m, tc.set, newCodeState()))
+			}
 		})
 	}
 }

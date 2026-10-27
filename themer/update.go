@@ -74,6 +74,10 @@ func ReduceModel(m Model, message any) Model {
 		if msg.Index >= 0 && msg.Index < len(m.Candidates) {
 			m.Selected, m.From = msg.Index, FromImage
 		}
+	case SelectTab:
+		if msg.Index >= 0 && msg.Index < len(tabTitles) {
+			m.Tab = msg.Index
+		}
 	case FollowSystem:
 		// Only where there is a colour to follow. A platform that reports
 		// none draws no cell to click, and a message that arrives anyway

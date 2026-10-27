@@ -76,9 +76,9 @@ const (
 	BoxPad unit.Dp = 10
 )
 
-// The boxes' heights, and the footer's. The last row's two boxes — the style
-// list and the preview beside it — take what is left, which is what makes the
-// column close at whatever height the window opens at.
+// The boxes' heights, and the footer's. On the Code tab the style group's box
+// and the preview's box take the height that is left, so the tab fills the
+// window at any height the window opens at.
 const (
 	PictureBoxH unit.Dp = 84
 	ColourBoxH  unit.Dp = 48
@@ -276,29 +276,31 @@ func HexField(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) rx.O
 	})
 }
 
-// ContentLayer renders the page: the titled groups in reading order, and
-// under them the list of highlighter styles beside the preview of the
-// platform's set with the chosen colour standing in for the accent.
+// ContentLayer renders the page: the title row, the tab strip with the
+// selected tab's content under it, and the footer.
 //
-// The click handlers, the colour field and the style column's scroll position
-// live at subscription scope, outside the per-emission Map. A gesture handler
-// reconstructed every emission loses the press it is in the middle of, and
-// every selection re-emits. There is one click handler per swatch slot, not
-// per colour, so the handlers outlive a picture being replaced by another.
+// The click handlers, the colour field, the style column's scroll position
+// and the tab cells are at subscription scope, outside the per-emission Map.
+// A gesture handler made again on every emission loses the press it is in the
+// middle of, and every selection re-emits. There is one click handler per
+// swatch slot, not per colour, so the handlers outlive a picture being
+// replaced by another.
 func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], zones *desktop.ZoneGroup, bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	clicks := make([]gesture.Click, rowSlots)
 	bar := new(topClicks)
 	code := newCodeState()
+	cells := new(tabCells)
 	hex := HexField(th, modelObs)
+	strip := TabStrip(th, modelObs, cells)
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
 			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
 				return themed{col: n.First, typ: TypeFrom(n.Second), scrollBars: bars}
 			})
 	})
-	return rx.Map(rx.CombineLatest3(themes, modelObs, hex),
-		func(n rx.Tuple3[themed, Model, layout.Widget]) layout.Widget {
-			return Page(n.First, n.Second, zones, clicks, bar, code, n.Third)
+	return rx.Map(rx.CombineLatest4(themes, modelObs, hex, strip),
+		func(n rx.Tuple4[themed, Model, layout.Widget, layout.Widget]) layout.Widget {
+			return Page(n.First, n.Second, zones, clicks, bar, code, n.Third, cells, n.Fourth)
 		})
 }
 
@@ -314,21 +316,15 @@ type topClicks struct {
 
 // Page lays the window out and registers it, whole, as the drop zone.
 //
-// One column, top to bottom: the title row, carrying the window's name and
-// the appearance switch that moves the whole window; three titled groups —
-// the picture and the colours it gave, the theme colour in force, the code
-// face; then the row those choices are judged in, the list of highlighter
-// styles beside the preview, which take the room left over because they are
-// what is being judged; and a footer holding the one default button this
-// window has.
+// One column, top to bottom: the title row, with the window's name and the
+// scheme control that moves the whole window; the tab strip with the selected
+// tab's content under it; and the footer with the one default button this
+// window has. The title row and the footer are outside the tabs, so the
+// scheme control and the Keep button are at the same place on every tab.
 //
-// The style list and the preview stand side by side because the list is a
-// column of names and the preview is a picture of a window: a full-width list
-// would be a column of names in a field of nothing, and a preview under a
-// keyhole of five names is what this page had before. Both take the whole run
-// from the last choice to the footer, so the list is as long as the window
-// allows and the picture as large.
-func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, code *codeState, hex layout.Widget) layout.Widget {
+// Page stores each tab's content in cells, and strip is the tab strip that
+// draws the selected one.
+func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, bar *topClicks, code *codeState, hex layout.Widget, cells *tabCells, strip layout.Widget) layout.Widget {
 	dark := m.Dark(t.col)
 	win := WindowSet(t.col, m)
 	p := PaletteFrom(win)
@@ -343,6 +339,15 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	if m.Preview != nil {
 		picture = paint.NewImageOp(m.Preview)
 	}
+	cells.store([tabCount]layout.Widget{
+		TabColours: ColoursTab(p, t.typ, m,
+			PictureRow(p, t.typ, m, picture, clicks),
+			ColourRow(p, t.typ, m, hex)),
+		TabCode: CodeTab(p, t.typ,
+			FaceChoices(p, t.typ, m, code.faces),
+			ColumnBox(p, StylePane(p, win, t.typ, m, dark, code.styles, t.scrollBars)),
+			GroupBox(p, Preview(shown, t.typ, typo, shaper, code.doc, docStyle))),
+	})
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		// The whole window is the target, recorded once per frame before
@@ -351,38 +356,16 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 		zones.Record(dropZone, image.Rectangle{Max: size})
 
 		// One margin all round. The title row draws no fill of its own, so
-		// it has nothing to carry the window's top margin on and takes it
-		// from the page like every other row. Its own leading edge is the
-		// one thing that is not the margin: with the content behind the
-		// title bar, the window's control buttons stand in this row, and the
-		// row starts past them.
+		// it takes the window's top margin from the page like every other
+		// row. Its leading edge is the one thing that is not the margin:
+		// the content extends behind the title bar, the window's control
+		// buttons are in this row, and the row starts past them.
 		layout.UniformInset(Pad).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				rigid(reserve(TitleLead()-Pad, TitleRow(p, t.typ, SchemeToggle(win, dark, &bar.scheme)))),
 				spacer(Gap),
-
-				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, PictureLabel, RowHintFor(m), nil))),
-				spacer(GroupBelow),
-				rigid(fixedH(PictureBoxH, GroupBox(p, PictureRow(p, t.typ, m, picture, clicks)))),
+				layout.Flexed(1, strip),
 				spacer(GroupAbove),
-
-				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, ColourLabel, ColourHint, nil))),
-				spacer(GroupBelow),
-				rigid(fixedH(ColourBoxH, GroupBox(p, ColourRow(p, t.typ, m, hex)))),
-				spacer(GroupAbove),
-
-				rigid(fixedH(GroupTitleH, GroupTitle(p, t.typ, FaceLabel, FaceHint, nil))),
-				spacer(GroupBelow),
-				rigid(fixedH(FaceBoxH, GroupBox(p, FaceChoices(p, t.typ, m, code.faces)))),
-				spacer(GroupAbove),
-
-				layout.Flexed(1, JudgingRow(
-					TitledBox(p, t.typ, StyleLabel, StyleHint,
-						ColumnBox(p, StylePane(p, win, t.typ, m, dark, code.styles, t.scrollBars))),
-					TitledBox(p, t.typ, PreviewLabel, PreviewHint,
-						GroupBox(p, Preview(shown, t.typ, typo, shaper, code.doc, docStyle))))),
-				spacer(GroupAbove),
-
 				rigid(fixedH(FooterH, Footer(p, win, t.typ, m, &bar.keep))),
 			)
 		})
@@ -396,15 +379,44 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	}
 }
 
-// JudgingRow is the run under the choices: the style list at its leading edge
-// at the list's own width, and the preview taking everything else. Both are
-// whole titled groups and both are as tall as the row.
-func JudgingRow(list, preview layout.Widget) layout.Widget {
+// ColoursTab is the Colours tab: the Picture group, then the Theme colour
+// group.
+func ColoursTab(p Palette, ty Type, m Model, picture, colour layout.Widget) layout.Widget {
+	return func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			rigid(fixedH(GroupTitleH, GroupTitle(p, ty, PictureLabel, RowHintFor(m), nil))),
+			spacer(GroupBelow),
+			rigid(fixedH(PictureBoxH, GroupBox(p, picture))),
+			spacer(GroupAbove),
+			rigid(fixedH(GroupTitleH, GroupTitle(p, ty, ColourLabel, ColourHint, nil))),
+			spacer(GroupBelow),
+			rigid(fixedH(ColourBoxH, GroupBox(p, colour))),
+		)
+		return layout.Dimensions{Size: size}
+	}
+}
+
+// CodeTab is the Code tab: one column at the leading edge, at the style
+// list's width, with the Code face group above the Syntax highlighter style
+// group, and the preview to the right of the column. The style group and the
+// preview take the whole height that is left, so the preview is as tall as
+// the column.
+func CodeTab(p Palette, ty Type, faces, list, preview layout.Widget) layout.Widget {
+	column := func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			rigid(fixedH(GroupTitleH, GroupTitle(p, ty, FaceLabel, FaceHint, nil))),
+			spacer(GroupBelow),
+			rigid(fixedH(FaceBoxH, GroupBox(p, faces))),
+			spacer(GroupAbove),
+			layout.Flexed(1, TitledBox(p, ty, StyleLabel, StyleHint, list)),
+		)
+	}
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-			rigid(fixedW(StyleW, list)),
+			rigid(fixedW(StyleW, column)),
 			layout.Rigid(layout.Spacer{Width: Gap}.Layout),
-			layout.Flexed(1, preview),
+			layout.Flexed(1, TitledBox(p, ty, PreviewLabel, PreviewHint, preview)),
 		)
 	}
 }

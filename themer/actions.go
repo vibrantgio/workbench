@@ -32,6 +32,12 @@ type SelectCandidate struct {
 	Index int
 }
 
+// SelectTab shows one of the window's tabs, by its position in the strip.
+// Emitted by the tab strip.
+type SelectTab struct {
+	Index int
+}
+
 // FollowSystem makes the platform's own accent colour the theme colour, which
 // is what a kept theme records as following the system. Emitted by a click on
 // the cell at the leading end of the row.

@@ -52,8 +52,10 @@ import (
 
 // The chooser's dimensions.
 const (
-	// StyleW is the group's box, standing beside the preview.
-	StyleW unit.Dp = 300
+	// StyleW is the width of the Code tab's column: the two code face names
+	// side by side in their group's box. The style group's box under them
+	// has the same width.
+	StyleW = 2*FaceChipW + CellGap + 2*BoxInset
 	// StyleRowH is one name: the platform's own list row height, which is
 	// what puts as much of the set on screen at once as the column has room
 	// for.

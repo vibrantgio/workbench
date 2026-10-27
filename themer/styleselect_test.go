@@ -36,12 +36,19 @@ func applyAlone(name string, c tokens.PlatformColors) markdown.Style {
 }
 
 // The page's geometry in window pixels, worked out from the same constants
-// the page lays out with: a title row, then three groups, each a title row
-// and a box under it, then the row the style list and the preview share, then
-// the footer.
-func pictureTitleTop() int { return int(Pad) + int(TitleH) + int(Gap) }
+// the page lays out with: a title row, the tab strip, the selected tab's
+// content, and the footer.
+func stripTop() int { return int(Pad) + int(TitleH) + int(Gap) }
+
+func stripH() int { return int(tokens.Comfortable.ControlHeight) }
+
+// contentTop is where a tab's content begins.
+func contentTop() int { return stripTop() + stripH() + int(TabGap) }
 
 func boxTopAfter(titleTop int) int { return titleTop + int(GroupTitleH) + int(GroupBelow) }
+
+// The Colours tab: the Picture group, then the Theme colour group.
+func pictureTitleTop() int { return contentTop() }
 
 func pictureBoxTop() int { return boxTopAfter(pictureTitleTop()) }
 
@@ -49,22 +56,24 @@ func colourTitleTop() int { return pictureBoxTop() + int(PictureBoxH) + int(Grou
 
 func colourBoxTop() int { return boxTopAfter(colourTitleTop()) }
 
-func faceTitleTop() int { return colourBoxTop() + int(ColourBoxH) + int(GroupAbove) }
+// The Code tab: the Code face group, then the style group in one column, and
+// the preview beside the column from the top of the tab.
+func faceTitleTop() int { return contentTop() }
 
 func faceBoxTop() int { return boxTopAfter(faceTitleTop()) }
 
-// judgingTitleTop heads the last row — the style list and the preview — and
-// judgingBoxTop is where both of their boxes begin.
-func judgingTitleTop() int { return faceBoxTop() + int(FaceBoxH) + int(GroupAbove) }
+func styleTitleTop() int { return faceBoxTop() + int(FaceBoxH) + int(GroupAbove) }
 
-func judgingBoxTop() int { return boxTopAfter(judgingTitleTop()) }
+func styleBoxTop() int { return boxTopAfter(styleTitleTop()) }
 
-// footerTop is where the footer's row begins, and judgingBoxBottom the edge
-// both boxes in that row are cut at: the footer is pinned to the page's
-// bottom margin and the row above it takes what is left.
+func previewBoxTop() int { return boxTopAfter(contentTop()) }
+
+// footerTop is where the footer's row begins, and codeBoxBottom the edge the
+// style group's box and the preview's box are cut at: the footer is pinned to
+// the page's bottom margin and the tabs above it take what is left.
 func footerTop() int { return windowH - int(Pad) - int(FooterH) }
 
-func judgingBoxBottom() int { return footerTop() - int(GroupAbove) }
+func codeBoxBottom() int { return footerTop() - int(GroupAbove) }
 
 // boxLead is the leading edge of what stands in a box on the page's own
 // margin, and boxTrail the trailing one.
@@ -92,9 +101,9 @@ func faceRowY() int { return faceBoxTop() + int(BoxPad) + int(FaceRowH)/2 }
 // styleListTop is the leading edge of the first name in the column, and
 // styleListBottom where the column runs out: the box's own air above and
 // below its content.
-func styleListTop() int { return judgingBoxTop() + int(BoxPad) }
+func styleListTop() int { return styleBoxTop() + int(BoxPad) }
 
-func styleListBottom() int { return judgingBoxBottom() - int(BoxPad) }
+func styleListBottom() int { return codeBoxBottom() - int(BoxPad) }
 
 // styleRowY is the centre of visible row i, and styleMarkX the x of the
 // marker a chosen row carries.
@@ -110,7 +119,7 @@ func styleNameY(k int, q layout.Position) int {
 		}
 		return int(BoxPad) + (item-1)*int(StyleRowH)
 	}
-	return judgingBoxTop() + top(k+1) - top(q.First) - q.Offset + int(StyleRowH)/2
+	return styleBoxTop() + top(k+1) - top(q.First) - q.Offset + int(StyleRowH)/2
 }
 
 func styleMarkX() int { return boxLead() + int(StyleIndent)/2 }
@@ -124,8 +133,8 @@ func rowFillX() int { return boxLead() + int(StyleIndent) + 4 }
 func sampleRect() image.Rectangle {
 	reach := int(SampleShadow)
 	return image.Rect(
-		previewBoxLead()+int(BoxInset)+reach, judgingBoxTop()+int(BoxPad)+reach,
-		boxTrail()-reach, judgingBoxBottom()-int(BoxPad)-reach)
+		previewBoxLead()+int(BoxInset)+reach, previewBoxTop()+int(BoxPad)+reach,
+		boxTrail()-reach, codeBoxBottom()-int(BoxPad)-reach)
 }
 
 // codePlate is the region the fence is drawn in: the content pane of that
@@ -319,7 +328,7 @@ func TestChoosingAStyleRecoloursTheCode(t *testing.T) {
 		{"under the moon", true, tokens.PlatformDark, "dracula", "monokai"},
 	} {
 		t.Run(tc.scheme, func(t *testing.T) {
-			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
+			m := ReduceModel(onCode(judging()), SetScheme{Dark: tc.dark})
 			for _, name := range []string{tc.one, tc.then} {
 				if !m.Styles[styleIndex(m.Styles, name, tc.dark)].Suits(tc.dark) {
 					t.Fatalf("%q is not on the list this scheme shows", name)
@@ -340,7 +349,7 @@ func TestChoosingAStyleRecoloursTheCode(t *testing.T) {
 // that was chosen. Asserted inside a single render, so a window that repaints
 // wholesale cannot pass by accident.
 func TestTheChosenStyleIsMarked(t *testing.T) {
-	m := judging()
+	m := onCode(judging())
 	visible := m.VisibleStyles(false)
 	if len(visible) < 3 {
 		t.Fatalf("the light half holds %d styles — too few to tell a marked row from its neighbours", len(visible))
@@ -369,7 +378,7 @@ func TestTheChosenStyleIsMarked(t *testing.T) {
 // chosen from behind the thing it changes is chosen blind.
 func TestTheListStandsBesideThePreview(t *testing.T) {
 	c := tokens.PlatformLight
-	img := pageWith(t, judging(), c, settled(false))
+	img := pageWith(t, onCode(judging()), c, settled(false))
 	p := PaletteFrom(c)
 	// The run between the two boxes, where the page's own plane shows
 	// through: they are two groups and not one, and nothing is drawn between
@@ -400,14 +409,14 @@ func TestTheColumnScrollsToEveryNameOnIt(t *testing.T) {
 		set  tokens.PlatformColors
 	}{{"sun", false, tokens.PlatformLight}, {"moon", true, tokens.PlatformDark}} {
 		t.Run(tc.name, func(t *testing.T) {
-			m := ReduceModel(judging(), SetScheme{Dark: tc.dark})
+			m := ReduceModel(onCode(judging()), SetScheme{Dark: tc.dark})
 			visible := m.VisibleStyles(tc.dark)
 			n := len(visible)
 			if n < 3 {
 				t.Fatalf("the %s lists %d styles — too few to scroll", tc.name, n)
 			}
 			// The column is the box's full height, its padding inside it.
-			shows := judgingBoxBottom() - judgingBoxTop()
+			shows := codeBoxBottom() - styleBoxTop()
 			cs := settled(tc.dark)
 			pageWith(t, m, tc.set, cs)
 			if got := cs.styles.st.Viewport(); got > shows {
@@ -447,7 +456,7 @@ func TestTheColumnScrollsToEveryNameOnIt(t *testing.T) {
 // that says which. A second control could be set to disagree with the
 // appearance on screen; this is the assertion that there is no second control.
 func TestTheColumnFollowsTheSchemeSwitch(t *testing.T) {
-	m := judging()
+	m := onCode(judging())
 	light := ReduceModel(m, SetScheme{Dark: false}).VisibleStyles(false)
 	dark := ReduceModel(m, SetScheme{Dark: true}).VisibleStyles(true)
 	t.Logf("the sun lists %d styles and the moon %d, out of %d", len(light), len(dark), len(m.Styles))
@@ -487,7 +496,7 @@ const (
 // window holds once somebody has chosen twice.
 func paired(t *testing.T) Model {
 	t.Helper()
-	m := pick(pick(judging(), pairLight, false), pairDark, true)
+	m := pick(pick(onCode(judging()), pairLight, false), pairDark, true)
 	if m.Style(false) != pairLight || m.Style(true) != pairDark {
 		t.Fatalf("the model applied %q and %q, want %q and %q", m.Style(false), m.Style(true), pairLight, pairDark)
 	}
@@ -603,7 +612,7 @@ func TestEachSchemeRendersThroughItsOwnMember(t *testing.T) {
 // difference between them is on screen and choosing between them is a choice
 // somebody can see they made.
 func TestThreeFlavoursOfOneFamilyAreThreeDifferentSamples(t *testing.T) {
-	moon := ReduceModel(judging(), SetScheme{Dark: true})
+	moon := ReduceModel(onCode(judging()), SetScheme{Dark: true})
 	c := tokens.PlatformDark
 	flavours := []string{"catppuccin-frappe", "catppuccin-macchiato", "catppuccin-mocha"}
 	backgrounds := make([]stdcolor.NRGBA, len(flavours))
@@ -694,7 +703,7 @@ func TestBothMembersOfThePairAreKept(t *testing.T) {
 // kept.
 func TestKeepingWritesTheStylesBesideTheColour(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "theme.json")
-	m := ReduceModel(judging(), HexTyped{Text: "#e8112d"})
+	m := ReduceModel(onCode(judging()), HexTyped{Text: "#e8112d"})
 	m.KeepPath = path
 	m = pick(m, "monokai", true)
 	_, cmd := Update(m, KeepColor{})
@@ -744,7 +753,7 @@ func TestAMalformedStyleIsNamedAndNotThrown(t *testing.T) {
 	t.Logf("the caption reads: %s", sentence)
 	// And it reaches the window: the caption is where a problem is said, and
 	// a sentence nobody draws is a sentence nobody reads.
-	m := judging()
+	m := onCode(judging())
 	without := page(t, m, tokens.PlatformLight)
 	m.Problem = sentence
 	with := page(t, m, tokens.PlatformLight)
