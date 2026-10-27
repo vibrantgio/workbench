@@ -674,7 +674,7 @@ from it: nothing is derived, no palette, no second hue.
                           to Control
   Error, Success,         SystemRed, SystemGreen, SystemOrange,
   Warning, Info           SystemBlue
-  the find highlight      FindHighlight; the text it covers keeps its
+  the highlight           HighlightFill; the text it covers keeps its
                           colour
   hover and press         HoverOverlay, PressOverlay — TOOLBAR BUTTONS
                           ONLY. Measured: a push button does not tint under
