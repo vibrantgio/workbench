@@ -8,11 +8,11 @@ import (
 
 	"gioui.org/gesture"
 	"gioui.org/layout"
+	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown/highlight"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/patterns/sidebar"
 	"github.com/vibrantgio/patterns/tabs"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -87,7 +87,7 @@ func staticPages(m Model, c tokens.PlatformColors, code *codeState, pages *theme
 		WindowSet(c, m), tokens.Spacing, tokens.DefaultTypography.SystemFont, tokens.Comfortable)
 	return Page(themed{col: c, typ: ty, pinned: true, scrollBars: bars}, m, &desktop.ZoneGroup{}, clicks, bar,
 		code, pages, func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(SampleFieldH))}
+			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(unit.Dp(tokens.ComfortableTextFieldHeight)))}
 		}, cells, strip)
 }
 
@@ -184,16 +184,15 @@ func TestTheChosenSwatchHasTheAccentRing(t *testing.T) {
 	}
 }
 
-// TestThePreviewCarriesTheThemeColour: the preview's default button is the
-// one control the platform fills with its accent, so the colour chosen is
-// what is standing there. The button draws its fill with a highlight over
-// the accent, so the toolbar band is read for a red pixel rather than for the
-// exact colour.
-func TestThePreviewCarriesTheThemeColour(t *testing.T) {
-	m := ReduceModel(onCode(judging()), HexTyped{Text: "#e8112d"})
+// TestTheComponentsTabCarriesTheThemeColour: the Components tab draws the
+// controls the platform fills with its accent, so the colour chosen is
+// there. A filled control draws a highlight over the accent, so the tab is
+// read for a red pixel and not for the exact colour.
+func TestTheComponentsTabCarriesTheThemeColour(t *testing.T) {
+	m := ReduceModel(judging(), HexTyped{Text: "#e8112d"})
+	m.Tab = TabComponents
 	img := page(t, m, tokens.PlatformLight)
-	win := sampleRect()
-	band := image.Rect(win.Min.X, win.Min.Y, win.Max.X, win.Min.Y+int(SampleToolbarH))
+	band := image.Rect(int(Pad), contentTop(), windowW-int(Pad), footerTop())
 	red := 0
 	for y := band.Min.Y; y < band.Max.Y; y++ {
 		for x := band.Min.X; x < band.Max.X; x++ {
@@ -203,14 +202,13 @@ func TestThePreviewCarriesTheThemeColour(t *testing.T) {
 		}
 	}
 	if red == 0 {
-		t.Errorf("no red pixel in the preview's toolbar at %v: the default button is not drawn in the theme colour #e8112d", band)
+		t.Errorf("no red pixel on the Components tab in %v: no control is drawn in the theme colour #e8112d", band)
 	}
 }
 
 // TestTheWindowSwitchesSides: pressing the switch for the appearance the
-// desktop is not on moves the whole window to it — the margin the page stands
-// on and the picture in the preview both — which is what makes the preview
-// the theme rather than a picture of one.
+// desktop is not on moves the whole window to it: the window's margin, and
+// the preview, which is drawn in the dark member of the style pair.
 func TestTheWindowSwitchesSides(t *testing.T) {
 	m := ReduceModel(onCode(judging()), SetScheme{Dark: true})
 	img := page(t, m, tokens.PlatformLight)
@@ -218,10 +216,9 @@ func TestTheWindowSwitchesSides(t *testing.T) {
 		t.Errorf("the window's own margin drew %v on a light desktop switched to dark, want the dark set's plane %v",
 			got, tokens.PlatformDark.WindowBackground)
 	}
-	win := sampleRect()
-	if got := img.RGBAAt(win.Min.X+win.Dx()/4, win.Min.Y+int(SampleToolbarH)/2); !is(got, tokens.PlatformDark.SidebarMaterial) {
-		t.Errorf("the sample's toolbar drew %v, want the dark set's chrome material %v",
-			got, tokens.PlatformDark.SidebarMaterial)
+	box := previewRect()
+	if got, want := img.RGBAAt(box.Min.X+int(BoxRadius), box.Min.Y+int(BoxRadius)), previewFill(m, tokens.PlatformLight); !is(got, want) {
+		t.Errorf("the preview drew %v, want the dark style's background %v", got, want)
 	}
 }
 
@@ -309,22 +306,19 @@ func codeRigid() int {
 // the footer are in the window the application opens, with no scroll in the
 // page. The Code tab is a stack of stated heights with one flexed box in its
 // column, and the preview beside the column is as tall as the column. So the
-// check is that the preview's box is still big enough for what it holds: a
-// box shorter than the picture of a window crops the preview and reports
-// nothing. The Colours tab states every height, so its check is that its
+// check is that the preview's box still shows enough lines of code to judge
+// a style by. The Colours tab states every height, so its check is that its
 // last box ends above the footer.
 func TestEveryTabFitsTheWindow(t *testing.T) {
 	left := windowH - 2*int(Pad) - codeRigid()
 	if got := codeBoxBottom() - styleBoxTop(); got != left {
 		t.Errorf("the style group's box measures %d points and the column leaves %d", got, left)
 	}
-	// The preview has to hold a picture of a window with its toolbar, its
-	// sidebar's rows and a content pane with a heading, a document and a row
-	// of controls under it, and the shadow it is drawn in.
-	want := int(SampleToolbarH) + int(SampleHeadH) + int(SampleFieldH) +
-		2*int(SampleInset) + 2*int(SampleStep) + 2*int(SampleShadow) + 2*int(BoxPad)
+	// The preview has to show enough of the Go file to judge a style by:
+	// twenty lines of code inside the block's padding.
+	want := 20*int(tokens.DefaultTypography.Code.LineHeight) + 2*int(CodePad)
 	if got := codeBoxBottom() - previewBoxTop(); got < want {
-		t.Fatalf("the preview's box is %d points tall and the picture wants %d: the Code tab no longer fits a %d by %d window",
+		t.Fatalf("the preview's box is %d points tall and twenty lines of code want %d: the Code tab no longer fits a %d by %d window",
 			got, want, windowW, windowH)
 	}
 	rows := (styleListBottom() - styleListTop()) / int(StyleRowH)
@@ -334,82 +328,31 @@ func TestEveryTabFitsTheWindow(t *testing.T) {
 	if end := colourBoxTop() + int(ColourBoxH); end > codeBoxBottom() {
 		t.Errorf("the Colours tab's last box ends at y %d, under the tabs' foot at y %d", end, codeBoxBottom())
 	}
-	t.Logf("the style group's box is %d points tall; the style list shows %d names and the picture is %v",
-		left, rows, sampleRect().Size())
+	t.Logf("the style group's box is %d points tall; the style list shows %d names and the preview is %v",
+		left, rows, previewRect().Size())
 }
 
-// TestOneSampleInTheAppearanceOnScreen: the preview draws one picture of an
-// application, in the appearance the switch at the top of the window is on,
-// and nothing beside it. Two samples side by side were a window showing a
-// theme it did not have applied; one sample in a window that switches is the
-// theme itself.
-func TestOneSampleInTheAppearanceOnScreen(t *testing.T) {
+// TestThePreviewFillsItsBoxInTheSchemeOnScreen: the code block is the whole
+// preview box, in the style for the scheme the switch at the top of the
+// window is on. Each corner of the box, inside its rounding, is the style's
+// background.
+func TestThePreviewFillsItsBoxInTheSchemeOnScreen(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		dark bool
 		set  tokens.PlatformColors
-	}{{"under the sun", false, tokens.PlatformLight}, {"under the moon", true, tokens.PlatformDark}} {
+	}{{"light", false, tokens.PlatformLight}, {"dark", true, tokens.PlatformDark}} {
 		t.Run(tc.name, func(t *testing.T) {
 			m := ReduceModel(onCode(judging()), SetScheme{Dark: tc.dark})
 			img := page(t, m, tc.set)
-			win := sampleRect()
-			// A point in the sample's own toolbar, clear of the word centred
-			// in it and of the control buttons at its leading end: the band
-			// is the chrome material of the set being previewed.
-			got := img.RGBAAt(win.Min.X+win.Dx()/4, win.Min.Y+int(SampleToolbarH)/2)
-			if !is(got, tc.set.SidebarMaterial) {
-				t.Errorf("the sample's toolbar drew %v, want the chrome material %v", got, tc.set.SidebarMaterial)
-			}
-			// And the one picture reaches both ends of the box: a second
-			// sample beside it would have to take half the room, so a
-			// picture whose own chrome is at both ends is the only one
-			// there is.
-			far := img.RGBAAt(win.Max.X-win.Dx()/3, win.Min.Y+int(SampleToolbarH)/2)
-			if !is(far, tc.set.SidebarMaterial) {
-				t.Errorf("the trailing quarter of the preview box drew %v in the toolbar's band, want the chrome material %v — the picture does not fill the box",
-					far, tc.set.SidebarMaterial)
+			want := previewFill(m, tc.set)
+			box := previewRect().Inset(int(BoxRadius))
+			for _, at := range []image.Point{box.Min, {box.Max.X - 1, box.Min.Y}, {box.Min.X, box.Max.Y - 1}, box.Max.Sub(image.Pt(1, 1))} {
+				if got := img.RGBAAt(at.X, at.Y); !is(got, want) {
+					t.Errorf("the preview drew %v at %v, want the style's background %v: the code block does not fill the box", got, at, want)
+				}
 			}
 		})
-	}
-}
-
-// TestTheSamplesOneSelectionIsTheSidebarsPill: the picture of an application
-// carries one selection and it is the platform's sidebar pill — the open
-// entry, inset from the sidebar's edges and rounded. The content pane beside
-// it carries none: a full-width bar in the theme colour read as a slab
-// dropped on the page, and two marks together said the colour lands in more
-// places than it does.
-func TestTheSamplesOneSelectionIsTheSidebarsPill(t *testing.T) {
-	const themeColor = "#3d5f57"
-	m := ReduceModel(onCode(judging()), HexTyped{Text: themeColor})
-	img := page(t, m, tokens.PlatformLight)
-	set := PreviewSet(tokens.PlatformLight, m, false)
-	pill := sidebar.SelectionFill(set, false)
-	win := sampleRect()
-
-	// The pill is inset from the sidebar's leading edge: the sidebar's own
-	// chrome material shows beside it at the selected row's centre line.
-	rowY := win.Min.Y + int(SampleToolbarH) + int(SampleStep) +
-		sampleSelected*int(SampleRowH) + int(SampleRowH)/2
-	if got := img.RGBAAt(win.Min.X+int(sidebar.SelectionInset)/2, rowY); !is(got, set.SidebarMaterial) {
-		t.Errorf("the sidebar drew %v inside the pill's own inset, want the chrome material %v — the mark is not inset",
-			got, set.SidebarMaterial)
-	}
-	if got := img.RGBAAt(win.Min.X+int(SampleRailW)/2, rowY); !is(got, pill) {
-		t.Errorf("the sidebar's open entry drew %v, want the platform's sidebar pill %v", got, pill)
-	}
-
-	// And nothing in the sample's content pane is drawn in the emphasized
-	// selection, which is the fill the theme colour used to land in as a
-	// full-width box beside the pill.
-	box := set.SelectedContentBackground
-	pane := codePlate()
-	for y := pane.Min.Y; y < pane.Max.Y; y++ {
-		for x := pane.Min.X; x < pane.Max.X; x++ {
-			if is(img.RGBAAt(x, y), box) {
-				t.Fatalf("the sample's content pane draws the emphasized selection %v at (%d,%d) — the green box is back", box, x, y)
-			}
-		}
 	}
 }
 

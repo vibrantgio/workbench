@@ -1,10 +1,9 @@
-// What the window keeps about code: the document the preview's fence is laid
-// out from, and the style that document is drawn through.
+// What the window keeps about code: the Go file the preview shows, parsed
+// once as a fenced Go block, and the style that block is drawn through.
 //
-// The document is parsed once and restyled per emission. Colour is no part of
-// the parse — the document takes its style at layout time — so choosing
-// another highlighter style is applied to a document already read rather than
-// reading one again.
+// Colour is no part of the parse: the block takes its style at layout time.
+// So a change of highlighter style restyles the block already read and does
+// not read it again.
 package main
 
 import (
@@ -15,41 +14,34 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// CodeSource is what the preview's content pane holds: a line of prose with a
-// word of code quoted into it, a Go block carrying a comment, a keyword run,
-// a string and a number, and a line of prose under it — a highlighter style
-// that cannot be told from another on those four runs cannot be told from it
-// at all.
-//
-// The prose is there because a fence is judged against the page it is an
-// island in: a block of colour on a plate of its own says nothing about how it
-// reads under a paragraph. The lines are short because the block stands in the
-// content pane of a picture of a window, and a line wider than that pane
-// scrolls under a bar instead of being read.
-const CodeSource = "The greeting is one call, and `Greet` is the one that makes it.\n\n" +
-	"```go\n" +
-	"// Greet names whoever is asking.\n" +
-	"func Greet(name string) string {\n" +
-	"\treturn fmt.Sprintf(\"Hello, %s! (%d)\", name, 42)\n" +
-	"}\n" +
-	"```\n\n" +
-	"Anything that needs a name of its own gets one; the rest takes the\n" +
-	"caller's.\n"
-
 // codeState is what the window keeps across emissions: the two choosers'
-// handlers and scroll position, and the parsed sample.
+// handlers and scroll positions, the preview's scroll position, and the
+// parsed file.
 type codeState struct {
 	styles *styleChooser
 	faces  *faceChooser
-	doc    *markdown.Document
+	view   *codeView
+	block  *markdown.CodeBlock
 }
 
 func newCodeState() *codeState {
 	return &codeState{
 		styles: newStyleChooser(),
 		faces:  newFaceChooser(),
-		doc:    markdown.NewDocument(markdown.Parse([]byte(CodeSource))),
+		view:   new(codeView),
+		block:  previewBlock(),
 	}
+}
+
+// previewBlock parses [PreviewSource] as the body of a Go fence, so the
+// preview's code is the code a Go fence in a document holds, tabs expanded.
+func previewBlock() *markdown.CodeBlock {
+	for _, b := range markdown.Parse([]byte("```go\n" + PreviewSource + "```\n")) {
+		if cb, ok := b.(*markdown.CodeBlock); ok {
+			return cb
+		}
+	}
+	return &markdown.CodeBlock{Language: "go", Code: PreviewSource}
 }
 
 // CodeStyle is the document style the preview's fence is drawn through: the
@@ -62,9 +54,8 @@ func newCodeState() *codeState {
 // stays the platform's. Which member of the pair reaches the fence follows the
 // set, so a change of appearance is a change of plate.
 //
-// standsOn is the fill the document is laid on — the content pane of the
-// picture of a window — so every alpha-carrying name resolves against what it
-// actually lands on.
+// standsOn is the fill the preview's box is drawn on, so every name that
+// carries alpha resolves against the fill under it.
 func CodeStyle(c tokens.PlatformColors, typ tokens.Typography, standsOn stdcolor.NRGBA, styles highlight.StylePair) markdown.Style {
 	st := markdown.FromTokens(c, typ, standsOn)
 	highlight.ApplyPair(&st, styles, c)

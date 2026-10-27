@@ -27,13 +27,13 @@ func TestTheGroupOffersExactlyTwoFaces(t *testing.T) {
 }
 
 // TestChoosingACodeFaceRestylesTheSample: a press restyles the fence on the
-// next frame. What is counted is the sample's own plate, so the marked row
+// next frame. What is counted is the preview's box alone, so the marked row
 // moving on the plate cannot pass for a restyle.
 func TestChoosingACodeFaceRestylesTheSample(t *testing.T) {
 	m := onCode(judging())
 	first := pageWith(t, m, tokens.PlatformLight, settled(false))
 	second := pageWith(t, pickMono(m, tokens.CodeFaceJetBrains), tokens.PlatformLight, settled(false))
-	if n := movedIn(first, second, codePlate()); n == 0 {
+	if n := movedIn(first, second, previewRect()); n == 0 {
 		t.Error("switching the code face changed no pixel of the sample — the fence is not following the choice")
 	} else {
 		t.Logf("switching the face moved %d pixels of the sample", n)
@@ -59,8 +59,8 @@ func TestTheTwoFacesMarkTheChosenName(t *testing.T) {
 }
 
 // TestTheCodeFaceMovesTheShaperAndNotTheSample: a face change needs the
-// matching font collection, so the shaper is replaced; the parsed document
-// stays and is only restyled.
+// matching font collection, so the shaper is replaced; the parsed file stays
+// and is only restyled.
 func TestTheCodeFaceMovesTheShaperAndNotTheSample(t *testing.T) {
 	th := themed{col: tokens.PlatformLight, typ: pinned(), pinned: true}
 	roboto, one := th.codeType(pickMono(onCode(judging()), tokens.CodeFaceRoboto))
@@ -72,10 +72,10 @@ func TestTheCodeFaceMovesTheShaperAndNotTheSample(t *testing.T) {
 		t.Error("both faces shape through one shaper — the JetBrains collection is not being reached")
 	}
 	code := newCodeState()
-	doc := code.doc
+	block := code.block
 	pageWith(t, pickMono(onCode(judging()), tokens.CodeFaceJetBrains), tokens.PlatformLight, code)
-	if code.doc != doc {
-		t.Error("choosing a code face rebuilt the sample — the document was re-parsed")
+	if code.block != block {
+		t.Error("choosing a code face rebuilt the preview — the file was parsed again")
 	}
 }
 

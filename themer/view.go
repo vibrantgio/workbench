@@ -199,7 +199,7 @@ func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.
 	return s
 }
 
-// codeType is the typography the code sample draws through: the chosen code
+// codeType is the typography the preview's code draws through: the chosen code
 // face applied to the theme's roles. The live path appends emoji the way a
 // kept brand's own typography does, so a fence cannot flash tofu before the
 // stream emits. Tests pin the faces so a render here cannot depend on the
@@ -333,11 +333,10 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	p := PaletteFrom(win)
 	shown := PreviewSet(t.col, m, dark)
 	typo, shaper := t.codeType(m)
-	docStyle := CodeStyle(shown, typo, shown.ControlBackground, m.AppliedStyles())
-	// The bar inside an overflowing fence or a wide table follows the
-	// reader's "Show scroll bars" setting, as the style pane beside it does.
+	docStyle := CodeStyle(shown, typo, p.Backdrop, m.AppliedStyles())
+	// The preview's bars follow the reader's "Show scroll bars" setting, as
+	// the style pane's bar beside it does.
 	docStyle.CodeScrollbar = scrollBarStyle(docStyle.CodeScrollbar, t.scrollBars)
-	docStyle.TableScrollbar = scrollBarStyle(docStyle.TableScrollbar, t.scrollBars)
 	var picture paint.ImageOp
 	if m.Preview != nil {
 		picture = paint.NewImageOp(m.Preview)
@@ -358,7 +357,7 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 		content = CodeTab(p, t.typ,
 			FaceChoices(p, t.typ, m, code.faces),
 			ColumnBox(p, StylePane(p, win, t.typ, m, dark, code.styles, t.scrollBars)),
-			GroupBox(p, Preview(shown, t.typ, typo, shaper, code.doc, docStyle)))
+			Preview(code.view, code.block, shaper, docStyle))
 	default:
 		content = GroupTab(j, pages.groups[m.Tab], tabGroups[m.Tab])
 	}
@@ -943,7 +942,7 @@ func centreRowFree(gtx layout.Context, h, gap int, slots ...slot) (layout.Dimens
 //
 // One switch, at the top of the window, moving everything under it: the
 // window's own plane and every group on it, the list of highlighter styles,
-// and the picture of an application in the preview. A theme has two
+// and the code in the preview. A theme has two
 // appearances and this window shows one of them at a time, which is what
 // makes the preview a look rather than two looks and a memory.
 //

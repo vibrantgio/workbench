@@ -128,20 +128,16 @@ func styleMarkX() int { return boxLead() + int(StyleIndent)/2 }
 // it carries, which is where a row's own fill can be read.
 func rowFillX() int { return boxLead() + int(StyleIndent) + 4 }
 
-// sampleRect is the picture of a window the preview draws: the preview box's
-// own content, less the run the sample's shadow is given to fall in.
-func sampleRect() image.Rectangle {
-	reach := int(SampleShadow)
-	return image.Rect(
-		previewBoxLead()+int(BoxInset)+reach, previewBoxTop()+int(BoxPad)+reach,
-		boxTrail()-reach, codeBoxBottom()-int(BoxPad)-reach)
+// previewRect is the preview's box: the code block fills all of it.
+func previewRect() image.Rectangle {
+	return image.Rect(previewBoxLead(), previewBoxTop(), windowW-int(Pad), codeBoxBottom())
 }
 
-// codePlate is the region the fence is drawn in: the content pane of that
-// picture, which is everything past the sidebar and under the toolbar.
-func codePlate() image.Rectangle {
-	win := sampleRect()
-	return image.Rect(win.Min.X+int(SampleRailW), win.Min.Y+int(SampleToolbarH), win.Max.X, win.Max.Y)
+// previewFill is the fill the preview's code block is drawn on: the
+// background of the syntax highlighter style for the scheme in force.
+func previewFill(m Model, c tokens.PlatformColors) stdcolor.NRGBA {
+	shown := PreviewSet(c, m, m.Dark(c))
+	return CodeStyle(shown, tokens.DefaultTypography, PaletteFrom(WindowSet(c, m)).Backdrop, m.AppliedStyles()).CodeBackground
 }
 
 // pixelJitter is how far apart two channel values may be and still count as
@@ -315,7 +311,7 @@ func TestTheWindowOpensOnTheKeptStyles(t *testing.T) {
 
 // TestChoosingAStyleRecoloursTheCode is the chooser's whole claim: the names
 // are not a list of styles, they are what the code beside them is coloured
-// with. What is counted is the sample's own plate alone, so a marked row
+// with. What is counted is the preview's box alone, so a marked row
 // moving in the column cannot pass for a recolour.
 func TestChoosingAStyleRecoloursTheCode(t *testing.T) {
 	for _, tc := range []struct {
@@ -336,7 +332,7 @@ func TestChoosingAStyleRecoloursTheCode(t *testing.T) {
 			}
 			first := pageWith(t, pick(m, tc.one, tc.dark), tc.set, settled(tc.dark))
 			second := pageWith(t, pick(m, tc.then, tc.dark), tc.set, settled(tc.dark))
-			if n := movedIn(first, second, codePlate()); n == 0 {
+			if n := movedIn(first, second, previewRect()); n == 0 {
 				t.Error("switching the syntax style changed no pixel of the sample — the code is not following the choice")
 			} else {
 				t.Logf("switching the style moved %d pixels of the sample", n)
@@ -392,9 +388,10 @@ func TestTheListStandsBesideThePreview(t *testing.T) {
 	if got := img.RGBAAt(int(Pad)+int(StyleW)-1, styleRowY(0)); !is(got, p.Surface) {
 		t.Errorf("the trailing edge of the list's box drew %v, want the group's box %v", got, p.Surface)
 	}
-	pane := codePlate()
-	if got := img.RGBAAt(pane.Min.X+4, pane.Min.Y+4); !is(got, c.ControlBackground) {
-		t.Errorf("the preview's content pane drew %v, want the content's fill %v", got, c.ControlBackground)
+	box := previewRect()
+	m := onCode(judging())
+	if got, want := img.RGBAAt(box.Min.X+int(BoxRadius), box.Min.Y+int(BoxRadius)), previewFill(m, c); !is(got, want) {
+		t.Errorf("the preview's code block drew %v, want the style's background %v", got, want)
 	}
 }
 

@@ -1,0 +1,90 @@
+// Package bakery prices the bread a small bakery sells each morning.
+package bakery
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
+
+// Loaf is one kind of bread on the counter.
+type Loaf struct {
+	Name   string  `json:"name"`
+	Weight float64 `json:"weight,omitempty"`
+	Count  uint8   `json:"count"`
+}
+
+// ErrSoldOut reports that the counter is empty.
+var ErrSoldOut = errors.New("bakery: sold out")
+
+const (
+	maxOnShelf = 0x1F   // hexadecimal
+	minWeight  = 0.25   // kilograms
+	flourRatio = 1.5e-3 // a float with an exponent
+)
+
+// Basket holds items of any kind that has a name.
+type Basket[T interface{ Title() string }] struct {
+	items []T
+}
+
+// Add puts an item in the basket and returns how many it holds.
+func (b *Basket[T]) Add(item T) int {
+	b.items = append(b.items, item)
+	return len(b.items)
+}
+
+// Title returns the loaf's name.
+func (l Loaf) Title() string { return l.Name }
+
+// Heavier returns the heavier of two weights.
+func Heavier[N int | float64](a, b N) N {
+	if a <= b {
+		return b
+	}
+	return a
+}
+
+// Price returns what the loaves cost, in cents.
+func Price(loaves []Loaf, perKilo int) (int, error) {
+	if len(loaves) == 0 {
+		return 0, ErrSoldOut
+	}
+	total := 0
+	for i, l := range loaves {
+		if l.Count != 0 && l.Weight >= minWeight {
+			total += int(l.Weight*float64(perKilo)) + i%2
+		}
+	}
+	return total, nil
+}
+
+// Receipt writes one line for each loaf.
+func Receipt(loaves []Loaf) string {
+	var b strings.Builder
+	for _, l := range loaves {
+		fmt.Fprintf(&b, "%-12s\t%5.2f kg\n", l.Name, l.Weight)
+	}
+	b.WriteString("Thank you!\n\"Come again.\"\n")
+	return b.String()
+}
+
+// faceTest holds the characters a code face keeps apart: 0 O o, 1 l I, and => in JavaScript.
+const faceTest = `0 O o | 1 l I | () [] {} | => != <=`
+
+// Summary describes the counter in one line.
+func Summary(loaves []Loaf) string {
+	total, err := Price(loaves, 1250)
+	if err != nil {
+		return err.Error()
+	}
+	return fmt.Sprintf("%d loaves on the counter, the heaviest weighs %.1f kg, and at 1250 cents a kilo the whole counter costs %d cents", len(loaves), heaviest(loaves), total)
+}
+
+func heaviest(loaves []Loaf) float64 {
+	w := 0.0
+	for _, l := range loaves {
+		w = Heavier(w, l.Weight)
+	}
+	return w
+}

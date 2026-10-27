@@ -47,8 +47,7 @@ type Model struct {
 	// then on: the two appearances of one theme are two sets of choices, and
 	// a person settling a theme has to reach both without waiting for the
 	// desktop to change its mind. It moves the whole window — its own plane
-	// and every group on it, the style list, and the picture of an
-	// application in the preview.
+	// and every group on it, the style list, and the code in the preview.
 	Scheme Scheme
 	// Problem describes the last thing that did not work — a drop that
 	// became no colours (an unreadable file, a format nothing here decodes,

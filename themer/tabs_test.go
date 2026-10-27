@@ -160,12 +160,13 @@ func TestThePreviewIsToTheRightOfTheCodeChoices(t *testing.T) {
 			img := pageWith(t, m, tc.set, settled(tc.dark))
 			p := PaletteFrom(WindowSet(tc.set, m))
 			column := int(Pad) + int(StyleW)
-			// The preview's leading edge: the first box pixel right of the
-			// column, read along a line through the middle of the box.
+			// The preview's leading edge: the first pixel right of the column
+			// that is not the window's plane, read along a line through the
+			// middle of the box.
 			y := (previewBoxTop() + codeBoxBottom()) / 2
 			lead := -1
-			for x := column; x < windowW; x++ {
-				if is(img.RGBAAt(x, y), p.Surface) {
+			for x := column + 1; x < windowW; x++ {
+				if !is(img.RGBAAt(x, y), p.Backdrop) {
 					lead = x
 					break
 				}
@@ -192,10 +193,10 @@ func TestThePreviewIsToTheRightOfTheCodeChoices(t *testing.T) {
 				t.Errorf("left of the preview's box at x %d the window drew %v, want the window's plane", lead-1, img.RGBAAt(lead-1, y))
 			}
 			mid := lead + int(BoxRadius) + 2
-			if top := faceBoxTop(); !is(img.RGBAAt(mid, top), p.Surface) || is(img.RGBAAt(mid, top-1), p.Surface) {
+			if top := faceBoxTop(); is(img.RGBAAt(mid, top), p.Backdrop) || !is(img.RGBAAt(mid, top-1), p.Backdrop) {
 				t.Errorf("the preview's box does not start at y %d, level with the face group's box", top)
 			}
-			if bottom := codeBoxBottom(); !is(img.RGBAAt(mid, bottom-1), p.Surface) || is(img.RGBAAt(mid, bottom), p.Surface) {
+			if bottom := codeBoxBottom(); is(img.RGBAAt(mid, bottom-1), p.Backdrop) || !is(img.RGBAAt(mid, bottom), p.Backdrop) {
 				t.Errorf("the preview's box does not end at y %d, level with the style group's box", bottom)
 			}
 		})

@@ -31,13 +31,10 @@
 // the colours under the code together. Keeping writes both beside the colour
 // and the code face.
 //
-// What is previewed is a picture of an application in the platform's set with
-// the chosen colour standing in for the accent: a sidebar with the selection
-// pill, a toolbar with the platform's window controls, a heading with a badge
-// beside it, prose, a fenced code block in the chosen face and style, a text
-// field and two push buttons. Every choice in the window moves something in it.
-// The colour set itself, every name the platform answers for beside its
-// value, is what the gallery's colour board is for and is not repeated here.
+// The Code tab's preview is one Go file in the chosen code face and syntax
+// highlighter style. The other tabs draw the colour set, the type scale and
+// the library's parts in the platform's set, with the chosen colour as the
+// accent.
 //
 // One appearance at a time, and one switch to change it, at the top of the
 // window: it moves the window's own plane, every group on it, the style list
