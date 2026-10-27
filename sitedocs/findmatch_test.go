@@ -179,10 +179,10 @@ func trackStrip() image.Rectangle {
 	return r
 }
 
-// As the user types, every match in the guide is marked: the current one at
-// the highlight's full coverage and the others at the match coverage. The
-// scroll bar's track shows where the matches are, the current one stronger,
-// and the field counts them all.
+// As the user types, every match in the guide is marked in the match fill
+// and the current one in the current match's fill. The scroll bar's track
+// shows where the matches are in the same two fills, and the field counts
+// them all.
 func TestTypingMarksEveryMatchInTheGuideAndTheTrack(t *testing.T) {
 	p := openFindPage(t)
 	matches := p.doc.Matches()
