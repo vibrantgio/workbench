@@ -214,11 +214,23 @@ const (
 func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) rowLayout {
 	row := layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceBetween, Alignment: layout.Middle}
 
+	// onSelection is true while the row is drawn selected. The checkbox reads
+	// it on every frame: on the selected row the box stands on the content
+	// list selection, so its fill is a step apart from that grey and not from
+	// the window's plane.
+	var onSelection bool
+
 	// th is a static snapshot (rx.Of), so First() resolves synchronously.
 	cb, _ := input.Checkbox(th, input.CheckboxProps{
 		Description: "completed",
 		Checked:     item.Completed,
 		Message:     ToggleTodo{Id: item.Id},
+		Surface: func(tokens.PlatformColors) color.NRGBA {
+			if onSelection {
+				return p.RowSelection
+			}
+			return color.NRGBA{}
+		},
 	}).First()
 
 	// The text is plain and clickable, not a button: a completed todo
@@ -260,6 +272,7 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) rowLayou
 	var hover gesture.Hover
 
 	return func(gtx layout.Context, sel rowSelection) layout.Dimensions {
+		onSelection = sel.selected
 		hovered := hover.Update(gtx.Source)
 		macro := op.Record(gtx.Ops)
 		dims := row.Layout(gtx,

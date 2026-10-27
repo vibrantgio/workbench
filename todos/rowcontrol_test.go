@@ -17,6 +17,7 @@ import (
 
 	"github.com/vibrantgio/components/composite"
 	"github.com/vibrantgio/components/golden"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -281,6 +282,26 @@ func TestAClickSelectsTheRow(t *testing.T) {
 			} {
 				if other := drawnOn(img, r, th.palette.Backdrop); !other.Empty() {
 					t.Errorf("a mark is drawn at %v, outside the selected row", other)
+				}
+			}
+
+			// The unchecked box on each row is the separator flattened onto
+			// what the row lays under it: the content list selection on the
+			// selected row, the window's plane on the others. The second and
+			// third todos are unchecked; the box is centred in its footprint
+			// at the rows' leading inset.
+			boxX := int(2*Padding) + int(th.density.CheckboxRowHeight)/2
+			for _, r := range []struct {
+				what string
+				y    int
+				on   color.NRGBA
+			}{
+				{"selected", ys[1], want},
+				{"unselected", ys[2], th.palette.Backdrop},
+			} {
+				fill := vgcolor.Flatten(tc.c.Separator, r.on)
+				if got := pixelAt(img, image.Pt(boxX, r.y)); got != fill {
+					t.Errorf("the unchecked box on the %s row reads %v, want the separator over %v, %v", r.what, got, r.on, fill)
 				}
 			}
 
