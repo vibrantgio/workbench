@@ -31,12 +31,13 @@ const (
 	CaptionH unit.Dp = 16 // the colour written out under it
 	InnerR   unit.Dp = 8  // the swatch's corners, and the picture's mat
 
-	// MarkRing and MarkGutter are how the platform marks a chosen thumbnail,
-	// MEASURED off the Appearance pane's own row in
-	// `system-settings-grouped-box-light.png`: the ring round the selected
-	// thumbnail spans x 455–457 and y 62–64, three points of the accent, and
-	// one point of the box's own fill stands between it and the thumbnail at
-	// x 458. Nothing else about the thumbnail changes when it is chosen.
+	// MarkRing and MarkGutter are how the platform marks a chosen swatch,
+	// MEASURED off System Settings' Appearance pane in
+	// `system-settings-grouped-box-{light,dark}.png`: round the chosen accent
+	// colour swatch, x 381–404, the ring spans x 377–379 and the gap x 380 in
+	// both schemes. The ring round the chosen appearance thumbnail is 3 px
+	// too, so the width does not follow the size of the thing chosen. The
+	// chosen swatch keeps the size of an unchosen one.
 	MarkRing   unit.Dp = 3
 	MarkGutter unit.Dp = 1
 )
@@ -176,7 +177,7 @@ func Cell(gtx layout.Context, p Palette, ty Type, c cell, click *gesture.Click, 
 
 	if c.chosen {
 		ring, gutter := gtx.Dp(MarkRing), gtx.Dp(MarkGutter)
-		strokeRRect(gtx, swatch.Inset(-(ring + gutter)), gtx.Dp(InnerR)+ring+gutter, ring, p.Accent)
+		strokeRRect(gtx, swatch.Inset(-(ring + gutter)), gtx.Dp(InnerR)+ring+gutter, ring, p.ChosenRing)
 	}
 
 	// The swatch carries a hairline of its own because a picture's palest

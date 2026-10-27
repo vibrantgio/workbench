@@ -150,37 +150,53 @@ func TestNoCellWhereThePlatformReportsNoColour(t *testing.T) {
 	}
 }
 
-// TestTheChosenSwatchHasTheAccentRing: the colour the window is standing on
-// is marked the way the platform marks a chosen thumbnail — a ring of the
-// accent round the swatch, a point of the box's fill between them — and by
-// nothing else. The swatch itself does not move and the caption does not
-// change colour.
-func TestTheChosenSwatchHasTheAccentRing(t *testing.T) {
-	plain := dropped(t)
-	m := ReduceModel(plain, SelectCandidate{Index: 1})
-	n := len(m.Candidates) + 1
-	c := tokens.PlatformLight
-	img := page(t, m, c)
-	p := PaletteFrom(c)
+// TestTheChosenSwatchHasTheMeasuredRing: the colour the window is standing
+// on is marked the way System Settings marks its chosen accent colour swatch,
+// and by nothing else. The reference measures that ring in
+// `system-settings-grouped-box-{light,dark}.png`: 3 px of `#157efb`, opaque,
+// with a 1 px gap of the box's fill between the ring and the swatch, in both
+// schemes. The test reads the column through the swatch's middle, upwards
+// from the swatch's top edge. The swatch itself does not move.
+func TestTheChosenSwatchHasTheMeasuredRing(t *testing.T) {
+	const ringW, gapW = 3, 1
+	ring := stdcolor.NRGBA{R: 0x15, G: 0x7e, B: 0xfb, A: 0xff}
+	for _, tc := range []struct {
+		name string
+		set  tokens.PlatformColors
+	}{{"light", tokens.PlatformLight}, {"dark", tokens.PlatformDark}} {
+		t.Run(tc.name, func(t *testing.T) {
+			plain := ReduceModel(dropped(t), SetScheme{Dark: tc.name == "dark"})
+			m := ReduceModel(plain, SelectCandidate{Index: 1})
+			n := len(m.Candidates) + 1
+			img := page(t, m, tc.set)
+			box := PaletteFrom(WindowSet(tc.set, m)).Surface
 
-	// The ring stands MarkGutter clear of the swatch's own top edge, so it is
-	// read half a ring above that.
-	centre := cellCentre(n, 2)
-	top := centre.Y - int(SwatchH)/2
-	ringY := top - int(MarkGutter) - int(MarkRing)
-	if got := img.RGBAAt(centre.X, ringY); !is(got, p.Accent) {
-		t.Errorf("the chosen swatch's ring at (%d,%d) drew %v, want the platform's accent %v",
-			centre.X, ringY, got, p.Accent)
-	}
-	// And the ring stops short of the swatch: the row against the swatch's
-	// own top edge is not the accent.
-	if got := img.RGBAAt(centre.X, top-1); is(got, p.Accent) {
-		t.Error("the ring runs up against the swatch — the gutter between them is not drawn")
-	}
-	// The swatch is where an unchosen one is, to the pixel.
-	before := page(t, plain, c)
-	if got, want := img.RGBAAt(centre.X, centre.Y), before.RGBAAt(centre.X, centre.Y); got != want {
-		t.Errorf("choosing the colour moved the swatch under it: %v became %v", want, got)
+			centre := cellCentre(n, 2)
+			top := centre.Y - int(SwatchH)/2
+			y := top - 1
+			gap := 0
+			for ; is(img.RGBAAt(centre.X, y), box); y-- {
+				gap++
+			}
+			width := 0
+			for ; is(img.RGBAAt(centre.X, y), ring); y-- {
+				width++
+			}
+			if gap != gapW {
+				t.Errorf("the gap between the ring and the swatch is %d px of the box's fill, want %d", gap, gapW)
+			}
+			if width != ringW {
+				t.Errorf("the ring is %d px of %v, want %d", width, ring, ringW)
+			}
+			if got := img.RGBAAt(centre.X, y); !is(got, box) {
+				t.Errorf("past the ring at (%d,%d) the box drew %v, want its fill %v", centre.X, y, got, box)
+			}
+			// The swatch is where an unchosen one is, to the pixel.
+			before := page(t, plain, tc.set)
+			if got, want := img.RGBAAt(centre.X, centre.Y), before.RGBAAt(centre.X, centre.Y); got != want {
+				t.Errorf("choosing the colour moved the swatch under it: %v became %v", want, got)
+			}
+		})
 	}
 }
 

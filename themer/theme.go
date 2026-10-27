@@ -79,6 +79,7 @@ type Palette struct {
 	Accent           stdcolor.NRGBA // the theme colour in force
 	AccentForeground stdcolor.NRGBA // what reads on the selection
 	Selection        stdcolor.NRGBA // the chosen row's or card's fill
+	ChosenRing       stdcolor.NRGBA // the ring round the chosen swatch
 	Problem          stdcolor.NRGBA // a drop that produced nothing
 }
 
@@ -88,6 +89,11 @@ type Palette struct {
 // box's fill and a seam for the hairline anything inside it has. A swatch is
 // a graphic the pointer operates, which is what the platform lays its hover
 // overlay over; a list row and a push button, which do not tint, are neither.
+//
+// The ring round a chosen swatch is the default button's fill. System Settings
+// draws its chosen swatch's ring in `#157efb` in both schemes, opaque. The
+// reference measures the default button's fill at that value to the byte, and
+// both follow the accent.
 func PaletteFrom(c tokens.PlatformColors) Palette {
 	return Palette{
 		Backdrop:         c.WindowBackground,
@@ -101,6 +107,7 @@ func PaletteFrom(c tokens.PlatformColors) Palette {
 		Accent:           c.ControlAccent,
 		AccentForeground: c.AlternateSelectedControlText,
 		Selection:        c.SelectedContentBackground,
+		ChosenRing:       c.DefaultButtonFill,
 		Problem:          c.SystemRed,
 	}
 }

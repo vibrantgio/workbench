@@ -5,6 +5,7 @@ import (
 	"image"
 	stdcolor "image/color"
 
+	"gioui.org/f32"
 	"gioui.org/gesture"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
@@ -1065,10 +1066,17 @@ func strokeRRect(gtx layout.Context, r image.Rectangle, radius, width int, c std
 	if width <= 0 {
 		return
 	}
-	half := float32(width) / 2
-	inner := image.Rect(r.Min.X+width/2, r.Min.Y+width/2, r.Max.X-width/2, r.Max.Y-width/2)
-	path := clip.UniformRRect(inner, max(0, radius-width/2)).Path(gtx.Ops)
-	defer clip.Stroke{Path: path, Width: half * 2}.Op().Push(gtx.Ops).Pop()
+	k := width / 2
+	inner := image.Rect(r.Min.X+k, r.Min.Y+k, r.Max.X-k, r.Max.Y-k)
+	// An odd width centres the stroke on a half pixel. The path is one pixel
+	// smaller and moves half a pixel in, so the line covers whole pixels and
+	// no part of it lands outside the rectangle.
+	if width%2 == 1 {
+		inner.Max = inner.Max.Sub(image.Pt(1, 1))
+		defer op.Affine(f32.AffineId().Offset(f32.Pt(0.5, 0.5))).Push(gtx.Ops).Pop()
+	}
+	path := clip.UniformRRect(inner, max(0, radius-k)).Path(gtx.Ops)
+	defer clip.Stroke{Path: path, Width: float32(width)}.Op().Push(gtx.Ops).Pop()
 	paint.ColorOp{Color: c}.Add(gtx.Ops)
 	paint.PaintOp{}.Add(gtx.Ops)
 }
