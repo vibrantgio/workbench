@@ -204,11 +204,13 @@ func guideUnavailableObservable(th rx.Observable[theme.Theme], fail *guideFailur
 
 // guideDocObservable is the live main-column stream for the one guide
 // document: the same Document on every emission, restyled per theme
-// change. The shaper is the theme's cached Typography shaper.
+// change. The shaper is the theme's cached Typography shaper. current is
+// asked on each frame which match is current, for the scroll bar's track.
 func guideDocObservable(
 	th rx.Observable[theme.Theme],
 	doc *markdown.Document,
 	bars desktop.ScrollBarSetting,
+	current func() int,
 ) rx.Observable[layout.Widget] {
 	colObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 	typObs := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.Typography] { return t.Typography })
@@ -224,7 +226,7 @@ func guideDocObservable(
 		bar := columnBar(t.First, bars)
 		shaper := typ.Shaper()
 		return func(gtx layout.Context) layout.Dimensions {
-			return drawGuideDoc(gtx, doc, shaper, style, bar)
+			return drawGuideDoc(gtx, doc, shaper, style, track(bar, doc, current()))
 		}
 	})
 }

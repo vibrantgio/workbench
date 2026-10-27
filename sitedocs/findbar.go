@@ -8,8 +8,10 @@ package main
 import (
 	"image"
 	stdcolor "image/color"
+	"strconv"
 
 	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -23,6 +25,8 @@ import (
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/input"
 	complayout "github.com/vibrantgio/components/layout"
+	"github.com/vibrantgio/components/scrollbar"
+	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
@@ -107,38 +111,57 @@ func withFindBar(open bool, bar, w layout.Widget) layout.Widget {
 	}
 }
 
-// findBar is the live bar's three parts. The field is built once, so its
-// text and its focus tag stay while the window is open. The two buttons take
-// their surface as a colour, so they are built again when the scheme changes.
+// findBar is the live bar's three parts and the find they drive. The field is
+// built once, so its text and its focus tag stay while the window is open.
+// The two buttons take their surface as a colour, so they are built again
+// when the scheme changes.
+//
+// The query and the current match are frame state: the field, the previous
+// and next control and the page write them, all on the frame. Stepping needs
+// the number of matches, and only the document holds it.
 type findBar struct {
 	// field is the field's focus tag. The page gives it the keyboard when
 	// the bar opens.
 	field event.Tag
-	// hasQuery is whether the field holds text. The field writes it and the
-	// previous and next control reads it, both on the frame.
-	hasQuery bool
+	// doc is the guide that the find marks.
+	doc *markdown.Document
+	// query is the field's text.
+	query string
+	// current indexes the document's matches: the match that Enter and the
+	// previous and next control step from.
+	current int
+	// inField is whether the field holds the keyboard on this frame. The
+	// page sets it before anything is laid out. The marks and the count
+	// show only while it is true.
+	inField bool
 
 	parts rx.Observable[rx.Tuple3[layout.Widget, layout.Widget, layout.Widget]]
 }
 
-// newFindBar builds the bar's parts. Done posts CloseFind through post.
-func newFindBar(th rx.Observable[theme.Theme], post func(gtx layout.Context, msg mvu.Message)) *findBar {
-	b := &findBar{}
+// newFindBar builds the bar's parts over doc. Done posts CloseFind through
+// post.
+func newFindBar(th rx.Observable[theme.Theme], doc *markdown.Document, post func(gtx layout.Context, msg mvu.Message)) *findBar {
+	b := &findBar{doc: doc}
 	fieldObs := input.SearchField(th, input.SearchFieldProps{
 		Placeholder: findBarPrompt,
 		Variant:     input.FindBar,
 		Surface:     pageFill,
 		FocusTag:    func(tag event.Tag) { b.field = tag },
-		OnChange:    func(_ layout.Context, text string) { b.hasQuery = text != "" },
+		OnChange:    func(_ layout.Context, text string) { b.setQuery(text) },
+		OnNext:      func(gtx layout.Context) { b.step(gtx, 1) },
+		OnPrevious:  func(gtx layout.Context) { b.step(gtx, -1) },
+		Count:       b.count,
 	})
 	colors := rx.DistinctUntilChanged(func(a, b tokens.PlatformColors) bool { return a == b })(
 		rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform }))
 	stepsObs := rx.SwitchMap(colors, func(c tokens.PlatformColors) rx.Observable[layout.Widget] {
 		return button.FindBarSteps(th, button.FindBarStepsProps{
-			HasQuery:            func() bool { return b.hasQuery },
+			HasQuery:            func() bool { return b.query != "" },
 			Surface:             pageFill(c),
 			PreviousDescription: "Previous",
 			NextDescription:     "Next",
+			OnPrevious:          func(gtx layout.Context) { b.step(gtx, -1) },
+			OnNext:              func(gtx layout.Context) { b.step(gtx, 1) },
 		})
 	})
 	doneObs := rx.SwitchMap(colors, func(c tokens.PlatformColors) rx.Observable[layout.Widget] {
@@ -151,6 +174,73 @@ func newFindBar(th rx.Observable[theme.Theme], post func(gtx layout.Context, msg
 	})
 	b.parts = rx.CombineLatest3(fieldObs, stepsObs, doneObs)
 	return b
+}
+
+// frame reads where the keyboard is and puts the marks on the guide or takes
+// them off. The page calls it on each frame before the bar and the guide are
+// laid out. The query and the current match stay when the marks go, so the
+// marks come back when the keyboard goes back into the field.
+func (b *findBar) frame(gtx layout.Context) {
+	b.inField = b.field != nil && gtx.Focused(b.field)
+	if b.inField && b.query != "" {
+		b.doc.Find(b.query, b.current)
+		return
+	}
+	b.doc.ClearFind()
+}
+
+// setQuery takes the field's new text. The first match becomes the current
+// match and scrolls into view. An empty query takes every mark off.
+func (b *findBar) setQuery(text string) {
+	b.query = text
+	b.current = 0
+	if text == "" {
+		b.doc.ClearFind()
+		return
+	}
+	b.doc.Find(text, 0)
+	b.doc.ScrollToMatch(0)
+}
+
+// step moves the current match by delta, from the last match to the first
+// and from the first to the last, and scrolls it into view. It gives the
+// keyboard to the field, because the marks show only while the field holds
+// it.
+func (b *findBar) step(gtx layout.Context, delta int) {
+	if b.query == "" {
+		return
+	}
+	b.doc.Find(b.query, b.current)
+	n := len(b.doc.Matches())
+	if n == 0 {
+		return
+	}
+	b.current = ((b.current+delta)%n + n) % n
+	b.doc.Find(b.query, b.current)
+	b.doc.ScrollToMatch(b.current)
+	if b.field != nil && !gtx.Focused(b.field) {
+		gtx.Execute(key.FocusCmd{Tag: b.field})
+	}
+}
+
+// count is the field's count: the number of matches, and nothing while the
+// field does not hold the keyboard or holds no text. The reference measures
+// the number alone, with no "1 of 8".
+func (b *findBar) count() string {
+	if !b.inField || b.query == "" {
+		return ""
+	}
+	return strconv.Itoa(len(b.doc.Matches()))
+}
+
+// track puts the matches on the guide column's scroll bar: where each match
+// lies, and which one is current. With no marks on the guide it puts none.
+func track(bar scrollbar.Style, doc *markdown.Document, current int) scrollbar.Style {
+	if places := doc.MatchPlaces(); len(places) > 0 {
+		bar.Matches = places
+		bar.Current = current
+	}
+	return bar
 }
 
 // renderFindBar is the static twin of the live bar, for goldens and review

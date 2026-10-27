@@ -13,6 +13,7 @@ package main
 import (
 	"image"
 	"image/color"
+	"strconv"
 
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
@@ -334,7 +335,8 @@ func docsOutline(
 // bytes come out on any machine whatever its reader asked for.
 //
 // find is the find bar's field state; nil draws the page with the bar
-// closed.
+// closed. A field that holds the keyboard and a query marks the guide, as
+// the live page does, with the first match current.
 func renderDocsPage(
 	shaper *text.Shaper,
 	source []byte,
@@ -357,6 +359,15 @@ func renderDocsPage(
 	tok := themeTokens{col: colors, typ: typo, shaper: shaper}
 	style := docsMarkdownStyle(colors, typo)
 	bar := columnBar(colors, desktop.ScrollBarsWhenScrolling)
+	if find != nil && find.Focused && find.Text != "" {
+		// The field holds the keyboard and a query: the guide marks every
+		// match with the first one current, and the field counts them.
+		doc.Find(find.Text, 0)
+		bar = track(bar, doc, 0)
+		field := *find
+		field.Count = strconv.Itoa(len(doc.Matches()))
+		find = &field
+	}
 	column := func(gtx layout.Context) layout.Dimensions {
 		return drawGuideDoc(gtx, doc, shaper, style, bar)
 	}

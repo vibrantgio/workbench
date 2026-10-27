@@ -285,6 +285,10 @@ func docsPageFrom(
 // and close request counts in Model.findMoves. On the first frame after the
 // count changes, the page gives the keyboard to the field if the bar is open
 // and to the guide if it is closed.
+//
+// The guide shows the find's marks, and the field its count, only while the
+// field holds the keyboard; see findBar.frame. Closing the bar moves no part
+// of the guide, so the current match stays in view.
 func docsPage(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
@@ -300,8 +304,8 @@ func docsPage(
 		return outlineState{open: m.outlineOpen, selected: m.selectedHeading}
 	})
 	sidebarObs := docsOutline(th, entries, stateObs, doc.ScrollToBlock)
-	mainObs := guideDocObservable(th, doc, bars)
-	bar := newFindBar(th, post)
+	bar := newFindBar(th, doc, post)
+	mainObs := guideDocObservable(th, doc, bars, func() int { return bar.current })
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 
 	chords := ChordAreas(post)
@@ -327,6 +331,7 @@ func docsPage(
 			if m.findOpen {
 				escape(gtx)
 			}
+			bar.frame(gtx)
 			if m.findMoves != movesSeen {
 				movesSeen = m.findMoves
 				if !m.findOpen {

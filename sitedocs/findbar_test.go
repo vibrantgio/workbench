@@ -127,12 +127,18 @@ type livePage struct {
 
 func newLivePage(t *testing.T) *livePage {
 	t.Helper()
+	return newLivePageFrom(t, guideFixture(t))
+}
+
+// newLivePageFrom is newLivePage over the guide source.
+func newLivePageFrom(t *testing.T, source []byte) *livePage {
+	t.Helper()
 	p := &livePage{t: t, r: new(gioinput.Router), ops: new(op.Ops)}
 	send, modelObs := rx.Subject[Model](0, 1)
 	p.send = send
 	th := rx.Of(golden.StaticTheme(tokens.PlatformLight))
 	post := func(_ layout.Context, msg mvu.Message) { p.posted = append(p.posted, msg) }
-	page, doc, bar := docsPage(th, modelObs, guideFixture(t), desktop.ScrollBarsWhenScrolling, post)
+	page, doc, bar := docsPage(th, modelObs, source, desktop.ScrollBarsWhenScrolling, post)
 	p.doc, p.bar = doc, bar
 	sub := page.Subscribe(rx.GoroutineContext(), func(w layout.Widget, err error, done bool) {
 		if !done && err == nil && w != nil {

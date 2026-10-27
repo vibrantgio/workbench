@@ -42,6 +42,9 @@ func TestWriteReviewCaptures(t *testing.T) {
 		}{
 			{"window-review-" + tc.name, nil},
 			{"window-review-find-" + tc.name, &input.RenderState{Focused: true}},
+			// The third is the window with a query typed: the guide marks
+			// every match, the first one current, and the field counts them.
+			{"window-review-find-query-" + tc.name, &input.RenderState{Focused: true, Text: "Roboto"}},
 		} {
 			w := windowFrame(shaper, src, st, tc.c, typo, titleBandDp, shot.find)
 			img := golden.Capture(t, windowSize, w)
