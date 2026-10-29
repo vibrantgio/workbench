@@ -247,7 +247,7 @@ func driveWidget(w layout.Widget, size image.Point, evs ...event.Event) {
 	frame()
 }
 
-// TestWindowGolden records or diffs the whole window — the title band, the
+// TestWindowGolden records or diffs the whole window — the toolbar, the
 // outline tree in the leading column, the one document filling the rest — in
 // light and dark, with the first ## open so the children show and its heading
 // selected so the selection pill is pinned too. The fixture document
@@ -262,7 +262,7 @@ func TestWindowGolden(t *testing.T) {
 
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
-			w := windowFrame(shaper, source, st, tc.c, tokens.DefaultTypography, titleBandDp, nil)
+			w := windowFrame(shaper, source, st, tc.c, tokens.DefaultTypography, nil)
 			golden.Render(t, "window-"+tc.name, windowSize, w)
 		})
 	}

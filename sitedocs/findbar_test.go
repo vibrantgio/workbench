@@ -18,6 +18,7 @@ import (
 
 	"github.com/reactivego/rx"
 
+	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/markdown"
@@ -263,9 +264,14 @@ func TestFindOpensWithTheKeyboardInTheFieldAndClosesBackToTheGuide(t *testing.T)
 }
 
 // findBarFrame is the window at its own size with the first section open,
-// under the title band, with the find bar in the state find. With seat true
+// under the toolbar, with the find bar in the state find. With seat true
 // the first section is selected and the guide is seated at its heading;
 // otherwise the guide is at its top.
+//
+// The toolbar's search field casts its measured shadow below the strip's
+// foot, onto the bar's top rows. The TextEdit captures that these tests
+// read the bar against have no toolbar, so these frames put an empty box of
+// the field's width in the field's place.
 func findBarFrame(t *testing.T, c tokens.PlatformColors, find *input.RenderState, seat bool) *image.RGBA {
 	t.Helper()
 	shaper := tokens.DefaultTypography.DeterministicShaper()
@@ -274,7 +280,15 @@ func findBarFrame(t *testing.T, c tokens.PlatformColors, find *input.RenderState
 	if seat {
 		st.selected = guideOutline(markdown.Parse(guide))[0].Block
 	}
-	return golden.Capture(t, windowSize, windowFrame(shaper, guide, st, c, tokens.DefaultTypography, titleBandDp, find))
+	page := onPageFill(c, renderDocsPage(shaper, guide, st, c, tokens.DefaultTypography, find))
+	background := backdrop.Widget(c.WindowBackground)
+	strip := withToolbar(toolbarDepth, c, func(gtx layout.Context) layout.Dimensions {
+		return layout.Dimensions{Size: gtx.Constraints.Min}
+	}, page)
+	return golden.Capture(t, windowSize, func(gtx layout.Context) layout.Dimensions {
+		background(gtx)
+		return strip(gtx)
+	})
 }
 
 // runs reads the row y of img from x0 to x1 inclusive as alternating runs of
@@ -329,7 +343,7 @@ func near(a, b color.NRGBA, tol int) bool {
 // with 6 above them.
 func TestTheFindBarStandsOverTheGuideColumnOnly(t *testing.T) {
 	rail := docsOutlineWidthDp
-	top := titleBandDp
+	top := toolbarDp
 	w := windowSize.X
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {
@@ -400,7 +414,7 @@ func TestTheFindBarStandsOverTheGuideColumnOnly(t *testing.T) {
 // in the shorter column.
 func TestTheFindBarHidesNoPartOfTheGuide(t *testing.T) {
 	rail := docsOutlineWidthDp
-	top := titleBandDp
+	top := toolbarDp
 	h := findBarFillDp + 1
 	for _, tc := range windowSchemes {
 		t.Run(tc.name, func(t *testing.T) {

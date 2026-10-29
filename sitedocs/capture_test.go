@@ -14,7 +14,7 @@ import (
 
 // TestWriteReviewCaptures is not a test: it is the offscreen camera for
 // review captures. Set SITEDOCS_CAPTURE_DIR to a directory and run this test
-// to write window-sized captures of the window — title band included, the
+// to write window-sized captures of the window — toolbar included, the
 // page over the real checkout guide — in both schemes; unset (the normal test
 // run) it skips, so no ordinary run depends on the checkout file. It renders
 // offscreen and touches nothing on the owner's screen.
@@ -32,7 +32,7 @@ func TestWriteReviewCaptures(t *testing.T) {
 	st := outlineState{open: map[int]bool{0: true}, selected: guideOutline(markdown.Parse(src))[0].Block}
 	for _, tc := range windowSchemes {
 		// windowFrame is the whole composition — the backdrop, the
-		// title-bar band, and the page on its fill — so the camera
+		// toolbar, and the page on its fill — so the camera
 		// photographs the window rather than one layer of it.
 		// The second capture is the window with the find bar open and the
 		// keyboard in its field, as Edit ▸ Find… leaves it.
@@ -46,7 +46,7 @@ func TestWriteReviewCaptures(t *testing.T) {
 			// every match, the first one current, and the field counts them.
 			{"window-review-find-query-" + tc.name, &input.RenderState{Focused: true, Text: "Roboto"}},
 		} {
-			w := windowFrame(shaper, src, st, tc.c, typo, titleBandDp, shot.find)
+			w := windowFrame(shaper, src, st, tc.c, typo, shot.find)
 			img := golden.Capture(t, windowSize, w)
 			path := filepath.Join(dir, shot.name+".png")
 			f, err := os.Create(path)

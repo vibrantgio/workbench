@@ -21,6 +21,7 @@ import (
 	"gioui.org/app"
 	"gioui.org/io/key"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
@@ -29,9 +30,12 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/backdrop"
+	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
+	"github.com/vibrantgio/patterns/pane"
+	"github.com/vibrantgio/patterns/shell"
 	"github.com/vibrantgio/theme/brand"
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/theme"
@@ -55,18 +59,19 @@ func run() {
 	// floating over it; on every other platform FullSizeContent returns no
 	// options and the window keeps its normal decorations. app.Title stays
 	// even though the treatment hides the title text — Mission Control, the
-	// Dock and VoiceOver read it all the same. underTitleBar paints the
-	// title-bar strip in the fills of the page's columns under it, and keeps
-	// the page (and so the outline tree) clear of the window buttons.
+	// Dock and VoiceOver read it all the same. underToolbar lays the toolbar
+	// along the window's top and keeps the page (and so the outline tree)
+	// below it, clear of the window buttons.
 	mvuWin := mvu.NewWindow(append(desktop.FullSizeContent(),
 		app.Title("Site Docs"),
 		app.Size(unit.Dp(windowW), unit.Dp(windowH)),
 	)...)
 	// Gio re-hides the standard window buttons on every configuration
-	// rebuild, so ShowWindowButtons registers a re-assertion on the mvu
-	// OnConfigure seam. Post-construction options must therefore go through
-	// mvuWin.Option — never mvuWin.Window().Option — or the buttons vanish.
-	desktop.ShowWindowButtons(mvuWin)
+	// rebuild, so StandWindowButtons registers a re-assertion on the mvu
+	// OnConfigure seam. It also centres them on the toolbar's strip.
+	// Post-construction options must therefore go through mvuWin.Option —
+	// never mvuWin.Window().Option — or the buttons vanish.
+	shell.StandWindowButtons(mvuWin, nil)
 
 	// Seam proof hook: SITEDOCS_RETITLE_MS=<n> retitles the window through
 	// mvuWin.Option n milliseconds after launch. A runtime title change is
@@ -141,66 +146,100 @@ func buildLayers(modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) f
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			underTitleBar(th, pageLayer(th, modelObs, bars)),
+			underToolbar(th, pageLayer(th, modelObs, bars)),
 		}
 	}
 }
 
-// underTitleBar pads the page down by the native title-bar strip's measured
-// height on a full-size-content window and paints that strip in the fills of
-// the columns it caps. desktop.TopInset is read at frame time: it reports 0
-// until the window's first frame, in headless tests, and on every platform
-// but macOS, so away from the treatment (goldens included) the wrapper is an
-// exact no-op. Because the whole page starts below the strip, the outline
-// tree never sits under the window buttons.
-//
-// The cap claims that same strip for the window's own drag: without that
-// claim the window could not be moved by its top edge at all.
-func underTitleBar(th rx.Observable[theme.Theme], pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
+// toolbarSearchWDp is the width of the search field in the toolbar.
+// MEASURED at 1x: the toolbar search recess runs x 867–1191 in
+// mail-window.png and x 643–967 in voicememos-window.png, 325 wide in both.
+const toolbarSearchWDp = 325
+
+// toolbarSearchPrompt is the search field's placeholder.
+const toolbarSearchPrompt = "Search"
+
+// toolbarDepth is the depth of the strip along the window's top: the
+// platform's toolbar, or the native title-bar strip where that is deeper.
+func toolbarDepth() unit.Dp { return shell.ChromeTop(shell.ToolbarDepth) }
+
+// underToolbar puts the window's toolbar above the page. The toolbar holds
+// the search field at its trailing end.
+func underToolbar(th rx.Observable[theme.Theme], pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
 		return t.Platform
 	})
-	return rx.Map(rx.CombineLatest2(pageObs, colors), func(n rx.Tuple2[layout.Widget, tokens.PlatformColors]) layout.Widget {
-		return bandedCap(desktop.TopInset, n.Second, n.First)
+	field := input.SearchField(th, input.SearchFieldProps{
+		Placeholder: toolbarSearchPrompt,
+		Description: "search the guide",
+		Variant:     input.Chrome,
+		Region:      input.Toolbar,
+		Surface:     pageFill,
+	})
+	return rx.Map(rx.CombineLatest3(pageObs, colors, field), func(n rx.Tuple3[layout.Widget, tokens.PlatformColors, layout.Widget]) layout.Widget {
+		return withToolbar(toolbarDepth, n.Second, n.Third, n.First)
 	})
 }
 
-// paintTitleBand paints the title-bar strip across size. The strip draws
-// nothing of its own, so the window paints in it the fill of each region
-// under it, continued upward: the outline rail's fill and seam over the
-// rail's width, and the page's fill over the rest. The stored reference
-// measures the platform's band the same way: it is the sidebar's fill over
-// the sidebar and the content's fill over the content.
-func paintTitleBand(gtx layout.Context, size image.Point, c tokens.PlatformColors) {
-	paint.FillShape(gtx.Ops, pageFill(c), clip.Rect{Max: size}.Op())
-	rail := min(gtx.Dp(unit.Dp(docsOutlineWidthDp)), size.X)
-	paintOutlineRail(gtx, image.Pt(rail, size.Y), c)
+// withToolbar lays the strip of the given depth along the window's top and
+// the page below it.
+//
+// The strip has no fill of its own. Over the outline rail it shows the
+// rail's fill and seam, so the rail's fill reaches the window's top edge.
+// Over the guide column it shows the page's fill, and the toolbar is in that
+// share: the search field at the trailing end, with the toolbar's trailing
+// inset after it.
+//
+// The strip moves the window when the user drags it, except over the
+// window's control buttons and over the field.
+func withToolbar(depth func() unit.Dp, c tokens.PlatformColors, field, page layout.Widget) layout.Widget {
+	inset := desktop.InsetTop(depth, page)
+	return func(gtx layout.Context) layout.Dimensions {
+		h := gtx.Dp(depth())
+		w := gtx.Constraints.Max.X
+		rail := min(gtx.Dp(unit.Dp(docsOutlineWidthDp)), w)
+		if h > 0 {
+			paint.FillShape(gtx.Ops, pageFill(c), clip.Rect{Max: image.Pt(w, h)}.Op())
+			paintOutlineRail(gtx, image.Pt(rail, h), c)
+
+			rgtx := gtx
+			rgtx.Constraints = layout.Exact(image.Pt(rail, h))
+			desktop.DragTop(rgtx, depth)
+
+			st := op.Offset(image.Pt(rail, 0)).Push(gtx.Ops)
+			tgtx := gtx
+			tgtx.Constraints = layout.Exact(image.Pt(w-rail, h))
+			layoutToolbar(tgtx, field)
+			st.Pop()
+		}
+		return inset(gtx)
+	}
+}
+
+// layoutToolbar lays the toolbar out across the guide column's share of the
+// strip. The row centres the field on the strip's middle, so the field
+// stands on the line of the window's control buttons.
+func layoutToolbar(gtx layout.Context, field layout.Widget) layout.Dimensions {
+	size := gtx.Constraints.Max
+	gtx.Constraints.Min.Y = 0
+	layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		layout.Flexed(1, pane.DragFill),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			box := gtx.Dp(toolbarSearchWDp)
+			gtx.Constraints.Min = image.Pt(box, 0)
+			gtx.Constraints.Max.X = box
+			dims := field(gtx)
+			return layout.Dimensions{Size: image.Pt(box, dims.Size.Y)}
+		}),
+		layout.Rigid(pane.DragSpacer(shell.PlatformToolbar.Trail)),
+	)
+	return layout.Dimensions{Size: size}
 }
 
 // pageFill is the fill the page stands on: the platform's content plane.
 // The document column and the guide's empty state are drawn on it.
 func pageFill(c tokens.PlatformColors) stdcolor.NRGBA {
 	return c.ControlBackground
-}
-
-// bandedCap is desktop.CapTop with the title band painted under it: the strip
-// is painted, and then capped as any plain page's strip is — claimed for the
-// window's drag and held open above the page. The paint is this app's half
-// and stays here, since what a band is painted with is a question about
-// colour and the cap answers only in geometry and input; a zero-height strip
-// paints nothing, which is the same no-op the cap itself is at that height.
-//
-// The height is stated rather than read from the window — the same split
-// desktop.InsetTop's own height parameter already makes — so a test can state
-// a strip it has no window to measure.
-func bandedCap(height func() unit.Dp, c tokens.PlatformColors, w layout.Widget) layout.Widget {
-	capped := desktop.CapTop(height, w)
-	return func(gtx layout.Context) layout.Dimensions {
-		if h := gtx.Dp(height()); h > 0 {
-			paintTitleBand(gtx, image.Pt(gtx.Constraints.Max.X, h), c)
-		}
-		return capped(gtx)
-	}
 }
 
 // backdropLayer paints the window's own plane, under every other layer.

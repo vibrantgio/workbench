@@ -14,26 +14,23 @@ import (
 	"github.com/vibrantgio/theme/tokens"
 )
 
-// bandColors is the colour set these drag tests hand the strip. They are
-// about which presses the band claims and not about what it is painted in,
-// so they name the platform's set rather than one of their own.
-var bandColors = tokens.PlatformLight
-
-// TestTheStripClaimsTheWindowDrag guards the window's top-edge drag:
-// bandedCap declares desktop.DragTop over the same measured height InsetTop
-// pads by, so a press in the strip resolves to the window move and a press in
-// the page below it does not.
+// TestTheToolbarClaimsTheWindowDrag guards the window's top-edge drag: a
+// press in the toolbar's strip resolves to the window move, except on the
+// search field, and a press in the page below the strip does not.
 //
-// The strip height is stated rather than read from desktop.TopInset, because
-// a go test binary has no live macOS window behind it and that function
-// reports 0 without one.
-func TestTheStripClaimsTheWindowDrag(t *testing.T) {
-	const width, height, stripH = 400, 300, 32
-
+// A go test binary has no live macOS window, so desktop.LeadingInset reports
+// 0 and the strip over the rail claims its whole width here. The live
+// exclusion of the control buttons' run is mvu/desktop's contract.
+func TestTheToolbarClaimsTheWindowDrag(t *testing.T) {
+	const width, height = windowW, 300
+	depth := toolbarDp
 	page := func(gtx layout.Context) layout.Dimensions {
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
-	w := bandedCap(func() unit.Dp { return stripH }, bandColors, page)
+	field := func(gtx layout.Context) layout.Dimensions {
+		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Min.X, 36)}
+	}
+	w := withToolbar(toolbarDepth, tokens.PlatformLight, field, page)
 
 	var ops op.Ops
 	gtx := layout.Context{
@@ -50,48 +47,24 @@ func TestTheStripClaimsTheWindowDrag(t *testing.T) {
 		return ok && a == system.ActionMove
 	}
 
-	// With no live window behind a go test binary, desktop.LeadingInset —
-	// which DragTop consults to leave the platform's own control buttons
-	// their run — reports 0, so the strip's whole width is its empty run
-	// here. The live exclusion of the buttons' own run is mvu/desktop's
-	// contract; this app adds no arithmetic of its own around it, only the
-	// call.
-	for _, p := range []image.Point{{X: 0, Y: 0}, {X: width / 2, Y: stripH / 2}, {X: width - 1, Y: stripH - 1}} {
+	for _, p := range []image.Point{
+		{X: 0, Y: 0},
+		{X: docsOutlineWidthDp / 2, Y: depth / 2},
+		{X: docsOutlineWidthDp + 10, Y: depth / 2},
+		{X: 800, Y: depth - 1},
+		{X: width - 1, Y: depth / 2},
+	} {
 		if !moveAt(p.X, p.Y) {
-			t.Errorf("no window-move action at %v; the strip above the page is the drag band", p)
+			t.Errorf("no window-move action at %v; the toolbar's strip is the drag band", p)
 		}
 	}
-	// Below the strip is the page bandedCap's InsetTop pads down to,
-	// which keeps its own presses.
-	for _, p := range []image.Point{{X: width / 2, Y: stripH}, {X: width / 2, Y: 150}, {X: width / 2, Y: height - 1}} {
+	for _, p := range []image.Point{
+		{X: width - 8 - toolbarSearchWDp/2, Y: depth / 2},
+		{X: width / 2, Y: depth},
+		{X: width / 2, Y: height - 1},
+	} {
 		if moveAt(p.X, p.Y) {
-			t.Errorf("window-move action at %v; the page below the strip is the page's, not the band's", p)
+			t.Errorf("window-move action at %v; the search field and the page keep their own presses", p)
 		}
-	}
-}
-
-// TestTheCapIsANoOpWithNoStrip mirrors InsetTop's own no-strip case:
-// a height of 0 — headless rendering, and every platform other than macOS —
-// claims nothing and lays the page out at the window's own top.
-func TestTheCapIsANoOpWithNoStrip(t *testing.T) {
-	const width, height = 400, 300
-
-	page := func(gtx layout.Context) layout.Dimensions {
-		return layout.Dimensions{Size: gtx.Constraints.Max}
-	}
-	w := bandedCap(func() unit.Dp { return 0 }, bandColors, page)
-
-	var ops op.Ops
-	gtx := layout.Context{
-		Constraints: layout.Exact(image.Pt(width, height)),
-		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
-		Ops:         &ops,
-	}
-	w(gtx)
-
-	var r input.Router
-	r.Frame(&ops)
-	if _, ok := r.ActionAt(f32.Pt(float32(width/2), 0)); ok {
-		t.Error("window-move action with no strip above the page; there is no band to claim")
 	}
 }
