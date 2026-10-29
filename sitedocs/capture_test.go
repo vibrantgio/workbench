@@ -34,17 +34,15 @@ func TestWriteReviewCaptures(t *testing.T) {
 		// windowFrame is the whole composition — the backdrop, the
 		// toolbar, and the page on its fill — so the camera
 		// photographs the window rather than one layer of it.
-		// The second capture is the window with the find bar open and the
-		// keyboard in its field, as Edit ▸ Find… leaves it.
+		// The second capture is the window with a query typed in the
+		// toolbar's search field: the guide marks every match, the first
+		// one current, and the field counts them.
 		for _, shot := range []struct {
 			name string
 			find *input.RenderState
 		}{
 			{"window-review-" + tc.name, nil},
-			{"window-review-find-" + tc.name, &input.RenderState{Focused: true}},
-			// The third is the window with a query typed: the guide marks
-			// every match, the first one current, and the field counts them.
-			{"window-review-find-query-" + tc.name, &input.RenderState{Focused: true, Text: "Roboto"}},
+			{"window-review-search-" + tc.name, &input.RenderState{Focused: true, Text: "Roboto"}},
 		} {
 			w := windowFrame(shaper, src, st, tc.c, typo, shot.find)
 			img := golden.Capture(t, windowSize, w)

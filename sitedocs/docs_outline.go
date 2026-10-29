@@ -13,7 +13,6 @@ package main
 import (
 	"image"
 	"image/color"
-	"strconv"
 
 	"gioui.org/io/pointer"
 	"gioui.org/io/semantic"
@@ -28,7 +27,6 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/icons"
-	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
@@ -334,16 +332,16 @@ func docsOutline(
 // the overlay bar, which a resting frame holds nothing of, so the same
 // bytes come out on any machine whatever its reader asked for.
 //
-// find is the find bar's field state; nil draws the page with the bar
-// closed. A field that holds the keyboard and a query marks the guide, as
-// the live page does, with the first match current.
+// query is the search field's text. A query marks every match in the guide
+// and in the scroll bar's track, as the live page does, with the first
+// match current. An empty query marks nothing.
 func renderDocsPage(
 	shaper *text.Shaper,
 	source []byte,
 	st outlineState,
 	colors tokens.PlatformColors,
 	typo tokens.Typography,
-	find *input.RenderState,
+	query string,
 ) layout.Widget {
 	blocks := markdown.Parse(source)
 	// A selected heading means the reader is there: the static render
@@ -359,20 +357,12 @@ func renderDocsPage(
 	tok := themeTokens{col: colors, typ: typo, shaper: shaper}
 	style := docsMarkdownStyle(colors, typo)
 	bar := columnBar(colors, desktop.ScrollBarsWhenScrolling)
-	if find != nil && find.Focused && find.Text != "" {
-		// The field holds the keyboard and a query: the guide marks every
-		// match with the first one current, and the field counts them.
-		doc.Find(find.Text, 0)
+	if query != "" {
+		doc.Find(query, 0)
 		bar = track(bar, doc, 0)
-		field := *find
-		field.Count = strconv.Itoa(len(doc.Matches()))
-		find = &field
 	}
 	column := func(gtx layout.Context) layout.Dimensions {
 		return drawGuideDoc(gtx, doc, shaper, style, bar)
-	}
-	if find != nil {
-		column = withFindBar(true, renderFindBar(shaper, colors, typo, *find), column)
 	}
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,

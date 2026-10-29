@@ -28,6 +28,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -55,36 +56,52 @@ var windowSize = image.Pt(windowW, windowH)
 // desktop.TopInset reports 0 and the strip is the toolbar's own depth.
 const toolbarDp = int(shell.ToolbarDepth)
 
-// windowFrame composes the window for one scheme exactly as buildLayers
+// windowFrame composes the window for one scheme exactly as docsWindow
 // stacks it: the backdrop first, then the toolbar's strip with the page on
 // its fill below it. The page is the static twin the goldens draw
 // (renderDocsPage), so the frame is the app's composition minus the streams.
 //
-// find is the find bar's field state; nil draws the window with the bar
-// closed.
+// field is the search field's state; nil draws the field empty and without
+// the keyboard. A field with text marks the guide and counts the matches,
+// as the live window does.
 func windowFrame(
 	shaper *text.Shaper,
 	guide []byte,
 	st outlineState,
 	c tokens.PlatformColors,
 	typo tokens.Typography,
-	find *input.RenderState,
+	field *input.RenderState,
 ) layout.Widget {
-	page := onPageFill(c, renderDocsPage(shaper, guide, st, c, typo, find))
+	var state input.RenderState
+	if field != nil {
+		state = *field
+	}
+	if state.Text != "" {
+		state.Count = strconv.Itoa(guideMatchCount(guide, state.Text))
+	}
+	page := onPageFill(c, renderDocsPage(shaper, guide, st, c, typo, state.Text))
 	background := backdrop.Widget(c.WindowBackground)
-	strip := withToolbar(toolbarDepth, c, renderToolbarField(shaper, c, typo), page)
+	strip := withToolbar(toolbarDepth, c, renderToolbarField(shaper, c, typo, state), page)
 	return func(gtx layout.Context) layout.Dimensions {
 		background(gtx)
 		return strip(gtx)
 	}
 }
 
+// guideMatchCount is the number of matches of query in the guide source.
+func guideMatchCount(source []byte, query string) int {
+	doc := markdown.NewDocument(markdown.Parse(source))
+	doc.Find(query, 0)
+	return len(doc.Matches())
+}
+
 // renderToolbarField is the static twin of the toolbar's search field: the
-// chrome variant in a toolbar, empty and without the keyboard, on the page's
-// fill.
-func renderToolbarField(shaper *text.Shaper, c tokens.PlatformColors, typo tokens.Typography) layout.Widget {
-	return input.RenderSearch(shaper, toolbarSearchPrompt, c, tokens.Spacing, tokens.Radius, typo.SystemFont, tokens.Comfortable,
-		input.RenderState{Variant: input.Chrome, Region: input.Toolbar, Surface: pageFill(c)})
+// chrome variant in a toolbar, on the page's fill, in the state given.
+func renderToolbarField(shaper *text.Shaper, c tokens.PlatformColors, typo tokens.Typography, state input.RenderState) layout.Widget {
+	state.Variant = input.Chrome
+	state.Region = input.Toolbar
+	state.Surface = pageFill(c)
+	return input.RenderSearch(shaper, toolbarSearchPrompt, c, tokens.Spacing, tokens.Radius, typo.SystemFont, tokens.Comfortable, state)
 }
 
 // renderWindow draws the settled window — its first section disclosed and

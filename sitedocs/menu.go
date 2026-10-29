@@ -44,9 +44,9 @@ type MenuCommand struct {
 
 // MenuCommands are the window's actions.
 var MenuCommands = []MenuCommand{
-	// Find opens the find bar over the guide and gives the keyboard to its
-	// field. "Find…" on Command-F is the platform's title and chord.
-	{Chord: Chord{Key: "F", Msg: OpenFind{}}, Menu: "Edit", Title: "Find…"},
+	// Find gives the keyboard to the toolbar's search field. "Find…" on
+	// Command-F is the platform's title and chord.
+	{Chord: Chord{Key: "F", Msg: FocusSearch{}}, Menu: "Edit", Title: "Find…"},
 }
 
 // Chords returns every chord the window lays out. The window declares a

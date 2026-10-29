@@ -10,6 +10,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/theme"
 )
@@ -97,14 +98,15 @@ func TestUpdateSelectHeading(t *testing.T) {
 // reaches theme/window's Invalidate() and the window only repaints on the
 // next unrelated input event.
 //
-// Driving the same modelObs the app uses and asserting docsPageFrom's
+// Driving the same modelObs the app uses and asserting docsWindow's
 // returned observable emits a fresh layout.Widget on each ToggleOutline /
 // SelectHeading is the seam; a reducer-only test passes without proving the
 // layer re-emits. The unit test proves the necessary re-emission, not the OS
 // frame timing.
 func TestDocsPageReEmitsOnModelChange(t *testing.T) {
 	send, modelObs := rx.Subject[Model](0, 1)
-	page := docsPageFrom(rx.Of(theme.Default()), modelObs, guideFixture(t), nil, desktop.ScrollBarsWhenScrolling)
+	post := func(layout.Context, mvu.Message) {}
+	page, _, _ := docsWindow(rx.Of(theme.Default()), modelObs, guideFixture(t), nil, desktop.ScrollBarsWhenScrolling, post)
 
 	emissions := make(chan layout.Widget, 16)
 	sub := page.Subscribe(rx.GoroutineContext(), func(w layout.Widget, _ error, done bool) {

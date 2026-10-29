@@ -6,10 +6,8 @@
 //     of the docs outline; sections disclose independently
 //   - SelectHeading{Block int}   — mark the outline row for the heading at
 //     that document block index as selected
-//   - OpenFind{}                 — open the find bar and give the keyboard to
-//     its field
-//   - CloseFind{}                — close the find bar and give the keyboard
-//     back to the guide
+//   - FocusSearch{}              — give the keyboard to the toolbar's search
+//     field
 //
 // Update is pure: it takes the current Model and a message and returns the
 // next Model. The Command is always DoNothing() — sitedocs has no async
@@ -28,12 +26,10 @@ type Model struct {
 	// selectedHeading is the document block index of the selected outline
 	// row, -1 when nothing is selected yet.
 	selectedHeading int
-	// findOpen is whether the find bar stands over the guide column.
-	findOpen bool
-	// findMoves counts the requests that move the keyboard between the find
-	// bar's field and the guide. The page compares it on each frame and
-	// moves the keyboard once per change.
-	findMoves int
+	// searchRequests counts the requests that give the keyboard to the
+	// toolbar's search field. The window compares it on each frame and
+	// gives the keyboard to the field once per change.
+	searchRequests int
 }
 
 // initialModel returns the state the app opens on: the first ## section of
@@ -54,13 +50,9 @@ type ToggleOutline struct{ Idx int }
 // markdown Document's (ScrollToBlock), fired by the same click.
 type SelectHeading struct{ Block int }
 
-// OpenFind opens the find bar and gives the keyboard to its field. With the
-// bar open already, it gives the keyboard to the field again.
-type OpenFind struct{}
-
-// CloseFind closes the find bar and gives the keyboard back to the guide.
-// With the bar closed, it does nothing.
-type CloseFind struct{}
+// FocusSearch gives the keyboard to the toolbar's search field. With the
+// keyboard in the field already, it changes nothing that shows.
+type FocusSearch struct{}
 
 // copyOpenMap returns a shallow copy of m, keeping Update pure.
 func copyOpenMap(m map[int]bool) map[int]bool {
@@ -85,14 +77,8 @@ func Update(model Model, msg mvu.Message) (Model, mvu.Command) {
 		model.outlineOpen = next
 	case SelectHeading:
 		model.selectedHeading = m.Block
-	case OpenFind:
-		model.findOpen = true
-		model.findMoves++
-	case CloseFind:
-		if model.findOpen {
-			model.findOpen = false
-			model.findMoves++
-		}
+	case FocusSearch:
+		model.searchRequests++
 	}
 	return model, mvu.DoNothing()
 }

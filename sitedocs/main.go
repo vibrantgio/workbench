@@ -30,7 +30,6 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/backdrop"
-	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
@@ -59,7 +58,7 @@ func run() {
 	// floating over it; on every other platform FullSizeContent returns no
 	// options and the window keeps its normal decorations. app.Title stays
 	// even though the treatment hides the title text — Mission Control, the
-	// Dock and VoiceOver read it all the same. underToolbar lays the toolbar
+	// Dock and VoiceOver read it all the same. withToolbar lays the toolbar
 	// along the window's top and keeps the page (and so the outline tree)
 	// below it, clear of the window buttons.
 	mvuWin := mvu.NewWindow(append(desktop.FullSizeContent(),
@@ -141,12 +140,16 @@ type themeTokens struct {
 
 // buildLayers returns a function that theme/window.Render passes the
 // per-window theme to. It returns the two rendering layers: a backdrop and
-// the page. The model observable drives the outline state.
+// the window's content, the toolbar over the page. The model observable
+// drives the outline state and Edit ▸ Find….
 func buildLayers(modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
+		guide, guideFail := loadGuide()
+		post := func(gtx layout.Context, msg mvu.Message) { mvu.MessageOp{Message: msg}.Add(gtx.Ops) }
+		content, _, _ := docsWindow(th, modelObs, guide, guideFail, bars, post)
 		return []rx.Observable[layout.Widget]{
 			backdropLayer(th),
-			underToolbar(th, pageLayer(th, modelObs, bars)),
+			content,
 		}
 	}
 }
@@ -156,30 +159,9 @@ func buildLayers(modelObs rx.Observable[Model], bars desktop.ScrollBarSetting) f
 // mail-window.png and x 643–967 in voicememos-window.png, 325 wide in both.
 const toolbarSearchWDp = 325
 
-// toolbarSearchPrompt is the search field's placeholder.
-const toolbarSearchPrompt = "Search"
-
 // toolbarDepth is the depth of the strip along the window's top: the
 // platform's toolbar, or the native title-bar strip where that is deeper.
 func toolbarDepth() unit.Dp { return shell.ChromeTop(shell.ToolbarDepth) }
-
-// underToolbar puts the window's toolbar above the page. The toolbar holds
-// the search field at its trailing end.
-func underToolbar(th rx.Observable[theme.Theme], pageObs rx.Observable[layout.Widget]) rx.Observable[layout.Widget] {
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
-		return t.Platform
-	})
-	field := input.SearchField(th, input.SearchFieldProps{
-		Placeholder: toolbarSearchPrompt,
-		Description: "search the guide",
-		Variant:     input.Chrome,
-		Region:      input.Toolbar,
-		Surface:     pageFill,
-	})
-	return rx.Map(rx.CombineLatest3(pageObs, colors, field), func(n rx.Tuple3[layout.Widget, tokens.PlatformColors, layout.Widget]) layout.Widget {
-		return withToolbar(toolbarDepth, n.Second, n.Third, n.First)
-	})
-}
 
 // withToolbar lays the strip of the given depth along the window's top and
 // the page below it.
@@ -265,124 +247,91 @@ func onPageFill(c tokens.PlatformColors, w layout.Widget) layout.Widget {
 	}
 }
 
-// pageLayer composes the window's one page on the page's fill. Any input
-// emitting re-emits this layer, which drives theme/window's Invalidate and
-// the same-frame repaint after a click.
-func pageLayer(
-	th rx.Observable[theme.Theme],
-	modelObs rx.Observable[Model],
-	bars desktop.ScrollBarSetting,
-) rx.Observable[layout.Widget] {
-	guide, guideFail := loadGuide()
-	page := docsPageFrom(th, modelObs, guide, guideFail, bars)
-	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] {
-		return t.Platform
-	})
-	return rx.Map(rx.CombineLatest2(page, colors), func(n rx.Tuple2[layout.Widget, tokens.PlatformColors]) layout.Widget {
-		return onPageFill(n.Second, n.First)
-	})
-}
-
-// docsPageFrom is the page: the outline tree of the one guide document in a
-// leading column, the document itself — llms.txt rendered whole by
+// docsWindow is the window's content: the toolbar with the search field
+// over the page. The page is the outline tree of the one guide document in
+// a leading column and the document itself — llms.txt rendered whole by
 // vibrantgio/markdown — filling the rest. The document and its parse are
 // built once, so an outline click's ScrollToBlock moves the same reader.
 //
-// The source parameter is the injection seam: tests hand it a fixture
-// so no test run can ever reach the checkout file or the network. The
-// outline stream carries the model's disclosure and selection, so a
-// ToggleOutline or SelectHeading message re-emits the combined layer and
-// the window repaints on the same frame.
+// The source parameter is the injection seam: tests hand it a fixture so
+// no test run can ever reach the checkout file or the network. A failure
+// instead of a source keeps both columns: the outline column at its width
+// draws its own line, and the content column draws the guide's line and
+// the location it was looked for at. The search field then finds nothing.
 //
-// A failure instead of a source keeps both columns: the outline column at
-// its width draws its own line, and the content column draws the guide's
-// line and the location it was looked for at.
-func docsPageFrom(
+// post is how the window's chords post their messages; it is a parameter
+// so a test can read what they post. docsWindow also returns the document
+// and the finder, so a test can read the find and where the keyboard is.
+//
+// Each FocusSearch counts in Model.searchRequests. On the first frame after
+// the count changes, the window gives the keyboard to the search field.
+func docsWindow(
 	th rx.Observable[theme.Theme],
 	modelObs rx.Observable[Model],
 	source []byte,
 	fail *guideFailure,
 	bars desktop.ScrollBarSetting,
-) rx.Observable[layout.Widget] {
-	if fail != nil {
-		return guideUnavailableObservable(th, fail, bars)
-	}
-	post := func(gtx layout.Context, msg mvu.Message) { mvu.MessageOp{Message: msg}.Add(gtx.Ops) }
-	page, _, _ := docsPage(th, modelObs, source, bars, post)
-	return page
-}
-
-// docsPage is docsPageFrom over a guide that loaded. It also returns the
-// document and the find bar, so a test can read where the keyboard is. post
-// is how the page's chords, Escape and Done post their messages; it is a
-// parameter so a test can read what they post.
-//
-// The find bar stands over the guide column only. The outline rail keeps its
-// fill and its height, and the guide moves down by the bar's height.
-//
-// Edit ▸ Find… (⌘F) opens the bar, and Escape and Done close it. Each open
-// and close request counts in Model.findMoves. On the first frame after the
-// count changes, the page gives the keyboard to the field if the bar is open
-// and to the guide if it is closed.
-//
-// The guide shows the find's marks, and the field its count, only while the
-// field holds the keyboard; see findBar.frame. Closing the bar moves no part
-// of the guide, so the current match stays in view.
-func docsPage(
-	th rx.Observable[theme.Theme],
-	modelObs rx.Observable[Model],
-	source []byte,
-	bars desktop.ScrollBarSetting,
 	post func(gtx layout.Context, msg mvu.Message),
-) (rx.Observable[layout.Widget], *markdown.Document, *findBar) {
-	blocks := markdown.Parse(source)
-	doc := markdown.NewDocument(blocks)
-	entries := guideOutline(blocks)
-
-	stateObs := rx.Map(modelObs, func(m Model) outlineState {
-		return outlineState{open: m.outlineOpen, selected: m.selectedHeading}
-	})
-	sidebarObs := docsOutline(th, entries, stateObs, doc.ScrollToBlock)
-	bar := newFindBar(th, doc, post)
-	mainObs := guideDocObservable(th, doc, bars, func() int { return bar.current })
+) (rx.Observable[layout.Widget], *markdown.Document, *finder) {
+	f := &finder{}
+	var page rx.Observable[layout.Widget]
+	if fail != nil {
+		page = guideUnavailableObservable(th, fail, bars)
+	} else {
+		blocks := markdown.Parse(source)
+		f.doc = markdown.NewDocument(blocks)
+		page = docsPage(th, modelObs, blocks, f.doc, bars, f.currentMatch)
+	}
+	field := f.searchField(th)
 	colors := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[tokens.PlatformColors] { return t.Platform })
 
 	chords := ChordAreas(post)
-	escape := OnKey(key.NameEscape, 0, func(gtx layout.Context) { post(gtx, CloseFind{}) })
-	// movesSeen is the find request count the page last answered. The frame
-	// reads and writes it, and nothing else does.
-	movesSeen := 0
+	// requestsSeen is the FocusSearch count the window last answered. The
+	// frame reads and writes it, and nothing else does.
+	requestsSeen := 0
 
-	columns := rx.CombineLatest2(sidebarObs, mainObs)
-	full := rx.CombineLatest4(columns, bar.parts, colors, modelObs)
-	return rx.Map(full, func(n rx.Tuple4[rx.Tuple2[layout.Widget, layout.Widget], rx.Tuple3[layout.Widget, layout.Widget, layout.Widget], tokens.PlatformColors, Model]) layout.Widget {
-		tree, docW := n.First.First, n.First.Second
-		field, steps, done := n.Second.First, n.Second.Second, n.Second.Third
+	full := rx.CombineLatest4(page, field, colors, modelObs)
+	return rx.Map(full, func(n rx.Tuple4[layout.Widget, layout.Widget, tokens.PlatformColors, Model]) layout.Widget {
 		c, m := n.Third, n.Fourth
-		strip := func(gtx layout.Context) layout.Dimensions {
-			return layoutFindBar(gtx, c, field, steps, done)
-		}
-		column := withFindBar(m.findOpen, strip, docW)
+		strip := withToolbar(toolbarDepth, c, n.Second, onPageFill(c, n.First))
 		return func(gtx layout.Context) layout.Dimensions {
 			for _, a := range chords {
 				a(gtx)
 			}
-			if m.findOpen {
-				escape(gtx)
-			}
-			bar.frame(gtx)
-			if m.findMoves != movesSeen {
-				movesSeen = m.findMoves
-				if !m.findOpen {
-					gtx.Execute(key.FocusCmd{Tag: doc.Focus()})
-				} else if bar.field != nil {
-					gtx.Execute(key.FocusCmd{Tag: bar.field})
+			if m.searchRequests != requestsSeen {
+				requestsSeen = m.searchRequests
+				if f.field != nil {
+					gtx.Execute(key.FocusCmd{Tag: f.field})
 				}
 			}
+			return strip(gtx)
+		}
+	}), f.doc, f
+}
+
+// docsPage is the page over a guide that loaded: the outline tree and the
+// document. current is asked on each frame which match is current, for the
+// scroll bar's track.
+func docsPage(
+	th rx.Observable[theme.Theme],
+	modelObs rx.Observable[Model],
+	blocks []markdown.Block,
+	doc *markdown.Document,
+	bars desktop.ScrollBarSetting,
+	current func() int,
+) rx.Observable[layout.Widget] {
+	stateObs := rx.Map(modelObs, func(m Model) outlineState {
+		return outlineState{open: m.outlineOpen, selected: m.selectedHeading}
+	})
+	sidebarObs := docsOutline(th, guideOutline(blocks), stateObs, doc.ScrollToBlock)
+	mainObs := guideDocObservable(th, doc, bars, current)
+	return rx.Map(rx.CombineLatest2(sidebarObs, mainObs), func(n rx.Tuple2[layout.Widget, layout.Widget]) layout.Widget {
+		tree, column := n.First, n.Second
+		return func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				layout.Rigid(tree),
 				layout.Flexed(1, column),
 			)
 		}
-	}), doc, bar
+	})
 }
