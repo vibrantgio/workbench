@@ -360,8 +360,8 @@ func TestMonitorEmptyStateDemoTooltipIsDrawnWholeInANarrowWindow(t *testing.T) {
 // room under the demo button. The window sets the available room above the
 // cap and makes no correction for the strip. The tooltip is drawn whole
 // inside the window, because the cap moves the room by the inset it pushes.
-// The room's top cuts the shadow above the surface, so the text's rows are
-// the measure of a whole tooltip.
+// The shadow under the surface runs into the button's rows, which the scan
+// leaves out, so the text's rows are the measure of a whole tooltip.
 func TestMonitorEmptyStateDemoTooltipIsDrawnWholeUnderTheStrip(t *testing.T) {
 	tall := demoTooltipDrawn(t, image.Pt(180, windowSize.Y))
 
@@ -404,8 +404,8 @@ type tooltipDrawn struct {
 	// edge and its shadow.
 	drawn image.Rectangle
 	// text is every pixel that turned from light to dark: the tooltip's
-	// text. The edge and the shadow darken a light pixel by at most about
-	// a third, so they never turn it dark.
+	// text. The edge and the shadow darken a light pixel by less than a
+	// third, so they never turn it dark.
 	text image.Rectangle
 	// past is every pixel in the band that changed. The tooltip cuts its
 	// edge and its shadow to the window, so only its surface paints there.
