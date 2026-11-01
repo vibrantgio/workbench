@@ -17,8 +17,8 @@ import (
 )
 
 // scene fills the frame with a background colour and lays the
-// layout.Widget over it, so captures have a deterministic fill. The text of
-// the widget is told that fill.
+// layout.Widget over it, so captures have a deterministic fill. Its text is
+// told that fill.
 func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, bgColor, clip.Rect{Max: gtx.Constraints.Max}.Op())
