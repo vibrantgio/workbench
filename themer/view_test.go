@@ -26,10 +26,9 @@ import (
 
 // pinned builds the application's typography with the default faces and
 // nothing else, system fonts off, so a render here cannot depend on the
-// machine's font set. It draws at the stem weight of the dark scheme when
-// dark is true, and of the light scheme when it is false.
-func pinned(dark bool) Type {
-	return themed{typo: tokens.DefaultTypography, pinned: true}.typeAt(dark)
+// machine's font set.
+func pinned() Type {
+	return themed{typo: tokens.DefaultTypography, pinned: true}.typeAt()
 }
 
 // page renders the whole window for a model on one platform set and returns
@@ -81,7 +80,7 @@ func staticPage(m Model, c tokens.PlatformColors, code *codeState, bars desktop.
 func staticPages(m Model, c tokens.PlatformColors, code *codeState, pages *themePages, bars desktop.ScrollBarSetting, bar *topClicks) layout.Widget {
 	clicks := make([]gesture.Click, rowSlots)
 	cells := new(tabCells)
-	ty := pinned(m.Dark(c))
+	ty := pinned()
 	strip := tabs.Render(ty.Shaper, tabs.Props{Tabs: cells.tabs(), Fill: tabFill}, m.Tab,
 		WindowSet(c, m), tokens.Spacing, tokens.DefaultTypography.SystemFont, tokens.Comfortable)
 	return Page(themed{col: c, typo: tokens.DefaultTypography, pinned: true, scrollBars: bars}, m, &desktop.ZoneGroup{}, clicks, bar,

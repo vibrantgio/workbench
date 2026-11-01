@@ -49,10 +49,11 @@ const (
 )
 
 // TestTheStemIsThePlatforms sets "Vibrant Gio" in the System font and in
-// Caption 1 at four horizontal offsets, through the default typography at
-// the stem weight of each scheme, and stores the eight lines. The mean stem of the four lines is
-// within 0.06 px of the platform's, and the darkest of the four is within 5 %
-// of the platform's share or above it.
+// Caption 1 at four horizontal offsets, in the label colour on
+// controlBackground, and stores the eight lines. The text is told that fill,
+// so it is darker text in light and lighter text in dark. The mean stem of
+// the four lines is within 0.06 px of the platform's, and the darkest of the
+// four is within 5 % of the platform's share or above it.
 //
 // Regenerate with:
 //
@@ -65,8 +66,7 @@ func TestTheStemIsThePlatforms(t *testing.T) {
 	}{{"light", tokens.PlatformLight, false}, {"dark", tokens.PlatformDark, true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			typ := tokens.DefaultTypography
-			at := typ.WithStemWeight(tokens.SchemeStemWeight(tc.dark))
-			sh := at.DeterministicShaper()
+			sh := typ.DeterministicShaper()
 			roles := []tokens.TextStyle{typ.SystemFont, typ.Caption1}
 			// Each line is its own capture. One frame draws a glyph once and
 			// places that drawing at each offset, so four lines in one frame
@@ -81,6 +81,7 @@ func TestTheStemIsThePlatforms(t *testing.T) {
 					var dims layout.Dimensions
 					line := golden.Capture(t, image.Pt(stemW, stemLineH), func(gtx layout.Context) layout.Dimensions {
 						fillRect(gtx, image.Rectangle{Max: image.Pt(stemW, stemLineH)}, tc.set.ControlBackground)
+						gtx = typeset.WithFill(gtx, tc.set.ControlBackground)
 						tr := op.Affine(f32.Affine2D{}.Offset(f32.Pt(stemLeft+off, 0))).Push(gtx.Ops)
 						defer tr.Pop()
 						dims = typeset.Text(gtx, sh, stemWord, role, text, 1)

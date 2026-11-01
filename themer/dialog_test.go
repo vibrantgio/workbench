@@ -313,7 +313,7 @@ func dialogPage(t *testing.T, m Model, c tokens.PlatformColors) *image.RGBA {
 	t.Helper()
 	page := staticPage(m, c, newCodeState(), desktop.ScrollBarsWhenScrolling, new(topClicks))
 	win := WindowSet(c, m)
-	ty := pinned(m.Dark(c))
+	ty := pinned()
 	typo := tokens.DefaultTypography
 	box := dialog.Render(ty.Shaper, dialog.Props{
 		Title: DialogTitle,

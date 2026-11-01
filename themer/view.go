@@ -31,6 +31,7 @@ import (
 	"github.com/vibrantgio/theme/imagecolor"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	specwin "github.com/vibrantgio/theme/window"
 )
 
 // Layout dimensions. None of them varies with the colour scheme.
@@ -165,15 +166,18 @@ func TitleLead() unit.Dp {
 	return desktop.BandLeadFrom(windowButtonsEnd(), Gap, Pad)
 }
 
-// buildLayers returns the layer-builder the theme window renders.
+// buildLayers returns the layer-builder the theme window renders. Each layer
+// lays out on the window background that the scheme switch shows, the fill
+// [BackdropLayer] paints. That fill replaces the desktop's window background,
+// which the window gives every layer.
 func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup, bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		keys := new(keyboardReturn)
-		return []rx.Observable[layout.Widget]{
+		return specwin.OnWindowBackground(WindowTheme(th, modelObs),
 			BackdropLayer(th, modelObs),
 			contentLayer(th, modelObs, zones, bars, keys),
 			DialogLayer(th, modelObs, keys, closeDialog),
-		}
+		)
 	}
 }
 
@@ -183,8 +187,8 @@ func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup, bars d
 // switch agrees with the desktop and the other side's when it does not.
 type themed struct {
 	col tokens.PlatformColors
-	// typo is the theme's typography. The window draws it at the stem weight
-	// of the scheme the window is on, through typeAt and codeType.
+	// typo is the theme's typography. Its shaper holds Roboto at both stem
+	// weights, and each text picks one by its fill.
 	typo tokens.Typography
 	// pinned says the faces are the test suite's rather than the machine's.
 	pinned bool
@@ -212,8 +216,8 @@ func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.
 // stream emits. Tests pin the faces so a render here cannot depend on the
 // machine's font set, and they stay off the colour-emoji face, which no
 // pinned render parses.
-func (t themed) codeType(m Model, dark bool) (tokens.Typography, *text.Shaper) {
-	applied := tokens.CodeFace(m.AppliedMono()).WithStemWeight(tokens.SchemeStemWeight(dark))
+func (t themed) codeType(m Model) (tokens.Typography, *text.Shaper) {
+	applied := tokens.CodeFace(m.AppliedMono())
 	if t.pinned {
 		return applied, applied.DeterministicShaper()
 	}
@@ -221,13 +225,11 @@ func (t themed) codeType(m Model, dark bool) (tokens.Typography, *text.Shaper) {
 	return applied, applied.Shaper()
 }
 
-// typeAt is the window's own text at the stem weight of the scheme the
-// window is on, dark or light. Tests pin the faces, as codeType does.
-func (t themed) typeAt(dark bool) Type {
-	typo := t.typo.WithStemWeight(tokens.SchemeStemWeight(dark))
-	ty := TypeFrom(typo)
+// typeAt is the window's own text. Tests pin the faces, as codeType does.
+func (t themed) typeAt() Type {
+	ty := TypeFrom(t.typo)
 	if t.pinned {
-		ty.Shaper = typo.DeterministicShaper()
+		ty.Shaper = t.typo.DeterministicShaper()
 	}
 	return ty
 }
@@ -253,9 +255,8 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 // through: the live theme with its platform set replaced by [WindowSet] of
 // it, so a component that reads its own colours off the theme is drawn in the
 // appearance the switch at the top of the window is on rather than the
-// desktop's. Its typography draws at the stem weight of that appearance.
-// Everything else the theme carries — density and the scales — is the live
-// theme's unchanged.
+// desktop's. Everything else the theme carries — the typography, density and
+// the scales — is the live theme's unchanged.
 //
 // A component flattens the theme, so it re-subscribes what the set is
 // combined with every time the theme re-emits. The model stream this reads
@@ -268,10 +269,6 @@ func WindowTheme(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) r
 		t.Platform = rx.Map(rx.CombineLatest2(live, modelObs),
 			func(n rx.Tuple2[tokens.PlatformColors, Model]) tokens.PlatformColors {
 				return WindowSet(n.First, n.Second)
-			})
-		t.Typography = rx.Map(rx.CombineLatest3(t.Typography, live, modelObs),
-			func(n rx.Tuple3[tokens.Typography, tokens.PlatformColors, Model]) tokens.Typography {
-				return n.First.WithStemWeight(tokens.SchemeStemWeight(n.Third.Dark(n.Second)))
 			})
 		return t
 	})
@@ -370,8 +367,8 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	win := WindowSet(t.col, m)
 	p := PaletteFrom(win)
 	shown := PreviewSet(t.col, m, dark)
-	ty := t.typeAt(dark)
-	typo, shaper := t.codeType(m, dark)
+	ty := t.typeAt()
+	typo, shaper := t.codeType(m)
 	docStyle := CodeStyle(shown, typo, p.Backdrop, m.AppliedStyles())
 	// The preview's bars follow the reader's "Show scroll bars" setting, as
 	// the style pane's bar beside it does.
