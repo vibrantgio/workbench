@@ -1068,7 +1068,7 @@ func natural(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, 
 // fillText is [textdraw.FillText] at the stem weight of fg against the fill
 // gtx carries. Every line of text this window draws itself goes through it.
 func fillText(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, r image.Rectangle, ax, ay float32, fg stdcolor.NRGBA, s string) {
-	style.Font = typeset.StemFontOn(gtx, style.Font, fg)
+	style.Font = typeset.StemFontOn(gtx, style.Font, float32(style.Size), fg)
 	textdraw.FillText(gtx, shaper, style, r, ax, ay, fg, s)
 }
 

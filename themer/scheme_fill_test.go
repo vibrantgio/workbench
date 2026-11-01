@@ -18,13 +18,11 @@ import (
 // TestTheSchemeSwitchTellsTheTextItsFill flips the scheme switch on a light
 // desktop and on a dark one. A layer laid out the way the window lays out
 // its layers is told the window background that the switch shows, not the
-// desktop's. Text picks its face against that fill: the label of the light
-// scheme picks the widened face, and the label of the dark scheme picks the
-// face as shipped. A grey half way between the two window backgrounds is
-// darker text on the light switch and lighter text on the dark one.
+// desktop's. Text picks its face against that fill: the label and a grey
+// half way between the two window backgrounds each pick the face of their
+// size and colour on the window background the switch shows.
 func TestTheSchemeSwitchTellsTheTextItsFill(t *testing.T) {
 	role := tokens.DefaultTypography.SystemFont
-	shipped := font.Typeface(role.Typeface)
 	for _, desktop := range []struct {
 		name string
 		live tokens.PlatformColors
@@ -59,14 +57,13 @@ func TestTheSchemeSwitchTellsTheTextItsFill(t *testing.T) {
 			if want := opaque(shown.WindowBackground); fill != want {
 				t.Errorf("%s, %s: the layer is told %v, want the window background the switch shows %v", desktop.name, side, fill, want)
 			}
-			if dark {
-				if label != shipped || grey != shipped {
-					t.Errorf("%s, %s: the label picks %q and the grey %q, want the face as shipped %q for both", desktop.name, side, label, grey, shipped)
-				}
-				continue
+			bg := opaque(shown.WindowBackground)
+			base := typeset.Font(role, font.Normal)
+			if want := tokens.StemFont(base, role.Size, shown.Label, bg).Typeface; label != want {
+				t.Errorf("%s, %s: the label picks %q, want %q, its face on the window background the switch shows", desktop.name, side, label, want)
 			}
-			if label == shipped || grey == shipped {
-				t.Errorf("%s, %s: the label picks %q and the grey %q, want the widened face for both, not %q", desktop.name, side, label, grey, shipped)
+			if want := tokens.StemFont(base, role.Size, mid, bg).Typeface; grey != want {
+				t.Errorf("%s, %s: the grey picks %q, want %q, its face on the window background the switch shows", desktop.name, side, grey, want)
 			}
 		}
 	}

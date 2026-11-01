@@ -176,10 +176,10 @@ func keep(t *testing.T, m Model) Model {
 	return ReduceModel(m, msg)
 }
 
-// widenedFace is the shaper's key for Roboto Regular upright widened to the
-// stem weight of darker text. It is not a typeface: no list offers it and
-// no text on screen names it.
-const widenedFace = "Roboto Darker Text"
+// widenedFace starts each of the shaper's keys for Roboto Regular upright
+// at a stem weight. It is not a typeface: no list offers it and no text on
+// screen names it.
+const widenedFace = "Roboto Stem"
 
 // TestTheWidenedFaceIsNeverOfferedOrShown: the code face group offers
 // Roboto Mono and JetBrains Mono, and neither typography the window draws
@@ -187,8 +187,8 @@ const widenedFace = "Roboto Darker Text"
 // string the window's code holds names it, so no text on screen can.
 func TestTheWidenedFaceIsNeverOfferedOrShown(t *testing.T) {
 	light := tokens.PlatformLight
-	if got := tokens.StemFont(font.Font{Typeface: "Roboto"}, light.Label, light.WindowBackground).Typeface; got != widenedFace {
-		t.Fatalf("darker text draws in %q, want the widened face %q", got, widenedFace)
+	if got := tokens.StemFont(font.Font{Typeface: "Roboto"}, 13, light.Label, light.WindowBackground).Typeface; !strings.HasPrefix(string(got), widenedFace) {
+		t.Fatalf("the label colour at 13 pt draws in %q, want a widened face %q", got, widenedFace)
 	}
 	for _, name := range codeFaces {
 		if strings.Contains(name, widenedFace) {
@@ -198,7 +198,7 @@ func TestTheWidenedFaceIsNeverOfferedOrShown(t *testing.T) {
 	for _, name := range codeFaces {
 		typ := tokens.CodeFace(name)
 		for _, f := range typ.Faces {
-			if string(f.Font.Typeface) == widenedFace {
+			if strings.HasPrefix(string(f.Font.Typeface), widenedFace) {
 				t.Errorf("the %s typography lists the widened face among its faces", name)
 			}
 		}
@@ -207,7 +207,7 @@ func TestTheWidenedFaceIsNeverOfferedOrShown(t *testing.T) {
 			if !roles.Type().Field(i).IsExported() {
 				continue
 			}
-			if style, ok := roles.Field(i).Interface().(tokens.TextStyle); ok && style.Typeface == widenedFace {
+			if style, ok := roles.Field(i).Interface().(tokens.TextStyle); ok && strings.HasPrefix(style.Typeface, widenedFace) {
 				t.Errorf("the %s typography sets its %s role in the widened face", name, roles.Type().Field(i).Name)
 			}
 		}
@@ -228,7 +228,7 @@ func TestTheWidenedFaceIsNeverOfferedOrShown(t *testing.T) {
 		}
 		ast.Inspect(file, func(n ast.Node) bool {
 			lit, ok := n.(*ast.BasicLit)
-			if ok && lit.Kind == token.STRING && strings.Contains(lit.Value, "Darker Text") {
+			if ok && lit.Kind == token.STRING && strings.Contains(lit.Value, widenedFace) {
 				t.Errorf("%s holds the string %s", fset.Position(lit.Pos()), lit.Value)
 			}
 			return true

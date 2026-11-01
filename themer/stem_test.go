@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"gioui.org/f32"
+	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/text"
@@ -112,7 +113,8 @@ func TestTheStemIsThePlatforms(t *testing.T) {
 				darkest := 0.0
 				for o, off := range stemOffsets {
 					base := bases[r*len(stemOffsets)+o]
-					st, dk := readStem(img, sh, role, base, float64(stemLeft+off), fill.R, plateau)
+					f := typeset.FontOn(typeset.WithFill(layout.Context{}, fill), role, font.Normal, text)
+					st, dk := readStem(img, sh, f, role, base, float64(stemLeft+off), fill.R, plateau)
 					stems = append(stems, st)
 					darkest = max(darkest, dk)
 				}
@@ -148,10 +150,11 @@ func absDiff(a, b uint8) int {
 // platform's readings. The row is four rows over the baseline at 13 pt and
 // three at 10 pt. The baseline is the line's own, from its layout. The stem is the coverage summed over the run of covered
 // columns, as stored. The darkest is the largest share over the stem's
-// columns and the rows from the reading row to the baseline.
-func readStem(img *image.RGBA, sh *text.Shaper, role tokens.TextStyle, base int, left float64, fill, plateau uint8) (stem, darkest float64) {
+// columns and the rows from the reading row to the baseline. f is the font
+// the line is drawn in, so the reader finds the glyphs the line draws.
+func readStem(img *image.RGBA, sh *text.Shaper, f font.Font, role tokens.TextStyle, base int, left float64, fill, plateau uint8) (stem, darkest float64) {
 	sh.LayoutString(text.Parameters{
-		Font:     textStyle(role).Font,
+		Font:     f,
 		PxPerEm:  fx.Int26_6(role.Size * 64),
 		MaxLines: 1, MaxWidth: 10000,
 	}, stemWord)
