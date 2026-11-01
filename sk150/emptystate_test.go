@@ -16,6 +16,8 @@ import (
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/components/golden"
@@ -338,13 +340,18 @@ func TestMonitorEmptyStateDemoButtonTooltip(t *testing.T) {
 // pointer on the button. The tooltip's surface with its text whole is wider
 // than the window; it is drawn whole inside the window, because the
 // window's content area is set as the available room at the root and moved
-// by every layer down to the empty state.
+// by every layer down to the empty state. The window cuts the edge and the
+// shadow at its sides, so only the surface can paint past the window.
 func TestMonitorEmptyStateDemoTooltipIsDrawnWholeInANarrowWindow(t *testing.T) {
 	size := image.Pt(180, windowSize.Y)
-	_, box := demoTooltipBox(t, size)
-	if box.Min.X < 1 || box.Max.X > size.X-1 {
-		t.Errorf("the demo button's tooltip spans columns %d..%d in a window %d wide; it is cut off by the window's edges",
-			box.Min.X, box.Max.X-1, size.X)
+	tip := demoTooltipDrawn(t, size)
+	if !tip.past.Empty() {
+		t.Errorf("the demo button's tooltip paints columns %d..%d in a window %d wide; its surface is cut off by the window's edges",
+			tip.past.Min.X, tip.past.Max.X-1, size.X)
+	}
+	if tip.text.Min.X < 1 || tip.text.Max.X > size.X-1 {
+		t.Errorf("the demo button's tooltip text spans columns %d..%d in a window %d wide; it is cut off by the window's edges",
+			tip.text.Min.X, tip.text.Max.X-1, size.X)
 	}
 }
 
@@ -353,30 +360,63 @@ func TestMonitorEmptyStateDemoTooltipIsDrawnWholeInANarrowWindow(t *testing.T) {
 // room under the demo button. The window sets the available room above the
 // cap and makes no correction for the strip. The tooltip is drawn whole
 // inside the window, because the cap moves the room by the inset it pushes.
+// The room's top cuts the shadow above the surface, so the text's rows are
+// the measure of a whole tooltip.
 func TestMonitorEmptyStateDemoTooltipIsDrawnWholeUnderTheStrip(t *testing.T) {
-	_, tall := demoTooltipBox(t, image.Pt(180, windowSize.Y))
+	tall := demoTooltipDrawn(t, image.Pt(180, windowSize.Y))
 
 	defer func(f func() unit.Dp) { topInset = f }(topInset)
 	topInset = func() unit.Dp { return 32 }
 	size := image.Pt(180, 280)
-	button, box := demoTooltipBox(t, size)
-	if box.Dy() != tall.Dy() {
-		t.Errorf("the demo button's tooltip is %d rows high under the strip, want %d: it is cut off", box.Dy(), tall.Dy())
+	tip := demoTooltipDrawn(t, size)
+	if tip.text.Dy() != tall.text.Dy() {
+		t.Errorf("the demo button's tooltip text is %d rows high under the strip, want %d: it is cut off", tip.text.Dy(), tall.text.Dy())
 	}
-	if box.Min.Y < 32 || box.Max.Y > size.Y {
+	if !tip.past.Empty() {
+		t.Errorf("the demo button's tooltip paints rows %d..%d in a window %d high; its surface is cut off by the window's edges",
+			tip.past.Min.Y, tip.past.Max.Y-1, size.Y)
+	}
+	if tip.drawn.Min.Y < 32 {
 		t.Errorf("the demo button's tooltip spans rows %d..%d in a window %d high under a 32 dp strip; it is outside the content area",
-			box.Min.Y, box.Max.Y-1, size.Y)
+			tip.drawn.Min.Y, tip.drawn.Max.Y-1, size.Y)
 	}
-	if box.Max.Y > button.Min.Y {
-		t.Errorf("the demo button's tooltip spans rows %d..%d and the button begins at row %d; it has no room under the button, so it is placed above",
-			box.Min.Y, box.Max.Y-1, button.Min.Y)
+	if tip.text.Max.Y > tip.button.Min.Y {
+		t.Errorf("the demo button's tooltip text spans rows %d..%d and the button begins at row %d; it has no room under the button, so it is placed above",
+			tip.text.Min.Y, tip.text.Max.Y-1, tip.button.Min.Y)
 	}
 }
 
-// demoTooltipBox lays the unconnected window out at size, rests the pointer
-// on the demo button until the tooltip's delay runs out, and returns the
-// button and the rows and columns the tooltip changed outside the button.
-func demoTooltipBox(t *testing.T, size image.Point) (button, box image.Rectangle) {
+// tipBandMargin is the width of the marked band drawn around the window in
+// the tooltip captures: a tooltip surface placed past the window's edge
+// paints into it.
+const tipBandMargin = 64
+
+// tipBandMarker is the band's colour, one the window and the tooltip never
+// paint.
+var tipBandMarker = color.NRGBA{R: 0xff, G: 0x00, B: 0xff, A: 0xff}
+
+// tooltipDrawn is what the demo button's tooltip changed in the window, in
+// window coordinates, outside the button's rows.
+type tooltipDrawn struct {
+	// button is the demo button's box.
+	button image.Rectangle
+	// drawn is every pixel inside the window that changed: the surface, its
+	// edge and its shadow.
+	drawn image.Rectangle
+	// text is every pixel that turned from light to dark: the tooltip's
+	// text. The edge and the shadow darken a light pixel by at most about
+	// a third, so they never turn it dark.
+	text image.Rectangle
+	// past is every pixel in the band that changed. The tooltip cuts its
+	// edge and its shadow to the window, so only its surface paints there.
+	past image.Rectangle
+}
+
+// demoTooltipDrawn lays the unconnected window out at size, rests the
+// pointer on the demo button until the tooltip's delay runs out, and
+// returns what the tooltip changed. The window is captured inside a marked
+// band, so a surface that runs past the window's edge is read in the band.
+func demoTooltipDrawn(t *testing.T, size image.Point) tooltipDrawn {
 	t.Helper()
 	c := tokens.PlatformLight
 	fill := pageFill(c)
@@ -389,7 +429,8 @@ func demoTooltipBox(t *testing.T, size image.Point) (button, box image.Rectangle
 	if len(runs) < 2 {
 		t.Fatalf("the tab's frame holds %d runs of painted rows, want the line and the button", len(runs))
 	}
-	button = runs[len(runs)-1]
+	tip := tooltipDrawn{button: runs[len(runs)-1]}
+	button := tip.button
 
 	var (
 		ops op.Ops
@@ -408,11 +449,18 @@ func demoTooltipBox(t *testing.T, size image.Point) (button, box image.Rectangle
 		})
 		r.Frame(&ops)
 	}
+	outer := size.Add(image.Pt(2*tipBandMargin, 2*tipBandMargin))
 	shot := func() *image.RGBA {
-		return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
-			gtx.Source = r.Source()
-			gtx.Now = now
-			return w(gtx)
+		return golden.Capture(t, outer, func(gtx layout.Context) layout.Dimensions {
+			paint.FillShape(gtx.Ops, tipBandMarker, clip.Rect{Max: outer}.Op())
+			st := op.Offset(image.Pt(tipBandMargin, tipBandMargin)).Push(gtx.Ops)
+			wgtx := gtx
+			wgtx.Constraints = layout.Exact(size)
+			wgtx.Source = r.Source()
+			wgtx.Now = now
+			w(wgtx)
+			st.Pop()
+			return layout.Dimensions{Size: outer}
 		})
 	}
 
@@ -431,18 +479,34 @@ func demoTooltipBox(t *testing.T, size image.Point) (button, box image.Rectangle
 
 	// The button's own rows are left out: its hover state still changes
 	// between the two shots.
-	for y := 0; y < size.Y; y++ {
+	grey := func(p color.RGBA) int { return (int(p.R) + int(p.G) + int(p.B)) / 3 }
+	window := image.Rectangle{Max: size}
+	for y := -tipBandMargin; y < size.Y+tipBandMargin; y++ {
 		if y >= button.Min.Y && y < button.Max.Y {
 			continue
 		}
-		for x := 0; x < size.X; x++ {
-			if waiting.RGBAAt(x, y) != shown.RGBAAt(x, y) {
-				box = box.Union(image.Rect(x, y, x+1, y+1))
+		for x := -tipBandMargin; x < size.X+tipBandMargin; x++ {
+			before := waiting.RGBAAt(x+tipBandMargin, y+tipBandMargin)
+			after := shown.RGBAAt(x+tipBandMargin, y+tipBandMargin)
+			if before == after {
+				continue
+			}
+			px := image.Rect(x, y, x+1, y+1)
+			if !image.Pt(x, y).In(window) {
+				tip.past = tip.past.Union(px)
+				continue
+			}
+			tip.drawn = tip.drawn.Union(px)
+			if grey(before) >= 0xc0 && grey(after) < 0x80 {
+				tip.text = tip.text.Union(px)
 			}
 		}
 	}
-	if box.Empty() {
+	if tip.drawn.Empty() {
 		t.Fatal("the delay ran out and no tooltip was drawn by the demo button")
 	}
-	return button, box
+	if tip.text.Empty() {
+		t.Fatal("the delay ran out and the demo button's tooltip shows no text")
+	}
+	return tip
 }
