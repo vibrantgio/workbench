@@ -45,6 +45,8 @@ github.com/vibrantgio/mvu/desktop v1.1.5 h1:pg+geo00eDHjz5MieHG/EEbPsndwpJScdiln
 github.com/vibrantgio/mvu/desktop v1.1.5/go.mod h1:D9KWsWQqcUVw1i8SSuPXotnxnfNu+mQmixOvFbEVg7k=
 github.com/vibrantgio/patterns v1.5.1-0.20261101165512-621fc3215a8f h1:WjSlAc7rwSPK4Osxc5jO3uCMmj8rZSDqr/ldJzzZz9Q=
 github.com/vibrantgio/patterns v1.5.1-0.20261101165512-621fc3215a8f/go.mod h1:I/9+Ckrn254FTSC5snAvQ28UCSTWyK1Vi1Dr/91VF6w=
+github.com/vibrantgio/patterns v1.5.1-0.20261101191216-465c27417c45 h1:VtEcryErhKDA1ARbZ287WD+TQBSa7EWOKeFLhVuTVak=
+github.com/vibrantgio/patterns v1.5.1-0.20261101191216-465c27417c45/go.mod h1:NlH33q8CQUYZ6qyux0CX3RsrMd1xoNi9615BBTTNBgM=
 github.com/vibrantgio/svg v0.1.3 h1:ogxwxxO6FCxTFtJOhhVZc+dMdzeomcpO0Wpk3UKTHWo=
 github.com/vibrantgio/svg v0.1.3/go.mod h1:H867wFCLH1Lfz+uoklXwtvOTAQgg/7DC0KoZm6nRHUA=
 github.com/vibrantgio/textdraw v0.1.0 h1:WNstQ4zE/weG6RbCircIPyqY4XGjf18KNVrvwg7pJ44=
