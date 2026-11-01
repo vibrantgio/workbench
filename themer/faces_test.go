@@ -1,10 +1,16 @@
 package main
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	"gioui.org/font"
 
 	"github.com/vibrantgio/theme/brand"
 	"github.com/vibrantgio/theme/tokens"
@@ -168,4 +174,64 @@ func keep(t *testing.T, m Model) Model {
 		t.Fatalf("the keep command failed: %v", err)
 	}
 	return ReduceModel(m, msg)
+}
+
+// widenedFace is the shaper's key for Roboto Regular upright widened to the
+// stem weight of darker text. It is not a typeface: no list offers it and
+// no text on screen names it.
+const widenedFace = "Roboto Darker Text"
+
+// TestTheWidenedFaceIsNeverOfferedOrShown: the code face group offers
+// Roboto Mono and JetBrains Mono, and neither typography the window draws
+// with lists the widened face among its faces or names it in a role. No
+// string the window's code holds names it, so no text on screen can.
+func TestTheWidenedFaceIsNeverOfferedOrShown(t *testing.T) {
+	light := tokens.PlatformLight
+	if got := tokens.StemFont(font.Font{Typeface: "Roboto"}, light.Label, light.WindowBackground).Typeface; got != widenedFace {
+		t.Fatalf("darker text draws in %q, want the widened face %q", got, widenedFace)
+	}
+	for _, name := range codeFaces {
+		if strings.Contains(name, widenedFace) {
+			t.Errorf("the code face group offers %q", name)
+		}
+	}
+	for _, name := range codeFaces {
+		typ := tokens.CodeFace(name)
+		for _, f := range typ.Faces {
+			if string(f.Font.Typeface) == widenedFace {
+				t.Errorf("the %s typography lists the widened face among its faces", name)
+			}
+		}
+		roles := reflect.ValueOf(typ)
+		for i := range roles.NumField() {
+			if !roles.Type().Field(i).IsExported() {
+				continue
+			}
+			if style, ok := roles.Field(i).Interface().(tokens.TextStyle); ok && style.Typeface == widenedFace {
+				t.Errorf("the %s typography sets its %s role in the widened face", name, roles.Type().Field(i).Name)
+			}
+		}
+	}
+
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	for _, path := range files {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			lit, ok := n.(*ast.BasicLit)
+			if ok && lit.Kind == token.STRING && strings.Contains(lit.Value, "Darker Text") {
+				t.Errorf("%s holds the string %s", fset.Position(lit.Pos()), lit.Value)
+			}
+			return true
+		})
+	}
 }

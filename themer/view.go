@@ -31,6 +31,7 @@ import (
 	"github.com/vibrantgio/theme/imagecolor"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 	specwin "github.com/vibrantgio/theme/window"
 )
 
@@ -167,18 +168,24 @@ func TitleLead() unit.Dp {
 }
 
 // buildLayers returns the layer-builder the theme window renders. Each layer
-// lays out on the window background that the scheme switch shows, the fill
-// [BackdropLayer] paints. That fill replaces the desktop's window background,
-// which the window gives every layer.
+// lays out on the window background that the scheme switch shows,
+// [onSchemeBackground].
 func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup, bars desktop.ScrollBarSetting) func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 	return func(th rx.Observable[theme.Theme]) []rx.Observable[layout.Widget] {
 		keys := new(keyboardReturn)
-		return specwin.OnWindowBackground(WindowTheme(th, modelObs),
+		return onSchemeBackground(th, modelObs,
 			BackdropLayer(th, modelObs),
 			contentLayer(th, modelObs, zones, bars, keys),
 			DialogLayer(th, modelObs, keys, closeDialog),
 		)
 	}
+}
+
+// onSchemeBackground lays each layer out on the window background that the
+// scheme switch shows, the fill [BackdropLayer] paints. That fill replaces
+// the desktop's window background, which the window gives every layer.
+func onSchemeBackground(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], layers ...rx.Observable[layout.Widget]) []rx.Observable[layout.Widget] {
+	return specwin.OnWindowBackground(WindowTheme(th, modelObs), layers...)
 }
 
 // themed carries one emission's platform colours and typography — the
@@ -548,6 +555,7 @@ func GroupBox(p Palette, inner layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := gtx.Constraints.Max
 		fillRRect(gtx, image.Rectangle{Max: size}, gtx.Dp(BoxRadius), p.Surface)
+		gtx = typeset.WithFill(gtx, p.Surface)
 		return layout.Inset{
 			Top: BoxPad, Bottom: BoxPad, Left: BoxInset, Right: BoxInset,
 		}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -567,6 +575,7 @@ func ColumnBox(p Palette, column layout.Widget) layout.Widget {
 		size := gtx.Constraints.Max
 		r := image.Rectangle{Max: size}
 		fillRRect(gtx, r, gtx.Dp(BoxRadius), p.Surface)
+		gtx = typeset.WithFill(gtx, p.Surface)
 		defer clip.UniformRRect(r, gtx.Dp(BoxRadius)).Push(gtx.Ops).Pop()
 		gtx.Constraints = layout.Exact(size)
 		column(gtx)
@@ -640,7 +649,7 @@ func Line(ty Type, style textdraw.TextStyle, col stdcolor.NRGBA, s string) layou
 			return layout.Dimensions{}
 		}
 		size := image.Pt(w, gtx.Constraints.Max.Y)
-		textdraw.FillText(gtx, ty.Shaper, style, image.Rectangle{Max: size}, 0, 0.5, col, s)
+		fillText(gtx, ty.Shaper, style, image.Rectangle{Max: size}, 0, 0.5, col, s)
 		return layout.Dimensions{Size: size}
 	}
 }
@@ -829,13 +838,14 @@ func Thumbnail(p Palette, ty Type, m Model, src paint.ImageOp) layout.Widget {
 			fill, edge, width = p.Selection, p.Accent, gtx.Dp(Ring)
 		}
 		fillRRect(gtx, r, gtx.Dp(InnerR), fill)
+		gtx = typeset.WithFill(gtx, fill)
 		strokeRRect(gtx, r, gtx.Dp(InnerR), width, edge)
 		if m.Preview == nil {
 			foreground := p.CardMuted
 			if m.DragOver {
 				foreground = p.AccentForeground
 			}
-			textdraw.FillText(gtx, ty.Shaper, ty.Small, r, 0.5, 0.5, foreground, "Drop")
+			fillText(gtx, ty.Shaper, ty.Small, r, 0.5, 0.5, foreground, "Drop")
 			return layout.Dimensions{Size: size}
 		}
 		defer clip.UniformRRect(r, gtx.Dp(InnerR)).Push(gtx.Ops).Pop()
@@ -1053,6 +1063,13 @@ const (
 func natural(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, str string) int {
 	gtx.Constraints = layout.Constraints{Max: image.Pt(1<<20, 1<<20)}
 	return textdraw.MeasureText(gtx, shaper, style, str).X
+}
+
+// fillText is [textdraw.FillText] at the stem weight of fg against the fill
+// gtx carries. Every line of text this window draws itself goes through it.
+func fillText(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, r image.Rectangle, ax, ay float32, fg stdcolor.NRGBA, s string) {
+	style.Font = typeset.StemFontOn(gtx, style.Font, fg)
+	textdraw.FillText(gtx, shaper, style, r, ax, ay, fg, s)
 }
 
 // rigid wraps a [layout.Widget] as a Flex child that takes the height it asks

@@ -14,7 +14,7 @@ import (
 
 	"github.com/vibrantgio/components/pointershape"
 	"github.com/vibrantgio/mvu"
-	"github.com/vibrantgio/textdraw"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // The swatch row's dimensions. The cards SHARE the row's width rather than
@@ -169,6 +169,7 @@ func Cell(gtx layout.Context, p Palette, ty Type, c cell, click *gesture.Click, 
 	card := image.Rectangle{Max: size}
 	if click.Hovered() {
 		fillRRect(gtx, card, gtx.Dp(InnerR), p.Hover)
+		gtx = typeset.WithFill(gtx, p.Hover)
 	}
 
 	inner := card.Inset(gtx.Dp(CellPad))
@@ -186,7 +187,7 @@ func Cell(gtx layout.Context, p Palette, ty Type, c cell, click *gesture.Click, 
 	// colour it is.
 	fillRRect(gtx, swatch, gtx.Dp(InnerR), c.col)
 	strokeRRect(gtx, swatch, gtx.Dp(InnerR), gtx.Dp(Hairline), p.Edge)
-	textdraw.FillText(gtx, ty.Shaper, ty.Caption, caption, 0.5, 0.5, p.CardText, c.label)
+	fillText(gtx, ty.Shaper, ty.Caption, caption, 0.5, 0.5, p.CardText, c.label)
 
 	// The clickable area is the card, registered after the paint so the hover
 	// state read above is the one the previous frame recorded.

@@ -151,6 +151,8 @@ func TypeFrom(t tokens.Typography) Type {
 const Ellipsis = "…"
 
 // textStyle converts one Typography role to a single-line textdraw style.
+// Its font is the role's as shipped: [fillText] gives it the stem weight of
+// the text against its fill where the text is drawn.
 func textStyle(ts tokens.TextStyle) textdraw.TextStyle {
 	f := font.Font{Typeface: font.Typeface(ts.Typeface)}
 	if ts.Weight != 0 {

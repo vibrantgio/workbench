@@ -25,6 +25,7 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // PreviewSource is the Go file the preview shows. The file's extension keeps
@@ -87,6 +88,7 @@ func Preview(view *codeView, block *markdown.CodeBlock, shaper *text.Shaper, st 
 		inner := box.Inset(edge)
 		innerR := max(radius-edge, 0)
 		fillRRect(gtx, inner, innerR, st.CodeBackground)
+		gtx = typeset.WithFill(gtx, st.CodeBackground)
 		defer clip.UniformRRect(inner, innerR).Push(gtx.Ops).Pop()
 		defer op.Offset(inner.Min).Push(gtx.Ops).Pop()
 		gtx.Constraints = layout.Exact(inner.Size())

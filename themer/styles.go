@@ -47,9 +47,9 @@ import (
 	"github.com/vibrantgio/components/scrollbar"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
-	"github.com/vibrantgio/textdraw"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // The chooser's dimensions.
@@ -288,8 +288,10 @@ func ChoiceRow(gtx layout.Context, p Palette, ty Type, look rowLook, name, tag s
 	switch {
 	case chosen:
 		fillRRect(gtx, r, gtx.Dp(look.corner), look.fill)
+		gtx = typeset.WithFill(gtx, look.fill)
 	case look.hover && click.Hovered():
 		fillRRect(gtx, r, gtx.Dp(look.corner), p.Hover)
+		gtx = typeset.WithFill(gtx, p.Hover)
 	}
 	pad := gtx.Dp(StylePad)
 	foreground := p.CardText
@@ -303,10 +305,10 @@ func ChoiceRow(gtx layout.Context, p Palette, ty Type, look rowLook, name, tag s
 	// the light list and the dark one both.
 	if tag != "" {
 		box := image.Rect(r.Max.X-pad-gtx.Dp(40), 0, r.Max.X-pad, h)
-		textdraw.FillText(gtx, ty.Shaper, ty.Small, box, 1, 0.5, foreground, tag)
+		fillText(gtx, ty.Shaper, ty.Small, box, 1, 0.5, foreground, tag)
 		text.Max.X = box.Min.X - pad/2
 	}
-	textdraw.FillText(gtx, ty.Shaper, ty.Body, text, 0, 0.5, foreground, name)
+	fillText(gtx, ty.Shaper, ty.Body, text, 0, 0.5, foreground, name)
 
 	area := clip.Rect{Max: size}.Push(gtx.Ops)
 	click.Add(gtx.Ops)
