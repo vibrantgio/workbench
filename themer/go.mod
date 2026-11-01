@@ -7,14 +7,14 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.7
-	github.com/vibrantgio/components v1.7.1-0.20261101185822-033d02ebd7ca
+	github.com/vibrantgio/components v1.7.1-0.20261101205247-795510f8d979
 	github.com/vibrantgio/components/gallery v1.7.1-0.20261101190026-a59a8b79a7cc
 	github.com/vibrantgio/markdown v0.9.1-0.20261101132631-33df299c188d
 	github.com/vibrantgio/mvu v1.1.5
 	github.com/vibrantgio/mvu/desktop v1.1.5
-	github.com/vibrantgio/patterns v1.5.1-0.20261101191216-465c27417c45
+	github.com/vibrantgio/patterns v1.5.1-0.20261101205422-677e2cf535b8
 	github.com/vibrantgio/textdraw v0.1.0
-	github.com/vibrantgio/theme v1.6.1-0.20261101185739-eae0379ba9b0
+	github.com/vibrantgio/theme v1.6.1-0.20261101205135-c2915f9fe431
 	golang.org/x/image v0.44.0
 )
 
