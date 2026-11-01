@@ -56,7 +56,8 @@ func controlsOn(t *testing.T, tab int) (scheme, keep image.Rectangle) {
 	m := goldenModel(t, false)
 	m.Tab = tab
 	bar := new(topClicks)
-	w := staticPage(m, tokens.PlatformLight, newCodeState(), desktop.ScrollBarsWhenScrolling, bar)
+	w := golden.On(WindowSet(tokens.PlatformLight, m).WindowBackground,
+		staticPage(m, tokens.PlatformLight, newCodeState(), desktop.ScrollBarsWhenScrolling, bar))
 	r := new(input.Router)
 	ops := new(op.Ops)
 	size := image.Pt(windowW, windowH)
@@ -257,7 +258,8 @@ func TestACodeFaceChosenOnTheTypographyTabIsTheCodeTabsChoice(t *testing.T) {
 	m := goldenModel(t, false)
 	m.Tab = TabTypography
 	pages := newThemePages()
-	w := staticPages(m, tokens.PlatformLight, newCodeState(), pages, desktop.ScrollBarsWhenScrolling, new(topClicks))
+	w := golden.On(WindowSet(tokens.PlatformLight, m).WindowBackground,
+		staticPages(m, tokens.PlatformLight, newCodeState(), pages, desktop.ScrollBarsWhenScrolling, new(topClicks)))
 	r := new(input.Router)
 	ops := new(op.Ops)
 	frame := func() {

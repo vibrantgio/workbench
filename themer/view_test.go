@@ -63,9 +63,11 @@ func pageBars(t *testing.T, m Model, c tokens.PlatformColors, size image.Point, 
 	return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		// The backdrop is its own layer at runtime; here it is one fill under
 		// the page, resolved the same way that layer resolves it — through
-		// the appearance the switch is on, not the desktop's.
-		fillRect(gtx, image.Rectangle{Max: size}, WindowSet(c, m).WindowBackground)
-		return w(gtx)
+		// the appearance the switch is on, not the desktop's. The text is
+		// told that fill, as the window's layers are.
+		fill := WindowSet(c, m).WindowBackground
+		fillRect(gtx, image.Rectangle{Max: size}, fill)
+		return golden.On(fill, w)(gtx)
 	})
 }
 

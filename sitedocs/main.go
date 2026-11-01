@@ -39,6 +39,7 @@ import (
 	specsystem "github.com/vibrantgio/theme/system"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 	specwin "github.com/vibrantgio/theme/window"
 )
 
@@ -189,7 +190,7 @@ func withToolbar(depth func() unit.Dp, c tokens.PlatformColors, field, page layo
 			desktop.DragTop(rgtx, depth)
 
 			st := op.Offset(image.Pt(rail, 0)).Push(gtx.Ops)
-			tgtx := gtx
+			tgtx := typeset.WithFill(gtx, pageFill(c))
 			tgtx.Constraints = layout.Exact(image.Pt(w-rail, h))
 			layoutToolbar(tgtx, field)
 			st.Pop()
@@ -237,13 +238,13 @@ func backdropLayer(th rx.Observable[theme.Theme]) rx.Observable[layout.Widget] {
 	})
 }
 
-// onPageFill lays w out over the page's fill across the whole frame. The
-// document column draws no fill of its own, so the fill past its reading
-// measure is this one.
+// onPageFill lays w out over the page's fill across the whole frame, and
+// tells the text of w that fill. The document column draws no fill of its
+// own, so the fill past its reading measure is this one.
 func onPageFill(c tokens.PlatformColors, w layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, pageFill(c), clip.Rect{Max: gtx.Constraints.Max}.Op())
-		return w(gtx)
+		return w(typeset.WithFill(gtx, pageFill(c)))
 	}
 }
 

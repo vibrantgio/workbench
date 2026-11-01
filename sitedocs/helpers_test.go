@@ -12,14 +12,17 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+
+	"github.com/vibrantgio/components/golden"
 )
 
 // scene fills the frame with a background colour and lays the
-// layout.Widget over it, so captures have a deterministic fill.
+// layout.Widget over it, so captures have a deterministic fill. The text of
+// the widget is told that fill.
 func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, bgColor, clip.Rect{Max: gtx.Constraints.Max}.Op())
-		return w(gtx)
+		return golden.On(bgColor, w)(gtx)
 	}
 }
 

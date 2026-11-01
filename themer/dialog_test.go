@@ -124,7 +124,8 @@ func press(r *input.Router, pt image.Point) {
 func TestAClickOnTheThemeColourOpensTheDialog(t *testing.T) {
 	m := goldenModel(t, false)
 	bar := new(topClicks)
-	r, frame := driver(staticPage(m, tokens.PlatformLight, newCodeState(), desktop.ScrollBarsWhenScrolling, bar))
+	r, frame := driver(golden.On(WindowSet(tokens.PlatformLight, m).WindowBackground,
+		staticPage(m, tokens.PlatformLight, newCodeState(), desktop.ScrollBarsWhenScrolling, bar)))
 	frame()
 	frame()
 	y := colourBoxTop() + int(ColourBoxH)/2
@@ -319,9 +320,9 @@ func dialogPage(t *testing.T, m Model, c tokens.PlatformColors) *image.RGBA {
 		Title: DialogTitle,
 		Body:  DialogBody(win, typo.SystemFont, ty.Shaper, paragraph.NewState()),
 	}, m.DialogOpen, win, tokens.Spacing, tokens.Radius, typo.Title2, tokens.Comfortable)
-	return golden.Capture(t, windowSize, func(gtx layout.Context) layout.Dimensions {
+	return golden.Capture(t, windowSize, golden.On(win.WindowBackground, func(gtx layout.Context) layout.Dimensions {
 		fillRect(gtx, image.Rectangle{Max: windowSize}, win.WindowBackground)
 		page(gtx)
 		return box(gtx)
-	})
+	}))
 }

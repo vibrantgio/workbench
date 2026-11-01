@@ -46,7 +46,7 @@ func TestTheStyleColumnHasNoPaddingAtEitherEnd(t *testing.T) {
 				gtx.Metric = unit.Metric{PxPerDp: 1, PxPerSp: 1}
 				gtx.Constraints = layout.Exact(size)
 				paint.FillShape(gtx.Ops, p.Surface, clip.Rect{Max: size}.Op())
-				return StylePane(p, tc.c, ty, m, tc.dark, sel, bars)(gtx)
+				return golden.On(p.Surface, StylePane(p, tc.c, ty, m, tc.dark, sel, bars))(gtx)
 			}
 			render := func(bars desktop.ScrollBarSetting) *image.RGBA {
 				sel := newStyleChooser()

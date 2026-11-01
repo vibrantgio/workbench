@@ -140,6 +140,7 @@ func (v *outlineView) layout(gtx layout.Context, st outlineState, tok themeToken
 	}
 	size := image.Pt(w, gtx.Constraints.Max.Y)
 	paintOutlineRail(gtx, size, tok.col)
+	gtx = typeset.WithFill(gtx, tok.col.SidebarMaterial)
 
 	rows := outlineRows(v.entries, st.open)
 	pad := gtx.Dp(unit.Dp(docsOutlineTopPadDp))
@@ -218,6 +219,7 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 		sidebar.PaintSelection(gtx, size, tok.col, false)
 		surface = sidebar.SelectionFill(tok.col, false)
 	}
+	gtx = typeset.WithFill(gtx, surface)
 
 	indent := float32(docsOutlineInsetDp)
 	if row.Child {

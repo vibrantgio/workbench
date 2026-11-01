@@ -18,6 +18,7 @@ import (
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // guideFixture reads the test guide document. Tests never load the
@@ -214,7 +215,7 @@ func TestOutlineClickScrollsTheDocument(t *testing.T) {
 		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
 		Ops:         &ops,
 	}
-	doc.Layout(gtx, tok.shaper, style)
+	doc.Layout(typeset.WithFill(gtx, pageFill(tok.col)), tok.shaper, style)
 
 	if p := doc.Position(); p.First != target.Block || p.Offset != 0 {
 		t.Fatalf("after clicking %q: document position = %+v, want First %d Offset 0",

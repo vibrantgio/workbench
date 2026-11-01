@@ -56,7 +56,7 @@ func TestTheChosenStyleRowIsDrawnAsMeasured(t *testing.T) {
 				gtx.Metric = unit.Metric{PxPerDp: 1, PxPerSp: 1}
 				gtx.Constraints = layout.Exact(size)
 				paint.FillShape(gtx.Ops, p.Surface, clip.Rect{Max: size}.Op())
-				return StylePane(p, tc.c, ty, m, tc.dark, sel, desktop.ScrollBarsWhenScrolling)(gtx)
+				return golden.On(p.Surface, StylePane(p, tc.c, ty, m, tc.dark, sel, desktop.ScrollBarsWhenScrolling))(gtx)
 			}
 			capture := func(sel *styleChooser) *image.RGBA {
 				return golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions { return pane(gtx, sel) })
