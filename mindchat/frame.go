@@ -264,6 +264,7 @@ func chatTitle(gtx layout.Context, m Model, t themed) layout.Dimensions {
 	if gtx.Constraints.Max.X <= 0 {
 		return layout.Dimensions{}
 	}
+	gtx = typeset.WithFill(gtx, t.palette.Transcript)
 	return typeset.Text(gtx, t.shaper, text, t.typ.Headline, colour, 1)
 }
 

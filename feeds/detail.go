@@ -146,6 +146,7 @@ func drawDetail(
 ) layout.Dimensions {
 	size := gtx.Constraints.Max
 	paint.FillShape(gtx.Ops, tok.col.ControlBackground, clip.Rect{Max: size}.Op())
+	gtx = typeset.WithFill(gtx, tok.col.ControlBackground)
 	if !sel.ok {
 		return detailEmptyState(gtx, tok, detailBar(tok, bars), "No Article Selected")
 	}

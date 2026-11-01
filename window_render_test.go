@@ -54,7 +54,7 @@ const titleBandDp = 32
 // band is the strip height to render under; 0 draws the window as every
 // platform but macOS shows it, with the page at the window's own top edge.
 func windowFrame(tok themed, model Model, band unit.Dp) layout.Widget {
-	return golden.Stack(backdrop.Widget(windowPlane(tok.color)), cappedPage(tok, model, band))
+	return golden.OnWindow(tok.color, golden.Stack(backdrop.Widget(windowPlane(tok.color)), cappedPage(tok, model, band)))
 }
 
 // cappedPage is the window's content layer as buildLayers wraps it: the page
@@ -94,7 +94,7 @@ func livingWindowFrame(tok themed, model Model, band unit.Dp) layout.Widget {
 	field := NewField(new(app.Window), winW, winH)
 	field.SetColors(tok.color)
 	field.applyPending()
-	return golden.Stack(backdrop.Widget(windowPlane(tok.color)), field.Widget(), cappedPage(tok, model, band))
+	return golden.OnWindow(tok.color, golden.Stack(backdrop.Widget(windowPlane(tok.color)), field.Widget(), cappedPage(tok, model, band)))
 }
 
 // windowSchemes is the pair every rule below is checked against.

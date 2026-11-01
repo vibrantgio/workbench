@@ -518,6 +518,7 @@ func drawRailColumn(
 	// asked for scroll bars always.
 	bar := scrollBarStyle(scrollbar.FromTokens(colors, pane.Surface(colors)), bars)
 
+	gtx = typeset.WithFill(gtx, pane.Surface(colors))
 	cgtx := gtx
 	cgtx.Constraints = layout.Exact(size)
 	// The rail's focus target covers the scrolling column, registered UNDER
@@ -758,6 +759,7 @@ func drawFeedEntryRow(
 		patsidebar.PaintSelection(gtx, size, tok.col, unemphasized)
 		surface = patsidebar.SelectionFill(tok.col, unemphasized)
 	}
+	gtx = typeset.WithFill(gtx, surface)
 
 	// The row's parts stand in the rail's own columns, measured off the
 	// platform's pane, not against the pill: the symbol at SymbolInset, the

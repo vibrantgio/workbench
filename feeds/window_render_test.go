@@ -103,8 +103,7 @@ var settledArticle = func() ArticleID {
 // writes over nothing a real window kept.
 func frame(t *testing.T, c tokens.PlatformColors, d tokens.Density, model Model) layout.Widget {
 	t.Helper()
-	th := rx.Of(golden.StaticTheme(c, golden.WithDensity(d)))
-	return golden.Layers(t, buildLayers(rx.Of(model), nil, desktop.ScrollBarsWhenScrolling)(th)...)
+	return golden.ThemeLayers(t, golden.StaticTheme(c, golden.WithDensity(d)), buildLayers(rx.Of(model), nil, desktop.ScrollBarsWhenScrolling))
 }
 
 // The macOS window controls, as this window will actually carry them: the

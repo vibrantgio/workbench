@@ -44,7 +44,7 @@ func staticThemed(colors tokens.PlatformColors) themed {
 // floats these on is driven by the clock, so it has no one frame to store and
 // is omitted; the plane it is keyed to stands in for it.
 func page(tok themed, model Model) layout.Widget {
-	return golden.Stack(backdrop.Widget(windowPlane(tok.color)), pageContent(tok, model))
+	return golden.OnWindow(tok.color, golden.Stack(backdrop.Widget(windowPlane(tok.color)), pageContent(tok, model)))
 }
 
 // pageContent is the window's content layer alone — the hero over the app

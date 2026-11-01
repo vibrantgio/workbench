@@ -24,10 +24,10 @@ func TestARunningAppsRowDrawsTheNeutralBadge(t *testing.T) {
 			size := image.Pt(int(CellW), 40)
 			count := func(status Status) (fills, texts, accents int) {
 				row := nameRow(tok, Apps[0], status)
-				img := golden.Capture(t, size, golden.Stack(backdrop.Widget(plane), func(gtx layout.Context) layout.Dimensions {
+				img := golden.Capture(t, size, golden.OnWindow(sc.colors, golden.Stack(backdrop.Widget(plane), func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Min = image.Point{}
 					return row(gtx)
-				}))
+				})))
 				// The text is counted only inside the box the fill spans: on a
 				// light plane the white text is the plane's own colour.
 				var box image.Rectangle

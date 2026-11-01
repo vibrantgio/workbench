@@ -372,11 +372,11 @@ func scene(w layout.Widget, colors tokens.PlatformColors, size image.Point) layo
 	field.SetColors(colors)
 	field.applyPending()
 	back := backdrop.Widget(colors.WindowBackground)
-	return func(gtx layout.Context) layout.Dimensions {
+	return golden.OnWindow(colors, func(gtx layout.Context) layout.Dimensions {
 		back(gtx)
 		field.Widget()(gtx)
 		return w(gtx)
-	}
+	})
 }
 
 func drawOnce(t *testing.T, size image.Point, w layout.Widget) layout.Dimensions {

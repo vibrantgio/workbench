@@ -545,6 +545,7 @@ func RenameDialog(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		FillRect(gtx, image.Rectangle{Max: gtx.Constraints.Max}, 0, t.palette.Transcript)
+		gtx = typeset.WithFill(gtx, t.palette.Transcript)
 		// The transcript is a reading measure, and a reading measure that is
 		// narrower than the room it is given is CENTRED in it — left alone it
 		// hugs the leading edge, which with the pane away leaves a column of
@@ -604,6 +605,7 @@ func ChatPane(t themed, chat []msgRow, hist *list.State, prompt layout.Widget) l
 //   - a system note: a centred text label.
 func MessageRow(gtx layout.Context, t themed, row msgRow) layout.Dimensions {
 	msg := row.Msg
+	gtx = typeset.WithFill(gtx, t.palette.Transcript)
 
 	m := op.Record(gtx.Ops)
 	var dims layout.Dimensions
@@ -1126,6 +1128,14 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 	// measures at 32 dp — taller than a content list's row and not the
 	// same number.
 	gtx.Constraints = layout.Exact(image.Pt(gtx.Constraints.Max.X, gtx.Dp(sidebar.RowHeight)))
+	surface := p.Sidebar
+	if selected {
+		surface = p.RowSelected
+		if unemphasized {
+			surface = p.RowSelectedUnfocused
+		}
+	}
+	gtx = typeset.WithFill(gtx, surface)
 	{
 		m := op.Record(gtx.Ops)
 		// The rail lists conversations, so its rows stand in the sidebar's
@@ -1159,14 +1169,7 @@ func ChatRow(gtx layout.Context, t themed, name string, selected, unemphasized, 
 						if !streaming {
 							return layout.Dimensions{}
 						}
-						fill := p.Sidebar
-						if selected {
-							fill = p.RowSelected
-							if unemphasized {
-								fill = p.RowSelectedUnfocused
-							}
-						}
-						dims := progress.Indicator(gtx, progress.Props{Platform: t.col, Fill: fill})
+						dims := progress.Indicator(gtx, progress.Props{Platform: t.col, Fill: surface})
 						dims.Size.X += gtx.Dp(6)
 						return dims
 					}),

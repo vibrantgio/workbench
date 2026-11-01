@@ -8,16 +8,16 @@ require (
 	github.com/openai/openai-go/v3 v3.48.0
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.7
-	github.com/vibrantgio/components v1.7.0
+	github.com/vibrantgio/components v1.7.1-0.20261101131115-0d5452d86a5b
 	github.com/vibrantgio/effects v0.5.0
 	github.com/vibrantgio/ivg v0.2.1
 	github.com/vibrantgio/ivg/raster/gio v0.2.1
-	github.com/vibrantgio/markdown v0.9.0
+	github.com/vibrantgio/markdown v0.9.1-0.20261101132631-33df299c188d
 	github.com/vibrantgio/mvu v1.1.5
 	github.com/vibrantgio/mvu/desktop v1.1.5
-	github.com/vibrantgio/patterns v1.5.0
+	github.com/vibrantgio/patterns v1.5.1-0.20261101134549-b5be6f11d241
 	github.com/vibrantgio/textdraw v0.1.0
-	github.com/vibrantgio/theme v1.6.0
+	github.com/vibrantgio/theme v1.6.1-0.20261101120246-b6b8b4760b41
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743
 	golang.org/x/image v0.44.0
 )

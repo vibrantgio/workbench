@@ -215,7 +215,7 @@ func wellLineHeight(t *testing.T, th settingsThemed, style tokens.TextStyle) int
 	size := image.Pt(600, 200)
 	img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, fill, clip.Rect{Max: gtx.Constraints.Max}.Op())
-		return typeset.Text(gtx, th.shaper, settingsNoProvidersLine, style,
+		return typeset.Text(typeset.WithFill(gtx, fill), th.shaper, settingsNoProvidersLine, style,
 			vgcolor.Flatten(th.colors.TertiaryLabel, fill), 1)
 	})
 	return wellGlyphBox(img, img.Bounds(), fill).Dy()

@@ -355,6 +355,7 @@ func feedTitle(gtx layout.Context, m Model, tok themeTokens) layout.Dimensions {
 	if gtx.Constraints.Max.X <= 0 {
 		return layout.Dimensions{}
 	}
+	gtx = typeset.WithFill(gtx, tok.col.ControlBackground)
 	return typeset.Text(gtx, tok.shaper, name, tok.typ.Headline,
 		vgcolor.Flatten(tok.col.Label, tok.col.ControlBackground), 1)
 }

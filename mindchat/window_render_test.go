@@ -139,7 +139,7 @@ func streamingModel() Model {
 // the machine running the test asked for.
 func frame(t *testing.T, c tokens.PlatformColors, model Model) layout.Widget {
 	t.Helper()
-	return golden.Layers(t, buildLayers(rx.Of(model), nil, desktop.ScrollBarsWhenScrolling)(rx.Of(golden.StaticTheme(c)))...)
+	return golden.ThemeLayers(t, golden.StaticTheme(c), buildLayers(rx.Of(model), nil, desktop.ScrollBarsWhenScrolling))
 }
 
 // The macOS window controls, as this window will actually carry them: the

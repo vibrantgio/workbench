@@ -100,11 +100,11 @@ func TestAFailedCardDrawsTheErrorAlertOutsideTheButton(t *testing.T) {
 				var click widget.Clickable
 				card := appGroup(tok, app, &click, status)
 				var cardH int
-				img := golden.Capture(t, size, golden.Stack(backdrop.Widget(windowPlane(sc.colors)), func(gtx layout.Context) layout.Dimensions {
+				img := golden.Capture(t, size, golden.OnWindow(sc.colors, golden.Stack(backdrop.Widget(windowPlane(sc.colors)), func(gtx layout.Context) layout.Dimensions {
 					d := card(gtx)
 					cardH = d.Size.Y
 					return d
-				}))
+				})))
 				box := alertBox(img, vgcolor.Flatten(sc.colors.Separator, windowPlane(sc.colors)), cardH)
 				if box.Empty() {
 					t.Fatal("no alert hairline drawn")
@@ -137,10 +137,10 @@ func TestTheAlertShowsTheWholeErrorText(t *testing.T) {
 	depth := func(lines int) int {
 		detail := strings.TrimSuffix(strings.Repeat("panic: line\n", lines), "\n")
 		var h int
-		golden.Capture(t, image.Pt(int(CellW), 10), func(gtx layout.Context) layout.Dimensions {
+		golden.Capture(t, image.Pt(int(CellW), 10), golden.OnWindow(tok.color, func(gtx layout.Context) layout.Dimensions {
 			h = failureHeight(gtx, tok, failureAlert(tok, app, Status{State: Failed, Ended: true, Detail: detail}))
 			return layout.Dimensions{}
-		})
+		}))
 		return h
 	}
 	prev := depth(1)

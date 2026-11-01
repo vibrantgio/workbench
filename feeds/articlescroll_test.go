@@ -14,6 +14,7 @@ import (
 	"github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // TestTheArticleColumnScrollsToTheArticlesEnd lays the article's body region
@@ -42,7 +43,7 @@ func TestTheArticleColumnScrollsToTheArticlesEnd(t *testing.T) {
 			gtx.Metric = unit.Metric{PxPerDp: 1, PxPerSp: 1}
 			gtx.Constraints = layout.Exact(size)
 			paint.FillShape(gtx.Ops, fill, clip.Rect{Max: size}.Op())
-			return drawBody(gtx, tok, detailBar(tok, bars), scroll, a, tok.typ.Body)
+			return drawBody(typeset.WithFill(gtx, fill), tok, detailBar(tok, bars), scroll, a, tok.typ.Body)
 		}
 		// The first frame opens the article at its first line; the second
 		// is laid out after the region was asked for its end.

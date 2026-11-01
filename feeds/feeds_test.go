@@ -23,6 +23,7 @@ import (
 	"github.com/vibrantgio/patterns/table"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // TestBuildLayersConstructsWithoutPanic drives buildLayers with a seeded model
@@ -955,7 +956,7 @@ func TestArticlesTableLightDarkDiffer(t *testing.T) {
 func scene(w layout.Widget, bgColor color.NRGBA) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, bgColor, clip.Rect{Max: gtx.Constraints.Max}.Op())
-		return w(gtx)
+		return w(typeset.WithFill(gtx, bgColor))
 	}
 }
 

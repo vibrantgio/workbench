@@ -214,7 +214,7 @@ func gridLineHeight(t *testing.T, c tokens.PlatformColors, style tokens.TextStyl
 	size := image.Pt(1200, 200)
 	img := golden.Capture(t, size, func(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, plane, clip.Rect{Max: gtx.Constraints.Max}.Op())
-		return typeset.Text(gtx, tokens.DefaultTypography.DeterministicShaper(), noMatchLine,
+		return typeset.Text(typeset.WithFill(gtx, plane), tokens.DefaultTypography.DeterministicShaper(), noMatchLine,
 			style, vgcolor.Flatten(c.TertiaryLabel, plane), 1)
 	})
 	return gridTextBox(img, img.Bounds(), plane).Dy()
