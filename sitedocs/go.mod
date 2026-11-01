@@ -7,11 +7,11 @@ require (
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.7
 	github.com/vibrantgio/components v1.7.1-0.20261101222657-a5cc8c531b8b
-	github.com/vibrantgio/markdown v0.9.1-0.20261101132631-33df299c188d
+	github.com/vibrantgio/markdown v0.9.1-0.20261101224705-4c14fb34ef4a
 	github.com/vibrantgio/mvu v1.1.5
 	github.com/vibrantgio/mvu/desktop v1.1.5
-	github.com/vibrantgio/patterns v1.5.1-0.20261101205422-677e2cf535b8
-	github.com/vibrantgio/theme v1.6.1-0.20261101222502-abb32a8d88e7
+	github.com/vibrantgio/patterns v1.5.1-0.20261101224811-85ab9dc48351
+	github.com/vibrantgio/theme v1.6.1-0.20261101224235-79942a278c64
 	golang.org/x/image v0.44.0
 )
 

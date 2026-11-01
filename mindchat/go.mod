@@ -8,16 +8,16 @@ require (
 	github.com/openai/openai-go/v3 v3.48.0
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.7
-	github.com/vibrantgio/components v1.7.1-0.20261101185822-033d02ebd7ca
+	github.com/vibrantgio/components v1.7.1-0.20261101222657-a5cc8c531b8b
 	github.com/vibrantgio/effects v0.5.0
 	github.com/vibrantgio/ivg v0.2.1
 	github.com/vibrantgio/ivg/raster/gio v0.2.1
-	github.com/vibrantgio/markdown v0.9.1-0.20261101132631-33df299c188d
+	github.com/vibrantgio/markdown v0.9.1-0.20261101224705-4c14fb34ef4a
 	github.com/vibrantgio/mvu v1.1.5
 	github.com/vibrantgio/mvu/desktop v1.1.5
-	github.com/vibrantgio/patterns v1.5.1-0.20261101194034-4ad65d33ebb6
+	github.com/vibrantgio/patterns v1.5.1-0.20261101224811-85ab9dc48351
 	github.com/vibrantgio/textdraw v0.1.0
-	github.com/vibrantgio/theme v1.6.1-0.20261101185739-eae0379ba9b0
+	github.com/vibrantgio/theme v1.6.1-0.20261101224235-79942a278c64
 	golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743
 	golang.org/x/image v0.44.0
 )
@@ -32,7 +32,7 @@ require (
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
-	github.com/vibrantgio/font v0.4.5 // indirect
+	github.com/vibrantgio/font v0.4.6-0.20261101212858-5bdcd87e1a22 // indirect
 	github.com/vibrantgio/svg v0.1.3 // indirect
 	github.com/vibrantgio/svg/driver/gio v0.1.3 // indirect
 	github.com/yuin/goldmark v1.8.5 // indirect
