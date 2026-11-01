@@ -48,8 +48,12 @@ const (
 	docsOutlineInsetDp   = 8                 // shared horizontal inset: row fills sit on it
 	docsOutlineMarkDp    = 12                // the disclosure mark's own square
 	docsOutlineMarkColDp = 20                // fixed column holding it, so titles align
-	docsOutlineIndentDp  = 14                // additional inset for ### children
-	docsOutlineTopPadDp  = 8                 // breathing room above the first row
+	// MEASURED, preview-toc-{light,dark}.png, the reference's table of
+	// contents, "the nesting": the chevron covers x 23–30 and the title
+	// starts at x=35, so the chevron's centre stands 8 before the title.
+	docsOutlineMarkLeadDp = 8  // the mark's centre stands this far before the title
+	docsOutlineIndentDp   = 14 // additional inset for ### children
+	docsOutlineTopPadDp   = 8  // breathing room above the first row
 )
 
 // outlineState is the model snapshot the tree renders from: which ##
@@ -227,15 +231,17 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 	}
 	style := outlineRowStyle(tok.typ)
 
-	// A row's words and its mark are the platform's label at two strengths,
-	// each composited onto the fill it actually lands on — the material, or
-	// the pill where this row is the selected one.
+	// A row's text and its mark are the platform's label at two strengths,
+	// each composited onto the fill it lands on. On the selected row's pill
+	// both take the pill's own foreground.
 	title := tok.col.Label
+	discloseMark := tok.col.SecondaryLabel
 	if st.selected == row.Block {
 		title = sidebar.SelectionLabel(tok.col, false)
+		discloseMark = title
 	}
 	title = vgcolor.Flatten(title, surface)
-	discloseMark := vgcolor.Flatten(tok.col.SecondaryLabel, surface)
+	discloseMark = vgcolor.Flatten(discloseMark, surface)
 
 	children := []layout.FlexChild{
 		layout.Rigid(hSpacer(indent)),
@@ -255,7 +261,10 @@ func (v *outlineView) row(gtx layout.Context, row outlineRow, st outlineState, t
 					semantic.LabelOp("disclose " + row.Title).Add(gtx.Ops)
 					semantic.EnabledOp(true).Add(gtx.Ops)
 					pointershape.OverSize(gtx.Ops, image.Pt(col, mark), pointer.CursorPointer)
+					x := max(col-gtx.Dp(docsOutlineMarkLeadDp)-mark/2, 0)
+					stk := op.Offset(image.Pt(x, 0)).Push(gtx.Ops)
 					drawOutlineDisclosure(gtx, row.Open, unit.Dp(docsOutlineMarkDp), discloseMark)
+					stk.Pop()
 					return layout.Dimensions{Size: image.Pt(col, mark)}
 				})
 			}

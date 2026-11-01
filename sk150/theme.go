@@ -1,15 +1,18 @@
 package main
 
 import (
+	"image"
 	"image/color"
 
 	"gioui.org/font"
+	"gioui.org/layout"
 	"gioui.org/text"
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/textdraw"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // The meter's own display, measured off the brightest lit-segment pixels of
@@ -215,3 +218,11 @@ const (
 	StatusFooterHeight   unit.Dp = 27
 	StatusFooterBaseline unit.Dp = 17
 )
+
+// fillText is [textdraw.FillText] at the stem weight of fg against the fill
+// gtx carries. Every line of text this window draws with its own font goes
+// through it.
+func fillText(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, r image.Rectangle, ax, ay float32, fg color.NRGBA, s string) {
+	style.Font = typeset.StemFontOn(gtx, style.Font, float32(style.Size), fg)
+	textdraw.FillText(gtx, shaper, style, r, ax, ay, fg, s)
+}

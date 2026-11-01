@@ -26,6 +26,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -40,6 +41,7 @@ import (
 	"github.com/vibrantgio/components/input"
 	"github.com/vibrantgio/markdown"
 	"github.com/vibrantgio/patterns/shell"
+	"github.com/vibrantgio/patterns/sidebar"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
@@ -424,4 +426,97 @@ func TestTheToolbarHoldsTheSearchFieldAtItsTrailingEnd(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestTheSelectedRowsDisclosureTakesThePillsForeground reads the disclosure
+// on the selected outline row off the frame. The mark is drawn in the pill's
+// own foreground, as the row's title is: every pixel it covers is a blend of
+// the pill's fill and that foreground. Every column it covers is inside the
+// pill, and its centre stands docsOutlineMarkLeadDp before the title's
+// first column, within one column.
+func TestTheSelectedRowsDisclosureTakesThePillsForeground(t *testing.T) {
+	for _, tc := range windowSchemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := renderWindow(t, tc.c)
+			pill := sidebar.SelectionFill(tc.c, false)
+			fg := vgcolor.Flatten(sidebar.SelectionLabel(tc.c, false), pill)
+			// The pill's band is the run of rows that hold its fill at a
+			// column clear of the row's text and mark.
+			probe := docsOutlineWidthDp - 20
+			top, bottom := -1, -1
+			for y := range img.Bounds().Dy() {
+				if near(pixelAt(img, image.Pt(probe, y)), pill, 2) {
+					if top < 0 {
+						top = y
+					}
+					bottom = y
+				} else if top >= 0 {
+					break
+				}
+			}
+			if top < 0 {
+				t.Fatal("no selected row's pill found")
+			}
+			mid := (top + bottom) / 2
+			pillStart := -1
+			for x := range probe {
+				if near(pixelAt(img, image.Pt(x, mid)), pill, 2) {
+					pillStart = x
+					break
+				}
+			}
+			titleFrom := docsOutlineInsetDp + docsOutlineMarkColDp
+			markMin, markMax := probe, -1
+			for y := mid - 6; y <= mid+6; y++ {
+				for x := range titleFrom - 2 {
+					p := pixelAt(img, image.Pt(x, y))
+					switch {
+					case x < pillStart:
+						if !near(p, tc.c.SidebarMaterial, 2) {
+							t.Errorf("the disclosure covers x=%d, outside the pill that starts at x=%d", x, pillStart)
+						}
+					case !near(p, pill, 2):
+						markMin, markMax = min(markMin, x), max(markMax, x)
+						if r := offBlend(p, pill, fg); r > 8 {
+							t.Errorf("the disclosure's pixel at (%d,%d) %v is %.1f off the blend of the pill %v and its foreground %v", x, y, p, r, pill, fg)
+						}
+					}
+				}
+			}
+			if markMax < 0 {
+				t.Fatal("no disclosure drawn on the selected row")
+			}
+			centre := float64(markMin+markMax+1) / 2
+			if want := float64(titleFrom - docsOutlineMarkLeadDp); centre < want-1 || centre > want+1 {
+				t.Errorf("the disclosure's centre is x=%.1f, want %.1f — docsOutlineMarkLeadDp before the title at x=%d", centre, want, titleFrom)
+			}
+		})
+	}
+}
+
+// offBlend is how far p stands from the nearest blend of fill and fg, in
+// linear-light channel units out of 255. Gio blends coverage in linear
+// light, so a mark's edge pixels lie on that line and not on the sRGB one.
+func offBlend(p, fill, fg color.NRGBA) float64 {
+	lin := func(c uint8) float64 {
+		v := float64(c) / 255
+		if v <= 0.04045 {
+			return 255 * v / 12.92
+		}
+		return 255 * math.Pow((v+0.055)/1.055, 2.4)
+	}
+	d := [3]float64{lin(fg.R) - lin(fill.R), lin(fg.G) - lin(fill.G), lin(fg.B) - lin(fill.B)}
+	v := [3]float64{lin(p.R) - lin(fill.R), lin(p.G) - lin(fill.G), lin(p.B) - lin(fill.B)}
+	dd := d[0]*d[0] + d[1]*d[1] + d[2]*d[2]
+	a := 0.0
+	if dd > 0 {
+		a = (v[0]*d[0] + v[1]*d[1] + v[2]*d[2]) / dd
+	}
+	a = min(max(a, 0), 1)
+	r := 0.0
+	for i := range 3 {
+		e := v[i] - a*d[i]
+		r += e * e
+	}
+	return math.Sqrt(r)
 }

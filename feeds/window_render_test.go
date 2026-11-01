@@ -200,7 +200,7 @@ var (
 	atToolbar     = image.Pt(900, 12)   // the toolbar's share over the article, before its acts
 	atListColumn  = image.Pt(400, 640)  // the list column, clear of the toolbar's own content
 	atListPane    = image.Pt(500, 640)  // the list column, under the last row
-	atListRow     = image.Pt(460, 121)  // a body row the stripe skips
+	atListRow     = image.Pt(655, 121)  // a body row the stripe skips, past its last column's text
 	atReadingPane = image.Pt(1000, 600) // the article's column, below its body
 	atPaneHead    = image.Pt(1100, 100) // the article's column, beside its title
 	atTabStrip    = image.Pt(1150, 132) // the tab strip band, past the last title

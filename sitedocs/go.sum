@@ -43,6 +43,8 @@ github.com/vibrantgio/patterns v1.5.1-0.20261101134549-b5be6f11d241 h1:2fxF8B9OA
 github.com/vibrantgio/patterns v1.5.1-0.20261101134549-b5be6f11d241/go.mod h1:nwzI4ZEAEzdG9KGoEaRTySOHmB+UW3L+Xl1p+UaHOCs=
 github.com/vibrantgio/patterns v1.5.1-0.20261101191216-465c27417c45 h1:VtEcryErhKDA1ARbZ287WD+TQBSa7EWOKeFLhVuTVak=
 github.com/vibrantgio/patterns v1.5.1-0.20261101191216-465c27417c45/go.mod h1:NlH33q8CQUYZ6qyux0CX3RsrMd1xoNi9615BBTTNBgM=
+github.com/vibrantgio/patterns v1.5.1-0.20261101194034-4ad65d33ebb6 h1:FrQkJmYj0EGR81KiUgP1KrpP1mh3+D6y9rzUqbIiJVc=
+github.com/vibrantgio/patterns v1.5.1-0.20261101194034-4ad65d33ebb6/go.mod h1:NlH33q8CQUYZ6qyux0CX3RsrMd1xoNi9615BBTTNBgM=
 github.com/vibrantgio/svg v0.1.3 h1:ogxwxxO6FCxTFtJOhhVZc+dMdzeomcpO0Wpk3UKTHWo=
 github.com/vibrantgio/svg v0.1.3/go.mod h1:H867wFCLH1Lfz+uoklXwtvOTAQgg/7DC0KoZm6nRHUA=
 github.com/vibrantgio/theme v1.6.1-0.20261101120246-b6b8b4760b41 h1:NYXCj8fWxcmBwrpTumwK0RClLmQPN/md/Q2Z84kZOiw=

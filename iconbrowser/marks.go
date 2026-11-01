@@ -11,7 +11,6 @@ import (
 	"gioui.org/unit"
 
 	marks "github.com/vibrantgio/components/icons"
-	"github.com/vibrantgio/textdraw"
 )
 
 // ShippedSizes are the three sizes the set ships each mark at, ascending.
@@ -51,8 +50,8 @@ func Heading(t themed, heading, note string) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(HeadingH))
 		rect := image.Rectangle{Max: size}
-		textdraw.FillText(gtx, t.typ.Shaper, t.typ.Section, rect, 0.0, 0.5, t.palette.Text, heading)
-		textdraw.FillText(gtx, t.typ.Shaper, t.typ.Caption, rect, 1.0, 0.5, t.palette.Muted, note)
+		fillText(gtx, t.typ.Shaper, t.typ.Section, rect, 0.0, 0.5, t.palette.Text, heading)
+		fillText(gtx, t.typ.Shaper, t.typ.Caption, rect, 1.0, 0.5, t.palette.Muted, note)
 		return layout.Dimensions{Size: size}
 	}
 }
@@ -90,7 +89,7 @@ func markCell(gtx layout.Context, t themed, name marks.Name, cell image.Rectangl
 	paintSquare(gtx, marks.Mark(name), image.Pt(cell.Min.X+(cell.Dx()-px)/2, top), px, t.palette.Text)
 
 	caption := image.Rect(cell.Min.X, top+px+gtx.Dp(4), cell.Max.X, cell.Max.Y)
-	textdraw.FillText(gtx, t.typ.Shaper, t.typ.Caption, caption, 0.5, 0.0, t.palette.Text, string(name))
+	fillText(gtx, t.typ.Shaper, t.typ.Caption, caption, 0.5, 0.0, t.palette.Text, string(name))
 }
 
 // paintSquare draws one mark into a square of px at at.

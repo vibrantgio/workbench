@@ -1,9 +1,12 @@
 package main
 
 import (
+	"image"
 	"image/color"
 
 	"gioui.org/font"
+	"gioui.org/layout"
+	"gioui.org/text"
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/patterns/pane"
@@ -324,3 +327,11 @@ var (
 	WindowButtonInset    = windowButtonRun.Leading
 	WindowButtonCenter   = windowButtonRun.Center
 )
+
+// fillText is [textdraw.FillText] at the stem weight of fg against the fill
+// gtx carries. Every line of text this window draws with its own font goes
+// through it.
+func fillText(gtx layout.Context, shaper *text.Shaper, style textdraw.TextStyle, r image.Rectangle, ax, ay float32, fg color.NRGBA, s string) {
+	style.Font = typeset.StemFontOn(gtx, style.Font, float32(style.Size), fg)
+	textdraw.FillText(gtx, shaper, style, r, ax, ay, fg, s)
+}

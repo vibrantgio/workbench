@@ -39,6 +39,7 @@ import (
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 	fx "golang.org/x/image/math/fixed"
 )
 
@@ -538,6 +539,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 				// tooltip below is placed in; each layer between here and
 				// a tooltip moves it by the offset it places its child at.
 				gtx = shell.WithAvailableRoom(gtx, image.Rectangle{Max: size})
+				// The page stands on the window's own plane, which
+				// BackdropLayer paints under it.
+				gtx = typeset.WithFill(gtx, pageFill(n.First.platform))
 				for _, c := range chords {
 					c(gtx)
 				}
@@ -1255,7 +1259,7 @@ func statusFooter(typ Type, col color.NRGBA, txt string) layout.Widget {
 		x := (w - sz.X) / 2
 		top := gtx.Dp(StatusFooterBaseline) - firstAscent(gtx, typ.Shaper, typ.Status, txt)
 		rect := image.Rect(x, top, x+sz.X, top+sz.Y)
-		textdraw.FillText(gtx, typ.Shaper, typ.Status, rect, 0, 0, col, txt)
+		fillText(gtx, typ.Shaper, typ.Status, rect, 0, 0, col, txt)
 		return layout.Dimensions{Size: image.Pt(w, gtx.Dp(StatusFooterHeight))}
 	}
 }
@@ -1467,7 +1471,7 @@ func textLine(typ Type, style textdraw.TextStyle, col color.NRGBA, txt string) l
 		sz := textdraw.MeasureText(gtx, typ.Shaper, style, txt)
 		sz.X = min(sz.X, gtx.Constraints.Max.X)
 		rect := image.Rectangle{Max: sz}
-		textdraw.FillText(gtx, typ.Shaper, style, rect, 0, 0.5, col, txt)
+		fillText(gtx, typ.Shaper, style, rect, 0, 0.5, col, txt)
 		return layout.Dimensions{Size: rect.Max}
 	}
 }

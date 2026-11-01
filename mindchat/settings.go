@@ -53,6 +53,7 @@ import (
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // settingsThemed pairs one theme emission's palette with the icons
@@ -507,7 +508,7 @@ func formRow(t settingsThemed, cols settingsColumns, label string, height unit.D
 	return func(gtx layout.Context) layout.Dimensions {
 		size := image.Pt(gtx.Constraints.Max.X, gtx.Dp(height))
 		if label != "" {
-			textdraw.FillText(gtx, t.shaper, roleText(t.typ.SystemFont),
+			fillText(gtx, t.shaper, roleText(t.typ.SystemFont),
 				image.Rect(0, 0, cols.label, size.Y), 1, 0.5, t.palette.FloatingHeading, label)
 		}
 		x := cols.label + cols.gap
@@ -695,7 +696,7 @@ func webSearchRow(gtx layout.Context, t settingsThemed, on bool, click *widget.C
 			}
 		}()
 		r := image.Rect(sz+gtx.Dp(8), 0, size.X, size.Y)
-		textdraw.FillText(gtx, t.shaper, roleText(t.typ.SystemFont), r, 0, 0.5, t.palette.FloatingText, "Server-side web search (xAI, OpenAI)")
+		fillText(gtx, t.shaper, roleText(t.typ.SystemFont), r, 0, 0.5, t.palette.FloatingText, "Server-side web search (xAI, OpenAI)")
 		return layout.Dimensions{Size: size}
 	})
 }
@@ -753,6 +754,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 	}
 	size := gtx.Constraints.Max
 	FillRect(gtx, image.Rectangle{Max: size}, gtx.Dp(SettingsPaneInset), p.Pane)
+	gtx = typeset.WithFill(gtx, p.Pane)
 	defer op.Offset(image.Pt(gtx.Dp(SettingsPaneInset), gtx.Dp(SettingsPaneInset))).Push(gtx.Ops).Pop()
 	gtx.Constraints = layout.Exact(image.Pt(size.X-2*gtx.Dp(SettingsPaneInset), size.Y-2*gtx.Dp(SettingsPaneInset)))
 	indices := make([]int, len(s.Draft))
@@ -762,7 +764,7 @@ func providerColumn(gtx layout.Context, t settingsThemed, s SettingsState,
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			r := image.Rect(0, 0, gtx.Constraints.Max.X, gtx.Dp(SettingsCaptionRow))
-			textdraw.FillText(gtx, t.shaper, roleText(t.typ.Caption1), r, 0, 0.5, p.FloatingHeading, "Providers")
+			fillText(gtx, t.shaper, roleText(t.typ.Caption1), r, 0, 0.5, p.FloatingHeading, "Providers")
 			return layout.Dimensions{Size: r.Max}
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -881,10 +883,11 @@ func providerRow(gtx layout.Context, t settingsThemed, prov Provider, selected b
 		textColor := p.FloatingText
 		if selected {
 			FillRect(gtx, image.Rectangle{Max: size}, 0, p.ListSelected)
+			gtx = typeset.WithFill(gtx, p.ListSelected)
 			textColor = p.ListSelectedText
 		}
 		r := image.Rect(gtx.Dp(10), 0, size.X-gtx.Dp(4), size.Y)
-		textdraw.FillText(gtx, t.shaper, roleText(t.typ.SystemFont), r, 0, 0.5, textColor, name)
+		fillText(gtx, t.shaper, roleText(t.typ.SystemFont), r, 0, 0.5, textColor, name)
 		return layout.Dimensions{Size: size}
 	})
 }
@@ -913,6 +916,6 @@ func statusLine(gtx layout.Context, t settingsThemed, s SettingsState, prov Prov
 			text = "Key OK — no chat models listed"
 		}
 	}
-	textdraw.FillText(gtx, t.shaper, roleText(t.typ.SmallSystemFont), image.Rectangle{Max: size}, 0, 0.5, col, text)
+	fillText(gtx, t.shaper, roleText(t.typ.SmallSystemFont), image.Rectangle{Max: size}, 0, 0.5, col, text)
 	return layout.Dimensions{Size: size}
 }

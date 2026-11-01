@@ -25,9 +25,9 @@ import (
 	raster "github.com/vibrantgio/ivg/raster/gio"
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/patterns/shell"
-	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // List renders the todos on the window's own plane using the components
@@ -251,7 +251,11 @@ func Row(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo) rowLayou
 		}
 		dims := editClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			size := gtx.Constraints.Max
-			textdraw.FillText(gtx, typ.Shaper, typ.Row, image.Rectangle{Max: size}, 0.0, 0.5, textColor, item.Text)
+			fill := p.Backdrop
+			if onSelection {
+				fill = p.RowSelection
+			}
+			fillText(typeset.WithFill(gtx, fill), typ.Shaper, typ.Row, image.Rectangle{Max: size}, 0.0, 0.5, textColor, item.Text)
 			return layout.Dimensions{Size: size}
 		})
 		if editClick.Hovered() {

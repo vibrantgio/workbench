@@ -17,6 +17,7 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
+	"github.com/vibrantgio/theme/typeset"
 	"github.com/vibrantgio/workbench/todos/internal/place"
 )
 
@@ -149,7 +150,7 @@ func UpsertDialog(typ Type, th rx.Observable[theme.Theme], p Palette, item Todo)
 				}
 
 				if edit.Text() == "" {
-					textdraw.FillText(gtx, typ.Shaper, typ.Field, rect, 0.0, 0.5, p.Placeholder, "What needs to be done?")
+					fillText(typeset.WithFill(gtx, p.Field), typ.Shaper, typ.Field, rect, 0.0, 0.5, p.Placeholder, "What needs to be done?")
 				}
 				func(gtx layout.Context) {
 					defer op.Offset(rect.Min).Push(gtx.Ops).Pop()

@@ -25,6 +25,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/vibrantgio/textdraw"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // boltDp is the construction size of the output bolt; the header's output
@@ -193,12 +194,13 @@ func setLimitBoxes(t themed, lines [2]setLimitLine) layout.Widget {
 				clip.UniformRRect(box.Inset(rim), max(0, radius-rim)).Op(gtx.Ops))
 
 			in := image.Rect(box.Min.X+rim+padH, box.Min.Y+rim, box.Max.X-rim-padH, box.Max.Y-rim)
-			textdraw.FillText(gtx, typ.Shaper, typ.Set,
+			lit := typeset.WithFill(gtx, p.DisplayPane)
+			fillText(lit, typ.Shaper, typ.Set,
 				image.Rect(in.Min.X, in.Min.Y, in.Max.X, in.Min.Y+h), 0.5, 0.5, p.DisplayCaption, l.Caption)
 			half := in.Dx() / 2
-			textdraw.FillText(gtx, typ.Shaper, typ.Set,
+			fillText(lit, typ.Shaper, typ.Set,
 				image.Rect(in.Min.X, in.Min.Y+h, in.Min.X+half, in.Min.Y+2*h), 0.5, 0.5, p.DisplayVolt, l.Volts)
-			textdraw.FillText(gtx, typ.Shaper, typ.Set,
+			fillText(lit, typ.Shaper, typ.Set,
 				image.Rect(in.Max.X-half, in.Min.Y+h, in.Max.X, in.Min.Y+2*h), 0.5, 0.5, p.DisplayAmp, l.Amps)
 		}
 		return layout.Dimensions{Size: image.Pt(room, boxH)}
@@ -224,7 +226,7 @@ func readoutPane(t themed, rowGap unit.Dp, rows ...layout.Widget) layout.Widget 
 		// The fill is painted under the lines, so it is recorded first and
 		// replayed after the pane's own size is known.
 		macro := op.Record(gtx.Ops)
-		dims := layout.UniformInset(readoutPaneInset).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		dims := layout.UniformInset(readoutPaneInset).Layout(typeset.WithFill(gtx, t.palette.DisplayPane), func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		})
@@ -257,11 +259,11 @@ func paneRow(t themed, foreground color.NRGBA, digits, unit, badgeTxt string, ba
 		unitSz := textdraw.MeasureText(gtx, typ.Shaper, typ.Unit, unit)
 		unitX := w - unitSz.X
 		unitTop := baseline - int(baseFrac*float64(unitSz.Y))
-		textdraw.FillText(gtx, typ.Shaper, typ.Unit,
+		fillText(gtx, typ.Shaper, typ.Unit,
 			image.Rect(unitX, unitTop, w, unitTop+unitSz.Y), 0.5, 0.5, foreground, unit)
 
 		digitsRight := unitX - gtx.Dp(8)
-		textdraw.FillText(gtx, typ.Shaper, typ.Digits,
+		fillText(gtx, typ.Shaper, typ.Digits,
 			image.Rectangle{Max: image.Pt(digitsRight, h)}, 1.0, 0.5, foreground, digits)
 
 		if badgeTxt != "" {
@@ -337,8 +339,8 @@ func badgeBox(gtx layout.Context, t themed, txt string, fill, foreground color.N
 func badgeBoxStyled(gtx layout.Context, t themed, style textdraw.TextStyle, txt string, fill, foreground color.NRGBA, active bool, r image.Rectangle) {
 	if active {
 		paint.FillShape(gtx.Ops, fill, clip.UniformRRect(r, gtx.Dp(4)).Op(gtx.Ops))
-		textdraw.FillText(gtx, t.typ.Shaper, style, r, 0.5, 0.5, foreground, txt)
+		fillText(typeset.WithFill(gtx, fill), t.typ.Shaper, style, r, 0.5, 0.5, foreground, txt)
 		return
 	}
-	textdraw.FillText(gtx, t.typ.Shaper, style, r, 0.5, 0.5, t.palette.Dim, txt)
+	fillText(gtx, t.typ.Shaper, style, r, 0.5, 0.5, t.palette.Dim, txt)
 }

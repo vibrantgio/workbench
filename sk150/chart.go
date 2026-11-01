@@ -23,6 +23,7 @@ import (
 
 	"github.com/vibrantgio/components/progress"
 	"github.com/vibrantgio/textdraw"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // hoverState is the crosshair's cross-frame state. It lives at subscription
@@ -160,7 +161,7 @@ func chartPane(t themed, samples []Sample, sel func(Sample) float64,
 			x := r.Min.X + int(ax*float64(r.Dx()-sz.X))
 			y := r.Min.Y + int(ay*float64(r.Dy()-sz.Y))
 			rect := image.Rectangle{Min: image.Pt(x, y), Max: image.Pt(x+sz.X, y+sz.Y)}
-			textdraw.FillText(gtx, typ.Shaper, typ.Small, rect, 0, 0.5, p.SecondaryLabel, txt)
+			fillText(typeset.WithFill(gtx, p.ChartPane), typ.Shaper, typ.Small, rect, 0, 0.5, p.SecondaryLabel, txt)
 		}
 		in := plot.Inset(inset)
 		label(fmt.Sprintf(valFmt, hi), 0, 0, in)

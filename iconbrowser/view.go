@@ -19,9 +19,9 @@ import (
 	"github.com/vibrantgio/mvu"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
-	"github.com/vibrantgio/textdraw"
 	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
+	"github.com/vibrantgio/theme/typeset"
 )
 
 // buildLayers returns the layer-builder the theme window renders: the backdrop
@@ -135,7 +135,9 @@ func ContentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 					findsSeen = finds
 					gtx.Execute(key.FocusCmd{Tag: field})
 				}
-				return page(gtx)
+				// The page stands on the window's own plane, which
+				// BackdropLayer paints under it.
+				return page(typeset.WithFill(gtx, next.First.palette.Backdrop))
 			}
 		}))
 }
@@ -358,7 +360,7 @@ func Grid(t themed, visible []int, query string, grid *list.State) layout.Widget
 
 				// Name captioned below the symbol.
 				captionRect := image.Rect(cell.Min.X, gtx.Dp(8)+iconPx+gtx.Dp(4), cell.Max.X, cellH)
-				textdraw.FillText(gtx, t.typ.Shaper, t.typ.Caption, captionRect, 0.5, 0.0, p.Text, IconTable[icon].Name)
+				fillText(gtx, t.typ.Shaper, t.typ.Caption, captionRect, 0.5, 0.0, p.Text, IconTable[icon].Name)
 
 				cl.Pop()
 			}

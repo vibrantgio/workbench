@@ -10,7 +10,7 @@ require (
 	github.com/vibrantgio/markdown v0.9.1-0.20261101132631-33df299c188d
 	github.com/vibrantgio/mvu v1.1.5
 	github.com/vibrantgio/mvu/desktop v1.1.5
-	github.com/vibrantgio/patterns v1.5.1-0.20261101191216-465c27417c45
+	github.com/vibrantgio/patterns v1.5.1-0.20261101194034-4ad65d33ebb6
 	github.com/vibrantgio/theme v1.6.1-0.20261101185739-eae0379ba9b0
 	golang.org/x/image v0.44.0
 )
