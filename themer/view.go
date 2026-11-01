@@ -219,6 +219,17 @@ func (t themed) codeType(m Model) (tokens.Typography, *text.Shaper) {
 	return applied, applied.Shaper()
 }
 
+// stemShaper is the shaper the type scale draws through: typo at the stem
+// weight of the scheme the window is on. Tests pin the faces, as codeType
+// does.
+func (t themed) stemShaper(typo tokens.Typography, dark bool) *text.Shaper {
+	w := tokens.SchemeStemWeight(dark)
+	if t.pinned {
+		return typo.DeterministicShaperFor(w)
+	}
+	return typo.ShaperFor(w)
+}
+
 // BackdropLayer fills the window, in the appearance the switch at the top of
 // the window is on.
 //
@@ -370,9 +381,11 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 			ColourRow(p, t.typ, m, hex, &bar.swatch),
 			ColourRows(shown, typo, shaper), pages.colours, j)
 	case TabTypography:
+		scale := j
+		scale.shaper = t.stemShaper(typo, dark)
 		content = TypographyTab(p, t.typ,
 			FaceChoices(p, t.typ, m, pages.faces),
-			TypeScaleRows(j, pages), pages.typography, j)
+			TypeScaleRows(scale, pages), pages.typography, j)
 	case TabCode:
 		content = CodeTab(p, t.typ,
 			FaceChoices(p, t.typ, m, code.faces),
