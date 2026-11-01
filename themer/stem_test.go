@@ -49,8 +49,8 @@ const (
 )
 
 // TestTheStemIsThePlatforms sets "Vibrant Gio" in the System font and in
-// Caption 1 at four horizontal offsets, through the type scale's shaper for
-// each scheme, and stores the eight lines. The mean stem of the four lines is
+// Caption 1 at four horizontal offsets, through the default typography at
+// the stem weight of each scheme, and stores the eight lines. The mean stem of the four lines is
 // within 0.06 px of the platform's, and the darkest of the four is within 5 %
 // of the platform's share or above it.
 //
@@ -65,7 +65,8 @@ func TestTheStemIsThePlatforms(t *testing.T) {
 	}{{"light", tokens.PlatformLight, false}, {"dark", tokens.PlatformDark, true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			typ := tokens.DefaultTypography
-			sh := themed{pinned: true}.stemShaper(typ, tc.dark)
+			at := typ.WithStemWeight(tokens.SchemeStemWeight(tc.dark))
+			sh := at.DeterministicShaper()
 			roles := []tokens.TextStyle{typ.SystemFont, typ.Caption1}
 			// Each line is its own capture. One frame draws a glyph once and
 			// places that drawing at each offset, so four lines in one frame

@@ -183,7 +183,9 @@ func buildLayers(modelObs rx.Observable[Model], zones *desktop.ZoneGroup, bars d
 // switch agrees with the desktop and the other side's when it does not.
 type themed struct {
 	col tokens.PlatformColors
-	typ Type
+	// typo is the theme's typography. The window draws it at the stem weight
+	// of the scheme the window is on, through typeAt and codeType.
+	typo tokens.Typography
 	// pinned says the faces are the test suite's rather than the machine's.
 	pinned bool
 	// scrollBars is the platform's "Show scroll bars" setting, read once
@@ -210,8 +212,8 @@ func scrollBarStyle(s scrollbar.Style, bars desktop.ScrollBarSetting) scrollbar.
 // stream emits. Tests pin the faces so a render here cannot depend on the
 // machine's font set, and they stay off the colour-emoji face, which no
 // pinned render parses.
-func (t themed) codeType(m Model) (tokens.Typography, *text.Shaper) {
-	applied := tokens.CodeFace(m.AppliedMono())
+func (t themed) codeType(m Model, dark bool) (tokens.Typography, *text.Shaper) {
+	applied := tokens.CodeFace(m.AppliedMono()).WithStemWeight(tokens.SchemeStemWeight(dark))
 	if t.pinned {
 		return applied, applied.DeterministicShaper()
 	}
@@ -219,15 +221,15 @@ func (t themed) codeType(m Model) (tokens.Typography, *text.Shaper) {
 	return applied, applied.Shaper()
 }
 
-// stemShaper is the shaper the type scale draws through: typo at the stem
-// weight of the scheme the window is on. Tests pin the faces, as codeType
-// does.
-func (t themed) stemShaper(typo tokens.Typography, dark bool) *text.Shaper {
-	w := tokens.SchemeStemWeight(dark)
+// typeAt is the window's own text at the stem weight of the scheme the
+// window is on, dark or light. Tests pin the faces, as codeType does.
+func (t themed) typeAt(dark bool) Type {
+	typo := t.typo.WithStemWeight(tokens.SchemeStemWeight(dark))
+	ty := TypeFrom(typo)
 	if t.pinned {
-		return typo.DeterministicShaperFor(w)
+		ty.Shaper = typo.DeterministicShaper()
 	}
-	return typo.ShaperFor(w)
+	return ty
 }
 
 // BackdropLayer fills the window, in the appearance the switch at the top of
@@ -251,8 +253,9 @@ func BackdropLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model])
 // through: the live theme with its platform set replaced by [WindowSet] of
 // it, so a component that reads its own colours off the theme is drawn in the
 // appearance the switch at the top of the window is on rather than the
-// desktop's. Everything else the theme carries — typography, density, the
-// scales — is the live theme's unchanged.
+// desktop's. Its typography draws at the stem weight of that appearance.
+// Everything else the theme carries — density and the scales — is the live
+// theme's unchanged.
 //
 // A component flattens the theme, so it re-subscribes what the set is
 // combined with every time the theme re-emits. The model stream this reads
@@ -265,6 +268,10 @@ func WindowTheme(th rx.Observable[theme.Theme], modelObs rx.Observable[Model]) r
 		t.Platform = rx.Map(rx.CombineLatest2(live, modelObs),
 			func(n rx.Tuple2[tokens.PlatformColors, Model]) tokens.PlatformColors {
 				return WindowSet(n.First, n.Second)
+			})
+		t.Typography = rx.Map(rx.CombineLatest3(t.Typography, live, modelObs),
+			func(n rx.Tuple3[tokens.Typography, tokens.PlatformColors, Model]) tokens.Typography {
+				return n.First.WithStemWeight(tokens.SchemeStemWeight(n.Third.Dark(n.Second)))
 			})
 		return t
 	})
@@ -327,7 +334,7 @@ func contentLayer(th rx.Observable[theme.Theme], modelObs rx.Observable[Model], 
 	themes := rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
 		return rx.Map(rx.CombineLatest2(t.Platform, t.Typography),
 			func(n rx.Tuple2[tokens.PlatformColors, tokens.Typography]) themed {
-				return themed{col: n.First, typ: TypeFrom(n.Second), scrollBars: bars}
+				return themed{col: n.First, typo: n.Second, scrollBars: bars}
 			})
 	})
 	return rx.Map(rx.CombineLatest4(themes, modelObs, hex, strip),
@@ -363,7 +370,8 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	win := WindowSet(t.col, m)
 	p := PaletteFrom(win)
 	shown := PreviewSet(t.col, m, dark)
-	typo, shaper := t.codeType(m)
+	ty := t.typeAt(dark)
+	typo, shaper := t.codeType(m, dark)
 	docStyle := CodeStyle(shown, typo, p.Backdrop, m.AppliedStyles())
 	// The preview's bars follow the reader's "Show scroll bars" setting, as
 	// the style pane's bar beside it does.
@@ -376,20 +384,18 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 	var content layout.Widget
 	switch m.Tab {
 	case TabColours:
-		content = ColoursTab(p, t.typ, m,
-			PictureRow(p, t.typ, m, picture, clicks),
-			ColourRow(p, t.typ, m, hex, &bar.swatch),
+		content = ColoursTab(p, ty, m,
+			PictureRow(p, ty, m, picture, clicks),
+			ColourRow(p, ty, m, hex, &bar.swatch),
 			ColourRows(shown, typo, shaper), pages.colours, j)
 	case TabTypography:
-		scale := j
-		scale.shaper = t.stemShaper(typo, dark)
-		content = TypographyTab(p, t.typ,
-			FaceChoices(p, t.typ, m, pages.faces),
-			TypeScaleRows(scale, pages), pages.typography, j)
+		content = TypographyTab(p, ty,
+			FaceChoices(p, ty, m, pages.faces),
+			TypeScaleRows(j, pages), pages.typography, j)
 	case TabCode:
-		content = CodeTab(p, t.typ,
-			FaceChoices(p, t.typ, m, code.faces),
-			ColumnBox(p, StylePane(p, win, t.typ, m, dark, code.styles, t.scrollBars)),
+		content = CodeTab(p, ty,
+			FaceChoices(p, ty, m, code.faces),
+			ColumnBox(p, StylePane(p, win, ty, m, dark, code.styles, t.scrollBars)),
 			Preview(code.view, code.block, shaper, docStyle))
 	default:
 		content = GroupTab(j, pages.groups[m.Tab], tabGroups[m.Tab])
@@ -409,11 +415,11 @@ func Page(t themed, m Model, zones *desktop.ZoneGroup, clicks []gesture.Click, b
 		// buttons are in this row, and the row starts past them.
 		layout.UniformInset(Pad).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-				rigid(reserve(TitleLead()-Pad, TitleRow(p, t.typ, SchemeToggle(win, dark, &bar.scheme)))),
+				rigid(reserve(TitleLead()-Pad, TitleRow(p, ty, SchemeToggle(win, dark, &bar.scheme)))),
 				spacer(Gap),
 				layout.Flexed(1, strip),
 				spacer(GroupAbove),
-				rigid(fixedH(FooterH, Footer(p, win, t.typ, m, &bar.keep))),
+				rigid(fixedH(FooterH, Footer(p, win, ty, m, &bar.keep))),
 			)
 		})
 

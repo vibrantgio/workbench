@@ -62,9 +62,9 @@ func TestTheTwoFacesMarkTheChosenName(t *testing.T) {
 // matching font collection, so the shaper is replaced; the parsed file stays
 // and is only restyled.
 func TestTheCodeFaceMovesTheShaperAndNotTheSample(t *testing.T) {
-	th := themed{col: tokens.PlatformLight, typ: pinned(), pinned: true}
-	roboto, one := th.codeType(pickMono(onCode(judging()), tokens.CodeFaceRoboto))
-	jetbrains, two := th.codeType(pickMono(onCode(judging()), tokens.CodeFaceJetBrains))
+	th := themed{col: tokens.PlatformLight, typo: tokens.DefaultTypography, pinned: true}
+	roboto, one := th.codeType(pickMono(onCode(judging()), tokens.CodeFaceRoboto), false)
+	jetbrains, two := th.codeType(pickMono(onCode(judging()), tokens.CodeFaceJetBrains), false)
 	if roboto.Code.Typeface != tokens.CodeFaceRoboto || jetbrains.Code.Typeface != tokens.CodeFaceJetBrains {
 		t.Fatalf("the two faces resolved to %q and %q", roboto.Code.Typeface, jetbrains.Code.Typeface)
 	}
