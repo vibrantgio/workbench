@@ -7,14 +7,14 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.7
-	github.com/vibrantgio/components v1.7.1-0.20261101222657-a5cc8c531b8b
-	github.com/vibrantgio/components/gallery v1.7.1-0.20261101224934-f98aa42be24c
-	github.com/vibrantgio/markdown v0.9.1-0.20261101224705-4c14fb34ef4a
-	github.com/vibrantgio/mvu v1.1.5
+	github.com/vibrantgio/components v1.7.1
+	github.com/vibrantgio/components/gallery v1.7.1
+	github.com/vibrantgio/markdown v0.9.1
+	github.com/vibrantgio/mvu v1.1.6
 	github.com/vibrantgio/mvu/desktop v1.1.5
-	github.com/vibrantgio/patterns v1.5.1-0.20261101224811-85ab9dc48351
+	github.com/vibrantgio/patterns v1.5.1
 	github.com/vibrantgio/textdraw v0.1.0
-	github.com/vibrantgio/theme v1.6.1-0.20261101224235-79942a278c64
+	github.com/vibrantgio/theme v1.6.1
 	golang.org/x/image v0.44.0
 )
 
@@ -23,8 +23,8 @@ require (
 	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/reactivego/scheduler v0.2.0 // indirect
-	github.com/vibrantgio/effects v0.5.0 // indirect
-	github.com/vibrantgio/font v0.4.6-0.20261101212858-5bdcd87e1a22 // indirect
+	github.com/vibrantgio/effects v0.5.1 // indirect
+	github.com/vibrantgio/font v0.4.6 // indirect
 	github.com/vibrantgio/ivg v0.2.1 // indirect
 	github.com/vibrantgio/ivg/raster/gio v0.2.1 // indirect
 	github.com/vibrantgio/svg v0.1.3 // indirect

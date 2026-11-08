@@ -33,14 +33,14 @@ platform's own colour set, which the theme carries).
 All modules live under github.com/vibrantgio/<name>. Current tags:
 
   ```
-  mvu       v1.1.5   MVU runtime: NewWindow, Loop/Run, Message/Command,
+  mvu       v1.1.6   MVU runtime: NewWindow, Loop/Run, Message/Command,
                      MessageOp; Window.Option + OnConfigure, the re-assert
                      seam the nested desktop module builds on (§Nested
                      modules); Window.ViewEvents, the per-window stream of
                      Gio view events the desktop module's drop target rides;
                      subpackage stream (Value, the one sanctioned
                      observable for state several consumers watch)
-  font      v0.4.5   Roboto, six weights, regular and italic — plus Roboto
+  font      v0.4.6   Roboto, six weights, regular and italic — plus Roboto
                      Mono, normal and bold each with italics; Roboto under the
                      Apache License 2.0, Roboto Mono under the OFL; TTFs
                      embedded here, not eliasnaur.com/font. The default
@@ -68,7 +68,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      new app comes from theme/tokens Typography
                      (§Typography) — never add style to one
 
-  theme     v1.6.0   the theme runtime and every design token: tokens
+  theme     v1.6.1   the theme runtime and every design token: tokens
                      (the platform's colour set, Typography, Density,
                      Motion, spacing/radius), color (APCA and the sRGB
                      flatten), theme (Theme, the token observables),
@@ -82,7 +82,7 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      applies Noto Color Emoji as fallback; goldens stay
                      on DefaultTypography
 
-  components  v1.7.0 alert (the status signal for a situation — a banner on
+  components  v1.7.1 alert (the status signal for a situation — a banner on
                      the content's fill inside a Separator hairline, its
                      status carried by the leading symbol in the platform's
                      system colour for it, standing in the page flow until
@@ -123,15 +123,15 @@ All modules live under github.com/vibrantgio/<name>. Current tags:
                      keyed, initial, cache, bench (coordination
                      is DEPRECATED — use mvu/stream.Value)
 
-  effects   v0.5.0   blur (Gaussian kernel, cached blur, backdrop
+  effects   v0.5.1   blur (Gaussian kernel, cached blur, backdrop
                      pipeline), depth, glow, motion, spring, springbutton,
                      transition, tween, conductor
 
-  patterns  v1.5.0   patterns: shell, navbar, sidebar, pane, splitter, table,
+  patterns  v1.5.1   patterns: shell, navbar, sidebar, pane, splitter, table,
                      tabs, dialog, popover,
                      notifications, card, group, accordion, hero,
                      feature, pricing, testimonial
-  markdown  v0.9.0   GFM document rendering on library components (subpackages:
+  markdown  v0.9.1   GFM document rendering on library components (subpackages:
                      highlight — chroma syntax colours; svgimage — SVG
                      images via vibrantgio/svg; obsidian — the Obsidian
                      dialect: frontmatter, wikilinks, block anchors)
@@ -172,7 +172,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        for traer physics
   github.com/vibrantgio/kiwi/gio              v0.0.10  Gio layout on the
                                                        kiwi solver
-  github.com/vibrantgio/components/gallery    v1.7.0   the components gallery
+  github.com/vibrantgio/components/gallery    v1.7.1   the components gallery
                                                        app, plus inventory
                                                        (every published
                                                        family as one column
@@ -198,7 +198,7 @@ ivg repo, not `vX.Y.Z`. The numbers below are generated, as above.
                                                        paths arriving in
                                                        Update as ordinary
                                                        messages)
-  github.com/vibrantgio/mvu/example           v1.1.5   numbered mvu examples,
+  github.com/vibrantgio/mvu/example           v1.1.6   numbered mvu examples,
                                                        00-reference upward
   ```
 
@@ -1435,10 +1435,10 @@ paths on purpose (golden determinism); leave those alone.
   require (
       gioui.org v0.10.2
       github.com/reactivego/rx v0.3.0
-      github.com/vibrantgio/patterns v1.5.0
-      github.com/vibrantgio/mvu v1.1.5
-      github.com/vibrantgio/components v1.7.0
-      github.com/vibrantgio/theme v1.6.0
+      github.com/vibrantgio/patterns v1.5.1
+      github.com/vibrantgio/mvu v1.1.6
+      github.com/vibrantgio/components v1.7.1
+      github.com/vibrantgio/theme v1.6.1
       github.com/vibrantgio/textdraw v0.1.0
   )
   ```
