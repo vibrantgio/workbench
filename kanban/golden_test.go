@@ -68,7 +68,7 @@ const fixtureBoard = "---\n\nkanban-plugin: board\n\n---\n\n" +
 func frame(th themed, m Model, state *scrollState) layout.Widget {
 	return golden.On(th.platform.ControlBackground, golden.Stack(
 		backdrop.Widget(th.platform.ControlBackground),
-		view(th, m, addField{}, state, func() unit.Dp { return shell.ToolbarDepth }, postMessage),
+		view(th, m, newCard{}, state, func() unit.Dp { return shell.ToolbarDepth }, postMessage),
 	))
 }
 
@@ -182,7 +182,7 @@ func TestTheWindowShowsThreeColumns(t *testing.T) {
 // TestColumnBarStandsAtTheGroupEdge renders a column with more cards than
 // fit, with the bar standing, and reads the pixel column down the middle of
 // the bar's lane at the group's trailing hairline: the bar draws there
-// beside the cards, down to the "Add a card" button's row, and draws
+// beside the cards, down to the "Add Card" button's row, and draws
 // nothing beside the title or beside the button's row.
 func TestColumnBarStandsAtTheGroupEdge(t *testing.T) {
 	var b strings.Builder

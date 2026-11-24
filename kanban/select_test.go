@@ -40,9 +40,9 @@ type boardRig struct {
 	state  *scrollState
 	update func(Model, mvu.Message) (Model, mvu.Command)
 	model  Model
-	// field is the text field for a new card, made again when the
+	// fresh is the new card, made again when the
 	// model's Opened count changes, as ContentLayer makes it.
-	field addField
+	fresh newCard
 	page  layout.Widget
 	// posted is every message the page posted, in order.
 	posted []mvu.Message
@@ -59,10 +59,10 @@ func newBoardRig(t *testing.T, th themed, f *boardFile, m Model) *boardRig {
 // build makes the page for the rig's model.
 func (rig *boardRig) build() {
 	post := func(_ layout.Context, msg mvu.Message) { rig.posted = append(rig.posted, msg) }
-	if rig.field.widget == nil || rig.field.opened != rig.model.Opened {
-		rig.field, _ = newAddField(rx.Of(rig.th.components), rig.model.Opened, post).First()
+	if rig.fresh.field == nil || rig.fresh.opened != rig.model.Opened {
+		rig.fresh, _ = openCard(rx.Of(rig.th.components), rig.model.Opened, post).First()
 	}
-	board := desktop.InsetTop(func() unit.Dp { return shell.ToolbarDepth }, boardView(rig.th, rig.model, rig.field, rig.state, post))
+	board := desktop.InsetTop(func() unit.Dp { return shell.ToolbarDepth }, boardView(rig.th, rig.model, rig.fresh, rig.state, post))
 	fill := rig.th.platform.ControlBackground
 	rig.page = golden.On(fill, golden.Stack(backdrop.Widget(fill), board))
 }

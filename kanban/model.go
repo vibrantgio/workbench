@@ -22,12 +22,12 @@ type Model struct {
 	// while HasSelected is true.
 	Selected    Selection
 	HasSelected bool
-	// Adding is the column whose text field for a new card is open. It
-	// names a column only while IsAdding is true.
+	// Adding is the column whose new card is open. It names a column only
+	// while IsAdding is true.
 	Adding   int
 	IsAdding bool
-	// Opened counts the openings of a text field for a new card. A new
-	// count gives a new, empty field.
+	// Opened counts the openings of a new card. A new count gives a new
+	// card with an empty title.
 	Opened int
 }
 
@@ -44,14 +44,15 @@ type SelectCard struct{ Selection }
 // selection.
 type DeleteCard struct{ Selection }
 
-// OpenAdd opens the text field for a new card at the end of Column.
+// OpenAdd opens a new card at the end of Column.
 type OpenAdd struct{ Column int }
 
-// CloseAdd closes the text field for a new card.
+// CloseAdd removes the new card and the text typed in it.
 type CloseAdd struct{}
 
 // AddCard adds a card titled Title after the last card of the column whose
-// field is open. The field stays open.
+// new card is open, and opens the next new card under it. A line break in
+// Title becomes a space, because a card's title is one line of the file.
 type AddCard struct{ Title string }
 
 // ToggleCard marks the card that Selection names completed, or marks a
@@ -86,6 +87,10 @@ func withoutCard(b Board, s Selection) Board {
 	return next
 }
 
+// oneLine replaces each line break with a space. Shift-Return and a paste
+// can put a line break in the new card's title.
+var oneLine = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ")
+
 // newModel is the model of a file named name whose content is data.
 func newModel(name, data string) Model {
 	return Model{Name: name, Board: Parse(data), Text: data}
@@ -117,10 +122,11 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			m.Adding, m.IsAdding = 0, false
 			return m, mvu.DoNothing()
 		case AddCard:
-			title := strings.TrimSpace(msg.Title)
+			title := strings.TrimSpace(oneLine.Replace(msg.Title))
 			if !m.IsAdding || title == "" {
 				return m, mvu.DoNothing()
 			}
+			m.Opened++
 			return change(f, m, withCard(m.Board, m.Adding, title))
 		case ToggleCard:
 			if !m.Board.has(msg.Selection) {

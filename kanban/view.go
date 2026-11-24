@@ -16,6 +16,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/input"
 	complist "github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/components/scrollarea"
@@ -83,8 +84,8 @@ func buildLayers(models rx.Observable[Model], bars desktop.ScrollBarSetting) fun
 }
 
 // ContentLayer combines the latest theme snapshot, the latest Model and the
-// text field for a new card into the window's page. The field is subscribed
-// to once here, so its text stays through each new model and each theme.
+// new card into the window's page. The new card is subscribed to once here,
+// so the text typed in it stays through each new model and each theme.
 func ContentLayer(th rx.Observable[theme.Theme], models rx.Observable[Model], bars desktop.ScrollBarSetting) rx.Observable[layout.Widget] {
 	return contentLayer(th, models, bars, postMessage)
 }
@@ -93,19 +94,19 @@ func ContentLayer(th rx.Observable[theme.Theme], models rx.Observable[Model], ba
 // update.
 func contentLayer(th rx.Observable[theme.Theme], models rx.Observable[Model], bars desktop.ScrollBarSetting, post func(layout.Context, mvu.Message)) rx.Observable[layout.Widget] {
 	state := newScrollState()
-	fields := addFields(th, models, post)
-	return rx.Map(rx.CombineLatest3(themes(th, bars), models, fields), func(n rx.Tuple3[themed, Model, addField]) layout.Widget {
+	fresh := newCards(th, models, post)
+	return rx.Map(rx.CombineLatest3(themes(th, bars), models, fresh), func(n rx.Tuple3[themed, Model, newCard]) layout.Widget {
 		return view(n.First, n.Second, n.Third, state, func() unit.Dp { return shell.ChromeTop(shell.ToolbarDepth) }, post)
 	})
 }
 
 // view is the page for one theme and one model: the toolbar across the
-// band at the window's top, and the board below it. field is the text field
-// for a new card. band is the band's depth, which a test states because it
-// has no window to measure. post gives a message to the update.
-func view(th themed, m Model, field addField, state *scrollState, band func() unit.Dp, post func(layout.Context, mvu.Message)) layout.Widget {
+// band at the window's top, and the board below it. fresh is the new card.
+// band is the band's depth, which a test states because it has no window to
+// measure. post gives a message to the update.
+func view(th themed, m Model, fresh newCard, state *scrollState, band func() unit.Dp, post func(layout.Context, mvu.Message)) layout.Widget {
 	toolbar := Toolbar(th, m.Name, band)
-	page := desktop.InsetTop(band, boardView(th, m, field, state, post))
+	page := desktop.InsetTop(band, boardView(th, m, fresh, state, post))
 	return func(gtx layout.Context) layout.Dimensions {
 		page(gtx)
 		toolbar(gtx)
@@ -155,10 +156,12 @@ func Toolbar(th themed, name string, depth func() unit.Dp) layout.Widget {
 //
 // Each column's layout.Widget is built here, once for each model, not in the
 // frame: a click target made in the frame is new on each frame and never
-// gets its events. The column whose field is open ends with field, and
-// every other column ends with its "Add a card" button. post gives a
-// message to the update.
-func boardView(th themed, m Model, field addField, state *scrollState, post func(layout.Context, mvu.Message)) layout.Widget {
+// gets its events. The column whose new card is open ends with fresh, and
+// every other column ends with its "Add Card" button. The open column ends
+// with nothing while fresh is the card of an older Opened count, so no
+// frame draws the text of a card that was added. post gives a message to
+// the update.
+func boardView(th themed, m Model, fresh newCard, state *scrollState, post func(layout.Context, mvu.Message)) layout.Widget {
 	bar := th.bar()
 	b := m.Board
 	columns := make([]layout.Widget, len(b.Columns))
@@ -168,9 +171,12 @@ func boardView(th themed, m Model, field addField, state *scrollState, post func
 			selected = m.Selected.Card
 		}
 		end, toEnd := addButton(th, i, post), false
-		if field.openIn(m, i) {
-			end = field.row(post)
+		switch {
+		case fresh.openIn(m, i):
+			end = newCardView(th, fresh, post)
 			toEnd = state.toEnd(i, m.Opened, len(c.Cards()))
+		case m.IsAdding && m.Adding == i:
+			end = func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
 		}
 		columns[i] = columnView(th, i, c, selected, state.column(i), end, toEnd, post)
 	}
@@ -205,12 +211,14 @@ func boardView(th themed, m Model, field addField, state *scrollState, post func
 	}
 }
 
-// addButton is the "Add a card" button at the end of column col: a
-// borderless button as wide as its title, which posts [OpenAdd].
+// addButton is the "Add Card" button at the end of column col: a borderless
+// button with the plus before its title, as wide as both, which posts
+// [OpenAdd].
 func addButton(th themed, col int, post func(layout.Context, mvu.Message)) layout.Widget {
 	// The theme is a static snapshot, so First gives the button at once.
 	btn, _ := button.Button(rx.Of(th.components), button.Props{
-		Title:    "Add a card",
+		Title:    "Add Card",
+		Symbol:   icons.Plus,
 		Emphasis: button.Ghost,
 		Surface:  th.platform.ControlBackground,
 		Shaper:   th.shaper,
@@ -318,7 +326,7 @@ func columnView(th themed, col int, c Column, selected int, list *complist.State
 			cgtx.Constraints = layout.Constraints{Max: image.Pt(inner, gtx.Constraints.Max.Y)}
 			onSelected[i] = sel
 			off := op.Offset(image.Pt(left, above)).Push(gtx.Ops)
-			dims := cardView(cgtx, th, cards[i], sel, &clicks[i], boxes[i])
+			dims := cardView(cgtx, th, sel, &clicks[i], boxes[i], cardTitle(th, cards[i], sel))
 			off.Pop()
 			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, above+dims.Size.Y+gapPx)}
 		})
@@ -382,18 +390,40 @@ func columnView(th themed, col int, c Column, selected int, list *complist.State
 	}
 }
 
+// newCardView is the new card fresh as the end of a column draws it: the
+// card that the column's cards draw, with the borderless field in the
+// title's place and a checkbox that does not operate.
+func newCardView(th themed, fresh newCard, post func(layout.Context, mvu.Message)) layout.Widget {
+	title := fresh.title(post)
+	return func(gtx layout.Context) layout.Dimensions {
+		return cardView(gtx, th, false, nil, fresh.checkbox, title)
+	}
+}
+
+// cardTitle is the title of card cd in the Body role. A completed task's
+// title stays in the label colour, and a selected card's title keeps its
+// own colour over the selected fill.
+func cardTitle(th themed, cd Card, selected bool) layout.Widget {
+	fg := vgcolor.Flatten(th.platform.Label, card.Fill(card.Props{Selected: selected}, th.platform))
+	return func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min = image.Point{}
+		return typeset.Text(gtx, th.shaper, cd.Title, th.typ.Body, fg, 0)
+	}
+}
+
 // cardView draws one card across the width it is given, as tall as its
 // title needs: the library's card, whose body is box, the checkbox that
-// marks the task completed, at the card's leading edge, and the task's
-// title in the Body role after it. A completed task's title stays in the
-// label colour. A selected card has the card pattern's selected fill, and
-// its title keeps its own colour over that fill. click is the card's press
-// target, which covers the card.
-func cardView(gtx layout.Context, th themed, cd Card, selected bool, click *gesture.Click, box layout.Widget) layout.Dimensions {
+// marks the task completed, at the card's leading edge, and title after
+// it. A selected card has the card pattern's selected fill. click is the
+// card's press target, which covers the card. A nil click gives the card
+// no press target.
+//
+// The title is laid out once in each frame and its operations are replayed
+// in the card, so a field in the title's place reads its events once.
+func cardView(gtx layout.Context, th themed, selected bool, click *gesture.Click, box, title layout.Widget) layout.Dimensions {
 	p := th.platform
 	props := card.Props{Selected: selected}
 	fill := card.Fill(props, p)
-	fg := vgcolor.Flatten(p.Label, fill)
 	// The box's row is the density's checkbox row, square, and never
 	// smaller than the box. Its centre is on the centre of the title's
 	// first line, so the row can reach into the card's inset above the
@@ -403,10 +433,19 @@ func cardView(gtx layout.Context, th themed, cd Card, selected bool, click *gest
 	gap := gtx.Dp(unit.Dp(th.spacing.S2))
 	lead := row + gap
 	line := gtx.Sp(unit.Sp(th.typ.Body.LineHeight))
-	title := func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints.Min = image.Point{}
-		return typeset.Text(gtx, th.shaper, cd.Title, th.typ.Body, fg, 0)
-	}
+	width := gtx.Constraints.Max.X
+	pad := gtx.Dp(unit.Dp(th.spacing.S4))
+
+	// The card fills the constraints it is given, so the title is laid out
+	// first at the width inside the card's inset and after the box, and the
+	// card is given that height.
+	tgtx := gtx
+	tgtx.Constraints = layout.Constraints{Max: image.Pt(max(width-2*pad-lead, 0), 1e6)}
+	tgtx = typeset.WithFill(tgtx, fill)
+	rec := op.Record(gtx.Ops)
+	text := title(tgtx)
+	titleCall := rec.Stop()
+
 	props.Body = func(gtx layout.Context) layout.Dimensions {
 		off := op.Offset(image.Pt(0, (line-row)/2)).Push(gtx.Ops)
 		bgtx := gtx
@@ -414,32 +453,20 @@ func cardView(gtx layout.Context, th themed, cd Card, selected bool, click *gest
 		box(bgtx)
 		off.Pop()
 		off = op.Offset(image.Pt(lead, 0)).Push(gtx.Ops)
-		tgtx := gtx
-		tgtx.Constraints.Max.X = max(gtx.Constraints.Max.X-lead, 0)
-		dims := title(tgtx)
+		titleCall.Add(gtx.Ops)
 		off.Pop()
-		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, dims.Size.Y)}
+		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, text.Size.Y)}
 	}
-	width := gtx.Constraints.Max.X
-	pad := gtx.Dp(unit.Dp(th.spacing.S4))
-
-	// The card fills the constraints it is given, so the title is measured
-	// first at the width inside the card's inset and after the box, and the
-	// card is given that height.
-	mgtx := gtx
-	mgtx.Constraints = layout.Constraints{Max: image.Pt(max(width-2*pad-lead, 0), 1e6)}
-	mgtx = typeset.WithFill(mgtx, fill)
-	rec := op.Record(gtx.Ops)
-	text := title(mgtx)
-	rec.Stop()
 
 	size := image.Pt(width, text.Size.Y+2*pad)
 	gtx.Constraints = layout.Exact(size)
 	// The press area is registered before the card's content, so a control
 	// inside the card takes its press first.
-	area := clip.Rect{Max: size}.Push(gtx.Ops)
-	click.Add(gtx.Ops)
-	area.Pop()
+	if click != nil {
+		area := clip.Rect{Max: size}.Push(gtx.Ops)
+		click.Add(gtx.Ops)
+		area.Pop()
+	}
 	card.Render(props, p, th.spacing, th.radius)(gtx)
 	return layout.Dimensions{Size: size}
 }
