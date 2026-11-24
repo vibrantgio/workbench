@@ -1484,7 +1484,8 @@ it is a card, and `- [x]` is a completed task. Each column is a group
 titled with its name and its card count, and holds its cards in a list
 that scrolls. The app keeps every other line of the file byte for byte,
 writes the file after each change and reads it again when it changes on
-disk
+disk. Cmd-Z undoes a change and Shift-Cmd-Z redoes it, and the Edit
+menu's Undo and Redo name the change; the file holds no history
 
 ### iconbrowser/
 

@@ -88,8 +88,18 @@ func runWindow() error {
 
 	w := specwin.New(mvuWin, specsystem.LiveTheme(time.Second))
 	init := func() (Model, mvu.Command) { return newModel(name, data), mvu.DoNothing() }
-	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), watch(file, pollInterval)), init, newUpdate(file))
+	// The Edit menu's Undo and Redo follow the model's stacks. Away from
+	// macOS the declaration is inert, and the board's Cmd-Z is the only
+	// way to undo.
+	menu := desktop.NewMenuBar(mvuWin, editMenu()...)
+	models, runner := mvu.Loop(rx.Merge(mvuWin.Messages(), watch(file, pollInterval), menu.Messages()), init, newUpdate(file))
 	defer func() { runner.Unsubscribe(); runner.Wait() }()
+	shown := models.Subscribe(rx.GoroutineContext(), func(m Model, err error, done bool) {
+		if !done {
+			showEditMenu(menu, m)
+		}
+	})
+	defer shown.Unsubscribe()
 
 	return w.Render(buildLayers(models, bars)).Wait()
 }

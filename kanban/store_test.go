@@ -58,7 +58,7 @@ func TestTheAppMakesTheFileWhenItDoesNotExist(t *testing.T) {
 func TestTheAppWritesAChangeToTheFile(t *testing.T) {
 	path, f, m := fixture(t)
 	before, _ := os.ReadFile(path)
-	next, cmd := change(f, m, retitled(m.Board, Selection{Column: 0, Card: 1}, "Book the dentist for June"))
+	next, cmd := change(f, m, retitled(m.Board, Selection{Column: 0, Card: 1}, "Book the dentist for June"), stepEdit)
 	runCmd(t, cmd)
 
 	data, err := os.ReadFile(path)
@@ -88,7 +88,7 @@ func TestTheAppWritesAChangeToTheFile(t *testing.T) {
 // sees no change, so the write does not come back as a reload.
 func TestTheAppsOwnWriteIsNotReadAgain(t *testing.T) {
 	_, f, m := fixture(t)
-	_, cmd := change(f, m, retitled(m.Board, Selection{Column: 0, Card: 0}, "Draft the notes"))
+	_, cmd := change(f, m, retitled(m.Board, Selection{Column: 0, Card: 0}, "Draft the notes"), stepEdit)
 	runCmd(t, cmd)
 	if data, ok := f.poll(); ok {
 		t.Errorf("the poll read the app's own write again: %q", data)
@@ -160,8 +160,8 @@ func TestAnOlderWriteDoesNotReplaceANewerOne(t *testing.T) {
 
 func TestAnUnchangedBoardIsNotWritten(t *testing.T) {
 	_, f, m := fixture(t)
-	next, cmd := change(f, m, m.Board)
-	if next.Seq != m.Seq {
+	next, cmd := change(f, m, m.Board, stepEdit)
+	if next.Seq != m.Seq || len(next.Undo) != 0 {
 		t.Error("an unchanged board counted as a change")
 	}
 	if msgs := runCmd(t, cmd); len(msgs) != 0 {

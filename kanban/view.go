@@ -254,7 +254,25 @@ func boardView(th themed, m Model, fresh newCard, edit editCard, state *scrollSt
 			return layout.Dimensions{Size: image.Pt(content, height)}
 		}
 		gtx.Constraints.Min = image.Point{}
-		return scrollarea.FromTokens(th.platform).LayoutScrollbar(gtx, state.board, bar, layoutColumns)
+		dims := scrollarea.FromTokens(th.platform).LayoutScrollbar(gtx, state.board, bar, layoutColumns)
+		// Cmd-Z undoes and Shift-Cmd-Z redoes. The first reader of a key
+		// event in a frame takes it, so the board reads both keys after the
+		// columns: a field that holds the keyboard takes them first, for its
+		// own text.
+		for {
+			e, ok := gtx.Event(key.Filter{Name: "Z", Required: key.ModShortcut, Optional: key.ModShift})
+			if !ok {
+				break
+			}
+			if ke, ok := e.(key.Event); ok && ke.State == key.Press {
+				if ke.Modifiers.Contain(key.ModShift) {
+					post(gtx, Redo{})
+				} else {
+					post(gtx, Undo{})
+				}
+			}
+		}
+		return dims
 	}
 }
 

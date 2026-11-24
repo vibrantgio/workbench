@@ -36,7 +36,38 @@ type Model struct {
 	// Edits counts the edits begun. A new count gives a new field that
 	// holds the card's title.
 	Edits int
+	// Undo holds a step for each change that Cmd-Z can undo, the last
+	// change last. Each step holds the board before its change. Redo holds
+	// a step for each undone change, the last undone change last. Each of
+	// those steps holds the board after its change. The file holds no
+	// history.
+	Undo, Redo []Step
 }
+
+// Step is one change on the undo or redo stack: the board on the other side
+// of the change, and the change's name, which the Edit menu shows after
+// "Undo" or "Redo".
+type Step struct {
+	Board Board
+	Name  string
+}
+
+// The names of the changes, as the Edit menu shows them.
+const (
+	stepAdd      = "Add Card"
+	stepDelete   = "Delete Card"
+	stepComplete = "Mark as Completed"
+	stepReopen   = "Mark as Not Completed"
+	stepEdit     = "Edit Title"
+)
+
+// Undo makes the board as it was before the last change, and writes the
+// file. It does nothing when there is no change to undo.
+type Undo struct{}
+
+// Redo makes the change that the last undo undid again, and writes the
+// file. It does nothing when there is no undone change.
+type Redo struct{}
 
 // Selection names one card of the board: the column's index, and the
 // card's index among the column's cards.
@@ -126,17 +157,27 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			if msg.Data == m.Text {
 				return m, mvu.DoNothing()
 			}
+			// The stacks hold boards of the older file, so a change on
+			// disk clears them.
 			m.Board, m.Text = Parse(msg.Data), msg.Data
-			if m.HasSelected && !m.Board.has(m.Selected) {
-				m.Selected, m.HasSelected = Selection{}, false
+			m.Undo, m.Redo = nil, nil
+			return corrected(m), mvu.DoNothing()
+		case Undo:
+			if len(m.Undo) == 0 {
+				return m, mvu.DoNothing()
 			}
-			if m.IsAdding && m.Adding >= len(m.Board.Columns) {
-				m.Adding, m.IsAdding = 0, false
+			step := m.Undo[len(m.Undo)-1]
+			m.Undo = m.Undo[: len(m.Undo)-1 : len(m.Undo)-1]
+			m.Redo = pushed(m.Redo, Step{Board: m.Board, Name: step.Name})
+			return travel(f, m, step.Board)
+		case Redo:
+			if len(m.Redo) == 0 {
+				return m, mvu.DoNothing()
 			}
-			if m.IsEditing && !m.Board.has(m.Editing) {
-				m.Editing, m.IsEditing = Selection{}, false
-			}
-			return m, mvu.DoNothing()
+			step := m.Redo[len(m.Redo)-1]
+			m.Redo = m.Redo[: len(m.Redo)-1 : len(m.Redo)-1]
+			m.Undo = pushed(m.Undo, Step{Board: m.Board, Name: step.Name})
+			return travel(f, m, step.Board)
 		case EditCard:
 			if !m.Board.has(msg.Selection) {
 				return m, mvu.DoNothing()
@@ -154,7 +195,7 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			if title == "" || !m.Board.has(s) {
 				return m, mvu.DoNothing()
 			}
-			return change(f, m, retitled(m.Board, s, title))
+			return change(f, m, retitled(m.Board, s, title), stepEdit)
 		case CancelEdit:
 			if m.IsEditing && msg.Edit == m.Edits {
 				m.Editing, m.IsEditing = Selection{}, false
@@ -175,12 +216,16 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 				return m, mvu.DoNothing()
 			}
 			m.Opened++
-			return change(f, m, withCard(m.Board, m.Adding, title))
+			return change(f, m, withCard(m.Board, m.Adding, title), stepAdd)
 		case ToggleCard:
 			if !m.Board.has(msg.Selection) {
 				return m, mvu.DoNothing()
 			}
-			return change(f, m, toggled(m.Board, msg.Selection))
+			name := stepComplete
+			if m.Board.Columns[msg.Selection.Column].Cards()[msg.Selection.Card].Done() {
+				name = stepReopen
+			}
+			return change(f, m, toggled(m.Board, msg.Selection), name)
 		case SelectCard:
 			if !m.Board.has(msg.Selection) {
 				return m, mvu.DoNothing()
@@ -192,20 +237,55 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 				return m, mvu.DoNothing()
 			}
 			m.Selected, m.HasSelected = Selection{}, false
-			return change(f, m, withoutCard(m.Board, msg.Selection))
+			return change(f, m, withoutCard(m.Board, msg.Selection), stepDelete)
 		}
 		return m, mvu.DoNothing()
 	}
 }
 
 // change makes board the model's board and gives the command that writes
-// it to f. Each message that changes the board goes through change.
-func change(f *boardFile, m Model, board Board) (Model, mvu.Command) {
+// it to f. Each message that changes the board goes through change, and
+// name is the change's name. A change that changes the file's text puts
+// the earlier board on the undo stack and clears the redo stack.
+func change(f *boardFile, m Model, board Board, name string) (Model, mvu.Command) {
 	text := Format(board)
 	if text == m.Text {
 		m.Board = board
 		return m, mvu.DoNothing()
 	}
+	m.Undo = pushed(m.Undo, Step{Board: m.Board, Name: name})
+	m.Redo = nil
 	m.Board, m.Text, m.Seq = board, text, m.Seq+1
 	return m, save(f, m.Seq, text)
+}
+
+// travel makes board, a board from the undo or the redo stack, the model's
+// board, and gives the command that writes it to f.
+func travel(f *boardFile, m Model, board Board) (Model, mvu.Command) {
+	m.Board, m.Text, m.Seq = board, Format(board), m.Seq+1
+	return corrected(m), save(f, m.Seq, m.Text)
+}
+
+// pushed is stack with step on top. The result shares no array with stack,
+// because an earlier model holds stack, and its steps stay as they were.
+func pushed(stack []Step, step Step) []Step {
+	next := make([]Step, len(stack), len(stack)+1)
+	copy(next, stack)
+	return append(next, step)
+}
+
+// corrected is m with the selection, the new card and the edit cleared
+// when they name a card or a column that m's board does not hold. A change
+// on disk, an undo and a redo can each take that card or column away.
+func corrected(m Model) Model {
+	if m.HasSelected && !m.Board.has(m.Selected) {
+		m.Selected, m.HasSelected = Selection{}, false
+	}
+	if m.IsAdding && m.Adding >= len(m.Board.Columns) {
+		m.Adding, m.IsAdding = 0, false
+	}
+	if m.IsEditing && !m.Board.has(m.Editing) {
+		m.Editing, m.IsEditing = Selection{}, false
+	}
+	return m
 }
