@@ -65,6 +65,10 @@ meant to be built — MVU state, live theming from theme, layouts from patterns:
   One window, one Model, pure reducers, library components,
   live OS light/dark theming — the smallest complete demonstration of the
   bootstrap every other app follows.
+- **[`kanban/`](./kanban)** — a board of tasks kept in a markdown file in
+  the Obsidian Kanban plugin's format: each level-2 heading is a column and
+  each task list item under it is a card. The app writes the file back
+  after each change and reads it again when it changes on disk.
 - **[`iconbrowser/`](./iconbrowser)** — a searchable catalogue of the symbols the apps
   draw from, in two sets: the design system's own marks from
   `components/icons` above the Material Design icons. Type to filter both

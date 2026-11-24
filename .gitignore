@@ -21,6 +21,7 @@
 # Example apps — fully tracked.
 !/feeds/**
 !/iconbrowser/**
+!/kanban/**
 !/marketing/**
 !/mindchat/**
 !/sk150/**
@@ -31,6 +32,7 @@
 # ...except their compiled binaries.
 /feeds/feeds
 /iconbrowser/iconbrowser
+/kanban/kanban
 /marketing/marketing
 /mindchat/mindchat
 /sk150/sk150

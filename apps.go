@@ -34,6 +34,12 @@ var Apps = []App{
 		Icon: icons.ActionAssignmentTurnedIn,
 	},
 	{
+		Name:  "Kanban",
+		Dir:   "kanban",
+		Blurb: "A board of tasks kept in a markdown file: columns of cards, the file written back on each change.",
+		Icon:  icons.ActionViewColumn,
+	},
+	{
 		Name:  "Icon Browser",
 		Dir:   "iconbrowser",
 		Blurb: "Searchable marks of components/icons above the Material Design icons.",
