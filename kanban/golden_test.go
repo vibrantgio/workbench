@@ -15,6 +15,7 @@ import (
 
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
+	complist "github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	vgcolor "github.com/vibrantgio/theme/color"
@@ -120,9 +121,9 @@ func TestTheColumnsPaintNoFill(t *testing.T) {
 			inset, width, gap := int(boardInset), int(columnWidth), int(columnGap)
 			sameRGB(t, img, image.Pt(inset+width/2, windowSize.Y-2*inset), fill, "the content fill")
 			sameRGB(t, img, image.Pt(inset+width+gap/2, windowSize.Y/2), fill, "the content fill")
-			// The first card starts under the group's inset, its title and
-			// the gap under the title.
-			cardTop := int(shell.ToolbarDepth) + int(tokens.Spacing.S4) +
+			// The first card starts under the room the focus ring keeps, the
+			// group's inset, its title and the gap under the title.
+			cardTop := int(shell.ToolbarDepth) + int(complist.RingWidth) + int(tokens.Spacing.S4) +
 				int(tokens.DefaultTypography.SectionHeading.LineHeight) + int(tokens.Spacing.S3)
 			sameRGB(t, img, image.Pt(inset+width/2, cardTop+4), tc.c.CardFill, "the card fill")
 		})
@@ -186,7 +187,7 @@ func TestColumnBarStandsAtTheGroupEdge(t *testing.T) {
 	inset := int(boardInset)
 	// The middle of the bar's lane, which ends at the hairline.
 	x := inset + int(columnWidth) - 1 - int(th.bar().Width())/2
-	top, bottom := band, windowSize.Y-inset-1
+	top, bottom := band+int(complist.RingWidth), windowSize.Y-inset-1
 	titleFoot := top + int(tokens.Spacing.S4) + int(th.typ.SectionHeading.LineHeight)
 	for y := top + 1; y < titleFoot; y++ {
 		if img.RGBAAt(x, y) != bg {

@@ -14,6 +14,51 @@ type Model struct {
 	// Seq counts the board's changes. A write carries the Seq of its
 	// content, so an older content never replaces a newer one on disk.
 	Seq int
+	// Selected is the board's one selected card. It names a card only
+	// while HasSelected is true.
+	Selected    Selection
+	HasSelected bool
+}
+
+// Selection names one card of the board: the column's index, and the
+// card's index among the column's cards.
+type Selection struct {
+	Column, Card int
+}
+
+// SelectCard selects the card that Selection names.
+type SelectCard struct{ Selection }
+
+// DeleteCard deletes the card that Selection names, and clears the
+// selection.
+type DeleteCard struct{ Selection }
+
+// has reports whether b holds the card that s names.
+func (b Board) has(s Selection) bool {
+	return s.Column >= 0 && s.Column < len(b.Columns) &&
+		s.Card >= 0 && s.Card < len(b.Columns[s.Column].Cards())
+}
+
+// withoutCard is b without the card that s names, with the card's notes.
+// The lines around the card stay. The result shares no slice that it
+// changes with b, so a model that holds b keeps its board as it was.
+func withoutCard(b Board, s Selection) Board {
+	next := b
+	next.Columns = append([]Column(nil), b.Columns...)
+	old := b.Columns[s.Column].Entries
+	entries := make([]Entry, 0, len(old))
+	n := 0
+	for _, e := range old {
+		if e.Card != nil {
+			n++
+			if n-1 == s.Card {
+				continue
+			}
+		}
+		entries = append(entries, e)
+	}
+	next.Columns[s.Column].Entries = entries
+	return next
 }
 
 // newModel is the model of a file named name whose content is data.
@@ -30,7 +75,22 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 				return m, mvu.DoNothing()
 			}
 			m.Board, m.Text = Parse(msg.Data), msg.Data
+			if m.HasSelected && !m.Board.has(m.Selected) {
+				m.Selected, m.HasSelected = Selection{}, false
+			}
 			return m, mvu.DoNothing()
+		case SelectCard:
+			if !m.Board.has(msg.Selection) {
+				return m, mvu.DoNothing()
+			}
+			m.Selected, m.HasSelected = msg.Selection, true
+			return m, mvu.DoNothing()
+		case DeleteCard:
+			if !m.Board.has(msg.Selection) {
+				return m, mvu.DoNothing()
+			}
+			m.Selected, m.HasSelected = Selection{}, false
+			return change(f, m, withoutCard(m.Board, msg.Selection))
 		}
 		return m, mvu.DoNothing()
 	}
