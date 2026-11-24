@@ -383,3 +383,38 @@ func TestTheFieldKeepsItsTextThroughAFileChangeAndAScheme(t *testing.T) {
 		t.Errorf("Return after the change on disk and the scheme posted %v, want the typed title", posted)
 	}
 }
+
+// The list scrolls to its end when the field opens and after each add. A
+// column whose cards fit keeps its first card at the top.
+func TestTheListScrollsToItsEndForTheField(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("## To Do\n\n")
+	for range 30 {
+		b.WriteString("- [ ] Water the plants\n")
+	}
+	b.WriteString("## Done\n\n- [x] Buy oat milk\n")
+	_, f, m := boardFileWith(t, b.String())
+	rig := newBoardRig(t, staticThemed(tokens.PlatformLight, sharpRadius), f, m)
+	long := rig.state.column(0)
+	if long.Position().BeforeEnd == false {
+		t.Fatal("thirty cards fit the column; the test needs a list that scrolls")
+	}
+	rig.open(0)
+	if long.Position().BeforeEnd {
+		t.Errorf("after the field opens the list is at %+v, want its end", long.Position())
+	}
+	long.ScrollToStart()
+	rig.drive()
+	rig.typeText("Sweep")
+	rig.key(key.NameReturn)
+	if long.Position().BeforeEnd {
+		t.Errorf("after an add the list is at %+v, want its end", long.Position())
+	}
+
+	rig.open(1)
+	rig.typeText("Renew the passport")
+	rig.key(key.NameReturn)
+	if p := rig.state.column(1).Position(); p.First != 0 || p.Offset != 0 {
+		t.Errorf("after an add to a column whose cards fit the list is at %+v, want its start", p)
+	}
+}
