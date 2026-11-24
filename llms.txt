@@ -16,7 +16,7 @@ built on gioui.org, with a Functional Reactive Programming application model
 using github.com/reactivego/rx generics-based observables. This file tells a
 coding assistant everything needed to scaffold and build a correct Vibrant Gio
 application. The system's architecture is described in DESIGN.md in
-github.com/vibrantgio/design; the apps in workbench (todos/, sitedocs/,
+github.com/vibrantgio/design; the apps in workbench (todos/, kanban/, sitedocs/,
 feeds/, mindchat/, iconbrowser/, themer/, marketing/, sk150/) are the canonical
 usage references — todos/ is the minimal complete app; read it first, and
 read the larger ones before inventing a pattern.
@@ -1443,8 +1443,8 @@ paths on purpose (golden determinism); leave those alone.
   )
   ```
 
-These are the released tags — the same ones §Modules lists, and the same ones
-all nine workbench apps are pinned to. Typography and colour need no module
+These are the released tags — the same ones §Modules lists. The ten workbench
+apps pin these tags, or a newer commit of a library between releases. Typography and colour need no module
 of their own: both travel on the theme, which comes with theme; do NOT add
 the frozen style module to a new app. textdraw is a direct requirement as soon as you
 draw text yourself with textdraw.Text/Label — todos does.
@@ -1459,7 +1459,7 @@ GitHub.
 ## Where to look for working code
 
 All of these are directories in github.com/vibrantgio/workbench. Every one
-of the nine apps embodies the contract — theme imports, the platform's
+of the ten apps embodies the contract — theme imports, the platform's
 colour names read off t.Platform, theme typography (no app-built shaper),
 theme-driven component entry points — so copy any of them:
 
@@ -1475,6 +1475,16 @@ WindowBackground, and the field inside the dialog TextBackground inside
 FieldEdge — plus TypeFrom picking Typography roles), and
 window_render_test.go is the smallest example of asserting those fills off
 a headless frame instead of off the palette that meant them
+
+### kanban/
+
+A board of tasks kept in one markdown file, in the Obsidian Kanban
+plugin's format: each `## ` heading is a column, each `- [ ]` item under
+it is a card, and `- [x]` is a completed task. Each column is a group
+titled with its name and its card count, and holds its cards in a list
+that scrolls. The app keeps every other line of the file byte for byte,
+writes the file after each change and reads it again when it changes on
+disk
 
 ### iconbrowser/
 

@@ -1,6 +1,6 @@
 ---
 name: run-workbench
-description: Build, run, screenshot, and stop the workbench Gio apps (launcher, mindchat, todos, feeds, iconbrowser, sitedocs, themer, marketing) on macOS. Use for "run the app", "launch mindchat", "take a screenshot of the launcher", or capturing app images for docs/READMEs.
+description: Build, run, screenshot, and stop the workbench Gio apps (launcher, mindchat, todos, kanban, feeds, iconbrowser, sitedocs, themer, marketing) on macOS. Use for "run the app", "launch mindchat", "take a screenshot of the launcher", or capturing app images for docs/READMEs.
 ---
 
 # Run the workbench apps
@@ -34,8 +34,8 @@ prints `window <id>` on success, or the log tail from
 afterwards** — a capture of a blank frame means the app crashed after the
 window appeared.
 
-`<app>` is any app directory name — `mindchat`, `todos`, `feeds`,
-`iconbrowser`, `sitedocs`, `themer`, `marketing` — or `launcher`, which
+`<app>` is any app directory name — `mindchat`, `todos`, `kanban`,
+`feeds`, `iconbrowser`, `sitedocs`, `themer`, `marketing` — or `launcher`, which
 is not a directory: it is the package at the repository root, and the
 driver builds it from there.
 

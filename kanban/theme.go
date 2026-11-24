@@ -56,9 +56,6 @@ var (
 	// spacing scale's S2, which keeps each card apart and the cards of one
 	// column together as one run.
 	cardGap = unit.Dp(tokens.Spacing.S2)
-	// countGap is the space between a column's title and its count, the
-	// spacing scale's S2.
-	countGap = unit.Dp(tokens.Spacing.S2)
 )
 
 // themes resolves each theme emission into the snapshot the view reads.

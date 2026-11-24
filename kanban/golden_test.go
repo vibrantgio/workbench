@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"image"
+	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gioui.org/layout"
@@ -14,6 +16,7 @@ import (
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
 	"github.com/vibrantgio/patterns/shell"
+	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -64,64 +67,101 @@ var schemes = []struct {
 	{"dark", tokens.PlatformDark},
 }
 
-// TestBoardGolden records or diffs the board in both schemes.
+// fixtureEmptyColumn is the fixture board with its middle column empty.
+var fixtureEmptyColumn = strings.Replace(fixtureBoard, "- [ ] Paint the hallway\n", "", 1)
+
+// TestBoardGolden records or diffs the board in both schemes, with cards in
+// every column and with an empty column.
 func TestBoardGolden(t *testing.T) {
-	m := newModel("Kanban.md", fixtureBoard)
-	for _, tc := range schemes {
-		t.Run(tc.name, func(t *testing.T) {
-			golden.Render(t, tc.name+"-board", windowSize, frame(staticThemed(tc.c, sharpRadius), m, newScrollState()))
-			if *boardDump == "" {
-				return
-			}
-			img := golden.Capture(t, windowSize, frame(staticThemed(tc.c, tokens.Radius), m, newScrollState()))
-			path := filepath.Join(*boardDump, "kanban-"+tc.name+".png")
-			out, err := os.Create(path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer out.Close()
-			if err := png.Encode(out, img); err != nil {
-				t.Fatal(err)
-			}
-		})
+	boards := []struct{ name, file string }{
+		{"board", fixtureBoard},
+		{"empty-column", fixtureEmptyColumn},
+	}
+	for _, b := range boards {
+		m := newModel("Kanban.md", b.file)
+		for _, tc := range schemes {
+			t.Run(tc.name+"-"+b.name, func(t *testing.T) {
+				golden.Render(t, tc.name+"-"+b.name, windowSize, frame(staticThemed(tc.c, sharpRadius), m, newScrollState()))
+				if *boardDump == "" {
+					return
+				}
+				img := golden.Capture(t, windowSize, frame(staticThemed(tc.c, tokens.Radius), m, newScrollState()))
+				path := filepath.Join(*boardDump, "kanban-"+tc.name+"-"+b.name+".png")
+				out, err := os.Create(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer out.Close()
+				if err := png.Encode(out, img); err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
+	}
+}
+
+// sameRGB reports whether the pixel at p is want, alpha aside.
+func sameRGB(t *testing.T, img *image.RGBA, p image.Point, want color.NRGBA, what string) {
+	t.Helper()
+	if got := img.RGBAAt(p.X, p.Y); got.R != want.R || got.G != want.G || got.B != want.B {
+		t.Errorf("pixel %v = %v, want %s %v", p, got, what, want)
 	}
 }
 
 // TestTheColumnsPaintNoFill reads the frame under the last card of a column
 // and between two columns: both are the content fill, because a column is
-// not a box.
+// a group and not a box.
 func TestTheColumnsPaintNoFill(t *testing.T) {
 	for _, tc := range schemes {
 		t.Run(tc.name, func(t *testing.T) {
 			img := golden.Capture(t, windowSize, frame(staticThemed(tc.c, sharpRadius), newModel("Kanban.md", fixtureBoard), newScrollState()))
 			fill := tc.c.ControlBackground
 			inset, width, gap := int(boardInset), int(columnWidth), int(columnGap)
-			below := image.Pt(inset+width/2, windowSize.Y-2*inset)
-			between := image.Pt(inset+width+gap/2, windowSize.Y/2)
-			for _, p := range []image.Point{below, between} {
-				if got := img.RGBAAt(p.X, p.Y); got.R != fill.R || got.G != fill.G || got.B != fill.B {
-					t.Errorf("pixel %v = %v, want the content fill %v", p, got, fill)
-				}
-			}
-			card := image.Pt(inset+width/2, int(shell.ToolbarDepth)+int(tokens.ContentListRowHeight)+4)
-			want := tc.c.CardFill
-			if got := img.RGBAAt(card.X, card.Y); got.R != want.R || got.G != want.G || got.B != want.B {
-				t.Errorf("pixel %v = %v, want the card fill %v", card, got, want)
-			}
+			sameRGB(t, img, image.Pt(inset+width/2, windowSize.Y-2*inset), fill, "the content fill")
+			sameRGB(t, img, image.Pt(inset+width+gap/2, windowSize.Y/2), fill, "the content fill")
+			// The first card starts under the group's inset, its title and
+			// the gap under the title.
+			cardTop := int(shell.ToolbarDepth) + int(tokens.Spacing.S4) +
+				int(tokens.DefaultTypography.SectionHeading.LineHeight) + int(tokens.Spacing.S3)
+			sameRGB(t, img, image.Pt(inset+width/2, cardTop+4), tc.c.CardFill, "the card fill")
 		})
 	}
 }
 
-// TestTheBoardScrollsSideways lays the board out in the window, where its
-// three columns are wider than the window.
-func TestTheBoardScrollsSideways(t *testing.T) {
+// TestAnEmptyColumnShowsItsExtent reads the hairline of an empty column's
+// group at its leading edge and at its bottom edge: the group runs the
+// column's full height also when the column holds no card.
+func TestAnEmptyColumnShowsItsExtent(t *testing.T) {
+	for _, tc := range schemes {
+		t.Run(tc.name, func(t *testing.T) {
+			img := golden.Capture(t, windowSize, frame(staticThemed(tc.c, sharpRadius), newModel("Kanban.md", fixtureEmptyColumn), newScrollState()))
+			seam := vgcolor.Flatten(tc.c.Separator, tc.c.ControlBackground)
+			inset, width, gap := int(boardInset), int(columnWidth), int(columnGap)
+			leading := inset + width + gap
+			bottom := windowSize.Y - inset - 1
+			sameRGB(t, img, image.Pt(leading, windowSize.Y/2), seam, "the separator")
+			sameRGB(t, img, image.Pt(leading, bottom-8), seam, "the separator")
+			sameRGB(t, img, image.Pt(leading+width/2, bottom), seam, "the separator")
+			sameRGB(t, img, image.Pt(leading+width/2, windowSize.Y/2), tc.c.ControlBackground, "the content fill")
+		})
+	}
+}
+
+// TestTheWindowShowsThreeColumns lays the board out in the window: its
+// three columns fit, and a fourth column makes the board scroll sideways.
+func TestTheWindowShowsThreeColumns(t *testing.T) {
+	want := 2*int(boardInset) + 3*int(columnWidth) + 2*int(columnGap)
+	if windowSize.X != want {
+		t.Errorf("the window is %d px wide, want %d", windowSize.X, want)
+	}
 	state := newScrollState()
 	golden.Capture(t, windowSize, frame(staticThemed(tokens.PlatformLight, sharpRadius), newModel("Kanban.md", fixtureBoard), state))
-	if !state.board.Overflows() {
-		t.Fatal("three columns fit a window of 650 dp; the board does not scroll")
+	if state.board.Overflows() {
+		t.Error("three columns do not fit the window; the board scrolls")
 	}
-	want := 2*int(boardInset) + 3*int(columnWidth) + 2*int(columnGap)
-	if got := state.board.Content(); got != want {
-		t.Errorf("the board is %d px wide, want %d", got, want)
+	state = newScrollState()
+	golden.Capture(t, windowSize, frame(staticThemed(tokens.PlatformLight, sharpRadius), newModel("Kanban.md", fixtureBoard+"\n## Archive\n\n"), state))
+	if !state.board.Overflows() {
+		t.Error("four columns fit the window; the board does not scroll")
 	}
 }

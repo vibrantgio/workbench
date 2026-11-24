@@ -2,7 +2,6 @@ package main
 
 import (
 	"image"
-	"image/color"
 	"strconv"
 
 	"gioui.org/layout"
@@ -16,11 +15,11 @@ import (
 	"github.com/vibrantgio/components/scrollarea"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/card"
+	"github.com/vibrantgio/patterns/group"
 	"github.com/vibrantgio/patterns/pane"
 	"github.com/vibrantgio/patterns/shell"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/theme"
-	"github.com/vibrantgio/theme/tokens"
 	"github.com/vibrantgio/theme/typeset"
 )
 
@@ -141,55 +140,33 @@ func boardView(th themed, b Board, state *scrollState) layout.Widget {
 	}
 }
 
-// columnView draws one column across the constraints it is given: its
-// header, and its cards under the header in a list that scrolls when the
-// cards are taller than the column. The column paints no fill: it is a
+// columnView draws one column across the constraints it is given: the
+// library's group, titled with the column's name and its card count, that
+// holds the column's cards in a list. The group runs the column's full
+// height, so an empty column shows its extent too. The list scrolls when
+// the cards are taller than the group. The column paints no fill: it is a
 // column of the board, and cards do not nest.
 func columnView(gtx layout.Context, th themed, c Column, list *complist.State) layout.Dimensions {
-	size := gtx.Constraints.Max
-	headerH := gtx.Dp(unit.Dp(tokens.ContentListRowHeight))
-	header(gtx, th, c, image.Pt(size.X, headerH))
-
 	cards := c.Cards()
-	defer op.Offset(image.Pt(0, headerH)).Push(gtx.Ops).Pop()
-	gtx.Constraints = layout.Exact(image.Pt(size.X, max(size.Y-headerH, 0)))
-	defer clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops).Pop()
 	bar := th.bar()
 	gapPx := gtx.Dp(cardGap)
-	complist.LayoutScrollbar(gtx, list, bar, complist.AnchorFor(bar), cards, func(gtx layout.Context, cd Card) layout.Dimensions {
-		dims := cardView(gtx, th, cd)
-		return layout.Dimensions{Size: image.Pt(dims.Size.X, dims.Size.Y+gapPx)}
-	})
-	return layout.Dimensions{Size: size}
-}
-
-// header draws a column's header across size: the column's title in the
-// SectionHeading role, a group's title, and the number of its cards after
-// it in the secondary label colour. A long title is cut short before the
-// count, so the count always shows.
-func header(gtx layout.Context, th themed, c Column, size image.Point) {
-	p := th.platform
-	gtx = typeset.WithFill(gtx, p.ControlBackground)
-	title := vgcolor.Flatten(p.Label, p.ControlBackground)
-	count := vgcolor.Flatten(p.SecondaryLabel, p.ControlBackground)
-	n := strconv.Itoa(len(c.Cards()))
-	gap := gtx.Dp(countGap)
-
-	text := func(gtx layout.Context, s string, role tokens.TextStyle, fg color.NRGBA, maxX int) (op.CallOp, image.Point) {
-		gtx.Constraints = layout.Constraints{Max: image.Pt(max(maxX, 0), size.Y)}
-		rec := op.Record(gtx.Ops)
-		dims := typeset.Text(gtx, th.shaper, s, role, fg, 1)
-		return rec.Stop(), dims.Size
+	content := func(gtx layout.Context) layout.Dimensions {
+		size := gtx.Constraints.Max
+		gtx.Constraints = layout.Exact(size)
+		defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
+		complist.LayoutScrollbar(gtx, list, bar, complist.AnchorFor(bar), cards, func(gtx layout.Context, cd Card) layout.Dimensions {
+			dims := cardView(gtx, th, cd)
+			return layout.Dimensions{Size: image.Pt(dims.Size.X, dims.Size.Y+gapPx)}
+		})
+		return layout.Dimensions{Size: size}
 	}
-	countOp, countSize := text(gtx, n, th.typ.SystemFont, count, size.X)
-	titleOp, titleSize := text(gtx, c.Title, th.typ.SectionHeading, title, size.X-countSize.X-gap)
-
-	place := func(call op.CallOp, x int, sz image.Point) {
-		defer op.Offset(image.Pt(x, (size.Y-sz.Y)/2)).Push(gtx.Ops).Pop()
-		call.Add(gtx.Ops)
+	props := group.Props{
+		Title:   c.Title,
+		Count:   strconv.Itoa(len(cards)),
+		Content: []layout.Widget{content},
+		Surface: th.platform.ControlBackground,
 	}
-	place(titleOp, 0, titleSize)
-	place(countOp, titleSize.X+gap, countSize)
+	return group.Render(th.shaper, props, th.platform, th.spacing, th.radius, group.TitleStyle(th.typ))(gtx)
 }
 
 // cardView draws one card across the width it is given, as tall as its

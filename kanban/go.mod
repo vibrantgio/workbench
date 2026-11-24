@@ -9,7 +9,7 @@ require (
 	github.com/vibrantgio/components v1.7.1
 	github.com/vibrantgio/mvu v1.1.6
 	github.com/vibrantgio/mvu/desktop v1.1.5
-	github.com/vibrantgio/patterns v1.5.1
+	github.com/vibrantgio/patterns v1.5.2-0.20261124132541-c486ad088089
 	github.com/vibrantgio/theme v1.6.1
 )
 

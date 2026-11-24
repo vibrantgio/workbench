@@ -28,9 +28,11 @@ func main() {
 }
 
 // The size the window opens at, which the stored renders are drawn at too.
-const (
-	winW unit.Dp = 650
-	winH unit.Dp = 600
+// The window is wide enough to show three columns at [columnWidth], with
+// the gaps between them and the board's inset on each side.
+var (
+	winW = 2*boardInset + 3*columnWidth + 2*columnGap
+	winH = unit.Dp(600)
 )
 
 // defaultPath is the file the app opens when its command line names none.

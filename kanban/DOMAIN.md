@@ -15,6 +15,7 @@ every other line of the file as it is and does not show it.
 
 A column is the library's column, and in this app it holds the cards of
 the tasks under one level-2 heading of the board's file.
+A column is drawn as a group titled with its name.
 
 ### Card
 
@@ -24,5 +25,6 @@ task.
 ### Task
 
 One task list item under a column's heading that is not indented: its
-title, its state, and its notes. A task is complete when its box holds an
-x, as in `- [x]`. The lines indented under the item are its notes.
+title, whether it is complete, and its notes. A task is complete when its
+task list item is checked. The lines indented under the item are its
+notes.
