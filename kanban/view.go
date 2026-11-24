@@ -314,8 +314,8 @@ type cardEdit struct {
 // title's place, and a press on that card gives the field the keyboard. A
 // selection that the list makes is posted as [SelectCard]. selected
 // is the model's selected card in this column, or -1, and the list takes it
-// on the first frame. The focus ring goes around the whole group,
-// outside its hairline, with the group's corner radius, while the list
+// on the first frame. The focus ring goes around the whole group and
+// straddles its hairline, with the group's corner radius, while the list
 // holds the keyboard.
 //
 // end stands outside the list, directly after the last card, so Down and

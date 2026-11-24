@@ -40,6 +40,13 @@ func (rig *boardRig) caret() (start, end int) {
 	return rig.edit.state.tag.(*widget.Editor).Selection()
 }
 
+// addAtEnd moves the edit field's insertion point to the end of its text
+// with the End key, and gives it text there.
+func (rig *boardRig) addAtEnd(text string) {
+	rig.key(key.NameEnd)
+	rig.insert(text)
+}
+
 // insert gives text to the edit field at its caret, as the platform's text
 // input gives it: in place of the selection that the field reports.
 func (rig *boardRig) insert(text string) {
@@ -59,19 +66,22 @@ func boardSpace() image.Point {
 	return image.Pt(firstCard(0).X, int(winH)-60)
 }
 
-// Return on the selected card edits its title in place, with the caret after
-// the title. Return keeps the new title, writes only the card's line, and
-// gives the keyboard back to the column with the card still selected.
+// Return on the selected card edits its title in place, with the whole
+// title selected. Return keeps the new title, writes only the card's line,
+// and gives the keyboard back to the column with the card still selected.
 func TestReturnEditsTheSelectedCard(t *testing.T) {
 	rig, path := editRig(t)
 	rig.key(key.NameReturn)
+	// The field sees that it holds the keyboard on the frame after the
+	// command that gave it the keyboard, as the window draws it next.
+	rig.drive()
 	if !rig.editing(Selection{0, 0}) {
 		t.Fatal("Return opened no edit of the selected card, or its field does not hold the keyboard")
 	}
-	if start, end := rig.caret(); start != end || end != len("Draft the release notes") {
-		t.Errorf("the caret selects %d to %d, want the end of the title", start, end)
+	if start, end := rig.caret(); start != len("Draft the release notes") || end != 0 {
+		t.Errorf("the edit selects %d to %d, want the whole title", end, start)
 	}
-	rig.insert(" for June")
+	rig.addAtEnd(" for June")
 	rig.key(key.NameReturn)
 	if rig.model.IsEditing {
 		t.Fatal("Return left the edit open")
@@ -92,7 +102,7 @@ func TestReturnEditsTheSelectedCard(t *testing.T) {
 func TestEscapeKeepsTheOldTitle(t *testing.T) {
 	rig, path := editRig(t)
 	rig.key(key.NameReturn)
-	rig.insert(" for June")
+	rig.addAtEnd(" for June")
 	rig.key(key.NameEscape)
 	if rig.model.IsEditing {
 		t.Fatal("Escape left the edit open")
@@ -125,6 +135,9 @@ func TestADoubleClickEditsTheCard(t *testing.T) {
 	if rig.model.Selected != (Selection{0, 0}) {
 		t.Errorf("the double-click selects %+v, want the edited card", rig.model.Selected)
 	}
+	if start, end := rig.caret(); start != len("Draft the release notes") || end != 0 {
+		t.Errorf("the double-click's edit selects %d to %d, want the whole title", end, start)
+	}
 }
 
 // A press inside the field or on the edited card keeps the edit open. A
@@ -133,7 +146,7 @@ func TestADoubleClickEditsTheCard(t *testing.T) {
 func TestAPressOutsideTheCardKeepsTheNewTitle(t *testing.T) {
 	rig, path := editRig(t)
 	rig.key(key.NameReturn)
-	rig.insert(" for June")
+	rig.addAtEnd(" for June")
 	rig.press(firstCard(0))
 	if !rig.editing(Selection{0, 0}) {
 		t.Fatal("a press inside the field ended the edit")
@@ -157,7 +170,7 @@ func TestAPressOutsideTheCardKeepsTheNewTitle(t *testing.T) {
 func TestAPressOnAnotherCardKeepsTheNewTitle(t *testing.T) {
 	rig, _ := editRig(t)
 	rig.key(key.NameReturn)
-	rig.insert(" for June")
+	rig.addAtEnd(" for June")
 	rig.press(firstCard(2))
 	if rig.model.IsEditing {
 		t.Fatal("a press on another card left the edit open")
@@ -194,6 +207,7 @@ func TestAnEmptyTitleKeepsTheOldTitle(t *testing.T) {
 func TestTheFieldKeepsTheListsKeys(t *testing.T) {
 	rig, path := editRig(t)
 	rig.key(key.NameReturn)
+	rig.key(key.NameEnd)
 	rig.key(key.NameDeleteBackward)
 	rig.key(key.NameDownArrow)
 	rig.key(key.NameUpArrow)
@@ -220,7 +234,7 @@ func TestTheFieldKeepsTheListsKeys(t *testing.T) {
 func TestAFileChangeKeepsTheTextBeingTyped(t *testing.T) {
 	rig, _ := editRig(t)
 	rig.key(key.NameReturn)
-	rig.insert(" for June")
+	rig.addAtEnd(" for June")
 	changed := strings.Replace(fixtureBoard, "Water the plants", "Water the ferns", 1)
 	rig.model, _ = rig.update(rig.model, FileChanged{Data: changed})
 	rig.build()
@@ -261,7 +275,7 @@ func TestALateEndOfAnEditChangesNothing(t *testing.T) {
 
 // The title's text stands at the same pixels before the edit, while it is
 // edited, and after Return. Inside the card the renders differ only in the
-// caret. The cases are a one-line title, a title that wraps, and an edit
+// insertion point. The cases are a one-line title, a title that wraps, and an edit
 // that a double-click begins.
 func TestTheTitleStandsStillInTheEdit(t *testing.T) {
 	cases := []struct {
@@ -292,9 +306,18 @@ func TestTheTitleStandsStillInTheEdit(t *testing.T) {
 			} else {
 				rig.key(key.NameReturn)
 			}
+			// The frame after the command that gave the field the keyboard.
+			rig.drive()
 			if !rig.editing(Selection{0, tc.card}) {
 				t.Fatalf("no edit of card %d is open", tc.card)
 			}
+			if start, end := rig.caret(); end != 0 || start != len(rig.model.Board.Columns[0].Cards()[tc.card].Title) {
+				t.Errorf("the edit selects %d to %d, want the whole title", end, start)
+			}
+			// The selected title is drawn as a selected run; End leaves the
+			// insertion point alone after it, so the frame compares text
+			// with text.
+			rig.key(key.NameEnd)
 			during := golden.Capture(t, windowSize, rig.capture())
 			rig.key(key.NameReturn)
 			after := golden.Capture(t, windowSize, rig.capture())
@@ -314,8 +337,8 @@ func TestTheTitleStandsStillInTheEdit(t *testing.T) {
 					}
 				}
 			}
-			if caret.Dx() > 3 {
-				t.Errorf("the edit changed the pixels inside %v; only the caret may change", caret)
+			if caret.Dx() > 1 {
+				t.Errorf("the edit changed the pixels inside %v; only the insertion point may change", caret)
 			}
 			was, is, now := drawnIn(before, fill, area, caret), drawnIn(during, fill, area, caret), drawnIn(after, fill, area, caret)
 			if was.Empty() {
@@ -373,7 +396,7 @@ func TestEditCardGolden(t *testing.T) {
 				rig := newBoardRig(t, staticThemed(tc.c, tokens.Radius), f, m)
 				rig.press(firstCard(0))
 				rig.key(key.NameReturn)
-				rig.insert(" for June")
+				rig.addAtEnd(" for June")
 				// The platform moves the caret after the text it gives. The
 				// rig does not, so the dump puts the caret at the text's end.
 				ed := rig.edit.state.tag.(*widget.Editor)

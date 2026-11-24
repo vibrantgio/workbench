@@ -6,7 +6,7 @@ require (
 	gioui.org v0.10.2
 	github.com/reactivego/rx v0.3.0
 	github.com/vibrantgio/backdrop v0.0.7
-	github.com/vibrantgio/components v1.7.2-0.20261124155259-8201f31727a7
+	github.com/vibrantgio/components v1.7.2-0.20261124170818-389bbb3fb4c3
 	github.com/vibrantgio/mvu v1.1.6
 	github.com/vibrantgio/mvu/desktop v1.1.5
 	github.com/vibrantgio/patterns v1.5.2-0.20261124142003-2ac0708af1a6

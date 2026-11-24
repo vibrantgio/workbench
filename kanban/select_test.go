@@ -322,12 +322,19 @@ func TestSelectedCardGolden(t *testing.T) {
 			selected := vgcolor.Flatten(p.ContentListSelection, p.CardFill)
 			sameRGB(t, img, firstCard(0), p.CardFill, "the card fill")
 			sameRGB(t, img, secondCard(img, p), selected, "the selected fill")
+			// The group's hairline is its top row, RingWidth under the
+			// toolbar. The ring lies over the hairline and 3 px past it.
 			ring := vgcolor.Flatten(p.KeyboardFocusIndicator, p.ControlBackground)
+			hairline := int(shell.ToolbarDepth) + int(complist.RingWidth)
 			x := firstCard(0).X
-			for y := int(shell.ToolbarDepth); y < int(shell.ToolbarDepth)+int(complist.RingWidth); y++ {
+			for y := hairline - int(complist.RingWidth-complist.GroupRingOver); y < hairline; y++ {
 				if at := img.RGBAAt(x, y); !near(at, ring) {
 					t.Errorf("the ring's pixel at y %d above the group = %v, want %v", y, at, ring)
 				}
+			}
+			over := vgcolor.Flatten(p.KeyboardFocusIndicator, vgcolor.Flatten(p.Separator, p.ControlBackground))
+			if at := img.RGBAAt(x, hairline); !near(at, over) {
+				t.Errorf("the hairline's pixel at y %d = %v, want the ring over the hairline %v", hairline, at, over)
 			}
 			sameRGB(t, img, image.Pt(firstCard(1).X, int(shell.ToolbarDepth)+1), p.ControlBackground, "the content fill above the column that has no keyboard")
 		})

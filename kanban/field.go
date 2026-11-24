@@ -6,7 +6,6 @@ import (
 	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/layout"
-	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
@@ -194,7 +193,7 @@ func editCards(th rx.Observable[theme.Theme], models rx.Observable[Model], post 
 
 // title is the edited card's title slot: the field. back is the focus tag
 // of the card's column. On its first frame the field takes the keyboard,
-// with the caret after the title. Escape posts [CancelEdit] while the field
+// with the whole title selected. Escape posts [CancelEdit] while the field
 // holds the keyboard. When the keyboard leaves the field otherwise, as a
 // press outside the card makes it leave, the edit posts [KeepEdit] with the
 // field's text.
@@ -203,12 +202,8 @@ func (c editCard) title(back event.Tag, post func(layout.Context, mvu.Message)) 
 	return func(gtx layout.Context) layout.Dimensions {
 		st.back = back
 		if !st.focused {
-			// The field gives its editor as its focus tag. The editor puts
-			// the caret before the text it starts with, and the edit puts the
-			// caret after it.
-			if ed, ok := st.tag.(*widget.Editor); ok {
-				ed.SetCaret(ed.Len(), ed.Len())
-			}
+			// The edit gives the field the keyboard by a command, so the
+			// field selects the whole title.
 			gtx.Execute(key.FocusCmd{Tag: st.tag})
 			st.focused = true
 		} else if !st.ended && !gtx.Focused(st.tag) {
