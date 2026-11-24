@@ -38,27 +38,6 @@ func runCmd(t *testing.T, cmd mvu.Command) []mvu.Message {
 	return msgs
 }
 
-// retitled is board with the title of card i in column c set to title.
-func retitled(b Board, c, i int, title string) Board {
-	next := b
-	next.Columns = append([]Column(nil), b.Columns...)
-	entries := append([]Entry(nil), b.Columns[c].Entries...)
-	n := 0
-	for k, e := range entries {
-		if e.Card == nil {
-			continue
-		}
-		if n == i {
-			cd := *e.Card
-			cd.Title = title
-			entries[k].Card = &cd
-		}
-		n++
-	}
-	next.Columns[c].Entries = entries
-	return next
-}
-
 func TestTheAppMakesTheFileWhenItDoesNotExist(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "notes", "Kanban.md")
 	text, _, err := openBoard(path)
@@ -79,7 +58,7 @@ func TestTheAppMakesTheFileWhenItDoesNotExist(t *testing.T) {
 func TestTheAppWritesAChangeToTheFile(t *testing.T) {
 	path, f, m := fixture(t)
 	before, _ := os.ReadFile(path)
-	next, cmd := change(f, m, retitled(m.Board, 0, 1, "Book the dentist for June"))
+	next, cmd := change(f, m, retitled(m.Board, Selection{Column: 0, Card: 1}, "Book the dentist for June"))
 	runCmd(t, cmd)
 
 	data, err := os.ReadFile(path)
@@ -93,7 +72,7 @@ func TestTheAppWritesAChangeToTheFile(t *testing.T) {
 	if got := b.Columns[0].Cards()[1].Title; got != "Book the dentist for June" {
 		t.Errorf("the changed card reads %q", got)
 	}
-	if want := string(before); Format(retitled(b, 0, 1, "Book the dentist")) != want {
+	if want := string(before); Format(retitled(b, Selection{Column: 0, Card: 1}, "Book the dentist")) != want {
 		t.Error("the write changed lines other than the card's")
 	}
 	entries, err := os.ReadDir(filepath.Dir(path))
@@ -109,7 +88,7 @@ func TestTheAppWritesAChangeToTheFile(t *testing.T) {
 // sees no change, so the write does not come back as a reload.
 func TestTheAppsOwnWriteIsNotReadAgain(t *testing.T) {
 	_, f, m := fixture(t)
-	_, cmd := change(f, m, retitled(m.Board, 0, 0, "Draft the notes"))
+	_, cmd := change(f, m, retitled(m.Board, Selection{Column: 0, Card: 0}, "Draft the notes"))
 	runCmd(t, cmd)
 	if data, ok := f.poll(); ok {
 		t.Errorf("the poll read the app's own write again: %q", data)

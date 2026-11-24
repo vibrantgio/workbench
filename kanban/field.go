@@ -6,6 +6,7 @@ import (
 	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/layout"
+	"gioui.org/widget"
 
 	"github.com/reactivego/rx"
 
@@ -104,4 +105,132 @@ func (c newCard) checkbox(gtx layout.Context) layout.Dimensions {
 // openIn reports whether c is the open new card of m in column col.
 func (c newCard) openIn(m Model, col int) bool {
 	return c.field != nil && m.IsAdding && m.Adding == col && c.opened == m.Opened
+}
+
+// editCard is the field that edits a card's title in place, as one theme
+// emission draws it. The field's text and its focus live in one
+// subscription, so a theme emission or a new model keeps the text being
+// typed.
+type editCard struct {
+	// edit is the model's Edits count that the field was made for, and
+	// card is the card it edits.
+	edit  int
+	card  Selection
+	field layout.Widget
+	state *editCardState
+}
+
+// editCardState is what one edit keeps across its emissions.
+type editCardState struct {
+	// tag is the field's focus tag.
+	tag event.Tag
+	// text is the field's text.
+	text string
+	// focused is true once the field asked for the keyboard, and ended is
+	// true once the edit posted its end.
+	focused, ended bool
+	// back is the focus tag that takes the keyboard after Return and
+	// Escape: the list of the card's column.
+	back event.Tag
+}
+
+// openEdit is the field for edit number edit of card s, whose title is
+// title. The field starts with the title, on the selected card's fill.
+// Return gives a [KeepEdit] with the field's text to post.
+func openEdit(th rx.Observable[theme.Theme], edit int, s Selection, title string, post func(layout.Context, mvu.Message)) rx.Observable[editCard] {
+	return rx.Defer(func() rx.Observable[editCard] {
+		st := &editCardState{text: title}
+		field := input.BorderlessTextField(th, input.BorderlessTextFieldProps{
+			Description: "Title of the card",
+			Seed:        title,
+			Submit:      true,
+			OnChange:    func(_ layout.Context, text string) { st.text = text },
+			OnSubmit: func(gtx layout.Context, text string) {
+				if st.ended {
+					return
+				}
+				st.ended = true
+				post(gtx, KeepEdit{Edit: edit, Title: text})
+				gtx.Execute(key.FocusCmd{Tag: st.back})
+			},
+			FocusTag: func(tag event.Tag) { st.tag = tag },
+			Surface: func(p tokens.PlatformColors) color.NRGBA {
+				return card.Fill(card.Props{Selected: true}, p)
+			},
+		})
+		return rx.Map(field, func(w layout.Widget) editCard {
+			return editCard{edit: edit, card: s, field: w, state: st}
+		})
+	})
+}
+
+// editKey is what makes a new edit field: the edit's count, its card and
+// the card's title when the edit began.
+type editKey struct {
+	edit  int
+	card  Selection
+	title string
+}
+
+// editCards gives the edit field for each model. The field is made again
+// only when the model's Edits count changes, so each edit starts with the
+// card's title, and each other change keeps the text being typed. A model
+// with no edit begun gives the zero editCard.
+func editCards(th rx.Observable[theme.Theme], models rx.Observable[Model], post func(layout.Context, mvu.Message)) rx.Observable[editCard] {
+	keys := rx.Map(models, func(m Model) editKey {
+		k := editKey{edit: m.Edits, card: m.Editing}
+		if m.IsEditing && m.Board.has(m.Editing) {
+			k.title = m.Board.Columns[m.Editing.Column].Cards()[m.Editing.Card].Title
+		}
+		return k
+	}).DistinctUntilChanged(func(a, b editKey) bool { return a.edit == b.edit })
+	return rx.SwitchMap(keys, func(k editKey) rx.Observable[editCard] {
+		if k.edit == 0 {
+			return rx.Of(editCard{})
+		}
+		return openEdit(th, k.edit, k.card, k.title, post)
+	})
+}
+
+// title is the edited card's title slot: the field. back is the focus tag
+// of the card's column. On its first frame the field takes the keyboard,
+// with the caret after the title. Escape posts [CancelEdit] while the field
+// holds the keyboard. When the keyboard leaves the field otherwise, as a
+// press outside the card makes it leave, the edit posts [KeepEdit] with the
+// field's text.
+func (c editCard) title(back event.Tag, post func(layout.Context, mvu.Message)) layout.Widget {
+	st := c.state
+	return func(gtx layout.Context) layout.Dimensions {
+		st.back = back
+		if !st.focused {
+			// The field gives its editor as its focus tag. The editor puts
+			// the caret before the text it starts with, and the edit puts the
+			// caret after it.
+			if ed, ok := st.tag.(*widget.Editor); ok {
+				ed.SetCaret(ed.Len(), ed.Len())
+			}
+			gtx.Execute(key.FocusCmd{Tag: st.tag})
+			st.focused = true
+		} else if !st.ended && !gtx.Focused(st.tag) {
+			st.ended = true
+			post(gtx, KeepEdit{Edit: c.edit, Title: st.text})
+		}
+		for {
+			e, ok := gtx.Event(key.Filter{Focus: st.tag, Name: key.NameEscape})
+			if !ok {
+				break
+			}
+			if ke, ok := e.(key.Event); ok && ke.State == key.Press && !st.ended {
+				st.ended = true
+				post(gtx, CancelEdit{Edit: c.edit})
+				gtx.Execute(key.FocusCmd{Tag: back})
+			}
+		}
+		return c.field(gtx)
+	}
+}
+
+// openIn reports whether c is the open edit of m.
+func (c editCard) openIn(m Model) bool {
+	return c.field != nil && m.IsEditing && c.edit == m.Edits
 }

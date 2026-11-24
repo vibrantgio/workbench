@@ -68,7 +68,7 @@ const fixtureBoard = "---\n\nkanban-plugin: board\n\n---\n\n" +
 func frame(th themed, m Model, state *scrollState) layout.Widget {
 	return golden.On(th.platform.ControlBackground, golden.Stack(
 		backdrop.Widget(th.platform.ControlBackground),
-		view(th, m, newCard{}, state, func() unit.Dp { return shell.ToolbarDepth }, postMessage),
+		view(th, m, newCard{}, editCard{}, state, func() unit.Dp { return shell.ToolbarDepth }, postMessage),
 	))
 }
 

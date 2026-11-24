@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"gioui.org/f32"
 	gioinput "gioui.org/io/input"
@@ -43,7 +44,13 @@ type boardRig struct {
 	// fresh is the new card, made again when the
 	// model's Opened count changes, as ContentLayer makes it.
 	fresh newCard
-	page  layout.Widget
+	// edit is the edit field, made again when the model's Edits count
+	// changes, as ContentLayer makes it.
+	edit editCard
+	page layout.Widget
+	// now is the time of the rig's next pointer event. Each press comes a
+	// second after the one before, so two presses are no double-click.
+	now time.Duration
 	// posted is every message the page posted, in order.
 	posted []mvu.Message
 }
@@ -62,7 +69,11 @@ func (rig *boardRig) build() {
 	if rig.fresh.field == nil || rig.fresh.opened != rig.model.Opened {
 		rig.fresh, _ = openCard(rx.Of(rig.th.components), rig.model.Opened, post).First()
 	}
-	board := desktop.InsetTop(func() unit.Dp { return shell.ToolbarDepth }, boardView(rig.th, rig.model, rig.fresh, rig.state, post))
+	if m := rig.model; m.IsEditing && rig.edit.edit != m.Edits {
+		title := m.Board.Columns[m.Editing.Column].Cards()[m.Editing.Card].Title
+		rig.edit, _ = openEdit(rx.Of(rig.th.components), m.Edits, m.Editing, title, post).First()
+	}
+	board := desktop.InsetTop(func() unit.Dp { return shell.ToolbarDepth }, boardView(rig.th, rig.model, rig.fresh, rig.edit, rig.state, post))
 	fill := rig.th.platform.ControlBackground
 	rig.page = golden.On(fill, golden.Stack(backdrop.Widget(fill), board))
 }
@@ -92,12 +103,27 @@ func (rig *boardRig) drive() {
 }
 
 func (rig *boardRig) press(at image.Point) {
+	rig.pressAfter(at, time.Second)
+}
+
+// pressAfter presses at at, after the time gap since the rig's last press.
+func (rig *boardRig) pressAfter(at image.Point, gap time.Duration) {
+	rig.now += gap
 	pos := f32.Pt(float32(at.X), float32(at.Y))
 	rig.r.Queue(
-		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: pos},
-		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: pos},
+		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: pos, Time: rig.now},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Position: pos, Time: rig.now + 50*time.Millisecond},
 	)
 	rig.drive()
+	// A press can move the keyboard without a message. The next frame
+	// shows what the move did, as the window draws a frame after it.
+	rig.drive()
+}
+
+// doubleClick presses twice at at, as a double-click does.
+func (rig *boardRig) doubleClick(at image.Point) {
+	rig.press(at)
+	rig.pressAfter(at, 100*time.Millisecond)
 }
 
 func (rig *boardRig) key(name key.Name) {

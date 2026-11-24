@@ -109,3 +109,24 @@ func toggled(b Board, s Selection) Board {
 	}
 	return next
 }
+
+// retitled is b with the title of the card that s names set to title. Only
+// the card's title changes, and the result shares no card that it changes
+// with b.
+func retitled(b Board, s Selection, title string) Board {
+	next := withColumn(b, s.Column)
+	entries := next.Columns[s.Column].Entries
+	n := -1
+	for i, e := range entries {
+		if e.Card == nil {
+			continue
+		}
+		if n++; n == s.Card {
+			cd := *e.Card
+			cd.Title = title
+			entries[i] = Entry{Card: &cd}
+			break
+		}
+	}
+	return next
+}

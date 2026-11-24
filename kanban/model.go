@@ -29,6 +29,13 @@ type Model struct {
 	// Opened counts the openings of a new card. A new count gives a new
 	// card with an empty title.
 	Opened int
+	// Editing is the card whose title is edited in place. It names a card
+	// only while IsEditing is true.
+	Editing   Selection
+	IsEditing bool
+	// Edits counts the edits begun. A new count gives a new field that
+	// holds the card's title.
+	Edits int
 }
 
 // Selection names one card of the board: the column's index, and the
@@ -59,6 +66,21 @@ type AddCard struct{ Title string }
 // completed card not completed.
 type ToggleCard struct{ Selection }
 
+// EditCard begins the edit of the title of the card that Selection names,
+// and selects the card.
+type EditCard struct{ Selection }
+
+// KeepEdit ends edit number Edit and gives the card the title Title. An
+// empty title keeps the card's title. A line break in Title becomes a
+// space.
+type KeepEdit struct {
+	Edit  int
+	Title string
+}
+
+// CancelEdit ends edit number Edit and keeps the card's title.
+type CancelEdit struct{ Edit int }
+
 // has reports whether b holds the card that s names.
 func (b Board) has(s Selection) bool {
 	return s.Column >= 0 && s.Column < len(b.Columns) &&
@@ -88,7 +110,7 @@ func withoutCard(b Board, s Selection) Board {
 }
 
 // oneLine replaces each line break with a space. Shift-Return and a paste
-// can put a line break in the new card's title.
+// can put a line break in a title that a field gives.
 var oneLine = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ")
 
 // newModel is the model of a file named name whose content is data.
@@ -110,6 +132,32 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			}
 			if m.IsAdding && m.Adding >= len(m.Board.Columns) {
 				m.Adding, m.IsAdding = 0, false
+			}
+			if m.IsEditing && !m.Board.has(m.Editing) {
+				m.Editing, m.IsEditing = Selection{}, false
+			}
+			return m, mvu.DoNothing()
+		case EditCard:
+			if !m.Board.has(msg.Selection) {
+				return m, mvu.DoNothing()
+			}
+			m.Selected, m.HasSelected = msg.Selection, true
+			m.Editing, m.IsEditing, m.Edits = msg.Selection, true, m.Edits+1
+			return m, mvu.DoNothing()
+		case KeepEdit:
+			if !m.IsEditing || msg.Edit != m.Edits {
+				return m, mvu.DoNothing()
+			}
+			s := m.Editing
+			m.Editing, m.IsEditing = Selection{}, false
+			title := strings.TrimSpace(oneLine.Replace(msg.Title))
+			if title == "" || !m.Board.has(s) {
+				return m, mvu.DoNothing()
+			}
+			return change(f, m, retitled(m.Board, s, title))
+		case CancelEdit:
+			if m.IsEditing && msg.Edit == m.Edits {
+				m.Editing, m.IsEditing = Selection{}, false
 			}
 			return m, mvu.DoNothing()
 		case OpenAdd:
