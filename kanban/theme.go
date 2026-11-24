@@ -17,11 +17,15 @@ import (
 // themed is one theme emission with what the view reads off it. Each
 // LiveTheme emission is a static snapshot, so every field resolves at once.
 type themed struct {
-	platform tokens.PlatformColors
-	typ      tokens.Typography
-	shaper   *text.Shaper
-	spacing  tokens.SpacingScale
-	radius   tokens.RadiusScale
+	// components is the emission itself, which the library's components
+	// are built from.
+	components theme.Theme
+	platform   tokens.PlatformColors
+	typ        tokens.Typography
+	shaper     *text.Shaper
+	spacing    tokens.SpacingScale
+	radius     tokens.RadiusScale
+	density    tokens.Density
 	// scrollBars is the platform's "Show scroll bars" setting, read once
 	// when the window is composed, so that no frame asks the platform.
 	scrollBars desktop.ScrollBarSetting
@@ -61,10 +65,10 @@ var (
 // themes resolves each theme emission into the snapshot the view reads.
 func themes(th rx.Observable[theme.Theme], bars desktop.ScrollBarSetting) rx.Observable[themed] {
 	return rx.SwitchMap(th, func(t theme.Theme) rx.Observable[themed] {
-		return rx.Map(rx.CombineLatest4(t.Platform, t.Typography, t.Spacing, t.Radius),
-			func(n rx.Tuple4[tokens.PlatformColors, tokens.Typography, tokens.SpacingScale, tokens.RadiusScale]) themed {
-				return themed{platform: n.First, typ: n.Second, shaper: n.Second.Shaper(),
-					spacing: n.Third, radius: n.Fourth, scrollBars: bars}
+		return rx.Map(rx.CombineLatest5(t.Platform, t.Typography, t.Spacing, t.Radius, t.Density),
+			func(n rx.Tuple5[tokens.PlatformColors, tokens.Typography, tokens.SpacingScale, tokens.RadiusScale, tokens.Density]) themed {
+				return themed{components: t, platform: n.First, typ: n.Second, shaper: n.Second.Shaper(),
+					spacing: n.Third, radius: n.Fourth, density: n.Fifth, scrollBars: bars}
 			})
 	})
 }

@@ -1,6 +1,10 @@
 package main
 
-import "github.com/vibrantgio/mvu"
+import (
+	"strings"
+
+	"github.com/vibrantgio/mvu"
+)
 
 // Model is the single application state. Every change goes through Update.
 type Model struct {
@@ -18,6 +22,13 @@ type Model struct {
 	// while HasSelected is true.
 	Selected    Selection
 	HasSelected bool
+	// Adding is the column whose text field for a new card is open. It
+	// names a column only while IsAdding is true.
+	Adding   int
+	IsAdding bool
+	// Opened counts the openings of a text field for a new card. A new
+	// count gives a new, empty field.
+	Opened int
 }
 
 // Selection names one card of the board: the column's index, and the
@@ -32,6 +43,20 @@ type SelectCard struct{ Selection }
 // DeleteCard deletes the card that Selection names, and clears the
 // selection.
 type DeleteCard struct{ Selection }
+
+// OpenAdd opens the text field for a new card at the end of Column.
+type OpenAdd struct{ Column int }
+
+// CloseAdd closes the text field for a new card.
+type CloseAdd struct{}
+
+// AddCard adds a card titled Title after the last card of the column whose
+// field is open. The field stays open.
+type AddCard struct{ Title string }
+
+// ToggleCard marks the card that Selection names completed, or marks a
+// completed card not completed.
+type ToggleCard struct{ Selection }
 
 // has reports whether b holds the card that s names.
 func (b Board) has(s Selection) bool {
@@ -78,7 +103,30 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			if m.HasSelected && !m.Board.has(m.Selected) {
 				m.Selected, m.HasSelected = Selection{}, false
 			}
+			if m.IsAdding && m.Adding >= len(m.Board.Columns) {
+				m.Adding, m.IsAdding = 0, false
+			}
 			return m, mvu.DoNothing()
+		case OpenAdd:
+			if msg.Column < 0 || msg.Column >= len(m.Board.Columns) {
+				return m, mvu.DoNothing()
+			}
+			m.Adding, m.IsAdding, m.Opened = msg.Column, true, m.Opened+1
+			return m, mvu.DoNothing()
+		case CloseAdd:
+			m.Adding, m.IsAdding = 0, false
+			return m, mvu.DoNothing()
+		case AddCard:
+			title := strings.TrimSpace(msg.Title)
+			if !m.IsAdding || title == "" {
+				return m, mvu.DoNothing()
+			}
+			return change(f, m, withCard(m.Board, m.Adding, title))
+		case ToggleCard:
+			if !m.Board.has(msg.Selection) {
+				return m, mvu.DoNothing()
+			}
+			return change(f, m, toggled(m.Board, msg.Selection))
 		case SelectCard:
 			if !m.Board.has(msg.Selection) {
 				return m, mvu.DoNothing()

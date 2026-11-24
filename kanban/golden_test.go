@@ -13,12 +13,15 @@ import (
 	"gioui.org/layout"
 	"gioui.org/unit"
 
+	"github.com/reactivego/rx"
+
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
 	complist "github.com/vibrantgio/components/list"
 	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	vgcolor "github.com/vibrantgio/theme/color"
+	"github.com/vibrantgio/theme/theme"
 	"github.com/vibrantgio/theme/tokens"
 )
 
@@ -36,8 +39,16 @@ var sharpRadius = tokens.RadiusScale{}
 // stored render shapes with and the overlay scroll bars.
 func staticThemed(p tokens.PlatformColors, radius tokens.RadiusScale) themed {
 	typ := tokens.DefaultTypography
-	return themed{platform: p, typ: typ, shaper: typ.DeterministicShaper(),
-		spacing: tokens.Spacing, radius: radius}
+	components := theme.Theme{
+		Platform:   rx.Of(p),
+		Typography: rx.Of(typ),
+		Density:    rx.Of(tokens.Comfortable),
+		Motion:     rx.Of(tokens.Motion),
+		Spacing:    rx.Of(tokens.Spacing),
+		Radius:     rx.Of(radius),
+	}
+	return themed{components: components, platform: p, typ: typ, shaper: typ.DeterministicShaper(),
+		spacing: tokens.Spacing, radius: radius, density: tokens.Comfortable}
 }
 
 // fixtureBoard is the new board's three columns with a few tasks in them.
@@ -57,7 +68,7 @@ const fixtureBoard = "---\n\nkanban-plugin: board\n\n---\n\n" +
 func frame(th themed, m Model, state *scrollState) layout.Widget {
 	return golden.On(th.platform.ControlBackground, golden.Stack(
 		backdrop.Widget(th.platform.ControlBackground),
-		view(th, m, state, func() unit.Dp { return shell.ToolbarDepth }),
+		view(th, m, addField{}, state, func() unit.Dp { return shell.ToolbarDepth }, postMessage),
 	))
 }
 
@@ -170,8 +181,9 @@ func TestTheWindowShowsThreeColumns(t *testing.T) {
 
 // TestColumnBarStandsAtTheGroupEdge renders a column with more cards than
 // fit, with the bar standing, and reads the pixel column down the middle of
-// the bar's lane at the group's trailing hairline: the bar draws there beside the cards, down to
-// the group's bottom edge, and draws nothing beside the title.
+// the bar's lane at the group's trailing hairline: the bar draws there
+// beside the cards, down to the "Add a card" button's row, and draws
+// nothing beside the title or beside the button's row.
 func TestColumnBarStandsAtTheGroupEdge(t *testing.T) {
 	var b strings.Builder
 	b.WriteString("## To Do\n\n")
@@ -203,14 +215,17 @@ func TestColumnBarStandsAtTheGroupEdge(t *testing.T) {
 	if drawn < (bottom-titleFoot)/2 {
 		t.Errorf("the bar covers %d of the %d rows beside the cards; expected it to run beside them", drawn, bottom-titleFoot)
 	}
-	// The bar's track ends a few pixels short of its lane's end.
+	// The button's row is the density's control height, with the group's
+	// padding under it. The bar's track ends a few pixels short of its
+	// lane's end, which is the row's top.
+	rowTop := bottom - int(tokens.Spacing.S4) - int(tokens.ComfortableControlHeight)
 	end := -1
 	for y := titleFoot; y < bottom; y++ {
 		if img.RGBAAt(x, y) != bg {
 			end = y
 		}
 	}
-	if end < bottom-6 {
-		t.Errorf("the bar ends at y %d; expected it to run to the group's bottom edge at y %d", end, bottom)
+	if end < rowTop-6 || end >= rowTop {
+		t.Errorf("the bar ends at y %d; expected it to run to the button's row at y %d", end, rowTop)
 	}
 }
