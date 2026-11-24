@@ -15,6 +15,7 @@ import (
 
 	"github.com/vibrantgio/backdrop"
 	"github.com/vibrantgio/components/golden"
+	"github.com/vibrantgio/mvu/desktop"
 	"github.com/vibrantgio/patterns/shell"
 	vgcolor "github.com/vibrantgio/theme/color"
 	"github.com/vibrantgio/theme/tokens"
@@ -163,5 +164,52 @@ func TestTheWindowShowsThreeColumns(t *testing.T) {
 	golden.Capture(t, windowSize, frame(staticThemed(tokens.PlatformLight, sharpRadius), newModel("Kanban.md", fixtureBoard+"\n## Archive\n\n"), state))
 	if !state.board.Overflows() {
 		t.Error("four columns fit the window; the board does not scroll")
+	}
+}
+
+// TestColumnBarStandsAtTheGroupEdge renders a column with more cards than
+// fit, with the bar standing, and reads the pixel column down the middle of
+// the bar's lane at the group's trailing hairline: the bar draws there beside the cards, down to
+// the group's bottom edge, and draws nothing beside the title.
+func TestColumnBarStandsAtTheGroupEdge(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("## To Do\n\n")
+	for range 30 {
+		b.WriteString("- [ ] Water the plants\n")
+	}
+	th := staticThemed(tokens.PlatformLight, sharpRadius)
+	th.scrollBars = desktop.ScrollBarsAlways
+	img := golden.Capture(t, windowSize, frame(th, newModel("Kanban.md", b.String()), newScrollState()))
+
+	bg := color.RGBA(th.platform.ControlBackground)
+	band := int(shell.ToolbarDepth)
+	inset := int(boardInset)
+	// The middle of the bar's lane, which ends at the hairline.
+	x := inset + int(columnWidth) - 1 - int(th.bar().Width())/2
+	top, bottom := band, windowSize.Y-inset-1
+	titleFoot := top + int(tokens.Spacing.S4) + int(th.typ.SectionHeading.LineHeight)
+	for y := top + 1; y < titleFoot; y++ {
+		if img.RGBAAt(x, y) != bg {
+			t.Fatalf("pixel at x %d, y %d beside the title is %v; expected the fill %v", x, y, img.RGBAAt(x, y), bg)
+		}
+	}
+	drawn := 0
+	for y := titleFoot; y < bottom; y++ {
+		if img.RGBAAt(x, y) != bg {
+			drawn++
+		}
+	}
+	if drawn < (bottom-titleFoot)/2 {
+		t.Errorf("the bar covers %d of the %d rows beside the cards; expected it to run beside them", drawn, bottom-titleFoot)
+	}
+	// The bar's track ends a few pixels short of its lane's end.
+	end := -1
+	for y := titleFoot; y < bottom; y++ {
+		if img.RGBAAt(x, y) != bg {
+			end = y
+		}
+	}
+	if end < bottom-6 {
+		t.Errorf("the bar ends at y %d; expected it to run to the group's bottom edge at y %d", end, bottom)
 	}
 }

@@ -143,27 +143,45 @@ func boardView(th themed, b Board, state *scrollState) layout.Widget {
 // columnView draws one column across the constraints it is given: the
 // library's group, titled with the column's name and its card count, that
 // holds the column's cards in a list. The group runs the column's full
-// height, so an empty column shows its extent too. The list scrolls when
-// the cards are taller than the group. The column paints no fill: it is a
-// column of the board, and cards do not nest.
+// height, so an empty column shows its extent too. The list is the group's
+// content that scrolls, so its bar stands at the group's trailing edge,
+// beside the cards only. The column paints no fill: it is a column of the
+// board, and cards do not nest.
 func columnView(gtx layout.Context, th themed, c Column, list *complist.State) layout.Dimensions {
 	cards := c.Cards()
 	bar := th.bar()
-	gapPx := gtx.Dp(cardGap)
-	content := func(gtx layout.Context) layout.Dimensions {
-		size := gtx.Constraints.Max
-		gtx.Constraints = layout.Exact(size)
-		defer clip.Rect{Max: size}.Push(gtx.Ops).Pop()
-		complist.LayoutScrollbar(gtx, list, bar, complist.AnchorFor(bar), cards, func(gtx layout.Context, cd Card) layout.Dimensions {
-			dims := cardView(gtx, th, cd)
-			return layout.Dimensions{Size: image.Pt(dims.Size.X, dims.Size.Y+gapPx)}
+	scroll := func(gtx layout.Context, pad layout.Inset) layout.Dimensions {
+		top, bottom := gtx.Dp(pad.Top), gtx.Dp(pad.Bottom)
+		left, right := gtx.Dp(pad.Left), gtx.Dp(pad.Right)
+		gapPx := gtx.Dp(cardGap)
+		last := len(cards) - 1
+		idx := make([]int, len(cards))
+		for i := range idx {
+			idx[i] = i
+		}
+		// The padding is inside the list: the first card has the top
+		// padding above it and the last card the bottom padding under it,
+		// so the padding scrolls with the cards.
+		return complist.LayoutScrollbar(gtx, list, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int) layout.Dimensions {
+			above, below := 0, gapPx
+			if i == 0 {
+				above = top
+			}
+			if i == last {
+				below = bottom
+			}
+			cgtx := gtx
+			cgtx.Constraints = layout.Constraints{Max: image.Pt(max(gtx.Constraints.Max.X-left-right, 0), gtx.Constraints.Max.Y)}
+			off := op.Offset(image.Pt(left, above)).Push(gtx.Ops)
+			dims := cardView(cgtx, th, cards[i])
+			off.Pop()
+			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, above+dims.Size.Y+below)}
 		})
-		return layout.Dimensions{Size: size}
 	}
 	props := group.Props{
 		Title:   c.Title,
 		Count:   strconv.Itoa(len(cards)),
-		Content: []layout.Widget{content},
+		Scroll:  scroll,
 		Surface: th.platform.ControlBackground,
 	}
 	return group.Render(th.shaper, props, th.platform, th.spacing, th.radius, group.TitleStyle(th.typ))(gtx)

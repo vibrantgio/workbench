@@ -12,7 +12,7 @@ require (
 	github.com/vibrantgio/markdown v0.9.1
 	github.com/vibrantgio/mvu v1.1.6
 	github.com/vibrantgio/mvu/desktop v1.1.5
-	github.com/vibrantgio/patterns v1.5.1
+	github.com/vibrantgio/patterns v1.5.2-0.20261124135100-5f63d90f7538
 	github.com/vibrantgio/textdraw v0.1.0
 	github.com/vibrantgio/theme v1.6.1
 	golang.org/x/image v0.44.0
