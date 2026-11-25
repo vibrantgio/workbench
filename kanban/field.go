@@ -83,8 +83,8 @@ func openCard(th rx.Observable[theme.Theme], opened int, post func(layout.Contex
 			Description: "Title of the new card",
 			Submit:      true,
 			OnSubmit:    func(gtx layout.Context, text string) { post(gtx, AddCard{Title: text}) },
-			OnTyping: func(gtx layout.Context, undo, redo bool) {
-				st.typing = Typing{Undo: undo, Redo: redo}
+			OnTyping: func(gtx layout.Context, t input.Typing) {
+				st.typing = Typing{Undo: t.Undo, Redo: t.Redo}
 				st.report(gtx, opened, post)
 			},
 			LeaveUndo: leaveUndo(post),
@@ -197,8 +197,8 @@ func openEdit(th rx.Observable[theme.Theme], edit int, s Selection, title string
 			Seed:        title,
 			Submit:      true,
 			OnChange:    func(_ layout.Context, text string) { st.text = text },
-			OnTyping: func(gtx layout.Context, undo, redo bool) {
-				st.typing = Typing{Undo: undo, Redo: redo}
+			OnTyping: func(gtx layout.Context, t input.Typing) {
+				st.typing = Typing{Undo: t.Undo, Redo: t.Redo}
 				st.report(gtx, edit, post)
 			},
 			LeaveUndo: leaveUndo(post),
