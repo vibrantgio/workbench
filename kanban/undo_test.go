@@ -707,3 +707,29 @@ func TestAFieldThatTakesTheKeyboardAgainLeavesRedoToTheBoard(t *testing.T) {
 		t.Errorf("the field holds %q, want its text", got)
 	}
 }
+
+// Typing that the user deletes again is no change. The user types one
+// character in the new card and deletes it: the menu's Undo undoes the
+// board's change, and the menu's Redo makes it again.
+func TestTypingDeletedAgainLeavesTheMenuToTheBoard(t *testing.T) {
+	path, f, m := boardFileWith(t, fixtureBoard)
+	rig := newBoardRig(t, staticThemed(tokens.PlatformLight, sharpRadius), f, m)
+	rig.model = apply(t, rig.update, rig.model, ToggleCard{Selection{1, 0}}, OpenAdd{Column: 1})
+	rig.build()
+	rig.drive()
+	toggled := readFile(t, path)
+	rig.r.Queue(key.EditEvent{Text: "F"}, key.SelectionEvent{Start: 1, End: 1})
+	rig.drive()
+	rig.key(key.NameDeleteBackward)
+	if rig.model.AddTyping != (Typing{}) {
+		t.Fatalf("the field reports %+v, want no typing", rig.model.AddTyping)
+	}
+	rig.menuChord(false)
+	if got := readFile(t, path); got != fixtureBoard {
+		t.Fatalf("the menu's Undo wrote\n%q\nwant the fixture", got)
+	}
+	rig.menuChord(true)
+	if got := readFile(t, path); got != toggled {
+		t.Errorf("the menu's Redo wrote\n%q\nwant the toggled board", got)
+	}
+}
