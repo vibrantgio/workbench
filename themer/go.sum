@@ -37,6 +37,8 @@ github.com/vibrantgio/components v1.7.2-0.20261125135933-276ca058ed06 h1:S4Xpk9m
 github.com/vibrantgio/components v1.7.2-0.20261125135933-276ca058ed06/go.mod h1:P7sTf4zkFIUDipCb5sDoK1ARS+AjGuZCbOP+lWd3QX8=
 github.com/vibrantgio/components v1.7.2-0.20261125140929-e2311d0698cd h1:L9DYG7q9/eig5qrWbdknY7rzdlW/9qyp22GrQherz8c=
 github.com/vibrantgio/components v1.7.2-0.20261125140929-e2311d0698cd/go.mod h1:P7sTf4zkFIUDipCb5sDoK1ARS+AjGuZCbOP+lWd3QX8=
+github.com/vibrantgio/components v1.7.2-0.20261125142632-2c73e6e2437d h1:drjx0+5qtp16DJI7FC19cJQH3LYFMxPDOqnWHTo368g=
+github.com/vibrantgio/components v1.7.2-0.20261125142632-2c73e6e2437d/go.mod h1:P7sTf4zkFIUDipCb5sDoK1ARS+AjGuZCbOP+lWd3QX8=
 github.com/vibrantgio/components/gallery v1.7.1 h1:AoLd62/DId0gUkfpYpPL7eoXS/YPvUyF5SBipKPZK+s=
 github.com/vibrantgio/components/gallery v1.7.1/go.mod h1:4v6ZffoaIs7NYfV97+I6e6gkdxZu3ZiuIw3SEgxlLSw=
 github.com/vibrantgio/components/gallery v1.7.2-0.20261124175726-d79040fcdf59 h1:XqBcCyTUxTxmXLqBFPTMejVnnIwJtYWYYAqFPLg8WNo=

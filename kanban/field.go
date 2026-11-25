@@ -67,18 +67,6 @@ func endRedo(gtx layout.Context, was Typing, now input.Typing, post func(layout.
 	}
 }
 
-// leaveUndo gives the board a Cmd-Z or a Shift-Cmd-Z that a field holds no
-// typing for.
-func leaveUndo(post func(layout.Context, mvu.Message)) func(layout.Context, bool) {
-	return func(gtx layout.Context, redo bool) {
-		if redo {
-			post(gtx, Redo{})
-		} else {
-			post(gtx, Undo{})
-		}
-	}
-}
-
 // openCard is the new card made for the model's Opened count opened. Return
 // gives an [AddCard] with the field's text to post. The field keeps its
 // text after Return, and the added card's next Opened count gives the next
@@ -97,9 +85,8 @@ func openCard(th rx.Observable[theme.Theme], opened int, post func(layout.Contex
 				st.typing = Typing{Undo: t.Undo, Redo: t.Redo, RedoEnded: t.RedoEnded}
 				st.report(gtx, opened, post)
 			},
-			LeaveUndo: leaveUndo(post),
-			FocusTag:  func(tag event.Tag) { st.tag = tag },
-			Surface:   fill,
+			FocusTag: func(tag event.Tag) { st.tag = tag },
+			Surface:  fill,
 		})
 		box := input.Checkbox(th, input.CheckboxProps{
 			Description: "Completed",
@@ -212,7 +199,6 @@ func openEdit(th rx.Observable[theme.Theme], edit int, s Selection, title string
 				st.typing = Typing{Undo: t.Undo, Redo: t.Redo, RedoEnded: t.RedoEnded}
 				st.report(gtx, edit, post)
 			},
-			LeaveUndo: leaveUndo(post),
 			OnSubmit: func(gtx layout.Context, text string) {
 				if st.ended {
 					return

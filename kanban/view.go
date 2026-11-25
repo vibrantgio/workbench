@@ -212,7 +212,9 @@ func boardView(th themed, m Model, fresh newCard, edit editCard, state *scrollSt
 		columns[i] = columnView(th, i, c, selected, state.column(i), state.clicks(i, len(c.Cards())), ed, end, toEnd, post)
 	}
 	editing := edit.openIn(m)
+	undo := boardUndo(m, post)
 	return func(gtx layout.Context) layout.Dimensions {
+		gtx = input.WithWindowUndo(gtx, undo)
 		// The board's press target is under every press target inside the
 		// board, so it reads each press on the board. Its focus command runs
 		// before the commands of the targets inside the board.
@@ -257,22 +259,40 @@ func boardView(th themed, m Model, fresh newCard, edit editCard, state *scrollSt
 		dims := scrollarea.FromTokens(th.platform).LayoutScrollbar(gtx, state.board, bar, layoutColumns)
 		// Cmd-Z undoes and Shift-Cmd-Z redoes. The first reader of a key
 		// event in a frame takes it, so the board reads both keys after the
-		// columns: a field that holds the keyboard takes them first, for its
-		// own text.
+		// columns: a field that holds the keyboard takes them first, and
+		// gives the board's Undo each key that it holds no typing for.
 		for {
 			e, ok := gtx.Event(key.Filter{Name: "Z", Required: key.ModShortcut, Optional: key.ModShift})
 			if !ok {
 				break
 			}
 			if ke, ok := e.(key.Event); ok && ke.State == key.Press {
-				if ke.Modifiers.Contain(key.ModShift) {
-					post(gtx, Redo{})
-				} else {
-					post(gtx, Undo{})
-				}
+				undo(gtx, ke.Modifiers.Contain(key.ModShift))
 			}
 		}
 		return dims
+	}
+}
+
+// boardUndo is the board's Undo and Redo for model m: the window's Undo of
+// the board's fields, and the action of the board's own keys. It posts
+// [Undo] or [Redo] when the stack holds a change for it, and reports
+// whether it posted. It counts each change that it posted, so two presses
+// before the next model act on two changes.
+func boardUndo(m Model, post func(layout.Context, mvu.Message)) input.WindowUndo {
+	undos, redos := len(m.Undo), len(m.Redo)
+	return func(gtx layout.Context, redo bool) bool {
+		switch {
+		case redo && redos > 0:
+			redos, undos = redos-1, undos+1
+			post(gtx, Redo{})
+		case !redo && undos > 0:
+			undos, redos = undos-1, redos+1
+			post(gtx, Undo{})
+		default:
+			return false
+		}
+		return true
 	}
 }
 

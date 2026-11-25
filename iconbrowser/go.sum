@@ -17,6 +17,8 @@ github.com/vibrantgio/backdrop v0.0.7 h1:HN9GSs/02CTeQErPHt8liTkv/L9BvUq/2+3MxdS
 github.com/vibrantgio/backdrop v0.0.7/go.mod h1:AVd6r6kHyF8ry/eyUibkBS3Ag3+vzYMJdN8SysA1rm0=
 github.com/vibrantgio/components v1.7.1 h1:ywnS5tZohIYHkEZkNDFGrBWG8O+8gr+EQulUlSor6FQ=
 github.com/vibrantgio/components v1.7.1/go.mod h1:gYrG7BE3ObISt8zkGBTcNFdZjD14ypSuwl1d0kfHPx8=
+github.com/vibrantgio/components v1.7.2-0.20261125142632-2c73e6e2437d h1:drjx0+5qtp16DJI7FC19cJQH3LYFMxPDOqnWHTo368g=
+github.com/vibrantgio/components v1.7.2-0.20261125142632-2c73e6e2437d/go.mod h1:P7sTf4zkFIUDipCb5sDoK1ARS+AjGuZCbOP+lWd3QX8=
 github.com/vibrantgio/effects v0.5.1 h1:RjD69J7lGQvQNTw6s2eycZ5DjiRzRyMwroAL11pa7sI=
 github.com/vibrantgio/effects v0.5.1/go.mod h1:OjZEPtkpg7eEk6bhyi2U7azi3szweYIOVJdNdsmuIMA=
 github.com/vibrantgio/font v0.4.6 h1:x/xHEEXTGVIC4NQrkqLVeg+mTIgEpw20J7DPkc5dwgg=
@@ -37,6 +39,8 @@ github.com/vibrantgio/textdraw v0.1.0 h1:WNstQ4zE/weG6RbCircIPyqY4XGjf18KNVrvwg7
 github.com/vibrantgio/textdraw v0.1.0/go.mod h1:RSMTDo+wrZOA6wj+RM6NaN7ZkdJMwCMCX/WPk4XVqSE=
 github.com/vibrantgio/theme v1.6.1 h1:joIjv/jX+a3ZnZGtQKpRxVML5C0o4UVkOZl11IbGrRQ=
 github.com/vibrantgio/theme v1.6.1/go.mod h1:n+ydVSLC2slaBWPnWJEP3k/qYJadx9qY45WFEb94OeU=
+github.com/vibrantgio/theme v1.6.2-0.20261124175021-22d12bc36c78 h1:Ks0fSjgXJ7v+FoKRuO6IxOukAZ0KrJQ1EBPbua5f/Jc=
+github.com/vibrantgio/theme v1.6.2-0.20261124175021-22d12bc36c78/go.mod h1:n+ydVSLC2slaBWPnWJEP3k/qYJadx9qY45WFEb94OeU=
 golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 h1:ex206bKw+v3K0dm3andkrIF+ijyQKJG1pLgwQ2PYdQM=
 golang.org/x/exp v0.0.0-20260727155853-b88d891fe743/go.mod h1:EdfpwwqSu+0Li0mzskwHU6FWDV3t9Q+RZDo3QMUtL3Q=
 golang.org/x/exp/shiny v0.0.0-20260727155853-b88d891fe743 h1:rQLtGtwpYzQUyxCqrT3i4lGgvC1Q4G72JTHYncg6AvY=

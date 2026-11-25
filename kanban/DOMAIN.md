@@ -25,8 +25,8 @@ task.
 ### Task
 
 One task list item under a column's heading that is not indented: its
-title, whether it is complete, and its notes. A task is complete when its
-task list item is checked. The lines indented under the item are its
+title, whether it is completed, and its notes. A task is completed when
+its task list item is checked. The lines indented under the item are its
 notes.
 
 ### Change

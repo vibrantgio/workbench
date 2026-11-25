@@ -733,3 +733,59 @@ func TestTypingDeletedAgainLeavesTheMenuToTheBoard(t *testing.T) {
 		t.Errorf("the menu's Redo wrote\n%q\nwant the toggled board", got)
 	}
 }
+
+// An Undo that finds no change to reverse changes nothing, and Redo stays
+// as it was. On a board with no change, the user types in a field and
+// presses Cmd-Z, Cmd-Z, Shift-Cmd-Z and Shift-Cmd-Z. The first Shift-Cmd-Z
+// makes the typing again, in a new card and in an edit of a card.
+func TestAnUndoWithNoBoardChangeLeavesRedoToTheField(t *testing.T) {
+	cases := []struct {
+		name  string
+		start func(rig *boardRig)
+		field func(rig *boardRig) *widget.Editor
+		was   string
+		typed string
+	}{
+		{"new card", func(rig *boardRig) {
+			rig.open(0)
+			rig.typeText("Plan the trip")
+		}, func(rig *boardRig) *widget.Editor { return rig.fresh.state.tag.(*widget.Editor) },
+			"", "Plan the trip"},
+		{"edit", func(rig *boardRig) {
+			rig.key(key.NameReturn)
+			rig.addAtEnd(" for June")
+		}, func(rig *boardRig) *widget.Editor { return rig.edit.state.tag.(*widget.Editor) },
+			"Draft the release notes", "Draft the release notes for June"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rig, path := editRig(t)
+			c.start(rig)
+			ed := c.field(rig)
+			text := func(want, what string) {
+				t.Helper()
+				if got := ed.Text(); got != want {
+					t.Fatalf("%s the field holds %q, want %q", what, got, want)
+				}
+			}
+			from := len(rig.posted)
+			rig.menuChord(false)
+			text(c.was, "after the first Cmd-Z")
+			rig.menuChord(false)
+			text(c.was, "after the second Cmd-Z")
+			rig.menuChord(true)
+			text(c.typed, "after the first Shift-Cmd-Z")
+			rig.menuChord(true)
+			text(c.typed, "after the second Shift-Cmd-Z")
+			for _, msg := range rig.posted[from:] {
+				switch msg.(type) {
+				case Undo, Redo:
+					t.Errorf("a key with no board change posted %T", msg)
+				}
+			}
+			if got := readFile(t, path); got != fixtureBoard {
+				t.Errorf("the keys wrote\n%q\nwant the fixture", got)
+			}
+		})
+	}
+}

@@ -17,9 +17,9 @@ const (
 // gives its key to the window. There, a field that holds the keyboard reads
 // the key first. The field changes its own text when it holds typing for
 // the key. After the user types, the field drops Shift-Cmd-Z until an
-// Undo, or until it loses the keyboard. The field gives each other press
-// to the board. Without such a
-// field, the board reads the key.
+// Undo reverses a change, or until it loses the keyboard. The field gives
+// each other press to the board's Undo, which reports whether it found a
+// change. Without such a field, the board reads the key.
 func editMenu() []desktop.MenuItem {
 	return []desktop.MenuItem{
 		undoItem: {Menu: "Edit", Title: "Undo", Key: "z", Disabled: true, Msg: Undo{}},
