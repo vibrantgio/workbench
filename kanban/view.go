@@ -34,6 +34,10 @@ import (
 	"github.com/vibrantgio/theme/typeset"
 )
 
+// boardArea is the board's number for its row of columns in the drag
+// area. The drag area keeps it apart from the numbers of the columns.
+const boardArea = 0
+
 // scrollState is the board's scroll positions, kept at subscription scope so
 // that a change to the board or to the theme keeps what the reader scrolled
 // to: the board's sideways offset and each column's list.
@@ -48,7 +52,8 @@ type scrollState struct {
 	// tag is the board's press target, which ends an edit.
 	tag struct{}
 	// drag is the board's drag area. Each column is one of its sequences,
-	// numbered as the board numbers its columns.
+	// numbered as the board numbers its columns. The board's row of
+	// columns is its one area that scrolls sideways, [boardArea].
 	drag dragdrop.State
 	// follows is the model's Follows count that the board last read.
 	follows int
@@ -284,7 +289,14 @@ func boardView(th themed, m Model, fresh newCard, edit editCard, state *scrollSt
 		// image of a card that moves to another column.
 		dims := state.drag.Layout(gtx, dragStyle, img, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min = image.Point{}
-			return scrollarea.FromTokens(th.platform).LayoutScrollbar(gtx, state.board, bar, layoutColumns)
+			// While a dragged card is near the board's leading or trailing
+			// edge, the board scrolls toward that edge, so a card goes to
+			// a column out of view. The bands are in the board's viewport,
+			// over the columns.
+			state.board.ScrollBy(state.drag.SideScroll(gtx, boardArea))
+			dims := scrollarea.FromTokens(th.platform).LayoutScrollbar(gtx, state.board, bar, layoutColumns)
+			state.drag.SideEdges(gtx, boardArea, dims.Size)
+			return dims
 		})
 		// A card that lands is selected at its new place, and the column it
 		// lands in takes the keyboard, as a press on the card gives it.

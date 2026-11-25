@@ -341,6 +341,44 @@ func TestAColumnScrollsNearItsBottomEdge(t *testing.T) {
 	rig.drop(edge)
 }
 
+// A board wider than the window scrolls sideways while the dragged card is
+// near the window's trailing edge, and the card lands in a column that was
+// out of view.
+func TestABoardScrollsSidewaysNearItsTrailingEdge(t *testing.T) {
+	board := "## A\n\n- [ ] One\n\n## B\n\n## C\n\n## D\n\n## E\n\n- [ ] Five\n"
+	path, f, m := boardFileWith(t, board)
+	rig := newBoardRig(t, staticThemed(tokens.PlatformLight, sharpRadius), f, m)
+	at := spots(rig)
+	if firstCard(4).X < windowSize.X {
+		t.Fatalf("the last column is at x %d, in a window %d wide: it is in view", firstCard(4).X, windowSize.X)
+	}
+	edge := image.Pt(windowSize.X-4, firstCard(0).Y+40)
+	rig.hold(at.upper(0, 0), edge)
+	for range 40 {
+		rig.pointerAt(pointer.Move, edge.Add(image.Pt(-1, 0)), true)
+		rig.pointerAt(pointer.Move, edge, true)
+	}
+	off := rig.state.board.Offset()
+	if off == 0 || off != rig.state.board.MaxOffset() {
+		t.Fatalf("the board's offset is %d, want its trailing edge %d", off, rig.state.board.MaxOffset())
+	}
+	// The pointer leaves the band, and the board stays where it is.
+	to := firstCard(4).Sub(image.Pt(off, 0))
+	rig.pointerAt(pointer.Move, to, true)
+	rig.pointerAt(pointer.Move, to.Add(image.Pt(1, 0)), true)
+	if got := rig.state.board.Offset(); got != off {
+		t.Fatalf("the board's offset is %d away from the edges, want %d", got, off)
+	}
+	rig.drop(to.Add(image.Pt(1, 0)))
+	want := "## A\n\n\n## B\n\n## C\n\n## D\n\n## E\n\n- [ ] One\n- [ ] Five\n"
+	if got := readFile(t, path); got != want {
+		t.Fatalf("the file after the move is\n%q\nwant\n%q", got, want)
+	}
+	if rig.model.Selected != (Selection{4, 0}) {
+		t.Errorf("after the move the model selects %+v, want the card in column 4", rig.model.Selected)
+	}
+}
+
 // TestDragGolden records or diffs a card of the second column dragged
 // over the first column, with the line between its second and its third
 // card.
