@@ -33,7 +33,8 @@ notes.
 
 A change to the board that the library's Undo reverses and Redo makes
 again. The Edit menu names each change after "Undo" or "Redo": Add Card,
-Delete Card, Mark as Completed, Mark as Not Completed, and Edit Title.
+Delete Card, Mark as Completed, Mark as Not Completed, Edit Title, and
+Move Card.
 
 After an undo or a redo the selection stays on the card it marked. When
 the change removes that card, nothing is selected. An open edit stays

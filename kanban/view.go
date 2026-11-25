@@ -17,6 +17,7 @@ import (
 	"github.com/reactivego/rx"
 
 	"github.com/vibrantgio/components/button"
+	"github.com/vibrantgio/components/dragdrop"
 	"github.com/vibrantgio/components/icons"
 	"github.com/vibrantgio/components/input"
 	complist "github.com/vibrantgio/components/list"
@@ -46,6 +47,9 @@ type scrollState struct {
 	presses [][]gesture.Click
 	// tag is the board's press target, which ends an edit.
 	tag struct{}
+	// drag is the board's drag area. Each column is one of its sequences,
+	// numbered as the board numbers its columns.
+	drag dragdrop.State
 }
 
 // columnEnd is what a column's list last scrolled to its end for: the
@@ -209,10 +213,12 @@ func boardView(th themed, m Model, fresh newCard, edit editCard, state *scrollSt
 			list := state.column(i)
 			ed = cardEdit{card: m.Editing.Card, title: edit.title(list.Focus(), post), tag: edit.state.tag}
 		}
-		columns[i] = columnView(th, i, c, selected, state.column(i), state.clicks(i, len(c.Cards())), ed, end, toEnd, post)
+		columns[i] = columnView(th, i, c, selected, state.column(i), state.clicks(i, len(c.Cards())), ed, end, toEnd, &state.drag, post)
 	}
 	editing := edit.openIn(m)
 	undo := boardUndo(m, post)
+	dragStyle := dragdrop.FromTokens(th.platform)
+	img := dragImage(th, b)
 	return func(gtx layout.Context) layout.Dimensions {
 		gtx = input.WithWindowUndo(gtx, undo)
 		// The board's press target is under every press target inside the
@@ -256,7 +262,22 @@ func boardView(th themed, m Model, fresh newCard, edit editCard, state *scrollSt
 			return layout.Dimensions{Size: image.Pt(content, height)}
 		}
 		gtx.Constraints.Min = image.Point{}
-		dims := scrollarea.FromTokens(th.platform).LayoutScrollbar(gtx, state.board, bar, layoutColumns)
+		// The drag area holds the whole board, so no column clips the
+		// image of a card that moves to another column.
+		dims := state.drag.Layout(gtx, dragStyle, img, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min = image.Point{}
+			return scrollarea.FromTokens(th.platform).LayoutScrollbar(gtx, state.board, bar, layoutColumns)
+		})
+		// A card that lands is selected at its new place, and the column it
+		// lands in takes the keyboard, as a press on the card gives it.
+		for _, mv := range state.drag.Update() {
+			to := Selection{Column: mv.To.Sequence, Card: mv.Index()}
+			post(gtx, MoveCard{From: Selection{Column: mv.From.Sequence, Card: mv.From.Index}, To: to})
+			list := state.column(to.Column)
+			list.Select(to.Card)
+			gtx.Execute(key.FocusCmd{Tag: list.Focus()})
+			gtx.Execute(op.InvalidateCmd{})
+		}
 		// Cmd-Z undoes and Shift-Cmd-Z redoes. The first reader of a key
 		// event in a frame takes it, so the board reads both keys after the
 		// columns: a field that holds the keyboard takes them first, and
@@ -360,7 +381,7 @@ type cardEdit struct {
 // End never select it. The list is as tall as its cards, and no taller than
 // the group leaves it beside end. toEnd scrolls the list to its end on the
 // first frame.
-func columnView(th themed, col int, c Column, selected int, list *complist.State, clicks []gesture.Click, ed cardEdit, end layout.Widget, toEnd bool, post func(layout.Context, mvu.Message)) layout.Widget {
+func columnView(th themed, col int, c Column, selected int, list *complist.State, clicks []gesture.Click, ed cardEdit, end layout.Widget, toEnd bool, drag *dragdrop.State, post func(layout.Context, mvu.Message)) layout.Widget {
 	cards := c.Cards()
 	bar := th.bar()
 	boxes := make([]layout.Widget, len(cards))
@@ -413,6 +434,7 @@ func columnView(th themed, col int, c Column, selected int, list *complist.State
 		lgtx := gtx
 		lgtx.Constraints.Min = image.Point{}
 		lgtx.Constraints.Max.Y = max(gtx.Constraints.Max.Y-lead-endDims.Size.Y-bottom, 0)
+		list.ScrollPixels(drag.Scroll(gtx, col))
 		listDims := complist.LayoutSelectableScrollbar(lgtx, list, bar, complist.AnchorFor(bar), idx, func(gtx layout.Context, i int, sel bool) layout.Dimensions {
 			above := 0
 			if i == 0 {
@@ -426,13 +448,38 @@ func columnView(th themed, col int, c Column, selected int, list *complist.State
 			if i == ed.card {
 				title = ed.title
 			}
-			dims := cardView(cgtx, th, sel, &clicks[i], boxes[i], title)
+			var dims layout.Dimensions
+			if i == ed.card {
+				// The edited card is no item: a drag in its field selects
+				// text.
+				dims = cardView(cgtx, th, sel, &clicks[i], boxes[i], title)
+			} else {
+				dims = drag.Item(cgtx, dragdrop.Place{Sequence: col, Index: i}, gapPx, func(gtx layout.Context) layout.Dimensions {
+					return cardView(gtx, th, sel, &clicks[i], boxes[i], title)
+				})
+			}
 			off.Pop()
 			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, above+dims.Size.Y+gapPx)}
 		})
 
 		y := lead + listDims.Size.Y
-		off := op.Offset(image.Pt(left, y)).Push(gtx.Ops)
+		// The edge bands are over the list's viewport, after its cards.
+		off := op.Offset(image.Pt(0, lead)).Push(gtx.Ops)
+		drag.Edges(gtx, col, listDims.Size)
+		off.Pop()
+		// The place after the last card begins at the last card's bottom
+		// edge, where the gap under it begins, and runs to the column's
+		// bottom. In a column without a card it is the whole column.
+		endTop := y - gapPx
+		if len(cards) == 0 {
+			endTop = 0
+		}
+		off = op.Offset(image.Pt(left, endTop)).Push(gtx.Ops)
+		dgtx := gtx
+		dgtx.Constraints = layout.Exact(image.Pt(inner, max(gtx.Constraints.Max.Y-endTop, 0)))
+		drag.End(dgtx, col, len(cards), gapPx)
+		off.Pop()
+		off = op.Offset(image.Pt(left, y)).Push(gtx.Ops)
 		endCall.Add(gtx.Ops)
 		off.Pop()
 		return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, y+endDims.Size.Y+bottom)}
@@ -500,6 +547,30 @@ func columnView(th themed, col int, c Column, selected int, list *complist.State
 			post(gtx, SelectCard{Selection{Column: col, Card: i}})
 		}
 		return dims
+	}
+}
+
+// dragImage is the image of a dragged card of board b: the card as it is
+// drawn when the press begins, selected, because the press selects it.
+// Its checkbox is one of its own and reads no input. The image keeps the
+// checkbox that it made for the card it last drew.
+func dragImage(th themed, b Board) dragdrop.Image {
+	var box layout.Widget
+	var boxFor dragdrop.Place
+	return func(gtx layout.Context, from dragdrop.Place) layout.Dimensions {
+		cd := b.Columns[from.Sequence].Cards()[from.Index]
+		if box == nil || boxFor != from {
+			box, _ = input.Checkbox(rx.Of(th.components), input.CheckboxProps{
+				Description: "Completed",
+				Checked:     cd.Done(),
+				Surface: func(p tokens.PlatformColors) color.NRGBA {
+					return card.Fill(card.Props{Selected: true}, p)
+				},
+			}).First()
+			boxFor = from
+		}
+		disabled := func(gtx layout.Context) layout.Dimensions { return box(gtx.Disabled()) }
+		return cardView(gtx, th, true, nil, disabled, cardTitle(th, cd, true))
 	}
 }
 

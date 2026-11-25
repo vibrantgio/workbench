@@ -80,6 +80,7 @@ const (
 	stepComplete = "Mark as Completed"
 	stepReopen   = "Mark as Not Completed"
 	stepEdit     = "Edit Title"
+	stepMove     = "Move Card"
 )
 
 // Undo makes the board as it was before the last change, and writes the
@@ -144,6 +145,12 @@ type KeepEdit struct {
 
 // CancelEdit ends edit number Edit and keeps the card's title.
 type CancelEdit struct{ Edit int }
+
+// MoveCard moves the card that From names to column To.Column, where the
+// card has index To.Card after the move, and selects the card at its new
+// place. The card takes its notes with it. A move to the place where the
+// card already is changes nothing.
+type MoveCard struct{ From, To Selection }
 
 // has reports whether b holds the card that s names.
 func (b Board) has(s Selection) bool {
@@ -280,6 +287,23 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			}
 			m.Selected, m.HasSelected = msg.Selection, true
 			return m, mvu.DoNothing()
+		case MoveCard:
+			if !m.Board.has(msg.From) || msg.To.Column < 0 || msg.To.Column >= len(m.Board.Columns) {
+				return m, mvu.DoNothing()
+			}
+			room := len(m.Board.Columns[msg.To.Column].Cards())
+			if msg.To.Column == msg.From.Column {
+				room--
+			}
+			if msg.To.Card < 0 || msg.To.Card > room || msg.To == msg.From {
+				return m, mvu.DoNothing()
+			}
+			board := moved(m.Board, msg.From, msg.To)
+			if m.IsEditing {
+				m.Editing, m.IsEditing = followed(m.Board, board, m.Editing)
+			}
+			m.Selected, m.HasSelected = msg.To, true
+			return change(f, m, board, stepMove)
 		case DeleteCard:
 			if !m.Board.has(msg.Selection) {
 				return m, mvu.DoNothing()
@@ -330,23 +354,30 @@ func restore(f *boardFile, m Model, board Board) (Model, mvu.Command) {
 
 // followed names in board to the card that s names in board from, and
 // reports whether to holds that card. from and to differ by one step: one
-// card added, deleted or changed in one column. A step copies the card
-// that it changes, and each other card keeps its pointer, so the same
-// pointer is the same card. A card that to holds under another pointer is
-// found by its place: the cards before it and after it match in from and
-// to, by pointer or by value. A card in the place of a changed card, in a
-// column whose card count stays, is the changed card. Otherwise the card
-// is gone.
+// card added, deleted or changed in one column, or one card moved to
+// another place in any column. A step copies the card that it changes,
+// and each other card keeps its pointer, so the same pointer is the same
+// card, in whichever column to holds it. A card that to holds under
+// another pointer is found by its place in its own column: the cards
+// before it and after it match in from and to, by pointer or by value. A
+// card in the place of a changed card, in a column whose card count
+// stays, is the changed card. Otherwise the card is gone.
 func followed(from, to Board, s Selection) (Selection, bool) {
-	if !from.has(s) || s.Column >= len(to.Columns) {
+	if !from.has(s) {
+		return Selection{}, false
+	}
+	card := cardsOf(from.Columns[s.Column])[s.Card]
+	for col, c := range to.Columns {
+		for i, p := range cardsOf(c) {
+			if p == card {
+				return Selection{Column: col, Card: i}, true
+			}
+		}
+	}
+	if s.Column >= len(to.Columns) {
 		return Selection{}, false
 	}
 	was, now := cardsOf(from.Columns[s.Column]), cardsOf(to.Columns[s.Column])
-	for i, c := range now {
-		if c == was[s.Card] {
-			return Selection{Column: s.Column, Card: i}, true
-		}
-	}
 	before := 0
 	for before < len(was) && before < len(now) && sameCard(was[before], now[before]) {
 		before++

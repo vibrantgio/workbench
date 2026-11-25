@@ -16,23 +16,38 @@ func withColumn(b Board, col int) Board {
 }
 
 // withCard is b with a card titled title after the last card of column col,
-// after the card's notes. A column without a card takes the card after the
-// blank line under its heading, where the plugin writes a column's first
-// card. The new line takes the file's line end, and a line before it that
-// has no line end takes one.
+// after the card's notes. The new line takes the file's line end.
 func withCard(b Board, col int, title string) Board {
+	card := &Card{Marker: newMarker, Title: title, End: lineEnd(b, col)}
+	return inserted(b, col, len(b.Columns[col].Cards()), card)
+}
+
+// inserted is b with cd in column col, at index k among the column's
+// cards: before the card that has index k, or after the last card and its
+// notes when k is the card count. A column without a card takes cd after
+// the blank line under its heading, where the plugin writes a column's
+// first card. A line before cd that has no line end takes the file's line
+// end, and so does cd's last line when a line comes after it. The result
+// holds cd itself when cd's last line has a line end, and a copy of cd
+// otherwise.
+func inserted(b Board, col, k int, cd *Card) Board {
 	end := lineEnd(b, col)
 	next := withColumn(b, col)
 	c := &next.Columns[col]
-	at := -1
+	at, last, n := -1, -1, 0
 	for i, e := range c.Entries {
-		if e.Card != nil {
-			at = i + 1
+		if e.Card == nil {
+			continue
 		}
+		if n == k {
+			at = i
+			break
+		}
+		n, last = n+1, i
 	}
 	if at < 0 {
-		at = 0
-		if len(c.Entries) > 0 && c.Entries[0].Card == nil && strings.TrimSpace(c.Entries[0].Line) == "" {
+		at = last + 1
+		if last < 0 && len(c.Entries) > 0 && c.Entries[0].Card == nil && strings.TrimSpace(c.Entries[0].Line) == "" {
 			at = 1
 		}
 	}
@@ -43,9 +58,30 @@ func withCard(b Board, col int, title string) Board {
 	} else {
 		c.Entries[at-1] = endedEntry(c.Entries[at-1], end)
 	}
-	card := &Card{Marker: newMarker, Title: title, End: end}
-	c.Entries = append(c.Entries[:at], append([]Entry{{Card: card}}, c.Entries[at:]...)...)
+	entry := Entry{Card: cd}
+	if !ended(cd) && (at < len(c.Entries) || col < len(next.Columns)-1) {
+		entry = endedEntry(entry, end)
+	}
+	c.Entries = append(c.Entries[:at:at], append([]Entry{entry}, c.Entries[at:]...)...)
 	return next
+}
+
+// moved is b with the card that from names taken out of its column and put
+// in column to.Column at index to.Card, with its notes. The lines around
+// the card's old place stay.
+func moved(b Board, from, to Selection) Board {
+	cd := cardsOf(b.Columns[from.Column])[from.Card]
+	return inserted(withoutCard(b, from), to.Column, to.Card, cd)
+}
+
+// ended reports whether the last line of cd, its last note or else its
+// own line, has a line end.
+func ended(cd *Card) bool {
+	if n := len(cd.Notes); n > 0 {
+		_, e := cutEnd(cd.Notes[n-1])
+		return e != ""
+	}
+	return cd.End != ""
 }
 
 // endedEntry is e with end after its last line when that line has no line
