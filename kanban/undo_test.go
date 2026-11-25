@@ -661,21 +661,49 @@ func TestRedoFollowsTheOrderOfTheUndos(t *testing.T) {
 	}
 }
 
-// A field that takes the keyboard again with its earlier typing reports
-// that typing, and the board's Redo stays: only new typing ends it.
-func TestAFieldThatTakesTheKeyboardAgainKeepsTheBoardsRedo(t *testing.T) {
-	_, f, m := boardFileWith(t, fixtureBoard)
-	update := newUpdate(f)
-	m = apply(t, update, m, ToggleCard{Selection{1, 0}}, OpenAdd{Column: 1}, Undo{})
-	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: Typing{Undo: true, RedoEnded: true}})
-	if len(m.Redo) != 1 {
-		t.Errorf("a field's report cleared the redo stack to %v", stepNames(m.Redo))
+// A field that loses the keyboard drops its typing. The user types in the
+// new card, presses a card, and presses Cmd-Z on the board. When the field
+// gets the keyboard again, it holds no typing: the menu's Redo names the
+// board's undone change, and Shift-Cmd-Z makes it again.
+func TestAFieldThatTakesTheKeyboardAgainLeavesRedoToTheBoard(t *testing.T) {
+	path, f, m := boardFileWith(t, fixtureBoard)
+	rig := newBoardRig(t, staticThemed(tokens.PlatformLight, sharpRadius), f, m)
+	rig.model = apply(t, rig.update, rig.model, ToggleCard{Selection{1, 0}}, OpenAdd{Column: 1})
+	rig.build()
+	rig.drive()
+	toggled := readFile(t, path)
+	rig.typeText("Fix the gate")
+	rig.press(firstCard(0))
+	if !rig.undid(path, fixtureBoard) {
+		t.Fatal("Cmd-Z on the board did not undo the board's change")
 	}
-	if got := editMenuState(m)[redoItem]; got != (menuItem{Title: "Redo", Disabled: true}) {
-		t.Errorf("a field with typing after the last undo leaves the menu's Redo at %+v", got)
+	if !rig.model.IsAdding {
+		t.Fatal("the press on a card closed the new card")
 	}
-	m = apply(t, update, m, EndRedo{})
-	if len(m.Redo) != 0 {
-		t.Errorf("new typing left the redo stack at %v", stepNames(m.Redo))
+	tag := rig.fresh.state.tag
+	rig.r.Source().Execute(key.FocusCmd{Tag: tag})
+	rig.drive()
+	if !rig.r.Source().Focused(tag) {
+		t.Fatal("the new card's field did not get the keyboard again")
+	}
+	if rig.model.AddTyping != (Typing{}) {
+		t.Errorf("the field reports %+v after it got the keyboard again, want no typing", rig.model.AddTyping)
+	}
+	if got := editMenuState(rig.model)[redoItem]; got != (menuItem{Title: "Redo Mark as Completed"}) {
+		t.Errorf("the menu's Redo is %+v, want the board's undone change", got)
+	}
+	from := len(rig.posted)
+	rig.chord("Z", key.ModShortcut|key.ModShift)
+	redone := false
+	for _, msg := range rig.posted[from:] {
+		if _, ok := msg.(Redo); ok {
+			redone = true
+		}
+	}
+	if !redone || readFile(t, path) != toggled {
+		t.Error("Shift-Cmd-Z did not make the board's change again")
+	}
+	if got := tag.(*widget.Editor).Text(); got != "Fix the gate" {
+		t.Errorf("the field holds %q, want its text", got)
 	}
 }

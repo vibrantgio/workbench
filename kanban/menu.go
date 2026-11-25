@@ -17,7 +17,8 @@ const (
 // gives its key to the window. There, a field that holds the keyboard reads
 // the key first. The field changes its own text when it holds typing for
 // the key. After the user types, the field drops Shift-Cmd-Z until an
-// Undo. The field gives each other press to the board. Without such a
+// Undo, or until it loses the keyboard. The field gives each other press
+// to the board. Without such a
 // field, the board reads the key.
 func editMenu() []desktop.MenuItem {
 	return []desktop.MenuItem{
@@ -41,7 +42,9 @@ type menuItem struct {
 // its own text. A field with no such typing gives the key to the board.
 //
 // The Redo item is also disabled when the user typed in that field after
-// the last Undo: the field then drops Shift-Cmd-Z. Otherwise the board's
+// the last Undo: the field then drops Shift-Cmd-Z. A field that loses the
+// keyboard drops its typing, so a field that gets the keyboard again holds
+// none, and the item follows the board's stack. Otherwise the board's
 // last undone change comes first, also when the field holds typing for
 // Redo. Typing empties the redo stack, so each step on it comes from an
 // Undo after the field's Undo. With the stack empty, the field takes

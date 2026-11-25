@@ -61,8 +61,8 @@ type Typing struct{ Undo, Redo, RedoEnded bool }
 
 // EndRedo ends what the board's Redo can make again. A field posts it
 // when the user types in it after the last Undo, because typing is a new
-// change. A field that takes the keyboard again with its earlier typing
-// posts no EndRedo: an Undo of the board can come after that typing.
+// change. A field that loses the keyboard drops its typing, so a field
+// that gets the keyboard again holds no typing and posts no EndRedo.
 type EndRedo struct{}
 
 // Step is one change on the undo or redo stack: the board on the other side
