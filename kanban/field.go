@@ -34,18 +34,39 @@ type newCardState struct {
 	tag event.Tag
 	// focused is true once the field asked for the keyboard.
 	focused bool
-	// typed is true once the user changed the field's text, and typing is
-	// the last [NewCardField] state that the card posted.
-	typed, typing bool
+	// typing is what the field holds, and posted is the last
+	// [NewCardField] state that the card posted.
+	typing, posted Typing
 }
 
 // report posts [NewCardField] for new card number opened when the field's
-// state changes: whether the field holds the keyboard and holds typed text.
+// state changes. A field without the keyboard holds no typing for the
+// board's keys.
 func (st *newCardState) report(gtx layout.Context, opened int, post func(layout.Context, mvu.Message)) {
-	typing := st.typed && gtx.Focused(st.tag)
-	if typing != st.typing {
-		st.typing = typing
-		post(gtx, NewCardField{Opened: opened, Typing: typing})
+	if t := held(gtx, st.tag, st.typing); t != st.posted {
+		st.posted = t
+		post(gtx, NewCardField{Opened: opened, Typing: t})
+	}
+}
+
+// held is typing when the field whose focus tag is tag holds the keyboard,
+// and no typing otherwise.
+func held(gtx layout.Context, tag event.Tag, typing Typing) Typing {
+	if !gtx.Focused(tag) {
+		return Typing{}
+	}
+	return typing
+}
+
+// leaveUndo gives the board a Cmd-Z or a Shift-Cmd-Z that a field holds no
+// typing for.
+func leaveUndo(post func(layout.Context, mvu.Message)) func(layout.Context, bool) {
+	return func(gtx layout.Context, redo bool) {
+		if redo {
+			post(gtx, Redo{})
+		} else {
+			post(gtx, Undo{})
+		}
 	}
 }
 
@@ -62,12 +83,13 @@ func openCard(th rx.Observable[theme.Theme], opened int, post func(layout.Contex
 			Description: "Title of the new card",
 			Submit:      true,
 			OnSubmit:    func(gtx layout.Context, text string) { post(gtx, AddCard{Title: text}) },
-			OnChange: func(gtx layout.Context, _ string) {
-				st.typed = true
+			OnTyping: func(gtx layout.Context, undo, redo bool) {
+				st.typing = Typing{Undo: undo, Redo: redo}
 				st.report(gtx, opened, post)
 			},
-			FocusTag: func(tag event.Tag) { st.tag = tag },
-			Surface:  fill,
+			LeaveUndo: leaveUndo(post),
+			FocusTag:  func(tag event.Tag) { st.tag = tag },
+			Surface:   fill,
 		})
 		box := input.Checkbox(th, input.CheckboxProps{
 			Description: "Completed",
@@ -150,6 +172,18 @@ type editCardState struct {
 	// back is the focus tag that takes the keyboard after Return and
 	// Escape: the list of the card's column.
 	back event.Tag
+	// typing is what the field holds, and posted is the last [EditField]
+	// state that the edit posted.
+	typing, posted Typing
+}
+
+// report posts [EditField] for edit number edit when the field's state
+// changes.
+func (st *editCardState) report(gtx layout.Context, edit int, post func(layout.Context, mvu.Message)) {
+	if t := held(gtx, st.tag, st.typing); t != st.posted {
+		st.posted = t
+		post(gtx, EditField{Edit: edit, Typing: t})
+	}
 }
 
 // openEdit is the field for edit number edit of card s, whose title is
@@ -163,6 +197,11 @@ func openEdit(th rx.Observable[theme.Theme], edit int, s Selection, title string
 			Seed:        title,
 			Submit:      true,
 			OnChange:    func(_ layout.Context, text string) { st.text = text },
+			OnTyping: func(gtx layout.Context, undo, redo bool) {
+				st.typing = Typing{Undo: undo, Redo: redo}
+				st.report(gtx, edit, post)
+			},
+			LeaveUndo: leaveUndo(post),
 			OnSubmit: func(gtx layout.Context, text string) {
 				if st.ended {
 					return
@@ -198,7 +237,7 @@ func editCards(th rx.Observable[theme.Theme], models rx.Observable[Model], post 
 	keys := rx.Map(models, func(m Model) editKey {
 		k := editKey{edit: m.Edits, card: m.Editing}
 		if m.IsEditing && m.Board.has(m.Editing) {
-			k.title = m.Board.Columns[m.Editing.Column].Cards()[m.Editing.Card].Title
+			k.title = titleAt(m.Board, m.Editing)
 		}
 		return k
 	}).DistinctUntilChanged(func(a, b editKey) bool { return a.edit == b.edit })
@@ -229,6 +268,7 @@ func (c editCard) title(back event.Tag, post func(layout.Context, mvu.Message)) 
 			st.ended = true
 			post(gtx, KeepEdit{Edit: c.edit, Title: st.text})
 		}
+		st.report(gtx, c.edit, post)
 		for {
 			e, ok := gtx.Event(key.Filter{Focus: st.tag, Name: key.NameEscape})
 			if !ok {

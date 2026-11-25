@@ -27,10 +27,9 @@ type Model struct {
 	// while IsAdding is true.
 	Adding   int
 	IsAdding bool
-	// AddTyping is true while the new card's field holds the keyboard and
-	// holds text that the user typed since the card opened. Cmd-Z then
-	// changes the field's text.
-	AddTyping bool
+	// AddTyping is what the new card's field holds while it holds the
+	// keyboard.
+	AddTyping Typing
 	// Opened counts the openings of a new card. A new count gives a new
 	// card with an empty title.
 	Opened int
@@ -41,6 +40,9 @@ type Model struct {
 	// Edits counts the edits begun. A new count gives a new field that
 	// holds the card's title.
 	Edits int
+	// EditTyping is what the edit's field holds while it holds the
+	// keyboard.
+	EditTyping Typing
 	// Undo holds a step for each change that Cmd-Z can undo, the last
 	// change last. Each step holds the board before its change. Redo holds
 	// a step for each undone change, the last undone change last. Each of
@@ -48,6 +50,12 @@ type Model struct {
 	// history.
 	Undo, Redo []Step
 }
+
+// Typing is what a field of the board holds while it holds the keyboard:
+// typing that Undo can reverse, and typing that Redo can make again. The
+// field takes Cmd-Z while it holds typing for Undo, and Shift-Cmd-Z while
+// it holds typing for Redo. It gives each other press to the board.
+type Typing struct{ Undo, Redo bool }
 
 // Step is one change on the undo or redo stack: the board on the other side
 // of the change, and the change's name, which the Edit menu shows after
@@ -93,11 +101,16 @@ type OpenAdd struct{ Column int }
 // CloseAdd removes the new card and the text typed in it.
 type CloseAdd struct{}
 
-// NewCardField tells whether the field of new card number Opened holds
-// the keyboard and holds text that the user typed.
+// NewCardField tells what the field of new card number Opened holds.
 type NewCardField struct {
 	Opened int
-	Typing bool
+	Typing Typing
+}
+
+// EditField tells what the field of edit number Edit holds.
+type EditField struct {
+	Edit   int
+	Typing Typing
 }
 
 // AddCard adds a card titled Title after the last card of the column whose
@@ -196,6 +209,7 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			}
 			m.Selected, m.HasSelected = msg.Selection, true
 			m.Editing, m.IsEditing, m.Edits = msg.Selection, true, m.Edits+1
+			m.EditTyping = Typing{}
 			return m, mvu.DoNothing()
 		case KeepEdit:
 			if !m.IsEditing || msg.Edit != m.Edits {
@@ -218,14 +232,19 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 				return m, mvu.DoNothing()
 			}
 			m.Adding, m.IsAdding, m.Opened = msg.Column, true, m.Opened+1
-			m.AddTyping = false
+			m.AddTyping = Typing{}
 			return m, mvu.DoNothing()
 		case CloseAdd:
-			m.Adding, m.IsAdding, m.AddTyping = 0, false, false
+			m.Adding, m.IsAdding, m.AddTyping = 0, false, Typing{}
 			return m, mvu.DoNothing()
 		case NewCardField:
 			if m.IsAdding && msg.Opened == m.Opened {
 				m.AddTyping = msg.Typing
+			}
+			return m, mvu.DoNothing()
+		case EditField:
+			if m.IsEditing && msg.Edit == m.Edits {
+				m.EditTyping = msg.Typing
 			}
 			return m, mvu.DoNothing()
 		case AddCard:
@@ -233,7 +252,7 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			if !m.IsAdding || title == "" {
 				return m, mvu.DoNothing()
 			}
-			m.Opened, m.AddTyping = m.Opened+1, false
+			m.Opened, m.AddTyping = m.Opened+1, Typing{}
 			return change(f, m, withCard(m.Board, m.Adding, title), stepAdd)
 		case ToggleCard:
 			if !m.Board.has(msg.Selection) {
@@ -280,12 +299,19 @@ func change(f *boardFile, m Model, board Board, name string) (Model, mvu.Command
 // restore makes board, a board from the undo or the redo stack, the model's
 // board, and gives the command that writes it to f. The selection and the
 // edit stay on the card that they named, at that card's place in board.
+// When the step changes the edited card's title, a new edit begins, so
+// the field holds the card's title. The field holds no typing then,
+// because a field with typing takes Cmd-Z itself.
 func restore(f *boardFile, m Model, board Board) (Model, mvu.Command) {
 	if m.HasSelected {
 		m.Selected, m.HasSelected = followed(m.Board, board, m.Selected)
 	}
 	if m.IsEditing {
+		was := titleAt(m.Board, m.Editing)
 		m.Editing, m.IsEditing = followed(m.Board, board, m.Editing)
+		if m.IsEditing && titleAt(board, m.Editing) != was {
+			m.Edits, m.EditTyping = m.Edits+1, Typing{}
+		}
 	}
 	m.Board, m.Text, m.Seq = board, Format(board), m.Seq+1
 	return corrected(m), save(f, m.Seq, m.Text)
@@ -357,6 +383,11 @@ func pushed(stack []Step, step Step) []Step {
 	return append(next, step)
 }
 
+// titleAt is the title of the card that s names in b.
+func titleAt(b Board, s Selection) string {
+	return b.Columns[s.Column].Cards()[s.Card].Title
+}
+
 // corrected is m with the selection, the new card and the edit cleared
 // when they name a card or a column that m's board does not hold. A change
 // on disk, an undo and a redo can each take that card or column away.
@@ -365,7 +396,7 @@ func corrected(m Model) Model {
 		m.Selected, m.HasSelected = Selection{}, false
 	}
 	if m.IsAdding && m.Adding >= len(m.Board.Columns) {
-		m.Adding, m.IsAdding, m.AddTyping = 0, false, false
+		m.Adding, m.IsAdding, m.AddTyping = 0, false, Typing{}
 	}
 	if m.IsEditing && !m.Board.has(m.Editing) {
 		m.Editing, m.IsEditing = Selection{}, false

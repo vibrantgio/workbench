@@ -211,9 +211,8 @@ func TestAnUndoClearsASelectionOfACardThatIsGone(t *testing.T) {
 
 // The Edit menu's Undo and Redo name the change that each undoes or
 // redoes. Each is disabled, with no change in its title, when its stack
-// is empty or a field holds the keyboard and Cmd-Z changes its text: an
-// open edit, or a new card that the user typed in. With the keyboard on
-// the board or in an empty new card, the items follow the stacks.
+// is empty or the field that holds the keyboard holds typing for it. A
+// field with no typing leaves the items to the stacks.
 func TestTheEditMenuFollowsTheStacks(t *testing.T) {
 	_, f, m := boardFileWith(t, fixtureBoard)
 	update := newUpdate(f)
@@ -243,20 +242,26 @@ func TestTheEditMenuFollowsTheStacks(t *testing.T) {
 	want(m, on("Undo Delete Card"), off("Redo"))
 	m = apply(t, update, m, OpenAdd{Column: 1})
 	want(m, on("Undo Delete Card"), off("Redo"))
-	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: true})
+	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: Typing{Undo: true}})
 	want(m, off("Undo"), off("Redo"))
 	m = apply(t, update, m, AddCard{Title: "Fix the gate"})
 	want(m, on("Undo Add Card"), off("Redo"))
-	m = apply(t, update, m, NewCardField{Opened: m.Opened - 1, Typing: true})
+	m = apply(t, update, m, NewCardField{Opened: m.Opened - 1, Typing: Typing{Undo: true}})
 	want(m, on("Undo Add Card"), off("Redo"))
-	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: true}, NewCardField{Opened: m.Opened, Typing: false})
+	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: Typing{Undo: true}}, NewCardField{Opened: m.Opened, Typing: Typing{}})
 	want(m, on("Undo Add Card"), off("Redo"))
-	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: true}, CloseAdd{})
+	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: Typing{Undo: true}}, CloseAdd{})
 	want(m, on("Undo Add Card"), off("Redo"))
 	m = apply(t, update, m, Undo{})
 	want(m, on("Undo Delete Card"), on("Redo Add Card"))
 	m = apply(t, update, m, EditCard{Selection{0, 0}})
-	want(m, off("Undo"), off("Redo"))
+	want(m, on("Undo Delete Card"), on("Redo Add Card"))
+	m = apply(t, update, m, EditField{Edit: m.Edits, Typing: Typing{Undo: true}})
+	want(m, off("Undo"), on("Redo Add Card"))
+	m = apply(t, update, m, EditField{Edit: m.Edits, Typing: Typing{Redo: true}})
+	want(m, on("Undo Delete Card"), off("Redo"))
+	m = apply(t, update, m, EditField{Edit: m.Edits - 1, Typing: Typing{Undo: true}})
+	want(m, on("Undo Delete Card"), off("Redo"))
 	m = apply(t, update, m, CancelEdit{Edit: m.Edits}, ToggleCard{Selection{0, 0}})
 	want(m, on("Undo Mark as Completed"), off("Redo"))
 	m = apply(t, update, m, ToggleCard{Selection{0, 0}})
@@ -335,15 +340,15 @@ func TestTypingInTheNewCardDisablesTheMenu(t *testing.T) {
 	_, f, m := boardFileWith(t, fixtureEmptyColumn)
 	rig := newBoardRig(t, staticThemed(tokens.PlatformLight, sharpRadius), f, m)
 	rig.press(addButtonAt(1))
-	if rig.model.AddTyping {
+	if rig.model.AddTyping != (Typing{}) {
 		t.Fatal("an empty new card reports typed text")
 	}
 	rig.typeText("Call the plumber")
-	if !rig.model.AddTyping || !editMenuState(rig.model)[undoItem].Disabled {
+	if !rig.model.AddTyping.Undo || !editMenuState(rig.model)[undoItem].Disabled {
 		t.Fatalf("typing in the new card left the menu at %+v", editMenuState(rig.model))
 	}
 	rig.key(key.NameReturn)
-	if rig.model.AddTyping {
+	if rig.model.AddTyping != (Typing{}) {
 		t.Error("Return opened a new card that reports typed text")
 	}
 	if got := editMenuState(rig.model)[undoItem]; got != (menuItem{Title: "Undo Add Card"}) {
@@ -351,7 +356,7 @@ func TestTypingInTheNewCardDisablesTheMenu(t *testing.T) {
 	}
 	rig.typeText("Fix the tap")
 	rig.press(firstCard(0))
-	if rig.model.AddTyping {
+	if rig.model.AddTyping != (Typing{}) {
 		t.Error("the new card reports typed text after the keyboard left its field")
 	}
 }
@@ -401,5 +406,123 @@ func TestFollowedFindsACardByItsPlace(t *testing.T) {
 	twins := Board{Columns: []Column{{Entries: []Entry{card("A"), a}}}}
 	if got, ok := followed(Board{Columns: []Column{{Entries: []Entry{a}}}}, twins, Selection{0, 0}); !ok || got != (Selection{0, 1}) {
 		t.Errorf("a card beside a twin is at %+v (%v), want its own place", got, ok)
+	}
+}
+
+// undid reports whether Cmd-Z, pressed now, posts Undo and makes the board
+// as it was before its last change: the file holds want.
+func (rig *boardRig) undid(path, want string) bool {
+	rig.t.Helper()
+	from := len(rig.posted)
+	rig.chord("Z", key.ModShortcut)
+	posted := false
+	for _, msg := range rig.posted[from:] {
+		if _, ok := msg.(Undo); ok {
+			posted = true
+		}
+	}
+	return posted && readFile(rig.t, path) == want
+}
+
+// An open edit whose value the user has not changed leaves Cmd-Z to the
+// board, and the edit stays on its card.
+func TestAnUnchangedEditLeavesCmdZToTheBoard(t *testing.T) {
+	rig, path := editRig(t)
+	rig.model = apply(t, rig.update, rig.model, ToggleCard{Selection{1, 0}})
+	rig.build()
+	rig.drive()
+	rig.key(key.NameReturn)
+	if !rig.editing(Selection{0, 0}) {
+		t.Fatal("Return opened no edit of the selected card")
+	}
+	if got := editMenuState(rig.model)[undoItem]; got != (menuItem{Title: "Undo Mark as Completed"}) {
+		t.Errorf("an unchanged edit leaves the menu at %+v", got)
+	}
+	if !rig.undid(path, fixtureBoard) {
+		t.Fatal("Cmd-Z in an unchanged edit did not undo the board's change")
+	}
+	if !rig.editing(Selection{0, 0}) {
+		t.Error("the edit left its card after the undo")
+	}
+}
+
+// An empty new card leaves Cmd-Z to the board, and typing in it takes
+// Cmd-Z for the field.
+func TestAnEmptyNewCardLeavesCmdZToTheBoard(t *testing.T) {
+	path, f, m := boardFileWith(t, fixtureBoard)
+	rig := newBoardRig(t, staticThemed(tokens.PlatformLight, sharpRadius), f, m)
+	rig.model = apply(t, rig.update, rig.model, ToggleCard{Selection{1, 0}}, OpenAdd{Column: 1})
+	rig.build()
+	rig.drive()
+	toggled := readFile(t, path)
+	rig.typeText("Fix the gate")
+	if !rig.model.AddTyping.Undo {
+		t.Fatal("typing in the new card reports no typing")
+	}
+	from := len(rig.posted)
+	rig.chord("Z", key.ModShortcut)
+	ed := rig.fresh.state.tag.(*widget.Editor)
+	if got := ed.Text(); got != "" {
+		t.Errorf("Cmd-Z left the new card's field at %q", got)
+	}
+	for _, msg := range rig.posted[from:] {
+		if _, ok := msg.(Undo); ok {
+			t.Error("Cmd-Z in a new card with typing posted Undo")
+		}
+	}
+	if got := readFile(t, path); got != toggled {
+		t.Error("Cmd-Z in a new card with typing wrote the file")
+	}
+	if !rig.undid(path, fixtureBoard) {
+		t.Error("Cmd-Z in an empty new card did not undo the board's change")
+	}
+}
+
+// A field whose typing is all reversed leaves Cmd-Z to the board, and the
+// field keeps the card's title.
+func TestAFieldWithItsTypingReversedLeavesCmdZToTheBoard(t *testing.T) {
+	rig, path := editRig(t)
+	rig.model = apply(t, rig.update, rig.model, ToggleCard{Selection{1, 0}})
+	rig.build()
+	rig.drive()
+	rig.key(key.NameReturn)
+	rig.addAtEnd(" for June")
+	ed := rig.edit.state.tag.(*widget.Editor)
+	rig.chord("Z", key.ModShortcut)
+	if got := ed.Text(); got != "Draft the release notes" {
+		t.Fatalf("Cmd-Z left the field at %q, want the card's title", got)
+	}
+	if !rig.undid(path, fixtureBoard) {
+		t.Fatal("Cmd-Z in a field with its typing reversed did not undo the board's change")
+	}
+	if got := ed.Text(); got != "Draft the release notes" {
+		t.Errorf("the board's undo left the field at %q", got)
+	}
+}
+
+// An undo of a retitle while an unchanged edit of the card is open puts
+// the old title in the field, and the edit ends with no new change.
+func TestAnUndoOfARetitleGivesTheEditTheOldTitle(t *testing.T) {
+	rig, path := editRig(t)
+	rig.model = apply(t, rig.update, rig.model, EditCard{Selection{0, 0}}, KeepEdit{Edit: 1, Title: "Draft the notes"})
+	rig.build()
+	rig.drive()
+	rig.key(key.NameReturn)
+	if !rig.editing(Selection{0, 0}) {
+		t.Fatal("Return opened no edit of the selected card")
+	}
+	if !rig.undid(path, fixtureBoard) {
+		t.Fatal("Cmd-Z in an unchanged edit did not undo the retitle")
+	}
+	ed := rig.edit.state.tag.(*widget.Editor)
+	if got := ed.Text(); got != "Draft the release notes" {
+		t.Errorf("after the undo the field holds %q, want the old title", got)
+	}
+	rig.key(key.NameReturn)
+	if got := readFile(t, path); got != fixtureBoard {
+		t.Errorf("Return after the undo wrote\n%q\nwant the fixture", got)
+	}
+	if len(rig.model.Undo) != 0 {
+		t.Errorf("Return after the undo made the change %v", stepNames(rig.model.Undo))
 	}
 }
