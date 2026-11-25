@@ -8,7 +8,7 @@ require (
 	github.com/vibrantgio/backdrop v0.0.7
 	github.com/vibrantgio/components v1.7.2-0.20261124175501-55ba5256370b
 	github.com/vibrantgio/mvu v1.1.6
-	github.com/vibrantgio/mvu/desktop v1.1.6-0.20261125121239-ff017753f165
+	github.com/vibrantgio/mvu/desktop v1.1.6-0.20261125122425-2817473c0c01
 	github.com/vibrantgio/patterns v1.5.2-0.20261124175843-bc8c311bc8ca
 	github.com/vibrantgio/theme v1.6.2-0.20261124175021-22d12bc36c78
 )
