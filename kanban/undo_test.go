@@ -242,25 +242,35 @@ func TestTheEditMenuFollowsTheStacks(t *testing.T) {
 	want(m, on("Undo Delete Card"), off("Redo"))
 	m = apply(t, update, m, OpenAdd{Column: 1})
 	want(m, on("Undo Delete Card"), off("Redo"))
-	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: Typing{Undo: true}})
+	// typed is what a field reports after the user's typing, and reversed
+	// what it reports after an Undo of all of that typing.
+	typed := Typing{Undo: true, RedoEnded: true}
+	reversed := Typing{Redo: true}
+	m = apply(t, update, m, EndRedo{}, NewCardField{Opened: m.Opened, Typing: typed})
 	want(m, off("Undo"), off("Redo"))
 	m = apply(t, update, m, AddCard{Title: "Fix the gate"})
 	want(m, on("Undo Add Card"), off("Redo"))
-	m = apply(t, update, m, NewCardField{Opened: m.Opened - 1, Typing: Typing{Undo: true}})
+	m = apply(t, update, m, NewCardField{Opened: m.Opened - 1, Typing: typed})
 	want(m, on("Undo Add Card"), off("Redo"))
-	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: Typing{Undo: true}}, NewCardField{Opened: m.Opened, Typing: Typing{}})
+	m = apply(t, update, m, EndRedo{}, NewCardField{Opened: m.Opened, Typing: typed}, NewCardField{Opened: m.Opened, Typing: Typing{}})
 	want(m, on("Undo Add Card"), off("Redo"))
-	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: Typing{Undo: true}}, CloseAdd{})
+	m = apply(t, update, m, EndRedo{}, NewCardField{Opened: m.Opened, Typing: typed}, CloseAdd{})
 	want(m, on("Undo Add Card"), off("Redo"))
 	m = apply(t, update, m, Undo{})
 	want(m, on("Undo Delete Card"), on("Redo Add Card"))
 	m = apply(t, update, m, EditCard{Selection{0, 0}})
 	want(m, on("Undo Delete Card"), on("Redo Add Card"))
-	m = apply(t, update, m, EditField{Edit: m.Edits, Typing: Typing{Undo: true}})
-	want(m, off("Undo"), on("Redo Add Card"))
-	m = apply(t, update, m, EditField{Edit: m.Edits, Typing: Typing{Redo: true}})
+	// Typing ends the board's Redo.
+	m = apply(t, update, m, EndRedo{}, EditField{Edit: m.Edits, Typing: typed})
+	want(m, off("Undo"), off("Redo"))
+	m = apply(t, update, m, EditField{Edit: m.Edits, Typing: reversed})
 	want(m, on("Undo Delete Card"), off("Redo"))
-	m = apply(t, update, m, EditField{Edit: m.Edits - 1, Typing: Typing{Undo: true}})
+	// An Undo of the board after the field's Undo comes first for Redo.
+	m = apply(t, update, m, Undo{})
+	want(m, off("Undo"), on("Redo Delete Card"))
+	m = apply(t, update, m, Redo{})
+	want(m, on("Undo Delete Card"), off("Redo"))
+	m = apply(t, update, m, EditField{Edit: m.Edits - 1, Typing: typed})
 	want(m, on("Undo Delete Card"), off("Redo"))
 	m = apply(t, update, m, CancelEdit{Edit: m.Edits}, ToggleCard{Selection{0, 0}})
 	want(m, on("Undo Mark as Completed"), off("Redo"))
@@ -524,5 +534,148 @@ func TestAnUndoOfARetitleGivesTheEditTheOldTitle(t *testing.T) {
 	}
 	if len(rig.model.Undo) != 0 {
 		t.Errorf("Return after the undo made the change %v", stepNames(rig.model.Undo))
+	}
+}
+
+// menuChord presses Cmd-Z, or Shift-Cmd-Z when redo is true, as macOS
+// gives the press: an enabled item of the Edit menu takes the press and
+// posts its message, and a disabled item gives the press to the window.
+func (rig *boardRig) menuChord(redo bool) {
+	rig.t.Helper()
+	item, mods := undoItem, key.ModShortcut
+	if redo {
+		item, mods = redoItem, key.ModShortcut|key.ModShift
+	}
+	if editMenuState(rig.model)[item].Disabled {
+		rig.chord("Z", mods)
+		return
+	}
+	msg := editMenu()[item].Msg
+	rig.posted = append(rig.posted, msg)
+	var cmd mvu.Command
+	rig.model, cmd = rig.update(rig.model, msg)
+	runCmd(rig.t, cmd)
+	rig.build()
+	rig.drive()
+}
+
+// Typing ends the board's Redo: after a retitle, its undo, and typing in
+// an edit of the card, Shift-Cmd-Z does nothing and the typing stays.
+func TestTypingEndsTheBoardsRedo(t *testing.T) {
+	rig, path := editRig(t)
+	rig.model = apply(t, rig.update, rig.model, EditCard{Selection{0, 0}}, KeepEdit{Edit: 1, Title: "Draft the notes"})
+	rig.build()
+	rig.drive()
+	rig.menuChord(false)
+	if got := readFile(t, path); got != fixtureBoard {
+		t.Fatalf("Cmd-Z after the retitle wrote\n%q\nwant the fixture", got)
+	}
+	rig.key(key.NameReturn)
+	if !rig.editing(Selection{0, 0}) {
+		t.Fatal("Return opened no edit of the selected card")
+	}
+	rig.addAtEnd(" for June")
+	if got := editMenuState(rig.model)[redoItem]; got != (menuItem{Title: "Redo", Disabled: true}) {
+		t.Errorf("after typing the menu's Redo is %+v, want it disabled", got)
+	}
+	from := len(rig.posted)
+	rig.menuChord(true)
+	for _, msg := range rig.posted[from:] {
+		if _, ok := msg.(Redo); ok {
+			t.Error("Shift-Cmd-Z after typing posted Redo")
+		}
+	}
+	if got := readFile(t, path); got != fixtureBoard {
+		t.Errorf("Shift-Cmd-Z after typing wrote\n%q\nwant the fixture", got)
+	}
+	if !rig.editing(Selection{0, 0}) {
+		t.Fatal("the edit left its card after Shift-Cmd-Z")
+	}
+	if got := rig.edit.state.tag.(*widget.Editor).Text(); got != "Draft the release notes for June" {
+		t.Errorf("after Shift-Cmd-Z the field holds %q, want the typing", got)
+	}
+	if len(rig.model.Redo) != 0 {
+		t.Errorf("after typing the redo stack is %v, want none", stepNames(rig.model.Redo))
+	}
+}
+
+// Redo makes the changes again in the opposite order of the undos: after
+// an Undo of the typing and then an Undo of the board's change, Redo makes
+// the board's change first and the typing next. The order is the same
+// through the Edit menu and through the keys alone.
+func TestRedoFollowsTheOrderOfTheUndos(t *testing.T) {
+	presses := []struct {
+		name  string
+		press func(rig *boardRig, redo bool)
+	}{
+		{"menu", (*boardRig).menuChord},
+		{"keys", func(rig *boardRig, redo bool) {
+			mods := key.ModShortcut
+			if redo {
+				mods |= key.ModShift
+			}
+			rig.chord("Z", mods)
+		}},
+	}
+	for _, p := range presses {
+		t.Run(p.name, func(t *testing.T) {
+			rig, path := editRig(t)
+			rig.model = apply(t, rig.update, rig.model, ToggleCard{Selection{1, 0}})
+			rig.build()
+			rig.drive()
+			toggled := readFile(t, path)
+			rig.key(key.NameReturn)
+			rig.addAtEnd(" for June")
+			ed := rig.edit.state.tag.(*widget.Editor)
+			text := func(want, what string) {
+				t.Helper()
+				if got := ed.Text(); got != want {
+					t.Fatalf("%s the field holds %q, want %q", what, got, want)
+				}
+			}
+			file := func(want, what string) {
+				t.Helper()
+				if got := readFile(t, path); got != want {
+					t.Fatalf("%s the file is\n%q\nwant\n%q", what, got, want)
+				}
+			}
+			p.press(rig, false)
+			text("Draft the release notes", "after the first Undo")
+			file(toggled, "after the first Undo")
+			p.press(rig, false)
+			text("Draft the release notes", "after the second Undo")
+			file(fixtureBoard, "after the second Undo")
+			if got := editMenuState(rig.model)[redoItem]; got != (menuItem{Title: "Redo Mark as Completed"}) {
+				t.Errorf("after the board's undo the menu's Redo is %+v", got)
+			}
+			p.press(rig, true)
+			text("Draft the release notes", "after the first Redo")
+			file(toggled, "after the first Redo")
+			p.press(rig, true)
+			text("Draft the release notes for June", "after the second Redo")
+			file(toggled, "after the second Redo")
+			if !rig.editing(Selection{0, 0}) {
+				t.Error("the edit left its card")
+			}
+		})
+	}
+}
+
+// A field that takes the keyboard again with its earlier typing reports
+// that typing, and the board's Redo stays: only new typing ends it.
+func TestAFieldThatTakesTheKeyboardAgainKeepsTheBoardsRedo(t *testing.T) {
+	_, f, m := boardFileWith(t, fixtureBoard)
+	update := newUpdate(f)
+	m = apply(t, update, m, ToggleCard{Selection{1, 0}}, OpenAdd{Column: 1}, Undo{})
+	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: Typing{Undo: true, RedoEnded: true}})
+	if len(m.Redo) != 1 {
+		t.Errorf("a field's report cleared the redo stack to %v", stepNames(m.Redo))
+	}
+	if got := editMenuState(m)[redoItem]; got != (menuItem{Title: "Redo", Disabled: true}) {
+		t.Errorf("a field with typing after the last undo leaves the menu's Redo at %+v", got)
+	}
+	m = apply(t, update, m, EndRedo{})
+	if len(m.Redo) != 0 {
+		t.Errorf("new typing left the redo stack at %v", stepNames(m.Redo))
 	}
 }

@@ -58,6 +58,15 @@ func held(gtx layout.Context, tag event.Tag, typing Typing) Typing {
 	return typing
 }
 
+// endRedo posts [EndRedo] when the field's new report, now, holds typing
+// after the last Undo and its earlier report, was, did not. The user typed
+// then, and the typing is a new change.
+func endRedo(gtx layout.Context, was Typing, now input.Typing, post func(layout.Context, mvu.Message)) {
+	if now.RedoEnded && !was.RedoEnded {
+		post(gtx, EndRedo{})
+	}
+}
+
 // leaveUndo gives the board a Cmd-Z or a Shift-Cmd-Z that a field holds no
 // typing for.
 func leaveUndo(post func(layout.Context, mvu.Message)) func(layout.Context, bool) {
@@ -84,7 +93,8 @@ func openCard(th rx.Observable[theme.Theme], opened int, post func(layout.Contex
 			Submit:      true,
 			OnSubmit:    func(gtx layout.Context, text string) { post(gtx, AddCard{Title: text}) },
 			OnTyping: func(gtx layout.Context, t input.Typing) {
-				st.typing = Typing{Undo: t.Undo, Redo: t.Redo}
+				endRedo(gtx, st.typing, t, post)
+				st.typing = Typing{Undo: t.Undo, Redo: t.Redo, RedoEnded: t.RedoEnded}
 				st.report(gtx, opened, post)
 			},
 			LeaveUndo: leaveUndo(post),
@@ -198,7 +208,8 @@ func openEdit(th rx.Observable[theme.Theme], edit int, s Selection, title string
 			Submit:      true,
 			OnChange:    func(_ layout.Context, text string) { st.text = text },
 			OnTyping: func(gtx layout.Context, t input.Typing) {
-				st.typing = Typing{Undo: t.Undo, Redo: t.Redo}
+				endRedo(gtx, st.typing, t, post)
+				st.typing = Typing{Undo: t.Undo, Redo: t.Redo, RedoEnded: t.RedoEnded}
 				st.report(gtx, edit, post)
 			},
 			LeaveUndo: leaveUndo(post),

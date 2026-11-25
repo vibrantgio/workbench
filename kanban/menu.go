@@ -16,8 +16,9 @@ const (
 // An enabled item takes its key before the window sees it. A disabled item
 // gives its key to the window. There, a field that holds the keyboard reads
 // the key first. The field changes its own text when it holds typing for
-// the key, and gives the key to the board otherwise. Without such a field,
-// the board reads the key.
+// the key. After the user types, the field drops Shift-Cmd-Z until an
+// Undo. The field gives each other press to the board. Without such a
+// field, the board reads the key.
 func editMenu() []desktop.MenuItem {
 	return []desktop.MenuItem{
 		undoItem: {Menu: "Edit", Title: "Undo", Key: "z", Disabled: true, Msg: Undo{}},
@@ -35,9 +36,16 @@ type menuItem struct {
 // editMenuState is what the Edit menu's items show for m, in declaration
 // order. An item names the change that it undoes or redoes, as "Undo Delete
 // Card". An item is disabled, and titled "Undo" or "Redo" alone, when its
-// stack is empty or when the field that holds the keyboard holds typing
-// for the item. That field takes the item's key and changes its own text.
-// A field with no such typing gives the key to the board.
+// stack is empty. The Undo item is also disabled when the field that holds
+// the keyboard holds typing for Undo: that field takes Cmd-Z and changes
+// its own text. A field with no such typing gives the key to the board.
+//
+// The Redo item is also disabled when the user typed in that field after
+// the last Undo: the field then drops Shift-Cmd-Z. Otherwise the board's
+// last undone change comes first, also when the field holds typing for
+// Redo. Typing empties the redo stack, so each step on it comes from an
+// Undo after the field's Undo. With the stack empty, the field takes
+// Shift-Cmd-Z.
 func editMenuState(m Model) []menuItem {
 	var field Typing
 	if m.IsAdding {
@@ -45,7 +53,7 @@ func editMenuState(m Model) []menuItem {
 	}
 	if m.IsEditing {
 		field.Undo = field.Undo || m.EditTyping.Undo
-		field.Redo = field.Redo || m.EditTyping.Redo
+		field.RedoEnded = field.RedoEnded || m.EditTyping.RedoEnded
 	}
 	item := func(verb string, stack []Step, held bool) menuItem {
 		if held || len(stack) == 0 {
@@ -55,7 +63,7 @@ func editMenuState(m Model) []menuItem {
 	}
 	return []menuItem{
 		undoItem: item("Undo", m.Undo, field.Undo),
-		redoItem: item("Redo", m.Redo, field.Redo),
+		redoItem: item("Redo", m.Redo, field.RedoEnded),
 	}
 }
 

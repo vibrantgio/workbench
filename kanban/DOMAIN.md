@@ -31,10 +31,9 @@ notes.
 
 ### Change
 
-A change to the board that [[DOMAIN#Undo]] reverses and Redo makes
-again: adding a card, deleting a card, marking a card as completed or as
-not completed, and editing a card's title. A move of a card is a change
-too, once the app moves cards.
+A change to the board that the library's Undo reverses and Redo makes
+again. The Edit menu names each change after "Undo" or "Redo": Add Card,
+Delete Card, Mark as Completed, Mark as Not Completed, and Edit Title.
 
 After an undo or a redo the selection stays on the card it marked. When
 the change removes that card, nothing is selected. An open edit stays

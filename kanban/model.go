@@ -52,10 +52,18 @@ type Model struct {
 }
 
 // Typing is what a field of the board holds while it holds the keyboard:
-// typing that Undo can reverse, and typing that Redo can make again. The
-// field takes Cmd-Z while it holds typing for Undo, and Shift-Cmd-Z while
-// it holds typing for Redo. It gives each other press to the board.
-type Typing struct{ Undo, Redo bool }
+// typing that Undo can reverse, typing that Redo can make again, and
+// whether the user typed after the last Undo. The field takes Cmd-Z while
+// it holds typing for Undo, and Shift-Cmd-Z while it holds typing for
+// Redo. While RedoEnded is true, the field drops Shift-Cmd-Z. The field
+// gives each other press to the board.
+type Typing struct{ Undo, Redo, RedoEnded bool }
+
+// EndRedo ends what the board's Redo can make again. A field posts it
+// when the user types in it after the last Undo, because typing is a new
+// change. A field that takes the keyboard again with its earlier typing
+// posts no EndRedo: an Undo of the board can come after that typing.
+type EndRedo struct{}
 
 // Step is one change on the undo or redo stack: the board on the other side
 // of the change, and the change's name, which the Edit menu shows after
@@ -203,6 +211,9 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			m.Redo = m.Redo[: len(m.Redo)-1 : len(m.Redo)-1]
 			m.Undo = pushed(m.Undo, Step{Board: m.Board, Name: step.Name})
 			return restore(f, m, step.Board)
+		case EndRedo:
+			m.Redo = nil
+			return m, mvu.DoNothing()
 		case EditCard:
 			if !m.Board.has(msg.Selection) {
 				return m, mvu.DoNothing()
