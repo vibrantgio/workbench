@@ -209,6 +209,24 @@ func TestAnUndoClearsASelectionOfACardThatIsGone(t *testing.T) {
 	}
 }
 
+// An undo of an added card selects nothing, also when the column holds a
+// card with the same text on the file's last line with no line end.
+func TestAnUndoOfAnAddedTwinSelectsNothing(t *testing.T) {
+	_, f, m := boardFileWith(t, "## A\n\n- [ ] One")
+	update := newUpdate(f)
+	m = apply(t, update, m, OpenAdd{Column: 0}, AddCard{Title: "One"}, CloseAdd{}, SelectCard{Selection{0, 1}})
+	if got := len(m.Board.Columns[0].Cards()); got != 2 {
+		t.Fatalf("after the add the column holds %d cards, want 2", got)
+	}
+	m = apply(t, update, m, Undo{})
+	if m.HasSelected {
+		t.Errorf("the undo of the add selected %+v", m.Selected)
+	}
+	if m.Text != "## A\n\n- [ ] One" {
+		t.Errorf("the undo wrote %q", m.Text)
+	}
+}
+
 // The Edit menu's Undo and Redo name the change that each undoes or
 // redoes. Each is disabled, with no change in its title, when its stack
 // is empty or the field that holds the keyboard holds typing for it. A

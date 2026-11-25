@@ -364,11 +364,13 @@ func restore(f *boardFile, m Model, board Board) (Model, mvu.Command) {
 // the same pointer is the same card, in whichever column to holds it. A
 // card that to holds under a pointer that from does not hold, with the
 // same marker, title and notes, is the same card: a move copies a card
-// that gains a line end at its new place. Otherwise a card is found by its
-// place in its own column: the cards before it and after it match in from
-// and to, by pointer or by value. A card in the place of a changed card,
-// in a column whose card count stays, is the changed card. Otherwise the
-// card is gone.
+// that gains a line end at its new place. That match skips a candidate
+// that another card of from matches, when to does not hold the other
+// card's pointer: the candidate is then that other card's copy. Otherwise
+// a card is found by its place in its own column: the cards before it and
+// after it match in from and to, by pointer or by value. A card in the
+// place of a changed card, in a column whose card count stays, is the
+// changed card. Otherwise the card is gone.
 func followed(from, to Board, s Selection) (Selection, bool) {
 	if !from.has(s) {
 		return Selection{}, false
@@ -387,9 +389,25 @@ func followed(from, to Board, s Selection) (Selection, bool) {
 			}
 		}
 	}
+	kept := make(map[*Card]bool)
+	for _, c := range to.Columns {
+		for _, p := range cardsOf(c) {
+			kept[p] = true
+		}
+	}
+	twin := func(p *Card) bool {
+		for _, c := range from.Columns {
+			for _, q := range cardsOf(c) {
+				if q != card && !kept[q] && sameCard(q, p) {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	for col, c := range to.Columns {
 		for i, p := range cardsOf(c) {
-			if !held[p] && sameCard(p, card) {
+			if !held[p] && sameCard(p, card) && !twin(p) {
 				return Selection{Column: col, Card: i}, true
 			}
 		}

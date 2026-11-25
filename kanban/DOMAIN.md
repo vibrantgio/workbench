@@ -37,5 +37,7 @@ Delete Card, Mark as Completed, Mark as Not Completed, Edit Title, and
 Move Card.
 
 After an undo or a redo the selection stays on the card it marked. When
-the change removes that card, nothing is selected. An open edit stays
-with its card and closes when the card is gone.
+the change removes that card, nothing is selected. After an undo or a
+redo of a move, the column that holds the selected card holds the
+keyboard, when a column held it before. An open edit stays with its card
+and closes when the card is gone.
