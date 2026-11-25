@@ -34,7 +34,8 @@ notes.
 A change to the board that the library's Undo reverses and Redo makes
 again. The Edit menu names each change after "Undo" or "Redo": Add Card,
 Delete Card, Mark as Completed, Mark as Not Completed, Edit Title, and
-Move Card.
+Move Card. Move to Column puts the card at the end of the column, where a
+new card goes.
 
 After an undo or a redo the selection stays on the card it marked. When
 the change removes that card, nothing is selected. After an undo or a

@@ -48,10 +48,12 @@ type Model struct {
 	// those steps holds the board after its change. The file holds no
 	// history.
 	Undo, Redo []Step
-	// Restores counts the undos and the redos that changed the board. A
-	// new count moves the keyboard to the column that holds the selected
-	// card when another column holds the keyboard.
-	Restores int
+	// Follows counts the changes after which the keyboard follows the
+	// selected card: the undos and the redos that changed the board, and
+	// the moves of the Card menu and its keys. A new count moves the
+	// keyboard to the column that holds the selected card when another
+	// column holds the keyboard.
+	Follows int
 }
 
 // Typing is what a field of the board holds while it holds the keyboard:
@@ -154,6 +156,47 @@ type CancelEdit struct{ Edit int }
 // place. The card takes its notes with it. A move to the place where the
 // card already is changes nothing.
 type MoveCard struct{ From, To Selection }
+
+// MoveUp moves the selected card one place up in its column. It does
+// nothing on the column's first card or with no selected card.
+type MoveUp struct{}
+
+// MoveDown moves the selected card one place down in its column. It does
+// nothing on the column's last card or with no selected card.
+type MoveDown struct{}
+
+// MoveToColumn moves the selected card to the end of column Column, where a
+// new card goes. It does nothing when the card is in that column already,
+// when the board holds no such column, or with no selected card.
+type MoveToColumn struct{ Column int }
+
+// moveTarget is the place that msg, a [MoveUp], [MoveDown] or
+// [MoveToColumn], moves the selected card of m to, as [MoveCard] names a
+// place. It reports false when msg moves no card now. The update and the
+// Card menu both read it, so an item is enabled exactly when its message
+// moves the card. The menu lags the model, so the update reads the
+// selection when it runs.
+func moveTarget(m Model, msg mvu.Message) (Selection, bool) {
+	if !m.HasSelected || !m.Board.has(m.Selected) {
+		return Selection{}, false
+	}
+	s := m.Selected
+	switch msg := msg.(type) {
+	case MoveUp:
+		if s.Card > 0 {
+			return Selection{Column: s.Column, Card: s.Card - 1}, true
+		}
+	case MoveDown:
+		if s.Card < len(m.Board.Columns[s.Column].Cards())-1 {
+			return Selection{Column: s.Column, Card: s.Card + 1}, true
+		}
+	case MoveToColumn:
+		if msg.Column >= 0 && msg.Column < len(m.Board.Columns) && msg.Column != s.Column {
+			return Selection{Column: msg.Column, Card: len(m.Board.Columns[msg.Column].Cards())}, true
+		}
+	}
+	return Selection{}, false
+}
 
 // has reports whether b holds the card that s names.
 func (b Board) has(s Selection) bool {
@@ -291,22 +334,14 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			m.Selected, m.HasSelected = msg.Selection, true
 			return m, mvu.DoNothing()
 		case MoveCard:
-			if !m.Board.has(msg.From) || msg.To.Column < 0 || msg.To.Column >= len(m.Board.Columns) {
+			return move(f, m, msg)
+		case MoveUp, MoveDown, MoveToColumn:
+			to, ok := moveTarget(m, msg)
+			if !ok {
 				return m, mvu.DoNothing()
 			}
-			room := len(m.Board.Columns[msg.To.Column].Cards())
-			if msg.To.Column == msg.From.Column {
-				room--
-			}
-			if msg.To.Card < 0 || msg.To.Card > room || msg.To == msg.From {
-				return m, mvu.DoNothing()
-			}
-			board := moved(m.Board, msg.From, msg.To)
-			if m.IsEditing {
-				m.Editing, m.IsEditing = followed(m.Board, board, m.Editing)
-			}
-			m.Selected, m.HasSelected = msg.To, true
-			return change(f, m, board, stepMove)
+			m.Follows++
+			return move(f, m, MoveCard{From: m.Selected, To: to})
 		case DeleteCard:
 			if !m.Board.has(msg.Selection) {
 				return m, mvu.DoNothing()
@@ -316,6 +351,27 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 		}
 		return m, mvu.DoNothing()
 	}
+}
+
+// move does what msg asks: it moves a card and selects it at its new
+// place. Each move goes through move, so each is one "Move Card" step.
+func move(f *boardFile, m Model, msg MoveCard) (Model, mvu.Command) {
+	if !m.Board.has(msg.From) || msg.To.Column < 0 || msg.To.Column >= len(m.Board.Columns) {
+		return m, mvu.DoNothing()
+	}
+	room := len(m.Board.Columns[msg.To.Column].Cards())
+	if msg.To.Column == msg.From.Column {
+		room--
+	}
+	if msg.To.Card < 0 || msg.To.Card > room || msg.To == msg.From {
+		return m, mvu.DoNothing()
+	}
+	board := moved(m.Board, msg.From, msg.To)
+	if m.IsEditing {
+		m.Editing, m.IsEditing = followed(m.Board, board, m.Editing)
+	}
+	m.Selected, m.HasSelected = msg.To, true
+	return change(f, m, board, stepMove)
 }
 
 // change makes board the model's board and gives the command that writes
@@ -352,7 +408,7 @@ func restore(f *boardFile, m Model, board Board) (Model, mvu.Command) {
 		}
 	}
 	m.Board, m.Text, m.Seq = board, Format(board), m.Seq+1
-	m.Restores++
+	m.Follows++
 	return corrected(m), save(f, m.Seq, m.Text)
 }
 

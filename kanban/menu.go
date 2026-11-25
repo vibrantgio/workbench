@@ -4,11 +4,21 @@ import (
 	"github.com/vibrantgio/mvu/desktop"
 )
 
-// The Edit menu's items, in declaration order.
+// The menu bar's items, in declaration order: the Edit menu's, then the
+// Card menu's.
 const (
 	undoItem = iota
 	redoItem
+	moveItem
+	moveToColumnItem
 )
+
+// menuBar is the declaration of the menu bar's items: the Edit menu's
+// and the Card menu's, as a board with no change and no selected card
+// shows them.
+func menuBar() []desktop.MenuItem {
+	return append(editMenu(), cardMenu(Model{})...)
+}
 
 // editMenu is the Edit menu's declaration: Undo with Cmd-Z and Redo with
 // Shift-Cmd-Z, both disabled, as a board with no change shows them.
@@ -70,10 +80,49 @@ func editMenuState(m Model) []menuItem {
 	}
 }
 
-// showEditMenu gives each item of bar, as [editMenu] declared it, the state
-// that [editMenuState] gives for m.
-func showEditMenu(bar *desktop.MenuBar, m Model) {
+// cardMenu is the Card menu's items for m, as the Notes and Reminders menu
+// files hold them. "Move Item" holds "Up" on Ctrl-Cmd-Up and "Down" on
+// Ctrl-Cmd-Down. "Move to Column" has no key equivalent and holds an item
+// for each column, in the file's order. [menuBar] puts the result after
+// [editMenu], so its first item is moveItem.
+//
+// With no selected card, every item is disabled. "Up" is disabled on the
+// column's first card and "Down" on its last. The card's own column is
+// disabled. Each item is enabled exactly when the board's update moves
+// the card for its message, so the menu and the window's keys never
+// differ.
+//
+// A column whose heading has no text has no item: a menu item needs a
+// title, and the board invents no text. The other items keep their
+// columns' indices in their messages.
+func cardMenu(m Model) []desktop.MenuItem {
+	_, upOK := moveTarget(m, MoveUp{})
+	_, downOK := moveTarget(m, MoveDown{})
+	var columns []desktop.MenuItem
+	for i, c := range m.Board.Columns {
+		if c.Title == "" {
+			continue
+		}
+		_, ok := moveTarget(m, MoveToColumn{Column: i})
+		columns = append(columns, desktop.MenuItem{Title: c.Title, Disabled: !ok, Msg: MoveToColumn{Column: i}})
+	}
+	return []desktop.MenuItem{
+		{Menu: "Card", Title: "Move Item", Submenu: true, Disabled: !m.HasSelected, Items: []desktop.MenuItem{
+			{Title: "Up", Key: desktop.UpArrow, Control: true, Disabled: !upOK, Msg: MoveUp{}},
+			{Title: "Down", Key: desktop.DownArrow, Control: true, Disabled: !downOK, Msg: MoveDown{}},
+		}},
+		{Menu: "Card", Title: "Move to Column", Submenu: true, Disabled: !m.HasSelected, Items: columns},
+	}
+}
+
+// showMenus gives each item of bar, as [menuBar] declared it, the state
+// that [editMenuState] and [cardMenu] give for m.
+func showMenus(bar *desktop.MenuBar, m Model) {
 	for i, it := range editMenuState(m) {
 		bar.Set(i, it.Title, it.Disabled)
+	}
+	for j, it := range cardMenu(m) {
+		bar.Set(moveItem+j, it.Title, it.Disabled)
+		bar.SetItems(moveItem+j, it.Items...)
 	}
 }

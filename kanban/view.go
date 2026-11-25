@@ -50,8 +50,8 @@ type scrollState struct {
 	// drag is the board's drag area. Each column is one of its sequences,
 	// numbered as the board numbers its columns.
 	drag dragdrop.State
-	// restores is the model's Restores count that the board last read.
-	restores int
+	// follows is the model's Follows count that the board last read.
+	follows int
 }
 
 // columnEnd is what a column's list last scrolled to its end for: the
@@ -238,11 +238,11 @@ func boardView(th themed, m Model, fresh newCard, edit editCard, state *scrollSt
 				gtx.Execute(op.InvalidateCmd{})
 			}
 		}
-		// After an undo or a redo, the column that holds the selected card
-		// takes the keyboard from another column. A field that holds the
-		// keyboard keeps it.
-		if m.Restores != state.restores {
-			state.restores = m.Restores
+		// After an undo, a redo or a move by the Card menu or its keys, the
+		// column that holds the selected card takes the keyboard from
+		// another column. A field that holds the keyboard keeps it.
+		if m.Follows != state.follows {
+			state.follows = m.Follows
 			if m.HasSelected {
 				to := state.column(m.Selected.Column).Focus()
 				for i := range columns {
@@ -309,9 +309,37 @@ func boardView(th themed, m Model, fresh newCard, edit editCard, state *scrollSt
 				undo(gtx, ke.Modifiers.Contain(key.ModShift))
 			}
 		}
+		// The Card menu's Up and Down take Ctrl-Cmd-Up and Ctrl-Cmd-Down
+		// while they are enabled. The board reads the same keys for a
+		// platform with no menu bar, and for a disabled item, which gives
+		// its key to the window. The update moves no card when the move is
+		// not available, so a key acts exactly when its item is enabled.
+		// The columns' arrow keys take no modifier, so these keys reach
+		// the board.
+		for {
+			e, ok := gtx.Event(
+				key.Filter{Name: key.NameUpArrow, Required: moveModifiers},
+				key.Filter{Name: key.NameDownArrow, Required: moveModifiers},
+			)
+			if !ok {
+				break
+			}
+			if ke, ok := e.(key.Event); ok && ke.State == key.Press {
+				if ke.Name == key.NameUpArrow {
+					post(gtx, MoveUp{})
+				} else {
+					post(gtx, MoveDown{})
+				}
+			}
+		}
 		return dims
 	}
 }
+
+// moveModifiers is the modifiers of the Card menu's Up and Down keys:
+// Control and Command on macOS. Away from macOS the shortcut modifier is
+// Control, so the keys are Ctrl-Up and Ctrl-Down there.
+const moveModifiers = key.ModShortcut | key.ModCtrl
 
 // boardUndo is the board's Undo and Redo for model m: the window's Undo of
 // the board's fields, and the action of the board's own keys. It posts
