@@ -211,7 +211,9 @@ func TestAnUndoClearsASelectionOfACardThatIsGone(t *testing.T) {
 
 // The Edit menu's Undo and Redo name the change that each undoes or
 // redoes. Each is disabled, with no change in its title, when its stack
-// is empty or a field is open on the board.
+// is empty or a field holds the keyboard and Cmd-Z changes its text: an
+// open edit, or a new card that the user typed in. With the keyboard on
+// the board or in an empty new card, the items follow the stacks.
 func TestTheEditMenuFollowsTheStacks(t *testing.T) {
 	_, f, m := boardFileWith(t, fixtureBoard)
 	update := newUpdate(f)
@@ -228,6 +230,9 @@ func TestTheEditMenuFollowsTheStacks(t *testing.T) {
 		declared[undoItem].Menu != "Edit" || declared[redoItem].Menu != "Edit" {
 		t.Errorf("the Edit menu declares %+v, want Undo and Redo disabled", declared)
 	}
+	if declared[undoItem].Key != "z" || declared[redoItem].Key != "Z" {
+		t.Errorf("the Edit menu's keys are %q and %q, want Cmd-Z and Shift-Cmd-Z", declared[undoItem].Key, declared[redoItem].Key)
+	}
 	if declared[undoItem].Msg != (Undo{}) || declared[redoItem].Msg != (Redo{}) {
 		t.Errorf("the Edit menu's items post %T and %T", declared[undoItem].Msg, declared[redoItem].Msg)
 	}
@@ -236,9 +241,17 @@ func TestTheEditMenuFollowsTheStacks(t *testing.T) {
 	want(m, off("Undo"), off("Redo"))
 	m = apply(t, update, m, DeleteCard{Selection{0, 0}})
 	want(m, on("Undo Delete Card"), off("Redo"))
-	m = apply(t, update, m, OpenAdd{Column: 1}, AddCard{Title: "Fix the gate"})
+	m = apply(t, update, m, OpenAdd{Column: 1})
+	want(m, on("Undo Delete Card"), off("Redo"))
+	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: true})
 	want(m, off("Undo"), off("Redo"))
-	m = apply(t, update, m, CloseAdd{})
+	m = apply(t, update, m, AddCard{Title: "Fix the gate"})
+	want(m, on("Undo Add Card"), off("Redo"))
+	m = apply(t, update, m, NewCardField{Opened: m.Opened - 1, Typing: true})
+	want(m, on("Undo Add Card"), off("Redo"))
+	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: true}, NewCardField{Opened: m.Opened, Typing: false})
+	want(m, on("Undo Add Card"), off("Redo"))
+	m = apply(t, update, m, NewCardField{Opened: m.Opened, Typing: true}, CloseAdd{})
 	want(m, on("Undo Add Card"), off("Redo"))
 	m = apply(t, update, m, Undo{})
 	want(m, on("Undo Delete Card"), on("Redo Add Card"))
@@ -312,5 +325,81 @@ func TestCmdZInAFieldChangesTheFieldsText(t *testing.T) {
 	}
 	if got := readFile(t, path); got != toggled {
 		t.Error("Cmd-Z in the field wrote the file")
+	}
+}
+
+// The new card's field reports that it holds typed text and the keyboard,
+// and the menu then gives Cmd-Z to the field. Return opens an empty new
+// card, so the menu undoes the add again.
+func TestTypingInTheNewCardDisablesTheMenu(t *testing.T) {
+	_, f, m := boardFileWith(t, fixtureEmptyColumn)
+	rig := newBoardRig(t, staticThemed(tokens.PlatformLight, sharpRadius), f, m)
+	rig.press(addButtonAt(1))
+	if rig.model.AddTyping {
+		t.Fatal("an empty new card reports typed text")
+	}
+	rig.typeText("Call the plumber")
+	if !rig.model.AddTyping || !editMenuState(rig.model)[undoItem].Disabled {
+		t.Fatalf("typing in the new card left the menu at %+v", editMenuState(rig.model))
+	}
+	rig.key(key.NameReturn)
+	if rig.model.AddTyping {
+		t.Error("Return opened a new card that reports typed text")
+	}
+	if got := editMenuState(rig.model)[undoItem]; got != (menuItem{Title: "Undo Add Card"}) {
+		t.Errorf("after Return the menu shows %+v, want Undo Add Card", got)
+	}
+	rig.typeText("Fix the tap")
+	rig.press(firstCard(0))
+	if rig.model.AddTyping {
+		t.Error("the new card reports typed text after the keyboard left its field")
+	}
+}
+
+// After an undo or a redo the selection stays on its card. An undo that
+// puts a card back above the selected card moves the selection down with
+// its card, and a redo moves it back up.
+func TestTheSelectionFollowsItsCardAfterAnUndo(t *testing.T) {
+	_, f, m := boardFileWith(t, fixtureBoard)
+	update := newUpdate(f)
+	title := func(m Model) string {
+		t.Helper()
+		if !m.HasSelected || !m.Board.has(m.Selected) {
+			t.Fatalf("no card is selected: %+v", m.Selected)
+		}
+		return m.Board.Columns[m.Selected.Column].Cards()[m.Selected.Card].Title
+	}
+	m = apply(t, update, m, DeleteCard{Selection{0, 0}}, SelectCard{Selection{0, 1}})
+	selected := title(m)
+	m = apply(t, update, m, Undo{})
+	if m.Selected != (Selection{0, 2}) || title(m) != selected {
+		t.Errorf("after the undo the selection is %+v on %q, want %q", m.Selected, title(m), selected)
+	}
+	m = apply(t, update, m, Redo{})
+	if m.Selected != (Selection{0, 1}) || title(m) != selected {
+		t.Errorf("after the redo the selection is %+v on %q, want %q", m.Selected, title(m), selected)
+	}
+	m = apply(t, update, m, ToggleCard{Selection{0, 1}}, Undo{})
+	if m.Selected != (Selection{0, 1}) || title(m) != selected {
+		t.Errorf("after the undo of its completion the selection is %+v on %q, want %q", m.Selected, title(m), selected)
+	}
+}
+
+// followed finds a card by its place when its pointer changed, and a card
+// that the step took away is gone.
+func TestFollowedFindsACardByItsPlace(t *testing.T) {
+	card := func(title string) Entry { return Entry{Card: &Card{Marker: "- [ ] ", Title: title, End: "\n"}} }
+	a, b, c := card("A"), card("B"), card("C")
+	from := Board{Columns: []Column{{Entries: []Entry{a, b, c}}}}
+	ended := Board{Columns: []Column{{Entries: []Entry{card("A"), b}}}}
+	if got, ok := followed(from, ended, Selection{0, 0}); !ok || got != (Selection{0, 0}) {
+		t.Errorf("a copied card before the change is at %+v (%v), want its place", got, ok)
+	}
+	if got, ok := followed(from, ended, Selection{0, 2}); ok {
+		t.Errorf("a card that the step took away is at %+v", got)
+	}
+	twins := Board{Columns: []Column{{Entries: []Entry{card("A"), a}}}}
+	if got, ok := followed(Board{Columns: []Column{{Entries: []Entry{a}}}}, twins, Selection{0, 0}); !ok || got != (Selection{0, 1}) {
+		t.Errorf("a card beside a twin is at %+v (%v), want its own place", got, ok)
 	}
 }

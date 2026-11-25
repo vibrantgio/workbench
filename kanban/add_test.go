@@ -577,8 +577,14 @@ func TestTheFieldKeepsItsTextThroughAFileChangeAndAScheme(t *testing.T) {
 
 	r.Queue(key.Event{Name: key.NameReturn, State: key.Press})
 	frame(p)
-	if len(posted) != 1 || posted[0] != (AddCard{Title: "Call the plumber"}) {
-		t.Errorf("Return after the change on disk and the scheme posted %v, want the typed title", posted)
+	var adds []mvu.Message
+	for _, msg := range posted {
+		if _, ok := msg.(AddCard); ok {
+			adds = append(adds, msg)
+		}
+	}
+	if len(adds) != 1 || adds[0] != (AddCard{Title: "Call the plumber"}) {
+		t.Errorf("Return after the change on disk and the scheme posted %v, want the typed title", adds)
 	}
 }
 

@@ -10,17 +10,17 @@ const (
 	redoItem
 )
 
-// editMenu is the Edit menu's declaration: Undo and Redo, both disabled, as
-// a board with no change shows them.
+// editMenu is the Edit menu's declaration: Undo with Cmd-Z and Redo with
+// Shift-Cmd-Z, both disabled, as a board with no change shows them.
 //
-// The items declare no key equivalent. A menu's key equivalent takes Cmd-Z
-// before the window sees the key, so a field that holds the keyboard would
-// lose its own undo. The board reads Cmd-Z and Shift-Cmd-Z in the window,
-// behind the field's own claim on the keys.
+// An enabled item takes its key before the window sees it. A disabled item
+// gives its key to the window. There, a field that holds the keyboard reads
+// the key first and changes its own text. Without such a field, the board
+// reads the key, and its stack is empty.
 func editMenu() []desktop.MenuItem {
 	return []desktop.MenuItem{
-		undoItem: {Menu: "Edit", Title: "Undo", Disabled: true, Msg: Undo{}},
-		redoItem: {Menu: "Edit", Title: "Redo", Disabled: true, Msg: Redo{}},
+		undoItem: {Menu: "Edit", Title: "Undo", Key: "z", Disabled: true, Msg: Undo{}},
+		redoItem: {Menu: "Edit", Title: "Redo", Key: "Z", Disabled: true, Msg: Redo{}},
 	}
 }
 
@@ -34,10 +34,12 @@ type menuItem struct {
 // editMenuState is what the Edit menu's items show for m, in declaration
 // order. An item names the change that it undoes or redoes, as "Undo Delete
 // Card". An item is disabled, and titled "Undo" or "Redo" alone, when its
-// stack is empty or when a field is open on the board. In an open field,
-// Cmd-Z changes the field's text, not the board.
+// stack is empty or when a field holds the keyboard and Cmd-Z changes the
+// field's text. An open edit holds the keyboard, because the edit ends when
+// its field loses the keyboard. The new card's field counts once the user
+// typed in it: in an empty new card, Cmd-Z changes no text.
 func editMenuState(m Model) []menuItem {
-	field := m.IsAdding || m.IsEditing
+	field := m.IsEditing || m.IsAdding && m.AddTyping
 	item := func(verb string, stack []Step) menuItem {
 		if field || len(stack) == 0 {
 			return menuItem{Title: verb, Disabled: true}

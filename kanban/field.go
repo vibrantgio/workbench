@@ -34,6 +34,19 @@ type newCardState struct {
 	tag event.Tag
 	// focused is true once the field asked for the keyboard.
 	focused bool
+	// typed is true once the user changed the field's text, and typing is
+	// the last [NewCardField] state that the card posted.
+	typed, typing bool
+}
+
+// report posts [NewCardField] for new card number opened when the field's
+// state changes: whether the field holds the keyboard and holds typed text.
+func (st *newCardState) report(gtx layout.Context, opened int, post func(layout.Context, mvu.Message)) {
+	typing := st.typed && gtx.Focused(st.tag)
+	if typing != st.typing {
+		st.typing = typing
+		post(gtx, NewCardField{Opened: opened, Typing: typing})
+	}
 }
 
 // openCard is the new card made for the model's Opened count opened. Return
@@ -49,8 +62,12 @@ func openCard(th rx.Observable[theme.Theme], opened int, post func(layout.Contex
 			Description: "Title of the new card",
 			Submit:      true,
 			OnSubmit:    func(gtx layout.Context, text string) { post(gtx, AddCard{Title: text}) },
-			FocusTag:    func(tag event.Tag) { st.tag = tag },
-			Surface:     fill,
+			OnChange: func(gtx layout.Context, _ string) {
+				st.typed = true
+				st.report(gtx, opened, post)
+			},
+			FocusTag: func(tag event.Tag) { st.tag = tag },
+			Surface:  fill,
 		})
 		box := input.Checkbox(th, input.CheckboxProps{
 			Description: "Completed",
@@ -75,13 +92,15 @@ func newCards(th rx.Observable[theme.Theme], models rx.Observable[Model], post f
 
 // title is the new card's title slot: the field. On its first frame the
 // field takes the keyboard, and Escape posts [CloseAdd] while the field
-// holds the keyboard.
+// holds the keyboard. Each frame posts [NewCardField] when the field's
+// state changed.
 func (c newCard) title(post func(layout.Context, mvu.Message)) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions {
 		if !c.state.focused {
 			gtx.Execute(key.FocusCmd{Tag: c.state.tag})
 			c.state.focused = true
 		}
+		c.state.report(gtx, c.opened, post)
 		for {
 			e, ok := gtx.Event(key.Filter{Focus: c.state.tag, Name: key.NameEscape})
 			if !ok {

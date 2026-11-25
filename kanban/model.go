@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/vibrantgio/mvu"
@@ -26,6 +27,10 @@ type Model struct {
 	// while IsAdding is true.
 	Adding   int
 	IsAdding bool
+	// AddTyping is true while the new card's field holds the keyboard and
+	// holds text that the user typed since the card opened. Cmd-Z then
+	// changes the field's text.
+	AddTyping bool
 	// Opened counts the openings of a new card. A new count gives a new
 	// card with an empty title.
 	Opened int
@@ -87,6 +92,13 @@ type OpenAdd struct{ Column int }
 
 // CloseAdd removes the new card and the text typed in it.
 type CloseAdd struct{}
+
+// NewCardField tells whether the field of new card number Opened holds
+// the keyboard and holds text that the user typed.
+type NewCardField struct {
+	Opened int
+	Typing bool
+}
 
 // AddCard adds a card titled Title after the last card of the column whose
 // new card is open, and opens the next new card under it. A line break in
@@ -169,7 +181,7 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			step := m.Undo[len(m.Undo)-1]
 			m.Undo = m.Undo[: len(m.Undo)-1 : len(m.Undo)-1]
 			m.Redo = pushed(m.Redo, Step{Board: m.Board, Name: step.Name})
-			return travel(f, m, step.Board)
+			return restore(f, m, step.Board)
 		case Redo:
 			if len(m.Redo) == 0 {
 				return m, mvu.DoNothing()
@@ -177,7 +189,7 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 			step := m.Redo[len(m.Redo)-1]
 			m.Redo = m.Redo[: len(m.Redo)-1 : len(m.Redo)-1]
 			m.Undo = pushed(m.Undo, Step{Board: m.Board, Name: step.Name})
-			return travel(f, m, step.Board)
+			return restore(f, m, step.Board)
 		case EditCard:
 			if !m.Board.has(msg.Selection) {
 				return m, mvu.DoNothing()
@@ -206,16 +218,22 @@ func newUpdate(f *boardFile) func(Model, mvu.Message) (Model, mvu.Command) {
 				return m, mvu.DoNothing()
 			}
 			m.Adding, m.IsAdding, m.Opened = msg.Column, true, m.Opened+1
+			m.AddTyping = false
 			return m, mvu.DoNothing()
 		case CloseAdd:
-			m.Adding, m.IsAdding = 0, false
+			m.Adding, m.IsAdding, m.AddTyping = 0, false, false
+			return m, mvu.DoNothing()
+		case NewCardField:
+			if m.IsAdding && msg.Opened == m.Opened {
+				m.AddTyping = msg.Typing
+			}
 			return m, mvu.DoNothing()
 		case AddCard:
 			title := strings.TrimSpace(oneLine.Replace(msg.Title))
 			if !m.IsAdding || title == "" {
 				return m, mvu.DoNothing()
 			}
-			m.Opened++
+			m.Opened, m.AddTyping = m.Opened+1, false
 			return change(f, m, withCard(m.Board, m.Adding, title), stepAdd)
 		case ToggleCard:
 			if !m.Board.has(msg.Selection) {
@@ -259,11 +277,76 @@ func change(f *boardFile, m Model, board Board, name string) (Model, mvu.Command
 	return m, save(f, m.Seq, text)
 }
 
-// travel makes board, a board from the undo or the redo stack, the model's
-// board, and gives the command that writes it to f.
-func travel(f *boardFile, m Model, board Board) (Model, mvu.Command) {
+// restore makes board, a board from the undo or the redo stack, the model's
+// board, and gives the command that writes it to f. The selection and the
+// edit stay on the card that they named, at that card's place in board.
+func restore(f *boardFile, m Model, board Board) (Model, mvu.Command) {
+	if m.HasSelected {
+		m.Selected, m.HasSelected = followed(m.Board, board, m.Selected)
+	}
+	if m.IsEditing {
+		m.Editing, m.IsEditing = followed(m.Board, board, m.Editing)
+	}
 	m.Board, m.Text, m.Seq = board, Format(board), m.Seq+1
 	return corrected(m), save(f, m.Seq, m.Text)
+}
+
+// followed names in board to the card that s names in board from, and
+// reports whether to holds that card. from and to differ by one step: one
+// card added, deleted or changed in one column. A step copies the card
+// that it changes, and each other card keeps its pointer, so the same
+// pointer is the same card. A card that to holds under another pointer is
+// found by its place: the cards before it and after it match in from and
+// to, by pointer or by value. A card in the place of a changed card, in a
+// column whose card count stays, is the changed card. Otherwise the card
+// is gone.
+func followed(from, to Board, s Selection) (Selection, bool) {
+	if !from.has(s) || s.Column >= len(to.Columns) {
+		return Selection{}, false
+	}
+	was, now := cardsOf(from.Columns[s.Column]), cardsOf(to.Columns[s.Column])
+	for i, c := range now {
+		if c == was[s.Card] {
+			return Selection{Column: s.Column, Card: i}, true
+		}
+	}
+	before := 0
+	for before < len(was) && before < len(now) && sameCard(was[before], now[before]) {
+		before++
+	}
+	after := 0
+	for after < len(was)-before && after < len(now)-before &&
+		sameCard(was[len(was)-1-after], now[len(now)-1-after]) {
+		after++
+	}
+	switch {
+	case s.Card < before, s.Card >= len(was)-after:
+		if s.Card >= before {
+			s.Card += len(now) - len(was)
+		}
+		return s, true
+	case len(was) == len(now):
+		return s, true
+	}
+	return Selection{}, false
+}
+
+// cardsOf is the pointers of c's cards, in file order.
+func cardsOf(c Column) []*Card {
+	var cards []*Card
+	for _, e := range c.Entries {
+		if e.Card != nil {
+			cards = append(cards, e.Card)
+		}
+	}
+	return cards
+}
+
+// sameCard reports whether a and b are one card: the same pointer, or the
+// same marker, title and notes. A card's line end can change when a card
+// is added after it, so the line end does not count.
+func sameCard(a, b *Card) bool {
+	return a == b || a.Marker == b.Marker && a.Title == b.Title && slices.Equal(a.Notes, b.Notes)
 }
 
 // pushed is stack with step on top. The result shares no array with stack,
@@ -282,7 +365,7 @@ func corrected(m Model) Model {
 		m.Selected, m.HasSelected = Selection{}, false
 	}
 	if m.IsAdding && m.Adding >= len(m.Board.Columns) {
-		m.Adding, m.IsAdding = 0, false
+		m.Adding, m.IsAdding, m.AddTyping = 0, false, false
 	}
 	if m.IsEditing && !m.Board.has(m.Editing) {
 		m.Editing, m.IsEditing = Selection{}, false

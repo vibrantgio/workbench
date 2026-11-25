@@ -31,6 +31,8 @@ github.com/vibrantgio/mvu/desktop v1.1.5 h1:pg+geo00eDHjz5MieHG/EEbPsndwpJScdiln
 github.com/vibrantgio/mvu/desktop v1.1.5/go.mod h1:D9KWsWQqcUVw1i8SSuPXotnxnfNu+mQmixOvFbEVg7k=
 github.com/vibrantgio/mvu/desktop v1.1.6-0.20261124172948-ab85bae2bc47 h1:mt7ACg4mbSZrg3jQcOR6eR+wYROWQJXCc6NIkuPzSQ0=
 github.com/vibrantgio/mvu/desktop v1.1.6-0.20261124172948-ab85bae2bc47/go.mod h1:D9KWsWQqcUVw1i8SSuPXotnxnfNu+mQmixOvFbEVg7k=
+github.com/vibrantgio/mvu/desktop v1.1.6-0.20261125121239-ff017753f165 h1:HCiJo9igERaJmP79dSqpxyNpD3ZUK5no4ilm8dnV5GI=
+github.com/vibrantgio/mvu/desktop v1.1.6-0.20261125121239-ff017753f165/go.mod h1:D9KWsWQqcUVw1i8SSuPXotnxnfNu+mQmixOvFbEVg7k=
 github.com/vibrantgio/patterns v1.5.2-0.20261124142003-2ac0708af1a6 h1:oY06xhyRfy6egaDXO13I4Vq11HtigBuzwEyvnybzHIA=
 github.com/vibrantgio/patterns v1.5.2-0.20261124142003-2ac0708af1a6/go.mod h1:fqZ3ARayHGOKQZuV03yfYUacP1QrFWDyiLMv0GfvaOI=
 github.com/vibrantgio/patterns v1.5.2-0.20261124175843-bc8c311bc8ca h1:Z/Rg7N48mNmdips2qrzWA9IXrBAnvzT5l9vzB0Ssguc=
