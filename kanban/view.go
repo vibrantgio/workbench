@@ -50,6 +50,8 @@ type scrollState struct {
 	// drag is the board's drag area. Each column is one of its sequences,
 	// numbered as the board numbers its columns.
 	drag dragdrop.State
+	// restores is the model's Restores count that the board last read.
+	restores int
 }
 
 // columnEnd is what a column's list last scrolled to its end for: the
@@ -234,6 +236,22 @@ func boardView(th themed, m Model, fresh newCard, edit editCard, state *scrollSt
 			if pe, ok := e.(pointer.Event); ok && pe.Kind == pointer.Press && editing {
 				gtx.Execute(key.FocusCmd{Tag: nil})
 				gtx.Execute(op.InvalidateCmd{})
+			}
+		}
+		// After an undo or a redo, the column that holds the selected card
+		// takes the keyboard from another column. A field that holds the
+		// keyboard keeps it.
+		if m.Restores != state.restores {
+			state.restores = m.Restores
+			if m.HasSelected {
+				to := state.column(m.Selected.Column).Focus()
+				for i := range columns {
+					if i != m.Selected.Column && gtx.Source.Focused(state.column(i).Focus()) {
+						gtx.Execute(key.FocusCmd{Tag: to})
+						gtx.Execute(op.InvalidateCmd{})
+						break
+					}
+				}
 			}
 		}
 		n := len(columns)

@@ -86,12 +86,16 @@ func ended(cd *Card) bool {
 
 // endedEntry is e with end after its last line when that line has no line
 // end. A card's last line is its last note, or the card's own line when it
-// has no notes. The result shares no card with e.
+// has no notes. A card that gains a line end is a copy, and a card whose
+// last line has a line end is e's card itself, so it keeps its pointer.
 func endedEntry(e Entry, end string) Entry {
 	if e.Card == nil {
 		if _, have := cutEnd(e.Line); have == "" {
 			e.Line += end
 		}
+		return e
+	}
+	if ended(e.Card) {
 		return e
 	}
 	cd := *e.Card

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"slices"
 	"strings"
 
 	"github.com/vibrantgio/mvu"
@@ -49,6 +48,10 @@ type Model struct {
 	// those steps holds the board after its change. The file holds no
 	// history.
 	Undo, Redo []Step
+	// Restores counts the undos and the redos that changed the board. A
+	// new count moves the keyboard to the column that holds the selected
+	// card when another column holds the keyboard.
+	Restores int
 }
 
 // Typing is what a field of the board holds while it holds the keyboard:
@@ -349,27 +352,44 @@ func restore(f *boardFile, m Model, board Board) (Model, mvu.Command) {
 		}
 	}
 	m.Board, m.Text, m.Seq = board, Format(board), m.Seq+1
+	m.Restores++
 	return corrected(m), save(f, m.Seq, m.Text)
 }
 
 // followed names in board to the card that s names in board from, and
 // reports whether to holds that card. from and to differ by one step: one
 // card added, deleted or changed in one column, or one card moved to
-// another place in any column. A step copies the card that it changes,
-// and each other card keeps its pointer, so the same pointer is the same
-// card, in whichever column to holds it. A card that to holds under
-// another pointer is found by its place in its own column: the cards
-// before it and after it match in from and to, by pointer or by value. A
-// card in the place of a changed card, in a column whose card count
-// stays, is the changed card. Otherwise the card is gone.
+// another place in any column. A step copies the card that it changes and
+// a card that gains a line end, and each other card keeps its pointer, so
+// the same pointer is the same card, in whichever column to holds it. A
+// card that to holds under a pointer that from does not hold, with the
+// same marker, title and notes, is the same card: a move copies a card
+// that gains a line end at its new place. Otherwise a card is found by its
+// place in its own column: the cards before it and after it match in from
+// and to, by pointer or by value. A card in the place of a changed card,
+// in a column whose card count stays, is the changed card. Otherwise the
+// card is gone.
 func followed(from, to Board, s Selection) (Selection, bool) {
 	if !from.has(s) {
 		return Selection{}, false
 	}
 	card := cardsOf(from.Columns[s.Column])[s.Card]
+	held := make(map[*Card]bool)
+	for _, c := range from.Columns {
+		for _, p := range cardsOf(c) {
+			held[p] = true
+		}
+	}
 	for col, c := range to.Columns {
 		for i, p := range cardsOf(c) {
 			if p == card {
+				return Selection{Column: col, Card: i}, true
+			}
+		}
+	}
+	for col, c := range to.Columns {
+		for i, p := range cardsOf(c) {
+			if !held[p] && sameCard(p, card) {
 				return Selection{Column: col, Card: i}, true
 			}
 		}
@@ -411,10 +431,23 @@ func cardsOf(c Column) []*Card {
 }
 
 // sameCard reports whether a and b are one card: the same pointer, or the
-// same marker, title and notes. A card's line end can change when a card
-// is added after it, so the line end does not count.
+// same marker, title and notes. A card's last line gains a line end when a
+// line comes after it, so no line end counts.
 func sameCard(a, b *Card) bool {
-	return a == b || a.Marker == b.Marker && a.Title == b.Title && slices.Equal(a.Notes, b.Notes)
+	if a == b {
+		return true
+	}
+	if a.Marker != b.Marker || a.Title != b.Title || len(a.Notes) != len(b.Notes) {
+		return false
+	}
+	for i := range a.Notes {
+		x, _ := cutEnd(a.Notes[i])
+		y, _ := cutEnd(b.Notes[i])
+		if x != y {
+			return false
+		}
+	}
+	return true
 }
 
 // pushed is stack with step on top. The result shares no array with stack,

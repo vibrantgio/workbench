@@ -89,8 +89,9 @@ type moveCase struct {
 	name     string
 	board    string
 	from, to func(cardSpot) image.Point
-	// file is the board's file after the move, and selected the card the
-	// model selects then.
+	// was is the card's place before the move. file is the board's file
+	// after the move, and selected the card the model selects then.
+	was      Selection
 	file     string
 	selected Selection
 }
@@ -101,6 +102,7 @@ var moveCases = []moveCase{
 		board: fixtureBoard,
 		from:  func(c cardSpot) image.Point { return c.upper(0, 0) },
 		to:    func(c cardSpot) image.Point { return c.lower(0, 2) },
+		was:   Selection{0, 0},
 		file: strings.Replace(fixtureBoard,
 			"- [ ] Draft the release notes\n- [ ] Book the dentist for a cleaning on a Thursday or a Friday morning\n- [ ] Water the plants\n",
 			"- [ ] Book the dentist for a cleaning on a Thursday or a Friday morning\n- [ ] Water the plants\n- [ ] Draft the release notes\n", 1),
@@ -111,6 +113,7 @@ var moveCases = []moveCase{
 		board: fixtureBoard,
 		from:  func(c cardSpot) image.Point { return c.upper(0, 0) },
 		to:    func(c cardSpot) image.Point { return c.upper(1, 0) },
+		was:   Selection{0, 0},
 		file: strings.Replace(strings.Replace(fixtureBoard, "- [ ] Draft the release notes\n", "", 1),
 			"## In Progress\n\n", "## In Progress\n\n- [ ] Draft the release notes\n", 1),
 		selected: Selection{1, 0},
@@ -120,6 +123,7 @@ var moveCases = []moveCase{
 		board: fixtureEmptyColumn,
 		from:  func(c cardSpot) image.Point { return c.upper(0, 0) },
 		to:    func(cardSpot) image.Point { return firstCard(1).Add(image.Pt(0, 40)) },
+		was:   Selection{0, 0},
 		file: strings.Replace(strings.Replace(fixtureEmptyColumn, "- [ ] Draft the release notes\n", "", 1),
 			"## In Progress\n\n", "## In Progress\n\n- [ ] Draft the release notes\n", 1),
 		selected: Selection{1, 0},
@@ -129,9 +133,28 @@ var moveCases = []moveCase{
 		board: fixtureBoard,
 		from:  func(c cardSpot) image.Point { return c.upper(1, 0) },
 		to:    func(c cardSpot) image.Point { return c.lower(2, 1) },
+		was:   Selection{1, 0},
 		file: strings.Replace(strings.Replace(fixtureBoard, "- [ ] Paint the hallway\n", "", 1),
 			"- [x] Renew the passport\n", "- [x] Renew the passport\n- [ ] Paint the hallway\n", 1),
 		selected: Selection{2, 2},
+	},
+	{
+		name:     "the file's last line to another column",
+		board:    "## A\n\n- [ ] One\n\n## B\n\n- [ ] Two\n\tnote two",
+		from:     func(c cardSpot) image.Point { return c.upper(1, 0) },
+		to:       func(c cardSpot) image.Point { return c.upper(0, 0) },
+		was:      Selection{1, 0},
+		file:     "## A\n\n- [ ] Two\n\tnote two\n- [ ] One\n\n## B\n\n",
+		selected: Selection{0, 0},
+	},
+	{
+		name:     "the file's last line within its column",
+		board:    "## A\n\n- [ ] One\n- [ ] Two",
+		from:     func(c cardSpot) image.Point { return c.upper(0, 1) },
+		to:       func(c cardSpot) image.Point { return c.upper(0, 0) },
+		was:      Selection{0, 1},
+		file:     "## A\n\n- [ ] Two\n- [ ] One\n",
+		selected: Selection{0, 0},
 	},
 }
 
@@ -160,22 +183,32 @@ func TestACardIsDraggedToAPlace(t *testing.T) {
 			if n := len(rig.model.Undo); n != 1 || rig.model.Undo[0].Name != stepMove {
 				t.Fatalf("the undo stack is %d steps, want one %q step", n, stepMove)
 			}
-			from := rig.model.Board
-			rig.model, _ = rig.update(rig.model, Undo{})
+			title := titleAt(rig.model.Board, tc.selected)
+			rig.chord("Z", key.ModShortcut)
 			if got := Format(rig.model.Board); got != tc.board {
 				t.Errorf("after Undo the board is\n%q\nwant\n%q", got, tc.board)
 			}
-			if want, _ := followed(from, rig.model.Board, tc.selected); !rig.model.HasSelected || rig.model.Selected != want {
-				t.Errorf("after Undo the model selects %+v (%v), want the moved card at %+v", rig.model.Selected, rig.model.HasSelected, want)
-			}
-			rig.model, _ = rig.update(rig.model, Redo{})
+			rig.selects(tc.was, title, "Undo")
+			rig.menuChord(true)
 			if got := Format(rig.model.Board); got != tc.file {
 				t.Errorf("after Redo the board is\n%q\nwant\n%q", got, tc.file)
 			}
-			if rig.model.Selected != tc.selected {
-				t.Errorf("after Redo the model selects %+v, want %+v", rig.model.Selected, tc.selected)
-			}
+			rig.selects(tc.selected, title, "Redo")
 		})
+	}
+}
+
+// selects reports an error unless the model selects the card titled title
+// at s, and the column that holds s holds the keyboard. after names the
+// step that came before.
+func (rig *boardRig) selects(s Selection, title, after string) {
+	rig.t.Helper()
+	m := rig.model
+	if !m.HasSelected || m.Selected != s || titleAt(m.Board, s) != title {
+		rig.t.Errorf("after %s the model selects %+v (%v), want %q at %+v", after, m.Selected, m.HasSelected, title, s)
+	}
+	if !rig.r.Source().Focused(rig.state.column(s.Column).Focus()) {
+		rig.t.Errorf("after %s column %d does not hold the keyboard", after, s.Column)
 	}
 }
 
